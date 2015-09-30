@@ -60,6 +60,8 @@ draw_general_memory(Debug_View *view, i32_Rect rect, Render_Target *target, i32 
             case BUBBLE_WIDTHS: append(&s, "widths"); break;
             case BUBBLE_WRAPS: append(&s, "wraps"); break;
             case BUBBLE_TOKENS: append(&s, "tokens"); break;
+            case BUBBLE_UNDO_STRING: append(&s, "undo string"); break;
+            case BUBBLE_UNDO: append(&s, "undo"); break;
             default: append(&s, "unknown"); break;
             }
         }

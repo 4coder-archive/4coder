@@ -9,19 +9,44 @@
 
 // TOP
 
-struct Cursor_Data{
-	i32 pos;
-};
-
 enum Endline_Mode{
 	ENDLINE_RN_COMBINED,
 	ENDLINE_RN_SEPARATE,
 	ENDLINE_RN_SHOWALLR
 };
 
+struct Range{
+	union{
+		struct{
+			i32 smaller, larger;
+		};
+		struct{
+			i32 start, end;
+		};
+	};
+	bool32 swapped;
+};
+
+struct Edit_Step{
+    String replaced;
+    Range range;
+    i32 cursor_pos;
+    bool32 can_merge;
+};
+
+struct Undo_Data{
+    i32 str_size, str_redo, str_max;
+    u8 *strings;
+    
+    i32 edit_count, edit_redo, edit_max;
+    Edit_Step *edits;
+};
+
 struct Editing_File{
     i32 size, max_size;
     u8 *data;
+    
+    Undo_Data undo;
     
     i32 line_count, line_max;
     i32 *line_starts;
@@ -31,7 +56,7 @@ struct Editing_File{
     real32 *line_width;
     
     Endline_Mode endline_mode;
-    Cursor_Data cursor;
+    i32 cursor_pos;
     bool32 is_dummy;
     
     char source_path_[256];
@@ -215,18 +240,6 @@ struct File_View{
     Text_Effect paste_effect;
 };
 
-struct Range{
-	union{
-		struct{
-			i32 smaller, larger;
-		};
-		struct{
-			i32 start, end;
-		};
-	};
-	bool32 swapped;
-};
-
 inline File_View*
 view_to_file_view(View *view){
     File_View* result = 0;
@@ -388,6 +401,8 @@ enum File_Bubble_Type{
     BUBBLE_WIDTHS,
     BUBBLE_WRAPS,
     BUBBLE_TOKENS,
+    BUBBLE_UNDO_STRING,
+    BUBBLE_UNDO,
     //
     FILE_BUBBLE_TYPE_END,
 };
@@ -689,7 +704,7 @@ view_measure_wraps(General_Memory *general, File_View *view){
 
 internal void
 buffer_create_from_string(General_Memory *general, Editing_File *file, u8 *filename, Font *font, String val){
-    i32 request_size = LargeRoundUp(1+val.size*2, Kbytes(256));
+    i32 request_size = LargeRoundUp(1+val.size*2, Kbytes(64));
     u8 *data = (u8*)general_memory_allocate(general, request_size, BUBBLE_BUFFER);
     
     // TODO(allen): if we didn't get the memory what is going on?
@@ -713,6 +728,14 @@ buffer_create_from_string(General_Memory *general, Editing_File *file, u8 *filen
     buffer_measure_starts(general, file);
     buffer_measure_widths(general, file, font);
     file->font = font;
+
+    file->undo.str_max = request_size;
+    file->undo.str_redo = file->undo.str_max;
+    file->undo.strings = (u8*)general_memory_allocate(general, request_size, BUBBLE_UNDO_STRING);
+    
+    file->undo.edit_max = request_size / sizeof(Edit_Step);
+    file->undo.edit_redo = file->undo.edit_max;
+    file->undo.edits = (Edit_Step*)general_memory_allocate(general, request_size, BUBBLE_UNDO);
     
     if (!match(file->extension, make_lit_string("txt"))){
         file->tokens_exist = 1;
@@ -788,12 +811,6 @@ buffer_get_dummy(Editing_File *buffer){
 	buffer->data = (u8*)&buffer->size;
 	buffer->is_dummy = 1;
 }
-
-enum Replace_Operation_Type{
-	REP_UNKNOWN,
-	REP_REGULAR,
-	REP_WHITESPACE
-};
 
 struct Shift_Information{
 	i32 start, end, amount;
@@ -955,7 +972,6 @@ buffer_relex_parallel(Mem_Options *mem, Editing_File *file,
         }
         
         if (!inline_lex){
-            // TODO(allen): duplicated see REP_WHITESPACE
             i32 end_token_i = cpp_get_end_token(&file->token_stack, end_i);
             cpp_shift_token_starts(&file->token_stack, end_token_i, amount);
             --end_token_i;
@@ -997,73 +1013,171 @@ buffer_grow_as_needed(General_Memory *general, Editing_File *file, i32 additiona
     return result;
 }
 
+inline void
+buffer_grow_undo_string(General_Memory *general, Editing_File *file, i32 extra_size){
+    i32 old_max = file->undo.str_max;
+    u8 *old_str = file->undo.strings;
+    i32 redo_size = old_max - file->undo.str_redo;
+    i32 new_max = old_max*2 + extra_size;
+    u8 *new_str = (u8*)
+        general_memory_allocate(general, new_max, BUBBLE_UNDO_STRING);
+    i32 new_redo = new_max - redo_size;
+    
+    memcpy(new_str, old_str, file->undo.str_size);
+    memcpy(new_str + new_redo, old_str + file->undo.str_redo, redo_size);
+    
+    general_memory_free(general, old_str);
+    
+    file->undo.strings = new_str;
+    file->undo.str_max = new_max;
+    file->undo.str_redo = new_redo;
+}
+
+inline void
+buffer_grow_undo_edits(General_Memory *general, Editing_File *file){
+    i32 old_max = file->undo.edit_max;
+    Edit_Step *old_eds = file->undo.edits;
+    i32 redo_size = old_max - file->undo.edit_redo;
+    i32 new_max = old_max*2 + 2;
+    Edit_Step *new_eds = (Edit_Step*)
+        general_memory_allocate(general, new_max*sizeof(Edit_Step), BUBBLE_UNDO);
+    i32 new_redo = new_max - redo_size;
+    
+    memcpy(new_eds, old_eds, file->undo.edit_count*sizeof(Edit_Step));
+    memcpy(new_eds + new_redo, old_eds, redo_size*sizeof(Edit_Step));
+    
+    general_memory_free(general, old_eds);
+    
+    file->undo.edits = new_eds;
+    file->undo.edit_max = new_max;
+    file->undo.edit_redo = new_redo;
+}
+
+inline void
+buffer_post_undo(General_Memory *general, Editing_File *file,
+                 i32 start, i32 end, i32 str_len, bool32 do_merge, bool32 can_merge,
+                 bool32 clear_redo){
+    String replaced = make_string((char*)file->data + start, end - start);
+
+    if (clear_redo){
+        file->undo.str_redo = file->undo.str_max;
+        file->undo.edit_redo = file->undo.edit_max;
+    }
+    
+    if (file->undo.str_redo < file->undo.str_size + replaced.size)
+        buffer_grow_undo_string(general, file, replaced.size);
+    
+    Edit_Step edit;
+    edit.replaced = make_string((char*)file->undo.strings + file->undo.str_size, replaced.size);
+    file->undo.str_size += replaced.size;
+    copy(&edit.replaced, replaced);
+    edit.range = {start, start + str_len, 0};
+    edit.cursor_pos = file->cursor_pos;
+    edit.can_merge = can_merge;
+    
+    bool32 did_merge = 0;
+    if (do_merge && file->undo.edit_count > 0){
+        Edit_Step prev = file->undo.edits[file->undo.edit_count-1];
+        if (prev.can_merge && edit.replaced.size == 0 && prev.replaced.size == 0){
+            if (prev.range.end == edit.range.start){
+                did_merge = 1;
+                edit.range.start = prev.range.start;
+                edit.cursor_pos = prev.cursor_pos;
+            }
+        }
+    }
+    
+    if (did_merge){
+        file->undo.edits[file->undo.edit_count-1] = edit;
+    }
+    else{
+        if (file->undo.edit_redo <= file->undo.edit_count)
+            buffer_grow_undo_edits(general, file);
+        file->undo.edits[file->undo.edit_count++] = edit;
+    }
+}
+
+inline void
+buffer_post_redo(General_Memory *general, Editing_File *file,
+                 i32 start, i32 end, i32 str_len){
+    String replaced = make_string((char*)file->data + start, end - start);
+    
+    if (file->undo.str_redo - replaced.size < file->undo.str_size)
+        buffer_grow_undo_string(general, file, replaced.size);
+    
+    file->undo.str_redo -= replaced.size;
+    TentativeAssert(file->undo.str_redo >= file->undo.str_size);
+    
+    Edit_Step edit;
+    edit.replaced = make_string((char*)file->undo.strings + file->undo.str_redo, replaced.size);
+    copy(&edit.replaced, replaced);
+    edit.range = {start, start + str_len, 0};
+    edit.cursor_pos = file->cursor_pos;
+    
+    if (file->undo.edit_redo <= file->undo.edit_count)
+        buffer_grow_undo_edits(general, file);
+    --file->undo.edit_redo;
+    file->undo.edits[file->undo.edit_redo] = edit;
+}
+
+inline i32
+buffer_text_replace(General_Memory *general, Editing_File *file,
+                    i32 start, i32 end, u8 *str, i32 str_len){
+	i32 shift_amount = (str_len - (end - start));
+    
+    buffer_grow_as_needed(general, file, shift_amount);
+	Assert(shift_amount + file->size < file->max_size);
+	
+    i32 size = file->size;
+    u8 *data = (u8*)file->data;
+    memmove(data + end + shift_amount, data + end, size - end);
+    file->size += shift_amount;
+    
+    memcpy(data + start, str, str_len);
+    
+    return shift_amount;
+}
+
 // TODO(allen): Proper strings?
 internal Shift_Information
 buffer_replace_range(Mem_Options *mem, Editing_File *file,
                      i32 start, i32 end, u8 *str, i32 str_len,
-					 Replace_Operation_Type op_type = REP_UNKNOWN){
+                     i32 save_undo = 1){
     ProfileMomentFunction();
-    General_Memory *general = &mem->general;
     
-	Shift_Information shift = {};
-	shift.start = start;
-	shift.end = end;
-	shift.amount = (str_len - (end - start));
-	
-    // TODO(allen): Quickly figure out which op type is appropriate?
-    // Or just assume REGULAR, as that is always correct?
-    
-    buffer_grow_as_needed(general, file, shift.amount);
-	Assert(shift.amount + file->size < file->max_size);
-	
-    if (file->still_lexing){
+    if (file->still_lexing)
         system_cancel_job(BACKGROUND_THREADS, file->lex_job);
-    }
     
     file->last_4ed_edit_time = system_get_now();
     
-    i32 size = file->size;
-    u8 *data = (u8*)file->data;
-    memmove(data + shift.end + shift.amount, data + shift.end, size - end);
-    file->size += shift.amount;
-    
-    memcpy(data + start, str, str_len);
-    
-    if (file->tokens_exist){
-        switch (op_type){
-        case REP_UNKNOWN:
-        case REP_REGULAR:
-        {
-            buffer_relex_parallel(mem, file, start, end, shift.amount);
-        }break;
-        
-        case REP_WHITESPACE:
-        {
-            // TODO(allen): duplicated see buffer_relex_parallel
-            i32 end_token_i = cpp_get_end_token(&file->token_stack, end);
-            cpp_shift_token_starts(&file->token_stack, end_token_i, shift.amount);
-            --end_token_i;
-            if (end_token_i >= 0){
-                Cpp_Token *token = file->token_stack.tokens + end_token_i;
-                if (token->start < end && token->start + token->size > end){
-                    token->size += shift.amount;
-                }
-            }
-        }break;
-        }
+    General_Memory *general = &mem->general;
+    if (save_undo){
+        bool32 can_merge = 0, do_merge = 0;
+        if (str_len == 1 && char_is_alpha_numeric(*str)) can_merge = 1;
+        if (str_len == 1 && (can_merge || char_is_whitespace(*str))) do_merge = 1;
+        buffer_post_undo(general, file, start, end, str_len, do_merge, can_merge, save_undo == 1);
     }
     
-    i32 line_start = buffer_get_line_index(file, shift.start);
-    i32 line_end = buffer_get_line_index(file, shift.end);
+    i32 shift_amount = buffer_text_replace(general, file, start, end, str, str_len);
+    
+    if (file->tokens_exist)
+        buffer_relex_parallel(mem, file, start, end, shift_amount);
+    
+    i32 line_start = buffer_get_line_index(file, start);
+    i32 line_end = buffer_get_line_index(file, end);
     i32 replaced_line_count = line_end - line_start;
-    i32 new_line_count = buffer_count_newlines(file, shift.start, shift.start+str_len);
+    i32 new_line_count = buffer_count_newlines(file, start, start+str_len);
     i32 line_shift =  new_line_count - replaced_line_count;
     
-    buffer_remeasure_starts(general, file, line_start, line_end, line_shift, shift.amount);
+    buffer_remeasure_starts(general, file, line_start, line_end, line_shift, shift_amount);
     
     // TODO(allen): Can we "remeasure" widths now!?
     buffer_measure_widths(general, file, file->font);
     
+    Shift_Information shift;
+    shift.start = start;
+    shift.end = end;
+    shift.amount = shift_amount;
 	return shift;
 }
 
@@ -1490,7 +1604,7 @@ view_set_file(File_View *view, Editing_File *file, Style *style){
     view_measure_wraps(general, view);
     
     view->cursor = {};
-    view->cursor = view_compute_cursor_from_pos(view, file->cursor.pos);
+    view->cursor = view_compute_cursor_from_pos(view, file->cursor_pos);
     
     real32 cursor_x, cursor_y;
     real32 w, h;
@@ -1555,7 +1669,7 @@ inline void
 view_cursor_move(File_View *view, View_Cursor_Data cursor){
 	view->cursor = cursor;
     view->preferred_x = view_get_cursor_x(view);
-	view->file->cursor.pos = view->cursor.pos;
+	view->file->cursor_pos = view->cursor.pos;
     view->show_temp_highlight = 0;
 }
 
@@ -1563,7 +1677,7 @@ inline void
 view_cursor_move(File_View *view, i32 pos){
 	view->cursor = view_compute_cursor_from_pos(view, pos);
     view->preferred_x = view_get_cursor_x(view);
-	view->file->cursor.pos = view->cursor.pos;
+	view->file->cursor_pos = view->cursor.pos;
     view->show_temp_highlight = 0;
 }
 
@@ -1576,7 +1690,7 @@ view_cursor_move(File_View *view, real32 x, real32 y, bool32 round_down = 0){
         view->cursor = view_compute_cursor_from_wrapped_xy(view, x, y, round_down);
     }
     view->preferred_x = view_get_cursor_x(view);
-	view->file->cursor.pos = view->cursor.pos;
+	view->file->cursor_pos = view->cursor.pos;
     view->show_temp_highlight = 0;
 }
 
@@ -1721,6 +1835,7 @@ clipboard_copy(General_Memory *general, Working_Set *working, u8 *data, Range ra
 	system_post_clipboard(*dest);
 }
 
+#if 0
 internal void
 view_endline_convert(Mem_Options *mem, File_View *view,
                      Endline_Convert_Type rn_to,
@@ -1766,8 +1881,7 @@ view_endline_convert(Mem_Options *mem, File_View *view,
 				if (rn_to != ENDLINE_RN){
 					buffer_replace_range(mem, file, i, i+2,
 										 eol_strings[rn_to].str,
-										 eol_strings[rn_to].size,
-										 REP_WHITESPACE);
+										 eol_strings[rn_to].size);
 					i32 shift = eol_strings[rn_to].size - 2;
 					if (cursor >= i){
 						cursor += shift;
@@ -1785,8 +1899,7 @@ view_endline_convert(Mem_Options *mem, File_View *view,
 				if (r_to != ENDLINE_R){
 					buffer_replace_range(mem, file, i, i+1,
 										 eol_strings[r_to].str,
-										 eol_strings[r_to].size,
-										 REP_WHITESPACE);
+										 eol_strings[r_to].size);
 					i32 shift = eol_strings[r_to].size - 1;
 					if (cursor >= i){
 						cursor += shift;
@@ -1803,8 +1916,7 @@ view_endline_convert(Mem_Options *mem, File_View *view,
 				if (n_to != ENDLINE_N){
 					buffer_replace_range(mem, file, i, i+1,
 										 eol_strings[n_to].str,
-										 eol_strings[n_to].size,
-										 REP_WHITESPACE);
+										 eol_strings[n_to].size);
 					i32 shift = eol_strings[n_to].size - 1;
 					if (cursor >= i){
 						cursor += shift;
@@ -1821,6 +1933,7 @@ view_endline_convert(Mem_Options *mem, File_View *view,
 	view->cursor = view_compute_cursor_from_pos(view, cursor);
 	view->mark = mark;
 }
+#endif
 
 struct Indent_Definition{
 	i32 tabs, spaces;
@@ -1860,6 +1973,7 @@ buffer_find_hard_start(Editing_File *file, i32 line_start){
 	return result;
 }
 
+#if 0
 // NOTE(allen): Assumes that whitespace_buffer has at least
 // indent.tabs*4 + indent.spaces bytes available.
 internal Shift_Information
@@ -1885,7 +1999,7 @@ buffer_set_indent_whitespace(Mem_Options *mem, Editing_File *file,
     if (leading_white.smaller < leading_white.larger){
         shift = buffer_replace_range(mem, file,
                                      leading_white.smaller, leading_white.larger,
-                                     whitespace_buffer, i, REP_WHITESPACE);
+                                     whitespace_buffer, i);
     }
     
 	return shift;
@@ -2005,7 +2119,9 @@ buffer_compute_nest_level_tokens(Editing_File *file, i32 pos, Nest_Level_Hint hi
 	}
 	return result;
 }
+#endif
 
+#if 0
 internal void
 view_auto_tab(Mem_Options *mem, File_View *view, i32 start, i32 end){
 	Editing_File *file = view->file;
@@ -2258,6 +2374,7 @@ view_auto_tab(Mem_Options *mem, File_View *view, i32 start, i32 end){
 	view_cursor_move(view, cursor);
 	view->mark = pos_adjust_to_self(mark, data, file->size);
 }
+#endif
 
 internal u32*
 style_get_color(Style *style, Cpp_Token token){
@@ -2458,62 +2575,6 @@ step_file_view(Thread_Context *thread, View *view_, i32_Rect rect,
     return result;
 }
 
-internal void
-file_view_intbar(Thread_Context *thread, Render_Target *target,
-                 Interactive_Bar *bar, File_View *view,
-                 Editing_File *file, Style *style){
-    i32 w, h;
-    w = bar->rect.x1 - bar->rect.x0;
-    h = bar->rect.y1 - bar->rect.y0;
-    u32 back_color = bar->style.bar_color;
-    draw_rectangle(target, bar->rect, back_color);
-    
-    u32 base_color = bar->style.base_color;
-    intbar_draw_string(target, bar, file->live_name, base_color);
-    intbar_draw_string(target, bar, make_lit_string(" - "), base_color);
-    
-    char line_number_space[30];
-    String line_number = make_string(line_number_space, 0, 30);
-    append(&line_number, "L#");
-    append_int_to_str(view->cursor.line, &line_number);
-    
-    intbar_draw_string(target, bar, line_number, base_color);
-    
-    switch (view->state){
-    case FVIEW_STATE_EDIT:
-    {
-        if (file->last_4ed_write_time != file->last_sys_write_time){
-            persist String out_of_sync = make_lit_string(" BEHIND OS");
-            intbar_draw_string(target, bar, out_of_sync, bar->style.pop2_color);
-        }
-        else if (file->last_4ed_edit_time > file->last_sys_write_time){
-            persist String out_of_sync = make_lit_string(" *");
-            intbar_draw_string(target, bar, out_of_sync, bar->style.pop2_color);
-        }
-    }break;
-    
-    case FVIEW_STATE_SEARCH:
-    {
-        persist String search_str = make_lit_string(" I-Search: ");
-        persist String rsearch_str = make_lit_string(" Reverse-I-Search: ");
-        if (view->isearch.reverse){
-            intbar_draw_string(target, bar, rsearch_str, bar->style.pop1_color);
-        }
-        else{
-            intbar_draw_string(target, bar, search_str, bar->style.pop1_color);
-        }
-        intbar_draw_string(target, bar, view->isearch.str, bar->style.base_color);
-    }break;
-    
-    case FVIEW_STATE_GOTO_LINE:
-    {
-        persist String gotoline_str = make_lit_string(" Goto Line: ");
-        intbar_draw_string(target, bar, gotoline_str, bar->style.pop1_color);
-        intbar_draw_string(target, bar, view->isearch.str, bar->style.base_color);
-    }break;
-    }
-}
-
 internal i32
 draw_file_view(Thread_Context *thread, View *view_, i32_Rect rect, bool32 is_active,
                Render_Target *target){
@@ -2601,7 +2662,7 @@ draw_file_view(Thread_Context *thread, View *view_, i32_Rect rect, bool32 is_act
             real32 fade_amount = 0.f;
             if (view->paste_effect.tick_down > 0 &&
                 view->paste_effect.start <= i && i < view->paste_effect.end){
-                fade_color = style->main.paste_color;
+                fade_color = view->paste_effect.color;
                 fade_amount = (real32)(view->paste_effect.tick_down) / view->paste_effect.tick_max;
             }
             
@@ -2765,7 +2826,69 @@ draw_file_view(Thread_Context *thread, View *view_, i32_Rect rect, bool32 is_act
         }
     }
     
-    file_view_intbar(thread, target, &bar, view, file, style);
+    {
+        Interactive_Bar bar2;
+        bar2.style = style->main.file_info_style;
+        bar2.font = style->font;
+        bar2.pos_x = (real32)rect.x0;
+        bar2.pos_y = (real32)rect.y0 + 3;
+        bar2.text_shift_y = 0;
+        bar2.text_shift_x = 0;
+        bar2.rect = rect;
+        bar2.rect.y1 = bar2.rect.y0 + font->height + 2;
+        
+        switch (view->state){
+        case FVIEW_STATE_SEARCH:
+        {
+            draw_rectangle(target, bar2.rect, bar2.style.bar_active_color);
+            
+            persist String search_str = make_lit_string("I-Search: ");
+            persist String rsearch_str = make_lit_string("Reverse-I-Search: ");
+            if (view->isearch.reverse){
+                intbar_draw_string(target, &bar2, rsearch_str, bar2.style.pop1_color);
+            }
+            else{
+                intbar_draw_string(target, &bar2, search_str, bar2.style.pop1_color);
+            }
+            intbar_draw_string(target, &bar2, view->isearch.str, bar2.style.base_color);
+        }break;
+        
+        case FVIEW_STATE_GOTO_LINE:
+        {
+            draw_rectangle(target, bar2.rect, bar2.style.bar_active_color);
+            
+            persist String gotoline_str = make_lit_string("Goto Line: ");
+            intbar_draw_string(target, &bar2, gotoline_str, bar2.style.pop1_color);
+            intbar_draw_string(target, &bar2, view->isearch.str, bar2.style.base_color);
+        }break;
+        }
+    }
+    
+    {
+        u32 back_color = bar.style.bar_color;
+        draw_rectangle(target, bar.rect, back_color);
+        
+        u32 base_color = bar.style.base_color;
+        intbar_draw_string(target, &bar, file->live_name, base_color);
+        intbar_draw_string(target, &bar, make_lit_string(" - "), base_color);
+        
+        char line_number_space[30];
+        String line_number = make_string(line_number_space, 0, 30);
+        append(&line_number, "L#");
+        append_int_to_str(view->cursor.line, &line_number);
+        
+        intbar_draw_string(target, &bar, line_number, base_color);
+        
+        if (file->last_4ed_write_time != file->last_sys_write_time){
+            persist String out_of_sync = make_lit_string(" BEHIND OS");
+            intbar_draw_string(target, &bar, out_of_sync, bar.style.pop2_color);
+        }
+        else if (file->last_4ed_edit_time > file->last_sys_write_time){
+            persist String out_of_sync = make_lit_string(" *");
+            intbar_draw_string(target, &bar, out_of_sync, bar.style.pop2_color);
+        }
+    }
+    
     return 0;
 }
 

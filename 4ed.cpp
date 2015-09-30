@@ -12,8 +12,6 @@
 // 
 // BUGS & PROBLEMS
 // 
-// - LOGGING SYSTEM FOR ALL BUILD CONFIGS
-// 
 // - line_wrap_ys remeasurement optimization
 // 
 // GENERAL
@@ -30,8 +28,6 @@
 //    command use frequency
 // 
 // - configuration / GUI for generating configuration
-// 
-// - no scroll on line wrap/line mode change
 // 
 // - travel packaging
 // 
@@ -63,8 +59,6 @@
 // 
 // - select token
 // 
-// - seek token or whitespace within token
-// 
 // - reprogrammable lexing / auto indent
 // 
 // - bracket match / mismatch highlighting
@@ -89,9 +83,7 @@
 // - generate header
 // 
 
-/*
- * App Structs
- */
+// App Structs
 
 enum App_State{
     APP_STATE_EDIT,
@@ -142,9 +134,7 @@ struct App_Vars{
     Panel *prev_mouse_panel;
 };
 
-/*
- * Commands
- */
+// Commands
 
 globalvar Application_Links app_links;
 
@@ -235,7 +225,7 @@ COMMAND_DECL(write_character){
             current_view->preferred_x = view_get_cursor_x(current_view);
         }
     }
-    file->cursor.pos = view->cursor.pos;
+    file->cursor_pos = view->cursor.pos;
 }
 
 internal i32
@@ -732,11 +722,8 @@ COMMAND_DECL(paste_next){
                                  (u8*)src->str, src->size);
             
             view_measure_wraps(&mem->general, view);
-            
-            view->cursor = view_compute_cursor_from_pos(view, range.smaller+src->size);
-            view->preferred_x = view_get_cursor_x(view);
-            view->file->cursor.pos = view->cursor.pos;
-            
+
+            view_cursor_move(view, range.smaller+src->size);
             view->mark = pos_universal_fix(range.smaller,
                                            file->data, file->size,
                                            file->endline_mode);
@@ -792,11 +779,10 @@ COMMAND_DECL(delete_chunk){
         }
         buffer_delete_range(mem, file, range);
         view_measure_wraps(&mem->general, view);
-        view->cursor = view_compute_cursor_from_pos(view, range.smaller);
+        view_cursor_move(view, range.smaller);
         view->mark = pos_universal_fix(range.smaller,
                                        file->data, file->size,
                                        file->endline_mode);
-        view->file->cursor.pos = view->cursor.pos;
         
         Editing_Layout *layout = command->layout;
         Panel *panels = layout->panels;
@@ -825,6 +811,49 @@ COMMAND_DECL(delete_chunk){
                 }
             }
         }
+    }
+}
+
+COMMAND_DECL(undo){
+    ProfileMomentFunction();
+    REQ_FILE_VIEW(view);
+    REQ_FILE(file, view);
+    USE_MEM(mem);
+    
+    if (file->undo.edit_count > 0){
+        Edit_Step step = file->undo.edits[--file->undo.edit_count];
+        
+        buffer_post_redo(&mem->general, file, step.range.start, step.range.end, step.replaced.size);
+        buffer_replace_range(mem, file, step.range.start, step.range.end,
+                             (u8*)step.replaced.str, step.replaced.size, 0);
+        view_cursor_move(view, step.cursor_pos);
+        view->mark = view->cursor.pos;
+        
+        view_post_paste_effect(view, 10, step.range.start, step.replaced.size,
+                               view->style->main.undo_color);
+        
+        file->undo.str_size -= step.replaced.size;
+    }
+}
+
+COMMAND_DECL(redo){
+    ProfileMomentFunction();
+    REQ_FILE_VIEW(view);
+    REQ_FILE(file, view);
+    USE_MEM(mem);
+    
+    if (file->undo.edit_redo < file->undo.edit_max){
+        Edit_Step step = file->undo.edits[file->undo.edit_redo++];
+        
+        buffer_replace_range(mem, file, step.range.start, step.range.end,
+                             (u8*)step.replaced.str, step.replaced.size, 2);
+        view_cursor_move(view, step.cursor_pos);
+        view->mark = view->cursor.pos;
+        
+        view_post_paste_effect(view, 10, step.range.start, step.replaced.size,
+                               view->style->main.undo_color);
+        
+        file->undo.str_redo += step.replaced.size;
     }
 }
 
@@ -1132,6 +1161,7 @@ COMMAND_DECL(to_lowercase){
     }
 }
 
+#if 0
 internal void
 view_clean_line(Mem_Options *mem, File_View *view, Editing_File *file, i32 line_start){
     u8 *data = file->data;
@@ -1188,8 +1218,10 @@ view_clean_line(Mem_Options *mem, File_View *view, Editing_File *file, i32 line_
         //view_auto_tab(mem, view, pos, pos);
     }
 }
+#endif
 
 COMMAND_DECL(clean_line){
+#if 0
     ProfileMomentFunction();
     REQ_FILE_VIEW(view);
     REQ_FILE(file, view);
@@ -1198,9 +1230,11 @@ COMMAND_DECL(clean_line){
     i32 line_start = view_find_beginning_of_line(view, view->cursor.pos);
     view_clean_line(mem, view, file, line_start);
     view_measure_wraps(&mem->general, view);
+#endif
 }
 
 COMMAND_DECL(clean_all_lines){
+#if 0
     ProfileMomentFunction();
     REQ_FILE_VIEW(view);
     REQ_FILE(file, view);
@@ -1213,9 +1247,11 @@ COMMAND_DECL(clean_all_lines){
     
     view_measure_wraps(&mem->general, view);
     view->cursor = view_compute_cursor_from_pos(view, view->cursor.pos);
+#endif
 }
 
 COMMAND_DECL(eol_dosify){
+#if 0
     ProfileMomentFunction();
     REQ_FILE_VIEW(view);
     REQ_FILE(file, view);
@@ -1223,9 +1259,11 @@ COMMAND_DECL(eol_dosify){
     
     view_endline_convert(mem, view, ENDLINE_RN, ENDLINE_ERASE, ENDLINE_RN);
     view_measure_wraps(&mem->general, view);
+#endif
 }
 
 COMMAND_DECL(eol_nixify){
+#if 0
     ProfileMomentFunction();
     REQ_FILE_VIEW(view);
     REQ_FILE(file, view);
@@ -1233,17 +1271,19 @@ COMMAND_DECL(eol_nixify){
     
     view_endline_convert(mem, view, ENDLINE_N, ENDLINE_ERASE, ENDLINE_N);
     view_measure_wraps(&mem->general, view);
+#endif
 }
 
 COMMAND_DECL(auto_tab){
+#if 0
     ProfileMomentFunction();
     REQ_FILE_VIEW(view);
     REQ_FILE(file, view);
     USE_MEM(mem);
-    
     Range range = get_range(view->cursor.pos, view->mark);
     view_auto_tab(mem, view, range.smaller, range.larger);
     view_measure_wraps(&mem->general, view);
+#endif
 }
 
 COMMAND_DECL(open_panel_vsplit){
@@ -1541,7 +1581,7 @@ COMMAND_DECL(move_up){
     real32 px = view->preferred_x;
     if (cy >= 0){
         view->cursor = view_compute_cursor_from_xy(view, px, cy);
-        view->file->cursor.pos = view->cursor.pos;
+        view->file->cursor_pos = view->cursor.pos;
     }
 }
 
@@ -1553,7 +1593,7 @@ COMMAND_DECL(move_down){
     real32 cy = view_get_cursor_y(view)+view->style->font->height;
     real32 px = view->preferred_x;
     view->cursor = view_compute_cursor_from_xy(view, px, cy);
-    view->file->cursor.pos = view->cursor.pos;
+    view->file->cursor_pos = view->cursor.pos;
 }
 
 COMMAND_DECL(seek_end_of_line){
@@ -1709,12 +1749,15 @@ COMMAND_DECL(cursor_mark_swap){
     view->mark = pos;
 }
 
-internal void
-fulfill_interaction(Command_Data *command, char *data, bool32 full_set){
+internal bool32
+fulfill_interaction_intview(Command_Data *command, char *data, bool32 full_set){
+    bool32 result = 0;
     Panel *panel = command->panel;
     View *view = panel->view;
     Interactive_View *int_view = view_to_interactive_view(view);
     if (int_view){
+        result = 1;
+        
         String *dest = 0;
         switch (int_view->interaction){
         case INTV_SYS_FILE_LIST:
@@ -1726,9 +1769,11 @@ fulfill_interaction(Command_Data *command, char *data, bool32 full_set){
         }
         if (full_set) dest->size = 0;
         append(dest, data);
+        
+        interactive_view_complete(int_view);
     }
-    
-    interactive_view_complete(int_view);
+
+    return result;
 }
 
 COMMAND_DECL(user_callback){
@@ -1766,7 +1811,8 @@ extern "C"{
     
     FULFILL_INTERACTION_SIG(fulfill_interaction_external){
         Command_Data *cmd = (Command_Data*)cmd_context;
-        fulfill_interaction(cmd, data, full_set);
+        bool32 handled = 0;
+        handled = fulfill_interaction_intview(cmd, data, full_set);
     }
 }
 
@@ -1829,6 +1875,8 @@ setup_file_commands(Command_Map *commands, Key_Codes *codes){
     map_add(commands, 'x', MDFR_CTRL, command_cut);
     map_add(commands, 'v', MDFR_CTRL, command_paste);
     map_add(commands, 'V', MDFR_CTRL, command_paste_next);
+    map_add(commands, 'z', MDFR_CTRL, command_undo);
+    map_add(commands, 'y', MDFR_CTRL, command_redo);
     map_add(commands, 'd', MDFR_CTRL, command_delete_chunk);
     map_add(commands, 'l', MDFR_CTRL, command_toggle_line_wrap);
     map_add(commands, 'L', MDFR_CTRL, command_toggle_endline_mode);
@@ -1956,9 +2004,7 @@ setup_command_table(){
 #undef SET
 }
 
-/*
- * Interactive Bar
- */
+// Interactive Bar
 
 internal void
 hot_directory_draw_helper(Render_Target *target,
@@ -2074,12 +2120,14 @@ app_hardcode_styles(App_Vars *vars){
     style->main.special_character_color = 0xFFFF0000;
     
     style->main.paste_color = 0xFFDDEE00;
+    style->main.undo_color = 0xFF00DDEE;
+    style->main.next_undo_color = 0xFF006E77;
     
     style->main.highlight_junk_color = 0xff3a0000;
     style->main.highlight_white_color = 0xff003a3a;
     
     file_info_style.bar_color = 0xFF888888;
-    file_info_style.bar_active_color = 0xFF888888;
+    file_info_style.bar_active_color = 0xFF666666;
     file_info_style.base_color = 0xFF000000;
     file_info_style.pop1_color = 0xFF4444AA;
     file_info_style.pop2_color = 0xFFFF0000;
@@ -2119,12 +2167,14 @@ app_hardcode_styles(App_Vars *vars){
     style->main.special_character_color = 0xFFFF0000;
     
     style->main.paste_color = 0xFFFFBB00;
+    style->main.undo_color = 0xFFFF00BB;
+    style->main.undo_color = 0xFF80005D;
     
     style->main.highlight_junk_color = 0xFF3A0000;
     style->main.highlight_white_color = 0xFF003A3A;
     
     file_info_style.bar_color = 0xFFCACACA;
-    file_info_style.bar_active_color = 0xFFCACACA;
+    file_info_style.bar_active_color = 0xFFA8A8A8;
     file_info_style.base_color = 0xFF000000;
     file_info_style.pop1_color = 0xFF1504CF;
     file_info_style.pop2_color = 0xFFFF0000;
@@ -2158,12 +2208,14 @@ app_hardcode_styles(App_Vars *vars){
     style->main.special_character_color = 0xFFFF0000;
     
     style->main.paste_color = 0xFFDDEE00;
+    style->main.undo_color = 0xFF00DDEE;
+    style->main.next_undo_color = 0xFF006E77;
     
     style->main.highlight_junk_color = 0xff3a0000;
     style->main.highlight_white_color = 0xFF151F2A;
     
     file_info_style.bar_color = 0xFF315E68;
-    file_info_style.bar_active_color = 0xFF315E68;
+    file_info_style.bar_active_color = 0xFF0F3C46;
     file_info_style.base_color = 0xFF000000;
     file_info_style.pop1_color = 0xFF1BFF0C;
     file_info_style.pop2_color = 0xFFFF200D;
@@ -2197,12 +2249,14 @@ app_hardcode_styles(App_Vars *vars){
     style->main.special_character_color = 0xFFFF0000;
     
     style->main.paste_color = 0xFF900090;
+    style->main.undo_color = 0xFF606090;
+    style->main.next_undo_color = 0xFF404070;
     
     style->main.highlight_junk_color = 0xff3a0000;
     style->main.highlight_white_color = 0xff003a3a;
     
     file_info_style.bar_color = 0xFF7082F9;
-    file_info_style.bar_active_color = 0xFF7082F9;
+    file_info_style.bar_active_color = 0xFF4E60D7;
     file_info_style.base_color = 0xFF000000;
     file_info_style.pop1_color = 0xFFFAFA15;
     file_info_style.pop2_color = 0xFFD20000;
@@ -2236,12 +2290,14 @@ app_hardcode_styles(App_Vars *vars){
     style->main.special_character_color = 0xFF9A0000;
     
     style->main.paste_color = 0xFF00B8B8;
+    style->main.undo_color = 0xFFB800B8;
+    style->main.next_undo_color = 0xFF5C005C;
     
     style->main.highlight_junk_color = 0xFFFF7878;
     style->main.highlight_white_color = 0xFFBCBCBC;
     
     file_info_style.bar_color = 0xFF606060;
-    file_info_style.bar_active_color = 0xFF888888;
+    file_info_style.bar_active_color = 0xFF3E3E3E;
     file_info_style.base_color = 0xFF000000;
     file_info_style.pop1_color = 0xFF1111DC;
     file_info_style.pop2_color = 0xFFE80505;
