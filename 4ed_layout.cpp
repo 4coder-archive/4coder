@@ -69,7 +69,7 @@ struct View{
     Command_Map *map;
     Do_View_Function *do_view;
     Handle_Command_Function *handle_command;
-    General_Memory *general;
+    Mem_Options *mem;
     i32 type;
     i32 block_size;
     Application_Mouse_Cursor mouse_cursor_type;
@@ -173,7 +173,7 @@ live_set_get_view(Live_Views *live_set, i32 i){
 }
 
 internal View*
-live_set_alloc_view(Live_Views *live_set, General_Memory *general){
+live_set_alloc_view(Live_Views *live_set, Mem_Options *mem){
     Assert(live_set->count < live_set->max);
     View *result = 0;
     result = live_set->free_view;
@@ -181,7 +181,7 @@ live_set_alloc_view(Live_Views *live_set, General_Memory *general){
     memset(result, 0, live_set->stride);
     ++live_set->count;
     result->is_active = 1;
-    result->general = general;
+    result->mem = mem;
     return result;
 }
 

@@ -35,8 +35,6 @@
 // 
 // - nav links
 // 
-// - undo / redo
-// 
 // - on file reopen diff and try to find place for cursor
 // 
 // TOOLS
@@ -123,7 +121,7 @@ struct App_Vars{
     
     char query_[256];
     char dest_[256];
-
+    
     Delay delay;
 
     String mini_str;
@@ -179,6 +177,7 @@ COMMAND_DECL(write_character){
     ProfileMomentFunction();
     REQ_FILE_VIEW(view);
     REQ_FILE(file, view);
+    USE_LAYOUT(layout);
     USE_MEM(mem);
     
     u8 character = (u8)command->key.key.character;
@@ -194,38 +193,13 @@ COMMAND_DECL(write_character){
         string.size = 1;
     }
     
-    i32 pos = pos_adjust_to_left(view->cursor.pos, file->data);
-    buffer_replace_range(mem, file, pos, pos, (u8*)string.str, string.size);
-    
-#if 0
-    switch ((u8)command->key.key.character){
-    case '{': case '}':
-    case '(': case ')':
-    case ';': case ':':
-    case '#': case '\n':
-    {
-        view_auto_tab(view, view->cursor.pos, view->cursor.pos);
-    }break;
-    }
-#endif
-    
-    Editing_Layout *layout = command->layout;
-    Panel *current_panel = layout->panels;
-    i32 panel_count = layout->panel_count;
-    for (i32 i = 0; i < panel_count; ++i, ++current_panel){
-        File_View *current_view = view_to_file_view(current_panel->view);
-        if (current_view && current_view->file == file){
-            view_measure_wraps(&mem->general, current_view);
-            if (current_view->cursor.pos >= pos){
-                view_cursor_move(current_view, current_view->cursor.pos+string.size);
-            }
-            if (current_view->mark >= pos){
-                current_view->mark += string.size;
-            }
-            current_view->preferred_x = view_get_cursor_x(current_view);
-        }
-    }
-    file->cursor_pos = view->cursor.pos;
+    i32 pos;
+    pos = view->cursor.pos;
+    i32 next_cursor_pos = view->cursor.pos + string.size;
+    view_replace_range(mem, view, layout, pos, pos, (u8*)string.str, string.size, next_cursor_pos);
+    view_cursor_move(view, next_cursor_pos);
+    if (view->mark >= pos) view->mark += string.size;
+    view->file->cursor_pos = view->cursor.pos;
 }
 
 internal i32
@@ -347,7 +321,7 @@ COMMAND_DECL(seek_whitespace_down){
     }
     
     if (prev_endline == -1 || prev_endline+1 >= size){
-        pos = size-1;
+        pos = size;
     }
     else{
         pos = prev_endline+1;
@@ -533,7 +507,7 @@ COMMAND_DECL(search){
     REQ_FILE(file, view);
     USE_VARS(vars);
     
-    view->state = FVIEW_STATE_SEARCH;
+    view_set_widget(view, FWIDG_SEARCH);
     view->isearch.str = vars->mini_str;
     view->isearch.reverse = 0;
     view->isearch.pos = view->cursor.pos;
@@ -545,7 +519,7 @@ COMMAND_DECL(rsearch){
     REQ_FILE(file, view);
     USE_VARS(vars);
     
-    view->state = FVIEW_STATE_SEARCH;
+    view_set_widget(view, FWIDG_SEARCH);
     view->isearch.str = vars->mini_str;
     view->isearch.reverse = 1;
     view->isearch.pos = view->cursor.pos;
@@ -557,7 +531,7 @@ COMMAND_DECL(goto_line){
     REQ_FILE(file, view);
     USE_VARS(vars);
     
-    view->state = FVIEW_STATE_GOTO_LINE;
+    view_set_widget(view, FWIDG_GOTO_LINE);
     view->isearch.str = vars->mini_str;
     view->isearch.reverse = 1;
     view->isearch.pos = view->cursor.pos;
@@ -579,11 +553,8 @@ COMMAND_DECL(copy){
     USE_MEM(mem);
     
     Range range = get_range(view->cursor.pos, view->mark);
-    if (range.smaller < range.larger){
+    if (range.start < range.end){
         u8 *data = file->data;
-        if (file->endline_mode == ENDLINE_RN_COMBINED){
-            range = range_adjust_to_left(range, data);
-        }
         clipboard_copy(&mem->general, working_set, data, range);
     }
 }
@@ -593,60 +564,23 @@ COMMAND_DECL(cut){
     REQ_FILE_VIEW(view);
     REQ_FILE(file, view);
     USE_WORKING_SET(working_set);
+    USE_LAYOUT(layout);
     USE_MEM(mem);
     
     Range range = get_range(view->cursor.pos, view->mark);
-    if (range.smaller < range.larger){
+    if (range.start < range.end){
         u8 *data = file->data;
-        if (file->endline_mode == ENDLINE_RN_COMBINED){
-            range = range_adjust_to_left(range, data);
-        }
-        clipboard_copy(&mem->general, working_set, data, range);
-        buffer_delete_range(mem, file, range);
         
-        view->mark = pos_universal_fix(range.smaller,
+        i32 next_cursor_pos = range.start;
+        clipboard_copy(&mem->general, working_set, data, range);
+        view_replace_range(mem, view, layout, range.start, range.end, 0, 0, next_cursor_pos);
+        
+        view->mark = pos_universal_fix(range.start,
                                        file->data, file->size,
                                        file->endline_mode);
         view_measure_wraps(&mem->general, view);
-        view_cursor_move(view, view->mark);
-        
-        Editing_Layout *layout = command->layout;
-        Panel *panels = layout->panels;
-        i32 panel_count = layout->panel_count;
-        i32 shift_amount = range.end - range.start;
-        for (i32 i = 0; i < panel_count; ++i){
-            Panel *current_panel = panels + i;
-            File_View *current_view = view_to_file_view(current_panel->view);
-            
-            if (current_view && current_view != view && current_view->file == view->file){
-                if (current_view->mark >= range.end){
-                    current_view->mark -= shift_amount;
-                }
-                else if (current_view->mark > range.start){
-                    current_view->mark = range.start;
-                }
-                
-                view_measure_wraps(&mem->general, current_view);
-                
-                i32 cursor_pos = current_view->cursor.pos;
-                if (cursor_pos >= range.end){
-                    view_cursor_move(current_view, cursor_pos - shift_amount);
-                }
-                else if (cursor_pos > range.start){
-                    view_cursor_move(current_view, range.start);
-                }
-            }
-        }
+        view_cursor_move(view, next_cursor_pos);
     }
-}
-
-internal void
-view_post_paste_effect(File_View *view, i32 ticks, i32 start, i32 size, u32 color){
-    view->paste_effect.start = start;
-    view->paste_effect.end = start + size;
-    view->paste_effect.color = color;
-    view->paste_effect.tick_down = ticks;
-    view->paste_effect.tick_max = ticks;
 }
 
 COMMAND_DECL(paste){
@@ -654,6 +588,7 @@ COMMAND_DECL(paste){
     REQ_FILE_VIEW(view);
     REQ_FILE(file, view);
     USE_WORKING_SET(working_set);
+    USE_LAYOUT(layout);
     USE_MEM(mem);
     
     if (working_set->clipboard_size > 0){
@@ -661,14 +596,11 @@ COMMAND_DECL(paste){
         
         String *src = working_set_clipboard_head(working_set);
         i32 pos_left = view->cursor.pos;
-        if (file->endline_mode == ENDLINE_RN_COMBINED){
-            pos_left = pos_adjust_to_left(pos_left, file->data);
-        }
         
-        buffer_replace_range(mem, file, pos_left, pos_left, (u8*)src->str, src->size);
+        i32 next_cursor_pos = pos_left+src->size;
+        view_replace_range(mem, view, layout, pos_left, pos_left, (u8*)src->str, src->size, next_cursor_pos);
         
-        view_measure_wraps(&mem->general, view);
-        view_cursor_move(view, pos_left+src->size);
+        view_cursor_move(view, next_cursor_pos);
         view->mark = pos_universal_fix(pos_left,
                                        file->data, file->size,
                                        file->endline_mode);
@@ -681,18 +613,6 @@ COMMAND_DECL(paste){
             File_View *current_view = view_to_file_view(current_panel->view);
             
             if (current_view && current_view->file == file){
-                if (current_view != view){
-                    view_measure_wraps(&mem->general, current_view);
-                    if (current_view->cursor.pos > pos_left){
-                        view_cursor_move(current_view,
-                                         current_view->cursor.pos+src->size);
-                    }
-                    
-                    if (current_view->mark > pos_left){
-                        current_view->mark += src->size;
-                    }
-                }
-                
                 view_post_paste_effect(current_view, 20, pos_left, src->size,
                                        current_view->style->main.paste_color);
             }
@@ -705,59 +625,33 @@ COMMAND_DECL(paste_next){
     REQ_FILE_VIEW(view);
     REQ_FILE(file, view);
     USE_WORKING_SET(working_set);
+    USE_LAYOUT(layout);
     USE_MEM(mem);
     
     if (working_set->clipboard_size > 0 && view->mode.rewrite){
         view->next_mode.rewrite = 1;
         
         Range range = get_range(view->mark, view->cursor.pos);
+        String *src = working_set_clipboard_roll_down(working_set);
+        i32 next_cursor_pos = range.start+src->size;
+        view_replace_range(mem, view, layout, range.start, range.end,
+                           (u8*)src->str, src->size, next_cursor_pos);
         
-        if (range.smaller < range.larger || 1){
-            if (file->endline_mode == ENDLINE_RN_COMBINED){
-                range = range_adjust_to_left(range, file->data);
-            }
-            
-            String *src = working_set_clipboard_roll_down(working_set);
-            buffer_replace_range(mem, file, range.smaller, range.larger,
-                                 (u8*)src->str, src->size);
-            
-            view_measure_wraps(&mem->general, view);
-
-            view_cursor_move(view, range.smaller+src->size);
-            view->mark = pos_universal_fix(range.smaller,
-                                           file->data, file->size,
-                                           file->endline_mode);
-            
-            Editing_Layout *layout = command->layout;
-            Panel *panels = layout->panels;
-            i32 panel_count = layout->panel_count;
-            i32 shift_amount = range.start - range.end + src->size;
-            for (i32 i = 0; i < panel_count; ++i){
-                Panel *current_panel = panels + i;
-                File_View *current_view = view_to_file_view(current_panel->view);
+        view_cursor_move(view, next_cursor_pos);
+        view->mark = pos_universal_fix(range.start,
+                                       file->data, file->size,
+                                       file->endline_mode);
+        
+        Editing_Layout *layout = command->layout;
+        Panel *panels = layout->panels;
+        i32 panel_count = layout->panel_count;
+        for (i32 i = 0; i < panel_count; ++i){
+            Panel *current_panel = panels + i;
+            File_View *current_view = view_to_file_view(current_panel->view);
                 
-                if (current_view && current_view->file == file){
-                    if (current_view != view){
-                        view_measure_wraps(&mem->general, current_view);
-                        if (current_view->cursor.pos >= range.larger){
-                            view_cursor_move(current_view,
-                                             current_view->cursor.pos + shift_amount);
-                        }
-                        else if (current_view->cursor.pos > range.smaller){
-                            view_cursor_move(current_view, range.smaller);
-                        }
-                        
-                        if (current_view->mark >= range.larger){
-                            current_view->mark += shift_amount;
-                        }
-                        else if (current_view->cursor.pos > range.smaller){
-                            current_view->mark = range.smaller;
-                        }
-                    }
-                    
-                    view_post_paste_effect(current_view, 20, range.smaller, src->size,
-                                           current_view->style->main.paste_color);
-                }
+            if (current_view && current_view->file == file){
+                view_post_paste_effect(current_view, 20, range.start, src->size,
+                                       current_view->style->main.paste_color);
             }
         }
     }
@@ -770,91 +664,106 @@ COMMAND_DECL(delete_chunk){
     ProfileMomentFunction();
     REQ_FILE_VIEW(view);
     REQ_FILE(file, view);
+    USE_LAYOUT(layout);
     USE_MEM(mem);
     
     Range range = get_range(view->cursor.pos, view->mark);
-    if (range.smaller < range.larger){
-        if (file->endline_mode == ENDLINE_RN_COMBINED){
-            range = range_adjust_to_left(range, file->data);
-        }
-        buffer_delete_range(mem, file, range);
+    if (range.start < range.end){
+        i32 next_cursor_pos = range.start;
+        view_replace_range(mem, view, layout, range.start, range.end, 0, 0, next_cursor_pos);
         view_measure_wraps(&mem->general, view);
-        view_cursor_move(view, range.smaller);
-        view->mark = pos_universal_fix(range.smaller,
+        view_cursor_move(view, next_cursor_pos);
+        view->mark = pos_universal_fix(range.start,
                                        file->data, file->size,
                                        file->endline_mode);
-        
-        Editing_Layout *layout = command->layout;
-        Panel *panels = layout->panels;
-        i32 panel_count = layout->panel_count;
-        i32 shift_amount = range.smaller - range.larger;
-        for (i32 i = 0; i < panel_count; ++i){
-            Panel *current_panel = panels + i;
-            File_View *current_view = view_to_file_view(current_panel->view);
-            
-            if (current_view && current_view->file == file && current_view != view){
-                view_measure_wraps(&mem->general, current_view);
-                
-                if (current_view->cursor.pos >= range.larger){
-                    view_cursor_move(current_view,
-                                     current_view->cursor.pos + shift_amount);
-                }
-                else if (current_view->cursor.pos > range.smaller){
-                    view_cursor_move(current_view, range.smaller);
-                }
-                
-                if (current_view->mark >= range.larger){
-                    current_view->mark += shift_amount;
-                }
-                else if (current_view->cursor.pos > range.smaller){
-                    current_view->mark = range.smaller;
-                }
-            }
-        }
     }
+}
+
+COMMAND_DECL(undo_scrub){
+    ProfileMomentFunction();
+    REQ_FILE_VIEW(view);
+    REQ_FILE(file, view);
+    
+    view_set_widget(view, FWIDG_UNDOING);
 }
 
 COMMAND_DECL(undo){
     ProfileMomentFunction();
     REQ_FILE_VIEW(view);
-    REQ_FILE(file, view);
+    USE_LAYOUT(layout);
     USE_MEM(mem);
     
-    if (file->undo.edit_count > 0){
-        Edit_Step step = file->undo.edits[--file->undo.edit_count];
-        
-        buffer_post_redo(&mem->general, file, step.range.start, step.range.end, step.replaced.size);
-        buffer_replace_range(mem, file, step.range.start, step.range.end,
-                             (u8*)step.replaced.str, step.replaced.size, 0);
-        view_cursor_move(view, step.cursor_pos);
-        view->mark = view->cursor.pos;
-        
-        view_post_paste_effect(view, 10, step.range.start, step.replaced.size,
-                               view->style->main.undo_color);
-        
-        file->undo.str_size -= step.replaced.size;
-    }
+    view_undo(mem, layout, view);
 }
 
 COMMAND_DECL(redo){
     ProfileMomentFunction();
     REQ_FILE_VIEW(view);
-    REQ_FILE(file, view);
+    USE_LAYOUT(layout);
     USE_MEM(mem);
     
-    if (file->undo.edit_redo < file->undo.edit_max){
-        Edit_Step step = file->undo.edits[file->undo.edit_redo++];
-        
-        buffer_replace_range(mem, file, step.range.start, step.range.end,
-                             (u8*)step.replaced.str, step.replaced.size, 2);
-        view_cursor_move(view, step.cursor_pos);
-        view->mark = view->cursor.pos;
-        
-        view_post_paste_effect(view, 10, step.range.start, step.replaced.size,
-                               view->style->main.undo_color);
-        
-        file->undo.str_redo += step.replaced.size;
-    }
+    view_redo(mem, layout, view);
+}
+
+COMMAND_DECL(increase_rewind_speed){
+    ProfileMomentFunction();
+    REQ_FILE_VIEW(view);
+
+    i32 rewind_speed = ROUND32(view->rewind_speed * 4.f);
+    if (rewind_speed > 1) rewind_speed >>= 1;
+    else if (rewind_speed == 1) rewind_speed = 0;
+    else if (rewind_speed == 0) rewind_speed = -1;
+    else rewind_speed *= 2;
+    
+    view->rewind_speed = rewind_speed * 0.25f;
+}
+
+COMMAND_DECL(increase_fastforward_speed){
+    ProfileMomentFunction();
+    REQ_FILE_VIEW(view);
+    
+    i32 neg_rewind_speed = -ROUND32(view->rewind_speed * 4.f);
+    if (neg_rewind_speed > 1) neg_rewind_speed >>= 1;
+    else if (neg_rewind_speed == 1) neg_rewind_speed = 0;
+    else if (neg_rewind_speed == 0) neg_rewind_speed = -1;
+    else neg_rewind_speed *= 2;
+    
+    view->rewind_speed = -neg_rewind_speed * 0.25f;
+}
+
+COMMAND_DECL(stop_rewind_and_fastforward){
+    ProfileMomentFunction();
+    REQ_FILE_VIEW(view);
+    
+    view->rewind_speed = 0;
+}
+
+COMMAND_DECL(history_scrub){
+    ProfileMomentFunction();
+    REQ_FILE_VIEW(view);
+    REQ_FILE(file, view);
+    
+    view_set_widget(view, FWIDG_RESTORING);
+}
+
+COMMAND_DECL(history_backward){
+    ProfileMomentFunction();
+    REQ_FILE_VIEW(view);
+    REQ_FILE(file, view);
+    USE_LAYOUT(layout);
+    USE_MEM(mem);
+    
+    view_history_step(mem, layout, view, 1);
+}
+
+COMMAND_DECL(history_forward){
+    ProfileMomentFunction();
+    REQ_FILE_VIEW(view);
+    REQ_FILE(file, view);
+    USE_LAYOUT(layout);
+    USE_MEM(mem);
+    
+    view_history_step(mem, layout, view, 2);
 }
 
 COMMAND_DECL(interactive_new){
@@ -867,7 +776,7 @@ COMMAND_DECL(interactive_new){
     USE_STYLE(style);
     USE_DELAY(delay);
     
-    View *new_view = live_set_alloc_view(live_set, &mem->general);
+    View *new_view = live_set_alloc_view(live_set, mem);
     view_replace_minor(new_view, panel, live_set);
     
     new_view->map = &vars->map_ui;
@@ -889,14 +798,13 @@ COMMAND_DECL(interactive_open){
     USE_STYLE(style);
     USE_DELAY(delay);
     
-    View *new_view = live_set_alloc_view(live_set, &mem->general);
+    View *new_view = live_set_alloc_view(live_set, mem);
     view_replace_minor(new_view, panel, live_set);
     
     new_view->map = &vars->map_ui;
     Interactive_View *int_view =
         interactive_view_init(new_view, &vars->hot_directory, style,
                               working_set, delay);
-    int_view->style = command->style;
     int_view->interaction = INTV_SYS_FILE_LIST;
     int_view->action = INTV_OPEN;
     copy(&int_view->query, "Open: ");
@@ -957,14 +865,13 @@ COMMAND_DECL(interactive_save_as){
     USE_STYLE(style);
     USE_DELAY(delay);
     
-    View *new_view = live_set_alloc_view(live_set, &mem->general);
+    View *new_view = live_set_alloc_view(live_set, mem);
     view_replace_minor(new_view, panel, live_set);
     
     new_view->map = &vars->map_ui;
     Interactive_View *int_view =
         interactive_view_init(new_view, &vars->hot_directory, style,
                               working_set, delay);
-    int_view->style = command->style;
     int_view->interaction = INTV_SYS_FILE_LIST;
     int_view->action = INTV_SAVE_AS;
     copy(&int_view->query, "Save As: ");
@@ -981,7 +888,7 @@ COMMAND_DECL(change_active_panel){
     }
 }
 
-COMMAND_DECL(interactive_switch_file){
+COMMAND_DECL(interactive_switch_buffer){
     ProfileMomentFunction();
     USE_VARS(vars);
     USE_LIVE_SET(live_set);
@@ -991,20 +898,19 @@ COMMAND_DECL(interactive_switch_file){
     USE_STYLE(style);
     USE_DELAY(delay);
     
-    View *new_view = live_set_alloc_view(live_set, &mem->general);
+    View *new_view = live_set_alloc_view(live_set, mem);
     view_replace_minor(new_view, panel, live_set);
     
     new_view->map = &vars->map_ui;
     Interactive_View *int_view = 
         interactive_view_init(new_view, &vars->hot_directory, style,
                               working_set, delay);
-    int_view->style = command->style;
     int_view->interaction = INTV_LIVE_FILE_LIST;
     int_view->action = INTV_SWITCH;
     copy(&int_view->query, "Switch File: ");
 }
 
-COMMAND_DECL(interactive_kill_file){
+COMMAND_DECL(interactive_kill_buffer){
     ProfileMomentFunction();
     USE_VARS(vars);
     USE_LIVE_SET(live_set);
@@ -1014,30 +920,25 @@ COMMAND_DECL(interactive_kill_file){
     USE_STYLE(style);
     USE_DELAY(delay);
     
-    View *new_view = live_set_alloc_view(live_set, &mem->general);
+    View *new_view = live_set_alloc_view(live_set, mem);
     view_replace_minor(new_view, panel, live_set);
     
     new_view->map = &vars->map_ui;
     Interactive_View *int_view = 
         interactive_view_init(new_view, &vars->hot_directory, style,
                               working_set, delay);
-    int_view->style = command->style;
     int_view->interaction = INTV_LIVE_FILE_LIST;
     int_view->action = INTV_KILL;
     copy(&int_view->query, "Kill File: ");
 }
 
-COMMAND_DECL(kill_file){
+COMMAND_DECL(kill_buffer){
     ProfileMomentFunction();
-    USE_MEM(mem);
     REQ_FILE_VIEW(view);
     REQ_FILE(file, view);
-    USE_LIVE_SET(live_set);
-    USE_LAYOUT(layout);
-    USE_WORKING_SET(working_set);
+    USE_DELAY(delay);
     
-    table_remove(&working_set->table, file->source_path);
-    kill_file(&mem->general, file, live_set, layout);
+    delayed_action(delay, DACT_TRY_KILL, file->live_name, view->view_base.panel);
 }
 
 COMMAND_DECL(toggle_line_wrap){
@@ -1063,32 +964,30 @@ COMMAND_DECL(toggle_endline_mode){
     ProfileMomentFunction();
     REQ_FILE_VIEW(view);
     REQ_FILE(file, view);
+    USE_MEM(mem);
     
     switch (file->endline_mode){
-        case ENDLINE_RN_COMBINED:
-        {
-            view->cursor.pos = pos_adjust_to_left(view->cursor.pos, view->file->data);
-            file->endline_mode = ENDLINE_RN_SEPARATE;
-            view->cursor =
-                view_compute_cursor_from_pos(view, view->cursor.pos);
-        }break;
-        
-        case ENDLINE_RN_SEPARATE:
-        {
-            file->endline_mode = ENDLINE_RN_SHOWALLR;
-            view->cursor =
-                view_compute_cursor_from_pos(view, view->cursor.pos);
-        }break;
-        
-        case ENDLINE_RN_SHOWALLR:
-        {
-            view->cursor.pos = pos_adjust_to_self(view->cursor.pos, view->file->data,
-                                                   view->file->size);
-            file->endline_mode = ENDLINE_RN_COMBINED;
-            view->cursor =
-                view_compute_cursor_from_pos(view, view->cursor.pos);
-        }break;
+    case ENDLINE_RN_COMBINED:
+    {
+        file->endline_mode = ENDLINE_RN_SEPARATE;
+    }break;
+    
+    case ENDLINE_RN_SEPARATE:
+    {
+        file->endline_mode = ENDLINE_RN_SHOWALLR;
+    }break;
+    
+    case ENDLINE_RN_SHOWALLR:
+    {
+        view->cursor.pos = pos_adjust_to_self(view->cursor.pos, view->file->data,
+                                              view->file->size);
+        file->endline_mode = ENDLINE_RN_COMBINED;
+    }break;
     }
+    
+    view->cursor =
+        view_compute_cursor_from_pos(view, view->cursor.pos);
+    buffer_measure_starts(&mem->general, view->file);
 }
 
 COMMAND_DECL(toggle_show_whitespace){
@@ -1118,20 +1017,20 @@ COMMAND_DECL(to_uppercase){
     USE_MEM(mem);
     
     Range range = get_range(view->cursor.pos, view->mark);
-    if (range.smaller < range.larger){
+    if (range.start < range.end){
         if (file->still_lexing){
             system_cancel_job(BACKGROUND_THREADS, file->lex_job);
         }
         
         u8 *data = file->data;
-        for (i32 i = range.smaller; i < range.larger; ++i){
+        for (i32 i = range.start; i < range.end; ++i){
             if (data[i] >= 'a' && data[i] <= 'z'){
                 data[i] += (u8)('A' - 'a');
             }
         }
         
         if (file->token_stack.tokens){
-            buffer_relex_parallel(mem, file, range.smaller, range.larger, 0);
+            buffer_relex_parallel(mem, file, range.start, range.end, 0);
         }
     }
 }
@@ -1143,20 +1042,20 @@ COMMAND_DECL(to_lowercase){
     USE_MEM(mem);
     
     Range range = get_range(view->cursor.pos, view->mark);
-    if (range.smaller < range.larger){
+    if (range.start < range.end){
         if (file->still_lexing){
             system_cancel_job(BACKGROUND_THREADS, file->lex_job);
         }
         
         u8 *data = file->data;
-        for (i32 i = range.smaller; i < range.larger; ++i){
+        for (i32 i = range.start; i < range.end; ++i){
             if (data[i] >= 'A' && data[i] <= 'Z'){
                 data[i] -= (u8)('A' - 'a');
             }
         }
         
         if (file->token_stack.tokens){
-            buffer_relex_parallel(mem, file, range.smaller, range.larger, 0);
+            buffer_relex_parallel(mem, file, range.start, range.end, 0);
         }
     }
 }
@@ -1215,7 +1114,7 @@ view_clean_line(Mem_Options *mem, File_View *view, Editing_File *file, i32 line_
         }
     }
     else{
-        //view_auto_tab(mem, view, pos, pos);
+        view_auto_tab(mem, view, pos, pos);
     }
 }
 #endif
@@ -1416,17 +1315,9 @@ COMMAND_DECL(move_left){
     u8 *data = file->data;
     i32 pos = view->cursor.pos;
     if (pos > 0){
+        --pos;
         if (file->endline_mode == ENDLINE_RN_COMBINED){
-            pos = pos_adjust_to_left(pos, data);
-            if (pos > 0){
-                --pos;
-            }
-            else{
-                pos = pos_adjust_to_self(pos, data, file->size);
-            }
-        }
-        else{
-            --pos;
+            pos = pos_adjust_to_self(pos, data, file->size);
         }
     }
     
@@ -1442,9 +1333,12 @@ COMMAND_DECL(move_right){
     u8* data = file->data;
     i32 pos = view->cursor.pos;
     if (pos < size){
-        ++pos;
         if (file->endline_mode == ENDLINE_RN_COMBINED){
-            pos = pos_adjust_to_self(pos, data, size);
+            pos = pos_adjust_to_right(pos, data, size);
+            ++pos;
+        }
+        else{
+            ++pos;
         }
     }
     
@@ -1460,58 +1354,24 @@ COMMAND_DECL(delete){
     
     i32 cursor_pos = view->cursor.pos;
     u8 *data = file->data;
-    if (file->size > 0){
-        Range range = {};
-        if (file->endline_mode == ENDLINE_RN_COMBINED){
-            if (cursor_pos > 0 &&
-                data[cursor_pos-1] == '\r' &&
-                data[cursor_pos] == '\n'){
-                range.start = cursor_pos-1;
-                range.end = cursor_pos+1;
-                buffer_delete_range(mem, file, range);
-            }
-            
-            else{
-                range.start = cursor_pos;
-                range.end = cursor_pos+1;
-                buffer_delete(mem, file, cursor_pos);
-            }
+    if (file->size > 0 && cursor_pos < file->size){
+        i32 start, end;
+        start = cursor_pos;
+        if (file->endline_mode == ENDLINE_RN_COMBINED &&
+            data[cursor_pos] == '\r' && data[cursor_pos+1] == '\n'){
+            end = cursor_pos+2;
         }
-        
         else{
-            range.start = cursor_pos;
-            range.end = cursor_pos+1;
-            buffer_delete(mem, file, cursor_pos);
+            end = cursor_pos+1;
         }
         
-        Panel *panels = layout->panels;
-        i32 panel_count = layout->panel_count;
-        i32 shift_amount = range.end - range.start;
-        for (i32 i = 0; i < panel_count; ++i){
-            Panel *current_panel = panels + i;
-            File_View *current_view = view_to_file_view(current_panel->view);
-            if (!current_view) continue;
-            
-            if (current_view->file == file){
-                view_measure_wraps(&mem->general, current_view);
-                
-                if (current_view->mark >= range.end){
-                    current_view->mark -= shift_amount;
-                }
-                else if (current_view->mark > range.start){
-                    current_view->mark = range.start;
-                }
-                
-                if (current_view->cursor.pos >= range.end){
-                    current_view->cursor.pos -= shift_amount;
-                    view_cursor_move(current_view, current_view->cursor.pos);
-                }
-                else if (current_view->cursor.pos > range.start){
-                    current_view->cursor.pos = range.start;
-                    view_cursor_move(current_view, current_view->cursor.pos);
-                }
-            }
-        }
+        i32 shift = (end - start);
+        Assert(shift > 0);
+        
+        i32 next_cursor_pos = start;
+        view_replace_range(mem, view, layout, start, end, 0, 0, next_cursor_pos);
+        view_cursor_move(view, next_cursor_pos);
+        if (view->mark >= end) view->mark -= shift;
     }
 }
 
@@ -1519,56 +1379,32 @@ COMMAND_DECL(backspace){
     ProfileMomentFunction();
     REQ_FILE_VIEW(view);
     REQ_FILE(file, view);
+    USE_LAYOUT(layout);
     USE_MEM(mem);
     
     i32 cursor_pos = view->cursor.pos;
     u8 *data = file->data;
     if (cursor_pos > 0 && cursor_pos <= (i32)file->size){
-        i32 shift_amount = 0;
-        if (file->endline_mode == ENDLINE_RN_COMBINED){
-            i32 target_pos = cursor_pos;
-            if (cursor_pos > 1 &&
-                data[cursor_pos] == '\n' &&
-                data[cursor_pos-1] == '\r'){
-                --target_pos;
-            }
-            
-            if (target_pos > 1 &&
-                data[target_pos-1] == '\n' &&
-                data[target_pos-2] == '\r'){
-                buffer_delete_range(mem, file, target_pos-2, target_pos);
-                shift_amount = 2;
-            }
-            else{
-                if (target_pos > 0){
-                    buffer_delete(mem, file, target_pos-1);
-                    shift_amount = 1;
-                }
-            }
+        i32 start, end;
+        end = cursor_pos;
+        
+        if (file->endline_mode == ENDLINE_RN_COMBINED &&
+            cursor_pos > 1 &&
+            data[cursor_pos-1] == '\n' &&
+            data[cursor_pos-2] == '\r'){
+            start = cursor_pos-2;
         }
         else{
-            buffer_delete(mem, file, cursor_pos-1);
-            shift_amount = 1;
+            start = cursor_pos-1;
         }
         
-        Editing_Layout *layout = command->layout;
-        Panel *panels = layout->panels;
-        i32 panel_count = layout->panel_count;
+        i32 shift = (end - start);
+        Assert(shift > 0);
         
-        for (i32 i = 0; i < panel_count; ++i){
-            Panel *current_panel = panels + i;
-            File_View *current_view = view_to_file_view(current_panel->view);
-            if (current_view && current_view->file == view->file){
-                if (current_view->mark >= cursor_pos){
-                    current_view->mark -= shift_amount;
-                }
-                if (current_view->cursor.pos >= cursor_pos){
-                    current_view->cursor.pos -= shift_amount;
-                }
-                view_measure_wraps(&mem->general, current_view);
-                view_cursor_move(current_view, current_view->cursor.pos);
-            }
-        }
+        i32 next_cursor_pos = view->cursor.pos - shift;
+        view_replace_range(mem, view, layout, start, end, 0, 0, next_cursor_pos);
+        view_cursor_move(view, next_cursor_pos);
+        if (view->mark >= end) view->mark -= shift;
     }
 }
 
@@ -1648,8 +1484,8 @@ COMMAND_DECL(page_up){
 }
 
 inline void
-open_theme_options(App_Vars *vars, Live_Views *live_set, General_Memory *general, Panel *panel){
-    View *new_view = live_set_alloc_view(live_set, general);
+open_theme_options(App_Vars *vars, Live_Views *live_set, Mem_Options *mem, Panel *panel){
+    View *new_view = live_set_alloc_view(live_set, mem);
     view_replace_minor(new_view, panel, live_set);
     
     new_view->map = &vars->map_ui;
@@ -1669,7 +1505,7 @@ COMMAND_DECL(open_color_tweaker){
     USE_MEM(mem);
     USE_PANEL(panel);
     
-    open_theme_options(vars, live_set, &mem->general, panel);
+    open_theme_options(vars, live_set, mem, panel);
 }
 
 COMMAND_DECL(open_menu){
@@ -1681,7 +1517,7 @@ COMMAND_DECL(open_menu){
     USE_WORKING_SET(working_set);
     USE_STYLE(style);
     
-    View *new_view = live_set_alloc_view(live_set, &mem->general);
+    View *new_view = live_set_alloc_view(live_set, mem);
     view_replace_minor(new_view, panel, live_set);
     
     new_view->map = &vars->map_ui;
@@ -1698,7 +1534,7 @@ COMMAND_DECL(open_debug_view){
     USE_PANEL(panel);
     USE_MEM(mem);
     
-    View *new_view = live_set_alloc_view(live_set, &mem->general);
+    View *new_view = live_set_alloc_view(live_set, mem);
     view_replace_major(new_view, panel, live_set);
     
     new_view->map = &vars->map_debug;
@@ -1877,6 +1713,13 @@ setup_file_commands(Command_Map *commands, Key_Codes *codes){
     map_add(commands, 'V', MDFR_CTRL, command_paste_next);
     map_add(commands, 'z', MDFR_CTRL, command_undo);
     map_add(commands, 'y', MDFR_CTRL, command_redo);
+    map_add(commands, 'Z', MDFR_CTRL, command_undo_scrub);
+    map_add(commands, codes->left, MDFR_ALT, command_increase_rewind_speed);
+    map_add(commands, codes->right, MDFR_ALT, command_increase_fastforward_speed);
+    map_add(commands, codes->down, MDFR_ALT, command_stop_rewind_and_fastforward);
+    map_add(commands, 'h', MDFR_CTRL, command_history_backward);
+    map_add(commands, 'H', MDFR_CTRL, command_history_forward);
+    map_add(commands, 'J', MDFR_CTRL, command_history_scrub);
     map_add(commands, 'd', MDFR_CTRL, command_delete_chunk);
     map_add(commands, 'l', MDFR_CTRL, command_toggle_line_wrap);
     map_add(commands, 'L', MDFR_CTRL, command_toggle_endline_mode);
@@ -1894,7 +1737,7 @@ setup_file_commands(Command_Map *commands, Key_Codes *codes){
     
     map_add(commands, '\t', MDFR_CTRL, command_auto_tab);
     
-    map_add(commands, 'K', MDFR_CTRL, command_kill_file);
+    map_add(commands, 'K', MDFR_CTRL, command_kill_buffer);
     map_add(commands, 'O', MDFR_CTRL, command_reopen);
     map_add(commands, 's', MDFR_CTRL, command_save);
     map_add(commands, 'w', MDFR_CTRL, command_interactive_save_as);
@@ -1915,8 +1758,8 @@ setup_top_commands(Command_Map *commands, Key_Codes *codes){
     map_add(commands, 'n', MDFR_CTRL, command_interactive_new);
     map_add(commands, 'o', MDFR_CTRL, command_interactive_open);
     map_add(commands, ',', MDFR_CTRL, command_change_active_panel);
-    map_add(commands, 'k', MDFR_CTRL, command_interactive_kill_file);
-    map_add(commands, 'i', MDFR_CTRL, command_interactive_switch_file);
+    map_add(commands, 'k', MDFR_CTRL, command_interactive_kill_buffer);
+    map_add(commands, 'i', MDFR_CTRL, command_interactive_switch_buffer);
     map_add(commands, 'c', MDFR_ALT, command_open_color_tweaker);
     map_add(commands, 'x', MDFR_ALT, command_open_menu);
 }
@@ -1964,15 +1807,17 @@ setup_command_table(){
     SET(paste);
     SET(paste_next);
     SET(delete_chunk);
+    SET(undo);
+    SET(redo);
     SET(interactive_new);
     SET(interactive_open);
     SET(reopen);
     SET(save);
     SET(interactive_save_as);
     SET(change_active_panel);
-    SET(interactive_switch_file);
-    SET(interactive_kill_file);
-    SET(kill_file);
+    SET(interactive_switch_buffer);
+    SET(interactive_kill_buffer);
+    SET(kill_buffer);
     SET(toggle_line_wrap);
     SET(toggle_endline_mode);
     SET(to_uppercase);
@@ -2976,6 +2821,7 @@ app_step(Thread_Context *thread, Key_Codes *codes,
         Style *style = &vars->style;
         Working_Set *working_set = &vars->working_set;
         Live_Views *live_set = &vars->live_set;
+        Mem_Options *mem = &vars->mem;
         General_Memory *general = &vars->mem.general;
         
         i32 count = vars->delay.count;
@@ -3006,12 +2852,12 @@ app_step(Thread_Context *thread, Key_Codes *codes,
                 }
                 
                 if (target_file){
-                    View *new_view = live_set_alloc_view(live_set, &vars->mem.general);
+                    View *new_view = live_set_alloc_view(live_set, &vars->mem);
                     
                     new_view->map = &vars->map_file;
                     view_replace_major(new_view, panel, live_set);
                     
-                    File_View *file_view = file_view_init(new_view);
+                    File_View *file_view = file_view_init(new_view, &vars->delay, &vars->layout);
                     view_set_file(file_view, target_file, style);
                     if (created_file && target_file->tokens_exist)
                         buffer_first_lex_parallel(general, target_file);
@@ -3032,17 +2878,25 @@ app_step(Thread_Context *thread, Key_Codes *codes,
                 }
             }break;
             
+            case DACT_SAVE:
+            {
+                Editing_File *file = working_set_lookup_file(working_set, *string);
+                if (file && !file->is_dummy){
+                    buffer_save(file, (u8*)file->source_path.str);
+                }
+            }break;
+            
             case DACT_NEW:
             {
                 Get_File_Result file = working_set_get_available_file(working_set);
                 buffer_create_empty(general, file.file, (u8*)string->str, style->font);
                 table_add(&working_set->table, file.file->source_path, file.index);
                 
-                View *new_view = live_set_alloc_view(live_set, general);
+                View *new_view = live_set_alloc_view(live_set, mem);
                 view_replace_major(new_view, panel, live_set);
                 new_view->map = &vars->map_file;
                 
-                File_View *file_view = file_view_init(new_view);
+                File_View *file_view = file_view_init(new_view, &vars->delay, &vars->layout);
                 view_set_file(file_view, file.file, style);
                 if (file.file->tokens_exist) buffer_first_lex_parallel(general, file.file);
             }break;
@@ -3051,11 +2905,11 @@ app_step(Thread_Context *thread, Key_Codes *codes,
             {
                 Editing_File *file = working_set_lookup_file(working_set, *string);
                 if (file){
-                    View *new_view = live_set_alloc_view(live_set, general);
+                    View *new_view = live_set_alloc_view(live_set, mem);
                     view_replace_major(new_view, panel, live_set);
                     new_view->map = &vars->map_file;
 
-                    File_View *file_view = file_view_init(new_view);
+                    File_View *file_view = file_view_init(new_view, &vars->delay, &vars->layout);
                     view_set_file(file_view, file, style);
                 }
             }break;
@@ -3065,7 +2919,40 @@ app_step(Thread_Context *thread, Key_Codes *codes,
                 Editing_File *file = working_set_lookup_file(working_set, *string);
                 if (file){
                     table_remove(&working_set->table, file->source_path);
-                    kill_file(general, file, live_set, &vars->layout);
+                    kill_buffer(general, file, live_set, &vars->layout);
+                }
+            }break;
+            
+            case DACT_TRY_KILL:
+            {
+                Editing_File *file = working_set_lookup_file(working_set, *string);
+                if (file){
+                    switch (buffer_get_sync(file)){
+                    case SYNC_BEHIND_OS:
+                    case SYNC_GOOD:
+                    {
+                        table_remove(&working_set->table, file->source_path);
+                        kill_buffer(general, file, live_set, &vars->layout);
+                        view_remove_minor(panel, live_set);
+                    }break;
+                    
+                    case SYNC_UNSAVED:
+                    {
+                        View *new_view = live_set_alloc_view(live_set, mem);
+                        view_replace_minor(new_view, panel, live_set);
+                        
+                        new_view->map = &vars->map_ui;
+                        Interactive_View *int_view = 
+                            interactive_view_init(new_view, &vars->hot_directory, style,
+                                                  working_set, &vars->delay);
+                        int_view->interaction = INTV_SURE_TO_KILL_INTER;
+                        int_view->action = INTV_SURE_TO_KILL;
+                        copy(&int_view->query, "Are you sure?");
+                        copy(&int_view->dest, file->live_name);
+                    }break;
+                    
+                    default: Assert(!"invalid path");
+                    }
                 }
             }break;
             
@@ -3081,7 +2968,7 @@ app_step(Thread_Context *thread, Key_Codes *codes,
             
             case DACT_THEME_OPTIONS:
             {
-                open_theme_options(vars, live_set, &vars->mem.general, panel);
+                open_theme_options(vars, live_set, mem, panel);
             }break;
             }
         }

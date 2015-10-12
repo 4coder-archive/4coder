@@ -1661,10 +1661,10 @@ cpp_relex_nonalloc_main(Cpp_Relex_State *state, Cpp_Token_Stack *relex_stack, in
     for (;;){
         Cpp_Read_Result read = cpp_lex_step(state->file, &lex);
         if (read.has_result){
-            if (read.token.start == match_token.start &&
-                read.token.size == match_token.size &&
-                read.token.flags == match_token.flags &&
-                read.token.state_flags == match_token.state_flags){
+            if (read.token.start == end_token.start &&
+                read.token.size == end_token.size &&
+                read.token.flags == end_token.flags &&
+                read.token.state_flags == end_token.state_flags){
                 break;
             }
             cpp_push_token_nonalloc(relex_stack, read.token);

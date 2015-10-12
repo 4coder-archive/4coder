@@ -41,7 +41,7 @@ internal i32
 draw_general_memory(Debug_View *view, i32_Rect rect, Render_Target *target, i32 y){
     Font *font = view->font;
     i32 y_advance = font->height;
-    Bubble *sentinel = &view->view_base.general->sentinel;
+    Bubble *sentinel = &view->view_base.mem->general.sentinel;
     
     for (Bubble *bubble = sentinel->next;
          bubble != sentinel;
@@ -62,6 +62,8 @@ draw_general_memory(Debug_View *view, i32_Rect rect, Render_Target *target, i32 
             case BUBBLE_TOKENS: append(&s, "tokens"); break;
             case BUBBLE_UNDO_STRING: append(&s, "undo string"); break;
             case BUBBLE_UNDO: append(&s, "undo"); break;
+            case BUBBLE_HISTORY_STRING: append(&s, "history string"); break;
+            case BUBBLE_HISTORY: append(&s, "history"); break;
             default: append(&s, "unknown"); break;
             }
         }

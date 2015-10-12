@@ -111,13 +111,13 @@ FCPP_LINK int   hexchar_to_int(char c);
 FCPP_LINK int   int_to_hexchar(char c);
 FCPP_LINK int   hexstr_to_int(String s);
 
-FCPP_LINK void  copy_fast_unsafe(char *dest, char *src);
+FCPP_LINK int   copy_fast_unsafe(char *dest, char *src);
 FCPP_LINK void  copy_fast_unsafe(char *dest, String src);
 FCPP_LINK bool  copy_checked(String *dest, String src);
 FCPP_LINK bool  copy_partial(String *dest, char *src);
 FCPP_LINK bool  copy_partial(String *dest, String src);
 
-inline    void  copy(char *dest, char *src) { copy_fast_unsafe(dest, src); }
+inline    int   copy(char *dest, char *src) { return copy_fast_unsafe(dest, src); }
 inline    void  copy(String *dest, String src) { copy_checked(dest, src); }
 inline    void  copy(String *dest, char *src) { copy_partial(dest, src); }
 
@@ -671,14 +671,15 @@ hexstr_to_int(String str){
     return x;
 }
 
-FCPP_LINK void
+FCPP_LINK int
 copy_fast_unsafe(char *dest, char *src){
-    int i = 0;
-    while (src[i] != 0){
-        dest[i] = src[i];
-        ++i;
+    char *start = dest;
+    while (*src != 0){
+        *dest = *src;
+        ++dest;
+        ++src;
     }
-    dest[i] = 0;
+    return (int)(dest - start);
 }
 
 FCPP_LINK void
@@ -688,7 +689,6 @@ copy_fast_unsafe(char *dest, String src){
         dest[i] = src.str[i];
         ++i;
     }
-    dest[i] = 0;
 }
 
 FCPP_LINK bool

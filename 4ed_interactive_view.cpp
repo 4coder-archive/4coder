@@ -9,50 +9,19 @@
 
 // TOP
 
-enum Action_Type{
-    DACT_OPEN,
-    DACT_SAVE_AS,
-    DACT_NEW,
-    DACT_SWITCH,
-    DACT_KILL,
-    DACT_CLOSE_MINOR,
-    DACT_CLOSE_MAJOR,
-    DACT_THEME_OPTIONS
-};
-
-struct Delayed_Action{
-    Action_Type type;
-    String string;
-    Panel *panel;
-};
-
-struct Delay{
-    Delayed_Action acts[8];
-    i32 count, max;
-};
-
-inline void
-delayed_action(Delay *delay, Action_Type type,
-               String string, Panel *panel){
-    Assert(delay->count < delay->max);
-    Delayed_Action action;
-    action.type = type;
-    action.string = string;
-    action.panel = panel;
-    delay->acts[delay->count++] = action;
-}
-
 enum Interactive_View_Action{
     INTV_OPEN,
     INTV_SAVE_AS,
     INTV_NEW,
     INTV_SWITCH,
     INTV_KILL,
+    INTV_SURE_TO_KILL
 };
 
 enum Interactive_View_Interaction{
     INTV_SYS_FILE_LIST,
     INTV_LIVE_FILE_LIST,
+    INTV_SURE_TO_KILL_INTER
 };
 
 struct Interactive_View{
@@ -64,10 +33,12 @@ struct Interactive_View{
     UI_State state;
     Interactive_View_Interaction interaction;
     Interactive_View_Action action;
+    
     char query_[256];
     String query;
     char dest_[256];
     String dest;
+    i32 user_action;
 };
 
 inline Interactive_View*
@@ -101,8 +72,26 @@ interactive_view_complete(Interactive_View *view){
         break;
         
     case INTV_KILL:
-        delayed_action(view->delay, DACT_KILL, view->dest, panel);
-        delayed_action(view->delay, DACT_CLOSE_MINOR, {}, panel);
+        delayed_action(view->delay, DACT_TRY_KILL, view->dest, panel);
+        break;
+        
+    case INTV_SURE_TO_KILL:
+        switch (view->user_action){
+        case 0:
+            delayed_action(view->delay, DACT_KILL, view->dest, panel);
+            delayed_action(view->delay, DACT_CLOSE_MINOR, {}, panel);
+            break;
+            
+        case 1:
+            delayed_action(view->delay, DACT_CLOSE_MINOR, {}, panel);
+            break;
+
+        case 2:
+            delayed_action(view->delay, DACT_SAVE, view->dest, panel);
+            delayed_action(view->delay, DACT_KILL, view->dest, panel);
+            delayed_action(view->delay, DACT_CLOSE_MINOR, {}, panel);
+            break;
+        }
         break;
     }
 }
@@ -119,7 +108,7 @@ step_draw_int_view(Interactive_View *view, Render_Target *target, i32_Rect rect,
     begin_layout(&layout, rect);
     
     bool32 new_dir = 0;
-    bool32 file_selected = 0;
+    bool32 complete = 0;
 
     terminate_with_null(&view->query);
     do_label(&state, &layout, view->query.str, 1.f);
@@ -127,7 +116,7 @@ step_draw_int_view(Interactive_View *view, Render_Target *target, i32_Rect rect,
     switch (view->interaction){
     case INTV_SYS_FILE_LIST:
         if (do_file_list_box(&state, &layout, view->hot_directory, 0,
-                             &new_dir, &file_selected, 0)){
+                             &new_dir, &complete, 0)){
             result = 1;
         }
         if (new_dir){
@@ -136,13 +125,55 @@ step_draw_int_view(Interactive_View *view, Render_Target *target, i32_Rect rect,
         break;
         
     case INTV_LIVE_FILE_LIST:
-        if (do_live_file_list_box(&state, &layout, view->working_set, &view->dest, &file_selected)){
+        if (do_live_file_list_box(&state, &layout, view->working_set, &view->dest, &complete)){
             result = 1;
         }
         break;
+        
+    case INTV_SURE_TO_KILL_INTER:
+    {
+        i32 action = -1;
+        char s_[256];
+        String s = make_fixed_width_string(s_);
+        append(&s, view->dest);
+        append(&s, " has unsaved changes, kill it?");
+        do_label(&state, &layout, s.str, 1.f);
+            
+        i32 id = 0;
+        if (do_list_option(++id, &state, &layout, make_lit_string("(Y)es"))){
+            action = 0;
+        }
+            
+        if (do_list_option(++id, &state, &layout, make_lit_string("(N)o"))){
+            action = 1;
+        }
+            
+        if (do_list_option(++id, &state, &layout, make_lit_string("(S)ave and kill"))){
+            action = 2;
+        }
+        
+        if (action == -1 && input_stage){
+            i32 key_count = user_input->keys.count;
+            for (i32 i = 0; i < key_count; ++i){
+                Key_Event_Data key = user_input->keys.keys[i];
+                switch (key.character){
+                case 'y': case 'Y': action = 0; break;
+                case 'n': case 'N': action = 1; break;
+                case 's': case 'S': action = 2; break;
+                }
+                if (action == -1 && key.keycode == state.codes->esc) action = 1;
+                if (action != -1) break;
+            }
+        }
+        
+        if (action != -1){
+            complete = 1;
+            view->user_action = action;
+        }
+    }break;
     }
     
-    if (file_selected){
+    if (complete){
         interactive_view_complete(view);
     }
     
@@ -156,6 +187,7 @@ step_draw_int_view(Interactive_View *view, Render_Target *target, i32_Rect rect,
 DO_VIEW_SIG(do_interactive_view){
     i32 result = 0;
     
+    view->mouse_cursor_type = APP_MOUSE_CURSOR_ARROW;
     Interactive_View *int_view = (Interactive_View*)view;
     switch (message){
     case VMSG_STEP: case VMSG_DRAW:

@@ -121,11 +121,11 @@ map_extract(Command_Map *map, Key_Single key){
     if (alt) command |= MDFR_ALT;
     
     u16 code = key.key.character_no_caps_lock;
-    if (code != 0) map_get_vanilla_keyboard_default(map, command, &bind);
+    if (code == 0) code = key.key.keycode;
+    map_find(map, code, command, &bind);
     
-    if (bind.function == 0){
-        if (code == 0) code = key.key.keycode;
-        map_find(map, code, command, &bind);
+    if (bind.function == 0 && key.key.character_no_caps_lock != 0){
+        map_get_vanilla_keyboard_default(map, command, &bind);
     }
     
     return bind;

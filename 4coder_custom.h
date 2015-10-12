@@ -70,15 +70,17 @@ enum Command_ID{
     cmdid_paste,
     cmdid_paste_next,
     cmdid_delete_chunk,
+    cmdid_undo,
+    cmdid_redo,
     cmdid_interactive_new,
     cmdid_interactive_open,
     cmdid_reopen,
     cmdid_save,
     cmdid_interactive_save_as,
     cmdid_change_active_panel,
-    cmdid_interactive_switch_file,
-    cmdid_interactive_kill_file,
-    cmdid_kill_file,
+    cmdid_interactive_switch_buffer,
+    cmdid_interactive_kill_buffer,
+    cmdid_kill_buffer,
     cmdid_toggle_line_wrap,
     cmdid_toggle_endline_mode,
     cmdid_to_uppercase,
@@ -141,36 +143,72 @@ struct Application_Links{
     Fulfill_Interaction_Function *fulfill_interaction;
 };
 
+enum Settings_Unit_Type{
+    SUNIT_HEADER,
+    SUNIT_GROUP,
+    SUNIT_USE_CLAUSE,
+    SUNIT_USE_CLAUSE_STRING,
+    SUNIT_SETTING
+};
+
+enum Setting_ID{
+    set_lex_as_cpp_file,
+    set_wrap_lines,
+    set_key_mapid,
+    set_end_line_mode
+};
+
+enum Setting_When_Type{
+    when_default,
+    when_extension
+};
+
+enum End_Of_Line_Options{
+    EOL_USE_CRLF,
+    EOL_USE_CR_USE_LF,
+    EOL_SHOW_CR_USE_LF
+};
+
 enum Binding_Unit_Type{
     UNIT_HEADER,
     UNIT_MAP_BEGIN,
     UNIT_BINDING,
-    UNIT_CALLBACK
+    UNIT_CALLBACK,
+    UNIT_INHERIT,
+    UNIT_SETTINGS_BEGIN,
+    UNIT_USE_CLAUSE,
+    UNIT_USE_CLAUSE_STRING,
+    UNIT_SETTING
 };
 
 enum Map_ID{
     MAPID_GLOBAL,
-    MAPID_FILE
+    MAPID_FILE,
+    MAPID_USER_CUSTOM
 };
 
 struct Binding_Unit{
     Binding_Unit_Type type;
     union{
-        struct{ int total_size; int error; } header;
+        struct{ int total_size; int map_count; int group_count; int error; } header;
         
-        struct{ int mapid; } map_begin;
-        
+        struct{ int mapid; int bind_count; } map_begin;
+        struct{ int mapid; } map_inherit;
         struct{
             int command_id;
             short code;
             unsigned char modifiers;
         } binding;
-        
         struct{
             Custom_Command_Function *func;
             short code;
             unsigned char modifiers;
         } callback;
+        
+        struct{ int clause_type; int value; } use_clause;
+        struct{ int clause_type; int len; char *value; } use_clause_string;
+        struct{ int setting_id; int value; } setting;
     };
 };
+
 

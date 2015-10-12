@@ -71,66 +71,6 @@ struct Color_Highlight{
     i32 ids[4];
 };
 
-struct Widget_ID{
-    i32 id;
-    i32 sub_id0;
-    i32 sub_id1;
-    i32 sub_id2;
-};
-
-inline bool32
-widget_match(Widget_ID s1, Widget_ID s2){
-    return (s1.id == s2.id && s1.sub_id0 == s2.sub_id0 &&
-            s1.sub_id1 == s2.sub_id1 && s1.sub_id2 == s2.sub_id2);
-}
-
-struct UI_State{
-    Render_Target *target;
-    Style *style;
-    Font *font;
-    Mouse_Summary *mouse;
-    Key_Summary *keys;
-    Key_Codes *codes;
-    Working_Set *working_set;
-    
-    Widget_ID selected, hover, hot;
-    bool32 activate_me;
-    bool32 redraw;
-    bool32 input_stage;
-    i32 sub_id1_change;
-    
-    real32 height, view_y;
-};
-
-inline bool32
-is_selected(UI_State *state, Widget_ID id){
-    return widget_match(state->selected, id);
-}
-
-inline bool32
-is_hot(UI_State *state, Widget_ID id){
-    return widget_match(state->hot, id);
-}
-
-inline bool32
-is_hover(UI_State *state, Widget_ID id){
-    return widget_match(state->hover, id);
-}
-
-struct UI_Layout{
-    i32 row_count;
-    i32 row_item_width;
-    i32 row_max_item_height;
-    
-    i32_Rect rect;
-    i32 x, y;    
-};
-
-struct UI_Layout_Restore{
-    UI_Layout layout;
-    UI_Layout *dest;
-};
-
 struct Library_UI{
     UI_State state;
     UI_Layout layout;
@@ -181,58 +121,6 @@ inline Color_View*
 view_to_color_view(View *view){
     Assert(!view || view->type == VIEW_TYPE_COLOR);
     return (Color_View*)view;
-}
-
-inline void
-begin_layout(UI_Layout *layout, i32_Rect rect){
-    layout->rect = rect;
-    layout->x = rect.x0;
-    layout->y = rect.y0;
-    layout->row_count = 0;
-    layout->row_max_item_height = 0;
-}
-
-inline void
-begin_row(UI_Layout *layout, i32 count){
-    layout->row_count = count;
-    layout->row_item_width = (layout->rect.x1 - layout->x) / count; 
-}
-
-inline i32_Rect
-layout_rect(UI_Layout *layout, i32 height){
-    i32_Rect rect;
-    rect.x0 = layout->x;
-    rect.y0 = layout->y;
-    rect.x1 = rect.x0;
-    rect.y1 = rect.y0 + height;
-    if (layout->row_count > 0){
-        --layout->row_count;
-        rect.x1 = rect.x0 + layout->row_item_width;
-        layout->x += layout->row_item_width;
-        layout->row_max_item_height = Max(height, layout->row_max_item_height);
-    }
-    if (layout->row_count == 0){
-        rect.x1 = layout->rect.x1;
-        layout->row_max_item_height = Max(height, layout->row_max_item_height);
-        layout->y += layout->row_max_item_height;
-        layout->x = layout->rect.x0;
-        layout->row_max_item_height = 0;
-    }
-    return rect;
-}
-
-inline UI_Layout_Restore
-begin_sub_layout(UI_Layout *layout, i32_Rect area){
-    UI_Layout_Restore restore;
-    restore.layout = *layout;
-    restore.dest = layout;
-    begin_layout(layout, area);
-    return restore;
-}
-
-inline void
-end_sub_layout(UI_Layout_Restore restore){
-    *restore.dest = restore.layout;
 }
 
 internal real32
@@ -308,203 +196,6 @@ draw_rgb_slider(Render_Target *target, Vec4 base, i32 channel, i32 steps, real32
     draw_gradient_slider(target, base, channel, steps, top, slider, 0);
 }
 
-inline Widget_ID
-make_id(UI_State *state, i32 id){
-    Widget_ID r = state->selected;
-    r.id = id;
-    return r;
-}
-
-inline Widget_ID
-make_sub0(UI_State *state, i32 id){
-    Widget_ID r = state->selected;
-    r.sub_id0 = id;
-    return r;
-}
-
-inline Widget_ID
-make_sub1(UI_State *state, i32 id){
-    Widget_ID r = state->selected;
-    r.sub_id1 = id;
-    return r;
-}
-
-inline Widget_ID
-make_sub2(UI_State *state, i32 id){
-    Widget_ID r = state->selected;
-    r.sub_id2 = id;
-    return r;
-}
-
-internal bool32
-ui_do_button_input(UI_State *state, i32_Rect rect, Widget_ID id, bool32 activate, bool32 *right = 0){
-    bool32 result = 0;
-    Mouse_Summary *mouse = state->mouse;
-    bool32 hover = hit_check(mouse->mx, mouse->my, rect);
-    if (hover){
-        state->hover = id;
-        if (activate) state->activate_me = 1;
-        if (mouse->press_l || (mouse->press_r && right)) state->hot = id;
-        if (mouse->l && mouse->r) state->hot = {};
-    }
-    bool32 is_match = widget_match(state->hot, id);
-    if (mouse->release_l && is_match){
-        if (hover) result = 1;
-        state->redraw = 1;
-    }
-    if (right && mouse->release_r && is_match){
-        if (hover) *right = 1;
-        state->redraw = 1;
-    }
-    return result;
-}
-
-internal bool32
-ui_do_subdivided_button_input(UI_State *state, i32_Rect rect, i32 parts, Widget_ID id, bool32 activate, i32 *indx_out, bool32 *right = 0){
-    bool32 result = 0;
-    real32 x0, x1;
-    i32_Rect sub_rect;
-    Widget_ID sub_widg = id;
-    real32 sub_width = (rect.x1 - rect.x0) / (real32)parts;
-    sub_rect.y0 = rect.y0;
-    sub_rect.y1 = rect.y1;
-    x1 = (real32)rect.x0;
-    
-    for (i32 i = 0; i < parts; ++i){
-        x0 = x1;
-        x1 = x1 + sub_width;
-        sub_rect.x0 = TRUNC32(x0);
-        sub_rect.x1 = TRUNC32(x1);
-        sub_widg.sub_id2 = i;
-        if (ui_do_button_input(state, sub_rect, sub_widg, activate, right)){
-            *indx_out = i;
-            break;
-        }
-    }
-    
-    return result;
-}
-
-internal real32
-ui_do_vscroll_input(UI_State *state, i32_Rect top, i32_Rect bottom, i32_Rect slider,
-                    Widget_ID id, real32 val, real32 step_amount,
-                    real32 smin, real32 smax, real32 vmin, real32 vmax){
-    Mouse_Summary *mouse = state->mouse;
-    i32 mx = mouse->mx;
-    i32 my = mouse->my;
-    if (hit_check(mx, my, top)){
-        state->hover = id;
-        state->hover.sub_id2 = 1;
-    }
-    if (hit_check(mx, my, bottom)){
-        state->hover = id;
-        state->hover.sub_id2 = 2;
-    }
-    if (hit_check(mx, my, slider)){
-        state->hover = id;
-        state->hover.sub_id2 = 3;
-    }
-    if (mouse->press_l) state->hot = state->hover;
-    if (id.id == state->hot.id){
-        if (mouse->release_l){
-            Widget_ID wid1, wid2;
-            wid1 = wid2 = id;
-            wid1.sub_id2 = 1;
-            wid2.sub_id2 = 2;
-            if (state->hot.sub_id2 == 1 && is_hover(state, wid1)) val -= step_amount;
-            if (state->hot.sub_id2 == 2 && is_hover(state, wid2)) val += step_amount;
-            state->redraw = 1;
-        }
-        if (state->hot.sub_id2 == 3){
-            real32 S, L;
-            S = (real32)mouse->my - (slider.y1 - slider.y0) / 2;
-            if (S < smin) S = smin;
-            if (S > smax) S = smax;
-            L = unlerp(smin, S, smax);
-            val = lerp(vmin, L, vmax);
-            state->redraw = 1;
-        }
-    }
-    return val;
-}
-
-internal bool32
-ui_do_text_field_input(UI_State *state, String *str){
-    bool32 result = 0;
-    Key_Summary *keys = state->keys;
-    for (i32 key_i = 0; key_i < keys->count; ++key_i){
-        Key_Single key = get_single_key(keys, key_i);
-        char c = (char)key.key.character;
-        if (char_is_basic(c) && str->size < str->memory_size-1){
-            str->str[str->size++] = c;
-            str->str[str->size] = 0;
-        }
-        else if (c == '\n'){
-            result = 1;
-        }
-        else if (key.key.keycode == state->codes->back && str->size > 0){
-            str->str[--str->size] = 0;
-        }
-    }
-    return result;
-}
-
-internal bool32
-ui_do_file_field_input(UI_State *state, Hot_Directory *hot_dir){
-    bool32 result = 0;
-    Key_Summary *keys = state->keys;
-    for (i32 key_i = 0; key_i < keys->count; ++key_i){
-        Key_Single key = get_single_key(keys, key_i);
-        String *str = &hot_dir->string;
-        terminate_with_null(str);
-        Single_Line_Input_Step step =
-            app_single_file_input_step(state->codes, state->working_set, key, str, hot_dir, 1);
-        if (step.hit_newline || step.hit_ctrl_newline) result = 1;
-    }
-    return result;
-}
-
-internal bool32
-ui_do_line_field_input(UI_State *state, String *string){
-    bool32 result = 0;
-    Key_Summary *keys = state->keys;
-    for (i32 key_i = 0; key_i < keys->count; ++key_i){
-        Key_Single key = get_single_key(keys, key_i);
-        terminate_with_null(string);
-        Single_Line_Input_Step step =
-            app_single_line_input_step(state->codes, key, string);
-        if (step.hit_newline || step.hit_ctrl_newline) result = 1;
-    }
-    return result;
-}
-
-internal bool32
-ui_do_slider_input(UI_State *state, i32_Rect rect, Widget_ID wid,
-                   real32 min, real32 max, real32 *v){
-    bool32 result = 0;
-    ui_do_button_input(state, rect, wid, 0);
-    Mouse_Summary *mouse = state->mouse;
-    if (is_hot(state, wid)){
-        result = 1;
-        *v = unlerp(min, (real32)mouse->mx, max);
-        state->redraw = 1;
-    }
-    return result;
-}
-
-struct UI_Style{
-    u32 dark, dim, bright;
-};
-
-internal UI_Style
-get_ui_style(Style *style){
-    UI_Style ui_style;
-    ui_style.dark = style->main.back_color;
-    ui_style.dim = style->main.margin_color;
-    ui_style.bright = style->main.margin_active_color;
-    return ui_style;
-}
-
 internal void
 do_label(UI_State *state, UI_Layout *layout, char *text, real32 height = 2.f){
     Style *style = state->style;
@@ -522,27 +213,6 @@ do_label(UI_State *state, UI_Layout *layout, char *text, real32 height = 2.f){
     }
 }
 
-internal void
-get_colors(UI_State *state, u32 *back, u32 *fore, Widget_ID wid, UI_Style style){
-    bool32 hover = is_hover(state, wid);
-    bool32 hot = is_hot(state, wid);
-    i32 level = hot + hover;
-    switch (level){
-    case 2:
-        *back = style.bright;
-        *fore = style.dark;
-        break;
-    case 1:
-        *back = style.dim;
-        *fore = style.bright;
-        break;
-    case 0:
-        *back = style.dark;
-        *fore = style.bright;
-        break;
-    }
-}
-
 internal bool32
 do_button(i32 id, UI_State *state, UI_Layout *layout, char *text,
           bool32 is_toggle = 0, bool32 on = 0){
@@ -550,7 +220,7 @@ do_button(i32 id, UI_State *state, UI_Layout *layout, char *text,
     Font *font = state->font;
     i32 character_h = font->height;
     
-    i32_Rect btn_rect = layout_rect(layout, font->height * 2);
+    i32_Rect btn_rect = layout_rect(layout, character_h * 2);
     btn_rect = get_inner_rect(btn_rect, 2);
     
     Widget_ID wid = make_id(state, id);
@@ -1350,75 +1020,6 @@ do_font_switch(Color_UI *ui){
     }
 }
 
-internal UI_State
-ui_state_init(UI_State *state_in, Render_Target *target, Input_Summary *user_input,
-              Style *style, Working_Set *working_set, bool32 input_stage){
-    UI_State state;
-    state.target = target;
-    state.style = style;
-    state.font = style->font;
-    state.working_set = working_set;
-    state.mouse = &user_input->mouse;
-    state.keys = &user_input->keys;
-    state.codes = user_input->codes;
-    state.selected = state_in->selected;
-    state.hot = state_in->hot;
-    if (input_stage) state.hover = {};
-    else state.hover = state_in->hover;
-    state.redraw = 0;
-    state.activate_me = 0;
-    state.input_stage = input_stage;
-    state.height = state_in->height;
-    state.view_y = state_in->view_y;
-    return state;
-}
-
-inline bool32
-ui_state_match(UI_State a, UI_State b){
-    return (widget_match(a.selected, b.selected) &&
-            widget_match(a.hot, b.hot) &&
-            widget_match(a.hover, b.hover));
-}
-
-internal bool32
-ui_finish_frame(UI_State *persist_state, UI_State *state, UI_Layout *layout, i32_Rect rect,
-                bool32 do_wheel, bool32 *did_activation){
-    bool32 result = 0;
-    real32 h = layout->y + persist_state->view_y - rect.y0;
-    real32 max_y = h - (rect.y1 - rect.y0);
-    
-    persist_state->height = h;
-    persist_state->view_y = state->view_y;
-    
-    if (state->input_stage){
-        Mouse_Summary *mouse = state->mouse;
-        if (mouse->wheel_used && do_wheel){
-            persist_state->view_y += mouse->wheel_amount*state->font->height;
-            result = 1;
-        }
-        if (mouse->release_l && widget_match(state->hot, state->hover)){
-            if (did_activation) *did_activation = 1;
-            if (state->activate_me){
-                state->selected = state->hot;
-            }
-        }
-        if (!mouse->l && !mouse->r){
-            state->hot = {};
-        }
-        
-        if (!ui_state_match(*persist_state, *state) || state->redraw){
-            result = 1;
-        }
-        
-        *persist_state = *state;
-    }
-    
-    if (persist_state->view_y >= max_y) persist_state->view_y = max_y;
-    if (persist_state->view_y < 0) persist_state->view_y = 0;
-
-    return result;
-}
-
 internal i32
 step_draw_adjusting(Color_View *color_view, i32_Rect rect, View_Message message,
                     Render_Target *target, Input_Summary *user_input){
@@ -1860,11 +1461,11 @@ do_file_list_box(UI_State *state, UI_Layout *layout, Hot_Directory *hot_dir, boo
         terminate_with_null(&hot_dir->string);
     }
     else{
-        String p4c_extension = make_lit_string("p4c");
-        String message_loaded = make_lit_string(" LOADED");
-        String message_unsaved = make_lit_string(" LOADED *");
-        String message_unsynced = make_lit_string(" LOADED BEHIND OS");
-        String message_nothing = {};
+        persist String p4c_extension = make_lit_string("p4c");
+        persist String message_loaded = make_lit_string(" LOADED");
+        persist String message_unsaved = make_lit_string(" LOADED *");
+        persist String message_unsynced = make_lit_string(" LOADED BEHIND OS");
+        persist String message_nothing = {};
         
         char front_name_space[256];
         String front_name = make_fixed_width_string(front_name_space);
@@ -1896,14 +1497,10 @@ do_file_list_box(UI_State *state, UI_Layout *layout, Hot_Directory *hot_dir, boo
             
             String message = message_nothing;
             if (is_loaded){
-                if (file->last_4ed_write_time != file->last_sys_write_time){
-                    message = message_unsynced;
-                }
-                else if (file->last_4ed_edit_time > file->last_sys_write_time){
-                    message = message_unsaved;
-                }
-                else{
-                    message = message_loaded;
+                switch (buffer_get_sync(file)){
+                case SYNC_GOOD: message = message_loaded; break;
+                case SYNC_BEHIND_OS: message = message_unsynced; break;
+                case SYNC_UNSAVED: message = message_unsaved; break;
                 }
             }
             
@@ -1938,6 +1535,10 @@ do_live_file_list_box(UI_State *state, UI_Layout *layout, Working_Set *working_s
         terminate_with_null(string);
     }
     else{
+        persist String message_unsaved = make_lit_string(" *");
+        persist String message_unsynced = make_lit_string(" BEHIND OS");
+        persist String message_nothing = {};
+        
         Absolutes absolutes;
         get_absolutes(*string, &absolutes, 1, 1);
         
@@ -1947,8 +1548,14 @@ do_live_file_list_box(UI_State *state, UI_Layout *layout, Working_Set *working_s
             Editing_File *file = files + i;
             
             if (!file->is_dummy){
+                String message = message_nothing;
+                switch (buffer_get_sync(file)){
+                case SYNC_BEHIND_OS: message = message_unsynced; break;
+                case SYNC_UNSAVED: message = message_unsaved; break;
+                }
+                
                 if (filename_match(*string, &absolutes, file->live_name)){
-                    if (do_file_option(100+i, state, layout, file->live_name, 0, {})){
+                    if (do_file_option(100+i, state, layout, file->live_name, 0, message)){
                         result = 1;
                         *selected = 1;
                         copy(string, file->live_name);
