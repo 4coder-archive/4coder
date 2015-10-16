@@ -18,8 +18,9 @@ struct Command_Binding{
 };
 
 struct Command_Map{
+    Command_Map *parent;
     Command_Binding vanilla_keyboard_default;
-    Command_Binding commands[101];
+    Command_Binding *commands;
     i32 count, max;
 };
 
@@ -93,10 +94,12 @@ map_drop(Command_Map *map, u16 event_code, u8 modifiers){
 }
 
 internal void
-map_init(Command_Map *commands){
+map_init(Command_Map *commands, Partition *part, i32 max, Command_Map *parent){
+    commands->parent = parent;
+    commands->commands = push_array(part, Command_Binding, max);
+    memset(commands->commands, 0, max*sizeof(*commands->commands));
     commands->vanilla_keyboard_default = {};
-    memset(commands->commands, 0, sizeof(commands->commands));
-    commands->max = ArrayCount(commands->commands);
+    commands->max = max;
     commands->count = 0;
 }
 

@@ -3,7 +3,7 @@
  *
  * 12.12.2014
  *
- * Win32 Layer for project codename "4ed"
+ * Application Layer for project codename "4ed"
  *
  */
 
@@ -15,7 +15,7 @@ struct Partition{
     i32 pos, max;
 };
 
-internal Partition
+inline Partition
 partition_open(void *memory, i32 size){
     Partition partition;
     partition.base = (u8*)memory;;
@@ -24,14 +24,19 @@ partition_open(void *memory, i32 size){
     return partition;
 }
 
-internal void*
+inline void*
 partition_allocate(Partition *data, i32 size){
     void *ret = 0;
-    if (size > 0 && data->pos + size < data->max){
+    if (size > 0 && data->pos + size <= data->max){
         ret = data->base + data->pos;
         data->pos += size;
     }
     return ret;
+}
+
+inline void
+partition_align(Partition *data, u32 boundary){
+    data->pos = (data->pos + (boundary - 1)) & (~boundary);
 }
 
 inline void*
@@ -42,6 +47,14 @@ partition_current(Partition *data){
 inline i32
 partition_remaining(Partition *data){
     return data->max - data->pos;
+}
+
+inline Partition
+partition_sub_part(Partition *data, i32 size){
+    Partition result = {};
+    void *d = partition_allocate(data, size);
+    if (d) result = partition_open(d, size);
+    return result;
 }
 
 #define push_struct(part, T) (T*)partition_allocate(part, sizeof(T))

@@ -123,15 +123,6 @@ view_to_color_view(View *view){
     return (Color_View*)view;
 }
 
-internal real32
-font_string_width(Font *font, char *str){
-    real32 x = 0;
-    for (i32 i = 0; str[i]; ++i){
-        x += font_get_glyph_width(font, str[i]);
-    }
-    return x;
-}
-
 internal void
 draw_gradient_slider(Render_Target *target, Vec4 base, i32 channel,
                      i32 steps, real32 top, real32_Rect slider, bool32 hsla){
@@ -211,51 +202,6 @@ do_label(UI_State *state, UI_Layout *layout, char *text, real32 height = 2.f){
         draw_string(target, font, text, label.x0,
                     label.y0 + (height - font->height)/2, fore);
     }
-}
-
-internal bool32
-do_button(i32 id, UI_State *state, UI_Layout *layout, char *text,
-          bool32 is_toggle = 0, bool32 on = 0){
-    bool32 result = 0;
-    Font *font = state->font;
-    i32 character_h = font->height;
-    
-    i32_Rect btn_rect = layout_rect(layout, character_h * 2);
-    btn_rect = get_inner_rect(btn_rect, 2);
-    
-    Widget_ID wid = make_id(state, id);
-    
-    if (state->input_stage){
-        if (ui_do_button_input(state, btn_rect, wid, 0)){
-            result = 1;
-        }
-    }
-    else{
-        Render_Target *target = state->target;
-        UI_Style ui_style = get_ui_style(state->style);
-        u32 back, fore, outline;
-        outline = ui_style.bright;
-        get_colors(state, &back, &fore, wid, ui_style);
-        
-        draw_rectangle(target, btn_rect, back);
-        draw_rectangle_outline(target, btn_rect, outline);
-        real32 text_width = font_string_width(font, text);
-        i32 box_width = btn_rect.x1 - btn_rect.x0;
-        i32 box_height = btn_rect.y1 - btn_rect.y0;
-        i32 x_pos = TRUNC32(btn_rect.x0 + (box_width - text_width)*.5f);
-        draw_string(target, font, text, x_pos, btn_rect.y0 + (box_height - character_h) / 2, fore);
-        
-        if (is_toggle){
-            i32_Rect on_box = get_inner_rect(btn_rect, character_h/2);
-            on_box.x1 = on_box.x0 + (on_box.y1 - on_box.y0);
-            
-            if (on) draw_rectangle(target, on_box, fore);
-            else draw_rectangle(target, on_box, back);
-            draw_rectangle_outline(target, on_box, fore);
-        }
-    }
-    
-    return result;
 }
 
 internal void
@@ -1051,7 +997,7 @@ step_draw_adjusting(Color_View *color_view, i32_Rect rect, View_Message message,
     ui.layout.rect.x1 -= 20;
     
     if (!ui.state.input_stage) draw_push_clip(target, ui.layout.rect);
-    if (do_button(-1, &ui.state, &ui.layout, "Back to Library")){
+    if (do_button(-1, &ui.state, &ui.layout, "Back to Library", 2)){
         color_view->mode = CV_MODE_LIBRARY;
         ui.state.view_y = 0;
     }
@@ -1174,7 +1120,7 @@ update_highlighting(Color_View *color_view){
     
     Editing_File *file = file_view->file;
     i32 pos = view_get_cursor_pos(file_view);
-    char c = file->data[pos];
+    char c = file->buffer.data[pos];
     
     if (c == '\r'){
         color_view->highlight.ids[0] =
@@ -1607,19 +1553,19 @@ step_draw_library(Color_View *color_view, i32_Rect rect, View_Message message,
         
         begin_row(&ui.layout, 3);
         if (ui.state.style->name.size >= 1){
-            if (do_button(-2, &ui.state, &ui.layout, "Save")){
+            if (do_button(-2, &ui.state, &ui.layout, "Save", 2)){
                 style_library_add(ui.styles, ui.state.style);
             }
         }
         else{
-            do_button(-2, &ui.state, &ui.layout, "~Need's Name~");
+            do_button(-2, &ui.state, &ui.layout, "~Need's Name~", 2);
         }
-        if (do_button(-3, &ui.state, &ui.layout, "Import")){
+        if (do_button(-3, &ui.state, &ui.layout, "Import", 2)){
             color_view->mode = CV_MODE_IMPORT_FILE;
             hot_directory_clean_end(color_view->hot_directory);
             hot_directory_reload(color_view->hot_directory, color_view->working_set);
         }
-        if (do_button(-4, &ui.state, &ui.layout, "Export")){
+        if (do_button(-4, &ui.state, &ui.layout, "Export", 2)){
             color_view->mode = CV_MODE_EXPORT;
             hot_directory_clean_end(color_view->hot_directory);
             hot_directory_reload(color_view->hot_directory, color_view->working_set);
@@ -1647,10 +1593,10 @@ step_draw_library(Color_View *color_view, i32_Rect rect, View_Message message,
         
         do_label(&ui.state, &ui.layout, "Import Which File?");
         begin_row(&ui.layout, 2);
-        if (do_button(-2, &ui.state, &ui.layout, "*.p4c only", 1, color_view->p4c_only)){
+        if (do_button(-2, &ui.state, &ui.layout, "*.p4c only", 2, 1, color_view->p4c_only)){
             color_view->p4c_only = !color_view->p4c_only;
         }
-        if (do_button(-3, &ui.state, &ui.layout, "Cancel")){
+        if (do_button(-3, &ui.state, &ui.layout, "Cancel", 2)){
             color_view->mode = CV_MODE_LIBRARY;
         }
         
@@ -1689,10 +1635,10 @@ step_draw_library(Color_View *color_view, i32_Rect rect, View_Message message,
         
         do_label(&ui.state, &ui.layout, "Export File Name?");
         begin_row(&ui.layout, 2);
-        if (do_button(-2, &ui.state, &ui.layout, "Finish Export")){
+        if (do_button(-2, &ui.state, &ui.layout, "Finish Export", 2)){
             file_selected = 1;
         }
-        if (do_button(-3, &ui.state, &ui.layout, "Cancel")){
+        if (do_button(-3, &ui.state, &ui.layout, "Cancel", 2)){
             color_view->mode = CV_MODE_LIBRARY;
         }
         
@@ -1740,14 +1686,14 @@ step_draw_library(Color_View *color_view, i32_Rect rect, View_Message message,
         
         do_label(&ui.state, &ui.layout, "Pack");
         begin_row(&ui.layout, 2);
-        if (do_button(-2, &ui.state, &ui.layout, "Finish Import")){
+        if (do_button(-2, &ui.state, &ui.layout, "Finish Import", 2)){
             Style *style = styles;
             for (i32 i = 0; i < style_count; ++i, ++style){
                 if (import_check[i]) style_library_add(ui.styles, style);
             }
             color_view->mode = CV_MODE_LIBRARY;
         }
-        if (do_button(-3, &ui.state, &ui.layout, "Cancel")){
+        if (do_button(-3, &ui.state, &ui.layout, "Cancel", 2)){
             color_view->mode = CV_MODE_LIBRARY;
         }
         
@@ -1767,10 +1713,10 @@ step_draw_library(Color_View *color_view, i32_Rect rect, View_Message message,
         
         do_label(&ui.state, &ui.layout, "Export Which Themes?");
         begin_row(&ui.layout, 2);
-        if (do_button(-2, &ui.state, &ui.layout, "Export")){
+        if (do_button(-2, &ui.state, &ui.layout, "Export", 2)){
             color_view->mode = CV_MODE_EXPORT_FILE;
         }
-        if (do_button(-3, &ui.state, &ui.layout, "Cancel")){
+        if (do_button(-3, &ui.state, &ui.layout, "Cancel", 2)){
             color_view->mode = CV_MODE_LIBRARY;
         }
         

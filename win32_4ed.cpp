@@ -72,7 +72,6 @@
 struct TEMP_BACKDOOR{
     Get_Binding_Data_Function *get_bindings;
     Set_Extra_Font_Function *set_extra_font;
-    Start_Hook_Function *start_hook;
 } TEMP;
 
 #if FRED_INTERNAL
@@ -931,9 +930,6 @@ WinMain(HINSTANCE hInstance,
         
         TEMP.set_extra_font = (Set_Extra_Font_Function*)
             GetProcAddress(win32vars.custom, "set_extra_font");
-        
-        TEMP.start_hook = (Start_Hook_Function*)
-            GetProcAddress(win32vars.custom, "start_hook");
     }
 #endif
     

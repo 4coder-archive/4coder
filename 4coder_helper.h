@@ -14,15 +14,8 @@ struct Bind_Helper{
 #define BH_ERR_MISSING_BEGIN 2
 #define BH_ERR_OUT_OF_MEMORY 3
 
-inline int
-seek_null(char *str){
-    char *start = str;
-    while (*str) ++str;
-    return (int)(str - start);
-}
-
 inline void
-copy(char *dest, char *src, int len){
+copy(char *dest, const char *src, int len){
     for (int i = 0; i < len; ++i){
         *dest++ = *src++;
     }
@@ -73,11 +66,10 @@ begin_bind_helper(void *data, int size){
     result.end = result.start + size / sizeof(*result.cursor);
     
     Binding_Unit unit;
-    unit.type = UNIT_HEADER;
+    unit.type = unit_header;
     unit.header.total_size = sizeof(*result.header);
     result.header = write_unit(&result, unit);
-    result.header->header.map_count = 0;
-    result.header->header.group_count = 0;
+    result.header->header.user_map_count = 0;
     
     return result;
 }
@@ -85,10 +77,10 @@ begin_bind_helper(void *data, int size){
 inline void
 begin_map(Bind_Helper *helper, int mapid){
     if (helper->group != 0 && helper->error == 0) helper->error = BH_ERR_MISSING_END;
-    if (!helper->error) ++helper->header->header.map_count;
+    if (!helper->error && mapid >= mapid_user_custom) ++helper->header->header.user_map_count;
     
     Binding_Unit unit;
-    unit.type = UNIT_MAP_BEGIN;
+    unit.type = unit_map_begin;
     unit.map_begin.mapid = mapid;
     helper->group = write_unit(helper, unit);
     helper->group->map_begin.bind_count = 0;
@@ -106,7 +98,7 @@ bind(Bind_Helper *helper, short code, unsigned char modifiers, int cmdid){
     if (!helper->error) ++helper->group->map_begin.bind_count;
     
     Binding_Unit unit;
-    unit.type = UNIT_BINDING;
+    unit.type = unit_binding;
     unit.binding.command_id = cmdid;
     unit.binding.code = code;
     unit.binding.modifiers = modifiers;
@@ -120,7 +112,7 @@ bind_me(Bind_Helper *helper, short code, unsigned char modifiers, Custom_Command
     if (!helper->error) ++helper->group->map_begin.bind_count;
     
     Binding_Unit unit;
-    unit.type = UNIT_CALLBACK;
+    unit.type = unit_callback;
     unit.callback.func = func;
     unit.callback.code = code;
     unit.callback.modifiers = modifiers;
@@ -141,10 +133,21 @@ bind_me_vanilla_keys(Bind_Helper *helper, Custom_Command_Function *func){
 inline void
 inherit_map(Bind_Helper *helper, int mapid){
     if (helper->group == 0 && helper->error == 0) helper->error = BH_ERR_MISSING_BEGIN;
+    if (!helper->error && mapid >= mapid_user_custom) ++helper->header->header.user_map_count;
     
     Binding_Unit unit;
-    unit.type = UNIT_INHERIT;
+    unit.type = unit_inherit;
     unit.map_inherit.mapid = mapid;
+    
+    write_unit(helper, unit);
+}
+
+inline void
+set_hook(Bind_Helper *helper, int hook_id, Custom_Command_Function *func){
+    Binding_Unit unit;
+    unit.type = unit_hook;
+    unit.hook.hook_id = hook_id;
+    unit.hook.func = func;
     
     write_unit(helper, unit);
 }
@@ -157,72 +160,32 @@ end_bind_helper(Bind_Helper *helper){
     }
 }
 
+// NOTE(allen): Useful functions and overloads on app links
 inline void
-begin_settings_group(Bind_Helper *helper){
-    if (helper->group != 0 && helper->error == 0) helper->error = BH_ERR_MISSING_END;
-    if (!helper->error) ++helper->header->header.group_count;
-    
-    Binding_Unit unit;
-    unit.type = UNIT_SETTINGS_BEGIN;
-    helper->group = write_unit(helper, unit);
+push_parameter_helper(void *cmd_context, Application_Links app, int param, int value){
+    app.push_parameter(cmd_context, dynamic_int(param), dynamic_int(value));
 }
 
 inline void
-end_group(Bind_Helper *helper){
-    if (helper->group == 0 && helper->error == 0) helper->error = BH_ERR_MISSING_BEGIN;
-    helper->group = 0;
+push_parameter_helper(void *cmd_context, Application_Links app, int param, const char *value, int value_len){
+    char *value_copy = app.push_memory(cmd_context, value_len);
+    copy(value_copy, value, value_len);
+    app.push_parameter(cmd_context, dynamic_int(param), dynamic_string(value_copy, value_len));
 }
 
 inline void
-use_when(Bind_Helper *helper, int clause_type, int value){
-    if (helper->group == 0 && helper->error == 0) helper->error = BH_ERR_MISSING_BEGIN;
-
-    Binding_Unit unit;
-    unit.type = UNIT_USE_CLAUSE;
-    unit.use_clause.clause_type = clause_type;
-    unit.use_clause.value = value;
-    write_unit(helper, unit);
+push_parameter_helper(void *cmd_context, Application_Links app, const char *param, int param_len, int value){
+    char *param_copy = app.push_memory(cmd_context, param_len);
+    copy(param_copy, param, param_len);
+    app.push_parameter(cmd_context, dynamic_string(param_copy, param_len), dynamic_int(value));
 }
 
 inline void
-use_when(Bind_Helper *helper, int clause_type, char *value){
-    if (helper->group == 0 && helper->error == 0) helper->error = BH_ERR_MISSING_BEGIN;
-    
-    Binding_Unit unit;
-    unit.type = UNIT_USE_CLAUSE;
-    unit.use_clause_string.clause_type = clause_type;
-    unit.use_clause_string.len = seek_null(value);
-    Binding_Unit *u = write_unit(helper, unit);
-    u->use_clause_string.value = write_inline_string(helper, value, unit.use_clause_string.len);
-}
-
-inline void
-use_when(Bind_Helper *helper, int clause_type, char *value, int len){
-    if (helper->group == 0 && helper->error == 0) helper->error = BH_ERR_MISSING_BEGIN;
-    
-    Binding_Unit unit;
-    unit.type = UNIT_USE_CLAUSE;
-    unit.use_clause_string.clause_type = clause_type;
-    unit.use_clause_string.len = len;
-    unit.use_clause_string.value = value;
-    write_unit(helper, unit);
-}
-
-inline void
-set(Bind_Helper *helper, int setting_id, int value){
-    if (helper->group == 0 && helper->error == 0) helper->error = BH_ERR_MISSING_BEGIN;
-    
-    Binding_Unit unit;
-    unit.type = UNIT_SETTING;
-    unit.setting.setting_id = setting_id;
-    unit.setting.value = value;
-    write_unit(helper, unit);
-}
-
-inline void
-end_settings_helper(Bind_Helper *helper){
-    if (helper->header){
-        helper->header->header.error = helper->error;
-    }
+push_parameter_helper(void *cmd_context, Application_Links app, const char *param, int param_len, const char *value, int value_len){
+    char *param_copy = app.push_memory(cmd_context, param_len);
+    char *value_copy = app.push_memory(cmd_context, value_len);
+    copy(param_copy, param, param_len);
+    copy(value_copy, value, value_len);
+    app.push_parameter(cmd_context, dynamic_string(param_copy, param_len), dynamic_string(value_copy, value_len));
 }
 

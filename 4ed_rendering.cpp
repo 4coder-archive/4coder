@@ -825,6 +825,15 @@ font_get_glyph_width(Font *font, u16 character){
     return font->chardata[character].xadvance;
 }
 
+internal real32
+font_string_width(Font *font, char *str){
+    real32 x = 0;
+    for (i32 i = 0; str[i]; ++i){
+        x += font_get_glyph_width(font, str[i]);
+    }
+    return x;
+}
+
 internal i32
 draw_string(Render_Target *target, Font *font, char *str,
             i32 x_, i32 y, u32 color){
