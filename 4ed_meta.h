@@ -25,9 +25,13 @@ typedef int16_t i16;
 
 typedef i32 bool32;
 typedef i8 bool8;
+typedef i32 b32;
+typedef i8 b8;
 
 typedef float real32;
 typedef double real64;
+typedef float f32;
+typedef double f64;
 
 #define internal static
 #define globalvar static

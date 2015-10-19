@@ -1074,7 +1074,7 @@ COMMAND_DECL(to_uppercase){
         spec.end = range.end;
         spec.str_len = range.end - range.start;
         spec.next_cursor_pos = view->cursor.pos;
-        view_pre_replace_range(mem, file, spec);
+        view_update_history_before_edit(mem, file, spec);
         
         if (file->still_lexing){
             system_cancel_job(BACKGROUND_THREADS, file->lex_job);
@@ -1107,7 +1107,7 @@ COMMAND_DECL(to_lowercase){
         spec.end = range.end;
         spec.str_len = range.end - range.start;
         spec.next_cursor_pos = view->cursor.pos;
-        view_pre_replace_range(mem, file, spec);
+        view_update_history_before_edit(mem, file, spec);
         
         if (file->still_lexing){
             system_cancel_job(BACKGROUND_THREADS, file->lex_job);

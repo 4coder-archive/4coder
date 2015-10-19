@@ -51,7 +51,20 @@ struct Edit_Step{
     i32 next_block, prev_block;
 };
 
+struct Edit_Stack{
+    u8 *strings;
+    i32 size, max;
+    
+    Edit_Step *edits;
+    i32 edit_count, edit_max;
+};
+
 struct Undo_Data{
+    Edit_Stack undo;
+    Edit_Stack redo;
+    Edit_Stack history;
+    
+#if 0    
     u8 *strings;
     i32 str_size, str_redo, str_max;
     
@@ -63,6 +76,8 @@ struct Undo_Data{
     
     i32 history_block_count, history_head_block;
     Edit_Step *history;
+#endif
+    
     i32 edit_history, edit_history_max;
     i32 edit_history_cursor;
     i32 current_block_normal;
@@ -76,7 +91,7 @@ struct Editing_File{
     Font *font;
     
     i32 cursor_pos;
-    bool32 is_dummy;
+    b32 is_dummy;
     
     char source_path_[256];
     char live_name_[256];
@@ -86,9 +101,9 @@ struct Editing_File{
     String extension;
     
     Cpp_Token_Stack token_stack;
-    bool32 tokens_complete;
-    bool32 tokens_exist;
-    bool32 still_lexing;
+    b32 tokens_complete;
+    b32 tokens_exist;
+    b32 still_lexing;
     u32 lex_job;
     i32 base_map_id;
     
@@ -1218,6 +1233,18 @@ file_measure_starts(General_Memory *general, Editing_File *file){
     file->buffer.line_count = state.count;
 }
 
+internal void
+file_remeasure_starts(General_Memory *general, Editing_File *file,
+                      i32 line_start, i32 line_end, i32 line_shift,
+                      i32 character_shift){
+    ProfileMomentFunction();
+    
+    Assert(file->buffer.line_starts);
+    file_grow_starts_as_needed(general, file, line_shift);
+    
+    buffer_remeasure_starts(&file->buffer, line_start, line_end, line_shift, character_shift);
+}
+
 struct Opaque_Font_Advance{
     void *data;
     int offset;
@@ -1234,9 +1261,7 @@ get_opaque_font_advance(Font *font){
 }
 
 internal void
-file_measure_widths(General_Memory *general, Editing_File *file, Font *font){
-    ProfileMomentFunction();
-    
+file_grow_widths_as_needed(General_Memory *general, Editing_File *file){
     i32 line_count = file->buffer.line_count;
     if (line_count > file->buffer.widths_max){
         i32 new_max = LargeRoundUp(line_count, Kbytes(1));
@@ -1250,21 +1275,26 @@ file_measure_widths(General_Memory *general, Editing_File *file, Font *font){
         }
         file->buffer.widths_max = new_max;
     }
+}
+
+internal void
+file_measure_widths(General_Memory *general, Editing_File *file, Font *font){
+    ProfileMomentFunction();
     
+    file_grow_widths_as_needed(general, file);
     Opaque_Font_Advance opad = get_opaque_font_advance(font);
     buffer_measure_widths(&file->buffer, opad.data, opad.offset, opad.stride);
 }
 
 internal void
-file_remeasure_starts(General_Memory *general, Editing_File *file,
-                      i32 line_start, i32 line_end, i32 line_shift,
-                      i32 character_shift){
+file_remeasure_widths(General_Memory *general, Editing_File *file, Font *font,
+                      i32 line_start, i32 line_end, i32 line_shift){
     ProfileMomentFunction();
     
-    Assert(file->buffer.line_starts);
-    file_grow_starts_as_needed(general, file, line_shift);
-    
-    buffer_remeasure_starts(&file->buffer, line_start, line_end, line_shift, character_shift);
+    file_grow_widths_as_needed(general, file);
+    Opaque_Font_Advance opad = get_opaque_font_advance(font);
+    buffer_remeasure_widths(&file->buffer, opad.data, opad.offset, opad.stride,
+                            line_start, line_end, line_shift);
 }
 
 inline i32
@@ -1536,7 +1566,7 @@ file_kill_tokens(General_Memory *general, Editing_File *file){
 
 internal void
 file_first_lex_parallel(General_Memory *general, Editing_File *file){
-#if 0
+#if 1
     Assert(file->token_stack.tokens == 0);
     
     file->tokens_complete = 0;
@@ -1549,8 +1579,9 @@ file_first_lex_parallel(General_Memory *general, Editing_File *file){
     job.data[1] = general;
     job.memory_request = Kbytes(64);
     file->lex_job = system_post_job(BACKGROUND_THREADS, job);
-#endif
+#else
     file_kill_tokens(general, file);
+#endif
 }
 
 internal void
@@ -1909,9 +1940,7 @@ file_replace_range(Mem_Options *mem, Editing_File *file,
     i32 line_shift =  new_line_count - replaced_line_count;
     
     file_remeasure_starts(general, file, line_start, line_end, line_shift, shift_amount);
-    
-    // TODO(allen): Can we "remeasure" widths now!?
-    file_measure_widths(general, file, file->font);
+    file_remeasure_widths(general, file, file->font, line_start, line_end, line_shift);
     
     Shift_Information shift;
     shift.start = start;
@@ -2416,7 +2445,7 @@ struct Edit_Spec{
 };
 
 internal void
-view_pre_replace_range(Mem_Options *mem, Editing_File *file, Edit_Spec spec){
+view_update_history_before_edit(Mem_Options *mem, Editing_File *file, Edit_Spec spec){
     General_Memory *general = &mem->general;
     
     bool32 can_merge = 0, do_merge = 0;
@@ -2570,8 +2599,15 @@ view_pre_replace_range(Mem_Options *mem, Editing_File *file, Edit_Spec spec){
 }
 
 internal void
-view_post_replace_range(Mem_Options *mem, File_View *view, Editing_File *file,
-                        Editing_Layout *layout, Shift_Information shift){
+view_replace_range(Mem_Options *mem, File_View *view, Editing_File *file,
+                   Editing_Layout *layout, Edit_Spec spec){
+    Assert(file);
+    
+    view_update_history_before_edit(mem, file, spec);
+    
+    Shift_Information shift =
+        file_replace_range(mem, file, spec.start, spec.end, (char*)spec.str, spec.str_len);
+    
     General_Memory *general = &mem->general;
     i32 panel_count = layout->panel_count;
     
@@ -2614,16 +2650,6 @@ view_post_replace_range(Mem_Options *mem, File_View *view, Editing_File *file,
     }
     
     end_temp_memory(temp);
-}
-
-internal void
-view_replace_range(Mem_Options *mem, File_View *view, Editing_File *file,
-                   Editing_Layout *layout, Edit_Spec spec){
-    Assert(file);
-    view_pre_replace_range(mem, file, spec);
-    Shift_Information shift =
-        file_replace_range(mem, file, spec.start, spec.end, (char*)spec.str, spec.str_len);
-    view_post_replace_range(mem, view, file, layout, shift);
 }
 
 inline void
@@ -2827,7 +2853,7 @@ view_clean_whitespace(Mem_Options *mem, File_View *view, Editing_Layout *layout)
     i32 line_count = file->buffer.line_count;
     i32 edit_max = line_count * 2;
     Buffer_Edit *edits = push_array(part, Buffer_Edit, edit_max);
-    i32 edit_i = 0;
+    i32 edit_count = 0;
     
     for (i32 line_i = 0; line_i < line_count; ++line_i){
         i32 start = file->buffer.line_starts[line_i];
@@ -2846,19 +2872,20 @@ view_clean_whitespace(Mem_Options *mem, File_View *view, Editing_Layout *layout)
             new_edit.len = preferred_indentation;
             new_edit.start = start;
             new_edit.end = hard_start;
-            edits[edit_i++] = new_edit;
+            edits[edit_count++] = new_edit;
         }
-        Assert(edit_i <= edit_max);
+        Assert(edit_count <= edit_max);
     }
     
-    Assert(buffer_batch_debug_sort_check(edits, edit_i));
+    Assert(buffer_batch_debug_sort_check(edits, edit_count));
 
     General_Memory *general = &mem->general;
-    i32 shift_amount = buffer_batch_edit_max_shift(edits, edit_i);
+    i32 shift_amount = buffer_batch_edit_max_shift(edits, edit_count);
     file_grow_as_needed(general, file, shift_amount);
     
-    buffer_batch_edit(&file->buffer, edits, edit_i);
+    buffer_batch_edit(&file->buffer, edits, edit_count);
     
+    // NOTE(allen): meta data
     Buffer_Measure_Starts state = {};
     if (buffer_measure_starts(&state, &file->buffer)) Assert(0);
     
@@ -2868,6 +2895,7 @@ view_clean_whitespace(Mem_Options *mem, File_View *view, Editing_Layout *layout)
     i32 cursor_max = layout->panel_max_count * 2;
     Cursor_With_Index *cursors = push_array(part, Cursor_With_Index, cursor_max);
     
+    // NOTE(allen): cursor fixing
     i32 panel_count = layout->panel_count;
     i32 cursor_count = 0;
     Panel *current_panel = layout->panels;
@@ -2882,7 +2910,7 @@ view_clean_whitespace(Mem_Options *mem, File_View *view, Editing_Layout *layout)
     
     if (cursor_count > 0){
         buffer_sort_cursors(cursors, cursor_count);
-        buffer_batch_edit_update_cursors(cursors, cursor_count, edits, edit_i);
+        buffer_batch_edit_update_cursors(cursors, cursor_count, edits, edit_count);
         buffer_unsort_cursors(cursors, cursor_count);
     }
     
@@ -2897,411 +2925,30 @@ view_clean_whitespace(Mem_Options *mem, File_View *view, Editing_Layout *layout)
         }
     }
     
+    // NOTE(allen): token fixing
+    if (file->tokens_complete){
+        Cpp_Token_Stack tokens = file->token_stack;
+        Cpp_Token *token = tokens.tokens;
+        Cpp_Token *end_token = tokens.tokens + tokens.count;
+        
+        Buffer_Edit *edit = edits;
+        Buffer_Edit *end_edit = edits + edit_count;
+        
+        i32 shift_amount = 0;
+        
+        for (; token < end_token && edit < end_edit; ++edit){
+            for (; token->start < edit->start && token < end_token; ++token){
+                token->start += shift_amount;
+            }
+            shift_amount += (edit->len - (edit->end - edit->start));
+        }
+        for (; token < end_token; ++token){
+            token->start += shift_amount;
+        }
+    }
+    
     end_temp_memory(temp);
 }
-
-#if 0
-// NOTE(allen): Assumes that whitespace_buffer has at least
-// indent.tabs*4 + indent.spaces bytes available.
-internal Shift_Information
-buffer_set_indent_whitespace(Mem_Options *mem, Editing_File *file,
-                             Indent_Definition indent,
-                             u8 *whitespace_buffer,
-                             i32 line_start){
-    i32 i = 0;
-    while (i < indent.tabs){
-        for (i32 j = 0; j < 4; ++j) whitespace_buffer[i++] = ' ';
-    }
-    while (i < indent.tabs + indent.spaces){
-        whitespace_buffer[i++] = ' ';
-    }
-    
-    Range leading_white;
-    leading_white.smaller = line_start;
-    Line_Hard_Start hard_start;
-    hard_start = buffer_find_hard_start(file, line_start);
-    leading_white.larger = hard_start.first_character;
-    Shift_Information shift = {};
-    
-    if (leading_white.smaller < leading_white.larger){
-        shift = buffer_replace_range(mem, file,
-                                     leading_white.smaller, leading_white.larger,
-                                     whitespace_buffer, i);
-    }
-   
-    return shift;
-}
-
-inline Indent_Definition
-indent_by_width(i32 width, i32 tab_width){
-    Indent_Definition indent;
-    indent.tabs = 0;
-    indent.spaces = width;
-    return indent;
-}
-
-struct Nest_Level{
-	i32 brace_level, paren_level, bracket_level;
-};
-
-struct Nest_Level_Hint{
-	Nest_Level start_level;
-	i32 start_pos;
-};
-
-internal Nest_Level
-buffer_compute_nest_level_raw(Editing_File *file, i32 pos, Nest_Level_Hint hint = {}){
-	Nest_Level result = hint.start_level;
-	for (i32 i = hint.start_pos; i < pos; ++i){
-		if (file->data[i] == '/' &&
-			i+1 < file->size && file->data[i+1] == '*'){
-			Seek_Result seek = seek_block_comment_end((char*)file->data, file->size, pos);
-			pos = seek.pos;
-		}
-		else if (file->data[i] == '/' &&
-				 i+1 < file->size && file->data[i+1] == '/'){
-			Seek_Result seek = seek_unescaped_eol((char*)file->data, file->size, pos);
-			pos = seek.pos;
-		}
-		else if (file->data[i] == '"'){
-			Seek_Result seek = seek_unescaped_delim((char*)file->data, file->size, pos, '"');
-			pos = seek.pos;
-		}
-		else if (file->data[i] == '\''){
-			Seek_Result seek = seek_unescaped_delim((char*)file->data, file->size, pos, '\'');
-			pos = seek.pos;
-		}
-		switch (file->data[i]){
-			case '{':
-				++result.brace_level;
-				break;
-			case '}':
-				if (result.brace_level > 0){
-					--result.brace_level;
-				}
-				break;
-			case '(':
-				++result.paren_level;
-				break;
-			case ')':
-				if (result.paren_level > 0){
-					--result.paren_level;
-				}
-				break;
-			case '[':
-				++result.bracket_level;
-				break;
-			case ']':
-				if (result.bracket_level > 0){
-					--result.bracket_level;
-				}
-				break;
-		}
-	}
-	return result;
-}
-
-internal Nest_Level
-buffer_compute_nest_level_tokens(Editing_File *file, i32 pos, Nest_Level_Hint hint = {}){
-	Nest_Level result = hint.start_level;
-	Cpp_Token_Stack token_stack = file->token_stack;
-	i32 start_token;
-	{
-		Cpp_Get_Token_Result get_result = cpp_get_token(&file->token_stack, hint.start_pos);
-		start_token = get_result.token_index;
-		if (get_result.in_whitespace){
-			++start_token;
-		}
-	}
-	for (i32 i = start_token; i < token_stack.count && token_stack.tokens[i].start < pos; ++i){
-		if (token_stack.tokens[i].flags & CPP_TFLAG_PP_BODY){
-			continue;
-		}
-		switch (token_stack.tokens[i].type){
-			case CPP_TOKEN_BRACE_OPEN:
-				++result.brace_level;
-				break;
-			case CPP_TOKEN_BRACE_CLOSE:
-				if (result.brace_level > 0){
-					--result.brace_level;
-				}
-				break;
-			case CPP_TOKEN_PARENTHESE_OPEN:
-				++result.paren_level;
-				break;
-			case CPP_TOKEN_PARENTHESE_CLOSE:
-				if (result.paren_level > 0){
-					--result.paren_level;
-				}
-				break;
-			case CPP_TOKEN_BRACKET_OPEN:
-				++result.bracket_level;
-				break;
-			case CPP_TOKEN_BRACKET_CLOSE:
-				if (result.bracket_level > 0){
-					--result.bracket_level;
-				}
-				break;
-		}
-	}
-	return result;
-}
-#endif
-
-#if 0
-internal void
-view_auto_tab(Mem_Options *mem, File_View *view, i32 start, i32 end){
-	Editing_File *file = view->file;
-	u8 *data = (u8*)file->data;
-	
-	start = view_find_beginning_of_line(view, start);
-	end = view_find_end_of_line(view, end);
-	
-	i32 cursor = view->cursor.pos;
-	i32 mark = view->mark;
-	
-	Nest_Level_Hint hint = {};
-	while (start < end){
-		Line_Hard_Start hard_start;
-		hard_start = buffer_find_hard_start(file, start);
-		
-		i32 x_pos = 0;
-		
-		i32 read_until = hard_start.first_character;
-		u8 first_character = file->data[read_until];
-		if (first_character == '}' ||
-			first_character == ')' ||
-			first_character == ']'){
-			++read_until;
-		}
-		
-		Nest_Level nesting;
-		bool32 is_label = 0;
-		bool32 is_continuation = 0;
-		bool32 is_preprocessor = 0;
-		bool32 is_string_continuation = 0;
-		AllowLocal(is_string_continuation);
-		// TODO(allen): Better system for finding out what extra data types a file has?
-		if (file->tokens_complete){
-			nesting = buffer_compute_nest_level_tokens(file, read_until, hint);
-			
-			i32 colon_expect_level = 1;
-			
-			Cpp_Get_Token_Result token_get =
-				cpp_get_token(&file->token_stack, hard_start.first_character);
-			
-			i32 token_i;
-			
-			{
-				if (token_get.in_whitespace){
-					token_i = -1;
-				}
-				else{
-					token_i = token_get.token_index;
-				}
-			}
-			
-			while (colon_expect_level != 0){
-				Cpp_Token_Type type = CPP_TOKEN_JUNK;
-				if (token_i >= 0 && token_i < file->token_stack.count){
-					type = file->token_stack.tokens[token_i].type;
-				}
-                
-                if (is_keyword(type)){
-                    Cpp_Token *token = file->token_stack.tokens + token_i;
-                    String lexeme = make_string((char*)file->data + token->start, token->size);
-                    if (colon_expect_level == 1){
-                        if (match("case", lexeme)){
-                            colon_expect_level = 2;
-                        }
-                        else if (match("public", lexeme)){
-                            colon_expect_level = 3;
-                        }
-                        else if (match("private", lexeme)){
-                            colon_expect_level = 3;
-                        }
-                        else if (match("protected", lexeme)){
-                            colon_expect_level = 3;
-                        }
-                    }
-                    else{
-                        colon_expect_level = 0;
-                    }
-                }
-                else{
-                    switch (type){
-					case CPP_TOKEN_IDENTIFIER:
-					{
-						colon_expect_level = 3;
-					}break;
-                    
-					case CPP_TOKEN_COLON:
-					{
-						if (colon_expect_level == 3){
-							is_label = 1;
-							colon_expect_level = 0;
-						}
-					}break;
-                    
-					default:
-					{
-						colon_expect_level = 0;
-					}break;
-                    }
-                }
-				
-				++token_i;
-			}
-			
-			if (!token_get.in_whitespace){
-				Cpp_Token *token = file->token_stack.tokens + token_get.token_index;
-				if (token->type == CPP_TOKEN_STRING_CONSTANT ||
-					token->type == CPP_TOKEN_CHARACTER_CONSTANT){
-					is_string_continuation = 1;
-				}
-			}
-			
-			if (!is_string_continuation){
-				token_i = token_get.token_index;
-				bool32 in_whitespace = token_get.in_whitespace;
-				if (token_i >= 0){
-					Cpp_Token *token = file->token_stack.tokens + token_i;
-                    
-					bool32 never_continuation = 0;
-					if (!in_whitespace){
-						switch (token->type){
-							case CPP_TOKEN_BRACE_CLOSE:
-							case CPP_TOKEN_BRACE_OPEN:
-							case CPP_TOKEN_PARENTHESE_OPEN:
-							case CPP_TOKEN_PARENTHESE_CLOSE:
-							case CPP_TOKEN_COMMENT:
-								never_continuation = 1;
-								break;
-						}
-						if (token->flags & CPP_TFLAG_PP_DIRECTIVE ||
-							token->flags & CPP_TFLAG_PP_BODY){
-							never_continuation = 1;
-						}
-					}
-					else{
-						++token_i;
-					}
-                    
-					if (!never_continuation){
-						--token_i;
-						token = file->token_stack.tokens + token_i;
-						bool32 keep_looping = 1;
-						is_continuation = 1;
-						while (token_i >= 0 && keep_looping){
-							--token_i;
-							keep_looping = 0;
-							if (token->flags & CPP_TFLAG_PP_DIRECTIVE ||
-								token->flags & CPP_TFLAG_PP_BODY){
-								keep_looping = 1;
-							}
-							else{
-								switch (token->type){
-									case CPP_TOKEN_BRACE_CLOSE:
-									case CPP_TOKEN_BRACE_OPEN:
-									case CPP_TOKEN_PARENTHESE_OPEN:
-									case CPP_TOKEN_SEMICOLON:
-									case CPP_TOKEN_COLON:
-									case CPP_TOKEN_COMMA:
-										is_continuation = 0;
-										break;
-								
-									case CPP_TOKEN_COMMENT:
-									case CPP_TOKEN_JUNK:
-										keep_looping = 1;
-										break;
-								}
-							}
-						}
-						if (token_i == -1){
-							is_continuation = 0;
-						}
-					}
-				}
-			}
-			
-			token_i = token_get.token_index;
-			if (token_i >= 0){
-				Cpp_Token *token = file->token_stack.tokens + token_i;
-				if (!token_get.in_whitespace){
-					if (token->flags & CPP_TFLAG_PP_DIRECTIVE ||
-						token->flags & CPP_TFLAG_PP_BODY){
-						is_preprocessor = 1;
-					}
-				}
-			}
-		}
-		
-		else{
-			nesting = buffer_compute_nest_level_raw(file, read_until, hint);
-		}
-		
-		hint.start_level = nesting;
-		hint.start_pos = read_until;
-
-		if (is_preprocessor || is_string_continuation){
-			x_pos = 0;
-		}
-		else{
-			x_pos = 4*(nesting.brace_level + nesting.bracket_level + nesting.paren_level);
-			if (is_continuation){
-				x_pos += 4;
-			}
-			if (is_label){
-				x_pos -= 4;
-			}
-			if (x_pos < 0){
-				x_pos = 0;
-			}
-		}
-		
-		// TODO(allen): Need big transient memory for this operation.
-		// NOTE(allen): This is temporary. IRL it should probably come
-		// from transient memory space.
-		u8 whitespace[200];
-		
-		Indent_Definition indent;
-        // TODO(allen): Revist all this.
-		indent = indent_by_width(x_pos, 4);
-		
-		TentativeAssert(indent.tabs + indent.spaces < 200);
-		
-		Shift_Information shift;
-		shift = buffer_set_indent_whitespace(mem, file, indent, whitespace, start);
-		
-		if (hint.start_pos >= shift.start){
-			hint.start_pos += shift.amount;
-		}
-		
-		if (cursor >= shift.start && cursor <= shift.end){
-			Line_Hard_Start hard_start;
-			hard_start = buffer_find_hard_start(file, shift.start);
-			cursor = hard_start.first_character;
-		}
-		else if (cursor > shift.end){
-			cursor += shift.amount;
-		}
-		if (mark >= shift.start && mark <= shift.end){
-			Line_Hard_Start hard_start;
-			hard_start = buffer_find_hard_start(file, shift.start);
-			mark = hard_start.first_character;
-		}
-		else if (mark > shift.end){
-			mark += shift.amount;
-		}
-		
-		start = view_find_beginning_of_next_line(view, start);
-		end += shift.amount;
-	}
-	
-	view_cursor_move(view, cursor);
-	view->mark = pos_adjust_to_self(mark, data, file->size);
-}
-#endif
 
 internal u32*
 style_get_color(Style *style, Cpp_Token token){

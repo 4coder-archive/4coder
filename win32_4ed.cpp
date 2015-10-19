@@ -947,13 +947,14 @@ WinMain(HINSTANCE hInstance,
     u32 creation_flag = 0;
     for (i32 i = 0; i < win32vars.groups[BACKGROUND_THREADS].count; ++i){
         Thread_Context *thread = win32vars.groups[BACKGROUND_THREADS].threads + i;
-        thread->handle = CreateThread(0, 0, ThreadProc, thread, creation_flag, (LPDWORD)&thread->windows_id);
         thread->id = i + 1;
-        thread->queue = &win32vars.queues[BACKGROUND_THREADS];
         
         Thread_Memory *memory = win32vars.thread_memory + i;
         *memory = {};
         memory->id = thread->id;
+        
+        thread->queue = &win32vars.queues[BACKGROUND_THREADS];
+        thread->handle = CreateThread(0, 0, ThreadProc, thread, creation_flag, (LPDWORD)&thread->windows_id);
     }
     
     Assert(win32vars.locks);
