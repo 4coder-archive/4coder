@@ -92,7 +92,6 @@ enum Command_ID{
     cmdid_to_uppercase,
     cmdid_to_lowercase,
     cmdid_toggle_show_whitespace,
-    cmdid_clean_line,
     cmdid_clean_all_lines,
     cmdid_eol_dosify,
     cmdid_eol_nixify,
@@ -124,7 +123,6 @@ enum Param_ID{
     par_lex_as_cpp_file,
     par_wrap_lines,
     par_key_mapid,
-    par_end_line_mode,
     // never below this
     par_type_count
 };
@@ -208,12 +206,6 @@ struct Extra_Font{
     int size;
 };
 
-enum EOL_Option{
-    EOL_USE_CRLF,
-    EOL_USE_CR_USE_LF,
-    EOL_SHOW_CR_USE_LF
-};
-
 struct Buffer_Summary{
     // NOTE(allen): None of these members nor any of the data pointed to
     // by these members should be modified.
@@ -229,7 +221,6 @@ struct Buffer_Summary{
     
     int file_cursor_pos;
     
-    EOL_Option eol_mode;
     int is_lexed;
     
     int map_id;

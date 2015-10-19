@@ -8,78 +8,6 @@
  */
 
 // TOP
-// TODO(allen):
-// 
-// BUGS & PROBLEMS
-// 
-// - line_wrap_ys remeasurement optimization
-// 
-// GENERAL
-// 
-// - eol regularization
-// 
-// - untabification
-// 
-// - mode switching
-// 
-// - auto mode switching
-// 
-// - meta command stuff
-//    command use frequency
-// 
-// - configuration / GUI for generating configuration
-// 
-// - travel packaging
-// 
-// - multiple live name conflicts
-// 
-// - nav links
-// 
-// - on file reopen diff and try to find place for cursor
-// 
-// TOOLS
-// 
-// - calculator with: dec hex translation
-// 
-// - solver
-// 
-// TEXT MODE
-// 
-// - replace
-// 
-// - select word
-//
-// - match list
-// 
-// - regular expression
-// 
-// BASIC CODE MODE - general any language
-// 
-// - select token
-// 
-// - reprogrammable lexing / auto indent
-// 
-// - bracket match / mismatch highlighting
-// 
-// - smart line wrapping (using tokens and white space as separation points)
-// 
-// - auto casing rules?
-// 
-// SUPER CODE MODE - C/C++ editing
-// 
-// - identifier rename
-// 
-// - boolean inverse polarity
-// 
-// - compose/explode class/hierarchy
-//  - virtual to vtable sim/switch
-// 
-// - explode class template?
-// 
-// - enumerate template combinations?
-// 
-// - generate header
-// 
 
 // App Structs
 
@@ -273,15 +201,8 @@ COMMAND_DECL(write_character){
     u8 character = (u8)command->key.key.character;
     char str_space[2];
     String string = make_string(str_space, 2);
-    if (character == '\n' && file->endline_mode == EOL_USE_CRLF){
-        str_space[0] = '\r';
-        str_space[1] = '\n';
-        string.size = 2;
-    }
-    else{
-        str_space[0] = character;
-        string.size = 1;
-    }
+    str_space[0] = character;
+    string.size = 1;
     
     i32 pos;
     pos = view->cursor.pos;
@@ -338,6 +259,7 @@ COMMAND_DECL(seek_whitespace_left){
     view_cursor_move(view, pos);
 }
 
+// TODO(allen): see if this becomes better by using buffer procudures directly
 COMMAND_DECL(seek_whitespace_up){
     ProfileMomentFunction();
     REQ_FILE_VIEW(view);
@@ -351,29 +273,17 @@ COMMAND_DECL(seek_whitespace_up){
     
     bool32 no_hard_character = 0;
     while (pos > 0){
-        if (starts_new_line(data[pos], file->endline_mode)){
-            if (no_hard_character){
-                break;
-            }
-            else{
-                no_hard_character = 1;
-            }
+        if (starts_new_line(data[pos])){
+            if (no_hard_character) break;
+            else no_hard_character = 1;
         }
-        else{
-            if (!char_is_whitespace(data[pos])){
-                no_hard_character = 0;
-            }
+        else if (!char_is_whitespace(data[pos])){
+            no_hard_character = 0;
         }
         --pos;
     }
     
-    if (pos != 0){
-        ++pos;
-    }
-    
-    if (file->endline_mode == EOL_USE_CRLF){
-        pos = pos_adjust_to_self(pos, (u8*)data, file->buffer.size);
-    }
+    if (pos != 0) ++pos;
     
     view_cursor_move(view, pos);
 }
@@ -393,29 +303,21 @@ COMMAND_DECL(seek_whitespace_down){
     bool32 no_hard_character = 0;
     i32 prev_endline = -1;
     while (pos < size){
-        if (starts_new_line(data[pos], file->endline_mode)){
-            if (no_hard_character){
-                break;
-            }
+        if (starts_new_line(data[pos])){
+            if (no_hard_character) break;
             else{
                 no_hard_character = 1;
                 prev_endline = pos;
             }
         }
-        else{
-            if (!char_is_whitespace(data[pos])){
-                no_hard_character = 0;
-            }
+        else if (!char_is_whitespace(data[pos])){
+            no_hard_character = 0;
         }
         ++pos;
     }
     
-    if (prev_endline == -1 || prev_endline+1 >= size){
-        pos = size;
-    }
-    else{
-        pos = prev_endline+1;
-    }
+    if (prev_endline == -1 || prev_endline+1 >= size) pos = size;
+    else pos = prev_endline+1;
     
     view_cursor_move(view, pos);
 }
@@ -665,9 +567,7 @@ COMMAND_DECL(cut){
         clipboard_copy(&mem->general, working_set, data, range);
         view_replace_range(mem, view, layout, range.start, range.end, 0, 0, next_cursor_pos);
         
-        view->mark = pos_universal_fix(range.start,
-                                       (u8*)file->buffer.data, file->buffer.size,
-                                       file->endline_mode);
+        view->mark = range.start;
         view_measure_wraps(&mem->general, view);
         view_cursor_move(view, next_cursor_pos);
     }
@@ -691,9 +591,7 @@ COMMAND_DECL(paste){
         view_replace_range(mem, view, layout, pos_left, pos_left, (u8*)src->str, src->size, next_cursor_pos);
         
         view_cursor_move(view, next_cursor_pos);
-        view->mark = pos_universal_fix(pos_left,
-                                       (u8*)file->buffer.data, file->buffer.size,
-                                       file->endline_mode);
+        view->mark = pos_left;
         
         Editing_Layout *layout = command->layout;
         Panel *panels = layout->panels;
@@ -728,9 +626,7 @@ COMMAND_DECL(paste_next){
                            (u8*)src->str, src->size, next_cursor_pos);
         
         view_cursor_move(view, next_cursor_pos);
-        view->mark = pos_universal_fix(range.start,
-                                       (u8*)file->buffer.data, file->buffer.size,
-                                       file->endline_mode);
+        view->mark = range.start;
         
         Editing_Layout *layout = command->layout;
         Panel *panels = layout->panels;
@@ -763,9 +659,7 @@ COMMAND_DECL(delete_chunk){
         view_replace_range(mem, view, layout, range.start, range.end, 0, 0, next_cursor_pos);
         view_measure_wraps(&mem->general, view);
         view_cursor_move(view, next_cursor_pos);
-        view->mark = pos_universal_fix(range.start,
-                                       (u8*)file->buffer.data, file->buffer.size,
-                                       file->endline_mode);
+        view->mark = range.start;
     }
 }
 
@@ -884,8 +778,8 @@ app_open_file(App_Vars *vars, General_Memory *general, Panel *panel,
     if (!target_file){
         Get_File_Result file = working_set_get_available_file(working_set);
         if (file.file){
-            buffer_get_dummy(file.file);
-            created_file = buffer_create(general, file.file, (u8*)string->str, style->font);
+            file_get_dummy(file.file);
+            created_file = file_create(general, file.file, (u8*)string->str, style->font);
             table_add(&working_set->table, file.file->source_path, file.index);
             if (created_file){
                 target_file = file.file;
@@ -919,7 +813,7 @@ app_open_file(App_Vars *vars, General_Memory *general, Panel *panel,
         new_view->map = app_get_map(vars, target_file->base_map_id);
         
         if (created_file && target_file->tokens_exist)
-            buffer_first_lex_parallel(general, target_file);
+            file_first_lex_parallel(general, target_file);
     }
     
     return result;
@@ -987,13 +881,13 @@ COMMAND_DECL(reopen){
     USE_VARS(vars);
     
     Editing_File temp_file;
-    if (buffer_create(&mem->general, &temp_file, (u8*)make_c_str(file->source_path), style->font)){
-        buffer_close(&mem->general, file);
+    if (file_create(&mem->general, &temp_file, (u8*)make_c_str(file->source_path), style->font)){
+        file_close(&mem->general, file);
         *file = temp_file;
         file->source_path.str = file->source_path_;
         file->live_name.str = file->live_name_;
         if (file->tokens_exist)
-            buffer_first_lex_parallel(&mem->general, file);
+            file_first_lex_parallel(&mem->general, file);
         
         Partition old_part = command->part;
         Temp_Memory temp = begin_temp_memory(&vars->mem.part);
@@ -1022,10 +916,11 @@ COMMAND_DECL(save){
     ProfileMomentFunction();
     REQ_FILE_VIEW(view);
     REQ_FILE(file, view);
+    USE_MEM(mem);
     
     String *file_path = &file->source_path;
     if (file_path->size > 0){
-        file_save(file, (u8*)file_path->str);
+        file_save(&mem->part, file, (u8*)file_path->str);
     }
 }
 
@@ -1139,29 +1034,10 @@ COMMAND_DECL(toggle_endline_mode){
     REQ_FILE_VIEW(view);
     REQ_FILE(file, view);
     USE_MEM(mem);
-    
-    switch (file->endline_mode){
-    case EOL_USE_CRLF:
-    {
-        file->endline_mode = EOL_USE_CR_USE_LF;
-    }break;
-    
-    case EOL_USE_CR_USE_LF:
-    {
-        file->endline_mode = EOL_SHOW_CR_USE_LF;
-    }break;
-    
-    case EOL_SHOW_CR_USE_LF:
-    {
-        view->cursor.pos = pos_adjust_to_self(view->cursor.pos, (u8*)view->file->buffer.data,
-                                              view->file->buffer.size);
-        file->endline_mode = EOL_USE_CRLF;
-    }break;
-    }
-    
+        
+    file_measure_starts(&mem->general, view->file);
     view->cursor =
         view_compute_cursor_from_pos(view, view->cursor.pos);
-    file_measure_starts(&mem->general, view->file);
 }
 
 COMMAND_DECL(toggle_show_whitespace){
@@ -1177,10 +1053,10 @@ COMMAND_DECL(toggle_tokens){
     USE_MEM(mem);
     
     if (file->tokens_exist){
-        buffer_kill_tokens(&mem->general, file);
+        file_kill_tokens(&mem->general, file);
     }
     else{
-        buffer_first_lex_parallel(&mem->general, file);
+        file_first_lex_parallel(&mem->general, file);
     }
 }
 
@@ -1212,7 +1088,7 @@ COMMAND_DECL(to_uppercase){
         }
         
         if (file->token_stack.tokens){
-            buffer_relex_parallel(mem, file, range.start, range.end, 0);
+            file_relex_parallel(mem, file, range.start, range.end, 0);
         }
     }
 }
@@ -1245,98 +1121,22 @@ COMMAND_DECL(to_lowercase){
         }
         
         if (file->token_stack.tokens){
-            buffer_relex_parallel(mem, file, range.start, range.end, 0);
+            file_relex_parallel(mem, file, range.start, range.end, 0);
         }
     }
-}
-
-#if 0
-internal void
-view_clean_line(Mem_Options *mem, File_View *view, Editing_File *file, i32 line_start){
-    u8 *data = file->data;
-    
-    i32 pos = line_start;
-    i32 current_x_bumps = 0;
-    i32 first_hard = -1;
-    while (pos < file->size && data[pos] != '\n'){
-        if (!char_is_whitespace(data[pos])){
-            first_hard = pos;
-            break;
-        }
-        else{
-            switch (data[pos]){
-            case ' ': current_x_bumps += 1; break;
-            case '\t': current_x_bumps += 4; break;
-            }
-        }
-        ++pos;
-    }
-    
-    Indent_Definition indent = indent_by_width(current_x_bumps, 4);
-    buffer_set_indent_whitespace(mem, file, indent,
-                                 (u8*)partition_current(&mem->part), line_start);
-    
-    pos = line_start;
-    i32 last_hard_start = pos-1;
-    i32 last_hard = last_hard_start;
-    while (pos < file->size && data[pos] != '\n'){
-        if (!char_is_whitespace(data[pos])){
-            last_hard = pos;
-        }
-        ++pos;
-    }
-    
-    if (last_hard != last_hard_start){
-        pos = pos_adjust_to_left(pos, data);
-        
-        if (last_hard + 1 < pos){
-            buffer_replace_range(mem, file, last_hard+1, pos, 0, 0, REP_WHITESPACE);
-            
-            if (view->cursor.pos > last_hard){
-                view->cursor = view_compute_cursor_from_pos(view, last_hard + 1);
-            }
-            if (view->mark > last_hard && view->mark <= pos){
-                view->mark = pos_adjust_to_self(last_hard+1, file->data, file->size);
-            }
-            else if (view->mark > pos){
-                view->mark -= pos - (last_hard + 1);
-            }
-        }
-    }
-    else{
-        view_auto_tab(mem, view, pos, pos);
-    }
-}
-#endif
-
-COMMAND_DECL(clean_line){
-#if 0
-    ProfileMomentFunction();
-    REQ_FILE_VIEW(view);
-    REQ_FILE(file, view);
-    USE_MEM(mem);
-    
-    i32 line_start = view_find_beginning_of_line(view, view->cursor.pos);
-    view_clean_line(mem, view, file, line_start);
-    view_measure_wraps(&mem->general, view);
-#endif
 }
 
 COMMAND_DECL(clean_all_lines){
-#if 0
     ProfileMomentFunction();
     REQ_FILE_VIEW(view);
     REQ_FILE(file, view);
+    USE_LAYOUT(layout);
     USE_MEM(mem);
     
-    for (i32 i = 0; i < file->line_count; ++i){
-        i32 line_start = file->line_starts[i];
-        view_clean_line(mem, view, file, line_start);
-    }
+    view_clean_whitespace(mem, view, layout);
     
     view_measure_wraps(&mem->general, view);
     view->cursor = view_compute_cursor_from_pos(view, view->cursor.pos);
-#endif
 }
 
 COMMAND_DECL(eol_dosify){
@@ -1502,13 +1302,9 @@ COMMAND_DECL(move_left){
     REQ_FILE_VIEW(view);
     REQ_FILE(file, view);
     
-    u8 *data = (u8*)file->buffer.data;
     i32 pos = view->cursor.pos;
     if (pos > 0){
         --pos;
-        if (file->endline_mode == EOL_USE_CRLF){
-            pos = pos_adjust_to_self(pos, data, file->buffer.size);
-        }
     }
     
     view_cursor_move(view, pos);
@@ -1520,16 +1316,9 @@ COMMAND_DECL(move_right){
     REQ_FILE(file, view);
     
     i32 size = file->buffer.size;
-    u8* data = (u8*)file->buffer.data;
     i32 pos = view->cursor.pos;
     if (pos < size){
-        if (file->endline_mode == EOL_USE_CRLF){
-            pos = pos_adjust_to_right(pos, data, size);
-            ++pos;
-        }
-        else{
-            ++pos;
-        }
+        ++pos;
     }
     
     view_cursor_move(view, pos);
@@ -1543,17 +1332,10 @@ COMMAND_DECL(delete){
     USE_MEM(mem);
     
     i32 cursor_pos = view->cursor.pos;
-    u8 *data = (u8*)file->buffer.data;
     if (file->buffer.size > 0 && cursor_pos < file->buffer.size){
         i32 start, end;
         start = cursor_pos;
-        if (file->endline_mode == EOL_USE_CRLF &&
-            data[cursor_pos] == '\r' && data[cursor_pos+1] == '\n'){
-            end = cursor_pos+2;
-        }
-        else{
-            end = cursor_pos+1;
-        }
+        end = cursor_pos+1;
         
         i32 shift = (end - start);
         Assert(shift > 0);
@@ -1573,20 +1355,11 @@ COMMAND_DECL(backspace){
     USE_MEM(mem);
     
     i32 cursor_pos = view->cursor.pos;
-    u8 *data = (u8*)file->buffer.data;
     if (cursor_pos > 0 && cursor_pos <= (i32)file->buffer.size){
         i32 start, end;
         end = cursor_pos;
         
-        if (file->endline_mode == EOL_USE_CRLF &&
-            cursor_pos > 1 &&
-            data[cursor_pos-1] == '\n' &&
-            data[cursor_pos-2] == '\r'){
-            start = cursor_pos-2;
-        }
-        else{
-            start = cursor_pos-1;
-        }
+        start = cursor_pos-1;
         
         i32 shift = (end - start);
         Assert(shift > 0);
@@ -1796,10 +1569,10 @@ COMMAND_DECL(set_settings){
         {
             int v = dynamic_to_bool(&param->param.value);
             if (file->tokens_exist){
-                if (!v) buffer_kill_tokens(&mem->general, file);
+                if (!v) file_kill_tokens(&mem->general, file);
             }
             else{
-                if (v) buffer_first_lex_parallel(&mem->general, file);
+                if (v) file_first_lex_parallel(&mem->general, file);
             }
         }break;
         
@@ -1839,9 +1612,6 @@ COMMAND_DECL(set_settings){
                 else map = 0;
             }
         }break;
-        
-        case par_end_line_mode:
-            break;
         }
     }
 }
@@ -1920,7 +1690,6 @@ extern "C"{
                 buffer.file_name = file->source_path.str;
                 buffer.buffer_name = file->live_name.str;
                 buffer.file_cursor_pos = file->cursor_pos;
-                buffer.eol_mode = file->endline_mode;
                 buffer.is_lexed = file->tokens_exist;
                 buffer.map_id = file->base_map_id;
             }
@@ -2007,7 +1776,6 @@ setup_file_commands(Command_Map *commands, Partition *part, Key_Codes *codes, Co
     map_add(commands, '|', MDFR_CTRL, command_toggle_tokens);
     map_add(commands, 'u', MDFR_CTRL, command_to_uppercase);
     map_add(commands, 'j', MDFR_CTRL, command_to_lowercase);
-    map_add(commands, '`', MDFR_CTRL, command_clean_line);
     map_add(commands, '~', MDFR_CTRL, command_clean_all_lines);
     map_add(commands, '1', MDFR_CTRL, command_eol_dosify);
     map_add(commands, '!', MDFR_CTRL, command_eol_nixify);
@@ -2109,7 +1877,6 @@ setup_command_table(){
     SET(to_uppercase);
     SET(to_lowercase);
     SET(toggle_show_whitespace);
-    SET(clean_line);
     SET(clean_all_lines);
     SET(eol_dosify);
     SET(eol_nixify);
@@ -2494,7 +2261,6 @@ HOOK_SIG(default_open_file_hook){
     app.push_parameter(cmd_context, dynamic_int(par_lex_as_cpp_file), dynamic_int(treat_as_code));
     app.push_parameter(cmd_context, dynamic_int(par_wrap_lines), dynamic_int(!treat_as_code));
     app.push_parameter(cmd_context, dynamic_int(par_key_mapid), dynamic_int(mapid_file));
-    app.push_parameter(cmd_context, dynamic_int(par_end_line_mode), dynamic_int(EOL_USE_CRLF));
     
     app.exec_command_keep_stack(cmd_context, cmdid_set_settings);
     app.clear_parameters(cmd_context);
@@ -2756,7 +2522,7 @@ app_init(Thread_Context *thread, Application_Memory *memory,
     vars->working_set.files =
         push_array(partition, Editing_File, vars->working_set.file_max_count);
     
-    buffer_get_dummy(&vars->working_set.files[0]);
+    file_get_dummy(&vars->working_set.files[0]);
     
     vars->working_set.table.max = vars->working_set.file_max_count * 3 / 2;
     vars->working_set.table.count = 0;
@@ -3250,7 +3016,7 @@ app_step(Thread_Context *thread, Key_Codes *codes,
                 if (fview){
                     Editing_File *file = fview->file;
                     if (file && !file->is_dummy){
-                        file_save_and_set_names(file, (u8*)string->str);
+                        file_save_and_set_names(&vars->mem.part, file, (u8*)string->str);
                     }
                 }
             }break;
@@ -3259,14 +3025,14 @@ app_step(Thread_Context *thread, Key_Codes *codes,
             {
                 Editing_File *file = working_set_lookup_file(working_set, *string);
                 if (file && !file->is_dummy){
-                    file_save(file, (u8*)file->source_path.str);
+                    file_save(&vars->mem.part, file, (u8*)file->source_path.str);
                 }
             }break;
             
             case DACT_NEW:
             {
                 Get_File_Result file = working_set_get_available_file(working_set);
-                buffer_create_empty(general, file.file, (u8*)string->str, style->font);
+                file_create_empty(general, file.file, (u8*)string->str, style->font);
                 table_add(&working_set->table, file.file->source_path, file.index);
                 
                 View *new_view = live_set_alloc_view(live_set, mem);
@@ -3277,7 +3043,7 @@ app_step(Thread_Context *thread, Key_Codes *codes,
                 view_set_file(file_view, file.file, style,
                               vars->hooks[hook_open_file], &command_data, app_links);
                 new_view->map = app_get_map(vars, file.file->base_map_id);
-                if (file.file->tokens_exist) buffer_first_lex_parallel(general, file.file);
+                if (file.file->tokens_exist) file_first_lex_parallel(general, file.file);
             }break;
             
             case DACT_SWITCH:
@@ -3391,7 +3157,7 @@ app_step(Thread_Context *thread, Key_Codes *codes,
         Editing_File *file = vars->working_set.files;
         for (i32 i = vars->working_set.file_index_count; i > 0; --i, ++file){
             if (file->buffer.data && !file->is_dummy){
-                buffer_measure_widths(&vars->mem.general, file, vars->style.font);
+                file_measure_widths(&vars->mem.general, file, vars->style.font);
             }
         }
         

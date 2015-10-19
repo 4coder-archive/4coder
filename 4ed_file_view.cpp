@@ -73,14 +73,8 @@ struct Editing_File{
     
     Undo_Data undo;
     
-    i32 line_count, line_max;
-    i32 *line_starts;
-    
     Font *font;
-    i32 width_count, width_max;
-    real32 *line_width;
     
-    EOL_Option endline_mode;
     i32 cursor_pos;
     bool32 is_dummy;
     
@@ -1083,36 +1077,9 @@ get_range(i32 a, i32 b){
 	return result;
 }
 
-inline i32
-pos_adjust_to_right(i32 pos, u8 *data, i32 size){
-	if (pos+1 < size &&
-		data[pos] == '\r' &&
-		data[pos+1] == '\n'){
-		++pos;
-	}
-	return pos;
-}
-
-inline i32
-pos_adjust_to_self(i32 pos, u8 *data, i32 size){
-	if (pos > 0 &&
-		data[pos-1] == '\r' &&
-		data[pos] == '\n'){
-		--pos;
-	}
-	return pos;
-}
-
-inline i32
-pos_universal_fix(i32 pos, u8 *data, i32 size, EOL_Option mode){
-	if (mode == EOL_USE_CRLF)
-		pos = pos_adjust_to_self(pos, data, size);
-	return pos;
-}
-
-inline i32
-starts_new_line(u8 character, EOL_Option mode){
-	return (character == '\n' || (mode == EOL_USE_CR_USE_LF && character == '\r'));
+inline bool32
+starts_new_line(u8 character){
+	return (character == '\n');
 }
 
 inline void
@@ -1144,24 +1111,31 @@ file_synchronize_times(Editing_File *file, u8 *filename){
 }
 
 inline bool32
-file_save(Editing_File *file, u8 *filename){
+file_save(Partition *part, Editing_File *file, u8 *filename){
 	bool32 result = 0;
     i32 do_once = 0;
-    for (Buffer_Save_Loop loop = buffer_save_loop(&file->buffer);
-         buffer_save_good(&loop);
-         buffer_save_next(&loop)){
-        Assert(do_once == 0);
-        result = system_save_file(filename, loop.data, loop.size);
+    Temp_Memory temp = begin_temp_memory(part);
+    Buffer temp_buffer;
+    temp_buffer.data = push_array(part, char, partition_remaining(part));
+    // TODO(allen): What about using this stringify loop to convert out?
+    for (Buffer_Stringify_Loop loop = buffer_stringify_loop(&file->buffer, 0, file->buffer.size);
+         buffer_stringify_good(&loop);
+         buffer_stringify_next(&loop)){
+        memcpy(temp_buffer.data, loop.data, loop.size);
+        temp_buffer.size = loop.size;
+        buffer_eol_convert_out(&temp_buffer);
+        result = system_save_file(filename, temp_buffer.data, temp_buffer.size);
         ++do_once;
     }
+    end_temp_memory(temp);
     file_synchronize_times(file, filename);
     return result;
 }
 
 inline bool32
-file_save_and_set_names(Editing_File *file, u8 *filename){
+file_save_and_set_names(Partition *part, Editing_File *file, u8 *filename){
 	bool32 result = 0;
-	if (file_save(file, filename)){
+	if (file_save(part, file, filename)){
 		result = 1;
         file_set_name(file, filename);
 	}
@@ -1170,25 +1144,8 @@ file_save_and_set_names(Editing_File *file, u8 *filename){
 
 inline i32
 file_count_newlines(Editing_File *file, i32 start, i32 end){
-    i32 count = 0;
-    switch (file->endline_mode){
-    case EOL_USE_CRLF:
-    case EOL_SHOW_CR_USE_LF:
-        count = buffer_count_newlines(&file->buffer, start, end, 0, 1); break;
-    case EOL_USE_CR_USE_LF:
-        count = buffer_count_newlines(&file->buffer, start, end, 1, 1); break;
-    }
+    i32 count = buffer_count_newlines(&file->buffer, start, end);
     return count;
-}
-
-internal bool32
-file_check_newline(EOL_Option end_mode, u8 character){
-    bool32 result = 0;
-    if (character == '\n' ||
-        (end_mode == EOL_USE_CR_USE_LF && character == '\r')){
-        result = 1;
-    }
-    return result;
 }
 
 enum File_Bubble_Type{
@@ -1212,17 +1169,17 @@ enum File_Bubble_Type{
 internal i32
 file_grow_starts_as_needed(General_Memory *general, Editing_File *file, i32 additional_lines){
     bool32 result = GROW_NOT_NEEDED;
-    i32 max = file->line_max;
-    i32 count = file->line_count;
+    i32 max = file->buffer.line_max;
+    i32 count = file->buffer.line_count;
     i32 target_lines = count + additional_lines;
     if (target_lines > max){
         max <<= 1;
         i32 *new_lines = (i32*)
-            general_memory_reallocate(general, file->line_starts,
+            general_memory_reallocate(general, file->buffer.line_starts,
                                       sizeof(i32)*count, sizeof(i32)*max, BUBBLE_STARTS);
         if (new_lines){
-            file->line_starts = new_lines;
-            file->line_max = max;
+            file->buffer.line_starts = new_lines;
+            file->buffer.line_max = max;
             result = GROW_SUCCESS;
         }
         else{
@@ -1235,205 +1192,79 @@ file_grow_starts_as_needed(General_Memory *general, Editing_File *file, i32 addi
 internal void
 file_measure_starts(General_Memory *general, Editing_File *file){
     ProfileMomentFunction();
-    if (!file->line_starts){
-        i32 max = file->line_max = Kbytes(1);
-        file->line_starts = (i32*)general_memory_allocate(general, max*sizeof(i32), BUBBLE_STARTS);
-        TentativeAssert(file->line_starts);
+    if (!file->buffer.line_starts){
+        i32 max = file->buffer.line_max = Kbytes(1);
+        file->buffer.line_starts = (i32*)general_memory_allocate(general, max*sizeof(i32), BUBBLE_STARTS);
+        TentativeAssert(file->buffer.line_starts);
         // TODO(allen): when unable to allocate?
     }
     
-    // TODO(allen): handle endline modes
     Buffer_Measure_Starts state = {};
-    while (buffer_measure_starts_(&state, &file->buffer, file->line_starts, file->line_max, 0, 1)){
-        i32 max = file->line_max;
+    while (buffer_measure_starts(&state, &file->buffer)){
+        i32 max = file->buffer.line_max;
         i32 count = state.count;
         i32 target_lines = count + 1;
         
         max = (target_lines << 1);
         i32 *new_lines = (i32*)
-            general_memory_reallocate(general, file->line_starts,
+            general_memory_reallocate(general, file->buffer.line_starts,
                                       sizeof(i32)*count, sizeof(i32)*max, BUBBLE_STARTS);
         
         // TODO(allen): when unable to grow?
         TentativeAssert(new_lines);
-        file->line_starts = new_lines;
-        file->line_max = max;
+        file->buffer.line_starts = new_lines;
+        file->buffer.line_max = max;
     }
-    file->line_count = state.count;
+    file->buffer.line_count = state.count;
 }
 
-internal real32
-measure_character(Font *font, EOL_Option end_mode, bool32 *new_line,
-                  u8 character, u8 next){
-    real32 width = 0;
-    switch (character){
-    case 0:
-    {
-        width = 0;
-        *new_line = 1;
-    }break;
-    
-    case '\n':
-    {
-        width = font->chardata[character].xadvance;
-        *new_line = 1;
-    }break;
-    
-    case '\r':
-    {
-        switch (end_mode){
-        case EOL_USE_CRLF:
-        {
-            if (next == '\n'){
-                // DO NOTHING
-            }
-            else{
-                width = font->chardata['\\'].xadvance;
-                width += font->chardata['r'].xadvance;
-            }
-        }break;
-        
-        case EOL_USE_CR_USE_LF:
-        {
-            width = font->chardata[character].xadvance;
-            *new_line = 1;
-        }break;
-        
-        case EOL_SHOW_CR_USE_LF:
-        {
-            width = font->chardata['\\'].xadvance;
-            width += font->chardata['r'].xadvance;
-        }break;
-        }
-    }break;
-    
-    default:
-    {
-        width = font->chardata[character].xadvance;
-    }break;
-    }
-    return width;
+struct Opaque_Font_Advance{
+    void *data;
+    int offset;
+    int stride;
+};
+
+inline Opaque_Font_Advance
+get_opaque_font_advance(Font *font){
+    Opaque_Font_Advance result;
+    result.data = font->chardata;
+    result.offset = (int)OffsetOfPtr(font->chardata, xadvance);
+    result.stride = sizeof(*font->chardata);
+    return result;
 }
 
 internal void
-buffer_measure_widths(General_Memory *general, Editing_File *file, Font *font){
+file_measure_widths(General_Memory *general, Editing_File *file, Font *font){
     ProfileMomentFunction();
-    i32 line_count = file->line_count;
-    if (line_count > file->width_max){
+    
+    i32 line_count = file->buffer.line_count;
+    if (line_count > file->buffer.widths_max){
         i32 new_max = LargeRoundUp(line_count, Kbytes(1));
-        if (file->line_width){
-            file->line_width = (real32*)
-                general_memory_reallocate_nocopy(general, file->line_width, sizeof(real32)*new_max, BUBBLE_WIDTHS);
+        if (file->buffer.line_widths){
+            file->buffer.line_widths = (real32*)
+                general_memory_reallocate_nocopy(general, file->buffer.line_widths, sizeof(real32)*new_max, BUBBLE_WIDTHS);
         }
         else{
-            file->line_width = (real32*)
+            file->buffer.line_widths = (real32*)
                 general_memory_allocate(general, sizeof(real32)*new_max, BUBBLE_WIDTHS);
         }
-        file->width_max = new_max;
+        file->buffer.widths_max = new_max;
     }
     
-    EOL_Option mode = file->endline_mode;
-    i32 size = file->buffer.size;
-    char *data = file->buffer.data;
-    real32 *line_widths = file->line_width;
-    
-    // TODO(allen): Does this help at all with widths???
-    // probably only if we go parallel...
-    i32 *starts = file->line_starts; AllowLocal(starts);
-    
-    data[size] = 0;
-    for (i32 i = 0, j = 0; i < line_count; ++i){
-        TentativeAssert(j == starts[i]);
-        bool32 new_line = 0;
-        real32 width = 0;
-        u8 c = data[j];
-        u8 n = data[++j];
-        while (new_line == 0){
-            width += measure_character(font, mode, &new_line, c, n);
-            c = n;
-            n = data[++j];
-        }
-        --j;
-        line_widths[i] = width;
-    }
+    Opaque_Font_Advance opad = get_opaque_font_advance(font);
+    buffer_measure_widths(&file->buffer, opad.data, opad.offset, opad.stride);
 }
 
 internal void
-buffer_remeasure_starts(General_Memory *general, Editing_File *file,
-                        i32 line_start, i32 line_end, i32 line_shift,
-                        i32 character_shift){
+file_remeasure_starts(General_Memory *general, Editing_File *file,
+                      i32 line_start, i32 line_end, i32 line_shift,
+                      i32 character_shift){
     ProfileMomentFunction();
-    Assert(file->line_starts);
+    
+    Assert(file->buffer.line_starts);
     file_grow_starts_as_needed(general, file, line_shift);
-    i32 *lines = file->line_starts;
     
-    if (line_shift != 0){
-        memmove(lines + line_end + line_shift + 1, lines + line_end + 1,
-                sizeof(i32)*(file->line_count - line_end - 1));
-        file->line_count += line_shift;
-    }
-    
-    if (character_shift != 0){
-        i32 line_count = file->line_count;
-        i32 *line = lines + line_end + 1;
-        for (i32 i = line_end + 1; i < line_count; ++i, ++line){
-            *line += character_shift;
-        }
-    }
-    
-    i32 size = file->buffer.size;
-    char *data = file->buffer.data;
-    i32 char_i = lines[line_start];
-    i32 line_i = line_start;
-    
-    EOL_Option end_mode = file->endline_mode;
-    
-    i32 start = char_i;
-    for (; char_i <= size; ++char_i){
-        u8 character;
-        if (char_i == size){
-            character = '\n';
-        }
-        else{
-            character = data[char_i];
-        }
-        
-        if (file_check_newline(end_mode, character)){
-            if (line_i > line_end && start == lines[line_i]){
-                break;
-            }
-            
-            lines[line_i++] = start;
-            start = char_i + 1;
-        }
-    }
-}
-
-internal i32
-buffer_get_line_index(Editing_File *file, i32 pos){
-    i32 result;
-    i32 start = 0;
-    i32 end = file->line_count;
-    i32 *lines = file->line_starts;
-    while (1){
-        i32 i = (start + end) / 2;
-        if (lines[i] < pos){
-            start = i;
-        }
-        else if (lines[i] > pos){
-            end = i;
-        }
-        else{
-            result = i;
-            break;
-        }
-        Assert(start < end);
-        if (start ==  end - 1){
-            result = start;
-            break;
-        }
-    }
-    return result;
+    buffer_remeasure_starts(&file->buffer, line_start, line_end, line_shift, character_shift);
 }
 
 inline i32
@@ -1454,13 +1285,12 @@ view_compute_lowest_line(File_View *view){
         else{
             real32 wrap_y = view->line_wrap_y[last_line];
             Editing_File *file = view->file;
-            AllowLocal(file);
             Assert(!file->is_dummy);
             Style *style = view->style;
             Font *font = style->font;
             lowest_line = FLOOR32(wrap_y / font->height);
             
-            real32 width = file->line_width[last_line];
+            real32 width = file->buffer.line_widths[last_line];
             real32 max_width = view_compute_width(view);
             i32 line_span = view_wrapped_line_span(width, max_width);
             lowest_line += line_span - 1;
@@ -1473,7 +1303,7 @@ internal void
 view_measure_wraps(General_Memory *general, File_View *view){
     ProfileMomentFunction();
     Editing_File *file = view->file;
-    i32 line_count = file->line_count;
+    i32 line_count = file->buffer.line_count;
     
     if (view->line_max < line_count){
         i32 max = view->line_max = LargeRoundUp(line_count, Kbytes(1));
@@ -1490,7 +1320,7 @@ view_measure_wraps(General_Memory *general, File_View *view){
     Font *font = view->style->font;
     real32 line_height = (real32)font->height;
     real32 max_width = view_compute_width(view);
-    real32 *line_widths = file->line_width;
+    real32 *line_widths = file->buffer.line_widths;
     real32 *line_wraps = view->line_wrap_y;
     i32 y_pos = 0;
     for (i32 i = 0; i < line_count; ++i){
@@ -1503,7 +1333,7 @@ view_measure_wraps(General_Memory *general, File_View *view){
 }
 
 internal void
-buffer_create_from_string(General_Memory *general, Editing_File *file, u8 *filename, Font *font, String val){
+file_create_from_string(General_Memory *general, Editing_File *file, u8 *filename, Font *font, String val){
     i32 request_size = LargeRoundUp(1+val.size*2, Kbytes(64));
     u8 *data = (u8*)general_memory_allocate(general, request_size, BUBBLE_BUFFER);
     
@@ -1518,7 +1348,11 @@ buffer_create_from_string(General_Memory *general, Editing_File *file, u8 *filen
     file->buffer.size = val.size;
     file->buffer.max = request_size;
     
-    if (val.size > 0) memcpy(data, val.str, val.size);
+    if (val.size > 0){
+        memcpy(data, val.str, val.size);
+        buffer_eol_convert_in(&file->buffer);
+    }
+    
     data[val.size] = 0;
     
     file_synchronize_times(file, filename);
@@ -1528,7 +1362,7 @@ buffer_create_from_string(General_Memory *general, Editing_File *file, u8 *filen
     file->base_map_id = mapid_file;
     
     file_measure_starts(general, file);
-    buffer_measure_widths(general, file, font);
+    file_measure_widths(general, file, font);
     file->font = font;
 
     file->undo.str_max = request_size;
@@ -1551,14 +1385,14 @@ buffer_create_from_string(General_Memory *general, Editing_File *file, u8 *filen
 }
 
 internal bool32
-buffer_create(General_Memory *general, Editing_File *file, u8 *filename, Font *font){
+file_create(General_Memory *general, Editing_File *file, u8 *filename, Font *font){
     bool32 result = 0;
     
     File_Data raw_file = system_load_file(filename);
     if (raw_file.data){
         result = 1;
         String val = make_string((char*)raw_file.data, raw_file.size);
-        buffer_create_from_string(general, file, filename, font, val);
+        file_create_from_string(general, file, filename, font, val);
         system_free_file(raw_file);
     }
     
@@ -1566,11 +1400,11 @@ buffer_create(General_Memory *general, Editing_File *file, u8 *filename, Font *f
 }
 
 internal bool32
-buffer_create_empty(General_Memory *general, Editing_File *file, u8 *filename, Font *font){
+file_create_empty(General_Memory *general, Editing_File *file, u8 *filename, Font *font){
     bool32 result = 1;
     
     String empty_str = {};
-    buffer_create_from_string(general, file, filename, font, empty_str);
+    file_create_from_string(general, file, filename, font, empty_str);
     
     return result;
 }
@@ -1601,7 +1435,7 @@ working_set_get_available_file(Working_Set *working_set){
 }
 
 internal void
-buffer_close(General_Memory *general, Editing_File *file){
+file_close(General_Memory *general, Editing_File *file){
     if (file->still_lexing){
         system_cancel_job(BACKGROUND_THREADS, file->lex_job);
     }
@@ -1609,15 +1443,15 @@ buffer_close(General_Memory *general, Editing_File *file){
         general_memory_free(general, file->token_stack.tokens);
     }
     general_memory_free(general, file->buffer.data);
-    general_memory_free(general, file->line_starts);
-    general_memory_free(general, file->line_width);
+    general_memory_free(general, file->buffer.line_starts);
+    general_memory_free(general, file->buffer.line_widths);
 }
 
 internal void
-buffer_get_dummy(Editing_File *buffer){
-	*buffer = {};
-	buffer->buffer.data = (char*)&buffer->buffer.size;
-	buffer->is_dummy = 1;
+file_get_dummy(Editing_File *file){
+	*file = {};
+	file->buffer.data = (char*)&file->buffer.size;
+	file->is_dummy = 1;
 }
 
 struct Shift_Information{
@@ -1688,7 +1522,7 @@ JOB_CALLBACK(job_full_lex){
 }
 
 internal void
-buffer_kill_tokens(General_Memory *general, Editing_File *file){
+file_kill_tokens(General_Memory *general, Editing_File *file){
     if (file->still_lexing){
         system_cancel_job(BACKGROUND_THREADS, file->lex_job);
     }
@@ -1701,7 +1535,8 @@ buffer_kill_tokens(General_Memory *general, Editing_File *file){
 }
 
 internal void
-buffer_first_lex_parallel(General_Memory *general, Editing_File *file){
+file_first_lex_parallel(General_Memory *general, Editing_File *file){
+#if 0
     Assert(file->token_stack.tokens == 0);
     
     file->tokens_complete = 0;
@@ -1714,96 +1549,97 @@ buffer_first_lex_parallel(General_Memory *general, Editing_File *file){
     job.data[1] = general;
     job.memory_request = Kbytes(64);
     file->lex_job = system_post_job(BACKGROUND_THREADS, job);
+#endif
+    file_kill_tokens(general, file);
 }
 
 internal void
-buffer_relex_parallel(Mem_Options *mem, Editing_File *file,
-                      i32 start_i, i32 end_i, i32 amount){
+file_relex_parallel(Mem_Options *mem, Editing_File *file,
+                    i32 start_i, i32 end_i, i32 amount){
     General_Memory *general = &mem->general;
     Partition *part = &mem->part;
     if (file->token_stack.tokens == 0){
-        buffer_first_lex_parallel(general, file);
+        file_first_lex_parallel(general, file);
+        return;
     }
     
-    else{
-        bool32 inline_lex = !file->still_lexing;
-        if (inline_lex){
-            Cpp_File cpp_file;
-            cpp_file.data = file->buffer.data;
-            cpp_file.size = file->buffer.size;
+    bool32 inline_lex = !file->still_lexing;
+    if (inline_lex){
+        Cpp_File cpp_file;
+        cpp_file.data = file->buffer.data;
+        cpp_file.size = file->buffer.size;
+        
+        Cpp_Token_Stack *stack = &file->token_stack;
+        
+        Cpp_Relex_State state = 
+            cpp_relex_nonalloc_start(cpp_file, stack,
+                                     start_i, end_i, amount, 100);
+        
+        Temp_Memory temp = begin_temp_memory(part);
+        i32 relex_end;
+        Cpp_Token_Stack relex_space;
+        relex_space.count = 0;
+        relex_space.max_count = state.space_request;
+        relex_space.tokens = push_array(part, Cpp_Token, relex_space.max_count);
+        if (cpp_relex_nonalloc_main(&state, &relex_space, &relex_end)){
+            inline_lex = 0;
+        }
+        else{
+            i32 delete_amount = relex_end - state.start_token_i;
+            i32 shift_amount = relex_space.count - delete_amount;
             
-            Cpp_Token_Stack *stack = &file->token_stack;
-            
-            Cpp_Relex_State state = 
-                cpp_relex_nonalloc_start(cpp_file, stack,
-                                         start_i, end_i, amount, 100);
-            
-            Temp_Memory temp = begin_temp_memory(part);
-            i32 relex_end;
-            Cpp_Token_Stack relex_space;
-            relex_space.count = 0;
-            relex_space.max_count = state.space_request;
-            relex_space.tokens = push_array(part, Cpp_Token, relex_space.max_count);
-            if (cpp_relex_nonalloc_main(&state, &relex_space, &relex_end)){
-                inline_lex = 0;
-            }
-            else{
-                i32 delete_amount = relex_end - state.start_token_i;
-                i32 shift_amount = relex_space.count - delete_amount;
-                
-                if (shift_amount != 0){
-                    int new_count = stack->count + shift_amount;
-                    if (new_count > stack->max_count){
-                        int new_max = LargeRoundUp(new_count, Kbytes(1));
-                        stack->tokens = (Cpp_Token*)
-                            general_memory_reallocate(general, stack->tokens,
-                                                      stack->count*sizeof(Cpp_Token),
-                                                      new_max*sizeof(Cpp_Token), BUBBLE_TOKENS);
-                        stack->max_count = new_max;
-                    }
-                    
-                    int shift_size = stack->count - relex_end;
-                    if (shift_size > 0){
-                        Cpp_Token *old_base = stack->tokens + relex_end;
-                        memmove(old_base + shift_amount, old_base,
-                                sizeof(Cpp_Token)*shift_size);
-                    }
-                    
-                    stack->count += shift_amount;
+            if (shift_amount != 0){
+                int new_count = stack->count + shift_amount;
+                if (new_count > stack->max_count){
+                    int new_max = LargeRoundUp(new_count, Kbytes(1));
+                    stack->tokens = (Cpp_Token*)
+                        general_memory_reallocate(general, stack->tokens,
+                                                  stack->count*sizeof(Cpp_Token),
+                                                  new_max*sizeof(Cpp_Token), BUBBLE_TOKENS);
+                    stack->max_count = new_max;
                 }
                 
-                memcpy(state.stack->tokens + state.start_token_i, relex_space.tokens,
-                       sizeof(Cpp_Token)*relex_space.count);
+                int shift_size = stack->count - relex_end;
+                if (shift_size > 0){
+                    Cpp_Token *old_base = stack->tokens + relex_end;
+                    memmove(old_base + shift_amount, old_base,
+                            sizeof(Cpp_Token)*shift_size);
+                }
+                
+                stack->count += shift_amount;
             }
             
-            end_temp_memory(temp);
+            memcpy(state.stack->tokens + state.start_token_i, relex_space.tokens,
+                   sizeof(Cpp_Token)*relex_space.count);
         }
         
-        if (!inline_lex){
-            i32 end_token_i = cpp_get_end_token(&file->token_stack, end_i);
-            cpp_shift_token_starts(&file->token_stack, end_token_i, amount);
-            --end_token_i;
-            if (end_token_i >= 0){
-                Cpp_Token *token = file->token_stack.tokens + end_token_i;
-                if (token->start < end_i && token->start + token->size > end_i){
-                    token->size += amount;
-                }
+        end_temp_memory(temp);
+    }
+    
+    if (!inline_lex){
+        i32 end_token_i = cpp_get_end_token(&file->token_stack, end_i);
+        cpp_shift_token_starts(&file->token_stack, end_token_i, amount);
+        --end_token_i;
+        if (end_token_i >= 0){
+            Cpp_Token *token = file->token_stack.tokens + end_token_i;
+            if (token->start < end_i && token->start + token->size > end_i){
+                token->size += amount;
             }
-            
-            file->still_lexing = 1;
-            
-            Job_Data job;
-            job.callback = job_full_lex;
-            job.data[0] = file;
-            job.data[1] = general;
-            job.memory_request = Kbytes(64);
-            file->lex_job = system_post_job(BACKGROUND_THREADS, job);
         }
+        
+        file->still_lexing = 1;
+        
+        Job_Data job;
+        job.callback = job_full_lex;
+        job.data[0] = file;
+        job.data[1] = general;
+        job.memory_request = Kbytes(64);
+        file->lex_job = system_post_job(BACKGROUND_THREADS, job);
     }
 }
 
 internal bool32
-buffer_grow_as_needed(General_Memory *general, Editing_File *file, i32 additional_size){
+file_grow_as_needed(General_Memory *general, Editing_File *file, i32 additional_size){
     bool32 result = 1;
     i32 target_size = file->buffer.size + additional_size + 1;
     if (target_size >= file->buffer.max){
@@ -1822,8 +1658,8 @@ buffer_grow_as_needed(General_Memory *general, Editing_File *file, i32 additiona
     return result;
 }
 
-inline void
-buffer_grow_undo_string(General_Memory *general, Editing_File *file, i32 extra_size){
+internal void
+file_grow_undo_string(General_Memory *general, Editing_File *file, i32 extra_size){
     i32 old_max = file->undo.str_max;
     u8 *old_str = file->undo.strings;
     i32 redo_size = old_max - file->undo.str_redo;
@@ -1842,8 +1678,8 @@ buffer_grow_undo_string(General_Memory *general, Editing_File *file, i32 extra_s
     file->undo.str_redo = new_redo;
 }
 
-inline void
-buffer_grow_undo_edits(General_Memory *general, Editing_File *file){
+internal void
+file_grow_undo_edits(General_Memory *general, Editing_File *file){
     i32 old_max = file->undo.edit_max;
     Edit_Step *old_eds = file->undo.edits;
     i32 redo_size = old_max - file->undo.edit_redo;
@@ -1862,8 +1698,8 @@ buffer_grow_undo_edits(General_Memory *general, Editing_File *file){
     file->undo.edit_redo = new_redo;
 }
 
-inline void
-buffer_grow_history_string(General_Memory *general, Editing_File *file, i32 extra_size){
+internal void
+file_grow_history_string(General_Memory *general, Editing_File *file, i32 extra_size){
     i32 old_max = file->undo.str_max;
     u8 *old_str = file->undo.strings;
     i32 new_max = old_max*2 + extra_size;
@@ -1874,8 +1710,8 @@ buffer_grow_history_string(General_Memory *general, Editing_File *file, i32 extr
     file->undo.str_history_max = new_max;
 }
 
-inline void
-buffer_grow_history_edits(General_Memory *general, Editing_File *file){
+internal void
+file_grow_history_edits(General_Memory *general, Editing_File *file){
     i32 old_max = file->undo.edit_max;
     Edit_Step *old_eds = file->undo.edits;
     i32 new_max = old_max*2 + 2;
@@ -1888,22 +1724,21 @@ buffer_grow_history_edits(General_Memory *general, Editing_File *file){
 }
 
 internal Edit_Step*
-buffer_post_undo(General_Memory *general, Editing_File *file,
-                 i32 start, i32 end, i32 str_len, bool32 do_merge, bool32 can_merge,
-                 bool32 clear_redo, i32 pre_pos = -1, i32 post_pos = -1){
-    String replaced = make_string(file->buffer.data + start, end - start);
-
+file_post_undo(General_Memory *general, Editing_File *file,
+               i32 start, i32 end, i32 str_len, bool32 do_merge, bool32 can_merge,
+               bool32 clear_redo, i32 pre_pos = -1, i32 post_pos = -1){
     if (clear_redo){
         file->undo.str_redo = file->undo.str_max;
         file->undo.edit_redo = file->undo.edit_max;
     }
-    
-    if (file->undo.str_redo < file->undo.str_size + replaced.size)
-        buffer_grow_undo_string(general, file, replaced.size);
+
+    i32 replaced_size = end - start;
+    if (file->undo.str_redo < file->undo.str_size + replaced_size)
+        file_grow_undo_string(general, file, replaced_size);
     
     Edit_Step edit;
     edit.str_start = file->undo.str_size;
-    edit.str_len = replaced.size;
+    edit.str_len = replaced_size;
     edit.range = {start, start + str_len};
     if (pre_pos != -1) edit.pre_pos = pre_pos;
     else edit.pre_pos = file->cursor_pos;
@@ -1911,8 +1746,8 @@ buffer_post_undo(General_Memory *general, Editing_File *file,
     edit.can_merge = can_merge;
     edit.reverse_type = ED_REDO;
     
-    file->undo.str_size += replaced.size;
-    copy_fast_unsafe((char*)file->undo.strings + edit.str_start, replaced);
+    file->undo.str_size += replaced_size;
+    buffer_stringify(&file->buffer, start, end, (char*)file->undo.strings + edit.str_start);
     
     bool32 did_merge = 0;
     if (do_merge && file->undo.edit_count > 0){
@@ -1933,7 +1768,7 @@ buffer_post_undo(General_Memory *general, Editing_File *file,
     }
     else{
         if (file->undo.edit_redo <= file->undo.edit_count)
-            buffer_grow_undo_edits(general, file);
+            file_grow_undo_edits(general, file);
         result = file->undo.edits + (file->undo.edit_count++);
         *result = edit;
     }
@@ -1942,7 +1777,7 @@ buffer_post_undo(General_Memory *general, Editing_File *file,
 }
 
 inline void
-buffer_unpost_undo(Editing_File *file){
+file_unpost_undo(Editing_File *file){
     if (file->undo.edit_count > 0){
         Edit_Step *edit = file->undo.edits + (--file->undo.edit_count);
         file->undo.str_size -= edit->str_len;
@@ -1950,34 +1785,33 @@ buffer_unpost_undo(Editing_File *file){
 }
 
 internal void
-buffer_post_redo(General_Memory *general, Editing_File *file,
-                 i32 start, i32 end, i32 str_len, i32 pre_pos, i32 post_pos){
-    String replaced = make_string((char*)file->buffer.data + start, end - start);
+file_post_redo(General_Memory *general, Editing_File *file,
+               i32 start, i32 end, i32 str_len, i32 pre_pos, i32 post_pos){
+    i32 replaced_size = end - start;
+    if (file->undo.str_redo - replaced_size < file->undo.str_size)
+        file_grow_undo_string(general, file, replaced_size);
     
-    if (file->undo.str_redo - replaced.size < file->undo.str_size)
-        buffer_grow_undo_string(general, file, replaced.size);
-    
-    file->undo.str_redo -= replaced.size;
+    file->undo.str_redo -= replaced_size;
     TentativeAssert(file->undo.str_redo >= file->undo.str_size);
     
     Edit_Step edit;
     edit.str_start = file->undo.str_redo;
-    edit.str_len = replaced.size;
+    edit.str_len = replaced_size;
     edit.range = {start, start + str_len};
     edit.pre_pos = pre_pos;
     edit.post_pos = post_pos;
     edit.reverse_type = ED_UNDO;
-    
-    copy_fast_unsafe((char*)file->undo.strings + edit.str_start, replaced);
+
+    buffer_stringify(&file->buffer, start, end, (char*)file->undo.strings + edit.str_start);
     
     if (file->undo.edit_redo <= file->undo.edit_count)
-        buffer_grow_undo_edits(general, file);
+        file_grow_undo_edits(general, file);
     --file->undo.edit_redo;
     file->undo.edits[file->undo.edit_redo] = edit;
 }
 
 inline void
-buffer_post_history_block(Editing_File *file, i32 pos){
+file_post_history_block(Editing_File *file, i32 pos){
     Assert(file->undo.history_head_block < pos);
     Assert(pos < file->undo.edit_history);
     
@@ -1991,7 +1825,7 @@ buffer_post_history_block(Editing_File *file, i32 pos){
 }
 
 inline void
-buffer_unpost_history_block(Editing_File *file){
+file_unpost_history_block(Editing_File *file){
     Assert(file->undo.history_block_count > 1);
     --file->undo.history_block_count;
     Edit_Step *old_head = file->undo.history + file->undo.history_head_block;
@@ -1999,14 +1833,14 @@ buffer_unpost_history_block(Editing_File *file){
 }
 
 internal Edit_Step*
-buffer_post_history(General_Memory *general, Editing_File *file,
-                    i32 start, i32 end, i32 str_len,
-                    bool32 do_merge, bool32 can_merge, Edit_Type reverse_type,
-                    i32 pre_pos = -1, i32 post_pos = -1){
+file_post_history(General_Memory *general, Editing_File *file,
+                  i32 start, i32 end, i32 str_len,
+                  bool32 do_merge, bool32 can_merge, Edit_Type reverse_type,
+                  i32 pre_pos = -1, i32 post_pos = -1){
     String replaced = make_string(file->buffer.data + start, end - start);
     
     if (file->undo.str_history_max < file->undo.str_history + replaced.size)
-        buffer_grow_history_string(general, file, replaced.size);
+        file_grow_history_string(general, file, replaced.size);
     
     Edit_Step edit;
     edit.str_start = file->undo.str_history;
@@ -2039,7 +1873,7 @@ buffer_post_history(General_Memory *general, Editing_File *file,
     }
     else{
         if (file->undo.edit_history_max <= file->undo.edit_history)
-            buffer_grow_history_edits(general, file);
+            file_grow_history_edits(general, file);
         result = file->undo.history + (file->undo.edit_history++);
     }
     
@@ -2048,29 +1882,10 @@ buffer_post_history(General_Memory *general, Editing_File *file,
     return result;
 }
 
-inline i32
-buffer_text_replace(General_Memory *general, Editing_File *file,
-                    i32 start, i32 end, u8 *str, i32 str_len){
-	i32 shift_amount = (str_len - (end - start));
-    
-    buffer_grow_as_needed(general, file, shift_amount);
-	Assert(shift_amount + file->buffer.size + 1 <= file->buffer.max);
-	
-    i32 size = file->buffer.size;
-    char *data = (char*)file->buffer.data;
-    memmove(data + end + shift_amount, data + end, size - end);
-    file->buffer.size += shift_amount;
-    file->buffer.data[file->buffer.size] = 0;
-    
-    memcpy(data + start, str, str_len);
-    
-    return shift_amount;
-}
-
 // TODO(allen): Proper strings?
 internal Shift_Information
-buffer_replace_range(Mem_Options *mem, Editing_File *file,
-                     i32 start, i32 end, u8 *str, i32 str_len){
+file_replace_range(Mem_Options *mem, Editing_File *file,
+                   i32 start, i32 end, char *str, i32 str_len){
     ProfileMomentFunction();
     
     if (file->still_lexing)
@@ -2078,22 +1893,25 @@ buffer_replace_range(Mem_Options *mem, Editing_File *file,
     
     file->last_4ed_edit_time = system_get_now();
 
+    i32 shift_amount;
     General_Memory *general = &mem->general;
-    i32 shift_amount = buffer_text_replace(general, file, start, end, str, str_len);
+    while (buffer_replace_range(&file->buffer, start, end, str, str_len, &shift_amount)){
+        file_grow_as_needed(general, file, shift_amount);
+    }
     
     if (file->tokens_exist)
-        buffer_relex_parallel(mem, file, start, end, shift_amount);
+        file_relex_parallel(mem, file, start, end, shift_amount);
     
-    i32 line_start = buffer_get_line_index(file, start);
-    i32 line_end = buffer_get_line_index(file, end);
+    i32 line_start = buffer_get_line_index(&file->buffer, start, 0, file->buffer.line_count);
+    i32 line_end = buffer_get_line_index(&file->buffer, end, 0, file->buffer.line_count);
     i32 replaced_line_count = line_end - line_start;
     i32 new_line_count = file_count_newlines(file, start, start+str_len);
     i32 line_shift =  new_line_count - replaced_line_count;
     
-    buffer_remeasure_starts(general, file, line_start, line_end, line_shift, shift_amount);
+    file_remeasure_starts(general, file, line_start, line_end, line_shift, shift_amount);
     
     // TODO(allen): Can we "remeasure" widths now!?
-    buffer_measure_widths(general, file, file->font);
+    file_measure_widths(general, file, file->font);
     
     Shift_Information shift;
     shift.start = start;
@@ -2102,73 +1920,7 @@ buffer_replace_range(Mem_Options *mem, Editing_File *file,
 	return shift;
 }
 
-enum Endline_Convert_Type{
-	ENDLINE_RN,
-	ENDLINE_N,
-	ENDLINE_R,
-	ENDLINE_ERASE,
-};
-
-enum Panel_Seek_Type{
-	SEEK_POS,
-	SEEK_WRAPPED_XY,
-	SEEK_UNWRAPPED_XY,
-	SEEK_LINE_CHAR
-};
-
-struct Panel_Seek{
-	Panel_Seek_Type type;
-	union{
-		struct{
-			i32 pos;
-		};
-		struct{
-			real32 x, y;
-            bool32 round_down;
-		};
-		struct{
-			i32 line, character;
-		};
-	};
-};
-
-inline internal Panel_Seek
-seek_pos(i32 pos){
-	Panel_Seek result = {};
-	result.type = SEEK_POS;
-	result.pos = pos;
-	return result;
-}
-
-inline internal Panel_Seek
-seek_wrapped_xy(real32 x, real32 y, bool32 round_down){
-	Panel_Seek result = {};
-	result.type = SEEK_WRAPPED_XY;
-	result.x = x;
-	result.y = y;
-    result.round_down = round_down;
-	return result;
-}
-
-inline internal Panel_Seek
-seek_unwrapped_xy(real32 x, real32 y, bool32 round_down){
-	Panel_Seek result = {};
-	result.type = SEEK_UNWRAPPED_XY;
-	result.x = x;
-	result.y = y;
-    result.round_down = round_down;
-	return result;
-}
-
-inline internal Panel_Seek
-seek_line_char(i32 line, i32 character){
-	Panel_Seek result = {};
-	result.type = SEEK_LINE_CHAR;
-	result.line = line;
-	result.character = character;
-	return result;
-}
-
+#if 0
 internal View_Cursor_Data
 view_cursor_seek(u8 *data, i32 size, Panel_Seek seek,
                  EOL_Option endline_mode,
@@ -2305,6 +2057,7 @@ view_cursor_seek(u8 *data, i32 size, Panel_Seek seek,
     
 	return cursor;
 }
+#endif
 
 internal View_Cursor_Data
 view_compute_cursor_from_pos(File_View *view, i32 pos){
@@ -2313,12 +2066,12 @@ view_compute_cursor_from_pos(File_View *view, i32 pos){
     Style *style = view->style;
     Font *font = style->font;
     
-    i32 *lines = file->line_starts;
+    i32 *lines = file->buffer.line_starts;
     
-    i32 line_index = buffer_get_line_index(file, pos);
+    i32 line_index = buffer_get_line_index(&file->buffer, pos, 0, file->buffer.line_count);
     
     i32 line_start = lines[line_index];
-    View_Cursor_Data hint;
+    Full_Cursor hint;
     hint.pos = line_start;
     hint.line = line_index + 1;
     hint.character = 1;
@@ -2328,8 +2081,20 @@ view_compute_cursor_from_pos(File_View *view, i32 pos){
     hint.wrapped_x = 0;
     
     real32 max_width = view_compute_width(view);
-    result =  view_cursor_seek((u8*)file->buffer.data, file->buffer.size, seek_pos(pos),
-                               file->endline_mode, max_width, font, hint);
+    Opaque_Font_Advance opad = get_opaque_font_advance(font);
+    
+    hint = buffer_cursor_seek(&file->buffer, seek_pos(pos),
+                              max_width, (float)font->height,
+                              opad.data, opad.offset, opad.stride, hint);
+
+    // TODO(allen): Remove View_Cursor_Data
+    result.pos = hint.pos;
+    result.line = hint.line;
+    result.character = hint.character;
+    result.unwrapped_y = hint.unwrapped_y;
+    result.unwrapped_x = hint.unwrapped_x;
+    result.wrapped_y = hint.wrapped_y;
+    result.wrapped_x = hint.wrapped_x;
     
     return result;
 }
@@ -2343,11 +2108,11 @@ view_compute_cursor_from_unwrapped_xy(File_View *view, real32 seek_x, real32 see
     Font *font = style->font;
     
     i32 line_index = FLOOR32(seek_y / font->height);
-    if (line_index >= file->line_count) line_index = file->line_count - 1;
+    if (line_index >= file->buffer.line_count) line_index = file->buffer.line_count - 1;
     if (line_index < 0) line_index = 0;
     
-    View_Cursor_Data hint;
-    hint.pos = file->line_starts[line_index];
+    Full_Cursor hint;
+    hint.pos = file->buffer.line_starts[line_index];
     hint.line = line_index + 1;
     hint.character = 1;
     hint.unwrapped_y = (real32)line_index*font->height;
@@ -2356,9 +2121,19 @@ view_compute_cursor_from_unwrapped_xy(File_View *view, real32 seek_x, real32 see
     hint.wrapped_x = 0;
     
     real32 max_width = view_compute_width(view);
-    result = view_cursor_seek((u8*)file->buffer.data, file->buffer.size,
-                              seek_unwrapped_xy(seek_x, seek_y, round_down),
-                              file->endline_mode, max_width, font, hint);
+    Opaque_Font_Advance opad = get_opaque_font_advance(font);
+    
+    hint = buffer_cursor_seek(&file->buffer, seek_unwrapped_xy(seek_x, seek_y, round_down),
+                              max_width, (float)font->height,
+                              opad.data, opad.offset, opad.stride, hint);
+    
+    result.pos = hint.pos;
+    result.line = hint.line;
+    result.character = hint.character;
+    result.unwrapped_y = hint.unwrapped_y;
+    result.unwrapped_x = hint.unwrapped_x;
+    result.wrapped_y = hint.wrapped_y;
+    result.wrapped_x = hint.wrapped_x;
     
     return result;
 }
@@ -2397,8 +2172,8 @@ view_compute_cursor_from_wrapped_xy(File_View *view, real32 seek_x, real32 seek_
         }
     }
     
-    View_Cursor_Data hint;
-    hint.pos = file->line_starts[line_index];
+    Full_Cursor hint;
+    hint.pos = file->buffer.line_starts[line_index];
     hint.line = line_index + 1;
     hint.character = 1;
     hint.unwrapped_y = line_index*line_height;
@@ -2407,10 +2182,19 @@ view_compute_cursor_from_wrapped_xy(File_View *view, real32 seek_x, real32 seek_
     hint.wrapped_x = 0;
     
     real32 max_width = view_compute_width(view);
+    Opaque_Font_Advance opad = get_opaque_font_advance(font);
     
-    result = view_cursor_seek((u8*)file->buffer.data, file->buffer.size,
-                              seek_wrapped_xy(seek_x, seek_y, round_down),
-                              file->endline_mode, max_width, font, hint);
+    hint = buffer_cursor_seek(&file->buffer, seek_wrapped_xy(seek_x, seek_y, round_down),
+                              max_width, (real32)font->height,
+                              opad.data, opad.offset, opad.stride, hint);
+    
+    result.pos = hint.pos;
+    result.line = hint.line;
+    result.character = hint.character;
+    result.unwrapped_y = hint.unwrapped_y;
+    result.unwrapped_x = hint.unwrapped_x;
+    result.wrapped_y = hint.wrapped_y;
+    result.wrapped_x = hint.wrapped_x;
     
     return result;
 }
@@ -2644,12 +2428,12 @@ view_pre_replace_range(Mem_Options *mem, Editing_File *file, Edit_Spec spec){
         
         Edit_Step *step = 0;
         if (spec.in_history != 2){
-            step = buffer_post_history(general, file, spec.start, spec.end, spec.str_len,
+            step = file_post_history(general, file, spec.start, spec.end, spec.str_len,
                                        do_merge, can_merge, ED_REVERSE_NORMAL);
             step->post_pos = spec.next_cursor_pos;
         }
         
-        step = buffer_post_undo(general, file, spec.start, spec.end, spec.str_len,
+        step = file_post_undo(general, file, spec.start, spec.end, spec.str_len,
                                 do_merge, can_merge, 1);
         step->post_pos = spec.next_cursor_pos;
     }break;
@@ -2657,10 +2441,10 @@ view_pre_replace_range(Mem_Options *mem, Editing_File *file, Edit_Spec spec){
     case ED_REVERSE_NORMAL:
     {
         if (spec.in_history != 2)
-            buffer_post_history(general, file, spec.start, spec.end, spec.str_len,
+            file_post_history(general, file, spec.start, spec.end, spec.str_len,
                                 do_merge, can_merge, ED_NORMAL, spec.pre_pos, spec.post_pos);
         
-        buffer_unpost_undo(file);
+        file_unpost_undo(file);
         
         bool32 restore_redos = 0;
         Edit_Step *redo_end = 0;
@@ -2741,9 +2525,9 @@ view_pre_replace_range(Mem_Options *mem, Editing_File *file, Edit_Spec spec){
     case ED_UNDO:
     {
         if (spec.in_history != 2)
-            buffer_post_history(general, file, spec.start, spec.end, spec.str_len,
+            file_post_history(general, file, spec.start, spec.end, spec.str_len,
                                 do_merge, can_merge, ED_REDO, spec.pre_pos, spec.post_pos);
-        buffer_post_redo(general, file, spec.start, spec.end, spec.str_len, spec.pre_pos, spec.post_pos);
+        file_post_redo(general, file, spec.start, spec.end, spec.str_len, spec.pre_pos, spec.post_pos);
     }break;
     
     case ED_REDO:
@@ -2753,10 +2537,10 @@ view_pre_replace_range(Mem_Options *mem, Editing_File *file, Edit_Spec spec){
         if (spec.str_len == 1 && (can_merge || char_is_whitespace(*spec.str))) do_merge = 1;
         
         if (spec.in_history != 2)
-            buffer_post_history(general, file, spec.start, spec.end, spec.str_len,
+            file_post_history(general, file, spec.start, spec.end, spec.str_len,
                                 do_merge, can_merge, ED_UNDO, spec.pre_pos, spec.post_pos);
         
-        buffer_post_undo(general, file, spec.start, spec.end, spec.str_len, do_merge, can_merge, 0,
+        file_post_undo(general, file, spec.start, spec.end, spec.str_len, do_merge, can_merge, 0,
                          spec.pre_pos, spec.post_pos);
     }break;
     }
@@ -2764,20 +2548,20 @@ view_pre_replace_range(Mem_Options *mem, Editing_File *file, Edit_Spec spec){
     if (spec.in_history != 2){
         if (spec.type == ED_UNDO || spec.type == ED_REDO){
             if (file->undo.current_block_normal){
-                buffer_post_history_block(file, file->undo.edit_history - 1);
+                file_post_history_block(file, file->undo.edit_history - 1);
                 file->undo.current_block_normal = 0;
             }
         }
         else{
             if (!file->undo.current_block_normal){
-                buffer_post_history_block(file, file->undo.edit_history - 1);
+                file_post_history_block(file, file->undo.edit_history - 1);
                 file->undo.current_block_normal = 1;
             }
         }
     }
     else{
         if (file->undo.history_head_block == file->undo.edit_history){
-            buffer_unpost_history_block(file);
+            file_unpost_history_block(file);
             file->undo.current_block_normal = !file->undo.current_block_normal;
         }
     }
@@ -2788,31 +2572,48 @@ view_pre_replace_range(Mem_Options *mem, Editing_File *file, Edit_Spec spec){
 internal void
 view_post_replace_range(Mem_Options *mem, File_View *view, Editing_File *file,
                         Editing_Layout *layout, Shift_Information shift){
-    Panel *current_panel = layout->panels;
     General_Memory *general = &mem->general;
     i32 panel_count = layout->panel_count;
+    
+    Temp_Memory temp = begin_temp_memory(&mem->part);
+
+    i32 cursor_max = layout->panel_max_count * 2;
+    Cursor_With_Index *cursors = push_array(&mem->part, Cursor_With_Index, cursor_max);
+    
+    i32 cursor_count = 0;
+    Panel *current_panel = layout->panels;
     for (i32 i = 0; i < panel_count; ++i, ++current_panel){
         File_View *current_view = view_to_file_view(current_panel->view);
         if (current_view && current_view->file == file){
             view_measure_wraps(general, current_view);
             if (current_view != view){
-                if (current_view->cursor.pos >= shift.end){
-                    view_cursor_move(current_view, current_view->cursor.pos+shift.amount);
-                }
-                else if (current_view->cursor.pos > shift.start){
-                    view_cursor_move(current_view, shift.start);
-                }
-                
-                if (current_view->mark >= shift.end){
-                    current_view->mark += shift.amount;
-                }
-                else if (current_view->mark > shift.start){
-                    current_view->mark += shift.start;
-                }
+                write_cursor_with_index(cursors, &cursor_count, current_view->cursor.pos);
+                write_cursor_with_index(cursors, &cursor_count, current_view->mark);
+            }
+        }
+    }
+    
+    if (cursor_count > 0){
+        buffer_sort_cursors(cursors, cursor_count);
+        buffer_update_cursors(cursors, cursor_count,
+                              shift.start, shift.end, shift.amount + (shift.end - shift.start));
+        buffer_unsort_cursors(cursors, cursor_count);
+    }
+    
+    cursor_count = 0;
+    current_panel = layout->panels;
+    for (i32 i = 0; i < panel_count; ++i, ++current_panel){
+        File_View *current_view = view_to_file_view(current_panel->view);
+        if (current_view && current_view->file == file){
+            if (current_view != view){
+                view_cursor_move(current_view, cursors[cursor_count++].pos);
+                current_view->mark = cursors[cursor_count++].pos;
                 current_view->preferred_x = view_get_cursor_x(current_view);
             }
         }
     }
+    
+    end_temp_memory(temp);
 }
 
 internal void
@@ -2821,7 +2622,7 @@ view_replace_range(Mem_Options *mem, File_View *view, Editing_File *file,
     Assert(file);
     view_pre_replace_range(mem, file, spec);
     Shift_Information shift =
-        buffer_replace_range(mem, file, spec.start, spec.end, spec.str, spec.str_len);
+        file_replace_range(mem, file, spec.start, spec.end, (char*)spec.str, spec.str_len);
     view_post_replace_range(mem, view, file, layout, shift);
 }
 
@@ -2875,8 +2676,7 @@ internal i32
 view_find_end_of_line(File_View *view, i32 pos){
 	Editing_File *file = view->file;
 	char *data = file->buffer.data;
-	while (pos < file->buffer.size &&
-		   !starts_new_line(data[pos], file->endline_mode)){
+	while (pos < file->buffer.size && !starts_new_line(data[pos])){
 		++pos;
 	}
 	if (pos >= file->buffer.size){
@@ -2891,7 +2691,7 @@ view_find_beginning_of_line(File_View *view, i32 pos){
 	char *data = file->buffer.data;
 	if (pos > 0){
 		--pos;
-		while (pos > 0 && !starts_new_line(data[pos], file->endline_mode)){
+		while (pos > 0 && !starts_new_line(data[pos])){
 			--pos;
 		}
 		if (pos != 0){
@@ -2906,7 +2706,7 @@ view_find_beginning_of_next_line(File_View *view, i32 pos){
 	Editing_File *file = view->file;
 	char *data = file->buffer.data;
 	while (pos < file->buffer.size &&
-		   !starts_new_line(data[pos], file->endline_mode)){
+		   !starts_new_line(data[pos])){
 		++pos;
 	}
 	if (pos < file->buffer.size){
@@ -3011,142 +2811,93 @@ clipboard_copy(General_Memory *general, Working_Set *working, u8 *data, Range ra
 	system_post_clipboard(*dest);
 }
 
-#if 0
+enum Endline_Convert_Type{
+	ENDLINE_RN,
+	ENDLINE_N,
+	ENDLINE_R,
+	ENDLINE_ERASE,
+};
+
 internal void
-view_endline_convert(Mem_Options *mem, File_View *view,
-                     Endline_Convert_Type rn_to,
-                     Endline_Convert_Type r_to,
-                     Endline_Convert_Type n_to){
-    // TODO(allen): Switch over to String
-	struct StrSize{
-		u8 *str;
-		i32 size;
-	};
-	
-	persist StrSize eol_strings[] = {
-		{(u8*)"\r\n", 2},
-		{(u8*)"\n", 1},
-		{(u8*)"\r", 1},
-		{(u8*)0, 0}
-	};
-	
-	i32 cursor, mark;
-	cursor = view->cursor.pos;
-	mark = view->mark;
-	
-	Editing_File *file = view->file;
-	u8 *data = (u8*)file->data;
-	for (int i = 0; i < file->size; ++i){
-		i32 which = 0;
-		if (data[i] == '\r'){
-			if (i+1 < file->size && data[i+1] == '\n'){
-				which = 1;
-			}
-			else{
-				which = 2;
-			}
-		}
-		else if (data[i] == '\n'){
-			which = 3;
-		}
-		
-		// TODO(allen): Replace duplication.
-		switch (which){
-			case 1:
-			{
-				if (rn_to != ENDLINE_RN){
-					buffer_replace_range(mem, file, i, i+2,
-										 eol_strings[rn_to].str,
-										 eol_strings[rn_to].size);
-					i32 shift = eol_strings[rn_to].size - 2;
-					if (cursor >= i){
-						cursor += shift;
-					}
-					if (mark >= i){
-						mark += shift;
-					}
-					i += shift;
-				}
-				++i;
-			}break;
-			
-			case 2:
-			{
-				if (r_to != ENDLINE_R){
-					buffer_replace_range(mem, file, i, i+1,
-										 eol_strings[r_to].str,
-										 eol_strings[r_to].size);
-					i32 shift = eol_strings[r_to].size - 1;
-					if (cursor >= i){
-						cursor += shift;
-					}
-					if (mark >= i){
-						mark += shift;
-					}
-					i += shift;
-				}
-			}break;
-			
-			case 3:
-			{
-				if (n_to != ENDLINE_N){
-					buffer_replace_range(mem, file, i, i+1,
-										 eol_strings[n_to].str,
-										 eol_strings[n_to].size);
-					i32 shift = eol_strings[n_to].size - 1;
-					if (cursor >= i){
-						cursor += shift;
-					}
-					if (mark >= i){
-						mark += shift;
-					}
-					i += shift;
-				}
-			}break;
-		}
-	}
+view_clean_whitespace(Mem_Options *mem, File_View *view, Editing_Layout *layout){
+    Editing_File *file = view->file;
+    Assert(file && !file->is_dummy);
+    Partition *part = &mem->part;
+    Temp_Memory temp = begin_temp_memory(part);
+    i32 line_count = file->buffer.line_count;
+    i32 edit_max = line_count * 2;
+    Buffer_Edit *edits = push_array(part, Buffer_Edit, edit_max);
+    i32 edit_i = 0;
     
-	view->cursor = view_compute_cursor_from_pos(view, cursor);
-	view->mark = mark;
-}
-#endif
+    for (i32 line_i = 0; line_i < line_count; ++line_i){
+        i32 start = file->buffer.line_starts[line_i];
+        i32 preferred_indentation;
+        bool32 all_whitespace = 0;
+        bool32 all_space = 0;
+        i32 hard_start =
+            buffer_find_hard_start(&file->buffer, start, &all_whitespace, &all_space, &preferred_indentation, 4);
+        
+        if (all_whitespace) preferred_indentation = 0;
+        
+        if ((all_whitespace && hard_start > start) || !all_space || hard_start != start + preferred_indentation){
+            Buffer_Edit new_edit;
+            new_edit.str = push_array(part, char, preferred_indentation);
+            for (i32 j = 0; j < preferred_indentation; ++j) new_edit.str[j] = ' ';
+            new_edit.len = preferred_indentation;
+            new_edit.start = start;
+            new_edit.end = hard_start;
+            edits[edit_i++] = new_edit;
+        }
+        Assert(edit_i <= edit_max);
+    }
+    
+    Assert(buffer_batch_debug_sort_check(edits, edit_i));
 
-struct Indent_Definition{
-	i32 tabs, spaces;
-};
-
-struct Line_Hard_Start{
-	bool32 line_is_blank;
-	i32 first_character;
-};
-
-internal Line_Hard_Start
-buffer_find_hard_start(Editing_File *file, i32 line_start){
-	Line_Hard_Start result = {};
-	result.line_is_blank = 1;
-	
-	char *data = file->buffer.data;
-	
-	for (i32 scan = line_start; scan < file->buffer.size; ++scan){
-		if (data[scan] == '\n'){
-			if (scan > 0 && data[scan-1] == '\r'){
-				scan -= 1;
-			}
-			if (scan < line_start){
-				// TODO(allen): This seems wrong.
-				scan = line_start;
-			}
-			result.first_character = scan;
-			break;
-		}
-		else if (!char_is_whitespace(data[scan])){
-			result.line_is_blank = 0;
-			result.first_character = scan;
-			break;
-		}
-	}
-	
-	return result;
+    General_Memory *general = &mem->general;
+    i32 shift_amount = buffer_batch_edit_max_shift(edits, edit_i);
+    file_grow_as_needed(general, file, shift_amount);
+    
+    buffer_batch_edit(&file->buffer, edits, edit_i);
+    
+    Buffer_Measure_Starts state = {};
+    if (buffer_measure_starts(&state, &file->buffer)) Assert(0);
+    
+    Opaque_Font_Advance opad = get_opaque_font_advance(file->font);
+    buffer_measure_widths(&file->buffer, opad.data, opad.offset, opad.stride);
+    
+    i32 cursor_max = layout->panel_max_count * 2;
+    Cursor_With_Index *cursors = push_array(part, Cursor_With_Index, cursor_max);
+    
+    i32 panel_count = layout->panel_count;
+    i32 cursor_count = 0;
+    Panel *current_panel = layout->panels;
+    for (i32 i = 0; i < panel_count; ++i, ++current_panel){
+        File_View *current_view = view_to_file_view(current_panel->view);
+        if (current_view && current_view->file == file){
+            view_measure_wraps(general, current_view);
+            write_cursor_with_index(cursors, &cursor_count, current_view->cursor.pos);
+            write_cursor_with_index(cursors, &cursor_count, current_view->mark);
+        }
+    }
+    
+    if (cursor_count > 0){
+        buffer_sort_cursors(cursors, cursor_count);
+        buffer_batch_edit_update_cursors(cursors, cursor_count, edits, edit_i);
+        buffer_unsort_cursors(cursors, cursor_count);
+    }
+    
+    cursor_count = 0;
+    current_panel = layout->panels;
+    for (i32 i = 0; i < panel_count; ++i, ++current_panel){
+        File_View *current_view = view_to_file_view(current_panel->view);
+        if (current_view && current_view->file == file){
+            view_cursor_move(current_view, cursors[cursor_count++].pos);
+            current_view->mark = cursors[cursor_count++].pos;
+            current_view->preferred_x = view_get_cursor_x(current_view);
+        }
+    }
+    
+    end_temp_memory(temp);
 }
 
 #if 0
@@ -3154,39 +2905,39 @@ buffer_find_hard_start(Editing_File *file, i32 line_start){
 // indent.tabs*4 + indent.spaces bytes available.
 internal Shift_Information
 buffer_set_indent_whitespace(Mem_Options *mem, Editing_File *file,
-							 Indent_Definition indent,
-							 u8 *whitespace_buffer,
+                             Indent_Definition indent,
+                             u8 *whitespace_buffer,
                              i32 line_start){
-	i32 i = 0;
-	while (i < indent.tabs){
+    i32 i = 0;
+    while (i < indent.tabs){
         for (i32 j = 0; j < 4; ++j) whitespace_buffer[i++] = ' ';
-	}
-	while (i < indent.tabs + indent.spaces){
-		whitespace_buffer[i++] = ' ';
-	}
-	
-	Range leading_white;
-	leading_white.smaller = line_start;
-	Line_Hard_Start hard_start;
-	hard_start = buffer_find_hard_start(file, line_start);
-	leading_white.larger = hard_start.first_character;
-
+    }
+    while (i < indent.tabs + indent.spaces){
+        whitespace_buffer[i++] = ' ';
+    }
+    
+    Range leading_white;
+    leading_white.smaller = line_start;
+    Line_Hard_Start hard_start;
+    hard_start = buffer_find_hard_start(file, line_start);
+    leading_white.larger = hard_start.first_character;
     Shift_Information shift = {};
+    
     if (leading_white.smaller < leading_white.larger){
         shift = buffer_replace_range(mem, file,
                                      leading_white.smaller, leading_white.larger,
                                      whitespace_buffer, i);
     }
-    
-	return shift;
+   
+    return shift;
 }
 
 inline Indent_Definition
 indent_by_width(i32 width, i32 tab_width){
-	Indent_Definition indent;
-	indent.tabs = 0;
-	indent.spaces = width;
-	return indent;
+    Indent_Definition indent;
+    indent.tabs = 0;
+    indent.spaces = width;
+    return indent;
 }
 
 struct Nest_Level{
@@ -4298,29 +4049,22 @@ draw_file_view(Thread_Context *thread, View *view_, i32_Rect rect, bool32 is_act
                 cursor_mode = 1;
             }
         }
-            
+        
         real32 to_render_width = font_get_glyph_width(font, to_render);
         real32_Rect cursor_rect =
             real32XYWH(shift_x + pos_x, shift_y + pos_y,
                        1 + to_render_width, (real32)font->height);
-            
+        
         if (to_render == '\t' || to_render == 0){
             cursor_rect.x1 = cursor_rect.x0 + font->chardata[' '].xadvance;
         }
-            
+        
         if (highlight_color != 0){
-            if (file->endline_mode == EOL_USE_CRLF &&
-                to_render == '\r' && next_to_render == '\n'){
-                // DO NOTHING
-                // NOTE(allen): relevant durring whitespace highlighting
-            }
-            else{
-                real32_Rect highlight_rect = cursor_rect;
-                highlight_rect.x0 += 1;
-                draw_rectangle(target, highlight_rect, highlight_color);
-            }
+            real32_Rect highlight_rect = cursor_rect;
+            highlight_rect.x0 += 1;
+            draw_rectangle(target, highlight_rect, highlight_color);
         }
-            
+        
         u32 cursor_color = 0;
         switch (cursor_mode){
         case 1:
@@ -4355,50 +4099,27 @@ draw_file_view(Thread_Context *thread, View *view_, i32_Rect rect, bool32 is_act
             
         char_color = color_blend(char_color, fade_amount, fade_color);
         special_char_color = color_blend(special_char_color, fade_amount, fade_color);
-            
+        
         if (to_render == '\r'){
-            bool32 show_slashr = 0;
-            switch (file->endline_mode){
-            case EOL_USE_CRLF:
-            {
-                if (next_to_render != '\n'){
-                    show_slashr = 1;
-                }
-            }break;
-                
-            case EOL_USE_CR_USE_LF:
-            {
-                pos_x = 0;
-                pos_y += font->height;
-            }break;
-                
-            case EOL_SHOW_CR_USE_LF:
-            {
-                show_slashr = 1;
-            }break;
-            }
-                
-            if (show_slashr){
-                font_draw_glyph(target, font, '\\',
-                                shift_x + pos_x,
-                                shift_y + pos_y,
-                                char_color);
-                pos_x += font_get_glyph_width(font, '\\');
-                    
-                real32 cw = font_get_glyph_width(font, 'r');
-                draw_rectangle(target,
-                               real32XYWH(shift_x + pos_x,
-                                          shift_y + pos_y,
-                                          cw, (real32)font->height),
-                               highlight_color);
-                font_draw_glyph(target, font, 'r',
-                                shift_x + pos_x,
-                                shift_y + pos_y,
-                                special_char_color);
-                pos_x += cw;
-            }
-        }
+            font_draw_glyph(target, font, '\\',
+                            shift_x + pos_x,
+                            shift_y + pos_y,
+                            char_color);
+            pos_x += font_get_glyph_width(font, '\\');
             
+            real32 cw = font_get_glyph_width(font, 'r');
+            draw_rectangle(target,
+                           real32XYWH(shift_x + pos_x,
+                                      shift_y + pos_y,
+                                      cw, (real32)font->height),
+                           highlight_color);
+            font_draw_glyph(target, font, 'r',
+                            shift_x + pos_x,
+                            shift_y + pos_y,
+                            special_char_color);
+            pos_x += cw;
+        }
+        
         else if (to_render == '\n'){
             pos_x = 0;
             pos_y += font->height;
@@ -4545,8 +4266,8 @@ kill_buffer(General_Memory *general, Editing_File *file, Live_Views *live_set, E
         ++panel;
     }
     
-    buffer_close(general, file);
-    buffer_get_dummy(file);
+    file_close(general, file);
+    file_get_dummy(file);
 }
 
 internal void

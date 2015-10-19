@@ -84,6 +84,8 @@ _OutDbgStr(u8*);
 
 #define AllowLocal(name) (void)name
 #define ArrayCount(array) (sizeof(array)/sizeof(array[0]))
+#define OffsetOfStruct(S,c) ((i64)(& ((S*)0)->c ))
+#define OffsetOfPtr(s,c) ((i64)((char*)(&(s)->c) - (char*)(s)))
 
 #define Swap(a,b) {auto t = a; a = b; b = t;}
 

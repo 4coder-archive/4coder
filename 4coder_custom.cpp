@@ -126,7 +126,6 @@ HOOK_SIG(my_file_settings){
     push_parameter(cmd_context, par_lex_as_cpp_file, treat_as_code);
     push_parameter(cmd_context, par_wrap_lines, !treat_as_code);
     push_parameter(cmd_context, par_key_mapid, (treat_as_code)?(my_code_map):(mapid_file));
-    push_parameter(cmd_context, par_end_line_mode, EOL_USE_CRLF);
     exec_command(cmd_context, cmdid_set_settings);
 }
 
@@ -228,9 +227,8 @@ extern "C" GET_BINDING_DATA(get_bindings){
     bind(context, 'j', MDFR_CTRL, cmdid_to_lowercase);
     bind(context, '?', MDFR_CTRL, cmdid_toggle_show_whitespace);
     
-    // NOTE(allen): These whitespace manipulators are not currently functional
-    bind(context, '`', MDFR_CTRL, cmdid_clean_line);
     bind(context, '~', MDFR_CTRL, cmdid_clean_all_lines);
+    // NOTE(allen): These whitespace manipulators are not currently functional
     bind(context, '1', MDFR_CTRL, cmdid_eol_dosify);
     bind(context, '!', MDFR_CTRL, cmdid_eol_nixify);
     
