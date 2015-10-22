@@ -731,7 +731,7 @@ COMMAND_DECL(history_backward){
     USE_LAYOUT(layout);
     USE_MEM(mem);
     
-    view_history_step(mem, layout, view, 1);
+    view_history_step(mem, layout, view, hist_backward);
 }
 
 COMMAND_DECL(history_forward){
@@ -741,7 +741,7 @@ COMMAND_DECL(history_forward){
     USE_LAYOUT(layout);
     USE_MEM(mem);
     
-    view_history_step(mem, layout, view, 2);
+    view_history_step(mem, layout, view, hist_forward);
 }
 
 COMMAND_DECL(interactive_new){
@@ -1020,11 +1020,13 @@ COMMAND_DECL(toggle_line_wrap){
         view->target_x = 0;
         view->cursor =
             view_compute_cursor_from_pos(view, view->cursor.pos);
+        view->preferred_x = view->cursor.wrapped_x;
     }
     else{
         view->unwrapped_lines = 1;
         view->cursor =
             view_compute_cursor_from_pos(view, view->cursor.pos);
+        view->preferred_x = view->cursor.unwrapped_x;
     }
     view_set_relative_scrolling(view, scrolling);
 }
@@ -1060,37 +1062,40 @@ COMMAND_DECL(toggle_tokens){
     }
 }
 
+internal void
+case_change_range(Mem_Options *mem, File_View *view, Editing_File *file,
+                  u8 a, u8 z, u8 char_delta){
+    Range range = get_range(view->cursor.pos, view->mark);
+    if (range.start < range.end){
+        Edit_Step step = {};
+        step.type = ED_NORMAL;
+        step.edit.start = range.start;
+        step.edit.end = range.end;
+        step.edit.len = range.end - range.start;
+        
+        if (file->still_lexing)
+            system_cancel_job(BACKGROUND_THREADS, file->lex_job);
+        
+        view_update_history_before_edit(mem, file, step, 0, hist_normal, view->cursor.pos);
+        
+        u8 *data = (u8*)file->buffer.data;
+        for (i32 i = range.start; i < range.end; ++i){
+            if (data[i] >= a && data[i] <= z){
+                data[i] += char_delta;
+            }
+        }
+        
+        if (file->token_stack.tokens)
+            file_relex_parallel(mem, file, range.start, range.end, 0);
+    }
+}
+
 COMMAND_DECL(to_uppercase){
     ProfileMomentFunction();
     REQ_FILE_VIEW(view);
     REQ_FILE(file, view);
     USE_MEM(mem);
-    
-    Range range = get_range(view->cursor.pos, view->mark);
-    if (range.start < range.end){
-        Edit_Spec spec = {};
-        spec.type = ED_NORMAL;
-        spec.start = range.start;
-        spec.end = range.end;
-        spec.str_len = range.end - range.start;
-        spec.next_cursor_pos = view->cursor.pos;
-        view_update_history_before_edit(mem, file, spec);
-        
-        if (file->still_lexing){
-            system_cancel_job(BACKGROUND_THREADS, file->lex_job);
-        }
-        
-        u8 *data = (u8*)file->buffer.data;
-        for (i32 i = range.start; i < range.end; ++i){
-            if (data[i] >= 'a' && data[i] <= 'z'){
-                data[i] += (u8)('A' - 'a');
-            }
-        }
-        
-        if (file->token_stack.tokens){
-            file_relex_parallel(mem, file, range.start, range.end, 0);
-        }
-    }
+    case_change_range(mem, view, file, 'a', 'z', (u8)('A' - 'a'));
 }
 
 COMMAND_DECL(to_lowercase){
@@ -1098,32 +1103,7 @@ COMMAND_DECL(to_lowercase){
     REQ_FILE_VIEW(view);
     REQ_FILE(file, view);
     USE_MEM(mem);
-    
-    Range range = get_range(view->cursor.pos, view->mark);
-    if (range.start < range.end){
-        Edit_Spec spec = {};
-        spec.type = ED_NORMAL;
-        spec.start = range.start;
-        spec.end = range.end;
-        spec.str_len = range.end - range.start;
-        spec.next_cursor_pos = view->cursor.pos;
-        view_update_history_before_edit(mem, file, spec);
-        
-        if (file->still_lexing){
-            system_cancel_job(BACKGROUND_THREADS, file->lex_job);
-        }
-        
-        u8 *data = (u8*)file->buffer.data;
-        for (i32 i = range.start; i < range.end; ++i){
-            if (data[i] >= 'A' && data[i] <= 'Z'){
-                data[i] -= (u8)('A' - 'a');
-            }
-        }
-        
-        if (file->token_stack.tokens){
-            file_relex_parallel(mem, file, range.start, range.end, 0);
-        }
-    }
+    case_change_range(mem, view, file, 'A', 'Z', (u8)('a' - 'A'));
 }
 
 COMMAND_DECL(clean_all_lines){
@@ -1134,9 +1114,6 @@ COMMAND_DECL(clean_all_lines){
     USE_MEM(mem);
     
     view_clean_whitespace(mem, view, layout);
-    
-    view_measure_wraps(&mem->general, view);
-    view->cursor = view_compute_cursor_from_pos(view, view->cursor.pos);
 }
 
 COMMAND_DECL(eol_dosify){

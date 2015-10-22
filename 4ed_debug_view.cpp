@@ -55,22 +55,19 @@ draw_general_memory(Debug_View *view, i32_Rect rect, Render_Target *target, i32 
         String s = make_fixed_width_string(str);
         if (used){
             switch (bubble->type){
-            case BUBBLE_BUFFER: append(&s, "buffer"); break;
-            case BUBBLE_STARTS: append(&s, "starts"); break;
-            case BUBBLE_WIDTHS: append(&s, "widths"); break;
-            case BUBBLE_WRAPS: append(&s, "wraps"); break;
-            case BUBBLE_TOKENS: append(&s, "tokens"); break;
-            case BUBBLE_UNDO_STRING: append(&s, "undo string"); break;
-            case BUBBLE_UNDO: append(&s, "undo"); break;
-            case BUBBLE_HISTORY_STRING: append(&s, "history string"); break;
-            case BUBBLE_HISTORY: append(&s, "history"); break;
-            default: append(&s, "unknown"); break;
+            case BUBBLE_BUFFER: append(&s, "buffer "); break;
+            case BUBBLE_STARTS: append(&s, "starts "); break;
+            case BUBBLE_WIDTHS: append(&s, "widths "); break;
+            case BUBBLE_WRAPS: append(&s, "wraps "); break;
+            case BUBBLE_TOKENS: append(&s, "tokens "); break;
+            case BUBBLE_UNDO_STRING: append(&s, "undo string "); break;
+            case BUBBLE_UNDO: append(&s, "undo "); break;
+            default: append(&s, "unknown "); break;
             }
         }
         else{
-            append(&s, "unused");
+            append(&s, "unused ");
         }
-        append(&s, " ");
         append_int_to_str(bubble->size, &s);
         terminate_with_null(&s);
         
