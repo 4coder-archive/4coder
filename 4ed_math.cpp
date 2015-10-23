@@ -93,8 +93,8 @@ struct i32_Rect{
 };
 
 struct real32_Rect{
-	real32 x0, y0;
-	real32 x1, y1;
+	f32 x0, y0;
+	f32 x1, y1;
 };
 
 inline i32_Rect
@@ -124,7 +124,7 @@ i32XYWH(i32 x, i32 y, i32 w, i32 h){
 }
 
 inline real32_Rect
-real32R(real32 l, real32 t, real32 r, real32 b){
+f32R(real32 l, real32 t, real32 r, real32 b){
     real32_Rect rect;
     rect.x0 = l; rect.y0 = t;
     rect.x1 = r; rect.y1 = b;
@@ -132,7 +132,7 @@ real32R(real32 l, real32 t, real32 r, real32 b){
 }
 
 inline real32_Rect
-real32R(i32_Rect r){
+f32R(i32_Rect r){
     real32_Rect rect;
     rect.x0 = (real32)r.x0;
     rect.y0 = (real32)r.y0;
@@ -142,7 +142,7 @@ real32R(i32_Rect r){
 }
 
 inline real32_Rect
-real32XYWH(real32 x, real32 y, real32 w, real32 h){
+f32XYWH(f32 x, f32 y, f32 w, f32 h){
     real32_Rect rect;
     rect.x0 = x; rect.y0 = y;
     rect.x1 = x+w; rect.y1 = y+h;

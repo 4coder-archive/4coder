@@ -1959,106 +1959,44 @@ file_post_history(General_Memory *general, Editing_File *file,
 }
 
 inline Full_Cursor
-make_hint(i32 line_index, i32 *starts, i32 font_height, f32 *wrap_ys){
-    Full_Cursor hint;
-    hint.pos = starts[line_index];
-    hint.line = line_index + 1;
-    hint.character = 1;
-    hint.unwrapped_y = (f32)(line_index * font_height);
-    hint.unwrapped_x = 0;
-    hint.wrapped_y = wrap_ys[line_index];
-    hint.wrapped_x = 0;
-    return hint;
-}
-
-internal Full_Cursor
 view_compute_cursor_from_pos(File_View *view, i32 pos){
     Editing_File *file = view->file;
     Style *style = view->style;
     Font *font = style->font;
     
-    i32 *lines = file->buffer.line_starts;
-    
-    i32 line_index = buffer_get_line_index(&file->buffer, pos, 0, file->buffer.line_count);
-    
-    Full_Cursor result = make_hint(line_index, lines, font->height, view->line_wrap_y);
-    
     real32 max_width = view_compute_width(view);
     Opaque_Font_Advance opad = get_opaque_font_advance(font);
     
-    result = buffer_cursor_seek(&file->buffer, seek_pos(pos),
-                                max_width, (float)font->height,
-                                opad.data, opad.stride, result);
-    
-    return result;
+    return buffer_cursor_from_pos(&file->buffer, pos, view->line_wrap_y,
+                                  max_width, (real32)font->height, opad.data, opad.stride);
 }
 
-internal Full_Cursor
+inline Full_Cursor
 view_compute_cursor_from_unwrapped_xy(File_View *view, real32 seek_x, real32 seek_y,
                                       bool32 round_down = 0){
     Editing_File *file = view->file;
     Style *style = view->style;
     Font *font = style->font;
     
-    i32 line_index = FLOOR32(seek_y / font->height);
-    if (line_index >= file->buffer.line_count) line_index = file->buffer.line_count - 1;
-    if (line_index < 0) line_index = 0;
-    
-    Full_Cursor result = make_hint(line_index, file->buffer.line_starts, font->height, view->line_wrap_y);
-    
     real32 max_width = view_compute_width(view);
     Opaque_Font_Advance opad = get_opaque_font_advance(font);
     
-    result = buffer_cursor_seek(&file->buffer, seek_unwrapped_xy(seek_x, seek_y, round_down),
-                                max_width, (float)font->height,
-                                opad.data, opad.stride, result);
-    
-    return result;
+    return buffer_cursor_from_unwrapped_xy(&file->buffer, seek_x, seek_y, round_down, view->line_wrap_y,
+                                           max_width, (real32)font->height, opad.data, opad.stride);
 }
 
-internal Full_Cursor
+inline Full_Cursor
 view_compute_cursor_from_wrapped_xy(File_View *view, real32 seek_x, real32 seek_y,
                                     bool32 round_down = 0){
     Editing_File *file = view->file;
     Style *style = view->style;
     Font *font = style->font;
-    real32 line_height = (real32)font->height;
-    
-    real32 *line_wrap = view->line_wrap_y;
-    i32 line_index;
-    // NOTE(allen): binary search lines on wrapped y position
-    {
-        i32 start = 0;
-        i32 end = view->line_count;
-        while (1){
-            i32 i = (start + end) / 2;
-            if (line_wrap[i]+line_height <= seek_y){
-                start = i;
-            }
-            else if (line_wrap[i] > seek_y){
-                end = i;
-            }
-            else{
-                line_index = i;
-                break;
-            }
-            if (start >= end - 1){
-                line_index = start;
-                break;
-            }
-        }
-    }
-    
-    Full_Cursor result = make_hint(line_index, file->buffer.line_starts, font->height, line_wrap);
     
     real32 max_width = view_compute_width(view);
     Opaque_Font_Advance opad = get_opaque_font_advance(font);
     
-    result = buffer_cursor_seek(&file->buffer, seek_wrapped_xy(seek_x, seek_y, round_down),
-                                max_width, (real32)font->height,
-                                opad.data, opad.stride, result);
-    
-    return result;
+    return buffer_cursor_from_wrapped_xy(&file->buffer, seek_x, seek_y, round_down, view->line_wrap_y,
+                                         max_width, (real32)font->height, opad.data, opad.stride);
 }
 
 inline Full_Cursor
@@ -3524,6 +3462,93 @@ draw_file_view(Thread_Context *thread, View *view_, i32_Rect rect, bool32 is_act
     
     Assert(file && file->buffer.data && !file->is_dummy);
     
+    Opaque_Font_Advance opad = get_opaque_font_advance(font);
+    b32 tokens_use = file->tokens_complete && (file->token_stack.count > 0);
+    Cpp_Token_Stack token_stack = file->token_stack;
+
+#if 1
+    Partition *part = &view_->mem->part;
+    Temp_Memory temp = begin_temp_memory(part);
+
+    partition_align(part, 4);
+    i32 max = partition_remaining(part) / sizeof(Buffer_Render_Item);
+    Buffer_Render_Item *items = push_array(part, Buffer_Render_Item, max);
+
+    i32 count;
+    buffer_get_render_data(&file->buffer, view->line_wrap_y, items, max, &count,
+                           (real32)rect.x0, (real32)rect.y0, view->scroll_x, view->scroll_y, view->unwrapped_lines,
+                           (real32)max_x, (real32)max_y, opad.data, opad.stride, (real32)font->height);
+    Assert(count > 0);
+    
+    i32 cursor_begin, cursor_end;
+    u32 cursor_color, at_cursor_color;
+    if (view->show_temp_highlight){
+        cursor_begin = view->temp_highlight.pos;
+        cursor_end = view->temp_highlight_end_pos;
+        cursor_color = style->main.highlight_color;
+        at_cursor_color = style->main.at_highlight_color;
+    }
+    else{
+        cursor_begin = view->cursor.pos;
+        cursor_end = cursor_begin + 1;
+        cursor_color = style->main.cursor_color;
+        at_cursor_color = style->main.at_cursor_color;
+    }
+
+    i32 token_i = 0;
+    u32 main_color = style->main.default_color;
+    if (tokens_use){
+        Cpp_Get_Token_Result result = cpp_get_token(&token_stack, items->index);
+        main_color = *style_get_color(style, token_stack.tokens[result.token_index]);
+        token_i = result.token_index + 1;
+    }
+
+    u32 mark_color = style->main.mark_color;
+    Buffer_Render_Item *item = items;
+    i32 prev_ind = -1;
+    for (i32 i = 0; i < count; ++i, ++item){
+        i32 ind = item->index;
+        if (tokens_use && ind != prev_ind){
+            Cpp_Token current_token = token_stack.tokens[token_i-1];
+            
+            if (token_i < token_stack.count){
+                if (ind >= token_stack.tokens[token_i].start){
+                    main_color =
+                        *style_get_color(style, token_stack.tokens[token_i]);
+                    current_token = token_stack.tokens[token_i];
+                    ++token_i;
+                }
+                else if (ind >= current_token.start + current_token.size){
+                    main_color = 0xFFFFFFFF;
+                }
+            }
+
+#if 0
+            if (current_token.type == CPP_TOKEN_JUNK &&
+                i >= current_token.start && i <= current_token.start + current_token.size){
+                highlight_color = style->main.highlight_junk_color;
+            }
+#endif
+        }
+        u32 char_color = main_color;
+        
+        if (cursor_begin <= ind && ind < cursor_end && (ind != prev_ind || cursor_begin < ind)){
+            if (is_active) draw_rectangle(target, f32R(item->x0, item->y0, item->x1, item->y1), cursor_color);
+            else draw_rectangle_outline(target, f32R(item->x0, item->y0, item->x1, item->y1), cursor_color);
+            char_color = at_cursor_color;
+        }
+        if (ind == view->mark && prev_ind != ind){
+            draw_rectangle_outline(target, f32R(item->x0, item->y0, item->x1, item->y1), mark_color);
+        }
+        font_draw_glyph(target, font, (u16)item->glyphid,
+                        item->x0, item->y0, char_color);
+        prev_ind = ind;
+    }
+    
+    end_temp_memory(temp);
+    
+#else
+    
     i32 size = (i32)file->buffer.size;
     u8 *data = (u8*)file->buffer.data;
     
@@ -3541,11 +3566,9 @@ draw_file_view(Thread_Context *thread, View *view_, i32_Rect rect, bool32 is_act
     real32 pos_x = 0;
     real32 pos_y = 0;
     
-    Cpp_Token_Stack token_stack = file->token_stack;
     u32 highlight_color = 0;
     u32 main_color = style->main.default_color;
     i32 token_i = 0;
-    bool32 tokens_use = file->tokens_complete && (file->token_stack.count > 0);
     
     if (tokens_use){
         Cpp_Get_Token_Result result = cpp_get_token(&token_stack, start_character);
@@ -3554,9 +3577,7 @@ draw_file_view(Thread_Context *thread, View *view_, i32_Rect rect, bool32 is_act
         main_color = *style_get_color(style, token_stack.tokens[token_i]);
         ++token_i;
     }
-    
-    Opaque_Font_Advance opad = get_opaque_font_advance(font);
-    
+
     data[size] = 0;
     for (i32 i = start_character; i <= size; ++i){
         u8 to_render;
@@ -3602,17 +3623,15 @@ draw_file_view(Thread_Context *thread, View *view_, i32_Rect rect, bool32 is_act
         if (highlight_color == 0 && view->show_whitespace && char_is_whitespace(data[i])){
             highlight_color = style->main.highlight_white_color;
         }
-            
+        
         i32 cursor_mode = 0;
         if (view->show_temp_highlight){
-            if (view->temp_highlight.pos <= i && i < view->temp_highlight_end_pos){
+            if (view->temp_highlight.pos <= i && i < view->temp_highlight_end_pos)
                 cursor_mode = 2;
-            }
         }
         else{
-            if (view->cursor.pos == i){
+            if (view->cursor.pos == i)
                 cursor_mode = 1;
-            }
         }
         
         real32_Rect cursor_rect =
@@ -3646,7 +3665,7 @@ draw_file_view(Thread_Context *thread, View *view_, i32_Rect rect, bool32 is_act
         if (i == view->mark){
             draw_rectangle_outline(target, cursor_rect, style->main.mark_color);
         }
-            
+        
         u32 char_color = main_color;
         u32 special_char_color = main_color;
         if (to_render == '\r'){
@@ -3705,6 +3724,7 @@ draw_file_view(Thread_Context *thread, View *view_, i32_Rect rect, bool32 is_act
             break;
         }
     }
+#endif
     
     if (view->widget.type != FWIDG_NONE){
         UI_Style ui_style = get_ui_style_upper(style);

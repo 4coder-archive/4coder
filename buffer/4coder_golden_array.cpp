@@ -214,6 +214,7 @@ measure_character(void *advance_data, int stride, char character){
     
     advances = (char*)advance_data;
     switch (character){
+    case 0: width = *(float*)(advances + stride * '\\') + *(float*)(advances + stride * '0'); break;
     case '\n': width = 0; break;
     case '\r': width = *(float*)(advances + stride * '\\') + *(float*)(advances + stride * '\r'); break;
     default: width = *(float*)(advances + stride * character);
@@ -465,8 +466,8 @@ typedef struct{
 } Full_Cursor;
 
 internal_4tech Full_Cursor
-buffer_cursor_seek(Buffer *buffer, Buffer_Seek seek,
-                   float max_width, float font_height, void *advance_data, int stride, Full_Cursor cursor){
+buffer_cursor_seek(Buffer *buffer, Buffer_Seek seek, float max_width, float font_height,
+                   void *advance_data, int stride, Full_Cursor cursor){
     Full_Cursor prev_cursor;
     char *data, *advances;
     int size;
@@ -576,6 +577,82 @@ buffer_cursor_seek(Buffer *buffer, Buffer_Seek seek,
     }
     
     return(cursor);
+}
+
+inline_4tech Full_Cursor
+make_cursor_hint(int line_index, int *starts, float *wrap_ys, float font_height){
+    Full_Cursor hint;
+    hint.pos = starts[line_index];
+    hint.line = line_index + 1;
+    hint.character = 1;
+    hint.unwrapped_y = (f32)(line_index * font_height);
+    hint.unwrapped_x = 0;
+    hint.wrapped_y = wrap_ys[line_index];
+    hint.wrapped_x = 0;
+    return(hint);
+}
+
+internal_4tech Full_Cursor
+buffer_cursor_from_pos(Buffer *buffer, int pos, float *wraps,
+                       float max_width, float font_height, void *advance_data, int stride){
+    Full_Cursor result;
+    int line_index;
+
+    line_index = buffer_get_line_index(buffer, pos, 0, buffer->line_count);
+    result = make_cursor_hint(line_index, buffer->line_starts, wraps, font_height);
+    result = buffer_cursor_seek(buffer, seek_pos(pos), max_width, font_height,
+                                advance_data, stride, result);
+
+    return(result);
+}
+
+internal_4tech Full_Cursor
+buffer_cursor_from_unwrapped_xy(Buffer *buffer, float x, float y, int round_down, float *wraps,
+                                float max_width, float font_height, void *advance_data, int stride){
+    Full_Cursor result;
+    int line_index;
+
+    line_index = (int)(y / font_height);
+    if (line_index >= buffer->line_count) line_index = buffer->line_count - 1;
+    if (line_index < 0) line_index = 0;
+
+    result = make_cursor_hint(line_index, buffer->line_starts, wraps, font_height);
+    result = buffer_cursor_seek(buffer, seek_unwrapped_xy(x, y, round_down), max_width, font_height,
+                                advance_data, stride, result);
+
+    return(result);
+}
+
+internal_4tech Full_Cursor
+buffer_cursor_from_wrapped_xy(Buffer *buffer, float x, float y, int round_down, float *wraps,
+                              float max_width, float font_height, void *advance_data, int stride){
+    Full_Cursor result;
+    int line_index;
+    int start, end, i;
+
+    // NOTE(allen): binary search lines on wrapped y position
+    // TODO(allen): pull this out once other wrap handling code is ready
+    start = 0;
+    end = buffer->line_count;
+    for (;;){
+        i = (start + end) / 2;
+        if (wraps[i]+font_height <= y) start = i;
+        else if (wraps[i] > y) end = i;
+        else{
+            line_index = i;
+            break;
+        }
+        if (start >= end - 1){
+            line_index = start;
+            break;
+        }
+    }
+
+    result = make_cursor_hint(line_index, buffer->line_starts, wraps, font_height);
+    result = buffer_cursor_seek(buffer, seek_wrapped_xy(x, y, round_down), max_width, font_height,
+                                advance_data, stride, result);
+
+    return(result);
 }
 
 typedef struct{
@@ -837,6 +914,167 @@ buffer_eol_convert_out(Buffer *buffer){
     }
     
     buffer->size = size;
+}
+
+typedef struct{
+    int index;
+    int glyphid;
+    float x0, y0;
+    float x1, y1;
+} Buffer_Render_Item;
+
+internal_4tech void
+buffer_get_render_data(Buffer *buffer, float *wraps, Buffer_Render_Item *items, int max, int *count,
+                       float port_x, float port_y, float scroll_x, float scroll_y, int wrapped,
+                       float width, float height, void *advance_data, int stride, float font_height){
+    Full_Cursor start_cursor;
+    Buffer_Render_Item *item;
+    char *data;
+    int size;
+    float shift_x, shift_y;
+    float x, y;
+    int i, item_i;
+    float ch_width;
+    char ch;
+
+    data = buffer->data;
+    size = buffer->size;
+    assert_4tech(size < buffer->max);
+    data[size] = 0;
+
+    shift_x = port_x - scroll_x;
+    shift_y = port_y - scroll_y;
+    if (wrapped){
+        start_cursor = buffer_cursor_from_wrapped_xy(buffer, 0, scroll_y, 0, wraps,
+                                                     width, font_height, advance_data, stride);
+        shift_y += start_cursor.wrapped_y;
+    }
+    else{
+        start_cursor = buffer_cursor_from_unwrapped_xy(buffer, 0, scroll_y, 0, wraps,
+                                                       width, font_height, advance_data, stride);
+        shift_y += start_cursor.unwrapped_y;
+    }
+
+    i = start_cursor.pos;
+
+    x = shift_x;
+    y = shift_y;
+    item_i = 0;
+    item = items + item_i;
+
+    for (; i <= size; ++i){
+        ch = data[i];
+        ch_width = measure_character(advance_data, stride, ch);
+
+        if (ch_width + x > width + shift_x && wrapped){
+            x = shift_x;
+            y += font_height;
+        }
+        if (y > height + shift_y) break;
+
+        switch (ch){
+        case '\n':
+            ch_width = measure_character(advance_data, stride, ' ');
+            item->index = i;
+            item->glyphid = ' ';
+            item->x0 = x;
+            item->y0 = y;
+            item->x1 = x + ch_width;
+            item->y1 = y + font_height;
+            ++item_i;
+            ++item;
+
+            x = shift_x;
+            y += font_height;
+            break;
+
+        case 0:
+            ch_width = measure_character(advance_data, stride, '\\');
+            item->index = i;
+            item->glyphid = '\\';
+            item->x0 = x;
+            item->y0 = y;
+            item->x1 = x + ch_width;
+            item->y1 = y + font_height;
+            ++item_i;
+            ++item;
+            x += ch_width;
+
+            ch_width = measure_character(advance_data, stride, '0');
+            item->index = i;
+            item->glyphid = '0';
+            item->x0 = x;
+            item->y0 = y;
+            item->x1 = x + ch_width;
+            item->y1 = y + font_height;
+            ++item_i;
+            ++item;
+            x += ch_width;
+            break;
+
+        case '\r':
+            ch_width = measure_character(advance_data, stride, '\\');
+            item->index = i;
+            item->glyphid = '\\';
+            item->x0 = x;
+            item->y0 = y;
+            item->x1 = x + ch_width;
+            item->y1 = y + font_height;
+            ++item_i;
+            ++item;
+            x += ch_width;
+
+            ch_width = measure_character(advance_data, stride, 'r');
+            item->index = i;
+            item->glyphid = 'r';
+            item->x0 = x;
+            item->y0 = y;
+            item->x1 = x + ch_width;
+            item->y1 = y + font_height;
+            ++item_i;
+            ++item;
+            x += ch_width;
+            break;
+
+        case '\t':
+            item->index = i;
+            item->glyphid = '\\';
+            item->x0 = x;
+            item->y0 = y;
+            item->x1 = x + measure_character(advance_data, stride, '\\');
+            item->y1 = y + font_height;
+            ++item_i;
+            ++item;
+
+            item->index = i;
+            item->glyphid = 't';
+            item->x0 = (item-1)->x1;
+            item->y0 = y;
+            item->x1 = item->x0 + measure_character(advance_data, stride, 't');
+            item->y1 = y + font_height;
+            ++item_i;
+            ++item;
+            x += ch_width;
+            break;
+
+        default:
+            item->index = i;
+            item->glyphid = ch;
+            item->x0 = x;
+            item->y0 = y;
+            item->x1 = x + ch_width;
+            item->y1 = y + font_height;
+            ++item_i;
+            ++item;
+            x += ch_width;
+            break;
+        }
+        if (y > height + shift_y) break;
+    }
+
+    // TODO(allen): handle this with a control state
+    assert_4tech(item_i <= max);
+    *count = item_i;
 }
 
 // BOTTOM

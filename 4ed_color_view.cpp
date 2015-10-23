@@ -338,10 +338,10 @@ do_single_slider(i32 sub_id, Color_UI *ui, i32 channel, bool32 is_rgba,
         
         x = lerp(slider.x0, color.v[channel], slider.x1);
         draw_rectangle(
-            target, real32R(x, slider.y0, x + 1, slider.y1), 0xff000000);
+            target, f32R(x, slider.y0, x + 1, slider.y1), 0xff000000);
         
         draw_rectangle(
-            target, real32R(x-2, click_box.y0, x+3, slider.y0-4), 0xff777777);
+            target, f32R(x-2, click_box.y0, x+3, slider.y0-4), 0xff777777);
     }
 }
 
@@ -509,7 +509,7 @@ do_channel_field(i32 sub_id, Color_UI *ui, u8 *channel, Channel_Field_Type ftype
             }
         }
         else{
-            real32_Rect r = real32R(hit_region);
+            real32_Rect r = f32R(hit_region);
             r.x0 += indx*ui->hex_advance+1;
             r.x1 = r.x0+ui->hex_advance+1;
             draw_rectangle(target, r, back);
@@ -789,7 +789,7 @@ do_color_adjuster(Color_UI *ui, u32 *color,
         
         for (i32 i = 0; i < ArrayCount(ui->highlight.ids); ++i){
             if (ui->highlight.ids[i] == id){
-                draw_rectangle_outline(target, real32R(bar), text_color);
+                draw_rectangle_outline(target, f32R(bar), text_color);
                 break;
             }
         }

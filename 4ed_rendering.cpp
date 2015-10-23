@@ -620,7 +620,7 @@ draw_gradient_2corner_clipped(Render_Target *target, real32_Rect rect,
 inline void
 draw_gradient_2corner_clipped(Render_Target *target, real32 l, real32 t, real32 r, real32 b,
                               Vec4 color_left, Vec4 color_right){
-    draw_gradient_2corner_clipped(target, real32R(l,t,r,b), color_left, color_right);
+    draw_gradient_2corner_clipped(target, f32R(l,t,r,b), color_left, color_right);
 }
 
 internal void
@@ -646,7 +646,7 @@ draw_rectangle_outline(Render_Target *target, real32_Rect rect, u32 color){
 
 inline void
 draw_rectangle_outline(Render_Target *target, i32_Rect rect, u32 color){
-    draw_rectangle_outline(target, real32R(rect), color);
+    draw_rectangle_outline(target, f32R(rect), color);
 }
 
 internal void
