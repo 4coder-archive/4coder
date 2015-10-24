@@ -54,6 +54,8 @@
 #define FPS 30
 #define FRAME_TIME (1000000 / FPS)
 
+#define BUFFER_EXPERIMENT_SCALPEL 0
+
 #include "4ed_meta.h"
 
 #define FCPP_FORBID_MALLOC
@@ -91,7 +93,11 @@ struct Sys_Bubble : public Bubble{
 #include "4ed_command.cpp"
 #include "4ed_layout.cpp"
 #include "4ed_style.cpp"
+#if BUFFER_EXPERIMENT_SCALPEL
+#include "4ed_file_view_golden_array.cpp"
+#else
 #include "4ed_file_view.cpp"
+#endif
 #include "4ed_color_view.cpp"
 #include "4ed_interactive_view.cpp"
 #include "4ed_menu_view.cpp"

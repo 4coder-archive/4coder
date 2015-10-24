@@ -213,37 +213,12 @@ COMMAND_DECL(write_character){
     view->file->cursor_pos = view->cursor.pos;
 }
 
-internal i32
-seek_whitespace_right(u8 *data, i32 size, i32 pos){
-    while (pos < size && char_is_whitespace(data[pos])){
-        ++pos;
-    }
-    while (pos < size && !char_is_whitespace(data[pos])){
-        ++pos;
-    }
-    return pos;
-}
-
-internal i32
-seek_whitespace_left(u8 *data, i32 pos){
-    --pos;
-    while (pos > 0 && char_is_whitespace(data[pos])){
-        --pos;
-    }
-    while (pos >= 0 && !char_is_whitespace(data[pos])){
-        --pos;
-    }
-    ++pos;
-    return pos;
-}
-
 COMMAND_DECL(seek_whitespace_right){
     ProfileMomentFunction();
     REQ_FILE_VIEW(view);
     REQ_FILE(file, view);
     
-    i32 pos = seek_whitespace_right(
-        (u8*)file->buffer.data, file->buffer.size, view->cursor.pos);
+    i32 pos = buffer_seek_whitespace_right(&file->buffer, view->cursor.pos);
     
     view_cursor_move(view, pos);
 }
@@ -253,14 +228,13 @@ COMMAND_DECL(seek_whitespace_left){
     REQ_FILE_VIEW(view);
     REQ_FILE(file, view);
     
-    i32 pos = seek_whitespace_left(
-        (u8*)file->buffer.data, view->cursor.pos);
+    i32 pos = buffer_seek_whitespace_left(&file->buffer, view->cursor.pos);
     
     view_cursor_move(view, pos);
 }
 
-// TODO(allen): see if this becomes better by using buffer procudures directly
 COMMAND_DECL(seek_whitespace_up){
+#if BUFFER_EXPERIMENT_SCALPEL
     ProfileMomentFunction();
     REQ_FILE_VIEW(view);
     REQ_FILE(file, view);
@@ -286,9 +260,11 @@ COMMAND_DECL(seek_whitespace_up){
     if (pos != 0) ++pos;
     
     view_cursor_move(view, pos);
+#endif
 }
 
 COMMAND_DECL(seek_whitespace_down){
+#if BUFFER_EXPERIMENT_SCALPEL
     ProfileMomentFunction();
     REQ_FILE_VIEW(view);
     REQ_FILE(file, view);
@@ -320,6 +296,7 @@ COMMAND_DECL(seek_whitespace_down){
     else pos = prev_endline+1;
     
     view_cursor_move(view, pos);
+#endif
 }
 
 internal i32
@@ -374,6 +351,7 @@ COMMAND_DECL(seek_token_right){
 }
 
 COMMAND_DECL(seek_white_or_token_right){
+#if BUFFER_EXPERIMENT_SCALPEL
     ProfileMomentFunction();
     REQ_FILE_VIEW(view);
     REQ_FILE(file, view);
@@ -383,11 +361,13 @@ COMMAND_DECL(seek_white_or_token_right){
     if (file->tokens_complete){
         token_pos = seek_token_right(&file->token_stack, view->cursor.pos);
     }
-    white_pos = seek_whitespace_right((u8*)file->buffer.data, file->buffer.size, view->cursor.pos);
+    white_pos = buffer_seek_whitespace_right(&file->buffer, view->cursor.pos);
     view_cursor_move(view, Min(token_pos, white_pos));
+#endif
 }
 
 COMMAND_DECL(seek_white_or_token_left){
+#if BUFFER_EXPERIMENT_SCALPEL
     ProfileMomentFunction();
     REQ_FILE_VIEW(view);
     REQ_FILE(file, view);
@@ -397,8 +377,9 @@ COMMAND_DECL(seek_white_or_token_left){
     if (file->tokens_complete){
         token_pos = seek_token_left(&file->token_stack, view->cursor.pos);
     }
-    white_pos = seek_whitespace_left((u8*)file->buffer.data, view->cursor.pos);
+    white_pos = buffer_seek_whitespace_left(&file->buffer, view->cursor.pos);
     view_cursor_move(view, Max(token_pos, white_pos));
+#endif
 }
 
 internal i32
@@ -426,6 +407,7 @@ seek_alphanumeric_left(u8 *data, i32 pos){
 }
 
 COMMAND_DECL(seek_alphanumeric_right){
+#if BUFFER_EXPERIMENT_SCALPEL
     ProfileMomentFunction();
     REQ_FILE_VIEW(view);
     REQ_FILE(file, view);
@@ -433,6 +415,7 @@ COMMAND_DECL(seek_alphanumeric_right){
     i32 pos = seek_alphanumeric_right(
         (u8*)file->buffer.data, file->buffer.size, view->cursor.pos);
     view_cursor_move(view, pos);
+#endif
 }
 
 COMMAND_DECL(seek_alphanumeric_left){
@@ -446,6 +429,7 @@ COMMAND_DECL(seek_alphanumeric_left){
 }
 
 COMMAND_DECL(seek_alphanumeric_or_camel_right){
+#if BUFFER_EXPERIMENT_SCALPEL
     ProfileMomentFunction();
     REQ_FILE_VIEW(view);
     REQ_FILE(file, view);
@@ -467,6 +451,7 @@ COMMAND_DECL(seek_alphanumeric_or_camel_right){
     }
     
     view_cursor_move(view, camel_pos);
+#endif
 }
 
 COMMAND_DECL(seek_alphanumeric_or_camel_left){
@@ -552,6 +537,7 @@ COMMAND_DECL(copy){
 }
 
 COMMAND_DECL(cut){
+#if BUFFER_EXPERIMENT_SCALPEL
     ProfileMomentFunction();
     REQ_FILE_VIEW(view);
     REQ_FILE(file, view);
@@ -571,6 +557,7 @@ COMMAND_DECL(cut){
         view_measure_wraps(&mem->general, view);
         view_cursor_move(view, next_cursor_pos);
     }
+#endif
 }
 
 COMMAND_DECL(paste){
@@ -647,6 +634,7 @@ COMMAND_DECL(paste_next){
 }
 
 COMMAND_DECL(delete_chunk){
+#if BUFFER_EXPERIMENT_SCALPEL
     ProfileMomentFunction();
     REQ_FILE_VIEW(view);
     REQ_FILE(file, view);
@@ -661,6 +649,7 @@ COMMAND_DECL(delete_chunk){
         view_cursor_move(view, next_cursor_pos);
         view->mark = range.start;
     }
+#endif
 }
 
 COMMAND_DECL(timeline_scrub){
@@ -811,9 +800,11 @@ app_open_file(App_Vars *vars, General_Memory *general, Panel *panel,
         command_data->view = old_view;
         
         new_view->map = app_get_map(vars, target_file->base_map_id);
-        
+
+#if BUFFER_EXPERIMENT_SCALPEL
         if (created_file && target_file->tokens_exist)
             file_first_lex_parallel(general, target_file);
+#endif
     }
     
     return result;
@@ -886,8 +877,10 @@ COMMAND_DECL(reopen){
         *file = temp_file;
         file->source_path.str = file->source_path_;
         file->live_name.str = file->live_name_;
+#if BUFFER_EXPERIMENT_SCALPEL
         if (file->tokens_exist)
             file_first_lex_parallel(&mem->general, file);
+#endif
         
         Partition old_part = command->part;
         Temp_Memory temp = begin_temp_memory(&vars->mem.part);
@@ -1031,17 +1024,6 @@ COMMAND_DECL(toggle_line_wrap){
     view_set_relative_scrolling(view, scrolling);
 }
 
-COMMAND_DECL(toggle_endline_mode){
-    ProfileMomentFunction();
-    REQ_FILE_VIEW(view);
-    REQ_FILE(file, view);
-    USE_MEM(mem);
-        
-    file_measure_starts(&mem->general, view->file);
-    view->cursor =
-        view_compute_cursor_from_pos(view, view->cursor.pos);
-}
-
 COMMAND_DECL(toggle_show_whitespace){
     ProfileMomentFunction();
     REQ_FILE_VIEW(view);
@@ -1049,6 +1031,7 @@ COMMAND_DECL(toggle_show_whitespace){
 }
 
 COMMAND_DECL(toggle_tokens){
+#if BUFFER_EXPERIMENT_SCALPEL
     ProfileMomentFunction();
     REQ_FILE_VIEW(view);
     REQ_FILE(file, view);
@@ -1060,6 +1043,7 @@ COMMAND_DECL(toggle_tokens){
     else{
         file_first_lex_parallel(&mem->general, file);
     }
+#endif
 }
 
 internal void
@@ -1084,9 +1068,11 @@ case_change_range(Mem_Options *mem, File_View *view, Editing_File *file,
                 data[i] += char_delta;
             }
         }
-        
+
+#if BUFFER_EXPERIMENT_SCALPEL
         if (file->token_stack.tokens)
             file_relex_parallel(mem, file, range.start, range.end, 0);
+#endif
     }
 }
 
@@ -1280,9 +1266,7 @@ COMMAND_DECL(move_left){
     REQ_FILE(file, view);
     
     i32 pos = view->cursor.pos;
-    if (pos > 0){
-        --pos;
-    }
+    if (pos > 0) --pos;
     
     view_cursor_move(view, pos);
 }
@@ -1292,16 +1276,15 @@ COMMAND_DECL(move_right){
     REQ_FILE_VIEW(view);
     REQ_FILE(file, view);
     
-    i32 size = file->buffer.size;
+    i32 size = buffer_size(&file->buffer);
     i32 pos = view->cursor.pos;
-    if (pos < size){
-        ++pos;
-    }
+    if (pos < size) ++pos;
     
     view_cursor_move(view, pos);
 }
 
 COMMAND_DECL(delete){
+#if BUFFER_EXPERIMENT_SCALPEL
     ProfileMomentFunction();
     REQ_FILE_VIEW(view);
     REQ_FILE(file, view);
@@ -1322,9 +1305,11 @@ COMMAND_DECL(delete){
         view_cursor_move(view, next_cursor_pos);
         if (view->mark >= end) view->mark -= shift;
     }
+#endif
 }
 
 COMMAND_DECL(backspace){
+#if BUFFER_EXPERIMENT_SCALPEL
     ProfileMomentFunction();
     REQ_FILE_VIEW(view);
     REQ_FILE(file, view);
@@ -1346,6 +1331,7 @@ COMMAND_DECL(backspace){
         view_cursor_move(view, next_cursor_pos);
         if (view->mark >= end) view->mark -= shift;
     }
+#endif
 }
 
 COMMAND_DECL(move_up){
@@ -1536,6 +1522,7 @@ COMMAND_DECL(set_settings){
     REQ_FILE(file, view);
     USE_VARS(vars);
     USE_MEM(mem);
+    AllowLocal(mem);
     
     Command_Parameter *end = param_stack_end(&command->part);
     Command_Parameter *param = param_stack_first(&command->part, end);
@@ -1544,6 +1531,7 @@ COMMAND_DECL(set_settings){
         switch (p){
         case par_lex_as_cpp_file:
         {
+#if BUFFER_EXPERIMENT_SCALPEL
             int v = dynamic_to_bool(&param->param.value);
             if (file->tokens_exist){
                 if (!v) file_kill_tokens(&mem->general, file);
@@ -1551,6 +1539,7 @@ COMMAND_DECL(set_settings){
             else{
                 if (v) file_first_lex_parallel(&mem->general, file);
             }
+#endif
         }break;
         
         case par_wrap_lines:
@@ -1658,6 +1647,7 @@ extern "C"{
         if (view){
             Editing_File *file = view->file;
             if (file && !file->is_dummy){
+#if BUFFER_EXPERIMENT_SCALPEL
                 Working_Set *working_set = cmd->working_set;
                 buffer.file_id = (int)(file - working_set->files);
                 buffer.size = file->buffer.size;
@@ -1669,6 +1659,7 @@ extern "C"{
                 buffer.file_cursor_pos = file->cursor_pos;
                 buffer.is_lexed = file->tokens_exist;
                 buffer.map_id = file->base_map_id;
+#endif
             }
         }
         
@@ -1727,8 +1718,8 @@ setup_file_commands(Command_Map *commands, Partition *part, Key_Codes *codes, Co
     map_add(commands, codes->page_up, MDFR_NONE, command_page_up);
     map_add(commands, codes->page_down, MDFR_NONE, command_page_down);
     
-    map_add(commands, codes->right, MDFR_CTRL, command_seek_white_or_token_right);
-    map_add(commands, codes->left, MDFR_CTRL, command_seek_white_or_token_left);
+    map_add(commands, codes->right, MDFR_CTRL, command_seek_whitespace_right);
+    map_add(commands, codes->left, MDFR_CTRL, command_seek_whitespace_left);
     map_add(commands, codes->up, MDFR_CTRL, command_seek_whitespace_up);
     map_add(commands, codes->down, MDFR_CTRL, command_seek_whitespace_down);
     
@@ -1748,7 +1739,6 @@ setup_file_commands(Command_Map *commands, Partition *part, Key_Codes *codes, Co
     map_add(commands, 'H', MDFR_CTRL, command_history_forward);
     map_add(commands, 'd', MDFR_CTRL, command_delete_chunk);
     map_add(commands, 'l', MDFR_CTRL, command_toggle_line_wrap);
-    map_add(commands, 'L', MDFR_CTRL, command_toggle_endline_mode);
     map_add(commands, '?', MDFR_CTRL, command_toggle_show_whitespace);
     map_add(commands, '|', MDFR_CTRL, command_toggle_tokens);
     map_add(commands, 'u', MDFR_CTRL, command_to_uppercase);
@@ -1850,7 +1840,6 @@ setup_command_table(){
     SET(interactive_kill_buffer);
     SET(kill_buffer);
     SET(toggle_line_wrap);
-    SET(toggle_endline_mode);
     SET(to_uppercase);
     SET(to_lowercase);
     SET(toggle_show_whitespace);
@@ -2603,7 +2592,9 @@ app_step(Thread_Context *thread, Key_Codes *codes,
             if (!view_->is_active) continue;
             File_View *view = view_to_file_view(view_);
             if (!view) continue;
+#if BUFFER_EXPERIMENT_SCALPEL
             view_measure_wraps(&vars->mem.general, view);
+#endif
             view->cursor = view_compute_cursor_from_pos(view, view->cursor.pos);
         }
         app_result.redraw = 1;
@@ -3020,7 +3011,9 @@ app_step(Thread_Context *thread, Key_Codes *codes,
                 view_set_file(file_view, file.file, style,
                               vars->hooks[hook_open_file], &command_data, app_links);
                 new_view->map = app_get_map(vars, file.file->base_map_id);
+#if BUFFER_EXPERIMENT_SCALPEL
                 if (file.file->tokens_exist) file_first_lex_parallel(general, file.file);
+#endif
             }break;
             
             case DACT_SWITCH:
@@ -3131,12 +3124,14 @@ app_step(Thread_Context *thread, Key_Codes *codes,
     if (vars->style.font_changed){
         vars->style.font_changed = 0;
         
+#if BUFFER_EXPERIMENT_SCALPEL
         Editing_File *file = vars->working_set.files;
         for (i32 i = vars->working_set.file_index_count; i > 0; --i, ++file){
             if (file->buffer.data && !file->is_dummy){
                 file_measure_widths(&vars->mem.general, file, vars->style.font);
             }
         }
+#endif
         
         Panel *panel = panels;
         for (i32 panel_i = vars->layout.panel_count; panel_i > 0; --panel_i, ++panel){

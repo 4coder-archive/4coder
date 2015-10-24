@@ -10,7 +10,7 @@
 // TOP
 
 #include "buffer/4coder_shared.cpp"
-#include "buffer/4coder_gap_buffer.cpp"
+#include "buffer/4coder_golden_array.cpp"
 #include "buffer/4coder_buffer_abstract.cpp"
 
 struct Range{
@@ -72,7 +72,7 @@ struct Undo_Data{
 };
 
 struct Editing_File{
-    Gap_Buffer buffer;
+    Buffer buffer;
     
     Undo_Data undo;
     
@@ -1010,7 +1010,7 @@ struct File_View_Widget{
 
 struct File_View{
     View view_base;
-    
+
     Delay *delay;
     Editing_Layout *layout;
     
@@ -1110,17 +1110,19 @@ internal bool32
 file_save(Partition *part, Editing_File *file, u8 *filename){
 	bool32 result = 0;
     Temp_Memory temp = begin_temp_memory(part);
-    i32 max = partition_remaining(part);
-    i32 size = 0;
-    char *data = push_array(part, char, max);
-    i32 data_size = buffer_size(&file->buffer);
-    for (Gap_Buffer_Stringify_Loop loop = buffer_stringify_loop(&file->buffer, 0, data_size, data_size);
+    Buffer temp_buffer;
+    temp_buffer.max = partition_remaining(part);
+    temp_buffer.size = 0;
+    temp_buffer.data = push_array(part, char, temp_buffer.max);
+    // TODO(allen): What about using this stringify loop to convert out?
+    for (Buffer_Stringify_Loop loop = buffer_stringify_loop(&file->buffer, 0, file->buffer.size, file->buffer.size);
          buffer_stringify_good(&loop);
          buffer_stringify_next(&loop)){
-        memcpy(data + size, loop.data, loop.size);
-        size += loop.size;
+        memcpy(temp_buffer.data, loop.data, loop.size);
+        temp_buffer.size += loop.size;
+        buffer_eol_convert_out(&temp_buffer);
+        result = system_save_file(filename, temp_buffer.data, temp_buffer.size);
     }
-    result = system_save_file(filename, data, size);
     end_temp_memory(temp);
     file_synchronize_times(file, filename);
     return result;
@@ -1344,15 +1346,22 @@ file_create_from_string(General_Memory *general, Editing_File *file, u8 *filenam
     
     *file = {};
     file->buffer.data = (char*)data;
+    file->buffer.size = val.size;
     file->buffer.max = request_size;
-    gap_buffer_initialize(&file->buffer, val.str, val.size);
+    
+    if (val.size > 0){
+        memcpy(data, val.str, val.size);
+        buffer_eol_convert_in(&file->buffer);
+    }
+    
+    data[val.size] = 0;
     
     file_synchronize_times(file, filename);
     file_init_strings(file);
     file_set_name(file, filename);
     
     file->base_map_id = mapid_file;
-
+    
     file_measure_starts(general, file);
     file_measure_widths(general, file, font);
     file->font = font;
@@ -1457,7 +1466,7 @@ file_close(General_Memory *general, Editing_File *file){
 internal void
 file_get_dummy(Editing_File *file){
 	*file = {};
-	file->buffer.data = (char*)&file->buffer.size1;
+	file->buffer.data = (char*)&file->buffer.size;
 	file->is_dummy = 1;
 }
 
@@ -1465,7 +1474,6 @@ struct Shift_Information{
 	i32 start, end, amount;
 };
 
-#if BUFFER_EXPERIMENT_SCALPEL
 internal
 JOB_CALLBACK(job_full_lex){
     Editing_File *file = (Editing_File*)data[0];
@@ -1528,7 +1536,6 @@ JOB_CALLBACK(job_full_lex){
     file->tokens_complete = 1;
     file->still_lexing = 0;
 }
-#endif
 
 internal void
 file_kill_tokens(General_Memory *general, Editing_File *file){
@@ -1543,7 +1550,6 @@ file_kill_tokens(General_Memory *general, Editing_File *file){
     file->token_stack = {};
 }
 
-#if BUFFER_EXPERIMENT_SCALPEL
 internal void
 file_first_lex_parallel(General_Memory *general, Editing_File *file){
     Assert(file->token_stack.tokens == 0);
@@ -1644,18 +1650,17 @@ file_relex_parallel(Mem_Options *mem, Editing_File *file,
         file->lex_job = system_post_job(BACKGROUND_THREADS, job);
     }
 }
-#endif
 
 internal bool32
 file_grow_as_needed(General_Memory *general, Editing_File *file, i32 additional_size){
     bool32 result = 1;
-    i32 size = buffer_size(&file->buffer);
-    i32 target_size = size + additional_size + 1;
+    i32 target_size = file->buffer.size + additional_size + 1;
     if (target_size >= file->buffer.max){
 		i32 request_size = LargeRoundUp(target_size*2, Kbytes(256));
         char *new_data = (char*)
-            general_memory_reallocate(general, file->buffer.data, size, request_size, BUBBLE_BUFFER);
+            general_memory_reallocate(general, file->buffer.data, file->buffer.size, request_size, BUBBLE_BUFFER);
 		if (new_data){
+            new_data[file->buffer.size] = 0;
 			file->buffer.data = new_data;
 			file->buffer.max = request_size;
 		}
@@ -1740,7 +1745,6 @@ struct Edit_Spec{
     Edit_Step step;
 };
 
-#if BUFFER_EXPERIMENT_SCALPEL
 internal Edit_Step*
 file_post_undo(General_Memory *general, Editing_File *file,
                Edit_Step step, bool32 do_merge, bool32 can_merge){
@@ -1944,7 +1948,6 @@ file_post_history(General_Memory *general, Editing_File *file,
     
     return result;
 }
-#endif
 
 inline Full_Cursor
 view_compute_cursor_from_pos(File_View *view, i32 pos){
@@ -2054,12 +2057,11 @@ view_set_file(File_View *view, Editing_File *file, Style *style,
     view->file = file;
     
     General_Memory *general = &view->view_base.mem->general;
-    AllowLocal(general);
     Font *font = style->font;
     view->style = style;
     view->font_advance = font->advance;
     view->font_height = font->height;
-
+    
     view_measure_wraps(general, view);
     
     view->cursor = {};
@@ -2208,7 +2210,6 @@ enum History_Mode{
 internal void
 view_update_history_before_edit(Mem_Options *mem, Editing_File *file, Edit_Step step, u8 *str,
                                 History_Mode history_mode, i32 next_cursor){
-#if BUFFER_EXPERIMENT_SCALPEL
     General_Memory *general = &mem->general;
     
 #if FRED_SLOW
@@ -2377,7 +2378,6 @@ view_update_history_before_edit(Mem_Options *mem, Editing_File *file, Edit_Step 
     }
     
     if (history_mode == hist_normal) file->undo.edit_history_cursor = file->undo.history.edit_count;
-#endif
 }
 
 inline b32
@@ -2422,36 +2422,28 @@ view_do_single_edit(Mem_Options *mem, File_View *view, Editing_File *file,
     i32 str_len = spec.step.edit.len;
     
     i32 shift_amount;
-    while (gap_buffer_replace_range(&file->buffer, start, end, str, str_len, &shift_amount))
+    while (buffer_replace_range(&file->buffer, start, end, str, str_len, &shift_amount))
         file_grow_as_needed(general, file, shift_amount);
     
     // NOTE(allen): fixing stuff afterwards
-#if BUFFER_EXPERIMENT_SCALPEL
     if (file->tokens_exist)
         file_relex_parallel(mem, file, start, end, shift_amount);
-#endif
     
     i32 line_start = buffer_get_line_index(&file->buffer, start, 0, file->buffer.line_count);
     i32 line_end = buffer_get_line_index(&file->buffer, end, 0, file->buffer.line_count);
     i32 replaced_line_count = line_end - line_start;
+
+    // TODO(allen): check this
     i32 new_line_count = file_count_newlines(file, start, start+str_len);
+
+    
     i32 line_shift =  new_line_count - replaced_line_count;
     
     file_remeasure_starts(general, file, line_start, line_end, line_shift, shift_amount);
     file_remeasure_widths(general, file, file->font, line_start, line_end, line_shift);
-
-    i32 panel_count = layout->panel_count;
-    Panel *current_panel = layout->panels;
-    for (i32 i = 0; i < panel_count; ++i, ++current_panel){
-        File_View *current_view = view_to_file_view(current_panel->view);
-        if (current_view && current_view->file == file){
-            view_measure_wraps(general, current_view);
-        }
-    }
-
-#if BUFFER_EXPERIMENT_SCALPEL    
-    i32 cursor_count = 0;
+    
     Temp_Memory cursor_temp = begin_temp_memory(&mem->part);
+    i32 panel_count = layout->panel_count;
     i32 cursor_max = layout->panel_max_count * 2;
     Cursor_With_Index *cursors = push_array(&mem->part, Cursor_With_Index, cursor_max);
     
@@ -2489,13 +2481,11 @@ view_do_single_edit(Mem_Options *mem, File_View *view, Editing_File *file,
     }
     
     end_temp_memory(cursor_temp);
-#endif
 }
 
 internal void
 view_do_white_batch_edit(Mem_Options *mem, File_View *view, Editing_File *file,
                          Editing_Layout *layout, Edit_Spec spec, History_Mode history_mode){
-#if BUFFER_EXPERIMENT_SCALPEL
     Assert(file);
     ProfileMomentFunction();
     
@@ -2587,7 +2577,6 @@ view_do_white_batch_edit(Mem_Options *mem, File_View *view, Editing_File *file,
         }
         end_temp_memory(cursor_temp);
     }
-#endif
 }
 
 inline void
@@ -2711,18 +2700,15 @@ view_history_step(Mem_Options *mem, Editing_Layout *layout, File_View *view, His
 // TODO(allen): should these still be view operations?
 internal i32
 view_find_end_of_line(File_View *view, i32 pos){
-#if BUFFER_EXPERIMENT_SCALPEL
 	Editing_File *file = view->file;
 	char *data = file->buffer.data;
 	while (pos < file->buffer.size && data[pos] != '\n') ++pos;
 	if (pos > file->buffer.size) pos = file->buffer.size;
-#endif
 	return pos;
 }
 
 internal i32
 view_find_beginning_of_line(File_View *view, i32 pos){
-#if BUFFER_EXPERIMENT_SCALPEL
 	Editing_File *file = view->file;
 	char *data = file->buffer.data;
 	if (pos > 0){
@@ -2730,13 +2716,11 @@ view_find_beginning_of_line(File_View *view, i32 pos){
 		while (pos > 0 && data[pos] != '\n') --pos;
 		if (pos != 0) ++pos;
 	}
-#endif
 	return pos;
 }
 
 internal i32
 view_find_beginning_of_next_line(File_View *view, i32 pos){
-#if BUFFER_EXPERIMENT_SCALPEL
 	Editing_File *file = view->file;
 	char *data = file->buffer.data;
 	while (pos < file->buffer.size &&
@@ -2746,7 +2730,6 @@ view_find_beginning_of_next_line(File_View *view, i32 pos){
 	if (pos < file->buffer.size){
 		++pos;
 	}
-#endif
 	return pos;
 }
 
@@ -2855,7 +2838,6 @@ enum Endline_Convert_Type{
 
 internal void
 view_clean_whitespace(Mem_Options *mem, File_View *view, Editing_Layout *layout){
-#if BUFFER_EXPERIMENT_SCALPEL
     Editing_File *file = view->file;
     Assert(file && !file->is_dummy);
     Partition *part = &mem->part;
@@ -2926,7 +2908,6 @@ view_clean_whitespace(Mem_Options *mem, File_View *view, Editing_Layout *layout)
     }
     
     end_temp_memory(temp);
-#endif
 }
 
 internal u32*
@@ -3479,11 +3460,11 @@ draw_file_view(Thread_Context *thread, View *view_, i32_Rect rect, bool32 is_act
 #if 1
     Partition *part = &view_->mem->part;
     Temp_Memory temp = begin_temp_memory(part);
-    
+
     partition_align(part, 4);
     i32 max = partition_remaining(part) / sizeof(Buffer_Render_Item);
     Buffer_Render_Item *items = push_array(part, Buffer_Render_Item, max);
-    
+
     i32 count;
     buffer_get_render_data(&file->buffer, view->line_wrap_y, items, max, &count,
                            (real32)rect.x0, (real32)rect.y0, view->scroll_x, view->scroll_y, !view->unwrapped_lines,
@@ -3504,7 +3485,7 @@ draw_file_view(Thread_Context *thread, View *view_, i32_Rect rect, bool32 is_act
         cursor_color = style->main.cursor_color;
         at_cursor_color = style->main.at_cursor_color;
     }
-    
+
     i32 token_i = 0;
     u32 main_color = style->main.default_color;
     if (tokens_use){
@@ -3512,7 +3493,7 @@ draw_file_view(Thread_Context *thread, View *view_, i32_Rect rect, bool32 is_act
         main_color = *style_get_color(style, token_stack.tokens[result.token_index]);
         token_i = result.token_index + 1;
     }
-    
+
     u32 mark_color = style->main.mark_color;
     Buffer_Render_Item *item = items;
     i32 prev_ind = -1;
@@ -3533,7 +3514,7 @@ draw_file_view(Thread_Context *thread, View *view_, i32_Rect rect, bool32 is_act
                 }
             }
 
-#if BUFFER_EXPERIMENT_SCALPEL
+#if 0
             if (current_token.type == CPP_TOKEN_JUNK &&
                 i >= current_token.start && i <= current_token.start + current_token.size){
                 highlight_color = style->main.highlight_junk_color;
@@ -3873,7 +3854,6 @@ internal
 HANDLE_COMMAND_SIG(handle_command_file_view){
     File_View *file_view = (File_View*)(view);
     Editing_File *file = file_view->file;
-    AllowLocal(file);
             
     switch (file_view->widget.type){
     case FWIDG_NONE:
@@ -3889,7 +3869,6 @@ HANDLE_COMMAND_SIG(handle_command_file_view){
     
     case FWIDG_SEARCH:
     {
-#if BUFFER_EXPERIMENT_SCALPEL
         String *string = &file_view->isearch.str;
         Single_Line_Input_Step result =
             app_single_line_input_step(codes, key, string);
@@ -3977,7 +3956,6 @@ HANDLE_COMMAND_SIG(handle_command_file_view){
             file_view->show_temp_highlight = 0;
             view_set_widget(file_view, FWIDG_NONE);
         }
-#endif
     }break;
     
     case FWIDG_GOTO_LINE:
