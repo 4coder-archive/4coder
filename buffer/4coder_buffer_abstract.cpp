@@ -4,7 +4,7 @@
  *
  * public domain -- no warranty is offered or implied; use this code at your own risk
  * 
- * 16.10.2015
+ * 24.10.2015
  * 
  * Buffer data object
  *  type - Golden Array
@@ -12,12 +12,6 @@
  */
 
 // TOP
-
-#if BUFFER_EXPERIMENT_SCALPEL
-#define Buffer_Type Buffer
-#else
-#define Buffer_Type Gap_Buffer
-#endif
 
 #define CAT_(a,b) a##b
 #define CAT(a,b) CAT_(a,b)
@@ -335,6 +329,7 @@ buffer_get_line_index(Buffer_Type *buffer, int pos, int l_bound, int u_bound){
     return(start);
 }
 
+#ifndef NON_ABSTRACT_PORTION_4TECH
 internal_4tech int
 buffer_get_line_index_from_wrapped_y(float *wraps, float y, float font_height, int l_bound, int u_bound){
     int start, end, i, result;
@@ -355,19 +350,7 @@ buffer_get_line_index_from_wrapped_y(float *wraps, float y, float font_height, i
     }
     return(result);
 }
-
-inline_4tech Full_Cursor
-make_cursor_hint(int line_index, int *starts, float *wrap_ys, float font_height){
-    Full_Cursor hint;
-    hint.pos = starts[line_index];
-    hint.line = line_index + 1;
-    hint.character = 1;
-    hint.unwrapped_y = (f32)(line_index * font_height);
-    hint.unwrapped_x = 0;
-    hint.wrapped_y = wrap_ys[line_index];
-    hint.wrapped_x = 0;
-    return(hint);
-}
+#endif
 
 internal_4tech Full_Cursor
 buffer_cursor_from_pos(Buffer_Type *buffer, int pos, float *wraps,
@@ -537,5 +520,8 @@ buffer_get_render_data(Buffer_Type *buffer, float *wraps, Buffer_Render_Item *it
                            width, height, advance_data, stride, font_height);
 }
 
+#ifndef NON_ABSTRACT_PORTION_4TECH
+#define NON_ABSTRACT_PORTION_4TECH 1
+#endif
 // BOTTOM
 

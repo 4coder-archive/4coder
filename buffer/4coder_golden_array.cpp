@@ -128,26 +128,6 @@ buffer_stringify(Buffer *buffer, int start, int end, char *out){
     }
 }
 
-#if 0
-internal_4tech void
-buffer_measure_wrap_y(Buffer *buffer, float *wraps,
-                      float font_height, float max_width){
-    float *widths;
-    float y_pos;
-    int i, line_count;
-
-    line_count = buffer->line_count;
-    widths = buffer->line_widths;
-    y_pos = 0;
-
-    for (i = 0; i < line_count; ++i){
-        wraps[i] = y_pos;
-        if (widths[i] == 0) y_pos += font_height;
-        else y_pos += font_height*ceil_4tech(widths[i]/max_width);
-    }
-}
-#endif
-
 internal_4tech int
 buffer_replace_range(Buffer *buffer, int start, int end, char *str, int len, int *shift_amount){
     char *data;
@@ -168,83 +148,6 @@ buffer_replace_range(Buffer *buffer, int start, int end, char *str, int len, int
     }
     
     return(result);
-}
-
-typedef struct{
-    int pos, index;
-} Cursor_With_Index;
-
-inline_4tech void
-write_cursor_with_index(Cursor_With_Index *positions, int *count, int pos){
-    positions[*count].index = *count;
-    positions[*count].pos = pos;
-    ++*count;
-}
-
-#define CursorSwap__(a,b) { Cursor_With_Index t = a; a = b; b = t; }
-
-internal_4tech void
-buffer_quick_sort_cursors(Cursor_With_Index *positions, int start, int pivot){
-    int i, mid;
-    int pivot_pos;
-    
-    mid = start;
-    pivot_pos = positions[pivot].pos;
-    for (i = mid; i < pivot; ++i){
-        if (positions[i].pos < pivot_pos){
-            CursorSwap__(positions[mid], positions[i]);
-            ++mid;
-        }
-    }
-    CursorSwap__(positions[mid], positions[pivot]);
-    
-    if (start < mid - 1) buffer_quick_sort_cursors(positions, start, mid - 1);
-    if (mid + 1 < pivot) buffer_quick_sort_cursors(positions, mid + 1, pivot);
-}
-
-inline_4tech void
-buffer_sort_cursors(Cursor_With_Index *positions, int count){
-    assert_4tech(count > 0);
-    buffer_quick_sort_cursors(positions, 0, count-1);
-}
-
-internal_4tech void
-buffer_quick_unsort_cursors(Cursor_With_Index *positions, int start, int pivot){
-    int i, mid;
-    int pivot_index;
-    
-    mid = start;
-    pivot_index = positions[pivot].index;
-    for (i = mid; i < pivot; ++i){
-        if (positions[i].index < pivot_index){
-            CursorSwap__(positions[mid], positions[i]);
-            ++mid;
-        }
-    }
-    CursorSwap__(positions[mid], positions[pivot]);
-    
-    if (start < mid - 1) buffer_quick_unsort_cursors(positions, start, mid - 1);
-    if (mid + 1 < pivot) buffer_quick_unsort_cursors(positions, mid + 1, pivot);
-}
-
-#undef CursorSwap__
-
-inline_4tech void
-buffer_unsort_cursors(Cursor_With_Index *positions, int count){
-    assert_4tech(count > 0);
-    buffer_quick_unsort_cursors(positions, 0, count-1);
-}
-
-internal_4tech void
-buffer_update_cursors(Cursor_With_Index *sorted_positions, int count, int start, int end, int len){
-    Cursor_With_Index *position;
-    int shift_amount;
-    
-    shift_amount = (len - (end - start));
-    
-    position = sorted_positions + count - 1;
-    for (; position >= sorted_positions && position->pos >= end; --position) position->pos += shift_amount;
-    for (; position >= sorted_positions && position->pos >= start; --position) position->pos = start;
 }
 
 internal_4tech Full_Cursor
@@ -337,44 +240,6 @@ buffer_invert_batch(Buffer_Invert_Batch *state, Buffer *buffer, Buffer_Edit *edi
     return(result);
 }
 
-internal_4tech int
-buffer_batch_debug_sort_check(Buffer_Edit *sorted_edits, int edit_count){
-    Buffer_Edit *edit;
-    int i, result, start_point;
-    
-    result = 1;
-    start_point = 0;
-    
-    edit = sorted_edits;
-    for (i = 0; i < edit_count; ++i, ++edit){
-        if (start_point > edit->start){
-            result = 0; break;
-        }
-        start_point = (edit->end < edit->start + 1)?edit->start + 1:edit->end;
-    }
-    
-    return(result);
-}
-
-internal_4tech int
-buffer_batch_edit_max_shift(Buffer_Edit *sorted_edits, int edit_count){
-    Buffer_Edit *edit;
-    int i, result;
-    int shift_total, shift_max;
-    
-    result = 0;
-    shift_total = 0;
-    shift_max = 0;
-    
-    edit = sorted_edits;
-    for (i = 0; i < edit_count; ++i, ++edit){
-        shift_total += (edit->len - (edit->end - edit->start));
-        if (shift_total > shift_max) shift_max = shift_total;
-    }
-    
-    return(shift_max);
-}
-
 typedef struct{
     int i;
     int shift_total;
@@ -417,41 +282,6 @@ buffer_batch_edit(Buffer *buffer, Buffer_Edit *sorted_edits, char *strings, int 
     assert_4tech(result == 0);
 }
 
-internal_4tech void
-buffer_batch_edit_update_cursors(Cursor_With_Index *sorted_positions, int count, Buffer_Edit *sorted_edits, int edit_count){
-    Cursor_With_Index *position, *end_position;
-    Buffer_Edit *edit, *end_edit;
-    int start, end;
-    int shift_amount;
-    
-    position = sorted_positions;
-    end_position = sorted_positions + count;
-    
-    edit = sorted_edits;
-    end_edit = sorted_edits + edit_count;
-    
-    shift_amount = 0;
-    
-    for (; edit < end_edit && position < end_position; ++edit){
-        start = edit->start;
-        end = edit->end;
-        
-        for (; position->pos < start && position < end_position; ++position){
-            position->pos += shift_amount;
-        }
-        
-        for (; position->pos < end && position < end_position; ++position){
-            position->pos = start + shift_amount;
-        }
-        
-        shift_amount += (edit->len - (end - start));
-    }
-    
-    for (; position < end_position; ++position){
-        position->pos += shift_amount;
-    }
-}
-
 internal_4tech int
 buffer_find_hard_start(Buffer *buffer, int line_start, int *all_whitespace, int *all_space,
                        int *preferred_indent, int tab_width){
@@ -485,23 +315,7 @@ buffer_find_hard_start(Buffer *buffer, int line_start, int *all_whitespace, int 
 
 internal_4tech void
 buffer_eol_convert_in(Buffer *buffer){
-    char *data;
-    int size;
-    int i;
-    
-    data = buffer->data;
-    size = buffer->size;
-    assert_4tech(size < buffer->max);
-    data[size] = 0;
-    
-    for (i = 0; i < size; ++i){
-        if (data[i] == '\r' && data[i+1] == '\n'){
-            memmove_4tech(data + i, data + i + 1, size - i);
-            size -= 1;
-        }
-    }
-    
-    buffer->size = size;
+    buffer->size = eol_convert_in(buffer->data, buffer->size);
 }
 
 inline_4tech int
@@ -513,23 +327,9 @@ buffer_eol_convert_out_size(Buffer *buffer){
 
 internal_4tech void
 buffer_eol_convert_out(Buffer *buffer){
-    char *data;
     int size;
-    int i;
-    
-    data = buffer->data;
-    size = buffer->size;
     assert_4tech(buffer_eol_convert_out_size(buffer) < buffer->max);
-    
-    for (i = 0; i < size; ++i){
-        if (data[i] == '\n'){
-            memmove_4tech(data + i + 1, data + i, size - i);
-            data[i] = '\r';
-            ++i;
-            ++size;
-        }
-    }
-    
+    eol_convert_out(buffer->data, buffer->size, buffer->max, &size);
     buffer->size = size;
 }
 

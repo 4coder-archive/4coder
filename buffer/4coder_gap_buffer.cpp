@@ -291,12 +291,5 @@ buffer_cursor_seek(Gap_Buffer *buffer, Buffer_Seek seek, float max_width, float 
     return(state.cursor);
 }
 
-// TODO(allen): unfinished below here
-
-internal_4tech int
-gap_buffer_replace_range(Gap_Buffer *buffer, int start, int end, char *str, int len, int *shift_amount){
-    return(0);
-}
-
 // BOTTOM
 

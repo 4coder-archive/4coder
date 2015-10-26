@@ -11,6 +11,8 @@
 
 #include "buffer/4coder_shared.cpp"
 #include "buffer/4coder_golden_array.cpp"
+
+#define Buffer_Type Buffer
 #include "buffer/4coder_buffer_abstract.cpp"
 
 struct Range{

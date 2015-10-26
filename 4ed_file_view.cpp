@@ -11,6 +11,8 @@
 
 #include "buffer/4coder_shared.cpp"
 #include "buffer/4coder_gap_buffer.cpp"
+
+#define Buffer_Type Gap_Buffer
 #include "buffer/4coder_buffer_abstract.cpp"
 
 struct Range{
@@ -2418,15 +2420,15 @@ view_do_single_edit(Mem_Options *mem, File_View *view, Editing_File *file,
     
     i32 start = spec.step.edit.start;
     i32 end = spec.step.edit.end;
-    char *str = (char*)spec.str;
+    char *str = (char*)spec.str; AllowLocal(str);
     i32 str_len = spec.step.edit.len;
     
-    i32 shift_amount;
+    i32 shift_amount = 0;
+#if BUFFER_EXPERIMENT_SCALPEL
     while (gap_buffer_replace_range(&file->buffer, start, end, str, str_len, &shift_amount))
         file_grow_as_needed(general, file, shift_amount);
     
     // NOTE(allen): fixing stuff afterwards
-#if BUFFER_EXPERIMENT_SCALPEL
     if (file->tokens_exist)
         file_relex_parallel(mem, file, start, end, shift_amount);
 #endif
