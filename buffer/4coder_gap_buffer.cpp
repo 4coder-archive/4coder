@@ -25,25 +25,26 @@ typedef struct{
 } Gap_Buffer;
 
 inline_4tech void
-gap_buffer_initialize(Gap_Buffer *buffer, char *data, int size){
-    int size1, size2, gap_size;
+buffer_initialize(Gap_Buffer *buffer, char *data, int size){
+    int osize1, size1, size2;
     
     assert_4tech(buffer->max >= size);
     
-    size1 = size >> 1;
-    size2 = size - size1;
-    gap_size = buffer->max - size1 - size2;
+    size2 = size >> 1;
+    size1 = osize1 = size - size2;
+    
+    if (size1 > 0){
+        size1 = eol_convert_in(buffer->data, data, size1);
+    
+        if (size2 > 0){
+            size2 = eol_convert_in(buffer->data + size1, data + osize1, size2);
+        }
+    }
+    
     buffer->size1 = size1;
     buffer->size2 = size2;
-    buffer->gap_size = gap_size;
-    
-    if (buffer->size1 > 0){
-        memcpy_4tech(buffer->data, data, size1);
-    }
-    
-    if (buffer->size2 > 0){
-        memcpy_4tech(buffer->data + size1 + gap_size, data + size1, size2);
-    }
+    buffer->gap_size = buffer->max - size1 - size2;
+    memmove_4tech(buffer->data + size1 + buffer->gap_size, buffer->data + size1, size2);
 }
 
 inline_4tech int
@@ -244,51 +245,6 @@ buffer_stringify(Gap_Buffer *buffer, int start, int end, char *out){
         memcpy_4tech(out, loop.data, loop.size);
         out += loop.size;
     }
-}
-
-internal_4tech Full_Cursor
-buffer_cursor_seek(Gap_Buffer *buffer, Buffer_Seek seek, float max_width, float font_height,
-                   void *advance_data, int stride, Full_Cursor cursor){
-    char *data;
-    int size1, size2, gap_size;
-    int total_size, end, i;
-    int step;
-    int result;
-    
-    Seek_State state;
-    char *advances;
-    int xy_seek;
-    char ch;
-    
-    data = buffer->data;
-    size1 = buffer->size1;
-    gap_size = buffer->gap_size;
-    size2 = buffer->size2;
-    total_size = size1 + gap_size + size2;
-    
-    advances = (char*)advance_data;
-    xy_seek = (seek.type == buffer_seek_wrapped_xy || seek.type == buffer_seek_unwrapped_xy);
-    state.cursor = cursor;
-    
-    result = 1;
-    i = cursor.pos;
-    end = size1;
-    for (step = 0; step < 2; ++step){
-        for (; i < end && result; ++i){
-            ch = data[i];
-            result = cursor_seek_step(&state, seek, xy_seek, max_width, font_height,
-                                      advances, stride, size1 + size2, ch);
-        }
-        end = total_size;
-        i += gap_size;
-    }
-    if (result){
-        result = cursor_seek_step(&state, seek, xy_seek, max_width, font_height,
-                                  advances, stride, size1 + size2, 0);
-        assert_4tech(result == 0);
-    }
-    
-    return(state.cursor);
 }
 
 // BOTTOM

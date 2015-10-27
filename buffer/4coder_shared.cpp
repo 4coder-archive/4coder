@@ -23,6 +23,9 @@
 #define assert_4tech assert
 
 #define ceil_4tech CEIL32
+
+#define cat_4tech_(a,b) a##b
+#define cat_4tech(a,b) cat_4tech_(a,b)
 #endif
 
 inline_4tech float
@@ -145,117 +148,6 @@ make_cursor_hint(int line_index, int *starts, float *wrap_ys, float font_height)
     hint.wrapped_y = wrap_ys[line_index];
     hint.wrapped_x = 0;
     return(hint);
-}
-
-typedef struct{
-    Full_Cursor cursor, prev_cursor;
-} Seek_State;
-
-internal_4tech int
-cursor_seek_step(Seek_State *state, Buffer_Seek seek, int xy_seek, float max_width, float font_height,
-                 char *advances, int stride, int size, char ch){
-    Full_Cursor cursor, prev_cursor;
-    float ch_width;
-    int result;
-    float x, px, y;
-    
-    cursor = state->cursor;
-    prev_cursor = state->prev_cursor;
-    
-    result = 1;
-    prev_cursor = cursor;
-    switch (ch){
-    case '\n':
-        ++cursor.line;
-        cursor.unwrapped_y += font_height;
-        cursor.wrapped_y += font_height;
-        cursor.character = 1;
-        cursor.unwrapped_x = 0;
-        cursor.wrapped_x = 0;
-        break;
-        
-    default:
-        ++cursor.character;
-        if (ch == '\r') ch_width = *(float*)(advances + stride * '\\') + *(float*)(advances + stride * 'r');
-        else ch_width = *(float*)(advances + stride * ch);
-            
-        if (cursor.wrapped_x + ch_width >= max_width){
-            cursor.wrapped_y += font_height;
-            cursor.wrapped_x = 0;
-            prev_cursor = cursor;
-        }
-            
-        cursor.unwrapped_x += ch_width;
-        cursor.wrapped_x += ch_width;
-            
-        break;
-    }
-    
-    ++cursor.pos;
-    
-    if (cursor.pos > size){
-        cursor = prev_cursor;
-        result = 0;
-        goto cursor_seek_step_end;
-    }
-    
-    x = y = px = 0;
-    
-    switch (seek.type){
-    case buffer_seek_pos:
-        if (cursor.pos > seek.pos){
-            cursor = prev_cursor;
-            result = 0;
-            goto cursor_seek_step_end;
-        }break;
-        
-    case buffer_seek_wrapped_xy:
-        x = cursor.wrapped_x; px = prev_cursor.wrapped_x;
-        y = cursor.wrapped_y; break;
-        
-    case buffer_seek_unwrapped_xy:
-        x = cursor.unwrapped_x; px = prev_cursor.unwrapped_x;
-        y = cursor.unwrapped_y; break;
-        
-    case buffer_seek_line_char:
-        if (cursor.line == seek.line && cursor.character >= seek.character){
-            result = 0;
-            goto cursor_seek_step_end;
-        }
-        else if (cursor.line > seek.line){
-            cursor = prev_cursor;
-            result = 0;
-            goto cursor_seek_step_end;
-        }break;
-    }
-    
-    if (xy_seek){
-        if (y > seek.y){
-            cursor = prev_cursor;
-            result = 0;
-            goto cursor_seek_step_end;
-        }
-        
-        if (y > seek.y - font_height && x >= seek.x){
-            if (!seek.round_down){
-                if (ch != '\n' && (seek.x - px) < (x - seek.x)) cursor = prev_cursor;
-                result = 0;
-                goto cursor_seek_step_end;
-            }
-            
-            if (x > seek.x){
-                cursor = prev_cursor;
-                result = 0;
-                goto cursor_seek_step_end;
-            }
-        }
-    }
-    
-cursor_seek_step_end:
-    state->cursor = cursor;
-    state->prev_cursor = prev_cursor;
-    
-    return(result);
 }
 
 typedef struct{
@@ -409,11 +301,23 @@ buffer_batch_edit_update_cursors(Cursor_With_Index *sorted_positions, int count,
 }
 
 internal_4tech int
-eol_convert_in(char *data, int size){
+eol_convert_in(char *dest, char *src, int size){
+    int i, j;
+    
+    for (i = 0, j = 0; i < size; ++i, ++j){
+        if (src[i] == '\r' && i+1 < size && src[i+1] == '\n') ++i;
+        dest[j] = src[i];
+    }
+    
+    return(j);
+}
+
+internal_4tech int
+eol_in_place_convert_in(char *data, int size){
     int i;
     
     for (i = 0; i < size; ++i){
-        if (data[i] == '\r' && data[i+1] == '\n'){
+        if (data[i] == '\r' && i+1 < size && data[i+1] == '\n'){
             memmove_4tech(data + i, data + i + 1, size - i);
             size -= 1;
         }
@@ -423,11 +327,34 @@ eol_convert_in(char *data, int size){
 }
 
 internal_4tech int
-eol_convert_out(char *data, int size, int max, int *size_out){
+eol_convert_out(char *dest, int max, char *src, int size, int *size_out){
+    int result;
+    int i, j;
+
+    // TODO(allen): iterative memory check?
+    result = 1;
+    i = 0;
+    j = 0;
+
+    for (; i < size; ++i, ++j){
+        if (src[i] == '\n'){
+            dest[j] = '\r';
+            ++j;
+            dest[j] = '\n';
+        }
+        else dest[j] = src[i];
+    }
+
+    *size_out = j;
+    return(result);
+}
+
+internal_4tech int
+eol_in_place_convert_out(char *data, int size, int max, int *size_out){
     int result;
     int i;
     
-    // TODO(allen): iterative memory check
+    // TODO(allen): iterative memory check?
     result = 1;
     i = 0;
     
@@ -449,6 +376,11 @@ is_whitespace(char c){
     int result;
     result = (c == ' ' || c == '\n' || c == '\r'  || c == '\t' || c == '\f' || c == '\v');
     return(result);
+}
+
+inline_4tech int
+is_alphanumeric_true(char c){
+    return (c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c >= '0' && c <= '9');
 }
 
 // BOTTOM

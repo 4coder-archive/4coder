@@ -234,36 +234,22 @@ COMMAND_DECL(seek_whitespace_left){
 }
 
 COMMAND_DECL(seek_whitespace_up){
-#if BUFFER_EXPERIMENT_SCALPEL
     ProfileMomentFunction();
     REQ_FILE_VIEW(view);
     REQ_FILE(file, view);
     
-    char* data = file->buffer.data;
-    u32 pos = view->cursor.pos;
-    while (pos > 0 && char_is_whitespace(data[pos])){
-        --pos;
-    }
-    
-    bool32 no_hard_character = 0;
-    while (pos > 0){
-        if (starts_new_line(data[pos])){
-            if (no_hard_character) break;
-            else no_hard_character = 1;
-        }
-        else if (!char_is_whitespace(data[pos])){
-            no_hard_character = 0;
-        }
-        --pos;
-    }
-    
-    if (pos != 0) ++pos;
-    
+    i32 pos = buffer_seek_whitespace_up(&file->buffer, view->cursor.pos);
     view_cursor_move(view, pos);
-#endif
 }
 
 COMMAND_DECL(seek_whitespace_down){
+    ProfileMomentFunction();
+    REQ_FILE_VIEW(view);
+    REQ_FILE(file, view);
+        
+    i32 pos = buffer_seek_whitespace_down(&file->buffer, view->cursor.pos);
+    view_cursor_move(view, pos);
+    
 #if BUFFER_EXPERIMENT_SCALPEL
     ProfileMomentFunction();
     REQ_FILE_VIEW(view);
@@ -382,40 +368,13 @@ COMMAND_DECL(seek_white_or_token_left){
 #endif
 }
 
-internal i32
-seek_alphanumeric_right(u8 *data, i32 size, i32 pos){
-    while (pos < size && !char_is_alpha_numeric_true(data[pos])){
-        ++pos;
-    }
-    while (pos < size && char_is_alpha_numeric_true(data[pos])){
-        ++pos;
-    }
-    return pos;
-}
-
-internal i32
-seek_alphanumeric_left(u8 *data, i32 pos){
-    --pos;
-    while (pos > 0 && !char_is_alpha_numeric_true(data[pos])){
-        --pos;
-    }
-    while (pos >= 0 && char_is_alpha_numeric_true(data[pos])){
-        --pos;
-    }
-    ++pos;
-    return pos;
-}
-
 COMMAND_DECL(seek_alphanumeric_right){
-#if BUFFER_EXPERIMENT_SCALPEL
     ProfileMomentFunction();
     REQ_FILE_VIEW(view);
     REQ_FILE(file, view);
     
-    i32 pos = seek_alphanumeric_right(
-        (u8*)file->buffer.data, file->buffer.size, view->cursor.pos);
+    i32 pos = buffer_seek_alphanumeric_right(&file->buffer, view->cursor.pos);
     view_cursor_move(view, pos);
-#endif
 }
 
 COMMAND_DECL(seek_alphanumeric_left){
@@ -423,8 +382,7 @@ COMMAND_DECL(seek_alphanumeric_left){
     REQ_FILE_VIEW(view);
     REQ_FILE(file, view);
     
-    i32 pos = seek_alphanumeric_left(
-        (u8*)file->buffer.data, view->cursor.pos);
+    i32 pos = buffer_seek_alphanumeric_left(&file->buffer, view->cursor.pos);
     view_cursor_move(view, pos);
 }
 
@@ -455,6 +413,7 @@ COMMAND_DECL(seek_alphanumeric_or_camel_right){
 }
 
 COMMAND_DECL(seek_alphanumeric_or_camel_left){
+#if BUFFER_EXPERIMENT_SCALPEL
     ProfileMomentFunction();
     REQ_FILE_VIEW(view);
     REQ_FILE(file, view);
@@ -462,7 +421,7 @@ COMMAND_DECL(seek_alphanumeric_or_camel_left){
     u8 *data = (u8*)file->buffer.data;
     
     i32 an_pos, camel_pos;
-    an_pos = seek_alphanumeric_left(
+    an_pos = buffer_seek_alphanumeric_left(
         data, view->cursor.pos);
     
     char curr_char;
@@ -476,6 +435,7 @@ COMMAND_DECL(seek_alphanumeric_or_camel_left){
     }
     
     view_cursor_move(view, camel_pos);
+#endif
 }
 
 COMMAND_DECL(search){

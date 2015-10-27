@@ -13,11 +13,8 @@
 
 // TOP
 
-#define CAT_(a,b) a##b
-#define CAT(a,b) CAT_(a,b)
-
-#define Buffer_Stringify_Type CAT(Buffer_Type, _Stringify_Loop)
-#define Buffer_Backify_Type CAT(Buffer_Type, _Backify_Loop)
+#define Buffer_Stringify_Type cat_4tech(Buffer_Type, _Stringify_Loop)
+#define Buffer_Backify_Type cat_4tech(Buffer_Type, _Backify_Loop)
 
 internal_4tech int
 buffer_count_newlines(Buffer_Type *buffer, int start, int end){
@@ -40,6 +37,98 @@ buffer_count_newlines(Buffer_Type *buffer, int start, int end){
     }
     
     return(count);
+}
+
+internal_4tech int
+buffer_seek_whitespace_down(Buffer_Type *buffer, int pos){
+    Buffer_Stringify_Type loop;
+    char *data;
+    int end;
+    int size;
+    int no_hard;
+    int prev_endline;
+    
+    size = buffer_size(buffer);
+    loop = buffer_stringify_loop(buffer, pos, size, size);
+    
+    for (;buffer_stringify_good(&loop);
+         buffer_stringify_next(&loop)){
+        end = loop.size + loop.absolute_pos;
+        data = loop.data - loop.absolute_pos;
+        for (;pos < end; ++pos){
+            if (!is_whitespace(data[pos])) goto buffer_seek_whitespace_down_mid;
+        }
+    }
+
+buffer_seek_whitespace_down_mid:
+    no_hard = 0;
+    prev_endline = -1;
+    for (;buffer_stringify_good(&loop);
+         buffer_stringify_next(&loop)){
+        end = loop.size + loop.absolute_pos;
+        data = loop.data - loop.absolute_pos;
+        for (; pos < end; ++pos){
+            if (data[pos] == '\n'){
+                if (no_hard) goto buffer_seek_whitespace_down_end;
+                else{
+                    no_hard = 1;
+                    prev_endline = pos;
+                }
+            }
+            else if (!is_whitespace(data[pos])){
+                no_hard = 0;
+            }
+        }
+    }
+    
+buffer_seek_whitespace_down_end:
+    if (prev_endline == -1 || prev_endline+1 >= size) pos = size;
+    else pos = prev_endline+1;
+
+    return pos;
+}
+
+internal_4tech int
+buffer_seek_whitespace_up(Buffer_Type *buffer, int pos){
+    Buffer_Backify_Type loop;
+    char *data;
+    int end;
+    int size;
+    int no_hard;
+    
+    size = buffer_size(buffer);
+    loop = buffer_backify_loop(buffer, pos, 0, size);
+    
+    for (;buffer_backify_good(&loop);
+         buffer_backify_next(&loop)){
+        end = loop.absolute_pos;
+        data = loop.data - loop.absolute_pos;
+        for (;pos > end; --pos){
+            if (!is_whitespace(data[pos])) goto buffer_seek_whitespace_up_mid;
+        }
+    }
+
+buffer_seek_whitespace_up_mid:
+    no_hard = 0;
+    for (;buffer_backify_good(&loop);
+         buffer_backify_next(&loop)){
+        end = loop.absolute_pos;
+        data = loop.data - loop.absolute_pos;
+        for (; pos > end; --pos){
+            if (data[pos] == '\n'){
+                if (no_hard) goto buffer_seek_whitespace_up_end;
+                else no_hard = 1;
+            }
+            else if (!is_whitespace(data[pos])){
+                no_hard = 0;
+            }
+        }
+    }
+    
+buffer_seek_whitespace_up_end:
+    if (pos != 0) ++pos;
+
+    return pos;
 }
 
 internal_4tech int
@@ -77,24 +166,90 @@ buffer_seek_whitespace_left(Buffer_Type *buffer, int pos){
     char *data;
     int end;
     int size;
-
+    
     size = buffer_size(buffer);
     loop = buffer_backify_loop(buffer, pos, 0, size);
     
     for (;buffer_backify_good(&loop);
          buffer_backify_next(&loop)){
         end = loop.absolute_pos;
-        data = loop.data - end;
-        for (; pos > end && is_whitespace(data[pos]); --pos);
+        data = loop.data - loop.absolute_pos;
+        for (; pos >= end && is_whitespace(data[pos]); --pos);
         if (!is_whitespace(data[pos])) break;
     }
     
     for (;buffer_backify_good(&loop);
          buffer_backify_next(&loop)){
         end = loop.absolute_pos;
-        data = loop.data - end;
-        for (; pos > end && !is_whitespace(data[pos]); --pos);
-        if (is_whitespace(data[pos])) break;
+        data = loop.data - loop.absolute_pos;
+        for (; pos >= end && is_whitespace(data[pos]); --pos);
+        if (!is_whitespace(data[pos])) break;
+    }
+    
+    return(pos);
+}
+
+internal_4tech int
+buffer_seek_alphanumeric_right(Buffer_Type *buffer, int pos){
+    Buffer_Stringify_Type loop;
+    char *data;
+    int end;
+    int size;
+    
+    size = buffer_size(buffer);
+    loop = buffer_stringify_loop(buffer, pos, size, size);
+    
+    for (;buffer_stringify_good(&loop);
+         buffer_stringify_next(&loop)){
+        end = loop.size + loop.absolute_pos;
+        data = loop.data - loop.absolute_pos;
+        for (; pos < end && is_alphanumeric_true(data[pos]); ++pos);
+        if (!is_alphanumeric_true(data[pos])) break;
+    }
+    
+    for (;buffer_stringify_good(&loop);
+         buffer_stringify_next(&loop)){
+        end = loop.size + loop.absolute_pos;
+        data = loop.data - loop.absolute_pos;
+        for (; pos < end && !is_alphanumeric_true(data[pos]); ++pos);
+        if (is_alphanumeric_true(data[pos])) break;
+    }
+    
+    return(pos);
+}
+
+internal_4tech int
+buffer_seek_alphanumeric_left(Buffer_Type *buffer, int pos){
+    Buffer_Backify_Type loop;
+    char *data;
+    int end;
+    int size;
+    
+    --pos;
+    if (pos >= 0){
+        size = buffer_size(buffer);
+        loop = buffer_backify_loop(buffer, pos, 0, size);
+        
+        for (;buffer_backify_good(&loop);
+             buffer_backify_next(&loop)){
+            end = loop.absolute_pos;
+            data = loop.data - end;
+            for (; pos >= end && !is_alphanumeric_true(data[pos]); --pos);
+            if (is_alphanumeric_true(data[pos])) break;
+        }
+        
+        for (;buffer_backify_good(&loop);
+             buffer_backify_next(&loop)){
+            end = loop.absolute_pos;
+            data = loop.data - end;
+            for (; pos >= end && is_alphanumeric_true(data[pos]); --pos);
+            if (!is_alphanumeric_true(data[pos])) break;
+        }
+        
+        ++pos;
+    }
+    else{
+        pos = 0;
     }
     
     return(pos);
@@ -329,7 +484,7 @@ buffer_get_line_index(Buffer_Type *buffer, int pos, int l_bound, int u_bound){
     return(start);
 }
 
-#ifndef NON_ABSTRACT_PORTION_4TECH
+#ifndef NON_ABSTRACT_4TECH
 internal_4tech int
 buffer_get_line_index_from_wrapped_y(float *wraps, float y, float font_height, int l_bound, int u_bound){
     int start, end, i, result;
@@ -351,6 +506,159 @@ buffer_get_line_index_from_wrapped_y(float *wraps, float y, float font_height, i
     return(result);
 }
 #endif
+
+#ifndef NON_ABSTRACT_4TECH
+
+typedef struct{
+    Full_Cursor cursor, prev_cursor;
+} Seek_State;
+
+internal_4tech int
+cursor_seek_step(Seek_State *state, Buffer_Seek seek, int xy_seek, float max_width, float font_height,
+                 char *advances, int stride, int size, char ch){
+    Full_Cursor cursor, prev_cursor;
+    float ch_width;
+    int result;
+    float x, px, y;
+    
+    cursor = state->cursor;
+    prev_cursor = state->prev_cursor;
+    
+    result = 1;
+    prev_cursor = cursor;
+    switch (ch){
+    case '\n':
+        ++cursor.line;
+        cursor.unwrapped_y += font_height;
+        cursor.wrapped_y += font_height;
+        cursor.character = 1;
+        cursor.unwrapped_x = 0;
+        cursor.wrapped_x = 0;
+        break;
+        
+    default:
+        ++cursor.character;
+        if (ch == '\r') ch_width = *(float*)(advances + stride * '\\') + *(float*)(advances + stride * 'r');
+        else ch_width = *(float*)(advances + stride * ch);
+            
+        if (cursor.wrapped_x + ch_width >= max_width){
+            cursor.wrapped_y += font_height;
+            cursor.wrapped_x = 0;
+            prev_cursor = cursor;
+        }
+            
+        cursor.unwrapped_x += ch_width;
+        cursor.wrapped_x += ch_width;
+            
+        break;
+    }
+    
+    ++cursor.pos;
+    
+    if (cursor.pos > size){
+        cursor = prev_cursor;
+        result = 0;
+        goto cursor_seek_step_end;
+    }
+    
+    x = y = px = 0;
+    
+    switch (seek.type){
+    case buffer_seek_pos:
+        if (cursor.pos > seek.pos){
+            cursor = prev_cursor;
+            result = 0;
+            goto cursor_seek_step_end;
+        }break;
+        
+    case buffer_seek_wrapped_xy:
+        x = cursor.wrapped_x; px = prev_cursor.wrapped_x;
+        y = cursor.wrapped_y; break;
+        
+    case buffer_seek_unwrapped_xy:
+        x = cursor.unwrapped_x; px = prev_cursor.unwrapped_x;
+        y = cursor.unwrapped_y; break;
+        
+    case buffer_seek_line_char:
+        if (cursor.line == seek.line && cursor.character >= seek.character){
+            result = 0;
+            goto cursor_seek_step_end;
+        }
+        else if (cursor.line > seek.line){
+            cursor = prev_cursor;
+            result = 0;
+            goto cursor_seek_step_end;
+        }break;
+    }
+    
+    if (xy_seek){
+        if (y > seek.y){
+            cursor = prev_cursor;
+            result = 0;
+            goto cursor_seek_step_end;
+        }
+        
+        if (y > seek.y - font_height && x >= seek.x){
+            if (!seek.round_down){
+                if (ch != '\n' && (seek.x - px) < (x - seek.x)) cursor = prev_cursor;
+                result = 0;
+                goto cursor_seek_step_end;
+            }
+            
+            if (x > seek.x){
+                cursor = prev_cursor;
+                result = 0;
+                goto cursor_seek_step_end;
+            }
+        }
+    }
+    
+cursor_seek_step_end:
+    state->cursor = cursor;
+    state->prev_cursor = prev_cursor;
+    
+    return(result);
+}
+#endif
+
+internal_4tech Full_Cursor
+buffer_cursor_seek(Buffer_Type *buffer, Buffer_Seek seek, float max_width, float font_height,
+                   void *advance_data, int stride, Full_Cursor cursor){
+    Buffer_Stringify_Type loop;
+    char *data;
+    int size, end;
+    int i;
+    int result;
+    
+    Seek_State state;
+    char *advances;
+    int xy_seek;
+
+    size = buffer_size(buffer);
+    advances = (char*)advance_data;
+    xy_seek = (seek.type == buffer_seek_wrapped_xy || seek.type == buffer_seek_unwrapped_xy);
+    state.cursor = cursor;
+    
+    result = 1;
+    i = cursor.pos;
+    for (loop = buffer_stringify_loop(buffer, i, size, size);
+         buffer_stringify_good(&loop);
+         buffer_stringify_next(&loop)){
+        end = loop.size + loop.absolute_pos;
+        data = loop.data - loop.absolute_pos;
+        for (; i < end && result; ++i){
+            result = cursor_seek_step(&state, seek, xy_seek, max_width, font_height,
+                                      advances, stride, size, data[i]);
+        }
+    }
+    if (result){
+        result = cursor_seek_step(&state, seek, xy_seek, max_width, font_height,
+                                  advances, stride, size, 0);
+        assert_4tech(result == 0);
+    }
+    
+    return(state.cursor);
+}
 
 internal_4tech Full_Cursor
 buffer_cursor_from_pos(Buffer_Type *buffer, int pos, float *wraps,
@@ -399,9 +707,10 @@ buffer_cursor_from_wrapped_xy(Buffer_Type *buffer, float x, float y, int round_d
 
 internal_4tech void
 buffer_get_render_data(Buffer_Type *buffer, float *wraps, Buffer_Render_Item *items, int max, int *count,
-                       float port_x, float port_y, float scroll_x, float scroll_y, Full_Cursor start_cursor, int wrapped,
+                       float port_x, float port_y, float scroll_x, float scroll_y, int wrapped,
                        float width, float height, void *advance_data, int stride, float font_height){
     Buffer_Stringify_Type loop;
+    Full_Cursor start_cursor;
     Buffer_Render_Item *item;
     char *data;
     int size, end;
@@ -410,14 +719,22 @@ buffer_get_render_data(Buffer_Type *buffer, float *wraps, Buffer_Render_Item *it
     int i, item_i;
     float ch_width, ch_width_sub;
     char ch;
-
+    
     size = buffer_size(buffer);
-
+    
     shift_x = port_x - scroll_x;
     shift_y = port_y - scroll_y;
-    if (wrapped) shift_y += start_cursor.wrapped_y;
-    else shift_y += start_cursor.unwrapped_y;
-
+    if (wrapped){
+        start_cursor = buffer_cursor_from_wrapped_xy(buffer, 0, scroll_y, 0, wraps,
+                                                     width, font_height, advance_data, stride);
+        shift_y += start_cursor.wrapped_y;
+    }
+    else{
+        start_cursor = buffer_cursor_from_unwrapped_xy(buffer, 0, scroll_y, 0, wraps,
+                                                       width, font_height, advance_data, stride);
+        shift_y += start_cursor.unwrapped_y;
+    }
+    
     x = shift_x;
     y = shift_y;
     item_i = 0;
@@ -502,26 +819,8 @@ buffer_get_render_data_end:
     *count = item_i;
 }
 
-internal_4tech void
-buffer_get_render_data(Buffer_Type *buffer, float *wraps, Buffer_Render_Item *items, int max, int *count,
-                       float port_x, float port_y, float scroll_x, float scroll_y, int wrapped,
-                       float width, float height, void *advance_data, int stride, float font_height){
-    Full_Cursor start_cursor;
-    if (wrapped){
-        start_cursor = buffer_cursor_from_wrapped_xy(buffer, 0, scroll_y, 0, wraps,
-                                                     width, font_height, advance_data, stride);
-    }
-    else{
-        start_cursor = buffer_cursor_from_unwrapped_xy(buffer, 0, scroll_y, 0, wraps,
-                                                       width, font_height, advance_data, stride);
-    }
-    buffer_get_render_data(buffer, wraps, items, max, count,
-                           port_x, port_y, scroll_x, scroll_y, start_cursor, wrapped,
-                           width, height, advance_data, stride, font_height);
-}
-
-#ifndef NON_ABSTRACT_PORTION_4TECH
-#define NON_ABSTRACT_PORTION_4TECH 1
+#ifndef NON_ABSTRACT_4TECH
+#define NON_ABSTRACT_4TECH 1
 #endif
 // BOTTOM
 

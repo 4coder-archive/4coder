@@ -1347,7 +1347,7 @@ file_create_from_string(General_Memory *general, Editing_File *file, u8 *filenam
     *file = {};
     file->buffer.data = (char*)data;
     file->buffer.max = request_size;
-    gap_buffer_initialize(&file->buffer, val.str, val.size);
+    buffer_initialize(&file->buffer, val.str, val.size);
     
     file_synchronize_times(file, filename);
     file_init_strings(file);

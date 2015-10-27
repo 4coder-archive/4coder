@@ -24,6 +24,12 @@ typedef struct{
     int widths_max;
 } Buffer;
 
+internal_4tech void
+buffer_initialize(Buffer *buffer, char *data, int size){
+    assert_4tech(size <= buffer->max);
+    buffer->size = eol_convert_in(buffer->data, data, size);
+}
+
 inline_4tech int
 buffer_size(Buffer *buffer){
     return buffer->size;
@@ -148,36 +154,6 @@ buffer_replace_range(Buffer *buffer, int start, int end, char *str, int len, int
     }
     
     return(result);
-}
-
-internal_4tech Full_Cursor
-buffer_cursor_seek(Buffer *buffer, Buffer_Seek seek, float max_width, float font_height,
-                   void *advance_data, int stride, Full_Cursor cursor){
-    char *data;
-    int size;
-    
-    Seek_State state;
-    char *advances;
-    char ch;
-    int xy_seek;
-    int result;
-    
-    data = buffer->data;
-    size = buffer->size;
-    assert_4tech(size < buffer->max);
-    data[size] = 0;
-    
-    advances = (char*)advance_data;
-    xy_seek = (seek.type == buffer_seek_wrapped_xy || seek.type == buffer_seek_unwrapped_xy);
-    state.cursor = cursor;
-    
-    do{
-        ch = data[state.cursor.pos];
-        result = cursor_seek_step(&state, seek, xy_seek, max_width, font_height,
-                                  advances, stride, size, ch);
-    }while(result);
-    
-    return(state.cursor);
 }
 
 internal_4tech void
@@ -311,18 +287,6 @@ buffer_find_hard_start(Buffer *buffer, int line_start, int *all_whitespace, int 
     }
     
     return(result);
-}
-
-internal_4tech void
-buffer_eol_convert_in(Buffer *buffer){
-    buffer->size = eol_convert_in(buffer->data, buffer->size);
-}
-
-inline_4tech int
-buffer_eol_convert_out_size(Buffer *buffer){
-    int size;
-    size = buffer->size + buffer->line_count;
-    return(size);
 }
 
 internal_4tech void
