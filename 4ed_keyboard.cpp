@@ -47,7 +47,7 @@ keycode_init(Key_Codes *codes, Key_Codes *loose_codes){
             
             u16 code, loose = 0;
 			switch (i){
-            case VK_SPACE: code = ' '; break;
+            case VK_SPACE: code = loose = ' '; break;
             case VK_BACK: code = loose = codes->back; break;
             case VK_OEM_MINUS: code = '-'; break;
             case VK_OEM_PLUS: code = '='; break;
@@ -60,8 +60,8 @@ keycode_init(Key_Codes *codes, Key_Codes *loose_codes){
             case VK_OEM_5: code = '\\'; break;
             case VK_OEM_4: code = '['; break;
             case VK_OEM_6: code = ']'; break;
-            case VK_TAB: code = '\t'; break;
-            case VK_RETURN: code = '\n'; break;
+            case VK_TAB: code = loose = '\t'; break;
+            case VK_RETURN: code = loose = '\n'; break;
             case VK_OEM_7: code = '\''; break;
                 
             case VK_OEM_1: code = ';'; break;

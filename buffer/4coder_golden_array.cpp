@@ -124,16 +124,6 @@ buffer_backify_next(Buffer_Backify_Loop *loop){
     }
 }
 
-inline_4tech void
-buffer_stringify(Buffer *buffer, int start, int end, char *out){
-    for (Buffer_Stringify_Loop loop = buffer_stringify_loop(buffer, start, end, end - start);
-         buffer_stringify_good(&loop);
-         buffer_stringify_next(&loop)){
-        memcpy_4tech(out, loop.data, loop.size);
-        out += loop.size;
-    }
-}
-
 internal_4tech int
 buffer_replace_range(Buffer *buffer, int start, int end, char *str, int len, int *shift_amount){
     char *data;
@@ -287,14 +277,6 @@ buffer_find_hard_start(Buffer *buffer, int line_start, int *all_whitespace, int 
     }
     
     return(result);
-}
-
-internal_4tech void
-buffer_eol_convert_out(Buffer *buffer){
-    int size;
-    assert_4tech(buffer_eol_convert_out_size(buffer) < buffer->max);
-    eol_convert_out(buffer->data, buffer->size, buffer->max, &size);
-    buffer->size = size;
 }
 
 // BOTTOM

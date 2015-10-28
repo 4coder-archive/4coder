@@ -16,6 +16,36 @@
 #define Buffer_Stringify_Type cat_4tech(Buffer_Type, _Stringify_Loop)
 #define Buffer_Backify_Type cat_4tech(Buffer_Type, _Backify_Loop)
 
+inline_4tech void
+buffer_stringify(Buffer_Type *buffer, int start, int end, char *out){
+    for (Buffer_Stringify_Loop loop = buffer_stringify_loop(buffer, start, end, end - start);
+         buffer_stringify_good(&loop);
+         buffer_stringify_next(&loop)){
+        memcpy_4tech(out, loop.data, loop.size);
+        out += loop.size;
+    }
+}
+
+internal_4tech int
+buffer_convert_out(Buffer_Type *buffer, char *dest, int max){
+    Buffer_Stringify_Type loop;
+    int size, out_size, pos, result;
+    
+    size = buffer_size(buffer);
+    assert_4tech(size + buffer->line_count < max);
+    
+    pos = 0;
+    for (loop = buffer_stringify_loop(buffer, 0, size, size);
+         buffer_stringify_good(&loop);
+         buffer_stringify_next(&loop)){
+        result = eol_convert_out(dest + pos, max - pos, loop.data, loop.size, &out_size);
+        assert_4tech(result);
+        pos += out_size;
+    }
+    
+    return(pos);
+}
+
 internal_4tech int
 buffer_count_newlines(Buffer_Type *buffer, int start, int end){
     Buffer_Stringify_Type loop;
@@ -166,24 +196,32 @@ buffer_seek_whitespace_left(Buffer_Type *buffer, int pos){
     char *data;
     int end;
     int size;
+
+    --pos;
+    if (pos > 0){
+        size = buffer_size(buffer);
+        loop = buffer_backify_loop(buffer, pos, 0, size);
     
-    size = buffer_size(buffer);
-    loop = buffer_backify_loop(buffer, pos, 0, size);
+        for (;buffer_backify_good(&loop);
+             buffer_backify_next(&loop)){
+            end = loop.absolute_pos;
+            data = loop.data - loop.absolute_pos;
+            for (; pos >= end && is_whitespace(data[pos]); --pos);
+            if (!is_whitespace(data[pos])) break;
+        }
     
-    for (;buffer_backify_good(&loop);
-         buffer_backify_next(&loop)){
-        end = loop.absolute_pos;
-        data = loop.data - loop.absolute_pos;
-        for (; pos >= end && is_whitespace(data[pos]); --pos);
-        if (!is_whitespace(data[pos])) break;
+        for (;buffer_backify_good(&loop);
+             buffer_backify_next(&loop)){
+            end = loop.absolute_pos;
+            data = loop.data - loop.absolute_pos;
+            for (; pos >= end && !is_whitespace(data[pos]); --pos);
+            if (is_whitespace(data[pos])) break;
+        }
+        
+        if (pos != 0) ++pos;
     }
-    
-    for (;buffer_backify_good(&loop);
-         buffer_backify_next(&loop)){
-        end = loop.absolute_pos;
-        data = loop.data - loop.absolute_pos;
-        for (; pos >= end && is_whitespace(data[pos]); --pos);
-        if (!is_whitespace(data[pos])) break;
+    else{
+        pos = 0;
     }
     
     return(pos);
@@ -456,7 +494,7 @@ buffer_measure_wrap_y(Buffer_Type *buffer, float *wraps,
 }
 
 internal_4tech int
-buffer_get_line_index(Buffer_Type *buffer, int pos, int l_bound, int u_bound){
+buffer_get_line_index_range(Buffer_Type *buffer, int pos, int l_bound, int u_bound){
     int *lines;
     int start, end;
     int i;
@@ -482,6 +520,13 @@ buffer_get_line_index(Buffer_Type *buffer, int pos, int l_bound, int u_bound){
     }
         
     return(start);
+}
+
+inline_4tech int
+buffer_get_line_index(Buffer_Type *buffer, int pos){
+    int result;
+    result = buffer_get_line_index_range(buffer, pos, 0, buffer->line_count);
+    return(result);
 }
 
 #ifndef NON_ABSTRACT_4TECH
@@ -666,7 +711,7 @@ buffer_cursor_from_pos(Buffer_Type *buffer, int pos, float *wraps,
     Full_Cursor result;
     int line_index;
 
-    line_index = buffer_get_line_index(buffer, pos, 0, buffer->line_count);
+    line_index = buffer_get_line_index_range(buffer, pos, 0, buffer->line_count);
     result = make_cursor_hint(line_index, buffer->line_starts, wraps, font_height);
     result = buffer_cursor_seek(buffer, seek_pos(pos), max_width, font_height,
                                 advance_data, stride, result);

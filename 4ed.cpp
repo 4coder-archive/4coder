@@ -128,6 +128,7 @@ globalvar Application_Links app_links;
 #define REQ_DBG_VIEW(n) Debug_View *n = view_to_debug_view(command->view); if (!n) return
 
 #define COMMAND_DECL(n) internal void command_##n(Command_Data *command, Command_Binding binding)
+#define COMPOSE_DECL(n) internal void n(Command_Data *command, Command_Binding binding)
 
 struct Command_Data{
     Mem_Options *mem;
@@ -249,40 +250,6 @@ COMMAND_DECL(seek_whitespace_down){
         
     i32 pos = buffer_seek_whitespace_down(&file->buffer, view->cursor.pos);
     view_cursor_move(view, pos);
-    
-#if BUFFER_EXPERIMENT_SCALPEL
-    ProfileMomentFunction();
-    REQ_FILE_VIEW(view);
-    REQ_FILE(file, view);
-    
-    i32 size = file->buffer.size;
-    char* data = file->buffer.data;
-    i32 pos = view->cursor.pos;
-    while (pos < size && char_is_whitespace(data[pos])){
-        ++pos;
-    }
-    
-    bool32 no_hard_character = 0;
-    i32 prev_endline = -1;
-    while (pos < size){
-        if (starts_new_line(data[pos])){
-            if (no_hard_character) break;
-            else{
-                no_hard_character = 1;
-                prev_endline = pos;
-            }
-        }
-        else if (!char_is_whitespace(data[pos])){
-            no_hard_character = 0;
-        }
-        ++pos;
-    }
-    
-    if (prev_endline == -1 || prev_endline+1 >= size) pos = size;
-    else pos = prev_endline+1;
-    
-    view_cursor_move(view, pos);
-#endif
 }
 
 internal i32
@@ -387,7 +354,7 @@ COMMAND_DECL(seek_alphanumeric_left){
 }
 
 COMMAND_DECL(seek_alphanumeric_or_camel_right){
-#if BUFFER_EXPERIMENT_SCALPEL
+#if 0
     ProfileMomentFunction();
     REQ_FILE_VIEW(view);
     REQ_FILE(file, view);
@@ -413,7 +380,7 @@ COMMAND_DECL(seek_alphanumeric_or_camel_right){
 }
 
 COMMAND_DECL(seek_alphanumeric_or_camel_left){
-#if BUFFER_EXPERIMENT_SCALPEL
+#if 0
     ProfileMomentFunction();
     REQ_FILE_VIEW(view);
     REQ_FILE(file, view);
@@ -1020,7 +987,7 @@ case_change_range(Mem_Options *mem, File_View *view, Editing_File *file,
         if (file->still_lexing)
             system_cancel_job(BACKGROUND_THREADS, file->lex_job);
         
-        view_update_history_before_edit(mem, file, step, 0, hist_normal, view->cursor.pos);
+        view_update_history_before_edit(mem, file, step, 0, hist_normal);
         
         u8 *data = (u8*)file->buffer.data;
         for (i32 i = range.start; i < range.end; ++i){
@@ -1063,27 +1030,21 @@ COMMAND_DECL(clean_all_lines){
 }
 
 COMMAND_DECL(eol_dosify){
-#if 0
     ProfileMomentFunction();
     REQ_FILE_VIEW(view);
     REQ_FILE(file, view);
-    USE_MEM(mem); 
     
-    view_endline_convert(mem, view, ENDLINE_RN, ENDLINE_ERASE, ENDLINE_RN);
-    view_measure_wraps(&mem->general, view);
-#endif
+    file->dos_write_mode = 1;
+    file->last_4ed_edit_time = system_get_now();
 }
 
 COMMAND_DECL(eol_nixify){
-#if 0
     ProfileMomentFunction();
     REQ_FILE_VIEW(view);
     REQ_FILE(file, view);
-    USE_MEM(mem);
     
-    view_endline_convert(mem, view, ENDLINE_N, ENDLINE_ERASE, ENDLINE_N);
-    view_measure_wraps(&mem->general, view);
-#endif
+    file->dos_write_mode = 0;
+    file->last_4ed_edit_time = system_get_now();
 }
 
 COMMAND_DECL(auto_tab){
@@ -1091,11 +1052,52 @@ COMMAND_DECL(auto_tab){
     ProfileMomentFunction();
     REQ_FILE_VIEW(view);
     REQ_FILE(file, view);
+    USE_LAYOUT(layout);
     USE_MEM(mem);
-    Range range = get_range(view->cursor.pos, view->mark);
-    view_auto_tab(mem, view, range.smaller, range.larger);
-    view_measure_wraps(&mem->general, view);
+
+    if (file->token_stack.tokens && file->tokens_complete){
+        Range range = get_range(view->cursor.pos, view->mark);
+        view_auto_tab_tokens(mem, view, layout, range.start, range.end);
+    }
 #endif
+}
+
+COMMAND_DECL(auto_tab_range){
+    ProfileMomentFunction();
+    REQ_FILE_VIEW(view);
+    REQ_FILE(file, view);
+    USE_LAYOUT(layout);
+    USE_MEM(mem);
+
+    if (file->token_stack.tokens && file->tokens_complete){
+        Range range = get_range(view->cursor.pos, view->mark);
+        view_auto_tab_tokens(mem, view, layout, range.start, range.end, 1);
+    }
+}
+
+COMMAND_DECL(auto_tab_line_at_cursor){
+    ProfileMomentFunction();
+    REQ_FILE_VIEW(view);
+    REQ_FILE(file, view);
+    USE_LAYOUT(layout);
+    USE_MEM(mem);
+
+    if (file->token_stack.tokens && file->tokens_complete){
+        i32 pos = view->cursor.pos;
+        view_auto_tab_tokens(mem, view, layout, pos, pos, 0);
+    }
+}
+
+COMMAND_DECL(auto_tab_whole_file){
+    ProfileMomentFunction();
+    REQ_FILE_VIEW(view);
+    REQ_FILE(file, view);
+    USE_LAYOUT(layout);
+    USE_MEM(mem);
+
+    if (file->token_stack.tokens && file->tokens_complete){
+        view_auto_tab_tokens(mem, view, layout, 0, buffer_size(&file->buffer), 1);
+    }
 }
 
 COMMAND_DECL(open_panel_vsplit){
@@ -1542,6 +1544,11 @@ COMMAND_DECL(set_settings){
     }
 }
 
+COMPOSE_DECL(compose_write_auto_tab_line){
+    command_write_character(command, binding);
+    command_auto_tab_line_at_cursor(command, binding);
+}
+
 globalvar Command_Function command_table[cmdid_count];
 
 extern "C"{
@@ -1704,13 +1711,19 @@ setup_file_commands(Command_Map *commands, Partition *part, Key_Codes *codes, Co
     map_add(commands, 'u', MDFR_CTRL, command_to_uppercase);
     map_add(commands, 'j', MDFR_CTRL, command_to_lowercase);
     map_add(commands, '~', MDFR_CTRL, command_clean_all_lines);
-    map_add(commands, '1', MDFR_CTRL, command_eol_dosify);
-    map_add(commands, '!', MDFR_CTRL, command_eol_nixify);
     map_add(commands, 'f', MDFR_CTRL, command_search);
     map_add(commands, 'r', MDFR_CTRL, command_rsearch);
     map_add(commands, 'g', MDFR_CTRL, command_goto_line);
     
-    map_add(commands, '\t', MDFR_CTRL, command_auto_tab);
+    map_add(commands, '\n', MDFR_NONE, compose_write_auto_tab_line);
+    map_add(commands, '}', MDFR_NONE, compose_write_auto_tab_line);
+    map_add(commands, ')', MDFR_NONE, compose_write_auto_tab_line);
+    map_add(commands, ']', MDFR_NONE, compose_write_auto_tab_line);
+    map_add(commands, ';', MDFR_NONE, compose_write_auto_tab_line);
+    
+    map_add(commands, '\t', MDFR_NONE, command_auto_tab_line_at_cursor);
+    map_add(commands, '\t', MDFR_CTRL, command_auto_tab_range);
+    map_add(commands, '\t', MDFR_CTRL | MDFR_SHIFT, command_write_character);
     
     map_add(commands, 'K', MDFR_CTRL, command_kill_buffer);
     map_add(commands, 'O', MDFR_CTRL, command_reopen);
@@ -1807,6 +1820,9 @@ setup_command_table(){
     SET(eol_dosify);
     SET(eol_nixify);
     SET(auto_tab);
+    SET(auto_tab_range);
+    SET(auto_tab_line_at_cursor);
+    SET(auto_tab_whole_file);
     SET(open_panel_vsplit);
     SET(open_panel_hsplit);
     SET(close_panel);

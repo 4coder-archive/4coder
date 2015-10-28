@@ -1112,19 +1112,10 @@ internal bool32
 file_save(Partition *part, Editing_File *file, u8 *filename){
 	bool32 result = 0;
     Temp_Memory temp = begin_temp_memory(part);
-    Buffer temp_buffer;
-    temp_buffer.max = partition_remaining(part);
-    temp_buffer.size = 0;
-    temp_buffer.data = push_array(part, char, temp_buffer.max);
-    // TODO(allen): What about using this stringify loop to convert out?
-    for (Buffer_Stringify_Loop loop = buffer_stringify_loop(&file->buffer, 0, file->buffer.size, file->buffer.size);
-         buffer_stringify_good(&loop);
-         buffer_stringify_next(&loop)){
-        memcpy(temp_buffer.data, loop.data, loop.size);
-        temp_buffer.size += loop.size;
-        buffer_eol_convert_out(&temp_buffer);
-        result = system_save_file(filename, temp_buffer.data, temp_buffer.size);
-    }
+    i32 max = partition_remaining(part);
+    char *data = push_array(part, char, max);
+    i32 size = buffer_convert_out(&file->buffer, data, max);
+    result = system_save_file(filename, data, size);
     end_temp_memory(temp);
     file_synchronize_times(file, filename);
     return result;
@@ -1352,8 +1343,7 @@ file_create_from_string(General_Memory *general, Editing_File *file, u8 *filenam
     file->buffer.max = request_size;
     
     if (val.size > 0){
-        memcpy(data, val.str, val.size);
-        buffer_eol_convert_in(&file->buffer);
+        buffer_initialize(&file->buffer, val.str, val.size);
     }
     
     data[val.size] = 0;

@@ -10,9 +10,14 @@
 // TOP
 
 #include "buffer/4coder_shared.cpp"
-#include "buffer/4coder_gap_buffer.cpp"
 
+#if BUFFER_EXPERIMENT_SCALPEL
+#include "buffer/4coder_golden_array.cpp"
+#define Buffer_Type Buffer
+#else
+#include "buffer/4coder_gap_buffer.cpp"
 #define Buffer_Type Gap_Buffer
+#endif
 #include "buffer/4coder_buffer_abstract.cpp"
 
 struct Range{
@@ -74,7 +79,7 @@ struct Undo_Data{
 };
 
 struct Editing_File{
-    Gap_Buffer buffer;
+    Buffer_Type buffer;
     
     Undo_Data undo;
     
@@ -95,7 +100,9 @@ struct Editing_File{
     b32 tokens_exist;
     b32 still_lexing;
     u32 lex_job;
+    
     i32 base_map_id;
+    i32 dos_write_mode;
     
     u64 last_4ed_write_time;
     u64 last_4ed_edit_time;
@@ -1113,16 +1120,18 @@ file_save(Partition *part, Editing_File *file, u8 *filename){
 	bool32 result = 0;
     Temp_Memory temp = begin_temp_memory(part);
     i32 max = partition_remaining(part);
-    i32 size = 0;
-    char *data = push_array(part, char, max);
-    i32 data_size = buffer_size(&file->buffer);
-    for (Gap_Buffer_Stringify_Loop loop = buffer_stringify_loop(&file->buffer, 0, data_size, data_size);
-         buffer_stringify_good(&loop);
-         buffer_stringify_next(&loop)){
-        memcpy(data + size, loop.data, loop.size);
-        size += loop.size;
+    if (file->dos_write_mode){
+        char *data = push_array(part, char, max);
+        i32 size = buffer_convert_out(&file->buffer, data, max);
+        result = system_save_file(filename, data, size);
     }
-    result = system_save_file(filename, data, size);
+    else{
+        char *data = push_array(part, char, max);
+        i32 size = buffer_size(&file->buffer);
+        Assert(size <= max);
+        buffer_stringify(&file->buffer, 0, size, data);
+        result = system_save_file(filename, data, size);
+    }
     end_temp_memory(temp);
     file_synchronize_times(file, filename);
     return result;
@@ -1459,7 +1468,6 @@ file_close(General_Memory *general, Editing_File *file){
 internal void
 file_get_dummy(Editing_File *file){
 	*file = {};
-	file->buffer.data = (char*)&file->buffer.size1;
 	file->is_dummy = 1;
 }
 
@@ -2209,7 +2217,7 @@ enum History_Mode{
 
 internal void
 view_update_history_before_edit(Mem_Options *mem, Editing_File *file, Edit_Step step, u8 *str,
-                                History_Mode history_mode, i32 next_cursor){
+                                History_Mode history_mode){
 #if BUFFER_EXPERIMENT_SCALPEL
     General_Memory *general = &mem->general;
     
@@ -2239,14 +2247,10 @@ view_update_history_before_edit(Mem_Options *mem, Editing_File *file, Edit_Step 
         if (step.edit.len == 1 && str && char_is_alpha_numeric(*str)) can_merge = 1;
         if (step.edit.len == 1 && str && (can_merge || char_is_whitespace(*str))) do_merge = 1;
         
-        Edit_Step *new_step = 0;
-        if (history_mode != hist_forward){
-            new_step = file_post_history(general, file, step, do_merge, can_merge);
-            new_step->post_pos = next_cursor;
-        }
+        if (history_mode != hist_forward)
+            file_post_history(general, file, step, do_merge, can_merge);
         
-        new_step = file_post_undo(general, file, step, do_merge, can_merge);
-        new_step->post_pos = next_cursor;
+        file_post_undo(general, file, step, do_merge, can_merge);
     }break;
     
     case ED_REVERSE_NORMAL:
@@ -2396,7 +2400,6 @@ debug_step_match(Edit_Step a, Edit_Step b){
     return 1;
 }
 
-#if 1
 inline void
 file_pre_edit_maintenance(Editing_File *file){
     if (file->still_lexing)
@@ -2407,12 +2410,12 @@ file_pre_edit_maintenance(Editing_File *file){
 
 internal void
 view_do_single_edit(Mem_Options *mem, File_View *view, Editing_File *file,
-                    Editing_Layout *layout, Edit_Spec spec, History_Mode history_mode, i32 next_cursor){
+                    Editing_Layout *layout, Edit_Spec spec, History_Mode history_mode){
     Assert(file);
     ProfileMomentFunction();
     
     // NOTE(allen): fixing stuff beforewards????
-    view_update_history_before_edit(mem, file, spec.step, spec.str, history_mode, next_cursor);
+    view_update_history_before_edit(mem, file, spec.step, spec.str, history_mode);
     file_pre_edit_maintenance(file);
     
     // NOTE(allen): actual text replacement
@@ -2425,7 +2428,7 @@ view_do_single_edit(Mem_Options *mem, File_View *view, Editing_File *file,
     
     i32 shift_amount = 0;
 #if BUFFER_EXPERIMENT_SCALPEL
-    while (gap_buffer_replace_range(&file->buffer, start, end, str, str_len, &shift_amount))
+    while (buffer_replace_range(&file->buffer, start, end, str, str_len, &shift_amount))
         file_grow_as_needed(general, file, shift_amount);
     
     // NOTE(allen): fixing stuff afterwards
@@ -2433,8 +2436,8 @@ view_do_single_edit(Mem_Options *mem, File_View *view, Editing_File *file,
         file_relex_parallel(mem, file, start, end, shift_amount);
 #endif
     
-    i32 line_start = buffer_get_line_index(&file->buffer, start, 0, file->buffer.line_count);
-    i32 line_end = buffer_get_line_index(&file->buffer, end, 0, file->buffer.line_count);
+    i32 line_start = buffer_get_line_index(&file->buffer, start);
+    i32 line_end = buffer_get_line_index(&file->buffer, end);
     i32 replaced_line_count = line_end - line_start;
     i32 new_line_count = file_count_newlines(file, start, start+str_len);
     i32 line_shift =  new_line_count - replaced_line_count;
@@ -2451,14 +2454,13 @@ view_do_single_edit(Mem_Options *mem, File_View *view, Editing_File *file,
         }
     }
 
-#if BUFFER_EXPERIMENT_SCALPEL    
-    i32 cursor_count = 0;
+#if BUFFER_EXPERIMENT_SCALPEL
     Temp_Memory cursor_temp = begin_temp_memory(&mem->part);
     i32 cursor_max = layout->panel_max_count * 2;
     Cursor_With_Index *cursors = push_array(&mem->part, Cursor_With_Index, cursor_max);
     
     i32 cursor_count = 0;
-    Panel *current_panel = layout->panels;
+    current_panel = layout->panels;
     for (i32 i = 0; i < panel_count; ++i, ++current_panel){
         File_View *current_view = view_to_file_view(current_panel->view);
         if (current_view && current_view->file == file){
@@ -2503,7 +2505,7 @@ view_do_white_batch_edit(Mem_Options *mem, File_View *view, Editing_File *file,
     
     // NOTE(allen): fixing stuff beforewards????
     Assert(spec.str == 0);
-    view_update_history_before_edit(mem, file, spec.step, 0, history_mode, 0);
+    view_update_history_before_edit(mem, file, spec.step, 0, history_mode);
     file_pre_edit_maintenance(file);
     
     // NOTE(allen): actual text replacement
@@ -2600,8 +2602,10 @@ view_replace_range(Mem_Options *mem, File_View *view, Editing_Layout *layout,
     spec.step.edit.start =  start;
     spec.step.edit.end = end;
     spec.step.edit.len = len;
+    spec.step.pre_pos = view->cursor.pos;
+    spec.step.post_pos = next_cursor;
     spec.str = str;
-    view_do_single_edit(mem, view, view->file, layout, spec, hist_normal, next_cursor);
+    view_do_single_edit(mem, view, view->file, layout, spec, hist_normal);
 }
 
 internal void
@@ -2628,9 +2632,10 @@ view_undo_redo(Mem_Options *mem, Editing_Layout *layout, File_View *view, Editin
             spec.step.edit.str_start = 0;
             spec.str = stack->strings + step.edit.str_start;
             
-            view_do_single_edit(mem, view, file, layout, spec, hist_normal, 0);
-            
-            view_cursor_move(view, step.pre_pos);
+            view_do_single_edit(mem, view, file, layout, spec, hist_normal);
+
+            if (expected_type == ED_UNDO) view_cursor_move(view, step.pre_pos);
+            else view_cursor_move(view, step.post_pos);
             view->mark = view->cursor.pos;
             
             view_post_paste_effect(view, 10, step.edit.start, step.edit.len,
@@ -2686,7 +2691,7 @@ view_history_step(Mem_Options *mem, Editing_Layout *layout, File_View *view, His
             spec.step.edit.str_start = 0;
             spec.str = file->undo.history.strings + step.edit.str_start;
             
-            view_do_single_edit(mem, view, file, layout, spec, history_mode, step.post_pos);
+            view_do_single_edit(mem, view, file, layout, spec, history_mode);
         
             switch (spec.step.type){
             case ED_NORMAL:
@@ -2707,8 +2712,6 @@ view_history_step(Mem_Options *mem, Editing_Layout *layout, File_View *view, His
         }
     }
 }
-
-#endif
 
 // TODO(allen): should these still be view operations?
 internal i32
@@ -2848,12 +2851,36 @@ clipboard_copy(General_Memory *general, Working_Set *working, u8 *data, Range ra
 	system_post_clipboard(*dest);
 }
 
-enum Endline_Convert_Type{
-	ENDLINE_RN,
-	ENDLINE_N,
-	ENDLINE_R,
-	ENDLINE_ERASE,
-};
+internal Edit_Spec
+view_compute_whitespace_edit(Mem_Options *mem, Editing_File *file,
+                             Buffer_Edit *edits, char *str_base, i32 str_size,
+                             Buffer_Edit *inverse_array, char *inv_str, i32 inv_max,
+                             i32 edit_count){
+    General_Memory *general = &mem->general;
+    
+    i32 inv_str_pos = 0;
+    Buffer_Invert_Batch state = {};
+    if (buffer_invert_batch(&state, &file->buffer, edits, edit_count,
+                            inverse_array, inv_str, &inv_str_pos, inv_max))
+        Assert(0);
+    
+    i32 first_child =
+        undo_children_push(general, &file->undo.children,
+                           edits, edit_count, (u8*)(str_base), str_size);
+    i32 inverse_first_child =
+        undo_children_push(general, &file->undo.children,
+                           inverse_array, edit_count, (u8*)(inv_str), inv_str_pos);
+    
+    Edit_Spec spec = {};
+    spec.step.type = ED_NORMAL;
+    spec.step.first_child = first_child;
+    spec.step.inverse_first_child = inverse_first_child;
+    spec.step.special_type = 1;
+    spec.step.child_count = edit_count;
+    spec.step.inverse_child_count = edit_count;
+
+    return spec;
+}
 
 internal void
 view_clean_whitespace(Mem_Options *mem, File_View *view, Editing_Layout *layout){
@@ -2876,7 +2903,8 @@ view_clean_whitespace(Mem_Options *mem, File_View *view, Editing_Layout *layout)
         bool32 all_whitespace = 0;
         bool32 all_space = 0;
         i32 hard_start =
-            buffer_find_hard_start(&file->buffer, start, &all_whitespace, &all_space, &preferred_indentation, 4);
+            buffer_find_hard_start(&file->buffer, start, &all_whitespace, &all_space,
+                                   &preferred_indentation, 4);
         
         if (all_whitespace) preferred_indentation = 0;
         
@@ -2902,28 +2930,135 @@ view_clean_whitespace(Mem_Options *mem, File_View *view, Editing_Layout *layout)
         Assert(inverse_array);
     
         char *inv_str = (char*)part->base + part->pos;
-        i32 inv_str_pos = 0;
-        Buffer_Invert_Batch state = {};
-        if (buffer_invert_batch(&state, &file->buffer, edits, edit_count,
-                                inverse_array, inv_str, &inv_str_pos, part->max - part->pos))
-            Assert(0);
+        Edit_Spec spec =
+            view_compute_whitespace_edit(mem, file, edits, str_base, str_size,
+                                         inverse_array, inv_str, part->max - part->pos, edit_count);
     
-        General_Memory *general = &mem->general;
-        i32 first_child =
-            undo_children_push(general, &file->undo.children,
-                               edits, edit_count, (u8*)(str_base), str_size);
-        i32 inverse_first_child =
-            undo_children_push(general, &file->undo.children,
-                               inverse_array, edit_count, (u8*)(inv_str), inv_str_pos);
+        view_do_white_batch_edit(mem, view, file, layout, spec, hist_normal);
+    }
     
-        Edit_Spec spec = {};
-        spec.step.type = ED_NORMAL;
-        spec.step.first_child = first_child;
-        spec.step.inverse_first_child = inverse_first_child;
-        spec.step.special_type = 1;
-        spec.step.child_count = edit_count;
-        spec.step.inverse_child_count = edit_count;
+    end_temp_memory(temp);
+#endif
+}
+
+internal void
+view_auto_tab_tokens(Mem_Options *mem, File_View *view, Editing_Layout *layout,
+                     i32 start, i32 end, b32 empty_blank_lines){
+#if BUFFER_EXPERIMENT_SCALPEL    
+    Editing_File *file = view->file;
+    Assert(file && !file->is_dummy);
+    Partition *part = &mem->part;
+    Buffer *buffer = &file->buffer;
+    Cpp_Token_Stack tokens = file->token_stack;
+    Assert(tokens.tokens);
     
+    i32 line_start = buffer_get_line_index(buffer, start);
+    i32 line_end = buffer_get_line_index(buffer, end) + 1;
+    
+    i32 edit_max = (line_end - line_start) * 2;
+    i32 edit_count = 0;
+    
+    i32 indent_mark_count = line_end - line_start;
+    
+    Temp_Memory temp = begin_temp_memory(part);
+    i32 *indent_marks = push_array(part, i32, indent_mark_count);
+    {
+        i32 current_indent = 0;
+        i32 line;
+        for (line = line_start - 1; line >= 0; --line){
+            i32 start = file->buffer.line_starts[line];
+            b32 all_whitespace = 0;
+            b32 all_space = 0;
+            buffer_find_hard_start(&file->buffer, start, &all_whitespace, &all_space, &current_indent, 4);
+            if (!all_whitespace) break;
+        }
+
+        if (line < 0) line = 0;
+        i32 start_pos = file->buffer.line_starts[line];
+        Cpp_Get_Token_Result result = cpp_get_token(&tokens, start_pos);
+        i32 start_token;
+        if (result.in_whitespace) start_token = result.token_index + 1;
+        else start_token = result.token_index;
+        
+        indent_marks -= line_start;
+        i32 line_i = line_start;
+        i32 next_line_start = file->buffer.line_starts[line_i];
+        Cpp_Token *token = tokens.tokens + start_token;
+        switch (token->type){
+        case CPP_TOKEN_BRACKET_OPEN: current_indent += 4; break;
+        case CPP_TOKEN_PARENTHESE_OPEN: current_indent += 4; break;
+        case CPP_TOKEN_BRACE_OPEN: current_indent += 4; break;
+        }
+        ++token;
+        for (i32 token_i = start_token + 1; line_i < line_end; ++token_i, ++token){
+            for (; token->start >= next_line_start && line_i < line_end;){
+                next_line_start = file->buffer.line_starts[line_i+1];
+                i32 this_indent = current_indent;
+                if (token->start < next_line_start){
+                    switch (token->type){
+                    case CPP_TOKEN_BRACKET_CLOSE: this_indent -= 4; break;
+                    case CPP_TOKEN_PARENTHESE_CLOSE: this_indent -= 4; break;
+                    case CPP_TOKEN_BRACE_CLOSE: this_indent -= 4; break;
+                    }
+                }
+                if (this_indent < 0) this_indent = 0;
+                indent_marks[line_i] = this_indent;
+                ++line_i;
+            }
+            switch (token->type){
+            case CPP_TOKEN_BRACKET_OPEN: current_indent += 4; break;
+            case CPP_TOKEN_BRACKET_CLOSE: current_indent -= 4; break;
+            case CPP_TOKEN_PARENTHESE_OPEN: current_indent += 4; break;
+            case CPP_TOKEN_PARENTHESE_CLOSE: current_indent -= 4; break;
+            case CPP_TOKEN_BRACE_OPEN: current_indent += 4; break;
+            case CPP_TOKEN_BRACE_CLOSE: current_indent -= 4; break;
+            }
+        }
+    }
+    
+    Buffer_Edit *edits = push_array(part, Buffer_Edit, edit_max);
+    
+    char *str_base = (char*)part->base + part->pos;
+    i32 str_size = 0;
+    for (i32 line_i = line_start; line_i < line_end; ++line_i){
+        i32 start = file->buffer.line_starts[line_i];
+        i32 preferred_indentation;
+        i32 correct_indentation;
+        bool32 all_whitespace = 0;
+        bool32 all_space = 0;
+        i32 hard_start =
+            buffer_find_hard_start(&file->buffer, start, &all_whitespace, &all_space,
+                                   &preferred_indentation, 4);
+
+        correct_indentation = indent_marks[line_i];
+        if (all_whitespace && empty_blank_lines) correct_indentation = 0;
+        
+        if ((all_whitespace && hard_start > start) || !all_space || correct_indentation != preferred_indentation){
+            Buffer_Edit new_edit;
+            new_edit.str_start = str_size;
+            str_size += correct_indentation;
+            char *str = push_array(part, char, correct_indentation);
+            for (i32 j = 0; j < correct_indentation; ++j) str[j] = ' ';
+            new_edit.len = correct_indentation;
+            new_edit.start = start;
+            new_edit.end = hard_start;
+            edits[edit_count++] = new_edit;
+        }
+        Assert(edit_count <= edit_max);
+    }
+    
+    if (edit_count > 0){
+        Assert(buffer_batch_debug_sort_check(edits, edit_count));
+    
+        // NOTE(allen): computing edit spec, doing batch edit
+        Buffer_Edit *inverse_array = push_array(part, Buffer_Edit, edit_count);
+        Assert(inverse_array);
+    
+        char *inv_str = (char*)part->base + part->pos;
+        Edit_Spec spec =
+            view_compute_whitespace_edit(mem, file, edits, str_base, str_size,
+                                         inverse_array, inv_str, part->max - part->pos, edit_count);
+        
         view_do_white_batch_edit(mem, view, file, layout, spec, hist_normal);
     }
     
@@ -3518,6 +3653,7 @@ draw_file_view(Thread_Context *thread, View *view_, i32_Rect rect, bool32 is_act
     u32 mark_color = style->main.mark_color;
     Buffer_Render_Item *item = items;
     i32 prev_ind = -1;
+    u32 highlight_color = 0;
     for (i32 i = 0; i < count; ++i, ++item){
         i32 ind = item->index;
         if (tokens_use && ind != prev_ind){

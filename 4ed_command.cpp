@@ -115,9 +115,9 @@ map_extract(Command_Map *map, Key_Single key){
     Command_Binding bind = {};
     
     u8 command = MDFR_NONE;
-    bool32 ctrl = key.modifiers[CONTROL_KEY_CONTROL];
-    bool32 alt = key.modifiers[CONTROL_KEY_ALT];
-    bool32 shift = key.modifiers[CONTROL_KEY_SHIFT] && key.key.loose_keycode;
+    b32 ctrl = key.modifiers[CONTROL_KEY_CONTROL];
+    b32 alt = key.modifiers[CONTROL_KEY_ALT];
+    b32 shift = key.modifiers[CONTROL_KEY_SHIFT] && key.key.loose_keycode;
     
     if (shift) command |= MDFR_SHIFT;
     if (ctrl) command |= MDFR_CTRL;

@@ -228,7 +228,8 @@ extern "C" GET_BINDING_DATA(get_bindings){
     bind(context, '?', MDFR_CTRL, cmdid_toggle_show_whitespace);
     
     bind(context, '~', MDFR_CTRL, cmdid_clean_all_lines);
-    // NOTE(allen): These whitespace manipulators are not currently functional
+    // NOTE(allen): These now only set the mode of the file for writing to disk
+    // they do no longer effect the internal representation.
     bind(context, '1', MDFR_CTRL, cmdid_eol_dosify);
     bind(context, '!', MDFR_CTRL, cmdid_eol_nixify);
     
