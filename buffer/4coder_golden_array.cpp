@@ -24,15 +24,29 @@ typedef struct{
     int widths_max;
 } Buffer;
 
+inline_4tech int
+buffer_size(Buffer *buffer){
+    return buffer->size;
+}
+
 internal_4tech void
 buffer_initialize(Buffer *buffer, char *data, int size){
     assert_4tech(size <= buffer->max);
     buffer->size = eol_convert_in(buffer->data, data, size);
 }
 
-inline_4tech int
-buffer_size(Buffer *buffer){
-    return buffer->size;
+internal_4tech void*
+buffer_relocate(Buffer *buffer, char *new_data, int new_max){
+    void *result;
+    
+    assert_4tech(new_max >= buffer->size);
+    
+    result = buffer->data;
+    memcpy_4tech(new_data, buffer->data, buffer->size);
+    buffer->data = new_data;
+    buffer->max = new_max;
+    
+    return(result);
 }
 
 typedef struct{
@@ -88,6 +102,8 @@ typedef struct{
 inline_4tech Buffer_Backify_Loop
 buffer_backify_loop(Buffer *buffer, int start, int end, int page_size){
     Buffer_Backify_Loop result;
+    
+    ++start;
     if (0 <= end && end < start && start <= buffer->size){
         result.buffer = buffer;
         result.end = buffer->data + end;
@@ -128,9 +144,15 @@ internal_4tech int
 buffer_replace_range(Buffer *buffer, int start, int end, char *str, int len, int *shift_amount){
     char *data;
     int result;
+    int size;
+    
+    size = buffer_size(buffer);
+    assert_4tech(0 <= start);
+    assert_4tech(start <= end);
+    assert_4tech(end <= size);
     
     *shift_amount = (len - (end - start));
-    if (*shift_amount + buffer->size + 1 <= buffer->max){
+    if (*shift_amount + size <= buffer->max){
         data = (char*)buffer->data;
         memmove_4tech(data + end + *shift_amount, data + end, buffer->size - end);
         buffer->size += *shift_amount;
@@ -140,7 +162,7 @@ buffer_replace_range(Buffer *buffer, int start, int end, char *str, int len, int
         result = 0;
     }
     else{
-        result = *shift_amount + buffer->size + 1;
+        result = *shift_amount + size;
     }
     
     return(result);

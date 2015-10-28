@@ -24,18 +24,23 @@ typedef struct{
     int widths_max;
 } Gap_Buffer;
 
+inline_4tech int
+buffer_size(Gap_Buffer *buffer){
+    int size;
+    size = buffer->size1 + buffer->size2;
+    return(size);
+}
+
 inline_4tech void
 buffer_initialize(Gap_Buffer *buffer, char *data, int size){
     int osize1, size1, size2;
     
     assert_4tech(buffer->max >= size);
-    
     size2 = size >> 1;
     size1 = osize1 = size - size2;
     
     if (size1 > 0){
         size1 = eol_convert_in(buffer->data, data, size1);
-    
         if (size2 > 0){
             size2 = eol_convert_in(buffer->data + size1, data + osize1, size2);
         }
@@ -47,11 +52,23 @@ buffer_initialize(Gap_Buffer *buffer, char *data, int size){
     memmove_4tech(buffer->data + size1 + buffer->gap_size, buffer->data + size1, size2);
 }
 
-inline_4tech int
-buffer_size(Gap_Buffer *buffer){
-    int size;
-    size = buffer->size1 + buffer->size2;
-    return(size);
+internal_4tech void*
+buffer_relocate(Gap_Buffer *buffer, char *new_data, int new_max){
+    void *result;
+    int new_gap_size;
+    
+    assert_4tech(new_max >= buffer_size(buffer));
+    
+    result = buffer->data;
+    new_gap_size = new_max - buffer_size(buffer);
+    memcpy_4tech(new_data, buffer->data, buffer->size1);
+    memcpy_4tech(new_data + buffer->size1 + new_gap_size, buffer->data + buffer->size1 + buffer->gap_size, buffer->size2);
+    
+    buffer->data = new_data;
+    buffer->gap_size = new_gap_size;
+    buffer->max = new_max;
+    
+    return(result);
 }
 
 typedef struct{
@@ -149,6 +166,7 @@ buffer_backify_loop(Gap_Buffer *buffer, int start, int end, int page_size){
     Gap_Buffer_Backify_Loop result;
     int chunk2_start;
     
+    ++start;
     if (0 <= end && end < start && start <= buffer->size1 + buffer->size2){
         chunk2_start = buffer->size1 + buffer->gap_size;
         
@@ -237,14 +255,49 @@ buffer_backify_next(Gap_Buffer_Backify_Loop *loop){
     loop->data = loop->base + loop->pos;
 }
 
-inline_4tech void
-buffer_stringify(Gap_Buffer *buffer, int start, int end, char *out){
-    for (Gap_Buffer_Stringify_Loop loop = buffer_stringify_loop(buffer, start, end, end - start);
-         buffer_stringify_good(&loop);
-         buffer_stringify_next(&loop)){
-        memcpy_4tech(out, loop.data, loop.size);
-        out += loop.size;
+internal_4tech int
+buffer_replace_range(Gap_Buffer *buffer, int start, int end, char *str, int len, int *shift_amount){
+    char *data;
+    int result;
+    int size;
+    int move_size;
+    
+    size = buffer_size(buffer);
+    assert_4tech(0 <= start);
+    assert_4tech(start <= end);
+    assert_4tech(end <= size);
+    
+    *shift_amount = (len - (end - start));
+    if (*shift_amount + size <= buffer->max){
+        data = buffer->data;
+        if (end < buffer->size1){
+            move_size = buffer->size1 - end;
+            memmove_4tech(data + buffer->size1 + buffer->gap_size - move_size, data + end, move_size);
+            buffer->size1 -= move_size;
+            buffer->size2 += move_size;
+        }
+        if (start > buffer->size1){
+            move_size = start - buffer->size1;
+            memmove_4tech(data + buffer->size1, data + buffer->size1 + buffer->gap_size, move_size);
+            buffer->size1 += move_size;
+            buffer->size2 -= move_size;
+        }
+        
+        memcpy_4tech(data + start, str, len);
+        buffer->size2 = size - end;
+        buffer->size1 = start + len;
+        buffer->gap_size -= *shift_amount;
+        
+        assert_4tech(buffer->size1 + buffer->size2 == size + *shift_amount);
+        assert_4tech(buffer->size1 + buffer->gap_size + buffer->size2 == buffer->max);
+        
+        result = 0;
     }
+    else{
+        result = *shift_amount + size;
+    }
+
+    return(result);
 }
 
 // BOTTOM

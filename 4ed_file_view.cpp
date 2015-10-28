@@ -1664,14 +1664,10 @@ file_grow_as_needed(General_Memory *general, Editing_File *file, i32 additional_
     if (target_size >= file->buffer.max){
 		i32 request_size = LargeRoundUp(target_size*2, Kbytes(256));
         char *new_data = (char*)
-            general_memory_reallocate(general, file->buffer.data, size, request_size, BUBBLE_BUFFER);
-		if (new_data){
-			file->buffer.data = new_data;
-			file->buffer.max = request_size;
-		}
-        else{
-            result = 0;
-        }
+            general_memory_allocate(general, request_size, BUBBLE_BUFFER);
+        TentativeAssert(new_data);
+        void *old_data = buffer_relocate(&file->buffer, new_data, request_size);
+        general_memory_free(general, old_data);
 	}
     return result;
 }
@@ -2427,10 +2423,10 @@ view_do_single_edit(Mem_Options *mem, File_View *view, Editing_File *file,
     i32 str_len = spec.step.edit.len;
     
     i32 shift_amount = 0;
-#if BUFFER_EXPERIMENT_SCALPEL
     while (buffer_replace_range(&file->buffer, start, end, str, str_len, &shift_amount))
         file_grow_as_needed(general, file, shift_amount);
     
+#if BUFFER_EXPERIMENT_SCALPEL    
     // NOTE(allen): fixing stuff afterwards
     if (file->tokens_exist)
         file_relex_parallel(mem, file, start, end, shift_amount);
@@ -2844,11 +2840,12 @@ working_set_lookup_file(Working_Set *working_set, String string){
 }
 
 internal void
-clipboard_copy(General_Memory *general, Working_Set *working, u8 *data, Range range){
-	i32 size = range.end - range.start;
-	String *dest = working_set_next_clipboard_string(general, working, size);
-	copy(dest, make_string((char*)data + range.start, size));
-	system_post_clipboard(*dest);
+clipboard_copy(General_Memory *general, Working_Set *working, Range range, Editing_File *file){
+    i32 size = range.end - range.start;
+    String *dest = working_set_next_clipboard_string(general, working, size);
+    buffer_stringify(&file->buffer, range.start, range.end, dest->str);
+    dest->size = size;
+    system_post_clipboard(*dest);
 }
 
 internal Edit_Spec
@@ -2856,6 +2853,7 @@ view_compute_whitespace_edit(Mem_Options *mem, Editing_File *file,
                              Buffer_Edit *edits, char *str_base, i32 str_size,
                              Buffer_Edit *inverse_array, char *inv_str, i32 inv_max,
                              i32 edit_count){
+#if BUFFER_EXPERIMENT_SCALPEL
     General_Memory *general = &mem->general;
     
     i32 inv_str_pos = 0;
@@ -2878,7 +2876,9 @@ view_compute_whitespace_edit(Mem_Options *mem, Editing_File *file,
     spec.step.special_type = 1;
     spec.step.child_count = edit_count;
     spec.step.inverse_child_count = edit_count;
-
+#else
+    Edit_Spec spec = {};
+#endif
     return spec;
 }
 
@@ -2964,47 +2964,92 @@ view_auto_tab_tokens(Mem_Options *mem, File_View *view, Editing_Layout *layout,
     i32 *indent_marks = push_array(part, i32, indent_mark_count);
     {
         i32 current_indent = 0;
-        i32 line;
-        for (line = line_start - 1; line >= 0; --line){
+        i32 token_i;
+        Cpp_Token *token, *self_token;
+        
+        {
+            i32 start_pos = file->buffer.line_starts[line_start];
+            Cpp_Get_Token_Result result = cpp_get_token(&tokens, start_pos);
+            token_i = result.token_index;
+            if (result.in_whitespace) token_i += 1;
+            self_token = tokens.tokens + token_i;
+        }
+        
+        i32 line = line_start - 1;
+        for (; line >= 0; --line){
             i32 start = file->buffer.line_starts[line];
             b32 all_whitespace = 0;
             b32 all_space = 0;
             buffer_find_hard_start(&file->buffer, start, &all_whitespace, &all_space, &current_indent, 4);
             if (!all_whitespace) break;
         }
-
-        if (line < 0) line = 0;
-        i32 start_pos = file->buffer.line_starts[line];
-        Cpp_Get_Token_Result result = cpp_get_token(&tokens, start_pos);
-        i32 start_token;
-        if (result.in_whitespace) start_token = result.token_index + 1;
-        else start_token = result.token_index;
+        
+        if (line < 0){
+            token_i = 0;
+            token = tokens.tokens + token_i;
+        }
+        else{
+            i32 start_pos = file->buffer.line_starts[line];
+            Cpp_Get_Token_Result result = cpp_get_token(&tokens, start_pos);
+            token_i = result.token_index;
+            if (result.in_whitespace) token_i += 1;
+            token = tokens.tokens + token_i;
+            
+            if (token->start < start_pos){
+                line = buffer_get_line_index(&file->buffer, token->start);
+                i32 start = file->buffer.line_starts[line];
+                b32 all_whitespace = 0;
+                b32 all_space = 0;
+                buffer_find_hard_start(&file->buffer, start, &all_whitespace, &all_space, &current_indent, 4);
+                Assert(!all_whitespace);
+            }
+        }
         
         indent_marks -= line_start;
         i32 line_i = line_start;
         i32 next_line_start = file->buffer.line_starts[line_i];
-        Cpp_Token *token = tokens.tokens + start_token;
         switch (token->type){
         case CPP_TOKEN_BRACKET_OPEN: current_indent += 4; break;
         case CPP_TOKEN_PARENTHESE_OPEN: current_indent += 4; break;
         case CPP_TOKEN_BRACE_OPEN: current_indent += 4; break;
         }
+        
+        Cpp_Token *prev_token = token;
         ++token;
-        for (i32 token_i = start_token + 1; line_i < line_end; ++token_i, ++token){
+        for (; line_i < line_end; ++token_i, ++token){
             for (; token->start >= next_line_start && line_i < line_end;){
+                i32 this_line_start = next_line_start;
                 next_line_start = file->buffer.line_starts[line_i+1];
-                i32 this_indent = current_indent;
-                if (token->start < next_line_start){
-                    switch (token->type){
-                    case CPP_TOKEN_BRACKET_CLOSE: this_indent -= 4; break;
-                    case CPP_TOKEN_PARENTHESE_CLOSE: this_indent -= 4; break;
-                    case CPP_TOKEN_BRACE_CLOSE: this_indent -= 4; break;
-                    }
+                i32 this_indent;
+                if (prev_token && prev_token->type == CPP_TOKEN_COMMENT &&
+                    prev_token->start <= this_line_start && prev_token->start + prev_token->size > this_line_start){
+                    this_indent = -1;
                 }
-                if (this_indent < 0) this_indent = 0;
+                else{
+                    this_indent = current_indent;
+                    if (token->start < next_line_start){
+                        switch (token->type){
+                        case CPP_TOKEN_BRACKET_CLOSE: this_indent -= 4; break;
+                        case CPP_TOKEN_PARENTHESE_CLOSE: this_indent -= 4; break;
+                        case CPP_TOKEN_BRACE_CLOSE: this_indent -= 4; break;
+                        case CPP_TOKEN_BRACE_OPEN: break;
+                        default:
+                            if (current_indent > 0 && prev_token){
+                                switch (prev_token->type){
+                                case CPP_TOKEN_BRACKET_OPEN: case CPP_TOKEN_PARENTHESE_OPEN:
+                                case CPP_TOKEN_BRACE_OPEN: case CPP_TOKEN_BRACE_CLOSE:
+                                case CPP_TOKEN_SEMICOLON: case CPP_TOKEN_COLON: break;
+                                default: this_indent += 4;
+                                }
+                            }
+                        }
+                    }
+                    if (this_indent < 0) this_indent = 0;
+                }
                 indent_marks[line_i] = this_indent;
                 ++line_i;
             }
+            
             switch (token->type){
             case CPP_TOKEN_BRACKET_OPEN: current_indent += 4; break;
             case CPP_TOKEN_BRACKET_CLOSE: current_indent -= 4; break;
@@ -3013,6 +3058,7 @@ view_auto_tab_tokens(Mem_Options *mem, File_View *view, Editing_Layout *layout,
             case CPP_TOKEN_BRACE_OPEN: current_indent += 4; break;
             case CPP_TOKEN_BRACE_CLOSE: current_indent -= 4; break;
             }
+            prev_token = token;
         }
     }
     
@@ -3032,6 +3078,7 @@ view_auto_tab_tokens(Mem_Options *mem, File_View *view, Editing_Layout *layout,
 
         correct_indentation = indent_marks[line_i];
         if (all_whitespace && empty_blank_lines) correct_indentation = 0;
+        if (correct_indentation == -1) correct_indentation = preferred_indentation;
         
         if ((all_whitespace && hard_start > start) || !all_space || correct_indentation != preferred_indentation){
             Buffer_Edit new_edit;
@@ -3653,7 +3700,7 @@ draw_file_view(Thread_Context *thread, View *view_, i32_Rect rect, bool32 is_act
     u32 mark_color = style->main.mark_color;
     Buffer_Render_Item *item = items;
     i32 prev_ind = -1;
-    u32 highlight_color = 0;
+    u32 highlight_color = 0; AllowLocal(highlight_color);
     for (i32 i = 0; i < count; ++i, ++item){
         i32 ind = item->index;
         if (tokens_use && ind != prev_ind){

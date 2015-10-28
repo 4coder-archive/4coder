@@ -354,55 +354,23 @@ COMMAND_DECL(seek_alphanumeric_left){
 }
 
 COMMAND_DECL(seek_alphanumeric_or_camel_right){
-#if 0
     ProfileMomentFunction();
     REQ_FILE_VIEW(view);
     REQ_FILE(file, view);
-    
-    char *data = file->buffer.data;
-    
-    i32 an_pos, camel_pos;
-    an_pos = seek_alphanumeric_right(
-        (u8*)file->buffer.data, file->buffer.size, view->cursor.pos);
-    
-    u8 curr_char;
-    u8 prev_char = data[view->cursor.pos + 1];
-    for (camel_pos = view->cursor.pos + 2; camel_pos < an_pos; ++camel_pos){
-        curr_char = data[camel_pos];
-        if (char_is_upper(curr_char) && char_is_lower(prev_char)){
-            break;
-        }
-        prev_char = curr_char;
-    }
-    
-    view_cursor_move(view, camel_pos);
-#endif
+
+    i32 an_pos = buffer_seek_alphanumeric_right(&file->buffer, view->cursor.pos);
+    i32 pos = buffer_seek_alphanumeric_or_camel_right(&file->buffer, view->cursor.pos, an_pos);
+    view_cursor_move(view, pos);
 }
 
 COMMAND_DECL(seek_alphanumeric_or_camel_left){
-#if 0
     ProfileMomentFunction();
     REQ_FILE_VIEW(view);
     REQ_FILE(file, view);
     
-    u8 *data = (u8*)file->buffer.data;
-    
-    i32 an_pos, camel_pos;
-    an_pos = buffer_seek_alphanumeric_left(
-        data, view->cursor.pos);
-    
-    char curr_char;
-    char prev_char = data[view->cursor.pos];
-    for (camel_pos = view->cursor.pos - 1; camel_pos > an_pos; --camel_pos){
-        curr_char = data[camel_pos];
-        if (char_is_upper(curr_char) && char_is_lower(prev_char)){
-            break;
-        }
-        prev_char = curr_char;
-    }
-    
-    view_cursor_move(view, camel_pos);
-#endif
+    i32 an_pos = buffer_seek_alphanumeric_left(&file->buffer, view->cursor.pos);
+    i32 pos = buffer_seek_alphanumeric_or_camel_left(&file->buffer, view->cursor.pos, an_pos);
+    view_cursor_move(view, pos);
 }
 
 COMMAND_DECL(search){
@@ -458,13 +426,11 @@ COMMAND_DECL(copy){
     
     Range range = get_range(view->cursor.pos, view->mark);
     if (range.start < range.end){
-        u8 *data = (u8*)file->buffer.data;
-        clipboard_copy(&mem->general, working_set, data, range);
+        clipboard_copy(&mem->general, working_set, range, file);
     }
 }
 
 COMMAND_DECL(cut){
-#if BUFFER_EXPERIMENT_SCALPEL
     ProfileMomentFunction();
     REQ_FILE_VIEW(view);
     REQ_FILE(file, view);
@@ -474,17 +440,15 @@ COMMAND_DECL(cut){
     
     Range range = get_range(view->cursor.pos, view->mark);
     if (range.start < range.end){
-        u8 *data = (u8*)file->buffer.data;
-        
         i32 next_cursor_pos = range.start;
-        clipboard_copy(&mem->general, working_set, data, range);
+
+        clipboard_copy(&mem->general, working_set, range, file);
         view_replace_range(mem, view, layout, range.start, range.end, 0, 0, next_cursor_pos);
         
         view->mark = range.start;
         view_measure_wraps(&mem->general, view);
         view_cursor_move(view, next_cursor_pos);
     }
-#endif
 }
 
 COMMAND_DECL(paste){
@@ -561,7 +525,6 @@ COMMAND_DECL(paste_next){
 }
 
 COMMAND_DECL(delete_chunk){
-#if BUFFER_EXPERIMENT_SCALPEL
     ProfileMomentFunction();
     REQ_FILE_VIEW(view);
     REQ_FILE(file, view);
@@ -576,7 +539,6 @@ COMMAND_DECL(delete_chunk){
         view_cursor_move(view, next_cursor_pos);
         view->mark = range.start;
     }
-#endif
 }
 
 COMMAND_DECL(timeline_scrub){
@@ -1246,15 +1208,15 @@ COMMAND_DECL(move_right){
 }
 
 COMMAND_DECL(delete){
-#if BUFFER_EXPERIMENT_SCALPEL
     ProfileMomentFunction();
     REQ_FILE_VIEW(view);
     REQ_FILE(file, view);
     USE_LAYOUT(layout);
     USE_MEM(mem);
-    
+
+    i32 size = buffer_size(&file->buffer);
     i32 cursor_pos = view->cursor.pos;
-    if (file->buffer.size > 0 && cursor_pos < file->buffer.size){
+    if (0 < size && cursor_pos < size){
         i32 start, end;
         start = cursor_pos;
         end = cursor_pos+1;
@@ -1267,22 +1229,20 @@ COMMAND_DECL(delete){
         view_cursor_move(view, next_cursor_pos);
         if (view->mark >= end) view->mark -= shift;
     }
-#endif
 }
 
 COMMAND_DECL(backspace){
-#if BUFFER_EXPERIMENT_SCALPEL
     ProfileMomentFunction();
     REQ_FILE_VIEW(view);
     REQ_FILE(file, view);
     USE_LAYOUT(layout);
     USE_MEM(mem);
     
+    i32 size = buffer_size(&file->buffer);
     i32 cursor_pos = view->cursor.pos;
-    if (cursor_pos > 0 && cursor_pos <= (i32)file->buffer.size){
+    if (cursor_pos > 0 && cursor_pos <= size){
         i32 start, end;
         end = cursor_pos;
-        
         start = cursor_pos-1;
         
         i32 shift = (end - start);
@@ -1293,7 +1253,6 @@ COMMAND_DECL(backspace){
         view_cursor_move(view, next_cursor_pos);
         if (view->mark >= end) view->mark -= shift;
     }
-#endif
 }
 
 COMMAND_DECL(move_up){
@@ -1531,13 +1490,12 @@ COMMAND_DECL(set_settings){
         case par_key_mapid:
         {
             int v = dynamic_to_int(&param->param.value);
-            Command_Map *map = 0;
-            if (v == mapid_global) map = &vars->map_top;
-            else if (v == mapid_file) map = &vars->map_file;
+            if (v == mapid_global) file->base_map_id = mapid_global;
+            else if (v == mapid_file) file->base_map_id = mapid_file;
             else if (v >= mapid_user_custom){
                 int index = app_get_map_index(vars, v);
-                if (index < vars->user_map_count) map = vars->user_maps + index;
-                else map = 0;
+                if (index < vars->user_map_count) file->base_map_id = v;
+                else file->base_map_id = mapid_file;
             }
         }break;
         }
@@ -1685,8 +1643,8 @@ setup_file_commands(Command_Map *commands, Partition *part, Key_Codes *codes, Co
     map_add(commands, codes->page_up, MDFR_NONE, command_page_up);
     map_add(commands, codes->page_down, MDFR_NONE, command_page_down);
     
-    map_add(commands, codes->right, MDFR_CTRL, command_seek_whitespace_right);
-    map_add(commands, codes->left, MDFR_CTRL, command_seek_whitespace_left);
+    map_add(commands, codes->right, MDFR_CTRL, command_seek_alphanumeric_or_camel_right);
+    map_add(commands, codes->left, MDFR_CTRL, command_seek_alphanumeric_or_camel_left);
     map_add(commands, codes->up, MDFR_CTRL, command_seek_whitespace_up);
     map_add(commands, codes->down, MDFR_CTRL, command_seek_whitespace_down);
     
@@ -2568,9 +2526,7 @@ app_step(Thread_Context *thread, Key_Codes *codes,
             if (!view_->is_active) continue;
             File_View *view = view_to_file_view(view_);
             if (!view) continue;
-#if BUFFER_EXPERIMENT_SCALPEL
             view_measure_wraps(&vars->mem.general, view);
-#endif
             view->cursor = view_compute_cursor_from_pos(view, view->cursor.pos);
         }
         app_result.redraw = 1;
@@ -3099,15 +3055,13 @@ app_step(Thread_Context *thread, Key_Codes *codes,
     // NOTE(allen): send style change messages if the style has changed
     if (vars->style.font_changed){
         vars->style.font_changed = 0;
-        
-#if BUFFER_EXPERIMENT_SCALPEL
+
         Editing_File *file = vars->working_set.files;
         for (i32 i = vars->working_set.file_index_count; i > 0; --i, ++file){
             if (file->buffer.data && !file->is_dummy){
                 file_measure_widths(&vars->mem.general, file, vars->style.font);
             }
         }
-#endif
         
         Panel *panel = panels;
         for (i32 panel_i = vars->layout.panel_count; panel_i > 0; --panel_i, ++panel){

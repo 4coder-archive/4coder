@@ -18,7 +18,7 @@
 
 inline_4tech void
 buffer_stringify(Buffer_Type *buffer, int start, int end, char *out){
-    for (Buffer_Stringify_Loop loop = buffer_stringify_loop(buffer, start, end, end - start);
+    for (Buffer_Stringify_Type loop = buffer_stringify_loop(buffer, start, end, end - start);
          buffer_stringify_good(&loop);
          buffer_stringify_next(&loop)){
         memcpy_4tech(out, loop.data, loop.size);
@@ -133,7 +133,7 @@ buffer_seek_whitespace_up(Buffer_Type *buffer, int pos){
          buffer_backify_next(&loop)){
         end = loop.absolute_pos;
         data = loop.data - loop.absolute_pos;
-        for (;pos > end; --pos){
+        for (;pos >= end && pos > 0; --pos){
             if (!is_whitespace(data[pos])) goto buffer_seek_whitespace_up_mid;
         }
     }
@@ -144,7 +144,7 @@ buffer_seek_whitespace_up_mid:
          buffer_backify_next(&loop)){
         end = loop.absolute_pos;
         data = loop.data - loop.absolute_pos;
-        for (; pos > end; --pos){
+        for (; pos >= end && pos > 0; --pos){
             if (data[pos] == '\n'){
                 if (no_hard) goto buffer_seek_whitespace_up_end;
                 else no_hard = 1;
@@ -290,6 +290,76 @@ buffer_seek_alphanumeric_left(Buffer_Type *buffer, int pos){
         pos = 0;
     }
     
+    return(pos);
+}
+
+internal_4tech int
+buffer_seek_alphanumeric_or_camel_right(Buffer_Type *buffer, int pos, int an_pos){
+    Buffer_Stringify_Type loop;
+    char *data;
+    int end, size;
+    char ch, prev_ch;
+
+    size = buffer_size(buffer);
+    assert_4tech(pos < an_pos);
+    assert_4tech(an_pos < size);
+
+    ++pos;
+    if (pos < an_pos){
+        loop = buffer_stringify_loop(buffer, pos, an_pos, size);
+        if (buffer_stringify_good(&loop)){
+            prev_ch = loop.data[0];
+            ++pos;
+            
+            for (;buffer_stringify_good(&loop);
+                 buffer_stringify_next(&loop)){
+                end = loop.size + loop.absolute_pos;
+                data = loop.data - loop.absolute_pos;
+                for (; pos < end; ++pos){
+                    ch = data[pos];
+                    if (is_upper(ch) && is_lower(prev_ch)) goto buffer_seek_alphanumeric_or_camel_right_end;
+                    prev_ch = ch;
+                }
+            }
+        }
+    }
+    else{
+        pos = an_pos;
+    }
+    
+buffer_seek_alphanumeric_or_camel_right_end:
+    return(pos);
+}
+
+internal_4tech int
+buffer_seek_alphanumeric_or_camel_left(Buffer_Type *buffer, int pos, int an_pos){
+    Buffer_Backify_Type loop;
+    char *data;
+    int end, size;
+    char ch, prev_ch;
+
+    size = buffer_size(buffer);
+    assert_4tech(an_pos < pos);
+    assert_4tech(0 <= an_pos);
+    
+    loop = buffer_backify_loop(buffer, pos, an_pos, size);
+    if (buffer_backify_good(&loop)){
+        prev_ch = loop.data[0];
+        --pos;
+        
+        for (;buffer_backify_good(&loop);
+             buffer_backify_next(&loop)){
+            end = loop.absolute_pos;
+            data = loop.data - loop.absolute_pos;
+            for (; pos >= end && pos > 0; --pos){
+                ch = data[pos];
+                if (is_upper(ch) && is_lower(prev_ch)) goto buffer_seek_alphanumeric_or_camel_left_end;
+                prev_ch = ch;
+            }
+        }
+    }
+    
+buffer_seek_alphanumeric_or_camel_left_end:
     return(pos);
 }
 

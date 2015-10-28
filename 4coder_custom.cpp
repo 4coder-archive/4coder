@@ -2,7 +2,7 @@
  * Example use of customization API
  */
 
-// NOTE(allen): NEW THINGS TO LOOK FOR:
+// NOTE(allen|a3.1): NEW THINGS TO LOOK FOR:
 // mapid_user_custom - define maps other than the built in global and file maps
 // 
 // inherit_map       - override bindings or add new bindings in a new map with another
@@ -52,7 +52,7 @@
 
 #define literal(s) s, (sizeof(s)-1)
 
-// NOTE(allen): All of your custom ids should be >= mapid_user_custom.
+// NOTE(allen|a3.1): All of your custom ids should be >= mapid_user_custom.
 // I recommend enumerating your own map ids as shown here.
 enum My_Maps{
     my_code_map = mapid_user_custom,
@@ -60,30 +60,6 @@ enum My_Maps{
 
 HOOK_SIG(my_start){
     exec_command(cmd_context, cmdid_open_panel_vsplit);
-    exec_command(cmd_context, cmdid_change_active_panel);
-}
-
-CUSTOM_COMMAND_SIG(open_my_files){
-    // NOTE(allen): The command cmdid_interactive_open has is now able to
-    // open a file specified on the parameter stack.  If the file does not
-    // exist cmdid_interactive_open behaves as usual.
-    push_parameter(cmd_context, par_name, literal("w:/4ed/data/test/basic.cpp"));
-    exec_command(cmd_context, cmdid_interactive_open);
-    
-    exec_command(cmd_context, cmdid_change_active_panel);
-    
-    char my_file[256];
-    int my_file_len;
-    
-    my_file_len = sizeof("w:/4ed/data/test/basic.txt") - 1;
-    for (int i = 0; i < my_file_len; ++i){
-        my_file[i] = ("w:/4ed/data/test/basic.txt")[i];
-    }
-    
-    // NOTE(allen): null terminators are not needed for strings.
-    push_parameter(cmd_context, par_name, my_file, my_file_len);
-    exec_command(cmd_context, cmdid_interactive_open);
-    
     exec_command(cmd_context, cmdid_change_active_panel);
 }
 
@@ -112,7 +88,7 @@ HOOK_SIG(my_file_settings){
     
     int treat_as_code = 0;
     
-    // NOTE(allen): This checks buffer.file_name just in case get_active_buffer returns back
+    // NOTE(allen|a3.1): This checks buffer.file_name just in case get_active_buffer returns back
     // a null buffer (where every member is 0).
     if (buffer.file_name && buffer.size < (16 << 20)){
         int extension_len;
@@ -134,12 +110,41 @@ CUSTOM_COMMAND_SIG(open_in_other){
     exec_command(cmd_context, cmdid_interactive_open);
 }
 
+CUSTOM_COMMAND_SIG(open_my_files){
+    // NOTE(allen|a3.1): The command cmdid_interactive_open can now open
+    // a file specified on the parameter stack.  If the file does not
+    // exist cmdid_interactive_open behaves as usual.
+    push_parameter(cmd_context, par_name, literal("w:/4ed/data/test/basic.cpp"));
+    exec_command(cmd_context, cmdid_interactive_open);
+    
+    exec_command(cmd_context, cmdid_change_active_panel);
+    
+    char my_file[256];
+    int my_file_len;
+    
+    my_file_len = sizeof("w:/4ed/data/test/basic.txt") - 1;
+    for (int i = 0; i < my_file_len; ++i){
+        my_file[i] = ("w:/4ed/data/test/basic.txt")[i];
+    }
+    
+    // NOTE(allen|3.1): null terminators are not needed for strings.
+    push_parameter(cmd_context, par_name, my_file, my_file_len);
+    exec_command(cmd_context, cmdid_interactive_open);
+    
+    exec_command(cmd_context, cmdid_change_active_panel);
+}
+
+CUSTOM_COMMAND_SIG(write_and_auto_tab){
+    exec_command(cmd_context, cmdid_write_character);
+    exec_command(cmd_context, cmdid_auto_tab_line_at_cursor);
+}
+
 extern "C" GET_BINDING_DATA(get_bindings){
     Bind_Helper context_actual = begin_bind_helper(data, size);
     Bind_Helper *context = &context_actual;
     
-    // NOTE(allen): Right now hooks have no loyalties to maps, all hooks are
-    // global and once set they always apply.
+    // NOTE(allen|a3.1): Right now hooks have no loyalties to maps, all hooks are
+    // global and once set they always apply, regardless of what map is active.
     set_hook(context, hook_start, my_start);
     set_hook(context, hook_open_file, my_file_settings);
     
@@ -156,7 +161,8 @@ extern "C" GET_BINDING_DATA(get_bindings){
     bind(context, 'c', MDFR_ALT, cmdid_open_color_tweaker);
     bind(context, 'x', MDFR_ALT, cmdid_open_menu);
     bind_me(context, 'o', MDFR_ALT, open_in_other);
-    // NOTE(allen): Go look at open_my_files, that's the only point of this being here.
+    // NOTE(allen|a3.1): Go look at open_my_files, that's the only point of this being here,
+    // it won't actually be useful for you.
     bind_me(context, 'M', MDFR_ALT | MDFR_CTRL, open_my_files);
     
     end_map(context);
@@ -164,26 +170,36 @@ extern "C" GET_BINDING_DATA(get_bindings){
     
     begin_map(context, my_code_map);
     
-    // NOTE(allen): Set this map (my_code_map == mapid_user_custom) to
+    // NOTE(allen|a3.1): Set this map (my_code_map == mapid_user_custom) to
     // inherit from mapid_file.  When searching if a key is bound
     // in this map, if it is not found here it will then search mapid_file.
     //
     // If this is not set, it defaults to mapid_global.
     inherit_map(context, mapid_file);
-
-    // NOTE(allen): This demonstrates that children can override parent's bindings.
+    
+    // NOTE(allen|a3.1): Children can override parent's bindings.
     bind(context, codes->right, MDFR_CTRL, cmdid_seek_alphanumeric_or_camel_right);
     bind(context, codes->left, MDFR_CTRL, cmdid_seek_alphanumeric_or_camel_left);
     
-    // NOTE(allen): Not currently functional
-    bind(context, '\t', MDFR_CTRL, cmdid_auto_tab);
+    // NOTE(allen|a3.1.1): Specific keys can override vanilla keys,
+    // and write character writes whichever character corresponds
+    // to the key that triggered the command.
+    bind_me(context, '\n', MDFR_NONE, write_and_auto_tab);
+    bind_me(context, '}', MDFR_NONE, write_and_auto_tab);
+    bind_me(context, ')', MDFR_NONE, write_and_auto_tab);
+    bind_me(context, ']', MDFR_NONE, write_and_auto_tab);
+    bind_me(context, ';', MDFR_NONE, write_and_auto_tab);
+    
+    bind(context, '\t', MDFR_NONE, cmdid_auto_tab_line_at_cursor);
+    bind(context, '\t', MDFR_CTRL, cmdid_auto_tab_range);
+    bind(context, '\t', MDFR_CTRL | MDFR_SHIFT, cmdid_write_character);
     
     end_map(context);
-
+    
     
     begin_map(context, mapid_file);
     
-    // NOTE(allen): Binding this essentially binds all key combos that
+    // NOTE(allen|a3.1): Binding this essentially binds all key combos that
     // would normally insert a character into a buffer.
     // Or apply this rule (which always works): if the code for the key
     // is not in the codes struct, it is a vanilla key.
@@ -228,7 +244,7 @@ extern "C" GET_BINDING_DATA(get_bindings){
     bind(context, '?', MDFR_CTRL, cmdid_toggle_show_whitespace);
     
     bind(context, '~', MDFR_CTRL, cmdid_clean_all_lines);
-    // NOTE(allen): These now only set the mode of the file for writing to disk
+    // NOTE(allen|a3.1.1): These now only set the mode of the file for writing to disk
     // they do no longer effect the internal representation.
     bind(context, '1', MDFR_CTRL, cmdid_eol_dosify);
     bind(context, '!', MDFR_CTRL, cmdid_eol_nixify);

@@ -383,5 +383,15 @@ is_alphanumeric_true(char c){
     return (c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c >= '0' && c <= '9');
 }
 
+inline_4tech int
+is_upper(char c){
+    return (c >= 'A' && c <= 'Z');
+}
+
+inline_4tech int
+is_lower(char c){
+    return (c >= 'a' && c <= 'z');
+}
+
 // BOTTOM
 
