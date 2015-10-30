@@ -49,13 +49,17 @@ typedef struct{
     int start, end;
 } Buffer_Edit;
 
+typedef struct{
+    int i;
+    int shift_total;
+} Buffer_Batch_State;
+
 typedef enum{
     buffer_seek_pos,
     buffer_seek_wrapped_xy,
     buffer_seek_unwrapped_xy,
     buffer_seek_line_char
 } Buffer_Seek_Type;
-
 
 typedef struct{
     Buffer_Seek_Type type;

@@ -504,47 +504,24 @@ Win32Resize(i32 width, i32 height){
 
 internal void
 Win32KeyboardHandle(bool8 current_state, bool8 previous_state, WPARAM wParam){
-    switch (wParam){
-    case VK_LSHIFT:
-    case VK_RSHIFT:
-    case VK_SHIFT:
-    {
-        win32vars.input_data.control_keys[CONTROL_KEY_SHIFT] = current_state;
-    }break;
-    case VK_LCONTROL:
-    case VK_RCONTROL:
-    case VK_CONTROL:
-    {
-        win32vars.input_data.control_keys[CONTROL_KEY_CONTROL] = current_state;
-    }break;
-    case VK_LMENU:
-    case VK_RMENU:
-    case VK_MENU:
-    {
-        win32vars.input_data.control_keys[CONTROL_KEY_ALT] = current_state;
-    }break;
-    default:
-    {
-        u16 key = keycode_lookup((u8)wParam);
-        if (key != -1){
-            if (current_state & !previous_state){
-                i32 count = win32vars.input_data.press_count;
-                if (count < KEY_INPUT_BUFFER_SIZE){
-                    win32vars.input_data.press[count].keycode = key;
-                    win32vars.input_data.press[count].loose_keycode = loose_keycode_lookup((u8)wParam);
-                    ++win32vars.input_data.press_count;
-                }
-            }
-            else if (current_state){
-                i32 count = win32vars.input_data.hold_count;
-                if (count < KEY_INPUT_BUFFER_SIZE){
-                    win32vars.input_data.hold[count].keycode = key;
-                    win32vars.input_data.hold[count].loose_keycode = loose_keycode_lookup((u8)wParam);
-                    ++win32vars.input_data.hold_count;
-                }
+    u16 key = keycode_lookup((u8)wParam);
+    if (key != -1){
+        if (current_state & !previous_state){
+            i32 count = win32vars.input_data.press_count;
+            if (count < KEY_INPUT_BUFFER_SIZE){
+                win32vars.input_data.press[count].keycode = key;
+                win32vars.input_data.press[count].loose_keycode = loose_keycode_lookup((u8)wParam);
+                ++win32vars.input_data.press_count;
             }
         }
-    }break;
+        else if (current_state){
+            i32 count = win32vars.input_data.hold_count;
+            if (count < KEY_INPUT_BUFFER_SIZE){
+                win32vars.input_data.hold[count].keycode = key;
+                win32vars.input_data.hold[count].loose_keycode = loose_keycode_lookup((u8)wParam);
+                ++win32vars.input_data.hold_count;
+            }
+        }
     }
 }
 
@@ -568,6 +545,7 @@ Win32Callback(HWND hwnd, UINT uMsg,
         previous_state = ((lParam & Bit_30)?(1):(0));
         current_state = ((lParam & Bit_31)?(0):(1));
         Win32KeyboardHandle(current_state, previous_state, wParam);
+        result = DefWindowProc(hwnd, uMsg, wParam, lParam);
     }break;
     
     case WM_MOUSEMOVE:
@@ -1148,6 +1126,7 @@ WinMain(HINSTANCE hInstance,
     AllowLocal(thread);
 	bool32 first = 1;
 	i64 timer_start = system_time();
+    
 	while (win32vars.keep_playing){
 #if FRED_INTERNAL
         i64 dbg_procing_start = system_time();
@@ -1186,6 +1165,11 @@ WinMain(HINSTANCE hInstance,
 		win32vars.input_data.press_count = 0;
 		win32vars.input_data.hold_count = 0;
 		win32vars.input_data.caps_lock = GetKeyState(VK_CAPITAL) & 0x1;
+        
+        win32vars.input_data.control_keys[CONTROL_KEY_SHIFT] = (GetKeyState(VK_SHIFT) & 0x0100) >> 8;
+        win32vars.input_data.control_keys[CONTROL_KEY_CONTROL] = (GetKeyState(VK_CONTROL) & 0x0100) >> 8;
+        win32vars.input_data.control_keys[CONTROL_KEY_ALT] = (GetKeyState(VK_MENU) & 0x0100) >> 8;
+        
 		win32vars.mouse.left_button_prev = win32vars.mouse.left_button;
 		win32vars.mouse.right_button_prev = win32vars.mouse.right_button;
 		win32vars.mouse.wheel = 0;
@@ -1218,8 +1202,8 @@ WinMain(HINSTANCE hInstance,
 			win32vars.mouse.out_of_window = 1;
 		}
 		
-		bool32 shift = win32vars.input_data.control_keys[CONTROL_KEY_SHIFT];
-		bool32 caps_lock = win32vars.input_data.caps_lock;
+		b32 shift = win32vars.input_data.control_keys[CONTROL_KEY_SHIFT];
+		b32 caps_lock = win32vars.input_data.caps_lock;
         for (i32 i = 0; i < win32vars.input_data.press_count; ++i){
             i16 keycode = win32vars.input_data.press[i].keycode;
 			win32vars.input_data.press[i].character =

@@ -54,7 +54,7 @@ buffer_count_newlines(Buffer_Type *buffer, int start, int end){
     
     assert_4tech(0 <= start);
     assert_4tech(start <= end);
-    assert_4tech(end < buffer_size(buffer));
+    assert_4tech(end <= buffer_size(buffer));
     
     count = 0;
 
@@ -127,13 +127,13 @@ buffer_seek_whitespace_up(Buffer_Type *buffer, int pos){
     int no_hard;
     
     size = buffer_size(buffer);
-    loop = buffer_backify_loop(buffer, pos, 0, size);
+    loop = buffer_backify_loop(buffer, pos, 1, size);
     
     for (;buffer_backify_good(&loop);
          buffer_backify_next(&loop)){
         end = loop.absolute_pos;
         data = loop.data - loop.absolute_pos;
-        for (;pos >= end && pos > 0; --pos){
+        for (;pos >= end; --pos){
             if (!is_whitespace(data[pos])) goto buffer_seek_whitespace_up_mid;
         }
     }
@@ -144,7 +144,7 @@ buffer_seek_whitespace_up_mid:
          buffer_backify_next(&loop)){
         end = loop.absolute_pos;
         data = loop.data - loop.absolute_pos;
-        for (; pos >= end && pos > 0; --pos){
+        for (; pos >= end; --pos){
             if (data[pos] == '\n'){
                 if (no_hard) goto buffer_seek_whitespace_up_end;
                 else no_hard = 1;
@@ -200,7 +200,7 @@ buffer_seek_whitespace_left(Buffer_Type *buffer, int pos){
     --pos;
     if (pos > 0){
         size = buffer_size(buffer);
-        loop = buffer_backify_loop(buffer, pos, 0, size);
+        loop = buffer_backify_loop(buffer, pos, 1, size);
     
         for (;buffer_backify_good(&loop);
              buffer_backify_next(&loop)){
@@ -266,7 +266,7 @@ buffer_seek_alphanumeric_left(Buffer_Type *buffer, int pos){
     --pos;
     if (pos >= 0){
         size = buffer_size(buffer);
-        loop = buffer_backify_loop(buffer, pos, 0, size);
+        loop = buffer_backify_loop(buffer, pos, 1, size);
         
         for (;buffer_backify_good(&loop);
              buffer_backify_next(&loop)){
@@ -301,8 +301,8 @@ buffer_seek_alphanumeric_or_camel_right(Buffer_Type *buffer, int pos, int an_pos
     char ch, prev_ch;
 
     size = buffer_size(buffer);
-    assert_4tech(pos < an_pos);
-    assert_4tech(an_pos < size);
+    assert_4tech(pos <= an_pos);
+    assert_4tech(an_pos <= size);
 
     ++pos;
     if (pos < an_pos){
@@ -339,10 +339,10 @@ buffer_seek_alphanumeric_or_camel_left(Buffer_Type *buffer, int pos, int an_pos)
     char ch, prev_ch;
 
     size = buffer_size(buffer);
-    assert_4tech(an_pos < pos);
+    assert_4tech(an_pos <= pos);
     assert_4tech(0 <= an_pos);
     
-    loop = buffer_backify_loop(buffer, pos, an_pos, size);
+    loop = buffer_backify_loop(buffer, pos, an_pos+1, size);
     if (buffer_backify_good(&loop)){
         prev_ch = loop.data[0];
         --pos;
@@ -351,7 +351,7 @@ buffer_seek_alphanumeric_or_camel_left(Buffer_Type *buffer, int pos, int an_pos)
              buffer_backify_next(&loop)){
             end = loop.absolute_pos;
             data = loop.data - loop.absolute_pos;
-            for (; pos >= end && pos > 0; --pos){
+            for (; pos >= end; --pos){
                 ch = data[pos];
                 if (is_upper(ch) && is_lower(prev_ch)) goto buffer_seek_alphanumeric_or_camel_left_end;
                 prev_ch = ch;
@@ -361,6 +361,46 @@ buffer_seek_alphanumeric_or_camel_left(Buffer_Type *buffer, int pos, int an_pos)
     
 buffer_seek_alphanumeric_or_camel_left_end:
     return(pos);
+}
+
+internal_4tech int
+buffer_find_hard_start(Buffer_Type *buffer, int line_start, int *all_whitespace, int *all_space,
+                       int *preferred_indent, int tab_width){
+    Buffer_Stringify_Type loop;
+    char *data;
+    int size, end;
+    int result;
+    char c;
+    
+    *all_space = 1;
+    *preferred_indent = 0;
+    
+    size = buffer_size(buffer);
+    
+    tab_width -= 1;
+    
+    result = line_start;
+    for (loop = buffer_stringify_loop(buffer, line_start, size, size);
+         buffer_stringify_good(&loop);
+         buffer_stringify_next(&loop)){
+        end = loop.size + loop.absolute_pos;
+        data = loop.data - loop.absolute_pos;
+        for (; result < end; ++result){
+            c = data[result];
+            
+            if (c == '\n' || c == 0){
+                *all_whitespace = 1;
+                goto buffer_find_hard_start_end;
+            }
+            if (c >= '!' && c <= '~') goto buffer_find_hard_start_end;
+            if (c == '\t') *preferred_indent += tab_width;
+            if (c != ' ') *all_space = 0;
+            *preferred_indent += 1;
+        }
+    }
+    
+buffer_find_hard_start_end:
+    return(result);
 }
 
 typedef struct{
@@ -731,9 +771,9 @@ cursor_seek_step(Seek_State *state, Buffer_Seek seek, int xy_seek, float max_wid
 cursor_seek_step_end:
     state->cursor = cursor;
     state->prev_cursor = prev_cursor;
-    
     return(result);
 }
+
 #endif
 
 internal_4tech Full_Cursor
@@ -818,6 +858,81 @@ buffer_cursor_from_wrapped_xy(Buffer_Type *buffer, float x, float y, int round_d
                                 advance_data, stride, result);
 
     return(result);
+}
+
+internal_4tech void
+buffer_invert_edit_shift(Buffer_Type *buffer, Buffer_Edit edit, Buffer_Edit *inverse, char *strings,
+                         int *str_pos, int max, int shift_amount){
+    int pos;
+    int len;
+    
+    pos = *str_pos;
+    len = edit.end - edit.start;
+    assert_4tech(pos + len <= max);
+    *str_pos = pos + len;
+    
+    inverse->str_start = pos;
+    inverse->len = len;
+    inverse->start = edit.start + shift_amount;
+    inverse->end = edit.start + edit.len + shift_amount;
+    buffer_stringify(buffer, edit.start, edit.end, strings + pos);
+}
+
+inline_4tech void
+buffer_invert_edit(Buffer_Type *buffer, Buffer_Edit edit, Buffer_Edit *inverse, char *strings,
+                   int *str_pos, int max){
+    buffer_invert_edit_shift(buffer, edit, inverse, strings, str_pos, max, 0);
+}
+
+typedef struct{
+    int i;
+    int shift_amount;
+    int len;
+} Buffer_Invert_Batch;
+
+internal_4tech int
+buffer_invert_batch(Buffer_Invert_Batch *state, Buffer_Type *buffer, Buffer_Edit *edits, int count,
+                    Buffer_Edit *inverse, char *strings, int *str_pos, int max){
+    Buffer_Edit *edit, *inv_edit;
+    int shift_amount;
+    int result;
+    int i;
+    
+    result = 0;
+    i = state->i;
+    shift_amount = state->shift_amount;
+    
+    edit = edits + i;
+    inv_edit = inverse + i;
+    
+    for (; i < count; ++i, ++edit, ++inv_edit){
+        if (*str_pos + edit->end - edit->start <= max){
+            buffer_invert_edit_shift(buffer, *edit, inv_edit, strings, str_pos, max, shift_amount);
+            shift_amount += (edit->len - (edit->end - edit->start));
+        }
+        else{
+            result = 1;
+            state->len = edit->end - edit->start;
+        }
+    }
+    
+    state->i = i;
+    state->shift_amount = shift_amount;
+    
+    return(result);
+}
+
+internal_4tech void
+buffer_batch_edit(Buffer_Type *buffer, Buffer_Edit *sorted_edits, char *strings, int edit_count){
+    Buffer_Batch_State state;
+    debug_4tech(int result);
+    
+    state.i = 0;
+    state.shift_total = 0;
+    
+    debug_4tech(result =)
+        buffer_batch_edit_step(&state, buffer, sorted_edits, strings, edit_count);
+    assert_4tech(result == 0);
 }
 
 internal_4tech void
@@ -929,6 +1044,16 @@ buffer_get_render_data(Buffer_Type *buffer, float *wraps, Buffer_Render_Item *it
     }
     
 buffer_get_render_data_end:
+    
+    if (y <= height + shift_y || item == items){
+        ch = 0;
+        ch_width = measure_character(advance_data, stride, ' ');
+        write_render_item(item, size, ch, x, y, ch_width, font_height);
+        ++item_i;
+        ++item;
+        x += ch_width;
+    }
+    
     // TODO(allen): handle this with a control state
     assert_4tech(item_i <= max);
     *count = item_i;

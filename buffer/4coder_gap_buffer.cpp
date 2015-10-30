@@ -300,5 +300,30 @@ buffer_replace_range(Gap_Buffer *buffer, int start, int end, char *str, int len,
     return(result);
 }
 
+// NOTE(allen): This could should be optimized for Gap_Buffer
+internal_4tech int
+buffer_batch_edit_step(Buffer_Batch_State *state, Gap_Buffer *buffer, Buffer_Edit *sorted_edits, char *strings, int edit_count){
+    Buffer_Edit *edit;
+    int i, result;
+    int shift_total, shift_amount;
+    
+    result = 0;
+    shift_total = state->shift_total;
+    i = state->i;
+    
+    edit = sorted_edits + i;
+    for (; i < edit_count; ++i, ++edit){
+        result = buffer_replace_range(buffer, edit->start + shift_total, edit->end + shift_total,
+                                      strings + edit->str_start, edit->len, &shift_amount);
+        if (result) break;
+        shift_total += shift_amount;
+    }
+    
+    state->shift_total = shift_total;
+    state->i = i;
+    
+    return(result);
+}
+
 // BOTTOM
 

@@ -168,71 +168,6 @@ buffer_replace_range(Buffer *buffer, int start, int end, char *str, int len, int
     return(result);
 }
 
-internal_4tech void
-buffer_invert_edit_shift(Buffer *buffer, Buffer_Edit edit, Buffer_Edit *inverse, char *strings, int *str_pos, int max, int shift_amount){
-    int pos;
-    int len;
-    
-    pos = *str_pos;
-    len = edit.end - edit.start;
-    assert_4tech(pos + len <= max);
-    *str_pos = pos + len;
-    
-    inverse->str_start = pos;
-    inverse->len = len;
-    inverse->start = edit.start + shift_amount;
-    inverse->end = edit.start + edit.len + shift_amount;
-    memcpy_4tech(strings + pos, buffer->data + edit.start, len);
-}
-
-inline_4tech void
-buffer_invert_edit(Buffer *buffer, Buffer_Edit edit, Buffer_Edit *inverse, char *strings, int *str_pos, int max){
-    buffer_invert_edit_shift(buffer, edit, inverse, strings, str_pos, max, 0);
-}
-
-typedef struct{
-    int i;
-    int shift_amount;
-    int len;
-} Buffer_Invert_Batch;
-
-internal_4tech int
-buffer_invert_batch(Buffer_Invert_Batch *state, Buffer *buffer, Buffer_Edit *edits, int count,
-                    Buffer_Edit *inverse, char *strings, int *str_pos, int max){
-    Buffer_Edit *edit, *inv_edit;
-    int shift_amount;
-    int result;
-    int i;
-    
-    result = 0;
-    i = state->i;
-    shift_amount = state->shift_amount;
-    
-    edit = edits + i;
-    inv_edit = inverse + i;
-    
-    for (; i < count; ++i, ++edit, ++inv_edit){
-        if (*str_pos + edit->end - edit->start <= max){
-            buffer_invert_edit_shift(buffer, *edit, inv_edit, strings, str_pos, max, shift_amount);
-            shift_amount += (edit->len - (edit->end - edit->start));
-        }
-        else{
-            result = 1;
-            state->len = edit->end - edit->start;
-        }
-    }
-    
-    state->i = i;
-    state->shift_amount = shift_amount;
-    
-    return(result);
-}
-
-typedef struct{
-    int i;
-    int shift_total;
-} Buffer_Batch_State;
-
 internal_4tech int
 buffer_batch_edit_step(Buffer_Batch_State *state, Buffer *buffer, Buffer_Edit *sorted_edits, char *strings, int edit_count){
     Buffer_Edit *edit;
@@ -257,19 +192,7 @@ buffer_batch_edit_step(Buffer_Batch_State *state, Buffer *buffer, Buffer_Edit *s
     return(result);
 }
 
-internal_4tech void
-buffer_batch_edit(Buffer *buffer, Buffer_Edit *sorted_edits, char *strings, int edit_count){
-    Buffer_Batch_State state;
-    debug_4tech(int result);
-    
-    state.i = 0;
-    state.shift_total = 0;
-    
-    debug_4tech(result =)
-        buffer_batch_edit_step(&state, buffer, sorted_edits, strings, edit_count);
-    assert_4tech(result == 0);
-}
-
+#if 0
 internal_4tech int
 buffer_find_hard_start(Buffer *buffer, int line_start, int *all_whitespace, int *all_space,
                        int *preferred_indent, int tab_width){
@@ -300,6 +223,7 @@ buffer_find_hard_start(Buffer *buffer, int line_start, int *all_whitespace, int 
     
     return(result);
 }
+#endif
 
 // BOTTOM
 

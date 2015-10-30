@@ -246,7 +246,6 @@ struct Render_Target{
 struct Application_Memory{
     void *vars_memory;
     i32 vars_memory_size;
-    
     void *target_memory;
     i32 target_memory_size;
 };

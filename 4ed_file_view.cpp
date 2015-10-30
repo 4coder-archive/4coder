@@ -1746,7 +1746,6 @@ struct Edit_Spec{
     Edit_Step step;
 };
 
-#if BUFFER_EXPERIMENT_SCALPEL
 internal Edit_Step*
 file_post_undo(General_Memory *general, Editing_File *file,
                Edit_Step step, bool32 do_merge, bool32 can_merge){
@@ -1950,7 +1949,6 @@ file_post_history(General_Memory *general, Editing_File *file,
     
     return result;
 }
-#endif
 
 inline Full_Cursor
 view_compute_cursor_from_pos(File_View *view, i32 pos){
@@ -2214,7 +2212,6 @@ enum History_Mode{
 internal void
 view_update_history_before_edit(Mem_Options *mem, Editing_File *file, Edit_Step step, u8 *str,
                                 History_Mode history_mode){
-#if BUFFER_EXPERIMENT_SCALPEL
     General_Memory *general = &mem->general;
     
 #if FRED_SLOW
@@ -2379,7 +2376,6 @@ view_update_history_before_edit(Mem_Options *mem, Editing_File *file, Edit_Step 
     }
     
     if (history_mode == hist_normal) file->undo.edit_history_cursor = file->undo.history.edit_count;
-#endif
 }
 
 inline b32
@@ -2450,7 +2446,6 @@ view_do_single_edit(Mem_Options *mem, File_View *view, Editing_File *file,
         }
     }
 
-#if BUFFER_EXPERIMENT_SCALPEL
     Temp_Memory cursor_temp = begin_temp_memory(&mem->part);
     i32 cursor_max = layout->panel_max_count * 2;
     Cursor_With_Index *cursors = push_array(&mem->part, Cursor_With_Index, cursor_max);
@@ -2489,13 +2484,11 @@ view_do_single_edit(Mem_Options *mem, File_View *view, Editing_File *file,
     }
     
     end_temp_memory(cursor_temp);
-#endif
 }
 
 internal void
 view_do_white_batch_edit(Mem_Options *mem, File_View *view, Editing_File *file,
                          Editing_Layout *layout, Edit_Spec spec, History_Mode history_mode){
-#if BUFFER_EXPERIMENT_SCALPEL
     Assert(file);
     ProfileMomentFunction();
     
@@ -2587,7 +2580,6 @@ view_do_white_batch_edit(Mem_Options *mem, File_View *view, Editing_File *file,
         }
         end_temp_memory(cursor_temp);
     }
-#endif
 }
 
 inline void
@@ -2853,7 +2845,6 @@ view_compute_whitespace_edit(Mem_Options *mem, Editing_File *file,
                              Buffer_Edit *edits, char *str_base, i32 str_size,
                              Buffer_Edit *inverse_array, char *inv_str, i32 inv_max,
                              i32 edit_count){
-#if BUFFER_EXPERIMENT_SCALPEL
     General_Memory *general = &mem->general;
     
     i32 inv_str_pos = 0;
@@ -2876,15 +2867,12 @@ view_compute_whitespace_edit(Mem_Options *mem, Editing_File *file,
     spec.step.special_type = 1;
     spec.step.child_count = edit_count;
     spec.step.inverse_child_count = edit_count;
-#else
-    Edit_Spec spec = {};
-#endif
+    
     return spec;
 }
 
 internal void
 view_clean_whitespace(Mem_Options *mem, File_View *view, Editing_Layout *layout){
-#if BUFFER_EXPERIMENT_SCALPEL
     Editing_File *file = view->file;
     Assert(file && !file->is_dummy);
     Partition *part = &mem->part;
@@ -2938,7 +2926,6 @@ view_clean_whitespace(Mem_Options *mem, File_View *view, Editing_Layout *layout)
     }
     
     end_temp_memory(temp);
-#endif
 }
 
 internal void
@@ -2995,7 +2982,17 @@ view_auto_tab_tokens(Mem_Options *mem, File_View *view, Editing_Layout *layout,
             if (result.in_whitespace) token_i += 1;
             token = tokens.tokens + token_i;
             
-            if (token->start < start_pos){
+            while (token >= tokens.tokens &&
+                   token->flags & CPP_TFLAG_PP_DIRECTIVE ||
+                   token->flags & CPP_TFLAG_PP_BODY){
+                --token;
+            }
+            
+            if (token < tokens.tokens){
+                ++token;
+                current_indent = 0;
+            }
+            else if (token->start < start_pos){
                 line = buffer_get_line_index(&file->buffer, token->start);
                 i32 start = file->buffer.line_starts[line];
                 b32 all_whitespace = 0;
@@ -3028,18 +3025,25 @@ view_auto_tab_tokens(Mem_Options *mem, File_View *view, Editing_Layout *layout,
                 else{
                     this_indent = current_indent;
                     if (token->start < next_line_start){
-                        switch (token->type){
-                        case CPP_TOKEN_BRACKET_CLOSE: this_indent -= 4; break;
-                        case CPP_TOKEN_PARENTHESE_CLOSE: this_indent -= 4; break;
-                        case CPP_TOKEN_BRACE_CLOSE: this_indent -= 4; break;
-                        case CPP_TOKEN_BRACE_OPEN: break;
-                        default:
-                            if (current_indent > 0 && prev_token){
-                                switch (prev_token->type){
-                                case CPP_TOKEN_BRACKET_OPEN: case CPP_TOKEN_PARENTHESE_OPEN:
-                                case CPP_TOKEN_BRACE_OPEN: case CPP_TOKEN_BRACE_CLOSE:
-                                case CPP_TOKEN_SEMICOLON: case CPP_TOKEN_COLON: break;
-                                default: this_indent += 4;
+                        if (token->flags & CPP_TFLAG_PP_DIRECTIVE) this_indent = 0;
+                        else{
+                            switch (token->type){
+                            case CPP_TOKEN_BRACKET_CLOSE: this_indent -= 4; break;
+                            case CPP_TOKEN_PARENTHESE_CLOSE: this_indent -= 4; break;
+                            case CPP_TOKEN_BRACE_CLOSE: this_indent -= 4; break;
+                            case CPP_TOKEN_BRACE_OPEN: break;
+                            default:
+                                if (current_indent > 0 && prev_token){
+                                    if (!(prev_token->flags & CPP_TFLAG_PP_BODY ||
+                                          prev_token->flags & CPP_TFLAG_PP_DIRECTIVE)){
+                                        switch (prev_token->type){
+                                        case CPP_TOKEN_BRACKET_OPEN: case CPP_TOKEN_PARENTHESE_OPEN:
+                                        case CPP_TOKEN_BRACE_OPEN: case CPP_TOKEN_BRACE_CLOSE:
+                                        case CPP_TOKEN_SEMICOLON: case CPP_TOKEN_COLON: break;
+                                        case CPP_TOKEN_COMMA: case CPP_TOKEN_COMMENT: break;
+                                        default: this_indent += 4;
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -3660,7 +3664,6 @@ draw_file_view(Thread_Context *thread, View *view_, i32_Rect rect, bool32 is_act
     b32 tokens_use = file->tokens_complete && (file->token_stack.count > 0);
     Cpp_Token_Stack token_stack = file->token_stack;
 
-#if 1
     Partition *part = &view_->mem->part;
     Temp_Memory temp = begin_temp_memory(part);
     
@@ -3718,12 +3721,10 @@ draw_file_view(Thread_Context *thread, View *view_, i32_Rect rect, bool32 is_act
                 }
             }
 
-#if BUFFER_EXPERIMENT_SCALPEL
             if (current_token.type == CPP_TOKEN_JUNK &&
                 i >= current_token.start && i <= current_token.start + current_token.size){
                 highlight_color = style->main.highlight_junk_color;
             }
-#endif
         }
         u32 char_color = main_color;
         
@@ -3732,17 +3733,31 @@ draw_file_view(Thread_Context *thread, View *view_, i32_Rect rect, bool32 is_act
             else draw_rectangle_outline(target, f32R(item->x0, item->y0, item->x1, item->y1), cursor_color);
             char_color = at_cursor_color;
         }
+        
+        u32 fade_color = 0xFFFF00FF;
+        f32 fade_amount = 0.f;
+        
+        if (view->paste_effect.tick_down > 0 &&
+            view->paste_effect.start <= i && i < view->paste_effect.end){
+            fade_color = view->paste_effect.color;
+            fade_amount = (real32)(view->paste_effect.tick_down) / view->paste_effect.tick_max;
+        }
+        
+        char_color = color_blend(char_color, fade_amount, fade_color);
+        
         if (ind == view->mark && prev_ind != ind){
             draw_rectangle_outline(target, f32R(item->x0, item->y0, item->x1, item->y1), mark_color);
         }
-        font_draw_glyph(target, font, (u16)item->glyphid,
-                        item->x0, item->y0, char_color);
+        if (item->glyphid != 0){
+            font_draw_glyph(target, font, (u16)item->glyphid,
+                            item->x0, item->y0, char_color);
+        }
         prev_ind = ind;
     }
     
     end_temp_memory(temp);
-    
-#else
+
+#if 0
     
     i32 size = (i32)file->buffer.size;
     u8 *data = (u8*)file->buffer.data;
@@ -3874,7 +3889,7 @@ draw_file_view(Thread_Context *thread, View *view_, i32_Rect rect, bool32 is_act
                 special_char_color = char_color = style->main.at_highlight_color; break;
             }
         }
-            
+        
         char_color = color_blend(char_color, fade_amount, fade_color);
         special_char_color = color_blend(special_char_color, fade_amount, fade_color);
         

@@ -127,7 +127,7 @@ CUSTOM_COMMAND_SIG(open_my_files){
         my_file[i] = ("w:/4ed/data/test/basic.txt")[i];
     }
     
-    // NOTE(allen|3.1): null terminators are not needed for strings.
+    // NOTE(allen|a3.1): null terminators are not needed for strings.
     push_parameter(cmd_context, par_name, my_file, my_file_len);
     exec_command(cmd_context, cmdid_interactive_open);
     
@@ -181,7 +181,7 @@ extern "C" GET_BINDING_DATA(get_bindings){
     bind(context, codes->right, MDFR_CTRL, cmdid_seek_alphanumeric_or_camel_right);
     bind(context, codes->left, MDFR_CTRL, cmdid_seek_alphanumeric_or_camel_left);
     
-    // NOTE(allen|a3.1.1): Specific keys can override vanilla keys,
+    // NOTE(allen|a3.2): Specific keys can override vanilla keys,
     // and write character writes whichever character corresponds
     // to the key that triggered the command.
     bind_me(context, '\n', MDFR_NONE, write_and_auto_tab);
@@ -244,7 +244,7 @@ extern "C" GET_BINDING_DATA(get_bindings){
     bind(context, '?', MDFR_CTRL, cmdid_toggle_show_whitespace);
     
     bind(context, '~', MDFR_CTRL, cmdid_clean_all_lines);
-    // NOTE(allen|a3.1.1): These now only set the mode of the file for writing to disk
+    // NOTE(allen|a3.2): These now only set the mode of the file for writing to disk
     // they do no longer effect the internal representation.
     bind(context, '1', MDFR_CTRL, cmdid_eol_dosify);
     bind(context, '!', MDFR_CTRL, cmdid_eol_nixify);
