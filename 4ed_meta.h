@@ -77,7 +77,7 @@ _OutDbgStr(u8*);
 #endif
 
 #if FRED_SLOW
-#  define Assert(c) if(!(c)){*(int*)0 = 0;}
+#  define Assert(c) assert(c)
 #else
 #  define Assert(c)
 #endif

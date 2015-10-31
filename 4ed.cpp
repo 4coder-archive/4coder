@@ -123,7 +123,7 @@ globalvar Application_Links app_links;
 
 #define REQ_VIEW(n) View *n = command->view; if (!n) return
 #define REQ_FILE_VIEW(n) File_View *n = view_to_file_view(command->view); if (!n) return
-#define REQ_FILE(n,v) Editing_File *n = (v)->file; if (!n || !n->buffer.data || n->is_dummy) return
+#define REQ_FILE(n,v) Editing_File *n = (v)->file; if (!n || !buffer_good(&n->buffer) || n->is_dummy) return
 #define REQ_COLOR_VIEW(n) Color_View *n = view_to_color_view(command->view); if (!n) return
 #define REQ_DBG_VIEW(n) Debug_View *n = view_to_debug_view(command->view); if (!n) return
 
@@ -215,6 +215,7 @@ COMMAND_DECL(write_character){
 }
 
 COMMAND_DECL(seek_whitespace_right){
+#if BUFFER_EXPERIMENT_SCALPEL <= 1
     ProfileMomentFunction();
     REQ_FILE_VIEW(view);
     REQ_FILE(file, view);
@@ -222,9 +223,11 @@ COMMAND_DECL(seek_whitespace_right){
     i32 pos = buffer_seek_whitespace_right(&file->buffer, view->cursor.pos);
     
     view_cursor_move(view, pos);
+#endif
 }
 
 COMMAND_DECL(seek_whitespace_left){
+#if BUFFER_EXPERIMENT_SCALPEL <= 1
     ProfileMomentFunction();
     REQ_FILE_VIEW(view);
     REQ_FILE(file, view);
@@ -232,24 +235,29 @@ COMMAND_DECL(seek_whitespace_left){
     i32 pos = buffer_seek_whitespace_left(&file->buffer, view->cursor.pos);
     
     view_cursor_move(view, pos);
+#endif
 }
 
 COMMAND_DECL(seek_whitespace_up){
+#if BUFFER_EXPERIMENT_SCALPEL <= 1
     ProfileMomentFunction();
     REQ_FILE_VIEW(view);
     REQ_FILE(file, view);
     
     i32 pos = buffer_seek_whitespace_up(&file->buffer, view->cursor.pos);
     view_cursor_move(view, pos);
+#endif
 }
 
 COMMAND_DECL(seek_whitespace_down){
+#if BUFFER_EXPERIMENT_SCALPEL <= 1
     ProfileMomentFunction();
     REQ_FILE_VIEW(view);
     REQ_FILE(file, view);
         
     i32 pos = buffer_seek_whitespace_down(&file->buffer, view->cursor.pos);
     view_cursor_move(view, pos);
+#endif
 }
 
 internal i32
@@ -304,7 +312,7 @@ COMMAND_DECL(seek_token_right){
 }
 
 COMMAND_DECL(seek_white_or_token_right){
-#if BUFFER_EXPERIMENT_SCALPEL
+#if BUFFER_EXPERIMENT_SCALPEL <= 0
     ProfileMomentFunction();
     REQ_FILE_VIEW(view);
     REQ_FILE(file, view);
@@ -320,7 +328,7 @@ COMMAND_DECL(seek_white_or_token_right){
 }
 
 COMMAND_DECL(seek_white_or_token_left){
-#if BUFFER_EXPERIMENT_SCALPEL
+#if BUFFER_EXPERIMENT_SCALPEL <= 0
     ProfileMomentFunction();
     REQ_FILE_VIEW(view);
     REQ_FILE(file, view);
@@ -336,24 +344,29 @@ COMMAND_DECL(seek_white_or_token_left){
 }
 
 COMMAND_DECL(seek_alphanumeric_right){
+#if BUFFER_EXPERIMENT_SCALPEL <= 1
     ProfileMomentFunction();
     REQ_FILE_VIEW(view);
     REQ_FILE(file, view);
     
     i32 pos = buffer_seek_alphanumeric_right(&file->buffer, view->cursor.pos);
     view_cursor_move(view, pos);
+#endif
 }
 
 COMMAND_DECL(seek_alphanumeric_left){
+#if BUFFER_EXPERIMENT_SCALPEL <= 1
     ProfileMomentFunction();
     REQ_FILE_VIEW(view);
     REQ_FILE(file, view);
     
     i32 pos = buffer_seek_alphanumeric_left(&file->buffer, view->cursor.pos);
     view_cursor_move(view, pos);
+#endif
 }
 
 COMMAND_DECL(seek_alphanumeric_or_camel_right){
+#if BUFFER_EXPERIMENT_SCALPEL <= 1
     ProfileMomentFunction();
     REQ_FILE_VIEW(view);
     REQ_FILE(file, view);
@@ -361,9 +374,11 @@ COMMAND_DECL(seek_alphanumeric_or_camel_right){
     i32 an_pos = buffer_seek_alphanumeric_right(&file->buffer, view->cursor.pos);
     i32 pos = buffer_seek_alphanumeric_or_camel_right(&file->buffer, view->cursor.pos, an_pos);
     view_cursor_move(view, pos);
+#endif
 }
 
 COMMAND_DECL(seek_alphanumeric_or_camel_left){
+#if BUFFER_EXPERIMENT_SCALPEL <= 1
     ProfileMomentFunction();
     REQ_FILE_VIEW(view);
     REQ_FILE(file, view);
@@ -371,6 +386,7 @@ COMMAND_DECL(seek_alphanumeric_or_camel_left){
     i32 an_pos = buffer_seek_alphanumeric_left(&file->buffer, view->cursor.pos);
     i32 pos = buffer_seek_alphanumeric_or_camel_left(&file->buffer, view->cursor.pos, an_pos);
     view_cursor_move(view, pos);
+#endif
 }
 
 COMMAND_DECL(search){
@@ -690,7 +706,7 @@ app_open_file(App_Vars *vars, General_Memory *general, Panel *panel,
         
         new_view->map = app_get_map(vars, target_file->base_map_id);
 
-#if BUFFER_EXPERIMENT_SCALPEL
+#if BUFFER_EXPERIMENT_SCALPEL <= 0
         if (created_file && target_file->tokens_exist)
             file_first_lex_parallel(general, target_file);
 #endif
@@ -766,7 +782,7 @@ COMMAND_DECL(reopen){
         *file = temp_file;
         file->source_path.str = file->source_path_;
         file->live_name.str = file->live_name_;
-#if BUFFER_EXPERIMENT_SCALPEL
+#if BUFFER_EXPERIMENT_SCALPEL <= 0
         if (file->tokens_exist)
             file_first_lex_parallel(&mem->general, file);
 #endif
@@ -920,7 +936,7 @@ COMMAND_DECL(toggle_show_whitespace){
 }
 
 COMMAND_DECL(toggle_tokens){
-#if BUFFER_EXPERIMENT_SCALPEL
+#if BUFFER_EXPERIMENT_SCALPEL <= 0
     ProfileMomentFunction();
     REQ_FILE_VIEW(view);
     REQ_FILE(file, view);
@@ -938,6 +954,7 @@ COMMAND_DECL(toggle_tokens){
 internal void
 case_change_range(Mem_Options *mem, File_View *view, Editing_File *file,
                   u8 a, u8 z, u8 char_delta){
+#if BUFFER_EXPERIMENT_SCALPEL <= 0
     Range range = get_range(view->cursor.pos, view->mark);
     if (range.start < range.end){
         Edit_Step step = {};
@@ -958,11 +975,10 @@ case_change_range(Mem_Options *mem, File_View *view, Editing_File *file,
             }
         }
 
-#if BUFFER_EXPERIMENT_SCALPEL
         if (file->token_stack.tokens)
             file_relex_parallel(mem, file, range.start, range.end, 0);
-#endif
     }
+#endif
 }
 
 COMMAND_DECL(to_uppercase){
@@ -1452,7 +1468,7 @@ COMMAND_DECL(set_settings){
         switch (p){
         case par_lex_as_cpp_file:
         {
-#if BUFFER_EXPERIMENT_SCALPEL
+#if BUFFER_EXPERIMENT_SCALPEL <= 0
             int v = dynamic_to_bool(&param->param.value);
             if (file->tokens_exist){
                 if (!v) file_kill_tokens(&mem->general, file);
@@ -1572,7 +1588,7 @@ extern "C"{
         if (view){
             Editing_File *file = view->file;
             if (file && !file->is_dummy){
-#if BUFFER_EXPERIMENT_SCALPEL
+#if BUFFER_EXPERIMENT_SCALPEL <= 0
                 Working_Set *working_set = cmd->working_set;
                 buffer.file_id = (int)(file - working_set->files);
                 buffer.size = file->buffer.size;
@@ -2943,7 +2959,7 @@ app_step(Thread_Context *thread, Key_Codes *codes,
                 view_set_file(file_view, file.file, style,
                               vars->hooks[hook_open_file], &command_data, app_links);
                 new_view->map = app_get_map(vars, file.file->base_map_id);
-#if BUFFER_EXPERIMENT_SCALPEL
+#if BUFFER_EXPERIMENT_SCALPEL <= 0
                 if (file.file->tokens_exist) file_first_lex_parallel(general, file.file);
 #endif
             }break;
@@ -3058,7 +3074,7 @@ app_step(Thread_Context *thread, Key_Codes *codes,
 
         Editing_File *file = vars->working_set.files;
         for (i32 i = vars->working_set.file_index_count; i > 0; --i, ++file){
-            if (file->buffer.data && !file->is_dummy){
+            if (buffer_good(&file->buffer) && !file->is_dummy){
                 file_measure_widths(&vars->mem.general, file, vars->style.font);
             }
         }

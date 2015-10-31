@@ -25,15 +25,80 @@ typedef struct{
 } Buffer;
 
 inline_4tech int
+buffer_good(Buffer *buffer){
+    int good;
+    good = (buffer->data != 0);
+    return(good);
+}
+
+inline_4tech int
 buffer_size(Buffer *buffer){
     return buffer->size;
 }
 
+typedef struct{
+    Buffer *buffer;
+    char *data;
+    int size;
+} Buffer_Init;
+
+internal_4tech Buffer_Init
+buffer_begin_init(Buffer *buffer, char *data, int size){
+    Buffer_Init init;
+    init.buffer = buffer;
+    init.data = data;
+    init.size = size;
+    return(init);
+}
+
+inline_4tech int
+buffer_init_need_more(Buffer_Init *init){
+    int result;
+    result = 1;
+    if (init->buffer->data) result = 0;
+    return(result);
+}
+
+inline_4tech int
+buffer_init_page_size(Buffer_Init *init){
+    int result;
+    result = init->size * 2;
+    return(result);
+}
+
+inline_4tech void
+buffer_init_provide_page(Buffer_Init *init, void *page, int page_size){
+    Buffer *buffer;
+    buffer = init->buffer;
+    buffer->data = (char*)page;
+    buffer->max = page_size;
+}
+
+internal_4tech int
+buffer_end_init(Buffer_Init *init){
+    Buffer *buffer;
+    int result;
+
+    result = 0;
+    buffer = init->buffer;
+    if (buffer->data){
+        if (buffer->max >= init->size){
+            buffer->size = eol_convert_in(buffer->data, init->data, init->size);
+            result = 1;
+        }
+    }
+    
+    return(result);
+}
+
+#if 0
 internal_4tech void
 buffer_initialize(Buffer *buffer, char *data, int size){
+    assert_4tech(buffer->data);
     assert_4tech(size <= buffer->max);
     buffer->size = eol_convert_in(buffer->data, data, size);
 }
+#endif
 
 internal_4tech void*
 buffer_relocate(Buffer *buffer, char *new_data, int new_max){
@@ -191,39 +256,6 @@ buffer_batch_edit_step(Buffer_Batch_State *state, Buffer *buffer, Buffer_Edit *s
     
     return(result);
 }
-
-#if 0
-internal_4tech int
-buffer_find_hard_start(Buffer *buffer, int line_start, int *all_whitespace, int *all_space,
-                       int *preferred_indent, int tab_width){
-    char *data;
-    int size;
-    int result;
-    char c;
-    
-    *all_space = 1;
-    *preferred_indent = 0;
-    
-    data = buffer->data;
-    size = buffer->size;
-    
-    tab_width -= 1;
-    
-    for (result = line_start; result < size; ++result){
-        c = data[result];
-        if (c == '\n' || c == 0){
-            *all_whitespace = 1;
-            break;
-        }
-        if (c >= '!' && c <= '~') break;
-        if (c == '\t') *preferred_indent += tab_width;
-        if (c != ' ') *all_space = 0;
-        *preferred_indent += 1;
-    }
-    
-    return(result);
-}
-#endif
 
 // BOTTOM
 

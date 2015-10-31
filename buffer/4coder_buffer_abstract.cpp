@@ -13,9 +13,11 @@
 
 // TOP
 
+#define Buffer_Init_Type cat_4tech(Buffer_Type, _Init)
 #define Buffer_Stringify_Type cat_4tech(Buffer_Type, _Stringify_Loop)
 #define Buffer_Backify_Type cat_4tech(Buffer_Type, _Backify_Loop)
 
+#if BUFFER_EXPERIMENT_SCALPEL <= 1
 inline_4tech void
 buffer_stringify(Buffer_Type *buffer, int start, int end, char *out){
     for (Buffer_Stringify_Type loop = buffer_stringify_loop(buffer, start, end, end - start);
@@ -364,8 +366,8 @@ buffer_seek_alphanumeric_or_camel_left_end:
 }
 
 internal_4tech int
-buffer_find_hard_start(Buffer_Type *buffer, int line_start, int *all_whitespace, int *all_space,
-                       int *preferred_indent, int tab_width){
+buffer_find_hard_start(Buffer_Type *buffer, int line_start, int *all_whitespace,
+                       int *all_space, int *preferred_indent, int tab_width){
     Buffer_Stringify_Type loop;
     char *data;
     int size, end;
@@ -401,6 +403,69 @@ buffer_find_hard_start(Buffer_Type *buffer, int line_start, int *all_whitespace,
     
 buffer_find_hard_start_end:
     return(result);
+}
+
+internal_4tech int
+buffer_find_string(Buffer_Type *buffer, int start_pos, char *str, int len, char *spare){
+    Buffer_Stringify_Type loop;
+    char *data;
+    int size, end;
+    int pos;
+    
+    size = buffer_size(buffer);
+
+    pos = start_pos;
+    if (len > 0){
+        for (loop = buffer_stringify_loop(buffer, start_pos, size - len + 1, size);
+             buffer_stringify_good(&loop);
+             buffer_stringify_next(&loop)){
+            end = loop.size + loop.absolute_pos;
+            data = loop.data - loop.absolute_pos;
+            for (; pos < end; ++pos){
+                if (*str == data[pos]){
+                    buffer_stringify(buffer, pos, pos + len, spare);
+                    if (is_match(str, spare, len))
+                        goto buffer_find_string_end;
+                }
+            }
+        }
+    }
+    
+buffer_find_string_end:
+    if (pos >= size - len + 1) pos = size;
+    return(pos);
+}
+
+internal_4tech int
+buffer_rfind_string(Buffer_Type *buffer, int start_pos, char *str, int len, char *spare){
+    Buffer_Backify_Type loop;
+    char *data;
+    int end, size;
+    int pos;
+    
+    size = buffer_size(buffer);
+    
+    pos = start_pos;
+    if (pos > size - len) pos = size - len;
+    
+    if (len > 0){
+        for (loop = buffer_backify_loop(buffer, start_pos, 0, size);
+             buffer_backify_good(&loop);
+             buffer_backify_next(&loop)){
+            end = loop.absolute_pos;
+            data = loop.data - loop.absolute_pos;
+            for (; pos >= end; --pos){
+                if (*str == data[pos]){
+                    buffer_stringify(buffer, pos, pos + len, spare);
+                    if (is_match(str, spare, len))
+                        goto buffer_rfind_string_end;
+                }
+            }
+        }
+    }
+    
+buffer_rfind_string_end:
+    return(pos);
 }
 
 typedef struct{
@@ -1058,6 +1123,7 @@ buffer_get_render_data_end:
     assert_4tech(item_i <= max);
     *count = item_i;
 }
+#endif
 
 #ifndef NON_ABSTRACT_4TECH
 #define NON_ABSTRACT_4TECH 1

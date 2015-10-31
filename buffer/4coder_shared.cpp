@@ -12,18 +12,43 @@
 
 // TOP
 
-#ifndef defines_4tech
+#ifndef inline_4tech
 #define inline_4tech inline
+#endif
+
+#ifndef internal_4tech
 #define internal_4tech static
+#endif
+
+#ifndef memset_4tech
 #define memset_4tech memset
+#endif
+
+#ifndef memcpy_4tech
 #define memcpy_4tech memcpy
+#endif
+
+#ifndef memmove_4tech
 #define memmove_4tech memmove
-#define defines_4tech 1
+#endif
+
+#ifndef debug_4tech
 #define debug_4tech(x) x
+#endif
+
+#ifndef assert_4tech
 #define assert_4tech assert
+#endif
 
+#ifndef ceil_4tech
 #define ceil_4tech CEIL32
+#endif
 
+#ifndef div_ceil_4tech
+#define div_ceil_4tech DIVCEIL32
+#endif
+
+#ifndef cat_4tech
 #define cat_4tech_(a,b) a##b
 #define cat_4tech(a,b) cat_4tech_(a,b)
 #endif
@@ -395,6 +420,17 @@ is_upper(char c){
 inline_4tech int
 is_lower(char c){
     return (c >= 'a' && c <= 'z');
+}
+
+internal_4tech int
+is_match(char *a, char *b, int len){
+    int result;
+
+    result = 1;
+    for (;len > 0; --len, ++a, ++b)
+        if (*a != *b) { result = 0; break; }
+
+    return(result);
 }
 
 // BOTTOM

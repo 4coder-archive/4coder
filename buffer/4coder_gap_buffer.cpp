@@ -25,13 +25,92 @@ typedef struct{
 } Gap_Buffer;
 
 inline_4tech int
+buffer_good(Gap_Buffer *buffer){
+    int good;
+    good = (buffer->data != 0);
+    return(good);
+}
+
+inline_4tech int
 buffer_size(Gap_Buffer *buffer){
     int size;
     size = buffer->size1 + buffer->size2;
     return(size);
 }
 
-inline_4tech void
+typedef struct{
+    Gap_Buffer *buffer;
+    char *data;
+    int size;
+} Gap_Buffer_Init;
+
+internal_4tech Gap_Buffer_Init
+buffer_begin_init(Gap_Buffer *buffer, char *data, int size){
+    Gap_Buffer_Init init;
+    init.buffer = buffer;
+    init.data = data;
+    init.size = size;
+    return(init);
+}
+
+internal_4tech int
+buffer_init_need_more(Gap_Buffer_Init *init){
+    int result;
+    result = 1;
+    if (init->buffer->data) result = 0;
+    return(result);
+}
+
+internal_4tech int
+buffer_init_page_size(Gap_Buffer_Init *init){
+    int result;
+    result = init->size * 2;
+    return(result);
+}
+
+internal_4tech void
+buffer_init_provide_page(Gap_Buffer_Init *init, void *page, int page_size){
+    Gap_Buffer *buffer;
+    buffer = init->buffer;
+    buffer->data = (char*)page;
+    buffer->max = page_size;
+}
+
+internal_4tech int
+buffer_end_init(Gap_Buffer_Init *init){
+    Gap_Buffer *buffer;
+    int osize1, size1, size2, size;
+    int result;
+
+    result = 0;
+    buffer = init->buffer;
+    size = init->size;
+    if (buffer->data){
+        if (buffer->max >= init->size){
+            size2 = size >> 1;
+            size1 = osize1 = size - size2;
+            
+            if (size1 > 0){
+                size1 = eol_convert_in(buffer->data, init->data, size1);
+                if (size2 > 0){
+                    size2 = eol_convert_in(buffer->data + size1, init->data + osize1, size2);
+                }
+            }
+            
+            buffer->size1 = size1;
+            buffer->size2 = size2;
+            buffer->gap_size = buffer->max - size1 - size2;
+            memmove_4tech(buffer->data + size1 + buffer->gap_size, buffer->data + size1, size2);
+            
+            result = 1;
+        }
+    }
+    
+    return(result);
+}
+
+#if 0
+internal_4tech void
 buffer_initialize(Gap_Buffer *buffer, char *data, int size){
     int osize1, size1, size2;
     
@@ -51,6 +130,7 @@ buffer_initialize(Gap_Buffer *buffer, char *data, int size){
     buffer->gap_size = buffer->max - size1 - size2;
     memmove_4tech(buffer->data + size1 + buffer->gap_size, buffer->data + size1, size2);
 }
+#endif
 
 internal_4tech void*
 buffer_relocate(Gap_Buffer *buffer, char *new_data, int new_max){

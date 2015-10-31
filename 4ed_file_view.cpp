@@ -11,13 +11,17 @@
 
 #include "buffer/4coder_shared.cpp"
 
-#if BUFFER_EXPERIMENT_SCALPEL
+#if BUFFER_EXPERIMENT_SCALPEL == 0
 #include "buffer/4coder_golden_array.cpp"
 #define Buffer_Type Buffer
-#else
+#elif BUFFER_EXPERIMENT_SCALPEL == 1
 #include "buffer/4coder_gap_buffer.cpp"
 #define Buffer_Type Gap_Buffer
+#else
+#include "buffer/4coder_multi_gap_buffer.cpp"
+#define Buffer_Type Multi_Gap_Buffer
 #endif
+
 #include "buffer/4coder_buffer_abstract.cpp"
 
 struct Range{
@@ -1118,6 +1122,7 @@ file_synchronize_times(Editing_File *file, u8 *filename){
 internal bool32
 file_save(Partition *part, Editing_File *file, u8 *filename){
 	bool32 result = 0;
+#if BUFFER_EXPERIMENT_SCALPEL <= 1
     Temp_Memory temp = begin_temp_memory(part);
     i32 max = partition_remaining(part);
     if (file->dos_write_mode){
@@ -1134,6 +1139,7 @@ file_save(Partition *part, Editing_File *file, u8 *filename){
     }
     end_temp_memory(temp);
     file_synchronize_times(file, filename);
+#endif
     return result;
 }
 
@@ -1149,7 +1155,11 @@ file_save_and_set_names(Partition *part, Editing_File *file, u8 *filename){
 
 inline i32
 file_count_newlines(Editing_File *file, i32 start, i32 end){
+#if BUFFER_EXPERIMENT_SCALPEL <= 1
     i32 count = buffer_count_newlines(&file->buffer, start, end);
+#else
+    i32 count = 0;
+#endif
     return count;
 }
 
@@ -1173,6 +1183,7 @@ enum File_Bubble_Type{
 internal i32
 file_grow_starts_as_needed(General_Memory *general, Editing_File *file, i32 additional_lines){
     bool32 result = GROW_NOT_NEEDED;
+#if BUFFER_EXPERIMENT_SCALPEL <= 1
     i32 max = file->buffer.line_max;
     i32 count = file->buffer.line_count;
     i32 target_lines = count + additional_lines;
@@ -1190,11 +1201,13 @@ file_grow_starts_as_needed(General_Memory *general, Editing_File *file, i32 addi
             result = GROW_FAILED;
         }
     }
+#endif
     return result;
 }
 
 internal void
 file_measure_starts(General_Memory *general, Editing_File *file){
+#if BUFFER_EXPERIMENT_SCALPEL <= 1
     ProfileMomentFunction();
     if (!file->buffer.line_starts){
         i32 max = file->buffer.line_max = Kbytes(1);
@@ -1220,18 +1233,21 @@ file_measure_starts(General_Memory *general, Editing_File *file){
         file->buffer.line_max = max;
     }
     file->buffer.line_count = state.count;
+#endif
 }
 
 internal void
 file_remeasure_starts(General_Memory *general, Editing_File *file,
                       i32 line_start, i32 line_end, i32 line_shift,
                       i32 character_shift){
+#if BUFFER_EXPERIMENT_SCALPEL <= 1
     ProfileMomentFunction();
     
     Assert(file->buffer.line_starts);
     file_grow_starts_as_needed(general, file, line_shift);
     
     buffer_remeasure_starts(&file->buffer, line_start, line_end, line_shift, character_shift);
+#endif
 }
 
 struct Opaque_Font_Advance{
@@ -1249,6 +1265,7 @@ get_opaque_font_advance(Font *font){
 
 internal void
 file_grow_widths_as_needed(General_Memory *general, Editing_File *file){
+#if BUFFER_EXPERIMENT_SCALPEL <= 1
     i32 line_count = file->buffer.line_count;
     if (line_count > file->buffer.widths_max){
         i32 new_max = LargeRoundUp(line_count, Kbytes(1));
@@ -1262,26 +1279,31 @@ file_grow_widths_as_needed(General_Memory *general, Editing_File *file){
         }
         file->buffer.widths_max = new_max;
     }
+#endif
 }
 
 internal void
 file_measure_widths(General_Memory *general, Editing_File *file, Font *font){
+#if BUFFER_EXPERIMENT_SCALPEL <= 1
     ProfileMomentFunction();
     
     file_grow_widths_as_needed(general, file);
     Opaque_Font_Advance opad = get_opaque_font_advance(font);
     buffer_measure_widths(&file->buffer, opad.data, opad.stride);
+#endif
 }
 
 internal void
 file_remeasure_widths(General_Memory *general, Editing_File *file, Font *font,
                       i32 line_start, i32 line_end, i32 line_shift){
+#if BUFFER_EXPERIMENT_SCALPEL <= 1
     ProfileMomentFunction();
     
     file_grow_widths_as_needed(general, file);
     Opaque_Font_Advance opad = get_opaque_font_advance(font);
     buffer_remeasure_widths(&file->buffer, opad.data, opad.stride,
                             line_start, line_end, line_shift);
+#endif
 }
 
 inline i32
@@ -1293,8 +1315,9 @@ view_wrapped_line_span(real32 line_width, real32 max_width){
 
 internal i32
 view_compute_lowest_line(File_View *view){
-    i32 last_line = view->line_count - 1;
     i32 lowest_line = 0;
+#if BUFFER_EXPERIMENT_SCALPEL <= 1
+    i32 last_line = view->line_count - 1;
     if (last_line > 0){
         if (view->unwrapped_lines){
             lowest_line = last_line;
@@ -1313,11 +1336,13 @@ view_compute_lowest_line(File_View *view){
             lowest_line += line_span - 1;
         }
     }
+#endif
     return lowest_line;
 }
 
 internal void
 view_measure_wraps(General_Memory *general, File_View *view){
+#if BUFFER_EXPERIMENT_SCALPEL <= 1
     ProfileMomentFunction();
     Editing_File *file = view->file;
     i32 line_count = file->buffer.line_count;
@@ -1340,23 +1365,35 @@ view_measure_wraps(General_Memory *general, File_View *view){
     buffer_measure_wrap_y(&file->buffer, view->line_wrap_y, line_height, max_width);
     
     view->line_count = line_count;
+#endif
+}
+
+internal void*
+alloc_for_buffer(void *context, int *size){
+    *size = LargeRoundUp(*size, Kbytes(4));
+    void *data = general_memory_allocate((General_Memory*)context, *size, BUBBLE_BUFFER);
+    return data;
 }
 
 internal void
 file_create_from_string(General_Memory *general, Editing_File *file, u8 *filename, Font *font, String val){
-    i32 request_size = LargeRoundUp(1+val.size*2, Kbytes(64));
-    u8 *data = (u8*)general_memory_allocate(general, request_size, BUBBLE_BUFFER);
-    
-    // TODO(allen): if we didn't get the memory what is going on?
-    // request_size too large?
-    // need to expand general memory allocator's base pool?
-    // need to release least recently used target?
-    Assert(data);
-    
     *file = {};
-    file->buffer.data = (char*)data;
-    file->buffer.max = request_size;
+#if BUFFER_EXPERIMENT_SCALPEL <= 2
+    
+    Buffer_Init_Type init = buffer_begin_init(&file->buffer, val.str, val.size);
+    for (; buffer_init_need_more(&init); ){
+        i32 page_size = buffer_init_page_size(&init);
+        page_size = LargeRoundUp(page_size, Kbytes(4));
+        void *data = general_memory_allocate(general, page_size, BUBBLE_BUFFER);
+        buffer_init_provide_page(&init, data, page_size);
+    }
+    i32 init_success = buffer_end_init(&init);
+    Assert(init_success);
+    
+#if 0
     buffer_initialize(&file->buffer, val.str, val.size);
+#endif
+#endif
     
     file_synchronize_times(file, filename);
     file_init_strings(file);
@@ -1367,7 +1404,8 @@ file_create_from_string(General_Memory *general, Editing_File *file, u8 *filenam
     file_measure_starts(general, file);
     file_measure_widths(general, file, font);
     file->font = font;
-    
+
+    i32 request_size = Kbytes(64);
     file->undo.undo.max = request_size;
     file->undo.undo.strings = (u8*)general_memory_allocate(general, request_size, BUBBLE_UNDO_STRING);
     file->undo.undo.edit_max = request_size / sizeof(Edit_Step);
@@ -1451,9 +1489,11 @@ file_close(General_Memory *general, Editing_File *file){
     if (file->token_stack.tokens){
         general_memory_free(general, file->token_stack.tokens);
     }
+#if BUFFER_EXPERIMENT_SCALPEL <= 1
     general_memory_free(general, file->buffer.data);
     general_memory_free(general, file->buffer.line_starts);
     general_memory_free(general, file->buffer.line_widths);
+#endif
     
     general_memory_free(general, file->undo.undo.strings);
     general_memory_free(general, file->undo.undo.edits);
@@ -1475,7 +1515,7 @@ struct Shift_Information{
 	i32 start, end, amount;
 };
 
-#if BUFFER_EXPERIMENT_SCALPEL
+#if BUFFER_EXPERIMENT_SCALPEL <= 0
 internal
 JOB_CALLBACK(job_full_lex){
     Editing_File *file = (Editing_File*)data[0];
@@ -1553,7 +1593,7 @@ file_kill_tokens(General_Memory *general, Editing_File *file){
     file->token_stack = {};
 }
 
-#if BUFFER_EXPERIMENT_SCALPEL
+#if BUFFER_EXPERIMENT_SCALPEL <= 0
 internal void
 file_first_lex_parallel(General_Memory *general, Editing_File *file){
     Assert(file->token_stack.tokens == 0);
@@ -1659,6 +1699,7 @@ file_relex_parallel(Mem_Options *mem, Editing_File *file,
 internal bool32
 file_grow_as_needed(General_Memory *general, Editing_File *file, i32 additional_size){
     bool32 result = 1;
+#if BUFFER_EXPERIMENT_SCALPEL <= 1
     i32 size = buffer_size(&file->buffer);
     i32 target_size = size + additional_size + 1;
     if (target_size >= file->buffer.max){
@@ -1669,6 +1710,7 @@ file_grow_as_needed(General_Memory *general, Editing_File *file, i32 additional_
         void *old_data = buffer_relocate(&file->buffer, new_data, request_size);
         general_memory_free(general, old_data);
 	}
+#endif
     return result;
 }
 
@@ -1746,6 +1788,7 @@ struct Edit_Spec{
     Edit_Step step;
 };
 
+#if BUFFER_EXPERIMENT_SCALPEL <= 1
 internal Edit_Step*
 file_post_undo(General_Memory *general, Editing_File *file,
                Edit_Step step, bool32 do_merge, bool32 can_merge){
@@ -1809,9 +1852,9 @@ file_post_undo(General_Memory *general, Editing_File *file,
         result = undo->edits + (undo->edit_count++);
         *result = inv_step;
     }
-    
     return result;
 }
+#endif    
 
 inline void
 undo_stack_pop(Edit_Stack *stack){
@@ -1821,6 +1864,7 @@ undo_stack_pop(Edit_Stack *stack){
     }
 }
 
+#if BUFFER_EXPERIMENT_SCALPEL <= 1
 internal void
 file_post_redo(General_Memory *general, Editing_File *file, Edit_Step step){
     Edit_Stack *redo = &file->undo.redo;
@@ -1857,6 +1901,7 @@ file_post_redo(General_Memory *general, Editing_File *file, Edit_Step step){
         redo->edits[redo->edit_count++] = inv_step;
     }
 }
+#endif
 
 inline void
 file_post_history_block(Editing_File *file, i32 pos){
@@ -1880,6 +1925,7 @@ file_unpost_history_block(Editing_File *file){
     file->undo.history_head_block = old_head->prev_block;
 }
 
+#if BUFFER_EXPERIMENT_SCALPEL <= 1
 internal Edit_Step*
 file_post_history(General_Memory *general, Editing_File *file,
                   Edit_Step step, bool32 do_merge, bool32 can_merge){
@@ -1949,37 +1995,47 @@ file_post_history(General_Memory *general, Editing_File *file,
     
     return result;
 }
+#endif
 
 inline Full_Cursor
 view_compute_cursor_from_pos(File_View *view, i32 pos){
+#if BUFFER_EXPERIMENT_SCALPEL <= 1    
     Editing_File *file = view->file;
     Style *style = view->style;
     Font *font = style->font;
     
     real32 max_width = view_compute_width(view);
     Opaque_Font_Advance opad = get_opaque_font_advance(font);
-    
+
     return buffer_cursor_from_pos(&file->buffer, pos, view->line_wrap_y,
                                   max_width, (real32)font->height, opad.data, opad.stride);
+#else
+    return view->cursor;
+#endif
 }
 
 inline Full_Cursor
 view_compute_cursor_from_unwrapped_xy(File_View *view, real32 seek_x, real32 seek_y,
                                       bool32 round_down = 0){
+#if BUFFER_EXPERIMENT_SCALPEL <= 1    
     Editing_File *file = view->file;
     Style *style = view->style;
     Font *font = style->font;
     
     real32 max_width = view_compute_width(view);
     Opaque_Font_Advance opad = get_opaque_font_advance(font);
-    
+
     return buffer_cursor_from_unwrapped_xy(&file->buffer, seek_x, seek_y, round_down, view->line_wrap_y,
                                            max_width, (real32)font->height, opad.data, opad.stride);
+#else
+    return view->cursor;
+#endif
 }
 
 inline Full_Cursor
 view_compute_cursor_from_wrapped_xy(File_View *view, real32 seek_x, real32 seek_y,
                                     bool32 round_down = 0){
+#if BUFFER_EXPERIMENT_SCALPEL <= 1    
     Editing_File *file = view->file;
     Style *style = view->style;
     Font *font = style->font;
@@ -1989,6 +2045,9 @@ view_compute_cursor_from_wrapped_xy(File_View *view, real32 seek_x, real32 seek_
     
     return buffer_cursor_from_wrapped_xy(&file->buffer, seek_x, seek_y, round_down, view->line_wrap_y,
                                          max_width, (real32)font->height, opad.data, opad.stride);
+#else
+    return view->cursor;
+#endif
 }
 
 inline Full_Cursor
@@ -2212,6 +2271,7 @@ enum History_Mode{
 internal void
 view_update_history_before_edit(Mem_Options *mem, Editing_File *file, Edit_Step step, u8 *str,
                                 History_Mode history_mode){
+#if BUFFER_EXPERIMENT_SCALPEL <= 1
     General_Memory *general = &mem->general;
     
 #if FRED_SLOW
@@ -2376,6 +2436,7 @@ view_update_history_before_edit(Mem_Options *mem, Editing_File *file, Edit_Step 
     }
     
     if (history_mode == hist_normal) file->undo.edit_history_cursor = file->undo.history.edit_count;
+#endif
 }
 
 inline b32
@@ -2409,20 +2470,21 @@ view_do_single_edit(Mem_Options *mem, File_View *view, Editing_File *file,
     // NOTE(allen): fixing stuff beforewards????
     view_update_history_before_edit(mem, file, spec.step, spec.str, history_mode);
     file_pre_edit_maintenance(file);
-    
+
+#if BUFFER_EXPERIMENT_SCALPEL <= 1    
     // NOTE(allen): actual text replacement
     General_Memory *general = &mem->general;
-    
+
     i32 start = spec.step.edit.start;
     i32 end = spec.step.edit.end;
-    char *str = (char*)spec.str; AllowLocal(str);
+    char *str = (char*)spec.str;
     i32 str_len = spec.step.edit.len;
-    
+
     i32 shift_amount = 0;
     while (buffer_replace_range(&file->buffer, start, end, str, str_len, &shift_amount))
         file_grow_as_needed(general, file, shift_amount);
     
-#if BUFFER_EXPERIMENT_SCALPEL    
+#if BUFFER_EXPERIMENT_SCALPEL <= 0
     // NOTE(allen): fixing stuff afterwards
     if (file->tokens_exist)
         file_relex_parallel(mem, file, start, end, shift_amount);
@@ -2484,11 +2546,13 @@ view_do_single_edit(Mem_Options *mem, File_View *view, Editing_File *file,
     }
     
     end_temp_memory(cursor_temp);
+#endif
 }
 
 internal void
 view_do_white_batch_edit(Mem_Options *mem, File_View *view, Editing_File *file,
                          Editing_Layout *layout, Edit_Spec spec, History_Mode history_mode){
+#if BUFFER_EXPERIMENT_SCALPEL <= 1
     Assert(file);
     ProfileMomentFunction();
     
@@ -2580,6 +2644,7 @@ view_do_white_batch_edit(Mem_Options *mem, File_View *view, Editing_File *file,
         }
         end_temp_memory(cursor_temp);
     }
+#endif
 }
 
 inline void
@@ -2704,7 +2769,7 @@ view_history_step(Mem_Options *mem, Editing_Layout *layout, File_View *view, His
 // TODO(allen): should these still be view operations?
 internal i32
 view_find_end_of_line(File_View *view, i32 pos){
-#if BUFFER_EXPERIMENT_SCALPEL
+#if BUFFER_EXPERIMENT_SCALPEL <= 0
 	Editing_File *file = view->file;
 	char *data = file->buffer.data;
 	while (pos < file->buffer.size && data[pos] != '\n') ++pos;
@@ -2715,7 +2780,7 @@ view_find_end_of_line(File_View *view, i32 pos){
 
 internal i32
 view_find_beginning_of_line(File_View *view, i32 pos){
-#if BUFFER_EXPERIMENT_SCALPEL
+#if BUFFER_EXPERIMENT_SCALPEL <= 0
 	Editing_File *file = view->file;
 	char *data = file->buffer.data;
 	if (pos > 0){
@@ -2729,7 +2794,7 @@ view_find_beginning_of_line(File_View *view, i32 pos){
 
 internal i32
 view_find_beginning_of_next_line(File_View *view, i32 pos){
-#if BUFFER_EXPERIMENT_SCALPEL
+#if BUFFER_EXPERIMENT_SCALPEL <= 0
 	Editing_File *file = view->file;
 	char *data = file->buffer.data;
 	while (pos < file->buffer.size &&
@@ -2833,11 +2898,13 @@ working_set_lookup_file(Working_Set *working_set, String string){
 
 internal void
 clipboard_copy(General_Memory *general, Working_Set *working, Range range, Editing_File *file){
+#if BUFFER_EXPERIMENT_SCALPEL <= 1
     i32 size = range.end - range.start;
     String *dest = working_set_next_clipboard_string(general, working, size);
     buffer_stringify(&file->buffer, range.start, range.end, dest->str);
     dest->size = size;
     system_post_clipboard(*dest);
+#endif
 }
 
 internal Edit_Spec
@@ -2845,6 +2912,7 @@ view_compute_whitespace_edit(Mem_Options *mem, Editing_File *file,
                              Buffer_Edit *edits, char *str_base, i32 str_size,
                              Buffer_Edit *inverse_array, char *inv_str, i32 inv_max,
                              i32 edit_count){
+#if BUFFER_EXPERIMENT_SCALPEL <= 1
     General_Memory *general = &mem->general;
     
     i32 inv_str_pos = 0;
@@ -2867,12 +2935,16 @@ view_compute_whitespace_edit(Mem_Options *mem, Editing_File *file,
     spec.step.special_type = 1;
     spec.step.child_count = edit_count;
     spec.step.inverse_child_count = edit_count;
+#else
+    Edit_Spec spec = {};
+#endif
     
     return spec;
 }
 
 internal void
 view_clean_whitespace(Mem_Options *mem, File_View *view, Editing_Layout *layout){
+#if BUFFER_EXPERIMENT_SCALPEL <= 1
     Editing_File *file = view->file;
     Assert(file && !file->is_dummy);
     Partition *part = &mem->part;
@@ -2926,12 +2998,13 @@ view_clean_whitespace(Mem_Options *mem, File_View *view, Editing_Layout *layout)
     }
     
     end_temp_memory(temp);
+#endif
 }
 
 internal void
 view_auto_tab_tokens(Mem_Options *mem, File_View *view, Editing_Layout *layout,
                      i32 start, i32 end, b32 empty_blank_lines){
-#if BUFFER_EXPERIMENT_SCALPEL    
+#if BUFFER_EXPERIMENT_SCALPEL <= 0
     Editing_File *file = view->file;
     Assert(file && !file->is_dummy);
     Partition *part = &mem->part;
@@ -3654,12 +3727,13 @@ draw_file_view(Thread_Context *thread, View *view_, i32_Rect rect, bool32 is_act
     bar.rect = rect;
     bar.rect.y1 = bar.rect.y0 + font->height + 2;
     rect.y0 += font->height + 2;
-    
+
+#if BUFFER_EXPERIMENT_SCALPEL <= 1        
     i32 max_x = rect.x1 - rect.x0;
     i32 max_y = rect.y1 - rect.y0 + font->height;
     
-    Assert(file && file->buffer.data && !file->is_dummy);
-    
+    Assert(file && buffer_good(&file->buffer) && !file->is_dummy);
+
     Opaque_Font_Advance opad = get_opaque_font_advance(font);
     b32 tokens_use = file->tokens_complete && (file->token_stack.count > 0);
     Cpp_Token_Stack token_stack = file->token_stack;
@@ -3670,7 +3744,7 @@ draw_file_view(Thread_Context *thread, View *view_, i32_Rect rect, bool32 is_act
     partition_align(part, 4);
     i32 max = partition_remaining(part) / sizeof(Buffer_Render_Item);
     Buffer_Render_Item *items = push_array(part, Buffer_Render_Item, max);
-    
+
     i32 count;
     buffer_get_render_data(&file->buffer, view->line_wrap_y, items, max, &count,
                            (real32)rect.x0, (real32)rect.y0, view->scroll_x, view->scroll_y, !view->unwrapped_lines,
@@ -3756,184 +3830,6 @@ draw_file_view(Thread_Context *thread, View *view_, i32_Rect rect, bool32 is_act
     }
     
     end_temp_memory(temp);
-
-#if 0
-    
-    i32 size = (i32)file->buffer.size;
-    u8 *data = (u8*)file->buffer.data;
-    
-    Full_Cursor start_cursor;
-    start_cursor = view_compute_cursor_from_xy(view, 0, view->scroll_y);
-    view->scroll_y_cursor = start_cursor;
-    
-    i32 start_character = start_cursor.pos;
-    
-    real32 shift_x = rect.x0 - view->scroll_x;
-    real32 shift_y = rect.y0 - view->scroll_y;
-    if (view->unwrapped_lines) shift_y += start_cursor.unwrapped_y;
-    else shift_y += start_cursor.wrapped_y;
-    
-    real32 pos_x = 0;
-    real32 pos_y = 0;
-    
-    u32 highlight_color = 0;
-    u32 main_color = style->main.default_color;
-    i32 token_i = 0;
-    
-    if (tokens_use){
-        Cpp_Get_Token_Result result = cpp_get_token(&token_stack, start_character);
-        token_i = result.token_index;
-        
-        main_color = *style_get_color(style, token_stack.tokens[token_i]);
-        ++token_i;
-    }
-
-    data[size] = 0;
-    for (i32 i = start_character; i <= size; ++i){
-        u8 to_render;
-        to_render = data[i];
-        
-        real32 ch_width = font_get_glyph_width(font, to_render);
-        real32 ch_advance = measure_character(opad.data, opad.stride, to_render);
-        
-        if (!view->unwrapped_lines && pos_x + ch_advance > max_x){
-            pos_x = 0;
-            pos_y += font->height;
-        }
-        
-        u32 fade_color = 0xFFFF00FF;
-        real32 fade_amount = 0.f;
-        if (view->paste_effect.tick_down > 0 &&
-            view->paste_effect.start <= i && i < view->paste_effect.end){
-            fade_color = view->paste_effect.color;
-            fade_amount = (real32)(view->paste_effect.tick_down) / view->paste_effect.tick_max;
-        }
-        
-        highlight_color = 0;
-        if (tokens_use){
-            Cpp_Token current_token = token_stack.tokens[token_i-1];
-            
-            if (token_i < token_stack.count){
-                if (i >= token_stack.tokens[token_i].start){
-                    main_color =
-                        *style_get_color(style, token_stack.tokens[token_i]);
-                    current_token = token_stack.tokens[token_i];
-                    ++token_i;
-                }
-                else if (i >= current_token.start + current_token.size){
-                    main_color = 0xFFFFFFFF;
-                }
-            }
-            
-            if (current_token.type == CPP_TOKEN_JUNK &&
-                i >= current_token.start && i <= current_token.start + current_token.size){
-                highlight_color = style->main.highlight_junk_color;
-            }
-        }
-        if (highlight_color == 0 && view->show_whitespace && char_is_whitespace(data[i])){
-            highlight_color = style->main.highlight_white_color;
-        }
-        
-        i32 cursor_mode = 0;
-        if (view->show_temp_highlight){
-            if (view->temp_highlight.pos <= i && i < view->temp_highlight_end_pos)
-                cursor_mode = 2;
-        }
-        else{
-            if (view->cursor.pos == i)
-                cursor_mode = 1;
-        }
-        
-        real32_Rect cursor_rect =
-            real32XYWH(shift_x + pos_x, shift_y + pos_y,
-                       1 + ch_width, (real32)font->height);
-        
-        if (to_render == '\t' || to_render == 0){
-            cursor_rect.x1 = cursor_rect.x0 + font->chardata[' '].xadvance;
-        }
-        
-        if (highlight_color != 0){
-            real32_Rect highlight_rect = cursor_rect;
-            highlight_rect.x0 += 1;
-            draw_rectangle(target, highlight_rect, highlight_color);
-        }
-        
-        u32 cursor_color = 0;
-        switch (cursor_mode){
-        case 1:
-            cursor_color = style->main.cursor_color; break;
-        case 2:
-            cursor_color = style->main.highlight_color; break;
-        }
-            
-        if (is_active){
-            if (cursor_color & 0xFF000000) draw_rectangle(target, cursor_rect, cursor_color);
-        }
-        else{
-            if (cursor_color & 0xFF000000)draw_rectangle_outline(target, cursor_rect, cursor_color);
-        }
-        if (i == view->mark){
-            draw_rectangle_outline(target, cursor_rect, style->main.mark_color);
-        }
-        
-        u32 char_color = main_color;
-        u32 special_char_color = main_color;
-        if (to_render == '\r'){
-            special_char_color = char_color = style->main.special_character_color;
-        }
-        if (is_active){
-            switch (cursor_mode){
-            case 1:
-                char_color = style->main.at_cursor_color; break;
-            case 2:
-                special_char_color = char_color = style->main.at_highlight_color; break;
-            }
-        }
-        
-        char_color = color_blend(char_color, fade_amount, fade_color);
-        special_char_color = color_blend(special_char_color, fade_amount, fade_color);
-        
-        if (to_render == '\r'){
-            font_draw_glyph(target, font, '\\',
-                            shift_x + pos_x,
-                            shift_y + pos_y,
-                            char_color);
-            pos_x += font_get_glyph_width(font, '\\');
-            
-            real32 cw = font_get_glyph_width(font, 'r');
-            draw_rectangle(target,
-                           real32XYWH(shift_x + pos_x,
-                                      shift_y + pos_y,
-                                      cw, (real32)font->height),
-                           highlight_color);
-            font_draw_glyph(target, font, 'r',
-                            shift_x + pos_x,
-                            shift_y + pos_y,
-                            special_char_color);
-            pos_x += cw;
-        }
-        
-        else if (to_render == '\n'){
-            pos_x = 0;
-            pos_y += font->height;
-        }
-            
-        else if (font->glyphs[to_render].exists){
-            font_draw_glyph(target, font, to_render,
-                            shift_x + pos_x,
-                            shift_y + pos_y,
-                            char_color);
-            pos_x += ch_width;
-        }
-            
-        else{
-            pos_x += ch_width;
-        }
-            
-        if (pos_y > max_y){
-            break;
-        }
-    }
 #endif
     
     if (view->widget.type != FWIDG_NONE){
@@ -4089,7 +3985,7 @@ HANDLE_COMMAND_SIG(handle_command_file_view){
     
     case FWIDG_SEARCH:
     {
-#if BUFFER_EXPERIMENT_SCALPEL
+#if BUFFER_EXPERIMENT_SCALPEL <= 1
         String *string = &file_view->isearch.str;
         Single_Line_Input_Step result =
             app_single_line_input_step(codes, key, string);
@@ -4100,72 +3996,61 @@ HANDLE_COMMAND_SIG(handle_command_file_view){
             bool32 step_forward = 0;
             bool32 step_backward = 0;
             
-            if (binding.function == command_search){
-                step_forward = 1;
-            }
-            if (binding.function == command_rsearch){
-                step_backward = 1;
-            }
+            if (binding.function == command_search) step_forward = 1;
+            if (binding.function == command_rsearch) step_backward = 1;
             
             i32 start_pos = file_view->isearch.pos;
             if (step_forward){
                 if (file_view->isearch.reverse){
-                    start_pos = file_view->temp_highlight.pos - 1;
+                    start_pos = file_view->temp_highlight.pos + 1;
                     file_view->isearch.pos = start_pos;
                     file_view->isearch.reverse = 0;
+                    step_forward = 0;
                 }
             }
             if (step_backward){
                 if (!file_view->isearch.reverse){
-                    start_pos = file_view->temp_highlight.pos + 1;
+                    start_pos = file_view->temp_highlight.pos - 1;
                     file_view->isearch.pos = start_pos;
                     file_view->isearch.reverse = 1;
+                    step_backward = 0;
                 }
             }
-            
-            String file_string = make_string(file->buffer.data, file->buffer.size);
+
+            Temp_Memory temp = begin_temp_memory(&view->mem->part);
+            char *spare = push_array(&view->mem->part, char, string->size);
+
+            i32 size = buffer_size(&file->buffer);
             i32 pos;
-            if (file_view->isearch.reverse){
-                if (result.hit_backspace){
-                    start_pos = file_view->temp_highlight.pos + 1;
-                    file_view->isearch.pos = start_pos;
-                }
-                else{
-                    pos = rfind_substr(file_string, start_pos - 1, *string);
+            if (!result.hit_backspace){
+                if (file_view->isearch.reverse){
+                    pos = buffer_rfind_string(&file->buffer, start_pos - 1, string->str, string->size, spare);
                     if (pos >= 0){
-                        if (step_backward){ // TODO(allen): this if and it's mirror are suspicious
+                        if (step_backward){
                             file_view->isearch.pos = pos;
                             start_pos = pos;
-                            pos = rfind_substr(file_string, start_pos - 1, *string);
-                            if (pos == -1){
-                                pos = start_pos;
-                            }
+                            pos = buffer_rfind_string(&file->buffer, start_pos - 1, string->str, string->size, spare);
+                            if (pos == -1) pos = start_pos;
                         }
                         view_set_temp_highlight(file_view, pos, pos+string->size);
                     }
                 }
-            }
-            
-            else{
-                if (result.hit_backspace){
-                    start_pos = file_view->temp_highlight.pos - 1;
-                    file_view->isearch.pos = start_pos;
-                }
+                
                 else{
-                    pos = find_substr(file_string, start_pos + 1, *string);
-                    if (pos < file->buffer.size){
+                    pos = buffer_find_string(&file->buffer, start_pos + 1, string->str, string->size, spare);
+                    if (pos < size){
                         if (step_forward){
                             file_view->isearch.pos = pos;
                             start_pos = pos;
-                            pos = find_substr(file_string, start_pos + 1, *string);
-                            if (pos == file->buffer.size){
-                                pos = start_pos;
-                            }
+                            pos = buffer_find_string(&file->buffer, start_pos + 1, string->str, string->size, spare);
+                            if (pos == size) pos = start_pos;
                         }
                         view_set_temp_highlight(file_view, pos, pos+string->size);
                     }
                 }
             }
+            
+            end_temp_memory(temp);
         }
         
         if (result.hit_newline || result.hit_ctrl_newline){

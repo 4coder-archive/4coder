@@ -1111,13 +1111,14 @@ step_draw_adjusting(Color_View *color_view, i32_Rect rect, View_Message message,
 
 internal void
 update_highlighting(Color_View *color_view){
-    Style *style = color_view->main_style;
     File_View *file_view = color_view->hot_file_view;
     if (!file_view){
         color_view->highlight = {};
         return;
     }
-    
+
+#if BUFFER_EXPERIMENT_SCALPEL <= 0
+    Style *style = color_view->main_style;
     Editing_File *file = file_view->file;
     i32 pos = view_get_cursor_pos(file_view);
     char c = file->buffer.data[pos];
@@ -1181,6 +1182,7 @@ update_highlighting(Color_View *color_view){
         color_view->highlight.ids[2] = 0;
         color_view->highlight.ids[3] = 0;
     }
+#endif
 }
 
 internal bool32

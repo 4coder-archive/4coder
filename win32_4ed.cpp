@@ -13,24 +13,28 @@
 // Fix the OwnDC thing.
 // 
 
+#ifdef FRED_NOT_PACKAGE
+
+#define FRED_INTERNAL 1
+#define FRED_SLOW 1
+
 #define FRED_PRINT_DEBUG 1
 #define FRED_PRINT_DEBUG_FILE_LINE 0
 #define FRED_PROFILING 1
 #define FRED_PROFILING_OS 0
 #define FRED_FULL_ERRORS 0
 
-#ifndef FRED_SLOW
-#define FRED_SLOW 0
 #else
-#undef FRED_SLOW
-#define FRED_SLOW 1
-#endif
 
-#ifndef FRED_INTERNAL
+#define FRED_SLOW 0
 #define FRED_INTERNAL 0
-#else
-#undef FRED_INTERNAL
-#define FRED_INTERNAL 1
+
+#define FRED_PRINT_DEBUG 0
+#define FRED_PRINT_DEBUG_FILE_LINE 0
+#define FRED_PROFILING 0
+#define FRED_PROFILING_OS 0
+#define FRED_FULL_ERRORS 0
+
 #endif
 
 #define SOFTWARE_RENDER 0
@@ -54,7 +58,7 @@
 #define FPS 30
 #define FRAME_TIME (1000000 / FPS)
 
-#define BUFFER_EXPERIMENT_SCALPEL 0
+#define BUFFER_EXPERIMENT_SCALPEL 2
 
 #include "4ed_meta.h"
 
