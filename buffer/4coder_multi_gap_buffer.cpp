@@ -30,6 +30,12 @@ typedef struct{
     int chunk_count;
     int chunk_max;
     int size;
+    
+    float *line_widths;
+    int *line_starts;
+    int line_count;
+    int line_max;
+    int widths_max;
 } Multi_Gap_Buffer;
 
 inline_4tech int
@@ -159,6 +165,201 @@ buffer_end_init(Multi_Gap_Buffer_Init *init){
     
     return(result);
 }
+
+internal_4tech int
+buffer_find_chunk(Multi_Gap_Buffer *buffer, int pos){
+    Fixed_Width_Gap_Buffer *gaps;
+    int start, end, m, this_pos;
+    
+    gaps = buffer->gaps;
+    start = 0;
+    end = buffer->chunk_count;
+    for(;;){
+        m = (start + end) / 2;
+        this_pos = gaps[m].start_pos;
+        if (this_pos < pos) start = m;
+        else if (this_pos > pos) end = m;
+        else break;
+        if (start+1 == end){
+            m = start; break;
+        }
+        assert_4tech(start < end);
+    }
+    return(m);
+}
+
+typedef struct{
+    Multi_Gap_Buffer *buffer;
+    Fixed_Width_Gap_Buffer *gaps;
+    char *data;
+    int absolute_pos;
+    int size;
+    int chunk_i;
+    int chunk_end;
+    int pos, end;
+} Multi_Gap_Buffer_Stringify_Loop;
+
+internal_4tech Multi_Gap_Buffer_Stringify_Loop
+buffer_stringify_loop(Multi_Gap_Buffer *buffer, int start, int end){
+    Multi_Gap_Buffer_Stringify_Loop result;
+    Fixed_Width_Gap_Buffer *gap;
+    int temp_end;
+    
+    if (0 <= start && start < end && end <= buffer->size){
+        result.buffer = buffer;
+        result.gaps = buffer->gaps;
+        result.absolute_pos = start;
+        
+        result.chunk_i = buffer_find_chunk(buffer, start);
+        result.chunk_end = buffer_find_chunk(buffer, end-1);
+        
+        gap = result.gaps + result.chunk_end;
+        end -= gap->start_pos;
+        if (end < gap->size1) result.end = end;
+        else result.end = end + gap->gap_size;
+        
+        gap = result.gaps + result.chunk_i;
+        start -= gap->start_pos;
+        if (start < gap->size1){
+            result.pos = start;
+            temp_end = gap->size1;
+        }
+        else{
+            result.pos = start + gap->gap_size;
+            temp_end = fixed_width_buffer_size;
+        }
+        
+        if (result.chunk_i == result.chunk_end && temp_end > result.end) temp_end = result.end;
+        result.size = temp_end - result.pos;
+        result.data = gap->data + result.pos;
+    }
+    else result.buffer = 0;
+    return(result);
+}
+
+inline_4tech int
+buffer_stringify_good(Multi_Gap_Buffer_Stringify_Loop *loop){
+    int result;
+    result = (loop->buffer != 0);
+    return(result);
+}
+
+internal_4tech void
+buffer_stringify_next(Multi_Gap_Buffer_Stringify_Loop *loop){
+    Fixed_Width_Gap_Buffer *gap;
+    int temp_end;
+
+    gap = loop->gaps + loop->chunk_i;
+    if (loop->chunk_i == loop->chunk_end && loop->pos + loop->size == loop->end){
+        loop->buffer = 0;
+    }
+    else{
+        if (loop->pos < gap->size1){
+            loop->pos = gap->size1 + gap->gap_size;
+            loop->absolute_pos = gap->start_pos + gap->size1;
+            temp_end = fixed_width_buffer_size;
+        }
+        else{
+            ++loop->chunk_i;
+            ++gap;
+            loop->pos = 0;
+            loop->absolute_pos = gap->start_pos;
+            temp_end = gap->size1;
+        }
+        if (loop->chunk_i == loop->chunk_end && temp_end > loop->end) temp_end = loop->end;
+        loop->size = temp_end - loop->pos;
+        loop->data = gap->data + loop->pos;
+    }
+}
+
+typedef struct{
+    Multi_Gap_Buffer *buffer;
+    Fixed_Width_Gap_Buffer *gaps;
+    char *data;
+    int absolute_pos;
+    int size;
+    int chunk_i;
+    int chunk_end;
+    int pos, end;
+} Multi_Gap_Buffer_Backify_Loop;
+
+internal_4tech Multi_Gap_Buffer_Backify_Loop
+buffer_backify_loop(Multi_Gap_Buffer *buffer, int start, int end){
+    Multi_Gap_Buffer_Backify_Loop result;
+    Fixed_Width_Gap_Buffer *gap;
+    int temp_end, temp_start;
+    
+    ++start;
+    if (0 <= end && end < start && start <= buffer->size){
+        result.buffer = buffer;
+        result.gaps = buffer->gaps;
+        
+        result.chunk_i = buffer_find_chunk(buffer, start);
+        result.chunk_end = buffer_find_chunk(buffer, end);
+        
+        gap = result.gaps + result.chunk_end;
+        end -= gap->start_pos;
+        if (end < gap->size1) result.end = end;
+        else result.end = end + gap->gap_size;
+        
+        gap = result.gaps + result.chunk_i;
+        start -= gap->start_pos;
+        if (start < gap->size1){
+            temp_end = start;
+            temp_start = 0;
+        }
+        else{
+            temp_end = start + gap->gap_size;
+            temp_start = gap->size1 + gap->gap_size;
+        }
+        
+        if (result.chunk_i == result.chunk_end && temp_start < result.end) temp_start = result.end;
+        result.pos = temp_start;
+        result.absolute_pos = temp_start + gap->start_pos;
+        if (temp_start >= gap->size1) result.absolute_pos -= gap->gap_size;
+        result.size = temp_end - temp_start;
+        result.data = gap->data + result.pos;
+    }
+    else result.buffer = 0;
+    return(result);
+}
+
+inline_4tech int
+buffer_backify_good(Multi_Gap_Buffer_Backify_Loop *loop){
+    int result;
+    result = (loop->buffer != 0);
+    return(result);
+}
+
+internal_4tech void
+buffer_backify_next(Multi_Gap_Buffer_Backify_Loop *loop){
+    Fixed_Width_Gap_Buffer *gap;
+    int temp_end, temp_start;
+    
+    gap = loop->gaps + loop->chunk_i;
+    if (loop->chunk_i == loop->chunk_end && loop->pos == loop->end){
+        loop->buffer = 0;
+    }
+    else{
+        if (loop->pos < gap->size1){
+            --gap;
+            --loop->chunk_i;
+            temp_start = gap->size1 + gap->gap_size;
+            temp_end = fixed_width_buffer_size;
+        }
+        else{
+            temp_start = 0;
+            temp_end = gap->size1;
+        }
+        if (loop->chunk_i == loop->chunk_end && temp_start < loop->end) temp_start = loop->end;
+        loop->absolute_pos = temp_start + gap->start_pos;
+        if (temp_start >= gap->size1) loop->absolute_pos -= gap->gap_size;
+        loop->pos = temp_start;
+        loop->size = temp_end - temp_start;
+        loop->data = gap->data + loop->pos;
+    }
+}
+
 
 // BOTTOM
 

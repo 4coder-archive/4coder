@@ -91,15 +91,6 @@ buffer_end_init(Buffer_Init *init){
     return(result);
 }
 
-#if 0
-internal_4tech void
-buffer_initialize(Buffer *buffer, char *data, int size){
-    assert_4tech(buffer->data);
-    assert_4tech(size <= buffer->max);
-    buffer->size = eol_convert_in(buffer->data, data, size);
-}
-#endif
-
 internal_4tech void*
 buffer_relocate(Buffer *buffer, char *new_data, int new_max){
     void *result;
@@ -119,11 +110,10 @@ typedef struct{
     char *data, *end;
     int absolute_pos;
     int size;
-    int page_size;
 } Buffer_Stringify_Loop;
 
 inline_4tech Buffer_Stringify_Loop
-buffer_stringify_loop(Buffer *buffer, int start, int end, int page_size){
+buffer_stringify_loop(Buffer *buffer, int start, int end){
     Buffer_Stringify_Loop result;
     if (0 <= start && start < end && end <= buffer->size){
         result.buffer = buffer;
@@ -131,8 +121,6 @@ buffer_stringify_loop(Buffer *buffer, int start, int end, int page_size){
         result.data = buffer->data + start;
         result.size = end - start;
         result.end = buffer->data + end;
-        result.page_size = page_size;
-        if (result.size > page_size) result.size = page_size;
     }
     else result.buffer = 0;
     return(result);
@@ -147,13 +135,7 @@ buffer_stringify_good(Buffer_Stringify_Loop *loop){
 
 inline_4tech void
 buffer_stringify_next(Buffer_Stringify_Loop *loop){
-    if (loop->data + loop->size == loop->end) loop->buffer = 0;
-    else{
-        loop->data += loop->page_size;
-        loop->absolute_pos += loop->page_size;
-        loop->size = (int)(loop->end - loop->data);
-        if (loop->size > loop->page_size) loop->size = loop->page_size;
-    }
+    loop->buffer = 0;
 }
 
 typedef struct{
@@ -161,20 +143,17 @@ typedef struct{
     char *data, *end;
     int absolute_pos;
     int size;
-    int page_size;
 } Buffer_Backify_Loop;
 
 inline_4tech Buffer_Backify_Loop
-buffer_backify_loop(Buffer *buffer, int start, int end, int page_size){
+buffer_backify_loop(Buffer *buffer, int start, int end){
     Buffer_Backify_Loop result;
     
     ++start;
     if (0 <= end && end < start && start <= buffer->size){
         result.buffer = buffer;
         result.end = buffer->data + end;
-        result.page_size = page_size;
         result.size = start - end;
-        if (result.size > page_size) result.size = page_size;
         result.absolute_pos = start - result.size;
         result.data = buffer->data + result.absolute_pos;
     }
@@ -191,18 +170,7 @@ buffer_backify_good(Buffer_Backify_Loop *loop){
 
 inline_4tech void
 buffer_backify_next(Buffer_Backify_Loop *loop){
-    char *old_data;
-    if (loop->data == loop->end) loop->buffer = 0;
-    else{
-        old_data = loop->data;
-        loop->data -= loop->page_size;
-        loop->absolute_pos -= loop->page_size;
-        if (loop->data < loop->end){
-            loop->size = (int)(old_data - loop->end);
-            loop->data = loop->end;
-            loop->absolute_pos = 0;
-        }
-    }
+    loop->buffer = 0;
 }
 
 internal_4tech int

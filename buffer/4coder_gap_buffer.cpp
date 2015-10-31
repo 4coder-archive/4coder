@@ -109,29 +109,6 @@ buffer_end_init(Gap_Buffer_Init *init){
     return(result);
 }
 
-#if 0
-internal_4tech void
-buffer_initialize(Gap_Buffer *buffer, char *data, int size){
-    int osize1, size1, size2;
-    
-    assert_4tech(buffer->max >= size);
-    size2 = size >> 1;
-    size1 = osize1 = size - size2;
-    
-    if (size1 > 0){
-        size1 = eol_convert_in(buffer->data, data, size1);
-        if (size2 > 0){
-            size2 = eol_convert_in(buffer->data + size1, data + osize1, size2);
-        }
-    }
-    
-    buffer->size1 = size1;
-    buffer->size2 = size2;
-    buffer->gap_size = buffer->max - size1 - size2;
-    memmove_4tech(buffer->data + size1 + buffer->gap_size, buffer->data + size1, size2);
-}
-#endif
-
 internal_4tech void*
 buffer_relocate(Gap_Buffer *buffer, char *new_data, int new_max){
     void *result;
@@ -157,17 +134,15 @@ typedef struct{
     int absolute_pos;
     int pos, end;
     int size;
-    int page_size;
     int separated;
 } Gap_Buffer_Stringify_Loop;
 
-inline_4tech Gap_Buffer_Stringify_Loop
-buffer_stringify_loop(Gap_Buffer *buffer, int start, int end, int page_size){
+internal_4tech Gap_Buffer_Stringify_Loop
+buffer_stringify_loop(Gap_Buffer *buffer, int start, int end){
     Gap_Buffer_Stringify_Loop result;
     if (0 <= start && start < end && end <= buffer->size1 + buffer->size2){
         result.buffer = buffer;
         result.base = buffer->data;
-        result.page_size = page_size;
         result.absolute_pos = start;
         
         if (end <= buffer->size1) result.end = end;
@@ -184,7 +159,6 @@ buffer_stringify_loop(Gap_Buffer *buffer, int start, int end, int page_size){
         }
         if (result.separated) result.size = buffer->size1 - start;
         else result.size = end - start;
-        if (result.size > page_size) result.size = page_size;
         result.data = buffer->data + result.pos;
     }
     else result.buffer = 0;
@@ -198,36 +172,21 @@ buffer_stringify_good(Gap_Buffer_Stringify_Loop *loop){
     return(result);
 }
 
-inline_4tech void
+internal_4tech void
 buffer_stringify_next(Gap_Buffer_Stringify_Loop *loop){
     int size1, temp_end;
     if (loop->separated){
+        loop->separated = 0;
         size1 = loop->buffer->size1;
-        if (loop->pos + loop->size == size1){
-            loop->separated = 0;
-            loop->pos = loop->buffer->gap_size + size1;
-            loop->absolute_pos = size1;
-            temp_end = loop->end;
-        }
-        else{
-            loop->pos += loop->page_size;
-            loop->absolute_pos += loop->page_size;
-            temp_end = size1;
-        }
+        loop->pos = loop->buffer->gap_size + size1;
+        loop->absolute_pos = size1;
+        temp_end = loop->end;
     }
     else{
-        if (loop->pos + loop->size == loop->end){
-            loop->buffer = 0;
-            temp_end = loop->pos;
-        }
-        else{
-            loop->pos += loop->page_size;
-            loop->absolute_pos += loop->page_size;
-            temp_end = loop->end;
-        }
+        loop->buffer = 0;
+        temp_end = loop->pos;
     }
     loop->size = temp_end - loop->pos;
-    if (loop->size > loop->page_size) loop->size = loop->page_size;
     loop->data = loop->base + loop->pos;
 }
 
@@ -237,41 +196,31 @@ typedef struct{
     int pos, end;
     int size;
     int absolute_pos;
-    int page_size;
     int separated;
 } Gap_Buffer_Backify_Loop;
 
-inline_4tech Gap_Buffer_Backify_Loop
-buffer_backify_loop(Gap_Buffer *buffer, int start, int end, int page_size){
+internal_4tech Gap_Buffer_Backify_Loop
+buffer_backify_loop(Gap_Buffer *buffer, int start, int end){
     Gap_Buffer_Backify_Loop result;
-    int chunk2_start;
     
     ++start;
     if (0 <= end && end < start && start <= buffer->size1 + buffer->size2){
-        chunk2_start = buffer->size1 + buffer->gap_size;
-        
         result.buffer = buffer;
         result.base = buffer->data;
-        result.page_size = page_size;
         
         if (end < buffer->size1) result.end = end;
         else result.end = end + buffer->gap_size;
         
         if (start <= buffer->size1){
             result.separated = 0;
-            result.pos = start - page_size;
+            result.pos = 0;
         }
         else{
             if (end < buffer->size1) result.separated = 1;
             else result.separated = 0;
-            result.pos = start - page_size + buffer->gap_size;
+            result.pos = buffer->size1 + buffer->gap_size;
         }
-        if (result.separated){
-            if (result.pos < chunk2_start) result.pos = chunk2_start;
-        }
-        else{
-            if (result.pos < result.end) result.pos = result.end;
-        }
+        if (!result.separated && result.pos < result.end) result.pos = result.end;
         result.size = start - result.pos;
         result.absolute_pos = result.pos;
         if (result.absolute_pos > buffer->size1) result.absolute_pos -= buffer->gap_size;
@@ -288,7 +237,7 @@ buffer_backify_good(Gap_Buffer_Backify_Loop *loop){
     return(result);
 }
 
-inline_4tech void
+internal_4tech void
 buffer_backify_next(Gap_Buffer_Backify_Loop *loop){
     Gap_Buffer *buffer;
     int temp_end;
@@ -296,40 +245,18 @@ buffer_backify_next(Gap_Buffer_Backify_Loop *loop){
     buffer = loop->buffer;
     chunk2_start = buffer->size1 + buffer->gap_size;
     if (loop->separated){
-        if (loop->pos == chunk2_start){
-            loop->separated = 0;
-            temp_end = buffer->size1;
-            loop->pos = temp_end - loop->page_size;
-            loop->absolute_pos = loop->pos;
-            if (loop->pos < loop->end){
-                loop->absolute_pos += (loop->end - loop->pos);
-                loop->pos = loop->end;
-            }
-        }
-        else{
-            temp_end = loop->pos;
-            loop->pos -= loop->page_size;
-            loop->absolute_pos -= loop->page_size;
-            if (loop->pos < chunk2_start){
-                loop->pos = chunk2_start;
-                loop->absolute_pos = buffer->size1;
-            }
+        loop->separated = 0;
+        temp_end = buffer->size1;
+        loop->pos = 0;
+        loop->absolute_pos = 0;
+        if (loop->pos < loop->end){
+            loop->absolute_pos = loop->end;
+            loop->pos = loop->end;
         }
     }
     else{
-        if (loop->pos == loop->end){
-            temp_end = 0;
-            loop->buffer = 0;
-        }
-        else{
-            temp_end = loop->pos;
-            loop->pos -= loop->page_size;
-            loop->absolute_pos -= loop->page_size;
-            if (loop->pos < loop->end){
-                loop->absolute_pos += (loop->end - loop->pos);
-                loop->pos = loop->end;
-            }
-        }
+        temp_end = 0;
+        loop->buffer = 0;
     }
     loop->size = temp_end - loop->pos;
     loop->data = loop->base + loop->pos;

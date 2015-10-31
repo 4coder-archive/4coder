@@ -17,10 +17,10 @@
 #define Buffer_Stringify_Type cat_4tech(Buffer_Type, _Stringify_Loop)
 #define Buffer_Backify_Type cat_4tech(Buffer_Type, _Backify_Loop)
 
-#if BUFFER_EXPERIMENT_SCALPEL <= 1
+#if BUFFER_EXPERIMENT_SCALPEL <= 2
 inline_4tech void
 buffer_stringify(Buffer_Type *buffer, int start, int end, char *out){
-    for (Buffer_Stringify_Type loop = buffer_stringify_loop(buffer, start, end, end - start);
+    for (Buffer_Stringify_Type loop = buffer_stringify_loop(buffer, start, end);
          buffer_stringify_good(&loop);
          buffer_stringify_next(&loop)){
         memcpy_4tech(out, loop.data, loop.size);
@@ -37,7 +37,7 @@ buffer_convert_out(Buffer_Type *buffer, char *dest, int max){
     assert_4tech(size + buffer->line_count < max);
     
     pos = 0;
-    for (loop = buffer_stringify_loop(buffer, 0, size, size);
+    for (loop = buffer_stringify_loop(buffer, 0, size);
          buffer_stringify_good(&loop);
          buffer_stringify_next(&loop)){
         result = eol_convert_out(dest + pos, max - pos, loop.data, loop.size, &out_size);
@@ -60,7 +60,7 @@ buffer_count_newlines(Buffer_Type *buffer, int start, int end){
     
     count = 0;
 
-    for (loop = buffer_stringify_loop(buffer, start, end, end - start);
+    for (loop = buffer_stringify_loop(buffer, start, end);
          buffer_stringify_good(&loop);
          buffer_stringify_next(&loop)){
         for (i = 0; i < loop.size; ++i){
@@ -70,7 +70,9 @@ buffer_count_newlines(Buffer_Type *buffer, int start, int end){
     
     return(count);
 }
+#endif
 
+#if BUFFER_EXPERIMENT_SCALPEL <= 2
 internal_4tech int
 buffer_seek_whitespace_down(Buffer_Type *buffer, int pos){
     Buffer_Stringify_Type loop;
@@ -81,7 +83,7 @@ buffer_seek_whitespace_down(Buffer_Type *buffer, int pos){
     int prev_endline;
     
     size = buffer_size(buffer);
-    loop = buffer_stringify_loop(buffer, pos, size, size);
+    loop = buffer_stringify_loop(buffer, pos, size);
     
     for (;buffer_stringify_good(&loop);
          buffer_stringify_next(&loop)){
@@ -129,7 +131,7 @@ buffer_seek_whitespace_up(Buffer_Type *buffer, int pos){
     int no_hard;
     
     size = buffer_size(buffer);
-    loop = buffer_backify_loop(buffer, pos, 1, size);
+    loop = buffer_backify_loop(buffer, pos, 1);
     
     for (;buffer_backify_good(&loop);
          buffer_backify_next(&loop)){
@@ -171,7 +173,7 @@ buffer_seek_whitespace_right(Buffer_Type *buffer, int pos){
     int size;
     
     size = buffer_size(buffer);
-    loop = buffer_stringify_loop(buffer, pos, size, size);
+    loop = buffer_stringify_loop(buffer, pos, size);
     
     for (;buffer_stringify_good(&loop);
          buffer_stringify_next(&loop)){
@@ -202,7 +204,7 @@ buffer_seek_whitespace_left(Buffer_Type *buffer, int pos){
     --pos;
     if (pos > 0){
         size = buffer_size(buffer);
-        loop = buffer_backify_loop(buffer, pos, 1, size);
+        loop = buffer_backify_loop(buffer, pos, 1);
     
         for (;buffer_backify_good(&loop);
              buffer_backify_next(&loop)){
@@ -237,7 +239,7 @@ buffer_seek_alphanumeric_right(Buffer_Type *buffer, int pos){
     int size;
     
     size = buffer_size(buffer);
-    loop = buffer_stringify_loop(buffer, pos, size, size);
+    loop = buffer_stringify_loop(buffer, pos, size);
     
     for (;buffer_stringify_good(&loop);
          buffer_stringify_next(&loop)){
@@ -268,7 +270,7 @@ buffer_seek_alphanumeric_left(Buffer_Type *buffer, int pos){
     --pos;
     if (pos >= 0){
         size = buffer_size(buffer);
-        loop = buffer_backify_loop(buffer, pos, 1, size);
+        loop = buffer_backify_loop(buffer, pos, 1);
         
         for (;buffer_backify_good(&loop);
              buffer_backify_next(&loop)){
@@ -308,7 +310,7 @@ buffer_seek_alphanumeric_or_camel_right(Buffer_Type *buffer, int pos, int an_pos
 
     ++pos;
     if (pos < an_pos){
-        loop = buffer_stringify_loop(buffer, pos, an_pos, size);
+        loop = buffer_stringify_loop(buffer, pos, an_pos);
         if (buffer_stringify_good(&loop)){
             prev_ch = loop.data[0];
             ++pos;
@@ -344,7 +346,7 @@ buffer_seek_alphanumeric_or_camel_left(Buffer_Type *buffer, int pos, int an_pos)
     assert_4tech(an_pos <= pos);
     assert_4tech(0 <= an_pos);
     
-    loop = buffer_backify_loop(buffer, pos, an_pos+1, size);
+    loop = buffer_backify_loop(buffer, pos, an_pos+1);
     if (buffer_backify_good(&loop)){
         prev_ch = loop.data[0];
         --pos;
@@ -382,7 +384,7 @@ buffer_find_hard_start(Buffer_Type *buffer, int line_start, int *all_whitespace,
     tab_width -= 1;
     
     result = line_start;
-    for (loop = buffer_stringify_loop(buffer, line_start, size, size);
+    for (loop = buffer_stringify_loop(buffer, line_start, size);
          buffer_stringify_good(&loop);
          buffer_stringify_next(&loop)){
         end = loop.size + loop.absolute_pos;
@@ -416,7 +418,7 @@ buffer_find_string(Buffer_Type *buffer, int start_pos, char *str, int len, char 
 
     pos = start_pos;
     if (len > 0){
-        for (loop = buffer_stringify_loop(buffer, start_pos, size - len + 1, size);
+        for (loop = buffer_stringify_loop(buffer, start_pos, size - len + 1);
              buffer_stringify_good(&loop);
              buffer_stringify_next(&loop)){
             end = loop.size + loop.absolute_pos;
@@ -449,7 +451,7 @@ buffer_rfind_string(Buffer_Type *buffer, int start_pos, char *str, int len, char
     if (pos > size - len) pos = size - len;
     
     if (len > 0){
-        for (loop = buffer_backify_loop(buffer, start_pos, 0, size);
+        for (loop = buffer_backify_loop(buffer, start_pos, 0);
              buffer_backify_good(&loop);
              buffer_backify_next(&loop)){
             end = loop.absolute_pos;
@@ -467,7 +469,9 @@ buffer_rfind_string(Buffer_Type *buffer, int start_pos, char *str, int len, char
 buffer_rfind_string_end:
     return(pos);
 }
+#endif
 
+#if BUFFER_EXPERIMENT_SCALPEL <= 2
 typedef struct{
     int i;
     int count;
@@ -494,7 +498,7 @@ buffer_measure_starts(Buffer_Measure_Starts *state, Buffer_Type *buffer){
     count = state->count;
     start = state->start;
     
-    for (loop = buffer_stringify_loop(buffer, i, size, size);
+    for (loop = buffer_stringify_loop(buffer, i, size);
          buffer_stringify_good(&loop);
          buffer_stringify_next(&loop)){
         end = loop.size + loop.absolute_pos;
@@ -563,7 +567,7 @@ buffer_remeasure_starts(Buffer_Type *buffer, int line_start, int line_end, int l
     line_i = line_start;
     start = char_i;
 
-    for (loop = buffer_stringify_loop(buffer, char_i, size, size);
+    for (loop = buffer_stringify_loop(buffer, char_i, size);
          buffer_stringify_good(&loop);
          buffer_stringify_next(&loop)){
         end = loop.size + loop.absolute_pos;
@@ -623,7 +627,7 @@ buffer_remeasure_widths(Buffer_Type *buffer, void *advance_data, int stride,
     
     width = 0;
     
-    for (loop = buffer_stringify_loop(buffer, j, size, size);
+    for (loop = buffer_stringify_loop(buffer, j, size);
          buffer_stringify_good(&loop);
          buffer_stringify_next(&loop)){
         end = loop.size + loop.absolute_pos;
@@ -703,6 +707,7 @@ buffer_get_line_index(Buffer_Type *buffer, int pos){
     result = buffer_get_line_index_range(buffer, pos, 0, buffer->line_count);
     return(result);
 }
+#endif
 
 #ifndef NON_ABSTRACT_4TECH
 internal_4tech int
@@ -841,6 +846,7 @@ cursor_seek_step_end:
 
 #endif
 
+#if BUFFER_EXPERIMENT_SCALPEL <= 2
 internal_4tech Full_Cursor
 buffer_cursor_seek(Buffer_Type *buffer, Buffer_Seek seek, float max_width, float font_height,
                    void *advance_data, int stride, Full_Cursor cursor){
@@ -861,7 +867,7 @@ buffer_cursor_seek(Buffer_Type *buffer, Buffer_Seek seek, float max_width, float
     
     result = 1;
     i = cursor.pos;
-    for (loop = buffer_stringify_loop(buffer, i, size, size);
+    for (loop = buffer_stringify_loop(buffer, i, size);
          buffer_stringify_good(&loop);
          buffer_stringify_next(&loop)){
         end = loop.size + loop.absolute_pos;
@@ -924,7 +930,9 @@ buffer_cursor_from_wrapped_xy(Buffer_Type *buffer, float x, float y, int round_d
 
     return(result);
 }
+#endif
 
+#if BUFFER_EXPERIMENT_SCALPEL <= 2
 internal_4tech void
 buffer_invert_edit_shift(Buffer_Type *buffer, Buffer_Edit edit, Buffer_Edit *inverse, char *strings,
                          int *str_pos, int max, int shift_amount){
@@ -986,7 +994,9 @@ buffer_invert_batch(Buffer_Invert_Batch *state, Buffer_Type *buffer, Buffer_Edit
     
     return(result);
 }
+#endif
 
+#if BUFFER_EXPERIMENT_SCALPEL <= 1
 internal_4tech void
 buffer_batch_edit(Buffer_Type *buffer, Buffer_Edit *sorted_edits, char *strings, int edit_count){
     Buffer_Batch_State state;
@@ -999,7 +1009,9 @@ buffer_batch_edit(Buffer_Type *buffer, Buffer_Edit *sorted_edits, char *strings,
         buffer_batch_edit_step(&state, buffer, sorted_edits, strings, edit_count);
     assert_4tech(result == 0);
 }
+#endif
 
+#if BUFFER_EXPERIMENT_SCALPEL <= 2
 internal_4tech void
 buffer_get_render_data(Buffer_Type *buffer, float *wraps, Buffer_Render_Item *items, int max, int *count,
                        float port_x, float port_y, float scroll_x, float scroll_y, int wrapped,
@@ -1035,7 +1047,7 @@ buffer_get_render_data(Buffer_Type *buffer, float *wraps, Buffer_Render_Item *it
     item_i = 0;
     item = items + item_i;
     
-    for (loop = buffer_stringify_loop(buffer, start_cursor.pos, size, size);
+    for (loop = buffer_stringify_loop(buffer, start_cursor.pos, size);
          buffer_stringify_good(&loop);
          buffer_stringify_next(&loop)){
         

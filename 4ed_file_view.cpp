@@ -1155,7 +1155,7 @@ file_save_and_set_names(Partition *part, Editing_File *file, u8 *filename){
 
 inline i32
 file_count_newlines(Editing_File *file, i32 start, i32 end){
-#if BUFFER_EXPERIMENT_SCALPEL <= 1
+#if BUFFER_EXPERIMENT_SCALPEL <= 2
     i32 count = buffer_count_newlines(&file->buffer, start, end);
 #else
     i32 count = 0;
@@ -1183,7 +1183,7 @@ enum File_Bubble_Type{
 internal i32
 file_grow_starts_as_needed(General_Memory *general, Editing_File *file, i32 additional_lines){
     bool32 result = GROW_NOT_NEEDED;
-#if BUFFER_EXPERIMENT_SCALPEL <= 1
+#if BUFFER_EXPERIMENT_SCALPEL <= 2
     i32 max = file->buffer.line_max;
     i32 count = file->buffer.line_count;
     i32 target_lines = count + additional_lines;
@@ -1207,7 +1207,7 @@ file_grow_starts_as_needed(General_Memory *general, Editing_File *file, i32 addi
 
 internal void
 file_measure_starts(General_Memory *general, Editing_File *file){
-#if BUFFER_EXPERIMENT_SCALPEL <= 1
+#if BUFFER_EXPERIMENT_SCALPEL <= 2
     ProfileMomentFunction();
     if (!file->buffer.line_starts){
         i32 max = file->buffer.line_max = Kbytes(1);
@@ -1240,7 +1240,7 @@ internal void
 file_remeasure_starts(General_Memory *general, Editing_File *file,
                       i32 line_start, i32 line_end, i32 line_shift,
                       i32 character_shift){
-#if BUFFER_EXPERIMENT_SCALPEL <= 1
+#if BUFFER_EXPERIMENT_SCALPEL <= 2
     ProfileMomentFunction();
     
     Assert(file->buffer.line_starts);
@@ -1265,7 +1265,7 @@ get_opaque_font_advance(Font *font){
 
 internal void
 file_grow_widths_as_needed(General_Memory *general, Editing_File *file){
-#if BUFFER_EXPERIMENT_SCALPEL <= 1
+#if BUFFER_EXPERIMENT_SCALPEL <= 2
     i32 line_count = file->buffer.line_count;
     if (line_count > file->buffer.widths_max){
         i32 new_max = LargeRoundUp(line_count, Kbytes(1));
@@ -1284,7 +1284,7 @@ file_grow_widths_as_needed(General_Memory *general, Editing_File *file){
 
 internal void
 file_measure_widths(General_Memory *general, Editing_File *file, Font *font){
-#if BUFFER_EXPERIMENT_SCALPEL <= 1
+#if BUFFER_EXPERIMENT_SCALPEL <= 2
     ProfileMomentFunction();
     
     file_grow_widths_as_needed(general, file);
@@ -1296,7 +1296,7 @@ file_measure_widths(General_Memory *general, Editing_File *file, Font *font){
 internal void
 file_remeasure_widths(General_Memory *general, Editing_File *file, Font *font,
                       i32 line_start, i32 line_end, i32 line_shift){
-#if BUFFER_EXPERIMENT_SCALPEL <= 1
+#if BUFFER_EXPERIMENT_SCALPEL <= 2
     ProfileMomentFunction();
     
     file_grow_widths_as_needed(general, file);
@@ -1316,7 +1316,7 @@ view_wrapped_line_span(real32 line_width, real32 max_width){
 internal i32
 view_compute_lowest_line(File_View *view){
     i32 lowest_line = 0;
-#if BUFFER_EXPERIMENT_SCALPEL <= 1
+#if BUFFER_EXPERIMENT_SCALPEL <= 2
     i32 last_line = view->line_count - 1;
     if (last_line > 0){
         if (view->unwrapped_lines){
@@ -1342,7 +1342,7 @@ view_compute_lowest_line(File_View *view){
 
 internal void
 view_measure_wraps(General_Memory *general, File_View *view){
-#if BUFFER_EXPERIMENT_SCALPEL <= 1
+#if BUFFER_EXPERIMENT_SCALPEL <= 2
     ProfileMomentFunction();
     Editing_File *file = view->file;
     i32 line_count = file->buffer.line_count;
@@ -1389,10 +1389,6 @@ file_create_from_string(General_Memory *general, Editing_File *file, u8 *filenam
     }
     i32 init_success = buffer_end_init(&init);
     Assert(init_success);
-    
-#if 0
-    buffer_initialize(&file->buffer, val.str, val.size);
-#endif
 #endif
     
     file_synchronize_times(file, filename);
@@ -1493,6 +1489,8 @@ file_close(General_Memory *general, Editing_File *file){
     general_memory_free(general, file->buffer.data);
     general_memory_free(general, file->buffer.line_starts);
     general_memory_free(general, file->buffer.line_widths);
+#elif BUFFER_EXPERIMENT_SCALPEL == 2
+    // TODO
 #endif
     
     general_memory_free(general, file->undo.undo.strings);
@@ -1999,7 +1997,7 @@ file_post_history(General_Memory *general, Editing_File *file,
 
 inline Full_Cursor
 view_compute_cursor_from_pos(File_View *view, i32 pos){
-#if BUFFER_EXPERIMENT_SCALPEL <= 1    
+#if BUFFER_EXPERIMENT_SCALPEL <= 2
     Editing_File *file = view->file;
     Style *style = view->style;
     Font *font = style->font;
@@ -2017,7 +2015,7 @@ view_compute_cursor_from_pos(File_View *view, i32 pos){
 inline Full_Cursor
 view_compute_cursor_from_unwrapped_xy(File_View *view, real32 seek_x, real32 seek_y,
                                       bool32 round_down = 0){
-#if BUFFER_EXPERIMENT_SCALPEL <= 1    
+#if BUFFER_EXPERIMENT_SCALPEL <= 2
     Editing_File *file = view->file;
     Style *style = view->style;
     Font *font = style->font;
@@ -2035,7 +2033,7 @@ view_compute_cursor_from_unwrapped_xy(File_View *view, real32 seek_x, real32 see
 inline Full_Cursor
 view_compute_cursor_from_wrapped_xy(File_View *view, real32 seek_x, real32 seek_y,
                                     bool32 round_down = 0){
-#if BUFFER_EXPERIMENT_SCALPEL <= 1    
+#if BUFFER_EXPERIMENT_SCALPEL <= 2
     Editing_File *file = view->file;
     Style *style = view->style;
     Font *font = style->font;
@@ -2898,7 +2896,7 @@ working_set_lookup_file(Working_Set *working_set, String string){
 
 internal void
 clipboard_copy(General_Memory *general, Working_Set *working, Range range, Editing_File *file){
-#if BUFFER_EXPERIMENT_SCALPEL <= 1
+#if BUFFER_EXPERIMENT_SCALPEL <= 2
     i32 size = range.end - range.start;
     String *dest = working_set_next_clipboard_string(general, working, size);
     buffer_stringify(&file->buffer, range.start, range.end, dest->str);
@@ -3728,7 +3726,7 @@ draw_file_view(Thread_Context *thread, View *view_, i32_Rect rect, bool32 is_act
     bar.rect.y1 = bar.rect.y0 + font->height + 2;
     rect.y0 += font->height + 2;
 
-#if BUFFER_EXPERIMENT_SCALPEL <= 1        
+#if BUFFER_EXPERIMENT_SCALPEL <= 2
     i32 max_x = rect.x1 - rect.x0;
     i32 max_y = rect.y1 - rect.y0 + font->height;
     
@@ -3985,7 +3983,7 @@ HANDLE_COMMAND_SIG(handle_command_file_view){
     
     case FWIDG_SEARCH:
     {
-#if BUFFER_EXPERIMENT_SCALPEL <= 1
+#if BUFFER_EXPERIMENT_SCALPEL <= 2
         String *string = &file_view->isearch.str;
         Single_Line_Input_Step result =
             app_single_line_input_step(codes, key, string);

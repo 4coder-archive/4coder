@@ -215,7 +215,7 @@ COMMAND_DECL(write_character){
 }
 
 COMMAND_DECL(seek_whitespace_right){
-#if BUFFER_EXPERIMENT_SCALPEL <= 1
+#if BUFFER_EXPERIMENT_SCALPEL <= 2
     ProfileMomentFunction();
     REQ_FILE_VIEW(view);
     REQ_FILE(file, view);
@@ -227,7 +227,7 @@ COMMAND_DECL(seek_whitespace_right){
 }
 
 COMMAND_DECL(seek_whitespace_left){
-#if BUFFER_EXPERIMENT_SCALPEL <= 1
+#if BUFFER_EXPERIMENT_SCALPEL <= 2
     ProfileMomentFunction();
     REQ_FILE_VIEW(view);
     REQ_FILE(file, view);
@@ -239,7 +239,7 @@ COMMAND_DECL(seek_whitespace_left){
 }
 
 COMMAND_DECL(seek_whitespace_up){
-#if BUFFER_EXPERIMENT_SCALPEL <= 1
+#if BUFFER_EXPERIMENT_SCALPEL <= 2
     ProfileMomentFunction();
     REQ_FILE_VIEW(view);
     REQ_FILE(file, view);
@@ -250,7 +250,7 @@ COMMAND_DECL(seek_whitespace_up){
 }
 
 COMMAND_DECL(seek_whitespace_down){
-#if BUFFER_EXPERIMENT_SCALPEL <= 1
+#if BUFFER_EXPERIMENT_SCALPEL <= 2
     ProfileMomentFunction();
     REQ_FILE_VIEW(view);
     REQ_FILE(file, view);
