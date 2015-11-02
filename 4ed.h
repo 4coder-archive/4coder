@@ -112,6 +112,27 @@ general_memory_open(General_Memory *general, void *memory, i32 size){
     insert_bubble(&general->sentinel, first);
 }
 
+internal void
+general_memory_check(General_Memory *general){
+    Bubble *sentinel = &general->sentinel;
+    for (Bubble *bubble = sentinel->next;
+         bubble != sentinel;
+         bubble = bubble->next){
+        Assert(bubble);
+        
+        Bubble *next = bubble->next;
+        Assert(bubble == next->prev);
+        if (next != sentinel){
+            Assert(bubble->next > bubble);
+            Assert(bubble > bubble->prev);
+            
+            char *end_ptr = (char*)(bubble + 1) + bubble->size;
+            char *next_ptr = (char*)next;
+            Assert(end_ptr == next_ptr);
+        }
+    }
+}
+
 #define BUBBLE_MIN_SIZE 1024
 
 internal void
@@ -129,9 +150,6 @@ general_memory_attempt_split(Bubble *bubble, i32 wanted_size){
 internal void*
 general_memory_allocate(General_Memory *general, i32 size, u32 type = 0){
     void *result = 0;
-    if (size < Kbytes(1)){
-        int x = 1; AllowLocal(x);
-    }
     for (Bubble *bubble = general->sentinel.next;
          bubble != &general->sentinel;
          bubble = bubble->next){
@@ -150,6 +168,8 @@ general_memory_allocate(General_Memory *general, i32 size, u32 type = 0){
 
 inline void
 general_memory_do_merge(Bubble *left, Bubble *right){
+    Assert(left->next == right);
+    Assert(right->prev == left);
     left->size += sizeof(Bubble) + right->size;
     remove_bubble(right);
 }

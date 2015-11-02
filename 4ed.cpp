@@ -23,6 +23,16 @@ struct App_State_Resizing{
     i32 min, max;
 };
 
+struct CLI_Process{
+    CLI_Handles cli;
+    Editing_File *out_file;
+};
+
+struct CLI_List{
+    CLI_Process *procs;
+    i32 count, max;
+};
+
 struct App_Vars{
     Mem_Options mem;
     Command_Map map_top;
@@ -51,6 +61,8 @@ struct App_Vars{
     char hot_dir_base_[256];
     String hot_dir_base;
     Hot_Directory hot_directory;
+
+    CLI_List cli_processes;
     
     char query_[256];
     char dest_[256];
@@ -480,7 +492,7 @@ COMMAND_DECL(paste){
         
         String *src = working_set_clipboard_head(working_set);
         i32 pos_left = view->cursor.pos;
-        
+
         i32 next_cursor_pos = pos_left+src->size;
         view_replace_range(mem, view, layout, pos_left, pos_left, (u8*)src->str, src->size, next_cursor_pos);
         
@@ -966,7 +978,7 @@ case_change_range(Mem_Options *mem, File_View *view, Editing_File *file,
         if (file->still_lexing)
             system_cancel_job(BACKGROUND_THREADS, file->lex_job);
         
-        view_update_history_before_edit(mem, file, step, 0, hist_normal);
+        file_update_history_before_edit(mem, file, step, 0, hist_normal);
         
         u8 *data = (u8*)file->buffer.data;
         for (i32 i = range.start; i < range.end; ++i){
@@ -1518,9 +1530,71 @@ COMMAND_DECL(set_settings){
     }
 }
 
+COMMAND_DECL(build){
+    ProfileMomentFunction();
+    USE_VARS(vars);
+    USE_MEM(mem);
+    USE_WORKING_SET(working_set);
+    USE_STYLE(style);
+    USE_LIVE_SET(live_set);
+    USE_PANEL(panel);
+    
+    if (vars->cli_processes.count < vars->cli_processes.max){
+        Get_File_Result file = working_set_get_available_file(working_set);
+        if (file.file){
+            file_create_empty(&mem->general, file.file, (u8*)"*cli process*", style->font);
+            table_add(&working_set->table, file.file->source_path, file.index);
+            
+            View *new_view = live_set_alloc_view(live_set, mem);
+            view_replace_major(new_view, panel, live_set);
+            
+            File_View *file_view = file_view_init(new_view, &vars->delay, &vars->layout);
+            view_set_file(file_view, file.file, style,
+                          vars->hooks[hook_open_file], command, app_links);
+            file.file->tokens_exist = 0;
+            new_view->map = app_get_map(vars, file.file->base_map_id);
+            
+            i32 i = vars->cli_processes.count++;
+            CLI_Process *proc = vars->cli_processes.procs + i;
+            if (!system_cli_call("..\\misc", "build_all_test", &proc->cli)){
+                --vars->cli_processes.count;
+            }
+            proc->out_file = file.file;
+        }
+        else{
+            // TODO(allen): feedback message - no available file
+        }
+    }
+    else{
+        // TODO(allen): feedback message - no available process slot
+    }
+}
+
+internal void
+update_command_data(App_Vars *vars, Command_Data *cmd){
+    Command_Data command_data;
+    command_data.vars = vars;
+    command_data.mem = &vars->mem;
+    command_data.working_set = &vars->working_set;
+    command_data.layout = &vars->layout;
+    command_data.panel = command_data.layout->panels + command_data.layout->active_panel;
+    command_data.view = command_data.panel->view;
+    command_data.live_set = &vars->live_set;
+    command_data.style = &vars->style;
+    command_data.delay = &vars->delay;
+    command_data.screen_width = cmd->screen_width;
+    command_data.screen_height = cmd->screen_height;
+    command_data.key = cmd->key;
+    command_data.part = cmd->part;
+    
+    *cmd = command_data;    
+}
+
 COMPOSE_DECL(compose_write_auto_tab_line){
     command_write_character(command, binding);
+    update_command_data(command->vars, command);
     command_auto_tab_line_at_cursor(command, binding);
+    update_command_data(command->vars, command);
 }
 
 globalvar Command_Function command_table[cmdid_count];
@@ -1532,7 +1606,9 @@ extern "C"{
         Command_Binding binding;
         binding.function = function;
         if (function) function(cmd, binding);
-        
+
+        update_command_data(cmd->vars, cmd);
+#if 0
         App_Vars *vars = cmd->vars;
         Command_Data command_data;
         command_data.vars = vars;
@@ -1550,6 +1626,7 @@ extern "C"{
         command_data.part = cmd->part;
         
         *cmd = command_data;
+#endif
     }
     
     PUSH_PARAMETER_SIG(external_push_parameter){
@@ -1724,23 +1801,8 @@ setup_top_commands(Command_Map *commands, Partition *part, Key_Codes *codes, Com
     map_add(commands, 'i', MDFR_CTRL, command_interactive_switch_buffer);
     map_add(commands, 'c', MDFR_ALT, command_open_color_tweaker);
     map_add(commands, 'x', MDFR_ALT, command_open_menu);
+    map_add(commands, 'm', MDFR_ALT, command_build);
 }
-
-#if 0 // TODO(allen): Here's an idea
-internal void
-setup_command_table(){
-    BEGIN_META_CODE{
-        int count;
-        char **command_names = get_all_commands(&count);
-        for (int i = 0; i < count; ++i){
-            char *name_ = command_names[i];
-            String name = make_string_slowly(name_);
-            
-            outcode("command_table[cmdid_", out_str(name), "] = command_", out_str(name), "\n");
-        }
-    }END_META_CODE
-}
-#endif
 
 internal void
 setup_command_table(){
@@ -2475,6 +2537,13 @@ app_init(Thread_Context *thread, Application_Memory *memory,
 
     vars->mini_str = make_string((char*)vars->mini_buffer, 0, 512);
     
+    // NOTE(allen): child proc list setup
+    i32 max_children = 16;
+    partition_align(partition, 8);
+    vars->cli_processes.procs = push_array(partition, CLI_Process, max_children);
+    vars->cli_processes.max = max_children;
+    vars->cli_processes.count = 0;
+    
     return 1;
 }
 
@@ -2520,6 +2589,48 @@ app_step(Thread_Context *thread, Key_Codes *codes,
                 }
             }
         }
+    }
+    
+    // NOTE(allen): update child processes
+    {
+        Temp_Memory temp = begin_temp_memory(&vars->mem.part);
+        u32 max = Kbytes(32);
+        char *dest = push_array(&vars->mem.part, char, max);
+        u32 amount;
+        
+        i32 count = vars->cli_processes.count;
+        for (i32 i = 0; i < count; ++i){
+            CLI_Process *proc = vars->cli_processes.procs + i;
+            Editing_File *out_file = proc->out_file;
+
+            i32 new_cursor = out_file->cursor_pos;
+            for (system_cli_begin_update(&proc->cli);
+                 system_cli_update_step(&proc->cli, dest, max, &amount);){
+                if (out_file){
+                    amount = eol_in_place_convert_in(dest, amount);
+                    Edit_Spec spec = {};
+                    spec.step.type = ED_NORMAL;
+                    spec.step.edit.start =  buffer_size(&out_file->buffer);
+                    spec.step.edit.end = spec.step.edit.start;
+                    spec.step.edit.len = amount;
+                    spec.step.pre_pos = new_cursor;
+                    spec.step.post_pos = spec.step.edit.start + amount;
+                    spec.str = (u8*)dest;
+                    file_do_single_edit(&vars->mem, out_file,
+                                        &vars->layout, spec, hist_normal);
+                    app_result.redraw = 1;
+                    new_cursor = spec.step.post_pos;
+                }
+            }
+
+            if (system_cli_end_update(&proc->cli)){
+                *proc = vars->cli_processes.procs[--count];
+                --i;
+            }
+        }
+        
+        vars->cli_processes.count = count;
+        end_temp_memory(temp);
     }
     
     // NOTE(allen): reorganizing panels on screen

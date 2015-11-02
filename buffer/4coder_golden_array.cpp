@@ -20,6 +20,7 @@ typedef struct{
     int *line_starts;
     float *line_widths;
     int line_count;
+    int widths_count;
     int line_max;
     int widths_max;
 } Buffer;
@@ -92,14 +93,14 @@ buffer_end_init(Buffer_Init *init){
 }
 
 internal_4tech void*
-buffer_relocate(Buffer *buffer, char *new_data, int new_max){
+buffer_edit_provide_memory(Buffer *buffer, void *new_data, int new_max){
     void *result;
     
     assert_4tech(new_max >= buffer->size);
     
     result = buffer->data;
     memcpy_4tech(new_data, buffer->data, buffer->size);
-    buffer->data = new_data;
+    buffer->data = (char*)new_data;
     buffer->max = new_max;
     
     return(result);
@@ -174,7 +175,7 @@ buffer_backify_next(Buffer_Backify_Loop *loop){
 }
 
 internal_4tech int
-buffer_replace_range(Buffer *buffer, int start, int end, char *str, int len, int *shift_amount){
+buffer_replace_range(Buffer *buffer, int start, int end, char *str, int len, int *shift_amount, int *request_amount){
     char *data;
     int result;
     int size;
@@ -189,20 +190,20 @@ buffer_replace_range(Buffer *buffer, int start, int end, char *str, int len, int
         data = (char*)buffer->data;
         memmove_4tech(data + end + *shift_amount, data + end, buffer->size - end);
         buffer->size += *shift_amount;
-        data[buffer->size] = 0;
         if (len != 0) memcpy_4tech(data + start, str, len);
         
         result = 0;
     }
     else{
-        result = *shift_amount + size;
+        *request_amount = round_up_4tech(2*(*shift_amount + size), 4 << 10);
+        result = 1;
     }
     
     return(result);
 }
 
 internal_4tech int
-buffer_batch_edit_step(Buffer_Batch_State *state, Buffer *buffer, Buffer_Edit *sorted_edits, char *strings, int edit_count){
+buffer_batch_edit_step(Buffer_Batch_State *state, Buffer *buffer, Buffer_Edit *sorted_edits, char *strings, int edit_count, int *request_amount){
     Buffer_Edit *edit;
     int i, result;
     int shift_total, shift_amount;
@@ -214,7 +215,7 @@ buffer_batch_edit_step(Buffer_Batch_State *state, Buffer *buffer, Buffer_Edit *s
     edit = sorted_edits + i;
     for (; i < edit_count; ++i, ++edit){
         result = buffer_replace_range(buffer, edit->start + shift_total, edit->end + shift_total,
-                                      strings + edit->str_start, edit->len, &shift_amount);
+                                      strings + edit->str_start, edit->len, &shift_amount, request_amount);
         if (result) break;
         shift_total += shift_amount;
     }

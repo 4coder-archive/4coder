@@ -31,7 +31,7 @@ struct Debug_Event{
 
 struct Debug_Event_Array{
     volatile u32 count;
-    Debug_Event e[512];
+    Debug_Event e[4096];
 };
 
 struct Profile_Frame{

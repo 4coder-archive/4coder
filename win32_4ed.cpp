@@ -58,7 +58,7 @@
 #define FPS 30
 #define FRAME_TIME (1000000 / FPS)
 
-#define BUFFER_EXPERIMENT_SCALPEL 2
+#define BUFFER_EXPERIMENT_SCALPEL 0
 
 #include "4ed_meta.h"
 
@@ -545,11 +545,18 @@ Win32Callback(HWND hwnd, UINT uMsg,
     case WM_KEYDOWN:
     case WM_KEYUP:
     {
-        bool8 previous_state, current_state;
-        previous_state = ((lParam & Bit_30)?(1):(0));
-        current_state = ((lParam & Bit_31)?(0):(1));
-        Win32KeyboardHandle(current_state, previous_state, wParam);
-        result = DefWindowProc(hwnd, uMsg, wParam, lParam);
+        switch (wParam){
+        case VK_CONTROL:case VK_LCONTROL:case VK_RCONTROL:
+        case VK_MENU:case VK_LMENU:case VK_RMENU:
+        case VK_SHIFT:case VK_LSHIFT:case VK_RSHIFT: break;
+            
+        default:
+            bool8 previous_state, current_state;
+            previous_state = ((lParam & Bit_30)?(1):(0));
+            current_state = ((lParam & Bit_31)?(0):(1));
+            Win32KeyboardHandle(current_state, previous_state, wParam);
+            result = DefWindowProc(hwnd, uMsg, wParam, lParam);
+        }
     }break;
     
     case WM_MOUSEMOVE:
@@ -879,6 +886,131 @@ INTERNAL_get_thread_states(Thread_Group_ID id, bool8 *running, i32 *pending){
     }
 }
 #endif
+
+internal b32
+system_cli_call(char *path, char *script_name, CLI_Handles *cli_out){
+    char cmd[] = "c:\\windows\\system32\\cmd.exe";
+    char *env_variables = 0;
+    char command_line[2048];
+    
+    b32 success = 1;
+    String s = make_fixed_width_string(command_line);
+    copy(&s, make_lit_string("/C "));
+    append_partial(&s, script_name);
+    append_partial(&s, make_lit_string(".bat "));
+    success = terminate_with_null(&s);
+    
+    if (success){
+        success = 0;
+        
+        SECURITY_ATTRIBUTES sec_attributes;
+        HANDLE out_read;
+        HANDLE out_write;
+        
+        sec_attributes = {};
+        sec_attributes.nLength = sizeof(SECURITY_ATTRIBUTES);
+        sec_attributes.bInheritHandle = TRUE;
+        
+        if (CreatePipe(&out_read, &out_write, &sec_attributes, 0)){
+            if (SetHandleInformation(out_read, HANDLE_FLAG_INHERIT, 0)){
+                STARTUPINFO startup = {};
+                startup.cb = sizeof(STARTUPINFO);
+                startup.dwFlags = STARTF_USESHOWWINDOW | STARTF_USESTDHANDLES;
+                startup.hStdError = out_write;
+                startup.hStdOutput = out_write;
+                startup.wShowWindow = SW_HIDE;
+    
+                PROCESS_INFORMATION info = {};
+
+                Assert(sizeof(Plat_Handle) >= sizeof(HANDLE));
+                if (CreateProcess(cmd, command_line,
+                                  0, 0, TRUE, 0,
+                                  env_variables, path,
+                                  &startup, &info)){
+                    success = 1;
+                    CloseHandle(info.hThread);
+                    *(HANDLE*)&cli_out->proc = info.hProcess;
+                    *(HANDLE*)&cli_out->out_read = out_read;
+                    *(HANDLE*)&cli_out->out_write = out_write;
+                }
+                else{
+                    CloseHandle(out_read);
+                    CloseHandle(out_write);
+                    *(HANDLE*)&cli_out->proc = INVALID_HANDLE_VALUE;
+                    *(HANDLE*)&cli_out->out_read = INVALID_HANDLE_VALUE;
+                    *(HANDLE*)&cli_out->out_write = INVALID_HANDLE_VALUE;
+                }
+            }
+            else{
+                // TODO(allen): failed SetHandleInformation
+            }
+        }
+        else{
+            // TODO(allen): failed CreatePipe
+        }
+    }
+    
+    return success;
+}
+
+struct CLI_Loop_Control{
+    u32 remaining_amount;
+};
+
+internal void
+system_cli_begin_update(CLI_Handles *cli){
+    Assert(sizeof(cli->scratch_space) >= sizeof(CLI_Loop_Control));
+    CLI_Loop_Control *loop = (CLI_Loop_Control*)cli->scratch_space;
+    loop->remaining_amount = 0;
+}
+
+internal b32
+system_cli_update_step(CLI_Handles *cli, char *dest, u32 max, u32 *amount){
+    HANDLE handle = *(HANDLE*)&cli->out_read;
+    CLI_Loop_Control *loop = (CLI_Loop_Control*)cli->scratch_space;
+    b32 has_more = 0;
+    DWORD remaining = loop->remaining_amount;
+    u32 pos = 0;
+    DWORD read_amount = 0;
+    
+    for (;;){
+        if (remaining == 0){
+            if (!PeekNamedPipe(handle, 0, 0, 0, &remaining, 0)) break;
+            if (remaining == 0) break;
+        }
+        
+        if (remaining + pos < max){
+            has_more = 1;
+            ReadFile(handle, dest + pos, remaining, &read_amount, 0);
+            TentativeAssert(remaining == read_amount);
+            pos += remaining;
+            remaining = 0;
+        }
+        else{
+            has_more = 1;
+            ReadFile(handle, dest + pos, max - pos, &read_amount, 0);
+            TentativeAssert(max - pos == read_amount);
+            loop->remaining_amount = remaining - (max - pos);
+            pos = max;
+            break;
+        }
+    }
+    *amount = pos;
+    
+    return has_more;
+}
+
+internal b32
+system_cli_end_update(CLI_Handles *cli){
+    b32 close_me = 0;
+    if (WaitForSingleObject(*(HANDLE*)&cli->proc, 0) == WAIT_OBJECT_0){
+        close_me = 1;
+        CloseHandle(*(HANDLE*)&cli->proc);
+        CloseHandle(*(HANDLE*)&cli->out_read);
+        CloseHandle(*(HANDLE*)&cli->out_write);
+    }
+    return close_me;
+}
 
 int
 WinMain(HINSTANCE hInstance,

@@ -7,6 +7,8 @@
  *
  */
 
+struct Plat_Handle{ u64 d[2]; };
+
 // TODO(allen): This should either be a String or it should be improved
 // to handle 64-bit sized files.  Staying in this state, however, is unacceptable.
 struct File_Data{
@@ -75,6 +77,25 @@ system_post_clipboard(String str);
 
 internal i64
 system_time();
+
+struct CLI_Handles{
+    Plat_Handle proc;
+    Plat_Handle out_read;
+    Plat_Handle out_write;
+    u32 scratch_space[4];
+};
+
+internal b32
+system_cli_call(char *path, char *script_name, CLI_Handles *cli_out);
+
+internal void
+system_cli_begin_update(CLI_Handles *cli);
+
+internal b32
+system_cli_update_step(CLI_Handles *cli, char *dest, u32 max, u32 *amount);
+
+internal b32
+system_cli_end_update(CLI_Handles *cli);
 
 struct Thread_Context;
 

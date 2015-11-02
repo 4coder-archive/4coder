@@ -128,8 +128,18 @@ FCPP_LINK bool  append_partial(String *dest, String src);
 FCPP_LINK bool  append(String *dest, char c);
 inline    bool  append(String *dest, String src) { return append_partial(dest, src); }
 inline    bool  append(String *dest, char *src) { return append_partial(dest, src); }
-inline    void  terminate_with_null(String *str)
-{ if (str->size < str->memory_size) str->str[str->size] = 0; else str->str[str->size-1] = 0; }
+inline    bool  terminate_with_null(String *str){
+    bool result;
+    if (str->size < str->memory_size){
+        str->str[str->size] = 0;
+        result = 1;
+    }
+    else{
+        str->str[str->size-1] = 0;
+        result = 0;
+    }
+    return result;
+}
 
 FCPP_LINK int   compare(char *a, char *b);
 FCPP_LINK int   compare(String a, char *b);

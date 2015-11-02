@@ -34,6 +34,7 @@ typedef struct{
     float *line_widths;
     int *line_starts;
     int line_count;
+    int widths_count;
     int line_max;
     int widths_max;
 } Multi_Gap_Buffer;
@@ -170,21 +171,27 @@ internal_4tech int
 buffer_find_chunk(Multi_Gap_Buffer *buffer, int pos){
     Fixed_Width_Gap_Buffer *gaps;
     int start, end, m, this_pos;
-    
-    gaps = buffer->gaps;
-    start = 0;
-    end = buffer->chunk_count;
-    for(;;){
-        m = (start + end) / 2;
-        this_pos = gaps[m].start_pos;
-        if (this_pos < pos) start = m;
-        else if (this_pos > pos) end = m;
-        else break;
-        if (start+1 == end){
-            m = start; break;
-        }
-        assert_4tech(start < end);
+
+    if (pos == buffer_size(buffer)){
+        m = buffer->chunk_count;
     }
+    else{
+        gaps = buffer->gaps;
+        start = 0;
+        end = buffer->chunk_count;
+        for(;;){
+            m = (start + end) / 2;
+            this_pos = gaps[m].start_pos;
+            if (this_pos < pos) start = m;
+            else if (this_pos > pos) end = m;
+            else break;
+            if (start+1 == end){
+                m = start; break;
+            }
+            assert_4tech(start < end);
+        }
+    }
+    
     return(m);
 }
 
@@ -360,6 +367,84 @@ buffer_backify_next(Multi_Gap_Buffer_Backify_Loop *loop){
     }
 }
 
+internal_4tech int
+buffer_replace_range(Multi_Gap_Buffer *buffer, int start, int end, char *str, int len, int *shift_amount_out, int *request_amount){
+    Fixed_Width_Gap_Buffer *gaps, *gap;
+    int gap_start, gap_end;
+    int result;
+    int size;
+    int local_end;
+    int shift_amount;
+    
+    size = buffer_size(buffer);
+    assert_4tech(0 <= start);
+    assert_4tech(start <= end);
+    assert_4tech(end <= size);
+
+    *shift_amount_out = (len - (end - start));
+    
+    gaps = buffer->gaps;
+    gap_start = buffer_find_chunk(buffer, start);
+    gap_end = buffer_find_chunk(buffer, end);
+
+    gap = gaps + gap_start;
+    if (gap_start < gap_end){
+        memmove_4tech(gap + 1, gaps + gap_end, sizeof(*gaps)*(buffer->chunk_count - gap_end));
+        buffer->chunk_count -= (gap_end - gap_start + 1);
+        ++gap;
+        
+        local_end = end - gap->start_pos;
+        
+        if (gap->size1 >= local_end){
+            gap->size2 -= (local_end - gap->size1);
+            gap->size1 = 0;
+        }
+        else{
+            memmove_4tech(gap->data, gap->data + local_end, gap->size1 - local_end);
+            gap->size1 -= local_end;
+        }
+
+        --gap;
+    }
+    if (end > gap->size1 + gap->size2) end = gap->size1 + gap->size2;
+    
+    shift_amount = (len - (end - start));
+    
+    if (shift_amount + gap->size1 + gap->size2 <= fixed_width_buffer_size){
+        start -= gap->start_pos;
+        end -= gap->start_pos;
+        
+        data = gap->data;
+        if (end < gap->size1){
+            move_size = gap->size1 - end;
+            memmove_4tech(data + gap->size1 + gap->gap_size - move_size, data + end, move_size);
+            gap->size1 -= move_size;
+            gap->size2 += move_size;
+        }
+        if (start > gap->size1){
+            move_size = start - gap->size1;
+            memmove_4tech(data + gap->size1, data + gap->size1 + gap->gap_size, move_size);
+            gap->size1 += move_size;
+            gap->size2 -= move_size;
+        }
+        
+        memcpy_4tech(data + start, str, len);
+        gap->size2 = size - end;
+        gap->size1 = start + len;
+        gap->gap_size -= shift_amount;
+        
+        assert_4tech(gap->size1 + gap->size2 == size + shift_amount);
+        assert_4tech(gap->size1 + gap->gap_size + gap->size2 == gap->max);
+        
+        result = 0;
+    }
+    else{
+        div_ceil_4tech(shift_amount, fixed_width_buffer_half_size);
+        result = 1;
+    }
+    
+    return(result);
+}
 
 // BOTTOM
 

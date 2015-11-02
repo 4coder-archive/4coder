@@ -597,6 +597,7 @@ buffer_remeasure_widths(Buffer_Type *buffer, void *advance_data, int stride,
     int *starts;
     float *widths;
     int line_count;
+    int widths_count;
     char *data;
     int size, end;
     int i, j;
@@ -606,17 +607,17 @@ buffer_remeasure_widths(Buffer_Type *buffer, void *advance_data, int stride,
     starts = buffer->line_starts;
     widths = buffer->line_widths;
     line_count = buffer->line_count;
+    widths_count = buffer->widths_count;
     
     assert_4tech(0 <= line_start);
     assert_4tech(line_start <= line_end);
-    assert_4tech(line_end < line_count);
     assert_4tech(line_count <= buffer->widths_max);
-
-    ++line_end;
+    
     if (line_shift != 0){
         memmove_4tech(widths + line_end + line_shift, widths + line_end,
-                      sizeof(float)*(line_count - line_end));
+                      sizeof(float)*(widths_count - line_end));
     }
+    buffer->widths_count = line_count;
     
     line_end += line_shift;    
     i = line_start;
@@ -733,7 +734,6 @@ buffer_get_line_index_from_wrapped_y(float *wraps, float y, float font_height, i
 #endif
 
 #ifndef NON_ABSTRACT_4TECH
-
 typedef struct{
     Full_Cursor cursor, prev_cursor;
 } Seek_State;
@@ -1000,13 +1000,15 @@ buffer_invert_batch(Buffer_Invert_Batch *state, Buffer_Type *buffer, Buffer_Edit
 internal_4tech void
 buffer_batch_edit(Buffer_Type *buffer, Buffer_Edit *sorted_edits, char *strings, int edit_count){
     Buffer_Batch_State state;
+    int r;
+    
     debug_4tech(int result);
     
     state.i = 0;
     state.shift_total = 0;
     
     debug_4tech(result =)
-        buffer_batch_edit_step(&state, buffer, sorted_edits, strings, edit_count);
+        buffer_batch_edit_step(&state, buffer, sorted_edits, strings, edit_count, &r);
     assert_4tech(result == 0);
 }
 #endif
@@ -1121,7 +1123,6 @@ buffer_get_render_data(Buffer_Type *buffer, float *wraps, Buffer_Render_Item *it
     }
     
 buffer_get_render_data_end:
-    
     if (y <= height + shift_y || item == items){
         ch = 0;
         ch_width = measure_character(advance_data, stride, ' ');

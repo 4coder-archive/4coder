@@ -20,6 +20,7 @@ typedef struct{
     float *line_widths;
     int *line_starts;
     int line_count;
+    int widths_count;
     int line_max;
     int widths_max;
 } Gap_Buffer;
@@ -110,7 +111,7 @@ buffer_end_init(Gap_Buffer_Init *init){
 }
 
 internal_4tech void*
-buffer_relocate(Gap_Buffer *buffer, char *new_data, int new_max){
+buffer_edit_provide_memory(Gap_Buffer *buffer, void *new_data, int new_max){
     void *result;
     int new_gap_size;
     
@@ -119,9 +120,9 @@ buffer_relocate(Gap_Buffer *buffer, char *new_data, int new_max){
     result = buffer->data;
     new_gap_size = new_max - buffer_size(buffer);
     memcpy_4tech(new_data, buffer->data, buffer->size1);
-    memcpy_4tech(new_data + buffer->size1 + new_gap_size, buffer->data + buffer->size1 + buffer->gap_size, buffer->size2);
+    memcpy_4tech((char*)new_data + buffer->size1 + new_gap_size, buffer->data + buffer->size1 + buffer->gap_size, buffer->size2);
     
-    buffer->data = new_data;
+    buffer->data = (char*)new_data;
     buffer->gap_size = new_gap_size;
     buffer->max = new_max;
     
@@ -263,7 +264,7 @@ buffer_backify_next(Gap_Buffer_Backify_Loop *loop){
 }
 
 internal_4tech int
-buffer_replace_range(Gap_Buffer *buffer, int start, int end, char *str, int len, int *shift_amount){
+buffer_replace_range(Gap_Buffer *buffer, int start, int end, char *str, int len, int *shift_amount, int *request_amount){
     char *data;
     int result;
     int size;
@@ -301,7 +302,8 @@ buffer_replace_range(Gap_Buffer *buffer, int start, int end, char *str, int len,
         result = 0;
     }
     else{
-        result = *shift_amount + size;
+        *request_amount = round_up_4tech(2*(*shift_amount + size), 4 << 10);
+        result = 1;
     }
 
     return(result);
@@ -309,7 +311,7 @@ buffer_replace_range(Gap_Buffer *buffer, int start, int end, char *str, int len,
 
 // NOTE(allen): This could should be optimized for Gap_Buffer
 internal_4tech int
-buffer_batch_edit_step(Buffer_Batch_State *state, Gap_Buffer *buffer, Buffer_Edit *sorted_edits, char *strings, int edit_count){
+buffer_batch_edit_step(Buffer_Batch_State *state, Gap_Buffer *buffer, Buffer_Edit *sorted_edits, char *strings, int edit_count, int *request_amount){
     Buffer_Edit *edit;
     int i, result;
     int shift_total, shift_amount;
@@ -321,7 +323,7 @@ buffer_batch_edit_step(Buffer_Batch_State *state, Gap_Buffer *buffer, Buffer_Edi
     edit = sorted_edits + i;
     for (; i < edit_count; ++i, ++edit){
         result = buffer_replace_range(buffer, edit->start + shift_total, edit->end + shift_total,
-                                      strings + edit->str_start, edit->len, &shift_amount);
+                                      strings + edit->str_start, edit->len, &shift_amount, request_amount);
         if (result) break;
         shift_total += shift_amount;
     }

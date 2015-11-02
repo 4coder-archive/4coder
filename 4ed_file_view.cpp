@@ -1187,8 +1187,8 @@ file_grow_starts_as_needed(General_Memory *general, Editing_File *file, i32 addi
     i32 max = file->buffer.line_max;
     i32 count = file->buffer.line_count;
     i32 target_lines = count + additional_lines;
-    if (target_lines > max){
-        max <<= 1;
+    if (target_lines > max || max == 0){
+        max = LargeRoundUp(target_lines + max, Kbytes(1));
         i32 *new_lines = (i32*)
             general_memory_reallocate(general, file->buffer.line_starts,
                                       sizeof(i32)*count, sizeof(i32)*max, BUBBLE_STARTS);
@@ -1267,15 +1267,17 @@ internal void
 file_grow_widths_as_needed(General_Memory *general, Editing_File *file){
 #if BUFFER_EXPERIMENT_SCALPEL <= 2
     i32 line_count = file->buffer.line_count;
-    if (line_count > file->buffer.widths_max){
+    if (line_count > file->buffer.widths_max || file->buffer.widths_max == 0){
         i32 new_max = LargeRoundUp(line_count, Kbytes(1));
+        if (new_max < Kbytes(1)) new_max = Kbytes(1);
         if (file->buffer.line_widths){
-            file->buffer.line_widths = (real32*)
-                general_memory_reallocate_nocopy(general, file->buffer.line_widths, sizeof(real32)*new_max, BUBBLE_WIDTHS);
+            file->buffer.line_widths = (f32*)
+                general_memory_reallocate(general, file->buffer.line_widths,
+                                          sizeof(f32)*file->buffer.widths_count, sizeof(f32)*new_max, BUBBLE_WIDTHS);
         }
         else{
-            file->buffer.line_widths = (real32*)
-                general_memory_allocate(general, sizeof(real32)*new_max, BUBBLE_WIDTHS);
+            file->buffer.line_widths = (f32*)
+                general_memory_allocate(general, sizeof(f32)*new_max, BUBBLE_WIDTHS);
         }
         file->buffer.widths_max = new_max;
     }
@@ -1379,11 +1381,11 @@ internal void
 file_create_from_string(General_Memory *general, Editing_File *file, u8 *filename, Font *font, String val){
     *file = {};
 #if BUFFER_EXPERIMENT_SCALPEL <= 2
-    
     Buffer_Init_Type init = buffer_begin_init(&file->buffer, val.str, val.size);
     for (; buffer_init_need_more(&init); ){
         i32 page_size = buffer_init_page_size(&init);
         page_size = LargeRoundUp(page_size, Kbytes(4));
+        if (page_size < Kbytes(4)) page_size = Kbytes(4);
         void *data = general_memory_allocate(general, page_size, BUBBLE_BUFFER);
         buffer_init_provide_page(&init, data, page_size);
     }
@@ -1396,7 +1398,7 @@ file_create_from_string(General_Memory *general, Editing_File *file, u8 *filenam
     file_set_name(file, filename);
     
     file->base_map_id = mapid_file;
-
+    
     file_measure_starts(general, file);
     file_measure_widths(general, file, font);
     file->font = font;
@@ -1695,21 +1697,7 @@ file_relex_parallel(Mem_Options *mem, Editing_File *file,
 #endif
 
 internal bool32
-file_grow_as_needed(General_Memory *general, Editing_File *file, i32 additional_size){
-    bool32 result = 1;
-#if BUFFER_EXPERIMENT_SCALPEL <= 1
-    i32 size = buffer_size(&file->buffer);
-    i32 target_size = size + additional_size + 1;
-    if (target_size >= file->buffer.max){
-		i32 request_size = LargeRoundUp(target_size*2, Kbytes(256));
-        char *new_data = (char*)
-            general_memory_allocate(general, request_size, BUBBLE_BUFFER);
-        TentativeAssert(new_data);
-        void *old_data = buffer_relocate(&file->buffer, new_data, request_size);
-        general_memory_free(general, old_data);
-	}
-#endif
-    return result;
+file_grow_as_needed_(General_Memory *general, Editing_File *file, i32 new_size){
 }
 
 internal void
@@ -2267,7 +2255,7 @@ enum History_Mode{
 };
 
 internal void
-view_update_history_before_edit(Mem_Options *mem, Editing_File *file, Edit_Step step, u8 *str,
+file_update_history_before_edit(Mem_Options *mem, Editing_File *file, Edit_Step step, u8 *str,
                                 History_Mode history_mode){
 #if BUFFER_EXPERIMENT_SCALPEL <= 1
     General_Memory *general = &mem->general;
@@ -2460,13 +2448,13 @@ file_pre_edit_maintenance(Editing_File *file){
 }
 
 internal void
-view_do_single_edit(Mem_Options *mem, File_View *view, Editing_File *file,
+file_do_single_edit(Mem_Options *mem, Editing_File *file,
                     Editing_Layout *layout, Edit_Spec spec, History_Mode history_mode){
     Assert(file);
     ProfileMomentFunction();
     
     // NOTE(allen): fixing stuff beforewards????
-    view_update_history_before_edit(mem, file, spec.step, spec.str, history_mode);
+    file_update_history_before_edit(mem, file, spec.step, spec.str, history_mode);
     file_pre_edit_maintenance(file);
 
 #if BUFFER_EXPERIMENT_SCALPEL <= 1    
@@ -2479,8 +2467,15 @@ view_do_single_edit(Mem_Options *mem, File_View *view, Editing_File *file,
     i32 str_len = spec.step.edit.len;
 
     i32 shift_amount = 0;
-    while (buffer_replace_range(&file->buffer, start, end, str, str_len, &shift_amount))
-        file_grow_as_needed(general, file, shift_amount);
+    i32 request_amount = 0;
+    while (buffer_replace_range(&file->buffer, start, end, str, str_len, &shift_amount, &request_amount)){
+        void *new_data = 0;
+        if (request_amount > 0){
+            new_data = general_memory_allocate(general, request_amount, BUBBLE_BUFFER);
+        }
+        void *old_data = buffer_edit_provide_memory(&file->buffer, new_data, request_amount);
+        if (old_data) general_memory_free(general, old_data);
+    }
     
 #if BUFFER_EXPERIMENT_SCALPEL <= 0
     // NOTE(allen): fixing stuff afterwards
@@ -2516,10 +2511,8 @@ view_do_single_edit(Mem_Options *mem, File_View *view, Editing_File *file,
         File_View *current_view = view_to_file_view(current_panel->view);
         if (current_view && current_view->file == file){
             view_measure_wraps(general, current_view);
-            if (current_view != view){
-                write_cursor_with_index(cursors, &cursor_count, current_view->cursor.pos);
-                write_cursor_with_index(cursors, &cursor_count, current_view->mark);
-            }
+            write_cursor_with_index(cursors, &cursor_count, current_view->cursor.pos);
+            write_cursor_with_index(cursors, &cursor_count, current_view->mark);
         }
     }
     
@@ -2535,11 +2528,9 @@ view_do_single_edit(Mem_Options *mem, File_View *view, Editing_File *file,
     for (i32 i = 0; i < panel_count; ++i, ++current_panel){
         File_View *current_view = view_to_file_view(current_panel->view);
         if (current_view && current_view->file == file){
-            if (current_view != view){
-                view_cursor_move(current_view, cursors[cursor_count++].pos);
-                current_view->mark = cursors[cursor_count++].pos;
-                current_view->preferred_x = view_get_cursor_x(current_view);
-            }
+            view_cursor_move(current_view, cursors[cursor_count++].pos);
+            current_view->mark = cursors[cursor_count++].pos;
+            current_view->preferred_x = view_get_cursor_x(current_view);
         }
     }
     
@@ -2556,7 +2547,7 @@ view_do_white_batch_edit(Mem_Options *mem, File_View *view, Editing_File *file,
     
     // NOTE(allen): fixing stuff beforewards????
     Assert(spec.str == 0);
-    view_update_history_before_edit(mem, file, spec.step, 0, history_mode);
+    file_update_history_before_edit(mem, file, spec.step, 0, history_mode);
     file_pre_edit_maintenance(file);
     
     // NOTE(allen): actual text replacement
@@ -2569,11 +2560,18 @@ view_do_white_batch_edit(Mem_Options *mem, File_View *view, Editing_File *file,
     
     Assert(spec.step.first_child < file->undo.children.edit_count);
     Assert(batch_size >= 0);
-    
-    i32 shift_amount = buffer_batch_edit_max_shift(batch, batch_size);
-    file_grow_as_needed(general, file, shift_amount);
-    
-    buffer_batch_edit(&file->buffer, batch, (char*)str_base, batch_size);
+
+    Buffer_Batch_State state = {};
+    i32 request_amount;
+    while (buffer_batch_edit_step(&state, &file->buffer,
+                                  batch, (char*)str_base, batch_size, &request_amount)){
+        void *new_data = 0;
+        if (request_amount > 0){
+            new_data = general_memory_allocate(general, request_amount, BUBBLE_BUFFER);
+        }
+        void *old_data = buffer_edit_provide_memory(&file->buffer, new_data, request_amount);
+        if (old_data) general_memory_free(general, old_data);
+    }
     
     // NOTE(allen): token fixing
     if (file->tokens_complete){
@@ -2585,12 +2583,18 @@ view_do_white_batch_edit(Mem_Options *mem, File_View *view, Editing_File *file,
         Buffer_Edit *end_edit = batch + batch_size;
         
         i32 shift_amount = 0;
+        i32 local_shift = 0;
         
         for (; token < end_token && edit < end_edit; ++edit){
+            local_shift = (edit->len - (edit->end - edit->start));
+            for (; token->start < edit->start && edit->start < token->start + token->size &&
+                     token < end_token; ++token){
+                token->size += local_shift;
+            }
             for (; token->start < edit->start && token < end_token; ++token){
                 token->start += shift_amount;
             }
-            shift_amount += (edit->len - (edit->end - edit->start));
+            shift_amount += local_shift;
         }
         for (; token < end_token; ++token){
             token->start += shift_amount;
@@ -2656,7 +2660,7 @@ view_replace_range(Mem_Options *mem, File_View *view, Editing_Layout *layout,
     spec.step.pre_pos = view->cursor.pos;
     spec.step.post_pos = next_cursor;
     spec.str = str;
-    view_do_single_edit(mem, view, view->file, layout, spec, hist_normal);
+    file_do_single_edit(mem, view->file, layout, spec, hist_normal);
 }
 
 internal void
@@ -2683,7 +2687,7 @@ view_undo_redo(Mem_Options *mem, Editing_Layout *layout, File_View *view, Editin
             spec.step.edit.str_start = 0;
             spec.str = stack->strings + step.edit.str_start;
             
-            view_do_single_edit(mem, view, file, layout, spec, hist_normal);
+            file_do_single_edit(mem, file, layout, spec, hist_normal);
 
             if (expected_type == ED_UNDO) view_cursor_move(view, step.pre_pos);
             else view_cursor_move(view, step.post_pos);
@@ -2742,7 +2746,7 @@ view_history_step(Mem_Options *mem, Editing_Layout *layout, File_View *view, His
             spec.step.edit.str_start = 0;
             spec.str = file->undo.history.strings + step.edit.str_start;
             
-            view_do_single_edit(mem, view, file, layout, spec, history_mode);
+            file_do_single_edit(mem, file, layout, spec, history_mode);
         
             switch (spec.step.type){
             case ED_NORMAL:
@@ -2906,7 +2910,7 @@ clipboard_copy(General_Memory *general, Working_Set *working, Range range, Editi
 }
 
 internal Edit_Spec
-view_compute_whitespace_edit(Mem_Options *mem, Editing_File *file,
+file_compute_whitespace_edit(Mem_Options *mem, Editing_File *file, i32 cursor_pos,
                              Buffer_Edit *edits, char *str_base, i32 str_size,
                              Buffer_Edit *inverse_array, char *inv_str, i32 inv_max,
                              i32 edit_count){
@@ -2933,6 +2937,8 @@ view_compute_whitespace_edit(Mem_Options *mem, Editing_File *file,
     spec.step.special_type = 1;
     spec.step.child_count = edit_count;
     spec.step.inverse_child_count = edit_count;
+    spec.step.pre_pos = cursor_pos;
+    spec.step.post_pos = cursor_pos;
 #else
     Edit_Spec spec = {};
 #endif
@@ -2989,7 +2995,7 @@ view_clean_whitespace(Mem_Options *mem, File_View *view, Editing_Layout *layout)
     
         char *inv_str = (char*)part->base + part->pos;
         Edit_Spec spec =
-            view_compute_whitespace_edit(mem, file, edits, str_base, str_size,
+            file_compute_whitespace_edit(mem, file, view->cursor.pos, edits, str_base, str_size,
                                          inverse_array, inv_str, part->max - part->pos, edit_count);
     
         view_do_white_batch_edit(mem, view, file, layout, spec, hist_normal);
@@ -3178,7 +3184,7 @@ view_auto_tab_tokens(Mem_Options *mem, File_View *view, Editing_Layout *layout,
     
         char *inv_str = (char*)part->base + part->pos;
         Edit_Spec spec =
-            view_compute_whitespace_edit(mem, file, edits, str_base, str_size,
+            file_compute_whitespace_edit(mem, file, view->cursor.pos, edits, str_base, str_size,
                                          inverse_array, inv_str, part->max - part->pos, edit_count);
         
         view_do_white_batch_edit(mem, view, file, layout, spec, hist_normal);
@@ -3537,8 +3543,12 @@ step_file_view(Thread_Context *thread, View *view_, i32_Rect rect,
         result = 1;
     }
     
-    while (cursor_y > target_y + max_y) target_y += delta_y;
-    while (cursor_y < target_y + taken_top_space) target_y -= delta_y;
+    if (cursor_y > target_y + max_y){
+        target_y = cursor_y - max_y + delta_y;
+    }
+    if (cursor_y < target_y + taken_top_space){
+        target_y = cursor_y - delta_y - taken_top_space;
+    }
     
     if (target_y > max_target_y) target_y = max_target_y;
     if (target_y < -extra_top) target_y = -extra_top;

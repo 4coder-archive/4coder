@@ -53,6 +53,19 @@
 #define cat_4tech(a,b) cat_4tech_(a,b)
 #endif
 
+#ifndef round_up_4tech
+internal_4tech int
+lroundup_(int x, int granularity){
+	int original_x;
+    original_x = x;
+	x /= granularity;
+	x *= granularity;
+	if (x < original_x) x += granularity;
+	return x;
+}
+#define round_up_4tech(x,g) lroundup_(x,g)
+#endif
+
 inline_4tech float
 measure_character(void *advance_data, int stride, char character){
     char *advances;
