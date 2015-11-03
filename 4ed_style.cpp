@@ -143,7 +143,10 @@ struct Style_Main_Data{
 	u32 highlight_white_color;
     u32 paste_color;
     u32 undo_color;
-    u32 next_undo_color;
+    u32 result_link_color;
+    u32 related_link_color;
+    u32 error_link_color;
+    u32 warning_link_color;
     Interactive_Style file_info_style;
 };
 
@@ -186,6 +189,10 @@ enum Style_Color_Tag{
     STAG_PASTE_COLOR,
     STAG_UNDO_COLOR,
     STAG_NEXT_UNDO_COLOR,
+    STAG_RESULT_LINK_COLOR,
+    STAG_RELATED_LINK_COLOR,
+    STAG_ERROR_LINK_COLOR,
+    STAG_WARNING_LINK_COLOR,
     // never below this
     STAG_COUNT
 };
@@ -350,7 +357,6 @@ style_form_convert(Style_File_Format_v4 *o, Style_File_Format_v3 *i){
     o->main.highlight_white_color = i->main.highlight_white_color;
     o->main.paste_color = i->main.paste_color;
     o->main.undo_color = i->main.paste_color ^ 0x00FFFFFF;
-    o->main.next_undo_color = i->main.paste_color ^ 0x00FFFFFF;
     o->main.file_info_style = i->main.file_info_style;
     o->main.file_info_style.bar_active_color = i->main.file_info_style.bar_color;
 }
@@ -395,7 +401,11 @@ style_index_by_tag(Style *s, u32 tag){
         
     case STAG_PASTE_COLOR: result = &s->main.paste_color; break;
     case STAG_UNDO_COLOR: result = &s->main.undo_color; break;
-    case STAG_NEXT_UNDO_COLOR: result = &s->main.next_undo_color; break;
+        
+    case STAG_RESULT_LINK_COLOR: result = &s->main.result_link_color; break;
+    case STAG_RELATED_LINK_COLOR: result = &s->main.related_link_color; break;
+    case STAG_ERROR_LINK_COLOR: result = &s->main.error_link_color; break;
+    case STAG_WARNING_LINK_COLOR: result = &s->main.warning_link_color; break;
     }
     return result;
 }

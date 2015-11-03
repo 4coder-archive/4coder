@@ -157,6 +157,8 @@ typedef struct{
     int glyphid;
     float x0, y0;
     float x1, y1;
+    
+    int chunk_i;
 } Buffer_Render_Item;
 
 inline_4tech void

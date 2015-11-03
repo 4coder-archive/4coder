@@ -110,25 +110,6 @@ buffer_end_init(Gap_Buffer_Init *init){
     return(result);
 }
 
-internal_4tech void*
-buffer_edit_provide_memory(Gap_Buffer *buffer, void *new_data, int new_max){
-    void *result;
-    int new_gap_size;
-    
-    assert_4tech(new_max >= buffer_size(buffer));
-    
-    result = buffer->data;
-    new_gap_size = new_max - buffer_size(buffer);
-    memcpy_4tech(new_data, buffer->data, buffer->size1);
-    memcpy_4tech((char*)new_data + buffer->size1 + new_gap_size, buffer->data + buffer->size1 + buffer->gap_size, buffer->size2);
-    
-    buffer->data = (char*)new_data;
-    buffer->gap_size = new_gap_size;
-    buffer->max = new_max;
-    
-    return(result);
-}
-
 typedef struct{
     Gap_Buffer *buffer;
     char *data, *base;
@@ -330,6 +311,25 @@ buffer_batch_edit_step(Buffer_Batch_State *state, Gap_Buffer *buffer, Buffer_Edi
     
     state->shift_total = shift_total;
     state->i = i;
+    
+    return(result);
+}
+
+internal_4tech void*
+buffer_edit_provide_memory(Gap_Buffer *buffer, void *new_data, int new_max){
+    void *result;
+    int new_gap_size;
+    
+    assert_4tech(new_max >= buffer_size(buffer));
+    
+    result = buffer->data;
+    new_gap_size = new_max - buffer_size(buffer);
+    memcpy_4tech(new_data, buffer->data, buffer->size1);
+    memcpy_4tech((char*)new_data + buffer->size1 + new_gap_size, buffer->data + buffer->size1 + buffer->gap_size, buffer->size2);
+    
+    buffer->data = (char*)new_data;
+    buffer->gap_size = new_gap_size;
+    buffer->max = new_max;
     
     return(result);
 }

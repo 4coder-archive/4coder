@@ -92,20 +92,6 @@ buffer_end_init(Buffer_Init *init){
     return(result);
 }
 
-internal_4tech void*
-buffer_edit_provide_memory(Buffer *buffer, void *new_data, int new_max){
-    void *result;
-    
-    assert_4tech(new_max >= buffer->size);
-    
-    result = buffer->data;
-    memcpy_4tech(new_data, buffer->data, buffer->size);
-    buffer->data = (char*)new_data;
-    buffer->max = new_max;
-    
-    return(result);
-}
-
 typedef struct{
     Buffer *buffer;
     char *data, *end;
@@ -222,6 +208,20 @@ buffer_batch_edit_step(Buffer_Batch_State *state, Buffer *buffer, Buffer_Edit *s
     
     state->shift_total = shift_total;
     state->i = i;
+    
+    return(result);
+}
+
+internal_4tech void*
+buffer_edit_provide_memory(Buffer *buffer, void *new_data, int new_max){
+    void *result;
+    
+    assert_4tech(new_max >= buffer->size);
+    
+    result = buffer->data;
+    memcpy_4tech(new_data, buffer->data, buffer->size);
+    buffer->data = (char*)new_data;
+    buffer->max = new_max;
     
     return(result);
 }

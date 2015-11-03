@@ -131,7 +131,7 @@ buffer_seek_whitespace_up(Buffer_Type *buffer, int pos){
     int no_hard;
     
     size = buffer_size(buffer);
-    loop = buffer_backify_loop(buffer, pos, 1);
+    loop = buffer_backify_loop(buffer, pos-1, 1);
     
     for (;buffer_backify_good(&loop);
          buffer_backify_next(&loop)){
@@ -245,18 +245,22 @@ buffer_seek_alphanumeric_right(Buffer_Type *buffer, int pos){
          buffer_stringify_next(&loop)){
         end = loop.size + loop.absolute_pos;
         data = loop.data - loop.absolute_pos;
-        for (; pos < end && is_alphanumeric_true(data[pos]); ++pos);
-        if (!is_alphanumeric_true(data[pos])) break;
+        for (; pos < end; ++pos){
+            if (!is_alphanumeric_true(data[pos])) goto buffer_seek_alphanumeric_right_mid;
+        }
     }
     
+buffer_seek_alphanumeric_right_mid:
     for (;buffer_stringify_good(&loop);
          buffer_stringify_next(&loop)){
         end = loop.size + loop.absolute_pos;
         data = loop.data - loop.absolute_pos;
-        for (; pos < end && !is_alphanumeric_true(data[pos]); ++pos);
-        if (is_alphanumeric_true(data[pos])) break;
+        for (; pos < end; ++pos){
+            if (is_alphanumeric_true(data[pos])) goto buffer_seek_alphanumeric_right_end;
+        }
     }
     
+buffer_seek_alphanumeric_right_end:
     return(pos);
 }
 
@@ -276,16 +280,19 @@ buffer_seek_alphanumeric_left(Buffer_Type *buffer, int pos){
              buffer_backify_next(&loop)){
             end = loop.absolute_pos;
             data = loop.data - end;
-            for (; pos >= end && !is_alphanumeric_true(data[pos]); --pos);
-            if (is_alphanumeric_true(data[pos])) break;
+            for (; pos >= end; --pos){
+                if (is_alphanumeric_true(data[pos])) goto buffer_seek_alphanumeric_left_mid;
+            }
         }
         
+buffer_seek_alphanumeric_left_mid:
         for (;buffer_backify_good(&loop);
              buffer_backify_next(&loop)){
             end = loop.absolute_pos;
             data = loop.data - end;
-            for (; pos >= end && is_alphanumeric_true(data[pos]); --pos);
-            if (!is_alphanumeric_true(data[pos])) break;
+            for (; pos >= end; --pos){
+                if (!is_alphanumeric_true(data[pos])) goto buffer_seek_alphanumeric_left_end;
+            }
         }
         
         ++pos;
@@ -294,6 +301,7 @@ buffer_seek_alphanumeric_left(Buffer_Type *buffer, int pos){
         pos = 0;
     }
     
+buffer_seek_alphanumeric_left_end:
     return(pos);
 }
 
@@ -1069,6 +1077,9 @@ buffer_get_render_data(Buffer_Type *buffer, float *wraps, Buffer_Render_Item *it
             switch (ch){
             case '\n':
                 write_render_item_inline(item, i, ' ', x, y, advance_data, stride, font_height);
+#if BUFFER_EXPERIMENT_SCALPEL == 2
+                item->chunk_i = loop.chunk_i*2 + ((loop.pos >= buffer->gaps[loop.chunk_i].size1)?1:0);
+#endif
                 ++item_i;
                 ++item;
                 
@@ -1078,11 +1089,17 @@ buffer_get_render_data(Buffer_Type *buffer, float *wraps, Buffer_Render_Item *it
 
             case 0:
                 ch_width = write_render_item_inline(item, i, '\\', x, y, advance_data, stride, font_height);
+#if BUFFER_EXPERIMENT_SCALPEL == 2
+                item->chunk_i = loop.chunk_i*2 + ((loop.pos >= buffer->gaps[loop.chunk_i].size1)?1:0);
+#endif
                 ++item_i;
                 ++item;
                 x += ch_width;
 
                 ch_width = write_render_item_inline(item, i, '0', x, y, advance_data, stride, font_height);
+#if BUFFER_EXPERIMENT_SCALPEL == 2
+                item->chunk_i = loop.chunk_i*2 + ((loop.pos >= buffer->gaps[loop.chunk_i].size1)?1:0);
+#endif
                 ++item_i;
                 ++item;
                 x += ch_width;
@@ -1090,11 +1107,17 @@ buffer_get_render_data(Buffer_Type *buffer, float *wraps, Buffer_Render_Item *it
 
             case '\r':
                 ch_width = write_render_item_inline(item, i, '\\', x, y, advance_data, stride, font_height);
+#if BUFFER_EXPERIMENT_SCALPEL == 2
+                item->chunk_i = loop.chunk_i*2 + ((loop.pos >= buffer->gaps[loop.chunk_i].size1)?1:0);
+#endif
                 ++item_i;
                 ++item;
                 x += ch_width;
 
                 ch_width = write_render_item_inline(item, i, 'r', x, y, advance_data, stride, font_height);
+#if BUFFER_EXPERIMENT_SCALPEL == 2
+                item->chunk_i = loop.chunk_i*2 + ((loop.pos >= buffer->gaps[loop.chunk_i].size1)?1:0);
+#endif
                 ++item_i;
                 ++item;
                 x += ch_width;
@@ -1102,10 +1125,16 @@ buffer_get_render_data(Buffer_Type *buffer, float *wraps, Buffer_Render_Item *it
 
             case '\t':
                 ch_width_sub = write_render_item_inline(item, i, '\\', x, y, advance_data, stride, font_height);
+#if BUFFER_EXPERIMENT_SCALPEL == 2
+                item->chunk_i = loop.chunk_i*2 + ((loop.pos >= buffer->gaps[loop.chunk_i].size1)?1:0);
+#endif
                 ++item_i;
                 ++item;
 
                 write_render_item_inline(item, i, 't', x + ch_width_sub, y, advance_data, stride, font_height);
+#if BUFFER_EXPERIMENT_SCALPEL == 2
+                item->chunk_i = loop.chunk_i*2 + ((loop.pos >= buffer->gaps[loop.chunk_i].size1)?1:0);
+#endif
                 ++item_i;
                 ++item;
                 x += ch_width;
@@ -1113,9 +1142,13 @@ buffer_get_render_data(Buffer_Type *buffer, float *wraps, Buffer_Render_Item *it
 
             default:
                 write_render_item(item, i, ch, x, y, ch_width, font_height);
+#if BUFFER_EXPERIMENT_SCALPEL == 2
+                item->chunk_i = loop.chunk_i*2 + ((loop.pos >= buffer->gaps[loop.chunk_i].size1)?1:0);
+#endif
                 ++item_i;
                 ++item;
                 x += ch_width;
+                
                 break;
             }
             if (y > height + shift_y) goto buffer_get_render_data_end;
@@ -1127,6 +1160,9 @@ buffer_get_render_data_end:
         ch = 0;
         ch_width = measure_character(advance_data, stride, ' ');
         write_render_item(item, size, ch, x, y, ch_width, font_height);
+#if BUFFER_EXPERIMENT_SCALPEL == 2
+        item->chunk_i = -1;
+#endif
         ++item_i;
         ++item;
         x += ch_width;

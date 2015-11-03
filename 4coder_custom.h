@@ -69,7 +69,7 @@ enum Command_ID{
     cmdid_cut,
     cmdid_paste,
     cmdid_paste_next,
-    cmdid_delete_chunk,
+    cmdid_delete_range,
     cmdid_timeline_scrub,
     cmdid_undo,
     cmdid_redo,

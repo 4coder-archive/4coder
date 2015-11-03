@@ -236,7 +236,7 @@ extern "C" GET_BINDING_DATA(get_bindings){
     bind(context, codes->down, MDFR_ALT, cmdid_stop_rewind_fastforward);
     bind(context, 'h', MDFR_CTRL, cmdid_history_backward);
     bind(context, 'H', MDFR_CTRL, cmdid_history_forward);
-    bind(context, 'd', MDFR_CTRL, cmdid_delete_chunk);
+    bind(context, 'd', MDFR_CTRL, cmdid_delete_range);
     bind(context, 'l', MDFR_CTRL, cmdid_toggle_line_wrap);
     bind(context, 'L', MDFR_CTRL, cmdid_toggle_endline_mode);
     bind(context, 'u', MDFR_CTRL, cmdid_to_uppercase);
