@@ -678,7 +678,7 @@ COMMAND_DECL(interactive_new){
 }
 
 internal File_View*
-app_open_file(App_Vars *vars, General_Memory *general, Panel *panel,
+app_open_file(App_Vars *vars, Mem_Options *mem, Panel *panel,
               Working_Set *working_set, String *string, Style *style,
               Live_Views *live_set, Command_Data *command_data){
     File_View *result = 0;
@@ -690,7 +690,7 @@ app_open_file(App_Vars *vars, General_Memory *general, Panel *panel,
         Get_File_Result file = working_set_get_available_file(working_set);
         if (file.file){
             file_get_dummy(file.file);
-            created_file = file_create(general, file.file, (u8*)string->str, style->font);
+            created_file = file_create(mem, file.file, (u8*)string->str, style->font);
             table_add(&working_set->table, file.file->source_path, file.index);
             if (created_file){
                 target_file = file.file;
@@ -725,7 +725,7 @@ app_open_file(App_Vars *vars, General_Memory *general, Panel *panel,
 
 #if BUFFER_EXPERIMENT_SCALPEL <= 0
         if (created_file && target_file->tokens_exist)
-            file_first_lex_parallel(general, target_file);
+            file_first_lex_parallel(&mem->general, target_file);
 #endif
     }
     
@@ -762,7 +762,7 @@ COMMAND_DECL(interactive_open){
     
     if (filename){
         String string = make_string(filename, filename_len);
-        if (app_open_file(vars, &mem->general, panel, working_set,
+        if (app_open_file(vars, mem, panel, working_set,
                           &string, style, live_set, command)) made_file = 1;
     }
     
@@ -794,7 +794,7 @@ COMMAND_DECL(reopen){
     USE_VARS(vars);
     
     Editing_File temp_file;
-    if (file_create(&mem->general, &temp_file, (u8*)make_c_str(file->source_path), style->font)){
+    if (file_create(mem, &temp_file, (u8*)make_c_str(file->source_path), style->font)){
         file_close(&mem->general, file);
         *file = temp_file;
         file->source_path.str = file->source_path_;
@@ -1566,7 +1566,7 @@ COMMAND_DECL(build){
         }
         
         if (file){
-            file_create_super_locked(&mem->general, file, (u8*)buffer_name, style->font);
+            file_create_super_locked(mem, file, (u8*)buffer_name, style->font);
             table_add(&working_set->table, file->live_name, index);
             
             View *new_view = live_set_alloc_view(live_set, mem);
@@ -3042,7 +3042,7 @@ app_step(Thread_Context *thread, Key_Codes *codes,
             case DACT_OPEN:
             {
                 command_data.view = (View*)
-                    app_open_file(vars, general,panel, working_set, string, style, live_set, &command_data);
+                    app_open_file(vars, mem, panel, working_set, string, style, live_set, &command_data);
             }break;
             
             case DACT_SAVE_AS:
@@ -3070,7 +3070,7 @@ app_step(Thread_Context *thread, Key_Codes *codes,
             case DACT_NEW:
             {
                 Get_File_Result file = working_set_get_available_file(working_set);
-                file_create_empty(general, file.file, (u8*)string->str, style->font);
+                file_create_empty(mem, file.file, (u8*)string->str, style->font);
                 table_add(&working_set->table, file.file->source_path, file.index);
                 
                 View *new_view = live_set_alloc_view(live_set, mem);

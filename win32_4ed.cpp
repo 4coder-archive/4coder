@@ -58,7 +58,7 @@
 #define FPS 30
 #define FRAME_TIME (1000000 / FPS)
 
-#define BUFFER_EXPERIMENT_SCALPEL 1
+#define BUFFER_EXPERIMENT_SCALPEL 3
 
 #include "4ed_meta.h"
 

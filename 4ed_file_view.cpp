@@ -17,9 +17,12 @@
 #elif BUFFER_EXPERIMENT_SCALPEL == 1
 #include "buffer/4coder_gap_buffer.cpp"
 #define Buffer_Type Gap_Buffer
-#else
+#elif BUFFER_EXPERIMENT_SCALPEL == 2
 #include "buffer/4coder_multi_gap_buffer.cpp"
 #define Buffer_Type Multi_Gap_Buffer
+#else
+#include "buffer/4coder_rope_buffer.cpp"
+#define Buffer_Type Rope_Buffer
 #endif
 
 #include "buffer/4coder_buffer_abstract.cpp"
@@ -1388,9 +1391,10 @@ alloc_for_buffer(void *context, int *size){
 }
 
 internal void
-file_create_from_string(General_Memory *general, Editing_File *file, u8 *filename, Font *font, String val, b32 super_locked = 0){
+file_create_from_string(Mem_Options *mem, Editing_File *file, u8 *filename, Font *font, String val, b32 super_locked = 0){
     *file = {};
-#if BUFFER_EXPERIMENT_SCALPEL <= 2
+    General_Memory *general = &mem->general;
+#if BUFFER_EXPERIMENT_SCALPEL <= 3
     Buffer_Init_Type init = buffer_begin_init(&file->buffer, val.str, val.size);
     for (; buffer_init_need_more(&init); ){
         i32 page_size = buffer_init_page_size(&init);
@@ -1399,7 +1403,11 @@ file_create_from_string(General_Memory *general, Editing_File *file, u8 *filenam
         void *data = general_memory_allocate(general, page_size, BUBBLE_BUFFER);
         buffer_init_provide_page(&init, data, page_size);
     }
-    i32 init_success = buffer_end_init(&init);
+
+    Partition *part = &mem->part;
+    i32 scratch_size = partition_remaining(part);
+    Assert(scratch_size > 0);
+    i32 init_success = buffer_end_init(&init, part->base + part->pos, scratch_size);
     Assert(init_success);
 #endif
     
@@ -1444,14 +1452,14 @@ file_create_from_string(General_Memory *general, Editing_File *file, u8 *filenam
 }
 
 internal bool32
-file_create(General_Memory *general, Editing_File *file, u8 *filename, Font *font){
+file_create(Mem_Options *mem, Editing_File *file, u8 *filename, Font *font){
     bool32 result = 0;
     
     File_Data raw_file = system_load_file(filename);
     if (raw_file.data){
         result = 1;
         String val = make_string((char*)raw_file.data, raw_file.size);
-        file_create_from_string(general, file, filename, font, val);
+        file_create_from_string(mem, file, filename, font, val);
         system_free_file(raw_file);
     }
     
@@ -1459,18 +1467,18 @@ file_create(General_Memory *general, Editing_File *file, u8 *filename, Font *fon
 }
 
 internal b32
-file_create_empty(General_Memory *general, Editing_File *file, u8 *filename, Font *font){
+file_create_empty(Mem_Options *mem, Editing_File *file, u8 *filename, Font *font){
     b32 result = 1;
     String empty_str = {};
-    file_create_from_string(general, file, filename, font, empty_str);
+    file_create_from_string(mem, file, filename, font, empty_str);
     return result;
 }
 
 internal b32
-file_create_super_locked(General_Memory *general, Editing_File *file, u8 *filename, Font *font){
+file_create_super_locked(Mem_Options *mem, Editing_File *file, u8 *filename, Font *font){
     b32 result = 1;
     String empty_str = {};
-    file_create_from_string(general, file, filename, font, empty_str, 1);
+    file_create_from_string(mem, file, filename, font, empty_str, 1);
     return result;
 }
 
@@ -1800,7 +1808,7 @@ struct Edit_Spec{
     Edit_Step step;
 };
 
-#if BUFFER_EXPERIMENT_SCALPEL <= 1
+#if BUFFER_EXPERIMENT_SCALPEL <= 2
 internal Edit_Step*
 file_post_undo(General_Memory *general, Editing_File *file,
                Edit_Step step, bool32 do_merge, bool32 can_merge){
@@ -1876,7 +1884,7 @@ undo_stack_pop(Edit_Stack *stack){
     }
 }
 
-#if BUFFER_EXPERIMENT_SCALPEL <= 1
+#if BUFFER_EXPERIMENT_SCALPEL <= 2
 internal void
 file_post_redo(General_Memory *general, Editing_File *file, Edit_Step step){
     Edit_Stack *redo = &file->undo.redo;
@@ -1937,7 +1945,7 @@ file_unpost_history_block(Editing_File *file){
     file->undo.history_head_block = old_head->prev_block;
 }
 
-#if BUFFER_EXPERIMENT_SCALPEL <= 1
+#if BUFFER_EXPERIMENT_SCALPEL <= 2
 internal Edit_Step*
 file_post_history(General_Memory *general, Editing_File *file,
                   Edit_Step step, bool32 do_merge, bool32 can_merge){
@@ -2284,7 +2292,7 @@ internal void
 file_update_history_before_edit(Mem_Options *mem, Editing_File *file, Edit_Step step, u8 *str,
                                 History_Mode history_mode){
     if (!file->undo.undo.edits) return;
-#if BUFFER_EXPERIMENT_SCALPEL <= 1
+#if BUFFER_EXPERIMENT_SCALPEL <= 2
     General_Memory *general = &mem->general;
     
 #if FRED_SLOW
@@ -2531,7 +2539,7 @@ file_do_single_edit(Mem_Options *mem, Editing_File *file,
         file_relex_parallel(mem, file, start, end, shift_amount);
 #endif
 
-#if BUFFER_EXPERIMENT_SCALPEL <= 1
+#if BUFFER_EXPERIMENT_SCALPEL <= 2
     Temp_Memory cursor_temp = begin_temp_memory(&mem->part);
     i32 cursor_max = layout->panel_max_count * 2;
     Cursor_With_Index *cursors = push_array(&mem->part, Cursor_With_Index, cursor_max);
@@ -2573,7 +2581,7 @@ internal void
 view_do_white_batch_edit(Mem_Options *mem, File_View *view, Editing_File *file,
                          Editing_Layout *layout, Edit_Spec spec, History_Mode history_mode){
     if (view->locked) return;
-#if BUFFER_EXPERIMENT_SCALPEL <= 1
+#if BUFFER_EXPERIMENT_SCALPEL <= 2
     Assert(file);
     ProfileMomentFunction();
     
@@ -2952,7 +2960,7 @@ file_compute_whitespace_edit(Mem_Options *mem, Editing_File *file, i32 cursor_po
                              Buffer_Edit *edits, char *str_base, i32 str_size,
                              Buffer_Edit *inverse_array, char *inv_str, i32 inv_max,
                              i32 edit_count){
-#if BUFFER_EXPERIMENT_SCALPEL <= 1
+#if BUFFER_EXPERIMENT_SCALPEL <= 2
     General_Memory *general = &mem->general;
     
     i32 inv_str_pos = 0;
@@ -2986,7 +2994,7 @@ file_compute_whitespace_edit(Mem_Options *mem, Editing_File *file, i32 cursor_po
 
 internal void
 view_clean_whitespace(Mem_Options *mem, File_View *view, Editing_Layout *layout){
-#if BUFFER_EXPERIMENT_SCALPEL <= 1
+#if BUFFER_EXPERIMENT_SCALPEL <= 2
     Editing_File *file = view->file;
     Assert(file && !file->is_dummy);
     Partition *part = &mem->part;

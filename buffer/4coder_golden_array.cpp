@@ -76,7 +76,7 @@ buffer_init_provide_page(Buffer_Init *init, void *page, int page_size){
 }
 
 internal_4tech int
-buffer_end_init(Buffer_Init *init){
+buffer_end_init(Buffer_Init *init, void *scratch, int scratch_size){
     Buffer *buffer;
     int result;
 

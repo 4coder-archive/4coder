@@ -66,6 +66,10 @@ lroundup_(int x, int granularity){
 #define round_up_4tech(x,g) lroundup_(x,g)
 #endif
 
+#ifndef round_pot_4tech
+#define round_pot_4tech ROUNDPOT32
+#endif
+
 inline_4tech float
 measure_character(void *advance_data, int stride, char character){
     char *advances;

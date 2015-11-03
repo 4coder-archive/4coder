@@ -83,6 +83,18 @@ DIVCEIL32(i32 n, i32 d) {
 inline real32
 FRACPART32(real32 x) { return x - (i32)x; }
 
+inline u32
+ROUNDPOT32(u32 v){
+    v--;
+    v |= v >> 1;
+    v |= v >> 2;
+    v |= v >> 4;
+    v |= v >> 8;
+    v |= v >> 16;
+    v++;
+    return v;
+}
+
 /*
  * Rectangles
  */

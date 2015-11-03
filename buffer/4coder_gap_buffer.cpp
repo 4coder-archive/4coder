@@ -78,7 +78,7 @@ buffer_init_provide_page(Gap_Buffer_Init *init, void *page, int page_size){
 }
 
 internal_4tech int
-buffer_end_init(Gap_Buffer_Init *init){
+buffer_end_init(Gap_Buffer_Init *init, void *scratch, int scratch_size){
     Gap_Buffer *buffer;
     int osize1, size1, size2, size;
     int result;
@@ -292,7 +292,8 @@ buffer_replace_range(Gap_Buffer *buffer, int start, int end, char *str, int len,
 
 // NOTE(allen): This could should be optimized for Gap_Buffer
 internal_4tech int
-buffer_batch_edit_step(Buffer_Batch_State *state, Gap_Buffer *buffer, Buffer_Edit *sorted_edits, char *strings, int edit_count, int *request_amount){
+buffer_batch_edit_step(Buffer_Batch_State *state, Gap_Buffer *buffer, Buffer_Edit *sorted_edits,
+                       char *strings, int edit_count, int *request_amount){
     Buffer_Edit *edit;
     int i, result;
     int shift_total, shift_amount;
