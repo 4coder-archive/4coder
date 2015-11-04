@@ -13,7 +13,7 @@
 
 // TOP
 
-typedef struct{
+typedef struct Buffer{
     char *data;
     int size, max;
     
@@ -37,7 +37,7 @@ buffer_size(Buffer *buffer){
     return buffer->size;
 }
 
-typedef struct{
+typedef struct Buffer_Init{
     Buffer *buffer;
     char *data;
     int size;
@@ -92,7 +92,7 @@ buffer_end_init(Buffer_Init *init, void *scratch, int scratch_size){
     return(result);
 }
 
-typedef struct{
+typedef struct Buffer_Stringify_Loop{
     Buffer *buffer;
     char *data, *end;
     int absolute_pos;
@@ -125,7 +125,7 @@ buffer_stringify_next(Buffer_Stringify_Loop *loop){
     loop->buffer = 0;
 }
 
-typedef struct{
+typedef struct Buffer_Backify_Loop{
     Buffer *buffer;
     char *data, *end;
     int absolute_pos;

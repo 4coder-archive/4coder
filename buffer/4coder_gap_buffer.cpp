@@ -13,7 +13,7 @@
 
 // TOP
 
-typedef struct{
+typedef struct Gap_Buffer{
     char *data;
     int size1, gap_size, size2, max;
     
@@ -39,7 +39,7 @@ buffer_size(Gap_Buffer *buffer){
     return(size);
 }
 
-typedef struct{
+typedef struct Gap_Buffer_Init{
     Gap_Buffer *buffer;
     char *data;
     int size;
@@ -110,7 +110,7 @@ buffer_end_init(Gap_Buffer_Init *init, void *scratch, int scratch_size){
     return(result);
 }
 
-typedef struct{
+typedef struct Gap_Buffer_Stringify_Loop{
     Gap_Buffer *buffer;
     char *data, *base;
     int absolute_pos;
@@ -172,7 +172,7 @@ buffer_stringify_next(Gap_Buffer_Stringify_Loop *loop){
     loop->data = loop->base + loop->pos;
 }
 
-typedef struct{
+typedef struct Gap_Buffer_Backify_Loop{
     Gap_Buffer *buffer;
     char *data, *base;
     int pos, end;

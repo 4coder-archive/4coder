@@ -229,7 +229,7 @@ COMMAND_DECL(write_character){
 }
 
 COMMAND_DECL(seek_whitespace_right){
-#if BUFFER_EXPERIMENT_SCALPEL <= 2
+#if BUFFER_EXPERIMENT_SCALPEL <= 3
     ProfileMomentFunction();
     REQ_FILE_VIEW(view);
     REQ_FILE(file, view);
@@ -240,7 +240,7 @@ COMMAND_DECL(seek_whitespace_right){
 }
 
 COMMAND_DECL(seek_whitespace_left){
-#if BUFFER_EXPERIMENT_SCALPEL <= 2
+#if BUFFER_EXPERIMENT_SCALPEL <= 3
     ProfileMomentFunction();
     REQ_FILE_VIEW(view);
     REQ_FILE(file, view);
@@ -251,7 +251,7 @@ COMMAND_DECL(seek_whitespace_left){
 }
 
 COMMAND_DECL(seek_whitespace_up){
-#if BUFFER_EXPERIMENT_SCALPEL <= 2
+#if BUFFER_EXPERIMENT_SCALPEL <= 3
     ProfileMomentFunction();
     REQ_FILE_VIEW(view);
     REQ_FILE(file, view);
@@ -262,7 +262,7 @@ COMMAND_DECL(seek_whitespace_up){
 }
 
 COMMAND_DECL(seek_whitespace_down){
-#if BUFFER_EXPERIMENT_SCALPEL <= 2
+#if BUFFER_EXPERIMENT_SCALPEL <= 3
     ProfileMomentFunction();
     REQ_FILE_VIEW(view);
     REQ_FILE(file, view);
@@ -356,7 +356,7 @@ COMMAND_DECL(seek_white_or_token_left){
 }
 
 COMMAND_DECL(seek_alphanumeric_right){
-#if BUFFER_EXPERIMENT_SCALPEL <= 2
+#if BUFFER_EXPERIMENT_SCALPEL <= 3
     ProfileMomentFunction();
     REQ_FILE_VIEW(view);
     REQ_FILE(file, view);
@@ -367,7 +367,7 @@ COMMAND_DECL(seek_alphanumeric_right){
 }
 
 COMMAND_DECL(seek_alphanumeric_left){
-#if BUFFER_EXPERIMENT_SCALPEL <= 2
+#if BUFFER_EXPERIMENT_SCALPEL <= 3
     ProfileMomentFunction();
     REQ_FILE_VIEW(view);
     REQ_FILE(file, view);
@@ -378,7 +378,7 @@ COMMAND_DECL(seek_alphanumeric_left){
 }
 
 COMMAND_DECL(seek_alphanumeric_or_camel_right){
-#if BUFFER_EXPERIMENT_SCALPEL <= 2
+#if BUFFER_EXPERIMENT_SCALPEL <= 3
     ProfileMomentFunction();
     REQ_FILE_VIEW(view);
     REQ_FILE(file, view);
@@ -390,7 +390,7 @@ COMMAND_DECL(seek_alphanumeric_or_camel_right){
 }
 
 COMMAND_DECL(seek_alphanumeric_or_camel_left){
-#if BUFFER_EXPERIMENT_SCALPEL <= 2
+#if BUFFER_EXPERIMENT_SCALPEL <= 3
     ProfileMomentFunction();
     REQ_FILE_VIEW(view);
     REQ_FILE(file, view);

@@ -17,7 +17,7 @@
 #define Buffer_Stringify_Type cat_4tech(Buffer_Type, _Stringify_Loop)
 #define Buffer_Backify_Type cat_4tech(Buffer_Type, _Backify_Loop)
 
-#if BUFFER_EXPERIMENT_SCALPEL <= 2
+#if BUFFER_EXPERIMENT_SCALPEL <= 3
 inline_4tech void
 buffer_stringify(Buffer_Type *buffer, int start, int end, char *out){
     for (Buffer_Stringify_Type loop = buffer_stringify_loop(buffer, start, end);
@@ -72,7 +72,7 @@ buffer_count_newlines(Buffer_Type *buffer, int start, int end){
 }
 #endif
 
-#if BUFFER_EXPERIMENT_SCALPEL <= 2
+#if BUFFER_EXPERIMENT_SCALPEL <= 3
 internal_4tech int
 buffer_seek_whitespace_down(Buffer_Type *buffer, int pos){
     Buffer_Stringify_Type loop;
@@ -479,8 +479,8 @@ buffer_rfind_string_end:
 }
 #endif
 
-#if BUFFER_EXPERIMENT_SCALPEL <= 2
-typedef struct{
+#if BUFFER_EXPERIMENT_SCALPEL <= 3
+typedef struct Buffer_Measure_Starts{
     int i;
     int count;
     int start;
@@ -742,8 +742,9 @@ buffer_get_line_index_from_wrapped_y(float *wraps, float y, float font_height, i
 #endif
 
 #ifndef NON_ABSTRACT_4TECH
-typedef struct{
-    Full_Cursor cursor, prev_cursor;
+typedef struct Seek_State{
+    Full_Cursor cursor;
+    Full_Cursor prev_cursor;
 } Seek_State;
 
 internal_4tech int
@@ -854,7 +855,7 @@ cursor_seek_step_end:
 
 #endif
 
-#if BUFFER_EXPERIMENT_SCALPEL <= 2
+#if BUFFER_EXPERIMENT_SCALPEL <= 3
 internal_4tech Full_Cursor
 buffer_cursor_seek(Buffer_Type *buffer, Buffer_Seek seek, float max_width, float font_height,
                    void *advance_data, int stride, Full_Cursor cursor){
@@ -940,7 +941,7 @@ buffer_cursor_from_wrapped_xy(Buffer_Type *buffer, float x, float y, int round_d
 }
 #endif
 
-#if BUFFER_EXPERIMENT_SCALPEL <= 2
+#if BUFFER_EXPERIMENT_SCALPEL <= 3
 internal_4tech void
 buffer_invert_edit_shift(Buffer_Type *buffer, Buffer_Edit edit, Buffer_Edit *inverse, char *strings,
                          int *str_pos, int max, int shift_amount){
@@ -965,7 +966,7 @@ buffer_invert_edit(Buffer_Type *buffer, Buffer_Edit edit, Buffer_Edit *inverse, 
     buffer_invert_edit_shift(buffer, edit, inverse, strings, str_pos, max, 0);
 }
 
-typedef struct{
+typedef struct Buffer_Invert_Batch{
     int i;
     int shift_amount;
     int len;
@@ -1004,7 +1005,7 @@ buffer_invert_batch(Buffer_Invert_Batch *state, Buffer_Type *buffer, Buffer_Edit
 }
 #endif
 
-#if BUFFER_EXPERIMENT_SCALPEL <= 1
+#if BUFFER_EXPERIMENT_SCALPEL <= 2
 internal_4tech void
 buffer_batch_edit(Buffer_Type *buffer, Buffer_Edit *sorted_edits, char *strings, int edit_count){
     Buffer_Batch_State state;
@@ -1021,7 +1022,7 @@ buffer_batch_edit(Buffer_Type *buffer, Buffer_Edit *sorted_edits, char *strings,
 }
 #endif
 
-#if BUFFER_EXPERIMENT_SCALPEL <= 2
+#if BUFFER_EXPERIMENT_SCALPEL <= 3
 internal_4tech void
 buffer_get_render_data(Buffer_Type *buffer, float *wraps, Buffer_Render_Item *items, int max, int *count,
                        float port_x, float port_y, float scroll_x, float scroll_y, int wrapped,
@@ -1077,9 +1078,6 @@ buffer_get_render_data(Buffer_Type *buffer, float *wraps, Buffer_Render_Item *it
             switch (ch){
             case '\n':
                 write_render_item_inline(item, i, ' ', x, y, advance_data, stride, font_height);
-#if BUFFER_EXPERIMENT_SCALPEL == 2
-                item->chunk_i = loop.chunk_i*2 + ((loop.pos >= buffer->gaps[loop.chunk_i].size1)?1:0);
-#endif
                 ++item_i;
                 ++item;
                 
@@ -1089,17 +1087,11 @@ buffer_get_render_data(Buffer_Type *buffer, float *wraps, Buffer_Render_Item *it
 
             case 0:
                 ch_width = write_render_item_inline(item, i, '\\', x, y, advance_data, stride, font_height);
-#if BUFFER_EXPERIMENT_SCALPEL == 2
-                item->chunk_i = loop.chunk_i*2 + ((loop.pos >= buffer->gaps[loop.chunk_i].size1)?1:0);
-#endif
                 ++item_i;
                 ++item;
                 x += ch_width;
 
                 ch_width = write_render_item_inline(item, i, '0', x, y, advance_data, stride, font_height);
-#if BUFFER_EXPERIMENT_SCALPEL == 2
-                item->chunk_i = loop.chunk_i*2 + ((loop.pos >= buffer->gaps[loop.chunk_i].size1)?1:0);
-#endif
                 ++item_i;
                 ++item;
                 x += ch_width;
@@ -1107,17 +1099,11 @@ buffer_get_render_data(Buffer_Type *buffer, float *wraps, Buffer_Render_Item *it
 
             case '\r':
                 ch_width = write_render_item_inline(item, i, '\\', x, y, advance_data, stride, font_height);
-#if BUFFER_EXPERIMENT_SCALPEL == 2
-                item->chunk_i = loop.chunk_i*2 + ((loop.pos >= buffer->gaps[loop.chunk_i].size1)?1:0);
-#endif
                 ++item_i;
                 ++item;
                 x += ch_width;
 
                 ch_width = write_render_item_inline(item, i, 'r', x, y, advance_data, stride, font_height);
-#if BUFFER_EXPERIMENT_SCALPEL == 2
-                item->chunk_i = loop.chunk_i*2 + ((loop.pos >= buffer->gaps[loop.chunk_i].size1)?1:0);
-#endif
                 ++item_i;
                 ++item;
                 x += ch_width;
@@ -1125,16 +1111,10 @@ buffer_get_render_data(Buffer_Type *buffer, float *wraps, Buffer_Render_Item *it
 
             case '\t':
                 ch_width_sub = write_render_item_inline(item, i, '\\', x, y, advance_data, stride, font_height);
-#if BUFFER_EXPERIMENT_SCALPEL == 2
-                item->chunk_i = loop.chunk_i*2 + ((loop.pos >= buffer->gaps[loop.chunk_i].size1)?1:0);
-#endif
                 ++item_i;
                 ++item;
 
                 write_render_item_inline(item, i, 't', x + ch_width_sub, y, advance_data, stride, font_height);
-#if BUFFER_EXPERIMENT_SCALPEL == 2
-                item->chunk_i = loop.chunk_i*2 + ((loop.pos >= buffer->gaps[loop.chunk_i].size1)?1:0);
-#endif
                 ++item_i;
                 ++item;
                 x += ch_width;
@@ -1142,9 +1122,6 @@ buffer_get_render_data(Buffer_Type *buffer, float *wraps, Buffer_Render_Item *it
 
             default:
                 write_render_item(item, i, ch, x, y, ch_width, font_height);
-#if BUFFER_EXPERIMENT_SCALPEL == 2
-                item->chunk_i = loop.chunk_i*2 + ((loop.pos >= buffer->gaps[loop.chunk_i].size1)?1:0);
-#endif
                 ++item_i;
                 ++item;
                 x += ch_width;
@@ -1160,9 +1137,6 @@ buffer_get_render_data_end:
         ch = 0;
         ch_width = measure_character(advance_data, stride, ' ');
         write_render_item(item, size, ch, x, y, ch_width, font_height);
-#if BUFFER_EXPERIMENT_SCALPEL == 2
-        item->chunk_i = -1;
-#endif
         ++item_i;
         ++item;
         x += ch_width;

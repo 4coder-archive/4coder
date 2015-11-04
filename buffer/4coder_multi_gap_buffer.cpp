@@ -16,7 +16,7 @@
 
 // TOP
 
-typedef struct{
+typedef struct Fixed_Width_Gap_Buffer{
     char *data;
     int size1, gap_size, size2;
     int start_pos;
@@ -25,7 +25,7 @@ typedef struct{
 #define fixed_width_buffer_size Kbytes(8)
 #define fixed_width_buffer_half_size Kbytes(4)
 
-typedef struct{
+typedef struct Multi_Gap_Buffer{
     Fixed_Width_Gap_Buffer *gaps;
     int chunk_count;
     int chunk_alloced;
@@ -57,7 +57,7 @@ buffer_size(Multi_Gap_Buffer *buffer){
     return(size);
 }
 
-typedef struct{
+typedef struct Multi_Gap_Buffer_Init{
     Multi_Gap_Buffer *buffer;
     char *data;
     int size;
@@ -202,7 +202,7 @@ buffer_find_chunk(Multi_Gap_Buffer *buffer, int pos){
     return(m);
 }
 
-typedef struct{
+typedef struct Multi_Gap_Buffer_Stringify_Loop{
     Multi_Gap_Buffer *buffer;
     Fixed_Width_Gap_Buffer *gaps;
     char *data;
@@ -290,7 +290,7 @@ buffer_stringify_next(Multi_Gap_Buffer_Stringify_Loop *loop){
     }
 }
 
-typedef struct{
+typedef struct Multi_Gap_Buffer_Backify_Loop{
     Multi_Gap_Buffer *buffer;
     Fixed_Width_Gap_Buffer *gaps;
     char *data;

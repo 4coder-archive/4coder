@@ -86,12 +86,12 @@ measure_character(void *advance_data, int stride, char character){
     return(width);
 }
 
-typedef struct{
+typedef struct Buffer_Edit{
     int str_start, len;
     int start, end;
 } Buffer_Edit;
 
-typedef struct{
+typedef struct Buffer_Batch_State{
     int i;
     int shift_total;
 } Buffer_Batch_State;
@@ -103,7 +103,7 @@ typedef enum{
     buffer_seek_line_char
 } Buffer_Seek_Type;
 
-typedef struct{
+typedef struct Buffer_Seek{
     Buffer_Seek_Type type;
     union{
         struct { int pos; };
@@ -149,20 +149,18 @@ seek_line_char(int line, int character){
     return(result);
 }
 
-typedef struct{
+typedef struct Full_Cursor{
     int pos;
     int line, character;
     float unwrapped_x, unwrapped_y;
     float wrapped_x, wrapped_y;
 } Full_Cursor;
 
-typedef struct{
+typedef struct Buffer_Render_Item{
     int index;
     int glyphid;
     float x0, y0;
     float x1, y1;
-    
-    int chunk_i;
 } Buffer_Render_Item;
 
 inline_4tech void
@@ -198,7 +196,7 @@ make_cursor_hint(int line_index, int *starts, float *wrap_ys, float font_height)
     return(hint);
 }
 
-typedef struct{
+typedef struct Cursor_With_Index{
     int pos, index;
 } Cursor_With_Index;
 

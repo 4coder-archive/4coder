@@ -1148,7 +1148,7 @@ file_synchronize_times(Editing_File *file, u8 *filename){
 internal b32
 file_save(Partition *part, Editing_File *file, char *filename){
 	b32 result = 0;
-#if BUFFER_EXPERIMENT_SCALPEL <= 2
+#if BUFFER_EXPERIMENT_SCALPEL <= 3
     Temp_Memory temp = begin_temp_memory(part);
     i32 max = partition_remaining(part);
     if (file->dos_write_mode){
@@ -1199,7 +1199,7 @@ enum File_Bubble_Type{
 internal i32
 file_grow_starts_as_needed(General_Memory *general, Buffer_Type *buffer, i32 additional_lines){
     bool32 result = GROW_NOT_NEEDED;
-#if BUFFER_EXPERIMENT_SCALPEL <= 2
+#if BUFFER_EXPERIMENT_SCALPEL <= 3
     i32 max = buffer->line_max;
     i32 count = buffer->line_count;
     i32 target_lines = count + additional_lines;
@@ -1223,7 +1223,7 @@ file_grow_starts_as_needed(General_Memory *general, Buffer_Type *buffer, i32 add
 
 internal void
 file_measure_starts(General_Memory *general, Buffer_Type *buffer){
-#if BUFFER_EXPERIMENT_SCALPEL <= 2
+#if BUFFER_EXPERIMENT_SCALPEL <= 3
     ProfileMomentFunction();
     if (!buffer->line_starts){
         i32 max = buffer->line_max = Kbytes(1);
@@ -1256,7 +1256,7 @@ internal void
 file_remeasure_starts(General_Memory *general, Buffer_Type *buffer,
                       i32 line_start, i32 line_end, i32 line_shift,
                       i32 character_shift){
-#if BUFFER_EXPERIMENT_SCALPEL <= 2
+#if BUFFER_EXPERIMENT_SCALPEL <= 3
     ProfileMomentFunction();
     Assert(buffer->line_starts);
     file_grow_starts_as_needed(general, buffer, line_shift);
@@ -1279,7 +1279,7 @@ get_opaque_font_advance(Font *font){
 
 internal void
 file_grow_widths_as_needed(General_Memory *general, Buffer_Type *buffer){
-#if BUFFER_EXPERIMENT_SCALPEL <= 2
+#if BUFFER_EXPERIMENT_SCALPEL <= 3
     i32 line_count = buffer->line_count;
     if (line_count > buffer->widths_max || buffer->widths_max == 0){
         i32 new_max = LargeRoundUp(line_count, Kbytes(1));
@@ -1300,7 +1300,7 @@ file_grow_widths_as_needed(General_Memory *general, Buffer_Type *buffer){
 
 internal void
 file_measure_widths(General_Memory *general, Buffer_Type *buffer, Font *font){
-#if BUFFER_EXPERIMENT_SCALPEL <= 2
+#if BUFFER_EXPERIMENT_SCALPEL <= 3
     ProfileMomentFunction();
     file_grow_widths_as_needed(general, buffer);
     Opaque_Font_Advance opad = get_opaque_font_advance(font);
@@ -1311,7 +1311,7 @@ file_measure_widths(General_Memory *general, Buffer_Type *buffer, Font *font){
 internal void
 file_remeasure_widths(General_Memory *general, Buffer_Type *buffer, Font *font,
                       i32 line_start, i32 line_end, i32 line_shift){
-#if BUFFER_EXPERIMENT_SCALPEL <= 2
+#if BUFFER_EXPERIMENT_SCALPEL <= 3
     ProfileMomentFunction();
     file_grow_widths_as_needed(general, buffer);
     Opaque_Font_Advance opad = get_opaque_font_advance(font);
@@ -1329,7 +1329,7 @@ view_wrapped_line_span(real32 line_width, real32 max_width){
 internal i32
 view_compute_lowest_line(File_View *view){
     i32 lowest_line = 0;
-#if BUFFER_EXPERIMENT_SCALPEL <= 2
+#if BUFFER_EXPERIMENT_SCALPEL <= 3
     i32 last_line = view->line_count - 1;
     if (last_line > 0){
         if (view->unwrapped_lines){
@@ -1355,7 +1355,7 @@ view_compute_lowest_line(File_View *view){
 
 internal void
 view_measure_wraps(General_Memory *general, File_View *view){
-#if BUFFER_EXPERIMENT_SCALPEL <= 2
+#if BUFFER_EXPERIMENT_SCALPEL <= 3
     ProfileMomentFunction();
     Buffer_Type *buffer;
 
@@ -2019,7 +2019,7 @@ file_post_history(General_Memory *general, Editing_File *file,
 
 inline Full_Cursor
 view_compute_cursor_from_pos(File_View *view, i32 pos){
-#if BUFFER_EXPERIMENT_SCALPEL <= 2
+#if BUFFER_EXPERIMENT_SCALPEL <= 3
     Editing_File *file = view->file;
     Style *style = view->style;
     Font *font = style->font;
@@ -2037,7 +2037,7 @@ view_compute_cursor_from_pos(File_View *view, i32 pos){
 inline Full_Cursor
 view_compute_cursor_from_unwrapped_xy(File_View *view, real32 seek_x, real32 seek_y,
                                       bool32 round_down = 0){
-#if BUFFER_EXPERIMENT_SCALPEL <= 2
+#if BUFFER_EXPERIMENT_SCALPEL <= 3
     Editing_File *file = view->file;
     Style *style = view->style;
     Font *font = style->font;
@@ -2055,7 +2055,7 @@ view_compute_cursor_from_unwrapped_xy(File_View *view, real32 seek_x, real32 see
 inline Full_Cursor
 view_compute_cursor_from_wrapped_xy(File_View *view, real32 seek_x, real32 seek_y,
                                     bool32 round_down = 0){
-#if BUFFER_EXPERIMENT_SCALPEL <= 2
+#if BUFFER_EXPERIMENT_SCALPEL <= 3
     Editing_File *file = view->file;
     Style *style = view->style;
     Font *font = style->font;
@@ -2491,17 +2491,21 @@ file_do_single_edit(Mem_Options *mem, Editing_File *file,
     file_pre_edit_maintenance(file);
 
     // NOTE(allen): actual text replacement
-#if BUFFER_EXPERIMENT_SCALPEL <= 2
+#if BUFFER_EXPERIMENT_SCALPEL <= 3
     i32 shift_amount = 0;
     General_Memory *general = &mem->general;
+    Partition *part = &mem->part;
 
     char *str = (char*)spec.str;
     i32 start = spec.step.edit.start;
     i32 end = spec.step.edit.end;
     i32 str_len = spec.step.edit.len;
 
+    i32 scratch_size = partition_remaining(part);
+    Assert(scratch_size > 0);
     i32 request_amount = 0;
-    while (buffer_replace_range(&file->buffer, start, end, str, str_len, &shift_amount, &request_amount)){
+    while (buffer_replace_range(&file->buffer, start, end, str, str_len, &shift_amount,
+                                part->base + part->pos, scratch_size, &request_amount)){
         void *new_data = 0;
         if (request_amount > 0){
             new_data = general_memory_allocate(general, request_amount, BUBBLE_BUFFER);
@@ -2539,7 +2543,7 @@ file_do_single_edit(Mem_Options *mem, Editing_File *file,
         file_relex_parallel(mem, file, start, end, shift_amount);
 #endif
 
-#if BUFFER_EXPERIMENT_SCALPEL <= 2
+#if BUFFER_EXPERIMENT_SCALPEL <= 3
     Temp_Memory cursor_temp = begin_temp_memory(&mem->part);
     i32 cursor_max = layout->panel_max_count * 2;
     Cursor_With_Index *cursors = push_array(&mem->part, Cursor_With_Index, cursor_max);
@@ -2946,7 +2950,7 @@ working_set_lookup_file(Working_Set *working_set, String string){
 
 internal void
 clipboard_copy(General_Memory *general, Working_Set *working, Range range, Editing_File *file){
-#if BUFFER_EXPERIMENT_SCALPEL <= 2
+#if BUFFER_EXPERIMENT_SCALPEL <= 3
     i32 size = range.end - range.start;
     String *dest = working_set_next_clipboard_string(general, working, size);
     buffer_stringify(&file->buffer, range.start, range.end, dest->str);
@@ -3820,7 +3824,7 @@ draw_file_view(Thread_Context *thread, View *view_, i32_Rect rect, bool32 is_act
     bar.rect.y1 = bar.rect.y0 + font->height + 2;
     rect.y0 += font->height + 2;
 
-#if BUFFER_EXPERIMENT_SCALPEL <= 2
+#if BUFFER_EXPERIMENT_SCALPEL <= 3
     i32 max_x = rect.x1 - rect.x0;
     i32 max_y = rect.y1 - rect.y0 + font->height;
     
@@ -3895,17 +3899,6 @@ draw_file_view(Thread_Context *thread, View *view_, i32_Rect rect, bool32 is_act
     i32 prev_ind = -1;
     u32 highlight_color = 0;
     
-    u32 chunk_highlights[] = {
-        0x22FF0000,
-        0x22FFFF00,
-        0x2200FF00,
-        0x2200FFFF,
-        0x220000FF,
-        0x22FF00FF
-    };
-
-    i32 current_chunk = item->chunk_i;
-    u32 chunk_highlight = chunk_highlights[current_chunk % ArrayCount(chunk_highlights)];
     for (i32 i = 0; i < count; ++i, ++item){
         i32 ind = item->index;
         if (tokens_use && ind != prev_ind){
@@ -3930,11 +3923,6 @@ draw_file_view(Thread_Context *thread, View *view_, i32_Rect rect, bool32 is_act
         }
         u32 char_color = main_color;
         
-        if (item->chunk_i > current_chunk){
-            current_chunk = item->chunk_i;
-            chunk_highlight = chunk_highlights[current_chunk % ArrayCount(chunk_highlights)];
-        }
-        
         if (cursor_begin <= ind && ind < cursor_end && (ind != prev_ind || cursor_begin < ind)){
             if (is_active) draw_rectangle(target, f32R(item->x0, item->y0, item->x1, item->y1), cursor_color);
             else draw_rectangle_outline(target, f32R(item->x0, item->y0, item->x1, item->y1), cursor_color);
@@ -3942,9 +3930,6 @@ draw_file_view(Thread_Context *thread, View *view_, i32_Rect rect, bool32 is_act
         }
         else if (highlight_color){
             draw_rectangle(target, f32R(item->x0, item->y0, item->x1, item->y1), highlight_color);
-        }
-        else if  (chunk_highlight){
-            draw_rectangle(target, f32R(item->x0, item->y0, item->x1, item->y1), chunk_highlight);
         }
         
         u32 fade_color = 0xFFFF00FF;
@@ -4126,7 +4111,7 @@ HANDLE_COMMAND_SIG(handle_command_file_view){
     
     case FWIDG_SEARCH:
     {
-#if BUFFER_EXPERIMENT_SCALPEL <= 2
+#if BUFFER_EXPERIMENT_SCALPEL <= 3
         String *string = &file_view->isearch.str;
         Single_Line_Input_Step result =
             app_single_line_input_step(codes, key, string);
