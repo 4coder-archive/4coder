@@ -645,7 +645,7 @@ buffer_mugab_check(Multi_Gap_Buffer *buffer){
 // NOTE(allen): This could should be optimized for Multi_Gap_Buffer
 internal_4tech int
 buffer_batch_edit_step(Buffer_Batch_State *state, Multi_Gap_Buffer *buffer, Buffer_Edit *sorted_edits,
-                       char *strings, int edit_count, int *request_amount){
+                       char *strings, int edit_count, void *scratch, int scratch_size, int *request_amount){
     Buffer_Edit *edit;
     int i, result;
     int shift_total, shift_amount;
@@ -657,7 +657,8 @@ buffer_batch_edit_step(Buffer_Batch_State *state, Multi_Gap_Buffer *buffer, Buff
     edit = sorted_edits + i;
     for (; i < edit_count; ++i, ++edit){
         result = buffer_replace_range(buffer, edit->start + shift_total, edit->end + shift_total,
-                                      strings + edit->str_start, edit->len, &shift_amount, request_amount);
+                                      strings + edit->str_start, edit->len, &shift_amount,
+                                      scratch, scratch_size, request_amount);
         if (result) break;
         buffer_mugab_check(buffer);
         shift_total += shift_amount;

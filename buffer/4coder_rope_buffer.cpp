@@ -187,6 +187,62 @@ buffer_free_rope_node(Rope_Buffer *buffer, int node_index){
     buffer->free_rope_node = node_index;
 }
 
+inline_4tech void
+buffer_node_check(Rope_Buffer *buffer, int node_index){
+    Rope_Node *nodes, *node;
+    nodes = buffer->nodes;
+    node = nodes + node_index;
+    assert_4tech(node->left == 0 || nodes[node->left].parent == node_index);
+    assert_4tech(node->right == 0 || nodes[node->right].parent == node_index);
+    assert_4tech((node->left == 0 && node->right == 0) || (node->left != 0 && node->right != 0));
+}
+
+internal_4tech void
+buffer_cheap_check(Rope_Buffer *buffer){
+    Rope_Node *nodes;
+    nodes = buffer->nodes;
+    
+    assert_4tech(nodes->parent == 0);
+    assert_4tech(nodes->right == 0);
+    assert_4tech(nodes->left != 0);
+    assert_4tech(nodes->weight == nodes->left_weight);
+}
+
+internal_4tech void
+buffer_rope_check(Rope_Buffer *buffer, void *scratch, int scratch_size){
+    int *int_stack;
+    Rope_Node *node, *l, *r, *nodes;
+    int top, max_stack;
+    int node_index;
+
+    nodes = buffer->nodes;
+    int_stack = (int*)scratch;
+    top = 0;
+    max_stack = scratch_size / sizeof(int);
+    buffer_cheap_check(buffer);
+    
+    int_stack[top++] = nodes->left;
+    for (;top > 0;){
+        node_index = int_stack[--top];
+        node = nodes + node_index;
+        if (node->left || node->right){
+            assert_4tech(node->left && node->right);
+            
+            int_stack[top++] = node->left;
+            int_stack[top++] = node->right;
+            
+            l = nodes + node->left;
+            assert_4tech(l->parent == node_index);
+            
+            r = nodes + node->right;
+            assert_4tech(r->parent == node_index);
+            
+            assert_4tech(l->weight + r->weight == node->weight);
+            assert_4tech(l->weight == node->left_weight);
+        }
+    }
+}
+
 typedef struct Rope_Construct_Stage{
     int parent_index;
     int is_right_side;
@@ -202,13 +258,38 @@ buffer_construct_stage(int parent, int right, int weight){
     return(result);
 }
 
+internal_4tech void
+buffer_free_tree(Rope_Buffer *buffer, int node_index, void *scratch, int scratch_size){
+    Rope_Node *nodes, *node;
+    int *int_stack;
+    int top, stack_max;
+    
+    int_stack = (int*)scratch;
+    stack_max = scratch_size / sizeof(int);
+    top = 0;
+    
+    nodes = buffer->nodes;
+    int_stack[top++] = node_index;
+    
+    for (;top > 0;){
+        node_index = int_stack[--top];
+        node = nodes + node_index;
+        assert_4tech(top < stack_max);
+        if (node->left) int_stack[top++] = node->left;
+        assert_4tech(top < stack_max);
+        if (node->right) int_stack[top++] = node->right;
+        if (node->str_start) buffer_free_rope_string(buffer, node->str_start);
+        buffer_free_rope_node(buffer, node_index);
+    }
+}
+
 internal_4tech int
 buffer_build_tree(Rope_Buffer *buffer, char *str, int len, int root,
                   void *scratch, int scratch_size, int *request_amount){
     Rope_Construct_Stage *stack, *stage;
-    Rope_Node *node, *nodes;
+    Rope_Node *node, *nodes, *parent;
     char *dest;
-    int stack_max, top;
+    int top, stack_max;
     int result;
     int node_index;
     int is_right_side;
@@ -231,7 +312,13 @@ buffer_build_tree(Rope_Buffer *buffer, char *str, int len, int root,
             node->weight = stage->weight;
             node->left = 0;
             node->right = 0;
+            node->str_start = 0;
+            
             is_right_side = stage->is_right_side;
+            
+            parent = nodes + node->parent;
+            if (is_right_side) parent->right = node_index;
+            else parent->left = node_index;
             
             if (stage->weight > rope_string_width){
                 node->str_start = 0;
@@ -245,7 +332,7 @@ buffer_build_tree(Rope_Buffer *buffer, char *str, int len, int root,
                 node->left_weight = 0;
                 if (buffer_alloc_rope_string(buffer, &node->str_start)){
                     dest = (char*)buffer->data + node->str_start;
-                    assert_4tech(read_pos < len);
+                    assert_4tech(read_pos <= len);
                     memcpy_4tech(dest, str + read_pos, node->weight);
                     read_pos += node->weight;
                 }
@@ -258,10 +345,6 @@ buffer_build_tree(Rope_Buffer *buffer, char *str, int len, int root,
                     break;
                 }
             }
-            
-            node = nodes + node->parent;
-            if (is_right_side) node->right = node_index;
-            else node->left = node_index;
         }
         else{
             result = 0;
@@ -274,17 +357,9 @@ buffer_build_tree(Rope_Buffer *buffer, char *str, int len, int root,
     }
     
     if (!result && request_amount){
-        top = 0;
-        stack[top++] = buffer_construct_stage(nodes[root].left, 0, 0);
-        
-        for (;top > 0;){
-            stage = stack + (--top);
-            node_index = stage->parent_index;
-            node = nodes + node_index;
-            if (node->left) stack[top++] = buffer_construct_stage(node->left, 0, 0);
-            if (node->right) stack[top++] = buffer_construct_stage(node->right, 0, 0);
-            if (node->str_start) buffer_free_rope_string(buffer, node->str_start);
-            buffer_free_rope_node(buffer, node_index);
+        node = nodes + root;
+        if (node->left){
+            buffer_free_tree(buffer, node->left, scratch, scratch_size);
         }
     }
     
@@ -327,7 +402,7 @@ buffer_end_init(Rope_Buffer_Init *init, void *scratch, int scratch_size){
         result = 1;
         
         node = buffer->nodes;
-        node->parent = 0;
+        *node = {};
         node->weight = init->size;
         node->left_weight = init->size;
 
@@ -340,6 +415,7 @@ buffer_end_init(Rope_Buffer_Init *init, void *scratch, int scratch_size){
 internal_4tech int
 buffer_find_node(Rope_Buffer *buffer, int pos, int *node_start){
     Rope_Node *nodes, *node;
+    
     *node_start = 0;
     nodes = buffer->nodes;
     node = nodes + nodes->left;
@@ -353,6 +429,7 @@ buffer_find_node(Rope_Buffer *buffer, int pos, int *node_start){
             node = nodes + node->right;
         }
     }
+    
     return (int)(node - nodes);
 }
 
@@ -360,6 +437,7 @@ typedef struct Rope_Buffer_Stringify_Loop{
     Rope_Buffer *buffer;
     char *data;
     int absolute_pos;
+    int next_absolute_pos;
     int size;
     int pos, end_pos;
     int node, node_end;
@@ -528,18 +606,200 @@ buffer_backify_next(Rope_Buffer_Backify_Loop *loop){
     }
 }
 
+internal_4tech void
+buffer_rotate_right(Rope_Buffer *buffer, int *node_index){
+    Rope_Node *nodes, *r, *l, *b;
+    int ri, li, bi;
+    
+    nodes = buffer->nodes;
+    ri = *node_index;
+    r = nodes + ri;
+    li = r->left;
+    l = nodes + li;
+    bi = l->right;
+    b = nodes + bi;
+    
+    assert_4tech(bi != 0);
+    assert_4tech(ri != 0);
+    assert_4tech(li != 0);
+    
+    r->parent = li;
+    l->right = ri;
+    
+    b->parent = ri;
+    r->left = bi;
+    
+    r->weight = nodes[r->right].weight + nodes[r->left].weight;
+    r->left_weight = nodes[r->left].weight;
+    
+    l->weight = nodes[l->right].weight + nodes[l->left].weight;
+    l->left_weight = nodes[l->left].weight;
+    
+    *node_index = li;
+}
+
+internal_4tech void
+buffer_rotate_left(Rope_Buffer *buffer, int *node_index){
+    Rope_Node *nodes, *r, *l, *b;
+    int ri, li, bi;
+    
+    nodes = buffer->nodes;
+    li = *node_index;
+    l = nodes + li;
+    ri = l->right;
+    r = nodes + ri;
+    bi = r->left;
+    b = nodes + bi;
+    
+    assert_4tech(bi != 0);
+    assert_4tech(ri != 0);
+    assert_4tech(li != 0);
+    
+    l->parent = ri;
+    r->left = li;
+    
+    b->parent = li;
+    l->right = bi;
+    
+    l->weight = nodes[l->right].weight + nodes[l->left].weight;
+    l->left_weight = nodes[l->left].weight;
+    
+    r->weight = nodes[r->right].weight + nodes[r->left].weight;
+    r->left_weight = nodes[r->left].weight;
+    
+    *node_index = ri;
+}
+
+internal_4tech int
+buffer_merge(Rope_Buffer *buffer, int node_index){
+    Rope_Node *nodes, *node, *node_a, *node_b;
+    int a, b;
+    int did_merge;
+
+    assert_4tech(node_index != 0);
+    nodes = buffer->nodes;
+    node = nodes + node_index;
+    did_merge = 0;
+
+    if (node->weight <= rope_string_width && node->left != 0){
+        assert_4tech(node->right != 0);
+        
+        a = node->left;
+        b = node->right;
+
+        node_a = nodes + a;
+        node_b = nodes + b;
+
+        if (node_a->str_start == 0) buffer_merge(buffer, a);
+        if (node_b->str_start == 0) buffer_merge(buffer, b);
+        
+        did_merge = 1;
+        memcpy_4tech((char*)buffer->data + node_a->str_start + node_a->weight,
+                     (char*)buffer->data + node_b->str_start, node_b->weight);
+        node->weight = node_a->weight + node_b->weight;
+        node->left_weight = 0;
+        node->left = node->right = 0;
+        node->str_start = node_a->str_start;
+
+        buffer_free_rope_node(buffer, a);
+        buffer_free_rope_node(buffer, b);
+    }
+
+    return(did_merge);
+}
+
+internal_4tech int
+buffer_balance(Rope_Buffer *buffer, int *root){
+    Rope_Node *node, *a, *nodes;
+    int wa, wb, wp, wdif, wdifp, left;
+    int node_a;
+    int improved;
+    
+    nodes = buffer->nodes;
+    node = nodes + *root;
+
+    improved = 0;
+    if (node->left != 0){
+        assert_4tech(node->right);
+        
+        if (!buffer_merge(buffer, *root)){
+            wa = node->left_weight;
+            wb = node->weight - wa;
+            assert_4tech(wa + wb > rope_string_width);
+        
+            if (wa < wb){
+                wp = wa;
+                wa = wb;
+                wb = wp;
+                left = 0;
+                node_a = node->right;
+            }
+            else{
+                left = 1;
+                node_a = node->left;
+            }
+
+            wdif = wa - wb;
+            a = nodes + node_a;
+
+            if (a->left != 0){
+                assert_4tech(a->right != 0);
+            
+                wp = a->left_weight;
+                if (left) wp = a->weight - wp;
+                wdifp = wdif - 2*wp;
+                if (wdifp < 0) wdifp = -wdifp;
+                if (wdifp < wdif){
+                    improved = 1;
+                    if (left){
+                        if (a->weight - a->left_weight > a->left_weight && a->right != 0 && nodes[a->right].left != 0){
+                            buffer_rotate_left(buffer, &node_a);
+                            a = nodes + node_a;
+                            a->parent = *root;
+                            node->left = node_a;
+                        }
+                        buffer_rotate_right(buffer, root);
+                    }
+                    else{
+                        if (a->left_weight > a->weight - a->left_weight && a->left != 0 && nodes[a->left].right != 0){
+                            buffer_rotate_right(buffer, &node_a);
+                            a = nodes + node_a;
+                            a->parent = *root;
+                            node->right = node_a;
+                        }
+                        buffer_rotate_left(buffer, root);
+                    }
+                }
+            }
+        }
+    }
+
+    return(improved);
+}
+
 internal_4tech int
 buffer_concat(Rope_Buffer *buffer, int node_a, int node_b, int *root, int *request_amount){
     Rope_Node *r, *a, *b, *nodes;
     int result;
     
     result = 0;
-    if (buffer_alloc_rope_node(buffer, root)){
-        nodes = buffer->nodes;
-        
+    
+    nodes = buffer->nodes;
+    a = nodes + node_a;
+    b = nodes + node_b;
+
+    if (a->weight == 0){
+        assert_4tech(a->left == 0 && a->right == 0);
+        *root = node_b;
+        buffer_free_rope_node(buffer, node_a);
+    }
+    else if (b->weight == 0){
+        assert_4tech(b->left == 0 && b->right == 0);
+        *root = node_a;
+        buffer_free_rope_node(buffer, node_b);
+    }
+    else if (buffer_alloc_rope_node(buffer, root)){
         r = nodes + *root;
-        a = nodes + node_a;
-        b = nodes + node_b;
         
         r->left = node_a;
         r->right = node_b;
@@ -550,6 +810,9 @@ buffer_concat(Rope_Buffer *buffer, int node_a, int node_b, int *root, int *reque
         
         a->parent = *root;
         b->parent = *root;
+
+        buffer_node_check(buffer, node_a);
+        buffer_node_check(buffer, node_b);
     }
     else{
         result = 1;
@@ -659,9 +922,12 @@ buffer_split(Rope_Buffer *buffer, int pos, int *node_a, int *node_b, int *reques
     int result;
     debug_4tech(int dbg_check);
 
+    nodes = buffer->nodes;
     result = 0;
-    node_index = buffer_find_node(buffer, pos, &node_start_pos);
+
+    assert_4tech(pos != 0);
     
+    node_index = buffer_find_node(buffer, pos, &node_start_pos);
     if (node_start_pos < pos){
         if (buffer_string_split(buffer, &node_index, pos - node_start_pos, request_amount)){
             result = 1;
@@ -670,7 +936,6 @@ buffer_split(Rope_Buffer *buffer, int pos, int *node_a, int *node_b, int *reques
     }
     
     split_root = 0;
-    nodes = buffer->nodes;
     node = nodes + node_index;
     for (;;){
         child = node;
@@ -682,6 +947,7 @@ buffer_split(Rope_Buffer *buffer, int pos, int *node_a, int *node_b, int *reques
             assert_4tech(child == nodes + node->left);
         }
     }
+    assert_4tech(node != nodes);
     
     for (;;){
         if (split_root == 0){
@@ -727,6 +993,7 @@ buffer_build_tree_floating(Rope_Buffer *buffer, char *str, int len, int *out,
 
     result = 0;
     if (buffer_alloc_rope_node(buffer, &super_root)){
+        buffer->nodes[super_root] = {};
         if (buffer_build_tree(buffer, str, len, super_root, scratch, scratch_size, request_amount)){
             *out = buffer->nodes[super_root].left;
             buffer_free_rope_node(buffer, super_root);
@@ -751,72 +1018,145 @@ buffer_replace_range(Rope_Buffer *buffer, int start, int end, char *str, int len
     Rope_Node *nodes;
     Rope_Buffer_Edit_State state;
     int result;
+    int size;
 
     state = buffer->edit_state;
+
+    size = buffer_size(buffer);
+    assert_4tech(0 <= start);
+    assert_4tech(start <= end);
+    assert_4tech(end <= size);
     
     *shift_amount = (len - (end - start));
+    nodes = buffer->nodes;
     result = 0;
-    
-    for (; buffer->edit_stage < 6; ++buffer->edit_stage){
+
+    buffer_cheap_check(buffer);
+    for (; buffer->edit_stage < 9; ++buffer->edit_stage){
+        buffer_cheap_check(buffer);
         switch (buffer->edit_stage){
         case 0:
-            if (buffer_split(buffer, end, &state.throw_away, &state.right, request_amount)){
-                result = 1;
-                goto rope_buffer_replace_range_end;
-            } break;
-            
-        case 1:
-            if (start == end){
-                state.left = state.throw_away;
+            if (end == 0){
+                state.throw_away = 0;
+                state.right = nodes->left;
+            }
+            else if (end == size){
+                state.throw_away = nodes->left;
+                state.right = 0;
             }
             else{
-                if (buffer_split(buffer, start, &state.left, &state.throw_away, request_amount)){
-                    result = 1;
-                    goto rope_buffer_replace_range_end;
-                }
+                result = buffer_split(buffer, end, &state.throw_away, &state.right, request_amount);
             }
-            if (len == 0){
-                buffer->edit_stage = 5 - 1;
-            }
+            if (state.right) buffer_node_check(buffer, state.right);
             break;
-            
-        case 2:
-            if (buffer_build_tree_floating(buffer, str, len, &state.middle, scratch, scratch_size, request_amount)){
-                result = 1;
-                goto rope_buffer_replace_range_end;
-            } break;
-            
-        case 3:
-            if (buffer_concat(buffer, state.left, state.middle, &state.throw_away, request_amount)){
-                result = 1;
-                goto rope_buffer_replace_range_end;
-            } break;
-            
-        case 4:
-            if (buffer_concat(buffer, state.throw_away, state.right, &state.middle, request_amount)){
-                result = 1;
-                goto rope_buffer_replace_range_end;
+    
+        case 1:
+            if (start == 0){
+                state.left = 0;
             }
-            buffer->edit_stage = 6;
+            else if (start == end){
+                state.left = state.throw_away;
+                state.throw_away = 0;
+            }
+            else{
+                result = buffer_split(buffer, start, &state.left, &state.throw_away, request_amount);
+            }
+            if (state.left) buffer_node_check(buffer, state.left);
             break;
-            
-        case 5:                
-            if (buffer_concat(buffer, state.left, state.right, &state.middle, request_amount)){
-                result = 1;
-                goto rope_buffer_replace_range_end;
-            } break;
-        }
-    }
 
+        case 2:
+            if (state.throw_away){
+                buffer_free_tree(buffer, state.throw_away, scratch, scratch_size);
+            }
+            break;
+
+        case 3:
+            if (len == 0) buffer->edit_stage += 4;
+            break;
+
+        case 4:
+            if (state.left) buffer_node_check(buffer, state.left);
+            if (state.right) buffer_node_check(buffer, state.right);
+            result = buffer_build_tree_floating(buffer, str, len, &state.middle, scratch, scratch_size, request_amount);
+            if (state.left) buffer_node_check(buffer, state.left);
+            if (state.right) buffer_node_check(buffer, state.right);
+            break;
+
+        case 5:
+            if (state.left){
+                result = buffer_concat(buffer, state.left, state.middle, &state.middle, request_amount);
+            }
+            break;
+
+        case 6:
+            if (state.right){
+                buffer_balance(buffer, &state.middle);
+                buffer_node_check(buffer, state.middle);
+                result = buffer_concat(buffer, state.middle, state.right, &state.middle, request_amount);
+            }
+            break;
+            
+        case 7:
+            buffer_balance(buffer, &state.middle);
+            buffer_node_check(buffer, state.middle);
+            buffer->edit_stage = 9;
+            break;
+
+        case 8:
+            if (state.left && state.right){
+                result = buffer_concat(buffer, state.left, state.right, &state.middle, request_amount);
+            }
+            else if (state.left){
+                state.middle = state.left;
+            }
+            else{
+                state.middle = state.right;
+            }
+            break;
+        }
+        buffer_cheap_check(buffer);
+        
+        if (result) goto rope_buffer_replace_range_end;
+    }
+    
     buffer->edit_stage = 0;
-    nodes = buffer->nodes;
+    nodes[state.middle].parent = 0;
     nodes->left = state.middle;
     nodes->weight = nodes->left_weight = nodes[state.middle].weight;
     
     state = {};
     
+    buffer_rope_check(buffer, scratch, scratch_size);
+    
 rope_buffer_replace_range_end:
     buffer->edit_state = state;
+    
+    return(result);
+}
+
+// NOTE(allen): This could should be optimized for Gap_Buffer
+internal_4tech int
+buffer_batch_edit_step(Buffer_Batch_State *state, Rope_Buffer *buffer, Buffer_Edit *sorted_edits,
+                       char *strings, int edit_count, void *scratch, int scratch_size, int *request_amount){
+    Buffer_Edit *edit;
+    int i, result;
+    int shift_total, shift_amount;
+    
+    result = 0;
+    shift_total = state->shift_total;
+    i = state->i;
+    
+    edit = sorted_edits + i;
+    for (; i < edit_count; ++i, ++edit){
+        result = buffer_replace_range(buffer, edit->start + shift_total, edit->end + shift_total,
+                                      strings + edit->str_start, edit->len, &shift_amount,
+                                      scratch, scratch_size, request_amount);
+        if (result) break;
+        shift_total += shift_amount;
+    }
+    
+    state->shift_total = shift_total;
+    state->i = i;
     
     return(result);
 }
@@ -868,5 +1208,7 @@ buffer_edit_provide_memory(Rope_Buffer *buffer, void *new_data, int size){
 }
 
 // BOTTOM
+
+
 
 

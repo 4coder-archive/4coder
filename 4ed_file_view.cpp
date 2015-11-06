@@ -1808,7 +1808,7 @@ struct Edit_Spec{
     Edit_Step step;
 };
 
-#if BUFFER_EXPERIMENT_SCALPEL <= 2
+#if BUFFER_EXPERIMENT_SCALPEL <= 3
 internal Edit_Step*
 file_post_undo(General_Memory *general, Editing_File *file,
                Edit_Step step, bool32 do_merge, bool32 can_merge){
@@ -1884,7 +1884,7 @@ undo_stack_pop(Edit_Stack *stack){
     }
 }
 
-#if BUFFER_EXPERIMENT_SCALPEL <= 2
+#if BUFFER_EXPERIMENT_SCALPEL <= 3
 internal void
 file_post_redo(General_Memory *general, Editing_File *file, Edit_Step step){
     Edit_Stack *redo = &file->undo.redo;
@@ -1945,7 +1945,7 @@ file_unpost_history_block(Editing_File *file){
     file->undo.history_head_block = old_head->prev_block;
 }
 
-#if BUFFER_EXPERIMENT_SCALPEL <= 2
+#if BUFFER_EXPERIMENT_SCALPEL <= 3
 internal Edit_Step*
 file_post_history(General_Memory *general, Editing_File *file,
                   Edit_Step step, bool32 do_merge, bool32 can_merge){
@@ -2292,7 +2292,7 @@ internal void
 file_update_history_before_edit(Mem_Options *mem, Editing_File *file, Edit_Step step, u8 *str,
                                 History_Mode history_mode){
     if (!file->undo.undo.edits) return;
-#if BUFFER_EXPERIMENT_SCALPEL <= 2
+#if BUFFER_EXPERIMENT_SCALPEL <= 3
     General_Memory *general = &mem->general;
     
 #if FRED_SLOW
@@ -2502,6 +2502,9 @@ file_do_single_edit(Mem_Options *mem, Editing_File *file,
     i32 str_len = spec.step.edit.len;
 
     i32 scratch_size = partition_remaining(part);
+
+    buffer_rope_check(&file->buffer, part->base + part->pos, scratch_size);
+    
     Assert(scratch_size > 0);
     i32 request_amount = 0;
     while (buffer_replace_range(&file->buffer, start, end, str, str_len, &shift_amount,
@@ -2514,6 +2517,8 @@ file_do_single_edit(Mem_Options *mem, Editing_File *file,
         if (old_data) general_memory_free(general, old_data);
     }
 
+    buffer_rope_check(&file->buffer, part->base + part->pos, scratch_size);
+    
 #if BUFFER_EXPERIMENT_SCALPEL == 2
     buffer_mugab_check(&file->buffer);
 #endif
@@ -2585,7 +2590,7 @@ internal void
 view_do_white_batch_edit(Mem_Options *mem, File_View *view, Editing_File *file,
                          Editing_Layout *layout, Edit_Spec spec, History_Mode history_mode){
     if (view->locked) return;
-#if BUFFER_EXPERIMENT_SCALPEL <= 2
+#if BUFFER_EXPERIMENT_SCALPEL <= 3
     Assert(file);
     ProfileMomentFunction();
     
@@ -2605,10 +2610,11 @@ view_do_white_batch_edit(Mem_Options *mem, File_View *view, Editing_File *file,
     Assert(spec.step.first_child < file->undo.children.edit_count);
     Assert(batch_size >= 0);
 
+    i32 scratch_size = partition_remaining(part);
     Buffer_Batch_State state = {};
     i32 request_amount;
-    while (buffer_batch_edit_step(&state, &file->buffer,
-                                  batch, (char*)str_base, batch_size, &request_amount)){
+    while (buffer_batch_edit_step(&state, &file->buffer, batch, (char*)str_base, batch_size,
+                                  part->base + part->pos, scratch_size, &request_amount)){
         void *new_data = 0;
         if (request_amount > 0){
             new_data = general_memory_allocate(general, request_amount, BUBBLE_BUFFER);
@@ -2964,7 +2970,7 @@ file_compute_whitespace_edit(Mem_Options *mem, Editing_File *file, i32 cursor_po
                              Buffer_Edit *edits, char *str_base, i32 str_size,
                              Buffer_Edit *inverse_array, char *inv_str, i32 inv_max,
                              i32 edit_count){
-#if BUFFER_EXPERIMENT_SCALPEL <= 2
+#if BUFFER_EXPERIMENT_SCALPEL <= 3
     General_Memory *general = &mem->general;
     
     i32 inv_str_pos = 0;
@@ -2998,7 +3004,7 @@ file_compute_whitespace_edit(Mem_Options *mem, Editing_File *file, i32 cursor_po
 
 internal void
 view_clean_whitespace(Mem_Options *mem, File_View *view, Editing_Layout *layout){
-#if BUFFER_EXPERIMENT_SCALPEL <= 2
+#if BUFFER_EXPERIMENT_SCALPEL <= 3
     Editing_File *file = view->file;
     Assert(file && !file->is_dummy);
     Partition *part = &mem->part;
@@ -3850,6 +3856,9 @@ draw_file_view(Thread_Context *thread, View *view_, i32_Rect rect, bool32 is_act
     }
     
     Partition *part = &view_->mem->part;
+    
+    buffer_rope_check(&file->buffer, part->base + part->pos, partition_remaining(part));
+    
     Temp_Memory temp = begin_temp_memory(part);
     
     partition_align(part, 4);

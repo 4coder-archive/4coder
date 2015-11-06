@@ -881,9 +881,10 @@ buffer_cursor_seek(Buffer_Type *buffer, Buffer_Seek seek, float max_width, float
          buffer_stringify_next(&loop)){
         end = loop.size + loop.absolute_pos;
         data = loop.data - loop.absolute_pos;
-        for (; i < end && result; ++i){
+        for (; i < end; ++i){
             result = cursor_seek_step(&state, seek, xy_seek, max_width, font_height,
                                       advances, stride, size, data[i]);
+            if (!result) goto buffer_cursor_seek_end;
         }
     }
     if (result){
@@ -892,6 +893,7 @@ buffer_cursor_seek(Buffer_Type *buffer, Buffer_Seek seek, float max_width, float
         assert_4tech(result == 0);
     }
     
+buffer_cursor_seek_end:    
     return(state.cursor);
 }
 
