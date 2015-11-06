@@ -17,7 +17,6 @@
 #define Buffer_Stringify_Type cat_4tech(Buffer_Type, _Stringify_Loop)
 #define Buffer_Backify_Type cat_4tech(Buffer_Type, _Backify_Loop)
 
-#if BUFFER_EXPERIMENT_SCALPEL <= 3
 inline_4tech void
 buffer_stringify(Buffer_Type *buffer, int start, int end, char *out){
     for (Buffer_Stringify_Type loop = buffer_stringify_loop(buffer, start, end);
@@ -70,9 +69,7 @@ buffer_count_newlines(Buffer_Type *buffer, int start, int end){
     
     return(count);
 }
-#endif
 
-#if BUFFER_EXPERIMENT_SCALPEL <= 3
 internal_4tech int
 buffer_seek_whitespace_down(Buffer_Type *buffer, int pos){
     Buffer_Stringify_Type loop;
@@ -477,14 +474,14 @@ buffer_rfind_string(Buffer_Type *buffer, int start_pos, char *str, int len, char
 buffer_rfind_string_end:
     return(pos);
 }
-#endif
 
-#if BUFFER_EXPERIMENT_SCALPEL <= 3
+#ifndef NON_ABSTRACT_4TECH
 typedef struct Buffer_Measure_Starts{
     int i;
     int count;
     int start;
 } Buffer_Measure_Starts;
+#endif
 
 internal_4tech int
 buffer_measure_starts(Buffer_Measure_Starts *state, Buffer_Type *buffer){
@@ -525,6 +522,10 @@ buffer_measure_starts(Buffer_Measure_Starts *state, Buffer_Type *buffer){
     }
     
     if (i == size){
+        if (count == max){
+            result = 1;
+            goto buffer_measure_starts_end;
+        }
         starts[count++] = start;
     }
     
@@ -716,7 +717,6 @@ buffer_get_line_index(Buffer_Type *buffer, int pos){
     result = buffer_get_line_index_range(buffer, pos, 0, buffer->line_count);
     return(result);
 }
-#endif
 
 #ifndef NON_ABSTRACT_4TECH
 internal_4tech int
@@ -852,10 +852,8 @@ cursor_seek_step_end:
     state->prev_cursor = prev_cursor;
     return(result);
 }
-
 #endif
 
-#if BUFFER_EXPERIMENT_SCALPEL <= 3
 internal_4tech Full_Cursor
 buffer_cursor_seek(Buffer_Type *buffer, Buffer_Seek seek, float max_width, float font_height,
                    void *advance_data, int stride, Full_Cursor cursor){
@@ -941,9 +939,7 @@ buffer_cursor_from_wrapped_xy(Buffer_Type *buffer, float x, float y, int round_d
 
     return(result);
 }
-#endif
 
-#if BUFFER_EXPERIMENT_SCALPEL <= 3
 internal_4tech void
 buffer_invert_edit_shift(Buffer_Type *buffer, Buffer_Edit edit, Buffer_Edit *inverse, char *strings,
                          int *str_pos, int max, int shift_amount){
@@ -968,11 +964,13 @@ buffer_invert_edit(Buffer_Type *buffer, Buffer_Edit edit, Buffer_Edit *inverse, 
     buffer_invert_edit_shift(buffer, edit, inverse, strings, str_pos, max, 0);
 }
 
+#ifndef NON_ABSTRACT_4TECH
 typedef struct Buffer_Invert_Batch{
     int i;
     int shift_amount;
     int len;
 } Buffer_Invert_Batch;
+#endif
 
 internal_4tech int
 buffer_invert_batch(Buffer_Invert_Batch *state, Buffer_Type *buffer, Buffer_Edit *edits, int count,
@@ -1005,26 +1003,7 @@ buffer_invert_batch(Buffer_Invert_Batch *state, Buffer_Type *buffer, Buffer_Edit
     
     return(result);
 }
-#endif
 
-#if BUFFER_EXPERIMENT_SCALPEL <= 2
-internal_4tech void
-buffer_batch_edit(Buffer_Type *buffer, Buffer_Edit *sorted_edits, char *strings, int edit_count){
-    Buffer_Batch_State state;
-    int r;
-    
-    debug_4tech(int result);
-    
-    state.i = 0;
-    state.shift_total = 0;
-    
-    debug_4tech(result =)
-        buffer_batch_edit_step(&state, buffer, sorted_edits, strings, edit_count, &r);
-    assert_4tech(result == 0);
-}
-#endif
-
-#if BUFFER_EXPERIMENT_SCALPEL <= 3
 internal_4tech void
 buffer_get_render_data(Buffer_Type *buffer, float *wraps, Buffer_Render_Item *items, int max, int *count,
                        float port_x, float port_y, float scroll_x, float scroll_y, int wrapped,
@@ -1148,7 +1127,6 @@ buffer_get_render_data_end:
     assert_4tech(item_i <= max);
     *count = item_i;
 }
-#endif
 
 #ifndef NON_ABSTRACT_4TECH
 #define NON_ABSTRACT_4TECH 1

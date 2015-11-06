@@ -189,7 +189,7 @@ make_cursor_hint(int line_index, int *starts, float *wrap_ys, float font_height)
     hint.pos = starts[line_index];
     hint.line = line_index + 1;
     hint.character = 1;
-    hint.unwrapped_y = (f32)(line_index * font_height);
+    hint.unwrapped_y = (float)(line_index * font_height);
     hint.unwrapped_x = 0;
     hint.wrapped_y = wrap_ys[line_index];
     hint.wrapped_x = 0;
@@ -350,9 +350,10 @@ internal_4tech int
 eol_convert_in(char *dest, char *src, int size){
     int i, j;
     
-    for (i = 0, j = 0; i < size; ++i, ++j){
-        if (src[i] == '\r' && i+1 < size && src[i+1] == '\n') ++i;
-        dest[j] = src[i];
+    for (i = 0, j = 0; i < size; ++i){
+        if (src[i] != '\r'){
+            dest[j++] = src[i];
+        }
     }
     
     return(j);
@@ -360,16 +361,15 @@ eol_convert_in(char *dest, char *src, int size){
 
 internal_4tech int
 eol_in_place_convert_in(char *data, int size){
-    int i;
+    int i, j;
     
-    for (i = 0; i < size; ++i){
-        if (data[i] == '\r' && i+1 < size && data[i+1] == '\n'){
-            memmove_4tech(data + i, data + i + 1, size - i);
-            size -= 1;
+    for (i = 0, j = 0; i < size; ++i){
+        if (data[i] != '\r'){
+            data[j++] = data[i];
         }
     }
     
-    return(size);
+    return(j);
 }
 
 internal_4tech int

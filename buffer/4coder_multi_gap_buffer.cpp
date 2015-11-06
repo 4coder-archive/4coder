@@ -22,8 +22,8 @@ typedef struct Fixed_Width_Gap_Buffer{
     int start_pos;
 } Fixed_Width_Gap_Buffer;
 
-#define fixed_width_buffer_size Kbytes(8)
-#define fixed_width_buffer_half_size Kbytes(4)
+#define fixed_width_buffer_size (8 << 10)
+#define fixed_width_buffer_half_size (4 << 10)
 
 typedef struct Multi_Gap_Buffer{
     Fixed_Width_Gap_Buffer *gaps;
@@ -142,6 +142,7 @@ buffer_end_init(Multi_Gap_Buffer_Init *init, void *scratch, int scratch_size){
             start_pos = 0;
             
             for (i = 0; i < count; ++i, ++gap, pos += size){
+                assert_4tech(size == fixed_width_buffer_half_size);
                 if (pos + size > total_size) size = total_size - pos;
                 
                 if (gap->data){
@@ -225,7 +226,7 @@ buffer_stringify_loop(Multi_Gap_Buffer *buffer, int start, int end){
         result.absolute_pos = start;
         
         result.chunk_i = buffer_find_chunk(buffer, start);
-        result.chunk_end = buffer_find_chunk(buffer, end-1);
+        result.chunk_end = buffer_find_chunk(buffer, end);
         
         gap = result.gaps + result.chunk_end;
         end -= gap->start_pos;
@@ -312,7 +313,7 @@ buffer_backify_loop(Multi_Gap_Buffer *buffer, int start, int end){
         result.buffer = buffer;
         result.gaps = buffer->gaps;
         
-        result.chunk_i = buffer_find_chunk(buffer, start-1);
+        result.chunk_i = buffer_find_chunk(buffer, start);
         result.chunk_end = buffer_find_chunk(buffer, end);
         
         gap = result.gaps + result.chunk_end;
@@ -379,7 +380,8 @@ buffer_backify_next(Multi_Gap_Buffer_Backify_Loop *loop){
 }
 
 internal_4tech int
-buffer_replace_range(Multi_Gap_Buffer *buffer, int start, int end, char *str, int len, int *shift_amount_out, int *request_amount){
+buffer_replace_range(Multi_Gap_Buffer *buffer, int start, int end, char *str, int len, int *shift_amount_out,
+                     void *scratch, int scratch_size, int *request_amount){
     Fixed_Width_Gap_Buffer *gaps, *gap, *dgap;
     char *data;
     int move_size;

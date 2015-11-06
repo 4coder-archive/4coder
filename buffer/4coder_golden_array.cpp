@@ -161,7 +161,8 @@ buffer_backify_next(Buffer_Backify_Loop *loop){
 }
 
 internal_4tech int
-buffer_replace_range(Buffer *buffer, int start, int end, char *str, int len, int *shift_amount, int *request_amount){
+buffer_replace_range(Buffer *buffer, int start, int end, char *str, int len, int *shift_amount,
+                     void *scratch, int scratch_size, int *request_amount){
     char *data;
     int result;
     int size;

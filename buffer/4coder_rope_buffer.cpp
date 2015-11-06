@@ -80,7 +80,7 @@ buffer_begin_init(Rope_Buffer *buffer, char *data, int size){
     
     init.buffer = buffer;
     init.data = data;
-    init.size = size;
+    init.size = eol_in_place_convert_in(data, size);
     
     init.node_count = div_ceil_4tech(size, rope_string_width);
 
@@ -90,7 +90,7 @@ buffer_begin_init(Rope_Buffer *buffer, char *data, int size){
     }
     else{
         init.rope_string_count = round_pot_4tech(init.node_count);
-        init.node_count = init.rope_string_count*2 - 1;
+        init.node_count = init.rope_string_count*2;
     }
     
     return(init);

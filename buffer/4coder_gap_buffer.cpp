@@ -245,7 +245,8 @@ buffer_backify_next(Gap_Buffer_Backify_Loop *loop){
 }
 
 internal_4tech int
-buffer_replace_range(Gap_Buffer *buffer, int start, int end, char *str, int len, int *shift_amount, int *request_amount){
+buffer_replace_range(Gap_Buffer *buffer, int start, int end, char *str, int len, int *shift_amount,
+                     void *scratch, int scratch_memory, int *request_amount){
     char *data;
     int result;
     int size;
