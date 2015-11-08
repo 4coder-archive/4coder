@@ -42,8 +42,8 @@ struct Font{
     String name;
     bool32 loaded;
     
-	Glyph_Data glyphs[128];
-    stbtt_bakedchar chardata[128];
+	Glyph_Data glyphs[256];
+    stbtt_bakedchar chardata[256];
 	i32 height, ascent, descent, line_skip;
     i32 advance;
     u32 tex;

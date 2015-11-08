@@ -27,6 +27,16 @@ buffer_stringify(Buffer_Type *buffer, int start, int end, char *out){
     }
 }
 
+inline_4tech void
+buffer_backify(Buffer_Type *buffer, int start, int end, char *out){
+    for (Buffer_Backify_Type loop = buffer_backify_loop(buffer, end, start);
+         buffer_backify_good(&loop);
+         buffer_backify_next(&loop)){
+        memcpy_4tech(out, loop.data, loop.size);
+        out += loop.size;
+    }
+}
+
 internal_4tech int
 buffer_convert_out(Buffer_Type *buffer, char *dest, int max){
     Buffer_Stringify_Type loop;
@@ -480,9 +490,11 @@ typedef struct Buffer_Measure_Starts{
     int i;
     int count;
     int start;
+    float width;
 } Buffer_Measure_Starts;
 #endif
 
+#if 0
 internal_4tech int
 buffer_measure_starts(Buffer_Measure_Starts *state, Buffer_Type *buffer){
     Buffer_Stringify_Type loop;
@@ -497,7 +509,7 @@ buffer_measure_starts(Buffer_Measure_Starts *state, Buffer_Type *buffer){
     starts = buffer->line_starts;
     max = buffer->line_max;
     
-    result = 0;
+    result = 1;
     
     i = state->i;
     count = state->count;
@@ -510,10 +522,7 @@ buffer_measure_starts(Buffer_Measure_Starts *state, Buffer_Type *buffer){
         data = loop.data - loop.absolute_pos;
         for (; i < end; ++i){
             if (data[i] == '\n'){
-                if (count == max){
-                    result = 1;
-                    goto buffer_measure_starts_end;
-                }
+                if (count == max) goto buffer_measure_starts_end;
                 
                 starts[count++] = start;
                 start = i + 1;
@@ -521,18 +530,85 @@ buffer_measure_starts(Buffer_Measure_Starts *state, Buffer_Type *buffer){
         }
     }
     
-    if (i == size){
-        if (count == max){
-            result = 1;
-            goto buffer_measure_starts_end;
-        }
-        starts[count++] = start;
-    }
+    assert_4tech(i == size);
+    
+    if (count == max) goto buffer_measure_starts_end;
+    starts[count++] = start;
+    result = 0;
     
 buffer_measure_starts_end:
     state->i = i;
     state->count = count;
     state->start = start;
+    
+    return(result);
+}
+#endif
+
+internal_4tech int
+buffer_measure_starts_widths(Buffer_Measure_Starts *state, Buffer_Type *buffer,
+                             float *advance_data){
+    Buffer_Stringify_Type loop;
+    int *start_ptr, *start_end;
+    float *width_ptr;
+    debug_4tech(int widths_max);
+    debug_4tech(int max);
+    char *data;
+    int size, end;
+    float width;
+    int start, i;
+    int result;
+    char ch;
+    
+    size = buffer_size(buffer);
+    
+    debug_4tech(max = buffer->line_max);
+    debug_4tech(widths_max = buffer->widths_max);
+    assert_4tech(max == widths_max);
+    
+    result = 1;
+    
+    i = state->i;
+    start = state->start;
+    width = state->width;
+    
+    start_ptr = buffer->line_starts + state->count;
+    width_ptr = buffer->line_widths + state->count;
+    start_end = buffer->line_starts + buffer->line_max;
+    
+    for (loop = buffer_stringify_loop(buffer, i, size);
+         buffer_stringify_good(&loop);
+         buffer_stringify_next(&loop)){
+        end = loop.size + loop.absolute_pos;
+        data = loop.data - loop.absolute_pos;
+        for (; i < end; ++i){
+            ch = data[i];
+            if (ch == '\n'){
+                if (start_ptr == start_end) goto buffer_measure_starts_widths_end;
+
+                *width_ptr++ = width;
+                *start_ptr++ = start;
+                start = i + 1;
+                width = 0;
+            }
+            else{
+                width += measure_character(advance_data, ch);
+            }
+        }
+    }
+    
+    assert_4tech(i == size);
+    
+    if (start_ptr == start_end) goto buffer_measure_starts_widths_end;
+    *start_ptr++ = start;
+    *width_ptr++ = 0;
+    result = 0;
+    
+buffer_measure_starts_widths_end:
+    state->i = i;
+    state->count = (int)(start_ptr - buffer->line_starts);
+    state->start = start;
+    state->width = width;
     
     return(result);
 }
@@ -600,7 +676,7 @@ buffer_remeasure_starts_end:
 }
 
 internal_4tech void
-buffer_remeasure_widths(Buffer_Type *buffer, void *advance_data, int stride,
+buffer_remeasure_widths(Buffer_Type *buffer, float *advance_data,
                         int line_start, int line_end, int line_shift){
     Buffer_Stringify_Type loop;
     int *starts;
@@ -652,17 +728,19 @@ buffer_remeasure_widths(Buffer_Type *buffer, void *advance_data, int stride,
                 width = 0;
             }
             else{
-                width += measure_character(advance_data, stride, ch);
+                width += measure_character(advance_data, ch);
             }
         }
     }
 }
 
+#if 0
 inline_4tech void
-buffer_measure_widths(Buffer_Type *buffer, void *advance_data, int stride){
+buffer_measure_widths(Buffer_Type *buffer, void *advance_data){
     assert_4tech(buffer->line_count >= 1);
-    buffer_remeasure_widths(buffer, advance_data, stride, 0, buffer->line_count-1, 0);
+    buffer_remeasure_widths(buffer, advance_data, 0, buffer->line_count-1, 0);
 }
+#endif
 
 internal_4tech void
 buffer_measure_wrap_y(Buffer_Type *buffer, float *wraps,
@@ -748,8 +826,8 @@ typedef struct Seek_State{
 } Seek_State;
 
 internal_4tech int
-cursor_seek_step(Seek_State *state, Buffer_Seek seek, int xy_seek, float max_width, float font_height,
-                 char *advances, int stride, int size, char ch){
+cursor_seek_step(Seek_State *state, Buffer_Seek seek, int xy_seek, float max_width,
+                 float font_height, float *advances, int size, char ch){
     Full_Cursor cursor, prev_cursor;
     float ch_width;
     int result;
@@ -772,8 +850,8 @@ cursor_seek_step(Seek_State *state, Buffer_Seek seek, int xy_seek, float max_wid
         
     default:
         ++cursor.character;
-        if (ch == '\r') ch_width = *(float*)(advances + stride * '\\') + *(float*)(advances + stride * 'r');
-        else ch_width = *(float*)(advances + stride * ch);
+        if (ch == '\r') ch_width = *(float*)(advances + '\\') + *(float*)(advances + 'r');
+        else ch_width = *(float*)(advances + ch);
             
         if (cursor.wrapped_x + ch_width >= max_width){
             cursor.wrapped_y += font_height;
@@ -855,8 +933,8 @@ cursor_seek_step_end:
 #endif
 
 internal_4tech Full_Cursor
-buffer_cursor_seek(Buffer_Type *buffer, Buffer_Seek seek, float max_width, float font_height,
-                   void *advance_data, int stride, Full_Cursor cursor){
+buffer_cursor_seek(Buffer_Type *buffer, Buffer_Seek seek, float max_width,
+                   float font_height, float *advance_data, Full_Cursor cursor){
     Buffer_Stringify_Type loop;
     char *data;
     int size, end;
@@ -864,11 +942,9 @@ buffer_cursor_seek(Buffer_Type *buffer, Buffer_Seek seek, float max_width, float
     int result;
     
     Seek_State state;
-    char *advances;
     int xy_seek;
 
     size = buffer_size(buffer);
-    advances = (char*)advance_data;
     xy_seek = (seek.type == buffer_seek_wrapped_xy || seek.type == buffer_seek_unwrapped_xy);
     state.cursor = cursor;
     
@@ -880,14 +956,14 @@ buffer_cursor_seek(Buffer_Type *buffer, Buffer_Seek seek, float max_width, float
         end = loop.size + loop.absolute_pos;
         data = loop.data - loop.absolute_pos;
         for (; i < end; ++i){
-            result = cursor_seek_step(&state, seek, xy_seek, max_width, font_height,
-                                      advances, stride, size, data[i]);
+            result = cursor_seek_step(&state, seek, xy_seek, max_width,
+                                      font_height, advance_data, size, data[i]);
             if (!result) goto buffer_cursor_seek_end;
         }
     }
     if (result){
-        result = cursor_seek_step(&state, seek, xy_seek, max_width, font_height,
-                                  advances, stride, size, 0);
+        result = cursor_seek_step(&state, seek, xy_seek, max_width,
+                                  font_height, advance_data, size, 0);
         assert_4tech(result == 0);
     }
     
@@ -897,21 +973,21 @@ buffer_cursor_seek_end:
 
 internal_4tech Full_Cursor
 buffer_cursor_from_pos(Buffer_Type *buffer, int pos, float *wraps,
-                       float max_width, float font_height, void *advance_data, int stride){
+                       float max_width, float font_height, float *advance_data){
     Full_Cursor result;
     int line_index;
 
     line_index = buffer_get_line_index_range(buffer, pos, 0, buffer->line_count);
     result = make_cursor_hint(line_index, buffer->line_starts, wraps, font_height);
     result = buffer_cursor_seek(buffer, seek_pos(pos), max_width, font_height,
-                                advance_data, stride, result);
+                                advance_data, result);
 
     return(result);
 }
 
 internal_4tech Full_Cursor
 buffer_cursor_from_unwrapped_xy(Buffer_Type *buffer, float x, float y, int round_down, float *wraps,
-                                float max_width, float font_height, void *advance_data, int stride){
+                                float max_width, float font_height, float *advance_data){
     Full_Cursor result;
     int line_index;
 
@@ -921,21 +997,21 @@ buffer_cursor_from_unwrapped_xy(Buffer_Type *buffer, float x, float y, int round
 
     result = make_cursor_hint(line_index, buffer->line_starts, wraps, font_height);
     result = buffer_cursor_seek(buffer, seek_unwrapped_xy(x, y, round_down), max_width, font_height,
-                                advance_data, stride, result);
+                                advance_data, result);
 
     return(result);
 }
 
 internal_4tech Full_Cursor
 buffer_cursor_from_wrapped_xy(Buffer_Type *buffer, float x, float y, int round_down, float *wraps,
-                              float max_width, float font_height, void *advance_data, int stride){
+                              float max_width, float font_height, float *advance_data){
     Full_Cursor result;
     int line_index;
 
     line_index = buffer_get_line_index_from_wrapped_y(wraps, y, font_height, 0, buffer->line_count);
     result = make_cursor_hint(line_index, buffer->line_starts, wraps, font_height);
     result = buffer_cursor_seek(buffer, seek_wrapped_xy(x, y, round_down), max_width, font_height,
-                                advance_data, stride, result);
+                                advance_data, result);
 
     return(result);
 }
@@ -1007,7 +1083,7 @@ buffer_invert_batch(Buffer_Invert_Batch *state, Buffer_Type *buffer, Buffer_Edit
 internal_4tech void
 buffer_get_render_data(Buffer_Type *buffer, float *wraps, Buffer_Render_Item *items, int max, int *count,
                        float port_x, float port_y, float scroll_x, float scroll_y, int wrapped,
-                       float width, float height, void *advance_data, int stride, float font_height){
+                       float width, float height, float *advance_data, float font_height){
     Buffer_Stringify_Type loop;
     Full_Cursor start_cursor;
     Buffer_Render_Item *item;
@@ -1025,12 +1101,12 @@ buffer_get_render_data(Buffer_Type *buffer, float *wraps, Buffer_Render_Item *it
     shift_y = port_y - scroll_y;
     if (wrapped){
         start_cursor = buffer_cursor_from_wrapped_xy(buffer, 0, scroll_y, 0, wraps,
-                                                     width, font_height, advance_data, stride);
+                                                     width, font_height, advance_data);
         shift_y += start_cursor.wrapped_y;
     }
     else{
         start_cursor = buffer_cursor_from_unwrapped_xy(buffer, 0, scroll_y, 0, wraps,
-                                                       width, font_height, advance_data, stride);
+                                                       width, font_height, advance_data);
         shift_y += start_cursor.unwrapped_y;
     }
     
@@ -1048,7 +1124,7 @@ buffer_get_render_data(Buffer_Type *buffer, float *wraps, Buffer_Render_Item *it
         
         for (i = loop.absolute_pos; i < end; ++i){
             ch = data[i];
-            ch_width = measure_character(advance_data, stride, ch);
+            ch_width = measure_character(advance_data, ch);
             
             if (ch_width + x > width + shift_x && wrapped){
                 x = shift_x;
@@ -1058,7 +1134,7 @@ buffer_get_render_data(Buffer_Type *buffer, float *wraps, Buffer_Render_Item *it
             
             switch (ch){
             case '\n':
-                write_render_item_inline(item, i, ' ', x, y, advance_data, stride, font_height);
+                write_render_item_inline(item, i, ' ', x, y, advance_data, font_height);
                 ++item_i;
                 ++item;
                 
@@ -1067,35 +1143,35 @@ buffer_get_render_data(Buffer_Type *buffer, float *wraps, Buffer_Render_Item *it
                 break;
 
             case 0:
-                ch_width = write_render_item_inline(item, i, '\\', x, y, advance_data, stride, font_height);
+                ch_width = write_render_item_inline(item, i, '\\', x, y, advance_data, font_height);
                 ++item_i;
                 ++item;
                 x += ch_width;
 
-                ch_width = write_render_item_inline(item, i, '0', x, y, advance_data, stride, font_height);
+                ch_width = write_render_item_inline(item, i, '0', x, y, advance_data, font_height);
                 ++item_i;
                 ++item;
                 x += ch_width;
                 break;
 
             case '\r':
-                ch_width = write_render_item_inline(item, i, '\\', x, y, advance_data, stride, font_height);
+                ch_width = write_render_item_inline(item, i, '\\', x, y, advance_data, font_height);
                 ++item_i;
                 ++item;
                 x += ch_width;
 
-                ch_width = write_render_item_inline(item, i, 'r', x, y, advance_data, stride, font_height);
+                ch_width = write_render_item_inline(item, i, 'r', x, y, advance_data, font_height);
                 ++item_i;
                 ++item;
                 x += ch_width;
                 break;
 
             case '\t':
-                ch_width_sub = write_render_item_inline(item, i, '\\', x, y, advance_data, stride, font_height);
+                ch_width_sub = write_render_item_inline(item, i, '\\', x, y, advance_data, font_height);
                 ++item_i;
                 ++item;
 
-                write_render_item_inline(item, i, 't', x + ch_width_sub, y, advance_data, stride, font_height);
+                write_render_item_inline(item, i, 't', x + ch_width_sub, y, advance_data, font_height);
                 ++item_i;
                 ++item;
                 x += ch_width;
@@ -1116,7 +1192,7 @@ buffer_get_render_data(Buffer_Type *buffer, float *wraps, Buffer_Render_Item *it
 buffer_get_render_data_end:
     if (y <= height + shift_y || item == items){
         ch = 0;
-        ch_width = measure_character(advance_data, stride, ' ');
+        ch_width = measure_character(advance_data, ' ');
         write_render_item(item, size, ch, x, y, ch_width, font_height);
         ++item_i;
         ++item;

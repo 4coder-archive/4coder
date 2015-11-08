@@ -402,7 +402,7 @@ buffer_end_init(Rope_Buffer_Init *init, void *scratch, int scratch_size){
         result = 1;
         
         node = buffer->nodes;
-        *node = {};
+        memzero_4tech(*node);
         node->weight = init->size;
         node->left_weight = init->size;
 
@@ -988,12 +988,14 @@ buffer_split_end:
 internal_4tech int
 buffer_build_tree_floating(Rope_Buffer *buffer, char *str, int len, int *out,
                            void *scratch, int scratch_size, int *request_amount){
+    Rope_Node *super_root_node;
     int result;
     int super_root;
 
     result = 0;
     if (buffer_alloc_rope_node(buffer, &super_root)){
-        buffer->nodes[super_root] = {};
+        super_root_node = buffer->nodes + super_root;
+        memset_4tech(super_root_node, 0, sizeof(*super_root_node));
         if (buffer_build_tree(buffer, str, len, super_root, scratch, scratch_size, request_amount)){
             *out = buffer->nodes[super_root].left;
             buffer_free_rope_node(buffer, super_root);
@@ -1124,7 +1126,7 @@ buffer_replace_range(Rope_Buffer *buffer, int start, int end, char *str, int len
     nodes->left = state.middle;
     nodes->weight = nodes->left_weight = nodes[state.middle].weight;
     
-    state = {};
+    memset_4tech(&state, 0, sizeof(state));
     
     buffer_rope_check(buffer, scratch, scratch_size);
     

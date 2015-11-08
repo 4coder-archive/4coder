@@ -24,6 +24,10 @@
 #define memset_4tech memset
 #endif
 
+#ifndef memzero_4tech
+#define memzero_4tech(x) ((x) = {})
+#endif
+
 #ifndef memcpy_4tech
 #define memcpy_4tech memcpy
 #endif
@@ -70,21 +74,7 @@ lroundup_(int x, int granularity){
 #define round_pot_4tech ROUNDPOT32
 #endif
 
-inline_4tech float
-measure_character(void *advance_data, int stride, char character){
-    char *advances;
-    float width;
-    
-    advances = (char*)advance_data;
-    switch (character){
-    case 0: width = *(float*)(advances + stride * '\\') + *(float*)(advances + stride * '0'); break;
-    case '\n': width = 0; break;
-    case '\r': width = *(float*)(advances + stride * '\\') + *(float*)(advances + stride * '\r'); break;
-    default: width = *(float*)(advances + stride * character);
-    }
-    
-    return(width);
-}
+#define measure_character(a,c) ((a)[c])
 
 typedef struct Buffer_Edit{
     int str_start, len;
@@ -176,9 +166,9 @@ write_render_item(Buffer_Render_Item *item, int index, int glyphid,
 
 inline_4tech float
 write_render_item_inline(Buffer_Render_Item *item, int index, int glyphid,
-                         float x, float y, void *advance_data, int stride, float h){
+                         float x, float y, float *advance_data, float h){
     float ch_width;
-    ch_width = measure_character(advance_data, stride, (char)glyphid);
+    ch_width = measure_character(advance_data, (char)glyphid);
     write_render_item(item, index, glyphid, x, y, ch_width, h);
     return(ch_width);
 }
@@ -348,12 +338,27 @@ buffer_batch_edit_update_cursors(Cursor_With_Index *sorted_positions, int count,
 
 internal_4tech int
 eol_convert_in(char *dest, char *src, int size){
-    int i, j;
+    int i, j, k;
+
+    i = 0;
+    k = 0;
+    j = 0;
     
-    for (i = 0, j = 0; i < size; ++i){
-        if (src[i] != '\r'){
-            dest[j++] = src[i];
+    for (; j < size && src[j] != '\r'; ++j);
+    memcpy_4tech(dest, src, j);
+    
+    if (j < size){
+        k = 1;
+        ++j;
+        for (i = j; i < size; ++i){
+            if (src[i] == '\r'){
+                memcpy_4tech(dest + j - k, src + j, i - j);
+                ++k;
+                j = i+1;
+            }
         }
+        memcpy_4tech(dest + j - k, src + j, i - j);
+        j = i - k;
     }
     
     return(j);
@@ -361,12 +366,26 @@ eol_convert_in(char *dest, char *src, int size){
 
 internal_4tech int
 eol_in_place_convert_in(char *data, int size){
-    int i, j;
+    int i, j, k;
+
+    i = 0;
+    k = 0;
+    j = 0;
     
-    for (i = 0, j = 0; i < size; ++i){
-        if (data[i] != '\r'){
-            data[j++] = data[i];
+    for (; j < size && data[j] != '\r'; ++j);
+    
+    if (j < size){
+        k = 1;
+        ++j;
+        for (i = j; i < size; ++i){
+            if (data[i] == '\r'){
+                memmove_4tech(data + j - k, data + j, i - j);
+                ++k;
+                j = i+1;
+            }
         }
+        memmove_4tech(data + j - k, data + j, i - j);
+        j = i - k;
     }
     
     return(j);

@@ -692,7 +692,7 @@ buffer_edit_provide_memory(Multi_Gap_Buffer *buffer, void *new_data, int size){
         assert_4tech(size >= fixed_width_buffer_size);
         
         gap = &buffer->gaps[buffer->chunk_alloced++];
-        *gap = {};
+        memzero_4tech(*gap);
         gap->data = (char*)new_data;
         result = 0;
     }

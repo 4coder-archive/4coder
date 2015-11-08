@@ -52,6 +52,10 @@ ROUNDPOT32(unsigned int v){
 #endif
 #define hard_assert_4tech(x) assert(x)
 
+#ifdef __linux__
+#define memzero_4tech(x) memset_4tech(&(x), 0, sizeof(x))
+#endif
+
 #include "4coder_shared.cpp"
 #include "4coder_golden_array.cpp"
 #include "4coder_gap_buffer.cpp"
@@ -60,25 +64,21 @@ ROUNDPOT32(unsigned int v){
 
 #define Buffer_Type Buffer
 #include "4coder_buffer_abstract.cpp"
-
 #undef Buffer_Type
+
 #define Buffer_Type Gap_Buffer
 #include "4coder_buffer_abstract.cpp"
-
 #undef Buffer_Type
+
 #define Buffer_Type Multi_Gap_Buffer
 #include "4coder_buffer_abstract.cpp"
-
 #undef Buffer_Type
+
 #define Buffer_Type Rope_Buffer
 #include "4coder_buffer_abstract.cpp"
-
 #undef Buffer_Type
-#undef Buffer_Init_Type
-#undef Buffer_Stringify_Type
-#undef Buffer_Backify_Type
 
-#ifdef _WIN32
+#if defined(_WIN32)
 #include <Windows.h>
 
 typedef unsigned long long time_int;
@@ -110,28 +110,47 @@ time_int get_time(){
     return(result);
 }
 
-#else
-#error Timer not supported by this platform
-#endif
+#elif defined(__linux__)
+#include <time.h>
 
-void setup(){
-    unsigned long long resolution;
-    if (!time_init(&resolution)){
-        printf("error: could not initialize timer");
-        exit(1);
+typedef unsigned long long time_int;
+
+int time_init(unsigned long long *resolution){
+    int result;
+    struct timespec res;
+    result = 0;
+    
+    if (!clock_getres(CLOCK_MONOTONIC, &res)){
+        result = 1;
+	if (res.tv_sec > 0 || res.tv_nsec == 0) *resolution = 0;
+	else *resolution = (unsigned long long)(1000000/res.tv_nsec);
     }
 
-    if (resolution < 1000000)
-        printf("warning: timer is not actually at high enough resolution for good measurements!\n");
-
+    return(result);
 }
+
+time_int get_time(){
+    time_int result;
+    struct timespec time;
+    
+    result = 0;
+    if (!clock_gettime(CLOCK_MONOTONIC, &time)){
+        result = (time.tv_sec * 1000000) + (time.tv_nsec / 1000);
+    }
+    
+    return(result);
+}
+
+#else
+#error Timer not supported on this platform
+#endif
 
 typedef struct File_Data{
     char *data;
     int size;
 } File_Data;
 
-File_Data get_file(char *filename){
+File_Data get_file(const char *filename){
     FILE *file;
     File_Data result;
     
@@ -160,6 +179,61 @@ File_Data get_file(char *filename){
 
 void free_file(File_Data file){
     free(file.data);
+}
+
+#define STB_TRUETYPE_IMPLEMENTATION
+#include "stb_truetype.h"
+
+float* get_font_data(const char *font_file){
+    float *data = 0;
+    stbtt_bakedchar *baked;
+    File_Data file = get_file(font_file);
+    int stride, offset;
+
+    if (file.data){
+        int size = sizeof(*baked)*256;
+        baked = (stbtt_bakedchar*)malloc(size);
+        memset_4tech(baked, 0, sizeof(*baked)*256);
+    
+        offset = (int)((char*)&baked->xadvance - (char*)baked);
+        stride = sizeof(*baked);
+
+        int w, h;
+        w = 10*256;
+        h = 25;
+        unsigned char *pixels = (unsigned char*)malloc(w * h);
+        stbtt_BakeFontBitmap((unsigned char*)file.data, 0, 17.f, pixels, w, h, 0, 128, baked);
+        free(pixels);
+        free_file(file);
+
+        data = (float*)malloc(sizeof(float)*256);
+        memset_4tech(data, 0, sizeof(float)*256);
+        
+        char *pos = (char*)baked;
+        pos += offset;
+        for (int i = 0; i < 128; ++i){
+            data[i] = *(float*)pos;
+            pos += stride;
+        }
+        free(baked);
+    }
+    else{
+        printf("error: cannot continue without font\n");
+    }
+    
+    return data;
+}
+
+void setup(){
+    unsigned long long resolution;
+    if (!time_init(&resolution)){
+        printf("error: could not initialize timer");
+        exit(1);
+    }
+
+    if (resolution < 1000000)
+        printf("warning: timer is not actually at high enough resolution for good measurements!\n");
+
 }
 
 typedef struct Time_Record{
@@ -260,20 +334,21 @@ typedef struct Buffer_Set{
     Rope_Buffer rope_buffer;
 } Buffer_Set;
 
-template<typename Buffer_Init_Type, typename Buffer_Type> void
-init_buffer(Buffer_Type *buffer, File_Data file, void *scratch, int scratch_size){
-    *buffer = {};
-    Buffer_Init_Type init;
-    for (init = buffer_begin_init(buffer, file.data, file.size);
-         buffer_init_need_more(&init);){
-        int page_size = buffer_init_page_size(&init);
-        void *page = malloc(page_size);
-        buffer_init_provide_page(&init, page, page_size);
-    }
-    debug_4tech(int result =)
-        buffer_end_init(&init, scratch, scratch_size);
-    assert_4tech(result);
-}
+#define Buffer_Type Buffer
+#include "4coder_test_abstract.cpp"
+#undef Buffer_Type
+
+#define Buffer_Type Gap_Buffer
+#include "4coder_test_abstract.cpp"
+#undef Buffer_Type
+
+#define Buffer_Type Multi_Gap_Buffer
+#include "4coder_test_abstract.cpp"
+#undef Buffer_Type
+
+#define Buffer_Type Rope_Buffer
+#include "4coder_test_abstract.cpp"
+#undef Buffer_Type
 
 #define print_name() printf("%s:\n", __FUNCTION__)
 
@@ -288,22 +363,22 @@ initialization_test(Buffer_Set *set, File_Data file, int test_repitions,
     
     for (int i = 0; i < test_repitions; ++i){
         tstart = get_time();
-        init_buffer<Buffer_Init>(&set->buffer, file, scratch, scratch_size);
+        init_buffer(&set->buffer, file, scratch, scratch_size);
         tend = get_time();
         init_time[i].buffer = tend - tstart;
     
         tstart = get_time();
-        init_buffer<Gap_Buffer_Init>(&set->gap_buffer, file, scratch, scratch_size);
+        init_buffer(&set->gap_buffer, file, scratch, scratch_size);
         tend = get_time();
         init_time[i].gap_buffer = tend - tstart;
     
         tstart = get_time();
-        init_buffer<Multi_Gap_Buffer_Init>(&set->multi_gap_buffer, file, scratch, scratch_size);
+        init_buffer(&set->multi_gap_buffer, file, scratch, scratch_size);
         tend = get_time();
         init_time[i].multi_gap_buffer = tend - tstart;
     
         tstart = get_time();
-        init_buffer<Rope_Buffer_Init>(&set->rope_buffer, file, scratch, scratch_size);
+        init_buffer(&set->rope_buffer, file, scratch, scratch_size);
         tend = get_time();
         init_time[i].rope_buffer = tend - tstart;
 
@@ -325,31 +400,10 @@ initialization_test(Buffer_Set *set, File_Data file, int test_repitions,
     test_is_silenced = 0;
 }
 
-template<typename Buffer_Type> void
-measure_starts(Buffer_Type *buffer){
-    int max = 1 << 10;
-    buffer->line_starts = (int*)malloc(max*sizeof(int));
-    buffer->line_max = max;
-
-    Buffer_Measure_Starts state = {};
-    for (;buffer_measure_starts(&state, buffer);){
-        int max = buffer->line_max;
-        int count = state.count;
-        int target = count + 1;
-
-        max = target*2;
-        int *new_lines = (int*)malloc(max*sizeof(int));
-        memcpy_4tech(new_lines, buffer->line_starts, count*sizeof(int));
-        free(buffer->line_starts);
-        buffer->line_starts = new_lines;
-        buffer->line_max = max;
-    }
-    buffer->line_count = state.count;
-}
-
 void
-measure_starts_test(Buffer_Set *set, int test_repitions,
-                    void *scratch, int scratch_size, Record_Statistics *stats_out){
+measure_starts_widths_test(Buffer_Set *set, int test_repitions,
+                           void *scratch, int scratch_size, Record_Statistics *stats_out,
+                           float *font_widths){
     time_int tstart, tend;
     Time_Record *measure_time = (Time_Record*)scratch;
     scratch = measure_time + test_repitions;
@@ -358,22 +412,22 @@ measure_starts_test(Buffer_Set *set, int test_repitions,
     
     for (int i = 0; i < test_repitions; ++i){
         tstart = get_time();
-        measure_starts(&set->buffer);
+        measure_starts_widths(&set->buffer, font_widths);
         tend = get_time();
         measure_time[i].buffer = tend - tstart;
     
         tstart = get_time();
-        measure_starts(&set->gap_buffer);
+        measure_starts_widths(&set->gap_buffer, font_widths);
         tend = get_time();
         measure_time[i].gap_buffer = tend - tstart;
     
         tstart = get_time();
-        measure_starts(&set->multi_gap_buffer);
+        measure_starts_widths(&set->multi_gap_buffer, font_widths);
         tend = get_time();
         measure_time[i].multi_gap_buffer = tend - tstart;
     
         tstart = get_time();
-        measure_starts(&set->rope_buffer);
+        measure_starts_widths(&set->rope_buffer, font_widths);
         tend = get_time();
         measure_time[i].rope_buffer = tend - tstart;
 
@@ -382,59 +436,7 @@ measure_starts_test(Buffer_Set *set, int test_repitions,
             free(set->gap_buffer.line_starts);
             free(set->multi_gap_buffer.line_starts);
             free(set->rope_buffer.line_starts);
-        }
-    }
-
-    if (!test_is_silenced) print_name();
-    print_statistics(measure_time, test_repitions, stats_out);
-    if (!test_is_silenced) printf("\n");
-    test_is_silenced = 0;
-}
-
-template<typename Buffer_Type> void
-measure_widths(Buffer_Type *buffer){
-    int new_max = round_up_4tech(buffer->line_count, 1 << 10);
-    if (new_max < (1 << 10)) new_max = 1 << 10;
-        
-    buffer->line_widths = (float*)malloc(new_max*sizeof(float));
-    buffer->widths_max = new_max;
-    buffer->widths_count = 0;
-    
-    float glyph_width = 8.f;
-    buffer_measure_widths(buffer, &glyph_width, 0);
-}
-
-void
-measure_widths_test(Buffer_Set *set, int test_repitions,
-                    void *scratch, int scratch_size, Record_Statistics *stats_out){
-    time_int tstart, tend;
-    Time_Record *measure_time = (Time_Record*)scratch;
-    scratch = measure_time + test_repitions;
-    assert_4tech(test_repitions*sizeof(*measure_time) < scratch_size);
-    scratch_size -= test_repitions*sizeof(*measure_time);
-    
-    for (int i = 0; i < test_repitions; ++i){
-        tstart = get_time();
-        measure_widths(&set->buffer);
-        tend = get_time();
-        measure_time[i].buffer = tend - tstart;
-    
-        tstart = get_time();
-        measure_widths(&set->gap_buffer);
-        tend = get_time();
-        measure_time[i].gap_buffer = tend - tstart;
-    
-        tstart = get_time();
-        measure_widths(&set->multi_gap_buffer);
-        tend = get_time();
-        measure_time[i].multi_gap_buffer = tend - tstart;
-    
-        tstart = get_time();
-        measure_widths(&set->rope_buffer);
-        tend = get_time();
-        measure_time[i].rope_buffer = tend - tstart;
-
-        if (i+1 != test_repitions){
+            
             free(set->buffer.line_widths);
             free(set->gap_buffer.line_widths);
             free(set->multi_gap_buffer.line_widths);
@@ -494,32 +496,54 @@ stream_check_test(Buffer_Set *buffers, void *scratch, int scratch_size){
         buffer_stringify(&buffers->rope_buffer, i, end, page_2);
         page_compare(page_1, page_2, page_size);
     }
+
+    for (i = size-1; i > 0; i -= page_size){
+        int end = i - page_size;
+        if (end < 0) end = 0;
+        
+        buffer_backify(&buffers->buffer, i, end, page_1);
+        
+        buffer_backify(&buffers->gap_buffer, i, end, page_2);
+        page_compare(page_1, page_2, page_size);
+        
+        buffer_backify(&buffers->multi_gap_buffer, i, end, page_2);
+        page_compare(page_1, page_2, page_size);
+        
+        buffer_backify(&buffers->rope_buffer, i, end, page_2);
+        page_compare(page_1, page_2, page_size);
+    }
 }
 
-int main(){
+int main(int argc, char **argv){
     Buffer_Set buffers;
     File_Data file;
+    float *widths_data;
 
     void *scratch;
     int scratch_size;
+    
+    if (argc < 2){
+        printf("usage: buffer_test <filename>\n");
+        exit(1);
+    }
     
     setup();
 
     scratch_size = 1 << 20;
     scratch = malloc(scratch_size);
     
-    file = get_file("test_file_1.cpp");
+    file = get_file(argv[1]);
+    widths_data = get_font_data("LiberationSans-Regular.ttf");
     
-    Record_Statistics init_rec, starts_rec, widths_rec;
+    Record_Statistics init_rec, starts_widths_rec;
     
     initialization_test(&buffers, file, 100, scratch, scratch_size, &init_rec);
     stream_check_test(&buffers, scratch, scratch_size);
     
-    measure_starts_test(&buffers, 100, scratch, scratch_size, &starts_rec);
-    measure_widths_test(&buffers, 100, scratch, scratch_size, &widths_rec);
+    measure_starts_widths_test(&buffers, 100, scratch, scratch_size, &starts_widths_rec, widths_data);
     
     Time_Record expected_file_open;
-    expected_file_open = init_rec.expected + starts_rec.expected + widths_rec.expected;
+    expected_file_open = init_rec.expected + starts_widths_rec.expected;
     
     printf("average file open:\n");
     print_record(expected_file_open);
