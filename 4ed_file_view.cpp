@@ -2517,7 +2517,9 @@ file_do_single_edit(Mem_Options *mem, Editing_File *file,
         if (old_data) general_memory_free(general, old_data);
     }
 
+#if BUFFER_EXPERIMENT_SCALPEL == 3
     buffer_rope_check(&file->buffer, part->base + part->pos, scratch_size);
+#endif
     
 #if BUFFER_EXPERIMENT_SCALPEL == 2
     buffer_mugab_check(&file->buffer);

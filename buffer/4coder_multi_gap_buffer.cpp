@@ -542,7 +542,8 @@ buffer_replace_range(Multi_Gap_Buffer *buffer, int start, int end, char *str, in
                     }
                     else{
                         middle_size = 0;
-                        assert_4tech(head_size + tail_size >= len);
+                        head_size = len - tail_size;
+                        assert_4tech(head_size + gap->size1 <= fixed_width_buffer_size);
                     }
                 }
                 else{
@@ -585,7 +586,7 @@ buffer_replace_range(Multi_Gap_Buffer *buffer, int start, int end, char *str, in
                 mem_pos += tail_size;
                 assert_4tech(mem_pos == len);
                 debug_4tech(local_start_pos += gap->size1 + gap->size2);
-                assert_4tech(local_start_pos == buffer->size);
+                //assert_4tech(local_start_pos == buffer->size);
 
                 buffer->chunk_count += required_empty_buffers;
 

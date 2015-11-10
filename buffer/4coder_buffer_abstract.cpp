@@ -546,8 +546,7 @@ buffer_measure_starts_end:
 #endif
 
 internal_4tech int
-buffer_measure_starts_widths(Buffer_Measure_Starts *state, Buffer_Type *buffer,
-                             float *advance_data){
+buffer_measure_starts_widths(Buffer_Measure_Starts *state, Buffer_Type *buffer, float *advance_data){
     Buffer_Stringify_Type loop;
     int *start_ptr, *start_end;
     float *width_ptr;

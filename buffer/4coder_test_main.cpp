@@ -929,6 +929,45 @@ full_cursor_xy_test(Stats_Log *log, Buffer_Set *buffers, float x, float y, int r
 }
 
 void
+word_seek_test(Stats_Log *log, Buffer_Set *buffers, int test_repitions,
+               int incremental_position, char *word, int len,
+               void *scratch, int scratch_size, Record_Statistics *stats_out){
+    Sample_Machine machine;
+    machine = begin_machine(test_repitions, &scratch, &scratch_size);
+    assert_4tech(scratch_size >= len);
+    
+    int pos, pos2, old_pos;
+    old_pos = 0;
+    
+    for (int i = 0; i < machine.count; ++i){
+        start(&machine);
+        pos = buffer_find_string(&buffers->buffer, old_pos, word, len, (char*)scratch);
+        machine.samples[i].buffer = stop(&machine);
+        
+        start(&machine);
+        pos2 = buffer_find_string(&buffers->gap_buffer, old_pos, word, len, (char*)scratch);
+        machine.samples[i].gap_buffer = stop(&machine);
+        assert_4tech(pos2 == pos);
+        
+        start(&machine);
+        pos2 = buffer_find_string(&buffers->multi_gap_buffer, old_pos, word, len, (char*)scratch);
+        machine.samples[i].multi_gap_buffer = stop(&machine);
+        assert_4tech(pos2 == pos);
+        
+        start(&machine);
+        pos2 = buffer_find_string(&buffers->rope_buffer, old_pos, word, len, (char*)scratch);
+        machine.samples[i].rope_buffer = stop(&machine);
+        assert_4tech(pos2 == pos);
+        
+        if (incremental_position) old_pos = pos;
+    }
+    
+    end_machine(&machine, stats_out, __FUNCTION__);
+    
+    log_sample_set(log, litstr("word-seek"), stats_out, machine.samples, machine.count);
+}
+
+void
 stream_check_test(Buffer_Set *buffers, void *scratch, int scratch_size){
     int i, page_size, size;
     
@@ -981,6 +1020,200 @@ stream_check_test(Buffer_Set *buffers, void *scratch, int scratch_size){
         buffer_backify(&buffers->rope_buffer, i, end, page_2);
         page_compare(page_1, page_2, page_size);
     }
+}
+
+void
+insert_bottom_test(Stats_Log *log, Buffer_Set *buffers, int test_repitions, float *advance_data,
+                int edit_count, void *scratch, int scratch_size, Record_Statistics *stats_out){
+    Sample_Machine machine;
+    machine = begin_machine(test_repitions, &scratch, &scratch_size);
+    
+    char word[] = "stuff";
+    int word_len = sizeof(word) - 1;
+    
+    int i, j;
+    for (i = 0; i < test_repitions; ++i){
+        start(&machine);
+        for (j = 0; j < edit_count; ++j){
+            insert_bottom(&buffers->buffer, word, word_len,
+                       advance_data, scratch, scratch_size);
+        }
+        machine.samples[i].buffer = stop(&machine);
+        
+        start(&machine);
+        for (j = 0; j < edit_count; ++j){
+            insert_bottom(&buffers->gap_buffer, word, word_len,
+                       advance_data, scratch, scratch_size);
+        }
+        machine.samples[i].gap_buffer = stop(&machine);
+        
+        start(&machine);
+        for (j = 0; j < edit_count; ++j){
+            insert_bottom(&buffers->multi_gap_buffer, word, word_len,
+                       advance_data, scratch, scratch_size);
+        }
+        machine.samples[i].multi_gap_buffer = stop(&machine);
+        
+        start(&machine);
+        for (j = 0; j < edit_count; ++j){
+            insert_bottom(&buffers->rope_buffer, word, word_len,
+                       advance_data, scratch, scratch_size);
+        }
+        machine.samples[i].rope_buffer = stop(&machine);
+
+        if (i == 0){
+            stream_check_test(buffers, scratch, scratch_size);
+        }
+    }
+    
+    end_machine(&machine, stats_out, __FUNCTION__);
+
+    log_sample_set(log, litstr("insert-bottom"), stats_out, machine.samples, machine.count);
+}
+
+void
+insert_top_test(Stats_Log *log, Buffer_Set *buffers, int test_repitions, float *advance_data,
+                int edit_count, void *scratch, int scratch_size, Record_Statistics *stats_out){
+    Sample_Machine machine;
+    machine = begin_machine(test_repitions, &scratch, &scratch_size);
+    
+    char word[] = "stuff";
+    int word_len = sizeof(word) - 1;
+    
+    int i, j;
+    for (i = 0; i < test_repitions; ++i){
+        start(&machine);
+        for (j = 0; j < edit_count; ++j){
+            insert_top(&buffers->buffer, word, word_len,
+                       advance_data, scratch, scratch_size);
+        }
+        machine.samples[i].buffer = stop(&machine);
+        
+        start(&machine);
+        for (j = 0; j < edit_count; ++j){
+            insert_top(&buffers->gap_buffer, word, word_len,
+                       advance_data, scratch, scratch_size);
+        }
+        machine.samples[i].gap_buffer = stop(&machine);
+        
+        start(&machine);
+        for (j = 0; j < edit_count; ++j){
+            insert_top(&buffers->multi_gap_buffer, word, word_len,
+                       advance_data, scratch, scratch_size);
+        }
+        machine.samples[i].multi_gap_buffer = stop(&machine);
+        
+        start(&machine);
+        for (j = 0; j < edit_count; ++j){
+            insert_top(&buffers->rope_buffer, word, word_len,
+                       advance_data, scratch, scratch_size);
+        }
+        machine.samples[i].rope_buffer = stop(&machine);
+
+        if (i == 0){
+            stream_check_test(buffers, scratch, scratch_size);
+        }
+    }
+    
+    end_machine(&machine, stats_out, __FUNCTION__);
+
+    log_sample_set(log, litstr("insert-top"), stats_out, machine.samples, machine.count);
+}
+
+void
+delete_bottom_test(Stats_Log *log, Buffer_Set *buffers, int test_repitions, float *advance_data,
+                   int edit_count, void *scratch, int scratch_size, Record_Statistics *stats_out){
+    Sample_Machine machine;
+    machine = begin_machine(test_repitions, &scratch, &scratch_size);
+
+    int len = 5;
+    
+    int i, j;
+    for (i = 0; i < test_repitions; ++i){
+        start(&machine);
+        for (j = 0; j < edit_count; ++j){
+            delete_bottom(&buffers->buffer, len,
+                       advance_data, scratch, scratch_size);
+        }
+        machine.samples[i].buffer = stop(&machine);
+        
+        start(&machine);
+        for (j = 0; j < edit_count; ++j){
+            delete_bottom(&buffers->gap_buffer, len,
+                       advance_data, scratch, scratch_size);
+        }
+        machine.samples[i].gap_buffer = stop(&machine);
+        
+        start(&machine);
+        for (j = 0; j < edit_count; ++j){
+            delete_bottom(&buffers->multi_gap_buffer, len,
+                       advance_data, scratch, scratch_size);
+        }
+        machine.samples[i].multi_gap_buffer = stop(&machine);
+        
+        start(&machine);
+        for (j = 0; j < edit_count; ++j){
+            delete_bottom(&buffers->rope_buffer, len,
+                       advance_data, scratch, scratch_size);
+        }
+        machine.samples[i].rope_buffer = stop(&machine);
+
+        if (i == 0){
+            stream_check_test(buffers, scratch, scratch_size);
+        }
+    }
+    
+    end_machine(&machine, stats_out, __FUNCTION__);
+
+    log_sample_set(log, litstr("delete-bottom"), stats_out, machine.samples, machine.count);
+}
+
+void
+delete_top_test(Stats_Log *log, Buffer_Set *buffers, int test_repitions, float *advance_data,
+                int edit_count, void *scratch, int scratch_size, Record_Statistics *stats_out){
+    Sample_Machine machine;
+    machine = begin_machine(test_repitions, &scratch, &scratch_size);
+
+    int len = 5;
+    
+    int i, j;
+    for (i = 0; i < test_repitions; ++i){
+        start(&machine);
+        for (j = 0; j < edit_count; ++j){
+            delete_top(&buffers->buffer, len,
+                       advance_data, scratch, scratch_size);
+        }
+        machine.samples[i].buffer = stop(&machine);
+        
+        start(&machine);
+        for (j = 0; j < edit_count; ++j){
+            delete_top(&buffers->gap_buffer, len,
+                       advance_data, scratch, scratch_size);
+        }
+        machine.samples[i].gap_buffer = stop(&machine);
+        
+        start(&machine);
+        for (j = 0; j < edit_count; ++j){
+            delete_top(&buffers->multi_gap_buffer, len,
+                       advance_data, scratch, scratch_size);
+        }
+        machine.samples[i].multi_gap_buffer = stop(&machine);
+        
+        start(&machine);
+        for (j = 0; j < edit_count; ++j){
+            delete_top(&buffers->rope_buffer, len,
+                       advance_data, scratch, scratch_size);
+        }
+        machine.samples[i].rope_buffer = stop(&machine);
+
+        if (i == 0){
+            stream_check_test(buffers, scratch, scratch_size);
+        }
+    }
+    
+    end_machine(&machine, stats_out, __FUNCTION__);
+
+    log_sample_set(log, litstr("delete-top"), stats_out, machine.samples, machine.count);
 }
 
 void
@@ -1134,6 +1367,41 @@ int main(int argc, char **argv){
         }
         log_end_section(&log);
         
+    }
+    log_end_section(&log);
+    
+    log_begin_section(&log, litstr("word-seek"));
+    {
+        Record_Statistics word_seek;
+
+        {
+            char word[] = "not-going-to-find-this";
+            int word_len = sizeof(word) - 1;
+            
+            word_seek_test(&log, &buffers, 25, 0, word, word_len, scratch, scratch_size, &word_seek);
+
+        }
+
+        {
+            char word[] = "return";
+            int word_len = sizeof(word) - 1;
+            
+            word_seek_test(&log, &buffers, 25, 1, word, word_len, scratch, scratch_size, &word_seek);
+        
+            printf("average normal word seek:\n");
+            print_record(word_seek.expected);
+            printf("\n");
+        }
+    }
+    log_end_section(&log);
+    
+    log_begin_section(&log, litstr("one-hundred-single-edits"));
+    {
+        Record_Statistics edits;
+        insert_bottom_test(&log, &buffers, 25, widths_data, 100, scratch, scratch_size, &edits);
+        insert_top_test(&log, &buffers, 25, widths_data, 100, scratch, scratch_size, &edits);
+        delete_bottom_test(&log, &buffers, 25, widths_data, 100, scratch, scratch_size, &edits);
+        delete_top_test(&log, &buffers, 25, widths_data, 100, scratch, scratch_size, &edits);
     }
     log_end_section(&log);
     
