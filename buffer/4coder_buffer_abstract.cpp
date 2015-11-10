@@ -986,6 +986,23 @@ buffer_cursor_from_pos(Buffer_Type *buffer, int pos, float *wraps,
 }
 
 internal_4tech Full_Cursor
+buffer_cursor_from_line_character(Buffer_Type *buffer, int line, int character, float *wraps,
+                                  float max_width, float font_height, float *advance_data){
+    Full_Cursor result;
+    int line_index;
+
+    line_index = line - 1;
+    if (line_index >= buffer->line_count) line_index = buffer->line_count - 1;
+    if (line_index < 0) line_index = 0;
+
+    result = make_cursor_hint(line_index, buffer->line_starts, wraps, font_height);
+    result = buffer_cursor_seek(buffer, seek_line_char(line, character),
+                                max_width, font_height, advance_data, result);
+
+    return(result);
+}
+
+internal_4tech Full_Cursor
 buffer_cursor_from_unwrapped_xy(Buffer_Type *buffer, float x, float y, int round_down, float *wraps,
                                 float max_width, float font_height, float *advance_data){
     Full_Cursor result;
@@ -996,8 +1013,8 @@ buffer_cursor_from_unwrapped_xy(Buffer_Type *buffer, float x, float y, int round
     if (line_index < 0) line_index = 0;
 
     result = make_cursor_hint(line_index, buffer->line_starts, wraps, font_height);
-    result = buffer_cursor_seek(buffer, seek_unwrapped_xy(x, y, round_down), max_width, font_height,
-                                advance_data, result);
+    result = buffer_cursor_seek(buffer, seek_unwrapped_xy(x, y, round_down),
+                                max_width, font_height, advance_data, result);
 
     return(result);
 }
@@ -1010,8 +1027,8 @@ buffer_cursor_from_wrapped_xy(Buffer_Type *buffer, float x, float y, int round_d
 
     line_index = buffer_get_line_index_from_wrapped_y(wraps, y, font_height, 0, buffer->line_count);
     result = make_cursor_hint(line_index, buffer->line_starts, wraps, font_height);
-    result = buffer_cursor_seek(buffer, seek_wrapped_xy(x, y, round_down), max_width, font_height,
-                                advance_data, result);
+    result = buffer_cursor_seek(buffer, seek_wrapped_xy(x, y, round_down),
+                                max_width, font_height, advance_data, result);
 
     return(result);
 }
