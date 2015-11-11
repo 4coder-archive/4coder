@@ -1,4 +1,4 @@
- /*
+/*
  * Mr. 4th Dimention - Allen Webster
  *
  * 12.17.2014
@@ -743,9 +743,8 @@ font_load(Font *font_out, char *filename, i32 pt_size,
                 if (stbtt_FindGlyphIndex(&font, code_point) != 0){
                     font_out->glyphs[code_point].exists = 1;
                     i32 advance = CEIL32(font_out->chardata[code_point].xadvance);
-                    if (max_advance < advance){
-                        max_advance = advance;
-                    }
+                    if (max_advance < advance) max_advance = advance;
+                    font_out->advance_data[code_point] = font_out->chardata[code_point].xadvance;
                 }
             }
             font_out->advance = max_advance - 1;

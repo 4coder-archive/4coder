@@ -1222,6 +1222,56 @@ file_grow_starts_as_needed(General_Memory *general, Buffer_Type *buffer, i32 add
 }
 
 internal void
+file_measure_starts_widths(General_Memory *general, Buffer_Type *buffer, Font *font){
+    ProfileMomentFunction();
+    if (!buffer->line_starts){
+        i32 max = buffer->line_max = Kbytes(1);
+        buffer->line_starts = (i32*)general_memory_allocate(general, max*sizeof(i32), BUBBLE_STARTS);
+        TentativeAssert(buffer->line_starts);
+        // TODO(allen): when unable to allocate?
+    }
+    if (!buffer->line_widths){
+        i32 max = buffer->widths_max = Kbytes(1);
+        buffer->line_widths = (f32*)general_memory_allocate(general, max*sizeof(f32), BUBBLE_STARTS);
+        TentativeAssert(buffer->line_starts);
+        // TODO(allen): when unable to allocate?
+    }
+   
+    Buffer_Measure_Starts state = {};
+    while (buffer_measure_starts_widths(&state, buffer, font->advance_data)){
+        i32 count = state.count;
+        i32 max = buffer->line_max;
+        max = ((max + 1) << 1);
+
+        {
+            i32 *new_lines = (i32*)
+                general_memory_reallocate(general, buffer->line_starts,
+                                          sizeof(i32)*count, sizeof(i32)*max, BUBBLE_STARTS);
+        
+            // TODO(allen): when unable to grow?
+            TentativeAssert(new_lines);
+            buffer->line_starts = new_lines;
+            buffer->line_max = max;
+        }
+
+        {
+            f32 *new_lines = (f32*)
+                general_memory_reallocate(general, buffer->line_widths,
+                                          sizeof(f32)*count, sizeof(f32)*max, BUBBLE_WIDTHS);
+        
+            // TODO(allen): when unable to grow?
+            TentativeAssert(new_lines);
+            buffer->line_widths = new_lines;
+            buffer->widths_max = max;
+        }
+        
+    }
+    buffer->line_count = state.count;
+    buffer->widths_count = state.count;
+}
+
+#if 0
+internal void
 file_measure_starts(General_Memory *general, Buffer_Type *buffer){
 #if BUFFER_EXPERIMENT_SCALPEL <= 3
     ProfileMomentFunction();
@@ -1251,6 +1301,7 @@ file_measure_starts(General_Memory *general, Buffer_Type *buffer){
     buffer->line_count = state.count;
 #endif
 }
+#endif
 
 internal void
 file_remeasure_starts(General_Memory *general, Buffer_Type *buffer,
@@ -1298,6 +1349,7 @@ file_grow_widths_as_needed(General_Memory *general, Buffer_Type *buffer){
 #endif
 }
 
+#if 0
 internal void
 file_measure_widths(General_Memory *general, Buffer_Type *buffer, Font *font){
 #if BUFFER_EXPERIMENT_SCALPEL <= 3
@@ -1307,6 +1359,7 @@ file_measure_widths(General_Memory *general, Buffer_Type *buffer, Font *font){
     buffer_measure_widths(buffer, opad.data, opad.stride);
 #endif
 }
+#endif
 
 internal void
 file_remeasure_widths(General_Memory *general, Buffer_Type *buffer, Font *font,
@@ -1314,8 +1367,7 @@ file_remeasure_widths(General_Memory *general, Buffer_Type *buffer, Font *font,
 #if BUFFER_EXPERIMENT_SCALPEL <= 3
     ProfileMomentFunction();
     file_grow_widths_as_needed(general, buffer);
-    Opaque_Font_Advance opad = get_opaque_font_advance(font);
-    buffer_remeasure_widths(buffer, opad.data, opad.stride, line_start, line_end, line_shift);
+    buffer_remeasure_widths(buffer, font->advance_data, line_start, line_end, line_shift);
 #endif
 }
 
@@ -1418,9 +1470,8 @@ file_create_from_string(Mem_Options *mem, Editing_File *file, u8 *filename, Font
     file->font = font;
     
     file_synchronize_times(file, filename);
-        
-    file_measure_starts(general, &file->buffer);
-    file_measure_widths(general, &file->buffer, font);
+    
+    file_measure_starts_widths(general, &file->buffer, font);
 
     file->super_locked = super_locked;
     if (!super_locked){
@@ -1536,6 +1587,9 @@ file_close(General_Memory *general, Editing_File *file){
     
         general_memory_free(general, file->undo.history.strings);
         general_memory_free(general, file->undo.history.edits);
+
+        general_memory_free(general, file->undo.children.strings);
+        general_memory_free(general, file->undo.children.edits);
     }
 }
 
@@ -1948,7 +2002,7 @@ file_unpost_history_block(Editing_File *file){
 #if BUFFER_EXPERIMENT_SCALPEL <= 3
 internal Edit_Step*
 file_post_history(General_Memory *general, Editing_File *file,
-                  Edit_Step step, bool32 do_merge, bool32 can_merge){
+                  Edit_Step step, b32 do_merge, b32 can_merge){
     Edit_Stack *history = &file->undo.history;
     Edit_Step *result = 0;
     
@@ -2025,10 +2079,9 @@ view_compute_cursor_from_pos(File_View *view, i32 pos){
     Font *font = style->font;
     
     real32 max_width = view_compute_width(view);
-    Opaque_Font_Advance opad = get_opaque_font_advance(font);
 
     return buffer_cursor_from_pos(&file->buffer, pos, view->line_wrap_y,
-                                  max_width, (real32)font->height, opad.data, opad.stride);
+                                  max_width, (real32)font->height, font->advance_data);
 #else
     return view->cursor;
 #endif
@@ -2043,10 +2096,9 @@ view_compute_cursor_from_unwrapped_xy(File_View *view, real32 seek_x, real32 see
     Font *font = style->font;
     
     real32 max_width = view_compute_width(view);
-    Opaque_Font_Advance opad = get_opaque_font_advance(font);
 
     return buffer_cursor_from_unwrapped_xy(&file->buffer, seek_x, seek_y, round_down, view->line_wrap_y,
-                                           max_width, (real32)font->height, opad.data, opad.stride);
+                                           max_width, (real32)font->height, font->advance_data);
 #else
     return view->cursor;
 #endif
@@ -2061,10 +2113,9 @@ view_compute_cursor_from_wrapped_xy(File_View *view, real32 seek_x, real32 seek_
     Font *font = style->font;
     
     real32 max_width = view_compute_width(view);
-    Opaque_Font_Advance opad = get_opaque_font_advance(font);
     
     return buffer_cursor_from_wrapped_xy(&file->buffer, seek_x, seek_y, round_down, view->line_wrap_y,
-                                         max_width, (real32)font->height, opad.data, opad.stride);
+                                         max_width, (real32)font->height, font->advance_data);
 #else
     return view->cursor;
 #endif
@@ -2314,7 +2365,7 @@ file_update_history_before_edit(Mem_Options *mem, Editing_File *file, Edit_Step 
     }
 #endif
     
-    bool32 can_merge = 0, do_merge = 0;
+    b32 can_merge = 0, do_merge = 0;
     switch (step.type){
     case ED_NORMAL:
     {
@@ -2334,7 +2385,7 @@ file_update_history_before_edit(Mem_Options *mem, Editing_File *file, Edit_Step 
         
         undo_stack_pop(&file->undo.undo);
         
-        bool32 restore_redos = 0;
+        b32 restore_redos = 0;
         Edit_Step *redo_end = 0;
         
         if (history_mode == hist_backward && file->undo.edit_history_cursor > 0){
@@ -2502,8 +2553,6 @@ file_do_single_edit(Mem_Options *mem, Editing_File *file,
     i32 str_len = spec.step.edit.len;
 
     i32 scratch_size = partition_remaining(part);
-
-    buffer_rope_check(&file->buffer, part->base + part->pos, scratch_size);
     
     Assert(scratch_size > 0);
     i32 request_amount = 0;
@@ -2656,10 +2705,7 @@ view_do_white_batch_edit(Mem_Options *mem, File_View *view, Editing_File *file,
     // NOTE(allen): meta data
     {
         Buffer_Measure_Starts state = {};
-        if (buffer_measure_starts(&state, &file->buffer)) Assert(0);
-        
-        Opaque_Font_Advance opad = get_opaque_font_advance(file->font);
-        buffer_measure_widths(&file->buffer, opad.data, opad.stride);
+        buffer_measure_starts_widths(&state, &file->buffer, file->font->advance_data);
     }
     
     // NOTE(allen): cursor fixing
@@ -2767,6 +2813,66 @@ inline void
 view_redo(Mem_Options *mem, Editing_Layout *layout, File_View *view){
     Editing_File *file = view->file;
     view_undo_redo(mem, layout, view, file, &file->undo.redo, ED_REDO);
+}
+
+inline u8*
+write_data(u8 *ptr, void *x, i32 size){
+    memcpy(ptr, x, size);
+    return (ptr + size);
+}
+
+internal void
+file_dump_history(Mem_Options *mem, Editing_File *file, char *filename){
+    if (!file->undo.undo.edits) return;
+    
+    i32 size = 0;
+    
+    size += sizeof(i32);
+    size += file->undo.undo.edit_count*sizeof(Edit_Step);
+    size += sizeof(i32);
+    size += file->undo.redo.edit_count*sizeof(Edit_Step);
+    size += sizeof(i32);
+    size += file->undo.history.edit_count*sizeof(Edit_Step);
+    size += sizeof(i32);
+    size += file->undo.children.edit_count*sizeof(Buffer_Edit);
+    
+    size += sizeof(i32);
+    size += file->undo.undo.size;
+    size += sizeof(i32);
+    size += file->undo.redo.size;
+    size += sizeof(i32);
+    size += file->undo.history.size;
+    size += sizeof(i32);
+    size += file->undo.children.size;
+
+    Partition *part = &mem->part;
+    i32 remaining = partition_remaining(part);
+    if (size < remaining){
+        u8 *data, *curs;
+        data = (u8*)part->base + part->pos;
+        curs = data;
+        curs = write_data(curs, &file->undo.undo.edit_count, 4);
+        curs = write_data(curs, &file->undo.redo.edit_count, 4);
+        curs = write_data(curs, &file->undo.history.edit_count, 4);
+        curs = write_data(curs, &file->undo.children.edit_count, 4);
+        curs = write_data(curs, &file->undo.undo.size, 4);
+        curs = write_data(curs, &file->undo.redo.size, 4);
+        curs = write_data(curs, &file->undo.history.size, 4);
+        curs = write_data(curs, &file->undo.children.size, 4);
+        
+        curs = write_data(curs, file->undo.undo.edits, sizeof(Edit_Step)*file->undo.undo.edit_count);
+        curs = write_data(curs, file->undo.redo.edits, sizeof(Edit_Step)*file->undo.redo.edit_count);
+        curs = write_data(curs, file->undo.history.edits, sizeof(Edit_Step)*file->undo.history.edit_count);
+        curs = write_data(curs, file->undo.children.edits, sizeof(Buffer_Edit)*file->undo.children.edit_count);
+        
+        curs = write_data(curs, file->undo.undo.strings, file->undo.undo.size);
+        curs = write_data(curs, file->undo.redo.strings, file->undo.redo.size);
+        curs = write_data(curs, file->undo.history.strings, file->undo.history.size);
+        curs = write_data(curs, file->undo.children.strings, file->undo.children.size);
+
+        Assert((i32)(curs - data) == size);
+        system_save_file((u8*)filename, data, size);
+    }
 }
 
 internal void
@@ -3838,7 +3944,6 @@ draw_file_view(Thread_Context *thread, View *view_, i32_Rect rect, bool32 is_act
     
     Assert(file && !file->is_dummy && buffer_good(&file->buffer));
 
-    Opaque_Font_Advance opad = get_opaque_font_advance(font);
     b32 tokens_use = 0;
     Cpp_Token_Stack token_stack = {};
     if (file){
@@ -3858,9 +3963,7 @@ draw_file_view(Thread_Context *thread, View *view_, i32_Rect rect, bool32 is_act
     }
     
     Partition *part = &view_->mem->part;
-    
-    buffer_rope_check(&file->buffer, part->base + part->pos, partition_remaining(part));
-    
+
     Temp_Memory temp = begin_temp_memory(part);
     
     partition_align(part, 4);
@@ -3870,7 +3973,7 @@ draw_file_view(Thread_Context *thread, View *view_, i32_Rect rect, bool32 is_act
     i32 count;
     buffer_get_render_data(&file->buffer, view->line_wrap_y, items, max, &count,
                            (real32)rect.x0, (real32)rect.y0, view->scroll_x, view->scroll_y, !view->unwrapped_lines,
-                           (real32)max_x, (real32)max_y, opad.data, opad.stride, (real32)font->height);
+                           (real32)max_x, (real32)max_y, font->advance_data, (real32)font->height);
     Assert(count > 0);
     
     i32 cursor_begin, cursor_end;

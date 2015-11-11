@@ -14,49 +14,13 @@
 
 #include "4coder_external_name.h"
 
-#include <stdlib.h>
-#include <stdio.h>
-#include <assert.h>
-#include <string.h>
-
-#define inline_4tech inline
-
-inline_4tech int
-CEIL32(float x){
-    int extra;
-    extra = ((x!=(int)(x) && x>0)?1:0);
-    extra += (int)(x);
-    return(extra);
-}
-
-inline_4tech int
-DIVCEIL32(int n, int d) {
-    int q = (n/d);
-    q += (q*d < n);
-    return(q);
-}
-
-inline_4tech unsigned int
-ROUNDPOT32(unsigned int v){
-    v--;
-    v |= v >> 1;
-    v |= v >> 2;
-    v |= v >> 4;
-    v |= v >> 8;
-    v |= v >> 16;
-    v++;
-    return(v);
-}
+#include "shared_test_config.cpp"
 
 #ifdef fast_test
 #define debug_4tech(x)
 #define assert_4tech(x)
 #endif
 #define hard_assert_4tech(x) assert(x)
-
-#ifdef __linux__
-#define memzero_4tech(x) memset_4tech(&(x), 0, sizeof(x))
-#endif
 
 #include "4coder_shared.cpp"
 #include "4coder_golden_array.cpp"
@@ -79,6 +43,8 @@ ROUNDPOT32(unsigned int v){
 #define Buffer_Type Rope_Buffer
 #include "4coder_buffer_abstract.cpp"
 #undef Buffer_Type
+
+#include "shared_test_utils.cpp"
 
 int int_into_str(char *out, int *rem, unsigned int x){
     char *start = out;
@@ -219,42 +185,6 @@ time_int get_time(){
 #error Timer not supported on this platform
 #endif
 
-typedef struct File_Data{
-    char *data;
-    int size;
-} File_Data;
-
-File_Data get_file(const char *filename){
-    FILE *file;
-    File_Data result;
-    
-    file = fopen(filename, "rb");
-    if (!file){
-        printf("error: could not find file %s\n", filename);
-        exit(1);
-    }
-
-    fseek(file, 0, SEEK_END);
-    result.size = ftell(file);
-    fseek(file, 0, SEEK_SET);
-
-    if (result.size == 0){        
-        printf("error: file %s was empty\n", filename);
-        exit(1);
-    }
-    
-    result.data = (char*)malloc(result.size);
-    fread(result.data, result.size, 1, file);
-
-    fclose(file);
-    
-    return(result);
-}
-
-void free_file(File_Data file){
-    free(file.data);
-}
-
 #define STB_TRUETYPE_IMPLEMENTATION
 #include "stb_truetype.h"
 
@@ -262,6 +192,7 @@ float* get_font_data(const char *font_file, float *font_height){
     float *data = 0;
     stbtt_bakedchar *baked;
     File_Data file = get_file(font_file);
+    if (!file.data) exit(1);
 
     if (file.data){
         int size = sizeof(*baked)*256;
@@ -355,8 +286,7 @@ typedef struct Stats_Log{
 #define use_stats_log 0
 #endif
 
-void
-log_write_int(Stats_Log *log, int x){
+void log_write_int(Stats_Log *log, int x){
 #if use_stats_log
     if (log->error == 0){
         if (log->size+4 <= log->max){
@@ -370,8 +300,7 @@ log_write_int(Stats_Log *log, int x){
 #endif
 }
 
-void
-log_write_time(Stats_Log *log, time_int x){
+void log_write_time(Stats_Log *log, time_int x){
 #if use_stats_log
     if (log->error == 0){
         if (x < 0x7FFFFFFF){
@@ -390,8 +319,7 @@ log_write_time(Stats_Log *log, time_int x){
 #endif
 }
 
-void
-log_write_str(Stats_Log *log, char *str, int len){
+void log_write_str(Stats_Log *log, char *str, int len){
 #if use_stats_log
     int up = (len + 3) & ~3;
     if (log->error == 0){
@@ -407,8 +335,7 @@ log_write_str(Stats_Log *log, char *str, int len){
 #endif
 }
 
-void
-log_begin_section(Stats_Log *log, char *name, int name_len){
+void log_begin_section(Stats_Log *log, char *name, int name_len){
 #if use_stats_log
     Log_Section *section;
     if (log->error == 0){
@@ -433,8 +360,7 @@ log_begin_section(Stats_Log *log, char *name, int name_len){
 #endif
 }
 
-void
-log_end_section(Stats_Log *log){
+void log_end_section(Stats_Log *log){
 #if use_stats_log
     if (log->error == 0){
         if (log->sec_top > 0){
@@ -447,8 +373,7 @@ log_end_section(Stats_Log *log){
 #endif
 }
 
-void
-log_data_item(Stats_Log *log, char *name, int name_len, time_int t){
+void log_data_item(Stats_Log *log, char *name, int name_len, time_int t){
 #if use_stats_log
     Log_Section *section;
     if (log->error == 0){
@@ -464,8 +389,7 @@ log_data_item(Stats_Log *log, char *name, int name_len, time_int t){
 #endif
 }
 
-void
-log_finish(Stats_Log *log){
+void log_finish(Stats_Log *log){
 #if use_stats_log
     assert_4tech(sizeof(external_name) < 512);
     if (log->error == 0){
@@ -473,15 +397,12 @@ log_finish(Stats_Log *log){
         memcpy_4tech(fname, "out/", 4);
         memcpy_4tech(fname + 4, external_name, sizeof(external_name)-1);
         time_into_str(fname + 4 + sizeof(external_name) - 1, 1023 - sizeof(external_name) + 1);
+
+        File_Data log_file;
+        log_file.data = log->out;
+        log_file.size = log->size;
         
-        FILE *log_out = fopen(fname, "wb");
-        if (log_out){
-            fwrite(log->out, 1, log->size, log_out);
-            fclose(log_out);
-        }
-        else{
-            printf("log error: could not open %s\n", fname);
-        }
+        save_file(fname, log_file);
     }
     else{
         printf("\n");
@@ -498,8 +419,7 @@ log_finish(Stats_Log *log){
 
 #define litstr(s) (char*)(s), (sizeof(s)-1)
 
-void
-log_time_record(Stats_Log *log, char *name, int name_len, Time_Record record){
+void log_time_record(Stats_Log *log, char *name, int name_len, Time_Record record){
     log_begin_section(log, name, name_len);
     log_data_item(log, litstr("golden-array"), record.buffer);
     log_data_item(log, litstr("gap-buffer"), record.gap_buffer);
@@ -531,8 +451,7 @@ operator/=(Time_Record &r, int x){
 #define minify(a,b) if ((a)>(b)) (a) = (b)
 #define maxify(a,b) if ((a)<(b)) (a) = (b)
 
-void
-get_record_statistics(Record_Statistics *stats_out, Time_Record *records, int count){
+void get_record_statistics(Record_Statistics *stats_out, Time_Record *records, int count){
     Record_Statistics stats;
     stats.max = records[0];
     stats.min = records[0];
@@ -562,13 +481,11 @@ get_record_statistics(Record_Statistics *stats_out, Time_Record *records, int co
 
 int test_is_silenced;
 
-void
-silence_test(){
+void silence_test(){
     test_is_silenced = 1;
 }
 
-void
-print_record(Time_Record record){
+void print_record(Time_Record record){
     printf("%-16s - %25lluus\n%-16s - %25lluus\n%-16s - %25lluus\n%-16s - %25lluus\n",
            "Golden Array", record.buffer,
            "Gap Buffer", record.gap_buffer,
@@ -576,8 +493,7 @@ print_record(Time_Record record){
            "Rope", record.rope_buffer);
 }
 
-void
-print_statistics(Time_Record *records, int count, Record_Statistics *stats_out){
+void print_statistics(Time_Record *records, int count, Record_Statistics *stats_out){
     Record_Statistics stats;
     get_record_statistics(&stats, records, count);
     if (!test_is_silenced){
@@ -616,8 +532,7 @@ typedef struct Buffer_Set{
 #include "4coder_test_abstract.cpp"
 #undef Buffer_Type
 
-void
-log_sample_set(Stats_Log *log, char *name, int name_len, Record_Statistics *stats,
+void log_sample_set(Stats_Log *log, char *name, int name_len, Record_Statistics *stats,
                Time_Record *samples, int sample_count){
     log_begin_section(log, name, name_len);
         
@@ -639,8 +554,7 @@ typedef struct Sample_Machine{
     int count;
 } Sample_Machine;
 
-Sample_Machine
-begin_machine(int count, void **data, int *max){
+Sample_Machine begin_machine(int count, void **data, int *max){
     Sample_Machine result;
     
     result.count = count;
@@ -652,8 +566,7 @@ begin_machine(int count, void **data, int *max){
     return(result);
 }
 
-void
-end_machine(Sample_Machine *machine, Record_Statistics *stats_out, char *func_name){
+void end_machine(Sample_Machine *machine, Record_Statistics *stats_out, char *func_name){
     if (!test_is_silenced) printf("%s\n", func_name);
     print_statistics(machine->samples, machine->count, stats_out);
     if (!test_is_silenced) printf("\n");
@@ -669,8 +582,7 @@ time_int stop(Sample_Machine *machine){
     return machine->tend - machine->tstart;
 }
                   
-void
-initialization_test(Stats_Log *log, Buffer_Set *set, File_Data file, int test_repitions,
+void initialization_test(Stats_Log *log, Buffer_Set *set, File_Data file, int test_repitions,
                     void *scratch, int scratch_size, Record_Statistics *stats_out){
     Sample_Machine machine;
     machine = begin_machine(test_repitions, &scratch, &scratch_size);
@@ -709,8 +621,7 @@ initialization_test(Stats_Log *log, Buffer_Set *set, File_Data file, int test_re
     log_sample_set(log, litstr("initialization"), stats_out, machine.samples, machine.count);
 }
 
-void
-measure_starts_widths_test(Stats_Log *log, Buffer_Set *set, int test_repitions, void *scratch,
+void measure_starts_widths_test(Stats_Log *log, Buffer_Set *set, int test_repitions, void *scratch,
                            int scratch_size, Record_Statistics *stats_out, float *font_widths){
     Sample_Machine machine;
     machine = begin_machine(test_repitions, &scratch, &scratch_size);
@@ -750,8 +661,7 @@ measure_starts_widths_test(Stats_Log *log, Buffer_Set *set, int test_repitions, 
     log_sample_set(log, litstr("measure_starts_widths"), stats_out, machine.samples, machine.count);
 }
 
-int
-page_compare(void *page_1_, void *page_2_, int page_size){
+int page_compare(void *page_1_, void *page_2_, int page_size){
     char *page_1 = (char*)page_1_;
     char *page_2 = (char*)page_2_;
     int result = 1;
@@ -761,8 +671,7 @@ page_compare(void *page_1_, void *page_2_, int page_size){
     return result;
 }
 
-float*
-measure_wraps_test(Stats_Log *log, Buffer_Set *buffers, int test_repitions, void *scratch,
+float* measure_wraps_test(Stats_Log *log, Buffer_Set *buffers, int test_repitions, void *scratch,
                    int scratch_size, Record_Statistics *stats_out, float font_height, float max_width){
     Sample_Machine machine;
     machine = begin_machine(test_repitions, &scratch, &scratch_size);
@@ -804,8 +713,7 @@ measure_wraps_test(Stats_Log *log, Buffer_Set *buffers, int test_repitions, void
     return wrap_ys;
 }
 
-int
-cursor_eq(Full_Cursor c1, Full_Cursor c2){
+int cursor_eq(Full_Cursor c1, Full_Cursor c2){
     int result = 0;
     if (c1.pos == c2.pos && c1.line == c2.line && c1.character == c2.character &&
         c1.wrapped_x == c2.wrapped_x && c1.wrapped_y == c2.wrapped_y &&
@@ -815,8 +723,7 @@ cursor_eq(Full_Cursor c1, Full_Cursor c2){
     return(result);
 }
 
-void
-full_cursor_test(Stats_Log *log, Buffer_Set *buffers, int pos,
+void full_cursor_test(Stats_Log *log, Buffer_Set *buffers, int pos,
                  float *wrap_ys, float *advance_data, float font_height, float max_width,
                  int test_repitions, void *scratch, int scratch_size, Record_Statistics *stats_out){
     Sample_Machine machine;
@@ -850,8 +757,7 @@ full_cursor_test(Stats_Log *log, Buffer_Set *buffers, int pos,
     log_sample_set(log, litstr("full-cursor-seek"), stats_out, machine.samples, machine.count);
 }
 
-void
-full_cursor_line_test(Stats_Log *log, Buffer_Set *buffers, int line, int character,
+void full_cursor_line_test(Stats_Log *log, Buffer_Set *buffers, int line, int character,
                  float *wrap_ys, float *advance_data, float font_height, float max_width,
                  int test_repitions, void *scratch, int scratch_size, Record_Statistics *stats_out){
     Sample_Machine machine;
@@ -889,8 +795,7 @@ full_cursor_line_test(Stats_Log *log, Buffer_Set *buffers, int line, int charact
     log_sample_set(log, litstr("full-cursor-seek"), stats_out, machine.samples, machine.count);
 }
 
-void
-full_cursor_xy_test(Stats_Log *log, Buffer_Set *buffers, float x, float y, int round_down,
+void full_cursor_xy_test(Stats_Log *log, Buffer_Set *buffers, float x, float y, int round_down,
                     float *wrap_ys, float *advance_data, float font_height, float max_width,
                     int test_repitions, void *scratch, int scratch_size, Record_Statistics *stats_out){
     Sample_Machine machine;
@@ -928,8 +833,7 @@ full_cursor_xy_test(Stats_Log *log, Buffer_Set *buffers, float x, float y, int r
     log_sample_set(log, litstr("full-cursor-seek"), stats_out, machine.samples, machine.count);
 }
 
-void
-word_seek_test(Stats_Log *log, Buffer_Set *buffers, int test_repitions,
+void word_seek_test(Stats_Log *log, Buffer_Set *buffers, int test_repitions,
                int incremental_position, char *word, int len,
                void *scratch, int scratch_size, Record_Statistics *stats_out){
     Sample_Machine machine;
@@ -967,8 +871,7 @@ word_seek_test(Stats_Log *log, Buffer_Set *buffers, int test_repitions,
     log_sample_set(log, litstr("word-seek"), stats_out, machine.samples, machine.count);
 }
 
-void
-stream_check_test(Buffer_Set *buffers, void *scratch, int scratch_size){
+void stream_check_test(Buffer_Set *buffers, void *scratch, int scratch_size){
     int i, page_size, size;
     
     size = buffer_size(&buffers->buffer);
@@ -1022,8 +925,7 @@ stream_check_test(Buffer_Set *buffers, void *scratch, int scratch_size){
     }
 }
 
-void
-insert_bottom_test(Stats_Log *log, Buffer_Set *buffers, int test_repitions, float *advance_data,
+void insert_bottom_test(Stats_Log *log, Buffer_Set *buffers, int test_repitions, float *advance_data,
                 int edit_count, void *scratch, int scratch_size, Record_Statistics *stats_out){
     Sample_Machine machine;
     machine = begin_machine(test_repitions, &scratch, &scratch_size);
@@ -1071,8 +973,7 @@ insert_bottom_test(Stats_Log *log, Buffer_Set *buffers, int test_repitions, floa
     log_sample_set(log, litstr("insert-bottom"), stats_out, machine.samples, machine.count);
 }
 
-void
-insert_top_test(Stats_Log *log, Buffer_Set *buffers, int test_repitions, float *advance_data,
+void insert_top_test(Stats_Log *log, Buffer_Set *buffers, int test_repitions, float *advance_data,
                 int edit_count, void *scratch, int scratch_size, Record_Statistics *stats_out){
     Sample_Machine machine;
     machine = begin_machine(test_repitions, &scratch, &scratch_size);
@@ -1120,8 +1021,7 @@ insert_top_test(Stats_Log *log, Buffer_Set *buffers, int test_repitions, float *
     log_sample_set(log, litstr("insert-top"), stats_out, machine.samples, machine.count);
 }
 
-void
-delete_bottom_test(Stats_Log *log, Buffer_Set *buffers, int test_repitions, float *advance_data,
+void delete_bottom_test(Stats_Log *log, Buffer_Set *buffers, int test_repitions, float *advance_data,
                    int edit_count, void *scratch, int scratch_size, Record_Statistics *stats_out){
     Sample_Machine machine;
     machine = begin_machine(test_repitions, &scratch, &scratch_size);
@@ -1168,8 +1068,7 @@ delete_bottom_test(Stats_Log *log, Buffer_Set *buffers, int test_repitions, floa
     log_sample_set(log, litstr("delete-bottom"), stats_out, machine.samples, machine.count);
 }
 
-void
-delete_top_test(Stats_Log *log, Buffer_Set *buffers, int test_repitions, float *advance_data,
+void delete_top_test(Stats_Log *log, Buffer_Set *buffers, int test_repitions, float *advance_data,
                 int edit_count, void *scratch, int scratch_size, Record_Statistics *stats_out){
     Sample_Machine machine;
     machine = begin_machine(test_repitions, &scratch, &scratch_size);
@@ -1216,8 +1115,42 @@ delete_top_test(Stats_Log *log, Buffer_Set *buffers, int test_repitions, float *
     log_sample_set(log, litstr("delete-top"), stats_out, machine.samples, machine.count);
 }
 
-void
-measure_check_test(Buffer_Set *buffers){
+void natural_edits_test(Stats_Log *log, Buffer_Set *buffers, int test_repitions, float *advance_data,
+                        Replay *replay, void *scratch, int scratch_size, Record_Statistics *stats_out){
+    Sample_Machine machine;
+    machine = begin_machine(test_repitions, &scratch, &scratch_size);
+
+    int i, j;
+    for (i = 0; i < test_repitions; ++i){
+        j = i*buffer_size(&buffers->buffer) / (1+test_repitions);
+        
+        start(&machine);
+        natural_edits(&buffers->buffer, advance_data, replay, j, scratch, scratch_size);
+        machine.samples[i].buffer = stop(&machine);
+        
+        start(&machine);
+        natural_edits(&buffers->gap_buffer, advance_data, replay, j, scratch, scratch_size);
+        machine.samples[i].gap_buffer = stop(&machine);
+        
+        start(&machine);
+        natural_edits(&buffers->multi_gap_buffer, advance_data, replay, j, scratch, scratch_size);
+        machine.samples[i].multi_gap_buffer = stop(&machine);
+        
+        start(&machine);
+        natural_edits(&buffers->rope_buffer, advance_data, replay, j, scratch, scratch_size);
+        machine.samples[i].rope_buffer = stop(&machine);
+        
+        if (i == 0){
+            stream_check_test(buffers, scratch, scratch_size);
+        }
+    }
+    
+    end_machine(&machine, stats_out, __FUNCTION__);
+
+    log_sample_set(log, litstr("natural-edits"), stats_out, machine.samples, machine.count);
+}
+
+void measure_check_test(Buffer_Set *buffers){
     int count;
     count = buffers->buffer.line_count;
     assert_4tech(count == buffers->buffer.widths_count);
@@ -1252,12 +1185,32 @@ int main(int argc, char **argv){
     
     Stats_Log log;
     
+    int do_replay = 0;
+    char *replay_filename = 0;
+    
     if (argc < 2){
-        printf("usage: buffer_test <filename>\n");
+        printf("usage: buffer_test <filename> <message> [-h <.hst file>]\n");
         exit(1);
     }
     
     setup();
+    
+    for (int i = 3; i < argc; ++i){
+        if (do_replay){
+            replay_filename = argv[i];
+            do_replay = 0;
+        }
+        if (strcmp(argv[i], "-h") == 0){
+            if (replay_filename != 0){
+                printf("found -h twice, ignoring duplicates\n");
+            }
+            else{
+                do_replay = 1;
+            }
+        }
+    }
+    
+    do_replay = (replay_filename != 0);
     
     log.max = 1 << 20;
     log.size = 0;
@@ -1273,6 +1226,7 @@ int main(int argc, char **argv){
     scratch = malloc(scratch_size);
     
     file = get_file(argv[1]);
+    if (!file.data) exit(1);
     widths_data = get_font_data("LiberationSans-Regular.ttf", &font_height);
     max_width = 500.f;
     
@@ -1280,6 +1234,7 @@ int main(int argc, char **argv){
     {
         log_write_str(&log, argv[1], (int)strlen(argv[1]));
         log_write_int(&log, file.size);
+        log_write_str(&log, argv[2], (int)strlen(argv[2]));
     }
     log_end_section(&log);
     
@@ -1404,6 +1359,26 @@ int main(int argc, char **argv){
         delete_top_test(&log, &buffers, 25, widths_data, 100, scratch, scratch_size, &edits);
     }
     log_end_section(&log);
+    
+    File_Data replay_file = {};
+    Replay replay;
+    
+    if (do_replay){
+        replay_file = get_file(replay_filename);
+        prepare_replay(replay_file, &replay);
+    }
+
+    if (replay_file.data){
+        log_begin_section(&log, litstr("natural-edits"));
+        {
+            Record_Statistics edits;
+            natural_edits_test(&log, &buffers, 25, widths_data, &replay, scratch, scratch_size, &edits);
+        }
+        log_end_section(&log);
+    }
+    else{
+        printf("skipped natural-edits test\n");
+    }
     
     log_finish(&log);
     

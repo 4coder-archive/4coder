@@ -655,6 +655,15 @@ COMMAND_DECL(history_forward){
     view_history_step(mem, layout, view, hist_forward);
 }
 
+COMMAND_DECL(save_history){
+    ProfileMomentFunction();
+    REQ_FILE_VIEW(view);
+    REQ_FILE(file, view);
+    USE_MEM(mem);
+    
+    file_dump_history(mem, file, "history_data.hst");
+}
+
 COMMAND_DECL(interactive_new){
     ProfileMomentFunction();
     USE_VARS(vars);
@@ -1613,6 +1622,7 @@ update_command_data(App_Vars *vars, Command_Data *cmd){
     *cmd = command_data;    
 }
 
+
 COMPOSE_DECL(compose_write_auto_tab_line){
     command_write_character(command, binding);
     update_command_data(command->vars, command);
@@ -1784,6 +1794,8 @@ setup_file_commands(Command_Map *commands, Partition *part, Key_Codes *codes, Co
     map_add(commands, 'O', MDFR_CTRL, command_reopen);
     map_add(commands, 's', MDFR_CTRL, command_save);
     map_add(commands, 'w', MDFR_CTRL, command_interactive_save_as);
+
+    map_add(commands, 'h', MDFR_ALT, command_save_history);
 }
 
 internal void
@@ -3199,7 +3211,7 @@ app_step(Thread_Context *thread, Key_Codes *codes,
         Editing_File *file = vars->working_set.files;
         for (i32 i = vars->working_set.file_index_count; i > 0; --i, ++file){
             if (buffer_good(&file->buffer) && !file->is_dummy){
-                file_measure_widths(&vars->mem.general, &file->buffer, vars->style.font);
+                file_measure_starts_widths(&vars->mem.general, &file->buffer, vars->style.font);
             }
         }
         

@@ -138,5 +138,21 @@ delete_top(Buffer_Type *buffer, int len, float *advance_data, void *scratch, int
     edit(buffer, 0, len, 0, 0, advance_data, scratch, scratch_size);
 }
 
+void
+natural_edits(Buffer_Type *buffer, float *advance_data, Replay *replay, int pos, void *scratch, int scratch_size){
+    Edit_Step *steps = replay->replay.edits;
+    char *base_str = replay->replay.strings;
+    int edit_count = replay->replay.count;
+
+    for (int i = 0; i < edit_count; ++i){
+        Edit_Step step = steps[i];
+        
+        if (step.child_count == 0 && step.edit.end <= buffer_size(buffer)){
+            edit(buffer, pos + step.edit.start, pos + step.edit.end, base_str + step.edit.str_start, step.edit.len,
+                 advance_data, scratch, scratch_size);
+        }
+    }
+}
+
 // BOTTOM
 
