@@ -33,11 +33,19 @@ init_buffer(Buffer_Type *buffer, File_Data file, void *scratch, int scratch_size
 
 void
 measure_starts_widths(Buffer_Type *buffer, float *font_widths){
-    int max = 1 << 10;
-    buffer->line_starts = (int*)malloc(max*sizeof(int));
-    buffer->line_max = max;
-    buffer->line_widths = (float*)malloc(max*sizeof(float));
-    buffer->widths_max = max;
+    if (buffer->line_max == 0){
+        assert_4tech(buffer->line_starts == 0);
+        assert_4tech(buffer->line_widths == 0);
+        assert_4tech(buffer->widths_max == 0);
+        int max = 1 << 10;
+        buffer->line_starts = (int*)malloc(max*sizeof(int));
+        buffer->line_max = max;
+        buffer->line_widths = (float*)malloc(max*sizeof(float));
+        buffer->widths_max = max;
+    }
+    assert_4tech(buffer->line_starts != 0);
+    assert_4tech(buffer->widths_max != 0);
+    assert_4tech(buffer->line_widths != 0);
 
     Buffer_Measure_Starts state;
     memzero_4tech(state);
@@ -152,6 +160,24 @@ natural_edits(Buffer_Type *buffer, float *advance_data, Replay *replay, int pos,
                  advance_data, scratch, scratch_size);
         }
     }
+}
+
+void
+batch_edit(Buffer_Type *buffer, float *advance_data, Buffer_Edit *batch, char *str_base, int batch_size,
+           void *scratch, int scratch_size){
+    Buffer_Batch_State state;
+    int request_amount;
+    
+    memzero_4tech(state);
+    for (;buffer_batch_edit_step(&state, buffer, batch, str_base, batch_size,
+                                 scratch, scratch_size, &request_amount);){
+        void *new_data = 0;
+        if (request_amount > 0) new_data = malloc(request_amount);
+        void *old_data = buffer_edit_provide_memory(buffer, new_data, request_amount);
+        if (old_data) free(old_data);
+    }
+    
+    measure_starts_widths(buffer, advance_data);
 }
 
 // BOTTOM

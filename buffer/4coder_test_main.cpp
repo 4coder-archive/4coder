@@ -653,12 +653,32 @@ void measure_starts_widths_test(Stats_Log *log, Buffer_Set *set, int test_repiti
             free(set->gap_buffer.line_widths);
             free(set->multi_gap_buffer.line_widths);
             free(set->rope_buffer.line_widths);
+
+            set->buffer.line_max = 0;
+            set->buffer.line_starts = 0;
+            set->buffer.widths_max = 0;
+            set->buffer.line_widths = 0;
+            
+            set->gap_buffer.line_max = 0;
+            set->gap_buffer.line_starts = 0;
+            set->gap_buffer.widths_max = 0;
+            set->gap_buffer.line_widths = 0;
+            
+            set->multi_gap_buffer.line_max = 0;
+            set->multi_gap_buffer.line_starts = 0;
+            set->multi_gap_buffer.widths_max = 0;
+            set->multi_gap_buffer.line_widths = 0;
+            
+            set->rope_buffer.line_max = 0;
+            set->rope_buffer.line_starts = 0;
+            set->rope_buffer.widths_max = 0;
+            set->rope_buffer.line_widths = 0;
         }
     }
 
     end_machine(&machine, stats_out, __FUNCTION__);
     
-    log_sample_set(log, litstr("measure_starts_widths"), stats_out, machine.samples, machine.count);
+    log_sample_set(log, litstr("measure-starts-widths"), stats_out, machine.samples, machine.count);
 }
 
 int page_compare(void *page_1_, void *page_2_, int page_size){
@@ -811,19 +831,19 @@ void full_cursor_xy_test(Stats_Log *log, Buffer_Set *buffers, float x, float y, 
 
         start(&machine);
         cursor2 = buffer_cursor_from_unwrapped_xy(&buffers->gap_buffer, x, y, round_down,
-                                                    wrap_ys, max_width, font_height, advance_data);
+                                                  wrap_ys, max_width, font_height, advance_data);
         machine.samples[i].gap_buffer = stop(&machine);
         if (i == 0) assert_4tech(cursor_eq(cursor, cursor2));
     
         start(&machine);
         cursor2 = buffer_cursor_from_unwrapped_xy(&buffers->multi_gap_buffer, x, y, round_down,
-                                                    wrap_ys, max_width, font_height, advance_data);
+                                                  wrap_ys, max_width, font_height, advance_data);
         machine.samples[i].multi_gap_buffer = stop(&machine);
         if (i == 0) assert_4tech(cursor_eq(cursor, cursor2));
     
         start(&machine);
         cursor2 = buffer_cursor_from_unwrapped_xy(&buffers->rope_buffer, x, y, round_down,
-                                                    wrap_ys, max_width, font_height, advance_data);
+                                                  wrap_ys, max_width, font_height, advance_data);
         machine.samples[i].rope_buffer = stop(&machine);
         if (i == 0) assert_4tech(cursor_eq(cursor, cursor2));
     }
@@ -834,8 +854,8 @@ void full_cursor_xy_test(Stats_Log *log, Buffer_Set *buffers, float x, float y, 
 }
 
 void word_seek_test(Stats_Log *log, Buffer_Set *buffers, int test_repitions,
-               int incremental_position, char *word, int len,
-               void *scratch, int scratch_size, Record_Statistics *stats_out){
+                    int incremental_position, char *word, int len,
+                    void *scratch, int scratch_size, Record_Statistics *stats_out){
     Sample_Machine machine;
     machine = begin_machine(test_repitions, &scratch, &scratch_size);
     assert_4tech(scratch_size >= len);
@@ -926,7 +946,7 @@ void stream_check_test(Buffer_Set *buffers, void *scratch, int scratch_size){
 }
 
 void insert_bottom_test(Stats_Log *log, Buffer_Set *buffers, int test_repitions, float *advance_data,
-                int edit_count, void *scratch, int scratch_size, Record_Statistics *stats_out){
+                        int edit_count, void *scratch, int scratch_size, Record_Statistics *stats_out){
     Sample_Machine machine;
     machine = begin_machine(test_repitions, &scratch, &scratch_size);
     
@@ -938,28 +958,28 @@ void insert_bottom_test(Stats_Log *log, Buffer_Set *buffers, int test_repitions,
         start(&machine);
         for (j = 0; j < edit_count; ++j){
             insert_bottom(&buffers->buffer, word, word_len,
-                       advance_data, scratch, scratch_size);
+                          advance_data, scratch, scratch_size);
         }
         machine.samples[i].buffer = stop(&machine);
         
         start(&machine);
         for (j = 0; j < edit_count; ++j){
             insert_bottom(&buffers->gap_buffer, word, word_len,
-                       advance_data, scratch, scratch_size);
+                          advance_data, scratch, scratch_size);
         }
         machine.samples[i].gap_buffer = stop(&machine);
         
         start(&machine);
         for (j = 0; j < edit_count; ++j){
             insert_bottom(&buffers->multi_gap_buffer, word, word_len,
-                       advance_data, scratch, scratch_size);
+                          advance_data, scratch, scratch_size);
         }
         machine.samples[i].multi_gap_buffer = stop(&machine);
         
         start(&machine);
         for (j = 0; j < edit_count; ++j){
             insert_bottom(&buffers->rope_buffer, word, word_len,
-                       advance_data, scratch, scratch_size);
+                          advance_data, scratch, scratch_size);
         }
         machine.samples[i].rope_buffer = stop(&machine);
 
@@ -974,7 +994,7 @@ void insert_bottom_test(Stats_Log *log, Buffer_Set *buffers, int test_repitions,
 }
 
 void insert_top_test(Stats_Log *log, Buffer_Set *buffers, int test_repitions, float *advance_data,
-                int edit_count, void *scratch, int scratch_size, Record_Statistics *stats_out){
+                     int edit_count, void *scratch, int scratch_size, Record_Statistics *stats_out){
     Sample_Machine machine;
     machine = begin_machine(test_repitions, &scratch, &scratch_size);
     
@@ -1022,7 +1042,7 @@ void insert_top_test(Stats_Log *log, Buffer_Set *buffers, int test_repitions, fl
 }
 
 void delete_bottom_test(Stats_Log *log, Buffer_Set *buffers, int test_repitions, float *advance_data,
-                   int edit_count, void *scratch, int scratch_size, Record_Statistics *stats_out){
+                        int edit_count, void *scratch, int scratch_size, Record_Statistics *stats_out){
     Sample_Machine machine;
     machine = begin_machine(test_repitions, &scratch, &scratch_size);
 
@@ -1033,28 +1053,28 @@ void delete_bottom_test(Stats_Log *log, Buffer_Set *buffers, int test_repitions,
         start(&machine);
         for (j = 0; j < edit_count; ++j){
             delete_bottom(&buffers->buffer, len,
-                       advance_data, scratch, scratch_size);
+                          advance_data, scratch, scratch_size);
         }
         machine.samples[i].buffer = stop(&machine);
         
         start(&machine);
         for (j = 0; j < edit_count; ++j){
             delete_bottom(&buffers->gap_buffer, len,
-                       advance_data, scratch, scratch_size);
+                          advance_data, scratch, scratch_size);
         }
         machine.samples[i].gap_buffer = stop(&machine);
         
         start(&machine);
         for (j = 0; j < edit_count; ++j){
             delete_bottom(&buffers->multi_gap_buffer, len,
-                       advance_data, scratch, scratch_size);
+                          advance_data, scratch, scratch_size);
         }
         machine.samples[i].multi_gap_buffer = stop(&machine);
         
         start(&machine);
         for (j = 0; j < edit_count; ++j){
             delete_bottom(&buffers->rope_buffer, len,
-                       advance_data, scratch, scratch_size);
+                          advance_data, scratch, scratch_size);
         }
         machine.samples[i].rope_buffer = stop(&machine);
 
@@ -1069,7 +1089,7 @@ void delete_bottom_test(Stats_Log *log, Buffer_Set *buffers, int test_repitions,
 }
 
 void delete_top_test(Stats_Log *log, Buffer_Set *buffers, int test_repitions, float *advance_data,
-                int edit_count, void *scratch, int scratch_size, Record_Statistics *stats_out){
+                     int edit_count, void *scratch, int scratch_size, Record_Statistics *stats_out){
     Sample_Machine machine;
     machine = begin_machine(test_repitions, &scratch, &scratch_size);
 
@@ -1120,6 +1140,8 @@ void natural_edits_test(Stats_Log *log, Buffer_Set *buffers, int test_repitions,
     Sample_Machine machine;
     machine = begin_machine(test_repitions, &scratch, &scratch_size);
 
+    printf("edit count: %d\n", replay->replay.count);
+    log_data_item(log, litstr("edit-count"), replay->replay.count);
     int i, j;
     for (i = 0; i < test_repitions; ++i){
         j = i*buffer_size(&buffers->buffer) / (1+test_repitions);
@@ -1150,6 +1172,42 @@ void natural_edits_test(Stats_Log *log, Buffer_Set *buffers, int test_repitions,
     log_sample_set(log, litstr("natural-edits"), stats_out, machine.samples, machine.count);
 }
 
+void batch_edit_test(Stats_Log *log, Buffer_Set *buffers, int test_repitions, float *advance_data,
+                     Buffer_Edit *batch, char *str_base, int batch_size,
+                     void *scratch, int scratch_size, Record_Statistics *stats_out){
+    Sample_Machine machine;
+    machine = begin_machine(test_repitions, &scratch, &scratch_size);
+
+    printf("batch size: %d\n", replay->replay.count);
+    log_data_item(log, litstr("batch-size"), replay->replay.count);    
+    int i;
+    for (i = 0; i < test_repitions; ++i){
+        start(&machine);
+        batch_edit(&buffers->buffer, advance_data, batch, str_base, batch_size, scratch, scratch_size);
+        machine.samples[i].buffer = stop(&machine);
+        
+        start(&machine);
+        batch_edit(&buffers->gap_buffer, advance_data, batch, str_base, batch_size, scratch, scratch_size);
+        machine.samples[i].gap_buffer = stop(&machine);
+        
+        start(&machine);
+        batch_edit(&buffers->multi_gap_buffer, advance_data, batch, str_base, batch_size, scratch, scratch_size);
+        machine.samples[i].multi_gap_buffer = stop(&machine);
+        
+        start(&machine);
+        batch_edit(&buffers->rope_buffer, advance_data, batch, str_base, batch_size, scratch, scratch_size);
+        machine.samples[i].rope_buffer = stop(&machine);
+        
+        if (i == 0){
+            stream_check_test(buffers, scratch, scratch_size);
+        }
+    }
+    
+    end_machine(&machine, stats_out, __FUNCTION__);
+
+    log_sample_set(log, litstr("batch-edit"), stats_out, machine.samples, machine.count);
+}
+
 void measure_check_test(Buffer_Set *buffers){
     int count;
     count = buffers->buffer.line_count;
@@ -1171,6 +1229,8 @@ void measure_check_test(Buffer_Set *buffers){
     page_compare(buffers->buffer.line_widths, buffers->multi_gap_buffer.line_widths, sizeof(float)*count);
     page_compare(buffers->buffer.line_widths, buffers->rope_buffer.line_widths, sizeof(float)*count);
 }
+
+#define reps 50
 
 int main(int argc, char **argv){
     Buffer_Set buffers;
@@ -1212,6 +1272,8 @@ int main(int argc, char **argv){
     
     do_replay = (replay_filename != 0);
     
+    memzero_4tech(buffers);
+    
     log.max = 1 << 20;
     log.size = 0;
     log.out = (char*)malloc(log.max);
@@ -1242,13 +1304,15 @@ int main(int argc, char **argv){
     {
         Record_Statistics init_rec, starts_widths_rec, wraps_rec;
     
-        initialization_test(&log, &buffers, file, 25, scratch, scratch_size, &init_rec);
+        initialization_test(&log, &buffers, file, reps, scratch, scratch_size, &init_rec);
         stream_check_test(&buffers, scratch, scratch_size);
     
-        measure_starts_widths_test(&log, &buffers, 25, scratch, scratch_size, &starts_widths_rec, widths_data);
+        measure_starts_widths_test(&log, &buffers, reps, scratch, scratch_size,
+                                   &starts_widths_rec, widths_data);
         measure_check_test(&buffers);
 
-        wrap_ys = measure_wraps_test(&log, &buffers, 25, scratch, scratch_size, &wraps_rec, font_height, max_width);
+        wrap_ys = measure_wraps_test(&log, &buffers, reps, scratch, scratch_size,
+                                     &wraps_rec, font_height, max_width);
     
         Time_Record expected_file_open;
         expected_file_open = init_rec.expected + starts_widths_rec.expected + wraps_rec.expected;
@@ -1333,7 +1397,7 @@ int main(int argc, char **argv){
             char word[] = "not-going-to-find-this";
             int word_len = sizeof(word) - 1;
             
-            word_seek_test(&log, &buffers, 25, 0, word, word_len, scratch, scratch_size, &word_seek);
+            word_seek_test(&log, &buffers, reps, 0, word, word_len, scratch, scratch_size, &word_seek);
 
         }
 
@@ -1341,7 +1405,7 @@ int main(int argc, char **argv){
             char word[] = "return";
             int word_len = sizeof(word) - 1;
             
-            word_seek_test(&log, &buffers, 25, 1, word, word_len, scratch, scratch_size, &word_seek);
+            word_seek_test(&log, &buffers, reps, 1, word, word_len, scratch, scratch_size, &word_seek);
         
             printf("average normal word seek:\n");
             print_record(word_seek.expected);
@@ -1353,10 +1417,10 @@ int main(int argc, char **argv){
     log_begin_section(&log, litstr("one-hundred-single-edits"));
     {
         Record_Statistics edits;
-        insert_bottom_test(&log, &buffers, 25, widths_data, 100, scratch, scratch_size, &edits);
-        insert_top_test(&log, &buffers, 25, widths_data, 100, scratch, scratch_size, &edits);
-        delete_bottom_test(&log, &buffers, 25, widths_data, 100, scratch, scratch_size, &edits);
-        delete_top_test(&log, &buffers, 25, widths_data, 100, scratch, scratch_size, &edits);
+        insert_bottom_test(&log, &buffers, reps, widths_data, 100, scratch, scratch_size, &edits);
+        insert_top_test(&log, &buffers, reps, widths_data, 100, scratch, scratch_size, &edits);
+        delete_bottom_test(&log, &buffers, reps, widths_data, 100, scratch, scratch_size, &edits);
+        delete_top_test(&log, &buffers, reps, widths_data, 100, scratch, scratch_size, &edits);
     }
     log_end_section(&log);
     
@@ -1372,13 +1436,65 @@ int main(int argc, char **argv){
         log_begin_section(&log, litstr("natural-edits"));
         {
             Record_Statistics edits;
-            natural_edits_test(&log, &buffers, 25, widths_data, &replay, scratch, scratch_size, &edits);
+            natural_edits_test(&log, &buffers, reps, widths_data, &replay,
+                               scratch, scratch_size, &edits);
         }
         log_end_section(&log);
     }
     else{
-        printf("skipped natural-edits test\n");
+        printf("skipped natural-edits test\n\n");
     }
+    
+    log_begin_section(&log, litstr("batch-edit"));
+    {
+        Buffer_Edit *batch;
+        char *str_base;
+        int batch_size, str_size;
+
+        batch_size = 1000;
+        str_size = 10000;
+        batch = (Buffer_Edit*)malloc(sizeof(Buffer_Edit)*batch_size);
+        str_base = (char*)malloc(str_size);
+
+        int character_stride;
+        character_stride = buffer_size(&buffers.buffer);
+        if (character_stride < batch_size * 10){
+            batch_size = character_stride / 10;
+            character_stride = 10;
+        }
+        else{
+            character_stride = (character_stride / batch_size);
+        }
+
+        int p, curs;
+        curs = 0;
+        p = 0;
+        for (int i = 0; i < batch_size; ++i){
+            Buffer_Edit edit;
+            edit.start = p;
+            edit.end = p+8;
+            p += character_stride;
+            
+            edit.str_start = curs;
+            if (i & 1){
+                edit.len = 9;
+                memcpy_4tech(str_base + curs, "123456789", 9);
+                curs += 9;
+            }
+            else{
+                edit.len = 7;
+                memcpy_4tech(str_base + curs, "abcdefg", 7);
+                curs += 7;
+            }
+            
+            batch[i] = edit;
+        }
+        
+        Record_Statistics batch_stats;
+        batch_edit_test(&log, &buffers, reps, widths_data, batch, str_base, batch_size,
+                        scratch, scratch_size, &batch_stats);
+    }
+    log_end_section(&log);
     
     log_finish(&log);
     
