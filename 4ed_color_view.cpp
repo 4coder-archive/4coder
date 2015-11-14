@@ -1272,7 +1272,7 @@ do_style_preview(Library_UI *ui, Style *style, i32 toggle = -1){
 }
 
 internal bool32
-do_main_file_box(UI_State *state, UI_Layout *layout, Hot_Directory *hot_directory, char *end = 0){
+do_main_file_box(System_Functions *system, UI_State *state, UI_Layout *layout, Hot_Directory *hot_directory, char *end = 0){
     bool32 result = 0;
     Style *style = state->style;
     Font *font = style->font;
@@ -1280,7 +1280,7 @@ do_main_file_box(UI_State *state, UI_Layout *layout, Hot_Directory *hot_director
     String *string = &hot_directory->string;
     
     if (state->input_stage){
-        if (ui_do_file_field_input(state, hot_directory)){
+        if (ui_do_file_field_input(system, state, hot_directory)){
             result = 1;
         }
     }
@@ -1300,14 +1300,14 @@ do_main_file_box(UI_State *state, UI_Layout *layout, Hot_Directory *hot_director
 }
 
 internal bool32
-do_main_string_box(UI_State *state, UI_Layout *layout, String *string){
+do_main_string_box(System_Functions *system, UI_State *state, UI_Layout *layout, String *string){
     bool32 result = 0;
     Style *style = state->style;
     Font *font = style->font;
     i32_Rect box = layout_rect(layout, font->height + 2);
     
     if (state->input_stage){
-        if (ui_do_line_field_input(state, string)){
+        if (ui_do_line_field_input(system, state, string)){
             result = 1;
         }
     }
@@ -1398,13 +1398,14 @@ do_file_option(i32 id, UI_State *state, UI_Layout *layout, String filename, bool
     return result;
 }
 
-internal bool32
-do_file_list_box(UI_State *state, UI_Layout *layout, Hot_Directory *hot_dir, bool32 has_filter,
+internal b32
+do_file_list_box(System_Functions *system,
+                 UI_State *state, UI_Layout *layout, Hot_Directory *hot_dir, bool32 has_filter,
                  bool32 *new_dir, bool32 *selected, char *end){
     bool32 result = 0;
     File_List *files = &hot_dir->file_list;
     
-    if (do_main_file_box(state, layout, hot_dir, end)){
+    if (do_main_file_box(system, state, layout, hot_dir, end)){
         *selected = 1;
         terminate_with_null(&hot_dir->string);
     }
@@ -1473,12 +1474,12 @@ do_file_list_box(UI_State *state, UI_Layout *layout, Hot_Directory *hot_dir, boo
     return result;
 }
 
-internal bool32
-do_live_file_list_box(UI_State *state, UI_Layout *layout, Working_Set *working_set,
+internal b32
+do_live_file_list_box(System_Functions *system, UI_State *state, UI_Layout *layout, Working_Set *working_set,
                       String *string, bool32 *selected){
     bool32 result = 0;
     
-    if (do_main_string_box(state, layout, string)){
+    if (do_main_string_box(system, state, layout, string)){
         *selected = 1;
         terminate_with_null(string);
     }
@@ -1518,7 +1519,8 @@ do_live_file_list_box(UI_State *state, UI_Layout *layout, Working_Set *working_s
 }
 
 internal i32
-step_draw_library(Color_View *color_view, i32_Rect rect, View_Message message,
+step_draw_library(System_Functions *system,
+                  Color_View *color_view, i32_Rect rect, View_Message message,
                   Render_Target *target, Input_Summary *user_input){
     i32 result = 0;
     
@@ -1565,12 +1567,12 @@ step_draw_library(Color_View *color_view, i32_Rect rect, View_Message message,
         if (do_button(-3, &ui.state, &ui.layout, "Import", 2)){
             color_view->mode = CV_MODE_IMPORT_FILE;
             hot_directory_clean_end(color_view->hot_directory);
-            hot_directory_reload(color_view->hot_directory, color_view->working_set);
+            hot_directory_reload(system, color_view->hot_directory, color_view->working_set);
         }
         if (do_button(-4, &ui.state, &ui.layout, "Export", 2)){
             color_view->mode = CV_MODE_EXPORT;
             hot_directory_clean_end(color_view->hot_directory);
-            hot_directory_reload(color_view->hot_directory, color_view->working_set);
+            hot_directory_reload(system, color_view->hot_directory, color_view->working_set);
             memset(color_view->import_export_check, 0, sizeof(color_view->import_export_check));
         }
         
@@ -1603,13 +1605,14 @@ step_draw_library(Color_View *color_view, i32_Rect rect, View_Message message,
         }
         
         bool32 new_dir = 0;
-        if (do_file_list_box(&ui.state, &ui.layout, ui.hot_directory, color_view->p4c_only,
+        if (do_file_list_box(system,
+                             &ui.state, &ui.layout, ui.hot_directory, color_view->p4c_only,
                              &new_dir, &file_selected, 0)){
             result = 1;
         }
         
         if (new_dir){
-            hot_directory_reload(ui.hot_directory, ui.state.working_set);
+            hot_directory_reload(system, ui.hot_directory, ui.state.working_set);
         }
         if (file_selected){
             memset(&color_view->inspecting_styles, 0, sizeof(Style_Library));
@@ -1617,7 +1620,8 @@ step_draw_library(Color_View *color_view, i32_Rect rect, View_Message message,
             Style *styles = color_view->inspecting_styles.styles;
             i32 count, max;
             max = ArrayCount(color_view->inspecting_styles.styles);
-            if (style_library_import((u8*)color_view->hot_directory->string.str,
+            if (style_library_import(system,
+                                     color_view->hot_directory->string.str,
                                      ui.fonts, styles, max, &count)){
                 color_view->mode = CV_MODE_IMPORT;
             }
@@ -1645,19 +1649,20 @@ step_draw_library(Color_View *color_view, i32_Rect rect, View_Message message,
         }
         
         bool32 new_dir = 0;
-        if (do_file_list_box(&ui.state, &ui.layout, ui.hot_directory, 1,
+        if (do_file_list_box(system,
+                             &ui.state, &ui.layout, ui.hot_directory, 1,
                              &new_dir, &file_selected, ".p4c")){
             result = 1;
         }
         
         if (new_dir){
-            hot_directory_reload(ui.hot_directory, ui.state.working_set);
+            hot_directory_reload(system,
+                                 ui.hot_directory, ui.state.working_set);
         }
         if (file_selected){
             i32 count = ui.styles->count;
             // TODO(allen): pass the transient memory in here
-            Style **styles = (Style**)
-                system_get_memory(sizeof(Style*)*count);
+            Style **styles = (Style**)system->get_memory(sizeof(Style*)*count);
             Style *style = ui.styles->styles;
             bool8 *export_check = color_view->import_export_check;
             i32 export_count = 0;
@@ -1666,13 +1671,13 @@ step_draw_library(Color_View *color_view, i32_Rect rect, View_Message message,
                     styles[export_count++] = style;
                 }
             }
-            char *mem = (char*)system_get_memory(ui.hot_directory->string.size + 5);
+            char *mem = (char*)system->get_memory(ui.hot_directory->string.size + 5);
             String str = make_string(mem, 0, ui.hot_directory->string.size + 5);
             copy(&str, ui.hot_directory->string);
             append(&str, make_lit_string(".p4c"));
-            style_library_export((u8*)str.str, styles, export_count);
-            system_free_memory(mem);
-            system_free_memory(styles);
+            style_library_export(system, str.str, styles, export_count);
+            system->free_memory(mem);
+            system->free_memory(styles);
             color_view->mode = CV_MODE_LIBRARY;
         }
     }break;
@@ -1757,11 +1762,11 @@ DO_VIEW_SIG(do_color_view){
         switch (message){
         case VMSG_STEP:
         {
-            result = step_draw_library(color_view, rect, message, target, user_input);
+            result = step_draw_library(system, color_view, rect, message, target, user_input);
         }break;
         case VMSG_DRAW:
         {
-            step_draw_library(color_view, rect, message, target, user_input);
+            step_draw_library(system, color_view, rect, message, target, user_input);
         }break;
         }break;
         

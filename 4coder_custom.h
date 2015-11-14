@@ -223,9 +223,7 @@ struct Buffer_Summary{
     const char *buffer_name;
     
     int file_cursor_pos;
-    
     int is_lexed;
-    
     int map_id;
 };
 
@@ -261,6 +259,11 @@ struct Application_Links{
     Push_Memory_Function *push_memory;
     Clear_Parameters_Function *clear_parameters;
     Get_Active_Buffer_Function *get_active_buffer;
+};
+
+struct Config_API{
+    Get_Binding_Data_Function *get_bindings;
+    Set_Extra_Font_Function *set_extra_font;
 };
 
 // NOTE(allen): definitions for the buffer that communicates to 4ed.exe

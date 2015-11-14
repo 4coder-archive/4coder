@@ -33,6 +33,7 @@ typedef double real64;
 typedef float f32;
 typedef double f64;
 
+#define external extern "C"
 #define internal static
 #define globalvar static
 #define persist static

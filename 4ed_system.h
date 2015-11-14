@@ -7,10 +7,14 @@
  *
  */
 
-struct Plat_Handle{ u64 d[2]; };
+// TOP
 
-// TODO(allen): This should either be a String or it should be improved
-// to handle 64-bit sized files.  Staying in this state, however, is unacceptable.
+struct System_Functions;
+
+struct Plat_Handle{
+    u32 d[4];
+};
+
 struct File_Data{
 	void *data;
 	u32 size;
@@ -18,65 +22,60 @@ struct File_Data{
 
 struct Time_Stamp{
     u64 time;
-    bool32 success;
+    b32 success;
 };
 
-internal File_Data
-system_load_file(u8 *filename);
+#define Sys_Load_File_Sig(name) File_Data name(char *filename)
+typedef Sys_Load_File_Sig(System_Load_File);
 
-internal bool32
-system_save_file(u8 *filename, void *data, i32 size);
+#define Sys_Save_File_Sig(name) i32 name(char *filename, void *data, i32 size)
+typedef Sys_Save_File_Sig(System_Save_File);
 
-internal Time_Stamp
-system_file_time_stamp(u8 *filename);
+#define Sys_File_Time_Stamp_Sig(name) Time_Stamp name(char *filename)
+typedef Sys_File_Time_Stamp_Sig(System_File_Time_Stamp);
 
-internal u64
-system_get_now();
+#define Sys_Time_Stamp_Now_Sig(name) u64 name()
+typedef Sys_Time_Stamp_Now_Sig(System_Time_Stamp_Now);
 
-internal void
-system_free_file(File_Data data);
+#define Sys_Free_File_Sig(name) void name(File_Data file)
+typedef Sys_Free_File_Sig(System_Free_File);
 
-internal void
-system_fatal_error(u8 *message);
+#define Sys_Get_Current_Directory_Sig(name) i32 name(char *out, i32 max)
+typedef Sys_Get_Current_Directory_Sig(System_Get_Current_Directory);
 
-internal i32
-system_get_working_directory(u8 *destination, i32 max_size);
-
-internal i32
-system_get_easy_directory(u8 *destination);
+#define Sys_Get_Easy_Directory_Sig(name) i32 name(char *destination)
+typedef Sys_Get_Easy_Directory_Sig(System_Get_Easy_Directory);
 
 struct File_Info{
     String filename;
-    bool32 folder;
-    //bool32 loaded;
+    b32 folder;
 };
 
 struct File_List{
     File_Info *infos;
-    i32 count;
-    
     void *block;
+    i32 count;
 };
 
-internal File_List
-system_get_files(String directory);
+#define Sys_Get_File_List_Sig(name) File_List name(String directory)
+typedef Sys_Get_File_List_Sig(System_Get_File_List);
 
-internal void
-system_free_file_list(File_List list);
+#define Sys_Free_File_List_Sig(name) void name(File_List list)
+typedef Sys_Free_File_List_Sig(System_Free_File_List);
 
-internal void*
-system_get_memory_(i32 size, i32 line_number, char *file_name);
+#define Sys_Get_Memory_Sig(name) void* name(i32 size, i32 line_number, char *filename)
+typedef Sys_Get_Memory_Sig(System_Get_Memory);
 
-#define system_get_memory(size) system_get_memory_(size, __LINE__, __FILE__)
+#define get_memory(size) get_memory_full(size, __LINE__, __FILE__)
 
-internal void
-system_free_memory(void *block);
+#define Sys_Free_Memory_Sig(name) void name(void *block);
+typedef Sys_Free_Memory_Sig(System_Free_Memory);
 
-internal void
-system_post_clipboard(String str);
+#define Sys_Post_Clipboard_Sig(name) void name(String str);
+typedef Sys_Post_Clipboard_Sig(System_Post_Clipboard);
 
-internal i64
-system_time();
+#define Sys_Time_Sig(name) i64 name()
+typedef Sys_Time_Sig(System_Time);
 
 struct CLI_Handles{
     Plat_Handle proc;
@@ -85,54 +84,19 @@ struct CLI_Handles{
     u32 scratch_space[4];
 };
 
-internal b32
-system_cli_call(char *path, char *script_name, CLI_Handles *cli_out);
+#define Sys_CLI_Call_Sig(name) b32 name(char *path, char *script, CLI_Handles *cli)
+typedef Sys_CLI_Call_Sig(System_CLI_Call);
 
-internal void
-system_cli_begin_update(CLI_Handles *cli);
+#define Sys_CLI_Begin_Update_Sig(name) void name(CLI_Handles *cli)
+typedef Sys_CLI_Begin_Update_Sig(System_CLI_Begin_Update);
 
-internal b32
-system_cli_update_step(CLI_Handles *cli, char *dest, u32 max, u32 *amount);
+#define Sys_CLI_Update_Step_Sig(name) b32 name(CLI_Handles *cli, char *dest, u32 max, u32 *amount)
+typedef Sys_CLI_Update_Step_Sig(System_CLI_Update_Step);
 
-internal b32
-system_cli_end_update(CLI_Handles *cli);
+#define Sys_CLI_End_Update_Sig(name) b32 name(CLI_Handles *cli)
+typedef Sys_CLI_End_Update_Sig(System_CLI_End_Update);
 
 struct Thread_Context;
-
-struct Thread_Memory{
-    void *data;
-    i32 size;
-    i32 id;
-};
-
-internal u32
-system_thread_get_id(Thread_Context *thread);
-
-internal u32
-system_thread_current_job_id(Thread_Context *thread);
-
-enum Thread_Group_ID{
-    BACKGROUND_THREADS,
-    THREAD_GROUP_COUNT
-};
-
-#define JOB_CALLBACK(name) void name(Thread_Context *thread, Thread_Memory *memory, void *data[2])
-typedef JOB_CALLBACK(Job_Callback);
-
-struct Job_Data{
-    Job_Callback *callback;
-    void *data[2];
-    i32 memory_request;
-};
-
-internal u32
-system_post_job(Thread_Group_ID group_id, Job_Data job);
-
-internal void
-system_cancel_job(Thread_Group_ID group_id, u32 job_id);
-
-internal bool32
-system_job_is_pending(Thread_Group_ID group_id, u32 job_id);
 
 enum Lock_ID{
     FRAME_LOCK,
@@ -147,29 +111,97 @@ enum Lock_ID{
     LOCK_COUNT
 };
 
-internal void
-system_aquire_lock(Lock_ID id);
+enum Thread_Group_ID{
+    BACKGROUND_THREADS,
+    THREAD_GROUP_COUNT
+};
 
-internal void
-system_release_lock(Lock_ID id);
+struct Thread_Memory{
+    void *data;
+    i32 size;
+    i32 id;
+};
 
-internal void
-system_aquire_lock(i32 id);
+#define Job_Callback(name) void name(System_Functions *system, Thread_Context *thread, Thread_Memory *memory, void *data[2])
+typedef Job_Callback(Job_Callback);
 
-internal void
-system_release_lock(i32 id);
+struct Job_Data{
+    Job_Callback *callback;
+    void *data[2];
+    i32 memory_request;
+};
 
-internal void
-system_grow_thread_memory(Thread_Memory *memory);
+#define Sys_Thread_Get_ID_Sig(name) u32 name(Thread_Context *thread)
+typedef Sys_Thread_Get_ID_Sig(System_Thread_Get_ID);
 
-internal void
-system_force_redraw();
+#define Sys_Thread_Current_Job_ID_Sig(name) u32 name(Thread_Context *thread)
+typedef Sys_Thread_Current_Job_ID_Sig(System_Thread_Current_Job_ID);
 
-#if FRED_INTERNAL
-internal Bubble*
-INTERNAL_system_sentinel();
+#define Sys_Post_Job_Sig(name) u32 name(Thread_Group_ID id, Job_Data job)
+typedef Sys_Post_Job_Sig(System_Post_Job);
 
-internal void
-INTERNAL_get_thread_states(Thread_Group_ID id, bool8 *running, i32 *pending);
-#endif
+#define Sys_Cancel_Job_Sig(name) void name(Thread_Group_ID id, u32 job_id)
+typedef Sys_Cancel_Job_Sig(System_Cancel_Job);
+
+#define Sys_Job_Is_Pending_Sig(name) b32 name(Thread_Group_ID id, u32 job_id)
+typedef Sys_Job_Is_Pending_Sig(System_Job_Is_Pending);
+
+#define Sys_Grow_Thread_Memory_Sig(name) void name(Thread_Memory *memory)
+typedef Sys_Grow_Thread_Memory_Sig(System_Grow_Thread_Memory);
+
+#define Sys_Acquire_Lock_Sig(name) void name(i32 id)
+typedef Sys_Acquire_Lock_Sig(System_Acquire_Lock);
+
+#define Sys_Release_Lock_Sig(name) void name(i32 id)
+typedef Sys_Release_Lock_Sig(System_Release_Lock);
+
+#define Sys_Force_Redraw_Sig(name) void name()
+typedef Sys_Force_Redraw_Sig(System_Force_Redraw);
+
+#define INTERNAL_Sys_Sentinel_Sig(name) Bubble* name()
+typedef INTERNAL_Sys_Sentinel_Sig(INTERNAL_System_Sentinel);
+
+#define INTERNAL_Sys_Get_Thread_States_Sig(name) void name(Thread_Group_ID id, b8 *running, i32 *pending)
+typedef INTERNAL_Sys_Get_Thread_States_Sig(INTERNAL_System_Get_Thread_States);
+
+struct System_Functions{
+    System_Load_File *load_file;
+    System_Save_File *save_file;
+    System_File_Time_Stamp *file_time_stamp;
+    System_Time_Stamp_Now *time_stamp_now;
+    System_Free_File *free_file;
+    
+    System_Get_Current_Directory *get_current_directory;
+    System_Get_Easy_Directory *get_easy_directory;
+
+    System_Get_File_List *get_file_list;
+    System_Free_File_List *free_file_list;
+    
+    System_Get_Memory *get_memory_full;
+    System_Free_Memory *free_memory;
+
+    System_Post_Clipboard *post_clipboard;
+    System_Time *time;
+
+    System_CLI_Call *cli_call;
+    System_CLI_Begin_Update *cli_begin_update;
+    System_CLI_Update_Step *cli_update_step;
+    System_CLI_End_Update *cli_end_update;
+
+    System_Thread_Get_ID *thread_get_id;
+    System_Thread_Current_Job_ID *thread_current_job_id;
+    System_Post_Job *post_job;
+    System_Cancel_Job *cancel_job;
+    System_Job_Is_Pending *job_is_pending;
+    System_Grow_Thread_Memory *grow_thread_memory;
+    System_Acquire_Lock *acquire_lock;
+    System_Release_Lock *release_lock;
+    
+    System_Force_Redraw *force_redraw;
+    
+    INTERNAL_System_Sentinel *internal_sentinel;
+    INTERNAL_System_Get_Thread_States *internal_get_thread_states;
+};
+
+// BOTTOM
 

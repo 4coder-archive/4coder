@@ -8,10 +8,6 @@
  */
 
 // TOP
-// TODO(allen):
-//
-// Fix the OwnDC thing.
-// 
 
 #ifdef FRED_NOT_PACKAGE
 
@@ -58,8 +54,6 @@
 #define FPS 30
 #define FRAME_TIME (1000000 / FPS)
 
-#define BUFFER_EXPERIMENT_SCALPEL 0
-
 #include "4ed_meta.h"
 
 #define FCPP_FORBID_MALLOC
@@ -67,32 +61,25 @@
 #include "4cpp_types.h"
 #define FCPP_STRING_IMPLEMENTATION
 #include "4cpp_string.h"
-#define FCPP_LEXER_IMPLEMENTATION
-#include "4cpp_lexer.h"
+
+#include "4ed_mem.cpp"
+
 #include "4ed_math.cpp"
 #include "4coder_custom.h"
-#include "4ed.h"
 #include "4ed_system.h"
+#include "4ed.h"
 #include "4ed_rendering.h"
 
-struct TEMP_BACKDOOR{
-    Get_Binding_Data_Function *get_bindings;
-    Set_Extra_Font_Function *set_extra_font;
-} TEMP;
-
-#if FRED_INTERNAL
-
-struct Sys_Bubble : public Bubble{
-    i32 line_number;
-    char *file_name;
-};
-
-#endif
+Config_API config_api;
 
 #include <windows.h>
 #include <GL/gl.h>
 
 #include "4ed_internal.h"
+
+#if 0
+#define FCPP_LEXER_IMPLEMENTATION
+#include "4cpp_lexer.h"
 #include "4ed_rendering.cpp"
 #include "4ed_command.cpp"
 #include "4ed_layout.cpp"
@@ -103,6 +90,8 @@ struct Sys_Bubble : public Bubble{
 #include "4ed_menu_view.cpp"
 #include "4ed_debug_view.cpp"
 #include "4ed.cpp"
+#endif
+
 #include "4ed_keyboard.cpp"
 
 struct Full_Job_Data{
@@ -179,26 +168,70 @@ struct Win32_Vars{
     Thread_Memory *thread_memory;
 
     HMODULE custom;
+    HMODULE app_code;
     
     i64 performance_frequency;
     i64 start_pcount;
+
+    System_Functions *system;
+    App_Functions app;
+
+#if FRED_INTERNAL
+    Sys_Bubble internal_bubble;
+#endif
 };
 
 globalvar Win32_Vars win32vars;
 globalvar Application_Memory win32memory;
 
-internal void
-_OutDbgStr(u8 *msg){
-	OutputDebugString((char*)msg);
+internal Bubble*
+INTERNAL_system_sentinel(){
+    return (&win32vars.internal_bubble);
 }
 
+internal void*
+system_get_memory_(i32 size, i32 line_number, char *file_name){
+	void *ptr = 0;
+    
+#if FRED_INTERNAL
+    ptr = VirtualAlloc(0, size + sizeof(Sys_Bubble), MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
+    Sys_Bubble *bubble = (Sys_Bubble*)ptr;
+    bubble->flags = MEM_BUBBLE_SYS_DEBUG;
+    bubble->line_number = line_number;
+    bubble->file_name = file_name;
+    bubble->size = size;
+    WaitForSingleObject(win32vars.DEBUG_sysmem_lock, INFINITE);
+
+    insert_bubble(&win32vars.internal_bubble, bubble);
+    ReleaseSemaphore(win32vars.DEBUG_sysmem_lock, 1, 0);
+    ptr = bubble + 1;
+#else
+    ptr = VirtualAlloc(0, size, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
+#endif
+    
+	return ptr;
+}
+
+#define system_get_memory(size) system_get_memory_(size, __LINE__, __FILE__)
+
 internal void
-system_fatal_error(u8 *message){
-	MessageBox(0, (char*)message, "4ed Error", MB_OK|MB_ICONERROR);
+system_free_memory(void *block){
+    if (block){
+#if FRED_INTERNAL
+        Sys_Bubble *bubble = ((Sys_Bubble*)block) - 1;
+        Assert((bubble->flags & MEM_BUBBLE_DEBUG_MASK) == MEM_BUBBLE_SYS_DEBUG);
+        WaitForSingleObject(win32vars.DEBUG_sysmem_lock, INFINITE);
+        remove_bubble(bubble);
+        ReleaseSemaphore(win32vars.DEBUG_sysmem_lock, 1, 0);
+        VirtualFree(bubble, 0, MEM_RELEASE);
+#else
+        VirtualFree(block, 0, MEM_RELEASE);
+#endif
+    }
 }
 
 internal File_Data
-system_load_file(u8 *filename){
+system_load_file(char *filename){
     File_Data result = {};
     HANDLE file;
     file = CreateFile((char*)filename, GENERIC_READ, 0, 0,
@@ -238,8 +271,8 @@ system_load_file(u8 *filename){
     return result;
 }
 
-internal bool32
-system_save_file(u8 *filename, void *data, i32 size){
+internal b32
+system_save_file(char *filename, void *data, i32 size){
 	HANDLE file;
 	file = CreateFile((char*)filename, GENERIC_WRITE, 0, 0,
 					  CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, 0);
@@ -262,7 +295,7 @@ system_save_file(u8 *filename, void *data, i32 size){
 }
 
 internal Time_Stamp
-system_file_time_stamp(u8 *filename){
+system_file_time_stamp(char *filename){
     Time_Stamp result;
     result = {};
     
@@ -279,7 +312,7 @@ system_file_time_stamp(u8 *filename){
 }
 
 internal u64
-system_get_now(){
+system_time_stamp_now(){
     u64 result;
     SYSTEMTIME sys_now;
     FILETIME file_now;
@@ -289,13 +322,23 @@ system_get_now(){
     return result;
 }
 
+internal i64
+system_time(){
+	i64 result = 0;
+	LARGE_INTEGER time;
+	if (QueryPerformanceCounter(&time)){
+		result = (i64)(time.QuadPart - win32vars.start_pcount) * 1000000 / win32vars.performance_frequency;
+	}
+	return result;
+}
+
 internal void
 system_free_file(File_Data data){
     system_free_memory(data.data);
 }
 
 internal i32
-system_get_working_directory(u8 *destination, i32 max_size){
+system_get_current_directory(char *destination, i32 max_size){
 	DWORD required = GetCurrentDirectory(0, 0);
 	if ((i32) required > max_size){
 		// TODO(allen): WHAT NOW? Not enough space in destination for
@@ -307,7 +350,7 @@ system_get_working_directory(u8 *destination, i32 max_size){
 }
 
 internal i32
-system_get_easy_directory(u8 *destination){
+system_get_easy_directory(char *destination){
 	persist char easydir[] = "C:\\";
 	for (i32 i = 0; i < ArrayCount(easydir); ++i){
 		destination[i] = easydir[i];
@@ -316,7 +359,7 @@ system_get_easy_directory(u8 *destination){
 }
 
 internal File_List
-system_get_files(String directory){
+system_get_file_list(String directory){
     File_List result = {};
     
     if (directory.size > 0){
@@ -393,63 +436,6 @@ system_free_file_list(File_List list){
     system_free_memory(list.block);
 }
 
-#if FRED_INTERNAL
-Sys_Bubble INTERNAL_sentinel;
-
-internal Bubble*
-INTERNAL_system_sentinel(){
-    return &INTERNAL_sentinel;
-}
-#endif
-
-internal void*
-system_get_memory_(i32 size, i32 line_number, char *file_name){
-	void *ptr = 0;
-    
-#if FRED_INTERNAL
-    ptr = VirtualAlloc(0, size + sizeof(Sys_Bubble), MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
-    Sys_Bubble *bubble = (Sys_Bubble*)ptr;
-    bubble->flags = MEM_BUBBLE_SYS_DEBUG;
-    bubble->line_number = line_number;
-    bubble->file_name = file_name;
-    bubble->size = size;
-    WaitForSingleObject(win32vars.DEBUG_sysmem_lock, INFINITE);
-    insert_bubble(&INTERNAL_sentinel, bubble);
-    ReleaseSemaphore(win32vars.DEBUG_sysmem_lock, 1, 0);
-    ptr = bubble + 1;
-#else
-    ptr = VirtualAlloc(0, size, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
-#endif
-    
-	return ptr;
-}
-
-internal void
-system_free_memory(void *block){
-    if (block){
-#if FRED_INTERNAL
-        Sys_Bubble *bubble = ((Sys_Bubble*)block) - 1;
-        Assert((bubble->flags & MEM_BUBBLE_DEBUG_MASK) == MEM_BUBBLE_SYS_DEBUG);
-        WaitForSingleObject(win32vars.DEBUG_sysmem_lock, INFINITE);
-        remove_bubble(bubble);
-        ReleaseSemaphore(win32vars.DEBUG_sysmem_lock, 1, 0);
-        VirtualFree(bubble, 0, MEM_RELEASE);
-#else
-        VirtualFree(block, 0, MEM_RELEASE);
-#endif
-    }
-}
-
-internal i64
-system_time(){
-	i64 result = 0;
-	LARGE_INTEGER time;
-	if (QueryPerformanceCounter(&time)){
-		result = (i64)(time.QuadPart - win32vars.start_pcount) * 1000000 / win32vars.performance_frequency;
-	}
-	return result;
-}
-
 // TODO(allen): Probably best to just drop all system functions here again.
 internal void
 system_post_clipboard(String str){
@@ -484,7 +470,9 @@ Win32RedrawScreen(HDC hdc){
 	win32vars.bmp_info.bmiHeader.biHeight =
 		-win32vars.bmp_info.bmiHeader.biHeight;
 }
+
 #else
+
 internal void
 Win32RedrawScreen(HDC hdc){
     glFlush();
@@ -534,7 +522,6 @@ Win32KeyboardHandle(bool8 current_state, bool8 previous_state, WPARAM wParam){
 internal LRESULT
 Win32Callback(HWND hwnd, UINT uMsg,
               WPARAM wParam, LPARAM lParam){
-    
     LRESULT result = {};
     switch (uMsg){
     case WM_MENUCHAR:
@@ -625,7 +612,6 @@ Win32Callback(HWND hwnd, UINT uMsg,
             win32vars.true_pixel_size = new_height*new_pitch;
             
             if (!win32vars.pixel_data){
-                FatalError("Failure allocating new screen memory");
                 win32vars.keep_playing = 0;
             }
         }
@@ -652,16 +638,11 @@ Win32Callback(HWND hwnd, UINT uMsg,
         HDC hdc = BeginPaint(hwnd, &ps);
         
         Clipboard_Contents empty_contents = {};
-#if FRED_INTERNAL
-        INTERNAL_collecting_events = 0;
-#endif
-        app_step(&win32vars.main_thread,
-                 &win32vars.key_codes,
-                 &win32vars.previous_data, &win32vars.mouse,
-                 0, &win32vars.target, &win32memory, empty_contents, 0, 1);
-#if FRED_INTERNAL
-        INTERNAL_collecting_events = 1;
-#endif
+        win32vars.app.step(win32vars.system,
+                           &win32vars.main_thread, &win32vars.key_codes,
+                           &win32vars.previous_data, &win32vars.mouse,
+                           0, &win32vars.target, &win32memory, empty_contents, 0, 1);
+        
         Win32RedrawScreen(hdc);
         
         EndPaint(hwnd, &ps);
@@ -726,7 +707,7 @@ ThreadProc(LPVOID lpParameter){
                             thread_memory->size = new_size;
                         }
                     }
-                    full_job->job.callback(thread, thread_memory, full_job->job.data);
+                    full_job->job.callback(win32vars.system, thread, thread_memory, full_job->job.data);
                     full_job->running_thread = 0;
                     thread->running = 0;
                 }
@@ -797,6 +778,16 @@ system_post_job(Thread_Group_ID group_id, Job_Data job){
 }
 
 internal void
+system_acquire_lock(i32 id){
+    WaitForSingleObject(win32vars.locks[id], INFINITE);
+}
+
+internal void
+system_release_lock(i32 id){
+    ReleaseSemaphore(win32vars.locks[id], 1, 0);
+}
+
+internal void
 system_cancel_job(Thread_Group_ID group_id, u32 job_id){
     Work_Queue *queue = win32vars.queues + group_id;
     Thread_Group *group = win32vars.groups + group_id;
@@ -815,7 +806,7 @@ system_cancel_job(Thread_Group_ID group_id, u32 job_id){
                                    0, THREAD_NOT_ASSIGNED);
     
     if (thread_id != THREAD_NOT_ASSIGNED){
-        system_aquire_lock(CANCEL_LOCK0 + thread_id - 1);
+        system_acquire_lock(CANCEL_LOCK0 + thread_id - 1);
         thread = group->threads + thread_id - 1;
         TerminateThread(thread->handle, 0);
         u32 creation_flag = 0;
@@ -832,28 +823,8 @@ system_job_is_pending(Thread_Group_ID group_id, u32 job_id){
 }
 
 internal void
-system_aquire_lock(Lock_ID id){
-    WaitForSingleObject(win32vars.locks[id], INFINITE);
-}
-
-internal void
-system_release_lock(Lock_ID id){
-    ReleaseSemaphore(win32vars.locks[id], 1, 0);
-}
-
-internal void
-system_aquire_lock(i32 id){
-    WaitForSingleObject(win32vars.locks[id], INFINITE);
-}
-
-internal void
-system_release_lock(i32 id){
-    ReleaseSemaphore(win32vars.locks[id], 1, 0);
-}
-
-internal void
 system_grow_thread_memory(Thread_Memory *memory){
-    system_aquire_lock(CANCEL_LOCK0 + memory->id - 1);
+    system_acquire_lock(CANCEL_LOCK0 + memory->id - 1);
     void *old_data = memory->data;
     i32 old_size = memory->size;
     i32 new_size = LargeRoundUp(memory->size*2, Kbytes(4));
@@ -1012,13 +983,80 @@ system_cli_end_update(CLI_Handles *cli){
     return close_me;
 }
 
+internal b32
+Win32LoadAppCode(){
+    b32 result = 0;
+    
+    win32vars.app_code = LoadLibraryA("4ed_app.dll");
+    if (win32vars.app_code){
+        result = 1;
+        win32vars.app.init = (App_Init*)
+            GetProcAddress(win32vars.app_code, "app_init");
+        win32vars.app.step = (App_Step*)
+            GetProcAddress(win32vars.app_code, "app_step");
+    }
+
+    return result;
+}
+
+internal void
+Win32LoadSystemCode(){
+    win32vars.system->load_file = system_load_file;
+    win32vars.system->save_file = system_save_file;
+    win32vars.system->file_time_stamp = system_file_time_stamp;
+    win32vars.system->time_stamp_now = system_time_stamp_now;
+    win32vars.system->free_file = system_free_file;
+
+    win32vars.system->get_current_directory = system_get_current_directory;
+    win32vars.system->get_easy_directory = system_get_easy_directory;
+
+    win32vars.system->get_file_list = system_get_file_list;
+    win32vars.system->free_file_list = system_free_file_list;
+
+    win32vars.system->get_memory_full = system_get_memory_;
+    win32vars.system->free_memory = system_free_memory;
+
+    win32vars.system->post_clipboard = system_post_clipboard;
+    win32vars.system->time = system_time;
+    
+    win32vars.system->cli_call = system_cli_call;
+    win32vars.system->cli_begin_update = system_cli_begin_update;
+    win32vars.system->cli_update_step = system_cli_update_step;
+    win32vars.system->cli_end_update = system_cli_end_update;
+
+    win32vars.system->thread_get_id = system_thread_get_id;
+    win32vars.system->thread_current_job_id = system_thread_current_job_id;
+    win32vars.system->post_job = system_post_job;
+    win32vars.system->cancel_job = system_cancel_job;
+    win32vars.system->job_is_pending = system_job_is_pending;
+    win32vars.system->grow_thread_memory = system_grow_thread_memory;
+    win32vars.system->acquire_lock = system_acquire_lock;
+    win32vars.system->release_lock = system_release_lock;
+    
+    win32vars.system->force_redraw = system_force_redraw;
+    
+    win32vars.system->internal_sentinel = INTERNAL_system_sentinel;
+    win32vars.system->internal_get_thread_states = INTERNAL_get_thread_states;
+}
+
 int
 WinMain(HINSTANCE hInstance,
         HINSTANCE hPrevInstance,
         LPSTR lpCmdLine,
         int nCmdShow){
     win32vars = {};
-    TEMP = {};
+    config_api = {};
+    
+    if (!Win32LoadAppCode()){
+        // TODO(allen): Failed to load app code, serious problem.
+        return 99;
+    }
+    
+    System_Functions system_;
+    System_Functions *system = &system_;
+    win32vars.system = system;
+    Win32LoadSystemCode();
+    
     LARGE_INTEGER lpf;
     QueryPerformanceFrequency(&lpf);
     win32vars.performance_frequency = lpf.QuadPart;
@@ -1026,14 +1064,9 @@ WinMain(HINSTANCE hInstance,
     win32vars.start_pcount = lpf.QuadPart;
     
 #if FRED_INTERNAL
-    memset(INTERNAL_event_hits, 0, INTERNAL_event_index_count * sizeof(u32));
-    INTERNAL_frame_index = 0;
-    INTERNAL_updating_profile = 1;
-    INTERNAL_collecting_events = 1;
-    
-    INTERNAL_sentinel.next = &INTERNAL_sentinel;
-    INTERNAL_sentinel.prev = &INTERNAL_sentinel;
-    INTERNAL_sentinel.flags = MEM_BUBBLE_SYS_DEBUG;
+    win32vars.internal_bubble.next = &win32vars.internal_bubble;
+    win32vars.internal_bubble.prev = &win32vars.internal_bubble;
+    win32vars.internal_bubble.flags = MEM_BUBBLE_SYS_DEBUG;
 #endif
     
     keycode_init(&win32vars.key_codes, &win32vars.loose_codes);
@@ -1041,10 +1074,10 @@ WinMain(HINSTANCE hInstance,
 #ifdef FRED_SUPER
     win32vars.custom = LoadLibraryA("4coder_custom.dll");
     if (win32vars.custom){
-        TEMP.get_bindings = (Get_Binding_Data_Function*)
+        config_api.get_bindings = (Get_Binding_Data_Function*)
             GetProcAddress(win32vars.custom, "get_bindings");
         
-        TEMP.set_extra_font = (Set_Extra_Font_Function*)
+        config_api.set_extra_font = (Set_Extra_Font_Function*)
             GetProcAddress(win32vars.custom, "set_extra_font");
     }
 #endif
@@ -1092,8 +1125,6 @@ WinMain(HINSTANCE hInstance,
 	window_class.lpszClassName = "4coder-win32-wndclass";
     
 	if (!RegisterClass(&window_class)){
-		// TODO(allen): diagnostics
-		FatalError("Failed to create window class");
 		return 1;
 	}
     
@@ -1122,8 +1153,6 @@ WinMain(HINSTANCE hInstance,
         0, 0, hInstance, 0);
     
     if (!window_handle){
-        // TODO(allen): diagnostics
-        FatalError("Failed to create window");
         return 2;
     }
     
@@ -1152,9 +1181,9 @@ WinMain(HINSTANCE hInstance,
 	win32vars.pixel_data = system_get_memory(win32vars.true_pixel_size);
     
 	if (!win32vars.pixel_data){
-		FatalError("Failure allocating screen memory");
 		return 3;
 	}
+    
 #else
     static PIXELFORMATDESCRIPTOR pfd = {
         sizeof(PIXELFORMATDESCRIPTOR),
@@ -1215,7 +1244,6 @@ WinMain(HINSTANCE hInstance,
                                              PAGE_READWRITE);
     
     if (!win32memory.vars_memory){
-        FatalError("Failure allocating application memory");
         return 4;
     }
     
@@ -1228,7 +1256,7 @@ WinMain(HINSTANCE hInstance,
         win32vars.next_clipboard_is_self = 0;
         
         if (win32vars.clipboard_sequence == 0){
-            FatalError("Failure to access platform's clipboard");
+            // TODO(allen): diagnostics
         }
 	}
     else{
@@ -1248,63 +1276,36 @@ WinMain(HINSTANCE hInstance,
         }
     }
     
-	if (!app_init(&win32vars.main_thread,
-				  &win32memory, &win32vars.key_codes,
-                  win32vars.clipboard_contents)){
+	if (!win32vars.app.init(win32vars.system, &win32vars.main_thread,
+                            &win32memory, &win32vars.key_codes,
+                            win32vars.clipboard_contents, config_api)){
 		return 5;
 	}
 	
 	win32vars.keep_playing = 1;
 	timeBeginPeriod(1);
 	
-    system_aquire_lock(FRAME_LOCK);
+    system_acquire_lock(FRAME_LOCK);
     Thread_Context *thread = &win32vars.main_thread;
     AllowLocal(thread);
 	bool32 first = 1;
 	i64 timer_start = system_time();
     
 	while (win32vars.keep_playing){
-#if FRED_INTERNAL
-        i64 dbg_procing_start = system_time();
-        if (!first){
-            if (INTERNAL_updating_profile){
-                i32 j = (INTERNAL_frame_index % 30);
-                Profile_Frame *frame = past_frames + j;
-                
-                sort(&profile_frame.events);
-                
-                frame->events.count = profile_frame.events.count;
-                memcpy(frame->events.e, profile_frame.events.e, sizeof(Debug_Event)*profile_frame.events.count);
-                
-                past_frames[j].dbg_procing_start = profile_frame.dbg_procing_start;
-                past_frames[j].dbg_procing_end = profile_frame.dbg_procing_end;
-                past_frames[j].index = profile_frame.index;
-                past_frames[j].first_key = profile_frame.first_key;
-                
-                ++INTERNAL_frame_index;
-                if (INTERNAL_frame_index < 0){
-                    INTERNAL_frame_index = ((INTERNAL_frame_index - 1) % 30) + 1;
-                }
-                memset(INTERNAL_event_hits, 0, INTERNAL_event_index_count * sizeof(u32));
-            }
-        }
-        profile_frame.events.count = 0;
-        profile_frame.first_key = -1;
-        profile_frame.index = INTERNAL_frame_index;
-        INTERNAL_frame_start_time = timer_start;
-        profile_frame.dbg_procing_start = (i32)(dbg_procing_start - INTERNAL_frame_start_time);
-        profile_frame.dbg_procing_end = (i32)(system_time() - INTERNAL_frame_start_time);
-#endif
-        
         ProfileStart(OS_input);
 		win32vars.previous_data = win32vars.input_data;
 		win32vars.input_data.press_count = 0;
 		win32vars.input_data.hold_count = 0;
 		win32vars.input_data.caps_lock = GetKeyState(VK_CAPITAL) & 0x1;
         
-        win32vars.input_data.control_keys[CONTROL_KEY_SHIFT] = (GetKeyState(VK_SHIFT) & 0x0100) >> 8;
-        win32vars.input_data.control_keys[CONTROL_KEY_CONTROL] = (GetKeyState(VK_CONTROL) & 0x0100) >> 8;
-        win32vars.input_data.control_keys[CONTROL_KEY_ALT] = (GetKeyState(VK_MENU) & 0x0100) >> 8;
+        win32vars.input_data.control_keys[CONTROL_KEY_SHIFT] =
+            (GetKeyState(VK_SHIFT) & 0x0100) >> 8;
+        
+        win32vars.input_data.control_keys[CONTROL_KEY_CONTROL] =
+            (GetKeyState(VK_CONTROL) & 0x0100) >> 8;
+        
+        win32vars.input_data.control_keys[CONTROL_KEY_ALT] =
+            (GetKeyState(VK_MENU) & 0x0100) >> 8;
         
 		win32vars.mouse.left_button_prev = win32vars.mouse.left_button;
 		win32vars.mouse.right_button_prev = win32vars.mouse.right_button;
@@ -1391,13 +1392,13 @@ WinMain(HINSTANCE hInstance,
         ProfileEnd(OS_input);
         
 		Application_Step_Result result =
-			app_step(&win32vars.main_thread,
-					 &win32vars.key_codes,
-					 &win32vars.input_data, &win32vars.mouse,
-					 1, &win32vars.target,
-					 &win32memory,
-					 win32vars.clipboard_contents,
-					 first, redraw);
+			win32vars.app.step(win32vars.system,
+                               &win32vars.main_thread, &win32vars.key_codes,
+                               &win32vars.input_data, &win32vars.mouse,
+                               1, &win32vars.target,
+                               &win32memory,
+                               win32vars.clipboard_contents,
+                               first, redraw);
         
         ProfileStart(OS_frame_out);
 		first = 0;
@@ -1428,7 +1429,7 @@ WinMain(HINSTANCE hInstance,
             if (samount > 0) Sleep(samount);
             timer_end = system_time();
 		}
-        system_aquire_lock(FRAME_LOCK);
+        system_acquire_lock(FRAME_LOCK);
 		timer_start = system_time();
         ProfileEnd(frame_sleep);
 	}
@@ -1436,10 +1437,6 @@ WinMain(HINSTANCE hInstance,
 	return 0;
 }
 
-#if FRED_INTERNAL
-const i32 INTERNAL_event_index_count = __COUNTER__;
-u32 INTERNAL_event_hits[__COUNTER__];
-#endif
-
 // BOTTOM
+
 

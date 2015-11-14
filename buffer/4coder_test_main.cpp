@@ -1178,8 +1178,8 @@ void batch_edit_test(Stats_Log *log, Buffer_Set *buffers, int test_repitions, fl
     Sample_Machine machine;
     machine = begin_machine(test_repitions, &scratch, &scratch_size);
 
-    printf("batch size: %d\n", replay->replay.count);
-    log_data_item(log, litstr("batch-size"), replay->replay.count);    
+    printf("batch size: %d\n", batch_size);
+    log_data_item(log, litstr("batch-size"), batch_size);    
     int i;
     for (i = 0; i < test_repitions; ++i){
         start(&machine);
@@ -1396,20 +1396,13 @@ int main(int argc, char **argv){
         {
             char word[] = "not-going-to-find-this";
             int word_len = sizeof(word) - 1;
-            
             word_seek_test(&log, &buffers, reps, 0, word, word_len, scratch, scratch_size, &word_seek);
-
         }
 
         {
             char word[] = "return";
             int word_len = sizeof(word) - 1;
-            
             word_seek_test(&log, &buffers, reps, 1, word, word_len, scratch, scratch_size, &word_seek);
-        
-            printf("average normal word seek:\n");
-            print_record(word_seek.expected);
-            printf("\n");
         }
     }
     log_end_section(&log);
@@ -1463,7 +1456,7 @@ int main(int argc, char **argv){
             character_stride = 10;
         }
         else{
-            character_stride = (character_stride / batch_size);
+            character_stride /= batch_size;
         }
 
         int p, curs;

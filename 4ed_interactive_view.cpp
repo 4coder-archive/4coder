@@ -97,7 +97,8 @@ interactive_view_complete(Interactive_View *view){
 }
 
 internal i32
-step_draw_int_view(Interactive_View *view, Render_Target *target, i32_Rect rect,
+step_draw_int_view(System_Functions *system,
+                   Interactive_View *view, Render_Target *target, i32_Rect rect,
                    Input_Summary *user_input, bool32 input_stage){
     i32 result = 0;
     
@@ -115,17 +116,19 @@ step_draw_int_view(Interactive_View *view, Render_Target *target, i32_Rect rect,
     
     switch (view->interaction){
     case INTV_SYS_FILE_LIST:
-        if (do_file_list_box(&state, &layout, view->hot_directory, 0,
+        if (do_file_list_box(system,
+                             &state, &layout, view->hot_directory, 0,
                              &new_dir, &complete, 0)){
             result = 1;
         }
         if (new_dir){
-            hot_directory_reload(view->hot_directory, view->working_set);
+            hot_directory_reload(system,
+                                 view->hot_directory, view->working_set);
         }
         break;
         
     case INTV_LIVE_FILE_LIST:
-        if (do_live_file_list_box(&state, &layout, view->working_set, &view->dest, &complete)){
+        if (do_live_file_list_box(system, &state, &layout, view->working_set, &view->dest, &complete)){
             result = 1;
         }
         break;
@@ -191,7 +194,7 @@ DO_VIEW_SIG(do_interactive_view){
     Interactive_View *int_view = (Interactive_View*)view;
     switch (message){
     case VMSG_STEP: case VMSG_DRAW:
-        result = step_draw_int_view(int_view, target, rect, user_input, (message == VMSG_STEP));
+        result = step_draw_int_view(system, int_view, target, rect, user_input, (message == VMSG_STEP));
         break;
     }
     
@@ -199,14 +202,14 @@ DO_VIEW_SIG(do_interactive_view){
 }
 
 internal Interactive_View*
-interactive_view_init(View *view, Hot_Directory *hot_dir, Style *style,
+interactive_view_init(System_Functions *system, View *view, Hot_Directory *hot_dir, Style *style,
                       Working_Set *working_set, Delay *delay){
     Interactive_View *result = (Interactive_View*)view;
     view->type = VIEW_TYPE_INTERACTIVE;
     view->do_view = do_interactive_view;
     result->hot_directory = hot_dir;
     hot_directory_clean_end(hot_dir);
-    hot_directory_reload(hot_dir, working_set);
+    hot_directory_reload(system, hot_dir, working_set);
     result->query = make_fixed_width_string(result->query_);
     result->dest = make_fixed_width_string(result->dest_);
     result->style = style;

@@ -9,7 +9,8 @@
 
 // TOP
 
-typedef void (*Command_Function)(struct Command_Data *command, struct Command_Binding binding);
+typedef void (*Command_Function)(System_Functions *system,
+                                 struct Command_Data *command, struct Command_Binding binding);
 
 struct Command_Binding{
     Command_Function function;

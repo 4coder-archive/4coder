@@ -38,14 +38,19 @@ enum View_Message{
 };
 
 struct View;
-#define DO_VIEW_SIG(name)\
-    i32 (name)(Thread_Context *thread, View *view, i32_Rect rect, View *active,\
-               View_Message message, Render_Target *target, Input_Summary *user_input, Input_Summary *active_input)
+#define DO_VIEW_SIG(name)                                               \
+    i32 (name)(System_Functions *system, Thread_Context *thread,        \
+               View *view, i32_Rect rect, View *active,                 \
+               View_Message message, Render_Target *target,             \
+               Input_Summary *user_input, Input_Summary *active_input)
+
 typedef DO_VIEW_SIG(Do_View_Function);
 
-#define HANDLE_COMMAND_SIG(name)\
-    void (name)(View *view, Command_Data *command, Command_Binding binding,\
+#define HANDLE_COMMAND_SIG(name)                                        \
+    void (name)(System_Functions *system, View *view,                   \
+                Command_Data *command, Command_Binding binding,         \
                 Key_Single key, Key_Codes *codes)
+
 typedef HANDLE_COMMAND_SIG(Handle_Command_Function);
 
 // TODO(allen): this shouldn't exist
@@ -186,9 +191,9 @@ live_set_alloc_view(Live_Views *live_set, Mem_Options *mem){
 }
 
 inline void
-live_set_free_view(Live_Views *live_set, View *view){
+live_set_free_view(System_Functions *system, Live_Views *live_set, View *view){
     Assert(live_set->count > 0);
-    view->do_view(0, view, {}, 0, VMSG_FREE, 0, {}, 0);
+    view->do_view(system, 0, view, {}, 0, VMSG_FREE, 0, {}, 0);
     view->next_free = live_set->free_view;
     live_set->free_view = view;
     --live_set->count;
@@ -196,13 +201,13 @@ live_set_free_view(Live_Views *live_set, View *view){
 }
 
 inline void
-view_replace_major(View *new_view, Panel *panel, Live_Views *live_set){
+view_replace_major(System_Functions *system, View *new_view, Panel *panel, Live_Views *live_set){
     View *view = panel->view;
     if (view){
         if (view->is_minor && view->major){
-            live_set_free_view(live_set, view->major);
+            live_set_free_view(system, live_set, view->major);
         }
-        live_set_free_view(live_set, view);
+        live_set_free_view(system, live_set, view);
     }
     new_view->panel = panel;
     new_view->minor = 0;
@@ -210,13 +215,13 @@ view_replace_major(View *new_view, Panel *panel, Live_Views *live_set){
 }
 
 inline void
-view_replace_minor(View *new_view, Panel *panel, Live_Views *live_set){
+view_replace_minor(System_Functions *system, View *new_view, Panel *panel, Live_Views *live_set){
     View *view = panel->view;
     new_view->is_minor = 1;
     if (view){
         if (view->is_minor){
             new_view->major = view->major;
-            live_set_free_view(live_set, view);
+            live_set_free_view(system, live_set, view);
         }
         else{
             new_view->major = view;
@@ -231,40 +236,40 @@ view_replace_minor(View *new_view, Panel *panel, Live_Views *live_set){
 }
 
 inline void
-view_remove_major(Panel *panel, Live_Views *live_set){
+view_remove_major(System_Functions *system, Panel *panel, Live_Views *live_set){
     View *view = panel->view;
     if (view){
         if (view->is_minor && view->major){
-            live_set_free_view(live_set, view->major);
+            live_set_free_view(system, live_set, view->major);
         }
-        live_set_free_view(live_set, view);
+        live_set_free_view(system, live_set, view);
     }
     panel->view = 0;
 }
 
 inline void
-view_remove_major_leave_minor(Panel *panel, Live_Views *live_set){
+view_remove_major_leave_minor(System_Functions *system, Panel *panel, Live_Views *live_set){
     View *view = panel->view;
     if (view){
         if (view->is_minor && view->major){
-            live_set_free_view(live_set, view->major);
+            live_set_free_view(system, live_set, view->major);
             view->major = 0;
         }
         else{
-            live_set_free_view(live_set, view);
+            live_set_free_view(system, live_set, view);
             panel->view = 0;
         }
     }
 }
 
 inline void
-view_remove_minor(Panel *panel, Live_Views *live_set){
+view_remove_minor(System_Functions *system, Panel *panel, Live_Views *live_set){
     View *view = panel->view;
     View *major = 0;
     if (view){
         if (view->is_minor){
             major = view->major;
-            live_set_free_view(live_set, view);
+            live_set_free_view(system, live_set, view);
         }
     }
     panel->view = major;
@@ -272,10 +277,10 @@ view_remove_minor(Panel *panel, Live_Views *live_set){
 }
 
 inline void
-view_remove(Panel *panel, Live_Views *live_set){
+view_remove(System_Functions *system, Panel *panel, Live_Views *live_set){
     View *view = panel->view;
-    if (view->is_minor) view_remove_minor(panel, live_set);
-    else view_remove_major(panel, live_set);
+    if (view->is_minor) view_remove_minor(system, panel, live_set);
+    else view_remove_major(system, panel, live_set);
 }
 
 struct Divider_And_ID{

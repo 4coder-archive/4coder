@@ -475,10 +475,11 @@ style_format_for_use(Font_Set *fonts, Style *out, Style_File_Format_v3 *style){
 }
 
 internal bool32
-style_library_import(u8 *filename, Font_Set *fonts, Style *out, i32 max,
+style_library_import(System_Functions *system,
+                     char *filename, Font_Set *fonts, Style *out, i32 max,
                      i32 *count_opt, i32 *total_opt = 0){
     bool32 result = 1;
-    File_Data file = system_load_file(filename);
+    File_Data file = system->load_file(filename);
     if (!file.data){
         result = 0;
     }
@@ -538,7 +539,7 @@ style_library_import(u8 *filename, Font_Set *fonts, Style *out, i32 max,
         }
         
 early_exit:
-        system_free_file(file);
+        system->free_file(file);
     }
     
     return result;
@@ -594,10 +595,10 @@ style_format_for_file(Style *style, Style_File_Format *out){
 }
 
 internal void
-style_library_export(u8 *filename, Style **styles, i32 count){
+style_library_export(System_Functions *system, char *filename, Style **styles, i32 count){
     i32 size = count*(sizeof(Style_File_Format) + STAG_COUNT*sizeof(Style_Color_Specifier)) +
         sizeof(P4C_Page_Header) + sizeof(Style_Page_Header);
-    void *data = system_get_memory(size);
+    void *data = system->get_memory(size);
     void *cursor = data;
     
     {
@@ -619,8 +620,8 @@ style_library_export(u8 *filename, Style **styles, i32 count){
     for (i32 i = 0; i < count; ++i){
         out = style_format_for_file(*in++, out);
     }
-    system_save_file(filename, data, size);
-    system_free_memory(data);
+    system->save_file(filename, data, size);
+    system->free_memory(data);
 }
 
 // BOTTOM

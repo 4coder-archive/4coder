@@ -669,12 +669,13 @@ font_predict_size(i32 pt_size){
 }
 
 internal i32
-font_load(Font *font_out, char *filename, i32 pt_size,
+font_load(System_Functions *system,
+          Font *font_out, char *filename, i32 pt_size,
           void *font_block, i32 font_block_size,
           i32 *memory_used_out, i32 tab_width){
     i32 result = 1;
     File_Data file;
-    file = system_load_file((u8*)filename);
+    file = system->load_file(filename);
     
     if (!file.data){
         result = 0;
@@ -749,7 +750,7 @@ font_load(Font *font_out, char *filename, i32 pt_size,
             }
             font_out->advance = max_advance - 1;
         }
-        system_free_file(file);
+        system->free_file(file);
     }
     
     return result;

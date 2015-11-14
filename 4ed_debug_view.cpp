@@ -12,8 +12,7 @@
 
 enum Debug_Mode{
     DBG_MEMORY,
-    DBG_OS_EVENTS,
-    DBG_PROFILE
+    DBG_OS_EVENTS
 };
 
 struct Dbg_Past_Key{
@@ -94,10 +93,10 @@ draw_general_memory(Debug_View *view, i32_Rect rect, Render_Target *target, i32 
 }
 
 internal i32
-draw_system_memory(Debug_View *view, i32_Rect rect, Render_Target *target, i32 y){
+draw_system_memory(System_Functions *system, Debug_View *view, i32_Rect rect, Render_Target *target, i32 y){
     Font *font = view->font;
     i32 y_advance = font->height;
-    Bubble *sentinel = INTERNAL_system_sentinel();
+    Bubble *sentinel = system->internal_sentinel();
     
     for (Bubble *bubble = sentinel->next;
          bubble != sentinel;
@@ -124,10 +123,11 @@ draw_system_memory(Debug_View *view, i32_Rect rect, Render_Target *target, i32 y
 }
 
 internal void
-draw_background_threads(Debug_View *view, i32_Rect rect, Render_Target *target){
+draw_background_threads(System_Functions *system,
+                        Debug_View *view, i32_Rect rect, Render_Target *target){
     i32 pending;
     bool8 running[4];
-    INTERNAL_get_thread_states(BACKGROUND_THREADS, running, &pending);
+    system->internal_get_thread_states(BACKGROUND_THREADS, running, &pending);
     
     i32 box_size = 30;
     
@@ -292,152 +292,8 @@ draw_os_events(Debug_View *view, i32_Rect rect, Render_Target *target,
 }
 
 internal i32
-draw_profile_frame(Render_Target *target, Profile_Frame *frame,
-                   i32 x, i32 top, i32 bottom, i32 goal, Input_Summary *active_input){
-    i32 result = -1;
-    
-    persist u32 colors[] = {
-        0x80C06000,
-        0x8000C060,
-        0x806000C0,
-        0x8060C000,
-        0x800060C0,
-        0x80C00060,
-    };
-    
-    persist i32 color_max = ArrayCount(colors);
-    Mouse_Summary *mouse = &active_input->mouse;
-    
-    i32 count = frame->events.count;
-    Debug_Event *events = frame->events.e;
-    
-    i32 i;
-    for (i = 0; i < count && events[i].type == DBGEV_START; ++i){
-        i64 start = events[i++].time;
-        i64 end = events[i].time;
-        
-        real32 rtop = unlerp(0, (real32)end, FRAME_TIME);
-        real32 rbot = unlerp(0, (real32)start, FRAME_TIME);
-        
-        rtop = lerp((real32)bottom, rtop, (real32)goal);
-        rbot = lerp((real32)bottom, rbot, (real32)goal);
-        
-        i32_Rect r = i32R(x, (i32)rtop, x+5, (i32)rbot);
-        draw_rectangle(target, r, colors[events[i].event_index % color_max]);
-        if (hit_check(mouse->mx, mouse->my, r)) result = (i - 1);
-    }
-    
-    {
-        real32 rtop = unlerp(0, (real32)frame->dbg_procing_end, FRAME_TIME);
-        real32 rbot = unlerp(0, (real32)frame->dbg_procing_start, FRAME_TIME);
-        
-        rtop = lerp((real32)bottom, rtop, (real32)goal);
-        rbot = lerp((real32)bottom, rbot, (real32)goal);
-        
-        i32_Rect r = i32R(x, (i32)rtop, x+5, (i32)rbot);
-        draw_rectangle(target, r, 0xFF808080);
-    }
-    
-    for (; i < count; ++i){
-        
-        Assert(events[i].type == DBGEV_MOMENT);
-        
-        real32 ry = unlerp(0, (real32)events[i].time, FRAME_TIME);
-        ry = lerp((real32)bottom, ry, (real32)goal);
-        
-        i32_Rect r = i32R(x-1, (i32)ry, x+6, (i32)ry+1);
-        draw_rectangle(target, r, 0xFFFFFFFF);
-        if (hit_check(mouse->mx, mouse->my, r)) result = i;
-    }
-    
-    return result;
-}
-
-internal void
-draw_profile(Debug_View *view, i32_Rect rect, Render_Target *target, Input_Summary *active_input){
-    i32 j = (INTERNAL_frame_index % 30);
-
-    i32 event_index = -1;
-    i32 frame_index = -1;
-    
-    i32 target_time = (rect.y0 + rect.y1)/2;
-    
-    i32 x = rect.x0;
-    for (i32 i = 0; i < PAST_PROFILE_COUNT; ++i){
-        Profile_Frame *frame = past_frames + j;
-        i32 s = draw_profile_frame(target, frame, x, rect.y0, rect.y1, target_time, active_input);
-        if (s != -1){
-            event_index = s;
-            frame_index = j;
-        }
-        x += 10;
-        j = ((j+1) % PAST_PROFILE_COUNT);
-    }
-    
-    draw_rectangle(target, i32R(rect.x0, target_time, rect.x1, target_time + 1), 0xFFFFFFFF);
-    
-    char c[200];
-    
-    if (frame_index != -1){
-        Profile_Frame *frame = past_frames + frame_index;
-        Debug_Event *events = frame->events.e;
-        Debug_Event *event = events + event_index;
-        
-        Font *font = view->font;
-        
-        u32 color = 0xFFFFFFFF;
-        
-        i32 x, y;
-        x = rect.x0;
-        y = rect.y0;
-        
-        String s = make_fixed_width_string(c);
-        append(&s, event->name);
-        append(&s, ": ");
-        
-        Assert(event->type == DBGEV_START || event->type == DBGEV_MOMENT);
-        if (event->type == DBGEV_START){
-            Debug_Event *next_event = event + 1;
-            Assert(next_event->type == DBGEV_END);
-            append_int_to_str((i32)(next_event->time - event->time), &s);
-        }
-        else{
-            append_int_to_str((i32)event->time, &s);
-        }
-        terminate_with_null(&s);
-        draw_string(target, font, c, x, y, color);
-        y += font->height;
-        
-        if (frame->first_key != -1){
-            Dbg_Past_Key *key = view->past_keys + frame->first_key;
-            Dbg_Past_Key *end_key = view->past_keys + ArrayCount(view->past_keys);
-            while (key->frame_index == frame->index){
-                draw_key_event(view, target, key,
-                               x, y, 0xFFFFFFFF, 0xFF808080);
-                y += font->height;
-                ++key;
-                if (key == end_key) key = view->past_keys;
-            }
-        }
-
-        i32 count = frame->events.count;
-        for (i32 i = 0; i < count; ++i){
-            if (events[i].type == DBGEV_START) ++i;
-            else{
-                s = make_fixed_width_string(c);
-                append(&s, events[i].name);
-                append(&s, ": ");
-                append_int_to_str((i32)events[i].time, &s);
-                terminate_with_null(&s);
-                draw_string(target, font, c, x, y, color);
-                y += font->height;
-            }
-        }
-    }
-}
-
-internal i32
-draw_debug_view(Debug_View *view, i32_Rect rect, Render_Target *target,
+draw_debug_view(System_Functions *system,
+                Debug_View *view, i32_Rect rect, Render_Target *target,
                 Input_Summary *active_input){
     i32 result = 0;
     
@@ -450,16 +306,11 @@ draw_debug_view(Debug_View *view, i32_Rect rect, Render_Target *target,
         y = draw_general_memory(view, rect, target, y);
         draw_rectangle(target, i32R(rect.x0, y, rect.x1, y+2), 0xFF222222);
         y += 2;
-        y = draw_system_memory(view, rect, target, y);
+        y = draw_system_memory(system, view, rect, target, y);
     }break;
     case DBG_OS_EVENTS:
     {
         draw_os_events(view, rect, target, active_input);
-    }break;
-    case DBG_PROFILE:
-    {
-        draw_background_threads(view, rect, target);
-        draw_profile(view, rect, target, active_input);
     }break;
     }
     return result;
@@ -472,7 +323,6 @@ step_debug_view(Debug_View *view, i32_Rect rect, Render_Target *target,
 
     bool8 *modifiers = active_input->keys.modifiers;
     for (i32 i = 0; i < active_input->keys.count; ++i){
-        i32 this_index = view->past_key_pos;
         Dbg_Past_Key *past_key = view->past_keys + view->past_key_pos;
         ++view->past_key_pos;
         view->past_key_pos = view->past_key_pos % max_past;
@@ -482,15 +332,14 @@ step_debug_view(Debug_View *view, i32_Rect rect, Render_Target *target,
         past_key->modifiers[1] = modifiers[1];
         past_key->modifiers[2] = modifiers[2];
 
-        if (INTERNAL_updating_profile){
-            past_key->frame_index = INTERNAL_frame_index;
-            if (profile_frame.first_key == -1){
-                profile_frame.first_key = this_index;
-            }
+#if 0
+        i32 this_index = view->past_key_pos;
+        past_key->frame_index = INTERNAL_frame_index;
+        if (profile_frame.first_key == -1){
+            profile_frame.first_key = this_index;
         }
-        else{
-            past_key->frame_index = -1;
-        }
+#endif
+        past_key->frame_index = -1;
         
         if (view->past_key_count < max_past) ++view->past_key_count;
     }
@@ -509,7 +358,7 @@ DO_VIEW_SIG(do_debug_view){
     case VMSG_RESIZE: break;
     case VMSG_STYLE_CHANGE: break;
     case VMSG_STEP: step_debug_view(debug_view, rect, target, active_input); result = 1; break;
-    case VMSG_DRAW: draw_debug_view(debug_view, rect, target, active_input); break;
+    case VMSG_DRAW: draw_debug_view(system, debug_view, rect, target, active_input); break;
     case VMSG_FREE: break;
     }
     
