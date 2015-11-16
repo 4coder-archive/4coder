@@ -53,7 +53,7 @@ step_draw_menu_view(Menu_View *view, Render_Target *target, i32_Rect rect,
     return result;
 }
 
-DO_VIEW_SIG(do_menu_view){
+Do_View_Sig(do_menu_view){
     i32 result = 0;
     
     Menu_View *menu_view = (Menu_View*)view;

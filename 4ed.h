@@ -59,7 +59,7 @@ struct Key_Input_Data{
 	Key_Event_Data hold[KEY_INPUT_BUFFER_SIZE];
 	i32 press_count;
     i32 hold_count;
-
+    
 	b8 control_keys[CONTROL_KEY_COUNT];
 	b8 caps_lock;
 };
@@ -85,20 +85,20 @@ get_single_key(Key_Summary *summary, i32 index){
 }
 
 struct Mouse_State{
-	bool32 out_of_window;
-	bool32 left_button, right_button;
-	bool32 left_button_prev, right_button_prev;
+	b32 out_of_window;
+	b32 left_button, right_button;
+	b32 left_button_prev, right_button_prev;
 	i32 x, y;
 	i16 wheel;
 };
 
 struct Mouse_Summary{
     i32 mx, my;
-    bool32 l, r;
-    bool32 press_l, press_r;
-    bool32 release_l, release_r;
-    bool32 out_of_window;
-    bool32 wheel_used;
+    b32 l, r;
+    b32 press_l, press_r;
+    b32 release_l, release_r;
+    b32 out_of_window;
+    b32 wheel_used;
     i16 wheel_amount;
 };
 
@@ -118,8 +118,9 @@ struct Thread_Context;
 
 #define App_Init_Sig(name)                                          \
     b32 name(System_Functions *system,                              \
-             Thread_Context *thread, Application_Memory *memory,    \
-             Key_Codes *loose_codes, Clipboard_Contents clipboard,  \
+             Application_Memory *memory,                            \
+             Key_Codes *loose_codes,                                \
+             Clipboard_Contents clipboard,                          \
              Config_API api)
 
 typedef App_Init_Sig(App_Init);
@@ -136,17 +137,18 @@ enum Application_Mouse_Cursor{
 
 struct Application_Step_Result{
 	Application_Mouse_Cursor mouse_cursor_type;
-	bool32 redraw;
+	b32 redraw;
 };
 
 #define App_Step_Sig(name) Application_Step_Result          \
     name(System_Functions *system,                          \
-         Thread_Context *thread, Key_Codes *codes,          \
-         Key_Input_Data *input, Mouse_State *mouse,         \
-         b32 time_step, Render_Target *target,              \
+         Key_Codes *codes,                                  \
+         Key_Input_Data *input,                             \
+         Mouse_State *mouse,                                \
+         Render_Target *target,                             \
          Application_Memory *memory,                        \
          Clipboard_Contents clipboard,                      \
-         b32 first_step, b32 force_redraw)
+         b32 time_step, b32 first_step, b32 force_redraw)
 
 typedef App_Step_Sig(App_Step);
 

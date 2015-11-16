@@ -4,7 +4,7 @@
 #define MDFR_ALT 2
 #define MDFR_SHIFT 4
 
-typedef unsigned short Code;
+typedef u16 Code;
 
 struct Key_Codes{
 	Code back;

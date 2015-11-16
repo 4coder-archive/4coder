@@ -16,8 +16,8 @@ struct Plat_Handle{
 };
 
 struct File_Data{
-	void *data;
-	u32 size;
+  void *data;
+  u32 size;
 };
 
 struct Time_Stamp{
@@ -31,14 +31,19 @@ typedef Sys_Load_File_Sig(System_Load_File);
 #define Sys_Save_File_Sig(name) i32 name(char *filename, void *data, i32 size)
 typedef Sys_Save_File_Sig(System_Save_File);
 
+#define Sys_File_Size_Sig(name) i32 name(char *filename)
+typedef Sys_File_Size_Sig(System_File_Size);
+
 #define Sys_File_Time_Stamp_Sig(name) Time_Stamp name(char *filename)
 typedef Sys_File_Time_Stamp_Sig(System_File_Time_Stamp);
 
 #define Sys_Time_Stamp_Now_Sig(name) u64 name()
 typedef Sys_Time_Stamp_Now_Sig(System_Time_Stamp_Now);
 
+#if 0
 #define Sys_Free_File_Sig(name) void name(File_Data file)
 typedef Sys_Free_File_Sig(System_Free_File);
+#endif
 
 #define Sys_Get_Current_Directory_Sig(name) i32 name(char *out, i32 max)
 typedef Sys_Get_Current_Directory_Sig(System_Get_Current_Directory);
@@ -68,10 +73,10 @@ typedef Sys_Get_Memory_Sig(System_Get_Memory);
 
 #define get_memory(size) get_memory_full(size, __LINE__, __FILE__)
 
-#define Sys_Free_Memory_Sig(name) void name(void *block);
+#define Sys_Free_Memory_Sig(name) void name(void *block)
 typedef Sys_Free_Memory_Sig(System_Free_Memory);
 
-#define Sys_Post_Clipboard_Sig(name) void name(String str);
+#define Sys_Post_Clipboard_Sig(name) void name(String str)
 typedef Sys_Post_Clipboard_Sig(System_Post_Clipboard);
 
 #define Sys_Time_Sig(name) i64 name()

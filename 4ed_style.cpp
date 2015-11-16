@@ -474,12 +474,14 @@ style_format_for_use(Font_Set *fonts, Style *out, Style_File_Format_v3 *style){
     style_format_for_use(fonts, out, &form);
 }
 
-internal bool32
+internal b32
 style_library_import(System_Functions *system,
                      char *filename, Font_Set *fonts, Style *out, i32 max,
                      i32 *count_opt, i32 *total_opt = 0){
-    bool32 result = 1;
+    b32 result = 1;
     File_Data file = system->load_file(filename);
+    Style_Page_Header *h = 0;
+    
     if (!file.data){
         result = 0;
     }
@@ -496,7 +498,7 @@ style_library_import(System_Functions *system,
             cursor = h+1;
         }
         
-        Style_Page_Header *h = (Style_Page_Header*)cursor;
+        h = (Style_Page_Header*)cursor;
         to_read = h->count;
         cursor = h+1;
         
@@ -545,9 +547,9 @@ early_exit:
     return result;
 }
 
-internal bool32
+internal b32
 style_library_add(Style_Library *library, Style *style){
-    bool32 result = 0;
+    b32 result = 0;
     i32 count = library->count;
     String my_name = style->name;
     Style *ostyle = library->styles;

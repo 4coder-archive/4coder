@@ -33,7 +33,7 @@ map_hash(u16 event_code, u8 modifiers){
     return result;
 }
 
-internal bool32
+internal b32
 map_add(Command_Map *map, u16 event_code, u8 modifiers, Command_Function function, Custom_Command_Function *custom = 0){
     Assert(map->count * 8 < map->max * 7);
     Command_Binding bind;
@@ -55,7 +55,7 @@ map_add(Command_Map *map, u16 event_code, u8 modifiers, Command_Function functio
     return 0;
 }
 
-internal bool32
+internal b32
 map_find_entry(Command_Map *map, u16 event_code, u8 modifiers, i32 *index_out){
     i64 hash = map_hash(event_code, modifiers);
     i32 max = map->max;
@@ -71,9 +71,9 @@ map_find_entry(Command_Map *map, u16 event_code, u8 modifiers, i32 *index_out){
     return 0;
 }
 
-internal bool32
+internal b32
 map_find(Command_Map *map, u16 event_code, u8 modifiers, Command_Binding *bind_out){
-    bool32 result;
+    b32 result;
     i32 index;
     result = map_find_entry(map, event_code, modifiers, &index);
     if (result){
@@ -82,9 +82,9 @@ map_find(Command_Map *map, u16 event_code, u8 modifiers, Command_Binding *bind_o
     return result;
 }
 
-internal bool32
+internal b32
 map_drop(Command_Map *map, u16 event_code, u8 modifiers){
-    bool32 result;
+    b32 result;
     i32 index;
     result = map_find_entry(map, event_code, modifiers, &index);
     if (result){

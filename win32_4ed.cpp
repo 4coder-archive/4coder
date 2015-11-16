@@ -52,7 +52,7 @@
 #endif
 
 #define FPS 30
-#define FRAME_TIME (1000000 / FPS)
+#define frame_useconds (1000000 / FPS)
 
 #include "4ed_meta.h"
 
@@ -70,28 +70,10 @@
 #include "4ed.h"
 #include "4ed_rendering.h"
 
-Config_API config_api;
-
 #include <windows.h>
 #include <GL/gl.h>
 
 #include "4ed_internal.h"
-
-#if 0
-#define FCPP_LEXER_IMPLEMENTATION
-#include "4cpp_lexer.h"
-#include "4ed_rendering.cpp"
-#include "4ed_command.cpp"
-#include "4ed_layout.cpp"
-#include "4ed_style.cpp"
-#include "4ed_file_view.cpp"
-#include "4ed_color_view.cpp"
-#include "4ed_interactive_view.cpp"
-#include "4ed_menu_view.cpp"
-#include "4ed_debug_view.cpp"
-#include "4ed.cpp"
-#endif
-
 #include "4ed_keyboard.cpp"
 
 struct Full_Job_Data{
@@ -128,7 +110,7 @@ struct Thread_Group{
 
 struct Win32_Vars{
 	HWND window_handle;
-	Key_Codes key_codes, loose_codes;
+	Key_Codes key_codes;
 	Key_Input_Data input_data, previous_data;
     
 #if SOFTWARE_RENDER
@@ -148,15 +130,15 @@ struct Win32_Vars{
     u32 volatile force_redraw;
     
 	Mouse_State mouse;
-	bool32 focus;
-	bool32 keep_playing;
+	b32 focus;
+	b32 keep_playing;
 	HCURSOR cursor_ibeam;
 	HCURSOR cursor_arrow;
 	HCURSOR cursor_leftright;
 	HCURSOR cursor_updown;
 	Application_Mouse_Cursor prev_mouse_cursor;
 	Clipboard_Contents clipboard_contents;
-	bool32 next_clipboard_is_self;
+	b32 next_clipboard_is_self;
 	DWORD clipboard_sequence;
     
 	Thread_Context main_thread;
@@ -167,15 +149,16 @@ struct Win32_Vars{
     HANDLE DEBUG_sysmem_lock;
     Thread_Memory *thread_memory;
 
+    i64 performance_frequency;
+    i64 start_pcount;
+    
     HMODULE custom;
     HMODULE app_code;
     
-    i64 performance_frequency;
-    i64 start_pcount;
-
     System_Functions *system;
     App_Functions app;
-
+    Config_API config_api;
+    
 #if FRED_INTERNAL
     Sys_Bubble internal_bubble;
 #endif
@@ -195,13 +178,13 @@ system_get_memory_(i32 size, i32 line_number, char *file_name){
     
 #if FRED_INTERNAL
     ptr = VirtualAlloc(0, size + sizeof(Sys_Bubble), MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
+
     Sys_Bubble *bubble = (Sys_Bubble*)ptr;
     bubble->flags = MEM_BUBBLE_SYS_DEBUG;
     bubble->line_number = line_number;
     bubble->file_name = file_name;
     bubble->size = size;
     WaitForSingleObject(win32vars.DEBUG_sysmem_lock, INFINITE);
-
     insert_bubble(&win32vars.internal_bubble, bubble);
     ReleaseSemaphore(win32vars.DEBUG_sysmem_lock, 1, 0);
     ptr = bubble + 1;
@@ -495,7 +478,7 @@ Win32Resize(i32 width, i32 height){
 }
 
 internal void
-Win32KeyboardHandle(bool8 current_state, bool8 previous_state, WPARAM wParam){
+Win32KeyboardHandle(b8 current_state, b8 previous_state, WPARAM wParam){
     u16 key = keycode_lookup((u8)wParam);
     if (key != -1){
         if (current_state & !previous_state){
@@ -639,12 +622,15 @@ Win32Callback(HWND hwnd, UINT uMsg,
         
         Clipboard_Contents empty_contents = {};
         win32vars.app.step(win32vars.system,
-                           &win32vars.main_thread, &win32vars.key_codes,
-                           &win32vars.previous_data, &win32vars.mouse,
-                           0, &win32vars.target, &win32memory, empty_contents, 0, 1);
+                           &win32vars.key_codes,
+                           &win32vars.previous_data,
+                           &win32vars.mouse,
+                           &win32vars.target,
+                           &win32memory,
+                           empty_contents,
+                           0, 0, 1);
         
         Win32RedrawScreen(hdc);
-        
         EndPaint(hwnd, &ps);
     }break;
     
@@ -719,9 +705,9 @@ ThreadProc(LPVOID lpParameter){
     }
 }
 
-internal bool32
+internal b32
 Win32JobIsPending(Work_Queue *queue, u32 job_id){
-    bool32 result;
+    b32 result;
     u32 job_index;
     Full_Job_Data *full_job;
     
@@ -754,7 +740,7 @@ system_post_job(Thread_Group_ID group_id, Job_Data job){
     
     Assert((queue->write_position + 1) % QUEUE_WRAP != queue->read_position % QUEUE_WRAP);
     
-    bool32 success = 0;
+    b32 success = 0;
     u32 result = 0;
     while (!success){
         u32 write_index = queue->write_position;
@@ -816,7 +802,7 @@ system_cancel_job(Thread_Group_ID group_id, u32 job_id){
     }
 }
 
-internal bool32
+internal b32
 system_job_is_pending(Thread_Group_ID group_id, u32 job_id){
     Work_Queue *queue = win32vars.queues + group_id;;
     return Win32JobIsPending(queue, job_id);
@@ -1001,6 +987,9 @@ Win32LoadAppCode(){
 
 internal void
 Win32LoadSystemCode(){
+    win32vars.system->get_memory_full = system_get_memory_;
+    win32vars.system->free_memory = system_free_memory;
+
     win32vars.system->load_file = system_load_file;
     win32vars.system->save_file = system_save_file;
     win32vars.system->file_time_stamp = system_file_time_stamp;
@@ -1012,9 +1001,6 @@ Win32LoadSystemCode(){
 
     win32vars.system->get_file_list = system_get_file_list;
     win32vars.system->free_file_list = system_free_file_list;
-
-    win32vars.system->get_memory_full = system_get_memory_;
-    win32vars.system->free_memory = system_free_memory;
 
     win32vars.system->post_clipboard = system_post_clipboard;
     win32vars.system->time = system_time;
@@ -1045,7 +1031,6 @@ WinMain(HINSTANCE hInstance,
         LPSTR lpCmdLine,
         int nCmdShow){
     win32vars = {};
-    config_api = {};
     
     if (!Win32LoadAppCode()){
         // TODO(allen): Failed to load app code, serious problem.
@@ -1069,15 +1054,15 @@ WinMain(HINSTANCE hInstance,
     win32vars.internal_bubble.flags = MEM_BUBBLE_SYS_DEBUG;
 #endif
     
-    keycode_init(&win32vars.key_codes, &win32vars.loose_codes);
+    keycode_init(&win32vars.key_codes);
     
 #ifdef FRED_SUPER
     win32vars.custom = LoadLibraryA("4coder_custom.dll");
     if (win32vars.custom){
-        config_api.get_bindings = (Get_Binding_Data_Function*)
+        win32vars.config_api.get_bindings = (Get_Binding_Data_Function*)
             GetProcAddress(win32vars.custom, "get_bindings");
         
-        config_api.set_extra_font = (Set_Extra_Font_Function*)
+        win32vars.config_api.set_extra_font = (Set_Extra_Font_Function*)
             GetProcAddress(win32vars.custom, "set_extra_font");
     }
 #endif
@@ -1147,7 +1132,7 @@ WinMain(HINSTANCE hInstance,
         window_class.lpszClassName,
         WINDOW_NAME,
         WS_OVERLAPPEDWINDOW | WS_VISIBLE,
-        CW_USEDEFAULT/*x*/, CW_USEDEFAULT/*y*/,
+        CW_USEDEFAULT, CW_USEDEFAULT,
         window_rect.right - window_rect.left,
         window_rect.bottom - window_rect.top,
         0, 0, hInstance, 0);
@@ -1259,6 +1244,7 @@ WinMain(HINSTANCE hInstance,
             // TODO(allen): diagnostics
         }
 	}
+    
     else{
         if (IsClipboardFormatAvailable(CF_TEXT)){
             if (OpenClipboard(win32vars.window_handle)){
@@ -1276,9 +1262,9 @@ WinMain(HINSTANCE hInstance,
         }
     }
     
-	if (!win32vars.app.init(win32vars.system, &win32vars.main_thread,
+	if (!win32vars.app.init(win32vars.system,
                             &win32memory, &win32vars.key_codes,
-                            win32vars.clipboard_contents, config_api)){
+                            win32vars.clipboard_contents, win32vars.config_api)){
 		return 5;
 	}
 	
@@ -1288,7 +1274,7 @@ WinMain(HINSTANCE hInstance,
     system_acquire_lock(FRAME_LOCK);
     Thread_Context *thread = &win32vars.main_thread;
     AllowLocal(thread);
-	bool32 first = 1;
+	b32 first = 1;
 	i64 timer_start = system_time();
     
 	while (win32vars.keep_playing){
@@ -1391,14 +1377,15 @@ WinMain(HINSTANCE hInstance,
         i32 redraw = InterlockedExchange(&win32vars.force_redraw, 0);
         ProfileEnd(OS_input);
         
-		Application_Step_Result result =
-			win32vars.app.step(win32vars.system,
-                               &win32vars.main_thread, &win32vars.key_codes,
-                               &win32vars.input_data, &win32vars.mouse,
-                               1, &win32vars.target,
+        Application_Step_Result result =
+            win32vars.app.step(win32vars.system,
+                               &win32vars.key_codes,
+                               &win32vars.input_data,
+                               &win32vars.mouse,
+                               &win32vars.target,
                                &win32memory,
                                win32vars.clipboard_contents,
-                               first, redraw);
+                               1, first, redraw);
         
         ProfileStart(OS_frame_out);
 		first = 0;
@@ -1421,7 +1408,7 @@ WinMain(HINSTANCE hInstance,
         
         ProfileStart(frame_sleep);
 		i64 timer_end = system_time();
-		i64 end_target = (timer_start + FRAME_TIME);
+		i64 end_target = (timer_start + frame_useconds);
         
         system_release_lock(FRAME_LOCK);
 		while (timer_end < end_target){

@@ -1748,7 +1748,7 @@ step_draw_library(System_Functions *system,
 }
 
 internal
-DO_VIEW_SIG(do_color_view){
+Do_View_Sig(do_color_view){
     view->mouse_cursor_type = APP_MOUSE_CURSOR_ARROW;
     Color_View *color_view = (Color_View*)view;
     i32 result = 0;

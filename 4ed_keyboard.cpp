@@ -3,7 +3,7 @@
  *
  * 12.17.2014
  *
- * Win32-US Keyboard layer for project codename "4ed"
+ * Win32-US Keyboard layer for 4coder
  *
  */
 
@@ -13,10 +13,10 @@ globalvar u16 keycode_lookup_table[255];
 globalvar u16 loose_keycode_lookup_table[255];
 
 internal void
-keycode_init(Key_Codes *codes, Key_Codes *loose_codes){
+keycode_init(Key_Codes *codes){
 	// NOTE(allen): Assign values to the global keycodes.
 	// Skip over the ascii characters that are used as codes.
-	u16 code = 1;
+	u16 code = 1, loose;
 	u16 *codes_array = (u16*)codes;
 	for (i32 i = 0; i < sizeof(Key_Codes)/2;){
         switch (code){
@@ -28,13 +28,7 @@ keycode_init(Key_Codes *codes, Key_Codes *loose_codes){
             codes_array[i++] = code++;
         }
 	}
-	
-	code = 1;
-	codes_array = (u16*)loose_codes;
-	for (i32 i = 0; i < sizeof(Key_Codes)/2; ++i){
-		codes_array[i] = code++;
-	}
-	
+    
 	// NOTE(allen): lookup table for conversion from
 	// win32 vk values to fred_keycode values.
 	for (u8 i = 0; i < 255; ++i){
@@ -44,8 +38,7 @@ keycode_init(Key_Codes *codes, Key_Codes *loose_codes){
 			loose_keycode_lookup_table[i] = 0;
 		}
 		else{
-            
-            u16 code, loose = 0;
+            loose = 0;
 			switch (i){
             case VK_SPACE: code = loose = ' '; break;
             case VK_BACK: code = loose = codes->back; break;
@@ -106,7 +99,7 @@ loose_keycode_lookup(u8 virtual_keycode){
 	return loose_keycode_lookup_table[virtual_keycode];
 }
 
-inline bool32
+inline b32
 keycode_has_ascii(u16 keycode){
     return (keycode >= 0x20 && keycode < 0x7F) || keycode == '\n' || keycode == '\t';
 }
@@ -161,3 +154,4 @@ keycode_to_character_ascii(Key_Codes *codes,
 }
 
 // BOTTOM
+

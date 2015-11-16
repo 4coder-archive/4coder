@@ -38,13 +38,13 @@ enum View_Message{
 };
 
 struct View;
-#define DO_VIEW_SIG(name)                                               \
-    i32 (name)(System_Functions *system, Thread_Context *thread,        \
+#define Do_View_Sig(name)                                               \
+    i32 (name)(System_Functions *system,                                \
                View *view, i32_Rect rect, View *active,                 \
                View_Message message, Render_Target *target,             \
                Input_Summary *user_input, Input_Summary *active_input)
 
-typedef DO_VIEW_SIG(Do_View_Function);
+typedef Do_View_Sig(Do_View_Function);
 
 #define HANDLE_COMMAND_SIG(name)                                        \
     void (name)(System_Functions *system, View *view,                   \
@@ -193,7 +193,7 @@ live_set_alloc_view(Live_Views *live_set, Mem_Options *mem){
 inline void
 live_set_free_view(System_Functions *system, Live_Views *live_set, View *view){
     Assert(live_set->count > 0);
-    view->do_view(system, 0, view, {}, 0, VMSG_FREE, 0, {}, 0);
+    view->do_view(system, view, {}, 0, VMSG_FREE, 0, {}, 0);
     view->next_free = live_set->free_view;
     live_set->free_view = view;
     --live_set->count;

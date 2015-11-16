@@ -187,7 +187,7 @@ step_draw_int_view(System_Functions *system,
     return result;
 }
 
-DO_VIEW_SIG(do_interactive_view){
+Do_View_Sig(do_interactive_view){
     i32 result = 0;
     
     view->mouse_cursor_type = APP_MOUSE_CURSOR_ARROW;

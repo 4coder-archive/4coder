@@ -70,8 +70,15 @@
 #include "4ed.h"
 #include "4ed_rendering.h"
 
-#include <windows.h>
-#include <GL/gl.h>
+#if defined(_WIN32)
+#  include <windows.h>
+#  include <GL/gl.h>
+#elif defined(__linux__)
+#  include <SDL/SDL.h>
+#  include <GL/gl.h>
+#else
+#  error UNSUPPORTED PLATFORM
+#endif
 
 #include "4ed_internal.h"
 

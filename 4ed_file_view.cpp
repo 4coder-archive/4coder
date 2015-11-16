@@ -3720,7 +3720,7 @@ do_undo_slider(Widget_ID wid, UI_State *state, UI_Layout *layout, i32 max, i32 v
 }
 
 internal i32
-step_file_view(System_Functions *system, Thread_Context *thread, View *view_, i32_Rect rect,
+step_file_view(System_Functions *system, View *view_, i32_Rect rect,
                bool32 is_active, Input_Summary *user_input){
     view_->mouse_cursor_type = APP_MOUSE_CURSOR_IBEAM;
     i32 result = 0;
@@ -3944,7 +3944,7 @@ buffer_get_sync(Editing_File *file){
 }
 
 internal i32
-draw_file_view(Thread_Context *thread, View *view_, i32_Rect rect, bool32 is_active,
+draw_file_view(View *view_, i32_Rect rect, bool32 is_active,
                Render_Target *target){
     File_View *view = (File_View*)view_;
     Editing_File *file = view->file;
@@ -4363,7 +4363,7 @@ free_file_view(View *view){
 }
 
 internal
-DO_VIEW_SIG(do_file_view){
+Do_View_Sig(do_file_view){
     i32 result = 0;
     switch (message){
     case VMSG_RESIZE:
@@ -4373,11 +4373,11 @@ DO_VIEW_SIG(do_file_view){
     }break;
     case VMSG_DRAW:
     {
-        result = draw_file_view(thread, view, rect, (view == active), target);
+        result = draw_file_view(view, rect, (view == active), target);
     }break;
     case VMSG_STEP:
     {
-        result = step_file_view(system, thread, view, rect, (view == active), user_input);
+        result = step_file_view(system, view, rect, (view == active), user_input);
     }break;
     case VMSG_FREE:
     {

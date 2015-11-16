@@ -2691,7 +2691,6 @@ external App_Step_Sig(app_step){
     for (i32 i = 0; i < input->press_count; ++i){
         key_data.keys[key_data.count++] = input->press[i];
     }
-    
     for (i32 i = 0; i < input->hold_count; ++i){
         key_data.keys[key_data.count++] = input->hold[i];
     }
@@ -2720,15 +2719,15 @@ external App_Step_Sig(app_step){
     // NOTE(allen): detect mouse hover status
     i32 mx = mouse_data.mx;
     i32 my = mouse_data.my;
-    bool32 mouse_in_edit_area = 0;
-    bool32 mouse_in_margin_area = 0;
+    b32 mouse_in_edit_area = 0;
+    b32 mouse_in_margin_area = 0;
     Panel *mouse_panel = 0;
     i32 mouse_panel_i = 0;
     
     {
         Panel *panel = 0;
-        bool32 in_edit_area = 0;
-        bool32 in_margin_area = 0;
+        b32 in_edit_area = 0;
+        b32 in_margin_area = 0;
         i32 panel_count = vars->layout.panel_count;
         i32 panel_i;
         
@@ -2752,15 +2751,15 @@ external App_Step_Sig(app_step){
         }
     }
     
-    bool32 mouse_on_divider = 0;
-    bool32 mouse_divider_vertical = 0;
+    b32 mouse_on_divider = 0;
+    b32 mouse_divider_vertical = 0;
     i32 mouse_divider_id = 0;
     i32 mouse_divider_side = 0;
     
     if (mouse_in_margin_area){
-        bool32 resize_area = 0;
+        b32 resize_area = 0;
         i32 divider_id = 0;
-        bool32 seeking_v_divider = 0;
+        b32 seeking_v_divider = 0;
         i32 seeking_child_on_side = 0;
         Panel *panel = mouse_panel;
         if (mx >= panel->inner.x0 && mx < panel->inner.x1){
@@ -2840,7 +2839,7 @@ external App_Step_Sig(app_step){
                 i32 divider_id = div.id;
                 do{
                     Divider_And_ID other_div = layout_get_divider(&vars->layout, divider_id);
-                    bool32 divider_match = (other_div.divider->v_divider == mouse_divider_vertical);
+                    b32 divider_match = (other_div.divider->v_divider == mouse_divider_vertical);
                     i32 pos = other_div.divider->pos;
                     if (divider_match && pos > mid && pos < max){
                         max = pos;
@@ -2858,7 +2857,7 @@ external App_Step_Sig(app_step){
                 
                 while (top > 0){
                     Divider_And_ID other_div = layout_get_divider(&vars->layout, divider_stack[--top]);
-                    bool32 divider_match = (other_div.divider->v_divider == mouse_divider_vertical);
+                    b32 divider_match = (other_div.divider->v_divider == mouse_divider_vertical);
                     i32 pos = other_div.divider->pos;
                     if (divider_match && pos > mid && pos < max){
                         max = pos;
@@ -3025,12 +3024,12 @@ external App_Step_Sig(app_step){
             View *view_ = panel->view;
             if (view_){
                 Assert(view_->do_view);
-                bool32 active = (panel == active_panel);
+                b32 active = (panel == active_panel);
                 Input_Summary input = (active)?(active_input):(dead_input);
                 if (panel == mouse_panel){
                     input.mouse = mouse_data;
                 }
-                if (view_->do_view(system, thread, view_, panel->inner, active_view,
+                if (view_->do_view(system, view_, panel->inner, active_view,
                                    VMSG_STEP, 0, &input, &active_input)){
                     app_result.redraw = 1;
                 }
@@ -3199,12 +3198,12 @@ external App_Step_Sig(app_step){
                 View *view = panel->view;
                 if (view){
                     view->do_view(system,
-                                  thread, view, inner, active_view,
+                                  view, inner, active_view,
                                   VMSG_RESIZE, 0, &dead_input, &active_input);
                     view = (view->is_minor)?view->major:0;
                     if (view){
                         view->do_view(system,
-                                      thread, view, inner, active_view,
+                                      view, inner, active_view,
                                       VMSG_RESIZE, 0, &dead_input, &active_input);
                     }
                 }
@@ -3232,12 +3231,12 @@ external App_Step_Sig(app_step){
             View *view = panel->view;
             if (view){
                 view->do_view(system,
-                              thread, view, panel->inner, active_view,
+                              view, panel->inner, active_view,
                               VMSG_STYLE_CHANGE, 0, &dead_input, &active_input);
                 view = (view->is_minor)?view->major:0;
                 if (view){
                     view->do_view(system,
-                                  thread, view, panel->inner, active_view,
+                                  view, panel->inner, active_view,
                                   VMSG_STYLE_CHANGE, 0, &dead_input, &active_input);
                 }
             }
@@ -3257,19 +3256,18 @@ external App_Step_Sig(app_step){
             i32_Rect full = panel->full;
             i32_Rect inner = panel->inner;
             
-            View *view_ = panel->view;
+            View *view = panel->view;
             Style *style = &vars->style;
             
-            bool32 active = (panel == active_panel);
+            b32 active = (panel == active_panel);
             u32 back_color = style->main.back_color;
             draw_rectangle(target, full, back_color);
             
-            if (view_){
-                Assert(view_->do_view);
+            if (view){
+                Assert(view->do_view);
                 draw_push_clip(target, panel->inner);
-                view_->do_view(system,
-                               thread, view_, panel->inner, active_view,
-                               VMSG_DRAW, target, &dead_input, &active_input);
+                view->do_view(system, view, panel->inner, active_view,
+                              VMSG_DRAW, target, &dead_input, &active_input);
                 draw_pop_clip(target);
             }
             

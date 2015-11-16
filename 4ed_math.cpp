@@ -23,16 +23,15 @@
 
 inline real32
 ABS(real32 x){
-#if C_MATH
-    return abs(x);
-#endif
+    if (x < 0) x = -x;
+    return x;
 }
 
 inline real32
 MOD(real32 x, i32 m){
 #if C_MATH
     real32 whole, frac;
-    frac = modf(x, &whole);
+    frac = modff(x, &whole);
     return ((i32)(whole) % m) + frac;
 #endif
 }
