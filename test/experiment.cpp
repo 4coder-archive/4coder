@@ -9,21 +9,6 @@
 
 // TOP
 
-// HOLY GRAIL
-#if 0
-int main(){
-    Parse_Context context;
-    Parse_Definitions definitions;
-    Cpp_Parse_Preprocessor_State state;
-    
-    cpp_default_context(&context, COMPILER_MSVC, PLATFORM_WIN32);
-    cpp_default_definitions(&definitions, COMPILER_MSVC, PLATFORM_WIN32);
-    cpp_set_target_file(&definitions, &state, "TARGET.cpp");
-    
-    cpp_parse(&context, &definitions, &state);
-}
-#endif
-
 #include "../4ed_meta.h"
 
 #include "../4cpp_types.h"
@@ -31,6 +16,7 @@ int main(){
 #include "../4cpp_string.h"
 #define FCPP_LEXER_IMPLEMENTATION
 #include "../4cpp_lexer.h"
+#include "../4cpp_preprocessor.cpp"
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -58,20 +44,21 @@ system_is_absoute_path(char *path){
 #define Assert assert
 #define TentativeAssert assert
 
-#include "../4cpp_preprocessor.cpp"
-
 Cpp_File
 quickie_file(char *filename){
-    Cpp_File result;
+    Cpp_File result = {};
     
     FILE *file = fopen(filename, "rb");
-    TentativeAssert(file);
-    fseek(file, 0, SEEK_END);
-    result.size = ftell(file);
-    fseek(file, 0, SEEK_SET);
-    result.data = (char*)malloc(result.size);
-    fread(result.data, 1, result.size, file);
-    fclose(file);
+    if (file){
+        fseek(file, 0, SEEK_END);
+        result.size = ftell(file);
+        if (result.size > 0){
+            fseek(file, 0, SEEK_SET);
+            result.data = (char*)malloc(result.size);
+            fread(result.data, 1, result.size, file);
+        }
+        fclose(file);
+    }
     
     return result;
 }
@@ -87,12 +74,20 @@ quickie_file(String filename){
 
 #define STRICT_MEM_TEST 1
 
-#if 1
-int main(){
-    char TEST_FILE[] = "parser_test6.cpp";
+int main(int argc, char **argv){
+    if (argc < 2){
+        printf("usage: %s <file>\n", argv[0]);
+        return 1;
+    }
+    char *TEST_FILE = argv[1];
     
     Cpp_File target_file;
     target_file = quickie_file(TEST_FILE);
+
+    if (target_file.data == 0){
+        printf("could not open file %s\n", TEST_FILE);
+        exit(1);
+    }
     
     Cpp_Token_Stack target_tokens = {};
     cpp_lex_file(target_file, &target_tokens);
@@ -138,7 +133,7 @@ int main(){
 #endif
         string_tokens.tokens = (Cpp_Token*)malloc(sizeof(Cpp_Token)*string_tokens.max_count);
         
-        Cpp_Parse_File string_parse_file;
+        Cpp_File_Data string_parse_file;
         string_parse_file.file = string_file;
         string_parse_file.tokens = string_tokens;
         string_parse_file.filename = string_filename;
@@ -201,6 +196,10 @@ int main(){
             for (; cpp_has_more_files(&request); cpp_get_next_file(&request)){
                 if (!cpp_try_reuse_file(&request)){
                     Cpp_File new_file = quickie_file(request.filename);
+                    if (new_file.data == 0){
+                        printf("could not open file %s\n", request.filename);
+                        exit(1);
+                    }
                     Cpp_Token_Stack new_tokens = {};
                     cpp_lex_file(new_file, &new_tokens);
                     cpp_provide_file(&request, new_file, new_tokens);
@@ -210,7 +209,7 @@ int main(){
         
         if (result.error_code){
             String error_message = cpp_get_error(result.error_code);
-            Cpp_Parse_File file = *cpp_get_parse_file(&definitions, result.file_index);
+            Cpp_File_Data file = *cpp_get_parse_file(&definitions, result.file_index);
             Cpp_Token token = file.tokens.tokens[result.token_index];
             bool terminate = cpp_recommend_termination(result.error_code);
             
@@ -229,11 +228,11 @@ int main(){
         }
         
         if (result.emit){
-            Cpp_Parse_File file = *cpp_get_parse_file(&definitions, result.file_index);
+            Cpp_File_Data file = *cpp_get_parse_file(&definitions, result.file_index);
             Cpp_Token token = file.tokens.tokens[result.token_index];
             
             if (result.from_macro){
-                Cpp_Parse_File file = *cpp_get_parse_file(&definitions, result.invoking_file_index);
+                Cpp_File_Data file = *cpp_get_parse_file(&definitions, result.invoking_file_index);
                 Cpp_Token token = file.tokens.tokens[result.invoking_token_index];
                 
                 printf("EXPANDING %.*s => ", token.size, file.file.data + token.start);
@@ -249,7 +248,6 @@ int main(){
     
     return 0;
 }
-#endif
 
 // BOTTOM
 

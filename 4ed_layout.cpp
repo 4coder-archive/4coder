@@ -26,7 +26,7 @@ struct Interactive_Bar{
 	real32 pos_x, pos_y;
     real32 text_shift_x, text_shift_y;
     i32_Rect rect;
-    Font *font;
+    Render_Font *font;
 };
 
 enum View_Message{
@@ -135,7 +135,7 @@ struct Editing_Layout{
 internal void
 intbar_draw_string(Render_Target *target, Interactive_Bar *bar,
                    u8 *str, u32 char_color){
-    Font *font = bar->font;
+    Render_Font *font = bar->font;
     for (i32 i = 0; str[i]; ++i){
         char c = str[i];
         font_draw_glyph(target, font, c,
@@ -150,7 +150,7 @@ internal void
 intbar_draw_string(Render_Target *target,
                    Interactive_Bar *bar, String str,
                    u32 char_color){
-    Font *font = bar->font;
+    Render_Font *font = bar->font;
 	for (i32 i = 0; i < str.size; ++i){
         char c = str.str[i];
 		font_draw_glyph(target, font, c,

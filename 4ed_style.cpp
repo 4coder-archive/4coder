@@ -214,7 +214,7 @@ struct Style_File_Format{
 struct Style{
     char name_[24];
     String name;
-	Font *font;
+	Render_Font *font;
     Style_Main_Data main;
     bool32 font_changed;
 };
@@ -225,7 +225,7 @@ struct Style_Library{
 };
 
 struct Font_Set{
-    Font *fonts;
+    Render_Font *fonts;
     i32 count, max;
 };
 
@@ -243,12 +243,12 @@ style_set_name(Style *style, String name){
     copy(&style->name, name);
 }
 
-internal Font*
+internal Render_Font*
 font_set_extract(Font_Set *fonts, char *name, i32 size){
     String n = make_string(name, size);
     i32 count = fonts->count;
-    Font *result = 0;
-    Font *font = fonts->fonts;
+    Render_Font *result = 0;
+    Render_Font *font = fonts->fonts;
     for (i32 i = 0; i < count; ++i, ++font){
         if (match(n, font->name)){
             result = font;
@@ -479,7 +479,7 @@ style_library_import(System_Functions *system,
                      char *filename, Font_Set *fonts, Style *out, i32 max,
                      i32 *count_opt, i32 *total_opt = 0){
     b32 result = 1;
-    File_Data file = system->load_file(filename);
+    Data file = system->load_file(filename);
     Style_Page_Header *h = 0;
     
     if (!file.data){
@@ -573,7 +573,7 @@ style_library_add(Style_Library *library, Style *style){
 
 internal Style_File_Format*
 style_format_for_file(Style *style, Style_File_Format *out){
-    Font *font = style->font;
+    Render_Font *font = style->font;
     out->name_size = style->name.size;
     memcpy(out->name, style->name.str, ArrayCount(out->name));
     out->font_name_size = font->name.size;

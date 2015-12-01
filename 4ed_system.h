@@ -15,17 +15,12 @@ struct Plat_Handle{
     u32 d[4];
 };
 
-struct File_Data{
-  void *data;
-  u32 size;
-};
-
 struct Time_Stamp{
     u64 time;
     b32 success;
 };
 
-#define Sys_Load_File_Sig(name) File_Data name(char *filename)
+#define Sys_Load_File_Sig(name) Data name(char *filename)
 typedef Sys_Load_File_Sig(System_Load_File);
 
 #define Sys_Save_File_Sig(name) i32 name(char *filename, void *data, i32 size)
@@ -40,10 +35,8 @@ typedef Sys_File_Time_Stamp_Sig(System_File_Time_Stamp);
 #define Sys_Time_Stamp_Now_Sig(name) u64 name()
 typedef Sys_Time_Stamp_Now_Sig(System_Time_Stamp_Now);
 
-#if 0
-#define Sys_Free_File_Sig(name) void name(File_Data file)
+#define Sys_Free_File_Sig(name) void name(Data file)
 typedef Sys_Free_File_Sig(System_Free_File);
-#endif
 
 #define Sys_Get_Current_Directory_Sig(name) i32 name(char *out, i32 max)
 typedef Sys_Get_Current_Directory_Sig(System_Get_Current_Directory);
@@ -127,8 +120,9 @@ struct Thread_Memory{
     i32 id;
 };
 
-#define Job_Callback(name) void name(System_Functions *system, Thread_Context *thread, Thread_Memory *memory, void *data[2])
-typedef Job_Callback(Job_Callback);
+#define Job_Callback_Sig(name) void name(\
+        System_Functions *system, Thread_Context *thread, Thread_Memory *memory, void *data[2])
+typedef Job_Callback_Sig(Job_Callback);
 
 struct Job_Data{
     Job_Callback *callback;
@@ -169,6 +163,9 @@ typedef INTERNAL_Sys_Sentinel_Sig(INTERNAL_System_Sentinel);
 #define INTERNAL_Sys_Get_Thread_States_Sig(name) void name(Thread_Group_ID id, b8 *running, i32 *pending)
 typedef INTERNAL_Sys_Get_Thread_States_Sig(INTERNAL_System_Get_Thread_States);
 
+#define INTERNAL_Sys_Debug_Message_Sig(name) void name(char *message)
+typedef INTERNAL_Sys_Debug_Message_Sig(INTERNAL_System_Debug_Message);
+
 struct System_Functions{
     System_Load_File *load_file;
     System_Save_File *save_file;
@@ -206,6 +203,7 @@ struct System_Functions{
     
     INTERNAL_System_Sentinel *internal_sentinel;
     INTERNAL_System_Get_Thread_States *internal_get_thread_states;
+    INTERNAL_System_Debug_Message *internal_debug_message;
 };
 
 // BOTTOM

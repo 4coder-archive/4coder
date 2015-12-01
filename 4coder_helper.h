@@ -92,32 +92,67 @@ end_map(Bind_Helper *helper){
     helper->group = 0;
 }
 
+struct Bind_Target{
+    short code;
+    unsigned char modifiers;
+};
+
+inline Bind_Target
+ekey(short code, unsigned char modifiers){
+    Bind_Target target;
+    target.code = code;
+    target.modifiers = modifiers | MDFR_EXACT;
+    return target;
+}
+
+inline Bind_Target
+tkey(short code, unsigned char modifiers){
+    Bind_Target target;
+    target.code = code;
+    target.modifiers = modifiers;
+    return target;
+}
+
 inline void
-bind(Bind_Helper *helper, short code, unsigned char modifiers, int cmdid){
+bind(Bind_Helper *helper, Bind_Target target, int cmdid){
     if (helper->group == 0 && helper->error == 0) helper->error = BH_ERR_MISSING_BEGIN;
     if (!helper->error) ++helper->group->map_begin.bind_count;
     
     Binding_Unit unit;
     unit.type = unit_binding;
     unit.binding.command_id = cmdid;
-    unit.binding.code = code;
-    unit.binding.modifiers = modifiers;
+    unit.binding.code = target.code;
+    unit.binding.modifiers = target.modifiers;
     
     write_unit(helper, unit);
 }
 
 inline void
-bind_me(Bind_Helper *helper, short code, unsigned char modifiers, Custom_Command_Function *func){
+bind_me(Bind_Helper *helper, Bind_Target target, Custom_Command_Function *func){
     if (helper->group == 0 && helper->error == 0) helper->error = BH_ERR_MISSING_BEGIN;
     if (!helper->error) ++helper->group->map_begin.bind_count;
     
     Binding_Unit unit;
     unit.type = unit_callback;
     unit.callback.func = func;
-    unit.callback.code = code;
-    unit.callback.modifiers = modifiers;
+    unit.callback.code = target.code;
+    unit.callback.modifiers = target.modifiers;
     
     write_unit(helper, unit);
+}
+
+inline void
+bind(Bind_Helper *helper, short code, unsigned char modifiers, int cmdid){
+    Bind_Target target;
+    target.code = tkey(code, modifiers);
+    bind(helper, target, cmdid);
+}
+
+inline void
+bind_me(Bind_Helper *helper, short code, unsigned char modifiers, Custom_Command_Function *func){
+    Bind_Target target;
+    target.code = tkey(code, modifiers);
+    bind_me(helper, target, func);
 }
 
 inline void
@@ -128,6 +163,16 @@ bind_vanilla_keys(Bind_Helper *helper, int cmdid){
 inline void
 bind_me_vanilla_keys(Bind_Helper *helper, Custom_Command_Function *func){
     bind_me(helper, 0, 0, func);
+}
+
+inline void
+bind_vanilla_keys(Bind_Helper *helper, unsigned char modifiers, int cmdid){
+    bind(helper, 0, modifiers, cmdid);
+}
+
+inline void
+bind_me_vanilla_keys(Bind_Helper *helper, unsigned char modifiers, Custom_Command_Function *func){
+    bind_me(helper, 0, modifiers, func);
 }
 
 inline void

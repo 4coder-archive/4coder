@@ -9,47 +9,7 @@
 
 // TOP
 
-#ifdef FRED_NOT_PACKAGE
-
-#define FRED_INTERNAL 1
-#define FRED_SLOW 1
-
-#define FRED_PRINT_DEBUG 1
-#define FRED_PRINT_DEBUG_FILE_LINE 0
-#define FRED_PROFILING 1
-#define FRED_PROFILING_OS 0
-#define FRED_FULL_ERRORS 0
-
-#else
-
-#define FRED_SLOW 0
-#define FRED_INTERNAL 0
-
-#define FRED_PRINT_DEBUG 0
-#define FRED_PRINT_DEBUG_FILE_LINE 0
-#define FRED_PROFILING 0
-#define FRED_PROFILING_OS 0
-#define FRED_FULL_ERRORS 0
-
-#endif
-
-#define SOFTWARE_RENDER 0
-
-#if FRED_INTERNAL == 0
-#undef FRED_PRINT_DEBUG
-#define FRED_PRINT_DEBUG 0
-#undef FRED_PROFILING
-#define FRED_PROFILING 0
-#undef FRED_PROFILING_OS
-#define FRED_PROFILING_OS 0
-#endif
-
-#if FRED_PRINT_DEBUG == 0
-#undef FRED_PRINT_DEBUG_FILE_LINE
-#define FRED_PRINT_DEBUG_FILE_LINE 0
-#undef FRED_PRINT_DEBUG_FILE_LINE
-#define FRED_PROFILING_OS 0
-#endif
+#include "4ed_config.h"
 
 #define FPS 30
 #define frame_useconds (1000000 / FPS)
@@ -63,18 +23,21 @@
 #include "4cpp_string.h"
 
 #include "4ed_mem.cpp"
-
 #include "4ed_math.cpp"
+
+#include "4ed_dll_reader.h"
 #include "4coder_custom.h"
 #include "4ed_system.h"
-#include "4ed.h"
 #include "4ed_rendering.h"
+#include "4ed.h"
 
 #include <windows.h>
 #include <GL/gl.h>
 
+#include "4ed_dll_reader.cpp"
+#include "4ed_rendering.cpp"
 #include "4ed_internal.h"
-#include "4ed_keyboard.cpp"
+#include "4ed_win32_keyboard.cpp"
 
 struct Full_Job_Data{
     Job_Data job;
@@ -108,24 +71,14 @@ struct Thread_Group{
     i32 count;
 };
 
+#define UseWinDll 0
+
 struct Win32_Vars{
 	HWND window_handle;
 	Key_Codes key_codes;
 	Key_Input_Data input_data, previous_data;
     
-#if SOFTWARE_RENDER
-	BITMAPINFO bmp_info;
-	union{
-		struct{
-			void *pixel_data;
-			i32 width, height, pitch;
-		};
-		Render_Target target;
-	};
-	i32 true_pixel_size;
-#else
     Render_Target target;
-#endif
     
     u32 volatile force_redraw;
     
@@ -153,7 +106,11 @@ struct Win32_Vars{
     i64 start_pcount;
     
     HMODULE custom;
+#if UseWinDll
     HMODULE app_code;
+#else
+    DLL_Loaded app_dll;
+#endif
     
     System_Functions *system;
     App_Functions app;
@@ -167,10 +124,18 @@ struct Win32_Vars{
 globalvar Win32_Vars win32vars;
 globalvar Application_Memory win32memory;
 
+#if FRED_INTERNAL
 internal Bubble*
 INTERNAL_system_sentinel(){
     return (&win32vars.internal_bubble);
 }
+
+internal void
+INTERNAL_system_debug_message(char *message){
+    OutputDebugString(message);
+}
+
+#endif
 
 internal void*
 system_get_memory_(i32 size, i32 line_number, char *file_name){
@@ -213,9 +178,9 @@ system_free_memory(void *block){
     }
 }
 
-internal File_Data
+internal Data
 system_load_file(char *filename){
-    File_Data result = {};
+    Data result = {};
     HANDLE file;
     file = CreateFile((char*)filename, GENERIC_READ, 0, 0,
                       OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
@@ -232,7 +197,7 @@ system_load_file(char *filename){
     }
     
     result.size = (lo) + (((u64)hi) << 32);
-    result.data = system_get_memory(result.size);
+    result.data = (byte*)system_get_memory(result.size);
     
     if (!result.data){
         CloseHandle(file);
@@ -243,7 +208,7 @@ system_load_file(char *filename){
     DWORD read_size;
     BOOL read_result = ReadFile(file, result.data, result.size,
                                 &read_size, 0);
-    if (!read_result || read_size != result.size){
+    if (!read_result || read_size != (u32)result.size){
         CloseHandle(file);
         system_free_memory(result.data);
         result = {};
@@ -316,7 +281,7 @@ system_time(){
 }
 
 internal void
-system_free_file(File_Data data){
+system_free_file(Data data){
     system_free_memory(data.data);
 }
 
@@ -437,31 +402,13 @@ system_post_clipboard(String str){
 	}
 }
 
-#if SOFTWARE_RENDER
 internal void
 Win32RedrawScreen(HDC hdc){
-	win32vars.bmp_info.bmiHeader.biHeight =
-		-win32vars.bmp_info.bmiHeader.biHeight;
-	SetDIBitsToDevice(hdc,
-					  0, 0,
-					  win32vars.width, win32vars.height,
-					  0, 0,
-					  0, win32vars.height,
-					  win32vars.pixel_data,
-					  &win32vars.bmp_info,
-					  DIB_RGB_COLORS);
-	win32vars.bmp_info.bmiHeader.biHeight =
-		-win32vars.bmp_info.bmiHeader.biHeight;
-}
-
-#else
-
-internal void
-Win32RedrawScreen(HDC hdc){
+    launch_rendering(&win32vars.target);
+    win32vars.target.size = 0;
     glFlush();
     SwapBuffers(hdc);
 }
-#endif
 
 internal void
 Win32Resize(i32 width, i32 height){
@@ -583,43 +530,19 @@ Win32Callback(HWND hwnd, UINT uMsg,
     
     case WM_SIZE:
     {
-#if SOFTWARE_RENDER
-        i32 new_width = LOWORD(lParam);
-        i32 new_height = HIWORD(lParam);
-        i32 new_pitch = new_width * 4;
-        
-        if (new_height*new_pitch > win32vars.true_pixel_size){
-            system_free_memory(win32vars.pixel_data);
-            
-            win32vars.pixel_data = system_get_memory(new_height*new_pitch);
-            win32vars.true_pixel_size = new_height*new_pitch;
-            
-            if (!win32vars.pixel_data){
-                win32vars.keep_playing = 0;
-            }
-        }
-        
-        win32vars.width = new_width;
-        win32vars.height = new_height;
-        win32vars.pitch = new_pitch;
-        
-        win32vars.bmp_info.bmiHeader.biWidth = win32vars.width;
-        win32vars.bmp_info.bmiHeader.biHeight = win32vars.height;
-#else
         if (win32vars.target.handle){
             i32 new_width = LOWORD(lParam);
             i32 new_height = HIWORD(lParam);
             
             Win32Resize(new_width, new_height);
         }
-#endif
     }break;
     
     case WM_PAINT:
     {
         PAINTSTRUCT ps;
         HDC hdc = BeginPaint(hwnd, &ps);
-        
+
         Clipboard_Contents empty_contents = {};
         win32vars.app.step(win32vars.system,
                            &win32vars.key_codes,
@@ -755,6 +678,8 @@ system_post_job(Thread_Group_ID group_id, Job_Data job){
             queue->jobs[write_index].running_thread = THREAD_NOT_ASSIGNED;
             queue->jobs[write_index].id = result;
             success = 1;
+
+            // TODO
         }
     }
     
@@ -969,10 +894,16 @@ system_cli_end_update(CLI_Handles *cli){
     return close_me;
 }
 
+void
+DUMP(byte *d, i32 size){
+    //system_save_file("DUMP", d, size);
+}
+
 internal b32
 Win32LoadAppCode(){
     b32 result = 0;
-    
+
+#if UseWinDll
     win32vars.app_code = LoadLibraryA("4ed_app.dll");
     if (win32vars.app_code){
         result = 1;
@@ -981,6 +912,50 @@ Win32LoadAppCode(){
         win32vars.app.step = (App_Step*)
             GetProcAddress(win32vars.app_code, "app_step");
     }
+
+    DUMP((byte*)(win32vars.app.step) - 0x39000, Kbytes(400));
+#else
+    Data file = system_load_file("4ed_app.dll");
+
+    if (file.data){
+        i32 error;
+        DLL_Data dll_data;
+        if (dll_parse_headers(file, &dll_data, &error)){
+            Data img;
+            img.size = dll_total_loaded_size(&dll_data);
+            img.data = (byte*)
+                VirtualAlloc((LPVOID)Tbytes(3), img.size,
+                             MEM_COMMIT | MEM_RESERVE,
+                             PAGE_READWRITE);
+
+            dll_load(img, &win32vars.app_dll, file, &dll_data);
+
+            DWORD extra_;
+            VirtualProtect(img.data + win32vars.app_dll.text_start,
+                           win32vars.app_dll.text_size,
+                           PAGE_EXECUTE_READ,
+                           &extra_);
+
+            result = 1;
+            win32vars.app.init = (App_Init*)
+                dll_load_function(&win32vars.app_dll, "app_init", 8);
+            
+            win32vars.app.step = (App_Step*)
+                dll_load_function(&win32vars.app_dll, "app_step", 8);
+        }
+        else{
+            // TODO(allen): file loading error
+        }
+
+        system_free_file(file);
+        
+        DUMP((byte*)(Tbytes(3)), Kbytes(400));
+    }
+    else{
+        // TODO(allen): file loading error
+    }
+    
+#endif
 
     return result;
 }
@@ -1023,6 +998,7 @@ Win32LoadSystemCode(){
     
     win32vars.system->internal_sentinel = INTERNAL_system_sentinel;
     win32vars.system->internal_get_thread_states = INTERNAL_get_thread_states;
+    win32vars.system->internal_debug_message = INTERNAL_system_debug_message;
 }
 
 int
@@ -1031,6 +1007,12 @@ WinMain(HINSTANCE hInstance,
         LPSTR lpCmdLine,
         int nCmdShow){
     win32vars = {};
+    
+#if FRED_INTERNAL
+    win32vars.internal_bubble.next = &win32vars.internal_bubble;
+    win32vars.internal_bubble.prev = &win32vars.internal_bubble;
+    win32vars.internal_bubble.flags = MEM_BUBBLE_SYS_DEBUG;
+#endif
     
     if (!Win32LoadAppCode()){
         // TODO(allen): Failed to load app code, serious problem.
@@ -1047,12 +1029,6 @@ WinMain(HINSTANCE hInstance,
     win32vars.performance_frequency = lpf.QuadPart;
     QueryPerformanceCounter(&lpf);
     win32vars.start_pcount = lpf.QuadPart;
-    
-#if FRED_INTERNAL
-    win32vars.internal_bubble.next = &win32vars.internal_bubble;
-    win32vars.internal_bubble.prev = &win32vars.internal_bubble;
-    win32vars.internal_bubble.flags = MEM_BUBBLE_SYS_DEBUG;
-#endif
     
     keycode_init(&win32vars.key_codes);
     
@@ -1120,12 +1096,8 @@ WinMain(HINSTANCE hInstance,
     if (!AdjustWindowRect(&window_rect, WS_OVERLAPPEDWINDOW, false)){
         // TODO(allen): non-fatal diagnostics
     }
-    
-#if SOFTWARE_RENDER
-#define WINDOW_NAME "4coder-softrender-window"
-#else
+
 #define WINDOW_NAME "4coder-window"
-#endif
     
     HWND window_handle = {};
     window_handle = CreateWindowA(
@@ -1146,30 +1118,7 @@ WinMain(HINSTANCE hInstance,
     HDC hdc = GetDC(window_handle);
     
     GetClientRect(window_handle, &window_rect);
-    
-#if SOFTWARE_RENDER
-    win32vars.width = window_rect.right - window_rect.left;
-    win32vars.height = window_rect.bottom - window_rect.top;
-    
-    win32vars.pitch = win32vars.width*4;
-#define bmi_header win32vars.bmp_info.bmiHeader
-    bmi_header = {};
-    bmi_header.biSize = sizeof(BITMAPINFOHEADER);
-    bmi_header.biWidth = win32vars.width;
-    bmi_header.biHeight = win32vars.height;
-    bmi_header.biPlanes = 1;
-    bmi_header.biBitCount = 32;
-    bmi_header.biCompression = BI_RGB;
-#undef bmi_header
-    
-	win32vars.true_pixel_size = win32vars.height*win32vars.pitch;
-	win32vars.pixel_data = system_get_memory(win32vars.true_pixel_size);
-    
-	if (!win32vars.pixel_data){
-		return 3;
-	}
-    
-#else
+
     static PIXELFORMATDESCRIPTOR pfd = {
         sizeof(PIXELFORMATDESCRIPTOR),
         1,
@@ -1204,7 +1153,6 @@ WinMain(HINSTANCE hInstance,
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     
     Win32Resize(window_rect.right - window_rect.left, window_rect.bottom - window_rect.top);
-#endif
     
     LPVOID base;
 #if FRED_INTERNAL
@@ -1261,8 +1209,16 @@ WinMain(HINSTANCE hInstance,
             }
         }
     }
+
+    win32vars.target.push_clip = draw_push_clip;
+    win32vars.target.pop_clip = draw_pop_clip;
+    win32vars.target.push_piece = draw_push_piece;
+    win32vars.target.font_load = draw_font_load;
+
+    win32vars.target.max = Mbytes(1);
+    win32vars.target.push_buffer = (byte*)system_get_memory(win32vars.target.max);
     
-	if (!win32vars.app.init(win32vars.system,
+	if (!win32vars.app.init(win32vars.system, &win32vars.target,
                             &win32memory, &win32vars.key_codes,
                             win32vars.clipboard_contents, win32vars.config_api)){
 		return 5;
@@ -1329,24 +1285,20 @@ WinMain(HINSTANCE hInstance,
 		b32 caps_lock = win32vars.input_data.caps_lock;
         for (i32 i = 0; i < win32vars.input_data.press_count; ++i){
             i16 keycode = win32vars.input_data.press[i].keycode;
-			win32vars.input_data.press[i].character =
-				keycode_to_character_ascii(&win32vars.key_codes, keycode,
-										   shift, caps_lock);
             
+			win32vars.input_data.press[i].character =
+				translate_key(keycode, shift, caps_lock);            
 			win32vars.input_data.press[i].character_no_caps_lock =
-				keycode_to_character_ascii(&win32vars.key_codes, keycode,
-										   shift, 0);
+				translate_key(keycode, shift, 0);
 		}
         
         for (i32 i = 0; i < win32vars.input_data.hold_count; ++i){
             i16 keycode = win32vars.input_data.hold[i].keycode;
+            
 			win32vars.input_data.hold[i].character =
-				keycode_to_character_ascii(&win32vars.key_codes, keycode,
-										   shift, caps_lock);
-			
+				translate_key(keycode, shift, caps_lock);
 			win32vars.input_data.hold[i].character_no_caps_lock =
-				keycode_to_character_ascii(&win32vars.key_codes, keycode,
-										   shift, 0);
+				translate_key(keycode, shift, 0);
 		}
 		
 		win32vars.clipboard_contents = {};
@@ -1392,13 +1344,10 @@ WinMain(HINSTANCE hInstance,
 		switch (result.mouse_cursor_type){
 			case APP_MOUSE_CURSOR_ARROW:
 				SetCursor(win32vars.cursor_arrow); break;
-                
 			case APP_MOUSE_CURSOR_IBEAM:
 				SetCursor(win32vars.cursor_ibeam); break;
-                
 			case APP_MOUSE_CURSOR_LEFTRIGHT:
 				SetCursor(win32vars.cursor_leftright); break;
-                
 			case APP_MOUSE_CURSOR_UPDOWN:
                 SetCursor(win32vars.cursor_updown); break;
 		}

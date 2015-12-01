@@ -125,14 +125,14 @@ view_to_color_view(View *view){
 
 internal void
 draw_gradient_slider(Render_Target *target, Vec4 base, i32 channel,
-                     i32 steps, real32 top, real32_Rect slider, bool32 hsla){
+                     i32 steps, f32 top, f32_Rect slider, b32 hsla){
     Vec4 low, high;
-    real32 *lowv, *highv;
-    real32 x;
-    real32 next_x;
-    real32 x_step;
-    real32 v_step;
-    real32 m;
+    f32 *lowv, *highv;
+    f32 x;
+    f32 next_x;
+    f32 x_step;
+    f32 v_step;
+    f32 m;
     
     x = (real32)slider.x0;
     x_step = (real32)(slider.x1 - slider.x0) / steps;
@@ -176,21 +176,21 @@ draw_gradient_slider(Render_Target *target, Vec4 base, i32 channel,
 }
 
 inline void
-draw_hsl_slider(Render_Target *target, Vec4 base, i32 channel, i32 steps, real32 top,
-                real32_Rect slider){
+draw_hsl_slider(Render_Target *target, Vec4 base, i32 channel,
+                i32 steps, real32 top, f32_Rect slider){
     draw_gradient_slider(target, base, channel, steps, top, slider, 1);
 }
 
 inline void
-draw_rgb_slider(Render_Target *target, Vec4 base, i32 channel, i32 steps, real32 top,
-                real32_Rect slider){
+draw_rgb_slider(Render_Target *target, Vec4 base, i32 channel,
+                i32 steps, f32 top, f32_Rect slider){
     draw_gradient_slider(target, base, channel, steps, top, slider, 0);
 }
 
 internal void
 do_label(UI_State *state, UI_Layout *layout, char *text, real32 height = 2.f){
     Style *style = state->style;
-    Font *font = style->font;
+    Render_Font *font = style->font;
     i32_Rect label = layout_rect(layout, FLOOR32(font->height * height));
     
     if (!state->input_stage){
@@ -274,7 +274,6 @@ do_scroll_bar(UI_State *state, i32_Rect rect){
         get_colors(state, &back, &fore, wid, ui_style);
         draw_rectangle(target, top_arrow, back);
         draw_rectangle_outline(target, top_arrow, outline);
-        draw_triangle_3corner(target, x0, y0, x1, y1, x2, y2, fore);
         
         ++wid.sub_id2;
         y0 = (w_2_3 + bottom_arrow.y0);
@@ -283,7 +282,6 @@ do_scroll_bar(UI_State *state, i32_Rect rect){
         get_colors(state, &back, &fore, wid, ui_style);
         draw_rectangle(target, bottom_arrow, back);
         draw_rectangle_outline(target, bottom_arrow, outline);
-        draw_triangle_3corner(target, x0, y0, x1, y1, x2, y2, fore);
         
         ++wid.sub_id2;
         get_colors(state, &back, &fore, wid, ui_style);
@@ -295,10 +293,10 @@ do_scroll_bar(UI_State *state, i32_Rect rect){
 }
 
 internal void
-do_single_slider(i32 sub_id, Color_UI *ui, i32 channel, bool32 is_rgba,
-                 i32 grad_steps, real32 top, real32_Rect slider, real32 v_handle,
+do_single_slider(i32 sub_id, Color_UI *ui, i32 channel, b32 is_rgba,
+                 i32 grad_steps, f32 top, f32_Rect slider, f32 v_handle,
                  i32_Rect rect){
-    real32_Rect click_box = slider;
+    f32_Rect click_box = slider;
     click_box.y0 -= v_handle;
     
     if (ui->state.input_stage){
@@ -349,7 +347,7 @@ internal void
 do_hsl_sliders(Color_UI *ui, i32_Rect rect){
     real32 bar_width = (real32)(rect.x1 - rect.x0 - 20);
     if (bar_width > 45){
-        real32_Rect slider;
+        f32_Rect slider;
         real32 y;
         i32 sub_id;
         
@@ -410,7 +408,7 @@ do_channel_field(i32 sub_id, Color_UI *ui, u8 *channel, Channel_Field_Type ftype
                  i32 y, u32 color, u32 back, i32 x0, i32 x1){
     bool32 result = 0;
     Render_Target *target = ui->state.target;
-    Font *font = ui->state.font;
+    Render_Font *font = ui->state.font;
     
     i32_Rect hit_region;
     hit_region.x0 = x0;
@@ -509,7 +507,7 @@ do_channel_field(i32 sub_id, Color_UI *ui, u8 *channel, Channel_Field_Type ftype
             }
         }
         else{
-            real32_Rect r = f32R(hit_region);
+            f32_Rect r = f32R(hit_region);
             r.x0 += indx*ui->hex_advance+1;
             r.x1 = r.x0+ui->hex_advance+1;
             draw_rectangle(target, r, back);
@@ -537,8 +535,8 @@ do_rgb_sliders(Color_UI *ui, i32_Rect rect){
     rect.x0 = hex_x1;
     real32 bar_width = (real32)(rect.x1 - rect.x0 - 20);
     
-    real32_Rect slider;
-    real32 y;
+    f32_Rect slider;
+    f32 y;
     i32 sub_id;
     u8 channel;
     
@@ -603,7 +601,7 @@ begin_layout(Blob_Layout *layout, i32_Rect rect){
 internal void
 do_blob(Color_UI *ui, Blob_Layout *layout, u32 color, bool32 *set_me, i32 sub_id){
     i32_Rect rect = layout->rect;
-    real32_Rect blob;
+    f32_Rect blob;
     blob.x0 = (real32)layout->x;
     blob.y0 = (real32)layout->y;
     blob.x1 = blob.x0 + layout->size;
@@ -690,7 +688,7 @@ do_palette(Color_UI *ui, i32_Rect rect){
     
     if (!ui->state.input_stage){
         Render_Target *target = ui->state.target;
-        Font *font = style->font;
+        Render_Font *font = style->font;
         draw_string(target, font, "Global Palette: right click to save color",
                     layout.x, layout.rect.y0, style->main.default_color);
     }
@@ -711,7 +709,7 @@ do_palette(Color_UI *ui, i32_Rect rect){
 
 internal void
 do_sub_button(i32 id, Color_UI *ui, char *text){
-    Font *font = ui->state.font;
+    Render_Font *font = ui->state.font;
     
     i32_Rect rect = layout_rect(&ui->layout, font->height + 2);
     
@@ -743,7 +741,7 @@ do_color_adjuster(Color_UI *ui, u32 *color,
                   u32 text_color, u32 back_color, char *name){
     i32 id = raw_ptr_dif(color, ui->state.style);
     Render_Target *target = ui->state.target;
-    Font *font = ui->state.font;
+    Render_Font *font = ui->state.font;
     i32 character_h = font->height;
     u32 text = 0, back = 0;
     
@@ -832,7 +830,7 @@ do_color_adjuster(Color_UI *ui, u32 *color,
 internal void
 do_style_name(Color_UI *ui){
     i32 id = -3;
-    Font *font = ui->state.font;
+    Render_Font *font = ui->state.font;
     
     i32_Rect srect = layout_rect(&ui->layout, font->height);
     
@@ -878,7 +876,7 @@ do_style_name(Color_UI *ui){
 }
 
 internal bool32
-do_font_option(Color_UI *ui, Font *font){
+do_font_option(Color_UI *ui, Render_Font *font){
     bool32 result = 0;
     i32 sub_id = (i32)(font);
     i32_Rect orect = layout_rect(&ui->layout, font->height);
@@ -915,7 +913,7 @@ internal void
 do_font_switch(Color_UI *ui){
     i32 id = -2;
     Render_Target *target = ui->state.target;
-    Font *font = ui->state.font;
+    Render_Font *font = ui->state.font;
     i32 character_h = font->height;
     
     i32_Rect srect = layout_rect(&ui->layout, character_h);
@@ -946,7 +944,7 @@ do_font_switch(Color_UI *ui){
     
     if (is_selected(&ui->state, wid)){
         Font_Set *fonts = ui->fonts;
-        Font *font_opt = fonts->fonts;
+        Render_Font *font_opt = fonts->fonts;
         i32 count = fonts->count;
         srect = layout_rect(&ui->layout, character_h/2);
         if (!ui->state.input_stage)
@@ -1188,7 +1186,7 @@ update_highlighting(Color_View *color_view){
 internal bool32
 do_style_preview(Library_UI *ui, Style *style, i32 toggle = -1){
     bool32 result = 0;
-    Font *font = style->font;
+    Render_Font *font = style->font;
     i32 id;
     if (style == ui->state.style) id = 2;
     else id = raw_ptr_dif(style, ui->styles->styles) + 100;
@@ -1275,7 +1273,7 @@ internal bool32
 do_main_file_box(System_Functions *system, UI_State *state, UI_Layout *layout, Hot_Directory *hot_directory, char *end = 0){
     bool32 result = 0;
     Style *style = state->style;
-    Font *font = style->font;
+    Render_Font *font = style->font;
     i32_Rect box = layout_rect(layout, font->height + 2);
     String *string = &hot_directory->string;
     
@@ -1303,7 +1301,7 @@ internal bool32
 do_main_string_box(System_Functions *system, UI_State *state, UI_Layout *layout, String *string){
     bool32 result = 0;
     Style *style = state->style;
-    Font *font = style->font;
+    Render_Font *font = style->font;
     i32_Rect box = layout_rect(layout, font->height + 2);
     
     if (state->input_stage){
@@ -1328,7 +1326,7 @@ internal bool32
 do_list_option(i32 id, UI_State *state, UI_Layout *layout, String text){
     bool32 result = 0;
     Style *style = state->style;
-    Font *font = style->font;
+    Render_Font *font = style->font;
     i32 character_h = font->height;
     
     i32_Rect box = layout_rect(layout, font->height*2);
@@ -1365,7 +1363,7 @@ internal bool32
 do_file_option(i32 id, UI_State *state, UI_Layout *layout, String filename, bool32 is_folder, String extra){
     bool32 result = 0;
     Style *style = state->style;
-    Font *font = style->font;
+    Render_Font *font = style->font;
     i32 character_h = font->height;
     
     i32_Rect box = layout_rect(layout, font->height*2);

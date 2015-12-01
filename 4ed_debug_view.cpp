@@ -23,7 +23,7 @@ struct Dbg_Past_Key{
 
 struct Debug_View{
     View view_base;
-    Font *font;
+    Render_Font *font;
     Debug_Mode mode;
     Dbg_Past_Key past_keys[32];
     i32 past_key_count, past_key_pos;
@@ -38,7 +38,7 @@ view_to_debug_view(View *view){
 
 internal i32
 draw_general_memory(Debug_View *view, i32_Rect rect, Render_Target *target, i32 y){
-    Font *font = view->font;
+    Render_Font *font = view->font;
     i32 y_advance = font->height;
     Bubble *sentinel = &view->view_base.mem->general.sentinel;
     
@@ -94,7 +94,7 @@ draw_general_memory(Debug_View *view, i32_Rect rect, Render_Target *target, i32 
 
 internal i32
 draw_system_memory(System_Functions *system, Debug_View *view, i32_Rect rect, Render_Target *target, i32 y){
-    Font *font = view->font;
+    Render_Font *font = view->font;
     i32 y_advance = font->height;
     Bubble *sentinel = system->internal_sentinel();
     
@@ -182,7 +182,7 @@ draw_modifiers(Debug_View *view, Render_Target *target,
 internal i32
 draw_key_event(Debug_View *view, Render_Target *target,
                Dbg_Past_Key *key, i32 x, i32 y, u32 on_color, u32 off_color){
-    Font *font = view->font;
+    Render_Font *font = view->font;
     draw_modifiers(view, target, key->modifiers,
                    on_color, off_color, &x, y);
     
@@ -213,7 +213,7 @@ draw_os_events(Debug_View *view, i32_Rect rect, Render_Target *target,
     x = rect.x0;
     y = rect.y0;
     
-    Font *font = view->font;
+    Render_Font *font = view->font;
     
     draw_modifiers(view, target, active_input->keys.modifiers,
                    0xFFFFFFFF, 0xFF444444, &x, y);

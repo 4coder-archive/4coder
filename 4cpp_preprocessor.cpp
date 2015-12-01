@@ -107,8 +107,7 @@ table_copy(Table *table_src, Table *table_dst){
     }
 }
 
-// TODO(allen): File_Data not Parse_File
-struct Cpp_Parse_File{
+struct Cpp_File_Data{
     Cpp_File file;
     Cpp_Token_Stack tokens;
     String filename;
@@ -124,7 +123,7 @@ struct Cpp_Macro_Data{
 };
 
 union Cpp_Def_Slot{
-    Cpp_Parse_File file;
+    Cpp_File_Data file;
     Cpp_Macro_Data macro;
 };
 
@@ -289,13 +288,13 @@ cpp_get_memory_request(Cpp_Preproc_State *state, Cpp_Parse_Definitions *definiti
     return request;
 }
 
-internal Cpp_Parse_File*
+internal Cpp_File_Data*
 cpp_get_parse_file(Cpp_Parse_Definitions *definitions, int file_index){
     return &definitions->slots[file_index].file;
 }
 
 internal void
-cpp_set_parse_file(Cpp_Parse_Definitions *definitions, int file_index, Cpp_Parse_File file){
+cpp_set_parse_file(Cpp_Parse_Definitions *definitions, int file_index, Cpp_File_Data file){
     definitions->slots[file_index].file = file;
 }
 
@@ -328,7 +327,7 @@ cpp_provide_memory(Cpp_Memory_Request request, void *memory){
         
         Cpp_Parse_Definitions *definitions = request.definitions;
         int size = request.size >> 1;
-        Cpp_Parse_File new_file = {};
+        Cpp_File_Data new_file = {};
         new_file.tokens.tokens = (Cpp_Token*)memory;
         new_file.tokens.max_count = size / sizeof(Cpp_Token);
         new_file.file.data = ((char*)memory) + size;
@@ -514,7 +513,7 @@ struct Preserve_Checkpoint{
 
 internal Preserve_Checkpoint
 cpp__checkpoint_preserve_write(Cpp_Parse_Definitions *definitions){
-    Cpp_Parse_File *file = cpp_get_parse_file(definitions, definitions->string_file_index);
+    Cpp_File_Data *file = cpp_get_parse_file(definitions, definitions->string_file_index);
     Preserve_Checkpoint check;
     check.start_write_pos = definitions->string_write_pos;
     check.start_token_count = file->tokens.count;
@@ -524,14 +523,14 @@ cpp__checkpoint_preserve_write(Cpp_Parse_Definitions *definitions){
 
 internal void
 cpp__restore_preserve_write(Cpp_Parse_Definitions *definitions, Preserve_Checkpoint check){
-    Cpp_Parse_File *file = cpp_get_parse_file(definitions, definitions->string_file_index);
+    Cpp_File_Data *file = cpp_get_parse_file(definitions, definitions->string_file_index);
     definitions->string_write_pos = check.start_write_pos;
     file->tokens.count = check.start_token_count;
 }
 
 internal void
 cpp__preserve_string(Cpp_Parse_Definitions *definitions, String string){
-    Cpp_Parse_File *string_file = cpp_get_parse_file(definitions, definitions->string_file_index);
+    Cpp_File_Data *string_file = cpp_get_parse_file(definitions, definitions->string_file_index);
     _Assert(string_file->file.size - definitions->string_write_pos >= string.size);
     copy_fast_unsafe(string_file->file.data + definitions->string_write_pos, string);
     definitions->string_write_pos += string.size;
@@ -539,7 +538,7 @@ cpp__preserve_string(Cpp_Parse_Definitions *definitions, String string){
 
 internal Cpp_Loose_Token
 cpp__preserve_token(Cpp_Parse_Definitions *definitions, Cpp_Token token){
-    Cpp_Parse_File *string_file = cpp_get_parse_file(definitions, definitions->string_file_index);
+    Cpp_File_Data *string_file = cpp_get_parse_file(definitions, definitions->string_file_index);
     _Assert(string_file->tokens.count < string_file->tokens.max_count);
     Cpp_Loose_Token loose;
     loose.file_index = definitions->string_file_index;
@@ -552,7 +551,7 @@ cpp__preserve_token(Cpp_Parse_Definitions *definitions, Cpp_Token token){
 internal void
 cpp__preserve_string(Preserve_Checkpoint *check, Cpp_Parse_Definitions *definitions, String string){
     if (!check->out_of_memory){
-        Cpp_Parse_File *string_file = cpp_get_parse_file(definitions, definitions->string_file_index);
+        Cpp_File_Data *string_file = cpp_get_parse_file(definitions, definitions->string_file_index);
         if (string_file->file.size - definitions->string_write_pos >= string.size){
             copy_fast_unsafe(string_file->file.data + definitions->string_write_pos, string);
             definitions->string_write_pos += string.size;
@@ -567,7 +566,7 @@ internal Cpp_Loose_Token
 cpp__preserve_token(Preserve_Checkpoint *check, Cpp_Parse_Definitions *definitions, Cpp_Token token){
     Cpp_Loose_Token loose = {};
     if (!check->out_of_memory){
-        Cpp_Parse_File *string_file = cpp_get_parse_file(definitions, definitions->string_file_index);
+        Cpp_File_Data *string_file = cpp_get_parse_file(definitions, definitions->string_file_index);
         if (string_file->tokens.count < string_file->tokens.max_count){
             loose.file_index = definitions->string_file_index;
             loose.token_index = string_file->tokens.count;
@@ -913,7 +912,7 @@ cpp__preproc_normal_step_nonalloc(Cpp_Preproc_State *state, Cpp_Parse_Definition
     }
     
     Cpp_Visit visit = {};
-    Cpp_Parse_File visit_file;
+    Cpp_File_Data visit_file;
     Cpp_Token visit_token;
     
     if (expansion->out_type == EXPAN_NORMAL){
@@ -1353,7 +1352,7 @@ cpp__preproc_normal_step_nonalloc(Cpp_Preproc_State *state, Cpp_Parse_Definition
                             bool variadic = 0;
                             if (macro->param_count != 0){
                                 int macro_file_index = macro->file_index;
-                                Cpp_Parse_File file = *cpp_get_parse_file(definitions, macro_file_index);
+                                Cpp_File_Data file = *cpp_get_parse_file(definitions, macro_file_index);
                                 int i = macro->first_param_index;
                                 Cpp_Token token = file.tokens.tokens[i];
                                 for (;;){
@@ -1461,13 +1460,13 @@ cpp__preproc_normal_step_nonalloc(Cpp_Preproc_State *state, Cpp_Parse_Definition
 
 internal int
 cpp__get_parameter_i(Cpp_Preproc_State *state, Cpp_Parse_Definitions * definitions,
-                     Cpp_Parse_File *macro_file, Cpp_Token token, int param_start, int param_count){
+                     Cpp_File_Data *macro_file, Cpp_Token token, int param_start, int param_count){
     int param_i = -1;
     if (token.type == CPP_TOKEN_IDENTIFIER){
         String token_str = make_string(macro_file->file.data + token.start, token.size);
         for (int j = 0; j < param_count; ++j){
             Cpp_Loose_Token param_loose = state->tokens.tokens[j + param_start];
-            Cpp_Parse_File *file = cpp_get_parse_file(definitions, param_loose.file_index);
+            Cpp_File_Data *file = cpp_get_parse_file(definitions, param_loose.file_index);
             Cpp_Token param_token = file->tokens.tokens[param_loose.token_index];
             String param_str = make_string(file->file.data + param_token.start, param_token.size);
             if (match(token_str, param_str)){
@@ -1486,7 +1485,7 @@ cpp__preproc_big_step_nonalloc(Cpp_Preproc_State *state, Cpp_Parse_Definitions *
     Cpp_Expansion *expansion = state->expansions + state->expansion_level;
     
     Cpp_Macro_Data macro = *cpp_get_macro_data(definitions, expansion->file_index);
-    Cpp_Parse_File *macro_file = cpp_get_parse_file(definitions, macro.file_index);
+    Cpp_File_Data *macro_file = cpp_get_parse_file(definitions, macro.file_index);
     switch (expansion->out_type){
     case EXPAN_BIG_PROCESS_ARGS:
     {
@@ -1667,7 +1666,7 @@ cpp__preproc_big_step_nonalloc(Cpp_Preproc_State *state, Cpp_Parse_Definitions *
                             cpp__push_loose_token(&checkpoint, state, loose.file_index, loose.token_index, loose.blocked);
                         }
                         Cpp_Loose_Token loose = state->tokens.tokens[j];
-                        Cpp_Parse_File *end_file = cpp_get_parse_file(definitions, loose.file_index);
+                        Cpp_File_Data *end_file = cpp_get_parse_file(definitions, loose.file_index);
                         Cpp_Token end_token = end_file->tokens.tokens[loose.token_index];
                         String end_string = make_string(end_file->file.data + end_token.start, end_token.size);
                         cpp__spare_write(&str_checkpoint, state, end_string);
@@ -1683,7 +1682,7 @@ cpp__preproc_big_step_nonalloc(Cpp_Preproc_State *state, Cpp_Parse_Definitions *
                     if (range.start < range.end){
                         int j = range.start;
                         Cpp_Loose_Token loose = state->tokens.tokens[j];
-                        Cpp_Parse_File *start_file = cpp_get_parse_file(definitions, loose.file_index);
+                        Cpp_File_Data *start_file = cpp_get_parse_file(definitions, loose.file_index);
                         Cpp_Token start_token = start_file->tokens.tokens[loose.token_index];
                         String start_string = make_string(start_file->file.data + start_token.start, start_token.size);
                         cpp__spare_write(&str_checkpoint, state, start_string);
@@ -1860,7 +1859,7 @@ cpp__preproc_strfy_step_nonalloc(Cpp_Preproc_State *state, Cpp_Parse_Definitions
     Spare_String_Checkpoint checkpoint = cpp__checkpoint_spare_string(state);
     
     if (do_body){
-        Cpp_Parse_File visit_file;
+        Cpp_File_Data visit_file;
         Cpp_Token visit_token;
         
         visit_file = *cpp_get_parse_file(definitions, visit.file_index);

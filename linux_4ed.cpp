@@ -75,8 +75,13 @@
 #include <time.h>
 #include <unistd.h>
 #include <fcntl.h>
-#include <SDL/SDL.h>
+
+#include <X11/X.h>
+#include <X11/Xlib.h>
+
 #include <GL/gl.h>
+
+#include <stdio.h>
 
 #include "4ed_internal.h"
 #include "4ed_linux_keyboard.cpp"
@@ -84,9 +89,13 @@
 #define printe(m) printf("%s:%d: %s\n", __FILE__, __LINE__, #m)
 
 struct Linux_Vars{
-    Application_Memory mem;
+    Key_Codes codes;
     Key_Input_Data input;
+    Mouse_State mouse;
+    Render_Target target;
+    Application_Memory mem;
     b32 keep_going;
+    b32 force_redraw;
     
     Clipboard_Contents clipboard;
 
@@ -95,6 +104,7 @@ struct Linux_Vars{
     System_Functions *system;
     App_Functions app;
     Config_API config_api;
+    
 };
 
 Linux_Vars linuxvars;
@@ -206,13 +216,11 @@ LinuxLoadAppCode(){
          --size);
     memcpy(path + size + 1, app_code_file, app_code_file_len + 1);
     
-    linuxvars.app_code = SDL_LoadObject(path);
+    linuxvars.app_code = 0;
     if (linuxvars.app_code){
         result = 1;
-        linuxvars.app.init = (App_Init*)
-            SDL_LoadFunction(linuxvars.app_code, "app_init");
-        linuxvars.app.step = (App_Step*)
-            SDL_LoadFunction(linuxvars.app_code, "app_step");
+        linuxvars.app.init = (App_Init*)0;
+        linuxvars.app.step = (App_Step*)0;
     }
     else{
         // TODO(allen): initialization failure
@@ -230,6 +238,11 @@ Sys_Acquire_Lock_Sig(system_acquire_lock){
 internal
 Sys_Release_Lock_Sig(system_release_lock){
     AllowLocal(id);
+}
+
+internal
+Sys_Force_Redraw_Sig(system_force_redraw){
+    linuxvars.force_redraw = 1;
 }
 
 internal void
@@ -275,15 +288,12 @@ LinuxLoadSystemCode(){
 #endif
 }
 
+internal void
+LinuxShowScreen(){
+}
+
 int main(){
     linuxvars = {};
-    
-    if (SDL_Init(SDL_INIT_VIDEO)){
-        // TODO(allen): initialization failure
-        printe(SDL_Init);
-        return(1);
-    }
-    SDL_EnableUNICODE(1);
     
     if (!LinuxLoadAppCode()){
         return(1);
@@ -293,14 +303,7 @@ int main(){
     System_Functions *system = &system_;
     linuxvars.system = system;
     LinuxLoadSystemCode();
-    
-    const SDL_VideoInfo *info = SDL_GetVideoInfo();
-    if (!info){
-        // TODO(allen): initialization failure
-        printe(info);
-        return(1);
-    }
-    
+        
     {
         void *base;
 #if FRED_INTERNAL
@@ -329,72 +332,59 @@ int main(){
     
     i32 width = 800;
     i32 height = 600;
-    i32 bpp = info->vfmt->BitsPerPixel;
+    i32 bpp = 24;
     
-    SDL_GL_SetAttribute(SDL_GL_RED_SIZE, 5);
-    SDL_GL_SetAttribute(SDL_GL_GREEN_SIZE, 5);
-    SDL_GL_SetAttribute(SDL_GL_BLUE_SIZE, 5);
-    SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 8);
-    SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
-    
-    i32 flags = SDL_OPENGL;
-    
-    if (SDL_SetVideoMode(width, height, bpp, flags) == 0){
-        // TODO(allen): initialization failure
-        printe(SDL_SetVideoMode);
-        return(1);
-    }
-    
-    SDL_WM_SetCaption("4coder-window", 0);
-    
+    linuxvars.target.width = width;
+    linuxvars.target.height = height;
+
+    keycode_init(&linuxvars.codes);
+
     system_acquire_lock(FRAME_LOCK);
     b32 first = 1;
     linuxvars.keep_going = 1;
-    
-    SDL_Event event;
-    for (;linuxvars.keep_going && SDL_WaitEvent(&event);){
-        b32 pass_to_app = 0;
-        
+    i64 timer_start = system_time();
+
+    for (;linuxvars.keep_going;){
         linuxvars.input = {};
         linuxvars.clipboard = {};
-        switch (event.type){
-        case SDL_ACTIVEEVENT:
-        {
-            if ((event.active.state & SDL_APPACTIVE) && event.active.gain)
-                pass_to_app = 1;
-        }break;
+        linuxvars.mouse.wheel = 0;
+        linuxvars.force_redraw = 0;
         
-        case SDL_KEYDOWN:
-        {
-            pass_to_app = 1;
-            linuxvars.input.press[linuxvars.input.press_count++] =
-                get_key_event(&event);
-        }break;
-        
-        case SDL_QUIT:
-        {
-            linuxvars.keep_going = 0;
-        }break;
-        
+        for (;0;){
         }
         
-        if (pass_to_app){
-            Application_Step_Result app_result =
-                linuxvars.app.step(linuxvars.system,
-                                   0,
-                                   0,
-                                   &linuxvars.input,
-                                   0,
-                                   1,
-                                   0,
-                                   &linuxvars.mem,
-                                   linuxvars.clipboard,
-                                   first, 1);
-            
-            
-            
-            SDL_GL_SwapBuffers();
+        linuxvars.mouse.left_button_prev = linuxvars.mouse.left_button;
+        linuxvars.mouse.right_button_prev = linuxvars.mouse.right_button;
+                
+#if 0
+        Application_Step_Result app_result =
+            linuxvars.app.step(linuxvars.system,
+                               &linuxvars.codes,
+                               &linuxvars.input,
+                               &linuxvars.mouse,
+                               &linuxvars.target,
+                               &linuxvars.mem,
+                               linuxvars.clipboard,
+                               1, first, linuxvars.force_redraw);
+#else
+        Application_Step_Result app_result = {};
+#endif
+        
+        if (1 || linuxvars.force_redraw){
+            //glClearColor(1.f, 1.f, 0.f, 1.f);
+            //glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+            LinuxShowScreen();
+            linuxvars.force_redraw = 0;
         }
+        
+        i64 timer_target = timer_start + frame_useconds;
+        i64 timer_end = system_time();
+        for (;timer_end < timer_target;){
+            i64 samount = timer_target - timer_end;
+            usleep(samount);
+            timer_end = system_time();
+        }
+        timer_start = system_time();
     }
     
     return(0);

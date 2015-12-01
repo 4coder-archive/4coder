@@ -87,7 +87,7 @@ struct Undo_Data{
 
 struct Editing_File{
     Buffer_Type buffer;
-    Font *font;
+    Render_Font *font;
     
     i32 cursor_pos;
     b32 is_dummy;
@@ -558,7 +558,7 @@ widget_match(Widget_ID s1, Widget_ID s2){
 struct UI_State{
     Render_Target *target;
     Style *style;
-    Font *font;
+    Render_Font *font;
     Mouse_Summary *mouse;
     Key_Summary *keys;
     Key_Codes *codes;
@@ -983,7 +983,7 @@ internal bool32
 do_text_field(Widget_ID wid, UI_State *state, UI_Layout *layout,
               String prompt, String dest){
     bool32 result = 0;
-    Font *font = state->font;
+    Render_Font *font = state->font;
     i32 character_h = font->height;
 
     i32_Rect rect = layout_rect(layout, character_h);
@@ -1231,7 +1231,7 @@ file_grow_starts_as_needed(General_Memory *general, Buffer_Type *buffer, i32 add
 
 internal void
 file_measure_starts_widths(System_Functions *system,
-                           General_Memory *general, Buffer_Type *buffer, Font *font){
+                           General_Memory *general, Buffer_Type *buffer, Render_Font *font){
     ProfileMomentFunction();
     if (!buffer->line_starts){
         i32 max = buffer->line_max = Kbytes(1);
@@ -1331,7 +1331,7 @@ struct Opaque_Font_Advance{
 };
 
 inline Opaque_Font_Advance
-get_opaque_font_advance(Font *font){
+get_opaque_font_advance(Render_Font *font){
     Opaque_Font_Advance result;
     result.data = (char*)font->chardata + OffsetOfPtr(font->chardata, xadvance);
     result.stride = sizeof(*font->chardata);
@@ -1373,7 +1373,7 @@ file_measure_widths(General_Memory *general, Buffer_Type *buffer, Font *font){
 
 internal void
 file_remeasure_widths(System_Functions *system,
-                      General_Memory *general, Buffer_Type *buffer, Font *font,
+                      General_Memory *general, Buffer_Type *buffer, Render_Font *font,
                       i32 line_start, i32 line_end, i32 line_shift){
 #if BUFFER_EXPERIMENT_SCALPEL <= 3
     ProfileMomentFunction();
@@ -1400,7 +1400,7 @@ view_compute_lowest_line(File_View *view){
         }
         else{
             Style *style = view->style;
-            Font *font = style->font;
+            Render_Font *font = style->font;
             real32 wrap_y = view->line_wrap_y[last_line];
             lowest_line = FLOOR32(wrap_y / font->height);
             f32 max_width = view_compute_width(view);
@@ -1438,9 +1438,9 @@ view_measure_wraps(System_Functions *system,
         }
     }
 
-    Font *font = view->style->font;
-    real32 line_height = (real32)font->height;
-    real32 max_width = view_compute_width(view);
+    Render_Font *font = view->style->font;
+    f32 line_height = (f32)font->height;
+    f32 max_width = view_compute_width(view);
     buffer_measure_wrap_y(buffer, view->line_wrap_y, line_height, max_width);
     
     view->line_count = line_count;
@@ -1456,7 +1456,8 @@ alloc_for_buffer(void *context, int *size){
 
 internal void
 file_create_from_string(System_Functions *system,
-                        Mem_Options *mem, Editing_File *file, char *filename, Font *font, String val, b32 super_locked = 0){
+                        Mem_Options *mem, Editing_File *file, char *filename,
+                        Render_Font *font, String val, b32 super_locked = 0){
     *file = {};
     General_Memory *general = &mem->general;
 #if BUFFER_EXPERIMENT_SCALPEL <= 3
@@ -1517,10 +1518,11 @@ file_create_from_string(System_Functions *system,
 }
 
 internal bool32
-file_create(System_Functions *system, Mem_Options *mem, Editing_File *file, char *filename, Font *font){
+file_create(System_Functions *system, Mem_Options *mem, Editing_File *file,
+            char *filename, Render_Font *font){
     bool32 result = 0;
     
-    File_Data raw_file = system->load_file(filename);
+    Data raw_file = system->load_file(filename);
     if (raw_file.data){
         result = 1;
         String val = make_string((char*)raw_file.data, raw_file.size);
@@ -1532,7 +1534,8 @@ file_create(System_Functions *system, Mem_Options *mem, Editing_File *file, char
 }
 
 internal b32
-file_create_empty(System_Functions *system, Mem_Options *mem, Editing_File *file, char *filename, Font *font){
+file_create_empty(System_Functions *system, Mem_Options *mem, Editing_File *file,
+                  char *filename, Render_Font *font){
     b32 result = 1;
     String empty_str = {};
     file_create_from_string(system, mem, file, filename, font, empty_str);
@@ -1540,7 +1543,8 @@ file_create_empty(System_Functions *system, Mem_Options *mem, Editing_File *file
 }
 
 internal b32
-file_create_super_locked(System_Functions *system, Mem_Options *mem, Editing_File *file, char *filename, Font *font){
+file_create_super_locked(System_Functions *system, Mem_Options *mem, Editing_File *file,
+                         char *filename, Render_Font *font){
     b32 result = 1;
     String empty_str = {};
     file_create_from_string(system, mem, file, filename, font, empty_str, 1);
@@ -1617,7 +1621,7 @@ struct Shift_Information{
 	i32 start, end, amount;
 };
 
-#if BUFFER_EXPERIMENT_SCALPEL <= 0
+#if 0 //BUFFER_EXPERIMENT_SCALPEL <= 0
 internal
 Job_Callback(job_full_lex){
     Editing_File *file = (Editing_File*)data[0];
@@ -1680,6 +1684,83 @@ Job_Callback(job_full_lex){
     file->tokens_complete = 1;
     file->still_lexing = 0;
 }
+#else
+
+internal void
+system_grow_memory(System_Functions *system, Data *memory){
+    byte *old = memory->data;
+    i32 new_size = memory->size * 2;
+    memory->data = (byte*)system->get_memory(new_size);
+    memcpy(memory->data, old, memory->size);
+    system->free_memory(old);
+    memory->size = new_size;
+}
+
+internal void
+full_lex(System_Functions *system, Editing_File *file, General_Memory *general){
+    Cpp_File cpp_file;
+    cpp_file.data = file->buffer.data;
+    cpp_file.size = file->buffer.size;
+    
+    Data memory_;
+    memory_.size = 64 << 10;
+    memory_.data = (byte*)system->get_memory(memory_.size);
+
+    Data *memory = &memory_;
+    
+    Cpp_Token_Stack tokens;
+    tokens.tokens = (Cpp_Token*)memory->data;
+    tokens.max_count = memory->size / sizeof(Cpp_Token);
+    tokens.count = 0;
+    
+    Cpp_Lex_Data status;
+    status = cpp_lex_file_nonalloc(cpp_file, &tokens);
+    while (!status.complete){
+        //system->grow_thread_memory(memory);
+        system_grow_memory(system, memory);
+        tokens.tokens = (Cpp_Token*)memory->data;
+        tokens.max_count = memory->size / sizeof(Cpp_Token);
+        status = cpp_lex_file_nonalloc(cpp_file, &tokens, status);
+    }
+    
+    i32 new_max = LargeRoundUp(tokens.count, Kbytes(1));
+    if (file->token_stack.tokens){
+        file->token_stack.tokens = (Cpp_Token*)
+            general_memory_reallocate_nocopy(general, file->token_stack.tokens, new_max*sizeof(Cpp_Token), BUBBLE_TOKENS);
+    }
+    else{
+        file->token_stack.tokens = (Cpp_Token*)
+            general_memory_allocate(general, new_max*sizeof(Cpp_Token), BUBBLE_TOKENS);
+    }
+    
+    i32 copy_amount = Kbytes(8);
+    i32 uncoppied = tokens.count*sizeof(Cpp_Token);
+    if (copy_amount > uncoppied) copy_amount = uncoppied;
+    
+    u8 *dest = (u8*)file->token_stack.tokens;
+    u8 *src = (u8*)tokens.tokens;
+    
+    while (uncoppied > 0){
+        memcpy(dest, src, copy_amount);
+        dest += copy_amount;
+        src += copy_amount;
+        uncoppied -= copy_amount;
+        if (copy_amount > uncoppied) copy_amount = uncoppied;
+    }
+    
+    file->token_stack.count = tokens.count;
+    file->token_stack.max_count = new_max;
+    system->force_redraw();
+    
+    // NOTE(allen): These are outside the locked section because I don't
+    // think getting these out of order will cause critical bugs, and I
+    // want to minimize what's done in locked sections.
+    file->tokens_complete = 1;
+    file->still_lexing = 0;
+    
+    system->free_memory(memory_.data);
+}
+
 #endif
 
 internal void
@@ -1705,13 +1786,17 @@ file_first_lex_parallel(System_Functions *system,
     file->tokens_complete = 0;
     file->tokens_exist = 1;
     file->still_lexing = 1;
+
+    full_lex(system, file, general);
     
+#if 0
     Job_Data job;
     job.callback = job_full_lex;
     job.data[0] = file;
     job.data[1] = general;
     job.memory_request = Kbytes(64);
     file->lex_job = system->post_job(BACKGROUND_THREADS, job);
+#endif
 }
 
 internal void
@@ -1790,13 +1875,17 @@ file_relex_parallel(System_Functions *system,
         }
         
         file->still_lexing = 1;
+
+        full_lex(system, file, general);
         
+#if 0
         Job_Data job;
         job.callback = job_full_lex;
         job.data[0] = file;
         job.data[1] = general;
         job.memory_request = Kbytes(64);
         file->lex_job = system->post_job(BACKGROUND_THREADS, job);
+#endif
     }
 }
 #endif
@@ -2093,7 +2182,7 @@ view_compute_cursor_from_pos(File_View *view, i32 pos){
 #if BUFFER_EXPERIMENT_SCALPEL <= 3
     Editing_File *file = view->file;
     Style *style = view->style;
-    Font *font = style->font;
+    Render_Font *font = style->font;
     
     real32 max_width = view_compute_width(view);
 
@@ -2110,7 +2199,7 @@ view_compute_cursor_from_unwrapped_xy(File_View *view, real32 seek_x, real32 see
 #if BUFFER_EXPERIMENT_SCALPEL <= 3
     Editing_File *file = view->file;
     Style *style = view->style;
-    Font *font = style->font;
+    Render_Font *font = style->font;
     
     real32 max_width = view_compute_width(view);
 
@@ -2127,7 +2216,7 @@ view_compute_cursor_from_wrapped_xy(File_View *view, real32 seek_x, real32 seek_
 #if BUFFER_EXPERIMENT_SCALPEL <= 3
     Editing_File *file = view->file;
     Style *style = view->style;
-    Font *font = style->font;
+    Render_Font *font = style->font;
     
     real32 max_width = view_compute_width(view);
     
@@ -2207,7 +2296,7 @@ view_set_file(System_Functions *system,
     view->locked = file->super_locked;
     
     General_Memory *general = &view->view_base.mem->general;
-    Font *font = style->font;
+    Render_Font *font = style->font;
     view->style = style;
     view->font_advance = font->advance;
     view->font_height = font->height;
@@ -2313,7 +2402,7 @@ view_set_widget(File_View *view, File_View_Widget_Type type){
 }
 
 inline i32
-view_widget_height(File_View *view, Font *font){
+view_widget_height(File_View *view, Render_Font *font){
     i32 result = 0;
     switch (view->widget.type){
     case FWIDG_NONE: break;
@@ -2325,7 +2414,7 @@ view_widget_height(File_View *view, Font *font){
 }
 
 inline i32_Rect
-view_widget_rect(File_View *view, Font *font){
+view_widget_rect(File_View *view, Render_Font *font){
     Panel *panel = view->view_base.panel;
     i32_Rect whole = panel->inner;
     i32_Rect result;
@@ -3530,7 +3619,7 @@ internal bool32
 do_button(i32 id, UI_State *state, UI_Layout *layout, char *text, i32 height_mult,
           bool32 is_toggle = 0, bool32 on = 0){
     bool32 result = 0;
-    Font *font = state->font;
+    Render_Font *font = state->font;
     i32 character_h = font->height;
 
     i32_Rect btn_rect = layout_rect(layout, character_h * height_mult);
@@ -3578,7 +3667,7 @@ do_button(i32 id, UI_State *state, UI_Layout *layout, char *text, i32 height_mul
 internal bool32
 do_undo_slider(Widget_ID wid, UI_State *state, UI_Layout *layout, i32 max, i32 v, Undo_Data *undo, i32 *out){
     bool32 result = 0;
-    Font *font = state->font;
+    Render_Font *font = state->font;
     i32 character_h = font->height;
     
     i32_Rect containing_rect = layout_rect(layout, character_h);
@@ -3630,7 +3719,7 @@ do_undo_slider(Widget_ID wid, UI_State *state, UI_Layout *layout, i32 max, i32 v
                 }
                 
                 if (show_ticks){
-                    real32_Rect tick;
+                    f32_Rect tick;
                     tick.x0 = (real32)click_rect.x0 - 1;
                     tick.x1 = (real32)click_rect.x0 + 1;
                     tick.y0 = (real32)bar_top - 3;
@@ -3684,7 +3773,7 @@ do_undo_slider(Widget_ID wid, UI_State *state, UI_Layout *layout, i32 max, i32 v
                 }
                 
                 if (show_ticks){
-                    real32_Rect tick;
+                    f32_Rect tick;
                     tick.x0 = (real32)click_rect.x0 - 1;
                     tick.x1 = (real32)click_rect.x0 + 1;
                     tick.y0 = (real32)bar_top - 3;
@@ -3727,7 +3816,7 @@ step_file_view(System_Functions *system, View *view_, i32_Rect rect,
     File_View *view = (File_View*)view_;
     Editing_File *file = view->file;
     Style *style = view->style;
-    Font *font = style->font;
+    Render_Font *font = style->font;
     
     f32 line_height = (f32)font->height;
     f32 cursor_y = view_get_cursor_y(view);
@@ -3949,7 +4038,7 @@ draw_file_view(View *view_, i32_Rect rect, bool32 is_active,
     File_View *view = (File_View*)view_;
     Editing_File *file = view->file;
     Style *style = view->style;
-    Font *font = style->font;
+    Render_Font *font = style->font;
     
     Interactive_Bar bar;
     bar.style = style->main.file_info_style;
@@ -4097,7 +4186,7 @@ draw_file_view(View *view_, i32_Rect rect, bool32 is_active,
     if (view->widget.type != FWIDG_NONE){
         UI_Style ui_style = get_ui_style_upper(style);
         
-        Font *font = style->font;
+        Render_Font *font = style->font;
         i32_Rect widg_rect = view_widget_rect(view, font);
         
         draw_rectangle(target, widg_rect, ui_style.dark);
@@ -4338,7 +4427,7 @@ HANDLE_COMMAND_SIG(handle_command_file_view){
         
         if (result.hit_newline || result.hit_ctrl_newline){
             i32 line_number = str_to_int(*string);
-            Font *font = file_view->style->font;
+            Render_Font *font = file_view->style->font;
             if (line_number < 1) line_number = 1;
             file_view->cursor =
                 view_compute_cursor_from_unwrapped_xy(file_view, 0, (real32)(line_number-1)*font->height);

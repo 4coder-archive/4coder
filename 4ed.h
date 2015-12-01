@@ -12,23 +12,6 @@
 #ifndef FRED_H
 #define FRED_H
 
-#if SOFTWARE_RENDER
-struct Render_Target{
-	void *pixel_data;
-	i32 width, height, pitch;
-};
-#else
-struct Render_Target{
-    void *handle;
-    void *context;
-    i32_Rect clip_boxes[5];
-    i32 clip_top;
-	i32 width, height;
-    i32 bound_texture;
-    u32 color;
-};
-#endif
-
 struct Application_Memory{
     void *vars_memory;
     i32 vars_memory_size;
@@ -118,6 +101,7 @@ struct Thread_Context;
 
 #define App_Init_Sig(name)                                          \
     b32 name(System_Functions *system,                              \
+             Render_Target *target,                                 \
              Application_Memory *memory,                            \
              Key_Codes *loose_codes,                                \
              Clipboard_Contents clipboard,                          \
@@ -137,7 +121,7 @@ enum Application_Mouse_Cursor{
 
 struct Application_Step_Result{
 	Application_Mouse_Cursor mouse_cursor_type;
-	b32 redraw;
+    b32 redraw;
 };
 
 #define App_Step_Sig(name) Application_Step_Result          \

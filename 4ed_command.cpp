@@ -9,8 +9,12 @@
 
 // TOP
 
-typedef void (*Command_Function)(System_Functions *system,
-                                 struct Command_Data *command, struct Command_Binding binding);
+#define Command_Function_Sig(name) void (name)(                         \
+        System_Functions *system,                                       \
+        struct Command_Data *command,                                   \
+        struct Command_Binding binding)
+
+typedef Command_Function_Sig(*Command_Function);
 
 struct Command_Binding{
     Command_Function function;
@@ -29,12 +33,13 @@ internal void command_null(Command_Data *command);
 
 internal i64
 map_hash(u16 event_code, u8 modifiers){
-    i64 result = (event_code << 4) | modifiers;
+    i64 result = (event_code << 8) | modifiers;
     return result;
 }
 
 internal b32
-map_add(Command_Map *map, u16 event_code, u8 modifiers, Command_Function function, Custom_Command_Function *custom = 0){
+map_add(Command_Map *map, u16 event_code, u8 modifiers, Command_Function function,
+        Custom_Command_Function *custom = 0){
     Assert(map->count * 8 < map->max * 7);
     Command_Binding bind;
     bind.function = function;
@@ -115,21 +120,33 @@ internal Command_Binding
 map_extract(Command_Map *map, Key_Single key){
     Command_Binding bind = {};
     
-    u8 command = MDFR_NONE;
     b32 ctrl = key.modifiers[CONTROL_KEY_CONTROL];
     b32 alt = key.modifiers[CONTROL_KEY_ALT];
     b32 shift = key.modifiers[CONTROL_KEY_SHIFT] && key.key.loose_keycode;
+    u16 code;
+    u8 command = MDFR_NONE;
     
     if (shift) command |= MDFR_SHIFT;
     if (ctrl) command |= MDFR_CTRL;
     if (alt) command |= MDFR_ALT;
     
-    u16 code = key.key.character_no_caps_lock;
-    if (code == 0) code = key.key.keycode;
+    command |= MDFR_EXACT;
+    code = key.key.keycode;
     map_find(map, code, command, &bind);
     
-    if (bind.function == 0 && key.key.character_no_caps_lock != 0){
-        map_get_vanilla_keyboard_default(map, command, &bind);
+    command &= ~(MDFR_EXACT);
+    code = key.key.character_no_caps_lock;
+    if (code == 0){
+        code = key.key.keycode;
+        map_find(map, code, command, &bind);
+    }
+    else{
+        command &= ~(MDFR_SHIFT);
+        
+        map_find(map, code, command, &bind);
+        if (bind.function == 0){
+            map_get_vanilla_keyboard_default(map, command, &bind);
+        }
     }
     
     return bind;

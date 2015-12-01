@@ -28,10 +28,17 @@ typedef i8 bool8;
 typedef i32 b32;
 typedef i8 b8;
 
+typedef uint8_t byte;
+
 typedef float real32;
 typedef double real64;
 typedef float f32;
 typedef double f64;
+
+struct Data{
+    byte *data;
+    i32 size;
+};
 
 #define external extern "C"
 #define internal static

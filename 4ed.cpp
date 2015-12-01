@@ -112,12 +112,9 @@ app_get_map_index(App_Vars *vars, i32 mapid){
 internal Command_Map*
 app_get_map(App_Vars *vars, i32 mapid){
     Command_Map *map = 0;
-    if (mapid >= mapid_user_custom)
-        map = vars->user_maps + mapid - mapid_user_custom;
-    else if (mapid == mapid_global)
-        map = &vars->map_top;
-    else if (mapid == mapid_file)
-        map = &vars->map_file;
+    if (mapid >= mapid_user_custom) map = vars->user_maps + mapid - mapid_user_custom;
+    else if (mapid == mapid_global) map = &vars->map_top;
+    else if (mapid == mapid_file) map = &vars->map_file;
     return map;
 }
 
@@ -740,7 +737,7 @@ app_open_file(System_Functions *system,
         new_view->map = app_get_map(vars, target_file->base_map_id);
 
 #if BUFFER_EXPERIMENT_SCALPEL <= 0
-        if (created_file && target_file->tokens_exist)
+        if (created_file && target_file->tokens_exist && target_file->token_stack.tokens == 0)
             file_first_lex_parallel(system, &mem->general, target_file);
 #endif
     }
@@ -1690,7 +1687,6 @@ extern "C"{
                 Working_Set *working_set = cmd->working_set;
                 buffer.file_id = (int)(file - working_set->files);
                 buffer.size = file->buffer.size;
-                buffer.data = (const char*)file->buffer.data;
                 buffer.file_name_len = file->source_path.size;
                 buffer.buffer_name_len = file->live_name.size;
                 buffer.file_name = file->source_path.str;
@@ -1990,7 +1986,7 @@ app_hardcode_styles(App_Vars *vars){
     styles = vars->styles.styles;
     style = styles;
     
-    Font *fonts = vars->fonts.fonts;
+    Render_Font *fonts = vars->fonts.fonts;
     
     /////////////////
     style_set_name(style, make_lit_string("4coder"));
@@ -2206,10 +2202,11 @@ app_hardcode_styles(App_Vars *vars){
 }
 
 internal bool32
-app_load_font(System_Functions *system,
-              Font *font, char *filename, i32 size, void *memory,
+app_load_font(Render_Target *target, System_Functions *system,
+              Render_Font *font, char *filename, i32 size, void *memory,
               i32 *used, i32 tab_width, String name){
-    if (font_load(system, font, filename, size, memory, font_predict_size(size), used, tab_width)){
+    if (font_load(target, system, font, filename, size, memory,
+                  font_predict_size(size), used, tab_width)){
         font->loaded = 1;
         font->name_[ArrayCount(font->name_)-1] = 0;
         font->name = make_string(font->name_, 0, ArrayCount(font->name_)-1);
@@ -2453,45 +2450,43 @@ external App_Init_Sig(app_init){
         vars->hooks[hook_open_file] = default_open_file_hook;
     }
     
-    if (!font_init()) return 0;
-    
     vars->fonts.max = 6;
-    vars->fonts.fonts = push_array(partition, Font, vars->fonts.max);
+    vars->fonts.fonts = push_array(partition, Render_Font, vars->fonts.max);
     
     {
         i32 font_count = 0;
         i32 memory_used;
         
         memory_used = 0;
-        app_load_font(system,
+        app_load_font(target, system,
                       vars->fonts.fonts + font_count++, "liberation-mono.ttf", 17,
                       partition_current(partition),
                       &memory_used, 4, make_lit_string("liberation mono"));
         push_block(partition, memory_used);
         
         memory_used = 0;
-        app_load_font(system,
+        app_load_font(target, system,
                       vars->fonts.fonts + font_count++, "LiberationSans-Regular.ttf", 17,
                       partition_current(partition),
                       &memory_used, 4, make_lit_string("liberation sans"));
         push_block(partition, memory_used);
         
         memory_used = 0;
-        app_load_font(system,
+        app_load_font(target, system,
                       vars->fonts.fonts + font_count++, "Hack-Regular.ttf", 17,
                       partition_current(partition),
                       &memory_used, 4, make_lit_string("hack"));
         push_block(partition, memory_used);
         
         memory_used = 0;
-        app_load_font(system,
+        app_load_font(target, system,
                       vars->fonts.fonts + font_count++, "CutiveMono-Regular.ttf", 17,
                       partition_current(partition),
                       &memory_used, 4, make_lit_string("cutive mono"));
         push_block(partition, memory_used);
         
         memory_used = 0;
-        app_load_font(system,
+        app_load_font(target, system,
                       vars->fonts.fonts + font_count++, "Inconsolata-Regular.ttf", 17,
                       partition_current(partition),
                       &memory_used, 4, make_lit_string("inconsolata"));
@@ -2502,7 +2497,7 @@ external App_Init_Sig(app_init){
             extra.size = 17;
             vars->config_api.set_extra_font(&extra);
             memory_used = 0;
-            if (app_load_font(system,
+            if (app_load_font(target, system,
                               vars->fonts.fonts + font_count, extra.file_name, extra.size,
                               partition_current(partition),
                               &memory_used, 4, make_string_slowly(extra.font_name))){

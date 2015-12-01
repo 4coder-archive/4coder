@@ -3,6 +3,10 @@
 #define MDFR_CTRL 1
 #define MDFR_ALT 2
 #define MDFR_SHIFT 4
+#define MDFR_NUMPAD 8
+
+// NOTE(allen): These need not be used direct
+#define MDFR_EXACT 128
 
 typedef u16 Code;
 
@@ -215,7 +219,6 @@ struct Buffer_Summary{
     int file_id;
     
     int size;
-    const char *data;
     
     int file_name_len;
     int buffer_name_len;

@@ -2,41 +2,6 @@
  * Example use of customization API
  */
 
-// NOTE(allen|a3.1): NEW THINGS TO LOOK FOR:
-// mapid_user_custom - define maps other than the built in global and file maps
-// 
-// inherit_map       - override bindings or add new bindings in a new map with another
-//
-// set_hook          - if you were using start_hook, it is still available if you use set_hook
-// 
-// push_parameter    - see description of parameter stack immediately below
-// clear_parameters
-// exec_command_keep_stack
-//
-// THE PARAMETER STACK:
-//  In this version I have introduced a parameter stack.
-// Calls to commands through exec_command can now be parameterized
-// by first pushing parameters onto that stack. This is achieved through
-// the push_parameter. If you look at the signature for the function it
-// uses a "Dynamic" struct, but 4coder_helper.h has overrides that accept
-// ints or strings. The helper functions also take care of copying the
-// strings inline into the stack so that you don't have to maintain your copy.
-//
-//  If you'd like to optimize out the extra copy it will work, just use the
-// main app.push_parameter and keep the memory of the string alive until
-// the stack is cleared.
-//
-//  A call to exec_command executes the command with the current stack,
-// then clears the stack. To keep the stack use exec_command_keep_stack.
-//
-//  If you would like to allocate your own memory, you can tie your memory
-// to the parameter stack by calling push_memory which takes a cmd_context and len.
-// It will return a char* to your memory block. Until you call clear_parameters
-// or exec_command the memory will remain on the stack for you to use. Memory
-// chunks on the stack are ignored by commands that use parameters, so your memory
-// will not influence the behavior of any commands.
-// 
-
 #include "4coder_custom.h"
 #include "4coder_helper.h"
 
