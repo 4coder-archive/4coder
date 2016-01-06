@@ -494,59 +494,8 @@ typedef struct Buffer_Measure_Starts{
 } Buffer_Measure_Starts;
 #endif
 
-#if 0
 internal_4tech int
-buffer_measure_starts(Buffer_Measure_Starts *state, Buffer_Type *buffer){
-    Buffer_Stringify_Type loop;
-    int *starts;
-    int max;
-    char *data;
-    int size, end;
-    int start, count, i;
-    int result;
-    
-    size = buffer_size(buffer);
-    starts = buffer->line_starts;
-    max = buffer->line_max;
-    
-    result = 1;
-    
-    i = state->i;
-    count = state->count;
-    start = state->start;
-    
-    for (loop = buffer_stringify_loop(buffer, i, size);
-         buffer_stringify_good(&loop);
-         buffer_stringify_next(&loop)){
-        end = loop.size + loop.absolute_pos;
-        data = loop.data - loop.absolute_pos;
-        for (; i < end; ++i){
-            if (data[i] == '\n'){
-                if (count == max) goto buffer_measure_starts_end;
-                
-                starts[count++] = start;
-                start = i + 1;
-            }
-        }
-    }
-    
-    assert_4tech(i == size);
-    
-    if (count == max) goto buffer_measure_starts_end;
-    starts[count++] = start;
-    result = 0;
-    
-buffer_measure_starts_end:
-    state->i = i;
-    state->count = count;
-    state->start = start;
-    
-    return(result);
-}
-#endif
-
-internal_4tech int
-buffer_measure_starts_widths(Buffer_Measure_Starts *state, Buffer_Type *buffer, float *advance_data){
+buffer_measure_starts_widths_(Buffer_Measure_Starts *state, Buffer_Type *buffer, float *advance_data){
     Buffer_Stringify_Type loop;
     int *start_ptr, *start_end;
     float *width_ptr;
@@ -609,6 +558,80 @@ buffer_measure_starts_widths_end:
     state->start = start;
     state->width = width;
     
+    return(result);
+}
+
+internal_4tech int
+buffer_measure_starts_zero_widths_(Buffer_Measure_Starts *state, Buffer_Type *buffer){
+    Buffer_Stringify_Type loop;
+    int *start_ptr, *start_end;
+    float *width_ptr;
+    debug_4tech(int widths_max);
+    debug_4tech(int max);
+    char *data;
+    int size, end;
+    int start, i;
+    int result;
+    char ch;
+    
+    size = buffer_size(buffer);
+    
+    debug_4tech(max = buffer->line_max);
+    debug_4tech(widths_max = buffer->widths_max);
+    assert_4tech(max == widths_max);
+    
+    result = 1;
+    
+    i = state->i;
+    start = state->start;
+    
+    start_ptr = buffer->line_starts + state->count;
+    width_ptr = buffer->line_widths + state->count;
+    start_end = buffer->line_starts + buffer->line_max;
+    
+    for (loop = buffer_stringify_loop(buffer, i, size);
+         buffer_stringify_good(&loop);
+         buffer_stringify_next(&loop)){
+        end = loop.size + loop.absolute_pos;
+        data = loop.data - loop.absolute_pos;
+        for (; i < end; ++i){
+            ch = data[i];
+            if (ch == '\n'){
+                if (start_ptr == start_end) goto buffer_measure_starts_zero_widths_end;
+
+                *width_ptr++ = 0;
+                *start_ptr++ = start;
+                start = i + 1;
+            }
+        }
+    }
+    
+    assert_4tech(i == size);
+    
+    if (start_ptr == start_end) goto buffer_measure_starts_zero_widths_end;
+    *start_ptr++ = start;
+    *width_ptr++ = 0;
+    result = 0;
+    
+buffer_measure_starts_zero_widths_end:
+    state->i = i;
+    state->count = (int)(start_ptr - buffer->line_starts);
+    state->start = start;
+    
+    return(result);
+}
+
+internal_4tech int
+buffer_measure_starts_widths(Buffer_Measure_Starts *state, Buffer_Type *buffer, float *advance_data){
+    int result;
+    
+    if (advance_data){
+        result = buffer_measure_starts_widths_(state, buffer, advance_data);
+    }
+    else{
+        result = buffer_measure_starts_zero_widths_(state, buffer);
+    }
+
     return(result);
 }
 
@@ -942,28 +965,33 @@ buffer_cursor_seek(Buffer_Type *buffer, Buffer_Seek seek, float max_width,
     
     Seek_State state;
     int xy_seek;
-
-    size = buffer_size(buffer);
-    xy_seek = (seek.type == buffer_seek_wrapped_xy || seek.type == buffer_seek_unwrapped_xy);
+    
     state.cursor = cursor;
     
-    result = 1;
-    i = cursor.pos;
-    for (loop = buffer_stringify_loop(buffer, i, size);
-         buffer_stringify_good(&loop);
-         buffer_stringify_next(&loop)){
-        end = loop.size + loop.absolute_pos;
-        data = loop.data - loop.absolute_pos;
-        for (; i < end; ++i){
-            result = cursor_seek_step(&state, seek, xy_seek, max_width,
-                                      font_height, advance_data, size, data[i]);
-            if (!result) goto buffer_cursor_seek_end;
+    if (advance_data){
+    
+        size = buffer_size(buffer);
+        xy_seek = (seek.type == buffer_seek_wrapped_xy || seek.type == buffer_seek_unwrapped_xy);
+    
+        result = 1;
+        i = cursor.pos;
+        for (loop = buffer_stringify_loop(buffer, i, size);
+             buffer_stringify_good(&loop);
+             buffer_stringify_next(&loop)){
+            end = loop.size + loop.absolute_pos;
+            data = loop.data - loop.absolute_pos;
+            for (; i < end; ++i){
+                result = cursor_seek_step(&state, seek, xy_seek, max_width,
+                                          font_height, advance_data, size, data[i]);
+                if (!result) goto buffer_cursor_seek_end;
+            }
         }
-    }
-    if (result){
-        result = cursor_seek_step(&state, seek, xy_seek, max_width,
-                                  font_height, advance_data, size, 0);
-        assert_4tech(result == 0);
+        if (result){
+            result = cursor_seek_step(&state, seek, xy_seek, max_width,
+                                      font_height, advance_data, size, 0);
+            assert_4tech(result == 0);
+        }
+        
     }
     
 buffer_cursor_seek_end:    
@@ -1110,7 +1138,7 @@ buffer_get_render_data(Buffer_Type *buffer, float *wraps, Buffer_Render_Item *it
     int i, item_i;
     float ch_width, ch_width_sub;
     char ch;
-    
+
     size = buffer_size(buffer);
     
     shift_x = port_x - scroll_x;
@@ -1131,84 +1159,94 @@ buffer_get_render_data(Buffer_Type *buffer, float *wraps, Buffer_Render_Item *it
     item_i = 0;
     item = items + item_i;
     
-    for (loop = buffer_stringify_loop(buffer, start_cursor.pos, size);
-         buffer_stringify_good(&loop);
-         buffer_stringify_next(&loop)){
+    if (advance_data){
+        for (loop = buffer_stringify_loop(buffer, start_cursor.pos, size);
+             buffer_stringify_good(&loop);
+             buffer_stringify_next(&loop)){
         
-        end = loop.size + loop.absolute_pos;
-        data = loop.data - loop.absolute_pos;
+            end = loop.size + loop.absolute_pos;
+            data = loop.data - loop.absolute_pos;
         
-        for (i = loop.absolute_pos; i < end; ++i){
-            ch = data[i];
-            ch_width = measure_character(advance_data, ch);
+            for (i = loop.absolute_pos; i < end; ++i){
+                ch = data[i];
+                ch_width = measure_character(advance_data, ch);
             
-            if (ch_width + x > width + shift_x && wrapped){
-                x = shift_x;
-                y += font_height;
-            }
-            if (y > height + shift_y) goto buffer_get_render_data_end;
+                if (ch_width + x > width + shift_x && wrapped){
+                    x = shift_x;
+                    y += font_height;
+                }
+                if (y > height + shift_y) goto buffer_get_render_data_end;
             
-            switch (ch){
-            case '\n':
-                write_render_item_inline(item, i, ' ', x, y, advance_data, font_height);
-                ++item_i;
-                ++item;
+                switch (ch){
+                case '\n':
+                    write_render_item_inline(item, i, ' ', x, y, advance_data, font_height);
+                    ++item_i;
+                    ++item;
                 
-                x = shift_x;
-                y += font_height;
-                break;
+                    x = shift_x;
+                    y += font_height;
+                    break;
 
-            case 0:
-                ch_width = write_render_item_inline(item, i, '\\', x, y, advance_data, font_height);
-                ++item_i;
-                ++item;
-                x += ch_width;
+                case 0:
+                    ch_width = write_render_item_inline(item, i, '\\', x, y, advance_data, font_height);
+                    ++item_i;
+                    ++item;
+                    x += ch_width;
 
-                ch_width = write_render_item_inline(item, i, '0', x, y, advance_data, font_height);
-                ++item_i;
-                ++item;
-                x += ch_width;
-                break;
+                    ch_width = write_render_item_inline(item, i, '0', x, y, advance_data, font_height);
+                    ++item_i;
+                    ++item;
+                    x += ch_width;
+                    break;
 
-            case '\r':
-                ch_width = write_render_item_inline(item, i, '\\', x, y, advance_data, font_height);
-                ++item_i;
-                ++item;
-                x += ch_width;
+                case '\r':
+                    ch_width = write_render_item_inline(item, i, '\\', x, y, advance_data, font_height);
+                    ++item_i;
+                    ++item;
+                    x += ch_width;
 
-                ch_width = write_render_item_inline(item, i, 'r', x, y, advance_data, font_height);
-                ++item_i;
-                ++item;
-                x += ch_width;
-                break;
+                    ch_width = write_render_item_inline(item, i, 'r', x, y, advance_data, font_height);
+                    ++item_i;
+                    ++item;
+                    x += ch_width;
+                    break;
 
-            case '\t':
-                ch_width_sub = write_render_item_inline(item, i, '\\', x, y, advance_data, font_height);
-                ++item_i;
-                ++item;
+                case '\t':
+                    ch_width_sub = write_render_item_inline(item, i, '\\', x, y, advance_data, font_height);
+                    ++item_i;
+                    ++item;
 
-                write_render_item_inline(item, i, 't', x + ch_width_sub, y, advance_data, font_height);
-                ++item_i;
-                ++item;
-                x += ch_width;
-                break;
+                    write_render_item_inline(item, i, 't', x + ch_width_sub, y, advance_data, font_height);
+                    ++item_i;
+                    ++item;
+                    x += ch_width;
+                    break;
 
-            default:
-                write_render_item(item, i, ch, x, y, ch_width, font_height);
-                ++item_i;
-                ++item;
-                x += ch_width;
+                default:
+                    write_render_item(item, i, ch, x, y, ch_width, font_height);
+                    ++item_i;
+                    ++item;
+                    x += ch_width;
                 
-                break;
+                    break;
+                }
+                if (y > height + shift_y) goto buffer_get_render_data_end;
             }
-            if (y > height + shift_y) goto buffer_get_render_data_end;
         }
-    }
     
 buffer_get_render_data_end:
-    if (y <= height + shift_y || item == items){
+        if (y <= height + shift_y || item == items){
+            ch = 0;
+            ch_width = measure_character(advance_data, ' ');
+            write_render_item(item, size, ch, x, y, ch_width, font_height);
+            ++item_i;
+            ++item;
+            x += ch_width;
+        }
+    }
+    else{
         ch = 0;
-        ch_width = measure_character(advance_data, ' ');
+        ch_width = 0;
         write_render_item(item, size, ch, x, y, ch_width, font_height);
         ++item_i;
         ++item;

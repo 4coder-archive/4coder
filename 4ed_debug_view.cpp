@@ -23,7 +23,7 @@ struct Dbg_Past_Key{
 
 struct Debug_View{
     View view_base;
-    Render_Font *font;
+    i16 font_id;
     Debug_Mode mode;
     Dbg_Past_Key past_keys[32];
     i32 past_key_count, past_key_pos;
@@ -38,8 +38,8 @@ view_to_debug_view(View *view){
 
 internal i32
 draw_general_memory(Debug_View *view, i32_Rect rect, Render_Target *target, i32 y){
-    Render_Font *font = view->font;
-    i32 y_advance = font->height;
+    i16 font_id = view->font_id;
+    i32 y_advance = get_font_info(&target->font_set, font_id)->height;
     Bubble *sentinel = &view->view_base.mem->general.sentinel;
     
     for (Bubble *bubble = sentinel->next;
@@ -70,7 +70,7 @@ draw_general_memory(Debug_View *view, i32_Rect rect, Render_Target *target, i32 
         append_int_to_str(bubble->size, &s);
         terminate_with_null(&s);
         
-        draw_string(target, font, str, rect.x0, y, color);
+        draw_string(target, font_id, str, rect.x0, y, color);
         y += y_advance;
         
         Bubble *next = bubble->next;
@@ -83,7 +83,7 @@ draw_general_memory(Debug_View *view, i32_Rect rect, Render_Target *target, i32 
                 append(&s, "discontinuity");
                 terminate_with_null(&s);
                 
-                draw_string(target, font, str, rect.x0, y, color);
+                draw_string(target, font_id, str, rect.x0, y, color);
                 y += y_advance;
             }
         }
@@ -93,9 +93,10 @@ draw_general_memory(Debug_View *view, i32_Rect rect, Render_Target *target, i32 
 }
 
 internal i32
-draw_system_memory(System_Functions *system, Debug_View *view, i32_Rect rect, Render_Target *target, i32 y){
-    Render_Font *font = view->font;
-    i32 y_advance = font->height;
+draw_system_memory(System_Functions *system, Debug_View *view, i32_Rect rect,
+                   Render_Target *target, i32 y){
+    i16 font_id = view->font_id;
+    i32 y_advance = get_font_info(&target->font_set, font_id)->height;
     Bubble *sentinel = system->internal_sentinel();
     
     for (Bubble *bubble = sentinel->next;
@@ -114,7 +115,7 @@ draw_system_memory(System_Functions *system, Debug_View *view, i32_Rect rect, Re
         append_int_to_str(bubble->size, &s);
         terminate_with_null(&s);
         
-        draw_string(target, font, str, rect.x0, y, color);
+        draw_string(target, font_id, str, rect.x0, y, color);
         
         y += y_advance;
     }
@@ -152,7 +153,7 @@ draw_background_threads(System_Functions *system,
     String s = make_fixed_width_string(str);
     append_int_to_str(pending, &s);
     terminate_with_null(&s);
-    draw_string(target, view->font, str, trect.x1, trect.y1, light);
+    draw_string(target, view->font_id, str, trect.x1, trect.y1, light);
 }
 
 struct Dbg_Modifier{
@@ -174,7 +175,7 @@ draw_modifiers(Debug_View *view, Render_Target *target,
         if (modifiers[m.modifier]) color = on_color;
         else color = off_color;
         
-        *x = draw_string(target, view->font, m.name, *x, y, color);
+        *x = draw_string(target, view->font_id, m.name, *x, y, color);
         *x += 5;
     }
 }
@@ -182,15 +183,17 @@ draw_modifiers(Debug_View *view, Render_Target *target,
 internal i32
 draw_key_event(Debug_View *view, Render_Target *target,
                Dbg_Past_Key *key, i32 x, i32 y, u32 on_color, u32 off_color){
-    Render_Font *font = view->font;
     draw_modifiers(view, target, key->modifiers,
                    on_color, off_color, &x, y);
+
+    i16 font_id = view->font_id;
+    Render_Font *font = get_font_info(&target->font_set, font_id)->font;
     
-    if (font->glyphs[key->key.character].exists){
+    if (font && font->glyphs[key->key.character].exists){
         char c[2];
         c[0] = (char)key->key.character;
         c[1] = 0;
-        x = draw_string(target, font, c, x, y, on_color);
+        x = draw_string(target, font_id, c, x, y, on_color);
     }
     else{
         char c[10] = {};
@@ -198,7 +201,7 @@ draw_key_event(Debug_View *view, Render_Target *target,
         append(&str, "\\");
         append_int_to_str(key->key.keycode, &str);
         terminate_with_null(&str);
-        x = draw_string(target, font, c, x, y, on_color);
+        x = draw_string(target, font_id, c, x, y, on_color);
     }
     
     return x;
@@ -212,14 +215,15 @@ draw_os_events(Debug_View *view, i32_Rect rect, Render_Target *target,
     i32 x, y, max_x, max_y;
     x = rect.x0;
     y = rect.y0;
-    
-    Render_Font *font = view->font;
+
+    i16 font_id = view->font_id;
+    i32 line_height = get_font_info(&target->font_set, font_id)->height;
     
     draw_modifiers(view, target, active_input->keys.modifiers,
                    0xFFFFFFFF, 0xFF444444, &x, y);
     max_x = x;
     x = rect.x0;
-    y += font->height;
+    y += line_height;
     
     for (i32 j = 0; j < view->past_key_count; ++j){
         Dbg_Past_Key *key = view->past_keys + j;
@@ -236,7 +240,7 @@ draw_os_events(Debug_View *view, i32_Rect rect, Render_Target *target,
         
         if (max_x < x) max_x = x;
         x = rect.x0;
-        y += font->height;
+        y += line_height;
     }
     
     i32_Rect mrect = rect;
@@ -250,13 +254,13 @@ draw_os_events(Debug_View *view, i32_Rect rect, Render_Target *target,
         u32 color;
         if (active_input->mouse.out_of_window){
             color = 0xFFFF0000;
-            draw_string(target, font, "OUT", x, y, color);
+            draw_string(target, font_id, "OUT", x, y, color);
         }
         else{
             color = 0xFF008800;
-            draw_string(target, font, "IN", x, y, color);
+            draw_string(target, font_id, "IN", x, y, color);
         }
-        y += font->height;
+        y += line_height;
         
         char c[16];
         String s = make_fixed_width_string(c);
@@ -264,20 +268,20 @@ draw_os_events(Debug_View *view, i32_Rect rect, Render_Target *target,
         append(&s, ", ");
         append_int_to_str(active_input->mouse.my, &s);
         terminate_with_null(&s);
-        draw_string(target, font, c, x, y, color);
-        y += font->height;
+        draw_string(target, font_id, c, x, y, color);
+        y += line_height;
         
         u32 btn_color;
         if (active_input->mouse.l) btn_color = color;
         else btn_color = 0xFF444444;
-        x = draw_string(target, font, "L ", x, y, btn_color);
+        x = draw_string(target, font_id, "L ", x, y, btn_color);
         
         if (active_input->mouse.r) btn_color = color;
         else btn_color = 0xFF444444;
-        x = draw_string(target, font, "R", x, y, btn_color);
+        x = draw_string(target, font_id, "R", x, y, btn_color);
         
         x = mrect.x0;
-        y += font->height;
+        y += line_height;
         
         s = make_fixed_width_string(c);
         append_int_to_str(view->prev_mouse_wheel, &s);
@@ -285,9 +289,9 @@ draw_os_events(Debug_View *view, i32_Rect rect, Render_Target *target,
         
         if (active_input->mouse.wheel_used) btn_color = color;
         else btn_color = 0xFF444444;
-        draw_string(target, font, c, x, y, btn_color);
+        draw_string(target, font_id, c, x, y, btn_color);
         
-        y += font->height;
+        y += line_height;
     }
 }
 

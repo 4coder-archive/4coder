@@ -17,11 +17,11 @@
 
 #include "4cpp_types.h"
 #define FCPP_STRING_IMPLEMENTATION
-#include "4cpp_string.h"
+#include "4coder_string.h"
 
 #include "4ed_mem.cpp"
-
 #include "4ed_math.cpp"
+
 #include "4coder_custom.h"
 #include "4ed_system.h"
 #include "4ed_rendering.h"
@@ -32,6 +32,8 @@
 #define FCPP_LEXER_IMPLEMENTATION
 #include "4cpp_lexer.h"
 
+#include "4ed_exchange.cpp"
+#include "4ed_font_set.cpp"
 #include "4ed_rendering_helper.cpp"
 #include "4ed_command.cpp"
 #include "4ed_layout.cpp"

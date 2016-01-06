@@ -187,10 +187,10 @@ LargeRoundUp(i32 x, i32 granularity){
 #define Byte_7 (0xFFU << 56)
 
 #define bytes(n) (n)
-#define Kbytes(n) (bytes(n) * 1024)
-#define Mbytes(n) (Kbytes(n) * 1024)
-#define Gbytes(n) (Mbytes((u64)n) * 1024)
-#define Tbytes(n) (Gbytes((u64)n) * 1024)
+#define Kbytes(n) ((n) << 10)
+#define Mbytes(n) ((n) << 20)
+#define Gbytes(n) (((u64)n) << 30)
+#define Tbytes(n) (((u64)n) << 40)
 
 #endif
 

@@ -38,8 +38,8 @@ map_hash(u16 event_code, u8 modifiers){
 }
 
 internal b32
-map_add(Command_Map *map, u16 event_code, u8 modifiers, Command_Function function,
-        Custom_Command_Function *custom = 0){
+map_add(Command_Map *map, u16 event_code, u8 modifiers,
+        Command_Function function, Custom_Command_Function *custom = 0){
     Assert(map->count * 8 < map->max * 7);
     Command_Binding bind;
     bind.function = function;
@@ -61,7 +61,8 @@ map_add(Command_Map *map, u16 event_code, u8 modifiers, Command_Function functio
 }
 
 internal b32
-map_find_entry(Command_Map *map, u16 event_code, u8 modifiers, i32 *index_out){
+map_find_entry(Command_Map *map, u16 event_code, u8 modifiers,
+               i32 *index_out){
     i64 hash = map_hash(event_code, modifiers);
     i32 max = map->max;
     i32 index = hash % map->max;
@@ -77,7 +78,8 @@ map_find_entry(Command_Map *map, u16 event_code, u8 modifiers, i32 *index_out){
 }
 
 internal b32
-map_find(Command_Map *map, u16 event_code, u8 modifiers, Command_Binding *bind_out){
+map_find(Command_Map *map, u16 event_code, u8 modifiers,
+         Command_Binding *bind_out){
     b32 result;
     i32 index;
     result = map_find_entry(map, event_code, modifiers, &index);
@@ -100,7 +102,8 @@ map_drop(Command_Map *map, u16 event_code, u8 modifiers){
 }
 
 internal void
-map_init(Command_Map *commands, Partition *part, i32 max, Command_Map *parent){
+map_init(Command_Map *commands, Partition *part, i32 max,
+         Command_Map *parent){
     commands->parent = parent;
     commands->commands = push_array(part, Command_Binding, max);
     memset(commands->commands, 0, max*sizeof(*commands->commands));
@@ -110,10 +113,16 @@ map_init(Command_Map *commands, Partition *part, i32 max, Command_Map *parent){
 }
 
 internal void
-map_get_vanilla_keyboard_default(Command_Map *map, u8 command, Command_Binding *bind_out){
+map_get_vanilla_keyboard_default(Command_Map *map, u8 command,
+                                 Command_Binding *bind_out){
     if (command == MDFR_NONE){
         *bind_out = map->vanilla_keyboard_default;
     }
+}
+
+inline u8
+apply_shift_to_code(u8 keycode){
+    return !(keycode >= 0x20 && keycode < 0x7F && keycode != ' ');
 }
 
 internal Command_Binding
@@ -122,19 +131,17 @@ map_extract(Command_Map *map, Key_Single key){
     
     b32 ctrl = key.modifiers[CONTROL_KEY_CONTROL];
     b32 alt = key.modifiers[CONTROL_KEY_ALT];
-    b32 shift = key.modifiers[CONTROL_KEY_SHIFT] && key.key.loose_keycode;
+    b32 shift = key.modifiers[CONTROL_KEY_SHIFT];
     u16 code;
     u8 command = MDFR_NONE;
+    
+    if (key.key.character_no_caps_lock != 0 &&
+        key.key.character_no_caps_lock != ' ') shift = 0;
     
     if (shift) command |= MDFR_SHIFT;
     if (ctrl) command |= MDFR_CTRL;
     if (alt) command |= MDFR_ALT;
-    
-    command |= MDFR_EXACT;
-    code = key.key.keycode;
-    map_find(map, code, command, &bind);
-    
-    command &= ~(MDFR_EXACT);
+
     code = key.key.character_no_caps_lock;
     if (code == 0){
         code = key.key.keycode;

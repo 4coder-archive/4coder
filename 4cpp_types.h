@@ -9,7 +9,7 @@ NOTES ON USE:
 // TODO(allen):
 // - create non stdint.h version in case someone wants to exclude that header
 
-#include "4cpp_config.h"
+#include "4coder_config.h"
 
 #ifndef FCPP_TYPES
 #define FCPP_TYPES

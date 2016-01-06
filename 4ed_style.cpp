@@ -214,18 +214,13 @@ struct Style_File_Format{
 struct Style{
     char name_[24];
     String name;
-	Render_Font *font;
     Style_Main_Data main;
-    bool32 font_changed;
+    b32 font_changed;
+    i16 font_id;
 };
 
 struct Style_Library{
     Style styles[64];
-    i32 count, max;
-};
-
-struct Font_Set{
-    Render_Font *fonts;
     i32 count, max;
 };
 
@@ -241,21 +236,6 @@ style_set_name(Style *style, String name){
     style->name_[count - 1] = 0;
     style->name = make_string(style->name_, 0, count - 1);
     copy(&style->name, name);
-}
-
-internal Render_Font*
-font_set_extract(Font_Set *fonts, char *name, i32 size){
-    String n = make_string(name, size);
-    i32 count = fonts->count;
-    Render_Font *result = 0;
-    Render_Font *font = fonts->fonts;
-    for (i32 i = 0; i < count; ++i, ++font){
-        if (match(n, font->name)){
-            result = font;
-            break;
-        }
-    }
-    return result;
 }
 
 internal void
@@ -415,7 +395,11 @@ style_format_for_use(Font_Set *fonts, Style *out, Style_File_Format *style){
     out->name = make_string(out->name_, 0, ArrayCount(out->name_) - 1);
     out->name_[ArrayCount(out->name_) - 1] = 0;
     copy(&out->name, style->name);
-    out->font = font_set_extract(fonts, style->font_name, style->font_name_size);
+    if (!font_set_extract(fonts,
+                          make_string(style->font_name, style->font_name_size),
+                          &out->font_id)){
+        out->font_id = 0;
+    }
 
     i32 spec_count = style->color_specifier_count;
     Style_Color_Specifier *spec = (Style_Color_Specifier*)(style + 1);
@@ -443,7 +427,11 @@ style_format_for_use(Font_Set *fonts, Style *out, Style_File_Format_v4 *style){
     out->name = make_string(out->name_, 0, ArrayCount(out->name_) - 1);
     out->name_[ArrayCount(out->name_) - 1] = 0;
     copy(&out->name, style->name);
-    out->font = font_set_extract(fonts, style->font_name, style->font_name_size);
+    if (!font_set_extract(fonts,
+                          make_string(style->font_name, style->font_name_size),
+                          &out->font_id)){
+        out->font_id = 0;
+    }
     out->main = style->main;
 }
 
@@ -475,11 +463,9 @@ style_format_for_use(Font_Set *fonts, Style *out, Style_File_Format_v3 *style){
 }
 
 internal b32
-style_library_import(System_Functions *system,
-                     char *filename, Font_Set *fonts, Style *out, i32 max,
+style_library_import(Data file, Font_Set *fonts, Style *out, i32 max,
                      i32 *count_opt, i32 *total_opt = 0){
     b32 result = 1;
-    Data file = system->load_file(filename);
     Style_Page_Header *h = 0;
     
     if (!file.data){
@@ -540,12 +526,25 @@ style_library_import(System_Functions *system,
         default: result = 0; break;
         }
         
-early_exit:
-        system->free_file(file);
+early_exit:;
     }
     
     return result;
 }
+
+#if 0
+internal b32
+style_library_import(System_Functions *system,
+                     char *filename, Font_Set *fonts, Style *out, i32 max,
+                     i32 *count_opt, i32 *total_opt = 0){
+    b32 result;
+    Data file = system->load_file(filename);
+    result = style_library_import(file, fonts, out, max, count_opt, total_opt);
+    system->free_file(file);
+    
+    return result;
+}
+#endif
 
 internal b32
 style_library_add(Style_Library *library, Style *style){
@@ -572,12 +571,13 @@ style_library_add(Style_Library *library, Style *style){
 }
 
 internal Style_File_Format*
-style_format_for_file(Style *style, Style_File_Format *out){
-    Render_Font *font = style->font;
+style_format_for_file(Font_Set *set, Style *style, Style_File_Format *out){
     out->name_size = style->name.size;
     memcpy(out->name, style->name.str, ArrayCount(out->name));
-    out->font_name_size = font->name.size;
-    memcpy(out->font_name, font->name.str, ArrayCount(out->font_name));
+
+    String font_name = get_font_info(set, style->font_id)->name;
+    out->font_name_size = font_name.size;
+    memcpy(out->font_name, font_name.str, font_name.size);
     
     Style_Color_Specifier *spec = (Style_Color_Specifier*)(out + 1);
     i32 count = 0;
@@ -597,10 +597,12 @@ style_format_for_file(Style *style, Style_File_Format *out){
 }
 
 internal void
-style_library_export(System_Functions *system, char *filename, Style **styles, i32 count){
+style_library_export(System_Functions *system, Exchange *exchange, Mem_Options *mem,
+                     Font_Set *set, char *filename, Style **styles, i32 count){
     i32 size = count*(sizeof(Style_File_Format) + STAG_COUNT*sizeof(Style_Color_Specifier)) +
         sizeof(P4C_Page_Header) + sizeof(Style_Page_Header);
-    void *data = system->get_memory(size);
+    Temp_Memory temp = begin_temp_memory(&mem->part);
+    void *data = push_block(&mem->part, size);
     void *cursor = data;
     
     {
@@ -620,10 +622,17 @@ style_library_export(System_Functions *system, char *filename, Style **styles, i
     Style_File_Format *out = (Style_File_Format*)cursor;
     Style **in = styles;
     for (i32 i = 0; i < count; ++i){
-        out = style_format_for_file(*in++, out);
+        out = style_format_for_file(set, *in++, out);
     }
+    
+    int filename_len = str_size(filename);
+    exchange_save_file(exchange, filename, filename_len,
+                       (byte*)data, size, size);
+#if 0
     system->save_file(filename, data, size);
-    system->free_memory(data);
+#endif
+    
+    end_temp_memory(temp);
 }
 
 // BOTTOM

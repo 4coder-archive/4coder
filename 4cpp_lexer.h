@@ -58,7 +58,7 @@ NOTES ON USE:
 // - lex in chunks
 // 
 
-#include "4cpp_config.h"
+#include "4coder_config.h"
 
 #ifndef FCPP_LEXER_INC
 #define FCPP_LEXER_INC

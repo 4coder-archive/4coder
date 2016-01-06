@@ -30,6 +30,7 @@ struct Interactive_View{
     Style *style;
     Working_Set *working_set;
     Delay *delay;
+    Font_Set *font_set;
     UI_State state;
     Interactive_View_Interaction interaction;
     Interactive_View_Action action;
@@ -97,19 +98,20 @@ interactive_view_complete(Interactive_View *view){
 }
 
 internal i32
-step_draw_int_view(System_Functions *system,
-                   Interactive_View *view, Render_Target *target, i32_Rect rect,
-                   Input_Summary *user_input, bool32 input_stage){
+step_draw_int_view(System_Functions *system, Interactive_View *view,
+                   Render_Target *target, i32_Rect rect,
+                   Input_Summary *user_input, b32 input_stage){
     i32 result = 0;
     
     UI_State state =
-        ui_state_init(&view->state, target, user_input, view->style, view->working_set, input_stage);
+        ui_state_init(&view->state, target, user_input,
+                      view->style, view->font_set, view->working_set, input_stage);
     
     UI_Layout layout;
     begin_layout(&layout, rect);
     
-    bool32 new_dir = 0;
-    bool32 complete = 0;
+    b32 new_dir = 0;
+    b32 complete = 0;
 
     terminate_with_null(&view->query);
     do_label(&state, &layout, view->query.str, 1.f);
@@ -202,8 +204,9 @@ Do_View_Sig(do_interactive_view){
 }
 
 internal Interactive_View*
-interactive_view_init(System_Functions *system, View *view, Hot_Directory *hot_dir, Style *style,
-                      Working_Set *working_set, Delay *delay){
+interactive_view_init(System_Functions *system, View *view,
+                      Hot_Directory *hot_dir, Style *style,
+                      Working_Set *working_set, Font_Set *font_set, Delay *delay){
     Interactive_View *result = (Interactive_View*)view;
     view->type = VIEW_TYPE_INTERACTIVE;
     view->do_view = do_interactive_view;
@@ -214,6 +217,7 @@ interactive_view_init(System_Functions *system, View *view, Hot_Directory *hot_d
     result->dest = make_fixed_width_string(result->dest_);
     result->style = style;
     result->working_set = working_set;
+    result->font_set = font_set;
     result->delay = delay;
     return result;
 }

@@ -33,7 +33,7 @@ step_draw_menu_view(Menu_View *view, Render_Target *target, i32_Rect rect,
     
     UI_State state =
         ui_state_init(&view->state, target, user_input,
-                      view->style, view->working_set, input_stage);
+                      view->style, &target->font_set, view->working_set, input_stage);
     
     UI_Layout layout;
     begin_layout(&layout, rect);

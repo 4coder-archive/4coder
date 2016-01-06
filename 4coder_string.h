@@ -24,16 +24,19 @@ NOTES ON USE:
 // - memcpy / memmove replacements (different file for optimization options?)
 // 
 
-#include "4cpp_config.h"
+#include "4coder_config.h"
 
 #ifndef FCPP_STRING_INC
 #define FCPP_STRING_INC
 
+#ifndef FRED_STRING_STRUCT
+#define FRED_STRING_STRUCT
 struct String{
     char *str;
     int size;
     int memory_size;
 };
+#endif
 
 inline bool char_not_slash(char c) { return (c != '\\' && c != '/'); }
 inline bool char_is_slash(char c) { return (c == '\\' || c == '/'); }
@@ -147,12 +150,14 @@ inline    int   compare(char *a, String b) { return -compare(b,a); }
 FCPP_LINK int   compare(String a, String b);
 
 FCPP_LINK int    reverse_seek_slash(String str);
+FCPP_LINK int    reverse_seek_slash(String str, int start_pos);
 inline    bool   get_front_of_directory(String *dest, String dir) { return append_checked(dest, substr(dir, reverse_seek_slash(dir) + 1)); }
 inline    bool   get_path_of_directory(String *dest, String dir) { return append_checked(dest, substr(dir, 0, reverse_seek_slash(dir) + 1)); }
 FCPP_LINK bool   set_last_folder(String *dir, char *folder_name);
 FCPP_LINK bool   set_last_folder(String *dir, String folder_name);
 FCPP_LINK String file_extension(String str);
 FCPP_LINK String file_extension_slowly(char *str);
+FCPP_LINK bool   remove_last_folder(String *str);
 
 inline String make_string(char *str, int size, int mem_size){
     String result;
@@ -834,12 +839,17 @@ compare(String a, String b){
 }
 
 FCPP_LINK int
-reverse_seek_slash(String str){
-    int i = str.size - 1;
+reverse_seek_slash(String str, int pos){
+    int i = str.size - 1 - pos;
     while (i >= 0 && char_not_slash(str.str[i])){
         --i;
     }
     return i;
+}
+
+FCPP_LINK int
+reverse_seek_slash(String str){
+    return(reverse_seek_slash(str, 0));
 }
 
 FCPP_LINK bool
@@ -886,7 +896,7 @@ file_extension(String str){
 
 FCPP_LINK String
 file_extension_slowly(char *str){
-    i32 s, i;
+    int s, i;
     for (s = 0; str[s]; ++s);
     for (i = s - 1; i >= 0; --i){
         if (str[i] == '.') break;
@@ -895,8 +905,23 @@ file_extension_slowly(char *str){
     return make_string(str+i, s-i);
 }
 
+FCPP_LINK bool
+remove_last_folder(String *str){
+    bool result = 0;
+    int end = reverse_seek_slash(*str, 1);
+    if (end >= 0){
+        result = 1;
+        str->size = end + 1;
+    }
+    return(result);
+}
+
 // NOTE(allen): experimental section, things below here are
 // not promoted to public API level yet.
+
+#ifndef ArrayCount
+#define ArrayCount(a) ((sizeof(a))/sizeof(a))
+#endif
 
 struct Absolutes{
     String a[8];

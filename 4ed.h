@@ -31,10 +31,10 @@ enum Key_Control{
 };
 
 struct Key_Event_Data{
-	u16 keycode;
-	u16 loose_keycode;
-	u16 character;
-	u16 character_no_caps_lock;
+	u8 keycode;
+	//u8 apply_shift;
+	u8 character;
+	u8 character_no_caps_lock;
 };
 
 struct Key_Input_Data{
@@ -97,14 +97,44 @@ struct Clipboard_Contents{
 	i32 size;
 };
 
-struct Thread_Context;
+#define FileNameMax (1 << 9)
+
+struct File_Slot{
+    File_Slot *next, *prev;
+    byte *data;
+    i32 size, max;
+    char *filename;
+    i32 filename_len;
+    u32 flags;
+};
+
+enum File_Exchange_Flag{
+    FEx_Request = 0x1,
+    FEx_Ready = 0x2,
+    FEx_Not_Exist = 0x4,
+    FEx_Save = 0x8,
+    FEx_Save_Complete = 0x10
+};
+
+struct File_Exchange{
+    File_Slot available, active, free_list;
+    File_Slot *files;
+    i32 num_active, max;
+};
+
+struct Exchange{
+    Thread_Exchange thread;
+    File_Exchange file;
+};
 
 #define App_Init_Sig(name)                                          \
     b32 name(System_Functions *system,                              \
              Render_Target *target,                                 \
              Application_Memory *memory,                            \
+             Exchange *exchange,                                    \
              Key_Codes *loose_codes,                                \
              Clipboard_Contents clipboard,                          \
+             String current_directory,                              \
              Config_API api)
 
 typedef App_Init_Sig(App_Init);
@@ -131,15 +161,28 @@ struct Application_Step_Result{
          Mouse_State *mouse,                                \
          Render_Target *target,                             \
          Application_Memory *memory,                        \
+         Exchange *exchange,                                \
          Clipboard_Contents clipboard,                      \
          b32 time_step, b32 first_step, b32 force_redraw)
 
 typedef App_Step_Sig(App_Step);
 
+#define App_Alloc_Sig(name) void *name(void *handle, i32 size)
+typedef App_Alloc_Sig(App_Alloc);
+
+#define App_Free_Sig(name) void name(void *handle, void *block)
+typedef App_Free_Sig(App_Free);
+
 struct App_Functions{
     App_Init *init;
     App_Step *step;
+
+    App_Alloc *alloc;
+    App_Free *free;
 };
+
+#define App_Get_Functions_Sig(name) App_Functions name()
+typedef App_Get_Functions_Sig(App_Get_Functions);
 
 #endif
 

@@ -138,7 +138,7 @@ private_draw_gradient(Render_Target *target, f32_Rect rect,
 
 inline void
 private_draw_glyph(Render_Target *target, Render_Font *font,
-                   u16 character, f32 x, f32 y, u32 color){
+                   u8 character, f32 x, f32 y, u32 color){
     f32 x_shift, y_shift;
     x_shift = 0;
     y_shift = (f32)font->ascent;
@@ -147,8 +147,8 @@ private_draw_glyph(Render_Target *target, Render_Font *font,
     y += y_shift;
     
     stbtt_aligned_quad q;
-    stbtt_GetBakedQuadUnrounded(font->chardata, font->tex_width, font->tex_height,
-                                character, &x, &y, &q, 1);
+    stbtt_GetPackedQuad(font->chardata, font->tex_width, font->tex_height,
+                        character, &x, &y, &q, 1);
     
     draw_set_color(target, color);
     draw_bind_texture(target, font->tex);
@@ -163,7 +163,7 @@ private_draw_glyph(Render_Target *target, Render_Font *font,
 }
 
 inline void
-private_draw_glyph_mono(Render_Target *target, Render_Font *font, u16 character,
+private_draw_glyph_mono(Render_Target *target, Render_Font *font, u8 character,
                         f32 x, f32 y, f32 advance, u32 color){
     f32 x_shift, y_shift;
     i32 left = font->chardata[character].x0;
@@ -176,7 +176,8 @@ private_draw_glyph_mono(Render_Target *target, Render_Font *font, u16 character,
     y += y_shift;
     
     stbtt_aligned_quad q;
-    stbtt_GetBakedQuadUnrounded(font->chardata, font->tex_width, font->tex_height, character, &x, &y, &q, 1);
+    stbtt_GetPackedQuad(font->chardata, font->tex_width, font->tex_height,
+                        character, &x, &y, &q, 1);
     
     draw_set_color(target, color);
     draw_bind_texture(target, font->tex);
@@ -191,7 +192,7 @@ private_draw_glyph_mono(Render_Target *target, Render_Font *font, u16 character,
 }
 
 inline void
-private_draw_glyph_mono(Render_Target *target, Render_Font *font, u16 character,
+private_draw_glyph_mono(Render_Target *target, Render_Font *font, u8 character,
                         real32 x, real32 y, u32 color){
     private_draw_glyph_mono(target, font, character, x, y, (f32)font->advance, color);
 }
@@ -233,31 +234,34 @@ launch_rendering(Render_Target *target){
         {
             Render_Piece_Glyph *glyph =
                 ExtractStruct(Render_Piece_Glyph);
-            Render_Font *font = glyph->font_id;
             
-            private_draw_glyph(target, font, glyph->character,
-                               glyph->pos.x, glyph->pos.y, glyph->color);
+            Render_Font *font = get_font_info(&target->font_set, glyph->font_id)->font;
+            if (font)
+                private_draw_glyph(target, font, glyph->character,
+                                   glyph->pos.x, glyph->pos.y, glyph->color);
         }break;
         
         case piece_type_mono_glyph:
         {
             Render_Piece_Glyph *glyph =
                 ExtractStruct(Render_Piece_Glyph);
-            Render_Font *font = glyph->font_id;
             
-            private_draw_glyph_mono(target, font, glyph->character,
-                                    glyph->pos.x, glyph->pos.y, glyph->color);
+            Render_Font *font = get_font_info(&target->font_set, glyph->font_id)->font;
+            if (font)            
+                private_draw_glyph_mono(target, font, glyph->character,
+                                        glyph->pos.x, glyph->pos.y, glyph->color);
         }break;
         
         case piece_type_mono_glyph_advance:
         {
             Render_Piece_Glyph_Advance *glyph =
                 ExtractStruct(Render_Piece_Glyph_Advance);
-            Render_Font *font = glyph->font_id;
             
-            private_draw_glyph_mono(target, font, glyph->character,
-                                    glyph->pos.x, glyph->pos.y,
-                                    glyph->advance, glyph->color);
+            Render_Font *font = get_font_info(&target->font_set, glyph->font_id)->font;
+            if (font)
+                private_draw_glyph_mono(target, font, glyph->character,
+                                        glyph->pos.x, glyph->pos.y,
+                                        glyph->advance, glyph->color);
         }break;
         }
     }
@@ -265,18 +269,99 @@ launch_rendering(Render_Target *target){
 
 #undef ExtractStruct
 
-internal i32
-draw_font_load(System_Functions *system,
-               Render_Font *font_out,
-               char *filename,
-               i32 pt_size,
-               void *font_block,
-               i32 font_block_size,
-               i32 *memory_used_out,
-               i32 tab_width){
+internal
+Font_Info_Load_Sig(draw_font_info_load){
     i32 result = 1;
     Data file;
-    file = system->load_file(filename);
+    file = system_load_file(filename);
+    Temp_Memory temp = begin_temp_memory(partition);
+    stbtt_packedchar *chardata = push_array(partition, stbtt_packedchar, 256);
+
+    i32 oversample = 2;
+    
+    i32 tex_width, tex_height;
+    tex_width = pt_size*128*oversample;
+    tex_height = pt_size*2*oversample;
+    void *block = push_block(partition, tex_width * tex_height);
+
+    if (!file.data){
+        result = 0;
+    }
+    else{
+        stbtt_fontinfo font;
+        if (!stbtt_InitFont(&font, (u8*)file.data, 0)){
+            result = 0;
+        }
+        else{
+            i32 ascent, descent, line_gap;
+            f32 scale;
+            
+            stbtt_GetFontVMetrics(&font, &ascent, &descent, &line_gap);
+            scale = stbtt_ScaleForPixelHeight(&font, (f32)pt_size);
+            
+            f32 scaled_ascent, scaled_descent, scaled_line_gap;
+            
+            scaled_ascent = scale*ascent;
+            scaled_descent = scale*descent;
+            scaled_line_gap = scale*line_gap;
+
+            i32 font_height = (i32)(scaled_ascent - scaled_descent + scaled_line_gap);
+
+            stbtt_pack_context spc;
+            if (stbtt_PackBegin(&spc, (u8*)block, tex_width, tex_height, tex_width, 1, partition)){
+                stbtt_PackSetOversampling(&spc, oversample, oversample);
+                if (stbtt_PackFontRange(&spc, (u8*)file.data, 0,
+                                        STBTT_POINT_SIZE((f32)pt_size), 0, 128, chardata)){
+                    // do nothing
+                }
+                else{
+                    result = 0;
+                }
+                
+                stbtt_PackEnd(&spc);
+            }
+            else{
+                result = 0;
+            }
+            
+            if (result){
+                i32 max_advance = 0;
+                for (u8 code_point = 0; code_point < 128; ++code_point){
+                    if (stbtt_FindGlyphIndex(&font, code_point) != 0){
+                        i32 adv = CEIL32(chardata[code_point].xadvance);
+                        if (max_advance < adv){
+                            max_advance = adv;
+                        }
+                    }
+                }
+                
+                *height = font_height;
+                *advance = max_advance - 1;
+            }
+        }
+        
+        system_free_memory(file.data);
+    }
+
+    end_temp_memory(temp);
+    
+    return(result);
+}
+
+internal
+Font_Load_Sig(draw_font_load){
+    i32 result = 1;
+    Data file;
+    file = system_load_file(filename);
+    Temp_Memory temp = begin_temp_memory(partition);
+    stbtt_packedchar *chardata = font_out->chardata;
+
+    i32 oversample = 2;
+    
+    i32 tex_width, tex_height;
+    tex_width = pt_size*128*oversample;
+    tex_height = pt_size*2*oversample;
+    void *block = push_block(partition, tex_width * tex_height);
     
     if (!file.data){
         result = 0;
@@ -289,12 +374,12 @@ draw_font_load(System_Functions *system,
         }
         else{
             i32 ascent, descent, line_gap;
-            real32 scale;
+            f32 scale;
             
             stbtt_GetFontVMetrics(&font, &ascent, &descent, &line_gap);
-            scale = stbtt_ScaleForPixelHeight(&font, (real32)pt_size);
+            scale = stbtt_ScaleForPixelHeight(&font, (f32)pt_size);
             
-            real32 scaled_ascent, scaled_descent, scaled_line_gap;
+            f32 scaled_ascent, scaled_descent, scaled_line_gap;
             
             scaled_ascent = scale*ascent;
             scaled_descent = scale*descent;
@@ -305,167 +390,36 @@ draw_font_load(System_Functions *system,
             font_out->descent = (i32)(scaled_descent);
             font_out->line_skip = (i32)(scaled_line_gap);
             
-            u8 *memory_cursor = (u8*)font_block;
-            Assert(pt_size*pt_size*128 <= font_block_size);
-            
-            i32 tex_width, tex_height;
-            tex_width = pt_size*128;
-            tex_height = pt_size*2;
-            
             font_out->tex_width = tex_width;
             font_out->tex_height = tex_height;
-            
-            if (stbtt_BakeFontBitmap((u8*)file.data, 0, (real32)pt_size,
-                                     memory_cursor, tex_width, tex_height, 0, 128, font_out->chardata) <= 0){
-                result = 0;
-            }
-            
-            else{
-                GLuint font_tex;
-                glGenTextures(1, &font_tex);
-                glBindTexture(GL_TEXTURE_2D, font_tex);
-                
-                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-                
-                glTexImage2D(GL_TEXTURE_2D, 0, GL_ALPHA, tex_width, tex_height, 0, GL_ALPHA, GL_UNSIGNED_BYTE, memory_cursor);
-                
-                font_out->tex = font_tex;
-                glBindTexture(GL_TEXTURE_2D, 0);
-            }
-            
-            font_out->chardata['\r'] = font_out->chardata[' '];
-            font_out->chardata['\n'] = font_out->chardata[' '];
-            font_out->chardata['\t'] = font_out->chardata[' '];
-            font_out->chardata['\t'].xadvance *= tab_width;
-            
-            i32 max_advance = 0;
-            for (u16 code_point = 0; code_point < 128; ++code_point){
-                if (stbtt_FindGlyphIndex(&font, code_point) != 0){
-                    font_out->glyphs[code_point].exists = 1;
-                    i32 advance = CEIL32(font_out->chardata[code_point].xadvance);
-                    if (max_advance < advance) max_advance = advance;
-                    font_out->advance_data[code_point] = font_out->chardata[code_point].xadvance;
-                }
-            }
-            font_out->advance = max_advance - 1;
-        }
-        system->free_file(file);
-    }
-    
-    return result;
-}
+
+            stbtt_pack_context spc;
 
 #if 0
-
-internal void
-draw_rectangle(Render_Target *target, i32_Rect rect, u32 color){
-    draw_set_color(target, color);
-    draw_bind_texture(target, 0);
-	glBegin(GL_QUADS);
-    {
-        glVertex2i(rect.x0, rect.y0);
-        glVertex2i(rect.x0, rect.y1);
-        glVertex2i(rect.x1, rect.y1);
-        glVertex2i(rect.x1, rect.y0);
-    }
-	glEnd();
-}
-
-internal void
-draw_triangle_3corner(Render_Target *target,
-                      real32 x0, real32 y0,
-                      real32 x1, real32 y1,
-                      real32 x2, real32 y2,
-                      u32 color){
-    draw_set_color(target, color);
-    draw_bind_texture(target, 0);
-	glBegin(GL_TRIANGLES);
-    {
-        glVertex2f(x0, y0);
-        glVertex2f(x1, y1);
-        glVertex2f(x2, y2);
-    }
-	glEnd();
-}
-
-inline void
-draw_gradient_2corner_clipped(Render_Target *target, real32 l, real32 t, real32 r, real32 b,
-                              Vec4 color_left, Vec4 color_right){
-    draw_gradient_2corner_clipped(target, f32R(l,t,r,b), color_left, color_right);
-}
-
-inline void
-draw_rectangle_outline(Render_Target *target, i32_Rect rect, u32 color){
-    draw_rectangle_outline(target, f32R(rect), color);
-}
-
-internal void
-draw_margin(Render_Target *target, i32_Rect outer, i32_Rect inner, u32 color){
-    draw_rectangle(target, i32R(outer.x0, outer.y0, outer.x1, inner.y0), color);
-    draw_rectangle(target, i32R(outer.x0, inner.y1, outer.x1, outer.y1), color);
-    draw_rectangle(target, i32R(outer.x0, inner.y0, inner.x0, inner.y1), color);
-    draw_rectangle(target, i32R(inner.x1, inner.y0, outer.x1, inner.y1), color);
-}
-
-inline internal i32
-font_predict_size(i32 pt_size){
-	return pt_size*pt_size*128;
-}
-
-internal i32
-font_load(System_Functions *system,
-          Render_Font *font_out, char *filename, i32 pt_size,
-          void *font_block, i32 font_block_size,
-          i32 *memory_used_out, i32 tab_width){
-    i32 result = 1;
-    File_Data file;
-    file = system->load_file(filename);
-    
-    if (!file.data){
-        result = 0;
-    }
-    
-    else{
-        stbtt_fontinfo font;
-        if (!stbtt_InitFont(&font, (u8*)file.data, 0)){
-            result = 0;
-        }
-        else{
-            i32 ascent, descent, line_gap;
-            real32 scale;
-            
-            stbtt_GetFontVMetrics(&font, &ascent, &descent, &line_gap);
-            scale = stbtt_ScaleForPixelHeight(&font, (real32)pt_size);
-            
-            real32 scaled_ascent, scaled_descent, scaled_line_gap;
-            
-            scaled_ascent = scale*ascent;
-            scaled_descent = scale*descent;
-            scaled_line_gap = scale*line_gap;
-            
-            font_out->height = (i32)(scaled_ascent - scaled_descent + scaled_line_gap);
-            font_out->ascent = (i32)(scaled_ascent);
-            font_out->descent = (i32)(scaled_descent);
-            font_out->line_skip = (i32)(scaled_line_gap);
-            
-            u8 *memory_cursor = (u8*)font_block;
-            Assert(pt_size*pt_size*128 <= font_block_size);
-            
-            i32 tex_width, tex_height;
-            tex_width = pt_size*128;
-            tex_height = pt_size*2;
-            
-            font_out->tex_width = tex_width;
-            font_out->tex_height = tex_height;
-            
-            if (stbtt_BakeFontBitmap((u8*)file.data, 0, (real32)pt_size,
-                                     memory_cursor, tex_width, tex_height, 0, 128, font_out->chardata) <= 0){
+            if (stbtt_BakeFontBitmap((u8*)file.data, 0, (f32)pt_size,
+                                     memory_cursor, tex_width, tex_height, 0, 128,
+                                     font_out->chardata, partition) <= 0){
                 result = 0;
             }
-            
+#endif
+
+            if (stbtt_PackBegin(&spc, (u8*)block, tex_width, tex_height, tex_width, 1, partition)){
+                stbtt_PackSetOversampling(&spc, oversample, oversample);
+                if (stbtt_PackFontRange(&spc, (u8*)file.data, 0,
+                                        STBTT_POINT_SIZE((f32)pt_size), 0, 128, chardata)){
+                    // do nothing
+                }
+                else{
+                    result = 0;
+                }
+
+                stbtt_PackEnd(&spc);
+            }
             else{
+                result = 0;
+            }
+
+            if (result){
                 GLuint font_tex;
                 glGenTextures(1, &font_tex);
                 glBindTexture(GL_TEXTURE_2D, font_tex);
@@ -474,120 +428,45 @@ font_load(System_Functions *system,
                 glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
                 glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
                 
-                glTexImage2D(GL_TEXTURE_2D, 0, GL_ALPHA, tex_width, tex_height, 0, GL_ALPHA, GL_UNSIGNED_BYTE, memory_cursor);
+                glTexImage2D(GL_TEXTURE_2D, 0, GL_ALPHA, tex_width, tex_height, 0, GL_ALPHA, GL_UNSIGNED_BYTE, block);
                 
                 font_out->tex = font_tex;
                 glBindTexture(GL_TEXTURE_2D, 0);
-            }
+                
+                font_out->chardata['\r'] = font_out->chardata[' '];
+                font_out->chardata['\n'] = font_out->chardata[' '];
+                font_out->chardata['\t'] = font_out->chardata[' '];
+                font_out->chardata['\t'].xadvance *= tab_width;
             
-            font_out->chardata['\r'] = font_out->chardata[' '];
-            font_out->chardata['\n'] = font_out->chardata[' '];
-            font_out->chardata['\t'] = font_out->chardata[' '];
-            font_out->chardata['\t'].xadvance *= tab_width;
-            
-            i32 max_advance = 0;
-            for (u16 code_point = 0; code_point < 128; ++code_point){
-                if (stbtt_FindGlyphIndex(&font, code_point) != 0){
-                    font_out->glyphs[code_point].exists = 1;
-                    i32 advance = CEIL32(font_out->chardata[code_point].xadvance);
-                    if (max_advance < advance) max_advance = advance;
-                    font_out->advance_data[code_point] = font_out->chardata[code_point].xadvance;
+                i32 max_advance = 0;
+                for (u8 code_point = 0; code_point < 128; ++code_point){
+                    if (stbtt_FindGlyphIndex(&font, code_point) != 0){
+                        font_out->glyphs[code_point].exists = 1;
+                        i32 advance = CEIL32(font_out->chardata[code_point].xadvance);
+                        if (max_advance < advance) max_advance = advance;
+                        font_out->advance_data[code_point] = font_out->chardata[code_point].xadvance;
+                    }
+                    else if (code_point == '\r' || code_point == '\n' || code_point == '\t'){
+                        font_out->advance_data[code_point] = font_out->chardata[code_point].xadvance;
+                    }
                 }
+                font_out->advance = max_advance - 1;
             }
-            font_out->advance = max_advance - 1;
+            
         }
-        system->free_file(file);
+        system_free_memory(file.data);
     }
+
+    end_temp_memory(temp);
     
     return result;
 }
 
-internal void
-font_set_tabwidth(Render_Font *font, i32 tab_width){
-    font->chardata['\t'].xadvance *= font->chardata[' '].xadvance * tab_width;
+internal
+Release_Font_Sig(draw_release_font){
+    glDeleteTextures(1, &font->tex);
+    font->tex = 0;
 }
-
-inline real32
-font_get_glyph_width(Render_Font *font, u16 character){
-    return font->chardata[character].xadvance;
-}
-
-internal real32
-font_string_width(Render_Font *font, char *str){
-    real32 x = 0;
-    for (i32 i = 0; str[i]; ++i){
-        x += font_get_glyph_width(font, str[i]);
-    }
-    return x;
-}
-
-internal i32
-draw_string(Render_Target *target, Render_Font *font, char *str,
-            i32 x_, i32 y, u32 color){
-    real32 x = (real32)x_;
-    for (i32 i = 0; str[i]; ++i){
-        char c = str[i];
-        font_draw_glyph(target, font, c,
-                        x, (real32)y, color);
-        x += font_get_glyph_width(font, c);
-    }
-    return CEIL32(x);
-}
-
-internal real32
-draw_string_mono(Render_Target *target, Render_Font *font, char *str,
-                 real32 x, real32 y, real32 advance, u32 color){
-    for (i32 i = 0; str[i]; ++i){
-        font_draw_glyph_mono(target, font, str[i],
-                             x, y, advance, color);
-        x += advance;
-    }
-    return x;
-}
-
-internal i32
-draw_string(Render_Target *target, Render_Font *font, String str,
-            i32 x_, i32 y, u32 color){
-    real32 x = (real32)x_;
-    for (i32 i = 0; i < str.size; ++i){
-        char c = str.str[i];
-        font_draw_glyph(target, font, c,
-                        x, (real32)y, color);
-        x += font_get_glyph_width(font, c);
-    }
-    return CEIL32(x);
-}
-
-internal real32
-draw_string_mono(Render_Target *target, Render_Font *font, String str,
-                 real32 x, real32 y, real32 advance, u32 color){
-    for (i32 i = 0; i < str.size; ++i){
-        font_draw_glyph_mono(target, font, str.str[i],
-                             x, y, advance, color);
-        x += advance;
-    }
-    return x;
-}
-
-internal real32
-font_get_max_width(Render_Font *font, char *characters){
-    stbtt_bakedchar *chardata = font->chardata;
-    real32 cx, x = 0;
-    for (i32 i = 0; characters[i]; ++i){
-        cx = chardata[characters[i]].xadvance;
-        if (x < cx) x = cx;
-    }
-    return x;
-}
-
-internal real32
-font_get_string_width(Render_Font *font, String string){
-    real32 result = 0;
-    for (i32 i = 0; i < string.size; ++i){
-        font_get_glyph_width(font, string.str[i]);
-    }
-    return result;
-}
-#endif
 
 // BOTTOM
+

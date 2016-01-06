@@ -98,14 +98,6 @@ struct Bind_Target{
 };
 
 inline Bind_Target
-ekey(short code, unsigned char modifiers){
-    Bind_Target target;
-    target.code = code;
-    target.modifiers = modifiers | MDFR_EXACT;
-    return target;
-}
-
-inline Bind_Target
 tkey(short code, unsigned char modifiers){
     Bind_Target target;
     target.code = code;
@@ -144,14 +136,14 @@ bind_me(Bind_Helper *helper, Bind_Target target, Custom_Command_Function *func){
 inline void
 bind(Bind_Helper *helper, short code, unsigned char modifiers, int cmdid){
     Bind_Target target;
-    target.code = tkey(code, modifiers);
+    target = tkey(code, modifiers);
     bind(helper, target, cmdid);
 }
 
 inline void
 bind_me(Bind_Helper *helper, short code, unsigned char modifiers, Custom_Command_Function *func){
     Bind_Target target;
-    target.code = tkey(code, modifiers);
+    target = tkey(code, modifiers);
     bind_me(helper, target, func);
 }
 
@@ -207,30 +199,46 @@ end_bind_helper(Bind_Helper *helper){
 
 // NOTE(allen): Useful functions and overloads on app links
 inline void
-push_parameter_helper(void *cmd_context, Application_Links app, int param, int value){
-    app.push_parameter(cmd_context, dynamic_int(param), dynamic_int(value));
+push_parameter(Application_Links *app, void *cmd_context, int param, int value){
+    app->push_parameter(cmd_context, dynamic_int(param), dynamic_int(value));
 }
 
 inline void
-push_parameter_helper(void *cmd_context, Application_Links app, int param, const char *value, int value_len){
-    char *value_copy = app.push_memory(cmd_context, value_len);
+push_parameter(Application_Links *app, void *cmd_context, int param, const char *value, int value_len){
+    char *value_copy = app->push_memory(cmd_context, value_len+1);
     copy(value_copy, value, value_len);
-    app.push_parameter(cmd_context, dynamic_int(param), dynamic_string(value_copy, value_len));
+    value_copy[value_len] = 0;
+    app->push_parameter(cmd_context, dynamic_int(param), dynamic_string(value_copy, value_len));
 }
 
 inline void
-push_parameter_helper(void *cmd_context, Application_Links app, const char *param, int param_len, int value){
-    char *param_copy = app.push_memory(cmd_context, param_len);
+push_parameter(Application_Links *app, void *cmd_context, const char *param, int param_len, int value){
+    char *param_copy = app->push_memory(cmd_context, param_len+1);
     copy(param_copy, param, param_len);
-    app.push_parameter(cmd_context, dynamic_string(param_copy, param_len), dynamic_int(value));
+    param_copy[param_len] = 0;
+    app->push_parameter(cmd_context, dynamic_string(param_copy, param_len), dynamic_int(value));
 }
 
 inline void
-push_parameter_helper(void *cmd_context, Application_Links app, const char *param, int param_len, const char *value, int value_len){
-    char *param_copy = app.push_memory(cmd_context, param_len);
-    char *value_copy = app.push_memory(cmd_context, value_len);
+push_parameter(Application_Links *app, void *cmd_context, const char *param, int param_len, const char *value, int value_len){
+    char *param_copy = app->push_memory(cmd_context, param_len+1);
+    char *value_copy = app->push_memory(cmd_context, value_len+1);
     copy(param_copy, param, param_len);
     copy(value_copy, value, value_len);
-    app.push_parameter(cmd_context, dynamic_string(param_copy, param_len), dynamic_string(value_copy, value_len));
+    value_copy[value_len] = 0;
+    param_copy[param_len] = 0;
+    
+    app->push_parameter(cmd_context, dynamic_string(param_copy, param_len), dynamic_string(value_copy, value_len));
 }
+
+inline String
+push_directory(Application_Links *app, void *cmd_context){
+    String result;
+    result.memory_size = 512;
+    result.str = app->push_memory(cmd_context, result.memory_size);
+    result.size = app->directory_get_hot(cmd_context, result.str, result.memory_size);
+    return(result);
+}
+
+#define dir_string(d) ((d).str), ((d).size)
 

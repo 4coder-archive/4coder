@@ -14,6 +14,36 @@ struct Partition{
     i32 pos, max;
 };
 
+struct Temp_Memory{
+    void *handle;
+    int pos;
+};
+
+enum Memory_Bubble_Flag{
+    MEM_BUBBLE_USED = 0x1,
+    MEM_BUBBLE_DEBUG = 0xD3000000,
+    MEM_BUBBLE_SYS_DEBUG = 0x5D000000,
+    MEM_BUBBLE_DEBUG_MASK = 0xFF000000
+};
+
+struct Bubble{
+    Bubble *prev;
+    Bubble *next;
+    u32 flags;
+    i32 size;
+    u32 type;
+    u32 _unused_;
+};
+
+struct General_Memory{
+    Bubble sentinel;
+};
+
+struct Mem_Options{
+    Partition part;
+    General_Memory general;
+};
+
 inline Partition
 partition_open(void *memory, i32 size){
     Partition partition;
@@ -59,26 +89,6 @@ partition_sub_part(Partition *data, i32 size){
 #define push_struct(part, T) (T*)partition_allocate(part, sizeof(T))
 #define push_array(part, T, size) (T*)partition_allocate(part, sizeof(T)*(size))
 #define push_block(part, size) partition_allocate(part, size)
-
-enum Memory_Bubble_Flag{
-    MEM_BUBBLE_USED = 0x1,
-    MEM_BUBBLE_DEBUG = 0xD3000000,
-    MEM_BUBBLE_SYS_DEBUG = 0x5D000000,
-    MEM_BUBBLE_DEBUG_MASK = 0xFF000000
-};
-
-struct Bubble{
-    Bubble *prev;
-    Bubble *next;
-    u32 flags;
-    i32 size;
-    u32 type;
-    u32 _unused_;
-};
-
-struct General_Memory{
-    Bubble sentinel;
-};
 
 inline void
 insert_bubble(Bubble *prev, Bubble *bubble){
@@ -226,28 +236,18 @@ general_memory_reallocate_nocopy(General_Memory *general, void *old, i32 size, u
     return general_memory_reallocate(general, old, 0, size, type);
 }
 
-struct Temp_Memory{
-    Partition *part;
-    i32 pos;
-};
-
 internal Temp_Memory
 begin_temp_memory(Partition *data){
     Temp_Memory result;
-    result.part = data;
+    result.handle = data;
     result.pos = data->pos;
     return result;
 }
 
 internal void
 end_temp_memory(Temp_Memory temp){
-    temp.part->pos = temp.pos;
+    ((Partition*)temp.handle)->pos = temp.pos;
 }
-
-struct Mem_Options{
-    Partition part;
-    General_Memory general;
-};
 
 // BOTTOM
 

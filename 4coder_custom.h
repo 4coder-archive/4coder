@@ -5,10 +5,7 @@
 #define MDFR_SHIFT 4
 #define MDFR_NUMPAD 8
 
-// NOTE(allen): These need not be used direct
-#define MDFR_EXACT 128
-
-typedef u16 Code;
+typedef unsigned char Code;
 
 struct Key_Codes{
 	Code back;
@@ -121,6 +118,7 @@ enum Command_ID{
     cmdid_cursor_mark_swap,
     cmdid_open_menu,
     cmdid_set_settings,
+    cmdid_build,
     //
     cmdid_count
 };
@@ -130,6 +128,10 @@ enum Param_ID{
     par_lex_as_cpp_file,
     par_wrap_lines,
     par_key_mapid,
+    par_target_buffer_name,
+    par_cli_path,
+    par_cli_command,
+    par_cli_overlap_with_conflict,
     // never below this
     par_type_count
 };
@@ -230,10 +232,19 @@ struct Buffer_Summary{
     int map_id;
 };
 
+#ifndef FRED_STRING_STRUCT
+#define FRED_STRING_STRUCT
+struct String{
+    char *str;
+    int size;
+    int memory_size;
+};
+#endif
+
 #define GET_BINDING_DATA(name) int name(void *data, int size, Key_Codes *codes)
 #define SET_EXTRA_FONT_SIG(name) void name(Extra_Font *font_out)
-#define CUSTOM_COMMAND_SIG(name) void name(void *cmd_context, struct Application_Links app)
-#define HOOK_SIG(name) void name(void *cmd_context, struct Application_Links app)
+#define CUSTOM_COMMAND_SIG(name) void name(void *cmd_context, struct Application_Links *app)
+#define HOOK_SIG(name) void name(void *cmd_context, struct Application_Links *app)
 
 extern "C"{
     typedef CUSTOM_COMMAND_SIG(Custom_Command_Function);
@@ -247,6 +258,9 @@ extern "C"{
 #define EXECUTE_COMMAND_SIG(name) void name(void *cmd_context, int command_id)
 #define CLEAR_PARAMETERS_SIG(name) void name(void *cmd_context)
 #define GET_ACTIVE_BUFFER_SIG(name) Buffer_Summary name(void *cmd_context)
+#define DIRECTORY_GET_HOT_SIG(name) int name(void *cmd_context, char *buffer, int max)
+#define DIRECTORY_HAS_FILE_SIG(name) int name(String dir, char *filename)
+#define DIRECTORY_CD_SIG(name) int name(String *dir, char *rel_path)
 
 extern "C"{
     typedef EXECUTE_COMMAND_SIG(Exec_Command_Function);
@@ -254,6 +268,9 @@ extern "C"{
     typedef PUSH_MEMORY_SIG(Push_Memory_Function);
     typedef CLEAR_PARAMETERS_SIG(Clear_Parameters_Function);
     typedef GET_ACTIVE_BUFFER_SIG(Get_Active_Buffer_Function);
+    typedef DIRECTORY_GET_HOT_SIG(Directory_Get_Hot);
+    typedef DIRECTORY_HAS_FILE_SIG(Directory_Has_File);
+    typedef DIRECTORY_CD_SIG(Directory_CD);
 }
 
 struct Application_Links{
@@ -262,6 +279,9 @@ struct Application_Links{
     Push_Memory_Function *push_memory;
     Clear_Parameters_Function *clear_parameters;
     Get_Active_Buffer_Function *get_active_buffer;
+    Directory_Get_Hot *directory_get_hot;
+    Directory_Has_File *directory_has_file;
+    Directory_CD *directory_cd;
 };
 
 struct Config_API{

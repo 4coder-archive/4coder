@@ -15,6 +15,7 @@ enum Color_View_Mode{
     CV_MODE_EXPORT_FILE,
     CV_MODE_IMPORT,
     CV_MODE_EXPORT,
+    CV_MODE_IMPORT_WAIT,
     CV_MODE_ADJUSTING
 };
 
@@ -104,7 +105,7 @@ struct Color_View{
     Style *main_style;
     Style_Library *styles;
     File_View *hot_file_view;
-    Font_Set *fonts;
+    Font_Set *font_set;
     u32 *palette;
     Working_Set *working_set;
     i32 palette_size;
@@ -112,9 +113,10 @@ struct Color_View{
     UI_State state;
     Super_Color color;
     Color_Highlight highlight;
-    bool32 p4c_only;
+    b32 p4c_only;
     Style_Library inspecting_styles;
-    bool8 import_export_check[64];
+    b8 import_export_check[64];
+    i32 import_file_id;
 };
 
 inline Color_View*
@@ -188,10 +190,11 @@ draw_rgb_slider(Render_Target *target, Vec4 base, i32 channel,
 }
 
 internal void
-do_label(UI_State *state, UI_Layout *layout, char *text, real32 height = 2.f){
+do_label(UI_State *state, UI_Layout *layout, char *text, f32 height = 2.f){
     Style *style = state->style;
-    Render_Font *font = style->font;
-    i32_Rect label = layout_rect(layout, FLOOR32(font->height * height));
+    i16 font_id = style->font_id;
+    i32 line_height = get_font_info(state->font_set, font_id)->height;
+    i32_Rect label = layout_rect(layout, FLOOR32(line_height * height));
     
     if (!state->input_stage){
         Render_Target *target = state->target;
@@ -199,8 +202,8 @@ do_label(UI_State *state, UI_Layout *layout, char *text, real32 height = 2.f){
         u32 fore = style->main.default_color;
         draw_rectangle(target, label, back);
         i32 height = label.y1 - label.y0;
-        draw_string(target, font, text, label.x0,
-                    label.y0 + (height - font->height)/2, fore);
+        draw_string(target, font_id, text, label.x0,
+                    label.y0 + (height - line_height)/2, fore);
     }
 }
 
@@ -221,18 +224,18 @@ do_scroll_bar(UI_State *state, i32_Rect rect){
     bottom_arrow.y1 = rect.y1;
     bottom_arrow.y0 = bottom_arrow.y1 - w;
     
-    real32 space_h = (real32)(bottom_arrow.y0 - top_arrow.y1);
+    f32 space_h = (f32)(bottom_arrow.y0 - top_arrow.y1);
     if (space_h <= w) return;
     
     i32 slider_h = w;
     
-    real32 view_hmin = 0;
-    real32 view_hmax = state->height - h;
-    real32 L = unlerp(view_hmin, state->view_y, view_hmax);
+    f32 view_hmin = 0;
+    f32 view_hmax = state->height - h;
+    f32 L = unlerp(view_hmin, state->view_y, view_hmax);
     
-    real32 slider_hmin = (real32)top_arrow.y1;
-    real32 slider_hmax = (real32)bottom_arrow.y0 - slider_h;
-    real32 S = lerp(slider_hmin, L, slider_hmax);
+    f32 slider_hmin = (f32)top_arrow.y1;
+    f32 slider_hmax = (f32)bottom_arrow.y0 - slider_h;
+    f32 S = lerp(slider_hmin, L, slider_hmax);
     
     i32_Rect slider;
     slider.x0 = rect.x0;
@@ -244,16 +247,17 @@ do_scroll_bar(UI_State *state, i32_Rect rect){
     
     if (state->input_stage){
         state->view_y = 
-            ui_do_vscroll_input(state, top_arrow, bottom_arrow, slider,
-                                wid, state->view_y, (real32)state->font->height,
+            ui_do_vscroll_input(state, top_arrow, bottom_arrow, slider, wid, state->view_y,
+                                (f32)(get_font_info(state->font_set, state->font_id)->height),
                                 slider_hmin, slider_hmax, view_hmin, view_hmax);
     }
-    else{
+    else{    
         Render_Target *target = state->target;
-        real32 x0, y0, x1, y1, x2, y2;
-        real32 w_1_2 = w*.5f;
-        real32 w_1_3 = w*.333333f;
-        real32 w_2_3 = w*.666667f;
+        
+        f32 x0, y0, x1, y1, x2, y2;
+        f32 w_1_2 = w*.5f;
+        f32 w_1_3 = w*.333333f;
+        f32 w_2_3 = w*.666667f;
         
         
         UI_Style ui_style = get_ui_style(state->style);
@@ -403,22 +407,24 @@ fill_buffer_color_channel(char *buffer, u8 x, Channel_Field_Type ftype){
     }
 }
 
-internal bool32
+internal b32
 do_channel_field(i32 sub_id, Color_UI *ui, u8 *channel, Channel_Field_Type ftype,
                  i32 y, u32 color, u32 back, i32 x0, i32 x1){
-    bool32 result = 0;
-    Render_Target *target = ui->state.target;
-    Render_Font *font = ui->state.font;
-    
+    b32 result = 0;
+
+    i16 font_id = ui->state.font_id;
+    i32 line_height = get_font_info(ui->state.font_set, font_id)->height;
     i32_Rect hit_region;
     hit_region.x0 = x0;
     hit_region.x1 = x1;
     hit_region.y0 = y;
-    hit_region.y1 = y + font->height;
+    hit_region.y1 = y + line_height;
     
     i32 digit_count;
     if (ftype == CF_DEC) digit_count = 3;
     else digit_count = 2;
+
+    Render_Target *target = ui->state.target;
     
     if (ui->state.input_stage){
         i32 indx;
@@ -515,7 +521,7 @@ do_channel_field(i32 sub_id, Color_UI *ui, u8 *channel, Channel_Field_Type ftype
     }
     
     if (!ui->state.input_stage)
-        draw_string_mono(target, font, string_buffer,
+        draw_string_mono(target, font_id, string_buffer,
                          (real32)x0 + 1, (real32)y, ui->hex_advance,
                          color);
     
@@ -688,8 +694,7 @@ do_palette(Color_UI *ui, i32_Rect rect){
     
     if (!ui->state.input_stage){
         Render_Target *target = ui->state.target;
-        Render_Font *font = style->font;
-        draw_string(target, font, "Global Palette: right click to save color",
+        draw_string(target, style->font_id, "Global Palette: right click to save color",
                     layout.x, layout.rect.y0, style->main.default_color);
     }
     
@@ -709,15 +714,16 @@ do_palette(Color_UI *ui, i32_Rect rect){
 
 internal void
 do_sub_button(i32 id, Color_UI *ui, char *text){
-    Render_Font *font = ui->state.font;
-    
-    i32_Rect rect = layout_rect(&ui->layout, font->height + 2);
+    i16 font_id = ui->state.font_id;
+    i32 line_height = get_font_info(ui->state.font_set, font_id)->height;
+    i32_Rect rect = layout_rect(&ui->layout, line_height + 2);
     
     if (ui->state.input_stage){
         ui_do_button_input(&ui->state, rect, make_sub0(&ui->state, id), 1);
     }
     else{
         Render_Target *target = ui->state.target;
+        
         u32 back_color, text_color;
         text_color = 0xFFDDDDDD;
         if (ui->state.selected.sub_id0 == id){
@@ -731,7 +737,7 @@ do_sub_button(i32 id, Color_UI *ui, char *text){
         }
         
         draw_rectangle(target, rect, back_color);
-        draw_string(target, font, text, rect.x0, rect.y0 + 1,
+        draw_string(target, font_id, text, rect.x0, rect.y0 + 1,
                     text_color);
     }
 }
@@ -740,9 +746,8 @@ internal void
 do_color_adjuster(Color_UI *ui, u32 *color,
                   u32 text_color, u32 back_color, char *name){
     i32 id = raw_ptr_dif(color, ui->state.style);
-    Render_Target *target = ui->state.target;
-    Render_Font *font = ui->state.font;
-    i32 character_h = font->height;
+    i16 font_id = ui->state.font_id;
+    i32 character_h = get_font_info(ui->state.font_set, font_id)->height;
     u32 text = 0, back = 0;
     
     i32_Rect bar = layout_rect(&ui->layout, character_h);
@@ -755,6 +760,7 @@ do_color_adjuster(Color_UI *ui, u32 *color,
     }
     
     else{
+        Render_Target *target = ui->state.target;
         u32 text_hover = 0xFF101010;
         u32 back_hover = 0xFF999999;
         if (ui->state.selected.id != id && ui->state.hover.id == id){
@@ -767,7 +773,7 @@ do_color_adjuster(Color_UI *ui, u32 *color,
         }
         
         draw_rectangle(target, bar, back);
-        i32 end_pos = draw_string(target, font, name, bar.x0, bar.y0, text);
+        i32 end_pos = draw_string(target, font_id, name, bar.x0, bar.y0, text);
         
         real32 x_spacing = ui->hex_advance;
         i32_Rect temp_rect = bar;
@@ -780,8 +786,8 @@ do_color_adjuster(Color_UI *ui, u32 *color,
                 n >>= 4;
                 full_hex_string[i] = int_to_hexchar(m);
             }
-            draw_string_mono(target, font, full_hex_string,
-                             (real32)temp_rect.x0, (real32)bar.y0,
+            draw_string_mono(target, font_id, full_hex_string,
+                             (f32)temp_rect.x0, (f32)bar.y0,
                              x_spacing, text);
         }
         
@@ -794,6 +800,7 @@ do_color_adjuster(Color_UI *ui, u32 *color,
     }
     
     if (ui->state.selected.id == id){
+        Render_Target *target = ui->state.target;
         i32_Rect expanded = layout_rect(&ui->layout, 115 + (character_h + 2));
         UI_Layout_Restore restore = begin_sub_layout(&ui->layout, expanded);
         
@@ -830,12 +837,14 @@ do_color_adjuster(Color_UI *ui, u32 *color,
 internal void
 do_style_name(Color_UI *ui){
     i32 id = -3;
-    Render_Font *font = ui->state.font;
     
-    i32_Rect srect = layout_rect(&ui->layout, font->height);
+    i16 font_id = ui->state.font_id;
+    i32 line_height = get_font_info(ui->state.font_set, font_id)->height;
+    
+    i32_Rect srect = layout_rect(&ui->layout, line_height);
     
     Widget_ID wid = make_id(&ui->state, id);
-    bool32 selected = is_selected(&ui->state, wid);
+    b32 selected = is_selected(&ui->state, wid);
 
     if (ui->state.input_stage){
         if (!selected){
@@ -868,18 +877,20 @@ do_style_name(Color_UI *ui){
         
         draw_rectangle(target, srect, back);
         i32 x = srect.x0;
-        x = draw_string(target, font, "NAME: ",
+        x = draw_string(target, font_id, "NAME: ",
                         x, srect.y0, fore_label);
-        x = draw_string(target, font, style->name.str,
+        x = draw_string(target, font_id, style->name.str,
                         x, srect.y0, fore_text);
     }
 }
 
-internal bool32
-do_font_option(Color_UI *ui, Render_Font *font){
-    bool32 result = 0;
-    i32 sub_id = (i32)(font);
-    i32_Rect orect = layout_rect(&ui->layout, font->height);
+internal b32
+do_font_option(Color_UI *ui, i16 font_id){
+    b32 result = 0;
+    Font_Info *info = get_font_info(ui->state.font_set, font_id);
+    
+    i32 sub_id = (i32)(info);
+    i32_Rect orect = layout_rect(&ui->layout, info->height);
     
     Widget_ID wid = make_sub0(&ui->state, sub_id);
     if (ui->state.input_stage){
@@ -900,10 +911,8 @@ do_font_option(Color_UI *ui, Render_Font *font){
         }
         draw_rectangle(target, orect, back);
         i32 x = orect.x0;
-        x = draw_string(target, font, "->",
-                        x, orect.y0, fore);
-        x = draw_string(target, font, font->name.str,
-                        x, orect.y0, fore);
+        x = draw_string(target, font_id, "->", x, orect.y0, fore);
+        draw_string(target, font_id, info->name.str, x, orect.y0, fore);
     }
     
     return result;
@@ -913,11 +922,13 @@ internal void
 do_font_switch(Color_UI *ui){
     i32 id = -2;
     Render_Target *target = ui->state.target;
-    Render_Font *font = ui->state.font;
-    i32 character_h = font->height;
+    Font_Set *font_set = ui->state.font_set;
+    
+    i16 font_id = ui->state.font_id;
+    Font_Info *info = get_font_info(font_set, font_id);
+    i32 character_h = info->height;
     
     i32_Rect srect = layout_rect(&ui->layout, character_h);
-    
     Widget_ID wid = make_id(&ui->state, id);
     
     if (ui->state.input_stage){
@@ -936,24 +947,23 @@ do_font_switch(Color_UI *ui){
         }
         draw_rectangle(target, srect, back);
         i32 x = srect.x0;
-        x = draw_string(target, font, "FONT: ",
+        x = draw_string(target, font_id, "FONT: ",
                         x, srect.y0, fore);
-        x = draw_string(target, font, font->name.str,
+        x = draw_string(target, font_id, info->name.str,
                         x, srect.y0, fore);
     }
     
     if (is_selected(&ui->state, wid)){
-        Font_Set *fonts = ui->fonts;
-        Render_Font *font_opt = fonts->fonts;
-        i32 count = fonts->count;
         srect = layout_rect(&ui->layout, character_h/2);
         if (!ui->state.input_stage)
             draw_rectangle(target, srect, 0xFF000000);
         
-        for (i32 i = 0; i < count; ++i, ++font_opt){
-            if (font_opt == font) continue;
-            if (do_font_option(ui, font_opt)){
-                ui->state.style->font = font_opt;
+        i32 count = font_set->count + 1;
+        
+        for (i16 i = 1; i < count; ++i){
+            if (i == font_id) continue;
+            if (do_font_option(ui, i)){
+                ui->state.style->font_id = i;
                 ui->state.style->font_changed = 1;
             }
         }
@@ -974,16 +984,17 @@ step_draw_adjusting(Color_View *color_view, i32_Rect rect, View_Message message,
     
     Color_UI ui;
     ui.state = ui_state_init(&color_view->state, target, user_input,
-                             style, color_view->working_set, (message == VMSG_STEP));
+                             style, color_view->font_set, color_view->working_set,
+                             (message == VMSG_STEP));
     
     begin_layout(&ui.layout, rect);
     
-    ui.fonts = color_view->fonts;
+    ui.fonts = color_view->font_set;
     ui.highlight = color_view->highlight;
     ui.color = color_view->color;
     ui.has_hover_color = 0;
     ui.state.sub_id1_change = 0;
-    ui.hex_advance = font_get_max_width(ui.state.font, "0123456789abcdefx");
+    ui.hex_advance = font_get_max_width(ui.fonts, ui.state.font_id, "0123456789abcdefx");
     ui.palette = color_view->palette;
     ui.palette_size = color_view->palette_size;
     
@@ -1119,15 +1130,15 @@ update_highlighting(Color_View *color_view){
     Style *style = color_view->main_style;
     Editing_File *file = file_view->file;
     i32 pos = view_get_cursor_pos(file_view);
-    char c = file->buffer.data[pos];
+    char c = file->state.buffer.data[pos];
     
     if (c == '\r'){
         color_view->highlight.ids[0] =
             raw_ptr_dif(&style->main.special_character_color, style);
     }
     
-    else if (file->tokens_complete){
-        Cpp_Token_Stack *tokens = &file->token_stack;
+    else if (file->state.tokens_complete){
+        Cpp_Token_Stack *tokens = &file->state.token_stack;
         Cpp_Get_Token_Result result = cpp_get_token(tokens, pos);
         Cpp_Token token = tokens->tokens[result.token_index];
         if (!result.in_whitespace){
@@ -1183,15 +1194,17 @@ update_highlighting(Color_View *color_view){
 #endif
 }
 
-internal bool32
+internal b32
 do_style_preview(Library_UI *ui, Style *style, i32 toggle = -1){
-    bool32 result = 0;
-    Render_Font *font = style->font;
+    b32 result = 0;
     i32 id;
     if (style == ui->state.style) id = 2;
     else id = raw_ptr_dif(style, ui->styles->styles) + 100;
+
+    i16 font_id = style->font_id;
+    Font_Info *info = get_font_info(ui->state.font_set, font_id);
     
-    i32_Rect prect = layout_rect(&ui->layout, font->height*3 + 6);
+    i32_Rect prect = layout_rect(&ui->layout, info->height*3 + 6);
     
     Widget_ID wid = make_id(&ui->state, id);
     
@@ -1202,7 +1215,6 @@ do_style_preview(Library_UI *ui, Style *style, i32 toggle = -1){
     }
     else{
         Render_Target *target = ui->state.target;
-        
         u32 margin_color = style->main.margin_color;
         if (is_hover(&ui->state, wid)){
             margin_color = style->main.margin_active_color;
@@ -1211,7 +1223,7 @@ do_style_preview(Library_UI *ui, Style *style, i32 toggle = -1){
         i32_Rect inner;
         if (toggle != -1){
             i32_Rect toggle_box = prect;
-            toggle_box.x1 = toggle_box.x0 + font->height*2 + 6;
+            toggle_box.x1 = toggle_box.x0 + info->height*2 + 6;
             prect.x0 = toggle_box.x1;
             
             inner = get_inner_rect(toggle_box, 3);
@@ -1219,12 +1231,12 @@ do_style_preview(Library_UI *ui, Style *style, i32 toggle = -1){
             draw_rectangle(target, inner, style->main.back_color);
             
             i32 d;
-            d = font->height/2;
+            d = info->height/2;
             i32_Rect b;
             b.x0 = (inner.x1 + inner.x0)/2 - d;
             b.y0 = (inner.y1 + inner.y0)/2 - d;
-            b.x1 = b.x0 + font->height;
-            b.y1 = b.y0 + font->height;
+            b.x1 = b.x0 + info->height;
+            b.y1 = b.y0 + info->height;
             if (toggle) draw_rectangle(target, b, margin_color);
             else draw_rectangle_outline(target, b, margin_color);
         }
@@ -1235,33 +1247,33 @@ do_style_preview(Library_UI *ui, Style *style, i32 toggle = -1){
         
         i32 text_y = inner.y0;
         i32 text_x = inner.x0;
-        text_x = draw_string(target, font, style->name.str,
+        text_x = draw_string(target, font_id, style->name.str,
                              text_x, text_y, style->main.default_color);
-        i32 font_x = (i32)(inner.x1 - font_string_width(font, font->name.str));
+        i32 font_x = (i32)(inner.x1 - font_string_width(target, font_id, info->name.str));
         if (font_x > text_x + 10)
-            draw_string(target, font, font->name.str,
+            draw_string(target, font_id, info->name.str,
                         font_x, text_y, style->main.default_color);
         
         text_x = inner.x0;
-        text_y += font->height;
-        text_x = draw_string(target, font, "if ", text_x, text_y,
+        text_y += info->height;
+        text_x = draw_string(target, font_id, "if ", text_x, text_y,
                              style->main.keyword_color);
-        text_x = draw_string(target, font, "(x < ", text_x, text_y,
+        text_x = draw_string(target, font_id, "(x < ", text_x, text_y,
                              style->main.default_color);
-        text_x = draw_string(target, font, "0", text_x, text_y,
+        text_x = draw_string(target, font_id, "0", text_x, text_y,
                              style->main.int_constant_color);
-        text_x = draw_string(target, font, ") { x = ", text_x, text_y,
+        text_x = draw_string(target, font_id, ") { x = ", text_x, text_y,
                              style->main.default_color);
-        text_x = draw_string(target, font, "0", text_x, text_y,
+        text_x = draw_string(target, font_id, "0", text_x, text_y,
                              style->main.int_constant_color);
-        text_x = draw_string(target, font, "; } ", text_x, text_y,
+        text_x = draw_string(target, font_id, "; } ", text_x, text_y,
                              style->main.default_color);
-        text_x = draw_string(target, font, "// comment", text_x, text_y,
+        text_x = draw_string(target, font_id, "// comment", text_x, text_y,
                              style->main.comment_color);
         
         text_x = inner.x0;
-        text_y += font->height;
-        text_x = draw_string(target, font, "[] () {}; * -> +-/ <>= ! && || % ^",
+        text_y += info->height;
+        text_x = draw_string(target, font_id, "[] () {}; * -> +-/ <>= ! && || % ^",
                              text_x, text_y, style->main.default_color);
     }
     
@@ -1269,13 +1281,15 @@ do_style_preview(Library_UI *ui, Style *style, i32 toggle = -1){
     return result;
 }
 
-internal bool32
+internal b32
 do_main_file_box(System_Functions *system, UI_State *state, UI_Layout *layout, Hot_Directory *hot_directory, char *end = 0){
-    bool32 result = 0;
+    b32 result = 0;
     Style *style = state->style;
-    Render_Font *font = style->font;
-    i32_Rect box = layout_rect(layout, font->height + 2);
     String *string = &hot_directory->string;
+
+    i16 font_id = style->font_id;
+    i32 line_height = get_font_info(state->font_set, font_id)->height;
+    i32_Rect box = layout_rect(layout, line_height + 2);
     
     if (state->input_stage){
         if (ui_do_file_field_input(system, state, hot_directory)){
@@ -1289,8 +1303,8 @@ do_main_file_box(System_Functions *system, UI_State *state, UI_Layout *layout, H
         u32 special = style->main.special_character_color;
         draw_rectangle(target, box, back);
         i32 x = box.x0;
-        x = draw_string(target, font, string->str, x, box.y0, fore);
-        if (end) draw_string(target, font, end, x, box.y0, special);
+        x = draw_string(target, font_id, string->str, x, box.y0, fore);
+        if (end) draw_string(target, font_id, end, x, box.y0, special);
     }
     
     layout->y = box.y1;
@@ -1301,8 +1315,10 @@ internal bool32
 do_main_string_box(System_Functions *system, UI_State *state, UI_Layout *layout, String *string){
     bool32 result = 0;
     Style *style = state->style;
-    Render_Font *font = style->font;
-    i32_Rect box = layout_rect(layout, font->height + 2);
+    
+    i16 font_id = style->font_id;
+    i32 line_height = get_font_info(state->font_set, font_id)->height;
+    i32_Rect box = layout_rect(layout, line_height + 2);
     
     if (state->input_stage){
         if (ui_do_line_field_input(system, state, string)){
@@ -1315,7 +1331,7 @@ do_main_string_box(System_Functions *system, UI_State *state, UI_Layout *layout,
         u32 fore = style->main.default_color;
         draw_rectangle(target, box, back);
         i32 x = box.x0;
-        x = draw_string(target, font, string->str, x, box.y0, fore);
+        x = draw_string(target, font_id, string->str, x, box.y0, fore);
     }
     
     layout->y = box.y1;
@@ -1326,10 +1342,11 @@ internal bool32
 do_list_option(i32 id, UI_State *state, UI_Layout *layout, String text){
     bool32 result = 0;
     Style *style = state->style;
-    Render_Font *font = style->font;
-    i32 character_h = font->height;
+        
+    i16 font_id = style->font_id;
+    i32 character_h = get_font_info(state->font_set, font_id)->height;
     
-    i32_Rect box = layout_rect(layout, font->height*2);
+    i32_Rect box = layout_rect(layout, character_h*2);
     Widget_ID wid = make_id(state, id);
     
     if (state->input_stage){
@@ -1349,7 +1366,7 @@ do_list_option(i32 id, UI_State *state, UI_Layout *layout, String text){
         
         draw_rectangle(target, inner, back);
         i32 x = inner.x0, y = box.y0 + character_h/2;
-        x = draw_string(target, font, text, x, y, fore);
+        x = draw_string(target, font_id, text, x, y, fore);
         draw_margin(target, box, inner, outline);
     }
     
@@ -1359,14 +1376,14 @@ do_list_option(i32 id, UI_State *state, UI_Layout *layout, String text){
 
 #define do_list_option_lit(id,state,layout,str) do_list_option(id, state, layout, make_lit_string(str))
 
-internal bool32
-do_file_option(i32 id, UI_State *state, UI_Layout *layout, String filename, bool32 is_folder, String extra){
-    bool32 result = 0;
+internal b32
+do_file_option(i32 id, UI_State *state, UI_Layout *layout, String filename, b32 is_folder, String extra){
+    b32 result = 0;
     Style *style = state->style;
-    Render_Font *font = style->font;
-    i32 character_h = font->height;
+    i16 font_id = style->font_id;
+    i32 character_h = get_font_info(state->font_set, font_id)->height;
     
-    i32_Rect box = layout_rect(layout, font->height*2);
+    i32_Rect box = layout_rect(layout, character_h*2);
     Widget_ID wid = make_id(state, id);
     
     if (state->input_stage){
@@ -1386,9 +1403,9 @@ do_file_option(i32 id, UI_State *state, UI_Layout *layout, String filename, bool
         
         draw_rectangle(target, inner, back);
         i32 x = inner.x0, y = box.y0 + character_h/2;
-        x = draw_string(target, font, filename, x, y, fore);
-        if (is_folder) x = draw_string(target, font, "\\", x, y, fore);
-        draw_string(target, font, extra, x, y, pop);
+        x = draw_string(target, font_id, filename, x, y, fore);
+        if (is_folder) x = draw_string(target, font_id, "\\", x, y, fore);
+        draw_string(target, font_id, extra, x, y, pop);
         draw_margin(target, box, inner, outline);
     }
     
@@ -1397,10 +1414,10 @@ do_file_option(i32 id, UI_State *state, UI_Layout *layout, String filename, bool
 }
 
 internal b32
-do_file_list_box(System_Functions *system,
-                 UI_State *state, UI_Layout *layout, Hot_Directory *hot_dir, bool32 has_filter,
-                 bool32 *new_dir, bool32 *selected, char *end){
-    bool32 result = 0;
+do_file_list_box(System_Functions *system, UI_State *state,
+                 UI_Layout *layout, Hot_Directory *hot_dir, b32 has_filter,
+                 b32 *new_dir, b32 *selected, char *end){
+    b32 result = 0;
     File_List *files = &hot_dir->file_list;
     
     if (do_main_file_box(system, state, layout, hot_dir, end)){
@@ -1437,10 +1454,10 @@ do_file_list_box(System_Functions *system,
             Editing_File *file = working_set_contains(state->working_set, full_path);
             full_path.size = restore_size;
             
-            bool8 is_folder = (info->folder != 0);
-            bool8 ext_match = (match(file_extension(filename), p4c_extension) != 0);
-            bool8 name_match = (filename_match(front_name, &absolutes, filename) != 0);
-            bool8 is_loaded = (file != 0);
+            b8 is_folder = (info->folder != 0);
+            b8 ext_match = (match(file_extension(filename), p4c_extension) != 0);
+            b8 name_match = (filename_match(front_name, &absolutes, filename) != 0);
+            b8 is_loaded = (file != 0);
             
             String message = message_nothing;
             if (is_loaded){
@@ -1494,18 +1511,18 @@ do_live_file_list_box(System_Functions *system, UI_State *state, UI_Layout *layo
         for (i32 i = 0; i < count; ++i){
             Editing_File *file = files + i;
             
-            if (!file->is_dummy){
+            if (!file->state.is_dummy){
                 String message = message_nothing;
                 switch (buffer_get_sync(file)){
                 case SYNC_BEHIND_OS: message = message_unsynced; break;
                 case SYNC_UNSAVED: message = message_unsaved; break;
                 }
                 
-                if (filename_match(*string, &absolutes, file->live_name)){
-                    if (do_file_option(100+i, state, layout, file->live_name, 0, message)){
+                if (filename_match(*string, &absolutes, file->state.live_name)){
+                    if (do_file_option(100+i, state, layout, file->state.live_name, 0, message)){
                         result = 1;
                         *selected = 1;
-                        copy(string, file->live_name);
+                        copy(string, file->state.live_name);
                         terminate_with_null(string);
                     }
                 }
@@ -1517,16 +1534,17 @@ do_live_file_list_box(System_Functions *system, UI_State *state, UI_Layout *layo
 }
 
 internal i32
-step_draw_library(System_Functions *system,
+step_draw_library(System_Functions *system, Exchange *exchange, Mem_Options *mem,
                   Color_View *color_view, i32_Rect rect, View_Message message,
                   Render_Target *target, Input_Summary *user_input){
     i32 result = 0;
     
     Library_UI ui;
     ui.state = ui_state_init(&color_view->state, target, user_input,
-                             color_view->main_style, color_view->working_set, (message == VMSG_STEP));
+                             color_view->main_style, color_view->font_set,
+                             color_view->working_set, (message == VMSG_STEP));
     
-    ui.fonts = color_view->fonts;
+    ui.fonts = color_view->font_set;
     ui.hot_directory = color_view->hot_directory;
     ui.styles = color_view->styles;
     
@@ -1591,7 +1609,7 @@ step_draw_library(System_Functions *system,
         do_label(&ui.state, &ui.layout, "Current Theme");
         do_style_preview(&ui, color_view->main_style);
         
-        bool32 file_selected = 0;
+        b32 file_selected = 0;
         
         do_label(&ui.state, &ui.layout, "Import Which File?");
         begin_row(&ui.layout, 2);
@@ -1602,7 +1620,7 @@ step_draw_library(System_Functions *system,
             color_view->mode = CV_MODE_LIBRARY;
         }
         
-        bool32 new_dir = 0;
+        b32 new_dir = 0;
         if (do_file_list_box(system,
                              &ui.state, &ui.layout, ui.hot_directory, color_view->p4c_only,
                              &new_dir, &file_selected, 0)){
@@ -1614,19 +1632,40 @@ step_draw_library(System_Functions *system,
         }
         if (file_selected){
             memset(&color_view->inspecting_styles, 0, sizeof(Style_Library));
-            memset(color_view->import_export_check, 1, sizeof(color_view->import_export_check));
-            Style *styles = color_view->inspecting_styles.styles;
-            i32 count, max;
-            max = ArrayCount(color_view->inspecting_styles.styles);
-            if (style_library_import(system,
-                                     color_view->hot_directory->string.str,
-                                     ui.fonts, styles, max, &count)){
-                color_view->mode = CV_MODE_IMPORT;
+            memset(color_view->import_export_check, 1,
+                   sizeof(color_view->import_export_check));
+            
+            color_view->import_file_id =
+                exchange_request_file(exchange,
+                                      color_view->hot_directory->string.str,
+                                      color_view->hot_directory->string.size);
+            color_view->mode = CV_MODE_IMPORT_WAIT;
+
+        }
+    }break;
+
+    case CV_MODE_IMPORT_WAIT:
+    {
+        Style *styles = color_view->inspecting_styles.styles;
+        Data file;
+        i32 file_max;
+        
+        i32 count, max;
+        max = ArrayCount(color_view->inspecting_styles.styles);
+        
+        if (exchange_file_ready(exchange, color_view->import_file_id,
+                                &file.data, &file.size, &file_max)){
+            if (file.data){
+                if (style_library_import(file, ui.fonts, styles, max, &count))
+                   color_view->mode = CV_MODE_IMPORT;
+                else color_view->mode = CV_MODE_LIBRARY;
+                color_view->inspecting_styles.count = count;
             }
             else{
-                color_view->mode = CV_MODE_LIBRARY;
+                Assert(!"this shouldn't happen!");
             }
-            color_view->inspecting_styles.count = count;
+            
+            exchange_free_file(exchange, color_view->import_file_id);
         }
     }break;
     
@@ -1635,7 +1674,7 @@ step_draw_library(System_Functions *system,
         do_label(&ui.state, &ui.layout, "Current Theme");
         do_style_preview(&ui, color_view->main_style);
         
-        bool32 file_selected = 0;
+        b32 file_selected = 0;
         
         do_label(&ui.state, &ui.layout, "Export File Name?");
         begin_row(&ui.layout, 2);
@@ -1646,7 +1685,7 @@ step_draw_library(System_Functions *system,
             color_view->mode = CV_MODE_LIBRARY;
         }
         
-        bool32 new_dir = 0;
+        b32 new_dir = 0;
         if (do_file_list_box(system,
                              &ui.state, &ui.layout, ui.hot_directory, 1,
                              &new_dir, &file_selected, ".p4c")){
@@ -1659,8 +1698,9 @@ step_draw_library(System_Functions *system,
         }
         if (file_selected){
             i32 count = ui.styles->count;
-            // TODO(allen): pass the transient memory in here
-            Style **styles = (Style**)system->get_memory(sizeof(Style*)*count);
+            Temp_Memory temp = begin_temp_memory(&mem->part);
+            Style **styles = push_array(&mem->part, Style*, sizeof(Style*)*count);
+            
             Style *style = ui.styles->styles;
             bool8 *export_check = color_view->import_export_check;
             i32 export_count = 0;
@@ -1669,13 +1709,13 @@ step_draw_library(System_Functions *system,
                     styles[export_count++] = style;
                 }
             }
-            char *mem = (char*)system->get_memory(ui.hot_directory->string.size + 5);
-            String str = make_string(mem, 0, ui.hot_directory->string.size + 5);
+            char *data = push_array(&mem->part, char, ui.hot_directory->string.size + 5);
+            String str = make_string(data, 0, ui.hot_directory->string.size + 5);
             copy(&str, ui.hot_directory->string);
             append(&str, make_lit_string(".p4c"));
-            style_library_export(system, str.str, styles, export_count);
-            system->free_memory(mem);
-            system->free_memory(styles);
+            style_library_export(system, exchange, mem, &target->font_set, str.str, styles, export_count);
+            
+            end_temp_memory(temp);
             color_view->mode = CV_MODE_LIBRARY;
         }
     }break;
@@ -1757,14 +1797,17 @@ Do_View_Sig(do_color_view){
     case CV_MODE_EXPORT_FILE:
     case CV_MODE_IMPORT:
     case CV_MODE_EXPORT:
+    case CV_MODE_IMPORT_WAIT:
         switch (message){
         case VMSG_STEP:
         {
-            result = step_draw_library(system, color_view, rect, message, target, user_input);
+            result = step_draw_library(system, exchange, view->mem,
+                                       color_view, rect, message, target, user_input);
         }break;
         case VMSG_DRAW:
         {
-            step_draw_library(system, color_view, rect, message, target, user_input);
+            step_draw_library(system, exchange, view->mem,
+                              color_view, rect, message, target, user_input);
         }break;
         }break;
         
