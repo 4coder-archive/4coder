@@ -47,7 +47,7 @@ struct Mem_Options{
 inline Partition
 partition_open(void *memory, i32 size){
     Partition partition;
-    partition.base = (u8*)memory;;
+    partition.base = (u8*)memory;
     partition.pos = 0;
     partition.max = size;
     return partition;

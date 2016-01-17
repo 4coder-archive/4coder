@@ -107,7 +107,6 @@ struct Render_Piece_Combined{
 typedef Draw_Push_Piece_Sig(Draw_Push_Piece);
 
 #define Font_Load_Sig(name) i32 name(                                   \
-        Partition *partition,                                           \
         Render_Font *font_out,                                          \
         char *filename,                                                 \
         i32 pt_size,                                                    \

@@ -190,7 +190,7 @@ draw_rgb_slider(Render_Target *target, Vec4 base, i32 channel,
 }
 
 internal void
-do_label(UI_State *state, UI_Layout *layout, char *text, f32 height = 2.f){
+do_label(UI_State *state, UI_Layout *layout, char *text, int text_size, f32 height = 2.f){
     Style *style = state->style;
     i16 font_id = style->font_id;
     i32 line_height = get_font_info(state->font_set, font_id)->height;
@@ -202,9 +202,16 @@ do_label(UI_State *state, UI_Layout *layout, char *text, f32 height = 2.f){
         u32 fore = style->main.default_color;
         draw_rectangle(target, label, back);
         i32 height = label.y1 - label.y0;
-        draw_string(target, font_id, text, label.x0,
+
+        String textstr = make_string(text, text_size);
+        draw_string(target, font_id, textstr, label.x0,
                     label.y0 + (height - line_height)/2, fore);
     }
+}
+
+inline void
+do_label(UI_State *state, UI_Layout *layout, String text, f32 height = 2.f){
+    do_label(state, layout, text.str, text.size, height);
 }
 
 internal void
@@ -447,19 +454,19 @@ do_channel_field(i32 sub_id, Color_UI *ui, u8 *channel, Channel_Field_Type ftype
             Key_Summary *keys = ui->state.keys;
             Key_Codes *codes = ui->state.codes;
             for (i32 key_i = 0; key_i < keys->count; ++key_i){
-                Key_Single key = get_single_key(keys, key_i);
+                Key_Event_Data key = get_single_key(keys, key_i);
                 
-                if (key.key.keycode == codes->right){
+                if (key.keycode == codes->right){
                     ++indx;
                     if (indx > digit_count-1) indx = 0;
                 }
-                if (key.key.keycode == codes->left){
+                if (key.keycode == codes->left){
                     --indx;
                     if (indx < 0) indx = digit_count-1;
                 }
                 
                 i32 new_value = *channel;
-                if (key.key.keycode == codes->up || key.key.keycode == codes->down){
+                if (key.keycode == codes->up || key.keycode == codes->down){
                     i32 place = digit_count-1-indx;
                     i32 base = (ftype == CF_DEC)?10:0x10;
                     i32 step_amount = 1;
@@ -467,13 +474,13 @@ do_channel_field(i32 sub_id, Color_UI *ui, u8 *channel, Channel_Field_Type ftype
                         step_amount *= base;
                         --place;
                     }
-                    if (key.key.keycode == codes->down){
+                    if (key.keycode == codes->down){
                         step_amount = 0 - step_amount;
                     }
                     new_value += step_amount;
                 }
                 
-                u8 c = (u8)key.key.character;
+                u8 c = (u8)key.character;
                 bool32 is_good = (ftype == CF_DEC)?char_is_numeric(c):char_is_hex(c);
                 if (is_good){
                     string_buffer[indx] = c;
@@ -1563,7 +1570,7 @@ step_draw_library(System_Functions *system, Exchange *exchange, Mem_Options *mem
     switch (mode){
     case CV_MODE_LIBRARY:
     {
-        do_label(&ui.state, &ui.layout, "Current Theme - Click to Edit");
+        do_label(&ui.state, &ui.layout, literal("Current Theme - Click to Edit"));
         if (do_style_preview(&ui, color_view->main_style)){
             color_view->mode = CV_MODE_ADJUSTING;
             color_view->state.selected = {};
@@ -1592,7 +1599,7 @@ step_draw_library(System_Functions *system, Exchange *exchange, Mem_Options *mem
             memset(color_view->import_export_check, 0, sizeof(color_view->import_export_check));
         }
         
-        do_label(&ui.state, &ui.layout, "Theme Library - Click to Select");
+        do_label(&ui.state, &ui.layout, literal("Theme Library - Click to Select"));
         
         i32 style_count = color_view->styles->count;
         Style *style = color_view->styles->styles;
@@ -1606,12 +1613,12 @@ step_draw_library(System_Functions *system, Exchange *exchange, Mem_Options *mem
     
     case CV_MODE_IMPORT_FILE:
     {
-        do_label(&ui.state, &ui.layout, "Current Theme");
+        do_label(&ui.state, &ui.layout, literal("Current Theme"));
         do_style_preview(&ui, color_view->main_style);
         
         b32 file_selected = 0;
         
-        do_label(&ui.state, &ui.layout, "Import Which File?");
+        do_label(&ui.state, &ui.layout, literal("Import Which File?"));
         begin_row(&ui.layout, 2);
         if (do_button(-2, &ui.state, &ui.layout, "*.p4c only", 2, 1, color_view->p4c_only)){
             color_view->p4c_only = !color_view->p4c_only;
@@ -1671,12 +1678,12 @@ step_draw_library(System_Functions *system, Exchange *exchange, Mem_Options *mem
     
     case CV_MODE_EXPORT_FILE:
     {
-        do_label(&ui.state, &ui.layout, "Current Theme");
+        do_label(&ui.state, &ui.layout, literal("Current Theme"));
         do_style_preview(&ui, color_view->main_style);
         
         b32 file_selected = 0;
         
-        do_label(&ui.state, &ui.layout, "Export File Name?");
+        do_label(&ui.state, &ui.layout, literal("Export File Name?"));
         begin_row(&ui.layout, 2);
         if (do_button(-2, &ui.state, &ui.layout, "Finish Export", 2)){
             file_selected = 1;
@@ -1722,14 +1729,14 @@ step_draw_library(System_Functions *system, Exchange *exchange, Mem_Options *mem
     
     case CV_MODE_IMPORT:
     {
-        do_label(&ui.state, &ui.layout, "Current Theme");
+        do_label(&ui.state, &ui.layout, literal("Current Theme"));
         do_style_preview(&ui, color_view->main_style);
         
         i32 style_count = color_view->inspecting_styles.count;
         Style *styles = color_view->inspecting_styles.styles;
         bool8 *import_check = color_view->import_export_check;
         
-        do_label(&ui.state, &ui.layout, "Pack");
+        do_label(&ui.state, &ui.layout, literal("Pack"));
         begin_row(&ui.layout, 2);
         if (do_button(-2, &ui.state, &ui.layout, "Finish Import", 2)){
             Style *style = styles;
@@ -1753,10 +1760,10 @@ step_draw_library(System_Functions *system, Exchange *exchange, Mem_Options *mem
     
     case CV_MODE_EXPORT:
     {
-        do_label(&ui.state, &ui.layout, "Current Theme");
+        do_label(&ui.state, &ui.layout, literal("Current Theme"));
         do_style_preview(&ui, color_view->main_style);
         
-        do_label(&ui.state, &ui.layout, "Export Which Themes?");
+        do_label(&ui.state, &ui.layout, literal("Export Which Themes?"));
         begin_row(&ui.layout, 2);
         if (do_button(-2, &ui.state, &ui.layout, "Export", 2)){
             color_view->mode = CV_MODE_EXPORT_FILE;

@@ -115,7 +115,7 @@ font_set_load(Partition *partition, Font_Set *set, i16 font_id){
     font__insert(&set->used_slots, slot);
     
     Render_Font *font = (Render_Font*)(slot + 1);
-    set->font_load(partition, font, info->filename.str, info->pt_size, 4);
+    set->font_load(font, info->filename.str, info->pt_size, 4);
     info->font = font;
     slot->font_id = font_id;
 }

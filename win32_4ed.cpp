@@ -38,6 +38,9 @@
 #define FPS 30
 #define frame_useconds (1000000 / FPS)
 
+#define WM_4coder_LOAD_FONT (WM_USER + 1)
+#define WM_4coder_PAINT (WM_USER + 2)
+
 struct Thread_Context{
     u32 job_id;
     b32 running;
@@ -56,16 +59,59 @@ struct Thread_Group{
 #define UseWinDll 1
 #define UseThreadMemory 1
 
+struct Control_Keys{
+    b8 l_ctrl;
+    b8 r_ctrl;
+    b8 l_alt;
+    b8 r_alt;
+};
+
+struct Win32_Input_Chunk_Transient{
+    Key_Input_Data key_data;
+    
+    b8 mouse_l_press, mouse_l_release;
+    b8 mouse_r_press, mouse_r_release;
+    b32 out_of_window;
+    i16 mouse_wheel;
+};
+
+struct Win32_Input_Chunk_Persistent{
+    i32 mouse_x, mouse_y;
+    b8 mouse_l, mouse_r;
+    
+    b8 keep_playing;
+
+    Control_Keys controls;
+    b8 control_keys[CONTROL_KEY_COUNT];
+};
+
+struct Win32_Input_Chunk{
+    Win32_Input_Chunk_Transient trans;
+    Win32_Input_Chunk_Persistent pers;
+};
+
+struct Win32_Font_Load_Parameters{
+    Win32_Font_Load_Parameters *next;
+    Win32_Font_Load_Parameters *prev;
+    
+    Render_Font *font_out;
+    char *filename;
+    i32 pt_size;
+    i32 tab_width;
+};
+
+
 struct Win32_Vars{
 	HWND window_handle;
-	Key_Codes key_codes;
-	Key_Input_Data input_data, previous_data;
-    
+    HDC window_hdc;
     Render_Target target;
     
-	Mouse_State mouse;
-	b32 focus;
-	b32 keep_playing;
+    HANDLE update_loop_thread;
+    DWORD update_loop_thread_id;
+    
+    Key_Codes key_codes;
+    Win32_Input_Chunk input_chunk;
+    
 	HCURSOR cursor_ibeam;
 	HCURSOR cursor_arrow;
 	HCURSOR cursor_leftright;
@@ -74,8 +120,6 @@ struct Win32_Vars{
 	Clipboard_Contents clipboard_contents;
 	b32 next_clipboard_is_self;
 	DWORD clipboard_sequence;
-    
-	Thread_Context main_thread;
     
     Thread_Group groups[THREAD_GROUP_COUNT];
     HANDLE locks[LOCK_COUNT];
@@ -89,20 +133,27 @@ struct Win32_Vars{
     u64 start_pcount;
     u64 start_time;
     
-    HMODULE custom;
 #if UseWinDll
     HMODULE app_code;
+    HMODULE custom;
 #else
     DLL_Loaded app_dll;
+    DLL_Loaded custom_dll;
 #endif
     
     System_Functions *system;
     App_Functions app;
-    Config_API config_api;
+    Custom_API custom_api;
+    b32 first;
     
 #if FRED_INTERNAL
     Sys_Bubble internal_bubble;
 #endif
+    
+    Win32_Font_Load_Parameters fnt_params[8];
+    Win32_Font_Load_Parameters used_font_param;
+    Win32_Font_Load_Parameters free_font_param;
+    Partition fnt_part;
 };
 
 globalvar Win32_Vars win32vars;
@@ -161,6 +212,31 @@ Win32FreeMemory(void *block){
         VirtualFree(block, 0, MEM_RELEASE);
 #endif
     }
+}
+
+internal Partition
+Win32ScratchPartition(i32 size){
+    Partition part;
+    void *data;
+    data = Win32GetMemory(size);
+    part = partition_open(data, size);
+    return(part);
+}
+
+internal void
+Win32ScratchPartitionGrow(Partition *part, i32 new_size){
+    void *data;
+    if (new_size > part->max){
+        data = Win32GetMemory(new_size);
+        memcpy(data, part->base, part->pos);
+        Win32FreeMemory(part->base);
+        part->base = (u8*)data;
+    }
+}
+
+internal void
+Win32ScratchPartitionDouble(Partition *part){
+    Win32ScratchPartitionGrow(part, part->max*2);
 }
 
 inline void
@@ -433,9 +509,16 @@ Sys_Post_Clipboard_Sig(system_post_clipboard){
 internal void
 Win32RedrawScreen(HDC hdc){
     launch_rendering(&win32vars.target);
-    win32vars.target.size = 0;
     glFlush();
-    SwapBuffers(hdc);
+    //SwapBuffers(hdc);
+}
+
+internal void
+Win32RedrawFromUpdate(){
+    SendMessage(
+        win32vars.window_handle,
+        WM_4coder_PAINT,
+        0, 0);
 }
 
 internal void
@@ -450,220 +533,6 @@ Win32Resize(i32 width, i32 height){
         win32vars.target.width = width;
         win32vars.target.height = height;
     }
-}
-
-#define HOTKEY_ALT_ID 0
-
-internal LRESULT
-Win32Callback(HWND hwnd, UINT uMsg,
-              WPARAM wParam, LPARAM lParam){
-    LRESULT result = {};
-    switch (uMsg){
-    case WM_MENUCHAR:
-    case WM_SYSCHAR:break;
-    
-    case WM_SYSKEYDOWN:
-    case WM_SYSKEYUP:
-    case WM_KEYDOWN:
-    case WM_KEYUP:
-    {
-        switch (wParam){
-        case VK_CONTROL:case VK_LCONTROL:case VK_RCONTROL:
-        case VK_MENU:case VK_LMENU:case VK_RMENU:
-        case VK_SHIFT:case VK_LSHIFT:case VK_RSHIFT: break;
-            
-        default:
-            b8 previous_state, current_state;
-            previous_state = ((lParam & Bit_30)?(1):(0));
-            current_state = ((lParam & Bit_31)?(0):(1));
-        
-            if (current_state){
-                u8 key = keycode_lookup((u8)wParam);
-                
-                i32 *count = 0;
-                Key_Event_Data *data = 0;
-                
-                if (!previous_state){
-                    count = &win32vars.input_data.press_count;
-                    data = win32vars.input_data.press;
-                }
-                else{
-                    count = &win32vars.input_data.hold_count;
-                    data = win32vars.input_data.hold;
-                }
-                
-                if (*count < KEY_INPUT_BUFFER_SIZE){
-                    if (!key){
-                        UINT vk = (UINT)wParam;
-                        UINT scan = (UINT)((lParam >> 16) & 0x7F);
-                        BYTE state[256];
-                        WORD x;
-                        int result;
-                        
-                        GetKeyboardState(state);
-                        if (win32vars.input_data.control_keys[CONTROL_KEY_CONTROL] &&
-                            !win32vars.input_data.control_keys[CONTROL_KEY_ALT])
-                            state[VK_CONTROL] = 0;
-                        result = ToAscii(vk, scan, state, &x, 0);
-                        if (result == 1 && x < 128){
-                            key = (u8)x;
-                            if (key == '\r') key = '\n';
-                            data[*count].character = key;
-                            
-                            state[VK_CAPITAL] = 0;
-                            result = ToAscii(vk, scan, state, &x, 0);
-                            if (result == 1 && x < 128){
-                                key = (u8)x;
-                                if (key == '\r') key = '\n';
-                                data[*count].character_no_caps_lock = key;
-                                data[*count].keycode = key;
-                            }
-                        }
-                        if (result != 1 || x >= 128){
-                            data[*count].character = 0;
-                            data[*count].character_no_caps_lock = 0;
-                            data[*count].keycode = 0;
-                        }
-                    }
-                    else{
-                        data[*count].character = 0;
-                        data[*count].character_no_caps_lock = 0;
-                        data[*count].keycode = key;
-                    }
-                    ++(*count);
-                }
-            }
-            
-            result = DefWindowProc(hwnd, uMsg, wParam, lParam);
-        }
-    }break;
-
-    case WM_INPUT:
-    {
-        char buffer[sizeof(RAWINPUT)] = {};
-        UINT size = sizeof(RAWINPUT);
-        GetRawInputData((HRAWINPUT)(lParam), RID_INPUT, buffer, &size, sizeof(RAWINPUTHEADER));
-        
-        RAWINPUT *rawinput = (RAWINPUT*)(buffer);
-        if (rawinput->header.dwType == RIM_TYPEKEYBOARD){
-            RAWKEYBOARD *raw = &rawinput->data.keyboard;
-            UINT vk = raw->VKey;
-            UINT flags = raw->Flags;
-            b8 down = !(flags & 1);
-            
-            if (vk != 255){
-                if (vk == VK_SHIFT){
-                    win32vars.input_data.control_keys[CONTROL_KEY_SHIFT] = down;
-                }
-                else if (vk == VK_CONTROL){
-                    win32vars.input_data.control_keys[CONTROL_KEY_CONTROL] = down;
-                }
-                else if (vk == VK_MENU){
-                    UINT is_gr = ((flags & RI_KEY_E0) != 0);
-                    if (!is_gr){
-                        win32vars.input_data.control_keys[CONTROL_KEY_ALT] = down;
-                    }
-                }
-            }
-        }
-        
-        result = DefWindowProcA(hwnd, uMsg, wParam, lParam);
-    }break;
-
-    case WM_MOUSEMOVE:
-    {
-        win32vars.mouse.x = LOWORD(lParam);
-        win32vars.mouse.y = HIWORD(lParam);
-    }break;
-    
-    case WM_MOUSEWHEEL:
-    {
-        i16 rotation = GET_WHEEL_DELTA_WPARAM(wParam);
-        if (rotation > 0){
-            win32vars.mouse.wheel = 1;
-        }
-        else{
-            win32vars.mouse.wheel = -1;
-        }
-    }break;
-    
-    case WM_LBUTTONDOWN:
-    {
-        win32vars.mouse.left_button = true;
-    }break;
-    
-    case WM_RBUTTONDOWN:
-    {
-        win32vars.mouse.right_button = true;
-    }break;
-    
-    case WM_LBUTTONUP:
-    {
-        win32vars.mouse.left_button = false;
-    }break;
-    
-    case WM_RBUTTONUP:
-    {
-        win32vars.mouse.right_button = false;
-    }break;
-    
-    case WM_KILLFOCUS:
-    {
-        win32vars.focus = 0;
-        win32vars.mouse.left_button = false;
-        win32vars.mouse.right_button = false;
-    }break;
-    
-    case WM_SETFOCUS:
-    {
-        win32vars.focus = 1;
-        for (int i = 0; i < CONTROL_KEY_COUNT; ++i){
-            win32vars.input_data.control_keys[i] = 0;
-        }
-    }break;
-    
-    case WM_SIZE:
-    {
-        if (win32vars.target.handle){
-            i32 new_width = LOWORD(lParam);
-            i32 new_height = HIWORD(lParam);
-            
-            Win32Resize(new_width, new_height);
-        }
-    }break;
-    
-    case WM_PAINT:
-    {
-        PAINTSTRUCT ps;
-        HDC hdc = BeginPaint(hwnd, &ps);
-
-        Clipboard_Contents empty_contents = {};
-        win32vars.app.step(win32vars.system,
-                           &win32vars.key_codes,
-                           &win32vars.previous_data,
-                           &win32vars.mouse,
-                           &win32vars.target,
-                           &memory_vars,
-                           &exchange_vars,
-                           empty_contents,
-                           0, 0, 1);
-        
-        Win32RedrawScreen(hdc);
-        EndPaint(hwnd, &ps);
-    }break;
-    
-    case WM_CLOSE: // NOTE(allen): I expect WM_CLOSE not WM_DESTROY
-    case WM_DESTROY:
-    {
-        win32vars.keep_playing = 0;
-    }break;
-    
-    default:
-    {
-        result = DefWindowProc(hwnd, uMsg, wParam, lParam);
-    }break;
-	}
-	return result;
 }
 
 internal HANDLE
@@ -966,6 +835,41 @@ Sys_CLI_End_Update_Sig(system_cli_end_update){
     return close_me;
 }
 
+internal void
+fnt__remove(Win32_Font_Load_Parameters *params){
+    params->next->prev = params->prev;
+    params->prev->next = params->next;
+}
+
+internal void
+fnt__insert(Win32_Font_Load_Parameters *pos, Win32_Font_Load_Parameters *params){
+    params->next = pos->next;
+    pos->next->prev = params;
+    pos->next = params;
+    params->prev = pos;
+}
+
+internal
+Font_Load_Sig(system_draw_font_load){
+    Win32_Font_Load_Parameters *params;
+    
+    system_acquire_lock(FONT_LOCK);
+    params = win32vars.free_font_param.next;
+    fnt__remove(params);
+    fnt__insert(&win32vars.used_font_param, params);
+    system_release_lock(FONT_LOCK);
+    
+    params->font_out = font_out;
+    params->filename = filename;
+    params->pt_size = pt_size;
+    params->tab_width = tab_width;
+
+    SendMessage(win32vars.window_handle,
+                WM_4coder_LOAD_FONT,
+                0, (i32)(params - win32vars.fnt_params));
+    return(1);
+}
+
 internal b32
 Win32LoadAppCode(){
     b32 result = 0;
@@ -1089,6 +993,464 @@ ex__check(File_Exchange *file_exchange){
     ex__check_file(&file_exchange->free_list);
 }
 
+internal LRESULT
+Win32Callback(HWND hwnd, UINT uMsg,
+              WPARAM wParam, LPARAM lParam){
+    LRESULT result = {};
+    switch (uMsg){
+    case WM_MENUCHAR:
+    case WM_SYSCHAR:break;
+    
+    case WM_SYSKEYDOWN:
+    case WM_SYSKEYUP:
+    case WM_KEYDOWN:
+    case WM_KEYUP:
+    {
+        switch (wParam){
+        case VK_CONTROL:case VK_LCONTROL:case VK_RCONTROL:
+        case VK_MENU:case VK_LMENU:case VK_RMENU:
+        case VK_SHIFT:case VK_LSHIFT:case VK_RSHIFT: break;
+            
+        default:
+            b8 previous_state, current_state;
+            previous_state = ((lParam & Bit_30)?(1):(0));
+            current_state = ((lParam & Bit_31)?(0):(1));
+        
+            if (current_state){
+                u8 key = keycode_lookup((u8)wParam);
+                
+                i32 *count = 0;
+                Key_Event_Data *data = 0;
+                b8 *control_keys = 0;
+                i32 control_keys_size = 0;
+
+                system_acquire_lock(INPUT_LOCK);                
+                if (!previous_state){
+                    count = &win32vars.input_chunk.trans.key_data.press_count;
+                    data = win32vars.input_chunk.trans.key_data.press;
+                }
+                else{
+                    count = &win32vars.input_chunk.trans.key_data.hold_count;
+                    data = win32vars.input_chunk.trans.key_data.hold;
+                }
+                control_keys = win32vars.input_chunk.pers.control_keys;
+                control_keys_size = sizeof(win32vars.input_chunk.pers.control_keys);
+                
+                if (*count < KEY_INPUT_BUFFER_SIZE){
+                    if (!key){
+                        UINT vk = (UINT)wParam;
+                        UINT scan = (UINT)((lParam >> 16) & 0x7F);
+                        BYTE state[256];
+                        WORD x;
+                        int result;
+                        
+                        GetKeyboardState(state);
+                        if (control_keys[CONTROL_KEY_CONTROL] &&
+                            !control_keys[CONTROL_KEY_ALT])
+                            state[VK_CONTROL] = 0;
+                        x = 0;
+                        result = ToAscii(vk, scan, state, &x, 0);
+                        if (result == 1 && x < 128){
+                            key = (u8)x;
+                            if (key == '\r') key = '\n';
+                            data[*count].character = key;
+                            
+                            state[VK_CAPITAL] = 0;
+                            x = 0;
+                            result = ToAscii(vk, scan, state, &x, 0);
+                            if (result == 1 && x < 128){
+                                key = (u8)x;
+                                if (key == '\r') key = '\n';
+                                data[*count].character_no_caps_lock = key;
+                                data[*count].keycode = key;
+                            }
+                        }
+                        if (result != 1 || x >= 128){
+                            data[*count].character = 0;
+                            data[*count].character_no_caps_lock = 0;
+                            data[*count].keycode = 0;
+                        }
+                    }
+                    else{
+                        data[*count].character = 0;
+                        data[*count].character_no_caps_lock = 0;
+                        data[*count].keycode = key;
+                    }
+                    memcpy(data[*count].modifiers, control_keys, control_keys_size);
+                    ++(*count);
+                }
+            }
+            system_release_lock(INPUT_LOCK);
+            
+            result = DefWindowProc(hwnd, uMsg, wParam, lParam);
+        }
+    }break;
+
+    case WM_INPUT:
+    {
+        char buffer[sizeof(RAWINPUT)] = {};
+        UINT size = sizeof(RAWINPUT);
+        GetRawInputData((HRAWINPUT)(lParam), RID_INPUT, buffer, &size, sizeof(RAWINPUTHEADER));
+        
+        system_acquire_lock(INPUT_LOCK);
+        Control_Keys *controls = 0;
+        b8 *control_keys = 0;
+        controls = &win32vars.input_chunk.pers.controls;
+        control_keys = win32vars.input_chunk.pers.control_keys;
+        
+        RAWINPUT *rawinput = (RAWINPUT*)(buffer);
+        if (rawinput->header.dwType == RIM_TYPEKEYBOARD){
+            RAWKEYBOARD *raw = &rawinput->data.keyboard;
+            UINT vk = raw->VKey;
+            UINT flags = raw->Flags;
+            b8 down = !(flags & 1);
+            UINT is_left = ((flags & RI_KEY_E0) != 0);
+            
+            if (vk != 255){
+                switch (vk){
+                case VK_SHIFT:
+                {
+                    control_keys[CONTROL_KEY_SHIFT] = down;
+                }break;
+                
+                case VK_CONTROL:
+                {
+                    if (is_left) controls->l_ctrl = down;
+                    else controls->r_ctrl = down;
+                }break;
+                
+                case VK_MENU:
+                {
+                    if (is_left) controls->l_alt = down;
+                    else controls->r_alt = down;
+                }break;
+                }
+                
+                b8 ctrl, alt;
+                ctrl = (controls->r_ctrl || (controls->l_ctrl && !controls->r_alt));
+                alt = (controls->l_alt || (controls->r_alt && !controls->l_ctrl));
+                control_keys[CONTROL_KEY_CONTROL] = ctrl;
+                control_keys[CONTROL_KEY_ALT] = alt;
+            }
+        }
+        system_release_lock(INPUT_LOCK);
+        
+        result = DefWindowProcA(hwnd, uMsg, wParam, lParam);
+    }break;
+
+    case WM_MOUSEMOVE:
+    {
+        system_acquire_lock(INPUT_LOCK);
+        win32vars.input_chunk.pers.mouse_x = LOWORD(lParam);
+        win32vars.input_chunk.pers.mouse_y = HIWORD(lParam);
+        system_release_lock(INPUT_LOCK);
+    }break;
+    
+    case WM_MOUSEWHEEL:
+    {
+        system_acquire_lock(INPUT_LOCK);
+        i16 rotation = GET_WHEEL_DELTA_WPARAM(wParam);
+        if (rotation > 0){
+            win32vars.input_chunk.trans.mouse_wheel = 1;
+        }
+        else{
+            win32vars.input_chunk.trans.mouse_wheel = -1;
+        }
+        system_release_lock(INPUT_LOCK);
+    }break;
+    
+    case WM_LBUTTONDOWN:
+    {
+        system_acquire_lock(INPUT_LOCK);
+        win32vars.input_chunk.trans.mouse_l_press = 1;
+        win32vars.input_chunk.pers.mouse_l = 1;
+        system_release_lock(INPUT_LOCK);
+    }break;
+    
+    case WM_RBUTTONDOWN:
+    {
+        system_acquire_lock(INPUT_LOCK);
+        win32vars.input_chunk.trans.mouse_r_press = 1;
+        win32vars.input_chunk.pers.mouse_r = 1;
+        system_release_lock(INPUT_LOCK);
+    }break;
+    
+    case WM_LBUTTONUP:
+    {
+        system_acquire_lock(INPUT_LOCK);
+        win32vars.input_chunk.trans.mouse_l_release = 1;
+        win32vars.input_chunk.pers.mouse_l = 0;
+        system_release_lock(INPUT_LOCK);
+    }break;
+    
+    case WM_RBUTTONUP:
+    {
+        system_acquire_lock(INPUT_LOCK);
+        win32vars.input_chunk.trans.mouse_r_release = 1;
+        win32vars.input_chunk.pers.mouse_r = 0;
+        system_release_lock(INPUT_LOCK);
+    }break;
+    
+    case WM_KILLFOCUS:
+    case WM_SETFOCUS:
+    {
+        system_acquire_lock(INPUT_LOCK);
+        win32vars.input_chunk.pers.mouse_l = 0;
+        win32vars.input_chunk.pers.mouse_r = 0;
+
+        b8 *control_keys = win32vars.input_chunk.pers.control_keys;
+        for (int i = 0; i < CONTROL_KEY_COUNT; ++i) control_keys[i] = 0;
+        win32vars.input_chunk.pers.controls = {};
+        
+        system_release_lock(INPUT_LOCK);
+    }break;
+    
+    case WM_SIZE:
+    {
+        if (win32vars.target.handle){
+            i32 new_width = LOWORD(lParam);
+            i32 new_height = HIWORD(lParam);
+
+            Win32Resize(new_width, new_height);
+        }
+    }break;
+    
+    case WM_PAINT:
+    {
+        PAINTSTRUCT ps;
+        HDC hdc = BeginPaint(hwnd, &ps);
+        system_acquire_lock(RENDER_LOCK);
+        Win32RedrawScreen(hdc);
+        system_release_lock(RENDER_LOCK);
+        EndPaint(hwnd, &ps);
+        
+    }break;
+    
+    case WM_4coder_PAINT:
+    {
+        PAINTSTRUCT ps;
+        HDC hdc = BeginPaint(hwnd, &ps);
+        system_acquire_lock(RENDER_LOCK);
+        Win32RedrawScreen(hdc);
+        system_release_lock(RENDER_LOCK);
+        EndPaint(hwnd, &ps);
+    }break;
+    
+    case WM_CLOSE: // NOTE(allen): I expect WM_CLOSE not WM_DESTROY
+    case WM_DESTROY:
+    {
+        system_acquire_lock(INPUT_LOCK);
+        win32vars.input_chunk.pers.keep_playing = 0;
+        system_release_lock(INPUT_LOCK);
+    }break;
+    
+    case WM_4coder_LOAD_FONT:
+    {
+        if (win32vars.fnt_part.base == 0){
+            win32vars.fnt_part = Win32ScratchPartition(Mbytes(8));
+        }
+        
+        Win32_Font_Load_Parameters *params = win32vars.fnt_params + lParam;
+
+        for (b32 success = 0; success == 0;){
+        
+            success = draw_font_load(win32vars.fnt_part.base,
+                                     win32vars.fnt_part.max,
+                                     params->font_out,
+                                     params->filename,
+                                     params->pt_size,
+                                     params->tab_width);
+            
+            if (!success){
+                Win32ScratchPartitionDouble(&win32vars.fnt_part);
+            }
+        }
+        
+        system_acquire_lock(FONT_LOCK);
+        fnt__remove(params);
+        fnt__insert(&win32vars.free_font_param, params);
+        system_release_lock(FONT_LOCK);
+    }break;
+    
+    default:
+    {
+        result = DefWindowProc(hwnd, uMsg, wParam, lParam);
+    }break;
+	}
+	return result;
+}
+
+DWORD
+UpdateLoop(LPVOID param){
+    for (;win32vars.input_chunk.pers.keep_playing;){
+        i64 timer_start = system_time();
+
+        system_acquire_lock(INPUT_LOCK);
+        Win32_Input_Chunk input_chunk = win32vars.input_chunk;
+        win32vars.input_chunk.trans = {};
+        system_release_lock(INPUT_LOCK);
+        
+        input_chunk.pers.control_keys[CONTROL_KEY_CAPS] = GetKeyState(VK_CAPITAL) & 0x1;
+        
+        POINT mouse_point;
+        if (GetCursorPos(&mouse_point) && ScreenToClient(win32vars.window_handle, &mouse_point)){
+            if (mouse_point.x < 0 || mouse_point.x >= win32vars.target.width ||
+                mouse_point.y < 0 || mouse_point.y >= win32vars.target.height){
+                input_chunk.trans.out_of_window = 1;
+            }
+        }
+        else{
+            input_chunk.trans.out_of_window = 1;
+        }
+        
+        win32vars.clipboard_contents = {};
+        if (win32vars.clipboard_sequence != 0){
+            DWORD new_number = GetClipboardSequenceNumber();
+            if (new_number != win32vars.clipboard_sequence){
+                win32vars.clipboard_sequence = new_number;
+                if (win32vars.next_clipboard_is_self){
+                    win32vars.next_clipboard_is_self = 0;
+                }
+                else if (IsClipboardFormatAvailable(CF_TEXT)){
+                    if (OpenClipboard(win32vars.window_handle)){
+                        HANDLE clip_data;
+                        clip_data = GetClipboardData(CF_TEXT);
+                        if (clip_data){
+                            win32vars.clipboard_contents.str = (u8*)GlobalLock(clip_data);
+                            if (win32vars.clipboard_contents.str){
+                                win32vars.clipboard_contents.size = str_size((char*)win32vars.clipboard_contents.str);
+                                GlobalUnlock(clip_data);
+                            }
+                        }
+                        CloseClipboard();
+                    }
+                }
+            }
+        }
+    
+        u32 redraw = exchange_vars.thread.force_redraw;
+        if (redraw) exchange_vars.thread.force_redraw = 0;
+    
+        Key_Input_Data input_data;
+        Mouse_State mouse;
+        Application_Step_Result result;
+        
+        input_data = input_chunk.trans.key_data;
+        mouse.out_of_window = input_chunk.trans.out_of_window;
+        
+        mouse.left_button = input_chunk.pers.mouse_l;
+        mouse.left_button_pressed = input_chunk.trans.mouse_l_press;
+        mouse.left_button_released = input_chunk.trans.mouse_l_release;
+        
+        mouse.right_button = input_chunk.pers.mouse_r;
+        mouse.right_button_pressed = input_chunk.trans.mouse_r_press;
+        mouse.right_button_released = input_chunk.trans.mouse_r_release;
+    
+        mouse.wheel = input_chunk.trans.mouse_wheel;
+    
+        mouse.x = input_chunk.pers.mouse_x;
+        mouse.y = input_chunk.pers.mouse_y;
+
+        result =
+            win32vars.app.step(win32vars.system,
+                               &win32vars.key_codes,
+                               &input_data,
+                               &mouse,
+                               &win32vars.target,
+                               &memory_vars,
+                               &exchange_vars,
+                               win32vars.clipboard_contents,
+                               1, win32vars.first, redraw);
+    
+        ProfileStart(OS_frame_out);
+        win32vars.first = 0;
+        switch (result.mouse_cursor_type){
+        case APP_MOUSE_CURSOR_ARROW:
+            SetCursor(win32vars.cursor_arrow); break;
+        case APP_MOUSE_CURSOR_IBEAM:
+            SetCursor(win32vars.cursor_ibeam); break;
+        case APP_MOUSE_CURSOR_LEFTRIGHT:
+            SetCursor(win32vars.cursor_leftright); break;
+        case APP_MOUSE_CURSOR_UPDOWN:
+            SetCursor(win32vars.cursor_updown); break;
+        }
+		
+        if (result.redraw){
+            Win32RedrawFromUpdate();
+        }
+        
+        ProfileEnd(OS_frame_out);
+        
+        ProfileStart(OS_file_process);
+        {
+            File_Slot *file;
+            int d = 0;
+            
+            for (file = exchange_vars.file.active.next;
+                 file != &exchange_vars.file.active;
+                 file = file->next){
+                ++d;
+                
+                if (file->flags & FEx_Save){
+                    Assert((file->flags & FEx_Request) == 0);
+                    file->flags &= (~FEx_Save);
+                    system_save_file(file->filename, file->data, file->size);
+                    file->flags |= FEx_Save_Complete;
+                }
+                
+                if (file->flags & FEx_Request){
+                    Assert((file->flags & FEx_Save) == 0);
+                    file->flags &= (~FEx_Request);
+                    Data sysfile =
+                        system_load_file(file->filename);
+                    if (sysfile.data == 0){
+                        file->flags |= FEx_Not_Exist;
+                    }
+                    else{
+                        file->flags |= FEx_Ready;
+                        file->data = sysfile.data;
+                        file->size = sysfile.size;
+                    }
+                }
+            }
+            
+            Assert(d == exchange_vars.file.num_active);
+            
+            for (file = exchange_vars.file.free_list.next;
+                 file != &exchange_vars.file.free_list;
+                 file = file->next){
+                if (file->data){
+                    system_free_memory(file->data);
+                }
+            }
+
+            if (exchange_vars.file.free_list.next != &exchange_vars.file.free_list){
+                ex__insert_range(exchange_vars.file.free_list.next, exchange_vars.file.free_list.prev,
+                                 &exchange_vars.file.available);
+            }
+
+            ex__check(&exchange_vars.file);
+        }
+        ProfileEnd(OS_file_process);
+        
+        ProfileStart(frame_sleep);
+        i64 timer_end = system_time();
+        i64 end_target = (timer_start + frame_useconds);
+    
+        system_release_lock(FRAME_LOCK);
+        while (timer_end < end_target){
+            DWORD samount = (DWORD)((end_target - timer_end) / 1000);
+            if (samount > 0) Sleep(samount);
+            timer_end = system_time();
+        }
+        system_acquire_lock(FRAME_LOCK);
+        timer_start = system_time();
+        ProfileEnd(frame_sleep);
+    }
+    
+    return(0);
+}
+
 int
 WinMain(HINSTANCE hInstance,
         HINSTANCE hPrevInstance,
@@ -1130,10 +1492,10 @@ WinMain(HINSTANCE hInstance,
 #ifdef FRED_SUPER
     win32vars.custom = LoadLibraryA("4coder_custom.dll");
     if (win32vars.custom){
-        win32vars.config_api.get_bindings = (Get_Binding_Data_Function*)
+        win32vars.custom_api.get_bindings = (Get_Binding_Data_Function*)
             GetProcAddress(win32vars.custom, "get_bindings");
         
-        win32vars.config_api.set_extra_font = (Set_Extra_Font_Function*)
+        win32vars.custom_api.set_extra_font = (Set_Extra_Font_Function*)
             GetProcAddress(win32vars.custom, "set_extra_font");
     }
 #endif
@@ -1148,7 +1510,6 @@ WinMain(HINSTANCE hInstance,
     Thread_Memory thread_memory[ArrayCount(background)];
     win32vars.thread_memory = thread_memory;
 #endif
-
     
     exchange_vars.thread.queues[BACKGROUND_THREADS].semaphore =
         Win32GenHandle(
@@ -1219,6 +1580,7 @@ WinMain(HINSTANCE hInstance,
     // TODO(allen): errors?
     win32vars.window_handle = window_handle;
     HDC hdc = GetDC(window_handle);
+    win32vars.window_hdc = hdc;
     
     GetClientRect(window_handle, &window_rect);
     
@@ -1232,9 +1594,7 @@ WinMain(HINSTANCE hInstance,
     static PIXELFORMATDESCRIPTOR pfd = {
         sizeof(PIXELFORMATDESCRIPTOR),
         1,
-        PFD_DRAW_TO_WINDOW |
-        PFD_SUPPORT_OPENGL |
-        PFD_DOUBLEBUFFER,
+        PFD_DRAW_TO_WINDOW | PFD_SUPPORT_OPENGL,
         PFD_TYPE_RGBA,
         32,
         0, 0, 0, 0, 0, 0,
@@ -1325,7 +1685,7 @@ WinMain(HINSTANCE hInstance,
     win32vars.target.push_piece = draw_push_piece;
     
     win32vars.target.font_set.font_info_load = draw_font_info_load;
-    win32vars.target.font_set.font_load = draw_font_load;
+    win32vars.target.font_set.font_load = system_draw_font_load;
     win32vars.target.font_set.release_font = draw_release_font;
 
     win32vars.target.max = Mbytes(1);
@@ -1367,186 +1727,50 @@ WinMain(HINSTANCE hInstance,
     String current_directory = make_string(current_directory_mem, written, required);
     terminate_with_null(&current_directory);
     
+    win32vars.free_font_param.next = &win32vars.free_font_param;
+    win32vars.free_font_param.prev = &win32vars.free_font_param;
+
+    win32vars.used_font_param.next = &win32vars.used_font_param;
+    win32vars.used_font_param.prev = &win32vars.used_font_param;
+    
+    for (i32 i = 0; i < ArrayCount(win32vars.fnt_params); ++i){
+        fnt__insert(&win32vars.free_font_param, win32vars.fnt_params + i);
+    }
+    
 	if (!win32vars.app.init(win32vars.system, &win32vars.target,
                             &memory_vars, &exchange_vars, &win32vars.key_codes,
                             win32vars.clipboard_contents, current_directory,
-                            win32vars.config_api)){
-		return 5;
+                            win32vars.custom_api)){
+		return(5);
 	}
 	
-	win32vars.keep_playing = 1;
+	win32vars.input_chunk.pers.keep_playing = 1;
+	win32vars.first = 1;
 	timeBeginPeriod(1);
-	
-    system_acquire_lock(FRAME_LOCK);
-    Thread_Context *thread = &win32vars.main_thread;
-    AllowLocal(thread);
-	b32 first = 1;
-	i64 timer_start = system_time();
     
-	while (win32vars.keep_playing){
-        ProfileStart(OS_input);
-		win32vars.previous_data = win32vars.input_data;
-		win32vars.input_data.press_count = 0;
-		win32vars.input_data.hold_count = 0;
-		win32vars.input_data.caps_lock = GetKeyState(VK_CAPITAL) & 0x1;
-        
-		win32vars.mouse.left_button_prev = win32vars.mouse.left_button;
-		win32vars.mouse.right_button_prev = win32vars.mouse.right_button;
-		win32vars.mouse.wheel = 0;
-		
-		MSG msg;
-		while (PeekMessage(&msg, 0, 0, 0, PM_REMOVE) && win32vars.keep_playing){
-			if (msg.message == WM_QUIT){
-				win32vars.keep_playing = 0;
-			}else{
-				TranslateMessage(&msg);
-				DispatchMessage(&msg);
-			}
-		}
-		
-		if (!win32vars.keep_playing){
-			break;
-		}
-		
-		win32vars.mouse.out_of_window = 0;
-		POINT mouse_point;
-		if (GetCursorPos(&mouse_point) &&
-			ScreenToClient(window_handle, &mouse_point)){
-			
-			if (mouse_point.x < 0 || mouse_point.x >= win32vars.target.width ||
-				mouse_point.y < 0 || mouse_point.y >= win32vars.target.height){
-				win32vars.mouse.out_of_window = 1;
-			}
-		}
-		else{
-			win32vars.mouse.out_of_window = 1;
-		}
-		
-		win32vars.clipboard_contents = {};
-		if (win32vars.clipboard_sequence != 0){
-			DWORD new_number = GetClipboardSequenceNumber();
-			if (new_number != win32vars.clipboard_sequence){
-				win32vars.clipboard_sequence = new_number;
-				if (win32vars.next_clipboard_is_self){
-					win32vars.next_clipboard_is_self = 0;
-				}
-				else if (IsClipboardFormatAvailable(CF_TEXT)){
-					if (OpenClipboard(win32vars.window_handle)){
-						HANDLE clip_data;
-						clip_data = GetClipboardData(CF_TEXT);
-						if (clip_data){
-							win32vars.clipboard_contents.str = (u8*)GlobalLock(clip_data);
-							if (win32vars.clipboard_contents.str){
-								win32vars.clipboard_contents.size = str_size((char*)win32vars.clipboard_contents.str);
-								GlobalUnlock(clip_data);
-							}
-						}
-						CloseClipboard();
-					}
-				}
-			}
-		}
-        
-        u32 redraw = exchange_vars.thread.force_redraw;
-        if (redraw){
-            exchange_vars.thread.force_redraw = 0;
+    win32vars.update_loop_thread =
+        CreateThread(0,
+                     0,
+                     UpdateLoop,
+                     0,
+                     CREATE_SUSPENDED,
+                     &win32vars.update_loop_thread_id);
+    
+    system_acquire_lock(FRAME_LOCK);
+    
+    ResumeThread(win32vars.update_loop_thread);
+    
+    MSG msg;
+    for (;win32vars.input_chunk.pers.keep_playing && GetMessage(&msg, 0, 0, 0);){
+        if (msg.message == WM_QUIT){
+            system_acquire_lock(INPUT_LOCK);
+            win32vars.input_chunk.pers.keep_playing = 0;
+            system_release_lock(INPUT_LOCK);
+        }else{
+            TranslateMessage(&msg);
+            DispatchMessage(&msg);
         }
-        
-        ProfileEnd(OS_input);
-        
-        Application_Step_Result result =
-            win32vars.app.step(win32vars.system,
-                               &win32vars.key_codes,
-                               &win32vars.input_data,
-                               &win32vars.mouse,
-                               &win32vars.target,
-                               &memory_vars,
-                               &exchange_vars,
-                               win32vars.clipboard_contents,
-                               1, first, redraw);
-        
-        ProfileStart(OS_frame_out);
-		first = 0;
-		switch (result.mouse_cursor_type){
-			case APP_MOUSE_CURSOR_ARROW:
-				SetCursor(win32vars.cursor_arrow); break;
-			case APP_MOUSE_CURSOR_IBEAM:
-				SetCursor(win32vars.cursor_ibeam); break;
-			case APP_MOUSE_CURSOR_LEFTRIGHT:
-				SetCursor(win32vars.cursor_leftright); break;
-			case APP_MOUSE_CURSOR_UPDOWN:
-                SetCursor(win32vars.cursor_updown); break;
-		}
-		
-		if (result.redraw) Win32RedrawScreen(hdc);
-        ProfileEnd(OS_frame_out);
-        
-        ProfileStart(OS_file_process);
-        {
-            File_Slot *file;
-            int d = 0;
-            
-            for (file = exchange_vars.file.active.next;
-                 file != &exchange_vars.file.active;
-                 file = file->next){
-                ++d;
-                
-                if (file->flags & FEx_Save){
-                    Assert((file->flags & FEx_Request) == 0);
-                    file->flags &= (~FEx_Save);
-                    system_save_file(file->filename, file->data, file->size);
-                    file->flags |= FEx_Save_Complete;
-                }
-                
-                if (file->flags & FEx_Request){
-                    Assert((file->flags & FEx_Save) == 0);
-                    file->flags &= (~FEx_Request);
-                    Data sysfile =
-                        system_load_file(file->filename);
-                    if (sysfile.data == 0){
-                        file->flags |= FEx_Not_Exist;
-                    }
-                    else{
-                        file->flags |= FEx_Ready;
-                        file->data = sysfile.data;
-                        file->size = sysfile.size;
-                    }
-                }
-            }
-            
-            Assert(d == exchange_vars.file.num_active);
-
-            for (file = exchange_vars.file.free_list.next;
-                 file != &exchange_vars.file.free_list;
-                 file = file->next){
-                if (file->data){
-                    system_free_memory(file->data);
-                }
-            }
-
-            if (exchange_vars.file.free_list.next != &exchange_vars.file.free_list){
-                ex__insert_range(exchange_vars.file.free_list.next, exchange_vars.file.free_list.prev,
-                                 &exchange_vars.file.available);
-            }
-
-            ex__check(&exchange_vars.file);
-        }
-        ProfileEnd(OS_file_process);
-        
-        ProfileStart(frame_sleep);
-		i64 timer_end = system_time();
-		i64 end_target = (timer_start + frame_useconds);
-        
-        system_release_lock(FRAME_LOCK);
-		while (timer_end < end_target){
-            DWORD samount = (DWORD)((end_target - timer_end) / 1000);
-            if (samount > 0) Sleep(samount);
-            timer_end = system_time();
-		}
-        system_acquire_lock(FRAME_LOCK);
-		timer_start = system_time();7
-        ProfileEnd(frame_sleep);
-	}
+    }
 	
 	return 0;
 }

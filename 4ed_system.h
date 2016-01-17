@@ -61,6 +61,9 @@ struct Thread_Context;
 
 enum Lock_ID{
     FRAME_LOCK,
+    INPUT_LOCK,
+    FONT_LOCK,
+    RENDER_LOCK,
     CANCEL_LOCK0,
     CANCEL_LOCK1,
     CANCEL_LOCK2,

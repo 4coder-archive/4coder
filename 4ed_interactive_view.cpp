@@ -113,8 +113,7 @@ step_draw_int_view(System_Functions *system, Interactive_View *view,
     b32 new_dir = 0;
     b32 complete = 0;
 
-    terminate_with_null(&view->query);
-    do_label(&state, &layout, view->query.str, 1.f);
+    do_label(&state, &layout, view->query, 1.f);
     
     switch (view->interaction){
     case INTV_SYS_FILE_LIST:
@@ -142,7 +141,7 @@ step_draw_int_view(System_Functions *system, Interactive_View *view,
         String s = make_fixed_width_string(s_);
         append(&s, view->dest);
         append(&s, " has unsaved changes, kill it?");
-        do_label(&state, &layout, s.str, 1.f);
+        do_label(&state, &layout, s, 1.f);
             
         i32 id = 0;
         if (do_list_option(++id, &state, &layout, make_lit_string("(Y)es"))){

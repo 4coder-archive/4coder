@@ -49,7 +49,7 @@ typedef Do_View_Sig(Do_View_Function);
 #define HANDLE_COMMAND_SIG(name)                                        \
     void (name)(System_Functions *system, View *view,                   \
                 Command_Data *command, Command_Binding binding,         \
-                Key_Single key, Key_Codes *codes)
+                Key_Event_Data key, Key_Codes *codes)
 
 typedef HANDLE_COMMAND_SIG(Handle_Command_Function);
 

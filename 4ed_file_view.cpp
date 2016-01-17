@@ -95,6 +95,7 @@ struct Editing_File_Settings{
     i32 dos_write_mode;
     b32 tokens_exist;
     b32 super_locked;
+    b32 is_initialized;
 };
 
 // NOTE(allen): This part of the Editing_File is cleared whenever
@@ -425,10 +426,10 @@ struct Single_Line_Mode{
 internal Single_Line_Input_Step
 app_single_line_input_core(System_Functions *system,
                            Key_Codes *codes, Working_Set *working_set,
-                           Key_Single key, Single_Line_Mode mode){
+                           Key_Event_Data key, Single_Line_Mode mode){
     Single_Line_Input_Step result = {};
     
-    if (key.key.keycode == codes->back){
+    if (key.keycode == codes->back){
         result.hit_backspace = 1;
         if (mode.string->size > 0){
             result.made_a_change = 1;
@@ -453,7 +454,7 @@ app_single_line_input_core(System_Functions *system,
         }
     }
     
-    else if (key.key.character == '\n' || key.key.character == '\t'){
+    else if (key.character == '\n' || key.character == '\t'){
         result.made_a_change = 1;
         if (key.modifiers[CONTROL_KEY_CONTROL] ||
             key.modifiers[CONTROL_KEY_ALT]){
@@ -490,17 +491,17 @@ app_single_line_input_core(System_Functions *system,
         }
     }
     
-    else if (key.key.keycode == codes->esc){
+    else if (key.keycode == codes->esc){
         result.hit_esc = 1;
         result.made_a_change = 1;
     }
     
-    else if (key.key.character){
+    else if (key.character){
         result.hit_a_character = 1;
         if (!key.modifiers[CONTROL_KEY_CONTROL] &&
             !key.modifiers[CONTROL_KEY_ALT]){
             if (mode.string->size+1 < mode.string->memory_size){
-                u8 new_character = (u8)key.key.character;
+                u8 new_character = (u8)key.character;
                 mode.string->str[mode.string->size] = new_character;
                 mode.string->size++;
                 mode.string->str[mode.string->size] = 0;
@@ -521,7 +522,7 @@ app_single_line_input_core(System_Functions *system,
 
 inline Single_Line_Input_Step
 app_single_line_input_step(System_Functions *system,
-                           Key_Codes *codes, Key_Single key, String *string){
+                           Key_Codes *codes, Key_Event_Data key, String *string){
 	Single_Line_Mode mode = {};
 	mode.type = SINGLE_LINE_STRING;
 	mode.string = string;
@@ -530,7 +531,7 @@ app_single_line_input_step(System_Functions *system,
 
 inline Single_Line_Input_Step
 app_single_file_input_step(System_Functions *system,
-                           Key_Codes *codes, Working_Set *working_set, Key_Single key,
+                           Key_Codes *codes, Working_Set *working_set, Key_Event_Data key,
 						   String *string, Hot_Directory *hot_directory,
                            bool32 fast_folder_select){
 	Single_Line_Mode mode = {};
@@ -543,13 +544,13 @@ app_single_file_input_step(System_Functions *system,
 
 inline Single_Line_Input_Step
 app_single_number_input_step(System_Functions *system,
-                             Key_Codes *codes, Key_Single key, String *string){
+                             Key_Codes *codes, Key_Event_Data key, String *string){
     Single_Line_Input_Step result = {};
 	Single_Line_Mode mode = {};
 	mode.type = SINGLE_LINE_STRING;
 	mode.string = string;
     
-    char c = (char)key.key.character;
+    char c = (char)key.character;
     if (c == 0 || c == '\n' || char_is_numeric(c))
         result = app_single_line_input_core(system, codes, 0, key, mode);
 	return result;
@@ -936,8 +937,8 @@ ui_do_text_field_input(UI_State *state, String *str){
     bool32 result = 0;
     Key_Summary *keys = state->keys;
     for (i32 key_i = 0; key_i < keys->count; ++key_i){
-        Key_Single key = get_single_key(keys, key_i);
-        char c = (char)key.key.character;
+        Key_Event_Data key = get_single_key(keys, key_i);
+        char c = (char)key.character;
         if (char_is_basic(c) && str->size < str->memory_size-1){
             str->str[str->size++] = c;
             str->str[str->size] = 0;
@@ -945,7 +946,7 @@ ui_do_text_field_input(UI_State *state, String *str){
         else if (c == '\n'){
             result = 1;
         }
-        else if (key.key.keycode == state->codes->back && str->size > 0){
+        else if (key.keycode == state->codes->back && str->size > 0){
             str->str[--str->size] = 0;
         }
     }
@@ -958,7 +959,7 @@ ui_do_file_field_input(System_Functions *system,
     bool32 result = 0;
     Key_Summary *keys = state->keys;
     for (i32 key_i = 0; key_i < keys->count; ++key_i){
-        Key_Single key = get_single_key(keys, key_i);
+        Key_Event_Data key = get_single_key(keys, key_i);
         String *str = &hot_dir->string;
         terminate_with_null(str);
         Single_Line_Input_Step step =
@@ -974,7 +975,7 @@ ui_do_line_field_input(System_Functions *system,
     bool32 result = 0;
     Key_Summary *keys = state->keys;
     for (i32 key_i = 0; key_i < keys->count; ++key_i){
-        Key_Single key = get_single_key(keys, key_i);
+        Key_Event_Data key = get_single_key(keys, key_i);
         terminate_with_null(string);
         Single_Line_Input_Step step =
             app_single_line_input_step(system, state->codes, key, string);
@@ -1552,10 +1553,8 @@ working_set_get_available_file(Working_Set *working_set){
             break;
         }
     }
-
-    if (result.file){
-        *result.file = {};
-    }
+    
+    if (result.file) *result.file = {};
     
     return result;
 }
@@ -1639,7 +1638,7 @@ Job_Callback_Sig(job_full_lex){
         status = cpp_lex_file_nonalloc(cpp_file, &tokens, status);
     }
     
-    i32 new_max = LargeRoundUp(tokens.count, Kbytes(1));
+    i32 new_max = LargeRoundUp(tokens.count+1, Kbytes(1));
     
     system->acquire_lock(FRAME_LOCK);
     {
@@ -2247,9 +2246,9 @@ view_file_loaded_init(System_Functions *system, File_View *view, i32 cursor_pos)
 }
 
 internal void
-view_set_file(System_Functions *system, File_View *view, Editing_File *file,
-              Font_Set *set, Style *style, Custom_Command_Function *open_hook,
-              void *cmd_context, Application_Links *app){
+view_set_file(System_Functions *system, File_View *view,
+              Editing_File *file, Font_Set *set, Style *style,
+              Hook_Function *open_hook, void *cmd_context, Application_Links *app){
     Panel *panel = view->view_base.panel;
     view->file = file;
     view->locked = file->settings.super_locked;
@@ -2295,8 +2294,11 @@ view_set_file(System_Functions *system, File_View *view, Editing_File *file,
     
     view->vel_y = 1.f;
     view->vel_x = 1.f;
-    
-    if (open_hook) open_hook(cmd_context, app);
+
+    if (open_hook && file->settings.is_initialized == 0){
+        open_hook(cmd_context, app);
+        file->settings.is_initialized = 1;
+    }
 }
 
 struct Relative_Scrolling{
@@ -2723,8 +2725,7 @@ file_do_single_edit(System_Functions *system,
 }
 
 internal void
-view_do_white_batch_edit(System_Functions *system,
-                         Mem_Options *mem, File_View *view, Editing_File *file,
+view_do_white_batch_edit(System_Functions *system, Mem_Options *mem, File_View *view, Editing_File *file,
                          Editing_Layout *layout, Edit_Spec spec, History_Mode history_mode){
     if (view->locked) return;
 #if BUFFER_EXPERIMENT_SCALPEL <= 3
@@ -2871,7 +2872,7 @@ view_undo_redo(System_Functions *system,
         
         Assert(step.type == expected_type);
         
-        Edit_Spec spec;
+        Edit_Spec spec = {};
         spec.step = step;
         
         if (step.child_count == 0){
@@ -4341,7 +4342,7 @@ HANDLE_COMMAND_SIG(handle_command_file_view){
         if (binding.function) binding.function(system, command, binding);
         file_view->mode = file_view->next_mode;
         
-        if (key.key.keycode == codes->esc)
+        if (key.keycode == codes->esc)
             view_set_widget(file_view, FWIDG_NONE);
     }break;
     

@@ -132,6 +132,7 @@ enum Param_ID{
     par_cli_path,
     par_cli_command,
     par_cli_overlap_with_conflict,
+    par_cli_always_bind_to_view,
     // never below this
     par_type_count
 };
@@ -284,7 +285,7 @@ struct Application_Links{
     Directory_CD *directory_cd;
 };
 
-struct Config_API{
+struct Custom_API{
     Get_Binding_Data_Function *get_bindings;
     Set_Extra_Font_Function *set_extra_font;
 };

@@ -269,11 +269,16 @@ launch_rendering(Render_Target *target){
 
 #undef ExtractStruct
 
-internal
-Font_Info_Load_Sig(draw_font_info_load){
+internal i32
+draw_font_info_load(Partition *partition,
+                    char *filename,
+                    i32 pt_size,
+                    i32 *height,
+                    i32 *advance){
     i32 result = 1;
     Data file;
     file = system_load_file(filename);
+    
     Temp_Memory temp = begin_temp_memory(partition);
     stbtt_packedchar *chardata = push_array(partition, stbtt_packedchar, 256);
 
@@ -283,7 +288,7 @@ Font_Info_Load_Sig(draw_font_info_load){
     tex_width = pt_size*128*oversample;
     tex_height = pt_size*2*oversample;
     void *block = push_block(partition, tex_width * tex_height);
-
+    
     if (!file.data){
         result = 0;
     }
@@ -342,18 +347,25 @@ Font_Info_Load_Sig(draw_font_info_load){
         
         system_free_memory(file.data);
     }
-
+    
     end_temp_memory(temp);
     
     return(result);
 }
 
-internal
-Font_Load_Sig(draw_font_load){
+internal i32
+draw_font_load(void *base_block, i32 size,
+               Render_Font *font_out,
+               char *filename,
+               i32 pt_size,
+               i32 tab_width){
     i32 result = 1;
     Data file;
     file = system_load_file(filename);
-    Temp_Memory temp = begin_temp_memory(partition);
+    
+    Partition partition_ = partition_open(base_block, size);
+    Partition *partition = &partition_;
+    
     stbtt_packedchar *chardata = font_out->chardata;
 
     i32 oversample = 2;
@@ -394,14 +406,6 @@ Font_Load_Sig(draw_font_load){
             font_out->tex_height = tex_height;
 
             stbtt_pack_context spc;
-
-#if 0
-            if (stbtt_BakeFontBitmap((u8*)file.data, 0, (f32)pt_size,
-                                     memory_cursor, tex_width, tex_height, 0, 128,
-                                     font_out->chardata, partition) <= 0){
-                result = 0;
-            }
-#endif
 
             if (stbtt_PackBegin(&spc, (u8*)block, tex_width, tex_height, tex_width, 1, partition)){
                 stbtt_PackSetOversampling(&spc, oversample, oversample);
@@ -456,8 +460,6 @@ Font_Load_Sig(draw_font_load){
         }
         system_free_memory(file.data);
     }
-
-    end_temp_memory(temp);
     
     return result;
 }

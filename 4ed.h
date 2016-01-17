@@ -26,15 +26,17 @@ enum Key_Control{
 	CONTROL_KEY_SHIFT,
 	CONTROL_KEY_CONTROL,
 	CONTROL_KEY_ALT,
+    CONTROL_KEY_CAPS,
 	// always last
 	CONTROL_KEY_COUNT
 };
 
 struct Key_Event_Data{
 	u8 keycode;
-	//u8 apply_shift;
 	u8 character;
 	u8 character_no_caps_lock;
+    
+	b8 modifiers[CONTROL_KEY_COUNT];
 };
 
 struct Key_Input_Data{
@@ -42,37 +44,28 @@ struct Key_Input_Data{
 	Key_Event_Data hold[KEY_INPUT_BUFFER_SIZE];
 	i32 press_count;
     i32 hold_count;
-    
-	b8 control_keys[CONTROL_KEY_COUNT];
-	b8 caps_lock;
 };
 
 struct Key_Summary{
     i32 count;
     Key_Event_Data keys[KEY_INPUT_BUFFER_DSIZE];
-	bool8 modifiers[CONTROL_KEY_COUNT];
 };
 
-struct Key_Single{
-    Key_Event_Data key;
-    b8 *modifiers;
-};
-
-inline Key_Single
+inline Key_Event_Data
 get_single_key(Key_Summary *summary, i32 index){
     Assert(index >= 0 && index < summary->count);
-    Key_Single key;
-    key.key = summary->keys[index];
-    key.modifiers = summary->modifiers;
+    Key_Event_Data key;
+    key = summary->keys[index];
     return key;
 }
 
 struct Mouse_State{
 	b32 out_of_window;
-	b32 left_button, right_button;
-	b32 left_button_prev, right_button_prev;
-	i32 x, y;
+	b8 left_button, right_button;
+	b8 left_button_pressed, right_button_pressed;
+	b8 left_button_released, right_button_released;
 	i16 wheel;
+	i32 x, y;
 };
 
 struct Mouse_Summary{
@@ -135,7 +128,7 @@ struct Exchange{
              Key_Codes *loose_codes,                                \
              Clipboard_Contents clipboard,                          \
              String current_directory,                              \
-             Config_API api)
+             Custom_API api)
 
 typedef App_Init_Sig(App_Init);
 

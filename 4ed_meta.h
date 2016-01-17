@@ -101,6 +101,10 @@ _OutDbgStr(u8*);
 
 #define Swap(a,b) {auto t = a; a = b; b = t;}
 
+#ifndef literal
+#define literal(s) s, (sizeof(s)-1)
+#endif
+
 #define Min(a,b) (((a)<(b))?(a):(b))
 #define Max(a,b) (((a)>(b))?(a):(b))
 

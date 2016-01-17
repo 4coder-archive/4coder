@@ -218,9 +218,12 @@ draw_os_events(Debug_View *view, i32_Rect rect, Render_Target *target,
 
     i16 font_id = view->font_id;
     i32 line_height = get_font_info(&target->font_set, font_id)->height;
-    
+
+#if 0
     draw_modifiers(view, target, active_input->keys.modifiers,
                    0xFFFFFFFF, 0xFF444444, &x, y);
+#endif
+    
     max_x = x;
     x = rect.x0;
     y += line_height;
@@ -325,7 +328,8 @@ step_debug_view(Debug_View *view, i32_Rect rect, Render_Target *target,
                Input_Summary *active_input){
     persist i32 max_past = ArrayCount(view->past_keys);
 
-    bool8 *modifiers = active_input->keys.modifiers;
+#if 0
+    b8 *modifiers = active_input->keys.modifiers;
     for (i32 i = 0; i < active_input->keys.count; ++i){
         Dbg_Past_Key *past_key = view->past_keys + view->past_key_pos;
         ++view->past_key_pos;
@@ -350,6 +354,7 @@ step_debug_view(Debug_View *view, i32_Rect rect, Render_Target *target,
     
     if (active_input->mouse.wheel_used)
         view->prev_mouse_wheel = active_input->mouse.wheel_amount;
+#endif
 }
 
 internal

@@ -17,7 +17,9 @@
     clear_parameters(cmd_context)
 #define push_memory(cmd_context, len) app->push_memory(cmd_context, len)
 
+#ifndef literal
 #define literal(s) s, (sizeof(s)-1)
+#endif
 
 // NOTE(allen|a3.1): All of your custom ids should be >= mapid_user_custom.
 // I recommend enumerating your own map ids as shown here.

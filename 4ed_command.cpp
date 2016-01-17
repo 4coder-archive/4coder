@@ -126,7 +126,7 @@ apply_shift_to_code(u8 keycode){
 }
 
 internal Command_Binding
-map_extract(Command_Map *map, Key_Single key){
+map_extract(Command_Map *map, Key_Event_Data key){
     Command_Binding bind = {};
     
     b32 ctrl = key.modifiers[CONTROL_KEY_CONTROL];
@@ -135,16 +135,16 @@ map_extract(Command_Map *map, Key_Single key){
     u16 code;
     u8 command = MDFR_NONE;
     
-    if (key.key.character_no_caps_lock != 0 &&
-        key.key.character_no_caps_lock != ' ') shift = 0;
+    if (key.character_no_caps_lock != 0 &&
+        key.character_no_caps_lock != ' ') shift = 0;
     
     if (shift) command |= MDFR_SHIFT;
     if (ctrl) command |= MDFR_CTRL;
     if (alt) command |= MDFR_ALT;
 
-    code = key.key.character_no_caps_lock;
+    code = key.character_no_caps_lock;
     if (code == 0){
-        code = key.key.keycode;
+        code = key.keycode;
         map_find(map, code, command, &bind);
     }
     else{

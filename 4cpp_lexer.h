@@ -1537,41 +1537,47 @@ cpp_get_token(Cpp_Token_Stack *token_stack, int pos){
 	last = token_stack->count;
     
     Cpp_Get_Token_Result result = {};
-    while (1){
-        result.token_index = (first + last)/2;
+    if (token_stack->count > 0){
+        for (;;){
+            result.token_index = (first + last)/2;
         
-        int this_start = token_stack->tokens[result.token_index].start;
-        int next_start;
-        if (result.token_index + 1 < token_stack->count){
-            next_start = token_stack->tokens[result.token_index+1].start;
+            int this_start = token_stack->tokens[result.token_index].start;
+            int next_start;
+            if (result.token_index + 1 < token_stack->count){
+                next_start = token_stack->tokens[result.token_index+1].start;
+            }
+            else{
+                next_start = this_start + token_stack->tokens[result.token_index].size;
+            }
+            if (this_start <= pos && pos < next_start){
+                break;
+            }
+            else if (pos < this_start){
+                last = result.token_index;
+            }
+            else{
+                first = result.token_index + 1;
+            }
+            if (first == last){
+                result.token_index = first;
+                break;
+            }
         }
-        else{
-            next_start = this_start + token_stack->tokens[result.token_index].size;
-        }
-        if (this_start <= pos && pos < next_start){
-            break;
-        }
-        else if (pos < this_start){
-            last = result.token_index;
-        }
-        else{
-            first = result.token_index + 1;
-        }
-        if (first == last){
-            result.token_index = first;
-            break;
-        }
-    }
     
-    if (result.token_index == token_stack->count){
-        --result.token_index;
-        result.in_whitespace = 1;
-    }
-    else{
-        Cpp_Token *token = token_stack->tokens + result.token_index;
-        if (token->start + token->size <= pos){
+        if (result.token_index == token_stack->count){
+            --result.token_index;
             result.in_whitespace = 1;
         }
+        else{
+            Cpp_Token *token = token_stack->tokens + result.token_index;
+            if (token->start + token->size <= pos){
+                result.in_whitespace = 1;
+            }
+        }
+    }
+    else{
+        result.token_index = -1;
+        result.in_whitespace = 1;
     }
 	
 	return result;
@@ -1612,7 +1618,7 @@ cpp_relex_nonalloc_start(Cpp_File file, Cpp_Token_Stack *stack,
     else{
         state.start_token_i = result.token_index-1;
     }
-    
+        
     result = cpp_get_token(stack, end);
     if (result.token_index < 0) result.token_index = 0;
     else if (end > stack->tokens[result.token_index].start) ++result.token_index;

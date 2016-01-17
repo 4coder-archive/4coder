@@ -83,7 +83,7 @@ struct App_Vars{
     App_State_Resizing resizing;
     Panel *prev_mouse_panel;
 
-    Config_API config_api;
+    Custom_API config_api;
 };
 
 internal i32
@@ -166,7 +166,7 @@ struct Command_Data{
     Exchange *exchange;
     
     i32 screen_width, screen_height;
-    Key_Single key;
+    Key_Event_Data key;
     
     Partition part;
     System_Functions *system;
@@ -224,7 +224,7 @@ COMMAND_DECL(write_character){
     USE_LAYOUT(layout);
     USE_MEM(mem);
     
-    u8 character = (u8)command->key.key.character;
+    u8 character = (u8)command->key.character;
     char str_space[2];
     String string = make_string(str_space, 2);
     str_space[0] = character;
@@ -794,7 +794,7 @@ app_open_file(System_Functions *system, App_Vars *vars, Exchange *exchange,
                 created_file = 1;
                 target_file = file.file;
                 file_get_loading(target_file);
-                table_add(&working_set->table, target_file->state.source_path, file.index);
+                table_add(&working_set->table, filename_str, file.index);
                 file_init_strings(target_file);
                 file_set_name(target_file, filename);
                 
@@ -1535,7 +1535,8 @@ COMMAND_DECL(open_menu){
     view_replace_minor(system, exchange, new_view, panel, live_set);
     
     new_view->map = &vars->map_ui;
-    Menu_View *menu_view = menu_view_init(new_view, style, working_set, &vars->delay);
+    Menu_View *menu_view = menu_view_init(new_view, style, working_set,
+                                          &vars->delay, vars->font_set);
     AllowLocal(menu_view);
 }
 
@@ -1666,6 +1667,9 @@ COMMAND_DECL(set_settings){
     }
 }
 
+#define CLI_OverlapWithConflict (1<<0)
+#define CLI_AlwaysBindToView (2<<0)
+
 internal void
 build(System_Functions *system, Mem_Options *mem,
       App_Vars *vars, Working_Set *working_set,
@@ -1675,14 +1679,16 @@ build(System_Functions *system, Mem_Options *mem,
       char *buffer_name, i32 buffer_name_len,
       char *path, i32 path_len,
       char *script, i32 script_len,
-      b32 overlap_with_conflict){
+      u32 flags){
     if (buffer_name == 0 || path == 0 || script == 0){
         return;
     }
-
+    
     if (vars->cli_processes.count < vars->cli_processes.max){
+        Editing_Layout *layout = &vars->layout;
         Editing_File *file = working_set_contains(working_set, make_string_slowly(buffer_name));
         i32 index;
+        b32 bind_to_new_view = 1;
         
         if (!file){
             Get_File_Result get_file = working_set_get_available_file(working_set);
@@ -1693,26 +1699,41 @@ build(System_Functions *system, Mem_Options *mem,
             i32 proc_count = vars->cli_processes.count;
             for (i32 i = 0; i < proc_count; ++i){
                 if (vars->cli_processes.procs[i].out_file == file){
-                    if (overlap_with_conflict)
+                    if (flags & CLI_OverlapWithConflict)
                         vars->cli_processes.procs[i].out_file = 0;
                     else file = 0;
                     break;
                 }
             }
             index = (i32)(file - vars->working_set.files);
+            if (file){
+                if (!(flags & CLI_AlwaysBindToView)){
+                    Panel *panel = layout->panels;
+                    for (i32 i = 0; i < layout->panel_count; ++i, ++panel){
+                        File_View *fview = view_to_file_view(panel->view);
+                        if (fview && fview->file == file){
+                            bind_to_new_view = 0;
+                            break;
+                        }
+                    }
+                }
+            }
         }
         
         if (file){
             file_create_super_locked(system, mem, file, buffer_name, font_set, style->font_id);
             table_add(&working_set->table, file->state.live_name, index);
-            
-            View *new_view = live_set_alloc_view(live_set, mem);
-            view_replace_major(system, exchange, new_view, panel, live_set);
-            
-            File_View *file_view = file_view_init(new_view, &vars->layout);
-            view_set_file(system, file_view, file, font_set, style,
-                          vars->hooks[hook_open_file], command, &app_links);
-            new_view->map = app_get_map(vars, file->settings.base_map_id);
+
+            if (bind_to_new_view){
+                View *new_view = live_set_alloc_view(live_set, mem);
+                view_replace_major(system, exchange, new_view, panel, live_set);
+                
+                File_View *file_view = file_view_init(new_view, layout);
+                view_set_file(system, file_view, file, font_set, style,
+                              vars->hooks[hook_open_file], command, &app_links);
+                new_view->map = app_get_map(vars, file->settings.base_map_id);
+                
+            }
             
             i32 i = vars->cli_processes.count++;
             CLI_Process *proc = vars->cli_processes.procs + i;
@@ -1748,7 +1769,7 @@ COMMAND_DECL(build){
     int buffer_name_len = 0;
     int path_len = 0;
     int script_len = 0;
-    b32 overlap_with_conflict = 1;
+    u32 flags = CLI_OverlapWithConflict;
     
     Command_Parameter *end = param_stack_end(&command->part);
     Command_Parameter *param = param_stack_first(&command->part, end);
@@ -1787,7 +1808,18 @@ COMMAND_DECL(build){
         
         case par_cli_overlap_with_conflict:
         {
-            overlap_with_conflict = dynamic_to_int(&param->param.value);
+            if (dynamic_to_int(&param->param.value))
+                flags |= CLI_OverlapWithConflict;
+            else
+                flags &= (~CLI_OverlapWithConflict);
+        }break;
+        
+        case par_cli_always_bind_to_view:
+        {
+            if (dynamic_to_int(&param->param.value))
+                flags |= CLI_OverlapWithConflict;
+            else
+                flags &= (~CLI_OverlapWithConflict);
         }break;
         }
     }
@@ -1798,7 +1830,7 @@ COMMAND_DECL(build){
           buffer_name, buffer_name_len,
           path, path_len,
           script, script_len,
-          overlap_with_conflict);
+          flags);
 }
 
 COMMAND_DECL(build_here){
@@ -1812,7 +1844,7 @@ COMMAND_DECL(build_here){
     USE_EXCHANGE(exchange);
     USE_FONT_SET(font_set);
     
-    b32 overlap_with_conflict = 0;
+    u32 flags = 0;
 
     char *buffer_name = "*compilation*";
     int buffer_name_len = sizeof("*compilation*")-1;
@@ -1845,7 +1877,7 @@ COMMAND_DECL(build_here){
           buffer_name, buffer_name_len,
           path.str, path.size,
           dir.str, dir.size,
-          overlap_with_conflict);
+          flags);
 }
 
 internal void
@@ -2251,7 +2283,7 @@ app_hardcode_styles(App_Vars *vars){
     
     /////////////////
     style_set_name(style, make_lit_string("4coder"));
-    style->font_id = fonts + 4;
+    style->font_id = fonts + 0;
     
     style->main.back_color = 0xFF0C0C0C;
     style->main.margin_color = 0xFF181818;
@@ -2292,12 +2324,12 @@ app_hardcode_styles(App_Vars *vars){
     /////////////////
     *style = *(style-1);
     style_set_name(style, make_lit_string("4coder-mono"));
-    style->font_id = fonts;
+    style->font_id = fonts + 1;
     ++style;
     
     /////////////////
     style_set_name(style, make_lit_string("Handmade Hero"));
-    style->font_id = fonts;
+    style->font_id = fonts + 1;
     
     style->main.back_color = 0xFF161616;
     style->main.margin_color = 0xFF262626;
@@ -2378,7 +2410,7 @@ app_hardcode_styles(App_Vars *vars){
     
     /////////////////
     style_set_name(style, make_lit_string("Wolverine"));
-    style->font_id = fonts + 1;
+    style->font_id = fonts + 3;
     
     style->main.back_color = 0xFF070711;
     style->main.margin_color = 0xFF111168;
@@ -2418,7 +2450,7 @@ app_hardcode_styles(App_Vars *vars){
     
     /////////////////
     style_set_name(style, make_lit_string("stb"));
-    style->font_id = fonts + 3;
+    style->font_id = fonts + 4;
     
     style->main.back_color = 0xFFD6D6D6;
     style->main.margin_color = 0xFF9E9E9E;
@@ -2481,8 +2513,6 @@ bool _4coder_str_match(const char *a, int len_a, const char *b, int len_b){
     }
     return result;
 }
-
-#define literal(s) s, (sizeof(s) - 1)
 
 HOOK_SIG(default_open_file_hook){
     Buffer_Summary buffer = app->get_active_buffer(cmd_context);
@@ -2715,6 +2745,10 @@ App_Init_Sig(app_init){
 #define LitStr(n) n, sizeof(n)-1
         
         Font_Setup font_setup[] = {
+            {LitStr("LiberationSans-Regular.ttf"),
+             LitStr("liberation sans"),
+             16},
+
             {LitStr("liberation-mono.ttf"),
              LitStr("liberation mono"),
              16},
@@ -2729,10 +2763,6 @@ App_Init_Sig(app_init){
             
             {LitStr("Inconsolata-Regular.ttf"),
              LitStr("inconsolata"),
-             16},
-
-            {LitStr("LiberationSans-Regular.ttf"),
-             LitStr("liberation sans"),
              16},
             
         };
@@ -2954,20 +2984,16 @@ App_Step_Sig(app_step){
         key_data.keys[key_data.count++] = input->hold[i];
     }
     
-    for (i32 i = 0; i < CONTROL_KEY_COUNT; ++i){
-        key_data.modifiers[i] = input->control_keys[i];
-    }
-    
     Mouse_Summary mouse_data;
     mouse_data.mx = mouse->x;
     mouse_data.my = mouse->y;
     
     mouse_data.l = mouse->left_button;
     mouse_data.r = mouse->right_button;
-    mouse_data.press_l = mouse_data.l && !mouse->left_button_prev;
-    mouse_data.press_r = mouse_data.r && !mouse->right_button_prev;
-    mouse_data.release_l = !mouse_data.l && mouse->left_button_prev;
-    mouse_data.release_r = !mouse_data.r && mouse->right_button_prev;
+    mouse_data.press_l = mouse->left_button_pressed;
+    mouse_data.press_r = mouse->right_button_pressed;
+    mouse_data.release_l = mouse->left_button_released;
+    mouse_data.release_r = mouse->right_button_released;
     
     mouse_data.out_of_window = mouse->out_of_window;
     mouse_data.wheel_used = (mouse->wheel != 0);
@@ -3205,7 +3231,7 @@ App_Step_Sig(app_step){
         Command_Map *map = 0;
         View *view = active_panel->view;
         
-        Key_Single key = get_single_key(&key_data, key_i);
+        Key_Event_Data key = get_single_key(&key_data, key_i);
         command_data.key = key;
         
         Command_Map *visited_maps[16] = {};
@@ -3267,9 +3293,6 @@ App_Step_Sig(app_step){
     dead_input.mouse.mx = mouse_data.mx;
     dead_input.mouse.my = mouse_data.my;
     dead_input.codes = codes;
-    dead_input.keys.modifiers[0] = key_data.modifiers[0];
-    dead_input.keys.modifiers[1] = key_data.modifiers[1];
-    dead_input.keys.modifiers[2] = key_data.modifiers[2];
     
     Input_Summary active_input = {};
     dead_input.mouse.mx = mouse_data.mx;
@@ -3571,7 +3594,7 @@ App_Step_Sig(app_step){
     ProfileStart(redraw);
     if (mouse_panel != vars->prev_mouse_panel) app_result.redraw = 1;
     if (app_result.redraw){
-        begin_render_section(target);
+        begin_render_section(target, system);
         
         target->clip_top = -1;
         draw_push_clip(target, rect_from_target(target));
@@ -3614,7 +3637,7 @@ App_Step_Sig(app_step){
             draw_rectangle(target, i32R(inner.x1, inner.y0, full.x1, inner.y1), margin_color);
         }
 
-        end_render_section(target);
+        end_render_section(target, system);
     }
     ProfileEnd(redraw);
     
