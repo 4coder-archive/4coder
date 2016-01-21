@@ -1458,6 +1458,7 @@ do_file_list_box(System_Functions *system, UI_State *state,
             
             append(&full_path, filename);
             terminate_with_null(&full_path);
+            
             Editing_File *file = working_set_contains(state->working_set, full_path);
             full_path.size = restore_size;
             

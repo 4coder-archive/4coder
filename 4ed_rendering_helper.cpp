@@ -22,15 +22,23 @@ draw_pop_clip(Render_Target *target){
 internal void
 begin_render_section(Render_Target *target, System_Functions *system){
     Font_Set *font_set = &target->font_set;
+    system->acquire_lock(RENDER_LOCK);
     font_set->used_this_frame = 0;
     memset(font_set->font_used_flags, 0, font_set->max);
     target->size = 0;
-    system->acquire_lock(RENDER_LOCK);
+    target->clip_top = -1;
+
+    i32_Rect clip;
+    clip.x0 = 0;
+    clip.y0 = 0;
+    clip.x1 = target->width;
+    clip.y1 = target->height;
+    draw_push_clip(target, clip);
 }
 
 internal void
 end_render_section(Render_Target *target, System_Functions *system){
-    //Font_Set *font_set = &target->font_set;
+    Assert(target->clip_top == 0);
     system->release_lock(RENDER_LOCK);
 }
 

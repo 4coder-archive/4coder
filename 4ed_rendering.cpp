@@ -34,22 +34,6 @@ draw_set_color(Render_Target *target, u32 color){
     }
 }
 
-internal void
-draw_push_clip(Render_Target *target, i32_Rect clip_box){
-    Assert(target->clip_top == -1 ||
-           fits_inside(clip_box, target->clip_boxes[target->clip_top]));
-    Assert(target->clip_top+1 < ArrayCount(target->clip_boxes));
-    target->clip_boxes[++target->clip_top] = clip_box;
-    draw_set_clip(target, clip_box);
-}
-
-internal void
-draw_pop_clip(Render_Target *target){
-    Assert(target->clip_top > 0);
-    --target->clip_top;
-    draw_set_clip(target, target->clip_boxes[target->clip_top]);
-}
-
 #define PutStruct(s,x) *(s*)(target->push_buffer + target->size) = x; target->size += sizeof(s)
 
 internal void
@@ -77,6 +61,39 @@ draw_push_piece(Render_Target *target, Render_Piece_Combined piece){
     }
     
     Assert(target->size <= target->max);
+}
+
+internal void
+draw_push_piece_clip(Render_Target *target, i32_Rect clip_box){
+    // TODO(allen): optimize out if there are two clip box changes in a row
+    Render_Piece_Change_Clip clip;
+    Render_Piece_Header header;
+    
+    header.type = piece_type_change_clip;
+    clip.box = clip_box;
+    
+    PutStruct(Render_Piece_Header, header);
+    PutStruct(Render_Piece_Change_Clip, clip);
+}
+
+internal void
+draw_push_clip(Render_Target *target, i32_Rect clip_box){
+    Assert(target->clip_top == -1 ||
+           fits_inside(clip_box, target->clip_boxes[target->clip_top]));
+    Assert(target->clip_top+1 < ArrayCount(target->clip_boxes));
+    target->clip_boxes[++target->clip_top] = clip_box;
+
+    draw_push_piece_clip(target, clip_box);
+}
+
+internal void
+draw_pop_clip(Render_Target *target){
+    i32_Rect clip_box;
+    Assert(target->clip_top > 0);
+    --target->clip_top;
+    clip_box = target->clip_boxes[target->clip_top];
+    
+    draw_push_piece_clip(target, clip_box);
 }
 
 #define ExtractStruct(s) ((s*)cursor); cursor += sizeof(s)
@@ -148,7 +165,7 @@ private_draw_glyph(Render_Target *target, Render_Font *font,
     
     stbtt_aligned_quad q;
     stbtt_GetPackedQuad(font->chardata, font->tex_width, font->tex_height,
-                        character, &x, &y, &q, 1);
+                        character, &x, &y, &q, 0);
     
     draw_set_color(target, color);
     draw_bind_texture(target, font->tex);
@@ -177,7 +194,7 @@ private_draw_glyph_mono(Render_Target *target, Render_Font *font, u8 character,
     
     stbtt_aligned_quad q;
     stbtt_GetPackedQuad(font->chardata, font->tex_width, font->tex_height,
-                        character, &x, &y, &q, 1);
+                        character, &x, &y, &q, 0);
     
     draw_set_color(target, color);
     draw_bind_texture(target, font->tex);
@@ -262,6 +279,13 @@ launch_rendering(Render_Target *target){
                 private_draw_glyph_mono(target, font, glyph->character,
                                         glyph->pos.x, glyph->pos.y,
                                         glyph->advance, glyph->color);
+        }break;
+
+        case piece_type_change_clip:
+        {
+            Render_Piece_Change_Clip *clip =
+                ExtractStruct(Render_Piece_Change_Clip);
+            draw_set_clip(target, clip->box);
         }break;
         }
     }

@@ -146,15 +146,18 @@ typedef struct Full_Cursor{
     float wrapped_x, wrapped_y;
 } Full_Cursor;
 
+#define BRFlag_Special_Character (1 << 0)
+
 typedef struct Buffer_Render_Item{
     int index;
-    int glyphid;
+    unsigned short glyphid;
+    unsigned short flags;
     float x0, y0;
     float x1, y1;
 } Buffer_Render_Item;
 
 inline_4tech void
-write_render_item(Buffer_Render_Item *item, int index, int glyphid,
+write_render_item(Buffer_Render_Item *item, int index, unsigned short glyphid,
                   float x, float y, float w, float h){
     item->index = index;
     item->glyphid = glyphid;
@@ -165,7 +168,7 @@ write_render_item(Buffer_Render_Item *item, int index, int glyphid,
 }
 
 inline_4tech float
-write_render_item_inline(Buffer_Render_Item *item, int index, int glyphid,
+write_render_item_inline(Buffer_Render_Item *item, int index, unsigned short glyphid,
                          float x, float y, float *advance_data, float h){
     float ch_width;
     ch_width = measure_character(advance_data, (char)glyphid);

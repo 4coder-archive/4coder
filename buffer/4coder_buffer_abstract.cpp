@@ -253,7 +253,7 @@ buffer_seek_alphanumeric_right(Buffer_Type *buffer, int pos){
         end = loop.size + loop.absolute_pos;
         data = loop.data - loop.absolute_pos;
         for (; pos < end; ++pos){
-            if (!is_alphanumeric_true(data[pos])) goto buffer_seek_alphanumeric_right_mid;
+            if (is_alphanumeric_true(data[pos])) goto buffer_seek_alphanumeric_right_mid;
         }
     }
     
@@ -263,7 +263,7 @@ buffer_seek_alphanumeric_right_mid:
         end = loop.size + loop.absolute_pos;
         data = loop.data - loop.absolute_pos;
         for (; pos < end; ++pos){
-            if (is_alphanumeric_true(data[pos])) goto buffer_seek_alphanumeric_right_end;
+            if (!is_alphanumeric_true(data[pos])) goto buffer_seek_alphanumeric_right_end;
         }
     }
     
@@ -298,11 +298,12 @@ buffer_seek_alphanumeric_left_mid:
             end = loop.absolute_pos;
             data = loop.data - end;
             for (; pos >= end; --pos){
-                if (!is_alphanumeric_true(data[pos])) goto buffer_seek_alphanumeric_left_end;
+                if (!is_alphanumeric_true(data[pos])){
+                    ++pos;
+                    goto buffer_seek_alphanumeric_left_end;
+                }
             }
         }
-        
-        ++pos;
     }
     else{
         pos = 0;
@@ -313,7 +314,7 @@ buffer_seek_alphanumeric_left_end:
 }
 
 internal_4tech int
-buffer_seek_alphanumeric_or_camel_right(Buffer_Type *buffer, int pos, int an_pos){
+buffer_seek_range_camel_right(Buffer_Type *buffer, int pos, int an_pos){
     Buffer_Stringify_Type loop;
     char *data;
     int end, size;
@@ -351,7 +352,7 @@ buffer_seek_alphanumeric_or_camel_right_end:
 }
 
 internal_4tech int
-buffer_seek_alphanumeric_or_camel_left(Buffer_Type *buffer, int pos, int an_pos){
+buffer_seek_range_camel_left(Buffer_Type *buffer, int pos, int an_pos){
     Buffer_Backify_Type loop;
     char *data;
     int end, size;
@@ -380,6 +381,22 @@ buffer_seek_alphanumeric_or_camel_left(Buffer_Type *buffer, int pos, int an_pos)
     
 buffer_seek_alphanumeric_or_camel_left_end:
     return(pos);
+}
+
+internal_4tech int
+buffer_seek_alphanumeric_or_camel_right(Buffer_Type *buffer, int pos){
+    int an_pos, result;
+    an_pos = buffer_seek_alphanumeric_right(buffer, pos);
+    result = buffer_seek_range_camel_right(buffer, pos, an_pos);
+    return(result);
+}
+
+internal_4tech int
+buffer_seek_alphanumeric_or_camel_left(Buffer_Type *buffer, int pos){
+    int an_pos, result;
+    an_pos = buffer_seek_alphanumeric_left(buffer, pos);
+    result = buffer_seek_range_camel_left(buffer, pos, an_pos);
+    return(result);
 }
 
 internal_4tech int
@@ -1124,10 +1141,15 @@ buffer_invert_batch(Buffer_Invert_Batch *state, Buffer_Type *buffer, Buffer_Edit
     return(result);
 }
 
+struct Buffer_Render_Options{
+    b8 show_slash_t;
+};
+
 internal_4tech void
 buffer_get_render_data(Buffer_Type *buffer, float *wraps, Buffer_Render_Item *items, int max, int *count,
                        float port_x, float port_y, float scroll_x, float scroll_y, int wrapped,
-                       float width, float height, float *advance_data, float font_height){
+                       float width, float height, float *advance_data, float font_height,
+                       Buffer_Render_Options opts){
     Buffer_Stringify_Type loop;
     Full_Cursor start_cursor;
     Buffer_Render_Item *item;
@@ -1180,6 +1202,7 @@ buffer_get_render_data(Buffer_Type *buffer, float *wraps, Buffer_Render_Item *it
                 switch (ch){
                 case '\n':
                     write_render_item_inline(item, i, ' ', x, y, advance_data, font_height);
+                    item->flags = 0;
                     ++item_i;
                     ++item;
                 
@@ -1189,11 +1212,13 @@ buffer_get_render_data(Buffer_Type *buffer, float *wraps, Buffer_Render_Item *it
 
                 case 0:
                     ch_width = write_render_item_inline(item, i, '\\', x, y, advance_data, font_height);
+                    item->flags = BRFlag_Special_Character;
                     ++item_i;
                     ++item;
                     x += ch_width;
 
                     ch_width = write_render_item_inline(item, i, '0', x, y, advance_data, font_height);
+                    item->flags = BRFlag_Special_Character;
                     ++item_i;
                     ++item;
                     x += ch_width;
@@ -1201,29 +1226,42 @@ buffer_get_render_data(Buffer_Type *buffer, float *wraps, Buffer_Render_Item *it
 
                 case '\r':
                     ch_width = write_render_item_inline(item, i, '\\', x, y, advance_data, font_height);
+                    item->flags = BRFlag_Special_Character;
                     ++item_i;
                     ++item;
                     x += ch_width;
 
                     ch_width = write_render_item_inline(item, i, 'r', x, y, advance_data, font_height);
+                    item->flags = BRFlag_Special_Character;
                     ++item_i;
                     ++item;
                     x += ch_width;
                     break;
 
                 case '\t':
-                    ch_width_sub = write_render_item_inline(item, i, '\\', x, y, advance_data, font_height);
-                    ++item_i;
-                    ++item;
-
-                    write_render_item_inline(item, i, 't', x + ch_width_sub, y, advance_data, font_height);
-                    ++item_i;
-                    ++item;
+                    if (opts.show_slash_t){
+                        ch_width_sub = write_render_item_inline(item, i, '\\', x, y, advance_data, font_height);
+                        item->flags = BRFlag_Special_Character;
+                        ++item_i;
+                        ++item;
+                        
+                        write_render_item_inline(item, i, 't', x + ch_width_sub, y, advance_data, font_height);
+                        item->flags = BRFlag_Special_Character;
+                        ++item_i;
+                        ++item;
+                    }
+                    else{
+                        write_render_item_inline(item, i, ' ', x, y, advance_data, font_height);
+                        item->flags = 0;
+                        ++item_i;
+                        ++item;
+                    }
                     x += ch_width;
                     break;
 
                 default:
                     write_render_item(item, i, ch, x, y, ch_width, font_height);
+                    item->flags = 0;
                     ++item_i;
                     ++item;
                     x += ch_width;

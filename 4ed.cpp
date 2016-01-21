@@ -393,8 +393,7 @@ COMMAND_DECL(seek_alphanumeric_or_camel_right){
     REQ_FILE_VIEW(view);
     REQ_FILE(file, view);
 
-    i32 an_pos = buffer_seek_alphanumeric_right(&file->state.buffer, view->cursor.pos);
-    i32 pos = buffer_seek_alphanumeric_or_camel_right(&file->state.buffer, view->cursor.pos, an_pos);
+    i32 pos = buffer_seek_alphanumeric_or_camel_right(&file->state.buffer, view->cursor.pos);
     view_cursor_move(view, pos);
 #endif
 }
@@ -405,8 +404,7 @@ COMMAND_DECL(seek_alphanumeric_or_camel_left){
     REQ_FILE_VIEW(view);
     REQ_FILE(file, view);
     
-    i32 an_pos = buffer_seek_alphanumeric_left(&file->state.buffer, view->cursor.pos);
-    i32 pos = buffer_seek_alphanumeric_or_camel_left(&file->state.buffer, view->cursor.pos, an_pos);
+    i32 pos = buffer_seek_alphanumeric_or_camel_left(&file->state.buffer, view->cursor.pos);
     view_cursor_move(view, pos);
 #endif
 }
@@ -794,9 +792,9 @@ app_open_file(System_Functions *system, App_Vars *vars, Exchange *exchange,
                 created_file = 1;
                 target_file = file.file;
                 file_get_loading(target_file);
-                table_add(&working_set->table, filename_str, file.index);
                 file_init_strings(target_file);
                 file_set_name(target_file, filename);
+                table_add(&working_set->table, target_file->state.source_path, file.index);
                 
                 app_push_file_binding(vars, file_id, file.index);
             }
@@ -1722,8 +1720,9 @@ build(System_Functions *system, Mem_Options *mem,
         
         if (file){
             file_create_super_locked(system, mem, file, buffer_name, font_set, style->font_id);
+            file->settings.unimportant = 1;
             table_add(&working_set->table, file->state.live_name, index);
-
+            
             if (bind_to_new_view){
                 View *new_view = live_set_alloc_view(live_set, mem);
                 view_replace_major(system, exchange, new_view, panel, live_set);
@@ -2930,6 +2929,24 @@ App_Step_Sig(app_step){
                 if (system->cli_end_update(&proc->cli)){
                     *proc = vars->cli_processes.procs[--count];
                     --i;
+
+                    char str_space[256];
+                    String str = make_fixed_width_string(str_space);
+                    append(&str, "exited with code ");
+                    append_int_to_str(proc->cli.exit, &str);
+                    
+                    Edit_Spec spec = {};
+                    spec.step.type = ED_NORMAL;
+                    spec.step.edit.start = buffer_size(&out_file->state.buffer);
+                    spec.step.edit.end = spec.step.edit.start;
+                    spec.step.edit.len = str.size;
+                    spec.step.pre_pos = new_cursor;
+                    spec.step.post_pos = spec.step.edit.start + str.size;
+                    spec.str = (u8*)str.str;
+                    file_do_single_edit(system, &vars->mem, out_file,
+                                        &vars->layout, spec, hist_normal);
+                    app_result.redraw = 1;
+                    new_cursor = spec.step.post_pos;
                 }
             
                 Panel *panel = vars->layout.panels;
@@ -2938,7 +2955,7 @@ App_Step_Sig(app_step){
                     View *view = panel->view;
                     if (view && view->is_minor) view = view->major;
                     File_View *fview = view_to_file_view(view);
-                    if (fview){
+                    if (fview && fview->file == out_file){
                         view_cursor_move(fview, new_cursor);
                     }
                 }
@@ -3419,20 +3436,10 @@ App_Step_Sig(app_step){
             {
                 Editing_File *file = working_set_lookup_file(working_set, *string);
                 if (file){
-                    switch (buffer_get_sync(file)){
-                    case SYNC_BEHIND_OS:
-                    case SYNC_GOOD:
-                    {
-                        table_remove(&working_set->table, file->state.source_path);
-                        kill_file(system, exchange, general, file, live_set, &vars->layout);
-                        view_remove_minor(system, exchange, panel, live_set);
-                    }break;
-                    
-                    case SYNC_UNSAVED:
-                    {
+                    if (buffer_needs_save(file)){
                         View *new_view = live_set_alloc_view(live_set, mem);
                         view_replace_minor(system, exchange, new_view, panel, live_set);
-                        
+                            
                         new_view->map = &vars->map_ui;
                         Interactive_View *int_view = 
                             interactive_view_init(system, new_view, &vars->hot_directory, style,
@@ -3441,9 +3448,11 @@ App_Step_Sig(app_step){
                         int_view->action = INTV_SURE_TO_KILL;
                         copy(&int_view->query, "Are you sure?");
                         copy(&int_view->dest, file->state.live_name);
-                    }break;
-                    
-                    default: Assert(!"invalid path");
+                    }
+                    else{
+                        table_remove(&working_set->table, file->state.source_path);
+                        kill_file(system, exchange, general, file, live_set, &vars->layout);
+                        view_remove_minor(system, exchange, panel, live_set);
                     }
                 }
             }break;

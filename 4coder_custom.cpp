@@ -8,15 +8,6 @@
 #include "4coder_custom.h"
 #include "4coder_helper.h"
 
-#define exec_command_keep_stack app->exec_command_keep_stack
-#define clear_parameters app->clear_parameters
-#define get_active_buffer app->get_active_buffer
-
-#define exec_command(cmd_context, id)           \
-    exec_command_keep_stack(cmd_context, id);   \
-    clear_parameters(cmd_context)
-#define push_memory(cmd_context, len) app->push_memory(cmd_context, len)
-
 #ifndef literal
 #define literal(s) s, (sizeof(s)-1)
 #endif
@@ -219,7 +210,7 @@ extern "C" GET_BINDING_DATA(get_bindings){
     //
     // If this is not set, it defaults to mapid_global.
     inherit_map(context, mapid_file);
-    
+
     // NOTE(allen|a3.1): Children can override parent's bindings.
     bind(context, codes->right, MDFR_CTRL, cmdid_seek_alphanumeric_or_camel_right);
     bind(context, codes->left, MDFR_CTRL, cmdid_seek_alphanumeric_or_camel_left);
@@ -232,10 +223,12 @@ extern "C" GET_BINDING_DATA(get_bindings){
     bind_me(context, ')', MDFR_NONE, write_and_auto_tab);
     bind_me(context, ']', MDFR_NONE, write_and_auto_tab);
     bind_me(context, ';', MDFR_NONE, write_and_auto_tab);
-    
+
+#if 0
     bind(context, '\t', MDFR_NONE, cmdid_auto_tab_line_at_cursor);
     bind(context, '\t', MDFR_CTRL, cmdid_auto_tab_range);
     bind(context, '\t', MDFR_CTRL | MDFR_SHIFT, cmdid_write_character);
+#endif
     
     end_map(context);
     

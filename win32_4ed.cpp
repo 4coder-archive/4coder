@@ -40,6 +40,7 @@
 
 #define WM_4coder_LOAD_FONT (WM_USER + 1)
 #define WM_4coder_PAINT (WM_USER + 2)
+#define WM_4coder_SET_CURSOR (WM_USER + 3)
 
 struct Thread_Context{
     u32 job_id;
@@ -154,6 +155,9 @@ struct Win32_Vars{
     Win32_Font_Load_Parameters used_font_param;
     Win32_Font_Load_Parameters free_font_param;
     Partition fnt_part;
+
+    char **argv;
+    i32 argc;
 };
 
 globalvar Win32_Vars win32vars;
@@ -506,11 +510,23 @@ Sys_Post_Clipboard_Sig(system_post_clipboard){
 	}
 }
 
+internal
+Sys_Acquire_Lock_Sig(system_acquire_lock){
+    WaitForSingleObject(win32vars.locks[id], INFINITE);
+}
+
+internal
+Sys_Release_Lock_Sig(system_release_lock){
+    ReleaseSemaphore(win32vars.locks[id], 1, 0);
+}
+
 internal void
 Win32RedrawScreen(HDC hdc){
+    system_acquire_lock(RENDER_LOCK);
     launch_rendering(&win32vars.target);
+    system_release_lock(RENDER_LOCK);
     glFlush();
-    //SwapBuffers(hdc);
+    SwapBuffers(hdc);
 }
 
 internal void
@@ -519,6 +535,14 @@ Win32RedrawFromUpdate(){
         win32vars.window_handle,
         WM_4coder_PAINT,
         0, 0);
+}
+
+internal void
+Win32SetCursorFromUpdate(Application_Mouse_Cursor cursor){
+    SendMessage(
+        win32vars.window_handle,
+        WM_4coder_SET_CURSOR,
+        cursor, 0);
 }
 
 internal void
@@ -637,16 +661,6 @@ Sys_Post_Job_Sig(system_post_job){
     ReleaseSemaphore(Win32Handle(queue->semaphore), 1, 0);
     
     return result;
-}
-
-internal
-Sys_Acquire_Lock_Sig(system_acquire_lock){
-    WaitForSingleObject(win32vars.locks[id], INFINITE);
-}
-
-internal
-Sys_Release_Lock_Sig(system_release_lock){
-    ReleaseSemaphore(win32vars.locks[id], 1, 0);
 }
 
 internal
@@ -826,7 +840,15 @@ Sys_CLI_Update_Step_Sig(system_cli_update_step){
 internal
 Sys_CLI_End_Update_Sig(system_cli_end_update){
     b32 close_me = 0;
-    if (WaitForSingleObject(*(HANDLE*)&cli->proc, 0) == WAIT_OBJECT_0){
+    HANDLE proc = *(HANDLE*)&cli->proc;
+    DWORD result = 0;
+    
+    if (WaitForSingleObject(proc, 0) == WAIT_OBJECT_0){
+        if (GetExitCodeProcess(proc, &result) == 0)
+            cli->exit = -1;
+        else
+            cli->exit = (i32)result;
+        
         close_me = 1;
         CloseHandle(*(HANDLE*)&cli->proc);
         CloseHandle(*(HANDLE*)&cli->out_read);
@@ -1219,9 +1241,7 @@ Win32Callback(HWND hwnd, UINT uMsg,
     {
         PAINTSTRUCT ps;
         HDC hdc = BeginPaint(hwnd, &ps);
-        system_acquire_lock(RENDER_LOCK);
         Win32RedrawScreen(hdc);
-        system_release_lock(RENDER_LOCK);
         EndPaint(hwnd, &ps);
         
     }break;
@@ -1230,10 +1250,25 @@ Win32Callback(HWND hwnd, UINT uMsg,
     {
         PAINTSTRUCT ps;
         HDC hdc = BeginPaint(hwnd, &ps);
-        system_acquire_lock(RENDER_LOCK);
         Win32RedrawScreen(hdc);
-        system_release_lock(RENDER_LOCK);
         EndPaint(hwnd, &ps);
+    }break;
+    
+    case WM_4coder_SET_CURSOR:
+    {
+        switch (wParam){
+        case APP_MOUSE_CURSOR_ARROW:
+            SetCursor(win32vars.cursor_arrow); break;
+            
+        case APP_MOUSE_CURSOR_IBEAM:
+            SetCursor(win32vars.cursor_ibeam); break;
+            
+        case APP_MOUSE_CURSOR_LEFTRIGHT:
+            SetCursor(win32vars.cursor_leftright); break;
+            
+        case APP_MOUSE_CURSOR_UPDOWN:
+            SetCursor(win32vars.cursor_updown); break;
+        }
     }break;
     
     case WM_CLOSE: // NOTE(allen): I expect WM_CLOSE not WM_DESTROY
@@ -1363,21 +1398,12 @@ UpdateLoop(LPVOID param){
                                1, win32vars.first, redraw);
     
         ProfileStart(OS_frame_out);
+
+        Win32SetCursorFromUpdate(result.mouse_cursor_type);
+        
+        if (result.redraw) Win32RedrawFromUpdate();
+        
         win32vars.first = 0;
-        switch (result.mouse_cursor_type){
-        case APP_MOUSE_CURSOR_ARROW:
-            SetCursor(win32vars.cursor_arrow); break;
-        case APP_MOUSE_CURSOR_IBEAM:
-            SetCursor(win32vars.cursor_ibeam); break;
-        case APP_MOUSE_CURSOR_LEFTRIGHT:
-            SetCursor(win32vars.cursor_leftright); break;
-        case APP_MOUSE_CURSOR_UPDOWN:
-            SetCursor(win32vars.cursor_updown); break;
-        }
-		
-        if (result.redraw){
-            Win32RedrawFromUpdate();
-        }
         
         ProfileEnd(OS_frame_out);
         
@@ -1457,8 +1483,10 @@ WinMain(HINSTANCE hInstance,
         LPSTR lpCmdLine,
         int nCmdShow){
     win32vars = {};
-    
     exchange_vars = {};
+
+    win32vars.argv = __argv;
+    win32vars.argc = __argc;
     
 #if FRED_INTERNAL
     win32vars.internal_bubble.next = &win32vars.internal_bubble;
@@ -1594,7 +1622,7 @@ WinMain(HINSTANCE hInstance,
     static PIXELFORMATDESCRIPTOR pfd = {
         sizeof(PIXELFORMATDESCRIPTOR),
         1,
-        PFD_DRAW_TO_WINDOW | PFD_SUPPORT_OPENGL,
+        PFD_DRAW_TO_WINDOW | PFD_SUPPORT_OPENGL | PFD_DOUBLEBUFFER,
         PFD_TYPE_RGBA,
         32,
         0, 0, 0, 0, 0, 0,

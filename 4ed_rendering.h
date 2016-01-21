@@ -61,7 +61,8 @@ enum Render_Piece_Type{
     piece_type_gradient,
     piece_type_glyph,
     piece_type_mono_glyph,
-    piece_type_mono_glyph_advance
+    piece_type_mono_glyph_advance,
+    piece_type_change_clip
 };
 
 struct Render_Piece_Header{
@@ -91,6 +92,10 @@ struct Render_Piece_Glyph_Advance{
     f32 advance;
     i16 font_id;
     u8 character;
+};
+
+struct Render_Piece_Change_Clip{
+    i32_Rect box;
 };
 
 struct Render_Piece_Combined{

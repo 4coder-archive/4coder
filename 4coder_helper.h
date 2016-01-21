@@ -242,3 +242,11 @@ push_directory(Application_Links *app, void *cmd_context){
 
 #define dir_string(d) ((d).str), ((d).size)
 
+#define exec_command_keep_stack app->exec_command_keep_stack
+#define clear_parameters app->clear_parameters
+#define get_active_buffer app->get_active_buffer
+
+#define exec_command(cmd_context, id)               \
+    exec_command_keep_stack(cmd_context, id);  \
+    clear_parameters(cmd_context)
+

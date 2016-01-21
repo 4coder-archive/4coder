@@ -93,9 +93,10 @@ struct Editing_File_Settings{
     Font_Set *set;
     i32 base_map_id;
     i32 dos_write_mode;
-    b32 tokens_exist;
-    b32 super_locked;
-    b32 is_initialized;
+    b8 tokens_exist;
+    b8 super_locked;
+    b8 is_initialized;
+    b8 unimportant;
 };
 
 // NOTE(allen): This part of the Editing_File is cleared whenever
@@ -4017,6 +4018,15 @@ buffer_get_sync(Editing_File *file){
     return result;
 }
 
+inline b32
+buffer_needs_save(Editing_File *file){
+    b32 result = 0;
+    if (file->settings.unimportant == 0)
+        if (buffer_get_sync(file) == SYNC_UNSAVED)
+            result = 1;
+    return(result);
+}
+
 internal i32
 draw_file_loaded(View *view_, i32_Rect rect, b32 is_active, Render_Target *target){
     File_View *view = (File_View*)view_;
@@ -4072,11 +4082,12 @@ draw_file_loaded(View *view_, i32_Rect rect, b32 is_active, Render_Target *targe
     Render_Font *font = get_font_info(view->font_set, font_id)->font;
     float *advance_data = 0;
     if (font) advance_data = font->advance_data;
-    
+
     i32 count;
+    Buffer_Render_Options opts = {};
     buffer_get_render_data(&file->state.buffer, view->line_wrap_y, items, max, &count,
                            (f32)rect.x0, (f32)rect.y0, view->scroll_x, view->scroll_y, !view->unwrapped_lines,
-                           (f32)max_x, (f32)max_y, advance_data, (f32)line_height);
+                           (f32)max_x, (f32)max_y, advance_data, (f32)line_height, opts);
     
     Assert(count > 0);
     
@@ -4098,6 +4109,7 @@ draw_file_loaded(View *view_, i32_Rect rect, b32 is_active, Render_Target *targe
     i32 token_i = 0;
     i32 link_i = 0;
     u32 main_color = style->main.default_color;
+    u32 special_color = style->main.special_character_color;
     u32 link_color = 0;
     if (tokens_use){
         Cpp_Get_Token_Result result = cpp_get_token(&token_stack, items->index);
@@ -4141,10 +4153,14 @@ draw_file_loaded(View *view_, i32_Rect rect, b32 is_active, Render_Target *targe
         }
         u32 char_color = main_color;
         
+        if (item->flags & BRFlag_Special_Character) char_color = special_color;
+        
         if (cursor_begin <= ind && ind < cursor_end && (ind != prev_ind || cursor_begin < ind)){
-            if (is_active) draw_rectangle(target, f32R(item->x0, item->y0, item->x1, item->y1), cursor_color);
+            if (is_active){
+                draw_rectangle(target, f32R(item->x0, item->y0, item->x1, item->y1), cursor_color);
+                char_color = at_cursor_color;
+            }
             else draw_rectangle_outline(target, f32R(item->x0, item->y0, item->x1, item->y1), cursor_color);
-            char_color = at_cursor_color;
         }
         else if (highlight_color){
             draw_rectangle(target, f32R(item->x0, item->y0, item->x1, item->y1), highlight_color);

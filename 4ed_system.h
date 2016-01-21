@@ -42,6 +42,7 @@ struct CLI_Handles{
     Plat_Handle out_read;
     Plat_Handle out_write;
     u32 scratch_space[4];
+    i32 exit;
 };
 
 #define Sys_CLI_Call_Sig(name) b32 name(char *path, char *script_name, CLI_Handles *cli_out)
