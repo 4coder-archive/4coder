@@ -60,7 +60,8 @@ enum View_Type{
     VIEW_TYPE_COLOR,
     VIEW_TYPE_DEBUG,
     VIEW_TYPE_INTERACTIVE,
-    VIEW_TYPE_MENU
+    VIEW_TYPE_MENU,
+    VIEW_TYPE_CONFIG
 };
 
 struct Panel;

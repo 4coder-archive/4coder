@@ -112,6 +112,7 @@ struct Win32_Vars{
     
     Key_Codes key_codes;
     Win32_Input_Chunk input_chunk;
+    b32 lctrl_lalt_is_altgr;
     
 	HCURSOR cursor_ibeam;
 	HCURSOR cursor_arrow;
@@ -156,8 +157,6 @@ struct Win32_Vars{
     Win32_Font_Load_Parameters free_font_param;
     Partition fnt_part;
 
-    char **argv;
-    i32 argc;
 };
 
 globalvar Win32_Vars win32vars;
@@ -1031,7 +1030,54 @@ Win32Callback(HWND hwnd, UINT uMsg,
         switch (wParam){
         case VK_CONTROL:case VK_LCONTROL:case VK_RCONTROL:
         case VK_MENU:case VK_LMENU:case VK_RMENU:
-        case VK_SHIFT:case VK_LSHIFT:case VK_RSHIFT: break;
+        case VK_SHIFT:case VK_LSHIFT:case VK_RSHIFT:
+        {
+            Control_Keys *controls = 0;
+            b8 *control_keys = 0;
+            controls = &win32vars.input_chunk.pers.controls;
+            control_keys = win32vars.input_chunk.pers.control_keys;
+            
+            system_acquire_lock(INPUT_LOCK);
+            
+            b8 down = ((lParam & Bit_31)?(0):(1));
+            b8 is_right = ((lParam & Bit_24)?(1):(0));
+            
+            if (wParam != 255){
+                switch (wParam){
+                case VK_SHIFT:
+                {
+                    control_keys[CONTROL_KEY_SHIFT] = down;
+                }break;
+                
+                case VK_CONTROL:
+                {
+                    if (is_right) controls->r_ctrl = down;
+                    else controls->l_ctrl = down;
+                }break;
+                
+                case VK_MENU:
+                {
+                    if (is_right) controls->r_alt = down;
+                    else controls->l_alt = down;
+                }break;
+                }
+                
+                b8 ctrl, alt;
+                ctrl = (controls->r_ctrl || (controls->l_ctrl && !controls->r_alt));
+                alt = (controls->l_alt || (controls->r_alt && !controls->l_ctrl));
+                
+                if (win32vars.lctrl_lalt_is_altgr){
+                    if (controls->l_alt && controls->l_ctrl){
+                        ctrl = 0;
+                        alt = 0;
+                    }
+                }
+                
+                control_keys[CONTROL_KEY_CONTROL] = ctrl;
+                control_keys[CONTROL_KEY_ALT] = alt;
+            }
+            system_release_lock(INPUT_LOCK);
+        }break;
             
         default:
             b8 previous_state, current_state;
@@ -1109,56 +1155,7 @@ Win32Callback(HWND hwnd, UINT uMsg,
     }break;
 
     case WM_INPUT:
-    {
-        char buffer[sizeof(RAWINPUT)] = {};
-        UINT size = sizeof(RAWINPUT);
-        GetRawInputData((HRAWINPUT)(lParam), RID_INPUT, buffer, &size, sizeof(RAWINPUTHEADER));
-        
-        system_acquire_lock(INPUT_LOCK);
-        Control_Keys *controls = 0;
-        b8 *control_keys = 0;
-        controls = &win32vars.input_chunk.pers.controls;
-        control_keys = win32vars.input_chunk.pers.control_keys;
-        
-        RAWINPUT *rawinput = (RAWINPUT*)(buffer);
-        if (rawinput->header.dwType == RIM_TYPEKEYBOARD){
-            RAWKEYBOARD *raw = &rawinput->data.keyboard;
-            UINT vk = raw->VKey;
-            UINT flags = raw->Flags;
-            b8 down = !(flags & 1);
-            UINT is_left = ((flags & RI_KEY_E0) != 0);
-            
-            if (vk != 255){
-                switch (vk){
-                case VK_SHIFT:
-                {
-                    control_keys[CONTROL_KEY_SHIFT] = down;
-                }break;
-                
-                case VK_CONTROL:
-                {
-                    if (is_left) controls->l_ctrl = down;
-                    else controls->r_ctrl = down;
-                }break;
-                
-                case VK_MENU:
-                {
-                    if (is_left) controls->l_alt = down;
-                    else controls->r_alt = down;
-                }break;
-                }
-                
-                b8 ctrl, alt;
-                ctrl = (controls->r_ctrl || (controls->l_ctrl && !controls->r_alt));
-                alt = (controls->l_alt || (controls->r_alt && !controls->l_ctrl));
-                control_keys[CONTROL_KEY_CONTROL] = ctrl;
-                control_keys[CONTROL_KEY_ALT] = alt;
-            }
-        }
-        system_release_lock(INPUT_LOCK);
-        
-        result = DefWindowProcA(hwnd, uMsg, wParam, lParam);
-    }break;
+    
 
     case WM_MOUSEMOVE:
     {
@@ -1382,24 +1379,29 @@ UpdateLoop(LPVOID param){
         mouse.right_button_released = input_chunk.trans.mouse_r_release;
     
         mouse.wheel = input_chunk.trans.mouse_wheel;
-    
+        
         mouse.x = input_chunk.pers.mouse_x;
         mouse.y = input_chunk.pers.mouse_y;
-
-        result =
-            win32vars.app.step(win32vars.system,
-                               &win32vars.key_codes,
-                               &input_data,
-                               &mouse,
-                               &win32vars.target,
-                               &memory_vars,
-                               &exchange_vars,
-                               win32vars.clipboard_contents,
-                               1, win32vars.first, redraw);
-    
+        
+        result.mouse_cursor_type = APP_MOUSE_CURSOR_DEFAULT;
+        result.redraw = redraw;
+        result.lctrl_lalt_is_altgr = win32vars.lctrl_lalt_is_altgr;
+        
+        win32vars.app.step(win32vars.system,
+                           &win32vars.key_codes,
+                           &input_data,
+                           &mouse,
+                           &win32vars.target,
+                           &memory_vars,
+                           &exchange_vars,
+                           win32vars.clipboard_contents,
+                           1, win32vars.first, redraw,
+                           &result);
+        
         ProfileStart(OS_frame_out);
 
         Win32SetCursorFromUpdate(result.mouse_cursor_type);
+        win32vars.lctrl_lalt_is_altgr = result.lctrl_lalt_is_altgr;
         
         if (result.redraw) Win32RedrawFromUpdate();
         
@@ -1484,9 +1486,6 @@ WinMain(HINSTANCE hInstance,
         int nCmdShow){
     win32vars = {};
     exchange_vars = {};
-
-    win32vars.argv = __argv;
-    win32vars.argc = __argc;
     
 #if FRED_INTERNAL
     win32vars.internal_bubble.next = &win32vars.internal_bubble;
@@ -1503,6 +1502,55 @@ WinMain(HINSTANCE hInstance,
     System_Functions *system = &system_;
     win32vars.system = system;
     Win32LoadSystemCode();
+    
+    LPVOID base;
+#if FRED_INTERNAL
+    base = (LPVOID)Tbytes(1);
+#else
+    base = (LPVOID)0;
+#endif
+    
+	memory_vars.vars_memory_size = Mbytes(2);
+    memory_vars.vars_memory = VirtualAlloc(base, memory_vars.vars_memory_size,
+                                           MEM_COMMIT | MEM_RESERVE,
+                                           PAGE_READWRITE);
+    
+#if FRED_INTERNAL
+    base = (LPVOID)Tbytes(2);
+#else
+    base = (LPVOID)0;
+#endif
+    memory_vars.target_memory_size = Mbytes(512);
+    memory_vars.target_memory = VirtualAlloc(base, memory_vars.target_memory_size,
+                                             MEM_COMMIT | MEM_RESERVE,
+                                             PAGE_READWRITE);
+    
+    if (!memory_vars.vars_memory){
+        return 4;
+    }
+    
+    DWORD required = GetCurrentDirectory(0, 0);
+    required += 1;
+    required *= 4;
+    char *current_directory_mem = (char*)Win32GetMemory(required);
+    DWORD written = GetCurrentDirectory(required, current_directory_mem);
+
+    String current_directory = make_string(current_directory_mem, written, required);
+    terminate_with_null(&current_directory);
+    
+    Command_Line_Parameters clparams;
+    clparams.argv = __argv;
+    clparams.argc = __argc;
+    
+    i32 output_size =
+        win32vars.app.read_command_line(system,
+                                        &memory_vars,
+                                        current_directory,
+                                        clparams);
+    if (output_size > 0){
+        
+    }
+    if (output_size != 0) return 0;
     
     LARGE_INTEGER lpf;
     QueryPerformanceFrequency(&lpf);
@@ -1611,13 +1659,15 @@ WinMain(HINSTANCE hInstance,
     win32vars.window_hdc = hdc;
     
     GetClientRect(window_handle, &window_rect);
-    
+
+#if 0
     RAWINPUTDEVICE device;
     device.usUsagePage = 0x1;
     device.usUsage = 0x6;
     device.dwFlags = 0;
     device.hwndTarget = window_handle;
     RegisterRawInputDevices(&device, 1, sizeof(device));
+#endif
     
     static PIXELFORMATDESCRIPTOR pfd = {
         sizeof(PIXELFORMATDESCRIPTOR),
@@ -1651,32 +1701,6 @@ WinMain(HINSTANCE hInstance,
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     
     Win32Resize(window_rect.right - window_rect.left, window_rect.bottom - window_rect.top);
-    
-    LPVOID base;
-#if FRED_INTERNAL
-    base = (LPVOID)Tbytes(1);
-#else
-    base = (LPVOID)0;
-#endif
-    
-	memory_vars.vars_memory_size = Mbytes(2);
-    memory_vars.vars_memory = VirtualAlloc(base, memory_vars.vars_memory_size,
-                                           MEM_COMMIT | MEM_RESERVE,
-                                           PAGE_READWRITE);
-    
-#if FRED_INTERNAL
-    base = (LPVOID)Tbytes(2);
-#else
-    base = (LPVOID)0;
-#endif
-    memory_vars.target_memory_size = Mbytes(512);
-    memory_vars.target_memory = VirtualAlloc(base, memory_vars.target_memory_size,
-                                             MEM_COMMIT | MEM_RESERVE,
-                                             PAGE_READWRITE);
-    
-    if (!memory_vars.vars_memory){
-        return 4;
-    }
     
     win32vars.clipboard_sequence = GetClipboardSequenceNumber();
     
@@ -1728,7 +1752,7 @@ WinMain(HINSTANCE hInstance,
     exchange_vars.file.active = {};
     exchange_vars.file.active.next = &exchange_vars.file.active;
     exchange_vars.file.active.prev = &exchange_vars.file.active;
-        
+    
     exchange_vars.file.free_list = {};
     exchange_vars.file.free_list.next = &exchange_vars.file.free_list;
     exchange_vars.file.free_list.prev = &exchange_vars.file.free_list;
@@ -1746,15 +1770,6 @@ WinMain(HINSTANCE hInstance,
         filename_space += FileNameMax;
     }
     
-    DWORD required = GetCurrentDirectory(0, 0);
-    required += 1;
-    required *= 4;
-    char *current_directory_mem = (char*)Win32GetMemory(required);
-    DWORD written = GetCurrentDirectory(required, current_directory_mem);
-
-    String current_directory = make_string(current_directory_mem, written, required);
-    terminate_with_null(&current_directory);
-    
     win32vars.free_font_param.next = &win32vars.free_font_param;
     win32vars.free_font_param.prev = &win32vars.free_font_param;
 
@@ -1765,12 +1780,10 @@ WinMain(HINSTANCE hInstance,
         fnt__insert(&win32vars.free_font_param, win32vars.fnt_params + i);
     }
     
-	if (!win32vars.app.init(win32vars.system, &win32vars.target,
-                            &memory_vars, &exchange_vars, &win32vars.key_codes,
-                            win32vars.clipboard_contents, current_directory,
-                            win32vars.custom_api)){
-		return(5);
-	}
+    win32vars.app.init(win32vars.system, &win32vars.target,
+                       &memory_vars, &exchange_vars, &win32vars.key_codes,
+                       win32vars.clipboard_contents, current_directory,
+                       win32vars.custom_api);
 	
 	win32vars.input_chunk.pers.keep_playing = 1;
 	win32vars.first = 1;

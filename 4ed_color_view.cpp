@@ -1189,7 +1189,7 @@ update_highlighting(Color_View *color_view){
         color_view->highlight.ids[3] =
             raw_ptr_dif(&style->main.at_highlight_color, style);
     }
-    else if (file_view->paste_effect.tick_down > 0){
+    else if (file->state.paste_effect.tick_down > 0){
         color_view->highlight.ids[2] =
             raw_ptr_dif(&style->main.paste_color, style);
         color_view->highlight.ids[3] = 0;
@@ -1289,7 +1289,8 @@ do_style_preview(Library_UI *ui, Style *style, i32 toggle = -1){
 }
 
 internal b32
-do_main_file_box(System_Functions *system, UI_State *state, UI_Layout *layout, Hot_Directory *hot_directory, char *end = 0){
+do_main_file_box(System_Functions *system, UI_State *state, UI_Layout *layout,
+                 Hot_Directory *hot_directory, b32 try_to_match, b32 case_sensitive, char *end){
     b32 result = 0;
     Style *style = state->style;
     String *string = &hot_directory->string;
@@ -1299,7 +1300,7 @@ do_main_file_box(System_Functions *system, UI_State *state, UI_Layout *layout, H
     i32_Rect box = layout_rect(layout, line_height + 2);
     
     if (state->input_stage){
-        if (ui_do_file_field_input(system, state, hot_directory)){
+        if (ui_do_file_field_input(system, state, hot_directory, try_to_match, case_sensitive)){
             result = 1;
         }
     }
@@ -1318,9 +1319,9 @@ do_main_file_box(System_Functions *system, UI_State *state, UI_Layout *layout, H
     return result;
 }
 
-internal bool32
+internal b32
 do_main_string_box(System_Functions *system, UI_State *state, UI_Layout *layout, String *string){
-    bool32 result = 0;
+    b32 result = 0;
     Style *style = state->style;
     
     i16 font_id = style->font_id;
@@ -1345,9 +1346,9 @@ do_main_string_box(System_Functions *system, UI_State *state, UI_Layout *layout,
     return result;
 }
 
-internal bool32
+internal b32
 do_list_option(i32 id, UI_State *state, UI_Layout *layout, String text){
-    bool32 result = 0;
+    b32 result = 0;
     Style *style = state->style;
         
     i16 font_id = style->font_id;
@@ -1381,7 +1382,51 @@ do_list_option(i32 id, UI_State *state, UI_Layout *layout, String text){
     return result;
 }
 
-#define do_list_option_lit(id,state,layout,str) do_list_option(id, state, layout, make_lit_string(str))
+internal b32
+do_checkbox_list_option(i32 id, UI_State *state, UI_Layout *layout, String text, b32 is_on){
+    b32 result = 0;
+    Style *style = state->style;
+    
+    i16 font_id = style->font_id;
+    i32 character_h = get_font_info(state->font_set, font_id)->height;
+    
+    i32_Rect box = layout_rect(layout, character_h*2);
+    Widget_ID wid = make_id(state, id);
+    
+    if (state->input_stage){
+        if (ui_do_button_input(state, box, wid, 0)){
+            result = 1;
+        }
+    }
+    else{
+        Render_Target *target = state->target;
+        i32_Rect inner = get_inner_rect(box, 3);
+        u32 back, outline, fore, pop, box_color;
+        back = style->main.back_color;
+        fore = style->main.default_color;
+        pop = style->main.file_info_style.pop2_color;
+        if (is_hover(state, wid)) outline = style->main.margin_active_color;
+        else outline = style->main.margin_color;
+        box_color = style->main.margin_active_color;
+        
+        draw_rectangle(target, inner, back);
+        
+        i32_Rect square;
+        square = get_inner_rect(inner, character_h/3);
+        square.x1 = square.x0 + (square.y1 - square.y0);
+        if (is_on) draw_rectangle(target, square, box_color);
+        else draw_margin(target, square, 1, box_color);
+        
+        i32 x = square.x1 + 3;
+        i32 y = box.y0 + character_h/2;
+        x = draw_string(target, font_id, text, x, y, fore);
+        draw_margin(target, box, inner, outline);
+    }
+    
+    layout->y = box.y1;
+    return result;
+}
+
 
 internal b32
 do_file_option(i32 id, UI_State *state, UI_Layout *layout, String filename, b32 is_folder, String extra){
@@ -1421,13 +1466,13 @@ do_file_option(i32 id, UI_State *state, UI_Layout *layout, String filename, b32 
 }
 
 internal b32
-do_file_list_box(System_Functions *system, UI_State *state,
-                 UI_Layout *layout, Hot_Directory *hot_dir, b32 has_filter,
+do_file_list_box(System_Functions *system, UI_State *state, UI_Layout *layout,
+                 Hot_Directory *hot_dir, b32 has_filter, b32 try_to_match, b32 case_sensitive,
                  b32 *new_dir, b32 *selected, char *end){
     b32 result = 0;
     File_List *files = &hot_dir->file_list;
     
-    if (do_main_file_box(system, state, layout, hot_dir, end)){
+    if (do_main_file_box(system, state, layout, hot_dir, try_to_match, case_sensitive, end)){
         *selected = 1;
         terminate_with_null(&hot_dir->string);
     }
@@ -1435,7 +1480,7 @@ do_file_list_box(System_Functions *system, UI_State *state,
         persist String p4c_extension = make_lit_string("p4c");
         persist String message_loaded = make_lit_string(" LOADED");
         persist String message_unsaved = make_lit_string(" LOADED *");
-        persist String message_unsynced = make_lit_string(" LOADED BEHIND OS");
+        persist String message_unsynced = make_lit_string(" LOADED !");
         persist String message_nothing = {};
         
         char front_name_space[256];
@@ -1464,7 +1509,7 @@ do_file_list_box(System_Functions *system, UI_State *state,
             
             b8 is_folder = (info->folder != 0);
             b8 ext_match = (match(file_extension(filename), p4c_extension) != 0);
-            b8 name_match = (filename_match(front_name, &absolutes, filename) != 0);
+            b8 name_match = (filename_match(front_name, &absolutes, filename, case_sensitive) != 0);
             b8 is_loaded = (file != 0);
             
             String message = message_nothing;
@@ -1498,9 +1543,9 @@ do_file_list_box(System_Functions *system, UI_State *state,
 }
 
 internal b32
-do_live_file_list_box(System_Functions *system, UI_State *state, UI_Layout *layout, Working_Set *working_set,
-                      String *string, bool32 *selected){
-    bool32 result = 0;
+do_live_file_list_box(System_Functions *system, UI_State *state, UI_Layout *layout,
+                      Working_Set *working_set, String *string, b32 *selected){
+    b32 result = 0;
     
     if (do_main_string_box(system, state, layout, string)){
         *selected = 1;
@@ -1508,7 +1553,7 @@ do_live_file_list_box(System_Functions *system, UI_State *state, UI_Layout *layo
     }
     else{
         persist String message_unsaved = make_lit_string(" *");
-        persist String message_unsynced = make_lit_string(" BEHIND OS");
+        persist String message_unsynced = make_lit_string(" !");
         persist String message_nothing = {};
         
         Absolutes absolutes;
@@ -1526,11 +1571,11 @@ do_live_file_list_box(System_Functions *system, UI_State *state, UI_Layout *layo
                 case SYNC_UNSAVED: message = message_unsaved; break;
                 }
                 
-                if (filename_match(*string, &absolutes, file->state.live_name)){
-                    if (do_file_option(100+i, state, layout, file->state.live_name, 0, message)){
+                if (filename_match(*string, &absolutes, file->name.live_name, 1)){
+                    if (do_file_option(100+i, state, layout, file->name.live_name, 0, message)){
                         result = 1;
                         *selected = 1;
-                        copy(string, file->state.live_name);
+                        copy(string, file->name.live_name);
                         terminate_with_null(string);
                     }
                 }
@@ -1566,6 +1611,8 @@ step_draw_library(System_Functions *system, Exchange *exchange, Mem_Options *mem
     
     ui.layout.y -= FLOOR32(color_view->state.view_y);
     ui.layout.rect.x1 -= 20;
+    
+    b32 case_sensitive = 0;
     
     if (!ui.state.input_stage) draw_push_clip(ui.state.target, ui.layout.rect);
     switch (mode){
@@ -1629,8 +1676,8 @@ step_draw_library(System_Functions *system, Exchange *exchange, Mem_Options *mem
         }
         
         b32 new_dir = 0;
-        if (do_file_list_box(system,
-                             &ui.state, &ui.layout, ui.hot_directory, color_view->p4c_only,
+        if (do_file_list_box(system, &ui.state, &ui.layout,
+                             ui.hot_directory, color_view->p4c_only, 1, case_sensitive,
                              &new_dir, &file_selected, 0)){
             result = 1;
         }
@@ -1694,8 +1741,8 @@ step_draw_library(System_Functions *system, Exchange *exchange, Mem_Options *mem
         }
         
         b32 new_dir = 0;
-        if (do_file_list_box(system,
-                             &ui.state, &ui.layout, ui.hot_directory, 1,
+        if (do_file_list_box(system, &ui.state, &ui.layout,
+                             ui.hot_directory, 1, 1, case_sensitive,
                              &new_dir, &file_selected, ".p4c")){
             result = 1;
         }

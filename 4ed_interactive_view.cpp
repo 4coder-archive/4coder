@@ -112,13 +112,18 @@ step_draw_int_view(System_Functions *system, Interactive_View *view,
     
     b32 new_dir = 0;
     b32 complete = 0;
-
+    
     do_label(&state, &layout, view->query, 1.f);
+    
+    b32 case_sensitive = 0;
     
     switch (view->interaction){
     case INTV_SYS_FILE_LIST:
-        if (do_file_list_box(system,
-                             &state, &layout, view->hot_directory, 0,
+    {
+        b32 is_new = (view->action == INTV_NEW);
+        
+        if (do_file_list_box(system, &state,
+                             &layout, view->hot_directory, 0, !is_new, case_sensitive,
                              &new_dir, &complete, 0)){
             result = 1;
         }
@@ -126,7 +131,7 @@ step_draw_int_view(System_Functions *system, Interactive_View *view,
             hot_directory_reload(system,
                                  view->hot_directory, view->working_set);
         }
-        break;
+    }break;
         
     case INTV_LIVE_FILE_LIST:
         if (do_live_file_list_box(system, &state, &layout, view->working_set, &view->dest, &complete)){

@@ -99,6 +99,12 @@ draw_margin(Render_Target *target, i32_Rect outer, i32_Rect inner, u32 color){
     draw_rectangle(target, i32R(inner.x1, inner.y0, outer.x1, inner.y1), color);
 }
 
+inline void
+draw_margin(Render_Target *target, i32_Rect outer, i32 width, u32 color){
+    i32_Rect inner = get_inner_rect(outer, width);
+    draw_margin(target, outer, inner, color);
+}
+
 inline internal i32
 font_predict_size(i32 pt_size){
 	return pt_size*pt_size*128;

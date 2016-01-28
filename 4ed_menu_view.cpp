@@ -29,7 +29,7 @@ view_to_menu_view(View *view){
 
 internal i32
 step_draw_menu_view(Menu_View *view, Render_Target *target, i32_Rect rect,
-                    Input_Summary *user_input, bool32 input_stage){
+                    Input_Summary *user_input, b32 input_stage){
     i32 result = 0;
     
     UI_State state =
@@ -38,13 +38,17 @@ step_draw_menu_view(Menu_View *view, Render_Target *target, i32_Rect rect,
     
     UI_Layout layout;
     begin_layout(&layout, rect);
-
+    
     i32 id = 0;
     
     do_label(&state, &layout, literal("Menu"), 2.f);
     
-    if (do_list_option_lit(++id, &state, &layout, "Theme Options")){
+    if (do_list_option(++id, &state, &layout, make_lit_string("Theme Options"))){
         delayed_action(view->delay, DACT_THEME_OPTIONS, {}, view->view_base.panel);
+    }
+
+    if (do_list_option(++id, &state, &layout, make_lit_string("Keyboard Layout Options"))){
+        delayed_action(view->delay, DACT_KEYBOARD_OPTIONS, {}, view->view_base.panel);
     }
     
     if (ui_finish_frame(&view->state, &state, &layout, rect, 0, 0)){

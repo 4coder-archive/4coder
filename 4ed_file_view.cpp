@@ -85,6 +85,12 @@ struct Undo_Data{
     b32 current_block_normal;
 };
 
+struct Text_Effect{
+    i32 start, end;
+    u32 color;
+    i32 tick_down, tick_max;
+};
+
 // NOTE(allen): The Editing_File struct is now divided into two
 // parts.  Variables in the Settings part can be set even when the
 // file is still streaming in, and all operations except for the
@@ -109,13 +115,6 @@ struct Editing_File_State{
     Buffer_Type buffer;
     
     i32 cursor_pos;
-    char live_name_[256];
-    String live_name;
-    
-    char source_path_[256];
-    char extension_[16];
-    String source_path;
-    String extension;
     
     Undo_Data undo;
     
@@ -125,14 +124,27 @@ struct Editing_File_State{
     b32 tokens_complete;
     b32 still_lexing;
     
+    Text_Effect paste_effect;
+    
     u64 last_4ed_write_time;
     u64 last_4ed_edit_time;
     u64 last_sys_write_time;
 };
 
+struct Editing_File_Name{
+    char live_name_[256];
+    String live_name;
+    
+    char source_path_[256];
+    char extension_[16];
+    String source_path;
+    String extension;
+};
+
 struct Editing_File{
     Editing_File_Settings settings;
     Editing_File_State state;
+    Editing_File_Name name;
 };
 
 struct File_Table_Entry{
@@ -230,19 +242,13 @@ struct Working_Set{
 	i32 clipboard_current, clipboard_rolling;
 };
 
-struct Text_Effect{
-    i32 start, end;
-    u32 color;
-    i32 tick_down, tick_max;
-};
-
 struct File_View_Mode{
-	bool8 rewrite;
+	b8 rewrite;
 };
 
 struct Incremental_Search{
     String str;
-    bool32 reverse;
+    b32 reverse;
     i32 pos;
 };
 
@@ -256,7 +262,8 @@ enum Action_Type{
     DACT_KILL,
     DACT_CLOSE_MINOR,
     DACT_CLOSE_MAJOR,
-    DACT_THEME_OPTIONS
+    DACT_THEME_OPTIONS,
+    DACT_KEYBOARD_OPTIONS
 };
 
 struct Delayed_Action{
@@ -356,22 +363,23 @@ hot_directory_reload(System_Functions *system, Hot_Directory *hot_directory, Wor
 
 struct Hot_Directory_Match{
 	String filename;
-	bool32 is_folder;
+	b32 is_folder;
 };
 
-internal bool32
-filename_match(String query, Absolutes *absolutes, String filename){
-    bool32 result;
+internal b32
+filename_match(String query, Absolutes *absolutes, String filename, b32 case_sensitive){
+    b32 result;
     result = (query.size == 0);
-    if (!result) result = wildcard_match(absolutes, filename);
+    if (!result) result = wildcard_match(absolutes, filename, case_sensitive);
     return result;
 }
 
 internal Hot_Directory_Match
 hot_directory_first_match(Hot_Directory *hot_directory,
                           String str,
-						  bool32 include_files,
-                          bool32 exact_match){
+						  b32 include_files,
+                          b32 exact_match,
+                          b32 case_sensitive){
     Hot_Directory_Match result = {};
     
     Absolutes absolutes;
@@ -383,12 +391,17 @@ hot_directory_first_match(Hot_Directory *hot_directory,
     end = files->infos + files->count;
     for (info = files->infos; info != end; ++info){
         String filename = info->filename;
-        bool32 is_match = 0;
+        b32 is_match = 0;
         if (exact_match){
-            if (match(filename, str)) is_match = 1;
+            if (case_sensitive){
+                if (match(filename, str)) is_match = 1;
+            }
+            else{
+                if (match_unsensitive(filename, str)) is_match = 1;
+            }
         }
         else{
-            if (filename_match(str, &absolutes, filename)) is_match = 1;
+            if (filename_match(str, &absolutes, filename, case_sensitive)) is_match = 1;
         }
         
         if (is_match){
@@ -422,6 +435,8 @@ struct Single_Line_Mode{
 	String *string;
 	Hot_Directory *hot_directory;
     b32 fast_folder_select;
+    b32 try_to_match;
+    b32 case_sensitive;
 };
 
 internal Single_Line_Input_Step
@@ -464,14 +479,16 @@ app_single_line_input_core(System_Functions *system,
         else{
             result.hit_newline = 1;
             if (mode.fast_folder_select){
-                char front_name_space[256];
-                String front_name =
-                    make_string(front_name_space, 0, ArrayCount(front_name_space));
-                get_front_of_directory(&front_name, *mode.string);
                 Hot_Directory_Match match;
-                match = hot_directory_first_match(mode.hot_directory, front_name, 1, 1);
-                if (!match.filename.str){
-                    match = hot_directory_first_match(mode.hot_directory, front_name, 1, 0);
+                char front_name_space[256];
+                String front_name = make_fixed_width_string(front_name_space);
+                get_front_of_directory(&front_name, *mode.string);
+                
+                match =
+                    hot_directory_first_match(mode.hot_directory, front_name, 1, 1, mode.case_sensitive);
+
+                if (mode.try_to_match && !match.filename.str){
+                    match = hot_directory_first_match(mode.hot_directory, front_name, 1, 0, mode.case_sensitive);
                 }
                 if (match.filename.str){
                     if (match.is_folder){
@@ -480,13 +497,16 @@ app_single_line_input_core(System_Functions *system,
                         result.hit_newline = 0;
                     }
                     else{
-                        mode.string->size = reverse_seek_slash(*mode.string) + 1;
-                        append(mode.string, match.filename);
-                        result.hit_newline = 1;
+                        if (mode.try_to_match){
+                            mode.string->size = reverse_seek_slash(*mode.string) + 1;
+                            append(mode.string, match.filename);
+                        }
                     }
                 }
                 else{
-                    result.no_file_match = 1;
+                    if (mode.try_to_match){
+                        result.no_file_match = 1;
+                    }
                 }
             }
         }
@@ -531,21 +551,23 @@ app_single_line_input_step(System_Functions *system,
 }
 
 inline Single_Line_Input_Step
-app_single_file_input_step(System_Functions *system,
-                           Key_Codes *codes, Working_Set *working_set, Key_Event_Data key,
+app_single_file_input_step(System_Functions *system, Key_Codes *codes,
+                           Working_Set *working_set, Key_Event_Data key,
 						   String *string, Hot_Directory *hot_directory,
-                           bool32 fast_folder_select){
+                           b32 fast_folder_select, b32 try_to_match, b32 case_sensitive){
 	Single_Line_Mode mode = {};
 	mode.type = SINGLE_LINE_FILE;
 	mode.string = string;
 	mode.hot_directory = hot_directory;
     mode.fast_folder_select = fast_folder_select;
+    mode.try_to_match = try_to_match;
+    mode.case_sensitive = case_sensitive;
 	return app_single_line_input_core(system, codes, working_set, key, mode);
 }
 
 inline Single_Line_Input_Step
-app_single_number_input_step(System_Functions *system,
-                             Key_Codes *codes, Key_Event_Data key, String *string){
+app_single_number_input_step(System_Functions *system, Key_Codes *codes,
+                             Key_Event_Data key, String *string){
     Single_Line_Input_Step result = {};
 	Single_Line_Mode mode = {};
 	mode.type = SINGLE_LINE_STRING;
@@ -933,9 +955,9 @@ ui_do_vscroll_input(UI_State *state, i32_Rect top, i32_Rect bottom, i32_Rect sli
     return val;
 }
 
-internal bool32
+internal b32
 ui_do_text_field_input(UI_State *state, String *str){
-    bool32 result = 0;
+    b32 result = 0;
     Key_Summary *keys = state->keys;
     for (i32 key_i = 0; key_i < keys->count; ++key_i){
         Key_Event_Data key = get_single_key(keys, key_i);
@@ -954,26 +976,33 @@ ui_do_text_field_input(UI_State *state, String *str){
     return result;
 }
 
-internal bool32
-ui_do_file_field_input(System_Functions *system,
-                       UI_State *state, Hot_Directory *hot_dir){
-    bool32 result = 0;
+internal b32
+ui_do_file_field_input(System_Functions *system, UI_State *state,
+                       Hot_Directory *hot_dir, b32 try_to_match, b32 case_sensitive){
+    Key_Event_Data key;
+    Single_Line_Input_Step step;
+    String *str = &hot_dir->string;
     Key_Summary *keys = state->keys;
-    for (i32 key_i = 0; key_i < keys->count; ++key_i){
-        Key_Event_Data key = get_single_key(keys, key_i);
-        String *str = &hot_dir->string;
-        terminate_with_null(str);
-        Single_Line_Input_Step step =
-            app_single_file_input_step(system, state->codes, state->working_set, key, str, hot_dir, 1);
+    i32 key_i;
+    b32 result = 0;
+    
+    terminate_with_null(str);
+    
+    for (key_i = 0; key_i < keys->count; ++key_i){
+        key = get_single_key(keys, key_i);
+        step =
+            app_single_file_input_step(system, state->codes,
+                                       state->working_set, key, str,
+                                       hot_dir, 1, try_to_match, case_sensitive);
         if ((step.hit_newline || step.hit_ctrl_newline) && !step.no_file_match) result = 1;
     }
     return result;
 }
 
-internal bool32
+internal b32
 ui_do_line_field_input(System_Functions *system,
                        UI_State *state, String *string){
-    bool32 result = 0;
+    b32 result = 0;
     Key_Summary *keys = state->keys;
     for (i32 key_i = 0; key_i < keys->count; ++key_i){
         Key_Event_Data key = get_single_key(keys, key_i);
@@ -1105,8 +1134,6 @@ struct File_View{
     i32 line_count, line_max;
     f32 *line_wrap_y;
     
-    Text_Effect paste_effect;
-    
     Hyper_Link *links;
     i32 link_count, link_max;
 };
@@ -1156,24 +1183,24 @@ starts_new_line(u8 character){
 
 inline void
 file_init_strings(Editing_File *file){
-    file->state.source_path = make_fixed_width_string(file->state.source_path_);
-    file->state.live_name = make_fixed_width_string(file->state.live_name_);
-    file->state.extension = make_fixed_width_string(file->state.extension_);
+    file->name.source_path = make_fixed_width_string(file->name.source_path_);
+    file->name.live_name = make_fixed_width_string(file->name.live_name_);
+    file->name.extension = make_fixed_width_string(file->name.extension_);
 }
 
 inline void
 file_set_name(Editing_File *file, char *filename){
-    file->state.live_name = make_fixed_width_string(file->state.live_name_);
+    if (file->name.live_name.str == 0) file_init_strings(file);
     if (filename[0] == '*'){
-        copy(&file->state.live_name, filename);
+        copy(&file->name.live_name, filename);
     }
     else{
         String f, ext;
         f = make_string_slowly(filename);
-        copy_checked(&file->state.source_path, f);
-        get_front_of_directory(&file->state.live_name, f);
+        copy_checked(&file->name.source_path, f);
+        get_front_of_directory(&file->name.live_name, f);
         ext = file_extension(f);
-        copy(&file->state.extension, ext);
+        copy(&file->name.extension, ext);
     }
 }
 
@@ -1477,7 +1504,7 @@ file_create_from_string(System_Functions *system, Mem_Options *mem,
     file_init_strings(file);
     file_set_name(file, (char*)filename);
     
-    file->settings.base_map_id = mapid_file;
+    //file->settings.base_map_id = mapid_file;
     file->state.font_id = font_id;
     
     file_synchronize_times(system, file, filename);
@@ -1560,6 +1587,12 @@ working_set_get_available_file(Working_Set *working_set){
     return result;
 }
 
+internal i32
+working_set_get_index(Working_Set *working_set, Editing_File *file){
+    i32 index = (i32)(file - working_set->files);
+    return(index);
+}
+
 internal void
 file_close(System_Functions *system, General_Memory *general, Editing_File *file){
     if (file->state.still_lexing){
@@ -1606,8 +1639,9 @@ file_get_dummy(Editing_File *file){
 }
 
 inline void
-file_get_loading(Editing_File *file){
-	*file = {};
+file_set_to_loading(Editing_File *file){
+	file->state = {};
+	file->settings = {};
 	file->state.is_loading = 1;
 }
 
@@ -2856,11 +2890,13 @@ view_replace_range(System_Functions *system,
 
 inline void
 view_post_paste_effect(File_View *view, i32 ticks, i32 start, i32 size, u32 color){
-    view->paste_effect.start = start;
-    view->paste_effect.end = start + size;
-    view->paste_effect.color = color;
-    view->paste_effect.tick_down = ticks;
-    view->paste_effect.tick_max = ticks;
+    Editing_File *file = view->file;
+
+    file->state.paste_effect.start = start;
+    file->state.paste_effect.end = start + size;
+    file->state.paste_effect.color = color;
+    file->state.paste_effect.tick_down = ticks;
+    file->state.paste_effect.tick_max = ticks;
 }
 
 internal void
@@ -3149,8 +3185,8 @@ working_set_lookup_file(Working_Set *working_set, String string){
         i32 end = working_set->file_index_count;
         file = working_set->files;
 		for (file_i = 0; file_i < end; ++file_i, ++file){
-			if (file->state.live_name.str &&
-                (string.size == 0 || has_substr(file->state.live_name, string))){
+			if (file->name.live_name.str &&
+                (string.size == 0 || has_substr(file->name.live_name, string))){
 				break;
 			}
 		}
@@ -3803,6 +3839,10 @@ step_file_view(System_Functions *system, View *view_, i32_Rect rect,
     i32 result = 0;
     File_View *view = (File_View*)view_;
     Editing_File *file = view->file;
+
+    if (file->state.is_loading){
+        return result;
+    }
     
     f32 line_height = (f32)view->font_height;
     f32 cursor_y = view_get_cursor_y(view);
@@ -3855,14 +3895,14 @@ step_file_view(System_Functions *system, View *view_, i32_Rect rect,
     if (target_y < -extra_top) target_y = -extra_top;
     view->target_y = target_y;
     
-    real32 cursor_x = view_get_cursor_x(view);
-    real32 target_x = view->target_x;
-    real32 max_x = view_compute_width(view);
+    f32 cursor_x = view_get_cursor_x(view);
+    f32 target_x = view->target_x;
+    f32 max_x = view_compute_width(view);
     if (cursor_x < target_x){
-        target_x = (real32)Max(0, cursor_x - max_x/2);
+        target_x = (f32)Max(0, cursor_x - max_x/2);
     }
     else if (cursor_x >= target_x + max_x){
-        target_x = (real32)(cursor_x - max_x/2);
+        target_x = (f32)(cursor_x - max_x/2);
     }
     
     view->target_x = target_x;
@@ -3873,15 +3913,15 @@ step_file_view(System_Functions *system, View *view_, i32_Rect rect,
     if (smooth_camera_step(&view->target_x, &view->scroll_x, &view->vel_x, 40.f, 1.f/4.f)){
         result = 1;
     }
-    if (view->paste_effect.tick_down > 0){
-        --view->paste_effect.tick_down;
+    if (file->state.paste_effect.tick_down > 0){
+        --file->state.paste_effect.tick_down;
         result = 1;
     }
     
     if (is_active && user_input->mouse.press_l){
-        real32 max_y = view_compute_height(view);
-        real32 rx = (real32)(user_input->mouse.mx - rect.x0);
-        real32 ry = (real32)(user_input->mouse.my - rect.y0 - line_height - 2);
+        f32 max_y = view_compute_height(view);
+        f32 rx = (f32)(user_input->mouse.mx - rect.x0);
+        f32 ry = (f32)(user_input->mouse.my - rect.y0 - line_height - 2);
         
         if (ry >= extra_top){
             view_set_widget(view, FWIDG_NONE);
@@ -4027,31 +4067,75 @@ buffer_needs_save(Editing_File *file){
     return(result);
 }
 
+internal void
+draw_file_setup_bar(Style *style, i32 line_height, Interactive_Bar *bar, i32_Rect *rect){
+    bar->style = style->main.file_info_style;
+    bar->font_id = style->font_id;
+    bar->pos_x = (f32)rect->x0;
+    bar->pos_y = (f32)rect->y0;
+    bar->text_shift_y = 2;
+    bar->text_shift_x = 0;
+    bar->rect = *rect;
+    bar->rect.y1 = bar->rect.y0 + line_height + 2;
+    rect->y0 += line_height + 2;
+}
+
+internal void
+draw_file_bar(File_View *view, Interactive_Bar *bar, Render_Target *target){
+    Editing_File *file = view->file;
+    
+    u32 back_color = bar->style.bar_color;
+    u32 base_color = bar->style.base_color;
+    u32 pop2_color = bar->style.pop2_color;
+    
+    draw_rectangle(target, bar->rect, back_color);    
+    intbar_draw_string(target, bar, file->name.live_name, base_color);
+    intbar_draw_string(target, bar, make_lit_string(" - "), base_color);
+
+    if (file->state.is_loading){
+        intbar_draw_string(target, bar, make_lit_string(" loading"), base_color);
+    }
+    else{
+        char line_number_space[30];
+        String line_number = make_string(line_number_space, 0, 30);
+        append(&line_number, "L#");
+        append_int_to_str(view->cursor.line, &line_number);
+        
+        intbar_draw_string(target, bar, line_number, base_color);
+
+        if (file){
+            switch (buffer_get_sync(file)){
+            case SYNC_BEHIND_OS:
+            {
+                persist String out_of_sync = make_lit_string(" !");
+                intbar_draw_string(target, bar, out_of_sync, pop2_color);
+            }break;
+        
+            case SYNC_UNSAVED:
+            {
+                persist String out_of_sync = make_lit_string(" *");
+                intbar_draw_string(target, bar, out_of_sync, pop2_color);
+            }break;
+            }
+        }
+    }
+}
+
 internal i32
-draw_file_loaded(View *view_, i32_Rect rect, b32 is_active, Render_Target *target){
-    File_View *view = (File_View*)view_;
+draw_file_loaded(File_View *view, i32_Rect rect, b32 is_active, Render_Target *target){
     Editing_File *file = view->file;
     Style *style = view->style;
-    
     i32 line_height = view->font_height;
-    
-    Interactive_Bar bar;
-    bar.style = style->main.file_info_style;
-    bar.font_id = style->font_id;
-    bar.pos_x = (f32)rect.x0;
-    bar.pos_y = (f32)rect.y0;
-    bar.text_shift_y = 2;
-    bar.text_shift_x = 0;
-    bar.rect = rect;
-    bar.rect.y1 = bar.rect.y0 + line_height + 2;
-    rect.y0 += line_height + 2;
 
+    Interactive_Bar bar;
+    draw_file_setup_bar(style, line_height, &bar, &rect);
+    
 #if BUFFER_EXPERIMENT_SCALPEL <= 3
     i32 max_x = rect.x1 - rect.x0;
     i32 max_y = rect.y1 - rect.y0 + line_height;
     
     Assert(file && !file->state.is_dummy && buffer_good(&file->state.buffer));
-
+    
     b32 tokens_use = 0;
     Cpp_Token_Stack token_stack = {};
     if (file){
@@ -4070,7 +4154,7 @@ draw_file_loaded(View *view_, i32_Rect rect, b32 is_active, Render_Target *targe
         }
     }
     
-    Partition *part = &view_->mem->part;
+    Partition *part = &view->view_base.mem->part;
 
     Temp_Memory temp = begin_temp_memory(part);
     
@@ -4169,10 +4253,11 @@ draw_file_loaded(View *view_, i32_Rect rect, b32 is_active, Render_Target *targe
         u32 fade_color = 0xFFFF00FF;
         f32 fade_amount = 0.f;
         
-        if (view->paste_effect.tick_down > 0 &&
-            view->paste_effect.start <= i && i < view->paste_effect.end){
-            fade_color = view->paste_effect.color;
-            fade_amount = (real32)(view->paste_effect.tick_down) / view->paste_effect.tick_max;
+        if (file->state.paste_effect.tick_down > 0 &&
+            file->state.paste_effect.start <= ind &&
+            ind < file->state.paste_effect.end){
+            fade_color = file->state.paste_effect.color;
+            fade_amount = (f32)(file->state.paste_effect.tick_down) / file->state.paste_effect.tick_max;
         }
         
         char_color = color_blend(char_color, fade_amount, fade_color);
@@ -4261,39 +4346,19 @@ draw_file_loaded(View *view_, i32_Rect rect, b32 is_active, Render_Target *targe
         ui_finish_frame(&view->widget.state, &state, &layout, widg_rect, 0, 0);
     }
     
-    {
-        u32 back_color = bar.style.bar_color;
-        draw_rectangle(target, bar.rect, back_color);
-        
-        u32 base_color = bar.style.base_color;
-        intbar_draw_string(target, &bar, file->state.live_name, base_color);
-        intbar_draw_string(target, &bar, make_lit_string(" - "), base_color);
-        
-        char line_number_space[30];
-        String line_number = make_string(line_number_space, 0, 30);
-        append(&line_number, "L#");
-        append_int_to_str(view->cursor.line, &line_number);
-        
-        intbar_draw_string(target, &bar, line_number, base_color);
-
-        if (file){
-            switch (buffer_get_sync(file)){
-            case SYNC_BEHIND_OS:
-            {
-                persist String out_of_sync = make_lit_string(" BEHIND OS");
-                intbar_draw_string(target, &bar, out_of_sync, bar.style.pop2_color);
-            }break;
-        
-            case SYNC_UNSAVED:
-            {
-                persist String out_of_sync = make_lit_string(" *");
-                intbar_draw_string(target, &bar, out_of_sync, bar.style.pop2_color);
-            }break;
-            }
-        }
-    }
+    draw_file_bar(view, &bar, target);
     
-    return 0;
+    return(0);
+}
+
+internal i32
+draw_file_loading(File_View *view, i32_Rect rect, b32 is_active, Render_Target *target){
+    Interactive_Bar bar;
+    draw_file_setup_bar(view->style, view->font_height, &bar, &rect);
+    
+    draw_file_bar(view, &bar, target);
+
+    return(0);
 }
 
 internal i32
@@ -4304,10 +4369,10 @@ draw_file_view(View *view_, i32_Rect rect, bool32 is_active,
     
     if (view->file){
         if (view->file->state.is_loading){
-            // TODO(allen): draw file loading screen
+            result = draw_file_loading(view, rect, is_active, target);
         }
         else{
-            result = draw_file_loaded(view_, rect, is_active, target);
+            result = draw_file_loaded(view, rect, is_active, target);
         }
     }
     

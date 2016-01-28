@@ -62,6 +62,8 @@ inline String make_string(char *s, int size);
 #define make_lit_string(str) (make_string((char*)(str), sizeof(str)-1, sizeof(str)))
 #define make_fixed_width_string(str) (make_string((char*)(str), 0, sizeof(str)))
 
+#define expand_str(s) ((s).str), ((s).size)
+
 inline String make_string_slowly(char *s);
 inline char*  make_c_str(String s);
 
@@ -86,6 +88,18 @@ inline    bool  match_part(String a, char *b) { int x; return match_part(a,b,&x)
 FCPP_LINK bool  match_part(char *a, String b);
 FCPP_LINK bool  match_part(String a, String b);
 
+FCPP_LINK bool  match_unsensitive(char *a, char *b);
+FCPP_LINK bool  match_unsensitive(String a, char *b);
+inline    bool  match_unsensitive(char *a, String b) { return match_unsensitive(b,a); }
+FCPP_LINK bool  match_unsensitive(String a, String b);
+
+FCPP_LINK bool  match_part_unsensitive(char *a, char *b, int *len);
+FCPP_LINK bool  match_part_unsensitive(String a, char *b, int *len);
+inline    bool  match_part_unsensitive(char *a, char *b) { int x; return match_part(a,b,&x); }
+inline    bool  match_part_unsensitive(String a, char *b) { int x; return match_part(a,b,&x); }
+FCPP_LINK bool  match_part_unsensitive(char *a, String b);
+FCPP_LINK bool  match_part_unsensitive(String a, String b);
+
 FCPP_LINK int   find(char *s, int start, char c);
 FCPP_LINK int   find(String s, int start, char c);
 FCPP_LINK int   find(char *s, int start, char *c);
@@ -109,6 +123,7 @@ FCPP_LINK int   int_to_str(int x, char *s_out);
 FCPP_LINK bool  int_to_str(int x, String *s_out);
 FCPP_LINK bool  append_int_to_str(int x, String *s_out);
 
+FCPP_LINK int   str_to_int(char *s);
 FCPP_LINK int   str_to_int(String s);
 FCPP_LINK int   hexchar_to_int(char c);
 FCPP_LINK int   int_to_hexchar(char c);
@@ -339,6 +354,96 @@ match_part(String a, String b){
     }
     for (int i = 0; i < b.size; ++i){
         if (a.str[i] != b.str[i]){
+            return 0;
+        }
+    }
+    return 1;
+}
+
+FCPP_LINK bool
+match_unsensitive(char *a, char *b){
+    for (int i = 0;; ++i){
+        if (char_to_upper(a[i]) !=
+            char_to_upper(b[i])){
+            return 0;
+        }
+        if (a[i] == 0){
+            return 1;
+        }
+    }
+}
+
+FCPP_LINK bool
+match_unsensitive(String a, char *b){
+    int i = 0;
+    for (; i < a.size; ++i){
+        if (char_to_upper(a.str[i]) !=
+            char_to_upper(b[i])){
+            return 0;
+        }
+    }
+    if (b[i] != 0){
+        return 0;
+    }
+    return 1;
+}
+
+FCPP_LINK bool
+match_unsensitive(String a, String b){
+    if (a.size != b.size){
+        return 0;
+    }
+    for (int i = 0; i < b.size; ++i){
+        if (char_to_upper(a.str[i]) !=
+            char_to_upper(b.str[i])){
+            return 0;
+        }
+    }
+    return 1;
+}
+
+FCPP_LINK bool
+match_part_unsensitive(char *a, char *b, int *len){
+    int i;
+    for (i = 0; b[i] != 0; ++i){
+        if (char_to_upper(a[i]) != char_to_upper(b[i])){
+            return 0;
+        }
+    }
+    *len = i;
+    return 1;
+}
+
+FCPP_LINK bool
+match_part_unsensitive(String a, char *b, int *len){
+    int i;
+    for (i = 0; b[i] != 0; ++i){
+        if (char_to_upper(a.str[i]) != char_to_upper(b[i]) ||
+            i == a.size){
+            return 0;
+        }
+    }
+    *len = i;
+    return 1;
+}
+
+FCPP_LINK bool
+match_part_unsensitive(char *a, String b){
+    for (int i = 0; i != b.size; ++i){
+        if (char_to_upper(a[i]) != char_to_upper(b.str[i])){
+            return 0;
+        }
+    }
+    return 1;
+}
+
+FCPP_LINK bool
+match_part_unsensitive(String a, String b){
+    if (a.size < b.size){
+        return 0;
+    }
+    for (int i = 0; i < b.size; ++i){
+        if (char_to_upper(a.str[i]) != char_to_upper(b.str[i])){
             return 0;
         }
     }
@@ -632,6 +737,22 @@ append_int_to_str(int x, String *dest){
         dest->size += last_part.size;
     }
     return result;
+}
+
+FCPP_LINK int
+str_to_int(char *str){
+    int x = 0;
+    for (; *str; ++str){
+        if (*str >= '0' || *str <= '9'){
+            x *= 10;
+            x += *str - '0';
+        }
+        else{
+            x = 0;
+            break;
+        }
+    }
+    return(x);
 }
 
 FCPP_LINK int
@@ -975,14 +1096,27 @@ get_absolutes(String name, Absolutes *absolutes, bool implicit_first, bool impli
 }
 
 FCPP_LINK bool
-wildcard_match(Absolutes *absolutes, char *x){
+wildcard_match(Absolutes *absolutes, char *x, int case_sensitive){
     bool r = 1;
     String *a = absolutes->a;
-    if (absolutes->count == 1){
-        r = match(x, *a);
+    
+    bool (*match_func)(char*, String);
+    bool (*match_part_func)(char*, String);
+    
+    if (case_sensitive){
+        match_func = match;
+        match_part_func = match_part;
     }
     else{
-        if (!match_part(x, *a)){
+        match_func = match_unsensitive;
+        match_part_func = match_part_unsensitive;
+    }
+    
+    if (absolutes->count == 1){
+        r = match_func(x, *a);
+    }
+    else{
+        if (!match_part_func(x, *a)){
             r = 0;
         }
         else{
@@ -994,7 +1128,7 @@ wildcard_match(Absolutes *absolutes, char *x){
                     r = 0;
                     break;
                 }
-                if (match_part(x, *a)){
+                if (match_part_func(x, *a)){
                     x += a->size;
                     ++a;
                 }
@@ -1005,7 +1139,7 @@ wildcard_match(Absolutes *absolutes, char *x){
             if (r && a->size > 0){
                 r = 0;
                 while (*x != 0){
-                    if (match_part(x, *a) && *(x + a->size) == 0){
+                    if (match_part_func(x, *a) && *(x + a->size) == 0){
                         r = 1;
                         break;
                     }
@@ -1020,9 +1154,9 @@ wildcard_match(Absolutes *absolutes, char *x){
 }
 
 FCPP_LINK bool
-wildcard_match(Absolutes *absolutes, String x){
+wildcard_match(Absolutes *absolutes, String x, int case_sensitive){
     terminate_with_null(&x);
-    return wildcard_match(absolutes, x.str);
+    return wildcard_match(absolutes, x.str, case_sensitive);
 }
 
 #undef FCPP_STRING_IMPLEMENTATION

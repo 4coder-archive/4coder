@@ -120,15 +120,34 @@ struct Exchange{
     File_Exchange file;
 };
 
-#define App_Init_Sig(name)                                          \
-    b32 name(System_Functions *system,                              \
-             Render_Target *target,                                 \
-             Application_Memory *memory,                            \
-             Exchange *exchange,                                    \
-             Key_Codes *loose_codes,                                \
-             Clipboard_Contents clipboard,                          \
-             String current_directory,                              \
-             Custom_API api)
+struct Command_Line_Parameters{
+    char **argv;
+    int argc;
+};
+
+struct App_Plat_Settings{
+    char *custom_dll;
+    b32 custom_dll_is_strict;
+};
+
+#define App_Read_Command_Line_Sig(name)                 \
+    i32 name(System_Functions *system,                  \
+             Application_Memory *memory,                \
+             String current_directory,                  \
+             Command_Line_Parameters clparams           \
+             )
+
+typedef App_Read_Command_Line_Sig(App_Read_Command_Line);
+
+#define App_Init_Sig(name) void                                         \
+    name(System_Functions *system,                                      \
+         Render_Target *target,                                         \
+         Application_Memory *memory,                                    \
+         Exchange *exchange,                                            \
+         Key_Codes *codes,                                              \
+         Clipboard_Contents clipboard,                                  \
+         String current_directory,                                      \
+         Custom_API api)
 
 typedef App_Init_Sig(App_Init);
 
@@ -145,9 +164,10 @@ enum Application_Mouse_Cursor{
 struct Application_Step_Result{
 	Application_Mouse_Cursor mouse_cursor_type;
     b32 redraw;
+    b32 lctrl_lalt_is_altgr;
 };
 
-#define App_Step_Sig(name) Application_Step_Result          \
+#define App_Step_Sig(name) void          \
     name(System_Functions *system,                          \
          Key_Codes *codes,                                  \
          Key_Input_Data *input,                             \
@@ -156,7 +176,8 @@ struct Application_Step_Result{
          Application_Memory *memory,                        \
          Exchange *exchange,                                \
          Clipboard_Contents clipboard,                      \
-         b32 time_step, b32 first_step, b32 force_redraw)
+         b32 time_step, b32 first_step, b32 force_redraw,   \
+         Application_Step_Result *result)
 
 typedef App_Step_Sig(App_Step);
 
@@ -167,6 +188,7 @@ typedef App_Alloc_Sig(App_Alloc);
 typedef App_Free_Sig(App_Free);
 
 struct App_Functions{
+    App_Read_Command_Line *read_command_line;
     App_Init *init;
     App_Step *step;
 
