@@ -122,7 +122,7 @@ app_get_map_index(App_Vars *vars, i32 mapid){
 internal Command_Map*
 app_get_map(App_Vars *vars, i32 mapid){
     Command_Map *map = 0;
-    if (mapid >= mapid_user_custom) map = vars->user_maps + mapid - mapid_user_custom;
+    if (mapid < mapid_global) map = vars->user_maps + mapid;
     else if (mapid == mapid_global) map = &vars->map_top;
     else if (mapid == mapid_file) map = &vars->map_file;
     return map;
@@ -1065,10 +1065,12 @@ COMMAND_DECL(kill_buffer){
 COMMAND_DECL(toggle_line_wrap){
     ProfileMomentFunction();
     REQ_FILE_VIEW(view);
+    REQ_FILE(file, view);
     
     Relative_Scrolling scrolling = view_get_relative_scrolling(view);
     if (view->unwrapped_lines){
         view->unwrapped_lines = 0;
+        file->settings.unwrapped_lines = 0;
         view->target_x = 0;
         view->cursor =
             view_compute_cursor_from_pos(view, view->cursor.pos);
@@ -1076,6 +1078,7 @@ COMMAND_DECL(toggle_line_wrap){
     }
     else{
         view->unwrapped_lines = 1;
+        file->settings.unwrapped_lines = 1;
         view->cursor =
             view_compute_cursor_from_pos(view, view->cursor.pos);
         view->preferred_x = view->cursor.unwrapped_x;
@@ -1660,6 +1663,8 @@ COMMAND_DECL(set_settings){
             if (view->unwrapped_lines){
                 if (v){
                     view->unwrapped_lines = 0;
+                    file->settings.unwrapped_lines = 0;
+                    
                     if (!file->state.is_loading){
                         Relative_Scrolling scrolling = view_get_relative_scrolling(view);
                         view->target_x = 0;
@@ -1672,6 +1677,7 @@ COMMAND_DECL(set_settings){
             else{
                 if (!v){
                     view->unwrapped_lines = 1;
+                    file->settings.unwrapped_lines = 1;
                     
                     if (!file->state.is_loading){
                         Relative_Scrolling scrolling = view_get_relative_scrolling(view);
@@ -1688,7 +1694,7 @@ COMMAND_DECL(set_settings){
             int v = dynamic_to_int(&param->param.value);
             if (v == mapid_global) file->settings.base_map_id = mapid_global;
             else if (v == mapid_file) file->settings.base_map_id = mapid_file;
-            else if (v >= mapid_user_custom){
+            else if (v < mapid_global){
                 int index = app_get_map_index(vars, v);
                 if (index < vars->user_map_count) file->settings.base_map_id = v;
                 else file->settings.base_map_id = mapid_file;
@@ -2047,16 +2053,23 @@ setup_debug_commands(Command_Map *commands, Partition *part, Key_Codes *codes, C
 
 internal void
 setup_ui_commands(Command_Map *commands, Partition *part, Key_Codes *codes, Command_Map *parent){
-    map_init(commands, part, 12, parent);
+    map_init(commands, part, 32, parent);
     
     commands->vanilla_keyboard_default.function = command_null;
     
-    map_add(commands, codes->left, MDFR_NONE, command_null);
-    map_add(commands, codes->right, MDFR_NONE, command_null);
-    map_add(commands, codes->up, MDFR_NONE, command_null);
-    map_add(commands, codes->down, MDFR_NONE, command_null);
-    map_add(commands, codes->back, MDFR_NONE, command_null);
-    map_add(commands, codes->esc, MDFR_NONE, command_close_minor_view);
+    // TODO(allen): This is hacky, when the new UI stuff happens, let's fix it, and by that
+    // I mean actually fix it, don't just say you fixed it with something stupid again.
+    u8 mdfr;
+    u8 mdfr_array[] = {MDFR_NONE, MDFR_SHIFT, MDFR_CTRL, MDFR_SHIFT | MDFR_CTRL};
+    for (i32 i = 0; i < 4; ++i){
+        mdfr = mdfr_array[i];
+        map_add(commands, codes->left, mdfr, command_null);
+        map_add(commands, codes->right, mdfr, command_null);
+        map_add(commands, codes->up, mdfr, command_null);
+        map_add(commands, codes->down, mdfr, command_null);
+        map_add(commands, codes->back, mdfr, command_null);
+        map_add(commands, codes->esc, mdfr, command_close_minor_view);
+    }
 }
 
 internal void
@@ -2492,86 +2505,134 @@ HOOK_SIG(default_open_file_hook){
 }
 
 enum Command_Line_Action{
+    CLAct_Nothing,
     CLAct_Ignore,
     CLAct_UserFile,
     CLAct_CustomDLL,
     CLAct_InitialFilePosition,
     CLAct_WindowSize,
+    CLAct_WindowMaximize,
     CLAct_WindowPosition,
     CLAct_Count
 };
 
 void
-init_command_line_settings(App_Settings *settings, App_Plat_Settings *plat_settings,
+init_command_line_settings(App_Settings *settings, Plat_Settings *plat_settings,
                            Command_Line_Parameters clparams){
     char *arg;
-    Command_Line_Action action;
+    Command_Line_Action action = CLAct_Nothing;
     i32 i,index;
     b32 strict = 0;
 
     settings->init_files_max = ArrayCount(settings->init_files);
-    for (i = 1; i < clparams.argc; ++i){
-        arg = clparams.argv[i];
-        if (arg[0] == '-'){
-            action = CLAct_Ignore;
-            switch (arg[1]){
-            case 'u': action = CLAct_UserFile; strict = 0;     break;
-            case 'U': action = CLAct_UserFile; strict = 1;     break;
-                
-            case 'd': action = CLAct_CustomDLL; strict = 0;    break;
-            case 'D': action = CLAct_CustomDLL; strict = 1;    break;
-                
-            case 'l': action = CLAct_InitialFilePosition;      break;
-                
-            case 'w': action = CLAct_WindowSize;               break;
-            case 'p': action = CLAct_WindowPosition;           break;
-            }
-            
-            switch (action){
+    for (i = 1; i <= clparams.argc; ++i){
+        if (i == clparams.argc) arg = "";
+        else arg = clparams.argv[i];
+        switch (action){
+            case CLAct_Nothing:
+            {
+                if (arg[0] == '-'){
+                    action = CLAct_Ignore;
+                    switch (arg[1]){
+                        case 'u': action = CLAct_UserFile; strict = 0;     break;
+                        case 'U': action = CLAct_UserFile; strict = 1;     break;
+
+                        case 'd': action = CLAct_CustomDLL; strict = 0;    break;
+                        case 'D': action = CLAct_CustomDLL; strict = 1;    break;
+
+                        case 'l': action = CLAct_InitialFilePosition;      break;
+
+                        case 'w': action = CLAct_WindowSize;               break;
+                        case 'W': action = CLAct_WindowMaximize;         break;
+                        case 'p': action = CLAct_WindowPosition;           break;
+                    }
+                }
+                else if (arg[0] != 0){
+                    if (settings->init_files_count < settings->init_files_max){
+                        index = settings->init_files_count++;
+                        settings->init_files[index] = arg;
+                    }
+                }
+            }break;
+
             case CLAct_UserFile:
+            {
                 settings->user_file_is_strict = strict;
-                ++i;
                 if (i < clparams.argc){
                     settings->user_file = clparams.argv[i];
                 }
-                break;
-                
+                action = CLAct_Nothing;
+            }break;
+
             case CLAct_CustomDLL:
+            {
                 plat_settings->custom_dll_is_strict = strict;
-                ++i;
                 if (i < clparams.argc){
                     plat_settings->custom_dll = clparams.argv[i];
                 }
-                break;
+                action = CLAct_Nothing;
+            }break;
 
             case CLAct_InitialFilePosition:
-                ++i;
+            {
                 if (i < clparams.argc){
                     settings->initial_line = str_to_int(clparams.argv[i]);
                 }
-                break;
+                action = CLAct_Nothing;
+            }break;
 
             case CLAct_WindowSize:
-                break;
-                
-            case CLAct_WindowPosition:
-                break;
-            }
+            {
+                if (i + 1 < clparams.argc){
+                    plat_settings->set_window_size  = 1;
+                    plat_settings->window_w = str_to_int(clparams.argv[i]);
+                    plat_settings->window_h = str_to_int(clparams.argv[i+1]);
+
+                    ++i;
+                }
+                action = CLAct_Nothing;
+            }break;
+
+            case CLAct_WindowMaximize:
+            {
+                --i;
+                plat_settings->maximize_window = 1;
+                action = CLAct_Nothing;
+            }break;
             
-        }
-        else{
-            if (settings->init_files_count < settings->init_files_max){
-                index = settings->init_files_count++;
-                settings->init_files[index] = arg;
-            }
+            case CLAct_WindowPosition:
+            {
+                if (i + 1 < clparams.argc){
+                    plat_settings->set_window_pos  = 1;
+                    plat_settings->window_x = str_to_int(clparams.argv[i]);
+                    plat_settings->window_y = str_to_int(clparams.argv[i+1]);
+                    
+                    ++i;
+                }
+                action = CLAct_Nothing;
+            }break;
         }
     }
+}
+
+internal App_Vars*
+app_setup_memory(Application_Memory *memory){
+    Partition _partition = partition_open(memory->vars_memory, memory->vars_memory_size);
+    App_Vars *vars = push_struct(&_partition, App_Vars);
+    Assert(vars);
+    *vars = {};
+    vars->mem.part = _partition;
+    
+    general_memory_open(&vars->mem.general, memory->target_memory, memory->target_memory_size);
+    
+    return(vars);
 }
 
 App_Read_Command_Line_Sig(app_read_command_line){
     i32 output_size = 0;
     
-    //init_command_line_settings();
+    App_Vars *vars = app_setup_memory(memory);
+    init_command_line_settings(&vars->settings, plat_settings, clparams);
     
     return(output_size);
 }
@@ -2579,16 +2640,10 @@ App_Read_Command_Line_Sig(app_read_command_line){
 App_Init_Sig(app_init){
     app_links_init(system);
     
-    Partition _partition = partition_open(memory->vars_memory, memory->vars_memory_size);
-    App_Vars *vars = push_struct(&_partition, App_Vars);
-    Assert(vars);
-    *vars = {};
+    App_Vars *vars = (App_Vars*)memory->vars_memory;
     vars->config_api = api;
-    vars->mem.part = _partition;
     Partition *partition = &vars->mem.part;
     target->partition = partition;
-    
-    general_memory_open(&vars->mem.general, memory->target_memory, memory->target_memory_size);
     
     i32 panel_max_count = vars->layout.panel_max_count = 16;
     i32 divider_max_count = panel_max_count - 1;
@@ -2687,7 +2742,7 @@ App_Init_Sig(app_init){
                             map_init(mapptr, &vars->mem.part, table_max, global);
                             did_file = 1;
                         }
-                        else if (mapid >= mapid_user_custom){
+                        else if (mapid < mapid_global){
                             i32 index = app_get_or_add_map_index(vars, mapid);
                             Assert(index < user_map_count);
                             mapptr = vars->user_maps + index;
@@ -2702,7 +2757,7 @@ App_Init_Sig(app_init){
                             int mapid = unit->map_inherit.mapid;
                             if (mapid == mapid_global) parent = &vars->map_top;
                             else if (mapid == mapid_file) parent = &vars->map_file;
-                            else if (mapid >= mapid_user_custom){
+                            else if (mapid < mapid_global){
                                 i32 index = app_get_or_add_map_index(vars, mapid);
                                 if (index < user_map_count) parent = vars->user_maps + index;
                                 else parent = 0;
@@ -2819,27 +2874,6 @@ App_Init_Sig(app_init){
             
             font_set_add(partition, vars->font_set, file_name, name, pt_size);
         }
-        
-#if 0
-        if (vars->config_api.set_extra_font){
-            Extra_Font extra;
-            extra.size = 17;
-            vars->config_api.set_extra_font(&extra);
-            memory_used = 0;
-            if (app_load_font(target,
-                              vars->fonts.fonts + font_count, extra.file_name, extra.size,
-                              partition_current(partition),
-                              &memory_used, 4, make_string_slowly(extra.font_name))){
-                ++font_count;
-            }
-            else{
-                vars->fonts.fonts[font_count] = {};
-            }
-            push_block(partition, memory_used);
-        }
-        
-        vars->fonts.count = font_count;
-#endif
     }
     
     // NOTE(allen): file setup
@@ -2918,6 +2952,7 @@ App_Step_Sig(app_step){
         copy(dest, make_string((char*)clipboard.str, clipboard.size));
     }
     
+    // TODO(allen): profile this make sure it's not costing me too much power.
     // NOTE(allen): check files are up to date
     for (i32 i = 0; i < vars->working_set.file_index_count; ++i){
         Editing_File *file = vars->working_set.files + i;
@@ -3277,9 +3312,19 @@ App_Step_Sig(app_step){
     Temp_Memory param_stack_temp = begin_temp_memory(&vars->mem.part);
     command_data.part = partition_sub_part(&vars->mem.part, 16 << 10);
     
-    if (first_step && vars->hooks[hook_start]){
-        vars->hooks[hook_start](&command_data, &app_links);
-        command_data.part.pos = 0;
+    if (first_step){
+        if (vars->hooks[hook_start]){
+            vars->hooks[hook_start](&command_data, &app_links);
+            command_data.part.pos = 0;
+        }
+        
+        char *file_name;
+        i32 i;
+        for (i = 0; i < vars->settings.init_file_count; ++i){
+            file_name = vars->settings.init_files[i];
+            // TODO(allen): open files, do not attach to view
+            //app_open_file(system, vars, exchange,live_set, working_set, panel,command, string.str, string.size);
+        }
     }
     
     // NOTE(allen): command input to active view
@@ -3366,7 +3411,7 @@ App_Step_Sig(app_step){
                 Assert(view_->do_view);
                 b32 active = (panel == active_panel);
                 Input_Summary input = (active)?(active_input):(dead_input);
-                if (panel == mouse_panel){
+                if (panel == mouse_panel && !mouse_data.out_of_window){
                     input.mouse = mouse_data;
                 }
                 if (view_->do_view(system, exchange, view_, panel->inner, active_view,

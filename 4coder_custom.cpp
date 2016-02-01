@@ -12,10 +12,11 @@
 #define literal(s) s, (sizeof(s)-1)
 #endif
 
-// NOTE(allen|a3.1): All of your custom ids should be >= mapid_user_custom.
-// I recommend enumerating your own map ids as shown here.
+// NOTE(allen|a3.3): All of your custom ids should be enumerated
+// as shown here, they may start at 0, and you can only have
+// 2^24 of them so don't be wasteful!
 enum My_Maps{
-    my_code_map = mapid_user_custom,
+    my_code_map,
     my_html_map
 };
 
@@ -73,8 +74,8 @@ CUSTOM_COMMAND_SIG(open_in_other){
 
 CUSTOM_COMMAND_SIG(open_my_files){
     // NOTE(allen|a3.1): The command cmdid_interactive_open can now open
-    // a file specified on the parameter stack.  If the file does not
-    // exist cmdid_interactive_open behaves as usual.
+    // a file specified on the parameter stack.  If the file does not exist
+    // cmdid_interactive_open behaves as usual.
     push_parameter(app, cmd_context, par_name, literal("w:/4ed/data/test/basic.cpp"));
     exec_command(cmd_context, cmdid_interactive_open);
     
@@ -224,11 +225,9 @@ extern "C" GET_BINDING_DATA(get_bindings){
     bind_me(context, ']', MDFR_NONE, write_and_auto_tab);
     bind_me(context, ';', MDFR_NONE, write_and_auto_tab);
 
-#if 0
     bind(context, '\t', MDFR_NONE, cmdid_auto_tab_line_at_cursor);
     bind(context, '\t', MDFR_CTRL, cmdid_auto_tab_range);
     bind(context, '\t', MDFR_CTRL | MDFR_SHIFT, cmdid_write_character);
-#endif
     
     end_map(context);
     

@@ -77,7 +77,7 @@ begin_bind_helper(void *data, int size){
 inline void
 begin_map(Bind_Helper *helper, int mapid){
     if (helper->group != 0 && helper->error == 0) helper->error = BH_ERR_MISSING_END;
-    if (!helper->error && mapid >= mapid_user_custom) ++helper->header->header.user_map_count;
+    if (!helper->error && mapid < mapid_global) ++helper->header->header.user_map_count;
     
     Binding_Unit unit;
     unit.type = unit_map_begin;
@@ -170,7 +170,7 @@ bind_me_vanilla_keys(Bind_Helper *helper, unsigned char modifiers, Custom_Comman
 inline void
 inherit_map(Bind_Helper *helper, int mapid){
     if (helper->group == 0 && helper->error == 0) helper->error = BH_ERR_MISSING_BEGIN;
-    if (!helper->error && mapid >= mapid_user_custom) ++helper->header->header.user_map_count;
+    if (!helper->error && mapid < mapid_global) ++helper->header->header.user_map_count;
     
     Binding_Unit unit;
     unit.type = unit_inherit;

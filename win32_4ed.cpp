@@ -23,6 +23,7 @@
 #include "4ed_math.cpp"
 
 #include "4ed_dll_reader.h"
+
 #include "4coder_custom.h"
 #include "4ed_system.h"
 #include "4ed_rendering.h"
@@ -143,6 +144,7 @@ struct Win32_Vars{
     DLL_Loaded custom_dll;
 #endif
     
+    Plat_Settings settings;
     System_Functions *system;
     App_Functions app;
     Custom_API custom_api;
@@ -156,7 +158,6 @@ struct Win32_Vars{
     Win32_Font_Load_Parameters used_font_param;
     Win32_Font_Load_Parameters free_font_param;
     Partition fnt_part;
-
 };
 
 globalvar Win32_Vars win32vars;
@@ -1524,11 +1525,12 @@ WinMain(HINSTANCE hInstance,
     memory_vars.target_memory = VirtualAlloc(base, memory_vars.target_memory_size,
                                              MEM_COMMIT | MEM_RESERVE,
                                              PAGE_READWRITE);
-    
+    //
+
     if (!memory_vars.vars_memory){
         return 4;
     }
-    
+
     DWORD required = GetCurrentDirectory(0, 0);
     required += 1;
     required *= 4;
@@ -1537,18 +1539,21 @@ WinMain(HINSTANCE hInstance,
 
     String current_directory = make_string(current_directory_mem, written, required);
     terminate_with_null(&current_directory);
-    
+
     Command_Line_Parameters clparams;
     clparams.argv = __argv;
     clparams.argc = __argc;
-    
+
     i32 output_size =
         win32vars.app.read_command_line(system,
                                         &memory_vars,
                                         current_directory,
+                                        &win32vars.settings,
                                         clparams);
+    //
+    
     if (output_size > 0){
-        
+        // TODO
     }
     if (output_size != 0) return 0;
     
@@ -1566,13 +1571,21 @@ WinMain(HINSTANCE hInstance,
     keycode_init(&win32vars.key_codes);
     
 #ifdef FRED_SUPER
-    win32vars.custom = LoadLibraryA("4coder_custom.dll");
+    char *custom_file_default = "4coder_custom.dll";
+    char *custom_file;
+    if (win32vars.settings.custom_dll) custom_file = win32vars.settings.custom_dll;
+    else custom_file = custom_file_default;
+    
+    win32vars.custom = LoadLibraryA(custom_file);
+    if (!win32vars.custom && custom_file != custom_file_default){
+        if (!win32vars.settings.custom_dll_is_strict){
+            win32vars.custom = LoadLibraryA(custom_file_default);
+        }
+    }
+    
     if (win32vars.custom){
         win32vars.custom_api.get_bindings = (Get_Binding_Data_Function*)
             GetProcAddress(win32vars.custom, "get_bindings");
-        
-        win32vars.custom_api.set_extra_font = (Set_Extra_Font_Function*)
-            GetProcAddress(win32vars.custom, "set_extra_font");
     }
 #endif
     
@@ -1630,21 +1643,45 @@ WinMain(HINSTANCE hInstance,
 	}
     
     RECT window_rect = {};
-    window_rect.right = 800;
-    window_rect.bottom = 600;
+    
+    if (win32vars.settings.set_window_size){
+        window_rect.right = win32vars.settings.window_w;
+        window_rect.bottom = win32vars.settings.window_h;
+    }
+    else{
+        window_rect.right = 800;
+        window_rect.bottom = 600;
+    }
     
     if (!AdjustWindowRect(&window_rect, WS_OVERLAPPEDWINDOW, false)){
         // TODO(allen): non-fatal diagnostics
     }
 
-#define WINDOW_NAME "4coder-window"
+#define WINDOW_NAME "4coder-window"    
+    
+    i32 window_x;
+    i32 window_y;
+    i32 window_style;
+    
+    if (win32vars.settings.set_window_pos){
+        window_x = win32vars.settings.window_x;
+        window_y = win32vars.settings.window_y;
+    }
+    else{
+        window_x = CW_USEDEFAULT;
+        window_y = CW_USEDEFAULT;
+    }
+    
+    window_style = WS_OVERLAPPEDWINDOW | WS_VISIBLE;
+    if (win32vars.settings.maximize_window){
+        window_style |= WS_MAXIMIZE;
+    }
     
     HWND window_handle = {};
     window_handle = CreateWindowA(
         window_class.lpszClassName,
-        WINDOW_NAME,
-        WS_OVERLAPPEDWINDOW | WS_VISIBLE,
-        CW_USEDEFAULT, CW_USEDEFAULT,
+        WINDOW_NAME, window_style,
+        window_x, window_y,
         window_rect.right - window_rect.left,
         window_rect.bottom - window_rect.top,
         0, 0, hInstance, 0);
@@ -1659,15 +1696,6 @@ WinMain(HINSTANCE hInstance,
     win32vars.window_hdc = hdc;
     
     GetClientRect(window_handle, &window_rect);
-
-#if 0
-    RAWINPUTDEVICE device;
-    device.usUsagePage = 0x1;
-    device.usUsage = 0x6;
-    device.dwFlags = 0;
-    device.hwndTarget = window_handle;
-    RegisterRawInputDevices(&device, 1, sizeof(device));
-#endif
     
     static PIXELFORMATDESCRIPTOR pfd = {
         sizeof(PIXELFORMATDESCRIPTOR),

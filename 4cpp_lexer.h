@@ -220,6 +220,7 @@ enum Cpp_Token_Type{
 	CPP_PP_UNKNOWN,
     CPP_TOKEN_DEFINED,
 	CPP_TOKEN_INCLUDE_FILE,
+    CPP_TOKEN_ERROR_MESSAGE,
     
     // NOTE(allen): used in the parser
     CPP_TOKEN_EOF
@@ -256,6 +257,7 @@ enum Cpp_Preprocessor_State{
 	CPP_LEX_PP_BODY,
 	CPP_LEX_PP_BODY_IF,
 	CPP_LEX_PP_NUMBER,
+    CPP_LEX_PP_ERROR,
 	CPP_LEX_PP_JUNK,
 	// NEVER ADD BELOW THIS
 	CPP_LEX_PP_COUNT
@@ -450,6 +452,7 @@ FCPP_GLOBAL String_And_Flag keyword_strings[] = {
     
     {"long", CPP_TOKEN_KEY_MODIFIER},
     {"short", CPP_TOKEN_KEY_MODIFIER},
+    {"unsigned", CPP_TOKEN_KEY_MODIFIER},
     
     {"const", CPP_TOKEN_KEY_QUALIFIER},
     {"volatile", CPP_TOKEN_KEY_QUALIFIER},
@@ -766,7 +769,7 @@ cpp_read_junk_line(Cpp_File file, int pos){
 			--pos;
 		}
 		result.pos = pos;
-		result.token.size = pos - result.token.start - 1;
+		result.token.size = pos - result.token.start;
 	}
 	
 	return result;
@@ -1348,6 +1351,9 @@ cpp_lex_step(Cpp_File file, Cpp_Lex_Data *lex_data){
                     lex.pp_state = CPP_LEX_PP_NUMBER;
                     break;
                 case CPP_PP_ERROR:
+                    lex.pp_state = CPP_LEX_PP_ERROR;
+                    break;
+                    
                 case CPP_PP_UNKNOWN:
                 case CPP_PP_ELSE:
                 case CPP_PP_ENDIF:
@@ -1383,7 +1389,8 @@ cpp_lex_step(Cpp_File file, Cpp_Lex_Data *lex_data){
             }
             
             else{
-                if (lex.pp_state == CPP_LEX_PP_IDENTIFIER){
+                switch (lex.pp_state){
+                case CPP_LEX_PP_IDENTIFIER:
                     if (!char_is_alpha_numeric(current)){
                         has_result = 0;
                         lex.pp_state = CPP_LEX_PP_JUNK;
@@ -1394,8 +1401,9 @@ cpp_lex_step(Cpp_File file, Cpp_Lex_Data *lex_data){
                         lex.pos = result.pos;
                         lex.pp_state = CPP_LEX_PP_JUNK;
                     }
-                }
-                else if (lex.pp_state == CPP_LEX_PP_MACRO_IDENTIFIER){
+                    break;
+
+                case CPP_LEX_PP_MACRO_IDENTIFIER:
                     if (!char_is_alpha_numeric(current)){
                         has_result = 0;
                         lex.pp_state = CPP_LEX_PP_JUNK;
@@ -1406,9 +1414,9 @@ cpp_lex_step(Cpp_File file, Cpp_Lex_Data *lex_data){
                         lex.pos = result.pos;
                         lex.pp_state = CPP_LEX_PP_BODY;
                     }
-                }
-                
-                else if (lex.pp_state == CPP_LEX_PP_INCLUDE){
+                    break;
+
+                case CPP_LEX_PP_INCLUDE:
                     if (current != '"' && current != '<'){
                         has_result = 0;
                         lex.pp_state = CPP_LEX_PP_JUNK;
@@ -1418,8 +1426,9 @@ cpp_lex_step(Cpp_File file, Cpp_Lex_Data *lex_data){
                         lex.pos = result.pos;
                         lex.pp_state = CPP_LEX_PP_JUNK;
                     }
-                }
-                else if (lex.pp_state == CPP_LEX_PP_BODY){
+                    break;
+
+                case CPP_LEX_PP_BODY:
                     if (current == '#'){
                         result = cpp_read_pp_operator(file, lex.pos);
                     }
@@ -1428,8 +1437,9 @@ cpp_lex_step(Cpp_File file, Cpp_Lex_Data *lex_data){
                     }
                     lex.pos = result.pos;
                     result.token.flags |= CPP_TFLAG_PP_BODY;
-                }
-                else if (lex.pp_state == CPP_LEX_PP_BODY_IF){
+                    break;
+
+                case CPP_LEX_PP_BODY_IF:
                     if (current == '#'){
                         result = cpp_read_pp_operator(file, lex.pos);
                     }
@@ -1438,9 +1448,9 @@ cpp_lex_step(Cpp_File file, Cpp_Lex_Data *lex_data){
                     }
                     lex.pos = result.pos;
                     result.token.flags |= CPP_TFLAG_PP_BODY;
-                }
-                
-                else if (lex.pp_state == CPP_LEX_PP_NUMBER){
+                    break;
+
+                case CPP_LEX_PP_NUMBER:
                     if (!char_is_numeric(current)){
                         has_result = 0;
                         lex.pp_state = CPP_LEX_PP_JUNK;
@@ -1451,8 +1461,17 @@ cpp_lex_step(Cpp_File file, Cpp_Lex_Data *lex_data){
                         result.token.flags |= CPP_TFLAG_PP_BODY;
                         lex.pp_state = CPP_LEX_PP_INCLUDE;
                     }
-                }
-                else{
+                    break;
+                    
+                case CPP_LEX_PP_ERROR:
+                    result = cpp_read_junk_line(file, lex.pos);
+                    lex.pos = result.pos;
+                    result.token.type = CPP_TOKEN_ERROR_MESSAGE;
+                    result.token.flags |= CPP_TFLAG_PP_BODY;
+                    break;
+                    
+                default:
+                {
                     bool took_comment = 0;
                     if (current == '/' && lex.pos + 1 < file.size){
                         if (file.data[lex.pos + 1] == '/'){
@@ -1472,6 +1491,8 @@ cpp_lex_step(Cpp_File file, Cpp_Lex_Data *lex_data){
                         lex.pos = result.pos;
                         result.token.flags |= CPP_TFLAG_PP_BODY;
                     }
+                }break;
+                
                 }
             }
         }

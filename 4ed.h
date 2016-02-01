@@ -125,15 +125,21 @@ struct Command_Line_Parameters{
     int argc;
 };
 
-struct App_Plat_Settings{
+struct Plat_Settings{
     char *custom_dll;
     b32 custom_dll_is_strict;
+
+    i32 window_w, window_h;
+    i32 window_x, window_y;
+    b8 set_window_pos, set_window_size;
+    b8 maximize_window;
 };
 
 #define App_Read_Command_Line_Sig(name)                 \
     i32 name(System_Functions *system,                  \
              Application_Memory *memory,                \
              String current_directory,                  \
+             Plat_Settings *plat_settings,                 \
              Command_Line_Parameters clparams           \
              )
 

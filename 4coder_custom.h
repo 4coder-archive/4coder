@@ -287,7 +287,6 @@ struct Application_Links{
 
 struct Custom_API{
     Get_Binding_Data_Function *get_bindings;
-    Set_Extra_Font_Function *set_extra_font;
 };
 
 // NOTE(allen): definitions for the buffer that communicates to 4ed.exe
@@ -302,12 +301,12 @@ enum Binding_Unit_Type{
 };
 
 enum Map_ID{
-    mapid_global,
+    mapid_global = (1 << 24),
     mapid_file,
     // NOTE(allen): mapid_nomap will remain empty even if you attempt to fill it
-    // it is for setting a map's parent to nothing
-    mapid_nomap,
-    mapid_user_custom = 100
+    // it is for setting a map's parent to nothing, in cases where you don't want
+    // to inherit from global (which is the default).
+    mapid_nomap
 };
 
 struct Binding_Unit{

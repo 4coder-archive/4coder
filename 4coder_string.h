@@ -126,7 +126,7 @@ FCPP_LINK bool  append_int_to_str(int x, String *s_out);
 FCPP_LINK int   str_to_int(char *s);
 FCPP_LINK int   str_to_int(String s);
 FCPP_LINK int   hexchar_to_int(char c);
-FCPP_LINK int   int_to_hexchar(char c);
+FCPP_LINK char  int_to_hexchar(int c);
 FCPP_LINK int   hexstr_to_int(String s);
 
 FCPP_LINK int   copy_fast_unsafe(char *dest, char *src);

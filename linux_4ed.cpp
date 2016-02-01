@@ -9,50 +9,7 @@
 
 // TOP
 
-#ifdef FRED_NOT_PACKAGE
-
-#define FRED_INTERNAL 1
-#define FRED_SLOW 1
-
-#define FRED_PRINT_DEBUG 1
-#define FRED_PRINT_DEBUG_FILE_LINE 0
-#define FRED_PROFILING 1
-#define FRED_PROFILING_OS 0
-#define FRED_FULL_ERRORS 0
-
-#else
-
-#define FRED_SLOW 0
-#define FRED_INTERNAL 0
-
-#define FRED_PRINT_DEBUG 0
-#define FRED_PRINT_DEBUG_FILE_LINE 0
-#define FRED_PROFILING 0
-#define FRED_PROFILING_OS 0
-#define FRED_FULL_ERRORS 0
-
-#endif
-
-#define SOFTWARE_RENDER 0
-
-#if FRED_INTERNAL == 0
-# undef FRED_PRINT_DEBUG
-# define FRED_PRINT_DEBUG 0
-# undef FRED_PROFILING
-# define FRED_PROFILING 0
-# undef FRED_PROFILING_OS
-# define FRED_PROFILING_OS 0
-#endif
-
-#if FRED_PRINT_DEBUG == 0
-# undef FRED_PRINT_DEBUG_FILE_LINE
-# define FRED_PRINT_DEBUG_FILE_LINE 0
-# undef FRED_PRINT_DEBUG_FILE_LINE
-# define FRED_PROFILING_OS 0
-#endif
-
-#define FPS 30
-#define frame_useconds (1000000 / FPS)
+#include "4ed_config.h"
 
 #include "4ed_meta.h"
 
@@ -60,334 +17,480 @@
 
 #include "4cpp_types.h"
 #define FCPP_STRING_IMPLEMENTATION
-#include "4cpp_string.h"
+#include "4coder_string.h"
 
 #include "4ed_mem.cpp"
-
 #include "4ed_math.cpp"
+
 #include "4coder_custom.h"
 #include "4ed_system.h"
-#include "4ed.h"
 #include "4ed_rendering.h"
-
-#include <sys/stat.h>
-#include <sys/mman.h>
-#include <time.h>
-#include <unistd.h>
-#include <fcntl.h>
-
-#include <X11/X.h>
-#include <X11/Xlib.h>
-
-#include <GL/gl.h>
+#include "4ed.h"
 
 #include <stdio.h>
+#include <memory.h>
+#include <math.h>
+#include <sys/ioctl.h>
+#include <sys/time.h>
+#include <stdio.h>
+#include <X11/Xlib.h>
+#include <GL/glx.h>
+#include <xmmintrin.h>
+#include <linux/fs.h>
+#include <X11/extensions/XInput2.h>
+#include <linux/input.h>
 
 #include "4ed_internal.h"
 #include "4ed_linux_keyboard.cpp"
 
-#define printe(m) printf("%s:%d: %s\n", __FILE__, __LINE__, #m)
+// NOTE(allen): Thanks to Casey for providing the linux OpenGL launcher.
+/* TODO(allen):
 
-struct Linux_Vars{
-    Key_Codes codes;
-    Key_Input_Data input;
-    Mouse_State mouse;
-    Render_Target target;
-    Application_Memory mem;
-    b32 keep_going;
-    b32 force_redraw;
-    
-    Clipboard_Contents clipboard;
+   1. get 4coder rendering it's blank self
+   2. get input working
+      (release linux version)
+   3. add in extra stuff as it is completed in windows
+   
+ */
 
-    void *app_code, *custom;
-    
-    System_Functions *system;
-    App_Functions app;
-    Config_API config_api;
-    
-};
-
-Linux_Vars linuxvars;
-
-internal
-Sys_Get_Memory_Sig(system_get_memory_){
-    void *ptr = 0;
-    i32 prot = PROT_READ | PROT_WRITE;
-    i32 flags = MAP_PRIVATE | MAP_ANON;
-
-#if FRED_INTERNAL
-    ptr = mmap(0, size + sizeof(Sys_Bubble), prot, flags, -1, 0);
-
-    Sys_Bubble *bubble = (Sys_Bubble*)ptr;
-    bubble->flags = MEM_BUBBLE_SYS_DEBUG;
-    bubble->line_number = line_number;
-    bubble->file_name = file_name;
-    bubble->size = size;
-    //WaitForSingleObject(win32vars.DEBUG_sysmem_lock, INFINITE);
-    insert_bubble(&win32vars.internal_bubble, bubble);
-    //ReleaseSemaphore(win32vars.DEBUG_sysmem_lock, 1, 0);
-    ptr = bubble + 1;
-#else
-    ptr = mmap(0, size + sizeof(i32), prot, flags, -1, 0);
-    
-    i32 *size_ptr = (i32*)ptr;
-    *size_ptr = size;
-    ptr = size_ptr + 1;
-#endif
-    
-    return ptr;
+static bool ctxErrorOccurred = false;
+static int XInput2OpCode = 0;
+internal int
+ctxErrorHandler( Display *dpy, XErrorEvent *ev )
+{
+    ctxErrorOccurred = true;
+    return 0;
 }
 
-#define system_get_memory(size) system_get_memory_(size, __LINE__, __FILE__)
-
-internal
-Sys_Free_Memory_Sig(system_free_memory){
-    if (block){
-#if FRED_INTERNAL
-        Sys_Bubble *bubble = ((Sys_Bubble*)block) - 1;
-        Assert((bubble->flags & MEM_BUBBLE_DEBUG_MASK) == MEM_BUBBLE_SYS_DEBUG);
-        //WaitForSingleObject(win32vars.DEBUG_sysmem_lock, INFINITE);
-        remove_bubble(bubble);
-        //ReleaseSemaphore(win32vars.DEBUG_sysmem_lock, 1, 0);
-        munmap(bubble, bubble->size);
-#else
-        i32 *size_ptr = (i32*)block - 1;
-        munmap(size_ptr, *size_ptr);
-#endif
-    }
-}
-
-internal
-Sys_Time_Sig(system_time){
-    i64 result = 0;
-    struct timespec tp;
-    if (clock_gettime(CLOCK_MONOTONIC, &tp) == 0){
-        result = tp.tv_sec*1000000 + tp.tv_nsec/1000;
-    }
-    return result;
-}
-
-internal
-Sys_Load_File_Sig(system_load_file){
-    File_Data result = {};
-    i32 prot = PROT_READ;
-    i32 flags = MAP_PRIVATE | MAP_ANON;
+internal GLXContext
+InitializeOpenGLContext(Display *XDisplay, Window XWindow, GLXFBConfig &bestFbc, b32 &IsLegacy)
+{
+    IsLegacy = false;
     
-    struct stat sb;
-    if (stat(filename, &sb) == 0){
-        result.size = sb.st_size;
-        result.data = system_get_memory(result.size);
-        if (result.data){
-            i32 file = open(filename, O_RDONLY);
-            i32 result_size = read(file, result.data, result.size);
-            Assert(result_size == result.size);
-            close(file);
+    typedef GLXContext (*glXCreateContextAttribsARBProc)(Display*, GLXFBConfig, GLXContext, Bool, const int*);
+    const char *glxExts = glXQueryExtensionsString(XDisplay, DefaultScreen(XDisplay));
+    
+    glXCreateContextAttribsARBProc glXCreateContextAttribsARB = 0;
+    glXCreateContextAttribsARB = (glXCreateContextAttribsARBProc)
+        glXGetProcAddressARB( (const GLubyte *) "glXCreateContextAttribsARB" );
+ 
+    GLXContext ctx = 0;
+    ctxErrorOccurred = false;
+    int (*oldHandler)(Display*, XErrorEvent*) =
+        XSetErrorHandler(&ctxErrorHandler);
+    if (!glXCreateContextAttribsARB)
+    {
+        printf( "glXCreateContextAttribsARB() not found"
+                " ... using old-style GLX context\n" );
+        ctx = glXCreateNewContext( XDisplay, bestFbc, GLX_RGBA_TYPE, 0, True );
+    } 
+    else
+    {
+        int context_attribs[] =
+        {
+            GLX_CONTEXT_MAJOR_VERSION_ARB, 4,
+            GLX_CONTEXT_MINOR_VERSION_ARB, 3,
+            //GLX_CONTEXT_FLAGS_ARB        , GLX_CONTEXT_FORWARD_COMPATIBLE_BIT_ARB,
+            None
+        };
+
+        printf("\nAttribs: %d %d %d %d %d\n",
+               context_attribs[0],
+               context_attribs[1],
+               context_attribs[2],
+               context_attribs[3],
+               context_attribs[4]);
+ 
+        printf( "Creating context\n" );
+        ctx = glXCreateContextAttribsARB( XDisplay, bestFbc, 0,
+                                          True, context_attribs );
+ 
+        XSync( XDisplay, False );
+        if ( !ctxErrorOccurred && ctx )
+        {
+            printf( "Created GL 4.3 context\n" );
+        }
+        else
+        {
+            ctxErrorOccurred = false;
+
+            context_attribs[1] = 4;
+            context_attribs[3] = 0;
+ 
+            printf( "Creating context\n" );
+            ctx = glXCreateContextAttribsARB( XDisplay, bestFbc, 0,
+                                              True, context_attribs );
+ 
+            XSync( XDisplay, False );
+
+            if ( !ctxErrorOccurred && ctx )
+            {
+                printf( "Created GL 4.0 context\n" );
+            }
+            else
+            {
+                context_attribs[1] = 1;
+                context_attribs[3] = 0;
+ 
+                ctxErrorOccurred = false;
+ 
+                printf( "Failed to create GL 4.0 context"
+                        " ... using old-style GLX context\n" );
+                ctx = glXCreateContextAttribsARB( XDisplay, bestFbc, 0, 
+                                                  True, context_attribs );
+
+                IsLegacy = true;
+            }
         }
     }
-    
-    return result;
-}
+ 
+    XSync( XDisplay, False );
+    XSetErrorHandler( oldHandler );
+ 
+    if ( ctxErrorOccurred || !ctx )
+    {
+        printf( "Failed to create an OpenGL context\n" );
+        exit(1);
+    }
+ 
+    if ( ! glXIsDirect ( XDisplay, ctx ) )
+    {
+        printf( "Indirect GLX rendering context obtained\n" );
+    }
+    else
+    {
+        printf( "Direct GLX rendering context obtained\n" );
+    }
+  
+    printf( "Making context current\n" );
+    glXMakeCurrent( XDisplay, XWindow, ctx );
 
-internal
-Sys_Save_File_Sig(system_save_file){
-    i32 file = open(filename, O_CREAT | O_WRONLY);
-    if (!file) return 0;
+    GLint n;
+    char *Vendor = (char *)glGetString(GL_VENDOR);
+    char *Renderer = (char *)glGetString(GL_RENDERER);
+    char *Version = (char *)glGetString(GL_VERSION);
+    char *Extensions = (char *)glGetString(GL_EXTENSIONS);
 
-    i32 result_size = write(file, data, size);
-    Assert(result_size == size);
+    printf("GL_VENDOR: %s\n", Vendor);
+    printf("GL_RENDERER: %s\n", Renderer);
+    printf("GL_VERSION: %s\n", Version);
+    printf("GL_EXTENSIONS: %s\n", Extensions);
 
-    close(file);
-    return 1;
+    return(ctx);
 }
 
 internal b32
-LinuxLoadAppCode(){
-    b32 result = 0;
+GLXSupportsModernContexts(Display *XDisplay)
+{
+    b32 Result = false;
     
-    char app_code_file[] = "4ed_app.so";
-    i32 app_code_file_len = sizeof(app_code_file) - 1;
-    
-    char path[1024];
-    i32 size = readlink("/proc/self/exe", path,
-                        1024 - app_code_file_len - 1);
-    
-    for (--size;
-         path[size] != '/' && size > 0;
-         --size);
-    memcpy(path + size + 1, app_code_file, app_code_file_len + 1);
-    
-    linuxvars.app_code = 0;
-    if (linuxvars.app_code){
-        result = 1;
-        linuxvars.app.init = (App_Init*)0;
-        linuxvars.app.step = (App_Step*)0;
-    }
-    else{
-        // TODO(allen): initialization failure
-        printe(app_code);
-    }
-    
-    return result;
-}
+    int GLXMajor, GLXMinor;
 
-internal
-Sys_Acquire_Lock_Sig(system_acquire_lock){
-    AllowLocal(id);
-}
-
-internal
-Sys_Release_Lock_Sig(system_release_lock){
-    AllowLocal(id);
-}
-
-internal
-Sys_Force_Redraw_Sig(system_force_redraw){
-    linuxvars.force_redraw = 1;
-}
-
-internal void
-LinuxLoadSystemCode(){
-    linuxvars.system->get_memory_full = system_get_memory_;
-    linuxvars.system->free_memory = system_free_memory;
-
-    linuxvars.system->load_file = system_load_file;
-    linuxvars.system->save_file = system_save_file;
-    
-#if 0
-    linuxvars.system->file_time_stamp = system_file_time_stamp;
-    linuxvars.system->time_stamp_now = system_time_stamp_now;
-    linuxvars.system->free_file = system_free_file;
-
-    linuxvars.system->get_current_directory = system_get_current_directory;
-    linuxvars.system->get_easy_directory = system_get_easy_directory;
-    
-    linuxvars.system->get_file_list = system_get_file_list;
-    linuxvars.system->free_file_list = system_free_file_list;
-
-    linuxvars.system->post_clipboard = system_post_clipboard;
-    linuxvars.system->time = system_time;
-    
-    linuxvars.system->cli_call = system_cli_call;
-    linuxvars.system->cli_begin_update = system_cli_begin_update;
-    linuxvars.system->cli_update_step = system_cli_update_step;
-    linuxvars.system->cli_end_update = system_cli_end_update;
-
-    linuxvars.system->thread_get_id = system_thread_get_id;
-    linuxvars.system->thread_current_job_id = system_thread_current_job_id;
-    linuxvars.system->post_job = system_post_job;
-    linuxvars.system->cancel_job = system_cancel_job;
-    linuxvars.system->job_is_pending = system_job_is_pending;
-    linuxvars.system->grow_thread_memory = system_grow_thread_memory;
-    linuxvars.system->acquire_lock = system_acquire_lock;
-    linuxvars.system->release_lock = system_release_lock;
-    
-    linuxvars.system->force_redraw = system_force_redraw;
-    
-    linuxvars.system->internal_sentinel = INTERNAL_system_sentinel;
-    linuxvars.system->internal_get_thread_states = INTERNAL_get_thread_states;
-#endif
-}
-
-internal void
-LinuxShowScreen(){
-}
-
-int main(){
-    linuxvars = {};
-    
-    if (!LinuxLoadAppCode()){
-        return(1);
-    }
-    
-    System_Functions system_;
-    System_Functions *system = &system_;
-    linuxvars.system = system;
-    LinuxLoadSystemCode();
-        
+    char *XVendor = ServerVendor(XDisplay);
+    printf("XWindows vendor: %s\n", XVendor);
+    if(glXQueryVersion(XDisplay, &GLXMajor, &GLXMinor))
     {
-        void *base;
-#if FRED_INTERNAL
-        base = (void*)Mbytes(128);
-#else
-        base = (void*)0;
-#endif
-        
-        i32 prot = PROT_READ | PROT_WRITE;
-        i32 flags = MAP_PRIVATE | MAP_ANON;
-        
-        linuxvars.mem.vars_memory_size = Mbytes(2);
-        linuxvars.mem.vars_memory = mmap(base, linuxvars.mem.vars_memory_size,
-                                         prot, flags, -1, 0);
-        
-#if FRED_INTERNAL
-        base = (void*)Mbytes(160);
-#else
-        base = (void*)0;
-#endif
-        
-        linuxvars.mem.target_memory_size = Mbytes(64);
-        linuxvars.mem.target_memory = mmap(base, linuxvars.mem.target_memory_size,
-                                           prot, flags, -1, 0);
-    }
-    
-    i32 width = 800;
-    i32 height = 600;
-    i32 bpp = 24;
-    
-    linuxvars.target.width = width;
-    linuxvars.target.height = height;
-
-    keycode_init(&linuxvars.codes);
-
-    system_acquire_lock(FRAME_LOCK);
-    b32 first = 1;
-    linuxvars.keep_going = 1;
-    i64 timer_start = system_time();
-
-    for (;linuxvars.keep_going;){
-        linuxvars.input = {};
-        linuxvars.clipboard = {};
-        linuxvars.mouse.wheel = 0;
-        linuxvars.force_redraw = 0;
-        
-        for (;0;){
+        printf("GLX version %d.%d\n", GLXMajor, GLXMinor);
+        if(((GLXMajor == 1 ) && (GLXMinor >= 3)) ||
+           (GLXMajor > 1))
+        {
+            Result = true;
         }
-        
-        linuxvars.mouse.left_button_prev = linuxvars.mouse.left_button;
-        linuxvars.mouse.right_button_prev = linuxvars.mouse.right_button;
-                
+    }
+
+    return(Result);
+}
+
+typedef struct glx_config_result{
+    b32 Found;
+    GLXFBConfig BestConfig;
+    XVisualInfo BestInfo;
+} glx_config_result;
+
+internal glx_config_result
+ChooseGLXConfig(Display *XDisplay, int XScreenIndex)
+{
+    glx_config_result Result = {0};
+    
+    int DesiredAttributes[] =
+    {
+        GLX_X_RENDERABLE    , True,
+        GLX_DRAWABLE_TYPE   , GLX_WINDOW_BIT,
+        GLX_RENDER_TYPE     , GLX_RGBA_BIT,
+        GLX_X_VISUAL_TYPE   , GLX_TRUE_COLOR,
+        GLX_RED_SIZE        , 8,
+        GLX_GREEN_SIZE      , 8,
+        GLX_BLUE_SIZE       , 8,
+        GLX_ALPHA_SIZE      , 8,
+        GLX_DEPTH_SIZE      , 24,
+        GLX_STENCIL_SIZE    , 8,
+        GLX_DOUBLEBUFFER    , True,
+        //GLX_SAMPLE_BUFFERS  , 1,
+        //GLX_SAMPLES         , 4,
+        None
+    };    
+
+    {
+        int ConfigCount;
+        GLXFBConfig *Configs = glXChooseFBConfig(XDisplay,
+                                                 XScreenIndex,
+                                                 DesiredAttributes,
+                                                 &ConfigCount);
+
 #if 0
-        Application_Step_Result app_result =
-            linuxvars.app.step(linuxvars.system,
-                               &linuxvars.codes,
-                               &linuxvars.input,
-                               &linuxvars.mouse,
-                               &linuxvars.target,
-                               &linuxvars.mem,
-                               linuxvars.clipboard,
-                               1, first, linuxvars.force_redraw);
-#else
-        Application_Step_Result app_result = {};
+        int DiffValues[GLXValueCount];
 #endif
-        
-        if (1 || linuxvars.force_redraw){
-            //glClearColor(1.f, 1.f, 0.f, 1.f);
-            //glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-            LinuxShowScreen();
-            linuxvars.force_redraw = 0;
-        }
-        
-        i64 timer_target = timer_start + frame_useconds;
-        i64 timer_end = system_time();
-        for (;timer_end < timer_target;){
-            i64 samount = timer_target - timer_end;
-            usleep(samount);
-            timer_end = system_time();
-        }
-        timer_start = system_time();
+        {for(int ConfigIndex = 0;
+             ConfigIndex < ConfigCount;
+             ++ConfigIndex)
+        {
+            GLXFBConfig &Config = Configs[ConfigIndex];
+            XVisualInfo *VisualInfo = glXGetVisualFromFBConfig(XDisplay, Config);
+
+#if 0
+            printf("  Option %d:\n", ConfigIndex);
+            printf("    Depth: %d\n", VisualInfo->depth);
+            printf("    Bits per channel: %d\n", VisualInfo->bits_per_rgb);
+            printf("    Mask: R%06x G%06x B%06x\n",
+                   (uint32)VisualInfo->red_mask,
+                   (uint32)VisualInfo->green_mask,
+                   (uint32)VisualInfo->blue_mask);
+            printf("    Class: %d\n", VisualInfo->c_class);
+#endif
+            
+#if 0
+            {for(int ValueIndex = 0;
+                 ValueIndex < GLXValueCount;
+                 ++ValueIndex)
+            {
+                glx_value_info &ValueInfo = GLXValues[ValueIndex];
+                int Value;
+                glXGetFBConfigAttrib(XDisplay, Config, ValueInfo.ID, &Value);
+                if(DiffValues[ValueIndex] != Value)
+                {
+                    printf("    %s: %d\n", ValueInfo.Name, Value);
+                    DiffValues[ValueIndex] = Value;
+                }
+            }}
+#endif
+            
+            // TODO(casey): How the hell are you supposed to pick a config here??
+            if(ConfigIndex == 0)
+            {
+                Result.Found = true;
+                Result.BestConfig = Config;
+                Result.BestInfo = *VisualInfo;
+            }
+                        
+            XFree(VisualInfo);
+        }}
+                    
+        XFree(Configs);
     }
+
+    return(Result);
+}
+
+internal void
+InitializeXInput(Display *dpy, Window XWindow)
+{
+    int event, error;
+    if(XQueryExtension(dpy, "XInputExtension", &XInput2OpCode, &event, &error))
+    {
+        int major = 2, minor = 0;
+        if(XIQueryVersion(dpy, &major, &minor) != BadRequest)
+        {
+            printf("XInput initialized");
+        }
+        else
+        {
+            printf("XI2 not available. Server supports %d.%d\n", major, minor);
+        }
+    }
+    else
+    {
+        printf("X Input extension not available.\n");
+    }
+
+    /*
+      TODO(casey): So, this is all one big clusterfuck I guess.
+
+      The problem here is that you want to be able to get input
+      from all possible devices that could be a mouse or keyboard
+      (or gamepad, or whatever).  So you'd like to be able to
+      register events for XIAllDevices, so that when a new
+      input device is connected, you will start receiving
+      input from it automatically, without having to periodically
+      poll XIQueryDevice to see if a new device has appeared.
+
+      UNFORTUNATELY, this is not actually possible in Linux because
+      there was a bug in Xorg (as of early 2013, it is still not
+      fixed in most distributions people are using, AFAICT) which
+      makes the XServer return an error if you actually try to
+      do this :(
+
+      But EVENTUALLY, if that shit gets fixed, then that is
+      the way this should work.
+    */
+
+#if 0
+    int DeviceCount;
+    XIDeviceInfo *DeviceInfo = XIQueryDevice(dpy, XIAllDevices, &DeviceCount);
+    {for(int32x DeviceIndex = 0;
+         DeviceIndex < DeviceCount;
+         ++DeviceIndex)
+    {
+        XIDeviceInfo *Device = DeviceInfo + DeviceIndex;
+        printf("Device %d: %s\n", Device->deviceid, Device->name);
+    }}
+    XIFreeDeviceInfo(DeviceInfo);
+#endif
     
-    return(0);
+    XIEventMask Mask = {0};
+    Mask.deviceid = XIAllDevices;
+    Mask.mask_len = XIMaskLen(XI_RawMotion);
+    size_t MaskSize = Mask.mask_len * sizeof(char unsigned);
+    Mask.mask = (char unsigned *)alloca(MaskSize);
+    memset(Mask.mask, 0, MaskSize);
+    if(Mask.mask)
+    {
+        XISetMask(Mask.mask, XI_ButtonPress);
+        XISetMask(Mask.mask, XI_ButtonRelease);
+        XISetMask(Mask.mask, XI_KeyPress);
+        XISetMask(Mask.mask, XI_KeyRelease);
+        XISetMask(Mask.mask, XI_Motion);
+        XISetMask(Mask.mask, XI_DeviceChanged);
+        XISetMask(Mask.mask, XI_Enter);
+        XISetMask(Mask.mask, XI_Leave);
+        XISetMask(Mask.mask, XI_FocusIn);
+        XISetMask(Mask.mask, XI_FocusOut);
+        XISetMask(Mask.mask, XI_HierarchyChanged);
+        XISetMask(Mask.mask, XI_PropertyEvent);
+        XISelectEvents(dpy, XWindow, &Mask, 1);
+        XSync(dpy, False);
+
+        Mask.deviceid = XIAllMasterDevices;
+        memset(Mask.mask, 0, MaskSize);
+        XISetMask(Mask.mask, XI_RawKeyPress);
+        XISetMask(Mask.mask, XI_RawKeyRelease);
+        XISetMask(Mask.mask, XI_RawButtonPress);
+        XISetMask(Mask.mask, XI_RawButtonRelease);
+        XISetMask(Mask.mask, XI_RawMotion);
+        XISelectEvents(dpy, DefaultRootWindow(dpy), &Mask, 1);
+    }
+}
+
+int
+main(int ArgCount, char **Args)
+{
+    Display *XDisplay = XOpenDisplay(0);
+    if(XDisplay && GLXSupportsModernContexts(XDisplay))
+    {
+        int XScreenCount = ScreenCount(XDisplay);
+        for(int XScreenIndex = 0;
+            XScreenIndex < XScreenCount;
+            ++XScreenIndex)
+        {                
+            Screen *XScreen = ScreenOfDisplay(XDisplay, XScreenIndex);
+                
+            int WinWidth = WidthOfScreen(XScreen);
+            int WinHeight = HeightOfScreen(XScreen);
+                                
+            glx_config_result Config = ChooseGLXConfig(XDisplay, XScreenIndex);
+            if(Config.Found)
+            {
+                Colormap cmap;
+                XSetWindowAttributes swa;
+                swa.colormap = cmap = XCreateColormap(XDisplay,
+                                                      RootWindow(XDisplay, Config.BestInfo.screen ), 
+                                                      Config.BestInfo.visual, AllocNone);
+                swa.background_pixmap = None;
+                swa.border_pixel = 0;
+                swa.event_mask = StructureNotifyMask;
+ 
+                Window XWindow = XCreateWindow(XDisplay,
+                                               RootWindow(XDisplay, Config.BestInfo.screen),
+                                               0, 0, WinWidth, WinHeight,
+                                               0, Config.BestInfo.depth, InputOutput, 
+                                               Config.BestInfo.visual, 
+                                               CWBorderPixel|CWColormap|CWEventMask, &swa );
+                if(XWindow)
+                {
+                    XStoreName(XDisplay, XWindow, "4coder");
+                    XMapWindow(XDisplay, XWindow);
+
+                    InitializeXInput(XDisplay, XWindow);
+
+                    b32 IsLegacy = false;
+                    GLXContext GLContext =
+                        InitializeOpenGLContext(XDisplay, XWindow, Config.BestConfig, IsLegacy);
+
+                    XWindowAttributes WinAttribs;
+                    if(XGetWindowAttributes(XDisplay, XWindow, &WinAttribs))
+                    {
+                        WinWidth = WinAttribs.width;
+                        WinHeight = WinAttribs.height;
+                    }
+                    
+                    XRaiseWindow(XDisplay, XWindow);
+                    XSync(XDisplay, False);
+
+                    for(;;)
+                    {
+                        while(XPending(XDisplay))
+                        {
+                            XEvent Event;                    
+                            XNextEvent(XDisplay, &Event);
+
+                            if((Event.xcookie.type == GenericEvent) &&
+                               (Event.xcookie.extension == XInput2OpCode) &&
+                               XGetEventData(XDisplay, &Event.xcookie))
+                            {
+                                switch(Event.xcookie.evtype)
+                                {
+                                    case XI_Motion:
+                                    {
+                                        Window root_return, child_return;
+                                        int root_x_return, root_y_return;
+                                        int MouseX, MouseY;
+                                        unsigned int mask_return;
+                                        XQueryPointer(XDisplay,
+                                                      XWindow,
+                                                      &root_return, &child_return,
+                                                      &root_x_return, &root_y_return,
+                                                      &MouseX, &MouseY,
+                                                      &mask_return);
+                                    } break;
+
+                                    case XI_ButtonPress:
+                                    case XI_ButtonRelease:
+                                    {
+                                        b32 Down = (Event.xcookie.evtype == XI_ButtonPress);
+                                        XIDeviceEvent *DevEvent = (XIDeviceEvent *)Event.xcookie.data;
+                                        int Button = DevEvent->detail;
+                                    } break;
+
+                                    case XI_KeyPress:
+                                    case XI_KeyRelease:
+                                    {
+                                        b32 Down = (Event.xcookie.evtype == XI_KeyPress); 
+                                        XIDeviceEvent *DevEvent = (XIDeviceEvent *)Event.xcookie.data;
+                                        int VK = DevEvent->detail;
+                                    } break;
+                                }
+
+                                XFreeEventData(XDisplay, &Event.xcookie);
+                            }
+                        }
+                        
+                        // Draw some stuff here?
+                        
+                        glXSwapBuffers(XDisplay, XWindow);                    
+                    }
+                }
+            }
+        }
+    }
 }
 
 // BOTTOM

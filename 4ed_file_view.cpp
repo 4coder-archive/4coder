@@ -99,6 +99,7 @@ struct Editing_File_Settings{
     Font_Set *set;
     i32 base_map_id;
     i32 dos_write_mode;
+    b32 unwrapped_lines;
     b8 tokens_exist;
     b8 super_locked;
     b8 is_initialized;
@@ -1111,7 +1112,8 @@ struct File_View{
     f32 scroll_y, target_y, vel_y;
     f32 scroll_x, target_x, vel_x;
     f32 preferred_x;
-    Full_Cursor scroll_y_cursor;
+    i32 scroll_i;
+    
     union{
         Incremental_Search isearch;
         struct{
@@ -1220,21 +1222,26 @@ file_save(System_Functions *system, Exchange *exchange, Mem_Options *mem,
 	i32 result = 0;
     
 #if BUFFER_EXPERIMENT_SCALPEL <= 3
-    i32 max = buffer_size(&file->state.buffer) + file->state.buffer.line_count;
-    byte *data = (byte*)general_memory_allocate(&mem->general, max, 0);
-    Assert(data);
-    i32 size;
-    if (file->settings.dos_write_mode){
-        size = buffer_convert_out(&file->state.buffer, (char*)data, max);
-    }
-    else{
-        size = buffer_size(&file->state.buffer);
-        buffer_stringify(&file->state.buffer, 0, size, (char*)data);
-    }
+    i32 max, size;
+    byte *data;
+    b32 dos_write_mode = file->settings.dos_write_mode;
 
+    if (dos_write_mode)
+        max = buffer_size(&file->state.buffer) + file->state.buffer.line_count + 1;
+    else
+        max = buffer_size(&file->state.buffer);
+    
+    data = (byte*)general_memory_allocate(&mem->general, max, 0);
+    Assert(data);
+    
+    if (dos_write_mode)
+        size = buffer_convert_out(&file->state.buffer, (char*)data, max);
+    else
+        buffer_stringify(&file->state.buffer, 0, size = max, (char*)data);
+    
     i32 filename_len = str_size(filename);
     result = exchange_save_file(exchange, filename, filename_len,
-                                    data, size, max);
+                                data, size, max);
     
     if (result == 0){
         general_memory_free(&mem->general, data);
@@ -2293,6 +2300,7 @@ view_set_file(System_Functions *system, File_View *view,
     view->font_advance = info->advance;
     view->font_height = info->height;
     view->font_set = set;
+    view->unwrapped_lines = file->settings.unwrapped_lines;
     file->settings.set = set;
     
     view->cursor = {};
@@ -2647,6 +2655,83 @@ file_pre_edit_maintenance(System_Functions *system,
     file->state.last_4ed_edit_time = system->time();
 }
 
+struct Cursor_Fix_Descriptor{
+    b32 is_batch;
+    union{
+        struct{
+            Buffer_Edit *batch;
+            i32 batch_size;
+        };
+        struct{
+            i32 start, end;
+            i32 shift_amount;
+        };
+    };
+};
+
+internal void
+file_edit_cursor_fix(System_Functions *system,
+                     Partition *part, General_Memory *general,
+                     Editing_File *file, Editing_Layout *layout,
+                     Cursor_Fix_Descriptor desc){
+    Full_Cursor temp_cursor;
+    Temp_Memory cursor_temp = begin_temp_memory(part);
+    i32 cursor_max = layout->panel_max_count * 2;
+    Cursor_With_Index *cursors = push_array(part, Cursor_With_Index, cursor_max);
+    
+    i32 panel_count = layout->panel_count;
+    i32 cursor_count = 0;
+    Panel *current_panel = layout->panels;
+    for (i32 i = 0; i < panel_count; ++i, ++current_panel){
+        File_View *current_view = view_to_file_view(current_panel->view);
+        if (current_view && current_view->file == file){
+            view_measure_wraps(system, general, current_view);
+            write_cursor_with_index(cursors, &cursor_count, current_view->cursor.pos);
+            write_cursor_with_index(cursors, &cursor_count, current_view->mark);
+            write_cursor_with_index(cursors, &cursor_count, current_view->scroll_i);
+        }
+    }
+    
+    if (cursor_count > 0){
+        buffer_sort_cursors(cursors, cursor_count);
+        if (desc.is_batch){
+            buffer_batch_edit_update_cursors(cursors, cursor_count,
+                                             desc.batch, desc.batch_size);
+        }
+        else{
+            buffer_update_cursors(cursors, cursor_count,
+                                  desc.start, desc.end,
+                                  desc.shift_amount + (desc.end - desc.start));
+                                  
+        }
+        buffer_unsort_cursors(cursors, cursor_count);
+        
+        cursor_count = 0;
+        current_panel = layout->panels;
+        for (i32 i = 0; i < panel_count; ++i, ++current_panel){
+            File_View *current_view = view_to_file_view(current_panel->view);
+            if (current_view && current_view->file == file){
+                view_cursor_move(current_view, cursors[cursor_count++].pos);
+                current_view->preferred_x = view_get_cursor_x(current_view);
+                
+                current_view->mark = cursors[cursor_count++].pos;
+                current_view->scroll_i = cursors[cursor_count++].pos;
+                temp_cursor = view_compute_cursor_from_pos(current_view, current_view->scroll_i);
+                if (current_view->unwrapped_lines){
+                    current_view->target_y += (temp_cursor.unwrapped_y - current_view->scroll_y);
+                    current_view->scroll_y = temp_cursor.unwrapped_y;
+                }
+                else{
+                    current_view->target_y += (temp_cursor.wrapped_y - current_view->scroll_y);
+                    current_view->scroll_y = temp_cursor.wrapped_y;
+                }
+            }
+        }
+    }
+    
+    end_temp_memory(cursor_temp);
+}
+
 internal void
 file_do_single_edit(System_Functions *system,
                     Mem_Options *mem, Editing_File *file,
@@ -2722,40 +2807,14 @@ file_do_single_edit(System_Functions *system,
 #endif
 
 #if BUFFER_EXPERIMENT_SCALPEL <= 3
-    Temp_Memory cursor_temp = begin_temp_memory(&mem->part);
-    i32 cursor_max = layout->panel_max_count * 2;
-    Cursor_With_Index *cursors = push_array(&mem->part, Cursor_With_Index, cursor_max);
+    Cursor_Fix_Descriptor desc = {};
+    desc.start = start;
+    desc.end = end;
+    desc.shift_amount = shift_amount;
     
-    i32 cursor_count = 0;
-    current_panel = layout->panels;
-    for (i32 i = 0; i < panel_count; ++i, ++current_panel){
-        File_View *current_view = view_to_file_view(current_panel->view);
-        if (current_view && current_view->file == file){
-            view_measure_wraps(system, general, current_view);
-            write_cursor_with_index(cursors, &cursor_count, current_view->cursor.pos);
-            write_cursor_with_index(cursors, &cursor_count, current_view->mark);
-        }
-    }
+    file_edit_cursor_fix(system, part, general,
+                         file, layout, desc);
     
-    if (cursor_count > 0){
-        buffer_sort_cursors(cursors, cursor_count);
-        buffer_update_cursors(cursors, cursor_count,
-                              start, end, shift_amount + (end - start));
-        buffer_unsort_cursors(cursors, cursor_count);
-    }
-    
-    cursor_count = 0;
-    current_panel = layout->panels;
-    for (i32 i = 0; i < panel_count; ++i, ++current_panel){
-        File_View *current_view = view_to_file_view(current_panel->view);
-        if (current_view && current_view->file == file){
-            view_cursor_move(current_view, cursors[cursor_count++].pos);
-            current_view->mark = cursors[cursor_count++].pos;
-            current_view->preferred_x = view_get_cursor_x(current_view);
-        }
-    }
-    
-    end_temp_memory(cursor_temp);
 #endif
 }
 
@@ -2834,41 +2893,14 @@ view_do_white_batch_edit(System_Functions *system, Mem_Options *mem, File_View *
     }
     
     // NOTE(allen): cursor fixing
-    {
-        Temp_Memory cursor_temp = begin_temp_memory(part);
-            i32 cursor_max = layout->panel_max_count * 2;
-        Cursor_With_Index *cursors = push_array(part, Cursor_With_Index, cursor_max);
+    Cursor_Fix_Descriptor desc = {};
+    desc.is_batch = 1;
+    desc.batch = batch;
+    desc.batch_size = batch_size;
     
-        i32 panel_count = layout->panel_count;
-        i32 cursor_count = 0;
-        Panel *current_panel = layout->panels;
-        for (i32 i = 0; i < panel_count; ++i, ++current_panel){
-            File_View *current_view = view_to_file_view(current_panel->view);
-            if (current_view && current_view->file == file){
-                view_measure_wraps(system, general, current_view);
-                write_cursor_with_index(cursors, &cursor_count, current_view->cursor.pos);
-                write_cursor_with_index(cursors, &cursor_count, current_view->mark);
-            }
-        }
+    file_edit_cursor_fix(system, part, general,
+                         file, layout, desc);
     
-        if (cursor_count > 0){
-            buffer_sort_cursors(cursors, cursor_count);
-            buffer_batch_edit_update_cursors(cursors, cursor_count, batch, batch_size);
-            buffer_unsort_cursors(cursors, cursor_count);
-        }
-    
-        cursor_count = 0;
-        current_panel = layout->panels;
-        for (i32 i = 0; i < panel_count; ++i, ++current_panel){
-            File_View *current_view = view_to_file_view(current_panel->view);
-            if (current_view && current_view->file == file){
-                view_cursor_move(current_view, cursors[cursor_count++].pos);
-                current_view->mark = cursors[cursor_count++].pos;
-                current_view->preferred_x = view_get_cursor_x(current_view);
-            }
-        }
-        end_temp_memory(cursor_temp);
-    }
 #endif
 }
 
@@ -4168,10 +4200,27 @@ draw_file_loaded(File_View *view, i32_Rect rect, b32 is_active, Render_Target *t
     if (font) advance_data = font->advance_data;
 
     i32 count;
+    Full_Cursor render_cursor;
     Buffer_Render_Options opts = {};
-    buffer_get_render_data(&file->state.buffer, view->line_wrap_y, items, max, &count,
-                           (f32)rect.x0, (f32)rect.y0, view->scroll_x, view->scroll_y, !view->unwrapped_lines,
-                           (f32)max_x, (f32)max_y, advance_data, (f32)line_height, opts);
+
+    f32 *wraps = view->line_wrap_y;
+    f32 scroll_x = view->scroll_x;
+    f32 scroll_y = view->scroll_y;
+    
+    {
+        render_cursor = buffer_get_start_cursor(&file->state.buffer, wraps, scroll_y,
+                                                !view->unwrapped_lines, (f32)max_x, advance_data, (f32)line_height);
+        
+        view->scroll_i = render_cursor.pos;
+        
+        buffer_get_render_data(&file->state.buffer, items, max, &count,
+                               (f32)rect.x0, (f32)rect.y0,
+                               scroll_x, scroll_y, render_cursor,
+                               !view->unwrapped_lines,
+                               (f32)max_x, (f32)max_y,
+                               advance_data, (f32)line_height,
+                               opts);
+    }
     
     Assert(count > 0);
     
@@ -4212,9 +4261,11 @@ draw_file_loaded(File_View *view, i32_Rect rect, b32 is_active, Render_Target *t
     Buffer_Render_Item *item = items;
     i32 prev_ind = -1;
     u32 highlight_color = 0;
+    u32 highlight_this_color = 0;
     
     for (i32 i = 0; i < count; ++i, ++item){
         i32 ind = item->index;
+        highlight_this_color = 0;
         if (tokens_use && ind != prev_ind){
             Cpp_Token current_token = token_stack.tokens[token_i-1];
             
@@ -4231,23 +4282,39 @@ draw_file_loaded(File_View *view, i32_Rect rect, b32 is_active, Render_Target *t
             }
 
             if (current_token.type == CPP_TOKEN_JUNK &&
-                i >= current_token.start && i <= current_token.start + current_token.size){
+                i >= current_token.start && i < current_token.start + current_token.size){
                 highlight_color = style->main.highlight_junk_color;
             }
+            else{
+                highlight_color = 0;
+            }
         }
-        u32 char_color = main_color;
         
+        u32 char_color = main_color;
         if (item->flags & BRFlag_Special_Character) char_color = special_color;
+
+        f32_Rect char_rect = f32R(item->x0, item->y0, item->x1, item->y1);
+        if (view->show_whitespace && highlight_color == 0 &&
+            char_is_whitespace((char)item->glyphid)){
+            highlight_this_color = style->main.highlight_white_color;
+        }
+        else{
+            highlight_this_color = highlight_color;
+        }
         
         if (cursor_begin <= ind && ind < cursor_end && (ind != prev_ind || cursor_begin < ind)){
             if (is_active){
-                draw_rectangle(target, f32R(item->x0, item->y0, item->x1, item->y1), cursor_color);
+                draw_rectangle(target, char_rect, cursor_color);
                 char_color = at_cursor_color;
             }
-            else draw_rectangle_outline(target, f32R(item->x0, item->y0, item->x1, item->y1), cursor_color);
+            else{
+                if (!view->show_temp_highlight){
+                    draw_rectangle_outline(target, char_rect, cursor_color);
+                }
+            }
         }
-        else if (highlight_color){
-            draw_rectangle(target, f32R(item->x0, item->y0, item->x1, item->y1), highlight_color);
+        else if (highlight_this_color){
+            draw_rectangle(target, char_rect, highlight_this_color);
         }
         
         u32 fade_color = 0xFFFF00FF;
@@ -4263,7 +4330,7 @@ draw_file_loaded(File_View *view, i32_Rect rect, b32 is_active, Render_Target *t
         char_color = color_blend(char_color, fade_amount, fade_color);
         
         if (ind == view->mark && prev_ind != ind){
-            draw_rectangle_outline(target, f32R(item->x0, item->y0, item->x1, item->y1), mark_color);
+            draw_rectangle_outline(target, char_rect, mark_color);
         }
         if (item->glyphid != 0){
             font_draw_glyph(target, font_id, (u8)item->glyphid,

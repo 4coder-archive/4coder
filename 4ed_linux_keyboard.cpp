@@ -14,28 +14,19 @@
 internal void
 keycode_init(Key_Codes *codes){
     set_dynamic_key_names(codes);
-
-    u16 code, loose;
-    for (u16 i = 0; i < 255; ++i){
-        if (i >= 'a' && i <= 'z'){
-			keycode_lookup_table[i] = i + ('A' - 'a');
-			loose_keycode_lookup_table[i] = 0;
-        }
-        
-        else if (i >= '0' && i <= '9'){
-			keycode_lookup_table[i] = i;
-			loose_keycode_lookup_table[i] = 0;
-        }
-        
-        else{
-            loose = 0;
-            switch (i){
-            }
-            
-            keycode_lookup_table[i] = code;
-            loose_keycode_lookup_table[i] = loose;
-        }
-    }
+    
+    keycode_lookup_table[KEY_BACKSPACE] = codes->back;
+    keycode_lookup_table[KEY_DELETE] = codes->del;
+    keycode_lookup_table[KEY_UP] = codes->up;
+    keycode_lookup_table[KEY_DOWN] = codes->down;
+    keycode_lookup_table[KEY_LEFT] = codes->left;
+    keycode_lookup_table[KEY_RIGHT] = codes->right;
+    keycode_lookup_table[KEY_INSERT] = codes->insert;
+    keycode_lookup_table[KEY_HOME] = codes->home;
+    keycode_lookup_table[KEY_END] = codes->end;
+    keycode_lookup_table[KEY_PAGEUP] = codes->page_up;
+    keycode_lookup_table[KEY_PAGEDOWN] = codes->page_down;
+    keycode_lookup_table[KEY_ESC] = codes->esc;
 }
 
 // BOTTOM

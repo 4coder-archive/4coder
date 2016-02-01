@@ -1145,13 +1145,33 @@ struct Buffer_Render_Options{
     b8 show_slash_t;
 };
 
+internal_4tech Full_Cursor
+buffer_get_start_cursor(Buffer_Type *buffer, float *wraps, float scroll_y,
+                        int wrapped, float width, float *advance_data, float font_height){
+    Full_Cursor result;
+    
+    if (wrapped){
+        result = buffer_cursor_from_wrapped_xy(buffer, 0, scroll_y, 0, wraps,
+                                                     width, font_height, advance_data);
+    }
+    else{
+        result = buffer_cursor_from_unwrapped_xy(buffer, 0, scroll_y, 0, wraps,
+                                                       width, font_height, advance_data);
+    }
+    
+    return(result);
+}
+
 internal_4tech void
-buffer_get_render_data(Buffer_Type *buffer, float *wraps, Buffer_Render_Item *items, int max, int *count,
-                       float port_x, float port_y, float scroll_x, float scroll_y, int wrapped,
-                       float width, float height, float *advance_data, float font_height,
+buffer_get_render_data(Buffer_Type *buffer, Buffer_Render_Item *items, int max, int *count,
+                       float port_x, float port_y,
+                       float scroll_x, float scroll_y, Full_Cursor start_cursor,
+                       int wrapped,
+                       float width, float height,
+                       float *advance_data, float font_height,
                        Buffer_Render_Options opts){
+    
     Buffer_Stringify_Type loop;
-    Full_Cursor start_cursor;
     Buffer_Render_Item *item;
     char *data;
     int size, end;
@@ -1160,21 +1180,13 @@ buffer_get_render_data(Buffer_Type *buffer, float *wraps, Buffer_Render_Item *it
     int i, item_i;
     float ch_width, ch_width_sub;
     char ch;
-
+    
     size = buffer_size(buffer);
     
     shift_x = port_x - scroll_x;
     shift_y = port_y - scroll_y;
-    if (wrapped){
-        start_cursor = buffer_cursor_from_wrapped_xy(buffer, 0, scroll_y, 0, wraps,
-                                                     width, font_height, advance_data);
-        shift_y += start_cursor.wrapped_y;
-    }
-    else{
-        start_cursor = buffer_cursor_from_unwrapped_xy(buffer, 0, scroll_y, 0, wraps,
-                                                       width, font_height, advance_data);
-        shift_y += start_cursor.unwrapped_y;
-    }
+    if (wrapped) shift_y += start_cursor.wrapped_y;
+    else shift_y += start_cursor.unwrapped_y;
     
     x = shift_x;
     y = shift_y;

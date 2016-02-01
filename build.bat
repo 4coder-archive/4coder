@@ -1,3 +1,3 @@
 @echo off
 
-call "w:\4ed\code\buildsuper.bat"
+call "w:\4ed\misc\builddbg.bat"
