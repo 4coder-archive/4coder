@@ -415,6 +415,8 @@ hot_directory_first_match(Hot_Directory *hot_directory,
     return result;
 }
 
+// Single line input
+
 struct Single_Line_Input_Step{
 	b8 hit_newline;
 	b8 hit_ctrl_newline;
@@ -579,6 +581,8 @@ app_single_number_input_step(System_Functions *system, Key_Codes *codes,
         result = app_single_line_input_core(system, codes, 0, key, mode);
 	return result;
 }
+
+// UI stuff (this shouldn't be here!)
 
 struct Widget_ID{
     i32 id;
@@ -1060,6 +1064,8 @@ do_text_field(Widget_ID wid, UI_State *state, UI_Layout *layout,
 
     return result;
 }
+
+// Widget
 
 enum File_View_Widget_Type{
     FWIDG_NONE,
@@ -1652,6 +1658,15 @@ file_set_to_loading(Editing_File *file){
 	file->state.is_loading = 1;
 }
 
+inline b32
+file_is_ready(Editing_File *file){
+    b32 result = 0;
+    if (file && file->state.is_loading == 0){
+        result = 1;
+    }
+    return(result);
+}
+
 struct Shift_Information{
 	i32 start, end, amount;
 };
@@ -2185,8 +2200,9 @@ view_compute_cursor_from_unwrapped_xy(File_View *view, f32 seek_x, f32 seek_y,
     
     Full_Cursor result = {};
     if (font){
-        real32 max_width = view_compute_width(view);
-        result = buffer_cursor_from_unwrapped_xy(&file->state.buffer, seek_x, seek_y, round_down, view->line_wrap_y,
+        f32 max_width = view_compute_width(view);
+        result = buffer_cursor_from_unwrapped_xy(&file->state.buffer, seek_x, seek_y,
+                                                 round_down, view->line_wrap_y,
                                                  max_width, (f32)view->font_height, font->advance_data);
     }
 
@@ -2208,8 +2224,30 @@ view_compute_cursor_from_wrapped_xy(File_View *view, f32 seek_x, f32 seek_y,
     Full_Cursor result = {};
     if (font){
         f32 max_width = view_compute_width(view);
-        result = buffer_cursor_from_wrapped_xy(&file->state.buffer, seek_x, seek_y, round_down, view->line_wrap_y,
+        result = buffer_cursor_from_wrapped_xy(&file->state.buffer, seek_x, seek_y,
+                                               round_down, view->line_wrap_y,
                                                max_width, (f32)view->font_height, font->advance_data);
+    }
+    
+    return result;
+    
+#else
+    return view->cursor;
+#endif
+}
+
+inline Full_Cursor
+view_compute_cursor_from_line_pos(File_View *view, i32 line, i32 pos){
+#if BUFFER_EXPERIMENT_SCALPEL <= 3
+    Editing_File *file = view->file;
+    Style *style = view->style;
+    Render_Font *font = get_font_info(view->font_set, style->font_id)->font;
+    
+    Full_Cursor result = {};
+    if (font){
+        f32 max_width = view_compute_width(view);
+        result = buffer_cursor_from_line_character(&file->state.buffer, line, pos,
+                                               view->line_wrap_y, max_width, (f32)view->font_height, font->advance_data);
     }
     
     return result;
@@ -2383,23 +2421,26 @@ view_cursor_move(File_View *view, Full_Cursor cursor){
 
 inline void
 view_cursor_move(File_View *view, i32 pos){
-	view->cursor = view_compute_cursor_from_pos(view, pos);
-    view->preferred_x = view_get_cursor_x(view);
-	view->file->state.cursor_pos = view->cursor.pos;
-    view->show_temp_highlight = 0;
+    Full_Cursor cursor = view_compute_cursor_from_pos(view, pos);
+    view_cursor_move(view, cursor);
 }
 
 inline void
-view_cursor_move(File_View *view, real32 x, real32 y, bool32 round_down = 0){
+view_cursor_move(File_View *view, f32 x, f32 y, b32 round_down = 0){
+    Full_Cursor cursor;
     if (view->unwrapped_lines){
-        view->cursor = view_compute_cursor_from_unwrapped_xy(view, x, y, round_down);
+        cursor = view_compute_cursor_from_unwrapped_xy(view, x, y, round_down);
     }
     else{
-        view->cursor = view_compute_cursor_from_wrapped_xy(view, x, y, round_down);
+        cursor = view_compute_cursor_from_wrapped_xy(view, x, y, round_down);
     }
-    view->preferred_x = view_get_cursor_x(view);
-	view->file->state.cursor_pos = view->cursor.pos;
-    view->show_temp_highlight = 0;
+    view_cursor_move(view, cursor);
+}
+
+inline void
+view_cursor_move(File_View *view, i32 line, i32 pos){
+    Full_Cursor cursor = view_compute_cursor_from_line_pos(view, line, pos);
+    view_cursor_move(view, cursor);
 }
 
 inline void
@@ -2679,8 +2720,8 @@ file_edit_cursor_fix(System_Functions *system,
     i32 cursor_max = layout->panel_max_count * 2;
     Cursor_With_Index *cursors = push_array(part, Cursor_With_Index, cursor_max);
     
-    i32 panel_count = layout->panel_count;
     i32 cursor_count = 0;
+    i32 panel_count = layout->panel_count;
     Panel *current_panel = layout->panels;
     for (i32 i = 0; i < panel_count; ++i, ++current_panel){
         File_View *current_view = view_to_file_view(current_panel->view);
@@ -3664,13 +3705,16 @@ view_compute_max_target_y(File_View *view){
 internal void
 remeasure_file_view(System_Functions *system, View *view_, i32_Rect rect){
     File_View *view = (File_View*)view_;
-    Relative_Scrolling relative = view_get_relative_scrolling(view);
-    view_measure_wraps(system, &view->view_base.mem->general, view);
-    view_cursor_move(view, view->cursor.pos);
-    view->preferred_x = view_get_cursor_x(view);
-    view_set_relative_scrolling(view, relative);
+    if (file_is_ready(view->file)){
+        Relative_Scrolling relative = view_get_relative_scrolling(view);
+        view_measure_wraps(system, &view->view_base.mem->general, view);
+        view_cursor_move(view, view->cursor.pos);
+        view->preferred_x = view_get_cursor_x(view);
+        view_set_relative_scrolling(view, relative);
+    }
 }
 
+// MORE UI STUFF GOD DAMN IT!!!
 internal b32
 do_button(i32 id, UI_State *state, UI_Layout *layout, char *text, i32 height_mult,
           b32 is_toggle = 0, b32 on = 0){

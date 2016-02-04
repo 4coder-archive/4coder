@@ -116,6 +116,22 @@ exchange_file_ready(Exchange *exchange, i32 file_id, byte **data, int *size, int
     return result;
 }
 
+internal b32
+exchange_file_does_not_exist(Exchange *exchange, i32 file_id){
+    File_Exchange *files = &exchange->file;
+    b32 result = 1;
+    File_Slot *slot;
+    
+    if (file_id > 0 && file_id <= files->max){
+        slot = files->files + file_id - 1;
+        if (!(slot->flags & FEx_Not_Exist)){
+            result = 0;
+        }
+    }
+    
+    return result;
+}
+
 internal i32
 exchange_save_file(Exchange *exchange, char *filename, int len,
                    byte *data, int size, int max){
@@ -140,17 +156,19 @@ exchange_save_file(Exchange *exchange, char *filename, int len,
 }
 
 internal b32
-exchange_file_save_complete(Exchange *exchange, i32 file_id, byte **data, int *size, int *max){
+exchange_file_save_complete(Exchange *exchange, i32 file_id, byte **data, int *size, int *max, int *failed){
     File_Exchange *files = &exchange->file;
     b32 result = 0;
 
     if (file_id > 0 && file_id <= files->max){
         File_Slot *file = files->files + file_id - 1;
-        if (file->flags & FEx_Save_Complete){
+        if (file->flags & FEx_Save_Complete || file->flags & FEx_Save_Failed){
             *data = file->data;
             *size = file->size;
             *max = file->max;
             result = 1;
+            
+            *failed = (file->flags & FEx_Save_Complete)?(1):(0);
         }
     }
     

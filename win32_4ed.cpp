@@ -314,6 +314,21 @@ system_save_file(char *filename, void *data, i32 size){
 	return 1;
 }
 
+internal b32
+system_file_can_be_made(char *filename){
+	HANDLE file;
+	file = CreateFile((char*)filename, GENERIC_WRITE, 0, 0,
+					  CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, 0);
+	
+	if (!file || file == INVALID_HANDLE_VALUE){
+		return 0;
+	}
+	
+	CloseHandle(file);
+	
+	return 1;
+}
+
 internal
 Sys_File_Time_Stamp_Sig(system_file_time_stamp){
     u64 result;
@@ -1423,8 +1438,12 @@ UpdateLoop(LPVOID param){
                 if (file->flags & FEx_Save){
                     Assert((file->flags & FEx_Request) == 0);
                     file->flags &= (~FEx_Save);
-                    system_save_file(file->filename, file->data, file->size);
-                    file->flags |= FEx_Save_Complete;
+                    if (system_save_file(file->filename, file->data, file->size)){
+                        file->flags |= FEx_Save_Complete;
+                    }
+                    else{
+                        file->flags |= FEx_Save_Failed;
+                    }
                 }
                 
                 if (file->flags & FEx_Request){
@@ -1543,12 +1562,16 @@ WinMain(HINSTANCE hInstance,
     Command_Line_Parameters clparams;
     clparams.argv = __argv;
     clparams.argc = __argc;
-
+    
+    char **files;
+    i32 *file_count;
+    
     i32 output_size =
         win32vars.app.read_command_line(system,
                                         &memory_vars,
                                         current_directory,
                                         &win32vars.settings,
+                                        &files, &file_count,
                                         clparams);
     //
     
@@ -1556,6 +1579,18 @@ WinMain(HINSTANCE hInstance,
         // TODO
     }
     if (output_size != 0) return 0;
+
+    {
+        i32 i, j;
+        i32 end = *file_count;
+        for (i = 0, j = 0; i < end; ++i){
+            if (system_file_can_be_made(files[i])){
+                files[j] = files[i];
+                ++j;
+            }
+        }
+        *file_count = j;
+    }
     
     LARGE_INTEGER lpf;
     QueryPerformanceFrequency(&lpf);

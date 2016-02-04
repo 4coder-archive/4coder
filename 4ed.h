@@ -106,7 +106,8 @@ enum File_Exchange_Flag{
     FEx_Ready = 0x2,
     FEx_Not_Exist = 0x4,
     FEx_Save = 0x8,
-    FEx_Save_Complete = 0x10
+    FEx_Save_Complete = 0x10,
+    FEx_Save_Failed = 0x20
 };
 
 struct File_Exchange{
@@ -140,6 +141,7 @@ struct Plat_Settings{
              Application_Memory *memory,                \
              String current_directory,                  \
              Plat_Settings *plat_settings,                 \
+             char ***files, i32 **file_count,                   \
              Command_Line_Parameters clparams           \
              )
 
