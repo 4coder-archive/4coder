@@ -79,3 +79,9 @@ NOTES ON USE:
 # endif
 #endif
 
+#ifndef DrBegin
+#define DrBegin() switch (s.__pc__){ case 0:;
+#define DrEnd() default: Assert(!"Invalid __pc__"); }
+#define DrYield(pc, n) { s.__pc__ = pc; *state = s; return(n); case pc:; }
+#define DrReturn(n) { s.__pc__ = -1; return(n); }
+#endif

@@ -27,6 +27,7 @@ struct File_List{
 #define Sys_File_Time_Stamp_Sig(name) u64 name(char *filename)
 typedef Sys_File_Time_Stamp_Sig(System_File_Time_Stamp);
 
+// TODO(allen): make directory a char* to signal that it must be null terminated
 #define Sys_Set_File_List_Sig(name) void name(File_List *file_list, String directory)
 typedef Sys_Set_File_List_Sig(System_Set_File_List);
 

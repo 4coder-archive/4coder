@@ -32,6 +32,9 @@
 #include <math.h>
 #include <sys/ioctl.h>
 #include <sys/time.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <dirent.h>
 #include <stdio.h>
 #include <X11/Xlib.h>
 #include <GL/glx.h>
@@ -39,20 +42,126 @@
 #include <linux/fs.h>
 #include <X11/extensions/XInput2.h>
 #include <linux/input.h>
+#include <time.h>
 
 #include "4ed_internal.h"
 #include "4ed_linux_keyboard.cpp"
 
+#include <stdlib.h>
+
+void*
+LinuxGetMemory(i32 size){
+    // TODO(allen): Implement without stdlib.h
+    return (malloc(size));
+}
+
+void
+LinuxFreeMemory(void *block){
+    // TODO(allen): Implement without stdlib.h
+    free(block);
+}
+
+#if (defined(_BSD_SOURCE) || defined(_SVID_SOURCE))
+#define TimeBySt
+#endif
+#if (_POSIX_C_SOURCE >= 200809L || _XOPEN_SOURCE >= 700)
+#define TimeBySt
+#endif
+
+#ifdef TimeBySt
+#define nano_mtime_field st_mtim.tv_nsec
+#undef TimeBySt
+#else
+#define nano_mtime_field st_mtimensec
+#endif
+
+Sys_File_Time_Stamp_Sig(system_file_time_stamp){
+    struct stat info;
+    i64 nanosecond_timestamp;
+    u64 result;
+    
+    stat(filename, &info);
+    nanosecond_timestamp = info.nano_mtime_field;
+    if (nanosecond_timestamp != 0){
+        result = (u64)(nanosecond_timestamp / 1000);
+    }
+    else{
+        result = (u64)(info.st_mtime * 1000000);
+    }
+
+    return(result);
+}
+
+Sys_Time_Sig(system_time){
+    struct timespec spec;
+    u64 result;
+    
+    clock_gettime(CLOCK_MONOTONIC, &spec);
+    result = (spec.tv_sec * 1000000) + (spec.tv_nsec / 1000);
+
+    return(result);
+}
+
+Sys_Set_File_List_Sig(system_set_file_list){
+    DIR *d;
+    struct dirent *entry;
+    char *fname, *cursor, *cursor_start;
+    File_Info *info_ptr;
+    i32 count, file_count, size, required_size;
+    
+    terminate_with_null(&directory);
+    d = opendir(directory.str);
+    if (d){
+        count = 0;
+        for (entry = readdir(d);
+             entry != 0;
+             entry = readdir(d)){
+            fname = entry->d_name;
+            ++file_count;            
+            for (size = 0; fname[size]; ++size);
+            count += size + 1;
+        }
+        closedir(d);
+
+        required_size = count + file_count * sizeof(File_Info);
+        if (file_list->block_size < required_size){
+            if (file_list->block){
+                LinuxFreeMemory(file_list->block);
+            }
+            file_list->block = LinuxGetMemory(required_size);
+        }
+        
+        file_list->infos = (File_Info*)file_list->block;
+        cursor = (char*)(file_list->infos + file_count);
+        
+        d = opendir(directory.str);
+        if (d){
+            info_ptr = file_list->infos;
+            for (entry = readdir(d);
+                 entry != 0;
+                 entry = readdir(d), ++info_ptr){
+                fname = entry->d_name;
+                cursor_start = cursor;
+                for (; *fname; ) *cursor++ = *fname++;
+                *cursor++ = 0;
+                
+                info_ptr->folder = 0;
+                info_ptr->filename.str = cursor_start;
+                info_ptr->filename.size = (i32)(cursor - cursor_start);
+                info_ptr->filename.memory_size = info_ptr->filename.size + 1;
+            }
+        }
+        closedir(d);
+    }
+    closedir(d);
+}
+
+Sys_Post_Clipboard_Sig(system_post_clipboard){
+    // TODO(allen): Implement
+    AllowLocal(str);
+}
+
 // NOTE(allen): Thanks to Casey for providing the linux OpenGL launcher.
-/* TODO(allen):
-
-   1. get 4coder rendering it's blank self
-   2. get input working
-      (release linux version)
-   3. add in extra stuff as it is completed in windows
-   
- */
-
 static bool ctxErrorOccurred = false;
 static int XInput2OpCode = 0;
 internal int

@@ -844,7 +844,6 @@ app_open_file(System_Functions *system, App_Vars *vars, Exchange *exchange,
     return(result);
 }
 
-
 COMMAND_DECL(interactive_open){
     ProfileMomentFunction();
     USE_VARS(vars);
@@ -2594,16 +2593,34 @@ app_setup_memory(Application_Memory *memory){
     return(vars);
 }
 
+internal i32
+execute_special_tool(void *memory, i32 size, Command_Line_Parameters clparams){
+    char message[] = "Hell World!";
+    i32 result = sizeof(message) - 1;
+    memcpy(memory, message, result);
+    return(result);
+}
+
 App_Read_Command_Line_Sig(app_read_command_line){
-    i32 output_size = 0;
-    
-    App_Vars *vars = app_setup_memory(memory);
-    init_command_line_settings(&vars->settings, plat_settings, clparams);
-    
-    *files = vars->settings.init_files;
-    *file_count = &vars->settings.init_files_count;
-    
-    return(output_size);
+    App_Vars *vars;
+    i32 out_size = 0;
+
+    if (clparams.argc > 1 && match(clparams.argv[1], "-T")){
+        out_size = execute_special_tool(memory->target_memory, memory->target_memory_size, clparams);
+    }
+    else{
+        vars = app_setup_memory(memory);
+        if (clparams.argc > 1){
+            init_command_line_settings(&vars->settings, plat_settings, clparams);
+            *files = vars->settings.init_files;
+            *file_count = &vars->settings.init_files_count;
+        }
+        else{
+            vars->settings = {};
+        }
+    }
+
+    return(out_size);
 }
 
 App_Init_Sig(app_init){
@@ -3289,16 +3306,23 @@ App_Step_Sig(app_step){
         
         i32 i;
         String file_name;
+        File_View *fview;
+        Editing_File *file;
         Panel *panel = vars->layout.panels;
         for (i = 0; i < vars->settings.init_files_count; ++i, ++panel){
             file_name = make_string_slowly(vars->settings.init_files[i]);
             
             if (i < vars->layout.panel_count){
-                app_open_file(system, vars, exchange, &vars->live_set, &vars->working_set, panel,
+                fview = app_open_file(system, vars, exchange, &vars->live_set, &vars->working_set, panel,
                     &command_data, file_name);
                 
                 if (i == 0){
-                    
+                    if (fview){
+                        file = fview->file;
+                        if (file){
+                            file->preload.start_line = vars->settings.initial_line;
+                        }
+                    }
                 }
             }
             else{
@@ -3620,10 +3644,14 @@ App_Step_Sig(app_step){
         
         byte *data;
         i32 size, max;
+        Editing_File *ed_file;
+        Editing_File_Preload preload_settings;
+        char *filename;
         
         if (exchange_file_ready(exchange, binding->sys_id, &data, &size, &max)){
-            Editing_File *ed_file = vars->working_set.files + binding->app_id;
-            char *filename = exchange_file_filename(exchange, binding->sys_id);
+            ed_file = vars->working_set.files + binding->app_id;
+            filename = exchange_file_filename(exchange, binding->sys_id);
+            preload_settings = ed_file->preload;
             if (data){
                 String val = make_string((char*)data, size);
                 file_create_from_string(system, &vars->mem, ed_file, filename,
@@ -3631,25 +3659,17 @@ App_Step_Sig(app_step){
                 
                 if (ed_file->settings.tokens_exist)
                     file_first_lex_parallel(system, &vars->mem.general, ed_file);
-                
-                for (File_View_Iter iter = file_view_iter_init(&vars->layout, ed_file, 0);
-                     file_view_iter_good(iter);
-                     iter = file_view_iter_next(iter)){
-                    view_file_loaded_init(system, iter.view, 0);
-                }
             }
             else{
                 file_create_empty(system, &vars->mem, ed_file, filename,
                                   vars->font_set, vars->style.font_id);
-                //
-                i32 panel_count = vars->layout.panel_count;
-                Panel *current_panel = vars->layout.panels;
-                for (i32 i = 0; i < panel_count; ++i, ++current_panel){
-                    File_View *current_view = view_to_file_view(current_panel->view);
-                    if (current_view && current_view->file == ed_file){
-                        view_measure_wraps(system, &vars->mem.general, current_view);
-                    }
-                }
+            }
+
+            for (File_View_Iter iter = file_view_iter_init(&vars->layout, ed_file, 0);
+                file_view_iter_good(iter);
+                iter = file_view_iter_next(iter)){
+                view_file_loaded_init(system, iter.view, 0);
+                view_cursor_move(iter.view, preload_settings.start_line, 0);
             }
             
             exchange_free_file(exchange, binding->sys_id);

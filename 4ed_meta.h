@@ -47,11 +47,6 @@ struct Data{
 
 #define globalconst static const
 
-#define DrBegin() switch (s.__pc__){ case 0:;
-#define DrEnd() default: Assert(!"Invalid __pc__"); }
-#define DrYield(pc, n) { s.__pc__ = pc; *state = s; return(n); case pc:; }
-#define DrReturn(n) { s.__pc__ = -1; return(n); }
-
 inline i32
 raw_ptr_dif(void *a, void *b) { return (i32)((u8*)a - (u8*)b); }
 

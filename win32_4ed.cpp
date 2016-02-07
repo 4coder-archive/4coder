@@ -317,8 +317,8 @@ system_save_file(char *filename, void *data, i32 size){
 internal b32
 system_file_can_be_made(char *filename){
 	HANDLE file;
-	file = CreateFile((char*)filename, GENERIC_WRITE, 0, 0,
-					  CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, 0);
+	file = CreateFile((char*)filename, FILE_APPEND_DATA, 0, 0,
+					  OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, 0);
 	
 	if (!file || file == INVALID_HANDLE_VALUE){
 		return 0;
@@ -414,7 +414,7 @@ Sys_Set_File_List_Sig(system_set_file_list){
                             char *name_base = name;
                             i32 i = 0;
                             for(;find_data.cFileName[i];++i) *name++ = find_data.cFileName[i];
-                            info->filename.size = (i32)(name - name_base);
+                            info->filename.size = i;
                             info->filename.memory_size = info->filename.size + 1;
                             *name++ = 0;
                             ++info;
@@ -1499,11 +1499,18 @@ UpdateLoop(LPVOID param){
     return(0);
 }
 
+#if 0
 int
 WinMain(HINSTANCE hInstance,
         HINSTANCE hPrevInstance,
         LPSTR lpCmdLine,
         int nCmdShow){
+#else
+int
+main(int argc, char **argv){
+#endif
+    HINSTANCE hInstance = GetModuleHandle(0);
+    
     win32vars = {};
     exchange_vars = {};
     
@@ -1560,11 +1567,14 @@ WinMain(HINSTANCE hInstance,
     terminate_with_null(&current_directory);
 
     Command_Line_Parameters clparams;
-    clparams.argv = __argv;
-    clparams.argc = __argc;
+    clparams.argv = argv;
+    clparams.argc = argc;
     
     char **files;
     i32 *file_count;
+    
+    files = 0;
+    file_count = 0;
     
     i32 output_size =
         win32vars.app.read_command_line(system,
@@ -1577,10 +1587,13 @@ WinMain(HINSTANCE hInstance,
     
     if (output_size > 0){
         // TODO
+        printf("%.*s", output_size, memory_vars.target_memory);
+
     }
     if (output_size != 0) return 0;
+    FreeConsole();
 
-    {
+    if (files){
         i32 i, j;
         i32 end = *file_count;
         for (i = 0, j = 0; i < end; ++i){
@@ -1623,7 +1636,7 @@ WinMain(HINSTANCE hInstance,
             GetProcAddress(win32vars.custom, "get_bindings");
     }
 #endif
-    
+
     Thread_Context background[4];
     memset(background, 0, sizeof(background));
     win32vars.groups[BACKGROUND_THREADS].threads = background;

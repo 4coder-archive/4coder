@@ -132,6 +132,10 @@ struct Editing_File_State{
     u64 last_sys_write_time;
 };
 
+struct Editing_File_Preload{
+    i32 start_line;
+};
+
 struct Editing_File_Name{
     char live_name_[256];
     String live_name;
@@ -144,7 +148,10 @@ struct Editing_File_Name{
 
 struct Editing_File{
     Editing_File_Settings settings;
-    Editing_File_State state;
+    union{
+        Editing_File_State state;
+        Editing_File_Preload preload;
+    };
     Editing_File_Name name;
 };
 
@@ -1494,22 +1501,26 @@ file_create_from_string(System_Functions *system, Mem_Options *mem,
                         Editing_File *file, char *filename,
                         Font_Set *set, i16 font_id,
                         String val, b8 super_locked = 0){
-    file->state = {};
     General_Memory *general = &mem->general;
+    Partition *part = &mem->part;
+    Buffer_Init_Type init;
+    i32 page_size, scratch_size, init_success;
+    
+    file->state = {};
+    
 #if BUFFER_EXPERIMENT_SCALPEL <= 3
-    Buffer_Init_Type init = buffer_begin_init(&file->state.buffer, val.str, val.size);
+    init = buffer_begin_init(&file->state.buffer, val.str, val.size);
     for (; buffer_init_need_more(&init); ){
-        i32 page_size = buffer_init_page_size(&init);
+        page_size = buffer_init_page_size(&init);
         page_size = LargeRoundUp(page_size, Kbytes(4));
         if (page_size < Kbytes(4)) page_size = Kbytes(4);
         void *data = general_memory_allocate(general, page_size, BUBBLE_BUFFER);
         buffer_init_provide_page(&init, data, page_size);
     }
 
-    Partition *part = &mem->part;
-    i32 scratch_size = partition_remaining(part);
+    scratch_size = partition_remaining(part);
     Assert(scratch_size > 0);
-    i32 init_success = buffer_end_init(&init, part->base + part->pos, scratch_size);
+    init_success = buffer_end_init(&init, part->base + part->pos, scratch_size);
     AllowLocal(init_success);
     Assert(init_success);
 #endif
@@ -1517,11 +1528,10 @@ file_create_from_string(System_Functions *system, Mem_Options *mem,
     file_init_strings(file);
     file_set_name(file, (char*)filename);
     
-    //file->settings.base_map_id = mapid_file;
     file->state.font_id = font_id;
     
     file_synchronize_times(system, file, filename);
-
+    
     Render_Font *font = get_font_info(set, font_id)->font;
     float *advance_data = 0;
     if (font) advance_data = font->advance_data;
@@ -1534,22 +1544,22 @@ file_create_from_string(System_Functions *system, Mem_Options *mem,
         file->state.undo.undo.strings = (u8*)general_memory_allocate(general, request_size, BUBBLE_UNDO_STRING);
         file->state.undo.undo.edit_max = request_size / sizeof(Edit_Step);
         file->state.undo.undo.edits = (Edit_Step*)general_memory_allocate(general, request_size, BUBBLE_UNDO);
-    
+
         file->state.undo.redo.max = request_size;
         file->state.undo.redo.strings = (u8*)general_memory_allocate(general, request_size, BUBBLE_UNDO_STRING);
         file->state.undo.redo.edit_max = request_size / sizeof(Edit_Step);
         file->state.undo.redo.edits = (Edit_Step*)general_memory_allocate(general, request_size, BUBBLE_UNDO);
-    
+
         file->state.undo.history.max = request_size;
         file->state.undo.history.strings = (u8*)general_memory_allocate(general, request_size, BUBBLE_UNDO_STRING);
         file->state.undo.history.edit_max = request_size / sizeof(Edit_Step);
         file->state.undo.history.edits = (Edit_Step*)general_memory_allocate(general, request_size, BUBBLE_UNDO);
-    
+
         file->state.undo.children.max = request_size;
         file->state.undo.children.strings = (u8*)general_memory_allocate(general, request_size, BUBBLE_UNDO_STRING);
         file->state.undo.children.edit_max = request_size / sizeof(Buffer_Edit);
         file->state.undo.children.edits = (Buffer_Edit*)general_memory_allocate(general, request_size, BUBBLE_UNDO);
-    
+
         file->state.undo.history_block_count = 1;
         file->state.undo.history_head_block = 0;
         file->state.undo.current_block_normal = 1;
