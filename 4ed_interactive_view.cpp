@@ -132,7 +132,7 @@ step_draw_int_view(System_Functions *system, Interactive_View *view,
                                  view->hot_directory, view->working_set);
         }
     }break;
-        
+    
     case INTV_LIVE_FILE_LIST:
         if (do_live_file_list_box(system, &state, &layout, view->working_set, &view->dest, &complete)){
             result = 1;

@@ -1205,15 +1205,18 @@ file_init_strings(Editing_File *file){
 
 inline void
 file_set_name(Editing_File *file, char *filename){
-    if (file->name.live_name.str == 0) file_init_strings(file);
-    if (filename[0] == '*'){
-        copy(&file->name.live_name, filename);
+    String f, ext;
+    
+    Assert(file->name.live_name.str != 0);
+
+    f = make_string_slowly(filename);
+    copy_checked(&file->name.source_path, f);
+    file->name.live_name.size = 0;
+    get_front_of_directory(&file->name.live_name, f);
+    if (file->name.source_path.size == file->name.live_name.size){
+        file->name.extension.size = 0;
     }
     else{
-        String f, ext;
-        f = make_string_slowly(filename);
-        copy_checked(&file->name.source_path, f);
-        get_front_of_directory(&file->name.live_name, f);
         ext = file_extension(f);
         copy(&file->name.extension, ext);
     }
@@ -1270,8 +1273,8 @@ inline b32
 file_save_and_set_names(System_Functions *system, Exchange *exchange,
                         Mem_Options *mem, Editing_File *file, char *filename){
 	b32 result = 0;
-	if (file_save(system, exchange, mem, file, filename)){
-		result = 1;
+    result = file_save(system, exchange, mem, file, filename);
+	if (result){
         file_set_name(file, filename);
 	}
 	return result;
@@ -2223,7 +2226,7 @@ view_compute_cursor_from_unwrapped_xy(File_View *view, f32 seek_x, f32 seek_y,
 #endif
 }
 
-inline Full_Cursor
+internal Full_Cursor
 view_compute_cursor_from_wrapped_xy(File_View *view, f32 seek_x, f32 seek_y,
                                     b32 round_down = 0){
 #if BUFFER_EXPERIMENT_SCALPEL <= 3
@@ -2246,7 +2249,7 @@ view_compute_cursor_from_wrapped_xy(File_View *view, f32 seek_x, f32 seek_y,
 #endif
 }
 
-inline Full_Cursor
+internal Full_Cursor
 view_compute_cursor_from_line_pos(File_View *view, i32 line, i32 pos){
 #if BUFFER_EXPERIMENT_SCALPEL <= 3
     Editing_File *file = view->file;
@@ -2726,20 +2729,22 @@ file_edit_cursor_fix(System_Functions *system,
                      Editing_File *file, Editing_Layout *layout,
                      Cursor_Fix_Descriptor desc){
     Full_Cursor temp_cursor;
+    File_View *current_view;
     Temp_Memory cursor_temp = begin_temp_memory(part);
     i32 cursor_max = layout->panel_max_count * 2;
     Cursor_With_Index *cursors = push_array(part, Cursor_With_Index, cursor_max);
     
+    f32 y_offset = 0, y_position = 0;
     i32 cursor_count = 0;
     i32 panel_count = layout->panel_count;
     Panel *current_panel = layout->panels;
     for (i32 i = 0; i < panel_count; ++i, ++current_panel){
-        File_View *current_view = view_to_file_view(current_panel->view);
+        current_view = view_to_file_view(current_panel->view);
         if (current_view && current_view->file == file){
             view_measure_wraps(system, general, current_view);
             write_cursor_with_index(cursors, &cursor_count, current_view->cursor.pos);
             write_cursor_with_index(cursors, &cursor_count, current_view->mark);
-            write_cursor_with_index(cursors, &cursor_count, current_view->scroll_i);
+            write_cursor_with_index(cursors, &cursor_count, current_view->scroll_i - 1);
         }
     }
     
@@ -2760,21 +2765,25 @@ file_edit_cursor_fix(System_Functions *system,
         cursor_count = 0;
         current_panel = layout->panels;
         for (i32 i = 0; i < panel_count; ++i, ++current_panel){
-            File_View *current_view = view_to_file_view(current_panel->view);
+            current_view = view_to_file_view(current_panel->view);
             if (current_view && current_view->file == file){
                 view_cursor_move(current_view, cursors[cursor_count++].pos);
                 current_view->preferred_x = view_get_cursor_x(current_view);
                 
                 current_view->mark = cursors[cursor_count++].pos;
-                current_view->scroll_i = cursors[cursor_count++].pos;
+                current_view->scroll_i = cursors[cursor_count++].pos + 1;
                 temp_cursor = view_compute_cursor_from_pos(current_view, current_view->scroll_i);
+                y_offset = MOD(current_view->scroll_y, current_view->font_height);
+                
                 if (current_view->unwrapped_lines){
-                    current_view->target_y += (temp_cursor.unwrapped_y - current_view->scroll_y);
-                    current_view->scroll_y = temp_cursor.unwrapped_y;
+                    y_position = temp_cursor.unwrapped_y + y_offset;
+                    current_view->target_y += (y_position - current_view->scroll_y);
+                    current_view->scroll_y = y_position;
                 }
                 else{
-                    current_view->target_y += (temp_cursor.wrapped_y - current_view->scroll_y);
-                    current_view->scroll_y = temp_cursor.wrapped_y;
+                    y_position = temp_cursor.wrapped_y + y_offset;
+                    current_view->target_y += (y_position - current_view->scroll_y);
+                    current_view->scroll_y = y_position;
                 }
             }
         }
@@ -4189,19 +4198,19 @@ draw_file_bar(File_View *view, Interactive_Bar *bar, Render_Target *target){
         
         intbar_draw_string(target, bar, line_number, base_color);
 
-        if (file){
+        if (!file->settings.unimportant){
             switch (buffer_get_sync(file)){
-            case SYNC_BEHIND_OS:
-            {
-                persist String out_of_sync = make_lit_string(" !");
-                intbar_draw_string(target, bar, out_of_sync, pop2_color);
-            }break;
-        
-            case SYNC_UNSAVED:
-            {
-                persist String out_of_sync = make_lit_string(" *");
-                intbar_draw_string(target, bar, out_of_sync, pop2_color);
-            }break;
+                case SYNC_BEHIND_OS:
+                {
+                    persist String out_of_sync = make_lit_string(" !");
+                    intbar_draw_string(target, bar, out_of_sync, pop2_color);
+                }break;
+
+                case SYNC_UNSAVED:
+                {
+                    persist String out_of_sync = make_lit_string(" *");
+                    intbar_draw_string(target, bar, out_of_sync, pop2_color);
+                }break;
             }
         }
     }

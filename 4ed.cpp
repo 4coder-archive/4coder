@@ -789,6 +789,7 @@ app_open_file_background(App_Vars *vars, Exchange *exchange, Working_Set *workin
             if (file_id){
                 result.is_new = 1;
                 result.file = file.file;
+                file_init_strings(result.file);
                 file_set_name(result.file, filename.str);
                 file_set_to_loading(result.file);
                 table_add(&working_set->table, result.file->name.source_path, file.index);
@@ -923,16 +924,17 @@ COMMAND_DECL(save){
     ProfileMomentFunction();
     REQ_FILE_VIEW(view);
     REQ_FILE(file, view);
-    USE_VARS(vars);
-    USE_MEM(mem);
-    USE_EXCHANGE(exchange);
-    USE_WORKING_SET(working_set);
+    USE_DELAY(delay);
+    USE_PANEL(panel);
     
+    delayed_action(delay, DACT_SAVE, file->name.source_path, panel);
+#if 0
     String *file_path = &file->name.source_path;
     if (file_path->size > 0){
         i32 sys_id = file_save(system, exchange, mem, file, file_path->str);
         app_push_file_binding(vars, sys_id, get_file_id(working_set, file));
     }
+#endif
 }
 
 COMMAND_DECL(interactive_save_as){
@@ -1678,6 +1680,7 @@ build(System_Functions *system, Mem_Options *mem,
       Font_Set *font_set, Style *style,
       Live_Views *live_set, Exchange *exchange,
       Panel *panel, Command_Data *command,
+      String hot_directory,
       char *buffer_name, i32 buffer_name_len,
       char *path, i32 path_len,
       char *script, i32 script_len,
@@ -1725,7 +1728,7 @@ build(System_Functions *system, Mem_Options *mem,
         if (file){
             file_create_super_locked(system, mem, file, buffer_name, font_set, style->font_id);
             file->settings.unimportant = 1;
-            table_add(&working_set->table, file->name.live_name, index);
+            table_add(&working_set->table, file->name.source_path, index);
             
             if (bind_to_new_view){
                 View *new_view = live_set_alloc_view(live_set, mem);
@@ -1735,7 +1738,6 @@ build(System_Functions *system, Mem_Options *mem,
                 view_set_file(system, file_view, file, font_set, style,
                               vars->hooks[hook_open_file], command, &app_links);
                 new_view->map = app_get_map(vars, file->settings.base_map_id);
-                
             }
             
             i32 i = vars->cli_processes.count++;
@@ -1830,6 +1832,7 @@ COMMAND_DECL(build){
     build(system, mem, vars, working_set,
           font_set, style, live_set, exchange,
           panel, command,
+          vars->hot_directory.string,
           buffer_name, buffer_name_len,
           path, path_len,
           script, script_len,
@@ -1877,6 +1880,7 @@ COMMAND_DECL(build_here){
     build(system, mem, vars, working_set,
           font_set, style, live_set, exchange,
           panel, command,
+          vars->hot_directory.string,
           buffer_name, buffer_name_len,
           path.str, path.size,
           dir.str, dir.size,
@@ -3461,7 +3465,8 @@ App_Step_Sig(app_step){
                 if (fview){
                     Editing_File *file = fview->file;
                     if (file && !file->state.is_dummy){
-                        file_save_and_set_names(system, exchange, mem, file, string->str);
+                        i32 sys_id = file_save_and_set_names(system, exchange, mem, file, string->str);
+                        app_push_file_binding(vars, sys_id, get_file_id(working_set, file));
                     }
                 }
             }break;
@@ -3470,7 +3475,8 @@ App_Step_Sig(app_step){
             {
                 Editing_File *file = working_set_lookup_file(working_set, *string);
                 if (!file->state.is_dummy){
-                    file_save(system, exchange, mem, file, file->name.source_path.str);
+                    i32 sys_id = file_save(system, exchange, mem, file, file->name.source_path.str);
+                    app_push_file_binding(vars, sys_id, get_file_id(working_set, file));
                 }
             }break;
             

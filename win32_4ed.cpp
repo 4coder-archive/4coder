@@ -75,6 +75,8 @@ struct Win32_Input_Chunk_Transient{
     b8 mouse_r_press, mouse_r_release;
     b32 out_of_window;
     i16 mouse_wheel;
+    
+    b32 redraw;
 };
 
 struct Win32_Input_Chunk_Persistent{
@@ -411,7 +413,6 @@ Sys_Set_File_List_Sig(system_set_file_list){
                             info->folder = (find_data.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) != 0;
                             info->filename.str = name;
                             
-                            char *name_base = name;
                             i32 i = 0;
                             for(;find_data.cFileName[i];++i) *name++ = find_data.cFileName[i];
                             info->filename.size = i;
@@ -1247,6 +1248,7 @@ Win32Callback(HWND hwnd, UINT uMsg,
             i32 new_height = HIWORD(lParam);
 
             Win32Resize(new_width, new_height);
+            win32vars.input_chunk.trans.redraw = 1;
         }
     }break;
     
@@ -1378,7 +1380,9 @@ UpdateLoop(LPVOID param){
     
         u32 redraw = exchange_vars.thread.force_redraw;
         if (redraw) exchange_vars.thread.force_redraw = 0;
-    
+        redraw = redraw || input_chunk.trans.redraw;
+        
+        
         Key_Input_Data input_data;
         Mouse_State mouse;
         Application_Step_Result result;

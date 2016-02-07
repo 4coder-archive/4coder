@@ -21,37 +21,37 @@
 #include <math.h>
 #endif
 
-inline real32
-ABS(real32 x){
+inline f32
+ABS(f32 x){
     if (x < 0) x = -x;
     return x;
 }
 
-inline real32
-MOD(real32 x, i32 m){
+inline f32
+MOD(f32 x, i32 m){
 #if C_MATH
-    real32 whole, frac;
+    f32 whole, frac;
     frac = modff(x, &whole);
     return ((i32)(whole) % m) + frac;
 #endif
 }
 
-inline real32
-SQRT(real32 x){
+inline f32
+SQRT(f32 x){
 #if C_MATH
     return sqrt(x);
 #endif
 }
 
-inline real32
-SIN(real32 x_degrees){
+inline f32
+SIN(f32 x_degrees){
 #if C_MATH
     return sinf(x_degrees * DEG_TO_RAD);
 #endif
 }
 
-inline real32
-COS(real32 x_degrees){
+inline f32
+COS(f32 x_degrees){
 #if C_MATH
     return cosf(x_degrees * DEG_TO_RAD);
 #endif

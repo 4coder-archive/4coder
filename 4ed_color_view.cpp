@@ -1575,7 +1575,7 @@ do_live_file_list_box(System_Functions *system, UI_State *state, UI_Layout *layo
                     if (do_file_option(100+i, state, layout, file->name.live_name, 0, message)){
                         result = 1;
                         *selected = 1;
-                        copy(string, file->name.live_name);
+                        copy(string, file->name.source_path);
                         terminate_with_null(string);
                     }
                 }
