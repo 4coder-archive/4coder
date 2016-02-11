@@ -236,7 +236,7 @@ COMMAND_DECL(write_character){
     i32 pos;
     pos = view->cursor.pos;
     i32 next_cursor_pos = view->cursor.pos + string.size;
-    view_replace_range(system, mem, view, layout, pos, pos, (u8*)string.str, string.size, next_cursor_pos);
+    view_replace_range(system, mem, view, layout, pos, pos, string.str, string.size, next_cursor_pos);
     view_cursor_move(view, next_cursor_pos);
     file->state.cursor_pos = view->cursor.pos;
 }
@@ -421,7 +421,7 @@ COMMAND_DECL(search){
     view_set_widget(view, FWIDG_SEARCH);
     view->isearch.str = vars->mini_str;
     view->isearch.reverse = 0;
-    view->isearch.pos = view->cursor.pos;
+    view->isearch.pos = view->cursor.pos - 1;
 }
 
 COMMAND_DECL(rsearch){
@@ -433,7 +433,80 @@ COMMAND_DECL(rsearch){
     view_set_widget(view, FWIDG_SEARCH);
     view->isearch.str = vars->mini_str;
     view->isearch.reverse = 1;
-    view->isearch.pos = view->cursor.pos;
+    view->isearch.pos = view->cursor.pos + 1;
+}
+
+COMMAND_DECL(word_complete){
+    ProfileMomentFunction();
+    REQ_FILE_VIEW(view);
+    REQ_FILE(file, view);
+    USE_LAYOUT(layout);
+    USE_MEM(mem);
+    
+    Partition *part = &mem->part;
+    
+    Temp_Memory temp1, temp2;
+    
+    Buffer_Type *buffer;
+    Buffer_Backify_Type loop;
+    char *data;
+    i32 end;
+    
+    i32 cursor_pos, word_start, word_end;
+    char c;
+    
+    char *str, *spare;
+    i32 size;
+    
+    i32 match_start, match_end, match_size;
+    
+    buffer = &file->state.buffer;
+    word_end = view->cursor.pos;
+    word_start = word_end;
+    cursor_pos = word_end - 1;
+    
+    // TODO(allen): macros for these buffer loops and some method of breaking out of them.
+    for (loop = buffer_backify_loop(buffer, cursor_pos, 0);
+        buffer_backify_good(&loop);
+        buffer_backify_next(&loop)){
+        end = loop.absolute_pos;
+        data = loop.data - loop.absolute_pos;
+        for (; cursor_pos >= end; --cursor_pos){
+            c = data[cursor_pos];
+            if (char_is_alpha(c)){
+                word_start = cursor_pos;
+            }
+            else if (!char_is_numeric(c)){
+                goto double_break;
+            }
+        }
+    }
+    // TODO(allen): figure out how labels are scoped.
+    double_break:;
+    
+    size = word_end - word_start;
+    
+    if (size > 0){
+        temp1 = begin_temp_memory(part);
+        
+        str = (char*)push_array(part, char, size);
+        buffer_stringify(buffer, word_start, word_end, str);
+        
+        temp2 = begin_temp_memory(part);
+        spare = (char*)push_array(part, char, size);
+        end_temp_memory(temp2);
+        
+        // TODO(allen): find string needs explicit end position
+        match_start = buffer_find_string(buffer, word_end, str, size, spare);
+        match_end = buffer_seek_word_right_assume_on_word(buffer, match_start);
+        match_size = match_end - match_start;
+        spare = (char*)push_array(part, char, match_size);
+        buffer_stringify(buffer, match_start, match_end, spare);
+        
+        view_replace_range(system, mem, view, layout, word_start, word_end, spare, match_size, word_end);
+        
+        end_temp_memory(temp1);
+    }
 }
 
 COMMAND_DECL(goto_line){
@@ -497,24 +570,29 @@ COMMAND_DECL(paste){
     USE_LAYOUT(layout);
     USE_MEM(mem);
     
+    Panel *current_panel;
+    String *src;
+    File_View *current_view;
+    i32 pos_left, next_cursor_pos;
+    i32 panel_count;
+    i32 i;
+    
     if (working_set->clipboard_size > 0){
         view->next_mode.rewrite = 1;
         
-        String *src = working_set_clipboard_head(working_set);
-        i32 pos_left = view->cursor.pos;
+        src = working_set_clipboard_head(working_set);
+        pos_left = view->cursor.pos;
 
-        i32 next_cursor_pos = pos_left+src->size;
-        view_replace_range(system, mem, view, layout, pos_left, pos_left, (u8*)src->str, src->size, next_cursor_pos);
+        next_cursor_pos = pos_left+src->size;
+        view_replace_range(system, mem, view, layout, pos_left, pos_left, src->str, src->size, next_cursor_pos);
         
         view_cursor_move(view, next_cursor_pos);
         view->mark = pos_left;
         
-        Editing_Layout *layout = command->layout;
-        Panel *panels = layout->panels;
-        i32 panel_count = layout->panel_count;
-        for (i32 i = 0; i < panel_count; ++i){
-            Panel *current_panel = panels + i;
-            File_View *current_view = view_to_file_view(current_panel->view);
+        current_panel = layout->panels;
+        panel_count = layout->panel_count;
+        for (i = 0; i < panel_count; ++i, ++current_panel){
+            current_view = view_to_file_view(current_panel->view);
             
             if (current_view && current_view->file == file){
                 view_post_paste_effect(current_view, 20, pos_left, src->size,
@@ -540,7 +618,7 @@ COMMAND_DECL(paste_next){
         i32 next_cursor_pos = range.start+src->size;
         view_replace_range(system,
                            mem, view, layout, range.start, range.end,
-                           (u8*)src->str, src->size, next_cursor_pos);
+                           src->str, src->size, next_cursor_pos);
         
         view_cursor_move(view, next_cursor_pos);
         view->mark = range.start;
@@ -2081,10 +2159,12 @@ setup_file_commands(Command_Map *commands, Partition *part, Key_Codes *codes, Co
     map_add(commands, 'l', MDFR_CTRL, command_toggle_line_wrap);
     map_add(commands, '?', MDFR_CTRL, command_toggle_show_whitespace);
     map_add(commands, '|', MDFR_CTRL, command_toggle_tokens);
-    map_add(commands, 'u', MDFR_CTRL, command_to_uppercase);
-    map_add(commands, 'j', MDFR_CTRL, command_to_lowercase);
+    map_add(commands, 'U', MDFR_CTRL, command_to_uppercase);
+    map_add(commands, 'u', MDFR_CTRL, command_to_lowercase);
     map_add(commands, '~', MDFR_CTRL, command_clean_all_lines);
     map_add(commands, 'f', MDFR_CTRL, command_search);
+    map_add(commands, 'j', MDFR_CTRL, command_word_complete);
+    
     map_add(commands, 'r', MDFR_CTRL, command_rsearch);
     map_add(commands, 'g', MDFR_CTRL, command_goto_line);
     
@@ -2616,12 +2696,12 @@ App_Read_Command_Line_Sig(app_read_command_line){
         vars = app_setup_memory(memory);
         if (clparams.argc > 1){
             init_command_line_settings(&vars->settings, plat_settings, clparams);
-            *files = vars->settings.init_files;
-            *file_count = &vars->settings.init_files_count;
         }
         else{
             vars->settings = {};
         }
+        *files = vars->settings.init_files;
+        *file_count = &vars->settings.init_files_count;
     }
 
     return(out_size);

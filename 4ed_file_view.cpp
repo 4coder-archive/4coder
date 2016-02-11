@@ -2967,7 +2967,7 @@ view_do_white_batch_edit(System_Functions *system, Mem_Options *mem, File_View *
 inline void
 view_replace_range(System_Functions *system,
                    Mem_Options *mem, File_View *view, Editing_Layout *layout,
-                   i32 start, i32 end, u8 *str, i32 len, i32 next_cursor){
+                   i32 start, i32 end, char *str, i32 len, i32 next_cursor){
     if (view->locked) return;
     Edit_Spec spec = {};
     spec.step.type = ED_NORMAL;
@@ -2976,7 +2976,7 @@ view_replace_range(System_Functions *system,
     spec.step.edit.len = len;
     spec.step.pre_pos = view->cursor.pos;
     spec.step.post_pos = next_cursor;
-    spec.str = str;
+    spec.str = (u8*)str;
     file_do_single_edit(system, mem, view->file, layout, spec, hist_normal);
 }
 

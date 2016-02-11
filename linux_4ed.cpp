@@ -43,22 +43,82 @@
 #include <X11/extensions/XInput2.h>
 #include <linux/input.h>
 #include <time.h>
+#include <dlfcn.h>
+#include <unistd.h>
 
 #include "4ed_internal.h"
 #include "4ed_linux_keyboard.cpp"
+#include "system_shared.h"
 
 #include <stdlib.h>
 
-void*
-LinuxGetMemory(i32 size){
+struct Linux_Vars{
+    void *app_code;
+    void *custom;
+    
+    Plat_Settings settings;
+    System_Functions *system;
+    App_Functions app;
+    Custom_API custom_api;
+    b32 first;
+    
+#if FRED_INTERNAL
+    Sys_Bubble internal_bubble;
+#endif
+};
+
+globalvar Linux_Vars linuxvars;
+globalvar Application_Memory memory_vars;
+globalvar Exchange exchange_vars;
+
+internal
+Sys_Get_Memory_Sig(system_get_memory_){
     // TODO(allen): Implement without stdlib.h
-    return (malloc(size));
+    void *result = 0;
+    
+    if (size != 0){
+#if FRED_INTERNAL
+        Sys_Bubble *bubble;
+    
+        result = malloc(size + sizeof(Sys_Bubble));
+        bubble = (Sys_Bubble*)result;
+        bubble->flags = MEM_BUBBLE_SYS_DEBUG;
+        bubble->line_number = line_number;
+        bubble->file_name = file_name;
+        bubble->size = size;
+    
+        // TODO(allen): make Sys_Bubble list thread safe
+        insert_bubble(&linuxvars.internal_bubble, bubble);
+        result = bubble + 1;
+    
+#else
+        result = malloc(size);
+#endif
+    }
+    
+    return(result);
 }
 
-void
-LinuxFreeMemory(void *block){
+internal
+Sys_Free_Memory_Sig(system_free_memory){
     // TODO(allen): Implement without stdlib.h
-    free(block);
+    
+    if (block){
+#if FRED_INTERNAL
+        Sys_Bubble *bubble;
+        
+        bubble = (Sys_Bubble*)block;
+        --bubble;
+        Assert((bubble->flags & MEM_BUBBLE_DEBUG_MASK) == MEM_BUBBLE_SYS_DEBUG);
+
+        // TODO(allen): make Sys_Bubble list thread safe
+        remove_bubble(bubble);
+        
+        free(bubble);
+#else
+        free(block);
+#endif
+    }
 }
 
 #if (defined(_BSD_SOURCE) || defined(_SVID_SOURCE))
@@ -92,6 +152,7 @@ Sys_File_Time_Stamp_Sig(system_file_time_stamp){
     return(result);
 }
 
+// TODO(allen): DOES THIS AGREE WITH THE FILESTAMP TIMES?
 Sys_Time_Sig(system_time){
     struct timespec spec;
     u64 result;
@@ -125,10 +186,8 @@ Sys_Set_File_List_Sig(system_set_file_list){
 
         required_size = count + file_count * sizeof(File_Info);
         if (file_list->block_size < required_size){
-            if (file_list->block){
-                LinuxFreeMemory(file_list->block);
-            }
-            file_list->block = LinuxGetMemory(required_size);
+            system_free_memory(file_list->block);
+            file_list->block = system_get_memory(required_size);
         }
         
         file_list->infos = (File_Info*)file_list->block;
@@ -143,11 +202,13 @@ Sys_Set_File_List_Sig(system_set_file_list){
                 fname = entry->d_name;
                 cursor_start = cursor;
                 for (; *fname; ) *cursor++ = *fname++;
-                *cursor++ = 0;
-                
+
+                // TODO(allen): detect file/folder status
+                // (also make sure this even GETS folders!!!)
                 info_ptr->folder = 0;
                 info_ptr->filename.str = cursor_start;
                 info_ptr->filename.size = (i32)(cursor - cursor_start);
+                *cursor++ = 0;
                 info_ptr->filename.memory_size = info_ptr->filename.size + 1;
             }
         }
@@ -160,6 +221,181 @@ Sys_Post_Clipboard_Sig(system_post_clipboard){
     // TODO(allen): Implement
     AllowLocal(str);
 }
+
+Sys_CLI_Call_Sig(system_cli_call){
+    // TODO(allen): Implement
+    AllowLocal(path);
+    AllowLocal(script_name);
+    AllowLocal(cli_out);
+}
+
+Sys_CLI_Begin_Update_Sig(system_cli_begin_update){
+    // TODO(allen): Implement
+    AllowLocal(cli);
+}
+
+Sys_CLI_Update_Step_Sig(system_cli_update_step){
+    // TODO(allen): Implement
+    AllowLocal(cli);
+    AllowLocal(dest);
+    AllowLocal(max);
+    AllowLocal(amount);
+}
+
+Sys_CLI_End_Update_Sig(system_cli_end_update){
+    // TODO(allen): Implement
+    AllowLocal(cli);
+}
+
+Sys_Post_Job_Sig(system_post_job){
+    // TODO(allen): Implement
+    AllowLocal(group_id);
+    AllowLocal(job);
+}
+
+Sys_Cancel_Job_Sig(system_cancel_job){
+    // TODO(allen): Implement
+    AllowLocal(group_id);
+    AllowLocal(job_id);
+}
+
+Sys_Acquire_Lock_Sig(system_acquire_lock){
+    // TODO(allen): Implement
+    AllowLocal(id);
+}
+
+Sys_Release_Lock_Sig(system_release_lock){
+    // TODO(allen): Implement
+    AllowLocal(id);
+}
+
+Sys_Grow_Thread_Memory_Sig(system_grow_thread_memory){
+    void *old_data;
+    i32 old_size, new_size;
+    
+    system_acquire_lock(CANCEL_LOCK0 + memory->id - 1);
+    old_data = memory->data;
+    old_size = memory->size;
+    new_size = LargeRoundUp(memory->size*2, Kbytes(4));
+    memory->data = system_get_memory(new_size);
+    memory->size = new_size;
+    if (old_data){
+        memcpy(memory->data, old_data, old_size);
+        system_free_memory(old_data);
+    }
+    system_release_lock(CANCEL_LOCK0 + memory->id - 1);
+}
+
+INTERNAL_Sys_Sentinel_Sig(internal_sentinel){
+    Bubble *result;
+#if FRED_INTERNAL
+    result = &linuxvars.internal_bubble;
+#else
+    result = 0;
+#endif
+    return(result);
+}
+
+INTERNAL_Sys_Get_Thread_States_Sig(internal_get_thread_states){
+    // TODO(allen): Implement
+    AllowLocal(id);
+    AllowLocal(running);
+    AllowLocal(pending);
+}
+
+INTERNAL_Sys_Debug_Message_Sig(internal_debug_message){
+    printf("%s", message);
+}
+
+DIRECTORY_HAS_FILE_SIG(system_directory_has_file){
+    int result = 0;
+    // TODO(allen): Implement
+    AllowLocal(dir);
+    AllowLocal(filename);
+    return(result);
+}
+
+DIRECTORY_CD_SIG(system_directory_cd){
+    int result = 0;
+    // TODO(allen): Implement
+    AllowLocal(dir);
+    AllowLocal(rel_path);
+    return(result);
+}
+
+internal
+Sys_File_Can_Be_Made(system_file_can_be_made){
+    // TODO(allen): Implement
+    AllowLocal(filename);
+    return(0);
+}
+
+internal
+Sys_Load_File_Sig(system_load_file){
+    Data result = {};
+    // TODO(allen): Implement
+    AllowLocal(filename);
+    return(result);
+}
+
+internal
+Sys_Save_File_Sig(system_save_file){
+    b32 result = 0;
+    // TODO(allen): Implement
+    AllowLocal(filename);
+    AllowLocal(data);
+    AllowLocal(size);
+    return(result);
+}
+
+internal b32
+LinuxLoadAppCode(){
+    b32 result = 0;
+    App_Get_Functions *get_funcs = 0;
+
+    linuxvars.app_code = dlopen("./4ed_app.so", RTLD_LAZY);
+    if (linuxvars.app_code){
+        get_funcs = (App_Get_Functions*)
+            dlsym(linuxvars.app_code, "app_get_functions");
+    }
+    
+    if (get_funcs){
+        result = 1;
+        linuxvars.app = get_funcs();
+    }
+    
+    return(result);
+}
+
+internal void
+LinuxLoadSystemCode(){
+    linuxvars.system->file_time_stamp = system_file_time_stamp;
+    linuxvars.system->set_file_list = system_set_file_list;
+
+    linuxvars.system->directory_has_file = system_directory_has_file;
+    linuxvars.system->directory_cd = system_directory_cd;
+
+    linuxvars.system->post_clipboard = system_post_clipboard;
+    linuxvars.system->time = system_time;
+    
+    linuxvars.system->cli_call = system_cli_call;
+    linuxvars.system->cli_begin_update = system_cli_begin_update;
+    linuxvars.system->cli_update_step = system_cli_update_step;
+    linuxvars.system->cli_end_update = system_cli_end_update;
+
+    linuxvars.system->post_job = system_post_job;
+    linuxvars.system->cancel_job = system_cancel_job;
+    linuxvars.system->grow_thread_memory = system_grow_thread_memory;
+    linuxvars.system->acquire_lock = system_acquire_lock;
+    linuxvars.system->release_lock = system_release_lock;
+    
+    linuxvars.system->internal_sentinel = internal_sentinel;
+    linuxvars.system->internal_get_thread_states = internal_get_thread_states;
+    linuxvars.system->internal_debug_message = internal_debug_message;
+}
+
+#include "system_shared.cpp"
+#include "4ed_rendering.cpp"
 
 // NOTE(allen): Thanks to Casey for providing the linux OpenGL launcher.
 static bool ctxErrorOccurred = false;
@@ -490,8 +726,77 @@ InitializeXInput(Display *dpy, Window XWindow)
 }
 
 int
-main(int ArgCount, char **Args)
+main(int argc, char **argv)
 {
+    linuxvars = {};
+    exchange_vars = {};
+    
+#if FRED_INTERNAL
+    linuxvars.internal_bubble.next = &linuxvars.internal_bubble;
+    linuxvars.internal_bubble.prev = &linuxvars.internal_bubble;
+    linuxvars.internal_bubble.flags = MEM_BUBBLE_SYS_DEBUG;
+#endif
+    
+    if (!LinuxLoadAppCode()){
+        // TODO(allen): Failed to load app code, serious problem.
+        return 99;
+    }
+    
+    System_Functions system_;
+    System_Functions *system = &system_;
+    linuxvars.system = system;
+    LinuxLoadSystemCode();
+    
+	memory_vars.vars_memory_size = Mbytes(2);
+    memory_vars.vars_memory = system_get_memory(memory_vars.vars_memory_size);
+    memory_vars.target_memory_size = Mbytes(512);
+    memory_vars.target_memory = system_get_memory(memory_vars.target_memory_size);
+    
+    String current_directory;
+    i32 curdir_req, curdir_size;
+    char *curdir_mem;
+    
+    curdir_req = (1 << 9);
+    curdir_mem = (char*)system_get_memory(curdir_req);
+    for (; getcwd(curdir_mem, curdir_req) == 0 && curdir_req < (1 << 13);){
+        system_free_memory(curdir_mem);
+        curdir_req *= 4;
+        curdir_mem = (char*)system_get_memory(curdir_req);
+    }
+    
+    if (curdir_req >= (1 << 13)){
+        // TODO(allen): fuckin' bullshit string APIs makin' me pissed
+        return 57;
+    }
+    
+    for (curdir_size = 0; curdir_mem[curdir_size]; ++curdir_size);
+    
+    current_directory = make_string(curdir_mem, curdir_size, curdir_req);
+    
+    Command_Line_Parameters clparams;
+    clparams.argv = argv;
+    clparams.argc = argc;
+    
+    char **files;
+    i32 *file_count;
+    i32 output_size;
+
+    output_size =
+        linuxvars.app.read_command_line(system,
+                                        &memory_vars,
+                                        current_directory,
+                                        &linuxvars.settings,
+                                        &files, &file_count,
+                                        clparams);
+
+    if (output_size > 0){
+        // TODO(allen): crt free version
+        printf("%.*s", output_size, (char*)memory_vars.target_memory);
+    }
+    if (output_size != 0) return 0;
+
+    system_filter_real_files(files, file_count);
+    
     Display *XDisplay = XOpenDisplay(0);
     if(XDisplay && GLXSupportsModernContexts(XDisplay))
     {

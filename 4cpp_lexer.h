@@ -226,10 +226,20 @@ enum Cpp_Token_Type{
     CPP_TOKEN_EOF
 };
 
+// TODO(allen): This is a dumb redundant type... probably just
+// move towards using String for this everywhere eventually.
 struct Cpp_File{
 	char *data;
 	int size;
 };
+
+Cpp_File
+data_as_cpp_file(Data data){
+    Cpp_File result;
+    result.data = (char*)data.data;
+    result.size = data.size;
+    return(result);
+}
 
 struct Cpp_Token{
 	Cpp_Token_Type type;

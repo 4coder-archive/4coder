@@ -239,6 +239,29 @@ buffer_seek_whitespace_left(Buffer_Type *buffer, int pos){
 }
 
 internal_4tech int
+buffer_seek_word_right_assume_on_word(Buffer_Type *buffer, int pos){
+    Buffer_Stringify_Type loop;
+    char *data;
+    int end;
+    int size;
+    
+    size = buffer_size(buffer);
+    loop = buffer_stringify_loop(buffer, pos, size);
+    
+    for (;buffer_stringify_good(&loop);
+         buffer_stringify_next(&loop)){
+        end = loop.size + loop.absolute_pos;
+        data = loop.data - loop.absolute_pos;
+        for (; pos < end; ++pos){
+            if (!is_alphanumeric(data[pos])) goto double_break;
+        }
+    }
+double_break:
+
+    return(pos);
+}
+
+internal_4tech int
 buffer_seek_alphanumeric_right(Buffer_Type *buffer, int pos){
     Buffer_Stringify_Type loop;
     char *data;

@@ -21,6 +21,9 @@ enum My_Maps{
 };
 
 HOOK_SIG(my_start){
+    exec_command(cmd_context, cmdid_open_panel_hsplit);
+    exec_command(cmd_context, cmdid_change_active_panel);
+    
     exec_command(cmd_context, cmdid_open_panel_vsplit);
     exec_command(cmd_context, cmdid_change_active_panel);
 }

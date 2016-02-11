@@ -35,6 +35,7 @@
 #include "4ed_dll_reader.cpp"
 #include "4ed_internal.h"
 #include "4ed_win32_keyboard.cpp"
+#include "system_shared.h"
 
 #define FPS 30
 #define frame_useconds (1000000 / FPS)
@@ -59,7 +60,6 @@ struct Thread_Group{
 };
 
 #define UseWinDll 1
-#define UseThreadMemory 1
 
 struct Control_Keys{
     b8 l_ctrl;
@@ -130,9 +130,7 @@ struct Win32_Vars{
     HANDLE locks[LOCK_COUNT];
     HANDLE DEBUG_sysmem_lock;
 
-#if UseThreadMemory
     Thread_Memory *thread_memory;
-#endif
 
     u64 performance_frequency;
     u64 start_pcount;
@@ -179,6 +177,8 @@ INTERNAL_system_debug_message(char *message){
 
 #endif
 
+// TODO(allen): Transition towards using system_shared functions
+
 internal void*
 Win32GetMemory_(i32 size, i32 line_number, char *file_name){
 	void *ptr = 0;
@@ -200,6 +200,11 @@ Win32GetMemory_(i32 size, i32 line_number, char *file_name){
 #endif
     
 	return ptr;
+}
+
+internal
+Sys_Get_Memory_Sig(system_get_memory_){
+    return(Win32GetMemory_(size, line_number, file_name));
 }
 
 #define Win32GetMemory(size) Win32GetMemory_(size, __LINE__, __FILE__)
@@ -290,8 +295,6 @@ system_load_file(char *filename){
     CloseHandle(file);
     return result;
 }
-
-#include "4ed_rendering.cpp"
 
 internal b32
 system_save_file(char *filename, void *data, i32 size){
@@ -392,10 +395,7 @@ Sys_Set_File_List_Sig(system_set_file_list){
 
             i32 required_size = count + file_count * sizeof(File_Info);
             if (file_list->block_size < required_size){
-                if (file_list->block){
-                    Win32FreeMemory(file_list->block);
-                }
-                
+                Win32FreeMemory(file_list->block);    
                 file_list->block = Win32GetMemory(required_size);
             }
             
@@ -537,15 +537,6 @@ Sys_Release_Lock_Sig(system_release_lock){
 }
 
 internal void
-Win32RedrawScreen(HDC hdc){
-    system_acquire_lock(RENDER_LOCK);
-    launch_rendering(&win32vars.target);
-    system_release_lock(RENDER_LOCK);
-    glFlush();
-    SwapBuffers(hdc);
-}
-
-internal void
 Win32RedrawFromUpdate(){
     SendMessage(
         win32vars.window_handle,
@@ -619,13 +610,10 @@ ThreadProc(LPVOID lpParameter){
                 if (safe_running_thread == THREAD_NOT_ASSIGNED){
                     thread->job_id = full_job->id;
                     thread->running = 1;
-#if UseThreadMemory
                     Thread_Memory *thread_memory = 0;
-#endif
                     
                     // TODO(allen): remove memory_request
                     if (full_job->job.memory_request != 0){
-#if UseThreadMemory
                         thread_memory = win32vars.thread_memory + thread->id - 1;
                         if (thread_memory->size < full_job->job.memory_request){
                             if (thread_memory->data){
@@ -635,7 +623,6 @@ ThreadProc(LPVOID lpParameter){
                             thread_memory->data = Win32GetMemory(new_size);
                             thread_memory->size = new_size;
                         }
-#endif
                     }
                     full_job->job.callback(win32vars.system, thread, thread_memory,
                                            &exchange_vars.thread, full_job->job.data);
@@ -708,13 +695,15 @@ Sys_Cancel_Job_Sig(system_cancel_job){
     }
 }
 
-#if UseThreadMemory
 internal void
 system_grow_thread_memory(Thread_Memory *memory){
+    void *old_data;
+    i32 old_size, new_size;
+    
     system_acquire_lock(CANCEL_LOCK0 + memory->id - 1);
-    void *old_data = memory->data;
-    i32 old_size = memory->size;
-    i32 new_size = LargeRoundUp(memory->size*2, Kbytes(4));
+    old_data = memory->data;
+    old_size = memory->size;
+    new_size = LargeRoundUp(memory->size*2, Kbytes(4));
     memory->data = Win32GetMemory(new_size);
     memory->size = new_size;
     if (old_data){
@@ -723,7 +712,6 @@ system_grow_thread_memory(Thread_Memory *memory){
     }
     system_release_lock(CANCEL_LOCK0 + memory->id - 1);
 }
-#endif
 
 #if FRED_INTERNAL
 internal void
@@ -911,15 +899,13 @@ Font_Load_Sig(system_draw_font_load){
 internal b32
 Win32LoadAppCode(){
     b32 result = 0;
-
+    App_Get_Functions *get_funcs = 0;
+    
 #if UseWinDll
     win32vars.app_code = LoadLibraryA("4ed_app.dll");
     if (win32vars.app_code){
-        result = 1;
-        App_Get_Functions *get_funcs = (App_Get_Functions*)
+        get_funcs = (App_Get_Functions*)
             GetProcAddress(win32vars.app_code, "app_get_functions");
-
-        win32vars.app = get_funcs();
     }
 
 #else
@@ -944,8 +930,7 @@ Win32LoadAppCode(){
                            PAGE_EXECUTE_READ,
                            &extra_);
 
-            result = 1;
-            App_Get_Functions *get_functions = (App_Get_Functions*)
+            get_funcs = (App_Get_Functions*)
                 dll_load_function(&win32vars.app_dll, "app_get_functions", 17);
         }
         else{
@@ -962,6 +947,11 @@ Win32LoadAppCode(){
     
 #endif
 
+    if (get_funcs){
+        result = 1;
+        win32vars.app = get_funcs();        
+    }
+    
     return result;
 }
 
@@ -990,6 +980,18 @@ Win32LoadSystemCode(){
     win32vars.system->internal_sentinel = INTERNAL_system_sentinel;
     win32vars.system->internal_get_thread_states = INTERNAL_get_thread_states;
     win32vars.system->internal_debug_message = INTERNAL_system_debug_message;
+}
+
+#include "system_shared.cpp"
+#include "4ed_rendering.cpp"
+
+internal void
+Win32RedrawScreen(HDC hdc){
+    system_acquire_lock(RENDER_LOCK);
+    launch_rendering(&win32vars.target);
+    system_release_lock(RENDER_LOCK);
+    glFlush();
+    SwapBuffers(hdc);
 }
 
 void
@@ -1564,7 +1566,7 @@ main(int argc, char **argv){
     DWORD required = GetCurrentDirectory(0, 0);
     required += 1;
     required *= 4;
-    char *current_directory_mem = (char*)Win32GetMemory(required);
+    char *current_directory_mem = (char*)system_get_memory(required);
     DWORD written = GetCurrentDirectory(required, current_directory_mem);
 
     String current_directory = make_string(current_directory_mem, written, required);
@@ -1590,24 +1592,13 @@ main(int argc, char **argv){
     //
     
     if (output_size > 0){
-        // TODO
+        // TODO(allen): crt free version
         printf("%.*s", output_size, memory_vars.target_memory);
-
     }
     if (output_size != 0) return 0;
     FreeConsole();
 
-    if (files){
-        i32 i, j;
-        i32 end = *file_count;
-        for (i = 0, j = 0; i < end; ++i){
-            if (system_file_can_be_made(files[i])){
-                files[j] = files[i];
-                ++j;
-            }
-        }
-        *file_count = j;
-    }
+    system_filter_real_files(files, file_count);
     
     LARGE_INTEGER lpf;
     QueryPerformanceFrequency(&lpf);
@@ -1646,11 +1637,8 @@ main(int argc, char **argv){
     win32vars.groups[BACKGROUND_THREADS].threads = background;
     win32vars.groups[BACKGROUND_THREADS].count = ArrayCount(background);
 
-    
-#if UseThreadMemory
     Thread_Memory thread_memory[ArrayCount(background)];
     win32vars.thread_memory = thread_memory;
-#endif
     
     exchange_vars.thread.queues[BACKGROUND_THREADS].semaphore =
         Win32GenHandle(
@@ -1662,11 +1650,9 @@ main(int argc, char **argv){
         Thread_Context *thread = win32vars.groups[BACKGROUND_THREADS].threads + i;
         thread->id = i + 1;
 
-#if UseThreadMemory
         Thread_Memory *memory = win32vars.thread_memory + i;
         *memory = {};
         memory->id = thread->id;
-#endif
         
         thread->queue = &exchange_vars.thread.queues[BACKGROUND_THREADS];
         thread->handle = CreateThread(0, 0, ThreadProc, thread, creation_flag, (LPDWORD)&thread->windows_id);
@@ -1864,7 +1850,9 @@ main(int argc, char **argv){
                        &memory_vars, &exchange_vars, &win32vars.key_codes,
                        win32vars.clipboard_contents, current_directory,
                        win32vars.custom_api);
-	
+    
+    system_free_memory(current_directory.str);
+    
 	win32vars.input_chunk.pers.keep_playing = 1;
 	win32vars.first = 1;
 	timeBeginPeriod(1);

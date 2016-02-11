@@ -896,7 +896,7 @@ do_font_option(Color_UI *ui, i16 font_id){
     b32 result = 0;
     Font_Info *info = get_font_info(ui->state.font_set, font_id);
     
-    i32 sub_id = (i32)(info);
+    i32 sub_id = (i32)(i64)(info);
     i32_Rect orect = layout_rect(&ui->layout, info->height);
     
     Widget_ID wid = make_sub0(&ui->state, sub_id);
