@@ -1203,22 +1203,61 @@ file_init_strings(Editing_File *file){
     file->name.extension = make_fixed_width_string(file->name.extension_);
 }
 
+inline b32
+file_is_ready(Editing_File *file){
+    b32 result = 0;
+    if (file && file->state.is_loading == 0){
+        result = 1;
+    }
+    return(result);
+}
+
 inline void
-file_set_name(Editing_File *file, char *filename){
+file_set_name(Working_Set *working_set, Editing_File *file, char *filename){
     String f, ext;
+    Editing_File *file_ptr;
+    i32 i, count, file_x, original_len;
+    b32 hit_conflict;
     
     Assert(file->name.live_name.str != 0);
 
     f = make_string_slowly(filename);
     copy_checked(&file->name.source_path, f);
+    
     file->name.live_name.size = 0;
     get_front_of_directory(&file->name.live_name, f);
+    
     if (file->name.source_path.size == file->name.live_name.size){
         file->name.extension.size = 0;
     }
     else{
         ext = file_extension(f);
         copy(&file->name.extension, ext);
+    }
+    
+    original_len = file->name.live_name.size;
+    count = working_set->file_index_count;
+    hit_conflict = 1;
+    file_x = 0;
+    while (hit_conflict){
+        hit_conflict = 0;
+        file_ptr = working_set->files;
+        for (i = 0; i < count; ++i, ++file_ptr){
+            if (file_ptr != file && !file_ptr->state.is_dummy && file_is_ready(file_ptr)){
+                if (match(file->name.live_name, file_ptr->name.live_name)){
+                    ++file_x;
+                    hit_conflict = 1;
+                    break;
+                }
+            }
+        }
+        
+        if (hit_conflict){
+            file->name.live_name.size = original_len;
+            append(&file->name.live_name, " <");
+            append_int_to_str(file_x, &file->name.live_name);
+            append(&file->name.live_name, ">");
+        }
     }
 }
 
@@ -1271,11 +1310,12 @@ file_save(System_Functions *system, Exchange *exchange, Mem_Options *mem,
 
 inline b32
 file_save_and_set_names(System_Functions *system, Exchange *exchange,
-                        Mem_Options *mem, Editing_File *file, char *filename){
+                        Mem_Options *mem, Working_Set *working_set, Editing_File *file,
+                        char *filename){
 	b32 result = 0;
     result = file_save(system, exchange, mem, file, filename);
 	if (result){
-        file_set_name(file, filename);
+        file_set_name(working_set, file, filename);
 	}
 	return result;
 }
@@ -1501,9 +1541,10 @@ alloc_for_buffer(void *context, int *size){
 
 internal void
 file_create_from_string(System_Functions *system, Mem_Options *mem,
-                        Editing_File *file, char *filename,
-                        Font_Set *set, i16 font_id,
-                        String val, b8 super_locked = 0){
+    Working_Set *working_set, Editing_File *file, char *filename,
+    Font_Set *set, i16 font_id,
+    String val, b8 super_locked = 0){
+    
     General_Memory *general = &mem->general;
     Partition *part = &mem->part;
     Buffer_Init_Type init;
@@ -1529,7 +1570,7 @@ file_create_from_string(System_Functions *system, Mem_Options *mem,
 #endif
     
     file_init_strings(file);
-    file_set_name(file, (char*)filename);
+    file_set_name(working_set, file, (char*)filename);
     
     file->state.font_id = font_id;
     
@@ -1570,20 +1611,25 @@ file_create_from_string(System_Functions *system, Mem_Options *mem,
 }
 
 internal b32
-file_create_empty(System_Functions *system, Mem_Options *mem, Editing_File *file,
-                  char *filename, Font_Set *set, i16 font_id){
+file_create_empty(
+    System_Functions *system, Mem_Options *mem,
+    Working_Set *working_set, Editing_File *file,
+    char *filename, Font_Set *set, i16 font_id){
+    
     b32 result = 1;
     String empty_str = {};
-    file_create_from_string(system, mem, file, filename, set, font_id, empty_str);
+    file_create_from_string(system, mem, working_set, file, filename, set, font_id, empty_str);
     return result;
 }
 
 internal b32
-file_create_super_locked(System_Functions *system, Mem_Options *mem, Editing_File *file,
-                         char *filename, Font_Set *set, i16 font_id){
+file_create_super_locked(
+    System_Functions *system, Mem_Options *mem,
+    Working_Set *working_set, Editing_File *file,
+    char *filename, Font_Set *set, i16 font_id){
     b32 result = 1;
     String empty_str = {};
-    file_create_from_string(system, mem, file, filename, set, font_id, empty_str, 1);
+    file_create_from_string(system, mem, working_set, file, filename, set, font_id, empty_str, 1);
     return result;
 }
 
@@ -1669,15 +1715,6 @@ file_set_to_loading(Editing_File *file){
 	file->state = {};
 	file->settings = {};
 	file->state.is_loading = 1;
-}
-
-inline b32
-file_is_ready(Editing_File *file){
-    b32 result = 0;
-    if (file && file->state.is_loading == 0){
-        result = 1;
-    }
-    return(result);
 }
 
 struct Shift_Information{
@@ -2826,14 +2863,6 @@ file_do_single_edit(System_Functions *system,
         void *old_data = buffer_edit_provide_memory(&file->state.buffer, new_data, request_amount);
         if (old_data) general_memory_free(general, old_data);
     }
-
-#if BUFFER_EXPERIMENT_SCALPEL == 3
-    buffer_rope_check(&file->buffer, part->base + part->pos, scratch_size);
-#endif
-    
-#if BUFFER_EXPERIMENT_SCALPEL == 2
-    buffer_mugab_check(&file->buffer);
-#endif
     
     i32 line_start = buffer_get_line_index(&file->state.buffer, start);
     i32 line_end = buffer_get_line_index(&file->state.buffer, end);
@@ -3544,8 +3573,8 @@ view_auto_tab_tokens(System_Functions *system,
         i32 start = file->state.buffer.line_starts[line_i];
         i32 preferred_indentation;
         i32 correct_indentation;
-        bool32 all_whitespace = 0;
-        bool32 all_space = 0;
+        b32 all_whitespace = 0;
+        b32 all_space = 0;
         i32 hard_start =
             buffer_find_hard_start(&file->state.buffer, start, &all_whitespace, &all_space,
                                    &preferred_indentation, 4);
@@ -3565,6 +3594,7 @@ view_auto_tab_tokens(System_Functions *system,
             new_edit.end = hard_start;
             edits[edit_count++] = new_edit;
         }
+        
         Assert(edit_count <= edit_max);
     }
     
@@ -3581,6 +3611,18 @@ view_auto_tab_tokens(System_Functions *system,
                                          inverse_array, inv_str, part->max - part->pos, edit_count);
         
         view_do_white_batch_edit(system, mem, view, file, layout, spec, hist_normal);
+    }
+    
+    {
+        b32 all_whitespace = 0;
+        b32 all_space = 0;
+        i32 preferred_indentation;
+        i32 start = view->cursor.pos;
+        i32 hard_start = buffer_find_hard_start(
+            &file->state.buffer, start, &all_whitespace, &all_space,
+            &preferred_indentation, 4);
+        
+        view_cursor_move(view, hard_start);
     }
     
     end_temp_memory(temp);

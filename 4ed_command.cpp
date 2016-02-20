@@ -135,8 +135,8 @@ map_extract(Command_Map *map, Key_Event_Data key){
     u16 code;
     u8 command = MDFR_NONE;
     
-    if (key.character_no_caps_lock != 0 &&
-        key.character_no_caps_lock != ' ') shift = 0;
+    //if (key.character_no_caps_lock != 0 &&
+    //    key.character_no_caps_lock != ' ') shift = 0;
     
     if (shift) command |= MDFR_SHIFT;
     if (ctrl) command |= MDFR_CTRL;
@@ -148,7 +148,9 @@ map_extract(Command_Map *map, Key_Event_Data key){
         map_find(map, code, command, &bind);
     }
     else{
-        command &= ~(MDFR_SHIFT);
+        if (code != '\n' && code != '\t' && code != ' '){
+            command &= ~(MDFR_SHIFT);
+        }
         
         map_find(map, code, command, &bind);
         if (bind.function == 0){

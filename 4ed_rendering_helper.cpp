@@ -162,7 +162,22 @@ internal f32
 font_string_width(Render_Target *target, i16 font_id, char *str){
     f32 x = 0;
     for (i32 i = 0; str[i]; ++i){
-        x += font_get_glyph_width(target, font_id, str[i]);
+        u8 c = str[i];
+        // TODO(allen): Someday let's not punt on the the unicode rendering
+        c = c % 128;
+        x += font_get_glyph_width(target, font_id, c);
+    }
+    return x;
+}
+
+internal f32
+font_string_width(Render_Target *target, i16 font_id, String str){
+    f32 x = 0;
+    for (i32 i = 0; i < str.size; ++i){
+        u8 c = str.str[i];
+        // TODO(allen): Someday let's not punt on the the unicode rendering
+        c = c % 128;
+        x += font_get_glyph_width(target, font_id, c);
     }
     return x;
 }
@@ -172,7 +187,9 @@ draw_string(Render_Target *target, i16 font_id,
             char *str, i32 x_, i32 y, u32 color){
     real32 x = (real32)x_;
     for (i32 i = 0; str[i]; ++i){
-        char c = str[i];
+        u8 c = str[i];
+        // TODO(allen): Someday let's not punt on the the unicode rendering
+        c = c % 128;
         font_draw_glyph(target, font_id, c, x, (f32)y, color);
         x += font_get_glyph_width(target, font_id, c);
     }
@@ -183,8 +200,10 @@ internal f32
 draw_string_mono(Render_Target *target, i16 font_id,
                  char *str, f32 x, f32 y, f32 advance, u32 color){
     for (i32 i = 0; str[i]; ++i){
-        font_draw_glyph_mono(target, font_id, str[i],
-                             x, y, advance, color);
+        u8 c = str[i];
+        // TODO(allen): Someday let's not punt on the the unicode rendering
+        c = c % 128;
+        font_draw_glyph_mono(target, font_id, c, x, y, advance, color);
         x += advance;
     }
     return x;
@@ -195,7 +214,9 @@ draw_string(Render_Target *target, i16 font_id,
             String str, i32 x_, i32 y, u32 color){
     f32 x = (f32)x_;
     for (i32 i = 0; i < str.size; ++i){
-        char c = str.str[i];
+        u8 c = str.str[i];
+        // TODO(allen): Someday let's not punt on the the unicode rendering
+        c = c % 128;
         font_draw_glyph(target, font_id, c,
                         x, (f32)y, color);
         x += font_get_glyph_width(target, font_id, c);
@@ -207,8 +228,10 @@ internal f32
 draw_string_mono(Render_Target *target, i16 font_id,
                  String str, f32 x, f32 y, f32 advance, u32 color){
     for (i32 i = 0; i < str.size; ++i){
-        font_draw_glyph_mono(target, font_id,
-                             str.str[i], x, y, advance, color);
+        u8 c = str.str[i];
+        // TODO(allen): Someday let's not punt on the the unicode rendering
+        c = c % 128;
+        font_draw_glyph_mono(target, font_id, c, x, y, advance, color);
         x += advance;
     }
     return x;
@@ -232,7 +255,10 @@ internal f32
 font_get_string_width(Render_Target *target, i16 font_id, String string){
     f32 result = 0;
     for (i32 i = 0; i < string.size; ++i){
-        font_get_glyph_width(target, font_id, string.str[i]);
+        u8 c = string.str[i];
+        // TODO(allen): Someday let's not punt on the the unicode rendering
+        c = c % 128;
+        font_get_glyph_width(target, font_id, c);
     }
     return result;
 }

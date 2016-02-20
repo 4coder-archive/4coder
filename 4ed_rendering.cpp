@@ -295,13 +295,17 @@ launch_rendering(Render_Target *target){
 
 internal i32
 draw_font_info_load(Partition *partition,
-                    char *filename,
-                    i32 pt_size,
-                    i32 *height,
-                    i32 *advance){
+    char *filename_untranslated,
+    i32 pt_size, i32 *height, i32 *advance){
+    
+    char space_[1024];
+    String filename = make_fixed_width_string(space_);
+    b32 translate_success = system_to_binary_path(&filename, filename_untranslated);
+    if (!translate_success) return 0;
+    
     i32 result = 1;
     Data file;
-    file = system_load_file(filename);
+    file = system_load_file(filename.str);
     
     Temp_Memory temp = begin_temp_memory(partition);
     stbtt_packedchar *chardata = push_array(partition, stbtt_packedchar, 256);
@@ -379,13 +383,19 @@ draw_font_info_load(Partition *partition,
 
 internal i32
 draw_font_load(void *base_block, i32 size,
-               Render_Font *font_out,
-               char *filename,
-               i32 pt_size,
-               i32 tab_width){
+    Render_Font *font_out,
+    char *filename_untranslated,
+    i32 pt_size,
+    i32 tab_width){
+
+    char space_[1024];
+    String filename = make_fixed_width_string(space_);
+    b32 translate_success = system_to_binary_path(&filename, filename_untranslated);
+    if (!translate_success) return 0;
+        
     i32 result = 1;
     Data file;
-    file = system_load_file(filename);
+    file = system_load_file(filename.str);
     
     Partition partition_ = partition_open(base_block, size);
     Partition *partition = &partition_;

@@ -14,16 +14,16 @@
 // 
 
 struct Interactive_Style{
-	u32 bar_color;
-	u32 bar_active_color;
-	u32 base_color;
-	u32 pop1_color;
-	u32 pop2_color;
+    u32 bar_color;
+    u32 bar_active_color;
+    u32 base_color;
+    u32 pop1_color;
+    u32 pop2_color;
 };
 
 struct Interactive_Bar{
-	Interactive_Style style;
-	real32 pos_x, pos_y;
+    Interactive_Style style;
+    real32 pos_x, pos_y;
     real32 text_shift_x, text_shift_y;
     i32_Rect rect;
     i16 font_id;
@@ -137,6 +137,14 @@ internal void
 intbar_draw_string(Render_Target *target,
                    Interactive_Bar *bar, u8 *str, u32 char_color){
     i16 font_id = bar->font_id;
+
+    draw_string(target, font_id, (char*)str,
+        (i32)(bar->pos_x + bar->text_shift_x),
+        (i32)(bar->pos_y + bar->text_shift_y),
+        char_color);
+    bar->pos_x += font_string_width(target, font_id, (char*)str);
+
+#if 0
     for (i32 i = 0; str[i]; ++i){
         char c = str[i];
         font_draw_glyph(target, font_id, c,
@@ -145,20 +153,30 @@ intbar_draw_string(Render_Target *target,
                         char_color);
         bar->pos_x += font_get_glyph_width(target, font_id, c);
     }
+#endif
 }
 
 internal void
 intbar_draw_string(Render_Target *target, Interactive_Bar *bar,
                    String str, u32 char_color){
     i16 font_id = bar->font_id;
-	for (i32 i = 0; i < str.size; ++i){
+    
+    draw_string(target, font_id, str,
+        (i32)(bar->pos_x + bar->text_shift_x),
+        (i32)(bar->pos_y + bar->text_shift_y),
+        char_color);
+    bar->pos_x += font_string_width(target, font_id, str);
+
+#if 0
+    for (i32 i = 0; i < str.size; ++i){
         char c = str.str[i];
-		font_draw_glyph(target, font_id, c,
+        font_draw_glyph(target, font_id, c,
                         bar->pos_x + bar->text_shift_x,
                         bar->pos_y + bar->text_shift_y,
                         char_color);
         bar->pos_x += font_get_glyph_width(target, font_id, c);
-	}
+    }
+#endif
 }
 
 internal void
@@ -308,7 +326,7 @@ layout_alloc_divider(Editing_Layout *layout){
     if (layout->panel_count == 1){
         layout->root = result.id;
     }
-	return result;
+    return result;
 }
 
 internal Divider_And_ID
@@ -326,7 +344,7 @@ layout_alloc_panel(Editing_Layout *layout){
     Panel *result = layout->panels + layout->panel_count;
     *result = {};
     ++layout->panel_count;
-	return result;
+    return result;
 }
 
 internal void
@@ -354,7 +372,7 @@ layout_calc_divider_id(Editing_Layout *layout, Panel_Divider *divider){
     Divider_And_ID result;
     result.divider = divider;
     result.id = (i32)(divider - layout->dividers);
-	return result;
+    return result;
 }
 
 struct Split_Result{
@@ -374,7 +392,7 @@ layout_split_panel(Editing_Layout *layout, Panel *panel, bool32 vertical){
             pdiv.divider->child2 = div.id;
         }
     }
-    
+
     div.divider->parent = panel->parent;
     div.divider->which_child = panel->which_child;
     if (vertical){
@@ -385,13 +403,13 @@ layout_split_panel(Editing_Layout *layout, Panel *panel, bool32 vertical){
         div.divider->v_divider = 0;
         div.divider->pos = (panel->full.y0 + panel->full.y1) / 2;
     }
-    
+
     Panel *new_panel = layout_alloc_panel(layout);
     panel->parent = div.id;
     panel->which_child = -1;
     new_panel->parent = div.id;
     new_panel->which_child = 1;
-    
+
     Split_Result result;
     result.divider = div.divider;
     result.panel = new_panel;
@@ -405,7 +423,7 @@ panel_fix_internal_area(Panel *panel){
     right = panel->r_margin;
     top = panel->t_margin;
     bottom = panel->b_margin;
-    
+
     panel->inner.x0 = panel->full.x0 + left;
     panel->inner.x1 = panel->full.x1 - right;
     panel->inner.y0 = panel->full.y0 + top;
@@ -418,7 +436,7 @@ layout_fix_all_panels(Editing_Layout *layout){
     if (layout->panel_count > 1){
         Panel_Divider *dividers = layout->dividers;
         int panel_count = layout->panel_count;
-        
+
         Panel *panel = panels;
         for (i32 i = 0; i < panel_count; ++i){
             i32 x0, x1, y0, y1;
@@ -426,12 +444,12 @@ layout_fix_all_panels(Editing_Layout *layout){
             x1 = x0 + layout->full_width;
             y0 = 0;
             y1 = y0 + layout->full_height;
-            
+
             i32 pos;
             i32 which_child = panel->which_child;
             Divider_And_ID div;
             div.id = panel->parent;
-            
+
             for (;;){
                 div.divider = dividers + div.id;
                 pos = div.divider->pos;
@@ -454,7 +472,7 @@ layout_fix_all_panels(Editing_Layout *layout){
                     if (pos > x0) x0 = pos;
                     break;
                 }
-                
+
                 if (div.id != layout->root){
                     div.id = div.divider->parent;
                     which_child = div.divider->which_child;
@@ -463,7 +481,7 @@ layout_fix_all_panels(Editing_Layout *layout){
                     break;
                 }
             }
-            
+
             panel->full.x0 = x0;
             panel->full.y0 = y0;
             panel->full.x1 = x1;
@@ -472,7 +490,7 @@ layout_fix_all_panels(Editing_Layout *layout){
             ++panel;
         }
     }
-    
+
     else{
         panels[0].full.x0 = 0;
         panels[0].full.y0 = 0;
@@ -485,16 +503,16 @@ layout_fix_all_panels(Editing_Layout *layout){
 internal void
 layout_refit(Editing_Layout *layout,
              i32 prev_x_off, i32 prev_y_off,
-			 i32 prev_width, i32 prev_height){
+             i32 prev_width, i32 prev_height){
     Panel_Divider *dividers = layout->dividers;
-	i32 divider_max_count = layout->panel_max_count - 1;
-    
+    i32 divider_max_count = layout->panel_max_count - 1;
+
     i32 x_off = 0;
     i32 y_off = 0;
-    
+
     real32 h_ratio = ((real32)layout->full_width) / prev_width;
     real32 v_ratio = ((real32)layout->full_height) / prev_height;
-    
+
     for (i32 divider_id = 0; divider_id < divider_max_count; ++divider_id){
         Panel_Divider *divider = dividers + divider_id;
         if (divider->v_divider){
@@ -504,7 +522,7 @@ layout_refit(Editing_Layout *layout,
             divider->pos = y_off + ROUND32((divider->pos - prev_y_off) * v_ratio);
         }
     }
-    
+
     layout_fix_all_panels(layout);
 }
 

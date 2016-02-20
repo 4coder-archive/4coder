@@ -847,6 +847,21 @@ Sys_CLI_End_Update_Sig(system_cli_end_update){
     return close_me;
 }
 
+internal
+Sys_To_Binary_Path(system_to_binary_path){
+    b32 translate_success = 0;
+    i32 max = out_filename->memory_size;
+    i32 size = GetModuleFileName(0, out_filename->str, max);
+    if (size > 0 && size < max-1){
+        out_filename->size = size;
+        truncate_to_path_of_directory(out_filename);
+        if (append(out_filename, filename) && terminate_with_null(out_filename)){
+            translate_success = 1;
+        }
+    }
+    return (translate_success);
+}
+
 internal b32
 Win32LoadAppCode(){
     b32 result = 0;
@@ -1249,19 +1264,18 @@ Win32Callback(HWND hwnd, UINT uMsg,
         Font_Load_Parameters *params = win32vars.fnt.params + lParam;
 
         for (b32 success = 0; success == 0;){
-        
             success = draw_font_load(win32vars.fnt.part.base,
-                                     win32vars.fnt.part.max,
-                                     params->font_out,
-                                     params->filename,
-                                     params->pt_size,
-                                     params->tab_width);
-            
+                win32vars.fnt.part.max,
+                params->font_out,
+                params->filename,
+                params->pt_size,
+                params->tab_width);
+
             if (!success){
                 Win32ScratchPartitionDouble(&win32vars.fnt.part);
             }
         }
-        
+
         system_acquire_lock(FONT_LOCK);
         fnt__remove(params);
         fnt__insert(&win32vars.fnt.free_param, params);

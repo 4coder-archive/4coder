@@ -23,7 +23,7 @@ enum My_Maps{
 HOOK_SIG(my_start){
     exec_command(cmd_context, cmdid_open_panel_hsplit);
     exec_command(cmd_context, cmdid_change_active_panel);
-    
+
     exec_command(cmd_context, cmdid_open_panel_vsplit);
     exec_command(cmd_context, cmdid_change_active_panel);
 }
@@ -50,9 +50,9 @@ bool str_match(const char *a, int len_a, const char *b, int len_b){
 
 HOOK_SIG(my_file_settings){
     Buffer_Summary buffer = get_active_buffer(cmd_context);
-    
+
     int treat_as_code = 0;
-    
+
     // NOTE(allen|a3.1): This checks buffer.file_name just in case get_active_buffer returns back
     // a null buffer (where every member is 0).
     if (buffer.file_name && buffer.size < (16 << 20)){
@@ -63,7 +63,7 @@ HOOK_SIG(my_file_settings){
         else if (str_match(extension, extension_len, literal("c"))) treat_as_code = 1;
         else if (str_match(extension, extension_len, literal("hpp"))) treat_as_code = 1;
     }
-    
+
     push_parameter(app, cmd_context, par_lex_as_cpp_file, treat_as_code);
     push_parameter(app, cmd_context, par_wrap_lines, !treat_as_code);
     push_parameter(app, cmd_context, par_key_mapid, (treat_as_code)?(my_code_map):(mapid_file));
@@ -81,21 +81,21 @@ CUSTOM_COMMAND_SIG(open_my_files){
     // cmdid_interactive_open behaves as usual.
     push_parameter(app, cmd_context, par_name, literal("w:/4ed/data/test/basic.cpp"));
     exec_command(cmd_context, cmdid_interactive_open);
-    
+
     exec_command(cmd_context, cmdid_change_active_panel);
-    
+
     char my_file[256];
     int my_file_len;
-    
+
     my_file_len = sizeof("w:/4ed/data/test/basic.txt") - 1;
     for (int i = 0; i < my_file_len; ++i){
         my_file[i] = ("w:/4ed/data/test/basic.txt")[i];
     }
-    
+
     // NOTE(allen|a3.1): null terminators are not needed for strings.
     push_parameter(app, cmd_context, par_name, my_file, my_file_len);
     exec_command(cmd_context, cmdid_interactive_open);
-    
+
     exec_command(cmd_context, cmdid_change_active_panel);
 }
 
@@ -147,20 +147,20 @@ CUSTOM_COMMAND_SIG(build_search){
             push_parameter(app, cmd_context, par_cli_overlap_with_conflict, 0);
             push_parameter(app, cmd_context, par_target_buffer_name, literal("*compilation*"));
             push_parameter(app, cmd_context, par_cli_path, dir.str, dir.size);
-            
+
             if (append(&dir, "build")){
                 app->push_parameter(cmd_context,
-                                    dynamic_int(par_cli_command),
-                                    dynamic_string(dir.str, dir.size));
+                    dynamic_int(par_cli_command),
+                    dynamic_string(dir.str, dir.size));
                 exec_command(cmd_context, cmdid_build);
             }
             else{
                 clear_parameters(cmd_context);
             }
-            
+
             return;
         }
-        
+
         if (app->directory_cd(&dir, "..") == 0){
             keep_going = 0;
         }
@@ -187,14 +187,14 @@ CUSTOM_COMMAND_SIG(cut_line){
 extern "C" GET_BINDING_DATA(get_bindings){
     Bind_Helper context_actual = begin_bind_helper(data, size);
     Bind_Helper *context = &context_actual;
-    
+
     // NOTE(allen|a3.1): Right now hooks have no loyalties to maps, all hooks are
     // global and once set they always apply, regardless of what map is active.
     set_hook(context, hook_start, my_start);
     set_hook(context, hook_open_file, my_file_settings);
-    
+
     begin_map(context, mapid_global);
-    
+
     bind(context, 'p', MDFR_CTRL, cmdid_open_panel_vsplit);
     bind(context, '-', MDFR_CTRL, cmdid_open_panel_hsplit);
     bind(context, 'P', MDFR_CTRL, cmdid_close_panel);
@@ -206,18 +206,18 @@ extern "C" GET_BINDING_DATA(get_bindings){
     bind(context, 'c', MDFR_ALT, cmdid_open_color_tweaker);
     bind(context, 'x', MDFR_ALT, cmdid_open_menu);
     bind_me(context, 'o', MDFR_ALT, open_in_other);
-    
+
     // NOTE(allen): These callbacks may not actually be useful to you, but
     // go look at them and see what they do.
     bind_me(context, 'M', MDFR_ALT | MDFR_CTRL, open_my_files);
     bind_me(context, 'M', MDFR_ALT, build_at_launch_location);
     bind_me(context, 'm', MDFR_ALT, build_search);
-    
+
     end_map(context);
-    
-    
+
+
     begin_map(context, my_code_map);
-    
+
     // NOTE(allen|a3.1): Set this map (my_code_map == mapid_user_custom) to
     // inherit from mapid_file.  When searching if a key is bound
     // in this map, if it is not found here it will then search mapid_file.
@@ -228,7 +228,7 @@ extern "C" GET_BINDING_DATA(get_bindings){
     // NOTE(allen|a3.1): Children can override parent's bindings.
     bind(context, codes->right, MDFR_CTRL, cmdid_seek_alphanumeric_or_camel_right);
     bind(context, codes->left, MDFR_CTRL, cmdid_seek_alphanumeric_or_camel_left);
-    
+
     // NOTE(allen|a3.2): Specific keys can override vanilla keys,
     // and write character writes whichever character corresponds
     // to the key that triggered the command.
@@ -237,11 +237,11 @@ extern "C" GET_BINDING_DATA(get_bindings){
     bind_me(context, ')', MDFR_NONE, write_and_auto_tab);
     bind_me(context, ']', MDFR_NONE, write_and_auto_tab);
     bind_me(context, ';', MDFR_NONE, write_and_auto_tab);
-
-    bind(context, '\t', MDFR_NONE, cmdid_auto_tab_line_at_cursor);
-    bind(context, '\t', MDFR_CTRL, cmdid_auto_tab_range);
-    bind(context, '\t', MDFR_CTRL | MDFR_SHIFT, cmdid_write_character);
     
+    bind(context, '\t', MDFR_NONE, cmdid_word_complete);
+    bind(context, '\t', MDFR_CTRL, cmdid_auto_tab_range);
+    bind(context, '\t', MDFR_SHIFT, cmdid_auto_tab_line_at_cursor);
+
     end_map(context);
     
     

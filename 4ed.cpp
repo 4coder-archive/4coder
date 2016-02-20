@@ -44,6 +44,7 @@ struct Complete_State{
     Table hits;
     String_Space str;
     i32 word_start, word_end;
+    b32 initialized;
 };
 
 struct App_Vars{
@@ -487,6 +488,10 @@ COMMAND_DECL(word_complete){
     if (vars->prev_command.function != command_word_complete){
         do_init = 1;
     }
+    
+    if (complete_state->initialized == 0){
+        do_init = 1;
+    }
 
     if (do_init){
         word_end = view->cursor.pos;
@@ -514,6 +519,12 @@ COMMAND_DECL(word_complete){
         
         size = word_end - word_start;
         
+        if (size == 0){
+            complete_state->initialized = 0;
+            return;
+        }
+        
+        complete_state->initialized = 1;
         search_iter_init(general, &complete_state->iter, size);
         buffer_stringify(buffer, word_start, word_end, complete_state->iter.word.str);
         complete_state->iter.word.size = size;
@@ -863,65 +874,6 @@ COMMAND_DECL(interactive_new){
     copy(&int_view->query, "New: ");
 }
 
-#if 0
-internal File_View*
-app_open_file(System_Functions *system, Exchange *exchange,
-              App_Vars *vars, Mem_Options *mem, Panel *panel,
-              Working_Set *working_set, String *string, Style *style,
-              Live_Views *live_set, Command_Data *command_data){
-    File_View *result = 0;
-    Editing_File *target_file = 0;
-    b32 created_file = 0;
-    
-    target_file = working_set_contains(working_set, *string);
-    if (!target_file){
-        Get_File_Result file = working_set_get_available_file(working_set);
-        if (file.file){
-            file_get_dummy(file.file);
-            created_file = file_create(system, mem, file.file, string->str, style->font);
-            table_add(&working_set->table, file.file->source_path, file.index);
-            if (created_file){
-                target_file = file.file;
-            }
-        }
-    }
-    
-    if (target_file){
-        View *new_view = live_set_alloc_view(live_set, &vars->mem);
-        
-        view_replace_major(system, exchange, new_view, panel, live_set);
-        
-        File_View *file_view = file_view_init(new_view, &vars->layout);
-        result = file_view;
-        
-        View *old_view = command_data->view;
-        command_data->view = new_view;
-        
-        Partition old_part = command_data->part;
-        Temp_Memory temp = begin_temp_memory(&vars->mem.part);
-        command_data->part = partition_sub_part(&vars->mem.part, 16 << 10);
-        
-        view_set_file(system, file_view, target_file, style,
-                      vars->hooks[hook_open_file], command_data, &app_links);
-        
-        command_data->part = old_part;
-        end_temp_memory(temp);
-        command_data->view = old_view;
-        
-        new_view->map = app_get_map(vars, target_file->base_map_id);
-
-#if BUFFER_EXPERIMENT_SCALPEL <= 0
-        if (created_file && target_file->tokens_exist &&
-            target_file->token_stack.tokens == 0){
-            file_first_lex_parallel(system, &mem->general, target_file);
-        }
-#endif
-    }
-    
-    return result;
-}
-#endif
-
 internal void
 app_push_file_binding(App_Vars *vars, int sys_id, int app_id){
     Sys_App_Binding binding;
@@ -951,7 +903,7 @@ app_open_file_background(App_Vars *vars, Exchange *exchange, Working_Set *workin
                 result.is_new = 1;
                 result.file = file.file;
                 file_init_strings(result.file);
-                file_set_name(result.file, filename.str);
+                file_set_name(working_set, result.file, filename.str);
                 file_set_to_loading(result.file);
                 table_add(&working_set->table, result.file->name.source_path, file.index);
                 
@@ -1309,21 +1261,6 @@ COMMAND_DECL(eol_nixify){
     
     file->settings.dos_write_mode = 0;
     file->state.last_4ed_edit_time = system->time();
-}
-
-COMMAND_DECL(auto_tab){
-#if 0
-    ProfileMomentFunction();
-    REQ_FILE_VIEW(view);
-    REQ_FILE(file, view);
-    USE_LAYOUT(layout);
-    USE_MEM(mem);
-
-    if (file->token_stack.tokens && file->tokens_complete){
-        Range range = get_range(view->cursor.pos, view->mark);
-        view_auto_tab_tokens(mem, view, layout, range.start, range.end);
-    }
-#endif
 }
 
 COMMAND_DECL(auto_tab_range){
@@ -1887,7 +1824,7 @@ build(System_Functions *system, Mem_Options *mem,
         }
         
         if (file){
-            file_create_super_locked(system, mem, file, buffer_name, font_set, style->font_id);
+            file_create_super_locked(system, mem, working_set, file, buffer_name, font_set, style->font_id);
             file->settings.unimportant = 1;
             table_add(&working_set->table, file->name.source_path, index);
             
@@ -2246,7 +2183,6 @@ setup_file_commands(Command_Map *commands, Partition *part, Key_Codes *codes, Co
     map_add(commands, 'j', MDFR_CTRL, command_to_lowercase);
     map_add(commands, '~', MDFR_CTRL, command_clean_all_lines);
     map_add(commands, 'f', MDFR_CTRL, command_search);
-    map_add(commands, 't', MDFR_CTRL, command_word_complete);
     
     map_add(commands, 'r', MDFR_CTRL, command_rsearch);
     map_add(commands, 'g', MDFR_CTRL, command_goto_line);
@@ -2257,9 +2193,9 @@ setup_file_commands(Command_Map *commands, Partition *part, Key_Codes *codes, Co
     map_add(commands, ']', MDFR_NONE, compose_write_auto_tab_line);
     map_add(commands, ';', MDFR_NONE, compose_write_auto_tab_line);
     
-    map_add(commands, '\t', MDFR_NONE, command_auto_tab_line_at_cursor);
+    map_add(commands, '\t', MDFR_NONE, command_word_complete);
     map_add(commands, '\t', MDFR_CTRL, command_auto_tab_range);
-    map_add(commands, '\t', MDFR_CTRL | MDFR_SHIFT, command_write_character);
+    map_add(commands, '\t', MDFR_SHIFT, command_auto_tab_line_at_cursor);
     
     map_add(commands, 'K', MDFR_CTRL, command_kill_buffer);
     map_add(commands, 'O', MDFR_CTRL, command_reopen);
@@ -2312,6 +2248,7 @@ setup_command_table(){
     SET(seek_alphanumeric_or_camel_left);
     SET(search);
     SET(rsearch);
+    SET(word_complete);
     SET(goto_line);
     SET(set_mark);
     SET(copy);
@@ -2343,7 +2280,6 @@ setup_command_table(){
     SET(clean_all_lines);
     SET(eol_dosify);
     SET(eol_nixify);
-    SET(auto_tab);
     SET(auto_tab_range);
     SET(auto_tab_line_at_cursor);
     SET(auto_tab_whole_file);
@@ -3629,7 +3565,7 @@ App_Step_Sig(app_step){
                 if (fview){
                     Editing_File *file = fview->file;
                     if (file && !file->state.is_dummy){
-                        i32 sys_id = file_save_and_set_names(system, exchange, mem, file, string->str);
+                        i32 sys_id = file_save_and_set_names(system, exchange, mem, working_set, file, string->str);
                         app_push_file_binding(vars, sys_id, get_file_id(working_set, file));
                     }
                 }
@@ -3647,7 +3583,7 @@ App_Step_Sig(app_step){
             case DACT_NEW:
             {
                 Get_File_Result file = working_set_get_available_file(working_set);
-                file_create_empty(system, mem, file.file, string->str,
+                file_create_empty(system, mem, working_set, file.file, string->str,
                                   vars->font_set, style->font_id);
                 table_add(&working_set->table, file.file->name.source_path, file.index);
                 
@@ -3818,20 +3754,22 @@ App_Step_Sig(app_step){
         Editing_File_Preload preload_settings;
         char *filename;
         
+        Working_Set *working_set = &vars->working_set;
+        
         if (exchange_file_ready(exchange, binding->sys_id, &data, &size, &max)){
-            ed_file = vars->working_set.files + binding->app_id;
+            ed_file = working_set->files + binding->app_id;
             filename = exchange_file_filename(exchange, binding->sys_id);
             preload_settings = ed_file->preload;
             if (data){
                 String val = make_string((char*)data, size);
-                file_create_from_string(system, &vars->mem, ed_file, filename,
+                file_create_from_string(system, &vars->mem, working_set, ed_file, filename,
                                         vars->font_set, vars->style.font_id, val);
                 
                 if (ed_file->settings.tokens_exist)
                     file_first_lex_parallel(system, &vars->mem.general, ed_file);
             }
             else{
-                file_create_empty(system, &vars->mem, ed_file, filename,
+                file_create_empty(system, &vars->mem, working_set, ed_file, filename,
                                   vars->font_set, vars->style.font_id);
             }
 
@@ -3854,7 +3792,7 @@ App_Step_Sig(app_step){
                 exchange_clear_file(exchange, binding->sys_id);
             }
             
-            Editing_File *file = get_file(&vars->working_set, binding->app_id);
+            Editing_File *file = get_file(working_set, binding->app_id);
             if (file){
                 file_synchronize_times(system, file, file->name.source_path.str);
             }

@@ -173,6 +173,7 @@ FCPP_LINK int    reverse_seek_slash(String str);
 FCPP_LINK int    reverse_seek_slash(String str, int start_pos);
 inline    bool   get_front_of_directory(String *dest, String dir) { return append_checked(dest, substr(dir, reverse_seek_slash(dir) + 1)); }
 inline    bool   get_path_of_directory(String *dest, String dir) { return append_checked(dest, substr(dir, 0, reverse_seek_slash(dir) + 1)); }
+inline    void   truncate_to_path_of_directory(String *dir) { dir->size = reverse_seek_slash(*dir) + 1; }
 FCPP_LINK bool   set_last_folder(String *dir, char *folder_name);
 FCPP_LINK bool   set_last_folder(String *dir, String folder_name);
 FCPP_LINK String file_extension(String str);

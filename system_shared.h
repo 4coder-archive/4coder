@@ -37,12 +37,14 @@ struct Font_Load_System{
 #define Sys_File_Can_Be_Made(name) b32 name(char *filename)
 #define Sys_Load_File_Sig(name) Data name(char *filename)
 #define Sys_Save_File_Sig(name) b32 name(char *filename, char *data, i32 size)
+#define Sys_To_Binary_Path(name) b32 name(String *out_filename, char *filename)
 
 internal Sys_Get_Memory_Sig(system_get_memory_);
 internal Sys_Free_Memory_Sig(system_free_memory);
 internal Sys_File_Can_Be_Made(system_file_can_be_made);
 internal Sys_Load_File_Sig(system_load_file);
 internal Sys_Save_File_Sig(system_save_file);
+internal Sys_To_Binary_Path(system_to_binary_path);
 
 #define system_get_memory(size) system_get_memory_((size), __LINE__, __FILE__)
 
