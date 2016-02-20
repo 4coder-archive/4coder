@@ -38,6 +38,14 @@ struct Sys_App_Binding{
     i32 app_id;
 };
 
+struct Complete_State{
+    Search_Set set;
+    Search_Iter iter;
+    Table hits;
+    String_Space str;
+    i32 word_start, word_end;
+};
+
 struct App_Vars{
     Mem_Options mem;
 
@@ -52,6 +60,7 @@ struct App_Vars{
     Command_Map *user_maps;
     i32 *map_id_table;
     i32 user_map_count;
+    Command_Binding prev_command;
     
     Sys_App_Binding *sys_app_bindings;
     i32 sys_app_count, sys_app_max;
@@ -84,6 +93,7 @@ struct App_Vars{
     
     App_State state;
     App_State_Resizing resizing;
+    Complete_State complete_state;
     Panel *prev_mouse_panel;
 
     Custom_API config_api;
@@ -442,70 +452,143 @@ COMMAND_DECL(word_complete){
     REQ_FILE(file, view);
     USE_LAYOUT(layout);
     USE_MEM(mem);
+    USE_VARS(vars);
+    USE_WORKING_SET(working_set);
     
     Partition *part = &mem->part;
+    General_Memory *general = &mem->general;
+    Complete_State *complete_state = &vars->complete_state;
+    Search_Range *ranges;
+    Search_Match match;
     
-    Temp_Memory temp1, temp2;
+    Temp_Memory temp;
     
     Buffer_Type *buffer;
     Buffer_Backify_Type loop;
     char *data;
     i32 end;
+    i32 size_of_buffer;
     
     i32 cursor_pos, word_start, word_end;
     char c;
     
-    char *str, *spare;
+    char *spare;
     i32 size;
     
-    i32 match_start, match_end, match_size;
+    i32 buffer_count, i, j;
+    Editing_File *file_ptr;
+    
+    i32 match_size;
+    b32 do_init = 0;
     
     buffer = &file->state.buffer;
-    word_end = view->cursor.pos;
-    word_start = word_end;
-    cursor_pos = word_end - 1;
+    size_of_buffer = buffer_size(buffer);
     
-    // TODO(allen): macros for these buffer loops and some method of breaking out of them.
-    for (loop = buffer_backify_loop(buffer, cursor_pos, 0);
-        buffer_backify_good(&loop);
-        buffer_backify_next(&loop)){
-        end = loop.absolute_pos;
-        data = loop.data - loop.absolute_pos;
-        for (; cursor_pos >= end; --cursor_pos){
-            c = data[cursor_pos];
-            if (char_is_alpha(c)){
-                word_start = cursor_pos;
-            }
-            else if (!char_is_numeric(c)){
-                goto double_break;
+    if (vars->prev_command.function != command_word_complete){
+        do_init = 1;
+    }
+
+    if (do_init){
+        word_end = view->cursor.pos;
+        word_start = word_end;
+        cursor_pos = word_end - 1;
+
+        // TODO(allen): macros for these buffer loops and some method of breaking out of them.
+        for (loop = buffer_backify_loop(buffer, cursor_pos, 0);
+            buffer_backify_good(&loop);
+            buffer_backify_next(&loop)){
+            end = loop.absolute_pos;
+            data = loop.data - loop.absolute_pos;
+            for (; cursor_pos >= end; --cursor_pos){
+                c = data[cursor_pos];
+                if (char_is_alpha(c)){
+                    word_start = cursor_pos;
+                }
+                else if (!char_is_numeric(c)){
+                    goto double_break;
+                }
             }
         }
+        // TODO(allen): figure out how labels are scoped.
+        double_break:;
+        
+        size = word_end - word_start;
+        
+        search_iter_init(general, &complete_state->iter, size);
+        buffer_stringify(buffer, word_start, word_end, complete_state->iter.word.str);
+        complete_state->iter.word.size = size;
+        
+        buffer_count = working_set->file_index_count;
+        search_set_init(general, &complete_state->set, buffer_count + 1);
+        ranges = complete_state->set.ranges;
+        ranges[0].buffer = buffer;
+        ranges[0].start = 0;
+        ranges[0].size = word_start;
+        
+        ranges[1].buffer = buffer;
+        ranges[1].start = word_end;
+        ranges[1].size = size_of_buffer - word_end;
+        
+        file_ptr = working_set->files;
+        for (i = 0, j = 2; i < buffer_count; ++i, ++file_ptr){
+            if (file_ptr != file && !file_ptr->state.is_dummy && file_is_ready(file_ptr)){
+                ranges[j].buffer = &file_ptr->state.buffer;
+                ranges[j].start = 0;
+                ranges[j].size = buffer_size(ranges[j].buffer); 
+                ++j;
+            }
+        }
+        complete_state->set.count = j;
+        
+        search_hits_init(general, &complete_state->hits, &complete_state->str, 100, Kbytes(4));
+        search_hit_add(general, &complete_state->hits, &complete_state->str,
+            complete_state->iter.word.str, complete_state->iter.word.size);
+        
+        complete_state->word_start = word_start;
+        complete_state->word_end = word_end;
     }
-    // TODO(allen): figure out how labels are scoped.
-    double_break:;
-    
-    size = word_end - word_start;
-    
+    else{
+        word_start = complete_state->word_start;
+        word_end = complete_state->word_end;
+        size = complete_state->iter.word.size;
+    }
+
     if (size > 0){
-        temp1 = begin_temp_memory(part);
-        
-        str = (char*)push_array(part, char, size);
-        buffer_stringify(buffer, word_start, word_end, str);
-        
-        temp2 = begin_temp_memory(part);
-        spare = (char*)push_array(part, char, size);
-        end_temp_memory(temp2);
-        
-        // TODO(allen): find string needs explicit end position
-        match_start = buffer_find_string(buffer, word_end, str, size, spare);
-        match_end = buffer_seek_word_right_assume_on_word(buffer, match_start);
-        match_size = match_end - match_start;
-        spare = (char*)push_array(part, char, match_size);
-        buffer_stringify(buffer, match_start, match_end, spare);
-        
-        view_replace_range(system, mem, view, layout, word_start, word_end, spare, match_size, word_end);
-        
-        end_temp_memory(temp1);
+        for (;;){
+            match = search_next_match(part, &complete_state->set, &complete_state->iter);
+
+            if (match.found_match){
+                temp = begin_temp_memory(part);
+                match_size = match.end - match.start;
+                spare = (char*)push_array(part, char, match_size);
+                buffer_stringify(match.buffer, match.start, match.end, spare);
+
+                if (search_hit_add(general, &complete_state->hits, &complete_state->str, spare, match_size)){
+                    view_replace_range(system, mem, view, layout, word_start, word_end, spare, match_size, word_end);
+
+                    complete_state->word_end = word_start + match_size;
+                    complete_state->set.ranges[1].start = word_start + match_size;
+                    break;
+                }
+                end_temp_memory(temp);
+            }
+            else{
+                complete_state->iter.pos = 0;
+                complete_state->iter.i = 0;
+
+                search_hits_init(general, &complete_state->hits, &complete_state->str, 100, Kbytes(4));
+                search_hit_add(general, &complete_state->hits, &complete_state->str,
+                    complete_state->iter.word.str, complete_state->iter.word.size);
+
+                match_size = complete_state->iter.word.size;
+                view_replace_range(system, mem, view, layout, word_start, word_end,
+                    complete_state->iter.word.str, match_size, word_end);
+
+                complete_state->word_end = word_start + match_size;
+                complete_state->set.ranges[1].start = word_start + match_size;
+                break;
+            }
+        }
     }
 }
 
@@ -2159,11 +2242,11 @@ setup_file_commands(Command_Map *commands, Partition *part, Key_Codes *codes, Co
     map_add(commands, 'l', MDFR_CTRL, command_toggle_line_wrap);
     map_add(commands, '?', MDFR_CTRL, command_toggle_show_whitespace);
     map_add(commands, '|', MDFR_CTRL, command_toggle_tokens);
-    map_add(commands, 'U', MDFR_CTRL, command_to_uppercase);
-    map_add(commands, 'u', MDFR_CTRL, command_to_lowercase);
+    map_add(commands, 'u', MDFR_CTRL, command_to_uppercase);
+    map_add(commands, 'j', MDFR_CTRL, command_to_lowercase);
     map_add(commands, '~', MDFR_CTRL, command_clean_all_lines);
     map_add(commands, 'f', MDFR_CTRL, command_search);
-    map_add(commands, 'j', MDFR_CTRL, command_word_complete);
+    map_add(commands, 't', MDFR_CTRL, command_word_complete);
     
     map_add(commands, 'r', MDFR_CTRL, command_rsearch);
     map_add(commands, 'g', MDFR_CTRL, command_goto_line);
@@ -3462,6 +3545,7 @@ App_Step_Sig(app_step){
                     app_result.redraw = 1;
                 }
             }
+            vars->prev_command = cmd;
         }break;
         
         case APP_STATE_RESIZING:

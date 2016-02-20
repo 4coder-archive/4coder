@@ -4613,13 +4613,13 @@ HANDLE_COMMAND_SIG(handle_command_file_view){
                 }
                 
                 else{
-                    pos = buffer_find_string(&file->state.buffer, start_pos + 1,
+                    pos = buffer_find_string(&file->state.buffer, start_pos + 1, size,
                                              string->str, string->size, spare);
                     if (pos < size){
                         if (step_forward){
                             file_view->isearch.pos = pos;
                             start_pos = pos;
-                            pos = buffer_find_string(&file->state.buffer, start_pos + 1,
+                            pos = buffer_find_string(&file->state.buffer, start_pos + 1, size,
                                                      string->str, string->size, spare);
                             if (pos == size) pos = start_pos;
                         }
@@ -4762,6 +4762,201 @@ internal b32
 file_view_iter_good(File_View_Iter iter){
     b32 result = 1;
     if (iter.i >= iter.panel_count) result = 0;
+    return(result);
+}
+
+struct Search_Range{
+    Buffer_Type *buffer;
+    i32 start, size;
+};
+
+struct Search_Set{
+    Search_Range *ranges;
+    i32 count, max;
+};
+
+struct Search_Iter{
+    String word;
+    i32 pos;
+    i32 i;
+};
+
+struct Search_Match{
+    Buffer_Type *buffer;
+    i32 start, end;
+    b32 found_match;
+};
+
+internal void
+search_iter_init(General_Memory *general, Search_Iter *iter, i32 size){
+    i32 str_max;
+    
+    if (iter->word.str == 0){
+        str_max = size*2;
+        iter->word.str = (char*)general_memory_allocate(general, str_max, 0);
+        iter->word.memory_size = str_max;
+    }
+    else if (iter->word.memory_size < size){
+        str_max = size*2;
+        iter->word.str = (char*)general_memory_reallocate_nocopy(general, iter->word.str, str_max, 0);
+        iter->word.memory_size = str_max;
+    }
+    
+    iter->i = 0;
+    iter->pos = 0;
+}
+
+internal void
+search_set_init(General_Memory *general, Search_Set *set, i32 set_count){
+    i32 max;
+    
+    if (set->ranges == 0){
+        max = set_count*2;
+        set->ranges = (Search_Range*)general_memory_allocate(general, sizeof(Search_Range)*max, 0);
+        set->max = max;
+    }
+    else if (set->max < set_count){
+        max = set_count*2;
+        set->ranges = (Search_Range*)general_memory_reallocate_nocopy(
+            general, set->ranges, sizeof(Search_Range)*max, 0);
+        set->max = max;
+    }
+    
+    set->count = set_count;
+}
+
+internal void
+search_hits_table_alloc(General_Memory *general, Table *hits, i32 table_size){
+    i32 hash_size, mem_size;
+    
+    hash_size = table_size * sizeof(u32);
+    hash_size = (hash_size + 7) & ~7;
+    mem_size = hash_size + table_size * sizeof(Offset_String);
+
+    hits->hash_array = (u32*)general_memory_allocate(general, mem_size, 0);
+    hits->data_array = (u8*)hits->hash_array + hash_size;
+    hits->max = table_size;
+
+    hits->item_size = sizeof(Offset_String);
+}
+
+internal void
+search_hits_init(General_Memory *general, Table *hits, String_Space *str, i32 table_size, i32 str_size){
+    i32 hash_size, mem_size;
+    
+    if (hits->hash_array == 0){
+        search_hits_table_alloc(general, hits, table_size);
+    }
+    else if (hits->max < table_size){
+        hash_size = table_size * sizeof(u32);
+        hash_size = (hash_size + 7) & ~7;
+        mem_size = hash_size + table_size * sizeof(Offset_String);
+        
+        hits->hash_array = (u32*)general_memory_reallocate_nocopy(
+            general, hits->hash_array, mem_size, 0);
+        hits->data_array = (u8*)hits->hash_array + hash_size;
+        hits->max = table_size;
+        
+        hits->item_size = sizeof(Offset_String);
+    }
+    
+    if (str->space == 0){
+        str->space = (char*)general_memory_allocate(general, str_size, 0);
+        str->max = str_size;
+    }
+    else if (str->max < str_size){
+        str->space = (char*)general_memory_reallocate_nocopy(general, str->space, str_size, 0);
+        str->max = str_size;
+    }
+    
+    str->pos = str->new_pos = 0;
+    table_clear(hits);
+}
+
+internal b32
+search_hit_add(General_Memory *general, Table *hits, String_Space *space, char *str, i32 len){
+    b32 result;
+    i32 new_size;
+    Offset_String ostring;
+    Table new_hits;
+    
+    Assert(len != 0);
+    
+    ostring = strspace_append(space, str, len);
+    if (ostring.size == 0){
+        new_size = Max(space->max*2, space->max + len);
+        space->space = (char*)general_memory_reallocate(general, space->space, space->new_pos, new_size, 0);
+        ostring = strspace_append(space, str, len);
+    }
+    
+    Assert(ostring.size != 0);
+    
+    if (table_at_capacity(hits)){
+        search_hits_table_alloc(general, &new_hits, hits->max*2);
+        table_clear(&new_hits);
+        table_rehash(hits, &new_hits, space->space, tbl_offset_string_hash, tbl_offset_string_compare);
+        general_memory_free(general, hits->hash_array);
+        *hits = new_hits;
+    }
+    
+    if (!table_add(hits, &ostring, space->space, tbl_offset_string_hash, tbl_offset_string_compare)){
+        result = 1;
+        strspace_keep_prev(space);
+    }
+    else{
+        result = 0;
+        strspace_discard_prev(space);
+    }
+    
+    return(result);
+}
+
+internal Search_Match
+search_next_match(Partition *part, Search_Set *set, Search_Iter *iter_){
+    Search_Match result = {};
+    Search_Iter iter = *iter_;
+    Search_Range *range;
+    Temp_Memory temp;
+    char *spare;
+    i32 start_pos, end_pos, count;
+    
+    temp = begin_temp_memory(part);
+    spare = push_array(part, char, iter.word.size);
+    
+    count = set->count;
+    for (; iter.i < count;){
+        range = set->ranges + iter.i;
+        
+        end_pos = range->start + range->size;
+        
+        if (iter.pos + iter.word.size < end_pos){
+            start_pos = Max(iter.pos, range->start);
+            result.start = buffer_find_string(range->buffer, start_pos, end_pos, iter.word.str, iter.word.size, spare);
+            
+            if (result.start < end_pos){
+                iter.pos = result.start + 1;
+                if (result.start == 0 || !char_is_alpha_numeric(buffer_get_char(range->buffer, result.start - 1))){
+                    result.end = buffer_seek_word_right_assume_on_word(range->buffer, result.start);
+                    if (result.end < end_pos){
+                        result.found_match = 1;
+                        result.buffer = range->buffer;
+                        iter.pos = result.end;
+                        break;
+                    }
+                }
+            }
+            else{
+                ++iter.i, iter.pos = 0;
+            }
+        }
+        else{
+            ++iter.i, iter.pos = 0;
+        }
+    }
+    end_temp_memory(temp);
+    
+    *iter_ = iter;
+    
     return(result);
 }
 

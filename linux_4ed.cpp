@@ -40,7 +40,8 @@
 #include <GL/glx.h>
 #include <xmmintrin.h>
 #include <linux/fs.h>
-#include <X11/extensions/XInput2.h>
+//#include <X11/extensions/XInput2.h>
+#include <X11/XKBlib.h>
 #include <linux/input.h>
 #include <time.h>
 #include <dlfcn.h>
@@ -53,6 +54,17 @@
 #include <stdlib.h>
 
 struct Linux_Vars{
+    Display *XDisplay;
+    Window XWindow;
+    Render_Target target;
+
+    XIM input_method;
+    XIMStyle input_style;
+    XIC xic;
+    Key_Codes key_codes;
+    
+    Clipboard_Contents clipboard_contents;
+    
     void *app_code;
     void *custom;
     
@@ -65,6 +77,8 @@ struct Linux_Vars{
 #if FRED_INTERNAL
     Sys_Bubble internal_bubble;
 #endif
+
+    Font_Load_System fnt;
 };
 
 globalvar Linux_Vars linuxvars;
@@ -76,25 +90,25 @@ Sys_Get_Memory_Sig(system_get_memory_){
     // TODO(allen): Implement without stdlib.h
     void *result = 0;
     
-    if (size != 0){
+    Assert(size != 0);
+    
 #if FRED_INTERNAL
-        Sys_Bubble *bubble;
+    Sys_Bubble *bubble;
     
-        result = malloc(size + sizeof(Sys_Bubble));
-        bubble = (Sys_Bubble*)result;
-        bubble->flags = MEM_BUBBLE_SYS_DEBUG;
-        bubble->line_number = line_number;
-        bubble->file_name = file_name;
-        bubble->size = size;
+    result = malloc(size + sizeof(Sys_Bubble));
+    bubble = (Sys_Bubble*)result;
+    bubble->flags = MEM_BUBBLE_SYS_DEBUG;
+    bubble->line_number = line_number;
+    bubble->file_name = file_name;
+    bubble->size = size;
     
-        // TODO(allen): make Sys_Bubble list thread safe
-        insert_bubble(&linuxvars.internal_bubble, bubble);
-        result = bubble + 1;
+    // TODO(allen): make Sys_Bubble list thread safe
+    insert_bubble(&linuxvars.internal_bubble, bubble);
+    result = bubble + 1;
     
 #else
-        result = malloc(size);
+    result = malloc(size);
 #endif
-    }
     
     return(result);
 }
@@ -348,6 +362,16 @@ Sys_Save_File_Sig(system_save_file){
     return(result);
 }
 
+// TODO(allen): Implement this.  Also where is this
+// macro define? Let's try to organize these functions
+// a little better now that they're starting to settle
+// into their places.
+
+internal
+Font_Load_Sig(system_draw_font_load){
+    return(0);
+}
+
 internal b32
 LinuxLoadAppCode(){
     b32 result = 0;
@@ -397,6 +421,40 @@ LinuxLoadSystemCode(){
 #include "system_shared.cpp"
 #include "4ed_rendering.cpp"
 
+internal void
+LinuxLoadRenderCode(){
+    linuxvars.target.push_clip = draw_push_clip;
+    linuxvars.target.pop_clip = draw_pop_clip;
+    linuxvars.target.push_piece = draw_push_piece;
+    
+    linuxvars.target.font_set.font_info_load = draw_font_info_load;
+    linuxvars.target.font_set.font_load = system_draw_font_load;
+    linuxvars.target.font_set.release_font = draw_release_font;
+}
+
+internal void
+LinuxRedrawTarget(){
+    system_acquire_lock(RENDER_LOCK);
+    launch_rendering(&linuxvars.target);
+    system_release_lock(RENDER_LOCK);
+    glFlush();
+    glXSwapBuffers(linuxvars.XDisplay, linuxvars.XWindow);
+}
+
+internal void
+LinuxResizeTarget(i32 width, i32 height){
+    if (width > 0 && height > 0){
+        glViewport(0, 0, width, height);
+        glMatrixMode(GL_PROJECTION);
+        glLoadIdentity();
+        glOrtho(0, width, height, 0, -1, 1);
+        glScissor(0, 0, width, height);
+        
+        linuxvars.target.width = width;
+        linuxvars.target.height = height;
+    }
+}
+
 // NOTE(allen): Thanks to Casey for providing the linux OpenGL launcher.
 static bool ctxErrorOccurred = false;
 static int XInput2OpCode = 0;
@@ -439,7 +497,7 @@ InitializeOpenGLContext(Display *XDisplay, Window XWindow, GLXFBConfig &bestFbc,
             None
         };
 
-        printf("\nAttribs: %d %d %d %d %d\n",
+        printf("Attribs: %d %d %d %d %d\n",
                context_attribs[0],
                context_attribs[1],
                context_attribs[2],
@@ -506,21 +564,21 @@ InitializeOpenGLContext(Display *XDisplay, Window XWindow, GLXFBConfig &bestFbc,
     {
         printf( "Direct GLX rendering context obtained\n" );
     }
-  
+    
     printf( "Making context current\n" );
     glXMakeCurrent( XDisplay, XWindow, ctx );
-
+    
     GLint n;
     char *Vendor = (char *)glGetString(GL_VENDOR);
     char *Renderer = (char *)glGetString(GL_RENDERER);
     char *Version = (char *)glGetString(GL_VERSION);
     char *Extensions = (char *)glGetString(GL_EXTENSIONS);
-
+    
     printf("GL_VENDOR: %s\n", Vendor);
     printf("GL_RENDERER: %s\n", Renderer);
     printf("GL_VERSION: %s\n", Version);
     printf("GL_EXTENSIONS: %s\n", Extensions);
-
+    
     return(ctx);
 }
 
@@ -636,16 +694,23 @@ ChooseGLXConfig(Display *XDisplay, int XScreenIndex)
     return(Result);
 }
 
-internal void
+struct Init_Input_Result{
+    XIM input_method;
+    XIMStyle best_style;
+    XIC xic;
+};
+
+internal Init_Input_Result
 InitializeXInput(Display *dpy, Window XWindow)
 {
+#if 0
     int event, error;
     if(XQueryExtension(dpy, "XInputExtension", &XInput2OpCode, &event, &error))
     {
         int major = 2, minor = 0;
         if(XIQueryVersion(dpy, &major, &minor) != BadRequest)
         {
-            printf("XInput initialized");
+            printf("XInput initialized version %d.%d\n", major, minor);
         }
         else
         {
@@ -723,11 +788,61 @@ InitializeXInput(Display *dpy, Window XWindow)
         XISetMask(Mask.mask, XI_RawMotion);
         XISelectEvents(dpy, DefaultRootWindow(dpy), &Mask, 1);
     }
+#endif
+    
+    // NOTE(allen): Annnndddd... here goes some guess work of my own.
+    Init_Input_Result result = {};
+    XIMStyle style;
+    XIMStyles *styles = 0;
+    i32 i, count;
+    
+    XSetLocaleModifiers("");
+	printf("supported locales: %d\n", XSupportsLocale());
+    
+    XSelectInput(linuxvars.XDisplay, linuxvars.XWindow, ExposureMask | KeyPressMask);
+    
+    result.input_method = XOpenIM(dpy, 0, 0, 0);
+    if (result.input_method){
+        if (!XGetIMValues(result.input_method, XNQueryInputStyle, &styles, NULL) &&
+            styles){
+            result.best_style = 0;
+            count = styles->count_styles;
+            for (i = 0; i < count; ++i){
+                style = styles->supported_styles[i];
+                if (style == (XIMPreeditNothing | XIMStatusNothing)){
+                    result.best_style = style;
+                    break;
+                }
+            }
+            
+            if (result.best_style){
+                XFree(styles);
+
+                result.xic =
+                    XCreateIC(result.input_method, XNInputStyle, result.best_style,
+                              XNClientWindow, XWindow,
+                              XNFocusWindow, XWindow,
+                              0, 0,
+                              NULL);
+            }
+            else{
+                result = {};
+                printf("Could not get minimum required input style");
+            }
+        }
+    }
+    else{
+        result = {};
+        printf("Could not open X Input Method\n");
+    }
+
+    return(result);
 }
 
 int
 main(int argc, char **argv)
 {
+    i32 COUNTER = 0;
     linuxvars = {};
     exchange_vars = {};
     
@@ -765,10 +880,10 @@ main(int argc, char **argv)
     }
     
     if (curdir_req >= (1 << 13)){
-        // TODO(allen): fuckin' bullshit string APIs makin' me pissed
+        // TODO(allen): bullshit string APIs makin' me pissed
         return 57;
     }
-    
+   
     for (curdir_size = 0; curdir_mem[curdir_size]; ++curdir_size);
     
     current_directory = make_string(curdir_mem, curdir_size, curdir_req);
@@ -788,121 +903,302 @@ main(int argc, char **argv)
                                         &linuxvars.settings,
                                         &files, &file_count,
                                         clparams);
-
+    
     if (output_size > 0){
         // TODO(allen): crt free version
         printf("%.*s", output_size, (char*)memory_vars.target_memory);
     }
     if (output_size != 0) return 0;
 
-    system_filter_real_files(files, file_count);
+    sysshared_filter_real_files(files, file_count);
     
-    Display *XDisplay = XOpenDisplay(0);
-    if(XDisplay && GLXSupportsModernContexts(XDisplay))
+    keycode_init(&linuxvars.key_codes);
+
+#ifdef FRED_SUPER
+    char *custom_file_default = "4coder_custom.so";
+    char *custom_file;
+    if (linuxvars.settings.custom_dll) custom_file = linuxvars.settings.custom_dll;
+    else custom_file = custom_file_default;
+    
+    linuxvars.custom = dlopen(custom_file, RTLD_LAZY);
+    if (!linuxvars.custom && custom_file != custom_file_default){
+        if (!linuxvars.settings.custom_dll_is_strict){
+            linuxvars.custom = dlopen(custom_file_default, RTLD_LAZY);
+        }
+    }
+    
+    if (linuxvars.custom){
+        linuxvars.custom_api.get_bindings = (Get_Binding_Data_Function*)
+            dlsym(linuxvars.custom, "get_bindings");
+    }
+#endif
+    
+    // TODO(allen): Setup background threads and locks
+    
+    LinuxLoadRenderCode();
+    linuxvars.target.max = Mbytes(1);
+    linuxvars.target.push_buffer = (byte*)system_get_memory(linuxvars.target.max);
+    
+    File_Slot file_slots[32];
+    sysshared_init_file_exchange(&exchange_vars, file_slots, ArrayCount(file_slots), 0);
+    
+    Font_Load_Parameters params[8];
+    sysshared_init_font_params(&linuxvars.fnt, params, ArrayCount(params));
+    
+    linuxvars.app.init(linuxvars.system, &linuxvars.target,
+                       &memory_vars, &exchange_vars, &linuxvars.key_codes,
+                       linuxvars.clipboard_contents, current_directory,
+                       linuxvars.custom_api);
+    
+    // NOTE(allen): Here begins the linux screen setup stuff.
+    // Behold the true nature of this wonderful OS:
+    // (thanks again to Casey for providing this stuff)
+    Colormap cmap;
+    XSetWindowAttributes swa;
+    int WinWidth, WinHeight;
+    b32 window_setup_success = 0;
+
+    WinWidth = 800;
+    WinHeight = 600;
+    
+    i32 xkb_ev_code = 0, xkb_err_code = 0;
+    
+    linuxvars.XDisplay = XkbOpenDisplay(0, &xkb_ev_code, &xkb_err_code, 0, 0, 0);
+    if(linuxvars.XDisplay && GLXSupportsModernContexts(linuxvars.XDisplay))
     {
-        int XScreenCount = ScreenCount(XDisplay);
+        int XScreenCount = ScreenCount(linuxvars.XDisplay);
         for(int XScreenIndex = 0;
             XScreenIndex < XScreenCount;
             ++XScreenIndex)
-        {                
-            Screen *XScreen = ScreenOfDisplay(XDisplay, XScreenIndex);
-                
-            int WinWidth = WidthOfScreen(XScreen);
-            int WinHeight = HeightOfScreen(XScreen);
-                                
-            glx_config_result Config = ChooseGLXConfig(XDisplay, XScreenIndex);
+        {
+            Screen *XScreen = ScreenOfDisplay(linuxvars.XDisplay, XScreenIndex);
+
+            i32 ScrnWidth, ScrnHeight;
+            ScrnWidth = WidthOfScreen(XScreen);
+            ScrnHeight = HeightOfScreen(XScreen);
+            
+            if (ScrnWidth + 50 < WinWidth) WinWidth = ScrnWidth + 50;
+            if (ScrnHeight + 50 < WinHeight) WinHeight = ScrnHeight + 50;
+            
+            glx_config_result Config = ChooseGLXConfig(linuxvars.XDisplay, XScreenIndex);
             if(Config.Found)
             {
-                Colormap cmap;
-                XSetWindowAttributes swa;
-                swa.colormap = cmap = XCreateColormap(XDisplay,
-                                                      RootWindow(XDisplay, Config.BestInfo.screen ), 
+                swa.colormap = cmap = XCreateColormap(linuxvars.XDisplay,
+                                                      RootWindow(linuxvars.XDisplay, Config.BestInfo.screen ), 
                                                       Config.BestInfo.visual, AllocNone);
                 swa.background_pixmap = None;
                 swa.border_pixel = 0;
                 swa.event_mask = StructureNotifyMask;
  
-                Window XWindow = XCreateWindow(XDisplay,
-                                               RootWindow(XDisplay, Config.BestInfo.screen),
-                                               0, 0, WinWidth, WinHeight,
-                                               0, Config.BestInfo.depth, InputOutput, 
-                                               Config.BestInfo.visual, 
-                                               CWBorderPixel|CWColormap|CWEventMask, &swa );
-                if(XWindow)
+                linuxvars.XWindow =
+                    XCreateWindow(linuxvars.XDisplay,
+                                  RootWindow(linuxvars.XDisplay, Config.BestInfo.screen),
+                                  0, 0, WinWidth, WinHeight,
+                                  0, Config.BestInfo.depth, InputOutput, 
+                                  Config.BestInfo.visual, 
+                                  CWBorderPixel|CWColormap|CWEventMask, &swa );
+                
+                if(linuxvars.XWindow)
                 {
-                    XStoreName(XDisplay, XWindow, "4coder");
-                    XMapWindow(XDisplay, XWindow);
+                    XStoreName(linuxvars.XDisplay, linuxvars.XWindow, "4coder-window");
+                    XMapWindow(linuxvars.XDisplay, linuxvars.XWindow);
 
-                    InitializeXInput(XDisplay, XWindow);
+                    Init_Input_Result input_result = 
+                        InitializeXInput(linuxvars.XDisplay, linuxvars.XWindow);
+
+                    linuxvars.input_method = input_result.input_method;
+                    linuxvars.input_style = input_result.best_style;
+                    linuxvars.xic = input_result.xic;
 
                     b32 IsLegacy = false;
                     GLXContext GLContext =
-                        InitializeOpenGLContext(XDisplay, XWindow, Config.BestConfig, IsLegacy);
+                        InitializeOpenGLContext(linuxvars.XDisplay, linuxvars.XWindow, Config.BestConfig, IsLegacy);
 
                     XWindowAttributes WinAttribs;
-                    if(XGetWindowAttributes(XDisplay, XWindow, &WinAttribs))
+                    if(XGetWindowAttributes(linuxvars.XDisplay, linuxvars.XWindow, &WinAttribs))
                     {
                         WinWidth = WinAttribs.width;
                         WinHeight = WinAttribs.height;
                     }
                     
-                    XRaiseWindow(XDisplay, XWindow);
-                    XSync(XDisplay, False);
+                    XRaiseWindow(linuxvars.XDisplay, linuxvars.XWindow);
+                    XSync(linuxvars.XDisplay, False);
 
-                    for(;;)
-                    {
-                        while(XPending(XDisplay))
-                        {
-                            XEvent Event;                    
-                            XNextEvent(XDisplay, &Event);
-
-                            if((Event.xcookie.type == GenericEvent) &&
-                               (Event.xcookie.extension == XInput2OpCode) &&
-                               XGetEventData(XDisplay, &Event.xcookie))
-                            {
-                                switch(Event.xcookie.evtype)
-                                {
-                                    case XI_Motion:
-                                    {
-                                        Window root_return, child_return;
-                                        int root_x_return, root_y_return;
-                                        int MouseX, MouseY;
-                                        unsigned int mask_return;
-                                        XQueryPointer(XDisplay,
-                                                      XWindow,
-                                                      &root_return, &child_return,
-                                                      &root_x_return, &root_y_return,
-                                                      &MouseX, &MouseY,
-                                                      &mask_return);
-                                    } break;
-
-                                    case XI_ButtonPress:
-                                    case XI_ButtonRelease:
-                                    {
-                                        b32 Down = (Event.xcookie.evtype == XI_ButtonPress);
-                                        XIDeviceEvent *DevEvent = (XIDeviceEvent *)Event.xcookie.data;
-                                        int Button = DevEvent->detail;
-                                    } break;
-
-                                    case XI_KeyPress:
-                                    case XI_KeyRelease:
-                                    {
-                                        b32 Down = (Event.xcookie.evtype == XI_KeyPress); 
-                                        XIDeviceEvent *DevEvent = (XIDeviceEvent *)Event.xcookie.data;
-                                        int VK = DevEvent->detail;
-                                    } break;
-                                }
-
-                                XFreeEventData(XDisplay, &Event.xcookie);
-                            }
-                        }
-                        
-                        // Draw some stuff here?
-                        
-                        glXSwapBuffers(XDisplay, XWindow);                    
-                    }
+                    window_setup_success = 1;
                 }
             }
+        }
+    }
+    
+    XSetICFocus(linuxvars.xic);
+    
+    if (window_setup_success){
+        LinuxResizeTarget(WinWidth, WinHeight);
+        
+        for(;;)
+        {
+            while(XPending(linuxvars.XDisplay))
+            {
+                XEvent Event;            
+                XNextEvent(linuxvars.XDisplay, &Event);
+                                
+                if (XFilterEvent(&Event, None) == True){
+                    continue;
+                }
+                
+                switch (Event.type){
+                case KeyPress:
+                {
+                    KeySym ks = NoSymbol;
+                    XkbLookupKeySym(linuxvars.XDisplay, Event.xkey.keycode, Event.xkey.state, NULL, &ks);
+                    printf("keysym: %s\n", XKeysymToString(ks));
+			
+                    Status st;
+                    char buff[256];
+                    memset(buff, 0, sizeof(buff));
+                    XmbLookupString(linuxvars.xic, &Event.xkey, buff, sizeof(buff), &ks, &st);
+                    printf("IC status: %d, code: %u, sym: %s, str: %s\n", st, Event.xkey.keycode, XKeysymToString(ks), buff);
+                }break;
+                
+                }
+                
+#if 0
+                if((Event.xcookie.type == GenericEvent) &&
+                   (Event.xcookie.extension == XInput2OpCode) &&
+                   XGetEventData(linuxvars.XDisplay, &Event.xcookie))
+                {
+                    switch(Event.xcookie.evtype)
+                    {
+                    case XI_Motion:
+                    {
+                        Window root_return, child_return;
+                        int root_x_return, root_y_return;
+                        int MouseX, MouseY;
+                        unsigned int mask_return;
+                        XQueryPointer(linuxvars.XDisplay,
+                                      linuxvars.XWindow,
+                                      &root_return, &child_return,
+                                      &root_x_return, &root_y_return,
+                                      &MouseX, &MouseY,
+                                      &mask_return);
+                    } break;
+
+                    case XI_ButtonPress:
+                    case XI_ButtonRelease:
+                    {
+                        b32 Down = (Event.xcookie.evtype == XI_ButtonPress);
+                        XIDeviceEvent *DevEvent = (XIDeviceEvent *)Event.xcookie.data;
+                        int Button = DevEvent->detail;
+                    } break;
+
+                    case XI_KeyPress:
+                    case XI_KeyRelease:
+                    {
+                        b32 Down = (Event.xcookie.evtype == XI_KeyPress);
+                        XIDeviceEvent *DevEvent = (XIDeviceEvent *)Event.xcookie.data;
+                        int keycode = DevEvent->detail;
+                        
+                        if (Down){
+                            printf("Keycode %d\n", keycode);
+
+                            // NOTE(allen): Thanks to eisbehr for providing the code
+                            // for initializing an XKeyPressedEvent struct for use in
+                            // Xmb8LookupString
+                            XKeyPressedEvent eventBase = {};
+                            eventBase.type = KeyPress;
+                            eventBase.serial = 0xF00D;
+                            eventBase.send_event = 1; // at least admit that this isn't a genuine event
+                            eventBase.display = DevEvent->display;
+                            eventBase.window = DevEvent->event;
+                            eventBase.root = DevEvent->root;
+                            eventBase.subwindow = 0;
+                            eventBase.time = {}; // Let's hope we don't need a real time.
+                            eventBase.x = 0;
+                            eventBase.y = 0;
+                            eventBase.x_root = 0;
+                            eventBase.y_root = 0;
+                            eventBase.state = 0; // state of modifiers
+                            // Button1Mask, Button2Mask, Button3Mask, Button4Mask, Button5Mask,
+                            // ShiftMask, LockMask, ControlMask,
+                            // Mod1Mask, Mod2Mask, Mod3Mask, Mod4Mask, Mod5Mask.
+                            //eventBase.keycode = 10;//minKeyCode;
+                            eventBase.same_screen = 1;
+
+                            eventBase.keycode = keycode;
+                            
+                            char lookup_buffer[32];
+                            Status status;
+                            i32 size;
+                            KeySym keysym;
+                            
+                            size = XmbLookupString(linuxvars.xic, &eventBase,
+                                                   lookup_buffer, sizeof(lookup_buffer),
+                                                   &keysym, &status);
+                        
+                            if (status == XBufferOverflow){
+                                printf("Buffer overflow %d\n", size);
+                            }
+                            else if (status == XLookupNone){
+                                printf("nothing branch\n");
+                            }
+                            else if (status == XLookupChars || status == XLookupBoth){
+                                printf("keysym %lu translation: %.*s\n", keysym, size, lookup_buffer);
+                            }
+                            else{
+                                printf("unknown branch %d\n", status);
+                            }
+                            break;
+                        }
+                    } break;
+                    }
+
+                    XFreeEventData(linuxvars.XDisplay, &Event.xcookie);
+                }
+#endif
+            }
+            
+            b32 redraw = 1;
+            
+            Key_Input_Data input_data;
+            Mouse_State mouse;
+            Application_Step_Result result;
+            
+            input_data = {};
+            mouse = {};
+            
+            result.mouse_cursor_type = APP_MOUSE_CURSOR_DEFAULT;
+            result.redraw = redraw;
+            result.lctrl_lalt_is_altgr = 0;
+            
+            linuxvars.app.step(linuxvars.system,
+                               &linuxvars.key_codes,
+                               &input_data,
+                               &mouse,
+                               &linuxvars.target,
+                               &memory_vars,
+                               &exchange_vars,
+                               linuxvars.clipboard_contents,
+                               1, linuxvars.first, redraw,
+                               &result);
+            
+            if (result.redraw){
+                LinuxRedrawTarget();
+            }
+                        
+            glBegin(GL_QUADS);
+            {
+                glVertex2f(.5f, .5f);
+                glVertex2f(1.f, .5f);
+                glVertex2f(1.f, 1.f);
+                glVertex2f(.5f, 1.f);
+                            
+                glVertex2f(0.f, 0.f);
+                glVertex2f(.2f, 0.f);
+                glVertex2f(.2f, .2f);
+                glVertex2f(0.f, .2f);
+            }
+            glEnd();
+            glXSwapBuffers(linuxvars.XDisplay, linuxvars.XWindow);
         }
     }
 }

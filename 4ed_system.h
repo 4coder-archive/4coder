@@ -187,5 +187,36 @@ struct System_Functions{
     INTERNAL_System_Debug_Message *internal_debug_message;
 };
 
+#define FileNameMax (1 << 9)
+
+struct File_Slot{
+    File_Slot *next, *prev;
+    byte *data;
+    i32 size, max;
+    char *filename;
+    i32 filename_len;
+    u32 flags;
+};
+
+enum File_Exchange_Flag{
+    FEx_Request = 0x1,
+    FEx_Ready = 0x2,
+    FEx_Not_Exist = 0x4,
+    FEx_Save = 0x8,
+    FEx_Save_Complete = 0x10,
+    FEx_Save_Failed = 0x20
+};
+
+struct File_Exchange{
+    File_Slot available, active, free_list;
+    File_Slot *files;
+    i32 num_active, max;
+};
+
+struct Exchange{
+    Thread_Exchange thread;
+    File_Exchange file;
+};
+
 // BOTTOM
 

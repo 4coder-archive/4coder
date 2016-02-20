@@ -249,5 +249,7 @@ end_temp_memory(Temp_Memory temp){
     ((Partition*)temp.handle)->pos = temp.pos;
 }
 
+#define reset_temp_memory end_temp_memory
+
 // BOTTOM
 

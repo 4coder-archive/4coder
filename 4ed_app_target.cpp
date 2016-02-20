@@ -29,6 +29,8 @@
 
 #include "4ed_internal.h"
 
+#include "4tech_table.cpp"
+
 #define FCPP_LEXER_IMPLEMENTATION
 #include "4cpp_lexer.h"
 

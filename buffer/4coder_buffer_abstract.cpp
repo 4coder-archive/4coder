@@ -37,6 +37,15 @@ buffer_backify(Buffer_Type *buffer, int start, int end, char *out){
     }
 }
 
+internal_4tech char
+buffer_get_char(Buffer_Type *buffer, int i){
+    char out = 0;
+    if (i >= 0 && i < buffer_size(buffer)){
+        buffer_stringify(buffer, i, i+1, &out);
+    }
+    return(out);
+}
+
 internal_4tech int
 buffer_convert_out(Buffer_Type *buffer, char *dest, int max){
     Buffer_Stringify_Type loop;
@@ -463,17 +472,14 @@ buffer_find_hard_start_end:
 }
 
 internal_4tech int
-buffer_find_string(Buffer_Type *buffer, int start_pos, char *str, int len, char *spare){
+buffer_find_string(Buffer_Type *buffer, int start_pos, int end_pos, char *str, int len, char *spare){
     Buffer_Stringify_Type loop;
     char *data;
-    int size, end;
-    int pos;
-    
-    size = buffer_size(buffer);
+    int end, pos;
 
     pos = start_pos;
     if (len > 0){
-        for (loop = buffer_stringify_loop(buffer, start_pos, size - len + 1);
+        for (loop = buffer_stringify_loop(buffer, start_pos, end_pos - len + 1);
              buffer_stringify_good(&loop);
              buffer_stringify_next(&loop)){
             end = loop.size + loop.absolute_pos;
@@ -489,7 +495,7 @@ buffer_find_string(Buffer_Type *buffer, int start_pos, char *str, int len, char 
     }
     
 buffer_find_string_end:
-    if (pos >= size - len + 1) pos = size;
+    if (pos >= end_pos - len + 1) pos = end_pos;
     return(pos);
 }
 

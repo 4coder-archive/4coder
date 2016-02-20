@@ -36,6 +36,11 @@ struct String{
     int size;
     int memory_size;
 };
+
+struct Offset_String{
+    int offset;
+    int size;
+};
 #endif
 
 inline bool char_not_slash(char c) { return (c != '\\' && c != '/'); }

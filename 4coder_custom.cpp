@@ -174,6 +174,16 @@ CUSTOM_COMMAND_SIG(write_and_auto_tab){
     exec_command(cmd_context, cmdid_auto_tab_line_at_cursor);
 }
 
+// NOTE(allen|a3.4): How one might go about writing things like cut_line
+// same idea works for cut word and other such composite commands.
+CUSTOM_COMMAND_SIG(cut_line){
+    exec_command(cmd_context, cmdid_seek_beginning_of_line);
+    exec_command(cmd_context, cmdid_set_mark);
+    exec_command(cmd_context, cmdid_seek_end_of_line);
+    exec_command(cmd_context, cmdid_cut);
+    exec_command(cmd_context, cmdid_delete);
+}
+
 extern "C" GET_BINDING_DATA(get_bindings){
     Bind_Helper context_actual = begin_bind_helper(data, size);
     Bind_Helper *context = &context_actual;

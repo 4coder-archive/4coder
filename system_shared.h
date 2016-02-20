@@ -14,6 +14,24 @@
 // the application code, but system_shared.cpp and 4ed_rendering.cpp
 // rely on the functions listed here.
 
+struct Font_Load_Parameters{
+    Font_Load_Parameters *next;
+    Font_Load_Parameters *prev;
+    
+    Render_Font *font_out;
+    char *filename;
+    i32 pt_size;
+    i32 tab_width;
+};
+
+struct Font_Load_System{
+    Font_Load_Parameters *params;
+    Font_Load_Parameters used_param;
+    Font_Load_Parameters free_param;
+    Partition part;
+    i32 max;
+};
+
 #define Sys_Get_Memory_Sig(name) void* name(i32 size, i32 line_number, char *file_name)
 #define Sys_Free_Memory_Sig(name) void name(void *block)
 #define Sys_File_Can_Be_Made(name) b32 name(char *filename)

@@ -94,17 +94,6 @@ struct Win32_Input_Chunk{
     Win32_Input_Chunk_Persistent pers;
 };
 
-struct Win32_Font_Load_Parameters{
-    Win32_Font_Load_Parameters *next;
-    Win32_Font_Load_Parameters *prev;
-    
-    Render_Font *font_out;
-    char *filename;
-    i32 pt_size;
-    i32 tab_width;
-};
-
-
 struct Win32_Vars{
 	HWND window_handle;
     HDC window_hdc;
@@ -153,11 +142,8 @@ struct Win32_Vars{
 #if FRED_INTERNAL
     Sys_Bubble internal_bubble;
 #endif
-    
-    Win32_Font_Load_Parameters fnt_params[8];
-    Win32_Font_Load_Parameters used_font_param;
-    Win32_Font_Load_Parameters free_font_param;
-    Partition fnt_part;
+
+    Font_Load_System fnt;
 };
 
 globalvar Win32_Vars win32vars;
@@ -861,41 +847,6 @@ Sys_CLI_End_Update_Sig(system_cli_end_update){
     return close_me;
 }
 
-internal void
-fnt__remove(Win32_Font_Load_Parameters *params){
-    params->next->prev = params->prev;
-    params->prev->next = params->next;
-}
-
-internal void
-fnt__insert(Win32_Font_Load_Parameters *pos, Win32_Font_Load_Parameters *params){
-    params->next = pos->next;
-    pos->next->prev = params;
-    pos->next = params;
-    params->prev = pos;
-}
-
-internal
-Font_Load_Sig(system_draw_font_load){
-    Win32_Font_Load_Parameters *params;
-    
-    system_acquire_lock(FONT_LOCK);
-    params = win32vars.free_font_param.next;
-    fnt__remove(params);
-    fnt__insert(&win32vars.used_font_param, params);
-    system_release_lock(FONT_LOCK);
-    
-    params->font_out = font_out;
-    params->filename = filename;
-    params->pt_size = pt_size;
-    params->tab_width = tab_width;
-
-    SendMessage(win32vars.window_handle,
-                WM_4coder_LOAD_FONT,
-                0, (i32)(params - win32vars.fnt_params));
-    return(1);
-}
-
 internal b32
 Win32LoadAppCode(){
     b32 result = 0;
@@ -985,6 +936,38 @@ Win32LoadSystemCode(){
 #include "system_shared.cpp"
 #include "4ed_rendering.cpp"
 
+internal
+Font_Load_Sig(system_draw_font_load){
+    Font_Load_Parameters *params;
+    
+    system_acquire_lock(FONT_LOCK);
+    params = win32vars.fnt.free_param.next;
+    fnt__remove(params);
+    fnt__insert(&win32vars.fnt.used_param, params);
+    system_release_lock(FONT_LOCK);
+    
+    params->font_out = font_out;
+    params->filename = filename;
+    params->pt_size = pt_size;
+    params->tab_width = tab_width;
+
+    SendMessage(win32vars.window_handle,
+                WM_4coder_LOAD_FONT,
+                0, (i32)(params - win32vars.fnt.params));
+    return(1);
+}
+
+internal void
+Win32LoadRenderCode(){
+    win32vars.target.push_clip = draw_push_clip;
+    win32vars.target.pop_clip = draw_pop_clip;
+    win32vars.target.push_piece = draw_push_piece;
+    
+    win32vars.target.font_set.font_info_load = draw_font_info_load;
+    win32vars.target.font_set.font_load = system_draw_font_load;
+    win32vars.target.font_set.release_font = draw_release_font;
+}
+
 internal void
 Win32RedrawScreen(HDC hdc){
     system_acquire_lock(RENDER_LOCK);
@@ -992,45 +975,6 @@ Win32RedrawScreen(HDC hdc){
     system_release_lock(RENDER_LOCK);
     glFlush();
     SwapBuffers(hdc);
-}
-
-void
-ex__file_insert(File_Slot *pos, File_Slot *file){
-    file->next = pos->next;
-    file->next->prev = file;
-    file->prev = pos;
-    pos->next = file;
-}
-
-void
-ex__insert_range(File_Slot *start, File_Slot *end, File_Slot *pos){
-    end->next->prev = start->prev;
-    start->prev->next = end->next;
-    
-    end->next = pos->next;
-    start->prev = pos;
-    pos->next->prev = end;
-    pos->next = start;
-}
-
-internal void
-ex__check_file(File_Slot *pos){
-    File_Slot *file = pos;
-    
-    Assert(pos == pos->next->prev);
-    
-    for (pos = pos->next;
-         file != pos;
-         pos = pos->next){
-        Assert(pos == pos->next->prev);
-    }
-}
-
-internal void
-ex__check(File_Exchange *file_exchange){
-    ex__check_file(&file_exchange->available);
-    ex__check_file(&file_exchange->active);
-    ex__check_file(&file_exchange->free_list);
 }
 
 internal LRESULT
@@ -1298,29 +1242,29 @@ Win32Callback(HWND hwnd, UINT uMsg,
     
     case WM_4coder_LOAD_FONT:
     {
-        if (win32vars.fnt_part.base == 0){
-            win32vars.fnt_part = Win32ScratchPartition(Mbytes(8));
+        if (win32vars.fnt.part.base == 0){
+            win32vars.fnt.part = Win32ScratchPartition(Mbytes(8));
         }
         
-        Win32_Font_Load_Parameters *params = win32vars.fnt_params + lParam;
+        Font_Load_Parameters *params = win32vars.fnt.params + lParam;
 
         for (b32 success = 0; success == 0;){
         
-            success = draw_font_load(win32vars.fnt_part.base,
-                                     win32vars.fnt_part.max,
+            success = draw_font_load(win32vars.fnt.part.base,
+                                     win32vars.fnt.part.max,
                                      params->font_out,
                                      params->filename,
                                      params->pt_size,
                                      params->tab_width);
             
             if (!success){
-                Win32ScratchPartitionDouble(&win32vars.fnt_part);
+                Win32ScratchPartitionDouble(&win32vars.fnt.part);
             }
         }
         
         system_acquire_lock(FONT_LOCK);
         fnt__remove(params);
-        fnt__insert(&win32vars.free_font_param, params);
+        fnt__insert(&win32vars.fnt.free_param, params);
         system_release_lock(FONT_LOCK);
     }break;
     
@@ -1598,7 +1542,7 @@ main(int argc, char **argv){
     if (output_size != 0) return 0;
     FreeConsole();
 
-    system_filter_real_files(files, file_count);
+    sysshared_filter_real_files(files, file_count);
     
     LARGE_INTEGER lpf;
     QueryPerformanceFrequency(&lpf);
@@ -1663,6 +1607,10 @@ main(int argc, char **argv){
         win32vars.locks[i] = CreateSemaphore(0, 1, 1, 0);
     }
     win32vars.DEBUG_sysmem_lock = CreateSemaphore(0, 1, 1, 0);
+    
+    Win32LoadRenderCode();
+    win32vars.target.max = Mbytes(1);
+    win32vars.target.push_buffer = (byte*)system_get_memory(win32vars.target.max);
     
     win32vars.cursor_ibeam = LoadCursor(NULL, IDC_IBEAM);
     win32vars.cursor_arrow = LoadCursor(NULL, IDC_ARROW);
@@ -1798,53 +1746,12 @@ main(int argc, char **argv){
         }
     }
 
-    win32vars.target.push_clip = draw_push_clip;
-    win32vars.target.pop_clip = draw_pop_clip;
-    win32vars.target.push_piece = draw_push_piece;
     
-    win32vars.target.font_set.font_info_load = draw_font_info_load;
-    win32vars.target.font_set.font_load = system_draw_font_load;
-    win32vars.target.font_set.release_font = draw_release_font;
-
-    win32vars.target.max = Mbytes(1);
-    win32vars.target.push_buffer = (byte*)Win32GetMemory(win32vars.target.max);
-
     File_Slot file_slots[32];
-    exchange_vars.file.max = sizeof(file_slots) / sizeof(file_slots[0]);
-    exchange_vars.file.available = {};
-    exchange_vars.file.available.next = &exchange_vars.file.available;
-    exchange_vars.file.available.prev = &exchange_vars.file.available;
+    sysshared_init_file_exchange(&exchange_vars, file_slots, ArrayCount(file_slots), 0);
     
-    exchange_vars.file.active = {};
-    exchange_vars.file.active.next = &exchange_vars.file.active;
-    exchange_vars.file.active.prev = &exchange_vars.file.active;
-    
-    exchange_vars.file.free_list = {};
-    exchange_vars.file.free_list.next = &exchange_vars.file.free_list;
-    exchange_vars.file.free_list.prev = &exchange_vars.file.free_list;
-
-    exchange_vars.file.files = file_slots;
-    memset(file_slots, 0, sizeof(file_slots));
-
-    char *filename_space = (char*)
-        Win32GetMemory(FileNameMax*exchange_vars.file.max);
-    
-    for (int i = 0; i < exchange_vars.file.max; ++i){
-        File_Slot *slot = file_slots + i;
-        ex__file_insert(&exchange_vars.file.available, slot);
-        slot->filename = filename_space;
-        filename_space += FileNameMax;
-    }
-    
-    win32vars.free_font_param.next = &win32vars.free_font_param;
-    win32vars.free_font_param.prev = &win32vars.free_font_param;
-
-    win32vars.used_font_param.next = &win32vars.used_font_param;
-    win32vars.used_font_param.prev = &win32vars.used_font_param;
-    
-    for (i32 i = 0; i < ArrayCount(win32vars.fnt_params); ++i){
-        fnt__insert(&win32vars.free_font_param, win32vars.fnt_params + i);
-    }
+    Font_Load_Parameters params[32];
+    sysshared_init_font_params(&win32vars.fnt, params, ArrayCount(params));
     
     win32vars.app.init(win32vars.system, &win32vars.target,
                        &memory_vars, &exchange_vars, &win32vars.key_codes,
