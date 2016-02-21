@@ -3038,7 +3038,7 @@ App_Step_Sig(app_step){
     // NOTE(allen): OS clipboard event handling
     if (clipboard.str){
         String *dest = working_set_next_clipboard_string(&vars->mem.general, &vars->working_set, clipboard.size);
-        copy(dest, make_string((char*)clipboard.str, clipboard.size));
+        dest->size = eol_convert_in(dest->str, clipboard.str, clipboard.size);
     }
     
     // TODO(allen): profile this make sure it's not costing me too much power.

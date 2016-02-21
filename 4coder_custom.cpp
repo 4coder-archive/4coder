@@ -139,7 +139,7 @@ CUSTOM_COMMAND_SIG(build_search){
     // Step 3: If the batch file did not exist try to move to the parent directory using
     // app->directory_cd. The cd function can also be used to navigate to subdirectories.
     // It returns true if it can actually move in the specified direction, and false otherwise.
-
+    
     int keep_going = 1;
     String dir = push_directory(app, cmd_context);
     while (keep_going){
@@ -147,7 +147,7 @@ CUSTOM_COMMAND_SIG(build_search){
             push_parameter(app, cmd_context, par_cli_overlap_with_conflict, 0);
             push_parameter(app, cmd_context, par_target_buffer_name, literal("*compilation*"));
             push_parameter(app, cmd_context, par_cli_path, dir.str, dir.size);
-
+            
             if (append(&dir, "build")){
                 app->push_parameter(cmd_context,
                     dynamic_int(par_cli_command),
@@ -157,7 +157,7 @@ CUSTOM_COMMAND_SIG(build_search){
             else{
                 clear_parameters(cmd_context);
             }
-
+            
             return;
         }
 

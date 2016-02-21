@@ -111,7 +111,7 @@ struct Win32_Vars{
 	HCURSOR cursor_leftright;
 	HCURSOR cursor_updown;
 	Application_Mouse_Cursor prev_mouse_cursor;
-	Clipboard_Contents clipboard_contents;
+	String clipboard_contents;
 	b32 next_clipboard_is_self;
 	DWORD clipboard_sequence;
     
@@ -1326,7 +1326,7 @@ UpdateLoop(LPVOID param){
                         HANDLE clip_data;
                         clip_data = GetClipboardData(CF_TEXT);
                         if (clip_data){
-                            win32vars.clipboard_contents.str = (u8*)GlobalLock(clip_data);
+                            win32vars.clipboard_contents.str = (char*)GlobalLock(clip_data);
                             if (win32vars.clipboard_contents.str){
                                 win32vars.clipboard_contents.size = str_size((char*)win32vars.clipboard_contents.str);
                                 GlobalUnlock(clip_data);
@@ -1337,11 +1337,10 @@ UpdateLoop(LPVOID param){
                 }
             }
         }
-    
+        
         u32 redraw = exchange_vars.thread.force_redraw;
         if (redraw) exchange_vars.thread.force_redraw = 0;
         redraw = redraw || input_chunk.trans.redraw;
-        
         
         Key_Input_Data input_data;
         Mouse_State mouse;
@@ -1749,7 +1748,7 @@ main(int argc, char **argv){
                 HANDLE clip_data;
                 clip_data = GetClipboardData(CF_TEXT);
                 if (clip_data){
-                    win32vars.clipboard_contents.str = (u8*)GlobalLock(clip_data);
+                    win32vars.clipboard_contents.str = (char*)GlobalLock(clip_data);
                     if (win32vars.clipboard_contents.str){
                         win32vars.clipboard_contents.size = str_size((char*)win32vars.clipboard_contents.str);
                         GlobalUnlock(clip_data);

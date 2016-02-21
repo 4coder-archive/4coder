@@ -84,12 +84,6 @@ struct Input_Summary{
     Key_Codes *codes;
 };
 
-// TODO(allen): This can go, and we can just use a String for it.
-struct Clipboard_Contents{
-	u8 *str;
-	i32 size;
-};
-
 struct Command_Line_Parameters{
     char **argv;
     int argc;
@@ -122,7 +116,7 @@ typedef App_Read_Command_Line_Sig(App_Read_Command_Line);
          Application_Memory *memory,                                    \
          Exchange *exchange,                                            \
          Key_Codes *codes,                                              \
-         Clipboard_Contents clipboard,                                  \
+         String clipboard,                                  \
          String current_directory,                                      \
          Custom_API api)
 
@@ -152,7 +146,7 @@ struct Application_Step_Result{
          Render_Target *target,                             \
          Application_Memory *memory,                        \
          Exchange *exchange,                                \
-         Clipboard_Contents clipboard,                      \
+         String clipboard,                      \
          b32 time_step, b32 first_step, b32 force_redraw,   \
          Application_Step_Result *result)
 
