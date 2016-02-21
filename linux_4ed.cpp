@@ -41,7 +41,6 @@
 #include <xmmintrin.h>
 #include <linux/fs.h>
 //#include <X11/extensions/XInput2.h>
-#include <X11/XKBlib.h>
 #include <linux/input.h>
 #include <time.h>
 #include <dlfcn.h>
@@ -52,6 +51,7 @@
 #include "system_shared.h"
 
 #include <stdlib.h>
+#include <locale.h>
 
 struct Linux_Vars{
     Display *XDisplay;
@@ -60,10 +60,13 @@ struct Linux_Vars{
 
     XIM input_method;
     XIMStyle input_style;
-    XIC xic;
+    XIC input_context;
     Key_Codes key_codes;
-    
-    Clipboard_Contents clipboard_contents;
+
+	Key_Input_Data key_data;
+    Mouse_State mouse_data;
+
+    String clipboard_contents;
     
     void *app_code;
     void *custom;
@@ -372,6 +375,22 @@ Font_Load_Sig(system_draw_font_load){
     return(0);
 }
 
+internal
+Sys_To_Binary_Path(system_to_binary_path){
+    b32 translate_success = 0;
+    i32 max = out_filename->memory_size;
+    i32 size = readlink("/proc/self/exe", out_filename->str, max);
+    if (size > 0 && size < max-1){
+        out_filename->str[size] = '\0';
+        out_filename->size = size + 1;
+        truncate_to_path_of_directory(out_filename);
+        if (append(out_filename, filename) && terminate_with_null(out_filename)){
+            translate_success = 1;
+        }
+    }
+    return (translate_success);
+}
+
 internal b32
 LinuxLoadAppCode(){
     b32 result = 0;
@@ -491,8 +510,8 @@ InitializeOpenGLContext(Display *XDisplay, Window XWindow, GLXFBConfig &bestFbc,
     {
         int context_attribs[] =
         {
-            GLX_CONTEXT_MAJOR_VERSION_ARB, 4,
-            GLX_CONTEXT_MINOR_VERSION_ARB, 3,
+            GLX_CONTEXT_MAJOR_VERSION_ARB, 2,
+            GLX_CONTEXT_MINOR_VERSION_ARB, 1,
             //GLX_CONTEXT_FLAGS_ARB        , GLX_CONTEXT_FORWARD_COMPATIBLE_BIT_ARB,
             None
         };
@@ -572,6 +591,8 @@ InitializeOpenGLContext(Display *XDisplay, Window XWindow, GLXFBConfig &bestFbc,
     char *Vendor = (char *)glGetString(GL_VENDOR);
     char *Renderer = (char *)glGetString(GL_RENDERER);
     char *Version = (char *)glGetString(GL_VERSION);
+
+    //TODO(inso): glGetStringi is required if the GL version is >= 3.0
     char *Extensions = (char *)glGetString(GL_EXTENSIONS);
     
     printf("GL_VENDOR: %s\n", Vendor);
@@ -795,14 +816,35 @@ InitializeXInput(Display *dpy, Window XWindow)
     XIMStyle style;
     XIMStyles *styles = 0;
     i32 i, count;
-    
+
+	setlocale(LC_ALL, "");
     XSetLocaleModifiers("");
-	printf("supported locales: %d\n", XSupportsLocale());
-    
-    XSelectInput(linuxvars.XDisplay, linuxvars.XWindow, ExposureMask | KeyPressMask);
-    
+	printf("is current locale supported?: %d\n", XSupportsLocale());
+    // TODO(inso): handle the case where it isn't supported somehow?
+
+    XSelectInput(
+        linuxvars.XDisplay,
+        linuxvars.XWindow,
+        ExposureMask |
+        KeyPressMask | KeyReleaseMask |
+        ButtonPressMask | ButtonReleaseMask |
+        EnterWindowMask | LeaveWindowMask |
+        PointerMotionMask |
+        FocusChangeMask |
+        StructureNotifyMask
+    );
+
     result.input_method = XOpenIM(dpy, 0, 0, 0);
+    if (!result.input_method){
+        // NOTE(inso): Try falling back to the internal XIM implementation that
+        //            should in theory always exist.
+
+        XSetLocaleModifiers("@im=none");
+        result.input_method = XOpenIM(dpy, 0, 0, 0);
+    }
+
     if (result.input_method){
+
         if (!XGetIMValues(result.input_method, XNQueryInputStyle, &styles, NULL) &&
             styles){
             result.best_style = 0;
@@ -827,16 +869,39 @@ InitializeXInput(Display *dpy, Window XWindow)
             }
             else{
                 result = {};
-                printf("Could not get minimum required input style");
+                puts("Could not get minimum required input style");
             }
         }
     }
     else{
         result = {};
-        printf("Could not open X Input Method\n");
+        puts("Could not open X Input Method");
     }
 
     return(result);
+}
+
+static void push_key(u8 code, u8 chr, u8 chr_nocaps, b8 (*mods)[CONTROL_KEY_COUNT], b32 is_hold){
+    i32 *count;
+    Key_Event_Data *data;
+
+    if(is_hold){
+        count = &linuxvars.key_data.hold_count;
+        data = linuxvars.key_data.hold;
+    } else {
+        count = &linuxvars.key_data.press_count;
+        data = linuxvars.key_data.press;
+    }
+
+	if(*count < KEY_INPUT_BUFFER_SIZE){
+		linuxvars.key_data.press[*count].keycode = code;
+		linuxvars.key_data.press[*count].character = chr;
+		linuxvars.key_data.press[*count].character_no_caps_lock = chr_nocaps;
+
+		memcpy(linuxvars.key_data.press[*count].modifiers, *mods, sizeof(*mods));
+
+		++(*count);
+	}
 }
 
 int
@@ -912,7 +977,9 @@ main(int argc, char **argv)
 
     sysshared_filter_real_files(files, file_count);
     
-    keycode_init(&linuxvars.key_codes);
+    linuxvars.XDisplay = XOpenDisplay(0);
+
+    keycode_init(linuxvars.XDisplay, &linuxvars.key_codes);
 
 #ifdef FRED_SUPER
     char *custom_file_default = "4coder_custom.so";
@@ -960,10 +1027,8 @@ main(int argc, char **argv)
 
     WinWidth = 800;
     WinHeight = 600;
-    
-    i32 xkb_ev_code = 0, xkb_err_code = 0;
-    
-    linuxvars.XDisplay = XkbOpenDisplay(0, &xkb_ev_code, &xkb_err_code, 0, 0, 0);
+
+
     if(linuxvars.XDisplay && GLXSupportsModernContexts(linuxvars.XDisplay))
     {
         int XScreenCount = ScreenCount(linuxvars.XDisplay);
@@ -1008,7 +1073,7 @@ main(int argc, char **argv)
 
                     linuxvars.input_method = input_result.input_method;
                     linuxvars.input_style = input_result.best_style;
-                    linuxvars.xic = input_result.xic;
+                    linuxvars.input_context = input_result.xic;
 
                     b32 IsLegacy = false;
                     GLXContext GLContext =
@@ -1030,52 +1095,131 @@ main(int argc, char **argv)
         }
     }
     
-    XSetICFocus(linuxvars.xic);
+    XSetICFocus(linuxvars.input_context);
     
     if (window_setup_success){
         LinuxResizeTarget(WinWidth, WinHeight);
         
         for(;;)
         {
+            XEvent PrevEvent = {};
+
             while(XPending(linuxvars.XDisplay))
             {
-                XEvent Event;            
+                XEvent Event;
                 XNextEvent(linuxvars.XDisplay, &Event);
-                                
+
                 if (XFilterEvent(&Event, None) == True){
                     continue;
                 }
-                
+
                 switch (Event.type){
-                case KeyPress:
-                {
-                    KeySym ks = NoSymbol;
-                    XkbLookupKeySym(linuxvars.XDisplay, Event.xkey.keycode, Event.xkey.state, NULL, &ks);
-                    printf("keysym: %s\n", XKeysymToString(ks));
-			
-                    Status st;
-                    char buff[256];
-                    memset(buff, 0, sizeof(buff));
-                    XmbLookupString(linuxvars.xic, &Event.xkey, buff, sizeof(buff), &ks, &st);
-                    printf("IC status: %d, code: %u, sym: %s, str: %s\n", st, Event.xkey.keycode, XKeysymToString(ks), buff);
-                }break;
-                
+                    case KeyPress: {
+                        b32 is_press = Event.type == KeyPress;
+                        b32 is_hold =
+                            PrevEvent.type == KeyRelease &&
+                            PrevEvent.xkey.time == Event.xkey.time &&
+                            PrevEvent.xkey.keycode == Event.xkey.keycode;
+
+                        b8 mods[CONTROL_KEY_COUNT] = {};
+                        if(Event.xkey.state & ShiftMask) mods[CONTROL_KEY_SHIFT] = 1;
+                        if(Event.xkey.state & ControlMask) mods[CONTROL_KEY_CONTROL] = 1;
+                        if(Event.xkey.state & LockMask) mods[CONTROL_KEY_CAPS] = 1;
+                        if(Event.xkey.state & Mod1Mask) mods[CONTROL_KEY_ALT] = 1;
+                        // NOTE(inso): mod5 == AltGr
+                        if(Event.xkey.state & Mod5Mask) mods[CONTROL_KEY_ALT] = 1;
+
+                        KeySym keysym = NoSymbol;
+                        char buff[32];
+
+                        // NOTE(inso): We only want XLookupString to consider shift / capslock mods
+                        Event.xkey.state &= (ShiftMask | LockMask);
+
+                        // TODO(inso): Use one of the Xutf8LookupString funcs to allow for non-ascii chars
+                        XLookupString(&Event.xkey, buff, sizeof(buff), &keysym, NULL);
+
+                        u8 key = keycode_lookup(Event.xkey.keycode);
+
+                        if(key){
+                            push_key(0, 0, key, &mods, is_hold);
+                        } else {
+                            key = buff[0] & 0xFF;
+                            if(key < 128){
+                                push_key(key, key, key, &mods, is_hold);
+                            }
+                        }
+                    }break;
+
+                    case MotionNotify: {
+                        linuxvars.mouse_data.x = Event.xmotion.x;
+                        linuxvars.mouse_data.y = Event.xmotion.y;
+                    }break;
+
+                    case ButtonPress: {
+                        switch(Event.xbutton.button){
+                            case Button1: {
+                                linuxvars.mouse_data.left_button_pressed = 1;
+                                linuxvars.mouse_data.left_button = 1;
+                            } break;
+                            case Button3: {
+                                linuxvars.mouse_data.right_button_pressed = 1;
+                                linuxvars.mouse_data.right_button = 1;
+                            } break;
+                        }
+                    }break;
+                    
+                    case ButtonRelease: {
+                        switch(Event.xbutton.button){
+                            case Button1: {
+                                linuxvars.mouse_data.left_button_released = 1;
+                                linuxvars.mouse_data.left_button = 0;
+                            } break;
+                            case Button3: {
+                                linuxvars.mouse_data.right_button_released = 1;
+                                linuxvars.mouse_data.right_button = 0;
+                            } break;
+                        }
+                    }break;
+
+                    case EnterNotify: {
+                        linuxvars.mouse_data.out_of_window = 0;
+                    }break;
+
+                    case LeaveNotify: {
+                        linuxvars.mouse_data.out_of_window = 1;
+                    }break;
+
+                    case FocusIn:
+                    case FocusOut: {
+                        linuxvars.mouse_data.left_button = 0;
+                        linuxvars.mouse_data.right_button = 0;
+                    }break;
+
+                    case ConfigureNotify: {
+                        i32 w = Event.xconfigure.width, h = Event.xconfigure.height;
+
+                        if(w != linuxvars.target.width || h != linuxvars.target.height){
+                            LinuxResizeTarget(Event.xconfigure.width, Event.xconfigure.height);
+                        }
+                    }break;
                 }
+
+                PrevEvent = Event;
             }
-            
+
             b32 redraw = 1;
-            
+
             Key_Input_Data input_data;
             Mouse_State mouse;
             Application_Step_Result result;
-            
-            input_data = {};
-            mouse = {};
-            
+
+            input_data = linuxvars.key_data;
+            mouse = linuxvars.mouse_data;
+
             result.mouse_cursor_type = APP_MOUSE_CURSOR_DEFAULT;
             result.redraw = redraw;
             result.lctrl_lalt_is_altgr = 0;
-            
+
             linuxvars.app.step(linuxvars.system,
                                &linuxvars.key_codes,
                                &input_data,
@@ -1086,25 +1230,16 @@ main(int argc, char **argv)
                                linuxvars.clipboard_contents,
                                1, linuxvars.first, redraw,
                                &result);
-            
+
             if (result.redraw){
                 LinuxRedrawTarget();
             }
-                        
-            glBegin(GL_QUADS);
-            {
-                glVertex2f(.5f, .5f);
-                glVertex2f(1.f, .5f);
-                glVertex2f(1.f, 1.f);
-                glVertex2f(.5f, 1.f);
-                            
-                glVertex2f(0.f, 0.f);
-                glVertex2f(.2f, 0.f);
-                glVertex2f(.2f, .2f);
-                glVertex2f(0.f, .2f);
-            }
-            glEnd();
-            glXSwapBuffers(linuxvars.XDisplay, linuxvars.XWindow);
+
+            linuxvars.key_data = {};
+            linuxvars.mouse_data.left_button_pressed = 0;
+            linuxvars.mouse_data.left_button_released = 0;
+            linuxvars.mouse_data.right_button_pressed = 0;
+            linuxvars.mouse_data.right_button_released = 0;
         }
     }
 }
