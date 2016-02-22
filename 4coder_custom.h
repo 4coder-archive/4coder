@@ -218,7 +218,8 @@ struct Extra_Font{
 
 struct Buffer_Summary{
     // NOTE(allen): None of these members nor any of the data pointed to
-    // by these members should be modified.
+    // by these members should be modified, I would have made them const...
+    // but that actually causes problems for C++ reasons.
     int file_id;
     
     int size;
@@ -303,6 +304,7 @@ enum Binding_Unit_Type{
 enum Map_ID{
     mapid_global = (1 << 24),
     mapid_file,
+    
     // NOTE(allen): mapid_nomap will remain empty even if you attempt to fill it
     // it is for setting a map's parent to nothing, in cases where you don't want
     // to inherit from global (which is the default).

@@ -3,7 +3,7 @@
  *
  * 16.11.2014
  *
- * Win32-US Keyboard layer for 4coder
+ * Keyboard layer for 4coder
  *
  */
 

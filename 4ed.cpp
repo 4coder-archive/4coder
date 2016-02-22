@@ -2192,6 +2192,7 @@ setup_file_commands(Command_Map *commands, Partition *part, Key_Codes *codes, Co
     map_add(commands, ')', MDFR_NONE, compose_write_auto_tab_line);
     map_add(commands, ']', MDFR_NONE, compose_write_auto_tab_line);
     map_add(commands, ';', MDFR_NONE, compose_write_auto_tab_line);
+    map_add(commands, '#', MDFR_NONE, compose_write_auto_tab_line);
     
     map_add(commands, '\t', MDFR_NONE, command_word_complete);
     map_add(commands, '\t', MDFR_CTRL, command_auto_tab_range);

@@ -21,9 +21,6 @@ enum My_Maps{
 };
 
 HOOK_SIG(my_start){
-    exec_command(cmd_context, cmdid_open_panel_hsplit);
-    exec_command(cmd_context, cmdid_change_active_panel);
-
     exec_command(cmd_context, cmdid_open_panel_vsplit);
     exec_command(cmd_context, cmdid_change_active_panel);
 }
@@ -149,9 +146,16 @@ CUSTOM_COMMAND_SIG(build_search){
             push_parameter(app, cmd_context, par_cli_path, dir.str, dir.size);
             
             if (append(&dir, "build")){
+#if 1
+                // NOTE(allen): This version avoids an unecessary copy, both equivalents are
+                // included to demonstrate how using push_parameter without the helper looks.
                 app->push_parameter(cmd_context,
                     dynamic_int(par_cli_command),
                     dynamic_string(dir.str, dir.size));
+#else
+                push_parameter(cmd_context, par_cli_command, dir.str, dir.size);
+#endif
+                
                 exec_command(cmd_context, cmdid_build);
             }
             else{
@@ -174,7 +178,7 @@ CUSTOM_COMMAND_SIG(write_and_auto_tab){
     exec_command(cmd_context, cmdid_auto_tab_line_at_cursor);
 }
 
-// NOTE(allen|a3.4): How one might go about writing things like cut_line
+// NOTE(allen|a3.4.1): How one might go about writing things like cut_line
 // same idea works for cut word and other such composite commands.
 CUSTOM_COMMAND_SIG(cut_line){
     exec_command(cmd_context, cmdid_seek_beginning_of_line);
@@ -237,6 +241,7 @@ extern "C" GET_BINDING_DATA(get_bindings){
     bind_me(context, ')', MDFR_NONE, write_and_auto_tab);
     bind_me(context, ']', MDFR_NONE, write_and_auto_tab);
     bind_me(context, ';', MDFR_NONE, write_and_auto_tab);
+    bind_me(context, '#', MDFR_NONE, write_and_auto_tab);
     
     bind(context, '\t', MDFR_NONE, cmdid_word_complete);
     bind(context, '\t', MDFR_CTRL, cmdid_auto_tab_range);
@@ -292,8 +297,6 @@ extern "C" GET_BINDING_DATA(get_bindings){
     bind(context, '?', MDFR_CTRL, cmdid_toggle_show_whitespace);
     
     bind(context, '~', MDFR_CTRL, cmdid_clean_all_lines);
-    // NOTE(allen|a3.2): These now only set the mode of the file for writing to disk
-    // they do no longer effect the internal representation.
     bind(context, '1', MDFR_CTRL, cmdid_eol_dosify);
     bind(context, '!', MDFR_CTRL, cmdid_eol_nixify);
     
@@ -310,21 +313,6 @@ extern "C" GET_BINDING_DATA(get_bindings){
     end_bind_helper(context);
     
     return context->write_total;
-}
-
-inline void
-strset_(char *dst, char *src){
-    do{
-        *dst++ = *src++;
-    }while (*src);
-}
-
-#define strset(d,s) if (sizeof(s) <= sizeof(d)) strset_(d,s)
-
-extern "C" SET_EXTRA_FONT_SIG(set_extra_font){
-    strset(font_out->file_name, "liberation-mono.ttf");
-    strset(font_out->font_name, "BIG");
-    font_out->size = 25;
 }
 
 

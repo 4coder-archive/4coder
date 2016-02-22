@@ -7,11 +7,11 @@ SET clset=64
 SET WARNINGS=/W4 /wd4310 /wd4100 /wd4201 /wd4505 /wd4996 /wd4127 /wd4510 /wd4512 /wd4610 /WX
 SET STUFF=/GR- /nologo
 SET DEBUG=/Zi
-SET EXPORTS=/EXPORT:get_bindings /EXPORT:set_extra_font
+SET EXPORTS=/EXPORT:get_bindings
 
 cl %WARNINGS% %STUFF% %DEBUG% 4coder_custom.cpp /Fe4coder_custom /LD /link /INCREMENTAL:NO /OPT:REF %EXPORTS%
 
-REM more spammation preventation
+REM file spammation preventation
 del *.exp
 del *.obj
 del *.lib
