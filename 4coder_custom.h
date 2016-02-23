@@ -219,7 +219,7 @@ struct Extra_Font{
 struct Buffer_Summary{
     // NOTE(allen): None of these members nor any of the data pointed to
     // by these members should be modified, I would have made them const...
-    // but that actually causes problems for C++ reasons.
+    // but that causes a lot problems for C++ reasons.
     int exists;
     int ready;
     int file_id;
@@ -257,32 +257,46 @@ extern "C"{
     typedef HOOK_SIG(Hook_Function);
 }
 
+// Command exectuion
 #define PUSH_PARAMETER_SIG(name) void name(void *cmd_context, Dynamic param, Dynamic value)
 #define PUSH_MEMORY_SIG(name) char* name(void *cmd_context, int len)
 #define EXECUTE_COMMAND_SIG(name) void name(void *cmd_context, int command_id)
 #define CLEAR_PARAMETERS_SIG(name) void name(void *cmd_context)
+
+// File system navigation
 #define DIRECTORY_GET_HOT_SIG(name) int name(void *cmd_context, char *buffer, int max)
 #define DIRECTORY_HAS_FILE_SIG(name) int name(String dir, char *filename)
 #define DIRECTORY_CD_SIG(name) int name(String *dir, char *rel_path)
 
+// Buffer manipulation
 #define GET_BUFFER_MAX_INDEX_SIG(name) int name(void *cmd_context)
 #define GET_BUFFER_SIG(name) Buffer_Summary name(void *cmd_context, int index)
 #define GET_ACTIVE_BUFFER_SIG(name) Buffer_Summary name(void *cmd_context)
 #define GET_BUFFER_BY_NAME(name) Buffer_Summary name(void *cmd_context, String filename)
 
+#define BUFFER_SEEK_DELIMITER_SIG(name) int name(void *cmd_context, Buffer_Summary *buffer, int start, char delim, int *out)
+#define BUFFER_READ_RANGE_SIG(name) int name(void *cmd_context, Buffer_Summary *buffer, int start, int end, char *out)
+
 extern "C"{
+    // Command exectuion
     typedef EXECUTE_COMMAND_SIG(Exec_Command_Function);
     typedef PUSH_PARAMETER_SIG(Push_Parameter_Function);
     typedef PUSH_MEMORY_SIG(Push_Memory_Function);
     typedef CLEAR_PARAMETERS_SIG(Clear_Parameters_Function);
+    
+    // File system navigation
     typedef DIRECTORY_GET_HOT_SIG(Directory_Get_Hot);
     typedef DIRECTORY_HAS_FILE_SIG(Directory_Has_File);
     typedef DIRECTORY_CD_SIG(Directory_CD);
     
+    // Buffer manipulation
     typedef GET_BUFFER_MAX_INDEX_SIG(Get_Buffer_Max_Index_Function);
     typedef GET_BUFFER_SIG(Get_Buffer_Function);
     typedef GET_ACTIVE_BUFFER_SIG(Get_Active_Buffer_Function);
     typedef GET_BUFFER_BY_NAME(Get_Buffer_By_Name_Function);
+    
+    typedef BUFFER_SEEK_DELIMITER_SIG(Buffer_Seek_Delimiter_Function);
+    typedef BUFFER_READ_RANGE_SIG(Buffer_Read_Range_Function);
 }
 
 struct Application_Links{
@@ -302,6 +316,9 @@ struct Application_Links{
     Get_Buffer_Function *get_buffer;
     Get_Active_Buffer_Function *get_active_buffer;
     Get_Buffer_By_Name_Function *get_buffer_by_name;
+    
+    Buffer_Seek_Delimiter_Function *buffer_seek_delimiter;
+    Buffer_Read_Range_Function *buffer_read_range;
 };
 
 struct Custom_API{

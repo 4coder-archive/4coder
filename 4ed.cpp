@@ -2138,6 +2138,31 @@ extern "C"{
         return(buffer);
     }
     
+    BUFFER_SEEK_DELIMITER_SIG(external_buffer_seek_delimiter){
+        Command_Data *cmd = (Command_Data*)cmd_context;
+        Editing_File *file;
+        Working_Set *working_set;
+        int result = 0;
+        int size;
+
+        if (buffer->exists){
+            working_set = cmd->working_set;
+            file = working_set->files + buffer->file_id;
+            if (!file->state.is_dummy && file_is_ready(file)){
+                size = buffer_size(&file->state.buffer);
+                result = 1;
+                if (start < size){
+                    *out = buffer_seek_delimiter(&file->state.buffer, start, delim);
+                    if (*out < 0) *out = 0;
+                    if (*out > size) *out = size;
+                }
+                fill_buffer_summary(buffer, file, working_set);
+            }
+        }
+
+        return(result);
+    }
+    
     DIRECTORY_GET_HOT_SIG(external_directory_get_hot){
         Command_Data *cmd = (Command_Data*)cmd_context;
         Hot_Directory *hot = &cmd->vars->hot_directory;

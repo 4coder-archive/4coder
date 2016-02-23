@@ -90,6 +90,26 @@ buffer_count_newlines(Buffer_Type *buffer, int start, int end){
 }
 
 internal_4tech int
+buffer_seek_delimiter(Buffer_Type *buffer, int pos, char delim){
+    Buffer_Stringify_Type loop;
+    char *data;
+    int end, size;
+    
+    size = buffer_size(buffer);
+    for(loop = buffer_stringify_loop(buffer, pos, size);
+        buffer_stringify_good(&loop);
+        buffer_stringify_next(&loop)){
+        end = loop.size + loop.absolute_pos;
+        data = loop.data - loop.absolute_pos;
+        for (; pos < end; ++pos){
+            if (data[pos] == delim) goto double_break;
+        }
+    }
+    double_break:
+    return(pos);
+}
+
+internal_4tech int
 buffer_seek_whitespace_down(Buffer_Type *buffer, int pos){
     Buffer_Stringify_Type loop;
     char *data;
