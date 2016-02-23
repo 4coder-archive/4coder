@@ -265,6 +265,9 @@ Sys_Set_File_List_Sig(system_set_file_list){
              entry != 0;
              entry = readdir(d)){
             fname = entry->d_name;
+            if(fname[0] == '.' && (fname[1] == 0 || (fname[1] == '.' && fname[2] == 0))){
+                continue;
+            }
             ++file_count;            
             for (size = 0; fname[size]; ++size);
             count += size + 1;
@@ -283,8 +286,11 @@ Sys_Set_File_List_Sig(system_set_file_list){
         info_ptr = file_list->infos;
         for (entry = readdir(d);
             entry != 0;
-            entry = readdir(d), ++info_ptr){
+            entry = readdir(d)){
             fname = entry->d_name;
+            if(fname[0] == '.' && (fname[1] == 0 || (fname[1] == '.' && fname[2] == 0))){
+                continue;
+            }
             cursor_start = cursor;
             for (; *fname; ) *cursor++ = *fname++;
 
@@ -306,6 +312,7 @@ Sys_Set_File_List_Sig(system_set_file_list){
             info_ptr->filename.size = (i32)(cursor - cursor_start);
             *cursor++ = 0;
             info_ptr->filename.memory_size = info_ptr->filename.size + 1;
+            ++info_ptr;
         }
 
         file_list->count = file_count;
