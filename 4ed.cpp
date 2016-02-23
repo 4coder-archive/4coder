@@ -178,12 +178,12 @@ struct Command_Data{
     Delay *delay;
     App_Vars *vars;
     Exchange *exchange;
+    System_Functions *system;
     
     i32 screen_width, screen_height;
     Key_Event_Data key;
     
     Partition part;
-    System_Functions *system;
 };
 
 struct Command_Parameter{
@@ -2065,6 +2065,18 @@ extern "C"{
         cmd->part.pos = 0;
     }
     
+    DIRECTORY_GET_HOT_SIG(external_directory_get_hot){
+        Command_Data *cmd = (Command_Data*)cmd_context;
+        Hot_Directory *hot = &cmd->vars->hot_directory;
+        i32 copy_max = max - 1;
+        hot_directory_clean_end(hot);
+        if (copy_max > hot->string.size)
+            copy_max = hot->string.size;
+        memcpy(buffer, hot->string.str, copy_max);
+        buffer[copy_max] = 0;
+        return(copy_max);
+    }
+    
     GET_BUFFER_MAX_INDEX_SIG(external_get_buffer_max_index){
         Command_Data *cmd = (Command_Data*)cmd_context;
         Working_Set *working_set;
@@ -2144,14 +2156,14 @@ extern "C"{
         Working_Set *working_set;
         int result = 0;
         int size;
-
+        
         if (buffer->exists){
             working_set = cmd->working_set;
             file = working_set->files + buffer->file_id;
             if (!file->state.is_dummy && file_is_ready(file)){
                 size = buffer_size(&file->state.buffer);
-                result = 1;
                 if (start < size){
+                    result = 1;
                     *out = buffer_seek_delimiter(&file->state.buffer, start, delim);
                     if (*out < 0) *out = 0;
                     if (*out > size) *out = size;
@@ -2163,16 +2175,67 @@ extern "C"{
         return(result);
     }
     
-    DIRECTORY_GET_HOT_SIG(external_directory_get_hot){
+    BUFFER_READ_RANGE_SIG(external_buffer_read_range){
         Command_Data *cmd = (Command_Data*)cmd_context;
-        Hot_Directory *hot = &cmd->vars->hot_directory;
-        i32 copy_max = max - 1;
-        hot_directory_clean_end(hot);
-        if (copy_max > hot->string.size)
-            copy_max = hot->string.size;
-        memcpy(buffer, hot->string.str, copy_max);
-        buffer[copy_max] = 0;
-        return(copy_max);
+        Editing_File *file;
+        Working_Set *working_set;
+        int result = 0;
+        int size;
+        
+        if (buffer->exists){
+            working_set = cmd->working_set;
+            file = working_set->files + buffer->file_id;
+            if (!file->state.is_dummy && file_is_ready(file)){
+                size = buffer_size(&file->state.buffer);
+                if (0 <= start && start <= end && end <= size){
+                    result = 1;
+                    buffer_stringify(&file->state.buffer, start, end, out);
+                }
+                fill_buffer_summary(buffer, file, working_set);
+            }
+        }
+        
+        return(result);
+    }
+    
+    BUFFER_REPLACE_RANGE_SIG(external_buffer_replace_range){
+        Command_Data *cmd = (Command_Data*)cmd_context;
+        Editing_File *file;
+        Working_Set *working_set;
+        
+        System_Functions *system;
+        Mem_Options *mem;
+        Editing_Layout *layout;
+        
+        int result = 0;
+        int size;
+        int next_cursor, pos;
+        
+        if (buffer->exists){
+            working_set = cmd->working_set;
+            file = working_set->files + buffer->file_id;
+            if (!file->state.is_dummy && file_is_ready(file)){
+                size = buffer_size(&file->state.buffer);
+                if (0 <= start && start <= end && end <= size){
+                    result = 1;
+                    
+                    system = cmd->system;
+                    mem = cmd->mem;
+                    layout = cmd->layout;
+                    
+                    pos = file->state.cursor_pos;
+                    if (pos < start) next_cursor = pos;
+                    else if (pos < end) next_cursor = start + len;
+                    else next_cursor = pos + end - start + len;
+                    
+                    file_replace_range(system, mem, file, layout,
+                        start, end, str, len, next_cursor);
+                }
+                fill_buffer_summary(buffer, file, working_set);
+            }
+        }
+        
+        return(result);
     }
 }
 

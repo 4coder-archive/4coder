@@ -1979,6 +1979,21 @@ view_do_white_batch_edit(System_Functions *system, Mem_Options *mem, File_View *
 }
 
 inline void
+file_replace_range(System_Functions *system,
+    Mem_Options *mem, Editing_File *file, Editing_Layout *layout,
+    i32 start, i32 end, char *str, i32 len, i32 next_cursor){
+    Edit_Spec spec = {};
+    spec.step.type = ED_NORMAL;
+    spec.step.edit.start =  start;
+    spec.step.edit.end = end;
+    spec.step.edit.len = len;
+    spec.step.pre_pos = file->state.cursor_pos;
+    spec.step.post_pos = next_cursor;
+    spec.str = (u8*)str;
+    file_do_single_edit(system, mem, file, layout, spec, hist_normal);
+}
+
+inline void
 view_replace_range(System_Functions *system,
                    Mem_Options *mem, File_View *view, Editing_Layout *layout,
                    i32 start, i32 end, char *str, i32 len, i32 next_cursor){
