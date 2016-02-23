@@ -1789,6 +1789,9 @@ main(int argc, char **argv){
     
     system_acquire_lock(FRAME_LOCK);
     
+    SetForegroundWindow(window_handle);
+    SetActiveWindow(window_handle);
+    
     ResumeThread(win32vars.update_loop_thread);
     
     MSG msg;

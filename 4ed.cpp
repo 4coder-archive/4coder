@@ -541,7 +541,7 @@ COMMAND_DECL(word_complete){
         
         file_ptr = working_set->files;
         for (i = 0, j = 2; i < buffer_count; ++i, ++file_ptr){
-            if (file_ptr != file && !file_ptr->state.is_dummy && file_is_ready(file_ptr)){
+            if (file_ptr != file && !file_ptr->state.is_dummy){
                 ranges[j].buffer = &file_ptr->state.buffer;
                 ranges[j].start = 0;
                 ranges[j].size = buffer_size(ranges[j].buffer); 
@@ -2011,7 +2011,8 @@ globalvar Command_Function command_table[cmdid_count];
 
 internal void
 fill_buffer_summary(Buffer_Summary *buffer, Editing_File *file, Working_Set *working_set){
-    buffer->found_buffer = 1;
+    buffer->exists = 1;
+    buffer->exists = file_is_ready(file);
     buffer->file_id = (int)(file - working_set->files);
     buffer->size = file->state.buffer.size;
     buffer->file_cursor_pos = file->state.cursor_pos;
@@ -2085,7 +2086,7 @@ extern "C"{
         
         if (index >= 0 && index < max){
             file = working_set->files + index;
-            if (!file->state.is_dummy && file_is_ready(file)){
+            if (!file->state.is_dummy){
 #if BUFFER_EXPERIMENT_SCALPEL <= 0
                 fill_buffer_summary(&buffer, file, working_set);
 #endif
@@ -2107,7 +2108,7 @@ extern "C"{
             file = view->file;
             working_set = cmd->working_set;
             
-            if (file && !file->state.is_dummy && file_is_ready(file)){
+            if (file && !file->state.is_dummy){
 #if BUFFER_EXPERIMENT_SCALPEL <= 0
                 fill_buffer_summary(&buffer, file, working_set);
 #endif

@@ -9,6 +9,9 @@
 // to decide whether you want macro translations, without them you will
 // have to manipulate the command and parameter stack through
 // "app->" which may be more or less clear depending on your use.
+//
+// I suggest you try disabling macro translation and getting your code working
+// that way, because I'll be removing it entirely sometime soon
 #define DisableMacroTranslations 0
 
 #include "4coder_custom.h"
@@ -52,25 +55,30 @@ bool str_match(const char *a, int len_a, const char *b, int len_b){
 }
 
 HOOK_SIG(my_file_settings){
-    Buffer_Summary buffer = get_active_buffer(cmd_context);
+     Buffer_Summary buffer = app->get_active_buffer(cmd_context);
 
-    int treat_as_code = 0;
+     // NOTE(allen|a3.4.2): Whenever you ask for a buffer, you should check that the
+     // exists flag is set to true before using it.  Reasons why the buffer might not exist:
+     //   -The active panel does not contain a buffer and get_active_buffer was used
+     //   -The index provided to get_buffer was out of range [0,max) or that index is associated to a dummy buffer
+     //   -The name provided to get_buffer_by_name did not match any of the existing buffers
+     if (buffer.exists){
+         int treat_as_code = 0;
 
-    // NOTE(allen|a3.1): This checks buffer.file_name just in case get_active_buffer returns back
-    // a null buffer (where every member is 0).
-    if (buffer.file_name && buffer.size < (16 << 20)){
-        int extension_len;
-        char *extension = get_extension(buffer.file_name, buffer.file_name_len, &extension_len);
-        if (str_match(extension, extension_len, literal("cpp"))) treat_as_code = 1;
-        else if (str_match(extension, extension_len, literal("h"))) treat_as_code = 1;
-        else if (str_match(extension, extension_len, literal("c"))) treat_as_code = 1;
-        else if (str_match(extension, extension_len, literal("hpp"))) treat_as_code = 1;
-    }
+         if (buffer.file_name && buffer.size < (16 << 20)){
+             int extension_len;
+             char *extension = get_extension(buffer.file_name, buffer.file_name_len, &extension_len);
+             if (str_match(extension, extension_len, literal("cpp"))) treat_as_code = 1;
+             else if (str_match(extension, extension_len, literal("h"))) treat_as_code = 1;
+             else if (str_match(extension, extension_len, literal("c"))) treat_as_code = 1;
+             else if (str_match(extension, extension_len, literal("hpp"))) treat_as_code = 1;
+         }
 
-    push_parameter(app, cmd_context, par_lex_as_cpp_file, treat_as_code);
-    push_parameter(app, cmd_context, par_wrap_lines, !treat_as_code);
-    push_parameter(app, cmd_context, par_key_mapid, (treat_as_code)?(my_code_map):(mapid_file));
-    exec_command(cmd_context, cmdid_set_settings);
+         push_parameter(app, cmd_context, par_lex_as_cpp_file, treat_as_code);
+         push_parameter(app, cmd_context, par_wrap_lines, !treat_as_code);
+         push_parameter(app, cmd_context, par_key_mapid, (treat_as_code)?(my_code_map):(mapid_file));
+         exec_command(cmd_context, cmdid_set_settings);
+     }
 }
 
 CUSTOM_COMMAND_SIG(open_in_other){

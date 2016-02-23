@@ -258,7 +258,6 @@ exec_command_(Application_Links *app, void *cmd_context, Custom_Command_Function
 
 #define exec_command_keep_stack app->exec_command_keep_stack
 #define clear_parameters app->clear_parameters
-#define get_active_buffer app->get_active_buffer
 
 #define exec_command(cmd_context, cmd) exec_command_(app, cmd_context, cmd)
 

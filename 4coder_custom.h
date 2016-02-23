@@ -220,7 +220,8 @@ struct Buffer_Summary{
     // NOTE(allen): None of these members nor any of the data pointed to
     // by these members should be modified, I would have made them const...
     // but that actually causes problems for C++ reasons.
-    int found_buffer;
+    int exists;
+    int ready;
     int file_id;
     
     int size;
