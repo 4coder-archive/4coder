@@ -276,7 +276,6 @@ extern "C"{
 
 #define BUFFER_SEEK_DELIMITER_SIG(name) int name(void *cmd_context, Buffer_Summary *buffer, int start, char delim, int *out)
 #define BUFFER_READ_RANGE_SIG(name) int name(void *cmd_context, Buffer_Summary *buffer, int start, int end, char *out)
-
 #define BUFFER_REPLACE_RANGE_SIG(name) int name(void *cmd_context, Buffer_Summary *buffer, int start, int end, char *str, int len)
 
 extern "C"{
@@ -299,7 +298,6 @@ extern "C"{
     
     typedef BUFFER_SEEK_DELIMITER_SIG(Buffer_Seek_Delimiter_Function);
     typedef BUFFER_READ_RANGE_SIG(Buffer_Read_Range_Function);
-    
     typedef BUFFER_REPLACE_RANGE_SIG(Buffer_Replace_Range_Function);
 }
 
@@ -323,7 +321,6 @@ struct Application_Links{
     
     Buffer_Seek_Delimiter_Function *buffer_seek_delimiter;
     Buffer_Read_Range_Function *buffer_read_range;
-    
     Buffer_Replace_Range_Function *buffer_replace_range;
 };
 

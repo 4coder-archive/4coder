@@ -57,8 +57,8 @@ bool str_match(const char *a, int len_a, const char *b, int len_b){
 HOOK_SIG(my_file_settings){
      Buffer_Summary buffer = app->get_active_buffer(cmd_context);
 
-     // NOTE(allen|a3.4.2): Whenever you ask for a buffer, you should check that the
-     // exists flag is set to true before using it.  Reasons why the buffer might not exist:
+     // NOTE(allen|a3.4.2): Whenever you ask for a buffer, you should first check that
+     // the exists field is set to true.  Reasons why the buffer might not exist:
      //   -The active panel does not contain a buffer and get_active_buffer was used
      //   -The index provided to get_buffer was out of range [0,max) or that index is associated to a dummy buffer
      //   -The name provided to get_buffer_by_name did not match any of the existing buffers
@@ -79,6 +79,19 @@ HOOK_SIG(my_file_settings){
          push_parameter(app, cmd_context, par_key_mapid, (treat_as_code)?(my_code_map):(mapid_file));
          exec_command(cmd_context, cmdid_set_settings);
      }
+}
+
+CUSTOM_COMMAND_SIG(write_increment){
+    Buffer_Summary buffer = app->get_active_buffer(cmd_context);
+    
+    // NOTE(allen|a3.4.2): In addition to checking whether the buffer exists after a query,
+    // if you're going to read from or write to the buffer, you should check ready.  A buffer
+    // is usually ready, but when a buffer has just been opened it is possible that the contents
+    // haven't been filled yet.  If the buffer is not ready trying to read or write it is invalid.
+    // (See my_file_settings for comments on the exists field).
+    if (buffer.exists && buffer.ready){
+        app->buffer_replace_range(cmd_context, &buffer, buffer.file_cursor_pos, buffer.file_cursor_pos, "++", 2);
+    }
 }
 
 CUSTOM_COMMAND_SIG(open_in_other){
@@ -263,6 +276,8 @@ extern "C" GET_BINDING_DATA(get_bindings){
 
     bind(context, '\n', MDFR_SHIFT, write_and_auto_tab);
     bind(context, ' ', MDFR_SHIFT, cmdid_write_character);
+    
+    bind(context, '=', MDFR_CTRL, write_increment);
     
     end_map(context);
     

@@ -2012,7 +2012,8 @@ globalvar Command_Function command_table[cmdid_count];
 internal void
 fill_buffer_summary(Buffer_Summary *buffer, Editing_File *file, Working_Set *working_set){
     buffer->exists = 1;
-    buffer->exists = file_is_ready(file);
+    buffer->ready = file_is_ready(file);
+    buffer->is_lexed = file->settings.tokens_exist;
     buffer->file_id = (int)(file - working_set->files);
     buffer->size = file->state.buffer.size;
     buffer->file_cursor_pos = file->state.cursor_pos;
@@ -2022,7 +2023,6 @@ fill_buffer_summary(Buffer_Summary *buffer, Editing_File *file, Working_Set *wor
     buffer->file_name = file->name.source_path.str;
     buffer->buffer_name = file->name.live_name.str;
 
-    buffer->is_lexed = file->settings.tokens_exist;
     buffer->map_id = file->settings.base_map_id;
 }
 
@@ -2252,8 +2252,16 @@ app_links_init(System_Functions *system){
     
     app_links.get_buffer_max_index = external_get_buffer_max_index;
     app_links.get_buffer = external_get_buffer;
+    app_links.get_buffer_by_name = external_get_buffer_by_name;
+    
+    app_links.get_buffer_max_index = external_get_buffer_max_index;
+    app_links.get_buffer = external_get_buffer;
     app_links.get_active_buffer = external_get_active_buffer;
     app_links.get_buffer_by_name = external_get_buffer_by_name;
+    
+    app_links.buffer_seek_delimiter = external_buffer_seek_delimiter;
+    app_links.buffer_read_range = external_buffer_read_range;
+    app_links.buffer_replace_range = external_buffer_replace_range;
 }
 
 #if FRED_INTERNAL
