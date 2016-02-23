@@ -1496,7 +1496,7 @@ COMMAND_DECL(move_up){
     REQ_FILE_VIEW(view);
     REQ_FILE(file, view);
     USE_FONT_SET(font_set);
-
+    
     f32 font_height = (f32)get_font_info(font_set, view->style->font_id)->height;
     f32 cy = view_get_cursor_y(view)-font_height;
     f32 px = view->preferred_x;
@@ -1541,33 +1541,27 @@ COMMAND_DECL(page_down){
     ProfileMomentFunction();
     REQ_FILE_VIEW(view);
     
-    real32 height = view_compute_height(view);
-    real32 max_target_y = view_compute_max_target_y(view);
-    real32 cursor_y = view_get_cursor_y(view);
+    f32 height = view_compute_height(view);
+    f32 max_target_y = view_compute_max_target_y(view);
     
     view->target_y += height;
     if (view->target_y > max_target_y) view->target_y = max_target_y;
-    
-    if (view->target_y >= cursor_y){
-        view->cursor =
-            view_compute_cursor_from_xy(view, 0, view->target_y);
-    }
+
+    view->cursor = view_compute_cursor_from_xy(
+        view, 0, view->target_y + (height - view->font_height)*.5f);
 }
 
 COMMAND_DECL(page_up){
     ProfileMomentFunction();
     REQ_FILE_VIEW(view);
     
-    real32 height = view_compute_height(view);
-    real32 cursor_y = view_get_cursor_y(view);
+    f32 height = view_compute_height(view);
     
     view->target_y -= height;
     if (view->target_y < 0) view->target_y = 0;
     
-    if (view->target_y + height <= cursor_y){
-        view->cursor =
-            view_compute_cursor_from_xy(view, 0, view->target_y + height - view->font_height);
-    }
+    view->cursor = view_compute_cursor_from_xy(
+        view, 0, view->target_y + (height - view->font_height)*.5f);
 }
 
 inline void
@@ -3004,7 +2998,7 @@ App_Init_Sig(app_init){
     panel_init(&panels[0]);
 
     String hdbase = make_fixed_width_string(vars->hot_dir_base_);
-    hot_directory_init(&vars->hot_directory, hdbase, current_directory);
+    hot_directory_init(&vars->hot_directory, hdbase, current_directory, system->slash);
 
     vars->mini_str = make_string((char*)vars->mini_buffer, 0, 512);
     

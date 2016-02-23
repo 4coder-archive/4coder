@@ -111,14 +111,14 @@ struct Plat_Settings{
 typedef App_Read_Command_Line_Sig(App_Read_Command_Line);
 
 #define App_Init_Sig(name) void                                         \
-    name(System_Functions *system,                                      \
-         Render_Target *target,                                         \
-         Application_Memory *memory,                                    \
-         Exchange *exchange,                                            \
-         Key_Codes *codes,                                              \
-         String clipboard,                                  \
-         String current_directory,                                      \
-         Custom_API api)
+name(System_Functions *system,                                      \
+    Render_Target *target,                                         \
+    Application_Memory *memory,                                    \
+    Exchange *exchange,                                            \
+    Key_Codes *codes,                                              \
+    String clipboard,                                  \
+    String current_directory,                                      \
+    Custom_API api)
 
 typedef App_Init_Sig(App_Init);
 

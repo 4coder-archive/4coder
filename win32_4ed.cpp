@@ -946,6 +946,8 @@ Win32LoadSystemCode(){
     win32vars.system->internal_sentinel = INTERNAL_system_sentinel;
     win32vars.system->internal_get_thread_states = INTERNAL_get_thread_states;
     win32vars.system->internal_debug_message = INTERNAL_system_debug_message;
+    
+    win32vars.system->slash = '\\';
 }
 
 #include "system_shared.cpp"

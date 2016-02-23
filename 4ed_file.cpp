@@ -251,21 +251,23 @@ struct Working_Set{
 struct Hot_Directory{
 	String string;
 	File_List file_list;
+    char slash;
 };
 
 internal void
-hot_directory_init(Hot_Directory *hot_directory, String base, String dir){
+hot_directory_init(Hot_Directory *hot_directory, String base, String dir, char slash){
 	hot_directory->string = base;
     hot_directory->string.str[255] = 0;
     hot_directory->string.size = 0;
     copy(&hot_directory->string, dir);
-	append(&hot_directory->string, "\\");
+	append(&hot_directory->string, slash);
+    hot_directory->slash = slash;
 }
 
 internal void
 hot_directory_clean_end(Hot_Directory *hot_directory){
     String *str = &hot_directory->string;
-    if (str->size != 0 && str->str[str->size-1] != '\\'){
+    if (str->size != 0 && str->str[str->size-1] != hot_directory->slash){
         str->size = reverse_seek_slash(*str) + 1;
         str->str[str->size] = 0;
     }

@@ -3239,6 +3239,9 @@ draw_file_loaded(File_View *view, i32_Rect rect, b32 is_active, Render_Target *t
 #endif
     
     if (view->widget.type != FWIDG_NONE){
+#if 1
+        ui_render(target, view->gui_target);
+#else
         UI_Style ui_style = get_ui_style_upper(style);
         
         i32_Rect widg_rect = view_widget_rect(view, view->font_height);
@@ -3307,6 +3310,7 @@ draw_file_loaded(File_View *view, i32_Rect rect, b32 is_active, Render_Target *t
         }
         
         ui_finish_frame(&view->widget.state, &state, &layout, widg_rect, 0, 0);
+#endif
     }
     
     draw_file_bar(view, &bar, target);

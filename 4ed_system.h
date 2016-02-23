@@ -185,6 +185,9 @@ struct System_Functions{
     INTERNAL_System_Sentinel *internal_sentinel;
     INTERNAL_System_Get_Thread_States *internal_get_thread_states;
     INTERNAL_System_Debug_Message *internal_debug_message;
+    
+    // non-function details
+    char slash;
 };
 
 #define FileNameMax (1 << 9)

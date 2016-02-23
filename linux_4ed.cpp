@@ -38,6 +38,8 @@
 #include <stdio.h>
 #include <X11/Xlib.h>
 #include <GL/glx.h>
+#include <GL/gl.h>
+#include <GL/glext.h>
 #include <xmmintrin.h>
 #include <linux/fs.h>
 //#include <X11/extensions/XInput2.h>
@@ -52,6 +54,9 @@
 
 #include <stdlib.h>
 #include <locale.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <errno.h>
 
 struct Linux_Vars{
     Display *XDisplay;
@@ -88,8 +93,10 @@ globalvar Linux_Vars linuxvars;
 globalvar Application_Memory memory_vars;
 globalvar Exchange exchange_vars;
 
-internal
-Sys_Get_Memory_Sig(system_get_memory_){
+#define LinuxGetMemory(size) LinuxGetMemory_(size, __LINE__, __FILE__)
+
+internal void*
+LinuxGetMemory_(i32 size, i32 line_number, char *file_name){
     // TODO(allen): Implement without stdlib.h
     void *result = 0;
     
@@ -116,8 +123,8 @@ Sys_Get_Memory_Sig(system_get_memory_){
     return(result);
 }
 
-internal
-Sys_Free_Memory_Sig(system_free_memory){
+internal void
+LinuxFreeMemory(void *block){
     // TODO(allen): Implement without stdlib.h
     
     if (block){
@@ -136,6 +143,41 @@ Sys_Free_Memory_Sig(system_free_memory){
         free(block);
 #endif
     }
+}
+
+internal Partition
+LinuxScratchPartition(i32 size){
+    Partition part;
+    void *data;
+    data = LinuxGetMemory(size);
+    part = partition_open(data, size);
+    return(part);
+}
+
+internal void
+LinuxScratchPartitionGrow(Partition *part, i32 new_size){
+    void *data;
+    if (new_size > part->max){
+        data = LinuxGetMemory(new_size);
+        memcpy(data, part->base, part->pos);
+        LinuxFreeMemory(part->base);
+        part->base = (u8*)data;
+    }
+}
+
+internal void
+LinuxScratchPartitionDouble(Partition *part){
+    LinuxScratchPartitionGrow(part, part->max*2);
+}
+
+internal
+Sys_Get_Memory_Sig(system_get_memory_){
+    return(LinuxGetMemory_(size, line_number, file_name));
+}
+
+internal
+Sys_Free_Memory_Sig(system_free_memory){
+    LinuxFreeMemory(block);
 }
 
 #if (defined(_BSD_SOURCE) || defined(_SVID_SOURCE))
@@ -170,6 +212,7 @@ Sys_File_Time_Stamp_Sig(system_file_time_stamp){
 }
 
 // TODO(allen): DOES THIS AGREE WITH THE FILESTAMP TIMES?
+// NOTE(inso): I don't think so, CLOCK_MONOTONIC is an arbitrary number
 Sys_Time_Sig(system_time){
     struct timespec spec;
     u64 result;
@@ -326,15 +369,21 @@ INTERNAL_Sys_Debug_Message_Sig(internal_debug_message){
 
 DIRECTORY_HAS_FILE_SIG(system_directory_has_file){
     int result = 0;
-    // TODO(allen): Implement
-    AllowLocal(dir);
-    AllowLocal(filename);
+
+    //TODO(inso): implement
+    char buff[PATH_MAX] = {};
+    memcpy(buff, dir.str, dir.size);
+    printf("Has file %s\n", buff);
+
     return(result);
 }
 
 DIRECTORY_CD_SIG(system_directory_cd){
     int result = 0;
     // TODO(allen): Implement
+
+    printf("Dir CD: %.*s\n", dir->size, dir->str);
+
     AllowLocal(dir);
     AllowLocal(rel_path);
     return(result);
@@ -343,6 +392,8 @@ DIRECTORY_CD_SIG(system_directory_cd){
 internal
 Sys_File_Can_Be_Made(system_file_can_be_made){
     // TODO(allen): Implement
+    
+    printf("File can be made: %s\n", filename);
     AllowLocal(filename);
     return(0);
 }
@@ -350,8 +401,57 @@ Sys_File_Can_Be_Made(system_file_can_be_made){
 internal
 Sys_Load_File_Sig(system_load_file){
     Data result = {};
-    // TODO(allen): Implement
-    AllowLocal(filename);
+    struct stat info = {};
+    int fd;
+    u8 *ptr, *read_ptr;
+    size_t bytes_to_read;
+    ssize_t num;
+
+    fd = open(filename, O_RDONLY);
+    if(fd < 0){
+        perror("sys_open_file: open");
+        goto out;
+    }
+    if(fstat(fd, &info) < 0){
+        perror("sys_open_file: stat");
+        goto out;
+    }
+    if(info.st_size <= 0){
+        printf("st_size < 0: %ld\n", info.st_size);
+        goto out;
+    }
+
+    ptr = (u8*)LinuxGetMemory(info.st_size);
+    if(!ptr){
+        puts("null pointer from LGM");
+        goto out;
+    }
+
+    read_ptr = ptr;
+    bytes_to_read = info.st_size;
+
+    do {
+        num = read(fd, read_ptr, bytes_to_read);
+        if(num < 0){
+            if(errno == EINTR){
+                continue;
+            } else {
+                //TODO(inso): error handling
+                perror("sys_load_file: read");
+                LinuxFreeMemory(ptr);
+                goto out;
+            }
+        } else {
+            bytes_to_read -= num;
+            read_ptr += num;
+        }
+    } while(bytes_to_read);
+
+    result.size = info.st_size;
+    result.data = ptr;
+
+out:
+    if(fd >= 0) close(fd);
     return(result);
 }
 
@@ -370,8 +470,46 @@ Sys_Save_File_Sig(system_save_file){
 // a little better now that they're starting to settle
 // into their places.
 
+#include "system_shared.cpp"
+#include "4ed_rendering.cpp"
+
 internal
 Font_Load_Sig(system_draw_font_load){
+    Font_Load_Parameters *params;
+    
+    system_acquire_lock(FONT_LOCK);
+    params = linuxvars.fnt.free_param.next;
+    fnt__remove(params);
+    fnt__insert(&linuxvars.fnt.used_param, params);
+    system_release_lock(FONT_LOCK);
+
+    if (linuxvars.fnt.part.base == 0){
+        linuxvars.fnt.part = LinuxScratchPartition(Mbytes(8));
+    }
+
+    b32 done = 0;
+    while(!(done = 
+            draw_font_load(
+                linuxvars.fnt.part.base,
+                linuxvars.fnt.part.max,
+                font_out,
+                filename,
+                pt_size,
+                tab_width
+            )
+    )){
+        //FIXME(inso): This is an infinite loop if the fonts aren't found!
+        // Figure out how draw_font_load can fail
+        
+        printf("draw_font_load failed, %d\n", linuxvars.fnt.part.max);
+        LinuxScratchPartitionDouble(&linuxvars.fnt.part);
+    }
+
+    system_acquire_lock(FONT_LOCK);
+    fnt__remove(params);
+    fnt__insert(&linuxvars.fnt.free_param, params);
+    system_release_lock(FONT_LOCK);
+
     return(0);
 }
 
@@ -437,9 +575,6 @@ LinuxLoadSystemCode(){
     linuxvars.system->internal_debug_message = internal_debug_message;
 }
 
-#include "system_shared.cpp"
-#include "4ed_rendering.cpp"
-
 internal void
 LinuxLoadRenderCode(){
     linuxvars.target.push_clip = draw_push_clip;
@@ -484,6 +619,20 @@ ctxErrorHandler( Display *dpy, XErrorEvent *ev )
     return 0;
 }
 
+#if FRED_INTERNAL
+static void gl_log(
+    GLenum source,
+    GLenum type,
+    GLuint id,
+    GLenum severity,
+    GLsizei length,
+    const GLchar* message,
+    const void* userParam
+){
+    printf("GL DEBUG: %s\n", message);
+}
+#endif
+
 internal GLXContext
 InitializeOpenGLContext(Display *XDisplay, Window XWindow, GLXFBConfig &bestFbc, b32 &IsLegacy)
 {
@@ -510,9 +659,12 @@ InitializeOpenGLContext(Display *XDisplay, Window XWindow, GLXFBConfig &bestFbc,
     {
         int context_attribs[] =
         {
-            GLX_CONTEXT_MAJOR_VERSION_ARB, 2,
-            GLX_CONTEXT_MINOR_VERSION_ARB, 1,
-            //GLX_CONTEXT_FLAGS_ARB        , GLX_CONTEXT_FORWARD_COMPATIBLE_BIT_ARB,
+            GLX_CONTEXT_MAJOR_VERSION_ARB, 4,
+            GLX_CONTEXT_MINOR_VERSION_ARB, 3,
+            GLX_CONTEXT_PROFILE_MASK_ARB , GLX_CONTEXT_COMPATIBILITY_PROFILE_BIT_ARB,
+#if FRED_INTERNAL
+            GLX_CONTEXT_FLAGS_ARB        , GLX_CONTEXT_DEBUG_BIT_ARB,
+#endif
             None
         };
 
@@ -599,7 +751,21 @@ InitializeOpenGLContext(Display *XDisplay, Window XWindow, GLXFBConfig &bestFbc,
     printf("GL_RENDERER: %s\n", Renderer);
     printf("GL_VERSION: %s\n", Version);
     printf("GL_EXTENSIONS: %s\n", Extensions);
-    
+
+#if FRED_INTERNAL
+    PFNGLDEBUGMESSAGECALLBACKARBPROC gl_dbg_callback = (PFNGLDEBUGMESSAGECALLBACKARBPROC)glXGetProcAddress((const GLubyte*)"glDebugMessageCallback");
+    if(gl_dbg_callback){
+        puts("enabling gl debug");
+        gl_dbg_callback(&gl_log, 0);
+        glEnable(GL_DEBUG_OUTPUT);
+    }
+#endif
+
+    glEnable(GL_TEXTURE_2D);
+    glEnable(GL_SCISSOR_TEST);
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
     return(ctx);
 }
 
@@ -831,7 +997,8 @@ InitializeXInput(Display *dpy, Window XWindow)
         EnterWindowMask | LeaveWindowMask |
         PointerMotionMask |
         FocusChangeMask |
-        StructureNotifyMask
+        StructureNotifyMask |
+        MappingNotify
     );
 
     result.input_method = XOpenIM(dpy, 0, 0, 0);
@@ -894,11 +1061,11 @@ static void push_key(u8 code, u8 chr, u8 chr_nocaps, b8 (*mods)[CONTROL_KEY_COUN
     }
 
 	if(*count < KEY_INPUT_BUFFER_SIZE){
-		linuxvars.key_data.press[*count].keycode = code;
-		linuxvars.key_data.press[*count].character = chr;
-		linuxvars.key_data.press[*count].character_no_caps_lock = chr_nocaps;
+		data[*count].keycode = code;
+		data[*count].character = chr;
+		data[*count].character_no_caps_lock = chr_nocaps;
 
-		memcpy(linuxvars.key_data.press[*count].modifiers, *mods, sizeof(*mods));
+		memcpy(data[*count].modifiers, *mods, sizeof(*mods));
 
 		++(*count);
 	}
@@ -1012,10 +1179,7 @@ main(int argc, char **argv)
     Font_Load_Parameters params[8];
     sysshared_init_font_params(&linuxvars.fnt, params, ArrayCount(params));
     
-    linuxvars.app.init(linuxvars.system, &linuxvars.target,
-                       &memory_vars, &exchange_vars, &linuxvars.key_codes,
-                       linuxvars.clipboard_contents, current_directory,
-                       linuxvars.custom_api);
+
     
     // NOTE(allen): Here begins the linux screen setup stuff.
     // Behold the true nature of this wonderful OS:
@@ -1027,7 +1191,6 @@ main(int argc, char **argv)
 
     WinWidth = 800;
     WinHeight = 600;
-
 
     if(linuxvars.XDisplay && GLXSupportsModernContexts(linuxvars.XDisplay))
     {
@@ -1098,9 +1261,21 @@ main(int argc, char **argv)
     XSetICFocus(linuxvars.input_context);
     
     if (window_setup_success){
+        linuxvars.app.init(linuxvars.system, &linuxvars.target,
+                           &memory_vars, &exchange_vars, &linuxvars.key_codes,
+                           linuxvars.clipboard_contents, current_directory,
+                           linuxvars.custom_api);
+
         LinuxResizeTarget(WinWidth, WinHeight);
-        
-        for(;;)
+
+        Atom WM_DELETE_WINDOW = XInternAtom(linuxvars.XDisplay, "WM_DELETE_WINDOW", False);
+        if(WM_DELETE_WINDOW != None){
+            XSetWMProtocols(linuxvars.XDisplay, linuxvars.XWindow, &WM_DELETE_WINDOW, 1);
+        }
+
+        b32 keep_running = 1;
+
+        while(keep_running)
         {
             XEvent PrevEvent = {};
 
@@ -1115,7 +1290,6 @@ main(int argc, char **argv)
 
                 switch (Event.type){
                     case KeyPress: {
-                        b32 is_press = Event.type == KeyPress;
                         b32 is_hold =
                             PrevEvent.type == KeyRelease &&
                             PrevEvent.xkey.time == Event.xkey.time &&
@@ -1127,25 +1301,35 @@ main(int argc, char **argv)
                         if(Event.xkey.state & LockMask) mods[CONTROL_KEY_CAPS] = 1;
                         if(Event.xkey.state & Mod1Mask) mods[CONTROL_KEY_ALT] = 1;
                         // NOTE(inso): mod5 == AltGr
-                        if(Event.xkey.state & Mod5Mask) mods[CONTROL_KEY_ALT] = 1;
+                        // if(Event.xkey.state & Mod5Mask) mods[CONTROL_KEY_ALT] = 1;
 
                         KeySym keysym = NoSymbol;
-                        char buff[32];
+                        char buff[32], no_caps_buff[32];
 
-                        // NOTE(inso): We only want XLookupString to consider shift / capslock mods
-                        Event.xkey.state &= (ShiftMask | LockMask);
+                        // NOTE(inso): Turn ControlMask off like the win32 code does.
+                        if(mods[CONTROL_KEY_CONTROL] && !mods[CONTROL_KEY_ALT]){
+                            Event.xkey.state &= ~(ControlMask);
+                        }
 
                         // TODO(inso): Use one of the Xutf8LookupString funcs to allow for non-ascii chars
                         XLookupString(&Event.xkey, buff, sizeof(buff), &keysym, NULL);
 
+                        Event.xkey.state &= ~LockMask;
+                        XLookupString(&Event.xkey, no_caps_buff, sizeof(no_caps_buff), NULL, NULL);
+
                         u8 key = keycode_lookup(Event.xkey.keycode);
 
                         if(key){
-                            push_key(0, 0, key, &mods, is_hold);
+                            push_key(key, 0, 0, &mods, is_hold);
                         } else {
                             key = buff[0] & 0xFF;
                             if(key < 128){
-                                push_key(key, key, key, &mods, is_hold);
+                                u8 no_caps_key = no_caps_buff[0] & 0xFF;
+                                if(key == '\r') key = '\n';
+                                if(no_caps_key == '\r') no_caps_key = '\n';
+                                push_key(key, key, no_caps_key, &mods, is_hold);
+                            } else {
+                                push_key(0, 0, 0, &mods, is_hold);
                             }
                         }
                     }break;
@@ -1200,6 +1384,19 @@ main(int argc, char **argv)
 
                         if(w != linuxvars.target.width || h != linuxvars.target.height){
                             LinuxResizeTarget(Event.xconfigure.width, Event.xconfigure.height);
+                        }
+                    }break;
+
+                    case MappingNotify: {
+                        if(Event.xmapping.request == MappingModifier || Event.xmapping.request == MappingKeyboard){
+                            XRefreshKeyboardMapping(&Event.xmapping);
+                            keycode_init(linuxvars.XDisplay, &linuxvars.key_codes);
+                        }
+                    }break;
+
+                    case ClientMessage: {
+                        if ((Atom)Event.xclient.data.l[0] == WM_DELETE_WINDOW) {
+                            keep_running = false;
                         }
                     }break;
                 }

@@ -65,7 +65,8 @@ partition_allocate(Partition *data, i32 size){
 
 inline void
 partition_align(Partition *data, u32 boundary){
-    data->pos = (data->pos + (boundary - 1)) & (~boundary);
+    --boundary;
+    data->pos = (data->pos + boundary) & (~boundary);
 }
 
 inline void*

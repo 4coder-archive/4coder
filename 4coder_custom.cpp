@@ -247,6 +247,9 @@ extern "C" GET_BINDING_DATA(get_bindings){
     bind(context, '\t', MDFR_CTRL, cmdid_auto_tab_range);
     bind(context, '\t', MDFR_SHIFT, cmdid_auto_tab_line_at_cursor);
 
+    bind_me(context, '\n', MDFR_SHIFT, write_and_auto_tab);
+    bind_me(context, ' ', MDFR_SHIFT, cmdid_write_character);
+    
     end_map(context);
     
     

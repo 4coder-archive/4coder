@@ -1,0 +1,600 @@
+From 6d24dc4f80df0816a2c34b2a56026cb10ea1fd79 Mon Sep 17 00:00:00 2001
+From: insofaras <iaminsofaras@gmail.com>
+Date: Mon, 22 Feb 2016 21:22:52 +0000
+Subject: [PATCH] fix set_file_list a bit + add clipboard paste
+
+---
+ code/linux_4ed.cpp | 493 +++++++++++++++++++++++++++++++++--------------------
+ 1 file changed, 310 insertions(+), 183 deletions(-)
+
+diff --git a/code/linux_4ed.cpp b/code/linux_4ed.cpp
+index cea1099..af37526 100644
+--- a/code/linux_4ed.cpp
++++ b/code/linux_4ed.cpp
+@@ -72,7 +72,11 @@ struct Linux_Vars{
+     Mouse_State mouse_data;
+ 
+     String clipboard_contents;
+-    
++    String clipboard_outgoing;
++   
++    Atom atom_CLIPBOARD;
++    Atom atom_UTF8_STRING;
++
+     void *app_code;
+     void *custom;
+     
+@@ -89,6 +93,8 @@ struct Linux_Vars{
+     Font_Load_System fnt;
+ };
+ 
++#define LINUX_MAX_PASTE_CHARS 0x10000L
++
+ globalvar Linux_Vars linuxvars;
+ globalvar Application_Memory memory_vars;
+ globalvar Exchange exchange_vars;
+@@ -180,6 +186,21 @@ Sys_Free_Memory_Sig(system_free_memory){
+     LinuxFreeMemory(block);
+ }
+ 
++internal void
++LinuxStringDup(String* str, void* data, size_t size){
++    if(str->memory_size < size){
++        if(str->str){
++            LinuxFreeMemory(str->str);
++        }
++        str->memory_size = size;
++        str->str = (char*)LinuxGetMemory(size);
++        //TODO(inso): handle alloc failure case
++    }
++
++    str->size = size;
++    memcpy(str->str, data, size);
++}
++
+ #if (defined(_BSD_SOURCE) || defined(_SVID_SOURCE))
+ #define TimeBySt
+ #endif
+@@ -231,9 +252,11 @@ Sys_Set_File_List_Sig(system_set_file_list){
+     i32 count, file_count, size, required_size;
+     
+     terminate_with_null(&directory);
++
+     d = opendir(directory.str);
+     if (d){
+         count = 0;
++        file_count = 0;
+         for (entry = readdir(d);
+              entry != 0;
+              entry = readdir(d)){
+@@ -242,7 +265,6 @@ Sys_Set_File_List_Sig(system_set_file_list){
+             for (size = 0; fname[size]; ++size);
+             count += size + 1;
+         }
+-        closedir(d);
+ 
+         required_size = count + file_count * sizeof(File_Info);
+         if (file_list->block_size < required_size){
+@@ -253,33 +275,41 @@ Sys_Set_File_List_Sig(system_set_file_list){
+         file_list->infos = (File_Info*)file_list->block;
+         cursor = (char*)(file_list->infos + file_count);
+         
+-        d = opendir(directory.str);
+-        if (d){
+-            info_ptr = file_list->infos;
+-            for (entry = readdir(d);
+-                 entry != 0;
+-                 entry = readdir(d), ++info_ptr){
+-                fname = entry->d_name;
+-                cursor_start = cursor;
+-                for (; *fname; ) *cursor++ = *fname++;
++        rewinddir(d);
++        info_ptr = file_list->infos;
++        for (entry = readdir(d);
++            entry != 0;
++            entry = readdir(d), ++info_ptr){
++            fname = entry->d_name;
++            cursor_start = cursor;
++            for (; *fname; ) *cursor++ = *fname++;
+ 
+-                // TODO(allen): detect file/folder status
+-                // (also make sure this even GETS folders!!!)
+-                info_ptr->folder = 0;
+-                info_ptr->filename.str = cursor_start;
+-                info_ptr->filename.size = (i32)(cursor - cursor_start);
+-                *cursor++ = 0;
+-                info_ptr->filename.memory_size = info_ptr->filename.size + 1;
++#ifdef _DIRENT_HAVE_D_TYPE
++            if(entry->d_type != DT_UNKNOWN){
++                info_ptr->folder = entry->d_type == DT_DIR;
++            } else
++#endif
++            {
++                struct stat st;
++                if(lstat(entry->d_name, &st) != -1){
++                    info_ptr->folder = S_ISDIR(st.st_mode);
++                } else {
++                    info_ptr->folder = 0;
++                }
+             }
++
++            info_ptr->filename.str = cursor_start;
++            info_ptr->filename.size = (i32)(cursor - cursor_start);
++            *cursor++ = 0;
++            info_ptr->filename.memory_size = info_ptr->filename.size + 1;
+         }
+         closedir(d);
+     }
+-    closedir(d);
+ }
+ 
+ Sys_Post_Clipboard_Sig(system_post_clipboard){
+-    // TODO(allen): Implement
+-    AllowLocal(str);
++    LinuxStringDup(&linuxvars.clipboard_outgoing, str.str, str.size);
++    XSetSelectionOwner(linuxvars.XDisplay, linuxvars.atom_CLIPBOARD, linuxvars.XWindow, CurrentTime);
+ }
+ 
+ Sys_CLI_Call_Sig(system_cli_call){
+@@ -573,6 +603,8 @@ LinuxLoadSystemCode(){
+     linuxvars.system->internal_sentinel = internal_sentinel;
+     linuxvars.system->internal_get_thread_states = internal_get_thread_states;
+     linuxvars.system->internal_debug_message = internal_debug_message;
++
++    linuxvars.system->slash = '/';
+ }
+ 
+ internal void
+@@ -591,7 +623,7 @@ LinuxRedrawTarget(){
+     system_acquire_lock(RENDER_LOCK);
+     launch_rendering(&linuxvars.target);
+     system_release_lock(RENDER_LOCK);
+-    glFlush();
++//    glFlush();
+     glXSwapBuffers(linuxvars.XDisplay, linuxvars.XWindow);
+ }
+ 
+@@ -1258,70 +1290,76 @@ main(int argc, char **argv)
+         }
+     }
+     
++    if (!window_setup_success){
++        fprintf(stderr, "Error creating window.");
++        exit(1);
++    }
++
+     XSetICFocus(linuxvars.input_context);
+-    
+-    if (window_setup_success){
+-        linuxvars.app.init(linuxvars.system, &linuxvars.target,
+-                           &memory_vars, &exchange_vars, &linuxvars.key_codes,
+-                           linuxvars.clipboard_contents, current_directory,
+-                           linuxvars.custom_api);
+ 
+-        LinuxResizeTarget(WinWidth, WinHeight);
++    linuxvars.atom_CLIPBOARD = XInternAtom(linuxvars.XDisplay, "CLIPBOARD", False);
++    linuxvars.atom_UTF8_STRING = XInternAtom(linuxvars.XDisplay, "UTF8_STRING", False);
+ 
+-        Atom WM_DELETE_WINDOW = XInternAtom(linuxvars.XDisplay, "WM_DELETE_WINDOW", False);
+-        if(WM_DELETE_WINDOW != None){
+-            XSetWMProtocols(linuxvars.XDisplay, linuxvars.XWindow, &WM_DELETE_WINDOW, 1);
+-        }
++    Atom WM_DELETE_WINDOW = XInternAtom(linuxvars.XDisplay, "WM_DELETE_WINDOW", False);
++    if(WM_DELETE_WINDOW != None){
++        XSetWMProtocols(linuxvars.XDisplay, linuxvars.XWindow, &WM_DELETE_WINDOW, 1);
++    }
+ 
+-        b32 keep_running = 1;
++    linuxvars.app.init(linuxvars.system, &linuxvars.target,
++                       &memory_vars, &exchange_vars, &linuxvars.key_codes,
++                       linuxvars.clipboard_contents, current_directory,
++                       linuxvars.custom_api);
+ 
+-        while(keep_running)
++    LinuxResizeTarget(WinWidth, WinHeight);
++    b32 keep_running = 1;
++
++    while(keep_running)
++    {
++        XEvent PrevEvent = {};
++
++        while(XPending(linuxvars.XDisplay))
+         {
+-            XEvent PrevEvent = {};
+-
+-            while(XPending(linuxvars.XDisplay))
+-            {
+-                XEvent Event;
+-                XNextEvent(linuxvars.XDisplay, &Event);
+-
+-                if (XFilterEvent(&Event, None) == True){
+-                    continue;
+-                }
+-
+-                switch (Event.type){
+-                    case KeyPress: {
+-                        b32 is_hold =
+-                            PrevEvent.type == KeyRelease &&
+-                            PrevEvent.xkey.time == Event.xkey.time &&
+-                            PrevEvent.xkey.keycode == Event.xkey.keycode;
+-
+-                        b8 mods[CONTROL_KEY_COUNT] = {};
+-                        if(Event.xkey.state & ShiftMask) mods[CONTROL_KEY_SHIFT] = 1;
+-                        if(Event.xkey.state & ControlMask) mods[CONTROL_KEY_CONTROL] = 1;
+-                        if(Event.xkey.state & LockMask) mods[CONTROL_KEY_CAPS] = 1;
+-                        if(Event.xkey.state & Mod1Mask) mods[CONTROL_KEY_ALT] = 1;
+-                        // NOTE(inso): mod5 == AltGr
+-                        // if(Event.xkey.state & Mod5Mask) mods[CONTROL_KEY_ALT] = 1;
+-
+-                        KeySym keysym = NoSymbol;
+-                        char buff[32], no_caps_buff[32];
+-
+-                        // NOTE(inso): Turn ControlMask off like the win32 code does.
+-                        if(mods[CONTROL_KEY_CONTROL] && !mods[CONTROL_KEY_ALT]){
+-                            Event.xkey.state &= ~(ControlMask);
+-                        }
+-
+-                        // TODO(inso): Use one of the Xutf8LookupString funcs to allow for non-ascii chars
+-                        XLookupString(&Event.xkey, buff, sizeof(buff), &keysym, NULL);
+-
+-                        Event.xkey.state &= ~LockMask;
+-                        XLookupString(&Event.xkey, no_caps_buff, sizeof(no_caps_buff), NULL, NULL);
+-
+-                        u8 key = keycode_lookup(Event.xkey.keycode);
+-
+-                        if(key){
+-                            push_key(key, 0, 0, &mods, is_hold);
+-                        } else {
++            XEvent Event;
++            XNextEvent(linuxvars.XDisplay, &Event);
++
++            if (XFilterEvent(&Event, None) == True){
++                continue;
++            }
++
++            switch (Event.type){
++                case KeyPress: {
++                    b32 is_hold =
++                    PrevEvent.type == KeyRelease &&
++                    PrevEvent.xkey.time == Event.xkey.time &&
++                    PrevEvent.xkey.keycode == Event.xkey.keycode;
++
++                    b8 mods[CONTROL_KEY_COUNT] = {};
++                    if(Event.xkey.state & ShiftMask) mods[CONTROL_KEY_SHIFT] = 1;
++                    if(Event.xkey.state & ControlMask) mods[CONTROL_KEY_CONTROL] = 1;
++                    if(Event.xkey.state & LockMask) mods[CONTROL_KEY_CAPS] = 1;
++                    if(Event.xkey.state & Mod1Mask) mods[CONTROL_KEY_ALT] = 1;
++                    // NOTE(inso): mod5 == AltGr
++                    // if(Event.xkey.state & Mod5Mask) mods[CONTROL_KEY_ALT] = 1;
++
++                    KeySym keysym = NoSymbol;
++                    char buff[32], no_caps_buff[32];
++
++                    // NOTE(inso): Turn ControlMask off like the win32 code does.
++                    if(mods[CONTROL_KEY_CONTROL] && !mods[CONTROL_KEY_ALT]){
++                        Event.xkey.state &= ~(ControlMask);
++                    }
++
++                    // TODO(inso): Use one of the Xutf8LookupString funcs to allow for non-ascii chars
++                    XLookupString(&Event.xkey, buff, sizeof(buff), &keysym, NULL);
++
++                    Event.xkey.state &= ~LockMask;
++                    XLookupString(&Event.xkey, no_caps_buff, sizeof(no_caps_buff), NULL, NULL);
++
++                    u8 key = keycode_lookup(Event.xkey.keycode);
++
++                    if(key){
++                        push_key(key, 0, 0, &mods, is_hold);
++                    } else {
+                             key = buff[0] & 0xFF;
+                             if(key < 128){
+                                 u8 no_caps_key = no_caps_buff[0] & 0xFF;
+@@ -1331,113 +1369,202 @@ main(int argc, char **argv)
+                             } else {
+                                 push_key(0, 0, 0, &mods, is_hold);
+                             }
+-                        }
+-                    }break;
+-
+-                    case MotionNotify: {
+-                        linuxvars.mouse_data.x = Event.xmotion.x;
+-                        linuxvars.mouse_data.y = Event.xmotion.y;
+-                    }break;
+-
+-                    case ButtonPress: {
+-                        switch(Event.xbutton.button){
+-                            case Button1: {
+-                                linuxvars.mouse_data.left_button_pressed = 1;
+-                                linuxvars.mouse_data.left_button = 1;
+-                            } break;
+-                            case Button3: {
+-                                linuxvars.mouse_data.right_button_pressed = 1;
+-                                linuxvars.mouse_data.right_button = 1;
+-                            } break;
+-                        }
+-                    }break;
+-                    
+-                    case ButtonRelease: {
+-                        switch(Event.xbutton.button){
+-                            case Button1: {
+-                                linuxvars.mouse_data.left_button_released = 1;
+-                                linuxvars.mouse_data.left_button = 0;
+-                            } break;
+-                            case Button3: {
+-                                linuxvars.mouse_data.right_button_released = 1;
+-                                linuxvars.mouse_data.right_button = 0;
+-                            } break;
+-                        }
+-                    }break;
+-
+-                    case EnterNotify: {
+-                        linuxvars.mouse_data.out_of_window = 0;
+-                    }break;
+-
+-                    case LeaveNotify: {
+-                        linuxvars.mouse_data.out_of_window = 1;
+-                    }break;
+-
+-                    case FocusIn:
+-                    case FocusOut: {
+-                        linuxvars.mouse_data.left_button = 0;
+-                        linuxvars.mouse_data.right_button = 0;
+-                    }break;
+-
+-                    case ConfigureNotify: {
+-                        i32 w = Event.xconfigure.width, h = Event.xconfigure.height;
+-
+-                        if(w != linuxvars.target.width || h != linuxvars.target.height){
+-                            LinuxResizeTarget(Event.xconfigure.width, Event.xconfigure.height);
+-                        }
+-                    }break;
+-
+-                    case MappingNotify: {
+-                        if(Event.xmapping.request == MappingModifier || Event.xmapping.request == MappingKeyboard){
+-                            XRefreshKeyboardMapping(&Event.xmapping);
+-                            keycode_init(linuxvars.XDisplay, &linuxvars.key_codes);
+-                        }
+-                    }break;
+-
+-                    case ClientMessage: {
+-                        if ((Atom)Event.xclient.data.l[0] == WM_DELETE_WINDOW) {
+-                            keep_running = false;
+-                        }
+-                    }break;
+-                }
+-
+-                PrevEvent = Event;
++                    }
++                }break;
++
++                case MotionNotify: {
++                    linuxvars.mouse_data.x = Event.xmotion.x;
++                    linuxvars.mouse_data.y = Event.xmotion.y;
++                }break;
++
++                case ButtonPress: {
++                    switch(Event.xbutton.button){
++                        case Button1: {
++                            linuxvars.mouse_data.left_button_pressed = 1;
++                            linuxvars.mouse_data.left_button = 1;
++                        } break;
++                        case Button3: {
++                            linuxvars.mouse_data.right_button_pressed = 1;
++                            linuxvars.mouse_data.right_button = 1;
++                        } break;
++                    }
++                }break;
++
++                case ButtonRelease: {
++                    switch(Event.xbutton.button){
++                        case Button1: {
++                            linuxvars.mouse_data.left_button_released = 1;
++                            linuxvars.mouse_data.left_button = 0;
++                        } break;
++                        case Button3: {
++                            linuxvars.mouse_data.right_button_released = 1;
++                            linuxvars.mouse_data.right_button = 0;
++                        } break;
++                    }
++                }break;
++
++                case EnterNotify: {
++                    linuxvars.mouse_data.out_of_window = 0;
++                }break;
++
++                case LeaveNotify: {
++                    linuxvars.mouse_data.out_of_window = 1;
++                }break;
++
++                case FocusIn:
++                case FocusOut: {
++                    linuxvars.mouse_data.left_button = 0;
++                    linuxvars.mouse_data.right_button = 0;
++                }break;
++
++                case ConfigureNotify: {
++                    i32 w = Event.xconfigure.width, h = Event.xconfigure.height;
++
++                    if(w != linuxvars.target.width || h != linuxvars.target.height){
++                        LinuxResizeTarget(Event.xconfigure.width, Event.xconfigure.height);
++                    }
++                }break;
++
++                case MappingNotify: {
++                    if(Event.xmapping.request == MappingModifier || Event.xmapping.request == MappingKeyboard){
++                        XRefreshKeyboardMapping(&Event.xmapping);
++                        keycode_init(linuxvars.XDisplay, &linuxvars.key_codes);
++                    }
++                }break;
++
++                case ClientMessage: {
++                    if ((Atom)Event.xclient.data.l[0] == WM_DELETE_WINDOW) {
++                        keep_running = false;
++                    }
++                }break;
++
++                // NOTE(inso): Someone wants us to give them the clipboard data.
++                case SelectionRequest: {
++                    XSelectionRequestEvent request = Event.xselectionrequest;
++
++                    XSelectionEvent response = {};
++                    response.type = SelectionNotify;
++                    response.requestor = request.requestor;
++                    response.selection = request.selection;
++                    response.target = request.target;
++                    response.time = request.time;
++                    response.property = None;
++
++                    //TODO(inso): handle TARGETS negotiation instead of requiring UTF8_STRING
++                    if (
++                        linuxvars.clipboard_outgoing.size &&
++                        request.target == linuxvars.atom_UTF8_STRING &&
++                        request.selection == linuxvars.atom_CLIPBOARD &&
++                        request.property != None &&
++                        request.display &&
++                        request.requestor
++                    ){
++                        XChangeProperty(
++                            request.display,
++                            request.requestor,
++                            request.property,
++                            request.target,
++                            8,
++                            PropModeReplace,
++                            (unsigned char*)linuxvars.clipboard_outgoing.str,
++                            linuxvars.clipboard_outgoing.size
++                        );
++
++                        response.property = request.property;
++                    }
++
++                    XSendEvent(request.display, request.requestor, True, 0, (XEvent*)&response);
++
++                }break;
++
++                // NOTE(inso): Another program is now the clipboard owner.
++                case SelectionClear: {
++                    if(Event.xselectionclear.selection == linuxvars.atom_CLIPBOARD){
++                        linuxvars.clipboard_outgoing.size = 0;
++                    }
++                }break;
++
++                // NOTE(inso): A program is giving us the clipboard data we asked for.
++                case SelectionNotify: {
++                    XSelectionEvent* e = (XSelectionEvent*)&Event;
++                    if(
++                        e->selection == linuxvars.atom_CLIPBOARD &&
++                        e->target == linuxvars.atom_UTF8_STRING &&
++                        e->property != None
++                    ){
++                        Atom type;
++                        int fmt;
++                        unsigned long nitems, bytes_left;
++                        u8 *data;
++
++                        XGetWindowProperty(
++                            linuxvars.XDisplay,
++                            linuxvars.XWindow,
++                            linuxvars.atom_CLIPBOARD,
++                            0L,
++                            LINUX_MAX_PASTE_CHARS/4L,
++                            False,
++                            linuxvars.atom_UTF8_STRING,
++                            &type,
++                            &fmt,
++                            &nitems,
++                            &bytes_left,
++                            &data
++                        );
++
++                        LinuxStringDup(&linuxvars.clipboard_contents, data, nitems);
++                        
++                        XFree(data);
++                    }
++                }break;
+             }
+ 
+-            b32 redraw = 1;
+-
+-            Key_Input_Data input_data;
+-            Mouse_State mouse;
+-            Application_Step_Result result;
+-
+-            input_data = linuxvars.key_data;
+-            mouse = linuxvars.mouse_data;
+-
+-            result.mouse_cursor_type = APP_MOUSE_CURSOR_DEFAULT;
+-            result.redraw = redraw;
+-            result.lctrl_lalt_is_altgr = 0;
+-
+-            linuxvars.app.step(linuxvars.system,
+-                               &linuxvars.key_codes,
+-                               &input_data,
+-                               &mouse,
+-                               &linuxvars.target,
+-                               &memory_vars,
+-                               &exchange_vars,
+-                               linuxvars.clipboard_contents,
+-                               1, linuxvars.first, redraw,
+-                               &result);
+-
+-            if (result.redraw){
+-                LinuxRedrawTarget();
+-            }
++            PrevEvent = Event;
++        }
+ 
+-            linuxvars.key_data = {};
+-            linuxvars.mouse_data.left_button_pressed = 0;
+-            linuxvars.mouse_data.left_button_released = 0;
+-            linuxvars.mouse_data.right_button_pressed = 0;
+-            linuxvars.mouse_data.right_button_released = 0;
++        // FIXME(inso): is getting the clipboard every frame a bad idea?
++        XConvertSelection(
++            linuxvars.XDisplay,
++            linuxvars.atom_CLIPBOARD,
++            linuxvars.atom_UTF8_STRING,
++            linuxvars.atom_CLIPBOARD,
++            linuxvars.XWindow,
++            CurrentTime
++        );
++
++        b32 redraw = 1;
++
++        Key_Input_Data input_data;
++        Mouse_State mouse;
++        Application_Step_Result result;
++
++        input_data = linuxvars.key_data;
++        mouse = linuxvars.mouse_data;
++
++        result.mouse_cursor_type = APP_MOUSE_CURSOR_DEFAULT;
++        result.redraw = redraw;
++        result.lctrl_lalt_is_altgr = 0;
++
++        linuxvars.app.step(linuxvars.system,
++                           &linuxvars.key_codes,
++                           &input_data,
++                           &mouse,
++                           &linuxvars.target,
++                           &memory_vars,
++                           &exchange_vars,
++                           linuxvars.clipboard_contents,
++                           1, linuxvars.first, redraw,
++                           &result);
++
++        if (result.redraw){
++            LinuxRedrawTarget();
+         }
++
++        linuxvars.key_data = {};
++        linuxvars.mouse_data.left_button_pressed = 0;
++        linuxvars.mouse_data.left_button_released = 0;
++        linuxvars.mouse_data.right_button_pressed = 0;
++        linuxvars.mouse_data.right_button_released = 0;
+     }
+ }
+ 
+-- 
+1.9.1
+

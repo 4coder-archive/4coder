@@ -1,0 +1,102 @@
+From 2e9c55181ecb0a0f94c7f1b389f19fd76e856d55 Mon Sep 17 00:00:00 2001
+From: insofaras <iaminsofaras@gmail.com>
+Date: Tue, 23 Feb 2016 02:01:26 +0000
+Subject: [PATCH] get file list working
+
+---
+ code/4ed_color_view.cpp | 11 ++++++-----
+ code/linux_4ed.cpp      | 12 ++++++++----
+ 2 files changed, 14 insertions(+), 9 deletions(-)
+
+diff --git a/code/4ed_color_view.cpp b/code/4ed_color_view.cpp
+index 391d891..2b170a6 100644
+--- a/code/4ed_color_view.cpp
++++ b/code/4ed_color_view.cpp
+@@ -1429,11 +1429,12 @@ do_checkbox_list_option(i32 id, UI_State *state, UI_Layout *layout, String text,
+ 
+ 
+ internal b32
+-do_file_option(i32 id, UI_State *state, UI_Layout *layout, String filename, b32 is_folder, String extra){
++do_file_option(i32 id, UI_State *state, UI_Layout *layout, String filename, b32 is_folder, String extra, char slash){
+     b32 result = 0;
+     Style *style = state->style;
+     i16 font_id = style->font_id;
+     i32 character_h = get_font_info(state->font_set, font_id)->height;
++    char slash_buf[2] = { slash, 0 };
+     
+     i32_Rect box = layout_rect(layout, character_h*2);
+     Widget_ID wid = make_id(state, id);
+@@ -1456,7 +1457,7 @@ do_file_option(i32 id, UI_State *state, UI_Layout *layout, String filename, b32
+         draw_rectangle(target, inner, back);
+         i32 x = inner.x0, y = box.y0 + character_h/2;
+         x = draw_string(target, font_id, filename, x, y, fore);
+-        if (is_folder) x = draw_string(target, font_id, "\\", x, y, fore);
++        if (is_folder) x = draw_string(target, font_id, slash_buf, x, y, fore);
+         draw_string(target, font_id, extra, x, y, pop);
+         draw_margin(target, box, inner, outline);
+     }
+@@ -1522,13 +1523,13 @@ do_file_list_box(System_Functions *system, UI_State *state, UI_Layout *layout,
+             }
+             
+             if ((is_folder || !has_filter || ext_match) && name_match){
+-                if (do_file_option(100+i, state, layout, filename, is_folder, message)){
++                if (do_file_option(100+i, state, layout, filename, is_folder, message, system->slash)){
+                     result = 1;
+                     hot_directory_clean_end(hot_dir);
+                     append(&hot_dir->string, filename);
+                     if (is_folder){
+                         *new_dir = 1;
+-                        append(&hot_dir->string, "\\");
++                        append(&hot_dir->string, system->slash);
+                     }
+                     else{
+                         *selected = 1;
+@@ -1572,7 +1573,7 @@ do_live_file_list_box(System_Functions *system, UI_State *state, UI_Layout *layo
+                 }
+                 
+                 if (filename_match(*string, &absolutes, file->name.live_name, 1)){
+-                    if (do_file_option(100+i, state, layout, file->name.live_name, 0, message)){
++                    if (do_file_option(100+i, state, layout, file->name.live_name, 0, message, system->slash)){
+                         result = 1;
+                         *selected = 1;
+                         copy(string, file->name.source_path);
+diff --git a/code/linux_4ed.cpp b/code/linux_4ed.cpp
+index af37526..1fa7a54 100644
+--- a/code/linux_4ed.cpp
++++ b/code/linux_4ed.cpp
+@@ -303,6 +303,9 @@ Sys_Set_File_List_Sig(system_set_file_list){
+             *cursor++ = 0;
+             info_ptr->filename.memory_size = info_ptr->filename.size + 1;
+         }
++
++        file_list->count = file_count;
++
+         closedir(d);
+     }
+ }
+@@ -1497,7 +1500,7 @@ main(int argc, char **argv)
+                         unsigned long nitems, bytes_left;
+                         u8 *data;
+ 
+-                        XGetWindowProperty(
++                        int result = XGetWindowProperty(
+                             linuxvars.XDisplay,
+                             linuxvars.XWindow,
+                             linuxvars.atom_CLIPBOARD,
+@@ -1512,9 +1515,10 @@ main(int argc, char **argv)
+                             &data
+                         );
+ 
+-                        LinuxStringDup(&linuxvars.clipboard_contents, data, nitems);
+-                        
+-                        XFree(data);
++                        if(result == Success && fmt == 8){
++                            LinuxStringDup(&linuxvars.clipboard_contents, data, nitems);
++                            XFree(data);
++                        }
+                     }
+                 }break;
+             }
+-- 
+1.9.1
+

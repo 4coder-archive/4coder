@@ -9,6 +9,118 @@
 
 // TOP
 
+enum GUI_Piece_Type{
+    gui_type_text_input,
+    gui_type_number_input,
+    gui_type_label,
+    gui_type_slider
+};
+
+struct GUI_Piece_Header{
+    i32 type;
+    i32 padding;
+};
+
+// TODO(allen): Inline string for prompt?
+struct GUI_Piece_Text_Input{
+    String *dest;
+    f32_Rect rect;
+    String prompt;
+};
+
+struct GUI_Piece_Number_Input{
+    i32 *dest;
+    f32_Rect rect;
+    String prompt;
+};
+
+struct GUI_Piece_Label{
+    f32_Rect rect;
+    String text;
+};
+
+struct GUI_Piece_Slider{
+    i32 *dest;
+    f32_Rect rect;
+    i32 max;
+};
+
+struct GUI_Layout_Engine{
+    i32_Rect region;
+    i32 x, y;
+};
+
+struct GUI_Target{
+    Partition push_buffer;
+    GUI_Layout_Engine layout;
+};
+
+internal void
+refresh_gui(GUI_Target *target, i32_Rect region){
+    target->push_buffer.pos = 0;
+    target->layout.region = region;
+    target->layout.x = 0;
+    target->layout.y = 0;
+}
+
+internal void
+push_gui_item(GUI_Target *target, GUI_Piece_Header header, void *item, i32 size){
+    GUI_Piece_Header *ptr;
+    i32 total_size;
+    
+    Assert(sizeof(header) == 8);
+    
+    total_size = sizeof(header) + size;
+    total_size = ((total_size + 7) & ~7);
+    
+    ptr = (GUI_Piece_Header*)push_block(&target->push_buffer, size);
+    if (ptr){
+        *ptr = header;
+        memcpy(ptr + 1, item, size);
+    }
+    else{
+        Assert(!"bad situation");
+    }
+}
+
+internal void
+push_gui_text_in(GUI_Target *target, String prompt, String *dest){
+    GUI_Piece_Header header = {};
+    GUI_Piece_Text_Input item = {};
+    
+    header.type = gui_type_text_input;
+    item.dest = dest;
+    item.rect = gui_layout(target); // ?? what do we need here?
+    item.prompt = prompt;
+    
+    push_gui_item(target, header, &item, sizeof(item));
+}
+
+internal void
+push_gui_number_in(GUI_Target *target, String prompt, i32 *dest){
+    GUI_Piece_Header header = {};
+    GUI_Piece_Number_Input item = {};
+    
+    header.type = gui_type_number_input;
+    item.dest = dest;
+    item.rect = gui_layout(target); // ?? what do we need here?
+    item.prompt = prompt;
+    
+    push_gui_item(target, header, &item, sizeof(item));
+}
+
+internal void
+push_gui_label(GUI_Target *target, String text){
+    GUI_Piece_Header header = {};
+    GUI_Piece_Label item = {};
+    
+    header.type = gui_type_label;
+    item.rect = gui_layout(target); // ?? what do we need here?
+    item.text = text;
+    
+    push_gui_item(target, header, &item, sizeof(item));    
+}
+
 struct Single_Line_Input_Step{
 	b8 hit_newline;
 	b8 hit_ctrl_newline;
@@ -87,7 +199,7 @@ app_single_line_input_core(System_Functions *system,
                 }
                 if (match.filename.str){
                     if (match.is_folder){
-                        set_last_folder(mode.string, match.filename);
+                        set_last_folder(mode.string, match.filename, mode.hot_directory->slash);
                         hot_directory_set(system, mode.hot_directory, *mode.string, working_set);
                         result.hit_newline = 0;
                     }
