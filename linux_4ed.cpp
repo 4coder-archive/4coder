@@ -679,7 +679,6 @@ Sys_Save_File_Sig(system_save_file){
         return result;
     }
 
-    size_t remaining = size;
     do {
         ssize_t written = write(tmp_fd, data, size);
         if(written == -1){
@@ -691,9 +690,10 @@ Sys_Save_File_Sig(system_save_file){
                 return result;
             }
         } else {
-            remaining -= written;
+            size -= written;
+            data += written;
         }
-    } while(remaining);
+    } while(size);
 
     if(rename(tmp_fname, filename) == -1){
         perror("system_save_file: rename");
