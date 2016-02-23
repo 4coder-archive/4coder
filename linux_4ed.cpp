@@ -57,6 +57,32 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <errno.h>
+#include <pthread.h>
+#include <signal.h>
+
+struct Linux_Semaphore {
+    pthread_mutex_t mutex;
+    pthread_cond_t cond;
+};
+
+struct Linux_Semaphore_Handle {
+    pthread_mutex_t *mutex_p;
+    pthread_cond_t *cond_p;
+};
+
+struct Thread_Context{
+    u32 job_id;
+    b32 running;
+    
+    Work_Queue *queue;
+    u32 id;
+    pthread_t handle;
+};
+
+struct Thread_Group{
+    Thread_Context *threads;
+    i32 count;
+};
 
 struct Linux_Vars{
     Display *XDisplay;
@@ -79,6 +105,11 @@ struct Linux_Vars{
 
     void *app_code;
     void *custom;
+
+    Thread_Memory *thread_memory;
+    Thread_Group groups[THREAD_GROUP_COUNT];
+    Linux_Semaphore thread_locks[THREAD_GROUP_COUNT];
+    Linux_Semaphore locks[LOCK_COUNT];
     
     Plat_Settings settings;
     System_Functions *system;
@@ -98,6 +129,8 @@ struct Linux_Vars{
 #define LINUX_MAX_PASTE_CHARS 0x10000L
 #define FPS 60
 #define frame_useconds (1000000 / FPS)
+
+#define DBG_FN do { fprintf(stderr, "Fn called: %s\n", __PRETTY_FUNCTION__); } while(0)
 
 globalvar Linux_Vars linuxvars;
 globalvar Application_Memory memory_vars;
@@ -328,6 +361,7 @@ Sys_Post_Clipboard_Sig(system_post_clipboard){
 
 Sys_CLI_Call_Sig(system_cli_call){
     // TODO(allen): Implement
+    DBG_FN;
     AllowLocal(path);
     AllowLocal(script_name);
     AllowLocal(cli_out);
@@ -335,11 +369,13 @@ Sys_CLI_Call_Sig(system_cli_call){
 
 Sys_CLI_Begin_Update_Sig(system_cli_begin_update){
     // TODO(allen): Implement
+    DBG_FN;
     AllowLocal(cli);
 }
 
 Sys_CLI_Update_Step_Sig(system_cli_update_step){
     // TODO(allen): Implement
+    DBG_FN;
     AllowLocal(cli);
     AllowLocal(dest);
     AllowLocal(max);
@@ -348,30 +384,155 @@ Sys_CLI_Update_Step_Sig(system_cli_update_step){
 
 Sys_CLI_End_Update_Sig(system_cli_end_update){
     // TODO(allen): Implement
+    DBG_FN;
     AllowLocal(cli);
 }
 
-Sys_Post_Job_Sig(system_post_job){
-    // TODO(allen): Implement
-    AllowLocal(group_id);
-    AllowLocal(job);
+static_assert(sizeof(Plat_Handle) >= sizeof(Linux_Semaphore_Handle), "Plat_Handle not big enough");
+
+internal Plat_Handle
+LinuxSemToHandle(Linux_Semaphore* sem){
+    Linux_Semaphore_Handle h = { &sem->mutex, &sem->cond };
+    return *(Plat_Handle*)&h;
 }
 
-Sys_Cancel_Job_Sig(system_cancel_job){
+internal void*
+ThreadProc(void* arg){
+    Thread_Context *thread = (Thread_Context*)arg;
+    Work_Queue *queue = thread->queue;
+    
+    for (;;){
+        u32 read_index = queue->read_position;
+        u32 write_index = queue->write_position;
+        
+        if (read_index != write_index){
+            u32 next_read_index = (read_index + 1) % JOB_ID_WRAP;
+            u32 safe_read_index =
+                __sync_val_compare_and_swap(&queue->read_position,
+                                           read_index, next_read_index);
+            
+            if (safe_read_index == read_index){
+                Full_Job_Data *full_job = queue->jobs + (safe_read_index % QUEUE_WRAP);
+                // NOTE(allen): This is interlocked so that it plays nice
+                // with the cancel job routine, which may try to cancel this job
+                // at the same time that we try to run it
+                
+                i32 safe_running_thread =
+                    __sync_val_compare_and_swap(&full_job->running_thread,
+                                               THREAD_NOT_ASSIGNED, thread->id);
+                
+                if (safe_running_thread == THREAD_NOT_ASSIGNED){
+                    thread->job_id = full_job->id;
+                    thread->running = 1;
+                    Thread_Memory *thread_memory = 0;
+                    
+                    // TODO(allen): remove memory_request
+                    if (full_job->job.memory_request != 0){
+                        thread_memory = linuxvars.thread_memory + thread->id - 1;
+                        if (thread_memory->size < full_job->job.memory_request){
+                            if (thread_memory->data){
+                                LinuxFreeMemory(thread_memory->data);
+                            }
+                            i32 new_size = LargeRoundUp(full_job->job.memory_request, Kbytes(4));
+                            thread_memory->data = LinuxGetMemory(new_size);
+                            thread_memory->size = new_size;
+                        }
+                    }
+                    full_job->job.callback(linuxvars.system, thread, thread_memory,
+                                           &exchange_vars.thread, full_job->job.data);
+                    full_job->running_thread = 0;
+                    thread->running = 0;
+                }
+            }
+        }
+        else{
+            Linux_Semaphore_Handle* h = (Linux_Semaphore_Handle*)&(queue->semaphore);
+            pthread_cond_wait(h->cond_p, h->mutex_p);
+        }
+    }
+}
+
+
+Sys_Post_Job_Sig(system_post_job){
     // TODO(allen): Implement
+    DBG_FN;
     AllowLocal(group_id);
-    AllowLocal(job_id);
+    AllowLocal(job);
+
+    Work_Queue *queue = exchange_vars.thread.queues + group_id;
+    
+    Assert((queue->write_position + 1) % QUEUE_WRAP != queue->read_position % QUEUE_WRAP);
+    
+    b32 success = 0;
+    u32 result = 0;
+    while (!success){
+        u32 write_index = queue->write_position;
+        u32 next_write_index = (write_index + 1) % JOB_ID_WRAP;
+        u32 safe_write_index =
+            __sync_val_compare_and_swap(&queue->write_position,
+                                       write_index, next_write_index);
+        if (safe_write_index  == write_index){
+            result = write_index;
+            write_index = write_index % QUEUE_WRAP;
+            queue->jobs[write_index].job = job;
+            queue->jobs[write_index].running_thread = THREAD_NOT_ASSIGNED;
+            queue->jobs[write_index].id = result;
+            success = 1;
+        }
+    }
+    
+    Linux_Semaphore_Handle* h = (Linux_Semaphore_Handle*)&(queue->semaphore);
+    pthread_cond_broadcast(h->cond_p);
+    
+    return result;
 }
 
 Sys_Acquire_Lock_Sig(system_acquire_lock){
-    // TODO(allen): Implement
-    AllowLocal(id);
+   // printf("%s: id: %d\n", __PRETTY_FUNCTION__, id);
+    pthread_mutex_lock(&linuxvars.locks[id].mutex);
+    //pthread_cond_wait(&linuxvars.locks[id].cond, &linuxvars.locks[id].mutex);
+    pthread_mutex_unlock(&linuxvars.locks[id].mutex);
 }
 
 Sys_Release_Lock_Sig(system_release_lock){
-    // TODO(allen): Implement
-    AllowLocal(id);
+    //printf("%s: id: %d\n", __PRETTY_FUNCTION__, id);
+    pthread_mutex_lock(&linuxvars.locks[id].mutex);
+    pthread_cond_broadcast(&linuxvars.locks[id].cond);
+    pthread_mutex_unlock(&linuxvars.locks[id].mutex);
 }
+
+Sys_Cancel_Job_Sig(system_cancel_job){
+    DBG_FN;
+    AllowLocal(group_id);
+    AllowLocal(job_id);
+
+    Work_Queue *queue = exchange_vars.thread.queues + group_id;
+    Thread_Group *group = linuxvars.groups + group_id;
+    
+    u32 job_index;
+    u32 thread_id;
+    Full_Job_Data *full_job;
+    Thread_Context *thread;
+    
+    job_index = job_id % QUEUE_WRAP;
+    full_job = queue->jobs + job_index;
+    
+    Assert(full_job->id == job_id);
+    thread_id =
+        __sync_val_compare_and_swap(&full_job->running_thread,
+                                   THREAD_NOT_ASSIGNED, 0);
+    
+    if (thread_id != THREAD_NOT_ASSIGNED){
+        system_acquire_lock(CANCEL_LOCK0 + thread_id - 1);
+        thread = group->threads + thread_id - 1;
+        pthread_kill(thread->handle, SIGINT); //NOTE(inso) SIGKILL if you really want it to die.
+        pthread_create(&thread->handle, NULL, &ThreadProc, thread);
+        system_release_lock(CANCEL_LOCK0 + thread_id - 1);
+        thread->running = 0;
+    }
+
+}
+
 
 Sys_Grow_Thread_Memory_Sig(system_grow_thread_memory){
     void *old_data;
@@ -402,6 +563,7 @@ INTERNAL_Sys_Sentinel_Sig(internal_sentinel){
 
 INTERNAL_Sys_Get_Thread_States_Sig(internal_get_thread_states){
     // TODO(allen): Implement
+    DBG_FN;
     AllowLocal(id);
     AllowLocal(running);
     AllowLocal(pending);
@@ -502,10 +664,44 @@ out:
 internal
 Sys_Save_File_Sig(system_save_file){
     b32 result = 0;
-    // TODO(allen): Implement
-    AllowLocal(filename);
-    AllowLocal(data);
-    AllowLocal(size);
+    DBG_FN;
+
+    const size_t save_fsz   = strlen(filename);
+    const char   tmp_end[]  = ".4ed.XXXXXX";
+    char*        tmp_fname  = (char*) alloca(save_fsz + sizeof(tmp_end));
+
+    memcpy(tmp_fname, filename, save_fsz);
+    memcpy(tmp_fname + save_fsz, tmp_end, sizeof(tmp_end));
+
+    int tmp_fd = mkstemp(tmp_fname);
+    if(tmp_fd == -1){
+        perror("system_save_file: mkstemp");
+        return result;
+    }
+
+    size_t remaining = size;
+    do {
+        ssize_t written = write(tmp_fd, data, size);
+        if(written == -1){
+            if(errno == EINTR){
+                continue;
+            } else {
+                perror("system_save_file: write");
+                unlink(tmp_fname);
+                return result;
+            }
+        } else {
+            remaining -= written;
+        }
+    } while(remaining);
+
+    if(rename(tmp_fname, filename) == -1){
+        perror("system_save_file: rename");
+        unlink(tmp_fname);
+        return result;
+    }
+
+    result = 1;
     return(result);
 }
 
@@ -1060,7 +1256,8 @@ InitializeXInput(Display *dpy, Window XWindow)
         PointerMotionMask |
         FocusChangeMask |
         StructureNotifyMask |
-        MappingNotify
+        MappingNotify |
+        ExposureMask
     );
 
     result.input_method = XOpenIM(dpy, 0, 0, 0);
@@ -1230,7 +1427,38 @@ main(int argc, char **argv)
 #endif
     
     // TODO(allen): Setup background threads and locks
-    
+
+    Thread_Context background[4] = {};
+    linuxvars.groups[BACKGROUND_THREADS].threads = background;
+    linuxvars.groups[BACKGROUND_THREADS].count = ArrayCount(background);
+
+    Thread_Memory thread_memory[ArrayCount(background)];
+    linuxvars.thread_memory = thread_memory;
+
+    pthread_mutex_init(&linuxvars.thread_locks[BACKGROUND_THREADS].mutex, NULL);
+    pthread_cond_init(&linuxvars.thread_locks[BACKGROUND_THREADS].cond, NULL);
+
+    exchange_vars.thread.queues[BACKGROUND_THREADS].semaphore = 
+        LinuxSemToHandle(&linuxvars.thread_locks[BACKGROUND_THREADS]);
+
+    for(i32 i = 0; i < linuxvars.groups[BACKGROUND_THREADS].count; ++i){
+        Thread_Context *thread = linuxvars.groups[BACKGROUND_THREADS].threads + i;
+        thread->id = i + 1;
+
+        Thread_Memory *memory = linuxvars.thread_memory + i;
+        *memory = {};
+        memory->id = thread->id;
+
+        thread->queue = &exchange_vars.thread.queues[BACKGROUND_THREADS];
+        pthread_create(&thread->handle, NULL, &ThreadProc, thread);
+    }
+
+    Assert(linuxvars.locks);
+    for(i32 i = 0; i < LOCK_COUNT; ++i){
+        pthread_mutex_init(&linuxvars.locks[i].mutex, NULL);
+        pthread_cond_init(&linuxvars.locks[i].cond, NULL);
+    }
+
     LinuxLoadRenderCode();
     linuxvars.target.max = Mbytes(1);
     linuxvars.target.push_buffer = (byte*)system_get_memory(linuxvars.target.max);
@@ -1400,17 +1628,11 @@ main(int argc, char **argv)
                                 push_key(0, 0, 0, &mods, is_hold);
                             }
                     }
-                    linuxvars.redraw = 1;
-                }break;
-
-                case KeyRelease: {
-                    linuxvars.redraw = 1;
                 }break;
 
                 case MotionNotify: {
                     linuxvars.mouse_data.x = Event.xmotion.x;
                     linuxvars.mouse_data.y = Event.xmotion.y;
-                    linuxvars.redraw = 1;
                 }break;
 
                 case ButtonPress: {
@@ -1424,7 +1646,6 @@ main(int argc, char **argv)
                             linuxvars.mouse_data.right_button = 1;
                         } break;
                     }
-                    linuxvars.redraw = 1;
                 }break;
 
                 case ButtonRelease: {
@@ -1438,24 +1659,20 @@ main(int argc, char **argv)
                             linuxvars.mouse_data.right_button = 0;
                         } break;
                     }
-                    linuxvars.redraw = 1;
                 }break;
 
                 case EnterNotify: {
                     linuxvars.mouse_data.out_of_window = 0;
-                    linuxvars.redraw = 1;
                 }break;
 
                 case LeaveNotify: {
                     linuxvars.mouse_data.out_of_window = 1;
-                    linuxvars.redraw = 1;
                 }break;
 
                 case FocusIn:
                 case FocusOut: {
                     linuxvars.mouse_data.left_button = 0;
                     linuxvars.mouse_data.right_button = 0;
-                    linuxvars.redraw = 1;
                 }break;
 
                 case ConfigureNotify: {
@@ -1559,6 +1776,10 @@ main(int argc, char **argv)
                         }
                     }
                 }break;
+
+                case Expose: {
+                    linuxvars.redraw = 1;
+                }break;
             }
 
             PrevEvent = Event;
@@ -1582,6 +1803,11 @@ main(int argc, char **argv)
         mouse = linuxvars.mouse_data;
 
         result.mouse_cursor_type = APP_MOUSE_CURSOR_DEFAULT;
+
+        if(__sync_bool_compare_and_swap(&exchange_vars.thread.force_redraw, 1, 0)){
+            linuxvars.redraw = 1;
+        }
+
         result.redraw = linuxvars.redraw;
         result.lctrl_lalt_is_altgr = 0;
 
@@ -1613,6 +1839,62 @@ main(int argc, char **argv)
         linuxvars.mouse_data.left_button_released = 0;
         linuxvars.mouse_data.right_button_pressed = 0;
         linuxvars.mouse_data.right_button_released = 0;
+
+        ProfileStart(OS_file_process);
+        {
+            File_Slot *file;
+            int d = 0;
+            
+            for (file = exchange_vars.file.active.next;
+                 file != &exchange_vars.file.active;
+                 file = file->next){
+                ++d;
+                
+                if (file->flags & FEx_Save){
+                    Assert((file->flags & FEx_Request) == 0);
+                    file->flags &= (~FEx_Save);
+                    if (system_save_file(file->filename, (char*)file->data, file->size)){
+                        file->flags |= FEx_Save_Complete;
+                    }
+                    else{
+                        file->flags |= FEx_Save_Failed;
+                    }
+                }
+                
+                if (file->flags & FEx_Request){
+                    Assert((file->flags & FEx_Save) == 0);
+                    file->flags &= (~FEx_Request);
+                    Data sysfile =
+                        system_load_file(file->filename);
+                    if (sysfile.data == 0){
+                        file->flags |= FEx_Not_Exist;
+                    }
+                    else{
+                        file->flags |= FEx_Ready;
+                        file->data = sysfile.data;
+                        file->size = sysfile.size;
+                    }
+                }
+            }
+            
+            Assert(d == exchange_vars.file.num_active);
+            
+            for (file = exchange_vars.file.free_list.next;
+                 file != &exchange_vars.file.free_list;
+                 file = file->next){
+                if (file->data){
+                    system_free_memory(file->data);
+                }
+            }
+
+            if (exchange_vars.file.free_list.next != &exchange_vars.file.free_list){
+                ex__insert_range(exchange_vars.file.free_list.next, exchange_vars.file.free_list.prev,
+                                 &exchange_vars.file.available);
+            }
+
+            ex__check(&exchange_vars.file);
+        }
+        ProfileEnd(OS_file_process);
     }
 }
 
