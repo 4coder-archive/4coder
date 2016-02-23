@@ -5,6 +5,12 @@
 #define FCPP_STRING_IMPLEMENTATION
 #include "4coder_string.h"
 
+// NOTE(allen): See exec_command and surrounding code in 4coder_helper.h
+// to decide whether you want macro translations, without them you will
+// have to manipulate the command and parameter stack through
+// "app->" which may be more or less clear depending on your use.
+#define DisableMacroTranslations 0
+
 #include "4coder_custom.h"
 #include "4coder_helper.h"
 

@@ -197,7 +197,7 @@ table_add(File_Table *table, String name, i32 id){
     return 0;
 }
 
-internal bool32
+internal b32
 table_find_pos(File_Table *table, String name, i32 *index){
     File_Table_Entry e;
     i32 i;

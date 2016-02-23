@@ -242,6 +242,8 @@ push_directory(Application_Links *app, void *cmd_context){
 
 #define dir_string(d) ((d).str), ((d).size)
 
+#if DisableMacroTranslations == 0
+
 inline void
 exec_command_(Application_Links *app, void *cmd_context, Command_ID id){
     app->exec_command_keep_stack(cmd_context, id);
@@ -260,4 +262,5 @@ exec_command_(Application_Links *app, void *cmd_context, Custom_Command_Function
 
 #define exec_command(cmd_context, cmd) exec_command_(app, cmd_context, cmd)
 
+#endif
 

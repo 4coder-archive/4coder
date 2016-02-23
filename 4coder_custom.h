@@ -220,6 +220,7 @@ struct Buffer_Summary{
     // NOTE(allen): None of these members nor any of the data pointed to
     // by these members should be modified, I would have made them const...
     // but that actually causes problems for C++ reasons.
+    int found_buffer;
     int file_id;
     
     int size;
@@ -259,31 +260,47 @@ extern "C"{
 #define PUSH_MEMORY_SIG(name) char* name(void *cmd_context, int len)
 #define EXECUTE_COMMAND_SIG(name) void name(void *cmd_context, int command_id)
 #define CLEAR_PARAMETERS_SIG(name) void name(void *cmd_context)
-#define GET_ACTIVE_BUFFER_SIG(name) Buffer_Summary name(void *cmd_context)
 #define DIRECTORY_GET_HOT_SIG(name) int name(void *cmd_context, char *buffer, int max)
 #define DIRECTORY_HAS_FILE_SIG(name) int name(String dir, char *filename)
 #define DIRECTORY_CD_SIG(name) int name(String *dir, char *rel_path)
+
+#define GET_BUFFER_MAX_INDEX_SIG(name) int name(void *cmd_context)
+#define GET_BUFFER_SIG(name) Buffer_Summary name(void *cmd_context, int index)
+#define GET_ACTIVE_BUFFER_SIG(name) Buffer_Summary name(void *cmd_context)
+#define GET_BUFFER_BY_NAME(name) Buffer_Summary name(void *cmd_context, String filename)
 
 extern "C"{
     typedef EXECUTE_COMMAND_SIG(Exec_Command_Function);
     typedef PUSH_PARAMETER_SIG(Push_Parameter_Function);
     typedef PUSH_MEMORY_SIG(Push_Memory_Function);
     typedef CLEAR_PARAMETERS_SIG(Clear_Parameters_Function);
-    typedef GET_ACTIVE_BUFFER_SIG(Get_Active_Buffer_Function);
     typedef DIRECTORY_GET_HOT_SIG(Directory_Get_Hot);
     typedef DIRECTORY_HAS_FILE_SIG(Directory_Has_File);
     typedef DIRECTORY_CD_SIG(Directory_CD);
+    
+    typedef GET_BUFFER_MAX_INDEX_SIG(Get_Buffer_Max_Index_Function);
+    typedef GET_BUFFER_SIG(Get_Buffer_Function);
+    typedef GET_ACTIVE_BUFFER_SIG(Get_Active_Buffer_Function);
+    typedef GET_BUFFER_BY_NAME(Get_Buffer_By_Name_Function);
 }
 
 struct Application_Links{
+    // Command exectuion
     Exec_Command_Function *exec_command_keep_stack;
     Push_Parameter_Function *push_parameter;
     Push_Memory_Function *push_memory;
     Clear_Parameters_Function *clear_parameters;
-    Get_Active_Buffer_Function *get_active_buffer;
+    
+    // File system navigation
     Directory_Get_Hot *directory_get_hot;
     Directory_Has_File *directory_has_file;
     Directory_CD *directory_cd;
+    
+    // Buffer manipulation
+    Get_Buffer_Max_Index_Function *get_buffer_max_index;
+    Get_Buffer_Function *get_buffer;
+    Get_Active_Buffer_Function *get_active_buffer;
+    Get_Buffer_By_Name_Function *get_buffer_by_name;
 };
 
 struct Custom_API{

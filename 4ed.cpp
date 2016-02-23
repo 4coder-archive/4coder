@@ -238,18 +238,17 @@ COMMAND_DECL(write_character){
     USE_LAYOUT(layout);
     USE_MEM(mem);
     
-    u8 character = (u8)command->key.character;
-    char str_space[2];
-    String string = make_string(str_space, 2);
-    str_space[0] = character;
-    string.size = 1;
-    
-    i32 pos;
-    pos = view->cursor.pos;
-    i32 next_cursor_pos = view->cursor.pos + string.size;
-    view_replace_range(system, mem, view, layout, pos, pos, string.str, string.size, next_cursor_pos);
-    view_cursor_move(view, next_cursor_pos);
-    file->state.cursor_pos = view->cursor.pos;
+    char character;
+    i32 pos, next_cursor_pos;
+
+    character = command->key.character;
+    if (character != 0){
+        pos = view->cursor.pos;
+        next_cursor_pos = view->cursor.pos + 1;
+        view_replace_range(system, mem, view, layout, pos, pos, &character, 1, next_cursor_pos);
+        view_cursor_move(view, next_cursor_pos);
+        file->state.cursor_pos = view->cursor.pos;
+    }
 }
 
 COMMAND_DECL(seek_whitespace_right){
@@ -1681,7 +1680,7 @@ COMMAND_DECL(cursor_mark_swap){
     REQ_FILE_VIEW(view);
     
     i32 pos = view->cursor.pos;
-    view->cursor = view_compute_cursor_from_pos(view, view->mark);
+    view_cursor_move(view, view->mark);
     view->mark = pos;
 }
 
@@ -2010,6 +2009,22 @@ COMPOSE_DECL(compose_write_auto_tab_line){
 
 globalvar Command_Function command_table[cmdid_count];
 
+internal void
+fill_buffer_summary(Buffer_Summary *buffer, Editing_File *file, Working_Set *working_set){
+    buffer->found_buffer = 1;
+    buffer->file_id = (int)(file - working_set->files);
+    buffer->size = file->state.buffer.size;
+    buffer->file_cursor_pos = file->state.cursor_pos;
+
+    buffer->file_name_len = file->name.source_path.size;
+    buffer->buffer_name_len = file->name.live_name.size;
+    buffer->file_name = file->name.source_path.str;
+    buffer->buffer_name = file->name.live_name.str;
+
+    buffer->is_lexed = file->settings.tokens_exist;
+    buffer->map_id = file->settings.base_map_id;
+}
+
 extern "C"{
     EXECUTE_COMMAND_SIG(external_exec_command_keep_stack){
         Command_Data *cmd = (Command_Data*)cmd_context;
@@ -2049,34 +2064,79 @@ extern "C"{
         cmd->part.pos = 0;
     }
     
-    GET_ACTIVE_BUFFER_SIG(external_get_active_buffer){
+    GET_BUFFER_MAX_INDEX_SIG(external_get_buffer_max_index){
         Command_Data *cmd = (Command_Data*)cmd_context;
+        Working_Set *working_set;
+        int max;
+        working_set = cmd->working_set;
+        max = working_set->file_index_count;
+        return(max);
+    }
+    
+    GET_BUFFER_SIG(external_get_buffer){
+        Command_Data *cmd = (Command_Data*)cmd_context;
+        Editing_File *file;
+        Working_Set *working_set;
+        int max;
         Buffer_Summary buffer = {};
         
-        File_View *view = view_to_file_view(cmd->view);
-        if (view){
-            Editing_File *file = view->file;
-            if (file && !file->state.is_dummy){
+        working_set = cmd->working_set;
+        max = working_set->file_index_count;
+        
+        if (index >= 0 && index < max){
+            file = working_set->files + index;
+            if (!file->state.is_dummy && file_is_ready(file)){
 #if BUFFER_EXPERIMENT_SCALPEL <= 0
-                Working_Set *working_set = cmd->working_set;
-                buffer.file_id = (int)(file - working_set->files);
-                buffer.size = file->state.buffer.size;
-                buffer.file_cursor_pos = file->state.cursor_pos;
-                
-                buffer.file_name_len = file->name.source_path.size;
-                buffer.buffer_name_len = file->name.live_name.size;
-                buffer.file_name = file->name.source_path.str;
-                buffer.buffer_name = file->name.live_name.str;
-                
-                buffer.is_lexed = file->settings.tokens_exist;
-                buffer.map_id = file->settings.base_map_id;
+                fill_buffer_summary(&buffer, file, working_set);
 #endif
             }
         }
         
         return(buffer);
     }
-
+    
+    GET_ACTIVE_BUFFER_SIG(external_get_active_buffer){
+        Command_Data *cmd = (Command_Data*)cmd_context;
+        File_View *view;
+        Editing_File *file;
+        Working_Set *working_set;
+        Buffer_Summary buffer = {};
+        
+        view = view_to_file_view(cmd->view);
+        if (view){
+            file = view->file;
+            working_set = cmd->working_set;
+            
+            if (file && !file->state.is_dummy && file_is_ready(file)){
+#if BUFFER_EXPERIMENT_SCALPEL <= 0
+                fill_buffer_summary(&buffer, file, working_set);
+#endif
+            }
+        }
+        
+        return(buffer);
+    }
+    
+    GET_BUFFER_BY_NAME(external_get_buffer_by_name){
+        Command_Data *cmd = (Command_Data*)cmd_context;
+        Editing_File *file;
+        Working_Set *working_set;
+        i32 index;
+        Buffer_Summary buffer = {};
+        
+        working_set = cmd->working_set;
+        if (table_find(&working_set->table, filename, &index)){
+            file = working_set->files + index;
+            if (!file->state.is_dummy && file_is_ready(file)){
+#if BUFFER_EXPERIMENT_SCALPEL <= 0
+                fill_buffer_summary(&buffer, file, working_set);
+#endif
+            }
+        }
+        
+        return(buffer);
+    }
+    
     DIRECTORY_GET_HOT_SIG(external_directory_get_hot){
         Command_Data *cmd = (Command_Data*)cmd_context;
         Hot_Directory *hot = &cmd->vars->hot_directory;
@@ -2096,10 +2156,15 @@ app_links_init(System_Functions *system){
     app_links.push_parameter = external_push_parameter;
     app_links.push_memory = external_push_memory;
     app_links.clear_parameters = external_clear_parameters;
-    app_links.get_active_buffer = external_get_active_buffer;
+    
     app_links.directory_get_hot = external_directory_get_hot;
     app_links.directory_has_file = system->directory_has_file;
     app_links.directory_cd = system->directory_cd;
+    
+    app_links.get_buffer_max_index = external_get_buffer_max_index;
+    app_links.get_buffer = external_get_buffer;
+    app_links.get_active_buffer = external_get_active_buffer;
+    app_links.get_buffer_by_name = external_get_buffer_by_name;
 }
 
 #if FRED_INTERNAL
