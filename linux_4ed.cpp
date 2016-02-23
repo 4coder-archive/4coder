@@ -37,6 +37,7 @@
 #include <dirent.h>
 #include <stdio.h>
 #include <X11/Xlib.h>
+#include <X11/cursorfont.h>
 #include <GL/glx.h>
 #include <GL/gl.h>
 #include <GL/glext.h>
@@ -102,6 +103,8 @@ struct Linux_Vars{
    
     Atom atom_CLIPBOARD;
     Atom atom_UTF8_STRING;
+
+    Application_Mouse_Cursor cursor;
 
     void *app_code;
     void *custom;
@@ -1553,6 +1556,14 @@ main(int argc, char **argv)
         exit(1);
     }
 
+    Cursor xcursors[APP_MOUSE_CURSOR_COUNT] = {
+        None,
+        XCreateFontCursor(linuxvars.XDisplay, XC_arrow),
+        XCreateFontCursor(linuxvars.XDisplay, XC_xterm),
+        XCreateFontCursor(linuxvars.XDisplay, XC_sb_h_double_arrow),
+        XCreateFontCursor(linuxvars.XDisplay, XC_sb_v_double_arrow)
+    };
+
     XSetICFocus(linuxvars.input_context);
 
     linuxvars.atom_CLIPBOARD = XInternAtom(linuxvars.XDisplay, "CLIPBOARD", False);
@@ -1645,6 +1656,16 @@ main(int argc, char **argv)
                             linuxvars.mouse_data.right_button_pressed = 1;
                             linuxvars.mouse_data.right_button = 1;
                         } break;
+
+                        //NOTE(inso): scroll up
+                        case Button4: {
+                            linuxvars.mouse_data.wheel = 1;
+                        }break;
+
+                        //NOTE(inso): scroll down
+                        case Button5: {
+                            linuxvars.mouse_data.wheel = -1;
+                        }break;
                     }
                 }break;
 
@@ -1833,12 +1854,19 @@ main(int argc, char **argv)
             usleep(frame_useconds - time_diff);
         }
 
+        if(result.mouse_cursor_type != linuxvars.cursor){
+            Cursor c = xcursors[result.mouse_cursor_type];
+            XDefineCursor(linuxvars.XDisplay, linuxvars.XWindow, c);
+            linuxvars.cursor = result.mouse_cursor_type;
+        }
+
         linuxvars.redraw = 0;
         linuxvars.key_data = {};
         linuxvars.mouse_data.left_button_pressed = 0;
         linuxvars.mouse_data.left_button_released = 0;
         linuxvars.mouse_data.right_button_pressed = 0;
         linuxvars.mouse_data.right_button_released = 0;
+        linuxvars.mouse_data.wheel = 0;
 
         ProfileStart(OS_file_process);
         {
