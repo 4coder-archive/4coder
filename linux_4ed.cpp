@@ -303,6 +303,9 @@ Sys_Set_File_List_Sig(system_set_file_list){
             *cursor++ = 0;
             info_ptr->filename.memory_size = info_ptr->filename.size + 1;
         }
+
+        file_list->count = file_count;
+
         closedir(d);
     }
 }
@@ -1497,7 +1500,7 @@ main(int argc, char **argv)
                         unsigned long nitems, bytes_left;
                         u8 *data;
 
-                        XGetWindowProperty(
+                        int result = XGetWindowProperty(
                             linuxvars.XDisplay,
                             linuxvars.XWindow,
                             linuxvars.atom_CLIPBOARD,
@@ -1512,9 +1515,10 @@ main(int argc, char **argv)
                             &data
                         );
 
-                        LinuxStringDup(&linuxvars.clipboard_contents, data, nitems);
-                        
-                        XFree(data);
+                        if(result == Success && fmt == 8){
+                            LinuxStringDup(&linuxvars.clipboard_contents, data, nitems);
+                            XFree(data);
+                        }
                     }
                 }break;
             }

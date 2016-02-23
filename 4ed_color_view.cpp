@@ -1429,11 +1429,12 @@ do_checkbox_list_option(i32 id, UI_State *state, UI_Layout *layout, String text,
 
 
 internal b32
-do_file_option(i32 id, UI_State *state, UI_Layout *layout, String filename, b32 is_folder, String extra){
+do_file_option(i32 id, UI_State *state, UI_Layout *layout, String filename, b32 is_folder, String extra, char slash){
     b32 result = 0;
     Style *style = state->style;
     i16 font_id = style->font_id;
     i32 character_h = get_font_info(state->font_set, font_id)->height;
+    char slash_buf[2] = { slash, 0 };
     
     i32_Rect box = layout_rect(layout, character_h*2);
     Widget_ID wid = make_id(state, id);
@@ -1456,7 +1457,7 @@ do_file_option(i32 id, UI_State *state, UI_Layout *layout, String filename, b32 
         draw_rectangle(target, inner, back);
         i32 x = inner.x0, y = box.y0 + character_h/2;
         x = draw_string(target, font_id, filename, x, y, fore);
-        if (is_folder) x = draw_string(target, font_id, "\\", x, y, fore);
+        if (is_folder) x = draw_string(target, font_id, slash_buf, x, y, fore);
         draw_string(target, font_id, extra, x, y, pop);
         draw_margin(target, box, inner, outline);
     }
@@ -1522,13 +1523,13 @@ do_file_list_box(System_Functions *system, UI_State *state, UI_Layout *layout,
             }
             
             if ((is_folder || !has_filter || ext_match) && name_match){
-                if (do_file_option(100+i, state, layout, filename, is_folder, message)){
+                if (do_file_option(100+i, state, layout, filename, is_folder, message, system->slash)){
                     result = 1;
                     hot_directory_clean_end(hot_dir);
                     append(&hot_dir->string, filename);
                     if (is_folder){
                         *new_dir = 1;
-                        append(&hot_dir->string, "\\");
+                        append(&hot_dir->string, system->slash);
                     }
                     else{
                         *selected = 1;
@@ -1572,7 +1573,7 @@ do_live_file_list_box(System_Functions *system, UI_State *state, UI_Layout *layo
                 }
                 
                 if (filename_match(*string, &absolutes, file->name.live_name, 1)){
-                    if (do_file_option(100+i, state, layout, file->name.live_name, 0, message)){
+                    if (do_file_option(100+i, state, layout, file->name.live_name, 0, message, system->slash)){
                         result = 1;
                         *selected = 1;
                         copy(string, file->name.source_path);
