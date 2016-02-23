@@ -37,6 +37,7 @@
 #include <dirent.h>
 #include <stdio.h>
 #include <X11/Xlib.h>
+#include <X11/cursorfont.h>
 #include <GL/glx.h>
 #include <GL/gl.h>
 #include <GL/glext.h>
@@ -102,6 +103,8 @@ struct Linux_Vars{
    
     Atom atom_CLIPBOARD;
     Atom atom_UTF8_STRING;
+
+    Application_Mouse_Cursor cursor;
 
     void *app_code;
     void *custom;
@@ -1553,6 +1556,14 @@ main(int argc, char **argv)
         exit(1);
     }
 
+    Cursor xcursors[APP_MOUSE_CURSOR_COUNT] = {
+        None,
+        XCreateFontCursor(linuxvars.XDisplay, XC_arrow),
+        XCreateFontCursor(linuxvars.XDisplay, XC_xterm),
+        XCreateFontCursor(linuxvars.XDisplay, XC_sb_h_double_arrow),
+        XCreateFontCursor(linuxvars.XDisplay, XC_sb_v_double_arrow)
+    };
+
     XSetICFocus(linuxvars.input_context);
 
     linuxvars.atom_CLIPBOARD = XInternAtom(linuxvars.XDisplay, "CLIPBOARD", False);
@@ -1841,6 +1852,12 @@ main(int argc, char **argv)
         u64 time_diff = system_time() - start_time;
         if(time_diff < frame_useconds){
             usleep(frame_useconds - time_diff);
+        }
+
+        if(result.mouse_cursor_type != linuxvars.cursor){
+            Cursor c = xcursors[result.mouse_cursor_type];
+            XDefineCursor(linuxvars.XDisplay, linuxvars.XWindow, c);
+            linuxvars.cursor = result.mouse_cursor_type;
         }
 
         linuxvars.redraw = 0;
