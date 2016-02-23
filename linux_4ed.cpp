@@ -85,6 +85,8 @@ struct Linux_Vars{
     App_Functions app;
     Custom_API custom_api;
     b32 first;
+    b32 redraw;
+    b32 vsync;
     
 #if FRED_INTERNAL
     Sys_Bubble internal_bubble;
@@ -94,6 +96,8 @@ struct Linux_Vars{
 };
 
 #define LINUX_MAX_PASTE_CHARS 0x10000L
+#define FPS 60
+#define frame_useconds (1000000 / FPS)
 
 globalvar Linux_Vars linuxvars;
 globalvar Application_Memory memory_vars;
@@ -641,6 +645,7 @@ LinuxResizeTarget(i32 width, i32 height){
         
         linuxvars.target.width = width;
         linuxvars.target.height = height;
+        linuxvars.redraw = 1;
     }
 }
 
@@ -781,11 +786,26 @@ InitializeOpenGLContext(Display *XDisplay, Window XWindow, GLXFBConfig &bestFbc,
 
     //TODO(inso): glGetStringi is required if the GL version is >= 3.0
     char *Extensions = (char *)glGetString(GL_EXTENSIONS);
-    
+
     printf("GL_VENDOR: %s\n", Vendor);
     printf("GL_RENDERER: %s\n", Renderer);
     printf("GL_VERSION: %s\n", Version);
     printf("GL_EXTENSIONS: %s\n", Extensions);
+
+    //TODO(inso): this should be optional
+    if(strstr(glxExts, "GLX_EXT_swap_control ")){
+        PFNGLXSWAPINTERVALEXTPROC glx_swap_interval =
+        (PFNGLXSWAPINTERVALEXTPROC) glXGetProcAddressARB((const GLubyte*)"glXSwapIntervalEXT");
+
+        if(glx_swap_interval){
+            glx_swap_interval(XDisplay, XWindow, 1);
+
+            unsigned int swap_val = 0;
+            glXQueryDrawable(XDisplay, XWindow, GLX_SWAP_INTERVAL_EXT, &swap_val);
+            linuxvars.vsync = swap_val == 1;
+            printf("VSync enabled? %d\n", linuxvars.vsync);
+        }
+    }
 
 #if FRED_INTERNAL
     PFNGLDEBUGMESSAGECALLBACKARBPROC gl_dbg_callback = (PFNGLDEBUGMESSAGECALLBACKARBPROC)glXGetProcAddress((const GLubyte*)"glDebugMessageCallback");
@@ -1373,11 +1393,17 @@ main(int argc, char **argv)
                                 push_key(0, 0, 0, &mods, is_hold);
                             }
                     }
+                    linuxvars.redraw = 1;
+                }break;
+
+                case KeyRelease: {
+                    linuxvars.redraw = 1;
                 }break;
 
                 case MotionNotify: {
                     linuxvars.mouse_data.x = Event.xmotion.x;
                     linuxvars.mouse_data.y = Event.xmotion.y;
+                    linuxvars.redraw = 1;
                 }break;
 
                 case ButtonPress: {
@@ -1391,6 +1417,7 @@ main(int argc, char **argv)
                             linuxvars.mouse_data.right_button = 1;
                         } break;
                     }
+                    linuxvars.redraw = 1;
                 }break;
 
                 case ButtonRelease: {
@@ -1404,20 +1431,24 @@ main(int argc, char **argv)
                             linuxvars.mouse_data.right_button = 0;
                         } break;
                     }
+                    linuxvars.redraw = 1;
                 }break;
 
                 case EnterNotify: {
                     linuxvars.mouse_data.out_of_window = 0;
+                    linuxvars.redraw = 1;
                 }break;
 
                 case LeaveNotify: {
                     linuxvars.mouse_data.out_of_window = 1;
+                    linuxvars.redraw = 1;
                 }break;
 
                 case FocusIn:
                 case FocusOut: {
                     linuxvars.mouse_data.left_button = 0;
                     linuxvars.mouse_data.right_button = 0;
+                    linuxvars.redraw = 1;
                 }break;
 
                 case ConfigureNotify: {
@@ -1536,8 +1567,6 @@ main(int argc, char **argv)
             CurrentTime
         );
 
-        b32 redraw = 1;
-
         Key_Input_Data input_data;
         Mouse_State mouse;
         Application_Step_Result result;
@@ -1546,8 +1575,10 @@ main(int argc, char **argv)
         mouse = linuxvars.mouse_data;
 
         result.mouse_cursor_type = APP_MOUSE_CURSOR_DEFAULT;
-        result.redraw = redraw;
+        result.redraw = linuxvars.redraw;
         result.lctrl_lalt_is_altgr = 0;
+
+        u64 start_time = system_time();
 
         linuxvars.app.step(linuxvars.system,
                            &linuxvars.key_codes,
@@ -1557,13 +1588,19 @@ main(int argc, char **argv)
                            &memory_vars,
                            &exchange_vars,
                            linuxvars.clipboard_contents,
-                           1, linuxvars.first, redraw,
+                           1, linuxvars.first, linuxvars.redraw,
                            &result);
 
         if (result.redraw){
             LinuxRedrawTarget();
         }
 
+        u64 time_diff = system_time() - start_time;
+        if(time_diff < frame_useconds){
+            usleep(frame_useconds - time_diff);
+        }
+
+        linuxvars.redraw = 0;
         linuxvars.key_data = {};
         linuxvars.mouse_data.left_button_pressed = 0;
         linuxvars.mouse_data.left_button_released = 0;
