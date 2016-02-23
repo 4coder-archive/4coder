@@ -209,13 +209,13 @@ extern "C" GET_BINDING_DATA(get_bindings){
     bind(context, 'i', MDFR_CTRL, cmdid_interactive_switch_buffer);
     bind(context, 'c', MDFR_ALT, cmdid_open_color_tweaker);
     bind(context, 'x', MDFR_ALT, cmdid_open_menu);
-    bind_me(context, 'o', MDFR_ALT, open_in_other);
+    bind(context, 'o', MDFR_ALT, open_in_other);
 
     // NOTE(allen): These callbacks may not actually be useful to you, but
     // go look at them and see what they do.
-    bind_me(context, 'M', MDFR_ALT | MDFR_CTRL, open_my_files);
-    bind_me(context, 'M', MDFR_ALT, build_at_launch_location);
-    bind_me(context, 'm', MDFR_ALT, build_search);
+    bind(context, 'M', MDFR_ALT | MDFR_CTRL, open_my_files);
+    bind(context, 'M', MDFR_ALT, build_at_launch_location);
+    bind(context, 'm', MDFR_ALT, build_search);
 
     end_map(context);
 
@@ -236,19 +236,19 @@ extern "C" GET_BINDING_DATA(get_bindings){
     // NOTE(allen|a3.2): Specific keys can override vanilla keys,
     // and write character writes whichever character corresponds
     // to the key that triggered the command.
-    bind_me(context, '\n', MDFR_NONE, write_and_auto_tab);
-    bind_me(context, '}', MDFR_NONE, write_and_auto_tab);
-    bind_me(context, ')', MDFR_NONE, write_and_auto_tab);
-    bind_me(context, ']', MDFR_NONE, write_and_auto_tab);
-    bind_me(context, ';', MDFR_NONE, write_and_auto_tab);
-    bind_me(context, '#', MDFR_NONE, write_and_auto_tab);
+    bind(context, '\n', MDFR_NONE, write_and_auto_tab);
+    bind(context, '}', MDFR_NONE, write_and_auto_tab);
+    bind(context, ')', MDFR_NONE, write_and_auto_tab);
+    bind(context, ']', MDFR_NONE, write_and_auto_tab);
+    bind(context, ';', MDFR_NONE, write_and_auto_tab);
+    bind(context, '#', MDFR_NONE, write_and_auto_tab);
     
     bind(context, '\t', MDFR_NONE, cmdid_word_complete);
     bind(context, '\t', MDFR_CTRL, cmdid_auto_tab_range);
     bind(context, '\t', MDFR_SHIFT, cmdid_auto_tab_line_at_cursor);
 
-    bind_me(context, '\n', MDFR_SHIFT, write_and_auto_tab);
-    bind_me(context, ' ', MDFR_SHIFT, cmdid_write_character);
+    bind(context, '\n', MDFR_SHIFT, write_and_auto_tab);
+    bind(context, ' ', MDFR_SHIFT, cmdid_write_character);
     
     end_map(context);
     

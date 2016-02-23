@@ -9,6 +9,7 @@
 
 // TOP
 
+#if 0
 enum GUI_Piece_Type{
     gui_type_text_input,
     gui_type_number_input,
@@ -120,6 +121,7 @@ push_gui_label(GUI_Target *target, String text){
     
     push_gui_item(target, header, &item, sizeof(item));    
 }
+#endif
 
 struct Single_Line_Input_Step{
 	b8 hit_newline;

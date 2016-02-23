@@ -3239,7 +3239,7 @@ draw_file_loaded(File_View *view, i32_Rect rect, b32 is_active, Render_Target *t
 #endif
     
     if (view->widget.type != FWIDG_NONE){
-#if 1
+#if 0
         ui_render(target, view->gui_target);
 #else
         UI_Style ui_style = get_ui_style_upper(style);

@@ -120,7 +120,7 @@ bind(Bind_Helper *helper, Bind_Target target, int cmdid){
 }
 
 inline void
-bind_me(Bind_Helper *helper, Bind_Target target, Custom_Command_Function *func){
+bind(Bind_Helper *helper, Bind_Target target, Custom_Command_Function *func){
     if (helper->group == 0 && helper->error == 0) helper->error = BH_ERR_MISSING_BEGIN;
     if (!helper->error) ++helper->group->map_begin.bind_count;
     
@@ -141,10 +141,10 @@ bind(Bind_Helper *helper, short code, unsigned char modifiers, int cmdid){
 }
 
 inline void
-bind_me(Bind_Helper *helper, short code, unsigned char modifiers, Custom_Command_Function *func){
+bind(Bind_Helper *helper, short code, unsigned char modifiers, Custom_Command_Function *func){
     Bind_Target target;
     target = tkey(code, modifiers);
-    bind_me(helper, target, func);
+    bind(helper, target, func);
 }
 
 inline void
@@ -153,8 +153,8 @@ bind_vanilla_keys(Bind_Helper *helper, int cmdid){
 }
 
 inline void
-bind_me_vanilla_keys(Bind_Helper *helper, Custom_Command_Function *func){
-    bind_me(helper, 0, 0, func);
+bind_vanilla_keys(Bind_Helper *helper, Custom_Command_Function *func){
+    bind(helper, 0, 0, func);
 }
 
 inline void
@@ -163,8 +163,8 @@ bind_vanilla_keys(Bind_Helper *helper, unsigned char modifiers, int cmdid){
 }
 
 inline void
-bind_me_vanilla_keys(Bind_Helper *helper, unsigned char modifiers, Custom_Command_Function *func){
-    bind_me(helper, 0, modifiers, func);
+bind_vanilla_keys(Bind_Helper *helper, unsigned char modifiers, Custom_Command_Function *func){
+    bind(helper, 0, modifiers, func);
 }
 
 inline void
@@ -242,11 +242,22 @@ push_directory(Application_Links *app, void *cmd_context){
 
 #define dir_string(d) ((d).str), ((d).size)
 
+inline void
+exec_command_(Application_Links *app, void *cmd_context, Command_ID id){
+    app->exec_command_keep_stack(cmd_context, id);
+    app->clear_parameters(cmd_context);
+}
+
+inline void
+exec_command_(Application_Links *app, void *cmd_context, Custom_Command_Function *func){
+    func(cmd_context, app);
+    app->clear_parameters(cmd_context);
+}
+
 #define exec_command_keep_stack app->exec_command_keep_stack
 #define clear_parameters app->clear_parameters
 #define get_active_buffer app->get_active_buffer
 
-#define exec_command(cmd_context, id)               \
-    exec_command_keep_stack(cmd_context, id);  \
-    clear_parameters(cmd_context)
+#define exec_command(cmd_context, cmd) exec_command_(app, cmd_context, cmd)
+
 
