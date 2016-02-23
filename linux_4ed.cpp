@@ -1645,6 +1645,16 @@ main(int argc, char **argv)
                             linuxvars.mouse_data.right_button_pressed = 1;
                             linuxvars.mouse_data.right_button = 1;
                         } break;
+
+                        //NOTE(inso): scroll up
+                        case Button4: {
+                            linuxvars.mouse_data.wheel = 1;
+                        }break;
+
+                        //NOTE(inso): scroll down
+                        case Button5: {
+                            linuxvars.mouse_data.wheel = -1;
+                        }break;
                     }
                 }break;
 
@@ -1839,6 +1849,7 @@ main(int argc, char **argv)
         linuxvars.mouse_data.left_button_released = 0;
         linuxvars.mouse_data.right_button_pressed = 0;
         linuxvars.mouse_data.right_button_released = 0;
+        linuxvars.mouse_data.wheel = 0;
 
         ProfileStart(OS_file_process);
         {
