@@ -373,13 +373,13 @@ Sys_File_Paths_Equal_Sig(system_file_paths_equal){
     b32 result = 0;
 
     char* real_a = realpath(path_a, NULL);
-    char* real_b = realpath(path_b, NULL);
-
-    if(real_a && real_b){
-        result = strcmp(real_a, real_b);
-
+    if(real_a){
+        char* real_b = realpath(path_b, NULL);
+        if(real_b){
+            result = strcmp(real_a, real_b) == 0;
+            free(real_b);
+        }
         free(real_a);
-        free(real_b);
     }
 
     return result;
