@@ -40,6 +40,8 @@ keycode_init(Display* dpy, Key_Codes *codes){
     // rebound to esc, so there are two KeyCodes for the XK_Escape KeyCode but XKeysymToKeycode only
     // gets one of them, hence the need for this crazy lookup which works correctly with rebound keys.
 
+    memset(keycode_lookup_table, 0, sizeof(keycode_lookup_table));
+
     struct SymMapping {
         KeySym sym;
         Code code;
