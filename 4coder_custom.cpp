@@ -109,7 +109,7 @@ CUSTOM_COMMAND_SIG(open_long_braces){
     File_View_Summary view;
     Buffer_Summary buffer;
     
-    view = app->get_active_view(cmd_context);
+    view = app->get_active_file_view(cmd_context);
     if (view.exists){
         buffer = app->get_active_buffer(cmd_context);
         
@@ -134,7 +134,7 @@ CUSTOM_COMMAND_SIG(ifdef_off){
     File_View_Summary view;
     Buffer_Summary buffer;
     
-    view = app->get_active_view(cmd_context);
+    view = app->get_active_file_view(cmd_context);
     if (view.exists){
         buffer = app->get_active_buffer(cmd_context);
         
@@ -158,7 +158,7 @@ CUSTOM_COMMAND_SIG(ifdef_off){
             exec_command(cmd_context, cmdid_auto_tab_range);
             
             
-            app->refresh_view(cmd_context, &view);
+            app->refresh_file_view(cmd_context, &view);
             c = view.cursor.pos;
             m = view.mark.pos;
             pos = (c>m)?(c):(m);

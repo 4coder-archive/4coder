@@ -2291,7 +2291,7 @@ extern "C"{
         return(max);
     }
     
-    GET_VIEW_SIG(external_get_view){
+    GET_FILE_VIEW_SIG(external_get_file_view){
         Command_Data *cmd = (Command_Data*)cmd_context;
         Live_Views *live_set = cmd->live_set;
         int max = live_set->max;
@@ -2310,7 +2310,7 @@ extern "C"{
         return(view);
     }
     
-    GET_ACTIVE_VIEW_SIG(external_get_active_view){
+    GET_ACTIVE_FILE_VIEW_SIG(external_get_active_file_view){
         Command_Data *cmd = (Command_Data*)cmd_context;
         File_View_Summary view = {};
         File_View *file_view;
@@ -2323,9 +2323,9 @@ extern "C"{
         return(view);
     }
     
-    REFRESH_VIEW_SIG(external_refresh_view){
+    REFRESH_FILE_VIEW_SIG(external_refresh_file_view){
         int result;
-        *view = external_get_view(cmd_context, view->view_id);
+        *view = external_get_file_view(cmd_context, view->view_id);
         result = view->exists;
         return(result);
     }
@@ -2436,10 +2436,10 @@ app_links_init(System_Functions *system){
     app_links.buffer_replace_range = external_buffer_replace_range;
     
     app_links.get_view_max_index = external_get_view_max_index;
-    app_links.get_view = external_get_view;
-    app_links.get_active_view = external_get_active_view;
+    app_links.get_file_view = external_get_file_view;
+    app_links.get_active_file_view = external_get_active_file_view;
     
-    app_links.refresh_view = external_refresh_view;
+    app_links.refresh_file_view = external_refresh_file_view;
     app_links.view_set_cursor = external_view_set_cursor;
     app_links.view_set_mark = external_view_set_mark;
     app_links.view_set_file = external_view_set_file;
