@@ -369,6 +369,22 @@ Sys_Set_File_List_Sig(system_set_file_list){
     }
 }
 
+Sys_File_Paths_Equal_Sig(system_file_paths_equal){
+    b32 result = 0;
+
+    char* real_a = realpath(path_a, NULL);
+    char* real_b = realpath(path_b, NULL);
+
+    if(real_a && real_b){
+        result = strcmp(real_a, real_b);
+
+        free(real_a);
+        free(real_b);
+    }
+
+    return result;
+}
+
 Sys_Post_Clipboard_Sig(system_post_clipboard){
     LinuxStringDup(&linuxvars.clipboard_outgoing, str.str, str.size);
     XSetSelectionOwner(linuxvars.XDisplay, linuxvars.atom_CLIPBOARD, linuxvars.XWindow, CurrentTime);
