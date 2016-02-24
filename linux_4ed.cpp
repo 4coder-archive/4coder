@@ -448,7 +448,6 @@ Sys_CLI_Update_Step_Sig(system_cli_update_step){
             // NOTE(inso): EOF
             break;
         } else {
-            printf("READ [%.*s]\n", (int)num, ptr);
             ptr += num;
             space_left -= num;
         }
@@ -1175,19 +1174,49 @@ InitializeOpenGLContext(Display *XDisplay, Window XWindow, GLXFBConfig &bestFbc,
     printf("GL_VERSION: %s\n", Version);
     printf("GL_EXTENSIONS: %s\n", Extensions);
 
-    //TODO(inso): this should be optional
+    //TODO(inso): enable vsync if available. this should probably be optional
     if(strstr(glxExts, "GLX_EXT_swap_control ")){
-        PFNGLXSWAPINTERVALEXTPROC glx_swap_interval =
+        PFNGLXSWAPINTERVALEXTPROC glx_swap_interval_ext =
         (PFNGLXSWAPINTERVALEXTPROC) glXGetProcAddressARB((const GLubyte*)"glXSwapIntervalEXT");
 
-        if(glx_swap_interval){
-            glx_swap_interval(XDisplay, XWindow, 1);
+        if(glx_swap_interval_ext){
+            glx_swap_interval_ext(XDisplay, XWindow, 1);
 
             unsigned int swap_val = 0;
             glXQueryDrawable(XDisplay, XWindow, GLX_SWAP_INTERVAL_EXT, &swap_val);
             linuxvars.vsync = swap_val == 1;
             printf("VSync enabled? %d\n", linuxvars.vsync);
         }
+    } else if(strstr(glxExts, "GLX_MESA_swap_control ")){
+        PFNGLXSWAPINTERVALMESAPROC glx_swap_interval_mesa = 
+        (PFNGLXSWAPINTERVALMESAPROC) glXGetProcAddressARB((const GLubyte*)"glXSwapIntervalMESA");
+
+        PFNGLXGETSWAPINTERVALMESAPROC glx_get_swap_interval_mesa =
+        (PFNGLXGETSWAPINTERVALMESAPROC) glXGetProcAddressARB((const GLubyte*)"glXGetSwapIntervalMESA");
+
+        if(glx_swap_interval_mesa){
+            glx_swap_interval_mesa(1);
+            if(glx_get_swap_interval_mesa){
+                linuxvars.vsync = glx_get_swap_interval_mesa();
+                printf("VSync enabled? %d (MESA)\n", linuxvars.vsync);
+            } else {
+                // NOTE(inso): assume it worked?
+                linuxvars.vsync = 1;
+                puts("VSync enabled? possibly (MESA)");
+            }
+        }
+    } else if(strstr(glxExts, "GLX_SGI_swap_control ")){
+        PFNGLXSWAPINTERVALSGIPROC glx_swap_interval_sgi = 
+        (PFNGLXSWAPINTERVALSGIPROC) glXGetProcAddressARB((const GLubyte*)"glXSwapIntervalSGI");
+
+        if(glx_swap_interval_sgi){
+            glx_swap_interval_sgi(1);
+            //NOTE(inso): The SGI one doesn't seem to have a way to confirm we got it...
+            linuxvars.vsync = 1;
+            puts("VSync enabled? hopefully (SGI)");
+        }
+    } else {
+        puts("VSync enabled? nope, no suitable extension");
     }
 
 #if FRED_INTERNAL
