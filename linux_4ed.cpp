@@ -60,6 +60,8 @@
 #include <errno.h>
 #include <pthread.h>
 #include <signal.h>
+#include <sys/types.h>
+#include <sys/wait.h>
 
 //#define FRED_USE_FONTCONFIG 1
 
@@ -372,33 +374,103 @@ Sys_Post_Clipboard_Sig(system_post_clipboard){
     XSetSelectionOwner(linuxvars.XDisplay, linuxvars.atom_CLIPBOARD, linuxvars.XWindow, CurrentTime);
 }
 
+
 Sys_CLI_Call_Sig(system_cli_call){
     // TODO(allen): Implement
-    DBG_FN;
-    AllowLocal(path);
-    AllowLocal(script_name);
-    AllowLocal(cli_out);
+
+//    fprintf(stderr, "cli call: %s, %s\n", path, script_name);
+
+    int pipe_fds[2];
+    if(pipe(pipe_fds) == -1){
+        perror("system_cli_call: pipe");
+        return 0;
+    }
+
+    pid_t child_pid = fork();
+    if(child_pid == -1){
+        perror("system_cli_call: fork");
+        return 0;
+    }
+    
+    enum { PIPE_FD_READ, PIPE_FD_WRITE };
+
+    // child
+    if(child_pid == 0){
+        close(pipe_fds[PIPE_FD_READ]);
+        dup2(pipe_fds[PIPE_FD_WRITE], STDOUT_FILENO);
+        dup2(pipe_fds[PIPE_FD_WRITE], STDERR_FILENO);
+
+        if(chdir(path) == -1){
+            perror("system_cli_call: chdir");
+            exit(1);
+        };
+
+        //TODO(inso): do spaces in script_name signify multiple args?
+        char* argv[] = { "sh", script_name, NULL };
+
+        if(execv("/bin/sh", argv) == -1){
+            perror("system_cli_call: execv");
+        }
+        exit(1);
+    } else {
+        close(pipe_fds[PIPE_FD_WRITE]);
+
+        *(pid_t*)&cli_out->proc = child_pid;
+        *(int*)&cli_out->out_read = pipe_fds[PIPE_FD_READ];
+        *(int*)&cli_out->out_write = pipe_fds[PIPE_FD_WRITE];
+    }
+
+    return 1;
 }
 
 Sys_CLI_Begin_Update_Sig(system_cli_begin_update){
-    // TODO(allen): Implement
-    DBG_FN;
     AllowLocal(cli);
 }
 
 Sys_CLI_Update_Step_Sig(system_cli_update_step){
-    // TODO(allen): Implement
-    DBG_FN;
-    AllowLocal(cli);
-    AllowLocal(dest);
-    AllowLocal(max);
-    AllowLocal(amount);
+    
+    int pipe_read_fd = *(int*)&cli->out_read;
+
+    fd_set fds;
+    FD_ZERO(&fds);
+    FD_SET(pipe_read_fd, &fds);
+
+    struct timeval tv = {};
+
+    size_t space_left = max;
+    char* ptr = dest;
+
+    while(space_left > 0 && select(pipe_read_fd + 1, &fds, NULL, NULL, &tv) == 1){
+        ssize_t num = read(pipe_read_fd, ptr, space_left);
+        if(num == -1){
+            perror("system_cli_update_step: read");
+        } else if(num == 0){
+            // NOTE(inso): EOF
+            break;
+        } else {
+            printf("READ [%.*s]\n", (int)num, ptr);
+            ptr += num;
+            space_left -= num;
+        }
+    }
+
+    *amount = (ptr - dest);
+    return (ptr - dest) > 0;
 }
 
 Sys_CLI_End_Update_Sig(system_cli_end_update){
-    // TODO(allen): Implement
-    DBG_FN;
-    AllowLocal(cli);
+    pid_t pid = *(pid_t*)&cli->proc;
+    b32 close_me = 0;
+
+    int status;
+    if(waitpid(pid, &status, WNOHANG) > 0){
+        close_me = 1;
+        cli->exit = WEXITSTATUS(status);
+        close(*(int*)&cli->out_read);
+        close(*(int*)&cli->out_write);
+    }
+
+    return close_me;
 }
 
 static_assert(sizeof(Plat_Handle) >= sizeof(Linux_Semaphore_Handle), "Plat_Handle not big enough");
@@ -470,7 +542,6 @@ ThreadProc(void* arg){
 
 Sys_Post_Job_Sig(system_post_job){
     // TODO(allen): Implement
-    DBG_FN;
     AllowLocal(group_id);
     AllowLocal(job);
 
@@ -513,7 +584,6 @@ Sys_Release_Lock_Sig(system_release_lock){
 }
 
 Sys_Cancel_Job_Sig(system_cancel_job){
-    DBG_FN;
     AllowLocal(group_id);
     AllowLocal(job_id);
 
@@ -573,11 +643,16 @@ INTERNAL_Sys_Sentinel_Sig(internal_sentinel){
 }
 
 INTERNAL_Sys_Get_Thread_States_Sig(internal_get_thread_states){
-    // TODO(allen): Implement
-    DBG_FN;
-    AllowLocal(id);
-    AllowLocal(running);
-    AllowLocal(pending);
+    Work_Queue *queue = exchange_vars.thread.queues + id;
+    u32 write = queue->write_position;
+    u32 read = queue->read_position;
+    if (write < read) write += JOB_ID_WRAP;
+    *pending = (i32)(write - read);
+    
+    Thread_Group *group = linuxvars.groups + id;
+    for (i32 i = 0; i < group->count; ++i){
+        running[i] = (group->threads[i].running != 0);
+    }
 }
 
 INTERNAL_Sys_Debug_Message_Sig(internal_debug_message){
@@ -585,34 +660,70 @@ INTERNAL_Sys_Debug_Message_Sig(internal_debug_message){
 }
 
 DIRECTORY_HAS_FILE_SIG(system_directory_has_file){
-    int result = 0;
+    
+    fprintf(stderr, "system_directory_has_file: %.*s %s\n", dir.size, dir.str, filename);
 
-    //TODO(inso): implement
+    int result = 0;
     char buff[PATH_MAX] = {};
-    memcpy(buff, dir.str, dir.size);
-    printf("Has file %s\n", buff);
+    size_t fnamesize = strlen(filename);
+
+    if(fnamesize + dir.size + 1 > PATH_MAX){
+        fprintf(stderr, "system_directory_has_file: path too long");
+    } else {
+        memcpy(buff, dir.str, dir.size);
+        memcpy(buff + dir.size, filename, fnamesize + 1);
+        struct stat st;
+        result = stat(buff, &st) == 0 && S_ISREG(st.st_mode);
+    }
 
     return(result);
 }
 
 DIRECTORY_CD_SIG(system_directory_cd){
-    int result = 0;
-    // TODO(allen): Implement
+    
+    fprintf(stderr, "system_directory_cd: %.*s %s\n", dir->size, dir->str, rel_path);
 
-    printf("Dir CD: %.*s\n", dir->size, dir->str);
+    b32 result = 0;
+    i32 old_size;
+    i32 len;
+    
+    if (rel_path[0] != 0){
+        if (rel_path[0] == '.' && rel_path[1] == 0){
+            result = 1;
+        }
+        else if (rel_path[0] == '.' && rel_path[1] == '.' && rel_path[2] == 0){
+            result = remove_last_folder(dir);
+            terminate_with_null(dir);
+        }
+        else{
+            len = str_size(rel_path);
+            if (dir->size + len + 1 > dir->memory_size){
+                old_size = dir->size;
+                append_partial(dir, rel_path);
+                append_partial(dir, "/");
+                terminate_with_null(dir);
 
-    AllowLocal(dir);
-    AllowLocal(rel_path);
+                struct stat st;
+                if(stat(dir->str, &st) == -1){
+                    perror("system_directory_cd: stat");
+                    result = 0;
+                } else {
+                    result = S_ISDIR(st.st_mode);
+                }
+
+                if(!result){
+                    dir->size = old_size;
+                }
+            }
+        }
+    }
+    
     return(result);
 }
 
 internal
 Sys_File_Can_Be_Made(system_file_can_be_made){
-    // TODO(allen): Implement
-    
-    printf("File can be made: %s\n", filename);
-    AllowLocal(filename);
-    return(0);
+    return access(filename, W_OK) == 0;
 }
 
 internal
