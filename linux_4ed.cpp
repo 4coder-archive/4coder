@@ -61,6 +61,12 @@
 #include <pthread.h>
 #include <signal.h>
 
+//#define FRED_USE_FONTCONFIG 1
+
+#if FRED_USE_FONTCONFIG
+#include <fontconfig/fontconfig.h>
+#endif
+
 struct Linux_Semaphore {
     pthread_mutex_t mutex;
     pthread_cond_t cond;
@@ -106,13 +112,17 @@ struct Linux_Vars{
 
     Application_Mouse_Cursor cursor;
 
+#if FRED_USE_FONTCONFIG
+    FcConfig *fontconfig;
+#endif
+
     void *app_code;
     void *custom;
 
     Thread_Memory *thread_memory;
     Thread_Group groups[THREAD_GROUP_COUNT];
     Linux_Semaphore thread_locks[THREAD_GROUP_COUNT];
-    Linux_Semaphore locks[LOCK_COUNT];
+    pthread_mutex_t locks[LOCK_COUNT];
     
     Plat_Settings settings;
     System_Functions *system;
@@ -450,7 +460,9 @@ ThreadProc(void* arg){
         }
         else{
             Linux_Semaphore_Handle* h = (Linux_Semaphore_Handle*)&(queue->semaphore);
+            pthread_mutex_lock(h->mutex_p);
             pthread_cond_wait(h->cond_p, h->mutex_p);
+            pthread_mutex_unlock(h->mutex_p);
         }
     }
 }
@@ -485,23 +497,19 @@ Sys_Post_Job_Sig(system_post_job){
     }
     
     Linux_Semaphore_Handle* h = (Linux_Semaphore_Handle*)&(queue->semaphore);
+    pthread_mutex_lock(h->mutex_p);
     pthread_cond_broadcast(h->cond_p);
+    pthread_mutex_unlock(h->mutex_p);
     
     return result;
 }
 
 Sys_Acquire_Lock_Sig(system_acquire_lock){
-   // printf("%s: id: %d\n", __PRETTY_FUNCTION__, id);
-    pthread_mutex_lock(&linuxvars.locks[id].mutex);
-    //pthread_cond_wait(&linuxvars.locks[id].cond, &linuxvars.locks[id].mutex);
-    pthread_mutex_unlock(&linuxvars.locks[id].mutex);
+    pthread_mutex_lock(linuxvars.locks + id);
 }
 
 Sys_Release_Lock_Sig(system_release_lock){
-    //printf("%s: id: %d\n", __PRETTY_FUNCTION__, id);
-    pthread_mutex_lock(&linuxvars.locks[id].mutex);
-    pthread_cond_broadcast(&linuxvars.locks[id].cond);
-    pthread_mutex_unlock(&linuxvars.locks[id].mutex);
+    pthread_mutex_unlock(linuxvars.locks + id);
 }
 
 Sys_Cancel_Job_Sig(system_cancel_job){
@@ -616,6 +624,8 @@ Sys_Load_File_Sig(system_load_file){
     size_t bytes_to_read;
     ssize_t num;
 
+//    printf("sys_open_file: %s\n", filename);
+
     fd = open(filename, O_RDONLY);
     if(fd < 0){
         perror("sys_open_file: open");
@@ -708,6 +718,44 @@ Sys_Save_File_Sig(system_save_file){
     return(result);
 }
 
+#if FRED_USE_FONTCONFIG
+internal char*
+LinuxFontConfigGetName(char* approx_name, double pts){
+    char* result = 0;
+
+    FcPattern* pat = FcPatternBuild(
+        NULL,
+        FC_POSTSCRIPT_NAME, FcTypeString, approx_name,
+        FC_SIZE, FcTypeDouble, pts,
+        FC_FONTFORMAT, FcTypeString, "TrueType",
+        NULL
+    );
+
+    FcConfigSubstitute(linuxvars.fontconfig, pat, FcMatchPattern);
+    FcDefaultSubstitute(pat);
+
+    FcResult res;
+    FcPattern* font = FcFontMatch(linuxvars.fontconfig, pat, &res);
+    FcChar8* fname = 0;
+
+    if(font){
+        FcPatternGetString(font, FC_FILE, 0, &fname);
+        if(fname){
+            result = strdup((char*)fname);
+            printf("Got system font from FontConfig: %s\n", result);
+        }
+        FcPatternDestroy(font);
+    }
+
+    FcPatternDestroy(pat);
+
+    if(!result){
+        result = strdup(approx_name);
+    }
+
+    return result; 
+}
+#endif
 // TODO(allen): Implement this.  Also where is this
 // macro define? Let's try to organize these functions
 // a little better now that they're starting to settle
@@ -719,7 +767,16 @@ Sys_Save_File_Sig(system_save_file){
 internal
 Font_Load_Sig(system_draw_font_load){
     Font_Load_Parameters *params;
-    
+    b32 free_name = 0;
+    char* chosen_name = filename;
+
+#if FRED_USE_FONTCONFIG
+    if(access(filename, F_OK) != 0){
+        chosen_name = LinuxFontConfigGetName(basename(filename), pt_size);
+        free_name = 1;
+    }
+#endif
+
     system_acquire_lock(FONT_LOCK);
     params = linuxvars.fnt.free_param.next;
     fnt__remove(params);
@@ -730,30 +787,39 @@ Font_Load_Sig(system_draw_font_load){
         linuxvars.fnt.part = LinuxScratchPartition(Mbytes(8));
     }
 
-    b32 done = 0;
-    while(!(done = 
-            draw_font_load(
-                linuxvars.fnt.part.base,
-                linuxvars.fnt.part.max,
-                font_out,
-                filename,
-                pt_size,
-                tab_width
-            )
-    )){
-        //FIXME(inso): This is an infinite loop if the fonts aren't found!
-        // Figure out how draw_font_load can fail
-        
-        printf("draw_font_load failed, %d\n", linuxvars.fnt.part.max);
-        LinuxScratchPartitionDouble(&linuxvars.fnt.part);
+    b32 success = 0;
+    i32 attempts = 0;
+    
+    for(; attempts < 3; ++attempts){
+        success = draw_font_load(
+            linuxvars.fnt.part.base,
+            linuxvars.fnt.part.max,
+            font_out,
+            chosen_name,
+            pt_size,
+            tab_width
+        );
+
+        if(success){
+            break;
+        } else {
+            printf("draw_font_load failed, %d\n", linuxvars.fnt.part.max);
+            LinuxScratchPartitionDouble(&linuxvars.fnt.part);
+        }
     }
 
-    system_acquire_lock(FONT_LOCK);
-    fnt__remove(params);
-    fnt__insert(&linuxvars.fnt.free_param, params);
-    system_release_lock(FONT_LOCK);
+    if(success){
+        system_acquire_lock(FONT_LOCK);
+        fnt__remove(params);
+        fnt__insert(&linuxvars.fnt.free_param, params);
+        system_release_lock(FONT_LOCK);
+    }
 
-    return(0);
+    if(free_name){
+        free(chosen_name);
+    }
+
+    return success;
 }
 
 internal
@@ -1429,8 +1495,6 @@ main(int argc, char **argv)
     }
 #endif
     
-    // TODO(allen): Setup background threads and locks
-
     Thread_Context background[4] = {};
     linuxvars.groups[BACKGROUND_THREADS].threads = background;
     linuxvars.groups[BACKGROUND_THREADS].count = ArrayCount(background);
@@ -1456,11 +1520,13 @@ main(int argc, char **argv)
         pthread_create(&thread->handle, NULL, &ThreadProc, thread);
     }
 
-    Assert(linuxvars.locks);
     for(i32 i = 0; i < LOCK_COUNT; ++i){
-        pthread_mutex_init(&linuxvars.locks[i].mutex, NULL);
-        pthread_cond_init(&linuxvars.locks[i].cond, NULL);
+        pthread_mutex_init(linuxvars.locks + i, NULL);
     }
+
+#if FRED_USE_FONTCONFIG
+    linuxvars.fontconfig = FcInitLoadConfigAndFonts();
+#endif
 
     LinuxLoadRenderCode();
     linuxvars.target.max = Mbytes(1);
