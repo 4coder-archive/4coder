@@ -434,7 +434,7 @@ COMMAND_DECL(search){
     view->isearch.pos = view->cursor.pos - 1;
 }
 
-COMMAND_DECL(rsearch){
+COMMAND_DECL(reverse_search){
     ProfileMomentFunction();
     REQ_FILE_VIEW(view);
     REQ_FILE(fixed, view);
@@ -1268,10 +1268,37 @@ COMMAND_DECL(auto_tab_range){
     REQ_FILE(file, view);
     USE_LAYOUT(layout);
     USE_MEM(mem);
-
+    
+    int r_start = 0, r_end = 0;
+    int start_set = 0, end_set = 0;
+    int clear_blank_lines = 1;
+    
+    Command_Parameter *end = param_stack_end(&command->part);
+    Command_Parameter *param = param_stack_first(&command->part, end);
+    for (; param < end; param = param_next(param, end)){
+        int p = dynamic_to_int(&param->param.param);
+        switch (p){
+            case par_range_start:
+            start_set = 1;
+            r_start = dynamic_to_int(&param->param.value);
+            break;
+            
+            case par_range_end:
+            end_set = 1;
+            r_end = dynamic_to_int(&param->param.value);
+            break;
+            
+            case par_clear_blank_lines:
+            clear_blank_lines = dynamic_to_bool(&param->param.value);
+            break;
+        }
+    }
+    
     if (file->state.token_stack.tokens && file->state.tokens_complete){
         Range range = get_range(view->cursor.pos, view->mark);
-        view_auto_tab_tokens(system, mem, view, layout, range.start, range.end, 1);
+        if (start_set) range.start = r_start;
+        if (end_set) range.end = r_end;
+        view_auto_tab_tokens(system, mem, view, layout, range.start, range.end, clear_blank_lines);
     }
 }
 
@@ -1282,9 +1309,22 @@ COMMAND_DECL(auto_tab_line_at_cursor){
     USE_LAYOUT(layout);
     USE_MEM(mem);
 
+    int clear_blank_lines = 0;
+    
+    Command_Parameter *end = param_stack_end(&command->part);
+    Command_Parameter *param = param_stack_first(&command->part, end);
+    for (; param < end; param = param_next(param, end)){
+        int p = dynamic_to_int(&param->param.param);
+        switch (p){
+            case par_clear_blank_lines:
+            clear_blank_lines = dynamic_to_bool(&param->param.value);
+            break;
+        }
+    }
+    
     if (file->state.token_stack.tokens && file->state.tokens_complete){
         i32 pos = view->cursor.pos;
-        view_auto_tab_tokens(system, mem, view, layout, pos, pos, 0);
+        view_auto_tab_tokens(system, mem, view, layout, pos, pos, clear_blank_lines);
     }
 }
 
@@ -1695,7 +1735,6 @@ COMMAND_DECL(set_settings){
     REQ_FILE_LOADING(file, view);
     USE_VARS(vars);
     USE_MEM(mem);
-    AllowLocal(mem);
     
     Command_Parameter *end = param_stack_end(&command->part);
     Command_Parameter *param = param_stack_first(&command->part, end);
@@ -2026,6 +2065,17 @@ fill_buffer_summary(Buffer_Summary *buffer, Editing_File *file, Working_Set *wor
     buffer->map_id = file->settings.base_map_id;
 }
 
+internal void
+fill_view_summary(File_View_Summary *view, File_View *file_view, Live_Views *live_set, Working_Set *working_set){
+    view->exists = 1;
+    view->view_id = (int)((char*)file_view - (char*)live_set->views) / live_set->stride;
+    if (file_view->file){
+        view->file_id = (int)(file_view->file - working_set->files);
+        view->mark = view_compute_cursor_from_pos(file_view, file_view->mark);
+        view->cursor = file_view->cursor;
+    }
+}
+
 extern "C"{
     EXECUTE_COMMAND_SIG(external_exec_command_keep_stack){
         Command_Data *cmd = (Command_Data*)cmd_context;
@@ -2079,29 +2129,22 @@ extern "C"{
     
     GET_BUFFER_MAX_INDEX_SIG(external_get_buffer_max_index){
         Command_Data *cmd = (Command_Data*)cmd_context;
-        Working_Set *working_set;
-        int max;
-        working_set = cmd->working_set;
-        max = working_set->file_index_count;
+        Working_Set *working_set = cmd->working_set;
+        int max = working_set->file_index_count;
         return(max);
     }
     
     GET_BUFFER_SIG(external_get_buffer){
         Command_Data *cmd = (Command_Data*)cmd_context;
         Editing_File *file;
-        Working_Set *working_set;
-        int max;
+        Working_Set *working_set = cmd->working_set;
+        int max = working_set->file_index_count;
         Buffer_Summary buffer = {};
-        
-        working_set = cmd->working_set;
-        max = working_set->file_index_count;
         
         if (index >= 0 && index < max){
             file = working_set->files + index;
             if (!file->state.is_dummy){
-#if BUFFER_EXPERIMENT_SCALPEL <= 0
                 fill_buffer_summary(&buffer, file, working_set);
-#endif
             }
         }
         
@@ -2121,9 +2164,7 @@ extern "C"{
             working_set = cmd->working_set;
             
             if (file && !file->state.is_dummy){
-#if BUFFER_EXPERIMENT_SCALPEL <= 0
                 fill_buffer_summary(&buffer, file, working_set);
-#endif
             }
         }
         
@@ -2141,13 +2182,18 @@ extern "C"{
         if (table_find(&working_set->table, filename, &index)){
             file = working_set->files + index;
             if (!file->state.is_dummy && file_is_ready(file)){
-#if BUFFER_EXPERIMENT_SCALPEL <= 0
                 fill_buffer_summary(&buffer, file, working_set);
-#endif
             }
         }
         
         return(buffer);
+    }
+    
+    REFRESH_BUFFER_SIG(external_refresh_buffer){
+        int result;
+        *buffer = external_get_buffer(cmd_context, buffer->file_id);
+        result = buffer->exists;
+        return(result);
     }
     
     BUFFER_SEEK_DELIMITER_SIG(external_buffer_seek_delimiter){
@@ -2237,6 +2283,135 @@ extern "C"{
         
         return(result);
     }
+    
+    GET_VIEW_MAX_INDEX_SIG(external_get_view_max_index){
+        Command_Data *cmd = (Command_Data*)cmd_context;
+        Live_Views *live_set = cmd->live_set;
+        int max = live_set->max;
+        return(max);
+    }
+    
+    GET_VIEW_SIG(external_get_view){
+        Command_Data *cmd = (Command_Data*)cmd_context;
+        Live_Views *live_set = cmd->live_set;
+        int max = live_set->max;
+        View *vptr;
+        File_View *file_view;
+        File_View_Summary view = {};
+        
+        if (index >= 0 && index < max){
+            vptr = (View*)((char*)live_set->views + live_set->stride*index);
+            file_view = view_to_file_view(vptr);
+            if (file_view){
+                fill_view_summary(&view, file_view, cmd->live_set, cmd->working_set);
+            }
+        }
+        
+        return(view);
+    }
+    
+    GET_ACTIVE_VIEW_SIG(external_get_active_view){
+        Command_Data *cmd = (Command_Data*)cmd_context;
+        File_View_Summary view = {};
+        File_View *file_view;
+        
+        file_view = view_to_file_view(cmd->view);
+        if (file_view){
+            fill_view_summary(&view, file_view, cmd->live_set, cmd->working_set);
+        }
+        
+        return(view);
+    }
+    
+    REFRESH_VIEW_SIG(external_refresh_view){
+        int result;
+        *view = external_get_view(cmd_context, view->view_id);
+        result = view->exists;
+        return(result);
+    }
+    
+    VIEW_SET_CURSOR_SIG(external_view_set_cursor){
+        Command_Data *cmd = (Command_Data*)cmd_context;
+        Live_Views *live_set;
+        View *vptr;
+        File_View *file_view;
+        int result = 0;
+        
+        if (view->exists){
+            live_set = cmd->live_set;
+            vptr = (View*)((char*)live_set->views + live_set->stride * view->view_id);
+            file_view = view_to_file_view(vptr);
+            if (file_view){
+                result = 1;
+                file_view->cursor = view_compute_cursor(file_view, seek);
+                if (set_preferred_x){
+                    file_view->preferred_x = view_get_cursor_x(file_view);
+                }
+                fill_view_summary(view, file_view, cmd->live_set, cmd->working_set);
+            }
+        }
+        
+        return(result);
+    }
+    
+    VIEW_SET_MARK_SIG(external_view_set_mark){
+        Command_Data *cmd = (Command_Data*)cmd_context;
+        Live_Views *live_set;
+        View *vptr;
+        File_View *file_view;
+        Full_Cursor cursor;
+        int result = 0;
+        
+        if (view->exists){
+            live_set = cmd->live_set;
+            vptr = (View*)((char*)live_set->views + live_set->stride * view->view_id);
+            file_view = view_to_file_view(vptr);
+            if (file_view){
+                result = 1;
+                if (seek.type != buffer_seek_pos){
+                    cursor = view_compute_cursor(file_view, seek);
+                    file_view->mark = cursor.pos;
+                }
+                else{
+                    file_view->mark = seek.pos;
+                }
+                fill_view_summary(view, file_view, cmd->live_set, cmd->working_set);
+            }
+        }
+        
+        return(result);
+    }
+    
+    VIEW_SET_FILE_SIG(external_view_set_file){
+        Command_Data *cmd = (Command_Data*)cmd_context;
+        Live_Views *live_set;
+        View *vptr;
+        File_View *file_view;
+        Editing_File *file;
+        Working_Set *working_set;
+        int max, result = 0;
+        
+        if (view->exists){
+            live_set = cmd->live_set;
+            vptr = (View*)((char*)live_set->views + live_set->stride * view->view_id);
+            file_view = view_to_file_view(vptr);
+            if (file_view){
+                working_set = cmd->working_set;
+                max = working_set->file_index_count;
+                if (file_id >= 0 && file_id < max){
+                    file = working_set->files + file_id;
+                    if (!file->state.is_dummy){
+                        view_set_file(cmd->system, file_view, file, cmd->vars->font_set, cmd->style,
+                            cmd->vars->hooks[hook_open_file], cmd, &app_links);
+                    }
+                }
+                
+                fill_view_summary(view, file_view, cmd->live_set, cmd->working_set);
+            }
+        }
+        
+        return(result);
+    }
 }
 
 inline void
@@ -2252,16 +2427,22 @@ app_links_init(System_Functions *system){
     
     app_links.get_buffer_max_index = external_get_buffer_max_index;
     app_links.get_buffer = external_get_buffer;
-    app_links.get_buffer_by_name = external_get_buffer_by_name;
-    
-    app_links.get_buffer_max_index = external_get_buffer_max_index;
-    app_links.get_buffer = external_get_buffer;
     app_links.get_active_buffer = external_get_active_buffer;
     app_links.get_buffer_by_name = external_get_buffer_by_name;
     
+    app_links.refresh_buffer = external_refresh_buffer;
     app_links.buffer_seek_delimiter = external_buffer_seek_delimiter;
     app_links.buffer_read_range = external_buffer_read_range;
     app_links.buffer_replace_range = external_buffer_replace_range;
+    
+    app_links.get_view_max_index = external_get_view_max_index;
+    app_links.get_view = external_get_view;
+    app_links.get_active_view = external_get_active_view;
+    
+    app_links.refresh_view = external_refresh_view;
+    app_links.view_set_cursor = external_view_set_cursor;
+    app_links.view_set_mark = external_view_set_mark;
+    app_links.view_set_file = external_view_set_file;
 }
 
 #if FRED_INTERNAL
@@ -2338,9 +2519,9 @@ setup_file_commands(Command_Map *commands, Partition *part, Key_Codes *codes, Co
     map_add(commands, 'u', MDFR_CTRL, command_to_uppercase);
     map_add(commands, 'j', MDFR_CTRL, command_to_lowercase);
     map_add(commands, '~', MDFR_CTRL, command_clean_all_lines);
-    map_add(commands, 'f', MDFR_CTRL, command_search);
     
-    map_add(commands, 'r', MDFR_CTRL, command_rsearch);
+    map_add(commands, 'f', MDFR_CTRL, command_search);
+    map_add(commands, 'r', MDFR_CTRL, command_reverse_search);
     map_add(commands, 'g', MDFR_CTRL, command_goto_line);
     
     map_add(commands, '\n', MDFR_NONE, compose_write_auto_tab_line);
@@ -2404,7 +2585,7 @@ setup_command_table(){
     SET(seek_alphanumeric_or_camel_right);
     SET(seek_alphanumeric_or_camel_left);
     SET(search);
-    SET(rsearch);
+    SET(reverse_search);
     SET(word_complete);
     SET(goto_line);
     SET(set_mark);

@@ -92,59 +92,32 @@ end_map(Bind_Helper *helper){
     helper->group = 0;
 }
 
-struct Bind_Target{
-    short code;
-    unsigned char modifiers;
-};
-
-inline Bind_Target
-tkey(short code, unsigned char modifiers){
-    Bind_Target target;
-    target.code = code;
-    target.modifiers = modifiers;
-    return target;
-}
-
 inline void
-bind(Bind_Helper *helper, Bind_Target target, int cmdid){
+bind(Bind_Helper *helper, short code, unsigned char modifiers, int cmdid){
     if (helper->group == 0 && helper->error == 0) helper->error = BH_ERR_MISSING_BEGIN;
     if (!helper->error) ++helper->group->map_begin.bind_count;
     
     Binding_Unit unit;
     unit.type = unit_binding;
     unit.binding.command_id = cmdid;
-    unit.binding.code = target.code;
-    unit.binding.modifiers = target.modifiers;
+    unit.binding.code = code;
+    unit.binding.modifiers = modifiers;
     
     write_unit(helper, unit);
 }
 
 inline void
-bind(Bind_Helper *helper, Bind_Target target, Custom_Command_Function *func){
+bind(Bind_Helper *helper, short code, unsigned char modifiers, Custom_Command_Function *func){
     if (helper->group == 0 && helper->error == 0) helper->error = BH_ERR_MISSING_BEGIN;
     if (!helper->error) ++helper->group->map_begin.bind_count;
     
     Binding_Unit unit;
     unit.type = unit_callback;
     unit.callback.func = func;
-    unit.callback.code = target.code;
-    unit.callback.modifiers = target.modifiers;
+    unit.callback.code = code;
+    unit.callback.modifiers = modifiers;
     
     write_unit(helper, unit);
-}
-
-inline void
-bind(Bind_Helper *helper, short code, unsigned char modifiers, int cmdid){
-    Bind_Target target;
-    target = tkey(code, modifiers);
-    bind(helper, target, cmdid);
-}
-
-inline void
-bind(Bind_Helper *helper, short code, unsigned char modifiers, Custom_Command_Function *func){
-    Bind_Target target;
-    target = tkey(code, modifiers);
-    bind(helper, target, func);
 }
 
 inline void

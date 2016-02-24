@@ -1,4 +1,6 @@
 
+#include "4coder_buffer_types.h"
+
 #define MDFR_NONE 0
 #define MDFR_CTRL 1
 #define MDFR_ALT 2
@@ -63,7 +65,7 @@ enum Command_ID{
     cmdid_seek_alphanumeric_or_camel_left,
     cmdid_seek_alphanumeric_or_camel_right,
     cmdid_search,
-    cmdid_rsearch,
+    cmdid_reverse_search,
     cmdid_word_complete,
     cmdid_goto_line,
     cmdid_set_mark,
@@ -124,6 +126,8 @@ enum Command_ID{
 };
 
 enum Param_ID{
+    par_range_start,
+    par_range_end,
     par_name,
     par_lex_as_cpp_file,
     par_wrap_lines,
@@ -133,6 +137,7 @@ enum Param_ID{
     par_cli_command,
     par_cli_overlap_with_conflict,
     par_cli_always_bind_to_view,
+    par_clear_blank_lines,
     // never below this
     par_type_count
 };
@@ -216,10 +221,10 @@ struct Extra_Font{
     int size;
 };
 
+// NOTE(allen): None of the members of *_Summary structs nor any of the
+// data pointed to by the members should be modified, I would have made
+// them all const... but that causes a lot problems for C++ reasons.
 struct Buffer_Summary{
-    // NOTE(allen): None of these members nor any of the data pointed to
-    // by these members should be modified, I would have made them const...
-    // but that causes a lot problems for C++ reasons.
     int exists;
     int ready;
     int file_id;
@@ -234,6 +239,15 @@ struct Buffer_Summary{
     int file_cursor_pos;
     int is_lexed;
     int map_id;
+};
+
+struct File_View_Summary{
+    int exists;
+    int view_id;
+    int file_id;
+    
+    Full_Cursor cursor;
+    Full_Cursor mark;
 };
 
 #ifndef FRED_STRING_STRUCT
@@ -274,9 +288,20 @@ extern "C"{
 #define GET_ACTIVE_BUFFER_SIG(name) Buffer_Summary name(void *cmd_context)
 #define GET_BUFFER_BY_NAME(name) Buffer_Summary name(void *cmd_context, String filename)
 
+#define REFRESH_BUFFER_SIG(name) int name(void *cmd_context, Buffer_Summary *buffer)
 #define BUFFER_SEEK_DELIMITER_SIG(name) int name(void *cmd_context, Buffer_Summary *buffer, int start, char delim, int *out)
 #define BUFFER_READ_RANGE_SIG(name) int name(void *cmd_context, Buffer_Summary *buffer, int start, int end, char *out)
 #define BUFFER_REPLACE_RANGE_SIG(name) int name(void *cmd_context, Buffer_Summary *buffer, int start, int end, char *str, int len)
+
+// File view manipulation
+#define GET_VIEW_MAX_INDEX_SIG(name) int name(void *cmd_context)
+#define GET_VIEW_SIG(name) File_View_Summary name(void *cmd_context, int index)
+#define GET_ACTIVE_VIEW_SIG(name) File_View_Summary name(void *cmd_context)
+
+#define REFRESH_VIEW_SIG(name) int name(void *cmd_context, File_View_Summary *view)
+#define VIEW_SET_CURSOR_SIG(name) int name(void *cmd_context, File_View_Summary *view, Buffer_Seek seek, int set_preferred_x)
+#define VIEW_SET_MARK_SIG(name) int name(void *cmd_context, File_View_Summary *view, Buffer_Seek seek)
+#define VIEW_SET_FILE_SIG(name) int name(void *cmd_context, File_View_Summary *view, int file_id)
 
 extern "C"{
     // Command exectuion
@@ -296,9 +321,20 @@ extern "C"{
     typedef GET_ACTIVE_BUFFER_SIG(Get_Active_Buffer_Function);
     typedef GET_BUFFER_BY_NAME(Get_Buffer_By_Name_Function);
     
+    typedef REFRESH_BUFFER_SIG(Refresh_Buffer_Function);
     typedef BUFFER_SEEK_DELIMITER_SIG(Buffer_Seek_Delimiter_Function);
     typedef BUFFER_READ_RANGE_SIG(Buffer_Read_Range_Function);
     typedef BUFFER_REPLACE_RANGE_SIG(Buffer_Replace_Range_Function);
+    
+    // View manipulation
+    typedef GET_VIEW_MAX_INDEX_SIG(Get_View_Max_Index_Function);
+    typedef GET_VIEW_SIG(Get_View_Function);
+    typedef GET_ACTIVE_VIEW_SIG(Get_Active_View_Function);
+    
+    typedef REFRESH_VIEW_SIG(Refresh_View_Function);
+    typedef VIEW_SET_CURSOR_SIG(View_Set_Cursor_Function);
+    typedef VIEW_SET_MARK_SIG(View_Set_Mark_Function);
+    typedef VIEW_SET_FILE_SIG(View_Set_File_Function);
 }
 
 struct Application_Links{
@@ -319,9 +355,20 @@ struct Application_Links{
     Get_Active_Buffer_Function *get_active_buffer;
     Get_Buffer_By_Name_Function *get_buffer_by_name;
     
+    Refresh_Buffer_Function *refresh_buffer;
     Buffer_Seek_Delimiter_Function *buffer_seek_delimiter;
     Buffer_Read_Range_Function *buffer_read_range;
     Buffer_Replace_Range_Function *buffer_replace_range;
+    
+    // View manipulation
+    Get_View_Max_Index_Function *get_view_max_index;
+    Get_View_Function *get_view;
+    Get_Active_View_Function *get_active_view;
+    
+    Refresh_View_Function *refresh_view;
+    View_Set_Cursor_Function *view_set_cursor;
+    View_Set_Mark_Function *view_set_mark;
+    View_Set_File_Function *view_set_file;
 };
 
 struct Custom_API{

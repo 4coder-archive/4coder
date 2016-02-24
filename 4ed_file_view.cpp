@@ -1207,7 +1207,6 @@ file_post_history(General_Memory *general, Editing_File *file,
 
 inline Full_Cursor
 view_compute_cursor_from_pos(File_View *view, i32 pos){
-#if BUFFER_EXPERIMENT_SCALPEL <= 3
     Editing_File *file = view->file;
     Style *style = view->style;
     Render_Font *font = get_font_info(view->font_set, style->font_id)->font;
@@ -1219,16 +1218,11 @@ view_compute_cursor_from_pos(File_View *view, i32 pos){
                                         max_width, (f32)view->font_height, font->advance_data);
     }
     return result;
-    
-#else
-    return view->cursor;
-#endif
 }
 
 inline Full_Cursor
 view_compute_cursor_from_unwrapped_xy(File_View *view, f32 seek_x, f32 seek_y,
                                       b32 round_down = 0){
-#if BUFFER_EXPERIMENT_SCALPEL <= 3
     Editing_File *file = view->file;
     Style *style = view->style;
     Render_Font *font = get_font_info(view->font_set, style->font_id)->font;
@@ -1242,16 +1236,11 @@ view_compute_cursor_from_unwrapped_xy(File_View *view, f32 seek_x, f32 seek_y,
     }
 
     return result;
-    
-#else
-    return view->cursor;
-#endif
 }
 
 internal Full_Cursor
 view_compute_cursor_from_wrapped_xy(File_View *view, f32 seek_x, f32 seek_y,
                                     b32 round_down = 0){
-#if BUFFER_EXPERIMENT_SCALPEL <= 3
     Editing_File *file = view->file;
     Style *style = view->style;
     Render_Font *font = get_font_info(view->font_set, style->font_id)->font;
@@ -1265,15 +1254,10 @@ view_compute_cursor_from_wrapped_xy(File_View *view, f32 seek_x, f32 seek_y,
     }
     
     return result;
-    
-#else
-    return view->cursor;
-#endif
 }
 
 internal Full_Cursor
 view_compute_cursor_from_line_pos(File_View *view, i32 line, i32 pos){
-#if BUFFER_EXPERIMENT_SCALPEL <= 3
     Editing_File *file = view->file;
     Style *style = view->style;
     Render_Font *font = get_font_info(view->font_set, style->font_id)->font;
@@ -1286,10 +1270,31 @@ view_compute_cursor_from_line_pos(File_View *view, i32 line, i32 pos){
     }
     
     return result;
+}
+
+inline Full_Cursor
+view_compute_cursor(File_View *view, Buffer_Seek seek){
+    Full_Cursor result = {};
     
-#else
-    return view->cursor;
-#endif
+    switch(seek.type){
+        case buffer_seek_pos:
+        result = view_compute_cursor_from_pos(view, seek.pos);
+        break;
+        
+        case buffer_seek_wrapped_xy:
+        result = view_compute_cursor_from_wrapped_xy(view, seek.x, seek.y);
+        break;
+        
+        case buffer_seek_unwrapped_xy:
+        result = view_compute_cursor_from_unwrapped_xy(view, seek.x, seek.y);
+        break;
+        
+        case buffer_seek_line_char:
+        result = view_compute_cursor_from_line_pos(view, seek.line, seek.character);
+        break;
+    }
+    
+    return result;
 }
 
 inline Full_Cursor
@@ -2383,8 +2388,8 @@ view_clean_whitespace(System_Functions *system, Mem_Options *mem, File_View *vie
     for (i32 line_i = 0; line_i < line_count; ++line_i){
         i32 start = file->state.buffer.line_starts[line_i];
         i32 preferred_indentation;
-        bool32 all_whitespace = 0;
-        bool32 all_space = 0;
+        b32 all_whitespace = 0;
+        b32 all_space = 0;
         i32 hard_start =
             buffer_find_hard_start(&file->state.buffer, start, &all_whitespace, &all_space,
                                    &preferred_indentation, 4);
@@ -3389,14 +3394,14 @@ kill_file(System_Functions *system, Exchange *exchange,
 internal void
 command_search(System_Functions*,Command_Data*,Command_Binding);
 internal void
-command_rsearch(System_Functions*,Command_Data*,Command_Binding);
+command_reverse_search(System_Functions*,Command_Data*,Command_Binding);
 
 internal
 HANDLE_COMMAND_SIG(handle_command_file_view){
     File_View *file_view = (File_View*)(view);
     Editing_File *file = file_view->file;
     AllowLocal(file);
-            
+    
     switch (file_view->widget.type){
     case FWIDG_NONE:
     case FWIDG_TIMELINES:
@@ -3418,12 +3423,12 @@ HANDLE_COMMAND_SIG(handle_command_file_view){
         
         if (result.made_a_change ||
             binding.function == command_search ||
-            binding.function == command_rsearch){
-            bool32 step_forward = 0;
-            bool32 step_backward = 0;
+            binding.function == command_reverse_search){
+            b32 step_forward = 0;
+            b32 step_backward = 0;
             
             if (binding.function == command_search) step_forward = 1;
-            if (binding.function == command_rsearch) step_backward = 1;
+            if (binding.function == command_reverse_search) step_backward = 1;
             
             i32 start_pos = file_view->isearch.pos;
             if (step_forward){

@@ -89,8 +89,87 @@ CUSTOM_COMMAND_SIG(write_increment){
     // is usually ready, but when a buffer has just been opened it is possible that the contents
     // haven't been filled yet.  If the buffer is not ready trying to read or write it is invalid.
     // (See my_file_settings for comments on the exists field).
+    char text[] = "++";
+    int size = sizeof(text) - 1;
     if (buffer.exists && buffer.ready){
-        app->buffer_replace_range(cmd_context, &buffer, buffer.file_cursor_pos, buffer.file_cursor_pos, "++", 2);
+        app->buffer_replace_range(cmd_context, &buffer, buffer.file_cursor_pos, buffer.file_cursor_pos, text, size);
+    }
+}
+
+CUSTOM_COMMAND_SIG(write_decrement){
+    Buffer_Summary buffer = app->get_active_buffer(cmd_context);
+    char text[] = "--";
+    int size = sizeof(text) - 1;
+    if (buffer.exists && buffer.ready){
+        app->buffer_replace_range(cmd_context, &buffer, buffer.file_cursor_pos, buffer.file_cursor_pos, text, size);
+    }
+}
+
+CUSTOM_COMMAND_SIG(open_long_braces){
+    File_View_Summary view;
+    Buffer_Summary buffer;
+    
+    view = app->get_active_view(cmd_context);
+    if (view.exists){
+        buffer = app->get_active_buffer(cmd_context);
+        
+        char text[] = "{\n\n}";
+        int size = sizeof(text) - 1;
+        int pos;
+        
+        if (buffer.exists && buffer.ready){
+            pos = view.cursor.pos;
+            app->buffer_replace_range(cmd_context, &buffer, pos, pos, text, size);
+            app->view_set_cursor(cmd_context, &view, seek_pos(pos + 2), 1);
+            
+            push_parameter(app, cmd_context, par_range_start, pos);
+            push_parameter(app, cmd_context, par_range_end, pos + size);
+            push_parameter(app, cmd_context, par_clear_blank_lines, 0);
+            exec_command(cmd_context, cmdid_auto_tab_range);
+        }
+    }
+}
+
+CUSTOM_COMMAND_SIG(ifdef_off){
+    File_View_Summary view;
+    Buffer_Summary buffer;
+    
+    view = app->get_active_view(cmd_context);
+    if (view.exists){
+        buffer = app->get_active_buffer(cmd_context);
+        
+        char text1[] = "#if 0\n";
+        int size1 = sizeof(text1) - 1;
+        
+        char text2[] = "#endif\n";
+        int size2 = sizeof(text2) - 1;
+        
+        int pos, c, m;
+        
+        if (buffer.exists && buffer.ready){
+            c = view.cursor.pos;
+            m = view.mark.pos;
+            pos = (c<m)?(c):(m);
+            
+            app->buffer_replace_range(cmd_context, &buffer, pos, pos, text1, size1);
+            
+            push_parameter(app, cmd_context, par_range_start, pos);
+            push_parameter(app, cmd_context, par_range_end, pos);
+            exec_command(cmd_context, cmdid_auto_tab_range);
+            
+            
+            app->refresh_view(cmd_context, &view);
+            c = view.cursor.pos;
+            m = view.mark.pos;
+            pos = (c>m)?(c):(m);
+            
+            
+            app->buffer_replace_range(cmd_context, &buffer, pos, pos, text2, size2);
+            
+            push_parameter(app, cmd_context, par_range_start, pos);
+            push_parameter(app, cmd_context, par_range_end, pos);
+            exec_command(cmd_context, cmdid_auto_tab_range);
+        }
     }
 }
 
@@ -278,6 +357,9 @@ extern "C" GET_BINDING_DATA(get_bindings){
     bind(context, ' ', MDFR_SHIFT, cmdid_write_character);
     
     bind(context, '=', MDFR_CTRL, write_increment);
+    bind(context, '-', MDFR_CTRL, write_decrement);
+    bind(context, '[', MDFR_CTRL, open_long_braces);
+    bind(context, 'i', MDFR_ALT, ifdef_off);
     
     end_map(context);
     
@@ -333,7 +415,7 @@ extern "C" GET_BINDING_DATA(get_bindings){
     bind(context, '!', MDFR_CTRL, cmdid_eol_nixify);
     
     bind(context, 'f', MDFR_CTRL, cmdid_search);
-    bind(context, 'r', MDFR_CTRL, cmdid_rsearch);
+    bind(context, 'r', MDFR_CTRL, cmdid_reverse_search);
     bind(context, 'g', MDFR_CTRL, cmdid_goto_line);
     
     bind(context, 'K', MDFR_CTRL, cmdid_kill_buffer);

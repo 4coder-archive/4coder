@@ -12,6 +12,8 @@
 
 // TOP
 
+#include "../4coder_buffer_types.h"
+
 #ifndef inline_4tech
 #define inline_4tech inline
 #endif
@@ -85,66 +87,6 @@ typedef struct Buffer_Batch_State{
     int i;
     int shift_total;
 } Buffer_Batch_State;
-
-typedef enum{
-    buffer_seek_pos,
-    buffer_seek_wrapped_xy,
-    buffer_seek_unwrapped_xy,
-    buffer_seek_line_char
-} Buffer_Seek_Type;
-
-typedef struct Buffer_Seek{
-    Buffer_Seek_Type type;
-    union{
-        struct { int pos; };
-        struct { int round_down; float x, y; };
-        struct { int line, character; };
-    };
-} Buffer_Seek;
-
-inline_4tech Buffer_Seek
-seek_pos(int pos){
-    Buffer_Seek result;
-    result.type = buffer_seek_pos;
-    result.pos = pos;
-    return(result);
-}
-
-inline_4tech Buffer_Seek
-seek_wrapped_xy(float x, float y, int round_down){
-    Buffer_Seek result;
-    result.type = buffer_seek_wrapped_xy;
-    result.x = x;
-    result.y = y;
-    result.round_down = round_down;
-    return(result);
-}
-
-inline_4tech Buffer_Seek
-seek_unwrapped_xy(float x, float y, int round_down){
-    Buffer_Seek result;
-    result.type = buffer_seek_unwrapped_xy;
-    result.x = x;
-    result.y = y;
-    result.round_down = round_down;
-    return(result);
-}
-
-inline_4tech Buffer_Seek
-seek_line_char(int line, int character){
-    Buffer_Seek result;
-    result.type = buffer_seek_line_char;
-    result.line = line;
-    result.character = character;
-    return(result);
-}
-
-typedef struct Full_Cursor{
-    int pos;
-    int line, character;
-    float unwrapped_x, unwrapped_y;
-    float wrapped_x, wrapped_y;
-} Full_Cursor;
 
 #define BRFlag_Special_Character (1 << 0)
 
