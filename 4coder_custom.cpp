@@ -348,7 +348,7 @@ CUSTOM_COMMAND_SIG(build_search){
     //   - par_cli_overlap_with_conflict: whether to launch this process if an existing process
     //     is already being used for output on the same buffer
     //
-    //   - par_target_buffer_name: the name of the buffer to fill with the output from the process
+    //   - par_name: the name of the buffer to fill with the output from the process
     //
     //   - par_cli_path: sets the path from which the command is executed
     //
@@ -370,7 +370,7 @@ CUSTOM_COMMAND_SIG(build_search){
     while (keep_going){
         if (app->directory_has_file(dir, "build.bat")){
             push_parameter(app, cmd_context, par_cli_overlap_with_conflict, 0);
-            push_parameter(app, cmd_context, par_target_buffer_name, literal("*compilation*"));
+            push_parameter(app, cmd_context, par_name, literal("*compilation*"));
             push_parameter(app, cmd_context, par_cli_path, dir.str, dir.size);
             
             if (append(&dir, "build")){

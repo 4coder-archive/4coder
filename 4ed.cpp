@@ -347,35 +347,35 @@ COMMAND_DECL(seek_token_right){
 }
 
 COMMAND_DECL(seek_white_or_token_right){
-#if BUFFER_EXPERIMENT_SCALPEL <= 0
     ProfileMomentFunction();
     REQ_FILE_VIEW(view);
     REQ_FILE(file, view);
     
     i32 token_pos, white_pos;
-    token_pos = file->state.buffer.size;
     if (file->state.tokens_complete){
         token_pos = seek_token_right(&file->state.token_stack, view->cursor.pos);
     }
+    else{
+        token_pos = buffer_size(&file->state.buffer);
+    }
     white_pos = buffer_seek_whitespace_right(&file->state.buffer, view->cursor.pos);
     view_cursor_move(view, Min(token_pos, white_pos));
-#endif
 }
 
 COMMAND_DECL(seek_white_or_token_left){
-#if BUFFER_EXPERIMENT_SCALPEL <= 0
     ProfileMomentFunction();
     REQ_FILE_VIEW(view);
     REQ_FILE(file, view);
     
     i32 token_pos, white_pos;
-    token_pos = file->state.buffer.size;
     if (file->state.tokens_complete){
         token_pos = seek_token_left(&file->state.token_stack, view->cursor.pos);
     }
+    else{
+        token_pos = 0;
+    }
     white_pos = buffer_seek_whitespace_left(&file->state.buffer, view->cursor.pos);
     view_cursor_move(view, Max(token_pos, white_pos));
-#endif
 }
 
 COMMAND_DECL(seek_alphanumeric_right){

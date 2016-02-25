@@ -1770,7 +1770,7 @@ file_edit_cursor_fix(System_Functions *system,
         if (current_view && current_view->file == file){
             view_measure_wraps(system, general, current_view);
             write_cursor_with_index(cursors, &cursor_count, current_view->cursor.pos);
-            write_cursor_with_index(cursors, &cursor_count, current_view->mark);
+            write_cursor_with_index(cursors, &cursor_count, current_view->mark - 1);
             write_cursor_with_index(cursors, &cursor_count, current_view->scroll_i - 1);
         }
     }
@@ -1797,7 +1797,7 @@ file_edit_cursor_fix(System_Functions *system,
                 view_cursor_move(current_view, cursors[cursor_count++].pos);
                 current_view->preferred_x = view_get_cursor_x(current_view);
                 
-                current_view->mark = cursors[cursor_count++].pos;
+                current_view->mark = cursors[cursor_count++].pos + 1;
                 current_view->scroll_i = cursors[cursor_count++].pos + 1;
                 temp_cursor = view_compute_cursor_from_pos(current_view, current_view->scroll_i);
                 y_offset = MOD(current_view->scroll_y, current_view->font_height);
