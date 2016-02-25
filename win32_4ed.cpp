@@ -24,7 +24,12 @@
 
 #include "4ed_dll_reader.h"
 
-#include "4coder_custom.h"
+#include "4coder_custom.cpp"
+
+#undef exec_command
+#undef exec_command_keep_stack
+#undef clear_parameters
+
 #include "4ed_system.h"
 #include "4ed_rendering.h"
 #include "4ed.h"
@@ -1601,6 +1606,10 @@ main(int argc, char **argv){
             GetProcAddress(win32vars.custom, "get_bindings");
     }
 #endif
+    
+    if (win32vars.custom_api.get_bindings == 0){
+        win32vars.custom_api.get_bindings = (Get_Binding_Data_Function*)get_bindings;
+    }
 
     Thread_Context background[4];
     memset(background, 0, sizeof(background));

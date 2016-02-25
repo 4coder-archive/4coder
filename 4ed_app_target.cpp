@@ -9,6 +9,16 @@
 
 // TOP
 
+#define VERSION_NUMBER "alpha 3.4.3"
+
+#ifdef FRED_SUPER
+#define VERSION_TYPE " super!"
+#else
+#define VERSION_TYPE ""
+#endif
+
+#define VERSION VERSION_NUMBER VERSION_TYPE
+
 #include "4ed_config.h"
 
 #define BUFFER_EXPERIMENT_SCALPEL 0

@@ -215,6 +215,21 @@ push_directory(Application_Links *app, void *cmd_context){
 
 #define expand_string(d) ((d).str), ((d).size)
 
+inline Range
+get_range(File_View_Summary *view){
+    Range range;
+    if (view->cursor.pos < view->mark.pos){
+        range.min = view->cursor.pos;
+        range.max = view->mark.pos;
+    }
+    else{
+        range.max = view->cursor.pos;
+        range.min = view->mark.pos;
+    }
+    
+    return(range);
+}
+
 #if DisableMacroTranslations == 0
 
 inline void

@@ -12,6 +12,15 @@
 #ifndef FRED_BUFFER_TYPES_H
 #define FRED_BUFFER_TYPES_H
 
+typedef union Range{
+    struct{
+        int min, max;
+    };
+    struct{
+        int start, end;
+    };
+} Range;
+
 typedef struct Full_Cursor{
     int pos;
     int line, character;
@@ -66,12 +75,10 @@ seek_unwrapped_xy(float x, float y, int round_down){
 static Buffer_Seek
 seek_xy(float x, float y, int round_down, int unwrapped){
     Buffer_Seek result;
-    if (unwrapped){
-        result = seek_unwrapped_xy(x,y,round_down);
-    }
-    else{
-        result = seek_wrapped_xy(x,y,round_down);
-    }
+    result.type = unwrapped?buffer_seek_unwrapped_xy:buffer_seek_wrapped_xy;
+    result.x = x;
+    result.y = y;
+    result.round_down = round_down;
     return(result);
 }
 

@@ -56,8 +56,8 @@ bool str_match(const char *a, int len_a, const char *b, int len_b){
 
 HOOK_SIG(my_file_settings){
      Buffer_Summary buffer = app->get_active_buffer(cmd_context);
-
-     // NOTE(allen|a3.4.2): Whenever you ask for a buffer, you should first check that
+     
+     // NOTE(allen|a3.4.2): Whenever you ask for a buffer, you can check that
      // the exists field is set to true.  Reasons why the buffer might not exist:
      //   -The active panel does not contain a buffer and get_active_buffer was used
      //   -The index provided to get_buffer was out of range [0,max) or that index is associated to a dummy buffer
@@ -84,94 +84,72 @@ HOOK_SIG(my_file_settings){
 CUSTOM_COMMAND_SIG(write_increment){
     char text[] = "++";
     int size = sizeof(text) - 1;
-    
-    // NOTE(allen|a3.4.2): In addition to checking whether the buffer exists after a query,
-    // if you're going to read from or write to the buffer, you should check ready.  A buffer
-    // is usually ready, but when a buffer has just been opened it is possible that the contents
-    // haven't been filled yet.  If the buffer is not ready trying to read or write it is invalid.
-    // (See my_file_settings for comments on the exists field).
     Buffer_Summary buffer = app->get_active_buffer(cmd_context);
-    if (buffer.exists && buffer.ready){
-        app->buffer_replace_range(cmd_context, &buffer, buffer.file_cursor_pos, buffer.file_cursor_pos, text, size);
-    }
+    app->buffer_replace_range(cmd_context, &buffer, buffer.file_cursor_pos, buffer.file_cursor_pos, text, size);
 }
 
 CUSTOM_COMMAND_SIG(write_decrement){
     char text[] = "--";
     int size = sizeof(text) - 1;
     Buffer_Summary buffer = app->get_active_buffer(cmd_context);
-    if (buffer.exists && buffer.ready){
-        app->buffer_replace_range(cmd_context, &buffer, buffer.file_cursor_pos, buffer.file_cursor_pos, text, size);
-    }
+    app->buffer_replace_range(cmd_context, &buffer, buffer.file_cursor_pos, buffer.file_cursor_pos, text, size);
 }
 
 CUSTOM_COMMAND_SIG(open_long_braces){
     File_View_Summary view;
     Buffer_Summary buffer;
+    char text[] = "{\n\n}";
+    int size = sizeof(text) - 1;
+    int pos;
     
     view = app->get_active_file_view(cmd_context);
-    if (view.exists){
-        buffer = app->get_active_buffer(cmd_context);
-        
-        char text[] = "{\n\n}";
-        int size = sizeof(text) - 1;
-        int pos;
-        
-        if (buffer.exists && buffer.ready){
-            pos = view.cursor.pos;
-            app->buffer_replace_range(cmd_context, &buffer, pos, pos, text, size);
-            app->view_set_cursor(cmd_context, &view, seek_pos(pos + 2), 1);
-            app->view_set_mark(cmd_context, &view, seek_pos(pos + 4));
-            
-            push_parameter(app, cmd_context, par_range_start, pos);
-            push_parameter(app, cmd_context, par_range_end, pos + size);
-            push_parameter(app, cmd_context, par_clear_blank_lines, 0);
-            exec_command(cmd_context, cmdid_auto_tab_range);
-        }
-    }
+    buffer = app->get_buffer(cmd_context, view.file_id);
+    
+    pos = view.cursor.pos;
+    app->buffer_replace_range(cmd_context, &buffer, pos, pos, text, size);
+    app->view_set_cursor(cmd_context, &view, seek_pos(pos + 2), 1);
+    app->view_set_mark(cmd_context, &view, seek_pos(pos + 4));
+    
+    push_parameter(app, cmd_context, par_range_start, pos);
+    push_parameter(app, cmd_context, par_range_end, pos + size);
+    push_parameter(app, cmd_context, par_clear_blank_lines, 0);
+    exec_command(cmd_context, cmdid_auto_tab_range);
 }
 
 CUSTOM_COMMAND_SIG(ifdef_off){
     File_View_Summary view;
     Buffer_Summary buffer;
     
+    char text1[] = "#if 0\n";
+    int size1 = sizeof(text1) - 1;
+    
+    char text2[] = "#endif\n";
+    int size2 = sizeof(text2) - 1;
+    
+    Range range;
+    int pos;
+
     view = app->get_active_file_view(cmd_context);
-    if (view.exists){
-        buffer = app->get_active_buffer(cmd_context);
-        
-        char text1[] = "#if 0\n";
-        int size1 = sizeof(text1) - 1;
-        
-        char text2[] = "#endif\n";
-        int size2 = sizeof(text2) - 1;
-        
-        int pos, c, m;
-        
-        if (buffer.exists && buffer.ready){
-            c = view.cursor.pos;
-            m = view.mark.pos;
-            pos = (c<m)?(c):(m);
-            
-            app->buffer_replace_range(cmd_context, &buffer, pos, pos, text1, size1);
-            
-            push_parameter(app, cmd_context, par_range_start, pos);
-            push_parameter(app, cmd_context, par_range_end, pos);
-            exec_command(cmd_context, cmdid_auto_tab_range);
-            
-            
-            app->refresh_file_view(cmd_context, &view);
-            c = view.cursor.pos;
-            m = view.mark.pos;
-            pos = (c>m)?(c):(m);
-            
-            
-            app->buffer_replace_range(cmd_context, &buffer, pos, pos, text2, size2);
-            
-            push_parameter(app, cmd_context, par_range_start, pos);
-            push_parameter(app, cmd_context, par_range_end, pos);
-            exec_command(cmd_context, cmdid_auto_tab_range);
-        }
-    }
+    buffer = app->get_active_buffer(cmd_context);
+
+    range = get_range(&view);
+    pos = range.min;
+
+    app->buffer_replace_range(cmd_context, &buffer, pos, pos, text1, size1);
+
+    push_parameter(app, cmd_context, par_range_start, pos);
+    push_parameter(app, cmd_context, par_range_end, pos);
+    exec_command(cmd_context, cmdid_auto_tab_range);
+    
+    app->refresh_file_view(cmd_context, &view);
+    range = get_range(&view);
+    pos = range.max;
+    
+    app->buffer_replace_range(cmd_context, &buffer, pos, pos, text2, size2);
+    
+    push_parameter(app, cmd_context, par_range_start, pos);
+    push_parameter(app, cmd_context, par_range_end, pos);
+    exec_command(cmd_context, cmdid_auto_tab_range);
 }
 
 CUSTOM_COMMAND_SIG(backspace_word){
@@ -180,17 +158,14 @@ CUSTOM_COMMAND_SIG(backspace_word){
     int pos2, pos1;
     
     view = app->get_active_file_view(cmd_context);
-    if (view.exists){
-        pos2 = view.cursor.pos;
-        exec_command(cmd_context, cmdid_seek_alphanumeric_left);
-        app->refresh_file_view(cmd_context, &view);
-        pos1 = view.cursor.pos;
-        
-        if (pos1 < pos2){
-            buffer = app->get_buffer(cmd_context, view.file_id);
-            app->buffer_replace_range(cmd_context, &buffer, pos1, pos2, 0, 0);
-        }
-    }
+    
+    pos2 = view.cursor.pos;
+    exec_command(cmd_context, cmdid_seek_alphanumeric_left);
+    app->refresh_file_view(cmd_context, &view);
+    pos1 = view.cursor.pos;
+    
+    buffer = app->get_buffer(cmd_context, view.file_id);
+    app->buffer_replace_range(cmd_context, &buffer, pos1, pos2, 0, 0);
 }
 
 CUSTOM_COMMAND_SIG(switch_to_compilation){
@@ -199,60 +174,53 @@ CUSTOM_COMMAND_SIG(switch_to_compilation){
     
     char name[] = "*compilation*";
     int name_size = sizeof(name)-1;
-    
+
     // TODO(allen): This will only work for file views for now.  Extend the API
     // a bit to handle a general view type which can be manipulated at least enough
     // to change the specific type of view and set files even when the view didn't
     // contain a file.
     view = app->get_active_file_view(cmd_context);
-    if (view.exists){
-        buffer = app->get_buffer_by_name(cmd_context, make_string(name, name_size));
-        if (buffer.exists){
-            app->view_set_file(cmd_context, &view, buffer.file_id);
-        }
-    }
+    buffer = app->get_buffer_by_name(cmd_context, make_string(name, name_size));
+    
+    app->view_set_file(cmd_context, &view, buffer.file_id);
 }
 
 CUSTOM_COMMAND_SIG(move_up_10){
     File_View_Summary view;
     float x, y;
-    
+
     view = app->get_active_file_view(cmd_context);
-    if (view.exists){
-        x = view.preferred_x;
-        
-        if (view.unwrapped_lines){
-            y = view.cursor.unwrapped_y;
-        }
-        else{
-            y = view.cursor.wrapped_y;
-        }
-        
-        y -= 10*view.line_height;
-        
-        app->view_set_cursor(cmd_context, &view, seek_xy(x, y, 0, view.unwrapped_lines), 0);
+    x = view.preferred_x;
+    
+    if (view.unwrapped_lines){
+        y = view.cursor.unwrapped_y;
     }
+    else{
+        y = view.cursor.wrapped_y;
+    }
+    
+    y -= 10*view.line_height;
+
+    app->view_set_cursor(cmd_context, &view, seek_xy(x, y, 0, view.unwrapped_lines), 0);
 }
 
 CUSTOM_COMMAND_SIG(move_down_10){
     File_View_Summary view;
     float x, y;
-    
+
     view = app->get_active_file_view(cmd_context);
-    if (view.exists){
-        x = view.preferred_x;
-        
-        if (view.unwrapped_lines){
-            y = view.cursor.wrapped_y;
-        }
-        else{
-            y = view.cursor.wrapped_y;
-        }
-        
-        y += 10*view.line_height;
-        
-        app->view_set_cursor(cmd_context, &view, seek_xy(x, y, 0, view.unwrapped_lines), 0);
+    x = view.preferred_x;
+    
+    if (view.unwrapped_lines){
+        y = view.cursor.wrapped_y;
     }
+    else{
+        y = view.cursor.wrapped_y;
+    }
+    
+    y += 10*view.line_height;
+    
+    app->view_set_cursor(cmd_context, &view, seek_xy(x, y, 0, view.unwrapped_lines), 0);
 }
 
 CUSTOM_COMMAND_SIG(switch_to_file_in_quotes){
@@ -264,7 +232,7 @@ CUSTOM_COMMAND_SIG(switch_to_file_in_quotes){
     view = app->get_active_file_view(cmd_context);
     if (view.exists){
         buffer = app->get_buffer(cmd_context, view.file_id);
-        if (buffer.exists && buffer.ready){
+        if (buffer.ready){
             pos = view.cursor.pos;
             app->buffer_seek_delimiter(cmd_context, &buffer, pos, '"', 1, &end);
             app->buffer_seek_delimiter(cmd_context, &buffer, pos, '"', 0, &start);
@@ -283,6 +251,8 @@ CUSTOM_COMMAND_SIG(switch_to_file_in_quotes){
                 append(&file_name, make_string(short_file_name, size));
                 
                 buffer = app->get_buffer_by_name(cmd_context, file_name);
+                exec_command(cmd_context, cmdid_change_active_panel);
+                view = app->get_active_file_view(cmd_context);
                 if (buffer.exists){
                     app->view_set_file(cmd_context, &view, buffer.file_id);
                 }

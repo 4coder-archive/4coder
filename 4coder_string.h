@@ -273,6 +273,9 @@ tailstr(String str){
 
 #ifdef FCPP_STRING_IMPLEMENTATION
 
+#ifndef FCPP_DID_STRING_IMPLEMENTATION
+#define FCPP_DID_STRING_IMPLEMENTATION
+
 FCPP_LINK int
 str_size(char *str){
     int i = 0;
@@ -1170,6 +1173,8 @@ wildcard_match(Absolutes *absolutes, String x, int case_sensitive){
     terminate_with_null(&x);
     return wildcard_match(absolutes, x.str, case_sensitive);
 }
+
+#endif // #ifndef FCPP_DID_STRING_IMPLEMENTATION
 
 #undef FCPP_STRING_IMPLEMENTATION
 #endif // #ifdef FCPP_STRING_IMPLEMENTATION

@@ -9,10 +9,6 @@
 
 // TOP
 
-struct Range{
-    i32 start, end;
-};
-
 struct File_View_Mode{
 	b8 rewrite;
 };

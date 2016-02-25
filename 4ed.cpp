@@ -1086,13 +1086,6 @@ COMMAND_DECL(save){
     USE_PANEL(panel);
     
     delayed_action(delay, DACT_SAVE, file->name.source_path, panel);
-#if 0
-    String *file_path = &file->name.source_path;
-    if (file_path->size > 0){
-        i32 sys_id = file_save(system, exchange, mem, file, file_path->str);
-        app_push_file_binding(vars, sys_id, get_file_id(working_set, file));
-    }
-#endif
 }
 
 COMMAND_DECL(interactive_save_as){
@@ -2533,92 +2526,12 @@ setup_ui_commands(Command_Map *commands, Partition *part, Key_Codes *codes, Comm
 
 internal void
 setup_file_commands(Command_Map *commands, Partition *part, Key_Codes *codes, Command_Map *parent){
-    map_init(commands, part, 101, parent);
-    
-    commands->vanilla_keyboard_default.function = command_write_character;
-    
-    map_add(commands, codes->left, MDFR_NONE, command_move_left);
-    map_add(commands, codes->right, MDFR_NONE, command_move_right);
-    map_add(commands, codes->del, MDFR_NONE, command_delete);
-    map_add(commands, codes->back, MDFR_NONE, command_backspace);
-    map_add(commands, codes->up, MDFR_NONE, command_move_up);
-    map_add(commands, codes->down, MDFR_NONE, command_move_down);
-    map_add(commands, codes->end, MDFR_NONE, command_seek_end_of_line);
-    map_add(commands, codes->home, MDFR_NONE, command_seek_beginning_of_line);
-    map_add(commands, codes->page_up, MDFR_NONE, command_page_up);
-    map_add(commands, codes->page_down, MDFR_NONE, command_page_down);
-    
-    map_add(commands, codes->right, MDFR_CTRL, command_seek_alphanumeric_or_camel_right);
-    map_add(commands, codes->left, MDFR_CTRL, command_seek_alphanumeric_or_camel_left);
-    map_add(commands, codes->up, MDFR_CTRL, command_seek_whitespace_up);
-    map_add(commands, codes->down, MDFR_CTRL, command_seek_whitespace_down);
-    
-    map_add(commands, ' ', MDFR_CTRL, command_set_mark);
-    map_add(commands, 'm', MDFR_CTRL, command_cursor_mark_swap);
-    map_add(commands, 'c', MDFR_CTRL, command_copy);
-    map_add(commands, 'x', MDFR_CTRL, command_cut);
-    map_add(commands, 'v', MDFR_CTRL, command_paste);
-    map_add(commands, 'V', MDFR_CTRL, command_paste_next);
-    map_add(commands, 'z', MDFR_CTRL, command_undo);
-    map_add(commands, 'y', MDFR_CTRL, command_redo);
-    map_add(commands, 'Z', MDFR_CTRL, command_timeline_scrub);
-    map_add(commands, codes->left, MDFR_ALT, command_increase_rewind_speed);
-    map_add(commands, codes->right, MDFR_ALT, command_increase_fastforward_speed);
-    map_add(commands, codes->down, MDFR_ALT, command_stop_rewind_fastforward);
-    map_add(commands, 'h', MDFR_CTRL, command_history_backward);
-    map_add(commands, 'H', MDFR_CTRL, command_history_forward);
-    map_add(commands, 'd', MDFR_CTRL, command_delete_range);
-    map_add(commands, 'l', MDFR_CTRL, command_toggle_line_wrap);
-    map_add(commands, '?', MDFR_CTRL, command_toggle_show_whitespace);
-    map_add(commands, '|', MDFR_CTRL, command_toggle_tokens);
-    map_add(commands, 'u', MDFR_CTRL, command_to_uppercase);
-    map_add(commands, 'j', MDFR_CTRL, command_to_lowercase);
-    map_add(commands, '~', MDFR_CTRL, command_clean_all_lines);
-    
-    map_add(commands, 'f', MDFR_CTRL, command_search);
-    map_add(commands, 'r', MDFR_CTRL, command_reverse_search);
-    map_add(commands, 'g', MDFR_CTRL, command_goto_line);
-    
-    map_add(commands, '\n', MDFR_NONE, compose_write_auto_tab_line);
-    map_add(commands, '}', MDFR_NONE, compose_write_auto_tab_line);
-    map_add(commands, ')', MDFR_NONE, compose_write_auto_tab_line);
-    map_add(commands, ']', MDFR_NONE, compose_write_auto_tab_line);
-    map_add(commands, ';', MDFR_NONE, compose_write_auto_tab_line);
-    map_add(commands, '#', MDFR_NONE, compose_write_auto_tab_line);
-    
-    map_add(commands, '\t', MDFR_NONE, command_word_complete);
-    map_add(commands, '\t', MDFR_CTRL, command_auto_tab_range);
-    map_add(commands, '\t', MDFR_SHIFT, command_auto_tab_line_at_cursor);
-    
-    map_add(commands, 'K', MDFR_CTRL, command_kill_buffer);
-    map_add(commands, 'O', MDFR_CTRL, command_reopen);
-    map_add(commands, 's', MDFR_CTRL, command_save);
-    map_add(commands, 'w', MDFR_CTRL, command_interactive_save_as);
-
-#if UseFileHistoryDump
-    map_add(commands, 'h', MDFR_ALT, command_save_history);
-#endif
+    map_init(commands, part, 10, parent);
 }
 
 internal void
 setup_top_commands(Command_Map *commands, Partition *part, Key_Codes *codes, Command_Map *parent){
-    map_init(commands, part, 51, parent);
-    
-#if FRED_INTERNAL
-    map_add(commands, 'd', MDFR_ALT, command_open_debug_view);
-#endif
-    
-    map_add(commands, 'p', MDFR_CTRL, command_open_panel_vsplit);
-    map_add(commands, '-', MDFR_CTRL, command_open_panel_hsplit);
-    map_add(commands, 'P', MDFR_CTRL, command_close_panel);
-    map_add(commands, 'n', MDFR_CTRL, command_interactive_new);
-    map_add(commands, 'o', MDFR_CTRL, command_interactive_open);
-    map_add(commands, ',', MDFR_CTRL, command_change_active_panel);
-    map_add(commands, 'k', MDFR_CTRL, command_interactive_kill_buffer);
-    map_add(commands, 'i', MDFR_CTRL, command_interactive_switch_buffer);
-    map_add(commands, 'c', MDFR_ALT, command_open_color_tweaker);
-    map_add(commands, 'x', MDFR_ALT, command_open_menu);
-    map_add(commands, 'm', MDFR_ALT, command_build_here);
+    map_init(commands, part, 5, parent);
 }
 
 internal void
@@ -3091,9 +3004,16 @@ app_setup_memory(Application_Memory *memory){
 
 internal i32
 execute_special_tool(void *memory, i32 size, Command_Line_Parameters clparams){
-    char message[] = "Hell World!";
-    i32 result = sizeof(message) - 1;
+    i32 result;
+    char message[] = "tool was not specified or is invalid";
+    result = sizeof(message) - 1;
     memcpy(memory, message, result);
+    if (clparams.argc > 2){
+        if (match(clparams.argv[2], "version")){
+            result = sizeof(VERSION) - 1;
+            memcpy(memory, VERSION, result);
+        }
+    }
     return(result);
 }
 
@@ -3179,37 +3099,38 @@ App_Init_Sig(app_init){
     setup_command_table();
     
     Command_Map *global = &vars->map_top;
-    if (vars->config_api.get_bindings){
-        i32 size = partition_remaining(partition);
-        void *data = partition_current(partition);
-        
-        // TODO(allen): Use a giant bubble of general memory for this.
+    Assert(vars->config_api.get_bindings != 0);
+
+    i32 size = partition_remaining(partition);
+    void *data = partition_current(partition);
+
+    // TODO(allen): Use a giant bubble of general memory for this.
         // So that it doesn't interfere with the command maps as they allocate
         // their own memory.
-        i32 wanted_size = vars->config_api.get_bindings(data, size, codes);
-        
-        b32 did_top = 0;
-        b32 did_file = 0;
-        if (wanted_size <= size){
-            partition_allocate(partition, wanted_size);
-            
-            Binding_Unit *unit = (Binding_Unit*)data;
-            if (unit->type == unit_header && unit->header.error == 0){
-                Binding_Unit *end = unit + unit->header.total_size;
-                
-                i32 user_map_count = unit->header.user_map_count;
-                
-                vars->map_id_table =
-                    push_array(&vars->mem.part, i32, user_map_count);
-                
-                vars->user_maps =
-                    push_array(&vars->mem.part, Command_Map, user_map_count);
+    i32 wanted_size = vars->config_api.get_bindings(data, size, codes);
 
-                vars->user_map_count = user_map_count;
-                
-                Command_Map *mapptr = 0;
-                for (++unit; unit < end; ++unit){
-                    switch (unit->type){
+    b32 did_top = 0;
+    b32 did_file = 0;
+    if (wanted_size <= size){
+        partition_allocate(partition, wanted_size);
+
+        Binding_Unit *unit = (Binding_Unit*)data;
+        if (unit->type == unit_header && unit->header.error == 0){
+            Binding_Unit *end = unit + unit->header.total_size;
+
+            i32 user_map_count = unit->header.user_map_count;
+
+            vars->map_id_table =
+                push_array(&vars->mem.part, i32, user_map_count);
+
+            vars->user_maps =
+                push_array(&vars->mem.part, Command_Map, user_map_count);
+
+            vars->user_map_count = user_map_count;
+
+            Command_Map *mapptr = 0;
+            for (++unit; unit < end; ++unit){
+                switch (unit->type){
                     case unit_map_begin:
                     {
                         int table_max = unit->map_begin.bind_count * 3 / 2;
@@ -3232,53 +3153,53 @@ App_Init_Sig(app_init){
                         }
                         else mapptr = 0;
                     }break;
-                    
+
                     case unit_inherit:
-                        if (mapptr){
-                            Command_Map *parent = 0;
-                            int mapid = unit->map_inherit.mapid;
-                            if (mapid == mapid_global) parent = &vars->map_top;
-                            else if (mapid == mapid_file) parent = &vars->map_file;
-                            else if (mapid < mapid_global){
-                                i32 index = app_get_or_add_map_index(vars, mapid);
-                                if (index < user_map_count) parent = vars->user_maps + index;
-                                else parent = 0;
-                            }
-                            mapptr->parent = parent;
-                        }break;
-                    
+                    if (mapptr){
+                        Command_Map *parent = 0;
+                        int mapid = unit->map_inherit.mapid;
+                        if (mapid == mapid_global) parent = &vars->map_top;
+                        else if (mapid == mapid_file) parent = &vars->map_file;
+                        else if (mapid < mapid_global){
+                            i32 index = app_get_or_add_map_index(vars, mapid);
+                            if (index < user_map_count) parent = vars->user_maps + index;
+                            else parent = 0;
+                        }
+                        mapptr->parent = parent;
+                    }break;
+
                     case unit_binding:
-                        if (mapptr){
-                            Command_Function func = 0;
-                            if (unit->binding.command_id >= 0 && unit->binding.command_id < cmdid_count)
-                                func = command_table [unit->binding.command_id];
-                            if (func){
-                                if (unit->binding.code == 0 && unit->binding.modifiers == 0){
-                                    mapptr->vanilla_keyboard_default.function = func;
-                                }
-                                else{
-                                    map_add(mapptr, unit->binding.code, unit->binding.modifiers, func);
-                                }
+                    if (mapptr){
+                        Command_Function func = 0;
+                        if (unit->binding.command_id >= 0 && unit->binding.command_id < cmdid_count)
+                            func = command_table [unit->binding.command_id];
+                        if (func){
+                            if (unit->binding.code == 0 && unit->binding.modifiers == 0){
+                                mapptr->vanilla_keyboard_default.function = func;
+                            }
+                            else{
+                                map_add(mapptr, unit->binding.code, unit->binding.modifiers, func);
                             }
                         }
-                        break;
-                        
+                    }
+                    break;
+
                     case unit_callback:
-                        if (mapptr){
-                            Command_Function func = command_user_callback;
-                            Custom_Command_Function *custom = unit->callback.func;
-                            if (func){
-                                if (unit->callback.code == 0 && unit->callback.modifiers == 0){
-                                    mapptr->vanilla_keyboard_default.function = func;
-                                    mapptr->vanilla_keyboard_default.custom = custom;
-                                }
-                                else{
-                                    map_add(mapptr, unit->callback.code, unit->callback.modifiers, func, custom);
-                                }
+                    if (mapptr){
+                        Command_Function func = command_user_callback;
+                        Custom_Command_Function *custom = unit->callback.func;
+                        if (func){
+                            if (unit->callback.code == 0 && unit->callback.modifiers == 0){
+                                mapptr->vanilla_keyboard_default.function = func;
+                                mapptr->vanilla_keyboard_default.custom = custom;
+                            }
+                            else{
+                                map_add(mapptr, unit->callback.code, unit->callback.modifiers, func, custom);
                             }
                         }
-                        break;
-                    
+                    }
+                    break;
+
                     case unit_hook:
                     {
                         int hook_id = unit->hook.hook_id;
@@ -3286,18 +3207,17 @@ App_Init_Sig(app_init){
                             vars->hooks[hook_id] = unit->hook.func;
                         }
                     }break;
-                    }
                 }
             }
         }
-        
-        if (!did_top) setup_top_commands(&vars->map_top, &vars->mem.part, codes, global);
-        if (!did_file) setup_file_commands(&vars->map_file, &vars->mem.part, codes, global);
     }
-    else{
-        setup_top_commands(&vars->map_top, &vars->mem.part, codes, global);
-        setup_file_commands(&vars->map_file, &vars->mem.part, codes, global);
-    }
+    
+    if (!did_top) setup_top_commands(&vars->map_top, &vars->mem.part, codes, global);
+    if (!did_file) setup_file_commands(&vars->map_file, &vars->mem.part, codes, global);
+    
+#if !defined(FRED_SUPER)
+    vars->hooks[hook_start] = 0;
+#endif
     
     setup_ui_commands(&vars->map_ui, &vars->mem.part, codes, global);
 #if FRED_INTERNAL
