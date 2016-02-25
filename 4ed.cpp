@@ -629,7 +629,30 @@ COMMAND_DECL(copy){
     USE_WORKING_SET(working_set);
     USE_MEM(mem);
     
+    // TODO(allen): deduplicate
+    int r_start = 0, r_end = 0;
+    int start_set = 0, end_set = 0;
+    
+    Command_Parameter *end = param_stack_end(&command->part);
+    Command_Parameter *param = param_stack_first(&command->part, end);
+    for (; param < end; param = param_next(param, end)){
+        int p = dynamic_to_int(&param->param.param);
+        switch (p){
+            case par_range_start:
+            start_set = 1;
+            r_start = dynamic_to_int(&param->param.value);
+            break;
+            
+            case par_range_end:
+            end_set = 1;
+            r_end = dynamic_to_int(&param->param.value);
+            break;
+        }
+    }
+
     Range range = get_range(view->cursor.pos, view->mark);
+    if (start_set) range.start = r_start;
+    if (end_set) range.end = r_end;
     if (range.start < range.end){
         clipboard_copy(system, &mem->general, working_set, range, file);
     }
@@ -643,7 +666,30 @@ COMMAND_DECL(cut){
     USE_LAYOUT(layout);
     USE_MEM(mem);
     
+    // TODO(allen): deduplicate
+    int r_start = 0, r_end = 0;
+    int start_set = 0, end_set = 0;
+    
+    Command_Parameter *end = param_stack_end(&command->part);
+    Command_Parameter *param = param_stack_first(&command->part, end);
+    for (; param < end; param = param_next(param, end)){
+        int p = dynamic_to_int(&param->param.param);
+        switch (p){
+            case par_range_start:
+            start_set = 1;
+            r_start = dynamic_to_int(&param->param.value);
+            break;
+            
+            case par_range_end:
+            end_set = 1;
+            r_end = dynamic_to_int(&param->param.value);
+            break;
+        }
+    }
+
     Range range = get_range(view->cursor.pos, view->mark);
+    if (start_set) range.start = r_start;
+    if (end_set) range.end = r_end;
     if (range.start < range.end){
         i32 next_cursor_pos = range.start;
 
@@ -1273,6 +1319,7 @@ COMMAND_DECL(auto_tab_range){
     int start_set = 0, end_set = 0;
     int clear_blank_lines = 1;
     
+    // TODO(allen): deduplicate
     Command_Parameter *end = param_stack_end(&command->part);
     Command_Parameter *param = param_stack_first(&command->part, end);
     for (; param < end; param = param_next(param, end)){
@@ -1911,7 +1958,7 @@ COMMAND_DECL(build){
     for (; param < end; param = param_next(param, end)){
         int p = dynamic_to_int(&param->param.param);
         switch (p){
-        case par_target_buffer_name:
+        case par_name:
         {
             if (buffer_name == 0){
                 char *new_buffer_name = dynamic_to_string(&param->param.value, &buffer_name_len);
@@ -2073,6 +2120,9 @@ fill_view_summary(File_View_Summary *view, File_View *file_view, Live_Views *liv
         view->file_id = (int)(file_view->file - working_set->files);
         view->mark = view_compute_cursor_from_pos(file_view, file_view->mark);
         view->cursor = file_view->cursor;
+        view->preferred_x = file_view->preferred_x;
+        view->line_height = file_view->font_height;
+        view->unwrapped_lines = file_view->unwrapped_lines;
     }
 }
 
@@ -2210,7 +2260,12 @@ extern "C"{
                 size = buffer_size(&file->state.buffer);
                 if (start < size){
                     result = 1;
-                    *out = buffer_seek_delimiter(&file->state.buffer, start, delim);
+                    if (seek_forward){
+                        *out = buffer_seek_delimiter(&file->state.buffer, start, delim);
+                    }
+                    else{
+                        *out = buffer_reverse_seek_delimiter(&file->state.buffer, start, delim);
+                    }
                     if (*out < 0) *out = 0;
                     if (*out > size) *out = size;
                 }

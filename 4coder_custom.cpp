@@ -82,24 +82,24 @@ HOOK_SIG(my_file_settings){
 }
 
 CUSTOM_COMMAND_SIG(write_increment){
-    Buffer_Summary buffer = app->get_active_buffer(cmd_context);
+    char text[] = "++";
+    int size = sizeof(text) - 1;
     
     // NOTE(allen|a3.4.2): In addition to checking whether the buffer exists after a query,
     // if you're going to read from or write to the buffer, you should check ready.  A buffer
     // is usually ready, but when a buffer has just been opened it is possible that the contents
     // haven't been filled yet.  If the buffer is not ready trying to read or write it is invalid.
     // (See my_file_settings for comments on the exists field).
-    char text[] = "++";
-    int size = sizeof(text) - 1;
+    Buffer_Summary buffer = app->get_active_buffer(cmd_context);
     if (buffer.exists && buffer.ready){
         app->buffer_replace_range(cmd_context, &buffer, buffer.file_cursor_pos, buffer.file_cursor_pos, text, size);
     }
 }
 
 CUSTOM_COMMAND_SIG(write_decrement){
-    Buffer_Summary buffer = app->get_active_buffer(cmd_context);
     char text[] = "--";
     int size = sizeof(text) - 1;
+    Buffer_Summary buffer = app->get_active_buffer(cmd_context);
     if (buffer.exists && buffer.ready){
         app->buffer_replace_range(cmd_context, &buffer, buffer.file_cursor_pos, buffer.file_cursor_pos, text, size);
     }
@@ -121,6 +121,7 @@ CUSTOM_COMMAND_SIG(open_long_braces){
             pos = view.cursor.pos;
             app->buffer_replace_range(cmd_context, &buffer, pos, pos, text, size);
             app->view_set_cursor(cmd_context, &view, seek_pos(pos + 2), 1);
+            app->view_set_mark(cmd_context, &view, seek_pos(pos + 4));
             
             push_parameter(app, cmd_context, par_range_start, pos);
             push_parameter(app, cmd_context, par_range_end, pos + size);
@@ -173,6 +174,127 @@ CUSTOM_COMMAND_SIG(ifdef_off){
     }
 }
 
+CUSTOM_COMMAND_SIG(backspace_word){
+    File_View_Summary view;
+    Buffer_Summary buffer;
+    int pos2, pos1;
+    
+    view = app->get_active_file_view(cmd_context);
+    if (view.exists){
+        pos2 = view.cursor.pos;
+        exec_command(cmd_context, cmdid_seek_alphanumeric_left);
+        app->refresh_file_view(cmd_context, &view);
+        pos1 = view.cursor.pos;
+        
+        if (pos1 < pos2){
+            buffer = app->get_buffer(cmd_context, view.file_id);
+            app->buffer_replace_range(cmd_context, &buffer, pos1, pos2, 0, 0);
+        }
+    }
+}
+
+CUSTOM_COMMAND_SIG(switch_to_compilation){
+    File_View_Summary view;
+    Buffer_Summary buffer;
+    
+    char name[] = "*compilation*";
+    int name_size = sizeof(name)-1;
+    
+    // TODO(allen): This will only work for file views for now.  Extend the API
+    // a bit to handle a general view type which can be manipulated at least enough
+    // to change the specific type of view and set files even when the view didn't
+    // contain a file.
+    view = app->get_active_file_view(cmd_context);
+    if (view.exists){
+        buffer = app->get_buffer_by_name(cmd_context, make_string(name, name_size));
+        if (buffer.exists){
+            app->view_set_file(cmd_context, &view, buffer.file_id);
+        }
+    }
+}
+
+CUSTOM_COMMAND_SIG(move_up_10){
+    File_View_Summary view;
+    float x, y;
+    
+    view = app->get_active_file_view(cmd_context);
+    if (view.exists){
+        x = view.preferred_x;
+        
+        if (view.unwrapped_lines){
+            y = view.cursor.unwrapped_y;
+        }
+        else{
+            y = view.cursor.wrapped_y;
+        }
+        
+        y -= 10*view.line_height;
+        
+        app->view_set_cursor(cmd_context, &view, seek_xy(x, y, 0, view.unwrapped_lines), 0);
+    }
+}
+
+CUSTOM_COMMAND_SIG(move_down_10){
+    File_View_Summary view;
+    float x, y;
+    
+    view = app->get_active_file_view(cmd_context);
+    if (view.exists){
+        x = view.preferred_x;
+        
+        if (view.unwrapped_lines){
+            y = view.cursor.wrapped_y;
+        }
+        else{
+            y = view.cursor.wrapped_y;
+        }
+        
+        y += 10*view.line_height;
+        
+        app->view_set_cursor(cmd_context, &view, seek_xy(x, y, 0, view.unwrapped_lines), 0);
+    }
+}
+
+CUSTOM_COMMAND_SIG(switch_to_file_in_quotes){
+    File_View_Summary view;
+    Buffer_Summary buffer;
+    char short_file_name[128];
+    int pos, start, end, size;
+    
+    view = app->get_active_file_view(cmd_context);
+    if (view.exists){
+        buffer = app->get_buffer(cmd_context, view.file_id);
+        if (buffer.exists && buffer.ready){
+            pos = view.cursor.pos;
+            app->buffer_seek_delimiter(cmd_context, &buffer, pos, '"', 1, &end);
+            app->buffer_seek_delimiter(cmd_context, &buffer, pos, '"', 0, &start);
+            
+            ++start;
+            
+            size = end - start;
+            if (size < sizeof(short_file_name)){
+                char file_name_[256];
+                String file_name = make_fixed_width_string(file_name_);
+                
+                app->buffer_read_range(cmd_context, &buffer, start, end, short_file_name);
+                
+                copy(&file_name, make_string(buffer.file_name, buffer.file_name_len));
+                truncate_to_path_of_directory(&file_name);
+                append(&file_name, make_string(short_file_name, size));
+                
+                buffer = app->get_buffer_by_name(cmd_context, file_name);
+                if (buffer.exists){
+                    app->view_set_file(cmd_context, &view, buffer.file_id);
+                }
+                else{
+                    push_parameter(app, cmd_context, par_name, expand_str(file_name));
+                    exec_command(cmd_context, cmdid_interactive_open);
+                }
+            }
+        }
+    }
+}
+
 CUSTOM_COMMAND_SIG(open_in_other){
     exec_command(cmd_context, cmdid_change_active_panel);
     exec_command(cmd_context, cmdid_interactive_open);
@@ -207,7 +329,7 @@ CUSTOM_COMMAND_SIG(build_at_launch_location){
     // parameters directly. This only works if build.bat can be called
     // from the starting directory
     push_parameter(app, cmd_context, par_cli_overlap_with_conflict, 1);
-    push_parameter(app, cmd_context, par_target_buffer_name, literal("*compilation*"));
+    push_parameter(app, cmd_context, par_name, literal("*compilation*"));
     push_parameter(app, cmd_context, par_cli_path, literal("."));
     push_parameter(app, cmd_context, par_cli_command, literal("build"));
     exec_command(cmd_context, cmdid_build);
@@ -284,16 +406,6 @@ CUSTOM_COMMAND_SIG(write_and_auto_tab){
     exec_command(cmd_context, cmdid_auto_tab_line_at_cursor);
 }
 
-// NOTE(allen|a3.4.1): How one might go about writing things like cut_line
-// same idea works for cut word and other such composite commands.
-CUSTOM_COMMAND_SIG(cut_line){
-    exec_command(cmd_context, cmdid_seek_beginning_of_line);
-    exec_command(cmd_context, cmdid_set_mark);
-    exec_command(cmd_context, cmdid_seek_end_of_line);
-    exec_command(cmd_context, cmdid_cut);
-    exec_command(cmd_context, cmdid_delete);
-}
-
 extern "C" GET_BINDING_DATA(get_bindings){
     Bind_Helper context_actual = begin_bind_helper(data, size);
     Bind_Helper *context = &context_actual;
@@ -306,7 +418,7 @@ extern "C" GET_BINDING_DATA(get_bindings){
     begin_map(context, mapid_global);
 
     bind(context, 'p', MDFR_CTRL, cmdid_open_panel_vsplit);
-    bind(context, '-', MDFR_CTRL, cmdid_open_panel_hsplit);
+    bind(context, '_', MDFR_CTRL, cmdid_open_panel_hsplit);
     bind(context, 'P', MDFR_CTRL, cmdid_close_panel);
     bind(context, 'n', MDFR_CTRL, cmdid_interactive_new);
     bind(context, 'o', MDFR_CTRL, cmdid_interactive_open);
@@ -360,6 +472,7 @@ extern "C" GET_BINDING_DATA(get_bindings){
     bind(context, '-', MDFR_CTRL, write_decrement);
     bind(context, '[', MDFR_CTRL, open_long_braces);
     bind(context, 'i', MDFR_ALT, ifdef_off);
+    bind(context, '1', MDFR_ALT, switch_to_file_in_quotes);
     
     end_map(context);
     
@@ -388,6 +501,11 @@ extern "C" GET_BINDING_DATA(get_bindings){
     bind(context, codes->left, MDFR_CTRL, cmdid_seek_whitespace_left);
     bind(context, codes->up, MDFR_CTRL, cmdid_seek_whitespace_up);
     bind(context, codes->down, MDFR_CTRL, cmdid_seek_whitespace_down);
+    
+    bind(context, codes->up, MDFR_ALT, move_up_10);
+    bind(context, codes->down, MDFR_ALT, move_down_10);
+    
+    bind(context, codes->back, MDFR_CTRL, backspace_word);
     
     bind(context, ' ', MDFR_CTRL, cmdid_set_mark);
     bind(context, 'm', MDFR_CTRL, cmdid_cursor_mark_swap);
@@ -422,6 +540,8 @@ extern "C" GET_BINDING_DATA(get_bindings){
     bind(context, 'O', MDFR_CTRL, cmdid_reopen);
     bind(context, 'w', MDFR_CTRL, cmdid_interactive_save_as);
     bind(context, 's', MDFR_CTRL, cmdid_save);
+    
+    bind(context, ',', MDFR_ALT, switch_to_compilation);
     
     end_map(context);
     end_bind_helper(context);

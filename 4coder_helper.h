@@ -213,7 +213,7 @@ push_directory(Application_Links *app, void *cmd_context){
     return(result);
 }
 
-#define dir_string(d) ((d).str), ((d).size)
+#define expand_string(d) ((d).str), ((d).size)
 
 #if DisableMacroTranslations == 0
 

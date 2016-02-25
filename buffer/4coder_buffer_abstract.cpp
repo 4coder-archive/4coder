@@ -110,6 +110,25 @@ buffer_seek_delimiter(Buffer_Type *buffer, int pos, char delim){
 }
 
 internal_4tech int
+buffer_reverse_seek_delimiter(Buffer_Type *buffer, int pos, char delim){
+    Buffer_Backify_Type loop;
+    char *data;
+    int end;
+    
+    for(loop = buffer_backify_loop(buffer, pos, 0);
+        buffer_backify_good(&loop);
+        buffer_backify_next(&loop)){
+        end = loop.size + loop.absolute_pos;
+        data = loop.data - loop.absolute_pos;
+        for (; pos > 0; --pos){
+            if (data[pos] == delim) goto double_break;
+        }
+    }
+    double_break:
+    return(pos);
+}
+
+internal_4tech int
 buffer_seek_whitespace_down(Buffer_Type *buffer, int pos){
     Buffer_Stringify_Type loop;
     char *data;

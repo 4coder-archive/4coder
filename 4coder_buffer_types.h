@@ -64,6 +64,18 @@ seek_unwrapped_xy(float x, float y, int round_down){
 }
 
 static Buffer_Seek
+seek_xy(float x, float y, int round_down, int unwrapped){
+    Buffer_Seek result;
+    if (unwrapped){
+        result = seek_unwrapped_xy(x,y,round_down);
+    }
+    else{
+        result = seek_wrapped_xy(x,y,round_down);
+    }
+    return(result);
+}
+
+static Buffer_Seek
 seek_line_char(int line, int character){
     Buffer_Seek result;
     result.type = buffer_seek_line_char;

@@ -132,7 +132,6 @@ enum Param_ID{
     par_lex_as_cpp_file,
     par_wrap_lines,
     par_key_mapid,
-    par_target_buffer_name,
     par_cli_path,
     par_cli_command,
     par_cli_overlap_with_conflict,
@@ -233,8 +232,8 @@ struct Buffer_Summary{
     
     int file_name_len;
     int buffer_name_len;
-    const char *file_name;
-    const char *buffer_name;
+    char *file_name;
+    char *buffer_name;
     
     int file_cursor_pos;
     int is_lexed;
@@ -248,6 +247,9 @@ struct File_View_Summary{
     
     Full_Cursor cursor;
     Full_Cursor mark;
+    float preferred_x;
+    int line_height;
+    int unwrapped_lines;
 };
 
 #ifndef FRED_STRING_STRUCT
@@ -289,7 +291,7 @@ extern "C"{
 #define GET_BUFFER_BY_NAME(name) Buffer_Summary name(void *cmd_context, String filename)
 
 #define REFRESH_BUFFER_SIG(name) int name(void *cmd_context, Buffer_Summary *buffer)
-#define BUFFER_SEEK_DELIMITER_SIG(name) int name(void *cmd_context, Buffer_Summary *buffer, int start, char delim, int *out)
+#define BUFFER_SEEK_DELIMITER_SIG(name) int name(void *cmd_context, Buffer_Summary *buffer, int start, char delim, int seek_forward, int *out)
 #define BUFFER_READ_RANGE_SIG(name) int name(void *cmd_context, Buffer_Summary *buffer, int start, int end, char *out)
 #define BUFFER_REPLACE_RANGE_SIG(name) int name(void *cmd_context, Buffer_Summary *buffer, int start, int end, char *str, int len)
 
