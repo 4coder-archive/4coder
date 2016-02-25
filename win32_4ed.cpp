@@ -1584,6 +1584,8 @@ main(int argc, char **argv){
     win32vars.start_time = ((u64)filetime.dwHighDateTime << 32) | (filetime.dwLowDateTime);
     win32vars.start_time /= 10;
     
+    keycode_init();
+    
 #ifdef FRED_SUPER
     char *custom_file_default = "4coder_custom.dll";
     char *custom_file;
@@ -1783,12 +1785,12 @@ main(int argc, char **argv){
     
     Font_Load_Parameters params[32];
     sysshared_init_font_params(&win32vars.fnt, params, ArrayCount(params));
-
+    
     win32vars.app.init(win32vars.system, &win32vars.target,
-        &memory_vars, &exchange_vars,
-        win32vars.clipboard_contents, current_directory,
-        win32vars.custom_api);
-
+                       &memory_vars, &exchange_vars,
+                       win32vars.clipboard_contents, current_directory,
+                       win32vars.custom_api);
+    
     system_free_memory(current_directory.str);
     
 	win32vars.input_chunk.pers.keep_playing = 1;
