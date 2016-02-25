@@ -81,7 +81,6 @@ struct Mouse_Summary{
 struct Input_Summary{
     Mouse_Summary mouse;
     Key_Summary keys;
-    Key_Codes *codes;
 };
 
 struct Command_Line_Parameters{
@@ -115,7 +114,6 @@ name(System_Functions *system,                                      \
     Render_Target *target,                                         \
     Application_Memory *memory,                                    \
     Exchange *exchange,                                            \
-    Key_Codes *codes,                                              \
     String clipboard,                                  \
     String current_directory,                                      \
     Custom_API api)
@@ -140,7 +138,6 @@ struct Application_Step_Result{
 
 #define App_Step_Sig(name) void          \
     name(System_Functions *system,                          \
-         Key_Codes *codes,                                  \
          Key_Input_Data *input,                             \
          Mouse_State *mouse,                                \
          Render_Target *target,                             \

@@ -170,7 +170,7 @@ step_draw_int_view(System_Functions *system, Interactive_View *view,
                 case 'n': case 'N': action = 1; break;
                 case 's': case 'S': action = 2; break;
                 }
-                if (action == -1 && key.keycode == state.codes->esc) action = 1;
+                if (action == -1 && key.keycode == key_esc) action = 1;
                 if (action != -1) break;
             }
         }

@@ -226,7 +226,6 @@ get_range(File_View_Summary *view){
         range.max = view->cursor.pos;
         range.min = view->mark.pos;
     }
-    
     return(range);
 }
 

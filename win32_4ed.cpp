@@ -107,7 +107,6 @@ struct Win32_Vars{
     HANDLE update_loop_thread;
     DWORD update_loop_thread_id;
     
-    Key_Codes key_codes;
     Win32_Input_Chunk input_chunk;
     b32 lctrl_lalt_is_altgr;
     
@@ -1385,7 +1384,6 @@ UpdateLoop(LPVOID param){
         result.lctrl_lalt_is_altgr = win32vars.lctrl_lalt_is_altgr;
         
         win32vars.app.step(win32vars.system,
-                           &win32vars.key_codes,
                            &input_data,
                            &mouse,
                            &win32vars.target,
@@ -1586,8 +1584,6 @@ main(int argc, char **argv){
     win32vars.start_time = ((u64)filetime.dwHighDateTime << 32) | (filetime.dwLowDateTime);
     win32vars.start_time /= 10;
     
-    keycode_init(&win32vars.key_codes);
-    
 #ifdef FRED_SUPER
     char *custom_file_default = "4coder_custom.dll";
     char *custom_file;
@@ -1787,12 +1783,12 @@ main(int argc, char **argv){
     
     Font_Load_Parameters params[32];
     sysshared_init_font_params(&win32vars.fnt, params, ArrayCount(params));
-    
+
     win32vars.app.init(win32vars.system, &win32vars.target,
-                       &memory_vars, &exchange_vars, &win32vars.key_codes,
-                       win32vars.clipboard_contents, current_directory,
-                       win32vars.custom_api);
-    
+        &memory_vars, &exchange_vars,
+        win32vars.clipboard_contents, current_directory,
+        win32vars.custom_api);
+
     system_free_memory(current_directory.str);
     
 	win32vars.input_chunk.pers.keep_playing = 1;

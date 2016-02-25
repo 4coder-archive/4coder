@@ -418,8 +418,8 @@ extern "C" GET_BINDING_DATA(get_bindings){
     inherit_map(context, mapid_file);
 
     // NOTE(allen|a3.1): Children can override parent's bindings.
-    bind(context, codes->right, MDFR_CTRL, cmdid_seek_alphanumeric_or_camel_right);
-    bind(context, codes->left, MDFR_CTRL, cmdid_seek_alphanumeric_or_camel_left);
+    bind(context, key_right, MDFR_CTRL, cmdid_seek_alphanumeric_or_camel_right);
+    bind(context, key_left, MDFR_CTRL, cmdid_seek_alphanumeric_or_camel_left);
 
     // NOTE(allen|a3.2): Specific keys can override vanilla keys,
     // and write character writes whichever character corresponds
@@ -456,26 +456,26 @@ extern "C" GET_BINDING_DATA(get_bindings){
     // It is possible to override this binding for individual keys.
     bind_vanilla_keys(context, cmdid_write_character);
     
-    bind(context, codes->left, MDFR_NONE, cmdid_move_left);
-    bind(context, codes->right, MDFR_NONE, cmdid_move_right);
-    bind(context, codes->del, MDFR_NONE, cmdid_delete);
-    bind(context, codes->back, MDFR_NONE, cmdid_backspace);
-    bind(context, codes->up, MDFR_NONE, cmdid_move_up);
-    bind(context, codes->down, MDFR_NONE, cmdid_move_down);
-    bind(context, codes->end, MDFR_NONE, cmdid_seek_end_of_line);
-    bind(context, codes->home, MDFR_NONE, cmdid_seek_beginning_of_line);
-    bind(context, codes->page_up, MDFR_NONE, cmdid_page_up);
-    bind(context, codes->page_down, MDFR_NONE, cmdid_page_down);
+    bind(context, key_left, MDFR_NONE, cmdid_move_left);
+    bind(context, key_right, MDFR_NONE, cmdid_move_right);
+    bind(context, key_del, MDFR_NONE, cmdid_delete);
+    bind(context, key_back, MDFR_NONE, cmdid_backspace);
+    bind(context, key_up, MDFR_NONE, cmdid_move_up);
+    bind(context, key_down, MDFR_NONE, cmdid_move_down);
+    bind(context, key_end, MDFR_NONE, cmdid_seek_end_of_line);
+    bind(context, key_home, MDFR_NONE, cmdid_seek_beginning_of_line);
+    bind(context, key_page_up, MDFR_NONE, cmdid_page_up);
+    bind(context, key_page_down, MDFR_NONE, cmdid_page_down);
     
-    bind(context, codes->right, MDFR_CTRL, cmdid_seek_whitespace_right);
-    bind(context, codes->left, MDFR_CTRL, cmdid_seek_whitespace_left);
-    bind(context, codes->up, MDFR_CTRL, cmdid_seek_whitespace_up);
-    bind(context, codes->down, MDFR_CTRL, cmdid_seek_whitespace_down);
+    bind(context, key_right, MDFR_CTRL, cmdid_seek_whitespace_right);
+    bind(context, key_left, MDFR_CTRL, cmdid_seek_whitespace_left);
+    bind(context, key_up, MDFR_CTRL, cmdid_seek_whitespace_up);
+    bind(context, key_down, MDFR_CTRL, cmdid_seek_whitespace_down);
     
-    bind(context, codes->up, MDFR_ALT, move_up_10);
-    bind(context, codes->down, MDFR_ALT, move_down_10);
+    bind(context, key_up, MDFR_ALT, move_up_10);
+    bind(context, key_down, MDFR_ALT, move_down_10);
     
-    bind(context, codes->back, MDFR_CTRL, backspace_word);
+    bind(context, key_back, MDFR_CTRL, backspace_word);
     
     bind(context, ' ', MDFR_CTRL, cmdid_set_mark);
     bind(context, 'm', MDFR_CTRL, cmdid_cursor_mark_swap);
@@ -486,9 +486,9 @@ extern "C" GET_BINDING_DATA(get_bindings){
     bind(context, 'Z', MDFR_CTRL, cmdid_timeline_scrub);
     bind(context, 'z', MDFR_CTRL, cmdid_undo);
     bind(context, 'y', MDFR_CTRL, cmdid_redo);
-    bind(context, codes->left, MDFR_ALT, cmdid_increase_rewind_speed);
-    bind(context, codes->right, MDFR_ALT, cmdid_increase_fastforward_speed);
-    bind(context, codes->down, MDFR_ALT, cmdid_stop_rewind_fastforward);
+    bind(context, key_left, MDFR_ALT, cmdid_increase_rewind_speed);
+    bind(context, key_right, MDFR_ALT, cmdid_increase_fastforward_speed);
+    bind(context, key_down, MDFR_ALT, cmdid_stop_rewind_fastforward);
     bind(context, 'h', MDFR_CTRL, cmdid_history_backward);
     bind(context, 'H', MDFR_CTRL, cmdid_history_forward);
     bind(context, 'd', MDFR_CTRL, cmdid_delete_range);

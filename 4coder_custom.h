@@ -1,53 +1,13 @@
 
+#include "4coder_keycodes.h"
 #include "4coder_buffer_types.h"
 
 #define MDFR_NONE 0
 #define MDFR_CTRL 1
 #define MDFR_ALT 2
 #define MDFR_SHIFT 4
-#define MDFR_NUMPAD 8
 
 typedef unsigned char Code;
-
-struct Key_Codes{
-	Code back;
-	Code up;
-	Code down;
-	Code left;
-	Code right;
-	Code del;
-	Code insert;
-	Code home;
-	Code end;
-	Code page_up;
-	Code page_down;
-	Code esc;
-    
-#if 0 // TODO(allen): Get these working sometime
-	union{
-		struct{
-			Code f1;
-			Code f2;
-			Code f3;
-			Code f4;
-			Code f5;
-			Code f6;
-			Code f7;
-			Code f8;
-			
-			Code f9;
-			Code f10;
-			Code f11;
-			Code f12;
-			Code f13;
-			Code f14;
-			Code f15;
-			Code f16;
-		};
-		Code f[16];
-	};
-#endif
-};
 
 enum Command_ID{
     cmdid_null,
@@ -261,7 +221,7 @@ struct String{
 };
 #endif
 
-#define GET_BINDING_DATA(name) int name(void *data, int size, Key_Codes *codes)
+#define GET_BINDING_DATA(name) int name(void *data, int size)
 #define SET_EXTRA_FONT_SIG(name) void name(Extra_Font *font_out)
 #define CUSTOM_COMMAND_SIG(name) void name(void *cmd_context, struct Application_Links *app)
 #define HOOK_SIG(name) void name(void *cmd_context, struct Application_Links *app)

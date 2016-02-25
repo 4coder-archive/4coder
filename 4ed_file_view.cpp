@@ -3406,7 +3406,7 @@ HANDLE_COMMAND_SIG(handle_command_file_view){
         if (binding.function) binding.function(system, command, binding);
         file_view->mode = file_view->next_mode;
         
-        if (key.keycode == codes->esc)
+        if (key.keycode == key_esc)
             view_set_widget(file_view, FWIDG_NONE);
     }break;
     
@@ -3415,7 +3415,7 @@ HANDLE_COMMAND_SIG(handle_command_file_view){
 #if BUFFER_EXPERIMENT_SCALPEL <= 3
         String *string = &file_view->isearch.str;
         Single_Line_Input_Step result =
-            app_single_line_input_step(system, codes, key, string);
+            app_single_line_input_step(system, key, string);
         
         if (result.made_a_change ||
             binding.function == command_search ||
@@ -3500,7 +3500,7 @@ HANDLE_COMMAND_SIG(handle_command_file_view){
     {
         String *string = &file_view->gotoline.str;
         Single_Line_Input_Step result =
-            app_single_number_input_step(system, codes, key, string);
+            app_single_number_input_step(system, key, string);
         
         if (result.hit_newline || result.hit_ctrl_newline){
             i32 line_number = str_to_int(*string);

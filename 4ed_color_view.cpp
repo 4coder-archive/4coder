@@ -452,21 +452,20 @@ do_channel_field(i32 sub_id, Color_UI *ui, u8 *channel, Channel_Field_Type ftype
         i32 indx = ui->state.selected.sub_id2;
         if (ui->state.input_stage){
             Key_Summary *keys = ui->state.keys;
-            Key_Codes *codes = ui->state.codes;
             for (i32 key_i = 0; key_i < keys->count; ++key_i){
                 Key_Event_Data key = get_single_key(keys, key_i);
                 
-                if (key.keycode == codes->right){
+                if (key.keycode == key_right){
                     ++indx;
                     if (indx > digit_count-1) indx = 0;
                 }
-                if (key.keycode == codes->left){
+                if (key.keycode == key_left){
                     --indx;
                     if (indx < 0) indx = digit_count-1;
                 }
                 
                 i32 new_value = *channel;
-                if (key.keycode == codes->up || key.keycode == codes->down){
+                if (key.keycode == key_up || key.keycode == key_down){
                     i32 place = digit_count-1-indx;
                     i32 base = (ftype == CF_DEC)?10:0x10;
                     i32 step_amount = 1;
@@ -474,7 +473,7 @@ do_channel_field(i32 sub_id, Color_UI *ui, u8 *channel, Channel_Field_Type ftype
                         step_amount *= base;
                         --place;
                     }
-                    if (key.keycode == codes->down){
+                    if (key.keycode == key_down){
                         step_amount = 0 - step_amount;
                     }
                     new_value += step_amount;

@@ -149,12 +149,11 @@ struct Single_Line_Mode{
 };
 
 internal Single_Line_Input_Step
-app_single_line_input_core(System_Functions *system,
-                           Key_Codes *codes, Working_Set *working_set,
+app_single_line_input_core(System_Functions *system, Working_Set *working_set,
                            Key_Event_Data key, Single_Line_Mode mode){
     Single_Line_Input_Step result = {};
     
-    if (key.keycode == codes->back){
+    if (key.keycode == key_back){
         result.hit_backspace = 1;
         if (mode.string->size > 0){
             result.made_a_change = 1;
@@ -221,7 +220,7 @@ app_single_line_input_core(System_Functions *system,
         }
     }
     
-    else if (key.keycode == codes->esc){
+    else if (key.keycode == key_esc){
         result.hit_esc = 1;
         result.made_a_change = 1;
     }
@@ -251,16 +250,15 @@ app_single_line_input_core(System_Functions *system,
 }
 
 inline Single_Line_Input_Step
-app_single_line_input_step(System_Functions *system,
-                           Key_Codes *codes, Key_Event_Data key, String *string){
+app_single_line_input_step(System_Functions *system, Key_Event_Data key, String *string){
 	Single_Line_Mode mode = {};
 	mode.type = SINGLE_LINE_STRING;
 	mode.string = string;
-	return app_single_line_input_core(system, codes, 0, key, mode);
+	return app_single_line_input_core(system, 0, key, mode);
 }
 
 inline Single_Line_Input_Step
-app_single_file_input_step(System_Functions *system, Key_Codes *codes,
+app_single_file_input_step(System_Functions *system,
                            Working_Set *working_set, Key_Event_Data key,
 						   String *string, Hot_Directory *hot_directory,
                            b32 fast_folder_select, b32 try_to_match, b32 case_sensitive){
@@ -271,12 +269,11 @@ app_single_file_input_step(System_Functions *system, Key_Codes *codes,
     mode.fast_folder_select = fast_folder_select;
     mode.try_to_match = try_to_match;
     mode.case_sensitive = case_sensitive;
-	return app_single_line_input_core(system, codes, working_set, key, mode);
+	return app_single_line_input_core(system, working_set, key, mode);
 }
 
 inline Single_Line_Input_Step
-app_single_number_input_step(System_Functions *system, Key_Codes *codes,
-                             Key_Event_Data key, String *string){
+app_single_number_input_step(System_Functions *system, Key_Event_Data key, String *string){
     Single_Line_Input_Step result = {};
 	Single_Line_Mode mode = {};
 	mode.type = SINGLE_LINE_STRING;
@@ -284,7 +281,7 @@ app_single_number_input_step(System_Functions *system, Key_Codes *codes,
     
     char c = (char)key.character;
     if (c == 0 || c == '\n' || char_is_numeric(c))
-        result = app_single_line_input_core(system, codes, 0, key, mode);
+        result = app_single_line_input_core(system, 0, key, mode);
 	return result;
 }
 
@@ -307,7 +304,6 @@ struct UI_State{
     Font_Set *font_set;
     Mouse_Summary *mouse;
     Key_Summary *keys;
-    Key_Codes *codes;
     Working_Set *working_set;
     i16 font_id;
     
@@ -509,7 +505,6 @@ ui_state_init(UI_State *state_in, Render_Target *target, Input_Summary *user_inp
     if (user_input){
         state.mouse = &user_input->mouse;
         state.keys = &user_input->keys;
-        state.codes = user_input->codes;
     }
     state.selected = state_in->selected;
     state.hot = state_in->hot;
@@ -678,7 +673,7 @@ ui_do_text_field_input(UI_State *state, String *str){
         else if (c == '\n'){
             result = 1;
         }
-        else if (key.keycode == state->codes->back && str->size > 0){
+        else if (key.keycode == key_back && str->size > 0){
             str->str[--str->size] = 0;
         }
     }
@@ -700,8 +695,7 @@ ui_do_file_field_input(System_Functions *system, UI_State *state,
     for (key_i = 0; key_i < keys->count; ++key_i){
         key = get_single_key(keys, key_i);
         step =
-            app_single_file_input_step(system, state->codes,
-                                       state->working_set, key, str,
+            app_single_file_input_step(system, state->working_set, key, str,
                                        hot_dir, 1, try_to_match, case_sensitive);
         if ((step.hit_newline || step.hit_ctrl_newline) && !step.no_file_match) result = 1;
     }
@@ -717,7 +711,7 @@ ui_do_line_field_input(System_Functions *system,
         Key_Event_Data key = get_single_key(keys, key_i);
         terminate_with_null(string);
         Single_Line_Input_Step step =
-            app_single_line_input_step(system, state->codes, key, string);
+            app_single_line_input_step(system, key, string);
         if (step.hit_newline || step.hit_ctrl_newline) result = 1;
     }
     return result;

@@ -2495,7 +2495,7 @@ app_links_init(System_Functions *system){
 
 #if FRED_INTERNAL
 internal void
-setup_debug_commands(Command_Map *commands, Partition *part, Key_Codes *codes, Command_Map *parent){
+setup_debug_commands(Command_Map *commands, Partition *part, Command_Map *parent){
     map_init(commands, part, 6, parent);
     
     map_add(commands, 'm', MDFR_NONE, command_debug_memory);
@@ -2504,7 +2504,7 @@ setup_debug_commands(Command_Map *commands, Partition *part, Key_Codes *codes, C
 #endif
 
 internal void
-setup_ui_commands(Command_Map *commands, Partition *part, Key_Codes *codes, Command_Map *parent){
+setup_ui_commands(Command_Map *commands, Partition *part, Command_Map *parent){
     map_init(commands, part, 32, parent);
     
     commands->vanilla_keyboard_default.function = command_null;
@@ -2515,22 +2515,22 @@ setup_ui_commands(Command_Map *commands, Partition *part, Key_Codes *codes, Comm
     u8 mdfr_array[] = {MDFR_NONE, MDFR_SHIFT, MDFR_CTRL, MDFR_SHIFT | MDFR_CTRL};
     for (i32 i = 0; i < 4; ++i){
         mdfr = mdfr_array[i];
-        map_add(commands, codes->left, mdfr, command_null);
-        map_add(commands, codes->right, mdfr, command_null);
-        map_add(commands, codes->up, mdfr, command_null);
-        map_add(commands, codes->down, mdfr, command_null);
-        map_add(commands, codes->back, mdfr, command_null);
-        map_add(commands, codes->esc, mdfr, command_close_minor_view);
+        map_add(commands, key_left, mdfr, command_null);
+        map_add(commands, key_right, mdfr, command_null);
+        map_add(commands, key_up, mdfr, command_null);
+        map_add(commands, key_down, mdfr, command_null);
+        map_add(commands, key_back, mdfr, command_null);
+        map_add(commands, key_esc, mdfr, command_close_minor_view);
     }
 }
 
 internal void
-setup_file_commands(Command_Map *commands, Partition *part, Key_Codes *codes, Command_Map *parent){
+setup_file_commands(Command_Map *commands, Partition *part, Command_Map *parent){
     map_init(commands, part, 10, parent);
 }
 
 internal void
-setup_top_commands(Command_Map *commands, Partition *part, Key_Codes *codes, Command_Map *parent){
+setup_top_commands(Command_Map *commands, Partition *part, Command_Map *parent){
     map_init(commands, part, 5, parent);
 }
 
@@ -3107,7 +3107,7 @@ App_Init_Sig(app_init){
     // TODO(allen): Use a giant bubble of general memory for this.
         // So that it doesn't interfere with the command maps as they allocate
         // their own memory.
-    i32 wanted_size = vars->config_api.get_bindings(data, size, codes);
+    i32 wanted_size = vars->config_api.get_bindings(data, size);
 
     b32 did_top = 0;
     b32 did_file = 0;
@@ -3212,16 +3212,16 @@ App_Init_Sig(app_init){
         }
     }
     
-    if (!did_top) setup_top_commands(&vars->map_top, &vars->mem.part, codes, global);
-    if (!did_file) setup_file_commands(&vars->map_file, &vars->mem.part, codes, global);
+    if (!did_top) setup_top_commands(&vars->map_top, &vars->mem.part, global);
+    if (!did_file) setup_file_commands(&vars->map_file, &vars->mem.part, global);
     
 #if !defined(FRED_SUPER)
     vars->hooks[hook_start] = 0;
 #endif
     
-    setup_ui_commands(&vars->map_ui, &vars->mem.part, codes, global);
+    setup_ui_commands(&vars->map_ui, &vars->mem.part, global);
 #if FRED_INTERNAL
-    setup_debug_commands(&vars->map_debug, &vars->mem.part, codes, global);
+    setup_debug_commands(&vars->map_debug, &vars->mem.part, global);
 #endif
     
     if (vars->hooks[hook_open_file] == 0){
@@ -3785,7 +3785,7 @@ App_Step_Sig(app_step){
             Handle_Command_Function *handle_command = 0;
             if (view) handle_command = view->handle_command;
             if (handle_command){
-                handle_command(system, view, &command_data, cmd, key, codes);
+                handle_command(system, view, &command_data, cmd, key);
                 app_result.redraw = 1;
             }
             else{
@@ -3815,13 +3815,11 @@ App_Step_Sig(app_step){
     Input_Summary dead_input = {};
     dead_input.mouse.mx = mouse_data.mx;
     dead_input.mouse.my = mouse_data.my;
-    dead_input.codes = codes;
     
     Input_Summary active_input = {};
     dead_input.mouse.mx = mouse_data.mx;
     dead_input.mouse.my = mouse_data.my;
     active_input.keys = key_data;
-    active_input.codes = codes;
     
     // NOTE(allen): pass raw input to the panels
     {
