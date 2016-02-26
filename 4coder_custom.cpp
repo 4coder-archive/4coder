@@ -76,7 +76,7 @@ HOOK_SIG(my_file_settings){
 
          push_parameter(app, cmd_context, par_lex_as_cpp_file, treat_as_code);
          push_parameter(app, cmd_context, par_wrap_lines, !treat_as_code);
-         push_parameter(app, cmd_context, par_key_mapid, (treat_as_code)?(my_code_map):(mapid_file));
+         push_parameter(app, cmd_context, par_key_mapid, (treat_as_code)?((int)my_code_map):((int)mapid_file));
          exec_command(cmd_context, cmdid_set_settings);
      }
 }

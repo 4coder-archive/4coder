@@ -12,9 +12,7 @@
 #include "4ed_keyboard.cpp"
 
 internal void
-keycode_init(Display* dpy, Key_Codes *codes){
-    set_dynamic_key_names(codes);
-
+keycode_init(Display* dpy){
 #if 0
     // NOTE(inso): these are for XInput, currently not used.
 
@@ -46,18 +44,18 @@ keycode_init(Display* dpy, Key_Codes *codes){
         KeySym sym;
         Code code;
     } sym_table[] = {
-        { XK_BackSpace, codes->back },
-        { XK_Delete, codes->del },
-        { XK_Up, codes->up },
-        { XK_Down, codes->down },
-        { XK_Left, codes->left },
-        { XK_Right, codes->right },
-        { XK_Insert, codes->insert },
-        { XK_Home, codes->home },
-        { XK_End, codes->end },
-        { XK_Page_Up, codes->page_up },
-        { XK_Page_Down, codes->page_down },
-        { XK_Escape, codes->esc }
+        { XK_BackSpace, key_back },
+        { XK_Delete, key_del },
+        { XK_Up, key_up },
+        { XK_Down, key_down },
+        { XK_Left, key_left },
+        { XK_Right, key_right },
+        { XK_Insert, key_insert },
+        { XK_Home, key_home },
+        { XK_End, key_end },
+        { XK_Page_Up, key_page_up },
+        { XK_Page_Down, key_page_down },
+        { XK_Escape, key_esc }
     };
 
     const int table_size = sizeof(sym_table) / sizeof(struct SymMapping);
