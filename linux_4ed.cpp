@@ -101,8 +101,7 @@ struct Linux_Vars{
     XIM input_method;
     XIMStyle input_style;
     XIC input_context;
-    Key_Codes key_codes;
-
+    
 	Key_Input_Data key_data;
     Mouse_State mouse_data;
 
@@ -1630,7 +1629,7 @@ main(int argc, char **argv)
     
     linuxvars.XDisplay = XOpenDisplay(0);
 
-    keycode_init(linuxvars.XDisplay, &linuxvars.key_codes);
+    keycode_init(linuxvars.XDisplay);
 
 #ifdef FRED_SUPER
     char *custom_file_default = "4coder_custom.so";
@@ -1796,8 +1795,7 @@ main(int argc, char **argv)
         XSetWMProtocols(linuxvars.XDisplay, linuxvars.XWindow, &WM_DELETE_WINDOW, 1);
     }
 
-    linuxvars.app.init(linuxvars.system, &linuxvars.target,
-                       &memory_vars, &exchange_vars, &linuxvars.key_codes,
+    linuxvars.app.init(linuxvars.system, &linuxvars.target, &memory_vars, &exchange_vars,
                        linuxvars.clipboard_contents, current_directory,
                        linuxvars.custom_api);
 
@@ -1929,7 +1927,7 @@ main(int argc, char **argv)
                 case MappingNotify: {
                     if(Event.xmapping.request == MappingModifier || Event.xmapping.request == MappingKeyboard){
                         XRefreshKeyboardMapping(&Event.xmapping);
-                        keycode_init(linuxvars.XDisplay, &linuxvars.key_codes);
+                        keycode_init(linuxvars.XDisplay);
                     }
                 }break;
 
@@ -2057,7 +2055,6 @@ main(int argc, char **argv)
         u64 start_time = system_time();
 
         linuxvars.app.step(linuxvars.system,
-                           &linuxvars.key_codes,
                            &input_data,
                            &mouse,
                            &linuxvars.target,
