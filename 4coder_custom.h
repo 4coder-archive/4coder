@@ -254,6 +254,7 @@ extern "C"{
 #define BUFFER_SEEK_DELIMITER_SIG(name) int name(void *cmd_context, Buffer_Summary *buffer, int start, char delim, int seek_forward, int *out)
 #define BUFFER_READ_RANGE_SIG(name) int name(void *cmd_context, Buffer_Summary *buffer, int start, int end, char *out)
 #define BUFFER_REPLACE_RANGE_SIG(name) int name(void *cmd_context, Buffer_Summary *buffer, int start, int end, char *str, int len)
+// TODO(allen): buffer save
 
 // File view manipulation
 #define GET_VIEW_MAX_INDEX_SIG(name) int name(void *cmd_context)

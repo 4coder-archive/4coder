@@ -433,10 +433,10 @@ buffer_seek_range_camel_left(Buffer_Type *buffer, int pos, int an_pos){
     assert_4tech(an_pos <= pos);
     assert_4tech(0 <= an_pos);
     
+    --pos;
     loop = buffer_backify_loop(buffer, pos, an_pos+1);
     if (buffer_backify_good(&loop)){
         prev_ch = loop.data[0];
-        --pos;
         
         for (;buffer_backify_good(&loop);
              buffer_backify_next(&loop)){

@@ -61,6 +61,32 @@ typedef Sys_CLI_Update_Step_Sig(System_CLI_Update_Step);
 #define Sys_CLI_End_Update_Sig(name) b32 name(CLI_Handles *cli)
 typedef Sys_CLI_End_Update_Sig(System_CLI_End_Update);
 
+// coroutine
+
+#define Coroutine_Function_Sig(name) void name(struct Coroutine *coroutine)
+typedef Coroutine_Function_Sig(Coroutine_Function);
+
+struct Coroutine{
+    Plat_Handle plat_handle;
+    Coroutine_Function *func;
+    void *yield_handle;
+    void *in;
+    void *out;
+    i32 done;
+};
+
+#define Sys_Launch_Coroutine_Sig(name) Coroutine *name(Coroutine_Function *func, void *in, void *out)
+typedef Sys_Launch_Coroutine_Sig(System_Launch_Coroutine);
+
+#define Sys_Resume_Coroutine_Sig(name) void name(Coroutine *coroutine, void *in, void *out)
+typedef Sys_Resume_Coroutine_Sig(System_Resume_Coroutine);
+
+#define Sys_Yield_Coroutine_Sig(name) void *name(Coroutine *coroutine)
+typedef Sys_Yield_Coroutine_Sig(System_Yield_Coroutine);
+
+#define Sys_Release_Coroutine_Sig(name) void name(Coroutine *coroutine)
+typedef Sys_Release_Coroutine_Sig(System_Relase_Coroutine);
+
 // thread
 struct Thread_Context;
 
@@ -170,7 +196,13 @@ struct System_Functions{
 
     // time: 1
     System_Time *time;
-
+    
+    // coroutine: 4
+    System_Launch_Coroutine *launch_coroutine;
+    System_Resume_Coroutine *resume_coroutine;
+    System_Yield_Coroutine *yield_coroutine;
+    System_Relase_Coroutine *release_coroutine;
+    
     // cli: 4
     System_CLI_Call *cli_call;
     System_CLI_Begin_Update *cli_begin_update;

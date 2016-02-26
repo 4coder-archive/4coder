@@ -3280,7 +3280,7 @@ App_Init_Sig(app_init){
     
     // NOTE(allen): file setup
     vars->working_set.file_index_count = 1;
-    vars->working_set.file_max_count = 29;
+    vars->working_set.file_max_count = 120;
     vars->working_set.files =
         push_array(partition, Editing_File, vars->working_set.file_max_count);
     

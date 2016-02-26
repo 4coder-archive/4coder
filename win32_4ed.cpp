@@ -99,6 +99,11 @@ struct Win32_Input_Chunk{
     Win32_Input_Chunk_Persistent pers;
 };
 
+struct Win32_Coroutine{
+    Coroutine coroutine;
+    Win32_Coroutine *next;
+};
+
 struct Win32_Vars{
 	HWND window_handle;
     HDC window_hdc;
@@ -146,8 +151,14 @@ struct Win32_Vars{
 #if FRED_INTERNAL
     Sys_Bubble internal_bubble;
 #endif
-
+    
     Font_Load_System fnt;
+    
+    // NOTE(allen): I don't expect to have many of these, but it pays
+    // to look a head a little so this is set up so that we can just bump
+    // it up if needed.
+    Win32_Coroutine coroutine_data[2];
+    Win32_Coroutine *coroutine_free;
 };
 
 globalvar Win32_Vars win32vars;
@@ -570,16 +581,22 @@ Win32Resize(i32 width, i32 height){
 internal HANDLE
 Win32Handle(Plat_Handle h){
     HANDLE result;
-    result = {};
-    result = *(HANDLE*)(&h);
+    memcpy(&result, &h, sizeof(result));
+    return(result);
+}
+
+internal void*
+Win32Ptr(Plat_Handle h){
+    void *result;
+    memcpy(&result, &h, sizeof(result));
     return(result);
 }
 
 internal Plat_Handle
 Win32GenHandle(HANDLE h){
-    Assert(sizeof(Plat_Handle) >= sizeof(HANDLE));
-    Plat_Handle result;
-    result = *(Plat_Handle*)(&h);
+    Plat_Handle result = {};
+    Assert(sizeof(Plat_Handle) >= sizeof(h));
+    memcpy(&result, &h, sizeof(h));
     return(result);
 }
 
@@ -705,11 +722,11 @@ system_grow_thread_memory(Thread_Memory *memory){
     old_data = memory->data;
     old_size = memory->size;
     new_size = LargeRoundUp(memory->size*2, Kbytes(4));
-    memory->data = Win32GetMemory(new_size);
+    memory->data = system_get_memory(new_size);
     memory->size = new_size;
     if (old_data){
         memcpy(memory->data, old_data, old_size);
-        Win32FreeMemory(old_data);
+        system_free_memory(old_data);
     }
     system_release_lock(CANCEL_LOCK0 + memory->id - 1);
 }
@@ -729,6 +746,76 @@ INTERNAL_get_thread_states(Thread_Group_ID id, bool8 *running, i32 *pending){
     }
 }
 #endif
+
+internal Coroutine*
+Win32AllocCoroutine(){
+    Win32_Coroutine *result = win32vars.coroutine_free;
+    Assert(result != 0);
+    win32vars.coroutine_free = result->next;
+    return(&result->coroutine);
+}
+
+internal void
+Win32FreeCoroutine(Coroutine *coroutine){
+    Win32_Coroutine *data = (Win32_Coroutine*)coroutine;
+    data->next = win32vars.coroutine_free;
+    win32vars.coroutine_free = data;
+}
+
+internal void
+Win32CoroutineMain(void *arg_){
+    Coroutine *coroutine = (Coroutine*)arg_;
+    coroutine->func(coroutine);
+    coroutine->done = 1;
+    SwitchToFiber(coroutine->yield_handle);
+}
+
+internal
+Sys_Launch_Coroutine_Sig(system_launch_coroutine){
+    Coroutine *coroutine;
+    void *fiber;
+    
+    coroutine = Win32AllocCoroutine();
+    
+    fiber = CreateFiber(0, Win32CoroutineMain, coroutine);
+    
+    coroutine->plat_handle = Win32GenHandle(fiber);
+    coroutine->func = func;
+    coroutine->yield_handle = GetCurrentFiber();
+    coroutine->in = in;
+    coroutine->out = out;
+    coroutine->done = 0;
+    
+    SwitchToFiber(fiber);
+    
+    return(coroutine);
+}
+
+Sys_Resume_Coroutine_Sig(system_resume_coroutine){
+    void *fiber;
+    
+    Assert(coroutine->done == 0);
+    
+    coroutine->yield_handle = GetCurrentFiber();
+    coroutine->in = in;
+    coroutine->out = out;
+    
+    fiber = Win32Ptr(coroutine->plat_handle);
+    
+    SwitchToFiber(fiber);
+}
+
+Sys_Yield_Coroutine_Sig(system_yield_coroutine){
+    void *result;
+    SwitchToFiber(coroutine->yield_handle);
+    result = coroutine->in;
+    return(result);
+}
+
+Sys_Release_Coroutine_Sig(system_release_coroutine){
+    Assert(coroutine->done);
+    Win32FreeCoroutine(coroutine);
+}
 
 internal
 Sys_CLI_Call_Sig(system_cli_call){
@@ -946,6 +1033,11 @@ Win32LoadSystemCode(){
 
     win32vars.system->post_clipboard = system_post_clipboard;
     win32vars.system->time = system_time;
+    
+    win32vars.system->launch_coroutine = system_launch_coroutine;
+    win32vars.system->resume_coroutine = system_resume_coroutine;
+    win32vars.system->yield_coroutine = system_yield_coroutine;
+    win32vars.system->release_coroutine = system_release_coroutine;
     
     win32vars.system->cli_call = system_cli_call;
     win32vars.system->cli_begin_update = system_cli_begin_update;
@@ -1780,7 +1872,7 @@ main(int argc, char **argv){
     }
 
     
-    File_Slot file_slots[32];
+    File_Slot file_slots[120];
     sysshared_init_file_exchange(&exchange_vars, file_slots, ArrayCount(file_slots), 0);
     
     Font_Load_Parameters params[32];
