@@ -57,8 +57,8 @@ delayed_action(Delay *delay, Action_Type type,
 
 enum File_View_Widget_Type{
     FWIDG_NONE,
-    FWIDG_SEARCH,
-    FWIDG_GOTO_LINE,
+    //FWIDG_SEARCH,
+    //FWIDG_GOTO_LINE,
     FWIDG_TIMELINES,
     // never below this
     FWIDG_TYPE_COUNT
@@ -121,7 +121,6 @@ struct File_View{
     
     File_View_Mode mode, next_mode;
     File_View_Widget widget;
-    f32 rewind_amount, rewind_speed;
     i32 rewind_max, scrub_max;
     b32 unwrapped_lines;
     b32 show_whitespace;
@@ -156,20 +155,6 @@ get_file(Working_Set *working_set, i32 file_id){
         result = 0;
     }
     return(result);
-}
-
-internal Range
-get_range(i32 a, i32 b){
-	Range result = {};
-	if (a < b){
-		result.start = a;
-		result.end = b;
-	}
-	else{
-		result.start = b;
-		result.end = a;
-	}
-	return result;
 }
 
 inline bool32
@@ -1489,8 +1474,8 @@ view_widget_height(File_View *view, i32 font_height){
     i32 result = 0;
     switch (view->widget.type){
     case FWIDG_NONE: break;
-    case FWIDG_SEARCH: result = font_height + 2; break;
-    case FWIDG_GOTO_LINE: result = font_height + 2; break;
+    //case FWIDG_SEARCH: result = font_height + 2; break;
+    //case FWIDG_GOTO_LINE: result = font_height + 2; break;
     case FWIDG_TIMELINES: result = view->widget.height; break;
     }
     return result;
@@ -2908,9 +2893,6 @@ step_file_view(System_Functions *system, View *view_, i32_Rect rect,
                     Widget_ID wid = make_id(&state, 2);
                     i32 new_count;
                     if (do_undo_slider(wid, &state, &layout, total_count, undo_count, 0, &new_count)){
-                        view->rewind_speed = 0;
-                        view->rewind_amount = 0;
-                        
                         for (i32 i = 0; i < scrub_max && new_count < undo_count; ++i){
                             view_undo(system, view_->mem, view->layout, view);
                             --undo_count;
@@ -2960,26 +2942,6 @@ step_file_view(System_Functions *system, View *view_, i32_Rect rect,
                 result = 1;
             }
         }break;
-        }
-        
-        i32 rewind_max = view->rewind_max;
-        view->rewind_amount += view->rewind_speed;
-        for (i32 i = 0; view->rewind_amount <= -1.f; ++i, view->rewind_amount += 1.f){
-            if (i < rewind_max) view_undo(system, view_->mem, view->layout, view);
-        }
-        
-        for (i32 i = 0; view->rewind_amount >= 1.f; ++i, view->rewind_amount -= 1.f){
-            if (i < rewind_max) view_redo(system, view_->mem, view->layout, view);
-        }
-        
-        if (view->rewind_speed < 0.f && undo_count == 0){
-            view->rewind_speed = 0.f;
-            view->rewind_amount = 0.f;
-        }
-        
-        if (view->rewind_speed > 0.f && redo_count == 0){
-            view->rewind_speed = 0.f;
-            view->rewind_amount = 0.f;
         }
     }
     
@@ -3304,6 +3266,7 @@ draw_file_loaded(File_View *view, i32_Rect rect, b32 is_active, Render_Target *t
             }
         }break;
         
+#if 0
         case FWIDG_SEARCH:
         {
             Widget_ID wid = make_id(&state, 1);
@@ -3323,6 +3286,8 @@ draw_file_loaded(File_View *view, i32_Rect rect, b32 is_active, Render_Target *t
             persist String gotoline_str = make_lit_string("Goto Line: ");
             do_text_field(wid, &state, &layout, gotoline_str, view->isearch.str);
         }break;
+#endif
+
         }
         
         ui_finish_frame(&view->widget.state, &state, &layout, widg_rect, 0, 0);
@@ -3392,6 +3357,7 @@ command_search(System_Functions*,Command_Data*,Command_Binding);
 internal void
 command_reverse_search(System_Functions*,Command_Data*,Command_Binding);
 
+#if 0
 internal
 HANDLE_COMMAND_SIG(handle_command_file_view){
     File_View *file_view = (File_View*)(view);
@@ -3519,6 +3485,7 @@ HANDLE_COMMAND_SIG(handle_command_file_view){
     }break;
     }
 }
+#endif
 
 inline void
 free_file_view(View *view){
@@ -3557,7 +3524,6 @@ internal File_View*
 file_view_init(View *view, Editing_Layout *layout){
     view->type = VIEW_TYPE_FILE;
     view->do_view = do_file_view;
-    view->handle_command = handle_command_file_view;
     
     File_View *result = (File_View*)view;
     result->layout = layout;

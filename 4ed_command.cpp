@@ -129,9 +129,9 @@ internal Command_Binding
 map_extract(Command_Map *map, Key_Event_Data key){
     Command_Binding bind = {};
     
-    b32 ctrl = key.modifiers[CONTROL_KEY_CONTROL];
-    b32 alt = key.modifiers[CONTROL_KEY_ALT];
-    b32 shift = key.modifiers[CONTROL_KEY_SHIFT];
+    b32 ctrl = key.modifiers[MDFR_CONTROL_INDEX];
+    b32 alt = key.modifiers[MDFR_ALT_INDEX];
+    b32 shift = key.modifiers[MDFR_SHIFT_INDEX];
     u16 code;
     u8 command = MDFR_NONE;
     

@@ -8,8 +8,8 @@
  */
 
 // TOP
-
-#define VERSION_NUMBER "alpha 3.4.3"
+ 
+#define VERSION_NUMBER "alpha 3.4.4"
 
 #ifdef FRED_SUPER
 #define VERSION_TYPE " super!"

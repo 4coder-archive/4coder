@@ -85,14 +85,14 @@ CUSTOM_COMMAND_SIG(write_increment){
     char text[] = "++";
     int size = sizeof(text) - 1;
     Buffer_Summary buffer = app->get_active_buffer(app);
-    app->buffer_replace_range(app, &buffer, buffer.file_cursor_pos, buffer.file_cursor_pos, text, size);
+    app->buffer_replace_range(app, &buffer, buffer.buffer_cursor_pos, buffer.buffer_cursor_pos, text, size);
 }
 
 CUSTOM_COMMAND_SIG(write_decrement){
     char text[] = "--";
     int size = sizeof(text) - 1;
     Buffer_Summary buffer = app->get_active_buffer(app);
-    app->buffer_replace_range(app, &buffer, buffer.file_cursor_pos, buffer.file_cursor_pos, text, size);
+    app->buffer_replace_range(app, &buffer, buffer.buffer_cursor_pos, buffer.buffer_cursor_pos, text, size);
 }
 
 CUSTOM_COMMAND_SIG(open_long_braces){
@@ -103,12 +103,11 @@ CUSTOM_COMMAND_SIG(open_long_braces){
     int pos;
     
     view = app->get_active_file_view(app);
-    buffer = app->get_buffer(app, view.file_id);
+    buffer = app->get_buffer(app, view.buffer_id);
     
     pos = view.cursor.pos;
     app->buffer_replace_range(app, &buffer, pos, pos, text, size);
     app->view_set_cursor(app, &view, seek_pos(pos + 2), 1);
-    app->view_set_mark(app, &view, seek_pos(pos + 4));
     
     push_parameter(app, par_range_start, pos);
     push_parameter(app, par_range_end, pos + size);
@@ -116,7 +115,27 @@ CUSTOM_COMMAND_SIG(open_long_braces){
     exec_command(app, cmdid_auto_tab_range);
 }
 
-CUSTOM_COMMAND_SIG(ifdef_off){
+CUSTOM_COMMAND_SIG(open_long_braces_semicolon){
+    File_View_Summary view;
+    Buffer_Summary buffer;
+    char text[] = "{\n\n};";
+    int size = sizeof(text) - 1;
+    int pos;
+    
+    view = app->get_active_file_view(app);
+    buffer = app->get_buffer(app, view.buffer_id);
+    
+    pos = view.cursor.pos;
+    app->buffer_replace_range(app, &buffer, pos, pos, text, size);
+    app->view_set_cursor(app, &view, seek_pos(pos + 2), 1);
+    
+    push_parameter(app, par_range_start, pos);
+    push_parameter(app, par_range_end, pos + size);
+    push_parameter(app, par_clear_blank_lines, 0);
+    exec_command(app, cmdid_auto_tab_range);
+}
+
+CUSTOM_COMMAND_SIG(if0_off){
     File_View_Summary view;
     Buffer_Summary buffer;
     
@@ -164,7 +183,7 @@ CUSTOM_COMMAND_SIG(backspace_word){
     app->refresh_file_view(app, &view);
     pos1 = view.cursor.pos;
     
-    buffer = app->get_buffer(app, view.file_id);
+    buffer = app->get_buffer(app, view.buffer_id);
     app->buffer_replace_range(app, &buffer, pos1, pos2, 0, 0);
 }
 
@@ -182,7 +201,7 @@ CUSTOM_COMMAND_SIG(switch_to_compilation){
     view = app->get_active_file_view(app);
     buffer = app->get_buffer_by_name(app, make_string(name, name_size));
     
-    app->view_set_file(app, &view, buffer.file_id);
+    app->view_set_buffer(app, &view, buffer.buffer_id);
 }
 
 CUSTOM_COMMAND_SIG(move_up_10){
@@ -231,7 +250,7 @@ CUSTOM_COMMAND_SIG(switch_to_file_in_quotes){
     
     view = app->get_active_file_view(app);
     if (view.exists){
-        buffer = app->get_buffer(app, view.file_id);
+        buffer = app->get_buffer(app, view.buffer_id);
         if (buffer.ready){
             pos = view.cursor.pos;
             app->buffer_seek_delimiter(app, &buffer, pos, '"', 1, &end);
@@ -249,20 +268,35 @@ CUSTOM_COMMAND_SIG(switch_to_file_in_quotes){
                 copy(&file_name, make_string(buffer.file_name, buffer.file_name_len));
                 truncate_to_path_of_directory(&file_name);
                 append(&file_name, make_string(short_file_name, size));
-                
-                buffer = app->get_buffer_by_name(app, file_name);
+
                 exec_command(app, cmdid_change_active_panel);
-                view = app->get_active_file_view(app);
-                if (buffer.exists){
-                    app->view_set_file(app, &view, buffer.file_id);
-                }
-                else{
-                    push_parameter(app, par_name, expand_str(file_name));
-                    exec_command(app, cmdid_interactive_open);
-                }
+                push_parameter(app, par_name, expand_str(file_name));
+                exec_command(app, cmdid_interactive_open);
             }
         }
     }
+}
+
+CUSTOM_COMMAND_SIG(goto_line){
+    User_Input in;
+    Query bar;
+    int line_number = 0;
+    
+    in = {};
+    bar = app->create_query(app, make_lit_string("Line Number: "), QueryBar);
+    while (1){
+        in = app->get_user_input(app, AbortOnEsc | AbortOnClick);
+        if (in.abort) break;
+        if (in.key.character >= '0' && in.key.character <= '9' || in.key.character == 0){
+            app->update_query(app, &bar, in.key);
+            if (bar.complete) break;
+        }
+    }
+    app->close_query(app, &bar);
+    if (in.abort) return;
+    line_number = str_to_int(bar.string);
+    
+    active_view_to_line(app, line_number);
 }
 
 CUSTOM_COMMAND_SIG(open_in_other){
@@ -432,7 +466,8 @@ extern "C" GET_BINDING_DATA(get_bindings){
     bind(context, '=', MDFR_CTRL, write_increment);
     bind(context, '-', MDFR_CTRL, write_decrement);
     bind(context, '[', MDFR_CTRL, open_long_braces);
-    bind(context, 'i', MDFR_ALT, ifdef_off);
+    bind(context, '{', MDFR_CTRL, open_long_braces);
+    bind(context, 'i', MDFR_ALT, if0_off);
     bind(context, '1', MDFR_ALT, switch_to_file_in_quotes);
     
     end_map(context);
@@ -440,10 +475,10 @@ extern "C" GET_BINDING_DATA(get_bindings){
     
     begin_map(context, mapid_file);
     
-    // NOTE(allen|a3.1): Binding this essentially binds all key combos that
+    // NOTE(allen|a3.4.4): Binding this essentially binds all key combos that
     // would normally insert a character into a buffer.
-    // Or apply this rule (which always works): if the code for the key
-    // is not in the codes struct, it is a vanilla key.
+    // Or apply this rule: if the code for the key is not an enum value
+    // such as key_left or key_back then it is a vanilla key.
     // It is possible to override this binding for individual keys.
     bind_vanilla_keys(context, cmdid_write_character);
     
@@ -477,9 +512,6 @@ extern "C" GET_BINDING_DATA(get_bindings){
     bind(context, 'Z', MDFR_CTRL, cmdid_timeline_scrub);
     bind(context, 'z', MDFR_CTRL, cmdid_undo);
     bind(context, 'y', MDFR_CTRL, cmdid_redo);
-    bind(context, key_left, MDFR_ALT, cmdid_increase_rewind_speed);
-    bind(context, key_right, MDFR_ALT, cmdid_increase_fastforward_speed);
-    bind(context, key_down, MDFR_ALT, cmdid_stop_rewind_fastforward);
     bind(context, 'h', MDFR_CTRL, cmdid_history_backward);
     bind(context, 'H', MDFR_CTRL, cmdid_history_forward);
     bind(context, 'd', MDFR_CTRL, cmdid_delete_range);
@@ -495,7 +527,7 @@ extern "C" GET_BINDING_DATA(get_bindings){
     
     bind(context, 'f', MDFR_CTRL, cmdid_search);
     bind(context, 'r', MDFR_CTRL, cmdid_reverse_search);
-    bind(context, 'g', MDFR_CTRL, cmdid_goto_line);
+    bind(context, 'g', MDFR_CTRL, goto_line);
     
     bind(context, 'K', MDFR_CTRL, cmdid_kill_buffer);
     bind(context, 'O', MDFR_CTRL, cmdid_reopen);

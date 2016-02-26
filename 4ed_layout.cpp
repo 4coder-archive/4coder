@@ -42,13 +42,6 @@ struct View;
 
 typedef Do_View_Sig(Do_View_Function);
 
-#define HANDLE_COMMAND_SIG(name)                                        \
-    void (name)(System_Functions *system, View *view,                   \
-                Command_Data *command, Command_Binding binding,         \
-                Key_Event_Data key)
-
-typedef HANDLE_COMMAND_SIG(Handle_Command_Function);
-
 // TODO(allen): this shouldn't exist
 enum View_Type{
     VIEW_TYPE_NONE,
@@ -70,7 +63,6 @@ struct View{
     Panel *panel;
     Command_Map *map;
     Do_View_Function *do_view;
-    Handle_Command_Function *handle_command;
     Mem_Options *mem;
     i32 type;
     i32 block_size;

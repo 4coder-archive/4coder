@@ -91,7 +91,7 @@ struct Win32_Input_Chunk_Persistent{
     b8 keep_playing;
 
     Control_Keys controls;
-    b8 control_keys[CONTROL_KEY_COUNT];
+    b8 control_keys[MDFR_INDEX_COUNT];
 };
 
 struct Win32_Input_Chunk{
@@ -102,6 +102,7 @@ struct Win32_Input_Chunk{
 struct Win32_Coroutine{
     Coroutine coroutine;
     Win32_Coroutine *next;
+    int done;
 };
 
 struct Win32_Vars{
@@ -747,35 +748,39 @@ INTERNAL_get_thread_states(Thread_Group_ID id, bool8 *running, i32 *pending){
 }
 #endif
 
-internal Coroutine*
+internal Win32_Coroutine*
 Win32AllocCoroutine(){
     Win32_Coroutine *result = win32vars.coroutine_free;
     Assert(result != 0);
     win32vars.coroutine_free = result->next;
-    return(&result->coroutine);
+    return(result);
 }
 
 internal void
-Win32FreeCoroutine(Coroutine *coroutine){
-    Win32_Coroutine *data = (Win32_Coroutine*)coroutine;
+Win32FreeCoroutine(Win32_Coroutine *data){
     data->next = win32vars.coroutine_free;
     win32vars.coroutine_free = data;
 }
 
 internal void
 Win32CoroutineMain(void *arg_){
-    Coroutine *coroutine = (Coroutine*)arg_;
-    coroutine->func(coroutine);
-    coroutine->done = 1;
-    SwitchToFiber(coroutine->yield_handle);
+    Win32_Coroutine *c = (Win32_Coroutine*)arg_;
+    c->coroutine.func(&c->coroutine);
+    c->done = 1;
+    Win32FreeCoroutine(c);
+    SwitchToFiber(c->coroutine.yield_handle);
 }
 
 internal
 Sys_Launch_Coroutine_Sig(system_launch_coroutine){
+    Win32_Coroutine *c;
     Coroutine *coroutine;
     void *fiber;
     
-    coroutine = Win32AllocCoroutine();
+    c = Win32AllocCoroutine();
+    c->done = 0;
+    
+    coroutine = &c->coroutine;
     
     fiber = CreateFiber(0, Win32CoroutineMain, coroutine);
     
@@ -784,17 +789,22 @@ Sys_Launch_Coroutine_Sig(system_launch_coroutine){
     coroutine->yield_handle = GetCurrentFiber();
     coroutine->in = in;
     coroutine->out = out;
-    coroutine->done = 0;
     
     SwitchToFiber(fiber);
+    
+    if (c->done){
+        Win32FreeCoroutine(c);
+        coroutine = 0;
+    }
     
     return(coroutine);
 }
 
 Sys_Resume_Coroutine_Sig(system_resume_coroutine){
+    Win32_Coroutine *c = (Win32_Coroutine*)coroutine;
     void *fiber;
     
-    Assert(coroutine->done == 0);
+    Assert(c->done == 0);
     
     coroutine->yield_handle = GetCurrentFiber();
     coroutine->in = in;
@@ -803,18 +813,17 @@ Sys_Resume_Coroutine_Sig(system_resume_coroutine){
     fiber = Win32Ptr(coroutine->plat_handle);
     
     SwitchToFiber(fiber);
+    
+    if (c->done){
+        Win32FreeCoroutine(c);
+        coroutine = 0;
+    }
+    
+    return(coroutine);
 }
 
 Sys_Yield_Coroutine_Sig(system_yield_coroutine){
-    void *result;
     SwitchToFiber(coroutine->yield_handle);
-    result = coroutine->in;
-    return(result);
-}
-
-Sys_Release_Coroutine_Sig(system_release_coroutine){
-    Assert(coroutine->done);
-    Win32FreeCoroutine(coroutine);
 }
 
 internal
@@ -1037,7 +1046,6 @@ Win32LoadSystemCode(){
     win32vars.system->launch_coroutine = system_launch_coroutine;
     win32vars.system->resume_coroutine = system_resume_coroutine;
     win32vars.system->yield_coroutine = system_yield_coroutine;
-    win32vars.system->release_coroutine = system_release_coroutine;
     
     win32vars.system->cli_call = system_cli_call;
     win32vars.system->cli_begin_update = system_cli_begin_update;
@@ -1133,7 +1141,7 @@ Win32Callback(HWND hwnd, UINT uMsg,
                 switch (wParam){
                 case VK_SHIFT:
                 {
-                    control_keys[CONTROL_KEY_SHIFT] = down;
+                    control_keys[MDFR_SHIFT_INDEX] = down;
                 }break;
                 
                 case VK_CONTROL:
@@ -1160,8 +1168,8 @@ Win32Callback(HWND hwnd, UINT uMsg,
                     }
                 }
                 
-                control_keys[CONTROL_KEY_CONTROL] = ctrl;
-                control_keys[CONTROL_KEY_ALT] = alt;
+                control_keys[MDFR_CONTROL_INDEX] = ctrl;
+                control_keys[MDFR_ALT_INDEX] = alt;
             }
             system_release_lock(INPUT_LOCK);
         }break;
@@ -1200,8 +1208,8 @@ Win32Callback(HWND hwnd, UINT uMsg,
                         int result;
                         
                         GetKeyboardState(state);
-                        if (control_keys[CONTROL_KEY_CONTROL] &&
-                            !control_keys[CONTROL_KEY_ALT])
+                        if (control_keys[MDFR_CONTROL_INDEX] &&
+                            !control_keys[MDFR_ALT_INDEX])
                             state[VK_CONTROL] = 0;
                         x = 0;
                         result = ToAscii(vk, scan, state, &x, 0);
@@ -1305,7 +1313,7 @@ Win32Callback(HWND hwnd, UINT uMsg,
         win32vars.input_chunk.pers.mouse_r = 0;
 
         b8 *control_keys = win32vars.input_chunk.pers.control_keys;
-        for (int i = 0; i < CONTROL_KEY_COUNT; ++i) control_keys[i] = 0;
+        for (int i = 0; i < MDFR_INDEX_COUNT; ++i) control_keys[i] = 0;
         win32vars.input_chunk.pers.controls = {};
         
         system_release_lock(INPUT_LOCK);
@@ -1401,6 +1409,8 @@ Win32Callback(HWND hwnd, UINT uMsg,
 
 DWORD
 UpdateLoop(LPVOID param){
+    ConvertThreadToFiber(0);
+    
     for (;win32vars.input_chunk.pers.keep_playing;){
         i64 timer_start = system_time();
 
@@ -1409,7 +1419,7 @@ UpdateLoop(LPVOID param){
         win32vars.input_chunk.trans = {};
         system_release_lock(INPUT_LOCK);
         
-        input_chunk.pers.control_keys[CONTROL_KEY_CAPS] = GetKeyState(VK_CAPITAL) & 0x1;
+        input_chunk.pers.control_keys[MDFR_CAPS_INDEX] = GetKeyState(VK_CAPITAL) & 0x1;
         
         POINT mouse_point;
         if (GetCursorPos(&mouse_point) && ScreenToClient(win32vars.window_handle, &mouse_point)){
@@ -1600,6 +1610,12 @@ main(int argc, char **argv){
     System_Functions *system = &system_;
     win32vars.system = system;
     Win32LoadSystemCode();
+    
+    ConvertThreadToFiber(0);
+    win32vars.coroutine_free = win32vars.coroutine_data;
+    for (i32 i = 0; i+1 < ArrayCount(win32vars.coroutine_data); ++i){
+        win32vars.coroutine_data[i].next = win32vars.coroutine_data + i + 1;
+    }
     
     LPVOID base;
 #if FRED_INTERNAL

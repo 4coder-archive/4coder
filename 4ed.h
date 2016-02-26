@@ -22,23 +22,6 @@ struct Application_Memory{
 #define KEY_INPUT_BUFFER_SIZE 4
 #define KEY_INPUT_BUFFER_DSIZE (KEY_INPUT_BUFFER_SIZE << 1)
 
-enum Key_Control{
-	CONTROL_KEY_SHIFT,
-	CONTROL_KEY_CONTROL,
-	CONTROL_KEY_ALT,
-    CONTROL_KEY_CAPS,
-	// always last
-	CONTROL_KEY_COUNT
-};
-
-struct Key_Event_Data{
-	u8 keycode;
-	u8 character;
-	u8 character_no_caps_lock;
-    
-	b8 modifiers[CONTROL_KEY_COUNT];
-};
-
 struct Key_Input_Data{
 	Key_Event_Data press[KEY_INPUT_BUFFER_SIZE];
 	Key_Event_Data hold[KEY_INPUT_BUFFER_SIZE];

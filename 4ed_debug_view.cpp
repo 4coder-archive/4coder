@@ -164,11 +164,11 @@ internal void
 draw_modifiers(Debug_View *view, Render_Target *target,
                bool8 *modifiers, u32 on_color, u32 off_color, i32 *x, i32 y){
     persist Dbg_Modifier dm[] = {
-        {"CTRL", CONTROL_KEY_CONTROL},
-        {"ALT", CONTROL_KEY_ALT},
-        {"SHIFT", CONTROL_KEY_SHIFT}
+        {"CTRL", MDFR_CONTROL_INDEX},
+        {"ALT", MDFR_ALT_INDEX},
+        {"SHIFT", MDFR_SHIFT_INDEX}
     };
-    for (i32 i = 0; i < CONTROL_KEY_COUNT; ++i){
+    for (i32 i = 0; i < MDFR_INDEX_COUNT; ++i){
         Dbg_Modifier m = dm[i];
         u32 color;
         

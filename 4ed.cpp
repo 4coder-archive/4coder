@@ -81,6 +81,7 @@ struct App_Vars{
     i32 *map_id_table;
     i32 user_map_count;
     Command_Binding prev_command;
+    Coroutine *command_coroutine;
     
     Sys_App_Binding *sys_app_bindings;
     i32 sys_app_count, sys_app_max;
@@ -381,50 +382,43 @@ COMMAND_DECL(seek_white_or_token_left){
 }
 
 COMMAND_DECL(seek_alphanumeric_right){
-#if BUFFER_EXPERIMENT_SCALPEL <= 3
     ProfileMomentFunction();
     REQ_FILE_VIEW(view);
     REQ_FILE(file, view);
     
     i32 pos = buffer_seek_alphanumeric_right(&file->state.buffer, view->cursor.pos);
     view_cursor_move(view, pos);
-#endif
 }
 
 COMMAND_DECL(seek_alphanumeric_left){
-#if BUFFER_EXPERIMENT_SCALPEL <= 3
     ProfileMomentFunction();
     REQ_FILE_VIEW(view);
     REQ_FILE(file, view);
     
     i32 pos = buffer_seek_alphanumeric_left(&file->state.buffer, view->cursor.pos);
     view_cursor_move(view, pos);
-#endif
 }
 
 COMMAND_DECL(seek_alphanumeric_or_camel_right){
-#if BUFFER_EXPERIMENT_SCALPEL <= 3
     ProfileMomentFunction();
     REQ_FILE_VIEW(view);
     REQ_FILE(file, view);
 
     i32 pos = buffer_seek_alphanumeric_or_camel_right(&file->state.buffer, view->cursor.pos);
     view_cursor_move(view, pos);
-#endif
 }
 
 COMMAND_DECL(seek_alphanumeric_or_camel_left){
-#if BUFFER_EXPERIMENT_SCALPEL <= 3
     ProfileMomentFunction();
     REQ_FILE_VIEW(view);
     REQ_FILE(file, view);
     
     i32 pos = buffer_seek_alphanumeric_or_camel_left(&file->state.buffer, view->cursor.pos);
     view_cursor_move(view, pos);
-#endif
 }
 
 COMMAND_DECL(search){
+#if 0
     ProfileMomentFunction();
     REQ_FILE_VIEW(view);
     REQ_FILE(fixed, view);
@@ -434,9 +428,11 @@ COMMAND_DECL(search){
     view->isearch.str = vars->mini_str;
     view->isearch.reverse = 0;
     view->isearch.pos = view->cursor.pos - 1;
+#endif
 }
 
 COMMAND_DECL(reverse_search){
+#if 0
     ProfileMomentFunction();
     REQ_FILE_VIEW(view);
     REQ_FILE(fixed, view);
@@ -446,6 +442,7 @@ COMMAND_DECL(reverse_search){
     view->isearch.str = vars->mini_str;
     view->isearch.reverse = 1;
     view->isearch.pos = view->cursor.pos + 1;
+#endif
 }
 
 COMMAND_DECL(word_complete){
@@ -515,7 +512,6 @@ COMMAND_DECL(word_complete){
                 }
             }
         }
-        // TODO(allen): figure out how labels are scoped.
         double_break:;
         
         size = word_end - word_start;
@@ -604,18 +600,6 @@ COMMAND_DECL(word_complete){
     }
 }
 
-COMMAND_DECL(goto_line){
-    ProfileMomentFunction();
-    REQ_FILE_VIEW(view);
-    REQ_FILE(fixed, view);
-    USE_VARS(vars);
-    
-    view_set_widget(view, FWIDG_GOTO_LINE);
-    view->isearch.str = vars->mini_str;
-    view->isearch.reverse = 1;
-    view->isearch.pos = view->cursor.pos;
-}
-
 COMMAND_DECL(set_mark){
     ProfileMomentFunction();
     REQ_FILE_VIEW(view);
@@ -652,7 +636,7 @@ COMMAND_DECL(copy){
         }
     }
 
-    Range range = get_range(view->cursor.pos, view->mark);
+    Range range = make_range(view->cursor.pos, view->mark);
     if (start_set) range.start = r_start;
     if (end_set) range.end = r_end;
     if (range.start < range.end){
@@ -689,7 +673,7 @@ COMMAND_DECL(cut){
         }
     }
 
-    Range range = get_range(view->cursor.pos, view->mark);
+    Range range = make_range(view->cursor.pos, view->mark);
     if (start_set) range.start = r_start;
     if (end_set) range.end = r_end;
     if (range.start < range.end){
@@ -754,7 +738,7 @@ COMMAND_DECL(paste_next){
     if (working_set->clipboard_size > 0 && view->mode.rewrite){
         view->next_mode.rewrite = 1;
         
-        Range range = get_range(view->mark, view->cursor.pos);
+        Range range = make_range(view->mark, view->cursor.pos);
         String *src = working_set_clipboard_roll_down(working_set);
         i32 next_cursor_pos = range.start+src->size;
         view_replace_range(system,
@@ -789,7 +773,7 @@ COMMAND_DECL(delete_range){
     USE_LAYOUT(layout);
     USE_MEM(mem);
     
-    Range range = get_range(view->cursor.pos, view->mark);
+    Range range = make_range(view->cursor.pos, view->mark);
     if (range.start < range.end){
         i32 next_cursor_pos = range.start;
         view_replace_range(system, mem, view, layout, range.start, range.end,
@@ -827,42 +811,6 @@ COMMAND_DECL(redo){
     USE_MEM(mem);
     
     view_redo(system, mem, layout, view);
-}
-
-COMMAND_DECL(increase_rewind_speed){
-    ProfileMomentFunction();
-    REQ_FILE_VIEW(view);
-    REQ_FILE_HISTORY(file, view);
-
-    i32 rewind_speed = ROUND32(view->rewind_speed * 4.f);
-    if (rewind_speed > 1) rewind_speed >>= 1;
-    else if (rewind_speed == 1) rewind_speed = 0;
-    else if (rewind_speed == 0) rewind_speed = -1;
-    else rewind_speed *= 2;
-    
-    view->rewind_speed = rewind_speed * 0.25f;
-}
-
-COMMAND_DECL(increase_fastforward_speed){
-    ProfileMomentFunction();
-    REQ_FILE_VIEW(view);
-    REQ_FILE_HISTORY(file, view);
-    
-    i32 neg_rewind_speed = -ROUND32(view->rewind_speed * 4.f);
-    if (neg_rewind_speed > 1) neg_rewind_speed >>= 1;
-    else if (neg_rewind_speed == 1) neg_rewind_speed = 0;
-    else if (neg_rewind_speed == 0) neg_rewind_speed = -1;
-    else neg_rewind_speed *= 2;
-    
-    view->rewind_speed = -neg_rewind_speed * 0.25f;
-}
-
-COMMAND_DECL(stop_rewind_fastforward){
-    ProfileMomentFunction();
-    REQ_FILE_VIEW(view);
-    REQ_FILE_HISTORY(file, view);
-    
-    view->rewind_speed = 0;
 }
 
 COMMAND_DECL(history_backward){
@@ -1233,7 +1181,7 @@ case_change_range(System_Functions *system,
                   Mem_Options *mem, File_View *view, Editing_File *file,
                   u8 a, u8 z, u8 char_delta){
 #if BUFFER_EXPERIMENT_SCALPEL <= 0
-    Range range = get_range(view->cursor.pos, view->mark);
+    Range range = make_range(view->cursor.pos, view->mark);
     if (range.start < range.end){
         Edit_Step step = {};
         step.type = ED_NORMAL;
@@ -1337,7 +1285,7 @@ COMMAND_DECL(auto_tab_range){
     }
     
     if (file->state.token_stack.tokens && file->state.tokens_complete){
-        Range range = get_range(view->cursor.pos, view->mark);
+        Range range = make_range(view->cursor.pos, view->mark);
         if (start_set) range.start = r_start;
         if (end_set) range.end = r_end;
         view_auto_tab_tokens(system, mem, view, layout, range.start, range.end, clear_blank_lines);
@@ -2040,9 +1988,9 @@ fill_buffer_summary(Buffer_Summary *buffer, Editing_File *file, Working_Set *wor
     buffer->exists = 1;
     buffer->ready = file_is_ready(file);
     buffer->is_lexed = file->settings.tokens_exist;
-    buffer->file_id = (int)(file - working_set->files);
+    buffer->buffer_id = (int)(file - working_set->files);
     buffer->size = file->state.buffer.size;
-    buffer->file_cursor_pos = file->state.cursor_pos;
+    buffer->buffer_cursor_pos = file->state.cursor_pos;
 
     buffer->file_name_len = file->name.source_path.size;
     buffer->buffer_name_len = file->name.live_name.size;
@@ -2057,7 +2005,7 @@ fill_view_summary(File_View_Summary *view, File_View *file_view, Live_Views *liv
     view->exists = 1;
     view->view_id = (int)((char*)file_view - (char*)live_set->views) / live_set->stride;
     if (file_view->file){
-        view->file_id = (int)(file_view->file - working_set->files);
+        view->buffer_id = (int)(file_view->file - working_set->files);
         view->mark = view_compute_cursor_from_pos(file_view, file_view->mark);
         view->cursor = file_view->cursor;
         view->preferred_x = file_view->preferred_x;
@@ -2181,7 +2129,7 @@ extern "C"{
     
     REFRESH_BUFFER_SIG(external_refresh_buffer){
         int result;
-        *buffer = external_get_buffer(context, buffer->file_id);
+        *buffer = external_get_buffer(context, buffer->buffer_id);
         result = buffer->exists;
         return(result);
     }
@@ -2195,7 +2143,7 @@ extern "C"{
         
         if (buffer->exists){
             working_set = cmd->working_set;
-            file = working_set->files + buffer->file_id;
+            file = working_set->files + buffer->buffer_id;
             if (!file->state.is_dummy && file_is_ready(file)){
                 size = buffer_size(&file->state.buffer);
                 if (start < size){
@@ -2225,7 +2173,7 @@ extern "C"{
         
         if (buffer->exists){
             working_set = cmd->working_set;
-            file = working_set->files + buffer->file_id;
+            file = working_set->files + buffer->buffer_id;
             if (!file->state.is_dummy && file_is_ready(file)){
                 size = buffer_size(&file->state.buffer);
                 if (0 <= start && start <= end && end <= size){
@@ -2254,7 +2202,7 @@ extern "C"{
         
         if (buffer->exists){
             working_set = cmd->working_set;
-            file = working_set->files + buffer->file_id;
+            file = working_set->files + buffer->buffer_id;
             if (!file->state.is_dummy && file_is_ready(file)){
                 size = buffer_size(&file->state.buffer);
                 if (0 <= start && start <= end && end <= size){
@@ -2377,7 +2325,7 @@ extern "C"{
         return(result);
     }
     
-    VIEW_SET_FILE_SIG(external_view_set_file){
+    VIEW_SET_BUFFER_SIG(external_view_set_buffer){
         Command_Data *cmd = (Command_Data*)context->data;
         Live_Views *live_set;
         View *vptr;
@@ -2393,8 +2341,8 @@ extern "C"{
             if (file_view){
                 working_set = cmd->working_set;
                 max = working_set->file_index_count;
-                if (file_id >= 0 && file_id < max){
-                    file = working_set->files + file_id;
+                if (buffer_id >= 0 && buffer_id < max){
+                    file = working_set->files + buffer_id;
                     if (!file->state.is_dummy){
                         view_set_file(cmd->system, file_view, file, cmd->vars->font_set, cmd->style,
                             cmd->vars->hooks[hook_open_file], cmd, &app_links);
@@ -2409,7 +2357,18 @@ extern "C"{
     }
 }
 
-inline void
+struct Command_In{
+    Command_Data *cmd;
+    Command_Binding bind;
+};
+
+internal void
+command_caller(Coroutine *coroutine){
+    Command_In *cmd = (Command_In*)coroutine->in;
+    cmd->bind.function(cmd->cmd->system, cmd->cmd, cmd->bind);
+}
+
+internal void
 app_links_init(System_Functions *system){
     app_links.exec_command_keep_stack = external_exec_command_keep_stack;
     app_links.push_parameter = external_push_parameter;
@@ -2429,6 +2388,7 @@ app_links_init(System_Functions *system){
     app_links.buffer_seek_delimiter = external_buffer_seek_delimiter;
     app_links.buffer_read_range = external_buffer_read_range;
     app_links.buffer_replace_range = external_buffer_replace_range;
+    app_links.buffer_save = 0;//external_buffer_save;
     
     app_links.get_view_max_index = external_get_view_max_index;
     app_links.get_file_view = external_get_file_view;
@@ -2437,7 +2397,13 @@ app_links_init(System_Functions *system){
     app_links.refresh_file_view = external_refresh_file_view;
     app_links.view_set_cursor = external_view_set_cursor;
     app_links.view_set_mark = external_view_set_mark;
-    app_links.view_set_file = external_view_set_file;
+    app_links.view_set_buffer = external_view_set_buffer;
+    
+    app_links.get_user_input = 0;//external_get_user_input;
+    
+    app_links.create_query = 0;//external_create_query;
+    app_links.update_query = 0;//external_update_query;
+    app_links.close_query = 0;//external_close_query;
 }
 
 #if FRED_INTERNAL
@@ -2502,7 +2468,6 @@ setup_command_table(){
     SET(search);
     SET(reverse_search);
     SET(word_complete);
-    SET(goto_line);
     SET(set_mark);
     SET(copy);
     SET(cut);
@@ -2512,9 +2477,6 @@ setup_command_table(){
     SET(timeline_scrub);
     SET(undo);
     SET(redo);
-    SET(increase_rewind_speed);
-    SET(increase_fastforward_speed);
-    SET(stop_rewind_fastforward);
     SET(history_backward);
     SET(history_forward);
     SET(interactive_new);
@@ -3705,6 +3667,22 @@ App_Step_Sig(app_step){
         switch (vars->state){
         case APP_STATE_EDIT:
         {
+            if (cmd_bind.function){
+                Command_In cmd_in;
+                cmd_in.cmd = cmd;
+                cmd_in.bind = cmd_bind;
+                vars->command_coroutine = system->launch_coroutine(command_caller, &cmd_in, 0);
+                app_result.redraw = 1;
+            }
+            
+#if 0
+            if (cmd_bind.function){
+                cmd_bind.function(system, cmd, cmd_bind);
+                app_result.redraw = 1;
+            }
+#endif
+            
+#if 0
             Handle_Command_Function *handle_command = 0;
             if (view) handle_command = view->handle_command;
             if (handle_command){
@@ -3718,6 +3696,7 @@ App_Step_Sig(app_step){
                 }
             }
             vars->prev_command = cmd_bind;
+#endif
         }break;
         
         case APP_STATE_RESIZING:

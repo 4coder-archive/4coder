@@ -7,8 +7,6 @@
 #define MDFR_ALT 2
 #define MDFR_SHIFT 4
 
-typedef unsigned char Code;
-
 enum Command_ID{
     cmdid_null,
     cmdid_write_character,
@@ -27,7 +25,7 @@ enum Command_ID{
     cmdid_search,
     cmdid_reverse_search,
     cmdid_word_complete,
-    cmdid_goto_line,
+    //cmdid_goto_line,
     cmdid_set_mark,
     cmdid_copy,
     cmdid_cut,
@@ -37,9 +35,6 @@ enum Command_ID{
     cmdid_timeline_scrub,
     cmdid_undo,
     cmdid_redo,
-    cmdid_increase_rewind_speed,
-    cmdid_increase_fastforward_speed,
-    cmdid_stop_rewind_fastforward,
     cmdid_history_backward,
     cmdid_history_forward,
     cmdid_interactive_new,
@@ -108,79 +103,13 @@ enum Hook_ID{
     hook_type_count
 };
 
-enum Dynamic_Type{
-    dynamic_type_int,
-    dynamic_type_string,
-    // never below this
-    dynamic_type_count
-};
-
-struct Dynamic{
-    int type;
-    union{
-        struct{
-            int str_len;
-            char *str_value;
-        };
-        int int_value;
-    };
-};
-
-inline Dynamic
-dynamic_int(int x){
-    Dynamic result;
-    result.type = dynamic_type_int;
-    result.int_value = x;
-    return result;
-}
-
-inline Dynamic
-dynamic_string(const char *string, int len){
-    Dynamic result;
-    result.type = dynamic_type_string;
-    result.str_len = len;
-    result.str_value = (char*)(string);
-    return result;
-}
-
-inline int
-dynamic_to_int(Dynamic *dynamic){
-    int result = 0;
-    if (dynamic->type == dynamic_type_int){
-        result = dynamic->int_value;
-    }
-    return result;
-}
-
-inline char*
-dynamic_to_string(Dynamic *dynamic, int *len){
-    char *result = 0;
-    if (dynamic->type == dynamic_type_string){
-        result = dynamic->str_value;
-        *len = dynamic->str_len;
-    }
-    return result;
-}
-
-inline int
-dynamic_to_bool(Dynamic *dynamic){
-    int result = 0;
-    if (dynamic->type == dynamic_type_int){
-        result = (dynamic->int_value != 0);
-    }
-    else{
-        result = 1;
-    }
-    return result;
-}
-
 // NOTE(allen): None of the members of *_Summary structs nor any of the
 // data pointed to by the members should be modified, I would have made
 // them all const... but that causes a lot problems for C++ reasons.
 struct Buffer_Summary{
     int exists;
     int ready;
-    int file_id;
+    int buffer_id;
     
     int size;
     
@@ -189,7 +118,7 @@ struct Buffer_Summary{
     char *file_name;
     char *buffer_name;
     
-    int file_cursor_pos;
+    int buffer_cursor_pos;
     int is_lexed;
     int map_id;
 };
@@ -197,13 +126,26 @@ struct Buffer_Summary{
 struct File_View_Summary{
     int exists;
     int view_id;
-    int file_id;
+    int buffer_id;
     
     Full_Cursor cursor;
     Full_Cursor mark;
     float preferred_x;
     int line_height;
     int unwrapped_lines;
+};
+
+struct User_Input{
+    Key_Event_Data key;
+    int abort;
+};
+
+struct Query{
+    int query_id;
+    int complete;
+    int type;
+    String prompt;
+    String string;
 };
 
 #ifndef FRED_STRING_STRUCT
@@ -249,7 +191,7 @@ struct Application_Links;
 #define BUFFER_SEEK_DELIMITER_SIG(name) int name(Application_Links *context, Buffer_Summary *buffer, int start, char delim, int seek_forward, int *out)
 #define BUFFER_READ_RANGE_SIG(name) int name(Application_Links *context, Buffer_Summary *buffer, int start, int end, char *out)
 #define BUFFER_REPLACE_RANGE_SIG(name) int name(Application_Links *context, Buffer_Summary *buffer, int start, int end, char *str, int len)
-// TODO(allen): buffer save
+#define BUFFER_SAVE_SIG(name) int name(Application_Links *context, Buffer_Summary *buffer, char *filename, int len)
 
 // File view manipulation
 #define GET_VIEW_MAX_INDEX_SIG(name) int name(Application_Links *context)
@@ -259,7 +201,23 @@ struct Application_Links;
 #define REFRESH_FILE_VIEW_SIG(name) int name(Application_Links *context, File_View_Summary *view)
 #define VIEW_SET_CURSOR_SIG(name) int name(Application_Links *context, File_View_Summary *view, Buffer_Seek seek, int set_preferred_x)
 #define VIEW_SET_MARK_SIG(name) int name(Application_Links *context, File_View_Summary *view, Buffer_Seek seek)
-#define VIEW_SET_FILE_SIG(name) int name(Application_Links *context, File_View_Summary *view, int file_id)
+#define VIEW_SET_BUFFER_SIG(name) int name(Application_Links *context, File_View_Summary *view, int buffer_id)
+
+// Directly get user input
+#define AbortOnEsc 0x1
+#define AbortOnClick 0x2
+#define GET_USER_INPUT_SIG(name) User_Input name(Application_Links *context, unsigned int flags)
+
+// Queries
+#define QueryForFile 0x1
+#define QueryForBuffer 0x2
+
+#define QueryBar 0x0
+#define QueryScreen 0x010000
+
+#define CREATE_QUERY_SIG(name) Query name(Application_Links *context, String prompt, unsigned int flags)
+#define UPDATE_QUERY_SIG(name) void name(Application_Links *context, Query *query, Key_Event_Data key)
+#define CLOSE_QUERY_SIG(name) void name(Application_Links *context, Query *query)
 
 extern "C"{
     // Command exectuion
@@ -283,6 +241,7 @@ extern "C"{
     typedef BUFFER_SEEK_DELIMITER_SIG(Buffer_Seek_Delimiter_Function);
     typedef BUFFER_READ_RANGE_SIG(Buffer_Read_Range_Function);
     typedef BUFFER_REPLACE_RANGE_SIG(Buffer_Replace_Range_Function);
+    typedef BUFFER_SAVE_SIG(Buffer_Save_Function);
     
     // View manipulation
     typedef GET_VIEW_MAX_INDEX_SIG(Get_View_Max_Index_Function);
@@ -292,10 +251,21 @@ extern "C"{
     typedef REFRESH_FILE_VIEW_SIG(Refresh_File_View_Function);
     typedef VIEW_SET_CURSOR_SIG(View_Set_Cursor_Function);
     typedef VIEW_SET_MARK_SIG(View_Set_Mark_Function);
-    typedef VIEW_SET_FILE_SIG(View_Set_File_Function);
+    typedef VIEW_SET_BUFFER_SIG(View_Set_Buffer_Function);
+    
+    // Directly get user input
+    typedef GET_USER_INPUT_SIG(Get_User_Input_Function);
+    
+    // Queries
+    typedef CREATE_QUERY_SIG(Create_Query_Function);
+    typedef UPDATE_QUERY_SIG(Update_Query_Function);
+    typedef CLOSE_QUERY_SIG(Close_Query_Function);
 }
 
 struct Application_Links{
+    // Application data ptr
+    void *data;
+    
     // Command exectuion
     Exec_Command_Function *exec_command_keep_stack;
     Push_Parameter_Function *push_parameter;
@@ -317,6 +287,7 @@ struct Application_Links{
     Buffer_Seek_Delimiter_Function *buffer_seek_delimiter;
     Buffer_Read_Range_Function *buffer_read_range;
     Buffer_Replace_Range_Function *buffer_replace_range;
+    Buffer_Save_Function *buffer_save;
     
     // View manipulation
     Get_View_Max_Index_Function *get_view_max_index;
@@ -326,10 +297,15 @@ struct Application_Links{
     Refresh_File_View_Function *refresh_file_view;
     View_Set_Cursor_Function *view_set_cursor;
     View_Set_Mark_Function *view_set_mark;
-    View_Set_File_Function *view_set_file;
+    View_Set_Buffer_Function *view_set_buffer;
     
-    // Application data ptr
-    void *data;
+    // Directly get user input
+    Get_User_Input_Function* get_user_input;
+    
+    // Queries
+    Create_Query_Function* create_query;
+    Update_Query_Function* update_query;
+    Close_Query_Function* close_query;
 };
 
 struct Custom_API{

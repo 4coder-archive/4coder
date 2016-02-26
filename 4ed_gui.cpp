@@ -180,8 +180,8 @@ app_single_line_input_core(System_Functions *system, Working_Set *working_set,
     
     else if (key.character == '\n' || key.character == '\t'){
         result.made_a_change = 1;
-        if (key.modifiers[CONTROL_KEY_CONTROL] ||
-            key.modifiers[CONTROL_KEY_ALT]){
+        if (key.modifiers[MDFR_CONTROL_INDEX] ||
+            key.modifiers[MDFR_ALT_INDEX]){
             result.hit_ctrl_newline = 1;
         }
         else{
@@ -227,8 +227,8 @@ app_single_line_input_core(System_Functions *system, Working_Set *working_set,
     
     else if (key.character){
         result.hit_a_character = 1;
-        if (!key.modifiers[CONTROL_KEY_CONTROL] &&
-            !key.modifiers[CONTROL_KEY_ALT]){
+        if (!key.modifiers[MDFR_CONTROL_INDEX] &&
+            !key.modifiers[MDFR_ALT_INDEX]){
             if (mode.string->size+1 < mode.string->memory_size){
                 u8 new_character = (u8)key.character;
                 mode.string->str[mode.string->size] = new_character;

@@ -213,19 +213,10 @@ push_directory(Application_Links *app){
     return(result);
 }
 
-#define expand_string(d) ((d).str), ((d).size)
-
 inline Range
 get_range(File_View_Summary *view){
     Range range;
-    if (view->cursor.pos < view->mark.pos){
-        range.min = view->cursor.pos;
-        range.max = view->mark.pos;
-    }
-    else{
-        range.max = view->cursor.pos;
-        range.min = view->mark.pos;
-    }
+    range = make_range(view->cursor.pos, view->mark.pos);
     return(range);
 }
 
@@ -239,5 +230,16 @@ inline void
 exec_command(Application_Links *app, Custom_Command_Function *func){
     func(app);
     app->clear_parameters(app);
+}
+
+inline void
+active_view_to_line(Application_Links *app, int line_number){
+    File_View_Summary view;
+    view = app->get_active_file_view(app);
+    
+    // NOTE(allen|a3.4.4): We don't have to worry about whether this is a valid line number.
+    // When the position specified isn't possible for whatever reason it will set the cursor to
+    // a nearby valid position.
+    app->view_set_cursor(app, &view, seek_line_char(line_number, 0), 1);
 }
 
