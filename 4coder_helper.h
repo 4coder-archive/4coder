@@ -172,44 +172,44 @@ end_bind_helper(Bind_Helper *helper){
 
 // NOTE(allen): Useful functions and overloads on app links
 inline void
-push_parameter(Application_Links *app, void *cmd_context, int param, int value){
-    app->push_parameter(cmd_context, dynamic_int(param), dynamic_int(value));
+push_parameter(Application_Links *app, int param, int value){
+    app->push_parameter(app, dynamic_int(param), dynamic_int(value));
 }
 
 inline void
-push_parameter(Application_Links *app, void *cmd_context, int param, const char *value, int value_len){
-    char *value_copy = app->push_memory(cmd_context, value_len+1);
+push_parameter(Application_Links *app, int param, const char *value, int value_len){
+    char *value_copy = app->push_memory(app, value_len+1);
     copy(value_copy, value, value_len);
     value_copy[value_len] = 0;
-    app->push_parameter(cmd_context, dynamic_int(param), dynamic_string(value_copy, value_len));
+    app->push_parameter(app, dynamic_int(param), dynamic_string(value_copy, value_len));
 }
 
 inline void
-push_parameter(Application_Links *app, void *cmd_context, const char *param, int param_len, int value){
-    char *param_copy = app->push_memory(cmd_context, param_len+1);
+push_parameter(Application_Links *app, const char *param, int param_len, int value){
+    char *param_copy = app->push_memory(app, param_len+1);
     copy(param_copy, param, param_len);
     param_copy[param_len] = 0;
-    app->push_parameter(cmd_context, dynamic_string(param_copy, param_len), dynamic_int(value));
+    app->push_parameter(app, dynamic_string(param_copy, param_len), dynamic_int(value));
 }
 
 inline void
-push_parameter(Application_Links *app, void *cmd_context, const char *param, int param_len, const char *value, int value_len){
-    char *param_copy = app->push_memory(cmd_context, param_len+1);
-    char *value_copy = app->push_memory(cmd_context, value_len+1);
+push_parameter(Application_Links *app, const char *param, int param_len, const char *value, int value_len){
+    char *param_copy = app->push_memory(app, param_len+1);
+    char *value_copy = app->push_memory(app, value_len+1);
     copy(param_copy, param, param_len);
     copy(value_copy, value, value_len);
     value_copy[value_len] = 0;
     param_copy[param_len] = 0;
     
-    app->push_parameter(cmd_context, dynamic_string(param_copy, param_len), dynamic_string(value_copy, value_len));
+    app->push_parameter(app, dynamic_string(param_copy, param_len), dynamic_string(value_copy, value_len));
 }
 
 inline String
-push_directory(Application_Links *app, void *cmd_context){
+push_directory(Application_Links *app){
     String result;
     result.memory_size = 512;
-    result.str = app->push_memory(cmd_context, result.memory_size);
-    result.size = app->directory_get_hot(cmd_context, result.str, result.memory_size);
+    result.str = app->push_memory(app, result.memory_size);
+    result.size = app->directory_get_hot(app, result.str, result.memory_size);
     return(result);
 }
 
@@ -229,24 +229,15 @@ get_range(File_View_Summary *view){
     return(range);
 }
 
-#if DisableMacroTranslations == 0
-
 inline void
-exec_command_(Application_Links *app, void *cmd_context, Command_ID id){
-    app->exec_command_keep_stack(cmd_context, id);
-    app->clear_parameters(cmd_context);
+exec_command(Application_Links *app, Command_ID id){
+    app->exec_command_keep_stack(app, id);
+    app->clear_parameters(app);
 }
 
 inline void
-exec_command_(Application_Links *app, void *cmd_context, Custom_Command_Function *func){
-    func(cmd_context, app);
-    app->clear_parameters(cmd_context);
+exec_command(Application_Links *app, Custom_Command_Function *func){
+    func(app);
+    app->clear_parameters(app);
 }
-
-#define exec_command_keep_stack app->exec_command_keep_stack
-#define clear_parameters app->clear_parameters
-
-#define exec_command(cmd_context, cmd) exec_command_(app, cmd_context, cmd)
-
-#endif
 

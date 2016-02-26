@@ -1413,7 +1413,7 @@ view_set_file(System_Functions *system, File_View *view,
     view->vel_x = 1.f;
 
     if (open_hook && file->settings.is_initialized == 0){
-        open_hook(cmd_context, app);
+        open_hook(app);
         file->settings.is_initialized = 1;
     }
 }

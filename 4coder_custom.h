@@ -174,12 +174,6 @@ dynamic_to_bool(Dynamic *dynamic){
     return result;
 }
 
-struct Extra_Font{
-    char file_name[256];
-    char font_name[24];
-    int size;
-};
-
 // NOTE(allen): None of the members of *_Summary structs nor any of the
 // data pointed to by the members should be modified, I would have made
 // them all const... but that causes a lot problems for C++ reasons.
@@ -223,48 +217,49 @@ struct String{
 
 #define GET_BINDING_DATA(name) int name(void *data, int size)
 #define SET_EXTRA_FONT_SIG(name) void name(Extra_Font *font_out)
-#define CUSTOM_COMMAND_SIG(name) void name(void *cmd_context, struct Application_Links *app)
-#define HOOK_SIG(name) void name(void *cmd_context, struct Application_Links *app)
+#define CUSTOM_COMMAND_SIG(name) void name(struct Application_Links *app)
+#define HOOK_SIG(name) void name(struct Application_Links *app)
 
 extern "C"{
     typedef CUSTOM_COMMAND_SIG(Custom_Command_Function);
     typedef GET_BINDING_DATA(Get_Binding_Data_Function);
-    typedef SET_EXTRA_FONT_SIG(Set_Extra_Font_Function);
     typedef HOOK_SIG(Hook_Function);
 }
 
+struct Application_Links;
+
 // Command exectuion
-#define PUSH_PARAMETER_SIG(name) void name(void *cmd_context, Dynamic param, Dynamic value)
-#define PUSH_MEMORY_SIG(name) char* name(void *cmd_context, int len)
-#define EXECUTE_COMMAND_SIG(name) void name(void *cmd_context, int command_id)
-#define CLEAR_PARAMETERS_SIG(name) void name(void *cmd_context)
+#define PUSH_PARAMETER_SIG(name) void name(Application_Links *context, Dynamic param, Dynamic value)
+#define PUSH_MEMORY_SIG(name) char* name(Application_Links *context, int len)
+#define EXECUTE_COMMAND_SIG(name) void name(Application_Links *context, int command_id)
+#define CLEAR_PARAMETERS_SIG(name) void name(Application_Links *context)
 
 // File system navigation
-#define DIRECTORY_GET_HOT_SIG(name) int name(void *cmd_context, char *buffer, int max)
-#define DIRECTORY_HAS_FILE_SIG(name) int name(String dir, char *filename)
-#define DIRECTORY_CD_SIG(name) int name(String *dir, char *rel_path)
+#define DIRECTORY_GET_HOT_SIG(name) int name(Application_Links *context, char *buffer, int max)
+#define DIRECTORY_HAS_FILE_SIG(name) int name(Application_Links *context, String dir, char *filename)
+#define DIRECTORY_CD_SIG(name) int name(Application_Links *context, String *dir, char *rel_path)
 
 // Direct buffer manipulation
-#define GET_BUFFER_MAX_INDEX_SIG(name) int name(void *cmd_context)
-#define GET_BUFFER_SIG(name) Buffer_Summary name(void *cmd_context, int index)
-#define GET_ACTIVE_BUFFER_SIG(name) Buffer_Summary name(void *cmd_context)
-#define GET_BUFFER_BY_NAME(name) Buffer_Summary name(void *cmd_context, String filename)
+#define GET_BUFFER_MAX_INDEX_SIG(name) int name(Application_Links *context)
+#define GET_BUFFER_SIG(name) Buffer_Summary name(Application_Links *context, int index)
+#define GET_ACTIVE_BUFFER_SIG(name) Buffer_Summary name(Application_Links *context)
+#define GET_BUFFER_BY_NAME(name) Buffer_Summary name(Application_Links *context, String filename)
 
-#define REFRESH_BUFFER_SIG(name) int name(void *cmd_context, Buffer_Summary *buffer)
-#define BUFFER_SEEK_DELIMITER_SIG(name) int name(void *cmd_context, Buffer_Summary *buffer, int start, char delim, int seek_forward, int *out)
-#define BUFFER_READ_RANGE_SIG(name) int name(void *cmd_context, Buffer_Summary *buffer, int start, int end, char *out)
-#define BUFFER_REPLACE_RANGE_SIG(name) int name(void *cmd_context, Buffer_Summary *buffer, int start, int end, char *str, int len)
+#define REFRESH_BUFFER_SIG(name) int name(Application_Links *context, Buffer_Summary *buffer)
+#define BUFFER_SEEK_DELIMITER_SIG(name) int name(Application_Links *context, Buffer_Summary *buffer, int start, char delim, int seek_forward, int *out)
+#define BUFFER_READ_RANGE_SIG(name) int name(Application_Links *context, Buffer_Summary *buffer, int start, int end, char *out)
+#define BUFFER_REPLACE_RANGE_SIG(name) int name(Application_Links *context, Buffer_Summary *buffer, int start, int end, char *str, int len)
 // TODO(allen): buffer save
 
 // File view manipulation
-#define GET_VIEW_MAX_INDEX_SIG(name) int name(void *cmd_context)
-#define GET_FILE_VIEW_SIG(name) File_View_Summary name(void *cmd_context, int index)
-#define GET_ACTIVE_FILE_VIEW_SIG(name) File_View_Summary name(void *cmd_context)
+#define GET_VIEW_MAX_INDEX_SIG(name) int name(Application_Links *context)
+#define GET_FILE_VIEW_SIG(name) File_View_Summary name(Application_Links *context, int index)
+#define GET_ACTIVE_FILE_VIEW_SIG(name) File_View_Summary name(Application_Links *context)
 
-#define REFRESH_FILE_VIEW_SIG(name) int name(void *cmd_context, File_View_Summary *view)
-#define VIEW_SET_CURSOR_SIG(name) int name(void *cmd_context, File_View_Summary *view, Buffer_Seek seek, int set_preferred_x)
-#define VIEW_SET_MARK_SIG(name) int name(void *cmd_context, File_View_Summary *view, Buffer_Seek seek)
-#define VIEW_SET_FILE_SIG(name) int name(void *cmd_context, File_View_Summary *view, int file_id)
+#define REFRESH_FILE_VIEW_SIG(name) int name(Application_Links *context, File_View_Summary *view)
+#define VIEW_SET_CURSOR_SIG(name) int name(Application_Links *context, File_View_Summary *view, Buffer_Seek seek, int set_preferred_x)
+#define VIEW_SET_MARK_SIG(name) int name(Application_Links *context, File_View_Summary *view, Buffer_Seek seek)
+#define VIEW_SET_FILE_SIG(name) int name(Application_Links *context, File_View_Summary *view, int file_id)
 
 extern "C"{
     // Command exectuion
@@ -332,6 +327,9 @@ struct Application_Links{
     View_Set_Cursor_Function *view_set_cursor;
     View_Set_Mark_Function *view_set_mark;
     View_Set_File_Function *view_set_file;
+    
+    // Application data ptr
+    void *data;
 };
 
 struct Custom_API{

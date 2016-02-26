@@ -30,8 +30,8 @@ enum My_Maps{
 };
 
 HOOK_SIG(my_start){
-    exec_command(cmd_context, cmdid_open_panel_vsplit);
-    exec_command(cmd_context, cmdid_change_active_panel);
+    exec_command(app, cmdid_open_panel_vsplit);
+    exec_command(app, cmdid_change_active_panel);
 }
 
 char *get_extension(const char *filename, int len, int *extension_len){
@@ -55,7 +55,7 @@ bool str_match(const char *a, int len_a, const char *b, int len_b){
 }
 
 HOOK_SIG(my_file_settings){
-     Buffer_Summary buffer = app->get_active_buffer(cmd_context);
+     Buffer_Summary buffer = app->get_active_buffer(app);
      
      // NOTE(allen|a3.4.2): Whenever you ask for a buffer, you can check that
      // the exists field is set to true.  Reasons why the buffer might not exist:
@@ -74,25 +74,25 @@ HOOK_SIG(my_file_settings){
              else if (str_match(extension, extension_len, literal("hpp"))) treat_as_code = 1;
          }
 
-         push_parameter(app, cmd_context, par_lex_as_cpp_file, treat_as_code);
-         push_parameter(app, cmd_context, par_wrap_lines, !treat_as_code);
-         push_parameter(app, cmd_context, par_key_mapid, (treat_as_code)?((int)my_code_map):((int)mapid_file));
-         exec_command(cmd_context, cmdid_set_settings);
+         push_parameter(app, par_lex_as_cpp_file, treat_as_code);
+         push_parameter(app, par_wrap_lines, !treat_as_code);
+         push_parameter(app, par_key_mapid, (treat_as_code)?((int)my_code_map):((int)mapid_file));
+         exec_command(app, cmdid_set_settings);
      }
 }
 
 CUSTOM_COMMAND_SIG(write_increment){
     char text[] = "++";
     int size = sizeof(text) - 1;
-    Buffer_Summary buffer = app->get_active_buffer(cmd_context);
-    app->buffer_replace_range(cmd_context, &buffer, buffer.file_cursor_pos, buffer.file_cursor_pos, text, size);
+    Buffer_Summary buffer = app->get_active_buffer(app);
+    app->buffer_replace_range(app, &buffer, buffer.file_cursor_pos, buffer.file_cursor_pos, text, size);
 }
 
 CUSTOM_COMMAND_SIG(write_decrement){
     char text[] = "--";
     int size = sizeof(text) - 1;
-    Buffer_Summary buffer = app->get_active_buffer(cmd_context);
-    app->buffer_replace_range(cmd_context, &buffer, buffer.file_cursor_pos, buffer.file_cursor_pos, text, size);
+    Buffer_Summary buffer = app->get_active_buffer(app);
+    app->buffer_replace_range(app, &buffer, buffer.file_cursor_pos, buffer.file_cursor_pos, text, size);
 }
 
 CUSTOM_COMMAND_SIG(open_long_braces){
@@ -102,18 +102,18 @@ CUSTOM_COMMAND_SIG(open_long_braces){
     int size = sizeof(text) - 1;
     int pos;
     
-    view = app->get_active_file_view(cmd_context);
-    buffer = app->get_buffer(cmd_context, view.file_id);
+    view = app->get_active_file_view(app);
+    buffer = app->get_buffer(app, view.file_id);
     
     pos = view.cursor.pos;
-    app->buffer_replace_range(cmd_context, &buffer, pos, pos, text, size);
-    app->view_set_cursor(cmd_context, &view, seek_pos(pos + 2), 1);
-    app->view_set_mark(cmd_context, &view, seek_pos(pos + 4));
+    app->buffer_replace_range(app, &buffer, pos, pos, text, size);
+    app->view_set_cursor(app, &view, seek_pos(pos + 2), 1);
+    app->view_set_mark(app, &view, seek_pos(pos + 4));
     
-    push_parameter(app, cmd_context, par_range_start, pos);
-    push_parameter(app, cmd_context, par_range_end, pos + size);
-    push_parameter(app, cmd_context, par_clear_blank_lines, 0);
-    exec_command(cmd_context, cmdid_auto_tab_range);
+    push_parameter(app, par_range_start, pos);
+    push_parameter(app, par_range_end, pos + size);
+    push_parameter(app, par_clear_blank_lines, 0);
+    exec_command(app, cmdid_auto_tab_range);
 }
 
 CUSTOM_COMMAND_SIG(ifdef_off){
@@ -129,27 +129,27 @@ CUSTOM_COMMAND_SIG(ifdef_off){
     Range range;
     int pos;
 
-    view = app->get_active_file_view(cmd_context);
-    buffer = app->get_active_buffer(cmd_context);
+    view = app->get_active_file_view(app);
+    buffer = app->get_active_buffer(app);
 
     range = get_range(&view);
     pos = range.min;
 
-    app->buffer_replace_range(cmd_context, &buffer, pos, pos, text1, size1);
+    app->buffer_replace_range(app, &buffer, pos, pos, text1, size1);
 
-    push_parameter(app, cmd_context, par_range_start, pos);
-    push_parameter(app, cmd_context, par_range_end, pos);
-    exec_command(cmd_context, cmdid_auto_tab_range);
+    push_parameter(app, par_range_start, pos);
+    push_parameter(app, par_range_end, pos);
+    exec_command(app, cmdid_auto_tab_range);
     
-    app->refresh_file_view(cmd_context, &view);
+    app->refresh_file_view(app, &view);
     range = get_range(&view);
     pos = range.max;
     
-    app->buffer_replace_range(cmd_context, &buffer, pos, pos, text2, size2);
+    app->buffer_replace_range(app, &buffer, pos, pos, text2, size2);
     
-    push_parameter(app, cmd_context, par_range_start, pos);
-    push_parameter(app, cmd_context, par_range_end, pos);
-    exec_command(cmd_context, cmdid_auto_tab_range);
+    push_parameter(app, par_range_start, pos);
+    push_parameter(app, par_range_end, pos);
+    exec_command(app, cmdid_auto_tab_range);
 }
 
 CUSTOM_COMMAND_SIG(backspace_word){
@@ -157,15 +157,15 @@ CUSTOM_COMMAND_SIG(backspace_word){
     Buffer_Summary buffer;
     int pos2, pos1;
     
-    view = app->get_active_file_view(cmd_context);
+    view = app->get_active_file_view(app);
     
     pos2 = view.cursor.pos;
-    exec_command(cmd_context, cmdid_seek_alphanumeric_left);
-    app->refresh_file_view(cmd_context, &view);
+    exec_command(app, cmdid_seek_alphanumeric_left);
+    app->refresh_file_view(app, &view);
     pos1 = view.cursor.pos;
     
-    buffer = app->get_buffer(cmd_context, view.file_id);
-    app->buffer_replace_range(cmd_context, &buffer, pos1, pos2, 0, 0);
+    buffer = app->get_buffer(app, view.file_id);
+    app->buffer_replace_range(app, &buffer, pos1, pos2, 0, 0);
 }
 
 CUSTOM_COMMAND_SIG(switch_to_compilation){
@@ -179,17 +179,17 @@ CUSTOM_COMMAND_SIG(switch_to_compilation){
     // a bit to handle a general view type which can be manipulated at least enough
     // to change the specific type of view and set files even when the view didn't
     // contain a file.
-    view = app->get_active_file_view(cmd_context);
-    buffer = app->get_buffer_by_name(cmd_context, make_string(name, name_size));
+    view = app->get_active_file_view(app);
+    buffer = app->get_buffer_by_name(app, make_string(name, name_size));
     
-    app->view_set_file(cmd_context, &view, buffer.file_id);
+    app->view_set_file(app, &view, buffer.file_id);
 }
 
 CUSTOM_COMMAND_SIG(move_up_10){
     File_View_Summary view;
     float x, y;
 
-    view = app->get_active_file_view(cmd_context);
+    view = app->get_active_file_view(app);
     x = view.preferred_x;
     
     if (view.unwrapped_lines){
@@ -201,14 +201,14 @@ CUSTOM_COMMAND_SIG(move_up_10){
     
     y -= 10*view.line_height;
 
-    app->view_set_cursor(cmd_context, &view, seek_xy(x, y, 0, view.unwrapped_lines), 0);
+    app->view_set_cursor(app, &view, seek_xy(x, y, 0, view.unwrapped_lines), 0);
 }
 
 CUSTOM_COMMAND_SIG(move_down_10){
     File_View_Summary view;
     float x, y;
 
-    view = app->get_active_file_view(cmd_context);
+    view = app->get_active_file_view(app);
     x = view.preferred_x;
     
     if (view.unwrapped_lines){
@@ -220,7 +220,7 @@ CUSTOM_COMMAND_SIG(move_down_10){
     
     y += 10*view.line_height;
     
-    app->view_set_cursor(cmd_context, &view, seek_xy(x, y, 0, view.unwrapped_lines), 0);
+    app->view_set_cursor(app, &view, seek_xy(x, y, 0, view.unwrapped_lines), 0);
 }
 
 CUSTOM_COMMAND_SIG(switch_to_file_in_quotes){
@@ -229,13 +229,13 @@ CUSTOM_COMMAND_SIG(switch_to_file_in_quotes){
     char short_file_name[128];
     int pos, start, end, size;
     
-    view = app->get_active_file_view(cmd_context);
+    view = app->get_active_file_view(app);
     if (view.exists){
-        buffer = app->get_buffer(cmd_context, view.file_id);
+        buffer = app->get_buffer(app, view.file_id);
         if (buffer.ready){
             pos = view.cursor.pos;
-            app->buffer_seek_delimiter(cmd_context, &buffer, pos, '"', 1, &end);
-            app->buffer_seek_delimiter(cmd_context, &buffer, pos, '"', 0, &start);
+            app->buffer_seek_delimiter(app, &buffer, pos, '"', 1, &end);
+            app->buffer_seek_delimiter(app, &buffer, pos, '"', 0, &start);
             
             ++start;
             
@@ -244,21 +244,21 @@ CUSTOM_COMMAND_SIG(switch_to_file_in_quotes){
                 char file_name_[256];
                 String file_name = make_fixed_width_string(file_name_);
                 
-                app->buffer_read_range(cmd_context, &buffer, start, end, short_file_name);
+                app->buffer_read_range(app, &buffer, start, end, short_file_name);
                 
                 copy(&file_name, make_string(buffer.file_name, buffer.file_name_len));
                 truncate_to_path_of_directory(&file_name);
                 append(&file_name, make_string(short_file_name, size));
                 
-                buffer = app->get_buffer_by_name(cmd_context, file_name);
-                exec_command(cmd_context, cmdid_change_active_panel);
-                view = app->get_active_file_view(cmd_context);
+                buffer = app->get_buffer_by_name(app, file_name);
+                exec_command(app, cmdid_change_active_panel);
+                view = app->get_active_file_view(app);
                 if (buffer.exists){
-                    app->view_set_file(cmd_context, &view, buffer.file_id);
+                    app->view_set_file(app, &view, buffer.file_id);
                 }
                 else{
-                    push_parameter(app, cmd_context, par_name, expand_str(file_name));
-                    exec_command(cmd_context, cmdid_interactive_open);
+                    push_parameter(app, par_name, expand_str(file_name));
+                    exec_command(app, cmdid_interactive_open);
                 }
             }
         }
@@ -266,18 +266,18 @@ CUSTOM_COMMAND_SIG(switch_to_file_in_quotes){
 }
 
 CUSTOM_COMMAND_SIG(open_in_other){
-    exec_command(cmd_context, cmdid_change_active_panel);
-    exec_command(cmd_context, cmdid_interactive_open);
+    exec_command(app, cmdid_change_active_panel);
+    exec_command(app, cmdid_interactive_open);
 }
 
 CUSTOM_COMMAND_SIG(open_my_files){
     // NOTE(allen|a3.1): The command cmdid_interactive_open can now open
     // a file specified on the parameter stack.  If the file does not exist
     // cmdid_interactive_open behaves as usual.
-    push_parameter(app, cmd_context, par_name, literal("w:/4ed/data/test/basic.cpp"));
-    exec_command(cmd_context, cmdid_interactive_open);
+    push_parameter(app, par_name, literal("w:/4ed/data/test/basic.cpp"));
+    exec_command(app, cmdid_interactive_open);
 
-    exec_command(cmd_context, cmdid_change_active_panel);
+    exec_command(app, cmdid_change_active_panel);
 
     char my_file[256];
     int my_file_len;
@@ -288,21 +288,21 @@ CUSTOM_COMMAND_SIG(open_my_files){
     }
 
     // NOTE(allen|a3.1): null terminators are not needed for strings.
-    push_parameter(app, cmd_context, par_name, my_file, my_file_len);
-    exec_command(cmd_context, cmdid_interactive_open);
+    push_parameter(app, par_name, my_file, my_file_len);
+    exec_command(app, cmdid_interactive_open);
 
-    exec_command(cmd_context, cmdid_change_active_panel);
+    exec_command(app, cmdid_change_active_panel);
 }
 
 CUSTOM_COMMAND_SIG(build_at_launch_location){
     // NOTE(allen|a3.3): An example of calling build by setting all
     // parameters directly. This only works if build.bat can be called
-    // from the starting directory
-    push_parameter(app, cmd_context, par_cli_overlap_with_conflict, 1);
-    push_parameter(app, cmd_context, par_name, literal("*compilation*"));
-    push_parameter(app, cmd_context, par_cli_path, literal("."));
-    push_parameter(app, cmd_context, par_cli_command, literal("build"));
-    exec_command(cmd_context, cmdid_build);
+    // from the directory the application is launched at.
+    push_parameter(app, par_cli_overlap_with_conflict, 1);
+    push_parameter(app, par_name, literal("*compilation*"));
+    push_parameter(app, par_cli_path, literal("."));
+    push_parameter(app, par_cli_command, literal("build"));
+    exec_command(app, cmdid_build);
 }
 
 CUSTOM_COMMAND_SIG(build_search){
@@ -336,34 +336,25 @@ CUSTOM_COMMAND_SIG(build_search){
     // It returns true if it can actually move in the specified direction, and false otherwise.
     
     int keep_going = 1;
-    String dir = push_directory(app, cmd_context);
+    String dir = push_directory(app);
     while (keep_going){
-        if (app->directory_has_file(dir, "build.bat")){
-            push_parameter(app, cmd_context, par_cli_overlap_with_conflict, 0);
-            push_parameter(app, cmd_context, par_name, literal("*compilation*"));
-            push_parameter(app, cmd_context, par_cli_path, dir.str, dir.size);
+        if (app->directory_has_file(app, dir, "build.bat")){
+            push_parameter(app, par_cli_overlap_with_conflict, 0);
+            push_parameter(app, par_name, literal("*compilation*"));
+            push_parameter(app, par_cli_path, dir.str, dir.size);
             
             if (append(&dir, "build")){
-#if 1
-                // NOTE(allen): This version avoids an unecessary copy, both equivalents are
-                // included to demonstrate how using push_parameter without the helper looks.
-                app->push_parameter(cmd_context,
-                    dynamic_int(par_cli_command),
-                    dynamic_string(dir.str, dir.size));
-#else
-                push_parameter(cmd_context, par_cli_command, dir.str, dir.size);
-#endif
-                
-                exec_command(cmd_context, cmdid_build);
+                push_parameter(app, par_cli_command, dir.str, dir.size);
+                exec_command(app, cmdid_build);
             }
             else{
-                clear_parameters(cmd_context);
+                app->clear_parameters(app);
             }
             
             return;
         }
 
-        if (app->directory_cd(&dir, "..") == 0){
+        if (app->directory_cd(app, &dir, "..") == 0){
             keep_going = 0;
         }
     }
@@ -372,8 +363,8 @@ CUSTOM_COMMAND_SIG(build_search){
 }
 
 CUSTOM_COMMAND_SIG(write_and_auto_tab){
-    exec_command(cmd_context, cmdid_write_character);
-    exec_command(cmd_context, cmdid_auto_tab_line_at_cursor);
+    exec_command(app, cmdid_write_character);
+    exec_command(app, cmdid_auto_tab_line_at_cursor);
 }
 
 extern "C" GET_BINDING_DATA(get_bindings){
