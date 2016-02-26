@@ -22,7 +22,12 @@
 #include "4ed_mem.cpp"
 #include "4ed_math.cpp"
 
-#include "4coder_custom.h"
+#include "4coder_custom.cpp"
+
+#undef exec_command
+#undef exec_command_keep_stack
+#undef clear_parameters
+
 #include "4ed_system.h"
 #include "4ed_rendering.h"
 #include "4ed.h"
@@ -1649,6 +1654,10 @@ main(int argc, char **argv)
             dlsym(linuxvars.custom, "get_bindings");
     }
 #endif
+    
+    if (linuxvars.custom_api.get_bindings == 0){
+        linuxvars.custom_api.get_bindings = get_bindings;
+    }
     
     Thread_Context background[4] = {};
     linuxvars.groups[BACKGROUND_THREADS].threads = background;
