@@ -303,13 +303,14 @@ CUSTOM_COMMAND_SIG(switch_to_file_in_quotes){
 
 CUSTOM_COMMAND_SIG(goto_line){
     int line_number;
-    String input;
+    Query_Bar bar;
     char string_space[256];
     
-    input = make_fixed_width_string(string_space);
-
-    if (query_user_number(app, make_lit_string("Goto Line: "), &input)){
-        line_number = str_to_int(input);
+    bar.prompt = make_lit_string("Goto Line: ");
+    bar.string = make_fixed_width_string(string_space);
+    
+    if (query_user_number(app, &bar)){
+        line_number = str_to_int(bar.string);
         active_view_to_line(app, line_number);
     }
 }
@@ -437,75 +438,93 @@ CUSTOM_COMMAND_SIG(reverse_search){
 }
 
 CUSTOM_COMMAND_SIG(replace_in_range){
+    Query_Bar replace;
     char replace_space[1024];
-    String replace = make_fixed_width_string(replace_space);
+    replace.prompt = make_lit_string("Replace: ");
+    replace.string = make_fixed_width_string(replace_space);
     
+    Query_Bar with;
     char with_space[1024];
-    String with = make_fixed_width_string(with_space);;
-
-    if (!query_user_string(app, make_lit_string("Replace: "), &replace)) return;
-    if (!query_user_string(app, make_lit_string("With: "), &with)) return;
+    with.prompt = make_lit_string("With: ");
+    with.string = make_fixed_width_string(with_space);
+    
+    if (!query_user_string(app, &replace)) return;
+    if (!query_user_string(app, &with)) return;
+    
+    String r, w;
+    r = replace.string;
+    w = with.string;
 
     Buffer_Summary buffer;
     File_View_Summary view;
-    
+
     view = app->get_active_file_view(app);
     buffer = app->get_buffer(app, view.buffer_id);
-    
+
     Range range = get_range(&view);
-    
+
     int pos, new_pos;
     pos = range.min;
-    app->buffer_seek_string(app, &buffer, pos, replace.str, replace.size, 1, &new_pos);
+    app->buffer_seek_string(app, &buffer, pos, r.str, r.size, 1, &new_pos);
     
     while (new_pos < range.end){
-        app->buffer_replace_range(app, &buffer, new_pos, new_pos + replace.size, with.str, with.size);
-        pos = new_pos + with.size;
-        app->buffer_seek_string(app, &buffer, pos, replace.str, replace.size, 1, &new_pos);
+        app->buffer_replace_range(app, &buffer, new_pos, new_pos + r.size, w.str, w.size);
+        pos = new_pos + w.size;
+        app->buffer_seek_string(app, &buffer, pos, r.str, r.size, 1, &new_pos);
     }
 }
 
 CUSTOM_COMMAND_SIG(query_replace){
+    Query_Bar replace;
     char replace_space[1024];
-    String replace = make_fixed_width_string(replace_space);
-
+    replace.prompt = make_lit_string("Replace: ");
+    replace.string = make_fixed_width_string(replace_space);
+    
+    Query_Bar with;
     char with_space[1024];
-    String with = make_fixed_width_string(with_space);;
-
-    if (!query_user_string(app, make_lit_string("Replace: "), &replace)) return;
-    if (!query_user_string(app, make_lit_string("With: "), &with)) return;
+    with.prompt = make_lit_string("With: ");
+    with.string = make_fixed_width_string(with_space);
+    
+    if (!query_user_string(app, &replace)) return;
+    if (!query_user_string(app, &with)) return;
+    
+    String r, w;
+    r = replace.string;
+    w = with.string;
     
     Query_Bar bar;
     Buffer_Summary buffer;
     File_View_Summary view;
     int pos, new_pos;
-
+    
     bar.prompt = make_lit_string("Replace? (y)es, (n)ext, (esc)\n");
     bar.string = {};
-
+    
+    app->start_query_bar(app, &bar, 0);
+    
     view = app->get_active_file_view(app);
     buffer = app->get_buffer(app, view.buffer_id);
 
     pos = view.cursor.pos;
-    app->buffer_seek_string(app, &buffer, pos, replace.str, replace.size, 1, &new_pos);
-
+    app->buffer_seek_string(app, &buffer, pos, r.str, r.size, 1, &new_pos);
+    
     User_Input in = {};
     while (new_pos < buffer.size){
-        Range match = make_range(new_pos, new_pos + replace.size);
+        Range match = make_range(new_pos, new_pos + r.size);
         app->view_set_highlight(app, &view, match.min, match.max, 1);
-
+        
         in = app->get_user_input(app, EventOnAnyKey, EventOnButton);
-        if (in.abort || in.key.keycode == key_esc)  break;
-
+        if (in.abort || in.key.keycode == key_esc || !key_is_unmodified(&in.key))  break;
+        
         if (in.key.character == 'y' || in.key.character == 'Y' || in.key.character == '\n' || in.key.character == '\t'){
-            app->buffer_replace_range(app, &buffer, match.min, match.max, with.str, with.size);
-            pos = match.start + with.size;
+            app->buffer_replace_range(app, &buffer, match.min, match.max, w.str, w.size);
+            pos = match.start + w.size;
         }
         else{
             pos = match.max;
         }
-
-        app->buffer_seek_string(app, &buffer, pos, replace.str, replace.size, 1, &new_pos);
+        
+        app->buffer_seek_string(app, &buffer, pos, r.str, r.size, 1, &new_pos);
     }
 
     app->view_set_highlight(app, &view, 0, 0, 0);
@@ -626,7 +645,7 @@ extern "C" GET_BINDING_DATA(get_bindings){
     set_hook(context, hook_open_file, my_file_settings);
     
     begin_map(context, mapid_global);
-
+    
     bind(context, 'p', MDFR_CTRL, cmdid_open_panel_vsplit);
     bind(context, '_', MDFR_CTRL, cmdid_open_panel_hsplit);
     bind(context, 'P', MDFR_CTRL, cmdid_close_panel);
@@ -638,7 +657,7 @@ extern "C" GET_BINDING_DATA(get_bindings){
     bind(context, 'c', MDFR_ALT, cmdid_open_color_tweaker);
     bind(context, 'x', MDFR_ALT, cmdid_open_menu);
     bind(context, 'o', MDFR_ALT, open_in_other);
-
+    
     // NOTE(allen): These callbacks may not actually be useful to you, but
     // go look at them and see what they do.
     bind(context, 'M', MDFR_ALT | MDFR_CTRL, open_my_files);

@@ -787,8 +787,7 @@ ui_do_slider_input(UI_State *state, i32_Rect rect, Widget_ID wid,
 }
 
 internal bool32
-do_text_field(Widget_ID wid, UI_State *state, UI_Layout *layout,
-              String prompt, String dest){
+do_text_field(Widget_ID wid, UI_State *state, UI_Layout *layout, String prompt, String dest){
     b32 result = 0;
     i32 character_h = get_font_info(state->font_set, state->font_id)->height;
 
@@ -810,9 +809,9 @@ do_text_field(Widget_ID wid, UI_State *state, UI_Layout *layout,
         get_pop_color(state, &prompt_pop, wid, ui_style);
         
         draw_rectangle(target, rect, back);
-        i32 x = rect.x0;
-        x = draw_string(target, state->font_id, prompt, x, rect.y0, prompt_pop);
-        draw_string(target, state->font_id, dest, x, rect.y0, ui_style.base);
+        
+        i32 x = draw_string(target, state->font_id, prompt, rect.x0, rect.y0 + 1, prompt_pop);
+        draw_string(target, state->font_id, dest, x, rect.y0 + 1, ui_style.base);
     }
 
     return result;

@@ -251,9 +251,8 @@ key_is_unmodified(Key_Event_Data *key){
 }
 
 static int
-query_user_general(Application_Links *app, String prompt, String *string, int force_number){
+query_user_general(Application_Links *app, Query_Bar *bar, int force_number){
     User_Input in;
-    Query_Bar bar;
     int success = 1;
     int good_character = 0;
     
@@ -262,13 +261,7 @@ query_user_general(Application_Links *app, String prompt, String *string, int fo
     // user, if this command starts intercepting input even though no prompt is shown.
     // This will only happen if you have a lot of bars open already or if the current view
     // doesn't support query bars.
-    if (app->start_query_bar(app, &bar, 0) == 0) return 0;
-    
-    // NOTE(allen|a3.4.4): The application side is storing a pointer straight to your Query_Bar
-    // any change you make to it will be reflected in what the application renders.  The application
-    // also makes sure that it destroys all query bars whenever a command exits.
-    bar.prompt = prompt;
-    bar.string = *string;
+    if (app->start_query_bar(app, bar, 0) == 0) return 0;
     
     while (1){
         // NOTE(allen|a3.4.4): This call will block until the user does one of the input
@@ -306,35 +299,25 @@ query_user_general(Application_Links *app, String prompt, String *string, int fo
                 break;
             }
             else if (in.key.keycode == key_back){
-                --bar.string.size;
+                --bar->string.size;
             }
             else if (good_character){
-                append(&bar.string, in.key.character);
+                append(&bar->string, in.key.character);
             }
         }
     }
     
-    // NOTE(allen|a3.4.4): It is not always necessary to end your query bars, because
-    // 4coder will clean them up when the command exits anyway, but because this is
-    // a local scope we should clean up the bar manually because the pointer the application
-    // stores to our Query_Bar is about to go bad.
-    app->end_query_bar(app, &bar, 0);
-    
-    if (success){
-        *string = bar.string;
-    }
-    
     return(success);
 }
 
 inline int
-query_user_string(Application_Links *app, String prompt, String *string){
-    int success = query_user_general(app, prompt, string, 0);
+query_user_string(Application_Links *app, Query_Bar *bar){
+    int success = query_user_general(app, bar, 0);
     return(success);
 }
 
 inline int
-query_user_number(Application_Links *app, String prompt, String *string){
-    int success = query_user_general(app, prompt, string, 1);
+query_user_number(Application_Links *app, Query_Bar *bar){
+    int success = query_user_general(app, bar, 1);
     return(success);
 }

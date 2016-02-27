@@ -21,8 +21,6 @@ struct Incremental_Search{
 
 enum File_View_Widget_Type{
     FWIDG_NONE,
-    //FWIDG_SEARCH,
-    //FWIDG_GOTO_LINE,
     FWIDG_TIMELINES,
     // never below this
     FWIDG_TYPE_COUNT
@@ -1449,8 +1447,6 @@ view_widget_height(File_View *view, i32 font_height){
         }
     }
     break;
-    //case FWIDG_SEARCH: result = font_height + 2; break;
-    //case FWIDG_GOTO_LINE: result = font_height + 2; break;
     case FWIDG_TIMELINES: result = view->widget.height; break;
     }
     return result;
@@ -3165,24 +3161,24 @@ draw_file_loaded(File_View *view, i32_Rect rect, b32 is_active, Render_Target *t
     
     end_temp_memory(temp);
 #endif
-
+    
 #if 0
     ui_render(target, view->gui_target);
 #else
     UI_Style ui_style = get_ui_style_upper(style);
-
+    
     i32_Rect widg_rect = view_widget_rect(view, view->font_height);
-
+    
     draw_rectangle(target, widg_rect, ui_style.dark);
     draw_rectangle_outline(target, widg_rect, ui_style.dim);
-
+    
     UI_State state =
         ui_state_init(&view->widget.state, target, 0,
         view->style, view->font_set, 0, 0);
-
+    
     UI_Layout layout;
     begin_layout(&layout, widg_rect);
-
+    
     switch (view->widget.type){
         case FWIDG_NONE:
         {
@@ -3196,7 +3192,7 @@ draw_file_loaded(File_View *view, i32_Rect rect, b32 is_active, Render_Target *t
                 do_text_field(wid, &state, &layout, bar->prompt, bar->string);
             }
         }break;
-
+        
         case FWIDG_TIMELINES:
         {
             Assert(file);
@@ -3227,29 +3223,6 @@ draw_file_loaded(File_View *view, i32_Rect rect, b32 is_active, Render_Target *t
                 do_button(3, &state, &layout, "+ History", 1);
             }
         }break;
-
-#if 0
-        case FWIDG_SEARCH:
-        {
-            Widget_ID wid = make_id(&state, 1);
-            persist String search_str = make_lit_string("I-Search: ");
-            persist String rsearch_str = make_lit_string("Reverse-I-Search: ");
-            if (view->isearch.reverse){
-                do_text_field(wid, &state, &layout, rsearch_str, view->isearch.str);
-            }
-            else{
-                do_text_field(wid, &state, &layout, search_str, view->isearch.str);
-            }
-        }break;
-
-        case FWIDG_GOTO_LINE:
-        {
-            Widget_ID wid = make_id(&state, 1);
-            persist String gotoline_str = make_lit_string("Goto Line: ");
-            do_text_field(wid, &state, &layout, gotoline_str, view->isearch.str);
-        }break;
-#endif
-
     }
 
     ui_finish_frame(&view->widget.state, &state, &layout, widg_rect, 0, 0);
@@ -3317,134 +3290,6 @@ internal void
 command_search(System_Functions*,Command_Data*,Command_Binding);
 internal void
 command_reverse_search(System_Functions*,Command_Data*,Command_Binding);
-
-#if 0
-internal
-HANDLE_COMMAND_SIG(handle_command_file_view){
-    File_View *file_view = (File_View*)(view);
-    Editing_File *file = file_view->file;
-    AllowLocal(file);
-    
-    switch (file_view->widget.type){
-    case FWIDG_NONE:
-    case FWIDG_TIMELINES:
-    {
-        file_view->next_mode = {};
-        if (binding.function) binding.function(system, command, binding);
-        file_view->mode = file_view->next_mode;
-        
-        if (key.keycode == key_esc)
-            view_set_widget(file_view, FWIDG_NONE);
-    }break;
-    
-    case FWIDG_SEARCH:
-    {
-        String *string = &file_view->isearch.str;
-        Single_Line_Input_Step result =
-            app_single_line_input_step(system, key, string);
-        
-        if (result.made_a_change ||
-            binding.function == command_search ||
-            binding.function == command_reverse_search){
-            b32 step_forward = 0;
-            b32 step_backward = 0;
-            
-            if (binding.function == command_search) step_forward = 1;
-            if (binding.function == command_reverse_search) step_backward = 1;
-            
-            i32 start_pos = file_view->isearch.pos;
-            if (step_forward){
-                if (file_view->isearch.reverse){
-                    start_pos = file_view->temp_highlight.pos + 1;
-                    file_view->isearch.pos = start_pos;
-                    file_view->isearch.reverse = 0;
-                    step_forward = 0;
-                }
-            }
-            if (step_backward){
-                if (!file_view->isearch.reverse){
-                    start_pos = file_view->temp_highlight.pos - 1;
-                    file_view->isearch.pos = start_pos;
-                    file_view->isearch.reverse = 1;
-                    step_backward = 0;
-                }
-            }
-            
-            Temp_Memory temp = begin_temp_memory(&view->mem->part);
-            char *spare = push_array(&view->mem->part, char, string->size);
-            
-            i32 size = buffer_size(&file->state.buffer);
-            i32 pos;
-            if (!result.hit_backspace){
-                if (file_view->isearch.reverse){
-                    pos = buffer_rfind_string(&file->state.buffer, start_pos - 1,
-                                              string->str, string->size, spare);
-                    if (pos >= 0){
-                        if (step_backward){
-                            file_view->isearch.pos = pos;
-                            start_pos = pos;
-                            pos = buffer_rfind_string(&file->state.buffer, start_pos - 1,
-                                                      string->str, string->size, spare);
-                            if (pos == -1) pos = start_pos;
-                        }
-                        view_set_temp_highlight(file_view, pos, pos+string->size);
-                    }
-                }
-                
-                else{
-                    pos = buffer_find_string(&file->state.buffer, start_pos + 1, size,
-                                             string->str, string->size, spare);
-                    if (pos < size){
-                        if (step_forward){
-                            file_view->isearch.pos = pos;
-                            start_pos = pos;
-                            pos = buffer_find_string(&file->state.buffer, start_pos + 1, size,
-                                                     string->str, string->size, spare);
-                            if (pos == size) pos = start_pos;
-                        }
-                        view_set_temp_highlight(file_view, pos, pos+string->size);
-                    }
-                }
-            }
-            
-            end_temp_memory(temp);
-        }
-        
-        if (result.hit_newline || result.hit_ctrl_newline){
-            view_cursor_move(file_view, file_view->temp_highlight);
-            view_set_widget(file_view, FWIDG_NONE);
-        }
-        
-        if (result.hit_esc){
-            file_view->show_temp_highlight = 0;
-            view_set_widget(file_view, FWIDG_NONE);
-        }
-    }break;
-    
-    case FWIDG_GOTO_LINE:
-    {
-        String *string = &file_view->gotoline.str;
-        Single_Line_Input_Step result =
-            app_single_number_input_step(system, key, string);
-        
-        if (result.hit_newline || result.hit_ctrl_newline){
-            i32 line_number = str_to_int(*string);
-            if (line_number < 1) line_number = 1;
-            file_view->cursor =
-                view_compute_cursor_from_unwrapped_xy(file_view, 0,
-                                                      (f32)(line_number-1)*file_view->font_height);
-            file_view->preferred_x = view_get_cursor_x(file_view);
-            
-            view_set_widget(file_view, FWIDG_NONE);
-        }
-        
-        if (result.hit_esc){
-            view_set_widget(file_view, FWIDG_NONE);
-        }
-    }break;
-    }
-}
-#endif
 
 inline void
 free_file_view(View *view){
