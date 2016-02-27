@@ -67,6 +67,7 @@
 #include <signal.h>
 #include <sys/types.h>
 #include <sys/wait.h>
+#include <ucontext.h>
 
 //#define FRED_USE_FONTCONFIG 1
 
@@ -82,6 +83,13 @@ struct Linux_Semaphore {
 struct Linux_Semaphore_Handle {
     pthread_mutex_t *mutex_p;
     pthread_cond_t *cond_p;
+};
+
+struct Linux_Coroutine {
+	Coroutine coroutine;
+	Linux_Coroutine *next;
+	ucontext_t ctx, yield_ctx;
+	b32 done;
 };
 
 struct Thread_Context{
@@ -143,6 +151,9 @@ struct Linux_Vars{
 #endif
 
     Font_Load_System fnt;
+    
+	Linux_Coroutine coroutine_data[2];
+    Linux_Coroutine *coroutine_free;
 };
 
 #define LINUX_MAX_PASTE_CHARS 0x10000L
@@ -394,6 +405,91 @@ Sys_Post_Clipboard_Sig(system_post_clipboard){
     XSetSelectionOwner(linuxvars.XDisplay, linuxvars.atom_CLIPBOARD, linuxvars.XWindow, CurrentTime);
 }
 
+internal Linux_Coroutine*
+LinuxAllocCoroutine(){
+    Linux_Coroutine *result = linuxvars.coroutine_free;
+    Assert(result != 0);
+	if(getcontext(&result->ctx) == -1){
+		perror("getcontext");
+	}
+    linuxvars.coroutine_free = result->next;
+    return(result);
+}
+
+internal void
+LinuxFreeCoroutine(Linux_Coroutine *data){
+    data->next = linuxvars.coroutine_free;
+    linuxvars.coroutine_free = data;
+}
+
+internal void
+LinuxCoroutineMain(void *arg_){
+    Linux_Coroutine *c = (Linux_Coroutine*)arg_;
+    c->coroutine.func(&c->coroutine);
+    c->done = 1;
+    LinuxFreeCoroutine(c);
+    setcontext((ucontext_t*)c->coroutine.yield_handle);
+}
+
+static_assert(sizeof(Plat_Handle) >= sizeof(ucontext_t*), "Plat handle not big enough");
+
+internal
+Sys_Create_Coroutine_Sig(system_create_coroutine){
+    Linux_Coroutine *c = LinuxAllocCoroutine();
+    c->done = 0;
+    
+	makecontext(&c->ctx, (void (*)())LinuxCoroutineMain, 1, &c->coroutine);
+   
+    *(ucontext_t**)&c->coroutine.plat_handle = &c->ctx;
+    c->coroutine.func = func;
+    
+    return(&c->coroutine);
+}
+
+internal
+Sys_Launch_Coroutine_Sig(system_launch_coroutine){
+    Linux_Coroutine *c = (Linux_Coroutine*)coroutine;
+    ucontext_t* ctx = *(ucontext**)&coroutine->plat_handle;
+
+    coroutine->yield_handle = &c->yield_ctx;
+    coroutine->in = in;
+    coroutine->out = out;
+    
+	swapcontext(&c->yield_ctx, ctx); 
+    
+    if (c->done){
+        LinuxFreeCoroutine(c);
+        coroutine = 0;
+    }
+    
+    return(coroutine);
+}
+
+Sys_Resume_Coroutine_Sig(system_resume_coroutine){
+    Linux_Coroutine *c = (Linux_Coroutine*)coroutine;
+    void *fiber;
+    
+    Assert(!c->done);
+    
+    coroutine->yield_handle = &c->yield_ctx;
+    coroutine->in = in;
+    coroutine->out = out;
+    
+    ucontext *ctx = *(ucontext**)&coroutine->plat_handle;
+    
+    swapcontext(&c->yield_ctx, ctx);
+    
+    if (c->done){
+        LinuxFreeCoroutine(c);
+        coroutine = 0;
+    }
+    
+    return(coroutine);
+}
+
+Sys_Yield_Coroutine_Sig(system_yield_coroutine){
+	swapcontext(*(ucontext_t**)&coroutine->plat_handle, (ucontext*)coroutine->yield_handle);
+}
 
 Sys_CLI_Call_Sig(system_cli_call){
     // TODO(allen): Implement
@@ -998,6 +1094,11 @@ LinuxLoadSystemCode(){
     linuxvars.system->post_clipboard = system_post_clipboard;
     linuxvars.system->time = system_time;
     
+    linuxvars.system->create_coroutine = system_create_coroutine;
+    linuxvars.system->launch_coroutine = system_launch_coroutine;
+    linuxvars.system->resume_coroutine = system_resume_coroutine;
+    linuxvars.system->yield_coroutine = system_yield_coroutine;
+
     linuxvars.system->cli_call = system_cli_call;
     linuxvars.system->cli_begin_update = system_cli_begin_update;
     linuxvars.system->cli_update_step = system_cli_update_step;
@@ -1536,7 +1637,7 @@ InitializeXInput(Display *dpy, Window XWindow)
     return(result);
 }
 
-static void push_key(u8 code, u8 chr, u8 chr_nocaps, b8 (*mods)[CONTROL_KEY_COUNT], b32 is_hold){
+static void push_key(u8 code, u8 chr, u8 chr_nocaps, b8 (*mods)[MDFR_INDEX_COUNT], b32 is_hold){
     i32 *count;
     Key_Event_Data *data;
 
@@ -1582,6 +1683,16 @@ main(int argc, char **argv)
     linuxvars.system = system;
     LinuxLoadSystemCode();
     
+    linuxvars.coroutine_free = linuxvars.coroutine_data;
+    for (i32 i = 0; i+1 < ArrayCount(linuxvars.coroutine_data); ++i){
+        linuxvars.coroutine_data[i].next = linuxvars.coroutine_data + i + 1;
+    }
+
+	for (i32 i = 0; i < ArrayCount(linuxvars.coroutine_data); ++i){
+		linuxvars.coroutine_data[i].ctx.uc_stack.ss_sp = system_get_memory(Mbytes(16));
+		linuxvars.coroutine_data[i].ctx.uc_stack.ss_size = Mbytes(16);
+	}
+
 	memory_vars.vars_memory_size = Mbytes(2);
     memory_vars.vars_memory = system_get_memory(memory_vars.vars_memory_size);
     memory_vars.target_memory_size = Mbytes(512);
@@ -1831,19 +1942,19 @@ main(int argc, char **argv)
                     PrevEvent.xkey.time == Event.xkey.time &&
                     PrevEvent.xkey.keycode == Event.xkey.keycode;
 
-                    b8 mods[CONTROL_KEY_COUNT] = {};
-                    if(Event.xkey.state & ShiftMask) mods[CONTROL_KEY_SHIFT] = 1;
-                    if(Event.xkey.state & ControlMask) mods[CONTROL_KEY_CONTROL] = 1;
-                    if(Event.xkey.state & LockMask) mods[CONTROL_KEY_CAPS] = 1;
-                    if(Event.xkey.state & Mod1Mask) mods[CONTROL_KEY_ALT] = 1;
+                    b8 mods[MDFR_INDEX_COUNT] = {};
+                    if(Event.xkey.state & ShiftMask) mods[MDFR_SHIFT_INDEX] = 1;
+                    if(Event.xkey.state & ControlMask) mods[MDFR_CONTROL_INDEX] = 1;
+                    if(Event.xkey.state & LockMask) mods[MDFR_CAPS_INDEX] = 1;
+                    if(Event.xkey.state & Mod1Mask) mods[MDFR_ALT_INDEX] = 1;
                     // NOTE(inso): mod5 == AltGr
-                    // if(Event.xkey.state & Mod5Mask) mods[CONTROL_KEY_ALT] = 1;
+                    // if(Event.xkey.state & Mod5Mask) mods[MDFR_ALT_INDEX] = 1;
 
                     KeySym keysym = NoSymbol;
                     char buff[32], no_caps_buff[32];
 
                     // NOTE(inso): Turn ControlMask off like the win32 code does.
-                    if(mods[CONTROL_KEY_CONTROL] && !mods[CONTROL_KEY_ALT]){
+                    if(mods[MDFR_CONTROL_INDEX] && !mods[MDFR_ALT_INDEX]){
                         Event.xkey.state &= ~(ControlMask);
                     }
 
@@ -1878,12 +1989,12 @@ main(int argc, char **argv)
                 case ButtonPress: {
                     switch(Event.xbutton.button){
                         case Button1: {
-                            linuxvars.mouse_data.left_button_pressed = 1;
-                            linuxvars.mouse_data.left_button = 1;
+                            linuxvars.mouse_data.press_l = 1;
+                            linuxvars.mouse_data.l = 1;
                         } break;
                         case Button3: {
-                            linuxvars.mouse_data.right_button_pressed = 1;
-                            linuxvars.mouse_data.right_button = 1;
+                            linuxvars.mouse_data.press_r = 1;
+                            linuxvars.mouse_data.r = 1;
                         } break;
 
                         //NOTE(inso): scroll up
@@ -1901,12 +2012,12 @@ main(int argc, char **argv)
                 case ButtonRelease: {
                     switch(Event.xbutton.button){
                         case Button1: {
-                            linuxvars.mouse_data.left_button_released = 1;
-                            linuxvars.mouse_data.left_button = 0;
+                            linuxvars.mouse_data.release_l = 1;
+                            linuxvars.mouse_data.l = 0;
                         } break;
                         case Button3: {
-                            linuxvars.mouse_data.right_button_released = 1;
-                            linuxvars.mouse_data.right_button = 0;
+                            linuxvars.mouse_data.release_r = 1;
+                            linuxvars.mouse_data.r = 0;
                         } break;
                     }
                 }break;
@@ -1921,8 +2032,8 @@ main(int argc, char **argv)
 
                 case FocusIn:
                 case FocusOut: {
-                    linuxvars.mouse_data.left_button = 0;
-                    linuxvars.mouse_data.right_button = 0;
+                    linuxvars.mouse_data.l = 0;
+                    linuxvars.mouse_data.r = 0;
                 }break;
 
                 case ConfigureNotify: {
@@ -2090,10 +2201,10 @@ main(int argc, char **argv)
 
         linuxvars.redraw = 0;
         linuxvars.key_data = {};
-        linuxvars.mouse_data.left_button_pressed = 0;
-        linuxvars.mouse_data.left_button_released = 0;
-        linuxvars.mouse_data.right_button_pressed = 0;
-        linuxvars.mouse_data.right_button_released = 0;
+        linuxvars.mouse_data.press_l = 0;
+        linuxvars.mouse_data.release_l = 0;
+        linuxvars.mouse_data.press_r = 0;
+        linuxvars.mouse_data.release_r = 0;
         linuxvars.mouse_data.wheel = 0;
 
         ProfileStart(OS_file_process);
