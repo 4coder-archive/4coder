@@ -223,7 +223,7 @@ CUSTOM_COMMAND_SIG(switch_to_compilation){
     // to change the specific type of view and set files even when the view didn't
     // contain a file.
     view = app->get_active_file_view(app);
-    buffer = app->get_buffer_by_name(app, make_string(name, name_size));
+    buffer = app->get_buffer_by_name(app, name, name_size);
     
     app->view_set_buffer(app, &view, buffer.buffer_id);
 }
@@ -302,44 +302,16 @@ CUSTOM_COMMAND_SIG(switch_to_file_in_quotes){
 }
 
 CUSTOM_COMMAND_SIG(goto_line){
-    User_Input in;
-    Query_Bar bar;
-    char string_space[256];
     int line_number;
+    String input;
+    char string_space[256];
     
-    // NOTE(allen|a3.4.4): It will not cause an *error* if we continue on after failing to.
-    // start a query bar, but it will be unusual behavior from the point of view of the
-    // user, if this command starts intercepting input even though no prompt is shown.
-    // This will only happen if you have a lot of bars open already or if the current view
-    // doesn't support query bars.
-    if (app->start_query_bar(app, &bar, 0) == 0) return;
-    
-    // NOTE(allen|a3.4.4): The application side is storing a pointer straight to your Query_Bar
-    // any change you make to it will be reflected in what the application renders.  The application
-    // also makes sure that it destroys all query bars whenever a command exists or an abort
-    // mesasge is sent to it.
-    bar.prompt = make_lit_string("Goto Line: ");
-    bar.string = make_fixed_width_string(string_space);
-    
-    while (1){
-        in = app->get_user_input(app, EventOnAnyKey, EventOnEsc | EventOnButton);
-        if (in.abort) break;
-        if (in.type == UserInputKey){
-            if (in.key.character >= '0' && in.key.character <= '9'){
-                append(&bar.string, in.key.character);
-            }
-            else if (in.key.keycode == key_back){
-                --bar.string.size;
-            }
-            else if (in.key.keycode == '\n' || in.key.keycode == '\t'){
-                break;
-            }
-        }
+    input = make_fixed_width_string(string_space);
+
+    if (query_user_number(app, make_lit_string("Goto Line: "), &input)){
+        line_number = str_to_int(input);
+        active_view_to_line(app, line_number);
     }
-    if (in.abort) return;
-    
-    line_number = str_to_int(bar.string);
-    active_view_to_line(app, line_number);
 }
 
 CUSTOM_COMMAND_SIG(search);
@@ -371,11 +343,16 @@ isearch(Application_Links *app, int start_reversed){
     String rsearch = make_lit_string("Reverse-I-Search: ");
     
     while (1){
+        // NOTE(allen): Change the bar's prompt to match the current direction.
         if (reverse) bar.prompt = rsearch;
         else bar.prompt = isearch;
         
         in = app->get_user_input(app, EventOnAnyKey, EventOnEsc | EventOnButton);
         if (in.abort) break;
+        
+        // NOTE(allen): If we're getting mouse events here it's a 4coder bug, because we
+        // only asked to intercept key events.
+        assert(in.type == UserInputKey);
         
         int made_change = 0;
         if (in.key.keycode == '\n' || in.key.keycode == '\t'){
@@ -413,22 +390,33 @@ isearch(Application_Links *app, int start_reversed){
         if (in.key.keycode != key_back){
             int new_pos;
             if (reverse){
-                app->buffer_seek_string(app, &buffer, start_pos - 1, bar.string, 0, &new_pos);
-                if (step_backward){
-                    pos = new_pos;
-                    start_pos = new_pos;
-                    app->buffer_seek_string(app, &buffer, start_pos - 1, bar.string, 0, &new_pos);
+                app->buffer_seek_string(app, &buffer, start_pos - 1, bar.string.str, bar.string.size, 0, &new_pos);
+                if (new_pos >= 0){
+                    if (step_backward){
+                        pos = new_pos;
+                        start_pos = new_pos;
+                        app->buffer_seek_string(app, &buffer, start_pos - 1, bar.string.str, bar.string.size, 0, &new_pos);
+                        if (new_pos < 0) new_pos = start_pos;
+                    }
+                    match.start = new_pos;
+                    match.end = match.start + bar.string.size;
                 }
             }
             else{
-                app->buffer_seek_string(app, &buffer, start_pos + 1, bar.string, 1, &new_pos);
-                if (step_forward){
-                    pos = new_pos;
-                    start_pos = new_pos;
-                    app->buffer_seek_string(app, &buffer, start_pos + 1, bar.string, 1, &new_pos);
+                app->buffer_seek_string(app, &buffer, start_pos + 1, bar.string.str, bar.string.size, 1, &new_pos);
+                if (new_pos < buffer.size){
+                    if (step_forward){
+                        pos = new_pos;
+                        start_pos = new_pos;
+                        app->buffer_seek_string(app, &buffer, start_pos + 1, bar.string.str, bar.string.size, 1, &new_pos);
+                        if (new_pos >= buffer.size) new_pos = start_pos;
+                    }
+                    match.start = new_pos;
+                    match.end = match.start + bar.string.size;
                 }
             }
-            match.start = new_pos;
+        }
+        else{
             match.end = match.start + bar.string.size;
         }
         
@@ -446,6 +434,84 @@ CUSTOM_COMMAND_SIG(search){
 
 CUSTOM_COMMAND_SIG(reverse_search){
     isearch(app, 1);
+}
+
+CUSTOM_COMMAND_SIG(replace_in_range){
+    char replace_space[1024];
+    String replace = make_fixed_width_string(replace_space);
+    
+    char with_space[1024];
+    String with = make_fixed_width_string(with_space);;
+
+    if (!query_user_string(app, make_lit_string("Replace: "), &replace)) return;
+    if (!query_user_string(app, make_lit_string("With: "), &with)) return;
+
+    Buffer_Summary buffer;
+    File_View_Summary view;
+    
+    view = app->get_active_file_view(app);
+    buffer = app->get_buffer(app, view.buffer_id);
+    
+    Range range = get_range(&view);
+    
+    int pos, new_pos;
+    pos = range.min;
+    app->buffer_seek_string(app, &buffer, pos, replace.str, replace.size, 1, &new_pos);
+    
+    while (new_pos < range.end){
+        app->buffer_replace_range(app, &buffer, new_pos, new_pos + replace.size, with.str, with.size);
+        pos = new_pos + with.size;
+        app->buffer_seek_string(app, &buffer, pos, replace.str, replace.size, 1, &new_pos);
+    }
+}
+
+CUSTOM_COMMAND_SIG(query_replace){
+    char replace_space[1024];
+    String replace = make_fixed_width_string(replace_space);
+
+    char with_space[1024];
+    String with = make_fixed_width_string(with_space);;
+
+    if (!query_user_string(app, make_lit_string("Replace: "), &replace)) return;
+    if (!query_user_string(app, make_lit_string("With: "), &with)) return;
+    
+    Query_Bar bar;
+    Buffer_Summary buffer;
+    File_View_Summary view;
+    int pos, new_pos;
+
+    bar.prompt = make_lit_string("Replace? (y)es, (n)ext, (esc)\n");
+    bar.string = {};
+
+    view = app->get_active_file_view(app);
+    buffer = app->get_buffer(app, view.buffer_id);
+
+    pos = view.cursor.pos;
+    app->buffer_seek_string(app, &buffer, pos, replace.str, replace.size, 1, &new_pos);
+
+    User_Input in = {};
+    while (new_pos < buffer.size){
+        Range match = make_range(new_pos, new_pos + replace.size);
+        app->view_set_highlight(app, &view, match.min, match.max, 1);
+
+        in = app->get_user_input(app, EventOnAnyKey, EventOnButton);
+        if (in.abort || in.key.keycode == key_esc)  break;
+
+        if (in.key.character == 'y' || in.key.character == 'Y' || in.key.character == '\n' || in.key.character == '\t'){
+            app->buffer_replace_range(app, &buffer, match.min, match.max, with.str, with.size);
+            pos = match.start + with.size;
+        }
+        else{
+            pos = match.max;
+        }
+
+        app->buffer_seek_string(app, &buffer, pos, replace.str, replace.size, 1, &new_pos);
+    }
+
+    app->view_set_highlight(app, &view, 0, 0, 0);
+    if (in.abort) return;
+
+    app->view_set_cursor(app, &view, seek_pos(pos), 1);
 }
 
 CUSTOM_COMMAND_SIG(open_in_other){
@@ -678,6 +744,8 @@ extern "C" GET_BINDING_DATA(get_bindings){
     bind(context, 'f', MDFR_CTRL, search);
     bind(context, 'r', MDFR_CTRL, reverse_search);
     bind(context, 'g', MDFR_CTRL, goto_line);
+    bind(context, 'q', MDFR_CTRL, query_replace);
+    bind(context, 'a', MDFR_CTRL, replace_in_range);
     
     bind(context, 'K', MDFR_CTRL, cmdid_kill_buffer);
     bind(context, 'O', MDFR_CTRL, cmdid_reopen);

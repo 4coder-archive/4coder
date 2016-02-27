@@ -183,11 +183,11 @@ struct Application_Links;
 #define GET_BUFFER_MAX_INDEX_SIG(name) int name(Application_Links *context)
 #define GET_BUFFER_SIG(name) Buffer_Summary name(Application_Links *context, int index)
 #define GET_ACTIVE_BUFFER_SIG(name) Buffer_Summary name(Application_Links *context)
-#define GET_BUFFER_BY_NAME(name) Buffer_Summary name(Application_Links *context, String filename)
+#define GET_BUFFER_BY_NAME(name) Buffer_Summary name(Application_Links *context, char *filename, int len)
 
 #define REFRESH_BUFFER_SIG(name) int name(Application_Links *context, Buffer_Summary *buffer)
 #define BUFFER_SEEK_DELIMITER_SIG(name) int name(Application_Links *context, Buffer_Summary *buffer, int start, char delim, int seek_forward, int *out)
-#define BUFFER_SEEK_STRING_SIG(name) int name(Application_Links *context, Buffer_Summary *buffer, int start, String string, int seek_forward, int *out)
+#define BUFFER_SEEK_STRING_SIG(name) int name(Application_Links *context, Buffer_Summary *buffer, int start, char *str, int len, int seek_forward, int *out)
 #define BUFFER_READ_RANGE_SIG(name) int name(Application_Links *context, Buffer_Summary *buffer, int start, int end, char *out)
 #define BUFFER_REPLACE_RANGE_SIG(name) int name(Application_Links *context, Buffer_Summary *buffer, int start, int end, char *str, int len)
 #define BUFFER_SAVE_SIG(name) int name(Application_Links *context, Buffer_Summary *buffer, char *filename, int len)

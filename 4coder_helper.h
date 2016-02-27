@@ -250,3 +250,91 @@ key_is_unmodified(Key_Event_Data *key){
     return(unmodified);
 }
 
+static int
+query_user_general(Application_Links *app, String prompt, String *string, int force_number){
+    User_Input in;
+    Query_Bar bar;
+    int success = 1;
+    int good_character = 0;
+    
+    // NOTE(allen|a3.4.4): It will not cause an *error* if we continue on after failing to.
+    // start a query bar, but it will be unusual behavior from the point of view of the
+    // user, if this command starts intercepting input even though no prompt is shown.
+    // This will only happen if you have a lot of bars open already or if the current view
+    // doesn't support query bars.
+    if (app->start_query_bar(app, &bar, 0) == 0) return 0;
+    
+    // NOTE(allen|a3.4.4): The application side is storing a pointer straight to your Query_Bar
+    // any change you make to it will be reflected in what the application renders.  The application
+    // also makes sure that it destroys all query bars whenever a command exits.
+    bar.prompt = prompt;
+    bar.string = *string;
+    
+    while (1){
+        // NOTE(allen|a3.4.4): This call will block until the user does one of the input
+        // types specified in the flags.  The first set of flags are inputs you'd like to intercept
+        // that you don't want to abort on.  The second set are inputs that you'd like to cause
+        // the command to abort.  If an event satisfies both flags, it is treated as an abort.
+        in = app->get_user_input(app, EventOnAnyKey, EventOnEsc | EventOnButton);
+        
+        // NOTE(allen|a3.4.4): The responsible thing to do on abort is to end the command
+        // without waiting on get_user_input again.
+        if (in.abort){
+            success = 0;
+            break;
+        }
+        
+        good_character = 0;
+        if (key_is_unmodified(&in.key)){
+            if (force_number){
+                if (in.key.character >= '0' && in.key.character <= '9'){
+                    good_character = 1;
+                }
+            }
+            else{
+                if (in.key.character != 0){
+                    good_character = 1;
+                }
+            }
+        }
+        
+        // NOTE(allen|a3.4.4): All we have to do to update what is shown on the query bar
+        // is to edit or local Query_Bar struct!  This is handy because it means our Query_Bar
+        // can double as storing the state of the input AND as the source for the UI.
+        if (in.type == UserInputKey){
+            if (in.key.keycode == '\n' || in.key.keycode == '\t'){
+                break;
+            }
+            else if (in.key.keycode == key_back){
+                --bar.string.size;
+            }
+            else if (good_character){
+                append(&bar.string, in.key.character);
+            }
+        }
+    }
+    
+    // NOTE(allen|a3.4.4): It is not always necessary to end your query bars, because
+    // 4coder will clean them up when the command exits anyway, but because this is
+    // a local scope we should clean up the bar manually because the pointer the application
+    // stores to our Query_Bar is about to go bad.
+    app->end_query_bar(app, &bar, 0);
+    
+    if (success){
+        *string = bar.string;
+    }
+    
+    return(success);
+}
+
+inline int
+query_user_string(Application_Links *app, String prompt, String *string){
+    int success = query_user_general(app, prompt, string, 0);
+    return(success);
+}
+
+inline int
+query_user_number(Application_Links *app, String prompt, String *string){
+    int success = query_user_general(app, prompt, string, 1);
+    return(success);
+}

@@ -2065,7 +2065,7 @@ extern "C"{
         Buffer_Summary buffer = {};
         
         working_set = cmd->working_set;
-        if (table_find(&working_set->table, filename, &index)){
+        if (table_find(&working_set->table, make_string(filename, len), &index)){
             file = working_set->files + index;
             if (!file->state.is_dummy && file_is_ready(file)){
                 fill_buffer_summary(&buffer, file, working_set);
@@ -2094,17 +2094,19 @@ extern "C"{
             file = working_set->files + buffer->buffer_id;
             if (!file->state.is_dummy && file_is_ready(file)){
                 size = buffer_size(&file->state.buffer);
-                if (start >= 0 && start < size){
-                    result = 1;
+                result = 1;
+                
+                if (start < 0 && !seek_forward) *out = start;
+                else if (start >= size && seek_forward) *out = start;
+                else{
                     if (seek_forward){
                         *out = buffer_seek_delimiter(&file->state.buffer, start, delim);
                     }
                     else{
                         *out = buffer_reverse_seek_delimiter(&file->state.buffer, start, delim);
                     }
-                    if (*out < 0) *out = 0;
-                    if (*out > size) *out = size;
                 }
+                
                 fill_buffer_summary(buffer, file, working_set);
             }
         }
@@ -2127,19 +2129,20 @@ extern "C"{
             file = working_set->files + buffer->buffer_id;
             if (!file->state.is_dummy && file_is_ready(file)){
                 size = buffer_size(&file->state.buffer);
-                if (start >= 0 && start < size){
+                
+                if (start < 0 && !seek_forward) *out = start;
+                else if (start >= size && seek_forward) *out = start;
+                else{
                     part = &cmd->mem->part;
                     temp = begin_temp_memory(part);
-                    spare = push_array(part, char, string.size);
+                    spare = push_array(part, char, len);
                     result = 1;
                     if (seek_forward){
-                        *out = buffer_find_string(&file->state.buffer, start, size, string.str, string.size, spare);
+                        *out = buffer_find_string(&file->state.buffer, start, size, str, len, spare);
                     }
                     else{
-                        *out = buffer_rfind_string(&file->state.buffer, start, string.str, string.size, spare);
+                        *out = buffer_rfind_string(&file->state.buffer, start, str, len, spare);
                     }
-                    if (*out < 0) *out = 0;
-                    if (*out > size) *out = size;
                     end_temp_memory(temp);
                 }
                 fill_buffer_summary(buffer, file, working_set);
@@ -2647,7 +2650,7 @@ app_hardcode_styles(App_Vars *vars){
     style->main.file_info_style = file_info_style;
     style->font_changed = 1;
     ++style;
-
+    
     /////////////////
     *style = *(style-1);
     style_set_name(style, make_lit_string("4coder-mono"));
@@ -2689,7 +2692,7 @@ app_hardcode_styles(App_Vars *vars){
     file_info_style.bar_color = 0xFFCACACA;
     file_info_style.bar_active_color = 0xFFA8A8A8;
     file_info_style.base_color = 0xFF000000;
-    file_info_style.pop1_color = 0xFF1504CF;
+    file_info_style.pop1_color = 0xFF03CF0C;
     file_info_style.pop2_color = 0xFFFF0000;
     style->main.file_info_style = file_info_style;
     style->font_changed = 1;
