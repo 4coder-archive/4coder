@@ -19,42 +19,6 @@ struct Incremental_Search{
     i32 pos;
 };
 
-enum Action_Type{
-    DACT_OPEN,
-    DACT_SAVE_AS,
-    DACT_SAVE,
-    DACT_NEW,
-    DACT_SWITCH,
-    DACT_TRY_KILL,
-    DACT_KILL,
-    DACT_CLOSE_MINOR,
-    DACT_CLOSE_MAJOR,
-    DACT_THEME_OPTIONS,
-    DACT_KEYBOARD_OPTIONS
-};
-
-struct Delayed_Action{
-    Action_Type type;
-    String string;
-    Panel *panel;
-};
-
-struct Delay{
-    Delayed_Action acts[8];
-    i32 count, max;
-};
-
-inline void
-delayed_action(Delay *delay, Action_Type type,
-               String string, Panel *panel){
-    Assert(delay->count < delay->max);
-    Delayed_Action action;
-    action.type = type;
-    action.string = string;
-    action.panel = panel;
-    delay->acts[delay->count++] = action;
-}
-
 enum File_View_Widget_Type{
     FWIDG_NONE,
     //FWIDG_SEARCH,
@@ -2957,31 +2921,6 @@ step_file_view(System_Functions *system, View *view_, i32_Rect rect,
     }
     
     return result;
-}
-
-enum File_Sync_State{
-    SYNC_GOOD,
-    SYNC_BEHIND_OS,
-    SYNC_UNSAVED
-};
-
-inline File_Sync_State
-buffer_get_sync(Editing_File *file){
-    File_Sync_State result = SYNC_GOOD;
-    if (file->state.last_4ed_write_time != file->state.last_sys_write_time)
-        result = SYNC_BEHIND_OS;
-    else if (file->state.last_4ed_edit_time > file->state.last_sys_write_time)
-        result = SYNC_UNSAVED;
-    return result;
-}
-
-inline b32
-buffer_needs_save(Editing_File *file){
-    b32 result = 0;
-    if (file->settings.unimportant == 0)
-        if (buffer_get_sync(file) == SYNC_UNSAVED)
-            result = 1;
-    return(result);
 }
 
 internal void

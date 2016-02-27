@@ -55,14 +55,13 @@ interactive_view_complete(Interactive_View *view){
     Panel *panel = view->view_base.panel;
     switch (view->action){
     case INTV_OPEN:
-        delayed_action(view->delay, DACT_OPEN,
-                       view->hot_directory->string, panel);
-        break;
+    delayed_open(view->delay, view->hot_directory->string, panel);
+    break;
         
     case INTV_SAVE_AS:
-        delayed_action(view->delay, DACT_SAVE_AS, view->hot_directory->string, panel);
-        delayed_action(view->delay, DACT_CLOSE_MINOR, {}, panel);
-        break;
+    delayed_save_as(view->delay, view->hot_directory->string, panel);
+    delayed_close_minor(view->delay, panel);
+    break;
         
     case INTV_NEW:
         delayed_action(view->delay, DACT_NEW, view->hot_directory->string, panel);

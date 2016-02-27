@@ -140,12 +140,15 @@ struct File_View_Summary{
 
 struct User_Input{
     int type;
+    int abort;
     union{
         Key_Event_Data key;
         Mouse_State mouse;
     };
-    int abort;
+    unsigned long long command;
 };
+
+#define CommandEqual(c1,c2) ((unsigned long long)(c1) == (unsigned long long)(c2))
 
 struct Query_Bar{
     String prompt;

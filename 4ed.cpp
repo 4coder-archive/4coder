@@ -255,47 +255,39 @@ COMMAND_DECL(write_character){
 }
 
 COMMAND_DECL(seek_whitespace_right){
-#if BUFFER_EXPERIMENT_SCALPEL <= 3
     ProfileMomentFunction();
     REQ_FILE_VIEW(view);
     REQ_FILE(file, view);
     
     i32 pos = buffer_seek_whitespace_right(&file->state.buffer, view->cursor.pos);
     view_cursor_move(view, pos);
-#endif
 }
 
 COMMAND_DECL(seek_whitespace_left){
-#if BUFFER_EXPERIMENT_SCALPEL <= 3
     ProfileMomentFunction();
     REQ_FILE_VIEW(view);
     REQ_FILE(file, view);
     
     i32 pos = buffer_seek_whitespace_left(&file->state.buffer, view->cursor.pos);
     view_cursor_move(view, pos);
-#endif
 }
 
 COMMAND_DECL(seek_whitespace_up){
-#if BUFFER_EXPERIMENT_SCALPEL <= 3
     ProfileMomentFunction();
     REQ_FILE_VIEW(view);
     REQ_FILE(file, view);
     
     i32 pos = buffer_seek_whitespace_up(&file->state.buffer, view->cursor.pos);
     view_cursor_move(view, pos);
-#endif
 }
 
 COMMAND_DECL(seek_whitespace_down){
-#if BUFFER_EXPERIMENT_SCALPEL <= 3
     ProfileMomentFunction();
     REQ_FILE_VIEW(view);
     REQ_FILE(file, view);
         
     i32 pos = buffer_seek_whitespace_down(&file->state.buffer, view->cursor.pos);
     view_cursor_move(view, pos);
-#endif
 }
 
 internal i32
@@ -2183,6 +2175,22 @@ extern "C"{
         return(result);
     }
     
+    BUFFER_SAVE_SIG(external_buffer_save){
+        Command_Data *cmd = (Command_Data*)context->data;
+        Editing_File *file;
+        Working_Set *working_set;
+        Delay *delay;
+        
+        if (buffer->exists){
+            delay = cmd->delay;
+            working_set = cmd->working_set;
+            file = working_set->files + buffer->buffer_id;
+            if (!file->state.is_dummy && file_is_ready(file) && buffer_needs_save(file)){
+                
+            }
+        }
+    }
+    
     GET_VIEW_MAX_INDEX_SIG(external_get_view_max_index){
         Command_Data *cmd = (Command_Data*)context->data;
         Live_Views *live_set = cmd->live_set;
@@ -2390,7 +2398,7 @@ app_links_init(System_Functions *system){
     app_links.buffer_seek_delimiter = external_buffer_seek_delimiter;
     app_links.buffer_read_range = external_buffer_read_range;
     app_links.buffer_replace_range = external_buffer_replace_range;
-    app_links.buffer_save = 0;//external_buffer_save;
+    app_links.buffer_save = external_buffer_save;
     
     app_links.get_view_max_index = external_get_view_max_index;
     app_links.get_file_view = external_get_file_view;
@@ -3889,6 +3897,7 @@ App_Step_Sig(app_step){
             Delayed_Action *act = vars->delay.acts + i;
             String *string = &act->string;
             Panel *panel = act->panel;
+            Editing_File *file = act->file;
             
             switch (act->type){
             case DACT_OPEN:
@@ -3901,23 +3910,28 @@ App_Step_Sig(app_step){
             
             case DACT_SAVE_AS:
             {
-                View *view = panel->view;
-                File_View *fview = view_to_file_view(view);
-                
-                if (!fview && view->is_minor) fview = view_to_file_view(view->major);
-                if (fview){
-                    Editing_File *file = fview->file;
-                    if (file && !file->state.is_dummy){
-                        i32 sys_id = file_save_and_set_names(system, exchange, mem, working_set, file, string->str);
-                        app_push_file_binding(vars, sys_id, get_file_id(working_set, file));
+                if (!file){
+                    View *view = panel->view;
+                    File_View *fview = view_to_file_view(view);
+                    
+                    if (!fview && view->is_minor) fview = view_to_file_view(view->major);
+                    
+                    if (fview){
+                        file = working_set_lookup_file(working_set, *string);
                     }
+                }
+                if (file && !file->state.is_dummy){
+                    i32 sys_id = file_save_and_set_names(system, exchange, mem, working_set, file, string->str);
+                    app_push_file_binding(vars, sys_id, get_file_id(working_set, file));
                 }
             }break;
             
             case DACT_SAVE:
             {
-                Editing_File *file = working_set_lookup_file(working_set, *string);
-                if (!file->state.is_dummy){
+                if (!file){
+                    file = working_set_lookup_file(working_set, *string);
+                }
+                if (!file->state.is_dummy && buffer_needs_save(file)){
                     i32 sys_id = file_save(system, exchange, mem, file, file->name.source_path.str);
                     app_push_file_binding(vars, sys_id, get_file_id(working_set, file));
                 }
