@@ -42,27 +42,8 @@ get_single_key(Key_Summary *summary, i32 index){
     return key;
 }
 
-struct Mouse_State{
-	b32 out_of_window;
-	b8 left_button, right_button;
-	b8 left_button_pressed, right_button_pressed;
-	b8 left_button_released, right_button_released;
-	i16 wheel;
-	i32 x, y;
-};
-
-struct Mouse_Summary{
-    i32 mx, my;
-    b32 l, r;
-    b32 press_l, press_r;
-    b32 release_l, release_r;
-    b32 out_of_window;
-    b32 wheel_used;
-    i16 wheel_amount;
-};
-
 struct Input_Summary{
-    Mouse_Summary mouse;
+    Mouse_State mouse;
     Key_Summary keys;
 };
 

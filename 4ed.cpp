@@ -59,6 +59,7 @@ struct Command_Data{
     struct App_Vars *vars;
     Exchange *exchange;
     System_Functions *system;
+    Coroutine *current_coroutine;
     
     i32 screen_width, screen_height;
     Key_Event_Data key;
@@ -81,7 +82,9 @@ struct App_Vars{
     i32 *map_id_table;
     i32 user_map_count;
     Command_Binding prev_command;
+    
     Coroutine *command_coroutine;
+    u32 command_coroutine_flags[2];
     
     Sys_App_Binding *sys_app_bindings;
     i32 sys_app_count, sys_app_max;
@@ -103,9 +106,6 @@ struct App_Vars{
     Hot_Directory hot_directory;
 
     CLI_List cli_processes;
-    
-    char query_[256];
-    char dest_[256];
     
     Delay delay;
 
@@ -415,34 +415,6 @@ COMMAND_DECL(seek_alphanumeric_or_camel_left){
     
     i32 pos = buffer_seek_alphanumeric_or_camel_left(&file->state.buffer, view->cursor.pos);
     view_cursor_move(view, pos);
-}
-
-COMMAND_DECL(search){
-#if 0
-    ProfileMomentFunction();
-    REQ_FILE_VIEW(view);
-    REQ_FILE(fixed, view);
-    USE_VARS(vars);
-    
-    view_set_widget(view, FWIDG_SEARCH);
-    view->isearch.str = vars->mini_str;
-    view->isearch.reverse = 0;
-    view->isearch.pos = view->cursor.pos - 1;
-#endif
-}
-
-COMMAND_DECL(reverse_search){
-#if 0
-    ProfileMomentFunction();
-    REQ_FILE_VIEW(view);
-    REQ_FILE(fixed, view);
-    USE_VARS(vars);
-    
-    view_set_widget(view, FWIDG_SEARCH);
-    view->isearch.str = vars->mini_str;
-    view->isearch.reverse = 1;
-    view->isearch.pos = view->cursor.pos + 1;
-#endif
 }
 
 COMMAND_DECL(word_complete){
@@ -1488,8 +1460,7 @@ COMMAND_DECL(delete){
         start = cursor_pos;
         end = cursor_pos+1;
         
-        i32 shift = (end - start);
-        Assert(shift > 0);
+        Assert(end - start > 0);
         
         i32 next_cursor_pos = start;
         view_replace_range(system, mem, view, layout, start, end, 0, 0, next_cursor_pos);
@@ -1961,24 +1932,9 @@ COMMAND_DECL(build){
 
 internal void
 update_command_data(App_Vars *vars, Command_Data *cmd){
-    Command_Data command_data;
-    command_data.vars = vars;
-    command_data.mem = &vars->mem;
-    command_data.working_set = &vars->working_set;
-    command_data.layout = &vars->layout;
-    command_data.panel = command_data.layout->panels + command_data.layout->active_panel;
-    command_data.view = command_data.panel->view;
-    command_data.live_set = &vars->live_set;
-    command_data.style = &vars->style;
-    command_data.delay = &vars->delay;
-    command_data.screen_width = cmd->screen_width;
-    command_data.screen_height = cmd->screen_height;
-    command_data.key = cmd->key;
-    command_data.part = cmd->part;
-    command_data.system = cmd->system;
-    command_data.exchange = cmd->exchange;
-    
-    *cmd = command_data;    
+    cmd->panel = cmd->layout->panels + cmd->layout->active_panel;
+    cmd->view = cmd->panel->view;
+    cmd->style = &vars->style;
 }
 
 globalvar Command_Function command_table[cmdid_count];
@@ -2355,6 +2311,51 @@ extern "C"{
         
         return(result);
     }
+    
+    GET_USER_INPUT_SIG(external_get_user_input){
+        Command_Data *cmd = (Command_Data*)context->data;
+        System_Functions *system = cmd->system;
+        Coroutine *coroutine = cmd->current_coroutine;
+        User_Input result;
+        
+        Assert(coroutine);
+        *((u32*)coroutine->out+0) = get_type;
+        *((u32*)coroutine->out+1) = abort_type;
+        system->yield_coroutine(coroutine);
+        result = *(User_Input*)coroutine->in;
+        
+        return(result);
+    }
+    
+    START_QUERY_BAR_SIG(external_start_query_bar){
+        Command_Data *cmd = (Command_Data*)context->data;
+        Query_Slot *slot = 0;
+        View *vptr;
+        File_View *file_view;
+        
+        vptr = cmd->view;
+        file_view = view_to_file_view(vptr);
+        
+        if (file_view){
+            slot = alloc_query_slot(&file_view->query_set);
+            slot->query_bar = bar;
+        }
+        
+        return(slot != 0);
+    }
+    
+    END_QUERY_BAR_SIG(external_end_query_bar){
+        Command_Data *cmd = (Command_Data*)context->data;
+        View *vptr;
+        File_View *file_view;
+        
+        vptr = cmd->view;
+        file_view = view_to_file_view(vptr);
+        
+        if (file_view){
+            free_query_slot(&file_view->query_set, bar);
+        }
+    }
 }
 
 struct Command_In{
@@ -2364,8 +2365,9 @@ struct Command_In{
 
 internal void
 command_caller(Coroutine *coroutine){
-    Command_In *cmd = (Command_In*)coroutine->in;
-    cmd->bind.function(cmd->cmd->system, cmd->cmd, cmd->bind);
+    Command_In *cmd_in = (Command_In*)coroutine->in;
+    Command_Data *cmd = cmd_in->cmd;
+    cmd_in->bind.function(cmd->system, cmd, cmd_in->bind);
 }
 
 internal void
@@ -2399,11 +2401,10 @@ app_links_init(System_Functions *system){
     app_links.view_set_mark = external_view_set_mark;
     app_links.view_set_buffer = external_view_set_buffer;
     
-    app_links.get_user_input = 0;//external_get_user_input;
+    app_links.get_user_input = external_get_user_input;
     
-    app_links.create_query = 0;//external_create_query;
-    app_links.update_query = 0;//external_update_query;
-    app_links.close_query = 0;//external_close_query;
+    app_links.start_query_bar = external_start_query_bar;
+    app_links.end_query_bar = external_end_query_bar;
 }
 
 #if FRED_INTERNAL
@@ -2465,8 +2466,6 @@ setup_command_table(){
     SET(seek_alphanumeric_left);
     SET(seek_alphanumeric_or_camel_right);
     SET(seek_alphanumeric_or_camel_left);
-    SET(search);
-    SET(reverse_search);
     SET(word_complete);
     SET(set_mark);
     SET(copy);
@@ -3354,7 +3353,7 @@ App_Step_Sig(app_step){
         app_result.redraw = 1;
     }
     
-    // NOTE(allen): collect input information
+    // NOTE(allen): prepare input information
     Key_Summary key_data = {};
     for (i32 i = 0; i < input->press_count; ++i){
         key_data.keys[key_data.count++] = input->press[i];
@@ -3363,56 +3362,35 @@ App_Step_Sig(app_step){
         key_data.keys[key_data.count++] = input->hold[i];
     }
     
-    Mouse_Summary mouse_data;
-    mouse_data.mx = mouse->x;
-    mouse_data.my = mouse->y;
+    mouse->wheel = -mouse->wheel;
     
-    mouse_data.l = mouse->left_button;
-    mouse_data.r = mouse->right_button;
-    mouse_data.press_l = mouse->left_button_pressed;
-    mouse_data.press_r = mouse->right_button_pressed;
-    mouse_data.release_l = mouse->left_button_released;
-    mouse_data.release_r = mouse->right_button_released;
-    
-    mouse_data.out_of_window = mouse->out_of_window;
-    mouse_data.wheel_used = (mouse->wheel != 0);
-    mouse_data.wheel_amount = -mouse->wheel;
     ProfileEnd(OS_syncing);
     
     ProfileStart(hover_status);
     // NOTE(allen): detect mouse hover status
-    i32 mx = mouse_data.mx;
-    i32 my = mouse_data.my;
+    i32 mx = mouse->x;
+    i32 my = mouse->y;
     b32 mouse_in_edit_area = 0;
     b32 mouse_in_margin_area = 0;
     Panel *mouse_panel = 0;
     i32 mouse_panel_i = 0;
+    i32 panel_count = vars->layout.panel_count;
     
-    {
-        Panel *panel = 0;
-        b32 in_edit_area = 0;
-        b32 in_margin_area = 0;
-        i32 panel_count = vars->layout.panel_count;
-        i32 panel_i;
-        
-        for (panel_i = 0; panel_i < panel_count; ++panel_i){
-            panel = panels + panel_i;
-            if (hit_check(mx, my, panel->inner)){
-                in_edit_area = 1;
-                break;
-            }
-            else if (hit_check(mx, my, panel->full)){
-                in_margin_area = 1;
-                break;
-            }
+    mouse_panel = panels;
+    for (mouse_panel_i = 0; mouse_panel_i < panel_count; ++mouse_panel_i, ++mouse_panel){
+        if (hit_check(mx, my, mouse_panel->inner)){
+            mouse_in_edit_area = 1;
+            break;
         }
-        
-        mouse_in_edit_area = in_edit_area;
-        mouse_in_margin_area = in_margin_area;
-        if (in_edit_area || in_margin_area){
-            mouse_panel = panel;
-            mouse_panel_i = panel_i;
+        else if (hit_check(mx, my, mouse_panel->full)){
+            mouse_in_margin_area = 1;
+            break;
         }
+    }
+    
+    if (!(mouse_in_edit_area || mouse_in_margin_area)){
+        mouse_panel = 0;
+        mouse_panel_i = 0;
     }
     
     b32 mouse_on_divider = 0;
@@ -3421,66 +3399,201 @@ App_Step_Sig(app_step){
     i32 mouse_divider_side = 0;
     
     if (mouse_in_margin_area){
-        b32 resize_area = 0;
-        i32 divider_id = 0;
-        b32 seeking_v_divider = 0;
-        i32 seeking_child_on_side = 0;
         Panel *panel = mouse_panel;
         if (mx >= panel->inner.x0 && mx < panel->inner.x1){
-            seeking_v_divider = 0;
+            mouse_divider_vertical = 0;
             if (my > panel->inner.y0){
-                seeking_child_on_side = -1;
+                mouse_divider_side = -1;
             }
             else{
-                seeking_child_on_side = 1;
+                mouse_divider_side = 1;
             }
         }
         else{
-            seeking_v_divider = 1;
+            mouse_divider_vertical = 1;
             if (mx > panel->inner.x0){
-                seeking_child_on_side = -1;
+                mouse_divider_side = -1;
             }
             else{
-                seeking_child_on_side = 1;
+                mouse_divider_side = 1;
             }
         }
-        mouse_divider_vertical = seeking_v_divider;
-        mouse_divider_side = seeking_child_on_side;
         
         if (vars->layout.panel_count > 1){
             i32 which_child;
-            divider_id = panel->parent;
+            mouse_divider_id = panel->parent;
             which_child = panel->which_child;
             for (;;){
-                Divider_And_ID div = layout_get_divider(&vars->layout, divider_id);
+                Divider_And_ID div = layout_get_divider(&vars->layout, mouse_divider_id);
                 
-                if (which_child == seeking_child_on_side &&
-                    div.divider->v_divider == seeking_v_divider){
-                    resize_area = 1;
+                if (which_child == mouse_divider_side &&
+                    div.divider->v_divider == mouse_divider_vertical){
+                    mouse_on_divider = 1;
                     break;
                 }
                 
-                if (divider_id == vars->layout.root){
+                if (mouse_divider_id == vars->layout.root){
                     break;
                 }
                 else{
-                    divider_id = div.divider->parent;
+                    mouse_divider_id = div.divider->parent;
                     which_child = div.divider->which_child;
                 }
             }
-            
-            mouse_on_divider = resize_area;
-            mouse_divider_id = divider_id;
+        }
+        else{
+            mouse_on_divider = 0;
+            mouse_divider_id = 0;
         }
     }
     ProfileEnd(hover_status);
+    
+    // NOTE(allen): process the command_coroutine if it is unfinished
+    ProfileStart(command_coroutine);
+    Command_Data *cmd = &vars->command_data;
+    
+    cmd->mem = &vars->mem;
+    cmd->panel = active_panel;
+    cmd->view = active_panel->view;
+    cmd->working_set = &vars->working_set;
+    cmd->layout = &vars->layout;
+    cmd->live_set = &vars->live_set;
+    cmd->style = &vars->style;
+    cmd->delay = &vars->delay;
+    cmd->vars = vars;
+    cmd->exchange = exchange;
+    cmd->screen_width = target->width;
+    cmd->screen_height = target->height;
+    cmd->system = system;
+    
+    Temp_Memory param_stack_temp = begin_temp_memory(&vars->mem.part);
+    cmd->part = partition_sub_part(&vars->mem.part, 16 << 10);
+    
+    b8 consumed_input[6] = {0};
+    
+    if (vars->command_coroutine != 0){
+        Coroutine *command_coroutine = vars->command_coroutine;
+        u32 get_flags = vars->command_coroutine_flags[0];
+        u32 abort_flags = vars->command_coroutine_flags[1];
+        
+        get_flags |= abort_flags;
+        
+        if ((get_flags & EventOnAnyKey) || (get_flags & EventOnEsc)){
+            for (i32 key_i = 0; key_i < key_data.count; ++key_i){
+                Key_Event_Data key = get_single_key(&key_data, key_i);
+                View *view = active_panel->view;
+                b32 pass_in = 0;
+                
+                User_Input user_in;
+                user_in.type = UserInputKey;
+                user_in.key = key;
+                user_in.abort = 0;
+                
+                if ((EventOnEsc & abort_flags) && key.keycode == key_esc){
+                    user_in.abort = 1;
+                }
+                else if (EventOnAnyKey & abort_flags){
+                    user_in.abort = 1;
+                }
+                
+                if (EventOnAnyKey & get_flags){
+                    pass_in = 1;
+                    consumed_input[0] = 1;
+                }
+                if (key.keycode == key_esc){
+                    if (EventOnEsc & get_flags){
+                        pass_in = 1;
+                    }
+                    consumed_input[1] = 1;
+                }
+                
+                if (pass_in){
+                    cmd->current_coroutine = vars->command_coroutine;
+                    vars->command_coroutine = system->resume_coroutine(command_coroutine, &user_in,
+                        vars->command_coroutine_flags);
+                    app_result.redraw = 1;
+                    
+                    // TOOD(allen): Deduplicate
+                    // TODO(allen): Allow a view to clean up however it wants after a command finishes,
+                    // or after transfering to another view mid command.
+                    File_View *fview = view_to_file_view(view);
+                    if (fview != 0 && vars->command_coroutine == 0){
+                        init_query_set(&fview->query_set);
+                    }
+                    if (vars->command_coroutine == 0) break;
+                }
+            }
+        }
+        
+        if (vars->command_coroutine != 0 && (get_flags & EventOnMouse)){
+            View *view = active_panel->view;
+            b32 pass_in = 0;
+            
+            User_Input user_in;
+            user_in.type = UserInputMouse;
+            user_in.mouse = *mouse;
+            user_in.abort = 0;
+            
+            if (abort_flags & EventOnMouseMove){
+                user_in.abort = 1;
+            }
+            if (get_flags & EventOnMouseMove){
+                pass_in = 1;
+                consumed_input[2] = 1;
+            }
+            
+            if (mouse->press_l || mouse->release_l || mouse->l){
+                if (abort_flags & EventOnLeftButton){
+                    user_in.abort = 1;
+                }
+                if (get_flags & EventOnLeftButton){
+                    pass_in = 1;
+                    consumed_input[3] = 1;
+                }
+            }
+            
+            if (mouse->press_r || mouse->release_r || mouse->r){
+                if (abort_flags & EventOnRightButton){
+                    user_in.abort = 1;
+                }
+                if (get_flags & EventOnRightButton){
+                    pass_in = 1;
+                    consumed_input[4] = 1;
+                }
+            }
+            
+            if (mouse->wheel != 0){
+                if (abort_flags & EventOnWheel){
+                    user_in.abort = 1;
+                }
+                if (get_flags & EventOnWheel){
+                    pass_in = 1;
+                    consumed_input[5] = 1;
+                }
+            }
+            
+            cmd->current_coroutine = vars->command_coroutine;
+            vars->command_coroutine = system->resume_coroutine(command_coroutine, &user_in,
+                vars->command_coroutine_flags);
+            app_result.redraw = 1;
+            
+            // TOOD(allen): Deduplicate
+            // TODO(allen): Allow a view to clean up however it wants after a command finishes,
+            // or after transfering to another view mid command.
+            File_View *fview = view_to_file_view(view);
+            if (fview != 0 && vars->command_coroutine == 0){
+                init_query_set(&fview->query_set);
+            }
+        }
+    }
+    ProfileEnd(command_coroutine);
     
     ProfileStart(resizing);
     // NOTE(allen): panel resizing
     switch (vars->state){
     case APP_STATE_EDIT:
     {
-        if (mouse_data.press_l && mouse_on_divider){
+        if (mouse->press_l && mouse_on_divider){
             vars->state = APP_STATE_RESIZING;
             Divider_And_ID div = layout_get_divider(&vars->layout, mouse_divider_id);
             vars->resizing.divider = div.divider;
@@ -3548,7 +3661,7 @@ App_Step_Sig(app_step){
     case APP_STATE_RESIZING:
     {
         app_result.redraw = 1;
-        if (mouse_data.l){
+        if (mouse->l){
             Panel_Divider *divider = vars->resizing.divider;
             if (divider->v_divider){
                 divider->pos = mx;
@@ -3571,34 +3684,19 @@ App_Step_Sig(app_step){
         }
     }break;
     }
-    ProfileEnd(resizing);
     
-    ProfileStart(command);
-    // NOTE(allen): update active panel
-    if (mouse_in_edit_area && mouse_panel != 0 && mouse_data.press_l){
+    if (mouse_in_edit_area && mouse_panel != 0 && mouse->press_l){
         active_panel = mouse_panel;
         vars->layout.active_panel = mouse_panel_i;
         app_result.redraw = 1;
     }
+    ProfileEnd(resizing);
     
-    Command_Data *cmd = &vars->command_data;
+    // NOTE(allen): command input to active view
+    ProfileStart(command);
     
-    cmd->mem = &vars->mem;
     cmd->panel = active_panel;
     cmd->view = active_panel->view;
-    cmd->working_set = &vars->working_set;
-    cmd->layout = &vars->layout;
-    cmd->live_set = &vars->live_set;
-    cmd->style = &vars->style;
-    cmd->delay = &vars->delay;
-    cmd->vars = vars;
-    cmd->exchange = exchange;
-    cmd->screen_width = target->width;
-    cmd->screen_height = target->height;
-    cmd->system = system;
-    
-    Temp_Memory param_stack_temp = begin_temp_memory(&vars->mem.part);
-    cmd->part = partition_sub_part(&vars->mem.part, 16 << 10);
     
     if (first_step){
         if (vars->hooks[hook_start]){
@@ -3631,99 +3729,130 @@ App_Step_Sig(app_step){
             }
         }
     }
-    
-    // NOTE(allen): command input to active view
-    for (i32 key_i = 0; key_i < key_data.count; ++key_i){
-        Command_Binding cmd_bind = {};
-        Command_Map *map = 0;
-        View *view = active_panel->view;
+
+    if (!consumed_input[0] || !consumed_input[1]){
+        b32 consumed_input2[2] = {0};
         
-        Key_Event_Data key = get_single_key(&key_data, key_i);
-        cmd->key = key;
-        
-        Command_Map *visited_maps[16] = {};
-        i32 visited_top = 0;
-        
-        if (view) map = view->map;
-        if (map == 0) map = &vars->map_top;
-        while (map){
-            cmd_bind = map_extract(map, key);
-            if (cmd_bind.function == 0){
-                if (visited_top < ArrayCount(visited_maps)){
-                    visited_maps[visited_top++] = map;
-                    map = map->parent;
-                    for (i32 i = 0; i < visited_top; ++i){
-                        if (map == visited_maps[i]){
-                            map = 0;
-                            break;
+        for (i32 key_i = 0; key_i < key_data.count; ++key_i){
+            switch (vars->state){
+                case APP_STATE_EDIT:
+                {
+                    Key_Event_Data key = get_single_key(&key_data, key_i);
+                    b32 hit_esc = (key.keycode == key_esc);
+
+                    if (hit_esc || !consumed_input[0]){
+                        if (hit_esc){
+                            consumed_input[0] = 1;
+                        }
+                        else{
+                            consumed_input[1] = 1;
+                        }
+                        
+                        View *view = active_panel->view;
+
+                        Command_Binding cmd_bind = {};
+                        Command_Map *map = 0;
+
+                        cmd->key = key;
+
+                        Command_Map *visited_maps[16] = {};
+                        i32 visited_top = 0;
+
+                        if (view) map = view->map;
+                        if (map == 0) map = &vars->map_top;
+                        while (map){
+                            cmd_bind = map_extract(map, key);
+                            if (cmd_bind.function == 0){
+                                if (visited_top < ArrayCount(visited_maps)){
+                                    visited_maps[visited_top++] = map;
+                                    map = map->parent;
+                                    for (i32 i = 0; i < visited_top; ++i){
+                                        if (map == visited_maps[i]){
+                                            map = 0;
+                                            break;
+                                        }
+                                    }
+                                }
+                                else map = 0;
+                            }
+                            else map = 0;
+                        }
+
+                        if (cmd_bind.function){
+                            Coroutine *command_coroutine = system->create_coroutine(command_caller);
+                            vars->command_coroutine = command_coroutine;
+
+                            Command_In cmd_in;
+                            cmd_in.cmd = cmd;
+                            cmd_in.bind = cmd_bind;
+
+                            cmd->current_coroutine = vars->command_coroutine;
+                            vars->command_coroutine = system->launch_coroutine(vars->command_coroutine,
+                                &cmd_in, vars->command_coroutine_flags);
+                            app_result.redraw = 1;
                         }
                     }
-                }
-                else map = 0;
+                }break;
+                
+                case APP_STATE_RESIZING:
+                {
+                    if (key_data.count > 0){
+                        vars->state = APP_STATE_EDIT;
+                    }
+                }break;
             }
-            else map = 0;
         }
         
-        switch (vars->state){
-        case APP_STATE_EDIT:
-        {
-            if (cmd_bind.function){
-                Command_In cmd_in;
-                cmd_in.cmd = cmd;
-                cmd_in.bind = cmd_bind;
-                vars->command_coroutine = system->launch_coroutine(command_caller, &cmd_in, 0);
-                app_result.redraw = 1;
-            }
-            
-#if 0
-            if (cmd_bind.function){
-                cmd_bind.function(system, cmd, cmd_bind);
-                app_result.redraw = 1;
-            }
-#endif
-            
-#if 0
-            Handle_Command_Function *handle_command = 0;
-            if (view) handle_command = view->handle_command;
-            if (handle_command){
-                handle_command(system, view, cmd, cmd_bind, key);
-                app_result.redraw = 1;
-            }
-            else{
-                if (cmd_bind.function){
-                    cmd_bind.function(system, cmd, cmd_bind);
-                    app_result.redraw = 1;
-                }
-            }
-            vars->prev_command = cmd_bind;
-#endif
-        }break;
-        
-        case APP_STATE_RESIZING:
-        {
-            if (key_data.count > 0){
-                vars->state = APP_STATE_EDIT;
-            }
-        }break;
-        }
+        consumed_input[0] |= consumed_input2[0];
+        consumed_input[1] |= consumed_input2[1];
     }
     
     active_panel = panels + vars->layout.active_panel;
     ProfileEnd(command);
     
+    // NOTE(allen): pass raw input to the panels
     ProfileStart(step);
     View *active_view = active_panel->view;
     
     Input_Summary dead_input = {};
-    dead_input.mouse.mx = mouse_data.mx;
-    dead_input.mouse.my = mouse_data.my;
-    
+    dead_input.mouse.x = mouse->x;
+    dead_input.mouse.y = mouse->y;
+
     Input_Summary active_input = {};
-    dead_input.mouse.mx = mouse_data.mx;
-    dead_input.mouse.my = mouse_data.my;
-    active_input.keys = key_data;
+    active_input.mouse.x = mouse->x;
+    active_input.mouse.y = mouse->y;
+    if (!consumed_input[0]){
+        active_input.keys = key_data;
+    }
+    else if (!consumed_input[1]){
+        for (i32 i = 0; i < key_data.count; ++i){
+            Key_Event_Data key = get_single_key(&key_data, i);
+            if (key.keycode == key_esc){
+                active_input.keys.count = 1;
+                active_input.keys.keys[0] = key;
+                break;
+            }
+        }
+    }
     
-    // NOTE(allen): pass raw input to the panels
+    Mouse_State mouse_state = *mouse;
+    
+    if (consumed_input[3]){
+        mouse_state.l = 0;
+        mouse_state.press_l = 0;
+        mouse_state.release_l = 0;
+    }
+    
+    if (consumed_input[4]){
+        mouse_state.r = 0;
+        mouse_state.press_r = 0;
+        mouse_state.release_r = 0;
+    }
+    
+    if (consumed_input[5]){
+        mouse_state.wheel = 0;
+    }
+    
     {
         Panel *panel = panels;
         for (i32 panel_i = vars->layout.panel_count; panel_i > 0; --panel_i, ++panel){
@@ -3732,8 +3861,8 @@ App_Step_Sig(app_step){
                 Assert(view_->do_view);
                 b32 active = (panel == active_panel);
                 Input_Summary input = (active)?(active_input):(dead_input);
-                if (panel == mouse_panel && !mouse_data.out_of_window){
-                    input.mouse = mouse_data;
+                if (panel == mouse_panel && !mouse->out_of_window){
+                    input.mouse = mouse_state;
                 }
                 if (view_->do_view(system, exchange, view_, panel->inner, active_view,
                                    VMSG_STEP, 0, &input, &active_input)){
@@ -3744,6 +3873,7 @@ App_Step_Sig(app_step){
     }
     ProfileEnd(step);
     
+    // NOTE(allen): process as many delayed actions as possible
     ProfileStart(delayed_actions);
     if (vars->delay.count > 0){
         Style *style = &vars->style;
@@ -4106,6 +4236,7 @@ App_Step_Sig(app_step){
     // end-of-app_step
 }
 
+#if 0
 internal
 App_Alloc_Sig(app_alloc){
     Mem_Options *mem = (Mem_Options*)(handle);
@@ -4118,6 +4249,7 @@ App_Free_Sig(app_free){
     Mem_Options *mem = (Mem_Options*)(handle);
     general_memory_free(&mem->general, block);
 }
+#endif
 
 external App_Get_Functions_Sig(app_get_functions){
     App_Functions result = {};
@@ -4126,9 +4258,11 @@ external App_Get_Functions_Sig(app_get_functions){
     result.init = app_init;
     result.step = app_step;
     
+#if 0
     result.alloc = app_alloc;
     result.free = app_free;
-    
+#endif
+
     return(result);
 }
 

@@ -78,8 +78,8 @@ struct Win32_Input_Chunk_Transient{
     
     b8 mouse_l_press, mouse_l_release;
     b8 mouse_r_press, mouse_r_release;
-    b32 out_of_window;
-    i16 mouse_wheel;
+    b8 out_of_window;
+    i8 mouse_wheel;
     
     b32 redraw;
 };
@@ -772,7 +772,7 @@ Win32CoroutineMain(void *arg_){
 }
 
 internal
-Sys_Launch_Coroutine_Sig(system_launch_coroutine){
+Sys_Create_Coroutine_Sig(system_create_coroutine){
     Win32_Coroutine *c;
     Coroutine *coroutine;
     void *fiber;
@@ -786,6 +786,16 @@ Sys_Launch_Coroutine_Sig(system_launch_coroutine){
     
     coroutine->plat_handle = Win32GenHandle(fiber);
     coroutine->func = func;
+    
+    return(coroutine);
+}
+
+internal
+Sys_Launch_Coroutine_Sig(system_launch_coroutine){
+    Win32_Coroutine *c = (Win32_Coroutine*)coroutine;
+    void *fiber;
+    
+    fiber = Win32Handle(coroutine->plat_handle);
     coroutine->yield_handle = GetCurrentFiber();
     coroutine->in = in;
     coroutine->out = out;
@@ -1043,6 +1053,7 @@ Win32LoadSystemCode(){
     win32vars.system->post_clipboard = system_post_clipboard;
     win32vars.system->time = system_time;
     
+    win32vars.system->create_coroutine = system_create_coroutine;
     win32vars.system->launch_coroutine = system_launch_coroutine;
     win32vars.system->resume_coroutine = system_resume_coroutine;
     win32vars.system->yield_coroutine = system_yield_coroutine;
@@ -1058,9 +1069,11 @@ Win32LoadSystemCode(){
     win32vars.system->acquire_lock = system_acquire_lock;
     win32vars.system->release_lock = system_release_lock;
     
+#ifdef FRED_NOT_PACKAGE
     win32vars.system->internal_sentinel = INTERNAL_system_sentinel;
     win32vars.system->internal_get_thread_states = INTERNAL_get_thread_states;
     win32vars.system->internal_debug_message = INTERNAL_system_debug_message;
+#endif
     
     win32vars.system->slash = '\\';
 }
@@ -1410,7 +1423,7 @@ Win32Callback(HWND hwnd, UINT uMsg,
 DWORD
 UpdateLoop(LPVOID param){
     ConvertThreadToFiber(0);
-    
+
     for (;win32vars.input_chunk.pers.keep_playing;){
         i64 timer_start = system_time();
 
@@ -1468,13 +1481,13 @@ UpdateLoop(LPVOID param){
         input_data = input_chunk.trans.key_data;
         mouse.out_of_window = input_chunk.trans.out_of_window;
         
-        mouse.left_button = input_chunk.pers.mouse_l;
-        mouse.left_button_pressed = input_chunk.trans.mouse_l_press;
-        mouse.left_button_released = input_chunk.trans.mouse_l_release;
+        mouse.l = input_chunk.pers.mouse_l;
+        mouse.press_l = input_chunk.trans.mouse_l_press;
+        mouse.release_l = input_chunk.trans.mouse_l_release;
         
-        mouse.right_button = input_chunk.pers.mouse_r;
-        mouse.right_button_pressed = input_chunk.trans.mouse_r_press;
-        mouse.right_button_released = input_chunk.trans.mouse_r_release;
+        mouse.r = input_chunk.pers.mouse_r;
+        mouse.press_r = input_chunk.trans.mouse_r_press;
+        mouse.release_r = input_chunk.trans.mouse_r_release;
     
         mouse.wheel = input_chunk.trans.mouse_wheel;
         
@@ -1580,6 +1593,10 @@ UpdateLoop(LPVOID param){
     return(0);
 }
 
+#ifndef FRED_NOT_PACKAGE
+#include <stdio.h>
+#endif
+
 #if 0
 int
 WinMain(HINSTANCE hInstance,
@@ -1678,7 +1695,7 @@ main(int argc, char **argv){
     }
     if (output_size != 0) return 0;
     FreeConsole();
-
+    
     sysshared_filter_real_files(files, file_count);
     
     LARGE_INTEGER lpf;

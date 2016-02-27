@@ -74,7 +74,10 @@ struct Coroutine{
     void *out;
 };
 
-#define Sys_Launch_Coroutine_Sig(name) Coroutine *name(Coroutine_Function *func, void *in, void *out)
+#define Sys_Create_Coroutine_Sig(name) Coroutine *name(Coroutine_Function *func)
+typedef Sys_Create_Coroutine_Sig(System_Create_Coroutine);
+
+#define Sys_Launch_Coroutine_Sig(name) Coroutine *name(Coroutine *coroutine, void *in, void *out)
 typedef Sys_Launch_Coroutine_Sig(System_Launch_Coroutine);
 
 #define Sys_Resume_Coroutine_Sig(name) Coroutine *name(Coroutine *coroutine, void *in, void *out)
@@ -194,6 +197,7 @@ struct System_Functions{
     System_Time *time;
     
     // coroutine: 4
+    System_Create_Coroutine *create_coroutine;
     System_Launch_Coroutine *launch_coroutine;
     System_Resume_Coroutine *resume_coroutine;
     System_Yield_Coroutine *yield_coroutine;

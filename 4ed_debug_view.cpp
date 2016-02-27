@@ -267,9 +267,9 @@ draw_os_events(Debug_View *view, i32_Rect rect, Render_Target *target,
         
         char c[16];
         String s = make_fixed_width_string(c);
-        append_int_to_str(active_input->mouse.mx, &s);
+        append_int_to_str(active_input->mouse.x, &s);
         append(&s, ", ");
-        append_int_to_str(active_input->mouse.my, &s);
+        append_int_to_str(active_input->mouse.y, &s);
         terminate_with_null(&s);
         draw_string(target, font_id, c, x, y, color);
         y += line_height;
@@ -290,7 +290,7 @@ draw_os_events(Debug_View *view, i32_Rect rect, Render_Target *target,
         append_int_to_str(view->prev_mouse_wheel, &s);
         terminate_with_null(&s);
         
-        if (active_input->mouse.wheel_used) btn_color = color;
+        if (active_input->mouse.wheel != 0) btn_color = color;
         else btn_color = 0xFF444444;
         draw_string(target, font_id, c, x, y, btn_color);
         
@@ -327,34 +327,7 @@ internal void
 step_debug_view(Debug_View *view, i32_Rect rect, Render_Target *target,
                Input_Summary *active_input){
     persist i32 max_past = ArrayCount(view->past_keys);
-
-#if 0
-    b8 *modifiers = active_input->keys.modifiers;
-    for (i32 i = 0; i < active_input->keys.count; ++i){
-        Dbg_Past_Key *past_key = view->past_keys + view->past_key_pos;
-        ++view->past_key_pos;
-        view->past_key_pos = view->past_key_pos % max_past;
-        
-        past_key->key = active_input->keys.keys[i];
-        past_key->modifiers[0] = modifiers[0];
-        past_key->modifiers[1] = modifiers[1];
-        past_key->modifiers[2] = modifiers[2];
-
-#if 0
-        i32 this_index = view->past_key_pos;
-        past_key->frame_index = INTERNAL_frame_index;
-        if (profile_frame.first_key == -1){
-            profile_frame.first_key = this_index;
-        }
-#endif
-        past_key->frame_index = -1;
-        
-        if (view->past_key_count < max_past) ++view->past_key_count;
-    }
-    
-    if (active_input->mouse.wheel_used)
-        view->prev_mouse_wheel = active_input->mouse.wheel_amount;
-#endif
+    AllowLocal(max_past);
 }
 
 internal

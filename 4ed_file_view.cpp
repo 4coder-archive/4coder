@@ -121,7 +121,11 @@ struct File_View{
     
     File_View_Mode mode, next_mode;
     File_View_Widget widget;
-    i32 rewind_max, scrub_max;
+    
+    Query_Set query_set;
+    
+    i32 scrub_max;
+    
     b32 unwrapped_lines;
     b32 show_whitespace;
     b32 locked;
@@ -1473,7 +1477,14 @@ inline i32
 view_widget_height(File_View *view, i32 font_height){
     i32 result = 0;
     switch (view->widget.type){
-    case FWIDG_NONE: break;
+    case FWIDG_NONE:
+    {
+        Query_Slot *slot;
+        for (slot = view->query_set.used_slot; slot != 0; slot = slot->next){
+            result += view->font_height + 2;
+        }
+    }
+    break;
     //case FWIDG_SEARCH: result = font_height + 2; break;
     //case FWIDG_GOTO_LINE: result = font_height + 2; break;
     case FWIDG_TIMELINES: result = view->widget.height; break;
@@ -2784,16 +2795,16 @@ step_file_view(System_Functions *system, View *view_, i32_Rect rect,
     extra_top += view_widget_height(view, (i32)line_height);
     f32 taken_top_space = line_height + extra_top;
     
-    if (user_input->mouse.my < rect.y0 + taken_top_space){
+    if (user_input->mouse.y < rect.y0 + taken_top_space){
         view_->mouse_cursor_type = APP_MOUSE_CURSOR_ARROW;
     }
     else{
         view_->mouse_cursor_type = APP_MOUSE_CURSOR_IBEAM;
     }
     
-    if (user_input->mouse.wheel_used){
-        real32 wheel_multiplier = 3.f;
-        real32 delta_target_y = delta_y*user_input->mouse.wheel_amount*wheel_multiplier;
+    if (user_input->mouse.wheel != 0){
+        f32 wheel_multiplier = 3.f;
+        f32 delta_target_y = delta_y*user_input->mouse.wheel*wheel_multiplier;
         target_y += delta_target_y;
         
         if (target_y < -taken_top_space) target_y = -taken_top_space;
@@ -2849,8 +2860,8 @@ step_file_view(System_Functions *system, View *view_, i32_Rect rect,
     
     if (is_active && user_input->mouse.press_l){
         f32 max_y = view_compute_height(view);
-        f32 rx = (f32)(user_input->mouse.mx - rect.x0);
-        f32 ry = (f32)(user_input->mouse.my - rect.y0 - line_height - 2);
+        f32 rx = (f32)(user_input->mouse.x - rect.x0);
+        f32 ry = (f32)(user_input->mouse.y - rect.y0 - line_height - 2);
         
         if (ry >= extra_top){
             view_set_widget(view, FWIDG_NONE);
@@ -3215,32 +3226,44 @@ draw_file_loaded(File_View *view, i32_Rect rect, b32 is_active, Render_Target *t
     
     end_temp_memory(temp);
 #endif
-    
-    if (view->widget.type != FWIDG_NONE){
+
 #if 0
-        ui_render(target, view->gui_target);
+    ui_render(target, view->gui_target);
 #else
-        UI_Style ui_style = get_ui_style_upper(style);
-        
-        i32_Rect widg_rect = view_widget_rect(view, view->font_height);
-        
-        draw_rectangle(target, widg_rect, ui_style.dark);
-        draw_rectangle_outline(target, widg_rect, ui_style.dim);
-        
-        UI_State state =
-            ui_state_init(&view->widget.state, target, 0,
-                          view->style, view->font_set, 0, 0);
-        
-        UI_Layout layout;
-        begin_layout(&layout, widg_rect);
-        
-        switch (view->widget.type){
+    UI_Style ui_style = get_ui_style_upper(style);
+
+    i32_Rect widg_rect = view_widget_rect(view, view->font_height);
+
+    draw_rectangle(target, widg_rect, ui_style.dark);
+    draw_rectangle_outline(target, widg_rect, ui_style.dim);
+
+    UI_State state =
+        ui_state_init(&view->widget.state, target, 0,
+        view->style, view->font_set, 0, 0);
+
+    UI_Layout layout;
+    begin_layout(&layout, widg_rect);
+
+    switch (view->widget.type){
+        case FWIDG_NONE:
+        {
+            Widget_ID wid;
+            Query_Slot *slot;
+            Query_Bar *bar;
+            int i = 1;
+            for (slot = view->query_set.used_slot; slot != 0; slot = slot->next, ++i){
+                wid = make_id(&state, i);
+                bar = slot->query_bar;
+                do_text_field(wid, &state, &layout, bar->prompt, bar->string);
+            }
+        }break;
+
         case FWIDG_TIMELINES:
         {
             Assert(file);
             if (view->widget.timeline.undo_line){
                 do_button(1, &state, &layout, "- Undo", 1);
-                
+
                 Widget_ID wid = make_id(&state, 2);
                 i32 undo_count, redo_count, total_count;
                 undo_count = file->state.undo.undo.edit_count;
@@ -3251,21 +3274,21 @@ draw_file_loaded(File_View *view, i32_Rect rect, b32 is_active, Render_Target *t
             else{
                 do_button(1, &state, &layout, "+ Undo", 1);
             }
-            
+
             if (view->widget.timeline.history_line){
                 do_button(3, &state, &layout, "- History", 1);
-                
+
                 Widget_ID wid = make_id(&state, 4);
                 i32 new_count;
                 i32 mid = ((file->state.undo.history.edit_count + file->state.undo.edit_history_cursor) >> 1);
                 do_undo_slider(wid, &state, &layout, mid,
-                               file->state.undo.edit_history_cursor, &file->state.undo, &new_count);
+                    file->state.undo.edit_history_cursor, &file->state.undo, &new_count);
             }
             else{
                 do_button(3, &state, &layout, "+ History", 1);
             }
         }break;
-        
+
 #if 0
         case FWIDG_SEARCH:
         {
@@ -3279,7 +3302,7 @@ draw_file_loaded(File_View *view, i32_Rect rect, b32 is_active, Render_Target *t
                 do_text_field(wid, &state, &layout, search_str, view->isearch.str);
             }
         }break;
-        
+
         case FWIDG_GOTO_LINE:
         {
             Widget_ID wid = make_id(&state, 1);
@@ -3288,12 +3311,11 @@ draw_file_loaded(File_View *view, i32_Rect rect, b32 is_active, Render_Target *t
         }break;
 #endif
 
-        }
-        
-        ui_finish_frame(&view->widget.state, &state, &layout, widg_rect, 0, 0);
-#endif
     }
-    
+
+    ui_finish_frame(&view->widget.state, &state, &layout, widg_rect, 0, 0);
+#endif
+
     draw_file_bar(view, &bar, target);
     
     return(0);
@@ -3527,9 +3549,10 @@ file_view_init(View *view, Editing_Layout *layout){
     
     File_View *result = (File_View*)view;
     result->layout = layout;
-    result->rewind_max = 4;
     result->scrub_max = 1;
-    return result;
+    init_query_set(&result->query_set);
+    
+    return(result);
 }
 
 struct File_View_Iter{

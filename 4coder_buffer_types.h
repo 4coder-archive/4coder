@@ -31,6 +31,15 @@ typedef struct Key_Event_Data{
 	char modifiers[MDFR_INDEX_COUNT];
 } Key_Event_Data;
 
+typedef struct Mouse_State{
+	char l, r;
+    char press_l, press_r;
+	char release_l, release_r;
+	char wheel;
+	char out_of_window;
+	int x, y;
+} Mouse_State;
+
 
 typedef struct Full_Cursor{
     int pos;
@@ -102,7 +111,6 @@ seek_line_char(int line, int character){
     return(result);
 }
 
-
 typedef union Range{
     struct{
         int min, max;
@@ -120,8 +128,8 @@ make_range(int p1, int p2){
         range.max = p2;
     }
     else{
-        range.max = p2;
-        range.min = p1;
+        range.min = p2;
+        range.max = p1;
     }
     return(range);
 }

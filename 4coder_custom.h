@@ -22,8 +22,8 @@ enum Command_ID{
     cmdid_seek_alphanumeric_right,
     cmdid_seek_alphanumeric_or_camel_left,
     cmdid_seek_alphanumeric_or_camel_right,
-    cmdid_search,
-    cmdid_reverse_search,
+    //cmdid_search,
+    //cmdid_reverse_search,
     cmdid_word_complete,
     //cmdid_goto_line,
     cmdid_set_mark,
@@ -135,27 +135,22 @@ struct File_View_Summary{
     int unwrapped_lines;
 };
 
+#define UserInputKey 0
+#define UserInputMouse 1
+
 struct User_Input{
-    Key_Event_Data key;
+    int type;
+    union{
+        Key_Event_Data key;
+        Mouse_State mouse;
+    };
     int abort;
 };
 
-struct Query{
-    int query_id;
-    int complete;
-    int type;
+struct Query_Bar{
     String prompt;
     String string;
 };
-
-#ifndef FRED_STRING_STRUCT
-#define FRED_STRING_STRUCT
-struct String{
-    char *str;
-    int size;
-    int memory_size;
-};
-#endif
 
 #define GET_BINDING_DATA(name) int name(void *data, int size)
 #define SET_EXTRA_FONT_SIG(name) void name(Extra_Font *font_out)
@@ -204,20 +199,23 @@ struct Application_Links;
 #define VIEW_SET_BUFFER_SIG(name) int name(Application_Links *context, File_View_Summary *view, int buffer_id)
 
 // Directly get user input
-#define AbortOnEsc 0x1
-#define AbortOnClick 0x2
-#define GET_USER_INPUT_SIG(name) User_Input name(Application_Links *context, unsigned int flags)
+#define EventOnAnyKey 0x1
+#define EventOnEsc 0x2
+#define EventOnLeftButton 0x4
+#define EventOnRightButton 0x8
+#define EventOnWheel 0x10
+#define EventOnButton (EventOnLeftButton | EventOnRightButton | EventOnWheel)
+#define EventOnMouseMove 0x20
+#define EventOnMouse (EventOnButton | EventOnMouseMove)
+
+#define GET_USER_INPUT_SIG(name) User_Input name(Application_Links *context, unsigned int get_type, unsigned int abort_type)
 
 // Queries
-#define QueryForFile 0x1
-#define QueryForBuffer 0x2
+#define QueryEffectImmediate 0x0
+#define QueryEffectSmooth 0x1
 
-#define QueryBar 0x0
-#define QueryScreen 0x010000
-
-#define CREATE_QUERY_SIG(name) Query name(Application_Links *context, String prompt, unsigned int flags)
-#define UPDATE_QUERY_SIG(name) void name(Application_Links *context, Query *query, Key_Event_Data key)
-#define CLOSE_QUERY_SIG(name) void name(Application_Links *context, Query *query)
+#define START_QUERY_BAR_SIG(name) int name(Application_Links *context, Query_Bar *bar, unsigned int flags)
+#define END_QUERY_BAR_SIG(name) void name(Application_Links *context, Query_Bar *bar, unsigned int flags)
 
 extern "C"{
     // Command exectuion
@@ -257,9 +255,8 @@ extern "C"{
     typedef GET_USER_INPUT_SIG(Get_User_Input_Function);
     
     // Queries
-    typedef CREATE_QUERY_SIG(Create_Query_Function);
-    typedef UPDATE_QUERY_SIG(Update_Query_Function);
-    typedef CLOSE_QUERY_SIG(Close_Query_Function);
+    typedef START_QUERY_BAR_SIG(Start_Query_Bar_Function);
+    typedef END_QUERY_BAR_SIG(End_Query_Bar_Function);
 }
 
 struct Application_Links{
@@ -300,12 +297,11 @@ struct Application_Links{
     View_Set_Buffer_Function *view_set_buffer;
     
     // Directly get user input
-    Get_User_Input_Function* get_user_input;
+    Get_User_Input_Function *get_user_input;
     
     // Queries
-    Create_Query_Function* create_query;
-    Update_Query_Function* update_query;
-    Close_Query_Function* close_query;
+    Start_Query_Bar_Function *start_query_bar;
+    End_Query_Bar_Function *end_query_bar;
 };
 
 struct Custom_API{

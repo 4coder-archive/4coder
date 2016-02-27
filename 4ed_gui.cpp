@@ -9,6 +9,61 @@
 
 // TOP
 
+struct Query_Slot{
+    Query_Slot *next;
+    Query_Bar *query_bar;
+};
+
+struct Query_Set{
+    Query_Slot slots[8];
+    Query_Slot *free_slot;
+    Query_Slot *used_slot;
+};
+
+internal void
+init_query_set(Query_Set *set){
+    Query_Slot *slot = set->slots;
+    int i;
+    
+    set->free_slot = slot;
+    set->used_slot = 0;
+    for (i = 0; i+1 < ArrayCount(set->slots); ++i, ++slot){
+        slot->next = slot + 1;
+    }
+}
+
+internal Query_Slot*
+alloc_query_slot(Query_Set *set){
+    Query_Slot *slot = set->free_slot;
+    if (slot != 0){
+        set->free_slot = slot->next;
+        slot->next = set->used_slot;
+        set->used_slot = slot;
+    }
+    return(slot);
+}
+
+internal void
+free_query_slot(Query_Set *set, Query_Bar *match_bar){
+    Query_Slot *slot = 0, *prev = 0;
+    
+    for (slot = set->used_slot; slot != 0; slot = slot->next){
+        if (slot->query_bar == match_bar) break;
+        prev = slot;
+    }
+
+    if (slot){
+        if (prev){
+            prev->next = slot->next;
+        }
+        else{
+            set->used_slot = slot->next;
+        }
+        slot->next = set->free_slot;
+        set->free_slot = slot;
+    }
+}
+
 #if 0
 enum GUI_Piece_Type{
     gui_type_text_input,
@@ -302,7 +357,7 @@ struct UI_State{
     Render_Target *target;
     Style *style;
     Font_Set *font_set;
-    Mouse_Summary *mouse;
+    Mouse_State *mouse;
     Key_Summary *keys;
     Working_Set *working_set;
     i16 font_id;
@@ -518,7 +573,7 @@ ui_state_init(UI_State *state_in, Render_Target *target, Input_Summary *user_inp
     return state;
 }
 
-inline bool32
+inline b32
 ui_state_match(UI_State a, UI_State b){
     return (widget_match(a.selected, b.selected) &&
             widget_match(a.hot, b.hot) &&
@@ -536,12 +591,12 @@ ui_finish_frame(UI_State *persist_state, UI_State *state, UI_Layout *layout, i32
     persist_state->view_y = state->view_y;
     
     if (state->input_stage){
-        Mouse_Summary *mouse = state->mouse;
+        Mouse_State *mouse = state->mouse;
         Font_Set *font_set = state->font_set;
         
-        if (mouse->wheel_used && do_wheel){
+        if (mouse->wheel != 0 && do_wheel){
             i32 height = get_font_info(font_set, state->font_id)->height;
-            persist_state->view_y += mouse->wheel_amount*height;
+            persist_state->view_y += mouse->wheel*height;
             result = 1;
         }
         if (mouse->release_l && widget_match(state->hot, state->hover)){
@@ -567,11 +622,11 @@ ui_finish_frame(UI_State *persist_state, UI_State *state, UI_Layout *layout, i32
     return result;
 }
 
-internal bool32
+internal b32
 ui_do_button_input(UI_State *state, i32_Rect rect, Widget_ID id, bool32 activate, bool32 *right = 0){
-    bool32 result = 0;
-    Mouse_Summary *mouse = state->mouse;
-    bool32 hover = hit_check(mouse->mx, mouse->my, rect);
+    b32 result = 0;
+    Mouse_State *mouse = state->mouse;
+    b32 hover = hit_check(mouse->x, mouse->y, rect);
     if (hover){
         state->hover = id;
         if (activate) state->activate_me = 1;
@@ -620,9 +675,9 @@ internal real32
 ui_do_vscroll_input(UI_State *state, i32_Rect top, i32_Rect bottom, i32_Rect slider,
                     Widget_ID id, real32 val, real32 step_amount,
                     real32 smin, real32 smax, real32 vmin, real32 vmax){
-    Mouse_Summary *mouse = state->mouse;
-    i32 mx = mouse->mx;
-    i32 my = mouse->my;
+    Mouse_State *mouse = state->mouse;
+    i32 mx = mouse->x;
+    i32 my = mouse->y;
     if (hit_check(mx, my, top)){
         state->hover = id;
         state->hover.sub_id2 = 1;
@@ -647,8 +702,8 @@ ui_do_vscroll_input(UI_State *state, i32_Rect top, i32_Rect bottom, i32_Rect sli
             state->redraw = 1;
         }
         if (state->hot.sub_id2 == 3){
-            real32 S, L;
-            S = (real32)mouse->my - (slider.y1 - slider.y0) / 2;
+            f32 S, L;
+            S = (f32)mouse->y - (slider.y1 - slider.y0) / 2;
             if (S < smin) S = smin;
             if (S > smax) S = smax;
             L = unlerp(smin, S, smax);
@@ -717,15 +772,15 @@ ui_do_line_field_input(System_Functions *system,
     return result;
 }
 
-internal bool32
+internal b32
 ui_do_slider_input(UI_State *state, i32_Rect rect, Widget_ID wid,
                    real32 min, real32 max, real32 *v){
-    bool32 result = 0;
+    b32 result = 0;
     ui_do_button_input(state, rect, wid, 0);
-    Mouse_Summary *mouse = state->mouse;
+    Mouse_State *mouse = state->mouse;
     if (is_hot(state, wid)){
         result = 1;
-        *v = unlerp(min, (real32)mouse->mx, max);
+        *v = unlerp(min, (f32)mouse->x, max);
         state->redraw = 1;
     }
     return result;

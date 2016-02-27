@@ -135,6 +135,30 @@ CUSTOM_COMMAND_SIG(open_long_braces_semicolon){
     exec_command(app, cmdid_auto_tab_range);
 }
 
+CUSTOM_COMMAND_SIG(paren_wrap){
+    File_View_Summary view;
+    Buffer_Summary buffer;
+
+    char text1[] = "(";
+    int size1 = sizeof(text1) - 1;
+
+    char text2[] = ")";
+    int size2 = sizeof(text2) - 1;
+
+    Range range;
+    int pos;
+
+    view = app->get_active_file_view(app);
+    buffer = app->get_active_buffer(app);
+
+    range = get_range(&view);
+    pos = range.max;
+    app->buffer_replace_range(app, &buffer, pos, pos, text2, size2);
+
+    pos = range.min;
+    app->buffer_replace_range(app, &buffer, pos, pos, text1, size1);
+}
+
 CUSTOM_COMMAND_SIG(if0_off){
     File_View_Summary view;
     Buffer_Summary buffer;
@@ -279,24 +303,45 @@ CUSTOM_COMMAND_SIG(switch_to_file_in_quotes){
 
 CUSTOM_COMMAND_SIG(goto_line){
     User_Input in;
-    Query bar;
-    int line_number = 0;
+    Query_Bar bar;
+    char string_space[256];
+    int line_number;
     
-    in = {};
-    bar = app->create_query(app, make_lit_string("Line Number: "), QueryBar);
+    bar.prompt = make_lit_string("Goto Line: ");
+    bar.string = make_fixed_width_string(string_space);
+    
+    // NOTE(allen): It will not cause an *error* if we continue on after failing to.
+    // start a query bar, but it will be unusual behavior from the point of view of the
+    // user, if this command starts intercepting input even though no prompt is shown.
+    if (app->start_query_bar(app, &bar, 0) == 0) return;
+    
     while (1){
-        in = app->get_user_input(app, AbortOnEsc | AbortOnClick);
+        in = app->get_user_input(app, EventOnAnyKey, EventOnEsc | EventOnButton);
         if (in.abort) break;
-        if (in.key.character >= '0' && in.key.character <= '9' || in.key.character == 0){
-            app->update_query(app, &bar, in.key);
-            if (bar.complete) break;
+        if (in.type == UserInputKey){
+            if (in.key.character >= '0' && in.key.character <= '9'){
+                append(&bar.string, in.key.character);
+            }
+            else if (in.key.keycode == key_back){
+                --bar.string.size;
+            }
+            else if (in.key.keycode == '\n' || in.key.keycode == '\t'){
+                break;
+            }
         }
     }
-    app->close_query(app, &bar);
     if (in.abort) return;
-    line_number = str_to_int(bar.string);
     
+    line_number = str_to_int(bar.string);
     active_view_to_line(app, line_number);
+}
+
+CUSTOM_COMMAND_SIG(search){
+    
+}
+
+CUSTOM_COMMAND_SIG(reverse_search){
+    
 }
 
 CUSTOM_COMMAND_SIG(open_in_other){
@@ -409,7 +454,7 @@ extern "C" GET_BINDING_DATA(get_bindings){
     // global and once set they always apply, regardless of what map is active.
     set_hook(context, hook_start, my_start);
     set_hook(context, hook_open_file, my_file_settings);
-
+    
     begin_map(context, mapid_global);
 
     bind(context, 'p', MDFR_CTRL, cmdid_open_panel_vsplit);
@@ -467,6 +512,7 @@ extern "C" GET_BINDING_DATA(get_bindings){
     bind(context, '-', MDFR_CTRL, write_decrement);
     bind(context, '[', MDFR_CTRL, open_long_braces);
     bind(context, '{', MDFR_CTRL, open_long_braces);
+    bind(context, '9', MDFR_CTRL, paren_wrap);
     bind(context, 'i', MDFR_ALT, if0_off);
     bind(context, '1', MDFR_ALT, switch_to_file_in_quotes);
     
@@ -525,8 +571,8 @@ extern "C" GET_BINDING_DATA(get_bindings){
     bind(context, '1', MDFR_CTRL, cmdid_eol_dosify);
     bind(context, '!', MDFR_CTRL, cmdid_eol_nixify);
     
-    bind(context, 'f', MDFR_CTRL, cmdid_search);
-    bind(context, 'r', MDFR_CTRL, cmdid_reverse_search);
+    bind(context, 'f', MDFR_CTRL, search);
+    bind(context, 'r', MDFR_CTRL, reverse_search);
     bind(context, 'g', MDFR_CTRL, goto_line);
     
     bind(context, 'K', MDFR_CTRL, cmdid_kill_buffer);
