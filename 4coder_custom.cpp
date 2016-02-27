@@ -307,13 +307,19 @@ CUSTOM_COMMAND_SIG(goto_line){
     char string_space[256];
     int line_number;
     
-    bar.prompt = make_lit_string("Goto Line: ");
-    bar.string = make_fixed_width_string(string_space);
-    
-    // NOTE(allen): It will not cause an *error* if we continue on after failing to.
+    // NOTE(allen|a3.4.4): It will not cause an *error* if we continue on after failing to.
     // start a query bar, but it will be unusual behavior from the point of view of the
     // user, if this command starts intercepting input even though no prompt is shown.
+    // This will only happen if you have a lot of bars open already or if the current view
+    // doesn't support query bars.
     if (app->start_query_bar(app, &bar, 0) == 0) return;
+    
+    // NOTE(allen|a3.4.4): The application side is storing a pointer straight to your Query_Bar
+    // any change you make to it will be reflected in what the application renders.  The application
+    // also makes sure that it destroys all query bars whenever a command exists or an abort
+    // mesasge is sent to it.
+    bar.prompt = make_lit_string("Goto Line: ");
+    bar.string = make_fixed_width_string(string_space);
     
     while (1){
         in = app->get_user_input(app, EventOnAnyKey, EventOnEsc | EventOnButton);
@@ -336,12 +342,110 @@ CUSTOM_COMMAND_SIG(goto_line){
     active_view_to_line(app, line_number);
 }
 
-CUSTOM_COMMAND_SIG(search){
+CUSTOM_COMMAND_SIG(search);
+CUSTOM_COMMAND_SIG(reverse_search);
+
+static void
+isearch(Application_Links *app, int start_reversed){
+    File_View_Summary view;
+    Buffer_Summary buffer;
+    User_Input in;
+    Query_Bar bar;
     
+    if (app->start_query_bar(app, &bar, 0) == 0) return;
+    
+    Range match;
+    int reverse = start_reversed;
+    int pos;
+    
+    view = app->get_active_file_view(app);
+    buffer = app->get_buffer(app, view.buffer_id);
+    
+    pos = view.cursor.pos;
+    match = make_range(pos, pos);
+    
+    char bar_string_space[256];
+    bar.string = make_fixed_width_string(bar_string_space);
+    
+    String isearch = make_lit_string("I-Search: ");
+    String rsearch = make_lit_string("Reverse-I-Search: ");
+    
+    while (1){
+        if (reverse) bar.prompt = rsearch;
+        else bar.prompt = isearch;
+        
+        in = app->get_user_input(app, EventOnAnyKey, EventOnEsc | EventOnButton);
+        if (in.abort) break;
+        
+        int made_change = 0;
+        if (in.key.keycode == '\n' || in.key.keycode == '\t'){
+            break;
+        }
+        else if (in.key.character && key_is_unmodified(&in.key)){
+            append(&bar.string, in.key.character);
+            made_change = 1;
+        }
+        else if (in.key.keycode == key_back){
+            --bar.string.size;
+            made_change = 1;
+        }
+        
+        int step_forward = 0;
+        int step_backward = 0;
+        
+        if (CommandEqual(in.command, search)) step_forward = 1;
+        if (CommandEqual(in.command, reverse_search)) step_backward = 1;
+        
+        int start_pos = pos;
+        if (step_forward && reverse){
+            start_pos = match.start + 1;
+            pos = start_pos;
+            reverse = 0;
+            step_forward = 0;
+        }
+        if (step_backward && !reverse){
+            start_pos = match.start - 1;
+            pos = start_pos;
+            reverse = 1;
+            step_backward = 0;
+        }
+        
+        if (in.key.keycode != key_back){
+            int new_pos;
+            if (reverse){
+                app->buffer_seek_string(app, &buffer, start_pos - 1, bar.string, 0, &new_pos);
+                if (step_backward){
+                    pos = new_pos;
+                    start_pos = new_pos;
+                    app->buffer_seek_string(app, &buffer, start_pos - 1, bar.string, 0, &new_pos);
+                }
+            }
+            else{
+                app->buffer_seek_string(app, &buffer, start_pos + 1, bar.string, 1, &new_pos);
+                if (step_forward){
+                    pos = new_pos;
+                    start_pos = new_pos;
+                    app->buffer_seek_string(app, &buffer, start_pos + 1, bar.string, 1, &new_pos);
+                }
+            }
+            match.start = new_pos;
+            match.end = match.start + bar.string.size;
+        }
+        
+        app->view_set_highlight(app, &view, match.start, match.end, 1);
+    }
+    app->view_set_highlight(app, &view, 0, 0, 0);
+    if (in.abort) return;
+    
+    app->view_set_cursor(app, &view, seek_pos(match.min), 1);
+}
+
+CUSTOM_COMMAND_SIG(search){
+    isearch(app, 0);
 }
 
 CUSTOM_COMMAND_SIG(reverse_search){
-    
+    isearch(app, 1);
 }
 
 CUSTOM_COMMAND_SIG(open_in_other){

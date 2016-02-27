@@ -44,11 +44,11 @@ step_draw_menu_view(Menu_View *view, Render_Target *target, i32_Rect rect,
     do_label(&state, &layout, literal("Menu"), 2.f);
     
     if (do_list_option(++id, &state, &layout, make_lit_string("Theme Options"))){
-        delayed_action(view->delay, DACT_THEME_OPTIONS, {}, view->view_base.panel);
+        delayed_theme_options(view->delay, {}, view->view_base.panel);
     }
 
     if (do_list_option(++id, &state, &layout, make_lit_string("Keyboard Layout Options"))){
-        delayed_action(view->delay, DACT_KEYBOARD_OPTIONS, {}, view->view_base.panel);
+        delayed_keyboard_options(view->delay, {}, view->view_base.panel);
     }
     
     if (ui_finish_frame(&view->state, &state, &layout, rect, 0, 0)){

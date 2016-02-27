@@ -3339,7 +3339,6 @@ HANDLE_COMMAND_SIG(handle_command_file_view){
     
     case FWIDG_SEARCH:
     {
-#if BUFFER_EXPERIMENT_SCALPEL <= 3
         String *string = &file_view->isearch.str;
         Single_Line_Input_Step result =
             app_single_line_input_step(system, key, string);
@@ -3370,10 +3369,10 @@ HANDLE_COMMAND_SIG(handle_command_file_view){
                     step_backward = 0;
                 }
             }
-
+            
             Temp_Memory temp = begin_temp_memory(&view->mem->part);
             char *spare = push_array(&view->mem->part, char, string->size);
-
+            
             i32 size = buffer_size(&file->state.buffer);
             i32 pos;
             if (!result.hit_backspace){
@@ -3420,7 +3419,6 @@ HANDLE_COMMAND_SIG(handle_command_file_view){
             file_view->show_temp_highlight = 0;
             view_set_widget(file_view, FWIDG_NONE);
         }
-#endif
     }break;
     
     case FWIDG_GOTO_LINE:

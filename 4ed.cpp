@@ -999,7 +999,7 @@ COMMAND_DECL(save){
     USE_DELAY(delay);
     USE_PANEL(panel);
     
-    delayed_action(delay, DACT_SAVE, file->name.source_path, panel);
+    delayed_save(delay, file->name.source_path, panel);
 }
 
 COMMAND_DECL(interactive_save_as){
@@ -1091,7 +1091,7 @@ COMMAND_DECL(kill_buffer){
     REQ_FILE(file, view);
     USE_DELAY(delay);
     
-    delayed_action(delay, DACT_TRY_KILL, file->name.live_name, view->view_base.panel);
+    delayed_try_kill(delay, file->name.live_name, view->view_base.panel);
 }
 
 COMMAND_DECL(toggle_line_wrap){
@@ -2094,7 +2094,7 @@ extern "C"{
             file = working_set->files + buffer->buffer_id;
             if (!file->state.is_dummy && file_is_ready(file)){
                 size = buffer_size(&file->state.buffer);
-                if (start < size){
+                if (start >= 0 && start < size){
                     result = 1;
                     if (seek_forward){
                         *out = buffer_seek_delimiter(&file->state.buffer, start, delim);
@@ -2104,6 +2104,43 @@ extern "C"{
                     }
                     if (*out < 0) *out = 0;
                     if (*out > size) *out = size;
+                }
+                fill_buffer_summary(buffer, file, working_set);
+            }
+        }
+
+        return(result);
+    }
+    
+    BUFFER_SEEK_STRING_SIG(external_buffer_seek_string){
+        Command_Data *cmd = (Command_Data*)context->data;
+        Editing_File *file;
+        Working_Set *working_set;
+        Temp_Memory temp;
+        Partition *part;
+        char *spare;
+        int result = 0;
+        int size;
+        
+        if (buffer->exists){
+            working_set = cmd->working_set;
+            file = working_set->files + buffer->buffer_id;
+            if (!file->state.is_dummy && file_is_ready(file)){
+                size = buffer_size(&file->state.buffer);
+                if (start >= 0 && start < size){
+                    part = &cmd->mem->part;
+                    temp = begin_temp_memory(part);
+                    spare = push_array(part, char, string.size);
+                    result = 1;
+                    if (seek_forward){
+                        *out = buffer_find_string(&file->state.buffer, start, size, string.str, string.size, spare);
+                    }
+                    else{
+                        *out = buffer_rfind_string(&file->state.buffer, start, string.str, string.size, spare);
+                    }
+                    if (*out < 0) *out = 0;
+                    if (*out > size) *out = size;
+                    end_temp_memory(temp);
                 }
                 fill_buffer_summary(buffer, file, working_set);
             }
@@ -2180,15 +2217,19 @@ extern "C"{
         Editing_File *file;
         Working_Set *working_set;
         Delay *delay;
+        int result = 0;
         
         if (buffer->exists){
             delay = cmd->delay;
             working_set = cmd->working_set;
             file = working_set->files + buffer->buffer_id;
             if (!file->state.is_dummy && file_is_ready(file) && buffer_needs_save(file)){
-                
+                delayed_save(delay, file->name.source_path, file);
+                result = 1;
             }
         }
+        
+        return(result);
     }
     
     GET_VIEW_MAX_INDEX_SIG(external_get_view_max_index){
@@ -2281,6 +2322,32 @@ extern "C"{
                 }
                 else{
                     file_view->mark = seek.pos;
+                }
+                fill_view_summary(view, file_view, cmd->live_set, cmd->working_set);
+            }
+        }
+        
+        return(result);
+    }
+    
+    VIEW_SET_HIGHLIGHT_SIG(external_view_set_highlight){
+        Command_Data *cmd = (Command_Data*)context->data;
+        Live_Views *live_set;
+        View *vptr;
+        File_View *file_view;
+        int result = 0;
+        
+        if (view->exists){
+            live_set = cmd->live_set;
+            vptr = (View*)((char*)live_set->views + live_set->stride * view->view_id);
+            file_view = view_to_file_view(vptr);
+            if (file_view){
+                result = 1;
+                if (turn_on){
+                    view_set_temp_highlight(file_view, start, end);
+                }
+                else{
+                    file_view->show_temp_highlight = 0;
                 }
                 fill_view_summary(view, file_view, cmd->live_set, cmd->working_set);
             }
@@ -2396,6 +2463,7 @@ app_links_init(System_Functions *system){
     
     app_links.refresh_buffer = external_refresh_buffer;
     app_links.buffer_seek_delimiter = external_buffer_seek_delimiter;
+    app_links.buffer_seek_string = external_buffer_seek_string;
     app_links.buffer_read_range = external_buffer_read_range;
     app_links.buffer_replace_range = external_buffer_replace_range;
     app_links.buffer_save = external_buffer_save;
@@ -2407,6 +2475,7 @@ app_links_init(System_Functions *system){
     app_links.refresh_file_view = external_refresh_file_view;
     app_links.view_set_cursor = external_view_set_cursor;
     app_links.view_set_mark = external_view_set_mark;
+    app_links.view_set_highlight = external_view_set_highlight;
     app_links.view_set_buffer = external_view_set_buffer;
     
     app_links.get_user_input = external_get_user_input;
@@ -3197,7 +3266,9 @@ App_Init_Sig(app_init){
     }
     
     // NOTE(allen): delay setup
-    vars->delay.max = ArrayCount(vars->delay.acts);
+    vars->delay.max = 128;
+    vars->delay.acts = (Delayed_Action*)general_memory_allocate(
+        &vars->mem.general, vars->delay.max*sizeof(Delayed_Action), 0);
     
     // NOTE(allen): style setup
     app_hardcode_styles(vars);
@@ -3579,18 +3650,20 @@ App_Step_Sig(app_step){
                     consumed_input[5] = 1;
                 }
             }
-            
-            cmd->current_coroutine = vars->command_coroutine;
-            vars->command_coroutine = system->resume_coroutine(command_coroutine, &user_in,
-                vars->command_coroutine_flags);
-            app_result.redraw = 1;
-            
-            // TOOD(allen): Deduplicate
-            // TODO(allen): Allow a view to clean up however it wants after a command finishes,
-            // or after transfering to another view mid command.
-            File_View *fview = view_to_file_view(view);
-            if (fview != 0 && vars->command_coroutine == 0){
-                init_query_set(&fview->query_set);
+
+            if (pass_in){
+                cmd->current_coroutine = vars->command_coroutine;
+                vars->command_coroutine = system->resume_coroutine(command_coroutine, &user_in,
+                    vars->command_coroutine_flags);
+                app_result.redraw = 1;
+
+                // TOOD(allen): Deduplicate
+                // TODO(allen): Allow a view to clean up however it wants after a command finishes,
+                // or after transfering to another view mid command.
+                File_View *fview = view_to_file_view(view);
+                if (fview != 0 && vars->command_coroutine == 0){
+                    init_query_set(&fview->query_set);
+                }
             }
         }
     }
@@ -3737,7 +3810,7 @@ App_Step_Sig(app_step){
             }
         }
     }
-
+    
     if (!consumed_input[0] || !consumed_input[1]){
         b32 consumed_input2[2] = {0};
         

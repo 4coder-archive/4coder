@@ -187,6 +187,7 @@ struct Application_Links;
 
 #define REFRESH_BUFFER_SIG(name) int name(Application_Links *context, Buffer_Summary *buffer)
 #define BUFFER_SEEK_DELIMITER_SIG(name) int name(Application_Links *context, Buffer_Summary *buffer, int start, char delim, int seek_forward, int *out)
+#define BUFFER_SEEK_STRING_SIG(name) int name(Application_Links *context, Buffer_Summary *buffer, int start, String string, int seek_forward, int *out)
 #define BUFFER_READ_RANGE_SIG(name) int name(Application_Links *context, Buffer_Summary *buffer, int start, int end, char *out)
 #define BUFFER_REPLACE_RANGE_SIG(name) int name(Application_Links *context, Buffer_Summary *buffer, int start, int end, char *str, int len)
 #define BUFFER_SAVE_SIG(name) int name(Application_Links *context, Buffer_Summary *buffer, char *filename, int len)
@@ -199,6 +200,7 @@ struct Application_Links;
 #define REFRESH_FILE_VIEW_SIG(name) int name(Application_Links *context, File_View_Summary *view)
 #define VIEW_SET_CURSOR_SIG(name) int name(Application_Links *context, File_View_Summary *view, Buffer_Seek seek, int set_preferred_x)
 #define VIEW_SET_MARK_SIG(name) int name(Application_Links *context, File_View_Summary *view, Buffer_Seek seek)
+#define VIEW_SET_HIGHLIGHT_SIG(name) int name(Application_Links *context, File_View_Summary *view, int start, int end, int turn_on)
 #define VIEW_SET_BUFFER_SIG(name) int name(Application_Links *context, File_View_Summary *view, int buffer_id)
 
 // Directly get user input
@@ -240,6 +242,7 @@ extern "C"{
     
     typedef REFRESH_BUFFER_SIG(Refresh_Buffer_Function);
     typedef BUFFER_SEEK_DELIMITER_SIG(Buffer_Seek_Delimiter_Function);
+    typedef BUFFER_SEEK_STRING_SIG(Buffer_Seek_String_Function);
     typedef BUFFER_READ_RANGE_SIG(Buffer_Read_Range_Function);
     typedef BUFFER_REPLACE_RANGE_SIG(Buffer_Replace_Range_Function);
     typedef BUFFER_SAVE_SIG(Buffer_Save_Function);
@@ -252,6 +255,7 @@ extern "C"{
     typedef REFRESH_FILE_VIEW_SIG(Refresh_File_View_Function);
     typedef VIEW_SET_CURSOR_SIG(View_Set_Cursor_Function);
     typedef VIEW_SET_MARK_SIG(View_Set_Mark_Function);
+    typedef VIEW_SET_HIGHLIGHT_SIG(View_Set_Highlight_Function);
     typedef VIEW_SET_BUFFER_SIG(View_Set_Buffer_Function);
     
     // Directly get user input
@@ -285,6 +289,7 @@ struct Application_Links{
     
     Refresh_Buffer_Function *refresh_buffer;
     Buffer_Seek_Delimiter_Function *buffer_seek_delimiter;
+    Buffer_Seek_String_Function *buffer_seek_string;
     Buffer_Read_Range_Function *buffer_read_range;
     Buffer_Replace_Range_Function *buffer_replace_range;
     Buffer_Save_Function *buffer_save;
@@ -297,6 +302,7 @@ struct Application_Links{
     Refresh_File_View_Function *refresh_file_view;
     View_Set_Cursor_Function *view_set_cursor;
     View_Set_Mark_Function *view_set_mark;
+    View_Set_Highlight_Function *view_set_highlight;
     View_Set_Buffer_Function *view_set_buffer;
     
     // Directly get user input

@@ -243,3 +243,10 @@ active_view_to_line(Application_Links *app, int line_number){
     app->view_set_cursor(app, &view, seek_line_char(line_number, 0), 1);
 }
 
+inline int
+key_is_unmodified(Key_Event_Data *key){
+    char *mods = key->modifiers;
+    int unmodified = !mods[MDFR_CONTROL_INDEX] && !mods[MDFR_ALT_INDEX];
+    return(unmodified);
+}
+

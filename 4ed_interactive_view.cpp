@@ -62,38 +62,38 @@ interactive_view_complete(Interactive_View *view){
     delayed_save_as(view->delay, view->hot_directory->string, panel);
     delayed_close_minor(view->delay, panel);
     break;
-        
+
     case INTV_NEW:
-        delayed_action(view->delay, DACT_NEW, view->hot_directory->string, panel);
-        break;
-        
+    delayed_new(view->delay, view->hot_directory->string, panel);
+    break;
+
     case INTV_SWITCH:
-        delayed_action(view->delay, DACT_SWITCH, view->dest, panel);
-        break;
-        
+    delayed_switch(view->delay, view->dest, panel);
+    break;
+
     case INTV_KILL:
-        delayed_action(view->delay, DACT_TRY_KILL, view->dest, panel);
-        break;
-        
+    delayed_try_kill(view->delay, view->dest, panel);
+    break;
+    
     case INTV_SURE_TO_KILL:
-        switch (view->user_action){
+    switch (view->user_action){
         case 0:
-            delayed_action(view->delay, DACT_KILL, view->dest, panel);
-            delayed_action(view->delay, DACT_CLOSE_MINOR, {}, panel);
-            break;
-            
+        delayed_kill(view->delay, view->dest, panel);
+        delayed_close_minor(view->delay, {}, panel);
+        break;
+
         case 1:
-            delayed_action(view->delay, DACT_CLOSE_MINOR, {}, panel);
-            break;
+        delayed_close_minor(view->delay, {}, panel);
+        break;
 
         case 2:
-            delayed_action(view->delay, DACT_SAVE, view->dest, panel);
-            delayed_action(view->delay, DACT_KILL, view->dest, panel);
-            delayed_action(view->delay, DACT_CLOSE_MINOR, {}, panel);
-            break;
-        }
+        delayed_save(view->delay, view->dest, panel);
+        delayed_kill(view->delay, view->dest, panel);
+        delayed_close_minor(view->delay, {}, panel);
         break;
     }
+    break;
+}
 }
 
 internal i32

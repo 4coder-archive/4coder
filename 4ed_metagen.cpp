@@ -155,7 +155,7 @@ Struct_Field delay_fields[] = {
 // TODO(allen): Make delay buffer expandable (general memory probably)
 char delayed_action_function_top[] = 
 "inline Delayed_Action*\n"
-"delayed_action(Delay *delay, Action_Type type";
+"delayed_action_(Delay *delay, Action_Type type";
 
 char delayed_action_function_bottom[] = 
 "){\n"
@@ -172,7 +172,7 @@ char delayed_action_special_param[] = ", %s %s";
 char delayed_action_specialized_middle[] =
 "){\n"
 "    Delayed_Action *result;\n"
-"    result = delayed_action(delay, type);\n";
+"    result = delayed_action_(delay, type);\n";
 
 char delayed_action_special_line[] =
 "    result->%s = %s;\n";
@@ -182,7 +182,7 @@ char delayed_action_specialized_bottom[] =
 "}\n\n";
 
 char delayed_action_macro[] =
-"#define delayed_%s(delay, ...) delayed_action(delay, DACT_%s, __VA_ARGS__)\n";
+"#define delayed_%s(delay, ...) delayed_action_(delay, DACT_%s, __VA_ARGS__)\n";
 
 char* generate_delayed_action(){
     FILE *file;
