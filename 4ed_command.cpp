@@ -18,7 +18,10 @@ typedef Command_Function_Sig(*Command_Function);
 
 struct Command_Binding{
     Command_Function function;
-    Custom_Command_Function *custom;
+    union{
+        Custom_Command_Function *custom;
+        u64 custom_id;
+    };
     i64 hash;
 };
 
@@ -58,6 +61,12 @@ map_add(Command_Map *map, u16 event_code, u8 modifiers,
     map->commands[index] = bind;
     ++map->count;
     return 0;
+}
+
+inline b32
+map_add(Command_Map *map, u16 event_code, u8 modifiers,
+    Command_Function function, u64 custom_id){
+    return (map_add(map, event_code, modifiers, function, (Custom_Command_Function*)custom_id));
 }
 
 internal b32
@@ -158,7 +167,34 @@ map_extract(Command_Map *map, Key_Event_Data key){
         }
     }
     
-    return bind;
+    return(bind);
+}
+
+internal Command_Binding
+map_extract_recursive(Command_Map *map, Key_Event_Data key){
+    Command_Binding cmd_bind = {};
+    Command_Map *visited_maps[16] = {};
+    i32 visited_top = 0;
+    
+    while (map){
+        cmd_bind = map_extract(map, key);
+        if (cmd_bind.function == 0){
+            if (visited_top < ArrayCount(visited_maps)){
+                visited_maps[visited_top++] = map;
+                map = map->parent;
+                for (i32 i = 0; i < visited_top; ++i){
+                    if (map == visited_maps[i]){
+                        map = 0;
+                        break;
+                    }
+                }
+            }
+            else map = 0;
+        }
+        else map = 0;
+    }
+    
+    return(cmd_bind);
 }
 
 // BOTTOM
