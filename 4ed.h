@@ -17,6 +17,8 @@ struct Application_Memory{
     i32 vars_memory_size;
     void *target_memory;
     i32 target_memory_size;
+    void *user_memory;
+    i32 user_memory_size;
 };
 
 #define KEY_INPUT_BUFFER_SIZE 4

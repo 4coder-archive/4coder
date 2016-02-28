@@ -120,7 +120,7 @@ buffer_reverse_seek_delimiter(Buffer_Type *buffer, int pos, char delim){
         buffer_backify_next(&loop)){
         end = loop.size + loop.absolute_pos;
         data = loop.data - loop.absolute_pos;
-        for (; pos > 0; --pos){
+        for (; pos >= 0; --pos){
             if (data[pos] == delim) goto double_break;
         }
     }

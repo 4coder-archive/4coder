@@ -34,6 +34,7 @@ struct Interactive_View{
     UI_State state;
     Interactive_View_Interaction interaction;
     Interactive_View_Action action;
+    int finished;
     
     char query_[256];
     String query;
@@ -98,8 +99,9 @@ interactive_view_complete(Interactive_View *view){
 
 internal i32
 step_draw_int_view(System_Functions *system, Interactive_View *view,
-                   Render_Target *target, i32_Rect rect,
-                   Input_Summary *user_input, b32 input_stage){
+    Render_Target *target, i32_Rect rect,
+    Input_Summary *user_input, b32 input_stage){
+    if (view->finished) return 0;
     i32 result = 0;
     
     UI_State state =
@@ -182,6 +184,7 @@ step_draw_int_view(System_Functions *system, Interactive_View *view,
     }
     
     if (complete){
+        view->finished = 1;
         interactive_view_complete(view);
     }
     
@@ -222,6 +225,7 @@ interactive_view_init(System_Functions *system, View *view,
     result->working_set = working_set;
     result->font_set = font_set;
     result->delay = delay;
+    result->finished = 0;
     return result;
 }
 

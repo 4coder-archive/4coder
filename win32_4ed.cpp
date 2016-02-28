@@ -24,6 +24,8 @@
 
 #include "4ed_dll_reader.h"
 
+#include <stdlib.h>
+
 #include "4coder_custom.cpp"
 
 #undef exec_command
@@ -261,7 +263,17 @@ internal Data
 system_load_file(char *filename){
     Data result = {};
     HANDLE file;
-    file = CreateFile((char*)filename, GENERIC_READ, 0, 0,
+    
+    String fname_str = make_string_slowly(filename);
+    if (fname_str.size >= 1024) return result;
+    
+    char fixed_space[1024];
+    String fixed_str = make_fixed_width_string(fixed_space);
+    copy(&fixed_str, fname_str);
+    terminate_with_null(&fixed_str);
+    replace_char(fixed_str, '/', '\\');
+    
+    file = CreateFile((char*)fixed_str.str, GENERIC_READ, 0, 0,
                       OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
     if (!file || file == INVALID_HANDLE_VALUE){
         return result;
@@ -397,8 +409,9 @@ Sys_Set_File_List_Sig(system_set_file_list){
 
             i32 required_size = count + file_count * sizeof(File_Info);
             if (file_list->block_size < required_size){
-                Win32FreeMemory(file_list->block);    
+                Win32FreeMemory(file_list->block);
                 file_list->block = Win32GetMemory(required_size);
+                file_list->block_size = required_size;
             }
             
             file_list->infos = (File_Info*)file_list->block;
@@ -436,37 +449,32 @@ Sys_Set_File_List_Sig(system_set_file_list){
             }
         }
     }
+    else{
+        Win32FreeMemory(file_list->block);
+    }
 }
 
 internal
-DIRECTORY_HAS_FILE_SIG(system_directory_has_file){
-    char *full_filename;
-    char space[1024];
+FILE_EXISTS_SIG(system_file_exists){
+    char full_filename_space[1024];
+    String full_filename;
     HANDLE file;
     b32 result;
-    i32 len;
-
-    full_filename = 0;
-    len = str_size(filename);
-    if (dir.memory_size - dir.size - 1 >= len){
-        full_filename = dir.str;
-        memcpy(dir.str + dir.size, filename, len + 1);
-    }
-    else if (dir.size + len + 1 < 1024){
-        full_filename = space;
-        memcpy(full_filename, dir.str, dir.size);
-        memcpy(full_filename + dir.size, filename, len + 1);
-    }
 
     result = 0;
-    if (full_filename){
-        file = CreateFile((char*)full_filename, GENERIC_READ, 0, 0,
-                          OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
+    
+    if (len < sizeof(full_filename_space)){
+        full_filename = make_fixed_width_string(full_filename_space);
+        copy(&full_filename, make_string(filename, len));
+        terminate_with_null(&full_filename);
+        
+        file = CreateFile(full_filename.str, GENERIC_READ, 0, 0,
+            OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
+        
         if (file != INVALID_HANDLE_VALUE){
             CloseHandle(file);
             result = 1;
         }
-        dir.str[dir.size] = 0;
     }
     
     return(result);
@@ -480,33 +488,34 @@ b32 Win32DirectoryExists(char *path){
 
 internal
 DIRECTORY_CD_SIG(system_directory_cd){
+    String directory = make_string(dir, *len, capacity);
     b32 result = 0;
     i32 old_size;
-    i32 len;
     
     if (rel_path[0] != 0){
         if (rel_path[0] == '.' && rel_path[1] == 0){
             result = 1;
         }
         else if (rel_path[0] == '.' && rel_path[1] == '.' && rel_path[2] == 0){
-            result = remove_last_folder(dir);
-            terminate_with_null(dir);
+            result = remove_last_folder(&directory);
+            terminate_with_null(&directory);
         }
         else{
-            len = str_size(rel_path);
-            if (dir->size + len + 1 > dir->memory_size){
-                old_size = dir->size;
-                append_partial(dir, rel_path);
-                append_partial(dir, "\\");
-                if (Win32DirectoryExists(dir->str)){
+            if (directory.size + rel_len + 1 > directory.memory_size){
+                old_size = directory.size;
+                append_partial(&directory, rel_path);
+                append_partial(&directory, "\\");
+                if (Win32DirectoryExists(directory.str)){
                     result = 1;
                 }
                 else{
-                    dir->size = old_size;
+                    directory.size = old_size;
                 }
             }
         }
     }
+    
+    *len = directory.size;
     
     return(result);
 }
@@ -975,7 +984,7 @@ Sys_To_Binary_Path(system_to_binary_path){
     i32 size = GetModuleFileName(0, out_filename->str, max);
     if (size > 0 && size < max-1){
         out_filename->size = size;
-        truncate_to_path_of_directory(out_filename);
+        remove_last_folder(out_filename);
         if (append(out_filename, filename) && terminate_with_null(out_filename)){
             translate_success = 1;
         }
@@ -1047,7 +1056,7 @@ Win32LoadSystemCode(){
     win32vars.system->file_time_stamp = system_file_time_stamp;
     win32vars.system->set_file_list = system_set_file_list;
 
-    win32vars.system->directory_has_file = system_directory_has_file;
+    win32vars.system->file_exists = system_file_exists;
     win32vars.system->directory_cd = system_directory_cd;
 
     win32vars.system->post_clipboard = system_post_clipboard;
@@ -1555,20 +1564,23 @@ UpdateLoop(LPVOID param){
                     }
                 }
             }
-            
-            Assert(d == exchange_vars.file.num_active);
-            
+
+            int free_list_count = 0;
             for (file = exchange_vars.file.free_list.next;
-                 file != &exchange_vars.file.free_list;
-                 file = file->next){
+                file != &exchange_vars.file.free_list;
+                file = file->next){
+                ++free_list_count;
                 if (file->data){
                     system_free_memory(file->data);
                 }
             }
 
             if (exchange_vars.file.free_list.next != &exchange_vars.file.free_list){
+                Assert(free_list_count != 0);
                 ex__insert_range(exchange_vars.file.free_list.next, exchange_vars.file.free_list.prev,
-                                 &exchange_vars.file.available);
+                    &exchange_vars.file.available);
+                
+                exchange_vars.file.num_active -= free_list_count;
             }
 
             ex__check(&exchange_vars.file);
@@ -1633,19 +1645,19 @@ main(int argc, char **argv){
     for (i32 i = 0; i+1 < ArrayCount(win32vars.coroutine_data); ++i){
         win32vars.coroutine_data[i].next = win32vars.coroutine_data + i + 1;
     }
-    
+
     LPVOID base;
 #if FRED_INTERNAL
     base = (LPVOID)Tbytes(1);
 #else
     base = (LPVOID)0;
 #endif
-    
-	memory_vars.vars_memory_size = Mbytes(2);
+
+    memory_vars.vars_memory_size = Mbytes(2);
     memory_vars.vars_memory = VirtualAlloc(base, memory_vars.vars_memory_size,
-                                           MEM_COMMIT | MEM_RESERVE,
-                                           PAGE_READWRITE);
-    
+        MEM_COMMIT | MEM_RESERVE,
+        PAGE_READWRITE);
+
 #if FRED_INTERNAL
     base = (LPVOID)Tbytes(2);
 #else
@@ -1653,6 +1665,12 @@ main(int argc, char **argv){
 #endif
     memory_vars.target_memory_size = Mbytes(512);
     memory_vars.target_memory = VirtualAlloc(base, memory_vars.target_memory_size,
+        MEM_COMMIT | MEM_RESERVE,
+        PAGE_READWRITE);
+    
+    base = (LPVOID)0;
+    memory_vars.user_memory_size = Mbytes(2);
+    memory_vars.user_memory = VirtualAlloc(base, memory_vars.target_memory_size,
                                              MEM_COMMIT | MEM_RESERVE,
                                              PAGE_READWRITE);
     //
@@ -1905,7 +1923,7 @@ main(int argc, char **argv){
     }
 
     
-    File_Slot file_slots[120];
+    File_Slot file_slots[32];
     sysshared_init_file_exchange(&exchange_vars, file_slots, ArrayCount(file_slots), 0);
     
     Font_Load_Parameters params[32];

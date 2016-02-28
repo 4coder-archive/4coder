@@ -201,6 +201,25 @@ dynamic_to_bool(Dynamic *dynamic){
     return result;
 }
 
+
+typedef struct File_Info{
+    String filename;
+    int folder;
+} File_Info;
+
+typedef struct File_List{
+    // Ignore this, it's for internal stuff.
+    void *block;
+    
+    // The list of files and folders.
+    File_Info *infos;
+    int count;
+    
+    // Ignore this, it's for internal stuff.
+    int block_size;
+} File_List;
+
+
 #endif
 
 // BOTTOM

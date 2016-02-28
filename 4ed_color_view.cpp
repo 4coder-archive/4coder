@@ -1510,7 +1510,7 @@ do_file_list_box(System_Functions *system, UI_State *state, UI_Layout *layout,
             b8 is_folder = (info->folder != 0);
             b8 ext_match = (match(file_extension(filename), p4c_extension) != 0);
             b8 name_match = (filename_match(front_name, &absolutes, filename, case_sensitive) != 0);
-            b8 is_loaded = (file != 0);
+            b8 is_loaded = (file != 0 && file_is_ready(file));
             
             String message = message_nothing;
             if (is_loaded){

@@ -13,17 +13,6 @@ struct Plat_Handle{
     u32 d[4];
 };
 
-struct File_Info{
-    String filename;
-    b32 folder;
-};
-
-struct File_List{
-    void *block;
-    File_Info *infos;
-    i32 count, block_size;
-};
-
 #define Sys_File_Time_Stamp_Sig(name) u64 name(char *filename)
 typedef Sys_File_Time_Stamp_Sig(System_File_Time_Stamp);
 
@@ -187,8 +176,8 @@ struct System_Functions{
     System_Set_File_List *set_file_list;
 
     // file system navigation (4coder_custom.h): 2
-    Directory_Has_File *directory_has_file;
-    Directory_CD *directory_cd;
+    File_Exists_Function *file_exists;
+    Directory_CD_Function *directory_cd;
 
     // clipboard: 1
     System_Post_Clipboard *post_clipboard;

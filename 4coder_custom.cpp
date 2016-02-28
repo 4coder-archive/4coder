@@ -34,26 +34,6 @@ HOOK_SIG(my_start){
     exec_command(app, cmdid_change_active_panel);
 }
 
-char *get_extension(const char *filename, int len, int *extension_len){
-    char *c = (char*)(filename + len - 1);
-    char *end = c;
-    while (*c != '.' && c > filename) --c;
-    *extension_len = (int)(end - c);
-    return c+1;
-}
-
-bool str_match(const char *a, int len_a, const char *b, int len_b){
-    bool result = 0;
-    if (len_a == len_b){
-        char *end = (char*)(a + len_a);
-        while (a < end && *a == *b){
-            ++a; ++b;
-        }
-        if (a == end) result = 1;
-    }
-    return result;
-}
-
 HOOK_SIG(my_file_settings){
      Buffer_Summary buffer = app->get_active_buffer(app);
      
@@ -64,16 +44,15 @@ HOOK_SIG(my_file_settings){
      //   -The name provided to get_buffer_by_name did not match any of the existing buffers
      if (buffer.exists){
          int treat_as_code = 0;
-
+         
          if (buffer.file_name && buffer.size < (16 << 20)){
-             int extension_len;
-             char *extension = get_extension(buffer.file_name, buffer.file_name_len, &extension_len);
-             if (str_match(extension, extension_len, literal("cpp"))) treat_as_code = 1;
-             else if (str_match(extension, extension_len, literal("h"))) treat_as_code = 1;
-             else if (str_match(extension, extension_len, literal("c"))) treat_as_code = 1;
-             else if (str_match(extension, extension_len, literal("hpp"))) treat_as_code = 1;
+             String ext = file_extension(make_string(buffer.file_name, buffer.file_name_len));
+             if (match(ext, make_lit_string("cpp"))) treat_as_code = 1;
+             else if (match(ext, make_lit_string("h"))) treat_as_code = 1;
+             else if (match(ext, make_lit_string("c"))) treat_as_code = 1;
+             else if (match(ext, make_lit_string("hpp"))) treat_as_code = 1;
          }
-
+         
          push_parameter(app, par_lex_as_cpp_file, treat_as_code);
          push_parameter(app, par_wrap_lines, !treat_as_code);
          push_parameter(app, par_key_mapid, (treat_as_code)?((int)my_code_map):((int)mapid_file));
@@ -290,7 +269,7 @@ CUSTOM_COMMAND_SIG(switch_to_file_in_quotes){
                 app->buffer_read_range(app, &buffer, start, end, short_file_name);
                 
                 copy(&file_name, make_string(buffer.file_name, buffer.file_name_len));
-                truncate_to_path_of_directory(&file_name);
+                remove_last_folder(&file_name);
                 append(&file_name, make_string(short_file_name, size));
 
                 exec_command(app, cmdid_change_active_panel);
@@ -467,8 +446,9 @@ CUSTOM_COMMAND_SIG(replace_in_range){
     pos = range.min;
     app->buffer_seek_string(app, &buffer, pos, r.str, r.size, 1, &new_pos);
     
-    while (new_pos < range.end){
+    while (new_pos + r.size < range.end){
         app->buffer_replace_range(app, &buffer, new_pos, new_pos + r.size, w.str, w.size);
+        range = get_range(&view);
         pos = new_pos + w.size;
         app->buffer_seek_string(app, &buffer, pos, r.str, r.size, 1, &new_pos);
     }
@@ -533,6 +513,26 @@ CUSTOM_COMMAND_SIG(query_replace){
     app->view_set_cursor(app, &view, seek_pos(pos), 1);
 }
 
+CUSTOM_COMMAND_SIG(open_all_cpp_and_h){
+    String dir = push_directory(app);
+    File_List list = app->get_file_list(app, dir.str, dir.size);
+    for (int i = 0; i < list.count; ++i){
+        File_Info *info = list.infos + i;
+        if (!info->folder){
+            String extension = file_extension(info->filename);
+            if (match(extension, make_lit_string("cpp")) ||
+                    match(extension, make_lit_string("hpp")) ||
+                    match(extension, make_lit_string("c")) ||
+                    match(extension, make_lit_string("h"))){
+                push_parameter(app, par_name, info->filename.str, info->filename.size);
+                push_parameter(app, par_do_in_background, 1);
+                exec_command(app, cmdid_interactive_open);
+            }
+        }
+    }
+    app->free_file_list(app, list);
+}
+
 CUSTOM_COMMAND_SIG(open_in_other){
     exec_command(app, cmdid_change_active_panel);
     exec_command(app, cmdid_interactive_open);
@@ -570,7 +570,7 @@ CUSTOM_COMMAND_SIG(build_at_launch_location){
     push_parameter(app, par_name, literal("*compilation*"));
     push_parameter(app, par_cli_path, literal("."));
     push_parameter(app, par_cli_command, literal("build"));
-    exec_command(app, cmdid_build);
+    exec_command(app, cmdid_command_line);
 }
 
 CUSTOM_COMMAND_SIG(build_search){
@@ -602,18 +602,26 @@ CUSTOM_COMMAND_SIG(build_search){
     // Step 3: If the batch file did not exist try to move to the parent directory using
     // app->directory_cd. The cd function can also be used to navigate to subdirectories.
     // It returns true if it can actually move in the specified direction, and false otherwise.
+    // This doesn't actually change the hot directory of 4coder, it's only effect is to
+    // modify the string you passed in to reflect the change in directory.
     
     int keep_going = 1;
+    int old_size;
     String dir = push_directory(app);
     while (keep_going){
-        if (app->directory_has_file(app, dir, "build.bat")){
+        old_size = dir.size;
+        append(&dir, "build.bat");
+        
+        if (app->file_exists(app, dir.str, dir.size)){
+            dir.size = old_size;
+            
             push_parameter(app, par_cli_overlap_with_conflict, 0);
             push_parameter(app, par_name, literal("*compilation*"));
             push_parameter(app, par_cli_path, dir.str, dir.size);
             
             if (append(&dir, "build")){
                 push_parameter(app, par_cli_command, dir.str, dir.size);
-                exec_command(app, cmdid_build);
+                exec_command(app, cmdid_command_line);
             }
             else{
                 app->clear_parameters(app);
@@ -621,8 +629,9 @@ CUSTOM_COMMAND_SIG(build_search){
             
             return;
         }
+        dir.size = old_size;
 
-        if (app->directory_cd(app, &dir, "..") == 0){
+        if (app->directory_cd(app, dir.str, &dir.size, dir.memory_size, literal("..")) == 0){
             keep_going = 0;
         }
     }
@@ -638,7 +647,7 @@ CUSTOM_COMMAND_SIG(write_and_auto_tab){
 extern "C" GET_BINDING_DATA(get_bindings){
     Bind_Helper context_actual = begin_bind_helper(data, size);
     Bind_Helper *context = &context_actual;
-
+    
     // NOTE(allen|a3.1): Right now hooks have no loyalties to maps, all hooks are
     // global and once set they always apply, regardless of what map is active.
     set_hook(context, hook_start, my_start);
@@ -658,11 +667,14 @@ extern "C" GET_BINDING_DATA(get_bindings){
     bind(context, 'x', MDFR_ALT, cmdid_open_menu);
     bind(context, 'o', MDFR_ALT, open_in_other);
     
+    bind(context, 'm', MDFR_ALT, build_search);
+    bind(context, 'a', MDFR_ALT, open_all_cpp_and_h);
+    
     // NOTE(allen): These callbacks may not actually be useful to you, but
     // go look at them and see what they do.
     bind(context, 'M', MDFR_ALT | MDFR_CTRL, open_my_files);
     bind(context, 'M', MDFR_ALT, build_at_launch_location);
-    bind(context, 'm', MDFR_ALT, build_search);
+    
 
     end_map(context);
 
@@ -693,9 +705,6 @@ extern "C" GET_BINDING_DATA(get_bindings){
     bind(context, '\t', MDFR_NONE, cmdid_word_complete);
     bind(context, '\t', MDFR_CTRL, cmdid_auto_tab_range);
     bind(context, '\t', MDFR_SHIFT, cmdid_auto_tab_line_at_cursor);
-
-    bind(context, '\n', MDFR_SHIFT, write_and_auto_tab);
-    bind(context, ' ', MDFR_SHIFT, cmdid_write_character);
     
     bind(context, '=', MDFR_CTRL, write_increment);
     bind(context, '-', MDFR_CTRL, write_decrement);
@@ -773,7 +782,11 @@ extern "C" GET_BINDING_DATA(get_bindings){
     
     bind(context, ',', MDFR_ALT, switch_to_compilation);
     
+    bind(context, '\n', MDFR_SHIFT, write_and_auto_tab);
+    bind(context, ' ', MDFR_SHIFT, cmdid_write_character);
+    
     end_map(context);
+    
     end_bind_helper(context);
     
     return context->write_total;

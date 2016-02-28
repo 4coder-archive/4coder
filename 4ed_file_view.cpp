@@ -31,8 +31,8 @@ struct File_View_Widget{
     File_View_Widget_Type type;
     i32 height;
     struct{
-        bool32 undo_line;
-        bool32 history_line;
+        b32 undo_line;
+        b32 history_line;
     } timeline;
 };
 
@@ -208,36 +208,33 @@ file_save(System_Functions *system, Exchange *exchange, Mem_Options *mem,
           Editing_File *file, char *filename){
 	i32 result = 0;
     
-#if BUFFER_EXPERIMENT_SCALPEL <= 3
     i32 max, size;
-    byte *data;
     b32 dos_write_mode = file->settings.dos_write_mode;
-
-    if (dos_write_mode)
-        max = buffer_size(&file->state.buffer) + file->state.buffer.line_count + 1;
-    else
-        max = buffer_size(&file->state.buffer);
+    char *data;
+    Buffer_Type *buffer = &file->state.buffer;
     
-    data = (byte*)general_memory_allocate(&mem->general, max, 0);
+    if (dos_write_mode)
+        max = buffer_size(buffer) + buffer->line_count + 1;
+    else
+        max = buffer_size(buffer);
+    
+    data = (char*)general_memory_allocate(&mem->general, max, 0);
     Assert(data);
     
     if (dos_write_mode)
-        size = buffer_convert_out(&file->state.buffer, (char*)data, max);
+        size = buffer_convert_out(buffer, data, max);
     else
-        buffer_stringify(&file->state.buffer, 0, size = max, (char*)data);
+        buffer_stringify(buffer, 0, size = max, data);
     
-    i32 filename_len = str_size(filename);
-    result = exchange_save_file(exchange, filename, filename_len,
-                                data, size, max);
+    result = exchange_save_file(exchange, filename, str_size(filename), (byte*)data, size, max);
     
     if (result == 0){
         general_memory_free(&mem->general, data);
     }
     
     file_synchronize_times(system, file, filename);
-#endif
     
-    return result;
+    return(result);
 }
 
 inline b32
@@ -270,28 +267,41 @@ enum File_Bubble_Type{
 #define GROW_SUCCESS 2
 
 internal i32
-file_grow_starts_as_needed(General_Memory *general, Buffer_Type *buffer, i32 additional_lines){
-    bool32 result = GROW_NOT_NEEDED;
-#if BUFFER_EXPERIMENT_SCALPEL <= 3
+file_grow_starts_widths_as_needed(General_Memory *general, Buffer_Type *buffer, i32 additional_lines){
+    b32 result = GROW_NOT_NEEDED;
     i32 max = buffer->line_max;
     i32 count = buffer->line_count;
     i32 target_lines = count + additional_lines;
+    Assert(max == buffer->widths_max);
+    
     if (target_lines > max || max == 0){
         max = LargeRoundUp(target_lines + max, Kbytes(1));
-        i32 *new_lines = (i32*)
-            general_memory_reallocate(general, buffer->line_starts,
-                                      sizeof(i32)*count, sizeof(i32)*max, BUBBLE_STARTS);
+        
+        f32 *new_widths = (f32*)general_memory_reallocate(
+            general, buffer->line_widths,
+            sizeof(f32)*count, sizeof(f32)*max, BUBBLE_WIDTHS);
+        
+        i32 *new_lines = (i32*)general_memory_reallocate(
+            general, buffer->line_starts,
+            sizeof(i32)*count, sizeof(i32)*max, BUBBLE_STARTS);
+
         if (new_lines){
             buffer->line_starts = new_lines;
             buffer->line_max = max;
+        }
+        if (new_widths){
+            buffer->line_widths = new_widths;
+            buffer->widths_max = max;
+        }
+        if (new_lines && new_widths){
             result = GROW_SUCCESS;
         }
         else{
             result = GROW_FAILED;
         }
     }
-#endif
-    return result;
+    
+    return(result);
 }
 
 internal void
@@ -345,16 +355,14 @@ file_measure_starts_widths(System_Functions *system, General_Memory *general,
 }
 
 internal void
-file_remeasure_starts(System_Functions *system,
+file_remeasure_starts_(System_Functions *system,
                       General_Memory *general, Buffer_Type *buffer,
                       i32 line_start, i32 line_end, i32 line_shift,
                       i32 character_shift){
-#if BUFFER_EXPERIMENT_SCALPEL <= 3
     ProfileMomentFunction();
     Assert(buffer->line_starts);
-    file_grow_starts_as_needed(general, buffer, line_shift);
+    file_grow_starts_widths_as_needed(general, buffer, line_shift);
     buffer_remeasure_starts(buffer, line_start, line_end, line_shift, character_shift);
-#endif
 }
 
 struct Opaque_Font_Advance{
@@ -370,9 +378,9 @@ get_opaque_font_advance(Render_Font *font){
     return result;
 }
 
+#if 0
 internal void
 file_grow_widths_as_needed(General_Memory *general, Buffer_Type *buffer){
-#if BUFFER_EXPERIMENT_SCALPEL <= 3
     i32 line_count = buffer->line_count;
     if (line_count > buffer->widths_max || buffer->widths_max == 0){
         i32 new_max = LargeRoundUp(line_count, Kbytes(1));
@@ -388,18 +396,16 @@ file_grow_widths_as_needed(General_Memory *general, Buffer_Type *buffer){
         }
         buffer->widths_max = new_max;
     }
-#endif
 }
+#endif
 
 internal void
-file_remeasure_widths(System_Functions *system,
+file_remeasure_widths_(System_Functions *system,
                       General_Memory *general, Buffer_Type *buffer, Render_Font *font,
                       i32 line_start, i32 line_end, i32 line_shift){
-#if BUFFER_EXPERIMENT_SCALPEL <= 3
     ProfileMomentFunction();
-    file_grow_widths_as_needed(general, buffer);
+    file_grow_starts_widths_as_needed(general, buffer, line_shift);
     buffer_remeasure_widths(buffer, font->advance_data, line_start, line_end, line_shift);
-#endif
 }
 
 inline i32
@@ -1806,20 +1812,18 @@ file_do_single_edit(System_Functions *system,
         if (old_data) general_memory_free(general, old_data);
     }
     
+    Buffer_Type *buffer = &file->state.buffer;
     i32 line_start = buffer_get_line_index(&file->state.buffer, start);
     i32 line_end = buffer_get_line_index(&file->state.buffer, end);
     i32 replaced_line_count = line_end - line_start;
     i32 new_line_count = buffer_count_newlines(&file->state.buffer, start, start+str_len);
     i32 line_shift =  new_line_count - replaced_line_count;
     
-    file_remeasure_starts(system, general, &file->state.buffer,
-                          line_start, line_end, line_shift, shift_amount);
-
     Render_Font *font = get_font_info(file->settings.set, file->state.font_id)->font;
-    if (font){
-        file_remeasure_widths(system, general, &file->state.buffer,
-                              font, line_start, line_end, line_shift);
-    }
+    
+    file_grow_starts_widths_as_needed(general, buffer, line_shift);
+    buffer_remeasure_starts(buffer, line_start, line_end, line_shift, shift_amount);
+    buffer_remeasure_widths(buffer, font->advance_data, line_start, line_end, line_shift);
     
     i32 panel_count = layout->panel_count;
     Panel *current_panel = layout->panels;
@@ -2276,13 +2280,11 @@ working_set_lookup_file(Working_Set *working_set, String string){
 
 internal void
 clipboard_copy(System_Functions *system, General_Memory *general, Working_Set *working, Range range, Editing_File *file){
-#if BUFFER_EXPERIMENT_SCALPEL <= 3
     i32 size = range.end - range.start;
     String *dest = working_set_next_clipboard_string(general, working, size);
     buffer_stringify(&file->state.buffer, range.start, range.end, dest->str);
     dest->size = size;
     system->post_clipboard(*dest);
-#endif
 }
 
 internal Edit_Spec
@@ -2290,7 +2292,6 @@ file_compute_whitespace_edit(Mem_Options *mem, Editing_File *file, i32 cursor_po
                              Buffer_Edit *edits, char *str_base, i32 str_size,
                              Buffer_Edit *inverse_array, char *inv_str, i32 inv_max,
                              i32 edit_count){
-#if BUFFER_EXPERIMENT_SCALPEL <= 3
     General_Memory *general = &mem->general;
     
     i32 inv_str_pos = 0;
@@ -2315,16 +2316,12 @@ file_compute_whitespace_edit(Mem_Options *mem, Editing_File *file, i32 cursor_po
     spec.step.inverse_child_count = edit_count;
     spec.step.pre_pos = cursor_pos;
     spec.step.post_pos = cursor_pos;
-#else
-    Edit_Spec spec = {};
-#endif
     
     return spec;
 }
 
 internal void
 view_clean_whitespace(System_Functions *system, Mem_Options *mem, File_View *view, Editing_Layout *layout){
-#if BUFFER_EXPERIMENT_SCALPEL <= 3
     Editing_File *file = view->file;
     Assert(file && !file->state.is_dummy);
     Partition *part = &mem->part;
@@ -2378,7 +2375,6 @@ view_clean_whitespace(System_Functions *system, Mem_Options *mem, File_View *vie
     }
     
     end_temp_memory(temp);
-#endif
 }
 
 internal void
@@ -3294,7 +3290,8 @@ command_reverse_search(System_Functions*,Command_Data*,Command_Binding);
 inline void
 free_file_view(View *view){
     File_View *fview = (File_View*)view;
-    general_memory_free(&view->mem->general, fview->line_wrap_y);
+    if (fview->line_wrap_y)
+        general_memory_free(&view->mem->general, fview->line_wrap_y);
     if (fview->links)
         general_memory_free(&view->mem->general, fview->links);
 }

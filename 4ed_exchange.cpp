@@ -198,7 +198,6 @@ exchange_free_file(Exchange *exchange, i32 file_id){
         ex__file_remove(file);
         ex__file_insert(&files->free_list, file);
         ex__check(files);
-        --files->num_active;
     }
 }
 

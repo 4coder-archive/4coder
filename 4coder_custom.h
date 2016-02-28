@@ -22,10 +22,7 @@ enum Command_ID{
     cmdid_seek_alphanumeric_right,
     cmdid_seek_alphanumeric_or_camel_left,
     cmdid_seek_alphanumeric_or_camel_right,
-    //cmdid_search,
-    //cmdid_reverse_search,
     cmdid_word_complete,
-    //cmdid_goto_line,
     cmdid_set_mark,
     cmdid_copy,
     cmdid_cut,
@@ -75,7 +72,7 @@ enum Command_ID{
     cmdid_cursor_mark_swap,
     cmdid_open_menu,
     cmdid_set_settings,
-    cmdid_build,
+    cmdid_command_line,
     //
     cmdid_count
 };
@@ -84,6 +81,8 @@ enum Param_ID{
     par_range_start,
     par_range_end,
     par_name,
+    par_buffer_id,
+    par_do_in_background,
     par_lex_as_cpp_file,
     par_wrap_lines,
     par_key_mapid,
@@ -156,7 +155,6 @@ struct Query_Bar{
 };
 
 #define GET_BINDING_DATA(name) int name(void *data, int size)
-#define SET_EXTRA_FONT_SIG(name) void name(Extra_Font *font_out)
 #define CUSTOM_COMMAND_SIG(name) void name(struct Application_Links *app)
 #define HOOK_SIG(name) void name(struct Application_Links *app)
 
@@ -175,9 +173,11 @@ struct Application_Links;
 #define CLEAR_PARAMETERS_SIG(name) void name(Application_Links *context)
 
 // File system navigation
-#define DIRECTORY_GET_HOT_SIG(name) int name(Application_Links *context, char *buffer, int max)
-#define DIRECTORY_HAS_FILE_SIG(name) int name(Application_Links *context, String dir, char *filename)
-#define DIRECTORY_CD_SIG(name) int name(Application_Links *context, String *dir, char *rel_path)
+#define DIRECTORY_GET_HOT_SIG(name) int name(Application_Links *context, char *out, int capacity)
+#define FILE_EXISTS_SIG(name) int name(Application_Links *context, char *filename, int len)
+#define DIRECTORY_CD_SIG(name) int name(Application_Links *context, char *dir, int *len, int capacity, char *rel_path, int rel_len)
+#define GET_FILE_LIST_SIG(name) File_List name(Application_Links *context, char *dir, int len)
+#define FREE_FILE_LIST_SIG(name) void name(Application_Links *context, File_List list)
 
 // Direct buffer manipulation
 #define GET_BUFFER_MAX_INDEX_SIG(name) int name(Application_Links *context)
@@ -190,7 +190,6 @@ struct Application_Links;
 #define BUFFER_SEEK_STRING_SIG(name) int name(Application_Links *context, Buffer_Summary *buffer, int start, char *str, int len, int seek_forward, int *out)
 #define BUFFER_READ_RANGE_SIG(name) int name(Application_Links *context, Buffer_Summary *buffer, int start, int end, char *out)
 #define BUFFER_REPLACE_RANGE_SIG(name) int name(Application_Links *context, Buffer_Summary *buffer, int start, int end, char *str, int len)
-#define BUFFER_SAVE_SIG(name) int name(Application_Links *context, Buffer_Summary *buffer, char *filename, int len)
 
 // File view manipulation
 #define GET_VIEW_MAX_INDEX_SIG(name) int name(Application_Links *context)
@@ -216,9 +215,6 @@ struct Application_Links;
 #define GET_USER_INPUT_SIG(name) User_Input name(Application_Links *context, unsigned int get_type, unsigned int abort_type)
 
 // Queries
-#define QueryEffectImmediate 0x0
-#define QueryEffectSmooth 0x1
-
 #define START_QUERY_BAR_SIG(name) int name(Application_Links *context, Query_Bar *bar, unsigned int flags)
 #define END_QUERY_BAR_SIG(name) void name(Application_Links *context, Query_Bar *bar, unsigned int flags)
 
@@ -230,9 +226,11 @@ extern "C"{
     typedef CLEAR_PARAMETERS_SIG(Clear_Parameters_Function);
     
     // File system navigation
-    typedef DIRECTORY_GET_HOT_SIG(Directory_Get_Hot);
-    typedef DIRECTORY_HAS_FILE_SIG(Directory_Has_File);
-    typedef DIRECTORY_CD_SIG(Directory_CD);
+    typedef DIRECTORY_GET_HOT_SIG(Directory_Get_Hot_Function);
+    typedef FILE_EXISTS_SIG(File_Exists_Function);
+    typedef DIRECTORY_CD_SIG(Directory_CD_Function);
+    typedef GET_FILE_LIST_SIG(Get_File_List_Function);
+    typedef FREE_FILE_LIST_SIG(Free_File_List_Function);
     
     // Buffer manipulation
     typedef GET_BUFFER_MAX_INDEX_SIG(Get_Buffer_Max_Index_Function);
@@ -245,7 +243,6 @@ extern "C"{
     typedef BUFFER_SEEK_STRING_SIG(Buffer_Seek_String_Function);
     typedef BUFFER_READ_RANGE_SIG(Buffer_Read_Range_Function);
     typedef BUFFER_REPLACE_RANGE_SIG(Buffer_Replace_Range_Function);
-    typedef BUFFER_SAVE_SIG(Buffer_Save_Function);
     
     // View manipulation
     typedef GET_VIEW_MAX_INDEX_SIG(Get_View_Max_Index_Function);
@@ -267,8 +264,9 @@ extern "C"{
 }
 
 struct Application_Links{
-    // Application data ptr
+    // User data
     void *data;
+    int size;
     
     // Command exectuion
     Exec_Command_Function *exec_command_keep_stack;
@@ -277,9 +275,11 @@ struct Application_Links{
     Clear_Parameters_Function *clear_parameters;
     
     // File system navigation
-    Directory_Get_Hot *directory_get_hot;
-    Directory_Has_File *directory_has_file;
-    Directory_CD *directory_cd;
+    Directory_Get_Hot_Function *directory_get_hot;
+    File_Exists_Function *file_exists;
+    Directory_CD_Function *directory_cd;
+    Get_File_List_Function *get_file_list;
+    Free_File_List_Function *free_file_list;
     
     // Buffer manipulation
     Get_Buffer_Max_Index_Function *get_buffer_max_index;
@@ -292,7 +292,6 @@ struct Application_Links{
     Buffer_Seek_String_Function *buffer_seek_string;
     Buffer_Read_Range_Function *buffer_read_range;
     Buffer_Replace_Range_Function *buffer_replace_range;
-    Buffer_Save_Function *buffer_save;
     
     // View manipulation
     Get_View_Max_Index_Function *get_view_max_index;
@@ -311,6 +310,9 @@ struct Application_Links{
     // Queries
     Start_Query_Bar_Function *start_query_bar;
     End_Query_Bar_Function *end_query_bar;
+    
+    // Internal
+    void *cmd_context;
 };
 
 struct Custom_API{
