@@ -12,6 +12,21 @@
 #ifndef FRED_BUFFER_TYPES_H
 #define FRED_BUFFER_TYPES_H
 
+#ifndef FRED_STRING_STRUCT
+#define FRED_STRING_STRUCT
+typedef struct String{
+    char *str;
+    int size;
+    int memory_size;
+} String;
+
+typedef struct Offset_String{
+    int offset;
+    int size;
+} Offset_String;
+#endif
+
+
 typedef unsigned char Code;
 
 typedef enum{
@@ -135,14 +150,14 @@ make_range(int p1, int p2){
 }
 
 
-enum Dynamic_Type{
+typedef enum Dynamic_Type{
     dynamic_type_int,
     dynamic_type_string,
     // never below this
     dynamic_type_count
-};
+} Dynamic_Type;
 
-struct Dynamic{
+typedef struct Dynamic{
     int type;
     union{
         struct{
@@ -151,7 +166,7 @@ struct Dynamic{
         };
         int int_value;
     };
-};
+} Dynamic;
 
 inline Dynamic
 dynamic_int(int x){

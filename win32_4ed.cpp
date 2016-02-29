@@ -451,6 +451,8 @@ Sys_Set_File_List_Sig(system_set_file_list){
     }
     else{
         Win32FreeMemory(file_list->block);
+        file_list->block = 0;
+        file_list->block_size = 0;
     }
 }
 
@@ -812,6 +814,7 @@ Sys_Launch_Coroutine_Sig(system_launch_coroutine){
     SwitchToFiber(fiber);
     
     if (c->done){
+        DeleteFiber(fiber);
         Win32FreeCoroutine(c);
         coroutine = 0;
     }
@@ -834,6 +837,7 @@ Sys_Resume_Coroutine_Sig(system_resume_coroutine){
     SwitchToFiber(fiber);
     
     if (c->done){
+        DeleteFiber(fiber);
         Win32FreeCoroutine(c);
         coroutine = 0;
     }

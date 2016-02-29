@@ -204,6 +204,7 @@ push_parameter(Application_Links *app, const char *param, int param_len, const c
     app->push_parameter(app, dynamic_string(param_copy, param_len), dynamic_string(value_copy, value_len));
 }
 
+#if UseInterfacesThatArePhasingOut
 inline String
 push_directory(Application_Links *app){
     String result;
@@ -212,6 +213,7 @@ push_directory(Application_Links *app){
     result.size = app->directory_get_hot(app, result.str, result.memory_size);
     return(result);
 }
+#endif
 
 inline Range
 get_range(File_View_Summary *view){
@@ -238,8 +240,8 @@ active_view_to_line(Application_Links *app, int line_number){
     view = app->get_active_file_view(app);
     
     // NOTE(allen|a3.4.4): We don't have to worry about whether this is a valid line number.
-    // When the position specified isn't possible for whatever reason it will set the cursor to
-    // a nearby valid position.
+    // When it's not possible to place a cursor at the position for whatever reason it will set the
+    // cursor to a nearby valid position.
     app->view_set_cursor(app, &view, seek_line_char(line_number, 0), 1);
 }
 
@@ -291,9 +293,9 @@ query_user_general(Application_Links *app, Query_Bar *bar, int force_number){
             }
         }
         
-        // NOTE(allen|a3.4.4): All we have to do to update what is shown on the query bar
-        // is to edit or local Query_Bar struct!  This is handy because it means our Query_Bar
-        // can double as storing the state of the input AND as the source for the UI.
+        // NOTE(allen|a3.4.4): All we have to do to update the query bar is edit our
+        // local Query_Bar struct!  This is handy because it means our Query_Bar
+        // is always correct for typical use without extra work updating the bar.
         if (in.type == UserInputKey){
             if (in.key.keycode == '\n' || in.key.keycode == '\t'){
                 break;

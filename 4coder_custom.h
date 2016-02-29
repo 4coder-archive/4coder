@@ -265,8 +265,8 @@ extern "C"{
 
 struct Application_Links{
     // User data
-    void *data;
-    int size;
+    void *memory;
+    int memory_size;
     
     // Command exectuion
     Exec_Command_Function *exec_command_keep_stack;

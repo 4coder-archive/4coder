@@ -63,15 +63,15 @@ inline bool char_is_alpha_numeric(char c) { return (c >= 'a' && c <= 'z' || c >=
 inline bool char_is_hex(char c) { return c >= '0' && c <= '9' || c >= 'A' && c <= 'F' || c >= 'a' && c <= 'f'; }
 inline bool char_is_basic(char c) { return c >= ' ' && c <= '~'; }
 
-inline String make_string(char *s, int size, int mem_size);
-inline String make_string(char *s, int size);
+inline String make_string(void *s, int size, int mem_size);
+inline String make_string(void *s, int size);
 
 #define make_lit_string(str) (make_string((char*)(str), sizeof(str)-1, sizeof(str)))
 #define make_fixed_width_string(str) (make_string((char*)(str), 0, sizeof(str)))
 
 #define expand_str(s) ((s).str), ((s).size)
 
-inline String make_string_slowly(char *s);
+inline String make_string_slowly(void *s);
 inline char*  make_c_str(String s);
 
 inline String substr(String str, int start);
@@ -183,28 +183,28 @@ FCPP_LINK char * file_extension_c(String str);
 FCPP_LINK bool   remove_last_folder(String *str);
 FCPP_LINK void   replace_char(String str, char replace, char with);
 
-inline String make_string(char *str, int size, int mem_size){
+inline String make_string(void *str, int size, int mem_size){
     String result;
-    result.str = str;
+    result.str = (char*)str;
     result.size = size;
     result.memory_size = mem_size;
     return result;
 }
 
 inline String
-make_string(char *str, int size){
+make_string(void *str, int size){
     String result;
-    result.str = str;
+    result.str = (char*)str;
     result.size = size;
     result.memory_size = size;
     return result;
 }
 
 inline String
-make_string_slowly(char *str){
+make_string_slowly(void *str){
     String result;
-    result.str = str;
-    result.size = str_size(str);
+    result.str = (char*)str;
+    result.size = str_size((char*)str);
     result.memory_size = result.size;
     return result;
 }

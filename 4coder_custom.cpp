@@ -2,23 +2,21 @@
  * Example use of customization API
  */
 
-#define FCPP_STRING_IMPLEMENTATION
-#include "4coder_string.h"
-
 // NOTE(allen): See exec_command and surrounding code in 4coder_helper.h
 // to decide whether you want macro translations, without them you will
 // have to manipulate the command and parameter stack through
 // "app->" which may be more or less clear depending on your use.
-//
-// I suggest you try disabling macro translation and getting your code working
-// that way, because I'll be removing it entirely sometime soon
-#define DisableMacroTranslations 0
 
 #include "4coder_custom.h"
+
+#define FCPP_STRING_IMPLEMENTATION
+#include "4coder_string.h"
+
+#define UseInterfacesThatArePhasingOut 0
 #include "4coder_helper.h"
 
 #ifndef literal
-#define literal(s) s, (sizeof(s)-1)
+#define literal(s) (s), (sizeof(s)-1)
 #endif
 
 // NOTE(allen|a3.3): All of your custom ids should be enumerated
@@ -514,8 +512,20 @@ CUSTOM_COMMAND_SIG(query_replace){
 }
 
 CUSTOM_COMMAND_SIG(open_all_cpp_and_h){
-    String dir = push_directory(app);
+    // NOTE(allen|a3.4.4): This method of getting the hot directory works
+    // because this custom.cpp gives no special meaning to app->memory
+    // and doesn't set up a persistent allocation system within app->memory.
+    // push_directory isn't a very good option since it's tied to the parameter
+    // stack, so I am phasing that idea out now.
+    String dir = make_string(app->memory, 0, app->memory_size);
+    dir.size = app->directory_get_hot(app, dir.str, dir.memory_size);
+    int dir_size = dir.size;
+    
+    
+    // NOTE(allen|a3.4.4): Here we get the list of files in this directory.
+    // Notice that we free_file_list at the end.
     File_List list = app->get_file_list(app, dir.str, dir.size);
+    
     for (int i = 0; i < list.count; ++i){
         File_Info *info = list.infos + i;
         if (!info->folder){
@@ -524,12 +534,19 @@ CUSTOM_COMMAND_SIG(open_all_cpp_and_h){
                     match(extension, make_lit_string("hpp")) ||
                     match(extension, make_lit_string("c")) ||
                     match(extension, make_lit_string("h"))){
-                push_parameter(app, par_name, info->filename.str, info->filename.size);
+                // NOTE(allen): There's no way in the 4coder API to use relative
+                // paths at the moment, so everything should be full paths.  Which is
+                // managable.  Here simply set the dir string size back to where it
+                // was originally, so that new appends overwrite old ones.
+                dir.size = dir_size;
+                append(&dir, info->filename);
+                push_parameter(app, par_name, dir.str, dir.size);
                 push_parameter(app, par_do_in_background, 1);
                 exec_command(app, cmdid_interactive_open);
             }
         }
     }
+    
     app->free_file_list(app, list);
 }
 
@@ -539,9 +556,13 @@ CUSTOM_COMMAND_SIG(open_in_other){
 }
 
 CUSTOM_COMMAND_SIG(open_my_files){
-    // NOTE(allen|a3.1): The command cmdid_interactive_open can now open
+    // NOTE(allen|a3.1): EXAMPLE probably not useful in practice.
+    // 
+    // The command cmdid_interactive_open can now open
     // a file specified on the parameter stack.  If the file does not exist
-    // cmdid_interactive_open behaves as usual.
+    // cmdid_interactive_open behaves as usual.  If par_do_in_background
+    // is set to true the command is prevented from changing the view under
+    // any circumstance.
     push_parameter(app, par_name, literal("w:/4ed/data/test/basic.cpp"));
     exec_command(app, cmdid_interactive_open);
 
@@ -563,7 +584,9 @@ CUSTOM_COMMAND_SIG(open_my_files){
 }
 
 CUSTOM_COMMAND_SIG(build_at_launch_location){
-    // NOTE(allen|a3.3): An example of calling build by setting all
+    // NOTE(allen|a3.3):  EXAMPLE probably not all that useful in practice.
+    // 
+    // An example of calling build by setting all
     // parameters directly. This only works if build.bat can be called
     // from the directory the application is launched at.
     push_parameter(app, par_cli_overlap_with_conflict, 1);
@@ -578,11 +601,11 @@ CUSTOM_COMMAND_SIG(build_search){
     // directories looking for a file, in this case a batch file to execute.
     //
     //
-    // Step 1: push_directory returns a String containing the current "hot" directory
-    // (whatever directory you most recently visited in the 4coder file browsing interface)
+    // Step 1: Grab all of the user memory (or, you know, less if you've got better
+    //     thing to do with some of it).  Make a string and store the hot directory in it.
     //
-    // Step 2: app->directory_has_file queries the file system to see if "build.bat" exists
-    // If it does exist several parameters are pushed:
+    // Step 2: app->file_exists queries the file system to see if "<somedir>/build.bat" exists.
+    // If it does exist several parameters are pushed and cmdid_command_line is executed:
     //   - par_cli_overlap_with_conflict: whether to launch this process if an existing process
     //     is already being used for output on the same buffer
     //
@@ -599,15 +622,18 @@ CUSTOM_COMMAND_SIG(build_search){
     //     To set par_cli_command: app->push_parameter does not make a copy of the dir because
     //         dir isn't going to change again.
     // 
-    // Step 3: If the batch file did not exist try to move to the parent directory using
+    // Step 3: If the batch file did not exist change the dir string to the  parent directory using
     // app->directory_cd. The cd function can also be used to navigate to subdirectories.
     // It returns true if it can actually move in the specified direction, and false otherwise.
+    // 
     // This doesn't actually change the hot directory of 4coder, it's only effect is to
-    // modify the string you passed in to reflect the change in directory.
+    // modify the string you passed in to reflect the change in directory if that change was possible.
     
     int keep_going = 1;
     int old_size;
-    String dir = push_directory(app);
+    String dir = make_string(app->memory, 0, app->memory_size);
+    dir.size = app->directory_get_hot(app, dir.str, dir.memory_size);
+    
     while (keep_going){
         old_size = dir.size;
         append(&dir, "build.bat");

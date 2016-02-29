@@ -2508,8 +2508,8 @@ command_caller(Coroutine *coroutine){
 
 internal void
 app_links_init(System_Functions *system, void *data, int size){
-    app_links.data = data;
-    app_links.size = size;
+    app_links.memory = data;
+    app_links.memory_size = size;
     
     app_links.exec_command_keep_stack = external_exec_command_keep_stack;
     app_links.push_parameter = external_push_parameter;
@@ -3257,7 +3257,7 @@ App_Init_Sig(app_init){
 
     vars->font_set = &target->font_set;
 
-    font_set_init(vars->font_set, partition, 16, 4);
+    font_set_init(vars->font_set, partition, 16, 5);
 
     {
         struct Font_Setup{
@@ -3380,9 +3380,6 @@ App_Step_Sig(app_step){
         app_result.redraw = 1;
     }
 
-    Panel *panels = vars->layout.panels;
-    Panel *active_panel = &panels[vars->layout.active_panel];
-
     // NOTE(allen): OS clipboard event handling
     if (clipboard.str){
         String *dest = working_set_next_clipboard_string(&vars->mem.general, &vars->working_set, clipboard.size);
@@ -3407,6 +3404,7 @@ App_Step_Sig(app_step){
     }
 
     // NOTE(allen): update child processes
+    Panel *panels = vars->layout.panels;
     if (time_step){
         Temp_Memory temp = begin_temp_memory(&vars->mem.part);
         u32 max = Kbytes(32);
@@ -3461,7 +3459,7 @@ App_Step_Sig(app_step){
                     new_cursor = spec.step.post_pos;
                 }
 
-                Panel *panel = vars->layout.panels;
+                Panel *panel = panels;
                 i32 panel_count = vars->layout.panel_count;
                 for (i32 i = 0; i < panel_count; ++i, ++panel){
                     View *view = panel->view;
@@ -3601,11 +3599,12 @@ App_Step_Sig(app_step){
 
     // NOTE(allen): prepare to start executing commands
     ProfileStart(command_coroutine);
+    
     Command_Data *cmd = &vars->command_data;
 
     cmd->mem = &vars->mem;
-    cmd->panel = active_panel;
-    cmd->view = active_panel->view;
+    cmd->panel = panels + vars->layout.active_panel;
+    cmd->view = cmd->panel->view;
     cmd->working_set = &vars->working_set;
     cmd->layout = &vars->layout;
     cmd->live_set = &vars->live_set;
@@ -3659,7 +3658,7 @@ App_Step_Sig(app_step){
         if ((get_flags & EventOnAnyKey) || (get_flags & EventOnEsc)){
             for (i32 key_i = 0; key_i < key_data.count; ++key_i){
                 Key_Event_Data key = get_single_key(&key_data, key_i);
-                View *view = active_panel->view;
+                View *view = cmd->view;
                 b32 pass_in = 0;
                 cmd->key = key;
 
@@ -3711,7 +3710,7 @@ App_Step_Sig(app_step){
         }
 
         if (vars->command_coroutine != 0 && (get_flags & EventOnMouse)){
-            View *view = active_panel->view;
+            View *view = cmd->view;
             b32 pass_in = 0;
 
             User_Input user_in;
@@ -3774,11 +3773,13 @@ App_Step_Sig(app_step){
             }
         }
     }
+    
+    update_command_data(vars, cmd);
+    
     ProfileEnd(command_coroutine);
 
     // NOTE(allen): pass raw input to the panels
     ProfileStart(step);
-    View *active_view = active_panel->view;
 
     Input_Summary dead_input = {};
     dead_input.mouse.x = mouse->x;
@@ -3825,26 +3826,24 @@ App_Step_Sig(app_step){
             View *view_ = panel->view;
             if (view_){
                 Assert(view_->do_view);
-                b32 active = (panel == active_panel);
+                b32 active = (panel == cmd->panel);
                 Input_Summary input = (active)?(active_input):(dead_input);
                 if (panel == mouse_panel && !mouse->out_of_window){
                     input.mouse = mouse_state;
                 }
-                if (view_->do_view(system, exchange, view_, panel->inner, active_view,
+                if (view_->do_view(system, exchange, view_, panel->inner, cmd->view,
                         VMSG_STEP, 0, &input, &active_input)){
                     app_result.redraw = 1;
                 }
             }
         }
     }
+    
+    update_command_data(vars, cmd);
     ProfileEnd(step);
-
+    
     // NOTE(allen): command execution
     ProfileStart(command);
-
-    cmd->panel = active_panel;
-    cmd->view = active_panel->view;
-
     if (!consumed_input[0] || !consumed_input[1]){
         b32 consumed_input2[2] = {0};
 
@@ -3857,7 +3856,7 @@ App_Step_Sig(app_step){
                     cmd->key = key;
 
                     if (hit_esc || !consumed_input[0]){
-                        View *view = active_panel->view;
+                        View *view = cmd->view;
 
                         Command_Map *map = 0;
                         if (view) map = view->map;
@@ -3900,8 +3899,8 @@ App_Step_Sig(app_step){
         consumed_input[0] |= consumed_input2[0];
         consumed_input[1] |= consumed_input2[1];
     }
-
-    active_panel = panels + vars->layout.active_panel;
+    
+    update_command_data(vars, cmd);
     ProfileEnd(command);
 
     ProfileStart(resizing);
@@ -4002,10 +4001,11 @@ App_Step_Sig(app_step){
     }
 
     if (mouse_in_edit_area && mouse_panel != 0 && mouse->press_l){
-        active_panel = mouse_panel;
         vars->layout.active_panel = mouse_panel_i;
         app_result.redraw = 1;
     }
+    
+    update_command_data(vars, cmd);
     ProfileEnd(resizing);
     
     // NOTE(allen): processing sys app bindings
@@ -4153,14 +4153,18 @@ App_Step_Sig(app_step){
                 {
                     App_Open_File_Result result;
                     result = app_open_file_background(vars, exchange, working_set, string);
-                    if (result.is_new && result.file == 0){
-                        delayed_action_repush(&vars->delay2, act);
-                    }
-                    else{
-                        Sys_App_Binding *binding = app_push_file_binding(vars, result.sys_id, result.file_index);
-                        binding->success = 0;
-                        binding->fail = 0;
-                        binding->panel = panel;
+                    if (result.is_new){
+                        if (result.file){
+                            if (result.sys_id){
+                                Sys_App_Binding *binding = app_push_file_binding(vars, result.sys_id, result.file_index);
+                                binding->success = 0;
+                                binding->fail = 0;
+                                binding->panel = panel;
+                            }
+                            else{
+                                delayed_action_repush(&vars->delay2, act);
+                            }
+                        }
                     }
                 }break;
                 
@@ -4347,12 +4351,12 @@ App_Step_Sig(app_step){
                 View *view = panel->view;
                 if (view){
                     view->do_view(system, exchange,
-                        view, inner, active_view,
+                        view, inner, cmd->view,
                         VMSG_RESIZE, 0, &dead_input, &active_input);
                     view = (view->is_minor)?view->major:0;
                     if (view){
                         view->do_view(system, exchange,
-                            view, inner, active_view,
+                            view, inner, cmd->view,
                             VMSG_RESIZE, 0, &dead_input, &active_input);
                     }
                 }
@@ -4384,12 +4388,12 @@ App_Step_Sig(app_step){
             View *view = panel->view;
             if (view){
                 view->do_view(system, exchange,
-                    view, panel->inner, active_view,
+                    view, panel->inner, cmd->view,
                     VMSG_STYLE_CHANGE, 0, &dead_input, &active_input);
                 view = (view->is_minor)?view->major:0;
                 if (view){
                     view->do_view(system, exchange,
-                        view, panel->inner, active_view,
+                        view, panel->inner, cmd->view,
                         VMSG_STYLE_CHANGE, 0, &dead_input, &active_input);
                 }
             }
@@ -4414,7 +4418,7 @@ App_Step_Sig(app_step){
             View *view = panel->view;
             Style *style = &vars->style;
             
-            b32 active = (panel == active_panel);
+            b32 active = (panel == cmd->panel);
             u32 back_color = style->main.back_color;
             draw_rectangle(target, full, back_color);
             
@@ -4422,7 +4426,7 @@ App_Step_Sig(app_step){
                 Assert(view->do_view);
                 draw_push_clip(target, panel->inner);
                 view->do_view(system, exchange,
-                              view, panel->inner, active_view,
+                              view, panel->inner, cmd->view,
                               VMSG_DRAW, target, &dead_input, &active_input);
                 draw_pop_clip(target);
             }
