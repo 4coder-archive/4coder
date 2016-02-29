@@ -450,9 +450,13 @@ Sys_Set_File_List_Sig(system_set_file_list){
         }
     }
     else{
-        Win32FreeMemory(file_list->block);
-        file_list->block = 0;
-        file_list->block_size = 0;
+        if (directory.str == 0){
+            Win32FreeMemory(file_list->block);
+            file_list->block = 0;
+            file_list->block_size = 0;
+        }
+        file_list->infos = 0;
+        file_list->count = 0;
     }
 }
 

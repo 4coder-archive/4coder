@@ -310,7 +310,12 @@ hot_directory_set(System_Functions *system, Hot_Directory *hot_directory,
     b32 success = copy_checked(&hot_directory->string, str);
     terminate_with_null(&hot_directory->string);
     if (success){
-        system->set_file_list(&hot_directory->file_list, str);
+        if (str.size > 0){
+            system->set_file_list(&hot_directory->file_list, str);
+        }
+        else{
+            system->set_file_list(&hot_directory->file_list, make_string((char*)1, 0));
+        }
     }
     hot_directory_fixup(hot_directory, working_set);
 }
