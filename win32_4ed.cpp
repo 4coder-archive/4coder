@@ -26,6 +26,8 @@
 
 #include <stdlib.h>
 
+#undef Assert
+#undef internal
 #include "4coder_custom.cpp"
 
 #undef exec_command

@@ -195,10 +195,8 @@ CUSTOM_COMMAND_SIG(switch_to_compilation){
     char name[] = "*compilation*";
     int name_size = sizeof(name)-1;
 
-    // TODO(allen): This will only work for file views for now.  Extend the API
-    // a bit to handle a general view type which can be manipulated at least enough
-    // to change the specific type of view and set files even when the view didn't
-    // contain a file.
+    // TODO(allen): This will only work for file views for now.  Fix up this
+    // view nonsense so that view types aren't such an issue.
     view = app->get_active_file_view(app);
     buffer = app->get_buffer_by_name(app, name, name_size);
     
@@ -243,38 +241,36 @@ CUSTOM_COMMAND_SIG(move_down_10){
     app->view_set_cursor(app, &view, seek_xy(x, y, 0, view.unwrapped_lines), 0);
 }
 
-CUSTOM_COMMAND_SIG(switch_to_file_in_quotes){
+CUSTOM_COMMAND_SIG(open_file_in_quotes){
     File_View_Summary view;
     Buffer_Summary buffer;
     char short_file_name[128];
     int pos, start, end, size;
     
     view = app->get_active_file_view(app);
-    if (view.exists){
-        buffer = app->get_buffer(app, view.buffer_id);
-        if (buffer.ready){
-            pos = view.cursor.pos;
-            app->buffer_seek_delimiter(app, &buffer, pos, '"', 1, &end);
-            app->buffer_seek_delimiter(app, &buffer, pos, '"', 0, &start);
-            
-            ++start;
-            
-            size = end - start;
-            if (size < sizeof(short_file_name)){
-                char file_name_[256];
-                String file_name = make_fixed_width_string(file_name_);
-                
-                app->buffer_read_range(app, &buffer, start, end, short_file_name);
-                
-                copy(&file_name, make_string(buffer.file_name, buffer.file_name_len));
-                remove_last_folder(&file_name);
-                append(&file_name, make_string(short_file_name, size));
+    buffer = app->get_buffer(app, view.buffer_id);
+    pos = view.cursor.pos;
+    app->buffer_seek_delimiter(app, &buffer, pos, '"', 1, &end);
+    app->buffer_seek_delimiter(app, &buffer, pos, '"', 0, &start);
+    
+    ++start;
+    size = end - start;
+    
+    // NOTE(allen): This check is necessary because app->buffer_read_range
+    // requiers that the output buffer you provide is at least (end - start) bytes long.
+    if (size < sizeof(short_file_name)){
+        char file_name_[256];
+        String file_name = make_fixed_width_string(file_name_);
 
-                exec_command(app, cmdid_change_active_panel);
-                push_parameter(app, par_name, expand_str(file_name));
-                exec_command(app, cmdid_interactive_open);
-            }
-        }
+        app->buffer_read_range(app, &buffer, start, end, short_file_name);
+
+        copy(&file_name, make_string(buffer.file_name, buffer.file_name_len));
+        remove_last_folder(&file_name);
+        append(&file_name, make_string(short_file_name, size));
+
+        exec_command(app, cmdid_change_active_panel);
+        push_parameter(app, par_name, expand_str(file_name));
+        exec_command(app, cmdid_interactive_open);
     }
 }
 
@@ -511,7 +507,7 @@ CUSTOM_COMMAND_SIG(query_replace){
     app->view_set_cursor(app, &view, seek_pos(pos), 1);
 }
 
-CUSTOM_COMMAND_SIG(open_all_cpp_and_h){
+CUSTOM_COMMAND_SIG(open_all_code){
     // NOTE(allen|a3.4.4): This method of getting the hot directory works
     // because this custom.cpp gives no special meaning to app->memory
     // and doesn't set up a persistent allocation system within app->memory.
@@ -548,6 +544,44 @@ CUSTOM_COMMAND_SIG(open_all_cpp_and_h){
     }
     
     app->free_file_list(app, list);
+}
+
+CUSTOM_COMMAND_SIG(execute_arbitrary_command){
+    // NOTE(allen): This isn't a super powerful version of this command, I will expand
+    // upon it so that it has all the cmdid_* commands by default.  However, with this
+    // as an example you have everything you need to make it work already. You could
+    // even use app->memory to create a hash table in the start hook.
+    Query_Bar bar;
+    char space[1024], more_space[1024];
+    bar.prompt = make_lit_string("Command: ");
+    bar.string = make_fixed_width_string(space);
+    
+    if (!query_user_string(app, &bar)) return;
+    
+    // NOTE(allen): Here I chose to end this query bar because when I call another
+    // command it might ALSO have query bars and I don't want this one hanging
+    // around at that point.  Since the bar exists on my stack the result of the query
+    // is still available in bar.string though.
+    app->end_query_bar(app, &bar, 0);
+
+    if (match(bar.string, make_lit_string("open all code"))){
+        exec_command(app, open_all_code);
+    }
+    else if (match(bar.string, make_lit_string("open in quotes"))){
+        exec_command(app, open_file_in_quotes);
+    }
+    else if (match(bar.string, make_lit_string("open menu"))){
+        exec_command(app, cmdid_open_menu);
+    }
+    else{
+        bar.prompt = make_fixed_width_string(more_space);
+        append(&bar.prompt, make_lit_string("Unrecognized: "));
+        append(&bar.prompt, bar.string);
+        bar.string.size = 0;
+        
+        app->start_query_bar(app, &bar, 0);
+        app->get_user_input(app, EventOnAnyKey | EventOnButton, 0);
+    }
 }
 
 CUSTOM_COMMAND_SIG(open_in_other){
@@ -670,9 +704,15 @@ CUSTOM_COMMAND_SIG(write_and_auto_tab){
     exec_command(app, cmdid_auto_tab_line_at_cursor);
 }
 
+#include "custom_casey.cpp"
+
 extern "C" GET_BINDING_DATA(get_bindings){
     Bind_Helper context_actual = begin_bind_helper(data, size);
     Bind_Helper *context = &context_actual;
+    
+#if 1
+    casey_get_bindings(context);
+#else
     
     // NOTE(allen|a3.1): Right now hooks have no loyalties to maps, all hooks are
     // global and once set they always apply, regardless of what map is active.
@@ -690,11 +730,10 @@ extern "C" GET_BINDING_DATA(get_bindings){
     bind(context, 'k', MDFR_CTRL, cmdid_interactive_kill_buffer);
     bind(context, 'i', MDFR_CTRL, cmdid_interactive_switch_buffer);
     bind(context, 'c', MDFR_ALT, cmdid_open_color_tweaker);
-    bind(context, 'x', MDFR_ALT, cmdid_open_menu);
     bind(context, 'o', MDFR_ALT, open_in_other);
     
     bind(context, 'm', MDFR_ALT, build_search);
-    bind(context, 'a', MDFR_ALT, open_all_cpp_and_h);
+    bind(context, 'x', MDFR_ALT, execute_arbitrary_command);
     
     // NOTE(allen): These callbacks may not actually be useful to you, but
     // go look at them and see what they do.
@@ -738,7 +777,6 @@ extern "C" GET_BINDING_DATA(get_bindings){
     bind(context, '{', MDFR_CTRL, open_long_braces);
     bind(context, '9', MDFR_CTRL, paren_wrap);
     bind(context, 'i', MDFR_ALT, if0_off);
-    bind(context, '1', MDFR_ALT, switch_to_file_in_quotes);
     
     end_map(context);
     
@@ -812,6 +850,7 @@ extern "C" GET_BINDING_DATA(get_bindings){
     bind(context, ' ', MDFR_SHIFT, cmdid_write_character);
     
     end_map(context);
+#endif
     
     end_bind_helper(context);
     

@@ -209,6 +209,8 @@ struct Application_Links;
 #define EventOnRightButton 0x8
 #define EventOnWheel 0x10
 #define EventOnButton (EventOnLeftButton | EventOnRightButton | EventOnWheel)
+
+// NOTE(allen): These don't work so much, so let's pretend they're not here for now.
 #define EventOnMouseMove 0x20
 #define EventOnMouse (EventOnButton | EventOnMouseMove)
 
