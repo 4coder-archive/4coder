@@ -1702,18 +1702,24 @@ step_draw_library(System_Functions *system, Exchange *exchange, Mem_Options *mem
     case CV_MODE_IMPORT_WAIT:
     {
         Style *styles = color_view->inspecting_styles.styles;
-        Data file;
-        i32 file_max;
+        Data file = {};
+        i32 file_max = 0;
         
-        i32 count, max;
-        max = ArrayCount(color_view->inspecting_styles.styles);
+        i32 count = 0;
+        i32 max = ArrayCount(color_view->inspecting_styles.styles);
+        
+        AllowLocal(styles);
+        AllowLocal(max);
         
         if (exchange_file_ready(exchange, color_view->import_file_id,
                                 &file.data, &file.size, &file_max)){
             if (file.data){
-                if (style_library_import(file, ui.fonts, styles, max, &count))
-                   color_view->mode = CV_MODE_IMPORT;
-                else color_view->mode = CV_MODE_LIBRARY;
+                if (0 /* && style_library_import(file, ui.fonts, styles, max, &count) */){
+                    color_view->mode = CV_MODE_IMPORT;
+                }
+                else{
+                    color_view->mode = CV_MODE_LIBRARY;
+                }
                 color_view->inspecting_styles.count = count;
             }
             else{
@@ -1768,7 +1774,7 @@ step_draw_library(System_Functions *system, Exchange *exchange, Mem_Options *mem
             String str = make_string(data, 0, ui.hot_directory->string.size + 5);
             copy(&str, ui.hot_directory->string);
             append(&str, make_lit_string(".p4c"));
-            style_library_export(system, exchange, mem, &target->font_set, str.str, styles, export_count);
+            /*style_library_export(system, exchange, mem, &target->font_set, str.str, styles, export_count);*/
             
             end_temp_memory(temp);
             color_view->mode = CV_MODE_LIBRARY;

@@ -10,7 +10,7 @@
 // TOP
 
 struct File_View_Mode{
-	b8 rewrite;
+	i8 rewrite;
 };
 
 struct Incremental_Search{
@@ -29,20 +29,11 @@ enum File_View_Widget_Type{
 struct File_View_Widget{
     UI_State state;
     File_View_Widget_Type type;
-    i32 height;
+    i32 height_;
     struct{
         b32 undo_line;
         b32 history_line;
     } timeline;
-};
-
-enum Link_Type{
-    link_result,
-    link_related,
-    link_error,
-    link_warning,
-    // never below this
-    link_type_count
 };
 
 struct File_View{
@@ -1451,6 +1442,8 @@ view_set_widget(File_View *view, File_View_Widget_Type type){
     view->widget.type = type;
 }
 
+
+#if 0
 inline i32
 view_widget_height(File_View *view, i32 font_height){
     i32 result = 0;
@@ -1467,6 +1460,7 @@ view_widget_height(File_View *view, i32 font_height){
     }
     return result;
 }
+#endif
 
 inline i32_Rect
 view_widget_rect(File_View *view, i32 font_height){
@@ -1476,9 +1470,15 @@ view_widget_rect(File_View *view, i32 font_height){
     if (view->file){
         result.y0 = result.y0 + font_height + 2;
     }
-    result.y1 = result.y0 + view_widget_height(view, font_height);
     
-    return result;
+#if 0
+    if (view->file){
+        result.y0 = result.y0 + font_height + 2;
+    }
+    result.y1 = result.y0 + view_widget_height(view, font_height);
+#endif
+    
+    return(result);
 }
 
 #if FRED_SLOW
@@ -2598,32 +2598,6 @@ struct Get_Link_Result{
 };
 
 internal u32*
-style_get_link_color(Style *style, Link_Type type){
-	u32 *result;
-    switch (type){
-    case link_result:
-        result = &style->main.result_link_color;
-        break;
-        
-    case link_related:
-        result = &style->main.related_link_color;
-        break;
-
-    case link_error:
-        result = &style->main.error_link_color;
-        break;
-        
-    case link_warning:
-        result = &style->main.warning_link_color;
-        break;
-        
-    default:
-        result = &style->main.default_color;
-    }
-    return result;
-}
-
-internal u32*
 style_get_color(Style *style, Cpp_Token token){
 	u32 *result;
     if (token.flags & CPP_TFLAG_IS_KEYWORD){
@@ -2791,13 +2765,62 @@ undo_shit(System_Functions *system, File_View *view, UI_State *state, UI_Layout 
     }
 }
 
+internal void
+draw_file_view_queries(File_View *view, UI_State *state, UI_Layout *layout){
+    Widget_ID wid;
+    Query_Slot *slot;
+    Query_Bar *bar;
+    i32 i = 1;
+    
+    for (slot = view->query_set.used_slot; slot != 0; slot = slot->next){
+        wid = make_id(state, i++);
+        bar = slot->query_bar;
+        do_text_field(wid, state, layout, bar->prompt, bar->string);
+    }
+}
+
 internal i32
 step_file_view(System_Functions *system, View *view_, i32_Rect rect,
-               b32 is_active, Input_Summary *user_input){
+    b32 is_active, Input_Summary *user_input){
     view_->mouse_cursor_type = APP_MOUSE_CURSOR_IBEAM;
+    
     i32 result = 0;
     File_View *view = (File_View*)view_;
     Editing_File *file = view->file;
+
+    i32 widget_height = 0;
+    {
+        i32_Rect widg_rect = view_widget_rect(view, view->font_height);
+
+        UI_State state = 
+            ui_state_init(&view->widget.state, 0, user_input,
+            view->style, view->font_set, 0, 1);
+
+        UI_Layout layout;
+        begin_layout(&layout, widg_rect);
+
+        switch (view->widget.type){
+            case FWIDG_NONE:
+            {
+                draw_file_view_queries(view, &state, &layout);
+            }break;
+            
+            case FWIDG_TIMELINES:
+            {
+                i32 scrub_max = view->scrub_max;
+                i32 undo_count = file->state.undo.undo.edit_count;
+                i32 redo_count = file->state.undo.redo.edit_count;
+                i32 total_count = undo_count + redo_count;
+
+                undo_shit(system, view, &state, &layout, total_count, undo_count, scrub_max);
+            }break;
+        }
+        
+        widget_height = layout.y - widg_rect.y0;
+        if (ui_finish_frame(&view->widget.state, &state, &layout, widg_rect, 0, 0)){
+            result = 1;
+        }
+    }
     
     if (file && !file->state.is_loading){
         f32 line_height = (f32)view->font_height;
@@ -2807,7 +2830,7 @@ step_file_view(System_Functions *system, View *view_, i32_Rect rect,
         i32 lowest_line = view_compute_lowest_line(view);
         f32 max_target_y = view_compute_max_target_y(lowest_line, (i32)line_height, max_y);
         f32 delta_y = 3.f*line_height;
-        f32 extra_top = (f32)view_widget_height(view, (i32)line_height);
+        f32 extra_top = (f32)widget_height;
         f32 taken_top_space = line_height + extra_top;
 
         if (user_input->mouse.y < rect.y0 + taken_top_space){
@@ -2887,38 +2910,11 @@ step_file_view(System_Functions *system, View *view_, i32_Rect rect,
             }
             result = 1;
         }
-
-        if (!is_active) view_set_widget(view, FWIDG_NONE);
-
-        // NOTE(allen): framely undo stuff
-        i32 scrub_max = view->scrub_max;
-        i32 undo_count = file->state.undo.undo.edit_count;
-        i32 redo_count = file->state.undo.redo.edit_count;
-        i32 total_count = undo_count + redo_count;
         
-        switch (view->widget.type){
-            case FWIDG_TIMELINES:
-            {
-                i32_Rect widg_rect = view_widget_rect(view, view->font_height);
-                
-                UI_State state = 
-                    ui_state_init(&view->widget.state, 0, user_input,
-                    view->style, view->font_set, 0, 1);
-                
-                UI_Layout layout;
-                begin_layout(&layout, widg_rect);
-                undo_shit(system, view, &state, &layout, total_count, undo_count, scrub_max);
-                
-                view->widget.height = layout.y - widg_rect.y0;
-                
-                if (ui_finish_frame(&view->widget.state, &state, &layout, widg_rect, 0, 0)){
-                    result = 1;
-                }
-            }break;
-        }
+        if (!is_active) view_set_widget(view, FWIDG_NONE);
     }
-
-    return result;
+    
+    return(result);
 }
 
 internal void
@@ -2972,20 +2968,6 @@ draw_file_bar(File_View *view, Interactive_Bar *bar, Render_Target *target){
                 }break;
             }
         }
-    }
-}
-
-internal void
-draw_file_view_queries(File_View *view, UI_State *state, UI_Layout *layout){
-    Widget_ID wid;
-    Query_Slot *slot;
-    Query_Bar *bar;
-    i32 i = 1;
-    
-    for (slot = view->query_set.used_slot; slot != 0; slot = slot->next){
-        wid = make_id(state, i++);
-        bar = slot->query_bar;
-        do_text_field(wid, state, layout, bar->prompt, bar->string);
     }
 }
 
@@ -3157,57 +3139,65 @@ draw_file_loaded(File_View *view, i32_Rect rect, b32 is_active, Render_Target *t
 }
 
 internal i32
-draw_file_view(View *view_, i32_Rect rect, bool32 is_active, Render_Target *target){
+draw_file_view(View *view_, i32_Rect rect, b32 is_active, Render_Target *target){
     File_View *view = (File_View*)view_;
     i32 result = 0;
-    
+
+    i32 widget_height = 0;
+    {
+        //UI_Style ui_style = get_ui_style_upper(view->style);
+
+        i32_Rect widg_rect = view_widget_rect(view, view->font_height);
+
+        //draw_rectangle(target, widg_rect, ui_style.dark);
+        //draw_rectangle_outline(target, widg_rect, ui_style.dim);
+
+        UI_State state =
+            ui_state_init(&view->widget.state, target, 0,
+            view->style, view->font_set, 0, 0);
+
+        UI_Layout layout;
+        begin_layout(&layout, widg_rect);
+
+        switch (view->widget.type){
+            case FWIDG_NONE:
+            {
+                draw_file_view_queries(view, &state, &layout);
+            }break;
+
+            case FWIDG_TIMELINES:
+            {
+                if (view->file){
+                    Editing_File *file = view->file;
+                    i32 undo_count = file->state.undo.undo.edit_count;
+                    i32 redo_count = file->state.undo.redo.edit_count;
+                    i32 total_count = undo_count + redo_count;
+                    undo_shit(0, view, &state, &layout, total_count, undo_count, 0);
+                }
+                else{
+                    view->widget.type = FWIDG_NONE;
+                }
+            }break;
+        }
+
+        widget_height = layout.y - widg_rect.y0;
+        ui_finish_frame(&view->widget.state, &state, &layout, widg_rect, 0, 0);
+    }
+
     if (view->file){
         Interactive_Bar bar;
         draw_file_setup_bar(view->style, view->font_height, &bar, &rect);
-        
+
         if (file_is_ready(view->file)){
+            rect.y0 += widget_height;
+            target->push_clip(target, rect);
+            rect.y0 -= widget_height;
             result = draw_file_loaded(view, rect, is_active, target);
+            target->pop_clip(target);
         }
         
         draw_file_bar(view, &bar, target);
     }
-    
-    UI_Style ui_style = get_ui_style_upper(view->style);
-    
-    i32_Rect widg_rect = view_widget_rect(view, view->font_height);
-    
-    draw_rectangle(target, widg_rect, ui_style.dark);
-    draw_rectangle_outline(target, widg_rect, ui_style.dim);
-    
-    UI_State state =
-        ui_state_init(&view->widget.state, target, 0,
-        view->style, view->font_set, 0, 0);
-    
-    UI_Layout layout;
-    begin_layout(&layout, widg_rect);
-    
-    switch (view->widget.type){
-        case FWIDG_NONE:
-        {
-            draw_file_view_queries(view, &state, &layout);
-        }break;
-        
-        case FWIDG_TIMELINES:
-        {
-            if (view->file){
-                Editing_File *file = view->file;
-                i32 undo_count = file->state.undo.undo.edit_count;
-                i32 redo_count = file->state.undo.redo.edit_count;
-                i32 total_count = undo_count + redo_count;
-                undo_shit(0, view, &state, &layout, total_count, undo_count, 0);
-            }
-            else{
-                view->widget.type = FWIDG_NONE;
-            }
-        }break;
-    }
-    
-    ui_finish_frame(&view->widget.state, &state, &layout, widg_rect, 0, 0);
     
     return (result);
 }

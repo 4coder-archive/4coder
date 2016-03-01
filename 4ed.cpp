@@ -1713,39 +1713,6 @@ COMMAND_DECL(open_menu){
     AllowLocal(menu_view);
 }
 
-#if FRED_INTERNAL
-COMMAND_DECL(open_debug_view){
-    ProfileMomentFunction();
-    USE_VARS(vars);
-    USE_STYLE(style);
-    USE_LIVE_SET(live_set);
-    USE_PANEL(panel);
-    USE_MEM(mem);
-    USE_EXCHANGE(exchange);
-
-    View *new_view = live_set_alloc_view(live_set, mem);
-    view_replace_major(system, exchange, new_view, panel, live_set);
-
-    new_view->map = &vars->map_debug;
-    Debug_View *debug_view = debug_view_init(new_view);
-    debug_view->font_id = style->font_id;
-    debug_view->mode = DBG_MEMORY;
-}
-
-COMMAND_DECL(debug_memory){
-    ProfileMomentFunction();
-    REQ_DBG_VIEW(view);
-    view->mode = DBG_MEMORY;
-}
-
-COMMAND_DECL(debug_os_events){
-    ProfileMomentFunction();
-    REQ_DBG_VIEW(view);
-    view->mode = DBG_OS_EVENTS;
-}
-
-#endif
-
 COMMAND_DECL(close_minor_view){
     ProfileMomentFunction();
     REQ_VIEW(view);
@@ -2574,16 +2541,6 @@ app_links_init(System_Functions *system, void *data, int size){
     app_links.end_query_bar = external_end_query_bar;
 }
 
-#if FRED_INTERNAL
-internal void
-setup_debug_commands(Command_Map *commands, Partition *part, Command_Map *parent){
-    map_init(commands, part, 6, parent);
-
-    map_add(commands, 'm', MDFR_NONE, command_debug_memory);
-    map_add(commands, 'o', MDFR_NONE, command_debug_os_events);
-}
-#endif
-
 internal void
 setup_ui_commands(Command_Map *commands, Partition *part, Command_Map *parent){
     map_init(commands, part, 32, parent);
@@ -3131,7 +3088,6 @@ App_Init_Sig(app_init){
         sizeof(Interactive_View),
         sizeof(Menu_View),
         sizeof(Config_View),
-        sizeof(Debug_View),
     };
 
     {
@@ -3280,10 +3236,7 @@ App_Init_Sig(app_init){
 #endif
 
     setup_ui_commands(&vars->map_ui, &vars->mem.part, global);
-#if FRED_INTERNAL
-    setup_debug_commands(&vars->map_debug, &vars->mem.part, global);
-#endif
-
+    
     vars->font_set = &target->font_set;
 
     font_set_init(vars->font_set, partition, 16, 5);

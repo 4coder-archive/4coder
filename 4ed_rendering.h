@@ -47,14 +47,6 @@ struct Render_Font{
     i32 tex_width, tex_height;
 };
 
-struct Render_Target;
-
-#define Draw_Push_Clip_Sig(name) void name(Render_Target *target, i32_Rect clip_box)
-typedef Draw_Push_Clip_Sig(Draw_Push_Clip);
-
-#define Draw_Pop_Clip_Sig(name) void name(Render_Target *target)
-typedef Draw_Pop_Clip_Sig(Draw_Pop_Clip);
-
 enum Render_Piece_Type{
     piece_type_rectangle,
     piece_type_outline,
@@ -107,6 +99,14 @@ struct Render_Piece_Combined{
         Render_Piece_Glyph_Advance glyph_advance;
     };
 };
+
+struct Render_Target;
+
+#define Draw_Push_Clip_Sig(name) void name(Render_Target *target, i32_Rect clip_box)
+typedef Draw_Push_Clip_Sig(Draw_Push_Clip);
+
+#define Draw_Pop_Clip_Sig(name) void name(Render_Target *target)
+typedef Draw_Pop_Clip_Sig(Draw_Pop_Clip);
 
 #define Draw_Push_Piece_Sig(name) void name(Render_Target *target, Render_Piece_Combined piece)
 typedef Draw_Push_Piece_Sig(Draw_Push_Piece);

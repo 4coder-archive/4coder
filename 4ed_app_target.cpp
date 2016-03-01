@@ -59,7 +59,6 @@
 #include "4ed_menu_view.cpp"
 #include "4ed_app_settings.h"
 #include "4ed_config_view.cpp"
-#include "4ed_debug_view.cpp"
 #include "4ed.cpp"
 
 // BOTTOM
