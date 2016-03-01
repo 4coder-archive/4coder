@@ -89,6 +89,7 @@ struct Linux_Coroutine {
 	Coroutine coroutine;
 	Linux_Coroutine *next;
 	ucontext_t ctx, yield_ctx;
+    stack_t stack;
 	b32 done;
 };
 
@@ -123,6 +124,9 @@ struct Linux_Vars{
    
     Atom atom_CLIPBOARD;
     Atom atom_UTF8_STRING;
+
+	b32 has_xfixes;
+	int xfixes_selection_event;
 
     Application_Mouse_Cursor cursor;
 
@@ -412,6 +416,7 @@ LinuxAllocCoroutine(){
 	if(getcontext(&result->ctx) == -1){
 		perror("getcontext");
 	}
+    result->ctx.uc_stack = result->stack;
     linuxvars.coroutine_free = result->next;
     return(result);
 }
@@ -522,7 +527,7 @@ Sys_CLI_Call_Sig(system_cli_call){
         };
 
         //TODO(inso): do spaces in script_name signify multiple args?
-        char* argv[] = { "sh", script_name, NULL };
+        char* argv[] = { "sh", "-c", script_name, NULL };
 
         if(execv("/bin/sh", argv) == -1){
             perror("system_cli_call: execv");
@@ -774,19 +779,16 @@ INTERNAL_Sys_Debug_Message_Sig(internal_debug_message){
     printf("%s", message);
 }
 
-DIRECTORY_HAS_FILE_SIG(system_directory_has_file){
-    
-    fprintf(stderr, "system_directory_has_file: %.*s %s\n", dir.size, dir.str, filename);
-
+internal
+FILE_EXISTS_SIG(system_file_exists){
     int result = 0;
     char buff[PATH_MAX] = {};
-    size_t fnamesize = strlen(filename);
 
-    if(fnamesize + dir.size + 1 > PATH_MAX){
+    if(len + 1 > PATH_MAX){
         fprintf(stderr, "system_directory_has_file: path too long");
     } else {
-        memcpy(buff, dir.str, dir.size);
-        memcpy(buff + dir.size, filename, fnamesize + 1);
+        memcpy(buff, filename, len);
+        buff[len] = 0;
         struct stat st;
         result = stat(buff, &st) == 0 && S_ISREG(st.st_mode);
     }
@@ -794,44 +796,39 @@ DIRECTORY_HAS_FILE_SIG(system_directory_has_file){
     return(result);
 }
 
-DIRECTORY_CD_SIG(system_directory_cd){
-    
-    fprintf(stderr, "system_directory_cd: %.*s %s\n", dir->size, dir->str, rel_path);
 
+DIRECTORY_CD_SIG(system_directory_cd){
+    String directory = make_string(dir, *len, capacity);
     b32 result = 0;
     i32 old_size;
-    i32 len;
     
     if (rel_path[0] != 0){
         if (rel_path[0] == '.' && rel_path[1] == 0){
             result = 1;
         }
         else if (rel_path[0] == '.' && rel_path[1] == '.' && rel_path[2] == 0){
-            result = remove_last_folder(dir);
-            terminate_with_null(dir);
+            result = remove_last_folder(&directory);
+            terminate_with_null(&directory);
         }
         else{
-            len = str_size(rel_path);
-            if (dir->size + len + 1 > dir->memory_size){
-                old_size = dir->size;
-                append_partial(dir, rel_path);
-                append_partial(dir, "/");
-                terminate_with_null(dir);
+            if (directory.size + rel_len + 1 > directory.memory_size){
+                old_size = directory.size;
+                append_partial(&directory, rel_path);
+                append_partial(&directory, "/");
+                terminate_with_null(&directory);
 
                 struct stat st;
-                if(stat(dir->str, &st) == -1){
-                    perror("system_directory_cd: stat");
-                    result = 0;
-                } else {
-                    result = S_ISDIR(st.st_mode);
+                if (stat(directory.str, &st) == 0 && S_ISDIR(st.st_mode)){
+                    result = 1;
                 }
-
-                if(!result){
-                    dir->size = old_size;
+                else{
+                    directory.size = old_size;
                 }
             }
         }
     }
+    
+    *len = directory.size;
     
     return(result);
 }
@@ -1054,9 +1051,8 @@ Sys_To_Binary_Path(system_to_binary_path){
     i32 max = out_filename->memory_size;
     i32 size = readlink("/proc/self/exe", out_filename->str, max);
     if (size > 0 && size < max-1){
-        out_filename->str[size] = '\0';
-        out_filename->size = size + 1;
-        truncate_to_path_of_directory(out_filename);
+        out_filename->size = size;
+        remove_last_folder(out_filename);
         if (append(out_filename, filename) && terminate_with_null(out_filename)){
             translate_success = 1;
         }
@@ -1088,7 +1084,7 @@ LinuxLoadSystemCode(){
     linuxvars.system->file_time_stamp = system_file_time_stamp;
     linuxvars.system->set_file_list = system_set_file_list;
 
-    linuxvars.system->directory_has_file = system_directory_has_file;
+    linuxvars.system->file_exists = system_file_exists;
     linuxvars.system->directory_cd = system_directory_cd;
 
     linuxvars.system->post_clipboard = system_post_clipboard;
@@ -1688,15 +1684,18 @@ main(int argc, char **argv)
         linuxvars.coroutine_data[i].next = linuxvars.coroutine_data + i + 1;
     }
 
+    const size_t stack_size = Mbytes(16);
 	for (i32 i = 0; i < ArrayCount(linuxvars.coroutine_data); ++i){
-		linuxvars.coroutine_data[i].ctx.uc_stack.ss_sp = system_get_memory(Mbytes(16));
-		linuxvars.coroutine_data[i].ctx.uc_stack.ss_size = Mbytes(16);
+        linuxvars.coroutine_data[i].stack.ss_size = stack_size;
+        linuxvars.coroutine_data[i].stack.ss_sp = system_get_memory(stack_size);
 	}
 
 	memory_vars.vars_memory_size = Mbytes(2);
     memory_vars.vars_memory = system_get_memory(memory_vars.vars_memory_size);
     memory_vars.target_memory_size = Mbytes(512);
     memory_vars.target_memory = system_get_memory(memory_vars.target_memory_size);
+    memory_vars.user_memory_size = Mbytes(2);
+    memory_vars.user_memory = system_get_memory(memory_vars.user_memory_size);
     
     String current_directory;
     i32 curdir_req, curdir_size;
@@ -1748,7 +1747,7 @@ main(int argc, char **argv)
     keycode_init(linuxvars.XDisplay);
 
 #ifdef FRED_SUPER
-    char *custom_file_default = "4coder_custom.so";
+    char *custom_file_default = "./4coder_custom.so";
     char *custom_file;
     if (linuxvars.settings.custom_dll) custom_file = linuxvars.settings.custom_dll;
     else custom_file = custom_file_default;
@@ -1765,7 +1764,9 @@ main(int argc, char **argv)
             dlsym(linuxvars.custom, "get_bindings");
     }
 #endif
-    
+   
+    //TODO(inso): look in linuxvars.settings and set window pos / size etc
+
     if (linuxvars.custom_api.get_bindings == 0){
         linuxvars.custom_api.get_bindings = get_bindings;
     }
