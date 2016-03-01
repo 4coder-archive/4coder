@@ -9,16 +9,7 @@
 
 // TOP
  
-#define VERSION_NUMBER "alpha 3.4.4"
-
-#ifdef FRED_SUPER
-#define VERSION_TYPE " super!"
-#else
-#define VERSION_TYPE ""
-#endif
-
-#define VERSION VERSION_NUMBER VERSION_TYPE
-
+#include "4ed_version.h"
 #include "4ed_config.h"
 
 #define BUFFER_EXPERIMENT_SCALPEL 0
@@ -53,12 +44,8 @@
 #include "4ed_file.cpp"
 #include "4ed_gui.cpp"
 #include "4ed_delay.cpp"
-#include "4ed_file_view.cpp"
-#include "4ed_color_view.cpp"
-#include "4ed_interactive_view.cpp"
-#include "4ed_menu_view.cpp"
 #include "4ed_app_settings.h"
-#include "4ed_config_view.cpp"
+#include "4ed_file_view.cpp"
 #include "4ed.cpp"
 
 // BOTTOM

@@ -108,7 +108,6 @@ char* generate_keycode_enum(){
     return(filename);
 }
 
-
 char daction_enum_name[] = "Action_Type";
 char *daction_enum[] = {
     "OPEN",
@@ -120,9 +119,6 @@ char *daction_enum[] = {
     "SWITCH",
     "TRY_KILL",
     "KILL",
-    "CLOSE_MINOR",
-    "THEME_OPTIONS",
-    "KEYBOARD_OPTIONS"
 };
 
 char str_alloc_copy[] =

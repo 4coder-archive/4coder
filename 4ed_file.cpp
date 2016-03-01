@@ -255,16 +255,6 @@ struct Hot_Directory{
 };
 
 internal void
-hot_directory_init(Hot_Directory *hot_directory, String base, String dir, char slash){
-	hot_directory->string = base;
-    hot_directory->string.str[255] = 0;
-    hot_directory->string.size = 0;
-    copy(&hot_directory->string, dir);
-	append(&hot_directory->string, slash);
-    hot_directory->slash = slash;
-}
-
-internal void
 hot_directory_clean_end(Hot_Directory *hot_directory){
     String *str = &hot_directory->string;
     if (str->size != 0 && str->str[str->size-1] != hot_directory->slash){
@@ -324,6 +314,16 @@ inline void
 hot_directory_reload(System_Functions *system, Hot_Directory *hot_directory, Working_Set *working_set){
     system->set_file_list(&hot_directory->file_list, hot_directory->string);
     hot_directory_fixup(hot_directory, working_set);
+}
+
+internal void
+hot_directory_init(Hot_Directory *hot_directory, String base, String dir, char slash){
+	hot_directory->string = base;
+    hot_directory->string.str[255] = 0;
+    hot_directory->string.size = 0;
+    copy(&hot_directory->string, dir);
+	append(&hot_directory->string, slash);
+    hot_directory->slash = slash;
 }
 
 struct Hot_Directory_Match{
@@ -402,6 +402,48 @@ buffer_needs_save(Editing_File *file){
         if (buffer_get_sync(file) == SYNC_UNSAVED)
             result = 1;
     return(result);
+}
+
+inline b32
+file_is_ready(Editing_File *file){
+    b32 result = 0;
+    if (file && file->state.is_loading == 0){
+        result = 1;
+    }
+    return(result);
+}
+
+inline Editing_File*
+working_set_contains(Working_Set *working, String filename){
+    Editing_File *result = 0;
+    i32 id;
+    if (table_find(&working->table, filename, &id)){
+        if (id < working->file_max_count){
+            result = working->files + id;
+        }
+    }
+    return result;
+}
+
+// TODO(allen): Find a way to choose an ordering for these so it picks better first options.
+internal Editing_File*
+working_set_lookup_file(Working_Set *working_set, String string){
+	Editing_File *file = working_set_contains(working_set, string);
+	
+	if (!file){
+        i32 file_i;
+        i32 end = working_set->file_index_count;
+        file = working_set->files;
+		for (file_i = 0; file_i < end; ++file_i, ++file){
+			if (file->name.live_name.str &&
+                (string.size == 0 || has_substr(file->name.live_name, string))){
+				break;
+			}
+		}
+        if (file_i == end) file = 0;
+	}
+    
+	return file;
 }
 
 // BOTTOM

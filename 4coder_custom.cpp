@@ -72,11 +72,10 @@ CUSTOM_COMMAND_SIG(write_decrement){
     app->buffer_replace_range(app, &buffer, buffer.buffer_cursor_pos, buffer.buffer_cursor_pos, text, size);
 }
 
-CUSTOM_COMMAND_SIG(open_long_braces){
+static void
+long_braces(Application_Links *app, char *text, int size){
     File_View_Summary view;
     Buffer_Summary buffer;
-    char text[] = "{\n\n}";
-    int size = sizeof(text) - 1;
     int pos;
     
     view = app->get_active_file_view(app);
@@ -92,24 +91,22 @@ CUSTOM_COMMAND_SIG(open_long_braces){
     exec_command(app, cmdid_auto_tab_range);
 }
 
+CUSTOM_COMMAND_SIG(open_long_braces){
+    char text[] = "{\n\n}";
+    int size = sizeof(text) - 1;
+    long_braces(app, text, size);
+}
+
 CUSTOM_COMMAND_SIG(open_long_braces_semicolon){
-    File_View_Summary view;
-    Buffer_Summary buffer;
     char text[] = "{\n\n};";
     int size = sizeof(text) - 1;
-    int pos;
-    
-    view = app->get_active_file_view(app);
-    buffer = app->get_buffer(app, view.buffer_id);
-    
-    pos = view.cursor.pos;
-    app->buffer_replace_range(app, &buffer, pos, pos, text, size);
-    app->view_set_cursor(app, &view, seek_pos(pos + 2), 1);
-    
-    push_parameter(app, par_range_start, pos);
-    push_parameter(app, par_range_end, pos + size);
-    push_parameter(app, par_clear_blank_lines, 0);
-    exec_command(app, cmdid_auto_tab_range);
+    long_braces(app, text, size);
+}
+
+CUSTOM_COMMAND_SIG(open_long_braces_break){
+    char text[] = "{\n\n}break;";
+    int size = sizeof(text) - 1;
+    long_braces(app, text, size);
 }
 
 CUSTOM_COMMAND_SIG(paren_wrap){
@@ -768,7 +765,8 @@ extern "C" GET_BINDING_DATA(get_bindings){
     bind(context, '=', MDFR_CTRL, write_increment);
     bind(context, '-', MDFR_CTRL, write_decrement);
     bind(context, '[', MDFR_CTRL, open_long_braces);
-    bind(context, '{', MDFR_CTRL, open_long_braces);
+    bind(context, '{', MDFR_CTRL, open_long_braces_semicolon);
+    bind(context, '}', MDFR_CTRL, open_long_braces_break);
     bind(context, '9', MDFR_CTRL, paren_wrap);
     bind(context, 'i', MDFR_ALT, if0_off);
     

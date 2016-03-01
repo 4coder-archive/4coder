@@ -8,9 +8,6 @@ enum Action_Type{
     DACT_SWITCH,
     DACT_TRY_KILL,
     DACT_KILL,
-    DACT_CLOSE_MINOR,
-    DACT_THEME_OPTIONS,
-    DACT_KEYBOARD_OPTIONS,
 };
 
 struct Delayed_Action{
@@ -113,6 +110,3 @@ delayed_action_repush(Delay *delay, Delayed_Action *act){
 #define delayed_switch(delay, ...) delayed_action_(delay, DACT_SWITCH, __VA_ARGS__)
 #define delayed_try_kill(delay, ...) delayed_action_(delay, DACT_TRY_KILL, __VA_ARGS__)
 #define delayed_kill(delay, ...) delayed_action_(delay, DACT_KILL, __VA_ARGS__)
-#define delayed_close_minor(delay, ...) delayed_action_(delay, DACT_CLOSE_MINOR, __VA_ARGS__)
-#define delayed_theme_options(delay, ...) delayed_action_(delay, DACT_THEME_OPTIONS, __VA_ARGS__)
-#define delayed_keyboard_options(delay, ...) delayed_action_(delay, DACT_KEYBOARD_OPTIONS, __VA_ARGS__)

@@ -115,19 +115,10 @@ struct Application_Step_Result{
 
 typedef App_Step_Sig(App_Step);
 
-#define App_Alloc_Sig(name) void *name(void *handle, i32 size)
-typedef App_Alloc_Sig(App_Alloc);
-
-#define App_Free_Sig(name) void name(void *handle, void *block)
-typedef App_Free_Sig(App_Free);
-
 struct App_Functions{
     App_Read_Command_Line *read_command_line;
     App_Init *init;
     App_Step *step;
-
-    App_Alloc *alloc;
-    App_Free *free;
 };
 
 #define App_Get_Functions_Sig(name) App_Functions name()

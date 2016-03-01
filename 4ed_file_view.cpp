@@ -9,6 +9,21 @@
 
 // TOP
 
+enum Interactive_Action{
+    IAct_Open,
+    IAct_Save_As,
+    IAct_New,
+    IAct_Switch,
+    IAct_Kill,
+    IAct_Sure_To_Kill
+};
+
+enum Interactive_Interaction{
+    IInt_Sys_File_List,
+    IInt_Live_File_List,
+    IInt_Sure_To_Kill
+};
+
 struct File_View_Mode{
 	i8 rewrite;
 };
@@ -36,17 +51,68 @@ struct File_View_Widget{
     } timeline;
 };
 
+enum View_UI{
+    VUI_None,
+    VUI_Theme,
+    VUI_Interactive,
+    VUI_Menu,
+    VUI_Config,
+};
+
+enum Color_View_Mode{
+    CV_Mode_Library,
+    CV_Mode_Import_File,
+    CV_Mode_Export_File,
+    CV_Mode_Import,
+    CV_Mode_Export,
+    CV_Mode_Import_Wait,
+    CV_Mode_Adjusting
+};
+
 struct File_View{
     View view_base;
-
-    Font_Set *font_set;
+    
     Editing_File *file;
-    Style *style;
+    
     Editing_Layout *layout;
+    
+    Style *style;
+    Working_Set *working_set;
+    Delay *delay;
+    Font_Set *font_set;
+    App_Settings *settings;
+    Hot_Directory *hot_directory;
+    Mem_Options *mem;
+    Style_Library *styles;
+    
+    UI_State ui_state;
+    View_UI showing_ui;
+    
+    // interactive stuff
+    Interactive_Interaction interaction;
+    Interactive_Action action;
+    b32 finished;
+    char query_[256];
+    String query;
+    char dest_[256];
+    String dest;
+    i32 user_action;
+    
+    // theme stuff
+    File_View *hot_file_view;
+    u32 *palette;
+    i32 palette_size;
+    Color_View_Mode color_mode;
+    Super_Color color;
+    Color_Highlight highlight;
+    b32 p4c_only;
+    Style_Library inspecting_styles;
+    b8 import_export_check[64];
+    i32 import_file_id;
     
     i32 font_advance;
     i32 font_height;
-
+    
     Full_Cursor cursor;
     i32 mark;
     f32 scroll_y, target_y, vel_y;
@@ -78,14 +144,13 @@ struct File_View{
     
     i32 line_count, line_max;
     f32 *line_wrap_y;
+    
+    Command_Map *map_for_file;
 };
 
 inline File_View*
 view_to_file_view(View *view){
-    File_View* result = 0;
-    if (view && view->type == VIEW_TYPE_FILE){
-        result = (File_View*)view;
-    }
+    File_View* result = (File_View*)view;
     return result;
 }
 
@@ -114,15 +179,6 @@ file_init_strings(Editing_File *file){
     file->name.source_path = make_fixed_width_string(file->name.source_path_);
     file->name.live_name = make_fixed_width_string(file->name.live_name_);
     file->name.extension = make_fixed_width_string(file->name.extension_);
-}
-
-inline b32
-file_is_ready(Editing_File *file){
-    b32 result = 0;
-    if (file && file->state.is_loading == 0){
-        result = 1;
-    }
-    return(result);
 }
 
 inline void
@@ -309,10 +365,9 @@ file_measure_starts_widths(System_Functions *system, General_Memory *general,
         max = ((max + 1) << 1);
 
         {
-            i32 *new_lines = (i32*)
-                general_memory_reallocate(general, buffer->line_starts,
-                                          sizeof(i32)*count, sizeof(i32)*max, BUBBLE_STARTS);
-        
+            i32 *new_lines = (i32*)general_memory_reallocate(
+                general, buffer->line_starts, sizeof(i32)*count, sizeof(i32)*max, BUBBLE_STARTS);
+
             // TODO(allen): when unable to grow?
             TentativeAssert(new_lines);
             buffer->line_starts = new_lines;
@@ -1340,7 +1395,7 @@ view_set_file(
         view->unwrapped_lines = file->settings.unwrapped_lines;
         
         if (file_is_ready(file)){
-            view_measure_wraps(system, &view->view_base.mem->general, view);
+            view_measure_wraps(system, &view->mem->general, view);
             view->cursor = view_compute_cursor_from_pos(view, file->state.cursor_pos);
             
             cursor_x = view_get_cursor_x(view);
@@ -2255,39 +2310,6 @@ working_set_clipboard_roll_down(Working_Set *working){
 	return result;
 }
 
-inline Editing_File*
-working_set_contains(Working_Set *working, String filename){
-    Editing_File *result = 0;
-    i32 id;
-    if (table_find(&working->table, filename, &id)){
-        if (id < working->file_max_count){
-            result = working->files + id;
-        }
-    }
-    return result;
-}
-
-// TODO(allen): Find a way to choose an ordering for these so it picks better first options.
-internal Editing_File*
-working_set_lookup_file(Working_Set *working_set, String string){
-	Editing_File *file = working_set_contains(working_set, string);
-	
-	if (!file){
-        i32 file_i;
-        i32 end = working_set->file_index_count;
-        file = working_set->files;
-		for (file_i = 0; file_i < end; ++file_i, ++file){
-			if (file->name.live_name.str &&
-                (string.size == 0 || has_substr(file->name.live_name, string))){
-				break;
-			}
-		}
-        if (file_i == end) file = 0;
-	}
-    
-	return file;
-}
-
 internal void
 clipboard_copy(System_Functions *system, General_Memory *general, Working_Set *working, Range range, Editing_File *file){
     i32 size = range.end - range.start;
@@ -2698,7 +2720,7 @@ remeasure_file_view(System_Functions *system, View *view_, i32_Rect rect){
     File_View *view = (File_View*)view_;
     if (file_is_ready(view->file)){
         Relative_Scrolling relative = view_get_relative_scrolling(view);
-        view_measure_wraps(system, &view->view_base.mem->general, view);
+        view_measure_wraps(system, &view->mem->general, view);
         view_cursor_move(view, view->cursor.pos);
         view->preferred_x = view_get_cursor_x(view);
         view_set_relative_scrolling(view, relative);
@@ -2709,7 +2731,6 @@ internal void
 undo_shit(System_Functions *system, File_View *view, UI_State *state, UI_Layout *layout,
     i32 total_count, i32 undo_count, i32 scrub_max){
     
-    View *view_ = (View*)view;
     Editing_File *file = view->file;
     
     if (view->widget.timeline.undo_line){
@@ -2722,11 +2743,11 @@ undo_shit(System_Functions *system, File_View *view, UI_State *state, UI_Layout 
             i32 new_count;
             if (do_undo_slider(wid, state, layout, total_count, undo_count, 0, &new_count)){
                 for (i32 i = 0; i < scrub_max && new_count < undo_count; ++i){
-                    view_undo(system, view_->mem, view->layout, view);
+                    view_undo(system, view->mem, view->layout, view);
                     --undo_count;
                 }
                 for (i32 i = 0; i < scrub_max && new_count > undo_count; ++i){
-                    view_redo(system, view_->mem, view->layout, view);
+                    view_redo(system, view->mem, view->layout, view);
                     ++undo_count;
                 }
             }
@@ -2750,10 +2771,10 @@ undo_shit(System_Functions *system, File_View *view, UI_State *state, UI_Layout 
             i32 count = file->state.undo.edit_history_cursor;
             if (do_undo_slider(wid, state, layout, mid, count, &file->state.undo, &new_count)){
                 for (i32 i = 0; i < scrub_max && new_count < count; ++i){
-                    view_history_step(system, view_->mem, view->layout, view, hist_backward);
+                    view_history_step(system, view->mem, view->layout, view, hist_backward);
                 }
                 for (i32 i = 0; i < scrub_max && new_count > count; ++i){
-                    view_history_step(system, view_->mem, view->layout, view, hist_forward);
+                    view_history_step(system, view->mem, view->layout, view, hist_forward);
                 }
             }
         }
@@ -2779,8 +2800,718 @@ draw_file_view_queries(File_View *view, UI_State *state, UI_Layout *layout){
     }
 }
 
+inline void
+view_show_menu(File_View *fview, Command_Map *gui_map){
+    fview->ui_state = {};
+    fview->map_for_file = fview->view_base.map;
+    fview->view_base.map = gui_map;
+    fview->locked = 1;
+    fview->showing_ui = VUI_Menu;
+}
+
+inline void
+view_show_config(File_View *fview, Command_Map *gui_map){
+    fview->ui_state = {};
+    fview->map_for_file = fview->view_base.map;
+    fview->view_base.map = gui_map;
+    fview->locked = 1;
+    fview->showing_ui = VUI_Config;
+}
+
+inline void
+view_show_interactive(System_Functions *system, File_View *fview, Command_Map *gui_map,
+    Interactive_Action action, Interactive_Interaction interaction, String query){
+    fview->ui_state = {};
+    fview->map_for_file = fview->view_base.map;
+    fview->view_base.map = gui_map;
+    fview->locked = 1;
+    fview->showing_ui = VUI_Interactive;
+    fview->action = action;
+    fview->interaction = interaction;
+    fview->finished = 0;
+    
+    copy(&fview->query, query);
+    
+    hot_directory_clean_end(fview->hot_directory);
+    hot_directory_reload(system, fview->hot_directory, fview->working_set);
+}
+
+inline void
+view_show_theme(File_View *fview, Command_Map *gui_map){
+    fview->ui_state = {};
+    fview->map_for_file = fview->view_base.map;
+    fview->view_base.map = gui_map;
+    fview->locked = 1;
+    fview->showing_ui = VUI_Theme;
+    fview->color_mode = CV_Mode_Library;
+}
+
+inline void
+view_show_file(File_View *fview, Command_Map *file_map){
+    fview->ui_state = {};
+    if (file_map){
+        fview->view_base.map = file_map;
+    }
+    else{
+        fview->view_base.map = fview->map_for_file;
+    }
+    fview->locked = 0;
+    fview->showing_ui = VUI_None;
+}
+
+internal void
+interactive_view_complete(File_View *view){
+    Panel *panel = view->view_base.panel;
+    switch (view->action){
+        case IAct_Open:
+        delayed_open(view->delay, view->hot_directory->string, panel);
+        break;
+        
+        case IAct_Save_As:
+        delayed_save_as(view->delay, view->hot_directory->string, panel);
+        view_show_file(view, 0);
+        break;
+        
+        case IAct_New:
+        delayed_new(view->delay, view->hot_directory->string, panel);
+        break;
+        
+        case IAct_Switch:
+        delayed_switch(view->delay, view->dest, panel);
+        break;
+        
+        case IAct_Kill:
+        delayed_try_kill(view->delay, view->dest, panel);
+        break;
+        
+        case IAct_Sure_To_Kill:
+        switch (view->user_action){
+            case 0:
+            delayed_kill(view->delay, view->dest, panel);
+            break;
+            
+            case 1:break;
+            
+            case 2:
+            // TODO(allen): This is fishy! What if the save doesn't happen this time around?
+            // We need to ensure delayed acts happen in order I think.
+            delayed_save(view->delay, view->dest, panel);
+            delayed_kill(view->delay, view->dest, panel);
+            break;
+        }
+        view_show_file(view, 0);
+        break;
+    }
+}
+
+internal void
+update_highlighting(File_View *view){
+    File_View *file_view = view->hot_file_view;
+    if (!file_view){
+        view->highlight = {};
+        return;
+    }
+
+    Editing_File *file = file_view->file;
+    if (!file || !file_is_ready(file)){
+        view->highlight = {};
+        return;
+    }
+
+    Style *style = view->style;
+    i32 pos = view_get_cursor_pos(file_view);
+    char c = buffer_get_char(&file->state.buffer, pos);
+
+    if (c == '\r'){
+        view->highlight.ids[0] =
+            raw_ptr_dif(&style->main.special_character_color, style);
+    }
+
+    else if (file->state.tokens_complete){
+        Cpp_Token_Stack *tokens = &file->state.token_stack;
+        Cpp_Get_Token_Result result = cpp_get_token(tokens, pos);
+        Cpp_Token token = tokens->tokens[result.token_index];
+        if (!result.in_whitespace){
+            u32 *color = style_get_color(style, token);
+            view->highlight.ids[0] = raw_ptr_dif(color, style);
+            if (token.type == CPP_TOKEN_JUNK){
+                view->highlight.ids[1] =
+                    raw_ptr_dif(&style->main.highlight_junk_color, style);
+            }
+            else if (char_is_whitespace(c)){
+                view->highlight.ids[1] =
+                    raw_ptr_dif(&style->main.highlight_white_color, style);
+            }
+            else{
+                view->highlight.ids[1] = 0;
+            }
+        }
+        else{
+            view->highlight.ids[0] = 0;
+            view->highlight.ids[1] =
+                raw_ptr_dif(&style->main.highlight_white_color, style);
+        }
+    }
+
+    else{
+        if (char_is_whitespace(c)){
+            view->highlight.ids[0] = 0;
+            view->highlight.ids[1] =
+                raw_ptr_dif(&style->main.highlight_white_color, style);
+        }
+        else{
+            view->highlight.ids[0] =
+                raw_ptr_dif(&style->main.default_color, style);
+            view->highlight.ids[1] = 0;
+        }
+    }
+
+    if (file_view->show_temp_highlight){
+        view->highlight.ids[2] =
+            raw_ptr_dif(&style->main.highlight_color, style);
+        view->highlight.ids[3] =
+            raw_ptr_dif(&style->main.at_highlight_color, style);
+    }
+    else if (file->state.paste_effect.tick_down > 0){
+        view->highlight.ids[2] =
+            raw_ptr_dif(&style->main.paste_color, style);
+        view->highlight.ids[3] = 0;
+    }
+    else{
+        view->highlight.ids[2] = 0;
+        view->highlight.ids[3] = 0;
+    }
+}
+
+internal b32
+theme_library_shit(System_Functions *system, Exchange *exchange,
+    File_View *view, UI_State *state, UI_Layout *layout){
+    
+    Mem_Options *mem = view->mem;
+    
+    i32 result = 0;
+    
+    Library_UI ui;
+    ui.state = state;
+    ui.layout = layout;
+    
+    ui.fonts = view->font_set;
+    ui.hot_directory = view->hot_directory;
+    ui.styles = view->styles;
+    
+    Color_View_Mode mode = view->color_mode;
+    
+    i32_Rect bar_rect = ui.layout->rect;
+    bar_rect.x0 = bar_rect.x1 - 20;
+    do_scroll_bar(ui.state, bar_rect);
+    
+    ui.layout->y -= FLOOR32(view->ui_state.view_y);
+    ui.layout->rect.x1 -= 20;
+    
+    b32 case_sensitive = 0;
+    
+    switch (mode){
+    case CV_Mode_Library:
+    {
+        do_label(ui.state, ui.layout, literal("Current Theme - Click to Edit"));
+        if (do_style_preview(&ui, view->style)){
+            view->color_mode = CV_Mode_Adjusting;
+            view->ui_state.selected = {};
+            ui.state->view_y = 0;
+            result = 1;
+        }
+        
+        begin_row(ui.layout, 3);
+        if (ui.state->style->name.size >= 1){
+            if (do_button(-2, ui.state, ui.layout, "Save", 2)){
+                style_library_add(ui.styles, ui.state->style);
+            }
+        }
+        else{
+            do_button(-2, ui.state, ui.layout, "~Need's Name~", 2);
+        }
+        if (do_button(-3, ui.state, ui.layout, "Import", 2)){
+            view->color_mode = CV_Mode_Import_File;
+            hot_directory_clean_end(view->hot_directory);
+            hot_directory_reload(system, view->hot_directory, view->working_set);
+        }
+        if (do_button(-4, ui.state, ui.layout, "Export", 2)){
+            view->color_mode = CV_Mode_Export;
+            hot_directory_clean_end(view->hot_directory);
+            hot_directory_reload(system, view->hot_directory, view->working_set);
+            memset(view->import_export_check, 0, sizeof(view->import_export_check));
+        }
+        
+        do_label(ui.state, ui.layout, literal("Theme Library - Click to Select"));
+        
+        i32 style_count = view->styles->count;
+        Style *style = view->styles->styles;
+        for (i32 i = 0; i < style_count; ++i, ++style){
+            if (do_style_preview(&ui, style)){
+                style_copy(view->style, style);
+                result = 1;
+            }
+        }
+    }break;
+    
+    case CV_Mode_Import_File:
+    {
+        do_label(ui.state, ui.layout, literal("Current Theme"));
+        do_style_preview(&ui, view->style);
+        
+        b32 file_selected = 0;
+        
+        do_label(ui.state, ui.layout, literal("Import Which File?"));
+        begin_row(ui.layout, 2);
+        if (do_button(-2, ui.state, ui.layout, "*.p4c only", 2, 1, view->p4c_only)){
+            view->p4c_only = !view->p4c_only;
+        }
+        if (do_button(-3, ui.state, ui.layout, "Cancel", 2)){
+            view->color_mode = CV_Mode_Library;
+        }
+        
+        b32 new_dir = 0;
+        if (do_file_list_box(system, ui.state, ui.layout,
+                             ui.hot_directory, view->p4c_only, 1, case_sensitive,
+                             &new_dir, &file_selected, 0)){
+            result = 1;
+        }
+
+        if (new_dir){
+            hot_directory_reload(system, ui.hot_directory, ui.state->working_set);
+        }
+        if (file_selected){
+            memset(&view->inspecting_styles, 0, sizeof(Style_Library));
+            memset(view->import_export_check, 1,
+                sizeof(view->import_export_check));
+
+            view->import_file_id = exchange_request_file(exchange,
+                view->hot_directory->string.str,
+                view->hot_directory->string.size);
+            view->color_mode = CV_Mode_Import_Wait;
+
+        }
+    }break;
+
+    case CV_Mode_Import_Wait:
+    {
+        Style *styles = view->inspecting_styles.styles;
+        Data file = {};
+        i32 file_max = 0;
+        
+        i32 count = 0;
+        i32 max = ArrayCount(view->inspecting_styles.styles);
+        
+        AllowLocal(styles);
+        AllowLocal(max);
+        
+        if (exchange_file_ready(exchange, view->import_file_id,
+                                &file.data, &file.size, &file_max)){
+            if (file.data){
+                if (0 /* && style_library_import(file, ui.fonts, styles, max, &count) */){
+                    view->color_mode = CV_Mode_Import;
+                }
+                else{
+                    view->color_mode = CV_Mode_Library;
+                }
+                view->inspecting_styles.count = count;
+            }
+            else{
+                Assert(!"this shouldn't happen!");
+            }
+            
+            exchange_free_file(exchange, view->import_file_id);
+        }
+    }break;
+    
+    case CV_Mode_Export_File:
+    {
+        do_label(ui.state, ui.layout, literal("Current Theme"));
+        do_style_preview(&ui, view->style);
+        
+        b32 file_selected = 0;
+        
+        do_label(ui.state, ui.layout, literal("Export File Name?"));
+        begin_row(ui.layout, 2);
+        if (do_button(-2, ui.state, ui.layout, "Finish Export", 2)){
+            file_selected = 1;
+        }
+        if (do_button(-3, ui.state, ui.layout, "Cancel", 2)){
+            view->color_mode = CV_Mode_Library;
+        }
+        
+        b32 new_dir = 0;
+        if (do_file_list_box(system, ui.state, ui.layout,
+                             ui.hot_directory, 1, 1, case_sensitive,
+                             &new_dir, &file_selected, ".p4c")){
+            result = 1;
+        }
+        
+        if (new_dir){
+            hot_directory_reload(system,
+                                 ui.hot_directory, ui.state->working_set);
+        }
+        if (file_selected){
+            i32 count = ui.styles->count;
+            Temp_Memory temp = begin_temp_memory(&mem->part);
+            Style **styles = push_array(&mem->part, Style*, sizeof(Style*)*count);
+            
+            Style *style = ui.styles->styles;
+            b8 *export_check = view->import_export_check;
+            i32 export_count = 0;
+            for (i32 i = 0; i < count; ++i, ++style){
+                if (export_check[i]){
+                    styles[export_count++] = style;
+                }
+            }
+            char *data = push_array(&mem->part, char, ui.hot_directory->string.size + 5);
+            String str = make_string(data, 0, ui.hot_directory->string.size + 5);
+            copy(&str, ui.hot_directory->string);
+            append(&str, make_lit_string(".p4c"));
+            /*style_library_export(system, exchange, mem, &target->font_set, str.str, styles, export_count);*/
+            
+            end_temp_memory(temp);
+            view->color_mode = CV_Mode_Library;
+        }
+    }break;
+    
+    case CV_Mode_Import:
+    {
+        do_label(ui.state, ui.layout, literal("Current Theme"));
+        do_style_preview(&ui, view->style);
+        
+        i32 style_count = view->inspecting_styles.count;
+        Style *styles = view->inspecting_styles.styles;
+        b8 *import_check = view->import_export_check;
+        
+        do_label(ui.state, ui.layout, literal("Pack"));
+        begin_row(ui.layout, 2);
+        if (do_button(-2, ui.state, ui.layout, "Finish Import", 2)){
+            Style *style = styles;
+            for (i32 i = 0; i < style_count; ++i, ++style){
+                if (import_check[i]) style_library_add(ui.styles, style);
+            }
+            view->color_mode = CV_Mode_Library;
+        }
+        if (do_button(-3, ui.state, ui.layout, "Cancel", 2)){
+            view->color_mode = CV_Mode_Library;
+        }
+        
+        Style *style = styles;
+        for (i32 i = 0; i < style_count; ++i, ++style){
+            if (do_style_preview(&ui, style, import_check[i])){
+                import_check[i] = !import_check[i];
+                result = 1;
+            }
+        }
+    }break;
+    
+    case CV_Mode_Export:
+    {
+        do_label(ui.state, ui.layout, literal("Current Theme"));
+        do_style_preview(&ui, view->style);
+        
+        do_label(ui.state, ui.layout, literal("Export Which Themes?"));
+        begin_row(ui.layout, 2);
+        if (do_button(-2, ui.state, ui.layout, "Export", 2)){
+            view->color_mode = CV_Mode_Export_File;
+        }
+        if (do_button(-3, ui.state, ui.layout, "Cancel", 2)){
+            view->color_mode = CV_Mode_Library;
+        }
+        
+        i32 style_count = view->styles->count;
+        Style *style = view->styles->styles;
+        b8 *export_check = view->import_export_check;
+        for (i32 i = 0; i < style_count; ++i, ++style){
+            if (do_style_preview(&ui, style, export_check[i])){
+                export_check[i] = !export_check[i];
+                result = 1;
+            }
+        }
+    }break;
+    }
+    
+    return result;
+}
+
+internal b32
+theme_adjusting_shit(File_View *view, UI_State *state, UI_Layout *layout){
+    update_highlighting(view);
+    
+    Style *style = view->style;
+    i32 result = 0;
+    
+    Color_UI ui;
+    ui.state = state;
+    ui.layout = layout;
+    
+    ui.fonts = view->font_set;
+    ui.highlight = view->highlight;
+    ui.color = view->color;
+    ui.has_hover_color = 0;
+    ui.state->sub_id1_change = 0;
+    ui.hex_advance = font_get_max_width(ui.fonts, ui.state->font_id, "0123456789abcdefx");
+    ui.palette = view->palette;
+    ui.palette_size = view->palette_size;
+    
+    i32_Rect bar_rect = ui.layout->rect;
+    bar_rect.x0 = bar_rect.x1 - 20;
+    do_scroll_bar(ui.state, bar_rect);
+    
+    ui.layout->y -= FLOOR32(view->ui_state.view_y);
+    ui.layout->rect.x1 -= 20;
+    
+    if (do_button(-1, ui.state, ui.layout, "Back to Library", 2)){
+        view->color_mode = CV_Mode_Library;
+        ui.state->view_y = 0;
+    }
+    
+    do_style_name(&ui);
+    do_font_switch(&ui);
+    
+    do_color_adjuster(&ui, &style->main.back_color,
+                      style->main.default_color, style->main.back_color,
+                      "Background");
+    do_color_adjuster(&ui, &style->main.margin_color,
+                      style->main.default_color, style->main.margin_color,
+                      "Margin");
+    do_color_adjuster(&ui, &style->main.margin_hover_color,
+                      style->main.default_color, style->main.margin_hover_color,
+                      "Margin Hover");
+    do_color_adjuster(&ui, &style->main.margin_active_color,
+                      style->main.default_color, style->main.margin_active_color,
+                      "Margin Active");
+        
+    do_color_adjuster(&ui, &style->main.cursor_color,
+                      style->main.at_cursor_color, style->main.cursor_color,
+                      "Cursor");
+    do_color_adjuster(&ui, &style->main.at_cursor_color,
+                      style->main.at_cursor_color, style->main.cursor_color,
+                      "Text At Cursor");
+    do_color_adjuster(&ui, &style->main.mark_color,
+                      style->main.mark_color, style->main.back_color,
+                      "Mark");
+    
+    do_color_adjuster(&ui, &style->main.highlight_color,
+                      style->main.at_highlight_color, style->main.highlight_color,
+                      "Highlight");
+    do_color_adjuster(&ui, &style->main.at_highlight_color,
+                      style->main.at_highlight_color, style->main.highlight_color,
+                      "Text At Highlight");
+    
+    do_color_adjuster(&ui, &style->main.default_color,
+                      style->main.default_color, style->main.back_color,
+                      "Text Default");
+    do_color_adjuster(&ui, &style->main.comment_color,
+                      style->main.comment_color, style->main.back_color,
+                      "Comment");
+    do_color_adjuster(&ui, &style->main.keyword_color,
+                      style->main.keyword_color, style->main.back_color,
+                      "Keyword");
+    do_color_adjuster(&ui, &style->main.str_constant_color,
+                      style->main.str_constant_color, style->main.back_color,
+                      "String Constant");
+    do_color_adjuster(&ui, &style->main.char_constant_color,
+                      style->main.char_constant_color, style->main.back_color,
+                      "Character Constant");
+    do_color_adjuster(&ui, &style->main.int_constant_color,
+                      style->main.int_constant_color, style->main.back_color,
+                      "Integer Constant");
+    do_color_adjuster(&ui, &style->main.float_constant_color,
+                      style->main.float_constant_color, style->main.back_color,
+                      "Float Constant");
+    do_color_adjuster(&ui, &style->main.bool_constant_color,
+                      style->main.bool_constant_color, style->main.back_color,
+                      "Boolean Constant");
+    do_color_adjuster(&ui, &style->main.preproc_color,
+                      style->main.preproc_color, style->main.back_color,
+                      "Preprocessor");
+    do_color_adjuster(&ui, &style->main.include_color,
+                      style->main.include_color, style->main.back_color,
+                      "Include Constant");
+    do_color_adjuster(&ui, &style->main.special_character_color,
+                      style->main.special_character_color, style->main.back_color,
+                      "Special Character");
+    
+    do_color_adjuster(&ui, &style->main.highlight_junk_color,
+                      style->main.default_color, style->main.highlight_junk_color,
+                      "Junk Highlight");
+    do_color_adjuster(&ui, &style->main.highlight_white_color,
+                      style->main.default_color, style->main.highlight_white_color,
+                      "Whitespace Highlight");
+    
+    do_color_adjuster(&ui, &style->main.paste_color,
+                      style->main.paste_color, style->main.back_color,
+                      "Paste Color");
+    
+    Interactive_Style *bar_style = &style->main.file_info_style;
+    do_color_adjuster(&ui, &bar_style->bar_color,
+                      bar_style->base_color, bar_style->bar_color,
+                      "Bar");
+    do_color_adjuster(&ui, &bar_style->base_color,
+                      bar_style->base_color, bar_style->bar_color,
+                      "Bar Text");
+    do_color_adjuster(&ui, &bar_style->pop1_color,
+                      bar_style->pop1_color, bar_style->bar_color,
+                      "Bar Pop 1");
+    do_color_adjuster(&ui, &bar_style->pop2_color,
+                      bar_style->pop2_color, bar_style->bar_color,
+                      "Bar Pop 2");
+
+    view->color = ui.color;
+    
+    return result;
+}
+
+internal b32
+theme_shit(System_Functions *system, Exchange *exchange,
+    File_View *view, View *active, UI_State *state, UI_Layout *layout){
+    b32 result = 0;
+    
+    File_View *factive = view_to_file_view(active);
+    if (view != factive){
+        view->hot_file_view = factive;
+    }
+    
+    switch (view->color_mode){
+        case CV_Mode_Library:
+        case CV_Mode_Import_File:
+        case CV_Mode_Export_File:
+        case CV_Mode_Import:
+        case CV_Mode_Export:
+        case CV_Mode_Import_Wait:
+        if (theme_library_shit(system, exchange, view, state, layout)){
+            result = 1;
+        }
+        break;
+        
+        case CV_Mode_Adjusting:
+        if (theme_adjusting_shit(view, state, layout)){
+            result = 1;
+        }
+        break;
+    }
+    
+    return(result);
+}
+
+internal b32
+interactive_shit(System_Functions *system, File_View *view, UI_State *state, UI_Layout *layout){
+    b32 result = 0;
+    b32 new_dir = 0;
+    b32 complete = 0;
+    
+    do_label(state, layout, view->query, 1.f);
+    
+    b32 case_sensitive = 0;
+    
+    b32 input_stage = state->input_stage;
+    Key_Summary *keys = state->keys;
+    
+    switch (view->interaction){
+    case IInt_Sys_File_List:
+    {
+        b32 is_new = (view->action == IAct_New);
+        
+        if (do_file_list_box(system, state,
+                             layout, view->hot_directory, 0, !is_new, case_sensitive,
+                             &new_dir, &complete, 0)){
+            result = 1;
+        }
+        if (new_dir){
+            hot_directory_reload(system,
+                                 view->hot_directory, view->working_set);
+        }
+    }break;
+    
+    case IInt_Live_File_List:
+    {
+        if (do_live_file_list_box(system, state, layout, view->working_set, &view->dest, &complete)){
+            result = 1;
+        }
+    }break;
+        
+    case IInt_Sure_To_Kill:
+    {
+        i32 action = -1;
+        char s_[256];
+        String s = make_fixed_width_string(s_);
+        append(&s, view->dest);
+        append(&s, " has unsaved changes, kill it?");
+        do_label(state, layout, s, 1.f);
+            
+        i32 id = 0;
+        if (do_list_option(++id, state, layout, make_lit_string("(Y)es"))){
+            action = 0;
+        }
+            
+        if (do_list_option(++id, state, layout, make_lit_string("(N)o"))){
+            action = 1;
+        }
+            
+        if (do_list_option(++id, state, layout, make_lit_string("(S)ave and kill"))){
+            action = 2;
+        }
+        
+        if (action == -1 && input_stage){
+            i32 key_count = keys->count;
+            for (i32 i = 0; i < key_count; ++i){
+                Key_Event_Data key = keys->keys[i];
+                switch (key.character){
+                case 'y': case 'Y': action = 0; break;
+                case 'n': case 'N': action = 1; break;
+                case 's': case 'S': action = 2; break;
+                }
+                if (action == -1 && key.keycode == key_esc) action = 1;
+                if (action != -1) break;
+            }
+        }
+        
+        if (action != -1){
+            complete = 1;
+            view->user_action = action;
+        }
+    }break;
+    }
+    
+    if (complete){
+        view->finished = 1;
+        interactive_view_complete(view);
+    }
+    
+    return(result);
+}
+
+internal void
+menu_shit(File_View *view, UI_State *state, UI_Layout *layout){
+    i32 id = 0;
+    
+    do_label(state, layout, literal("Menu"), 2.f);
+    
+    if (do_list_option(++id, state, layout, make_lit_string("Theme Options"))){
+        view_show_theme(view, view->view_base.map);
+    }
+
+    if (do_list_option(++id, state, layout, make_lit_string("Keyboard Layout Options"))){
+        view_show_config(view, view->view_base.map);
+    }
+}
+
+internal void
+config_shit(File_View *view, UI_State *state, UI_Layout *layout){
+    i32 id = 0;
+    
+    do_label(state, layout, literal("Config"), 2.f);
+
+    if (do_checkbox_list_option(++id, state, layout, make_lit_string("Left Ctrl + Left Alt = AltGr"),
+            view->settings->lctrl_lalt_is_altgr)){
+        view->settings->lctrl_lalt_is_altgr = !view->settings->lctrl_lalt_is_altgr;
+    }
+}
+
 internal i32
-step_file_view(System_Functions *system, View *view_, i32_Rect rect,
+step_file_view(System_Functions *system, Exchange *exchange, View *view_, i32_Rect rect,
     b32 is_active, Input_Summary *user_input){
     view_->mouse_cursor_type = APP_MOUSE_CURSOR_IBEAM;
     
@@ -2822,6 +3553,7 @@ step_file_view(System_Functions *system, View *view_, i32_Rect rect,
         }
     }
     
+    // TODO(allen): Split this into passive step and step that depends on input
     if (file && !file->state.is_loading){
         f32 line_height = (f32)view->font_height;
         f32 cursor_y = view_get_cursor_y(view);
@@ -2914,6 +3646,41 @@ step_file_view(System_Functions *system, View *view_, i32_Rect rect,
         if (!is_active) view_set_widget(view, FWIDG_NONE);
     }
     
+    {
+        UI_State state =
+            ui_state_init(&view->ui_state, 0, user_input,
+            view->style, view->font_set, view->working_set, 1);
+        
+        UI_Layout layout;
+        begin_layout(&layout, rect);
+        
+        switch (view->showing_ui){
+            case VUI_None: break;
+            case VUI_Theme:
+            {
+                theme_shit(system, exchange, view, 0, &state, &layout);
+            }break;
+            case VUI_Interactive:
+            {
+                if (interactive_shit(system, view, &state, &layout)){
+                    result = 1;
+                }
+            }break;
+            case VUI_Menu:
+            {
+                menu_shit(view, &state, &layout);
+            }break;
+            case VUI_Config:
+            {
+                config_shit(view, &state, &layout);
+            }break;
+            }
+
+        if (ui_finish_frame(&view->ui_state, &state, &layout, rect, 0, 0)){
+            result = 1;
+        }
+    }
+    
     return(result);
 }
 
@@ -2989,7 +3756,7 @@ draw_file_loaded(File_View *view, i32_Rect rect, b32 is_active, Render_Target *t
         token_stack = file->state.token_stack;
     }
     
-    Partition *part = &view->view_base.mem->part;
+    Partition *part = &view->mem->part;
 
     Temp_Memory temp = begin_temp_memory(part);
     
@@ -3139,18 +3906,14 @@ draw_file_loaded(File_View *view, i32_Rect rect, b32 is_active, Render_Target *t
 }
 
 internal i32
-draw_file_view(View *view_, i32_Rect rect, b32 is_active, Render_Target *target){
+draw_file_view(System_Functions *system, Exchange *exchange,
+    View *view_, View *active, i32_Rect rect, b32 is_active, Render_Target *target, Input_Summary *user_input){
     File_View *view = (File_View*)view_;
     i32 result = 0;
 
     i32 widget_height = 0;
     {
-        //UI_Style ui_style = get_ui_style_upper(view->style);
-
         i32_Rect widg_rect = view_widget_rect(view, view->font_height);
-
-        //draw_rectangle(target, widg_rect, ui_style.dark);
-        //draw_rectangle_outline(target, widg_rect, ui_style.dim);
 
         UI_State state =
             ui_state_init(&view->widget.state, target, 0,
@@ -3184,20 +3947,58 @@ draw_file_view(View *view_, i32_Rect rect, b32 is_active, Render_Target *target)
         ui_finish_frame(&view->widget.state, &state, &layout, widg_rect, 0, 0);
     }
 
-    if (view->file){
-        Interactive_Bar bar;
-        draw_file_setup_bar(view->style, view->font_height, &bar, &rect);
+    {
+        rect.y0 += widget_height;
+        target->push_clip(target, rect);
+        
+        UI_State state =
+            ui_state_init(&view->ui_state, target, user_input,
+            view->style, view->font_set, view->working_set, 0);
+        
+        UI_Layout layout;
+        begin_layout(&layout, rect);
+        
+        rect.y0 -= widget_height;
+        
+        switch (view->showing_ui){
+            case VUI_None:
+            {
+                if (view->file){
+                    Interactive_Bar bar;
+                    draw_file_setup_bar(view->style, view->font_height, &bar, &rect);
 
-        if (file_is_ready(view->file)){
-            rect.y0 += widget_height;
-            target->push_clip(target, rect);
-            rect.y0 -= widget_height;
-            result = draw_file_loaded(view, rect, is_active, target);
-            target->pop_clip(target);
+                    if (file_is_ready(view->file)){
+                        result = draw_file_loaded(view, rect, is_active, target);
+                    }
+
+                    draw_file_bar(view, &bar, target);
+                }
+            }break;
+            
+            case VUI_Theme:
+            {
+                theme_shit(system, exchange, view, active, &state, &layout);
+            }break;
+            
+            case VUI_Interactive:
+            {
+                interactive_shit(system, view, &state, &layout);
+            }break;
+            case VUI_Menu:
+            {
+                menu_shit(view, &state, &layout);
+            }break;
+            case VUI_Config:
+            {
+                config_shit(view, &state, &layout);
+            }break;
         }
         
-        draw_file_bar(view, &bar, target);
+        ui_finish_frame(&view->ui_state, &state, &layout, rect, 0, 0);
+
+        target->pop_clip(target);
     }
+    
     
     return (result);
 }
@@ -3208,7 +4009,7 @@ kill_file(
     General_Memory *general, Editing_File *file,
     Live_Views *live_set, Editing_Layout *layout){
     
-    View *view, *to_kill;
+    View *view;
     File_View *fview;
     Panel *panel;
     i32 panel_count, i;
@@ -3217,10 +4018,10 @@ kill_file(
     panel = layout->panels;
     for (i = 0; i < panel_count; ++i, ++panel){
         view = panel->view;
-        to_kill = view;
-        if (view->is_minor) to_kill = view->major;
-        fview = view_to_file_view(to_kill);
-        if (fview && fview->file == file){
+        fview = view_to_file_view(view);
+        Assert(fview);
+        
+        if (fview->file == file){
             fview->file = 0;
         }
     }
@@ -3232,7 +4033,7 @@ inline void
 free_file_view(View *view){
     File_View *fview = (File_View*)view;
     if (fview->line_wrap_y)
-        general_memory_free(&view->mem->general, fview->line_wrap_y);
+        general_memory_free(&fview->mem->general, fview->line_wrap_y);
 }
 
 internal
@@ -3246,11 +4047,11 @@ Do_View_Sig(do_file_view){
     }break;
     case VMSG_DRAW:
     {
-        result = draw_file_view(view, rect, (view == active), target);
+        result = draw_file_view(system, exchange, view, active, rect, (view == active), target, user_input);
     }break;
     case VMSG_STEP:
     {
-        result = step_file_view(system, view, rect, (view == active), user_input);
+        result = step_file_view(system, exchange, view, rect, (view == active), user_input);
     }break;
     case VMSG_FREE:
     {
@@ -3261,13 +4062,28 @@ Do_View_Sig(do_file_view){
 }
 
 internal File_View*
-file_view_init(View *view, Editing_Layout *layout){
-    view->type = VIEW_TYPE_FILE;
+file_view_init(View *view, Editing_Layout *layout,
+    Working_Set *working_set, Delay *delay,
+    App_Settings *settings, Hot_Directory *hot_directory,
+    Mem_Options *mem, Style_Library *styles){
+    
     view->do_view = do_file_view;
     
     File_View *result = (File_View*)view;
     result->layout = layout;
+    result->working_set = working_set;
+    result->delay = delay;
+    result->settings = settings;
+    result->hot_directory = hot_directory;
+    result->mem = mem;
+    result->styles = styles;
+    
     result->scrub_max = 1;
+    
+    // TODO(allen): Make "interactive" mode customizable just like the query bars!
+    result->query = make_fixed_width_string(result->query_);
+    result->dest = make_fixed_width_string(result->dest_);
+    
     init_query_set(&result->query_set);
     
     return(result);

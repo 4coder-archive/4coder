@@ -9,6 +9,7 @@
 
 // TOP
 
+#include "4ed_version.h"
 #include "4ed_config.h"
 
 #include "4ed_meta.h"
@@ -1827,7 +1828,7 @@ main(int argc, char **argv){
         // TODO(allen): non-fatal diagnostics
     }
 
-#define WINDOW_NAME "4coder-window"    
+#define WINDOW_NAME "4coder-window: " VERSION
     
     i32 window_x;
     i32 window_y;

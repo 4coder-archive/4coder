@@ -42,32 +42,13 @@ struct View;
 
 typedef Do_View_Sig(Do_View_Function);
 
-// TODO(allen): this shouldn't exist
-enum View_Type{
-    VIEW_TYPE_NONE,
-    VIEW_TYPE_FILE,
-    VIEW_TYPE_COLOR,
-    VIEW_TYPE_INTERACTIVE,
-    VIEW_TYPE_MENU,
-    VIEW_TYPE_CONFIG
-};
-
 struct Panel;
 struct View{
-    union{
-        View *next_free;
-        View *major;
-        View *minor;
-    };
+    View *next_free;
     Panel *panel;
     Command_Map *map;
     Do_View_Function *do_view;
-    Mem_Options *mem;
-    i32 type;
-    i32 block_size;
     Application_Mouse_Cursor mouse_cursor_type;
-    b32 is_active;
-    b32 is_minor;
 };
 
 struct Live_Views{
@@ -168,8 +149,6 @@ live_set_alloc_view(Live_Views *live_set, Mem_Options *mem){
     live_set->free_view = result->next_free;
     memset(result, 0, live_set->stride);
     ++live_set->count;
-    result->is_active = 1;
-    result->mem = mem;
     return result;
 }
 
@@ -180,13 +159,11 @@ live_set_free_view(System_Functions *system, Exchange *exchange, Live_Views *liv
     view->next_free = live_set->free_view;
     live_set->free_view = view;
     --live_set->count;
-    view->is_active = 0;
 }
 
 inline void
 view_set_first(View *new_view, Panel *panel){
     new_view->panel = panel;
-    new_view->minor = 0;
     panel->view = new_view;
 }
 
@@ -194,45 +171,9 @@ inline void
 view_replace_major(System_Functions *system, Exchange *exchange,
     View *new_view, Panel *panel, Live_Views *live_set){
     View *view = panel->view;
-    if (view->is_minor && view->major){
-        live_set_free_view(system, exchange, live_set, view->major);
-    }
     live_set_free_view(system, exchange, live_set, view);
     new_view->panel = panel;
-    new_view->minor = 0;
     panel->view = new_view;
-}
-
-inline void
-view_replace_minor(System_Functions *system, Exchange *exchange,
-    View *new_view, Panel *panel, Live_Views *live_set){
-    View *view = panel->view;
-    
-    new_view->is_minor = 1;
-    if (view->is_minor){
-        new_view->major = view->major;
-        live_set_free_view(system, exchange, live_set, view);
-    }
-    else{
-        new_view->major = view;
-        view->is_active = 0;
-    }
-    new_view->panel = panel;
-    panel->view = new_view;
-}
-
-inline void
-view_remove_minor(System_Functions *system, Exchange *exchange,
-    Panel *panel, Live_Views *live_set){
-    View *view = panel->view;
-    View *major = view;
-    if (view->is_minor){
-        major = view->major;
-        live_set_free_view(system, exchange, live_set, view);
-    }
-    Assert(major);
-    panel->view = major;
-    major->is_active = 1;
 }
 
 struct Divider_And_ID{
