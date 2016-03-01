@@ -121,7 +121,6 @@ char *daction_enum[] = {
     "TRY_KILL",
     "KILL",
     "CLOSE_MINOR",
-    "CLOSE_MAJOR",
     "THEME_OPTIONS",
     "KEYBOARD_OPTIONS"
 };

@@ -704,15 +704,9 @@ CUSTOM_COMMAND_SIG(write_and_auto_tab){
     exec_command(app, cmdid_auto_tab_line_at_cursor);
 }
 
-#include "custom_casey.cpp"
-
 extern "C" GET_BINDING_DATA(get_bindings){
     Bind_Helper context_actual = begin_bind_helper(data, size);
     Bind_Helper *context = &context_actual;
-    
-#if 1
-    casey_get_bindings(context);
-#else
     
     // NOTE(allen|a3.1): Right now hooks have no loyalties to maps, all hooks are
     // global and once set they always apply, regardless of what map is active.
@@ -850,7 +844,6 @@ extern "C" GET_BINDING_DATA(get_bindings){
     bind(context, ' ', MDFR_SHIFT, cmdid_write_character);
     
     end_map(context);
-#endif
     
     end_bind_helper(context);
     

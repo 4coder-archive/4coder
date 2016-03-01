@@ -45,13 +45,6 @@ enum Link_Type{
     link_type_count
 };
 
-struct Hyper_Link{
-    char *file_name;
-    i32 line_number;
-    i32 start, end;
-    Link_Type link_type;
-};
-
 struct File_View{
     View view_base;
 
@@ -94,9 +87,6 @@ struct File_View{
     
     i32 line_count, line_max;
     f32 *line_wrap_y;
-    
-    Hyper_Link *links;
-    i32 link_count, link_max;
 };
 
 inline File_View*
@@ -1311,67 +1301,87 @@ view_get_cursor_y(File_View *view){
 }
 
 internal void
-view_file_loaded_init(System_Functions *system, File_View *view, i32 cursor_pos){
-    General_Memory *general = &view->view_base.mem->general;
+view_set_file(
+    // NOTE(allen): These parameters are always meaningful
+    File_View *view,
+    Editing_File *file,
+    Font_Set *set,
+    Style *style,
     
-    view_measure_wraps(system, general, view);
-    view->cursor = view_compute_cursor_from_pos(view, cursor_pos);
-}
-
-internal void
-view_set_file(System_Functions *system, File_View *view,
-              Editing_File *file, Font_Set *set, Style *style,
-              Hook_Function *open_hook, void *cmd_context, Application_Links *app){
-    Panel *panel = view->view_base.panel;
-    view->file = file;
-    view->locked = file->settings.super_locked;
-
-    Font_Info *info = get_font_info(set, style->font_id);
+    // NOTE(allen): Necessary when file != 0
+    System_Functions *system,
+    Hook_Function *open_hook,
+    Application_Links *app){
+    
+    Panel *panel;
+    Font_Info *fnt_info;
+    
+    f32 w, h;
+    f32 cursor_x, cursor_y;
+    f32 target_x, target_y;
+              
+    panel = view->view_base.panel;
+    
+    // NOTE(allen): This is actually more like view_set_style right?
+    fnt_info = get_font_info(set, style->font_id);
     view->style = style;
-    view->font_advance = info->advance;
-    view->font_height = info->height;
+    view->font_advance = fnt_info->advance;
+    view->font_height = fnt_info->height;
     view->font_set = set;
-    view->unwrapped_lines = file->settings.unwrapped_lines;
-    file->settings.set = set;
+
+    // NOTE(allen): Stuff that doesn't assume file exists.
+    view->file = file;
     
     view->cursor = {};
-    
-    if (!file->state.is_loading){
-        view_file_loaded_init(system, view, file->state.cursor_pos);
-    }
-    
-    f32 cursor_x, cursor_y;
-    f32 w, h;
-    f32 target_x, target_y;
-    
-    cursor_x = view_get_cursor_x(view);
-    cursor_y = view_get_cursor_y(view);
-    
-    w = (f32)(panel->inner.x1 - panel->inner.x0);
-    h = (f32)(panel->inner.y1 - panel->inner.y0);
+    view->vel_y = 1.f;
+    view->vel_x = 1.f;
     
     target_x = 0;
-    if (cursor_x < target_x){
-        target_x = (f32)Max(0, cursor_x - w*.5f);
-    }
-    else if (cursor_x >= target_x + w){
-        target_x = (f32)(cursor_x - w*.5f);
+    target_y = 0;
+    
+    // NOTE(allen): Stuff that does assume file exists.
+    
+    if (file){
+        // NOTE(allen): Isn't this a bit clumsy?
+        file->settings.set = set;
+        
+        view->locked = file->settings.super_locked;
+        view->unwrapped_lines = file->settings.unwrapped_lines;
+        
+        if (file_is_ready(file)){
+            view_measure_wraps(system, &view->view_base.mem->general, view);
+            view->cursor = view_compute_cursor_from_pos(view, file->state.cursor_pos);
+            
+            cursor_x = view_get_cursor_x(view);
+            cursor_y = view_get_cursor_y(view);
+            
+            w = (f32)(panel->inner.x1 - panel->inner.x0);
+            h = (f32)(panel->inner.y1 - panel->inner.y0);
+            
+            Assert(cursor_x >= target_x);
+            if (cursor_x >= target_x + w){
+                target_x = (f32)(cursor_x - w*.5f);
+            }
+
+            target_y = (f32)FLOOR32(cursor_y - h*.5f);
+            if (target_y < 0) target_y = 0;
+        }
     }
     
-    target_y = (f32)FLOOR32(cursor_y - h*.5f);
-    if (target_y < 0) target_y = 0;
-    
+    // NOTE(allen): More stuff that doesn't assume file exists, but that
+    // has to come after computing target_x, target_y
     view->target_x = target_x;
     view->target_y = target_y;
     view->scroll_x = target_x;
     view->scroll_y = target_y;
     
-    view->vel_y = 1.f;
-    view->vel_x = 1.f;
-
-    if (open_hook && file->settings.is_initialized == 0){
-        open_hook(app);
-        file->settings.is_initialized = 1;
+    // TODO(allen): Bypass all this nonsense, it's a hack!  Hooks need parameters!
+    // Just accept it and pass the file to the open hook when it is loaded.
+    if (file){
+        if (open_hook && file->settings.is_initialized == 0){
+            open_hook(app);
+            file->settings.is_initialized = 1;
+        }
     }
 }
 
@@ -1461,11 +1471,11 @@ view_widget_height(File_View *view, i32 font_height){
 inline i32_Rect
 view_widget_rect(File_View *view, i32 font_height){
     Panel *panel = view->view_base.panel;
-    i32_Rect whole = panel->inner;
-    i32_Rect result;
-    result.x0 = whole.x0;
-    result.x1 = whole.x1;
-    result.y0 = whole.y0 + font_height + 2;
+    i32_Rect result = panel->inner;
+    
+    if (view->file){
+        result.y0 = result.y0 + font_height + 2;
+    }
     result.y1 = result.y0 + view_widget_height(view, font_height);
     
     return result;
@@ -1481,7 +1491,7 @@ debug_edit_step_check(Edit_Step a, Edit_Step b){
     Assert(a.edit.start == b.edit.start);
     Assert(a.edit.end == b.edit.end);
     Assert(a.edit.len == b.edit.len);
-    return 1;
+    return(1);
 }
 #endif
 
@@ -2587,13 +2597,6 @@ struct Get_Link_Result{
     i32 index;
 };
 
-internal Get_Link_Result
-get_link(Hyper_Link *links, i32 link_count, i32 pos){
-    Get_Link_Result result = {};
-    // TODO TODO TODO TODO TODO TODO TODO TODO
-    return result;
-}
-
 internal u32*
 style_get_link_color(Style *style, Link_Type type){
 	u32 *result;
@@ -2728,6 +2731,66 @@ remeasure_file_view(System_Functions *system, View *view_, i32_Rect rect){
     }
 }
 
+internal void
+undo_shit(System_Functions *system, File_View *view, UI_State *state, UI_Layout *layout,
+    i32 total_count, i32 undo_count, i32 scrub_max){
+    
+    View *view_ = (View*)view;
+    Editing_File *file = view->file;
+    
+    if (view->widget.timeline.undo_line){
+        if (do_button(1, state, layout, "- Undo", 1)){
+            view->widget.timeline.undo_line = 0;
+        }
+
+        if (view->widget.timeline.undo_line){
+            Widget_ID wid = make_id(state, 2);
+            i32 new_count;
+            if (do_undo_slider(wid, state, layout, total_count, undo_count, 0, &new_count)){
+                for (i32 i = 0; i < scrub_max && new_count < undo_count; ++i){
+                    view_undo(system, view_->mem, view->layout, view);
+                    --undo_count;
+                }
+                for (i32 i = 0; i < scrub_max && new_count > undo_count; ++i){
+                    view_redo(system, view_->mem, view->layout, view);
+                    ++undo_count;
+                }
+            }
+        }
+    }
+    else{
+        if (do_button(1, state, layout, "+ Undo", 1)){
+            view->widget.timeline.undo_line = 1;
+        }
+    }
+
+    if (view->widget.timeline.history_line){
+        if (do_button(3, state, layout, "- History", 1)){
+            view->widget.timeline.history_line = 0;
+        }
+
+        Widget_ID wid = make_id(state, 4);
+        if (view->widget.timeline.history_line){
+            i32 new_count;
+            i32 mid = ((file->state.undo.history.edit_count + file->state.undo.edit_history_cursor) >> 1);
+            i32 count = file->state.undo.edit_history_cursor;
+            if (do_undo_slider(wid, state, layout, mid, count, &file->state.undo, &new_count)){
+                for (i32 i = 0; i < scrub_max && new_count < count; ++i){
+                    view_history_step(system, view_->mem, view->layout, view, hist_backward);
+                }
+                for (i32 i = 0; i < scrub_max && new_count > count; ++i){
+                    view_history_step(system, view_->mem, view->layout, view, hist_forward);
+                }
+            }
+        }
+    }
+    else{
+        if (do_button(3, state, layout, "+ History", 1)){
+            view->widget.timeline.history_line = 1;
+        }
+    }
+}
+
 internal i32
 step_file_view(System_Functions *system, View *view_, i32_Rect rect,
                b32 is_active, Input_Summary *user_input){
@@ -2735,183 +2798,126 @@ step_file_view(System_Functions *system, View *view_, i32_Rect rect,
     i32 result = 0;
     File_View *view = (File_View*)view_;
     Editing_File *file = view->file;
+    
+    if (file && !file->state.is_loading){
+        f32 line_height = (f32)view->font_height;
+        f32 cursor_y = view_get_cursor_y(view);
+        f32 target_y = view->target_y;
+        f32 max_y = view_compute_height(view) - line_height*2;
+        i32 lowest_line = view_compute_lowest_line(view);
+        f32 max_target_y = view_compute_max_target_y(lowest_line, (i32)line_height, max_y);
+        f32 delta_y = 3.f*line_height;
+        f32 extra_top = (f32)view_widget_height(view, (i32)line_height);
+        f32 taken_top_space = line_height + extra_top;
 
-    if (file->state.is_loading){
-        return result;
-    }
-    
-    f32 line_height = (f32)view->font_height;
-    f32 cursor_y = view_get_cursor_y(view);
-    f32 target_y = view->target_y;
-    f32 max_y = view_compute_height(view) - line_height*2;
-    i32 lowest_line = view_compute_lowest_line(view);
-    f32 max_target_y = view_compute_max_target_y(lowest_line, (i32)line_height, max_y);
-    f32 delta_y = 3.f*line_height;
-    f32 extra_top = 0.f;
-    extra_top += view_widget_height(view, (i32)line_height);
-    f32 taken_top_space = line_height + extra_top;
-    
-    if (user_input->mouse.y < rect.y0 + taken_top_space){
-        view_->mouse_cursor_type = APP_MOUSE_CURSOR_ARROW;
-    }
-    else{
-        view_->mouse_cursor_type = APP_MOUSE_CURSOR_IBEAM;
-    }
-    
-    if (user_input->mouse.wheel != 0){
-        f32 wheel_multiplier = 3.f;
-        f32 delta_target_y = delta_y*user_input->mouse.wheel*wheel_multiplier;
-        target_y += delta_target_y;
-        
-        if (target_y < -taken_top_space) target_y = -taken_top_space;
+        if (user_input->mouse.y < rect.y0 + taken_top_space){
+            view_->mouse_cursor_type = APP_MOUSE_CURSOR_ARROW;
+        }
+        else{
+            view_->mouse_cursor_type = APP_MOUSE_CURSOR_IBEAM;
+        }
+
+        if (user_input->mouse.wheel != 0){
+            f32 wheel_multiplier = 3.f;
+            f32 delta_target_y = delta_y*user_input->mouse.wheel*wheel_multiplier;
+            target_y += delta_target_y;
+
+            if (target_y < -taken_top_space) target_y = -taken_top_space;
+            if (target_y > max_target_y) target_y = max_target_y;
+
+            real32 old_cursor_y = cursor_y;
+            if (cursor_y >= target_y + max_y) cursor_y = target_y + max_y;
+            if (cursor_y < target_y + taken_top_space) cursor_y = target_y + taken_top_space;
+
+            if (cursor_y != old_cursor_y){
+                view->cursor =
+                    view_compute_cursor_from_xy(view,
+                    view->preferred_x,
+                    cursor_y);
+            }
+
+            result = 1;
+        }
+
+        if (cursor_y > target_y + max_y){
+            target_y = cursor_y - max_y + delta_y;
+        }
+        if (cursor_y < target_y + taken_top_space){
+            target_y = cursor_y - delta_y - taken_top_space;
+        }
+
         if (target_y > max_target_y) target_y = max_target_y;
-        
-        real32 old_cursor_y = cursor_y;
-        if (cursor_y >= target_y + max_y) cursor_y = target_y + max_y;
-        if (cursor_y < target_y + taken_top_space) cursor_y = target_y + taken_top_space;
-        
-        if (cursor_y != old_cursor_y){
-            view->cursor =
-                view_compute_cursor_from_xy(view,
-                                            view->preferred_x,
-                                            cursor_y);
-        }
-        
-        result = 1;
-    }
-    
-    if (cursor_y > target_y + max_y){
-        target_y = cursor_y - max_y + delta_y;
-    }
-    if (cursor_y < target_y + taken_top_space){
-        target_y = cursor_y - delta_y - taken_top_space;
-    }
-    
-    if (target_y > max_target_y) target_y = max_target_y;
-    if (target_y < -extra_top) target_y = -extra_top;
-    view->target_y = target_y;
-    
-    f32 cursor_x = view_get_cursor_x(view);
-    f32 target_x = view->target_x;
-    f32 max_x = view_compute_width(view);
-    if (cursor_x < target_x){
-        target_x = (f32)Max(0, cursor_x - max_x/2);
-    }
-    else if (cursor_x >= target_x + max_x){
-        target_x = (f32)(cursor_x - max_x/2);
-    }
-    
-    view->target_x = target_x;
-    
-    if (smooth_camera_step(&view->target_y, &view->scroll_y, &view->vel_y, 40.f, 1.f/4.f)){
-        result = 1;
-    }
-    if (smooth_camera_step(&view->target_x, &view->scroll_x, &view->vel_x, 40.f, 1.f/4.f)){
-        result = 1;
-    }
-    if (file->state.paste_effect.tick_down > 0){
-        --file->state.paste_effect.tick_down;
-        result = 1;
-    }
-    
-    if (is_active && user_input->mouse.press_l){
-        f32 max_y = view_compute_height(view);
-        f32 rx = (f32)(user_input->mouse.x - rect.x0);
-        f32 ry = (f32)(user_input->mouse.y - rect.y0 - line_height - 2);
-        
-        if (ry >= extra_top){
-            view_set_widget(view, FWIDG_NONE);
-            if (rx >= 0 && rx < max_x && ry >= 0 && ry < max_y){
-                view_cursor_move(view, rx + view->scroll_x, ry + view->scroll_y, 1);
-                view->mode = {};
-            }
-        }
-        result = 1;
-    }
-    
-    if (!is_active) view_set_widget(view, FWIDG_NONE);
+        if (target_y < -extra_top) target_y = -extra_top;
+        view->target_y = target_y;
 
-    // NOTE(allen): framely undo stuff
-    if (file){
+        f32 cursor_x = view_get_cursor_x(view);
+        f32 target_x = view->target_x;
+        f32 max_x = view_compute_width(view);
+        if (cursor_x < target_x){
+            target_x = (f32)Max(0, cursor_x - max_x/2);
+        }
+        else if (cursor_x >= target_x + max_x){
+            target_x = (f32)(cursor_x - max_x/2);
+        }
+
+        view->target_x = target_x;
+
+        if (smooth_camera_step(&view->target_y, &view->scroll_y, &view->vel_y, 40.f, 1.f/4.f)){
+            result = 1;
+        }
+        if (smooth_camera_step(&view->target_x, &view->scroll_x, &view->vel_x, 40.f, 1.f/4.f)){
+            result = 1;
+        }
+        if (file->state.paste_effect.tick_down > 0){
+            --file->state.paste_effect.tick_down;
+            result = 1;
+        }
+
+        if (is_active && user_input->mouse.press_l){
+            f32 max_y = view_compute_height(view);
+            f32 rx = (f32)(user_input->mouse.x - rect.x0);
+            f32 ry = (f32)(user_input->mouse.y - rect.y0 - line_height - 2);
+
+            if (ry >= extra_top){
+                view_set_widget(view, FWIDG_NONE);
+                if (rx >= 0 && rx < max_x && ry >= 0 && ry < max_y){
+                    view_cursor_move(view, rx + view->scroll_x, ry + view->scroll_y, 1);
+                    view->mode = {};
+                }
+            }
+            result = 1;
+        }
+
+        if (!is_active) view_set_widget(view, FWIDG_NONE);
+
+        // NOTE(allen): framely undo stuff
         i32 scrub_max = view->scrub_max;
-        i32 undo_count, redo_count, total_count;
-        undo_count = file->state.undo.undo.edit_count;
-        redo_count = file->state.undo.redo.edit_count;
-        total_count = undo_count + redo_count;
-
+        i32 undo_count = file->state.undo.undo.edit_count;
+        i32 redo_count = file->state.undo.redo.edit_count;
+        i32 total_count = undo_count + redo_count;
+        
         switch (view->widget.type){
-        case FWIDG_TIMELINES:
-        {
-            i32_Rect widg_rect = view_widget_rect(view, view->font_height);
-            
-            UI_State state = 
-                ui_state_init(&view->widget.state, 0, user_input,
-                              view->style, view->font_set, 0, 1);
-            
-            UI_Layout layout;
-            begin_layout(&layout, widg_rect);
-            
-            if (view->widget.timeline.undo_line){
-                if (do_button(1, &state, &layout, "- Undo", 1)){
-                    view->widget.timeline.undo_line = 0;
-                }
+            case FWIDG_TIMELINES:
+            {
+                i32_Rect widg_rect = view_widget_rect(view, view->font_height);
                 
-                if (view->widget.timeline.undo_line){
-                    Widget_ID wid = make_id(&state, 2);
-                    i32 new_count;
-                    if (do_undo_slider(wid, &state, &layout, total_count, undo_count, 0, &new_count)){
-                        for (i32 i = 0; i < scrub_max && new_count < undo_count; ++i){
-                            view_undo(system, view_->mem, view->layout, view);
-                            --undo_count;
-                        }
-                        for (i32 i = 0; i < scrub_max && new_count > undo_count; ++i){
-                            view_redo(system, view_->mem, view->layout, view);
-                            ++undo_count;
-                        }
-                    }
-                }
-            }
-            else{
-                if (do_button(1, &state, &layout, "+ Undo", 1)){
-                    view->widget.timeline.undo_line = 1;
-                }
-            }
-            
-            if (view->widget.timeline.history_line){
-                if (do_button(3, &state, &layout, "- History", 1)){
-                    view->widget.timeline.history_line = 0;
-                }
+                UI_State state = 
+                    ui_state_init(&view->widget.state, 0, user_input,
+                    view->style, view->font_set, 0, 1);
                 
-                Widget_ID wid = make_id(&state, 4);
-                if (view->widget.timeline.history_line){
-                    i32 new_count;
-                    i32 mid = ((file->state.undo.history.edit_count + file->state.undo.edit_history_cursor) >> 1);
-                    i32 count = file->state.undo.edit_history_cursor;
-                    if (do_undo_slider(wid, &state, &layout, mid, count, &file->state.undo, &new_count)){
-                        for (i32 i = 0; i < scrub_max && new_count < count; ++i){
-                            view_history_step(system, view_->mem, view->layout, view, hist_backward);
-                        }
-                        for (i32 i = 0; i < scrub_max && new_count > count; ++i){
-                            view_history_step(system, view_->mem, view->layout, view, hist_forward);
-                        }
-                    }
+                UI_Layout layout;
+                begin_layout(&layout, widg_rect);
+                undo_shit(system, view, &state, &layout, total_count, undo_count, scrub_max);
+                
+                view->widget.height = layout.y - widg_rect.y0;
+                
+                if (ui_finish_frame(&view->widget.state, &state, &layout, widg_rect, 0, 0)){
+                    result = 1;
                 }
-            }
-            else{
-                if (do_button(3, &state, &layout, "+ History", 1)){
-                    view->widget.timeline.history_line = 1;
-                }
-            }
-            
-            view->widget.height = layout.y - widg_rect.y0;
-            
-            if (ui_finish_frame(&view->widget.state, &state, &layout, widg_rect, 0, 0)){
-                result = 1;
-            }
-        }break;
+            }break;
         }
     }
-    
+
     return result;
 }
 
@@ -2969,16 +2975,26 @@ draw_file_bar(File_View *view, Interactive_Bar *bar, Render_Target *target){
     }
 }
 
+internal void
+draw_file_view_queries(File_View *view, UI_State *state, UI_Layout *layout){
+    Widget_ID wid;
+    Query_Slot *slot;
+    Query_Bar *bar;
+    i32 i = 1;
+    
+    for (slot = view->query_set.used_slot; slot != 0; slot = slot->next){
+        wid = make_id(state, i++);
+        bar = slot->query_bar;
+        do_text_field(wid, state, layout, bar->prompt, bar->string);
+    }
+}
+
 internal i32
 draw_file_loaded(File_View *view, i32_Rect rect, b32 is_active, Render_Target *target){
     Editing_File *file = view->file;
     Style *style = view->style;
     i32 line_height = view->font_height;
 
-    Interactive_Bar bar;
-    draw_file_setup_bar(style, line_height, &bar, &rect);
-    
-#if BUFFER_EXPERIMENT_SCALPEL <= 3
     i32 max_x = rect.x1 - rect.x0;
     i32 max_y = rect.y1 - rect.y0 + line_height;
     
@@ -2989,17 +3005,6 @@ draw_file_loaded(File_View *view, i32_Rect rect, b32 is_active, Render_Target *t
     if (file){
         tokens_use = file->state.tokens_complete && (file->state.token_stack.count > 0);
         token_stack = file->state.token_stack;
-    }
-    
-    b32 links_use = 0;
-    Hyper_Link *links = 0;
-    i32 link_count = 0;
-    if (view->links){
-        if (view->link_count > 0){
-            links_use = 1;
-            links = view->links;
-            link_count = view->link_count;
-        }
     }
     
     Partition *part = &view->view_base.mem->part;
@@ -3056,21 +3061,12 @@ draw_file_loaded(File_View *view, i32_Rect rect, b32 is_active, Render_Target *t
     }
     
     i32 token_i = 0;
-    i32 link_i = 0;
     u32 main_color = style->main.default_color;
     u32 special_color = style->main.special_character_color;
-    u32 link_color = 0;
     if (tokens_use){
         Cpp_Get_Token_Result result = cpp_get_token(&token_stack, items->index);
         main_color = *style_get_color(style, token_stack.tokens[result.token_index]);
         token_i = result.token_index + 1;
-    }
-    if (links_use){
-        Get_Link_Result result = get_link(links, link_count, items->index);
-        if (result.in_link){
-            link_color = *style_get_link_color(style, links[result.index].link_type);
-        }
-        link_i = result.index;
     }
     
     u32 mark_color = style->main.mark_color;
@@ -3156,12 +3152,27 @@ draw_file_loaded(File_View *view, i32_Rect rect, b32 is_active, Render_Target *t
     }
     
     end_temp_memory(temp);
-#endif
     
-#if 0
-    ui_render(target, view->gui_target);
-#else
-    UI_Style ui_style = get_ui_style_upper(style);
+    return(0);
+}
+
+internal i32
+draw_file_view(View *view_, i32_Rect rect, bool32 is_active, Render_Target *target){
+    File_View *view = (File_View*)view_;
+    i32 result = 0;
+    
+    if (view->file){
+        Interactive_Bar bar;
+        draw_file_setup_bar(view->style, view->font_height, &bar, &rect);
+        
+        if (file_is_ready(view->file)){
+            result = draw_file_loaded(view, rect, is_active, target);
+        }
+        
+        draw_file_bar(view, &bar, target);
+    }
+    
+    UI_Style ui_style = get_ui_style_upper(view->style);
     
     i32_Rect widg_rect = view_widget_rect(view, view->font_height);
     
@@ -3178,122 +3189,60 @@ draw_file_loaded(File_View *view, i32_Rect rect, b32 is_active, Render_Target *t
     switch (view->widget.type){
         case FWIDG_NONE:
         {
-            Widget_ID wid;
-            Query_Slot *slot;
-            Query_Bar *bar;
-            int i = 1;
-            for (slot = view->query_set.used_slot; slot != 0; slot = slot->next, ++i){
-                wid = make_id(&state, i);
-                bar = slot->query_bar;
-                do_text_field(wid, &state, &layout, bar->prompt, bar->string);
-            }
+            draw_file_view_queries(view, &state, &layout);
         }break;
         
         case FWIDG_TIMELINES:
         {
-            Assert(file);
-            if (view->widget.timeline.undo_line){
-                do_button(1, &state, &layout, "- Undo", 1);
-
-                Widget_ID wid = make_id(&state, 2);
-                i32 undo_count, redo_count, total_count;
-                undo_count = file->state.undo.undo.edit_count;
-                redo_count = file->state.undo.redo.edit_count;
-                total_count = undo_count + redo_count;
-                do_undo_slider(wid, &state, &layout, total_count, undo_count, 0, 0);
+            if (view->file){
+                Editing_File *file = view->file;
+                i32 undo_count = file->state.undo.undo.edit_count;
+                i32 redo_count = file->state.undo.redo.edit_count;
+                i32 total_count = undo_count + redo_count;
+                undo_shit(0, view, &state, &layout, total_count, undo_count, 0);
             }
             else{
-                do_button(1, &state, &layout, "+ Undo", 1);
-            }
-
-            if (view->widget.timeline.history_line){
-                do_button(3, &state, &layout, "- History", 1);
-
-                Widget_ID wid = make_id(&state, 4);
-                i32 new_count;
-                i32 mid = ((file->state.undo.history.edit_count + file->state.undo.edit_history_cursor) >> 1);
-                do_undo_slider(wid, &state, &layout, mid,
-                    file->state.undo.edit_history_cursor, &file->state.undo, &new_count);
-            }
-            else{
-                do_button(3, &state, &layout, "+ History", 1);
+                view->widget.type = FWIDG_NONE;
             }
         }break;
     }
-
+    
     ui_finish_frame(&view->widget.state, &state, &layout, widg_rect, 0, 0);
-#endif
-
-    draw_file_bar(view, &bar, target);
-    
-    return(0);
-}
-
-internal i32
-draw_file_loading(File_View *view, i32_Rect rect, b32 is_active, Render_Target *target){
-    Interactive_Bar bar;
-    draw_file_setup_bar(view->style, view->font_height, &bar, &rect);
-    
-    draw_file_bar(view, &bar, target);
-
-    return(0);
-}
-
-internal i32
-draw_file_view(View *view_, i32_Rect rect, bool32 is_active,
-               Render_Target *target){
-    File_View *view = (File_View*)view_;
-    i32 result = 0;
-    
-    if (view->file){
-        if (view->file->state.is_loading){
-            result = draw_file_loading(view, rect, is_active, target);
-        }
-        else{
-            result = draw_file_loaded(view, rect, is_active, target);
-        }
-    }
     
     return (result);
 }
 
 internal void
-kill_file(System_Functions *system, Exchange *exchange,
-          General_Memory *general, Editing_File *file, Live_Views *live_set, Editing_Layout *layout){
-    i32 panel_count = layout->panel_count;
-    Panel *panels = layout->panels, *panel;
-    panel = panels;
+kill_file(
+    System_Functions *system, Exchange *exchange,
+    General_Memory *general, Editing_File *file,
+    Live_Views *live_set, Editing_Layout *layout){
     
-    for (i32 i = 0; i < panel_count; ++i){
-        View *view = panel->view;
-        if (view){
-            View *to_kill = view;
-            if (view->is_minor) to_kill = view->major;
-            File_View *fview = view_to_file_view(to_kill);
-            if (fview && fview->file == file){
-                live_set_free_view(system, exchange, live_set, &fview->view_base);
-                if (to_kill == view) panel->view = 0;
-                else view->major = 0;
-            }
+    View *view, *to_kill;
+    File_View *fview;
+    Panel *panel;
+    i32 panel_count, i;
+
+    panel_count = layout->panel_count;
+    panel = layout->panels;
+    for (i = 0; i < panel_count; ++i, ++panel){
+        view = panel->view;
+        to_kill = view;
+        if (view->is_minor) to_kill = view->major;
+        fview = view_to_file_view(to_kill);
+        if (fview && fview->file == file){
+            fview->file = 0;
         }
-        ++panel;
     }
     file_close(system, general, file);
     file_get_dummy(file);
 }
-
-internal void
-command_search(System_Functions*,Command_Data*,Command_Binding);
-internal void
-command_reverse_search(System_Functions*,Command_Data*,Command_Binding);
 
 inline void
 free_file_view(View *view){
     File_View *fview = (File_View*)view;
     if (fview->line_wrap_y)
         general_memory_free(&view->mem->general, fview->line_wrap_y);
-    if (fview->links)
-        general_memory_free(&view->mem->general, fview->links);
 }
 
 internal
@@ -3579,6 +3528,14 @@ search_next_match(Partition *part, Search_Set *set, Search_Iter *iter_){
     *iter_ = iter;
     
     return(result);
+}
+
+inline void
+view_change_size(System_Functions *system, General_Memory *general, File_View *view){
+    if (view->file){
+        view_measure_wraps(system, general, view);
+        view->cursor = view_compute_cursor_from_pos(view, view->cursor.pos);
+    }
 }
 
 // BOTTOM

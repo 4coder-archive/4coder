@@ -19,8 +19,8 @@ struct Interactive_Style{
 
 struct Interactive_Bar{
     Interactive_Style style;
-    real32 pos_x, pos_y;
-    real32 text_shift_x, text_shift_y;
+    f32 pos_x, pos_y;
+    f32 text_shift_x, text_shift_y;
     i32_Rect rect;
     i16 font_id;
 };
@@ -79,11 +79,11 @@ struct Live_Views{
 };
 
 struct Panel_Divider{
-    Panel_Divider *next_free;
+    Panel_Divider *next;
     i32 parent;
     i32 which_child;
     i32 child1, child2;
-    bool32 v_divider;
+    b32 v_divider;
     i32 pos;
 };
 
@@ -131,17 +131,6 @@ intbar_draw_string(Render_Target *target,
         (i32)(bar->pos_y + bar->text_shift_y),
         char_color);
     bar->pos_x += font_string_width(target, font_id, (char*)str);
-
-#if 0
-    for (i32 i = 0; str[i]; ++i){
-        char c = str[i];
-        font_draw_glyph(target, font_id, c,
-                        bar->pos_x + bar->text_shift_x,
-                        bar->pos_y + bar->text_shift_y,
-                        char_color);
-        bar->pos_x += font_get_glyph_width(target, font_id, c);
-    }
-#endif
 }
 
 internal void
@@ -154,17 +143,6 @@ intbar_draw_string(Render_Target *target, Interactive_Bar *bar,
         (i32)(bar->pos_y + bar->text_shift_y),
         char_color);
     bar->pos_x += font_string_width(target, font_id, str);
-
-#if 0
-    for (i32 i = 0; i < str.size; ++i){
-        char c = str.str[i];
-        font_draw_glyph(target, font_id, c,
-                        bar->pos_x + bar->text_shift_x,
-                        bar->pos_y + bar->text_shift_y,
-                        char_color);
-        bar->pos_x += font_get_glyph_width(target, font_id, c);
-    }
-#endif
 }
 
 internal void
@@ -207,15 +185,20 @@ live_set_free_view(System_Functions *system, Exchange *exchange, Live_Views *liv
 }
 
 inline void
+view_set_first(View *new_view, Panel *panel){
+    new_view->panel = panel;
+    new_view->minor = 0;
+    panel->view = new_view;
+}
+
+inline void
 view_replace_major(System_Functions *system, Exchange *exchange,
-                   View *new_view, Panel *panel, Live_Views *live_set){
+    View *new_view, Panel *panel, Live_Views *live_set){
     View *view = panel->view;
-    if (view){
-        if (view->is_minor && view->major){
-            live_set_free_view(system, exchange, live_set, view->major);
-        }
-        live_set_free_view(system, exchange, live_set, view);
+    if (view->is_minor && view->major){
+        live_set_free_view(system, exchange, live_set, view->major);
     }
+    live_set_free_view(system, exchange, live_set, view);
     new_view->panel = panel;
     new_view->minor = 0;
     panel->view = new_view;
@@ -223,76 +206,34 @@ view_replace_major(System_Functions *system, Exchange *exchange,
 
 inline void
 view_replace_minor(System_Functions *system, Exchange *exchange,
-                   View *new_view, Panel *panel, Live_Views *live_set){
+    View *new_view, Panel *panel, Live_Views *live_set){
     View *view = panel->view;
+    
     new_view->is_minor = 1;
-    if (view){
-        if (view->is_minor){
-            new_view->major = view->major;
-            live_set_free_view(system, exchange, live_set, view);
-        }
-        else{
-            new_view->major = view;
-            view->is_active = 0;
-        }
+    if (view->is_minor){
+        new_view->major = view->major;
+        live_set_free_view(system, exchange, live_set, view);
     }
     else{
-        new_view->major = 0;
+        new_view->major = view;
+        view->is_active = 0;
     }
     new_view->panel = panel;
     panel->view = new_view;
 }
 
 inline void
-view_remove_major(System_Functions *system, Exchange *exchange,
-                  Panel *panel, Live_Views *live_set){
+view_remove_minor(System_Functions *system, Exchange *exchange,
+    Panel *panel, Live_Views *live_set){
     View *view = panel->view;
-    if (view){
-        if (view->is_minor && view->major){
-            live_set_free_view(system, exchange, live_set, view->major);
-        }
+    View *major = view;
+    if (view->is_minor){
+        major = view->major;
         live_set_free_view(system, exchange, live_set, view);
     }
-    panel->view = 0;
-}
-
-inline void
-view_remove_major_leave_minor(System_Functions *system, Exchange *exchange,
-                              Panel *panel, Live_Views *live_set){
-    View *view = panel->view;
-    if (view){
-        if (view->is_minor && view->major){
-            live_set_free_view(system, exchange, live_set, view->major);
-            view->major = 0;
-        }
-        else{
-            live_set_free_view(system, exchange, live_set, view);
-            panel->view = 0;
-        }
-    }
-}
-
-inline void
-view_remove_minor(System_Functions *system, Exchange *exchange,
-                  Panel *panel, Live_Views *live_set){
-    View *view = panel->view;
-    View *major = 0;
-    if (view){
-        if (view->is_minor){
-            major = view->major;
-            live_set_free_view(system, exchange, live_set, view);
-        }
-    }
+    Assert(major);
     panel->view = major;
-    if (major) major->is_active = 1;
-}
-
-inline void
-view_remove(System_Functions *system, Exchange *exchange,
-            Panel *panel, Live_Views *live_set){
-    View *view = panel->view;
-    if (view->is_minor) view_remove_minor(system, exchange, panel, live_set);
-    else view_remove_major(system, exchange, panel, live_set);
+    major->is_active = 1;
 }
 
 struct Divider_And_ID{
@@ -302,10 +243,12 @@ struct Divider_And_ID{
 
 internal Divider_And_ID
 layout_alloc_divider(Editing_Layout *layout){
-    Assert(layout->free_divider);
     Divider_And_ID result;
+    
+    Assert(layout->free_divider);
     result.divider = layout->free_divider;
-    layout->free_divider = result.divider->next_free;
+    layout->free_divider = result.divider->next;
+    
     *result.divider = {};
     result.divider->parent = -1;
     result.divider->child1 = -1;
@@ -314,7 +257,8 @@ layout_alloc_divider(Editing_Layout *layout){
     if (layout->panel_count == 1){
         layout->root = result.id;
     }
-    return result;
+    
+    return(result);
 }
 
 internal Divider_And_ID
@@ -337,21 +281,22 @@ layout_alloc_panel(Editing_Layout *layout){
 
 internal void
 layout_free_divider(Editing_Layout *layout, Panel_Divider *divider){
-    divider->next_free = layout->free_divider;
+    divider->next = layout->free_divider;
     layout->free_divider = divider;
 }
 
 internal void
 layout_free_panel(Editing_Layout *layout, Panel *panel){
-    Panel *panels = layout->panels;
-    i32 panel_count = --layout->panel_count;
-    i32 panel_i = (i32)(panel - layout->panels);
-    for (i32 i = panel_i; i < panel_count; ++i){
-        Panel *p = panels + i;
+    Panel *p, *panels;
+    i32 panel_count, i;
+    
+    panels = layout->panels;
+    panel_count = --layout->panel_count;
+
+    p = panel;
+    for (i = (i32)(panel - layout->panels); i < panel_count; ++i, ++p){
         *p = panels[i+1];
-        if (p->view){
-            p->view->panel = p;
-        }
+        p->view->panel = p;
     }
 }
 
@@ -369,18 +314,22 @@ struct Split_Result{
 };
 
 internal Split_Result
-layout_split_panel(Editing_Layout *layout, Panel *panel, bool32 vertical){
-    Divider_And_ID div = layout_alloc_divider(layout);
+layout_split_panel(Editing_Layout *layout, Panel *panel, b32 vertical){
+    Split_Result result = {};
+    Divider_And_ID div = {}, parent_div = {};
+    Panel *new_panel = 0;
+    
+    div = layout_alloc_divider(layout);
     if (panel->parent != -1){
-        Divider_And_ID pdiv = layout_get_divider(layout, panel->parent);
+        parent_div = layout_get_divider(layout, panel->parent);
         if (panel->which_child == -1){
-            pdiv.divider->child1 = div.id;
+            parent_div.divider->child1 = div.id;
         }
         else{
-            pdiv.divider->child2 = div.id;
+            parent_div.divider->child2 = div.id;
         }
     }
-
+    
     div.divider->parent = panel->parent;
     div.divider->which_child = panel->which_child;
     if (vertical){
@@ -392,13 +341,12 @@ layout_split_panel(Editing_Layout *layout, Panel *panel, bool32 vertical){
         div.divider->pos = (panel->full.y0 + panel->full.y1) / 2;
     }
 
-    Panel *new_panel = layout_alloc_panel(layout);
+    new_panel = layout_alloc_panel(layout);
     panel->parent = div.id;
     panel->which_child = -1;
     new_panel->parent = div.id;
     new_panel->which_child = 1;
 
-    Split_Result result;
     result.divider = div.divider;
     result.panel = new_panel;
     return result;
@@ -489,25 +437,29 @@ layout_fix_all_panels(Editing_Layout *layout){
 }
 
 internal void
-layout_refit(Editing_Layout *layout,
-             i32 prev_x_off, i32 prev_y_off,
-             i32 prev_width, i32 prev_height){
+layout_refit(Editing_Layout *layout, i32 prev_width, i32 prev_height){
+    
     Panel_Divider *dividers = layout->dividers;
-    i32 divider_max_count = layout->panel_max_count - 1;
+    i32 max = layout->panel_max_count - 1;
+    
+    f32 h_ratio, v_ratio;
 
-    i32 x_off = 0;
-    i32 y_off = 0;
+    Panel_Divider *divider = dividers;
+    i32 i;
 
-    real32 h_ratio = ((real32)layout->full_width) / prev_width;
-    real32 v_ratio = ((real32)layout->full_height) / prev_height;
+    if (layout->panel_count > 1){
+        Assert(prev_width != 0 && prev_height != 0);
 
-    for (i32 divider_id = 0; divider_id < divider_max_count; ++divider_id){
-        Panel_Divider *divider = dividers + divider_id;
-        if (divider->v_divider){
-            divider->pos = x_off + ROUND32((divider->pos - prev_x_off) * h_ratio);
-        }
-        else{
-            divider->pos = y_off + ROUND32((divider->pos - prev_y_off) * v_ratio);
+        h_ratio = ((f32)layout->full_width) / prev_width;
+        v_ratio = ((f32)layout->full_height) / prev_height;
+
+        for (i = 0; i < max; ++i, ++divider){
+            if (divider->v_divider){
+                divider->pos = ROUND32((divider->pos) * h_ratio);
+            }
+            else{
+                divider->pos = ROUND32((divider->pos) * v_ratio);
+            }
         }
     }
 

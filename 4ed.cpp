@@ -946,6 +946,29 @@ COMMAND_DECL(interactive_open){
 }
 
 internal void
+panel_make_empty(System_Functions *system, Exchange *exchange,
+    App_Vars *vars, Style *style, Panel *panel){
+    
+    Mem_Options *mem = &vars->mem;
+    Live_Views *live_set = &vars->live_set;
+    Editing_Layout *layout = &vars->layout;
+    
+    View *new_view;
+    File_View *file_view;
+    
+    new_view = live_set_alloc_view(live_set, mem);
+    if (panel->view){
+        view_replace_major(system, exchange, new_view, panel, live_set);
+    }
+    else{
+        view_set_first(new_view, panel);
+    }
+    file_view = file_view_init(new_view, layout);
+    view_set_file(file_view, 0, vars->font_set, style, 0, 0, 0);
+    new_view->map = app_get_map(vars, mapid_global);
+}
+
+internal void
 view_file_in_panel(Command_Data *cmd, Panel *panel, Editing_File *file){
     Live_Views *live_set = cmd->live_set;
     Mem_Options *mem = cmd->mem;
@@ -955,20 +978,25 @@ view_file_in_panel(Command_Data *cmd, Panel *panel, Editing_File *file){
     App_Vars *vars = cmd->vars;
     Style *style = cmd->style;
     
-    View *new_view = live_set_alloc_view(live_set, mem);
+    Partition old_part;
+    Temp_Memory temp;
+    View *new_view, *old_view;
+    File_View *file_view;
+    
+    new_view = live_set_alloc_view(live_set, mem);
     view_replace_major(system, exchange, new_view, panel, live_set);
 
-    File_View *file_view = file_view_init(new_view, layout);
+    file_view = file_view_init(new_view, layout);
 
-    View *old_view = cmd->view;
+    old_view = cmd->view;
     cmd->view = new_view;
 
-    Partition old_part = cmd->part;
-    Temp_Memory temp = begin_temp_memory(&mem->part);
+    old_part = cmd->part;
+    temp = begin_temp_memory(&mem->part);
     cmd->part = partition_sub_part(&mem->part, Kbytes(16));
 
-    view_set_file(system, file_view, file, vars->font_set,
-        style, vars->hooks[hook_open_file], cmd, &app_links);
+    view_set_file(file_view, file, vars->font_set, style,
+        system, vars->hooks[hook_open_file], &app_links);
 
     cmd->part = old_part;
     end_temp_memory(temp);
@@ -997,8 +1025,8 @@ COMMAND_DECL(reopen){
         index = working_set_get_index(working_set, file);
         app_push_file_binding(vars, file_id, index);
 
-        view_set_file(system, view, file, vars->font_set, style,
-            vars->hooks[hook_open_file], command, &app_links);
+        view_set_file(view, file, vars->font_set, style,
+            system, vars->hooks[hook_open_file], &app_links);
     }
     else{
         // TODO(allen): feedback message
@@ -1352,9 +1380,11 @@ COMMAND_DECL(open_panel_vsplit){
     ProfileMomentFunction();
     USE_LAYOUT(layout);
     USE_PANEL(panel);
+    USE_EXCHANGE(exchange);
+    USE_VARS(vars);
+    USE_STYLE(style);
 
-    i32 panel_count = layout->panel_count;
-    if (panel_count < layout->panel_max_count){
+    if (layout->panel_count < layout->panel_max_count){
         Split_Result split = layout_split_panel(layout, panel, 1);
 
         Panel *panel1 = panel;
@@ -1371,6 +1401,7 @@ COMMAND_DECL(open_panel_vsplit){
         panel2->prev_inner = panel2->inner;
 
         layout->active_panel = (i32)(panel2 - layout->panels);
+        panel_make_empty(system, exchange, vars, style, panel2);
     }
 }
 
@@ -1378,9 +1409,11 @@ COMMAND_DECL(open_panel_hsplit){
     ProfileMomentFunction();
     USE_LAYOUT(layout);
     USE_PANEL(panel);
+    USE_EXCHANGE(exchange);
+    USE_VARS(vars);
+    USE_STYLE(style);
 
-    i32 panel_count = layout->panel_count;
-    if (panel_count < layout->panel_max_count){
+    if (layout->panel_count < layout->panel_max_count){
         Split_Result split = layout_split_panel(layout, panel, 0);
 
         Panel *panel1 = panel;
@@ -1397,6 +1430,7 @@ COMMAND_DECL(open_panel_hsplit){
         panel2->prev_inner = panel2->inner;
 
         layout->active_panel = (i32)(panel2 - layout->panels);
+        panel_make_empty(system, exchange, vars, style, panel2);
     }
 }
 
@@ -1868,15 +1902,6 @@ build(System_Functions *system, Mem_Options *mem,
             table_add(&working_set->table, file->name.source_path, index);
 
             if (bind_to_new_view){
-#if 0
-                View *new_view = live_set_alloc_view(live_set, mem);
-                view_replace_major(system, exchange, new_view, panel, live_set);
-
-                File_View *file_view = file_view_init(new_view, layout);
-                view_set_file(system, file_view, file, font_set, style,
-                    vars->hooks[hook_open_file], command, &app_links);
-                new_view->map = app_get_map(vars, file->settings.base_map_id);
-#endif
                 view_file_in_panel(command, panel, file);
             }
 
@@ -2429,8 +2454,8 @@ extern "C"{
                 if (buffer_id >= 0 && buffer_id < max){
                     file = working_set->files + buffer_id;
                     if (!file->state.is_dummy){
-                        view_set_file(cmd->system, file_view, file, cmd->vars->font_set, cmd->style,
-                            cmd->vars->hooks[hook_open_file], cmd, &app_links);
+                        view_set_file(file_view, file, cmd->vars->font_set, cmd->style,
+                            cmd->system, cmd->vars->hooks[hook_open_file], &app_links);
                     }
                 }
 
@@ -3076,75 +3101,78 @@ App_Init_Sig(app_init){
 
     Partition *partition = &vars->mem.part;
     target->partition = partition;
-
-    i32 panel_max_count = vars->layout.panel_max_count = 16;
-    i32 divider_max_count = panel_max_count - 1;
+    
+    Panel *panels;
+    Panel_Divider *dividers, *div;
+    i32 panel_max_count;
+    i32 divider_max_count;
+    
+    panel_max_count = vars->layout.panel_max_count = 16;
+    divider_max_count = panel_max_count - 1;
     vars->layout.panel_count = 1;
-
-    Panel *panels = vars->layout.panels =
-        push_array(partition, Panel, panel_max_count);
-
-    Panel_Divider *dividers = vars->layout.dividers =
-        push_array(partition, Panel_Divider, divider_max_count);
-
-    Panel_Divider *divider = dividers;
-    for (i32 i = 0; i < divider_max_count-1; ++i, ++divider){
-        divider->next_free = (divider + 1);
+    
+    panels = push_array(partition, Panel, panel_max_count);
+    vars->layout.panels = panels;
+    
+    dividers = push_array(partition, Panel_Divider, divider_max_count);
+    vars->layout.dividers = dividers;
+    
+    div = dividers;
+    for (i32 i = 0; i < divider_max_count-1; ++i, ++div){
+        div->next = (div + 1);
     }
-    divider->next_free = 0;
+    div->next = 0;
     vars->layout.free_divider = dividers;
-
-    vars->live_set.count = 0;
-    vars->live_set.max = 1 + 2*panel_max_count;
+    
+    i32 view_chunk_size = 0;
     i32 view_sizes[] = {
         sizeof(File_View),
         sizeof(Color_View),
         sizeof(Interactive_View),
         sizeof(Menu_View),
-#if FRED_INTERNAL
+        sizeof(Config_View),
         sizeof(Debug_View),
-#endif
     };
 
-    i32 view_chunk_size = 0;
-    for (i32 i = 0; i < ArrayCount(view_sizes); ++i){
-        view_chunk_size = Max(view_chunk_size, view_sizes[i]);
-    }
-    vars->live_set.stride = view_chunk_size;
-    vars->live_set.views = (File_View*)
-        push_block(partition, view_chunk_size*vars->live_set.max);
-
-    char *views_ = (char*)vars->live_set.views;
-    for (i32 i = panel_max_count-2; i >= 0; --i){
-        View *view = (View*)(views_ + i*view_chunk_size);
-        View *view_next = (View*)((char*)view + view_chunk_size);
-        view->next_free = view_next;
-    }
     {
-        View *view = (View*)(views_ + (panel_max_count-1)*view_chunk_size);
-        view->next_free = 0;
+        char *vptr = 0;
+        View *v = 0, *n = 0;
+        i32 i = 0, max = 0;
+        
+        vars->live_set.count = 0;
+        vars->live_set.max = 1 + 2*panel_max_count;
+
+        for (i = 0; i < ArrayCount(view_sizes); ++i){
+            view_chunk_size = Max(view_chunk_size, view_sizes[i]);
+        }
+        vars->live_set.stride = view_chunk_size;
+        vars->live_set.views = push_block(partition, view_chunk_size*vars->live_set.max);
+        
+        max = vars->live_set.max;
+        vptr = (char*)vars->live_set.views;
+        vars->live_set.free_view = (View*)vptr;
+        for (i = 0; i < max; ++i){
+            v = (View*)(vptr);
+            n = (View*)(vptr + view_chunk_size);
+            v->next_free = n;
+            vptr = (char*)n;
+        }
+        v->next_free = 0;
     }
-    vars->live_set.free_view = (View*)views_;
+
+
 
     setup_command_table();
-
+    
     Command_Map *global = &vars->map_top;
     Assert(vars->config_api.get_bindings != 0);
-
-    i32 size = partition_remaining(partition);
-    void *data = partition_current(partition);
-
-    // TODO(allen): Use a giant bubble of general memory for this.
-        // So that it doesn't interfere with the command maps as they allocate
-        // their own memory.
-    i32 wanted_size = vars->config_api.get_bindings(data, size);
+    
+    i32 wanted_size = vars->config_api.get_bindings(app_links.memory, app_links.memory_size);
 
     b32 did_top = 0;
     b32 did_file = 0;
-    if (wanted_size <= size){
-        partition_allocate(partition, wanted_size);
-
-        Binding_Unit *unit = (Binding_Unit*)data;
+    if (wanted_size <= app_links.memory_size){
+        Binding_Unit *unit = (Binding_Unit*)app_links.memory;
         if (unit->type == unit_header && unit->header.error == 0){
             Binding_Unit *end = unit + unit->header.total_size;
 
@@ -3242,11 +3270,12 @@ App_Init_Sig(app_init){
             }
         }
     }
-
+    
+    memset(app_links.memory, 0, wanted_size);
     if (!did_top) setup_top_commands(&vars->map_top, &vars->mem.part, global);
     if (!did_file) setup_file_commands(&vars->map_file, &vars->mem.part, global);
 
-#if !defined(FRED_SUPER)
+#if 1 || !defined(FRED_SUPER)
     vars->hooks[hook_start] = 0;
 #endif
 
@@ -3348,7 +3377,9 @@ App_Init_Sig(app_init){
     vars->palette_size = 40;
     vars->palette = push_array(partition, u32, vars->palette_size);
 
+    // NOTE(allen): init first panel
     panel_init(&panels[0]);
+    panel_make_empty(system, exchange, vars, &vars->style, &panels[0]);
 
     String hdbase = make_fixed_width_string(vars->hot_dir_base_);
     hot_directory_init(&vars->hot_directory, hdbase, current_directory, system->slash);
@@ -3475,33 +3506,38 @@ App_Step_Sig(app_step){
         vars->cli_processes.count = count;
         end_temp_memory(temp);
     }
-
+    
     // NOTE(allen): reorganizing panels on screen
-    i32 prev_width = vars->layout.full_width;
-    i32 prev_height = vars->layout.full_height;
-    i32 prev_y_off = 0;
-    i32 prev_x_off = 0;
-
-    i32 y_off = 0;
-    i32 x_off = 0;
-    i32 full_width = vars->layout.full_width = target->width;
-    i32 full_height = vars->layout.full_height = target->height;
-
-    if (prev_width != full_width || prev_height != full_height ||
-            prev_x_off != x_off || prev_y_off != y_off){
-        layout_refit(&vars->layout, prev_x_off, prev_y_off, prev_width, prev_height);
-        int view_count = vars->layout.panel_max_count;
-        for (i32 view_i = 0; view_i < view_count; ++view_i){
-            View *view_ = live_set_get_view(&vars->live_set, view_i);
-            if (!view_->is_active) continue;
-            File_View *view = view_to_file_view(view_);
-            if (!view) continue;
-            view_measure_wraps(system, &vars->mem.general, view);
-            view->cursor = view_compute_cursor_from_pos(view, view->cursor.pos);
+    {
+        i32 prev_width = vars->layout.full_width;
+        i32 prev_height = vars->layout.full_height;
+        i32 current_width = target->width;
+        i32 current_height = target->height;
+        
+        View *view;
+        File_View *fview;
+        i32 i, view_count;
+        
+        vars->layout.full_width = current_width;
+        vars->layout.full_height = current_height;
+        
+        view_count = vars->layout.panel_max_count;
+        
+        if (prev_width != current_width || prev_height != current_height){
+            layout_refit(&vars->layout, prev_width, prev_height);
+            for (i = 0; i < view_count; ++i){
+                view = live_set_get_view(&vars->live_set, i);
+                if (!view->is_active) continue;
+                fview = view_to_file_view(view);
+                if (!fview) continue;
+                // TODO(allen): All responses to a panel changing size should
+                // be handled in the same place.
+                view_change_size(system, &vars->mem.general, fview);
+            }
+            app_result.redraw = 1;
         }
-        app_result.redraw = 1;
     }
-
+    
     // NOTE(allen): prepare input information
     Key_Summary key_data = {};
     for (i32 i = 0; i < input->press_count; ++i){
@@ -3510,11 +3546,24 @@ App_Step_Sig(app_step){
     for (i32 i = 0; i < input->hold_count; ++i){
         key_data.keys[key_data.count++] = input->hold[i];
     }
-
+    
     mouse->wheel = -mouse->wheel;
-
+    
     ProfileEnd(OS_syncing);
-
+    
+    // NOTE(allen): while I transition away from this view system to something that has
+    // more unified behavior, I will use this to add checks to the program's state so that I
+    // can make sure it behaving well.
+    ProfileStart(correctness_checks);
+    {
+        Panel *panel = panels;
+        i32 panel_count = vars->layout.panel_count;
+        for (i32 i = 0; i < panel_count; ++i, ++panel){
+            Assert(panel->view);
+        }
+    }
+    ProfileEnd(correctness_checks);
+    
     ProfileStart(hover_status);
     // NOTE(allen): detect mouse hover status
     i32 mx = mouse->x;
@@ -4010,90 +4059,95 @@ App_Step_Sig(app_step){
     
     // NOTE(allen): processing sys app bindings
     ProfileStart(sys_app_bind_processing);
-    for (i32 i = 0; i < vars->sys_app_count; ++i){
-        Sys_App_Binding *binding;
-        b32 remove = 0;
-        b32 failed = 0;
-        binding = vars->sys_app_bindings + i;
+    {
+        Mem_Options *mem = &vars->mem;
+        General_Memory *general = &mem->general;
+        
+        for (i32 i = 0; i < vars->sys_app_count; ++i){
+            Sys_App_Binding *binding;
+            b32 remove = 0;
+            b32 failed = 0;
+            binding = vars->sys_app_bindings + i;
 
-        byte *data;
-        i32 size, max;
-        Editing_File *ed_file;
-        Editing_File_Preload preload_settings;
-        char *filename;
+            byte *data;
+            i32 size, max;
+            Editing_File *ed_file;
+            Editing_File_Preload preload_settings;
+            char *filename;
 
-        Working_Set *working_set = &vars->working_set;
+            Working_Set *working_set = &vars->working_set;
 
-        if (exchange_file_ready(exchange, binding->sys_id, &data, &size, &max)){
-            ed_file = working_set->files + binding->app_id;
-            filename = exchange_file_filename(exchange, binding->sys_id);
-            preload_settings = ed_file->preload;
-            if (data){
-                String val = make_string((char*)data, size);
-                file_create_from_string(system, &vars->mem, working_set, ed_file, filename,
-                    vars->font_set, vars->style.font_id, val);
+            if (exchange_file_ready(exchange, binding->sys_id, &data, &size, &max)){
+                ed_file = working_set->files + binding->app_id;
+                filename = exchange_file_filename(exchange, binding->sys_id);
+                preload_settings = ed_file->preload;
+                if (data){
+                    String val = make_string((char*)data, size);
+                    file_create_from_string(system, mem, working_set, ed_file, filename,
+                        vars->font_set, vars->style.font_id, val);
 
-                if (ed_file->settings.tokens_exist){
-                    file_first_lex_parallel(system, &vars->mem.general, ed_file);
-                }
-                
-                if ((binding->success & SysAppCreateView) && binding->panel != 0){
-                    view_file_in_panel(cmd, binding->panel, ed_file);
-                }
-                
-                app_result.redraw = 1;
-            }
-            else{
-                if (binding->fail & SysAppCreateNewBuffer){
-                    file_create_empty(system, &vars->mem, working_set, ed_file, filename,
-                        vars->font_set, vars->style.font_id);
-                    if (binding->fail & SysAppCreateView){
+                    if (ed_file->settings.tokens_exist){
+                        file_first_lex_parallel(system, general, ed_file);
+                    }
+
+                    if ((binding->success & SysAppCreateView) && binding->panel != 0){
                         view_file_in_panel(cmd, binding->panel, ed_file);
                     }
+
+                    app_result.redraw = 1;
                 }
                 else{
-                    table_remove(&vars->working_set.table, ed_file->name.source_path);
-                    file_get_dummy(ed_file);
+                    if (binding->fail & SysAppCreateNewBuffer){
+                        file_create_empty(system, mem, working_set, ed_file, filename,
+                            vars->font_set, vars->style.font_id);
+                        if (binding->fail & SysAppCreateView){
+                            view_file_in_panel(cmd, binding->panel, ed_file);
+                        }
+                    }
+                    else{
+                        table_remove(&vars->working_set.table, ed_file->name.source_path);
+                        file_get_dummy(ed_file);
+                    }
+
+                    app_result.redraw = 1;
                 }
-                
-                app_result.redraw = 1;
-            }
-            
-            if (!ed_file->state.is_dummy){
-                for (File_View_Iter iter = file_view_iter_init(&vars->layout, ed_file, 0);
-                    file_view_iter_good(iter);
-                    iter = file_view_iter_next(iter)){
-                    view_file_loaded_init(system, iter.view, 0);
-                    view_cursor_move(iter.view, preload_settings.start_line, 0);
+
+                if (!ed_file->state.is_dummy){
+                    for (File_View_Iter iter = file_view_iter_init(&vars->layout, ed_file, 0);
+                        file_view_iter_good(iter);
+                        iter = file_view_iter_next(iter)){
+                        view_measure_wraps(system, general, iter.view);
+                        view_cursor_move(iter.view, preload_settings.start_line, 0);
+                    }
                 }
+
+                exchange_free_file(exchange, binding->sys_id);
+                remove = 1;
             }
-            
-            exchange_free_file(exchange, binding->sys_id);
-            remove = 1;
-        }
-        
-        if (exchange_file_save_complete(exchange, binding->sys_id, &data, &size, &max, &failed)){
-            Assert(remove == 0);
-            
-            if (data){
-                general_memory_free(&vars->mem.general, data);
-                exchange_clear_file(exchange, binding->sys_id);
+
+            if (exchange_file_save_complete(exchange, binding->sys_id, &data, &size, &max, &failed)){
+                Assert(remove == 0);
+
+                if (data){
+                    general_memory_free(general, data);
+                    exchange_clear_file(exchange, binding->sys_id);
+                }
+
+                Editing_File *file = get_file(working_set, binding->app_id);
+                if (file){
+                    file_synchronize_times(system, file, file->name.source_path.str);
+                }
+
+                exchange_free_file(exchange, binding->sys_id);
+                remove = 1;
+
+                // if (failed) { TODO(allen): saving error, now what? }
             }
-            
-            Editing_File *file = get_file(working_set, binding->app_id);
-            if (file){
-                file_synchronize_times(system, file, file->name.source_path.str);
+
+            if (remove){
+                *binding = vars->sys_app_bindings[--vars->sys_app_count];
+                --i;
             }
-            
-            exchange_free_file(exchange, binding->sys_id);
-            remove = 1;
-            
-            // if (failed) { TODO(allen): saving error, now what? }
-        }
-        
-        if (remove){
-            *binding = vars->sys_app_bindings[--vars->sys_app_count];
-            --i;
         }
     }
     ProfileEnd(sys_app_bind_processing);
@@ -4173,8 +4227,8 @@ App_Step_Sig(app_step){
                     // TODO(allen): deduplicate
                     View *view = panel->view;
                     File_View *fview = view_to_file_view(view);
+                    if (!fview && view->is_minor) fview = view_to_file_view(view->major);
                     if (!file){
-                        if (!fview && view->is_minor) fview = view_to_file_view(view->major);
                         if (fview){
                             file = working_set_lookup_file(working_set, string);
                         }
@@ -4191,11 +4245,11 @@ App_Step_Sig(app_step){
 
                 case DACT_SAVE_AS:
                 {
-                    // TODO(allen): deduplicate
+                    // TODO(allen): deduplicate 
                     View *view = panel->view;
                     File_View *fview = view_to_file_view(view);
+                    if (!fview && view->is_minor) fview = view_to_file_view(view->major);
                     if (!file){
-                        if (!fview && view->is_minor) fview = view_to_file_view(view->major);
                         if (fview){
                             file = working_set_lookup_file(working_set, string);
                         }
@@ -4215,8 +4269,12 @@ App_Step_Sig(app_step){
                 {
                     if (!file){
                         if (panel){
-                            View *view = panel->view;
-                            File_View *fview = view_to_file_view(view);
+                            View *view;
+                            File_View *fview;
+                            view = panel->view;
+                            Assert(view);
+                            if (view->is_minor) view = view->major;
+                            fview = view_to_file_view(view);
                             if (fview){
                                 file = fview->file;
                             }
@@ -4225,9 +4283,13 @@ App_Step_Sig(app_step){
                             file = working_set_lookup_file(working_set, string);
                         }
                     }
-                    if (!file->state.is_dummy && buffer_needs_save(file)){
+                    // TODO(allen): We could handle the case where someone tries to save the same thing
+                    // twice... that would be nice to have under control.
+                    if (file && !file->state.is_dummy && buffer_needs_save(file)){
                         i32 sys_id = file_save(system, exchange, mem, file, file->name.source_path.str);
                         if (sys_id){
+                            // TODO(allen): This is fishy! Shouldn't we bind it to a file name instead? This file
+                            // might be killed before we get notified that the saving is done!
                             app_push_file_binding(vars, sys_id, get_file_id(working_set, file));
                         }
                         else{
@@ -4248,8 +4310,8 @@ App_Step_Sig(app_step){
 
                     File_View *file_view = file_view_init(new_view, &vars->layout);
                     cmd->view = (View*)file_view;
-                    view_set_file(system, file_view, file.file, vars->font_set, style,
-                        vars->hooks[hook_open_file], cmd, &app_links);
+                    view_set_file(file_view, file.file, vars->font_set, style,
+                        system,  vars->hooks[hook_open_file], &app_links);
                     new_view->map = app_get_map(vars, file.file->settings.base_map_id);
 #if BUFFER_EXPERIMENT_SCALPEL <= 0
                     if (file.file->settings.tokens_exist)
@@ -4267,8 +4329,8 @@ App_Step_Sig(app_step){
                         File_View *file_view = file_view_init(new_view, &vars->layout);
                         cmd->view = (View*)file_view;
 
-                        view_set_file(system, file_view, file, vars->font_set, style,
-                            vars->hooks[hook_open_file], cmd, &app_links);
+                        view_set_file(file_view, file, vars->font_set, style,
+                            system, vars->hooks[hook_open_file], &app_links);
 
                         new_view->map = app_get_map(vars, file->settings.base_map_id);
                     }
@@ -4311,11 +4373,6 @@ App_Step_Sig(app_step){
                 case DACT_CLOSE_MINOR:
                 {
                     view_remove_minor(system, exchange, panel, live_set);
-                }break;
-
-                case DACT_CLOSE_MAJOR:
-                {
-                    view_remove_major(system, exchange, panel, live_set);
                 }break;
 
                 case DACT_THEME_OPTIONS:
