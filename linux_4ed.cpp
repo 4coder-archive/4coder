@@ -43,6 +43,8 @@
 #include <stdio.h>
 #include <X11/Xlib.h>
 #include <X11/cursorfont.h>
+#include <X11/Xatom.h>
+#include <X11/extensions/Xfixes.h>
 #include <GL/glx.h>
 #include <GL/gl.h>
 #include <GL/glext.h>
@@ -1129,7 +1131,7 @@ LinuxRedrawTarget(){
     system_acquire_lock(RENDER_LOCK);
     launch_rendering(&linuxvars.target);
     system_release_lock(RENDER_LOCK);
-//    glFlush();
+    glFlush();
     glXSwapBuffers(linuxvars.XDisplay, linuxvars.XWindow);
 }
 
@@ -1583,7 +1585,8 @@ InitializeXInput(Display *dpy, Window XWindow)
         FocusChangeMask |
         StructureNotifyMask |
         MappingNotify |
-        ExposureMask
+        ExposureMask |
+        VisibilityChangeMask
     );
 
     result.input_method = XOpenIM(dpy, 0, 0, 0);
@@ -1908,13 +1911,64 @@ main(int argc, char **argv)
 
     XSetICFocus(linuxvars.input_context);
 
+    XWMHints *wm_hints = XAllocWMHints();
+    wm_hints->flags |= InputHint;
+    wm_hints->input = True;
+    XSetWMHints(linuxvars.XDisplay, linuxvars.XWindow, wm_hints);
+    XFree(wm_hints);
+
     linuxvars.atom_CLIPBOARD = XInternAtom(linuxvars.XDisplay, "CLIPBOARD", False);
     linuxvars.atom_UTF8_STRING = XInternAtom(linuxvars.XDisplay, "UTF8_STRING", False);
 
-    Atom WM_DELETE_WINDOW = XInternAtom(linuxvars.XDisplay, "WM_DELETE_WINDOW", False);
-    if(WM_DELETE_WINDOW != None){
-        XSetWMProtocols(linuxvars.XDisplay, linuxvars.XWindow, &WM_DELETE_WINDOW, 1);
+    int xfixes_version_unused, xfixes_err_unused;
+
+    linuxvars.has_xfixes = XQueryExtension(
+        linuxvars.XDisplay,
+        "XFIXES",
+        &xfixes_version_unused,
+        &linuxvars.xfixes_selection_event,
+        &xfixes_err_unused
+    ) == True;
+
+    if(linuxvars.has_xfixes){
+        XFixesSelectSelectionInput(
+            linuxvars.XDisplay,
+            linuxvars.XWindow,
+            linuxvars.atom_CLIPBOARD,
+            XFixesSetSelectionOwnerNotifyMask
+        );
     }
+
+    Atom _NET_WM_WINDOW_TYPE = XInternAtom(linuxvars.XDisplay, "_NET_WM_WINDOW_TYPE", False);
+    Atom _NET_WIN_TYPE_NORMAL = XInternAtom(linuxvars.XDisplay, "_NET_WM_WINDOW_TYPE_NORMAL", False);
+    XChangeProperty(
+        linuxvars.XDisplay,
+        linuxvars.XWindow,
+        _NET_WM_WINDOW_TYPE,
+        XA_ATOM,
+        32,
+        PropModeReplace,
+        (unsigned char*)&_NET_WIN_TYPE_NORMAL,
+        1
+    );
+
+    Atom _NET_WM_PID = XInternAtom(linuxvars.XDisplay, "_NET_WM_PID", False);
+    pid_t pid = getpid();
+    XChangeProperty(
+        linuxvars.XDisplay,
+        linuxvars.XWindow,
+        _NET_WM_PID,
+        XA_CARDINAL,
+        32,
+        PropModeReplace,
+        (unsigned char*)&pid,
+        1
+    );
+
+    Atom WM_DELETE_WINDOW = XInternAtom(linuxvars.XDisplay, "WM_DELETE_WINDOW", False);
+    Atom _NET_WM_PING = XInternAtom(linuxvars.XDisplay, "_NET_WM_PING", False);
+    Atom wm_protos[] = { WM_DELETE_WINDOW, _NET_WM_PING };
+    XSetWMProtocols(linuxvars.XDisplay, linuxvars.XWindow, wm_protos, 2);
 
     linuxvars.app.init(linuxvars.system, &linuxvars.target, &memory_vars, &exchange_vars,
                        linuxvars.clipboard_contents, current_directory,
@@ -2056,6 +2110,16 @@ main(int argc, char **argv)
                     if ((Atom)Event.xclient.data.l[0] == WM_DELETE_WINDOW) {
                         keep_running = false;
                     }
+                    else if ((Atom)Event.xclient.data.l[0] == _NET_WM_PING) {
+                        Event.xclient.window = DefaultRootWindow(linuxvars.XDisplay);
+                        XSendEvent(
+                            linuxvars.XDisplay,
+                            Event.xclient.window,
+                            False,
+                            SubstructureRedirectMask | SubstructureNotifyMask,
+                            &Event
+                        );
+                    }
                 }break;
 
                 // NOTE(inso): Someone wants us to give them the clipboard data.
@@ -2139,23 +2203,39 @@ main(int argc, char **argv)
                     }
                 }break;
 
-                case Expose: {
+                case Expose:
+                case VisibilityNotify: {
                     linuxvars.redraw = 1;
+                }break;
+
+                default: {
+                    if(Event.type == linuxvars.xfixes_selection_event){
+                        XConvertSelection(
+                            linuxvars.XDisplay,
+                            linuxvars.atom_CLIPBOARD,
+                            linuxvars.atom_UTF8_STRING,
+                            linuxvars.atom_CLIPBOARD,
+                            linuxvars.XWindow,
+                            CurrentTime
+                        );
+                    }
                 }break;
             }
 
             PrevEvent = Event;
         }
 
-        // FIXME(inso): is getting the clipboard every frame a bad idea?
-        XConvertSelection(
-            linuxvars.XDisplay,
-            linuxvars.atom_CLIPBOARD,
-            linuxvars.atom_UTF8_STRING,
-            linuxvars.atom_CLIPBOARD,
-            linuxvars.XWindow,
-            CurrentTime
-        );
+        // NOTE(inso): without the xfixes extension we'll have to request the clipboard every frame.
+        if(!linuxvars.has_xfixes){
+            XConvertSelection(
+                linuxvars.XDisplay,
+                linuxvars.atom_CLIPBOARD,
+                linuxvars.atom_UTF8_STRING,
+                linuxvars.atom_CLIPBOARD,
+                linuxvars.XWindow,
+                CurrentTime
+            );
+        }
 
         Key_Input_Data input_data;
         Mouse_State mouse;
@@ -2185,7 +2265,7 @@ main(int argc, char **argv)
                            1, linuxvars.first, linuxvars.redraw,
                            &result);
 
-        if (result.redraw){
+        if (linuxvars.redraw || result.redraw){
             LinuxRedrawTarget();
         }
 
