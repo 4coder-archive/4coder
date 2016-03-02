@@ -9,55 +9,6 @@
 
 // TOP
 
-struct Interactive_Style{
-    u32 bar_color;
-    u32 bar_active_color;
-    u32 base_color;
-    u32 pop1_color;
-    u32 pop2_color;
-};
-
-struct Interactive_Bar{
-    Interactive_Style style;
-    f32 pos_x, pos_y;
-    f32 text_shift_x, text_shift_y;
-    i32_Rect rect;
-    i16 font_id;
-};
-
-enum View_Message{
-    VMSG_STEP,
-    VMSG_DRAW,
-    VMSG_RESIZE,
-    VMSG_STYLE_CHANGE,
-    VMSG_FREE
-};
-
-struct View;
-#define Do_View_Sig(name)                                               \
-    i32 (name)(System_Functions *system, Exchange *exchange,            \
-               View *view, i32_Rect rect, View *active,                 \
-               View_Message message, Render_Target *target,             \
-               Input_Summary *user_input, Input_Summary *active_input)
-
-typedef Do_View_Sig(Do_View_Function);
-
-struct Panel;
-struct View{
-    View *next_free;
-    Panel *panel;
-    Command_Map *map;
-    Do_View_Function *do_view;
-    Application_Mouse_Cursor mouse_cursor_type;
-};
-
-struct Live_Views{
-    void *views;
-    View *free_view;
-    i32 count, max;
-    i32 stride;
-};
-
 struct Panel_Divider{
     Panel_Divider *next;
     i32 parent;
@@ -76,9 +27,15 @@ struct Screen_Region{
 };
 
 struct Panel{
-    View *view;
+    Panel *next;
+    Panel *prev;
+
+    struct View *view;
     i32 parent;
     i32 which_child;
+    
+    int ALLOCED;
+    
     union{
         struct{
             i32_Rect full;
@@ -93,6 +50,8 @@ struct Panel{
 
 struct Editing_Layout{
     Panel *panels;
+    Panel free_sentinel;
+    Panel used_sentinel;
     Panel_Divider *dividers;
     Panel_Divider *free_divider;
     i32 panel_count, panel_max_count;
@@ -101,85 +60,29 @@ struct Editing_Layout{
     i32 full_width, full_height;
 };
 
-internal void
-intbar_draw_string(Render_Target *target,
-                   Interactive_Bar *bar, u8 *str, u32 char_color){
-    i16 font_id = bar->font_id;
+struct Divider_And_ID{
+    Panel_Divider* divider;
+    i32 id;
+};
 
-    draw_string(target, font_id, (char*)str,
-        (i32)(bar->pos_x + bar->text_shift_x),
-        (i32)(bar->pos_y + bar->text_shift_y),
-        char_color);
-    bar->pos_x += font_string_width(target, font_id, (char*)str);
-}
-
-internal void
-intbar_draw_string(Render_Target *target, Interactive_Bar *bar,
-                   String str, u32 char_color){
-    i16 font_id = bar->font_id;
-    
-    draw_string(target, font_id, str,
-        (i32)(bar->pos_x + bar->text_shift_x),
-        (i32)(bar->pos_y + bar->text_shift_y),
-        char_color);
-    bar->pos_x += font_string_width(target, font_id, str);
-}
+struct Panel_And_ID{
+    Panel* panel;
+    i32 id;
+};
 
 internal void
 panel_init(Panel *panel){
-    *panel = {};
+    panel->view = 0;
     panel->parent = -1;
+    panel->which_child = 0;
+    panel->screen_region.full = {};
+    panel->screen_region.inner = {};
+    panel->screen_region.prev_inner = {};
     panel->l_margin = 3;
     panel->r_margin = 3;
     panel->t_margin = 3;
     panel->b_margin = 3;
 }
-
-internal View*
-live_set_get_view(Live_Views *live_set, i32 i){
-    void *result = ((char*)live_set->views + i*live_set->stride);
-    return (View*)result;
-}
-
-internal View*
-live_set_alloc_view(Live_Views *live_set, Mem_Options *mem){
-    Assert(live_set->count < live_set->max);
-    View *result = 0;
-    result = live_set->free_view;
-    live_set->free_view = result->next_free;
-    memset(result, 0, live_set->stride);
-    ++live_set->count;
-    return result;
-}
-
-inline void
-live_set_free_view(System_Functions *system, Exchange *exchange, Live_Views *live_set, View *view){
-    Assert(live_set->count > 0);
-    view->do_view(system, exchange, view, {}, 0, VMSG_FREE, 0, {}, 0);
-    view->next_free = live_set->free_view;
-    live_set->free_view = view;
-    --live_set->count;
-}
-
-inline void
-view_set_first(View *new_view, Panel *panel){
-    new_view->panel = panel;
-    panel->view = new_view;
-}
-
-inline void
-view_replace_major(System_Functions *system, Exchange *exchange,
-    View *new_view, Panel *panel, Live_Views *live_set){
-    View *view = panel->view;
-    live_set_free_view(system, exchange, live_set, view);
-    new_view->panel = panel;
-    panel->view = new_view;
-}
-
-struct Divider_And_ID{
-    Panel_Divider* divider;
-    i32 id;
-};
 
 internal Divider_And_ID
 layout_alloc_divider(Editing_Layout *layout){
@@ -203,20 +106,13 @@ layout_alloc_divider(Editing_Layout *layout){
 
 internal Divider_And_ID
 layout_get_divider(Editing_Layout *layout, i32 id){
-    Assert(id >= 0 && id < layout->panel_max_count-1);
     Divider_And_ID result;
+    
+    Assert(id >= 0 && id < layout->panel_max_count-1);
     result.id = id;
     result.divider = layout->dividers + id;
-    return result;
-}
-
-internal Panel*
-layout_alloc_panel(Editing_Layout *layout){
-    Assert(layout->panel_count < layout->panel_max_count);
-    Panel *result = layout->panels + layout->panel_count;
-    *result = {};
-    ++layout->panel_count;
-    return result;
+    
+    return(result);
 }
 
 internal void
@@ -225,19 +121,33 @@ layout_free_divider(Editing_Layout *layout, Panel_Divider *divider){
     layout->free_divider = divider;
 }
 
+internal Panel_And_ID
+layout_alloc_panel(Editing_Layout *layout){
+    Panel_And_ID result = {};
+    
+    Assert(layout->panel_count < layout->panel_max_count);
+    ++layout->panel_count;
+    
+    result.panel = layout->free_sentinel.next;
+    dll_remove(result.panel);
+    dll_insert(&layout->used_sentinel, result.panel);
+    
+    panel_init(result.panel);
+    
+    result.id = (i32)(result.panel - layout->panels);
+    
+    result.panel->ALLOCED = 1;
+    
+    return(result);
+}
+
 internal void
 layout_free_panel(Editing_Layout *layout, Panel *panel){
-    Panel *p, *panels;
-    i32 panel_count, i;
+    dll_remove(panel);
+    dll_insert(&layout->free_sentinel, panel);
+    --layout->panel_count;
     
-    panels = layout->panels;
-    panel_count = --layout->panel_count;
-
-    p = panel;
-    for (i = (i32)(panel - layout->panels); i < panel_count; ++i, ++p){
-        *p = panels[i+1];
-        p->view->panel = p;
-    }
+    panel->ALLOCED = 0;
 }
 
 internal Divider_And_ID
@@ -257,7 +167,7 @@ internal Split_Result
 layout_split_panel(Editing_Layout *layout, Panel *panel, b32 vertical){
     Split_Result result = {};
     Divider_And_ID div = {}, parent_div = {};
-    Panel *new_panel = 0;
+    Panel_And_ID new_panel = {};
     
     div = layout_alloc_divider(layout);
     if (panel->parent != -1){
@@ -284,71 +194,67 @@ layout_split_panel(Editing_Layout *layout, Panel *panel, b32 vertical){
     new_panel = layout_alloc_panel(layout);
     panel->parent = div.id;
     panel->which_child = -1;
-    new_panel->parent = div.id;
-    new_panel->which_child = 1;
+    new_panel.panel->parent = div.id;
+    new_panel.panel->which_child = 1;
 
     result.divider = div.divider;
-    result.panel = new_panel;
+    result.panel = new_panel.panel;
+    
     return result;
 }
 
 internal void
 panel_fix_internal_area(Panel *panel){
-    i32 left, right, top, bottom;
-    left = panel->l_margin;
-    right = panel->r_margin;
-    top = panel->t_margin;
-    bottom = panel->b_margin;
-
-    panel->inner.x0 = panel->full.x0 + left;
-    panel->inner.x1 = panel->full.x1 - right;
-    panel->inner.y0 = panel->full.y0 + top;
-    panel->inner.y1 = panel->full.y1 - bottom;
+    panel->inner.x0 = panel->full.x0 + panel->l_margin;
+    panel->inner.x1 = panel->full.x1 - panel->r_margin;
+    panel->inner.y0 = panel->full.y0 + panel->t_margin;
+    panel->inner.y1 = panel->full.y1 - panel->b_margin;
 }
 
 internal void
 layout_fix_all_panels(Editing_Layout *layout){
-    Panel *panels = layout->panels;
-    if (layout->panel_count > 1){
-        Panel_Divider *dividers = layout->dividers;
-        int panel_count = layout->panel_count;
-
-        Panel *panel = panels;
-        for (i32 i = 0; i < panel_count; ++i){
-            i32 x0, x1, y0, y1;
-            x0 = 0;
-            x1 = x0 + layout->full_width;
-            y0 = 0;
-            y1 = y0 + layout->full_height;
-
-            i32 pos;
-            i32 which_child = panel->which_child;
-            Divider_And_ID div;
+    Panel *panel;
+    Panel_Divider *dividers = layout->dividers;
+    i32 panel_count = layout->panel_count;
+    i32_Rect r;
+    i32 pos, which_child, action;
+    Divider_And_ID div;
+    
+    if (panel_count > 1){
+        for (panel = layout->used_sentinel.next;
+            panel != &layout->used_sentinel;
+            panel = panel->next){
+            
+            r.x0 = 0;
+            r.x1 = r.x0 + layout->full_width;
+            r.y0 = 0;
+            r.y1 = r.y0 + layout->full_height;
+            
+            which_child = panel->which_child;
+            
             div.id = panel->parent;
-
+            
             for (;;){
+                Assert(div.id != -1);
                 div.divider = dividers + div.id;
                 pos = div.divider->pos;
-                div.divider = dividers + div.id;
-                // NOTE(allen): sorry if this is hard to read through, there are
-                // two binary conditionals that combine into four possible cases.
-                // Why am I appologizing to you? IF YOU CANT HANDLE MY CODE GET OUT!
-                i32 action = (div.divider->v_divider << 1) | (which_child > 0);
+                
+                action = (div.divider->v_divider << 1) | (which_child > 0);
                 switch (action){
                 case 0: // v_divider : 0, which_child : -1
-                    if (pos < y1) y1 = pos;
+                    if (pos < r.y1) r.y1 = pos;
                     break;
                 case 1: // v_divider : 0, which_child : 1
-                    if (pos > y0) y0 = pos;
+                    if (pos > r.y0) r.y0 = pos;
                     break;
                 case 2: // v_divider : 1, which_child : -1
-                    if (pos < x1) x1 = pos;
+                    if (pos < r.x1) r.x1 = pos;
                     break;
                 case 3: // v_divider : 1, which_child : 1
-                    if (pos > x0) x0 = pos;
+                    if (pos > r.x0) r.x0 = pos;
                     break;
                 }
-
+                
                 if (div.id != layout->root){
                     div.id = div.divider->parent;
                     which_child = div.divider->which_child;
@@ -357,22 +263,19 @@ layout_fix_all_panels(Editing_Layout *layout){
                     break;
                 }
             }
-
-            panel->full.x0 = x0;
-            panel->full.y0 = y0;
-            panel->full.x1 = x1;
-            panel->full.y1 = y1;
+            
+            panel->full = r;
             panel_fix_internal_area(panel);
-            ++panel;
         }
     }
 
     else{
-        panels[0].full.x0 = 0;
-        panels[0].full.y0 = 0;
-        panels[0].full.x1 = layout->full_width;
-        panels[0].full.y1 = layout->full_height;
-        panel_fix_internal_area(panels);
+        panel = layout->used_sentinel.next;
+        panel->full.x0 = 0;
+        panel->full.y0 = 0;
+        panel->full.x1 = layout->full_width;
+        panel->full.y1 = layout->full_height;
+        panel_fix_internal_area(panel);
     }
 }
 
@@ -406,20 +309,133 @@ layout_refit(Editing_Layout *layout, i32 prev_width, i32 prev_height){
     layout_fix_all_panels(layout);
 }
 
-inline real32
-view_base_compute_width(View *view){
-    Panel *panel = view->panel;
-    return (real32)(panel->inner.x1 - panel->inner.x0);
+enum View_Message{
+    VMSG_STEP,
+    VMSG_DRAW,
+    VMSG_RESIZE,
+    VMSG_STYLE_CHANGE,
+    VMSG_FREE
+};
+
+struct View;
+#define Do_View_Sig(name)                                               \
+    i32 (name)(System_Functions *system, Exchange *exchange,            \
+               View *view, i32_Rect rect, View *active,                 \
+               View_Message message, Render_Target *target,             \
+               Input_Summary *user_input, Input_Summary *active_input)
+
+typedef Do_View_Sig(Do_View_Function);
+
+struct View{
+    View *next, *prev;
+    
+    Panel *panel;
+    Command_Map *map;
+    Do_View_Function *do_view;
+};
+
+struct Live_Views{
+    void *views;
+    View free_sentinel;
+    i32 count, max;
+    i32 stride;
+};
+
+struct View_And_ID{
+    View *view;
+    i32 id;
+};
+
+internal View*
+live_set_get_view(Live_Views *live_set, i32 id){
+    void *result = ((char*)live_set->views + id);
+    return (View*)result;
 }
 
-inline real32
+internal View_And_ID
+live_set_alloc_view(Live_Views *live_set, Mem_Options *mem){
+    View_And_ID result = {};
+    
+    Assert(live_set->count < live_set->max);
+    ++live_set->count;
+    
+    result.view = live_set->free_sentinel.next;
+    result.id = (i32)((char*)result.view - (char*)live_set->views);
+    
+    dll_remove(result.view);
+    memset(result.view, 0, live_set->stride);
+    
+    return(result);
+}
+
+inline void
+live_set_free_view(System_Functions *system, Exchange *exchange, Live_Views *live_set, View *view){
+    Assert(live_set->count > 0);
+    --live_set->count;
+    view->do_view(system, exchange, view, {}, 0, VMSG_FREE, 0, {}, 0);
+    dll_insert(&live_set->free_sentinel, view);
+}
+
+inline void
+view_set_first(View *new_view, Panel *panel){
+    new_view->panel = panel;
+    panel->view = new_view;
+}
+
+inline f32
+view_base_compute_width(View *view){
+    Panel *panel = view->panel;
+    return (f32)(panel->inner.x1 - panel->inner.x0);
+}
+
+inline f32
 view_base_compute_height(View *view){
     Panel *panel = view->panel;
-    return (real32)(panel->inner.y1 - panel->inner.y0);
+    return (f32)(panel->inner.y1 - panel->inner.y0);
 }
 
 #define view_compute_width(view) (view_base_compute_width(&(view)->view_base))
 #define view_compute_height(view) (view_base_compute_height(&(view)->view_base))
+
+struct Interactive_Style{
+    u32 bar_color;
+    u32 bar_active_color;
+    u32 base_color;
+    u32 pop1_color;
+    u32 pop2_color;
+};
+
+struct Interactive_Bar{
+    Interactive_Style style;
+    f32 pos_x, pos_y;
+    f32 text_shift_x, text_shift_y;
+    i32_Rect rect;
+    i16 font_id;
+};
+
+internal void
+intbar_draw_string(Render_Target *target,
+                   Interactive_Bar *bar, u8 *str, u32 char_color){
+    i16 font_id = bar->font_id;
+
+    draw_string(target, font_id, (char*)str,
+        (i32)(bar->pos_x + bar->text_shift_x),
+        (i32)(bar->pos_y + bar->text_shift_y),
+        char_color);
+    bar->pos_x += font_string_width(target, font_id, (char*)str);
+}
+
+internal void
+intbar_draw_string(Render_Target *target, Interactive_Bar *bar,
+                   String str, u32 char_color){
+    i16 font_id = bar->font_id;
+    
+    draw_string(target, font_id, str,
+        (i32)(bar->pos_x + bar->text_shift_x),
+        (i32)(bar->pos_y + bar->text_shift_y),
+        char_color);
+    bar->pos_x += font_string_width(target, font_id, str);
+}
 
 // BOTTOM
 

@@ -244,27 +244,22 @@ panel_make_empty(System_Functions *system, Exchange *exchange,
     App_Vars *vars, Style *style, Panel *panel){
 
     Mem_Options *mem = &vars->mem;
-    Live_Views *live_set = &vars->live_set;
     Editing_Layout *layout = &vars->layout;
     Working_Set *working_set = &vars->working_set;
-
-    // TODO(allen): vars->delay pointer for directing all delayed actions to appropriate place
     Delay *delay = &vars->delay1;
 
-    View *new_view;
     File_View *file_view;
-
-    new_view = live_set_alloc_view(live_set, mem);
-    if (panel->view){
-        view_replace_major(system, exchange, new_view, panel, live_set);
-    }
-    else{
-        view_set_first(new_view, panel);
-    }
-    file_view = file_view_init(new_view, layout, working_set, delay,
+    View_And_ID new_view;
+    
+    Assert(panel->view == 0);
+    new_view = live_set_alloc_view(&vars->live_set, mem);
+    panel->view = new_view.view;
+    panel->view->panel = panel;
+    
+    file_view = file_view_init(panel->view, layout, working_set, delay,
         &vars->settings, &vars->hot_directory, mem, &vars->styles);
     view_set_file(file_view, 0, vars->font_set, style, 0, 0, 0);
-    new_view->map = app_get_map(vars, mapid_global);
+    panel->view->map = app_get_map(vars, mapid_global);
     
     return(file_view);
 }
@@ -699,12 +694,10 @@ COMMAND_DECL(paste){
     USE_LAYOUT(layout);
     USE_MEM(mem);
 
-    Panel *current_panel;
+    Panel *panel, *used_panels;
     String *src;
     File_View *current_view;
     i32 pos_left, next_cursor_pos;
-    i32 panel_count;
-    i32 i;
 
     if (working_set->clipboard_size > 0){
         view->next_mode.rewrite = 1;
@@ -718,12 +711,11 @@ COMMAND_DECL(paste){
         view_cursor_move(view, next_cursor_pos);
         view->mark = pos_left;
 
-        current_panel = layout->panels;
-        panel_count = layout->panel_count;
-        for (i = 0; i < panel_count; ++i, ++current_panel){
-            current_view = view_to_file_view(current_panel->view);
-
-            if (current_view && current_view->file == file){
+        used_panels = &layout->used_sentinel;
+        for (dll_items(panel, used_panels)){
+            current_view = view_to_file_view(panel->view);
+            
+            if (current_view->file == file){
                 view_post_paste_effect(current_view, 20, pos_left, src->size,
                     current_view->style->main.paste_color);
             }
@@ -738,6 +730,8 @@ COMMAND_DECL(paste_next){
     USE_WORKING_SET(working_set);
     USE_LAYOUT(layout);
     USE_MEM(mem);
+    
+    Panel *panel, *used_panels;
 
     if (working_set->clipboard_size > 0 && view->mode.rewrite == 1){
         view->next_mode.rewrite = 1;
@@ -751,15 +745,12 @@ COMMAND_DECL(paste_next){
 
         view_cursor_move(view, next_cursor_pos);
         view->mark = range.start;
+        
+        used_panels = &layout->used_sentinel;
+        for (dll_items(panel, used_panels)){
+            File_View *current_view = view_to_file_view(panel->view);
 
-        Editing_Layout *layout = command->layout;
-        Panel *panels = layout->panels;
-        i32 panel_count = layout->panel_count;
-        for (i32 i = 0; i < panel_count; ++i){
-            Panel *current_panel = panels + i;
-            File_View *current_view = view_to_file_view(current_panel->view);
-
-            if (current_view && current_view->file == file){
+            if (current_view->file == file){
                 view_post_paste_effect(current_view, 20, range.start, src->size,
                     current_view->style->main.paste_color);
             }
@@ -852,14 +843,7 @@ COMMAND_DECL(interactive_new){
     ProfileMomentFunction();
     USE_FILE_VIEW(fview);
     USE_VARS(vars);
-    USE_PANEL(panel);
-    USE_STYLE(style);
-    USE_EXCHANGE(exchange);
-    
-    if (!fview){
-        fview = panel_make_empty(system, exchange, vars, style, panel);
-    }
-    
+   
     view_show_interactive(system, fview, &vars->map_ui,
         IAct_New, IInt_Sys_File_List, make_lit_string("New: "));
 }
@@ -916,9 +900,7 @@ COMMAND_DECL(interactive_open){
     ProfileMomentFunction();
     USE_VARS(vars);
     USE_PANEL(panel);
-    USE_STYLE(style);
     USE_DELAY(delay);
-    USE_EXCHANGE(exchange);
 
     char *filename = 0;
     int filename_len = 0;
@@ -954,10 +936,6 @@ COMMAND_DECL(interactive_open){
         
         File_View *fview = view_to_file_view(view);
 
-        if (!fview){
-            fview = panel_make_empty(system, exchange, vars, style, panel);
-        }
-
         view_show_interactive(system, fview, &vars->map_ui,
             IAct_Open, IInt_Sys_File_List, make_lit_string("Open: "));
     }
@@ -965,9 +943,7 @@ COMMAND_DECL(interactive_open){
 
 internal void
 view_file_in_panel(Command_Data *cmd, Panel *panel, Editing_File *file){
-    Live_Views *live_set = cmd->live_set;
     Mem_Options *mem = cmd->mem;
-    Exchange *exchange = cmd->exchange;
     System_Functions *system = cmd->system;
     Editing_Layout *layout = cmd->layout;
     App_Vars *vars = cmd->vars;
@@ -977,17 +953,14 @@ view_file_in_panel(Command_Data *cmd, Panel *panel, Editing_File *file){
     
     Partition old_part;
     Temp_Memory temp;
-    View *new_view, *old_view;
+    View *old_view;
     File_View *file_view;
-    
-    new_view = live_set_alloc_view(live_set, mem);
-    view_replace_major(system, exchange, new_view, panel, live_set);
 
-    file_view = file_view_init(new_view, layout, working_set, delay,
+    file_view = file_view_init(panel->view, layout, working_set, delay,
         &vars->settings, &vars->hot_directory, mem, &vars->styles);
 
     old_view = cmd->view;
-    cmd->view = new_view;
+    cmd->view = panel->view;
 
     old_part = cmd->part;
     temp = begin_temp_memory(&mem->part);
@@ -1000,7 +973,7 @@ view_file_in_panel(Command_Data *cmd, Panel *panel, Editing_File *file){
     end_temp_memory(temp);
     cmd->view = old_view;
 
-    new_view->map = app_get_map(vars, file->settings.base_map_id);
+    panel->view->map = app_get_map(vars, file->settings.base_map_id);
 }
 
 // TODO(allen): Improvements to reopen
@@ -1086,14 +1059,7 @@ COMMAND_DECL(interactive_save_as){
     ProfileMomentFunction();
     USE_FILE_VIEW(fview);
     USE_VARS(vars);
-    USE_PANEL(panel);
-    USE_STYLE(style);
-    USE_EXCHANGE(exchange);
-    
-    if (!fview){
-        fview = panel_make_empty(system, exchange, vars, style, panel);
-    }
-    
+     
     view_show_interactive(system, fview, &vars->map_ui,
         IAct_Save_As, IInt_Sys_File_List, make_lit_string("Save As: "));
 }
@@ -1101,25 +1067,19 @@ COMMAND_DECL(interactive_save_as){
 COMMAND_DECL(change_active_panel){
     ProfileMomentFunction();
     USE_LAYOUT(layout);
-    if (layout->panel_count > 1){
-        ++layout->active_panel;
-        if (layout->active_panel >= layout->panel_count){
-            layout->active_panel = 0;
-        }
+    USE_PANEL(panel);
+
+    panel = panel->next;
+    if (panel == &layout->used_sentinel){
+        panel = panel->next;
     }
+    layout->active_panel = (i32)(panel - layout->panels);
 }
 
 COMMAND_DECL(interactive_switch_buffer){
     ProfileMomentFunction();
     USE_FILE_VIEW(fview);
     USE_VARS(vars);
-    USE_PANEL(panel);
-    USE_STYLE(style);
-    USE_EXCHANGE(exchange);
-    
-    if (!fview){
-        fview = panel_make_empty(system, exchange, vars, style, panel);
-    }
     
     view_show_interactive(system, fview, &vars->map_ui,
         IAct_Switch, IInt_Live_File_List, make_lit_string("Switch Buffer: "));
@@ -1129,13 +1089,6 @@ COMMAND_DECL(interactive_kill_buffer){
     ProfileMomentFunction();
     USE_FILE_VIEW(fview);
     USE_VARS(vars);
-    USE_PANEL(panel);
-    USE_STYLE(style);
-    USE_EXCHANGE(exchange);
-    
-    if (!fview){
-        fview = panel_make_empty(system, exchange, vars, style, panel);
-    }
     
     view_show_interactive(system, fview, &vars->map_ui,
         IAct_Kill, IInt_Live_File_List, make_lit_string("Kill Buffer: "));
@@ -1360,20 +1313,20 @@ COMMAND_DECL(open_panel_vsplit){
 
     if (layout->panel_count < layout->panel_max_count){
         Split_Result split = layout_split_panel(layout, panel, 1);
-
+        
         Panel *panel1 = panel;
         Panel *panel2 = split.panel;
-
+        
         panel2->screen_region = panel1->screen_region;
-
+        
         panel2->full.x0 = split.divider->pos;
         panel2->full.x1 = panel1->full.x1;
         panel1->full.x1 = split.divider->pos;
-
+        
         panel_fix_internal_area(panel1);
         panel_fix_internal_area(panel2);
         panel2->prev_inner = panel2->inner;
-
+        
         layout->active_panel = (i32)(panel2 - layout->panels);
         panel_make_empty(system, exchange, vars, style, panel2);
     }
@@ -1386,23 +1339,23 @@ COMMAND_DECL(open_panel_hsplit){
     USE_EXCHANGE(exchange);
     USE_VARS(vars);
     USE_STYLE(style);
-
+    
     if (layout->panel_count < layout->panel_max_count){
         Split_Result split = layout_split_panel(layout, panel, 0);
-
+        
         Panel *panel1 = panel;
         Panel *panel2 = split.panel;
-
+        
         panel2->screen_region = panel1->screen_region;
-
+        
         panel2->full.y0 = split.divider->pos;
         panel2->full.y1 = panel1->full.y1;
         panel1->full.y1 = split.divider->pos;
-
+        
         panel_fix_internal_area(panel1);
         panel_fix_internal_area(panel2);
         panel2->prev_inner = panel2->inner;
-
+        
         layout->active_panel = (i32)(panel2 - layout->panels);
         panel_make_empty(system, exchange, vars, style, panel2);
     }
@@ -1414,67 +1367,77 @@ COMMAND_DECL(close_panel){
     USE_PANEL(panel);
     USE_VIEW(view);
     USE_EXCHANGE(exchange);
-
+    
+    Panel *panel_ptr, *used_panels;
+    Divider_And_ID div, parent_div, child_div;
+    i32 child;
+    i32 parent;
+    i32 which_child;
+    i32 active;
+    
     if (layout->panel_count > 1){
-        if (view){
-            live_set_free_view(system, exchange, command->live_set, view);
-            panel->view = 0;
-        }
-
-        Divider_And_ID div = layout_get_divider(layout, panel->parent);
+        live_set_free_view(system, exchange, command->live_set, view);
+        panel->view = 0;
+        
+        div = layout_get_divider(layout, panel->parent);
+        
+        // This divider cannot have two child dividers.
         Assert(div.divider->child1 == -1 || div.divider->child2 == -1);
-
-        i32 child;
-        if (div.divider->child1 == -1){
-            child = div.divider->child2;
-        }
-        else{
-            child = div.divider->child1;
-        }
-
-        i32 parent = div.divider->parent;
-        i32 which_child = div.divider->which_child;
-        if (parent != -1){
-            Divider_And_ID par = layout_get_divider(layout, parent);
-            if (which_child == -1){
-                par.divider->child1 = child;
-            }
-            else{
-                par.divider->child2 = child;
-            }
-        }
-        else{
+        
+        // Get the child who needs to fill in this node's spot
+        child = div.divider->child1;
+        if (child == -1) child = div.divider->child2;
+        
+        parent = div.divider->parent;
+        which_child = div.divider->which_child;
+        
+        // Fill the child in the slot this node use to hold
+        if (parent == -1){
             Assert(layout->root == div.id);
             layout->root = child;
         }
-
-        if (child != -1){
-            Divider_And_ID chi = layout_get_divider(layout, child);
-            chi.divider->parent = parent;
-            chi.divider->which_child = div.divider->which_child;
+        else{
+            parent_div = layout_get_divider(layout, parent);
+            if (which_child == -1){
+                parent_div.divider->child1 = child;
+            }
+            else{
+                parent_div.divider->child2 = child;
+            }
         }
-
-        layout_free_divider(layout, div.divider);
-        layout_free_panel(layout, panel);
-
+        
+        // If there was a child divider, give it information about it's new parent.
+        if (child != -1){
+            child_div = layout_get_divider(layout, child);
+            child_div.divider->parent = parent;
+            child_div.divider->which_child = div.divider->which_child;
+        }
+        
+        // What is the new active panel?
+        active = -1;
         if (child == -1){
-            panel = layout->panels;
-            layout->active_panel = -1;
-            for (i32 i = 0; i < layout->panel_count; ++i){
-                if (panel->parent == div.id){
-                    panel->parent = parent;
-                    panel->which_child = which_child;
-                    layout->active_panel = i;
+            used_panels = &layout->used_sentinel;
+            for (dll_items(panel_ptr, used_panels)){
+                if (panel_ptr != panel && panel_ptr->parent == div.id){
+                    panel_ptr->parent = parent;
+                    panel_ptr->which_child = which_child;
+                    active = (i32)(panel_ptr - layout->panels);
                     break;
                 }
-                ++panel;
             }
-            Assert(layout->active_panel != -1);
         }
         else{
-            layout->active_panel = layout->active_panel % layout->panel_count;
+            panel_ptr = panel->next;
+            if (panel_ptr == &layout->used_sentinel) panel_ptr = panel_ptr->next;
+            Assert(panel_ptr != panel);
+            active = (i32)(panel_ptr - layout->panels);
         }
-
+        
+        Assert(active != -1 && panel != layout->panels + active);
+        layout->active_panel = active;
+        
+        layout_free_divider(layout, div.divider);
+        layout_free_panel(layout, panel);
         layout_fix_all_panels(layout);
     }
 }
@@ -1619,40 +1582,9 @@ COMMAND_DECL(page_up){
 }
 
 COMMAND_DECL(open_color_tweaker){
-#if 0
-    ProfileMomentFunction();
-    USE_VARS(vars);
-    USE_LIVE_SET(live_set);
-    USE_MEM(mem);
-    USE_PANEL(panel);
-    USE_EXCHANGE(exchange);
-
-    {
-        View *new_view = live_set_alloc_view(live_set, mem);
-        view_replace_minor(system, exchange, new_view, panel, live_set);
-
-        new_view->map = &vars->map_ui;
-
-        Color_View *color_view = color_view_init(new_view, &vars->working_set);
-        color_view->hot_directory = &vars->hot_directory;
-        color_view->main_style = &vars->style;
-        color_view->styles = &vars->styles;
-        color_view->palette = vars->palette;
-        color_view->palette_size = vars->palette_size;
-        color_view->font_set = vars->font_set;
-    }
-#endif
-    
     ProfileMomentFunction();
     USE_FILE_VIEW(fview);
     USE_VARS(vars);
-    USE_PANEL(panel);
-    USE_STYLE(style);
-    USE_EXCHANGE(exchange);
-    
-    if (!fview){
-        fview = panel_make_empty(system, exchange, vars, style, panel);
-    }
     
     view_show_theme(fview, &vars->map_ui);
 }
@@ -1661,13 +1593,6 @@ COMMAND_DECL(open_config){
     ProfileMomentFunction();
     USE_FILE_VIEW(fview);
     USE_VARS(vars);
-    USE_PANEL(panel);
-    USE_STYLE(style);
-    USE_EXCHANGE(exchange);
-    
-    if (!fview){
-        fview = panel_make_empty(system, exchange, vars, style, panel);
-    }
     
     view_show_config(fview, &vars->map_ui);
 }
@@ -1676,13 +1601,6 @@ COMMAND_DECL(open_menu){
     ProfileMomentFunction();
     USE_FILE_VIEW(fview);
     USE_VARS(vars);
-    USE_PANEL(panel);
-    USE_STYLE(style);
-    USE_EXCHANGE(exchange);
-    
-    if (!fview){
-        fview = panel_make_empty(system, exchange, vars, style, panel);
-    }
     
     view_show_menu(fview, &vars->map_ui);
 }
@@ -3036,61 +2954,63 @@ App_Init_Sig(app_init){
     Partition *partition = &vars->mem.part;
     target->partition = partition;
     
-    Panel *panels;
+    Panel *panels, *panel;
     Panel_Divider *dividers, *div;
     i32 panel_max_count;
     i32 divider_max_count;
     
-    panel_max_count = vars->layout.panel_max_count = 16;
-    divider_max_count = panel_max_count - 1;
-    vars->layout.panel_count = 1;
-    
-    panels = push_array(partition, Panel, panel_max_count);
-    vars->layout.panels = panels;
-    
-    dividers = push_array(partition, Panel_Divider, divider_max_count);
-    vars->layout.dividers = dividers;
-    
-    div = dividers;
-    for (i32 i = 0; i < divider_max_count-1; ++i, ++div){
-        div->next = (div + 1);
+    {
+        i32 i;
+        
+        panel_max_count = vars->layout.panel_max_count = 16;
+        divider_max_count = panel_max_count - 1;
+        vars->layout.panel_count = 0;
+        
+        panels = push_array(partition, Panel, panel_max_count);
+        vars->layout.panels = panels;
+        
+        dll_init_sentinel(&vars->layout.free_sentinel);
+        dll_init_sentinel(&vars->layout.used_sentinel);
+        
+        panel = panels;
+        for (i = 0; i < panel_max_count; ++i, ++panel){
+            dll_insert(&vars->layout.free_sentinel, panel);
+        }
+        
+        dividers = push_array(partition, Panel_Divider, divider_max_count);
+        vars->layout.dividers = dividers;
+        
+        div = dividers;
+        for (i = 0; i < divider_max_count-1; ++i, ++div){
+            div->next = (div + 1);
+        }
+        div->next = 0;
+        vars->layout.free_divider = dividers;
     }
-    div->next = 0;
-    vars->layout.free_divider = dividers;
     
-    i32 view_chunk_size = 0;
-    i32 view_sizes[] = {
-        sizeof(File_View)
-    };
-
     {
         char *vptr = 0;
-        View *v = 0, *n = 0;
-        i32 i = 0, max = 0;
+        View *v = 0;
+        i32 i = 0;
+        i32 max = 0;
+        i32 view_size = sizeof(File_View);
         
         vars->live_set.count = 0;
         vars->live_set.max = panel_max_count;
-
-        for (i = 0; i < ArrayCount(view_sizes); ++i){
-            view_chunk_size = Max(view_chunk_size, view_sizes[i]);
-        }
-        vars->live_set.stride = view_chunk_size;
-        vars->live_set.views = push_block(partition, view_chunk_size*vars->live_set.max);
+        
+        vars->live_set.stride = view_size;
+        vars->live_set.views = push_block(partition, view_size*vars->live_set.max);
+        
+        dll_init_sentinel(&vars->live_set.free_sentinel);
         
         max = vars->live_set.max;
         vptr = (char*)vars->live_set.views;
-        vars->live_set.free_view = (View*)vptr;
-        for (i = 0; i < max; ++i){
+        for (i = 0; i < max; ++i, vptr += view_size){
             v = (View*)(vptr);
-            n = (View*)(vptr + view_chunk_size);
-            v->next_free = n;
-            vptr = (char*)n;
+            dll_insert(&vars->live_set.free_sentinel, v);
         }
-        v->next_free = 0;
     }
-
-
-
+    
     setup_command_table();
     
     Command_Map *global = &vars->map_top;
@@ -3302,16 +3222,17 @@ App_Init_Sig(app_init){
 
     vars->palette_size = 40;
     vars->palette = push_array(partition, u32, vars->palette_size);
-
+    
     // NOTE(allen): init first panel
-    panel_init(&panels[0]);
-    panel_make_empty(system, exchange, vars, &vars->style, &panels[0]);
-
+    Panel_And_ID p = layout_alloc_panel(&vars->layout);
+    panel_make_empty(system, exchange, vars, &vars->style, p.panel);
+    vars->layout.active_panel = p.id;
+    
     String hdbase = make_fixed_width_string(vars->hot_dir_base_);
     hot_directory_init(&vars->hot_directory, hdbase, current_directory, system->slash);
-
+    
     vars->mini_str = make_string((char*)vars->mini_buffer, 0, 512);
-
+    
     // NOTE(allen): child proc list setup
     i32 max_children = 16;
     partition_align(partition, 8);
@@ -3323,6 +3244,21 @@ App_Init_Sig(app_init){
     vars->sys_app_max = exchange->file.max;
     vars->sys_app_count = 0;
     vars->sys_app_bindings = (Sys_App_Binding*)push_array(partition, Sys_App_Binding, vars->sys_app_max);
+}
+
+// NOTE(allen): while I transition away from this view system to something that has
+// more unified behavior, I will use this to add checks to the program's state so that I
+// can make sure it behaving well.
+internal void
+correctness_check(App_Vars *vars){
+    Panel *panel, *used_panels;
+    used_panels = &vars->layout.used_sentinel;
+    for (dll_items(panel, used_panels)){
+        Assert(panel->view);
+        Assert(panel->parent != -1 || vars->layout.panel_count == 1);
+    }
+    panel = vars->layout.panels + vars->layout.active_panel;
+    Assert(panel->ALLOCED);
 }
 
 App_Step_Sig(app_step){
@@ -3361,7 +3297,6 @@ App_Step_Sig(app_step){
     }
 
     // NOTE(allen): update child processes
-    Panel *panels = vars->layout.panels;
     if (time_step){
         Temp_Memory temp = begin_temp_memory(&vars->mem.part);
         u32 max = Kbytes(32);
@@ -3416,11 +3351,14 @@ App_Step_Sig(app_step){
                     new_cursor = spec.step.post_pos;
                 }
 
-                Panel *panel = panels;
-                i32 panel_count = vars->layout.panel_count;
-                for (i32 i = 0; i < panel_count; ++i, ++panel){
-                    View *view = panel->view;
-                    File_View *fview = view_to_file_view(view);
+                Panel *panel, *used_panels;
+                View *view;
+                File_View *fview;
+                
+                used_panels = &vars->layout.used_sentinel;
+                for (dll_items(panel, used_panels)){
+                    view = panel->view;
+                    fview = view_to_file_view(view);
                     Assert(fview);
                     if (fview->file == out_file){
                         view_cursor_move(fview, new_cursor);
@@ -3428,7 +3366,7 @@ App_Step_Sig(app_step){
                 }
             }
         }
-
+        
         vars->cli_processes.count = count;
         end_temp_memory(temp);
     }
@@ -3439,20 +3377,18 @@ App_Step_Sig(app_step){
         i32 prev_height = vars->layout.full_height;
         i32 current_width = target->width;
         i32 current_height = target->height;
-        
-        Panel *panel;
+
+        Panel *panel, *used_panels;
         File_View *fview;
-        i32 i, count;
         
         vars->layout.full_width = current_width;
         vars->layout.full_height = current_height;
         
         if (prev_width != current_width || prev_height != current_height){
             layout_refit(&vars->layout, prev_width, prev_height);
-            
-            count = vars->layout.panel_count;
-            panel = panels;
-            for (i = 0; i < count; ++i, ++panel){
+
+            used_panels = &vars->layout.used_sentinel;
+            for (dll_items(panel, used_panels)){
                 fview = view_to_file_view(panel->view);
                 Assert(fview);
                 // TODO(allen): All responses to a panel changing size should
@@ -3477,18 +3413,7 @@ App_Step_Sig(app_step){
     
     ProfileEnd(OS_syncing);
     
-    // NOTE(allen): while I transition away from this view system to something that has
-    // more unified behavior, I will use this to add checks to the program's state so that I
-    // can make sure it behaving well.
-    ProfileStart(correctness_checks);
-    {
-        Panel *panel = panels;
-        i32 panel_count = vars->layout.panel_count;
-        for (i32 i = 0; i < panel_count; ++i, ++panel){
-            Assert(panel->view);
-        }
-    }
-    ProfileEnd(correctness_checks);
+    correctness_check(vars);
     
     ProfileStart(hover_status);
     // NOTE(allen): detect mouse hover status
@@ -3496,12 +3421,10 @@ App_Step_Sig(app_step){
     i32 my = mouse->y;
     b32 mouse_in_edit_area = 0;
     b32 mouse_in_margin_area = 0;
-    Panel *mouse_panel = 0;
-    i32 mouse_panel_i = 0;
-    i32 panel_count = vars->layout.panel_count;
-
-    mouse_panel = panels;
-    for (mouse_panel_i = 0; mouse_panel_i < panel_count; ++mouse_panel_i, ++mouse_panel){
+    Panel *mouse_panel, *used_panels;
+    
+    used_panels = &vars->layout.used_sentinel;
+    for (dll_items(mouse_panel, used_panels)){
         if (hit_check(mx, my, mouse_panel->inner)){
             mouse_in_edit_area = 1;
             break;
@@ -3514,7 +3437,6 @@ App_Step_Sig(app_step){
 
     if (!(mouse_in_edit_area || mouse_in_margin_area)){
         mouse_panel = 0;
-        mouse_panel_i = 0;
     }
 
     b32 mouse_on_divider = 0;
@@ -3572,13 +3494,15 @@ App_Step_Sig(app_step){
     }
     ProfileEnd(hover_status);
 
+    correctness_check(vars);
+    
     // NOTE(allen): prepare to start executing commands
-    ProfileStart(command_coroutine);
+    ProfileStart(prepare_commands);
     
     Command_Data *cmd = &vars->command_data;
-
+    
     cmd->mem = &vars->mem;
-    cmd->panel = panels + vars->layout.active_panel;
+    cmd->panel = vars->layout.panels + vars->layout.active_panel;
     cmd->view = cmd->panel->view;
     cmd->working_set = &vars->working_set;
     cmd->layout = &vars->layout;
@@ -3590,16 +3514,16 @@ App_Step_Sig(app_step){
     cmd->screen_width = target->width;
     cmd->screen_height = target->height;
     cmd->system = system;
-
+    
     Temp_Memory param_stack_temp = begin_temp_memory(&vars->mem.part);
     cmd->part = partition_sub_part(&vars->mem.part, 16 << 10);
-
+    
     if (first_step){
         if (vars->hooks[hook_start]){
             vars->hooks[hook_start](&app_links);
             cmd->part.pos = 0;
         }
-
+        
         i32 i;
         String file_name;
         Panel *panel = vars->layout.panels;
@@ -3617,7 +3541,7 @@ App_Step_Sig(app_step){
             }
         }
     }
-    ProfileEnd(hover_status);
+    ProfileEnd(prepare_commands);
 
     // NOTE(allen): process the command_coroutine if it is unfinished
     ProfileStart(command_coroutine);
@@ -3753,6 +3677,8 @@ App_Step_Sig(app_step){
     
     ProfileEnd(command_coroutine);
 
+    correctness_check(vars);
+    
     // NOTE(allen): pass raw input to the panels
     ProfileStart(step);
 
@@ -3794,28 +3720,29 @@ App_Step_Sig(app_step){
     if (consumed_input[5]){
         mouse_state.wheel = 0;
     }
-
+    
     {
-        Panel *panel = panels;
-        for (i32 panel_i = vars->layout.panel_count; panel_i > 0; --panel_i, ++panel){
+        Panel *panel, *used_panels;
+        used_panels = &vars->layout.used_sentinel;
+        for (dll_items(panel, used_panels)){
             View *view_ = panel->view;
-            if (view_){
-                Assert(view_->do_view);
-                b32 active = (panel == cmd->panel);
-                Input_Summary input = (active)?(active_input):(dead_input);
-                if (panel == mouse_panel && !mouse->out_of_window){
-                    input.mouse = mouse_state;
-                }
-                if (view_->do_view(system, exchange, view_, panel->inner, cmd->view,
-                        VMSG_STEP, 0, &input, &active_input)){
-                    app_result.redraw = 1;
-                }
+            Assert(view_->do_view);
+            b32 active = (panel == cmd->panel);
+            Input_Summary input = (active)?(active_input):(dead_input);
+            if (panel == mouse_panel && !mouse->out_of_window){
+                input.mouse = mouse_state;
+            }
+            if (view_->do_view(system, exchange, view_, panel->inner, cmd->view,
+                    VMSG_STEP, 0, &input, &active_input)){
+                app_result.redraw = 1;
             }
         }
     }
     
     update_command_data(vars, cmd);
     ProfileEnd(step);
+    
+    correctness_check(vars);
     
     // NOTE(allen): command execution
     ProfileStart(command);
@@ -3877,7 +3804,9 @@ App_Step_Sig(app_step){
     
     update_command_data(vars, cmd);
     ProfileEnd(command);
-
+    
+    correctness_check(vars);
+    
     ProfileStart(resizing);
     // NOTE(allen): panel resizing
     switch (vars->state){
@@ -3976,12 +3905,14 @@ App_Step_Sig(app_step){
     }
 
     if (mouse_in_edit_area && mouse_panel != 0 && mouse->press_l){
-        vars->layout.active_panel = mouse_panel_i;
+        vars->layout.active_panel = (i32)(mouse_panel - vars->layout.panels);
         app_result.redraw = 1;
     }
     
     update_command_data(vars, cmd);
     ProfileEnd(resizing);
+    
+    correctness_check(vars);
     
     // NOTE(allen): processing sys app bindings
     ProfileStart(sys_app_bind_processing);
@@ -4227,17 +4158,13 @@ App_Step_Sig(app_step){
                     file_create_empty(system, mem, working_set, file.file, string.str,
                         vars->font_set, style->font_id);
                     table_add(&working_set->table, file.file->name.source_path, file.index);
-
-                    View *new_view = live_set_alloc_view(live_set, mem);
-                    view_replace_major(system, exchange, new_view, panel, live_set);
-
-                    File_View *file_view = file_view_init(
-                        new_view, &vars->layout, working_set, &vars->delay2,
-                        &vars->settings, &vars->hot_directory, mem, &vars->styles);
-                    cmd->view = (View*)file_view;
-                    view_set_file(file_view, file.file, vars->font_set, style,
+                    
+                    View *view = panel->view;
+                    File_View *fview = view_to_file_view(view);
+                    
+                    view_set_file(fview, file.file, vars->font_set, style,
                         system,  vars->hooks[hook_open_file], &app_links);
-                    new_view->map = app_get_map(vars, file.file->settings.base_map_id);
+                    view->map = app_get_map(vars, file.file->settings.base_map_id);
 #if BUFFER_EXPERIMENT_SCALPEL <= 0
                     if (file.file->settings.tokens_exist)
                         file_first_lex_parallel(system, general, file.file);
@@ -4248,18 +4175,12 @@ App_Step_Sig(app_step){
                 {
                     Editing_File *file = working_set_lookup_file(working_set, string);
                     if (file){
-                        View *new_view = live_set_alloc_view(live_set, mem);
-                        view_replace_major(system, exchange, new_view, panel, live_set);
-
-                        File_View *file_view = file_view_init(
-                            new_view, &vars->layout, working_set, &vars->delay2,
-                            &vars->settings, &vars->hot_directory, mem, &vars->styles);
-                        cmd->view = (View*)file_view;
-
-                        view_set_file(file_view, file, vars->font_set, style,
+                        View *view = panel->view;
+                        File_View *fview = view_to_file_view(view);
+                        
+                        view_set_file(fview, file, vars->font_set, style,
                             system, vars->hooks[hook_open_file], &app_links);
-
-                        new_view->map = app_get_map(vars, file->settings.base_map_id);
+                        view->map = app_get_map(vars, file->settings.base_map_id);
                     }
                 }break;
 
@@ -4308,15 +4229,18 @@ App_Step_Sig(app_step){
         }
         Swap(vars->delay1, vars->delay2);
     }
+    
+    end_temp_memory(param_stack_temp);
     ProfileEnd(delayed_actions);
 
-    end_temp_memory(param_stack_temp);
+    correctness_check(vars);
 
     ProfileStart(resize);
     // NOTE(allen): send resize messages to panels that have changed size
     {
-        Panel *panel = panels;
-        for (i32 panel_i = vars->layout.panel_count; panel_i > 0; --panel_i, ++panel){
+        Panel *panel, *used_panels;
+        used_panels = &vars->layout.used_sentinel;
+        for (dll_items(panel, used_panels)){
             i32_Rect prev = panel->prev_inner;
             i32_Rect inner = panel->inner;
             if (prev.x0 != inner.x0 || prev.y0 != inner.y0 ||
@@ -4349,10 +4273,10 @@ App_Step_Sig(app_step){
                     &file->state.buffer, advance_data);
             }
         }
-
-        Panel *panel = panels;
-        i32 count = vars->layout.panel_count;
-        for (i32 i = 0; i < count; ++i, ++panel){
+        
+        Panel *panel, *used_panels;
+        used_panels = &vars->layout.used_sentinel;
+        for (dll_items(panel, used_panels)){
             View *view = panel->view;
             if (view){
                 view->do_view(system, exchange,
@@ -4362,6 +4286,8 @@ App_Step_Sig(app_step){
         }
     }
     ProfileEnd(style_change);
+
+    correctness_check(vars);
     
     ProfileStart(redraw);
     if (mouse_panel != vars->prev_mouse_panel) app_result.redraw = 1;
@@ -4372,11 +4298,12 @@ App_Step_Sig(app_step){
         draw_push_clip(target, rect_from_target(target));
         
         // NOTE(allen): render the panels
-        Panel *panel = panels;
-        for (i32 panel_i = vars->layout.panel_count; panel_i > 0; --panel_i, ++panel){
+        Panel *panel, *used_panels;
+        used_panels = &vars->layout.used_sentinel;
+        for (dll_items(panel, used_panels)){
             i32_Rect full = panel->full;
             i32_Rect inner = panel->inner;
-            
+
             View *view = panel->view;
             Style *style = &vars->style;
             
@@ -4416,13 +4343,7 @@ App_Step_Sig(app_step){
     ProfileStart(get_cursor);
     // NOTE(allen): get cursor type
     if (mouse_in_edit_area){
-        View *view = mouse_panel->view;
-        if (view){
-            app_result.mouse_cursor_type = view->mouse_cursor_type;
-        }
-        else{
             app_result.mouse_cursor_type = APP_MOUSE_CURSOR_ARROW;
-        }
     }
     else if (mouse_in_margin_area){
         if (mouse_on_divider){
@@ -4443,6 +4364,8 @@ App_Step_Sig(app_step){
     *result = app_result;
     result->lctrl_lalt_is_altgr = vars->settings.lctrl_lalt_is_altgr;
     
+    correctness_check(vars);
+
     // end-of-app_step
 }
 

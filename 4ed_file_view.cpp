@@ -414,27 +414,6 @@ get_opaque_font_advance(Render_Font *font){
     return result;
 }
 
-#if 0
-internal void
-file_grow_widths_as_needed(General_Memory *general, Buffer_Type *buffer){
-    i32 line_count = buffer->line_count;
-    if (line_count > buffer->widths_max || buffer->widths_max == 0){
-        i32 new_max = LargeRoundUp(line_count, Kbytes(1));
-        if (new_max < Kbytes(1)) new_max = Kbytes(1);
-        if (buffer->line_widths){
-            buffer->line_widths = (f32*)
-                general_memory_reallocate(general, buffer->line_widths,
-                                          sizeof(f32)*buffer->widths_count, sizeof(f32)*new_max, BUBBLE_WIDTHS);
-        }
-        else{
-            buffer->line_widths = (f32*)
-                general_memory_allocate(general, sizeof(f32)*new_max, BUBBLE_WIDTHS);
-        }
-        buffer->widths_max = new_max;
-    }
-}
-#endif
-
 internal void
 file_remeasure_widths_(System_Functions *system,
                       General_Memory *general, Buffer_Type *buffer, Render_Font *font,
@@ -1498,25 +1477,6 @@ view_set_widget(File_View *view, File_View_Widget_Type type){
 }
 
 
-#if 0
-inline i32
-view_widget_height(File_View *view, i32 font_height){
-    i32 result = 0;
-    switch (view->widget.type){
-    case FWIDG_NONE:
-    {
-        Query_Slot *slot;
-        for (slot = view->query_set.used_slot; slot != 0; slot = slot->next){
-            result += view->font_height + 2;
-        }
-    }
-    break;
-    case FWIDG_TIMELINES: result = view->widget.height; break;
-    }
-    return result;
-}
-#endif
-
 inline i32_Rect
 view_widget_rect(File_View *view, i32 font_height){
     Panel *panel = view->view_base.panel;
@@ -1525,13 +1485,6 @@ view_widget_rect(File_View *view, i32 font_height){
     if (view->file){
         result.y0 = result.y0 + font_height + 2;
     }
-    
-#if 0
-    if (view->file){
-        result.y0 = result.y0 + font_height + 2;
-    }
-    result.y1 = result.y0 + view_widget_height(view, font_height);
-#endif
     
     return(result);
 }
@@ -2869,7 +2822,6 @@ interactive_view_complete(File_View *view){
         
         case IAct_Save_As:
         delayed_save_as(view->delay, view->hot_directory->string, panel);
-        view_show_file(view, 0);
         break;
         
         case IAct_New:
@@ -2899,9 +2851,9 @@ interactive_view_complete(File_View *view){
             delayed_kill(view->delay, view->dest, panel);
             break;
         }
-        view_show_file(view, 0);
         break;
     }
+    view_show_file(view, 0);
 }
 
 internal void
@@ -3513,7 +3465,6 @@ config_shit(File_View *view, UI_State *state, UI_Layout *layout){
 internal i32
 step_file_view(System_Functions *system, Exchange *exchange, View *view_, i32_Rect rect,
     b32 is_active, Input_Summary *user_input){
-    view_->mouse_cursor_type = APP_MOUSE_CURSOR_IBEAM;
     
     i32 result = 0;
     File_View *view = (File_View*)view_;
@@ -3564,13 +3515,6 @@ step_file_view(System_Functions *system, Exchange *exchange, View *view_, i32_Re
         f32 delta_y = 3.f*line_height;
         f32 extra_top = (f32)widget_height;
         f32 taken_top_space = line_height + extra_top;
-
-        if (user_input->mouse.y < rect.y0 + taken_top_space){
-            view_->mouse_cursor_type = APP_MOUSE_CURSOR_ARROW;
-        }
-        else{
-            view_->mouse_cursor_type = APP_MOUSE_CURSOR_IBEAM;
-        }
 
         if (user_input->mouse.wheel != 0){
             f32 wheel_multiplier = 3.f;
