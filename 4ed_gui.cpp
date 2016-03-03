@@ -550,12 +550,13 @@ get_pop_color(UI_State *state, u32 *pop, Widget_ID wid, UI_Style style){
 
 internal UI_State
 ui_state_init(UI_State *state_in, Render_Target *target, Input_Summary *user_input,
-              Style *style, Font_Set *font_set, Working_Set *working_set, b32 input_stage){
+              Style *style, i16 font_id, Font_Set *font_set, Working_Set *working_set,
+              b32 input_stage){
     UI_State state = {};
     state.target = target;
     state.style = style;
     state.font_set = font_set;
-    state.font_id = style->font_id;
+    state.font_id = font_id;
     state.working_set = working_set;
     if (user_input){
         state.mouse = &user_input->mouse;
@@ -821,7 +822,7 @@ internal b32
 do_button(i32 id, UI_State *state, UI_Layout *layout, char *text, i32 height_mult,
           b32 is_toggle = 0, b32 on = 0){
     b32 result = 0;
-    i16 font_id = state->style->font_id;
+    i16 font_id = state->font_id;
     i32 character_h = get_font_info(state->font_set, font_id)->height;
 
     i32_Rect btn_rect = layout_rect(layout, character_h * height_mult);
@@ -869,7 +870,7 @@ do_button(i32 id, UI_State *state, UI_Layout *layout, char *text, i32 height_mul
 internal b32
 do_undo_slider(Widget_ID wid, UI_State *state, UI_Layout *layout, i32 max, i32 v, Undo_Data *undo, i32 *out){
     b32 result = 0;
-    i16 font_id = state->style->font_id;
+    i16 font_id = state->font_id;
     i32 character_h = get_font_info(state->font_set, font_id)->height;
     
     i32_Rect containing_rect = layout_rect(layout, character_h);
@@ -1013,7 +1014,7 @@ do_undo_slider(Widget_ID wid, UI_State *state, UI_Layout *layout, i32 max, i32 v
 internal void
 do_label(UI_State *state, UI_Layout *layout, char *text, int text_size, f32 height = 2.f){
     Style *style = state->style;
-    i16 font_id = style->font_id;
+    i16 font_id = state->font_id;
     i32 line_height = get_font_info(state->font_set, font_id)->height;
     i32_Rect label = layout_rect(layout, FLOOR32(line_height * height));
     
@@ -1178,13 +1179,13 @@ draw_gradient_slider(Render_Target *target, Vec4 base, i32 channel,
 
 inline void
 draw_hsl_slider(Render_Target *target, Vec4 base, i32 channel,
-                i32 steps, real32 top, f32_Rect slider){
+    i32 steps, f32 top, f32_Rect slider){
     draw_gradient_slider(target, base, channel, steps, top, slider, 1);
 }
 
 inline void
 draw_rgb_slider(Render_Target *target, Vec4 base, i32 channel,
-                i32 steps, f32 top, f32_Rect slider){
+    i32 steps, f32 top, f32_Rect slider){
     draw_gradient_slider(target, base, channel, steps, top, slider, 0);
 }
 
@@ -1195,7 +1196,7 @@ do_main_file_box(System_Functions *system, UI_State *state, UI_Layout *layout,
     Style *style = state->style;
     String *string = &hot_directory->string;
 
-    i16 font_id = style->font_id;
+    i16 font_id = state->font_id;
     i32 line_height = get_font_info(state->font_set, font_id)->height;
     i32_Rect box = layout_rect(layout, line_height + 2);
     
@@ -1224,7 +1225,7 @@ do_main_string_box(System_Functions *system, UI_State *state, UI_Layout *layout,
     b32 result = 0;
     Style *style = state->style;
     
-    i16 font_id = style->font_id;
+    i16 font_id = state->font_id;
     i32 line_height = get_font_info(state->font_set, font_id)->height;
     i32_Rect box = layout_rect(layout, line_height + 2);
     
@@ -1251,7 +1252,7 @@ do_list_option(i32 id, UI_State *state, UI_Layout *layout, String text){
     b32 result = 0;
     Style *style = state->style;
         
-    i16 font_id = style->font_id;
+    i16 font_id = state->font_id;
     i32 character_h = get_font_info(state->font_set, font_id)->height;
     
     i32_Rect box = layout_rect(layout, character_h*2);
@@ -1287,7 +1288,7 @@ do_checkbox_list_option(i32 id, UI_State *state, UI_Layout *layout, String text,
     b32 result = 0;
     Style *style = state->style;
     
-    i16 font_id = style->font_id;
+    i16 font_id = state->font_id;
     i32 character_h = get_font_info(state->font_set, font_id)->height;
     
     i32_Rect box = layout_rect(layout, character_h*2);
@@ -1332,7 +1333,7 @@ internal b32
 do_file_option(i32 id, UI_State *state, UI_Layout *layout, String filename, b32 is_folder, String extra, char slash){
     b32 result = 0;
     Style *style = state->style;
-    i16 font_id = style->font_id;
+    i16 font_id = state->font_id;
     i32 character_h = get_font_info(state->font_set, font_id)->height;
     char slash_buf[2] = { slash, 0 };
     
@@ -1556,6 +1557,7 @@ struct Color_UI{
     UI_Layout *layout;
     
     Font_Set *fonts;
+    Style_Font *global_font;
     
     f32 hex_advance;
     u32 *palette;
@@ -1964,7 +1966,7 @@ do_palette(Color_UI *ui, i32_Rect rect){
     
     if (!ui->state->input_stage){
         Render_Target *target = ui->state->target;
-        draw_string(target, style->font_id, "Global Palette: right click to save color",
+        draw_string(target, ui->state->font_id, "Global Palette: right click to save color",
                     layout.x, layout.rect.y0, style->main.default_color);
     }
     
@@ -2233,8 +2235,8 @@ do_font_switch(Color_UI *ui){
         for (i16 i = 1; i < count; ++i){
             if (i == font_id) continue;
             if (do_font_option(ui, i)){
-                ui->state->style->font_id = i;
-                ui->state->style->font_changed = 1;
+                ui->global_font->font_id = i;
+                ui->global_font->font_changed = 1;
             }
         }
         
@@ -2251,7 +2253,7 @@ do_style_preview(Library_UI *ui, Style *style, i32 toggle = -1){
     if (style == ui->state->style) id = 2;
     else id = raw_ptr_dif(style, ui->styles->styles) + 100;
 
-    i16 font_id = style->font_id;
+    i16 font_id = ui->state->font_id;
     Font_Info *info = get_font_info(ui->state->font_set, font_id);
     
     i32_Rect prect = layout_rect(ui->layout, info->height*3 + 6);

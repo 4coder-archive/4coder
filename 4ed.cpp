@@ -62,6 +62,7 @@ struct Command_Data{
     Editing_Layout *layout;
     Live_Views *live_set;
     Style *style;
+    Style_Font *global_font;
     Delay *delay;
     struct App_Vars *vars;
     Exchange *exchange;
@@ -99,7 +100,8 @@ struct App_Vars{
     Custom_Command_Function *hooks[hook_type_count];
 
     Font_Set *font_set;
-
+    
+    Style_Font global_font;
     Style style;
     Style_Library styles;
     u32 *palette;
@@ -181,6 +183,7 @@ globalvar Application_Links app_links;
 #define USE_LAYOUT(n) Editing_Layout *n = command->layout
 #define USE_LIVE_SET(n) Live_Views *live_set = command->live_set
 #define USE_STYLE(n) Style *n = command->style
+#define USE_FONT(n) Style_Font *n = command->global_font
 #define USE_DELAY(n) Delay *n = command->delay
 #define USE_VARS(n) App_Vars *n = command->vars
 #define USE_EXCHANGE(n) Exchange *n = command->exchange
@@ -241,7 +244,7 @@ param_stack_end(Partition *part){
 
 internal File_View*
 panel_make_empty(System_Functions *system, Exchange *exchange,
-    App_Vars *vars, Style *style, Panel *panel){
+    App_Vars *vars, Style *style, Style_Font *global_font, Panel *panel){
 
     Mem_Options *mem = &vars->mem;
     Editing_Layout *layout = &vars->layout;
@@ -252,13 +255,13 @@ panel_make_empty(System_Functions *system, Exchange *exchange,
     View_And_ID new_view;
     
     Assert(panel->view == 0);
-    new_view = live_set_alloc_view(&vars->live_set, mem);
+    new_view = live_set_alloc_view(&vars->live_set, vars->config_api.scroll_rule);
     panel->view = new_view.view;
     panel->view->panel = panel;
     
     file_view = file_view_init(panel->view, layout, working_set, delay,
         &vars->settings, &vars->hot_directory, mem, &vars->styles);
-    view_set_file(file_view, 0, vars->font_set, style, 0, 0, 0);
+    view_set_file(file_view, 0, vars->font_set, style, global_font, 0, 0, 0);
     panel->view->map = app_get_map(vars, mapid_global);
     
     return(file_view);
@@ -284,7 +287,6 @@ COMMAND_DECL(write_character){
         next_cursor_pos = view->cursor.pos + 1;
         view_replace_range(system, mem, view, layout, pos, pos, &character, 1, next_cursor_pos);
         view_cursor_move(view, next_cursor_pos);
-        file->state.cursor_pos = view->cursor.pos;
     }
 }
 
@@ -948,6 +950,7 @@ view_file_in_panel(Command_Data *cmd, Panel *panel, Editing_File *file){
     Editing_Layout *layout = cmd->layout;
     App_Vars *vars = cmd->vars;
     Style *style = cmd->style;
+    Style_Font *global_font = cmd->global_font;
     Working_Set *working_set = &vars->working_set;
     Delay *delay = &vars->delay1;
     
@@ -966,7 +969,7 @@ view_file_in_panel(Command_Data *cmd, Panel *panel, Editing_File *file){
     temp = begin_temp_memory(&mem->part);
     cmd->part = partition_sub_part(&mem->part, Kbytes(16));
 
-    view_set_file(file_view, file, vars->font_set, style,
+    view_set_file(file_view, file, vars->font_set, style, global_font,
         system, vars->hooks[hook_open_file], &app_links);
 
     cmd->part = old_part;
@@ -988,6 +991,7 @@ COMMAND_DECL(reopen){
     USE_WORKING_SET(working_set);
     USE_VARS(vars);
     USE_STYLE(style);
+    USE_FONT(global_font);
 
     i32 file_id = exchange_request_file(exchange, expand_str(file->name.source_path));
     i32 index = 0;
@@ -995,8 +999,8 @@ COMMAND_DECL(reopen){
         file_set_to_loading(file);
         index = working_set_get_index(working_set, file);
         app_push_file_binding(vars, file_id, index);
-
-        view_set_file(view, file, vars->font_set, style,
+        
+        view_set_file(view, file, vars->font_set, style, global_font,
             system, vars->hooks[hook_open_file], &app_links);
     }
     else{
@@ -1310,6 +1314,7 @@ COMMAND_DECL(open_panel_vsplit){
     USE_EXCHANGE(exchange);
     USE_VARS(vars);
     USE_STYLE(style);
+    USE_FONT(global_font);
 
     if (layout->panel_count < layout->panel_max_count){
         Split_Result split = layout_split_panel(layout, panel, 1);
@@ -1328,7 +1333,7 @@ COMMAND_DECL(open_panel_vsplit){
         panel2->prev_inner = panel2->inner;
         
         layout->active_panel = (i32)(panel2 - layout->panels);
-        panel_make_empty(system, exchange, vars, style, panel2);
+        panel_make_empty(system, exchange, vars, style, global_font, panel2);
     }
 }
 
@@ -1339,6 +1344,7 @@ COMMAND_DECL(open_panel_hsplit){
     USE_EXCHANGE(exchange);
     USE_VARS(vars);
     USE_STYLE(style);
+    USE_FONT(global_font);
     
     if (layout->panel_count < layout->panel_max_count){
         Split_Result split = layout_split_panel(layout, panel, 0);
@@ -1357,7 +1363,7 @@ COMMAND_DECL(open_panel_hsplit){
         panel2->prev_inner = panel2->inner;
         
         layout->active_panel = (i32)(panel2 - layout->panels);
-        panel_make_empty(system, exchange, vars, style, panel2);
+        panel_make_empty(system, exchange, vars, style, global_font, panel2);
     }
 }
 
@@ -1513,8 +1519,9 @@ COMMAND_DECL(move_up){
     REQ_FILE_VIEW(view);
     REQ_FILE(file, view);
     USE_FONT_SET(font_set);
+    USE_FONT(global_font);
 
-    f32 font_height = (f32)get_font_info(font_set, view->style->font_id)->height;
+    f32 font_height = (f32)get_font_info(font_set, global_font->font_id)->height;
     f32 cy = view_get_cursor_y(view)-font_height;
     f32 px = view->preferred_x;
     if (cy >= 0){
@@ -1528,8 +1535,9 @@ COMMAND_DECL(move_down){
     REQ_FILE_VIEW(view);
     REQ_FILE(file, view);
     USE_FONT_SET(font_set);
+    USE_FONT(global_font);
 
-    f32 font_height = (f32)get_font_info(font_set, view->style->font_id)->height;
+    f32 font_height = (f32)get_font_info(font_set, global_font->font_id)->height;
     f32 cy = view_get_cursor_y(view)+font_height;
     f32 px = view->preferred_x;
     view->cursor = view_compute_cursor_from_xy(view, px, cy);
@@ -1710,7 +1718,7 @@ COMMAND_DECL(set_settings){
 internal void
 build(System_Functions *system, Mem_Options *mem,
     App_Vars *vars, Working_Set *working_set,
-    Font_Set *font_set, Style *style,
+    Font_Set *font_set, Style *style, Style_Font *global_font,
     Live_Views *live_set, Exchange *exchange,
     Panel *panel, Command_Data *command,
     String hot_directory,
@@ -1759,7 +1767,7 @@ build(System_Functions *system, Mem_Options *mem,
         }
 
         if (file){
-            file_create_super_locked(system, mem, working_set, file, buffer_name, font_set, style->font_id);
+            file_create_super_locked(system, mem, working_set, file, buffer_name, font_set, global_font->font_id);
             file->settings.unimportant = 1;
             table_add(&working_set->table, file->name.source_path, index);
 
@@ -1793,6 +1801,7 @@ COMMAND_DECL(command_line){
     USE_PANEL(panel);
     USE_EXCHANGE(exchange);
     USE_FONT_SET(font_set);
+    USE_FONT(global_font);
 
     char *buffer_name = 0;
     char *path = 0;
@@ -1857,7 +1866,7 @@ COMMAND_DECL(command_line){
     }
 
     build(system, mem, vars, working_set,
-        font_set, style, live_set, exchange,
+        font_set, style, global_font, live_set, exchange,
         panel, command,
         vars->hot_directory.string,
         buffer_name, buffer_name_len,
@@ -2160,8 +2169,8 @@ extern "C"{
 
                     pos = file->state.cursor_pos;
                     if (pos < start) next_cursor = pos;
-                    else if (pos < end) next_cursor = start + len;
-                    else next_cursor = pos + end - start + len;
+                    else if (pos < end) next_cursor = start;
+                    else next_cursor = pos + end - start - len;
 
                     file_replace_range(system, mem, file, layout,
                         start, end, str, len, next_cursor);
@@ -2172,7 +2181,31 @@ extern "C"{
 
         return(result);
     }
+    
+    BUFFER_SET_POS_SIG(external_buffer_set_pos){
+        Command_Data *cmd = (Command_Data*)context->cmd_context;
+        Editing_File *file;
+        Working_Set *working_set;
 
+        int result = 0;
+        int size;
+
+        if (buffer->exists){
+            working_set = cmd->working_set;
+            file = working_set->files + buffer->buffer_id;
+            if (!file->state.is_dummy && file_is_ready(file)){
+                result = 1;
+                size = buffer_size(&file->state.buffer);
+                if (pos < 0) pos = 0;
+                if (pos > size) pos = size;
+                file->state.cursor_pos = pos;
+                fill_buffer_summary(buffer, file, working_set);
+            }
+        }
+
+        return(result);
+    }
+    
     GET_VIEW_MAX_INDEX_SIG(external_get_view_max_index){
         Command_Data *cmd = (Command_Data*)context->cmd_context;
         Live_Views *live_set = cmd->live_set;
@@ -2316,7 +2349,7 @@ extern "C"{
                 if (buffer_id >= 0 && buffer_id < max){
                     file = working_set->files + buffer_id;
                     if (!file->state.is_dummy){
-                        view_set_file(file_view, file, cmd->vars->font_set, cmd->style,
+                        view_set_file(file_view, file, cmd->vars->font_set, cmd->style, cmd->global_font,
                             cmd->system, cmd->vars->hooks[hook_open_file], &app_links);
                     }
                 }
@@ -2547,12 +2580,13 @@ app_hardcode_styles(App_Vars *vars){
     Style *styles, *style;
     styles = vars->styles.styles;
     style = styles;
-
+    
     i16 fonts = 1;
+    vars->global_font.font_id = fonts + 0;
+    vars->global_font.font_changed = 0;
 
     /////////////////
     style_set_name(style, make_lit_string("4coder"));
-    style->font_id = fonts + 0;
 
     style->main.back_color = 0xFF0C0C0C;
     style->main.margin_color = 0xFF181818;
@@ -2587,18 +2621,10 @@ app_hardcode_styles(App_Vars *vars){
     file_info_style.pop1_color = 0xFF4444AA;
     file_info_style.pop2_color = 0xFFFF0000;
     style->main.file_info_style = file_info_style;
-    style->font_changed = 1;
-    ++style;
-
-    /////////////////
-    *style = *(style-1);
-    style_set_name(style, make_lit_string("4coder-mono"));
-    style->font_id = fonts + 1;
     ++style;
 
     /////////////////
     style_set_name(style, make_lit_string("Handmade Hero"));
-    style->font_id = fonts + 1;
 
     style->main.back_color = 0xFF161616;
     style->main.margin_color = 0xFF262626;
@@ -2634,12 +2660,10 @@ app_hardcode_styles(App_Vars *vars){
     file_info_style.pop1_color = 0xFF03CF0C;
     file_info_style.pop2_color = 0xFFFF0000;
     style->main.file_info_style = file_info_style;
-    style->font_changed = 1;
     ++style;
 
     /////////////////
     style_set_name(style, make_lit_string("Twilight"));
-    style->font_id = fonts + 2;
 
     style->main.back_color = 0xFF090D12;
     style->main.margin_color = 0xFF1A2634;
@@ -2674,12 +2698,10 @@ app_hardcode_styles(App_Vars *vars){
     file_info_style.pop1_color = 0xFF1BFF0C;
     file_info_style.pop2_color = 0xFFFF200D;
     style->main.file_info_style = file_info_style;
-    style->font_changed = 1;
     ++style;
 
     /////////////////
     style_set_name(style, make_lit_string("Wolverine"));
-    style->font_id = fonts + 3;
 
     style->main.back_color = 0xFF070711;
     style->main.margin_color = 0xFF111168;
@@ -2714,12 +2736,10 @@ app_hardcode_styles(App_Vars *vars){
     file_info_style.pop1_color = 0xFFFAFA15;
     file_info_style.pop2_color = 0xFFD20000;
     style->main.file_info_style = file_info_style;
-    style->font_changed = 1;
     ++style;
 
     /////////////////
     style_set_name(style, make_lit_string("stb"));
-    style->font_id = fonts + 4;
 
     style->main.back_color = 0xFFD6D6D6;
     style->main.margin_color = 0xFF9E9E9E;
@@ -2731,7 +2751,7 @@ app_hardcode_styles(App_Vars *vars){
     style->main.highlight_color = 0xFF0044FF;
     style->main.at_highlight_color = 0xFFD6D6D6;
     style->main.default_color = 0xFF000000;
-    style->main.comment_color = 0xFF000000;
+    style->main.comment_color = 0xFF005800;
     style->main.keyword_color = 0xFF000000;
     style->main.str_constant_color = 0xFF000000;
     style->main.char_constant_color = style->main.str_constant_color;
@@ -2754,13 +2774,11 @@ app_hardcode_styles(App_Vars *vars){
     file_info_style.pop1_color = 0xFF1111DC;
     file_info_style.pop2_color = 0xFFE80505;
     style->main.file_info_style = file_info_style;
-    style->font_changed = 1;
     ++style;
 
     vars->styles.count = (i32)(style - styles);
     vars->styles.max = ArrayCount(vars->styles.styles);
     style_copy(&vars->style, vars->styles.styles);
-    vars->style.font_changed = 0;
 }
 
 char *_4coder_get_extension(const char *filename, int len, int *extension_len){
@@ -2944,6 +2962,21 @@ App_Read_Command_Line_Sig(app_read_command_line){
     return(out_size);
 }
 
+extern "C" SCROLL_RULE_SIG(fallback_scroll_rule){
+    int result = 0;
+    
+    if (target_x != *scroll_x){
+        *scroll_x = target_x;
+        result = 1;
+    }
+    if (target_y != *scroll_y){
+        *scroll_y = target_y;
+        result = 1;
+    }
+    
+    return(result);
+}
+
 App_Init_Sig(app_init){
     app_links_init(system, memory->user_memory, memory->user_memory_size);
 
@@ -3009,6 +3042,10 @@ App_Init_Sig(app_init){
             v = (View*)(vptr);
             dll_insert(&vars->live_set.free_sentinel, v);
         }
+    }
+    
+    if (vars->config_api.scroll_rule == 0){
+        vars->config_api.scroll_rule = fallback_scroll_rule;
     }
     
     setup_command_table();
@@ -3225,7 +3262,7 @@ App_Init_Sig(app_init){
     
     // NOTE(allen): init first panel
     Panel_And_ID p = layout_alloc_panel(&vars->layout);
-    panel_make_empty(system, exchange, vars, &vars->style, p.panel);
+    panel_make_empty(system, exchange, vars, &vars->style, &vars->global_font, p.panel);
     vars->layout.active_panel = p.id;
     
     String hdbase = make_fixed_width_string(vars->hot_dir_base_);
@@ -3508,6 +3545,7 @@ App_Step_Sig(app_step){
     cmd->layout = &vars->layout;
     cmd->live_set = &vars->live_set;
     cmd->style = &vars->style;
+    cmd->global_font = &vars->global_font;
     cmd->delay = &vars->delay1;
     cmd->vars = vars;
     cmd->exchange = exchange;
@@ -3941,7 +3979,7 @@ App_Step_Sig(app_step){
                 if (data){
                     String val = make_string((char*)data, size);
                     file_create_from_string(system, mem, working_set, ed_file, filename,
-                        vars->font_set, vars->style.font_id, val);
+                        vars->font_set, vars->global_font.font_id, val);
 
                     if (ed_file->settings.tokens_exist){
                         file_first_lex_parallel(system, general, ed_file);
@@ -3956,7 +3994,7 @@ App_Step_Sig(app_step){
                 else{
                     if (binding->fail & SysAppCreateNewBuffer){
                         file_create_empty(system, mem, working_set, ed_file, filename,
-                            vars->font_set, vars->style.font_id);
+                            vars->font_set, vars->global_font.font_id);
                         if (binding->fail & SysAppCreateView){
                             view_file_in_panel(cmd, binding->panel, ed_file);
                         }
@@ -4013,6 +4051,7 @@ App_Step_Sig(app_step){
     ProfileStart(delayed_actions);
     if (vars->delay1.count > 0){
         Style *style = &vars->style;
+        Style_Font *global_font = &vars->global_font;
         Working_Set *working_set = &vars->working_set;
         Live_Views *live_set = &vars->live_set;
         Mem_Options *mem = &vars->mem;
@@ -4156,13 +4195,13 @@ App_Step_Sig(app_step){
                 {
                     Get_File_Result file = working_set_get_available_file(working_set);
                     file_create_empty(system, mem, working_set, file.file, string.str,
-                        vars->font_set, style->font_id);
+                        vars->font_set, global_font->font_id);
                     table_add(&working_set->table, file.file->name.source_path, file.index);
                     
                     View *view = panel->view;
                     File_View *fview = view_to_file_view(view);
                     
-                    view_set_file(fview, file.file, vars->font_set, style,
+                    view_set_file(fview, file.file, vars->font_set, style, global_font,
                         system,  vars->hooks[hook_open_file], &app_links);
                     view->map = app_get_map(vars, file.file->settings.base_map_id);
 #if BUFFER_EXPERIMENT_SCALPEL <= 0
@@ -4178,7 +4217,7 @@ App_Step_Sig(app_step){
                         View *view = panel->view;
                         File_View *fview = view_to_file_view(view);
                         
-                        view_set_file(fview, file, vars->font_set, style,
+                        view_set_file(fview, file, vars->font_set, style, global_font,
                             system, vars->hooks[hook_open_file], &app_links);
                         view->map = app_get_map(vars, file->settings.base_map_id);
                     }
@@ -4259,13 +4298,13 @@ App_Step_Sig(app_step){
 
     ProfileStart(style_change);
     // NOTE(allen): send style change messages if the style has changed
-    if (vars->style.font_changed){
-        vars->style.font_changed = 0;
+    if (vars->global_font.font_changed){
+        vars->global_font.font_changed = 0;
 
         Editing_File *file = vars->working_set.files;
         for (i32 i = vars->working_set.file_index_count; i > 0; --i, ++file){
             if (buffer_good(&file->state.buffer) && !file->state.is_dummy){
-                Render_Font *font = get_font_info(vars->font_set, vars->style.font_id)->font;
+                Render_Font *font = get_font_info(vars->font_set, vars->global_font.font_id)->font;
                 float *advance_data = 0;
                 if (font) advance_data = font->advance_data;
 

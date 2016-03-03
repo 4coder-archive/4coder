@@ -332,6 +332,8 @@ struct View{
     Panel *panel;
     Command_Map *map;
     Do_View_Function *do_view;
+    Scroll_Rule_Function *scroll_rule;
+    i32 id;
 };
 
 struct Live_Views{
@@ -353,7 +355,7 @@ live_set_get_view(Live_Views *live_set, i32 id){
 }
 
 internal View_And_ID
-live_set_alloc_view(Live_Views *live_set, Mem_Options *mem){
+live_set_alloc_view(Live_Views *live_set, Scroll_Rule_Function *scroll_rule){
     View_And_ID result = {};
     
     Assert(live_set->count < live_set->max);
@@ -361,9 +363,11 @@ live_set_alloc_view(Live_Views *live_set, Mem_Options *mem){
     
     result.view = live_set->free_sentinel.next;
     result.id = (i32)((char*)result.view - (char*)live_set->views);
+    result.view->id = result.id;
     
     dll_remove(result.view);
     memset(result.view, 0, live_set->stride);
+    result.view->scroll_rule = scroll_rule;
     
     return(result);
 }
@@ -396,46 +400,6 @@ view_base_compute_height(View *view){
 
 #define view_compute_width(view) (view_base_compute_width(&(view)->view_base))
 #define view_compute_height(view) (view_base_compute_height(&(view)->view_base))
-
-struct Interactive_Style{
-    u32 bar_color;
-    u32 bar_active_color;
-    u32 base_color;
-    u32 pop1_color;
-    u32 pop2_color;
-};
-
-struct Interactive_Bar{
-    Interactive_Style style;
-    f32 pos_x, pos_y;
-    f32 text_shift_x, text_shift_y;
-    i32_Rect rect;
-    i16 font_id;
-};
-
-internal void
-intbar_draw_string(Render_Target *target,
-                   Interactive_Bar *bar, u8 *str, u32 char_color){
-    i16 font_id = bar->font_id;
-
-    draw_string(target, font_id, (char*)str,
-        (i32)(bar->pos_x + bar->text_shift_x),
-        (i32)(bar->pos_y + bar->text_shift_y),
-        char_color);
-    bar->pos_x += font_string_width(target, font_id, (char*)str);
-}
-
-internal void
-intbar_draw_string(Render_Target *target, Interactive_Bar *bar,
-                   String str, u32 char_color){
-    i16 font_id = bar->font_id;
-    
-    draw_string(target, font_id, str,
-        (i32)(bar->pos_x + bar->text_shift_x),
-        (i32)(bar->pos_y + bar->text_shift_y),
-        char_color);
-    bar->pos_x += font_string_width(target, font_id, str);
-}
 
 // BOTTOM
 

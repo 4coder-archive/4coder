@@ -157,11 +157,13 @@ struct Query_Bar{
 #define GET_BINDING_DATA(name) int name(void *data, int size)
 #define CUSTOM_COMMAND_SIG(name) void name(struct Application_Links *app)
 #define HOOK_SIG(name) void name(struct Application_Links *app)
+#define SCROLL_RULE_SIG(name) int name(float target_x, float target_y, float *scroll_x, float *scroll_y, int view_id, int is_new_target)
 
 extern "C"{
     typedef CUSTOM_COMMAND_SIG(Custom_Command_Function);
     typedef GET_BINDING_DATA(Get_Binding_Data_Function);
     typedef HOOK_SIG(Hook_Function);
+    typedef SCROLL_RULE_SIG(Scroll_Rule_Function);
 }
 
 struct Application_Links;
@@ -190,6 +192,7 @@ struct Application_Links;
 #define BUFFER_SEEK_STRING_SIG(name) int name(Application_Links *context, Buffer_Summary *buffer, int start, char *str, int len, int seek_forward, int *out)
 #define BUFFER_READ_RANGE_SIG(name) int name(Application_Links *context, Buffer_Summary *buffer, int start, int end, char *out)
 #define BUFFER_REPLACE_RANGE_SIG(name) int name(Application_Links *context, Buffer_Summary *buffer, int start, int end, char *str, int len)
+#define BUFFER_SET_POS_SIG(name) int name(Application_Links *context, Buffer_Summary *buffer, int pos)
 
 // File view manipulation
 #define GET_VIEW_MAX_INDEX_SIG(name) int name(Application_Links *context)
@@ -245,6 +248,7 @@ extern "C"{
     typedef BUFFER_SEEK_STRING_SIG(Buffer_Seek_String_Function);
     typedef BUFFER_READ_RANGE_SIG(Buffer_Read_Range_Function);
     typedef BUFFER_REPLACE_RANGE_SIG(Buffer_Replace_Range_Function);
+    typedef BUFFER_SET_POS_SIG(Buffer_Set_Pos_Function);
     
     // View manipulation
     typedef GET_VIEW_MAX_INDEX_SIG(Get_View_Max_Index_Function);
@@ -294,6 +298,7 @@ struct Application_Links{
     Buffer_Seek_String_Function *buffer_seek_string;
     Buffer_Read_Range_Function *buffer_read_range;
     Buffer_Replace_Range_Function *buffer_replace_range;
+    Buffer_Set_Pos_Function *buffer_set_pos;
     
     // View manipulation
     Get_View_Max_Index_Function *get_view_max_index;
@@ -319,6 +324,7 @@ struct Application_Links{
 
 struct Custom_API{
     Get_Binding_Data_Function *get_bindings;
+    Scroll_Rule_Function *scroll_rule;
 };
 
 // NOTE(allen): definitions for the buffer that communicates to 4ed.exe

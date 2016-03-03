@@ -1754,6 +1754,9 @@ main(int argc, char **argv){
     if (win32vars.custom){
         win32vars.custom_api.get_bindings = (Get_Binding_Data_Function*)
             GetProcAddress(win32vars.custom, "get_bindings");
+            
+        win32vars.custom_api.scroll_rule = (Scroll_Rule_Function*)
+            GetProcAddress(win32vars.custom, "scroll_rule");
     }
 #endif
     

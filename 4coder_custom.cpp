@@ -407,6 +407,66 @@ CUSTOM_COMMAND_SIG(reverse_search){
     isearch(app, 1);
 }
 
+CUSTOM_COMMAND_SIG(rewrite_as_single_caps){
+    File_View_Summary view;
+    Buffer_Summary buffer;
+    Range range;
+    String string;
+    int is_first, i;
+    
+    exec_command(app, cmdid_seek_token_left);
+    view = app->get_active_file_view(app);
+    range.min = view.cursor.pos;
+    
+    exec_command(app, cmdid_seek_token_right);
+    app->refresh_file_view(app, &view);
+    range.max = view.cursor.pos;
+    
+    string.str = (char*)app->memory;
+    string.size = range.max - range.min;
+    assert(string.size < app->memory_size);
+    
+    buffer = app->get_buffer(app, view.buffer_id);
+    app->buffer_read_range(app, &buffer, range.min, range.max, string.str);
+    
+    is_first = 1;
+    for (i = 0; i < string.size; ++i){
+        if (char_is_alpha_true(string.str[i])){
+            if (is_first) is_first = 0;
+            else string.str[i] = char_to_lower(string.str[i]);
+        }
+        else{
+            is_first = 1;
+        }
+    }
+    
+    app->buffer_replace_range(app, &buffer, range.min, range.max, string.str, string.size);
+}
+
+// TODO(allen):
+// get range by specific "word" type (for example "get token range")
+// read range by specific "word" type
+// Dream API: for rewrite_as_single_caps
+#if 0
+{
+    rewrite = get_rewrite(app, ByToken);
+    string = get_rewrite_string(app, &rewrite, app->memory, app->memory_size);
+    
+    is_first = 1;
+    for (i = 0; i < string.size; ++i){
+        if (char_is_alpha_true(string.str[i])){
+            if (is_first) is_first = 0;
+            else string.str[i] = char_to_lower(string.str[i]);
+        }
+        else{
+            is_first = 1;
+        }
+    }
+    
+    do_rewrite(app, &rewrite, string);
+}
+#endif
+
 CUSTOM_COMMAND_SIG(replace_in_range){
     Query_Bar replace;
     char replace_space[1024];
@@ -701,6 +761,61 @@ CUSTOM_COMMAND_SIG(write_and_auto_tab){
     exec_command(app, cmdid_auto_tab_line_at_cursor);
 }
 
+struct Scroll_Velocity{
+    float x, y;
+};
+
+Scroll_Velocity scroll_velocity[16] = {0};
+
+static int
+smooth_camera_step(float target, float *current, float *vel, float S, float T){
+    int result = 0;
+    float curr = *current;
+    float v = *vel;
+    if (curr != target){
+        if (curr > target - .1f && curr < target + .1f){
+            curr = target;
+            v = 1.f;
+        }
+        else{
+            float L = curr + T*(target - curr);
+
+            int sign = (target > curr) - (target < curr);
+            float V = curr + sign*v;
+
+            if (sign > 0) curr = (L<V)?(L):(V);
+            else curr = (L>V)?(L):(V);
+
+            if (curr == V){
+                v *= S;
+            }
+        }
+
+        *current = curr;
+        *vel = v;
+        result = 1;
+    }
+    return result;
+}
+
+extern "C" SCROLL_RULE_SIG(scroll_rule){
+    Scroll_Velocity *velocity = scroll_velocity + view_id;
+    int result = 0;
+    if (velocity->x == 0.f){
+        velocity->x = 1.f;
+        velocity->y = 1.f;
+    }
+    
+    if (smooth_camera_step(target_y, scroll_y, &velocity->y, 40.f, 1.f/4.f)){
+        result = 1;
+    }
+    if (smooth_camera_step(target_x, scroll_x, &velocity->x, 40.f, 1.f/4.f)){
+        result = 1;
+    }
+    
+    return(result);
+}
+
 extern "C" GET_BINDING_DATA(get_bindings){
     Bind_Helper context_actual = begin_bind_helper(data, size);
     Bind_Helper *context = &context_actual;
@@ -830,13 +945,12 @@ extern "C" GET_BINDING_DATA(get_bindings){
     bind(context, 'g', MDFR_CTRL, goto_line);
     bind(context, 'q', MDFR_CTRL, query_replace);
     bind(context, 'a', MDFR_CTRL, replace_in_range);
+    bind(context, 's', MDFR_ALT, rewrite_as_single_caps);
     
     bind(context, 'K', MDFR_CTRL, cmdid_kill_buffer);
     bind(context, 'O', MDFR_CTRL, cmdid_reopen);
     bind(context, 'w', MDFR_CTRL, cmdid_interactive_save_as);
     bind(context, 's', MDFR_CTRL, cmdid_save);
-    
-    bind(context, ',', MDFR_ALT, switch_to_compilation);
     
     bind(context, '\n', MDFR_SHIFT, write_and_auto_tab);
     bind(context, ' ', MDFR_SHIFT, cmdid_write_character);

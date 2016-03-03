@@ -9,6 +9,42 @@
 
 // TOP
 
+// TODO(allen):
+//  Font changing UI should be in the library menu now, it's not tied to the fonts any more
+//  Get the import export stuff up and running for styles again
+
+struct Interactive_Style{
+    u32 bar_color;
+    u32 bar_active_color;
+    u32 base_color;
+    u32 pop1_color;
+    u32 pop2_color;
+};
+
+struct Interactive_Bar{
+    f32 pos_x, pos_y;
+    f32 text_shift_x, text_shift_y;
+    i32_Rect rect;
+    i16 font_id;
+};
+
+internal void
+intbar_draw_string(Render_Target *target, Interactive_Bar *bar,
+                   String str, u32 char_color){
+    i16 font_id = bar->font_id;
+    
+    draw_string(target, font_id, str,
+        (i32)(bar->pos_x + bar->text_shift_x),
+        (i32)(bar->pos_y + bar->text_shift_y),
+        char_color);
+    bar->pos_x += font_string_width(target, font_id, str);
+}
+
+struct Style_Font{
+    i16 font_id;
+    i16 font_changed;
+};
+
 struct Style_Main_Data{
     u32 back_color;
 	u32 margin_color;
@@ -37,51 +73,39 @@ struct Style_Main_Data{
     Interactive_Style file_info_style;
 };
 
-struct Style_File_Format_v4{
-    i32 name_size;
-    char name[24];
-    i32 font_name_size;
-    char font_name[24];
-    Style_Main_Data main;
-};
-
-enum Style_Color_Tag{
-    STAG_BAR_COLOR,
-    STAG_BAR_ACTIVE_COLOR,
-    STAG_BAR_BASE_COLOR,
-    STAG_BAR_POP1_COLOR,
-    STAG_BAR_POP2_COLOR,
-    STAG_BACK_COLOR,
-	STAG_MARGIN_COLOR,
-	STAG_MARGIN_HOVER_COLOR,
-	STAG_MARGIN_ACTIVE_COLOR,
-	STAG_CURSOR_COLOR,
-	STAG_AT_CURSOR_COLOR,
-	STAG_HIGHLIGHT_COLOR,
-	STAG_AT_HIGHLIGHT_COLOR,
-	STAG_MARK_COLOR,
-	STAG_DEFAULT_COLOR,
-	STAG_COMMENT_COLOR,
-	STAG_KEYWORD_COLOR,
-	STAG_STR_CONSTANT_COLOR,
-	STAG_CHAR_CONSTANT_COLOR,
-	STAG_INT_CONSTANT_COLOR,
-	STAG_FLOAT_CONSTANT_COLOR,
-	STAG_BOOL_CONSTANT_COLOR,
-    STAG_PREPROC_COLOR,
-	STAG_INCLUDE_COLOR,
-	STAG_SPECIAL_CHARACTER_COLOR,
-	STAG_HIGHLIGHT_JUNK_COLOR,
-	STAG_HIGHLIGHT_WHITE_COLOR,
-    STAG_PASTE_COLOR,
-    STAG_UNDO_COLOR,
-    STAG_NEXT_UNDO_COLOR,
-    STAG_RESULT_LINK_COLOR,
-    STAG_RELATED_LINK_COLOR,
-    STAG_ERROR_LINK_COLOR,
-    STAG_WARNING_LINK_COLOR,
+enum Style_Tag{
+    Stag_Bar,
+    Stag_Bar_Active,
+    Stag_Bar_Base,
+    Stag_Bar_Pop1,
+    Stag_Bar_Pop2,
+    Stag_Back,
+	Stag_Margin,
+	Stag_Margin_Hover,
+	Stag_Margin_Active,
+	Stag_Cursor,
+	Stag_At_Cursor,
+	Stag_Highlight,
+	Stag_At_Highlight,
+	Stag_Mark,
+	Stag_Default,
+	Stag_Comment,
+	Stag_Keyword,
+	Stag_Str_Constant,
+	Stag_Char_Constant,
+	Stag_Int_Constant,
+	Stag_Float_Constant,
+	Stag_Bool_Constant,
+    Stag_Preproc,
+	Stag_Include,
+	Stag_Special_Character,
+	Stag_Highlight_Junk,
+	Stag_Highlight_White,
+    Stag_Paste,
+    Stag_Undo,
+    Stag_Next_Undo,
     // never below this
-    STAG_COUNT
+    Stag_Count
 };
 
 struct Style_Color_Specifier{
@@ -92,8 +116,6 @@ struct Style_Color_Specifier{
 struct Style_File_Format{
     i32 name_size;
     char name[24];
-    i32 font_name_size;
-    char font_name[24];
     
     i32 color_specifier_count;
 };
@@ -102,8 +124,6 @@ struct Style{
     char name_[24];
     String name;
     Style_Main_Data main;
-    b32 font_changed;
-    i16 font_id;
 };
 
 struct Style_Library{
@@ -120,51 +140,51 @@ style_copy(Style *dst, Style *src){
 internal void
 style_set_name(Style *style, String name){
     i32 count = ArrayCount(style->name_);
-    style->name_[count - 1] = 0;
     style->name = make_string(style->name_, 0, count - 1);
     copy(&style->name, name);
+    terminate_with_null(&style->name);
 }
 
 inline u32*
 style_index_by_tag(Style *s, u32 tag){
     u32 *result = 0;
     switch (tag){
-    case STAG_BAR_COLOR: result = &s->main.file_info_style.bar_color; break;
-    case STAG_BAR_ACTIVE_COLOR: result = &s->main.file_info_style.bar_active_color; break;
-    case STAG_BAR_BASE_COLOR: result = &s->main.file_info_style.base_color; break;
-    case STAG_BAR_POP1_COLOR: result = &s->main.file_info_style.pop1_color; break;
-    case STAG_BAR_POP2_COLOR: result = &s->main.file_info_style.pop2_color; break;
+    case Stag_Bar: result = &s->main.file_info_style.bar_color; break;
+    case Stag_Bar_Active: result = &s->main.file_info_style.bar_active_color; break;
+    case Stag_Bar_Base: result = &s->main.file_info_style.base_color; break;
+    case Stag_Bar_Pop1: result = &s->main.file_info_style.pop1_color; break;
+    case Stag_Bar_Pop2: result = &s->main.file_info_style.pop2_color; break;
             
-    case STAG_BACK_COLOR: result = &s->main.back_color; break;
-    case STAG_MARGIN_COLOR: result = &s->main.margin_color; break;
-    case STAG_MARGIN_HOVER_COLOR: result = &s->main.margin_hover_color; break;
-    case STAG_MARGIN_ACTIVE_COLOR: result = &s->main.margin_active_color; break;
+    case Stag_Back: result = &s->main.back_color; break;
+    case Stag_Margin: result = &s->main.margin_color; break;
+    case Stag_Margin_Hover: result = &s->main.margin_hover_color; break;
+    case Stag_Margin_Active: result = &s->main.margin_active_color; break;
             
-    case STAG_CURSOR_COLOR: result = &s->main.cursor_color; break;
-    case STAG_AT_CURSOR_COLOR: result = &s->main.at_cursor_color; break;
-    case STAG_HIGHLIGHT_COLOR: result = &s->main.highlight_color; break;
-    case STAG_AT_HIGHLIGHT_COLOR: result = &s->main.at_highlight_color; break;
-    case STAG_MARK_COLOR: result = &s->main.mark_color; break;
+    case Stag_Cursor: result = &s->main.cursor_color; break;
+    case Stag_At_Cursor: result = &s->main.at_cursor_color; break;
+    case Stag_Highlight: result = &s->main.highlight_color; break;
+    case Stag_At_Highlight: result = &s->main.at_highlight_color; break;
+    case Stag_Mark: result = &s->main.mark_color; break;
         
-    case STAG_DEFAULT_COLOR: result = &s->main.default_color; break;
-    case STAG_COMMENT_COLOR: result = &s->main.comment_color; break;
-    case STAG_KEYWORD_COLOR: result = &s->main.keyword_color; break;
-    case STAG_STR_CONSTANT_COLOR: result = &s->main.str_constant_color; break;
-    case STAG_CHAR_CONSTANT_COLOR: result = &s->main.char_constant_color; break;
-    case STAG_INT_CONSTANT_COLOR: result = &s->main.int_constant_color; break;
-    case STAG_FLOAT_CONSTANT_COLOR: result = &s->main.float_constant_color; break;
-    case STAG_BOOL_CONSTANT_COLOR: result = &s->main.bool_constant_color; break;
+    case Stag_Default: result = &s->main.default_color; break;
+    case Stag_Comment: result = &s->main.comment_color; break;
+    case Stag_Keyword: result = &s->main.keyword_color; break;
+    case Stag_Str_Constant: result = &s->main.str_constant_color; break;
+    case Stag_Char_Constant: result = &s->main.char_constant_color; break;
+    case Stag_Int_Constant: result = &s->main.int_constant_color; break;
+    case Stag_Float_Constant: result = &s->main.float_constant_color; break;
+    case Stag_Bool_Constant: result = &s->main.bool_constant_color; break;
         
-    case STAG_PREPROC_COLOR: result = &s->main.preproc_color; break;
-    case STAG_INCLUDE_COLOR: result = &s->main.include_color; break;
+    case Stag_Preproc: result = &s->main.preproc_color; break;
+    case Stag_Include: result = &s->main.include_color; break;
         
-    case STAG_SPECIAL_CHARACTER_COLOR: result = &s->main.special_character_color; break;
+    case Stag_Special_Character: result = &s->main.special_character_color; break;
         
-    case STAG_HIGHLIGHT_JUNK_COLOR: result = &s->main.highlight_junk_color; break;
-    case STAG_HIGHLIGHT_WHITE_COLOR: result = &s->main.highlight_white_color; break;
+    case Stag_Highlight_Junk: result = &s->main.highlight_junk_color; break;
+    case Stag_Highlight_White: result = &s->main.highlight_white_color; break;
         
-    case STAG_PASTE_COLOR: result = &s->main.paste_color; break;
-    case STAG_UNDO_COLOR: result = &s->main.undo_color; break;
+    case Stag_Paste: result = &s->main.paste_color; break;
+    case Stag_Undo: result = &s->main.undo_color; break;
     }
     return result;
 }
@@ -197,15 +217,11 @@ internal Style_File_Format*
 style_format_for_file(Font_Set *set, Style *style, Style_File_Format *out){
     out->name_size = style->name.size;
     memcpy(out->name, style->name.str, ArrayCount(out->name));
-
-    String font_name = get_font_info(set, style->font_id)->name;
-    out->font_name_size = font_name.size;
-    memcpy(out->font_name, font_name.str, font_name.size);
     
     Style_Color_Specifier *spec = (Style_Color_Specifier*)(out + 1);
     i32 count = 0;
     
-    for (u32 i = 0; i < STAG_COUNT; ++i){
+    for (u32 i = 0; i < Stag_Count; ++i){
         u32 *color = style_index_by_tag(style, i);
         if (color){
             spec->tag = i;
