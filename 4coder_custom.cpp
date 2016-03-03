@@ -74,11 +74,11 @@ CUSTOM_COMMAND_SIG(write_decrement){
 
 static void
 long_braces(Application_Links *app, char *text, int size){
-    File_View_Summary view;
+    View_Summary view;
     Buffer_Summary buffer;
     int pos;
     
-    view = app->get_active_file_view(app);
+    view = app->get_active_view(app);
     buffer = app->get_buffer(app, view.buffer_id);
     
     pos = view.cursor.pos;
@@ -110,7 +110,7 @@ CUSTOM_COMMAND_SIG(open_long_braces_break){
 }
 
 CUSTOM_COMMAND_SIG(paren_wrap){
-    File_View_Summary view;
+    View_Summary view;
     Buffer_Summary buffer;
 
     char text1[] = "(";
@@ -122,7 +122,7 @@ CUSTOM_COMMAND_SIG(paren_wrap){
     Range range;
     int pos;
 
-    view = app->get_active_file_view(app);
+    view = app->get_active_view(app);
     buffer = app->get_active_buffer(app);
 
     range = get_range(&view);
@@ -134,7 +134,7 @@ CUSTOM_COMMAND_SIG(paren_wrap){
 }
 
 CUSTOM_COMMAND_SIG(if0_off){
-    File_View_Summary view;
+    View_Summary view;
     Buffer_Summary buffer;
     
     char text1[] = "#if 0\n";
@@ -146,7 +146,7 @@ CUSTOM_COMMAND_SIG(if0_off){
     Range range;
     int pos;
 
-    view = app->get_active_file_view(app);
+    view = app->get_active_view(app);
     buffer = app->get_active_buffer(app);
 
     range = get_range(&view);
@@ -158,7 +158,7 @@ CUSTOM_COMMAND_SIG(if0_off){
     push_parameter(app, par_range_end, pos);
     exec_command(app, cmdid_auto_tab_range);
     
-    app->refresh_file_view(app, &view);
+    app->refresh_view(app, &view);
     range = get_range(&view);
     pos = range.max;
     
@@ -170,15 +170,15 @@ CUSTOM_COMMAND_SIG(if0_off){
 }
 
 CUSTOM_COMMAND_SIG(backspace_word){
-    File_View_Summary view;
+    View_Summary view;
     Buffer_Summary buffer;
     int pos2, pos1;
     
-    view = app->get_active_file_view(app);
+    view = app->get_active_view(app);
     
     pos2 = view.cursor.pos;
     exec_command(app, cmdid_seek_alphanumeric_left);
-    app->refresh_file_view(app, &view);
+    app->refresh_view(app, &view);
     pos1 = view.cursor.pos;
     
     buffer = app->get_buffer(app, view.buffer_id);
@@ -186,7 +186,7 @@ CUSTOM_COMMAND_SIG(backspace_word){
 }
 
 CUSTOM_COMMAND_SIG(switch_to_compilation){
-    File_View_Summary view;
+    View_Summary view;
     Buffer_Summary buffer;
     
     char name[] = "*compilation*";
@@ -194,17 +194,17 @@ CUSTOM_COMMAND_SIG(switch_to_compilation){
 
     // TODO(allen): This will only work for file views for now.  Fix up this
     // view nonsense so that view types aren't such an issue.
-    view = app->get_active_file_view(app);
+    view = app->get_active_view(app);
     buffer = app->get_buffer_by_name(app, name, name_size);
     
     app->view_set_buffer(app, &view, buffer.buffer_id);
 }
 
 CUSTOM_COMMAND_SIG(move_up_10){
-    File_View_Summary view;
+    View_Summary view;
     float x, y;
 
-    view = app->get_active_file_view(app);
+    view = app->get_active_view(app);
     x = view.preferred_x;
     
     if (view.unwrapped_lines){
@@ -220,10 +220,10 @@ CUSTOM_COMMAND_SIG(move_up_10){
 }
 
 CUSTOM_COMMAND_SIG(move_down_10){
-    File_View_Summary view;
+    View_Summary view;
     float x, y;
 
-    view = app->get_active_file_view(app);
+    view = app->get_active_view(app);
     x = view.preferred_x;
     
     if (view.unwrapped_lines){
@@ -239,12 +239,12 @@ CUSTOM_COMMAND_SIG(move_down_10){
 }
 
 CUSTOM_COMMAND_SIG(open_file_in_quotes){
-    File_View_Summary view;
+    View_Summary view;
     Buffer_Summary buffer;
     char short_file_name[128];
     int pos, start, end, size;
     
-    view = app->get_active_file_view(app);
+    view = app->get_active_view(app);
     buffer = app->get_buffer(app, view.buffer_id);
     pos = view.cursor.pos;
     app->buffer_seek_delimiter(app, &buffer, pos, '"', 1, &end);
@@ -290,7 +290,7 @@ CUSTOM_COMMAND_SIG(reverse_search);
 
 static void
 isearch(Application_Links *app, int start_reversed){
-    File_View_Summary view;
+    View_Summary view;
     Buffer_Summary buffer;
     User_Input in;
     Query_Bar bar;
@@ -301,7 +301,7 @@ isearch(Application_Links *app, int start_reversed){
     int reverse = start_reversed;
     int pos;
     
-    view = app->get_active_file_view(app);
+    view = app->get_active_view(app);
     buffer = app->get_buffer(app, view.buffer_id);
     
     pos = view.cursor.pos;
@@ -408,18 +408,18 @@ CUSTOM_COMMAND_SIG(reverse_search){
 }
 
 CUSTOM_COMMAND_SIG(rewrite_as_single_caps){
-    File_View_Summary view;
+    View_Summary view;
     Buffer_Summary buffer;
     Range range;
     String string;
     int is_first, i;
     
     exec_command(app, cmdid_seek_token_left);
-    view = app->get_active_file_view(app);
+    view = app->get_active_view(app);
     range.min = view.cursor.pos;
     
     exec_command(app, cmdid_seek_token_right);
-    app->refresh_file_view(app, &view);
+    app->refresh_view(app, &view);
     range.max = view.cursor.pos;
     
     string.str = (char*)app->memory;
@@ -486,9 +486,9 @@ CUSTOM_COMMAND_SIG(replace_in_range){
     w = with.string;
 
     Buffer_Summary buffer;
-    File_View_Summary view;
+    View_Summary view;
 
-    view = app->get_active_file_view(app);
+    view = app->get_active_view(app);
     buffer = app->get_buffer(app, view.buffer_id);
 
     Range range = get_range(&view);
@@ -525,7 +525,7 @@ CUSTOM_COMMAND_SIG(query_replace){
     
     Query_Bar bar;
     Buffer_Summary buffer;
-    File_View_Summary view;
+    View_Summary view;
     int pos, new_pos;
     
     bar.prompt = make_lit_string("Replace? (y)es, (n)ext, (esc)\n");
@@ -533,7 +533,7 @@ CUSTOM_COMMAND_SIG(query_replace){
     
     app->start_query_bar(app, &bar, 0);
     
-    view = app->get_active_file_view(app);
+    view = app->get_active_view(app);
     buffer = app->get_buffer(app, view.buffer_id);
 
     pos = view.cursor.pos;

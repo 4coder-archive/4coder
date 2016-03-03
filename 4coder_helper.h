@@ -216,7 +216,7 @@ push_directory(Application_Links *app){
 #endif
 
 inline Range
-get_range(File_View_Summary *view){
+get_range(View_Summary *view){
     Range range;
     range = make_range(view->cursor.pos, view->mark.pos);
     return(range);
@@ -236,8 +236,8 @@ exec_command(Application_Links *app, Custom_Command_Function *func){
 
 inline void
 active_view_to_line(Application_Links *app, int line_number){
-    File_View_Summary view;
-    view = app->get_active_file_view(app);
+    View_Summary view;
+    view = app->get_active_view(app);
     
     // NOTE(allen|a3.4.4): We don't have to worry about whether this is a valid line number.
     // When it's not possible to place a cursor at the position for whatever reason it will set the

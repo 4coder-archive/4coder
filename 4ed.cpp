@@ -177,7 +177,6 @@ globalvar Application_Links app_links;
 #define USE_MEM(n) Mem_Options *n = command->mem
 #define USE_PANEL(n) Panel *n = command->panel
 #define USE_VIEW(n) View *n = command->view
-#define USE_FILE_VIEW(n) File_View *n = view_to_file_view(command->view)
 #define USE_FILE(n,v) Editing_File *n = 0; if (v) { (n) = (v)->file; }
 #define USE_WORKING_SET(n) Working_Set *n = command->working_set
 #define USE_LAYOUT(n) Editing_Layout *n = command->layout
@@ -189,9 +188,7 @@ globalvar Application_Links app_links;
 #define USE_EXCHANGE(n) Exchange *n = command->exchange
 #define USE_FONT_SET(n) Font_Set *n = command->vars->font_set;
 
-#define REQ_VIEW(n) View *n = command->view; if (!n) return
-#define REQ_FILE_VIEW(n) File_View *n = view_to_file_view(command->view); if (!n) return
-#define REQ_OPEN_FILE_VIEW(n) File_View *n = view_to_file_view(command->view); if (!n || n->locked) return
+#define REQ_OPEN_VIEW(n) View *n = command->view; if (n->locked) return
 #define REQ_FILE_HISTORY(n,v) Editing_File *n = (v)->file; if (!n || !buffer_good(&n->state.buffer) || n->state.is_dummy || !n->state.undo.undo.edits) return
 #define REQ_FILE_LOADING(n,v) Editing_File *n = (v)->file; if (!n || n->state.is_dummy) return
 #define REQ_FILE(n,v) Editing_File *n = (v)->file; if (!n || !buffer_good(&n->state.buffer) || n->state.is_dummy) return
@@ -242,7 +239,7 @@ param_stack_end(Partition *part){
     return (Command_Parameter*)((char*)part->base + part->pos);
 }
 
-internal File_View*
+internal View*
 panel_make_empty(System_Functions *system, Exchange *exchange,
     App_Vars *vars, Style *style, Style_Font *global_font, Panel *panel){
 
@@ -251,7 +248,7 @@ panel_make_empty(System_Functions *system, Exchange *exchange,
     Working_Set *working_set = &vars->working_set;
     Delay *delay = &vars->delay1;
 
-    File_View *file_view;
+    View *file_view;
     View_And_ID new_view;
     
     Assert(panel->view == 0);
@@ -273,7 +270,7 @@ COMMAND_DECL(null){
 
 COMMAND_DECL(write_character){
     ProfileMomentFunction();
-    REQ_OPEN_FILE_VIEW(view);
+    REQ_OPEN_VIEW(view);
     REQ_FILE(file, view);
     USE_LAYOUT(layout);
     USE_MEM(mem);
@@ -292,7 +289,7 @@ COMMAND_DECL(write_character){
 
 COMMAND_DECL(seek_whitespace_right){
     ProfileMomentFunction();
-    REQ_FILE_VIEW(view);
+    USE_VIEW(view);
     REQ_FILE(file, view);
 
     i32 pos = buffer_seek_whitespace_right(&file->state.buffer, view->cursor.pos);
@@ -301,7 +298,7 @@ COMMAND_DECL(seek_whitespace_right){
 
 COMMAND_DECL(seek_whitespace_left){
     ProfileMomentFunction();
-    REQ_FILE_VIEW(view);
+    USE_VIEW(view);
     REQ_FILE(file, view);
 
     i32 pos = buffer_seek_whitespace_left(&file->state.buffer, view->cursor.pos);
@@ -310,7 +307,7 @@ COMMAND_DECL(seek_whitespace_left){
 
 COMMAND_DECL(seek_whitespace_up){
     ProfileMomentFunction();
-    REQ_FILE_VIEW(view);
+    USE_VIEW(view);
     REQ_FILE(file, view);
 
     i32 pos = buffer_seek_whitespace_up(&file->state.buffer, view->cursor.pos);
@@ -319,7 +316,7 @@ COMMAND_DECL(seek_whitespace_up){
 
 COMMAND_DECL(seek_whitespace_down){
     ProfileMomentFunction();
-    REQ_FILE_VIEW(view);
+    USE_VIEW(view);
     REQ_FILE(file, view);
 
     i32 pos = buffer_seek_whitespace_down(&file->state.buffer, view->cursor.pos);
@@ -357,7 +354,7 @@ seek_token_right(Cpp_Token_Stack *tokens, i32 pos){
 
 COMMAND_DECL(seek_token_left){
     ProfileMomentFunction();
-    REQ_FILE_VIEW(view);
+    USE_VIEW(view);
     REQ_FILE(file, view);
 
     if (file->state.tokens_complete){
@@ -368,7 +365,7 @@ COMMAND_DECL(seek_token_left){
 
 COMMAND_DECL(seek_token_right){
     ProfileMomentFunction();
-    REQ_FILE_VIEW(view);
+    USE_VIEW(view);
     REQ_FILE(file, view);
 
     if (file->state.tokens_complete){
@@ -379,7 +376,7 @@ COMMAND_DECL(seek_token_right){
 
 COMMAND_DECL(seek_white_or_token_right){
     ProfileMomentFunction();
-    REQ_FILE_VIEW(view);
+    USE_VIEW(view);
     REQ_FILE(file, view);
 
     i32 token_pos, white_pos;
@@ -395,7 +392,7 @@ COMMAND_DECL(seek_white_or_token_right){
 
 COMMAND_DECL(seek_white_or_token_left){
     ProfileMomentFunction();
-    REQ_FILE_VIEW(view);
+    USE_VIEW(view);
     REQ_FILE(file, view);
 
     i32 token_pos, white_pos;
@@ -411,7 +408,7 @@ COMMAND_DECL(seek_white_or_token_left){
 
 COMMAND_DECL(seek_alphanumeric_right){
     ProfileMomentFunction();
-    REQ_FILE_VIEW(view);
+    USE_VIEW(view);
     REQ_FILE(file, view);
 
     i32 pos = buffer_seek_alphanumeric_right(&file->state.buffer, view->cursor.pos);
@@ -420,7 +417,7 @@ COMMAND_DECL(seek_alphanumeric_right){
 
 COMMAND_DECL(seek_alphanumeric_left){
     ProfileMomentFunction();
-    REQ_FILE_VIEW(view);
+    USE_VIEW(view);
     REQ_FILE(file, view);
 
     i32 pos = buffer_seek_alphanumeric_left(&file->state.buffer, view->cursor.pos);
@@ -429,7 +426,7 @@ COMMAND_DECL(seek_alphanumeric_left){
 
 COMMAND_DECL(seek_alphanumeric_or_camel_right){
     ProfileMomentFunction();
-    REQ_FILE_VIEW(view);
+    USE_VIEW(view);
     REQ_FILE(file, view);
 
     i32 pos = buffer_seek_alphanumeric_or_camel_right(&file->state.buffer, view->cursor.pos);
@@ -438,7 +435,7 @@ COMMAND_DECL(seek_alphanumeric_or_camel_right){
 
 COMMAND_DECL(seek_alphanumeric_or_camel_left){
     ProfileMomentFunction();
-    REQ_FILE_VIEW(view);
+    USE_VIEW(view);
     REQ_FILE(file, view);
 
     i32 pos = buffer_seek_alphanumeric_or_camel_left(&file->state.buffer, view->cursor.pos);
@@ -447,7 +444,7 @@ COMMAND_DECL(seek_alphanumeric_or_camel_left){
 
 COMMAND_DECL(word_complete){
     ProfileMomentFunction();
-    REQ_FILE_VIEW(view);
+    USE_VIEW(view);
     REQ_FILE(file, view);
     USE_LAYOUT(layout);
     USE_MEM(mem);
@@ -603,7 +600,7 @@ COMMAND_DECL(word_complete){
 
 COMMAND_DECL(set_mark){
     ProfileMomentFunction();
-    REQ_FILE_VIEW(view);
+    USE_VIEW(view);
     REQ_FILE(file, view);
 
     view->mark = (i32)view->cursor.pos;
@@ -611,7 +608,7 @@ COMMAND_DECL(set_mark){
 
 COMMAND_DECL(copy){
     ProfileMomentFunction();
-    REQ_FILE_VIEW(view);
+    USE_VIEW(view);
     REQ_FILE(file, view);
     USE_WORKING_SET(working_set);
     USE_MEM(mem);
@@ -647,7 +644,7 @@ COMMAND_DECL(copy){
 
 COMMAND_DECL(cut){
     ProfileMomentFunction();
-    REQ_OPEN_FILE_VIEW(view);
+    REQ_OPEN_VIEW(view);
     REQ_FILE(file, view);
     USE_WORKING_SET(working_set);
     USE_LAYOUT(layout);
@@ -690,7 +687,7 @@ COMMAND_DECL(cut){
 
 COMMAND_DECL(paste){
     ProfileMomentFunction();
-    REQ_OPEN_FILE_VIEW(view);
+    REQ_OPEN_VIEW(view);
     REQ_FILE(file, view);
     USE_WORKING_SET(working_set);
     USE_LAYOUT(layout);
@@ -698,7 +695,7 @@ COMMAND_DECL(paste){
 
     Panel *panel, *used_panels;
     String *src;
-    File_View *current_view;
+    View *current_view;
     i32 pos_left, next_cursor_pos;
 
     if (working_set->clipboard_size > 0){
@@ -715,7 +712,7 @@ COMMAND_DECL(paste){
 
         used_panels = &layout->used_sentinel;
         for (dll_items(panel, used_panels)){
-            current_view = view_to_file_view(panel->view);
+            current_view = panel->view;
             
             if (current_view->file == file){
                 view_post_paste_effect(current_view, 20, pos_left, src->size,
@@ -727,7 +724,7 @@ COMMAND_DECL(paste){
 
 COMMAND_DECL(paste_next){
     ProfileMomentFunction();
-    REQ_OPEN_FILE_VIEW(view);
+    REQ_OPEN_VIEW(view);
     REQ_FILE(file, view);
     USE_WORKING_SET(working_set);
     USE_LAYOUT(layout);
@@ -750,7 +747,7 @@ COMMAND_DECL(paste_next){
         
         used_panels = &layout->used_sentinel;
         for (dll_items(panel, used_panels)){
-            File_View *current_view = view_to_file_view(panel->view);
+            View *current_view = panel->view;
 
             if (current_view->file == file){
                 view_post_paste_effect(current_view, 20, range.start, src->size,
@@ -765,7 +762,7 @@ COMMAND_DECL(paste_next){
 
 COMMAND_DECL(delete_range){
     ProfileMomentFunction();
-    REQ_OPEN_FILE_VIEW(view);
+    REQ_OPEN_VIEW(view);
     REQ_FILE(file, view);
     USE_LAYOUT(layout);
     USE_MEM(mem);
@@ -782,7 +779,7 @@ COMMAND_DECL(delete_range){
 
 COMMAND_DECL(timeline_scrub){
     ProfileMomentFunction();
-    REQ_FILE_VIEW(view);
+    USE_VIEW(view);
     REQ_FILE_HISTORY(file, view);
 
     view_set_widget(view, FWIDG_TIMELINES);
@@ -792,7 +789,7 @@ COMMAND_DECL(timeline_scrub){
 
 COMMAND_DECL(undo){
     ProfileMomentFunction();
-    REQ_FILE_VIEW(view);
+    USE_VIEW(view);
     REQ_FILE_HISTORY(file, view);
     USE_LAYOUT(layout);
     USE_MEM(mem);
@@ -802,7 +799,7 @@ COMMAND_DECL(undo){
 
 COMMAND_DECL(redo){
     ProfileMomentFunction();
-    REQ_FILE_VIEW(view);
+    USE_VIEW(view);
     REQ_FILE_HISTORY(file, view);
     USE_LAYOUT(layout);
     USE_MEM(mem);
@@ -812,7 +809,7 @@ COMMAND_DECL(redo){
 
 COMMAND_DECL(history_backward){
     ProfileMomentFunction();
-    REQ_FILE_VIEW(view);
+    USE_VIEW(view);
     REQ_FILE_HISTORY(file, view);
     USE_LAYOUT(layout);
     USE_MEM(mem);
@@ -822,7 +819,7 @@ COMMAND_DECL(history_backward){
 
 COMMAND_DECL(history_forward){
     ProfileMomentFunction();
-    REQ_FILE_VIEW(view);
+    USE_VIEW(view);
     REQ_FILE_HISTORY(file, view);
     USE_LAYOUT(layout);
     USE_MEM(mem);
@@ -833,7 +830,7 @@ COMMAND_DECL(history_forward){
 #if UseFileHistoryDump
 COMMAND_DECL(save_history){
     ProfileMomentFunction();
-    REQ_FILE_VIEW(view);
+    USE_VIEW(view);
     REQ_FILE(file, view);
     USE_MEM(mem);
 
@@ -843,10 +840,10 @@ COMMAND_DECL(save_history){
 
 COMMAND_DECL(interactive_new){
     ProfileMomentFunction();
-    USE_FILE_VIEW(fview);
+    USE_VIEW(view);
     USE_VARS(vars);
    
-    view_show_interactive(system, fview, &vars->map_ui,
+    view_show_interactive(system, view, &vars->map_ui,
         IAct_New, IInt_Sys_File_List, make_lit_string("New: "));
 }
 
@@ -936,9 +933,7 @@ COMMAND_DECL(interactive_open){
         View *view = panel->view;
         Assert(view);
         
-        File_View *fview = view_to_file_view(view);
-
-        view_show_interactive(system, fview, &vars->map_ui,
+        view_show_interactive(system, view, &vars->map_ui,
             IAct_Open, IInt_Sys_File_List, make_lit_string("Open: "));
     }
 }
@@ -957,7 +952,7 @@ view_file_in_panel(Command_Data *cmd, Panel *panel, Editing_File *file){
     Partition old_part;
     Temp_Memory temp;
     View *old_view;
-    File_View *file_view;
+    View *file_view;
 
     file_view = file_view_init(panel->view, layout, working_set, delay,
         &vars->settings, &vars->hot_directory, mem, &vars->styles);
@@ -985,7 +980,7 @@ view_file_in_panel(Command_Data *cmd, Panel *panel, Editing_File *file){
 //    the cursor position correct
 COMMAND_DECL(reopen){
     ProfileMomentFunction();
-    REQ_FILE_VIEW(view);
+    USE_VIEW(view);
     REQ_FILE(file, view);
     USE_EXCHANGE(exchange);
     USE_WORKING_SET(working_set);
@@ -1010,7 +1005,7 @@ COMMAND_DECL(reopen){
 
 COMMAND_DECL(save){
     ProfileMomentFunction();
-    USE_FILE_VIEW(view);
+    USE_VIEW(view);
     USE_FILE(file, view);
     USE_DELAY(delay);
     USE_WORKING_SET(working_set);
@@ -1061,7 +1056,7 @@ COMMAND_DECL(save){
 
 COMMAND_DECL(interactive_save_as){
     ProfileMomentFunction();
-    USE_FILE_VIEW(fview);
+    USE_VIEW(fview);
     USE_VARS(vars);
      
     view_show_interactive(system, fview, &vars->map_ui,
@@ -1082,7 +1077,7 @@ COMMAND_DECL(change_active_panel){
 
 COMMAND_DECL(interactive_switch_buffer){
     ProfileMomentFunction();
-    USE_FILE_VIEW(fview);
+    USE_VIEW(fview);
     USE_VARS(vars);
     
     view_show_interactive(system, fview, &vars->map_ui,
@@ -1091,7 +1086,7 @@ COMMAND_DECL(interactive_switch_buffer){
 
 COMMAND_DECL(interactive_kill_buffer){
     ProfileMomentFunction();
-    USE_FILE_VIEW(fview);
+    USE_VIEW(fview);
     USE_VARS(vars);
     
     view_show_interactive(system, fview, &vars->map_ui,
@@ -1100,16 +1095,16 @@ COMMAND_DECL(interactive_kill_buffer){
 
 COMMAND_DECL(kill_buffer){
     ProfileMomentFunction();
-    REQ_FILE_VIEW(view);
+    USE_VIEW(view);
     REQ_FILE(file, view);
     USE_DELAY(delay);
 
-    delayed_try_kill(delay, file->name.live_name, view->view_base.panel);
+    delayed_try_kill(delay, file->name.live_name, view->panel);
 }
 
 COMMAND_DECL(toggle_line_wrap){
     ProfileMomentFunction();
-    REQ_FILE_VIEW(view);
+    USE_VIEW(view);
     REQ_FILE(file, view);
 
     Relative_Scrolling scrolling = view_get_relative_scrolling(view);
@@ -1133,14 +1128,14 @@ COMMAND_DECL(toggle_line_wrap){
 
 COMMAND_DECL(toggle_show_whitespace){
     ProfileMomentFunction();
-    REQ_FILE_VIEW(view);
+    USE_VIEW(view);
     view->show_whitespace = !view->show_whitespace;
 }
 
 COMMAND_DECL(toggle_tokens){
 #if BUFFER_EXPERIMENT_SCALPEL <= 0
     ProfileMomentFunction();
-    REQ_FILE_VIEW(view);
+    USE_VIEW(view);
     REQ_FILE(file, view);
     USE_MEM(mem);
 
@@ -1155,7 +1150,7 @@ COMMAND_DECL(toggle_tokens){
 
 internal void
 case_change_range(System_Functions *system,
-    Mem_Options *mem, File_View *view, Editing_File *file,
+    Mem_Options *mem, View *view, Editing_File *file,
     u8 a, u8 z, u8 char_delta){
 #if BUFFER_EXPERIMENT_SCALPEL <= 0
     Range range = make_range(view->cursor.pos, view->mark);
@@ -1186,7 +1181,7 @@ case_change_range(System_Functions *system,
 
 COMMAND_DECL(to_uppercase){
     ProfileMomentFunction();
-    REQ_FILE_VIEW(view);
+    USE_VIEW(view);
     REQ_FILE(file, view);
     USE_MEM(mem);
     case_change_range(system, mem, view, file, 'a', 'z', (u8)('A' - 'a'));
@@ -1194,7 +1189,7 @@ COMMAND_DECL(to_uppercase){
 
 COMMAND_DECL(to_lowercase){
     ProfileMomentFunction();
-    REQ_FILE_VIEW(view);
+    USE_VIEW(view);
     REQ_FILE(file, view);
     USE_MEM(mem);
     case_change_range(system, mem, view, file, 'A', 'Z', (u8)('a' - 'A'));
@@ -1202,7 +1197,7 @@ COMMAND_DECL(to_lowercase){
 
 COMMAND_DECL(clean_all_lines){
     ProfileMomentFunction();
-    REQ_FILE_VIEW(view);
+    USE_VIEW(view);
     REQ_FILE(file, view);
     USE_LAYOUT(layout);
     USE_MEM(mem);
@@ -1212,7 +1207,7 @@ COMMAND_DECL(clean_all_lines){
 
 COMMAND_DECL(eol_dosify){
     ProfileMomentFunction();
-    REQ_FILE_VIEW(view);
+    USE_VIEW(view);
     REQ_FILE(file, view);
 
     file->settings.dos_write_mode = 1;
@@ -1221,7 +1216,7 @@ COMMAND_DECL(eol_dosify){
 
 COMMAND_DECL(eol_nixify){
     ProfileMomentFunction();
-    REQ_FILE_VIEW(view);
+    USE_VIEW(view);
     REQ_FILE(file, view);
 
     file->settings.dos_write_mode = 0;
@@ -1230,7 +1225,7 @@ COMMAND_DECL(eol_nixify){
 
 COMMAND_DECL(auto_tab_range){
     ProfileMomentFunction();
-    REQ_FILE_VIEW(view);
+    USE_VIEW(view);
     REQ_FILE(file, view);
     USE_LAYOUT(layout);
     USE_MEM(mem);
@@ -1271,7 +1266,7 @@ COMMAND_DECL(auto_tab_range){
 
 COMMAND_DECL(auto_tab_line_at_cursor){
     ProfileMomentFunction();
-    REQ_FILE_VIEW(view);
+    USE_VIEW(view);
     REQ_FILE(file, view);
     USE_LAYOUT(layout);
     USE_MEM(mem);
@@ -1297,7 +1292,7 @@ COMMAND_DECL(auto_tab_line_at_cursor){
 
 COMMAND_DECL(auto_tab_whole_file){
     ProfileMomentFunction();
-    REQ_FILE_VIEW(view);
+    USE_VIEW(view);
     REQ_FILE(file, view);
     USE_LAYOUT(layout);
     USE_MEM(mem);
@@ -1450,7 +1445,7 @@ COMMAND_DECL(close_panel){
 
 COMMAND_DECL(move_left){
     ProfileMomentFunction();
-    REQ_FILE_VIEW(view);
+    USE_VIEW(view);
     REQ_FILE(file, view);
 
     i32 pos = view->cursor.pos;
@@ -1460,7 +1455,7 @@ COMMAND_DECL(move_left){
 
 COMMAND_DECL(move_right){
     ProfileMomentFunction();
-    REQ_FILE_VIEW(view);
+    USE_VIEW(view);
     REQ_FILE(file, view);
 
     i32 size = buffer_size(&file->state.buffer);
@@ -1471,7 +1466,7 @@ COMMAND_DECL(move_right){
 
 COMMAND_DECL(delete){
     ProfileMomentFunction();
-    REQ_OPEN_FILE_VIEW(view);
+    REQ_OPEN_VIEW(view);
     REQ_FILE(file, view);
     USE_LAYOUT(layout);
     USE_MEM(mem);
@@ -1493,7 +1488,7 @@ COMMAND_DECL(delete){
 
 COMMAND_DECL(backspace){
     ProfileMomentFunction();
-    REQ_OPEN_FILE_VIEW(view);
+    REQ_OPEN_VIEW(view);
     REQ_FILE(file, view);
     USE_LAYOUT(layout);
     USE_MEM(mem);
@@ -1516,7 +1511,7 @@ COMMAND_DECL(backspace){
 
 COMMAND_DECL(move_up){
     ProfileMomentFunction();
-    REQ_FILE_VIEW(view);
+    USE_VIEW(view);
     REQ_FILE(file, view);
     USE_FONT_SET(font_set);
     USE_FONT(global_font);
@@ -1532,7 +1527,7 @@ COMMAND_DECL(move_up){
 
 COMMAND_DECL(move_down){
     ProfileMomentFunction();
-    REQ_FILE_VIEW(view);
+    USE_VIEW(view);
     REQ_FILE(file, view);
     USE_FONT_SET(font_set);
     USE_FONT(global_font);
@@ -1546,7 +1541,7 @@ COMMAND_DECL(move_down){
 
 COMMAND_DECL(seek_end_of_line){
     ProfileMomentFunction();
-    REQ_FILE_VIEW(view);
+    USE_VIEW(view);
     REQ_FILE(file, view);
 
     i32 pos = view_find_end_of_line(view, view->cursor.pos);
@@ -1555,7 +1550,7 @@ COMMAND_DECL(seek_end_of_line){
 
 COMMAND_DECL(seek_beginning_of_line){
     ProfileMomentFunction();
-    REQ_FILE_VIEW(view);
+    USE_VIEW(view);
     REQ_FILE(file, view);
 
     i32 pos = view_find_beginning_of_line(view, view->cursor.pos);
@@ -1564,7 +1559,7 @@ COMMAND_DECL(seek_beginning_of_line){
 
 COMMAND_DECL(page_down){
     ProfileMomentFunction();
-    REQ_FILE_VIEW(view);
+    USE_VIEW(view);
 
     f32 height = view_compute_height(view);
     f32 max_target_y = view_compute_max_target_y(view);
@@ -1578,7 +1573,7 @@ COMMAND_DECL(page_down){
 
 COMMAND_DECL(page_up){
     ProfileMomentFunction();
-    REQ_FILE_VIEW(view);
+    USE_VIEW(view);
 
     f32 height = view_compute_height(view);
 
@@ -1591,7 +1586,7 @@ COMMAND_DECL(page_up){
 
 COMMAND_DECL(open_color_tweaker){
     ProfileMomentFunction();
-    USE_FILE_VIEW(fview);
+    USE_VIEW(fview);
     USE_VARS(vars);
     
     view_show_theme(fview, &vars->map_ui);
@@ -1599,7 +1594,7 @@ COMMAND_DECL(open_color_tweaker){
 
 COMMAND_DECL(open_config){
     ProfileMomentFunction();
-    USE_FILE_VIEW(fview);
+    USE_VIEW(fview);
     USE_VARS(vars);
     
     view_show_config(fview, &vars->map_ui);
@@ -1607,7 +1602,7 @@ COMMAND_DECL(open_config){
 
 COMMAND_DECL(open_menu){
     ProfileMomentFunction();
-    USE_FILE_VIEW(fview);
+    USE_VIEW(fview);
     USE_VARS(vars);
     
     view_show_menu(fview, &vars->map_ui);
@@ -1615,20 +1610,19 @@ COMMAND_DECL(open_menu){
 
 COMMAND_DECL(close_minor_view){
     ProfileMomentFunction();
-    REQ_VIEW(view);
-    USE_FILE_VIEW(fview);
+    USE_VIEW(view);
     USE_VARS(vars);
 
     Command_Map *map = &vars->map_top;
-    if (fview->file){
-        map = app_get_map(vars, fview->file->settings.base_map_id);
+    if (view->file){
+        map = app_get_map(vars, view->file->settings.base_map_id);
     }
-    view_show_file(fview, map);
+    view_show_file(view, map);
 }
 
 COMMAND_DECL(cursor_mark_swap){
     ProfileMomentFunction();
-    REQ_FILE_VIEW(view);
+    USE_VIEW(view);
 
     i32 pos = view->cursor.pos;
     view_cursor_move(view, view->mark);
@@ -1642,7 +1636,7 @@ COMMAND_DECL(user_callback){
 
 COMMAND_DECL(set_settings){
     ProfileMomentFunction();
-    REQ_FILE_VIEW(view);
+    USE_VIEW(view);
     REQ_FILE_LOADING(file, view);
     USE_VARS(vars);
     USE_MEM(mem);
@@ -1756,8 +1750,8 @@ build(System_Functions *system, Mem_Options *mem,
                 if (!(flags & CLI_AlwaysBindToView)){
                     Panel *panel = layout->panels;
                     for (i32 i = 0; i < layout->panel_count; ++i, ++panel){
-                        File_View *fview = view_to_file_view(panel->view);
-                        if (fview && fview->file == file){
+                        View *view = panel->view;
+                        if (view->file == file){
                             bind_to_new_view = 0;
                             break;
                         }
@@ -1902,7 +1896,7 @@ fill_buffer_summary(Buffer_Summary *buffer, Editing_File *file, Working_Set *wor
 }
 
 internal void
-fill_view_summary(File_View_Summary *view, File_View *file_view, Live_Views *live_set, Working_Set *working_set){
+fill_view_summary(View_Summary *view, View *file_view, Live_Views *live_set, Working_Set *working_set){
     view->exists = 1;
     view->view_id = (int)((char*)file_view - (char*)live_set->views) / live_set->stride;
     if (file_view->file){
@@ -2006,12 +2000,12 @@ extern "C"{
 
     GET_ACTIVE_BUFFER_SIG(external_get_active_buffer){
         Command_Data *cmd = (Command_Data*)context->cmd_context;
-        File_View *view;
+        View *view;
         Editing_File *file;
         Working_Set *working_set;
         Buffer_Summary buffer = {};
 
-        view = view_to_file_view(cmd->view);
+        view = cmd->view;
         if (view){
             file = view->file;
             working_set = cmd->working_set;
@@ -2213,41 +2207,35 @@ extern "C"{
         return(max);
     }
 
-    GET_FILE_VIEW_SIG(external_get_file_view){
+    GET_VIEW_SIG(external_get_view){
         Command_Data *cmd = (Command_Data*)context->cmd_context;
         Live_Views *live_set = cmd->live_set;
         int max = live_set->max;
         View *vptr;
-        File_View *file_view;
-        File_View_Summary view = {};
+        View_Summary view = {};
 
         if (index >= 0 && index < max){
             vptr = (View*)((char*)live_set->views + live_set->stride*index);
-            file_view = view_to_file_view(vptr);
-            if (file_view){
-                fill_view_summary(&view, file_view, cmd->live_set, cmd->working_set);
-            }
+            fill_view_summary(&view, vptr, cmd->live_set, cmd->working_set);
         }
 
         return(view);
     }
 
-    GET_ACTIVE_FILE_VIEW_SIG(external_get_active_file_view){
+    GET_ACTIVE_VIEW_SIG(external_get_active_view){
         Command_Data *cmd = (Command_Data*)context->cmd_context;
-        File_View_Summary view = {};
-        File_View *file_view;
-
-        file_view = view_to_file_view(cmd->view);
-        if (file_view){
-            fill_view_summary(&view, file_view, cmd->live_set, cmd->working_set);
-        }
-
+        View_Summary view = {};
+        View *vptr;
+        
+        vptr = cmd->view;
+        fill_view_summary(&view, vptr, cmd->live_set, cmd->working_set);
+        
         return(view);
     }
 
-    REFRESH_FILE_VIEW_SIG(external_refresh_file_view){
+    REFRESH_VIEW_SIG(external_refresh_view){
         int result;
-        *view = external_get_file_view(context, view->view_id);
+        *view = external_get_view(context, view->view_id);
         result = view->exists;
         return(result);
     }
@@ -2256,21 +2244,17 @@ extern "C"{
         Command_Data *cmd = (Command_Data*)context->cmd_context;
         Live_Views *live_set;
         View *vptr;
-        File_View *file_view;
         int result = 0;
-
+        
         if (view->exists){
             live_set = cmd->live_set;
             vptr = (View*)((char*)live_set->views + live_set->stride * view->view_id);
-            file_view = view_to_file_view(vptr);
-            if (file_view){
-                result = 1;
-                file_view->cursor = view_compute_cursor(file_view, seek);
-                if (set_preferred_x){
-                    file_view->preferred_x = view_get_cursor_x(file_view);
-                }
-                fill_view_summary(view, file_view, cmd->live_set, cmd->working_set);
+            result = 1;
+            vptr->cursor = view_compute_cursor(vptr, seek);
+            if (set_preferred_x){
+                vptr->preferred_x = view_get_cursor_x(vptr);
             }
+            fill_view_summary(view, vptr, cmd->live_set, cmd->working_set);
         }
 
         return(result);
@@ -2280,25 +2264,21 @@ extern "C"{
         Command_Data *cmd = (Command_Data*)context->cmd_context;
         Live_Views *live_set;
         View *vptr;
-        File_View *file_view;
         Full_Cursor cursor;
         int result = 0;
 
         if (view->exists){
             live_set = cmd->live_set;
             vptr = (View*)((char*)live_set->views + live_set->stride * view->view_id);
-            file_view = view_to_file_view(vptr);
-            if (file_view){
-                result = 1;
-                if (seek.type != buffer_seek_pos){
-                    cursor = view_compute_cursor(file_view, seek);
-                    file_view->mark = cursor.pos;
-                }
-                else{
-                    file_view->mark = seek.pos;
-                }
-                fill_view_summary(view, file_view, cmd->live_set, cmd->working_set);
+            result = 1;
+            if (seek.type != buffer_seek_pos){
+                cursor = view_compute_cursor(vptr, seek);
+                vptr->mark = cursor.pos;
             }
+            else{
+                vptr->mark = seek.pos;
+            }
+            fill_view_summary(view, vptr, cmd->live_set, cmd->working_set);
         }
 
         return(result);
@@ -2308,23 +2288,19 @@ extern "C"{
         Command_Data *cmd = (Command_Data*)context->cmd_context;
         Live_Views *live_set;
         View *vptr;
-        File_View *file_view;
         int result = 0;
 
         if (view->exists){
             live_set = cmd->live_set;
             vptr = (View*)((char*)live_set->views + live_set->stride * view->view_id);
-            file_view = view_to_file_view(vptr);
-            if (file_view){
-                result = 1;
-                if (turn_on){
-                    view_set_temp_highlight(file_view, start, end);
-                }
-                else{
-                    file_view->show_temp_highlight = 0;
-                }
-                fill_view_summary(view, file_view, cmd->live_set, cmd->working_set);
+            result = 1;
+            if (turn_on){
+                view_set_temp_highlight(vptr, start, end);
             }
+            else{
+                vptr->show_temp_highlight = 0;
+            }
+            fill_view_summary(view, vptr, cmd->live_set, cmd->working_set);
         }
 
         return(result);
@@ -2334,7 +2310,6 @@ extern "C"{
         Command_Data *cmd = (Command_Data*)context->cmd_context;
         Live_Views *live_set;
         View *vptr;
-        File_View *file_view;
         Editing_File *file;
         Working_Set *working_set;
         int max, result = 0;
@@ -2342,20 +2317,17 @@ extern "C"{
         if (view->exists){
             live_set = cmd->live_set;
             vptr = (View*)((char*)live_set->views + live_set->stride * view->view_id);
-            file_view = view_to_file_view(vptr);
-            if (file_view){
-                working_set = cmd->working_set;
-                max = working_set->file_index_count;
-                if (buffer_id >= 0 && buffer_id < max){
-                    file = working_set->files + buffer_id;
-                    if (!file->state.is_dummy){
-                        view_set_file(file_view, file, cmd->vars->font_set, cmd->style, cmd->global_font,
-                            cmd->system, cmd->vars->hooks[hook_open_file], &app_links);
-                    }
+            working_set = cmd->working_set;
+            max = working_set->file_index_count;
+            if (buffer_id >= 0 && buffer_id < max){
+                file = working_set->files + buffer_id;
+                if (!file->state.is_dummy){
+                    view_set_file(vptr, file, cmd->vars->font_set, cmd->style, cmd->global_font,
+                        cmd->system, cmd->vars->hooks[hook_open_file], &app_links);
                 }
-
-                fill_view_summary(view, file_view, cmd->live_set, cmd->working_set);
             }
+
+            fill_view_summary(view, vptr, cmd->live_set, cmd->working_set);
         }
 
         return(result);
@@ -2380,15 +2352,11 @@ extern "C"{
         Command_Data *cmd = (Command_Data*)context->cmd_context;
         Query_Slot *slot = 0;
         View *vptr;
-        File_View *file_view;
 
         vptr = cmd->view;
-        file_view = view_to_file_view(vptr);
 
-        if (file_view){
-            slot = alloc_query_slot(&file_view->query_set);
-            slot->query_bar = bar;
-        }
+        slot = alloc_query_slot(&vptr->query_set);
+        slot->query_bar = bar;
 
         return(slot != 0);
     }
@@ -2396,14 +2364,9 @@ extern "C"{
     END_QUERY_BAR_SIG(external_end_query_bar){
         Command_Data *cmd = (Command_Data*)context->cmd_context;
         View *vptr;
-        File_View *file_view;
 
         vptr = cmd->view;
-        file_view = view_to_file_view(vptr);
-
-        if (file_view){
-            free_query_slot(&file_view->query_set, bar);
-        }
+        free_query_slot(&vptr->query_set, bar);
     }
 }
 
@@ -2417,13 +2380,12 @@ command_caller(Coroutine *coroutine){
     Command_In *cmd_in = (Command_In*)coroutine->in;
     Command_Data *cmd = cmd_in->cmd;
     View *view = cmd->view;
+    
     // TODO(allen): this isn't really super awesome, could have issues if
     // the file view get's change out under us.
-    File_View *fview = view_to_file_view(view);
-    if (fview) fview->next_mode = {};
+    view->next_mode = {};
     cmd_in->bind.function(cmd->system, cmd, cmd_in->bind);
-    fview = view_to_file_view(view);
-    if (fview) fview->mode = fview->next_mode;
+    view->mode = view->next_mode;
 }
 
 internal void
@@ -2454,10 +2416,10 @@ app_links_init(System_Functions *system, void *data, int size){
     app_links.buffer_replace_range = external_buffer_replace_range;
 
     app_links.get_view_max_index = external_get_view_max_index;
-    app_links.get_file_view = external_get_file_view;
-    app_links.get_active_file_view = external_get_active_file_view;
+    app_links.get_view = external_get_view;
+    app_links.get_active_view = external_get_active_view;
 
-    app_links.refresh_file_view = external_refresh_file_view;
+    app_links.refresh_view = external_refresh_view;
     app_links.view_set_cursor = external_view_set_cursor;
     app_links.view_set_mark = external_view_set_mark;
     app_links.view_set_highlight = external_view_set_highlight;
@@ -3026,7 +2988,7 @@ App_Init_Sig(app_init){
         View *v = 0;
         i32 i = 0;
         i32 max = 0;
-        i32 view_size = sizeof(File_View);
+        i32 view_size = sizeof(View);
         
         vars->live_set.count = 0;
         vars->live_set.max = panel_max_count;
@@ -3390,15 +3352,13 @@ App_Step_Sig(app_step){
 
                 Panel *panel, *used_panels;
                 View *view;
-                File_View *fview;
                 
                 used_panels = &vars->layout.used_sentinel;
                 for (dll_items(panel, used_panels)){
                     view = panel->view;
-                    fview = view_to_file_view(view);
-                    Assert(fview);
-                    if (fview->file == out_file){
-                        view_cursor_move(fview, new_cursor);
+                    Assert(view);
+                    if (view->file == out_file){
+                        view_cursor_move(view, new_cursor);
                     }
                 }
             }
@@ -3416,7 +3376,7 @@ App_Step_Sig(app_step){
         i32 current_height = target->height;
 
         Panel *panel, *used_panels;
-        File_View *fview;
+        View *view;
         
         vars->layout.full_width = current_width;
         vars->layout.full_height = current_height;
@@ -3426,11 +3386,11 @@ App_Step_Sig(app_step){
 
             used_panels = &vars->layout.used_sentinel;
             for (dll_items(panel, used_panels)){
-                fview = view_to_file_view(panel->view);
-                Assert(fview);
+                view = panel->view;
+                Assert(view);
                 // TODO(allen): All responses to a panel changing size should
                 // be handled in the same place.
-                view_change_size(system, &vars->mem.general, fview);
+                view_change_size(system, &vars->mem.general, view);
             }
             
             app_result.redraw = 1;
@@ -3637,9 +3597,8 @@ App_Step_Sig(app_step){
                     // TOOD(allen): Deduplicate
                     // TODO(allen): Allow a view to clean up however it wants after a command 
                     // finishes, or after transfering to another view mid command.
-                    File_View *fview = view_to_file_view(view);
-                    if (fview != 0 && vars->command_coroutine == 0){
-                        init_query_set(&fview->query_set);
+                    if (view != 0 && vars->command_coroutine == 0){
+                        init_query_set(&view->query_set);
                     }
                     if (vars->command_coroutine == 0) break;
                 }
@@ -3703,9 +3662,8 @@ App_Step_Sig(app_step){
                 // TOOD(allen): Deduplicate
                 // TODO(allen): Allow a view to clean up however it wants after a command finishes,
                 // or after transfering to another view mid command.
-                File_View *fview = view_to_file_view(view);
-                if (fview != 0 && vars->command_coroutine == 0){
-                    init_query_set(&fview->query_set);
+                if (view != 0 && vars->command_coroutine == 0){
+                    init_query_set(&view->query_set);
                 }
             }
         }
@@ -4008,7 +3966,7 @@ App_Step_Sig(app_step){
                 }
 
                 if (!ed_file->state.is_dummy){
-                    for (File_View_Iter iter = file_view_iter_init(&vars->layout, ed_file, 0);
+                    for (View_Iter iter = file_view_iter_init(&vars->layout, ed_file, 0);
                         file_view_iter_good(iter);
                         iter = file_view_iter_next(iter)){
                         view_measure_wraps(system, general, iter.view);
@@ -4053,7 +4011,6 @@ App_Step_Sig(app_step){
         Style *style = &vars->style;
         Style_Font *global_font = &vars->global_font;
         Working_Set *working_set = &vars->working_set;
-        Live_Views *live_set = &vars->live_set;
         Mem_Options *mem = &vars->mem;
         General_Memory *general = &vars->mem.general;
         
@@ -4123,8 +4080,7 @@ App_Step_Sig(app_step){
                     // TODO(allen): deduplicate
                     Editing_File *file = 0;
                     if (panel){
-                        File_View *fview = view_to_file_view(panel->view);
-                        file = fview->file;
+                        file = panel->view->file;
                     }
                     else if (string.str && string.size > 0){
                         file = working_set_lookup_file(working_set, string);
@@ -4144,8 +4100,7 @@ App_Step_Sig(app_step){
                     // TODO(allen): deduplicate
                     Editing_File *file = 0;
                     if (panel){
-                        File_View *fview = view_to_file_view(panel->view);
-                        file = fview->file;
+                        file = panel->view->file;
                     }
                     else if (string.str && string.size > 0){
                         file = working_set_lookup_file(working_set, string);
@@ -4166,11 +4121,9 @@ App_Step_Sig(app_step){
                     if (!file){
                         if (panel){
                             View *view;
-                            File_View *fview;
                             view = panel->view;
-                            fview = view_to_file_view(view);
-                            Assert(fview);
-                            file = fview->file;
+                            Assert(view);
+                            file = view->file;
                         }
                         else{
                             file = working_set_lookup_file(working_set, string);
@@ -4199,9 +4152,8 @@ App_Step_Sig(app_step){
                     table_add(&working_set->table, file.file->name.source_path, file.index);
                     
                     View *view = panel->view;
-                    File_View *fview = view_to_file_view(view);
                     
-                    view_set_file(fview, file.file, vars->font_set, style, global_font,
+                    view_set_file(view, file.file, vars->font_set, style, global_font,
                         system,  vars->hooks[hook_open_file], &app_links);
                     view->map = app_get_map(vars, file.file->settings.base_map_id);
 #if BUFFER_EXPERIMENT_SCALPEL <= 0
@@ -4215,9 +4167,8 @@ App_Step_Sig(app_step){
                     Editing_File *file = working_set_lookup_file(working_set, string);
                     if (file){
                         View *view = panel->view;
-                        File_View *fview = view_to_file_view(view);
                         
-                        view_set_file(fview, file, vars->font_set, style, global_font,
+                        view_set_file(view, file, vars->font_set, style, global_font,
                             system, vars->hooks[hook_open_file], &app_links);
                         view->map = app_get_map(vars, file->settings.base_map_id);
                     }
@@ -4228,7 +4179,7 @@ App_Step_Sig(app_step){
                     Editing_File *file = working_set_lookup_file(working_set, string);
                     if (file){
                         table_remove(&working_set->table, file->name.source_path);
-                        kill_file(system, exchange, general, file, live_set, &vars->layout);
+                        kill_file(system, exchange, general, file, &vars->layout);
                     }
                 }break;
                 
@@ -4245,18 +4196,17 @@ App_Step_Sig(app_step){
                         view = (vars->layout.panels + vars->layout.active_panel)->view;
                     }
                     
-                    File_View *fview = view_to_file_view(view);
-                    Assert(fview);
+                    Assert(view);
                     
                     if (file){
                         if (buffer_needs_save(file)){
-                            view_show_interactive(system, fview, &vars->map_ui,
+                            view_show_interactive(system, view, &vars->map_ui,
                                 IAct_Sure_To_Kill, IInt_Sure_To_Kill, make_lit_string("Are you sure?"));
-                            copy(&fview->dest, file->name.live_name);
+                            copy(&view->dest, file->name.live_name);
                         }
                         else{
                             table_remove(&working_set->table, file->name.source_path);
-                            kill_file(system, exchange, general, file, live_set, &vars->layout);
+                            kill_file(system, exchange, general, file, &vars->layout);
                         }
                     }
                 }break;

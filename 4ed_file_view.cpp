@@ -9,6 +9,23 @@
 
 // TOP
 
+enum View_Message{
+    VMSG_STEP,
+    VMSG_DRAW,
+    VMSG_RESIZE,
+    VMSG_STYLE_CHANGE,
+    VMSG_FREE
+};
+
+struct View;
+#define Do_View_Sig(name)                                               \
+    i32 (name)(System_Functions *system, Exchange *exchange,            \
+               View *view, i32_Rect rect, View *active,                 \
+               View_Message message, Render_Target *target,             \
+               Input_Summary *user_input, Input_Summary *active_input)
+
+typedef Do_View_Sig(Do_View_Function);
+
 enum Interactive_Action{
     IAct_Open,
     IAct_Save_As,
@@ -24,7 +41,7 @@ enum Interactive_Interaction{
     IInt_Sure_To_Kill
 };
 
-struct File_View_Mode{
+struct View_Mode{
     i8 rewrite;
 };
 
@@ -34,16 +51,16 @@ struct Incremental_Search{
     i32 pos;
 };
 
-enum File_View_Widget_Type{
+enum View_Widget_Type{
     FWIDG_NONE,
     FWIDG_TIMELINES,
     // never below this
     FWIDG_TYPE_COUNT
 };
 
-struct File_View_Widget{
+struct View_Widget{
     UI_State state;
-    File_View_Widget_Type type;
+    View_Widget_Type type;
     i32 height_;
     struct{
         b32 undo_line;
@@ -69,8 +86,14 @@ enum Color_View_Mode{
     CV_Mode_Adjusting
 };
 
-struct File_View{
-    View view_base;
+struct View{
+    View *next, *prev;
+    
+    Panel *panel;
+    Command_Map *map;
+    Do_View_Function *do_view;
+    Scroll_Rule_Function *scroll_rule;
+    i32 id;
 
     Editing_File *file;
 
@@ -100,7 +123,7 @@ struct File_View{
     i32 user_action;
 
     // theme stuff
-    File_View *hot_file_view;
+    View *hot_file_view;
     u32 *palette;
     i32 palette_size;
     Color_View_Mode color_mode;
@@ -132,8 +155,8 @@ struct File_View{
     i32 temp_highlight_end_pos;
     b32 show_temp_highlight;
 
-    File_View_Mode mode, next_mode;
-    File_View_Widget widget;
+    View_Mode mode, next_mode;
+    View_Widget widget;
 
     Query_Set query_set;
 
@@ -149,10 +172,27 @@ struct File_View{
     Command_Map *map_for_file;
 };
 
-inline File_View*
-view_to_file_view(View *view){
-    File_View* result = (File_View*)view;
-    return result;
+struct View_And_ID{
+    View *view;
+    i32 id;
+};
+
+inline void
+view_set_first(View *new_view, Panel *panel){
+    new_view->panel = panel;
+    panel->view = new_view;
+}
+
+inline f32
+view_compute_width(View *view){
+    Panel *panel = view->panel;
+    return (f32)(panel->inner.x1 - panel->inner.x0);
+}
+
+inline f32
+view_compute_height(View *view){
+    Panel *panel = view->panel;
+    return (f32)(panel->inner.y1 - panel->inner.y0);
 }
 
 inline i32
@@ -432,7 +472,7 @@ view_wrapped_line_span(f32 line_width, f32 max_width){
 }
 
 internal i32
-view_compute_lowest_line(File_View *view){
+view_compute_lowest_line(View *view){
     i32 lowest_line = 0;
     i32 last_line = view->line_count - 1;
     if (last_line > 0){
@@ -456,7 +496,7 @@ view_compute_lowest_line(File_View *view){
 
 internal void
 view_measure_wraps(System_Functions *system,
-    General_Memory *general, File_View *view){
+    General_Memory *general, View *view){
     ProfileMomentFunction();
     Buffer_Type *buffer;
 
@@ -1165,7 +1205,7 @@ file_post_history(General_Memory *general, Editing_File *file,
 #endif
 
 inline Full_Cursor
-view_compute_cursor_from_pos(File_View *view, i32 pos){
+view_compute_cursor_from_pos(View *view, i32 pos){
     Editing_File *file = view->file;
     Render_Font *font = get_font_info(view->font_set, view->global_font->font_id)->font;
 
@@ -1179,7 +1219,7 @@ view_compute_cursor_from_pos(File_View *view, i32 pos){
 }
 
 inline Full_Cursor
-view_compute_cursor_from_unwrapped_xy(File_View *view, f32 seek_x, f32 seek_y, b32 round_down = 0){
+view_compute_cursor_from_unwrapped_xy(View *view, f32 seek_x, f32 seek_y, b32 round_down = 0){
     Editing_File *file = view->file;
     Render_Font *font = get_font_info(view->font_set, view->global_font->font_id)->font;
 
@@ -1195,7 +1235,7 @@ view_compute_cursor_from_unwrapped_xy(File_View *view, f32 seek_x, f32 seek_y, b
 }
 
 internal Full_Cursor
-view_compute_cursor_from_wrapped_xy(File_View *view, f32 seek_x, f32 seek_y,
+view_compute_cursor_from_wrapped_xy(View *view, f32 seek_x, f32 seek_y,
     b32 round_down = 0){
     Editing_File *file = view->file;
     Render_Font *font = get_font_info(view->font_set, view->global_font->font_id)->font;
@@ -1212,7 +1252,7 @@ view_compute_cursor_from_wrapped_xy(File_View *view, f32 seek_x, f32 seek_y,
 }
 
 internal Full_Cursor
-view_compute_cursor_from_line_pos(File_View *view, i32 line, i32 pos){
+view_compute_cursor_from_line_pos(View *view, i32 line, i32 pos){
     Editing_File *file = view->file;
     Render_Font *font = get_font_info(view->font_set, view->global_font->font_id)->font;
 
@@ -1227,7 +1267,7 @@ view_compute_cursor_from_line_pos(File_View *view, i32 line, i32 pos){
 }
 
 inline Full_Cursor
-view_compute_cursor(File_View *view, Buffer_Seek seek){
+view_compute_cursor(View *view, Buffer_Seek seek){
     Full_Cursor result = {};
 
     switch(seek.type){
@@ -1252,7 +1292,7 @@ view_compute_cursor(File_View *view, Buffer_Seek seek){
 }
 
 inline Full_Cursor
-view_compute_cursor_from_xy(File_View *view, f32 seek_x, f32 seek_y){
+view_compute_cursor_from_xy(View *view, f32 seek_x, f32 seek_y){
     Full_Cursor result;
     if (view->unwrapped_lines) result = view_compute_cursor_from_unwrapped_xy(view, seek_x, seek_y);
     else result = view_compute_cursor_from_wrapped_xy(view, seek_x, seek_y);
@@ -1260,14 +1300,14 @@ view_compute_cursor_from_xy(File_View *view, f32 seek_x, f32 seek_y){
 }
 
 inline void
-view_set_temp_highlight(File_View *view, i32 pos, i32 end_pos){
+view_set_temp_highlight(View *view, i32 pos, i32 end_pos){
     view->temp_highlight = view_compute_cursor_from_pos(view, pos);
     view->temp_highlight_end_pos = end_pos;
     view->show_temp_highlight = 1;
 }
 
 inline i32
-view_get_cursor_pos(File_View *view){
+view_get_cursor_pos(View *view){
     i32 result;
     if (view->show_temp_highlight){
         result = view->temp_highlight.pos;
@@ -1279,7 +1319,7 @@ view_get_cursor_pos(File_View *view){
 }
 
 inline f32
-view_get_cursor_x(File_View *view){
+view_get_cursor_x(View *view){
     f32 result;
     Full_Cursor *cursor;
     if (view->show_temp_highlight){
@@ -1298,7 +1338,7 @@ view_get_cursor_x(File_View *view){
 }
 
 inline f32
-view_get_cursor_y(File_View *view){
+view_get_cursor_y(View *view){
     Full_Cursor *cursor;
     f32 result;
 
@@ -1314,7 +1354,7 @@ view_get_cursor_y(File_View *view){
 internal void
 view_set_file(
     // NOTE(allen): These parameters are always meaningful
-    File_View *view,
+    View *view,
     Editing_File *file,
     Font_Set *set,
     Style *style,
@@ -1332,7 +1372,7 @@ view_set_file(
     f32 cursor_x, cursor_y;
     f32 target_x, target_y;
 
-    panel = view->view_base.panel;
+    panel = view->panel;
 
     // NOTE(allen): This is actually more like view_set_style right?
     fnt_info = get_font_info(set, global_font->font_id);
@@ -1406,7 +1446,7 @@ struct Relative_Scrolling{
 };
 
 internal Relative_Scrolling
-view_get_relative_scrolling(File_View *view){
+view_get_relative_scrolling(View *view){
     Relative_Scrolling result;
     f32 cursor_x, cursor_y;
     cursor_x = view_get_cursor_x(view);
@@ -1419,7 +1459,7 @@ view_get_relative_scrolling(File_View *view){
 }
 
 internal void
-view_set_relative_scrolling(File_View *view, Relative_Scrolling scrolling){
+view_set_relative_scrolling(View *view, Relative_Scrolling scrolling){
     f32 cursor_x, cursor_y;
     cursor_x = view_get_cursor_x(view);
     cursor_y = view_get_cursor_y(view);
@@ -1428,7 +1468,7 @@ view_set_relative_scrolling(File_View *view, Relative_Scrolling scrolling){
 }
 
 inline void
-view_cursor_move(File_View *view, Full_Cursor cursor){
+view_cursor_move(View *view, Full_Cursor cursor){
     view->cursor = cursor;
     view->preferred_x = view_get_cursor_x(view);
     view->file->state.cursor_pos = view->cursor.pos;
@@ -1436,13 +1476,13 @@ view_cursor_move(File_View *view, Full_Cursor cursor){
 }
 
 inline void
-view_cursor_move(File_View *view, i32 pos){
+view_cursor_move(View *view, i32 pos){
     Full_Cursor cursor = view_compute_cursor_from_pos(view, pos);
     view_cursor_move(view, cursor);
 }
 
 inline void
-view_cursor_move(File_View *view, f32 x, f32 y, b32 round_down = 0){
+view_cursor_move(View *view, f32 x, f32 y, b32 round_down = 0){
     Full_Cursor cursor;
     if (view->unwrapped_lines){
         cursor = view_compute_cursor_from_unwrapped_xy(view, x, y, round_down);
@@ -1454,20 +1494,20 @@ view_cursor_move(File_View *view, f32 x, f32 y, b32 round_down = 0){
 }
 
 inline void
-view_cursor_move(File_View *view, i32 line, i32 pos){
+view_cursor_move(View *view, i32 line, i32 pos){
     Full_Cursor cursor = view_compute_cursor_from_line_pos(view, line, pos);
     view_cursor_move(view, cursor);
 }
 
 inline void
-view_set_widget(File_View *view, File_View_Widget_Type type){
+view_set_widget(View *view, View_Widget_Type type){
     view->widget.type = type;
 }
 
 
 inline i32_Rect
-view_widget_rect(File_View *view, i32 font_height){
-    Panel *panel = view->view_base.panel;
+view_widget_rect(View *view, i32 font_height){
+    Panel *panel = view->panel;
     i32_Rect result = panel->inner;
 
     if (view->file){
@@ -1728,12 +1768,12 @@ file_edit_cursor_fix(System_Functions *system,
     f32 y_offset = 0, y_position = 0;
     i32 cursor_count = 0;
     
-    File_View *view;
+    View *view;
     Panel *panel, *used_panels;
     used_panels = &layout->used_sentinel;
     
     for (dll_items(panel, used_panels)){
-        view = view_to_file_view(panel->view);
+        view = panel->view;
         if (view->file == file){
             view_measure_wraps(system, general, view);
             write_cursor_with_index(cursors, &cursor_count, view->cursor.pos);
@@ -1757,7 +1797,7 @@ file_edit_cursor_fix(System_Functions *system,
         
         cursor_count = 0;
         for (dll_items(panel, used_panels)){
-            view = view_to_file_view(panel->view);
+            view = panel->view;
             if (view && view->file == file){
                 view_cursor_move(view, cursors[cursor_count++].pos);
                 view->preferred_x = view_get_cursor_x(view);
@@ -1835,7 +1875,7 @@ file_do_single_edit(System_Functions *system,
     used_panels = &layout->used_sentinel;
     
     for (dll_items(panel, used_panels)){
-        File_View *view = view_to_file_view(panel->view);
+        View *view = panel->view;
         if (view->file == file){
             view_measure_wraps(system, general, view);
         }
@@ -1857,7 +1897,7 @@ file_do_single_edit(System_Functions *system,
 }
 
 internal void
-view_do_white_batch_edit(System_Functions *system, Mem_Options *mem, File_View *view, Editing_File *file,
+view_do_white_batch_edit(System_Functions *system, Mem_Options *mem, View *view, Editing_File *file,
     Editing_Layout *layout, Edit_Spec spec, History_Mode history_mode){
     if (view->locked) return;
 #if BUFFER_EXPERIMENT_SCALPEL <= 3
@@ -1957,7 +1997,7 @@ file_replace_range(System_Functions *system,
 
 inline void
 view_replace_range(System_Functions *system,
-    Mem_Options *mem, File_View *view, Editing_Layout *layout,
+    Mem_Options *mem, View *view, Editing_Layout *layout,
     i32 start, i32 end, char *str, i32 len, i32 next_cursor){
     if (view->locked) return;
     Edit_Spec spec = {};
@@ -1972,7 +2012,7 @@ view_replace_range(System_Functions *system,
 }
 
 inline void
-view_post_paste_effect(File_View *view, i32 ticks, i32 start, i32 size, u32 color){
+view_post_paste_effect(View *view, i32 ticks, i32 start, i32 size, u32 color){
     Editing_File *file = view->file;
 
     file->state.paste_effect.start = start;
@@ -1984,7 +2024,7 @@ view_post_paste_effect(File_View *view, i32 ticks, i32 start, i32 size, u32 colo
 
 internal void
 view_undo_redo(System_Functions *system,
-    Mem_Options *mem, Editing_Layout *layout, File_View *view, Editing_File *file,
+    Mem_Options *mem, Editing_Layout *layout, View *view, Editing_File *file,
     Edit_Stack *stack, Edit_Type expected_type){
     if (view->locked) return;
     if (file && stack->edit_count > 0){
@@ -2016,13 +2056,13 @@ view_undo_redo(System_Functions *system,
 }
 
 inline void
-view_undo(System_Functions *system, Mem_Options *mem, Editing_Layout *layout, File_View *view){
+view_undo(System_Functions *system, Mem_Options *mem, Editing_Layout *layout, View *view){
     Editing_File *file = view->file;
     view_undo_redo(system, mem, layout, view, file, &file->state.undo.undo, ED_UNDO);
 }
 
 inline void
-view_redo(System_Functions *system, Mem_Options *mem, Editing_Layout *layout, File_View *view){
+view_redo(System_Functions *system, Mem_Options *mem, Editing_Layout *layout, View *view){
     Editing_File *file = view->file;
     view_undo_redo(system, mem, layout, view, file, &file->state.undo.redo, ED_REDO);
 }
@@ -2092,7 +2132,7 @@ file_dump_history(System_Functions *system, Mem_Options *mem, Editing_File *file
 #endif
 
 internal void
-view_history_step(System_Functions *system, Mem_Options *mem, Editing_Layout *layout, File_View *view, History_Mode history_mode){
+view_history_step(System_Functions *system, Mem_Options *mem, Editing_Layout *layout, View *view, History_Mode history_mode){
     if (view->locked) return;
     Assert(history_mode != hist_normal);
 
@@ -2148,7 +2188,7 @@ view_history_step(System_Functions *system, Mem_Options *mem, Editing_Layout *la
 
 // TODO(allen): write these as streamed operations
 internal i32
-view_find_end_of_line(File_View *view, i32 pos){
+view_find_end_of_line(View *view, i32 pos){
 #if BUFFER_EXPERIMENT_SCALPEL <= 0
     Editing_File *file = view->file;
     char *data = file->state.buffer.data;
@@ -2159,7 +2199,7 @@ view_find_end_of_line(File_View *view, i32 pos){
 }
 
 internal i32
-view_find_beginning_of_line(File_View *view, i32 pos){
+view_find_beginning_of_line(View *view, i32 pos){
 #if BUFFER_EXPERIMENT_SCALPEL <= 0
     Editing_File *file = view->file;
     char *data = file->state.buffer.data;
@@ -2173,7 +2213,7 @@ view_find_beginning_of_line(File_View *view, i32 pos){
 }
 
 internal i32
-view_find_beginning_of_next_line(File_View *view, i32 pos){
+view_find_beginning_of_next_line(View *view, i32 pos){
 #if BUFFER_EXPERIMENT_SCALPEL <= 0
     Editing_File *file = view->file;
     char *data = file->state.buffer.data;
@@ -2289,7 +2329,7 @@ file_compute_whitespace_edit(Mem_Options *mem, Editing_File *file, i32 cursor_po
 }
 
 internal void
-view_clean_whitespace(System_Functions *system, Mem_Options *mem, File_View *view, Editing_Layout *layout){
+view_clean_whitespace(System_Functions *system, Mem_Options *mem, View *view, Editing_Layout *layout){
     Editing_File *file = view->file;
     Assert(file && !file->state.is_dummy);
     Partition *part = &mem->part;
@@ -2347,7 +2387,7 @@ view_clean_whitespace(System_Functions *system, Mem_Options *mem, File_View *vie
 
 internal void
 view_auto_tab_tokens(System_Functions *system,
-    Mem_Options *mem, File_View *view, Editing_Layout *layout,
+    Mem_Options *mem, View *view, Editing_Layout *layout,
     i32 start, i32 end, b32 empty_blank_lines){
 #if BUFFER_EXPERIMENT_SCALPEL <= 0
     Editing_File *file = view->file;
@@ -2609,7 +2649,7 @@ view_compute_max_target_y(i32 lowest_line, i32 line_height, real32 view_height){
 }
 
 internal real32
-view_compute_max_target_y(File_View *view){
+view_compute_max_target_y(View *view){
     i32 lowest_line = view_compute_lowest_line(view);
     i32 line_height = view->font_height;
     real32 view_height = view_compute_height(view);
@@ -2619,8 +2659,7 @@ view_compute_max_target_y(File_View *view){
 }
 
 internal void
-remeasure_file_view(System_Functions *system, View *view_, i32_Rect rect){
-    File_View *view = (File_View*)view_;
+remeasure_file_view(System_Functions *system, View *view, i32_Rect rect){
     if (file_is_ready(view->file)){
         Relative_Scrolling relative = view_get_relative_scrolling(view);
         view_measure_wraps(system, &view->mem->general, view);
@@ -2631,7 +2670,7 @@ remeasure_file_view(System_Functions *system, View *view_, i32_Rect rect){
 }
 
 internal void
-undo_shit(System_Functions *system, File_View *view, UI_State *state, UI_Layout *layout,
+undo_shit(System_Functions *system, View *view, UI_State *state, UI_Layout *layout,
     i32 total_count, i32 undo_count, i32 scrub_max){
 
     Editing_File *file = view->file;
@@ -2690,7 +2729,7 @@ undo_shit(System_Functions *system, File_View *view, UI_State *state, UI_Layout 
 }
 
 internal void
-draw_file_view_queries(File_View *view, UI_State *state, UI_Layout *layout){
+draw_file_view_queries(View *view, UI_State *state, UI_Layout *layout){
     Widget_ID wid;
     Query_Slot *slot;
     Query_Bar *bar;
@@ -2704,29 +2743,29 @@ draw_file_view_queries(File_View *view, UI_State *state, UI_Layout *layout){
 }
 
 inline void
-view_show_menu(File_View *fview, Command_Map *gui_map){
+view_show_menu(View *fview, Command_Map *gui_map){
     fview->ui_state = {};
-    fview->map_for_file = fview->view_base.map;
-    fview->view_base.map = gui_map;
+    fview->map_for_file = fview->map;
+    fview->map = gui_map;
     fview->locked = 1;
     fview->showing_ui = VUI_Menu;
 }
 
 inline void
-view_show_config(File_View *fview, Command_Map *gui_map){
+view_show_config(View *fview, Command_Map *gui_map){
     fview->ui_state = {};
-    fview->map_for_file = fview->view_base.map;
-    fview->view_base.map = gui_map;
+    fview->map_for_file = fview->map;
+    fview->map = gui_map;
     fview->locked = 1;
     fview->showing_ui = VUI_Config;
 }
 
 inline void
-view_show_interactive(System_Functions *system, File_View *fview, Command_Map *gui_map,
+view_show_interactive(System_Functions *system, View *fview, Command_Map *gui_map,
     Interactive_Action action, Interactive_Interaction interaction, String query){
     fview->ui_state = {};
-    fview->map_for_file = fview->view_base.map;
-    fview->view_base.map = gui_map;
+    fview->map_for_file = fview->map;
+    fview->map = gui_map;
     fview->locked = 1;
     fview->showing_ui = VUI_Interactive;
     fview->action = action;
@@ -2741,31 +2780,31 @@ view_show_interactive(System_Functions *system, File_View *fview, Command_Map *g
 }
 
 inline void
-view_show_theme(File_View *fview, Command_Map *gui_map){
+view_show_theme(View *fview, Command_Map *gui_map){
     fview->ui_state = {};
-    fview->map_for_file = fview->view_base.map;
-    fview->view_base.map = gui_map;
+    fview->map_for_file = fview->map;
+    fview->map = gui_map;
     fview->locked = 1;
     fview->showing_ui = VUI_Theme;
     fview->color_mode = CV_Mode_Library;
 }
 
 inline void
-view_show_file(File_View *fview, Command_Map *file_map){
+view_show_file(View *fview, Command_Map *file_map){
     fview->ui_state = {};
     if (file_map){
-        fview->view_base.map = file_map;
+        fview->map = file_map;
     }
     else{
-        fview->view_base.map = fview->map_for_file;
+        fview->map = fview->map_for_file;
     }
     fview->locked = 0;
     fview->showing_ui = VUI_None;
 }
 
 internal void
-interactive_view_complete(File_View *view){
-    Panel *panel = view->view_base.panel;
+interactive_view_complete(View *view){
+    Panel *panel = view->panel;
     switch (view->action){
         case IAct_Open:
         delayed_open(view->delay, view->hot_directory->string, panel);
@@ -2808,8 +2847,8 @@ interactive_view_complete(File_View *view){
 }
 
 internal void
-update_highlighting(File_View *view){
-    File_View *file_view = view->hot_file_view;
+update_highlighting(View *view){
+    View *file_view = view->hot_file_view;
     if (!file_view){
         view->highlight = {};
         return;
@@ -2888,7 +2927,7 @@ update_highlighting(File_View *view){
 
 internal b32
 theme_library_shit(System_Functions *system, Exchange *exchange,
-    File_View *view, UI_State *state, UI_Layout *layout){
+    View *view, UI_State *state, UI_Layout *layout){
 
     Mem_Options *mem = view->mem;
 
@@ -3139,7 +3178,7 @@ theme_library_shit(System_Functions *system, Exchange *exchange,
 }
 
 internal b32
-theme_adjusting_shit(File_View *view, UI_State *state, UI_Layout *layout){
+theme_adjusting_shit(View *view, UI_State *state, UI_Layout *layout){
     update_highlighting(view);
 
     Style *style = view->style;
@@ -3270,12 +3309,11 @@ theme_adjusting_shit(File_View *view, UI_State *state, UI_Layout *layout){
 
 internal b32
 theme_shit(System_Functions *system, Exchange *exchange,
-    File_View *view, View *active, UI_State *state, UI_Layout *layout){
+    View *view, View *active, UI_State *state, UI_Layout *layout){
     b32 result = 0;
 
-    File_View *factive = view_to_file_view(active);
-    if (view != factive){
-        view->hot_file_view = factive;
+    if (view != active){
+        view->hot_file_view = active;
     }
 
     switch (view->color_mode){
@@ -3301,7 +3339,7 @@ theme_shit(System_Functions *system, Exchange *exchange,
 }
 
 internal b32
-interactive_shit(System_Functions *system, File_View *view, UI_State *state, UI_Layout *layout){
+interactive_shit(System_Functions *system, View *view, UI_State *state, UI_Layout *layout){
     b32 result = 0;
     b32 new_dir = 0;
     b32 complete = 0;
@@ -3388,22 +3426,22 @@ interactive_shit(System_Functions *system, File_View *view, UI_State *state, UI_
 }
 
 internal void
-menu_shit(File_View *view, UI_State *state, UI_Layout *layout){
+menu_shit(View *view, UI_State *state, UI_Layout *layout){
     i32 id = 0;
 
     do_label(state, layout, literal("Menu"), 2.f);
 
     if (do_list_option(++id, state, layout, make_lit_string("Theme Options"))){
-        view_show_theme(view, view->view_base.map);
+        view_show_theme(view, view->map);
     }
 
     if (do_list_option(++id, state, layout, make_lit_string("Keyboard Layout Options"))){
-        view_show_config(view, view->view_base.map);
+        view_show_config(view, view->map);
     }
 }
 
 internal void
-config_shit(File_View *view, UI_State *state, UI_Layout *layout){
+config_shit(View *view, UI_State *state, UI_Layout *layout){
     i32 id = 0;
 
     do_label(state, layout, literal("Config"), 2.f);
@@ -3415,7 +3453,7 @@ config_shit(File_View *view, UI_State *state, UI_Layout *layout){
 }
 
 internal void
-do_file_bar(File_View *view, Editing_File *file, UI_Layout *layout, Render_Target *target){
+do_file_bar(View *view, Editing_File *file, UI_Layout *layout, Render_Target *target){
     Interactive_Bar bar;
     Style_Font *font = view->global_font;
     i32 line_height = view->font_height;
@@ -3469,11 +3507,10 @@ do_file_bar(File_View *view, Editing_File *file, UI_Layout *layout, Render_Targe
 }
 
 internal i32
-step_file_view(System_Functions *system, Exchange *exchange, View *view_, i32_Rect rect,
+step_file_view(System_Functions *system, Exchange *exchange, View *view, i32_Rect rect,
     b32 is_active, Input_Summary *user_input){
     
     i32 result = 0;
-    File_View *view = (File_View*)view_;
     Editing_File *file = view->file;
 
     i32 widget_height = 0;
@@ -3573,10 +3610,10 @@ step_file_view(System_Functions *system, Exchange *exchange, View *view_, i32_Re
         if (view->target_x != view->prev_target_x) is_new_target = 1;
         if (view->target_y != view->prev_target_y) is_new_target = 1;
 
-        if (view_->scroll_rule(
+        if (view->scroll_rule(
                 view->target_x, view->target_y,
                 &view->scroll_x, &view->scroll_y,
-                view_->id, is_new_target)){
+                view->id, is_new_target)){
             result = 1;
         }
 
@@ -3645,7 +3682,7 @@ step_file_view(System_Functions *system, Exchange *exchange, View *view_, i32_Re
 }
 
 internal i32
-draw_file_loaded(File_View *view, i32_Rect rect, b32 is_active, Render_Target *target){
+draw_file_loaded(View *view, i32_Rect rect, b32 is_active, Render_Target *target){
     Editing_File *file = view->file;
     Style *style = view->style;
     i32 line_height = view->font_height;
@@ -3813,9 +3850,9 @@ draw_file_loaded(File_View *view, i32_Rect rect, b32 is_active, Render_Target *t
 
 internal i32
 draw_file_view(System_Functions *system, Exchange *exchange,
-    View *view_, View *active, i32_Rect rect, b32 is_active,
+    View *view, View *active, i32_Rect rect, b32 is_active,
     Render_Target *target, Input_Summary *user_input){
-    File_View *view = (File_View*)view_;
+    
     Editing_File *file = view->file;
     i32 result = 0;
     
@@ -3906,21 +3943,20 @@ draw_file_view(System_Functions *system, Exchange *exchange,
 }
 
 internal void
-kill_file(
-    System_Functions *system, Exchange *exchange,
+kill_file(System_Functions *system, Exchange *exchange,
     General_Memory *general, Editing_File *file,
-    Live_Views *live_set, Editing_Layout *layout){
+    Editing_Layout *layout){
     
-    File_View *fview;
+    View *view;
     
     Panel *panel, *used_panels;
     used_panels = &layout->used_sentinel;
     
     for (dll_items(panel, used_panels)){
-        fview = view_to_file_view(panel->view);
-        Assert(fview);
-        if (fview->file == file){
-            fview->file = 0;
+        view = panel->view;
+        Assert(view);
+        if (view->file == file){
+            view->file = 0;
         }
     }
     
@@ -3930,9 +3966,8 @@ kill_file(
 
 inline void
 free_file_view(View *view){
-    File_View *fview = (File_View*)view;
-    if (fview->line_wrap_y)
-        general_memory_free(&fview->mem->general, fview->line_wrap_y);
+    if (view->line_wrap_y)
+        general_memory_free(&view->mem->general, view->line_wrap_y);
 }
 
 internal
@@ -3960,7 +3995,7 @@ Do_View_Sig(do_file_view){
     return result;
 }
 
-internal File_View*
+internal View*
 file_view_init(View *view, Editing_Layout *layout,
     Working_Set *working_set, Delay *delay,
     App_Settings *settings, Hot_Directory *hot_directory,
@@ -3968,42 +4003,41 @@ file_view_init(View *view, Editing_Layout *layout,
     
     view->do_view = do_file_view;
     
-    File_View *result = (File_View*)view;
-    result->layout = layout;
-    result->working_set = working_set;
-    result->delay = delay;
-    result->settings = settings;
-    result->hot_directory = hot_directory;
-    result->mem = mem;
-    result->styles = styles;
+    view->layout = layout;
+    view->working_set = working_set;
+    view->delay = delay;
+    view->settings = settings;
+    view->hot_directory = hot_directory;
+    view->mem = mem;
+    view->styles = styles;
     
-    result->scrub_max = 1;
+    view->scrub_max = 1;
     
     // TODO(allen): Make "interactive" mode customizable just like the query bars!
-    result->query = make_fixed_width_string(result->query_);
-    result->dest = make_fixed_width_string(result->dest_);
+    view->query = make_fixed_width_string(view->query_);
+    view->dest = make_fixed_width_string(view->dest_);
     
-    init_query_set(&result->query_set);
+    init_query_set(&view->query_set);
     
-    return(result);
+    return(view);
 }
 
-struct File_View_Iter{
-    File_View *view;
+struct View_Iter{
+    View *view;
     
     Editing_File *file;
-    File_View *skip;
+    View *skip;
     Panel *used_panels;
     Panel *panel;
 };
 
-internal File_View_Iter
-file_view_iter_next(File_View_Iter iter){
+internal View_Iter
+file_view_iter_next(View_Iter iter){
     Panel *panel;
-    File_View *file_view;
+    View *file_view;
     
     for (panel = iter.panel; panel != iter.used_panels; panel = panel->next){
-        file_view = view_to_file_view(panel->view);
+        file_view = panel->view;
         if (file_view != iter.skip && file_view->file == iter.file){
             iter.view = file_view;
             break;
@@ -4013,9 +4047,9 @@ file_view_iter_next(File_View_Iter iter){
     return(iter);
 }
 
-internal File_View_Iter
-file_view_iter_init(Editing_Layout *layout, Editing_File *file, File_View *skip){
-    File_View_Iter result;
+internal View_Iter
+file_view_iter_init(Editing_Layout *layout, Editing_File *file, View *skip){
+    View_Iter result;
     result.used_panels = &layout->used_sentinel;
     result.panel = result.used_panels->next;
     result.file = file;
@@ -4025,7 +4059,7 @@ file_view_iter_init(Editing_Layout *layout, Editing_File *file, File_View *skip)
 }
 
 internal b32
-file_view_iter_good(File_View_Iter iter){
+file_view_iter_good(View_Iter iter){
     b32 result = 1;
     if (iter.panel != iter.used_panels) result = 0;
     return(result);
@@ -4227,11 +4261,50 @@ search_next_match(Partition *part, Search_Set *set, Search_Iter *iter_){
 }
 
 inline void
-view_change_size(System_Functions *system, General_Memory *general, File_View *view){
+view_change_size(System_Functions *system, General_Memory *general, View *view){
     if (view->file){
         view_measure_wraps(system, general, view);
         view->cursor = view_compute_cursor_from_pos(view, view->cursor.pos);
     }
+}
+
+struct Live_Views{
+    void *views;
+    View free_sentinel;
+    i32 count, max;
+    i32 stride;
+};
+
+internal View*
+live_set_get_view(Live_Views *live_set, i32 id){
+    void *result = ((char*)live_set->views + id);
+    return (View*)result;
+}
+
+internal View_And_ID
+live_set_alloc_view(Live_Views *live_set, Scroll_Rule_Function *scroll_rule){
+    View_And_ID result = {};
+    
+    Assert(live_set->count < live_set->max);
+    ++live_set->count;
+    
+    result.view = live_set->free_sentinel.next;
+    result.id = (i32)((char*)result.view - (char*)live_set->views);
+    result.view->id = result.id;
+    
+    dll_remove(result.view);
+    memset(result.view, 0, live_set->stride);
+    result.view->scroll_rule = scroll_rule;
+    
+    return(result);
+}
+
+inline void
+live_set_free_view(System_Functions *system, Exchange *exchange, Live_Views *live_set, View *view){
+    Assert(live_set->count > 0);
+    --live_set->count;
+    view->do_view(system, exchange, view, {}, 0, VMSG_FREE, 0, {}, 0);
+    dll_insert(&live_set->free_sentinel, view);
 }
 
 // BOTTOM

@@ -122,7 +122,7 @@ struct Buffer_Summary{
     int map_id;
 };
 
-struct File_View_Summary{
+struct View_Summary{
     int exists;
     int view_id;
     int buffer_id;
@@ -196,14 +196,14 @@ struct Application_Links;
 
 // File view manipulation
 #define GET_VIEW_MAX_INDEX_SIG(name) int name(Application_Links *context)
-#define GET_FILE_VIEW_SIG(name) File_View_Summary name(Application_Links *context, int index)
-#define GET_ACTIVE_FILE_VIEW_SIG(name) File_View_Summary name(Application_Links *context)
+#define GET_VIEW_SIG(name) View_Summary name(Application_Links *context, int index)
+#define GET_ACTIVE_VIEW_SIG(name) View_Summary name(Application_Links *context)
 
-#define REFRESH_FILE_VIEW_SIG(name) int name(Application_Links *context, File_View_Summary *view)
-#define VIEW_SET_CURSOR_SIG(name) int name(Application_Links *context, File_View_Summary *view, Buffer_Seek seek, int set_preferred_x)
-#define VIEW_SET_MARK_SIG(name) int name(Application_Links *context, File_View_Summary *view, Buffer_Seek seek)
-#define VIEW_SET_HIGHLIGHT_SIG(name) int name(Application_Links *context, File_View_Summary *view, int start, int end, int turn_on)
-#define VIEW_SET_BUFFER_SIG(name) int name(Application_Links *context, File_View_Summary *view, int buffer_id)
+#define REFRESH_VIEW_SIG(name) int name(Application_Links *context, View_Summary *view)
+#define VIEW_SET_CURSOR_SIG(name) int name(Application_Links *context, View_Summary *view, Buffer_Seek seek, int set_preferred_x)
+#define VIEW_SET_MARK_SIG(name) int name(Application_Links *context, View_Summary *view, Buffer_Seek seek)
+#define VIEW_SET_HIGHLIGHT_SIG(name) int name(Application_Links *context, View_Summary *view, int start, int end, int turn_on)
+#define VIEW_SET_BUFFER_SIG(name) int name(Application_Links *context, View_Summary *view, int buffer_id)
 
 // Directly get user input
 #define EventOnAnyKey 0x1
@@ -252,10 +252,10 @@ extern "C"{
     
     // View manipulation
     typedef GET_VIEW_MAX_INDEX_SIG(Get_View_Max_Index_Function);
-    typedef GET_FILE_VIEW_SIG(Get_File_View_Function);
-    typedef GET_ACTIVE_FILE_VIEW_SIG(Get_Active_File_View_Function);
+    typedef GET_VIEW_SIG(Get_View_Function);
+    typedef GET_ACTIVE_VIEW_SIG(Get_Active_View_Function);
     
-    typedef REFRESH_FILE_VIEW_SIG(Refresh_File_View_Function);
+    typedef REFRESH_VIEW_SIG(Refresh_View_Function);
     typedef VIEW_SET_CURSOR_SIG(View_Set_Cursor_Function);
     typedef VIEW_SET_MARK_SIG(View_Set_Mark_Function);
     typedef VIEW_SET_HIGHLIGHT_SIG(View_Set_Highlight_Function);
@@ -302,10 +302,10 @@ struct Application_Links{
     
     // View manipulation
     Get_View_Max_Index_Function *get_view_max_index;
-    Get_File_View_Function *get_file_view;
-    Get_Active_File_View_Function *get_active_file_view;
+    Get_View_Function *get_view;
+    Get_Active_View_Function *get_active_view;
     
-    Refresh_File_View_Function *refresh_file_view;
+    Refresh_View_Function *refresh_view;
     View_Set_Cursor_Function *view_set_cursor;
     View_Set_Mark_Function *view_set_mark;
     View_Set_Highlight_Function *view_set_highlight;
