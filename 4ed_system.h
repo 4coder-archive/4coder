@@ -13,6 +13,10 @@ struct Plat_Handle{
     u32 d[4];
 };
 
+struct Unique_Hash{
+    u32 d[4];
+};
+
 #define Sys_File_Time_Stamp_Sig(name) u64 name(char *filename)
 typedef Sys_File_Time_Stamp_Sig(System_File_Time_Stamp);
 
@@ -20,8 +24,13 @@ typedef Sys_File_Time_Stamp_Sig(System_File_Time_Stamp);
 #define Sys_Set_File_List_Sig(name) void name(File_List *file_list, String directory)
 typedef Sys_Set_File_List_Sig(System_Set_File_List);
 
+#if 0
 #define Sys_File_Paths_Equal_Sig(name) b32 name(char *path_a, char *path_b)
 typedef Sys_File_Paths_Equal_Sig(System_File_Paths_Equal);
+#endif
+
+#define Sys_File_Unique_Hash_Sig(name) Unique_Hash name(char *filename)
+typedef Sys_File_Unique_Hash_Sig(System_File_Unique_Hash);
 
 #define Sys_Post_Clipboard_Sig(name) void name(String str)
 typedef Sys_Post_Clipboard_Sig(System_Post_Clipboard);
@@ -171,9 +180,10 @@ typedef INTERNAL_Sys_Get_Thread_States_Sig(INTERNAL_System_Get_Thread_States);
 typedef INTERNAL_Sys_Debug_Message_Sig(INTERNAL_System_Debug_Message);
 
 struct System_Functions{
-    // files: 2
+    // files: 3
     System_File_Time_Stamp *file_time_stamp;
     System_Set_File_List *set_file_list;
+    System_File_Unique_Hash *file_unique_hash;
 
     // file system navigation (4coder_custom.h): 2
     File_Exists_Function *file_exists;
