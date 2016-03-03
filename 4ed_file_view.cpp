@@ -9,23 +9,6 @@
 
 // TOP
 
-enum View_Message{
-    VMSG_STEP,
-    VMSG_DRAW,
-    VMSG_RESIZE,
-    VMSG_STYLE_CHANGE,
-    VMSG_FREE
-};
-
-struct View;
-#define Do_View_Sig(name)                                               \
-    i32 (name)(System_Functions *system, Exchange *exchange,            \
-               View *view, i32_Rect rect, View *active,                 \
-               View_Message message, Render_Target *target,             \
-               Input_Summary *user_input, Input_Summary *active_input)
-
-typedef Do_View_Sig(Do_View_Function);
-
 enum Interactive_Action{
     IAct_Open,
     IAct_Save_As,
@@ -42,7 +25,7 @@ enum Interactive_Interaction{
 };
 
 struct View_Mode{
-    i8 rewrite;
+    i32 rewrite;
 };
 
 struct Incremental_Search{
@@ -91,7 +74,6 @@ struct View{
     
     Panel *panel;
     Command_Map *map;
-    Do_View_Function *do_view;
     Scroll_Rule_Function *scroll_rule;
     i32 id;
 
@@ -133,7 +115,8 @@ struct View{
     Style_Library inspecting_styles;
     b8 import_export_check[64];
     i32 import_file_id;
-
+    
+    // file stuff
     i32 font_advance;
     i32 font_height;
 
@@ -143,6 +126,7 @@ struct View{
     f32 scroll_x, target_x, prev_target_x;
     f32 preferred_x;
     i32 scroll_i;
+    f32 scroll_min_limit;
 
     union{
         Incremental_Search isearch;
@@ -168,8 +152,9 @@ struct View{
 
     i32 line_count, line_max;
     f32 *line_wrap_y;
-
+    
     Command_Map *map_for_file;
+    b32 reinit_scrolling;
 };
 
 struct View_And_ID{
@@ -666,16 +651,12 @@ file_close(System_Functions *system, General_Memory *general, Editing_File *file
         general_memory_free(general, file->state.token_stack.tokens);
     }
 
-#if BUFFER_EXPERIMENT_SCALPEL <= 1
     Buffer_Type *buffer = &file->state.buffer;
     if (buffer->data){
         general_memory_free(general, buffer->data);
         general_memory_free(general, buffer->line_starts);
         general_memory_free(general, buffer->line_widths);
     }
-#elif BUFFER_EXPERIMENT_SCALPEL == 2
-    // TODO
-#endif
 
     if (file->state.undo.undo.edits){
         general_memory_free(general, file->state.undo.undo.strings);
@@ -746,24 +727,8 @@ Job_Callback_Sig(job_full_lex){
     u8 *dest = (u8*)file->state.swap_stack.tokens;
     u8 *src = (u8*)tokens.tokens;
 
-#if 1
     memcpy(dest, src, tokens.count*sizeof(Cpp_Token));
-#else
-    i32 copy_amount = Kbytes(8);
-    i32 uncoppied = tokens.count*sizeof(Cpp_Token);
-    if (copy_amount > uncoppied) copy_amount = uncoppied;
-
-    while (uncoppied > 0){
-        system->acquire_lock(FRAME_LOCK);
-        memcpy(dest, src, copy_amount);
-        system->release_lock(FRAME_LOCK);
-        dest += copy_amount;
-        src += copy_amount;
-        uncoppied -= copy_amount;
-        if (copy_amount > uncoppied) copy_amount = uncoppied;
-    }
-#endif
-
+    
     system->acquire_lock(FRAME_LOCK);
     {
         file->state.token_stack.count = tokens.count;
@@ -814,10 +779,6 @@ file_first_lex_parallel(System_Functions *system,
 
         file->state.tokens_complete = 0;
         file->state.still_lexing = 1;
-
-#if 0
-        full_lex(system, file, general);
-#else
 
         Job_Data job;
         job.callback = job_full_lex;
@@ -906,20 +867,14 @@ file_relex_parallel(System_Functions *system,
 
         file->state.still_lexing = 1;
 
-#if 0
-        full_lex(system, file, general);
-#else
-
         Job_Data job;
         job.callback = job_full_lex;
         job.data[0] = file;
         job.data[1] = general;
         job.memory_request = Kbytes(64);
         file->state.lex_job = system->post_job(BACKGROUND_THREADS, job);
-#endif
     }
 }
-#endif
 
 internal bool32
 file_grow_as_needed_(General_Memory *general, Editing_File *file, i32 new_size){
@@ -1132,7 +1087,6 @@ file_unpost_history_block(Editing_File *file){
     file->state.undo.history_head_block = old_head->prev_block;
 }
 
-#if BUFFER_EXPERIMENT_SCALPEL <= 3
 internal Edit_Step*
 file_post_history(General_Memory *general, Editing_File *file,
     Edit_Step step, b32 do_merge, b32 can_merge){
@@ -1202,7 +1156,6 @@ file_post_history(General_Memory *general, Editing_File *file,
 
     return result;
 }
-#endif
 
 inline Full_Cursor
 view_compute_cursor_from_pos(View *view, i32 pos){
@@ -1368,10 +1321,6 @@ view_set_file(
     Panel *panel;
     Font_Info *fnt_info;
 
-    f32 w, h;
-    f32 cursor_x, cursor_y;
-    f32 target_x, target_y;
-
     panel = view->panel;
 
     // NOTE(allen): This is actually more like view_set_style right?
@@ -1386,11 +1335,6 @@ view_set_file(
     view->file = file;
 
     view->cursor = {};
-    view->prev_target_x = -1000.f;
-    view->prev_target_y = -1000.f;
-
-    target_x = 0;
-    target_y = 0;
 
     // NOTE(allen): Stuff that does assume file exists.
 
@@ -1405,28 +1349,9 @@ view_set_file(
             view_measure_wraps(system, &view->mem->general, view);
             view->cursor = view_compute_cursor_from_pos(view, file->state.cursor_pos);
 
-            cursor_x = view_get_cursor_x(view);
-            cursor_y = view_get_cursor_y(view);
-
-            w = (f32)(panel->inner.x1 - panel->inner.x0);
-            h = (f32)(panel->inner.y1 - panel->inner.y0);
-
-            Assert(cursor_x >= target_x);
-            if (cursor_x >= target_x + w){
-                target_x = (f32)(cursor_x - w*.5f);
-            }
-
-            target_y = (f32)FLOOR32(cursor_y - h*.5f);
-            if (target_y < 0) target_y = 0;
+            view->reinit_scrolling = 1;
         }
     }
-
-    // NOTE(allen): More stuff that doesn't assume file exists, but that
-    // has to come after computing target_x, target_y
-    view->target_x = target_x;
-    view->target_y = target_y;
-    view->scroll_x = target_x;
-    view->scroll_y = target_y;
 
     // TODO(allen): Bypass all this nonsense, it's a hack!  Hooks need parameters!
     // Just accept it and pass the file to the open hook when it is loaded.
@@ -1438,33 +1363,30 @@ view_set_file(
     }
 }
 
-// TODO(allen): Somehow keep track of the scroll limits through this process.
-// Maybe scroll limits should be stored in the view at each frame.
 struct Relative_Scrolling{
     f32 scroll_x, scroll_y;
     f32 target_x, target_y;
+    f32 scroll_min_limit;
 };
 
 internal Relative_Scrolling
 view_get_relative_scrolling(View *view){
     Relative_Scrolling result;
-    f32 cursor_x, cursor_y;
-    cursor_x = view_get_cursor_x(view);
+    f32 cursor_y;
     cursor_y = view_get_cursor_y(view);
-    result.scroll_x = cursor_x - view->scroll_x;
     result.scroll_y = cursor_y - view->scroll_y;
-    result.target_x = cursor_x - view->target_x;
     result.target_y = cursor_y - view->target_y;
+    result.scroll_min_limit = view->scroll_min_limit;
     return result;
 }
 
 internal void
 view_set_relative_scrolling(View *view, Relative_Scrolling scrolling){
-    f32 cursor_x, cursor_y;
-    cursor_x = view_get_cursor_x(view);
+    f32 cursor_y;
     cursor_y = view_get_cursor_y(view);
     view->scroll_y = cursor_y - scrolling.scroll_y;
     view->target_y = cursor_y - scrolling.target_y;
+    if (view->target_y < scrolling.scroll_min_limit) view->target_y = scrolling.scroll_min_limit;
 }
 
 inline void
@@ -1517,20 +1439,6 @@ view_widget_rect(View *view, i32 font_height){
     return(result);
 }
 
-#if FRED_SLOW
-inline b32
-debug_edit_step_check(Edit_Step a, Edit_Step b){
-    Assert(a.type == b.type);
-    Assert(a.can_merge == b.can_merge);
-    Assert(a.pre_pos == b.pre_pos);
-    Assert(a.post_pos == b.post_pos);
-    Assert(a.edit.start == b.edit.start);
-    Assert(a.edit.end == b.edit.end);
-    Assert(a.edit.len == b.edit.len);
-    return(1);
-}
-#endif
-
 enum History_Mode{
     hist_normal,
     hist_backward,
@@ -1541,28 +1449,8 @@ internal void
 file_update_history_before_edit(Mem_Options *mem, Editing_File *file, Edit_Step step, u8 *str,
     History_Mode history_mode){
     if (!file->state.undo.undo.edits) return;
-#if BUFFER_EXPERIMENT_SCALPEL <= 3
     General_Memory *general = &mem->general;
-
-#if FRED_SLOW
-    if (history_mode == hist_backward)
-        debug_edit_step_check(step, file->state.undo.history.edits[file->state.undo.edit_history_cursor]);
-    else if (history_mode == hist_forward)
-        debug_edit_step_check(step, file->state.undo.history.edits[file->state.undo.history.edit_count]);
-    switch (step.type){
-        case ED_UNDO:
-        {
-            Assert(file->state.undo.undo.edit_count > 0);
-            debug_edit_step_check(step, file->state.undo.undo.edits[file->state.undo.undo.edit_count-1]);
-        }break;
-        case ED_REDO:
-        {
-            Assert(file->state.undo.redo.edit_count > 0);
-            debug_edit_step_check(step, file->state.undo.redo.edits[file->state.undo.redo.edit_count-1]);
-        }break;
-    }
-#endif
-
+    
     b32 can_merge = 0, do_merge = 0;
     switch (step.type){
         case ED_NORMAL:
@@ -1709,21 +1597,6 @@ file_update_history_before_edit(Mem_Options *mem, Editing_File *file, Edit_Step 
     if (history_mode == hist_normal){
         file->state.undo.edit_history_cursor = file->state.undo.history.edit_count;
     }
-#endif
-}
-
-inline b32
-debug_step_match(Edit_Step a, Edit_Step b){
-    Assert(a.type == b.type);
-    Assert(a.can_merge == b.can_merge);
-    Assert(a.pre_pos == b.pre_pos);
-    Assert(a.post_pos == b.post_pos);
-    Assert(a.next_block == b.next_block);
-    Assert(a.prev_block == b.prev_block);
-    Assert(a.edit.start == b.edit.start);
-    Assert(a.edit.end == b.edit.end);
-    Assert(a.edit.len == b.edit.len);
-    return 1;
 }
 
 inline void
@@ -1803,19 +1676,22 @@ file_edit_cursor_fix(System_Functions *system,
                 view->preferred_x = view_get_cursor_x(view);
                 
                 view->mark = cursors[cursor_count++].pos + 1;
-                view->scroll_i = cursors[cursor_count++].pos + 1;
-                temp_cursor = view_compute_cursor_from_pos(view, view->scroll_i);
-                y_offset = MOD(view->scroll_y, view->font_height);
-                
-                if (view->unwrapped_lines){
-                    y_position = temp_cursor.unwrapped_y + y_offset;
-                    view->target_y += (y_position - view->scroll_y);
-                    view->scroll_y = y_position;
-                }
-                else{
-                    y_position = temp_cursor.wrapped_y + y_offset;
-                    view->target_y += (y_position - view->scroll_y);
-                    view->scroll_y = y_position;
+                i32 new_scroll_i = cursors[cursor_count++].pos + 1;
+                if (view->scroll_i != new_scroll_i){
+                    view->scroll_i = new_scroll_i;
+                    temp_cursor = view_compute_cursor_from_pos(view, view->scroll_i);
+                    y_offset = MOD(view->scroll_y, view->font_height);
+
+                    if (view->unwrapped_lines){
+                        y_position = temp_cursor.unwrapped_y + y_offset;
+                        view->target_y += (y_position - view->scroll_y);
+                        view->scroll_y = y_position;
+                    }
+                    else{
+                        y_position = temp_cursor.wrapped_y + y_offset;
+                        view->target_y += (y_position - view->scroll_y);
+                        view->scroll_y = y_position;
+                    }
                 }
             }
         }
@@ -1900,7 +1776,6 @@ internal void
 view_do_white_batch_edit(System_Functions *system, Mem_Options *mem, View *view, Editing_File *file,
     Editing_Layout *layout, Edit_Spec spec, History_Mode history_mode){
     if (view->locked) return;
-#if BUFFER_EXPERIMENT_SCALPEL <= 3
     Assert(file);
     ProfileMomentFunction();
 
@@ -1977,7 +1852,6 @@ view_do_white_batch_edit(System_Functions *system, Mem_Options *mem, View *view,
     desc.batch_size = batch_size;
 
     file_edit_cursor_fix(system, part, general, file, layout, desc);
-#endif
 }
 
 inline void
@@ -3420,6 +3294,7 @@ interactive_shit(System_Functions *system, View *view, UI_State *state, UI_Layou
     if (complete){
         view->finished = 1;
         interactive_view_complete(view);
+        result= 1;
     }
 
     return(result);
@@ -3506,6 +3381,41 @@ do_file_bar(View *view, Editing_File *file, UI_Layout *layout, Render_Target *ta
     }
 }
 
+internal void
+view_reinit_scrolling(View *view){
+    Editing_File *file = view->file;
+    f32 w, h;
+    f32 cursor_x, cursor_y;
+    f32 target_x, target_y;
+
+    view->reinit_scrolling = 0;
+
+    target_x = 0;
+    target_y = 0;
+
+    if (file && file_is_ready(file)){
+        cursor_x = view_get_cursor_x(view);
+        cursor_y = view_get_cursor_y(view);
+
+        w = view_compute_width(view);
+        h = view_compute_height(view);
+
+        if (cursor_x >= target_x + w){
+            target_x = (f32)(cursor_x - w*.5f);
+        }
+
+        target_y = (f32)FLOOR32(cursor_y - h*.5f);
+        if (target_y < view->scroll_min_limit) target_y = view->scroll_min_limit;
+    }
+
+    view->target_x = target_x;
+    view->target_y = target_y;
+    view->scroll_x = target_x;
+    view->scroll_y = target_y;
+    view->prev_target_x = -1000.f;
+    view->prev_target_y = -1000.f;
+}
+
 internal i32
 step_file_view(System_Functions *system, Exchange *exchange, View *view, i32_Rect rect,
     b32 is_active, Input_Summary *user_input){
@@ -3548,7 +3458,12 @@ step_file_view(System_Functions *system, Exchange *exchange, View *view, i32_Rec
             result = 1;
         }
     }
-    
+
+    view->scroll_min_limit = (f32)-widget_height;
+    if (view->reinit_scrolling){
+        view_reinit_scrolling(view);
+    }
+
     // TODO(allen): Split this into passive step and step that depends on input
     if (file && !file->state.is_loading){
         f32 line_height = (f32)view->font_height;
@@ -3892,6 +3807,7 @@ draw_file_view(System_Functions *system, Exchange *exchange,
         widget_height = layout.y - rect.y0;
         ui_finish_frame(&view->widget.state, &state, &layout, rect, 0, 0);
     }
+    view->scroll_min_limit = (f32)-widget_height;
     
     {
         rect.y0 += widget_height;
@@ -3910,6 +3826,9 @@ draw_file_view(System_Functions *system, Exchange *exchange,
             case VUI_None:
             {
                 if (file && file_is_ready(file)){
+                    if (view->reinit_scrolling){
+                        view_reinit_scrolling(view);
+                    }
                     result = draw_file_loaded(view, rect, is_active, target);
                 }
             }break;
@@ -3970,38 +3889,11 @@ free_file_view(View *view){
         general_memory_free(&view->mem->general, view->line_wrap_y);
 }
 
-internal
-Do_View_Sig(do_file_view){
-    i32 result = 0;
-    switch (message){
-    case VMSG_RESIZE:
-    case VMSG_STYLE_CHANGE:
-    {
-        remeasure_file_view(system, view, rect);
-    }break;
-    case VMSG_DRAW:
-    {
-        result = draw_file_view(system, exchange, view, active, rect, (view == active), target, user_input);
-    }break;
-    case VMSG_STEP:
-    {
-        result = step_file_view(system, exchange, view, rect, (view == active), user_input);
-    }break;
-    case VMSG_FREE:
-    {
-        free_file_view(view);
-    }break;
-    }
-    return result;
-}
-
 internal View*
 file_view_init(View *view, Editing_Layout *layout,
     Working_Set *working_set, Delay *delay,
     App_Settings *settings, Hot_Directory *hot_directory,
     Mem_Options *mem, Style_Library *styles){
-    
-    view->do_view = do_file_view;
     
     view->layout = layout;
     view->working_set = working_set;
@@ -4303,7 +4195,7 @@ inline void
 live_set_free_view(System_Functions *system, Exchange *exchange, Live_Views *live_set, View *view){
     Assert(live_set->count > 0);
     --live_set->count;
-    view->do_view(system, exchange, view, {}, 0, VMSG_FREE, 0, {}, 0);
+    free_file_view(view);
     dll_insert(&live_set->free_sentinel, view);
 }
 

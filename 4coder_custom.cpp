@@ -564,6 +564,26 @@ CUSTOM_COMMAND_SIG(query_replace){
     app->view_set_cursor(app, &view, seek_pos(pos), 1);
 }
 
+CUSTOM_COMMAND_SIG(close_all_code){
+    String extension;
+    Buffer_Summary buffer;
+    int max, i;
+
+    max = app->get_buffer_max_index(app);
+    for (i = 0; i < max; ++i){
+        buffer = app->get_buffer(app, i);
+        extension = file_extension(make_string(buffer.file_name, buffer.file_name_len));
+        if (match(extension, make_lit_string("cpp")) ||
+                match(extension, make_lit_string("hpp")) ||
+                match(extension, make_lit_string("c")) ||
+                match(extension, make_lit_string("h"))){
+            //
+            push_parameter(app, par_buffer_id, buffer.buffer_id);
+            exec_command(app, cmdid_kill_buffer);
+        }
+    }
+}
+
 CUSTOM_COMMAND_SIG(open_all_code){
     // NOTE(allen|a3.4.4): This method of getting the hot directory works
     // because this custom.cpp gives no special meaning to app->memory
@@ -603,6 +623,29 @@ CUSTOM_COMMAND_SIG(open_all_code){
     app->free_file_list(app, list);
 }
 
+CUSTOM_COMMAND_SIG(execute_any_cli){
+    Query_Bar bar_out, bar_cmd;
+    String hot_directory;
+    char space[1024], more_space[1024], even_more_space[1024];
+    
+    bar_out.prompt = make_lit_string("Output Buffer: ");
+    bar_out.string = make_fixed_width_string(space);
+    if (!query_user_string(app, &bar_out)) return;
+    
+    bar_cmd.prompt = make_lit_string("Command: ");
+    bar_cmd.string = make_fixed_width_string(more_space);
+    if (!query_user_string(app, &bar_cmd)) return;
+    
+    hot_directory = make_fixed_width_string(even_more_space);
+    hot_directory.size = app->directory_get_hot(app, hot_directory.str, hot_directory.memory_size);
+    
+    push_parameter(app, par_cli_overlap_with_conflict, 1);
+    push_parameter(app, par_name, bar_out.string.str, bar_out.string.size);
+    push_parameter(app, par_cli_path, hot_directory.str, hot_directory.size);
+    push_parameter(app, par_cli_command, bar_cmd.string.str, bar_cmd.string.size);
+    exec_command(app, cmdid_command_line);
+}
+
 CUSTOM_COMMAND_SIG(execute_arbitrary_command){
     // NOTE(allen): This isn't a super powerful version of this command, I will expand
     // upon it so that it has all the cmdid_* commands by default.  However, with this
@@ -623,6 +666,9 @@ CUSTOM_COMMAND_SIG(execute_arbitrary_command){
 
     if (match(bar.string, make_lit_string("open all code"))){
         exec_command(app, open_all_code);
+    }
+    else if(match(bar.string, make_lit_string("close all code"))){
+        exec_command(app, close_all_code);
     }
     else if (match(bar.string, make_lit_string("open in quotes"))){
         exec_command(app, open_file_in_quotes);
@@ -840,6 +886,7 @@ extern "C" GET_BINDING_DATA(get_bindings){
     
     bind(context, 'm', MDFR_ALT, build_search);
     bind(context, 'x', MDFR_ALT, execute_arbitrary_command);
+    bind(context, 'z', MDFR_ALT, execute_any_cli);
     
     // NOTE(allen): These callbacks may not actually be useful to you, but
     // go look at them and see what they do.

@@ -2,6 +2,156 @@
 #include "4coder_keycodes.h"
 #include "4coder_buffer_types.h"
 
+#ifndef FRED_STRING_STRUCT
+#define FRED_STRING_STRUCT
+typedef struct String{
+    char *str;
+    int size;
+    int memory_size;
+} String;
+
+typedef struct Offset_String{
+    int offset;
+    int size;
+} Offset_String;
+#endif
+
+typedef unsigned char Code;
+
+typedef enum{
+	MDFR_SHIFT_INDEX,
+	MDFR_CONTROL_INDEX,
+	MDFR_ALT_INDEX,
+    MDFR_CAPS_INDEX,
+	// always last
+	MDFR_INDEX_COUNT
+} Key_Control;
+
+typedef struct Key_Event_Data{
+	Code keycode;
+	Code character;
+	Code character_no_caps_lock;
+    
+	char modifiers[MDFR_INDEX_COUNT];
+} Key_Event_Data;
+
+typedef struct Mouse_State{
+	char l, r;
+    char press_l, press_r;
+	char release_l, release_r;
+	char wheel;
+	char out_of_window;
+	int x, y;
+} Mouse_State;
+
+
+typedef union Range{
+    struct{
+        int min, max;
+    };
+    struct{
+        int start, end;
+    };
+} Range;
+
+inline Range
+make_range(int p1, int p2){
+    Range range;
+    if (p1 < p2){
+        range.min = p1;
+        range.max = p2;
+    }
+    else{
+        range.min = p2;
+        range.max = p1;
+    }
+    return(range);
+}
+
+
+typedef enum Dynamic_Type{
+    dynamic_type_int,
+    dynamic_type_string,
+    // never below this
+    dynamic_type_count
+} Dynamic_Type;
+
+typedef struct Dynamic{
+    int type;
+    union{
+        struct{
+            int str_len;
+            char *str_value;
+        };
+        int int_value;
+    };
+} Dynamic;
+
+inline Dynamic
+dynamic_int(int x){
+    Dynamic result;
+    result.type = dynamic_type_int;
+    result.int_value = x;
+    return result;
+}
+
+inline Dynamic
+dynamic_string(const char *string, int len){
+    Dynamic result;
+    result.type = dynamic_type_string;
+    result.str_len = len;
+    result.str_value = (char*)(string);
+    return result;
+}
+
+inline int
+dynamic_to_int(Dynamic *dynamic){
+    int result = 0;
+    if (dynamic->type == dynamic_type_int){
+        result = dynamic->int_value;
+    }
+    return result;
+}
+
+inline char*
+dynamic_to_string(Dynamic *dynamic, int *len){
+    char *result = 0;
+    if (dynamic->type == dynamic_type_string){
+        result = dynamic->str_value;
+        *len = dynamic->str_len;
+    }
+    return result;
+}
+
+inline int
+dynamic_to_bool(Dynamic *dynamic){
+    int result = 0;
+    if (dynamic->type == dynamic_type_int){
+        result = (dynamic->int_value != 0);
+    }
+    else{
+        result = 1;
+    }
+    return result;
+}
+
+typedef struct File_Info{
+    String filename;
+    int folder;
+} File_Info;
+
+typedef struct File_List{
+    // Ignore this, it's for internal stuff.
+    void *block;
+    
+    // The list of files and folders.
+    File_Info *infos;
+    int count;
+    
+    // Ignore this, it's for internal stuff.
+    int block_size;
+} File_List;
+
 #define MDFR_NONE 0
 #define MDFR_CTRL 1
 #define MDFR_ALT 2
@@ -169,41 +319,41 @@ extern "C"{
 struct Application_Links;
 
 // Command exectuion
-#define PUSH_PARAMETER_SIG(name) void name(Application_Links *context, Dynamic param, Dynamic value)
-#define PUSH_MEMORY_SIG(name) char* name(Application_Links *context, int len)
-#define EXECUTE_COMMAND_SIG(name) void name(Application_Links *context, int command_id)
-#define CLEAR_PARAMETERS_SIG(name) void name(Application_Links *context)
+#define PUSH_PARAMETER_SIG(name) void name(Application_Links *app, Dynamic param, Dynamic value)
+#define PUSH_MEMORY_SIG(name) char* name(Application_Links *app, int len)
+#define EXECUTE_COMMAND_SIG(name) void name(Application_Links *app, int command_id)
+#define CLEAR_PARAMETERS_SIG(name) void name(Application_Links *app)
 
 // File system navigation
-#define DIRECTORY_GET_HOT_SIG(name) int name(Application_Links *context, char *out, int capacity)
-#define FILE_EXISTS_SIG(name) int name(Application_Links *context, char *filename, int len)
-#define DIRECTORY_CD_SIG(name) int name(Application_Links *context, char *dir, int *len, int capacity, char *rel_path, int rel_len)
-#define GET_FILE_LIST_SIG(name) File_List name(Application_Links *context, char *dir, int len)
-#define FREE_FILE_LIST_SIG(name) void name(Application_Links *context, File_List list)
+#define DIRECTORY_GET_HOT_SIG(name) int name(Application_Links *app, char *out, int capacity)
+#define FILE_EXISTS_SIG(name) int name(Application_Links *app, char *filename, int len)
+#define DIRECTORY_CD_SIG(name) int name(Application_Links *app, char *dir, int *len, int capacity, char *rel_path, int rel_len)
+#define GET_FILE_LIST_SIG(name) File_List name(Application_Links *app, char *dir, int len)
+#define FREE_FILE_LIST_SIG(name) void name(Application_Links *app, File_List list)
 
 // Direct buffer manipulation
-#define GET_BUFFER_MAX_INDEX_SIG(name) int name(Application_Links *context)
-#define GET_BUFFER_SIG(name) Buffer_Summary name(Application_Links *context, int index)
-#define GET_ACTIVE_BUFFER_SIG(name) Buffer_Summary name(Application_Links *context)
-#define GET_BUFFER_BY_NAME(name) Buffer_Summary name(Application_Links *context, char *filename, int len)
+#define GET_BUFFER_MAX_INDEX_SIG(name) int name(Application_Links *app)
+#define GET_BUFFER_SIG(name) Buffer_Summary name(Application_Links *app, int index)
+#define GET_ACTIVE_BUFFER_SIG(name) Buffer_Summary name(Application_Links *app)
+#define GET_BUFFER_BY_NAME(name) Buffer_Summary name(Application_Links *app, char *filename, int len)
 
-#define REFRESH_BUFFER_SIG(name) int name(Application_Links *context, Buffer_Summary *buffer)
-#define BUFFER_SEEK_DELIMITER_SIG(name) int name(Application_Links *context, Buffer_Summary *buffer, int start, char delim, int seek_forward, int *out)
-#define BUFFER_SEEK_STRING_SIG(name) int name(Application_Links *context, Buffer_Summary *buffer, int start, char *str, int len, int seek_forward, int *out)
-#define BUFFER_READ_RANGE_SIG(name) int name(Application_Links *context, Buffer_Summary *buffer, int start, int end, char *out)
-#define BUFFER_REPLACE_RANGE_SIG(name) int name(Application_Links *context, Buffer_Summary *buffer, int start, int end, char *str, int len)
-#define BUFFER_SET_POS_SIG(name) int name(Application_Links *context, Buffer_Summary *buffer, int pos)
+#define REFRESH_BUFFER_SIG(name) int name(Application_Links *app, Buffer_Summary *buffer)
+#define BUFFER_SEEK_DELIMITER_SIG(name) int name(Application_Links *app, Buffer_Summary *buffer, int start, char delim, int seek_forward, int *out)
+#define BUFFER_SEEK_STRING_SIG(name) int name(Application_Links *app, Buffer_Summary *buffer, int start, char *str, int len, int seek_forward, int *out)
+#define BUFFER_READ_RANGE_SIG(name) int name(Application_Links *app, Buffer_Summary *buffer, int start, int end, char *out)
+#define BUFFER_REPLACE_RANGE_SIG(name) int name(Application_Links *app, Buffer_Summary *buffer, int start, int end, char *str, int len)
+#define BUFFER_SET_POS_SIG(name) int name(Application_Links *app, Buffer_Summary *buffer, int pos)
 
 // File view manipulation
-#define GET_VIEW_MAX_INDEX_SIG(name) int name(Application_Links *context)
-#define GET_VIEW_SIG(name) View_Summary name(Application_Links *context, int index)
-#define GET_ACTIVE_VIEW_SIG(name) View_Summary name(Application_Links *context)
+#define GET_VIEW_MAX_INDEX_SIG(name) int name(Application_Links *app)
+#define GET_VIEW_SIG(name) View_Summary name(Application_Links *app, int index)
+#define GET_ACTIVE_VIEW_SIG(name) View_Summary name(Application_Links *app)
 
-#define REFRESH_VIEW_SIG(name) int name(Application_Links *context, View_Summary *view)
-#define VIEW_SET_CURSOR_SIG(name) int name(Application_Links *context, View_Summary *view, Buffer_Seek seek, int set_preferred_x)
-#define VIEW_SET_MARK_SIG(name) int name(Application_Links *context, View_Summary *view, Buffer_Seek seek)
-#define VIEW_SET_HIGHLIGHT_SIG(name) int name(Application_Links *context, View_Summary *view, int start, int end, int turn_on)
-#define VIEW_SET_BUFFER_SIG(name) int name(Application_Links *context, View_Summary *view, int buffer_id)
+#define REFRESH_VIEW_SIG(name) int name(Application_Links *app, View_Summary *view)
+#define VIEW_SET_CURSOR_SIG(name) int name(Application_Links *app, View_Summary *view, Buffer_Seek seek, int set_preferred_x)
+#define VIEW_SET_MARK_SIG(name) int name(Application_Links *app, View_Summary *view, Buffer_Seek seek)
+#define VIEW_SET_HIGHLIGHT_SIG(name) int name(Application_Links *app, View_Summary *view, int start, int end, int turn_on)
+#define VIEW_SET_BUFFER_SIG(name) int name(Application_Links *app, View_Summary *view, int buffer_id)
 
 // Directly get user input
 #define EventOnAnyKey 0x1

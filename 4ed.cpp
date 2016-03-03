@@ -1096,10 +1096,32 @@ COMMAND_DECL(interactive_kill_buffer){
 COMMAND_DECL(kill_buffer){
     ProfileMomentFunction();
     USE_VIEW(view);
-    REQ_FILE(file, view);
+    USE_FILE(file, view);
     USE_DELAY(delay);
+    USE_WORKING_SET(working_set);
+    
+    int buffer_id = -1;
+    
+    Command_Parameter *end = param_stack_end(&command->part);
+    Command_Parameter *param = param_stack_first(&command->part, end);
+    for (; param < end; param = param_next(param, end)){
+        int v = dynamic_to_int(&param->param.param);
+        if (v == par_buffer_id && param->param.value.type == dynamic_type_int){
+            buffer_id = dynamic_to_int(&param->param.value);
+        }
+    }
 
-    delayed_try_kill(delay, file->name.live_name, view->panel);
+    if (buffer_id != -1){
+        if (buffer_id > 0 && buffer_id < working_set->file_max_count){
+            file = working_set->files + buffer_id;
+            if (!file->state.is_dummy){
+                delayed_kill(delay, file->name.source_path);
+            }
+        }
+    }
+    else if (file){
+        delayed_try_kill(delay, file->name.live_name, view->panel);
+    }
 }
 
 COMMAND_DECL(toggle_line_wrap){
@@ -1748,9 +1770,11 @@ build(System_Functions *system, Mem_Options *mem,
             index = (i32)(file - vars->working_set.files);
             if (file){
                 if (!(flags & CLI_AlwaysBindToView)){
-                    Panel *panel = layout->panels;
-                    for (i32 i = 0; i < layout->panel_count; ++i, ++panel){
-                        View *view = panel->view;
+                    View *view;
+                    Panel *panel, *used_panels;
+                    used_panels = &layout->used_sentinel;
+                    for (dll_items(panel, used_panels)){
+                        view = panel->view;
                         if (view->file == file){
                             bind_to_new_view = 0;
                             break;
@@ -1881,18 +1905,20 @@ globalvar Command_Function command_table[cmdid_count];
 internal void
 fill_buffer_summary(Buffer_Summary *buffer, Editing_File *file, Working_Set *working_set){
     buffer->exists = 1;
-    buffer->ready = file_is_ready(file);
-    buffer->is_lexed = file->settings.tokens_exist;
-    buffer->buffer_id = (int)(file - working_set->files);
-    buffer->size = file->state.buffer.size;
-    buffer->buffer_cursor_pos = file->state.cursor_pos;
-
-    buffer->file_name_len = file->name.source_path.size;
-    buffer->buffer_name_len = file->name.live_name.size;
-    buffer->file_name = file->name.source_path.str;
-    buffer->buffer_name = file->name.live_name.str;
-
-    buffer->map_id = file->settings.base_map_id;
+    if (!file->state.is_dummy){
+        buffer->ready = file_is_ready(file);
+        buffer->is_lexed = file->settings.tokens_exist;
+        buffer->buffer_id = (int)(file - working_set->files);
+        buffer->size = file->state.buffer.size;
+        buffer->buffer_cursor_pos = file->state.cursor_pos;
+        
+        buffer->file_name_len = file->name.source_path.size;
+        buffer->buffer_name_len = file->name.live_name.size;
+        buffer->file_name = file->name.source_path.str;
+        buffer->buffer_name = file->name.live_name.str;
+        
+        buffer->map_id = file->settings.base_map_id;
+    }
 }
 
 internal void
@@ -1911,7 +1937,7 @@ fill_view_summary(View_Summary *view, View *file_view, Live_Views *live_set, Wor
 
 extern "C"{
     EXECUTE_COMMAND_SIG(external_exec_command_keep_stack){
-        Command_Data *cmd = (Command_Data*)context->cmd_context;
+        Command_Data *cmd = (Command_Data*)app->cmd_context;
         Command_Function function = command_table[command_id];
         Command_Binding binding;
         binding.function = function;
@@ -1921,7 +1947,7 @@ extern "C"{
     }
 
     PUSH_PARAMETER_SIG(external_push_parameter){
-        Command_Data *cmd = (Command_Data*)context->cmd_context;
+        Command_Data *cmd = (Command_Data*)app->cmd_context;
         Partition *part = &cmd->part;
         Command_Parameter *cmd_param = push_struct(part, Command_Parameter);
         cmd_param->type = 0;
@@ -1930,7 +1956,7 @@ extern "C"{
     }
 
     PUSH_MEMORY_SIG(external_push_memory){
-        Command_Data *cmd = (Command_Data*)context->cmd_context;
+        Command_Data *cmd = (Command_Data*)app->cmd_context;
         Partition *part = &cmd->part;
         Command_Parameter *base = push_struct(part, Command_Parameter);
         char *result = push_array(part, char, len);
@@ -1944,12 +1970,12 @@ extern "C"{
     }
 
     CLEAR_PARAMETERS_SIG(external_clear_parameters){
-        Command_Data *cmd = (Command_Data*)context->cmd_context;
+        Command_Data *cmd = (Command_Data*)app->cmd_context;
         cmd->part.pos = 0;
     }
 
     DIRECTORY_GET_HOT_SIG(external_directory_get_hot){
-        Command_Data *cmd = (Command_Data*)context->cmd_context;
+        Command_Data *cmd = (Command_Data*)app->cmd_context;
         Hot_Directory *hot = &cmd->vars->hot_directory;
         i32 copy_max = capacity - 1;
         hot_directory_clean_end(hot);
@@ -1961,7 +1987,7 @@ extern "C"{
     }
     
     GET_FILE_LIST_SIG(external_get_file_list){
-        Command_Data *cmd = (Command_Data*)context->cmd_context;
+        Command_Data *cmd = (Command_Data*)app->cmd_context;
         System_Functions *system = cmd->system;
         File_List result = {};
         system->set_file_list(&result, make_string(dir, len));
@@ -1969,20 +1995,20 @@ extern "C"{
     }
     
     FREE_FILE_LIST_SIG(external_free_file_list){
-        Command_Data *cmd = (Command_Data*)context->cmd_context;
+        Command_Data *cmd = (Command_Data*)app->cmd_context;
         System_Functions *system = cmd->system;
         system->set_file_list(&list, make_string(0, 0));
     }
     
     GET_BUFFER_MAX_INDEX_SIG(external_get_buffer_max_index){
-        Command_Data *cmd = (Command_Data*)context->cmd_context;
+        Command_Data *cmd = (Command_Data*)app->cmd_context;
         Working_Set *working_set = cmd->working_set;
         int max = working_set->file_index_count;
         return(max);
     }
 
     GET_BUFFER_SIG(external_get_buffer){
-        Command_Data *cmd = (Command_Data*)context->cmd_context;
+        Command_Data *cmd = (Command_Data*)app->cmd_context;
         Editing_File *file;
         Working_Set *working_set = cmd->working_set;
         int max = working_set->file_index_count;
@@ -1990,36 +2016,28 @@ extern "C"{
 
         if (index >= 0 && index < max){
             file = working_set->files + index;
-            if (!file->state.is_dummy){
-                fill_buffer_summary(&buffer, file, working_set);
-            }
+            fill_buffer_summary(&buffer, file, working_set);
         }
 
         return(buffer);
     }
-
+    
     GET_ACTIVE_BUFFER_SIG(external_get_active_buffer){
-        Command_Data *cmd = (Command_Data*)context->cmd_context;
-        View *view;
+        Command_Data *cmd = (Command_Data*)app->cmd_context;
         Editing_File *file;
-        Working_Set *working_set;
         Buffer_Summary buffer = {};
-
-        view = cmd->view;
-        if (view){
-            file = view->file;
-            working_set = cmd->working_set;
-
-            if (file && !file->state.is_dummy){
-                fill_buffer_summary(&buffer, file, working_set);
-            }
+        
+        file = cmd->view->file;
+        
+        if (file && !file->state.is_dummy){
+            fill_buffer_summary(&buffer, file, cmd->working_set);
         }
-
+        
         return(buffer);
     }
 
     GET_BUFFER_BY_NAME(external_get_buffer_by_name){
-        Command_Data *cmd = (Command_Data*)context->cmd_context;
+        Command_Data *cmd = (Command_Data*)app->cmd_context;
         Editing_File *file;
         Working_Set *working_set;
         i32 index;
@@ -2038,13 +2056,13 @@ extern "C"{
 
     REFRESH_BUFFER_SIG(external_refresh_buffer){
         int result;
-        *buffer = external_get_buffer(context, buffer->buffer_id);
+        *buffer = external_get_buffer(app, buffer->buffer_id);
         result = buffer->exists;
         return(result);
     }
 
     BUFFER_SEEK_DELIMITER_SIG(external_buffer_seek_delimiter){
-        Command_Data *cmd = (Command_Data*)context->cmd_context;
+        Command_Data *cmd = (Command_Data*)app->cmd_context;
         Editing_File *file;
         Working_Set *working_set;
         int result = 0;
@@ -2076,7 +2094,7 @@ extern "C"{
     }
 
     BUFFER_SEEK_STRING_SIG(external_buffer_seek_string){
-        Command_Data *cmd = (Command_Data*)context->cmd_context;
+        Command_Data *cmd = (Command_Data*)app->cmd_context;
         Editing_File *file;
         Working_Set *working_set;
         Temp_Memory temp;
@@ -2114,7 +2132,7 @@ extern "C"{
     }
 
     BUFFER_READ_RANGE_SIG(external_buffer_read_range){
-        Command_Data *cmd = (Command_Data*)context->cmd_context;
+        Command_Data *cmd = (Command_Data*)app->cmd_context;
         Editing_File *file;
         Working_Set *working_set;
         int result = 0;
@@ -2137,7 +2155,7 @@ extern "C"{
     }
 
     BUFFER_REPLACE_RANGE_SIG(external_buffer_replace_range){
-        Command_Data *cmd = (Command_Data*)context->cmd_context;
+        Command_Data *cmd = (Command_Data*)app->cmd_context;
         Editing_File *file;
         Working_Set *working_set;
 
@@ -2177,7 +2195,7 @@ extern "C"{
     }
     
     BUFFER_SET_POS_SIG(external_buffer_set_pos){
-        Command_Data *cmd = (Command_Data*)context->cmd_context;
+        Command_Data *cmd = (Command_Data*)app->cmd_context;
         Editing_File *file;
         Working_Set *working_set;
 
@@ -2201,14 +2219,14 @@ extern "C"{
     }
     
     GET_VIEW_MAX_INDEX_SIG(external_get_view_max_index){
-        Command_Data *cmd = (Command_Data*)context->cmd_context;
+        Command_Data *cmd = (Command_Data*)app->cmd_context;
         Live_Views *live_set = cmd->live_set;
         int max = live_set->max;
         return(max);
     }
 
     GET_VIEW_SIG(external_get_view){
-        Command_Data *cmd = (Command_Data*)context->cmd_context;
+        Command_Data *cmd = (Command_Data*)app->cmd_context;
         Live_Views *live_set = cmd->live_set;
         int max = live_set->max;
         View *vptr;
@@ -2223,7 +2241,7 @@ extern "C"{
     }
 
     GET_ACTIVE_VIEW_SIG(external_get_active_view){
-        Command_Data *cmd = (Command_Data*)context->cmd_context;
+        Command_Data *cmd = (Command_Data*)app->cmd_context;
         View_Summary view = {};
         View *vptr;
         
@@ -2235,13 +2253,13 @@ extern "C"{
 
     REFRESH_VIEW_SIG(external_refresh_view){
         int result;
-        *view = external_get_view(context, view->view_id);
+        *view = external_get_view(app, view->view_id);
         result = view->exists;
         return(result);
     }
 
     VIEW_SET_CURSOR_SIG(external_view_set_cursor){
-        Command_Data *cmd = (Command_Data*)context->cmd_context;
+        Command_Data *cmd = (Command_Data*)app->cmd_context;
         Live_Views *live_set;
         View *vptr;
         int result = 0;
@@ -2250,6 +2268,9 @@ extern "C"{
             live_set = cmd->live_set;
             vptr = (View*)((char*)live_set->views + live_set->stride * view->view_id);
             result = 1;
+            if (seek.type == buffer_seek_line_char && seek.character <= 0){
+                seek.character = 1;
+            }
             vptr->cursor = view_compute_cursor(vptr, seek);
             if (set_preferred_x){
                 vptr->preferred_x = view_get_cursor_x(vptr);
@@ -2261,7 +2282,7 @@ extern "C"{
     }
 
     VIEW_SET_MARK_SIG(external_view_set_mark){
-        Command_Data *cmd = (Command_Data*)context->cmd_context;
+        Command_Data *cmd = (Command_Data*)app->cmd_context;
         Live_Views *live_set;
         View *vptr;
         Full_Cursor cursor;
@@ -2271,6 +2292,9 @@ extern "C"{
             live_set = cmd->live_set;
             vptr = (View*)((char*)live_set->views + live_set->stride * view->view_id);
             result = 1;
+            if (seek.type == buffer_seek_line_char && seek.character <= 0){
+                seek.character = 1;
+            }
             if (seek.type != buffer_seek_pos){
                 cursor = view_compute_cursor(vptr, seek);
                 vptr->mark = cursor.pos;
@@ -2285,7 +2309,7 @@ extern "C"{
     }
 
     VIEW_SET_HIGHLIGHT_SIG(external_view_set_highlight){
-        Command_Data *cmd = (Command_Data*)context->cmd_context;
+        Command_Data *cmd = (Command_Data*)app->cmd_context;
         Live_Views *live_set;
         View *vptr;
         int result = 0;
@@ -2307,7 +2331,7 @@ extern "C"{
     }
 
     VIEW_SET_BUFFER_SIG(external_view_set_buffer){
-        Command_Data *cmd = (Command_Data*)context->cmd_context;
+        Command_Data *cmd = (Command_Data*)app->cmd_context;
         Live_Views *live_set;
         View *vptr;
         Editing_File *file;
@@ -2939,6 +2963,7 @@ extern "C" SCROLL_RULE_SIG(fallback_scroll_rule){
     return(result);
 }
 
+
 App_Init_Sig(app_init){
     app_links_init(system, memory->user_memory, memory->user_memory_size);
 
@@ -3249,7 +3274,7 @@ App_Init_Sig(app_init){
 // more unified behavior, I will use this to add checks to the program's state so that I
 // can make sure it behaving well.
 internal void
-correctness_check(App_Vars *vars){
+correctness_check_(App_Vars *vars){
     Panel *panel, *used_panels;
     used_panels = &vars->layout.used_sentinel;
     for (dll_items(panel, used_panels)){
@@ -3410,8 +3435,6 @@ App_Step_Sig(app_step){
     
     ProfileEnd(OS_syncing);
     
-    correctness_check(vars);
-    
     ProfileStart(hover_status);
     // NOTE(allen): detect mouse hover status
     i32 mx = mouse->x;
@@ -3491,8 +3514,6 @@ App_Step_Sig(app_step){
     }
     ProfileEnd(hover_status);
 
-    correctness_check(vars);
-    
     // NOTE(allen): prepare to start executing commands
     ProfileStart(prepare_commands);
     
@@ -3524,8 +3545,8 @@ App_Step_Sig(app_step){
         
         i32 i;
         String file_name;
-        Panel *panel = vars->layout.panels;
-        for (i = 0; i < vars->settings.init_files_count; ++i, ++panel){
+        Panel *panel = &vars->layout.used_sentinel;
+        for (i = 0; i < vars->settings.init_files_count; ++i, panel = panel->next){
             file_name = make_string_slowly(vars->settings.init_files[i]);
 
             if (i < vars->layout.panel_count){
@@ -3673,8 +3694,6 @@ App_Step_Sig(app_step){
     
     ProfileEnd(command_coroutine);
 
-    correctness_check(vars);
-    
     // NOTE(allen): pass raw input to the panels
     ProfileStart(step);
 
@@ -3719,17 +3738,18 @@ App_Step_Sig(app_step){
     
     {
         Panel *panel, *used_panels;
+        View *view;
+        b32 active;
+        
         used_panels = &vars->layout.used_sentinel;
         for (dll_items(panel, used_panels)){
-            View *view_ = panel->view;
-            Assert(view_->do_view);
-            b32 active = (panel == cmd->panel);
+            view = panel->view;
+            active = (panel == cmd->panel);
             Input_Summary input = (active)?(active_input):(dead_input);
             if (panel == mouse_panel && !mouse->out_of_window){
                 input.mouse = mouse_state;
             }
-            if (view_->do_view(system, exchange, view_, panel->inner, cmd->view,
-                    VMSG_STEP, 0, &input, &active_input)){
+            if (step_file_view(system, exchange, view, panel->inner, active, &input)){
                 app_result.redraw = 1;
             }
         }
@@ -3737,8 +3757,6 @@ App_Step_Sig(app_step){
     
     update_command_data(vars, cmd);
     ProfileEnd(step);
-    
-    correctness_check(vars);
     
     // NOTE(allen): command execution
     ProfileStart(command);
@@ -3800,8 +3818,6 @@ App_Step_Sig(app_step){
     
     update_command_data(vars, cmd);
     ProfileEnd(command);
-    
-    correctness_check(vars);
     
     ProfileStart(resizing);
     // NOTE(allen): panel resizing
@@ -3907,8 +3923,6 @@ App_Step_Sig(app_step){
     
     update_command_data(vars, cmd);
     ProfileEnd(resizing);
-    
-    correctness_check(vars);
     
     // NOTE(allen): processing sys app bindings
     ProfileStart(sys_app_bind_processing);
@@ -4222,8 +4236,6 @@ App_Step_Sig(app_step){
     end_temp_memory(param_stack_temp);
     ProfileEnd(delayed_actions);
 
-    correctness_check(vars);
-
     ProfileStart(resize);
     // NOTE(allen): send resize messages to panels that have changed size
     {
@@ -4236,9 +4248,7 @@ App_Step_Sig(app_step){
                     prev.x1 != inner.x1 || prev.y1 != inner.y1){
                 View *view = panel->view;
                 if (view){
-                    view->do_view(system, exchange,
-                        view, inner, cmd->view,
-                        VMSG_RESIZE, 0, &dead_input, &active_input);
+                    remeasure_file_view(system, view, panel->inner);
                 }
             }
             panel->prev_inner = inner;
@@ -4268,16 +4278,12 @@ App_Step_Sig(app_step){
         for (dll_items(panel, used_panels)){
             View *view = panel->view;
             if (view){
-                view->do_view(system, exchange,
-                    view, panel->inner, cmd->view,
-                    VMSG_STYLE_CHANGE, 0, &dead_input, &active_input);
+                remeasure_file_view(system, view, panel->inner);
             }
         }
     }
     ProfileEnd(style_change);
 
-    correctness_check(vars);
-    
     ProfileStart(redraw);
     if (mouse_panel != vars->prev_mouse_panel) app_result.redraw = 1;
     if (app_result.redraw){
@@ -4300,14 +4306,9 @@ App_Step_Sig(app_step){
             u32 back_color = style->main.back_color;
             draw_rectangle(target, full, back_color);
             
-            if (view){
-                Assert(view->do_view);
-                draw_push_clip(target, panel->inner);
-                view->do_view(system, exchange,
-                              view, panel->inner, cmd->view,
-                              VMSG_DRAW, target, &dead_input, &active_input);
-                draw_pop_clip(target);
-            }
+            draw_push_clip(target, panel->inner);
+            draw_file_view(system, exchange, view, cmd->view, panel->inner, active, target, &dead_input);
+            draw_pop_clip(target);
             
             u32 margin_color;
             if (active){
@@ -4353,8 +4354,6 @@ App_Step_Sig(app_step){
     *result = app_result;
     result->lctrl_lalt_is_altgr = vars->settings.lctrl_lalt_is_altgr;
     
-    correctness_check(vars);
-
     // end-of-app_step
 }
 

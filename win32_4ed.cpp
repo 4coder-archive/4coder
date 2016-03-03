@@ -527,17 +527,6 @@ DIRECTORY_CD_SIG(system_directory_cd){
     return(result);
 }
 
-Sys_File_Paths_Equal_Sig(system_file_paths_equal){
-	b32 result = 0;
-
-	// TODO(someone who knows windows): implement me
-
-	AllowLocal(path_a);
-	AllowLocal(path_b);
-
-	return result;
-}
-
 internal
 Sys_Post_Clipboard_Sig(system_post_clipboard){
 	if (OpenClipboard(win32vars.window_handle)){
