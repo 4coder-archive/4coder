@@ -390,6 +390,7 @@ Sys_Set_File_List_Sig(system_set_file_list){
     }
 }
 
+#if 0
 Sys_File_Paths_Equal_Sig(system_file_paths_equal){
     b32 result = 0;
 
@@ -401,6 +402,28 @@ Sys_File_Paths_Equal_Sig(system_file_paths_equal){
             free(real_b);
         }
         free(real_a);
+    }
+
+    return result;
+}
+#endif
+
+static_assert(
+    (sizeof(((struct stat*)0)->st_dev) + 
+    sizeof(((struct stat*)0)->st_ino)) <= 
+    sizeof(Unique_Hash),
+    "Unique_Hash too small"
+);
+
+Sys_File_Unique_Hash_Sig(system_file_unique_hash){
+    Unique_Hash result = {};
+    struct stat st;
+
+    if(stat(filename, &st) == -1){
+        perror("sys_file_unique_hash: stat");
+    } else {
+        memcpy(&result, &st.st_dev, sizeof(st.st_dev));
+        memcpy((char*)&result + sizeof(st.st_dev), &st.st_ino, sizeof(st.st_ino));
     }
 
     return result;
@@ -1088,6 +1111,7 @@ LinuxLoadSystemCode(){
 
     linuxvars.system->file_exists = system_file_exists;
     linuxvars.system->directory_cd = system_directory_cd;
+    linuxvars.system->file_unique_hash = system_file_unique_hash;
 
     linuxvars.system->post_clipboard = system_post_clipboard;
     linuxvars.system->time = system_time;
@@ -1867,10 +1891,37 @@ main(int argc, char **argv)
                 if(linuxvars.XWindow)
                 {
                     XStoreName(linuxvars.XDisplay, linuxvars.XWindow, "4coder-window");
+
+                    Atom _NET_WM_WINDOW_TYPE = XInternAtom(linuxvars.XDisplay, "_NET_WM_WINDOW_TYPE", False);
+                    Atom _NET_WIN_TYPE_NORMAL = XInternAtom(linuxvars.XDisplay, "_NET_WM_WINDOW_TYPE_NORMAL", False);
+                    XChangeProperty(
+                        linuxvars.XDisplay,
+                        linuxvars.XWindow,
+                        _NET_WM_WINDOW_TYPE,
+                        XA_ATOM,
+                        32,
+                        PropModeReplace,
+                        (unsigned char*)&_NET_WIN_TYPE_NORMAL,
+                        1
+                    );
+
+                    Atom _NET_WM_PID = XInternAtom(linuxvars.XDisplay, "_NET_WM_PID", False);
+                    pid_t pid = getpid();
+                    XChangeProperty(
+                        linuxvars.XDisplay,
+                        linuxvars.XWindow,
+                        _NET_WM_PID,
+                        XA_CARDINAL,
+                        32,
+                        PropModeReplace,
+                        (unsigned char*)&pid,
+                        1
+                    );
+
                     XMapWindow(linuxvars.XDisplay, linuxvars.XWindow);
 
                     Init_Input_Result input_result = 
-                        InitializeXInput(linuxvars.XDisplay, linuxvars.XWindow);
+                    InitializeXInput(linuxvars.XDisplay, linuxvars.XWindow);
 
                     linuxvars.input_method = input_result.input_method;
                     linuxvars.input_style = input_result.best_style;
@@ -1878,7 +1929,7 @@ main(int argc, char **argv)
 
                     b32 IsLegacy = false;
                     GLXContext GLContext =
-                        InitializeOpenGLContext(linuxvars.XDisplay, linuxvars.XWindow, Config.BestConfig, IsLegacy);
+                    InitializeOpenGLContext(linuxvars.XDisplay, linuxvars.XWindow, Config.BestConfig, IsLegacy);
 
                     XWindowAttributes WinAttribs;
                     if(XGetWindowAttributes(linuxvars.XDisplay, linuxvars.XWindow, &WinAttribs))
@@ -1886,7 +1937,7 @@ main(int argc, char **argv)
                         WinWidth = WinAttribs.width;
                         WinHeight = WinAttribs.height;
                     }
-                    
+
                     XRaiseWindow(linuxvars.XDisplay, linuxvars.XWindow);
                     XSync(linuxvars.XDisplay, False);
 
@@ -1939,31 +1990,6 @@ main(int argc, char **argv)
         );
     }
 
-    Atom _NET_WM_WINDOW_TYPE = XInternAtom(linuxvars.XDisplay, "_NET_WM_WINDOW_TYPE", False);
-    Atom _NET_WIN_TYPE_NORMAL = XInternAtom(linuxvars.XDisplay, "_NET_WM_WINDOW_TYPE_NORMAL", False);
-    XChangeProperty(
-        linuxvars.XDisplay,
-        linuxvars.XWindow,
-        _NET_WM_WINDOW_TYPE,
-        XA_ATOM,
-        32,
-        PropModeReplace,
-        (unsigned char*)&_NET_WIN_TYPE_NORMAL,
-        1
-    );
-
-    Atom _NET_WM_PID = XInternAtom(linuxvars.XDisplay, "_NET_WM_PID", False);
-    pid_t pid = getpid();
-    XChangeProperty(
-        linuxvars.XDisplay,
-        linuxvars.XWindow,
-        _NET_WM_PID,
-        XA_CARDINAL,
-        32,
-        PropModeReplace,
-        (unsigned char*)&pid,
-        1
-    );
 
     Atom WM_DELETE_WINDOW = XInternAtom(linuxvars.XDisplay, "WM_DELETE_WINDOW", False);
     Atom _NET_WM_PING = XInternAtom(linuxvars.XDisplay, "_NET_WM_PING", False);
