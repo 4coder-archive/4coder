@@ -72,6 +72,8 @@ enum Color_View_Mode{
 struct View{
     View *next, *prev;
     
+    App_Models *models;
+    
     Panel *panel;
     Command_Map *map;
     Scroll_Rule_Function *scroll_rule;
@@ -597,12 +599,14 @@ file_create_empty(
 
 internal b32
 file_create_super_locked(
-    System_Functions *system, Mem_Options *mem,
-    Working_Set *working_set, Editing_File *file,
-    char *filename, Font_Set *set, i16 font_id){
+    System_Functions *system,
+    App_Models *models,
+    Editing_File *file,
+    char *filename){
     b32 result = 1;
     String empty_str = {};
-    file_create_from_string(system, mem, working_set, file, filename, set, font_id, empty_str, 1);
+    file_create_from_string(system, &models->mem, &models->working_set,
+        file, filename, models->font_set, models->global_font.font_id, empty_str, 1);
     return result;
 }
 
@@ -1309,27 +1313,21 @@ view_set_file(
     // NOTE(allen): These parameters are always meaningful
     View *view,
     Editing_File *file,
-    Font_Set *set,
-    Style *style,
-    Style_Font *global_font,
+    App_Models *models,
 
     // NOTE(allen): Necessary when file != 0
     System_Functions *system,
     Hook_Function *open_hook,
     Application_Links *app){
-
-    Panel *panel;
+    
     Font_Info *fnt_info;
-
-    panel = view->panel;
-
+    
     // NOTE(allen): This is actually more like view_set_style right?
-    fnt_info = get_font_info(set, global_font->font_id);
-    view->global_font = global_font;
-    view->style = style;
+    fnt_info = get_font_info(models->font_set, models->global_font.font_id);
+    view->global_font = &models->global_font;
+    view->style = &models->style;
     view->font_advance = fnt_info->advance;
     view->font_height = fnt_info->height;
-    view->font_set = set;
 
     // NOTE(allen): Stuff that doesn't assume file exists.
     view->file = file;
@@ -1340,7 +1338,7 @@ view_set_file(
 
     if (file){
         // NOTE(allen): Isn't this a bit clumsy?
-        file->settings.set = set;
+        file->settings.set = models->font_set;
 
         view->locked = file->settings.super_locked;
         view->unwrapped_lines = file->settings.unwrapped_lines;
@@ -1854,6 +1852,7 @@ view_do_white_batch_edit(System_Functions *system, Mem_Options *mem, View *view,
     file_edit_cursor_fix(system, part, general, file, layout, desc);
 }
 
+#if 0
 inline void
 file_replace_range(System_Functions *system,
     Mem_Options *mem, Editing_File *file, Editing_Layout *layout,
@@ -1883,6 +1882,37 @@ view_replace_range(System_Functions *system,
     spec.step.post_pos = next_cursor;
     spec.str = (u8*)str;
     file_do_single_edit(system, mem, view->file, layout, spec, hist_normal);
+}
+#endif
+
+inline void
+file_replace_range(System_Functions *system,
+    App_Models *models, Editing_File *file,
+    i32 start, i32 end, char *str, i32 len, i32 next_cursor){
+    Edit_Spec spec = {};
+    spec.step.type = ED_NORMAL;
+    spec.step.edit.start =  start;
+    spec.step.edit.end = end;
+    spec.step.edit.len = len;
+    spec.step.pre_pos = file->state.cursor_pos;
+    spec.step.post_pos = next_cursor;
+    spec.str = (u8*)str;
+    file_do_single_edit(system, &models->mem, file, &models->layout, spec, hist_normal);
+}
+
+inline void
+view_replace_range(System_Functions *system, App_Models *models, View *view,
+    i32 start, i32 end, char *str, i32 len, i32 next_cursor){
+    if (view->locked) return;
+    Edit_Spec spec = {};
+    spec.step.type = ED_NORMAL;
+    spec.step.edit.start =  start;
+    spec.step.edit.end = end;
+    spec.step.edit.len = len;
+    spec.step.pre_pos = view->cursor.pos;
+    spec.step.post_pos = next_cursor;
+    spec.str = (u8*)str;
+    file_do_single_edit(system, &models->mem, view->file, &models->layout, spec, hist_normal);
 }
 
 inline void
@@ -1930,15 +1960,15 @@ view_undo_redo(System_Functions *system,
 }
 
 inline void
-view_undo(System_Functions *system, Mem_Options *mem, Editing_Layout *layout, View *view){
+view_undo(System_Functions *system, App_Models *models, View *view){
     Editing_File *file = view->file;
-    view_undo_redo(system, mem, layout, view, file, &file->state.undo.undo, ED_UNDO);
+    view_undo_redo(system, &models->mem, &models->layout, view, file, &file->state.undo.undo, ED_UNDO);
 }
 
 inline void
-view_redo(System_Functions *system, Mem_Options *mem, Editing_Layout *layout, View *view){
+view_redo(System_Functions *system, App_Models *models, View *view){
     Editing_File *file = view->file;
-    view_undo_redo(system, mem, layout, view, file, &file->state.undo.redo, ED_REDO);
+    view_undo_redo(system, &models->mem, &models->layout, view, file, &file->state.undo.redo, ED_REDO);
 }
 
 inline u8*
@@ -2058,6 +2088,11 @@ view_history_step(System_Functions *system, Mem_Options *mem, Editing_Layout *la
             view_do_white_batch_edit(system, mem, view, file, layout, spec, history_mode);
         }
     }
+}
+
+inline void
+view_history_step(System_Functions *system, App_Models *models, View *view, History_Mode history_mode){
+    view_history_step(system, &models->mem, &models->layout, view, history_mode);
 }
 
 // TODO(allen): write these as streamed operations
@@ -2203,14 +2238,18 @@ file_compute_whitespace_edit(Mem_Options *mem, Editing_File *file, i32 cursor_po
 }
 
 internal void
-view_clean_whitespace(System_Functions *system, Mem_Options *mem, View *view, Editing_Layout *layout){
+view_clean_whitespace(System_Functions *system, App_Models *models, View *view){
+    Mem_Options *mem = &models->mem;
+    Editing_Layout *layout = &models->layout;
     Editing_File *file = view->file;
-    Assert(file && !file->state.is_dummy);
+    
     Partition *part = &mem->part;
     i32 line_count = file->state.buffer.line_count;
     i32 edit_max = line_count * 2;
     i32 edit_count = 0;
-
+    
+    Assert(file && !file->state.is_dummy);
+    
     Temp_Memory temp = begin_temp_memory(part);
     Buffer_Edit *edits = push_array(part, Buffer_Edit, edit_max);
 
@@ -2559,11 +2598,11 @@ undo_shit(System_Functions *system, View *view, UI_State *state, UI_Layout *layo
             i32 new_count;
             if (do_undo_slider(wid, state, layout, total_count, undo_count, 0, &new_count)){
                 for (i32 i = 0; i < scrub_max && new_count < undo_count; ++i){
-                    view_undo(system, view->mem, view->layout, view);
+                    view_undo(system, view->models, view);
                     --undo_count;
                 }
                 for (i32 i = 0; i < scrub_max && new_count > undo_count; ++i){
-                    view_redo(system, view->mem, view->layout, view);
+                    view_redo(system, view->models, view);
                     ++undo_count;
                 }
             }
@@ -3890,18 +3929,17 @@ free_file_view(View *view){
 }
 
 internal View*
-file_view_init(View *view, Editing_Layout *layout,
-    Working_Set *working_set, Delay *delay,
-    App_Settings *settings, Hot_Directory *hot_directory,
-    Mem_Options *mem, Style_Library *styles){
+file_view_init(View *view, App_Models *models){
     
-    view->layout = layout;
-    view->working_set = working_set;
-    view->delay = delay;
-    view->settings = settings;
-    view->hot_directory = hot_directory;
-    view->mem = mem;
-    view->styles = styles;
+    view->models = models;
+    view->layout = &models->layout;
+    view->working_set = &models->working_set;
+    view->delay = &models->delay1;
+    view->settings = &models->settings;
+    view->hot_directory = &models->hot_directory;
+    view->mem = &models->mem;
+    view->styles = &models->styles;
+    view->font_set = models->font_set;
     
     view->scrub_max = 1;
     
