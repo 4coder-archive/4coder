@@ -108,6 +108,7 @@ char* generate_keycode_enum(){
     return(filename);
 }
 
+//////////////////////////////////////////////////////////////////////////////////////////////////
 char daction_enum_name[] = "Action_Type";
 char *daction_enum[] = {
     "OPEN",
@@ -272,14 +273,62 @@ char* generate_delayed_action(){
     return(filename);
 }
 
+//////////////////////////////////////////////////////////////////////////////////////////////////
+#define MAJOR 3
+#define MINOR 4
+#define PATCH 5
+
+#define VERS3__(a,b,c) #a"."#b"."#c
+#define VERS3_(a,b,c) VERS3__(a,b,c)
+#define VERS3 VERS3_(MAJOR, MINOR, PATCH)
+
+#define VERSION_STRING VERS3
+
+char version_header[] =
+"#define MAJOR %d\n"
+"#define MINOR %d\n"
+"#define PATCH %d\n"
+"#define VERSION_NUMBER \"alpha %s\"\n"
+"#ifdef FRED_SUPER\n"
+"#define VERSION_TYPE \" super!\"\n"
+"#else\n"
+"#define VERSION_TYPE \"\"\n"
+"#endif\n"
+"#define VERSION VERSION_NUMBER VERSION_TYPE\n";
+
+char version_custom[] = 
+"#define MAJOR %d\n"
+"#define MINOR %d\n"
+"#define PATCH %d\n";
+
+char* generate_version(){
+    char *filename = "4ed_version.h & 4coder_version.h";
+    char filename_header[] = "4ed_version.h";
+    char filename_custom[] = "4coder_version.h";
+    FILE *file;
+    
+    file = fopen(filename_header, "wb");
+    fprintf(file, version_header, MAJOR, MINOR, PATCH, VERSION_STRING);
+    fclose(file);
+    
+    file = fopen(filename_custom, "wb");
+    fprintf(file, version_custom, MAJOR, MINOR, PATCH);
+    fclose(file);
+    
+    return(filename);
+}
+
+
 int main(){
     char *filename;
-    
     
     filename = generate_keycode_enum();
     printf("gen success: %s\n", filename);
     
     filename = generate_delayed_action();
+    printf("gen success: %s\n", filename);
+    
+    filename = generate_version();
     printf("gen success: %s\n", filename);
 }
 

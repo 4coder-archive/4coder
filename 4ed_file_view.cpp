@@ -28,12 +28,6 @@ struct View_Mode{
     i32 rewrite;
 };
 
-struct Incremental_Search{
-    String str;
-    b32 reverse;
-    i32 pos;
-};
-
 enum View_Widget_Type{
     FWIDG_NONE,
     FWIDG_TIMELINES,
@@ -76,7 +70,6 @@ struct View{
     
     Panel *panel;
     Command_Map *map;
-    Scroll_Rule_Function *scroll_rule;
     i32 id;
 
     Editing_File *file;
@@ -130,22 +123,13 @@ struct View{
     i32 scroll_i;
     f32 scroll_min_limit;
 
-    union{
-        Incremental_Search isearch;
-        struct{
-            String str;
-        } gotoline;
-    };
-
     Full_Cursor temp_highlight;
     i32 temp_highlight_end_pos;
     b32 show_temp_highlight;
 
     View_Mode mode, next_mode;
     View_Widget widget;
-
     Query_Set query_set;
-
     i32 scrub_max;
 
     b32 unwrapped_lines;
@@ -594,20 +578,18 @@ file_create_empty(
     b32 result = 1;
     String empty_str = {};
     file_create_from_string(system, mem, working_set, file, filename, set, font_id, empty_str);
-    return result;
+    return (result);
 }
 
 internal b32
 file_create_super_locked(
-    System_Functions *system,
-    App_Models *models,
-    Editing_File *file,
-    char *filename){
+    System_Functions *system, App_Models *models,
+    Editing_File *file, char *filename){
     b32 result = 1;
     String empty_str = {};
     file_create_from_string(system, &models->mem, &models->working_set,
         file, filename, models->font_set, models->global_font.font_id, empty_str, 1);
-    return result;
+    return (result);
 }
 
 struct Get_File_Result{
@@ -615,6 +597,7 @@ struct Get_File_Result{
     i32 index;
 };
 
+// TODO(allen): convert buffers to a dll allocation scheme
 internal Get_File_Result
 working_set_get_available_file(Working_Set *working_set){
     Get_File_Result result = {};
@@ -2641,22 +2624,23 @@ view_show_config(View *fview, Command_Map *gui_map){
 }
 
 inline void
-view_show_interactive(System_Functions *system, View *fview, Command_Map *gui_map,
+view_show_interactive(System_Functions *system, View *view, Command_Map *gui_map,
     Interactive_Action action, Interactive_Interaction interaction, String query){
-    fview->ui_state = {};
-    fview->map_for_file = fview->map;
-    fview->map = gui_map;
-    fview->locked = 1;
-    fview->showing_ui = VUI_Interactive;
-    fview->action = action;
-    fview->interaction = interaction;
-    fview->finished = 0;
+    view->ui_state = {};
+    view->map_for_file = view->map;
+    view->map = gui_map;
+    view->locked = 1;
+    view->showing_ui = VUI_Interactive;
+    view->action = action;
+    view->interaction = interaction;
+    view->finished = 0;
 
-    copy(&fview->query, query);
-    fview->dest.size = 0;
+    copy(&view->query, query);
+    view->dest.str[0] = 0;
+    view->dest.size = 0;
 
-    hot_directory_clean_end(fview->hot_directory);
-    hot_directory_reload(system, fview->hot_directory, fview->working_set);
+    hot_directory_clean_end(view->hot_directory);
+    hot_directory_reload(system, view->hot_directory, view->working_set);
 }
 
 inline void
@@ -2670,21 +2654,23 @@ view_show_theme(View *fview, Command_Map *gui_map){
 }
 
 inline void
-view_show_file(View *fview, Command_Map *file_map){
-    fview->ui_state = {};
+view_show_file(View *view, Command_Map *file_map, Editing_File *file){
+    view->ui_state = {};
     if (file_map){
-        fview->map = file_map;
+        view->map = file_map;
     }
     else{
-        fview->map = fview->map_for_file;
+        view->map = view->map_for_file;
     }
-    fview->locked = 0;
-    fview->showing_ui = VUI_None;
+    view->file = file;
+    view->locked = 0;
+    view->showing_ui = VUI_None;
 }
 
 internal void
 interactive_view_complete(View *view){
     Panel *panel = view->panel;
+    Editing_File *file = 0;
     switch (view->action){
         case IAct_Open:
         delayed_open(view->delay, view->hot_directory->string, panel);
@@ -2692,6 +2678,7 @@ interactive_view_complete(View *view){
 
         case IAct_Save_As:
         delayed_save_as(view->delay, view->hot_directory->string, panel);
+        file = view->file;
         break;
 
         case IAct_New:
@@ -2704,6 +2691,7 @@ interactive_view_complete(View *view){
 
         case IAct_Kill:
         delayed_try_kill(view->delay, view->dest, panel);
+        file = view->file;
         break;
 
         case IAct_Sure_To_Kill:
@@ -2723,7 +2711,7 @@ interactive_view_complete(View *view){
         }
         break;
     }
-    view_show_file(view, 0);
+    view_show_file(view, 0, 0);
 }
 
 internal void
@@ -3471,7 +3459,7 @@ step_file_view(System_Functions *system, Exchange *exchange, View *view, i32_Rec
     }
 
     // TODO(allen): Split this into passive step and step that depends on input
-    if (file && !file->state.is_loading){
+    if (view->showing_ui == VUI_None && file && !file->state.is_loading){
         f32 line_height = (f32)view->font_height;
         f32 cursor_y = view_get_cursor_y(view);
         f32 target_y = view->target_y;
@@ -3531,10 +3519,10 @@ step_file_view(System_Functions *system, Exchange *exchange, View *view, i32_Rec
         if (view->target_x != view->prev_target_x) is_new_target = 1;
         if (view->target_y != view->prev_target_y) is_new_target = 1;
 
-        if (view->scroll_rule(
+        if (view->models->scroll_rule(
                 view->target_x, view->target_y,
                 &view->scroll_x, &view->scroll_y,
-                view->id, is_new_target)){
+                view->id + 1, is_new_target)){
             result = 1;
         }
 
@@ -4166,20 +4154,18 @@ view_change_size(System_Functions *system, General_Memory *general, View *view){
 }
 
 struct Live_Views{
-    void *views;
+    View *views;
     View free_sentinel;
     i32 count, max;
-    i32 stride;
 };
 
-internal View*
+inline View*
 live_set_get_view(Live_Views *live_set, i32 id){
-    void *result = ((char*)live_set->views + id);
-    return (View*)result;
+    return (live_set->views + id);
 }
 
 internal View_And_ID
-live_set_alloc_view(Live_Views *live_set, Scroll_Rule_Function *scroll_rule){
+live_set_alloc_view(Live_Views *live_set){
     View_And_ID result = {};
     
     Assert(live_set->count < live_set->max);
@@ -4190,8 +4176,7 @@ live_set_alloc_view(Live_Views *live_set, Scroll_Rule_Function *scroll_rule){
     result.view->id = result.id;
     
     dll_remove(result.view);
-    memset(result.view, 0, live_set->stride);
-    result.view->scroll_rule = scroll_rule;
+    memset(result.view, 0, sizeof(View));
     
     return(result);
 }

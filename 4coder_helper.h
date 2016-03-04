@@ -163,6 +163,16 @@ set_hook(Bind_Helper *helper, int hook_id, Custom_Command_Function *func){
 }
 
 inline void
+set_scroll_rule(Bind_Helper *helper, Scroll_Rule_Function *func){
+    Binding_Unit unit;
+    unit.type = unit_hook;
+    unit.hook.hook_id = _hook_scroll_rule;
+    unit.hook.func = func;
+    
+    write_unit(helper, unit);
+}
+
+inline void
 end_bind_helper(Bind_Helper *helper){
     if (helper->header){
         helper->header->header.total_size = (int)(helper->cursor - helper->start);

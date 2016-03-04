@@ -1,4 +1,5 @@
 
+#include "4coder_version.h"
 #include "4coder_keycodes.h"
 #include "4coder_buffer_types.h"
 
@@ -218,7 +219,6 @@ enum Command_ID{
     cmdid_page_up,
     cmdid_page_down,
     cmdid_open_color_tweaker,
-    cmdid_close_minor_view,
     cmdid_cursor_mark_swap,
     cmdid_open_menu,
     cmdid_set_settings,
@@ -238,18 +238,28 @@ enum Param_ID{
     par_key_mapid,
     par_cli_path,
     par_cli_command,
-    par_cli_overlap_with_conflict,
-    par_cli_always_bind_to_view,
+    par_cli_flags,
     par_clear_blank_lines,
     // never below this
     par_type_count
 };
 
+#define CLI_OverlapWithConflict 0x1
+#define CLI_AlwaysBindToView 0x2
+
+// These are regular hooks, any of them can be set to any function
+// that matches the HOOK_SIG pattern.
 enum Hook_ID{
     hook_start,
     hook_open_file,
     // never below this
     hook_type_count
+};
+
+// These are for special hooks, each must bind to specialized signatures
+// that do not necessarily have access to the app pointer.
+enum Special_Hook_ID{
+    _hook_scroll_rule = hook_type_count,
 };
 
 // NOTE(allen): None of the members of *_Summary structs nor any of the
@@ -474,7 +484,6 @@ struct Application_Links{
 
 struct Custom_API{
     Get_Binding_Data_Function *get_bindings;
-    Scroll_Rule_Function *scroll_rule;
 };
 
 // NOTE(allen): definitions for the buffer that communicates to 4ed.exe
@@ -517,7 +526,7 @@ struct Binding_Unit{
         } callback;
         struct{
             int hook_id;
-            Custom_Command_Function *func;
+            void *func;
         } hook;
     };
 };

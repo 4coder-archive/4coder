@@ -194,7 +194,7 @@ panel_make_empty(System_Functions *system, Exchange *exchange, App_Vars *vars, P
     View_And_ID new_view;
     
     Assert(panel->view == 0);
-    new_view = live_set_alloc_view(&vars->live_set, models->config_api.scroll_rule);
+    new_view = live_set_alloc_view(&vars->live_set);
     panel->view = new_view.view;
     panel->view->panel = panel;
     
@@ -539,7 +539,7 @@ COMMAND_DECL(word_complete){
 
 COMMAND_DECL(set_mark){
     ProfileMomentFunction();
-    REQ_OPEN_VIEW(view);
+    USE_VIEW(view);
     REQ_FILE(file, view);
 
     view->mark = (i32)view->cursor.pos;
@@ -548,7 +548,7 @@ COMMAND_DECL(set_mark){
 COMMAND_DECL(copy){
     ProfileMomentFunction();
     USE_MODELS(models);
-    REQ_OPEN_VIEW(view);
+    USE_VIEW(view);
     REQ_FILE(file, view);
 
     // TODO(allen): deduplicate
@@ -755,7 +755,7 @@ COMMAND_DECL(history_forward){
 COMMAND_DECL(interactive_new){
     ProfileMomentFunction();
     USE_MODELS(models);
-    REQ_OPEN_VIEW(view);
+    USE_VIEW(view);
    
     view_show_interactive(system, view, &models->map_ui,
         IAct_New, IInt_Sys_File_List, make_lit_string("New: "));
@@ -813,7 +813,7 @@ COMMAND_DECL(interactive_open){
     ProfileMomentFunction();
     USE_MODELS(models);
     USE_PANEL(panel);
-    REQ_OPEN_VIEW(view);
+    USE_VIEW(view);
 
     Delay *delay = &models->delay1;
     
@@ -846,9 +846,6 @@ COMMAND_DECL(interactive_open){
         }
     }
     else{
-        View *view = panel->view;
-        Assert(view);
-        
         view_show_interactive(system, view, &models->map_ui,
             IAct_Open, IInt_Sys_File_List, make_lit_string("Open: "));
     }
@@ -1537,7 +1534,7 @@ COMMAND_DECL(close_minor_view){
     if (view->file){
         map = app_get_map(models, view->file->settings.base_map_id);
     }
-    view_show_file(view, map);
+    view_show_file(view, map, view->file);
 }
 
 COMMAND_DECL(cursor_mark_swap){
@@ -1625,22 +1622,23 @@ COMMAND_DECL(set_settings){
     }
 }
 
-#define CLI_OverlapWithConflict (1<<0)
-#define CLI_AlwaysBindToView (2<<0)
-
 COMMAND_DECL(command_line){
     ProfileMomentFunction();
     USE_VARS(vars);
     USE_MODELS(models);
     USE_PANEL(panel);
+    USE_VIEW(view);
+    
+    Partition *part = &models->mem.part;
     
     char *buffer_name = 0;
     char *path = 0;
     char *script = 0;
 
-    int buffer_name_len = 0;
-    int path_len = 0;
-    int script_len = 0;
+    i32 buffer_id = 0;
+    i32 buffer_name_len = 0;
+    i32 path_len = 0;
+    i32 script_len = 0;
     u32 flags = CLI_OverlapWithConflict;
 
     Command_Parameter *end = param_stack_end(&command->part);
@@ -1650,115 +1648,135 @@ COMMAND_DECL(command_line){
         switch (p){
             case par_name:
             {
-                if (buffer_name == 0){
-                    char *new_buffer_name = dynamic_to_string(&param->param.value, &buffer_name_len);
-                    if (new_buffer_name){
-                        buffer_name = new_buffer_name;
-                    }
+                char *new_buffer_name = dynamic_to_string(&param->param.value, &buffer_name_len);
+                if (new_buffer_name){
+                    buffer_name = new_buffer_name;
                 }
+            }break;
+            
+            case par_buffer_id:
+            {
+                buffer_id = dynamic_to_int(&param->param.value);
             }break;
 
             case par_cli_path:
             {
-                if (path == 0){
-                    char *new_cli_path = dynamic_to_string(&param->param.value, &path_len);
-                    if (new_cli_path){
-                        path = new_cli_path;
-                    }
+                char *new_cli_path = dynamic_to_string(&param->param.value, &path_len);
+                if (new_cli_path){
+                    path = new_cli_path;
                 }
             }break;
 
             case par_cli_command:
             {
-                if (script == 0){
-                    char *new_command = dynamic_to_string(&param->param.value, &script_len);
-                    if (new_command){
-                        script = new_command;
-                    }
+                char *new_command = dynamic_to_string(&param->param.value, &script_len);
+                if (new_command){
+                    script = new_command;
                 }
             }break;
 
-            case par_cli_overlap_with_conflict:
+            case par_cli_flags:
             {
-                if (dynamic_to_int(&param->param.value))
-                    flags |= CLI_OverlapWithConflict;
-                else
-                    flags &= (~CLI_OverlapWithConflict);
-            }break;
-
-            case par_cli_always_bind_to_view:
-            {
-                if (dynamic_to_int(&param->param.value))
-                    flags |= CLI_OverlapWithConflict;
-                else
-                    flags &= (~CLI_OverlapWithConflict);
+                flags = (u32)dynamic_to_int(&param->param.value);
             }break;
         }
     }
     
     {
         Working_Set *working_set = &models->working_set;
-        Editing_File *file;
-        i32 index = 0;
-        b32 bind_to_new_view;
-        
-        if (buffer_name == 0 || path == 0 || script == 0){
-            return;
-        }
+        CLI_Process *procs = vars->cli_processes.procs, *proc = 0;
+        Get_File_Result file = {};
+        b32 bind_to_new_view = 1;
         
         if (vars->cli_processes.count < vars->cli_processes.max){
-            file = working_set_contains(working_set, make_string_slowly(buffer_name));
-            bind_to_new_view = 1;
-            
-            if (!file){
-                Get_File_Result get_file = working_set_get_available_file(working_set);
-                file = get_file.file;
-                index = get_file.index;
+            if (buffer_id){
+                if (buffer_id > 0 && buffer_id < working_set->file_index_count){
+                    file.file = working_set->files + buffer_id;
+                    file.index = buffer_id;
+                }
             }
             else{
+                file.file = working_set_contains(working_set, make_string(buffer_name, buffer_name_len));
+                file.index = (i32)(file.file - working_set->files);
+                if (file.file == 0)
+                    file = working_set_get_available_file(working_set);
+            }
+
+            if (file.file){
                 i32 proc_count = vars->cli_processes.count;
-                for (i32 i = 0; i < proc_count; ++i){
-                    if (vars->cli_processes.procs[i].out_file == file){
+                View_Iter iter;
+                i32 i;
+
+                for (i = 0; i < proc_count; ++i){
+                    if (procs[i].out_file == file.file){
                         if (flags & CLI_OverlapWithConflict)
-                            vars->cli_processes.procs[i].out_file = 0;
-                        else file = 0;
+                            procs[i].out_file = 0;
+                        else
+                            file.file = 0;
                         break;
                     }
                 }
-                index = (i32)(file - models->working_set.files);
-                if (file){
+
+                if (file.file){
                     if (!(flags & CLI_AlwaysBindToView)){
-                        View_Iter iter;
-                        iter = file_view_iter_init(&models->layout, file, 0);
+                        iter = file_view_iter_init(&models->layout, file.file, 0);
                         if (file_view_iter_good(iter)){
                             bind_to_new_view = 0;
                         }
                     }
+
+                    file_create_super_locked(system, models, file.file, buffer_name);
+                    file.file->settings.unimportant = 1;
+                    table_add(&working_set->table, file.file->name.source_path, file.index);
+                }
+                else{
+                    // TODO(allen): feedback message - no available file
+                    return;
                 }
             }
             
-            if (file){
-                file_create_super_locked(system, models, file, buffer_name);
-                file->settings.unimportant = 1;
-                table_add(&working_set->table, file->name.source_path, index);
+            if (!path){
+                path = models->hot_directory.string.str;
+                terminate_with_null(&models->hot_directory.string);
+            }
+
+            {
+                Temp_Memory temp;
+                Range range;
+                Editing_File *view_file;
+                i32 size;
                 
-                if (bind_to_new_view){
-                    view_file_in_panel(command, panel, file);
+                temp = begin_temp_memory(part);
+                if (!script){
+                    view_file = view->file;
+                    if (view_file){
+                        range = make_range(view->cursor.pos, view->mark);
+                        size = range.end - range.start;
+                        script = push_array(part, char, size + 1);
+                        buffer_stringify(&view_file->state.buffer, range.start, range.end, script);
+                        script[size] = 0;
+                    }
+                    else{
+                        script = " echo no script specified";
+                    }
                 }
-                
-                i32 i = vars->cli_processes.count++;
-                CLI_Process *proc = vars->cli_processes.procs + i;
+
+                if (bind_to_new_view){
+                    view_file_in_panel(command, panel, file.file);
+                }
+
+                proc = procs + vars->cli_processes.count++;
+                proc->out_file = file.file;
+
                 if (!system->cli_call(path, script, &proc->cli)){
                     --vars->cli_processes.count;
                 }
-                proc->out_file = file;
-            }
-            else{
-                // TODO(allen): feedback message - no available file
+                end_temp_memory(temp);
             }
         }
         else{
             // TODO(allen): feedback message - no available process slot
+            return;
         }
     }
 }
@@ -1793,14 +1811,21 @@ fill_buffer_summary(Buffer_Summary *buffer, Editing_File *file, Working_Set *wor
 internal void
 fill_view_summary(View_Summary *view, View *file_view, Live_Views *live_set, Working_Set *working_set){
     view->exists = 1;
-    view->view_id = (int)((char*)file_view - (char*)live_set->views) / live_set->stride;
+    view->view_id = (int)(file_view - live_set->views) + 1;
+    view->line_height = file_view->font_height;
+    view->unwrapped_lines = file_view->unwrapped_lines;
+    
     if (file_view->file){
         view->buffer_id = (int)(file_view->file - working_set->files);
         view->mark = view_compute_cursor_from_pos(file_view, file_view->mark);
         view->cursor = file_view->cursor;
         view->preferred_x = file_view->preferred_x;
-        view->line_height = file_view->font_height;
-        view->unwrapped_lines = file_view->unwrapped_lines;
+    }
+    else{
+        view->buffer_id = 0;
+        view->mark = {};
+        view->cursor = {};
+        view->preferred_x = 0;
     }
 }
 
@@ -2084,7 +2109,7 @@ extern "C"{
     GET_VIEW_MAX_INDEX_SIG(external_get_view_max_index){
         Command_Data *cmd = (Command_Data*)app->cmd_context;
         Live_Views *live_set = cmd->live_set;
-        int max = live_set->max;
+        int max = live_set->max + 1;
         return(max);
     }
 
@@ -2094,9 +2119,10 @@ extern "C"{
         Live_Views *live_set = cmd->live_set;
         int max = live_set->max;
         View *vptr;
-
+        
+        index -= 1;
         if (index >= 0 && index < max){
-            vptr = (View*)((char*)live_set->views + live_set->stride*index);
+            vptr = live_set->views + index;
             fill_view_summary(&view, vptr, live_set, &cmd->models->working_set);
         }
 
@@ -2127,7 +2153,7 @@ extern "C"{
         
         if (view->exists){
             live_set = cmd->live_set;
-            vptr = (View*)((char*)live_set->views + live_set->stride * view->view_id);
+            vptr = live_set->views + view->view_id;
             result = 1;
             if (seek.type == buffer_seek_line_char && seek.character <= 0){
                 seek.character = 1;
@@ -2151,7 +2177,7 @@ extern "C"{
 
         if (view->exists){
             live_set = cmd->live_set;
-            vptr = (View*)((char*)live_set->views + live_set->stride * view->view_id);
+            vptr = live_set->views + view->view_id;
             result = 1;
             if (seek.type == buffer_seek_line_char && seek.character <= 0){
                 seek.character = 1;
@@ -2177,7 +2203,7 @@ extern "C"{
 
         if (view->exists){
             live_set = cmd->live_set;
-            vptr = (View*)((char*)live_set->views + live_set->stride * view->view_id);
+            vptr = live_set->views + view->view_id;
             result = 1;
             if (turn_on){
                 view_set_temp_highlight(vptr, start, end);
@@ -2203,7 +2229,7 @@ extern "C"{
         if (view->exists){
             models = cmd->models;
             live_set = cmd->live_set;
-            vptr = (View*)((char*)live_set->views + live_set->stride * view->view_id);
+            vptr = live_set->views + view->view_id;
             working_set = &models->working_set;
             max = working_set->file_index_count;
             if (buffer_id >= 0 && buffer_id < max){
@@ -2346,7 +2372,7 @@ setup_file_commands(Command_Map *commands, Partition *part, Command_Map *parent)
 
 internal void
 setup_top_commands(Command_Map *commands, Partition *part, Command_Map *parent){
-    map_init(commands, part, 5, parent);
+    map_init(commands, part, 10, parent);
 }
 
 internal void
@@ -2412,7 +2438,6 @@ setup_command_table(){
     SET(page_up);
     SET(page_down);
     SET(open_color_tweaker);
-    SET(close_minor_view);
     SET(cursor_mark_swap);
     SET(open_menu);
     SET(set_settings);
@@ -2877,25 +2902,21 @@ App_Init_Sig(app_init){
     }
     
     {
-        char *vptr = 0;
-        View *v = 0;
+        View *vptr = 0;
         i32 i = 0;
         i32 max = 0;
-        i32 view_size = sizeof(View);
         
         vars->live_set.count = 0;
         vars->live_set.max = panel_max_count;
         
-        vars->live_set.stride = view_size;
-        vars->live_set.views = push_block(partition, view_size*vars->live_set.max);
+        vars->live_set.views = push_array(partition, View, vars->live_set.max);
         
         dll_init_sentinel(&vars->live_set.free_sentinel);
         
         max = vars->live_set.max;
-        vptr = (char*)vars->live_set.views;
-        for (i = 0; i < max; ++i, vptr += view_size){
-            v = (View*)(vptr);
-            dll_insert(&vars->live_set.free_sentinel, v);
+        vptr = vars->live_set.views;
+        for (i = 0; i < max; ++i, ++vptr){
+            dll_insert(&vars->live_set.free_sentinel, vptr);
         }
     }
 
@@ -2905,9 +2926,7 @@ App_Init_Sig(app_init){
         b32 did_top = 0;
         b32 did_file = 0;
         
-        if (models->config_api.scroll_rule == 0){
-            models->config_api.scroll_rule = fallback_scroll_rule;
-        }
+        models->scroll_rule = fallback_scroll_rule;
 
         setup_command_table();
 
@@ -3010,8 +3029,13 @@ App_Init_Sig(app_init){
                         case unit_hook:
                         {
                             int hook_id = unit->hook.hook_id;
-                            if (hook_id >= 0 && hook_id < hook_type_count){
-                                models->hooks[hook_id] = unit->hook.func;
+                            if (hook_id >= 0){
+                                if (hook_id < hook_type_count){
+                                    models->hooks[hook_id] = (Hook_Function*)unit->hook.func;
+                                }
+                                else{
+                                    models->scroll_rule = (Scroll_Rule_Function*)unit->hook.func;
+                                }
                             }
                         }break;
                     }

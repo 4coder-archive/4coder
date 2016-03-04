@@ -639,7 +639,7 @@ CUSTOM_COMMAND_SIG(execute_any_cli){
     hot_directory = make_fixed_width_string(even_more_space);
     hot_directory.size = app->directory_get_hot(app, hot_directory.str, hot_directory.memory_size);
     
-    push_parameter(app, par_cli_overlap_with_conflict, 1);
+    push_parameter(app, par_cli_flags, CLI_OverlapWithConflict);
     push_parameter(app, par_name, bar_out.string.str, bar_out.string.size);
     push_parameter(app, par_cli_path, hot_directory.str, hot_directory.size);
     push_parameter(app, par_cli_command, bar_cmd.string.str, bar_cmd.string.size);
@@ -726,7 +726,7 @@ CUSTOM_COMMAND_SIG(build_at_launch_location){
     // An example of calling build by setting all
     // parameters directly. This only works if build.bat can be called
     // from the directory the application is launched at.
-    push_parameter(app, par_cli_overlap_with_conflict, 1);
+    push_parameter(app, par_cli_flags, CLI_OverlapWithConflict);
     push_parameter(app, par_name, literal("*compilation*"));
     push_parameter(app, par_cli_path, literal("."));
     push_parameter(app, par_cli_command, literal("build"));
@@ -743,23 +743,26 @@ CUSTOM_COMMAND_SIG(build_search){
     //
     // Step 2: app->file_exists queries the file system to see if "<somedir>/build.bat" exists.
     // If it does exist several parameters are pushed and cmdid_command_line is executed:
-    //   - par_cli_overlap_with_conflict: whether to launch this process if an existing process
-    //     is already being used for output on the same buffer
+    //   - par_cli_flags: flags for specifiying behaviors
+    //        CLI_OverlapWithConflict - (on by default) if another CLI is still using the output buffer
+    //        that process is detached from the buffer and this process executes outputing to the buffer
+    //        CLI_AlwaysBindToView - if set, the current view always switches to the output buffer
+    //        even if the output buffer is open in another view
     //
     //   - par_name: the name of the buffer to fill with the output from the process
+    //   - par_buffer_id: the buffer_id of the buffer to to fill with output
+    //     If both are set buffer_id is used and the name is ignored.
+    //     If neither is set the command runs without storing output anywhere.
     //
     //   - par_cli_path: sets the path from which the command is executed
+    //     If this parameter is unset the command runs from the hot directory.
     //
-    //   - par_cli_command: sets the actual command to be executed, this can be almost any command
-    //     that you could execute through a command line interface
-    //
-    //
-    //     To set par_cli_path: push_parameter makes a copy of the dir string on the stack
-    //         because the string allocated by push_directory is going to change again
-    //     To set par_cli_command: app->push_parameter does not make a copy of the dir because
-    //         dir isn't going to change again.
+    //   - par_cli_command: sets the actual command to be executed, this can be almost any
+    //     command that you could execute through a command line interface.
+    //     If this parameter is unset the command get's it's command from the range between
+    //     the mark and cursor.
     // 
-    // Step 3: If the batch file did not exist change the dir string to the  parent directory using
+    // Step 3: If the batch file did not exist change the dir string to the parent directory using
     // app->directory_cd. The cd function can also be used to navigate to subdirectories.
     // It returns true if it can actually move in the specified direction, and false otherwise.
     // 
@@ -778,7 +781,7 @@ CUSTOM_COMMAND_SIG(build_search){
         if (app->file_exists(app, dir.str, dir.size)){
             dir.size = old_size;
             
-            push_parameter(app, par_cli_overlap_with_conflict, 0);
+            push_parameter(app, par_cli_flags, 0);
             push_parameter(app, par_name, literal("*compilation*"));
             push_parameter(app, par_cli_path, dir.str, dir.size);
             
@@ -807,11 +810,43 @@ CUSTOM_COMMAND_SIG(write_and_auto_tab){
     exec_command(app, cmdid_auto_tab_line_at_cursor);
 }
 
+// NOTE(allen|a4.0.0): scroll rule information
+//
+// The parameters:
+// target_x, target_y
+//  This is where the view would like to be for the purpose of
+// following the cursor, doing mouse wheel work, etc.
+//
+// scroll_x, scroll_y
+//  These are pointers to where the scrolling actually is. If you bind
+// the scroll rule it is you have to update these in some way to move
+// the actual location of the scrolling.
+//
+// view_id
+//  This corresponds to which view is computing it's new scrolling position.
+// This id DOES correspond to the views that View_Summary contains.
+// This will always be between 1 and 16 (0 is a null id).
+// See below for an example of having state that carries across scroll udpates.
+//
+// is_new_target
+//  If the target of the view is different from the last target in either x or y
+// this is true, otherwise it is false.
+//
+// The return:
+//  Should be true if and only if scroll_x or scroll_y are changed.
+//
+// Don't try to use the app pointer in a scroll rule, you're asking for trouble.
+//
+// If you don't bind scroll_rule, nothing bad will happen, yo will get default
+// 4coder scrolling behavior.
+//
+
 struct Scroll_Velocity{
     float x, y;
 };
 
-Scroll_Velocity scroll_velocity[16] = {0};
+Scroll_Velocity scroll_velocity_[16] = {0};
+Scroll_Velocity *scroll_velocity = scroll_velocity_;
 
 static int
 smooth_camera_step(float target, float *current, float *vel, float S, float T){
@@ -844,7 +879,7 @@ smooth_camera_step(float target, float *current, float *vel, float S, float T){
     return result;
 }
 
-extern "C" SCROLL_RULE_SIG(scroll_rule){
+SCROLL_RULE_SIG(smooth_scroll_rule){
     Scroll_Velocity *velocity = scroll_velocity + view_id;
     int result = 0;
     if (velocity->x == 0.f){
@@ -870,6 +905,7 @@ extern "C" GET_BINDING_DATA(get_bindings){
     // global and once set they always apply, regardless of what map is active.
     set_hook(context, hook_start, my_start);
     set_hook(context, hook_open_file, my_file_settings);
+    set_scroll_rule(context, smooth_scroll_rule);
     
     begin_map(context, mapid_global);
     

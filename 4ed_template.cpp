@@ -11,6 +11,9 @@
 
 // NOTE(allen): This is an experiment, BUT remember a lot of people shit on templates.
 // So if you start getting a wiff of stupidity from this back out immediately!
+//
+// experience 1: no badness, haven't seen any anoying template errors
+// ...
 
 template<typename T>
 inline void
@@ -35,6 +38,7 @@ dll_remove(T *v){
     v->prev->next = v->next;
 }
 
+// for(dll_items(iterator, sentinel_ptr)){...}
 #define dll_items(it, st) ((it) = (st)->next); ((it) != (st)); ((it) = (it)->next)
 
 // BOTTOM

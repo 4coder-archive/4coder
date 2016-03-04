@@ -57,6 +57,7 @@ struct App_Models{
     Panel *prev_mouse_panel;
     
     Custom_API config_api;
+    Scroll_Rule_Function *scroll_rule;
 };
 
 // BOTTOM
