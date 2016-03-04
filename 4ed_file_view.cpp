@@ -65,6 +65,7 @@ enum Color_View_Mode{
 
 struct View{
     View *next, *prev;
+    b32 in_use;
     
     App_Models *models;
     
@@ -74,18 +75,6 @@ struct View{
 
     Editing_File *file;
 
-    Editing_Layout *layout;
-
-    Style_Font *global_font;
-    Style *style;
-    Working_Set *working_set;
-    Delay *delay;
-    Font_Set *font_set;
-    App_Settings *settings;
-    Hot_Directory *hot_directory;
-    Mem_Options *mem;
-    Style_Library *styles;
-
     UI_State ui_state;
     View_UI showing_ui;
 
@@ -94,8 +83,8 @@ struct View{
     Interactive_Action action;
     b32 finished;
     char query_[256];
-    String query;
     char dest_[256];
+    String query;
     String dest;
     i32 user_action;
 
@@ -134,7 +123,7 @@ struct View{
 
     b32 unwrapped_lines;
     b32 show_whitespace;
-    b32 locked;
+    b32 file_locked;
 
     i32 line_count, line_max;
     f32 *line_wrap_y;
@@ -148,10 +137,17 @@ struct View_And_ID{
     i32 id;
 };
 
-inline void
-view_set_first(View *new_view, Panel *panel){
-    new_view->panel = panel;
-    panel->view = new_view;
+#define LockLevel_Open 0
+#define LockLevel_NoWrite 1
+#define LockLevel_NoUpdate 2
+
+inline i32
+view_lock_level(View *view){
+    i32 result = LockLevel_Open;
+    if (view->showing_ui != VUI_None) result = LockLevel_NoUpdate;
+    else if (view->file_locked ||
+            (view->file && view->file->settings.read_only)) result = LockLevel_NoWrite;
+    return(result);
 }
 
 inline f32
@@ -166,22 +162,50 @@ view_compute_height(View *view){
     return (f32)(panel->inner.y1 - panel->inner.y0);
 }
 
-inline i32
-get_file_id(Working_Set *working_set, Editing_File *file){
-    i32 result = (i32)(file - working_set->files);
-    return(result);
-}
+struct View_Iter{
+    View *view;
+    
+    Editing_File *file;
+    View *skip;
+    Panel *used_panels;
+    Panel *panel;
+};
 
-inline Editing_File*
-get_file(Working_Set *working_set, i32 file_id){
-    Editing_File *result = working_set->files + file_id;
-    if (!buffer_good(&result->state.buffer) || result->state.is_dummy){
-        result = 0;
+internal View_Iter
+file_view_iter_next(View_Iter iter){
+    View *file_view;
+    
+    for (iter.panel = iter.panel->next; iter.panel != iter.used_panels; iter.panel = iter.panel->next){
+        file_view = iter.panel->view;
+        if (file_view != iter.skip && (file_view->file == iter.file || iter.file == 0)){
+            iter.view = file_view;
+            break;
+        }
     }
+    
+    return(iter);
+}
+
+internal View_Iter
+file_view_iter_init(Editing_Layout *layout, Editing_File *file, View *skip){
+    View_Iter result;
+    result.used_panels = &layout->used_sentinel;
+    result.panel = result.used_panels;
+    result.file = file;
+    result.skip = skip;
+    
+    result = file_view_iter_next(result);
+    
     return(result);
 }
 
-inline bool32
+internal b32
+file_view_iter_good(View_Iter iter){
+    b32 result = (iter.panel != iter.used_panels);
+    return(result);
+}
+
+inline b32
 starts_new_line(u8 character){
     return (character == '\n');
 }
@@ -196,9 +220,6 @@ file_init_strings(Editing_File *file){
 inline void
 file_set_name(Working_Set *working_set, Editing_File *file, char *filename){
     String f, ext;
-    Editing_File *file_ptr;
-    i32 i, count, file_x, original_len;
-    b32 hit_conflict;
 
     Assert(file->name.live_name.str != 0);
 
@@ -216,28 +237,35 @@ file_set_name(Working_Set *working_set, Editing_File *file, char *filename){
         copy(&file->name.extension, ext);
     }
 
-    original_len = file->name.live_name.size;
-    count = working_set->file_index_count;
-    hit_conflict = 1;
-    file_x = 0;
-    while (hit_conflict){
-        hit_conflict = 0;
-        file_ptr = working_set->files;
-        for (i = 0; i < count; ++i, ++file_ptr){
-            if (file_ptr != file && !file_ptr->state.is_dummy && file_is_ready(file_ptr)){
-                if (match(file->name.live_name, file_ptr->name.live_name)){
-                    ++file_x;
-                    hit_conflict = 1;
-                    break;
+    {
+        File_Node *node, *used_nodes;
+        Editing_File *file_ptr;
+        i32 file_x, original_len;
+        b32 hit_conflict;
+
+        used_nodes = &working_set->used_sentinel;
+        original_len = file->name.live_name.size;
+        hit_conflict = 1;
+        file_x = 0;
+        while (hit_conflict){
+            hit_conflict = 0;
+            for (dll_items(node, used_nodes)){
+                file_ptr = (Editing_File*)node;
+                if (file_ptr != file && file_is_ready(file_ptr)){
+                    if (match(file->name.live_name, file_ptr->name.live_name)){
+                        ++file_x;
+                        hit_conflict = 1;
+                        break;
+                    }
                 }
             }
-        }
 
-        if (hit_conflict){
-            file->name.live_name.size = original_len;
-            append(&file->name.live_name, " <");
-            append_int_to_str(file_x, &file->name.live_name);
-            append(&file->name.live_name, ">");
+            if (hit_conflict){
+                file->name.live_name.size = original_len;
+                append(&file->name.live_name, " <");
+                append_int_to_str(file_x, &file->name.live_name);
+                append(&file->name.live_name, ">");
+            }
         }
     }
 }
@@ -402,17 +430,6 @@ file_measure_starts_widths(System_Functions *system, General_Memory *general,
     buffer->widths_count = state.count;
 }
 
-internal void
-file_remeasure_starts_(System_Functions *system,
-    General_Memory *general, Buffer_Type *buffer,
-    i32 line_start, i32 line_end, i32 line_shift,
-    i32 character_shift){
-    ProfileMomentFunction();
-    Assert(buffer->line_starts);
-    file_grow_starts_widths_as_needed(general, buffer, line_shift);
-    buffer_remeasure_starts(buffer, line_start, line_end, line_shift, character_shift);
-}
-
 struct Opaque_Font_Advance{
     void *data;
     int stride;
@@ -501,13 +518,13 @@ alloc_for_buffer(void *context, int *size){
 }
 
 internal void
-file_create_from_string(System_Functions *system, Mem_Options *mem,
-    Working_Set *working_set, Editing_File *file, char *filename,
-    Font_Set *set, i16 font_id,
-    String val, b8 super_locked = 0){
-
-    General_Memory *general = &mem->general;
-    Partition *part = &mem->part;
+file_create_from_string(System_Functions *system, App_Models *models,
+    Editing_File *file, char *filename, String val, b8 read_only = 0){
+    
+    Font_Set *font_set = models->font_set;
+    Working_Set *working_set = &models->working_set;
+    General_Memory *general = &models->mem.general;
+    Partition *part = &models->mem.part;
     Buffer_Init_Type init;
     i32 page_size, scratch_size, init_success;
 
@@ -531,17 +548,17 @@ file_create_from_string(System_Functions *system, Mem_Options *mem,
     file_init_strings(file);
     file_set_name(working_set, file, (char*)filename);
 
-    file->state.font_id = font_id;
+    file->state.font_id = models->global_font.font_id;
 
     file_synchronize_times(system, file, filename);
 
-    Render_Font *font = get_font_info(set, font_id)->font;
+    Render_Font *font = get_font_info(font_set, file->state.font_id)->font;
     float *advance_data = 0;
     if (font) advance_data = font->advance_data;
     file_measure_starts_widths(system, general, &file->state.buffer, advance_data);
 
-    file->settings.super_locked = super_locked;
-    if (!super_locked){
+    file->settings.read_only = read_only;
+    if (!read_only){
         i32 request_size = Kbytes(64);
         file->state.undo.undo.max = request_size;
         file->state.undo.undo.strings = (u8*)general_memory_allocate(general, request_size, BUBBLE_UNDO_STRING);
@@ -570,59 +587,19 @@ file_create_from_string(System_Functions *system, Mem_Options *mem,
 }
 
 internal b32
-file_create_empty(
-    System_Functions *system, Mem_Options *mem,
-    Working_Set *working_set, Editing_File *file,
-    char *filename, Font_Set *set, i16 font_id){
+file_create_empty(System_Functions *system,
+    App_Models *models, Editing_File *file, char *filename){
 
-    b32 result = 1;
-    String empty_str = {};
-    file_create_from_string(system, mem, working_set, file, filename, set, font_id, empty_str);
-    return (result);
+    file_create_from_string(system, models, file, filename, {});
+    return (1);
 }
 
 internal b32
-file_create_super_locked(
-    System_Functions *system, App_Models *models,
-    Editing_File *file, char *filename){
-    b32 result = 1;
-    String empty_str = {};
-    file_create_from_string(system, &models->mem, &models->working_set,
-        file, filename, models->font_set, models->global_font.font_id, empty_str, 1);
-    return (result);
-}
-
-struct Get_File_Result{
-    Editing_File *file;
-    i32 index;
-};
-
-// TODO(allen): convert buffers to a dll allocation scheme
-internal Get_File_Result
-working_set_get_available_file(Working_Set *working_set){
-    Get_File_Result result = {};
-
-    for (i32 buffer_index = 1; buffer_index < working_set->file_max_count; ++buffer_index){
-        if (buffer_index == working_set->file_index_count ||
-                working_set->files[buffer_index].state.is_dummy){
-            result.index = buffer_index;
-            result.file = working_set->files + buffer_index;
-            if (buffer_index == working_set->file_index_count){
-                ++working_set->file_index_count;
-            }
-            break;
-        }
-    }
-
-    if (result.file) *result.file = {};
-
-    return result;
-}
-
-internal i32
-working_set_get_index(Working_Set *working_set, Editing_File *file){
-    i32 index = (i32)(file - working_set->files);
-    return(index);
+file_create_read_only(System_Functions *system,
+    App_Models *models, Editing_File *file, char *filename){
+    
+    file_create_from_string(system, models, file, filename, {}, 1);
+    return (1);
 }
 
 internal void
@@ -658,19 +635,6 @@ file_close(System_Functions *system, General_Memory *general, Editing_File *file
         general_memory_free(general, file->state.undo.children.strings);
         general_memory_free(general, file->state.undo.children.edits);
     }
-}
-
-inline void
-file_get_dummy(Editing_File *file){
-    *file = {};
-    file->state.is_dummy = 1;
-}
-
-inline void
-file_set_to_loading(Editing_File *file){
-    file->state = {};
-    file->settings = {};
-    file->state.is_loading = 1;
 }
 
 struct Shift_Information{
@@ -861,10 +825,6 @@ file_relex_parallel(System_Functions *system,
         job.memory_request = Kbytes(64);
         file->state.lex_job = system->post_job(BACKGROUND_THREADS, job);
     }
-}
-
-internal bool32
-file_grow_as_needed_(General_Memory *general, Editing_File *file, i32 new_size){
 }
 
 internal void
@@ -1147,7 +1107,8 @@ file_post_history(General_Memory *general, Editing_File *file,
 inline Full_Cursor
 view_compute_cursor_from_pos(View *view, i32 pos){
     Editing_File *file = view->file;
-    Render_Font *font = get_font_info(view->font_set, view->global_font->font_id)->font;
+    App_Models *models = view->models;
+    Render_Font *font = get_font_info(models->font_set, models->global_font.font_id)->font;
 
     Full_Cursor result = {};
     if (font){
@@ -1161,7 +1122,8 @@ view_compute_cursor_from_pos(View *view, i32 pos){
 inline Full_Cursor
 view_compute_cursor_from_unwrapped_xy(View *view, f32 seek_x, f32 seek_y, b32 round_down = 0){
     Editing_File *file = view->file;
-    Render_Font *font = get_font_info(view->font_set, view->global_font->font_id)->font;
+    App_Models *models = view->models;
+    Render_Font *font = get_font_info(models->font_set, models->global_font.font_id)->font;
 
     Full_Cursor result = {};
     if (font){
@@ -1175,10 +1137,10 @@ view_compute_cursor_from_unwrapped_xy(View *view, f32 seek_x, f32 seek_y, b32 ro
 }
 
 internal Full_Cursor
-view_compute_cursor_from_wrapped_xy(View *view, f32 seek_x, f32 seek_y,
-    b32 round_down = 0){
+view_compute_cursor_from_wrapped_xy(View *view, f32 seek_x, f32 seek_y, b32 round_down = 0){
     Editing_File *file = view->file;
-    Render_Font *font = get_font_info(view->font_set, view->global_font->font_id)->font;
+    App_Models *models = view->models;
+    Render_Font *font = get_font_info(models->font_set, models->global_font.font_id)->font;
 
     Full_Cursor result = {};
     if (font){
@@ -1188,13 +1150,14 @@ view_compute_cursor_from_wrapped_xy(View *view, f32 seek_x, f32 seek_y,
             max_width, (f32)view->font_height, font->advance_data);
     }
 
-    return result;
+    return (result);
 }
 
 internal Full_Cursor
 view_compute_cursor_from_line_pos(View *view, i32 line, i32 pos){
     Editing_File *file = view->file;
-    Render_Font *font = get_font_info(view->font_set, view->global_font->font_id)->font;
+    App_Models *models = view->models;
+    Render_Font *font = get_font_info(models->font_set, models->global_font.font_id)->font;
 
     Full_Cursor result = {};
     if (font){
@@ -1203,7 +1166,7 @@ view_compute_cursor_from_line_pos(View *view, i32 line, i32 pos){
             view->line_wrap_y, max_width, (f32)view->font_height, font->advance_data);
     }
 
-    return result;
+    return (result);
 }
 
 inline Full_Cursor
@@ -1228,7 +1191,7 @@ view_compute_cursor(View *view, Buffer_Seek seek){
         break;
     }
 
-    return result;
+    return (result);
 }
 
 inline Full_Cursor
@@ -1294,40 +1257,29 @@ view_get_cursor_y(View *view){
 internal void
 view_set_file(
     // NOTE(allen): These parameters are always meaningful
-    View *view,
-    Editing_File *file,
-    App_Models *models,
+    View *view, Editing_File *file, App_Models *models,
 
     // NOTE(allen): Necessary when file != 0
-    System_Functions *system,
-    Hook_Function *open_hook,
-    Application_Links *app){
+    System_Functions *system, Hook_Function *open_hook, Application_Links *app){
     
     Font_Info *fnt_info;
     
     // NOTE(allen): This is actually more like view_set_style right?
     fnt_info = get_font_info(models->font_set, models->global_font.font_id);
-    view->global_font = &models->global_font;
-    view->style = &models->style;
     view->font_advance = fnt_info->advance;
     view->font_height = fnt_info->height;
 
     // NOTE(allen): Stuff that doesn't assume file exists.
     view->file = file;
-
     view->cursor = {};
 
     // NOTE(allen): Stuff that does assume file exists.
-
     if (file){
-        // NOTE(allen): Isn't this a bit clumsy?
-        file->settings.set = models->font_set;
-
-        view->locked = file->settings.super_locked;
+        //view->locked = file->settings.super_locked;
         view->unwrapped_lines = file->settings.unwrapped_lines;
 
         if (file_is_ready(file)){
-            view_measure_wraps(system, &view->mem->general, view);
+            view_measure_wraps(system, &models->mem.general, view);
             view->cursor = view_compute_cursor_from_pos(view, file->state.cursor_pos);
 
             view->reinit_scrolling = 1;
@@ -1338,7 +1290,9 @@ view_set_file(
     // Just accept it and pass the file to the open hook when it is loaded.
     if (file){
         if (open_hook && file->settings.is_initialized == 0){
+            models->buffer_param_indices[models->buffer_param_count++] = (i32)(file - models->working_set.files);
             open_hook(app);
+            models->buffer_param_count = 0;
             file->settings.is_initialized = 1;
         }
     }
@@ -1683,10 +1637,14 @@ file_edit_cursor_fix(System_Functions *system,
 
 internal void
 file_do_single_edit(System_Functions *system,
-    Mem_Options *mem, Editing_File *file,
-    Editing_Layout *layout, Edit_Spec spec, History_Mode history_mode){
+    App_Models *models, Editing_File *file,
+    Edit_Spec spec, History_Mode history_mode, b32 use_high_permission = 0){
     ProfileMomentFunction();
-
+    if (!use_high_permission && file->settings.read_only) return;
+    
+    Mem_Options *mem = &models->mem;
+    Editing_Layout *layout = &models->layout;
+    
     // NOTE(allen): fixing stuff beforewards????
     file_update_history_before_edit(mem, file, spec.step, spec.str, history_mode);
     file_pre_edit_maintenance(system, &mem->general, file);
@@ -1722,7 +1680,7 @@ file_do_single_edit(System_Functions *system,
     i32 new_line_count = buffer_count_newlines(&file->state.buffer, start, start+str_len);
     i32 line_shift =  new_line_count - replaced_line_count;
 
-    Render_Font *font = get_font_info(file->settings.set, file->state.font_id)->font;
+    Render_Font *font = get_font_info(models->font_set, file->state.font_id)->font;
 
     file_grow_starts_widths_as_needed(general, buffer, line_shift);
     buffer_remeasure_starts(buffer, line_start, line_end, line_shift, shift_amount);
@@ -1754,17 +1712,14 @@ file_do_single_edit(System_Functions *system,
 }
 
 internal void
-view_do_white_batch_edit(System_Functions *system, Mem_Options *mem, View *view, Editing_File *file,
-    Editing_Layout *layout, Edit_Spec spec, History_Mode history_mode){
-    if (view->locked) return;
-    Assert(file);
+file_do_white_batch_edit(System_Functions *system, App_Models *models, Editing_File *file,
+    Edit_Spec spec, History_Mode history_mode, b32 use_high_permission = 0){
     ProfileMomentFunction();
+    if (!use_high_permission && file->settings.read_only) return;
 
-    // NOTE(allen): fixing stuff "beforewards"????
-    Assert(spec.str == 0);
-    file_update_history_before_edit(mem, file, spec.step, 0, history_mode);
-    file_pre_edit_maintenance(system, &mem->general, file);
-
+    Mem_Options *mem = &models->mem;
+    Editing_Layout *layout = &models->layout;
+    
     // NOTE(allen): actual text replacement
     General_Memory *general = &mem->general;
     Partition *part = &mem->part;
@@ -1779,8 +1734,9 @@ view_do_white_batch_edit(System_Functions *system, Mem_Options *mem, View *view,
     i32 scratch_size = partition_remaining(part);
     Buffer_Batch_State state = {};
     i32 request_amount;
-    while (buffer_batch_edit_step(&state, &file->state.buffer, batch, (char*)str_base, batch_size,
-            part->base + part->pos, scratch_size, &request_amount)){
+    while (buffer_batch_edit_step(&state, &file->state.buffer, batch,
+            (char*)str_base, batch_size, part->base + part->pos,
+            scratch_size, &request_amount)){
         void *new_data = 0;
         if (request_amount > 0){
             new_data = general_memory_allocate(general, request_amount, BUBBLE_BUFFER);
@@ -1789,6 +1745,25 @@ view_do_white_batch_edit(System_Functions *system, Mem_Options *mem, View *view,
         if (old_data) general_memory_free(general, old_data);
     }
 
+    // NOTE(allen): meta data
+    {
+        Buffer_Measure_Starts state = {};
+        Render_Font *font = get_font_info(models->font_set, file->state.font_id)->font;
+        float *advance_data = 0;
+        if (font) advance_data = font->advance_data;
+        buffer_measure_starts_widths(&state, &file->state.buffer, advance_data);
+    }
+
+    // NOTE(allen): cursor fixing
+    {
+        Cursor_Fix_Descriptor desc = {};
+        desc.is_batch = 1;
+        desc.batch = batch;
+        desc.batch_size = batch_size;
+
+        file_edit_cursor_fix(system, part, general, file, layout, desc);
+    }
+    
     // NOTE(allen): token fixing
     if (file->state.tokens_complete){
         Cpp_Token_Stack tokens = file->state.token_stack;
@@ -1816,29 +1791,11 @@ view_do_white_batch_edit(System_Functions *system, Mem_Options *mem, View *view,
             token->start += shift_amount;
         }
     }
-
-    // NOTE(allen): meta data
-    {
-        Buffer_Measure_Starts state = {};
-        Render_Font *font = get_font_info(file->settings.set, file->state.font_id)->font;
-        float *advance_data = 0;
-        if (font) advance_data = font->advance_data;
-        buffer_measure_starts_widths(&state, &file->state.buffer, advance_data);
-    }
-
-    // NOTE(allen): cursor fixing
-    Cursor_Fix_Descriptor desc = {};
-    desc.is_batch = 1;
-    desc.batch = batch;
-    desc.batch_size = batch_size;
-
-    file_edit_cursor_fix(system, part, general, file, layout, desc);
 }
 
 inline void
-file_replace_range(System_Functions *system,
-    App_Models *models, Editing_File *file,
-    i32 start, i32 end, char *str, i32 len, i32 next_cursor){
+file_replace_range(System_Functions *system, App_Models *models, Editing_File *file,
+    i32 start, i32 end, char *str, i32 len, i32 next_cursor, b32 use_high_permission = 0){
     Edit_Spec spec = {};
     spec.step.type = ED_NORMAL;
     spec.step.edit.start =  start;
@@ -1847,22 +1804,13 @@ file_replace_range(System_Functions *system,
     spec.step.pre_pos = file->state.cursor_pos;
     spec.step.post_pos = next_cursor;
     spec.str = (u8*)str;
-    file_do_single_edit(system, &models->mem, file, &models->layout, spec, hist_normal);
+    file_do_single_edit(system, models, file, spec, hist_normal, use_high_permission);
 }
 
 inline void
 view_replace_range(System_Functions *system, App_Models *models, View *view,
     i32 start, i32 end, char *str, i32 len, i32 next_cursor){
-    if (view->locked) return;
-    Edit_Spec spec = {};
-    spec.step.type = ED_NORMAL;
-    spec.step.edit.start =  start;
-    spec.step.edit.end = end;
-    spec.step.edit.len = len;
-    spec.step.pre_pos = view->cursor.pos;
-    spec.step.post_pos = next_cursor;
-    spec.str = (u8*)str;
-    file_do_single_edit(system, &models->mem, view->file, &models->layout, spec, hist_normal);
+    file_replace_range(system, models, view->file, start, end, str, len, next_cursor);
 }
 
 inline void
@@ -1878,10 +1826,11 @@ view_post_paste_effect(View *view, i32 ticks, i32 start, i32 size, u32 color){
 
 internal void
 view_undo_redo(System_Functions *system,
-    Mem_Options *mem, Editing_Layout *layout, View *view, Editing_File *file,
+    App_Models *models, View *view,
     Edit_Stack *stack, Edit_Type expected_type){
-    if (view->locked) return;
-    if (file && stack->edit_count > 0){
+    Editing_File *file = view->file;
+    
+    if (stack->edit_count > 0){
         Edit_Step step = stack->edits[stack->edit_count-1];
 
         Assert(step.type == expected_type);
@@ -1893,32 +1842,30 @@ view_undo_redo(System_Functions *system,
             spec.step.edit.str_start = 0;
             spec.str = stack->strings + step.edit.str_start;
 
-            file_do_single_edit(system, mem, file, layout, spec, hist_normal);
+            file_do_single_edit(system, models, file, spec, hist_normal);
 
             if (expected_type == ED_UNDO) view_cursor_move(view, step.pre_pos);
             else view_cursor_move(view, step.post_pos);
             view->mark = view->cursor.pos;
 
             view_post_paste_effect(view, 10, step.edit.start, step.edit.len,
-                view->style->main.undo_color);
+                models->style.main.undo_color);
         }
         else{
             TentativeAssert(spec.step.special_type == 1);
-            view_do_white_batch_edit(system, mem, view, file, layout, spec, hist_normal);
+            file_do_white_batch_edit(system, models, view->file, spec, hist_normal);
         }
     }
 }
 
 inline void
 view_undo(System_Functions *system, App_Models *models, View *view){
-    Editing_File *file = view->file;
-    view_undo_redo(system, &models->mem, &models->layout, view, file, &file->state.undo.undo, ED_UNDO);
+    view_undo_redo(system, models, view, &view->file->state.undo.undo, ED_UNDO);
 }
 
 inline void
 view_redo(System_Functions *system, App_Models *models, View *view){
-    Editing_File *file = view->file;
-    view_undo_redo(system, &models->mem, &models->layout, view, file, &file->state.undo.redo, ED_REDO);
+    view_undo_redo(system, models, view, &view->file->state.undo.redo, ED_REDO);
 }
 
 inline u8*
@@ -1986,8 +1933,7 @@ file_dump_history(System_Functions *system, Mem_Options *mem, Editing_File *file
 #endif
 
 internal void
-view_history_step(System_Functions *system, Mem_Options *mem, Editing_Layout *layout, View *view, History_Mode history_mode){
-    if (view->locked) return;
+view_history_step(System_Functions *system, App_Models *models, View *view, History_Mode history_mode){
     Assert(history_mode != hist_normal);
 
     Editing_File *file = view->file;
@@ -2018,7 +1964,7 @@ view_history_step(System_Functions *system, Mem_Options *mem, Editing_Layout *la
             spec.step.edit.str_start = 0;
             spec.str = file->state.undo.history.strings + step.edit.str_start;
 
-            file_do_single_edit(system, mem, file, layout, spec, history_mode);
+            file_do_single_edit(system, models, file, spec, history_mode);
 
             switch (spec.step.type){
                 case ED_NORMAL:
@@ -2035,14 +1981,9 @@ view_history_step(System_Functions *system, Mem_Options *mem, Editing_Layout *la
         }
         else{
             TentativeAssert(spec.step.special_type == 1);
-            view_do_white_batch_edit(system, mem, view, file, layout, spec, history_mode);
+            file_do_white_batch_edit(system, models, view->file, spec, history_mode);
         }
     }
-}
-
-inline void
-view_history_step(System_Functions *system, App_Models *models, View *view, History_Mode history_mode){
-    view_history_step(system, &models->mem, &models->layout, view, history_mode);
 }
 
 // TODO(allen): write these as streamed operations
@@ -2190,7 +2131,6 @@ file_compute_whitespace_edit(Mem_Options *mem, Editing_File *file, i32 cursor_po
 internal void
 view_clean_whitespace(System_Functions *system, App_Models *models, View *view){
     Mem_Options *mem = &models->mem;
-    Editing_Layout *layout = &models->layout;
     Editing_File *file = view->file;
     
     Partition *part = &mem->part;
@@ -2242,7 +2182,7 @@ view_clean_whitespace(System_Functions *system, App_Models *models, View *view){
             file_compute_whitespace_edit(mem, file, view->cursor.pos, edits, str_base, str_size,
             inverse_array, inv_str, part->max - part->pos, edit_count);
 
-        view_do_white_batch_edit(system, mem, view, file, layout, spec, hist_normal);
+        file_do_white_batch_edit(system, models, view->file, spec, hist_normal);
     }
 
     end_temp_memory(temp);
@@ -2250,13 +2190,15 @@ view_clean_whitespace(System_Functions *system, App_Models *models, View *view){
 
 internal void
 view_auto_tab_tokens(System_Functions *system,
-    Mem_Options *mem, View *view, Editing_Layout *layout,
+    App_Models *models, View *view,
     i32 start, i32 end, b32 empty_blank_lines){
 #if BUFFER_EXPERIMENT_SCALPEL <= 0
     Editing_File *file = view->file;
-    Assert(file && !file->state.is_dummy);
+    Mem_Options *mem = &models->mem;
     Partition *part = &mem->part;
     Buffer *buffer = &file->state.buffer;
+
+    Assert(file && !file->state.is_dummy);
     Cpp_Token_Stack tokens = file->state.token_stack;
     Assert(tokens.tokens);
 
@@ -2434,7 +2376,7 @@ view_auto_tab_tokens(System_Functions *system,
             file_compute_whitespace_edit(mem, file, view->cursor.pos, edits, str_base, str_size,
             inverse_array, inv_str, part->max - part->pos, edit_count);
 
-        view_do_white_batch_edit(system, mem, view, file, layout, spec, hist_normal);
+        file_do_white_batch_edit(system, models, view->file, spec, hist_normal);
     }
 
     {
@@ -2525,7 +2467,7 @@ internal void
 remeasure_file_view(System_Functions *system, View *view, i32_Rect rect){
     if (file_is_ready(view->file)){
         Relative_Scrolling relative = view_get_relative_scrolling(view);
-        view_measure_wraps(system, &view->mem->general, view);
+        view_measure_wraps(system, &view->models->mem.general, view);
         view_cursor_move(view, view->cursor.pos);
         view->preferred_x = view_get_cursor_x(view);
         view_set_relative_scrolling(view, relative);
@@ -2576,10 +2518,10 @@ undo_shit(System_Functions *system, View *view, UI_State *state, UI_Layout *layo
             i32 count = file->state.undo.edit_history_cursor;
             if (do_undo_slider(wid, state, layout, mid, count, &file->state.undo, &new_count)){
                 for (i32 i = 0; i < scrub_max && new_count < count; ++i){
-                    view_history_step(system, view->mem, view->layout, view, hist_backward);
+                    view_history_step(system, view->models, view, hist_backward);
                 }
                 for (i32 i = 0; i < scrub_max && new_count > count; ++i){
-                    view_history_step(system, view->mem, view->layout, view, hist_forward);
+                    view_history_step(system, view->models, view, hist_forward);
                 }
             }
         }
@@ -2610,7 +2552,6 @@ view_show_menu(View *fview, Command_Map *gui_map){
     fview->ui_state = {};
     fview->map_for_file = fview->map;
     fview->map = gui_map;
-    fview->locked = 1;
     fview->showing_ui = VUI_Menu;
 }
 
@@ -2619,17 +2560,18 @@ view_show_config(View *fview, Command_Map *gui_map){
     fview->ui_state = {};
     fview->map_for_file = fview->map;
     fview->map = gui_map;
-    fview->locked = 1;
     fview->showing_ui = VUI_Config;
 }
 
 inline void
 view_show_interactive(System_Functions *system, View *view, Command_Map *gui_map,
     Interactive_Action action, Interactive_Interaction interaction, String query){
+    
+    App_Models *models = view->models;
+    
     view->ui_state = {};
     view->map_for_file = view->map;
     view->map = gui_map;
-    view->locked = 1;
     view->showing_ui = VUI_Interactive;
     view->action = action;
     view->interaction = interaction;
@@ -2639,8 +2581,8 @@ view_show_interactive(System_Functions *system, View *view, Command_Map *gui_map
     view->dest.str[0] = 0;
     view->dest.size = 0;
 
-    hot_directory_clean_end(view->hot_directory);
-    hot_directory_reload(system, view->hot_directory, view->working_set);
+    hot_directory_clean_end(&models->hot_directory);
+    hot_directory_reload(system, &models->hot_directory, &models->working_set);
 }
 
 inline void
@@ -2648,7 +2590,6 @@ view_show_theme(View *fview, Command_Map *gui_map){
     fview->ui_state = {};
     fview->map_for_file = fview->map;
     fview->map = gui_map;
-    fview->locked = 1;
     fview->showing_ui = VUI_Theme;
     fview->color_mode = CV_Mode_Library;
 }
@@ -2663,41 +2604,41 @@ view_show_file(View *view, Command_Map *file_map, Editing_File *file){
         view->map = view->map_for_file;
     }
     view->file = file;
-    view->locked = 0;
     view->showing_ui = VUI_None;
 }
 
 internal void
 interactive_view_complete(View *view){
     Panel *panel = view->panel;
+    App_Models *models = view->models;
     Editing_File *file = 0;
     switch (view->action){
         case IAct_Open:
-        delayed_open(view->delay, view->hot_directory->string, panel);
+        delayed_open(&models->delay1, models->hot_directory.string, panel);
         break;
 
         case IAct_Save_As:
-        delayed_save_as(view->delay, view->hot_directory->string, panel);
+        delayed_save_as(&models->delay1, models->hot_directory.string, panel);
         file = view->file;
         break;
 
         case IAct_New:
-        delayed_new(view->delay, view->hot_directory->string, panel);
+        delayed_new(&models->delay1, models->hot_directory.string, panel);
         break;
 
         case IAct_Switch:
-        delayed_switch(view->delay, view->dest, panel);
+        delayed_switch(&models->delay1, view->dest, panel);
         break;
 
         case IAct_Kill:
-        delayed_try_kill(view->delay, view->dest, panel);
+        delayed_try_kill(&models->delay1, view->dest, panel);
         file = view->file;
         break;
 
         case IAct_Sure_To_Kill:
         switch (view->user_action){
             case 0:
-            delayed_kill(view->delay, view->dest, panel);
+            delayed_kill(&models->delay1, view->dest, panel);
             break;
 
             case 1:break;
@@ -2705,8 +2646,8 @@ interactive_view_complete(View *view){
             case 2:
             // TODO(allen): This is fishy! What if the save doesn't happen this time around?
             // We need to ensure delayed acts happen in order I think.
-            delayed_save(view->delay, view->dest, panel);
-            delayed_kill(view->delay, view->dest, panel);
+            delayed_save(&models->delay1, view->dest, panel);
+            delayed_kill(&models->delay1, view->dest, panel);
             break;
         }
         break;
@@ -2727,8 +2668,10 @@ update_highlighting(View *view){
         view->highlight = {};
         return;
     }
-
-    Style *style = view->style;
+    
+    App_Models *models = view->models;
+    
+    Style *style = &models->style;
     i32 pos = view_get_cursor_pos(file_view);
     char c = buffer_get_char(&file->state.buffer, pos);
 
@@ -2797,7 +2740,8 @@ internal b32
 theme_library_shit(System_Functions *system, Exchange *exchange,
     View *view, UI_State *state, UI_Layout *layout){
 
-    Mem_Options *mem = view->mem;
+    App_Models *models = view->models;
+    Mem_Options *mem = &models->mem;
 
     i32 result = 0;
 
@@ -2805,9 +2749,9 @@ theme_library_shit(System_Functions *system, Exchange *exchange,
     ui.state = state;
     ui.layout = layout;
 
-    ui.fonts = view->font_set;
-    ui.hot_directory = view->hot_directory;
-    ui.styles = view->styles;
+    ui.fonts = models->font_set;
+    ui.hot_directory = &models->hot_directory;
+    ui.styles = &models->styles;
 
     Color_View_Mode mode = view->color_mode;
 
@@ -2824,7 +2768,7 @@ theme_library_shit(System_Functions *system, Exchange *exchange,
         case CV_Mode_Library:
         {
             do_label(ui.state, ui.layout, literal("Current Theme - Click to Edit"));
-            if (do_style_preview(&ui, view->style)){
+            if (do_style_preview(&ui, &models->style)){
                 view->color_mode = CV_Mode_Adjusting;
                 view->ui_state.selected = {};
                 ui.state->view_y = 0;
@@ -2842,23 +2786,23 @@ theme_library_shit(System_Functions *system, Exchange *exchange,
             }
             if (do_button(-3, ui.state, ui.layout, "Import", 2)){
                 view->color_mode = CV_Mode_Import_File;
-                hot_directory_clean_end(view->hot_directory);
-                hot_directory_reload(system, view->hot_directory, view->working_set);
+                hot_directory_clean_end(&models->hot_directory);
+                hot_directory_reload(system, &models->hot_directory, &models->working_set);
             }
             if (do_button(-4, ui.state, ui.layout, "Export", 2)){
                 view->color_mode = CV_Mode_Export;
-                hot_directory_clean_end(view->hot_directory);
-                hot_directory_reload(system, view->hot_directory, view->working_set);
+                hot_directory_clean_end(&models->hot_directory);
+                hot_directory_reload(system, &models->hot_directory, &models->working_set);
                 memset(view->import_export_check, 0, sizeof(view->import_export_check));
             }
 
             do_label(ui.state, ui.layout, literal("Theme Library - Click to Select"));
 
-            i32 style_count = view->styles->count;
-            Style *style = view->styles->styles;
+            i32 style_count = models->styles.count;
+            Style *style = models->styles.styles;
             for (i32 i = 0; i < style_count; ++i, ++style){
                 if (do_style_preview(&ui, style)){
-                    style_copy(view->style, style);
+                    style_copy(&models->style, style);
                     result = 1;
                 }
             }
@@ -2867,7 +2811,7 @@ theme_library_shit(System_Functions *system, Exchange *exchange,
         case CV_Mode_Import_File:
         {
             do_label(ui.state, ui.layout, literal("Current Theme"));
-            do_style_preview(&ui, view->style);
+            do_style_preview(&ui, &models->style);
 
             b32 file_selected = 0;
 
@@ -2896,8 +2840,8 @@ theme_library_shit(System_Functions *system, Exchange *exchange,
                     sizeof(view->import_export_check));
 
                 view->import_file_id = exchange_request_file(exchange,
-                    view->hot_directory->string.str,
-                    view->hot_directory->string.size);
+                    models->hot_directory.string.str,
+                    models->hot_directory.string.size);
                 view->color_mode = CV_Mode_Import_Wait;
 
             }
@@ -2937,7 +2881,7 @@ theme_library_shit(System_Functions *system, Exchange *exchange,
         case CV_Mode_Export_File:
         {
             do_label(ui.state, ui.layout, literal("Current Theme"));
-            do_style_preview(&ui, view->style);
+            do_style_preview(&ui, &models->style);
 
             b32 file_selected = 0;
 
@@ -2988,7 +2932,7 @@ theme_library_shit(System_Functions *system, Exchange *exchange,
         case CV_Mode_Import:
         {
             do_label(ui.state, ui.layout, literal("Current Theme"));
-            do_style_preview(&ui, view->style);
+            do_style_preview(&ui, &models->style);
 
             i32 style_count = view->inspecting_styles.count;
             Style *styles = view->inspecting_styles.styles;
@@ -3019,7 +2963,7 @@ theme_library_shit(System_Functions *system, Exchange *exchange,
         case CV_Mode_Export:
         {
             do_label(ui.state, ui.layout, literal("Current Theme"));
-            do_style_preview(&ui, view->style);
+            do_style_preview(&ui, &models->style);
 
             do_label(ui.state, ui.layout, literal("Export Which Themes?"));
             begin_row(ui.layout, 2);
@@ -3030,8 +2974,8 @@ theme_library_shit(System_Functions *system, Exchange *exchange,
                 view->color_mode = CV_Mode_Library;
             }
 
-            i32 style_count = view->styles->count;
-            Style *style = view->styles->styles;
+            i32 style_count = models->styles.count;
+            Style *style = models->styles.styles;
             b8 *export_check = view->import_export_check;
             for (i32 i = 0; i < style_count; ++i, ++style){
                 if (do_style_preview(&ui, style, export_check[i])){
@@ -3042,29 +2986,31 @@ theme_library_shit(System_Functions *system, Exchange *exchange,
         }break;
     }
 
-    return result;
+    return (result);
 }
 
 internal b32
 theme_adjusting_shit(View *view, UI_State *state, UI_Layout *layout){
     update_highlighting(view);
 
-    Style *style = view->style;
+    App_Models *models = view->models;
+    
+    Style *style = &models->style;
     i32 result = 0;
 
     Color_UI ui;
     ui.state = state;
     ui.layout = layout;
 
-    ui.fonts = view->font_set;
-    ui.global_font = view->global_font;
+    ui.fonts = models->font_set;
+    ui.global_font = &models->global_font;
     ui.highlight = view->highlight;
     ui.color = view->color;
     ui.has_hover_color = 0;
     ui.state->sub_id1_change = 0;
     ui.hex_advance = font_get_max_width(ui.fonts, ui.state->font_id, "0123456789abcdefx");
-    ui.palette = view->palette;
-    ui.palette_size = view->palette_size;
+    ui.palette = models->palette;
+    ui.palette_size = models->palette_size;
 
     i32_Rect bar_rect = ui.layout->rect;
     bar_rect.x0 = bar_rect.x1 - 20;
@@ -3212,6 +3158,8 @@ interactive_shit(System_Functions *system, View *view, UI_State *state, UI_Layou
     b32 new_dir = 0;
     b32 complete = 0;
 
+    App_Models *models = view->models;
+    
     do_label(state, layout, view->query, 1.f);
 
     b32 case_sensitive = 0;
@@ -3224,20 +3172,19 @@ interactive_shit(System_Functions *system, View *view, UI_State *state, UI_Layou
         {
             b32 is_new = (view->action == IAct_New);
 
-            if (do_file_list_box(system, state,
-                    layout, view->hot_directory, 0, !is_new, case_sensitive,
+            if (do_file_list_box(system, state, layout,
+                    &models->hot_directory, 0, !is_new, case_sensitive,
                     &new_dir, &complete, 0)){
                 result = 1;
             }
             if (new_dir){
-                hot_directory_reload(system,
-                    view->hot_directory, view->working_set);
+                hot_directory_reload(system, &models->hot_directory, &models->working_set);
             }
         }break;
 
         case IInt_Live_File_List:
         {
-            if (do_live_file_list_box(system, state, layout, view->working_set, &view->dest, &complete)){
+            if (do_live_file_list_box(system, state, layout, &models->working_set, &view->dest, &complete)){
                 result = 1;
             }
         }break;
@@ -3312,21 +3259,23 @@ menu_shit(View *view, UI_State *state, UI_Layout *layout){
 internal void
 config_shit(View *view, UI_State *state, UI_Layout *layout){
     i32 id = 0;
-
+    App_Models *models = view->models;
+    
     do_label(state, layout, literal("Config"), 2.f);
 
     if (do_checkbox_list_option(++id, state, layout, make_lit_string("Left Ctrl + Left Alt = AltGr"),
-            view->settings->lctrl_lalt_is_altgr)){
-        view->settings->lctrl_lalt_is_altgr = !view->settings->lctrl_lalt_is_altgr;
+            models->settings.lctrl_lalt_is_altgr)){
+        models->settings.lctrl_lalt_is_altgr = !models->settings.lctrl_lalt_is_altgr;
     }
 }
 
 internal void
 do_file_bar(View *view, Editing_File *file, UI_Layout *layout, Render_Target *target){
     Interactive_Bar bar;
-    Style_Font *font = view->global_font;
+    App_Models *models = view->models;
+    Style_Font *font = &models->global_font;
     i32 line_height = view->font_height;
-    Interactive_Style bar_style = view->style->main.file_info_style;
+    Interactive_Style bar_style = models->style.main.file_info_style;
 
     u32 back_color = bar_style.bar_color;
     u32 base_color = bar_style.base_color;
@@ -3414,6 +3363,7 @@ internal i32
 step_file_view(System_Functions *system, Exchange *exchange, View *view, i32_Rect rect,
     b32 is_active, Input_Summary *user_input){
     
+    App_Models *models = view->models;
     i32 result = 0;
     Editing_File *file = view->file;
 
@@ -3421,7 +3371,7 @@ step_file_view(System_Functions *system, Exchange *exchange, View *view, i32_Rec
     {
         UI_State state = 
             ui_state_init(&view->widget.state, 0, user_input,
-            view->style, view->global_font->font_id, view->font_set, 0, 1);
+            &models->style, models->global_font.font_id, models->font_set, 0, 1);
 
         UI_Layout layout;
         begin_layout(&layout, rect);
@@ -3555,7 +3505,7 @@ step_file_view(System_Functions *system, Exchange *exchange, View *view, i32_Rec
     {
         UI_State state =
             ui_state_init(&view->ui_state, 0, user_input,
-            view->style, view->global_font->font_id, view->font_set, view->working_set, 1);
+            &models->style, models->global_font.font_id, models->font_set, &models->working_set, 1);
         
         UI_Layout layout;
         begin_layout(&layout, rect);
@@ -3592,8 +3542,9 @@ step_file_view(System_Functions *system, Exchange *exchange, View *view, i32_Rec
 
 internal i32
 draw_file_loaded(View *view, i32_Rect rect, b32 is_active, Render_Target *target){
+    App_Models *models = view->models;
     Editing_File *file = view->file;
-    Style *style = view->style;
+    Style *style = &models->style;
     i32 line_height = view->font_height;
 
     i32 max_x = rect.x1 - rect.x0;
@@ -3608,7 +3559,7 @@ draw_file_loaded(View *view, i32_Rect rect, b32 is_active, Render_Target *target
         token_stack = file->state.token_stack;
     }
     
-    Partition *part = &view->mem->part;
+    Partition *part = &models->mem.part;
 
     Temp_Memory temp = begin_temp_memory(part);
     
@@ -3616,8 +3567,8 @@ draw_file_loaded(View *view, i32_Rect rect, b32 is_active, Render_Target *target
     i32 max = partition_remaining(part) / sizeof(Buffer_Render_Item);
     Buffer_Render_Item *items = push_array(part, Buffer_Render_Item, max);
 
-    i16 font_id = view->global_font->font_id;
-    Render_Font *font = get_font_info(view->font_set, font_id)->font;
+    i16 font_id = models->global_font.font_id;
+    Render_Font *font = get_font_info(models->font_set, font_id)->font;
     float *advance_data = 0;
     if (font) advance_data = font->advance_data;
 
@@ -3762,6 +3713,7 @@ draw_file_view(System_Functions *system, Exchange *exchange,
     View *view, View *active, i32_Rect rect, b32 is_active,
     Render_Target *target, Input_Summary *user_input){
     
+    App_Models *models = view->models;
     Editing_File *file = view->file;
     i32 result = 0;
     
@@ -3769,7 +3721,7 @@ draw_file_view(System_Functions *system, Exchange *exchange,
     {
         UI_State state =
             ui_state_init(&view->widget.state, target, 0,
-            view->style, view->global_font->font_id, view->font_set, 0, 0);
+            &models->style, models->global_font.font_id, models->font_set, 0, 0);
         
         UI_Layout layout;
         begin_layout(&layout, rect);
@@ -3809,7 +3761,7 @@ draw_file_view(System_Functions *system, Exchange *exchange,
         
         UI_State state =
             ui_state_init(&view->ui_state, target, user_input,
-            view->style, view->global_font->font_id, view->font_set, view->working_set, 0);
+            &models->style, models->global_font.font_id, models->font_set, &models->working_set, 0);
         
         UI_Layout layout;
         begin_layout(&layout, rect);
@@ -3857,97 +3809,22 @@ draw_file_view(System_Functions *system, Exchange *exchange,
 
 internal void
 kill_file(System_Functions *system, Exchange *exchange,
-    General_Memory *general, Editing_File *file,
-    Editing_Layout *layout){
+    App_Models *models, Editing_File *file){
     
-    View *view;
-    
-    Panel *panel, *used_panels;
-    used_panels = &layout->used_sentinel;
-    
-    for (dll_items(panel, used_panels)){
-        view = panel->view;
-        Assert(view);
-        if (view->file == file){
-            view->file = 0;
-        }
+    for (View_Iter iter = file_view_iter_init(&models->layout, file, 0);
+        file_view_iter_good(iter);
+        iter = file_view_iter_next(iter)){
+        iter.view->file = 0;
     }
     
-    file_close(system, general, file);
-    file_get_dummy(file);
+    file_close(system, &models->mem.general, file);
+    working_set_free_file(&models->working_set, file);
 }
 
 inline void
 free_file_view(View *view){
     if (view->line_wrap_y)
-        general_memory_free(&view->mem->general, view->line_wrap_y);
-}
-
-internal View*
-file_view_init(View *view, App_Models *models){
-    
-    view->models = models;
-    view->layout = &models->layout;
-    view->working_set = &models->working_set;
-    view->delay = &models->delay1;
-    view->settings = &models->settings;
-    view->hot_directory = &models->hot_directory;
-    view->mem = &models->mem;
-    view->styles = &models->styles;
-    view->font_set = models->font_set;
-    
-    view->scrub_max = 1;
-    
-    // TODO(allen): Make "interactive" mode customizable just like the query bars!
-    view->query = make_fixed_width_string(view->query_);
-    view->dest = make_fixed_width_string(view->dest_);
-    
-    init_query_set(&view->query_set);
-    
-    return(view);
-}
-
-struct View_Iter{
-    View *view;
-    
-    Editing_File *file;
-    View *skip;
-    Panel *used_panels;
-    Panel *panel;
-};
-
-internal View_Iter
-file_view_iter_next(View_Iter iter){
-    Panel *panel;
-    View *file_view;
-    
-    for (panel = iter.panel; panel != iter.used_panels; panel = panel->next){
-        file_view = panel->view;
-        if (file_view != iter.skip && file_view->file == iter.file){
-            iter.view = file_view;
-            break;
-        }
-    }
-    
-    return(iter);
-}
-
-internal View_Iter
-file_view_iter_init(Editing_Layout *layout, Editing_File *file, View *skip){
-    View_Iter result;
-    result.used_panels = &layout->used_sentinel;
-    result.panel = result.used_panels->next;
-    result.file = file;
-    result.skip = skip;
-    
-    return(result);
-}
-
-internal b32
-file_view_iter_good(View_Iter iter){
-    b32 result = 1;
-    if (iter.panel != iter.used_panels) result = 0;
-    return(result);
+        general_memory_free(&view->models->mem.general, view->line_wrap_y);
 }
 
 struct Search_Range{
@@ -4159,13 +4036,8 @@ struct Live_Views{
     i32 count, max;
 };
 
-inline View*
-live_set_get_view(Live_Views *live_set, i32 id){
-    return (live_set->views + id);
-}
-
 internal View_And_ID
-live_set_alloc_view(Live_Views *live_set){
+live_set_alloc_view(Live_Views *live_set, Panel *panel, App_Models *models){
     View_And_ID result = {};
     
     Assert(live_set->count < live_set->max);
@@ -4178,6 +4050,19 @@ live_set_alloc_view(Live_Views *live_set){
     dll_remove(result.view);
     memset(result.view, 0, sizeof(View));
     
+    result.view->in_use = 1;
+    panel->view = result.view;
+    result.view->panel = panel;
+    
+    result.view->models = models;
+    result.view->scrub_max = 1;
+    
+    // TODO(allen): Make "interactive" mode customizable just like the query bars!
+    result.view->query = make_fixed_width_string(result.view->query_);
+    result.view->dest = make_fixed_width_string(result.view->dest_);
+    
+    init_query_set(&result.view->query_set);
+    
     return(result);
 }
 
@@ -4187,6 +4072,7 @@ live_set_free_view(System_Functions *system, Exchange *exchange, Live_Views *liv
     --live_set->count;
     free_file_view(view);
     dll_insert(&live_set->free_sentinel, view);
+    view->in_use = 0;
 }
 
 // BOTTOM

@@ -1461,27 +1461,31 @@ do_live_file_list_box(System_Functions *system, UI_State *state, UI_Layout *layo
         Absolutes absolutes;
         get_absolutes(*string, &absolutes, 1, 1);
         
-        i32 count = working_set->file_index_count;
-        Editing_File *files = working_set->files;
-        for (i32 i = 0; i < count; ++i){
-            Editing_File *file = files + i;
+        Editing_File *file;
+        File_Node *node, *used_nodes;
+        i32 i = 0;
+        used_nodes = &working_set->used_sentinel;
+        
+        for (dll_items(node, used_nodes)){
+            file = (Editing_File*)node;
+            Assert(!file->state.is_dummy);
             
-            if (!file->state.is_dummy){
-                String message = message_nothing;
-                switch (buffer_get_sync(file)){
+            String message = message_nothing;
+            switch (buffer_get_sync(file)){
                 case SYNC_BEHIND_OS: message = message_unsynced; break;
                 case SYNC_UNSAVED: message = message_unsaved; break;
-                }
-                
-                if (filename_match(*string, &absolutes, file->name.live_name, 1)){
-                    if (do_file_option(100+i, state, layout, file->name.live_name, 0, message, system->slash)){
-                        result = 1;
-                        *selected = 1;
-                        copy(string, file->name.source_path);
-                        terminate_with_null(string);
-                    }
+            }
+            
+            if (filename_match(*string, &absolutes, file->name.live_name, 1)){
+                if (do_file_option(100+i, state, layout, file->name.live_name, 0, message, system->slash)){
+                    result = 1;
+                    *selected = 1;
+                    copy(string, file->name.source_path);
+                    terminate_with_null(string);
                 }
             }
+            
+            ++i;
         }
     }
     

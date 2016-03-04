@@ -39,6 +39,9 @@ struct App_Models{
     
     Custom_Command_Function *hooks[hook_type_count];
     
+    i32 *buffer_param_indices;
+    i32 buffer_param_count, buffer_param_max;
+    
     Font_Set *font_set;
     Style_Font global_font;
     Style style;

@@ -92,14 +92,13 @@ struct Text_Effect{
 // file is still streaming in, and all operations except for the
 // initial allocation of the file.
 struct Editing_File_Settings{
-    Font_Set *set;
     i32 base_map_id;
     i32 dos_write_mode;
     b32 unwrapped_lines;
     b8 tokens_exist;
-    b8 super_locked;
     b8 is_initialized;
     b8 unimportant;
+    b8 read_only;
 };
 
 // NOTE(allen): This part of the Editing_File is cleared whenever
@@ -142,7 +141,12 @@ struct Editing_File_Name{
     String extension;
 };
 
+struct File_Node{
+    File_Node *next, *prev;
+};
+
 struct Editing_File{
+    File_Node node;
     Editing_File_Settings settings;
     union{
         Editing_File_State state;
@@ -237,7 +241,9 @@ table_remove(File_Table *table, String name){
 
 struct Working_Set{
 	Editing_File *files;
-	i32 file_index_count, file_max_count;
+	i32 file_count, file_max;
+    File_Node free_sentinel;
+    File_Node used_sentinel;
     
     File_Table table;
     
@@ -418,11 +424,11 @@ working_set_contains(Working_Set *working, String filename){
     Editing_File *result = 0;
     i32 id;
     if (table_find(&working->table, filename, &id)){
-        if (id < working->file_max_count){
+        if (id >= 0 && id < working->file_max){
             result = working->files + id;
         }
     }
-    return result;
+    return (result);
 }
 
 // TODO(allen): Find a way to choose an ordering for these so it picks better first options.
@@ -431,19 +437,74 @@ working_set_lookup_file(Working_Set *working_set, String string){
 	Editing_File *file = working_set_contains(working_set, string);
 	
 	if (!file){
-        i32 file_i;
-        i32 end = working_set->file_index_count;
-        file = working_set->files;
-		for (file_i = 0; file_i < end; ++file_i, ++file){
-			if (file->name.live_name.str &&
-                (string.size == 0 || has_substr(file->name.live_name, string))){
-				break;
-			}
-		}
-        if (file_i == end) file = 0;
+        File_Node *node, *used_nodes;
+        used_nodes = &working_set->used_sentinel;
+        for (dll_items(node, used_nodes)){
+            file = (Editing_File*)node;
+            if (string.size == 0 || has_substr(file->name.live_name, string)){
+                break;
+            }
+        }
+        if (node == used_nodes) file = 0;
 	}
     
-	return file;
+	return (file);
+}
+
+struct Get_File_Result{
+    Editing_File *file;
+    i32 index;
+};
+
+internal Get_File_Result
+working_set_get_available_file(Working_Set *working_set){
+    Get_File_Result result = {};
+    File_Node *node;
+    
+    if (working_set->file_count < working_set->file_max){
+        node = working_set->free_sentinel.next;
+        Assert(node != &working_set->free_sentinel);
+        
+        result.file = (Editing_File*)node;
+        result.index = (i32)(result.file - working_set->files);
+        
+        ++working_set->file_count;
+        
+        dll_remove(node);
+        *result.file = {};
+        dll_insert(&working_set->used_sentinel, node);
+    }
+
+    return result;
+}
+
+inline void
+working_set_free_file(Working_Set  *working_set, Editing_File *file){
+    file->state.is_dummy = 1;
+    dll_remove(&file->node);
+    dll_insert(&working_set->free_sentinel, &file->node);
+    --working_set->file_count;
+}
+
+inline Get_File_Result
+working_set_get_file(Working_Set *working_set, i32 id, b32 require_active){
+    Get_File_Result result = {};
+    if (id > 0 && id <= working_set->file_max){
+        result.file = working_set->files + id;
+        result.index = id;
+        if (result.file->state.is_dummy && require_active){
+            result.file = 0;
+            result.index = 0;
+        }
+    }
+    return(result);
+}
+
+inline void
+file_set_to_loading(Editing_File *file){
+    file->state = {};
+    file->settings = {};
+    file->state.is_loading = 1;
 }
 
 // BOTTOM

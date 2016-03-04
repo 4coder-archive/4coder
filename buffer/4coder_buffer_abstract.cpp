@@ -934,19 +934,19 @@ typedef struct Seek_State{
 
 internal_4tech int
 cursor_seek_step(Seek_State *state, Buffer_Seek seek, int xy_seek, float max_width,
-                 float font_height, float *advances, int size, char ch){
+    float font_height, float *advances, int size, char ch){
     Full_Cursor cursor, prev_cursor;
     float ch_width;
     int result;
     float x, px, y;
-    
+
     cursor = state->cursor;
     prev_cursor = state->prev_cursor;
-    
+
     result = 1;
     prev_cursor = cursor;
     switch (ch){
-    case '\n':
+        case '\n':
         ++cursor.line;
         cursor.unwrapped_y += font_height;
         cursor.wrapped_y += font_height;
@@ -954,51 +954,51 @@ cursor_seek_step(Seek_State *state, Buffer_Seek seek, int xy_seek, float max_wid
         cursor.unwrapped_x = 0;
         cursor.wrapped_x = 0;
         break;
-        
-    default:
+
+        default:
         ++cursor.character;
         if (ch == '\r') ch_width = *(float*)(advances + '\\') + *(float*)(advances + 'r');
         else ch_width = *(float*)(advances + ch);
-            
+
         if (cursor.wrapped_x + ch_width >= max_width){
             cursor.wrapped_y += font_height;
             cursor.wrapped_x = 0;
             prev_cursor = cursor;
         }
-            
+
         cursor.unwrapped_x += ch_width;
         cursor.wrapped_x += ch_width;
-            
+
         break;
     }
-    
+
     ++cursor.pos;
-    
+
     if (cursor.pos > size){
         cursor = prev_cursor;
         result = 0;
         goto cursor_seek_step_end;
     }
-    
+
     x = y = px = 0;
-    
+
     switch (seek.type){
-    case buffer_seek_pos:
+        case buffer_seek_pos:
         if (cursor.pos > seek.pos){
             cursor = prev_cursor;
             result = 0;
             goto cursor_seek_step_end;
         }break;
-        
-    case buffer_seek_wrapped_xy:
+
+        case buffer_seek_wrapped_xy:
         x = cursor.wrapped_x; px = prev_cursor.wrapped_x;
         y = cursor.wrapped_y; break;
-        
-    case buffer_seek_unwrapped_xy:
+
+        case buffer_seek_unwrapped_xy:
         x = cursor.unwrapped_x; px = prev_cursor.unwrapped_x;
         y = cursor.unwrapped_y; break;
-        
-    case buffer_seek_line_char:
+
+        case buffer_seek_line_char:
         if (cursor.line == seek.line && cursor.character >= seek.character){
             result = 0;
             goto cursor_seek_step_end;
@@ -1009,21 +1009,21 @@ cursor_seek_step(Seek_State *state, Buffer_Seek seek, int xy_seek, float max_wid
             goto cursor_seek_step_end;
         }break;
     }
-    
+
     if (xy_seek){
         if (y > seek.y){
             cursor = prev_cursor;
             result = 0;
             goto cursor_seek_step_end;
         }
-        
+
         if (y > seek.y - font_height && x >= seek.x){
             if (!seek.round_down){
                 if (ch != '\n' && (seek.x - px) < (x - seek.x)) cursor = prev_cursor;
                 result = 0;
                 goto cursor_seek_step_end;
             }
-            
+
             if (x > seek.x){
                 cursor = prev_cursor;
                 result = 0;
@@ -1031,8 +1031,8 @@ cursor_seek_step(Seek_State *state, Buffer_Seek seek, int xy_seek, float max_wid
             }
         }
     }
-    
-cursor_seek_step_end:
+
+    cursor_seek_step_end:
     state->cursor = cursor;
     state->prev_cursor = prev_cursor;
     return(result);
@@ -1053,8 +1053,21 @@ buffer_cursor_seek(Buffer_Type *buffer, Buffer_Seek seek, float max_width,
     
     state.cursor = cursor;
     
-    if (advance_data){
+    switch(seek.type){
+        case buffer_seek_pos:
+        if (cursor.pos >= seek.pos) goto buffer_cursor_seek_end;
+
+        case buffer_seek_wrapped_xy:
+        if (seek.x == 0 && cursor.wrapped_y >= seek.y) goto buffer_cursor_seek_end;
+        
+        case buffer_seek_unwrapped_xy:
+        if (seek.x == 0 && cursor.unwrapped_y >= seek.y) goto buffer_cursor_seek_end;
+
+        case buffer_seek_line_char:
+        if (cursor.line >= seek.line && cursor.character >= seek.character) goto buffer_cursor_seek_end;
+    }
     
+    if (advance_data){
         size = buffer_size(buffer);
         xy_seek = (seek.type == buffer_seek_wrapped_xy || seek.type == buffer_seek_unwrapped_xy);
     
@@ -1076,7 +1089,6 @@ buffer_cursor_seek(Buffer_Type *buffer, Buffer_Seek seek, float max_width,
                                       font_height, advance_data, size, 0);
             assert_4tech(result == 0);
         }
-        
     }
     
 buffer_cursor_seek_end:    

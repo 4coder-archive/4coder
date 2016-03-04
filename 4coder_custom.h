@@ -342,9 +342,12 @@ struct Application_Links;
 #define FREE_FILE_LIST_SIG(name) void name(Application_Links *app, File_List list)
 
 // Direct buffer manipulation
-#define GET_BUFFER_MAX_INDEX_SIG(name) int name(Application_Links *app)
+#define GET_BUFFER_FIRST_SIG(name) Buffer_Summary name(Application_Links *app)
+#define GET_BUFFER_NEXT_SIG(name) void name(Application_Links *app, Buffer_Summary *buffer)
+
 #define GET_BUFFER_SIG(name) Buffer_Summary name(Application_Links *app, int index)
 #define GET_ACTIVE_BUFFER_SIG(name) Buffer_Summary name(Application_Links *app)
+#define GET_PARAMETER_BUFFER_SIG(name) Buffer_Summary name(Application_Links *app, int param_index)
 #define GET_BUFFER_BY_NAME(name) Buffer_Summary name(Application_Links *app, char *filename, int len)
 
 #define REFRESH_BUFFER_SIG(name) int name(Application_Links *app, Buffer_Summary *buffer)
@@ -355,7 +358,9 @@ struct Application_Links;
 #define BUFFER_SET_POS_SIG(name) int name(Application_Links *app, Buffer_Summary *buffer, int pos)
 
 // File view manipulation
-#define GET_VIEW_MAX_INDEX_SIG(name) int name(Application_Links *app)
+#define GET_VIEW_FIRST_SIG(name) View_Summary name(Application_Links *app)
+#define GET_VIEW_NEXT_SIG(name) void name(Application_Links *app, View_Summary *view)
+
 #define GET_VIEW_SIG(name) View_Summary name(Application_Links *app, int index)
 #define GET_ACTIVE_VIEW_SIG(name) View_Summary name(Application_Links *app)
 
@@ -398,9 +403,12 @@ extern "C"{
     typedef FREE_FILE_LIST_SIG(Free_File_List_Function);
     
     // Buffer manipulation
-    typedef GET_BUFFER_MAX_INDEX_SIG(Get_Buffer_Max_Index_Function);
+    typedef GET_BUFFER_FIRST_SIG(Get_Buffer_First_Function);
+    typedef GET_BUFFER_NEXT_SIG(Get_Buffer_Next_Function);
+    
     typedef GET_BUFFER_SIG(Get_Buffer_Function);
     typedef GET_ACTIVE_BUFFER_SIG(Get_Active_Buffer_Function);
+    typedef GET_PARAMETER_BUFFER_SIG(Get_Parameter_Buffer_Function);
     typedef GET_BUFFER_BY_NAME(Get_Buffer_By_Name_Function);
     
     typedef REFRESH_BUFFER_SIG(Refresh_Buffer_Function);
@@ -411,7 +419,9 @@ extern "C"{
     typedef BUFFER_SET_POS_SIG(Buffer_Set_Pos_Function);
     
     // View manipulation
-    typedef GET_VIEW_MAX_INDEX_SIG(Get_View_Max_Index_Function);
+    typedef GET_VIEW_FIRST_SIG(Get_View_First_Function);
+    typedef GET_VIEW_NEXT_SIG(Get_View_Next_Function);
+    
     typedef GET_VIEW_SIG(Get_View_Function);
     typedef GET_ACTIVE_VIEW_SIG(Get_Active_View_Function);
     
@@ -448,9 +458,12 @@ struct Application_Links{
     Free_File_List_Function *free_file_list;
     
     // Buffer manipulation
-    Get_Buffer_Max_Index_Function *get_buffer_max_index;
+    Get_Buffer_First_Function *get_buffer_first;
+    Get_Buffer_Next_Function *get_buffer_next;
+    
     Get_Buffer_Function *get_buffer;
     Get_Active_Buffer_Function *get_active_buffer;
+    Get_Parameter_Buffer_Function *get_parameter_buffer;
     Get_Buffer_By_Name_Function *get_buffer_by_name;
     
     Refresh_Buffer_Function *refresh_buffer;
@@ -461,7 +474,9 @@ struct Application_Links{
     Buffer_Set_Pos_Function *buffer_set_pos;
     
     // View manipulation
-    Get_View_Max_Index_Function *get_view_max_index;
+    Get_View_First_Function *get_view_first;
+    Get_View_Next_Function *get_view_next;
+    
     Get_View_Function *get_view;
     Get_Active_View_Function *get_active_view;
     

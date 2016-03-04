@@ -33,43 +33,49 @@ HOOK_SIG(my_start){
 }
 
 HOOK_SIG(my_file_settings){
-     Buffer_Summary buffer = app->get_active_buffer(app);
-     
-     // NOTE(allen|a3.4.2): Whenever you ask for a buffer, you can check that
-     // the exists field is set to true.  Reasons why the buffer might not exist:
-     //   -The active panel does not contain a buffer and get_active_buffer was used
-     //   -The index provided to get_buffer was out of range [0,max) or that index is associated to a dummy buffer
-     //   -The name provided to get_buffer_by_name did not match any of the existing buffers
-     if (buffer.exists){
-         int treat_as_code = 0;
-         
-         if (buffer.file_name && buffer.size < (16 << 20)){
-             String ext = file_extension(make_string(buffer.file_name, buffer.file_name_len));
-             if (match(ext, make_lit_string("cpp"))) treat_as_code = 1;
-             else if (match(ext, make_lit_string("h"))) treat_as_code = 1;
-             else if (match(ext, make_lit_string("c"))) treat_as_code = 1;
-             else if (match(ext, make_lit_string("hpp"))) treat_as_code = 1;
-         }
-         
-         push_parameter(app, par_lex_as_cpp_file, treat_as_code);
-         push_parameter(app, par_wrap_lines, !treat_as_code);
-         push_parameter(app, par_key_mapid, (treat_as_code)?((int)my_code_map):((int)mapid_file));
-         exec_command(app, cmdid_set_settings);
-     }
+    // NOTE(allen|a4): In hooks that want parameters, such as this file
+    // created hook.  The file created hook is guaranteed to have only
+    // and exactly one buffer parameter.  In normal command callbacks
+    // there are no parameter buffers.
+    Buffer_Summary buffer = app->get_parameter_buffer(app, 0);
+    assert(buffer.exists);
+    
+    int treat_as_code = 0;
+
+    if (buffer.file_name && buffer.size < (16 << 20)){
+        String ext = file_extension(make_string(buffer.file_name, buffer.file_name_len));
+        if (match(ext, make_lit_string("cpp"))) treat_as_code = 1;
+        else if (match(ext, make_lit_string("h"))) treat_as_code = 1;
+        else if (match(ext, make_lit_string("c"))) treat_as_code = 1;
+        else if (match(ext, make_lit_string("hpp"))) treat_as_code = 1;
+    }
+
+    push_parameter(app, par_lex_as_cpp_file, treat_as_code);
+    push_parameter(app, par_wrap_lines, !treat_as_code);
+    push_parameter(app, par_key_mapid, (treat_as_code)?((int)my_code_map):((int)mapid_file));
+    exec_command(app, cmdid_set_settings);
+}
+
+static void
+write_string(Application_Links *app, String string){
+    Buffer_Summary buffer = app->get_active_buffer(app);
+    app->buffer_replace_range(app, &buffer, buffer.buffer_cursor_pos, buffer.buffer_cursor_pos, string.str, string.size);
 }
 
 CUSTOM_COMMAND_SIG(write_increment){
-    char text[] = "++";
-    int size = sizeof(text) - 1;
-    Buffer_Summary buffer = app->get_active_buffer(app);
-    app->buffer_replace_range(app, &buffer, buffer.buffer_cursor_pos, buffer.buffer_cursor_pos, text, size);
+    write_string(app, make_lit_string("++"));
 }
 
 CUSTOM_COMMAND_SIG(write_decrement){
-    char text[] = "--";
-    int size = sizeof(text) - 1;
-    Buffer_Summary buffer = app->get_active_buffer(app);
-    app->buffer_replace_range(app, &buffer, buffer.buffer_cursor_pos, buffer.buffer_cursor_pos, text, size);
+    write_string(app, make_lit_string("--"));
+}
+
+CUSTOM_COMMAND_SIG(write_allen_todo){
+    write_string(app, make_lit_string("// TODO(allen): "));
+}
+
+CUSTOM_COMMAND_SIG(write_allen_note){
+    write_string(app, make_lit_string("// NOTE(allen): "));
 }
 
 static void
@@ -137,7 +143,7 @@ CUSTOM_COMMAND_SIG(if0_off){
     View_Summary view;
     Buffer_Summary buffer;
     
-    char text1[] = "#if 0\n";
+    char text1[] = "\n#if 0";
     int size1 = sizeof(text1) - 1;
     
     char text2[] = "#endif\n";
@@ -192,8 +198,6 @@ CUSTOM_COMMAND_SIG(switch_to_compilation){
     char name[] = "*compilation*";
     int name_size = sizeof(name)-1;
 
-    // TODO(allen): This will only work for file views for now.  Fix up this
-    // view nonsense so that view types aren't such an issue.
     view = app->get_active_view(app);
     buffer = app->get_buffer_by_name(app, name, name_size);
     
@@ -446,7 +450,7 @@ CUSTOM_COMMAND_SIG(rewrite_as_single_caps){
 // TODO(allen):
 // get range by specific "word" type (for example "get token range")
 // read range by specific "word" type
-// Dream API: for rewrite_as_single_caps
+// Dream API for rewrite_as_single_caps:
 #if 0
 {
     rewrite = get_rewrite(app, ByToken);
@@ -479,6 +483,8 @@ CUSTOM_COMMAND_SIG(replace_in_range){
     with.string = make_fixed_width_string(with_space);
     
     if (!query_user_string(app, &replace)) return;
+    if (replace.string.size == 0) return;
+    
     if (!query_user_string(app, &with)) return;
     
     String r, w;
@@ -517,6 +523,8 @@ CUSTOM_COMMAND_SIG(query_replace){
     with.string = make_fixed_width_string(with_space);
     
     if (!query_user_string(app, &replace)) return;
+    if (replace.string.size == 0) return;
+    
     if (!query_user_string(app, &with)) return;
     
     String r, w;
@@ -567,11 +575,11 @@ CUSTOM_COMMAND_SIG(query_replace){
 CUSTOM_COMMAND_SIG(close_all_code){
     String extension;
     Buffer_Summary buffer;
-    int max, i;
 
-    max = app->get_buffer_max_index(app);
-    for (i = 0; i < max; ++i){
-        buffer = app->get_buffer(app, i);
+    for (buffer = app->get_buffer_first(app);
+        buffer.exists;
+        app->get_buffer_next(app, &buffer)){
+        
         extension = file_extension(make_string(buffer.file_name, buffer.file_name_len));
         if (match(extension, make_lit_string("cpp")) ||
                 match(extension, make_lit_string("hpp")) ||
@@ -901,6 +909,7 @@ extern "C" GET_BINDING_DATA(get_bindings){
     Bind_Helper context_actual = begin_bind_helper(data, size);
     Bind_Helper *context = &context_actual;
     
+    
     // NOTE(allen|a3.1): Right now hooks have no loyalties to maps, all hooks are
     // global and once set they always apply, regardless of what map is active.
     set_hook(context, hook_start, my_start);
@@ -921,6 +930,7 @@ extern "C" GET_BINDING_DATA(get_bindings){
     bind(context, 'o', MDFR_ALT, open_in_other);
     
     bind(context, 'm', MDFR_ALT, build_search);
+    bind(context, ',', MDFR_ALT, switch_to_compilation);
     bind(context, 'x', MDFR_ALT, execute_arbitrary_command);
     bind(context, 'z', MDFR_ALT, execute_any_cli);
     
@@ -962,6 +972,8 @@ extern "C" GET_BINDING_DATA(get_bindings){
     
     bind(context, '=', MDFR_CTRL, write_increment);
     bind(context, '-', MDFR_CTRL, write_decrement);
+    bind(context, 't', MDFR_ALT, write_allen_todo);
+    bind(context, 'n', MDFR_ALT, write_allen_note);
     bind(context, '[', MDFR_CTRL, open_long_braces);
     bind(context, '{', MDFR_CTRL, open_long_braces_semicolon);
     bind(context, '}', MDFR_CTRL, open_long_braces_break);
@@ -1039,7 +1051,7 @@ extern "C" GET_BINDING_DATA(get_bindings){
     bind(context, ' ', MDFR_SHIFT, cmdid_write_character);
     
     end_map(context);
-    
+
     end_bind_helper(context);
     
     return context->write_total;
