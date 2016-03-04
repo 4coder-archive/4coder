@@ -73,45 +73,6 @@ struct Command_Data{
 struct App_Vars{
     App_Models models;
     
-#if 0
-    Mem_Options mem;
-
-    App_Settings settings;
-
-    Command_Map map_top;
-    Command_Map map_file;
-    Command_Map map_ui;
-    Command_Map *user_maps;
-    i32 *map_id_table;
-    i32 user_map_count;
-    Command_Binding prev_command;
-
-    Coroutine *command_coroutine;
-    u32 command_coroutine_flags[2];
-
-    Custom_Command_Function *hooks[hook_type_count];
-    
-    Font_Set *font_set;
-    Style_Font global_font;
-    Style style;
-    Style_Library styles;
-    u32 *palette;
-    i32 palette_size;
-    
-    Editing_Layout layout;
-    Working_Set working_set;
-
-    char hot_dir_base_[256];
-    Hot_Directory hot_directory;
-
-    Delay delay1, delay2;
-    
-    Panel *prev_mouse_panel;
-    
-    Custom_API config_api;
-#endif
-    
-    ////////
     CLI_List cli_processes;
 
     Sys_App_Binding *sys_app_bindings;
@@ -1667,94 +1628,6 @@ COMMAND_DECL(set_settings){
 #define CLI_OverlapWithConflict (1<<0)
 #define CLI_AlwaysBindToView (2<<0)
 
-internal void
-build(
-    System_Functions *system,
-    Mem_Options *mem,
-    App_Vars *vars,
-    Working_Set *working_set,
-    Font_Set *font_set,
-    Style *style,
-    Style_Font *global_font,
-    Live_Views *live_set,
-    Exchange *exchange,
-    Panel *panel,
-    Command_Data *command,
-    String hot_directory,
-    char *buffer_name, i32 buffer_name_len,
-    char *path, i32 path_len,
-    char *script, i32 script_len,
-    u32 flags){
-    
-    if (buffer_name == 0 || path == 0 || script == 0){
-        return;
-    }
-    
-    App_Models *models = &vars->models;
-    
-    if (vars->cli_processes.count < vars->cli_processes.max){
-        Editing_Layout *layout = &models->layout;
-        Editing_File *file = working_set_contains(working_set, make_string_slowly(buffer_name));
-        i32 index;
-        b32 bind_to_new_view = 1;
-
-        if (!file){
-            Get_File_Result get_file = working_set_get_available_file(working_set);
-            file = get_file.file;
-            index = get_file.index;
-        }
-        else{
-            i32 proc_count = vars->cli_processes.count;
-            for (i32 i = 0; i < proc_count; ++i){
-                if (vars->cli_processes.procs[i].out_file == file){
-                    if (flags & CLI_OverlapWithConflict)
-                        vars->cli_processes.procs[i].out_file = 0;
-                    else file = 0;
-                    break;
-                }
-            }
-            index = (i32)(file - models->working_set.files);
-            if (file){
-                if (!(flags & CLI_AlwaysBindToView)){
-                    View *view;
-                    Panel *panel, *used_panels;
-                    used_panels = &layout->used_sentinel;
-                    for (dll_items(panel, used_panels)){
-                        view = panel->view;
-                        if (view->file == file){
-                            bind_to_new_view = 0;
-                            break;
-                        }
-                    }
-                }
-            }
-        }
-
-        if (file){
-            file_create_super_locked(system, models, file, buffer_name);
-            file->settings.unimportant = 1;
-            table_add(&working_set->table, file->name.source_path, index);
-
-            if (bind_to_new_view){
-                view_file_in_panel(command, panel, file);
-            }
-
-            i32 i = vars->cli_processes.count++;
-            CLI_Process *proc = vars->cli_processes.procs + i;
-            if (!system->cli_call(path, script, &proc->cli)){
-                --vars->cli_processes.count;
-            }
-            proc->out_file = file;
-        }
-        else{
-            // TODO(allen): feedback message - no available file
-        }
-    }
-    else{
-        // TODO(allen): feedback message - no available process slot
-    }
-}
-
 COMMAND_DECL(command_line){
     ProfileMomentFunction();
     USE_VARS(vars);
@@ -1888,18 +1761,6 @@ COMMAND_DECL(command_line){
             // TODO(allen): feedback message - no available process slot
         }
     }
-    
-#if 0
-    build(system, models->mem, vars, models->working_set,
-        models->font_set, models->style, models->global_font, live_set, exchange,
-        panel, command,
-        models->hot_directory.string,
-        buffer_name, buffer_name_len,
-        path, path_len,
-        script, script_len,
-        flags);
-#endif
-
 }
 
 internal void
@@ -3780,6 +3641,7 @@ App_Step_Sig(app_step){
                                 consumed_input2[0] = 1;
                             }
                             
+                            Assert(models->command_coroutine == 0);
                             Coroutine *command_coroutine = system->create_coroutine(command_caller);
                             models->command_coroutine = command_coroutine;
 
@@ -3787,7 +3649,6 @@ App_Step_Sig(app_step){
                             cmd_in.cmd = cmd;
                             cmd_in.bind = cmd_bind;
 
-                            Assert(models->command_coroutine == 0);
                             models->command_coroutine = system->launch_coroutine(models->command_coroutine,
                                 &cmd_in, models->command_coroutine_flags);
                             models->prev_command = cmd_bind;
