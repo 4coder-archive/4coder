@@ -1383,6 +1383,28 @@ InitializeOpenGLContext(Display *XDisplay, Window XWindow, GLXFBConfig &bestFbc,
     return(ctx);
 }
 
+internal b32
+GLXCanUseFBConfig(Display *XDisplay)
+{
+    b32 Result = false;
+
+    int GLXMajor, GLXMinor;
+
+    char *XVendor = ServerVendor(XDisplay);
+    printf("XWindows vendor: %s\n", XVendor);
+    if(glXQueryVersion(XDisplay, &GLXMajor, &GLXMinor))
+    {
+        printf("GLX version %d.%d\n", GLXMajor, GLXMinor);
+        if(((GLXMajor == 1 ) && (GLXMinor >= 3)) ||
+           (GLXMajor > 1))
+        {
+            Result = true;
+        }
+    }
+
+    return(Result);
+}
+
 typedef struct glx_config_result{
     b32 Found;
     GLXFBConfig BestConfig;
@@ -1874,7 +1896,12 @@ main(int argc, char **argv)
     }
 
     int XScreenCount = ScreenCount(linuxvars.XDisplay);
-    glx_config_result Config;
+    glx_config_result Config = {};
+
+    if(!GLXCanUseFBConfig(linuxvars.XDisplay)){
+        fprintf(stderr, "Your GLX version is too old.\n");
+        exit(1);
+    }
 
     for(int XScreenIndex = 0;
         XScreenIndex < XScreenCount;
