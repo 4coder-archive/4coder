@@ -9,7 +9,8 @@
 
 // TOP
 
-#define ArrayCount(a) (sizeof(a)/sizeof(*a))
+#define FCPP_STRING_IMPLEMENTATION
+#include "4coder_string.h"
 
 struct Struct_Field{
     char *type;
@@ -45,6 +46,11 @@ void struct_fields(FILE *file, Struct_Field *fields, int count){
 
 void struct_end(FILE *file){
     fprintf(file, "};\n\n");
+}
+
+
+void enum_begin(FILE *file, char *name){
+    fprintf(file, "enum %s{\n", name);
 }
 
 
@@ -318,6 +324,120 @@ char* generate_version(){
     return(filename);
 }
 
+//////////////////////////////////////////////////////////////////////////////////////////////////
+char* bar_style_fields[] = {
+    "bar",
+    "bar_active",
+    "base",
+    "pop1",
+    "pop2",
+};
+
+char* main_style_fields[] = {
+    "back",
+	"margin",
+	"margin_hover",
+	"margin_active",
+	"cursor",
+	"at_cursor",
+	"highlight",
+	"at_highlight",
+	"mark",
+	"default",
+	"comment",
+	"keyword",
+	"str_constant",
+	"char_constant",
+	"int_constant",
+	"float_constant",
+	"bool_constant",
+    "preproc",
+	"include",
+	"special_character",
+	"highlight_junk",
+	"highlight_white",
+    "paste",
+    "undo",
+    "next_undo",
+};
+
+static void
+do_style_tag(FILE *file, char *tag){
+    int j, is_first;
+    char *str_, c;
+    String str;
+    
+    str.memory_size = (int)strlen(tag);
+    str_ = (char*)malloc(str.memory_size + 1);
+    str = make_string(str_, 0, str.memory_size + 1);
+    copy(&str, make_string(tag, str.memory_size));
+    terminate_with_null(&str);
+
+    is_first = 1;
+    for (j = 0; j < str.size; ++j){
+        c = str.str[j];
+        if (char_is_alpha_numeric_true(c)){
+            if (is_first){
+                is_first = 0;
+                str.str[j] = char_to_upper(c);
+            }
+        }
+        else{
+            is_first = 1;
+        }
+    }
+
+    fprintf(file, "Stag_%s,\n", str.str);
+
+    free(str.str);
+}
+
+char* generate_style(){
+    char *filename = "4coder_style.h & 4ed_style.h";
+    char filename_4coder[] = "4coder_style.h";
+    char filename_4ed[] = "4ed_style.h";
+    FILE *file;
+    int count, i;
+
+    file = fopen(filename_4coder, "wb");
+    enum_begin(file, "Style_Tag");
+    {
+        count = ArrayCount(bar_style_fields);
+        for (i = 0; i < count; ++i){
+            do_style_tag(file, bar_style_fields[i]);
+        }
+        
+        count = ArrayCount(main_style_fields);
+        for (i = 0; i < count; ++i){
+            do_style_tag(file, main_style_fields[i]);
+        }
+    }
+    struct_end(file);
+    fclose(file);
+    
+    file = fopen(filename_4ed, "wb");
+    struct_begin(file, "Interactive_Style");
+    {
+        count = ArrayCount(bar_style_fields);
+        for (i = 0; i < count; ++i){
+            fprintf(file, "u32 %s_color;\n", bar_style_fields[i]);
+        }
+    }
+    struct_end(file);
+    
+    struct_begin(file, "Style_Main_Data");
+    {
+        count = ArrayCount(main_style_fields);
+        for (i = 0; i < count; ++i){
+            fprintf(file, "u32 %s_color;\n", main_style_fields[i]);
+        }
+        fprintf(file, "Interactive_Style file_info_style;\n");
+    }
+    struct_end(file);
+    fclose(file);
+    
+    return(filename);
+}
 
 int main(){
     char *filename;
@@ -329,6 +449,9 @@ int main(){
     printf("gen success: %s\n", filename);
     
     filename = generate_version();
+    printf("gen success: %s\n", filename);
+    
+    filename = generate_style();
     printf("gen success: %s\n", filename);
 }
 

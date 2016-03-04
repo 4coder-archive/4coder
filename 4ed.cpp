@@ -230,33 +230,6 @@ COMMAND_DECL(seek_whitespace_right){
     view_cursor_move(view, pos);
 }
 
-COMMAND_DECL(seek_whitespace_left){
-    ProfileMomentFunction();
-    REQ_READABLE_VIEW(view);
-    REQ_FILE(file, view);
-
-    i32 pos = buffer_seek_whitespace_left(&file->state.buffer, view->cursor.pos);
-    view_cursor_move(view, pos);
-}
-
-COMMAND_DECL(seek_whitespace_up){
-    ProfileMomentFunction();
-    REQ_READABLE_VIEW(view);
-    REQ_FILE(file, view);
-
-    i32 pos = buffer_seek_whitespace_up(&file->state.buffer, view->cursor.pos);
-    view_cursor_move(view, pos);
-}
-
-COMMAND_DECL(seek_whitespace_down){
-    ProfileMomentFunction();
-    REQ_READABLE_VIEW(view);
-    REQ_FILE(file, view);
-
-    i32 pos = buffer_seek_whitespace_down(&file->state.buffer, view->cursor.pos);
-    view_cursor_move(view, pos);
-}
-
 internal i32
 seek_token_left(Cpp_Token_Stack *tokens, i32 pos){
     Cpp_Get_Token_Result get = cpp_get_token(tokens, pos);
@@ -284,6 +257,141 @@ seek_token_right(Cpp_Token_Stack *tokens, i32 pos){
 
     Cpp_Token *token = tokens->tokens + get.token_index;
     return token->start + token->size;
+}
+
+COMMAND_DECL(seek_left){
+    ProfileMomentFunction();
+    REQ_READABLE_VIEW(view);
+    REQ_FILE(file, view);
+    
+    u32 flags = BoundryWhitespace;
+    
+    Command_Parameter *end = param_stack_end(&command->part);
+    Command_Parameter *param = param_stack_first(&command->part, end);
+    for (; param < end; param = param_next(param, end)){
+        int p = dynamic_to_int(&param->param.param);
+        switch (p){
+            case par_flags:
+            flags = dynamic_to_int(&param->param.value);
+            break;
+        }
+    }
+    
+    i32 pos[4] = {0};
+
+    if (flags & (1)){
+        pos[0] = buffer_seek_whitespace_left(&file->state.buffer, view->cursor.pos);
+    }
+    
+    if (flags & (1 << 1)){
+        if (file->state.tokens_complete){
+            pos[1] = seek_token_left(&file->state.token_stack, view->cursor.pos);
+        }
+        else{
+            pos[1] = buffer_seek_whitespace_left(&file->state.buffer, view->cursor.pos);
+        }
+    }
+
+    if (flags & (1 << 2)){
+        pos[2] = buffer_seek_alphanumeric_left(&file->state.buffer, view->cursor.pos);
+        if (flags & (1 << 3)){
+            pos[3] = buffer_seek_range_camel_left(&file->state.buffer, view->cursor.pos, pos[2]);
+        }
+    }
+    else{
+        if (flags & (1 << 3)){
+            pos[3] = buffer_seek_alphanumeric_or_camel_left(&file->state.buffer, view->cursor.pos);
+        }
+    }
+    
+    i32 new_pos = 0;
+    for (i32 i = 0; i < ArrayCount(pos); ++i){
+        if (pos[i] > new_pos) new_pos = pos[i];
+    }
+    
+    view_cursor_move(view, new_pos);
+}
+
+COMMAND_DECL(seek_right){
+    ProfileMomentFunction();
+    REQ_READABLE_VIEW(view);
+    REQ_FILE(file, view);
+    
+    u32 flags = BoundryWhitespace;
+    
+    Command_Parameter *end = param_stack_end(&command->part);
+    Command_Parameter *param = param_stack_first(&command->part, end);
+    for (; param < end; param = param_next(param, end)){
+        int p = dynamic_to_int(&param->param.param);
+        switch (p){
+            case par_flags:
+            flags = dynamic_to_int(&param->param.value);
+            break;
+        }
+    }
+    
+    i32 size = buffer_size(&file->state.buffer);
+    i32 pos[4];
+    for (i32 i = 0; i < ArrayCount(pos); ++i) pos[i] = size;
+    
+    if (flags & (1)){
+        pos[0] = buffer_seek_whitespace_right(&file->state.buffer, view->cursor.pos);
+    }
+    
+    if (flags & (1 << 1)){
+        if (file->state.tokens_complete){
+            pos[1] = seek_token_right(&file->state.token_stack, view->cursor.pos);
+        }
+        else{
+            pos[1] = buffer_seek_whitespace_right(&file->state.buffer, view->cursor.pos);
+        }
+    }
+
+    if (flags & (1 << 2)){
+        pos[2] = buffer_seek_alphanumeric_right(&file->state.buffer, view->cursor.pos);
+        if (flags & (1 << 3)){
+            pos[3] = buffer_seek_range_camel_right(&file->state.buffer, view->cursor.pos, pos[2]);
+        }
+    }
+    else{
+        if (flags & (1 << 3)){
+            pos[3] = buffer_seek_alphanumeric_or_camel_right(&file->state.buffer, view->cursor.pos);
+        }
+    }
+    
+    i32 new_pos = size;
+    for (i32 i = 0; i < ArrayCount(pos); ++i){
+        if (pos[i] < new_pos) new_pos = pos[i];
+    }
+    
+    view_cursor_move(view, new_pos);
+}
+
+COMMAND_DECL(seek_whitespace_left){
+    ProfileMomentFunction();
+    REQ_READABLE_VIEW(view);
+    REQ_FILE(file, view);
+
+    i32 pos = buffer_seek_whitespace_left(&file->state.buffer, view->cursor.pos);
+    view_cursor_move(view, pos);
+}
+
+COMMAND_DECL(seek_whitespace_up){
+    ProfileMomentFunction();
+    REQ_READABLE_VIEW(view);
+    REQ_FILE(file, view);
+
+    i32 pos = buffer_seek_whitespace_up(&file->state.buffer, view->cursor.pos);
+    view_cursor_move(view, pos);
+}
+
+COMMAND_DECL(seek_whitespace_down){
+    ProfileMomentFunction();
+    REQ_READABLE_VIEW(view);
+    REQ_FILE(file, view);
+
+    i32 pos = buffer_seek_whitespace_down(&file->state.buffer, view->cursor.pos);
+    view_cursor_move(view, pos);
 }
 
 COMMAND_DECL(seek_token_left){
@@ -1676,7 +1784,7 @@ COMMAND_DECL(command_line){
                 }
             }break;
 
-            case par_cli_flags:
+            case par_flags:
             {
                 flags = (u32)dynamic_to_int(&param->param.value);
             }break;
@@ -1814,6 +1922,8 @@ fill_buffer_summary(Buffer_Summary *buffer, Editing_File *file, Working_Set *wor
 
 internal void
 fill_view_summary(View_Summary *view, View *vptr, Live_Views *live_set, Working_Set *working_set){
+    i32 lock_level;
+    int buffer_id;
     *view = {};
 
     if (vptr->in_use){
@@ -1823,7 +1933,30 @@ fill_view_summary(View_Summary *view, View *vptr, Live_Views *live_set, Working_
         view->unwrapped_lines = vptr->unwrapped_lines;
 
         if (vptr->file){
-            view->buffer_id = (int)(vptr->file - working_set->files);
+            lock_level = view_lock_level(vptr);
+            buffer_id = (int)(vptr->file - working_set->files);
+            
+            if (lock_level <= 0){
+                view->buffer_id = buffer_id;
+            }
+            else{
+                view->buffer_id = 0;
+            }
+            
+            if (lock_level <= 1){
+                view->locked_buffer_id = buffer_id;
+            }
+            else{
+                view->locked_buffer_id = 0;
+            }
+            
+            if (lock_level <= 2){
+                view->hidden_buffer_id = buffer_id;
+            }
+            else{
+                view->hidden_buffer_id = 0;
+            }
+            
             view->mark = view_compute_cursor_from_pos(vptr, vptr->mark);
             view->cursor = vptr->cursor;
             view->preferred_x = vptr->preferred_x;
@@ -1938,12 +2071,14 @@ extern "C"{
     GET_ACTIVE_BUFFER_SIG(external_get_active_buffer){
         Command_Data *cmd = (Command_Data*)app->cmd_context;
         Buffer_Summary buffer = {};
+        View *view = cmd->view;
         Editing_File *file;
         
-        file = cmd->view->file;
-        
-        if (file){
-            fill_buffer_summary(&buffer, file, &cmd->models->working_set);
+        if (view_lock_level(view) <= LockLevel_Open){
+            file = view->file;
+            if (file){
+                fill_buffer_summary(&buffer, file, &cmd->models->working_set);
+            }
         }
         
         return(buffer);
@@ -1979,13 +2114,6 @@ extern "C"{
         return(buffer);
     }
 
-    REFRESH_BUFFER_SIG(external_refresh_buffer){
-        int result;
-        *buffer = external_get_buffer(app, buffer->buffer_id);
-        result = buffer->exists;
-        return(result);
-    }
-
     BUFFER_SEEK_DELIMITER_SIG(external_buffer_seek_delimiter){
         Command_Data *cmd = (Command_Data*)app->cmd_context;
         Editing_File *file;
@@ -2019,7 +2147,6 @@ extern "C"{
     }
 
     BUFFER_SEEK_STRING_SIG(external_buffer_seek_string){
-        
         Command_Data *cmd = (Command_Data*)app->cmd_context;
         App_Models *models;
         Editing_File *file;
@@ -2056,6 +2183,13 @@ extern "C"{
             }
         }
 
+        return(result);
+    }
+
+    REFRESH_BUFFER_SIG(external_refresh_buffer){
+        int result;
+        *buffer = external_get_buffer(app, buffer->buffer_id);
+        result = buffer->exists;
         return(result);
     }
 
@@ -2458,6 +2592,8 @@ setup_command_table(){
 
     SET(null);
     SET(write_character);
+    SET(seek_left);
+    SET(seek_right);
     SET(seek_whitespace_right);
     SET(seek_whitespace_left);
     SET(seek_whitespace_up);
@@ -3657,69 +3793,6 @@ App_Step_Sig(app_step){
     
     ProfileEnd(command_coroutine);
     
-    // NOTE(allen): command execution
-    ProfileStart(command);
-    if (!consumed_input[0] || !consumed_input[1]){
-        b32 consumed_input2[2] = {0};
-
-        for (i32 key_i = 0; key_i < key_data.count; ++key_i){
-            if (models->command_coroutine != 0) break;
-            
-            switch (vars->state){
-                case APP_STATE_EDIT:
-                {
-                    Key_Event_Data key = get_single_key(&key_data, key_i);
-                    b32 hit_esc = (key.keycode == key_esc);
-                    cmd->key = key;
-
-                    if (hit_esc || !consumed_input[0]){
-                        View *view = cmd->view;
-
-                        Command_Map *map = 0;
-                        if (view) map = view->map;
-                        if (map == 0) map = &models->map_top;
-                        Command_Binding cmd_bind = map_extract_recursive(map, key);
-
-                        if (cmd_bind.function){
-                            if (hit_esc){
-                                consumed_input2[1] = 1;
-                            }
-                            else{
-                                consumed_input2[0] = 1;
-                            }
-                            
-                            Assert(models->command_coroutine == 0);
-                            Coroutine *command_coroutine = system->create_coroutine(command_caller);
-                            models->command_coroutine = command_coroutine;
-
-                            Command_In cmd_in;
-                            cmd_in.cmd = cmd;
-                            cmd_in.bind = cmd_bind;
-
-                            models->command_coroutine = system->launch_coroutine(models->command_coroutine,
-                                &cmd_in, models->command_coroutine_flags);
-                            models->prev_command = cmd_bind;
-                            app_result.redraw = 1;
-                        }
-                    }
-                }break;
-
-                case APP_STATE_RESIZING:
-                {
-                    if (key_data.count > 0){
-                        vars->state = APP_STATE_EDIT;
-                    }
-                }break;
-            }
-        }
-
-        consumed_input[0] |= consumed_input2[0];
-        consumed_input[1] |= consumed_input2[1];
-    }
-    
-    update_command_data(vars, cmd);
-    ProfileEnd(command);
-    
     // NOTE(allen): pass raw input to the panels
     ProfileStart(step);
 
@@ -3783,6 +3856,69 @@ App_Step_Sig(app_step){
     
     update_command_data(vars, cmd);
     ProfileEnd(step);
+    
+    // NOTE(allen): command execution
+    ProfileStart(command);
+    if (!consumed_input[0] || !consumed_input[1]){
+        b32 consumed_input2[2] = {0};
+
+        for (i32 key_i = 0; key_i < key_data.count; ++key_i){
+            if (models->command_coroutine != 0) break;
+            
+            switch (vars->state){
+                case APP_STATE_EDIT:
+                {
+                    Key_Event_Data key = get_single_key(&key_data, key_i);
+                    b32 hit_esc = (key.keycode == key_esc);
+                    cmd->key = key;
+
+                    if (hit_esc || !consumed_input[0]){
+                        View *view = cmd->view;
+
+                        Command_Map *map = 0;
+                        if (view) map = view->map;
+                        if (map == 0) map = &models->map_top;
+                        Command_Binding cmd_bind = map_extract_recursive(map, key);
+
+                        if (cmd_bind.function){
+                            if (hit_esc){
+                                consumed_input2[1] = 1;
+                            }
+                            else{
+                                consumed_input2[0] = 1;
+                            }
+                            
+                            Assert(models->command_coroutine == 0);
+                            Coroutine *command_coroutine = system->create_coroutine(command_caller);
+                            models->command_coroutine = command_coroutine;
+
+                            Command_In cmd_in;
+                            cmd_in.cmd = cmd;
+                            cmd_in.bind = cmd_bind;
+
+                            models->command_coroutine = system->launch_coroutine(models->command_coroutine,
+                                &cmd_in, models->command_coroutine_flags);
+                            models->prev_command = cmd_bind;
+                            app_result.redraw = 1;
+                        }
+                    }
+                }break;
+
+                case APP_STATE_RESIZING:
+                {
+                    if (key_data.count > 0){
+                        vars->state = APP_STATE_EDIT;
+                    }
+                }break;
+            }
+        }
+
+        consumed_input[0] |= consumed_input2[0];
+        consumed_input[1] |= consumed_input2[1];
+    }
+    
+    update_command_data(vars, cmd);
+    ProfileEnd(command);
     
     ProfileStart(resizing);
     // NOTE(allen): panel resizing

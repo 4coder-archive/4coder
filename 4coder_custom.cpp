@@ -191,6 +191,28 @@ CUSTOM_COMMAND_SIG(backspace_word){
     app->buffer_replace_range(app, &buffer, pos1, pos2, 0, 0);
 }
 
+CUSTOM_COMMAND_SIG(snipe_token_or_word){
+    View_Summary view;
+    Buffer_Summary buffer;
+    int pos1, pos2;
+    
+    view = app->get_active_view(app);
+    
+    push_parameter(app, par_flags, BoundryToken | BoundryWhitespace);
+    exec_command(app, cmdid_seek_left);
+    app->refresh_view(app, &view);
+    pos1 = view.cursor.pos;
+    
+    push_parameter(app, par_flags, BoundryToken | BoundryWhitespace);
+    exec_command(app, cmdid_seek_right);
+    app->refresh_view(app, &view);
+    pos2 = view.cursor.pos;
+    
+    Range range = make_range(pos1, pos2);
+    buffer = app->get_buffer(app, view.buffer_id);
+    app->buffer_replace_range(app, &buffer, range.start, range.end, 0, 0);
+}
+
 CUSTOM_COMMAND_SIG(switch_to_compilation){
     View_Summary view;
     Buffer_Summary buffer;
@@ -647,7 +669,7 @@ CUSTOM_COMMAND_SIG(execute_any_cli){
     hot_directory = make_fixed_width_string(even_more_space);
     hot_directory.size = app->directory_get_hot(app, hot_directory.str, hot_directory.memory_size);
     
-    push_parameter(app, par_cli_flags, CLI_OverlapWithConflict);
+    push_parameter(app, par_flags, CLI_OverlapWithConflict);
     push_parameter(app, par_name, bar_out.string.str, bar_out.string.size);
     push_parameter(app, par_cli_path, hot_directory.str, hot_directory.size);
     push_parameter(app, par_cli_command, bar_cmd.string.str, bar_cmd.string.size);
@@ -734,7 +756,7 @@ CUSTOM_COMMAND_SIG(build_at_launch_location){
     // An example of calling build by setting all
     // parameters directly. This only works if build.bat can be called
     // from the directory the application is launched at.
-    push_parameter(app, par_cli_flags, CLI_OverlapWithConflict);
+    push_parameter(app, par_flags, CLI_OverlapWithConflict);
     push_parameter(app, par_name, literal("*compilation*"));
     push_parameter(app, par_cli_path, literal("."));
     push_parameter(app, par_cli_command, literal("build"));
@@ -751,7 +773,7 @@ CUSTOM_COMMAND_SIG(build_search){
     //
     // Step 2: app->file_exists queries the file system to see if "<somedir>/build.bat" exists.
     // If it does exist several parameters are pushed and cmdid_command_line is executed:
-    //   - par_cli_flags: flags for specifiying behaviors
+    //   - par_flags: flags for specifiying behaviors
     //        CLI_OverlapWithConflict - (on by default) if another CLI is still using the output buffer
     //        that process is detached from the buffer and this process executes outputing to the buffer
     //        CLI_AlwaysBindToView - if set, the current view always switches to the output buffer
@@ -789,7 +811,7 @@ CUSTOM_COMMAND_SIG(build_search){
         if (app->file_exists(app, dir.str, dir.size)){
             dir.size = old_size;
             
-            push_parameter(app, par_cli_flags, 0);
+            push_parameter(app, par_flags, 0);
             push_parameter(app, par_name, literal("*compilation*"));
             push_parameter(app, par_cli_path, dir.str, dir.size);
             
@@ -1012,6 +1034,7 @@ extern "C" GET_BINDING_DATA(get_bindings){
     bind(context, key_down, MDFR_ALT, move_down_10);
     
     bind(context, key_back, MDFR_CTRL, backspace_word);
+    bind(context, key_back, MDFR_ALT, snipe_token_or_word);
     
     bind(context, ' ', MDFR_CTRL, cmdid_set_mark);
     bind(context, 'm', MDFR_CTRL, cmdid_cursor_mark_swap);

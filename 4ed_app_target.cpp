@@ -38,10 +38,11 @@
 #include "4ed_font_set.cpp"
 #include "4ed_rendering_helper.cpp"
 
+#include "4ed_style.h"
+#include "4ed_style.cpp"
 #include "4ed_template.cpp"
 #include "4ed_exchange.cpp"
 #include "4ed_command.cpp"
-#include "4ed_style.cpp"
 #include "4ed_file.cpp"
 #include "4ed_gui.cpp"
 #include "4ed_layout.cpp"

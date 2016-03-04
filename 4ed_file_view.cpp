@@ -2778,7 +2778,7 @@ theme_library_shit(System_Functions *system, Exchange *exchange,
             begin_row(ui.layout, 3);
             if (ui.state->style->name.size >= 1){
                 if (do_button(-2, ui.state, ui.layout, "Save", 2)){
-                    style_library_add(ui.styles, ui.state->style);
+                    //style_library_add(ui.styles, ui.state->style);
                 }
             }
             else{
@@ -2943,7 +2943,7 @@ theme_library_shit(System_Functions *system, Exchange *exchange,
             if (do_button(-2, ui.state, ui.layout, "Finish Import", 2)){
                 Style *style = styles;
                 for (i32 i = 0; i < style_count; ++i, ++style){
-                    if (import_check[i]) style_library_add(ui.styles, style);
+                    //if (import_check[i]) style_library_add(ui.styles, style);
                 }
                 view->color_mode = CV_Mode_Library;
             }

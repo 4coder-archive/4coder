@@ -9,6 +9,25 @@
 
 // TOP
 
+struct Interactive_Bar{
+    f32 pos_x, pos_y;
+    f32 text_shift_x, text_shift_y;
+    i32_Rect rect;
+    i16 font_id;
+};
+
+internal void
+intbar_draw_string(Render_Target *target, Interactive_Bar *bar,
+                   String str, u32 char_color){
+    i16 font_id = bar->font_id;
+    
+    draw_string(target, font_id, str,
+        (i32)(bar->pos_x + bar->text_shift_x),
+        (i32)(bar->pos_y + bar->text_shift_y),
+        char_color);
+    bar->pos_x += font_string_width(target, font_id, str);
+}
+
 #include "buffer/4coder_shared.cpp"
 
 #if BUFFER_EXPERIMENT_SCALPEL == 0

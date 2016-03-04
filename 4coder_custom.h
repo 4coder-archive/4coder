@@ -1,6 +1,7 @@
 
 #include "4coder_version.h"
 #include "4coder_keycodes.h"
+#include "4coder_style.h"
 #include "4coder_buffer_types.h"
 
 #ifndef FRED_STRING_STRUCT
@@ -161,6 +162,8 @@ typedef struct File_List{
 enum Command_ID{
     cmdid_null,
     cmdid_write_character,
+    cmdid_seek_left,
+    cmdid_seek_right,
     cmdid_seek_whitespace_right,
     cmdid_seek_whitespace_left,
     cmdid_seek_whitespace_up,
@@ -233,12 +236,12 @@ enum Param_ID{
     par_name,
     par_buffer_id,
     par_do_in_background,
+    par_flags,
     par_lex_as_cpp_file,
     par_wrap_lines,
     par_key_mapid,
     par_cli_path,
     par_cli_command,
-    par_cli_flags,
     par_clear_blank_lines,
     // never below this
     par_type_count
@@ -286,6 +289,8 @@ struct View_Summary{
     int exists;
     int view_id;
     int buffer_id;
+    int locked_buffer_id;
+    int hidden_buffer_id;
     
     Full_Cursor cursor;
     Full_Cursor mark;
@@ -350,9 +355,10 @@ struct Application_Links;
 #define GET_PARAMETER_BUFFER_SIG(name) Buffer_Summary name(Application_Links *app, int param_index)
 #define GET_BUFFER_BY_NAME(name) Buffer_Summary name(Application_Links *app, char *filename, int len)
 
-#define REFRESH_BUFFER_SIG(name) int name(Application_Links *app, Buffer_Summary *buffer)
 #define BUFFER_SEEK_DELIMITER_SIG(name) int name(Application_Links *app, Buffer_Summary *buffer, int start, char delim, int seek_forward, int *out)
 #define BUFFER_SEEK_STRING_SIG(name) int name(Application_Links *app, Buffer_Summary *buffer, int start, char *str, int len, int seek_forward, int *out)
+
+#define REFRESH_BUFFER_SIG(name) int name(Application_Links *app, Buffer_Summary *buffer)
 #define BUFFER_READ_RANGE_SIG(name) int name(Application_Links *app, Buffer_Summary *buffer, int start, int end, char *out)
 #define BUFFER_REPLACE_RANGE_SIG(name) int name(Application_Links *app, Buffer_Summary *buffer, int start, int end, char *str, int len)
 #define BUFFER_SET_POS_SIG(name) int name(Application_Links *app, Buffer_Summary *buffer, int pos)
@@ -371,6 +377,23 @@ struct Application_Links;
 #define VIEW_SET_BUFFER_SIG(name) int name(Application_Links *app, View_Summary *view, int buffer_id)
 
 // Directly get user input
+#define GET_USER_INPUT_SIG(name) User_Input name(Application_Links *context, unsigned int get_type, unsigned int abort_type)
+
+// Queries
+#define START_QUERY_BAR_SIG(name) int name(Application_Links *context, Query_Bar *bar, unsigned int flags)
+#define END_QUERY_BAR_SIG(name) void name(Application_Links *context, Query_Bar *bar, unsigned int flags)
+
+
+
+// Boundry type flags
+#define BoundryWhitespace 0x1
+#define BoundryToken 0x2
+#define BoundryAlphanumeric 0x4
+#define BoundryCamelCase 0x8
+
+
+
+// Input type flags
 #define EventOnAnyKey 0x1
 #define EventOnEsc 0x2
 #define EventOnLeftButton 0x4
@@ -382,11 +405,7 @@ struct Application_Links;
 #define EventOnMouseMove 0x20
 #define EventOnMouse (EventOnButton | EventOnMouseMove)
 
-#define GET_USER_INPUT_SIG(name) User_Input name(Application_Links *context, unsigned int get_type, unsigned int abort_type)
 
-// Queries
-#define START_QUERY_BAR_SIG(name) int name(Application_Links *context, Query_Bar *bar, unsigned int flags)
-#define END_QUERY_BAR_SIG(name) void name(Application_Links *context, Query_Bar *bar, unsigned int flags)
 
 extern "C"{
     // Command exectuion
@@ -411,9 +430,10 @@ extern "C"{
     typedef GET_PARAMETER_BUFFER_SIG(Get_Parameter_Buffer_Function);
     typedef GET_BUFFER_BY_NAME(Get_Buffer_By_Name_Function);
     
-    typedef REFRESH_BUFFER_SIG(Refresh_Buffer_Function);
     typedef BUFFER_SEEK_DELIMITER_SIG(Buffer_Seek_Delimiter_Function);
     typedef BUFFER_SEEK_STRING_SIG(Buffer_Seek_String_Function);
+    
+    typedef REFRESH_BUFFER_SIG(Refresh_Buffer_Function);
     typedef BUFFER_READ_RANGE_SIG(Buffer_Read_Range_Function);
     typedef BUFFER_REPLACE_RANGE_SIG(Buffer_Replace_Range_Function);
     typedef BUFFER_SET_POS_SIG(Buffer_Set_Pos_Function);
@@ -466,9 +486,10 @@ struct Application_Links{
     Get_Parameter_Buffer_Function *get_parameter_buffer;
     Get_Buffer_By_Name_Function *get_buffer_by_name;
     
-    Refresh_Buffer_Function *refresh_buffer;
     Buffer_Seek_Delimiter_Function *buffer_seek_delimiter;
     Buffer_Seek_String_Function *buffer_seek_string;
+    
+    Refresh_Buffer_Function *refresh_buffer;
     Buffer_Read_Range_Function *buffer_read_range;
     Buffer_Replace_Range_Function *buffer_replace_range;
     Buffer_Set_Pos_Function *buffer_set_pos;
