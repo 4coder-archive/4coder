@@ -127,6 +127,9 @@ struct Linux_Vars{
    
     Atom atom_CLIPBOARD;
     Atom atom_UTF8_STRING;
+    Atom atom_NET_WM_STATE;
+    Atom atom_NET_WM_STATE_MAXIMIZED_HORZ;
+    Atom atom_NET_WM_STATE_MAXIMIZED_VERT;
 
 	b32 has_xfixes;
 	int xfixes_selection_event;
@@ -1381,10 +1384,10 @@ InitializeOpenGLContext(Display *XDisplay, Window XWindow, GLXFBConfig &bestFbc,
 }
 
 internal b32
-GLXSupportsModernContexts(Display *XDisplay)
+GLXCanUseFBConfig(Display *XDisplay)
 {
     b32 Result = false;
-    
+
     int GLXMajor, GLXMinor;
 
     char *XVendor = ServerVendor(XDisplay);
@@ -1684,6 +1687,32 @@ static void push_key(u8 code, u8 chr, u8 chr_nocaps, b8 (*mods)[MDFR_INDEX_COUNT
 	}
 }
 
+internal void
+LinuxMaximizeWindow(Display* d, Window w, b32 maximize){
+    //NOTE(inso): this will only work after it is mapped
+    
+    enum { STATE_REMOVE, STATE_ADD, STATE_TOGGLE };
+
+    XEvent e = {};
+
+    e.xany.type = ClientMessage;
+    e.xclient.message_type = linuxvars.atom_NET_WM_STATE;
+    e.xclient.format = 32;
+    e.xclient.window = w;
+    e.xclient.data.l[0] = maximize ? STATE_ADD : STATE_REMOVE;
+    e.xclient.data.l[1] = linuxvars.atom_NET_WM_STATE_MAXIMIZED_VERT;
+    e.xclient.data.l[2] = linuxvars.atom_NET_WM_STATE_MAXIMIZED_HORZ;
+    e.xclient.data.l[3] = 0L;
+
+    XSendEvent(
+        d,
+        RootWindow(d, 0),
+        0,
+        SubstructureNotifyMask | SubstructureRedirectMask,
+        &e
+    );
+}
+
 int
 main(int argc, char **argv)
 {
@@ -1696,7 +1725,9 @@ main(int argc, char **argv)
     linuxvars.internal_bubble.prev = &linuxvars.internal_bubble;
     linuxvars.internal_bubble.flags = MEM_BUBBLE_SYS_DEBUG;
 #endif
-    
+
+    linuxvars.first = 1;
+
     if (!LinuxLoadAppCode()){
         // TODO(allen): Failed to load app code, serious problem.
         return 99;
@@ -1772,6 +1803,11 @@ main(int argc, char **argv)
     
     linuxvars.XDisplay = XOpenDisplay(0);
 
+    if(!linuxvars.XDisplay){
+        fprintf(stderr, "Can't open display!");
+        return 1;
+    }
+
     keycode_init(linuxvars.XDisplay);
 
 #ifdef FRED_SUPER
@@ -1838,11 +1874,10 @@ main(int argc, char **argv)
     
     File_Slot file_slots[32];
     sysshared_init_file_exchange(&exchange_vars, file_slots, ArrayCount(file_slots), 0);
-    
+
     Font_Load_Parameters params[8];
     sysshared_init_font_params(&linuxvars.fnt, params, ArrayCount(params));
     
-
     
     // NOTE(allen): Here begins the linux screen setup stuff.
     // Behold the true nature of this wonderful OS:
@@ -1852,105 +1887,165 @@ main(int argc, char **argv)
     int WinWidth, WinHeight;
     b32 window_setup_success = 0;
 
-    WinWidth = 800;
-    WinHeight = 600;
+    if (linuxvars.settings.set_window_size){
+        WinWidth = linuxvars.settings.window_w;
+        WinHeight = linuxvars.settings.window_h;
+    } else {
+        WinWidth = 800;
+        WinHeight = 600;
+    }
 
-    if(linuxvars.XDisplay && GLXSupportsModernContexts(linuxvars.XDisplay))
+    int XScreenCount = ScreenCount(linuxvars.XDisplay);
+    glx_config_result Config = {};
+
+    if(!GLXCanUseFBConfig(linuxvars.XDisplay)){
+        fprintf(stderr, "Your GLX version is too old.\n");
+        exit(1);
+    }
+
+    for(int XScreenIndex = 0;
+        XScreenIndex < XScreenCount;
+        ++XScreenIndex)
     {
-        int XScreenCount = ScreenCount(linuxvars.XDisplay);
-        for(int XScreenIndex = 0;
-            XScreenIndex < XScreenCount;
-            ++XScreenIndex)
+        Screen *XScreen = ScreenOfDisplay(linuxvars.XDisplay, XScreenIndex);
+
+        i32 ScrnWidth, ScrnHeight;
+        ScrnWidth = WidthOfScreen(XScreen);
+        ScrnHeight = HeightOfScreen(XScreen);
+
+        if (ScrnWidth + 50 < WinWidth) WinWidth = ScrnWidth + 50;
+        if (ScrnHeight + 50 < WinHeight) WinHeight = ScrnHeight + 50;
+
+        Config = ChooseGLXConfig(linuxvars.XDisplay, XScreenIndex);
+        if(Config.Found)
         {
-            Screen *XScreen = ScreenOfDisplay(linuxvars.XDisplay, XScreenIndex);
+            swa.colormap = cmap = XCreateColormap(linuxvars.XDisplay,
+                                                  RootWindow(linuxvars.XDisplay, Config.BestInfo.screen ), 
+                                                  Config.BestInfo.visual, AllocNone);
+            swa.background_pixmap = None;
+            swa.border_pixel = 0;
+            swa.event_mask = StructureNotifyMask;
 
-            i32 ScrnWidth, ScrnHeight;
-            ScrnWidth = WidthOfScreen(XScreen);
-            ScrnHeight = HeightOfScreen(XScreen);
-            
-            if (ScrnWidth + 50 < WinWidth) WinWidth = ScrnWidth + 50;
-            if (ScrnHeight + 50 < WinHeight) WinHeight = ScrnHeight + 50;
-            
-            glx_config_result Config = ChooseGLXConfig(linuxvars.XDisplay, XScreenIndex);
-            if(Config.Found)
+            linuxvars.XWindow =
+            XCreateWindow(linuxvars.XDisplay,
+                          RootWindow(linuxvars.XDisplay, Config.BestInfo.screen),
+                          0, 0, WinWidth, WinHeight,
+                          0, Config.BestInfo.depth, InputOutput, 
+                          Config.BestInfo.visual, 
+                          CWBorderPixel|CWColormap|CWEventMask, &swa );
+
+            if(linuxvars.XWindow)
             {
-                swa.colormap = cmap = XCreateColormap(linuxvars.XDisplay,
-                                                      RootWindow(linuxvars.XDisplay, Config.BestInfo.screen ), 
-                                                      Config.BestInfo.visual, AllocNone);
-                swa.background_pixmap = None;
-                swa.border_pixel = 0;
-                swa.event_mask = StructureNotifyMask;
- 
-                linuxvars.XWindow =
-                    XCreateWindow(linuxvars.XDisplay,
-                                  RootWindow(linuxvars.XDisplay, Config.BestInfo.screen),
-                                  0, 0, WinWidth, WinHeight,
-                                  0, Config.BestInfo.depth, InputOutput, 
-                                  Config.BestInfo.visual, 
-                                  CWBorderPixel|CWColormap|CWEventMask, &swa );
-                
-                if(linuxvars.XWindow)
-                {
-                    XStoreName(linuxvars.XDisplay, linuxvars.XWindow, "4coder-window");
-
-                    Atom _NET_WM_WINDOW_TYPE = XInternAtom(linuxvars.XDisplay, "_NET_WM_WINDOW_TYPE", False);
-                    Atom _NET_WIN_TYPE_NORMAL = XInternAtom(linuxvars.XDisplay, "_NET_WM_WINDOW_TYPE_NORMAL", False);
-                    XChangeProperty(
-                        linuxvars.XDisplay,
-                        linuxvars.XWindow,
-                        _NET_WM_WINDOW_TYPE,
-                        XA_ATOM,
-                        32,
-                        PropModeReplace,
-                        (unsigned char*)&_NET_WIN_TYPE_NORMAL,
-                        1
-                    );
-
-                    Atom _NET_WM_PID = XInternAtom(linuxvars.XDisplay, "_NET_WM_PID", False);
-                    pid_t pid = getpid();
-                    XChangeProperty(
-                        linuxvars.XDisplay,
-                        linuxvars.XWindow,
-                        _NET_WM_PID,
-                        XA_CARDINAL,
-                        32,
-                        PropModeReplace,
-                        (unsigned char*)&pid,
-                        1
-                    );
-
-                    XMapWindow(linuxvars.XDisplay, linuxvars.XWindow);
-
-                    Init_Input_Result input_result = 
-                    InitializeXInput(linuxvars.XDisplay, linuxvars.XWindow);
-
-                    linuxvars.input_method = input_result.input_method;
-                    linuxvars.input_style = input_result.best_style;
-                    linuxvars.input_context = input_result.xic;
-
-                    b32 IsLegacy = false;
-                    GLXContext GLContext =
-                    InitializeOpenGLContext(linuxvars.XDisplay, linuxvars.XWindow, Config.BestConfig, IsLegacy);
-
-                    XWindowAttributes WinAttribs;
-                    if(XGetWindowAttributes(linuxvars.XDisplay, linuxvars.XWindow, &WinAttribs))
-                    {
-                        WinWidth = WinAttribs.width;
-                        WinHeight = WinAttribs.height;
-                    }
-
-                    XRaiseWindow(linuxvars.XDisplay, linuxvars.XWindow);
-                    XSync(linuxvars.XDisplay, False);
-
-                    window_setup_success = 1;
-                }
+                window_setup_success = 1;
+                break;
             }
         }
     }
-    
+
     if (!window_setup_success){
         fprintf(stderr, "Error creating window.");
         exit(1);
+    }
+
+    //NOTE(inso): Set the window's type to normal
+    Atom _NET_WM_WINDOW_TYPE = XInternAtom(linuxvars.XDisplay, "_NET_WM_WINDOW_TYPE", False);
+    Atom _NET_WIN_TYPE_NORMAL = XInternAtom(linuxvars.XDisplay, "_NET_WM_WINDOW_TYPE_NORMAL", False);
+    XChangeProperty(
+        linuxvars.XDisplay,
+        linuxvars.XWindow,
+        _NET_WM_WINDOW_TYPE,
+        XA_ATOM,
+        32,
+        PropModeReplace,
+        (unsigned char*)&_NET_WIN_TYPE_NORMAL,
+        1
+    );
+
+    //NOTE(inso): window managers want the PID as a window property for some reason.
+    Atom _NET_WM_PID = XInternAtom(linuxvars.XDisplay, "_NET_WM_PID", False);
+    pid_t pid = getpid();
+    XChangeProperty(
+        linuxvars.XDisplay,
+        linuxvars.XWindow,
+        _NET_WM_PID,
+        XA_CARDINAL,
+        32,
+        PropModeReplace,
+        (unsigned char*)&pid,
+        1
+    );
+
+    //NOTE(inso): set wm properties
+    XStoreName(linuxvars.XDisplay, linuxvars.XWindow, "4coder-window");
+
+    char* win_name_list[] = { "4coder" };
+    XTextProperty win_name;
+
+    XStringListToTextProperty(win_name_list, 1, &win_name);
+
+    XSizeHints *sz_hints = XAllocSizeHints();
+    XWMHints   *wm_hints = XAllocWMHints();
+    XClassHint *cl_hints = XAllocClassHint();
+
+    if(linuxvars.settings.set_window_pos){
+        sz_hints->flags |= USPosition;
+        sz_hints->x = linuxvars.settings.window_x;
+        sz_hints->y = linuxvars.settings.window_y;
+    }
+
+    wm_hints->flags |= InputHint;
+    wm_hints->input = True;
+
+    cl_hints->res_name = "4coder";
+    cl_hints->res_class = "4coder-class";
+
+    XSetWMProperties(
+        linuxvars.XDisplay,
+        linuxvars.XWindow,
+        &win_name,
+        NULL,
+        argv,
+        argc,
+        sz_hints,
+        wm_hints,
+        cl_hints
+    );
+
+    XFree(sz_hints);
+    XFree(wm_hints);
+    XFree(cl_hints);
+
+    //NOTE(inso): make the window visible
+    XMapWindow(linuxvars.XDisplay, linuxvars.XWindow);
+
+    Init_Input_Result input_result = 
+        InitializeXInput(linuxvars.XDisplay, linuxvars.XWindow);
+
+    linuxvars.input_method = input_result.input_method;
+    linuxvars.input_style = input_result.best_style;
+    linuxvars.input_context = input_result.xic;
+
+    b32 IsLegacy = false;
+    GLXContext GLContext =
+        InitializeOpenGLContext(linuxvars.XDisplay, linuxvars.XWindow, Config.BestConfig, IsLegacy);
+
+    XWindowAttributes WinAttribs;
+    if(XGetWindowAttributes(linuxvars.XDisplay, linuxvars.XWindow, &WinAttribs))
+    {
+        WinWidth = WinAttribs.width;
+        WinHeight = WinAttribs.height;
+    }
+
+    XRaiseWindow(linuxvars.XDisplay, linuxvars.XWindow);
+    XSync(linuxvars.XDisplay, False);
+
+    if (linuxvars.settings.set_window_pos){
+        XMoveWindow(
+            linuxvars.XDisplay,
+            linuxvars.XWindow,
+            linuxvars.settings.window_x,
+            linuxvars.settings.window_y
+        );
     }
 
     Cursor xcursors[APP_MOUSE_CURSOR_COUNT] = {
@@ -1963,14 +2058,15 @@ main(int argc, char **argv)
 
     XSetICFocus(linuxvars.input_context);
 
-    XWMHints *wm_hints = XAllocWMHints();
-    wm_hints->flags |= InputHint;
-    wm_hints->input = True;
-    XSetWMHints(linuxvars.XDisplay, linuxvars.XWindow, wm_hints);
-    XFree(wm_hints);
-
     linuxvars.atom_CLIPBOARD = XInternAtom(linuxvars.XDisplay, "CLIPBOARD", False);
     linuxvars.atom_UTF8_STRING = XInternAtom(linuxvars.XDisplay, "UTF8_STRING", False);
+    linuxvars.atom_NET_WM_STATE = XInternAtom(linuxvars.XDisplay, "_NET_WM_STATE", False);
+    linuxvars.atom_NET_WM_STATE_MAXIMIZED_HORZ = XInternAtom(linuxvars.XDisplay, "_NET_WM_STATE_MAXIMIZED_HORZ", False);
+    linuxvars.atom_NET_WM_STATE_MAXIMIZED_VERT = XInternAtom(linuxvars.XDisplay, "_NET_WM_STATE_MAXIMIZED_VERT", False);
+
+    if (linuxvars.settings.maximize_window){
+        LinuxMaximizeWindow(linuxvars.XDisplay, linuxvars.XWindow, 1);
+    }
 
     int xfixes_version_unused, xfixes_err_unused;
 
@@ -1990,7 +2086,6 @@ main(int argc, char **argv)
             XFixesSetSelectionOwnerNotifyMask
         );
     }
-
 
     Atom WM_DELETE_WINDOW = XInternAtom(linuxvars.XDisplay, "WM_DELETE_WINDOW", False);
     Atom _NET_WM_PING = XInternAtom(linuxvars.XDisplay, "_NET_WM_PING", False);
@@ -2307,6 +2402,7 @@ main(int argc, char **argv)
             linuxvars.cursor = result.mouse_cursor_type;
         }
 
+        linuxvars.first = 0;
         linuxvars.redraw = 0;
         linuxvars.key_data = {};
         linuxvars.mouse_data.press_l = 0;
