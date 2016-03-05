@@ -1056,15 +1056,19 @@ buffer_cursor_seek(Buffer_Type *buffer, Buffer_Seek seek, float max_width,
     switch(seek.type){
         case buffer_seek_pos:
         if (cursor.pos >= seek.pos) goto buffer_cursor_seek_end;
+        break;
 
         case buffer_seek_wrapped_xy:
         if (seek.x == 0 && cursor.wrapped_y >= seek.y) goto buffer_cursor_seek_end;
+        break;
         
         case buffer_seek_unwrapped_xy:
         if (seek.x == 0 && cursor.unwrapped_y >= seek.y) goto buffer_cursor_seek_end;
+        break;
 
         case buffer_seek_line_char:
         if (cursor.line >= seek.line && cursor.character >= seek.character) goto buffer_cursor_seek_end;
+        break;
     }
     
     if (advance_data){

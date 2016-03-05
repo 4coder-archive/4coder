@@ -948,6 +948,10 @@ COMMAND_DECL(interactive_open){
             delayed_open_background(delay, string);
         }
         else{
+            // TODO(allen): Change the behavior of all delayed_open/background
+            // calls so that they still allocate the buffer right away.  This way
+            // it's still possible to get at the buffer if so wished in the API.
+            // The switch for this view doesn't need to happen until the file is ready.
             delayed_open(delay, string, panel);
         }
     }
@@ -2454,7 +2458,7 @@ extern "C"{
     }
 
     GET_USER_INPUT_SIG(external_get_user_input){
-        Command_Data *cmd = (Command_Data*)context->cmd_context;
+        Command_Data *cmd = (Command_Data*)app->cmd_context;
         System_Functions *system = cmd->system;
         Coroutine *coroutine = cmd->models->command_coroutine;
         User_Input result;
@@ -2469,7 +2473,7 @@ extern "C"{
     }
 
     START_QUERY_BAR_SIG(external_start_query_bar){
-        Command_Data *cmd = (Command_Data*)context->cmd_context;
+        Command_Data *cmd = (Command_Data*)app->cmd_context;
         Query_Slot *slot = 0;
         View *vptr;
 
@@ -2482,19 +2486,49 @@ extern "C"{
     }
 
     END_QUERY_BAR_SIG(external_end_query_bar){
-        Command_Data *cmd = (Command_Data*)context->cmd_context;
+        Command_Data *cmd = (Command_Data*)app->cmd_context;
         View *vptr;
 
         vptr = cmd->view;
         free_query_slot(&vptr->query_set, bar);
     }
-
+    
+    CHANGE_THEME_SIG(external_change_theme){
+        Command_Data *cmd = (Command_Data*)app->cmd_context;
+        Style_Library *styles = &cmd->models->styles;
+        String theme_name = make_string(name, len);
+        Style *s;
+        i32 i, count;
+        
+        count = styles->count;
+        s = styles->styles;
+        for (i = 0; i < count; ++i, ++s){
+            if (match(s->name, theme_name)){
+                style_copy(&cmd->models->style, s);
+                break;
+            }
+        }
+    }
+    
+    CHANGE_FONT_SIG(external_change_font){
+        Command_Data *cmd = (Command_Data*)app->cmd_context;
+        Font_Set *set = cmd->models->font_set;
+        Style_Font *global_font = &cmd->models->global_font;
+        String font_name = make_string(name, len);
+        i16 font_id;
+        
+        if (font_set_extract(set, font_name, &font_id)){
+            global_font->font_id = font_id;
+            global_font->font_changed = 1;
+        }
+    }
+    
     SET_THEME_COLORS_SIG(external_set_theme_colors){
-        Command_Data *cmd = (Command_Data*)context->cmd_context;
+        Command_Data *cmd = (Command_Data*)app->cmd_context;
         Style *style = &cmd->models->style;
         Theme_Color *theme_color;
-        i32 i;
         u32 *color;
+        i32 i;
 
         theme_color = colors;
         for (i = 0; i < count; ++i, ++theme_color){
@@ -2569,6 +2603,8 @@ app_links_init(System_Functions *system, void *data, int size){
     app_links.start_query_bar = external_start_query_bar;
     app_links.end_query_bar = external_end_query_bar;
 
+    app_links.change_theme = external_change_theme;
+    app_links.change_font = external_change_font;
     app_links.set_theme_colors = external_set_theme_colors;
 }
 

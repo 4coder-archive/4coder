@@ -55,14 +55,12 @@ font_set_init(Font_Set *set, Partition *partition, i32 max, i16 live_max){
     set->free_slots = {};
     set->used_slots = {};
 
-    set->free_slots.next = &set->free_slots;
-    set->free_slots.prev = &set->free_slots;
-    set->used_slots.next = &set->used_slots;
-    set->used_slots.prev = &set->used_slots;
+    dll_init_sentinel(&set->free_slots);
+    dll_init_sentinel(&set->used_slots);
     
     char *ptr = (char*)set->font_block;
     for (i32 i = 0; i < live_max; ++i){
-        font__insert(&set->free_slots, (Font_Slot*)ptr);
+        dll_insert(&set->free_slots, (Font_Slot*)ptr);
         ptr += sizeof(Font_Slot) + sizeof(Render_Font);
     }
 

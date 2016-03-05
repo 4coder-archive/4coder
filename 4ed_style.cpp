@@ -44,11 +44,6 @@ struct Style_Library{
 };
 
 #if 0
-struct Style_Color_Specifier{
-    u32 tag;
-    u32 color;
-};
-
 struct Style_File_Format{
     i32 name_size;
     char name[24];

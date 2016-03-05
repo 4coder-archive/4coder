@@ -341,57 +341,59 @@ extern "C"{
 struct Application_Links;
 
 // Command exectuion
-#define PUSH_PARAMETER_SIG(name) void name(Application_Links *app, Dynamic param, Dynamic value)
-#define PUSH_MEMORY_SIG(name) char* name(Application_Links *app, int len)
-#define EXECUTE_COMMAND_SIG(name) void name(Application_Links *app, int command_id)
-#define CLEAR_PARAMETERS_SIG(name) void name(Application_Links *app)
+#define PUSH_PARAMETER_SIG(n) void n(Application_Links *app, Dynamic param, Dynamic value)
+#define PUSH_MEMORY_SIG(n) char* n(Application_Links *app, int len)
+#define EXECUTE_COMMAND_SIG(n) void n(Application_Links *app, int command_id)
+#define CLEAR_PARAMETERS_SIG(n) void n(Application_Links *app)
 
 // File system navigation
-#define DIRECTORY_GET_HOT_SIG(name) int name(Application_Links *app, char *out, int capacity)
-#define FILE_EXISTS_SIG(name) int name(Application_Links *app, char *filename, int len)
-#define DIRECTORY_CD_SIG(name) int name(Application_Links *app, char *dir, int *len, int capacity, char *rel_path, int rel_len)
-#define GET_FILE_LIST_SIG(name) File_List name(Application_Links *app, char *dir, int len)
-#define FREE_FILE_LIST_SIG(name) void name(Application_Links *app, File_List list)
+#define DIRECTORY_GET_HOT_SIG(n) int n(Application_Links *app, char *out, int capacity)
+#define FILE_EXISTS_SIG(n) int n(Application_Links *app, char *filename, int len)
+#define DIRECTORY_CD_SIG(n) int n(Application_Links *app, char *dir, int *len, int capacity, char *rel_path, int rel_len)
+#define GET_FILE_LIST_SIG(n) File_List n(Application_Links *app, char *dir, int len)
+#define FREE_FILE_LIST_SIG(n) void n(Application_Links *app, File_List list)
 
 // Direct buffer manipulation
-#define GET_BUFFER_FIRST_SIG(name) Buffer_Summary name(Application_Links *app)
-#define GET_BUFFER_NEXT_SIG(name) void name(Application_Links *app, Buffer_Summary *buffer)
+#define GET_BUFFER_FIRST_SIG(n) Buffer_Summary n(Application_Links *app)
+#define GET_BUFFER_NEXT_SIG(n) void n(Application_Links *app, Buffer_Summary *buffer)
 
-#define GET_BUFFER_SIG(name) Buffer_Summary name(Application_Links *app, int index)
-#define GET_ACTIVE_BUFFER_SIG(name) Buffer_Summary name(Application_Links *app)
-#define GET_PARAMETER_BUFFER_SIG(name) Buffer_Summary name(Application_Links *app, int param_index)
-#define GET_BUFFER_BY_NAME(name) Buffer_Summary name(Application_Links *app, char *filename, int len)
+#define GET_BUFFER_SIG(n) Buffer_Summary n(Application_Links *app, int index)
+#define GET_ACTIVE_BUFFER_SIG(n) Buffer_Summary n(Application_Links *app)
+#define GET_PARAMETER_BUFFER_SIG(n) Buffer_Summary n(Application_Links *app, int param_index)
+#define GET_BUFFER_BY_NAME(n) Buffer_Summary n(Application_Links *app, char *filename, int len)
 
-#define BUFFER_SEEK_DELIMITER_SIG(name) int name(Application_Links *app, Buffer_Summary *buffer, int start, char delim, int seek_forward, int *out)
-#define BUFFER_SEEK_STRING_SIG(name) int name(Application_Links *app, Buffer_Summary *buffer, int start, char *str, int len, int seek_forward, int *out)
+#define BUFFER_SEEK_DELIMITER_SIG(n) int n(Application_Links *app, Buffer_Summary *buffer, int start, char delim, int seek_forward, int *out)
+#define BUFFER_SEEK_STRING_SIG(n) int n(Application_Links *app, Buffer_Summary *buffer, int start, char *str, int len, int seek_forward, int *out)
 
-#define REFRESH_BUFFER_SIG(name) int name(Application_Links *app, Buffer_Summary *buffer)
-#define BUFFER_READ_RANGE_SIG(name) int name(Application_Links *app, Buffer_Summary *buffer, int start, int end, char *out)
-#define BUFFER_REPLACE_RANGE_SIG(name) int name(Application_Links *app, Buffer_Summary *buffer, int start, int end, char *str, int len)
-#define BUFFER_SET_POS_SIG(name) int name(Application_Links *app, Buffer_Summary *buffer, int pos)
+#define REFRESH_BUFFER_SIG(n) int n(Application_Links *app, Buffer_Summary *buffer)
+#define BUFFER_READ_RANGE_SIG(n) int n(Application_Links *app, Buffer_Summary *buffer, int start, int end, char *out)
+#define BUFFER_REPLACE_RANGE_SIG(n) int n(Application_Links *app, Buffer_Summary *buffer, int start, int end, char *str, int len)
+#define BUFFER_SET_POS_SIG(n) int n(Application_Links *app, Buffer_Summary *buffer, int pos)
 
 // File view manipulation
-#define GET_VIEW_FIRST_SIG(name) View_Summary name(Application_Links *app)
-#define GET_VIEW_NEXT_SIG(name) void name(Application_Links *app, View_Summary *view)
+#define GET_VIEW_FIRST_SIG(n) View_Summary n(Application_Links *app)
+#define GET_VIEW_NEXT_SIG(n) void n(Application_Links *app, View_Summary *view)
 
-#define GET_VIEW_SIG(name) View_Summary name(Application_Links *app, int index)
-#define GET_ACTIVE_VIEW_SIG(name) View_Summary name(Application_Links *app)
+#define GET_VIEW_SIG(n) View_Summary n(Application_Links *app, int index)
+#define GET_ACTIVE_VIEW_SIG(n) View_Summary n(Application_Links *app)
 
-#define REFRESH_VIEW_SIG(name) int name(Application_Links *app, View_Summary *view)
-#define VIEW_SET_CURSOR_SIG(name) int name(Application_Links *app, View_Summary *view, Buffer_Seek seek, int set_preferred_x)
-#define VIEW_SET_MARK_SIG(name) int name(Application_Links *app, View_Summary *view, Buffer_Seek seek)
-#define VIEW_SET_HIGHLIGHT_SIG(name) int name(Application_Links *app, View_Summary *view, int start, int end, int turn_on)
-#define VIEW_SET_BUFFER_SIG(name) int name(Application_Links *app, View_Summary *view, int buffer_id)
+#define REFRESH_VIEW_SIG(n) int n(Application_Links *app, View_Summary *view)
+#define VIEW_SET_CURSOR_SIG(n) int n(Application_Links *app, View_Summary *view, Buffer_Seek seek, int set_preferred_x)
+#define VIEW_SET_MARK_SIG(n) int n(Application_Links *app, View_Summary *view, Buffer_Seek seek)
+#define VIEW_SET_HIGHLIGHT_SIG(n) int n(Application_Links *app, View_Summary *view, int start, int end, int turn_on)
+#define VIEW_SET_BUFFER_SIG(n) int n(Application_Links *app, View_Summary *view, int buffer_id)
 
 // Directly get user input
-#define GET_USER_INPUT_SIG(name) User_Input name(Application_Links *context, unsigned int get_type, unsigned int abort_type)
+#define GET_USER_INPUT_SIG(n) User_Input n(Application_Links *app, unsigned int get_type, unsigned int abort_type)
 
 // Queries
-#define START_QUERY_BAR_SIG(name) int name(Application_Links *context, Query_Bar *bar, unsigned int flags)
-#define END_QUERY_BAR_SIG(name) void name(Application_Links *context, Query_Bar *bar, unsigned int flags)
+#define START_QUERY_BAR_SIG(n) int n(Application_Links *app, Query_Bar *bar, unsigned int flags)
+#define END_QUERY_BAR_SIG(n) void n(Application_Links *app, Query_Bar *bar, unsigned int flags)
 
-// Setting colors
-#define SET_THEME_COLORS_SIG(name) void name(Application_Links *context, Theme_Color *colors, int count)
+// Color settings
+#define CHANGE_THEME_SIG(n) void n(Application_Links *app, char *name, int len)
+#define CHANGE_FONT_SIG(n) void n(Application_Links *app, char *name, int len)
+#define SET_THEME_COLORS_SIG(n) void n(Application_Links *app, Theme_Color *colors, int count)
 
 
 // Boundry type flags
@@ -467,7 +469,9 @@ extern "C"{
     typedef START_QUERY_BAR_SIG(Start_Query_Bar_Function);
     typedef END_QUERY_BAR_SIG(End_Query_Bar_Function);
     
-    // Set theme colors
+    // Color settings
+    typedef CHANGE_THEME_SIG(Change_Theme_Function);
+    typedef CHANGE_FONT_SIG(Change_Font_Function);
     typedef SET_THEME_COLORS_SIG(Set_Theme_Colors_Function);
 }
 
@@ -527,6 +531,8 @@ struct Application_Links{
     End_Query_Bar_Function *end_query_bar;
     
     // Theme
+    Change_Theme_Function *change_theme;
+    Change_Font_Function *change_font;
     Set_Theme_Colors_Function *set_theme_colors;
     
     // Internal

@@ -1,11 +1,8 @@
-/*
- * Example use of customization API
- */
+// Alternative customizations, set Custom_Current to select which to apply.
+#define Custom_Default 0
+#define Custom_HandmadeHero 1
 
-// NOTE(allen): See exec_command and surrounding code in 4coder_helper.h
-// to decide whether you want macro translations, without them you will
-// have to manipulate the command and parameter stack through
-// "app->" which may be more or less clear depending on your use.
+#define Custom_Current Custom_Default
 
 #include "4coder_custom.h"
 
@@ -30,6 +27,23 @@ enum My_Maps{
 HOOK_SIG(my_start){
     exec_command(app, cmdid_open_panel_vsplit);
     exec_command(app, cmdid_change_active_panel);
+    
+    app->change_theme(app, literal("4coder"));
+    app->change_font(app, literal("liberation mono"));
+    
+    // Theme options:
+    //  "4coder"
+    //  "Handmade Hero"
+    //  "Twilight"
+    //  "Woverine"
+    //  "stb"
+    
+    // Font options:
+    //  "liberation sans"
+    //  "liberation mono"
+    //  "hack"
+    //  "cutive mono"
+    //  "inconsolata"
 }
 
 HOOK_SIG(my_file_settings){
@@ -367,8 +381,10 @@ isearch(Application_Links *app, int start_reversed){
         int step_forward = 0;
         int step_backward = 0;
         
-        if (CommandEqual(in.command, search)) step_forward = 1;
-        if (CommandEqual(in.command, reverse_search)) step_backward = 1;
+        if (CommandEqual(in.command, search) ||
+                in.key.keycode == key_page_down || in.key.keycode == key_down) step_forward = 1;
+        if (CommandEqual(in.command, reverse_search) ||
+                in.key.keycode == key_page_down || in.key.keycode == key_up) step_backward = 1;
         
         int start_pos = pos;
         if (step_forward && reverse){
@@ -682,7 +698,7 @@ CUSTOM_COMMAND_SIG(execute_arbitrary_command){
     // as an example you have everything you need to make it work already. You could
     // even use app->memory to create a hash table in the start hook.
     Query_Bar bar;
-    char space[1024], more_space[1024];
+    char space[1024];
     bar.prompt = make_lit_string("Command: ");
     bar.string = make_fixed_width_string(space);
     
@@ -700,20 +716,11 @@ CUSTOM_COMMAND_SIG(execute_arbitrary_command){
     else if(match(bar.string, make_lit_string("close all code"))){
         exec_command(app, close_all_code);
     }
-    else if (match(bar.string, make_lit_string("open in quotes"))){
-        exec_command(app, open_file_in_quotes);
-    }
     else if (match(bar.string, make_lit_string("open menu"))){
         exec_command(app, cmdid_open_menu);
     }
     else{
-        bar.prompt = make_fixed_width_string(more_space);
-        append(&bar.prompt, make_lit_string("Unrecognized: "));
-        append(&bar.prompt, bar.string);
-        bar.string.size = 0;
-        
-        app->start_query_bar(app, &bar, 0);
-        app->get_user_input(app, EventOnAnyKey | EventOnButton, 0);
+        // TODO(allen): feedback message
     }
 }
 
@@ -840,6 +847,8 @@ CUSTOM_COMMAND_SIG(write_and_auto_tab){
     exec_command(app, cmdid_auto_tab_line_at_cursor);
 }
 
+// NOTE(allen|a4) See 4coder_styles.h for a list of available style tags.
+// There are style tags corresponding to every color in the theme editor.
 CUSTOM_COMMAND_SIG(improve_theme){
     Theme_Color colors[] = {
         {Stag_Bar, 0xFF0088},
@@ -868,7 +877,7 @@ CUSTOM_COMMAND_SIG(ruin_theme){
     app->set_theme_colors(app, colors, count);
 }
 
-// NOTE(allen|a4.0.0): scroll rule information
+// NOTE(allen|a4): scroll rule information
 //
 // The parameters:
 // target_x, target_y
@@ -955,10 +964,17 @@ SCROLL_RULE_SIG(smooth_scroll_rule){
     return(result);
 }
 
+#if Custom_Current == Custom_HandmadeHero
+# include "4coder_handmade_hero.cpp"
+#endif
+
 extern "C" GET_BINDING_DATA(get_bindings){
     Bind_Helper context_actual = begin_bind_helper(data, size);
     Bind_Helper *context = &context_actual;
     
+#if Custom_Current == Custom_HandmadeHero
+    casey_get_bindings(context);
+#else
     
     // NOTE(allen|a3.1): Right now hooks have no loyalties to maps, all hooks are
     // global and once set they always apply, regardless of what map is active.
@@ -1037,10 +1053,10 @@ extern "C" GET_BINDING_DATA(get_bindings){
     
     begin_map(context, mapid_file);
     
-    // NOTE(allen|a3.4.4): Binding this essentially binds all key combos that
-    // would normally insert a character into a buffer.
-    // Or apply this rule: if the code for the key is not an enum value
-    // such as key_left or key_back then it is a vanilla key.
+    // NOTE(allen|a3.4.4): Binding this essentially binds
+    // all key combos that would normally insert a character
+    // into a buffer. If the code for the key is not an enum
+    // value such as key_left or key_back then it is a vanilla key.
     // It is possible to override this binding for individual keys.
     bind_vanilla_keys(context, cmdid_write_character);
     
@@ -1104,6 +1120,7 @@ extern "C" GET_BINDING_DATA(get_bindings){
     bind(context, ' ', MDFR_SHIFT, cmdid_write_character);
     
     end_map(context);
+#endif
 
     end_bind_helper(context);
     

@@ -1724,6 +1724,11 @@ file_do_white_batch_edit(System_Functions *system, App_Models *models, Editing_F
     Mem_Options *mem = &models->mem;
     Editing_Layout *layout = &models->layout;
     
+    // NOTE(allen): fixing stuff "beforewards"???    
+    Assert(spec.str == 0);
+    file_update_history_before_edit(mem, file, spec.step, 0, history_mode);
+    file_pre_edit_maintenance(system, &mem->general, file);
+    
     // NOTE(allen): actual text replacement
     General_Memory *general = &mem->general;
     Partition *part = &mem->part;
@@ -3286,7 +3291,7 @@ do_file_bar(View *view, Editing_File *file, UI_Layout *layout, Render_Target *ta
     u32 pop2_color = bar_style.pop2_color;
 
     bar.rect = layout_rect(layout, line_height + 2);
-    
+
     if (target){
         bar.font_id = font->font_id;
         bar.pos_x = (f32)bar.rect.x0;
@@ -3383,7 +3388,7 @@ step_file_view(System_Functions *system, Exchange *exchange, View *view, i32_Rec
         switch (view->widget.type){
             case FWIDG_NONE:
             {
-                if (file){
+                if (file && view->showing_ui == VUI_None){
                     do_file_bar(view, file, &layout, 0);
                 }
                 
@@ -3733,7 +3738,7 @@ draw_file_view(System_Functions *system, Exchange *exchange,
         switch (view->widget.type){
             case FWIDG_NONE:
             {
-                if (file){
+                if (file && view->showing_ui == VUI_None){
                     do_file_bar(view, file, &layout, target);
                 }
                 

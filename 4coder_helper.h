@@ -244,6 +244,23 @@ active_view_to_line(Application_Links *app, int line_number){
     app->view_set_cursor(app, &view, seek_line_char(line_number, 0), 1);
 }
 
+inline View_Summary
+get_first_view_with_buffer(Application_Links *app, int buffer_id){
+    View_Summary result = {};
+    View_Summary test = {};
+
+    for(test = app->get_view_first(app);
+        test.exists;
+        app->get_view_next(app, &test)){
+        if(test.buffer_id == buffer_id){
+            result = test;
+            break;
+        }
+    }
+
+    return(result);
+}
+
 inline int
 key_is_unmodified(Key_Event_Data *key){
     char *mods = key->modifiers;
@@ -322,3 +339,5 @@ query_user_number(Application_Links *app, Query_Bar *bar){
     int success = query_user_general(app, bar, 1);
     return(success);
 }
+
+inline String empty_string() {String Result = {}; return(Result);}
