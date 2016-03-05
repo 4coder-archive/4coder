@@ -2,7 +2,7 @@
 #define Custom_Default 0
 #define Custom_HandmadeHero 1
 
-#define Custom_Current Custom_HandmadeHero
+#define Custom_Current Custom_Default
 
 #include "4coder_custom.h"
 
@@ -29,7 +29,7 @@ HOOK_SIG(my_start){
     exec_command(app, cmdid_change_active_panel);
     
     app->change_theme(app, literal("4coder"));
-    app->change_font(app, literal("liberation mono"));
+    app->change_font(app, literal("liberation sans"));
     
     // Theme options:
     //  "4coder"
