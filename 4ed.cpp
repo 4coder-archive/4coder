@@ -60,30 +60,30 @@ struct Command_Data{
     System_Functions *system;
     Exchange *exchange;
     Live_Views *live_set;
-    
+
     Panel *panel;
     View *view;
-    
+
     i32 screen_width, screen_height;
     Key_Event_Data key;
-    
+
     Partition part;
 };
 
 struct App_Vars{
     App_Models models;
-    
+
     CLI_List cli_processes;
 
     Sys_App_Binding *sys_app_bindings;
     i32 sys_app_count, sys_app_max;
-    
+
     Live_Views live_set;
-    
+
     App_State state;
     App_State_Resizing resizing;
     Complete_State complete_state;
-    
+
     Command_Data command_data;
 };
 
@@ -190,12 +190,12 @@ internal View*
 panel_make_empty(System_Functions *system, Exchange *exchange, App_Vars *vars, Panel *panel){
     App_Models *models = &vars->models;
     View_And_ID new_view;
-    
+
     Assert(panel->view == 0);
     new_view = live_set_alloc_view(&vars->live_set, panel, models);
     view_set_file(new_view.view, 0, models, 0, 0, 0);
     new_view.view->map = app_get_map(models, mapid_global);
-    
+
     return(new_view.view);
 }
 
@@ -263,9 +263,9 @@ COMMAND_DECL(seek_left){
     ProfileMomentFunction();
     REQ_READABLE_VIEW(view);
     REQ_FILE(file, view);
-    
+
     u32 flags = BoundryWhitespace;
-    
+
     Command_Parameter *end = param_stack_end(&command->part);
     Command_Parameter *param = param_stack_first(&command->part, end);
     for (; param < end; param = param_next(param, end)){
@@ -276,13 +276,13 @@ COMMAND_DECL(seek_left){
             break;
         }
     }
-    
+
     i32 pos[4] = {0};
 
     if (flags & (1)){
         pos[0] = buffer_seek_whitespace_left(&file->state.buffer, view->cursor.pos);
     }
-    
+
     if (flags & (1 << 1)){
         if (file->state.tokens_complete){
             pos[1] = seek_token_left(&file->state.token_stack, view->cursor.pos);
@@ -303,12 +303,12 @@ COMMAND_DECL(seek_left){
             pos[3] = buffer_seek_alphanumeric_or_camel_left(&file->state.buffer, view->cursor.pos);
         }
     }
-    
+
     i32 new_pos = 0;
     for (i32 i = 0; i < ArrayCount(pos); ++i){
         if (pos[i] > new_pos) new_pos = pos[i];
     }
-    
+
     view_cursor_move(view, new_pos);
 }
 
@@ -316,9 +316,9 @@ COMMAND_DECL(seek_right){
     ProfileMomentFunction();
     REQ_READABLE_VIEW(view);
     REQ_FILE(file, view);
-    
+
     u32 flags = BoundryWhitespace;
-    
+
     Command_Parameter *end = param_stack_end(&command->part);
     Command_Parameter *param = param_stack_first(&command->part, end);
     for (; param < end; param = param_next(param, end)){
@@ -329,15 +329,15 @@ COMMAND_DECL(seek_right){
             break;
         }
     }
-    
+
     i32 size = buffer_size(&file->state.buffer);
     i32 pos[4];
     for (i32 i = 0; i < ArrayCount(pos); ++i) pos[i] = size;
-    
+
     if (flags & (1)){
         pos[0] = buffer_seek_whitespace_right(&file->state.buffer, view->cursor.pos);
     }
-    
+
     if (flags & (1 << 1)){
         if (file->state.tokens_complete){
             pos[1] = seek_token_right(&file->state.token_stack, view->cursor.pos);
@@ -358,12 +358,12 @@ COMMAND_DECL(seek_right){
             pos[3] = buffer_seek_alphanumeric_or_camel_right(&file->state.buffer, view->cursor.pos);
         }
     }
-    
+
     i32 new_pos = size;
     for (i32 i = 0; i < ArrayCount(pos); ++i){
         if (pos[i] < new_pos) new_pos = pos[i];
     }
-    
+
     view_cursor_move(view, new_pos);
 }
 
@@ -517,12 +517,12 @@ COMMAND_DECL(word_complete){
 
     buffer = &file->state.buffer;
     size_of_buffer = buffer_size(buffer);
-    
+
     if (view->mode.rewrite != 2){
         do_init = 1;
     }
     view->next_mode.rewrite = 2;
-    
+
     if (complete_state->initialized == 0){
         do_init = 1;
     }
@@ -740,7 +740,7 @@ COMMAND_DECL(paste){
 
     if (models->working_set.clipboard_size > 0){
         view->next_mode.rewrite = 1;
-        
+
         src = working_set_clipboard_head(&models->working_set);
         pos_left = view->cursor.pos;
 
@@ -763,22 +763,22 @@ COMMAND_DECL(paste_next){
     USE_MODELS(models);
     REQ_OPEN_VIEW(view);
     REQ_FILE(file, view);
-    
+
     View_Iter iter;
     Range range;
     String *src;
     i32 next_cursor_pos;
-    
+
     if (models->working_set.clipboard_size > 0 && view->mode.rewrite == 1){
         view->next_mode.rewrite = 1;
-        
+
         range = make_range(view->mark, view->cursor.pos);
         src = working_set_clipboard_roll_down(&models->working_set);
         next_cursor_pos = range.start+src->size;
         view_replace_range(system,
             models, view, range.start, range.end,
             src->str, src->size, next_cursor_pos);
-        
+
         view_cursor_move(view, next_cursor_pos);
         view->mark = range.start;
 
@@ -801,7 +801,7 @@ COMMAND_DECL(delete_range){
 
     Range range;
     i32 next_cursor_pos;
-    
+
     range = make_range(view->cursor.pos, view->mark);
     if (range.start < range.end){
         next_cursor_pos = range.start;
@@ -861,7 +861,7 @@ COMMAND_DECL(interactive_new){
     ProfileMomentFunction();
     USE_MODELS(models);
     USE_VIEW(view);
-   
+
     view_show_interactive(system, view, &models->map_ui,
         IAct_New, IInt_Sys_File_List, make_lit_string("New: "));
 }
@@ -901,7 +901,7 @@ app_open_file_background(App_Vars *vars, Exchange *exchange, Working_Set *workin
                 file_set_name(working_set, result.file, filename.str);
                 file_set_to_loading(result.file);
                 table_add(&working_set->table, result.file->name.source_path, file.index);
-                
+
                 result.sys_id = file_id;
                 result.file_index = file.index;
             }
@@ -922,7 +922,7 @@ COMMAND_DECL(interactive_open){
     USE_VIEW(view);
 
     Delay *delay = &models->delay1;
-    
+
     char *filename = 0;
     int filename_len = 0;
     int do_in_background = 0;
@@ -941,7 +941,7 @@ COMMAND_DECL(interactive_open){
             }
         }
     }
-    
+
     if (filename){
         String string = make_string(filename, filename_len);
         if (do_in_background){
@@ -961,7 +961,7 @@ internal void
 view_file_in_panel(Command_Data *cmd, Panel *panel, Editing_File *file){
     System_Functions *system = cmd->system;
     App_Models *models = cmd->models;
-    
+
     Partition old_part;
     Temp_Memory temp;
     View *old_view;
@@ -969,19 +969,19 @@ view_file_in_panel(Command_Data *cmd, Panel *panel, Editing_File *file){
 
     old_view = cmd->view;
     old_part = cmd->part;
-    
+
     cmd->view = panel->view;
     part = &models->mem.part;
     temp = begin_temp_memory(part);
     cmd->part = partition_sub_part(part, Kbytes(16));
-    
+
     view_set_file(panel->view, file, models, system,
         models->hooks[hook_open_file], &app_links);
-    
+
     cmd->part = old_part;
     end_temp_memory(temp);
     cmd->view = old_view;
-    
+
     panel->view->map = app_get_map(models, file->settings.base_map_id);
 }
 
@@ -996,14 +996,14 @@ COMMAND_DECL(reopen){
     USE_VIEW(view);
     REQ_FILE(file, view);
     USE_EXCHANGE(exchange);
-    
+
     i32 file_id = exchange_request_file(exchange, expand_str(file->name.source_path));
     i32 index = 0;
     if (file_id){
         file_set_to_loading(file);
         index = (i32)(file - models->working_set.files);
         app_push_file_binding(vars, file_id, index);
-        
+
         view_set_file(view, file, models, system,
             models->hooks[hook_open_file], &app_links);
     }
@@ -1017,9 +1017,9 @@ COMMAND_DECL(save){
     USE_MODELS(models);
     USE_VIEW(view);
     USE_FILE(file, view);
-    
+
     Delay *delay = &models->delay1;
-    
+
     char *filename = 0;
     int filename_len = 0;
     int buffer_id = -1;
@@ -1036,7 +1036,7 @@ COMMAND_DECL(save){
             buffer_id = dynamic_to_int(&param->param.value);
         }
     }
-    
+
     String name = {};
     if (filename){
         name = make_string(filename, filename_len);
@@ -1044,7 +1044,7 @@ COMMAND_DECL(save){
     else if (file){
         name = file->name.source_path;
     }
-    
+
     if (name.size != 0){
         if (buffer_id == -1){
             if (file){
@@ -1053,7 +1053,7 @@ COMMAND_DECL(save){
         }
         else{
             file = models->working_set.files + buffer_id;
-            
+
             if (!file->state.is_dummy && file_is_ready(file)){
                 delayed_save(delay, name, file);
             }
@@ -1068,7 +1068,7 @@ COMMAND_DECL(interactive_save_as){
     ProfileMomentFunction();
     USE_VIEW(view);
     USE_MODELS(models);
-     
+
     view_show_interactive(system, view, &models->map_ui,
         IAct_Save_As, IInt_Sys_File_List, make_lit_string("Save As: "));
 }
@@ -1077,7 +1077,7 @@ COMMAND_DECL(change_active_panel){
     ProfileMomentFunction();
     USE_MODELS(models);
     USE_PANEL(panel);
-    
+
     panel = panel->next;
     if (panel == &models->layout.used_sentinel){
         panel = panel->next;
@@ -1089,7 +1089,7 @@ COMMAND_DECL(interactive_switch_buffer){
     ProfileMomentFunction();
     USE_VIEW(view);
     USE_MODELS(models);
-    
+
     view_show_interactive(system, view, &models->map_ui,
         IAct_Switch, IInt_Live_File_List, make_lit_string("Switch Buffer: "));
 }
@@ -1098,7 +1098,7 @@ COMMAND_DECL(interactive_kill_buffer){
     ProfileMomentFunction();
     USE_VIEW(view);
     USE_MODELS(models);
-    
+
     view_show_interactive(system, view, &models->map_ui,
         IAct_Kill, IInt_Live_File_List, make_lit_string("Kill Buffer: "));
 }
@@ -1108,10 +1108,10 @@ COMMAND_DECL(kill_buffer){
     USE_MODELS(models);
     USE_VIEW(view);
     USE_FILE(file, view);
-    
+
     Delay *delay = &models->delay1;
     int buffer_id = 0;
-    
+
     Command_Parameter *end = param_stack_end(&command->part);
     Command_Parameter *param = param_stack_first(&command->part, end);
     for (; param < end; param = param_next(param, end)){
@@ -1170,7 +1170,7 @@ COMMAND_DECL(toggle_tokens){
     USE_MODELS(models);
     REQ_OPEN_VIEW(view);
     REQ_FILE(file, view);
-    
+
     if (file->settings.tokens_exist){
         file_kill_tokens(system, &models->mem.general, file);
     }
@@ -1339,20 +1339,20 @@ COMMAND_DECL(open_panel_vsplit){
 
     if (models->layout.panel_count < models->layout.panel_max_count){
         Split_Result split = layout_split_panel(&models->layout, panel, 1);
-        
+
         Panel *panel1 = panel;
         Panel *panel2 = split.panel;
-        
+
         panel2->screen_region = panel1->screen_region;
-        
+
         panel2->full.x0 = split.divider->pos;
         panel2->full.x1 = panel1->full.x1;
         panel1->full.x1 = split.divider->pos;
-        
+
         panel_fix_internal_area(panel1);
         panel_fix_internal_area(panel2);
         panel2->prev_inner = panel2->inner;
-        
+
         models->layout.active_panel = (i32)(panel2 - models->layout.panels);
         panel_make_empty(system, exchange, vars, panel2);
     }
@@ -1364,23 +1364,23 @@ COMMAND_DECL(open_panel_hsplit){
     USE_MODELS(models);
     USE_PANEL(panel);
     USE_EXCHANGE(exchange);
-    
+
     if (models->layout.panel_count < models->layout.panel_max_count){
         Split_Result split = layout_split_panel(&models->layout, panel, 0);
-        
+
         Panel *panel1 = panel;
         Panel *panel2 = split.panel;
-        
+
         panel2->screen_region = panel1->screen_region;
-        
+
         panel2->full.y0 = split.divider->pos;
         panel2->full.y1 = panel1->full.y1;
         panel1->full.y1 = split.divider->pos;
-        
+
         panel_fix_internal_area(panel1);
         panel_fix_internal_area(panel2);
         panel2->prev_inner = panel2->inner;
-        
+
         models->layout.active_panel = (i32)(panel2 - models->layout.panels);
         panel_make_empty(system, exchange, vars, panel2);
     }
@@ -1392,30 +1392,30 @@ COMMAND_DECL(close_panel){
     USE_PANEL(panel);
     USE_VIEW(view);
     USE_EXCHANGE(exchange);
-    
+
     Panel *panel_ptr, *used_panels;
     Divider_And_ID div, parent_div, child_div;
     i32 child;
     i32 parent;
     i32 which_child;
     i32 active;
-    
+
     if (models->layout.panel_count > 1){
         live_set_free_view(system, exchange, command->live_set, view);
         panel->view = 0;
-        
+
         div = layout_get_divider(&models->layout, panel->parent);
-        
+
         // This divider cannot have two child dividers.
         Assert(div.divider->child1 == -1 || div.divider->child2 == -1);
-        
+
         // Get the child who needs to fill in this node's spot
         child = div.divider->child1;
         if (child == -1) child = div.divider->child2;
-        
+
         parent = div.divider->parent;
         which_child = div.divider->which_child;
-        
+
         // Fill the child in the slot this node use to hold
         if (parent == -1){
             Assert(models->layout.root == div.id);
@@ -1430,14 +1430,14 @@ COMMAND_DECL(close_panel){
                 parent_div.divider->child2 = child;
             }
         }
-        
+
         // If there was a child divider, give it information about it's new parent.
         if (child != -1){
             child_div = layout_get_divider(&models->layout, child);
             child_div.divider->parent = parent;
             child_div.divider->which_child = div.divider->which_child;
         }
-        
+
         // What is the new active panel?
         active = -1;
         if (child == -1){
@@ -1457,10 +1457,10 @@ COMMAND_DECL(close_panel){
             Assert(panel_ptr != panel);
             active = (i32)(panel_ptr - models->layout.panels);
         }
-        
+
         Assert(active != -1 && panel != models->layout.panels + active);
         models->layout.active_panel = active;
-        
+
         layout_free_divider(&models->layout, div.divider);
         layout_free_panel(&models->layout, panel);
         layout_fix_all_panels(&models->layout);
@@ -1493,7 +1493,7 @@ COMMAND_DECL(delete){
     USE_MODELS(models);
     REQ_OPEN_VIEW(view);
     REQ_FILE(file, view);
-    
+
     i32 size = buffer_size(&file->state.buffer);
     i32 cursor_pos = view->cursor.pos;
     if (0 < size && cursor_pos < size){
@@ -1608,7 +1608,7 @@ COMMAND_DECL(open_color_tweaker){
     ProfileMomentFunction();
     USE_VIEW(view);
     USE_MODELS(models);
-    
+
     view_show_theme(view, &models->map_ui);
 }
 
@@ -1616,7 +1616,7 @@ COMMAND_DECL(open_config){
     ProfileMomentFunction();
     USE_VIEW(view);
     USE_MODELS(models);
-    
+
     view_show_config(view, &models->map_ui);
 }
 
@@ -1624,7 +1624,7 @@ COMMAND_DECL(open_menu){
     ProfileMomentFunction();
     USE_VIEW(view);
     USE_MODELS(models);
-    
+
     view_show_menu(view, &models->map_ui);
 }
 
@@ -1637,7 +1637,7 @@ COMMAND_DECL(close_minor_view){
     if (view->file){
         map = app_get_map(models, view->file->settings.base_map_id);
     }
-    view_show_file(view, map, view->file);
+    view_show_file(view, map);
 }
 
 COMMAND_DECL(cursor_mark_swap){
@@ -1731,9 +1731,9 @@ COMMAND_DECL(command_line){
     USE_MODELS(models);
     USE_PANEL(panel);
     USE_VIEW(view);
-    
+
     Partition *part = &models->mem.part;
-    
+
     char *buffer_name = 0;
     char *path = 0;
     char *script = 0;
@@ -1757,7 +1757,7 @@ COMMAND_DECL(command_line){
                     buffer_name = new_buffer_name;
                 }
             }break;
-            
+
             case par_buffer_id:
             {
                 buffer_id = dynamic_to_int(&param->param.value);
@@ -1767,7 +1767,7 @@ COMMAND_DECL(command_line){
             {
                 do_in_background = 1;
             }break;
-            
+
             case par_cli_path:
             {
                 char *new_cli_path = dynamic_to_string(&param->param.value, &path_len);
@@ -1790,25 +1790,26 @@ COMMAND_DECL(command_line){
             }break;
         }
     }
-    
+
     {
         Working_Set *working_set = &models->working_set;
         CLI_Process *procs = vars->cli_processes.procs, *proc = 0;
         Get_File_Result file = {};
         b32 bind_to_new_view = !do_in_background;
-        
+
         if (vars->cli_processes.count < vars->cli_processes.max){
             if (buffer_id){
                 file = working_set_get_file(working_set, buffer_id, 1);
             }
-            else{
+            else if (buffer_name){
                 file.file = working_set_contains(working_set, make_string(buffer_name, buffer_name_len));
                 file.index = (i32)(file.file - working_set->files);
-                if (file.file == 0)
+                if (file.file == 0){
                     file = working_set_get_available_file(working_set);
-                else{
-                    // TODO(allen): feedback message - no available file
-                    return;
+                    if (file.file == 0){
+                        // TODO(allen): feedback message - no available file
+                        return;
+                    }
                 }
             }
 
@@ -1816,6 +1817,10 @@ COMMAND_DECL(command_line){
                 i32 proc_count = vars->cli_processes.count;
                 View_Iter iter;
                 i32 i;
+
+                file_create_read_only(system, models, file.file, buffer_name);
+                file.file->settings.unimportant = 1;
+                table_add(&working_set->table, file.file->name.source_path, file.index);
 
                 for (i = 0; i < proc_count; ++i){
                     if (procs[i].out_file == file.file){
@@ -1826,7 +1831,7 @@ COMMAND_DECL(command_line){
                         break;
                     }
                 }
-                
+
                 if (file.file){
                     if (!(flags & CLI_AlwaysBindToView)){
                         iter = file_view_iter_init(&models->layout, file.file, 0);
@@ -1834,17 +1839,13 @@ COMMAND_DECL(command_line){
                             bind_to_new_view = 0;
                         }
                     }
-
-                    file_create_read_only(system, models, file.file, buffer_name);
-                    file.file->settings.unimportant = 1;
-                    table_add(&working_set->table, file.file->name.source_path, file.index);
                 }
                 else{
                     // TODO(allen): feedback message - file conflict
                     return;
                 }
             }
-            
+
             if (!path){
                 path = models->hot_directory.string.str;
                 terminate_with_null(&models->hot_directory.string);
@@ -1855,7 +1856,7 @@ COMMAND_DECL(command_line){
                 Range range;
                 Editing_File *view_file;
                 i32 size;
-                
+
                 temp = begin_temp_memory(part);
                 if (!script){
                     view_file = view->file;
@@ -1905,17 +1906,17 @@ fill_buffer_summary(Buffer_Summary *buffer, Editing_File *file, Working_Set *wor
     if (!file->state.is_dummy){
         buffer->exists = 1;
         buffer->ready = file_is_ready(file);
-        
+
         buffer->is_lexed = file->settings.tokens_exist;
         buffer->buffer_id = (int)(file - working_set->files);
         buffer->size = file->state.buffer.size;
         buffer->buffer_cursor_pos = file->state.cursor_pos;
-        
+
         buffer->file_name_len = file->name.source_path.size;
         buffer->buffer_name_len = file->name.live_name.size;
         buffer->file_name = file->name.source_path.str;
         buffer->buffer_name = file->name.live_name.str;
-        
+
         buffer->map_id = file->settings.base_map_id;
     }
 }
@@ -1935,28 +1936,28 @@ fill_view_summary(View_Summary *view, View *vptr, Live_Views *live_set, Working_
         if (vptr->file){
             lock_level = view_lock_level(vptr);
             buffer_id = (int)(vptr->file - working_set->files);
-            
+
             if (lock_level <= 0){
                 view->buffer_id = buffer_id;
             }
             else{
                 view->buffer_id = 0;
             }
-            
+
             if (lock_level <= 1){
                 view->locked_buffer_id = buffer_id;
             }
             else{
                 view->locked_buffer_id = 0;
             }
-            
+
             if (lock_level <= 2){
                 view->hidden_buffer_id = buffer_id;
             }
             else{
                 view->hidden_buffer_id = 0;
             }
-            
+
             view->mark = view_compute_cursor_from_pos(vptr, vptr->mark);
             view->cursor = vptr->cursor;
             view->preferred_x = vptr->preferred_x;
@@ -2014,7 +2015,7 @@ extern "C"{
         out[copy_max] = 0;
         return(hot->string.size);
     }
-    
+
     GET_FILE_LIST_SIG(external_get_file_list){
         Command_Data *cmd = (Command_Data*)app->cmd_context;
         System_Functions *system = cmd->system;
@@ -2022,13 +2023,13 @@ extern "C"{
         system->set_file_list(&result, make_string(dir, len));
         return(result);
     }
-    
+
     FREE_FILE_LIST_SIG(external_free_file_list){
         Command_Data *cmd = (Command_Data*)app->cmd_context;
         System_Functions *system = cmd->system;
         system->set_file_list(&list, make_string(0, 0));
     }
-    
+
     GET_BUFFER_FIRST_SIG(external_get_buffer_first){
         Command_Data *cmd = (Command_Data*)app->cmd_context;
         Working_Set *working_set = &cmd->models->working_set;
@@ -2038,7 +2039,7 @@ extern "C"{
         }
         return(result);
     }
-    
+
     GET_BUFFER_NEXT_SIG(external_get_buffer_next){
         Command_Data *cmd = (Command_Data*)app->cmd_context;
         Working_Set *working_set = &cmd->models->working_set;
@@ -2053,7 +2054,7 @@ extern "C"{
             *buffer = {};
         }
     }
-    
+
     GET_BUFFER_SIG(external_get_buffer){
         Command_Data *cmd = (Command_Data*)app->cmd_context;
         Working_Set *working_set = &cmd->models->working_set;
@@ -2067,20 +2068,20 @@ extern "C"{
 
         return(buffer);
     }
-    
+
     GET_ACTIVE_BUFFER_SIG(external_get_active_buffer){
         Command_Data *cmd = (Command_Data*)app->cmd_context;
         Buffer_Summary buffer = {};
         View *view = cmd->view;
         Editing_File *file;
-        
+
         if (view_lock_level(view) <= LockLevel_Open){
             file = view->file;
             if (file){
                 fill_buffer_summary(&buffer, file, &cmd->models->working_set);
             }
         }
-        
+
         return(buffer);
     }
 
@@ -2088,21 +2089,21 @@ extern "C"{
         Command_Data *cmd = (Command_Data*)app->cmd_context;
         App_Models *models = cmd->models;
         Buffer_Summary buffer = {};
-        
+
         if (param_index >= 0 && param_index < models->buffer_param_count){
             buffer = external_get_buffer(app, models->buffer_param_indices[param_index]);
         }
-        
+
         return(buffer);
     }
-    
+
     GET_BUFFER_BY_NAME(external_get_buffer_by_name){
         Command_Data *cmd = (Command_Data*)app->cmd_context;
         Buffer_Summary buffer = {};
         Editing_File *file;
         Working_Set *working_set;
         i32 index;
-        
+
         working_set = &cmd->models->working_set;
         if (table_find(&working_set->table, make_string(filename, len), &index)){
             file = working_set_get_file(working_set, index, 1).file;
@@ -2110,7 +2111,7 @@ extern "C"{
                 fill_buffer_summary(&buffer, file, working_set);
             }
         }
-        
+
         return(buffer);
     }
 
@@ -2273,20 +2274,20 @@ extern "C"{
 
         return(result);
     }
-    
+
     GET_VIEW_FIRST_SIG(external_get_view_first){
         Command_Data *cmd = (Command_Data*)app->cmd_context;
         Editing_Layout *layout = &cmd->models->layout;
         View_Summary view = {};
-        
+
         Panel *panel = layout->used_sentinel.next;
-        
+
         Assert(panel != &layout->used_sentinel);
         fill_view_summary(&view, panel->view, &cmd->vars->live_set, &cmd->models->working_set);
-        
+
         return(view);
     }
-    
+
     GET_VIEW_NEXT_SIG(external_get_view_next){
         Command_Data *cmd = (Command_Data*)app->cmd_context;
         Editing_Layout *layout = &cmd->models->layout;
@@ -2294,7 +2295,7 @@ extern "C"{
         View *vptr;
         Panel *panel;
         int index = view->view_id - 1;
-        
+
         if (index >= 0 && index < live_set->max){
             vptr = live_set->views + index;
             panel = vptr->panel;
@@ -2310,14 +2311,14 @@ extern "C"{
             *view = {};
         }
     }
-    
+
     GET_VIEW_SIG(external_get_view){
         Command_Data *cmd = (Command_Data*)app->cmd_context;
         View_Summary view = {};
         Live_Views *live_set = cmd->live_set;
         int max = live_set->max;
         View *vptr;
-        
+
         index -= 1;
         if (index >= 0 && index < max){
             vptr = live_set->views + index;
@@ -2330,9 +2331,9 @@ extern "C"{
     GET_ACTIVE_VIEW_SIG(external_get_active_view){
         Command_Data *cmd = (Command_Data*)app->cmd_context;
         View_Summary view = {};
-        
+
         fill_view_summary(&view, cmd->view, &cmd->vars->live_set, &cmd->models->working_set);
-        
+
         return(view);
     }
 
@@ -2349,7 +2350,7 @@ extern "C"{
         View *vptr;
         int result = 0;
         int view_id;
-        
+
         if (view->exists){
             live_set = cmd->live_set;
             view_id = view->view_id - 1;
@@ -2487,6 +2488,20 @@ extern "C"{
         vptr = cmd->view;
         free_query_slot(&vptr->query_set, bar);
     }
+
+    SET_THEME_COLORS_SIG(external_set_theme_colors){
+        Command_Data *cmd = (Command_Data*)context->cmd_context;
+        Style *style = &cmd->models->style;
+        Theme_Color *theme_color;
+        i32 i;
+        u32 *color;
+
+        theme_color = colors;
+        for (i = 0; i < count; ++i, ++theme_color){
+            color = style_index_by_tag(&style->main, theme_color->tag);
+            if (color) *color = theme_color->color | 0xFF000000;
+        }
+    }
 }
 
 struct Command_In{
@@ -2499,7 +2514,7 @@ command_caller(Coroutine *coroutine){
     Command_In *cmd_in = (Command_In*)coroutine->in;
     Command_Data *cmd = cmd_in->cmd;
     View *view = cmd->view;
-    
+
     // TODO(allen): this isn't really super awesome, could have issues if
     // the file view get's change out under us.
     view->next_mode = {};
@@ -2511,7 +2526,7 @@ internal void
 app_links_init(System_Functions *system, void *data, int size){
     app_links.memory = data;
     app_links.memory_size = size;
-    
+
     app_links.exec_command_keep_stack = external_exec_command_keep_stack;
     app_links.push_parameter = external_push_parameter;
     app_links.push_memory = external_push_memory;
@@ -2525,7 +2540,7 @@ app_links_init(System_Functions *system, void *data, int size){
 
     app_links.get_buffer_first = external_get_buffer_first;
     app_links.get_buffer_next = external_get_buffer_next;
-    
+
     app_links.get_buffer = external_get_buffer;
     app_links.get_active_buffer = external_get_active_buffer;
     app_links.get_parameter_buffer = external_get_parameter_buffer;
@@ -2539,7 +2554,7 @@ app_links_init(System_Functions *system, void *data, int size){
 
     app_links.get_view_first = external_get_view_first;
     app_links.get_view_next = external_get_view_next;
-    
+
     app_links.get_view = external_get_view;
     app_links.get_active_view = external_get_active_view;
 
@@ -2553,6 +2568,8 @@ app_links_init(System_Functions *system, void *data, int size){
 
     app_links.start_query_bar = external_start_query_bar;
     app_links.end_query_bar = external_end_query_bar;
+
+    app_links.set_theme_colors = external_set_theme_colors;
 }
 
 internal void
@@ -2667,7 +2684,7 @@ app_hardcode_styles(App_Models *models){
     Style *styles, *style;
     styles = models->styles.styles;
     style = styles;
-    
+
     i16 fonts = 1;
     models->global_font.font_id = fonts + 0;
     models->global_font.font_changed = 0;
@@ -3051,7 +3068,7 @@ App_Read_Command_Line_Sig(app_read_command_line){
 
 extern "C" SCROLL_RULE_SIG(fallback_scroll_rule){
     int result = 0;
-    
+
     if (target_x != *scroll_x){
         *scroll_x = target_x;
         result = 1;
@@ -3060,7 +3077,7 @@ extern "C" SCROLL_RULE_SIG(fallback_scroll_rule){
         *scroll_y = target_y;
         result = 1;
     }
-    
+
     return(result);
 }
 
@@ -3078,7 +3095,7 @@ App_Init_Sig(app_init){
 
     vars = (App_Vars*)memory->vars_memory;
     models = &vars->models;
-    
+
     models->config_api = api;
     app_links.cmd_context = &vars->command_data;
 
@@ -3091,21 +3108,21 @@ App_Init_Sig(app_init){
         panel_max_count = models->layout.panel_max_count = 16;
         divider_max_count = panel_max_count - 1;
         models->layout.panel_count = 0;
-        
+
         panels = push_array(partition, Panel, panel_max_count);
         models->layout.panels = panels;
-        
+
         dll_init_sentinel(&models->layout.free_sentinel);
         dll_init_sentinel(&models->layout.used_sentinel);
-        
+
         panel = panels;
         for (i = 0; i < panel_max_count; ++i, ++panel){
             dll_insert(&models->layout.free_sentinel, panel);
         }
-        
+
         dividers = push_array(partition, Panel_Divider, divider_max_count);
         models->layout.dividers = dividers;
-        
+
         div = dividers;
         for (i = 0; i < divider_max_count-1; ++i, ++div){
             div->next = (div + 1);
@@ -3113,19 +3130,19 @@ App_Init_Sig(app_init){
         div->next = 0;
         models->layout.free_divider = dividers;
     }
-    
+
     {
         View *vptr = 0;
         i32 i = 0;
         i32 max = 0;
-        
+
         vars->live_set.count = 0;
         vars->live_set.max = panel_max_count;
-        
+
         vars->live_set.views = push_array(partition, View, vars->live_set.max);
-        
+
         dll_init_sentinel(&vars->live_set.free_sentinel);
-        
+
         max = vars->live_set.max;
         vptr = vars->live_set.views;
         for (i = 0; i < max; ++i, ++vptr){
@@ -3138,7 +3155,7 @@ App_Init_Sig(app_init){
         i32 wanted_size = 0;
         b32 did_top = 0;
         b32 did_file = 0;
-        
+
         models->scroll_rule = fallback_scroll_rule;
 
         setup_command_table();
@@ -3152,7 +3169,7 @@ App_Init_Sig(app_init){
             Command_Map *map_ptr = 0;
             Binding_Unit *unit, *end;
             i32 user_map_count;
-            
+
             unit = (Binding_Unit*)app_links.memory;
             if (unit->type == unit_header && unit->header.error == 0){
                 end = unit + unit->header.total_size;
@@ -3255,12 +3272,12 @@ App_Init_Sig(app_init){
                 }
             }
         }
-        
+
         memset(app_links.memory, 0, wanted_size);
         if (!did_top) setup_top_commands(&models->map_top, &models->mem.part, global);
         if (!did_file) setup_file_commands(&models->map_file, &models->mem.part, global);
 
-#if defined(FRED_SUPER)
+#if !defined(FRED_SUPER)
         models->hooks[hook_start] = 0;
 #endif
 
@@ -3328,7 +3345,7 @@ App_Init_Sig(app_init){
 
         dll_init_sentinel(&models->working_set.free_sentinel);
         dll_init_sentinel(&models->working_set.used_sentinel);
-        
+
         Editing_File *file = models->working_set.files + 1;
         i32 max = models->working_set.file_max;
         for (i32 i = 0; i < max; ++i, ++file){
@@ -3392,10 +3409,9 @@ App_Init_Sig(app_init){
     vars->sys_app_bindings = (Sys_App_Binding*)push_array(partition, Sys_App_Binding, vars->sys_app_max);
 
     // NOTE(allen): parameter setup
-    i32 max = models->working_set.file_max;
-    models->buffer_param_indices = push_array(partition, i32, max);
-    models->buffer_param_max = max;
+    models->buffer_param_max = 32;
     models->buffer_param_count = 0;
+    models->buffer_param_indices = push_array(partition, i32, models->buffer_param_max);
 }
 
 App_Step_Sig(app_step){
@@ -3416,7 +3432,7 @@ App_Step_Sig(app_step){
         String *dest = working_set_next_clipboard_string(&models->mem.general, &models->working_set, clipboard.size);
         dest->size = eol_convert_in(dest->str, clipboard.str, clipboard.size);
     }
-    
+
     // TODO(allen): profile this make sure it's not costing me too much power.
     // NOTE(allen): check files are up to date
     {
@@ -3458,7 +3474,7 @@ App_Step_Sig(app_step){
                 for (system->cli_begin_update(&proc->cli);
                     system->cli_update_step(&proc->cli, dest, max, &amount);){
                     amount = eol_in_place_convert_in(dest, amount);
-                    
+
                     i32 end = buffer_size(&out_file->state.buffer);
                     file_replace_range(system, models, out_file,
                         end, end, dest, amount, end + amount, 1);
@@ -3481,9 +3497,9 @@ App_Step_Sig(app_step){
                     app_result.redraw = 1;
                     new_cursor = end + str.size;
                 }
-                
+
                 new_cursor = 0;
-                
+
                 for (View_Iter iter = file_view_iter_init(&models->layout, out_file, 0);
                     file_view_iter_good(iter);
                     iter = file_view_iter_next(iter)){
@@ -3491,11 +3507,11 @@ App_Step_Sig(app_step){
                 }
             }
         }
-        
+
         vars->cli_processes.count = count;
         end_temp_memory(temp);
     }
-    
+
     // NOTE(allen): reorganizing panels on screen
     {
         i32 prev_width = models->layout.full_width;
@@ -3505,10 +3521,10 @@ App_Step_Sig(app_step){
 
         Panel *panel, *used_panels;
         View *view;
-        
+
         models->layout.full_width = current_width;
         models->layout.full_height = current_height;
-        
+
         if (prev_width != current_width || prev_height != current_height){
             layout_refit(&models->layout, prev_width, prev_height);
 
@@ -3520,11 +3536,11 @@ App_Step_Sig(app_step){
                 // be handled in the same place.
                 view_change_size(system, &models->mem.general, view);
             }
-            
+
             app_result.redraw = 1;
         }
     }
-    
+
     // NOTE(allen): prepare input information
     Key_Summary key_data = {};
     for (i32 i = 0; i < input->press_count; ++i){
@@ -3533,11 +3549,11 @@ App_Step_Sig(app_step){
     for (i32 i = 0; i < input->hold_count; ++i){
         key_data.keys[key_data.count++] = input->hold[i];
     }
-    
+
     mouse->wheel = -mouse->wheel;
-    
+
     ProfileEnd(OS_syncing);
-    
+
     ProfileStart(hover_status);
     // NOTE(allen): detect mouse hover status
     i32 mx = mouse->x;
@@ -3545,7 +3561,7 @@ App_Step_Sig(app_step){
     b32 mouse_in_edit_area = 0;
     b32 mouse_in_margin_area = 0;
     Panel *mouse_panel, *used_panels;
-    
+
     used_panels = &models->layout.used_sentinel;
     for (dll_items(mouse_panel, used_panels)){
         if (hit_check(mx, my, mouse_panel->inner)){
@@ -3621,30 +3637,30 @@ App_Step_Sig(app_step){
     ProfileStart(prepare_commands);
 
     Command_Data *cmd = &vars->command_data;
-    
+
     cmd->models = models;
     cmd->vars = vars;
     cmd->system = system;
     cmd->exchange = exchange;
     cmd->live_set = &vars->live_set;
-    
+
     cmd->panel = models->layout.panels + models->layout.active_panel;
     cmd->view = cmd->panel->view;
-    
+
     cmd->screen_width = target->width;
     cmd->screen_height = target->height;
-    
+
     cmd->key = {};
-    
+
     Temp_Memory param_stack_temp = begin_temp_memory(&models->mem.part);
     cmd->part = partition_sub_part(&models->mem.part, 16 << 10);
-    
+
     if (first_step){
         if (models->hooks[hook_start]){
             models->hooks[hook_start](&app_links);
             cmd->part.pos = 0;
         }
-        
+
         i32 i;
         String file_name;
         Panel *panel = models->layout.used_sentinel.next;
@@ -3788,11 +3804,11 @@ App_Step_Sig(app_step){
             }
         }
     }
-    
+
     update_command_data(vars, cmd);
-    
+
     ProfileEnd(command_coroutine);
-    
+
     // NOTE(allen): pass raw input to the panels
     ProfileStart(step);
 
@@ -3834,12 +3850,12 @@ App_Step_Sig(app_step){
     if (consumed_input[5]){
         mouse_state.wheel = 0;
     }
-    
+
     {
         Panel *panel, *used_panels;
         View *view;
         b32 active;
-        
+
         used_panels = &models->layout.used_sentinel;
         for (dll_items(panel, used_panels)){
             view = panel->view;
@@ -3853,10 +3869,10 @@ App_Step_Sig(app_step){
             }
         }
     }
-    
+
     update_command_data(vars, cmd);
     ProfileEnd(step);
-    
+
     // NOTE(allen): command execution
     ProfileStart(command);
     if (!consumed_input[0] || !consumed_input[1]){
@@ -3864,7 +3880,7 @@ App_Step_Sig(app_step){
 
         for (i32 key_i = 0; key_i < key_data.count; ++key_i){
             if (models->command_coroutine != 0) break;
-            
+
             switch (vars->state){
                 case APP_STATE_EDIT:
                 {
@@ -3887,7 +3903,7 @@ App_Step_Sig(app_step){
                             else{
                                 consumed_input2[0] = 1;
                             }
-                            
+
                             Assert(models->command_coroutine == 0);
                             Coroutine *command_coroutine = system->create_coroutine(command_caller);
                             models->command_coroutine = command_coroutine;
@@ -3916,10 +3932,10 @@ App_Step_Sig(app_step){
         consumed_input[0] |= consumed_input2[0];
         consumed_input[1] |= consumed_input2[1];
     }
-    
+
     update_command_data(vars, cmd);
     ProfileEnd(command);
-    
+
     ProfileStart(resizing);
     // NOTE(allen): panel resizing
     switch (vars->state){
@@ -4021,16 +4037,16 @@ App_Step_Sig(app_step){
         models->layout.active_panel = (i32)(mouse_panel - models->layout.panels);
         app_result.redraw = 1;
     }
-    
+
     update_command_data(vars, cmd);
     ProfileEnd(resizing);
-    
+
     // NOTE(allen): processing sys app bindings
     ProfileStart(sys_app_bind_processing);
     {
         Mem_Options *mem = &models->mem;
         General_Memory *general = &mem->general;
-        
+
         for (i32 i = 0; i < vars->sys_app_count; ++i){
             Sys_App_Binding *binding;
             b32 remove = 0;
@@ -4048,7 +4064,7 @@ App_Step_Sig(app_step){
             if (exchange_file_ready(exchange, binding->sys_id, &data, &size, &max)){
                 ed_file = working_set_get_file(working_set, binding->app_id, 1).file;
                 Assert(ed_file);
-                
+
                 filename = exchange_file_filename(exchange, binding->sys_id);
                 preload_settings = ed_file->preload;
                 if (data){
@@ -4118,33 +4134,33 @@ App_Step_Sig(app_step){
         }
     }
     ProfileEnd(sys_app_bind_processing);
-    
+
     // NOTE(allen): process as many delayed actions as possible
     ProfileStart(delayed_actions);
     if (models->delay1.count > 0){
         Working_Set *working_set = &models->working_set;
         Mem_Options *mem = &models->mem;
         General_Memory *general = &mem->general;
-        
+
         i32 count = models->delay1.count;
         models->delay1.count = 0;
         models->delay2.count = 0;
-        
+
         Delayed_Action *act = models->delay1.acts;
         for (i32 i = 0; i < count; ++i, ++act){
             String string = act->string;
             Panel *panel = act->panel;
             Editing_File *file = act->file;
             i32 integer = act->integer;
-            
+
             // TODO(allen): Paramter checking in each DACT case.
             switch (act->type){
                 case DACT_OPEN:
                 {
                     App_Open_File_Result result;
-                    
+
                     result = app_open_file_background(vars, exchange, working_set, string);
-                    
+
                     if (result.is_new){
                         if (result.file){
                             if (result.sys_id){
@@ -4165,7 +4181,7 @@ App_Step_Sig(app_step){
                         }
                     }
                 }break;
-                
+
                 case DACT_OPEN_BACKGROUND:
                 {
                     App_Open_File_Result result;
@@ -4225,7 +4241,7 @@ App_Step_Sig(app_step){
                         }
                     }
                 }break;
-                
+
                 case DACT_SAVE:
                 {
                     if (!file){
@@ -4258,9 +4274,9 @@ App_Step_Sig(app_step){
                     Get_File_Result file = working_set_get_available_file(working_set);
                     file_create_empty(system, models, file.file, string.str);
                     table_add(&working_set->table, file.file->name.source_path, file.index);
-                    
+
                     View *view = panel->view;
-                    
+
                     view_set_file(view, file.file, models, system,
                         models->hooks[hook_open_file], &app_links);
                     view->map = app_get_map(models, file.file->settings.base_map_id);
@@ -4275,7 +4291,7 @@ App_Step_Sig(app_step){
                     Editing_File *file = working_set_lookup_file(working_set, string);
                     if (file){
                         View *view = panel->view;
-                        
+
                         view_set_file(view, file, models, system,
                             models->hooks[hook_open_file], &app_links);
                         view->map = app_get_map(models, file->settings.base_map_id);
@@ -4290,12 +4306,12 @@ App_Step_Sig(app_step){
                         kill_file(system, exchange, models, file);
                     }
                 }break;
-                
+
                 case DACT_TRY_KILL:
                 {
                     Editing_File *file = 0;
                     file = working_set_lookup_file(working_set, string);
-                    
+
                     View *view = 0;
                     if (panel){
                         view = panel->view;
@@ -4303,9 +4319,9 @@ App_Step_Sig(app_step){
                     else{
                         view = (models->layout.panels + models->layout.active_panel)->view;
                     }
-                    
+
                     Assert(view);
-                    
+
                     if (file){
                         if (buffer_needs_save(file)){
                             view_show_interactive(system, view, &models->map_ui,
@@ -4319,14 +4335,14 @@ App_Step_Sig(app_step){
                     }
                 }break;
             }
-            
+
             if (string.str){
                 general_memory_free(general, string.str);
             }
         }
         Swap(models->delay1, models->delay2);
     }
-    
+
     end_temp_memory(param_stack_temp);
     ProfileEnd(delayed_actions);
 
@@ -4357,7 +4373,7 @@ App_Step_Sig(app_step){
         Render_Font *font = get_font_info(models->font_set, models->global_font.font_id)->font;
         float *advance_data = 0;
         if (font) advance_data = font->advance_data;
-        
+
         used_nodes = &models->working_set.used_sentinel;
         for (dll_items(node, used_nodes)){
             file = (Editing_File*)node;
@@ -4376,10 +4392,10 @@ App_Step_Sig(app_step){
     if (mouse_panel != models->prev_mouse_panel) app_result.redraw = 1;
     if (app_result.redraw){
         begin_render_section(target, system);
-        
+
         target->clip_top = -1;
         draw_push_clip(target, rect_from_target(target));
-        
+
         // NOTE(allen): render the panels
         Panel *panel, *used_panels;
         used_panels = &models->layout.used_sentinel;
@@ -4389,15 +4405,15 @@ App_Step_Sig(app_step){
 
             View *view = panel->view;
             Style *style = &models->style;
-            
+
             b32 active = (panel == cmd->panel);
             u32 back_color = style->main.back_color;
             draw_rectangle(target, full, back_color);
-            
+
             draw_push_clip(target, panel->inner);
             draw_file_view(system, exchange, view, cmd->view, panel->inner, active, target, &dead_input);
             draw_pop_clip(target);
-            
+
             u32 margin_color;
             if (active){
                 margin_color = style->main.margin_active_color;
@@ -4417,7 +4433,7 @@ App_Step_Sig(app_step){
         end_render_section(target, system);
     }
     ProfileEnd(redraw);
-    
+
     ProfileStart(get_cursor);
     // NOTE(allen): get cursor type
     if (mouse_in_edit_area){
@@ -4438,20 +4454,20 @@ App_Step_Sig(app_step){
     }
     models->prev_mouse_panel = mouse_panel;
     ProfileEnd(get_cursor);
-    
+
     app_result.lctrl_lalt_is_altgr = models->settings.lctrl_lalt_is_altgr;
     *result = app_result;
-    
+
     // end-of-app_step
 }
 
 external App_Get_Functions_Sig(app_get_functions){
     App_Functions result = {};
-    
+
     result.read_command_line = app_read_command_line;
     result.init = app_init;
     result.step = app_step;
-    
+
     return(result);
 }
 

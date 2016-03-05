@@ -214,17 +214,6 @@ push_parameter(Application_Links *app, const char *param, int param_len, const c
     app->push_parameter(app, dynamic_string(param_copy, param_len), dynamic_string(value_copy, value_len));
 }
 
-#if UseInterfacesThatArePhasingOut
-inline String
-push_directory(Application_Links *app){
-    String result;
-    result.memory_size = 512;
-    result.str = app->push_memory(app, result.memory_size);
-    result.size = app->directory_get_hot(app, result.str, result.memory_size);
-    return(result);
-}
-#endif
-
 inline Range
 get_range(View_Summary *view){
     Range range;

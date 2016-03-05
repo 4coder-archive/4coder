@@ -260,7 +260,7 @@ table_remove(File_Table *table, String name){
 
 struct Working_Set{
 	Editing_File *files;
-	i32 file_count, file_max;
+    i32 file_count, file_max;
     File_Node free_sentinel;
     File_Node used_sentinel;
     
@@ -443,7 +443,7 @@ working_set_contains(Working_Set *working, String filename){
     Editing_File *result = 0;
     i32 id;
     if (table_find(&working->table, filename, &id)){
-        if (id >= 0 && id < working->file_max){
+        if (id >= 0 && id <= working->file_max){
             result = working->files + id;
         }
     }

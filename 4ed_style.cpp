@@ -38,50 +38,6 @@ style_set_name(Style *style, String name){
     terminate_with_null(&style->name);
 }
 
-inline u32*
-style_index_by_tag(Style *s, u32 tag){
-    u32 *result = 0;
-    switch (tag){
-    case Stag_Bar: result = &s->main.file_info_style.bar_color; break;
-    case Stag_Bar_Active: result = &s->main.file_info_style.bar_active_color; break;
-    case Stag_Base: result = &s->main.file_info_style.base_color; break;
-    case Stag_Pop1: result = &s->main.file_info_style.pop1_color; break;
-    case Stag_Pop2: result = &s->main.file_info_style.pop2_color; break;
-            
-    case Stag_Back: result = &s->main.back_color; break;
-    case Stag_Margin: result = &s->main.margin_color; break;
-    case Stag_Margin_Hover: result = &s->main.margin_hover_color; break;
-    case Stag_Margin_Active: result = &s->main.margin_active_color; break;
-            
-    case Stag_Cursor: result = &s->main.cursor_color; break;
-    case Stag_At_Cursor: result = &s->main.at_cursor_color; break;
-    case Stag_Highlight: result = &s->main.highlight_color; break;
-    case Stag_At_Highlight: result = &s->main.at_highlight_color; break;
-    case Stag_Mark: result = &s->main.mark_color; break;
-        
-    case Stag_Default: result = &s->main.default_color; break;
-    case Stag_Comment: result = &s->main.comment_color; break;
-    case Stag_Keyword: result = &s->main.keyword_color; break;
-    case Stag_Str_Constant: result = &s->main.str_constant_color; break;
-    case Stag_Char_Constant: result = &s->main.char_constant_color; break;
-    case Stag_Int_Constant: result = &s->main.int_constant_color; break;
-    case Stag_Float_Constant: result = &s->main.float_constant_color; break;
-    case Stag_Bool_Constant: result = &s->main.bool_constant_color; break;
-        
-    case Stag_Preproc: result = &s->main.preproc_color; break;
-    case Stag_Include: result = &s->main.include_color; break;
-        
-    case Stag_Special_Character: result = &s->main.special_character_color; break;
-        
-    case Stag_Highlight_Junk: result = &s->main.highlight_junk_color; break;
-    case Stag_Highlight_White: result = &s->main.highlight_white_color; break;
-        
-    case Stag_Paste: result = &s->main.paste_color; break;
-    case Stag_Undo: result = &s->main.undo_color; break;
-    }
-    return result;
-}
-
 struct Style_Library{
     Style styles[64];
     i32 count, max;

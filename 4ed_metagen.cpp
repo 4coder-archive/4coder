@@ -20,9 +20,37 @@ struct Struct_Field{
 void to_lower(char *src, char *dst){
     char *c, ch;
     for (c = src; *c != 0; ++c){
+        ch = char_to_lower(*c);
+        *dst++ = ch;
+    }
+    *dst = 0;
+}
+
+void to_upper(char *src, char *dst){
+    char *c, ch;
+    for (c = src; *c != 0; ++c){
+        ch = char_to_upper(*c);
+        *dst++ = ch;
+    }
+    *dst = 0;
+}
+
+void to_camel(char *src, char *dst){
+    char *c, ch;
+    int is_first = 1;
+    for (c = src; *c != 0; ++c){
         ch = *c;
-        if (ch >= 'A' && ch <= 'Z'){
-            ch += ('a' - 'A');
+        if (char_is_alpha_numeric_true(ch)){
+            if (is_first){
+                is_first = 0;
+                ch = char_to_upper(ch);
+            }
+            else{
+                ch = char_to_lower(ch);
+            }
+        }
+        else{
+            is_first = 1;
         }
         *dst++ = ch;
     }
@@ -361,42 +389,39 @@ char* main_style_fields[] = {
     "next_undo",
 };
 
-static void
-do_style_tag(FILE *file, char *tag){
-    int j, is_first;
-    char *str_, c;
-    String str;
+static char*
+make_style_tag(char *tag){
+    char *str;
+    int len;
     
-    str.memory_size = (int)strlen(tag);
-    str_ = (char*)malloc(str.memory_size + 1);
-    str = make_string(str_, 0, str.memory_size + 1);
-    copy(&str, make_string(tag, str.memory_size));
-    terminate_with_null(&str);
+    len = (int)strlen(tag);
+    str = (char*)malloc(len + 1);
+    to_camel(tag, str);
+    str[len] = 0;
 
-    is_first = 1;
-    for (j = 0; j < str.size; ++j){
-        c = str.str[j];
-        if (char_is_alpha_numeric_true(c)){
-            if (is_first){
-                is_first = 0;
-                str.str[j] = char_to_upper(c);
-            }
-        }
-        else{
-            is_first = 1;
-        }
-    }
-
-    fprintf(file, "Stag_%s,\n", str.str);
-
-    free(str.str);
+    return(str);
 }
+
+char style_index_function_start[] =
+"inline u32*\n"
+"style_index_by_tag(Style_Main_Data *s, u32 tag){\n"
+" u32 *result = 0;\n"
+" switch (tag){\n";
+
+char style_index_function_end[] =
+" }\n"
+" return(result);\n"
+"}\n\n";
+
+char style_case[] = " case Stag_%s: result = &s->%s_color; break;\n";
+char style_info_case[] = " case Stag_%s: result = &s->file_info_style.%s_color; break;\n";
 
 char* generate_style(){
     char *filename = "4coder_style.h & 4ed_style.h";
     char filename_4coder[] = "4coder_style.h";
     char filename_4ed[] = "4ed_style.h";
     FILE *file;
+    char *tag;
     int count, i;
 
     file = fopen(filename_4coder, "wb");
@@ -404,12 +429,16 @@ char* generate_style(){
     {
         count = ArrayCount(bar_style_fields);
         for (i = 0; i < count; ++i){
-            do_style_tag(file, bar_style_fields[i]);
+            tag = make_style_tag(bar_style_fields[i]);
+            fprintf(file, "Stag_%s,\n", tag);
+            free(tag);
         }
         
         count = ArrayCount(main_style_fields);
         for (i = 0; i < count; ++i){
-            do_style_tag(file, main_style_fields[i]);
+            tag = make_style_tag(main_style_fields[i]);
+            fprintf(file, "Stag_%s,\n", tag);
+            free(tag);
         }
     }
     struct_end(file);
@@ -434,6 +463,25 @@ char* generate_style(){
         fprintf(file, "Interactive_Style file_info_style;\n");
     }
     struct_end(file);
+    
+    {
+        fprintf(file, "%s", style_index_function_start);
+        count = ArrayCount(bar_style_fields);
+        for (i = 0; i < count; ++i){
+            tag = make_style_tag(bar_style_fields[i]);
+            fprintf(file, style_info_case, tag, bar_style_fields[i]);
+            free(tag);
+        }
+        
+        count = ArrayCount(main_style_fields);
+        for (i = 0; i < count; ++i){
+            tag = make_style_tag(main_style_fields[i]);
+            fprintf(file, style_case, tag, main_style_fields[i]);
+            free(tag);
+        }
+        fprintf(file, "%s", style_index_function_end);
+    }
+    
     fclose(file);
     
     return(filename);

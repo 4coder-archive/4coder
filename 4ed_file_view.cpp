@@ -1296,6 +1296,10 @@ view_set_file(
             file->settings.is_initialized = 1;
         }
     }
+    
+    // TODO(allen): Fix this:
+    view->ui_state = {};
+    view->showing_ui = VUI_None;
 }
 
 struct Relative_Scrolling{
@@ -2595,7 +2599,7 @@ view_show_theme(View *fview, Command_Map *gui_map){
 }
 
 inline void
-view_show_file(View *view, Command_Map *file_map, Editing_File *file){
+view_show_file(View *view, Command_Map *file_map){
     view->ui_state = {};
     if (file_map){
         view->map = file_map;
@@ -2603,7 +2607,6 @@ view_show_file(View *view, Command_Map *file_map, Editing_File *file){
     else{
         view->map = view->map_for_file;
     }
-    view->file = file;
     view->showing_ui = VUI_None;
 }
 
@@ -2652,7 +2655,8 @@ interactive_view_complete(View *view){
         }
         break;
     }
-    view_show_file(view, 0, 0);
+    view_show_file(view, 0);
+    view->file = 0;
 }
 
 internal void

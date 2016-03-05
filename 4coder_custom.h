@@ -319,6 +319,13 @@ struct Query_Bar{
     String string;
 };
 
+struct Theme_Color{
+    Style_Tag tag;
+    unsigned int color;
+};
+
+
+
 #define GET_BINDING_DATA(name) int name(void *data, int size)
 #define CUSTOM_COMMAND_SIG(name) void name(struct Application_Links *app)
 #define HOOK_SIG(name) void name(struct Application_Links *app)
@@ -383,6 +390,8 @@ struct Application_Links;
 #define START_QUERY_BAR_SIG(name) int name(Application_Links *context, Query_Bar *bar, unsigned int flags)
 #define END_QUERY_BAR_SIG(name) void name(Application_Links *context, Query_Bar *bar, unsigned int flags)
 
+// Setting colors
+#define SET_THEME_COLORS_SIG(name) void name(Application_Links *context, Theme_Color *colors, int count)
 
 
 // Boundry type flags
@@ -457,6 +466,9 @@ extern "C"{
     // Queries
     typedef START_QUERY_BAR_SIG(Start_Query_Bar_Function);
     typedef END_QUERY_BAR_SIG(End_Query_Bar_Function);
+    
+    // Set theme colors
+    typedef SET_THEME_COLORS_SIG(Set_Theme_Colors_Function);
 }
 
 struct Application_Links{
@@ -513,6 +525,9 @@ struct Application_Links{
     // Queries
     Start_Query_Bar_Function *start_query_bar;
     End_Query_Bar_Function *end_query_bar;
+    
+    // Theme
+    Set_Theme_Colors_Function *set_theme_colors;
     
     // Internal
     void *cmd_context;

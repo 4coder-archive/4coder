@@ -811,7 +811,7 @@ CUSTOM_COMMAND_SIG(build_search){
         if (app->file_exists(app, dir.str, dir.size)){
             dir.size = old_size;
             
-            push_parameter(app, par_flags, 0);
+            push_parameter(app, par_flags, CLI_OverlapWithConflict);
             push_parameter(app, par_name, literal("*compilation*"));
             push_parameter(app, par_cli_path, dir.str, dir.size);
             
@@ -838,6 +838,34 @@ CUSTOM_COMMAND_SIG(build_search){
 CUSTOM_COMMAND_SIG(write_and_auto_tab){
     exec_command(app, cmdid_write_character);
     exec_command(app, cmdid_auto_tab_line_at_cursor);
+}
+
+CUSTOM_COMMAND_SIG(improve_theme){
+    Theme_Color colors[] = {
+        {Stag_Bar, 0xFF0088},
+        {Stag_Margin, 0x880088},
+        {Stag_Margin_Hover, 0xAA0088},
+        {Stag_Margin_Active, 0xDD0088},
+        {Stag_Cursor, 0xFF0000},
+    };
+    
+    int count = ArrayCount(colors);
+    
+    app->set_theme_colors(app, colors, count);
+}
+
+CUSTOM_COMMAND_SIG(ruin_theme){
+    Theme_Color colors[] = {
+        {Stag_Bar, 0x888888},
+        {Stag_Margin, 0x181818},
+        {Stag_Margin_Hover, 0x252525},
+        {Stag_Margin_Active, 0x323232},
+        {Stag_Cursor, 0x00EE00},
+    };
+    
+    int count = ArrayCount(colors);
+    
+    app->set_theme_colors(app, colors, count);
 }
 
 // NOTE(allen|a4.0.0): scroll rule information
@@ -961,6 +989,8 @@ extern "C" GET_BINDING_DATA(get_bindings){
     bind(context, 'M', MDFR_ALT | MDFR_CTRL, open_my_files);
     bind(context, 'M', MDFR_ALT, build_at_launch_location);
     
+    bind(context, '`', MDFR_ALT, improve_theme);
+    bind(context, '~', MDFR_ALT, ruin_theme);
 
     end_map(context);
 
