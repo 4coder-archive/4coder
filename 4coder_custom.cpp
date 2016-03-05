@@ -2,7 +2,7 @@
 #define Custom_Default 0
 #define Custom_HandmadeHero 1
 
-#define Custom_Current Custom_Default
+#define Custom_Current Custom_HandmadeHero
 
 #include "4coder_custom.h"
 

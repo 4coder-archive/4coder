@@ -9,8 +9,8 @@ SET STUFF=/GR- /nologo
 SET DEBUG=/Zi
 SET EXPORTS=/EXPORT:get_bindings
 SET SRC=4coder_custom.cpp
-SET LINKS=user32.lib gdi32.lib
-REM SET LINKS=
+REM SET LINKS=user32.lib gdi32.lib
+SET LINKS=
 
 cl %WARNINGS% %STUFF% %DEBUG% %SRC% %LINKS% /Fe4coder_custom /LD /link /INCREMENTAL:NO /OPT:REF %EXPORTS%
 

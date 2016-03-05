@@ -43,7 +43,6 @@
 
 #include <math.h>
 #include <stdio.h>
-#include <windows.h>
 
 #define UseHack4Coder 0
 
@@ -54,10 +53,15 @@
 
 static bool GlobalEditMode;
 static char *GlobalCompilationBufferName = "*compilation*";
+
+
+#if UseHack4Coder
+#include <windows.h>
 static HWND GlobalModalIndicator;
 static HBRUSH GlobalEditModeBrush;
 static HBRUSH GlobalNormalModeBrush;
 static WNDPROC global_old_4coder_winproc;
+#endif
 
 // TODO(casey): If 4coder gets variables at some point, this would go in a variable.
 static char BuildDirectory[4096] = "./";
@@ -636,7 +640,7 @@ CUSTOM_COMMAND_SIG(casey_goto_next_error)
                                 ErrorParsingPosition += (int)(ColonToken.Text - ParsingRegion);
 
                                 View_Summary compilation_view =
-                                    get_first_view_for_buffer(app, Buffer.buffer_id);
+                                    get_first_view_with_buffer(app, Buffer.buffer_id);
                                 if(compilation_view.exists)
                                 {
                                     app->view_set_cursor(app, &compilation_view, seek_pos(ErrorParsingPosition), 1);
