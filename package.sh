@@ -1,3 +1,4 @@
+#!/bin/bash
 #!/bin/sh
 # Linux packaging script by insofaras
 #
@@ -15,22 +16,19 @@ TEMPLATE_DIR="$HOME/Desktop/4coder/release_template/"
 CODE_DIR="$HOME/Desktop/4coder"
 TMP_DIR="/tmp/4coder"
 OUT_ZIP="$HOME/Desktop/4coder-linux.zip"
+OUT_ZIP_SUPER="$HOME/Desktop/4coder-linux-super.zip"
+
+echo "template: $TEMPLATE_DIR"
+echo "base:     $CODE_DIR"
+echo "temp:     $TMP_DIR"
+echo "out:      $OUT_ZIP"
+
+rm -rf "$OUT_ZIP"
+rm -rf "$OUT_ZIP_SUPER"
 
 mkdir -p "$TMP_DIR"
-
-pushd "$CODE_DIR"
-
-make clean
-make release32
-cp -r "${TEMPLATE_DIR}" "$TMP_DIR/32"
-cp ./4ed ./4ed_app.so ./code/4coder_*.h ./code/4coder_*.cpp "$TMP_DIR/32/"
-
-make clean
-make release
-cp -r "${TEMPLATE_DIR}" "$TMP_DIR/64"
-cp ./4ed ./4ed_app.so ./code/4coder_*.h ./code/4coder_*.cpp "$TMP_DIR/64/"
-
-make clean
+mkdir -p "$TMP_DIR/alpha"
+mkdir -p "$TMP_DIR/super"
 
 cat << EOF > "$TMP_DIR/readme.txt"
 This is a linux 4coder release.
@@ -39,9 +37,59 @@ Brought to you by Mr4thDimention and insofaras.
 Enjoy!
 EOF
 
-pushd "$TMP_DIR/.."
-zip -r "$OUT_ZIP" "$(basename $TMP_DIR)"
+pushd "$CODE_DIR"
+
+echo "Alpha User"
+
+make clean
+make release32
+cp -r "${TEMPLATE_DIR}" "$TMP_DIR/alpha/32"
+cp ./4ed ./4ed_app.so "$TMP_DIR/alpha/32/"
+
+echo " "
+
+make clean
+make release
+cp -r "${TEMPLATE_DIR}" "$TMP_DIR/alpha/64"
+cp ./4ed ./4ed_app.so "$TMP_DIR/alpha/64/"
+
+echo " "
+
+cp "$TMP_DIR/readme.txt" "$TMP_DIR/alpha/readme.txt"
+pushd "$TMP_DIR"
+zip -r "$OUT_ZIP" "$(basename alpha)"
 popd
+
+echo " "
+
+
+
+echo "Super User"
+
+make clean
+make release32
+cp -r "${TEMPLATE_DIR}" "$TMP_DIR/super/32"
+cp ./4ed ./4ed_app.so ./code/4coder_*.h ./code/4coder_*.cpp "$TMP_DIR/super/32/"
+
+echo " "
+
+make clean
+make release
+cp -r "${TEMPLATE_DIR}" "$TMP_DIR/super/64"
+cp ./4ed ./4ed_app.so ./code/4coder_*.h ./code/4coder_*.cpp "$TMP_DIR/super/64/"
+
+echo " "
+
+cp "$TMP_DIR/readme.txt" "$TMP_DIR/super/readme.txt"
+pushd "$TMP_DIR"
+zip -r "$OUT_ZIP_SUPER" "$(basename super)"
+popd
+
+echo " "
+
+
+
+make clean
 
 rm -rf "$TMP_DIR"
 
@@ -50,33 +98,4 @@ popd
 echo "Created linux 4coder package: $OUT_ZIP"
 
 exit
-
-## The makefile, copy it into a file called "makefile" one dir above the code/ dir.
-
-CPP_FILES := $(wildcard *.cpp) $(wildcard **/*.cpp)
-H_FILES := $(wildcard *.h) $(wildcard **/*.h)
-WARNINGS := -Wno-write-strings 
-PLAT_LINKS := -L/usr/local/lib -lX11 -lpthread -lm -lrt -lGL -ldl 
-FLAGS := -fPIC -fno-threadsafe-statics -pthread
-
-all: 4ed_app.so 4ed
-
-4ed_app.so: $(CPP_FILES) $(H_FILES)
-	g++ $(WARNINGS) $(FLAGS) -std=gnu++0x -shared code/4ed_app_target.cpp -iquoteforeign -o 4ed_app.so
-
-4ed: $(CPP_FILES) $(H_FILES)
-	g++ $(WARNINGS) $(FLAGS) -std=gnu++0x code/linux_4ed.cpp -iquoteforeign $(PLAT_LINKS) -o $@
-
-clean:
-	$(RM) -f 4ed_app.so 4ed
-	
-release: FLAGS += -U_FORTIFY_SOURCE -fno-stack-protector -Wl,--wrap=memcpy code/linux_release_compat.c -Wl,-s
-release: 4ed_app.so 4ed
-	strip -R .comment $^
-	
-release32: FLAGS += -U_FORTIFY_SOURCE -fno-stack-protector -Wl,-s -m32
-release32: 4ed_app.so 4ed
-	strip -R .comment $^
-
-.PHONY: clean release release32
 
