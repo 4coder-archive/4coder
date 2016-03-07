@@ -66,12 +66,12 @@ enum Color_View_Mode{
 struct View{
     View *next, *prev;
     b32 in_use;
-    
+    i32 id;
+
     Models *models;
-    
+
     Panel *panel;
     Command_Map *map;
-    i32 id;
 
     Editing_File *file;
 
@@ -99,7 +99,7 @@ struct View{
     Style_Library inspecting_styles;
     b8 import_export_check[64];
     i32 import_file_id;
-    
+
     // file stuff
     i32 font_advance;
     i32 font_height;
@@ -127,7 +127,7 @@ struct View{
 
     i32 line_count, line_max;
     f32 *line_wrap_y;
-    
+
     Command_Map *map_for_file;
     b32 reinit_scrolling;
 };
@@ -164,7 +164,7 @@ view_compute_height(View *view){
 
 struct View_Iter{
     View *view;
-    
+
     Editing_File *file;
     View *skip;
     Panel *used_panels;
@@ -174,7 +174,7 @@ struct View_Iter{
 internal View_Iter
 file_view_iter_next(View_Iter iter){
     View *file_view;
-    
+
     for (iter.panel = iter.panel->next; iter.panel != iter.used_panels; iter.panel = iter.panel->next){
         file_view = iter.panel->view;
         if (file_view != iter.skip && (file_view->file == iter.file || iter.file == 0)){
@@ -182,7 +182,7 @@ file_view_iter_next(View_Iter iter){
             break;
         }
     }
-    
+
     return(iter);
 }
 
@@ -193,9 +193,9 @@ file_view_iter_init(Editing_Layout *layout, Editing_File *file, View *skip){
     result.panel = result.used_panels;
     result.file = file;
     result.skip = skip;
-    
+
     result = file_view_iter_next(result);
-    
+
     return(result);
 }
 
@@ -520,7 +520,7 @@ alloc_for_buffer(void *context, int *size){
 internal void
 file_create_from_string(System_Functions *system, Models *models,
     Editing_File *file, char *filename, String val, b8 read_only = 0){
-    
+
     Font_Set *font_set = models->font_set;
     Working_Set *working_set = &models->working_set;
     General_Memory *general = &models->mem.general;
@@ -544,11 +544,11 @@ file_create_from_string(System_Functions *system, Models *models,
     init_success = buffer_end_init(&init, part->base + part->pos, scratch_size);
     AllowLocal(init_success);
     Assert(init_success);
-    
+
     if (buffer_size(&file->state.buffer) < val.size){
         file->settings.dos_write_mode = 1;
     }
-    
+
     file_init_strings(file);
     file_set_name(working_set, file, (char*)filename);
 
@@ -601,7 +601,7 @@ file_create_empty(System_Functions *system,
 internal b32
 file_create_read_only(System_Functions *system,
     Models *models, Editing_File *file, char *filename){
-    
+
     file_create_from_string(system, models, file, filename, {}, 1);
     return (1);
 }
@@ -683,7 +683,7 @@ Job_Callback_Sig(job_full_lex){
     u8 *src = (u8*)tokens.tokens;
 
     memcpy(dest, src, tokens.count*sizeof(Cpp_Token));
-    
+
     system->acquire_lock(FRAME_LOCK);
     {
         file->state.token_stack.count = tokens.count;
@@ -1270,12 +1270,12 @@ view_set_file(
     b32 set_vui = 1){
 
     Font_Info *fnt_info;
-    
+
     // TODO(allen): This belongs somewhere else.
     fnt_info = get_font_info(models->font_set, models->global_font.font_id);
     view->font_advance = fnt_info->advance;
     view->font_height = fnt_info->height;
-    
+
     // NOTE(allen): Stuff that doesn't assume file exists.
     view->file = file;
     view->cursor = {};
@@ -2631,7 +2631,7 @@ interactive_view_complete(View *view){
     Models *models = view->models;
     Panel *panel = view->panel;
     Editing_File *old_file = view->file;
-    
+
     switch (view->action){
         case IAct_Open:
         delayed_open(&models->delay1, models->hot_directory.string, panel);
@@ -2655,13 +2655,13 @@ interactive_view_complete(View *view){
         break;
 
         case IAct_Kill:
-        delayed_try_kill(&models->delay1, view->dest, panel);
+        delayed_try_kill(&models->delay1, view->dest);
         break;
 
         case IAct_Sure_To_Kill:
         switch (view->user_action){
             case 0:
-            delayed_kill(&models->delay1, view->dest, panel);
+            delayed_kill(&models->delay1, view->dest);
             break;
 
             case 1:
@@ -2670,14 +2670,14 @@ interactive_view_complete(View *view){
             case 2:
             // TODO(allen): This is fishy! What if the save doesn't happen this time around?
             // We need to ensure delayed acts happen in order I think.
-            delayed_save(&models->delay1, view->dest, panel);
-            delayed_kill(&models->delay1, view->dest, panel);
+            delayed_save(&models->delay1, view->dest);
+            delayed_kill(&models->delay1, view->dest);
             break;
         }
         break;
     }
     view_show_file(view, 0);
-    
+
     // TODO(allen): This is here to prevent the key press from being passed to the
     // underlying file which is a giant pain.
     view->file = 0;
@@ -3145,7 +3145,7 @@ theme_adjusting_shit(View *view, UI_State *state, UI_Layout *layout, Super_Color
         "Bar Pop 2");
 
     *color = ui.hover_color;
-    
+
     return (result);
 }
 
@@ -3349,22 +3349,22 @@ do_file_bar(View *view, Editing_File *file, UI_Layout *layout, Render_Target *ta
             String line_number = make_string(line_number_space, 0, 30);
             append(&line_number, " L#");
             append_int_to_str(view->cursor.line, &line_number);
-            
+
             intbar_draw_string(target, &bar, line_number, base_color);
-            
+
             intbar_draw_string(target, &bar, make_lit_string(" -"), base_color);
-            
+
             if (file->settings.dos_write_mode){
                 intbar_draw_string(target, &bar, make_lit_string(" dos"), base_color);
             }
             else{
                 intbar_draw_string(target, &bar, make_lit_string(" nix"), base_color);
             }
-            
+
             if (file->state.still_lexing){
                 intbar_draw_string(target, &bar, make_lit_string(" parsing"), pop1_color);
             }
-            
+
             if (!file->settings.unimportant){
                 switch (buffer_get_sync(file)){
                     case SYNC_BEHIND_OS:
@@ -3422,7 +3422,7 @@ view_reinit_scrolling(View *view){
 internal i32
 step_file_view(System_Functions *system, Exchange *exchange, View *view, i32_Rect rect,
     b32 is_active, Input_Summary *user_input){
-    
+
     Models *models = view->models;
     i32 result = 0;
     Editing_File *file = view->file;
@@ -3442,10 +3442,10 @@ step_file_view(System_Functions *system, Exchange *exchange, View *view, i32_Rec
                 if (file && view->showing_ui == VUI_None){
                     do_file_bar(view, file, &layout, 0);
                 }
-                
+
                 draw_file_view_queries(view, &state, &layout);
             }break;
-            
+
             case FWIDG_TIMELINES:
             {
                 i32 scrub_max = view->scrub_max;
@@ -3456,7 +3456,7 @@ step_file_view(System_Functions *system, Exchange *exchange, View *view, i32_Rec
                 undo_shit(system, view, &state, &layout, total_count, undo_count, scrub_max);
             }break;
         }
-        
+
         widget_height = layout.y - rect.y0;
         if (ui_finish_frame(&view->widget.state, &state, &layout, rect, 0, 0)){
             result = 1;
@@ -3524,7 +3524,7 @@ step_file_view(System_Functions *system, Exchange *exchange, View *view, i32_Rec
         }
 
         view->target_x = target_x;
-        
+
         b32 is_new_target = 0;
         if (view->target_x != view->prev_target_x) is_new_target = 1;
         if (view->target_y != view->prev_target_y) is_new_target = 1;
@@ -3532,18 +3532,18 @@ step_file_view(System_Functions *system, Exchange *exchange, View *view, i32_Rec
         if (view->models->scroll_rule(
                 view->target_x, view->target_y,
                 &view->scroll_x, &view->scroll_y,
-                view->id + 1, is_new_target)){
+                (view->id) + 1, is_new_target)){
             result = 1;
         }
 
         view->prev_target_x = view->target_x;
         view->prev_target_y = view->target_y;
-        
+
         if (file->state.paste_effect.tick_down > 0){
             --file->state.paste_effect.tick_down;
             result = 1;
         }
-        
+
         if (user_input->mouse.press_l && is_active){
             f32 max_y = view_compute_height(view);
             f32 rx = (f32)(user_input->mouse.x - rect.x0);
@@ -3558,18 +3558,18 @@ step_file_view(System_Functions *system, Exchange *exchange, View *view, i32_Rec
             }
             result = 1;
         }
-        
+
         if (!is_active) view_set_widget(view, FWIDG_NONE);
     }
-    
+
     {
         UI_State state =
             ui_state_init(&view->ui_state, 0, user_input,
             &models->style, models->global_font.font_id, models->font_set, &models->working_set, 1);
-        
+
         UI_Layout layout;
         begin_layout(&layout, rect);
-        
+
         Super_Color color = {};
 
         switch (view->showing_ui){
@@ -3618,20 +3618,20 @@ draw_file_loaded(View *view, i32_Rect rect, b32 is_active, Render_Target *target
 
     i32 max_x = rect.x1 - rect.x0;
     i32 max_y = rect.y1 - rect.y0 + line_height;
-    
+
     Assert(file && !file->state.is_dummy && buffer_good(&file->state.buffer));
-    
+
     b32 tokens_use = 0;
     Cpp_Token_Stack token_stack = {};
     if (file){
         tokens_use = file->state.tokens_complete && (file->state.token_stack.count > 0);
         token_stack = file->state.token_stack;
     }
-    
+
     Partition *part = &models->mem.part;
 
     Temp_Memory temp = begin_temp_memory(part);
-    
+
     partition_align(part, 4);
     i32 max = partition_remaining(part) / sizeof(Buffer_Render_Item);
     Buffer_Render_Item *items = push_array(part, Buffer_Render_Item, max);
@@ -3648,13 +3648,13 @@ draw_file_loaded(View *view, i32_Rect rect, b32 is_active, Render_Target *target
     f32 *wraps = view->line_wrap_y;
     f32 scroll_x = view->scroll_x;
     f32 scroll_y = view->scroll_y;
-    
+
     {
         render_cursor = buffer_get_start_cursor(&file->state.buffer, wraps, scroll_y,
                                                 !view->unwrapped_lines, (f32)max_x, advance_data, (f32)line_height);
-        
+
         view->scroll_i = render_cursor.pos;
-        
+
         buffer_get_render_data(&file->state.buffer, items, max, &count,
                                (f32)rect.x0, (f32)rect.y0,
                                scroll_x, scroll_y, render_cursor,
@@ -3663,9 +3663,9 @@ draw_file_loaded(View *view, i32_Rect rect, b32 is_active, Render_Target *target
                                advance_data, (f32)line_height,
                                opts);
     }
-    
+
     Assert(count > 0);
-    
+
     i32 cursor_begin, cursor_end;
     u32 cursor_color, at_cursor_color;
     if (view->show_temp_highlight){
@@ -3680,7 +3680,7 @@ draw_file_loaded(View *view, i32_Rect rect, b32 is_active, Render_Target *target
         cursor_color = style->main.cursor_color;
         at_cursor_color = style->main.at_cursor_color;
     }
-    
+
     i32 token_i = 0;
     u32 main_color = style->main.default_color;
     u32 special_color = style->main.special_character_color;
@@ -3689,19 +3689,19 @@ draw_file_loaded(View *view, i32_Rect rect, b32 is_active, Render_Target *target
         main_color = *style_get_color(style, token_stack.tokens[result.token_index]);
         token_i = result.token_index + 1;
     }
-    
+
     u32 mark_color = style->main.mark_color;
     Buffer_Render_Item *item = items;
     i32 prev_ind = -1;
     u32 highlight_color = 0;
     u32 highlight_this_color = 0;
-    
+
     for (i32 i = 0; i < count; ++i, ++item){
         i32 ind = item->index;
         highlight_this_color = 0;
         if (tokens_use && ind != prev_ind){
             Cpp_Token current_token = token_stack.tokens[token_i-1];
-            
+
             if (token_i < token_stack.count){
                 if (ind >= token_stack.tokens[token_i].start){
                     main_color =
@@ -3722,7 +3722,7 @@ draw_file_loaded(View *view, i32_Rect rect, b32 is_active, Render_Target *target
                 highlight_color = 0;
             }
         }
-        
+
         u32 char_color = main_color;
         if (item->flags & BRFlag_Special_Character) char_color = special_color;
 
@@ -3734,7 +3734,7 @@ draw_file_loaded(View *view, i32_Rect rect, b32 is_active, Render_Target *target
         else{
             highlight_this_color = highlight_color;
         }
-        
+
         if (cursor_begin <= ind && ind < cursor_end && (ind != prev_ind || cursor_begin < ind)){
             if (is_active){
                 draw_rectangle(target, char_rect, cursor_color);
@@ -3749,19 +3749,19 @@ draw_file_loaded(View *view, i32_Rect rect, b32 is_active, Render_Target *target
         else if (highlight_this_color){
             draw_rectangle(target, char_rect, highlight_this_color);
         }
-        
+
         u32 fade_color = 0xFFFF00FF;
         f32 fade_amount = 0.f;
-        
+
         if (file->state.paste_effect.tick_down > 0 &&
             file->state.paste_effect.start <= ind &&
             ind < file->state.paste_effect.end){
             fade_color = file->state.paste_effect.color;
             fade_amount = (f32)(file->state.paste_effect.tick_down) / file->state.paste_effect.tick_max;
         }
-        
+
         char_color = color_blend(char_color, fade_amount, fade_color);
-        
+
         if (ind == view->mark && prev_ind != ind){
             draw_rectangle_outline(target, char_rect, mark_color);
         }
@@ -3771,9 +3771,9 @@ draw_file_loaded(View *view, i32_Rect rect, b32 is_active, Render_Target *target
         }
         prev_ind = ind;
     }
-    
+
     end_temp_memory(temp);
-    
+
     return(0);
 }
 
@@ -3781,27 +3781,27 @@ internal i32
 draw_file_view(System_Functions *system, Exchange *exchange,
     View *view, View *active, i32_Rect rect, b32 is_active,
     Render_Target *target, Input_Summary *user_input){
-    
+
     Models *models = view->models;
     Editing_File *file = view->file;
     i32 result = 0;
-    
+
     i32 widget_height = 0;
     {
         UI_State state =
             ui_state_init(&view->widget.state, target, 0,
             &models->style, models->global_font.font_id, models->font_set, 0, 0);
-        
+
         UI_Layout layout;
         begin_layout(&layout, rect);
-        
+
         switch (view->widget.type){
             case FWIDG_NONE:
             {
                 if (file && view->showing_ui == VUI_None){
                     do_file_bar(view, file, &layout, target);
                 }
-                
+
                 draw_file_view_queries(view, &state, &layout);
             }break;
 
@@ -3823,20 +3823,20 @@ draw_file_view(System_Functions *system, Exchange *exchange,
         ui_finish_frame(&view->widget.state, &state, &layout, rect, 0, 0);
     }
     view->scroll_min_limit = (f32)-widget_height;
-    
+
     {
         rect.y0 += widget_height;
         target->push_clip(target, rect);
-        
+
         UI_State state =
             ui_state_init(&view->ui_state, target, user_input,
             &models->style, models->global_font.font_id, models->font_set, &models->working_set, 0);
-        
+
         UI_Layout layout;
         begin_layout(&layout, rect);
-        
+
         rect.y0 -= widget_height;
-                
+
         Super_Color color = {};
 
         switch (view->showing_ui){
@@ -3849,12 +3849,12 @@ draw_file_view(System_Functions *system, Exchange *exchange,
                     result = draw_file_loaded(view, rect, is_active, target);
                 }
             }break;
-            
+
             case VUI_Theme:
             {
                 theme_shit(system, exchange, view, active, &state, &layout, &color);
             }break;
-            
+
             case VUI_Interactive:
             {
                 interactive_shit(system, view, &state, &layout);
@@ -3868,13 +3868,13 @@ draw_file_view(System_Functions *system, Exchange *exchange,
                 config_shit(view, &state, &layout);
             }break;
         }
-        
+
         ui_finish_frame(&view->ui_state, &state, &layout, rect, 0, 0);
 
         target->pop_clip(target);
     }
-    
-    
+
+
     return (result);
 }
 
@@ -3884,13 +3884,13 @@ internal void
 kill_file(System_Functions *system, Exchange *exchange, Models *models, Editing_File *file,
     Hook_Function *open_hook, Application_Links *app){
     File_Node *node, *used;
-    
+
     file_close(system, &models->mem.general, file);
     working_set_free_file(&models->working_set, file);
-    
+
     used = &models->working_set.used_sentinel;
     node = used->next;
-    
+
     for (View_Iter iter = file_view_iter_init(&models->layout, file, 0);
         file_view_iter_good(iter);
         iter = file_view_iter_next(iter)){
@@ -3937,7 +3937,7 @@ struct Search_Match{
 internal void
 search_iter_init(General_Memory *general, Search_Iter *iter, i32 size){
     i32 str_max;
-    
+
     if (iter->word.str == 0){
         str_max = size*2;
         iter->word.str = (char*)general_memory_allocate(general, str_max, 0);
@@ -3948,7 +3948,7 @@ search_iter_init(General_Memory *general, Search_Iter *iter, i32 size){
         iter->word.str = (char*)general_memory_reallocate_nocopy(general, iter->word.str, str_max, 0);
         iter->word.memory_size = str_max;
     }
-    
+
     iter->i = 0;
     iter->pos = 0;
 }
@@ -3956,7 +3956,7 @@ search_iter_init(General_Memory *general, Search_Iter *iter, i32 size){
 internal void
 search_set_init(General_Memory *general, Search_Set *set, i32 set_count){
     i32 max;
-    
+
     if (set->ranges == 0){
         max = set_count*2;
         set->ranges = (Search_Range*)general_memory_allocate(general, sizeof(Search_Range)*max, 0);
@@ -3968,14 +3968,14 @@ search_set_init(General_Memory *general, Search_Set *set, i32 set_count){
             general, set->ranges, sizeof(Search_Range)*max, 0);
         set->max = max;
     }
-    
+
     set->count = set_count;
 }
 
 internal void
 search_hits_table_alloc(General_Memory *general, Table *hits, i32 table_size){
     i32 hash_size, mem_size;
-    
+
     hash_size = table_size * sizeof(u32);
     hash_size = (hash_size + 7) & ~7;
     mem_size = hash_size + table_size * sizeof(Offset_String);
@@ -3990,7 +3990,7 @@ search_hits_table_alloc(General_Memory *general, Table *hits, i32 table_size){
 internal void
 search_hits_init(General_Memory *general, Table *hits, String_Space *str, i32 table_size, i32 str_size){
     i32 hash_size, mem_size;
-    
+
     if (hits->hash_array == 0){
         search_hits_table_alloc(general, hits, table_size);
     }
@@ -3998,15 +3998,15 @@ search_hits_init(General_Memory *general, Table *hits, String_Space *str, i32 ta
         hash_size = table_size * sizeof(u32);
         hash_size = (hash_size + 7) & ~7;
         mem_size = hash_size + table_size * sizeof(Offset_String);
-        
+
         hits->hash_array = (u32*)general_memory_reallocate_nocopy(
             general, hits->hash_array, mem_size, 0);
         hits->data_array = (u8*)hits->hash_array + hash_size;
         hits->max = table_size;
-        
+
         hits->item_size = sizeof(Offset_String);
     }
-    
+
     if (str->space == 0){
         str->space = (char*)general_memory_allocate(general, str_size, 0);
         str->max = str_size;
@@ -4015,7 +4015,7 @@ search_hits_init(General_Memory *general, Table *hits, String_Space *str, i32 ta
         str->space = (char*)general_memory_reallocate_nocopy(general, str->space, str_size, 0);
         str->max = str_size;
     }
-    
+
     str->pos = str->new_pos = 0;
     table_clear(hits);
 }
@@ -4026,18 +4026,18 @@ search_hit_add(General_Memory *general, Table *hits, String_Space *space, char *
     i32 new_size;
     Offset_String ostring;
     Table new_hits;
-    
+
     Assert(len != 0);
-    
+
     ostring = strspace_append(space, str, len);
     if (ostring.size == 0){
         new_size = Max(space->max*2, space->max + len);
         space->space = (char*)general_memory_reallocate(general, space->space, space->new_pos, new_size, 0);
         ostring = strspace_append(space, str, len);
     }
-    
+
     Assert(ostring.size != 0);
-    
+
     if (table_at_capacity(hits)){
         search_hits_table_alloc(general, &new_hits, hits->max*2);
         table_clear(&new_hits);
@@ -4045,7 +4045,7 @@ search_hit_add(General_Memory *general, Table *hits, String_Space *space, char *
         general_memory_free(general, hits->hash_array);
         *hits = new_hits;
     }
-    
+
     if (!table_add(hits, &ostring, space->space, tbl_offset_string_hash, tbl_offset_string_compare)){
         result = 1;
         strspace_keep_prev(space);
@@ -4054,7 +4054,7 @@ search_hit_add(General_Memory *general, Table *hits, String_Space *space, char *
         result = 0;
         strspace_discard_prev(space);
     }
-    
+
     return(result);
 }
 
@@ -4066,20 +4066,20 @@ search_next_match(Partition *part, Search_Set *set, Search_Iter *iter_){
     Temp_Memory temp;
     char *spare;
     i32 start_pos, end_pos, count;
-    
+
     temp = begin_temp_memory(part);
     spare = push_array(part, char, iter.word.size);
-    
+
     count = set->count;
     for (; iter.i < count;){
         range = set->ranges + iter.i;
-        
+
         end_pos = range->start + range->size;
-        
+
         if (iter.pos + iter.word.size < end_pos){
             start_pos = Max(iter.pos, range->start);
             result.start = buffer_find_string(range->buffer, start_pos, end_pos, iter.word.str, iter.word.size, spare);
-            
+
             if (result.start < end_pos){
                 iter.pos = result.start + 1;
                 if (result.start == 0 || !char_is_alpha_numeric(buffer_get_char(range->buffer, result.start - 1))){
@@ -4101,9 +4101,9 @@ search_next_match(Partition *part, Search_Set *set, Search_Iter *iter_){
         }
     }
     end_temp_memory(temp);
-    
+
     *iter_ = iter;
-    
+
     return(result);
 }
 
@@ -4124,30 +4124,30 @@ struct Live_Views{
 internal View_And_ID
 live_set_alloc_view(Live_Views *live_set, Panel *panel, Models *models){
     View_And_ID result = {};
-    
+
     Assert(live_set->count < live_set->max);
     ++live_set->count;
-    
+
     result.view = live_set->free_sentinel.next;
-    result.id = (i32)((char*)result.view - (char*)live_set->views);
-    result.view->id = result.id;
-    
+    result.id = (i32)(result.view - live_set->views);
+
     dll_remove(result.view);
     memset(result.view, 0, sizeof(View));
-    
+    result.view->id = result.id;
+
     result.view->in_use = 1;
     panel->view = result.view;
     result.view->panel = panel;
-    
+
     result.view->models = models;
     result.view->scrub_max = 1;
-    
+
     // TODO(allen): Make "interactive" mode customizable just like the query bars!
     result.view->query = make_fixed_width_string(result.view->query_);
     result.view->dest = make_fixed_width_string(result.view->dest_);
-    
+
     init_query_set(&result.view->query_set);
-    
+
     return(result);
 }
 

@@ -252,7 +252,7 @@ get_first_view_with_buffer(Application_Links *app, int buffer_id){
     for(test = app->get_view_first(app);
         test.exists;
         app->get_view_next(app, &test)){
-        if(test.buffer_id == buffer_id){
+        if(test.locked_buffer_id == buffer_id){
             result = test;
             break;
         }

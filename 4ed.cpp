@@ -968,7 +968,9 @@ COMMAND_DECL(reopen){
     USE_VIEW(view);
     REQ_FILE(file, view);
     USE_EXCHANGE(exchange);
-
+    
+    if (match(file->name.source_path, file->name.live_name)) return;
+    
     i32 file_id = exchange_request_file(exchange, expand_str(file->name.source_path));
     i32 index = 0;
     if (file_id){
@@ -4079,6 +4081,13 @@ App_Step_Sig(app_step){
                     if ((binding->success & SysAppCreateView) && binding->panel != 0){
                         view_file_in_panel(cmd, binding->panel, ed_file);
                     }
+                    
+                    for (View_Iter iter = file_view_iter_init(&models->layout, ed_file, 0);
+                        file_view_iter_good(iter);
+                        iter = file_view_iter_next(iter)){
+                        view_measure_wraps(system, general, iter.view);
+                        view_cursor_move(iter.view, preload_settings.start_line, 0);
+                    }
 
                     app_result.redraw = 1;
                 }
@@ -4095,13 +4104,6 @@ App_Step_Sig(app_step){
                     }
 
                     app_result.redraw = 1;
-                }
-
-                for (View_Iter iter = file_view_iter_init(&models->layout, ed_file, 0);
-                    file_view_iter_good(iter);
-                    iter = file_view_iter_next(iter)){
-                    view_measure_wraps(system, general, iter.view);
-                    view_cursor_move(iter.view, preload_settings.start_line, 0);
                 }
 
                 exchange_free_file(exchange, binding->sys_id);
@@ -4307,7 +4309,13 @@ App_Step_Sig(app_step){
 
                 case DACT_SWITCH:
                 {
-                    Editing_File *file = working_set_lookup_file(working_set, string);
+                    if (!file && string.str){
+                        file = working_set_lookup_file(working_set, string);
+                        
+                        if (!file){
+                            file = working_set_contains(working_set, string);
+                        }
+                    }
                     
                     if (file){
                         View *view = panel->view;
@@ -4320,6 +4328,14 @@ App_Step_Sig(app_step){
 
                 case DACT_KILL:
                 {
+                    if (!file && string.str){
+                        file = working_set_lookup_file(working_set, string);
+                        
+                        if (!file){
+                            file = working_set_contains(working_set, string);
+                        }
+                    }
+                    
                     if (file){
                         table_remove(&working_set->table, file->name.source_path);
                         kill_file(system, exchange, models, file,
@@ -4335,6 +4351,14 @@ App_Step_Sig(app_step){
                     }
                     else{
                         view = (models->layout.panels + models->layout.active_panel)->view;
+                    }
+                    
+                    if (!file && string.str){
+                        file = working_set_lookup_file(working_set, string);
+                        
+                        if (!file){
+                            file = working_set_contains(working_set, string);
+                        }
                     }
 
                     if (file){
