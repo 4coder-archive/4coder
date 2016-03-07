@@ -1,5 +1,5 @@
 // Set which customization you want to use with this define or write your own
-#define Custom_Current Custom_Default
+#define Custom_Current Custom_HandmadeHero
 
 #define Custom_Default 0 
 
@@ -1056,8 +1056,7 @@ SCROLL_RULE_SIG(smooth_scroll_rule){
 }
 
 #if Custom_Current == Custom_HandmadeHero
-//# include "power/4coder_handmade_hero.cpp"
-#include "custom_casey.cpp"
+# include "power/4coder_handmade_hero.cpp"
 #endif
 
 extern "C" GET_BINDING_DATA(get_bindings){

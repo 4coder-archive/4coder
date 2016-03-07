@@ -1741,7 +1741,7 @@ main(int argc, char **argv){
     }
 #endif
 
-    FreeConsole();
+    //FreeConsole();
     
     sysshared_filter_real_files(files, file_count);
     

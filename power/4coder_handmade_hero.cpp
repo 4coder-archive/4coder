@@ -1,48 +1,46 @@
+/* NOTE(casey): This code is _extremely_ bad and is mostly just me hacking things
+   around to put in features I want in advance of 4coder having them properly.
+   Most of the time I haven't even taken enough time to read the 4coder API
+   to know what I'm actually even doing.  So if you decide to use the code in
+   here, be advised that it might be super crashy or break something or cause you 
+   to lose work or who knows what else!
+
+   DON'T SAY I WE DIDN'T WARN YA: This custom extension provided "as is" without
+   warranty of any kind, either express or implied, including without
+   limitation any implied warranties of condition, uninterrupted use,
+   merchantability, fitness for a particular purpose, or non-infringement.
+*/
+
 /* TODO(casey): Here are our current issues
 
    - Display:
+     - Bug in scroll callback that seems to always pass the same view id instead of 
+       the correct id for each view?
      - Jumping to subsequent errors in a file seems to jump to an unrelated position
        then scroll back to the actual position, which results in lots of extra scrolling
      - Need a way of highlighting the current line like Emacs does for the benefit
        of people on The Stream(TM)
-     - Need a way of changing some things visually so we can indicate the modal state (this has
-       to be something very obvious - ideally something like
-       1) Change the line highlight color
-       2) In modal mode, highlight the whole selected region (mark to cursor) potentially?
      - Some way to recenter the view so that the line containing the cursor becomes the
        center line vertically.
      - NOTE / IMPORTANT / TODO highlighting?  Ability to customize?  Whatever.
+     - Some kind of parentheses highlighting?  I can write this myself, but I
+       would need some way of adding highlight information to the buffer.
 
    - Indentation:
      - Multiple // lines don't seem to indent properly.  The first one will go to the correct place, but the subsequent ones will go to the first column regardless?
      - Would like the option to indent to hanging parentheses, equals signs, etc. instead of
        always just "one tab in from the previous line".
+     - Crash bug with paste-and-indent that sometimes leaves things unindented then crashes
      - Need to have better indentation / wrapping control for typing in comments. 
        Right now it's a bit worse than Emacs, which does automatically put you at
        the same margin as the prev. line (4coder just goes back to column 1).  It'd
-       be nice if it got _better_ than Emacs, with no need to manually flow comments,
+       be nice if it go _better_ than Emacs, with no need to manually flow comments,
        etc.
 
    - Buffer management:
-     - Have buffers normalize slashes to always be forward-slash - right now I'm doing this manually
-
-   - Need auto-complete for things like "arbitrary command", with options listed, etc.,
-     so this should either be built into 4ed, or the custom DLL should have the ability
-     to display possible completions and iterate over internal cmdid's, etc.  Possibly
-     the latter, for maximal ability of customizers to add their own commands?
-
-   - Macro recording/playback
-
-   NOTE(allen): Things that were on the issue list that are now fixed
-
-   - Need a way of calling things by name, so infrequently used functions won't need keybindings
-   - Need a way of changing some things visually so we can indicate the modal state (this has
-     to be something very obvious - ideally something like
-     1) Change the cursor color
-     2) Change the header bar color?
-   - Need a way to set the theme from the custom config file so I don't have to pick it every
-     time.
-
+     - Bug in view iteration such that buffer_id is sometimes set to 0, so you can't find the view
+       for a buffer?
+     - Have buffers normalize slashes to always be forward-slash - right now I'm doing this manually   
      - Switch-to-buffer with no typing, just return, should switch to the most recently
        used buffer that is not currently displayed in a view.
        - Kill-buffer should perform this switch automatically, or it should be easy
@@ -50,17 +48,18 @@
      - Seems like there's no way to switch to buffers whose names are substrings of other
        buffers' names without using the mouse?
 
-     - Scroll speed seems to slow.  It's behind where I am a lot of the time.  Should be
-       _much_ more accelerated than it is, I think - presumably this will be tunable?
-     - Crash bug with paste-and-indent that sometimes leaves things unindented then crashes
+   - Need auto-complete for things like "arbitrary command", with options listed, etc.,
+     so this should either be built into 4ed, or the custom DLL should have the ability
+     to display possible completions and iterate over internal cmdid's, etc.  Possibly
+     the latter, for maximal ability of customizers to add their own commands?
+
+   - Macro recording/playback
 */
 
 // NOTE(casey): Microsoft/Windows is poopsauce.
 
 #include <math.h>
 #include <stdio.h>
-
-#define UseHack4Coder 0
 
 #ifndef Assert
 #define internal static
@@ -69,15 +68,6 @@
 
 static bool GlobalEditMode;
 static char *GlobalCompilationBufferName = "*compilation*";
-
-
-#if UseHack4Coder
-#include <windows.h>
-static HWND GlobalModalIndicator;
-static HBRUSH GlobalEditModeBrush;
-static HBRUSH GlobalNormalModeBrush;
-static WNDPROC global_old_4coder_winproc;
-#endif
 
 // TODO(casey): If 4coder gets variables at some point, this would go in a variable.
 static char BuildDirectory[4096] = "./";
@@ -205,7 +195,7 @@ GetToken(tokenizer *Tokenizer)
     ++Tokenizer->At;
     switch(C)
     {
-        case '0': {--Tokenizer->At; Token.Type = Token_EndOfStream;} break;
+        case 0: {--Tokenizer->At; Token.Type = Token_EndOfStream;} break;
 
         case '(': {Token.Type = Token_OpenParen;} break;
         case ')': {Token.Type = Token_CloseParen;} break;
@@ -284,13 +274,6 @@ IsCode(String extension)
     return(Result);
 }
 
-HOOK_SIG(casey_start)
-{
-    exec_command(app, cmdid_open_panel_vsplit);
-    app->change_theme(app, literal("Handmade Hero"));
-    app->change_font(app, literal("liberation mono"));
-    return(0);
-}
 
 CUSTOM_COMMAND_SIG(casey_open_in_other)
 {
@@ -375,8 +358,6 @@ CUSTOM_COMMAND_SIG(casey_kill_to_end_of_line)
 
 CUSTOM_COMMAND_SIG(casey_paste_and_tab)
 {
-    // NOTE(allen): Paste puts the mark at the beginning and the cursor at
-    // the end of the pasted chunk, so it is all set for cmdid_auto_tab_range
     exec_command(app, cmdid_paste);
     exec_command(app, cmdid_auto_tab_range);
 }
@@ -436,7 +417,7 @@ SwitchToOrLoadFile(struct Application_Links *app, String FileName, bool CreateIf
             // to interactive open to tell it to fail if the file isn't there?
             exec_command(app, cmdid_interactive_open);
 
-            Result.buffer = app->get_buffer_by_name(app, FileName.str, FileName.size);            
+            Result.buffer = app->get_buffer_by_name(app, FileName.str, FileName.size);
 
             Result.Loaded = true;
             Result.Switched = true;
@@ -454,43 +435,6 @@ CUSTOM_COMMAND_SIG(casey_load_todo)
 
 inline String Empty() {String Result = {}; return(Result);}
 
-CUSTOM_COMMAND_SIG(casey_load_handmade)
-{
-    // NOTE(allen|a3.4.4): Here we get the list of files in this directory.
-    // Notice that we free_file_list at the end.
-    String dir = make_string(app->memory, 0, app->memory_size);
-    append(&dir, "w:/handmade/code/");
-    File_List list = app->get_file_list(app, dir.str, dir.size);
-    int dir_size = dir.size;
-
-    for (int i = 0; i < list.count; ++i)
-    {
-        File_Info *info = list.infos + i;
-        if (!info->folder)
-        {
-            String extension = file_extension(info->filename);
-            if (IsCode(extension))
-            {
-                // NOTE(allen): There's no way in the 4coder API to use relative
-                // paths at the moment, so everything should be full paths.  Which is
-                // managable.  Here simply set the dir string size back to where it
-                // was originally, so that new appends overwrite old ones.
-                dir.size = dir_size;
-                append(&dir, info->filename);
-                push_parameter(app, par_name, dir.str, dir.size);
-                if (!match(info->filename, make_lit_string("handmade.cpp"))){
-                    push_parameter(app, par_do_in_background, 1);
-                }
-                exec_command(app, cmdid_interactive_open);
-            }
-        }
-    }
-
-    app->free_file_list(app, list);
-    
-    strcpy(BuildDirectory, "w:/handmade/code/");
-}
-
 CUSTOM_COMMAND_SIG(casey_build_search)
 {
     int keep_going = 1;
@@ -499,18 +443,18 @@ CUSTOM_COMMAND_SIG(casey_build_search)
     // we should properly suballocating from app->memory.
     String dir = make_string(app->memory, 0, app->memory_size);
     dir.size = app->directory_get_hot(app, dir.str, dir.memory_size);
-    
+
     while (keep_going)
     {
         old_size = dir.size;
         append(&dir, "build.bat");
-        
+
         if (app->file_exists(app, dir.str, dir.size))
         {
             dir.size = old_size;
             memcpy(BuildDirectory, dir.str, dir.size);
             BuildDirectory[dir.size] = 0;
-            
+
             return;
         }
 
@@ -617,91 +561,167 @@ CUSTOM_COMMAND_SIG(casey_save_and_make_without_asking)
     }
 }
 
+struct Parsed_Error
+{
+    int exists;
+
+    String target_file_name;
+    int target_line_number;
+
+    int source_buffer_id;
+    int source_position;
+};
+
+internal bool
+casey_errors_are_the_same(Parsed_Error a, Parsed_Error b)
+{
+    bool result = ((a.exists == b.exists) && match(a.target_file_name, b.target_file_name) && (a.target_line_number == b.target_line_number));
+
+    return(result);
+}
+
+internal void
+casey_goto_error(Application_Links *app, Parsed_Error e)
+{
+    if(e.exists)
+    {
+        switch_to_result Switch = SwitchToOrLoadFile(app, e.target_file_name, false);
+        if(Switch.Switched)
+        {
+            app->view_set_cursor(app, &Switch.view, seek_line_char(e.target_line_number, 0), 1);
+        }
+
+        View_Summary compilation_view = get_first_view_with_buffer(app, e.source_buffer_id);
+        if(compilation_view.exists)
+        {
+            app->view_set_cursor(app, &compilation_view, seek_pos(e.source_position), 1);
+        }
+    }
+}
+
+internal Parsed_Error
+casey_parse_error(Application_Links *app, Buffer_Summary buffer, View_Summary view)
+{
+    Parsed_Error result = {};
+
+    app->refresh_view(app, &view);
+    int restore_pos = view.cursor.pos;
+
+    app->view_set_cursor(app, &view, seek_line_char(view.cursor.line, 1), 1);
+    app->refresh_view(app, &view);
+    int start = view.cursor.pos;
+
+    app->view_set_cursor(app, &view, seek_line_char(view.cursor.line, 65536), 1);
+    app->refresh_view(app, &view);
+    int end = view.cursor.pos;
+
+    app->view_set_cursor(app, &view, seek_pos(restore_pos), 1);
+    app->refresh_view(app, &view);
+
+    int size = end - start;
+
+    char *ParsingRegion = (char *)malloc(size + 1);
+    app->buffer_read_range(app, &buffer, start, end, ParsingRegion);
+    ParsingRegion[size] = 0;
+    tokenizer Tokenizer = {ParsingRegion};
+    for(;;)
+    {
+        token Token = GetToken(&Tokenizer);
+        if(Token.Type == Token_OpenParen)
+        {
+            token LineToken = GetToken(&Tokenizer);
+            if(LineToken.Type == Token_Number)
+            {
+                token CloseToken = GetToken(&Tokenizer);
+                if(CloseToken.Type == Token_CloseParen)
+                {
+                    token ColonToken = GetToken(&Tokenizer);
+                    if(ColonToken.Type == Token_Colon)
+                    {
+                        // NOTE(casey): We maybe found an error!
+                        int line_number = atoi(LineToken.Text);
+
+                        char *Seek = Token.Text;
+                        while(Seek != ParsingRegion)
+                        {
+                            if(IsEndOfLine(*Seek))
+                            {
+                                while(IsWhitespace(*Seek))
+                                {
+                                    ++Seek;
+                                }
+                                break;
+                            }
+
+                            --Seek;
+                        }
+
+                        result.exists = true;
+                        result.target_file_name = make_string(Seek, (int)(Token.Text - Seek));;
+                        result.target_line_number = line_number;
+                        result.source_buffer_id = buffer.buffer_id;
+                        result.source_position = start + (int)(ColonToken.Text - ParsingRegion);
+                        
+                        int start_pos;
+                        for (start_pos = 0;
+                            start_pos < result.target_file_name.size && result.target_file_name.str[start_pos] == ' ';
+                            ++start_pos);
+                        
+                        result.target_file_name = substr(result.target_file_name, start_pos);
+                        
+                        break;
+                    }
+                }
+            }
+        }
+        else if(Token.Type == Token_EndOfStream)
+        {
+            break;
+        }
+    }
+
+    return(result);
+}
+
+internal void
+casey_seek_error_dy(Application_Links *app, int dy)
+{
+    Buffer_Summary Buffer = app->get_buffer_by_name(app, GlobalCompilationBufferName, (int)strlen(GlobalCompilationBufferName));
+    View_Summary compilation_view = get_first_view_with_buffer(app, Buffer.buffer_id);
+
+    // NOTE(casey): First get the current error (which may be none, if we've never parsed before)
+    Parsed_Error StartingError = casey_parse_error(app, Buffer, compilation_view);
+
+    // NOTE(casey): Now hunt for the previous distinct error
+    for(;;)
+    {
+        int prev_pos = compilation_view.cursor.pos;
+        app->view_set_cursor(app, &compilation_view, seek_line_char(compilation_view.cursor.line + dy, 0), 1);
+        app->refresh_view(app, &compilation_view);
+        if(compilation_view.cursor.pos != prev_pos)
+        {
+            Parsed_Error Error = casey_parse_error(app, Buffer, compilation_view);
+            if(Error.exists && !casey_errors_are_the_same(StartingError, Error))
+            {
+                casey_goto_error(app, Error);
+                break;
+            }
+        }
+        else
+        {
+            break;
+        }
+    }
+}
+
 CUSTOM_COMMAND_SIG(casey_goto_previous_error)
 {
-    // TODO(casey): Implement
-//    Buffer_Summary Buffer = app->get_buffer_by_name(app, GlobalCompilationBufferName, (int)strlen(GlobalCompilationBufferName));
+    casey_seek_error_dy(app, -1);
 }
 
 CUSTOM_COMMAND_SIG(casey_goto_next_error)
 {
-    Buffer_Summary Buffer = app->get_buffer_by_name(app, GlobalCompilationBufferName, (int)strlen(GlobalCompilationBufferName));
-
-    int Size = Buffer.size - ErrorParsingPosition;
-    if(Size > 0)
-    {
-        char *ParsingRegion = (char *)malloc(Size + 1);
-        app->buffer_read_range(app, &Buffer, ErrorParsingPosition, Buffer.size, ParsingRegion);
-        ParsingRegion[Size] = 0;
-
-        tokenizer Tokenizer = {ParsingRegion};
-        for(;;)
-        {
-            token Token = GetToken(&Tokenizer);
-            if(Token.Type == Token_OpenParen)
-            {
-                token LineToken = GetToken(&Tokenizer);
-                if(LineToken.Type == Token_Number)
-                {
-                    token CloseToken = GetToken(&Tokenizer);
-                    if(CloseToken.Type == Token_CloseParen)
-                    {
-                        token ColonToken = GetToken(&Tokenizer);
-                        if(ColonToken.Type == Token_Colon)
-                        {
-                            // NOTE(casey): We maybe found an error!
-                            int line_number = atoi(LineToken.Text);
-
-                            char *Seek = Token.Text;
-                            while(Seek != ParsingRegion)
-                            {
-                                if(IsEndOfLine(*Seek))
-                                {
-                                    while(IsWhitespace(*Seek))
-                                    {
-                                        ++Seek;
-                                    }
-                                    break;
-                                }
-
-                                --Seek;
-                            }
-
-                            String FileName = make_string(Seek, (int)(Token.Text - Seek));
-                            switch_to_result Switch = SwitchToOrLoadFile(app, FileName, false);
-                            if(Switch.Switched)
-                            {
-                                app->view_set_cursor(app, &Switch.view, seek_line_char(line_number, 0), 1);
-                            }
-
-                            if((line_number != ErrorParsingLastJumpLine) ||
-                               (Switch.buffer.buffer_id != ErrorParsingLastBufferID))
-                            {
-                                ErrorParsingLastJumpLine = line_number;
-                                ErrorParsingLastBufferID = Switch.buffer.buffer_id;
-                                ErrorParsingPosition += (int)(ColonToken.Text - ParsingRegion);
-
-                                View_Summary compilation_view =
-                                    get_first_view_with_buffer(app, Buffer.buffer_id);
-                                if(compilation_view.exists)
-                                {
-                                    app->view_set_cursor(app, &compilation_view, seek_pos(ErrorParsingPosition), 1);
-                                }
-
-                                break;
-                            }
-                        }
-                    }
-                }
-            }
-            else if(Token.Type == Token_EndOfStream)
-            {
-                break;
-            }
-        }
-
-        free(ParsingRegion);
-    }
+    casey_seek_error_dy(app, 1);
 }
 
 CUSTOM_COMMAND_SIG(casey_imenu)
@@ -898,7 +918,7 @@ CUSTOM_COMMAND_SIG(casey_quick_calc)
     size_t Size = range.max - range.min;
     char *Stuff = (char *)malloc(Size + 1);
     Stuff[Size] = 0;
-    
+
     Buffer_Summary buffer = app->get_buffer(app, view.buffer_id);
     app->buffer_read_range(app, &buffer, range.min, range.max, Stuff);
 
@@ -1042,14 +1062,7 @@ UpdateModalIndicator(Application_Links *app)
     else{
         app->set_theme_colors(app, normal_colors, ArrayCount(normal_colors));
     }
-
-#if UseHack4Coder
-    RECT Rect;
-    GetClientRect(GlobalModalIndicator, &Rect);
-    InvalidateRect(GlobalModalIndicator, &Rect, FALSE);
-#endif
 }
-
 CUSTOM_COMMAND_SIG(begin_free_typing)
 {
     GlobalEditMode = false;
@@ -1092,8 +1105,8 @@ DEFINE_MODAL_KEY(modal_comma, casey_goto_previous_error);
 DEFINE_MODAL_KEY(modal_period, casey_fill_paragraph);
 DEFINE_MODAL_KEY(modal_forward_slash, cmdid_change_active_panel);
 DEFINE_MODAL_KEY(modal_semicolon, cmdid_cursor_mark_swap); // TODO(casey): Maybe cmdid_history_backward?
-DEFINE_MODAL_KEY(modal_open_bracket, casey_begin_keyboard_macro_recording);
-DEFINE_MODAL_KEY(modal_close_bracket, casey_end_keyboard_macro_recording);
+DEFINE_BIMODAL_KEY(modal_open_bracket, casey_begin_keyboard_macro_recording, write_and_auto_tab);
+DEFINE_BIMODAL_KEY(modal_close_bracket, casey_end_keyboard_macro_recording, write_and_auto_tab);
 DEFINE_MODAL_KEY(modal_a, cmdid_write_character); // TODO(casey): Available
 DEFINE_MODAL_KEY(modal_b, cmdid_interactive_switch_buffer);
 DEFINE_MODAL_KEY(modal_c, casey_find_corresponding_file);
@@ -1122,7 +1135,7 @@ DEFINE_MODAL_KEY(modal_y, auto_tab_line_at_cursor);
 DEFINE_MODAL_KEY(modal_z, cmdid_interactive_open);
 
 DEFINE_MODAL_KEY(modal_1, casey_build_search); // TODO(casey): Shouldn't need to bind a key for this?
-DEFINE_MODAL_KEY(modal_2, casey_load_handmade); // TODO(casey): Shouldn't need to bind a key for this?
+DEFINE_MODAL_KEY(modal_2, cmdid_write_character); // TODO(casey): Available
 DEFINE_MODAL_KEY(modal_3, cmdid_write_character); // TODO(casey): Available
 DEFINE_MODAL_KEY(modal_4, cmdid_write_character); // TODO(casey): Available
 DEFINE_MODAL_KEY(modal_5, cmdid_write_character); // TODO(casey): Available
@@ -1174,129 +1187,164 @@ HOOK_SIG(casey_file_settings)
         OpenProject(app, buffer.file_name);
         exec_command(app, cmdid_kill_buffer);
     }
-    
+
     return(0);
 }
 
-// NOTE(allen): This was a bit of fun so I'll leave it in, for anyone would like to hack 4coder again.
-#if UseHack4Coder
-internal void
-hack_place_modal_indicator(void)
+bool
+CubicUpdateFixedDuration1(float *P0, float *V0, float P1, float V1, float Duration, float dt)
 {
-    static RECT LastParentRect;
+    bool Result = false;
 
-    HWND ParentWindow = GetParent(GlobalModalIndicator);
-    RECT ParentRect;
-    GetClientRect(ParentWindow, &ParentRect);        
-
-    if((LastParentRect.bottom != ParentRect.bottom) ||
-       (LastParentRect.right != ParentRect.right))
+    if(dt > 0)
     {
-        SetWindowPos(GlobalModalIndicator, 0,
-                     (ParentRect.left+ParentRect.right)/2 - 10,
-                     ParentRect.top,
-                     10,
-                     ParentRect.bottom - ParentRect.top,
-                     SWP_NOOWNERZORDER|SWP_NOACTIVATE);
-    }
+        if(Duration < dt)
+        {
+            *P0 = P1 + (dt - Duration)*V1;
+            *V0 = V1;
+            Result = true;
+        }
+        else
+        {
+            float t = (dt / Duration);
+            float u = (1.0f - t);
 
-    LastParentRect = ParentRect;
-}
+            float C0 = 1*u*u*u;
+            float C1 = 3*u*u*t;
+            float C2 = 3*u*t*t;
+            float C3 = 1*t*t*t;
 
-internal LRESULT CALLBACK
-main_window_intercept(HWND Window,
-                      UINT Message,
-                      WPARAM WParam,
-                      LPARAM LParam)
-{
-    LRESULT Result = CallWindowProc(global_old_4coder_winproc, Window, Message, WParam, LParam);
+            float dC0 = -3*u*u;
+            float dC1 = -6*u*t + 3*u*u;
+            float dC2 =  6*u*t - 3*t*t;
+            float dC3 =  3*t*t;
 
-    if(Message == WM_SIZE)
-    {
-        hack_place_modal_indicator();
+            float B0 = *P0;
+            float B1 = *P0 + (Duration / 3.0f) * *V0;
+            float B2 = P1 - (Duration / 3.0f) * V1;
+            float B3 = P1;
+
+            *P0 = C0*B0 + C1*B1 + C2*B2 + C3*B3;
+            *V0 = (dC0*B0 + dC1*B1 + dC2*B2 + dC3*B3) * (1.0f / Duration);
+        }
     }
 
     return(Result);
 }
 
-internal LRESULT CALLBACK
-modal_indicator_window_callback(HWND Window,
-                                UINT Message,
-                                WPARAM WParam,
-                                LPARAM LParam)
-{       
-    LRESULT Result = 0;
+struct Casey_Scroll_Velocity
+{
+    float x, y, t;
+};
 
-    switch(Message)
-    {        
-        case WM_PAINT:
-        {
-            PAINTSTRUCT Paint;
-            HDC DeviceContext = BeginPaint(Window, &Paint);
-            FillRect(DeviceContext, &Paint.rcPaint, GlobalEditMode ? GlobalEditModeBrush : GlobalNormalModeBrush);
-            EndPaint(Window, &Paint);
-        } break;
+Casey_Scroll_Velocity casey_scroll_velocity_[16] = {0};
+Casey_Scroll_Velocity *casey_scroll_velocity = casey_scroll_velocity_ - 1;
 
-        default:
+SCROLL_RULE_SIG(casey_smooth_scroll_rule){
+    float dt = 1.0f/30.0f; // TODO(casey): Why do I not get the timestep here?
+    Casey_Scroll_Velocity *velocity = casey_scroll_velocity + view_id;
+    int result = 0;
+    if(is_new_target)
+    {
+        if((*scroll_x != target_x) ||
+            (*scroll_y != target_y))
         {
-            Result = DefWindowProcA(Window, Message, WParam, LParam);
-        } break;
+            velocity->t = 0.1f;
+        }
+    }
+
+    if(velocity->t > 0)
+    {
+        result = !(CubicUpdateFixedDuration1(scroll_x, &velocity->x, target_x, 0.0f, velocity->t, dt) ||
+                CubicUpdateFixedDuration1(scroll_y, &velocity->y, target_y, 0.0f, velocity->t, dt));
+    }
+
+    velocity->t -= dt;
+    if(velocity->t < 0)
+    {
+        velocity->t = 0;
+        *scroll_x = target_x;
+        *scroll_y = target_y;
+        result = 1;
+    }
+
+    return(result);
+}
+
+#include <windows.h>
+#pragma comment(lib, "user32.lib")
+static HWND GlobalWindowHandle;
+static WINDOWPLACEMENT GlobalWindowPosition = {sizeof(GlobalWindowPosition)};
+internal BOOL CALLBACK win32_find_4coder_window(HWND Window, LPARAM LParam)
+{
+    BOOL Result = TRUE;
+
+    char TestClassName[256];
+    GetClassName(Window, TestClassName, sizeof(TestClassName));
+    if((strcmp("4coder-win32-wndclass", TestClassName) == 0) && 
+       ((HINSTANCE)GetWindowLongPtr(Window, GWLP_HINSTANCE) == GetModuleHandle(0)))
+    {
+        GlobalWindowHandle = Window;
+        Result = FALSE;
     }
 
     return(Result);
 }
 
 internal void
-hack_4coder(void)
+win32_toggle_fullscreen(void)
 {
-    HWND Window = FindWindow("4coder-win32-wndclass", "4coder-window: " VERSION);    
-    ShowWindow(Window, SW_MAXIMIZE);
+    // NOTE(casey): This follows Raymond Chen's prescription
+    // for fullscreen toggling, see:
+    // http://blogs.msdn.com/b/oldnewthing/archive/2010/04/12/9994016.aspx
 
-    WNDCLASSA WindowClass = {};
-
-    HINSTANCE Instance = GetModuleHandle(0);
-
-    WindowClass.style = CS_HREDRAW|CS_VREDRAW;
-    WindowClass.lpfnWndProc = modal_indicator_window_callback;
-    WindowClass.hInstance = Instance;
-    WindowClass.hCursor = LoadCursor(0, IDC_ARROW);
-    WindowClass.hbrBackground = (HBRUSH)GetStockObject(BLACK_BRUSH);
-    WindowClass.lpszClassName = "4coderhackmodaldisplay";
-
-    if(RegisterClassA(&WindowClass))
+    HWND Window = GlobalWindowHandle;
+    DWORD Style = GetWindowLong(Window, GWL_STYLE);
+    if(Style & WS_OVERLAPPEDWINDOW)
     {
-        GlobalModalIndicator =
-            CreateWindowEx(
-                0,
-                WindowClass.lpszClassName,
-                0,
-                WS_VISIBLE|WS_CHILD,
-                0, 0, 10, 10,
-                Window,
-                0,
-                Instance,
-                0);
-        GlobalEditModeBrush = CreateSolidBrush(RGB(100, 20, 20));
-        GlobalNormalModeBrush = CreateSolidBrush(RGB(20, 100, 20));
-
-        hack_place_modal_indicator();
+        MONITORINFO MonitorInfo = {sizeof(MonitorInfo)};
+        if(GetWindowPlacement(Window, &GlobalWindowPosition) &&
+            GetMonitorInfo(MonitorFromWindow(Window, MONITOR_DEFAULTTOPRIMARY), &MonitorInfo))
+        {
+            SetWindowLong(Window, GWL_STYLE, Style & ~WS_OVERLAPPEDWINDOW);
+            SetWindowPos(Window, HWND_TOP,
+                            MonitorInfo.rcMonitor.left, MonitorInfo.rcMonitor.top,
+                            MonitorInfo.rcMonitor.right - MonitorInfo.rcMonitor.left,
+                            MonitorInfo.rcMonitor.bottom - MonitorInfo.rcMonitor.top,
+                            SWP_NOOWNERZORDER | SWP_FRAMECHANGED);
+        }
     }
-
-    global_old_4coder_winproc = (WNDPROC)SetWindowLongPtr(Window, GWLP_WNDPROC, (LONG_PTR)main_window_intercept);
+    else
+    {
+        SetWindowLong(Window, GWL_STYLE, Style | WS_OVERLAPPEDWINDOW);
+        SetWindowPlacement(Window, &GlobalWindowPosition);
+        SetWindowPos(Window, 0, 0, 0, 0, 0,
+                        SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER |
+                        SWP_NOOWNERZORDER | SWP_FRAMECHANGED);
+    }
 }
-#endif
+
+HOOK_SIG(casey_start)
+{
+    exec_command(app, cmdid_open_panel_vsplit);
+    app->change_theme(app, literal("Handmade Hero"));
+    app->change_font(app, literal("liberation mono"));
+
+    //win32_toggle_fullscreen();
+
+    return(0);
+}
 
 void
 casey_get_bindings(Bind_Helper *context)
 {
     set_hook(context, hook_start, casey_start);
     set_hook(context, hook_open_file, casey_file_settings);
-    
-    set_scroll_rule(context, smooth_scroll_rule);
+// TODO(casey): re-enable my scroll once the view_id bug is fixed
+    set_scroll_rule(context, casey_smooth_scroll_rule);
+//    set_scroll_rule(context, smooth_scroll_rule);
 
-#if UseHack4Coder
-    hack_4coder();
-#endif
+    EnumWindows(win32_find_4coder_window, 0);
 
     begin_map(context, mapid_global);
     {
@@ -1305,8 +1353,6 @@ casey_get_bindings(Bind_Helper *context)
         bind(context, 't', MDFR_NONE, casey_load_todo);
         bind(context, '/', MDFR_NONE, cmdid_change_active_panel);
         bind(context, 'b', MDFR_NONE, cmdid_interactive_switch_buffer);
-        bind(context, '2', MDFR_NONE, casey_load_handmade);
-        bind(context, '4', MDFR_NONE, cmdid_open_color_tweaker);
         bind(context, key_page_up, MDFR_NONE, search);
         bind(context, key_page_down, MDFR_NONE, reverse_search);
 
@@ -1317,6 +1363,10 @@ casey_get_bindings(Bind_Helper *context)
 
     begin_map(context, mapid_file);
 
+    // NOTE(allen): This is a new concept in the API. Binding this can be thought of as binding
+    // all combos which have an ascii code (shifted or not) and unmodified by CTRL or ALT.
+    // As of now, if this is used it cannot be overriden for particular combos; this overrides
+    // normal bindings.
     bind_vanilla_keys(context, cmdid_write_character);
 
     bind(context, key_insert, MDFR_NONE, begin_free_typing);
@@ -1325,11 +1375,10 @@ casey_get_bindings(Bind_Helper *context)
     bind(context, '\n', MDFR_NONE, casey_newline_and_indent);
     bind(context, '\n', MDFR_SHIFT, casey_newline_and_indent);
 
-    bind(context, 't', MDFR_CTRL, cmdid_timeline_scrub);
-
     // NOTE(casey): Modal keys come here.
     bind(context, ' ', MDFR_NONE, modal_space);
     bind(context, ' ', MDFR_SHIFT, modal_space);
+
     bind(context, '\\', MDFR_NONE, modal_back_slash);
     bind(context, '\'', MDFR_NONE, modal_single_quote);
     bind(context, ',', MDFR_NONE, modal_comma);
@@ -1338,6 +1387,8 @@ casey_get_bindings(Bind_Helper *context)
     bind(context, ';', MDFR_NONE, modal_semicolon);
     bind(context, '[', MDFR_NONE, modal_open_bracket);
     bind(context, ']', MDFR_NONE, modal_close_bracket);
+    bind(context, '{', MDFR_NONE, write_and_auto_tab);
+    bind(context, '}', MDFR_NONE, write_and_auto_tab);
     bind(context, 'a', MDFR_NONE, modal_a);
     bind(context, 'b', MDFR_NONE, modal_b);
     bind(context, 'c', MDFR_NONE, modal_c);
@@ -1379,17 +1430,37 @@ casey_get_bindings(Bind_Helper *context)
     bind(context, '=', MDFR_NONE, modal_equals);
 
     bind(context, key_back, MDFR_NONE, modal_backspace);
+    bind(context, key_back, MDFR_SHIFT, modal_backspace);
+
     bind(context, key_up, MDFR_NONE, modal_up);
+    bind(context, key_up, MDFR_SHIFT, modal_up);
+
     bind(context, key_down, MDFR_NONE, modal_down);
+    bind(context, key_down, MDFR_SHIFT, modal_down);
+
     bind(context, key_left, MDFR_NONE, modal_left);
+    bind(context, key_left, MDFR_SHIFT, modal_left);
+
     bind(context, key_right, MDFR_NONE, modal_right);
+    bind(context, key_right, MDFR_SHIFT, modal_right);
+
     bind(context, key_del, MDFR_NONE, modal_delete);
+    bind(context, key_del, MDFR_SHIFT, modal_delete);
+
     bind(context, key_home, MDFR_NONE, modal_home);
+    bind(context, key_home, MDFR_SHIFT, modal_home);
+
     bind(context, key_end, MDFR_NONE, modal_end);
+    bind(context, key_end, MDFR_SHIFT, modal_end);
+
     bind(context, key_page_up, MDFR_NONE, modal_page_up);
+    bind(context, key_page_up, MDFR_SHIFT, modal_page_up);
+
     bind(context, key_page_down, MDFR_NONE, modal_page_down);
+    bind(context, key_page_down, MDFR_SHIFT, modal_page_down);
+
     bind(context, '\t', MDFR_NONE, modal_tab);
-//    bind(context, key_esc, MDFR_NONE, modal_escape);
+    bind(context, '\t', MDFR_SHIFT, modal_tab);
 
     end_map(context);
 }

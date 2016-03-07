@@ -4174,7 +4174,9 @@ App_Step_Sig(app_step){
                         String filename = string;
                         Get_File_Result file;
                         i32 file_id;
-
+                        
+                        filename.str[0] = char_to_lower(filename.str[0]);
+    
                         result.file = working_set_contains(working_set, filename);
                         if (result.file == 0){
                             result.is_new = 1;

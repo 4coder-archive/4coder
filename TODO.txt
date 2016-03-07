@@ -59,13 +59,13 @@
 ; [X] interactive kill not working
 ; [X] mouse not working on interactive view
 ; [X] reopen effects other view too?
+; [X] allen's segfaults on linux launch
 ; [] indication on failure to save
 ; [] clean whitespace doesn't appear to be cleaning trailing whitespace anymore???
 ; [] sometimes the main cursor is not the same width as the mark cursor in the same spot
 ; [] tab character wrong width
 ; [] bouncing when scrolling down
 ; [] miblo's off screen cursor thing
-; [] allen's segfaults on linux launch
 ; [] fyoucon's segfaults with malloc on win10
 ; [] open empty file bug
 ;
@@ -104,8 +104,10 @@
 ;    [] polish for seeking
 ;
 ; GUI related tech
-;    [X] consolidate all UI code properly
-;    [] arrow navigation of UIs
+;    [X] consolidate all GUI code properly
+;    [] rewrite GUI
+;    [] GUI API
+;    [] arrow navigation of GUIs
 ;    [] text links -> arbitrary commands / callbacks?
 ;
 ; theme related business
@@ -186,6 +188,7 @@
 ; [] system fonts
 ; [] file drag and drop
 ; [] low latency stuff
+; [] event driven file synchronization
 ; [] actually write the port
 ;    [X] 4coder code compiling
 ;    [X] opengl window up
@@ -200,6 +203,7 @@
 ;    [] file drag and drop
 ;    [] low latency stuff
 ;    [] allow for multiple clipboards
+;    [] event diven file synchronization
 ;
 
 ;
