@@ -33,6 +33,15 @@ dll_insert(T *pos, T *v){
 
 template<typename T>
 inline void
+dll_insert_back(T *pos, T *v){
+    v->prev = pos->prev;
+    v->next = pos;
+    pos->prev = v;
+    v->prev->next = v;
+}
+
+template<typename T>
+inline void
 dll_remove(T *v){
     v->next->prev = v->prev;
     v->prev->next = v->next;

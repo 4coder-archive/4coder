@@ -9,7 +9,6 @@
 
 // TOP
 
-#include "4ed_version.h"
 #include "4ed_config.h"
 
 #include "4ed_meta.h"
@@ -434,6 +433,7 @@ Sys_Set_File_List_Sig(system_set_file_list){
                             info->filename.size = i;
                             info->filename.memory_size = info->filename.size + 1;
                             *name++ = 0;
+                            replace_char(info->filename, '\\', '/');
                             ++info;
                         }
                         more_files = FindNextFile(search, &find_data);
@@ -1082,7 +1082,7 @@ Win32LoadSystemCode(){
     win32vars.system->internal_debug_message = INTERNAL_system_debug_message;
 #endif
     
-    win32vars.system->slash = '\\';
+    win32vars.system->slash = '/';
 }
 
 #include "system_shared.cpp"
@@ -1685,6 +1685,7 @@ main(int argc, char **argv){
 
     String current_directory = make_string(current_directory_mem, written, required);
     terminate_with_null(&current_directory);
+    replace_char(current_directory, '\\', '/');
 
     Command_Line_Parameters clparams;
     clparams.argv = argv;
@@ -1710,6 +1711,36 @@ main(int argc, char **argv){
         printf("%.*s", output_size, memory_vars.target_memory);
     }
     if (output_size != 0) return 0;
+    
+        
+#ifdef FRED_SUPER
+    char *custom_file_default = "4coder_custom.dll";
+    char *custom_file;
+    if (win32vars.settings.custom_dll) custom_file = win32vars.settings.custom_dll;
+    else custom_file = custom_file_default;
+    
+    win32vars.custom = LoadLibraryA(custom_file);
+    if (!win32vars.custom && custom_file != custom_file_default){
+        if (!win32vars.settings.custom_dll_is_strict){
+            win32vars.custom = LoadLibraryA(custom_file_default);
+        }
+    }
+    
+    if (win32vars.custom){
+        win32vars.custom_api.get_alpha_4coder_version = (_Get_Version_Function*)
+            GetProcAddress(win32vars.custom, "get_alpha_4coder_version");
+        //
+        if (win32vars.custom_api.get_alpha_4coder_version == 0 ||
+                win32vars.custom_api.get_alpha_4coder_version(MAJOR, MINOR, PATCH) == 0){
+            printf("Error: application and custom version numbers don't match");
+            return 22;
+        }
+        
+        win32vars.custom_api.get_bindings = (Get_Binding_Data_Function*)
+            GetProcAddress(win32vars.custom, "get_bindings");
+    }
+#endif
+
     FreeConsole();
     
     sysshared_filter_real_files(files, file_count);
@@ -1726,25 +1757,6 @@ main(int argc, char **argv){
     win32vars.start_time /= 10;
     
     keycode_init();
-    
-#ifdef FRED_SUPER
-    char *custom_file_default = "4coder_custom.dll";
-    char *custom_file;
-    if (win32vars.settings.custom_dll) custom_file = win32vars.settings.custom_dll;
-    else custom_file = custom_file_default;
-    
-    win32vars.custom = LoadLibraryA(custom_file);
-    if (!win32vars.custom && custom_file != custom_file_default){
-        if (!win32vars.settings.custom_dll_is_strict){
-            win32vars.custom = LoadLibraryA(custom_file_default);
-        }
-    }
-    
-    if (win32vars.custom){
-        win32vars.custom_api.get_bindings = (Get_Binding_Data_Function*)
-            GetProcAddress(win32vars.custom, "get_bindings");
-    }
-#endif
     
     if (win32vars.custom_api.get_bindings == 0){
         win32vars.custom_api.get_bindings = (Get_Binding_Data_Function*)get_bindings;

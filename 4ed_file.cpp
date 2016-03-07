@@ -9,25 +9,6 @@
 
 // TOP
 
-struct Interactive_Bar{
-    f32 pos_x, pos_y;
-    f32 text_shift_x, text_shift_y;
-    i32_Rect rect;
-    i16 font_id;
-};
-
-internal void
-intbar_draw_string(Render_Target *target, Interactive_Bar *bar,
-                   String str, u32 char_color){
-    i16 font_id = bar->font_id;
-    
-    draw_string(target, font_id, str,
-        (i32)(bar->pos_x + bar->text_shift_x),
-        (i32)(bar->pos_y + bar->text_shift_y),
-        char_color);
-    bar->pos_x += font_string_width(target, font_id, str);
-}
-
 #include "buffer/4coder_shared.cpp"
 
 #if BUFFER_EXPERIMENT_SCALPEL == 0
@@ -360,6 +341,8 @@ internal b32
 filename_match(String query, Absolutes *absolutes, String filename, b32 case_sensitive){
     b32 result;
     result = (query.size == 0);
+    replace_char(query, '\\', '/');
+    replace_char(filename, '\\', '/');
     if (!result) result = wildcard_match(absolutes, filename, case_sensitive);
     return result;
 }
@@ -371,6 +354,8 @@ hot_directory_first_match(Hot_Directory *hot_directory,
                           b32 exact_match,
                           b32 case_sensitive){
     Hot_Directory_Match result = {};
+    
+    replace_char(str, '\\', '/');
     
     Absolutes absolutes;
     if (!exact_match)
@@ -442,6 +427,7 @@ inline Editing_File*
 working_set_contains(Working_Set *working, String filename){
     Editing_File *result = 0;
     i32 id;
+    replace_char(filename, '\\', '/');
     if (table_find(&working->table, filename, &id)){
         if (id >= 0 && id <= working->file_max){
             result = working->files + id;
@@ -450,10 +436,24 @@ working_set_contains(Working_Set *working, String filename){
     return (result);
 }
 
-// TODO(allen): Find a way to choose an ordering for these so it picks better first options.
+// TODO(allen): Pick better first options.
 internal Editing_File*
 working_set_lookup_file(Working_Set *working_set, String string){
-	Editing_File *file = working_set_contains(working_set, string);
+    Editing_File *file = 0;
+    
+    replace_char(string, '\\', '/');
+    
+    {
+        File_Node *node, *used_nodes;
+        used_nodes = &working_set->used_sentinel;
+        for (dll_items(node, used_nodes)){
+            file = (Editing_File*)node;
+            if (string.size == 0 || match(string, file->name.live_name)){
+                break;
+            }
+        }
+        if (node == used_nodes) file = 0;
+    }
 	
 	if (!file){
         File_Node *node, *used_nodes;

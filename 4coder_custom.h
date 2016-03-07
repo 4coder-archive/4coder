@@ -154,28 +154,18 @@ typedef struct File_List{
     int block_size;
 } File_List;
 
-#define MDFR_NONE 0
-#define MDFR_CTRL 1
-#define MDFR_ALT 2
-#define MDFR_SHIFT 4
+#define MDFR_NONE 0x0
+#define MDFR_CTRL 0x1
+#define MDFR_ALT 0x2
+#define MDFR_SHIFT 0x4
 
 enum Command_ID{
     cmdid_null,
     cmdid_write_character,
     cmdid_seek_left,
     cmdid_seek_right,
-    cmdid_seek_whitespace_right,
-    cmdid_seek_whitespace_left,
     cmdid_seek_whitespace_up,
     cmdid_seek_whitespace_down,
-    cmdid_seek_token_left,
-    cmdid_seek_token_right,
-    cmdid_seek_white_or_token_left,
-    cmdid_seek_white_or_token_right,
-    cmdid_seek_alphanumeric_left,
-    cmdid_seek_alphanumeric_right,
-    cmdid_seek_alphanumeric_or_camel_left,
-    cmdid_seek_alphanumeric_or_camel_right,
     cmdid_word_complete,
     cmdid_set_mark,
     cmdid_copy,
@@ -206,8 +196,6 @@ enum Command_ID{
     cmdid_eol_dosify,
     cmdid_eol_nixify,
     cmdid_auto_tab_range,
-    cmdid_auto_tab_line_at_cursor,
-    cmdid_auto_tab_whole_file,
     cmdid_open_panel_vsplit,
     cmdid_open_panel_hsplit,
     cmdid_close_panel,
@@ -255,6 +243,7 @@ enum Param_ID{
 enum Hook_ID{
     hook_start,
     hook_open_file,
+    hook_frame,
     // never below this
     hook_type_count
 };
@@ -328,7 +317,7 @@ struct Theme_Color{
 
 #define GET_BINDING_DATA(name) int name(void *data, int size)
 #define CUSTOM_COMMAND_SIG(name) void name(struct Application_Links *app)
-#define HOOK_SIG(name) void name(struct Application_Links *app)
+#define HOOK_SIG(name) int name(struct Application_Links *app)
 #define SCROLL_RULE_SIG(name) int name(float target_x, float target_y, float *scroll_x, float *scroll_y, int view_id, int is_new_target)
 
 extern "C"{
@@ -539,8 +528,17 @@ struct Application_Links{
     void *cmd_context;
 };
 
+#define _GET_VERSION_SIG(n) int n(int maj, int min, int patch)
+typedef _GET_VERSION_SIG(_Get_Version_Function);
+
+extern "C" _GET_VERSION_SIG(get_alpha_4coder_version){
+    int result = (maj == MAJOR && min == MINOR && patch == PATCH);
+    return(result);
+}
+
 struct Custom_API{
     Get_Binding_Data_Function *get_bindings;
+    _Get_Version_Function *get_alpha_4coder_version;
 };
 
 // NOTE(allen): definitions for the buffer that communicates to 4ed.exe
@@ -587,5 +585,3 @@ struct Binding_Unit{
         } hook;
     };
 };
-
-

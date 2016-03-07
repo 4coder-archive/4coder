@@ -8,8 +8,7 @@
  */
 
 // TOP
- 
-#include "4ed_version.h"
+
 #include "4ed_config.h"
 
 #define BUFFER_EXPERIMENT_SCALPEL 0

@@ -1,32 +1,37 @@
-/* NOTE(casey):
+/* TODO(casey): Here are our current issues
 
-   This is my attempt to make 4coder work close enough to Emacs
-   for me to switch!
+   - Display:
+     - Jumping to subsequent errors in a file seems to jump to an unrelated position
+       then scroll back to the actual position, which results in lots of extra scrolling
+     - Need a way of highlighting the current line like Emacs does for the benefit
+       of people on The Stream(TM)
+     - Need a way of changing some things visually so we can indicate the modal state (this has
+       to be something very obvious - ideally something like
+       1) Change the line highlight color
+       2) In modal mode, highlight the whole selected region (mark to cursor) potentially?
+     - Some way to recenter the view so that the line containing the cursor becomes the
+       center line vertically.
+     - NOTE / IMPORTANT / TODO highlighting?  Ability to customize?  Whatever.
 
-   NOTE(casey): Microsoft/Windows is poopsauce.
+   - Indentation:
+     - Multiple // lines don't seem to indent properly.  The first one will go to the correct place, but the subsequent ones will go to the first column regardless?
+     - Would like the option to indent to hanging parentheses, equals signs, etc. instead of
+       always just "one tab in from the previous line".
+     - Need to have better indentation / wrapping control for typing in comments. 
+       Right now it's a bit worse than Emacs, which does automatically put you at
+       the same margin as the prev. line (4coder just goes back to column 1).  It'd
+       be nice if it got _better_ than Emacs, with no need to manually flow comments,
+       etc.
 
-   TODO(casey): Here are our current issues
+   - Buffer management:
+     - Have buffers normalize slashes to always be forward-slash - right now I'm doing this manually
 
-   - Have buffers normalize slashes to always be forward-slash
-     - Cursor setting seems to do no movement first time, and then weird scrolling behavior on
-       jump-to-same-line subsequently
+   - Need auto-complete for things like "arbitrary command", with options listed, etc.,
+     so this should either be built into 4ed, or the custom DLL should have the ability
+     to display possible completions and iterate over internal cmdid's, etc.  Possibly
+     the latter, for maximal ability of customizers to add their own commands?
 
-   - Switch-to-buffer with no typing, just return, should switch to the most recently
-     used buffer that is not currently displayed in a view.
-     - Kill-buffer should perform this switch automatically, or it should be easy
-       to build a custom kill buffer that does
-
-   - Need a way of highlighting the current line like Emacs does for the benefit
-     of people on The Stream(TM)
-   - Need a way of changing some things visually so we can indicate the modal state (this has
-     to be something very obvious - ideally something like
-     1) Change the line highlight color
-     2) In modal mode, highlight the whole selected region (mark to cursor) potentially?
-   - Macros
-   - Some way to recenter the view so that the line containing the cursor becomes the
-     center line vertically.
-   - NOTE / IMPORTANT / TODO highlighting?  Ability to customize?  Whatever.
-
+   - Macro recording/playback
 
    NOTE(allen): Things that were on the issue list that are now fixed
 
@@ -34,12 +39,23 @@
    - Need a way of changing some things visually so we can indicate the modal state (this has
      to be something very obvious - ideally something like
      1) Change the cursor color
-     2) X
-     3) X
-     4) Change the header bar color?
+     2) Change the header bar color?
    - Need a way to set the theme from the custom config file so I don't have to pick it every
      time.
+
+     - Switch-to-buffer with no typing, just return, should switch to the most recently
+       used buffer that is not currently displayed in a view.
+       - Kill-buffer should perform this switch automatically, or it should be easy
+         to build a custom kill buffer that does
+     - Seems like there's no way to switch to buffers whose names are substrings of other
+       buffers' names without using the mouse?
+
+     - Scroll speed seems to slow.  It's behind where I am a lot of the time.  Should be
+       _much_ more accelerated than it is, I think - presumably this will be tunable?
+     - Crash bug with paste-and-indent that sometimes leaves things unindented then crashes
 */
+
+// NOTE(casey): Microsoft/Windows is poopsauce.
 
 #include <math.h>
 #include <stdio.h>
@@ -273,6 +289,7 @@ HOOK_SIG(casey_start)
     exec_command(app, cmdid_open_panel_vsplit);
     app->change_theme(app, literal("Handmade Hero"));
     app->change_font(app, literal("liberation mono"));
+    return(0);
 }
 
 CUSTOM_COMMAND_SIG(casey_open_in_other)
@@ -291,7 +308,7 @@ CUSTOM_COMMAND_SIG(casey_clean_and_save)
 CUSTOM_COMMAND_SIG(casey_newline_and_indent)
 {
     exec_command(app, cmdid_write_character);
-    exec_command(app, cmdid_auto_tab_line_at_cursor);
+    exec_command(app, auto_tab_line_at_cursor);
 }
 
 CUSTOM_COMMAND_SIG(casey_open_file_other_window)
@@ -307,12 +324,17 @@ CUSTOM_COMMAND_SIG(casey_switch_buffer_other_window)
 }
 
 internal void
-DeleteAfterCommand(struct Application_Links *app, Command_ID CommandID)
+DeleteAfterCommand(struct Application_Links *app, unsigned long long CommandID)
 {
     View_Summary view = app->get_active_view(app);
 
     int pos2 = view.cursor.pos;
-    exec_command(app, CommandID);
+    if (CommandID < cmdid_count){
+        exec_command(app, (Command_ID)CommandID);
+    }
+    else{
+        exec_command(app, (Custom_Command_Function*)CommandID);
+    }
     app->refresh_view(app, &view);
     int pos1 = view.cursor.pos;
 
@@ -324,12 +346,12 @@ DeleteAfterCommand(struct Application_Links *app, Command_ID CommandID)
 
 CUSTOM_COMMAND_SIG(casey_delete_token_left)
 {
-    DeleteAfterCommand(app, cmdid_seek_white_or_token_left);
+    DeleteAfterCommand(app, (unsigned long long)seek_white_or_token_left);
 }
 
 CUSTOM_COMMAND_SIG(casey_delete_token_right)
 {
-    DeleteAfterCommand(app, cmdid_seek_white_or_token_right);
+    DeleteAfterCommand(app, (unsigned long long)seek_white_or_token_right);
 }
 
 CUSTOM_COMMAND_SIG(casey_kill_to_end_of_line)
@@ -362,20 +384,37 @@ CUSTOM_COMMAND_SIG(casey_paste_and_tab)
 CUSTOM_COMMAND_SIG(casey_seek_beginning_of_line_and_tab)
 {
     exec_command(app, cmdid_seek_beginning_of_line);
-    exec_command(app, cmdid_auto_tab_line_at_cursor);
+    exec_command(app, auto_tab_line_at_cursor);
 }
 
 struct switch_to_result
 {
     bool Switched;
+    bool Loaded;
     View_Summary view;
     Buffer_Summary buffer;
 };
+
+inline void
+SanitizeSlashes(String Value)
+{
+    for(int At = 0;
+        At < Value.size;
+        ++At)
+    {
+        if(Value.str[At] == '\\')
+        {
+            Value.str[At] = '/';
+        }
+    }
+}
 
 inline switch_to_result
 SwitchToOrLoadFile(struct Application_Links *app, String FileName, bool CreateIfNotFound = false)
 {
     switch_to_result Result = {};
+
+    SanitizeSlashes(FileName);
 
     View_Summary view = app->get_active_view(app);
     Buffer_Summary buffer = app->get_buffer_by_name(app, FileName.str, FileName.size);
@@ -399,6 +438,7 @@ SwitchToOrLoadFile(struct Application_Links *app, String FileName, bool CreateIf
 
             Result.buffer = app->get_buffer_by_name(app, FileName.str, FileName.size);            
 
+            Result.Loaded = true;
             Result.Switched = true;
         }
     }
@@ -411,6 +451,8 @@ CUSTOM_COMMAND_SIG(casey_load_todo)
     String ToDoFileName = make_lit_string("w:/handmade/code/todo.txt");
     SwitchToOrLoadFile(app, ToDoFileName, true);
 }
+
+inline String Empty() {String Result = {}; return(Result);}
 
 CUSTOM_COMMAND_SIG(casey_load_handmade)
 {
@@ -854,8 +896,6 @@ CUSTOM_COMMAND_SIG(casey_quick_calc)
     Range range = get_range(&view);
 
     size_t Size = range.max - range.min;
-    if (Size == 0) return;
-    
     char *Stuff = (char *)malloc(Size + 1);
     Stuff[Size] = 0;
     
@@ -875,7 +915,106 @@ CUSTOM_COMMAND_SIG(casey_quick_calc)
     free(Stuff);
 }
 
-CUSTOM_COMMAND_SIG(modal_toggle)
+internal void
+OpenProject(Application_Links *app, char *ProjectFileName)
+{
+    FILE *ProjectFile = fopen(ProjectFileName, "r");
+    if(ProjectFile)
+    {
+        fgets(BuildDirectory, sizeof(BuildDirectory) - 1, ProjectFile);
+        size_t BuildDirSize = strlen(BuildDirectory);
+        if((BuildDirSize) && (BuildDirectory[BuildDirSize - 1] == '\n'))
+        {
+            --BuildDirSize;
+        }
+
+        if((BuildDirSize) && (BuildDirectory[BuildDirSize - 1] != '/'))
+        {
+            BuildDirectory[BuildDirSize++] = '/';
+            BuildDirectory[BuildDirSize] = 0;
+        }
+
+        char FileDirectoryName[4096];
+        while(fgets(FileDirectoryName, sizeof(FileDirectoryName) - 1, ProjectFile))
+        {
+            // NOTE(allen|a3.4.4): Here we get the list of files in this directory.
+            // Notice that we free_file_list at the end.
+            String dir = make_string(app->memory, 0, app->memory_size);
+            append(&dir, FileDirectoryName);
+            if(dir.size && dir.str[dir.size] == '\n')
+            {
+                --dir.size;
+            }
+
+            if(dir.size && dir.str[dir.size] != '/')
+            {
+                dir.str[dir.size] = '/';
+                ++dir.size;
+            }
+
+            File_List list = app->get_file_list(app, dir.str, dir.size);
+            int dir_size = dir.size;
+
+            for (int i = 0; i < list.count; ++i)
+            {
+                File_Info *info = list.infos + i;
+                if (!info->folder)
+                {
+                    String extension = file_extension(info->filename);
+                    if (IsCode(extension))
+                    {
+                        // NOTE(allen): There's no way in the 4coder API to use relative
+                        // paths at the moment, so everything should be full paths.  Which is
+                        // managable.  Here simply set the dir string size back to where it
+                        // was originally, so that new appends overwrite old ones.
+                        dir.size = dir_size;
+                        append(&dir, info->filename);
+                        push_parameter(app, par_name, dir.str, dir.size);
+                        push_parameter(app, par_do_in_background, 1);
+                        exec_command(app, cmdid_interactive_open);
+                    }
+                }
+            }
+
+            app->free_file_list(app, list);
+        }
+
+        fclose(ProjectFile);
+    }
+}    
+
+CUSTOM_COMMAND_SIG(casey_execute_arbitrary_command)
+{
+    Query_Bar bar;
+    char space[1024], more_space[1024];
+    bar.prompt = make_lit_string("Command: ");
+    bar.string = make_fixed_width_string(space);
+
+    if (!query_user_string(app, &bar)) return;
+    app->end_query_bar(app, &bar, 0);
+
+    if(match(bar.string, make_lit_string("project")))
+    {
+//        exec_command(app, open_all_code);
+    }
+    else if(match(bar.string, make_lit_string("open menu")))
+    {
+        exec_command(app, cmdid_open_menu);
+    }
+    else
+    {
+        bar.prompt = make_fixed_width_string(more_space);
+        append(&bar.prompt, make_lit_string("Unrecognized: "));
+        append(&bar.prompt, bar.string);
+        bar.string.size = 0;
+
+        app->start_query_bar(app, &bar, 0);
+        app->get_user_input(app, EventOnAnyKey | EventOnButton, 0);
+    }
+}
+
+internal void
+UpdateModalIndicator(Application_Links *app)
 {
     Theme_Color normal_colors[] = {
         {Stag_Cursor, 0x40FF40},
@@ -897,8 +1036,6 @@ CUSTOM_COMMAND_SIG(modal_toggle)
         {Stag_Bar, 0x934420}
     };
 
-    GlobalEditMode = !GlobalEditMode;
-
     if (GlobalEditMode){
         app->set_theme_colors(app, edit_colors, ArrayCount(edit_colors));
     }
@@ -911,30 +1048,18 @@ CUSTOM_COMMAND_SIG(modal_toggle)
     GetClientRect(GlobalModalIndicator, &Rect);
     InvalidateRect(GlobalModalIndicator, &Rect, FALSE);
 #endif
-
 }
 
-CUSTOM_COMMAND_SIG(casey_arbitrary_command){
-    Query_Bar bar;
-    char space[1024];
-    bar.prompt = make_lit_string("Command: ");
-    bar.string = make_fixed_width_string(space);
+CUSTOM_COMMAND_SIG(begin_free_typing)
+{
+    GlobalEditMode = false;
+    UpdateModalIndicator(app);
+}
 
-    if (!query_user_string(app, &bar)) return;
-    app->end_query_bar(app, &bar, 0);
-
-    if (match(bar.string, make_lit_string("build search"))){
-        exec_command(app, casey_build_search);
-    }
-    else if (match(bar.string, make_lit_string("open hmh"))){
-        exec_command(app, casey_load_handmade);
-    }
-    else if (match(bar.string, make_lit_string("open menu"))){
-        exec_command(app, cmdid_open_menu);
-    }
-    else{
-        // TODO(allen): feedback message
-    }
+CUSTOM_COMMAND_SIG(end_free_typing)
+{
+    GlobalEditMode = true;
+    UpdateModalIndicator(app);
 }
 
 #define DEFINE_FULL_BIMODAL_KEY(binding_name,edit_code,normal_code) \
@@ -993,12 +1118,12 @@ DEFINE_MODAL_KEY(modal_u, cmdid_undo);
 DEFINE_MODAL_KEY(modal_v, casey_switch_buffer_other_window);
 DEFINE_MODAL_KEY(modal_w, cmdid_cut);
 DEFINE_MODAL_KEY(modal_x, casey_open_file_other_window);
-DEFINE_MODAL_KEY(modal_y, cmdid_auto_tab_line_at_cursor);
+DEFINE_MODAL_KEY(modal_y, auto_tab_line_at_cursor);
 DEFINE_MODAL_KEY(modal_z, cmdid_interactive_open);
 
 DEFINE_MODAL_KEY(modal_1, casey_build_search); // TODO(casey): Shouldn't need to bind a key for this?
 DEFINE_MODAL_KEY(modal_2, casey_load_handmade); // TODO(casey): Shouldn't need to bind a key for this?
-DEFINE_MODAL_KEY(modal_3, casey_arbitrary_command); // NOTE(allen): I set this for testing stuff modal_1 and modal_2 don't need to be set anymore
+DEFINE_MODAL_KEY(modal_3, cmdid_write_character); // TODO(casey): Available
 DEFINE_MODAL_KEY(modal_4, cmdid_write_character); // TODO(casey): Available
 DEFINE_MODAL_KEY(modal_5, cmdid_write_character); // TODO(casey): Available
 DEFINE_MODAL_KEY(modal_6, cmdid_write_character); // TODO(casey): Available
@@ -1007,19 +1132,18 @@ DEFINE_MODAL_KEY(modal_8, cmdid_write_character); // TODO(casey): Available
 DEFINE_MODAL_KEY(modal_9, cmdid_write_character); // TODO(casey): Available
 DEFINE_MODAL_KEY(modal_0, cmdid_kill_buffer);
 DEFINE_MODAL_KEY(modal_minus, cmdid_write_character); // TODO(casey): Available
-DEFINE_MODAL_KEY(modal_equals, cmdid_write_character); // TODO(casey): Available
+DEFINE_MODAL_KEY(modal_equals, casey_execute_arbitrary_command);
 
 DEFINE_BIMODAL_KEY(modal_backspace, casey_delete_token_left, cmdid_backspace);
 DEFINE_BIMODAL_KEY(modal_up, cmdid_move_up, cmdid_move_up);
 DEFINE_BIMODAL_KEY(modal_down, cmdid_move_down, cmdid_move_down);
-DEFINE_BIMODAL_KEY(modal_left, cmdid_seek_white_or_token_left, cmdid_move_left); 
-DEFINE_BIMODAL_KEY(modal_right, cmdid_seek_white_or_token_right, cmdid_move_right);
+DEFINE_BIMODAL_KEY(modal_left, seek_white_or_token_left, cmdid_move_left); 
+DEFINE_BIMODAL_KEY(modal_right, seek_white_or_token_right, cmdid_move_right);
 DEFINE_BIMODAL_KEY(modal_delete, casey_delete_token_right, cmdid_delete);
 DEFINE_BIMODAL_KEY(modal_home, cmdid_seek_beginning_of_line, casey_seek_beginning_of_line_and_tab);
 DEFINE_BIMODAL_KEY(modal_end, cmdid_seek_end_of_line, cmdid_seek_end_of_line);
 DEFINE_BIMODAL_KEY(modal_page_up, cmdid_page_up, cmdid_seek_whitespace_up);
 DEFINE_BIMODAL_KEY(modal_page_down, cmdid_page_down, cmdid_seek_whitespace_down);
-//DEFINE_BIMODAL_KEY(modal_escape, cmdid_write_character, cmdid_write_character); // TODO(casey): Available
 DEFINE_BIMODAL_KEY(modal_tab, cmdid_word_complete, cmdid_word_complete);
 
 HOOK_SIG(casey_file_settings)
@@ -1031,21 +1155,30 @@ HOOK_SIG(casey_file_settings)
     Buffer_Summary buffer = app->get_parameter_buffer(app, 0);
 
     int treat_as_code = 0;
+    int treat_as_project = 0;
 
     if (buffer.file_name && buffer.size < (16 << 20))
     {
         String ext = file_extension(make_string(buffer.file_name, buffer.file_name_len));
         treat_as_code = IsCode(ext);
+        treat_as_project = match(ext, make_lit_string("prj"));
     }
 
     push_parameter(app, par_lex_as_cpp_file, treat_as_code);
     push_parameter(app, par_wrap_lines, !treat_as_code);
     push_parameter(app, par_key_mapid, (treat_as_code)?((int)my_code_map):((int)mapid_file));
     exec_command(app, cmdid_set_settings);
+
+    if(treat_as_project)
+    {
+        OpenProject(app, buffer.file_name);
+        exec_command(app, cmdid_kill_buffer);
+    }
+    
+    return(0);
 }
 
-// NOTE(allen): This was a bit of fun so I'll leave it in,
-// incase anyone would like to hack 4coder again.
+// NOTE(allen): This was a bit of fun so I'll leave it in, for anyone would like to hack 4coder again.
 #if UseHack4Coder
 internal void
 hack_place_modal_indicator(void)
@@ -1116,7 +1249,7 @@ modal_indicator_window_callback(HWND Window,
 internal void
 hack_4coder(void)
 {
-    HWND Window = FindWindow("4coder-win32-wndclass", "4coder-window");    
+    HWND Window = FindWindow("4coder-win32-wndclass", "4coder-window: " VERSION);    
     ShowWindow(Window, SW_MAXIMIZE);
 
     WNDCLASSA WindowClass = {};
@@ -1172,14 +1305,10 @@ casey_get_bindings(Bind_Helper *context)
         bind(context, 't', MDFR_NONE, casey_load_todo);
         bind(context, '/', MDFR_NONE, cmdid_change_active_panel);
         bind(context, 'b', MDFR_NONE, cmdid_interactive_switch_buffer);
-        bind(context, '3', MDFR_NONE, casey_arbitrary_command);
-        bind(context, key_page_up, MDFR_NONE, search);
-        bind(context, key_page_down, MDFR_NONE, reverse_search);
-
-        // NOTE(allen): These don't necessarily need to be here anymore.
-        // They are now bound to long form commands in casey_arbitrary_command.
         bind(context, '2', MDFR_NONE, casey_load_handmade);
         bind(context, '4', MDFR_NONE, cmdid_open_color_tweaker);
+        bind(context, key_page_up, MDFR_NONE, search);
+        bind(context, key_page_down, MDFR_NONE, reverse_search);
 
         // NOTE(allen): I added this here myself, I believe this is what you want.
         bind(context, 'm', MDFR_NONE, casey_save_and_make_without_asking);
@@ -1190,9 +1319,11 @@ casey_get_bindings(Bind_Helper *context)
 
     bind_vanilla_keys(context, cmdid_write_character);
 
-    bind(context, key_insert, MDFR_NONE, modal_toggle);
-    bind(context, '`', MDFR_NONE, modal_toggle);
+    bind(context, key_insert, MDFR_NONE, begin_free_typing);
+    bind(context, '`', MDFR_NONE, begin_free_typing);
+    bind(context, key_esc, MDFR_NONE, end_free_typing);
     bind(context, '\n', MDFR_NONE, casey_newline_and_indent);
+    bind(context, '\n', MDFR_SHIFT, casey_newline_and_indent);
 
     bind(context, 't', MDFR_CTRL, cmdid_timeline_scrub);
 

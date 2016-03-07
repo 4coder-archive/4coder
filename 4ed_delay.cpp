@@ -8,6 +8,7 @@ enum Action_Type{
     DACT_SWITCH,
     DACT_TRY_KILL,
     DACT_KILL,
+    DACT_TOUCH_FILE,
 };
 
 struct Delayed_Action{
@@ -49,6 +50,14 @@ delayed_action_(Delay *delay, Action_Type type){
 }
 
 inline Delayed_Action*
+delayed_action_(Delay *delay, Action_Type type, String string){
+    Delayed_Action *result;
+    result = delayed_action_(delay, type);
+    result->string = str_alloc_copy(delay->general, string);
+    return(result);
+}
+
+inline Delayed_Action*
 delayed_action_(Delay *delay, Action_Type type, Panel* panel){
     Delayed_Action *result;
     result = delayed_action_(delay, type);
@@ -57,10 +66,19 @@ delayed_action_(Delay *delay, Action_Type type, Panel* panel){
 }
 
 inline Delayed_Action*
-delayed_action_(Delay *delay, Action_Type type, String string){
+delayed_action_(Delay *delay, Action_Type type, Editing_File* file){
     Delayed_Action *result;
     result = delayed_action_(delay, type);
-    result->string = str_alloc_copy(delay->general, string);
+    result->file = file;
+    return(result);
+}
+
+inline Delayed_Action*
+delayed_action_(Delay *delay, Action_Type type, Editing_File* file, Panel* panel){
+    Delayed_Action *result;
+    result = delayed_action_(delay, type);
+    result->file = file;
+    result->panel = panel;
     return(result);
 }
 
@@ -110,3 +128,4 @@ delayed_action_repush(Delay *delay, Delayed_Action *act){
 #define delayed_switch(delay, ...) delayed_action_(delay, DACT_SWITCH, __VA_ARGS__)
 #define delayed_try_kill(delay, ...) delayed_action_(delay, DACT_TRY_KILL, __VA_ARGS__)
 #define delayed_kill(delay, ...) delayed_action_(delay, DACT_KILL, __VA_ARGS__)
+#define delayed_touch_file(delay, ...) delayed_action_(delay, DACT_TOUCH_FILE, __VA_ARGS__)

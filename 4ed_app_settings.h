@@ -21,7 +21,7 @@ struct App_Settings{
     b32 lctrl_lalt_is_altgr;
 };
 
-struct App_Models{
+struct Models{
     Mem_Options mem;
     App_Settings settings;
     
@@ -37,7 +37,7 @@ struct App_Models{
     Coroutine *command_coroutine;
     u32 command_coroutine_flags[2];
     
-    Custom_Command_Function *hooks[hook_type_count];
+    Hook_Function *hooks[hook_type_count];
     
     i32 *buffer_param_indices;
     i32 buffer_param_count, buffer_param_max;

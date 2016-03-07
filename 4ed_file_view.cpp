@@ -67,7 +67,7 @@ struct View{
     View *next, *prev;
     b32 in_use;
     
-    App_Models *models;
+    Models *models;
     
     Panel *panel;
     Command_Map *map;
@@ -518,7 +518,7 @@ alloc_for_buffer(void *context, int *size){
 }
 
 internal void
-file_create_from_string(System_Functions *system, App_Models *models,
+file_create_from_string(System_Functions *system, Models *models,
     Editing_File *file, char *filename, String val, b8 read_only = 0){
     
     Font_Set *font_set = models->font_set;
@@ -544,7 +544,11 @@ file_create_from_string(System_Functions *system, App_Models *models,
     init_success = buffer_end_init(&init, part->base + part->pos, scratch_size);
     AllowLocal(init_success);
     Assert(init_success);
-
+    
+    if (buffer_size(&file->state.buffer) < val.size){
+        file->settings.dos_write_mode = 1;
+    }
+    
     file_init_strings(file);
     file_set_name(working_set, file, (char*)filename);
 
@@ -588,7 +592,7 @@ file_create_from_string(System_Functions *system, App_Models *models,
 
 internal b32
 file_create_empty(System_Functions *system,
-    App_Models *models, Editing_File *file, char *filename){
+    Models *models, Editing_File *file, char *filename){
 
     file_create_from_string(system, models, file, filename, {});
     return (1);
@@ -596,7 +600,7 @@ file_create_empty(System_Functions *system,
 
 internal b32
 file_create_read_only(System_Functions *system,
-    App_Models *models, Editing_File *file, char *filename){
+    Models *models, Editing_File *file, char *filename){
     
     file_create_from_string(system, models, file, filename, {}, 1);
     return (1);
@@ -1107,7 +1111,7 @@ file_post_history(General_Memory *general, Editing_File *file,
 inline Full_Cursor
 view_compute_cursor_from_pos(View *view, i32 pos){
     Editing_File *file = view->file;
-    App_Models *models = view->models;
+    Models *models = view->models;
     Render_Font *font = get_font_info(models->font_set, models->global_font.font_id)->font;
 
     Full_Cursor result = {};
@@ -1122,7 +1126,7 @@ view_compute_cursor_from_pos(View *view, i32 pos){
 inline Full_Cursor
 view_compute_cursor_from_unwrapped_xy(View *view, f32 seek_x, f32 seek_y, b32 round_down = 0){
     Editing_File *file = view->file;
-    App_Models *models = view->models;
+    Models *models = view->models;
     Render_Font *font = get_font_info(models->font_set, models->global_font.font_id)->font;
 
     Full_Cursor result = {};
@@ -1139,7 +1143,7 @@ view_compute_cursor_from_unwrapped_xy(View *view, f32 seek_x, f32 seek_y, b32 ro
 internal Full_Cursor
 view_compute_cursor_from_wrapped_xy(View *view, f32 seek_x, f32 seek_y, b32 round_down = 0){
     Editing_File *file = view->file;
-    App_Models *models = view->models;
+    Models *models = view->models;
     Render_Font *font = get_font_info(models->font_set, models->global_font.font_id)->font;
 
     Full_Cursor result = {};
@@ -1156,7 +1160,7 @@ view_compute_cursor_from_wrapped_xy(View *view, f32 seek_x, f32 seek_y, b32 roun
 internal Full_Cursor
 view_compute_cursor_from_line_pos(View *view, i32 line, i32 pos){
     Editing_File *file = view->file;
-    App_Models *models = view->models;
+    Models *models = view->models;
     Render_Font *font = get_font_info(models->font_set, models->global_font.font_id)->font;
 
     Full_Cursor result = {};
@@ -1257,18 +1261,21 @@ view_get_cursor_y(View *view){
 internal void
 view_set_file(
     // NOTE(allen): These parameters are always meaningful
-    View *view, Editing_File *file, App_Models *models,
+    View *view, Editing_File *file, Models *models,
 
     // NOTE(allen): Necessary when file != 0
-    System_Functions *system, Hook_Function *open_hook, Application_Links *app){
-    
+    System_Functions *system, Hook_Function *open_hook, Application_Links *app,
+
+    // other
+    b32 set_vui = 1){
+
     Font_Info *fnt_info;
     
-    // NOTE(allen): This is actually more like view_set_style right?
+    // TODO(allen): This belongs somewhere else.
     fnt_info = get_font_info(models->font_set, models->global_font.font_id);
     view->font_advance = fnt_info->advance;
     view->font_height = fnt_info->height;
-
+    
     // NOTE(allen): Stuff that doesn't assume file exists.
     view->file = file;
     view->cursor = {};
@@ -1296,10 +1303,13 @@ view_set_file(
             file->settings.is_initialized = 1;
         }
     }
-    
-    // TODO(allen): Fix this:
-    view->ui_state = {};
-    view->showing_ui = VUI_None;
+
+    if (set_vui){
+        // TODO(allen): Fix this! There should be a way to easily separate setting a file,
+        // and switching to file mode, so that they don't cross over eachother like this.
+        view->ui_state = {};
+        view->showing_ui = VUI_None;
+    }
 }
 
 struct Relative_Scrolling{
@@ -1389,7 +1399,7 @@ file_update_history_before_edit(Mem_Options *mem, Editing_File *file, Edit_Step 
     History_Mode history_mode){
     if (!file->state.undo.undo.edits) return;
     General_Memory *general = &mem->general;
-    
+
     b32 can_merge = 0, do_merge = 0;
     switch (step.type){
         case ED_NORMAL:
@@ -1571,7 +1581,7 @@ file_edit_cursor_fix(System_Functions *system,
     Partition *part, General_Memory *general,
     Editing_File *file, Editing_Layout *layout,
     Cursor_Fix_Descriptor desc){
-    
+
     Full_Cursor temp_cursor;
     Temp_Memory cursor_temp = begin_temp_memory(part);
     i32 cursor_max = layout->panel_max_count * 2;
@@ -1579,11 +1589,11 @@ file_edit_cursor_fix(System_Functions *system,
 
     f32 y_offset = 0, y_position = 0;
     i32 cursor_count = 0;
-    
+
     View *view;
     Panel *panel, *used_panels;
     used_panels = &layout->used_sentinel;
-    
+
     for (dll_items(panel, used_panels)){
         view = panel->view;
         if (view->file == file){
@@ -1606,14 +1616,14 @@ file_edit_cursor_fix(System_Functions *system,
                 desc.shift_amount + (desc.end - desc.start));
         }
         buffer_unsort_cursors(cursors, cursor_count);
-        
+
         cursor_count = 0;
         for (dll_items(panel, used_panels)){
             view = panel->view;
             if (view && view->file == file){
                 view_cursor_move(view, cursors[cursor_count++].pos);
                 view->preferred_x = view_get_cursor_x(view);
-                
+
                 view->mark = cursors[cursor_count++].pos + 1;
                 i32 new_scroll_i = cursors[cursor_count++].pos + 1;
                 if (view->scroll_i != new_scroll_i){
@@ -1635,20 +1645,20 @@ file_edit_cursor_fix(System_Functions *system,
             }
         }
     }
-    
+
     end_temp_memory(cursor_temp);
 }
 
 internal void
 file_do_single_edit(System_Functions *system,
-    App_Models *models, Editing_File *file,
+    Models *models, Editing_File *file,
     Edit_Spec spec, History_Mode history_mode, b32 use_high_permission = 0){
     ProfileMomentFunction();
     if (!use_high_permission && file->settings.read_only) return;
-    
+
     Mem_Options *mem = &models->mem;
     Editing_Layout *layout = &models->layout;
-    
+
     // NOTE(allen): fixing stuff beforewards????
     file_update_history_before_edit(mem, file, spec.step, spec.str, history_mode);
     file_pre_edit_maintenance(system, &mem->general, file);
@@ -1692,7 +1702,7 @@ file_do_single_edit(System_Functions *system,
 
     Panel *panel, *used_panels;
     used_panels = &layout->used_sentinel;
-    
+
     for (dll_items(panel, used_panels)){
         View *view = panel->view;
         if (view->file == file){
@@ -1716,19 +1726,19 @@ file_do_single_edit(System_Functions *system,
 }
 
 internal void
-file_do_white_batch_edit(System_Functions *system, App_Models *models, Editing_File *file,
+file_do_white_batch_edit(System_Functions *system, Models *models, Editing_File *file,
     Edit_Spec spec, History_Mode history_mode, b32 use_high_permission = 0){
     ProfileMomentFunction();
     if (!use_high_permission && file->settings.read_only) return;
 
     Mem_Options *mem = &models->mem;
     Editing_Layout *layout = &models->layout;
-    
+
     // NOTE(allen): fixing stuff "beforewards"???    
     Assert(spec.str == 0);
     file_update_history_before_edit(mem, file, spec.step, 0, history_mode);
     file_pre_edit_maintenance(system, &mem->general, file);
-    
+
     // NOTE(allen): actual text replacement
     General_Memory *general = &mem->general;
     Partition *part = &mem->part;
@@ -1772,7 +1782,7 @@ file_do_white_batch_edit(System_Functions *system, App_Models *models, Editing_F
 
         file_edit_cursor_fix(system, part, general, file, layout, desc);
     }
-    
+
     // NOTE(allen): token fixing
     if (file->state.tokens_complete){
         Cpp_Token_Stack tokens = file->state.token_stack;
@@ -1803,7 +1813,7 @@ file_do_white_batch_edit(System_Functions *system, App_Models *models, Editing_F
 }
 
 inline void
-file_replace_range(System_Functions *system, App_Models *models, Editing_File *file,
+file_replace_range(System_Functions *system, Models *models, Editing_File *file,
     i32 start, i32 end, char *str, i32 len, i32 next_cursor, b32 use_high_permission = 0){
     Edit_Spec spec = {};
     spec.step.type = ED_NORMAL;
@@ -1817,7 +1827,7 @@ file_replace_range(System_Functions *system, App_Models *models, Editing_File *f
 }
 
 inline void
-view_replace_range(System_Functions *system, App_Models *models, View *view,
+view_replace_range(System_Functions *system, Models *models, View *view,
     i32 start, i32 end, char *str, i32 len, i32 next_cursor){
     file_replace_range(system, models, view->file, start, end, str, len, next_cursor);
 }
@@ -1835,10 +1845,10 @@ view_post_paste_effect(View *view, i32 ticks, i32 start, i32 size, u32 color){
 
 internal void
 view_undo_redo(System_Functions *system,
-    App_Models *models, View *view,
+    Models *models, View *view,
     Edit_Stack *stack, Edit_Type expected_type){
     Editing_File *file = view->file;
-    
+
     if (stack->edit_count > 0){
         Edit_Step step = stack->edits[stack->edit_count-1];
 
@@ -1868,12 +1878,12 @@ view_undo_redo(System_Functions *system,
 }
 
 inline void
-view_undo(System_Functions *system, App_Models *models, View *view){
+view_undo(System_Functions *system, Models *models, View *view){
     view_undo_redo(system, models, view, &view->file->state.undo.undo, ED_UNDO);
 }
 
 inline void
-view_redo(System_Functions *system, App_Models *models, View *view){
+view_redo(System_Functions *system, Models *models, View *view){
     view_undo_redo(system, models, view, &view->file->state.undo.redo, ED_REDO);
 }
 
@@ -1942,7 +1952,7 @@ file_dump_history(System_Functions *system, Mem_Options *mem, Editing_File *file
 #endif
 
 internal void
-view_history_step(System_Functions *system, App_Models *models, View *view, History_Mode history_mode){
+view_history_step(System_Functions *system, Models *models, View *view, History_Mode history_mode){
     Assert(history_mode != hist_normal);
 
     Editing_File *file = view->file;
@@ -2138,17 +2148,17 @@ file_compute_whitespace_edit(Mem_Options *mem, Editing_File *file, i32 cursor_po
 }
 
 internal void
-view_clean_whitespace(System_Functions *system, App_Models *models, View *view){
+view_clean_whitespace(System_Functions *system, Models *models, View *view){
     Mem_Options *mem = &models->mem;
     Editing_File *file = view->file;
-    
+
     Partition *part = &mem->part;
     i32 line_count = file->state.buffer.line_count;
     i32 edit_max = line_count * 2;
     i32 edit_count = 0;
-    
+
     Assert(file && !file->state.is_dummy);
-    
+
     Temp_Memory temp = begin_temp_memory(part);
     Buffer_Edit *edits = push_array(part, Buffer_Edit, edit_max);
 
@@ -2199,7 +2209,7 @@ view_clean_whitespace(System_Functions *system, App_Models *models, View *view){
 
 internal void
 view_auto_tab_tokens(System_Functions *system,
-    App_Models *models, View *view,
+    Models *models, View *view,
     i32 start, i32 end, b32 empty_blank_lines){
 #if BUFFER_EXPERIMENT_SCALPEL <= 0
     Editing_File *file = view->file;
@@ -2575,9 +2585,9 @@ view_show_config(View *fview, Command_Map *gui_map){
 inline void
 view_show_interactive(System_Functions *system, View *view, Command_Map *gui_map,
     Interactive_Action action, Interactive_Interaction interaction, String query){
-    
-    App_Models *models = view->models;
-    
+
+    Models *models = view->models;
+
     view->ui_state = {};
     view->map_for_file = view->map;
     view->map = gui_map;
@@ -2595,12 +2605,13 @@ view_show_interactive(System_Functions *system, View *view, Command_Map *gui_map
 }
 
 inline void
-view_show_theme(View *fview, Command_Map *gui_map){
-    fview->ui_state = {};
-    fview->map_for_file = fview->map;
-    fview->map = gui_map;
-    fview->showing_ui = VUI_Theme;
-    fview->color_mode = CV_Mode_Library;
+view_show_theme(View *view, Command_Map *gui_map){
+    view->ui_state = {};
+    view->map_for_file = view->map;
+    view->map = gui_map;
+    view->showing_ui = VUI_Theme;
+    view->color_mode = CV_Mode_Library;
+    view->color = super_color_create(0xFF000000);
 }
 
 inline void
@@ -2617,30 +2628,34 @@ view_show_file(View *view, Command_Map *file_map){
 
 internal void
 interactive_view_complete(View *view){
+    Models *models = view->models;
     Panel *panel = view->panel;
-    App_Models *models = view->models;
-    Editing_File *file = 0;
+    Editing_File *old_file = view->file;
+    
     switch (view->action){
         case IAct_Open:
         delayed_open(&models->delay1, models->hot_directory.string, panel);
+        delayed_touch_file(&models->delay1, old_file);
         break;
 
         case IAct_Save_As:
         delayed_save_as(&models->delay1, models->hot_directory.string, panel);
-        file = view->file;
         break;
 
         case IAct_New:
-        delayed_new(&models->delay1, models->hot_directory.string, panel);
+        if (models->hot_directory.string.size > 0 &&
+                !char_is_slash(models->hot_directory.string.str[models->hot_directory.string.size-1])){
+            delayed_new(&models->delay1, models->hot_directory.string, panel);
+        }
         break;
 
         case IAct_Switch:
         delayed_switch(&models->delay1, view->dest, panel);
+        delayed_touch_file(&models->delay1, old_file);
         break;
 
         case IAct_Kill:
         delayed_try_kill(&models->delay1, view->dest, panel);
-        file = view->file;
         break;
 
         case IAct_Sure_To_Kill:
@@ -2649,7 +2664,8 @@ interactive_view_complete(View *view){
             delayed_kill(&models->delay1, view->dest, panel);
             break;
 
-            case 1:break;
+            case 1:
+            break;
 
             case 2:
             // TODO(allen): This is fishy! What if the save doesn't happen this time around?
@@ -2661,6 +2677,9 @@ interactive_view_complete(View *view){
         break;
     }
     view_show_file(view, 0);
+    
+    // TODO(allen): This is here to prevent the key press from being passed to the
+    // underlying file which is a giant pain.
     view->file = 0;
 }
 
@@ -2677,9 +2696,9 @@ update_highlighting(View *view){
         view->highlight = {};
         return;
     }
-    
-    App_Models *models = view->models;
-    
+
+    Models *models = view->models;
+
     Style *style = &models->style;
     i32 pos = view_get_cursor_pos(file_view);
     char c = buffer_get_char(&file->state.buffer, pos);
@@ -2749,7 +2768,7 @@ internal b32
 theme_library_shit(System_Functions *system, Exchange *exchange,
     View *view, UI_State *state, UI_Layout *layout){
 
-    App_Models *models = view->models;
+    Models *models = view->models;
     Mem_Options *mem = &models->mem;
 
     i32 result = 0;
@@ -2999,11 +3018,11 @@ theme_library_shit(System_Functions *system, Exchange *exchange,
 }
 
 internal b32
-theme_adjusting_shit(View *view, UI_State *state, UI_Layout *layout){
+theme_adjusting_shit(View *view, UI_State *state, UI_Layout *layout, Super_Color *color){
     update_highlighting(view);
 
-    App_Models *models = view->models;
-    
+    Models *models = view->models;
+
     Style *style = &models->style;
     i32 result = 0;
 
@@ -3125,14 +3144,14 @@ theme_adjusting_shit(View *view, UI_State *state, UI_Layout *layout){
         bar_style->pop2_color, bar_style->bar_color,
         "Bar Pop 2");
 
-    view->color = ui.color;
-
-    return result;
+    *color = ui.hover_color;
+    
+    return (result);
 }
 
 internal b32
 theme_shit(System_Functions *system, Exchange *exchange,
-    View *view, View *active, UI_State *state, UI_Layout *layout){
+    View *view, View *active, UI_State *state, UI_Layout *layout, Super_Color *color){
     b32 result = 0;
 
     if (view != active){
@@ -3152,7 +3171,7 @@ theme_shit(System_Functions *system, Exchange *exchange,
         break;
 
         case CV_Mode_Adjusting:
-        if (theme_adjusting_shit(view, state, layout)){
+        if (theme_adjusting_shit(view, state, layout, color)){
             result = 1;
         }
         break;
@@ -3167,8 +3186,8 @@ interactive_shit(System_Functions *system, View *view, UI_State *state, UI_Layou
     b32 new_dir = 0;
     b32 complete = 0;
 
-    App_Models *models = view->models;
-    
+    Models *models = view->models;
+
     do_label(state, layout, view->query, 1.f);
 
     b32 case_sensitive = 0;
@@ -3268,8 +3287,8 @@ menu_shit(View *view, UI_State *state, UI_Layout *layout){
 internal void
 config_shit(View *view, UI_State *state, UI_Layout *layout){
     i32 id = 0;
-    App_Models *models = view->models;
-    
+    Models *models = view->models;
+
     do_label(state, layout, literal("Config"), 2.f);
 
     if (do_checkbox_list_option(++id, state, layout, make_lit_string("Left Ctrl + Left Alt = AltGr"),
@@ -3278,16 +3297,35 @@ config_shit(View *view, UI_State *state, UI_Layout *layout){
     }
 }
 
+struct File_Bar{
+    f32 pos_x, pos_y;
+    f32 text_shift_x, text_shift_y;
+    i32_Rect rect;
+    i16 font_id;
+};
+
+internal void
+intbar_draw_string(Render_Target *target, File_Bar *bar, String str, u32 char_color){
+    i16 font_id = bar->font_id;
+
+    draw_string(target, font_id, str,
+        (i32)(bar->pos_x + bar->text_shift_x),
+        (i32)(bar->pos_y + bar->text_shift_y),
+        char_color);
+    bar->pos_x += font_string_width(target, font_id, str);
+}
+
 internal void
 do_file_bar(View *view, Editing_File *file, UI_Layout *layout, Render_Target *target){
-    Interactive_Bar bar;
-    App_Models *models = view->models;
+    File_Bar bar;
+    Models *models = view->models;
     Style_Font *font = &models->global_font;
     i32 line_height = view->font_height;
     Interactive_Style bar_style = models->style.main.file_info_style;
 
     u32 back_color = bar_style.bar_color;
     u32 base_color = bar_style.base_color;
+    u32 pop1_color = bar_style.pop1_color;
     u32 pop2_color = bar_style.pop2_color;
 
     bar.rect = layout_rect(layout, line_height + 2);
@@ -3301,7 +3339,7 @@ do_file_bar(View *view, Editing_File *file, UI_Layout *layout, Render_Target *ta
 
         draw_rectangle(target, bar.rect, back_color);    
         intbar_draw_string(target, &bar, file->name.live_name, base_color);
-        intbar_draw_string(target, &bar, make_lit_string(" - "), base_color);
+        intbar_draw_string(target, &bar, make_lit_string(" -"), base_color);
 
         if (file->state.is_loading){
             intbar_draw_string(target, &bar, make_lit_string(" loading"), base_color);
@@ -3309,11 +3347,24 @@ do_file_bar(View *view, Editing_File *file, UI_Layout *layout, Render_Target *ta
         else{
             char line_number_space[30];
             String line_number = make_string(line_number_space, 0, 30);
-            append(&line_number, "L#");
+            append(&line_number, " L#");
             append_int_to_str(view->cursor.line, &line_number);
-
+            
             intbar_draw_string(target, &bar, line_number, base_color);
-
+            
+            intbar_draw_string(target, &bar, make_lit_string(" -"), base_color);
+            
+            if (file->settings.dos_write_mode){
+                intbar_draw_string(target, &bar, make_lit_string(" dos"), base_color);
+            }
+            else{
+                intbar_draw_string(target, &bar, make_lit_string(" nix"), base_color);
+            }
+            
+            if (file->state.still_lexing){
+                intbar_draw_string(target, &bar, make_lit_string(" parsing"), pop1_color);
+            }
+            
             if (!file->settings.unimportant){
                 switch (buffer_get_sync(file)){
                     case SYNC_BEHIND_OS:
@@ -3372,7 +3423,7 @@ internal i32
 step_file_view(System_Functions *system, Exchange *exchange, View *view, i32_Rect rect,
     b32 is_active, Input_Summary *user_input){
     
-    App_Models *models = view->models;
+    Models *models = view->models;
     i32 result = 0;
     Editing_File *file = view->file;
 
@@ -3519,11 +3570,13 @@ step_file_view(System_Functions *system, Exchange *exchange, View *view, i32_Rec
         UI_Layout layout;
         begin_layout(&layout, rect);
         
+        Super_Color color = {};
+
         switch (view->showing_ui){
             case VUI_None: break;
             case VUI_Theme:
             {
-                theme_shit(system, exchange, view, 0, &state, &layout);
+                theme_shit(system, exchange, view, 0, &state, &layout, &color);
             }break;
             case VUI_Interactive:
             {
@@ -3539,19 +3592,26 @@ step_file_view(System_Functions *system, Exchange *exchange, View *view, i32_Rec
             {
                 config_shit(view, &state, &layout);
             }break;
-            }
+        }
 
-        if (ui_finish_frame(&view->ui_state, &state, &layout, rect, 0, 0)){
+        i32 did_activation = 0;
+        if (ui_finish_frame(&view->ui_state, &state, &layout, rect, 0, &did_activation)){
             result = 1;
         }
+        if (did_activation){
+            if (view->showing_ui == VUI_Theme){
+                view->color = color;
+                result = 1;
+            }
+        }
     }
-    
+
     return(result);
 }
 
 internal i32
 draw_file_loaded(View *view, i32_Rect rect, b32 is_active, Render_Target *target){
-    App_Models *models = view->models;
+    Models *models = view->models;
     Editing_File *file = view->file;
     Style *style = &models->style;
     i32 line_height = view->font_height;
@@ -3722,7 +3782,7 @@ draw_file_view(System_Functions *system, Exchange *exchange,
     View *view, View *active, i32_Rect rect, b32 is_active,
     Render_Target *target, Input_Summary *user_input){
     
-    App_Models *models = view->models;
+    Models *models = view->models;
     Editing_File *file = view->file;
     i32 result = 0;
     
@@ -3776,7 +3836,9 @@ draw_file_view(System_Functions *system, Exchange *exchange,
         begin_layout(&layout, rect);
         
         rect.y0 -= widget_height;
-        
+                
+        Super_Color color = {};
+
         switch (view->showing_ui){
             case VUI_None:
             {
@@ -3790,7 +3852,7 @@ draw_file_view(System_Functions *system, Exchange *exchange,
             
             case VUI_Theme:
             {
-                theme_shit(system, exchange, view, active, &state, &layout);
+                theme_shit(system, exchange, view, active, &state, &layout, &color);
             }break;
             
             case VUI_Interactive:
@@ -3816,18 +3878,32 @@ draw_file_view(System_Functions *system, Exchange *exchange,
     return (result);
 }
 
+// TODO(allen): Passing this hook and app pointer is a hack. It can go as soon as we start
+// initializing files independently of setting them to views.
 internal void
-kill_file(System_Functions *system, Exchange *exchange,
-    App_Models *models, Editing_File *file){
+kill_file(System_Functions *system, Exchange *exchange, Models *models, Editing_File *file,
+    Hook_Function *open_hook, Application_Links *app){
+    File_Node *node, *used;
+    
+    file_close(system, &models->mem.general, file);
+    working_set_free_file(&models->working_set, file);
+    
+    used = &models->working_set.used_sentinel;
+    node = used->next;
     
     for (View_Iter iter = file_view_iter_init(&models->layout, file, 0);
         file_view_iter_good(iter);
         iter = file_view_iter_next(iter)){
-        iter.view->file = 0;
+        if (node != used){
+            iter.view->file = 0;
+            view_set_file(iter.view, (Editing_File*)node, models, system, open_hook, app, 0);
+            node = node->next;
+        }
+        else{
+            iter.view->file = 0;
+            view_set_file(iter.view, 0, models, system, open_hook, app, 0);
+        }
     }
-    
-    file_close(system, &models->mem.general, file);
-    working_set_free_file(&models->working_set, file);
 }
 
 inline void
@@ -4046,7 +4122,7 @@ struct Live_Views{
 };
 
 internal View_And_ID
-live_set_alloc_view(Live_Views *live_set, Panel *panel, App_Models *models){
+live_set_alloc_view(Live_Views *live_set, Panel *panel, Models *models){
     View_And_ID result = {};
     
     Assert(live_set->count < live_set->max);

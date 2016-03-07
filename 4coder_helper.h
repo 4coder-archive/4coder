@@ -153,7 +153,7 @@ inherit_map(Bind_Helper *helper, int mapid){
 }
 
 inline void
-set_hook(Bind_Helper *helper, int hook_id, Custom_Command_Function *func){
+set_hook(Bind_Helper *helper, int hook_id, Hook_Function *func){
     Binding_Unit unit;
     unit.type = unit_hook;
     unit.hook.hook_id = hook_id;
