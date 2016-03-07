@@ -15,8 +15,10 @@
 TEMPLATE_DIR="$HOME/Desktop/4coder/release_template/"
 CODE_DIR="$HOME/Desktop/4coder"
 TMP_DIR="/tmp/4coder"
-OUT_ZIP="$HOME/Desktop/4coder-linux.zip"
-OUT_ZIP_SUPER="$HOME/Desktop/4coder-linux-super.zip"
+OUT_ZIP="$HOME/Desktop/4coder-linux-64.zip"
+OUT_ZIP_32="$HOME/Desktop/4coder-linux-32.zip"
+OUT_ZIP_SUPER="$HOME/Desktop/4coder-linux-super-64.zip"
+OUT_ZIP_SUPER_32="$HOME/Desktop/4coder-linux-super-32.zip"
 
 echo "template: $TEMPLATE_DIR"
 echo "base:     $CODE_DIR"
@@ -25,40 +27,42 @@ echo "out:      $OUT_ZIP"
 
 rm -rf "$OUT_ZIP"
 rm -rf "$OUT_ZIP_SUPER"
+rm -rf "$OUT_ZIP_32"
+rm -rf "$OUT_ZIP_SUPER_32"
 
 mkdir -p "$TMP_DIR"
-mkdir -p "$TMP_DIR/alpha"
-mkdir -p "$TMP_DIR/super"
-
-cat << EOF > "$TMP_DIR/readme.txt"
-This is a linux 4coder release.
-Brought to you by Mr4thDimention and insofaras.
-
-Enjoy!
-EOF
 
 pushd "$CODE_DIR"
 
 echo "Alpha User"
 
+# ALPHA-32
 make clean
 make release32
-cp -r "${TEMPLATE_DIR}" "$TMP_DIR/alpha/32"
-cp ./4ed ./4ed_app.so "$TMP_DIR/alpha/32/"
+cp -r "${TEMPLATE_DIR}" "$TMP_DIR/alpha"
+cp ./4ed ./4ed_app.so "$TMP_DIR/alpha/"
 
 echo " "
 
+pushd "$TMP_DIR"
+zip -r "$OUT_ZIP_32" "$(basename alpha)"
+popd
+rm -rf "$TMP_DIR/alpha"
+
+echo " "
+
+# ALPHA-64
 make clean
 make release
-cp -r "${TEMPLATE_DIR}" "$TMP_DIR/alpha/64"
-cp ./4ed ./4ed_app.so "$TMP_DIR/alpha/64/"
+cp -r "${TEMPLATE_DIR}" "$TMP_DIR/alpha"
+cp ./4ed ./4ed_app.so "$TMP_DIR/alpha/"
 
 echo " "
 
-cp "$TMP_DIR/readme.txt" "$TMP_DIR/alpha/readme.txt"
 pushd "$TMP_DIR"
 zip -r "$OUT_ZIP" "$(basename alpha)"
 popd
+rm -rf "$TMP_DIR/alpha"
 
 echo " "
 
@@ -66,24 +70,34 @@ echo " "
 
 echo "Super User"
 
+# SUPER-32
 make clean
-make release32
-cp -r "${TEMPLATE_DIR}" "$TMP_DIR/super/32"
-cp ./4ed ./4ed_app.so ./code/4coder_*.h ./code/4coder_*.cpp "$TMP_DIR/super/32/"
+make release32_super
+cp ./4ed ./4ed_app.so ./code/4coder_*.h ./code/4coder_*.cpp "$TMP_DIR/super/"
+cp ./code/buildsuper.sh "$TMP_DIR/super/"
 
 echo " "
 
-make clean
-make release
-cp -r "${TEMPLATE_DIR}" "$TMP_DIR/super/64"
-cp ./4ed ./4ed_app.so ./code/4coder_*.h ./code/4coder_*.cpp "$TMP_DIR/super/64/"
+pushd "$TMP_DIR"
+zip -r "$OUT_ZIP_SUPER_32" "$(basename super)"
+popd
+rm -rf "$TMP_DIR/super"
 
 echo " "
 
-cp "$TMP_DIR/readme.txt" "$TMP_DIR/super/readme.txt"
+# SUPER-64
+make clean
+make release_super
+cp -r "${TEMPLATE_DIR}" "$TMP_DIR/super/"
+cp ./4ed ./4ed_app.so ./code/4coder_*.h ./code/4coder_*.cpp "$TMP_DIR/super/"
+cp ./code/buildsuper.sh "$TMP_DIR/super/"
+
+echo " "
+
 pushd "$TMP_DIR"
 zip -r "$OUT_ZIP_SUPER" "$(basename super)"
 popd
+rm -rf "$TMP_DIR/super"
 
 echo " "
 
@@ -95,7 +109,7 @@ rm -rf "$TMP_DIR"
 
 popd
 
-echo "Created linux 4coder package: $OUT_ZIP"
+echo "Created linux 4coder packages"
 
 exit
 

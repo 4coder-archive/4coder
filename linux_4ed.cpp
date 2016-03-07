@@ -1197,7 +1197,7 @@ static void gl_log(
     GLsizei length,
     const GLchar* message,
     const void* userParam
-){
+                   ){
     printf("GL DEBUG: %s\n", message);
 }
 #endif
@@ -1227,15 +1227,15 @@ InitializeOpenGLContext(Display *XDisplay, Window XWindow, GLXFBConfig &bestFbc,
     else
     {
         int context_attribs[] =
-        {
-            GLX_CONTEXT_MAJOR_VERSION_ARB, 4,
-            GLX_CONTEXT_MINOR_VERSION_ARB, 3,
-            GLX_CONTEXT_PROFILE_MASK_ARB , GLX_CONTEXT_COMPATIBILITY_PROFILE_BIT_ARB,
+            {
+                GLX_CONTEXT_MAJOR_VERSION_ARB, 4,
+                GLX_CONTEXT_MINOR_VERSION_ARB, 3,
+                GLX_CONTEXT_PROFILE_MASK_ARB , GLX_CONTEXT_COMPATIBILITY_PROFILE_BIT_ARB,
 #if FRED_INTERNAL
-            GLX_CONTEXT_FLAGS_ARB        , GLX_CONTEXT_DEBUG_BIT_ARB,
+                GLX_CONTEXT_FLAGS_ARB        , GLX_CONTEXT_DEBUG_BIT_ARB,
 #endif
-            None
-        };
+                None
+            };
 
         printf("Attribs: %d %d %d %d %d\n",
                context_attribs[0],
@@ -1324,7 +1324,7 @@ InitializeOpenGLContext(Display *XDisplay, Window XWindow, GLXFBConfig &bestFbc,
     //TODO(inso): enable vsync if available. this should probably be optional
     if(strstr(glxExts, "GLX_EXT_swap_control ")){
         PFNGLXSWAPINTERVALEXTPROC glx_swap_interval_ext =
-        (PFNGLXSWAPINTERVALEXTPROC) glXGetProcAddressARB((const GLubyte*)"glXSwapIntervalEXT");
+            (PFNGLXSWAPINTERVALEXTPROC) glXGetProcAddressARB((const GLubyte*)"glXSwapIntervalEXT");
 
         if(glx_swap_interval_ext){
             glx_swap_interval_ext(XDisplay, XWindow, 1);
@@ -1336,10 +1336,10 @@ InitializeOpenGLContext(Display *XDisplay, Window XWindow, GLXFBConfig &bestFbc,
         }
     } else if(strstr(glxExts, "GLX_MESA_swap_control ")){
         PFNGLXSWAPINTERVALMESAPROC glx_swap_interval_mesa = 
-        (PFNGLXSWAPINTERVALMESAPROC) glXGetProcAddressARB((const GLubyte*)"glXSwapIntervalMESA");
+            (PFNGLXSWAPINTERVALMESAPROC) glXGetProcAddressARB((const GLubyte*)"glXSwapIntervalMESA");
 
         PFNGLXGETSWAPINTERVALMESAPROC glx_get_swap_interval_mesa =
-        (PFNGLXGETSWAPINTERVALMESAPROC) glXGetProcAddressARB((const GLubyte*)"glXGetSwapIntervalMESA");
+            (PFNGLXGETSWAPINTERVALMESAPROC) glXGetProcAddressARB((const GLubyte*)"glXGetSwapIntervalMESA");
 
         if(glx_swap_interval_mesa){
             glx_swap_interval_mesa(1);
@@ -1354,7 +1354,7 @@ InitializeOpenGLContext(Display *XDisplay, Window XWindow, GLXFBConfig &bestFbc,
         }
     } else if(strstr(glxExts, "GLX_SGI_swap_control ")){
         PFNGLXSWAPINTERVALSGIPROC glx_swap_interval_sgi = 
-        (PFNGLXSWAPINTERVALSGIPROC) glXGetProcAddressARB((const GLubyte*)"glXSwapIntervalSGI");
+            (PFNGLXSWAPINTERVALSGIPROC) glXGetProcAddressARB((const GLubyte*)"glXSwapIntervalSGI");
 
         if(glx_swap_interval_sgi){
             glx_swap_interval_sgi(1);
@@ -1417,22 +1417,22 @@ ChooseGLXConfig(Display *XDisplay, int XScreenIndex)
     glx_config_result Result = {0};
     
     int DesiredAttributes[] =
-    {
-        GLX_X_RENDERABLE    , True,
-        GLX_DRAWABLE_TYPE   , GLX_WINDOW_BIT,
-        GLX_RENDER_TYPE     , GLX_RGBA_BIT,
-        GLX_X_VISUAL_TYPE   , GLX_TRUE_COLOR,
-        GLX_RED_SIZE        , 8,
-        GLX_GREEN_SIZE      , 8,
-        GLX_BLUE_SIZE       , 8,
-        GLX_ALPHA_SIZE      , 8,
-        GLX_DEPTH_SIZE      , 24,
-        GLX_STENCIL_SIZE    , 8,
-        GLX_DOUBLEBUFFER    , True,
-        //GLX_SAMPLE_BUFFERS  , 1,
-        //GLX_SAMPLES         , 4,
-        None
-    };    
+        {
+            GLX_X_RENDERABLE    , True,
+            GLX_DRAWABLE_TYPE   , GLX_WINDOW_BIT,
+            GLX_RENDER_TYPE     , GLX_RGBA_BIT,
+            GLX_X_VISUAL_TYPE   , GLX_TRUE_COLOR,
+            GLX_RED_SIZE        , 8,
+            GLX_GREEN_SIZE      , 8,
+            GLX_BLUE_SIZE       , 8,
+            GLX_ALPHA_SIZE      , 8,
+            GLX_DEPTH_SIZE      , 24,
+            GLX_STENCIL_SIZE    , 8,
+            GLX_DOUBLEBUFFER    , True,
+            //GLX_SAMPLE_BUFFERS  , 1,
+            //GLX_SAMPLES         , 4,
+            None
+        };    
 
     {
         int ConfigCount;
@@ -1447,47 +1447,47 @@ ChooseGLXConfig(Display *XDisplay, int XScreenIndex)
         {for(int ConfigIndex = 0;
              ConfigIndex < ConfigCount;
              ++ConfigIndex)
-        {
-            GLXFBConfig &Config = Configs[ConfigIndex];
-            XVisualInfo *VisualInfo = glXGetVisualFromFBConfig(XDisplay, Config);
+            {
+                GLXFBConfig &Config = Configs[ConfigIndex];
+                XVisualInfo *VisualInfo = glXGetVisualFromFBConfig(XDisplay, Config);
 
 #if 0
-            printf("  Option %d:\n", ConfigIndex);
-            printf("    Depth: %d\n", VisualInfo->depth);
-            printf("    Bits per channel: %d\n", VisualInfo->bits_per_rgb);
-            printf("    Mask: R%06x G%06x B%06x\n",
-                   (uint32)VisualInfo->red_mask,
-                   (uint32)VisualInfo->green_mask,
-                   (uint32)VisualInfo->blue_mask);
-            printf("    Class: %d\n", VisualInfo->c_class);
+                printf("  Option %d:\n", ConfigIndex);
+                printf("    Depth: %d\n", VisualInfo->depth);
+                printf("    Bits per channel: %d\n", VisualInfo->bits_per_rgb);
+                printf("    Mask: R%06x G%06x B%06x\n",
+                       (uint32)VisualInfo->red_mask,
+                       (uint32)VisualInfo->green_mask,
+                       (uint32)VisualInfo->blue_mask);
+                printf("    Class: %d\n", VisualInfo->c_class);
 #endif
             
 #if 0
-            {for(int ValueIndex = 0;
-                 ValueIndex < GLXValueCount;
-                 ++ValueIndex)
-            {
-                glx_value_info &ValueInfo = GLXValues[ValueIndex];
-                int Value;
-                glXGetFBConfigAttrib(XDisplay, Config, ValueInfo.ID, &Value);
-                if(DiffValues[ValueIndex] != Value)
-                {
-                    printf("    %s: %d\n", ValueInfo.Name, Value);
-                    DiffValues[ValueIndex] = Value;
-                }
-            }}
+                {for(int ValueIndex = 0;
+                     ValueIndex < GLXValueCount;
+                     ++ValueIndex)
+                    {
+                        glx_value_info &ValueInfo = GLXValues[ValueIndex];
+                        int Value;
+                        glXGetFBConfigAttrib(XDisplay, Config, ValueInfo.ID, &Value);
+                        if(DiffValues[ValueIndex] != Value)
+                        {
+                            printf("    %s: %d\n", ValueInfo.Name, Value);
+                            DiffValues[ValueIndex] = Value;
+                        }
+                    }}
 #endif
             
-            // TODO(casey): How the hell are you supposed to pick a config here??
-            if(ConfigIndex == 0)
-            {
-                Result.Found = true;
-                Result.BestConfig = Config;
-                Result.BestInfo = *VisualInfo;
-            }
+                // TODO(casey): How the hell are you supposed to pick a config here??
+                if(ConfigIndex == 0)
+                {
+                    Result.Found = true;
+                    Result.BestConfig = Config;
+                    Result.BestInfo = *VisualInfo;
+                }
                         
-            XFree(VisualInfo);
-        }}
+                XFree(VisualInfo);
+            }}
                     
         XFree(Configs);
     }
@@ -1550,10 +1550,10 @@ InitializeXInput(Display *dpy, Window XWindow)
     {for(int32x DeviceIndex = 0;
          DeviceIndex < DeviceCount;
          ++DeviceIndex)
-    {
-        XIDeviceInfo *Device = DeviceInfo + DeviceIndex;
-        printf("Device %d: %s\n", Device->deviceid, Device->name);
-    }}
+        {
+            XIDeviceInfo *Device = DeviceInfo + DeviceIndex;
+            printf("Device %d: %s\n", Device->deviceid, Device->name);
+        }}
     XIFreeDeviceInfo(DeviceInfo);
 #endif
     
@@ -1615,7 +1615,7 @@ InitializeXInput(Display *dpy, Window XWindow)
         MappingNotify |
         ExposureMask |
         VisibilityChangeMask
-    );
+                 );
 
     result.input_method = XOpenIM(dpy, 0, 0, 0);
     if (!result.input_method){
@@ -1710,7 +1710,7 @@ LinuxMaximizeWindow(Display* d, Window w, b32 maximize){
         0,
         SubstructureNotifyMask | SubstructureRedirectMask,
         &e
-    );
+               );
 }
 
 int
@@ -1824,8 +1824,24 @@ main(int argc, char **argv)
     }
     
     if (linuxvars.custom){
-        linuxvars.custom_api.get_bindings = (Get_Binding_Data_Function*)
-            dlsym(linuxvars.custom, "get_bindings");
+        linuxvars.custom_api.get_alpha_4coder_version = (_Get_Version_Function*)
+            dlsym(linuxvars.custom, "get_alpha_4coder_version");
+
+        if (linuxvars.custom_api.get_alpha_4coder_version == 0 ||
+            linuxvars.custom_api.get_alpha_4coder_version(MAJOR, MINOR, PATCH) == 0){
+            printf("failed to use 4coder_custom.so: version mismatch\n");
+        }
+        else{
+            linuxvars.custom_api.get_bindings = (Get_Binding_Data_Function*)
+                dlsym(linuxvars.custom, "get_bindings");
+        
+            if (linuxvars.custom_api.get_bindings == 0){
+                printf("failed to use 4coder_custom.so: get_bindings not exported\n");
+            }
+            else{
+                printf("successfully loaded 4coder_custom.so\n");
+            }
+        }
     }
 #endif
    
