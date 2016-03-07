@@ -1,0 +1,206 @@
+
+; Started this list on: (18.01.2016)(dd.mm.yyyy)
+;  This list is an informal todo list, it may very well miss items
+; checked or unchecked, that I inted to do some day. It is included
+; in the distribution so that you may take a look and see if your
+; requested feature is there, and if not, so that you may remind me.
+;  Cheers everyone!
+;
+; BUGS
+; [X] '\t' thing
+; [X] smoothness in smoothscrolling isn't very smooth
+; [X] examine ctrl left/right "stopspots" again
+;    [X] whitespace left/right
+;    [X] token left/right
+;    [X] white or token left/right
+;    [X] alphanumeric left/right
+;    [X] alphanumeric or camel left/right
+; [X] jumping to top of buffer when invoking compiler
+; [X] don't darken character with cursor ghost
+; [X] only shows LOADED when all spelled out
+; [X] cursor image is broken
+; [X] special characters aren't colored correctly
+; [X] screen does not always paint on open
+; [X] unimportant flag for buffers so they don't ask to save
+; [X] problem with clipping panel
+; [X] paste highlight range is wrong
+; [X] bug in new file interface
+; [X] interactive open shouldn't be case sensitive (esp in windows)
+; [X] REOPEN is still disabled!
+; [X] lctrl + lalt = AltGr option
+; [X] don't cursor ghost search highlights
+; [X] auto indent stopped working (maps incorrect in one of the views?)
+; [X] Assert(size + buffer->line_count < max)
+; [X] unsigned
+; [X] shift+backspace in interactive view is messed up
+; [X] scrolls with mouse off window
+; [X] file open same file/switch to file settings wrong
+; [X] show whitespace isn't working
+; [X] lexer in 4cpp_config.h
+; [X] steady view in two panel editing of same file
+; [X] offer error
+; [X] switch to file "4ed.cpp" with "win32_4ed.cpp" open
+; [X] inserting new line at top of file ~ scrolling jump when window is unaligned
+; [X] saving/killing *compilation* doesn't work
+;       [X] line wrapping also doesn't work
+; [X] save as corruptitates the filename
+; [X] crash when leaving maximized mode and view get's weird
+; [X] decrease scroll speed on short windows
+; [X] different files, same live name, big ol' bug nest
+; [X] can't open 4coder in arbitrary directory
+; [X] shift tab
+; [X] after auto indent always put cursor after whitespace
+; [X] file menu non-ascii file names
+; [X] strip \r in paste
+; [X] page up scrolling stuff
+; [X] stop spots for camel case aren't super
+; [X] unmodified command then get's inserted in new view (z bug from hmh)
+; [X] view_id always 1 bug
+; [X] interactive kill not working
+; [X] mouse not working on interactive view
+; [X] reopen effects other view too?
+; [] indication on failure to save
+; [] clean whitespace doesn't appear to be cleaning trailing whitespace anymore???
+; [] sometimes the main cursor is not the same width as the mark cursor in the same spot
+; [] tab character wrong width
+; [] bouncing when scrolling down
+; [] miblo's off screen cursor thing
+; [] allen's segfaults on linux launch
+; [] fyoucon's segfaults with malloc on win10
+; [] open empty file bug
+;
+;
+
+; TODOS
+; [X] success message when compiler works
+; [X] auto-complete
+;    [X] detect word to match against
+;    [X] search in file range for next match and use if found
+;    [X] create repeatable tracker of previous match and files' searched
+; [X] more options for getting buffer in custom API
+; [X] write to buffer in custom API
+; [X] querry buffer string in custom API
+; [X] API for file views
+; [X] Seek backwards option
+; [X] Use range parameters in all applicable commands
+; [X] generate enum for key codes 
+; [X] API for direct input
+; [X] Seek string instead of delimiter
+; [X] hook parameters
+; [X] API based themes
+; 
+; [] File status (saved, needs saving, out of sync)
+; [] feedback messages
+; [] command meta data
+; [] additional hooks
+; [] double binding warnings
+; [] kill rect
+; [] simple multi-line
+; 
+; search related tech
+;    [X] replace word (incremental and/or in range)
+;    [] optimize search
+;    [] make search wrap around beginning/end
+;    [] polish for seeking
+;
+; GUI related tech
+;    [X] consolidate all UI code properly
+;    [] arrow navigation of UIs
+;    [] text links -> arbitrary commands / callbacks?
+;
+; theme related business
+;    [] fix the versioning system for themes
+;    [] theme switch per panel?
+;
+; [] control schemes
+;    [] emacs style sub-maps
+;    [] vim style modes
+;    [] "tap typing"
+;    [] "thin cursor"
+;
+; [] switch over to gap buffer
+;    [] multiple chunk lexer input
+;
+; [] macros
+;
+; [X] cuber's return to previous buffer idea
+; [] miblo's various number editors
+;
+; [] out of sync options
+;    [] hook
+;    [] keep copy of unedited orignal, somewhere (compressed, restore by history?)
+;
+; [] diff
+; [] cloc
+; [] regex
+; [] explicit panel layout
+; [] polish for hot directories
+; [] undo groups
+;
+; [] "virtual text"
+;    [] line numbers
+;    [] macro expansion
+;    [] error text at line
+;    [] word complete ghosting
+;
+
+; INTERNAL TODOS
+; [X] switch building non-extensible version by statically linking to custom.cpp
+; [] general parameter handling
+; [] hashed string pool for clipboard/filenames/etc
+; [] ask for clipboards to update by request, not on loop
+; [] pack fonts more squarely
+; [] setup tests through special tool
+; [] new profiling/debugging system
+;
+
+; EASY TODOS
+; [X] better messages for example not "BEHIND OS"
+; [X] shift backspace
+; [] close editor command
+; [] panel grow/shrink commands
+; [] center view on cursor
+; [] delta time in scroll interpolation
+;
+
+; HARD BUGS
+; [] repainting too slow for resize looks really dumb
+; [] handling cursor in non-client part of window so it doesn't spaz
+; [] fill screen right away
+; [] how to get fast repaint (do I really need double buffering?)
+; [] history breaks when heavily used (disk swaping?)
+; [] reduce cpu consumption
+;
+
+; PORTING TODOS
+; [X] command line parameters
+;    [X] get command line arguments
+;    [X] user settings file name
+;    [X] custom DLL
+;    [X] window size and position / full screen
+;    [X] file(s) to open initially
+;    [X] position in file to open
+;    [X] invoking special tools
+; [X] transition Win32 layer to using system_shared stuff
+; [] user settings file
+; [] system fonts
+; [] file drag and drop
+; [] low latency stuff
+; [] actually write the port
+;    [X] 4coder code compiling
+;    [X] opengl window up
+;    [X] basic versions of system functions
+;    [X] get 4coder to render to window
+;    [X] keyboard and mouse input               (TY:insofaras)
+;    [X] file exchange               (TY:insofaras)
+;    [X] clipboard               (TY:insofaras)
+;    [X] background threads               (TY:insofaras)
+;    [X] cli stuff               (TY:insofaras)
+;    [] system fonts
+;    [] file drag and drop
+;    [] low latency stuff
+;    [] allow for multiple clipboards
+;
+
+;
+
