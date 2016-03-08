@@ -975,7 +975,7 @@ COMMAND_DECL(reopen){
     i32 index = 0;
     if (file_id){
         file_set_to_loading(file);
-        index = (i32)(file - models->working_set.files);
+        index = file->id.id;
         app_push_file_binding(vars, file_id, index);
 
         view_set_file(view, file, models, system,
@@ -1026,8 +1026,8 @@ COMMAND_DECL(save){
             }
         }
         else{
-            file = models->working_set.files + buffer_id;
-
+            file = working_set_get_active_file(&models->working_set, buffer_id);
+            
             if (!file->state.is_dummy && file_is_ready(file)){
                 delayed_save(delay, name, file);
             }
@@ -1096,7 +1096,7 @@ COMMAND_DECL(kill_buffer){
     }
 
     if (buffer_id != 0){
-        file = working_set_get_file(&models->working_set, buffer_id, 1).file;
+        file = working_set_get_active_file(&models->working_set, buffer_id);
         if (file){
             delayed_kill(delay, file);
         }
@@ -1730,47 +1730,46 @@ COMMAND_DECL(command_line){
     {
         Working_Set *working_set = &models->working_set;
         CLI_Process *procs = vars->cli_processes.procs, *proc = 0;
-        Get_File_Result file = {};
+        Editing_File *file = 0;
         b32 bind_to_new_view = !do_in_background;
 
         if (vars->cli_processes.count < vars->cli_processes.max){
             if (buffer_id){
-                file = working_set_get_file(working_set, buffer_id, 1);
+                file = working_set_get_active_file(working_set, buffer_id);
             }
             else if (buffer_name){
-                file.file = working_set_contains(working_set, make_string(buffer_name, buffer_name_len));
-                file.index = (i32)(file.file - working_set->files);
-                if (file.file == 0){
-                    file = working_set_get_available_file(working_set);
-                    if (file.file == 0){
+                file = working_set_contains(working_set, make_string(buffer_name, buffer_name_len));
+                if (file == 0){
+                    file = working_set_alloc_always(working_set, &models->mem.general);
+                    if (file == 0){
                         // TODO(allen): feedback message - no available file
                         return;
                     }
                 }
             }
 
-            if (file.file){
+            if (file){
                 i32 proc_count = vars->cli_processes.count;
                 View_Iter iter;
                 i32 i;
 
-                file_create_read_only(system, models, file.file, buffer_name);
-                file.file->settings.unimportant = 1;
-                table_add(&working_set->table, file.file->name.source_path, file.index);
+                file_create_read_only(system, models, file, buffer_name);
+                file->settings.unimportant = 1;
+                table_add(&working_set->table, file->name.source_path, file->id.id);
 
                 for (i = 0; i < proc_count; ++i){
-                    if (procs[i].out_file == file.file){
+                    if (procs[i].out_file == file){
                         if (flags & CLI_OverlapWithConflict)
                             procs[i].out_file = 0;
                         else
-                            file.file = 0;
+                            file = 0;
                         break;
                     }
                 }
 
-                if (file.file){
+                if (file){
                     if (!(flags & CLI_AlwaysBindToView)){
-                        iter = file_view_iter_init(&models->layout, file.file, 0);
+                        iter = file_view_iter_init(&models->layout, file, 0);
                         if (file_view_iter_good(iter)){
                             bind_to_new_view = 0;
                         }
@@ -1809,11 +1808,11 @@ COMMAND_DECL(command_line){
                 }
 
                 if (bind_to_new_view){
-                    view_file_in_panel(command, panel, file.file);
+                    view_file_in_panel(command, panel, file);
                 }
 
                 proc = procs + vars->cli_processes.count++;
-                proc->out_file = file.file;
+                proc->out_file = file;
 
                 if (!system->cli_call(path, script, &proc->cli)){
                     --vars->cli_processes.count;
@@ -1844,7 +1843,7 @@ fill_buffer_summary(Buffer_Summary *buffer, Editing_File *file, Working_Set *wor
         buffer->ready = file_is_ready(file);
 
         buffer->is_lexed = file->settings.tokens_exist;
-        buffer->buffer_id = (int)(file - working_set->files);
+        buffer->buffer_id = file->id.id;
         buffer->size = file->state.buffer.size;
         buffer->buffer_cursor_pos = file->state.cursor_pos;
 
@@ -1871,7 +1870,7 @@ fill_view_summary(View_Summary *view, View *vptr, Live_Views *live_set, Working_
 
         if (vptr->file){
             lock_level = view_lock_level(vptr);
-            buffer_id = (int)(vptr->file - working_set->files);
+            buffer_id = vptr->file->id.id;
 
             if (lock_level <= 0){
                 view->buffer_id = buffer_id;
@@ -1981,7 +1980,7 @@ extern "C"{
         Working_Set *working_set = &cmd->models->working_set;
         Editing_File *file;
 
-        file = working_set_get_file(working_set, buffer->buffer_id, 1).file;
+        file = working_set_get_active_file(working_set, buffer->buffer_id);
         if (file){
             file = (Editing_File*)file->node.next;
             fill_buffer_summary(buffer, file, working_set);
@@ -1995,11 +1994,11 @@ extern "C"{
         Command_Data *cmd = (Command_Data*)app->cmd_context;
         Working_Set *working_set = &cmd->models->working_set;
         Buffer_Summary buffer = {};
-        Get_File_Result file;
+        Editing_File *file;
 
-        file = working_set_get_file(working_set, index, 1);
-        if (file.file){
-            fill_buffer_summary(&buffer, file.file, working_set);
+        file = working_set_get_active_file(working_set, index);
+        if (file){
+            fill_buffer_summary(&buffer, file, working_set);
         }
 
         return(buffer);
@@ -2037,12 +2036,11 @@ extern "C"{
         Command_Data *cmd = (Command_Data*)app->cmd_context;
         Buffer_Summary buffer = {};
         Editing_File *file;
-        Working_Set *working_set;
-        i32 index;
+        Working_Set *working_set = &cmd->models->working_set;
+        File_ID id;
 
-        working_set = &cmd->models->working_set;
-        if (table_find(&working_set->table, make_string(filename, len), &index)){
-            file = working_set_get_file(working_set, index, 1).file;
+        if (table_find(&working_set->table, make_string(filename, len), &id)){
+            file = working_set_get_active_file(working_set, id);
             if (file){
                 fill_buffer_summary(&buffer, file, working_set);
             }
@@ -2060,7 +2058,7 @@ extern "C"{
 
         if (buffer->exists){
             working_set = &cmd->models->working_set;
-            file = working_set_get_file(working_set, buffer->buffer_id, 1).file;
+            file = working_set_get_active_file(working_set, buffer->buffer_id);
             if (file && file_is_ready(file)){
                 size = buffer_size(&file->state.buffer);
                 result = 1;
@@ -2097,7 +2095,7 @@ extern "C"{
         if (buffer->exists){
             models = cmd->models;
             working_set = &models->working_set;
-            file = working_set_get_file(working_set, buffer->buffer_id, 1).file;
+            file = working_set_get_active_file(working_set, buffer->buffer_id);
             if (file && file_is_ready(file)){
                 size = buffer_size(&file->state.buffer);
 
@@ -2139,7 +2137,7 @@ extern "C"{
 
         if (buffer->exists){
             working_set = &cmd->models->working_set;
-            file = working_set_get_file(working_set, buffer->buffer_id, 1).file;
+            file = working_set_get_active_file(working_set, buffer->buffer_id);
             if (file && file_is_ready(file)){
                 size = buffer_size(&file->state.buffer);
                 if (0 <= start && start <= end && end <= size){
@@ -2167,7 +2165,7 @@ extern "C"{
         if (buffer->exists){
             models = cmd->models;
             working_set = &models->working_set;
-            file = working_set_get_file(working_set, buffer->buffer_id, 1).file;
+            file = working_set_get_active_file(working_set, buffer->buffer_id);
             if (file && file_is_ready(file)){
                 size = buffer_size(&file->state.buffer);
                 if (0 <= start && start <= end && end <= size){
@@ -2197,7 +2195,7 @@ extern "C"{
 
         if (buffer->exists){
             working_set = &cmd->models->working_set;
-            file = working_set_get_file(working_set, buffer->buffer_id, 1).file;
+            file = working_set_get_active_file(working_set, buffer->buffer_id);
             if (file && file_is_ready(file)){
                 result = 1;
                 size = buffer_size(&file->state.buffer);
@@ -2365,7 +2363,7 @@ extern "C"{
         Command_Data *cmd = (Command_Data*)app->cmd_context;
         Live_Views *live_set;
         View *vptr;
-        Get_File_Result file;
+        Editing_File *file;
         Working_Set *working_set;
         Models *models;
         int result = 0;
@@ -2378,13 +2376,13 @@ extern "C"{
             if (view_id >= 0 && view_id < live_set->max){
                 vptr = live_set->views + view_id;
                 working_set = &models->working_set;
-                file = working_set_get_file(working_set, buffer_id, 1);
+                file = working_set_get_active_file(working_set, buffer_id);
 
-                if (file.file){
+                if (file){
                     result = 1;
-                    if (file.file != vptr->file){
-                        view_set_file(vptr, file.file, models,
-                            cmd->system, models->hooks[hook_open_file], &app_links);
+                    if (file != vptr->file){
+                        view_set_file(vptr, file, models, cmd->system,
+                            models->hooks[hook_open_file], &app_links);
                     }
                 }
 
@@ -3298,22 +3296,23 @@ App_Init_Sig(app_init){
 
     // NOTE(allen): file setup
     {
-        models->working_set.file_count = 0;
-        models->working_set.file_max = 119;
-        models->working_set.files = push_array(
-            partition, Editing_File, models->working_set.file_max + 1);
-
-        models->working_set.files[0].state.is_dummy = 1;
+        Editing_File *files, *null_file;
+        i16 init_count = 128;
 
         dll_init_sentinel(&models->working_set.free_sentinel);
         dll_init_sentinel(&models->working_set.used_sentinel);
-
-        Editing_File *file = models->working_set.files + 1;
-        i32 max = models->working_set.file_max;
-        for (i32 i = 0; i < max; ++i, ++file){
-            dll_insert(&models->working_set.free_sentinel, &file->node);
-        }
-
+        
+        models->working_set.array_max = 128;
+        models->working_set.file_arrays = push_array(partition, File_Array, models->working_set.array_max);
+        
+        files = push_array(partition, Editing_File, init_count);
+        working_set_extend_memory(&models->working_set, files, init_count);
+        
+        null_file = working_set_index(&models->working_set, 0);
+        dll_remove(&null_file->node);
+        null_file->state.is_dummy = 1;
+        ++models->working_set.file_count;
+        
         models->working_set.table.max = models->working_set.file_max * 3 / 2;
         models->working_set.table.count = 0;
         models->working_set.table.table = push_array(
@@ -3374,38 +3373,6 @@ App_Init_Sig(app_init){
     models->buffer_param_max = 32;
     models->buffer_param_count = 0;
     models->buffer_param_indices = push_array(partition, i32, models->buffer_param_max);
-}
-
-internal App_Open_File_Result
-app_open_file_background(App_Vars *vars, Exchange *exchange, Working_Set *working_set, String filename){
-    Get_File_Result file;
-    i32 file_id;
-    App_Open_File_Result result = {};
-
-    result.file = working_set_contains(working_set, filename);
-    if (result.file == 0){
-        result.is_new = 1;
-        file = working_set_get_available_file(working_set);
-        if (file.file){
-            result.file = file.file;
-            file_id = exchange_request_file(exchange, filename.str, filename.size);
-            if (file_id){
-                file_init_strings(result.file);
-                file_set_name(working_set, result.file, filename.str);
-                file_set_to_loading(result.file);
-                table_add(&working_set->table, result.file->name.source_path, file.index);
-
-                result.sys_id = file_id;
-                result.file_index = file.index;
-            }
-            else{
-                working_set_free_file(working_set, file.file);
-                file.file = 0;
-            }
-        }
-    }
-
-    return(result);
 }
 
 App_Step_Sig(app_step){
@@ -4064,7 +4031,7 @@ App_Step_Sig(app_step){
             Working_Set *working_set = &models->working_set;
 
             if (exchange_file_ready(exchange, binding->sys_id, &data, &size, &max)){
-                ed_file = working_set_get_file(working_set, binding->app_id, 1).file;
+                ed_file = working_set_get_active_file(working_set, binding->app_id);
                 Assert(ed_file);
 
                 filename = exchange_file_filename(exchange, binding->sys_id);
@@ -4118,7 +4085,7 @@ App_Step_Sig(app_step){
                     exchange_clear_file(exchange, binding->sys_id);
                 }
 
-                Editing_File *file = working_set_get_file(working_set, binding->app_id, 1).file;
+                Editing_File *file = working_set_get_active_file(working_set, binding->app_id);
                 if (file){
                     file_synchronize_times(system, file, file->name.source_path.str);
                 }
@@ -4172,7 +4139,6 @@ App_Step_Sig(app_step){
                     App_Open_File_Result result = {};
                     {
                         String filename = string;
-                        Get_File_Result file;
                         i32 file_id;
                         
                         filename.str[0] = char_to_lower(filename.str[0]);
@@ -4180,22 +4146,22 @@ App_Step_Sig(app_step){
                         result.file = working_set_contains(working_set, filename);
                         if (result.file == 0){
                             result.is_new = 1;
-                            file = working_set_get_available_file(working_set);
-                            if (file.file){
-                                result.file = file.file;
+                            result.file = working_set_alloc_always(working_set, general);
+                            if (result.file){
                                 file_id = exchange_request_file(exchange, filename.str, filename.size);
                                 if (file_id){
                                     file_init_strings(result.file);
                                     file_set_name(working_set, result.file, filename.str);
                                     file_set_to_loading(result.file);
-                                    table_add(&working_set->table, result.file->name.source_path, file.index);
+                                    table_add(&working_set->table, result.file->name.source_path, result.file->id.id);
 
                                     result.sys_id = file_id;
-                                    result.file_index = file.index;
+                                    result.file_index = result.file->id.id;
                                 }
                                 else{
-                                    working_set_free_file(working_set, file.file);
-                                    file.file = 0;
+                                    working_set_free_file(working_set, result.file);
+                                    delayed_action_repush(&models->delay2, act);
+                                    break;
                                 }
                             }
                         }
@@ -4203,15 +4169,11 @@ App_Step_Sig(app_step){
 
                     if (result.is_new){
                         if (result.file){
-                            if (result.sys_id){
-                                Sys_App_Binding *binding = app_push_file_binding(vars, result.sys_id, result.file_index);
-                                binding->success = (act->type == DACT_OPEN) ? SysAppCreateView : 0;
-                                binding->fail = 0;
-                                binding->panel = panel;
-                            }
-                            else{
-                                delayed_action_repush(&models->delay2, act);
-                            }
+                            Assert(result.sys_id);
+                            Sys_App_Binding *binding = app_push_file_binding(vars, result.sys_id, result.file_index);
+                            binding->success = (act->type == DACT_OPEN) ? SysAppCreateView : 0;
+                            binding->fail = 0;
+                            binding->panel = panel;
                         }
                     }
                     else{
@@ -4257,7 +4219,7 @@ App_Step_Sig(app_step){
                     if (file){
                         i32 sys_id = file_save_and_set_names(system, exchange, mem, working_set, file, string.str);
                         if (sys_id){
-                            app_push_file_binding(vars, sys_id, (i32)(file - working_set->files));
+                            app_push_file_binding(vars, sys_id, file->id.id);
                         }
                         else{
                             delayed_action_repush(&models->delay2, act);
@@ -4284,7 +4246,7 @@ App_Step_Sig(app_step){
                         if (sys_id){
                             // TODO(allen): This is fishy! Shouldn't we bind it to a file name instead? This file
                             // might be killed before we get notified that the saving is done!
-                            app_push_file_binding(vars, sys_id, (i32)(file - working_set->files));
+                            app_push_file_binding(vars, sys_id, file->id.id);
                         }
                         else{
                             delayed_action_repush(&models->delay2, act);
@@ -4294,18 +4256,17 @@ App_Step_Sig(app_step){
 
                 case DACT_NEW:
                 {
-                    Get_File_Result file = working_set_get_available_file(working_set);
-                    file_create_empty(system, models, file.file, string.str);
-                    table_add(&working_set->table, file.file->name.source_path, file.index);
+                    Editing_File *file = working_set_alloc_always(working_set, general);
+                    file_create_empty(system, models, file, string.str);
+                    table_add(&working_set->table, file->name.source_path, file->id.id);
 
                     View *view = panel->view;
 
-                    view_set_file(view, file.file, models, system,
-                        models->hooks[hook_open_file], &app_links);
-                    view->map = app_get_map(models, file.file->settings.base_map_id);
+                    view_set_file(view, file, models, system, models->hooks[hook_open_file], &app_links);
+                    view->map = app_get_map(models, file->settings.base_map_id);
 #if BUFFER_EXPERIMENT_SCALPEL <= 0
-                    if (file.file->settings.tokens_exist)
-                        file_first_lex_parallel(system, general, file.file);
+                    if (file->settings.tokens_exist)
+                        file_first_lex_parallel(system, general, file);
 #endif
                 }break;
 

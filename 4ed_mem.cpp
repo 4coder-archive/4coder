@@ -252,5 +252,9 @@ end_temp_memory(Temp_Memory temp){
 
 #define reset_temp_memory end_temp_memory
 
+#define gen_struct(g, T) (T*)general_memory_allocate(g, sizeof(T), 0)
+#define gen_array(g, T, size) (T*)general_memory_allocate(g, sizeof(T)*(size), 0)
+#define gen_block(g, size) general_memory_open(g, size, 0)
+
 // BOTTOM
 

@@ -462,6 +462,25 @@ Sys_Set_File_List_Sig(system_set_file_list){
 }
 
 internal
+Sys_File_Unique_Hash_Sig(system_file_unique_hash){
+    Unique_Hash hash;
+    BY_HANDLE_FILE_INFORMATION info;
+    HANDLE handle;
+
+    handle = CreateFile(filename, GENERIC_READ, 0, 0,
+        OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
+
+    hash = {0};
+    if (GetFileInformationByHandle(handle, &info)){
+        hash.d[2] = info.dwVolumeSerialNumber;
+        hash.d[1] = info.nFileIndexHigh;
+        hash.d[0] = info.nFileIndexLow;
+    }
+    
+    return(hash);
+}
+
+internal
 FILE_EXISTS_SIG(system_file_exists){
     char full_filename_space[1024];
     String full_filename;
@@ -1052,6 +1071,7 @@ Win32LoadAppCode(){
 internal void
 Win32LoadSystemCode(){
     win32vars.system->file_time_stamp = system_file_time_stamp;
+    win32vars.system->file_unique_hash = system_file_unique_hash;
     win32vars.system->set_file_list = system_set_file_list;
 
     win32vars.system->file_exists = system_file_exists;
@@ -1933,7 +1953,7 @@ main(int argc, char **argv){
     }
 
     
-    File_Slot file_slots[32];
+    File_Slot file_slots[4];
     sysshared_init_file_exchange(&exchange_vars, file_slots, ArrayCount(file_slots), 0);
     
     Font_Load_Parameters params[32];
