@@ -67,6 +67,7 @@
 #include <fcntl.h>
 #include <errno.h>
 #include <pthread.h>
+#include <semaphore.h>
 #include <signal.h>
 #include <sys/types.h>
 #include <sys/wait.h>
@@ -77,16 +78,6 @@
 #if FRED_USE_FONTCONFIG
 #include <fontconfig/fontconfig.h>
 #endif
-
-struct Linux_Semaphore {
-    pthread_mutex_t mutex;
-    pthread_cond_t cond;
-};
-
-struct Linux_Semaphore_Handle {
-    pthread_mutex_t *mutex_p;
-    pthread_cond_t *cond_p;
-};
 
 struct Linux_Coroutine {
 	Coroutine coroutine;
@@ -145,7 +136,7 @@ struct Linux_Vars{
 
     Thread_Memory *thread_memory;
     Thread_Group groups[THREAD_GROUP_COUNT];
-    Linux_Semaphore thread_locks[THREAD_GROUP_COUNT];
+    sem_t thread_semaphores[THREAD_GROUP_COUNT];
     pthread_mutex_t locks[LOCK_COUNT];
     
     Plat_Settings settings;
@@ -526,8 +517,6 @@ Sys_Yield_Coroutine_Sig(system_yield_coroutine){
 }
 
 Sys_CLI_Call_Sig(system_cli_call){
-    // TODO(allen): Implement
-
 //    fprintf(stderr, "cli call: %s, %s\n", path, script_name);
 
     int pipe_fds[2];
@@ -622,12 +611,16 @@ Sys_CLI_End_Update_Sig(system_cli_end_update){
     return close_me;
 }
 
-static_assert(sizeof(Plat_Handle) >= sizeof(Linux_Semaphore_Handle), "Plat_Handle not big enough");
+static_assert(sizeof(Plat_Handle) >= sizeof(sem_t*), "Plat_Handle not big enough");
 
 internal Plat_Handle
-LinuxSemToHandle(Linux_Semaphore* sem){
-    Linux_Semaphore_Handle h = { &sem->mutex, &sem->cond };
-    return *(Plat_Handle*)&h;
+LinuxSemToHandle(sem_t* sem){
+    return *(Plat_Handle*)&sem;
+}
+
+internal sem_t*
+LinuxHandleToSem(Plat_Handle h){
+    return *(sem_t**)&h;
 }
 
 internal void*
@@ -680,19 +673,13 @@ ThreadProc(void* arg){
             }
         }
         else{
-            Linux_Semaphore_Handle* h = (Linux_Semaphore_Handle*)&(queue->semaphore);
-            pthread_mutex_lock(h->mutex_p);
-            pthread_cond_wait(h->cond_p, h->mutex_p);
-            pthread_mutex_unlock(h->mutex_p);
+            sem_wait(LinuxHandleToSem(queue->semaphore));
         }
     }
 }
 
 
 Sys_Post_Job_Sig(system_post_job){
-    // TODO(allen): Implement
-    AllowLocal(group_id);
-    AllowLocal(job);
 
     Work_Queue *queue = exchange_vars.thread.queues + group_id;
     
@@ -716,11 +703,8 @@ Sys_Post_Job_Sig(system_post_job){
         }
     }
     
-    Linux_Semaphore_Handle* h = (Linux_Semaphore_Handle*)&(queue->semaphore);
-    pthread_mutex_lock(h->mutex_p);
-    pthread_cond_broadcast(h->cond_p);
-    pthread_mutex_unlock(h->mutex_p);
-    
+    sem_post(LinuxHandleToSem(queue->semaphore));
+
     return result;
 }
 
@@ -929,7 +913,6 @@ out:
 internal
 Sys_Save_File_Sig(system_save_file){
     b32 result = 0;
-    DBG_FN;
 
     const size_t save_fsz   = strlen(filename);
     const char   tmp_end[]  = ".4ed.XXXXXX";
@@ -1858,11 +1841,10 @@ main(int argc, char **argv)
     Thread_Memory thread_memory[ArrayCount(background)];
     linuxvars.thread_memory = thread_memory;
 
-    pthread_mutex_init(&linuxvars.thread_locks[BACKGROUND_THREADS].mutex, NULL);
-    pthread_cond_init(&linuxvars.thread_locks[BACKGROUND_THREADS].cond, NULL);
+    sem_init(&linuxvars.thread_semaphores[BACKGROUND_THREADS], 0, 0);
 
     exchange_vars.thread.queues[BACKGROUND_THREADS].semaphore = 
-        LinuxSemToHandle(&linuxvars.thread_locks[BACKGROUND_THREADS]);
+        LinuxSemToHandle(&linuxvars.thread_semaphores[BACKGROUND_THREADS]);
 
     for(i32 i = 0; i < linuxvars.groups[BACKGROUND_THREADS].count; ++i){
         Thread_Context *thread = linuxvars.groups[BACKGROUND_THREADS].threads + i;
