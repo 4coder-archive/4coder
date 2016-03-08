@@ -41,6 +41,7 @@ make clean
 make release32
 cp -r "${TEMPLATE_DIR}" "$TMP_DIR/alpha"
 cp ./4ed ./4ed_app.so "$TMP_DIR/alpha/"
+cp ./code/README.txt ./code/TODO.txt "$TMP_DIR/alpha/"
 
 echo " "
 
@@ -56,6 +57,7 @@ make clean
 make release
 cp -r "${TEMPLATE_DIR}" "$TMP_DIR/alpha"
 cp ./4ed ./4ed_app.so "$TMP_DIR/alpha/"
+cp ./code/README.txt ./code/TODO.txt "$TMP_DIR/alpha/"
 
 echo " "
 
@@ -75,6 +77,7 @@ make clean
 make release32_super
 cp ./4ed ./4ed_app.so ./code/4coder_*.h ./code/4coder_*.cpp "$TMP_DIR/super/"
 cp ./code/buildsuper.sh "$TMP_DIR/super/"
+cp ./code/README.txt ./code/SUPERREADME.txt ./code/TODO.txt "$TMP_DIR/super/"
 
 echo " "
 
@@ -91,6 +94,7 @@ make release_super
 cp -r "${TEMPLATE_DIR}" "$TMP_DIR/super/"
 cp ./4ed ./4ed_app.so ./code/4coder_*.h ./code/4coder_*.cpp "$TMP_DIR/super/"
 cp ./code/buildsuper.sh "$TMP_DIR/super/"
+cp ./code/README.txt ./code/SUPERREADME.txt ./code/TODO.txt "$TMP_DIR/super/"
 
 echo " "
 
