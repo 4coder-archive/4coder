@@ -24,11 +24,6 @@ typedef Sys_File_Time_Stamp_Sig(System_File_Time_Stamp);
 #define Sys_Set_File_List_Sig(name) void name(File_List *file_list, String directory)
 typedef Sys_Set_File_List_Sig(System_Set_File_List);
 
-#if 0
-#define Sys_File_Paths_Equal_Sig(name) b32 name(char *path_a, char *path_b)
-typedef Sys_File_Paths_Equal_Sig(System_File_Paths_Equal);
-#endif
-
 #define Sys_File_Unique_Hash_Sig(name) Unique_Hash name(char *filename)
 typedef Sys_File_Unique_Hash_Sig(System_File_Unique_Hash);
 

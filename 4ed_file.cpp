@@ -106,7 +106,7 @@ struct Editing_File_Settings{
 struct Editing_File_State{
     b32 is_dummy;
     b32 is_loading;
-
+    
     i16 font_id;
     Buffer_Type buffer;
     
@@ -133,10 +133,9 @@ struct Editing_File_Preload{
 
 struct Editing_File_Name{
     char live_name_[256];
-    String live_name;
-    
     char source_path_[256];
     char extension_[16];
+    String live_name;
     String source_path;
     String extension;
 };
@@ -145,7 +144,20 @@ struct File_Node{
     File_Node *next, *prev;
 };
 
+union File_ID{
+    i32 id;
+    i16 part[2];
+};
+
+inline File_ID
+to_file_id(i32 id){
+    File_ID result;
+    result.id = id;
+    return(result);
+}
+
 struct Editing_File{
+    // NOTE(allen): node must be the first member of Editing_File!
     File_Node node;
     Editing_File_Settings settings;
     union{
@@ -153,14 +165,18 @@ struct Editing_File{
         Editing_File_Preload preload;
     };
     Editing_File_Name name;
+    File_ID id;
 };
 
 struct File_Table_Entry{
     String name;
     u32 hash;
-    i32 id;
+    File_ID id;
 };
 
+// TODO(allen):
+// Remove this File_Table and instead use the table in 4tech_table.cpp
+// Instead of hashing by file name use the new Unique_Hash in the system.
 struct File_Table{
     File_Table_Entry *table;
     i32 count, max;
@@ -186,7 +202,7 @@ table_add(File_Table *table, String name, i32 id){
     i32 i;
     
     entry.name = name;
-    entry.id = id;
+    entry.id.id = id;
     entry.hash = get_file_hash(name);
     i = entry.hash % table->max;
     while ((e = table->table[i]).name.str){
@@ -221,7 +237,7 @@ table_find_pos(File_Table *table, String name, i32 *index){
 }
 
 inline b32
-table_find(File_Table *table, String name, i32 *id){
+table_find(File_Table *table, String name, File_ID *id){
     i32 pos;
     b32 r = table_find_pos(table, name, &pos);
     if (r) *id = table->table[pos].id;
@@ -239,10 +255,17 @@ table_remove(File_Table *table, String name){
     return r;
 }
 
+struct File_Array{
+    Editing_File *files;
+    i32 size;
+};
+
 struct Working_Set{
-	Editing_File *files;
+    File_Array *file_arrays;
     i32 file_count, file_max;
-    File_Node free_sentinel;
+    i16 array_count, array_max;
+    
+	File_Node free_sentinel;
     File_Node used_sentinel;
     
     File_Table table;
@@ -251,6 +274,167 @@ struct Working_Set{
 	i32 clipboard_size, clipboard_max_size;
 	i32 clipboard_current, clipboard_rolling;
 };
+
+internal void
+working_set_extend_memory(Working_Set *working_set, Editing_File *new_space, i16 number_of_files){
+    File_ID id;
+    i16 i, high_part;
+    Editing_File *file_ptr;
+    File_Node *free_sentinel;
+    
+    Assert(working_set->array_count < working_set->array_max);
+    
+    high_part = working_set->array_count++;
+    working_set->file_arrays[high_part].files = new_space;
+    working_set->file_arrays[high_part].size = number_of_files;
+    
+    working_set->file_max += number_of_files;
+    
+    id.part[1] = high_part;
+    
+    file_ptr = new_space;
+    free_sentinel = &working_set->free_sentinel;
+    for (i = 0; i < number_of_files; ++i, ++file_ptr){
+        id.part[0] = i;
+        file_ptr->id = id;
+        dll_insert(free_sentinel, &file_ptr->node);
+    }
+}
+
+internal Editing_File*
+working_set_alloc(Working_Set *working_set){
+    Editing_File *result = 0;
+    File_Node *node;
+    File_ID id;
+    
+    if (working_set->file_count < working_set->file_max){
+        node = working_set->free_sentinel.next;
+        Assert(node != &working_set->free_sentinel);
+        result = (Editing_File*)node;
+        
+        dll_remove(node);
+        // NOTE(allen): What I really want to do here is clear everything
+        // except id, but writing that out will be a pain to maintain.
+        id = result->id;
+        *result = {};
+        result->id = id;
+        dll_insert(&working_set->used_sentinel, node);
+        ++working_set->file_count;
+    }
+
+    return result;
+}
+
+internal Editing_File*
+working_set_alloc_always(Working_Set *working_set, General_Memory *general){
+    Editing_File *result = 0;
+    Editing_File *new_chunk;
+    i16 new_count = 128;
+    
+    if (working_set->file_count == working_set->file_max &&
+            working_set->array_count < working_set->array_max){
+        new_chunk = gen_array(general, Editing_File, new_count);
+        working_set_extend_memory(working_set, new_chunk, new_count);
+    }
+    result = working_set_alloc(working_set);
+    
+    return(result);
+}
+
+inline void
+working_set_free_file(Working_Set  *working_set, Editing_File *file){
+    file->state.is_dummy = 1;
+    dll_remove(&file->node);
+    dll_insert(&working_set->free_sentinel, &file->node);
+    --working_set->file_count;
+}
+
+inline Editing_File*
+working_set_index(Working_Set *working_set, File_ID id){
+    Editing_File *result = 0;
+    File_Array *array;
+    
+    if (id.part[1] >= 0 && id.part[1] < working_set->array_count){
+        array = working_set->file_arrays + id.part[1];
+        if (id.part[0] >= 0 && id.part[0] < array->size){
+            result = array->files + id.part[0];
+        }
+    }
+    
+    return(result);
+}
+
+inline Editing_File*
+working_set_index(Working_Set *working_set, i32 id){
+    Editing_File *result;
+    result = working_set_index(working_set, to_file_id(id));
+    return(result);
+}
+
+inline Editing_File*
+working_set_get_active_file(Working_Set *working_set, File_ID id){
+    Editing_File *result = 0;
+
+    result = working_set_index(working_set, id);
+    if (result && result->state.is_dummy){
+        result = 0;
+    }
+    
+    return(result);
+}
+
+inline Editing_File*
+working_set_get_active_file(Working_Set *working_set, i32 id){
+    Editing_File *result;
+    result = working_set_get_active_file(working_set, to_file_id(id));
+    return(result);
+}
+
+inline Editing_File*
+working_set_contains(Working_Set *working_set, String filename){
+    Editing_File *result = 0;
+    File_ID id;
+    
+    replace_char(filename, '\\', '/');
+    if (table_find(&working_set->table, filename, &id)){
+        result = working_set_index(working_set, id);
+    }
+    return (result);
+}
+
+// TODO(allen): Pick better first options.
+internal Editing_File*
+working_set_lookup_file(Working_Set *working_set, String string){
+    Editing_File *file = 0;
+    
+    replace_char(string, '\\', '/');
+    
+    {
+        File_Node *node, *used_nodes;
+        used_nodes = &working_set->used_sentinel;
+        for (dll_items(node, used_nodes)){
+            file = (Editing_File*)node;
+            if (string.size == 0 || match(string, file->name.live_name)){
+                break;
+            }
+        }
+        if (node == used_nodes) file = 0;
+    }
+	
+	if (!file){
+        File_Node *node, *used_nodes;
+        used_nodes = &working_set->used_sentinel;
+        for (dll_items(node, used_nodes)){
+            file = (Editing_File*)node;
+            if (string.size == 0 || has_substr(file->name.live_name, string)){
+                break;
+            }
+        }
+        if (node == used_nodes) file = 0;
+	}
+    
+	return (file);
+}
 
 // Hot Directory
 
@@ -419,102 +603,6 @@ file_is_ready(Editing_File *file){
     b32 result = 0;
     if (file && file->state.is_loading == 0){
         result = 1;
-    }
-    return(result);
-}
-
-inline Editing_File*
-working_set_contains(Working_Set *working, String filename){
-    Editing_File *result = 0;
-    i32 id;
-    replace_char(filename, '\\', '/');
-    if (table_find(&working->table, filename, &id)){
-        if (id >= 0 && id <= working->file_max){
-            result = working->files + id;
-        }
-    }
-    return (result);
-}
-
-// TODO(allen): Pick better first options.
-internal Editing_File*
-working_set_lookup_file(Working_Set *working_set, String string){
-    Editing_File *file = 0;
-    
-    replace_char(string, '\\', '/');
-    
-    {
-        File_Node *node, *used_nodes;
-        used_nodes = &working_set->used_sentinel;
-        for (dll_items(node, used_nodes)){
-            file = (Editing_File*)node;
-            if (string.size == 0 || match(string, file->name.live_name)){
-                break;
-            }
-        }
-        if (node == used_nodes) file = 0;
-    }
-	
-	if (!file){
-        File_Node *node, *used_nodes;
-        used_nodes = &working_set->used_sentinel;
-        for (dll_items(node, used_nodes)){
-            file = (Editing_File*)node;
-            if (string.size == 0 || has_substr(file->name.live_name, string)){
-                break;
-            }
-        }
-        if (node == used_nodes) file = 0;
-	}
-    
-	return (file);
-}
-
-struct Get_File_Result{
-    Editing_File *file;
-    i32 index;
-};
-
-internal Get_File_Result
-working_set_get_available_file(Working_Set *working_set){
-    Get_File_Result result = {};
-    File_Node *node;
-    
-    if (working_set->file_count < working_set->file_max){
-        node = working_set->free_sentinel.next;
-        Assert(node != &working_set->free_sentinel);
-        
-        result.file = (Editing_File*)node;
-        result.index = (i32)(result.file - working_set->files);
-        
-        ++working_set->file_count;
-        
-        dll_remove(node);
-        *result.file = {};
-        dll_insert(&working_set->used_sentinel, node);
-    }
-
-    return result;
-}
-
-inline void
-working_set_free_file(Working_Set  *working_set, Editing_File *file){
-    file->state.is_dummy = 1;
-    dll_remove(&file->node);
-    dll_insert(&working_set->free_sentinel, &file->node);
-    --working_set->file_count;
-}
-
-inline Get_File_Result
-working_set_get_file(Working_Set *working_set, i32 id, b32 require_active){
-    Get_File_Result result = {};
-    if (id > 0 && id <= working_set->file_max){
-        result.file = working_set->files + id;
-        result.index = id;
-        if (result.file->state.is_dummy && require_active){
-            result.file = 0;
-            result.index = 0;
-        }
     }
     return(result);
 }

@@ -1297,7 +1297,7 @@ view_set_file(
     // Just accept it and pass the file to the open hook when it is loaded.
     if (file){
         if (open_hook && file->settings.is_initialized == 0){
-            models->buffer_param_indices[models->buffer_param_count++] = (i32)(file - models->working_set.files);
+            models->buffer_param_indices[models->buffer_param_count++] = file->id.id;
             open_hook(app);
             models->buffer_param_count = 0;
             file->settings.is_initialized = 1;

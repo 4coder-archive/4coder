@@ -1,5 +1,5 @@
 // Set which customization you want to use with this define or write your own
-#define Custom_Current Custom_HandmadeHero
+#define Custom_Current Custom_Default
 
 #define Custom_Default 0 
 
