@@ -319,9 +319,11 @@ Sys_Set_File_List_Sig(system_set_file_list){
     File_Info *info_ptr;
     i32 count, file_count, size, required_size;
     
-    terminate_with_null(&directory);
+    char* dir = (char*) alloca(directory.size + 1);
+    memcpy(dir, directory.str, directory.size);
+    dir[directory.size] = 0;
 
-    d = opendir(directory.str);
+    d = opendir(dir);
     if (d){
         count = 0;
         file_count = 0;
