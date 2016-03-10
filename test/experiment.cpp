@@ -10,20 +10,14 @@
 // TOP
 
 #include "../4ed_meta.h"
-
 #define FCPP_STRING_IMPLEMENTATION
 #include "../4coder_string.h"
 
 #include "../4cpp_types.h"
-
 #include "../4cpp_lexer_types.h"
-
 #define FCPP_LEXER_IMPLEMENTATION
 #include "../4cpp_lexer.h"
-
-namespace new_lex{
 #include "4cpp_new_lexer.h"
-}
 
 #include <windows.h>
 
@@ -238,8 +232,8 @@ run_experiment(Experiment *exp, char *filename){
                 if (correct->start != testing->start || correct->size != testing->size){
                     pass = 0;
                     printf("token range mismatch at token %d\n"
-                            "\t%d:%d original %d:%d testing\n"
-                            "\t%.*s original %.*s testing\n",
+                            "    %d:%d original %d:%d testing\n"
+                            "    %.*s original %.*s testing\n",
                         j,
                         correct->start, correct->size, testing->start, testing->size,
                         correct->size, file_cpp.data + correct->start,
