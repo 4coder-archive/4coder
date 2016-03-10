@@ -66,8 +66,8 @@
 ; [] tab character wrong width
 ; [] bouncing when scrolling down
 ; [] miblo's off screen cursor thing
-; [] fyoucon's segfaults with malloc on win10
-; [] open empty file bug
+;
+; [] open empty file bug ~ possibly a win10 issue?
 ;
 ;
 
@@ -166,6 +166,7 @@
 ;
 
 ; HARD BUGS
+; [] fyoucon's segfaults with malloc on win10
 ; [] repainting too slow for resize looks really dumb
 ; [] handling cursor in non-client part of window so it doesn't spaz
 ; [] fill screen right away

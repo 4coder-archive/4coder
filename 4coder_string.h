@@ -50,6 +50,8 @@ inline bool char_is_slash(char c) { return (c == '\\' || c == '/'); }
 
 inline char char_to_upper(char c) { return (c >= 'a' && c <= 'z') ? c + (char)('A' - 'a') : c; }
 inline char char_to_lower(char c) { return (c >= 'A' && c <= 'Z') ? c - (char)('A' - 'a') : c; }
+inline int  char_to_int(char c) { return (c - '0'); }
+inline char int_to_char(int x) { return (char)(x + '0'); }
 
 inline bool char_is_whitespace(char c) { return (c == ' ' || c == '\n' || c == '\r' || c == '\t'); }
 inline bool char_is_white_not_r(char c) { return (c == ' ' || c == '\n' || c == '\t'); }
@@ -173,8 +175,10 @@ FCPP_LINK int   compare(String a, String b);
 
 FCPP_LINK int    reverse_seek_slash(String str);
 FCPP_LINK int    reverse_seek_slash(String str, int start_pos);
-inline    bool   get_front_of_directory(String *dest, String dir) { return append_checked(dest, substr(dir, reverse_seek_slash(dir) + 1)); }
-inline    bool   get_path_of_directory(String *dest, String dir) { return append_checked(dest, substr(dir, 0, reverse_seek_slash(dir) + 1)); }
+inline    String  front_of_directory(String dir) { return substr(dir, reverse_seek_slash(dir) + 1); }
+inline    String  path_of_directory(String dir) { return substr(dir, 0, reverse_seek_slash(dir) + 1); }
+inline    bool   get_front_of_directory(String *dest, String dir) { return append_checked(dest, front_of_directory(dir)); }
+inline    bool   get_path_of_directory(String *dest, String dir) { return append_checked(dest, path_of_directory(dir)); }
 FCPP_LINK bool   set_last_folder(String *dir, char *folder_name, char slash);
 FCPP_LINK bool   set_last_folder(String *dir, String folder_name, char slash);
 FCPP_LINK String file_extension(String str);

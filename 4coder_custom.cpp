@@ -445,8 +445,10 @@ isearch(Application_Links *app, int start_reversed){
             made_change = 1;
         }
         else if (in.key.keycode == key_back){
-            --bar.string.size;
-            made_change = 1;
+            if (bar.string.size > 0){
+                --bar.string.size;
+                made_change = 1;
+            }
         }
 
         int step_forward = 0;

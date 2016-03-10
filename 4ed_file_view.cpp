@@ -660,13 +660,13 @@ Job_Callback_Sig(job_full_lex){
     tokens.count = 0;
 
     Cpp_Lex_Data status;
-    status = cpp_lex_file_nonalloc(cpp_file, &tokens);
+    status = cpp_lex_nonalloc(cpp_file, &tokens);
 
     while (!status.complete){
         system->grow_thread_memory(memory);
         tokens.tokens = (Cpp_Token*)memory->data;
         tokens.max_count = memory->size / sizeof(Cpp_Token);
-        status = cpp_lex_file_nonalloc(cpp_file, &tokens, status);
+        status = cpp_lex_nonalloc(cpp_file, &tokens, status);
     }
 
     i32 new_max = LargeRoundUp(tokens.count+1, Kbytes(1));
@@ -810,11 +810,17 @@ file_relex_parallel(System_Functions *system,
     }
 
     if (!inline_lex){
-        i32 end_token_i = cpp_get_end_token(&file->state.token_stack, end_i);
-        cpp_shift_token_starts(&file->state.token_stack, end_token_i, amount);
+        Cpp_Token_Stack *stack = &file->state.token_stack;
+        Cpp_Get_Token_Result get_token_result = cpp_get_token(stack, end_i);
+        i32 end_token_i = get_token_result.token_index;
+        
+        if (end_token_i < 0) end_token_i = 0;
+        else if (end_i > stack->tokens[end_token_i].start) ++end_token_i;
+        
+        cpp_shift_token_starts(stack, end_token_i, amount);
         --end_token_i;
         if (end_token_i >= 0){
-            Cpp_Token *token = file->state.token_stack.tokens + end_token_i;
+            Cpp_Token *token = stack->tokens + end_token_i;
             if (token->start < end_i && token->start + token->size > end_i){
                 token->size += amount;
             }
