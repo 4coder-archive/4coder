@@ -1832,6 +1832,11 @@ file_replace_range(System_Functions *system, Models *models, Editing_File *file,
 }
 
 inline void
+file_clear(System_Functions *system, Models *models, Editing_File *file, b32 use_high_permission = 0){
+    file_replace_range(system, models, file, 0, buffer_size(&file->state.buffer), 0, 0, 0, use_high_permission);
+}
+
+inline void
 view_replace_range(System_Functions *system, Models *models, View *view,
     i32 start, i32 end, char *str, i32 len, i32 next_cursor){
     file_replace_range(system, models, view->file, start, end, str, len, next_cursor);

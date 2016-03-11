@@ -1732,27 +1732,37 @@ COMMAND_DECL(command_line){
         if (vars->cli_processes.count < vars->cli_processes.max){
             if (buffer_id){
                 file = working_set_get_active_file(working_set, buffer_id);
+                if (file && file->settings.read_only == 0){
+                    // TODO(allen): feedback message - file not read only
+                    return;
+                }
             }
             else if (buffer_name){
                 file = working_set_contains(system, working_set, make_string(buffer_name, buffer_name_len));
-                if (file == 0){
+                if (file){
+                    if (file->settings.read_only == 0){
+                        // TODO(allen): feedback message - file not read only
+                        return;
+                    }
+                }
+                else{
                     file = working_set_alloc_always(working_set, &models->mem.general);
+                    
+                    file_create_read_only(system, models, file, buffer_name);
+                    working_set_add(system, working_set, file);
+                    
                     if (file == 0){
                         // TODO(allen): feedback message - no available file
                         return;
                     }
                 }
             }
-
+            
             if (file){
                 i32 proc_count = vars->cli_processes.count;
                 View_Iter iter;
                 i32 i;
-
-                file_create_read_only(system, models, file, buffer_name);
-                file->settings.unimportant = 1;
-                working_set_add(system, working_set, file);
-
+                
                 for (i = 0; i < proc_count; ++i){
                     if (procs[i].out_file == file){
                         if (flags & CLI_OverlapWithConflict)
@@ -1762,8 +1772,11 @@ COMMAND_DECL(command_line){
                         break;
                     }
                 }
-
+                
                 if (file){
+                    file_clear(system, models, file, 1);
+                    file->settings.unimportant = 1;
+
                     if (!(flags & CLI_AlwaysBindToView)){
                         iter = file_view_iter_init(&models->layout, file, 0);
                         if (file_view_iter_good(iter)){
@@ -1776,7 +1789,7 @@ COMMAND_DECL(command_line){
                     return;
                 }
             }
-
+            
             if (!path){
                 path = models->hot_directory.string.str;
                 terminate_with_null(&models->hot_directory.string);
@@ -4036,7 +4049,7 @@ App_Step_Sig(app_step){
                         }
                     }
                     else{
-                        table_remove(&models->working_set.table, ed_file->name.source_path);
+                        working_set_remove(system, &models->working_set, ed_file->name.source_path);
                         working_set_free_file(&models->working_set, ed_file);
                     }
 
@@ -4270,7 +4283,7 @@ App_Step_Sig(app_step){
                     }
                     
                     if (file){
-                        table_remove(&working_set->table, file->name.source_path);
+                        working_set_remove(system, working_set, file->name.source_path);
                         kill_file(system, exchange, models, file,
                             models->hooks[hook_open_file], &app_links);
                     }
@@ -4301,7 +4314,7 @@ App_Step_Sig(app_step){
                             copy(&view->dest, file->name.live_name);
                         }
                         else{
-                            table_remove(&working_set->table, file->name.source_path);
+                            working_set_remove(system, working_set, file->name.source_path);
                             kill_file(system, exchange, models, file,
                                 models->hooks[hook_open_file], &app_links);
                         }

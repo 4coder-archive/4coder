@@ -37,7 +37,7 @@ typedef Sys_File_Time_Stamp_Sig(System_File_Time_Stamp);
 #define Sys_Set_File_List_Sig(name) void name(File_List *file_list, String directory)
 typedef Sys_Set_File_List_Sig(System_Set_File_List);
 
-#define Sys_File_Unique_Hash_Sig(name) Unique_Hash name(char *filename)
+#define Sys_File_Unique_Hash_Sig(name) Unique_Hash name(String filename, b32 *success)
 typedef Sys_File_Unique_Hash_Sig(System_File_Unique_Hash);
 
 #define Sys_Post_Clipboard_Sig(name) void name(String str)

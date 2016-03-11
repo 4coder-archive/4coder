@@ -461,20 +461,26 @@ Sys_Set_File_List_Sig(system_set_file_list){
     }
 }
 
+// TODO(allen): proper "is terminated" check
 internal
 Sys_File_Unique_Hash_Sig(system_file_unique_hash){
-    Unique_Hash hash;
+    Unique_Hash hash = {0};
     BY_HANDLE_FILE_INFORMATION info;
     HANDLE handle;
-
-    handle = CreateFile(filename, GENERIC_READ, 0, 0,
+    
+    handle = CreateFile(filename.str, GENERIC_READ, 0, 0,
         OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
-
-    hash = {0};
-    if (GetFileInformationByHandle(handle, &info)){
-        hash.d[2] = info.dwVolumeSerialNumber;
-        hash.d[1] = info.nFileIndexHigh;
-        hash.d[0] = info.nFileIndexLow;
+    
+    *success = 0;
+    if (handle && handle != INVALID_HANDLE_VALUE){
+        if (GetFileInformationByHandle(handle, &info)){
+            hash.d[2] = info.dwVolumeSerialNumber;
+            hash.d[1] = info.nFileIndexHigh;
+            hash.d[0] = info.nFileIndexLow;
+            *success = 1;
+        }
+        
+        CloseHandle(handle);
     }
     
     return(hash);

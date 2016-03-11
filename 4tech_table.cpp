@@ -113,7 +113,7 @@ table_find_pos(Table *table, void *search_key, void *arg, i32 *pos, i32 *index, 
     return(0);
 }
 
-internal void*
+inline void*
 table_find_item(Table *table, void *search_key, void *arg, Hash_Function *hash_func, Compare_Function *comp_func){
     i32 pos;
     void *result = 0;
@@ -123,13 +123,13 @@ table_find_item(Table *table, void *search_key, void *arg, Hash_Function *hash_f
     return(result);
 }
 
-internal void
+inline void
 table_remove_index(Table *table, i32 index){
     table->hash_array[index] = TableHashDeleted;
     --table->count;
 }
 
-internal b32
+inline b32
 table_remove_match(Table *table, void *search_key, void *arg, Hash_Function *hash_func, Compare_Function *comp_func){
     i32 index;
     b32 result = 0;
@@ -140,7 +140,7 @@ table_remove_match(Table *table, void *search_key, void *arg, Hash_Function *has
     return(result);
 }
 
-internal void
+inline void
 table_clear(Table *table){
     table->count = 0;
     memset(table->hash_array, 0, table->max*sizeof(*table->hash_array));
