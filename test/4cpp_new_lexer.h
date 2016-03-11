@@ -84,6 +84,7 @@ enum Lex_State{
     LS_char,
     LS_string,
     LS_number,
+    LS_float,
     LS_comment_pre,
     LS_comment,
     LS_comment_block,
@@ -103,6 +104,8 @@ enum Lex_State{
     LS_star,
     LS_modulo,
     LS_caret,
+    LS_eq,
+    LS_bang,
 };
 
 struct Lex_Data{
@@ -191,6 +194,9 @@ cpp_lex_nonalloc(char *chunk, int file_absolute_pos, int size, Cpp_Token_Stack *
                     case '%': state = LS_modulo; break;
                     case '^': state = LS_caret; break;
                     
+                    case '=': state = LS_eq; break;
+                    case '!': state = LS_bang; break;
+                    
 #define OperCase(op,type) case op: emit_token = 1; break;
                     OperCase('{', CPP_TOKEN_BRACE_OPEN);
                     OperCase('}', CPP_TOKEN_BRACE_CLOSE);
@@ -227,8 +233,8 @@ cpp_lex_nonalloc(char *chunk, int file_absolute_pos, int size, Cpp_Token_Stack *
                 if (c >= '0' && c <= '9'){
                     state = LS_number;
                 }
-                else if (c == '.'){
-                    state = LS_float;
+                else{
+                    emit_token = 1;
                 }
                 break;
                 
@@ -370,6 +376,20 @@ cpp_lex_nonalloc(char *chunk, int file_absolute_pos, int size, Cpp_Token_Stack *
                     default: emit_token = 1; break;
                 }
                 break;
+                
+                case LS_eq:
+                switch (c){
+                    case '=': emit_token = 1; break;
+                    default: emit_token = 1; break;
+                }
+                break;
+                
+                case LS_bang:
+                switch (c){
+                    case '=': emit_token = 1; break;
+                    default: emit_token = 1; break;
+                }
+                break;
             }
         }
         
@@ -400,6 +420,13 @@ cpp_lex_nonalloc(char *chunk, int file_absolute_pos, int size, Cpp_Token_Stack *
                 
                 case LS_identifier:
                 token.type = CPP_TOKEN_IDENTIFIER;
+                token.flags = 0;
+                --lex_data.token_end;
+                --pos;
+                break;
+                
+                case LS_number:
+                token.type = CPP_TOKEN_INTEGER_CONSTANT;
                 token.flags = 0;
                 --lex_data.token_end;
                 --pos;
@@ -606,9 +633,33 @@ cpp_lex_nonalloc(char *chunk, int file_absolute_pos, int size, Cpp_Token_Stack *
                 case LS_caret:
                 token.flags = CPP_TFLAG_IS_OPERATOR;
                 switch (c){
-                    case '^': token.type = CPP_TOKEN_XOREQ; break;
+                    case '=': token.type = CPP_TOKEN_XOREQ; break;
                     default:
                     token.type = CPP_TOKEN_BIT_XOR;
+                    --lex_data.token_end;
+                    --pos;
+                    break;
+                }
+                break;
+                
+                case LS_eq:
+                token.flags = CPP_TFLAG_IS_OPERATOR;
+                switch (c){
+                    case '=': token.type = CPP_TOKEN_EQEQ; break;
+                    default:
+                    token.type = CPP_TOKEN_EQ;
+                    --lex_data.token_end;
+                    --pos;
+                    break;
+                }
+                break;
+                
+                case LS_bang:
+                token.flags = CPP_TFLAG_IS_OPERATOR;
+                switch (c){
+                    case '=': token.type = CPP_TOKEN_NOTEQ; break;
+                    default:
+                    token.type = CPP_TOKEN_BIT_NOT;
                     --lex_data.token_end;
                     --pos;
                     break;

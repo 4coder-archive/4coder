@@ -15,7 +15,20 @@ struct Plat_Handle{
 
 struct Unique_Hash{
     u32 d[4];
+    u32 non_file_id;
 };
+
+inline Unique_Hash
+uhash_zero(){
+    Unique_Hash r = {0};
+    return(r);
+}
+
+inline int
+uhash_equal(Unique_Hash a, Unique_Hash b){
+    int result = (memcmp(&a, &b, sizeof(a)) == 0);
+    return(result);
+}
 
 #define Sys_File_Time_Stamp_Sig(name) u64 name(char *filename)
 typedef Sys_File_Time_Stamp_Sig(System_File_Time_Stamp);

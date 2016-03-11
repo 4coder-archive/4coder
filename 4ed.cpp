@@ -452,7 +452,6 @@ COMMAND_DECL(seek_alphanumeric_right){
     ProfileMomentFunction();
     REQ_READABLE_VIEW(view);
     REQ_FILE(file, view);
-
     i32 pos = buffer_seek_alphanumeric_right(&file->state.buffer, view->cursor.pos);
     view_cursor_move(view, pos);
 }
@@ -461,7 +460,6 @@ COMMAND_DECL(seek_alphanumeric_left){
     ProfileMomentFunction();
     REQ_READABLE_VIEW(view);
     REQ_FILE(file, view);
-
     i32 pos = buffer_seek_alphanumeric_left(&file->state.buffer, view->cursor.pos);
     view_cursor_move(view, pos);
 }
@@ -470,7 +468,6 @@ COMMAND_DECL(seek_alphanumeric_or_camel_right){
     ProfileMomentFunction();
     REQ_READABLE_VIEW(view);
     REQ_FILE(file, view);
-
     i32 pos = buffer_seek_alphanumeric_or_camel_right(&file->state.buffer, view->cursor.pos);
     view_cursor_move(view, pos);
 }
@@ -479,7 +476,6 @@ COMMAND_DECL(seek_alphanumeric_or_camel_left){
     ProfileMomentFunction();
     REQ_READABLE_VIEW(view);
     REQ_FILE(file, view);
-
     i32 pos = buffer_seek_alphanumeric_or_camel_left(&file->state.buffer, view->cursor.pos);
     view_cursor_move(view, pos);
 }
@@ -1738,7 +1734,7 @@ COMMAND_DECL(command_line){
                 file = working_set_get_active_file(working_set, buffer_id);
             }
             else if (buffer_name){
-                file = working_set_contains(working_set, make_string(buffer_name, buffer_name_len));
+                file = working_set_contains(system, working_set, make_string(buffer_name, buffer_name_len));
                 if (file == 0){
                     file = working_set_alloc_always(working_set, &models->mem.general);
                     if (file == 0){
@@ -1755,7 +1751,7 @@ COMMAND_DECL(command_line){
 
                 file_create_read_only(system, models, file, buffer_name);
                 file->settings.unimportant = 1;
-                table_add(&working_set->table, file->name.source_path, file->id.id);
+                working_set_add(system, working_set, file);
 
                 for (i = 0; i < proc_count; ++i){
                     if (procs[i].out_file == file){
@@ -2037,15 +2033,12 @@ extern "C"{
         Buffer_Summary buffer = {};
         Editing_File *file;
         Working_Set *working_set = &cmd->models->working_set;
-        File_ID id;
 
-        if (table_find(&working_set->table, make_string(filename, len), &id)){
-            file = working_set_get_active_file(working_set, id);
-            if (file){
-                fill_buffer_summary(&buffer, file, working_set);
-            }
+        file = working_set_contains(cmd->system, working_set, make_string(filename, len));
+        if (file && !file->state.is_dummy){
+            fill_buffer_summary(&buffer, file, working_set);
         }
-
+        
         return(buffer);
     }
 
@@ -3293,33 +3286,10 @@ App_Init_Sig(app_init){
             font_set_add(partition, models->font_set, file_name, name, pt_size);
         }
     }
-
+    
     // NOTE(allen): file setup
-    {
-        Editing_File *files, *null_file;
-        i16 init_count = 128;
-
-        dll_init_sentinel(&models->working_set.free_sentinel);
-        dll_init_sentinel(&models->working_set.used_sentinel);
-        
-        models->working_set.array_max = 128;
-        models->working_set.file_arrays = push_array(partition, File_Array, models->working_set.array_max);
-        
-        files = push_array(partition, Editing_File, init_count);
-        working_set_extend_memory(&models->working_set, files, init_count);
-        
-        null_file = working_set_index(&models->working_set, 0);
-        dll_remove(&null_file->node);
-        null_file->state.is_dummy = 1;
-        ++models->working_set.file_count;
-        
-        models->working_set.table.max = models->working_set.file_max * 3 / 2;
-        models->working_set.table.count = 0;
-        models->working_set.table.table = push_array(
-            partition, File_Table_Entry, models->working_set.table.max);
-        memset(models->working_set.table.table, 0, sizeof(File_Table_Entry) * models->working_set.table.max);
-    }
-
+    working_set_init(&models->working_set, partition);
+    
     // NOTE(allen): clipboard setup
     models->working_set.clipboard_max_size = ArrayCount(models->working_set.clipboards);
     models->working_set.clipboard_size = 0;
@@ -4143,7 +4113,7 @@ App_Step_Sig(app_step){
                         
                         filename.str[0] = char_to_lower(filename.str[0]);
     
-                        result.file = working_set_contains(working_set, filename);
+                        result.file = working_set_contains(system, working_set, filename);
                         if (result.file == 0){
                             result.is_new = 1;
                             result.file = working_set_alloc_always(working_set, general);
@@ -4153,7 +4123,7 @@ App_Step_Sig(app_step){
                                     file_init_strings(result.file);
                                     file_set_name(working_set, result.file, filename.str);
                                     file_set_to_loading(result.file);
-                                    table_add(&working_set->table, result.file->name.source_path, result.file->id.id);
+                                    working_set_add(system, working_set, result.file);
 
                                     result.sys_id = file_id;
                                     result.file_index = result.file->id.id;
@@ -4258,7 +4228,7 @@ App_Step_Sig(app_step){
                 {
                     Editing_File *file = working_set_alloc_always(working_set, general);
                     file_create_empty(system, models, file, string.str);
-                    table_add(&working_set->table, file->name.source_path, file->id.id);
+                    working_set_add(system, working_set, file);
 
                     View *view = panel->view;
 
@@ -4276,7 +4246,7 @@ App_Step_Sig(app_step){
                         file = working_set_lookup_file(working_set, string);
                         
                         if (!file){
-                            file = working_set_contains(working_set, string);
+                            file = working_set_contains(system, working_set, string);
                         }
                     }
                     
@@ -4295,7 +4265,7 @@ App_Step_Sig(app_step){
                         file = working_set_lookup_file(working_set, string);
                         
                         if (!file){
-                            file = working_set_contains(working_set, string);
+                            file = working_set_contains(system, working_set, string);
                         }
                     }
                     
@@ -4320,7 +4290,7 @@ App_Step_Sig(app_step){
                         file = working_set_lookup_file(working_set, string);
                         
                         if (!file){
-                            file = working_set_contains(working_set, string);
+                            file = working_set_contains(system, working_set, string);
                         }
                     }
 

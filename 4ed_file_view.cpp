@@ -659,14 +659,13 @@ Job_Callback_Sig(job_full_lex){
     tokens.max_count = memory->size / sizeof(Cpp_Token);
     tokens.count = 0;
 
-    Cpp_Lex_Data status;
-    status = cpp_lex_nonalloc(cpp_file, &tokens);
+    Cpp_Lex_Data status = cpp_lex_file_nonalloc(cpp_file, &tokens);
 
     while (!status.complete){
         system->grow_thread_memory(memory);
         tokens.tokens = (Cpp_Token*)memory->data;
         tokens.max_count = memory->size / sizeof(Cpp_Token);
-        status = cpp_lex_nonalloc(cpp_file, &tokens, status);
+        status = cpp_lex_file_nonalloc(cpp_file, &tokens, status);
     }
 
     i32 new_max = LargeRoundUp(tokens.count+1, Kbytes(1));
@@ -3980,37 +3979,26 @@ search_set_init(General_Memory *general, Search_Set *set, i32 set_count){
 
 internal void
 search_hits_table_alloc(General_Memory *general, Table *hits, i32 table_size){
-    i32 hash_size, mem_size;
-
-    hash_size = table_size * sizeof(u32);
-    hash_size = (hash_size + 7) & ~7;
-    mem_size = hash_size + table_size * sizeof(Offset_String);
-
-    hits->hash_array = (u32*)general_memory_allocate(general, mem_size, 0);
-    hits->data_array = (u8*)hits->hash_array + hash_size;
-    hits->max = table_size;
-
-    hits->item_size = sizeof(Offset_String);
+    void *mem;
+    i32 mem_size;
+    
+    mem_size = table_required_mem_size(table_size, sizeof(Offset_String));
+    mem = general_memory_reallocate_nocopy(general, hits->hash_array, mem_size, 0);
+    table_init_memory(hits, mem, table_size, sizeof(Offset_String));
 }
 
 internal void
 search_hits_init(General_Memory *general, Table *hits, String_Space *str, i32 table_size, i32 str_size){
-    i32 hash_size, mem_size;
+    void *mem;
+    i32 mem_size;
 
     if (hits->hash_array == 0){
         search_hits_table_alloc(general, hits, table_size);
     }
     else if (hits->max < table_size){
-        hash_size = table_size * sizeof(u32);
-        hash_size = (hash_size + 7) & ~7;
-        mem_size = hash_size + table_size * sizeof(Offset_String);
-
-        hits->hash_array = (u32*)general_memory_reallocate_nocopy(
-            general, hits->hash_array, mem_size, 0);
-        hits->data_array = (u8*)hits->hash_array + hash_size;
-        hits->max = table_size;
-
-        hits->item_size = sizeof(Offset_String);
+        mem_size = table_required_mem_size(table_size, sizeof(Offset_String));
+        mem = general_memory_reallocate_nocopy(general, hits->hash_array, mem_size, 0);
+        table_init_memory(hits, mem, table_size, sizeof(Offset_String));
     }
 
     if (str->space == 0){

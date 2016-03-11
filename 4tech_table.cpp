@@ -24,6 +24,27 @@ struct Table{
     i32 item_size;
 };
 
+internal i32
+table_required_mem_size(i32 table_size, i32 item_size){
+    i32 mem_size, hash_size;
+    hash_size = ((table_size * sizeof(u32)) + 7) & ~7;
+    mem_size = hash_size + table_size * item_size;
+    return(mem_size);
+}
+
+internal void
+table_init_memory(Table *table, void *memory, i32 table_size, i32 item_size){
+    i32 hash_size = table_size * sizeof(u32);
+    hash_size = (hash_size + 7) & ~7;
+    
+    table->hash_array = (u32*)memory;
+    table->data_array = (u8*)(table->hash_array) + hash_size;
+    
+    table->count = 0;
+    table->max = table_size;
+    table->item_size = item_size;
+}
+
 internal b32
 table_at_capacity(Table *table){
     b32 result = 1;

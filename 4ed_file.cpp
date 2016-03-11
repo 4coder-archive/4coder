@@ -168,6 +168,7 @@ struct Editing_File{
     File_ID id;
 };
 
+#if 0
 struct File_Table_Entry{
     String name;
     u32 hash;
@@ -254,6 +255,31 @@ table_remove(File_Table *table, String name){
     }
     return r;
 }
+#endif
+
+struct File_Table_Entry{
+    Unique_Hash key;
+    File_ID id;
+};
+
+internal u32
+tbl_file_hash(void *item, void *arg){
+    Unique_Hash uhash = *((Unique_Hash*)item);
+    u32 hash = uhash.d[0] + 101;
+    hash = ((hash << 6) + hash) + uhash.d[1];
+    hash = ((hash << 6) + hash) + uhash.d[2];
+    hash = ((hash << 6) + hash) + uhash.d[3];
+    hash = ((hash << 6) + hash) + uhash.non_file_id;
+    return(hash);
+}
+
+internal i32
+tbl_file_compare(void *a, void *b, void *arg){
+    Unique_Hash ahash = *((Unique_Hash*)a);
+    Unique_Hash bhash = *((Unique_Hash*)b);
+    i32 result = uhash_equal(ahash, bhash);
+    return(result);
+}
 
 struct File_Array{
     Editing_File *files;
@@ -268,7 +294,7 @@ struct Working_Set{
 	File_Node free_sentinel;
     File_Node used_sentinel;
     
-    File_Table table;
+    Table table;
     
 	String clipboards[64];
 	i32 clipboard_size, clipboard_max_size;
@@ -374,12 +400,10 @@ working_set_index(Working_Set *working_set, i32 id){
 inline Editing_File*
 working_set_get_active_file(Working_Set *working_set, File_ID id){
     Editing_File *result = 0;
-
     result = working_set_index(working_set, id);
     if (result && result->state.is_dummy){
         result = 0;
     }
-    
     return(result);
 }
 
@@ -391,15 +415,70 @@ working_set_get_active_file(Working_Set *working_set, i32 id){
 }
 
 inline Editing_File*
-working_set_contains(Working_Set *working_set, String filename){
+working_set_contains(Working_Set *working_set, Unique_Hash file_hash){
     Editing_File *result = 0;
-    File_ID id;
+    File_Table_Entry *entry = 0;
     
-    replace_char(filename, '\\', '/');
-    if (table_find(&working_set->table, filename, &id)){
-        result = working_set_index(working_set, id);
+    entry = (File_Table_Entry*)table_find_item(
+        &working_set->table, &file_hash, 0, tbl_file_hash, tbl_file_compare);
+    if (entry){
+        result = working_set_index(working_set, entry->id);
     }
+    
     return (result);
+}
+
+inline Editing_File*
+working_set_contains(System_Functions *system, Working_Set *working_set, String filename){
+    Unique_Hash file_hash;
+    Editing_File *result;
+    terminate_with_null(&filename);
+    file_hash = system->file_unique_hash(filename.str);
+    result = working_set_contains(working_set, file_hash);
+    return(result);
+}
+
+internal void
+working_set_init(Working_Set *working_set, Partition *partition){
+    Editing_File *files, *null_file;
+    void *mem;
+    i32 mem_size;
+    i16 init_count = 128;
+
+    dll_init_sentinel(&working_set->free_sentinel);
+    dll_init_sentinel(&working_set->used_sentinel);
+
+    working_set->array_max = 128;
+    working_set->file_arrays = push_array(partition, File_Array, working_set->array_max);
+
+    files = push_array(partition, Editing_File, init_count);
+    working_set_extend_memory(working_set, files, init_count);
+
+    null_file = working_set_index(working_set, 0);
+    dll_remove(&null_file->node);
+    null_file->state.is_dummy = 1;
+    ++working_set->file_count;
+
+    mem_size = table_required_mem_size(working_set->file_max * 3 / 2, sizeof(File_Table_Entry));
+    mem = push_block(partition, mem_size);
+    memset(mem, 0, mem_size);
+    table_init_memory(&working_set->table, mem, working_set->file_max * 3 / 2, sizeof(File_Table_Entry));
+}
+
+internal void
+working_set_add(Working_Set *working_set, Unique_Hash key, File_ID file_id){
+    File_Table_Entry entry;
+    entry.key = key;
+    entry.id = file_id;
+    
+    table_add(&working_set->table, &entry, 0, tbl_file_hash, tbl_file_compare);
+}
+
+internal void
+working_set_add(System_Functions *system, Working_Set *working_set, Editing_File *file){
+    Unique_Hash file_hash;
+    file_hash = system->file_unique_hash(file->name.source_path.str);
+    working_set_add(working_set, file_hash, file->id);
 }
 
 // TODO(allen): Pick better first options.
