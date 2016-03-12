@@ -161,7 +161,13 @@ struct Linux_Vars{
 #define FPS 60
 #define frame_useconds (1000000 / FPS)
 
-#define DBG_FN do { fprintf(stderr, "Fn called: %s\n", __PRETTY_FUNCTION__); } while(0)
+#if 0
+#define LINUX_FN_DEBUG(fmt, ...) do { \
+        fprintf(stderr, "%s: " fmt "\n", __func__, ##__VA_ARGS__); \
+    } while(0)
+#else
+#define LINUX_FN_DEBUG(fmt, ...)
+#endif
 
 globalvar Linux_Vars linuxvars;
 globalvar Application_Memory memory_vars;
@@ -284,20 +290,26 @@ LinuxStringDup(String* str, void* data, size_t size){
 #endif
 
 Sys_File_Time_Stamp_Sig(system_file_time_stamp){
-    struct stat info;
-    i64 nanosecond_timestamp;
-    u64 result;
-    
-    stat(filename, &info);
-    nanosecond_timestamp = info.nano_mtime_field;
-    if (nanosecond_timestamp != 0){
-        result = (u64)(nanosecond_timestamp / 1000);
-    }
-    else{
-        result = (u64)(info.st_mtime * 1000000);
+    struct stat info = {};
+    u64 microsecond_timestamp;
+
+    if(stat(filename, &info) == -1){
+        perror("system_file_time: stat");
+        return 0;
     }
 
-    return(result);
+    if (info.st_mtim.tv_nsec != 0){
+        microsecond_timestamp =
+        (info.st_mtim.tv_sec  * 1000000ULL) +
+        (info.st_mtim.tv_nsec / 1000ULL);
+    }
+    else{
+        microsecond_timestamp = info.st_mtime * 1000000ULL;
+    }
+
+    LINUX_FN_DEBUG("%s = %" PRIu64, filename, microsecond_timestamp);
+
+    return(microsecond_timestamp);
 }
 
 // TODO(allen): DOES THIS AGREE WITH THE FILESTAMP TIMES?
@@ -306,8 +318,10 @@ Sys_Time_Sig(system_time){
     struct timespec spec;
     u64 result;
     
-    clock_gettime(CLOCK_MONOTONIC, &spec);
-    result = (spec.tv_sec * 1000000) + (spec.tv_nsec / 1000);
+    clock_gettime(CLOCK_REALTIME, &spec);
+    result = (spec.tv_sec * 1000000ULL) + (spec.tv_nsec / 1000ULL);
+
+    //LINUX_FN_DEBUG("ts: %" PRIu64, result);
 
     return(result);
 }
@@ -416,7 +430,7 @@ Sys_File_Unique_Hash_Sig(system_file_unique_hash){
     Unique_Hash result = {};
     struct stat st;
 
-    if(stat(filename, &st) == -1){
+    if(stat(filename.str, &st) == -1){
         perror("sys_file_unique_hash: stat");
     } else {
         memcpy(&result, &st.st_dev, sizeof(st.st_dev));
@@ -850,7 +864,9 @@ DIRECTORY_CD_SIG(system_directory_cd){
 
 internal
 Sys_File_Can_Be_Made(system_file_can_be_made){
-    return access(filename, W_OK) == 0;
+    b32 result = access(filename, W_OK) == 0;
+    LINUX_FN_DEBUG("%s = %d", filename, result);
+    return(result);
 }
 
 internal
@@ -862,7 +878,7 @@ Sys_Load_File_Sig(system_load_file){
     size_t bytes_to_read;
     ssize_t num;
 
-//    printf("sys_open_file: %s\n", filename);
+    LINUX_FN_DEBUG("%s", filename);
 
     fd = open(filename, O_RDONLY);
     if(fd < 0){
@@ -915,6 +931,39 @@ out:
 internal
 Sys_Save_File_Sig(system_save_file){
     b32 result = 0;
+    int fd = open(filename, O_WRONLY | O_TRUNC);
+
+    LINUX_FN_DEBUG("%s %d", filename, size);
+
+    if(fd < 0){
+        perror("system_save_file: open");
+    } else {
+        do {
+            ssize_t written = write(fd, data, size);
+            if(written == -1){
+                if(errno != EINTR){
+                    perror("system_save_file: write");
+                    close(fd);
+                    return result;
+                }
+            } else {
+                size -= written;
+                data += written;
+            }
+        } while(size);
+
+        close(fd);
+        result = 1;
+    }
+
+    return result;
+}
+
+//NOTE(inso): this is a version that writes to a temp file & renames, but might be causing save issues?
+#if 0
+internal
+Sys_Save_File_Sig(system_save_file){
+    b32 result = 0;
 
     const size_t save_fsz   = strlen(filename);
     const char   tmp_end[]  = ".4ed.XXXXXX";
@@ -954,6 +1003,7 @@ Sys_Save_File_Sig(system_save_file){
     result = 1;
     return(result);
 }
+#endif
 
 #if FRED_USE_FONTCONFIG
 internal char*
