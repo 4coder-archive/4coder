@@ -292,7 +292,7 @@ Sys_File_Time_Stamp_Sig(system_file_time_stamp){
 
 #if OLD_STAT_NANO_TIME
     microsecond_timestamp =
-        (info.st_mtime * UINT64_C(100000)) +
+        (info.st_mtime * UINT64_C(1000000)) +
         (info.st_mtimensec / UINT64_C(1000));
 #else
     microsecond_timestamp =
