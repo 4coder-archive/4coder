@@ -275,18 +275,10 @@ LinuxStringDup(String* str, void* data, size_t size){
     memcpy(str->str, data, size);
 }
 
-#if (defined(_BSD_SOURCE) || defined(_SVID_SOURCE))
-#define TimeBySt
-#endif
-#if (_POSIX_C_SOURCE >= 200809L || _XOPEN_SOURCE >= 700)
-#define TimeBySt
-#endif
-
-#ifdef TimeBySt
-#define nano_mtime_field st_mtim.tv_nsec
-#undef TimeBySt
+#if defined(_BSD_SOURCE) || defined(_SVID_SOURCE) || _POSIX_C_SOURCE >= 200809L || _XOPEN_SOURCE >= 700
+    #define OLD_STAT_NANO_TIME 0
 #else
-#define nano_mtime_field st_mtimensec
+    #define OLD_STAT_NANO_TIME 1
 #endif
 
 Sys_File_Time_Stamp_Sig(system_file_time_stamp){
@@ -298,14 +290,15 @@ Sys_File_Time_Stamp_Sig(system_file_time_stamp){
         return 0;
     }
 
-    if (info.st_mtim.tv_nsec != 0){
-        microsecond_timestamp =
-        (info.st_mtim.tv_sec  * 1000000ULL) +
-        (info.st_mtim.tv_nsec / 1000ULL);
-    }
-    else{
-        microsecond_timestamp = info.st_mtime * 1000000ULL;
-    }
+#if OLD_STAT_NANO_TIME
+    microsecond_timestamp =
+        (info.st_mtime * UINT64_C(100000)) +
+        (info.st_mtimensec / UINT64_C(1000));
+#else
+    microsecond_timestamp =
+        (info.st_mtim.tv_sec * UINT64_C(1000000)) +
+        (info.st_mtim.tv_nsec / UINT64_C(1000));
+#endif
 
     LINUX_FN_DEBUG("%s = %" PRIu64, filename, microsecond_timestamp);
 
@@ -313,13 +306,13 @@ Sys_File_Time_Stamp_Sig(system_file_time_stamp){
 }
 
 // TODO(allen): DOES THIS AGREE WITH THE FILESTAMP TIMES?
-// NOTE(inso): I don't think so, CLOCK_MONOTONIC is an arbitrary number
+// NOTE(inso): I changed it to CLOCK_REALTIME, which should agree with file times
 Sys_Time_Sig(system_time){
     struct timespec spec;
     u64 result;
     
     clock_gettime(CLOCK_REALTIME, &spec);
-    result = (spec.tv_sec * 1000000ULL) + (spec.tv_nsec / 1000ULL);
+    result = (spec.tv_sec * UINT64_C(1000000)) + (spec.tv_nsec / UINT64_C(1000));
 
     //LINUX_FN_DEBUG("ts: %" PRIu64, result);
 
@@ -1880,8 +1873,6 @@ main(int argc, char **argv)
     }
 #endif
    
-    //TODO(inso): look in linuxvars.settings and set window pos / size etc
-
     if (linuxvars.custom_api.get_bindings == 0){
         linuxvars.custom_api.get_bindings = get_bindings;
     }
