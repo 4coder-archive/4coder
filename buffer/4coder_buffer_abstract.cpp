@@ -472,7 +472,8 @@ buffer_seek_alphanumeric_or_camel_left(Buffer_Type *buffer, int pos){
 
 internal_4tech int
 buffer_find_hard_start(Buffer_Type *buffer, int line_start, int *all_whitespace,
-                       int *all_space, int *preferred_indent, int tab_width){
+    int *all_space, int *preferred_indent, int tab_width){
+    
     Buffer_Stringify_Type loop;
     char *data;
     int size, end;

@@ -1024,7 +1024,7 @@ COMMAND_DECL(save){
         else{
             file = working_set_get_active_file(&models->working_set, buffer_id);
             
-            if (!file->state.is_dummy && file_is_ready(file)){
+            if (!file->state.is_dummy && file_is_ready(file) && buffer_needs_save(file)){
                 delayed_save(delay, name, file);
             }
             else{
@@ -1231,6 +1231,7 @@ COMMAND_DECL(auto_tab_range){
     int r_start = 0, r_end = 0;
     int start_set = 0, end_set = 0;
     int clear_blank_lines = 1;
+    int use_tabs = 0;
 
     // TODO(allen): deduplicate
     Command_Parameter *end = param_stack_end(&command->part);
@@ -1251,6 +1252,10 @@ COMMAND_DECL(auto_tab_range){
             case par_clear_blank_lines:
             clear_blank_lines = dynamic_to_bool(&param->param.value);
             break;
+            
+            case par_use_tabs:
+            use_tabs = dynamic_to_bool(&param->param.value);
+            break;
         }
     }
 
@@ -1258,7 +1263,7 @@ COMMAND_DECL(auto_tab_range){
         Range range = make_range(view->cursor.pos, view->mark);
         if (start_set) range.start = r_start;
         if (end_set) range.end = r_end;
-        view_auto_tab_tokens(system, models, view, range.start, range.end, clear_blank_lines);
+        view_auto_tab_tokens(system, models, view, range.start, range.end, clear_blank_lines, use_tabs);
     }
 }
 
@@ -1728,6 +1733,7 @@ COMMAND_DECL(command_line){
         CLI_Process *procs = vars->cli_processes.procs, *proc = 0;
         Editing_File *file = 0;
         b32 bind_to_new_view = !do_in_background;
+        General_Memory *general = &models->mem.general;
 
         if (vars->cli_processes.count < vars->cli_processes.max){
             if (buffer_id){
@@ -1746,10 +1752,10 @@ COMMAND_DECL(command_line){
                     }
                 }
                 else{
-                    file = working_set_alloc_always(working_set, &models->mem.general);
+                    file = working_set_alloc_always(working_set, general);
                     
                     file_create_read_only(system, models, file, buffer_name);
-                    working_set_add(system, working_set, file);
+                    working_set_add(system, working_set, file, general);
                     
                     if (file == 0){
                         // TODO(allen): feedback message - no available file
@@ -2413,7 +2419,19 @@ extern "C"{
 
         return(result);
     }
-
+    
+    GET_COMMAND_INPUT_SIG(external_get_command_input){
+        Command_Data *cmd = (Command_Data*)app->cmd_context;
+        User_Input result;
+        
+        result.type = UserInputKey;
+        result.abort = 0;
+        result.key = cmd->key;
+        result.command = 0;
+        
+        return(result);
+    }
+    
     START_QUERY_BAR_SIG(external_start_query_bar){
         Command_Data *cmd = (Command_Data*)app->cmd_context;
         Query_Slot *slot = 0;
@@ -2541,6 +2559,7 @@ app_links_init(System_Functions *system, void *data, int size){
     app_links.view_set_buffer = external_view_set_buffer;
 
     app_links.get_user_input = external_get_user_input;
+    app_links.get_command_input = external_get_command_input;
 
     app_links.start_query_bar = external_start_query_bar;
     app_links.end_query_bar = external_end_query_bar;
@@ -3243,18 +3262,19 @@ App_Init_Sig(app_init){
         if (!did_top) setup_top_commands(&models->map_top, &models->mem.part, global);
         if (!did_file) setup_file_commands(&models->map_file, &models->mem.part, global);
 
-#if !defined(FRED_SUPER)
+#ifndef FRED_SUPER
         models->hooks[hook_start] = 0;
 #endif
 
         setup_ui_commands(&models->map_ui, &models->mem.part, global);
+    }
 
+    // NOTE(allen): font setup
+    {
         models->font_set = &target->font_set;
 
         font_set_init(models->font_set, partition, 16, 5);
-    }
-
-    {
+        
         struct Font_Setup{
             char *c_file_name;
             i32 file_name_len;
@@ -3264,28 +3284,31 @@ App_Init_Sig(app_init){
         };
 
 #define LitStr(n) n, sizeof(n)-1
-
+        
+        int font_size = 16;
+        
+        if (font_size < 8) font_size = 8;
+        
         Font_Setup font_setup[] = {
             {LitStr("LiberationSans-Regular.ttf"),
                 LitStr("liberation sans"),
-                16},
+                font_size},
 
             {LitStr("liberation-mono.ttf"),
                 LitStr("liberation mono"),
-                16},
+                font_size},
 
             {LitStr("Hack-Regular.ttf"),
                 LitStr("hack"),
-                16},
+                font_size},
 
             {LitStr("CutiveMono-Regular.ttf"),
                 LitStr("cutive mono"),
-                16},
+                font_size},
 
             {LitStr("Inconsolata-Regular.ttf"),
                 LitStr("inconsolata"),
-                16},
-
+                font_size},
         };
         i32 font_count = ArrayCount(font_setup);
 
@@ -3301,7 +3324,7 @@ App_Init_Sig(app_init){
     }
     
     // NOTE(allen): file setup
-    working_set_init(&models->working_set, partition);
+    working_set_init(&models->working_set, partition, &vars->models.mem.general);
     
     // NOTE(allen): clipboard setup
     models->working_set.clipboard_max_size = ArrayCount(models->working_set.clipboards);
@@ -3353,7 +3376,7 @@ App_Init_Sig(app_init){
     vars->sys_app_bindings = (Sys_App_Binding*)push_array(partition, Sys_App_Binding, vars->sys_app_max);
 
     // NOTE(allen): parameter setup
-    models->buffer_param_max = 32;
+    models->buffer_param_max = 1;
     models->buffer_param_count = 0;
     models->buffer_param_indices = push_array(partition, i32, models->buffer_param_max);
 }
@@ -4136,7 +4159,7 @@ App_Step_Sig(app_step){
                                     file_init_strings(result.file);
                                     file_set_name(working_set, result.file, filename.str);
                                     file_set_to_loading(result.file);
-                                    working_set_add(system, working_set, result.file);
+                                    working_set_add(system, working_set, result.file, general);
 
                                     result.sys_id = file_id;
                                     result.file_index = result.file->id.id;
@@ -4241,7 +4264,7 @@ App_Step_Sig(app_step){
                 {
                     Editing_File *file = working_set_alloc_always(working_set, general);
                     file_create_empty(system, models, file, string.str);
-                    working_set_add(system, working_set, file);
+                    working_set_add(system, working_set, file, general);
 
                     View *view = panel->view;
 

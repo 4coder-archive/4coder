@@ -2220,7 +2220,7 @@ view_clean_whitespace(System_Functions *system, Models *models, View *view){
 internal void
 view_auto_tab_tokens(System_Functions *system,
     Models *models, View *view,
-    i32 start, i32 end, b32 empty_blank_lines){
+    i32 start, i32 end, b32 empty_blank_lines, b32 use_tabs){
 #if BUFFER_EXPERIMENT_SCALPEL <= 0
     Editing_File *file = view->file;
     Mem_Options *mem = &models->mem;
@@ -2370,9 +2370,10 @@ view_auto_tab_tokens(System_Functions *system,
         i32 correct_indentation;
         b32 all_whitespace = 0;
         b32 all_space = 0;
+        i32 tab_width = 4;
         i32 hard_start =
             buffer_find_hard_start(&file->state.buffer, start, &all_whitespace, &all_space,
-            &preferred_indentation, 4);
+                &preferred_indentation, tab_width);
 
         correct_indentation = indent_marks[line_i];
         if (all_whitespace && empty_blank_lines) correct_indentation = 0;
@@ -2383,8 +2384,16 @@ view_auto_tab_tokens(System_Functions *system,
             new_edit.str_start = str_size;
             str_size += correct_indentation;
             char *str = push_array(part, char, correct_indentation);
-            for (i32 j = 0; j < correct_indentation; ++j) str[j] = ' ';
-            new_edit.len = correct_indentation;
+            i32 j = 0;
+            if (use_tabs){
+                i32 i = 0;
+                for (; i + tab_width <= correct_indentation; i += tab_width) str[j++] = '\t';
+                for (; i < correct_indentation; ++i) str[j++] = ' ';
+            }
+            else{
+                for (; j < correct_indentation; ++j) str[j] = ' ';
+            }
+            new_edit.len = j;
             new_edit.start = start;
             new_edit.end = hard_start;
             edits[edit_count++] = new_edit;
@@ -3988,7 +3997,12 @@ search_hits_table_alloc(General_Memory *general, Table *hits, i32 table_size){
     i32 mem_size;
     
     mem_size = table_required_mem_size(table_size, sizeof(Offset_String));
-    mem = general_memory_reallocate_nocopy(general, hits->hash_array, mem_size, 0);
+    if (hits->hash_array == 0){
+        mem = general_memory_allocate(general, mem_size, 0);
+    }
+    else{
+        mem = general_memory_reallocate_nocopy(general, hits->hash_array, mem_size, 0);
+    }
     table_init_memory(hits, mem, table_size, sizeof(Offset_String));
 }
 

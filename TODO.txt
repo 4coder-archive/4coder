@@ -1,4 +1,7 @@
 
+; before shipping:
+;  [] make sure 4coder_handmade_hero.cpp works
+
 ; Started this list on: (18.01.2016)(dd.mm.yyyy)
 ;  This list is an informal todo list, it may very well miss items
 ; checked or unchecked, that I inted to do some day. It is included
@@ -66,8 +69,10 @@
 ; [] tab character wrong width
 ; [] bouncing when scrolling down
 ; [] miblo's off screen cursor thing
+; [] linux save jankieness
 ;
-; [] open empty file bug ~ possibly a win10 issue?
+; [] open empty file bug
+; [] chronal's map setting issue
 ;
 ;
 
@@ -88,11 +93,19 @@
 ; [X] Seek string instead of delimiter
 ; [X] hook parameters
 ; [X] API based themes
+; [X] improve file limit (now is > 8 million I think)
+; [X] get key stroke in custom callback
+; [X] tab option for auto-indent
 ; 
 ; [] File status (saved, needs saving, out of sync)
+; [] user file bar string
+; [] catch unsaved files on close
+;
 ; [] feedback messages
 ; [] command meta data
 ; [] additional hooks
+;    [] new file
+;    [] file out of sync
 ; [] double binding warnings
 ; [] kill rect
 ; [] simple multi-line
@@ -144,6 +157,8 @@
 ;    [] macro expansion
 ;    [] error text at line
 ;    [] word complete ghosting
+;
+; [] main_4coder experiment
 ;
 
 ; INTERNAL TODOS

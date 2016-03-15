@@ -361,7 +361,11 @@ internal Editing_File*
 working_set_alloc_always(Working_Set *working_set, General_Memory *general){
     Editing_File *result = 0;
     Editing_File *new_chunk;
-    i16 new_count = 128;
+    i32 full_new_count = working_set->file_max;
+    i16 new_count;
+    
+    if (full_new_count > max_i16) new_count = max_i16;
+    else new_count = (i16)full_new_count;
     
     if (working_set->file_count == working_set->file_max &&
             working_set->array_count < working_set->array_max){
@@ -465,17 +469,19 @@ working_set_contains(System_Functions *system, Working_Set *working_set, String 
 }
 
 internal void
-working_set_init(Working_Set *working_set, Partition *partition){
+working_set_init(Working_Set *working_set, Partition *partition, General_Memory *general){
+    i16 init_count = 16;
+    i16 array_init_count = 256;
+    
     Editing_File *files, *null_file;
     void *mem;
     i32 mem_size, table_size;
-    i16 init_count = 128;
 
     dll_init_sentinel(&working_set->free_sentinel);
     dll_init_sentinel(&working_set->used_sentinel);
 
-    working_set->array_max = 128;
-    working_set->file_arrays = push_array(partition, File_Array, working_set->array_max);
+    working_set->array_max = array_init_count;
+    working_set->file_arrays = push_array(partition, File_Array, array_init_count);
 
     files = push_array(partition, Editing_File, init_count);
     working_set_extend_memory(working_set, files, init_count);
@@ -485,45 +491,65 @@ working_set_init(Working_Set *working_set, Partition *partition){
     null_file->state.is_dummy = 1;
     ++working_set->file_count;
 
-    table_size = working_set->file_max * 3 / 2;
+    table_size = working_set->file_max;
     mem_size = table_required_mem_size(table_size, sizeof(File_Table_Entry));
-    mem = push_block(partition, mem_size);
+    mem = general_memory_allocate(general, mem_size, 0);
     memset(mem, 0, mem_size);
     table_init_memory(&working_set->table, mem, table_size, sizeof(File_Table_Entry));
     
-    table_size = working_set->file_max / 4;
+    table_size = working_set->file_max; // / 4;
     mem_size = table_required_mem_size(table_size, sizeof(Non_File_Table_Entry));
-    mem = push_block(partition, mem_size);
+    mem = general_memory_allocate(general, mem_size, 0);
     memset(mem, 0, mem_size);
     table_init_memory(&working_set->non_file_table, mem, table_size, sizeof(Non_File_Table_Entry));
 }
 
 inline void
-working_set_add_file(Working_Set *working_set, Unique_Hash key, File_ID file_id){
+working_set_grow_if_needed(Table *table, General_Memory *general, void *arg, Hash_Function *hash_func, Compare_Function *comp_func){
+    Table btable;
+    i32 new_max, mem_size;
+    void *mem;
+    
+    if (table_at_capacity(table)){
+        new_max = table->max * 2;
+        mem_size = table_required_mem_size(new_max, table->item_size);
+        mem = general_memory_allocate(general, mem_size, 0);
+        table_init_memory(&btable, mem, new_max, table->item_size);
+        table_clear(&btable);
+        table_rehash(table, &btable, 0, hash_func, comp_func);
+        general_memory_free(general, table->hash_array);
+        *table = btable;
+    }
+}
+
+inline void
+working_set_add_file(Working_Set *working_set, Unique_Hash key, File_ID file_id, General_Memory *general){
     File_Table_Entry entry;
     entry.key = key;
     entry.id = file_id;
+    working_set_grow_if_needed(&working_set->table, general, 0, tbl_file_hash, tbl_file_compare);
     table_add(&working_set->table, &entry, 0, tbl_file_hash, tbl_file_compare);
 }
 
 inline void
-working_set_add_non_file(Working_Set *working_set, String filename, File_ID file_id){
+working_set_add_non_file(Working_Set *working_set, String filename, File_ID file_id, General_Memory *general){
     Non_File_Table_Entry entry;
     entry.name = filename;
     entry.id = file_id;
+    working_set_grow_if_needed(&working_set->table, general, 0, tbl_string_hash, tbl_string_compare);
     table_add(&working_set->non_file_table, &entry, 0, tbl_string_hash, tbl_string_compare);
 }
 
 inline void
-working_set_add(System_Functions *system, Working_Set *working_set, Editing_File *file){
+working_set_add(System_Functions *system, Working_Set *working_set, Editing_File *file, General_Memory *general){
     Unique_Hash file_hash;
     b32 success = 0;
     file_hash = system->file_unique_hash(file->name.source_path, &success);
     if (success){
-        working_set_add_file(working_set, file_hash, file->id);
+        working_set_add_file(working_set, file_hash, file->id, general);
     }
     else{
-        working_set_add_non_file(working_set, file->name.source_path, file->id);
+        working_set_add_non_file(working_set, file->name.source_path, file->id, general);
     }
 }
 

@@ -71,6 +71,10 @@ inline String make_string(void *s, int size);
 #define make_lit_string(str) (make_string((char*)(str), sizeof(str)-1, sizeof(str)))
 #define make_fixed_width_string(str) (make_string((char*)(str), 0, sizeof(str)))
 
+#ifndef literal
+#define literal(s) (s), (sizeof(s)-1)
+#endif
+
 #define expand_str(s) ((s).str), ((s).size)
 
 inline String make_string_slowly(void *s);

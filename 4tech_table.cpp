@@ -90,6 +90,8 @@ table_find_pos(Table *table, void *search_key, void *arg, i32 *pos, i32 *index, 
     u32 hash, *inspect;
     i32 i;
     
+    Assert((table->count - 1) * 8 < table->max * 7);
+    
     hash = (hash_func(search_key, arg) | TableHashMin);
     i = hash % table->max;
     inspect = table->hash_array + i;

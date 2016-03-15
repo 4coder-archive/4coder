@@ -231,6 +231,8 @@ enum Param_ID{
     par_cli_path,
     par_cli_command,
     par_clear_blank_lines,
+    par_use_tabs,
+    
     // never below this
     par_type_count
 };
@@ -374,6 +376,7 @@ struct Application_Links;
 
 // Directly get user input
 #define GET_USER_INPUT_SIG(n) User_Input n(Application_Links *app, unsigned int get_type, unsigned int abort_type)
+#define GET_COMMAND_INPUT_SIG(n) User_Input n(Application_Links *app)
 
 // Queries
 #define START_QUERY_BAR_SIG(n) int n(Application_Links *app, Query_Bar *bar, unsigned int flags)
@@ -453,6 +456,7 @@ extern "C"{
     
     // Directly get user input
     typedef GET_USER_INPUT_SIG(Get_User_Input_Function);
+    typedef GET_COMMAND_INPUT_SIG(Get_Command_Input_Function);
     
     // Queries
     typedef START_QUERY_BAR_SIG(Start_Query_Bar_Function);
@@ -514,6 +518,7 @@ struct Application_Links{
     
     // Directly get user input
     Get_User_Input_Function *get_user_input;
+    Get_Command_Input_Function *get_command_input;
     
     // Queries
     Start_Query_Bar_Function *start_query_bar;

@@ -1250,15 +1250,25 @@ Win32Callback(HWND hwnd, UINT uMsg,
                         UINT vk = (UINT)wParam;
                         UINT scan = (UINT)((lParam >> 16) & 0x7F);
                         BYTE state[256];
-                        WORD x;
-                        int result;
+                        WORD x1 = 0, x2 = 0, x = 0;
+                        int result1 = 0, result2 = 0, result = 0;
                         
                         GetKeyboardState(state);
-                        if (control_keys[MDFR_CONTROL_INDEX] &&
-                            !control_keys[MDFR_ALT_INDEX])
-                            state[VK_CONTROL] = 0;
-                        x = 0;
-                        result = ToAscii(vk, scan, state, &x, 0);
+                        x1 = 0;
+                        result1 = ToAscii(vk, scan, state, &x1, 0);
+                        state[VK_CONTROL] = 0;
+                        x2 = 0;
+                        result2 = ToAscii(vk, scan, state, &x2, 0);
+                        
+                        if (result1){
+                            x = x1;
+                            result = 1;
+                        }
+                        else if (result2){
+                            x = x2;
+                            result = 1;
+                        }
+                        
                         if (result == 1 && x < 128){
                             key = (u8)x;
                             if (key == '\r') key = '\n';
@@ -1959,7 +1969,7 @@ main(int argc, char **argv){
     }
 
     
-    File_Slot file_slots[4];
+    File_Slot file_slots[32];
     sysshared_init_file_exchange(&exchange_vars, file_slots, ArrayCount(file_slots), 0);
     
     Font_Load_Parameters params[32];

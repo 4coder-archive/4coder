@@ -181,7 +181,7 @@ struct Experiment{
 };
 
 static void
-run_experiment(Experiment *exp, char *filename){
+run_experiment(Experiment *exp, char *filename, int verbose){
     String extension = {};
     Data file_data;
     Cpp_File file_cpp;
@@ -190,12 +190,10 @@ run_experiment(Experiment *exp, char *filename){
     extension = file_extension(make_string_slowly(filename));
 
     if (match(extension, "cpp") || match(extension, "h")){
-        
-        pass = 1;
-        printf("testing on file: %s\n", filename);
         file_data = dump_file(filename);
-
         if (file_data.size < (100 << 10)){
+            pass = 1;
+            printf("testing on file: %s\n", filename);
             exp->test_total++;
             
             exp->correct_stack.count = 0;
@@ -226,23 +224,25 @@ run_experiment(Experiment *exp, char *filename){
 
                 if (correct->type != testing->type){
                     pass = 0;
-                    printf("type mismatch at token %d\n", j);
+                    if (verbose) printf("type mismatch at token %d\n", j);
                 }
 
                 if (correct->start != testing->start || correct->size != testing->size){
                     pass = 0;
-                    printf("token range mismatch at token %d\n"
-                            "    %d:%d original %d:%d testing\n"
-                            "    %.*s original %.*s testing\n",
-                        j,
-                        correct->start, correct->size, testing->start, testing->size,
-                        correct->size, file_cpp.data + correct->start,
-                        testing->size, file_cpp.data + testing->start);
+                    if (verbose){
+                        printf("token range mismatch at token %d\n"
+                                "    %d:%d original %d:%d testing\n"
+                                "    %.*s original %.*s testing\n",
+                            j,
+                            correct->start, correct->size, testing->start, testing->size,
+                            correct->size, file_cpp.data + correct->start,
+                            testing->size, file_cpp.data + testing->start);
+                    }
                 }
                 
                 if (correct->flags != testing->flags){
                     pass = 0;
-                    printf("token flag mismatch at token %d\n", j);
+                    if (verbose) printf("token flag mismatch at token %d\n", j);
                 }
             }
 
@@ -272,14 +272,14 @@ int main(){
     AllowLocal(test_directory);
     AllowLocal(all_files);
 
-    run_experiment(&exp, BASE_DIR "autotab.cpp");
-    
 #if 0
+    run_experiment(&exp, BASE_DIR "lexer_test.cpp", 1);
+#else
     system_set_file_list(&all_files, make_lit_string(test_directory));
     
     for (int i = 0; i < all_files.count; ++i){
         if (all_files.infos[i].folder == 0){
-            run_experiment(&exp, all_files.infos[i].filename.str);
+            run_experiment(&exp, all_files.infos[i].filename.str, 0);
         }
     }
 #endif
@@ -290,4 +290,3 @@ int main(){
 }
 
 // BOTTOM
-
