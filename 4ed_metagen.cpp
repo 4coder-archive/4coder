@@ -155,6 +155,7 @@ char *daction_enum[] = {
     "TRY_KILL",
     "KILL",
     "TOUCH_FILE",
+    "CLOSE",
 };
 
 char str_alloc_copy[] =

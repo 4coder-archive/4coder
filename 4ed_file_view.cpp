@@ -15,13 +15,15 @@ enum Interactive_Action{
     IAct_New,
     IAct_Switch,
     IAct_Kill,
-    IAct_Sure_To_Kill
+    IAct_Sure_To_Kill,
+    IAct_Sure_To_Close
 };
 
 enum Interactive_Interaction{
     IInt_Sys_File_List,
     IInt_Live_File_List,
-    IInt_Sure_To_Kill
+    IInt_Sure_To_Kill,
+    IInt_Sure_To_Close
 };
 
 struct View_Mode{
@@ -2677,6 +2679,21 @@ interactive_view_complete(View *view){
         delayed_try_kill(&models->delay1, view->dest);
         break;
 
+        case IAct_Sure_To_Close:
+        switch (view->user_action){
+            case 0:
+            delayed_close(&models->delay1);
+            break;
+
+            case 1:
+            break;
+
+            case 2:
+            // TODO(allen): Save all.
+            break;
+        }
+        break;
+        
         case IAct_Sure_To_Kill:
         switch (view->user_action){
             case 0:
@@ -3236,11 +3253,49 @@ interactive_shit(System_Functions *system, View *view, UI_State *state, UI_Layou
             }
         }break;
 
+        case IInt_Sure_To_Close:
+        {
+            i32 action = -1;
+            char s_[256];
+            String s;
+            s = make_fixed_width_string(s_);
+            append(&s, "There are unsaved changes in, close anyway?");
+            do_label(state, layout, s, 1.f);
+
+            i32 id = 0;
+            if (do_list_option(++id, state, layout, make_lit_string("(Y)es"))){
+                action = 0;
+            }
+
+            if (do_list_option(++id, state, layout, make_lit_string("(N)o"))){
+                action = 1;
+            }
+
+            if (action == -1 && input_stage){
+                i32 key_count = keys->count;
+                for (i32 i = 0; i < key_count; ++i){
+                    Key_Event_Data key = keys->keys[i];
+                    switch (key.character){
+                        case 'y': case 'Y': action = 0; break;
+                        case 'n': case 'N': action = 1; break;
+                    }
+                    if (action == -1 && key.keycode == key_esc) action = 1;
+                    if (action != -1) break;
+                }
+            }
+
+            if (action != -1){
+                complete = 1;
+                view->user_action = action;
+            }
+        }break;
+        
         case IInt_Sure_To_Kill:
         {
             i32 action = -1;
             char s_[256];
-            String s = make_fixed_width_string(s_);
+            String s;
+            s = make_fixed_width_string(s_);
             append(&s, view->dest);
             append(&s, " has unsaved changes, kill it?");
             do_label(state, layout, s, 1.f);

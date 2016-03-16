@@ -3646,6 +3646,57 @@ App_Step_Sig(app_step){
         }
     }
     ProfileEnd(prepare_commands);
+
+    // NOTE(allen): process the command_coroutine if it is unfinished
+    ProfileStart(try_to_shutdown);
+    if (app_result.trying_to_kill){
+        b32 there_is_unsaved = 0;
+        
+        File_Node *node, *sent;
+        sent = &models->working_set.used_sentinel;
+        for (dll_items(node, sent)){
+            Editing_File *file = (Editing_File*)node;
+            if (buffer_needs_save(file)){
+                there_is_unsaved = 1;
+                break;
+            }
+        }
+        
+        if (there_is_unsaved){
+            Coroutine *command_coroutine = models->command_coroutine;
+            View *view = cmd->view;
+            i32 i = 0;
+
+            while (command_coroutine){
+                User_Input user_in = {0};
+                user_in.abort = 1;
+                command_coroutine = system->resume_coroutine(command_coroutine, &user_in, models->command_coroutine_flags);
+                ++i;
+                if (i >= 128){
+                    // TODO(allen): post grave warning, resource cleanup system
+                    command_coroutine = 0;
+                }
+            }
+            if (view != 0){
+                init_query_set(&view->query_set);
+            }
+
+            if (view == 0){
+                Panel *panel = models->layout.used_sentinel.next;
+                view = panel->view;
+            }
+
+            view_show_interactive(system, view, &models->map_ui,
+                IAct_Sure_To_Close, IInt_Sure_To_Close, make_lit_string("Are you sure?"));
+
+            models->command_coroutine = command_coroutine;
+            app_result.redraw = 1;
+        }
+        else{
+            app_result.perform_kill = 1;
+        }
+    }
+    ProfileEnd(try_to_shutdown);
     
     // NOTE(allen): process the command_coroutine if it is unfinished
     ProfileStart(command_coroutine);
@@ -4342,6 +4393,11 @@ App_Step_Sig(app_step){
                                 models->hooks[hook_open_file], &app_links);
                         }
                     }
+                }break;
+                
+                case DACT_CLOSE:
+                {
+                    app_result.perform_kill = 1;
                 }break;
             }
 

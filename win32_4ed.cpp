@@ -83,7 +83,9 @@ struct Win32_Input_Chunk_Transient{
     b8 out_of_window;
     i8 mouse_wheel;
     
-    b32 redraw;
+    b8 trying_to_kill;
+    
+    b8 redraw;
 };
 
 struct Win32_Input_Chunk_Persistent{
@@ -1424,7 +1426,7 @@ Win32Callback(HWND hwnd, UINT uMsg,
     case WM_DESTROY:
     {
         system_acquire_lock(INPUT_LOCK);
-        win32vars.input_chunk.pers.keep_playing = 0;
+        win32vars.input_chunk.trans.trying_to_kill = 1;
         system_release_lock(INPUT_LOCK);
     }break;
     
@@ -1512,44 +1514,50 @@ UpdateLoop(LPVOID param){
                 }
             }
         }
-        
+
         u32 redraw = exchange_vars.thread.force_redraw;
         if (redraw) exchange_vars.thread.force_redraw = 0;
         redraw = redraw || input_chunk.trans.redraw;
-        
+
         Key_Input_Data input_data;
         Mouse_State mouse;
         Application_Step_Result result;
-        
+
         input_data = input_chunk.trans.key_data;
         mouse.out_of_window = input_chunk.trans.out_of_window;
-        
+
         mouse.l = input_chunk.pers.mouse_l;
         mouse.press_l = input_chunk.trans.mouse_l_press;
         mouse.release_l = input_chunk.trans.mouse_l_release;
-        
+
         mouse.r = input_chunk.pers.mouse_r;
         mouse.press_r = input_chunk.trans.mouse_r_press;
         mouse.release_r = input_chunk.trans.mouse_r_release;
-    
+
         mouse.wheel = input_chunk.trans.mouse_wheel;
-        
+
         mouse.x = input_chunk.pers.mouse_x;
         mouse.y = input_chunk.pers.mouse_y;
-        
+
         result.mouse_cursor_type = APP_MOUSE_CURSOR_DEFAULT;
         result.redraw = redraw;
         result.lctrl_lalt_is_altgr = win32vars.lctrl_lalt_is_altgr;
-        
+        result.trying_to_kill = input_chunk.trans.trying_to_kill;
+        result.perform_kill = 0;
+
         win32vars.app.step(win32vars.system,
-                           &input_data,
-                           &mouse,
-                           &win32vars.target,
-                           &memory_vars,
-                           &exchange_vars,
-                           win32vars.clipboard_contents,
-                           1, win32vars.first, redraw,
-                           &result);
+            &input_data,
+            &mouse,
+            &win32vars.target,
+            &memory_vars,
+            &exchange_vars,
+            win32vars.clipboard_contents,
+            1, win32vars.first, redraw,
+            &result);
+        
+        if (result.perform_kill){
+            win32vars.input_chunk.pers.keep_playing = 0;
+        }
         
         ProfileStart(OS_frame_out);
 

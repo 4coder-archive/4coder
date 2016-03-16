@@ -70,8 +70,7 @@ struct Plat_Settings{
              String current_directory,                  \
              Plat_Settings *plat_settings,                 \
              char ***files, i32 **file_count,                   \
-             Command_Line_Parameters clparams           \
-             )
+             Command_Line_Parameters clparams)
 
 typedef App_Read_Command_Line_Sig(App_Read_Command_Line);
 
@@ -100,6 +99,8 @@ struct Application_Step_Result{
 	Application_Mouse_Cursor mouse_cursor_type;
     b32 redraw;
     b32 lctrl_lalt_is_altgr;
+    b32 trying_to_kill;
+    b32 perform_kill;
 };
 
 #define App_Step_Sig(name) void          \
