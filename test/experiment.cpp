@@ -42,6 +42,7 @@ dump_file(char *filename){
         data.data = (byte*)malloc(data.size + 1);
         
         ReadFile(file, data.data, lo, &lo, 0);
+        data.data[data.size] = 0;
         
         assert((int)lo == data.size);
         
@@ -180,9 +181,24 @@ struct Experiment{
     Cpp_Token_Stack testing_stack;
     int passed_total, test_total;
 };
+int
+passed(Experiment exp){
+    return (exp.passed_total == exp.test_total && exp.passed_total > 1);
+}
 
-i64 handcoded_lexer_time = 0;
-i64 fsm_lexer_time = 0;
+struct Times{
+    i64 handcoded;
+    i64 fsm;
+};
+Times time;
+void
+begin_t(Times *t){
+    time = *t;
+}
+void
+end_t(Times *t){
+    *t = time;
+}
 
 static void
 run_experiment(Experiment *exp, char *filename, int verbose, int chunks){
@@ -216,25 +232,26 @@ run_experiment(Experiment *exp, char *filename, int verbose, int chunks){
                 
                 start = __rdtsc();
                 cpp_lex_file_nonalloc(file_cpp, &exp->correct_stack, lex_data);
-                handcoded_lexer_time += (__rdtsc() - start);
+                time.handcoded += (__rdtsc() - start);
                 
                 start = __rdtsc();
                 if (chunks){
+                    int relevant_size = file_data.size + 1;
                     is_last = 0;
-                    for (k = 0; k < file_data.size; k += chunks){
+                    for (k = 0; k < relevant_size; k += chunks){
                         chunk_size = chunks;
-                        if (chunk_size + k >= file_data.size){
-                            chunk_size = file_data.size - k;
+                        if (chunk_size + k >= relevant_size){
+                            chunk_size = relevant_size - k;
                             is_last = 1;
                         }
                         
-                        ld = new_lex::cpp_lex_nonalloc(ld, (char*)file_data.data + k, k, is_last, chunk_size, &exp->testing_stack);
+                        ld = new_lex::cpp_lex_nonalloc(ld, (char*)file_data.data + k, k, chunk_size, &exp->testing_stack);
 					}
                 }
                 else{
-                    new_lex::cpp_lex_nonalloc(ld, (char*)file_data.data, 0, file_data.size, 1, &exp->testing_stack);
+                    new_lex::cpp_lex_nonalloc(ld, (char*)file_data.data, 0, file_data.size, &exp->testing_stack);
                 }
-                fsm_lexer_time += (__rdtsc() - start);
+                time.fsm += (__rdtsc() - start);
             }
             
             if (exp->correct_stack.count != exp->testing_stack.count){
@@ -290,58 +307,96 @@ run_experiment(Experiment *exp, char *filename, int verbose, int chunks){
     }
 }
 
+#define OUTLINE(type) "%-30s "type"\n"
+#define OUTLINE_VAR(t, var) #var, (t)var
+
+void
+show_time(Times t, int repeats, char *type){
+    f32 speed_up = ((f32)t.handcoded) / t.fsm;
+    printf(
+        "\n%s time for %d repeates\n"
+            OUTLINE("%d")
+            OUTLINE("%d")
+            OUTLINE("%f"),
+        type,
+        repeats,
+        OUTLINE_VAR(i32, t.handcoded),
+        OUTLINE_VAR(i32, t.fsm),
+        OUTLINE_VAR(f32, speed_up)
+    );
+}
+
 #define BASE_DIR "w:/4ed/data/test/"
 
 int main(){
-    int repeats = 100;
-    int verbose_level = -1;
-    int chunks = 0;
+    int repeats = 1;
+    int verbose_level = 0;
+    int chunks = 64;
     char test_directory[] = BASE_DIR;
     File_List all_files = {};
     Experiment exp = {};
-
+    Experiment chunk_exp = {};
+    Times exp_t = {};
+    Times chunk_exp_t = {};
+    
     init_test_stack(&exp.correct_stack);
     init_test_stack(&exp.testing_stack);
+    
+    init_test_stack(&chunk_exp.correct_stack);
+    init_test_stack(&chunk_exp.testing_stack);
     
     AllowLocal(test_directory);
     AllowLocal(all_files);
     
-#if 0
+#if 1
     (void)(repeats);
     (void)(verbose_level);
     
-    run_experiment(&exp, BASE_DIR "crazywords.cpp", 1, chunks);
+#define TEST_FILE "crazywords.cpp"
+    
+    if (chunks){
+        begin_t(&chunk_exp_t);
+        printf("With chunks of %d\n", chunks);
+        run_experiment(&chunk_exp, BASE_DIR TEST_FILE, 1, chunks);
+        end_t(&chunk_exp_t);
+    }
+    
+    begin_t(&exp_t);
+    printf("Unchunked\n");
+    run_experiment(&exp, BASE_DIR TEST_FILE, 1, 0);
+    end_t(&exp_t);
+    
 #else
+    
     system_set_file_list(&all_files, make_lit_string(test_directory));
 
     for (int j = 0; j < repeats; ++j){
         for (int i = 0; i < all_files.count; ++i){
             if (all_files.infos[i].folder == 0){
-                run_experiment(&exp, all_files.infos[i].filename.str, verbose_level, chunks);
+                if (chunks){
+                    begin_t(&chunk_exp_t);
+                    run_experiment(&chunk_exp, all_files.infos[i].filename.str, verbose_level, chunks);
+                    end_t(&chunk_exp_t);
+                }
+                begin_t(&exp_t);
+                run_experiment(&exp, all_files.infos[i].filename.str, verbose_level, 0);
+                end_t(&exp_t);
             }
         }
     }
 #endif
 
-    printf("you passed %d / %d tests\n", exp.passed_total, exp.test_total);
-
-#define OUTLINE(type) "%-30s "type"\n"
-#define OUTLINE_VAR(t, var) #var, (t)var
+    if (chunks){
+        printf("chunked passed %d / %d tests\n", chunk_exp.passed_total, chunk_exp.test_total);
+    }
     
-    if (exp.passed_total == exp.test_total && exp.passed_total > 1){
-        f32 speed_up = ((f32)handcoded_lexer_time) / fsm_lexer_time;
-        
-        printf(
-            "\nTime information for %d repeates\n"
-                OUTLINE("%d")
-                OUTLINE("%d")
-                OUTLINE("%f"),
+    printf("unchunk passed %d / %d tests\n", exp.passed_total, exp.test_total);
 
-                repeats,
-                OUTLINE_VAR(i32, handcoded_lexer_time),
-                OUTLINE_VAR(i32, fsm_lexer_time),
-                OUTLINE_VAR(f32, speed_up)
-        );
+    if (passed(exp) && (chunks == 0 || passed(chunk_exp))){
+        if (chunks){
+            show_time(chunk_exp_t, repeats, "Chunked");
+        }
+        show_time(exp_t, repeats, "Unchunked");
 	}
     
     return(0);

@@ -406,12 +406,9 @@ enum Lex_PP_State{
     LSPP_count
 };
 
-struct Lex_FSM{
-    char state;
-    char int_state;
-    char emit_token;
-    char multi_line;
-    char completed;
+enum Pos_Update_Rule{
+    PUR_none,
+    PUR_unget_whitespace
 };
 
 lexer_link Lex_PP_State
@@ -496,30 +493,36 @@ cpp_push_token_nonalloc(Cpp_Token *out_tokens, int *token_i, Cpp_Token token){
     }
 }
 
+struct Lex_FSM{
+    unsigned char state;
+    unsigned char int_state;
+    unsigned char emit_token;
+    unsigned char multi_line;
+    unsigned char completed;
+};
+
 struct Lex_Data{
     Lex_FSM fsm;
-    char pp_state;
-    char completed;
+    unsigned char pp_state;
+    unsigned char completed;
     int token_start;
 };
 
 lexer_link Lex_Data
-cpp_lex_nonalloc(Lex_Data lex_data, char *chunk, int file_absolute_pos, int size, int last_chunk, Cpp_Token_Stack *token_stack_out){
+cpp_lex_nonalloc(Lex_Data S, char *chunk, int file_absolute_pos, int size, Cpp_Token_Stack *token_stack_out){
     Cpp_Token *out_tokens = token_stack_out->tokens;
     int token_i = token_stack_out->count;
     int max_token_i = token_stack_out->max_count;
     
-    Cpp_Token token = {};
+    Cpp_Token token = {(Cpp_Token_Type)0};
+    Lex_FSM fsm = {0};
     
     int pos = file_absolute_pos;
     int end_pos = size + file_absolute_pos;
-    int stream_end_pos = 0x7FFFFFFF;
+    int restore_point = 0;
     char c = 0;
     
-    if (last_chunk){
-        stream_end_pos = end_pos;
-        ++end_pos;
-    }
+    Pos_Update_Rule pos_update_rule;
     
     chunk -= file_absolute_pos;
     
@@ -530,106 +533,96 @@ cpp_lex_nonalloc(Lex_Data lex_data, char *chunk, int file_absolute_pos, int size
         if (c == ' ' || c == '\n' || c == '\t' || c == '\r' || c == '\f' || c == '\v'){
             for (; pos < end_pos;){
                 c = chunk[pos++];
-                if (lex_data.pp_state != LSPP_default){
-                    if (c == '\n') lex_data.pp_state = LSPP_default;
+                if (S.pp_state != LSPP_default){
+                    if (c == '\n') S.pp_state = LSPP_default;
                 }
                 if (!(c == ' ' || c == '\n' || c == '\t' || c == '\r' || c == '\f' || c == '\v')) break;
             }
             --pos;
         }
         
-        lex_data.token_start = pos;
+        S.token_start = pos;
         
-        lex_data.fsm = {0};
-        for (; lex_data.fsm.emit_token == 0 && pos < end_pos;){
-            if (pos < stream_end_pos){
-                c = chunk[pos++];
-            }
-            else{
-                c = 0;
-                ++pos;
-            }
+        S.fsm = {0};
+        for (; S.fsm.emit_token == 0 && pos < end_pos;){
+            c = chunk[pos++];
 
             {
-                char pp_state = lex_data.pp_state;
-                
-                char state = lex_data.fsm.state;
-                char emit_token =  lex_data.fsm.emit_token;
-                char multi_line = lex_data.fsm.multi_line;
+                fsm = S.fsm;
 
-                switch (pp_state){
+                switch (S.pp_state){
                     case LSPP_error:
-                    state = LS_error_message;
-                    if (c == '\n') emit_token = 1;
+                    fsm.state = LS_error_message;
+                    if (c == '\n') fsm.emit_token = 1;
                     break;
 
                     case LSPP_include:
-                    switch (state){
+                    switch (fsm.state){
                         case LSINC_default:
                         switch (c){
-                            case '"': state = LSINC_quotes; break;
-                            case '<': state = LSINC_pointy; break;
-                            default: state = LSINC_junk; break;
+                            case '"': fsm.state = LSINC_quotes; break;
+                            case '<': fsm.state = LSINC_pointy; break;
+                            default: fsm.state = LSINC_junk; break;
                         }
                         break;
 
                         case LSINC_quotes:
-                        if (c == '"') emit_token = 1;
+                        if (c == '"') fsm.emit_token = 1;
                         break;
 
                         case LSINC_pointy:
-                        if (c == '>') emit_token = 1;
+                        if (c == '>') fsm.emit_token = 1;
                         break;
 
                         case LSINC_junk:
-                        if (c == '\n') emit_token = 1;
+                        if (c == '\n') fsm.emit_token = 1;
                         break;
                     }
                     break;
 
                     default:
-                    switch (state){
+                    switch (fsm.state){
                         case LS_default:
                         if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_'){
-                            state = LS_identifier;
+                            fsm.state = LS_identifier;
                         }
                         else if (c >= '1' && c <= '9'){
-                            state = LS_number;
+                            fsm.state = LS_number;
                         }
                         else if (c == '0'){
-                            state = LS_number0;
+                            fsm.state = LS_number0;
                         }
                         else switch (c){
-                            case '\'': state = LS_char; break;
-                            case '"': state = LS_string; break;
+                            case '\'': fsm.state = LS_char; break;
+                            case '"': fsm.state = LS_string; break;
 
-                            case '/': state = LS_comment_pre; break;
+                            case '/': fsm.state = LS_comment_pre; break;
 
-                            case '.': state = LS_dot; break;
+                            case '.': fsm.state = LS_dot; break;
 
-                            case '<': state = LS_less; break;
-                            case '>': state = LS_more; break;
+                            case '<': fsm.state = LS_less; break;
+                            case '>': fsm.state = LS_more; break;
 
-                            case '-': state = LS_minus; break;
+                            case '-': fsm.state = LS_minus; break;
 
-                            case '&': state = LS_and; break;
-                            case '|': state = LS_or; break;
+                            case '&': fsm.state = LS_and; break;
+                            case '|': fsm.state = LS_or; break;
 
-                            case '+': state = LS_plus; break;
+                            case '+': fsm.state = LS_plus; break;
 
-                            case ':': state = LS_colon; break;
+                            case ':': fsm.state = LS_colon; break;
 
-                            case '*': state = LS_star; break;
+                            case '*': fsm.state = LS_star; break;
 
-                            case '%': state = LS_modulo; break;
-                            case '^': state = LS_caret; break;
+                            case '%': fsm.state = LS_modulo; break;
+                            case '^': fsm.state = LS_caret; break;
 
-                            case '=': state = LS_eq; break;
-                            case '!': state = LS_bang; break;
+                            case '=': fsm.state = LS_eq; break;
+                            case '!': fsm.state = LS_bang; break;
 
-                            case '#': state = LS_pound; break;
+                            case '#': fsm.state = LS_pound; break;
 
-#define OperCase(op,type) case op: emit_token = 1; break;
+#define OperCase(op,type) case op: fsm.emit_token = 1; break;
                             OperCase('{', CPP_TOKEN_BRACE_OPEN);
                             OperCase('}', CPP_TOKEN_BRACE_CLOSE);
 
@@ -653,98 +646,98 @@ cpp_lex_nonalloc(Lex_Data lex_data, char *chunk, int file_absolute_pos, int size
 
                         case LS_identifier:
                         if (!((c >= '0' && c <= '9') || (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_')){
-                            emit_token = 1;
+                            fsm.emit_token = 1;
                         }
                         break;
 
                         case LS_pound:
-                        if (pp_state == LSPP_default){
+                        if (S.pp_state == LSPP_default){
                             if (c == ' ' || c == '\t' || c == '\r' || c == '\f' || c == '\v'){
-                                state = LS_pound;
+                                fsm.state = LS_pound;
                             }
                             else if (c == '\n'){
-                                emit_token = 1;
+                                fsm.emit_token = 1;
                             }
                             else{
-                                state = LS_pp;
+                                fsm.state = LS_pp;
                             }
                         }
                         else{
                             switch (c){
-                                case '#': emit_token = 1; break;
-                                default: emit_token = 1; break;
+                                case '#': fsm.emit_token = 1; break;
+                                default: fsm.emit_token = 1; break;
                             }
                         }
                         break;
 
                         case LS_pp:
                         if (!((c >= '0' && c <= '9') || (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_')){
-                            emit_token = 1;
+                            fsm.emit_token = 1;
                         }
                         break;
 
                         case LS_char:
                         switch(c){
-                            case '\'': emit_token = 1; break;
-                            case '\\': state = LS_char_slashed; break;
+                            case '\'': fsm.emit_token = 1; break;
+                            case '\\': fsm.state = LS_char_slashed; break;
                         }
                         break;
 
                         case LS_char_slashed:
                         switch (c){
                             case '\r': case '\f': case '\v': break;
-                            case '\n': state = LS_string; multi_line |= 1; break;
-                            default: state = LS_char; break;
+                            case '\n': fsm.state = LS_string; fsm.multi_line |= 1; break;
+                            default: fsm.state = LS_char; break;
                         }
                         break;
 
                         case LS_string:
                         switch(c){
-                            case '\"': emit_token = 1; break;
-                            case '\\': state = LS_string_slashed; break;
+                            case '\"': fsm.emit_token = 1; break;
+                            case '\\': fsm.state = LS_string_slashed; break;
                         }
                         break;
 
                         case LS_string_slashed:
                         switch (c){
                             case '\r': case '\f': case '\v': break;
-                            case '\n': state = LS_string; multi_line |= 1; break;
-                            default: state = LS_string; break;
+                            case '\n': fsm.state = LS_string; fsm.multi_line |= 1; break;
+                            default: fsm.state = LS_string; break;
                         }
                         break;
 
                         case LS_number:
                         if (c >= '0' && c <= '9'){
-                            state = LS_number;
+                            fsm.state = LS_number;
                         }
                         else{
                             switch (c){
-                                case '.': state = LS_float; break;
-                                default: emit_token = 1; break;
+                                case '.': fsm.state = LS_float; break;
+                                default: fsm.emit_token = 1; break;
                             }
                         }
                         break;
 
                         case LS_number0:
                         if (c >= '0' && c <= '9'){
-                            state = LS_number;
+                            fsm.state = LS_number;
                         }
                         else if (c == 'x'){
-                            state = LS_hex;
+                            fsm.state = LS_hex;
                         }
                         else if (c == '.'){
-                            state = LS_float;
+                            fsm.state = LS_float;
                         }
                         else{
-                            emit_token = 1;
+                            fsm.emit_token = 1;
                         }
                         break;
 
                         case LS_float:
                         if (!(c >= '0' && c <= '9')){
                             switch (c){
-                                case 'e': state = LS_crazy_float0; break;
-                                default: emit_token = 1; break;
+                                case 'e': fsm.state = LS_crazy_float0; break;
+                                default: fsm.emit_token = 1; break;
                             }
                         }
                         break;
@@ -752,10 +745,10 @@ cpp_lex_nonalloc(Lex_Data lex_data, char *chunk, int file_absolute_pos, int size
                         case LS_crazy_float0:
                         {
                             if ((c >= '0' && c <= '9') || c == '-'){
-                                state = LS_crazy_float1;
+                                fsm.state = LS_crazy_float1;
                             }
                             else{
-                                emit_token = 1;
+                                fsm.emit_token = 1;
                             }
                         }
                         break;
@@ -763,194 +756,191 @@ cpp_lex_nonalloc(Lex_Data lex_data, char *chunk, int file_absolute_pos, int size
                         case LS_crazy_float1:
                         {
                             if (!(c >= '0' && c <= '9')){
-                                emit_token = 1;
+                                fsm.emit_token = 1;
                             }
                         }
                         break;
                         
                         case LS_hex:
                         if (!(c >= '0' && c <= '9' || c >= 'a' && c <= 'f' || c >= 'A' && c <= 'F')){
-                            emit_token = 1;
+                            fsm.emit_token = 1;
                         }
                         break;
 
                         case LS_dot:
                         if (c >= '0' && c <= '9'){
-                            state = LS_float;
+                            fsm.state = LS_float;
                         }
                         else
                             switch (c){
-                            case '.': state = LS_ellipsis; break;
-                            case '*': emit_token = 1; break;
-                            default: emit_token = 1; break;
+                            case '.': fsm.state = LS_ellipsis; break;
+                            case '*': fsm.emit_token = 1; break;
+                            default: fsm.emit_token = 1; break;
                         }
                         break;
 
-                        case LS_ellipsis: emit_token = 1; break;
+                        case LS_ellipsis: fsm.emit_token = 1; break;
 
                         case LS_less:
                         switch (c){
-                            case '<': state = LS_less_less; break;
-                            case '=': emit_token = 1; break;
-                            default: emit_token = 1; break;
+                            case '<': fsm.state = LS_less_less; break;
+                            case '=': fsm.emit_token = 1; break;
+                            default: fsm.emit_token = 1; break;
                         }
                         break;
 
                         case LS_less_less:
                         switch (c){
-                            case '=': emit_token = 1; break;
-                            default: emit_token = 1; break;
+                            case '=': fsm.emit_token = 1; break;
+                            default: fsm.emit_token = 1; break;
                         }
                         break;
 
                         case LS_more:
                         switch (c){
-                            case '>': state = LS_more_more; break;
-                            case '=': emit_token = 1; break;
-                            default: emit_token = 1; break;
+                            case '>': fsm.state = LS_more_more; break;
+                            case '=': fsm.emit_token = 1; break;
+                            default: fsm.emit_token = 1; break;
                         }
                         break;
 
                         case LS_more_more:
                         switch (c){
-                            case '=': emit_token = 1; break;
-                            default: emit_token = 1; break;
+                            case '=': fsm.emit_token = 1; break;
+                            default: fsm.emit_token = 1; break;
                         }
                         break;
 
                         case LS_comment_pre:
                         switch (c){
-                            case '/': state = LS_comment; break;
-                            case '*': state = LS_comment_block; break;
-                            case '=': emit_token = 1; break;
-                            default: emit_token = 1; break;
+                            case '/': fsm.state = LS_comment; break;
+                            case '*': fsm.state = LS_comment_block; break;
+                            case '=': fsm.emit_token = 1; break;
+                            default: fsm.emit_token = 1; break;
                         }
                         break;
 
                         case LS_comment:
                         switch (c){
-                            case '\\': state = LS_comment_slashed; break;
-                            case '\n': emit_token = 1; break;
+                            case '\\': fsm.state = LS_comment_slashed; break;
+                            case '\n': fsm.emit_token = 1; break;
                         }
                         break;
 
                         case LS_comment_slashed:
                         switch (c){
                             case '\r': case '\f': case '\v': break;
-                            default: state = LS_comment; break;
+                            default: fsm.state = LS_comment; break;
                         }
                         break;
 
                         case LS_comment_block:
                         switch (c){
-                            case '*': state = LS_comment_block_ending; break;
+                            case '*': fsm.state = LS_comment_block_ending; break;
                         }
                         break;
 
                         case LS_comment_block_ending:
                         switch (c){
-                            case '*': state = LS_comment_block_ending; break;
-                            case '/': emit_token = 1; break;
-                            default: state = LS_comment_block; break;
+                            case '*': fsm.state = LS_comment_block_ending; break;
+                            case '/': fsm.emit_token = 1; break;
+                            default: fsm.state = LS_comment_block; break;
                         }
                         break;
 
                         case LS_minus:
                         switch (c){
-                            case '>': state = LS_arrow; break;
-                            case '-': emit_token = 1; break;
-                            case '=': emit_token = 1; break;
-                            default: emit_token = 1; break;
+                            case '>': fsm.state = LS_arrow; break;
+                            case '-': fsm.emit_token = 1; break;
+                            case '=': fsm.emit_token = 1; break;
+                            default: fsm.emit_token = 1; break;
                         }
                         break;
 
                         case LS_arrow:
                         switch (c){
-                            case '*': emit_token = 1; break;
-                            default: emit_token = 1; break;
+                            case '*': fsm.emit_token = 1; break;
+                            default: fsm.emit_token = 1; break;
                         }
                         break;
 
                         case LS_and:
                         switch (c){
-                            case '&': emit_token = 1; break;
-                            case '=': emit_token = 1; break;
-                            default: emit_token = 1; break;
+                            case '&': fsm.emit_token = 1; break;
+                            case '=': fsm.emit_token = 1; break;
+                            default: fsm.emit_token = 1; break;
                         }
                         break;
 
                         case LS_or:
                         switch (c){
-                            case '|': emit_token = 1; break;
-                            case '=': emit_token = 1; break;
-                            default: emit_token = 1; break;
+                            case '|': fsm.emit_token = 1; break;
+                            case '=': fsm.emit_token = 1; break;
+                            default: fsm.emit_token = 1; break;
                         }
                         break;
 
                         case LS_plus:
                         switch (c){
-                            case '+': emit_token = 1; break;
-                            case '=': emit_token = 1; break;
-                            default: emit_token = 1; break;
+                            case '+': fsm.emit_token = 1; break;
+                            case '=': fsm.emit_token = 1; break;
+                            default: fsm.emit_token = 1; break;
                         }
                         break;
 
                         case LS_colon:
                         switch (c){
-                            case ':': emit_token = 1; break;
-                            default: emit_token = 1; break;
+                            case ':': fsm.emit_token = 1; break;
+                            default: fsm.emit_token = 1; break;
                         }
                         break;
 
                         case LS_star:
                         switch (c){
-                            case '=': emit_token = 1; break;
-                            default: emit_token = 1; break;
+                            case '=': fsm.emit_token = 1; break;
+                            default: fsm.emit_token = 1; break;
                         }
                         break;
 
                         case LS_modulo:
                         switch (c){
-                            case '=': emit_token = 1; break;
-                            default: emit_token = 1; break;
+                            case '=': fsm.emit_token = 1; break;
+                            default: fsm.emit_token = 1; break;
                         }
                         break;
 
                         case LS_caret:
                         switch (c){
-                            case '=': emit_token = 1; break;
-                            default: emit_token = 1; break;
+                            case '=': fsm.emit_token = 1; break;
+                            default: fsm.emit_token = 1; break;
                         }
                         break;
 
                         case LS_eq:
                         switch (c){
-                            case '=': emit_token = 1; break;
-                            default: emit_token = 1; break;
+                            case '=': fsm.emit_token = 1; break;
+                            default: fsm.emit_token = 1; break;
                         }
                         break;
 
                         case LS_bang:
                         switch (c){
-                            case '=': emit_token = 1; break;
-                            default: emit_token = 1; break;
+                            case '=': fsm.emit_token = 1; break;
+                            default: fsm.emit_token = 1; break;
                         }
                         break;
                     }
                     break;
                 }
 
-                lex_data.pp_state = pp_state;
-                
-                lex_data.fsm.state = state;
-                lex_data.fsm.emit_token = emit_token;
-                lex_data.fsm.multi_line = multi_line;
+                S.fsm = fsm;
             }
         }
 
-        if (lex_data.fsm.emit_token){
-            if (lex_data.pp_state == LSPP_include){
-                switch (lex_data.fsm.state){
+        pos_update_rule = PUR_none;
+        if (S.fsm.emit_token){
+            if (S.pp_state == LSPP_include){
+                switch (S.fsm.state){
                     case LSINC_default:break;
 
                     case LSINC_quotes:
@@ -965,7 +955,7 @@ cpp_lex_nonalloc(Lex_Data lex_data, char *chunk, int file_absolute_pos, int size
                     break;
                 }
             }
-            else switch (lex_data.fsm.state){
+            else switch (S.fsm.state){
                 case LS_default:
                 switch (c){
 #define OperCase(op,t) case op: token.type = t; break;
@@ -986,19 +976,19 @@ cpp_lex_nonalloc(Lex_Data lex_data, char *chunk, int file_absolute_pos, int size
                     OperCase('@', CPP_TOKEN_JUNK);
                     OperCase('$', CPP_TOKEN_JUNK);
 #undef OperCase
-                    
+
                     case '\\':
-                    if (lex_data.pp_state == LSPP_default){
+                    if (S.pp_state == LSPP_default){
                         token.type = CPP_TOKEN_JUNK;
-					}
+                    }
                     else{
-                        int restore_point = pos;
+                        restore_point = pos;
                         c = chunk[pos];
                         while (c == ' ' || c == '\t' || c == '\r' || c == '\v' || c == '\f'){
                             c = chunk[pos++];
-						}
+                        }
                         if (c == '\n'){
-                            lex_data.fsm.emit_token = 0;
+                            S.fsm.emit_token = 0;
 						}
                         else{
                             pos = restore_point;
@@ -1016,11 +1006,11 @@ cpp_lex_nonalloc(Lex_Data lex_data, char *chunk, int file_absolute_pos, int size
                 {
                     --pos;
 
-                    int start = lex_data.token_start;
-                    int word_size = pos - lex_data.token_start;
+                    int start = S.token_start;
+                    int word_size = pos - S.token_start;
 
 
-                    if (lex_data.pp_state == LSPP_body_if){
+                    if (S.pp_state == LSPP_body_if){
                         if (match(make_string(chunk + start, word_size), make_lit_string("defined"))){
                             token.type = CPP_TOKEN_DEFINED;
                             token.flags = CPP_TFLAG_IS_OPERATOR | CPP_TFLAG_IS_KEYWORD;
@@ -1064,7 +1054,7 @@ cpp_lex_nonalloc(Lex_Data lex_data, char *chunk, int file_absolute_pos, int size
                 case LS_pp:
                 {
                     --pos;
-                    int start = lex_data.token_start + 1;
+                    int start = S.token_start + 1;
 
                     c = chunk[start];
                     while (start < pos && (c == ' ' || c == '\n' || c == '\t' || c == '\r' || c == '\v' || c == '\f')){
@@ -1080,7 +1070,7 @@ cpp_lex_nonalloc(Lex_Data lex_data, char *chunk, int file_absolute_pos, int size
                         String_And_Flag data = preprops.data[match.index];
                         token.type = (Cpp_Token_Type)data.flags;
                         token.flags = CPP_TFLAG_PP_DIRECTIVE;
-                        lex_data.pp_state = (char)cpp_pp_directive_to_state(token.type);
+                        S.pp_state = (unsigned char)cpp_pp_directive_to_state(token.type);
                     }
                     else{
                         token.type = CPP_TOKEN_JUNK;
@@ -1091,7 +1081,7 @@ cpp_lex_nonalloc(Lex_Data lex_data, char *chunk, int file_absolute_pos, int size
                 case LS_number:
                 case LS_number0:
                 case LS_hex:
-                lex_data.fsm.int_state = LSINT_default;
+                S.fsm.int_state = LSINT_default;
                 
                 {
                     int done = 0;
@@ -1105,57 +1095,57 @@ cpp_lex_nonalloc(Lex_Data lex_data, char *chunk, int file_absolute_pos, int size
                             ++pos;
                         }
                         
-                        switch (lex_data.fsm.int_state){
+                        switch (S.fsm.int_state){
                             case LSINT_default:
                             switch (c){
-                                case 'u': case 'U': lex_data.fsm.int_state = LSINT_u; break;
-                                case 'l': lex_data.fsm.int_state = LSINT_l; break;
-                                case 'L': lex_data.fsm.int_state = LSINT_L; break;
+                                case 'u': case 'U': S.fsm.int_state = LSINT_u; break;
+                                case 'l': S.fsm.int_state = LSINT_l; break;
+                                case 'L': S.fsm.int_state = LSINT_L; break;
                                 default: done = 1; break;
 							}
                             break;
                             
                             case LSINT_u:
                             switch (c){
-                                case 'l': lex_data.fsm.int_state = LSINT_ul; break;
-                                case 'L': lex_data.fsm.int_state = LSINT_uL; break;
+                                case 'l': S.fsm.int_state = LSINT_ul; break;
+                                case 'L': S.fsm.int_state = LSINT_uL; break;
                                 default: done = 1; break;
 							}
                             break;
                             
                             case LSINT_l:
                             switch (c){
-                                case 'l': lex_data.fsm.int_state = LSINT_ll; break;
-                                case 'U': case 'u': lex_data.fsm.int_state = LSINT_extra; break;
+                                case 'l': S.fsm.int_state = LSINT_ll; break;
+                                case 'U': case 'u': S.fsm.int_state = LSINT_extra; break;
                                 default: done = 1; break;
 							}
                             break;
                             
                             case LSINT_L:
                             switch (c){
-                                case 'L': lex_data.fsm.int_state = LSINT_ll; break;
-                                case 'U': case 'u': lex_data.fsm.int_state = LSINT_extra; break;
+                                case 'L': S.fsm.int_state = LSINT_ll; break;
+                                case 'U': case 'u': S.fsm.int_state = LSINT_extra; break;
                                 default: done = 1; break;
 							}
                             break;
                             
                             case LSINT_ul:
                             switch (c){
-                                case 'l': lex_data.fsm.int_state = LSINT_extra; break;
+                                case 'l': S.fsm.int_state = LSINT_extra; break;
                                 default: done = 1; break;
 							}
                             break;
                             
                             case LSINT_uL:
                             switch (c){
-                                case 'L': lex_data.fsm.int_state = LSINT_extra; break;
+                                case 'L': S.fsm.int_state = LSINT_extra; break;
                                 default: done = 1; break;
 							}
                             break;
                             
                             case LSINT_ll:
                             switch (c){
-                                case 'u': case 'U': lex_data.fsm.int_state = LSINT_extra; break;
+                                case 'u': case 'U': S.fsm.int_state = LSINT_extra; break;
                                 default: done = 1; break;
 							}
                             break;
@@ -1208,23 +1198,13 @@ cpp_lex_nonalloc(Lex_Data lex_data, char *chunk, int file_absolute_pos, int size
                 case LS_comment: case LS_comment_block_ending:
                 token.type = CPP_TOKEN_COMMENT;
                 token.flags = 0;
-                c = chunk[--pos];
-                while (c == ' ' || c == '\n' || c == '\t' || c == '\r' || c == '\v' || c == '\f'){
-                    --pos;
-                    c = chunk[pos];
-                }
-                ++pos;
+                pos_update_rule = PUR_unget_whitespace;
                 break;
 
                 case LS_error_message:
                 token.type = CPP_TOKEN_ERROR_MESSAGE;
                 token.flags = 0;
-                c = chunk[--pos];
-                while (c == ' ' || c == '\n' || c == '\t' || c == '\r' || c == '\v' || c == '\f'){
-                    --pos;
-                    c = chunk[pos];
-                }
-                ++pos;
+                pos_update_rule = PUR_unget_whitespace;
                 break;
 
                 case LS_dot:
@@ -1421,65 +1401,78 @@ cpp_lex_nonalloc(Lex_Data lex_data, char *chunk, int file_absolute_pos, int size
                 }
                 break;
             }
-
+            
+            switch (pos_update_rule){
+                case PUR_unget_whitespace:
+                c = chunk[--pos];
+                while (c == ' ' || c == '\n' || c == '\t' || c == '\r' || c == '\v' || c == '\f'){
+                    --pos;
+                    c = chunk[pos];
+                }
+                ++pos;
+                break;
+            }
+            
             if ((token.flags & CPP_TFLAG_PP_DIRECTIVE) == 0){
-                switch (lex_data.pp_state){
+                switch (S.pp_state){
                     case LSPP_include:
                     if (token.type != CPP_TOKEN_INCLUDE_FILE){
                         token.type = CPP_TOKEN_JUNK;
                     }
-                    lex_data.pp_state = LSPP_junk;
+                    S.pp_state = LSPP_junk;
                     break;
-
+                    
                     case LSPP_macro_identifier:
-                    if (lex_data.fsm.state != LS_identifier){
+                    if (S.fsm.state != LS_identifier){
                         token.type = CPP_TOKEN_JUNK;
-                        lex_data.pp_state = LSPP_junk;
+                        S.pp_state = LSPP_junk;
                     }
                     else{
-                        lex_data.pp_state = LSPP_body;
+                        S.pp_state = LSPP_body;
                     }
                     break;
-
+                    
                     case LSPP_identifier:
-                    if (lex_data.fsm.state != LS_identifier){
+                    if (S.fsm.state != LS_identifier){
                         token.type = CPP_TOKEN_JUNK;
                     }
-                    lex_data.pp_state = LSPP_junk;
+                    S.pp_state = LSPP_junk;
                     break;
-
+                    
                     case LSPP_number:
                     if (token.type != CPP_TOKEN_INTEGER_CONSTANT){
                         token.type = CPP_TOKEN_JUNK;
-                        lex_data.pp_state = LSPP_junk;
+                        S.pp_state = LSPP_junk;
                     }
                     else{
-                        lex_data.pp_state = LSPP_include;
+                        S.pp_state = LSPP_include;
                     }
                     break;
-
+                    
                     case LSPP_junk:
                     token.type = CPP_TOKEN_JUNK;
                     break;
                 }
             }
             
-            if (lex_data.fsm.emit_token){
-                token.start = lex_data.token_start;
-                token.size = pos - lex_data.token_start;
-                token.flags |= (lex_data.fsm.multi_line)?(CPP_TFLAG_MULTILINE):(0);
-                token.flags |= (lex_data.pp_state != LSPP_default)?(CPP_TFLAG_PP_BODY):(0);
-                token.state_flags = lex_data.pp_state;
-
+            if (S.fsm.emit_token){
+                token.start = S.token_start;
+                token.size = pos - S.token_start;
+                token.flags |= (S.fsm.multi_line)?(CPP_TFLAG_MULTILINE):(0);
+                if ((token.flags & CPP_TFLAG_PP_DIRECTIVE) == 0){
+                    token.flags |= (S.pp_state != LSPP_default)?(CPP_TFLAG_PP_BODY):(0);
+                }
+                token.state_flags = S.pp_state;
+                
                 cpp_push_token_nonalloc(out_tokens, &token_i, token);
             }
         }
     }
-
+    
     token_stack_out->count = token_i;
-
-    if (pos == end_pos) lex_data.completed = 1;
-    return(lex_data);
+    
+    if (pos == end_pos) S.completed = 1;
+    return(S);
 }
 
 }
