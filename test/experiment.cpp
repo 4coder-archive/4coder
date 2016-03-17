@@ -20,6 +20,7 @@
 #include "4cpp_new_lexer.h"
 
 #include <windows.h>
+#include <intrin.h>
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -180,12 +181,17 @@ struct Experiment{
     int passed_total, test_total;
 };
 
+i64 handcoded_lexer_time = 0;
+i64 fsm_lexer_time = 0;
+
 static void
-run_experiment(Experiment *exp, char *filename, int verbose){
+run_experiment(Experiment *exp, char *filename, int verbose, int chunks){
     String extension = {};
     Data file_data;
     Cpp_File file_cpp;
+    new_lex::Lex_Data ld = {0};
     int pass;
+    int k, chunk_size, is_last;
 
     extension = file_extension(make_string_slowly(filename));
 
@@ -193,7 +199,7 @@ run_experiment(Experiment *exp, char *filename, int verbose){
         file_data = dump_file(filename);
         if (file_data.size < (100 << 10)){
             pass = 1;
-            printf("testing on file: %s\n", filename);
+            if (verbose >= 0) printf("testing on file: %s\n", filename);
             exp->test_total++;
             
             exp->correct_stack.count = 0;
@@ -205,13 +211,38 @@ run_experiment(Experiment *exp, char *filename, int verbose){
             file_cpp.data = (char*)file_data.data;
             file_cpp.size = file_data.size;
 
-            cpp_lex_file_nonalloc(file_cpp, &exp->correct_stack, lex_data);
-            new_lex::cpp_lex_nonalloc((char*)file_data.data, 0, file_data.size, &exp->testing_stack);
-
+            {
+                i64 start;
+                
+                start = __rdtsc();
+                cpp_lex_file_nonalloc(file_cpp, &exp->correct_stack, lex_data);
+                handcoded_lexer_time += (__rdtsc() - start);
+                
+                start = __rdtsc();
+                if (chunks){
+                    is_last = 0;
+                    for (k = 0; k < file_data.size; k += chunks){
+                        chunk_size = chunks;
+                        if (chunk_size + k >= file_data.size){
+                            chunk_size = file_data.size - k;
+                            is_last = 1;
+                        }
+                        
+                        ld = new_lex::cpp_lex_nonalloc(ld, (char*)file_data.data + k, k, is_last, chunk_size, &exp->testing_stack);
+					}
+                }
+                else{
+                    new_lex::cpp_lex_nonalloc(ld, (char*)file_data.data, 0, file_data.size, 1, &exp->testing_stack);
+                }
+                fsm_lexer_time += (__rdtsc() - start);
+            }
+            
             if (exp->correct_stack.count != exp->testing_stack.count){
                 pass = 0;
-                printf("error: stack size mismatch %d original and %d testing\n",
-                    exp->correct_stack.count, exp->testing_stack.count);
+                if (verbose >= 0){
+                    printf("error: stack size mismatch %d original and %d testing\n",
+                        exp->correct_stack.count, exp->testing_stack.count);
+                }
             }
 
             int min_count = exp->correct_stack.count;
@@ -224,12 +255,12 @@ run_experiment(Experiment *exp, char *filename, int verbose){
 
                 if (correct->type != testing->type){
                     pass = 0;
-                    if (verbose) printf("type mismatch at token %d\n", j);
+                    if (verbose >= 1) printf("type mismatch at token %d\n", j);
                 }
 
                 if (correct->start != testing->start || correct->size != testing->size){
                     pass = 0;
-                    if (verbose){
+                    if (verbose >= 1){
                         printf("token range mismatch at token %d\n"
                                 "    %d:%d original %d:%d testing\n"
                                 "    %.*s original %.*s testing\n",
@@ -239,19 +270,19 @@ run_experiment(Experiment *exp, char *filename, int verbose){
                             testing->size, file_cpp.data + testing->start);
                     }
                 }
-                
+
                 if (correct->flags != testing->flags){
                     pass = 0;
-                    if (verbose) printf("token flag mismatch at token %d\n", j);
+                    if (verbose >= 1) printf("token flag mismatch at token %d\n", j);
                 }
             }
 
             if (pass){
                 exp->passed_total++;
-                printf("test passed!\n\n");
+                if (verbose >= 0) printf("test passed!\n\n");
             }
             else{
-                printf("test failed, you failed, fix it now!\n\n");
+                if (verbose >= 0) printf("test failed, you failed, fix it now!\n\n");
             }
         }
         
@@ -262,6 +293,9 @@ run_experiment(Experiment *exp, char *filename, int verbose){
 #define BASE_DIR "w:/4ed/data/test/"
 
 int main(){
+    int repeats = 100;
+    int verbose_level = -1;
+    int chunks = 0;
     char test_directory[] = BASE_DIR;
     File_List all_files = {};
     Experiment exp = {};
@@ -271,20 +305,44 @@ int main(){
     
     AllowLocal(test_directory);
     AllowLocal(all_files);
-
+    
 #if 0
-    run_experiment(&exp, BASE_DIR "lexer_test.cpp", 1);
+    (void)(repeats);
+    (void)(verbose_level);
+    
+    run_experiment(&exp, BASE_DIR "crazywords.cpp", 1, chunks);
 #else
     system_set_file_list(&all_files, make_lit_string(test_directory));
-    
-    for (int i = 0; i < all_files.count; ++i){
-        if (all_files.infos[i].folder == 0){
-            run_experiment(&exp, all_files.infos[i].filename.str, 0);
+
+    for (int j = 0; j < repeats; ++j){
+        for (int i = 0; i < all_files.count; ++i){
+            if (all_files.infos[i].folder == 0){
+                run_experiment(&exp, all_files.infos[i].filename.str, verbose_level, chunks);
+            }
         }
     }
 #endif
 
     printf("you passed %d / %d tests\n", exp.passed_total, exp.test_total);
+
+#define OUTLINE(type) "%-30s "type"\n"
+#define OUTLINE_VAR(t, var) #var, (t)var
+    
+    if (exp.passed_total == exp.test_total && exp.passed_total > 1){
+        f32 speed_up = ((f32)handcoded_lexer_time) / fsm_lexer_time;
+        
+        printf(
+            "\nTime information for %d repeates\n"
+                OUTLINE("%d")
+                OUTLINE("%d")
+                OUTLINE("%f"),
+
+                repeats,
+                OUTLINE_VAR(i32, handcoded_lexer_time),
+                OUTLINE_VAR(i32, fsm_lexer_time),
+                OUTLINE_VAR(f32, speed_up)
+        );
+	}
     
     return(0);
 }

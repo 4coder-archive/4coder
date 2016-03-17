@@ -344,6 +344,8 @@ enum Lex_State{
     LS_number,
     LS_number0,
     LS_float,
+    LS_crazy_float0,
+    LS_crazy_float1,
     LS_hex,
     LS_comment_pre,
     LS_comment,
@@ -372,6 +374,17 @@ enum Lex_State{
     LS_count
 };
 
+enum Lex_Int_State{
+	LSINT_default,
+    LSINT_u,
+    LSINT_l,
+    LSINT_L,
+    LSINT_ul,
+    LSINT_uL,
+    LSINT_ll,
+    LSINT_extra
+};
+
 enum Lex_INC_State{
     LSINC_default,
     LSINC_quotes,
@@ -394,18 +407,11 @@ enum Lex_PP_State{
 };
 
 struct Lex_FSM{
-    unsigned short state;
-    char pp_state;
+    char state;
+    char int_state;
     char emit_token;
     char multi_line;
     char completed;
-};
-
-struct Lex_Data{
-    Lex_FSM fsm;
-    char pp_state;
-    char completed;
-    int token_start;
 };
 
 lexer_link Lex_PP_State
@@ -490,8 +496,15 @@ cpp_push_token_nonalloc(Cpp_Token *out_tokens, int *token_i, Cpp_Token token){
     }
 }
 
+struct Lex_Data{
+    Lex_FSM fsm;
+    char pp_state;
+    char completed;
+    int token_start;
+};
+
 lexer_link Lex_Data
-cpp_lex_nonalloc(char *chunk, int file_absolute_pos, int size, Cpp_Token_Stack *token_stack_out){
+cpp_lex_nonalloc(Lex_Data lex_data, char *chunk, int file_absolute_pos, int size, int last_chunk, Cpp_Token_Stack *token_stack_out){
     Cpp_Token *out_tokens = token_stack_out->tokens;
     int token_i = token_stack_out->count;
     int max_token_i = token_stack_out->max_count;
@@ -500,11 +513,13 @@ cpp_lex_nonalloc(char *chunk, int file_absolute_pos, int size, Cpp_Token_Stack *
     
     int pos = file_absolute_pos;
     int end_pos = size + file_absolute_pos;
-    
-    Lex_Data lex_data = {0};
-    Lex_FSM fsm = {0};
-    
+    int stream_end_pos = 0x7FFFFFFF;
     char c = 0;
+    
+    if (last_chunk){
+        stream_end_pos = end_pos;
+        ++end_pos;
+    }
     
     chunk -= file_absolute_pos;
     
@@ -525,10 +540,9 @@ cpp_lex_nonalloc(char *chunk, int file_absolute_pos, int size, Cpp_Token_Stack *
         
         lex_data.token_start = pos;
         
-        fsm = {0};
-        fsm.pp_state = lex_data.pp_state;
-        for (; fsm.emit_token == 0 && pos <= end_pos;){
-            if (pos < end_pos){
+        lex_data.fsm = {0};
+        for (; lex_data.fsm.emit_token == 0 && pos < end_pos;){
+            if (pos < stream_end_pos){
                 c = chunk[pos++];
             }
             else{
@@ -537,10 +551,11 @@ cpp_lex_nonalloc(char *chunk, int file_absolute_pos, int size, Cpp_Token_Stack *
             }
 
             {
-                unsigned short state = fsm.state;
-                char pp_state = fsm.pp_state;
-                char emit_token =  fsm.emit_token;
-                char multi_line = fsm.multi_line;
+                char pp_state = lex_data.pp_state;
+                
+                char state = lex_data.fsm.state;
+                char emit_token =  lex_data.fsm.emit_token;
+                char multi_line = lex_data.fsm.multi_line;
 
                 switch (pp_state){
                     case LSPP_error:
@@ -671,13 +686,14 @@ cpp_lex_nonalloc(char *chunk, int file_absolute_pos, int size, Cpp_Token_Stack *
                         case LS_char:
                         switch(c){
                             case '\'': emit_token = 1; break;
-                            case '\\': state = LS_char_slashed; multi_line |= 1; break;
+                            case '\\': state = LS_char_slashed; break;
                         }
                         break;
 
                         case LS_char_slashed:
                         switch (c){
                             case '\r': case '\f': case '\v': break;
+                            case '\n': state = LS_string; multi_line |= 1; break;
                             default: state = LS_char; break;
                         }
                         break;
@@ -685,13 +701,14 @@ cpp_lex_nonalloc(char *chunk, int file_absolute_pos, int size, Cpp_Token_Stack *
                         case LS_string:
                         switch(c){
                             case '\"': emit_token = 1; break;
-                            case '\\': state = LS_string_slashed; multi_line |= 1; break;
+                            case '\\': state = LS_string_slashed; break;
                         }
                         break;
 
                         case LS_string_slashed:
                         switch (c){
                             case '\r': case '\f': case '\v': break;
+                            case '\n': state = LS_string; multi_line |= 1; break;
                             default: state = LS_string; break;
                         }
                         break;
@@ -726,12 +743,31 @@ cpp_lex_nonalloc(char *chunk, int file_absolute_pos, int size, Cpp_Token_Stack *
                         case LS_float:
                         if (!(c >= '0' && c <= '9')){
                             switch (c){
-                                case 'f': emit_token = 1; break;
+                                case 'e': state = LS_crazy_float0; break;
                                 default: emit_token = 1; break;
                             }
                         }
                         break;
 
+                        case LS_crazy_float0:
+                        {
+                            if ((c >= '0' && c <= '9') || c == '-'){
+                                state = LS_crazy_float1;
+                            }
+                            else{
+                                emit_token = 1;
+                            }
+                        }
+                        break;
+
+                        case LS_crazy_float1:
+                        {
+                            if (!(c >= '0' && c <= '9')){
+                                emit_token = 1;
+                            }
+                        }
+                        break;
+                        
                         case LS_hex:
                         if (!(c >= '0' && c <= '9' || c >= 'a' && c <= 'f' || c >= 'A' && c <= 'F')){
                             emit_token = 1;
@@ -904,17 +940,17 @@ cpp_lex_nonalloc(char *chunk, int file_absolute_pos, int size, Cpp_Token_Stack *
                     break;
                 }
 
-
-                fsm.state = state;
-                fsm.pp_state = pp_state;
-                fsm.emit_token = emit_token;
-                fsm.multi_line = multi_line;
+                lex_data.pp_state = pp_state;
+                
+                lex_data.fsm.state = state;
+                lex_data.fsm.emit_token = emit_token;
+                lex_data.fsm.multi_line = multi_line;
             }
         }
 
-        if (fsm.emit_token){
+        if (lex_data.fsm.emit_token){
             if (lex_data.pp_state == LSPP_include){
-                switch (fsm.state){
+                switch (lex_data.fsm.state){
                     case LSINC_default:break;
 
                     case LSINC_quotes:
@@ -929,7 +965,7 @@ cpp_lex_nonalloc(char *chunk, int file_absolute_pos, int size, Cpp_Token_Stack *
                     break;
                 }
             }
-            else switch (fsm.state){
+            else switch (lex_data.fsm.state){
                 case LS_default:
                 switch (c){
 #define OperCase(op,t) case op: token.type = t; break;
@@ -949,8 +985,27 @@ cpp_lex_nonalloc(char *chunk, int file_absolute_pos, int size, Cpp_Token_Stack *
 
                     OperCase('@', CPP_TOKEN_JUNK);
                     OperCase('$', CPP_TOKEN_JUNK);
-                    OperCase('\\', CPP_TOKEN_JUNK);
 #undef OperCase
+                    
+                    case '\\':
+                    if (lex_data.pp_state == LSPP_default){
+                        token.type = CPP_TOKEN_JUNK;
+					}
+                    else{
+                        int restore_point = pos;
+                        c = chunk[pos];
+                        while (c == ' ' || c == '\t' || c == '\r' || c == '\v' || c == '\f'){
+                            c = chunk[pos++];
+						}
+                        if (c == '\n'){
+                            lex_data.fsm.emit_token = 0;
+						}
+                        else{
+                            pos = restore_point;
+                            token.type = CPP_TOKEN_JUNK;
+						}
+					}
+                    break;
                 }
                 if (c != '@' && c != '$' && c != '\\'){
                     token.flags = CPP_TFLAG_IS_OPERATOR;
@@ -996,11 +1051,11 @@ cpp_lex_nonalloc(char *chunk, int file_absolute_pos, int size, Cpp_Token_Stack *
                 }break;
 
                 case LS_pound:
-                token.flags = CPP_TFLAG_IS_OPERATOR;
+                token.flags = 0;
                 switch (c){
-                    case '=': token.type = CPP_TOKEN_LESSEQ; break;
+                    case '#': token.type = CPP_PP_CONCAT; break;
                     default:
-                    token.type = CPP_TOKEN_LESS;
+                    token.type = CPP_PP_STRINGIFY;
                     --pos;
                     break;
                 }
@@ -1036,19 +1091,99 @@ cpp_lex_nonalloc(char *chunk, int file_absolute_pos, int size, Cpp_Token_Stack *
                 case LS_number:
                 case LS_number0:
                 case LS_hex:
+                lex_data.fsm.int_state = LSINT_default;
+                
+                {
+                    int done = 0;
+                    --pos;
+                    for (; done == 0 && pos <= end_pos;){
+                        if (pos < end_pos){
+                            c = chunk[pos++];
+                        }
+                        else{
+                            c = 0;
+                            ++pos;
+                        }
+                        
+                        switch (lex_data.fsm.int_state){
+                            case LSINT_default:
+                            switch (c){
+                                case 'u': case 'U': lex_data.fsm.int_state = LSINT_u; break;
+                                case 'l': lex_data.fsm.int_state = LSINT_l; break;
+                                case 'L': lex_data.fsm.int_state = LSINT_L; break;
+                                default: done = 1; break;
+							}
+                            break;
+                            
+                            case LSINT_u:
+                            switch (c){
+                                case 'l': lex_data.fsm.int_state = LSINT_ul; break;
+                                case 'L': lex_data.fsm.int_state = LSINT_uL; break;
+                                default: done = 1; break;
+							}
+                            break;
+                            
+                            case LSINT_l:
+                            switch (c){
+                                case 'l': lex_data.fsm.int_state = LSINT_ll; break;
+                                case 'U': case 'u': lex_data.fsm.int_state = LSINT_extra; break;
+                                default: done = 1; break;
+							}
+                            break;
+                            
+                            case LSINT_L:
+                            switch (c){
+                                case 'L': lex_data.fsm.int_state = LSINT_ll; break;
+                                case 'U': case 'u': lex_data.fsm.int_state = LSINT_extra; break;
+                                default: done = 1; break;
+							}
+                            break;
+                            
+                            case LSINT_ul:
+                            switch (c){
+                                case 'l': lex_data.fsm.int_state = LSINT_extra; break;
+                                default: done = 1; break;
+							}
+                            break;
+                            
+                            case LSINT_uL:
+                            switch (c){
+                                case 'L': lex_data.fsm.int_state = LSINT_extra; break;
+                                default: done = 1; break;
+							}
+                            break;
+                            
+                            case LSINT_ll:
+                            switch (c){
+                                case 'u': case 'U': lex_data.fsm.int_state = LSINT_extra; break;
+                                default: done = 1; break;
+							}
+                            break;
+                            
+                            case LSINT_extra:
+                            done = 1;
+                            break;
+                        }
+					}
+                    --pos;
+				}
+                
                 token.type = CPP_TOKEN_INTEGER_CONSTANT;
                 token.flags = 0;
-                --pos;
                 break;
 
                 case LS_float:
+                case LS_crazy_float0:
+                case LS_crazy_float1:
                 token.type = CPP_TOKEN_FLOATING_CONSTANT;
                 token.flags = 0;
-                if (c != 'f'){
-                    --pos;
-                }
+                switch (c){
+                    case 'f': case 'F':
+                    case 'l': case 'L':break;
+                    default: --pos; break;
+				}
                 break;
-
+                
                 case LS_char:
                 token.type = CPP_TOKEN_CHARACTER_CONSTANT;
                 token.flags = 0;
@@ -1280,7 +1415,7 @@ cpp_lex_nonalloc(char *chunk, int file_absolute_pos, int size, Cpp_Token_Stack *
                 switch (c){
                     case '=': token.type = CPP_TOKEN_NOTEQ; break;
                     default:
-                    token.type = CPP_TOKEN_BIT_NOT;
+                    token.type = CPP_TOKEN_NOT;
                     --pos;
                     break;
                 }
@@ -1297,7 +1432,7 @@ cpp_lex_nonalloc(char *chunk, int file_absolute_pos, int size, Cpp_Token_Stack *
                     break;
 
                     case LSPP_macro_identifier:
-                    if (fsm.state != LS_identifier){
+                    if (lex_data.fsm.state != LS_identifier){
                         token.type = CPP_TOKEN_JUNK;
                         lex_data.pp_state = LSPP_junk;
                     }
@@ -1307,7 +1442,7 @@ cpp_lex_nonalloc(char *chunk, int file_absolute_pos, int size, Cpp_Token_Stack *
                     break;
 
                     case LSPP_identifier:
-                    if (fsm.state != LS_identifier){
+                    if (lex_data.fsm.state != LS_identifier){
                         token.type = CPP_TOKEN_JUNK;
                     }
                     lex_data.pp_state = LSPP_junk;
@@ -1328,14 +1463,16 @@ cpp_lex_nonalloc(char *chunk, int file_absolute_pos, int size, Cpp_Token_Stack *
                     break;
                 }
             }
+            
+            if (lex_data.fsm.emit_token){
+                token.start = lex_data.token_start;
+                token.size = pos - lex_data.token_start;
+                token.flags |= (lex_data.fsm.multi_line)?(CPP_TFLAG_MULTILINE):(0);
+                token.flags |= (lex_data.pp_state != LSPP_default)?(CPP_TFLAG_PP_BODY):(0);
+                token.state_flags = lex_data.pp_state;
 
-            token.start = lex_data.token_start;
-            token.size = pos - lex_data.token_start;
-            token.flags |= (fsm.multi_line)?(CPP_TFLAG_MULTILINE):(0);
-            token.flags |= (fsm.pp_state != LSPP_default)?(CPP_TFLAG_PP_BODY):(0);
-            token.state_flags = fsm.pp_state;
-
-            cpp_push_token_nonalloc(out_tokens, &token_i, token);
+                cpp_push_token_nonalloc(out_tokens, &token_i, token);
+            }
         }
     }
 
