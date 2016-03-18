@@ -210,7 +210,7 @@ run_experiment(Experiment *exp, char *filename, int verbose, int chunks){
     int k, chunk_size, is_last;
 
     extension = file_extension(make_string_slowly(filename));
-
+    
     if (match(extension, "cpp") || match(extension, "h")){
         file_data = dump_file(filename);
         if (file_data.size < (100 << 10)){
@@ -226,7 +226,9 @@ run_experiment(Experiment *exp, char *filename, int verbose, int chunks){
 
             file_cpp.data = (char*)file_data.data;
             file_cpp.size = file_data.size;
-
+            
+            ld.tb = (char*)malloc(file_data.size + 1);
+            
             {
                 i64 start;
                 
@@ -245,14 +247,17 @@ run_experiment(Experiment *exp, char *filename, int verbose, int chunks){
                             is_last = 1;
                         }
                         
-                        ld = new_lex::cpp_lex_nonalloc(ld, (char*)file_data.data + k, k, chunk_size, &exp->testing_stack);
+                        int result = new_lex::cpp_lex_nonalloc(&ld, (char*)file_data.data + k, chunk_size, &exp->testing_stack);
+                        if (result == 0 || result == 2) break;
 					}
                 }
                 else{
-                    new_lex::cpp_lex_nonalloc(ld, (char*)file_data.data, 0, file_data.size, &exp->testing_stack);
+                    new_lex::cpp_lex_nonalloc(&ld, (char*)file_data.data, file_data.size, &exp->testing_stack);
                 }
                 time.fsm += (__rdtsc() - start);
             }
+            
+            free(ld.tb);
             
             if (exp->correct_stack.count != exp->testing_stack.count){
                 pass = 0;
@@ -315,13 +320,13 @@ show_time(Times t, int repeats, char *type){
     f32 speed_up = ((f32)t.handcoded) / t.fsm;
     printf(
         "\n%s time for %d repeates\n"
-            OUTLINE("%d")
-            OUTLINE("%d")
+            OUTLINE("%lld")
+            OUTLINE("%lld")
             OUTLINE("%f"),
         type,
         repeats,
-        OUTLINE_VAR(i32, t.handcoded),
-        OUTLINE_VAR(i32, t.fsm),
+        OUTLINE_VAR(i64, t.handcoded),
+        OUTLINE_VAR(i64, t.fsm),
         OUTLINE_VAR(f32, speed_up)
     );
 }
@@ -329,9 +334,17 @@ show_time(Times t, int repeats, char *type){
 #define BASE_DIR "w:/4ed/data/test/"
 
 int main(){
-    int repeats = 1;
-    int verbose_level = 0;
-    int chunks = 64;
+    
+    int repeats = 100;
+    int verbose_level = -1;
+    int chunk_start = 0;
+    int chunk_end = 1024;
+#define TEST_FILE "lexer_test.cpp"    
+#define SINGLE_ITEM 0
+    
+    int chunks = (chunk_start > 0 && chunk_start <= chunk_end);
+    int c = 0;
+    
     char test_directory[] = BASE_DIR;
     File_List all_files = {};
     Experiment exp = {};
@@ -348,16 +361,16 @@ int main(){
     AllowLocal(test_directory);
     AllowLocal(all_files);
     
-#if 1
+#if SINGLE_ITEM
     (void)(repeats);
     (void)(verbose_level);
-    
-#define TEST_FILE "crazywords.cpp"
     
     if (chunks){
         begin_t(&chunk_exp_t);
         printf("With chunks of %d\n", chunks);
-        run_experiment(&chunk_exp, BASE_DIR TEST_FILE, 1, chunks);
+        for (c = chunk_start; c <= chunk_end; ++c){
+            run_experiment(&chunk_exp, BASE_DIR TEST_FILE, 1, c);
+        }
         end_t(&chunk_exp_t);
     }
     
@@ -375,11 +388,21 @@ int main(){
             if (all_files.infos[i].folder == 0){
                 if (chunks){
                     begin_t(&chunk_exp_t);
-                    run_experiment(&chunk_exp, all_files.infos[i].filename.str, verbose_level, chunks);
+                    for (c = chunk_start; c <= chunk_end; ++c){
+                        run_experiment(&chunk_exp, all_files.infos[i].filename.str, verbose_level, c);
+                    }
                     end_t(&chunk_exp_t);
                 }
+                
                 begin_t(&exp_t);
-                run_experiment(&exp, all_files.infos[i].filename.str, verbose_level, 0);
+                if (verbose_level == -1 && chunks){
+                    for (c = chunk_start; c <= chunk_end; ++c){
+                        run_experiment(&exp, all_files.infos[i].filename.str, verbose_level, 0);
+                    }
+                }
+                else{
+                    run_experiment(&exp, all_files.infos[i].filename.str, verbose_level, 0);
+                }
                 end_t(&exp_t);
             }
         }
@@ -387,6 +410,7 @@ int main(){
 #endif
 
     if (chunks){
+        printf("chunks of sizes %d through %d tested\n", chunk_start, chunk_end);
         printf("chunked passed %d / %d tests\n", chunk_exp.passed_total, chunk_exp.test_total);
     }
     
