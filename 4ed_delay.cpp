@@ -130,4 +130,4 @@ delayed_action_repush(Delay *delay, Delayed_Action *act){
 #define delayed_try_kill(delay, ...) delayed_action_(delay, DACT_TRY_KILL, __VA_ARGS__)
 #define delayed_kill(delay, ...) delayed_action_(delay, DACT_KILL, __VA_ARGS__)
 #define delayed_touch_file(delay, ...) delayed_action_(delay, DACT_TOUCH_FILE, __VA_ARGS__)
-#define delayed_close(delay, ...) delayed_action_(delay, DACT_CLOSE, __VA_ARGS__)
+#define delayed_close(delay, ...) delayed_action_(delay, DACT_CLOSE, ##__VA_ARGS__)

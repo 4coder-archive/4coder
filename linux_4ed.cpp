@@ -325,10 +325,23 @@ Sys_Set_File_List_Sig(system_set_file_list){
     char *fname, *cursor, *cursor_start;
     File_Info *info_ptr;
     i32 count, file_count, size, required_size;
-    
+
+    if(directory.size <= 0){
+        if(!directory.str){
+            system_free_memory(file_list->block);
+            file_list->block = 0;
+            file_list->block_size = 0;
+        }
+        file_list->infos = 0;
+        file_list->count = 0;
+        return;
+    }
+
     char* dir = (char*) alloca(directory.size + 1);
     memcpy(dir, directory.str, directory.size);
     dir[directory.size] = 0;
+
+    LINUX_FN_DEBUG("%s", dir);
 
     d = opendir(dir);
     if (d){
@@ -421,14 +434,14 @@ static_assert(
 
 Sys_File_Unique_Hash_Sig(system_file_unique_hash){
     Unique_Hash result = {};
-    struct stat st;
+    struct stat st = {};
 
-    if(stat(filename.str, &st) == -1){
-        perror("sys_file_unique_hash: stat");
-    } else {
+    if(stat(filename.str, &st) == 0){
         memcpy(&result, &st.st_dev, sizeof(st.st_dev));
         memcpy((char*)&result + sizeof(st.st_dev), &st.st_ino, sizeof(st.st_ino));
     }
+
+//    LINUX_FN_DEBUG("%s = %ld:%ld", filename.str, (long)st.st_dev, (long)st.st_ino);
 
     return result;
 }
@@ -526,7 +539,7 @@ Sys_Yield_Coroutine_Sig(system_yield_coroutine){
 }
 
 Sys_CLI_Call_Sig(system_cli_call){
-//    fprintf(stderr, "cli call: %s, %s\n", path, script_name);
+    LINUX_FN_DEBUG("%s %s", path, script_name);
 
     int pipe_fds[2];
     if(pipe(pipe_fds) == -1){
@@ -815,6 +828,8 @@ FILE_EXISTS_SIG(system_file_exists){
         result = stat(buff, &st) == 0 && S_ISREG(st.st_mode);
     }
 
+    LINUX_FN_DEBUG("%s: %d", buff, result);
+
     return(result);
 }
 
@@ -851,6 +866,8 @@ DIRECTORY_CD_SIG(system_directory_cd){
     }
     
     *len = directory.size;
+
+    LINUX_FN_DEBUG("%.*s: %d", directory.size, directory.str, result);
     
     return(result);
 }
@@ -1107,10 +1124,14 @@ Sys_To_Binary_Path(system_to_binary_path){
     b32 translate_success = 0;
     i32 max = out_filename->memory_size;
     i32 size = readlink("/proc/self/exe", out_filename->str, max);
+
+    LINUX_FN_DEBUG();
+
     if (size > 0 && size < max-1){
         out_filename->size = size;
         remove_last_folder(out_filename);
         if (append(out_filename, filename) && terminate_with_null(out_filename)){
+            LINUX_FN_DEBUG("%s", out_filename->str);
             translate_success = 1;
         }
     }
@@ -2140,7 +2161,7 @@ main(int argc, char **argv)
     LinuxResizeTarget(WinWidth, WinHeight);
     b32 keep_running = 1;
 
-    while(keep_running)
+    while(1)
     {
         XEvent PrevEvent = {};
 
@@ -2271,7 +2292,7 @@ main(int argc, char **argv)
 
                 case ClientMessage: {
                     if ((Atom)Event.xclient.data.l[0] == WM_DELETE_WINDOW) {
-                        keep_running = false;
+                        keep_running = 0;
                     }
                     else if ((Atom)Event.xclient.data.l[0] == _NET_WM_PING) {
                         Event.xclient.window = DefaultRootWindow(linuxvars.XDisplay);
@@ -2416,6 +2437,9 @@ main(int argc, char **argv)
         result.redraw = linuxvars.redraw;
         result.lctrl_lalt_is_altgr = 0;
 
+        result.trying_to_kill = !keep_running;
+        result.perform_kill = 0;
+
         u64 start_time = system_time();
 
         linuxvars.app.step(linuxvars.system,
@@ -2427,6 +2451,10 @@ main(int argc, char **argv)
                            linuxvars.clipboard_contents,
                            1, linuxvars.first, linuxvars.redraw,
                            &result);
+
+        if(result.perform_kill){
+            break;
+        }
 
         if (linuxvars.redraw || result.redraw){
             LinuxRedrawTarget();
