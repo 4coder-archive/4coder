@@ -120,7 +120,12 @@ app_get_map_index(Models *models, i32 mapid){
 internal Command_Map*
 app_get_map(Models *models, i32 mapid){
     Command_Map *map = 0;
-    if (mapid < mapid_global) map = models->user_maps + mapid;
+    if (mapid < mapid_global){
+        mapid = app_get_map_index(models, mapid);
+        if (mapid < models->user_map_count){
+            map = models->user_maps + mapid;
+        }
+    }
     else if (mapid == mapid_global) map = &models->map_top;
     else if (mapid == mapid_file) map = &models->map_file;
     return map;
@@ -1596,7 +1601,10 @@ COMMAND_DECL(set_settings){
     REQ_READABLE_VIEW(view);
     REQ_FILE(file, view);
     USE_MODELS(models);
-
+    
+    b32 set_mapid = 0;
+    i32 new_mapid = 0;
+    
     Command_Parameter *end = param_stack_end(&command->part);
     Command_Parameter *param = param_stack_first(&command->part, end);
     for (; param < end; param = param_next(param, end)){
@@ -1649,15 +1657,24 @@ COMMAND_DECL(set_settings){
 
             case par_key_mapid:
             {
+                set_mapid = 1;
                 int v = dynamic_to_int(&param->param.value);
                 if (v == mapid_global) file->settings.base_map_id = mapid_global;
                 else if (v == mapid_file) file->settings.base_map_id = mapid_file;
                 else if (v < mapid_global){
-                    int index = app_get_map_index(models, v);
-                    if (index < models->user_map_count) file->settings.base_map_id = v;
+                    new_mapid = app_get_map_index(models, v);
+                    if (new_mapid  < models->user_map_count) file->settings.base_map_id = v;
                     else file->settings.base_map_id = mapid_file;
                 }
             }break;
+        }
+    }
+    
+    if (set_mapid){
+        for (View_Iter iter = file_view_iter_init(&models->layout, file, 0);
+            file_view_iter_good(iter);
+            iter = file_view_iter_next(iter)){
+            iter.view->map = app_get_map(models, file->settings.base_map_id);
         }
     }
 }

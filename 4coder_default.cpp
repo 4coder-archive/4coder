@@ -7,13 +7,6 @@
 #define UseInterfacesThatArePhasingOut 0
 #include "4coder_helper.h"
 
-// NOTE(allen|a3.3): All of your custom ids should be enumerated
-// as shown here, they may start at 0, and you can only have
-// 2^24 of them so don't be wasteful!
-enum My_Maps{
-    my_code_map
-};
-
 static void
 write_string(Application_Links *app, String string){
     Buffer_Summary buffer = app->get_active_buffer(app);

@@ -3,6 +3,14 @@
 
 unsigned char blink_t = 0;
 
+// NOTE(allen|a3.3): All of your custom ids should be enumerated
+// as shown here, they may start at 0, and you can only have
+// 2^24 of them so don't be wasteful!
+enum My_Maps{
+    my_code_map,
+    my_html_map
+};
+
 HOOK_SIG(my_start){
     exec_command(app, cmdid_open_panel_vsplit);
     exec_command(app, cmdid_change_active_panel);
@@ -99,6 +107,19 @@ CUSTOM_COMMAND_SIG(write_allen_todo){
 
 CUSTOM_COMMAND_SIG(write_allen_note){
     write_string(app, make_lit_string("// NOTE(allen): "));
+}
+
+CUSTOM_COMMAND_SIG(write_h){
+    write_string(app, make_lit_string("<h1></h1>"));
+}
+
+CUSTOM_COMMAND_SIG(write_div){
+    write_string(app, make_lit_string("<div></div>"));
+}
+
+CUSTOM_COMMAND_SIG(begin_html_mode){
+    push_parameter(app, par_key_mapid, my_html_map);
+    exec_command(app, cmdid_set_settings);
 }
 
 CUSTOM_COMMAND_SIG(write_capital){
@@ -291,7 +312,6 @@ void default_get_bindings(Bind_Helper *context){
     bind(context, 'o', MDFR_ALT, open_in_other);
 
     bind(context, 'm', MDFR_ALT, build_search);
-    bind(context, ',', MDFR_ALT, switch_to_compilation);
     bind(context, 'x', MDFR_ALT, execute_arbitrary_command);
     bind(context, 'z', MDFR_ALT, execute_any_cli);
 
@@ -303,6 +323,13 @@ void default_get_bindings(Bind_Helper *context){
     bind(context, '`', MDFR_ALT, improve_theme);
     bind(context, '~', MDFR_ALT, ruin_theme);
 
+    end_map(context);
+    
+    
+    begin_map(context, my_html_map);
+    inherit_map(context, mapid_file);
+    bind(context, 'h', MDFR_ALT, write_h);
+    bind(context, 'd', MDFR_ALT, write_div);
     end_map(context);
 
 
@@ -411,7 +438,7 @@ void default_get_bindings(Bind_Helper *context){
     bind(context, 'O', MDFR_CTRL, cmdid_reopen);
     bind(context, 'w', MDFR_CTRL, cmdid_interactive_save_as);
     bind(context, 's', MDFR_CTRL, cmdid_save);
-
+    
     bind(context, '\n', MDFR_SHIFT, write_and_auto_tab);
     bind(context, ' ', MDFR_SHIFT, cmdid_write_character);
     
@@ -419,6 +446,7 @@ void default_get_bindings(Bind_Helper *context){
     bind(context, 'w', MDFR_ALT | MDFR_CTRL, write_capital);
     bind(context, 'e', MDFR_ALT | MDFR_CTRL, write_capital);
     
+    bind(context, 'T', MDFR_CTRL | MDFR_ALT, begin_html_mode);
     
     end_map(context);
 }

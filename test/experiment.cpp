@@ -317,7 +317,7 @@ run_experiment(Experiment *exp, char *filename, int verbose, int chunks){
 
 void
 show_time(Times t, int repeats, char *type){
-    f32 speed_up = ((f32)t.handcoded) / t.fsm;
+    f32 speed_up = ((f32)t.handcoded) / (t.fsm);
     printf(
         "\n%s time for %d repeates\n"
             OUTLINE("%lld")
@@ -337,8 +337,8 @@ int main(){
     
     int repeats = 100;
     int verbose_level = -1;
-    int chunk_start = 0;
-    int chunk_end = 1024;
+    int chunk_start = 1;
+    int chunk_end = 16;
 #define TEST_FILE "lexer_test.cpp"    
 #define SINGLE_ITEM 0
     
