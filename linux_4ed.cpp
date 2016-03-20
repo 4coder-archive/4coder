@@ -109,21 +109,21 @@ struct Linux_Vars{
     XIM input_method;
     XIMStyle input_style;
     XIC input_context;
-    
-	Key_Input_Data key_data;
+
+    Key_Input_Data key_data;
     Mouse_State mouse_data;
 
     String clipboard_contents;
     String clipboard_outgoing;
-   
+
     Atom atom_CLIPBOARD;
     Atom atom_UTF8_STRING;
     Atom atom_NET_WM_STATE;
     Atom atom_NET_WM_STATE_MAXIMIZED_HORZ;
     Atom atom_NET_WM_STATE_MAXIMIZED_VERT;
 
-	b32 has_xfixes;
-	int xfixes_selection_event;
+    b32 has_xfixes;
+    int xfixes_selection_event;
 
     Application_Mouse_Cursor cursor;
 
@@ -138,7 +138,7 @@ struct Linux_Vars{
     Thread_Group groups[THREAD_GROUP_COUNT];
     sem_t thread_semaphores[THREAD_GROUP_COUNT];
     pthread_mutex_t locks[LOCK_COUNT];
-    
+
     Plat_Settings settings;
     System_Functions *system;
     App_Functions app;
@@ -146,15 +146,17 @@ struct Linux_Vars{
     b32 first;
     b32 redraw;
     b32 vsync;
-    
+
 #if FRED_INTERNAL
     Sys_Bubble internal_bubble;
 #endif
 
     Font_Load_System fnt;
-    
-	Linux_Coroutine coroutine_data[2];
+
+    Linux_Coroutine coroutine_data[2];
     Linux_Coroutine *coroutine_free;
+
+    CLI_Handles cli_self;
 };
 
 #define LINUX_MAX_PASTE_CHARS 0x10000L
@@ -627,7 +629,7 @@ Sys_CLI_End_Update_Sig(system_cli_end_update){
     b32 close_me = 0;
 
     int status;
-    if(waitpid(pid, &status, WNOHANG) > 0){
+    if(pid && waitpid(pid, &status, WNOHANG) > 0){
         close_me = 1;
         cli->exit = WEXITSTATUS(status);
         close(*(int*)&cli->out_read);
@@ -815,7 +817,7 @@ INTERNAL_Sys_Get_Thread_States_Sig(internal_get_thread_states){
 }
 
 INTERNAL_Sys_Debug_Message_Sig(internal_debug_message){
-    printf("%s", message);
+    fprintf(stderr, "%s", message);
 }
 
 internal
@@ -1046,7 +1048,7 @@ LinuxFontConfigGetName(char* approx_name, double pts){
         FcPatternGetString(font, FC_FILE, 0, &fname);
         if(fname){
             result = strdup((char*)fname);
-            printf("Got system font from FontConfig: %s\n", result);
+            fprintf(stderr, "Got system font from FontConfig: %s\n", result);
         }
         FcPatternDestroy(font);
     }
@@ -1255,7 +1257,7 @@ static void gl_log(
     const GLchar* message,
     const void* userParam
                    ){
-    printf("GL DEBUG: %s\n", message);
+    fprintf(stderr, "GL DEBUG: %s\n", message);
 }
 #endif
 
@@ -1277,7 +1279,7 @@ InitializeOpenGLContext(Display *XDisplay, Window XWindow, GLXFBConfig &bestFbc,
         XSetErrorHandler(&ctxErrorHandler);
     if (!glXCreateContextAttribsARB)
     {
-        printf( "glXCreateContextAttribsARB() not found"
+        fprintf(stderr,  "glXCreateContextAttribsARB() not found"
                 " ... using old-style GLX context\n" );
         ctx = glXCreateNewContext( XDisplay, bestFbc, GLX_RGBA_TYPE, 0, True );
     } 
@@ -1294,21 +1296,21 @@ InitializeOpenGLContext(Display *XDisplay, Window XWindow, GLXFBConfig &bestFbc,
                 None
             };
 
-        printf("Attribs: %d %d %d %d %d\n",
+        fprintf(stderr, "Attribs: %d %d %d %d %d\n",
                context_attribs[0],
                context_attribs[1],
                context_attribs[2],
                context_attribs[3],
                context_attribs[4]);
  
-        printf( "Creating context\n" );
+        fprintf(stderr,  "Creating context\n" );
         ctx = glXCreateContextAttribsARB( XDisplay, bestFbc, 0,
                                           True, context_attribs );
  
         XSync( XDisplay, False );
         if ( !ctxErrorOccurred && ctx )
         {
-            printf( "Created GL 4.3 context\n" );
+            fprintf(stderr,  "Created GL 4.3 context\n" );
         }
         else
         {
@@ -1317,7 +1319,7 @@ InitializeOpenGLContext(Display *XDisplay, Window XWindow, GLXFBConfig &bestFbc,
             context_attribs[1] = 3;
             context_attribs[3] = 1;
  
-            printf( "Creating context\n" );
+            fprintf(stderr,  "Creating context\n" );
             ctx = glXCreateContextAttribsARB( XDisplay, bestFbc, 0,
                                               True, context_attribs );
  
@@ -1325,7 +1327,7 @@ InitializeOpenGLContext(Display *XDisplay, Window XWindow, GLXFBConfig &bestFbc,
 
             if ( !ctxErrorOccurred && ctx )
             {
-                printf( "Created GL 3.1 context\n" );
+                fprintf(stderr,  "Created GL 3.1 context\n" );
             }
             else
             {
@@ -1334,7 +1336,7 @@ InitializeOpenGLContext(Display *XDisplay, Window XWindow, GLXFBConfig &bestFbc,
  
                 ctxErrorOccurred = false;
  
-                printf( "Failed to create GL 4.0 context"
+                fprintf(stderr,  "Failed to create GL 4.0 context"
                         " ... using old-style GLX context\n" );
                 ctx = glXCreateContextAttribsARB( XDisplay, bestFbc, 0, 
                                                   True, context_attribs );
@@ -1349,20 +1351,20 @@ InitializeOpenGLContext(Display *XDisplay, Window XWindow, GLXFBConfig &bestFbc,
  
     if ( ctxErrorOccurred || !ctx )
     {
-        printf( "Failed to create an OpenGL context\n" );
+        fprintf(stderr,  "Failed to create an OpenGL context\n" );
         exit(1);
     }
  
     if ( ! glXIsDirect ( XDisplay, ctx ) )
     {
-        printf( "Indirect GLX rendering context obtained\n" );
+        fprintf(stderr,  "Indirect GLX rendering context obtained\n" );
     }
     else
     {
-        printf( "Direct GLX rendering context obtained\n" );
+        fprintf(stderr,  "Direct GLX rendering context obtained\n" );
     }
     
-    printf( "Making context current\n" );
+    fprintf(stderr,  "Making context current\n" );
     glXMakeCurrent( XDisplay, XWindow, ctx );
     
     GLint n;
@@ -1373,10 +1375,10 @@ InitializeOpenGLContext(Display *XDisplay, Window XWindow, GLXFBConfig &bestFbc,
     //TODO(inso): glGetStringi is required in core profile if the GL version is >= 3.0
     char *Extensions = (char *)glGetString(GL_EXTENSIONS);
 
-    printf("GL_VENDOR: %s\n", Vendor);
-    printf("GL_RENDERER: %s\n", Renderer);
-    printf("GL_VERSION: %s\n", Version);
-//    printf("GL_EXTENSIONS: %s\n", Extensions);
+    fprintf(stderr, "GL_VENDOR: %s\n", Vendor);
+    fprintf(stderr, "GL_RENDERER: %s\n", Renderer);
+    fprintf(stderr, "GL_VERSION: %s\n", Version);
+//    fprintf(stderr, "GL_EXTENSIONS: %s\n", Extensions);
 
     //NOTE(inso): enable vsync if available. this should probably be optional
     if(strstr(glxExts, "GLX_EXT_swap_control ")){
@@ -1389,7 +1391,7 @@ InitializeOpenGLContext(Display *XDisplay, Window XWindow, GLXFBConfig &bestFbc,
             unsigned int swap_val = 0;
             glXQueryDrawable(XDisplay, XWindow, GLX_SWAP_INTERVAL_EXT, &swap_val);
             linuxvars.vsync = swap_val == 1;
-            printf("VSync enabled? %s.\n", linuxvars.vsync ? "Yes" : "No");
+            fprintf(stderr, "VSync enabled? %s.\n", linuxvars.vsync ? "Yes" : "No");
         }
     } else if(strstr(glxExts, "GLX_MESA_swap_control ")){
         PFNGLXSWAPINTERVALMESAPROC glx_swap_interval_mesa = 
@@ -1402,11 +1404,11 @@ InitializeOpenGLContext(Display *XDisplay, Window XWindow, GLXFBConfig &bestFbc,
             glx_swap_interval_mesa(1);
             if(glx_get_swap_interval_mesa){
                 linuxvars.vsync = glx_get_swap_interval_mesa();
-                printf("VSync enabled? %s (MESA)\n", linuxvars.vsync ? "Yes" : "No");
+                fprintf(stderr, "VSync enabled? %s (MESA)\n", linuxvars.vsync ? "Yes" : "No");
             } else {
                 // NOTE(inso): assume it worked?
                 linuxvars.vsync = 1;
-                puts("VSync enabled? possibly (MESA)");
+                fputs("VSync enabled? possibly (MESA)", stderr);
             }
         }
     } else if(strstr(glxExts, "GLX_SGI_swap_control ")){
@@ -1417,16 +1419,16 @@ InitializeOpenGLContext(Display *XDisplay, Window XWindow, GLXFBConfig &bestFbc,
             glx_swap_interval_sgi(1);
             //NOTE(inso): The SGI one doesn't seem to have a way to confirm we got it...
             linuxvars.vsync = 1;
-            puts("VSync enabled? hopefully (SGI)");
+            fputs("VSync enabled? hopefully (SGI)", stderr);
         }
     } else {
-        puts("VSync enabled? nope, no suitable extension");
+        fputs("VSync enabled? nope, no suitable extension", stderr);
     }
 
 #if FRED_INTERNAL
     PFNGLDEBUGMESSAGECALLBACKARBPROC gl_dbg_callback = (PFNGLDEBUGMESSAGECALLBACKARBPROC)glXGetProcAddress((const GLubyte*)"glDebugMessageCallback");
     if(gl_dbg_callback){
-        puts("enabling gl debug");
+        fputs("enabling gl debug", stderr);
         gl_dbg_callback(&gl_log, 0);
         glEnable(GL_DEBUG_OUTPUT);
     }
@@ -1448,10 +1450,10 @@ GLXCanUseFBConfig(Display *XDisplay)
     int GLXMajor, GLXMinor;
 
     char *XVendor = ServerVendor(XDisplay);
-    printf("XWindows vendor: %s\n", XVendor);
+    fprintf(stderr, "XWindows vendor: %s\n", XVendor);
     if(glXQueryVersion(XDisplay, &GLXMajor, &GLXMinor))
     {
-        printf("GLX version %d.%d\n", GLXMajor, GLXMinor);
+        fprintf(stderr, "GLX version %d.%d\n", GLXMajor, GLXMinor);
         if(((GLXMajor == 1 ) && (GLXMinor >= 3)) ||
            (GLXMajor > 1))
         {
@@ -1509,14 +1511,14 @@ ChooseGLXConfig(Display *XDisplay, int XScreenIndex)
                 XVisualInfo *VisualInfo = glXGetVisualFromFBConfig(XDisplay, Config);
 
 #if 0
-                printf("  Option %d:\n", ConfigIndex);
-                printf("    Depth: %d\n", VisualInfo->depth);
-                printf("    Bits per channel: %d\n", VisualInfo->bits_per_rgb);
-                printf("    Mask: R%06x G%06x B%06x\n",
+                fprintf(stderr, "  Option %d:\n", ConfigIndex);
+                fprintf(stderr, "    Depth: %d\n", VisualInfo->depth);
+                fprintf(stderr, "    Bits per channel: %d\n", VisualInfo->bits_per_rgb);
+                fprintf(stderr, "    Mask: R%06x G%06x B%06x\n",
                        (uint32)VisualInfo->red_mask,
                        (uint32)VisualInfo->green_mask,
                        (uint32)VisualInfo->blue_mask);
-                printf("    Class: %d\n", VisualInfo->c_class);
+                fprintf(stderr, "    Class: %d\n", VisualInfo->c_class);
 #endif
             
 #if 0
@@ -1529,7 +1531,7 @@ ChooseGLXConfig(Display *XDisplay, int XScreenIndex)
                         glXGetFBConfigAttrib(XDisplay, Config, ValueInfo.ID, &Value);
                         if(DiffValues[ValueIndex] != Value)
                         {
-                            printf("    %s: %d\n", ValueInfo.Name, Value);
+                            fprintf(stderr, "    %s: %d\n", ValueInfo.Name, Value);
                             DiffValues[ValueIndex] = Value;
                         }
                     }}
@@ -1568,16 +1570,16 @@ InitializeXInput(Display *dpy, Window XWindow)
         int major = 2, minor = 0;
         if(XIQueryVersion(dpy, &major, &minor) != BadRequest)
         {
-            printf("XInput initialized version %d.%d\n", major, minor);
+            fprintf(stderr, "XInput initialized version %d.%d\n", major, minor);
         }
         else
         {
-            printf("XI2 not available. Server supports %d.%d\n", major, minor);
+            fprintf(stderr, "XI2 not available. Server supports %d.%d\n", major, minor);
         }
     }
     else
     {
-        printf("X Input extension not available.\n");
+        fprintf(stderr, "X Input extension not available.\n");
     }
 
     /*
@@ -1609,7 +1611,7 @@ InitializeXInput(Display *dpy, Window XWindow)
          ++DeviceIndex)
         {
             XIDeviceInfo *Device = DeviceInfo + DeviceIndex;
-            printf("Device %d: %s\n", Device->deviceid, Device->name);
+            fprintf(stderr, "Device %d: %s\n", Device->deviceid, Device->name);
         }}
     XIFreeDeviceInfo(DeviceInfo);
 #endif
@@ -1656,7 +1658,7 @@ InitializeXInput(Display *dpy, Window XWindow)
 
 	setlocale(LC_ALL, "");
     XSetLocaleModifiers("");
-	printf("Supported locale?: %s.\n", XSupportsLocale() ? "Yes" : "No");
+	fprintf(stderr, "Supported locale?: %s.\n", XSupportsLocale() ? "Yes" : "No");
     // TODO(inso): handle the case where it isn't supported somehow?
 
     XSelectInput(
@@ -1709,13 +1711,13 @@ InitializeXInput(Display *dpy, Window XWindow)
             }
             else{
                 result = {};
-                puts("Could not get minimum required input style");
+                fputs("Could not get minimum required input style", stderr);
             }
         }
     }
     else{
         result = {};
-        puts("Could not open X Input Method");
+        fputs("Could not open X Input Method", stderr);
     }
 
     return(result);
@@ -1833,7 +1835,19 @@ main(int argc, char **argv)
     for (curdir_size = 0; curdir_mem[curdir_size]; ++curdir_size);
     
     current_directory = make_string(curdir_mem, curdir_size, curdir_req);
-    
+
+    int stdout_redir[2] = {};
+    if(pipe(stdout_redir) == -1){
+        perror("pipe");
+    } else {
+        if(dup2(stdout_redir[1], STDOUT_FILENO) == -1){
+            perror("dup2");
+        } else {
+            memcpy(&linuxvars.cli_self.out_read, stdout_redir, sizeof(int));
+            memcpy(&linuxvars.cli_self.out_write, stdout_redir + 1, sizeof(int));
+        }
+    }
+
     Command_Line_Parameters clparams;
     clparams.argv = argv;
     clparams.argc = argc;
@@ -1852,7 +1866,7 @@ main(int argc, char **argv)
     
     if (output_size > 0){
         // TODO(allen): crt free version
-        printf("%.*s", output_size, (char*)memory_vars.target_memory);
+        fprintf(stderr, "%.*s", output_size, (char*)memory_vars.target_memory);
     }
     if (output_size != 0) return 0;
 
@@ -1886,17 +1900,17 @@ main(int argc, char **argv)
 
         if (linuxvars.custom_api.get_alpha_4coder_version == 0 ||
             linuxvars.custom_api.get_alpha_4coder_version(MAJOR, MINOR, PATCH) == 0){
-            printf("failed to use 4coder_custom.so: version mismatch\n");
+            fprintf(stderr, "failed to use 4coder_custom.so: version mismatch\n");
         }
         else{
             linuxvars.custom_api.get_bindings = (Get_Binding_Data_Function*)
                 dlsym(linuxvars.custom, "get_bindings");
         
             if (linuxvars.custom_api.get_bindings == 0){
-                printf("failed to use 4coder_custom.so: get_bindings not exported\n");
+                fprintf(stderr, "failed to use 4coder_custom.so: get_bindings not exported\n");
             }
             else{
-                printf("successfully loaded 4coder_custom.so\n");
+                fprintf(stderr, "successfully loaded 4coder_custom.so\n");
             }
         }
     }
@@ -2032,7 +2046,7 @@ main(int argc, char **argv)
             int xdpi = dw / (dw_mm / 25.4);
             int ydpi = dh / (dh_mm / 25.4);
 
-            printf("%dx%d - %dmmx%dmm DPI: %dx%d\n", dw, dh, dw_mm, dh_mm, xdpi, ydpi);
+            fprintf(stderr, "%dx%d - %dmmx%dmm DPI: %dx%d\n", dw, dh, dw_mm, dh_mm, xdpi, ydpi);
 
             linuxvars.target.dpi = xdpi > ydpi ? xdpi : ydpi;
         }
@@ -2476,6 +2490,7 @@ main(int argc, char **argv)
         linuxvars.app.step(linuxvars.system,
                            &input_data,
                            &mouse,
+                           linuxvars.cli_self,
                            &linuxvars.target,
                            &memory_vars,
                            &exchange_vars,
