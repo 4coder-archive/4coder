@@ -187,7 +187,11 @@ struct Render_Target{
     Draw_Push_Clip *push_clip;
     Draw_Pop_Clip *pop_clip;
     Draw_Push_Piece *push_piece;
+    
+    i32 dpi;
 };
+
+#define DpiMultiplier(n,dpi) ((n) * (dpi) / 96)
 
 inline i32_Rect
 rect_from_target(Render_Target *target){

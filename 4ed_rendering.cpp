@@ -386,33 +386,33 @@ draw_font_load(void *base_block, i32 size,
     Render_Font *font_out,
     char *filename_untranslated,
     i32 pt_size,
-    i32 tab_width){
+    i32 tab_width,
+    i32 oversample){
 
     char space_[1024];
     String filename = make_fixed_width_string(space_);
     b32 translate_success = system_to_binary_path(&filename, filename_untranslated);
     if (!translate_success) return 0;
-        
+
     i32 result = 1;
     Data file;
     file = system_load_file(filename.str);
-    
+
     Partition partition_ = partition_open(base_block, size);
     Partition *partition = &partition_;
-    
+
     stbtt_packedchar *chardata = font_out->chardata;
 
-    i32 oversample = 2;
-    
+
     i32 tex_width, tex_height;
     tex_width = pt_size*128*oversample;
     tex_height = pt_size*2*oversample;
     void *block = push_block(partition, tex_width * tex_height);
-    
+
     if (!file.data){
         result = 0;
     }
-    
+
     else{
         stbtt_fontinfo font;
         if (!stbtt_InitFont(&font, (u8*)file.data, 0)){
@@ -421,21 +421,21 @@ draw_font_load(void *base_block, i32 size,
         else{
             i32 ascent, descent, line_gap;
             f32 scale;
-            
+
             stbtt_GetFontVMetrics(&font, &ascent, &descent, &line_gap);
             scale = stbtt_ScaleForPixelHeight(&font, (f32)pt_size);
-            
+
             f32 scaled_ascent, scaled_descent, scaled_line_gap;
-            
+
             scaled_ascent = scale*ascent;
             scaled_descent = scale*descent;
             scaled_line_gap = scale*line_gap;
-            
+
             font_out->height = (i32)(scaled_ascent - scaled_descent + scaled_line_gap);
             font_out->ascent = (i32)(scaled_ascent);
             font_out->descent = (i32)(scaled_descent);
             font_out->line_skip = (i32)(scaled_line_gap);
-            
+
             font_out->tex_width = tex_width;
             font_out->tex_height = tex_height;
 
@@ -444,7 +444,7 @@ draw_font_load(void *base_block, i32 size,
             if (stbtt_PackBegin(&spc, (u8*)block, tex_width, tex_height, tex_width, 1, partition)){
                 stbtt_PackSetOversampling(&spc, oversample, oversample);
                 if (stbtt_PackFontRange(&spc, (u8*)file.data, 0,
-                                        STBTT_POINT_SIZE((f32)pt_size), 0, 128, chardata)){
+                        STBTT_POINT_SIZE((f32)pt_size), 0, 128, chardata)){
                     // do nothing
                 }
                 else{
@@ -461,21 +461,21 @@ draw_font_load(void *base_block, i32 size,
                 GLuint font_tex;
                 glGenTextures(1, &font_tex);
                 glBindTexture(GL_TEXTURE_2D, font_tex);
-                
+
                 glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
                 glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
                 glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-                
+
                 glTexImage2D(GL_TEXTURE_2D, 0, GL_ALPHA, tex_width, tex_height, 0, GL_ALPHA, GL_UNSIGNED_BYTE, block);
-                
+
                 font_out->tex = font_tex;
                 glBindTexture(GL_TEXTURE_2D, 0);
-                
+
                 font_out->chardata['\r'] = font_out->chardata[' '];
                 font_out->chardata['\n'] = font_out->chardata[' '];
                 font_out->chardata['\t'] = font_out->chardata[' '];
                 font_out->chardata['\t'].xadvance *= tab_width;
-            
+
                 i32 max_advance = 0;
                 for (u8 code_point = 0; code_point < 128; ++code_point){
                     if (stbtt_FindGlyphIndex(&font, code_point) != 0){
@@ -490,11 +490,11 @@ draw_font_load(void *base_block, i32 size,
                 }
                 font_out->advance = max_advance - 1;
             }
-            
+
         }
         system_free_memory(file.data);
     }
-    
+
     return result;
 }
 

@@ -1437,14 +1437,16 @@ Win32Callback(HWND hwnd, UINT uMsg,
         }
         
         Font_Load_Parameters *params = win32vars.fnt.params + lParam;
-
+        i32 oversample = DpiMultiplier(2, win32vars.target.dpi);
+        
         for (b32 success = 0; success == 0;){
             success = draw_font_load(win32vars.fnt.part.base,
                 win32vars.fnt.part.max,
                 params->font_out,
                 params->filename,
                 params->pt_size,
-                params->tab_width);
+                params->tab_width,
+                oversample);
 
             if (!success){
                 Win32ScratchPartitionDouble(&win32vars.fnt.part);
@@ -1893,6 +1895,9 @@ main(int argc, char **argv){
         window_style |= WS_MAXIMIZE;
     }
     
+    // TODO(allen): not Windows XP compatible, do we care?
+    SetProcessDPIAware();
+    
     HWND window_handle = {};
     window_handle = CreateWindowA(
         window_class.lpszClassName,
@@ -1910,6 +1915,14 @@ main(int argc, char **argv){
     win32vars.window_handle = window_handle;
     HDC hdc = GetDC(window_handle);
     win32vars.window_hdc = hdc;
+    
+    i32 xdpi = GetDeviceCaps(hdc, LOGPIXELSX);
+    i32 ydpi = GetDeviceCaps(hdc, LOGPIXELSY);
+    
+    win32vars.target.dpi = xdpi;
+    if (win32vars.target.dpi < ydpi){
+        win32vars.target.dpi = ydpi;
+    }
     
     GetClientRect(window_handle, &window_rect);
     
@@ -1976,7 +1989,6 @@ main(int argc, char **argv){
         }
     }
 
-    
     File_Slot file_slots[32];
     sysshared_init_file_exchange(&exchange_vars, file_slots, ArrayCount(file_slots), 0);
     

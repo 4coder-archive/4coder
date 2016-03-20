@@ -3299,42 +3299,40 @@ App_Init_Sig(app_init){
             i32 name_len;
             i32 pt_size;
         };
-
-#define LitStr(n) n, sizeof(n)-1
         
         int font_size = 16;
         
         if (font_size < 8) font_size = 8;
         
         Font_Setup font_setup[] = {
-            {LitStr("LiberationSans-Regular.ttf"),
-                LitStr("liberation sans"),
+            {literal("LiberationSans-Regular.ttf"),
+                literal("liberation sans"),
                 font_size},
 
-            {LitStr("liberation-mono.ttf"),
-                LitStr("liberation mono"),
+            {literal("liberation-mono.ttf"),
+                literal("liberation mono"),
                 font_size},
 
-            {LitStr("Hack-Regular.ttf"),
-                LitStr("hack"),
+            {literal("Hack-Regular.ttf"),
+                literal("hack"),
                 font_size},
 
-            {LitStr("CutiveMono-Regular.ttf"),
-                LitStr("cutive mono"),
+            {literal("CutiveMono-Regular.ttf"),
+                literal("cutive mono"),
                 font_size},
 
-            {LitStr("Inconsolata-Regular.ttf"),
-                LitStr("inconsolata"),
+            {literal("Inconsolata-Regular.ttf"),
+                literal("inconsolata"),
                 font_size},
         };
         i32 font_count = ArrayCount(font_setup);
-
+        
         for (i32 i = 0; i < font_count; ++i){
             String file_name = make_string(font_setup[i].c_file_name,
                 font_setup[i].file_name_len);
             String name = make_string(font_setup[i].c_name,
                 font_setup[i].name_len);
-            i32 pt_size = font_setup[i].pt_size;
+            i32 pt_size = DpiMultiplier(font_setup[i].pt_size, target->dpi);
 
             font_set_add(partition, models->font_set, file_name, name, pt_size);
         }
@@ -3430,11 +3428,16 @@ App_Step_Sig(app_step){
 
             time_stamp = system->file_time_stamp(make_c_str(file->name.source_path));
 
-            // TODO(allen): This is a bit wasteful! Let's dial it in a bit.
             if (time_stamp > 0){
+                File_Sync_State prev_sync = buffer_get_sync(file);
+                
                 file->state.last_sys_write_time = time_stamp;
+                file->state.sync = buffer_get_sync(file);
+                
                 if (file->state.last_sys_write_time != file->state.last_4ed_write_time){
-                    app_result.redraw = 1;
+                    if (file->state.sync != prev_sync){
+                        app_result.redraw = 1;
+                    }
                 }
             }
         }
@@ -4338,6 +4341,15 @@ App_Step_Sig(app_step){
 
                     view_set_file(view, file, models, system, models->hooks[hook_open_file], &app_links);
                     view->map = app_get_map(models, file->settings.base_map_id);
+
+                    Hook_Function *new_file_fnc = models->hooks[hook_new_file];
+                    if (new_file_fnc){
+                        models->buffer_param_indices[models->buffer_param_count++] = file->id.id;
+                        new_file_fnc(&app_links);
+                        models->buffer_param_count = 0;
+                        file->settings.is_initialized = 1;
+                    }
+
 #if BUFFER_EXPERIMENT_SCALPEL <= 0
                     if (file->settings.tokens_exist)
                         file_first_lex_parallel(system, general, file);

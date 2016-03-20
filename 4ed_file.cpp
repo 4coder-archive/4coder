@@ -81,6 +81,12 @@ struct Undo_Data{
     b32 current_block_normal;
 };
 
+enum File_Sync_State{
+    SYNC_GOOD,
+    SYNC_BEHIND_OS,
+    SYNC_UNSAVED
+};
+
 struct Text_Effect{
     i32 start, end;
     u32 color;
@@ -122,6 +128,7 @@ struct Editing_File_State{
     
     Text_Effect paste_effect;
     
+    File_Sync_State sync;
     u64 last_4ed_write_time;
     u64 last_4ed_edit_time;
     u64 last_sys_write_time;
@@ -746,12 +753,6 @@ hot_directory_first_match(Hot_Directory *hot_directory,
     
     return result;
 }
-
-enum File_Sync_State{
-    SYNC_GOOD,
-    SYNC_BEHIND_OS,
-    SYNC_UNSAVED
-};
 
 inline File_Sync_State
 buffer_get_sync(Editing_File *file){

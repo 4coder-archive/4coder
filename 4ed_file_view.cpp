@@ -280,6 +280,7 @@ file_synchronize_times(System_Functions *system, Editing_File *file, char *filen
         file->state.last_4ed_edit_time = stamp;
         file->state.last_sys_write_time = stamp;
     }
+    file->state.sync = buffer_get_sync(file);
 }
 
 internal i32
@@ -1295,7 +1296,6 @@ view_set_file(
         if (file_is_ready(file)){
             view_measure_wraps(system, &models->mem.general, view);
             view->cursor = view_compute_cursor_from_pos(view, file->state.cursor_pos);
-
             view->reinit_scrolling = 1;
         }
     }

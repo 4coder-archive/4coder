@@ -241,7 +241,7 @@ char delayed_action_specialized_bottom[] =
 "}\n\n";
 
 char delayed_action_macro[] =
-"#define delayed_%s(delay, ...) delayed_action_(delay, DACT_%s, __VA_ARGS__)\n";
+"#define delayed_%s(delay, ...) delayed_action_(delay, DACT_%s, ##__VA_ARGS__)\n";
 
 char delayed_action_repush_function[] =
 "inline Delayed_Action*\n"

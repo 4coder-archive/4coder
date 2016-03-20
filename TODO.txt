@@ -63,16 +63,17 @@
 ; [X] mouse not working on interactive view
 ; [X] reopen effects other view too?
 ; [X] allen's segfaults on linux launch
+; [X] open empty file bug
+; [X] chronal's map setting issue
 ; [] indication on failure to save
 ; [] clean whitespace doesn't appear to be cleaning trailing whitespace anymore???
 ; [] sometimes the main cursor is not the same width as the mark cursor in the same spot
 ; [] tab character wrong width
 ; [] bouncing when scrolling down
 ; [] miblo's off screen cursor thing
+; 
 ; [] linux save jankieness
 ;
-; [] open empty file bug
-; [] chronal's map setting issue
 ;
 ;
 
@@ -96,10 +97,10 @@
 ; [X] improve file limit (now is > 8 million I think)
 ; [X] get key stroke in custom callback
 ; [X] tab option for auto-indent
+; [X] catch unsaved files on close
 ; 
-; [] File status (saved, needs saving, out of sync)
+; [] file status in custom API
 ; [] user file bar string
-; [] catch unsaved files on close
 ;
 ; [] feedback messages
 ; [] command meta data
@@ -113,8 +114,9 @@
 ; search related tech
 ;    [X] replace word (incremental and/or in range)
 ;    [] optimize search
-;    [] make search wrap around beginning/end
-;    [] polish for seeking
+;    [] allow search wrap around beginning/end
+;    [] improved custom API for text "streams"
+;    [] caps insensitivety
 ;
 ; GUI related tech
 ;    [X] consolidate all GUI code properly
