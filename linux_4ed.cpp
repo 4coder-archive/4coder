@@ -283,22 +283,19 @@ LinuxStringDup(String* str, void* data, size_t size){
 
 Sys_File_Time_Stamp_Sig(system_file_time_stamp){
     struct stat info = {};
-    u64 microsecond_timestamp;
+    u64 microsecond_timestamp = 0;
 
-    if(stat(filename, &info) == -1){
-        perror("system_file_time: stat");
-        return 0;
-    }
-
+    if(stat(filename, &info) == 0){
 #if OLD_STAT_NANO_TIME
-    microsecond_timestamp =
-        (info.st_mtime * UINT64_C(1000000)) +
-        (info.st_mtimensec / UINT64_C(1000));
+        microsecond_timestamp =
+            (info.st_mtime * UINT64_C(1000000)) +
+            (info.st_mtimensec / UINT64_C(1000));
 #else
-    microsecond_timestamp =
-        (info.st_mtim.tv_sec * UINT64_C(1000000)) +
-        (info.st_mtim.tv_nsec / UINT64_C(1000));
+        microsecond_timestamp =
+            (info.st_mtim.tv_sec * UINT64_C(1000000)) +
+            (info.st_mtim.tv_nsec / UINT64_C(1000));
 #endif
+    }
 
     LINUX_FN_DEBUG("%s = %" PRIu64, filename, microsecond_timestamp);
 
@@ -404,6 +401,12 @@ Sys_Set_File_List_Sig(system_set_file_list){
         file_list->count = file_count;
 
         closedir(d);
+    } else {
+        system_free_memory(file_list->block);
+        file_list->block = 0;
+        file_list->block_size = 0;
+        file_list->infos = 0;
+        file_list->count = 0;
     }
 }
 
@@ -568,7 +571,6 @@ Sys_CLI_Call_Sig(system_cli_call){
             exit(1);
         };
 
-        //TODO(inso): do spaces in script_name signify multiple args?
         char* argv[] = { "sh", "-c", script_name, NULL };
 
         if(execv("/bin/sh", argv) == -1){
@@ -822,7 +824,7 @@ FILE_EXISTS_SIG(system_file_exists){
     char buff[PATH_MAX] = {};
 
     if(len + 1 > PATH_MAX){
-        fprintf(stderr, "system_directory_has_file: path too long");
+        fputs("system_directory_has_file: path too long\n", stderr);
     } else {
         memcpy(buff, filename, len);
         buff[len] = 0;
@@ -894,24 +896,27 @@ Sys_Load_File_Sig(system_load_file){
 
     fd = open(filename, O_RDONLY);
     if(fd < 0){
-        perror("sys_open_file: open");
+        fprintf(stderr, "sys_open_file: open '%s': %s\n", filename, strerror(errno));
         goto out;
     }
     if(fstat(fd, &info) < 0){
-        perror("sys_open_file: stat");
+        fprintf(stderr, "sys_open_file: stat '%s': %s\n", filename, strerror(errno));
         goto out;
     }
-    if(info.st_size <= 0){
-        printf("st_size < 0: %ld\n", info.st_size);
+    if(info.st_size < 0){
+        fprintf(stderr, "sys_open_file: st_size < 0: %ld\n", info.st_size);
         goto out;
     }
 
-    ptr = (u8*)LinuxGetMemory(info.st_size);
+    // NOTE(inso): add 1 extra byte since malloc(0) can return NULL
+    ptr = (u8*)LinuxGetMemory(info.st_size + 1);
     if(!ptr){
-        puts("null pointer from LGM");
+        fputs("sys_open_file: null pointer from LGM", stderr);
         goto out;
     }
 
+    // NOTE(inso): might as well null terminate with the extra byte
+    ptr[info.st_size] = 0;
     read_ptr = ptr;
     bytes_to_read = info.st_size;
 
@@ -948,7 +953,7 @@ Sys_Save_File_Sig(system_save_file){
     LINUX_FN_DEBUG("%s %d", filename, size);
 
     if(fd < 0){
-        perror("system_save_file: open");
+        fprintf(stderr, "system_save_file: open '%s': %s\n", filename, strerror(errno));
     } else {
         do {
             ssize_t written = write(fd, data, size);
@@ -1055,10 +1060,6 @@ LinuxFontConfigGetName(char* approx_name, double pts){
     return result; 
 }
 #endif
-// TODO(allen): Implement this.  Also where is this
-// macro define? Let's try to organize these functions
-// a little better now that they're starting to settle
-// into their places.
 
 #include "system_shared.cpp"
 #include "4ed_rendering.cpp"
@@ -1105,7 +1106,7 @@ Font_Load_Sig(system_draw_font_load){
         if(success){
             break;
         } else {
-            printf("draw_font_load failed, %d\n", linuxvars.fnt.part.max);
+            fprintf(stderr, "draw_font_load failed, %d\n", linuxvars.fnt.part.max);
             LinuxScratchPartitionDouble(&linuxvars.fnt.part);
         }
     }
@@ -1130,13 +1131,13 @@ Sys_To_Binary_Path(system_to_binary_path){
     i32 max = out_filename->memory_size;
     i32 size = readlink("/proc/self/exe", out_filename->str, max);
 
-    LINUX_FN_DEBUG();
+    LINUX_FN_DEBUG("%d, %d", max, size);
 
     if (size > 0 && size < max-1){
         out_filename->size = size;
         remove_last_folder(out_filename);
         if (append(out_filename, filename) && terminate_with_null(out_filename)){
-            LINUX_FN_DEBUG("%s", out_filename->str);
+            LINUX_FN_DEBUG("%.*s", out_filename->size, out_filename->str);
             translate_success = 1;
         }
     }
@@ -1152,6 +1153,8 @@ LinuxLoadAppCode(){
     if (linuxvars.app_code){
         get_funcs = (App_Get_Functions*)
             dlsym(linuxvars.app_code, "app_get_functions");
+    } else {
+        fprintf(stderr, "dlopen failed: %s\n", dlerror());
     }
     
     if (get_funcs){
@@ -1367,7 +1370,7 @@ InitializeOpenGLContext(Display *XDisplay, Window XWindow, GLXFBConfig &bestFbc,
     char *Renderer = (char *)glGetString(GL_RENDERER);
     char *Version = (char *)glGetString(GL_VERSION);
 
-    //TODO(inso): glGetStringi is required if the GL version is >= 3.0
+    //TODO(inso): glGetStringi is required in core profile if the GL version is >= 3.0
     char *Extensions = (char *)glGetString(GL_EXTENSIONS);
 
     printf("GL_VENDOR: %s\n", Vendor);
@@ -1375,7 +1378,7 @@ InitializeOpenGLContext(Display *XDisplay, Window XWindow, GLXFBConfig &bestFbc,
     printf("GL_VERSION: %s\n", Version);
 //    printf("GL_EXTENSIONS: %s\n", Extensions);
 
-    //TODO(inso): enable vsync if available. this should probably be optional
+    //NOTE(inso): enable vsync if available. this should probably be optional
     if(strstr(glxExts, "GLX_EXT_swap_control ")){
         PFNGLXSWAPINTERVALEXTPROC glx_swap_interval_ext =
             (PFNGLXSWAPINTERVALEXTPROC) glXGetProcAddressARB((const GLubyte*)"glXSwapIntervalEXT");
@@ -1386,7 +1389,7 @@ InitializeOpenGLContext(Display *XDisplay, Window XWindow, GLXFBConfig &bestFbc,
             unsigned int swap_val = 0;
             glXQueryDrawable(XDisplay, XWindow, GLX_SWAP_INTERVAL_EXT, &swap_val);
             linuxvars.vsync = swap_val == 1;
-            printf("VSync enabled? %d\n", linuxvars.vsync);
+            printf("VSync enabled? %s.\n", linuxvars.vsync ? "Yes" : "No");
         }
     } else if(strstr(glxExts, "GLX_MESA_swap_control ")){
         PFNGLXSWAPINTERVALMESAPROC glx_swap_interval_mesa = 
@@ -1399,7 +1402,7 @@ InitializeOpenGLContext(Display *XDisplay, Window XWindow, GLXFBConfig &bestFbc,
             glx_swap_interval_mesa(1);
             if(glx_get_swap_interval_mesa){
                 linuxvars.vsync = glx_get_swap_interval_mesa();
-                printf("VSync enabled? %d (MESA)\n", linuxvars.vsync);
+                printf("VSync enabled? %s (MESA)\n", linuxvars.vsync ? "Yes" : "No");
             } else {
                 // NOTE(inso): assume it worked?
                 linuxvars.vsync = 1;
@@ -1653,7 +1656,7 @@ InitializeXInput(Display *dpy, Window XWindow)
 
 	setlocale(LC_ALL, "");
     XSetLocaleModifiers("");
-	printf("is current locale supported?: %d\n", XSupportsLocale());
+	printf("Supported locale?: %s.\n", XSupportsLocale() ? "Yes" : "No");
     // TODO(inso): handle the case where it isn't supported somehow?
 
     XSelectInput(
@@ -1858,7 +1861,7 @@ main(int argc, char **argv)
     linuxvars.XDisplay = XOpenDisplay(0);
 
     if(!linuxvars.XDisplay){
-        fprintf(stderr, "Can't open display!");
+        fprintf(stderr, "Can't open display!\n");
         return 1;
     }
 
@@ -2010,7 +2013,7 @@ main(int argc, char **argv)
     }
 
     if (!window_setup_success){
-        fprintf(stderr, "Error creating window.");
+        fprintf(stderr, "Error creating window.\n");
         exit(1);
     }
 
