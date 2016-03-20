@@ -1088,7 +1088,9 @@ Font_Load_Sig(system_draw_font_load){
 
     b32 success = 0;
     i32 attempts = 0;
-    
+
+    i32 oversample = (i32)(2.0f * (linuxvars.target.dpi / 96.0f) + 0.5f);
+
     for(; attempts < 3; ++attempts){
         success = draw_font_load(
             linuxvars.fnt.part.base,
@@ -1096,7 +1098,8 @@ Font_Load_Sig(system_draw_font_load){
             font_out,
             chosen_name,
             pt_size,
-            tab_width
+            tab_width,
+            oversample
         );
 
         if(success){
@@ -1370,7 +1373,7 @@ InitializeOpenGLContext(Display *XDisplay, Window XWindow, GLXFBConfig &bestFbc,
     printf("GL_VENDOR: %s\n", Vendor);
     printf("GL_RENDERER: %s\n", Renderer);
     printf("GL_VERSION: %s\n", Version);
-    printf("GL_EXTENSIONS: %s\n", Extensions);
+//    printf("GL_EXTENSIONS: %s\n", Extensions);
 
     //TODO(inso): enable vsync if available. this should probably be optional
     if(strstr(glxExts, "GLX_EXT_swap_control ")){
@@ -2011,6 +2014,28 @@ main(int argc, char **argv)
         exit(1);
     }
 
+    {
+        int scr = DefaultScreen(linuxvars.XDisplay);
+
+        int dw = DisplayWidth(linuxvars.XDisplay, scr);
+        int dh = DisplayHeight(linuxvars.XDisplay, scr);
+
+        int dw_mm = DisplayWidthMM(linuxvars.XDisplay, scr);
+        int dh_mm = DisplayHeightMM(linuxvars.XDisplay, scr);
+
+        if(dw_mm <= 0 || dh_mm <= 0){
+            linuxvars.target.dpi = 96;
+        } else {
+            int xdpi = dw / (dw_mm / 25.4);
+            int ydpi = dh / (dh_mm / 25.4);
+
+            printf("%dx%d - %dmmx%dmm DPI: %dx%d\n", dw, dh, dw_mm, dh_mm, xdpi, ydpi);
+
+            linuxvars.target.dpi = xdpi > ydpi ? xdpi : ydpi;
+        }
+
+    }
+
     //NOTE(inso): Set the window's type to normal
     Atom _NET_WM_WINDOW_TYPE = XInternAtom(linuxvars.XDisplay, "_NET_WM_WINDOW_TYPE", False);
     Atom _NET_WIN_TYPE_NORMAL = XInternAtom(linuxvars.XDisplay, "_NET_WM_WINDOW_TYPE_NORMAL", False);
@@ -2541,6 +2566,8 @@ main(int argc, char **argv)
         }
         ProfileEnd(OS_file_process);
     }
+
+    return 0;
 }
 
 // BOTTOM
