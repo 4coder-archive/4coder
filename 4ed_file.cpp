@@ -105,6 +105,7 @@ struct Editing_File_Settings{
     b8 is_initialized;
     b8 unimportant;
     b8 read_only;
+    b8 never_kill;
 };
 
 // NOTE(allen): This part of the Editing_File is cleared whenever
@@ -174,95 +175,6 @@ struct Editing_File{
     Editing_File_Name name;
     File_ID id;
 };
-
-#if 0
-struct File_Table_Entry{
-    String name;
-    u32 hash;
-    File_ID id;
-};
-
-// TODO(allen):
-// Remove this File_Table and instead use the table in 4tech_table.cpp
-// Instead of hashing by file name use the new Unique_Hash in the system.
-struct File_Table{
-    File_Table_Entry *table;
-    i32 count, max;
-};
-
-internal u32
-get_file_hash(String name){
-    u32 x = 5381;
-    int i = 0;
-    char c;
-    while (i < name.size){
-        c = name.str[i++];
-        x = ((x << 5) + x) + c;
-    }
-    return x;
-}
-
-internal b32
-table_add(File_Table *table, String name, i32 id){
-    Assert(table->count * 3 < table->max * 2);
-    
-    File_Table_Entry entry, e;
-    i32 i;
-    
-    entry.name = name;
-    entry.id.id = id;
-    entry.hash = get_file_hash(name);
-    i = entry.hash % table->max;
-    while ((e = table->table[i]).name.str){
-        if (e.hash == entry.hash && match(e.name, entry.name)){
-            return 1;
-        }
-        i = (i + 1) % table->max;
-    }
-    table->table[i] = entry;
-    ++table->count;
-    
-    return 0;
-}
-
-internal b32
-table_find_pos(File_Table *table, String name, i32 *index){
-    File_Table_Entry e;
-    i32 i;
-    u32 hash;
-
-    hash = get_file_hash(name);
-    i = hash % table->max;
-    while ((e = table->table[i]).name.size){
-        if (e.name.str && e.hash == hash && match(e.name, name)){
-            *index = i;
-            return 1;
-        }
-        i = (i + 1) % table->max;
-    }
-    
-    return 0;
-}
-
-inline b32
-table_find(File_Table *table, String name, File_ID *id){
-    i32 pos;
-    b32 r = table_find_pos(table, name, &pos);
-    if (r) *id = table->table[pos].id;
-    return r;
-}
-
-inline b32
-table_remove(File_Table *table, String name){
-    i32 pos;
-    b32 r = table_find_pos(table, name, &pos);
-    if (r){
-        table->table[pos].name.str = 0;
-        --table->count;
-    }
-    return r;
-}
-#endif
 
 struct Non_File_Table_Entry{
     String name;

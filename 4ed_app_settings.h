@@ -51,6 +51,7 @@ struct Models{
     
     Editing_Layout layout;
     Working_Set working_set;
+    Editing_File *message_buffer;
 
     char hot_dir_base_[256];
     Hot_Directory hot_directory;

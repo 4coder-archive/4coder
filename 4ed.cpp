@@ -131,6 +131,32 @@ app_get_map(Models *models, i32 mapid){
     return map;
 }
 
+inline void
+output_file_append(System_Functions *system, Models *models, Editing_File *file, String value, b32 cursor_at_end){
+    i32 end = buffer_size(&file->state.buffer);
+    i32 next_cursor = 0;
+    if (cursor_at_end){
+        next_cursor = end + value.size;
+    }
+    file_replace_range(system, models, file, end, end, value.str, value.size, next_cursor, 1);
+}
+
+inline void
+do_feedback_message(System_Functions *system, Models *models, String value){
+    Editing_File *file = models->message_buffer;
+
+    if (file){
+        output_file_append(system, models, file, value, 1);
+        
+        i32 pos = buffer_size(&file->state.buffer);
+        for (View_Iter iter = file_view_iter_init(&models->layout, file, 0);
+            file_view_iter_good(iter);
+            iter = file_view_iter_next(iter)){
+            view_cursor_move(iter.view, pos);
+        }
+    }
+}
+
 // Commands
 
 globalvar Application_Links app_links;
@@ -983,7 +1009,7 @@ COMMAND_DECL(reopen){
             models->hooks[hook_open_file], &app_links);
     }
     else{
-        // TODO(allen): feedback message
+        do_feedback_message(system, models, make_lit_string("ERROR: no file load slot available\n"));
     }
 }
 
@@ -1698,6 +1724,9 @@ COMMAND_DECL(command_line){
     i32 script_len = 0;
     u32 flags = CLI_OverlapWithConflict;
     b32 do_in_background = 0;
+    
+    char feedback_space[256];
+    String feedback_str = make_fixed_width_string(feedback_space);
 
     Command_Parameter *end = param_stack_end(&command->part);
     Command_Parameter *param = param_stack_first(&command->part, end);
@@ -1756,7 +1785,17 @@ COMMAND_DECL(command_line){
             if (buffer_id){
                 file = working_set_get_active_file(working_set, buffer_id);
                 if (file && file->settings.read_only == 0){
-                    // TODO(allen): feedback message - file not read only
+                    append(&feedback_str, "ERROR: ");
+                    append(&feedback_str, file->name.live_name);
+                    append(&feedback_str, " is not a read-only buffer\n");
+                    do_feedback_message(system, models, feedback_str);
+                    return;
+                }
+                if (file->settings.never_kill){
+                    append(&feedback_str, "The buffer ");
+                    append(&feedback_str, file->name.live_name);
+                    append(&feedback_str, " is not killable");
+                    do_feedback_message(system, models, feedback_str);
                     return;
                 }
             }
@@ -1764,28 +1803,37 @@ COMMAND_DECL(command_line){
                 file = working_set_contains(system, working_set, make_string(buffer_name, buffer_name_len));
                 if (file){
                     if (file->settings.read_only == 0){
-                        // TODO(allen): feedback message - file not read only
+                        append(&feedback_str, "ERROR: ");
+                        append(&feedback_str, file->name.live_name);
+                        append(&feedback_str, " is not a read-only buffer\n");
+                        do_feedback_message(system, models, feedback_str);
+                        return;
+                    }
+                    if (file->settings.never_kill){
+                        append(&feedback_str, "The buffer ");
+                        append(&feedback_str, file->name.live_name);
+                        append(&feedback_str, " is not killable");
+                        do_feedback_message(system, models, feedback_str);
                         return;
                     }
                 }
                 else{
                     file = working_set_alloc_always(working_set, general);
-                    
-                    file_create_read_only(system, models, file, buffer_name);
-                    working_set_add(system, working_set, file, general);
-                    
                     if (file == 0){
-                        // TODO(allen): feedback message - no available file
+                        append(&feedback_str, "ERROR: unable to  allocate a new buffer\n");
+                        do_feedback_message(system, models, feedback_str);
                         return;
                     }
+                    file_create_read_only(system, models, file, buffer_name);
+                    working_set_add(system, working_set, file, general);
                 }
             }
-            
+
             if (file){
                 i32 proc_count = vars->cli_processes.count;
                 View_Iter iter;
                 i32 i;
-                
+
                 for (i = 0; i < proc_count; ++i){
                     if (procs[i].out_file == file){
                         if (flags & CLI_OverlapWithConflict)
@@ -1795,7 +1843,7 @@ COMMAND_DECL(command_line){
                         break;
                     }
                 }
-                
+
                 if (file){
                     file_clear(system, models, file, 1);
                     file->settings.unimportant = 1;
@@ -1808,11 +1856,12 @@ COMMAND_DECL(command_line){
                     }
                 }
                 else{
-                    // TODO(allen): feedback message - file conflict
+                    append(&feedback_str, "did not begin command-line command because the target buffer is already in use\n");
+                    do_feedback_message(system, models, feedback_str);
                     return;
                 }
             }
-            
+
             if (!path){
                 path = models->hot_directory.string.str;
                 terminate_with_null(&models->hot_directory.string);
@@ -1853,7 +1902,8 @@ COMMAND_DECL(command_line){
             }
         }
         else{
-            // TODO(allen): feedback message - no available process slot
+            append(&feedback_str, "ERROR: no available process slot\n");
+            do_feedback_message(system, models, feedback_str);
             return;
         }
     }
@@ -3415,7 +3465,7 @@ App_Step_Sig(app_step){
         dest->size = eol_convert_in(dest->str, clipboard.str, clipboard.size);
     }
 
-    // TODO(allen): profile this make sure it's not costing me too much power.
+    // TODO(allen): profile this see if it's costing me lots of power (I think it is).
     // NOTE(allen): check files are up to date
     {
         File_Node *node, *used_nodes;
@@ -3453,20 +3503,15 @@ App_Step_Sig(app_step){
         i32 count = vars->cli_processes.count;
         for (i32 i = 0; i < count; ++i){
             CLI_Process *proc = vars->cli_processes.procs + i;
-            Editing_File *out_file = proc->out_file;
+            Editing_File *file = proc->out_file;
 
-            if (out_file != 0){
-                i32 new_cursor = out_file->state.cursor_pos;
+            if (file != 0){
 
                 for (system->cli_begin_update(&proc->cli);
                     system->cli_update_step(&proc->cli, dest, max, &amount);){
                     amount = eol_in_place_convert_in(dest, amount);
-
-                    i32 end = buffer_size(&out_file->state.buffer);
-                    file_replace_range(system, models, out_file,
-                        end, end, dest, amount, end + amount, 1);
+                    output_file_append(system, models, file, make_string(dest, amount), 0);
                     app_result.redraw = 1;
-                    new_cursor = end + amount;
                 }
 
                 if (system->cli_end_update(&proc->cli)){
@@ -3478,16 +3523,13 @@ App_Step_Sig(app_step){
                     append(&str, "exited with code ");
                     append_int_to_str(proc->cli.exit, &str);
 
-                    i32 end = buffer_size(&out_file->state.buffer);
-                    file_replace_range(system, models, out_file,
-                        end, end, str.str, str.size, end + str.size, 1);
+                    output_file_append(system, models, file, str, 0);
                     app_result.redraw = 1;
-                    new_cursor = end + str.size;
                 }
 
-                new_cursor = 0;
+                i32 new_cursor = 0;
 
-                for (View_Iter iter = file_view_iter_init(&models->layout, out_file, 0);
+                for (View_Iter iter = file_view_iter_init(&models->layout, file, 0);
                     file_view_iter_good(iter);
                     iter = file_view_iter_next(iter)){
                     view_cursor_move(iter.view, new_cursor);
@@ -3664,6 +3706,15 @@ App_Step_Sig(app_step){
                 delayed_open_background(&models->delay1, file_name);
             }
         }
+        
+        General_Memory *general = &models->mem.general;
+        Editing_File *file = working_set_alloc_always(&models->working_set, general);
+        file_create_read_only(system, models, file, "*messages*");
+        working_set_add(system, &models->working_set, file, general);
+        file->settings.never_kill = 1;
+        file->settings.unimportant = 1;
+        
+        models->message_buffer = file;
     }
     ProfileEnd(prepare_commands);
 
@@ -4384,11 +4435,11 @@ App_Step_Sig(app_step){
                             file = working_set_contains(system, working_set, string);
                         }
                     }
-                    
-                    if (file){
+
+                    if (file && !file->settings.never_kill){
                         working_set_remove(system, working_set, file->name.source_path);
                         kill_file(system, exchange, models, file,
-                            models->hooks[hook_open_file], &app_links);
+                            models->hooks[hook_open_file], &app_links); 
                     }
                 }break;
 
@@ -4410,7 +4461,7 @@ App_Step_Sig(app_step){
                         }
                     }
 
-                    if (file){
+                    if (file && !file->settings.never_kill){
                         if (buffer_needs_save(file)){
                             view_show_interactive(system, view, &models->map_ui,
                                 IAct_Sure_To_Kill, IInt_Sure_To_Kill, make_lit_string("Are you sure?"));
