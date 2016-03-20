@@ -164,6 +164,10 @@ struct Win32_Vars{
     // it up if needed.
     Win32_Coroutine coroutine_data[2];
     Win32_Coroutine *coroutine_free;
+    
+    // TODO(allen): Initialize this by redirecting std out to these CLI
+    // handles so that the application step can read from them.
+    CLI_Handles cli_self;
 };
 
 globalvar Win32_Vars win32vars;
@@ -989,15 +993,21 @@ Sys_CLI_End_Update_Sig(system_cli_end_update){
     DWORD result = 0;
     
     if (WaitForSingleObject(proc, 0) == WAIT_OBJECT_0){
-        if (GetExitCodeProcess(proc, &result) == 0)
-            cli->exit = -1;
-        else
-            cli->exit = (i32)result;
-        
-        close_me = 1;
-        CloseHandle(*(HANDLE*)&cli->proc);
-        CloseHandle(*(HANDLE*)&cli->out_read);
-        CloseHandle(*(HANDLE*)&cli->out_write);
+        if (!handle_equal(cli->proc, win32vars.cli_self.proc)){
+            if (GetExitCodeProcess(proc, &result) == 0)
+                cli->exit = -1;
+            else
+                cli->exit = (i32)result;
+
+            close_me = 1;
+            CloseHandle(*(HANDLE*)&cli->proc);
+            CloseHandle(*(HANDLE*)&cli->out_read);
+            CloseHandle(*(HANDLE*)&cli->out_write);
+        }
+        else{
+            // TODO(allen): wtf? How does this happen? It doesn't right?
+            Assert(0);
+        }
     }
     return close_me;
 }
@@ -1550,6 +1560,7 @@ UpdateLoop(LPVOID param){
         win32vars.app.step(win32vars.system,
             &input_data,
             &mouse,
+            win32vars.cli_self,
             &win32vars.target,
             &memory_vars,
             &exchange_vars,

@@ -193,7 +193,6 @@ tbl_file_hash(void *item, void *arg){
     hash = ((hash << 6) + hash) + uhash.d[1];
     hash = ((hash << 6) + hash) + uhash.d[2];
     hash = ((hash << 6) + hash) + uhash.d[3];
-    hash = ((hash << 6) + hash) + uhash.non_file_id;
     return(hash);
 }
 

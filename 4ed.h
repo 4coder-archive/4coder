@@ -68,18 +68,18 @@ struct Plat_Settings{
     i32 name(System_Functions *system,                  \
              Application_Memory *memory,                \
              String current_directory,                  \
-             Plat_Settings *plat_settings,                 \
-             char ***files, i32 **file_count,                   \
+             Plat_Settings *plat_settings,              \
+             char ***files, i32 **file_count,           \
              Command_Line_Parameters clparams)
 
 typedef App_Read_Command_Line_Sig(App_Read_Command_Line);
 
-#define App_Init_Sig(name) void                                         \
-name(System_Functions *system,                                      \
+#define App_Init_Sig(name) void                                    \
+name(System_Functions *system,                                     \
     Render_Target *target,                                         \
     Application_Memory *memory,                                    \
     Exchange *exchange,                                            \
-    String clipboard,                                  \
+    String clipboard,                                              \
     String current_directory,                                      \
     Custom_API api)
 
@@ -103,16 +103,17 @@ struct Application_Step_Result{
     b32 perform_kill;
 };
 
-#define App_Step_Sig(name) void          \
-    name(System_Functions *system,                          \
-         Key_Input_Data *input,                             \
-         Mouse_State *mouse,                                \
-         Render_Target *target,                             \
-         Application_Memory *memory,                        \
-         Exchange *exchange,                                \
-         String clipboard,                      \
-         b32 time_step, b32 first_step, b32 force_redraw,   \
-         Application_Step_Result *result)
+#define App_Step_Sig(name) void                        \
+name(System_Functions *system,                         \
+    Key_Input_Data *input,                             \
+    Mouse_State *mouse,                                \
+    CLI_Handles self,                                  \
+    Render_Target *target,                             \
+    Application_Memory *memory,                        \
+    Exchange *exchange,                                \
+    String clipboard,                                  \
+    b32 time_step, b32 first_step, b32 force_redraw,   \
+    Application_Step_Result *result)
 
 typedef App_Step_Sig(App_Step);
 

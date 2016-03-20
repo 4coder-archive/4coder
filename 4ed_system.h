@@ -13,9 +13,14 @@ struct Plat_Handle{
     u32 d[4];
 };
 
+inline int
+handle_equal(Plat_Handle a, Plat_Handle b){
+    int result = (memcmp(&a, &b, sizeof(a)) == 0);
+    return(result);
+}
+
 struct Unique_Hash{
     u32 d[4];
-    u32 non_file_id;
 };
 
 inline Unique_Hash

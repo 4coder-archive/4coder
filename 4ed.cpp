@@ -3732,7 +3732,7 @@ App_Step_Sig(app_step){
                     "-The file count limit is over 8 million now\n"
                     "-File equality is handled better so renamings (such as 'subst') are safe now\n"
                     "-This buffer will report events including errors that happen in 4coder\n"
-                    "-Super users can post their own messages here with app->do_message\n"
+                    "-Super users can post their own messages here with printf\n"
                     "-Set font size on command line with -f N, N = 16 by default\n\n"
             );
 

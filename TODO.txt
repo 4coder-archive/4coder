@@ -98,19 +98,22 @@
 ; [X] get key stroke in custom callback
 ; [X] tab option for auto-indent
 ; [X] catch unsaved files on close
+; [X] feedback messages
 ; 
 ; [] file status in custom API
 ; [] user file bar string
+; [] feedback message API
+; [] simple multi-line
 ;
-; [] feedback messages
 ; [] command meta data
 ; [] additional hooks
-;    [] new file
+;    [X] new file
 ;    [] file out of sync
 ; [] double binding warnings
 ; [] kill rect
-; [] simple multi-line
 ; 
+; [] manipulate scroll starget API
+;
 ; search related tech
 ;    [X] replace word (incremental and/or in range)
 ;    [] optimize search
@@ -136,16 +139,14 @@
 ;    [] "thin cursor"
 ;
 ; [] switch over to gap buffer
-;    [] multiple chunk lexer input
+;    [] lexer with multiple chunk input
 ;
 ; [] macros
 ;
-; [X] cuber's return to previous buffer idea
+; [] cuber's return to previous buffer idea
 ; [] miblo's various number editors
 ;
-; [] out of sync options
-;    [] hook
-;    [] keep copy of unedited orignal, somewhere (compressed, restore by history?)
+; [] keep copy of unedited orignal, somewhere (compressed, restore by history?)
 ;
 ; [] diff
 ; [] cloc
@@ -160,7 +161,9 @@
 ;    [] error text at line
 ;    [] word complete ghosting
 ;
-; [] main_4coder experiment
+; [] the main_4coder experiment
+;
+; [] tutorials
 ;
 
 ; INTERNAL TODOS
@@ -184,6 +187,7 @@
 
 ; HARD BUGS
 ; [] fyoucon's segfaults with malloc on win10
+; [] minimize and reopen problem (reported by two users now, still not reproduced here)
 ; [] repainting too slow for resize looks really dumb
 ; [] handling cursor in non-client part of window so it doesn't spaz
 ; [] fill screen right away
