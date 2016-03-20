@@ -435,10 +435,12 @@ static_assert(
 Sys_File_Unique_Hash_Sig(system_file_unique_hash){
     Unique_Hash result = {};
     struct stat st = {};
+    *success = 0;
 
     if(stat(filename.str, &st) == 0){
         memcpy(&result, &st.st_dev, sizeof(st.st_dev));
         memcpy((char*)&result + sizeof(st.st_dev), &st.st_ino, sizeof(st.st_ino));
+        *success = 1;
     }
 
 //    LINUX_FN_DEBUG("%s = %ld:%ld", filename.str, (long)st.st_dev, (long)st.st_ino);
@@ -1306,8 +1308,8 @@ InitializeOpenGLContext(Display *XDisplay, Window XWindow, GLXFBConfig &bestFbc,
         {
             ctxErrorOccurred = false;
 
-            context_attribs[1] = 4;
-            context_attribs[3] = 0;
+            context_attribs[1] = 3;
+            context_attribs[3] = 1;
  
             printf( "Creating context\n" );
             ctx = glXCreateContextAttribsARB( XDisplay, bestFbc, 0,
@@ -1317,12 +1319,12 @@ InitializeOpenGLContext(Display *XDisplay, Window XWindow, GLXFBConfig &bestFbc,
 
             if ( !ctxErrorOccurred && ctx )
             {
-                printf( "Created GL 4.0 context\n" );
+                printf( "Created GL 3.1 context\n" );
             }
             else
             {
                 context_attribs[1] = 1;
-                context_attribs[3] = 0;
+                context_attribs[3] = 2;
  
                 ctxErrorOccurred = false;
  
@@ -2410,7 +2412,8 @@ main(int argc, char **argv)
         }
 
         // NOTE(inso): without the xfixes extension we'll have to request the clipboard every frame.
-        if(!linuxvars.has_xfixes){
+        // also, always get it on the first frame.
+        if(linuxvars.first || !linuxvars.has_xfixes){
             XConvertSelection(
                 linuxvars.XDisplay,
                 linuxvars.atom_CLIPBOARD,
@@ -2454,6 +2457,8 @@ main(int argc, char **argv)
 
         if(result.perform_kill){
             break;
+        } else {
+            keep_running = 1;
         }
 
         if (linuxvars.redraw || result.redraw){
