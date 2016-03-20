@@ -3685,6 +3685,16 @@ App_Step_Sig(app_step){
     cmd->part = partition_sub_part(&models->mem.part, 16 << 10);
 
     if (first_step){
+        General_Memory *general = &models->mem.general;
+        Editing_File *file = working_set_alloc_always(&models->working_set, general);
+        file_create_read_only(system, models, file, "*messages*");
+        working_set_add(system, &models->working_set, file, general);
+        file->settings.never_kill = 1;
+        file->settings.unimportant = 1;
+        file->settings.unwrapped_lines = 1;
+        
+        models->message_buffer = file;
+        
         if (models->hooks[hook_start]){
             models->hooks[hook_start](&app_links);
             cmd->part.pos = 0;
@@ -3707,14 +3717,27 @@ App_Step_Sig(app_step){
             }
         }
         
-        General_Memory *general = &models->mem.general;
-        Editing_File *file = working_set_alloc_always(&models->working_set, general);
-        file_create_read_only(system, models, file, "*messages*");
-        working_set_add(system, &models->working_set, file, general);
-        file->settings.never_kill = 1;
-        file->settings.unimportant = 1;
-        
-        models->message_buffer = file;
+        if (i < models->layout.panel_count){
+            view_file_in_panel(cmd, panel, models->message_buffer);
+        }
+
+        {
+            String welcome = make_lit_string(
+                "Welcome to " VERSION "\n"
+                    "If you're new to 4coder there's no tutorial yet :(\n"
+                    "you can use the key combo control + o to look for a file\n"
+                    "and if you load README.txt you'll find all the key combos there are.\n"
+                    "\n"
+                    "Newest features:\n"
+                    "-The file count limit is over 8 million now\n"
+                    "-File equality is handled better so renamings (such as 'subst') are safe now\n"
+                    "-This buffer will report events including errors that happen in 4coder\n"
+                    "-Super users can post their own messages here with app->do_message\n"
+                    "-Set font size on command line with -f N, N = 16 by default\n\n"
+            );
+
+            do_feedback_message(system, models, welcome);
+        }
     }
     ProfileEnd(prepare_commands);
 
