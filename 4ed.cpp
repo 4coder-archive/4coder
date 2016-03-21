@@ -2199,7 +2199,48 @@ extern "C"{
 
         return(result);
     }
+    
+    // TODO(allen): Reduce duplication between this and external_buffer_seek_string
+    BUFFER_SEEK_STRING_SIG(external_buffer_seek_string_insensitive){
+        Command_Data *cmd = (Command_Data*)app->cmd_context;
+        Models *models;
+        Editing_File *file;
+        Working_Set *working_set;
+        Partition *part;
+        Temp_Memory temp;
+        char *spare;
+        int result = 0;
+        int size;
 
+        if (buffer->exists){
+            models = cmd->models;
+            working_set = &models->working_set;
+            file = working_set_get_active_file(working_set, buffer->buffer_id);
+            if (file && file_is_ready(file)){
+                size = buffer_size(&file->state.buffer);
+
+                if (start < 0 && !seek_forward) *out = start;
+                else if (start >= size && seek_forward) *out = start;
+                else{
+                    part = &models->mem.part;
+                    temp = begin_temp_memory(part);
+                    spare = push_array(part, char, len);
+                    result = 1;
+                    if (seek_forward){
+                        *out = buffer_find_string_insensitive(&file->state.buffer, start, size, str, len, spare);
+                    }
+                    else{
+                        *out = buffer_rfind_string_insensitive(&file->state.buffer, start, str, len, spare);
+                    }
+                    end_temp_memory(temp);
+                }
+                fill_buffer_summary(buffer, file, working_set);
+            }
+        }
+
+        return(result);
+    }
+    
     REFRESH_BUFFER_SIG(external_refresh_buffer){
         int result;
         *buffer = external_get_buffer(app, buffer->buffer_id);
@@ -2615,6 +2656,7 @@ app_links_init(System_Functions *system, void *data, int size){
     app_links.refresh_buffer = external_refresh_buffer;
     app_links.buffer_seek_delimiter = external_buffer_seek_delimiter;
     app_links.buffer_seek_string = external_buffer_seek_string;
+    app_links.buffer_seek_string_insensitive = external_buffer_seek_string_insensitive;
     app_links.buffer_read_range = external_buffer_read_range;
     app_links.buffer_replace_range = external_buffer_replace_range;
 

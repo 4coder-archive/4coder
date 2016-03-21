@@ -357,6 +357,7 @@ struct Application_Links;
 
 #define BUFFER_SEEK_DELIMITER_SIG(n) int n(Application_Links *app, Buffer_Summary *buffer, int start, char delim, int seek_forward, int *out)
 #define BUFFER_SEEK_STRING_SIG(n) int n(Application_Links *app, Buffer_Summary *buffer, int start, char *str, int len, int seek_forward, int *out)
+#define BUFFER_SEEK_STRING_INSENSITIVE_SIG(n) int n(Application_Links *app, Buffer_Summary *buffer, int start, char *str, int len, int seek_forward, int *out)
 
 #define REFRESH_BUFFER_SIG(n) int n(Application_Links *app, Buffer_Summary *buffer)
 #define BUFFER_READ_RANGE_SIG(n) int n(Application_Links *app, Buffer_Summary *buffer, int start, int end, char *out)
@@ -438,6 +439,7 @@ extern "C"{
     
     typedef BUFFER_SEEK_DELIMITER_SIG(Buffer_Seek_Delimiter_Function);
     typedef BUFFER_SEEK_STRING_SIG(Buffer_Seek_String_Function);
+    typedef BUFFER_SEEK_STRING_INSENSITIVE_SIG(Buffer_Seek_String_Insensitive_Function);
     
     typedef REFRESH_BUFFER_SIG(Refresh_Buffer_Function);
     typedef BUFFER_READ_RANGE_SIG(Buffer_Read_Range_Function);
@@ -501,6 +503,7 @@ struct Application_Links{
     
     Buffer_Seek_Delimiter_Function *buffer_seek_delimiter;
     Buffer_Seek_String_Function *buffer_seek_string;
+    Buffer_Seek_String_Insensitive_Function *buffer_seek_string_insensitive;
     
     Refresh_Buffer_Function *refresh_buffer;
     Buffer_Read_Range_Function *buffer_read_range;

@@ -408,6 +408,14 @@ is_lower(char c){
     return (c >= 'a' && c <= 'z');
 }
 
+inline_4tech char
+to_upper(char c){
+    if (is_lower(c)){
+        c += 'A' - 'a';
+    }
+    return(c);
+}
+
 internal_4tech int
 is_match(char *a, char *b, int len){
     int result;
@@ -415,6 +423,17 @@ is_match(char *a, char *b, int len){
     result = 1;
     for (;len > 0; --len, ++a, ++b)
         if (*a != *b) { result = 0; break; }
+
+    return(result);
+}
+
+internal_4tech int
+is_match_insensitive(char *a, char *b, int len){
+    int result;
+
+    result = 1;
+    for (;len > 0; --len, ++a, ++b)
+        if (to_upper(*a) != to_upper(*b)) { result = 0; break; }
 
     return(result);
 }

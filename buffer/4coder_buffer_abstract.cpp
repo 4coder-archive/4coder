@@ -571,6 +571,66 @@ buffer_rfind_string_end:
     return(pos);
 }
 
+internal_4tech int
+buffer_find_string_insensitive(Buffer_Type *buffer, int start_pos, int end_pos, char *str, int len, char *spare){
+    Buffer_Stringify_Type loop;
+    char *data;
+    int end, pos;
+
+    pos = start_pos;
+    if (len > 0){
+        for (loop = buffer_stringify_loop(buffer, start_pos, end_pos - len + 1);
+             buffer_stringify_good(&loop);
+             buffer_stringify_next(&loop)){
+            end = loop.size + loop.absolute_pos;
+            data = loop.data - loop.absolute_pos;
+            for (; pos < end; ++pos){
+                if (to_upper(*str) == to_upper(data[pos])){
+                    buffer_stringify(buffer, pos, pos + len, spare);
+                    if (is_match_insensitive(str, spare, len))
+                        goto buffer_find_string_end;
+                }
+            }
+        }
+    }
+    
+buffer_find_string_end:
+    if (pos >= end_pos - len + 1) pos = end_pos;
+    return(pos);
+}
+
+internal_4tech int
+buffer_rfind_string_insensitive(Buffer_Type *buffer, int start_pos, char *str, int len, char *spare){
+    Buffer_Backify_Type loop;
+    char *data;
+    int end, size;
+    int pos;
+    
+    size = buffer_size(buffer);
+    
+    pos = start_pos;
+    if (pos > size - len) pos = size - len;
+    
+    if (len > 0){
+        for (loop = buffer_backify_loop(buffer, start_pos, 0);
+             buffer_backify_good(&loop);
+             buffer_backify_next(&loop)){
+            end = loop.absolute_pos;
+            data = loop.data - loop.absolute_pos;
+            for (; pos >= end; --pos){
+                if (to_upper(*str) == to_upper(data[pos])){
+                    buffer_stringify(buffer, pos, pos + len, spare);
+                    if (is_match_insensitive(str, spare, len))
+                        goto buffer_rfind_string_end;
+                }
+            }
+        }
+    }
+    
+buffer_rfind_string_end:
+    return(pos);
+}
+
 #ifndef NON_ABSTRACT_4TECH
 typedef struct Buffer_Measure_Starts{
     int i;
