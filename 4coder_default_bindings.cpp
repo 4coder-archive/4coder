@@ -1,4 +1,6 @@
 
+// TOP
+
 #include "4coder_default.cpp"
 
 unsigned char blink_t = 0;
@@ -442,11 +444,11 @@ void default_get_bindings(Bind_Helper *context){
     bind(context, '\n', MDFR_SHIFT, write_and_auto_tab);
     bind(context, ' ', MDFR_SHIFT, cmdid_write_character);
     
-    bind(context, 'q', MDFR_ALT | MDFR_CTRL, write_capital);
-    bind(context, 'w', MDFR_ALT | MDFR_CTRL, write_capital);
-    bind(context, 'e', MDFR_ALT | MDFR_CTRL, write_capital);
+    bind(context, 'e', MDFR_CTRL, cmdid_center_view);
     
     bind(context, 'T', MDFR_CTRL | MDFR_ALT, begin_html_mode);
     
     end_map(context);
 }
+
+// BOTTOM

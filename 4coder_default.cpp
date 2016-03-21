@@ -312,7 +312,7 @@ isearch(Application_Links *app, int start_reversed){
                     if (step_backward){
                         pos = new_pos;
                         start_pos = new_pos;
-                        app->buffer_seek_string(app, &buffer, start_pos - 1, bar.string.str, bar.string.size, 0, &new_pos);
+                        app->buffer_seek_string_insensitive(app, &buffer, start_pos - 1, bar.string.str, bar.string.size, 0, &new_pos);
                         if (new_pos < 0) new_pos = start_pos;
                     }
                     match.start = new_pos;
@@ -325,7 +325,7 @@ isearch(Application_Links *app, int start_reversed){
                     if (step_forward){
                         pos = new_pos;
                         start_pos = new_pos;
-                        app->buffer_seek_string(app, &buffer, start_pos + 1, bar.string.str, bar.string.size, 1, &new_pos);
+                        app->buffer_seek_string_insensitive(app, &buffer, start_pos + 1, bar.string.str, bar.string.size, 1, &new_pos);
                         if (new_pos >= buffer.size) new_pos = start_pos;
                     }
                     match.start = new_pos;

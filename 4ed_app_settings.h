@@ -19,6 +19,8 @@ struct App_Settings{
 
     i32 initial_line;
     b32 lctrl_lalt_is_altgr;
+    
+    i32 font_size;
 };
 
 struct Models{

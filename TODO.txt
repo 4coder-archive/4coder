@@ -99,10 +99,10 @@
 ; [X] tab option for auto-indent
 ; [X] catch unsaved files on close
 ; [X] feedback messages
+; [X] feedback message API
 ; 
 ; [] file status in custom API
 ; [] user file bar string
-; [] feedback message API
 ; [] simple multi-line
 ;
 ; [] command meta data
@@ -162,7 +162,7 @@
 ;    [] error text at line
 ;    [] word complete ghosting
 ;
-; [] the main_4coder experiment
+; [] the "main_4coder" experiment
 ;
 ; [] tutorials
 ;
@@ -180,9 +180,9 @@
 ; EASY TODOS
 ; [X] better messages for example not "BEHIND OS"
 ; [X] shift backspace
+; [X] center view on cursor
 ; [] close editor command
 ; [] panel grow/shrink commands
-; [] center view on cursor
 ; [] delta time in scroll interpolation
 ;
 

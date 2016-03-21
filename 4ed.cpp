@@ -252,15 +252,6 @@ COMMAND_DECL(write_character){
     }
 }
 
-COMMAND_DECL(seek_whitespace_right){
-    ProfileMomentFunction();
-    REQ_READABLE_VIEW(view);
-    REQ_FILE(file, view);
-
-    i32 pos = buffer_seek_whitespace_right(&file->state.buffer, view->cursor.pos);
-    view_cursor_move(view, pos);
-}
-
 internal i32
 seek_token_left(Cpp_Token_Stack *tokens, i32 pos){
     Cpp_Get_Token_Result get = cpp_get_token(tokens, pos);
@@ -398,15 +389,6 @@ COMMAND_DECL(seek_right){
     view_cursor_move(view, new_pos);
 }
 
-COMMAND_DECL(seek_whitespace_left){
-    ProfileMomentFunction();
-    REQ_READABLE_VIEW(view);
-    REQ_FILE(file, view);
-
-    i32 pos = buffer_seek_whitespace_left(&file->state.buffer, view->cursor.pos);
-    view_cursor_move(view, pos);
-}
-
 COMMAND_DECL(seek_whitespace_up){
     ProfileMomentFunction();
     REQ_READABLE_VIEW(view);
@@ -425,90 +407,24 @@ COMMAND_DECL(seek_whitespace_down){
     view_cursor_move(view, pos);
 }
 
-COMMAND_DECL(seek_token_left){
+COMMAND_DECL(center_view){
     ProfileMomentFunction();
-    REQ_READABLE_VIEW(view);
+    USE_VIEW(view);
     REQ_FILE(file, view);
 
-    if (file->state.tokens_complete){
-        i32 pos = seek_token_left(&file->state.token_stack, view->cursor.pos);
-        view_cursor_move(view, pos);
-    }
-}
-
-COMMAND_DECL(seek_token_right){
-    ProfileMomentFunction();
-    REQ_READABLE_VIEW(view);
-    REQ_FILE(file, view);
-
-    if (file->state.tokens_complete){
-        i32 pos = seek_token_right(&file->state.token_stack, view->cursor.pos);
-        view_cursor_move(view, pos);
-    }
-}
-
-COMMAND_DECL(seek_white_or_token_right){
-    ProfileMomentFunction();
-    REQ_READABLE_VIEW(view);
-    REQ_FILE(file, view);
-
-    i32 token_pos, white_pos;
-    if (file->state.tokens_complete){
-        token_pos = seek_token_right(&file->state.token_stack, view->cursor.pos);
+    f32 y, h;
+    if (view->unwrapped_lines){
+        y = view->cursor.unwrapped_y;
     }
     else{
-        token_pos = buffer_size(&file->state.buffer);
+        y = view->cursor.wrapped_y;
     }
-    white_pos = buffer_seek_whitespace_right(&file->state.buffer, view->cursor.pos);
-    view_cursor_move(view, Min(token_pos, white_pos));
-}
 
-COMMAND_DECL(seek_white_or_token_left){
-    ProfileMomentFunction();
-    REQ_READABLE_VIEW(view);
-    REQ_FILE(file, view);
+    h = view_compute_height(view);
+    y -= h * .5f;
+    if (y < view->scroll_min_limit) y = view->scroll_min_limit;
 
-    i32 token_pos, white_pos;
-    if (file->state.tokens_complete){
-        token_pos = seek_token_left(&file->state.token_stack, view->cursor.pos);
-    }
-    else{
-        token_pos = 0;
-    }
-    white_pos = buffer_seek_whitespace_left(&file->state.buffer, view->cursor.pos);
-    view_cursor_move(view, Max(token_pos, white_pos));
-}
-
-COMMAND_DECL(seek_alphanumeric_right){
-    ProfileMomentFunction();
-    REQ_READABLE_VIEW(view);
-    REQ_FILE(file, view);
-    i32 pos = buffer_seek_alphanumeric_right(&file->state.buffer, view->cursor.pos);
-    view_cursor_move(view, pos);
-}
-
-COMMAND_DECL(seek_alphanumeric_left){
-    ProfileMomentFunction();
-    REQ_READABLE_VIEW(view);
-    REQ_FILE(file, view);
-    i32 pos = buffer_seek_alphanumeric_left(&file->state.buffer, view->cursor.pos);
-    view_cursor_move(view, pos);
-}
-
-COMMAND_DECL(seek_alphanumeric_or_camel_right){
-    ProfileMomentFunction();
-    REQ_READABLE_VIEW(view);
-    REQ_FILE(file, view);
-    i32 pos = buffer_seek_alphanumeric_or_camel_right(&file->state.buffer, view->cursor.pos);
-    view_cursor_move(view, pos);
-}
-
-COMMAND_DECL(seek_alphanumeric_or_camel_left){
-    ProfileMomentFunction();
-    REQ_READABLE_VIEW(view);
-    REQ_FILE(file, view);
-    i32 pos = buffer_seek_alphanumeric_or_camel_left(&file->state.buffer, view->cursor.pos);
-    view_cursor_move(view, pos);
+    view->target_y = y;
 }
 
 COMMAND_DECL(word_complete){
@@ -2725,6 +2641,7 @@ setup_command_table(){
     SET(seek_right);
     SET(seek_whitespace_up);
     SET(seek_whitespace_down);
+    SET(center_view);
     SET(word_complete);
     SET(set_mark);
     SET(copy);
@@ -3014,6 +2931,7 @@ enum Command_Line_Action{
     CLAct_WindowSize,
     CLAct_WindowMaximize,
     CLAct_WindowPosition,
+    CLAct_FontSize,
     CLAct_Count
 };
 
@@ -3024,7 +2942,7 @@ init_command_line_settings(App_Settings *settings, Plat_Settings *plat_settings,
     Command_Line_Action action = CLAct_Nothing;
     i32 i,index;
     b32 strict = 0;
-
+    
     settings->init_files_max = ArrayCount(settings->init_files);
     for (i = 1; i <= clparams.argc; ++i){
         if (i == clparams.argc) arg = "";
@@ -3046,6 +2964,8 @@ init_command_line_settings(App_Settings *settings, Plat_Settings *plat_settings,
                         case 'w': action = CLAct_WindowSize;               break;
                         case 'W': action = CLAct_WindowMaximize;         break;
                         case 'p': action = CLAct_WindowPosition;           break;
+                        
+                        case 'f': action = CLAct_FontSize; break;
                     }
                 }
                 else if (arg[0] != 0){
@@ -3112,6 +3032,14 @@ init_command_line_settings(App_Settings *settings, Plat_Settings *plat_settings,
                 }
                 action = CLAct_Nothing;
             }break;
+            
+            case CLAct_FontSize:
+            {
+                if (i < clparams.argc){
+                    settings->font_size = str_to_int(clparams.argv[i]);
+                }
+                action = CLAct_Nothing;
+			}break;
         }
     }
 }
@@ -3147,6 +3075,7 @@ execute_special_tool(void *memory, i32 size, Command_Line_Parameters clparams){
 
 App_Read_Command_Line_Sig(app_read_command_line){
     App_Vars *vars;
+    App_Settings *settings;
     i32 out_size = 0;
 
     if (clparams.argc > 1 && match(clparams.argv[1], "-T")){
@@ -3158,7 +3087,9 @@ App_Read_Command_Line_Sig(app_read_command_line){
             init_command_line_settings(&vars->models.settings, plat_settings, clparams);
         }
         else{
-            vars->models.settings = {};
+            settings = &vars->models.settings;
+            *settings = {};
+            settings->font_size = 16;
         }
         *files = vars->models.settings.init_files;
         *file_count = &vars->models.settings.init_files_count;
@@ -3398,7 +3329,7 @@ App_Init_Sig(app_init){
             i32 pt_size;
         };
         
-        int font_size = 16;
+        int font_size = models->settings.font_size;
         
         if (font_size < 8) font_size = 8;
         
@@ -3795,6 +3726,7 @@ App_Step_Sig(app_step){
                     "-File equality is handled better so renamings (such as 'subst') are safe now\n"
                     "-This buffer will report events including errors that happen in 4coder\n"
                     "-Super users can post their own messages here with app->print_message\n"
+                    "-<ctrl e> centers view on cursor; cmdid_center_view in customization API\n"
                     "-Set font size on command line with -f N, N = 16 by default\n\n"
             );
 

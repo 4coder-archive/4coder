@@ -2488,17 +2488,17 @@ style_get_color(Style *style, Cpp_Token token){
 }
 
 inline f32
-view_compute_max_target_y(i32 lowest_line, i32 line_height, real32 view_height){
+view_compute_max_target_y(i32 lowest_line, i32 line_height, f32 view_height){
     real32 max_target_y = ((lowest_line+.5f)*line_height) - view_height*.5f;
     return max_target_y;
 }
 
-internal real32
+internal f32
 view_compute_max_target_y(View *view){
     i32 lowest_line = view_compute_lowest_line(view);
     i32 line_height = view->font_height;
-    real32 view_height = view_compute_height(view);
-    real32 max_target_y = view_compute_max_target_y(
+    f32 view_height = view_compute_height(view);
+    f32 max_target_y = view_compute_max_target_y(
         lowest_line, line_height, view_height);
     return max_target_y;
 }

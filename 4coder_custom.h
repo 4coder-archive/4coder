@@ -166,6 +166,7 @@ enum Command_ID{
     cmdid_seek_right,
     cmdid_seek_whitespace_up,
     cmdid_seek_whitespace_down,
+    cmdid_center_view,
     cmdid_word_complete,
     cmdid_set_mark,
     cmdid_copy,
