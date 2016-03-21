@@ -164,10 +164,6 @@ struct Win32_Vars{
     // it up if needed.
     Win32_Coroutine coroutine_data[2];
     Win32_Coroutine *coroutine_free;
-    
-    // TODO(allen): Initialize this by redirecting std out to these CLI
-    // handles so that the application step can read from them.
-    CLI_Handles cli_self;
 };
 
 globalvar Win32_Vars win32vars;
@@ -905,14 +901,14 @@ Sys_CLI_Call_Sig(system_cli_call){
                 startup.hStdError = out_write;
                 startup.hStdOutput = out_write;
                 startup.wShowWindow = SW_HIDE;
-    
+
                 PROCESS_INFORMATION info = {};
 
                 Assert(sizeof(Plat_Handle) >= sizeof(HANDLE));
                 if (CreateProcess(cmd, command_line,
-                                  0, 0, TRUE, 0,
-                                  env_variables, path,
-                                  &startup, &info)){
+                        0, 0, TRUE, 0,
+                        env_variables, path,
+                        &startup, &info)){
                     success = 1;
                     CloseHandle(info.hThread);
                     *(HANDLE*)&cli_out->proc = info.hProcess;
@@ -935,7 +931,7 @@ Sys_CLI_Call_Sig(system_cli_call){
             // TODO(allen): failed CreatePipe
         }
     }
-    
+
     return success;
 }
 
@@ -958,13 +954,13 @@ Sys_CLI_Update_Step_Sig(system_cli_update_step){
     DWORD remaining = loop->remaining_amount;
     u32 pos = 0;
     DWORD read_amount = 0;
-    
+
     for (;;){
         if (remaining == 0){
             if (!PeekNamedPipe(handle, 0, 0, 0, &remaining, 0)) break;
             if (remaining == 0) break;
         }
-        
+
         if (remaining + pos < max){
             has_more = 1;
             ReadFile(handle, dest + pos, remaining, &read_amount, 0);
@@ -982,7 +978,7 @@ Sys_CLI_Update_Step_Sig(system_cli_update_step){
         }
     }
     *amount = pos;
-    
+
     return has_more;
 }
 
@@ -991,23 +987,17 @@ Sys_CLI_End_Update_Sig(system_cli_end_update){
     b32 close_me = 0;
     HANDLE proc = *(HANDLE*)&cli->proc;
     DWORD result = 0;
-    
-    if (WaitForSingleObject(proc, 0) == WAIT_OBJECT_0){
-        if (!handle_equal(cli->proc, win32vars.cli_self.proc)){
-            if (GetExitCodeProcess(proc, &result) == 0)
-                cli->exit = -1;
-            else
-                cli->exit = (i32)result;
 
-            close_me = 1;
-            CloseHandle(*(HANDLE*)&cli->proc);
-            CloseHandle(*(HANDLE*)&cli->out_read);
-            CloseHandle(*(HANDLE*)&cli->out_write);
-        }
-        else{
-            // TODO(allen): wtf? How does this happen? It doesn't right?
-            Assert(0);
-        }
+    if (WaitForSingleObject(proc, 0) == WAIT_OBJECT_0){
+        if (GetExitCodeProcess(proc, &result) == 0)
+            cli->exit = -1;
+        else
+            cli->exit = (i32)result;
+
+        close_me = 1;
+        CloseHandle(*(HANDLE*)&cli->proc);
+        CloseHandle(*(HANDLE*)&cli->out_read);
+        CloseHandle(*(HANDLE*)&cli->out_write);
     }
     return close_me;
 }
@@ -1031,7 +1021,7 @@ internal b32
 Win32LoadAppCode(){
     b32 result = 0;
     App_Get_Functions *get_funcs = 0;
-    
+
 #if UseWinDll
     win32vars.app_code = LoadLibraryA("4ed_app.dll");
     if (win32vars.app_code){
@@ -1050,16 +1040,16 @@ Win32LoadAppCode(){
             img.size = dll_total_loaded_size(&dll_data);
             img.data = (byte*)
                 VirtualAlloc((LPVOID)Tbytes(3), img.size,
-                             MEM_COMMIT | MEM_RESERVE,
-                             PAGE_READWRITE);
+                MEM_COMMIT | MEM_RESERVE,
+                PAGE_READWRITE);
 
             dll_load(img, &win32vars.app_dll, file, &dll_data);
 
             DWORD extra_;
             VirtualProtect(img.data + win32vars.app_dll.text_start,
-                           win32vars.app_dll.text_size,
-                           PAGE_EXECUTE_READ,
-                           &extra_);
+                win32vars.app_dll.text_size,
+                PAGE_EXECUTE_READ,
+                &extra_);
 
             get_funcs = (App_Get_Functions*)
                 dll_load_function(&win32vars.app_dll, "app_get_functions", 17);
@@ -1069,20 +1059,20 @@ Win32LoadAppCode(){
         }
 
         system_free(file.data);
-        
+
         DUMP((byte*)(Tbytes(3)), Kbytes(400));
     }
     else{
         // TODO(allen): file loading error
     }
-    
+
 #endif
 
     if (get_funcs){
         result = 1;
         win32vars.app = get_funcs();        
     }
-    
+
     return result;
 }
 
@@ -1097,12 +1087,12 @@ Win32LoadSystemCode(){
 
     win32vars.system->post_clipboard = system_post_clipboard;
     win32vars.system->time = system_time;
-    
+
     win32vars.system->create_coroutine = system_create_coroutine;
     win32vars.system->launch_coroutine = system_launch_coroutine;
     win32vars.system->resume_coroutine = system_resume_coroutine;
     win32vars.system->yield_coroutine = system_yield_coroutine;
-    
+
     win32vars.system->cli_call = system_cli_call;
     win32vars.system->cli_begin_update = system_cli_begin_update;
     win32vars.system->cli_update_step = system_cli_update_step;
@@ -1113,13 +1103,13 @@ Win32LoadSystemCode(){
     win32vars.system->grow_thread_memory = system_grow_thread_memory;
     win32vars.system->acquire_lock = system_acquire_lock;
     win32vars.system->release_lock = system_release_lock;
-    
+
 #ifdef FRED_NOT_PACKAGE
     win32vars.system->internal_sentinel = INTERNAL_system_sentinel;
     win32vars.system->internal_get_thread_states = INTERNAL_get_thread_states;
     win32vars.system->internal_debug_message = INTERNAL_system_debug_message;
 #endif
-    
+
     win32vars.system->slash = '/';
 }
 
@@ -1129,21 +1119,21 @@ Win32LoadSystemCode(){
 internal
 Font_Load_Sig(system_draw_font_load){
     Font_Load_Parameters *params;
-    
+
     system_acquire_lock(FONT_LOCK);
     params = win32vars.fnt.free_param.next;
     fnt__remove(params);
     fnt__insert(&win32vars.fnt.used_param, params);
     system_release_lock(FONT_LOCK);
-    
+
     params->font_out = font_out;
     params->filename = filename;
     params->pt_size = pt_size;
     params->tab_width = tab_width;
 
     SendMessage(win32vars.window_handle,
-                WM_4coder_LOAD_FONT,
-                0, (i32)(params - win32vars.fnt.params));
+        WM_4coder_LOAD_FONT,
+        0, (i32)(params - win32vars.fnt.params));
     return(1);
 }
 
@@ -1152,7 +1142,7 @@ Win32LoadRenderCode(){
     win32vars.target.push_clip = draw_push_clip;
     win32vars.target.pop_clip = draw_pop_clip;
     win32vars.target.push_piece = draw_push_piece;
-    
+
     win32vars.target.font_set.font_info_load = draw_font_info_load;
     win32vars.target.font_set.font_load = system_draw_font_load;
     win32vars.target.font_set.release_font = draw_release_font;
@@ -1169,312 +1159,312 @@ Win32RedrawScreen(HDC hdc){
 
 internal LRESULT
 Win32Callback(HWND hwnd, UINT uMsg,
-              WPARAM wParam, LPARAM lParam){
+    WPARAM wParam, LPARAM lParam){
     LRESULT result = {};
     switch (uMsg){
-    case WM_MENUCHAR:
-    case WM_SYSCHAR:break;
-    
-    case WM_SYSKEYDOWN:
-    case WM_SYSKEYUP:
-    case WM_KEYDOWN:
-    case WM_KEYUP:
-    {
-        switch (wParam){
-        case VK_CONTROL:case VK_LCONTROL:case VK_RCONTROL:
-        case VK_MENU:case VK_LMENU:case VK_RMENU:
-        case VK_SHIFT:case VK_LSHIFT:case VK_RSHIFT:
-        {
-            Control_Keys *controls = 0;
-            b8 *control_keys = 0;
-            controls = &win32vars.input_chunk.pers.controls;
-            control_keys = win32vars.input_chunk.pers.control_keys;
-            
-            system_acquire_lock(INPUT_LOCK);
-            
-            b8 down = ((lParam & Bit_31)?(0):(1));
-            b8 is_right = ((lParam & Bit_24)?(1):(0));
-            
-            if (wParam != 255){
-                switch (wParam){
-                case VK_SHIFT:
-                {
-                    control_keys[MDFR_SHIFT_INDEX] = down;
-                }break;
-                
-                case VK_CONTROL:
-                {
-                    if (is_right) controls->r_ctrl = down;
-                    else controls->l_ctrl = down;
-                }break;
-                
-                case VK_MENU:
-                {
-                    if (is_right) controls->r_alt = down;
-                    else controls->l_alt = down;
-                }break;
-                }
-                
-                b8 ctrl, alt;
-                ctrl = (controls->r_ctrl || (controls->l_ctrl && !controls->r_alt));
-                alt = (controls->l_alt || (controls->r_alt && !controls->l_ctrl));
-                
-                if (win32vars.lctrl_lalt_is_altgr){
-                    if (controls->l_alt && controls->l_ctrl){
-                        ctrl = 0;
-                        alt = 0;
-                    }
-                }
-                
-                control_keys[MDFR_CONTROL_INDEX] = ctrl;
-                control_keys[MDFR_ALT_INDEX] = alt;
-            }
-            system_release_lock(INPUT_LOCK);
-        }break;
-            
-        default:
-            b8 previous_state, current_state;
-            previous_state = ((lParam & Bit_30)?(1):(0));
-            current_state = ((lParam & Bit_31)?(0):(1));
-        
-            if (current_state){
-                u8 key = keycode_lookup((u8)wParam);
-                
-                i32 *count = 0;
-                Key_Event_Data *data = 0;
-                b8 *control_keys = 0;
-                i32 control_keys_size = 0;
+        case WM_MENUCHAR:
+        case WM_SYSCHAR:break;
 
-                system_acquire_lock(INPUT_LOCK);                
-                if (!previous_state){
-                    count = &win32vars.input_chunk.trans.key_data.press_count;
-                    data = win32vars.input_chunk.trans.key_data.press;
-                }
-                else{
-                    count = &win32vars.input_chunk.trans.key_data.hold_count;
-                    data = win32vars.input_chunk.trans.key_data.hold;
-                }
-                control_keys = win32vars.input_chunk.pers.control_keys;
-                control_keys_size = sizeof(win32vars.input_chunk.pers.control_keys);
-                
-                if (*count < KEY_INPUT_BUFFER_SIZE){
-                    if (!key){
-                        UINT vk = (UINT)wParam;
-                        UINT scan = (UINT)((lParam >> 16) & 0x7F);
-                        BYTE state[256];
-                        WORD x1 = 0, x2 = 0, x = 0;
-                        int result1 = 0, result2 = 0, result = 0;
-                        
-                        GetKeyboardState(state);
-                        x1 = 0;
-                        result1 = ToAscii(vk, scan, state, &x1, 0);
-                        state[VK_CONTROL] = 0;
-                        x2 = 0;
-                        result2 = ToAscii(vk, scan, state, &x2, 0);
-                        
-                        if (result1){
-                            x = x1;
-                            result = 1;
+        case WM_SYSKEYDOWN:
+        case WM_SYSKEYUP:
+        case WM_KEYDOWN:
+        case WM_KEYUP:
+        {
+            switch (wParam){
+                case VK_CONTROL:case VK_LCONTROL:case VK_RCONTROL:
+                case VK_MENU:case VK_LMENU:case VK_RMENU:
+                case VK_SHIFT:case VK_LSHIFT:case VK_RSHIFT:
+                {
+                    Control_Keys *controls = 0;
+                    b8 *control_keys = 0;
+                    controls = &win32vars.input_chunk.pers.controls;
+                    control_keys = win32vars.input_chunk.pers.control_keys;
+
+                    system_acquire_lock(INPUT_LOCK);
+
+                    b8 down = ((lParam & Bit_31)?(0):(1));
+                    b8 is_right = ((lParam & Bit_24)?(1):(0));
+
+                    if (wParam != 255){
+                        switch (wParam){
+                            case VK_SHIFT:
+                            {
+                                control_keys[MDFR_SHIFT_INDEX] = down;
+                            }break;
+
+                            case VK_CONTROL:
+                            {
+                                if (is_right) controls->r_ctrl = down;
+                                else controls->l_ctrl = down;
+                            }break;
+
+                            case VK_MENU:
+                            {
+                                if (is_right) controls->r_alt = down;
+                                else controls->l_alt = down;
+                            }break;
                         }
-                        else if (result2){
-                            x = x2;
-                            result = 1;
+
+                        b8 ctrl, alt;
+                        ctrl = (controls->r_ctrl || (controls->l_ctrl && !controls->r_alt));
+                        alt = (controls->l_alt || (controls->r_alt && !controls->l_ctrl));
+
+                        if (win32vars.lctrl_lalt_is_altgr){
+                            if (controls->l_alt && controls->l_ctrl){
+                                ctrl = 0;
+                                alt = 0;
+                            }
                         }
-                        
-                        if (result == 1 && x < 128){
-                            key = (u8)x;
-                            if (key == '\r') key = '\n';
-                            data[*count].character = key;
-                            
-                            state[VK_CAPITAL] = 0;
-                            x = 0;
-                            result = ToAscii(vk, scan, state, &x, 0);
+
+                        control_keys[MDFR_CONTROL_INDEX] = ctrl;
+                        control_keys[MDFR_ALT_INDEX] = alt;
+                    }
+                    system_release_lock(INPUT_LOCK);
+                }break;
+
+                default:
+                b8 previous_state, current_state;
+                previous_state = ((lParam & Bit_30)?(1):(0));
+                current_state = ((lParam & Bit_31)?(0):(1));
+
+                if (current_state){
+                    u8 key = keycode_lookup((u8)wParam);
+
+                    i32 *count = 0;
+                    Key_Event_Data *data = 0;
+                    b8 *control_keys = 0;
+                    i32 control_keys_size = 0;
+
+                    system_acquire_lock(INPUT_LOCK);                
+                    if (!previous_state){
+                        count = &win32vars.input_chunk.trans.key_data.press_count;
+                        data = win32vars.input_chunk.trans.key_data.press;
+                    }
+                    else{
+                        count = &win32vars.input_chunk.trans.key_data.hold_count;
+                        data = win32vars.input_chunk.trans.key_data.hold;
+                    }
+                    control_keys = win32vars.input_chunk.pers.control_keys;
+                    control_keys_size = sizeof(win32vars.input_chunk.pers.control_keys);
+
+                    if (*count < KEY_INPUT_BUFFER_SIZE){
+                        if (!key){
+                            UINT vk = (UINT)wParam;
+                            UINT scan = (UINT)((lParam >> 16) & 0x7F);
+                            BYTE state[256];
+                            WORD x1 = 0, x2 = 0, x = 0;
+                            int result1 = 0, result2 = 0, result = 0;
+
+                            GetKeyboardState(state);
+                            x1 = 0;
+                            result1 = ToAscii(vk, scan, state, &x1, 0);
+                            state[VK_CONTROL] = 0;
+                            x2 = 0;
+                            result2 = ToAscii(vk, scan, state, &x2, 0);
+
+                            if (result1){
+                                x = x1;
+                                result = 1;
+                            }
+                            else if (result2){
+                                x = x2;
+                                result = 1;
+                            }
+
                             if (result == 1 && x < 128){
                                 key = (u8)x;
                                 if (key == '\r') key = '\n';
-                                data[*count].character_no_caps_lock = key;
-                                data[*count].keycode = key;
+                                data[*count].character = key;
+
+                                state[VK_CAPITAL] = 0;
+                                x = 0;
+                                result = ToAscii(vk, scan, state, &x, 0);
+                                if (result == 1 && x < 128){
+                                    key = (u8)x;
+                                    if (key == '\r') key = '\n';
+                                    data[*count].character_no_caps_lock = key;
+                                    data[*count].keycode = key;
+                                }
+                            }
+                            if (result != 1 || x >= 128){
+                                data[*count].character = 0;
+                                data[*count].character_no_caps_lock = 0;
+                                data[*count].keycode = 0;
                             }
                         }
-                        if (result != 1 || x >= 128){
+                        else{
                             data[*count].character = 0;
                             data[*count].character_no_caps_lock = 0;
-                            data[*count].keycode = 0;
+                            data[*count].keycode = key;
                         }
+                        memcpy(data[*count].modifiers, control_keys, control_keys_size);
+                        ++(*count);
                     }
-                    else{
-                        data[*count].character = 0;
-                        data[*count].character_no_caps_lock = 0;
-                        data[*count].keycode = key;
-                    }
-                    memcpy(data[*count].modifiers, control_keys, control_keys_size);
-                    ++(*count);
                 }
+                system_release_lock(INPUT_LOCK);
+
+                result = DefWindowProc(hwnd, uMsg, wParam, lParam);
+            }
+        }break;
+
+        case WM_INPUT:
+
+
+        case WM_MOUSEMOVE:
+        {
+            system_acquire_lock(INPUT_LOCK);
+            win32vars.input_chunk.pers.mouse_x = LOWORD(lParam);
+            win32vars.input_chunk.pers.mouse_y = HIWORD(lParam);
+            system_release_lock(INPUT_LOCK);
+        }break;
+
+        case WM_MOUSEWHEEL:
+        {
+            system_acquire_lock(INPUT_LOCK);
+            i16 rotation = GET_WHEEL_DELTA_WPARAM(wParam);
+            if (rotation > 0){
+                win32vars.input_chunk.trans.mouse_wheel = 1;
+            }
+            else{
+                win32vars.input_chunk.trans.mouse_wheel = -1;
             }
             system_release_lock(INPUT_LOCK);
-            
-            result = DefWindowProc(hwnd, uMsg, wParam, lParam);
-        }
-    }break;
+        }break;
 
-    case WM_INPUT:
-    
+        case WM_LBUTTONDOWN:
+        {
+            system_acquire_lock(INPUT_LOCK);
+            win32vars.input_chunk.trans.mouse_l_press = 1;
+            win32vars.input_chunk.pers.mouse_l = 1;
+            system_release_lock(INPUT_LOCK);
+        }break;
 
-    case WM_MOUSEMOVE:
-    {
-        system_acquire_lock(INPUT_LOCK);
-        win32vars.input_chunk.pers.mouse_x = LOWORD(lParam);
-        win32vars.input_chunk.pers.mouse_y = HIWORD(lParam);
-        system_release_lock(INPUT_LOCK);
-    }break;
-    
-    case WM_MOUSEWHEEL:
-    {
-        system_acquire_lock(INPUT_LOCK);
-        i16 rotation = GET_WHEEL_DELTA_WPARAM(wParam);
-        if (rotation > 0){
-            win32vars.input_chunk.trans.mouse_wheel = 1;
-        }
-        else{
-            win32vars.input_chunk.trans.mouse_wheel = -1;
-        }
-        system_release_lock(INPUT_LOCK);
-    }break;
-    
-    case WM_LBUTTONDOWN:
-    {
-        system_acquire_lock(INPUT_LOCK);
-        win32vars.input_chunk.trans.mouse_l_press = 1;
-        win32vars.input_chunk.pers.mouse_l = 1;
-        system_release_lock(INPUT_LOCK);
-    }break;
-    
-    case WM_RBUTTONDOWN:
-    {
-        system_acquire_lock(INPUT_LOCK);
-        win32vars.input_chunk.trans.mouse_r_press = 1;
-        win32vars.input_chunk.pers.mouse_r = 1;
-        system_release_lock(INPUT_LOCK);
-    }break;
-    
-    case WM_LBUTTONUP:
-    {
-        system_acquire_lock(INPUT_LOCK);
-        win32vars.input_chunk.trans.mouse_l_release = 1;
-        win32vars.input_chunk.pers.mouse_l = 0;
-        system_release_lock(INPUT_LOCK);
-    }break;
-    
-    case WM_RBUTTONUP:
-    {
-        system_acquire_lock(INPUT_LOCK);
-        win32vars.input_chunk.trans.mouse_r_release = 1;
-        win32vars.input_chunk.pers.mouse_r = 0;
-        system_release_lock(INPUT_LOCK);
-    }break;
-    
-    case WM_KILLFOCUS:
-    case WM_SETFOCUS:
-    {
-        system_acquire_lock(INPUT_LOCK);
-        win32vars.input_chunk.pers.mouse_l = 0;
-        win32vars.input_chunk.pers.mouse_r = 0;
+        case WM_RBUTTONDOWN:
+        {
+            system_acquire_lock(INPUT_LOCK);
+            win32vars.input_chunk.trans.mouse_r_press = 1;
+            win32vars.input_chunk.pers.mouse_r = 1;
+            system_release_lock(INPUT_LOCK);
+        }break;
 
-        b8 *control_keys = win32vars.input_chunk.pers.control_keys;
-        for (int i = 0; i < MDFR_INDEX_COUNT; ++i) control_keys[i] = 0;
-        win32vars.input_chunk.pers.controls = {};
-        
-        system_release_lock(INPUT_LOCK);
-    }break;
-    
-    case WM_SIZE:
-    {
-        if (win32vars.target.handle){
-            i32 new_width = LOWORD(lParam);
-            i32 new_height = HIWORD(lParam);
+        case WM_LBUTTONUP:
+        {
+            system_acquire_lock(INPUT_LOCK);
+            win32vars.input_chunk.trans.mouse_l_release = 1;
+            win32vars.input_chunk.pers.mouse_l = 0;
+            system_release_lock(INPUT_LOCK);
+        }break;
 
-            Win32Resize(new_width, new_height);
-            win32vars.input_chunk.trans.redraw = 1;
-        }
-    }break;
-    
-    case WM_PAINT:
-    {
-        PAINTSTRUCT ps;
-        HDC hdc = BeginPaint(hwnd, &ps);
-        Win32RedrawScreen(hdc);
-        EndPaint(hwnd, &ps);
-        
-    }break;
-    
-    case WM_4coder_PAINT:
-    {
-        PAINTSTRUCT ps;
-        HDC hdc = BeginPaint(hwnd, &ps);
-        Win32RedrawScreen(hdc);
-        EndPaint(hwnd, &ps);
-    }break;
-    
-    case WM_4coder_SET_CURSOR:
-    {
-        switch (wParam){
-        case APP_MOUSE_CURSOR_ARROW:
-            SetCursor(win32vars.cursor_arrow); break;
-            
-        case APP_MOUSE_CURSOR_IBEAM:
-            SetCursor(win32vars.cursor_ibeam); break;
-            
-        case APP_MOUSE_CURSOR_LEFTRIGHT:
-            SetCursor(win32vars.cursor_leftright); break;
-            
-        case APP_MOUSE_CURSOR_UPDOWN:
-            SetCursor(win32vars.cursor_updown); break;
-        }
-    }break;
-    
-    case WM_CLOSE: // NOTE(allen): I expect WM_CLOSE not WM_DESTROY
-    case WM_DESTROY:
-    {
-        system_acquire_lock(INPUT_LOCK);
-        win32vars.input_chunk.trans.trying_to_kill = 1;
-        system_release_lock(INPUT_LOCK);
-    }break;
-    
-    case WM_4coder_LOAD_FONT:
-    {
-        if (win32vars.fnt.part.base == 0){
-            win32vars.fnt.part = Win32ScratchPartition(Mbytes(8));
-        }
-        
-        Font_Load_Parameters *params = win32vars.fnt.params + lParam;
-        i32 oversample = DpiMultiplier(2, win32vars.target.dpi);
-        
-        for (b32 success = 0; success == 0;){
-            success = draw_font_load(win32vars.fnt.part.base,
-                win32vars.fnt.part.max,
-                params->font_out,
-                params->filename,
-                params->pt_size,
-                params->tab_width,
-                oversample);
+        case WM_RBUTTONUP:
+        {
+            system_acquire_lock(INPUT_LOCK);
+            win32vars.input_chunk.trans.mouse_r_release = 1;
+            win32vars.input_chunk.pers.mouse_r = 0;
+            system_release_lock(INPUT_LOCK);
+        }break;
 
-            if (!success){
-                Win32ScratchPartitionDouble(&win32vars.fnt.part);
+        case WM_KILLFOCUS:
+        case WM_SETFOCUS:
+        {
+            system_acquire_lock(INPUT_LOCK);
+            win32vars.input_chunk.pers.mouse_l = 0;
+            win32vars.input_chunk.pers.mouse_r = 0;
+
+            b8 *control_keys = win32vars.input_chunk.pers.control_keys;
+            for (int i = 0; i < MDFR_INDEX_COUNT; ++i) control_keys[i] = 0;
+            win32vars.input_chunk.pers.controls = {};
+
+            system_release_lock(INPUT_LOCK);
+        }break;
+
+        case WM_SIZE:
+        {
+            if (win32vars.target.handle){
+                i32 new_width = LOWORD(lParam);
+                i32 new_height = HIWORD(lParam);
+
+                Win32Resize(new_width, new_height);
+                win32vars.input_chunk.trans.redraw = 1;
             }
-        }
+        }break;
 
-        system_acquire_lock(FONT_LOCK);
-        fnt__remove(params);
-        fnt__insert(&win32vars.fnt.free_param, params);
-        system_release_lock(FONT_LOCK);
-    }break;
-    
-    default:
-    {
-        result = DefWindowProc(hwnd, uMsg, wParam, lParam);
-    }break;
-	}
-	return result;
+        case WM_PAINT:
+        {
+            PAINTSTRUCT ps;
+            HDC hdc = BeginPaint(hwnd, &ps);
+            Win32RedrawScreen(hdc);
+            EndPaint(hwnd, &ps);
+
+        }break;
+
+        case WM_4coder_PAINT:
+        {
+            PAINTSTRUCT ps;
+            HDC hdc = BeginPaint(hwnd, &ps);
+            Win32RedrawScreen(hdc);
+            EndPaint(hwnd, &ps);
+        }break;
+
+        case WM_4coder_SET_CURSOR:
+        {
+            switch (wParam){
+                case APP_MOUSE_CURSOR_ARROW:
+                SetCursor(win32vars.cursor_arrow); break;
+
+                case APP_MOUSE_CURSOR_IBEAM:
+                SetCursor(win32vars.cursor_ibeam); break;
+
+                case APP_MOUSE_CURSOR_LEFTRIGHT:
+                SetCursor(win32vars.cursor_leftright); break;
+
+                case APP_MOUSE_CURSOR_UPDOWN:
+                SetCursor(win32vars.cursor_updown); break;
+            }
+        }break;
+
+        case WM_CLOSE: // NOTE(allen): I expect WM_CLOSE not WM_DESTROY
+        case WM_DESTROY:
+        {
+            system_acquire_lock(INPUT_LOCK);
+            win32vars.input_chunk.trans.trying_to_kill = 1;
+            system_release_lock(INPUT_LOCK);
+        }break;
+
+        case WM_4coder_LOAD_FONT:
+        {
+            if (win32vars.fnt.part.base == 0){
+                win32vars.fnt.part = Win32ScratchPartition(Mbytes(8));
+            }
+
+            Font_Load_Parameters *params = win32vars.fnt.params + lParam;
+            i32 oversample = DpiMultiplier(2, win32vars.target.dpi);
+
+            for (b32 success = 0; success == 0;){
+                success = draw_font_load(win32vars.fnt.part.base,
+                    win32vars.fnt.part.max,
+                    params->font_out,
+                    params->filename,
+                    params->pt_size,
+                    params->tab_width,
+                    oversample);
+
+                if (!success){
+                    Win32ScratchPartitionDouble(&win32vars.fnt.part);
+                }
+            }
+
+            system_acquire_lock(FONT_LOCK);
+            fnt__remove(params);
+            fnt__insert(&win32vars.fnt.free_param, params);
+            system_release_lock(FONT_LOCK);
+        }break;
+
+        default:
+        {
+            result = DefWindowProc(hwnd, uMsg, wParam, lParam);
+        }break;
+    }
+    return result;
 }
 
 DWORD
@@ -1488,20 +1478,20 @@ UpdateLoop(LPVOID param){
         Win32_Input_Chunk input_chunk = win32vars.input_chunk;
         win32vars.input_chunk.trans = {};
         system_release_lock(INPUT_LOCK);
-        
+
         input_chunk.pers.control_keys[MDFR_CAPS_INDEX] = GetKeyState(VK_CAPITAL) & 0x1;
-        
+
         POINT mouse_point;
         if (GetCursorPos(&mouse_point) && ScreenToClient(win32vars.window_handle, &mouse_point)){
             if (mouse_point.x < 0 || mouse_point.x >= win32vars.target.width ||
-                mouse_point.y < 0 || mouse_point.y >= win32vars.target.height){
+                    mouse_point.y < 0 || mouse_point.y >= win32vars.target.height){
                 input_chunk.trans.out_of_window = 1;
             }
         }
         else{
             input_chunk.trans.out_of_window = 1;
         }
-        
+
         win32vars.clipboard_contents = {};
         if (win32vars.clipboard_sequence != 0){
             DWORD new_number = GetClipboardSequenceNumber();
@@ -1560,39 +1550,38 @@ UpdateLoop(LPVOID param){
         win32vars.app.step(win32vars.system,
             &input_data,
             &mouse,
-            win32vars.cli_self,
             &win32vars.target,
             &memory_vars,
             &exchange_vars,
             win32vars.clipboard_contents,
             1, win32vars.first, redraw,
             &result);
-        
+
         if (result.perform_kill){
             win32vars.input_chunk.pers.keep_playing = 0;
         }
-        
+
         ProfileStart(OS_frame_out);
 
         Win32SetCursorFromUpdate(result.mouse_cursor_type);
         win32vars.lctrl_lalt_is_altgr = result.lctrl_lalt_is_altgr;
-        
+
         if (result.redraw) Win32RedrawFromUpdate();
-        
+
         win32vars.first = 0;
-        
+
         ProfileEnd(OS_frame_out);
-        
+
         ProfileStart(OS_file_process);
         {
             File_Slot *file;
             int d = 0;
-            
+
             for (file = exchange_vars.file.active.next;
-                 file != &exchange_vars.file.active;
-                 file = file->next){
+                file != &exchange_vars.file.active;
+                file = file->next){
                 ++d;
-                
+
                 if (file->flags & FEx_Save){
                     Assert((file->flags & FEx_Request) == 0);
                     file->flags &= (~FEx_Save);
@@ -1603,7 +1592,7 @@ UpdateLoop(LPVOID param){
                         file->flags |= FEx_Save_Failed;
                     }
                 }
-                
+
                 if (file->flags & FEx_Request){
                     Assert((file->flags & FEx_Save) == 0);
                     file->flags &= (~FEx_Request);
@@ -1634,18 +1623,18 @@ UpdateLoop(LPVOID param){
                 Assert(free_list_count != 0);
                 ex__insert_range(exchange_vars.file.free_list.next, exchange_vars.file.free_list.prev,
                     &exchange_vars.file.available);
-                
+
                 exchange_vars.file.num_active -= free_list_count;
             }
 
             ex__check(&exchange_vars.file);
         }
         ProfileEnd(OS_file_process);
-        
+
         ProfileStart(frame_sleep);
         i64 timer_end = system_time();
         i64 end_target = (timer_start + frame_useconds);
-    
+
         system_release_lock(FRAME_LOCK);
         while (timer_end < end_target){
             DWORD samount = (DWORD)((end_target - timer_end) / 1000);
@@ -1656,7 +1645,7 @@ UpdateLoop(LPVOID param){
         timer_start = system_time();
         ProfileEnd(frame_sleep);
     }
-    
+
     return(0);
 }
 
@@ -1667,137 +1656,136 @@ UpdateLoop(LPVOID param){
 #if 0
 int
 WinMain(HINSTANCE hInstance,
-        HINSTANCE hPrevInstance,
-        LPSTR lpCmdLine,
-        int nCmdShow){
+    HINSTANCE hPrevInstance,
+    LPSTR lpCmdLine,
+    int nCmdShow){
 #else
-int
-main(int argc, char **argv){
+    int
+        main(int argc, char **argv){
 #endif
-    HINSTANCE hInstance = GetModuleHandle(0);
-    
-    win32vars = {};
-    exchange_vars = {};
-    
-#if FRED_INTERNAL
-    win32vars.internal_bubble.next = &win32vars.internal_bubble;
-    win32vars.internal_bubble.prev = &win32vars.internal_bubble;
-    win32vars.internal_bubble.flags = MEM_BUBBLE_SYS_DEBUG;
-#endif
-    
-    if (!Win32LoadAppCode()){
-        // TODO(allen): Failed to load app code, serious problem.
-        return 99;
-    }
-    
-    System_Functions system_;
-    System_Functions *system = &system_;
-    win32vars.system = system;
-    Win32LoadSystemCode();
-    
-    ConvertThreadToFiber(0);
-    win32vars.coroutine_free = win32vars.coroutine_data;
-    for (i32 i = 0; i+1 < ArrayCount(win32vars.coroutine_data); ++i){
-        win32vars.coroutine_data[i].next = win32vars.coroutine_data + i + 1;
-    }
+        HINSTANCE hInstance = GetModuleHandle(0);
+        HANDLE original_out = GetStdHandle(STD_OUTPUT_HANDLE);
 
-    LPVOID base;
-#if FRED_INTERNAL
-    base = (LPVOID)Tbytes(1);
-#else
-    base = (LPVOID)0;
-#endif
-
-    memory_vars.vars_memory_size = Mbytes(2);
-    memory_vars.vars_memory = VirtualAlloc(base, memory_vars.vars_memory_size,
-        MEM_COMMIT | MEM_RESERVE,
-        PAGE_READWRITE);
+        win32vars = {};
+        exchange_vars = {};
 
 #if FRED_INTERNAL
-    base = (LPVOID)Tbytes(2);
-#else
-    base = (LPVOID)0;
+        win32vars.internal_bubble.next = &win32vars.internal_bubble;
+        win32vars.internal_bubble.prev = &win32vars.internal_bubble;
+        win32vars.internal_bubble.flags = MEM_BUBBLE_SYS_DEBUG;
 #endif
-    memory_vars.target_memory_size = Mbytes(512);
-    memory_vars.target_memory = VirtualAlloc(base, memory_vars.target_memory_size,
-        MEM_COMMIT | MEM_RESERVE,
-        PAGE_READWRITE);
-    
-    base = (LPVOID)0;
-    memory_vars.user_memory_size = Mbytes(2);
-    memory_vars.user_memory = VirtualAlloc(base, memory_vars.target_memory_size,
-                                             MEM_COMMIT | MEM_RESERVE,
-                                             PAGE_READWRITE);
-    //
 
-    if (!memory_vars.vars_memory){
-        return 4;
-    }
-
-    DWORD required = GetCurrentDirectory(0, 0);
-    required += 1;
-    required *= 4;
-    char *current_directory_mem = (char*)system_get_memory(required);
-    DWORD written = GetCurrentDirectory(required, current_directory_mem);
-
-    String current_directory = make_string(current_directory_mem, written, required);
-    terminate_with_null(&current_directory);
-    replace_char(current_directory, '\\', '/');
-
-    Command_Line_Parameters clparams;
-    clparams.argv = argv;
-    clparams.argc = argc;
-    
-    char **files;
-    i32 *file_count;
-    
-    files = 0;
-    file_count = 0;
-    
-    i32 output_size =
-        win32vars.app.read_command_line(system,
-                                        &memory_vars,
-                                        current_directory,
-                                        &win32vars.settings,
-                                        &files, &file_count,
-                                        clparams);
-    //
-    
-    if (output_size > 0){
-        // TODO(allen): crt free version
-        printf("%.*s", output_size, memory_vars.target_memory);
-    }
-    if (output_size != 0) return 0;
-    
-        
-#ifdef FRED_SUPER
-    char *custom_file_default = "4coder_custom.dll";
-    char *custom_file;
-    if (win32vars.settings.custom_dll) custom_file = win32vars.settings.custom_dll;
-    else custom_file = custom_file_default;
-    
-    win32vars.custom = LoadLibraryA(custom_file);
-    if (!win32vars.custom && custom_file != custom_file_default){
-        if (!win32vars.settings.custom_dll_is_strict){
-            win32vars.custom = LoadLibraryA(custom_file_default);
+        if (!Win32LoadAppCode()){
+            // TODO(allen): Failed to load app code, serious problem.
+            return 99;
         }
-    }
-    
-    if (win32vars.custom){
-        win32vars.custom_api.get_alpha_4coder_version = (_Get_Version_Function*)
-            GetProcAddress(win32vars.custom, "get_alpha_4coder_version");
+
+        System_Functions system_;
+        System_Functions *system = &system_;
+        win32vars.system = system;
+        Win32LoadSystemCode();
+
+        ConvertThreadToFiber(0);
+        win32vars.coroutine_free = win32vars.coroutine_data;
+        for (i32 i = 0; i+1 < ArrayCount(win32vars.coroutine_data); ++i){
+            win32vars.coroutine_data[i].next = win32vars.coroutine_data + i + 1;
+        }
+
+        LPVOID base;
+#if FRED_INTERNAL
+        base = (LPVOID)Tbytes(1);
+#else
+        base = (LPVOID)0;
+#endif
+
+        memory_vars.vars_memory_size = Mbytes(2);
+        memory_vars.vars_memory = VirtualAlloc(base, memory_vars.vars_memory_size,
+            MEM_COMMIT | MEM_RESERVE,
+            PAGE_READWRITE);
+
+#if FRED_INTERNAL
+        base = (LPVOID)Tbytes(2);
+#else
+        base = (LPVOID)0;
+#endif
+        memory_vars.target_memory_size = Mbytes(512);
+        memory_vars.target_memory = VirtualAlloc(base, memory_vars.target_memory_size,
+            MEM_COMMIT | MEM_RESERVE,
+            PAGE_READWRITE);
+
+        base = (LPVOID)0;
+        memory_vars.user_memory_size = Mbytes(2);
+        memory_vars.user_memory = VirtualAlloc(base, memory_vars.target_memory_size,
+            MEM_COMMIT | MEM_RESERVE,
+            PAGE_READWRITE);
         //
-        if (win32vars.custom_api.get_alpha_4coder_version == 0 ||
-                win32vars.custom_api.get_alpha_4coder_version(MAJOR, MINOR, PATCH) == 0){
-            printf("Error: application and custom version numbers don't match");
-            return 22;
-        }
-        
-        win32vars.custom_api.get_bindings = (Get_Binding_Data_Function*)
-            GetProcAddress(win32vars.custom, "get_bindings");
-    }
-#endif
 
+        if (!memory_vars.vars_memory){
+            return 4;
+        }
+
+        DWORD required = GetCurrentDirectory(0, 0);
+        required += 1;
+        required *= 4;
+        char *current_directory_mem = (char*)system_get_memory(required);
+        DWORD written = GetCurrentDirectory(required, current_directory_mem);
+
+        String current_directory = make_string(current_directory_mem, written, required);
+        terminate_with_null(&current_directory);
+        replace_char(current_directory, '\\', '/');
+
+        Command_Line_Parameters clparams;
+        clparams.argv = argv;
+        clparams.argc = argc;
+
+        char **files;
+        i32 *file_count;
+
+        files = 0;
+        file_count = 0;
+
+        i32 output_size =
+            win32vars.app.read_command_line(system,
+            &memory_vars,
+            current_directory,
+            &win32vars.settings,
+            &files, &file_count,
+            clparams);
+        //
+
+        if (output_size > 0){
+            DWORD written;
+            WriteFile(original_out, memory_vars.target_memory, output_size, &written, 0);
+        }
+        if (output_size != 0) return 0;
+
+#ifdef FRED_SUPER
+        char *custom_file_default = "4coder_custom.dll";
+        char *custom_file;
+        if (win32vars.settings.custom_dll) custom_file = win32vars.settings.custom_dll;
+        else custom_file = custom_file_default;
+
+        win32vars.custom = LoadLibraryA(custom_file);
+        if (!win32vars.custom && custom_file != custom_file_default){
+            if (!win32vars.settings.custom_dll_is_strict){
+                win32vars.custom = LoadLibraryA(custom_file_default);
+            }
+        }
+
+        if (win32vars.custom){
+            win32vars.custom_api.get_alpha_4coder_version = (_Get_Version_Function*)
+                GetProcAddress(win32vars.custom, "get_alpha_4coder_version");
+            //
+            if (win32vars.custom_api.get_alpha_4coder_version == 0 ||
+                    win32vars.custom_api.get_alpha_4coder_version(MAJOR, MINOR, PATCH) == 0){
+                printf("Error: application and custom version numbers don't match");
+                return 22;
+            }
+            win32vars.custom_api.get_bindings = (Get_Binding_Data_Function*)
+                GetProcAddress(win32vars.custom, "get_bindings");
+        }
+#endif
+    
     //FreeConsole();
     
     sysshared_filter_real_files(files, file_count);

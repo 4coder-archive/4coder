@@ -107,7 +107,6 @@ struct Application_Step_Result{
 name(System_Functions *system,                         \
     Key_Input_Data *input,                             \
     Mouse_State *mouse,                                \
-    CLI_Handles self,                                  \
     Render_Target *target,                             \
     Application_Memory *memory,                        \
     Exchange *exchange,                                \

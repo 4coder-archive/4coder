@@ -1836,18 +1836,6 @@ main(int argc, char **argv)
     
     current_directory = make_string(curdir_mem, curdir_size, curdir_req);
 
-    int stdout_redir[2] = {};
-    if(pipe(stdout_redir) == -1){
-        perror("pipe");
-    } else {
-        if(dup2(stdout_redir[1], STDOUT_FILENO) == -1){
-            perror("dup2");
-        } else {
-            memcpy(&linuxvars.cli_self.out_read, stdout_redir, sizeof(int));
-            memcpy(&linuxvars.cli_self.out_write, stdout_redir + 1, sizeof(int));
-        }
-    }
-
     Command_Line_Parameters clparams;
     clparams.argv = argv;
     clparams.argc = argc;
@@ -1866,9 +1854,23 @@ main(int argc, char **argv)
     
     if (output_size > 0){
         // TODO(allen): crt free version
-        fprintf(stderr, "%.*s", output_size, (char*)memory_vars.target_memory);
+        fprintf(stdout, "%.*s", output_size, (char*)memory_vars.target_memory);
     }
     if (output_size != 0) return 0;
+
+    // NOTE(allen): Now that we are done using the normal stdout stuff
+    // redirect it to a pipe so the application can render future printf itself.
+    int stdout_redir[2] = {};
+    if(pipe(stdout_redir) == -1){
+        perror("pipe");
+    } else {
+        if(dup2(stdout_redir[1], STDOUT_FILENO) == -1){
+            perror("dup2");
+        } else {
+            memcpy(&linuxvars.cli_self.out_read, stdout_redir, sizeof(int));
+            memcpy(&linuxvars.cli_self.out_write, stdout_redir + 1, sizeof(int));
+        }
+    }
 
     sysshared_filter_real_files(files, file_count);
     

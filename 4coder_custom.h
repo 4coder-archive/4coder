@@ -383,6 +383,7 @@ struct Application_Links;
 // Queries
 #define START_QUERY_BAR_SIG(n) int n(Application_Links *app, Query_Bar *bar, unsigned int flags)
 #define END_QUERY_BAR_SIG(n) void n(Application_Links *app, Query_Bar *bar, unsigned int flags)
+#define PRINT_MESSAGE_SIG(n) void n(Application_Links *app, char *string, int len)
 
 // Color settings
 #define CHANGE_THEME_SIG(n) void n(Application_Links *app, char *name, int len)
@@ -463,6 +464,7 @@ extern "C"{
     // Queries
     typedef START_QUERY_BAR_SIG(Start_Query_Bar_Function);
     typedef END_QUERY_BAR_SIG(End_Query_Bar_Function);
+    typedef PRINT_MESSAGE_SIG(Print_Message_Function);
     
     // Color settings
     typedef CHANGE_THEME_SIG(Change_Theme_Function);
@@ -525,6 +527,7 @@ struct Application_Links{
     // Queries
     Start_Query_Bar_Function *start_query_bar;
     End_Query_Bar_Function *end_query_bar;
+    Print_Message_Function *print_message;
     
     // Theme
     Change_Theme_Function *change_theme;

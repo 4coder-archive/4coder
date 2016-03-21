@@ -568,7 +568,7 @@ CUSTOM_COMMAND_SIG(execute_arbitrary_command){
         exec_command(app, cmdid_eol_nixify);
     }
     else{
-        // TODO(allen): feedback message
+        app->print_message(app, literal("unrecognized command\n"));
     }
 }
 
@@ -646,7 +646,7 @@ CUSTOM_COMMAND_SIG(build_search){
         }
     }
 
-    // TODO(allen): feedback message - couldn't find build.bat
+    app->print_message(app, literal("couldn't find build.bat\n"));
 }
 
 CUSTOM_COMMAND_SIG(auto_tab_line_at_cursor){

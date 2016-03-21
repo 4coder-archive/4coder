@@ -2515,9 +2515,14 @@ extern "C"{
     END_QUERY_BAR_SIG(external_end_query_bar){
         Command_Data *cmd = (Command_Data*)app->cmd_context;
         View *vptr;
-
         vptr = cmd->view;
         free_query_slot(&vptr->query_set, bar);
+    }
+    
+    PRINT_MESSAGE_SIG(external_print_message){
+        Command_Data *cmd = (Command_Data*)app->cmd_context;
+        Models *models = cmd->models;
+        do_feedback_message(cmd->system, models, make_string(string, len));
     }
     
     CHANGE_THEME_SIG(external_change_theme){
@@ -2630,6 +2635,7 @@ app_links_init(System_Functions *system, void *data, int size){
 
     app_links.start_query_bar = external_start_query_bar;
     app_links.end_query_bar = external_end_query_bar;
+    app_links.print_message = external_print_message;
 
     app_links.change_theme = external_change_theme;
     app_links.change_font = external_change_font;
@@ -3091,6 +3097,7 @@ execute_special_tool(void *memory, i32 size, Command_Line_Parameters clparams){
         if (match(clparams.argv[2], "version")){
             result = sizeof(VERSION) - 1;
             memcpy(memory, VERSION, result);
+            ((char*)memory)[result++] = '\n';
         }
     }
     return(result);
@@ -3132,7 +3139,6 @@ extern "C" SCROLL_RULE_SIG(fallback_scroll_rule){
 
     return(result);
 }
-
 
 App_Init_Sig(app_init){
     App_Vars *vars;
@@ -3446,6 +3452,43 @@ App_Init_Sig(app_init){
     models->buffer_param_indices = push_array(partition, i32, models->buffer_param_max);
 }
 
+internal i32
+update_cli_handle_with_file(System_Functions *system, Models *models,
+    CLI_Handles *cli, Editing_File *file, char *dest, i32 max, b32 cursor_at_end){
+    i32 result = 0;
+    u32 amount;
+    
+    for (system->cli_begin_update(cli);
+        system->cli_update_step(cli, dest, max, &amount);){
+        amount = eol_in_place_convert_in(dest, amount);
+        output_file_append(system, models, file, make_string(dest, amount), cursor_at_end);
+        result = 1;
+    }
+
+    if (system->cli_end_update(cli)){
+        char str_space[256];
+        String str = make_fixed_width_string(str_space);
+        append(&str, "exited with code ");
+        append_int_to_str(cli->exit, &str);
+        output_file_append(system, models, file, str, cursor_at_end);
+        result = -1;
+    }
+
+    i32 new_cursor = 0;
+    
+    if (cursor_at_end){
+        new_cursor = buffer_size(&file->state.buffer);
+    }
+
+    for (View_Iter iter = file_view_iter_init(&models->layout, file, 0);
+        file_view_iter_good(iter);
+        iter = file_view_iter_next(iter)){
+        view_cursor_move(iter.view, new_cursor);
+    }
+    
+    return(result);
+}
+
 App_Step_Sig(app_step){
     ProfileStart(OS_syncing);
     Application_Step_Result app_result = *result;
@@ -3498,7 +3541,6 @@ App_Step_Sig(app_step){
         Temp_Memory temp = begin_temp_memory(&models->mem.part);
         u32 max = Kbytes(32);
         char *dest = push_array(&models->mem.part, char, max);
-        u32 amount;
 
         i32 count = vars->cli_processes.count;
         for (i32 i = 0; i < count; ++i){
@@ -3506,33 +3548,11 @@ App_Step_Sig(app_step){
             Editing_File *file = proc->out_file;
 
             if (file != 0){
-
-                for (system->cli_begin_update(&proc->cli);
-                    system->cli_update_step(&proc->cli, dest, max, &amount);){
-                    amount = eol_in_place_convert_in(dest, amount);
-                    output_file_append(system, models, file, make_string(dest, amount), 0);
-                    app_result.redraw = 1;
-                }
-
-                if (system->cli_end_update(&proc->cli)){
+                i32 r = update_cli_handle_with_file(system, models, &proc->cli, file, dest, max, 0);
+                if (r) app_result.redraw = 1;
+                if (r < 0){
                     *proc = vars->cli_processes.procs[--count];
                     --i;
-
-                    char str_space[256];
-                    String str = make_fixed_width_string(str_space);
-                    append(&str, "exited with code ");
-                    append_int_to_str(proc->cli.exit, &str);
-
-                    output_file_append(system, models, file, str, 0);
-                    app_result.redraw = 1;
-                }
-
-                i32 new_cursor = 0;
-
-                for (View_Iter iter = file_view_iter_init(&models->layout, file, 0);
-                    file_view_iter_good(iter);
-                    iter = file_view_iter_next(iter)){
-                    view_cursor_move(iter.view, new_cursor);
                 }
             }
         }
@@ -3540,7 +3560,7 @@ App_Step_Sig(app_step){
         vars->cli_processes.count = count;
         end_temp_memory(temp);
     }
-
+    
     // NOTE(allen): reorganizing panels on screen
     {
         i32 prev_width = models->layout.full_width;
@@ -3732,7 +3752,7 @@ App_Step_Sig(app_step){
                     "-The file count limit is over 8 million now\n"
                     "-File equality is handled better so renamings (such as 'subst') are safe now\n"
                     "-This buffer will report events including errors that happen in 4coder\n"
-                    "-Super users can post their own messages here with printf\n"
+                    "-Super users can post their own messages here with app->print_message\n"
                     "-Set font size on command line with -f N, N = 16 by default\n\n"
             );
 

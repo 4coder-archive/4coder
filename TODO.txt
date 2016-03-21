@@ -131,6 +131,7 @@
 ; theme related business
 ;    [] fix the versioning system for themes
 ;    [] theme switch per panel?
+;    [] allow multiple font faces with effects
 ;
 ; [] control schemes
 ;    [] emacs style sub-maps
@@ -146,7 +147,7 @@
 ; [] cuber's return to previous buffer idea
 ; [] miblo's various number editors
 ;
-; [] keep copy of unedited orignal, somewhere (compressed, restore by history?)
+; [] keep copy of unedited orignal, somewhere (compressed? restore by history?)
 ;
 ; [] diff
 ; [] cloc

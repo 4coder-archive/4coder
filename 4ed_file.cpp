@@ -95,12 +95,12 @@ struct Text_Effect{
 
 // NOTE(allen): The Editing_File struct is now divided into two
 // parts.  Variables in the Settings part can be set even when the
-// file is still streaming in, and all operations except for the
-// initial allocation of the file.
+// file is still streaming in, and persists thorugh all operations except
+// for the initial allocation of the file.
 struct Editing_File_Settings{
     i32 base_map_id;
     i32 dos_write_mode;
-    b32 unwrapped_lines;
+    b8 unwrapped_lines;
     b8 tokens_exist;
     b8 is_initialized;
     b8 unimportant;
