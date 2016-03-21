@@ -1854,6 +1854,7 @@ WinMain(HINSTANCE hInstance,
 	window_class.lpfnWndProc = Win32Callback;
 	window_class.hInstance = hInstance;
 	window_class.lpszClassName = "4coder-win32-wndclass";
+    window_class.hIcon = LoadIcon(hInstance, "main");
     
 	if (!RegisterClass(&window_class)){
 		return 1;
