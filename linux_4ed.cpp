@@ -156,7 +156,8 @@ struct Linux_Vars{
     Linux_Coroutine coroutine_data[2];
     Linux_Coroutine *coroutine_free;
 
-    CLI_Handles cli_self;
+    int stdout_orig;
+    int stdout_redir[2];
 };
 
 #define LINUX_MAX_PASTE_CHARS 0x10000L
@@ -1772,6 +1773,23 @@ LinuxMaximizeWindow(Display* d, Window w, b32 maximize){
                );
 }
 
+#include "linux_icon.h"
+void LinuxSetIcon(Display* d, Window w){
+
+	Atom WM_ICON = XInternAtom(d, "_NET_WM_ICON", False);
+
+	XChangeProperty(
+		d,
+		w,
+		WM_ICON,
+		XA_CARDINAL,
+		32,
+		PropModeReplace,
+		(unsigned char*)linux_icon,
+		sizeof(linux_icon) / sizeof(long)
+	);
+}
+
 int
 main(int argc, char **argv)
 {
@@ -1860,15 +1878,16 @@ main(int argc, char **argv)
 
     // NOTE(allen): Now that we are done using the normal stdout stuff
     // redirect it to a pipe so the application can render future printf itself.
-    int stdout_redir[2] = {};
-    if(pipe(stdout_redir) == -1){
+
+    linuxvars.stdout_orig = dup(STDOUT_FILENO);
+
+    if(pipe(linuxvars.stdout_redir) == -1){
         perror("pipe");
     } else {
-        if(dup2(stdout_redir[1], STDOUT_FILENO) == -1){
+        if(dup2(linuxvars.stdout_redir[1], STDOUT_FILENO) == -1){
             perror("dup2");
         } else {
-            memcpy(&linuxvars.cli_self.out_read, stdout_redir, sizeof(int));
-            memcpy(&linuxvars.cli_self.out_write, stdout_redir + 1, sizeof(int));
+            setlinebuf(stdout);
         }
     }
 
@@ -2083,10 +2102,12 @@ main(int argc, char **argv)
         1
     );
 
-    //NOTE(inso): set wm properties
-    XStoreName(linuxvars.XDisplay, linuxvars.XWindow, "4coder-window");
+#define WINDOW_NAME "4coder: " VERSION " linux"
 
-    char* win_name_list[] = { "4coder" };
+    //NOTE(inso): set wm properties
+    XStoreName(linuxvars.XDisplay, linuxvars.XWindow, WINDOW_NAME);
+
+    char* win_name_list[] = { WINDOW_NAME };
     XTextProperty win_name;
 
     XStringListToTextProperty(win_name_list, 1, &win_name);
@@ -2122,6 +2143,8 @@ main(int argc, char **argv)
     XFree(sz_hints);
     XFree(wm_hints);
     XFree(cl_hints);
+
+    LinuxSetIcon(linuxvars.XDisplay, linuxvars.XWindow);
 
     //NOTE(inso): make the window visible
     XMapWindow(linuxvars.XDisplay, linuxvars.XWindow);
@@ -2468,6 +2491,32 @@ main(int argc, char **argv)
             );
         }
 
+        // NOTE(inso): copy stdout to app->print (TODO)
+        {
+            fd_set fds;
+            FD_ZERO(&fds);
+            FD_SET(linuxvars.stdout_redir[0], &fds);
+            struct timeval tv = {};
+            char buf[1024];
+
+            while(select(linuxvars.stdout_redir[0] + 1, &fds, NULL, NULL, &tv) == 1){
+                ssize_t sz = read(linuxvars.stdout_redir[0], buf, sizeof(buf));
+                if(sz == 0){
+                    break;
+                } else if(sz < 0){
+                    perror("stdout_redir read");
+                } else {
+                    write(linuxvars.stdout_orig, buf, sz);
+
+                    // TODO(inso): send the message to app->print_message somehow?
+                    //String str = make_string(buf, sz, sz);
+                    //linuxvars.app.print_message(app, str, sz);
+                }
+
+                tv = {};
+            }
+        }
+
         Key_Input_Data input_data;
         Mouse_State mouse;
         Application_Step_Result result;
@@ -2492,7 +2541,6 @@ main(int argc, char **argv)
         linuxvars.app.step(linuxvars.system,
                            &input_data,
                            &mouse,
-                           linuxvars.cli_self,
                            &linuxvars.target,
                            &memory_vars,
                            &exchange_vars,
