@@ -948,7 +948,7 @@ out:
 internal
 Sys_Save_File_Sig(system_save_file){
     b32 result = 0;
-    int fd = open(filename, O_WRONLY | O_TRUNC);
+    int fd = open(filename, O_WRONLY | O_TRUNC | O_CREAT, 00640);
 
     LINUX_FN_DEBUG("%s %d", filename, size);
 
