@@ -385,8 +385,9 @@ CUSTOM_COMMAND_SIG(replace_in_range){
     pos = range.min;
     app->buffer_seek_string(app, &buffer, pos, r.str, r.size, 1, &new_pos);
 
-    while (new_pos + r.size < range.end){
+    while (new_pos + r.size <= range.end){
         app->buffer_replace_range(app, &buffer, new_pos, new_pos + r.size, w.str, w.size);
+        app->refresh_view(app, &view);
         range = get_range(&view);
         pos = new_pos + w.size;
         app->buffer_seek_string(app, &buffer, pos, r.str, r.size, 1, &new_pos);
