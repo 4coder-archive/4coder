@@ -26,18 +26,18 @@ int main(void){
 	int i;
 	for(i = 0; i < (w*h); ++i){
 
-		if((i % 4) == 0){
+		if((i % 6) == 0){
 			fputs("\n   ", f);
 		}
 
-		unsigned long pixel = 0;
+		unsigned int pixel = 0;
 
 		pixel |= *p++ << 16L;
 		pixel |= *p++ << 8L;
 		pixel |= *p++;
 		pixel |= *p++ << 24L;
 
-		fprintf(f, " 0x%016lx,", pixel);
+		fprintf(f, " 0x%08x,", pixel);
 	}
 
 	fputs("\n};\n", f);
