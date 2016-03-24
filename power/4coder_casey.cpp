@@ -11,47 +11,95 @@
    merchantability, fitness for a particular purpose, or non-infringement.
 */
 
-/* TODO(casey): Here are our current issues
+/* NOTE(allen): Should be fixed now
+     - Need file limit to be substantially higher than 128 (65536?)
+     ~ file limit is now over 8 million
 
-   - Display:
-     - Bug in scroll callback that seems to always pass the same view id instead of 
-       the correct id for each view?
-     - Jumping to subsequent errors in a file seems to jump to an unrelated position
-       then scroll back to the actual position, which results in lots of extra scrolling
-     - Need a way of highlighting the current line like Emacs does for the benefit
-       of people on The Stream(TM)
+     - Font size is too big
+     ~ -f N option on command line, default N = 16
+
+     - Asking for a buffer to be saved if you have not modified the buffer should not save the
+       buffer, or perhaps more "safely", it should diff the buffer against the existing on-disk
+       contents and only save if there is a detected change between them.
+
+     - Search:
+       - Needs to be case-insensitive, or at least have the option to be
+       - Needs to replace using the case of the thing being replaced, or at least have the option to do so
+
+     - Bug with opening too many files where it simply no longer can switch to a buffer at all?
+     ~ I assume this refers to a file limit issue, if not then maybe it's not actually fixed.
+
+     - Bug where opening the same buffer with open-file leads to a confusing situation
+       where you don't know what you're editing or something??
+
+     - Bug where replacing v4 with rectangle2 only replaces some instances???
+     ~ For the interested programmer: the range recomputation wasn't working right so it was always
+          using the original range from cursor to mark.  So if the string gets too long later occurances of
+          v4 get pushed outside of the range.
+
+     - Bug in search where extra backspaces after there are no characters yet "remembers"
+       how many you hit and then eats that many real characters you type?
+
      - Some way to recenter the view so that the line containing the cursor becomes the
        center line vertically.
+     ~ cmdid_center_view
+
+     - Have buffers normalize slashes to always be forward-slash - right now I'm doing this manually
+*/
+
+/* TODO(casey): Here are our current issues
+
+   - High priority:
+     - Would like the option to indent to hanging parentheses, equals signs, etc. instead of
+       always just "one tab in from the previous line".
+       - Actually, maybe just expose the dirty state, so that the user can decide whether to
+         save or not?  Not sure...
+     - Replace:
+       - Needs to be case-insensitive, or at least have the option to be
+       - Needs to replace using the case of the thing being replaced, or at least have the option to do so
+     - Auto-complete doesn't pick nearby words first, it seems, which makes it much slower to use?
+     - Bug with not being able to switch-to-corresponding-file in another buffer
+       without accidentally bringing up the file open dialog?
+     
+   - Display:
+     - Need a word-wrap mode that wraps at word boundaries instead of characters
+     - Need to be able to set a word wrap length at something other than the window
+?FIXED First go-to-line for a file seems to still just go to the beginning of the buffer?
+       Not sure Allen's right about the slash problem, but either way, we need some
+       way to fix it.
+     - Need a way of highlighting the current line like Emacs does for the benefit
+       of people on The Stream(TM)
      - NOTE / IMPORTANT / TODO highlighting?  Ability to customize?  Whatever.
      - Some kind of parentheses highlighting?  I can write this myself, but I
        would need some way of adding highlight information to the buffer.
 
    - Indentation:
      - Multiple // lines don't seem to indent properly.  The first one will go to the correct place, but the subsequent ones will go to the first column regardless?
-     - Would like the option to indent to hanging parentheses, equals signs, etc. instead of
-       always just "one tab in from the previous line".
-     - Crash bug with paste-and-indent that sometimes leaves things unindented then crashes
      - Need to have better indentation / wrapping control for typing in comments. 
        Right now it's a bit worse than Emacs, which does automatically put you at
        the same margin as the prev. line (4coder just goes back to column 1).  It'd
        be nice if it go _better_ than Emacs, with no need to manually flow comments,
        etc.
+     - Up/down arrows and mouse clicks on wrapped lines don't seem to work properly after the second wrap 
+       (eg., a line wrapped to more than 2 physical lines on the screen.)
 
-   - Buffer management:
-     - Bug in view iteration such that buffer_id is sometimes set to 0, so you can't find the view
-       for a buffer?
-     - Have buffers normalize slashes to always be forward-slash - right now I'm doing this manually   
+   - Buffer management: 
      - Switch-to-buffer with no typing, just return, should switch to the most recently
        used buffer that is not currently displayed in a view.
-       - Kill-buffer should perform this switch automatically, or it should be easy
-         to build a custom kill buffer that does
+  ?FIXED Kill-buffer should perform this switch automatically, or it should be easy
+       to build a custom kill buffer that does
      - Seems like there's no way to switch to buffers whose names are substrings of other
        buffers' names without using the mouse?
+       - Also, mouse-clicking on buffers doesn't seem to work reliably?  Often it just goes to a 
+         blank window?
 
    - Need auto-complete for things like "arbitrary command", with options listed, etc.,
      so this should either be built into 4ed, or the custom DLL should have the ability
      to display possible completions and iterate over internal cmdid's, etc.  Possibly
      the latter, for maximal ability of customizers to add their own commands?
+
+   - Default directory for file open / build search should be that of the current
+     buffer, not tracked separately?  Probably I should code this on my own.
 
    - Macro recording/playback
 */
@@ -61,19 +109,33 @@
 #include <math.h>
 #include <stdio.h>
 
+#include "..\4coder_default.cpp"
+
+enum maps{
+	my_code_map
+};
+
 #ifndef Assert
 #define internal static
 #define Assert assert 
 #endif
+
+struct Parsed_Error
+{
+    int exists;
+
+    String target_file_name;
+    int target_line_number;
+
+    int source_buffer_id;
+    int source_position;
+};
 
 static bool GlobalEditMode;
 static char *GlobalCompilationBufferName = "*compilation*";
 
 // TODO(casey): If 4coder gets variables at some point, this would go in a variable.
 static char BuildDirectory[4096] = "./";
-static int ErrorParsingPosition;
-static int ErrorParsingLastJumpLine;
-static int ErrorParsingLastBufferID;
 
 enum token_type
 {
@@ -358,6 +420,8 @@ CUSTOM_COMMAND_SIG(casey_kill_to_end_of_line)
 
 CUSTOM_COMMAND_SIG(casey_paste_and_tab)
 {
+    // NOTE(allen): Paste puts the mark at the beginning and the cursor at
+    // the end of the pasted chunk, so it is all set for cmdid_auto_tab_range
     exec_command(app, cmdid_paste);
     exec_command(app, cmdid_auto_tab_range);
 }
@@ -417,7 +481,7 @@ SwitchToOrLoadFile(struct Application_Links *app, String FileName, bool CreateIf
             // to interactive open to tell it to fail if the file isn't there?
             exec_command(app, cmdid_interactive_open);
 
-            Result.buffer = app->get_buffer_by_name(app, FileName.str, FileName.size);
+            Result.buffer = app->get_buffer_by_name(app, FileName.str, FileName.size);            
 
             Result.Loaded = true;
             Result.Switched = true;
@@ -432,8 +496,6 @@ CUSTOM_COMMAND_SIG(casey_load_todo)
     String ToDoFileName = make_lit_string("w:/handmade/code/todo.txt");
     SwitchToOrLoadFile(app, ToDoFileName, true);
 }
-
-inline String Empty() {String Result = {}; return(Result);}
 
 CUSTOM_COMMAND_SIG(casey_build_search)
 {
@@ -524,6 +586,18 @@ CUSTOM_COMMAND_SIG(casey_find_corresponding_file)
     }
 }
 
+CUSTOM_COMMAND_SIG(casey_find_corresponding_file_other_window)
+{
+    View_Summary old_view = app->get_active_view(app);
+    Buffer_Summary buffer = app->get_buffer(app, old_view.buffer_id);
+
+    exec_command(app, cmdid_change_active_panel);
+    View_Summary new_view = app->get_active_view(app);
+    app->view_set_buffer(app, &new_view, buffer.buffer_id);
+
+//    exec_command(app, casey_find_corresponding_file);
+}
+
 CUSTOM_COMMAND_SIG(casey_save_and_make_without_asking)
 {
     exec_command(app, cmdid_change_active_panel);
@@ -541,19 +615,25 @@ CUSTOM_COMMAND_SIG(casey_save_and_make_without_asking)
 
     String dir = make_string(app->memory, 0, app->memory_size);
     append(&dir, BuildDirectory);
+    for(int At = 0;
+        At < dir.size;
+        ++At)
+    {
+        if(dir.str[At] == '/')
+        {
+            dir.str[At] = '\\';
+        }
+    }
+
 
     push_parameter(app, par_flags, CLI_OverlapWithConflict);
     push_parameter(app, par_name, GlobalCompilationBufferName, (int)strlen(GlobalCompilationBufferName));
     push_parameter(app, par_cli_path, dir.str, dir.size);
 
-    if(append(&dir, "build"))
+    if(append(&dir, "build.bat"))
     {
         push_parameter(app, par_cli_command, dir.str, dir.size);
         exec_command(app, cmdid_command_line);
-        ErrorParsingPosition = 0;
-        ErrorParsingLastJumpLine = 0;
-        ErrorParsingLastBufferID = 0;
-
         exec_command(app, cmdid_change_active_panel);
     }
     else{
@@ -561,21 +641,10 @@ CUSTOM_COMMAND_SIG(casey_save_and_make_without_asking)
     }
 }
 
-struct Parsed_Error
-{
-    int exists;
-
-    String target_file_name;
-    int target_line_number;
-
-    int source_buffer_id;
-    int source_position;
-};
-
 internal bool
 casey_errors_are_the_same(Parsed_Error a, Parsed_Error b)
 {
-    bool result = ((a.exists == b.exists) && match(a.target_file_name, b.target_file_name) && (a.target_line_number == b.target_line_number));
+    bool result = ((a.exists == b.exists) && compare(a.target_file_name, b.target_file_name) && (a.target_line_number == b.target_line_number));
 
     return(result);
 }
@@ -621,6 +690,7 @@ casey_parse_error(Application_Links *app, Buffer_Summary buffer, View_Summary vi
     int size = end - start;
 
     char *ParsingRegion = (char *)malloc(size + 1);
+//    char *ParsingRegion = (char *)app->push_memory(app, size + 1);
     app->buffer_read_range(app, &buffer, start, end, ParsingRegion);
     ParsingRegion[size] = 0;
     tokenizer Tokenizer = {ParsingRegion};
@@ -661,14 +731,7 @@ casey_parse_error(Application_Links *app, Buffer_Summary buffer, View_Summary vi
                         result.target_line_number = line_number;
                         result.source_buffer_id = buffer.buffer_id;
                         result.source_position = start + (int)(ColonToken.Text - ParsingRegion);
-                        
-                        int start_pos;
-                        for (start_pos = 0;
-                            start_pos < result.target_file_name.size && result.target_file_name.str[start_pos] == ' ';
-                            ++start_pos);
-                        
-                        result.target_file_name = substr(result.target_file_name, start_pos);
-                        
+
                         break;
                     }
                 }
@@ -938,6 +1001,8 @@ CUSTOM_COMMAND_SIG(casey_quick_calc)
 internal void
 OpenProject(Application_Links *app, char *ProjectFileName)
 {
+    int TotalOpenAttempts = 0;
+
     FILE *ProjectFile = fopen(ProjectFileName, "r");
     if(ProjectFile)
     {
@@ -954,22 +1019,22 @@ OpenProject(Application_Links *app, char *ProjectFileName)
             BuildDirectory[BuildDirSize] = 0;
         }
 
+        char SourceFileDirectoryName[4096];
         char FileDirectoryName[4096];
-        while(fgets(FileDirectoryName, sizeof(FileDirectoryName) - 1, ProjectFile))
+        while(fgets(SourceFileDirectoryName, sizeof(SourceFileDirectoryName) - 1, ProjectFile))
         {
             // NOTE(allen|a3.4.4): Here we get the list of files in this directory.
             // Notice that we free_file_list at the end.
-            String dir = make_string(app->memory, 0, app->memory_size);
-            append(&dir, FileDirectoryName);
-            if(dir.size && dir.str[dir.size] == '\n')
+            String dir = make_string(FileDirectoryName, 0, sizeof(FileDirectoryName));
+            append(&dir, SourceFileDirectoryName);
+            if(dir.size && dir.str[dir.size-1] == '\n')
             {
                 --dir.size;
             }
 
-            if(dir.size && dir.str[dir.size] != '/')
+            if(dir.size && dir.str[dir.size-1] != '/')
             {
-                dir.str[dir.size] = '/';
-                ++dir.size;
+                dir.str[dir.size++] = '/';
             }
 
             File_List list = app->get_file_list(app, dir.str, dir.size);
@@ -992,6 +1057,7 @@ OpenProject(Application_Links *app, char *ProjectFileName)
                         push_parameter(app, par_name, dir.str, dir.size);
                         push_parameter(app, par_do_in_background, 1);
                         exec_command(app, cmdid_interactive_open);
+                        ++TotalOpenAttempts;
                     }
                 }
             }
@@ -1130,7 +1196,7 @@ DEFINE_MODAL_KEY(modal_t, casey_load_todo);
 DEFINE_MODAL_KEY(modal_u, cmdid_undo);
 DEFINE_MODAL_KEY(modal_v, casey_switch_buffer_other_window);
 DEFINE_MODAL_KEY(modal_w, cmdid_cut);
-DEFINE_MODAL_KEY(modal_x, casey_open_file_other_window);
+DEFINE_MODAL_KEY(modal_x, casey_find_corresponding_file_other_window);
 DEFINE_MODAL_KEY(modal_y, auto_tab_line_at_cursor);
 DEFINE_MODAL_KEY(modal_z, cmdid_interactive_open);
 
@@ -1185,7 +1251,9 @@ HOOK_SIG(casey_file_settings)
     if(treat_as_project)
     {
         OpenProject(app, buffer.file_name);
-        exec_command(app, cmdid_kill_buffer);
+        // NOTE(casey): Don't actually want to kill this, or you can never edit the project.
+//        exec_command(app, cmdid_kill_buffer);
+
     }
 
     return(0);
@@ -1238,10 +1306,10 @@ struct Casey_Scroll_Velocity
 };
 
 Casey_Scroll_Velocity casey_scroll_velocity_[16] = {0};
-Casey_Scroll_Velocity *casey_scroll_velocity = casey_scroll_velocity_ - 1;
+Casey_Scroll_Velocity *casey_scroll_velocity = casey_scroll_velocity_;
 
 SCROLL_RULE_SIG(casey_smooth_scroll_rule){
-    float dt = 1.0f/30.0f; // TODO(casey): Why do I not get the timestep here?
+    float dt = 1.0f/60.0f; // TODO(casey): Why do I not get the timestep here?
     Casey_Scroll_Velocity *velocity = casey_scroll_velocity + view_id;
     int result = 0;
     if(is_new_target)
@@ -1265,7 +1333,6 @@ SCROLL_RULE_SIG(casey_smooth_scroll_rule){
         velocity->t = 0;
         *scroll_x = target_x;
         *scroll_y = target_y;
-        result = 1;
     }
 
     return(result);
@@ -1294,6 +1361,7 @@ internal BOOL CALLBACK win32_find_4coder_window(HWND Window, LPARAM LParam)
 internal void
 win32_toggle_fullscreen(void)
 {
+#if 0
     // NOTE(casey): This follows Raymond Chen's prescription
     // for fullscreen toggling, see:
     // http://blogs.msdn.com/b/oldnewthing/archive/2010/04/12/9994016.aspx
@@ -1322,6 +1390,9 @@ win32_toggle_fullscreen(void)
                         SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER |
                         SWP_NOOWNERZORDER | SWP_FRAMECHANGED);
     }
+#else
+    ShowWindow(GlobalWindowHandle, SW_MAXIMIZE);
+#endif
 }
 
 HOOK_SIG(casey_start)
@@ -1330,7 +1401,7 @@ HOOK_SIG(casey_start)
     app->change_theme(app, literal("Handmade Hero"));
     app->change_font(app, literal("liberation mono"));
 
-    //win32_toggle_fullscreen();
+    win32_toggle_fullscreen();
 
     return(0);
 }

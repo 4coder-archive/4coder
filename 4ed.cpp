@@ -94,7 +94,7 @@ app_get_or_add_map_index(Models *models, i32 mapid){
     i32 *map_id_table = models->map_id_table;
     for (result = 0; result < user_map_count; ++result){
         if (map_id_table[result] == mapid) break;
-        if (map_id_table[result] == 0){
+        if (map_id_table[result] == -1){
             map_id_table[result] = mapid;
             break;
         }
@@ -936,10 +936,11 @@ COMMAND_DECL(save){
     USE_FILE(file, view);
 
     Delay *delay = &models->delay1;
-
+    
     char *filename = 0;
     int filename_len = 0;
     int buffer_id = -1;
+    int update_names = 0;
 
     Command_Parameter *end = param_stack_end(&command->part);
     Command_Parameter *param = param_stack_first(&command->part, end);
@@ -952,42 +953,56 @@ COMMAND_DECL(save){
         else if (v == par_buffer_id && param->param.value.type == dynamic_type_int){
             buffer_id = dynamic_to_int(&param->param.value);
         }
+        else if (v == par_save_update_name){
+			update_names = dynamic_to_bool(&param->param.value);
+		}
     }
 
-    String name = {};
-    if (filename){
-        name = make_string(filename, filename_len);
-    }
-    else if (file){
-        name = file->name.source_path;
-    }
+#if 0
+#endif
 
-    if (name.size != 0){
-        if (buffer_id == -1){
-            if (file){
-                delayed_save(delay, name, file);
+    if (buffer_id != -1){
+        file = working_set_get_active_file(&models->working_set, buffer_id);
+	}
+    
+    if (update_names){
+        String name = {};
+        if (filename){
+            name = make_string(filename, filename_len);
+        }
+
+        if (file){
+            if (name.str){
+                if (!file->state.is_dummy && file_is_ready(file)){
+                    delayed_save_as(delay, name, file);
+                }
+            }
+            else{
+                view_show_interactive(system, view, &models->map_ui,
+                    IAct_Save_As, IInt_Sys_File_List, make_lit_string("Save As: "));
             }
         }
-        else{
-            file = working_set_get_active_file(&models->working_set, buffer_id);
-            
-            if (!file->state.is_dummy && file_is_ready(file) && buffer_needs_save(file)){
-                delayed_save(delay, name, file);
+    }
+    else{
+        String name = {};
+        if (filename){
+            name = make_string(filename, filename_len);
+        }
+        else if (file){
+            name = file->name.source_path;
+        }
+        
+        if (name.size != 0){
+            if (file){
+                if (!file->state.is_dummy && file_is_ready(file)){
+                    delayed_save(delay, name, file);
+                }
             }
             else{
                 delayed_save(delay, name);
             }
         }
     }
-}
-
-COMMAND_DECL(interactive_save_as){
-    ProfileMomentFunction();
-    USE_VIEW(view);
-    USE_MODELS(models);
-
-    view_show_interactive(system, view, &models->map_ui,
-        IAct_Save_As, IInt_Sys_File_List, make_lit_string("Save As: "));
 }
 
 COMMAND_DECL(change_active_panel){
@@ -2301,9 +2316,7 @@ extern "C"{
     GET_ACTIVE_VIEW_SIG(external_get_active_view){
         Command_Data *cmd = (Command_Data*)app->cmd_context;
         View_Summary view = {};
-
         fill_view_summary(&view, cmd->view, &cmd->vars->live_set, &cmd->models->working_set);
-
         return(view);
     }
 
@@ -2318,6 +2331,7 @@ extern "C"{
         Command_Data *cmd = (Command_Data*)app->cmd_context;
         Live_Views *live_set;
         View *vptr;
+        Editing_File *file;
         int result = 0;
         int view_id;
 
@@ -2326,15 +2340,19 @@ extern "C"{
             view_id = view->view_id - 1;
             if (view_id >= 0 && view_id < live_set->max){
                 vptr = live_set->views + view_id;
-                result = 1;
-                if (seek.type == buffer_seek_line_char && seek.character <= 0){
-                    seek.character = 1;
+                file = vptr->file;
+                if (file && !file->state.is_loading){
+                    result = 1;
+                    if (seek.type == buffer_seek_line_char && seek.character <= 0){
+                        seek.character = 1;
+                    }
+                    vptr->cursor = view_compute_cursor(vptr, seek);
+                    if (set_preferred_x){
+                        vptr->preferred_x = view_get_cursor_x(vptr);
+                    }
+                    fill_view_summary(view, vptr, live_set, &cmd->models->working_set);
+                    file->state.cursor_pos = vptr->cursor.pos;
                 }
-                vptr->cursor = view_compute_cursor(vptr, seek);
-                if (set_preferred_x){
-                    vptr->preferred_x = view_get_cursor_x(vptr);
-                }
-                fill_view_summary(view, vptr, live_set, &cmd->models->working_set);
             }
         }
 
@@ -2658,7 +2676,7 @@ setup_command_table(){
     SET(interactive_open);
     SET(reopen);
     SET(save);
-    SET(interactive_save_as);
+    //SET(interactive_save_as);
     SET(change_active_panel);
     SET(interactive_switch_buffer);
     SET(interactive_kill_buffer);
@@ -3083,14 +3101,15 @@ App_Read_Command_Line_Sig(app_read_command_line){
     }
     else{
         vars = app_setup_memory(memory);
+
+        settings = &vars->models.settings;
+        *settings = {};
+        settings->font_size = 16;
+        
         if (clparams.argc > 1){
             init_command_line_settings(&vars->models.settings, plat_settings, clparams);
         }
-        else{
-            settings = &vars->models.settings;
-            *settings = {};
-            settings->font_size = 16;
-        }
+        
         *files = vars->models.settings.init_files;
         *file_count = &vars->models.settings.init_files_count;
     }
@@ -3209,6 +3228,7 @@ App_Init_Sig(app_init){
 
                 models->map_id_table = push_array(
                     &models->mem.part, i32, user_map_count);
+                memset(models->map_id_table, -1, user_map_count*sizeof(i32));
 
                 models->user_maps = push_array(
                     &models->mem.part, Command_Map, user_map_count);
@@ -4350,29 +4370,9 @@ App_Step_Sig(app_step){
                         }
                     }
                 }break;
-
-                case DACT_SAVE_AS:
-                {
-                    // TODO(allen): deduplicate
-                    Editing_File *file = 0;
-                    if (panel){
-                        file = panel->view->file;
-                    }
-                    else if (string.str && string.size > 0){
-                        file = working_set_lookup_file(working_set, string);
-                    }
-                    if (file){
-                        i32 sys_id = file_save_and_set_names(system, exchange, mem, working_set, file, string.str);
-                        if (sys_id){
-                            app_push_file_binding(vars, sys_id, file->id.id);
-                        }
-                        else{
-                            delayed_action_repush(&models->delay2, act);
-                        }
-                    }
-                }break;
-
+                
                 case DACT_SAVE:
+                case DACT_SAVE_AS:
                 {
                     if (!file){
                         if (panel){
@@ -4386,9 +4386,12 @@ App_Step_Sig(app_step){
                     }
                     // TODO(allen): We could handle the case where someone tries to save the same thing
                     // twice... that would be nice to have under control.
-                    if (file){
+                    if (file && buffer_needs_save(file)){
                         i32 sys_id = file_save(system, exchange, mem, file, file->name.source_path.str);
                         if (sys_id){
+                            if (act->type == DACT_SAVE_AS){
+                                file_set_name(working_set, file, string.str);
+                            }
                             // TODO(allen): This is fishy! Shouldn't we bind it to a file name instead? This file
                             // might be killed before we get notified that the saving is done!
                             app_push_file_binding(vars, sys_id, file->id.id);

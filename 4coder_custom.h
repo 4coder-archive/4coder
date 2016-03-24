@@ -1,4 +1,7 @@
 
+#ifndef FCODER_CUSTOM_H
+#define FCODER_CUSTOM_H
+
 #include "4coder_version.h"
 #include "4coder_keycodes.h"
 #include "4coder_style.h"
@@ -183,7 +186,6 @@ enum Command_ID{
     cmdid_interactive_open,
     cmdid_reopen,
     cmdid_save,
-    cmdid_interactive_save_as,
     cmdid_change_active_panel,
     cmdid_interactive_switch_buffer,
     cmdid_interactive_kill_buffer,
@@ -233,6 +235,7 @@ enum Param_ID{
     par_cli_command,
     par_clear_blank_lines,
     par_use_tabs,
+    par_save_update_name,
     
     // never below this
     par_type_count
@@ -599,3 +602,5 @@ struct Binding_Unit{
         } hook;
     };
 };
+
+#endif

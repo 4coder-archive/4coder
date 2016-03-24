@@ -30,25 +30,25 @@ dump_file(char *filename){
     Data data = {};
     HANDLE file;
     DWORD hi, lo;
-    
+
     file = CreateFile(filename, GENERIC_READ, 0, 0, 
         OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
 
     if (file != INVALID_HANDLE_VALUE){
         lo = GetFileSize(file, &hi);
         assert(hi == 0);
-        
+
         data.size = (int)lo;
         data.data = (byte*)malloc(data.size + 1);
-        
+
         ReadFile(file, data.data, lo, &lo, 0);
         data.data[data.size] = 0;
-        
+
         assert((int)lo == data.size);
-        
+
         CloseHandle(file);
     }
-    
+
     return(data);
 }
 
@@ -60,11 +60,11 @@ typedef struct File_Info{
 typedef struct File_List{
     // Ignore this, it's for internal stuff.
     void *block;
-    
+
     // The list of files and folders.
     File_Info *infos;
     int count;
-    
+
     // Ignore this, it's for internal stuff.
     int block_size;
 } File_List;
@@ -87,13 +87,13 @@ system_set_file_list(File_List *file_list, String directory){
         append(&dir, directory);
         char trail_str[] = "\\*";
         append(&dir, trail_str);
-        
+
         char *c_str_dir = make_c_str(dir);
-        
+
         WIN32_FIND_DATA find_data;
         HANDLE search;
         search = FindFirstFileA(c_str_dir, &find_data);
-        
+
         if (search != INVALID_HANDLE_VALUE){            
             i32 count = 0;
             i32 file_count = 0;
@@ -116,12 +116,12 @@ system_set_file_list(File_List *file_list, String directory){
                 file_list->block = Win32GetMemory(required_size);
                 file_list->block_size = required_size;
             }
-            
+
             file_list->infos = (File_Info*)file_list->block;
             char *name = (char*)(file_list->infos + file_count);
             if (file_list->block){
                 search = FindFirstFileA(c_str_dir, &find_data);
-                
+
                 if (search != INVALID_HANDLE_VALUE){
                     File_Info *info = file_list->infos;
                     more_files = 1;
@@ -130,7 +130,7 @@ system_set_file_list(File_List *file_list, String directory){
                             !match(find_data.cFileName, "..")){
                             info->folder = (find_data.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) != 0;
                             info->filename.str = name;
-                            
+
                             i32 i = 0;
                             for(;find_data.cFileName[i];++i) *name++ = find_data.cFileName[i];
                             info->filename.size = i;
@@ -142,9 +142,9 @@ system_set_file_list(File_List *file_list, String directory){
                         more_files = FindNextFile(search, &find_data);
                     }while(more_files);
                     FindClose(search);
-                    
+
                     file_list->count = file_count;
-                    
+
                 }else{
                     Win32FreeMemory(file_list->block);
                     file_list->block = 0;
@@ -210,14 +210,14 @@ run_experiment(Experiment *exp, char *filename, int verbose, int chunks){
     int k, chunk_size, is_last;
 
     extension = file_extension(make_string_slowly(filename));
-    
+
     if (match(extension, "cpp") || match(extension, "h")){
         file_data = dump_file(filename);
         if (file_data.size < (100 << 10)){
             pass = 1;
             if (verbose >= 0) printf("testing on file: %s\n", filename);
             exp->test_total++;
-            
+
             exp->correct_stack.count = 0;
             exp->testing_stack.count = 0;
 
@@ -226,16 +226,16 @@ run_experiment(Experiment *exp, char *filename, int verbose, int chunks){
 
             file_cpp.data = (char*)file_data.data;
             file_cpp.size = file_data.size;
-            
+
             ld.tb = (char*)malloc(file_data.size + 1);
-            
+
             {
                 i64 start;
-                
+
                 start = __rdtsc();
                 cpp_lex_file_nonalloc(file_cpp, &exp->correct_stack, lex_data);
                 time.handcoded += (__rdtsc() - start);
-                
+
                 start = __rdtsc();
                 if (chunks){
                     int relevant_size = file_data.size + 1;
@@ -246,19 +246,19 @@ run_experiment(Experiment *exp, char *filename, int verbose, int chunks){
                             chunk_size = relevant_size - k;
                             is_last = 1;
                         }
-                        
+
                         int result = new_lex::cpp_lex_nonalloc(&ld, (char*)file_data.data + k, chunk_size, &exp->testing_stack);
                         if (result == 0 || result == 2) break;
-					}
+                    }
                 }
                 else{
                     new_lex::cpp_lex_nonalloc(&ld, (char*)file_data.data, file_data.size, &exp->testing_stack);
                 }
                 time.fsm += (__rdtsc() - start);
             }
-            
+
             free(ld.tb);
-            
+
             if (exp->correct_stack.count != exp->testing_stack.count){
                 pass = 0;
                 if (verbose >= 0){
@@ -307,7 +307,7 @@ run_experiment(Experiment *exp, char *filename, int verbose, int chunks){
                 if (verbose >= 0) printf("test failed, you failed, fix it now!\n\n");
             }
         }
-        
+
         free(file_data.data);
     }
 }
@@ -334,37 +334,37 @@ show_time(Times t, int repeats, char *type){
 #define BASE_DIR "w:/4ed/data/test/"
 
 int main(){
-    
+
     int repeats = 100;
     int verbose_level = -1;
-    int chunk_start = 1;
-    int chunk_end = 16;
-#define TEST_FILE "lexer_test.cpp"    
+    int chunk_start = 0;
+    int chunk_end = 0;
+#define TEST_FILE "autotab.cpp"    
 #define SINGLE_ITEM 0
-    
+
     int chunks = (chunk_start > 0 && chunk_start <= chunk_end);
     int c = 0;
-    
+
     char test_directory[] = BASE_DIR;
     File_List all_files = {};
     Experiment exp = {};
     Experiment chunk_exp = {};
     Times exp_t = {};
     Times chunk_exp_t = {};
-    
+
     init_test_stack(&exp.correct_stack);
     init_test_stack(&exp.testing_stack);
-    
+
     init_test_stack(&chunk_exp.correct_stack);
     init_test_stack(&chunk_exp.testing_stack);
-    
+
     AllowLocal(test_directory);
     AllowLocal(all_files);
-    
+
 #if SINGLE_ITEM
     (void)(repeats);
     (void)(verbose_level);
-    
+
     if (chunks){
         begin_t(&chunk_exp_t);
         printf("With chunks of %d\n", chunks);
@@ -373,14 +373,14 @@ int main(){
         }
         end_t(&chunk_exp_t);
     }
-    
+
     begin_t(&exp_t);
     printf("Unchunked\n");
     run_experiment(&exp, BASE_DIR TEST_FILE, 1, 0);
     end_t(&exp_t);
-    
+
 #else
-    
+
     system_set_file_list(&all_files, make_lit_string(test_directory));
 
     for (int j = 0; j < repeats; ++j){
@@ -393,7 +393,7 @@ int main(){
                     }
                     end_t(&chunk_exp_t);
                 }
-                
+
                 begin_t(&exp_t);
                 if (verbose_level == -1 && chunks){
                     for (c = chunk_start; c <= chunk_end; ++c){
@@ -413,7 +413,7 @@ int main(){
         printf("chunks of sizes %d through %d tested\n", chunk_start, chunk_end);
         printf("chunked passed %d / %d tests\n", chunk_exp.passed_total, chunk_exp.test_total);
     }
-    
+
     printf("unchunk passed %d / %d tests\n", exp.passed_total, exp.test_total);
 
     if (passed(exp) && (chunks == 0 || passed(chunk_exp))){
@@ -421,8 +421,8 @@ int main(){
             show_time(chunk_exp_t, repeats, "Chunked");
         }
         show_time(exp_t, repeats, "Unchunked");
-	}
-    
+    }
+
     return(0);
 }
 

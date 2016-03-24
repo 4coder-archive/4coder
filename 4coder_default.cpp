@@ -212,6 +212,11 @@ CUSTOM_COMMAND_SIG(open_file_in_quotes){
     }
 }
 
+CUSTOM_COMMAND_SIG(save_as){
+    push_parameter(app, par_save_update_name, 1);
+    exec_command(app, cmdid_save);
+}
+
 CUSTOM_COMMAND_SIG(goto_line){
     int line_number;
     Query_Bar bar;

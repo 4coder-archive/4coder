@@ -10,7 +10,11 @@ unsigned char blink_t = 0;
 // 2^24 of them so don't be wasteful!
 enum My_Maps{
     my_code_map,
-    my_html_map
+    my_html_map,
+    // for testing
+    my_empty_map1,
+    my_empty_map2,
+    my_maps_count
 };
 
 HOOK_SIG(my_start){
@@ -40,13 +44,14 @@ HOOK_SIG(my_start){
 
 HOOK_SIG(my_file_settings){
     // NOTE(allen|a4): In hooks that want parameters, such as this file
-    // created hook.  The file created hook is guaranteed to have only
+    // opened hook.  The file created hook is guaranteed to have only
     // and exactly one buffer parameter.  In normal command callbacks
     // there are no parameter buffers.
     Buffer_Summary buffer = app->get_parameter_buffer(app, 0);
     assert(buffer.exists);
 
     int treat_as_code = 0;
+    int wrap_lines = 1;
 
     if (buffer.file_name && buffer.size < (16 << 20)){
         String ext = file_extension(make_string(buffer.file_name, buffer.file_name_len));
@@ -54,6 +59,13 @@ HOOK_SIG(my_file_settings){
         else if (match(ext, make_lit_string("h"))) treat_as_code = 1;
         else if (match(ext, make_lit_string("c"))) treat_as_code = 1;
         else if (match(ext, make_lit_string("hpp"))) treat_as_code = 1;
+    }
+
+    if (treat_as_code){
+        wrap_lines = 0;
+    }
+    if (buffer.file_name[0] == '*'){
+        wrap_lines = 0;
     }
 
     push_parameter(app, par_lex_as_cpp_file, treat_as_code);
@@ -66,8 +78,9 @@ HOOK_SIG(my_file_settings){
 }
 
 HOOK_SIG(my_frame){
-    // NOTE(allen|a4): Please use me sparingly! This get's called roughly once every *33 ms* if everything is going well.
-    // But if you start doing a lot in here, there's nothing 4codes does to stop you from making it a lot slower.
+    // NOTE(allen|a4): Please use me sparingly! This get's called roughly once every *33 ms*
+    // if everything is going well. But if you start doing a lot in here, there's nothing 4codes does
+    // to stop you from making it a lot slower.
 
     int result = 0;
     Theme_Color theme_color_1[] = {
@@ -120,7 +133,7 @@ CUSTOM_COMMAND_SIG(write_div){
 }
 
 CUSTOM_COMMAND_SIG(begin_html_mode){
-    push_parameter(app, par_key_mapid, my_html_map);
+    push_parameter(app, par_key_mapid, my_empty_map1);
     exec_command(app, cmdid_set_settings);
 }
 
@@ -291,12 +304,14 @@ CUSTOM_COMMAND_SIG(ruin_theme){
     app->set_theme_colors(app, colors, count);
 }
 
-void default_get_bindings(Bind_Helper *context){
+void default_get_bindings(Bind_Helper *context, int set_hooks){
     // NOTE(allen|a3.1): Hooks have no loyalties to maps. All hooks are global
     // and once set they always apply, regardless of what map is active.
-    set_hook(context, hook_start, my_start);
-    set_hook(context, hook_open_file, my_file_settings);
-    //set_hook(context, hook_frame, my_frame); // Example of a frame hook, but disabled by default.
+    if (set_hooks){
+        set_hook(context, hook_start, my_start);
+        set_hook(context, hook_open_file, my_file_settings);
+        //set_hook(context, hook_frame, my_frame); // Example of a frame hook, but disabled by default.
+    }
 
     set_scroll_rule(context, smooth_scroll_rule);
 
@@ -312,6 +327,7 @@ void default_get_bindings(Bind_Helper *context){
     bind(context, 'i', MDFR_CTRL, cmdid_interactive_switch_buffer);
     bind(context, 'c', MDFR_ALT, cmdid_open_color_tweaker);
     bind(context, 'o', MDFR_ALT, open_in_other);
+    bind(context, 'w', MDFR_CTRL, save_as);
 
     bind(context, 'm', MDFR_ALT, build_search);
     bind(context, 'x', MDFR_ALT, execute_arbitrary_command);
@@ -326,14 +342,21 @@ void default_get_bindings(Bind_Helper *context){
     bind(context, '~', MDFR_ALT, ruin_theme);
 
     end_map(context);
-    
-    
+
+
     begin_map(context, my_html_map);
     inherit_map(context, mapid_file);
     bind(context, 'h', MDFR_ALT, write_h);
     bind(context, 'd', MDFR_ALT, write_div);
     end_map(context);
 
+    begin_map(context, my_empty_map1);
+    inherit_map(context, mapid_nomap);
+    end_map(context);
+
+    begin_map(context, my_empty_map2);
+    inherit_map(context, mapid_nomap);
+    end_map(context);
 
     begin_map(context, my_code_map);
 
@@ -438,16 +461,15 @@ void default_get_bindings(Bind_Helper *context){
 
     bind(context, 'K', MDFR_CTRL, cmdid_kill_buffer);
     bind(context, 'O', MDFR_CTRL, cmdid_reopen);
-    bind(context, 'w', MDFR_CTRL, cmdid_interactive_save_as);
     bind(context, 's', MDFR_CTRL, cmdid_save);
-    
+
     bind(context, '\n', MDFR_SHIFT, write_and_auto_tab);
     bind(context, ' ', MDFR_SHIFT, cmdid_write_character);
-    
+
     bind(context, 'e', MDFR_CTRL, cmdid_center_view);
-    
+
     bind(context, 'T', MDFR_CTRL | MDFR_ALT, begin_html_mode);
-    
+
     end_map(context);
 }
 
