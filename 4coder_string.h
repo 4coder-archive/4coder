@@ -23,7 +23,6 @@ NOTES ON USE:
 // - comments
 // - memcpy / memmove replacements (different file for optimization options?)
 // - examples and docs
-// - finish a full set of tools for file name handling
 // 
 
 #include "4coder_config.h"

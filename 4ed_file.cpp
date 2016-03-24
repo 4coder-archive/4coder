@@ -181,29 +181,6 @@ struct Non_File_Table_Entry{
     File_ID id;
 };
 
-struct File_Table_Entry{
-    Unique_Hash key;
-    File_ID id;
-};
-
-internal u32
-tbl_file_hash(void *item, void *arg){
-    Unique_Hash uhash = *((Unique_Hash*)item);
-    u32 hash = uhash.d[0] + 101;
-    hash = ((hash << 6) + hash) + uhash.d[1];
-    hash = ((hash << 6) + hash) + uhash.d[2];
-    hash = ((hash << 6) + hash) + uhash.d[3];
-    return(hash);
-}
-
-internal i32
-tbl_file_compare(void *a, void *b, void *arg){
-    Unique_Hash ahash = *((Unique_Hash*)a);
-    Unique_Hash bhash = *((Unique_Hash*)b);
-    i32 result = !uhash_equal(ahash, bhash);
-    return(result);
-}
-
 struct File_Array{
     Editing_File *files;
     i32 size;
@@ -217,13 +194,48 @@ struct Working_Set{
 	File_Node free_sentinel;
     File_Node used_sentinel;
     
-    Table non_file_table;
     Table table;
     
 	String clipboards[64];
 	i32 clipboard_size, clipboard_max_size;
 	i32 clipboard_current, clipboard_rolling;
 };
+
+struct File_Entry{
+    String short_name;
+    String long_name;
+    File_ID id;
+};
+
+struct File_Entry_Comparison{
+    File_Entry entry;
+    Unique_Hash hash;
+    b32 use_hash;
+};
+
+internal i32
+tbl_file_compare(void *a, void *b, void *arg){
+    File_Entry_Comparison *fa = (File_Entry_Comparison*)a;
+    File_Entry *fb = (File_Entry*)b;
+    System_Functions *system = (System_Functions*)arg;
+    Unique_Hash uhash;
+    i32 result = 1;
+    b32 success;
+    
+    if (fa->use_hash){
+        uhash = system->file_unique_hash(fb->long_name, &success);
+        if (success && uhash_equal(uhash, fa->hash)){
+            result = 0;
+		}
+	}
+    else{
+        if (match(fa->entry.short_name, fb->short_name)){
+            result = 0;
+		}
+	}
+    
+    return(result);
+}
 
 internal void
 working_set_extend_memory(Working_Set *working_set, Editing_File *new_space, i16 number_of_files){
@@ -342,59 +354,16 @@ working_set_get_active_file(Working_Set *working_set, i32 id){
     return(result);
 }
 
-inline Editing_File*
-working_set_contains_file(Working_Set *working_set, Unique_Hash file_hash){
-    Editing_File *result = 0;
-    File_Table_Entry *entry = 0;
-    
-    entry = (File_Table_Entry*)table_find_item(
-        &working_set->table, &file_hash, 0, tbl_file_hash, tbl_file_compare);
-    if (entry){
-        result = working_set_index(working_set, entry->id);
-    }
-    
-    return (result);
-}
-
-inline Editing_File*
-working_set_contains_non_file(Working_Set *working_set, String filename){
-    Editing_File *result = 0;
-    Non_File_Table_Entry *entry = 0;
-    
-    entry = (Non_File_Table_Entry*)table_find_item(
-        &working_set->non_file_table, &filename, 0, tbl_string_hash, tbl_string_compare);
-    if (entry){
-        result = working_set_index(working_set, entry->id);
-    }
-    
-    return (result);
-}
-
-inline Editing_File*
-working_set_contains(System_Functions *system, Working_Set *working_set, String filename){
-    Unique_Hash file_hash;
-    Editing_File *result;
-    b32 success = 0;
-    //terminate_with_null(&filename);
-    file_hash = system->file_unique_hash(filename, &success);
-    if (success){
-        result = working_set_contains_file(working_set, file_hash);
-    }
-    else{
-        result = working_set_contains_non_file(working_set, filename);
-    }
-    return(result);
-}
-
 internal void
 working_set_init(Working_Set *working_set, Partition *partition, General_Memory *general){
-    i16 init_count = 16;
-    i16 array_init_count = 256;
-    
     Editing_File *files, *null_file;
     void *mem;
     i32 mem_size, table_size;
-
+    
+    i32 item_size = sizeof(File_Entry);
+    i16 init_count = 16;
+    i16 array_init_count = 256;
+    
     dll_init_sentinel(&working_set->free_sentinel);
     dll_init_sentinel(&working_set->used_sentinel);
 
@@ -410,20 +379,14 @@ working_set_init(Working_Set *working_set, Partition *partition, General_Memory 
     ++working_set->file_count;
 
     table_size = working_set->file_max;
-    mem_size = table_required_mem_size(table_size, sizeof(File_Table_Entry));
+    mem_size = table_required_mem_size(table_size, item_size);
     mem = general_memory_allocate(general, mem_size, 0);
     memset(mem, 0, mem_size);
-    table_init_memory(&working_set->table, mem, table_size, sizeof(File_Table_Entry));
-    
-    table_size = working_set->file_max; // / 4;
-    mem_size = table_required_mem_size(table_size, sizeof(Non_File_Table_Entry));
-    mem = general_memory_allocate(general, mem_size, 0);
-    memset(mem, 0, mem_size);
-    table_init_memory(&working_set->non_file_table, mem, table_size, sizeof(Non_File_Table_Entry));
+    table_init_memory(&working_set->table, mem, table_size, item_size);
 }
 
 inline void
-working_set_grow_if_needed(Table *table, General_Memory *general, void *arg, Hash_Function *hash_func, Compare_Function *comp_func){
+working_set__grow_if_needed(Table *table, General_Memory *general, void *arg, Hash_Function *hash_func, Compare_Function *comp_func){
     Table btable;
     i32 new_max, mem_size;
     void *mem;
@@ -441,57 +404,39 @@ working_set_grow_if_needed(Table *table, General_Memory *general, void *arg, Has
 }
 
 inline void
-working_set_add_file(Working_Set *working_set, Unique_Hash key, File_ID file_id, General_Memory *general){
-    File_Table_Entry entry;
-    entry.key = key;
-    entry.id = file_id;
-    working_set_grow_if_needed(&working_set->table, general, 0, tbl_file_hash, tbl_file_compare);
-    table_add(&working_set->table, &entry, 0, tbl_file_hash, tbl_file_compare);
+working_set__entry_comp(System_Functions *system, String filename, File_Entry_Comparison *out){
+    out->entry.long_name = filename;
+    out->entry.short_name = front_of_directory(filename);
+    out->hash = system->file_unique_hash(filename, &out->use_hash);
 }
 
-inline void
-working_set_add_non_file(Working_Set *working_set, String filename, File_ID file_id, General_Memory *general){
-    Non_File_Table_Entry entry;
-    entry.name = filename;
-    entry.id = file_id;
-    working_set_grow_if_needed(&working_set->table, general, 0, tbl_string_hash, tbl_string_compare);
-    table_add(&working_set->non_file_table, &entry, 0, tbl_string_hash, tbl_string_compare);
+inline Editing_File*
+working_set_contains(System_Functions *system, Working_Set *working_set, String filename){
+    File_Entry_Comparison entry_comp;
+    File_Entry *entry;
+    Editing_File *result = 0;
+    working_set__entry_comp(system, filename, &entry_comp);
+    entry = (File_Entry*)table_find_item(&working_set->table, &entry_comp, system, tbl_string_hash, tbl_file_compare);
+    if (entry){
+        result = working_set_index(working_set, entry->id);
+    }
+    return(result);
 }
 
 inline void
 working_set_add(System_Functions *system, Working_Set *working_set, Editing_File *file, General_Memory *general){
-    Unique_Hash file_hash;
-    b32 success = 0;
-    file_hash = system->file_unique_hash(file->name.source_path, &success);
-    if (success){
-        working_set_add_file(working_set, file_hash, file->id, general);
-    }
-    else{
-        working_set_add_non_file(working_set, file->name.source_path, file->id, general);
-    }
-}
-
-inline void
-working_set_remove_file(Working_Set *working_set, Unique_Hash file_hash){
-    table_remove_match(&working_set->table, &file_hash, 0, tbl_file_hash, tbl_file_compare);
-}
-
-inline void
-working_set_remove_non_file(Working_Set *working_set, String filename){
-    table_remove_match(&working_set->non_file_table, &filename, 0, tbl_string_hash, tbl_string_compare);
+    File_Entry_Comparison entry_comp;
+    working_set__grow_if_needed(&working_set->table, general, system, tbl_string_hash, tbl_file_compare);
+    working_set__entry_comp(system, file->name.source_path, &entry_comp);
+    entry_comp.entry.id = file->id;
+    table_add(&working_set->table, &entry_comp, system, tbl_string_hash, tbl_file_compare);
 }
 
 inline void
 working_set_remove(System_Functions *system, Working_Set *working_set, String filename){
-    Unique_Hash file_hash;
-    b32 success = 0;
-    file_hash = system->file_unique_hash(filename, &success);
-    if (success){
-        working_set_remove_file(working_set, file_hash);
-    }
-    else{
-        working_set_remove_non_file(working_set, filename);
-    }
+    File_Entry_Comparison entry_comp;
+    working_set__entry_comp(system, filename, &entry_comp);
+    table_remove_match(&working_set->table, &entry_comp, system, tbl_string_hash, tbl_file_compare);
 }
 
 // TODO(allen): Pick better first options.
