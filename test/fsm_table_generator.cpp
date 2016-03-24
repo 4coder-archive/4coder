@@ -10,6 +10,9 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <assert.h>
+
+#define ArrayCount(a) (sizeof(a)/sizeof(*a))
 
 #include "4cpp_lexer_fsms.h"
 
@@ -219,6 +222,7 @@ main_fsm(Lex_FSM fsm, unsigned char pp_state, unsigned char c){
             break;
 
             case LS_char:
+            case LS_char_multiline:
             switch(c){
                 case '\'': fsm.emit_token = 1; break;
                 case '\\': fsm.state = LS_char_slashed; break;
@@ -228,12 +232,13 @@ main_fsm(Lex_FSM fsm, unsigned char pp_state, unsigned char c){
             case LS_char_slashed:
             switch (c){
                 case '\r': case '\f': case '\v': break;
-                case '\n': fsm.state = LS_string; fsm.multi_line |= 1; break;
+                case '\n': fsm.state = LS_char_multiline; break;
                 default: fsm.state = LS_char; break;
             }
             break;
 
             case LS_string:
+            case LS_string_multiline:
             switch(c){
                 case '\"': fsm.emit_token = 1; break;
                 case '\\': fsm.state = LS_string_slashed; break;
@@ -243,7 +248,7 @@ main_fsm(Lex_FSM fsm, unsigned char pp_state, unsigned char c){
             case LS_string_slashed:
             switch (c){
                 case '\r': case '\f': case '\v': break;
-                case '\n': fsm.state = LS_string; fsm.multi_line |= 1; break;
+                case '\n': fsm.state = LS_string_multiline; break;
                 default: fsm.state = LS_string; break;
             }
             break;
@@ -478,13 +483,28 @@ main_fsm(Lex_FSM fsm, unsigned char pp_state, unsigned char c){
 }
 
 void
+begin_table(FILE *file, char *type, char *group_name, char *table_name){
+    fprintf(file, "unsigned %s %s_%s[] = {\n", type, group_name, table_name);
+}
+
+void
 begin_table(FILE *file, char *type, char *table_name){
     fprintf(file, "unsigned %s %s[] = {\n", type, table_name);
 }
 
 void
+begin_ptr_table(FILE *file, char *type, char *table_name){
+    fprintf(file, "unsigned %s * %s[] = {\n", type, table_name);
+}
+
+void
 do_table_item(FILE *file, unsigned short item){
-    fprintf(file, "%d,", (int)item);
+    fprintf(file, "%2d,", (int)item);
+}
+
+void
+do_table_item_direct(FILE *file, char *item, char *tail){
+    fprintf(file, "%s%s,", item, tail);
 }
 
 void
@@ -497,93 +517,203 @@ end_table(FILE *file){
     fprintf(file, "};\n\n");
 }
 
-int main(){
-    FILE *file;
-    file = fopen("4cpp_lexer_tables.c", "wb");
+struct FSM_Tables{
+    unsigned char *full_transition_table;
+    unsigned char *marks;
+    unsigned char *eq_class;
+    unsigned char *eq_class_rep;
+    unsigned char *reduced_transition_table;
     
-    unsigned char *full_transition_table = (unsigned char*)malloc(LS_count * 256);
-    unsigned char *marks = (unsigned char*)malloc(LS_count * 256);
-    unsigned char *eq_class = (unsigned char*)malloc(LS_count * 256);
-    unsigned char *eq_class_rep = (unsigned char*)malloc(LS_count * 256);
-    memset(marks, 0, 256);
+    unsigned char eq_class_counter;
+    unsigned short state_count;
+};
+
+FSM_Tables
+generate_whitespace_skip_table(){
+	unsigned char state_count = LSPP_count;
+    FSM_Tables table;
+    table.full_transition_table = (unsigned char*)malloc(state_count * 256);
+    table.marks = (unsigned char*)malloc(state_count * 256);
+    table.eq_class = (unsigned char*)malloc(state_count * 256);
+    table.eq_class_rep = (unsigned char*)malloc(state_count * 256);
+    table.state_count = state_count;
+    memset(table.marks, 0, 256);
+    
+    int i = 0;
+    Whitespace_FSM wfsm = {0};
+    Whitespace_FSM new_wfsm;
+    for (unsigned short c = 0; c < 256; ++c){
+        for (unsigned char state = 0; state < state_count; ++state){
+            wfsm.pp_state = state;
+            wfsm.white_done = 0;
+            new_wfsm = whitespace_skip_fsm(wfsm, (unsigned char)c);
+            table.full_transition_table[i++] = new_wfsm.pp_state + state_count*new_wfsm.white_done;
+        }
+    }
+    
+    table.eq_class_counter = 0;
+    unsigned char *c_line = table.full_transition_table;
+    for (unsigned short c = 0; c < 256; ++c){
+        if (table.marks[c] == 0){
+            table.eq_class[c] = table.eq_class_counter;
+            table.eq_class_rep[table.eq_class_counter] = (unsigned char)c;
+            unsigned char *c2_line = c_line + state_count;
+            for (unsigned short c2 = c + 1; c2 < 256; ++c2){
+                if (memcmp(c_line, c2_line, state_count) == 0){
+                    table.marks[c2] = 1;
+                    table.eq_class[c2] = table.eq_class_counter;
+                }
+                c2_line += state_count;
+            }
+            ++table.eq_class_counter;
+        }
+        c_line += state_count;
+	}
+    
+    table.reduced_transition_table = (unsigned char*)malloc(state_count * table.eq_class_counter);
+    i = 0;
+    for (unsigned short eq = 0; eq < table.eq_class_counter; ++eq){
+        for (unsigned char state = 0; state < state_count; ++state){
+            wfsm.pp_state = state;
+            wfsm.white_done = 0;
+            new_wfsm = whitespace_skip_fsm(wfsm, table.eq_class_rep[eq]);
+            table.reduced_transition_table[i++] = new_wfsm.pp_state + state_count*new_wfsm.white_done;
+        }
+    }
+    
+    return(table);
+}
+
+FSM_Tables
+generate_fsm_table(unsigned char pp_state){
+    unsigned char state_count = LS_count;
+    FSM_Tables table;
+    table.full_transition_table = (unsigned char*)malloc(state_count * 256);
+    table.marks = (unsigned char*)malloc(state_count * 256);
+    table.eq_class = (unsigned char*)malloc(state_count * 256);
+    table.eq_class_rep = (unsigned char*)malloc(state_count * 256);
+    table.state_count = state_count;
+    memset(table.marks, 0, 256);
     
     int i = 0;
     Lex_FSM fsm = {0};
     Lex_FSM new_fsm;
     for (unsigned short c = 0; c < 256; ++c){
-        for (unsigned char state = 0; state < LS_count; ++state){
+        for (unsigned char state = 0; state < state_count; ++state){
             fsm.state = state;
             fsm.emit_token = 0;
-            new_fsm = main_fsm(fsm, LSPP_default, (unsigned char)c);
-            full_transition_table[i++] = new_fsm.state + LS_count*new_fsm.emit_token;
+            new_fsm = main_fsm(fsm, pp_state, (unsigned char)c);
+            table.full_transition_table[i++] = new_fsm.state + state_count*new_fsm.emit_token;
         }
     }
     
-    unsigned char eq_class_counter = 0;
-    unsigned char *c_line = full_transition_table;
+    table.eq_class_counter = 0;
+    unsigned char *c_line = table.full_transition_table;
     for (unsigned short c = 0; c < 256; ++c){
-        if (marks[c] == 0){
-            eq_class[c] = eq_class_counter;
-            eq_class_rep[eq_class_counter] = (unsigned char)c;
-            unsigned char *c2_line = c_line + LS_count;
+        if (table.marks[c] == 0){
+            table.eq_class[c] = table.eq_class_counter;
+            table.eq_class_rep[table.eq_class_counter] = (unsigned char)c;
+            unsigned char *c2_line = c_line + state_count;
             for (unsigned short c2 = c + 1; c2 < 256; ++c2){
-                if (memcmp(c_line, c2_line, LS_count) == 0){
-                    marks[c2] = 1;
-                    eq_class[c2] = eq_class_counter;
+                if (memcmp(c_line, c2_line, state_count) == 0){
+                    table.marks[c2] = 1;
+                    table.eq_class[c2] = table.eq_class_counter;
                 }
-                c2_line += LS_count;
+                c2_line += state_count;
             }
-            ++eq_class_counter;
+            ++table.eq_class_counter;
         }
-        c_line += LS_count;
+        c_line += state_count;
 	}
     
-    unsigned char *reduced_transition_table = (unsigned char*)malloc(LS_count * eq_class_counter);
-    unsigned char *reduced_multiline_table = (unsigned char*)malloc(LS_count * eq_class_counter);
+    table.reduced_transition_table = (unsigned char*)malloc(state_count * table.eq_class_counter);
     i = 0;
-    for (unsigned char state = 0; state < LS_count; ++state){
-        fsm.state = state;
-        for (unsigned short eq = 0; eq < eq_class_counter; ++eq){
+    for (unsigned short eq = 0; eq < table.eq_class_counter; ++eq){
+        for (unsigned char state = 0; state < state_count; ++state){
+            fsm.state = state;
             fsm.emit_token = 0;
-            fsm.multi_line = 0;
-            new_fsm = main_fsm(fsm, LSPP_default, eq_class_rep[eq]);
-            reduced_transition_table[i] = new_fsm.state + LS_count*new_fsm.emit_token;
-            reduced_multiline_table[i] = new_fsm.multi_line;
-            ++i;
+            new_fsm = main_fsm(fsm, pp_state, table.eq_class_rep[eq]);
+            table.reduced_transition_table[i++] = new_fsm.state + state_count*new_fsm.emit_token;
         }
     }
+    
+    return(table);
+}
 
-    begin_table(file, "char", "main_fsm_eqclasses");
+void
+render_fsm_table(FILE *file, FSM_Tables tables, char *group_name){
+    begin_table(file, "short", group_name, "eq_classes");
     for (unsigned short c = 0; c < 256; ++c){
-        do_table_item(file, eq_class[c]);
+        do_table_item(file, tables.eq_class[c]*tables.state_count);
+    }
+    end_row(file);
+    end_table(file);
+
+    fprintf(file, "const int num_%s_eq_classes = %d;\n\n", group_name, tables.eq_class_counter);
+
+    int i = 0;
+    begin_table(file, "char", group_name, "table");
+    for (unsigned short c = 0; c < tables.eq_class_counter; ++c){
+        for (unsigned char state = 0; state < tables.state_count; ++state){
+            do_table_item(file, tables.reduced_transition_table[i++]);
+        }
+        end_row(file);
+    }
+    end_table(file);
+}
+
+struct PP_Names{
+    unsigned char pp_state;
+    char *name;
+};
+
+PP_Names pp_names[] = {
+    {LSPP_default, "main_fsm"},
+    {LSPP_include, "pp_include_fsm"},
+    {LSPP_macro_identifier, "pp_macro_fsm"},
+    {LSPP_identifier, "pp_identifier_fsm"},
+    {LSPP_body_if, "pp_body_if_fsm"},
+    {LSPP_body, "pp_body_fsm"},
+    {LSPP_number, "pp_number_fsm"},
+    {LSPP_error, "pp_error_fsm"},
+    {LSPP_junk, "pp_junk_fsm"},
+};
+
+int main(){
+    FILE *file;
+    file = fopen("4cpp_lexer_tables.c", "wb");
+    
+    FSM_Tables wtables = generate_whitespace_skip_table();
+    render_fsm_table(file, wtables, "whitespace_fsm");
+    
+    begin_table(file, "char", "multiline_state_table");
+    for (unsigned char state = 0; state < LS_count; ++state){
+        do_table_item(file, (state == LS_string_multiline || state == LS_char_multiline));
     }
     end_row(file);
     end_table(file);
     
-    fprintf(file, "const int num_eq_classes = %d;\n\n", eq_class_counter);
+    for (int i = 0; i < ArrayCount(pp_names); ++i){
+        assert(i == pp_names[i].pp_state);
+        FSM_Tables tables = generate_fsm_table(pp_names[i].pp_state);
+        render_fsm_table(file, tables, pp_names[i].name);
+    }
     
-    i = 0;
-    begin_table(file, "char", "main_fsm_table");
-    for (unsigned char state = 0; state < LS_count; ++state){
-        for (unsigned short c = 0; c < eq_class_counter; ++c){
-            do_table_item(file, reduced_transition_table[i++]);
-		}
+    begin_ptr_table(file, "short", "get_eq_classes");
+    for (int i = 0; i < ArrayCount(pp_names); ++i){
+        do_table_item_direct(file, pp_names[i].name, "_eq_classes");
         end_row(file);
-	}
+    }
     end_table(file);
     
-    i = 0;
-    begin_table(file, "char", "main_fsm_multiline_table");
-    for (unsigned char state = 0; state < LS_count; ++state){
-        for (unsigned short c = 0; c < eq_class_counter; ++c){
-            do_table_item(file, reduced_multiline_table[i++]);
-        }
+    begin_ptr_table(file, "char", "get_table");
+    for (int i = 0; i < ArrayCount(pp_names); ++i){
+        do_table_item_direct(file, pp_names[i].name, "_table");
         end_row(file);
     }
     end_table(file);
     
     fclose(file);
-    
     return(0);
 }
 

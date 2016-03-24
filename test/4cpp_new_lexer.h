@@ -921,15 +921,13 @@ cpp_lex_nonalloc(Lex_Data *S_ptr, char *chunk, int size, Cpp_Token_Stack *token_
     int token_i = token_stack_out->count;
     int max_token_i = token_stack_out->max_count;
 
-    Lex_FSM fsm = {0};
-    Whitespace_FSM wfsm = {0};
     Pos_Update_Rule pos_update_rule = PUR_none;
 
     char c = 0;
 
     int end_pos = size + S.pos;
     chunk -= S.pos;
-
+    
     switch (S.__pc__){
         DrCase(1);
         DrCase(2);
@@ -942,12 +940,13 @@ cpp_lex_nonalloc(Lex_Data *S_ptr, char *chunk, int size, Cpp_Token_Stack *token_
         S.wfsm.white_done = 0;
         S.wfsm.pp_state = S.pp_state;
         for(;;){
-            for (; S.wfsm.white_done == 0 && S.pos < end_pos;){
+            for (; S.wfsm.pp_state < LSPP_count && S.pos < end_pos;){
                 c = chunk[S.pos++];
-                wfsm = S.wfsm;
-                wfsm = whitespace_skip_fsm(wfsm, c);
-                S.wfsm = wfsm;
+                int i = S.wfsm.pp_state + whitespace_fsm_eq_classes[c];
+                S.wfsm.pp_state = whitespace_fsm_table[i];
             }
+            S.wfsm.white_done = (S.wfsm.pp_state >= LSPP_count);
+            
             if (S.wfsm.white_done == 0){
                 DrYield(4, 1);
             }
@@ -955,32 +954,27 @@ cpp_lex_nonalloc(Lex_Data *S_ptr, char *chunk, int size, Cpp_Token_Stack *token_
         }
         --S.pos;
         S.pp_state = S.wfsm.pp_state;
+        if (S.pp_state >= LSPP_count){
+            S.pp_state -= LSPP_count;
+		}
         
         S.token_start = S.pos;
         S.tb_pos = 0;
         S.fsm = {0};
         for(;;){
-            if (S.pp_state == LSPP_default){
-				for (; S.fsm.state < LS_count && S.pos < end_pos;){
-                    c = chunk[S.pos++];
-                    S.tb[S.tb_pos++] = c;
-                    
-                    int i = S.fsm.state*num_eq_classes + main_fsm_eqclasses[c];
-                    S.fsm.multi_line |= main_fsm_multiline_table[i];
-                    S.fsm.state = main_fsm_table[i];
-                }
-                S.fsm.emit_token = (S.fsm.state >= LS_count);
-			}
-            else{
-                for (; S.fsm.emit_token == 0 && S.pos < end_pos;){
-                    c = chunk[S.pos++];
-                    S.tb[S.tb_pos++] = c;
+            unsigned short *eq_classes = get_eq_classes[S.pp_state];
+            unsigned char *fsm_table = get_table[S.pp_state];
 
-                    fsm = S.fsm;
-                    fsm = main_fsm(fsm, S.pp_state, c);
-                    S.fsm = fsm;
-                }
+            for (; S.fsm.state < LS_count && S.pos < end_pos;){
+                c = chunk[S.pos++];
+                S.tb[S.tb_pos++] = c;
+
+                int i = S.fsm.state + eq_classes[c];
+                S.fsm.state = fsm_table[i];
+                S.fsm.multi_line |= multiline_state_table[S.fsm.state];
             }
+            S.fsm.emit_token = (S.fsm.state >= LS_count);
+
             if (S.fsm.emit_token == 0){
                 DrYield(3, 1);
             }
@@ -1179,10 +1173,20 @@ cpp_lex_nonalloc(Lex_Data *S_ptr, char *chunk, int size, Cpp_Token_Stack *token_
                 S.token.type = CPP_TOKEN_CHARACTER_CONSTANT;
                 S.token.flags = 0;
                 break;
+                
+                case LS_char_multiline:
+                S.token.type = CPP_TOKEN_CHARACTER_CONSTANT;
+                S.token.flags = CPP_TFLAG_MULTILINE;
+                break;
 
                 case LS_string:
                 S.token.type = CPP_TOKEN_STRING_CONSTANT;
                 S.token.flags = 0;
+                break;
+                
+                case LS_string_multiline:
+                S.token.type = CPP_TOKEN_STRING_CONSTANT;
+                S.token.flags = CPP_TFLAG_MULTILINE;
                 break;
 
                 case LS_comment_pre:
@@ -1464,7 +1468,6 @@ cpp_lex_nonalloc(Lex_Data *S_ptr, char *chunk, int size, Cpp_Token_Stack *token_
                 else{
                     S.token.size = S.pos - S.token_start;
                 }
-                S.token.flags |= (S.fsm.multi_line)?(CPP_TFLAG_MULTILINE):(0);
                 if ((S.token.flags & CPP_TFLAG_PP_DIRECTIVE) == 0){
                     S.token.flags |= (S.pp_state != LSPP_default)?(CPP_TFLAG_PP_BODY):(0);
                 }

@@ -334,7 +334,6 @@ show_time(Times t, int repeats, char *type){
 #define BASE_DIR "w:/4ed/data/test/"
 
 int main(){
-
     int repeats = 100;
     int verbose_level = -1;
     int chunk_start = 0;
