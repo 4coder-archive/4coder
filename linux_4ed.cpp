@@ -1935,6 +1935,8 @@ main(int argc, char **argv)
     exchange_vars.thread.queues[BACKGROUND_THREADS].semaphore = 
         LinuxSemToHandle(&linuxvars.thread_semaphores[BACKGROUND_THREADS]);
 
+    system_acquire_lock(FRAME_LOCK);
+
     for(i32 i = 0; i < linuxvars.groups[BACKGROUND_THREADS].count; ++i){
         Thread_Context *thread = linuxvars.groups[BACKGROUND_THREADS].threads + i;
         thread->id = i + 1;
@@ -2514,10 +2516,14 @@ main(int argc, char **argv)
             LinuxRedrawTarget();
         }
 
+        system_release_lock(FRAME_LOCK);
+
         u64 time_diff = system_time() - start_time;
         if(time_diff < frame_useconds){
             usleep(frame_useconds - time_diff);
         }
+
+        system_acquire_lock(FRAME_LOCK);
 
         if(result.mouse_cursor_type != linuxvars.cursor){
             Cursor c = xcursors[result.mouse_cursor_type];
