@@ -385,7 +385,7 @@ struct Application_Links;
 #define GET_USER_INPUT_SIG(n) User_Input n(Application_Links *app, unsigned int get_type, unsigned int abort_type)
 #define GET_COMMAND_INPUT_SIG(n) User_Input n(Application_Links *app)
 
-// Queries
+// Queries and information display
 #define START_QUERY_BAR_SIG(n) int n(Application_Links *app, Query_Bar *bar, unsigned int flags)
 #define END_QUERY_BAR_SIG(n) void n(Application_Links *app, Query_Bar *bar, unsigned int flags)
 #define PRINT_MESSAGE_SIG(n) void n(Application_Links *app, char *string, int len)

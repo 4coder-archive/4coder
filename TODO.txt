@@ -65,15 +65,13 @@
 ; [X] allen's segfaults on linux launch
 ; [X] open empty file bug
 ; [X] chronal's map setting issue
+; [X] linux save jankieness
 ; [] indication on failure to save
 ; [] clean whitespace doesn't appear to be cleaning trailing whitespace anymore???
 ; [] sometimes the main cursor is not the same width as the mark cursor in the same spot
 ; [] tab character wrong width
 ; [] bouncing when scrolling down
 ; [] miblo's off screen cursor thing
-; 
-; [] linux save jankieness
-;
 ;
 ;
 
@@ -103,16 +101,16 @@
 ; 
 ; [] file status in custom API
 ; [] user file bar string
-; [] simple multi-line
-;
-; [] command meta data
+; [] simple multi-line editing
+; [] allow for arbitrary wrap positions independent of view width
+; [] word level wrapping ~ temporary measure really want to have totally formatted code 
+; [] manipulate scroll starget API
+; [] error parsing and jump to error
 ; [] additional hooks
 ;    [X] new file
 ;    [] file out of sync
 ; [] double binding warnings
 ; [] kill rect
-; 
-; [] manipulate scroll starget API
 ;
 ; search related tech
 ;    [X] replace word (incremental and/or in range)
@@ -133,16 +131,20 @@
 ;    [] theme switch per panel?
 ;    [] allow multiple font faces with effects
 ;
-; [] control schemes
+; control schemes
 ;    [] emacs style sub-maps
 ;    [] vim style modes
 ;    [] "tap typing"
 ;    [] "thin cursor"
+;    [] command meta data
+;    [] macros
 ;
-; [] switch over to gap buffer
+; code engine
 ;    [] lexer with multiple chunk input
-;
-; [] macros
+;    [] switch over to gap buffer
+;    [] more correct auto-indentation
+;    [] preprocessor
+;    [] AST generator
 ;
 ; [] cuber's return to previous buffer idea
 ; [] miblo's various number editors
@@ -156,7 +158,7 @@
 ; [] polish for hot directories
 ; [] undo groups
 ;
-; [] "virtual text"
+; "virtual text"
 ;    [] line numbers
 ;    [] macro expansion
 ;    [] error text at line

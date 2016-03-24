@@ -1,4 +1,4 @@
-Distribution Date: 07.03.2016 (dd.mm.yyyy)
+Distribution Date: 24.03.2016 (dd.mm.yyyy)
 
 Thank you for contributing to the 4coder project!
 
@@ -26,6 +26,18 @@ if you start digging and pressing hard enough.
 -----------------------------------------------------
 INSTRUCTIONS FOR USE
 -----------------------------------------------------
+
+****Changes in 4.0.2****
+The previous file limit of 128 has been raised to something over 8 million.
+
+A *messages* buffer is now opened on launch to provide some information about
+ new features and messages will be posted there to report events sometimes.
+
+subst and link directories no longer confuse the system, it treats them as one file.
+
+on the command line: -f <N> sets the font size, the default is 16
+
+ctrl + e: centers the view on the cursor
 
 ****Changes in 4.0.0****
 alt + x: changed to arbitrary command (NOW WORKS ANYWHERE!)

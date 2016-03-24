@@ -1,4 +1,4 @@
-Distribution Date: 07.03.2016 (dd.mm.yyyy)
+Distribution Date: 24.03.2016 (dd.mm.yyyy)
 
 Thank you for contributing to the 4coder project!
 
@@ -22,56 +22,24 @@ updates may deeply break your code.
 SOME DOCUMENTATION
 -------------------------------------
 
-See comments in 4coder_custom.cpp for more detailed information.
+See comments in 4coder_default_bindings.cpp for more detailed information.
 
 Functions to implement (optional in the dll, but required if you are using buildsuper.bat):
 get_bindings
 
-NEW IN 4.0.0:
+NEW IN 4.0.2:
 ================
-File_View_Summary becomes View_Summary:
-There use to be a lot of different view types and only "file views" were exposed in the API.
-As of alpha 4 there are only views and you can always get a view.
+#include "4coder_default.cpp" at the top of your own file to get a lot of the default functions
+such as incremental search, various word boundry seeks, and so on.
 
-Besides renaming the struct, there is also a change in the meaning of the "buffer_id" field.
-A view can have a buffer attached, but not currently be looking at that file.
+app->buffer_seek_string_insensitive(app, &buffer, start, str, len, seek_forward, &out);
+Exactly the same as app->buffer_seek_string, but the matching rule is case insensitive
 
-All of the following indicate the buffer associated with the view:
-buffer_id
-locked_buffer_id
-hidden_buffer_id
+app->get_command_input(app);
+Returns a User_Input that represents the input event that triggered the current command.
 
-These ids are nulled out to indicate that access at a particular level is not available.
-buffer_id - 
-This is null if the file is not visible in the view OR if the view is locked.
-A view is only locked right now for read only buffers (compilation output).
-
-locked_buffer_id -
-This is null only if the file is not visible.
-
-hidden_buffer_id -
-This is never null.
-
-In normal circumstances you can just use buffer_id and your code will automatically do
-nothing when you try to edit a buffer you should not.
-
-If what you are writing is unusual and it SHOULD edit a buffer even if it is locked or
-hidden, then you can use the other ids to get deeper access.
-
-================
-Theme changing API
-
-app->change_theme(app, name, len)
-Set the theme to one of the prebuilt themes by name.
-
-app->change_font(app, name, len)
-Set the font to one of the fonts by name (not by ttf file name, by the name in the list).
-
-app->set_theme_colors(app, colors, count)
-Set colors of the current theme by tag color pairs.
-
-================
-The scrolling interpolation rule is now exposed in the API, and there is an example
+app->print_message(app, str, len);
+Put a string into the *message* buffer.
 
 OLD API DOC:
 ================================================================
@@ -203,6 +171,36 @@ and cause an update in the tokens if there are tokens.  Your buffer will be upda
 the change in the buffer caused by this edit.
 
 The function returns 1 on success and 0 on failure.
+
+================
+View_Summary:
+There use to be a lot of different view types and only "file views" were exposed in the API.
+As of alpha 4 there are only views and you can always get a view.
+
+Besides renaming the struct, there is also a change in the meaning of the "buffer_id" field.
+A view can have a buffer attached, but not currently be looking at that file.
+
+All of the following indicate the buffer associated with the view:
+buffer_id
+locked_buffer_id
+hidden_buffer_id
+
+These ids are nulled out to indicate that access at a particular level is not available.
+buffer_id - 
+This is null if the file is not visible in the view OR if the view is locked.
+A view is only locked right now for read only buffers (compilation output).
+
+locked_buffer_id -
+This is null only if the file is not visible.
+
+hidden_buffer_id -
+This is never null.
+
+In normal circumstances you can just use buffer_id and your code will automatically do
+nothing when you try to edit a buffer you should not.
+
+If what you are writing is unusual and it SHOULD edit a buffer even if it is locked or
+hidden, then you can use the other ids to get deeper access.
 
 ================
 app->get_view_first(app);
@@ -363,6 +361,20 @@ Returns 1 if it successfully started a query bar.
 ================
 app->end_query_bar(app, &bar);
 See start_query_bar for details.
+
+================
+Theme changing API
+
+app->change_theme(app, name, len)
+Set the theme to one of the prebuilt themes by name.
+
+app->change_font(app, name, len)
+Set the font to one of the fonts by name (not by ttf file name, by the name in the list).
+
+app->set_theme_colors(app, colors, count)
+Set colors of the current theme by tag color pairs.
+
+
 
 Changes from 3.3 to 3.4:
 -exposed command word complete

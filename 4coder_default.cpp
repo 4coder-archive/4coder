@@ -241,15 +241,17 @@ isearch(Application_Links *app, int start_reversed){
     User_Input in;
     Query_Bar bar;
 
+    view = app->get_active_view(app);
+    buffer = app->get_buffer(app, view.locked_buffer_id);
+    
+    if (!buffer.exists) return;
+    
     if (app->start_query_bar(app, &bar, 0) == 0) return;
 
     Range match;
     int reverse = start_reversed;
     int pos;
-
-    view = app->get_active_view(app);
-    buffer = app->get_buffer(app, view.buffer_id);
-
+    
     pos = view.cursor.pos;
     match = make_range(pos, pos);
 
