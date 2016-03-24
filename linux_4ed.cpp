@@ -2570,20 +2570,23 @@ main(int argc, char **argv)
                     }
                 }
             }
-            
-            Assert(d == exchange_vars.file.num_active);
-            
+
+            int free_list_count = 0;
             for (file = exchange_vars.file.free_list.next;
-                 file != &exchange_vars.file.free_list;
-                 file = file->next){
+                file != &exchange_vars.file.free_list;
+                file = file->next){
+                ++free_list_count;
                 if (file->data){
                     system_free_memory(file->data);
                 }
             }
 
             if (exchange_vars.file.free_list.next != &exchange_vars.file.free_list){
+                Assert(free_list_count != 0);
                 ex__insert_range(exchange_vars.file.free_list.next, exchange_vars.file.free_list.prev,
-                                 &exchange_vars.file.available);
+                    &exchange_vars.file.available);
+
+                exchange_vars.file.num_active -= free_list_count;
             }
 
             ex__check(&exchange_vars.file);
