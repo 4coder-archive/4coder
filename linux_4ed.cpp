@@ -948,7 +948,7 @@ out:
 internal
 Sys_Save_File_Sig(system_save_file){
     b32 result = 0;
-    int fd = open(filename, O_WRONLY | O_TRUNC);
+    int fd = open(filename, O_WRONLY | O_TRUNC | O_CREAT, 00640);
 
     LINUX_FN_DEBUG("%s %d", filename, size);
 
@@ -1315,7 +1315,7 @@ InitializeOpenGLContext(Display *XDisplay, Window XWindow, GLXFBConfig &bestFbc,
             ctxErrorOccurred = false;
 
             context_attribs[1] = 3;
-            context_attribs[3] = 1;
+            context_attribs[3] = 2;
  
             fprintf(stderr,  "Creating context\n" );
             ctx = glXCreateContextAttribsARB( XDisplay, bestFbc, 0,
@@ -1325,7 +1325,7 @@ InitializeOpenGLContext(Display *XDisplay, Window XWindow, GLXFBConfig &bestFbc,
 
             if ( !ctxErrorOccurred && ctx )
             {
-                fprintf(stderr,  "Created GL 3.1 context\n" );
+                fprintf(stderr,  "Created GL 3.2 context\n" );
             }
             else
             {
@@ -1334,7 +1334,7 @@ InitializeOpenGLContext(Display *XDisplay, Window XWindow, GLXFBConfig &bestFbc,
  
                 ctxErrorOccurred = false;
  
-                fprintf(stderr,  "Failed to create GL 4.0 context"
+                fprintf(stderr,  "Failed to create GL 3.2 context"
                         " ... using old-style GLX context\n" );
                 ctx = glXCreateContextAttribsARB( XDisplay, bestFbc, 0, 
                                                   True, context_attribs );
