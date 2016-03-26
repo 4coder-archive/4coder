@@ -528,6 +528,40 @@ struct FSM_Tables{
     unsigned short state_count;
 };
 
+void
+do_table_reduction(FSM_Tables *table, unsigned short state_count){
+    {
+        table->eq_class_counter = 0;
+        unsigned char *c_line = table->full_transition_table;
+        for (unsigned short c = 0; c < 256; ++c){
+            if (table->marks[c] == 0){
+                table->eq_class[c] = table->eq_class_counter;
+                table->eq_class_rep[table->eq_class_counter] = (unsigned char)c;
+                unsigned char *c2_line = c_line + state_count;
+                for (unsigned short c2 = c + 1; c2 < 256; ++c2){
+                    if (memcmp(c_line, c2_line, state_count) == 0){
+                        table->marks[c2] = 1;
+                        table->eq_class[c2] = table->eq_class_counter;
+                    }
+                    c2_line += state_count;
+                }
+                ++table->eq_class_counter;
+            }
+            c_line += state_count;
+        }
+    }
+
+    table->reduced_transition_table = (unsigned char*)malloc(state_count * table->eq_class_counter);
+    {
+        unsigned char *r_line = table->reduced_transition_table;
+        for (unsigned short eq = 0; eq < table->eq_class_counter; ++eq){
+            unsigned char *u_line = table->full_transition_table + state_count * table->eq_class_rep[eq];
+            memcpy(r_line, u_line, state_count);
+            r_line += state_count;
+        }
+    }
+}
+
 FSM_Tables
 generate_whitespace_skip_table(){
 	unsigned char state_count = LSPP_count;
@@ -551,36 +585,36 @@ generate_whitespace_skip_table(){
         }
     }
     
-    table.eq_class_counter = 0;
-    unsigned char *c_line = table.full_transition_table;
-    for (unsigned short c = 0; c < 256; ++c){
-        if (table.marks[c] == 0){
-            table.eq_class[c] = table.eq_class_counter;
-            table.eq_class_rep[table.eq_class_counter] = (unsigned char)c;
-            unsigned char *c2_line = c_line + state_count;
-            for (unsigned short c2 = c + 1; c2 < 256; ++c2){
-                if (memcmp(c_line, c2_line, state_count) == 0){
-                    table.marks[c2] = 1;
-                    table.eq_class[c2] = table.eq_class_counter;
-                }
-                c2_line += state_count;
-            }
-            ++table.eq_class_counter;
-        }
-        c_line += state_count;
-	}
+    do_table_reduction(&table, state_count);
     
-    table.reduced_transition_table = (unsigned char*)malloc(state_count * table.eq_class_counter);
-    i = 0;
-    for (unsigned short eq = 0; eq < table.eq_class_counter; ++eq){
+    return(table);
+}
+
+FSM_Tables
+generate_int_table(){
+	unsigned char state_count = LSINT_count;
+    FSM_Tables table;
+    table.full_transition_table = (unsigned char*)malloc(state_count * 256);
+    table.marks = (unsigned char*)malloc(state_count * 256);
+    table.eq_class = (unsigned char*)malloc(state_count * 256);
+    table.eq_class_rep = (unsigned char*)malloc(state_count * 256);
+    table.state_count = state_count;
+    memset(table.marks, 0, 256);
+    
+    int i = 0;
+    Lex_FSM fsm = {0};
+    Lex_FSM new_fsm;
+    for (unsigned short c = 0; c < 256; ++c){
         for (unsigned char state = 0; state < state_count; ++state){
-            wfsm.pp_state = state;
-            wfsm.white_done = 0;
-            new_wfsm = whitespace_skip_fsm(wfsm, table.eq_class_rep[eq]);
-            table.reduced_transition_table[i++] = new_wfsm.pp_state + state_count*new_wfsm.white_done;
+            fsm.int_state = state;
+            fsm.emit_token = 0;
+            new_fsm = int_fsm(fsm, (unsigned char)c);
+            table.full_transition_table[i++] = new_fsm.int_state + state_count*new_fsm.emit_token;
         }
     }
-    
+        
+    do_table_reduction(&table, state_count);
+
     return(table);
 }
 
@@ -607,35 +641,7 @@ generate_fsm_table(unsigned char pp_state){
         }
     }
     
-    table.eq_class_counter = 0;
-    unsigned char *c_line = table.full_transition_table;
-    for (unsigned short c = 0; c < 256; ++c){
-        if (table.marks[c] == 0){
-            table.eq_class[c] = table.eq_class_counter;
-            table.eq_class_rep[table.eq_class_counter] = (unsigned char)c;
-            unsigned char *c2_line = c_line + state_count;
-            for (unsigned short c2 = c + 1; c2 < 256; ++c2){
-                if (memcmp(c_line, c2_line, state_count) == 0){
-                    table.marks[c2] = 1;
-                    table.eq_class[c2] = table.eq_class_counter;
-                }
-                c2_line += state_count;
-            }
-            ++table.eq_class_counter;
-        }
-        c_line += state_count;
-	}
-    
-    table.reduced_transition_table = (unsigned char*)malloc(state_count * table.eq_class_counter);
-    i = 0;
-    for (unsigned short eq = 0; eq < table.eq_class_counter; ++eq){
-        for (unsigned char state = 0; state < state_count; ++state){
-            fsm.state = state;
-            fsm.emit_token = 0;
-            new_fsm = main_fsm(fsm, pp_state, table.eq_class_rep[eq]);
-            table.reduced_transition_table[i++] = new_fsm.state + state_count*new_fsm.emit_token;
-        }
-    }
+    do_table_reduction(&table, state_count);
     
     return(table);
 }
@@ -686,13 +692,16 @@ int main(){
     FSM_Tables wtables = generate_whitespace_skip_table();
     render_fsm_table(file, wtables, "whitespace_fsm");
     
+    FSM_Tables itables = generate_int_table();
+    render_fsm_table(file, itables, "int_fsm");
+    
     begin_table(file, "char", "multiline_state_table");
     for (unsigned char state = 0; state < LS_count; ++state){
         do_table_item(file, (state == LS_string_multiline || state == LS_char_multiline));
     }
     end_row(file);
     end_table(file);
-    
+        
     for (int i = 0; i < ArrayCount(pp_names); ++i){
         assert(i == pp_names[i].pp_state);
         FSM_Tables tables = generate_fsm_table(pp_names[i].pp_state);

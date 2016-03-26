@@ -308,7 +308,7 @@ query_user_general(Application_Links *app, Query_Bar *bar, int force_number){
                 }
             }
         }
-        
+
         // NOTE(allen|a3.4.4): All we have to do to update the query bar is edit our
         // local Query_Bar struct!  This is handy because it means our Query_Bar
         // is always correct for typical use without extra work updating the bar.
@@ -317,7 +317,9 @@ query_user_general(Application_Links *app, Query_Bar *bar, int force_number){
                 break;
             }
             else if (in.key.keycode == key_back){
-                --bar->string.size;
+                if (bar->string.size > 0){
+                    --bar->string.size;
+                }
             }
             else if (good_character){
                 append(&bar->string, in.key.character);

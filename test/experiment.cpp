@@ -17,7 +17,10 @@
 #include "../4cpp_lexer_types.h"
 #define FCPP_LEXER_IMPLEMENTATION
 #include "../4cpp_lexer.h"
-#include "4cpp_new_lexer.h"
+
+namespace new_lex{
+# include "4cpp_new_lexer.h"
+}
 
 #include <windows.h>
 #include <intrin.h>

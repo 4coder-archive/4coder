@@ -28,9 +28,7 @@ basic_seek(Application_Links *app, Command_ID seek_type, unsigned int flags){
 }
 
 #define SEEK_COMMAND(n, dir, flags)\
-CUSTOM_COMMAND_SIG(seek_##n##_##dir){\
-    basic_seek(app, cmdid_seek_##dir, flags);\
-}
+CUSTOM_COMMAND_SIG(seek_##n##_##dir){ basic_seek(app, cmdid_seek_##dir, flags); }
 
 SEEK_COMMAND(whitespace, right, BoundryWhitespace)
 SEEK_COMMAND(whitespace, left, BoundryWhitespace)
@@ -59,7 +57,6 @@ long_braces(Application_Links *app, char *text, int size){
     push_parameter(app, par_range_start, pos);
     push_parameter(app, par_range_end, pos + size);
     push_parameter(app, par_clear_blank_lines, 0);
-    push_parameter(app, par_use_tabs, 1);
     exec_command(app, cmdid_auto_tab_range);
 }
 

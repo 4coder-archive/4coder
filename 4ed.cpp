@@ -748,6 +748,7 @@ COMMAND_DECL(delete_range){
     range = make_range(view->cursor.pos, view->mark);
     if (range.start < range.end){
         next_cursor_pos = range.start;
+        Assert(range.end <= buffer_size(&file->state.buffer));
         view_replace_range(system, models, view, range.start, range.end, 0, 0, next_cursor_pos);
         view_cursor_move(view, next_cursor_pos);
         view->mark = range.start;
@@ -2881,9 +2882,9 @@ app_hardcode_styles(Models *models){
     style_set_name(style, make_lit_string("stb"));
 
     style->main.back_color = 0xFFD6D6D6;
-    style->main.margin_color = 0xFF9E9E9E;
+    style->main.margin_color = 0xFF5C5C5C;
     style->main.margin_hover_color = 0xFF7E7E7E;
-    style->main.margin_active_color = 0xFF5C5C5C;
+    style->main.margin_active_color = 0xFF9E9E9E;
     style->main.cursor_color = 0xFF000000;
     style->main.at_cursor_color = 0xFFD6D6D6;
     style->main.mark_color = 0xFF525252;
@@ -3923,7 +3924,7 @@ App_Step_Sig(app_step){
 
                 // TOOD(allen): Deduplicate
                 // TODO(allen): Allow a view to clean up however it wants after a command finishes,
-                // or after transfering to another view mid command.
+                // or after transfering to another view mid command?
                 if (view != 0 && models->command_coroutine == 0){
                     init_query_set(&view->query_set);
                 }
@@ -3934,7 +3935,7 @@ App_Step_Sig(app_step){
     update_command_data(vars, cmd);
 
     ProfileEnd(command_coroutine);
-    
+
     ProfileStart(frame_hook);
     if (models->hooks[hook_frame]){
         if ((models->hooks[hook_frame])(&app_links)){
@@ -3942,6 +3943,23 @@ App_Step_Sig(app_step){
         }
     }
     ProfileStart(frame_hook);
+
+    ProfileStart(fill_gui_command_buffers);
+    {
+        Panel *panel, *used_panels;
+        View *view;
+        b32 active;
+
+        used_panels = &models->layout.used_sentinel;
+        for (dll_items(panel, used_panels)){
+            view = panel->view;
+            active = (panel == cmd->panel);
+            if (step_file_view(view, active)){
+                app_result.redraw = 1;
+            }
+        }
+    }
+    ProfileStart(fill_gui_command_buffers);
     
     // NOTE(allen): pass raw input to the panels
     ProfileStart(step);
@@ -3998,7 +4016,7 @@ App_Step_Sig(app_step){
             if (panel == mouse_panel && !mouse->out_of_window){
                 input.mouse = mouse_state;
             }
-            if (step_file_view(system, exchange, view, panel->inner, active, &input)){
+            if (do_input_file_view(system, exchange, view, panel->inner, active, &input)){
                 app_result.redraw = 1;
             }
         }
@@ -4431,7 +4449,6 @@ App_Step_Sig(app_step){
                 {
                     if (!file && string.str){
                         file = working_set_lookup_file(working_set, string);
-                        
                         if (!file){
                             file = working_set_contains(system, working_set, string);
                         }
@@ -4450,7 +4467,6 @@ App_Step_Sig(app_step){
                 {
                     if (!file && string.str){
                         file = working_set_lookup_file(working_set, string);
-                        
                         if (!file){
                             file = working_set_contains(system, working_set, string);
                         }
@@ -4475,7 +4491,6 @@ App_Step_Sig(app_step){
                     
                     if (!file && string.str){
                         file = working_set_lookup_file(working_set, string);
-                        
                         if (!file){
                             file = working_set_contains(system, working_set, string);
                         }
@@ -4485,7 +4500,9 @@ App_Step_Sig(app_step){
                         if (buffer_needs_save(file)){
                             view_show_interactive(system, view, &models->map_ui,
                                 IAct_Sure_To_Kill, IInt_Sure_To_Kill, make_lit_string("Are you sure?"));
+#if 0
                             copy(&view->dest, file->name.live_name);
+#endif
                         }
                         else{
                             working_set_remove(system, working_set, file->name.source_path);
@@ -4576,7 +4593,7 @@ App_Step_Sig(app_step){
             draw_rectangle(target, full, back_color);
 
             draw_push_clip(target, panel->inner);
-            draw_file_view(system, exchange, view, cmd->view, panel->inner, active, target, &dead_input);
+            do_render_file_view(system, exchange, view, cmd->view, panel->inner, active, target, &dead_input);
             draw_pop_clip(target);
 
             u32 margin_color;

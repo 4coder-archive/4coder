@@ -58,7 +58,9 @@ enum Lex_Int_State{
     LSINT_ul,
     LSINT_uL,
     LSINT_ll,
-    LSINT_extra
+    LSINT_extra,
+    //
+    LSINT_count
 };
 
 enum Lex_INC_State{

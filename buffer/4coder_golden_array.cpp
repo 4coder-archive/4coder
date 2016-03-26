@@ -162,30 +162,31 @@ buffer_backify_next(Buffer_Backify_Loop *loop){
 
 internal_4tech int
 buffer_replace_range(Buffer *buffer, int start, int end, char *str, int len, int *shift_amount,
-                     void *scratch, int scratch_size, int *request_amount){
+    void *scratch, int scratch_size, int *request_amount){
+
     char *data;
     int result;
     int size;
-    
+
     size = buffer_size(buffer);
     assert_4tech(0 <= start);
     assert_4tech(start <= end);
     assert_4tech(end <= size);
-    
+
     *shift_amount = (len - (end - start));
     if (*shift_amount + size <= buffer->max){
         data = (char*)buffer->data;
         memmove_4tech(data + end + *shift_amount, data + end, buffer->size - end);
         buffer->size += *shift_amount;
         if (len != 0) memcpy_4tech(data + start, str, len);
-        
+
         result = 0;
     }
     else{
         *request_amount = round_up_4tech(2*(*shift_amount + size), 4 << 10);
         result = 1;
     }
-    
+
     return(result);
 }
 
@@ -199,16 +200,17 @@ buffer_batch_edit_step(Buffer_Batch_State *state, Buffer *buffer, Buffer_Edit *s
     result = 0;
     shift_total = state->shift_total;
     i = state->i;
-    
+
     edit = sorted_edits + i;
     for (; i < edit_count; ++i, ++edit){
+        assert(edit->end + shift_total < buffer_size(buffer));
         result = buffer_replace_range(buffer, edit->start + shift_total, edit->end + shift_total,
-                                      strings + edit->str_start, edit->len, &shift_amount,
-                                      scratch, scratch_size, request_amount);
+            strings + edit->str_start, edit->len, &shift_amount,
+            scratch, scratch_size, request_amount);
         if (result) break;
         shift_total += shift_amount;
     }
-    
+
     state->shift_total = shift_total;
     state->i = i;
     

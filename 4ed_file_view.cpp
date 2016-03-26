@@ -38,7 +38,6 @@ enum View_Widget_Type{
 };
 
 struct View_Widget{
-    UI_State state;
     View_Widget_Type type;
     i32 height_;
     struct{
@@ -77,9 +76,10 @@ struct View{
 
     Editing_File *file;
 
-    UI_State ui_state;
     View_UI showing_ui;
+    GUI_Target gui_target;
 
+#if 0
     // interactive stuff
     Interactive_Interaction interaction;
     Interactive_Action action;
@@ -95,12 +95,11 @@ struct View{
     u32 *palette;
     i32 palette_size;
     Color_View_Mode color_mode;
-    Super_Color color;
-    Color_Highlight highlight;
     b32 p4c_only;
     Style_Library inspecting_styles;
     b8 import_export_check[64];
     i32 import_file_id;
+#endif
 
     // file stuff
     i32 font_advance;
@@ -1314,7 +1313,6 @@ view_set_file(
     if (set_vui){
         // TODO(allen): Fix this! There should be a way to easily separate setting a file,
         // and switching to file mode, so that they don't cross over eachother like this.
-        view->ui_state = {};
         view->showing_ui = VUI_None;
     }
 }
@@ -1684,6 +1682,7 @@ file_do_single_edit(System_Functions *system,
 
     Assert(scratch_size > 0);
     i32 request_amount = 0;
+    Assert(end <= buffer_size(&file->state.buffer));
     while (buffer_replace_range(&file->state.buffer, start, end, str, str_len, &shift_amount,
             part->base + part->pos, scratch_size, &request_amount)){
         void *new_data = 0;
@@ -1707,6 +1706,7 @@ file_do_single_edit(System_Functions *system,
     buffer_remeasure_starts(buffer, line_start, line_end, line_shift, shift_amount);
     buffer_remeasure_widths(buffer, font->advance_data, line_start, line_end, line_shift);
 
+    // NOTE(allen): update the views looking at this file
     Panel *panel, *used_panels;
     used_panels = &layout->used_sentinel;
 
@@ -1728,8 +1728,7 @@ file_do_single_edit(System_Functions *system,
     desc.end = end;
     desc.shift_amount = shift_amount;
 
-    file_edit_cursor_fix(system, part, general,
-        file, layout, desc);
+    file_edit_cursor_fix(system, part, general, file, layout, desc);
 }
 
 internal void
@@ -2514,6 +2513,7 @@ remeasure_file_view(System_Functions *system, View *view, i32_Rect rect){
     }
 }
 
+#if 0
 internal void
 undo_shit(System_Functions *system, View *view, UI_State *state, UI_Layout *layout,
     i32 total_count, i32 undo_count, i32 scrub_max){
@@ -2588,19 +2588,19 @@ draw_file_view_queries(View *view, UI_State *state, UI_Layout *layout){
 }
 
 inline void
-view_show_menu(View *fview, Command_Map *gui_map){
-    fview->ui_state = {};
-    fview->map_for_file = fview->map;
-    fview->map = gui_map;
-    fview->showing_ui = VUI_Menu;
+view_show_menu(View *view, Command_Map *gui_map){
+    view->ui_state = {};
+    view->map_for_file = view->map;
+    view->map = gui_map;
+    view->showing_ui = VUI_Menu;
 }
 
 inline void
-view_show_config(View *fview, Command_Map *gui_map){
-    fview->ui_state = {};
-    fview->map_for_file = fview->map;
-    fview->map = gui_map;
-    fview->showing_ui = VUI_Config;
+view_show_config(View *view, Command_Map *gui_map){
+    view->ui_state = {};
+    view->map_for_file = view->map;
+    view->map = gui_map;
+    view->showing_ui = VUI_Config;
 }
 
 inline void
@@ -2634,10 +2634,26 @@ view_show_theme(View *view, Command_Map *gui_map){
     view->color_mode = CV_Mode_Library;
     view->color = super_color_create(0xFF000000);
 }
+#endif
+
+
+inline void
+view_show_menu(View *view, Command_Map *gui_map){}
+
+inline void
+view_show_config(View *view, Command_Map *gui_map){}
+
+inline void
+view_show_interactive(System_Functions *system, View *view,
+    Command_Map *gui_map, Interactive_Action action,
+    Interactive_Interaction interaction, String query){}
+
+inline void
+view_show_theme(View *view, Command_Map *gui_map){}
+
 
 inline void
 view_show_file(View *view, Command_Map *file_map){
-    view->ui_state = {};
     if (file_map){
         view->map = file_map;
     }
@@ -2647,6 +2663,7 @@ view_show_file(View *view, Command_Map *file_map){
     view->showing_ui = VUI_None;
 }
 
+#if 0
 internal void
 interactive_view_complete(View *view){
     Models *models = view->models;
@@ -2718,7 +2735,9 @@ interactive_view_complete(View *view){
     // underlying file which is a giant pain.
     view->file = 0;
 }
+#endif
 
+#if 0
 internal void
 update_highlighting(View *view){
     View *file_view = view->hot_file_view;
@@ -3370,6 +3389,7 @@ config_shit(View *view, UI_State *state, UI_Layout *layout){
         models->settings.lctrl_lalt_is_altgr = !models->settings.lctrl_lalt_is_altgr;
     }
 }
+#endif
 
 struct File_Bar{
     f32 pos_x, pos_y;
@@ -3381,81 +3401,11 @@ struct File_Bar{
 internal void
 intbar_draw_string(Render_Target *target, File_Bar *bar, String str, u32 char_color){
     i16 font_id = bar->font_id;
-
     draw_string(target, font_id, str,
         (i32)(bar->pos_x + bar->text_shift_x),
         (i32)(bar->pos_y + bar->text_shift_y),
         char_color);
     bar->pos_x += font_string_width(target, font_id, str);
-}
-
-internal void
-do_file_bar(View *view, Editing_File *file, UI_Layout *layout, Render_Target *target){
-    File_Bar bar;
-    Models *models = view->models;
-    Style_Font *font = &models->global_font;
-    i32 line_height = view->font_height;
-    Interactive_Style bar_style = models->style.main.file_info_style;
-
-    u32 back_color = bar_style.bar_color;
-    u32 base_color = bar_style.base_color;
-    u32 pop1_color = bar_style.pop1_color;
-    u32 pop2_color = bar_style.pop2_color;
-
-    bar.rect = layout_rect(layout, line_height + 2);
-
-    if (target){
-        bar.font_id = font->font_id;
-        bar.pos_x = (f32)bar.rect.x0;
-        bar.pos_y = (f32)bar.rect.y0;
-        bar.text_shift_y = 2;
-        bar.text_shift_x = 0;
-
-        draw_rectangle(target, bar.rect, back_color);    
-        intbar_draw_string(target, &bar, file->name.live_name, base_color);
-        intbar_draw_string(target, &bar, make_lit_string(" -"), base_color);
-
-        if (file->state.is_loading){
-            intbar_draw_string(target, &bar, make_lit_string(" loading"), base_color);
-        }
-        else{
-            char line_number_space[30];
-            String line_number = make_string(line_number_space, 0, 30);
-            append(&line_number, " L#");
-            append_int_to_str(view->cursor.line, &line_number);
-
-            intbar_draw_string(target, &bar, line_number, base_color);
-
-            intbar_draw_string(target, &bar, make_lit_string(" -"), base_color);
-
-            if (file->settings.dos_write_mode){
-                intbar_draw_string(target, &bar, make_lit_string(" dos"), base_color);
-            }
-            else{
-                intbar_draw_string(target, &bar, make_lit_string(" nix"), base_color);
-            }
-
-            if (file->state.still_lexing){
-                intbar_draw_string(target, &bar, make_lit_string(" parsing"), pop1_color);
-            }
-
-            if (!file->settings.unimportant){
-                switch (buffer_get_sync(file)){
-                    case SYNC_BEHIND_OS:
-                    {
-                        persist String out_of_sync = make_lit_string(" !");
-                        intbar_draw_string(target, &bar, out_of_sync, pop2_color);
-                    }break;
-
-                    case SYNC_UNSAVED:
-                    {
-                        persist String out_of_sync = make_lit_string(" *");
-                        intbar_draw_string(target, &bar, out_of_sync, pop2_color);
-                    }break;
-                }
-            }
-        }
-    }
 }
 
 internal void
@@ -3494,83 +3444,36 @@ view_reinit_scrolling(View *view){
 }
 
 internal i32
-step_file_view(System_Functions *system, Exchange *exchange, View *view, i32_Rect rect,
-    b32 is_active, Input_Summary *user_input){
-
-    Models *models = view->models;
-    i32 result = 0;
+file_step(View *view, i32_Rect region, Input_Summary *user_input, b32 is_active){
+    i32 result  = 0;
     Editing_File *file = view->file;
-
-    i32 widget_height = 0;
-    {
-        UI_State state = 
-            ui_state_init(&view->widget.state, 0, user_input,
-            &models->style, models->global_font.font_id, models->font_set, 0, 1);
-
-        UI_Layout layout;
-        begin_layout(&layout, rect);
-
-        switch (view->widget.type){
-            case FWIDG_NONE:
-            {
-                if (file && view->showing_ui == VUI_None){
-                    do_file_bar(view, file, &layout, 0);
-                }
-
-                draw_file_view_queries(view, &state, &layout);
-            }break;
-
-            case FWIDG_TIMELINES:
-            {
-                i32 scrub_max = view->scrub_max;
-                i32 undo_count = file->state.undo.undo.edit_count;
-                i32 redo_count = file->state.undo.redo.edit_count;
-                i32 total_count = undo_count + redo_count;
-
-                undo_shit(system, view, &state, &layout, total_count, undo_count, scrub_max);
-            }break;
-        }
-
-        widget_height = layout.y - rect.y0;
-        if (ui_finish_frame(&view->widget.state, &state, &layout, rect, 0, 0)){
-            result = 1;
-        }
-    }
-
-    view->scroll_min_limit = (f32)-widget_height;
-    if (view->reinit_scrolling){
-        view_reinit_scrolling(view);
-    }
-
-    // TODO(allen): Split this into passive step and step that depends on input
-    if (view->showing_ui == VUI_None && file && !file->state.is_loading){
+    if (file && !file->state.is_loading){
         f32 line_height = (f32)view->font_height;
         f32 cursor_y = view_get_cursor_y(view);
         f32 target_y = view->target_y;
-        f32 max_y = view_compute_height(view) - line_height*2;
         i32 lowest_line = view_compute_lowest_line(view);
-        f32 max_target_y = view_compute_max_target_y(lowest_line, (i32)line_height, max_y);
+        
         f32 delta_y = 3.f*line_height;
-        f32 extra_top = (f32)widget_height;
-        f32 taken_top_space = line_height + extra_top;
-
+        
+        f32 max_y = (f32)(region.y1 - region.y0);
+        f32 max_x = (f32)(region.x1 - region.x0);
+        f32 max_target_y = view_compute_max_target_y(lowest_line, (i32)line_height, max_y);
+        
         if (user_input->mouse.wheel != 0){
             f32 wheel_multiplier = 3.f;
             f32 delta_target_y = delta_y*user_input->mouse.wheel*wheel_multiplier;
             target_y += delta_target_y;
 
-            if (target_y < -taken_top_space) target_y = -taken_top_space;
+            if (target_y < view->scroll_min_limit) target_y = view->scroll_min_limit;
             if (target_y > max_target_y) target_y = max_target_y;
 
             f32 old_cursor_y = cursor_y;
             if (cursor_y >= target_y + max_y) cursor_y = target_y + max_y;
-            if (cursor_y < target_y + taken_top_space) cursor_y = target_y + taken_top_space;
+            if (cursor_y < target_y - view->scroll_min_limit) cursor_y = target_y - view->scroll_min_limit;
 
             if (cursor_y != old_cursor_y){
                 view->cursor =
-                    view_compute_cursor_from_xy(view,
-                    view->preferred_x,
-                    cursor_y);
+                    view_compute_cursor_from_xy(view, view->preferred_x, cursor_y);
             }
 
             result = 1;
@@ -3579,17 +3482,16 @@ step_file_view(System_Functions *system, Exchange *exchange, View *view, i32_Rec
         if (cursor_y > target_y + max_y){
             target_y = cursor_y - max_y + delta_y;
         }
-        if (cursor_y < target_y + taken_top_space){
-            target_y = cursor_y - delta_y - taken_top_space;
+        if (cursor_y < target_y - view->scroll_min_limit){
+            target_y = cursor_y - delta_y + view->scroll_min_limit;
         }
 
         if (target_y > max_target_y) target_y = max_target_y;
-        if (target_y < -extra_top) target_y = -extra_top;
+        if (target_y < view->scroll_min_limit) target_y = view->scroll_min_limit;
         view->target_y = target_y;
 
         f32 cursor_x = view_get_cursor_x(view);
         f32 target_x = view->target_x;
-        f32 max_x = view_compute_width(view);
         if (cursor_x < target_x){
             target_x = (f32)Max(0, cursor_x - max_x/2);
         }
@@ -3619,11 +3521,10 @@ step_file_view(System_Functions *system, Exchange *exchange, View *view, i32_Rec
         }
 
         if (user_input->mouse.press_l && is_active){
-            f32 max_y = view_compute_height(view);
-            f32 rx = (f32)(user_input->mouse.x - rect.x0);
-            f32 ry = (f32)(user_input->mouse.y - rect.y0);
+            f32 rx = (f32)(user_input->mouse.x - region.x0);
+            f32 ry = (f32)(user_input->mouse.y - region.y0);
 
-            if (ry >= extra_top){
+            if (ry >= -view->scroll_min_limit){
                 view_set_widget(view, FWIDG_NONE);
                 if (rx >= 0 && rx < max_x && ry >= 0 && ry < max_y){
                     view_cursor_move(view, rx + view->scroll_x, ry + view->scroll_y, 1);
@@ -3632,10 +3533,132 @@ step_file_view(System_Functions *system, Exchange *exchange, View *view, i32_Rec
             }
             result = 1;
         }
-
         if (!is_active) view_set_widget(view, FWIDG_NONE);
+	}
+    
+    return(result);
+}
+
+internal i32
+step_file_view(View *view, b32 is_active){
+    gui_begin_top_level(&view->gui_target);
+    {
+        gui_do_top_bar(&view->gui_target);
+        
+        gui_begin_overlap(&view->gui_target);
+        {
+            gui_begin_serial_section(&view->gui_target);
+            {
+                // do widget
+            }
+            gui_end_serial_section(&view->gui_target);
+
+            gui_begin_serial_section(&view->gui_target);
+            {
+                switch (view->showing_ui){
+                    case VUI_None:
+                    gui_do_file(&view->gui_target);
+                    break;
+                }
+            }
+            gui_end_serial_section(&view->gui_target);
+        }
+        gui_end_overlap(&view->gui_target);
+    }
+    gui_end_top_level(&view->gui_target);
+
+    return(1);
+}
+
+internal i32
+do_input_file_view(System_Functions *system, Exchange *exchange,
+    View *view, i32_Rect rect, b32 is_active, Input_Summary *user_input){
+
+    i32 result = 0;
+
+    GUI_Session gui_session;
+    GUI_Header *h;
+
+    gui_session_init(&gui_session, rect, view->font_height);
+    
+    for (h = (GUI_Header*)view->gui_target.push.base;
+        h->type;
+        h = NextHeader(h)){
+        if (gui_interpret(&gui_session, h)){
+            switch (h->type){
+                case guicom_top_bar: break;
+
+                case guicom_file:
+                {
+                    view->scroll_min_limit = -(f32)(gui_session.clip_rect.y0 - gui_session.rect.y0);
+                    if (view->reinit_scrolling){
+                        view_reinit_scrolling(view);
+                    }
+                    if (file_step(view, gui_session.rect, user_input, is_active)){
+                        result = 1;
+                    }
+                }break;
+            }
+        }
     }
 
+    return(result);
+
+#if 0
+    Models *models = view->models;
+    i32 result = 0;
+
+    i32 widget_height = 0;
+    AllowLocal(models);
+    
+#if 0
+    {
+        UI_State state = 
+            ui_state_init(&view->widget.state, 0, user_input,
+            &models->style, models->global_font.font_id, models->font_set, 0, 1);
+
+        UI_Layout layout;
+        begin_layout(&layout, rect);
+
+        switch (view->widget.type){
+            case FWIDG_NONE:
+            {
+                if (file && view->showing_ui == VUI_None){
+                    do_file_bar(view, file, &layout, 0);
+                }
+                draw_file_view_queries(view, &state, &layout);
+            }break;
+
+            case FWIDG_TIMELINES:
+            {
+                i32 scrub_max = view->scrub_max;
+                i32 undo_count = file->state.undo.undo.edit_count;
+                i32 redo_count = file->state.undo.redo.edit_count;
+                i32 total_count = undo_count + redo_count;
+                undo_shit(system, view, &state, &layout, total_count, undo_count, scrub_max);
+            }break;
+        }
+
+        widget_height = layout.y - rect.y0;
+        if (ui_finish_frame(&view->widget.state, &state, &layout, rect, 0, 0)){
+            result = 1;
+        }
+    }
+#endif
+
+
+    view->scroll_min_limit = (f32)-widget_height;
+    if (view->reinit_scrolling){
+        view_reinit_scrolling(view);
+    }
+
+    if (view->showing_ui == VUI_None){
+        if (file_step(view, rect, user_input, is_active)){
+            result = 1;
+		}
+    }
+
+#if 0
     {
         UI_State state =
             ui_state_init(&view->ui_state, 0, user_input,
@@ -3679,8 +3702,10 @@ step_file_view(System_Functions *system, Exchange *exchange, View *view, i32_Rec
             }
         }
     }
+#endif
 
     return(result);
+#endif
 }
 
 internal i32
@@ -3851,16 +3876,167 @@ draw_file_loaded(View *view, i32_Rect rect, b32 is_active, Render_Target *target
     return(0);
 }
 
+internal void
+do_render_file_bar(Render_Target *target, View *view, Editing_File *file, i32_Rect rect){
+    File_Bar bar;
+    Models *models = view->models;
+    Style_Font *font = &models->global_font;
+    Interactive_Style bar_style = models->style.main.file_info_style;
+
+    u32 back_color = bar_style.bar_color;
+    u32 base_color = bar_style.base_color;
+    u32 pop1_color = bar_style.pop1_color;
+    u32 pop2_color = bar_style.pop2_color;
+
+    bar.rect = rect;
+
+    if (target){
+        bar.font_id = font->font_id;
+        bar.pos_x = (f32)bar.rect.x0;
+        bar.pos_y = (f32)bar.rect.y0;
+        bar.text_shift_y = 2;
+        bar.text_shift_x = 0;
+
+        draw_rectangle(target, bar.rect, back_color);    
+        if (file){
+            intbar_draw_string(target, &bar, file->name.live_name, base_color);
+        }
+        else{
+            intbar_draw_string(target, &bar, make_lit_string("*NULL*"), base_color);
+		}
+        intbar_draw_string(target, &bar, make_lit_string(" -"), base_color);
+
+        if (file){
+            if (file->state.is_loading){
+                intbar_draw_string(target, &bar, make_lit_string(" loading"), base_color);
+            }
+            else{
+                char line_number_space[30];
+                String line_number = make_string(line_number_space, 0, 30);
+                append(&line_number, " L#");
+                append_int_to_str(view->cursor.line, &line_number);
+
+                intbar_draw_string(target, &bar, line_number, base_color);
+
+                intbar_draw_string(target, &bar, make_lit_string(" -"), base_color);
+
+                if (file->settings.dos_write_mode){
+                    intbar_draw_string(target, &bar, make_lit_string(" dos"), base_color);
+                }
+                else{
+                    intbar_draw_string(target, &bar, make_lit_string(" nix"), base_color);
+                }
+
+                if (file->state.still_lexing){
+                    intbar_draw_string(target, &bar, make_lit_string(" parsing"), pop1_color);
+                }
+
+                if (!file->settings.unimportant){
+                    switch (buffer_get_sync(file)){
+                        case SYNC_BEHIND_OS:
+                        {
+                            persist String out_of_sync = make_lit_string(" !");
+                            intbar_draw_string(target, &bar, out_of_sync, pop2_color);
+                        }break;
+
+                        case SYNC_UNSAVED:
+                        {
+                            persist String out_of_sync = make_lit_string(" *");
+                            intbar_draw_string(target, &bar, out_of_sync, pop2_color);
+                        }break;
+                    }
+                }
+            }
+        }
+    }
+}
+
 internal i32
-draw_file_view(System_Functions *system, Exchange *exchange,
+do_render_file_view(System_Functions *system, Exchange *exchange,
     View *view, View *active, i32_Rect rect, b32 is_active,
     Render_Target *target, Input_Summary *user_input){
+    
+    Editing_File *file = view->file;
+    i32 result = 0;
+    
+    GUI_Session gui_session = {0};
+    GUI_Header *h;
+    
+    gui_session_init(&gui_session, rect, view->font_height);
+    
+    for (h = (GUI_Header*)view->gui_target.push.base;
+        h->type;
+        h = NextHeader(h)){
+        if (gui_interpret(&gui_session, h)){
+            switch (h->type){
+                case guicom_top_bar:
+                {
+                    do_render_file_bar(target, view, file, gui_session.rect);
+                }
+                break;
 
+                case guicom_file:
+                {
+                    target->push_clip(target, gui_session.clip_rect);
+                    view->scroll_min_limit = -(f32)(gui_session.clip_rect.y0 - gui_session.rect.y0);
+                    if (view->reinit_scrolling){
+                        view_reinit_scrolling(view);
+                    }
+                    if (file && file_is_ready(file)){
+                        result = draw_file_loaded(view, gui_session.rect, is_active, target);
+                    }
+                    target->pop_clip(target);
+                }break;
+			}
+		}
+	}
+
+    return(result);
+    
+#if 0    
+        
+    Editing_File *file = view->file;
+    i32 result = 0;
+    
+    {
+        i32 line_height = view->font_height;
+        i32_Rect bar_rect = rect;
+        bar_rect.y1 = bar_rect.y0 + line_height + 2;
+        do_render_file_bar(target, view, file, bar_rect);
+
+        rect.y0 = bar_rect.y1;
+    }
+    
+    target->push_clip(target, rect);
+    if (view->gui_target.show_file){
+        view->scroll_min_limit = 0;
+        if (view->reinit_scrolling){
+            view_reinit_scrolling(view);
+        }
+        
+        switch (view->showing_ui){
+            case VUI_None:
+            {
+                if (file && file_is_ready(file)){
+                    result = draw_file_loaded(view, rect, is_active, target);
+                }
+            }break;
+        }
+	}
+    target->pop_clip(target);
+
+    return(result);
+#endif
+    
+#if 0
     Models *models = view->models;
     Editing_File *file = view->file;
     i32 result = 0;
 
     i32 widget_height = 0;
+    AllowLocal(models);
+
+#if 0
     {
         UI_State state =
             ui_state_init(&view->widget.state, target, 0,
@@ -3896,60 +4072,30 @@ draw_file_view(System_Functions *system, Exchange *exchange,
         widget_height = layout.y - rect.y0;
         ui_finish_frame(&view->widget.state, &state, &layout, rect, 0, 0);
     }
+#endif
+
     view->scroll_min_limit = (f32)-widget_height;
 
     {
         rect.y0 += widget_height;
         target->push_clip(target, rect);
 
-        UI_State state =
-            ui_state_init(&view->ui_state, target, user_input,
-            &models->style, models->global_font.font_id, models->font_set, &models->working_set, 0);
-
-        UI_Layout layout;
-        begin_layout(&layout, rect);
-
         rect.y0 -= widget_height;
-
-        Super_Color color = {};
 
         switch (view->showing_ui){
             case VUI_None:
             {
                 if (file && file_is_ready(file)){
-                    if (view->reinit_scrolling){
-                        view_reinit_scrolling(view);
-                    }
                     result = draw_file_loaded(view, rect, is_active, target);
                 }
             }break;
-
-            case VUI_Theme:
-            {
-                theme_shit(system, exchange, view, active, &state, &layout, &color);
-            }break;
-
-            case VUI_Interactive:
-            {
-                interactive_shit(system, view, &state, &layout);
-            }break;
-            case VUI_Menu:
-            {
-                menu_shit(view, &state, &layout);
-            }break;
-            case VUI_Config:
-            {
-                config_shit(view, &state, &layout);
-            }break;
         }
-
-        ui_finish_frame(&view->ui_state, &state, &layout, rect, 0, 0);
 
         target->pop_clip(target);
     }
 
-
     return (result);
+#endif
 }
 
 // TODO(allen): Passing this hook and app pointer is a hack. It can go as soon as we start
@@ -4200,7 +4346,7 @@ live_set_alloc_view(Live_Views *live_set, Panel *panel, Models *models){
     result.id = (i32)(result.view - live_set->views);
 
     dll_remove(result.view);
-    memset(result.view, 0, sizeof(View));
+    memset(result.view, 0, sizeof(*result.view));
     result.view->id = result.id;
 
     result.view->in_use = 1;
@@ -4210,12 +4356,20 @@ live_set_alloc_view(Live_Views *live_set, Panel *panel, Models *models){
     result.view->models = models;
     result.view->scrub_max = 1;
 
+#if 0
     // TODO(allen): Make "interactive" mode customizable just like the query bars!
     result.view->query = make_fixed_width_string(result.view->query_);
     result.view->dest = make_fixed_width_string(result.view->dest_);
+#endif
 
     init_query_set(&result.view->query_set);
 
+    {
+        i32 gui_mem_size = Kbytes(32);
+        void *gui_mem = general_memory_allocate(&models->mem.general, gui_mem_size, 0);
+        result.view->gui_target.push = partition_open(gui_mem, gui_mem_size);
+    }
+    
     return(result);
 }
 
