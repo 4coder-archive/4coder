@@ -3539,6 +3539,17 @@ file_step(View *view, i32_Rect region, Input_Summary *user_input, b32 is_active)
     return(result);
 }
 
+internal void
+view_do_queries(View *view, GUI_Target *target){
+    Query_Slot *slot;
+    Query_Bar *bar;
+    
+    for (slot = view->query_set.used_slot; slot != 0; slot = slot->next){
+        bar = slot->query_bar;
+        gui_do_text_field(target, bar->prompt, bar->string);
+	}
+}
+
 internal i32
 step_file_view(View *view, b32 is_active){
     gui_begin_top_level(&view->gui_target);
@@ -3549,7 +3560,7 @@ step_file_view(View *view, b32 is_active){
         {
             gui_begin_serial_section(&view->gui_target);
             {
-                // do widget
+                view_do_queries(view, &view->gui_target);
             }
             gui_end_serial_section(&view->gui_target);
 
@@ -3587,7 +3598,7 @@ do_input_file_view(System_Functions *system, Exchange *exchange,
         if (gui_interpret(&gui_session, h)){
             switch (h->type){
                 case guicom_top_bar: break;
-
+                
                 case guicom_file:
                 {
                     view->scroll_min_limit = -(f32)(gui_session.clip_rect.y0 - gui_session.rect.y0);
@@ -3598,6 +3609,8 @@ do_input_file_view(System_Functions *system, Exchange *exchange,
                         result = 1;
                     }
                 }break;
+                
+                case guicom_text_field: break;
             }
         }
     }
@@ -3877,6 +3890,27 @@ draw_file_loaded(View *view, i32_Rect rect, b32 is_active, Render_Target *target
 }
 
 internal void
+do_render_text_field(Render_Target *target, View *view, i32_Rect rect, String p, String t){
+    Models *models = view->models;
+    Style *style = &models->style;
+    
+    u32 back_color = style->main.margin_color;
+    u32 text1_color = style->main.default_color;
+    u32 text2_color = style->main.file_info_style.pop1_color;
+    
+    i32 x = rect.x0;
+    i32 y = rect.y0;
+    
+    i16 font_id = models->global_font.font_id;
+    
+    if (target){
+        draw_rectangle(target, rect, back_color);
+        x = draw_string(target, font_id, p, x, y + 1, text2_color);
+        draw_string(target, font_id, t, x, y + 1, text1_color);
+	}
+}
+
+internal void
 do_render_file_bar(Render_Target *target, View *view, Editing_File *file, i32_Rect rect){
     File_Bar bar;
     Models *models = view->models;
@@ -3898,15 +3932,13 @@ do_render_file_bar(Render_Target *target, View *view, Editing_File *file, i32_Re
         bar.text_shift_x = 0;
 
         draw_rectangle(target, bar.rect, back_color);    
-        if (file){
-            intbar_draw_string(target, &bar, file->name.live_name, base_color);
-        }
-        else{
+        if (!file){
             intbar_draw_string(target, &bar, make_lit_string("*NULL*"), base_color);
 		}
-        intbar_draw_string(target, &bar, make_lit_string(" -"), base_color);
-
-        if (file){
+        else{
+            intbar_draw_string(target, &bar, file->name.live_name, base_color);
+            intbar_draw_string(target, &bar, make_lit_string(" -"), base_color);
+            
             if (file->state.is_loading){
                 intbar_draw_string(target, &bar, make_lit_string(" loading"), base_color);
             }
@@ -3986,6 +4018,14 @@ do_render_file_view(System_Functions *system, Exchange *exchange,
                         result = draw_file_loaded(view, gui_session.rect, is_active, target);
                     }
                     target->pop_clip(target);
+                }break;
+
+                case guicom_text_field:
+                {
+                    void *ptr = (h+1);
+                    String p = gui_read_string(&ptr);
+                    String t = gui_read_string(&ptr);
+                    do_render_text_field(target, view, gui_session.rect, p, t);
                 }break;
 			}
 		}

@@ -342,8 +342,8 @@ get_ui_style_upper(Style *style){
 
 inline void
 get_colors(UI_State *state, u32 *back, u32 *fore, Widget_ID wid, UI_Style style){
-    bool32 hover = is_hover(state, wid);
-    bool32 hot = is_hot(state, wid);
+    b32 hover = is_hover(state, wid);
+    b32 hot = is_hot(state, wid);
     i32 level = hot + hover;
     switch (level){
     case 2:
@@ -363,8 +363,8 @@ get_colors(UI_State *state, u32 *back, u32 *fore, Widget_ID wid, UI_Style style)
 
 inline void
 get_pop_color(UI_State *state, u32 *pop, Widget_ID wid, UI_Style style){
-    bool32 hover = is_hover(state, wid);
-    bool32 hot = is_hot(state, wid);
+    b32 hover = is_hover(state, wid);
+    b32 hot = is_hot(state, wid);
     i32 level = hot + hover;
     switch (level){
     case 2:
@@ -381,8 +381,8 @@ get_pop_color(UI_State *state, u32 *pop, Widget_ID wid, UI_Style style){
 
 internal UI_State
 ui_state_init(UI_State *state_in, Render_Target *target, Input_Summary *user_input,
-              Style *style, i16 font_id, Font_Set *font_set, Working_Set *working_set,
-              b32 input_stage){
+    Style *style, i16 font_id, Font_Set *font_set, Working_Set *working_set, b32 input_stage){
+    
     UI_State state = {};
     state.target = target;
     state.style = style;

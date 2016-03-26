@@ -80,8 +80,6 @@ struct GUI_Header{
     i32 size;
 };
 
-#define NextHeader(h) ((GUI_Header*)((char*)(h) + (h)->size))
-
 enum GUI_Command_Type{
     guicom_null,
     guicom_begin_overlap,
@@ -90,32 +88,51 @@ enum GUI_Command_Type{
     guicom_end_serial,
     guicom_top_bar,
     guicom_file,
+    guicom_text_field
 };
 
-internal b32
+internal void*
 gui_push_command(GUI_Target *target, void *item, i32 size){
-    b32 result = 0;
     void *dest = partition_allocate(&target->push, size);
     if (dest){
         memcpy(dest, item, size);
-        result = 1;
     }
-    return(result);
+    return(dest);
 }
 
-internal b32
+internal void*
+gui_align(GUI_Target *target){
+    void *ptr;
+    partition_align(&target->push, 8);
+    ptr = partition_current(&target->push);
+    return(ptr);
+}
+
+internal GUI_Header*
 gui_push_simple_command(GUI_Target *target, i32 type){
-    b32 result;
+    GUI_Header *result = 0;
     GUI_Header item;
     item.type = type;
     item.size = sizeof(item);
-    result = gui_push_command(target, &item, item.size);
+    result = (GUI_Header*)gui_push_command(target, &item, item.size);
     return(result);
+}
+
+internal void
+gui_push_string(GUI_Target *target, GUI_Header *h, String s){
+    u8 *start, *end;
+    i32 size;
+    start = (u8*)gui_push_command(target, &s.size, sizeof(s.size));
+    gui_push_command(target, s.str, s.size);
+    end = (u8*)gui_align(target);
+    size = (i32)(end - start);
+    h->size += size;
 }
 
 internal void
 gui_begin_top_level(GUI_Target *target){
     target->show_file = 0;
+    target->push.pos = 0;
 }
 
 internal void
@@ -152,6 +169,13 @@ internal void
 gui_do_file(GUI_Target *target){
     gui_push_simple_command(target, guicom_file);
     target->show_file = 1;
+}
+
+internal void
+gui_do_text_field(GUI_Target *target, String p, String t){
+    GUI_Header *h = gui_push_simple_command(target, guicom_text_field);
+    gui_push_string(target, h, p);
+    gui_push_string(target, h, t);
 }
 
 
@@ -263,6 +287,16 @@ gui_interpret(GUI_Session *session, GUI_Header *h){
             end_v = rect.y1;
             end_section = section;
             break;
+            
+            case guicom_text_field:
+            give_to_user = 1;
+            rect.y0 = y;
+            rect.y1 = rect.y0 + session->line_height + 2;
+            rect.x0 = session->full_rect.x0;
+            rect.x1 = session->full_rect.x1;
+            end_v = rect.y1;
+            end_section = section;
+            break;
         }
         
         if (give_to_user){
@@ -293,6 +327,27 @@ gui_interpret(GUI_Session *session, GUI_Header *h){
     return(give_to_user);
 }
 
+#define NextHeader(h) ((GUI_Header*)((char*)(h) + (h)->size))
+
+internal String
+gui_read_string(void **ptr){
+    String result;
+    char *start, *end;
+    i32 size;
+    
+    start = (char*)*ptr;
+    result.size = *(i32*)*ptr;
+    *ptr = ((i32*)*ptr) + 1;
+    result.str = (char*)*ptr;
+    end = result.str + result.size;
+    
+    size = (i32)(end - start);
+    size = (size + 7) & (~7);
+    
+    *ptr = ((char*)start) + size;
+    
+    return(result);
+}
 
 
 // BOTTOM
