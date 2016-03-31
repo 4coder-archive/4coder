@@ -75,10 +75,11 @@ struct View{
     Command_Map *map;
 
     Editing_File *file;
-    f32 prev_wrap_width;
+    i32_Rect file_rect;
 
     View_UI showing_ui;
     GUI_Target gui_target;
+    void *gui_mem;
     
     Interactive_Interaction interaction;
     Interactive_Action action;
@@ -153,19 +154,18 @@ view_lock_level(View *view){
     return(result);
 }
 
-// TODO(allen): need to be able to get this from a gui interpretation loop somehow.
 inline f32
-view_wrap_width(View *view){
-    Panel *panel = view->panel;
-    f32 result = (f32)(panel->inner.x1 - panel->inner.x0);
-    result -= GUIScrollbarWidth;
+view_file_width(View *view){
+    i32_Rect file_rect = view->file_rect;
+    f32 result = (f32)(file_rect.x1 - file_rect.x0);
     return (result);
 }
 
 inline f32
-view_compute_height(View *view){
-    Panel *panel = view->panel;
-    return (f32)(panel->inner.y1 - panel->inner.y0);
+view_file_height(View *view){
+    i32_Rect file_rect = view->file_rect;
+    f32 result = (f32)(file_rect.y1 - file_rect.y0);
+    return (result);
 }
 
 struct View_Iter{
@@ -477,7 +477,7 @@ view_compute_lowest_line(View *view){
         else{
             f32 wrap_y = view->line_wrap_y[last_line];
             lowest_line = FLOOR32(wrap_y / view->font_height);
-            f32 max_width = view_wrap_width(view);
+            f32 max_width = view_file_width(view);
 
             Editing_File *file = view->file;
             Assert(!file->state.is_dummy);
@@ -511,7 +511,7 @@ view_measure_wraps(System_Functions *system,
     }
 
     f32 line_height = (f32)view->font_height;
-    f32 max_width = view_wrap_width(view);
+    f32 max_width = view_file_width(view);
     buffer_measure_wrap_y(buffer, view->line_wrap_y, line_height, max_width);
 
     view->line_count = line_count;
@@ -1128,7 +1128,7 @@ view_compute_cursor_from_pos(View *view, i32 pos){
 
     Full_Cursor result = {};
     if (font){
-        f32 max_width = view_wrap_width(view);
+        f32 max_width = view_file_width(view);
         result = buffer_cursor_from_pos(&file->state.buffer, pos, view->line_wrap_y,
             max_width, (f32)view->font_height, font->advance_data);
     }
@@ -1143,7 +1143,7 @@ view_compute_cursor_from_unwrapped_xy(View *view, f32 seek_x, f32 seek_y, b32 ro
 
     Full_Cursor result = {};
     if (font){
-        f32 max_width = view_wrap_width(view);
+        f32 max_width = view_file_width(view);
         result = buffer_cursor_from_unwrapped_xy(&file->state.buffer, seek_x, seek_y,
             round_down, view->line_wrap_y, max_width, (f32)view->font_height, font->advance_data);
     }
@@ -1159,7 +1159,7 @@ view_compute_cursor_from_wrapped_xy(View *view, f32 seek_x, f32 seek_y, b32 roun
 
     Full_Cursor result = {};
     if (font){
-        f32 max_width = view_wrap_width(view);
+        f32 max_width = view_file_width(view);
         result = buffer_cursor_from_wrapped_xy(&file->state.buffer, seek_x, seek_y,
             round_down, view->line_wrap_y,
             max_width, (f32)view->font_height, font->advance_data);
@@ -1176,7 +1176,7 @@ view_compute_cursor_from_line_pos(View *view, i32 line, i32 pos){
 
     Full_Cursor result = {};
     if (font){
-        f32 max_width = view_wrap_width(view);
+        f32 max_width = view_file_width(view);
         result = buffer_cursor_from_line_character(&file->state.buffer, line, pos,
             view->line_wrap_y, max_width, (f32)view->font_height, font->advance_data);
     }
@@ -2502,9 +2502,8 @@ internal f32
 view_compute_max_target_y(View *view){
     i32 lowest_line = view_compute_lowest_line(view);
     i32 line_height = view->font_height;
-    f32 view_height = view_compute_height(view);
-    f32 max_target_y = view_compute_max_target_y(
-        lowest_line, line_height, view_height);
+    f32 view_height = view_file_height(view);
+    f32 max_target_y = view_compute_max_target_y(lowest_line, line_height, view_height);
     return(max_target_y);
 }
 
@@ -2684,6 +2683,7 @@ interactive_view_complete(View *view, String dest, i32 user_action){
     Editing_File *old_file = view->file;
 
     switch (view->action){
+#if 0
         case IAct_Open:
         delayed_open(&models->delay1, models->hot_directory.string, panel);
         delayed_touch_file(&models->delay1, old_file);
@@ -2697,8 +2697,23 @@ interactive_view_complete(View *view, String dest, i32 user_action){
         if (models->hot_directory.string.size > 0 &&
                 !char_is_slash(models->hot_directory.string.str[models->hot_directory.string.size-1])){
             delayed_new(&models->delay1, models->hot_directory.string, panel);
-        }
+        }break;
+#endif
+
+        case IAct_Open:
+        delayed_open(&models->delay1, dest, panel);
+        delayed_touch_file(&models->delay1, old_file);
         break;
+
+        case IAct_Save_As:
+        delayed_save_as(&models->delay1, dest, panel);
+        break;
+
+        case IAct_New:
+        if (dest.size > 0 &&
+                !char_is_slash(models->hot_directory.string.str[dest.size-1])){
+            delayed_new(&models->delay1, dest, panel);
+        }break;
 
         case IAct_Switch:
         delayed_switch(&models->delay1, dest, panel);
@@ -3436,8 +3451,8 @@ view_reinit_scrolling(View *view){
         cursor_x = view_get_cursor_x(view);
         cursor_y = view_get_cursor_y(view);
 
-        w = view_wrap_width(view);
-        h = view_compute_height(view);
+        w = view_file_width(view);
+        h = view_file_height(view);
 
         if (cursor_x >= target_x + w){
             target_x = (f32)(cursor_x - w*.5f);
@@ -3467,11 +3482,8 @@ file_step(View *view, i32_Rect region, Input_Summary *user_input, b32 is_active)
         
         f32 delta_y = 3.f*line_height;
         
-        // TODO(allen): Would prefer to use this commented version,
-        // but then it disagrees with other values of max_y...
-        //f32 max_y = (f32)(region.y1 - region.y0);
-        f32 max_y = view_compute_height(view);
-        f32 max_x = (f32)(region.x1 - region.x0);
+        f32 max_y = view_file_height(view);
+        f32 max_x = view_file_width(view);
         f32 max_target_y = view_compute_max_target_y(lowest_line, (i32)line_height, max_y);
         f32 cursor_max_y = max_y - view->font_height * 3;
 
@@ -3560,7 +3572,7 @@ step_file_view(System_Functions *system, View *view, b32 is_active){
     GUI_Target *target = &view->gui_target;
     Models *models = view->models;
     
-    f32 max_y = view_compute_height(view);
+    f32 max_y = view_file_height(view);
     
     i32 lowest_line = view_compute_lowest_line(view);
     f32 min_target_y = view->scroll_min_limit;
@@ -3577,6 +3589,7 @@ step_file_view(System_Functions *system, View *view, b32 is_active){
 
             gui_begin_serial_section(target);
             {
+                i32_Rect scroll_rect = {0};
                 f32 v = unlerp(min_target_y, view->target_y, max_target_y);
                 f32 old_cursor_y = view_get_cursor_y(view);
                 f32 cursor_y = old_cursor_y;
@@ -3588,7 +3601,7 @@ step_file_view(System_Functions *system, View *view, b32 is_active){
                     lerp_space_delta /= (max_target_y - min_target_y);
                 }
 
-                if (gui_start_scrollable(target, &v, lerp_space_delta)){
+                if (gui_start_scrollable(target, view->showing_ui, &v, lerp_space_delta, &scroll_rect)){
                     view->target_y = lerp(min_target_y, v, max_target_y);
 
                     if (view->target_y < min_target_y) view->target_y = min_target_y;
@@ -3607,7 +3620,9 @@ step_file_view(System_Functions *system, View *view, b32 is_active){
                         view->cursor = view_compute_cursor_from_xy(view, view->preferred_x, cursor_y);
                     }
                 }
-
+                
+                view->file_rect = scroll_rect;
+                
                 if (view->scroll_y < min_target_y) view->scroll_y = min_target_y;
                 if (view->scroll_y > max_target_y) view->scroll_y = max_target_y;
 
@@ -3660,12 +3675,12 @@ step_file_view(System_Functions *system, View *view, b32 is_active){
                         }
                         gui_do_text_field(target, message, text);
 
-                        gui_start_scrollable(target, 0, 3.f);
+                        i32_Rect scroll_rect = {0};
+                        gui_start_scrollable(target, view->showing_ui, 0, 3.f, &scroll_rect);
                         for (i = 0; i < files->count; ++i, ++info){
                             append(&full_path, info->filename);
                             terminate_with_null(&full_path);
                             file = working_set_contains(system, &models->working_set, full_path);
-                            full_path.size = r;
 
                             b8 is_folder = (info->folder != 0);
                             b8 name_match = (filename_match(front_name, &absolutes, info->filename, 0) != 0);
@@ -3683,9 +3698,10 @@ step_file_view(System_Functions *system, View *view, b32 is_active){
                             if (name_match){
                                 file_option_id.id[0] = (u64)(info);
                                 if (gui_do_file_option(target, file_option_id, info->filename, is_folder, message)){
-                                    // TODO(allen): actually perform whatever action we need
+                                    interactive_view_complete(view, full_path, 0);
                                 }
                             }
+                            full_path.size = r;
                         }
                     }break;
                 }break;
@@ -3693,130 +3709,6 @@ step_file_view(System_Functions *system, View *view, b32 is_active){
         }
     }
     gui_end_top_level(target);
-
-#if 0
-    gui_begin_top_level(target);
-    {
-        gui_begin_overlap(target);
-        {
-            gui_begin_serial_section(target);
-            {
-                view_do_queries(view, target);
-            }
-            gui_end_serial_section(target);
-
-            gui_begin_serial_section(target);
-            {
-                switch (view->showing_ui){
-                    case VUI_None:
-                    {
-                        f32 v = unlerp(min_target_y, view->target_y, max_target_y);
-                        f32 old_cursor_y = view_get_cursor_y(view);
-                        f32 cursor_y = old_cursor_y;
-                        
-                        f32 delta = 9.f * view->font_height;
-                        f32 lerp_space_delta = (delta); 
-                        if (max_target_y > min_target_y){
-                            lerp_space_delta /= (max_target_y - min_target_y);
-                        }
-                        
-                        if (gui_start_scrollable(target, &v, lerp_space_delta)){
-                            view->target_y = lerp(min_target_y, v, max_target_y);
-                            
-                            if (view->target_y < min_target_y) view->target_y = min_target_y;
-                            if (view->target_y > max_target_y) view->target_y = max_target_y;
-                            
-                            if (cursor_y >= view->target_y + max_y) cursor_y = view->target_y + max_y;
-                            if (cursor_y < view->target_y - view->scroll_min_limit) cursor_y = view->target_y - view->scroll_min_limit;
-                            
-                            if (cursor_y != old_cursor_y){
-                                view->cursor = view_compute_cursor_from_xy(view, view->preferred_x, cursor_y);
-							}
-                        }
-                        
-                        if (view->scroll_y < min_target_y) view->scroll_y = min_target_y;
-                        if (view->scroll_y > max_target_y) view->scroll_y = max_target_y;
-                        
-                        gui_do_file(target);
-					}break;
-                    
-                    case VUI_Interactive:
-                    switch (view->interaction){
-						case IInt_Sys_File_List:
-                        {
-                            persist String p4c_extension = make_lit_string("p4c");
-                            persist String message_loaded = make_lit_string(" LOADED");
-                            persist String message_unsaved = make_lit_string(" LOADED *");
-                            persist String message_unsynced = make_lit_string(" LOADED !");
-                            persist String message_nothing = {};
-                            
-                            char front_name_space[256];
-                            String front_name = make_fixed_width_string(front_name_space);
-
-                            char full_path_[256];
-                            String full_path = make_fixed_width_string(full_path_);
-
-                            Absolutes absolutes;
-
-                            i32 i, r;
-                            Hot_Directory *hdir = &models->hot_directory;
-                            File_List *files = &hdir->file_list;
-                            File_Info *info = files->infos;
-                            Editing_File *file = 0;
-                            GUI_id file_option_id;
-
-                            get_front_of_directory(&front_name, hdir->string);
-                            get_absolutes(front_name, &absolutes, 1, 1);
-
-                            get_path_of_directory(&full_path, hdir->string);
-                            r = full_path.size;
-
-                            String message = {0};
-                            String text = {0};
-                            switch (view->action){
-                                case IAct_Open: message = make_lit_string("Open: "); break;
-                                case IAct_Save_As: message = make_lit_string("Save As: "); break;
-                                case IAct_New: message = make_lit_string("New: "); break;
-                            }
-                            gui_do_text_field(target, message, text);
-
-                            gui_start_scrollable(target, 0, 3.f);
-                            for (i = 0; i < files->count; ++i, ++info){
-                                append(&full_path, info->filename);
-                                terminate_with_null(&full_path);
-                                file = working_set_contains(system, &models->working_set, full_path);
-                                full_path.size = r;
-
-                                b8 is_folder = (info->folder != 0);
-                                b8 name_match = (filename_match(front_name, &absolutes, info->filename, 0) != 0);
-                                b8 is_loaded = (file != 0 && file_is_ready(file));
-
-                                String message = message_nothing;
-                                if (is_loaded){
-                                    switch (buffer_get_sync(file)){
-                                        case SYNC_GOOD: message = message_loaded; break;
-                                        case SYNC_BEHIND_OS: message = message_unsynced; break;
-                                        case SYNC_UNSAVED: message = message_unsaved; break;
-                                    }
-                                }
-
-                                if (name_match){
-                                    file_option_id.id[0] = (u64)(info);
-                                    if (gui_do_file_option(target, file_option_id, info->filename, is_folder, message)){
-                                        // TODO(allen): actually perform whatever action we need
-                                    }
-                                }
-                            }
-                        }break;
-                    }break;
-                }
-            }
-            gui_end_serial_section(target);
-        }
-        gui_end_overlap(target);
-    }
-    gui_end_top_level(target);
-#endif
 
     return(1);
 }
@@ -4630,8 +4522,11 @@ kill_file(System_Functions *system, Exchange *exchange, Models *models, Editing_
 
 inline void
 free_file_view(View *view){
-    if (view->line_wrap_y)
-        general_memory_free(&view->models->mem.general, view->line_wrap_y);
+    General_Memory *general = &view->models->mem.general;
+    if (view->line_wrap_y){
+        general_memory_free(general, view->line_wrap_y);
+    }
+    general_memory_free(general, view->gui_mem);
 }
 
 struct Search_Range{
@@ -4868,7 +4763,9 @@ live_set_alloc_view(Live_Views *live_set, Panel *panel, Models *models){
 
     {
         i32 gui_mem_size = Kbytes(32);
-        void *gui_mem = general_memory_allocate(&models->mem.general, gui_mem_size, 0);
+        void *gui_mem = general_memory_allocate(&models->mem.general, gui_mem_size + 8, 0);
+        result.view->gui_mem = gui_mem;
+        gui_mem = advance_to_alignment(gui_mem);
         result.view->gui_target.push = partition_open(gui_mem, gui_mem_size);
     }
     

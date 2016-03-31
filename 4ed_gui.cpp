@@ -24,7 +24,6 @@ internal void
 init_query_set(Query_Set *set){
     Query_Slot *slot = set->slots;
     int i;
-    
     set->free_slot = slot;
     set->used_slot = 0;
     for (i = 0; i+1 < ArrayCount(set->slots); ++i, ++slot){
@@ -83,6 +82,8 @@ struct GUI_Target{
     
     f32 scroll_v;
     f32 scroll_delta;
+    u32 scroll_id;
+    i32_Rect scrollable_area;
 };
 
 struct GUI_Header{
@@ -161,6 +162,13 @@ gui_align(GUI_Target *target){
 }
 
 internal void*
+advance_to_alignment(void *ptr){
+    u64 p = (u64)ptr;
+    p = (p + 7) & (~7);
+    return (void*)p;
+}
+
+internal void*
 gui_push_aligned_item(GUI_Target *target, GUI_Header *h, void *item, i32 size){
     char *start, *end;
     start = (char*)partition_allocate(&target->push, size);
@@ -206,26 +214,24 @@ gui_push_button_command(GUI_Target *target, i32 type, GUI_id id){
 }
 
 internal void
-gui_push_string(GUI_Target *target, GUI_Header *h, String s){
-    u8 *start, *end;
+gui_push_string(GUI_Target *target, GUI_Header *h, String s, i32 extra){
+    u8 *start, *end, *str_start;
     i32 size;
+    i32 *cap;
+    
     start = (u8*)gui_push_item(target, &s.size, sizeof(s.size));
-    gui_push_item(target, s.str, s.size);
+    cap = (i32*)gui_push_item(target, 0, sizeof(i32));
+    str_start = (u8*)gui_push_item(target, s.str, s.size);
+    if (extra) gui_push_item(target, 0, extra);
     end = (u8*)gui_align(target);
     size = (i32)(end - start);
+    *cap = (i32)(end - str_start);
     h->size += size;
 }
 
 internal void
-gui_push_string(GUI_Target *target, GUI_Header *h, String s, i32 extra){
-    u8 *start, *end;
-    i32 size;
-    start = (u8*)gui_push_item(target, &s.size, sizeof(s.size));
-    gui_push_item(target, s.str, s.size);
-    gui_push_item(target, 0, extra);
-    end = (u8*)gui_align(target);
-    size = (i32)(end - start);
-    h->size += size;
+gui_push_string(GUI_Target *target, GUI_Header *h, String s){
+    gui_push_string(target, h, s, 0);
 }
 
 internal void
@@ -322,19 +328,23 @@ gui_id_scrollbar_bottom(){
 }
 
 internal b32
-gui_start_scrollable(GUI_Target *target, f32 *v, f32 d){
+gui_start_scrollable(GUI_Target *target, u32 scroll_id, f32 *v, f32 d, i32_Rect *rect){
     b32 result = 0;
     GUI_Header *h;
     
     target->scroll_delta = d;
     h = gui_push_simple_command(target, guicom_scrollable);
-    if (gui_id_eq(gui_id_scrollbar(), target->active)){
+    if (gui_id_eq(gui_id_scrollbar(), target->active) && target->scroll_id == scroll_id){
         if (v) *v = target->scroll_v;
         result = 1;
 	}
     else{
         if (v) target->scroll_v = *v;
 	}
+    if (target->scroll_id == scroll_id){
+        *rect = target->scrollable_area;
+	}
+    target->scroll_id = scroll_id;
     
     gui_push_simple_command(target, guicom_scrollable_top);
     gui_push_simple_command(target, guicom_scrollable_slider);
@@ -541,6 +551,11 @@ gui_interpret(GUI_Target *target, GUI_Session *session, GUI_Header *h){
             rect.y1 = session->full_rect.y1;
             session->scroll_rect = rect;
             session->is_scrollable = 1;
+
+            target->scrollable_area.x0 = session->full_rect.x0;
+            target->scrollable_area.x1 = rect.x0;
+            target->scrollable_area.y0 = rect.y0;
+            target->scrollable_area.y1 = rect.y1;
             break;
             
             case guicom_scrollable_top:
@@ -612,20 +627,14 @@ gui_read_float(void **ptr){
 internal String
 gui_read_string(void **ptr){
     String result;
-    char *start, *end;
-    i32 size;
     
-    start = (char*)*ptr;
     result.size = *(i32*)*ptr;
     *ptr = ((i32*)*ptr) + 1;
+    result.memory_size = *(i32*)*ptr;
+    *ptr = ((i32*)*ptr) + 1;
+    
     result.str = (char*)*ptr;
-    end = result.str + result.size;
-    
-    size = (i32)(end - start);
-    size = (size + 7) & (~7);
-    
-    result.memory_size = size;
-    *ptr = ((char*)start) + size;
+    *ptr = result.str + result.memory_size;
     
     return(result);
 }

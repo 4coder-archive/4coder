@@ -748,10 +748,10 @@ SCROLL_RULE_SIG(smooth_scroll_rule){
         velocity->y = 1.f;
     }
 
-    if (smooth_camera_step(target_y, scroll_y, &velocity->y, 40.f, 1.f/4.f)){
+    if (smooth_camera_step(target_y, scroll_y, &velocity->y, 80.f, 1.f/2.f)){
         result = 1;
     }
-    if (smooth_camera_step(target_x, scroll_x, &velocity->x, 40.f, 1.f/4.f)){
+    if (smooth_camera_step(target_x, scroll_x, &velocity->x, 80.f, 1.f/2.f)){
         result = 1;
     }
 

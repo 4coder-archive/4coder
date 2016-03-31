@@ -420,7 +420,7 @@ COMMAND_DECL(center_view){
         y = view->cursor.wrapped_y;
     }
 
-    h = view_compute_height(view);
+    h = view_file_height(view);
     y -= h * .5f;
     if (y < view->scroll_min_limit) y = view->scroll_min_limit;
 
@@ -1483,7 +1483,7 @@ COMMAND_DECL(page_down){
     ProfileMomentFunction();
     REQ_READABLE_VIEW(view);
 
-    f32 height = view_compute_height(view);
+    f32 height = view_file_height(view);
     f32 max_target_y = view_compute_max_target_y(view);
 
     view->target_y += height;
@@ -1497,7 +1497,7 @@ COMMAND_DECL(page_up){
     ProfileMomentFunction();
     REQ_READABLE_VIEW(view);
 
-    f32 height = view_compute_height(view);
+    f32 height = view_file_height(view);
 
     view->target_y -= height;
     if (view->target_y < 0) view->target_y = 0;
@@ -3758,7 +3758,7 @@ App_Step_Sig(app_step){
     }
     ProfileEnd(prepare_commands);
 
-    // NOTE(allen): process the command_coroutine if it is unfinished
+    // NOTE(allen): try to abort the command corroutine if we are shutting down
     ProfileStart(try_to_shutdown);
     if (app_result.trying_to_kill){
         b32 there_is_unsaved = 0;
