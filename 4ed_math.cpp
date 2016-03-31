@@ -590,33 +590,42 @@ invert(Matrix2 m){
  * Lerps, Clamps, Thresholds, Etc
  */
 
-inline real32
-lerp(real32 a, real32 t, real32 b){
-    return a + (b-a)*t;
+inline f32
+lerp(f32 a, f32 t, f32 b){
+    return(a + (b-a)*t);
+}
+
+inline i32
+lerp(i32 a, f32 t, i32 b){
+    return ((i32)(lerp((f32)a, t, (f32)b)));
 }
 
 inline Vec2
-lerp(Vec2 a, real32 t, Vec2 b){
-    return a + (b-a)*t;
+lerp(Vec2 a, f32 t, Vec2 b){
+    return(a + (b-a)*t);
 }
 
 inline Vec3
-lerp(Vec3 a, real32 t, Vec3 b){
-    return a + (b-a)*t;
+lerp(Vec3 a, f32 t, Vec3 b){
+    return(a + (b-a)*t);
 }
 
 inline Vec4
-lerp(Vec4 a, real32 t, Vec4 b){
-    return a + (b-a)*t;
+lerp(Vec4 a, f32 t, Vec4 b){
+    return(a + (b-a)*t);
 }
 
-inline real32
-unlerp(real32 a, real32 x, real32 b){
-    return (x - a) / (b - a);
+inline f32
+unlerp(f32 a, f32 x, f32 b){
+    f32 r = x;
+    if (b > a){
+		r = (x - a) / (b - a);
+	}
+    return(r);
 }
 
-inline real32
-clamp(real32 a, real32 n, real32 z){
+inline f32
+clamp(f32 a, f32 n, f32 z){
     return (n<a)?(a):((n>z)?(z):n);
 }
 

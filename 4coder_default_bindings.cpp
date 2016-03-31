@@ -386,7 +386,6 @@ void default_get_bindings(Bind_Helper *context, int set_hooks){
     bind(context, '\t', MDFR_SHIFT, auto_tab_line_at_cursor);
 
     bind(context, '=', MDFR_CTRL, write_increment);
-    bind(context, '-', MDFR_CTRL, write_decrement);
     bind(context, 't', MDFR_ALT, write_allen_todo);
     bind(context, 'n', MDFR_ALT, write_allen_note);
     bind(context, '[', MDFR_CTRL, open_long_braces);

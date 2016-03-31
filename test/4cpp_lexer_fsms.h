@@ -6,6 +6,11 @@
 
 // TOP
 
+struct String_And_Flag{
+	char *str;
+	unsigned int flags;
+};
+
 enum Lex_State{
     LS_default,
     LS_identifier,
@@ -91,7 +96,10 @@ struct Whitespace_FSM{
 
 struct Lex_FSM{
     unsigned char state;
-    unsigned char int_state;
+    union{
+        unsigned char int_state;
+        unsigned char directive_state;
+    };
     unsigned char emit_token;
     unsigned char multi_line;
 };

@@ -17,10 +17,6 @@ CUSTOM_COMMAND_SIG(write_increment){
     write_string(app, make_lit_string("++"));
 }
 
-CUSTOM_COMMAND_SIG(write_decrement){
-    write_string(app, make_lit_string("--"));
-}
-
 static void
 basic_seek(Application_Links *app, Command_ID seek_type, unsigned int flags){
     push_parameter(app, par_flags, flags);

@@ -10,11 +10,6 @@
 #define lexer_link static
 
 // TODO(allen): revisit this keyword data declaration system
-struct String_And_Flag{
-	char *str;
-	fcpp_u32 flags;
-};
-
 struct String_List{
 	String_And_Flag *data;
 	int count;
@@ -25,25 +20,7 @@ struct Sub_Match_List_Result{
 	fcpp_i32 new_pos;
 };
 
-
-// TODO(allen): shift towards storing in a context
-static String_And_Flag int_suf_strings[] = {
-	{"ull"}, {"ULL"},
-	{"llu"}, {"LLU"},
-	{"ll"}, {"LL"},
-	{"l"}, {"L"},
-	{"u"}, {"U"}
-};
-
 #define lexer_string_list(x) {x, (sizeof(x)/sizeof(*x))}
-
-static String_List int_sufs = lexer_string_list(int_suf_strings);
-
-static String_And_Flag float_suf_strings[] = {
-	{"f"}, {"F"},
-	{"l"}, {"L"}
-};
-static String_List float_sufs = lexer_string_list(float_suf_strings);
 
 static String_And_Flag bool_lit_strings[] = {
 	{"true"}, {"false"}
@@ -137,65 +114,6 @@ static String_And_Flag keyword_strings[] = {
     {"thread_local", CPP_TOKEN_KEY_OTHER},
 };
 static String_List keywords = lexer_string_list(keyword_strings);
-
-static String_And_Flag op_strings[] = {
-    {"...", CPP_TOKEN_ELLIPSIS},
-	{"<<=", CPP_TOKEN_LSHIFTEQ},
-	{">>=", CPP_TOKEN_RSHIFTEQ},
-	{"->*", CPP_TOKEN_PTRARROW},
-	{"<<", CPP_TOKEN_LSHIFT},
-	{">>", CPP_TOKEN_RSHIFT},
-	{"&&", CPP_TOKEN_AND},
-	{"||", CPP_TOKEN_OR},
-	{"->", CPP_TOKEN_ARROW},
-	{"++", CPP_TOKEN_INCREMENT},
-	{"--", CPP_TOKEN_DECREMENT},
-	{"::", CPP_TOKEN_SCOPE},
-	{"+=", CPP_TOKEN_ADDEQ},
-	{"-=", CPP_TOKEN_SUBEQ},
-	{"*=", CPP_TOKEN_MULEQ},
-	{"/=", CPP_TOKEN_DIVEQ},
-	{"%=", CPP_TOKEN_MODEQ},
-	{"&=", CPP_TOKEN_ANDEQ},
-	{"|=", CPP_TOKEN_OREQ},
-	{"^=", CPP_TOKEN_XOREQ},
-	{"==", CPP_TOKEN_EQEQ},
-	{">=", CPP_TOKEN_GRTREQ},
-	{"<=", CPP_TOKEN_LESSEQ},
-	{"!=", CPP_TOKEN_NOTEQ},
-	{".*", CPP_TOKEN_PTRDOT},
-	{"{", CPP_TOKEN_BRACE_OPEN},
-	{"}", CPP_TOKEN_BRACE_CLOSE},
-	{"[", CPP_TOKEN_BRACKET_OPEN},
-	{"]", CPP_TOKEN_BRACKET_CLOSE},
-	{"(", CPP_TOKEN_PARENTHESE_OPEN},
-	{")", CPP_TOKEN_PARENTHESE_CLOSE},
-	{"<", CPP_TOKEN_LESS},
-	{">", CPP_TOKEN_GRTR},
-	{"+", CPP_TOKEN_PLUS},
-	{"-", CPP_TOKEN_MINUS},
-	{"!", CPP_TOKEN_NOT},
-	{"~", CPP_TOKEN_TILDE},
-	{"*", CPP_TOKEN_STAR},
-	{"&", CPP_TOKEN_AMPERSAND},
-	{"|", CPP_TOKEN_BIT_OR},
-	{"^", CPP_TOKEN_BIT_XOR},
-	{"=", CPP_TOKEN_EQ},
-	{",", CPP_TOKEN_COMMA},
-	{":", CPP_TOKEN_COLON},
-	{";", CPP_TOKEN_SEMICOLON},
-	{"/", CPP_TOKEN_DIV},
-	{"?", CPP_TOKEN_TERNARY_QMARK},
-	{"%", CPP_TOKEN_MOD},
-	{".", CPP_TOKEN_DOT},
-};
-static String_List ops = lexer_string_list(op_strings);
-
-static String_And_Flag pp_op_strings[] = {
-	{"##", CPP_PP_CONCAT},
-	{"#", CPP_PP_STRINGIFY},
-};
-static String_List pp_ops = lexer_string_list(pp_op_strings);
 
 static String_And_Flag preprop_strings[] = {
 	{"include", CPP_PP_INCLUDE},
@@ -467,6 +385,7 @@ cpp_lex_nonalloc(Lex_Data *S_ptr, char *chunk, int size, Cpp_Token_Stack *token_
         DrCase(3);
         DrCase(4);
         DrCase(5);
+        DrCase(6);
     }
     
     for (;;){
@@ -641,29 +560,31 @@ cpp_lex_nonalloc(Lex_Data *S_ptr, char *chunk, int size, Cpp_Token_Stack *token_
 
                     case LS_pp:
                     {
-                        --S.pos;
-                        int start = 1;
+                        S.fsm.directive_state = LSDIR_default;
+                        S.fsm.emit_token = 0;
+                        for (;;){
+                            for (; S.fsm.directive_state < LSDIR_count && S.pos < end_pos;){
+                                c = chunk[S.pos++];
+                                S.fsm.directive_state = pp_directive_table[S.fsm.directive_state + pp_directive_eq_classes[c]];
+                            }
+                            S.fsm.emit_token = (S.fsm.int_state >= LSDIR_count);
 
-                        c = S.tb[start];
-                        while (start < S.tb_pos && (c == ' ' || c == '\t' || c == '\r' || c == '\v' || c == '\f')){
-                            ++start;
-                            c = S.tb[start];
+                            if (S.fsm.emit_token == 0){
+                                DrYield(6, 1);
+                            }
+                            else break;
                         }
-
-                        int word_size = S.tb_pos - start - 1;
-                        Sub_Match_List_Result match;
-                        match = sub_match_list(S.tb, S.tb_pos, start, preprops, word_size);
-
-                        if (match.index != -1){
-                            String_And_Flag data = preprops.data[match.index];
-                            S.token.type = (Cpp_Token_Type)data.flags;
+                        --S.pos;
+                        
+                        Cpp_Token_Type type = (Cpp_Token_Type)(S.fsm.directive_state - pp_directive_terminal_base);
+                        S.token.type = type;
+                        if (type == CPP_TOKEN_JUNK){
+                            S.token.flags = 0;
+						}
+                        else{
                             S.token.flags = CPP_TFLAG_PP_DIRECTIVE;
                             S.pp_state = (unsigned char)cpp_pp_directive_to_state(S.token.type);
-                        }
-                        else{
-                            S.token.type = CPP_TOKEN_JUNK;
-                            S.token.flags = 0;
-                        }
+						}
                     }break;
 
                     case LS_number:

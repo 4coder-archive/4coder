@@ -341,7 +341,7 @@ int main(){
     int verbose_level = -1;
     int chunk_start = 0;
     int chunk_end = 0;
-#define TEST_FILE "autotab.cpp"    
+#define TEST_FILE "junk.cpp"
 #define SINGLE_ITEM 0
 
     int chunks = (chunk_start > 0 && chunk_start <= chunk_end);

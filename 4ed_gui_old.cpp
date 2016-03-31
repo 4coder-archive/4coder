@@ -155,20 +155,20 @@ app_single_file_input_step(System_Functions *system,
     mode.fast_folder_select = fast_folder_select;
     mode.try_to_match = try_to_match;
     mode.case_sensitive = case_sensitive;
-	return app_single_line_input_core(system, working_set, key, mode);
+    return app_single_line_input_core(system, working_set, key, mode);
 }
 
 inline Single_Line_Input_Step
 app_single_number_input_step(System_Functions *system, Key_Event_Data key, String *string){
     Single_Line_Input_Step result = {};
-	Single_Line_Mode mode = {};
-	mode.type = SINGLE_LINE_STRING;
-	mode.string = string;
-    
+    Single_Line_Mode mode = {};
+    mode.type = SINGLE_LINE_STRING;
+    mode.string = string;
+
     char c = (char)key.character;
     if (c == 0 || c == '\n' || char_is_numeric(c))
         result = app_single_line_input_core(system, 0, key, mode);
-	return result;
+    return result;
 }
 
 struct Widget_ID{
@@ -192,13 +192,13 @@ struct UI_State{
     Key_Summary *keys;
     Working_Set *working_set;
     i16 font_id;
-    
+
     Widget_ID selected, hover, hot;
     b32 activate_me;
     b32 redraw;
     b32 input_stage;
     i32 sub_id1_change;
-    
+
     f32 height, view_y;
 };
 
@@ -249,7 +249,7 @@ struct UI_Layout{
     i32 row_count;
     i32 row_item_width;
     i32 row_max_item_height;
-    
+
     i32_Rect rect;
     i32 x, y;    
 };
@@ -346,15 +346,15 @@ get_colors(UI_State *state, u32 *back, u32 *fore, Widget_ID wid, UI_Style style)
     b32 hot = is_hot(state, wid);
     i32 level = hot + hover;
     switch (level){
-    case 2:
+        case 2:
         *back = style.bright;
         *fore = style.dark;
         break;
-    case 1:
+        case 1:
         *back = style.dim;
         *fore = style.bright;
         break;
-    case 0:
+        case 0:
         *back = style.dark;
         *fore = style.bright;
         break;
@@ -367,13 +367,13 @@ get_pop_color(UI_State *state, u32 *pop, Widget_ID wid, UI_Style style){
     b32 hot = is_hot(state, wid);
     i32 level = hot + hover;
     switch (level){
-    case 2:
+        case 2:
         *pop = style.pop1;
         break;
-    case 1:
+        case 1:
         *pop = style.pop1;
         break;
-    case 0:
+        case 0:
         *pop = style.pop1;
         break;
     }
@@ -382,7 +382,7 @@ get_pop_color(UI_State *state, u32 *pop, Widget_ID wid, UI_Style style){
 internal UI_State
 ui_state_init(UI_State *state_in, Render_Target *target, Input_Summary *user_input,
     Style *style, i16 font_id, Font_Set *font_set, Working_Set *working_set, b32 input_stage){
-    
+
     UI_State state = {};
     state.target = target;
     state.style = style;
@@ -414,18 +414,18 @@ ui_state_match(UI_State a, UI_State b){
 
 internal b32
 ui_finish_frame(UI_State *persist_state, UI_State *state, UI_Layout *layout, i32_Rect rect,
-                b32 do_wheel, b32 *did_activation){
+    b32 do_wheel, b32 *did_activation){
     b32 result = 0;
     f32 h = layout->y + persist_state->view_y - rect.y0;
     f32 max_y = h - (rect.y1 - rect.y0);
-    
+
     persist_state->height = h;
     persist_state->view_y = state->view_y;
-    
+
     if (state->input_stage){
         Mouse_State *mouse = state->mouse;
         Font_Set *font_set = state->font_set;
-        
+
         if (mouse->wheel != 0 && do_wheel){
             i32 height = get_font_info(font_set, state->font_id)->height;
             persist_state->view_y += mouse->wheel*height;
@@ -440,14 +440,14 @@ ui_finish_frame(UI_State *persist_state, UI_State *state, UI_Layout *layout, i32
         if (!mouse->l && !mouse->r){
             state->hot = {};
         }
-        
+
         if (!ui_state_match(*persist_state, *state) || state->redraw){
             result = 1;
         }
-        
+
         *persist_state = *state;
     }
-    
+
     if (persist_state->view_y >= max_y) persist_state->view_y = max_y;
     if (persist_state->view_y < 0) persist_state->view_y = 0;
 
@@ -487,7 +487,7 @@ ui_do_subdivided_button_input(UI_State *state, i32_Rect rect, i32 parts, Widget_
     sub_rect.y0 = rect.y0;
     sub_rect.y1 = rect.y1;
     x1 = (real32)rect.x0;
-    
+
     for (i32 i = 0; i < parts; ++i){
         x0 = x1;
         x1 = x1 + sub_width;
@@ -499,14 +499,14 @@ ui_do_subdivided_button_input(UI_State *state, i32_Rect rect, i32 parts, Widget_
             break;
         }
     }
-    
+
     return result;
 }
 
 internal real32
 ui_do_vscroll_input(UI_State *state, i32_Rect top, i32_Rect bottom, i32_Rect slider,
-                    Widget_ID id, real32 val, real32 step_amount,
-                    real32 smin, real32 smax, real32 vmin, real32 vmax){
+    Widget_ID id, real32 val, real32 step_amount,
+    real32 smin, real32 smax, real32 vmin, real32 vmax){
     Mouse_State *mouse = state->mouse;
     i32 mx = mouse->x;
     i32 my = mouse->y;
@@ -569,21 +569,21 @@ ui_do_text_field_input(UI_State *state, String *str){
 
 internal b32
 ui_do_file_field_input(System_Functions *system, UI_State *state,
-                       Hot_Directory *hot_dir, b32 try_to_match, b32 case_sensitive){
+    Hot_Directory *hot_dir, b32 try_to_match, b32 case_sensitive){
     Key_Event_Data key;
     Single_Line_Input_Step step;
     String *str = &hot_dir->string;
     Key_Summary *keys = state->keys;
     i32 key_i;
     b32 result = 0;
-    
+
     terminate_with_null(str);
-    
+
     for (key_i = 0; key_i < keys->count; ++key_i){
         key = get_single_key(keys, key_i);
         step =
             app_single_file_input_step(system, state->working_set, key, str,
-                                       hot_dir, 1, try_to_match, case_sensitive);
+            hot_dir, 1, try_to_match, case_sensitive);
         if ((step.hit_newline || step.hit_ctrl_newline) && !step.no_file_match) result = 1;
     }
     return result;
@@ -591,7 +591,7 @@ ui_do_file_field_input(System_Functions *system, UI_State *state,
 
 internal b32
 ui_do_line_field_input(System_Functions *system,
-                       UI_State *state, String *string){
+    UI_State *state, String *string){
     b32 result = 0;
     Key_Summary *keys = state->keys;
     for (i32 key_i = 0; key_i < keys->count; ++key_i){
@@ -606,7 +606,7 @@ ui_do_line_field_input(System_Functions *system,
 
 internal b32
 ui_do_slider_input(UI_State *state, i32_Rect rect, Widget_ID wid,
-                   real32 min, real32 max, real32 *v){
+    real32 min, real32 max, real32 *v){
     b32 result = 0;
     ui_do_button_input(state, rect, wid, 0);
     Mouse_State *mouse = state->mouse;
@@ -624,7 +624,7 @@ do_text_field(Widget_ID wid, UI_State *state, UI_Layout *layout, String prompt, 
     i32 character_h = get_font_info(state->font_set, state->font_id)->height;
 
     i32_Rect rect = layout_rect(layout, character_h);
-    
+
     if (state->input_stage){
         ui_do_button_input(state, rect, wid, 1);
         if (is_selected(state, wid)){
@@ -639,9 +639,9 @@ do_text_field(Widget_ID wid, UI_State *state, UI_Layout *layout, String prompt, 
         u32 back, fore, prompt_pop;
         get_colors(state, &back, &fore, wid, ui_style);
         get_pop_color(state, &prompt_pop, wid, ui_style);
-        
+
         draw_rectangle(target, rect, back);
-        
+
         i32 x = draw_string(target, state->font_id, prompt, rect.x0, rect.y0 + 1, prompt_pop);
         draw_string(target, state->font_id, dest, x, rect.y0 + 1, ui_style.base);
     }
@@ -651,7 +651,7 @@ do_text_field(Widget_ID wid, UI_State *state, UI_Layout *layout, String prompt, 
 
 internal b32
 do_button(i32 id, UI_State *state, UI_Layout *layout, char *text, i32 height_mult,
-          b32 is_toggle = 0, b32 on = 0){
+    b32 is_toggle = 0, b32 on = 0){
     b32 result = 0;
     i16 font_id = state->font_id;
     i32 character_h = get_font_info(state->font_set, font_id)->height;
@@ -662,9 +662,9 @@ do_button(i32 id, UI_State *state, UI_Layout *layout, char *text, i32 height_mul
         btn_rect.x0 += 2;
         btn_rect.x1 -= 2;
     }
-    
+
     Widget_ID wid = make_id(state, id);
-    
+
     if (state->input_stage){
         if (ui_do_button_input(state, btn_rect, wid, 0)){
             result = 1;
@@ -676,7 +676,7 @@ do_button(i32 id, UI_State *state, UI_Layout *layout, char *text, i32 height_mul
         u32 back, fore, outline;
         outline = ui_style.bright;
         get_colors(state, &back, &fore, wid, ui_style);
-        
+
         draw_rectangle(target, btn_rect, back);
         draw_rectangle_outline(target, btn_rect, outline);
         real32 text_width = font_string_width(target, font_id, text);
@@ -684,17 +684,17 @@ do_button(i32 id, UI_State *state, UI_Layout *layout, char *text, i32 height_mul
         i32 box_height = btn_rect.y1 - btn_rect.y0;
         i32 x_pos = TRUNC32(btn_rect.x0 + (box_width - text_width)*.5f);
         draw_string(target, font_id, text, x_pos, btn_rect.y0 + (box_height - character_h) / 2, fore);
-        
+
         if (is_toggle){
             i32_Rect on_box = get_inner_rect(btn_rect, character_h/2);
             on_box.x1 = on_box.x0 + (on_box.y1 - on_box.y0);
-            
+
             if (on) draw_rectangle(target, on_box, fore);
             else draw_rectangle(target, on_box, back);
             draw_rectangle_outline(target, on_box, fore);
         }
     }
-    
+
     return result;
 }
 
@@ -703,15 +703,15 @@ do_undo_slider(Widget_ID wid, UI_State *state, UI_Layout *layout, i32 max, i32 v
     b32 result = 0;
     i16 font_id = state->font_id;
     i32 character_h = get_font_info(state->font_set, font_id)->height;
-    
+
     i32_Rect containing_rect = layout_rect(layout, character_h);
-    
+
     i32_Rect click_rect;
     click_rect.x0 = containing_rect.x0 + character_h - 1;
     click_rect.x1 = containing_rect.x1 - character_h + 1;
     click_rect.y0 = containing_rect.y0 + 2;
     click_rect.y1 = containing_rect.y1 - 2;
-    
+
     if (state->input_stage){
         real32 l;
         if (ui_do_slider_input(state, click_rect, wid, (real32)click_rect.x0, (real32)click_rect.x1, &l)){
@@ -725,18 +725,18 @@ do_undo_slider(Widget_ID wid, UI_State *state, UI_Layout *layout, i32 max, i32 v
         Render_Target *target = state->target;
         if (max > 0){
             UI_Style ui_style = get_ui_style_upper(state->style);
-            
+
             real32 L = unlerp(0.f, (real32)v, (real32)max);
             i32 x = FLOOR32(lerp((real32)click_rect.x0, L, (real32)click_rect.x1));
-            
+
             i32 bar_top = ((click_rect.y0 + click_rect.y1) >> 1) - 1;
             i32 bar_bottom = bar_top + 2;
-            
+
             bool32 show_bar = 1;
             real32 tick_step = (click_rect.x1 - click_rect.x0) / (real32)max;
             bool32 show_ticks = 1;
             if (tick_step <= 5.f) show_ticks = 0;
-            
+
             if (undo == 0){
                 if (show_bar){
                     i32_Rect slider_rect;
@@ -744,27 +744,27 @@ do_undo_slider(Widget_ID wid, UI_State *state, UI_Layout *layout, i32 max, i32 v
                     slider_rect.x1 = x;
                     slider_rect.y0 = bar_top;
                     slider_rect.y1 = bar_bottom;
-                    
+
                     draw_rectangle(target, slider_rect, ui_style.dim);
-                    
+
                     slider_rect.x0 = x;
                     slider_rect.x1 = click_rect.x1;
                     draw_rectangle(target, slider_rect, ui_style.pop1);
                 }
-                
+
                 if (show_ticks){
                     f32_Rect tick;
                     tick.x0 = (real32)click_rect.x0 - 1;
                     tick.x1 = (real32)click_rect.x0 + 1;
                     tick.y0 = (real32)bar_top - 3;
                     tick.y1 = (real32)bar_bottom + 3;
-                    
+
                     for (i32 i = 0; i < v; ++i){
                         draw_rectangle(target, tick, ui_style.dim);
                         tick.x0 += tick_step;
                         tick.x1 += tick_step;
                     }
-                    
+
                     for (i32 i = v; i <= max; ++i){
                         draw_rectangle(target, tick, ui_style.pop1);
                         tick.x0 += tick_step;
@@ -778,16 +778,16 @@ do_undo_slider(Widget_ID wid, UI_State *state, UI_Layout *layout, i32 max, i32 v
                     slider_rect.x0 = click_rect.x0;
                     slider_rect.y0 = bar_top;
                     slider_rect.y1 = bar_bottom;
-                    
+
                     Edit_Step *history = undo->history.edits;
                     i32 block_count = undo->history_block_count;
                     Edit_Step *step = history;
                     for (i32 i = 0; i < block_count; ++i){
                         u32 color;
                         if (step->type == ED_REDO ||
-                            step->type == ED_UNDO) color = ui_style.pop1;
+                                step->type == ED_UNDO) color = ui_style.pop1;
                         else color = ui_style.dim;
-                        
+
                         real32 L;
                         if (i + 1 == block_count){
                             L = 1.f;
@@ -797,15 +797,15 @@ do_undo_slider(Widget_ID wid, UI_State *state, UI_Layout *layout, i32 max, i32 v
                         }
                         if (L > 1.f) L = 1.f;
                         i32 x = FLOOR32(lerp((real32)click_rect.x0, L, (real32)click_rect.x1));
-                        
+
                         slider_rect.x1 = x;
                         draw_rectangle(target, slider_rect, color);
                         slider_rect.x0 = slider_rect.x1;
-                        
+
                         if (L == 1.f) break;
                     }
                 }
-                
+
                 if (show_ticks){
                     f32_Rect tick;
                     tick.x0 = (real32)click_rect.x0 - 1;
@@ -819,7 +819,7 @@ do_undo_slider(Widget_ID wid, UI_State *state, UI_Layout *layout, i32 max, i32 v
                         if (i != max){
                             if (history[i].type == ED_REDO) color = ui_style.pop1;
                             else if (history[i].type == ED_UNDO ||
-                                     history[i].type == ED_NORMAL) color = ui_style.pop2;
+                                    history[i].type == ED_NORMAL) color = ui_style.pop2;
                             else color = ui_style.dim;
                         }
                         draw_rectangle(target, tick, color);
@@ -828,17 +828,17 @@ do_undo_slider(Widget_ID wid, UI_State *state, UI_Layout *layout, i32 max, i32 v
                     }
                 }
             }
-            
+
             i32_Rect slider_handle;
             slider_handle.x0 = x - 2;
             slider_handle.x1 = x + 2;
             slider_handle.y0 = click_rect.y0;
             slider_handle.y1 = click_rect.y1;
-            
+
             draw_rectangle(target, slider_handle, ui_style.bright);
         }
     }
-    
+
     return result;
 }
 
@@ -848,7 +848,7 @@ do_label(UI_State *state, UI_Layout *layout, char *text, int text_size, f32 heig
     i16 font_id = state->font_id;
     i32 line_height = get_font_info(state->font_set, font_id)->height;
     i32_Rect label = layout_rect(layout, FLOOR32(line_height * height));
-    
+
     if (!state->input_stage){
         Render_Target *target = state->target;
         u32 back = style->main.margin_color;
@@ -858,7 +858,7 @@ do_label(UI_State *state, UI_Layout *layout, char *text, int text_size, f32 heig
 
         String textstr = make_string(text, text_size);
         draw_string(target, font_id, textstr, label.x0,
-                    label.y0 + (height - line_height)/2, fore);
+            label.y0 + (height - line_height)/2, fore);
     }
 }
 
@@ -872,65 +872,65 @@ do_scroll_bar(UI_State *state, i32_Rect rect){
     i32 id = 1;
     i32 w = (rect.x1 - rect.x0);
     i32 h = (rect.y1 - rect.y0);
-    
+
     i32_Rect top_arrow, bottom_arrow;
     top_arrow.x0 = rect.x0;
     top_arrow.x1 = rect.x1;
     top_arrow.y0 = rect.y0;
     top_arrow.y1 = top_arrow.y0 + w;
-    
+
     bottom_arrow.x0 = rect.x0;
     bottom_arrow.x1 = rect.x1;
     bottom_arrow.y1 = rect.y1;
     bottom_arrow.y0 = bottom_arrow.y1 - w;
-    
+
     f32 space_h = (f32)(bottom_arrow.y0 - top_arrow.y1);
     if (space_h <= w) return;
-    
+
     i32 slider_h = w;
-    
+
     f32 view_hmin = 0;
     f32 view_hmax = state->height - h;
     f32 L = unlerp(view_hmin, state->view_y, view_hmax);
-    
+
     f32 slider_hmin = (f32)top_arrow.y1;
     f32 slider_hmax = (f32)bottom_arrow.y0 - slider_h;
     f32 S = lerp(slider_hmin, L, slider_hmax);
-    
+
     i32_Rect slider;
     slider.x0 = rect.x0;
     slider.x1 = rect.x1;
     slider.y0 = FLOOR32(S);
     slider.y1 = slider.y0 + slider_h;
-    
+
     Widget_ID wid = make_id(state, id);
-    
+
     if (state->input_stage){
         state->view_y = 
             ui_do_vscroll_input(state, top_arrow, bottom_arrow, slider, wid, state->view_y,
-                                (f32)(get_font_info(state->font_set, state->font_id)->height),
-                                slider_hmin, slider_hmax, view_hmin, view_hmax);
+            (f32)(get_font_info(state->font_set, state->font_id)->height),
+            slider_hmin, slider_hmax, view_hmin, view_hmax);
     }
     else{    
         Render_Target *target = state->target;
-        
+
         f32 x0, y0, x1, y1, x2, y2;
         f32 w_1_2 = w*.5f;
         f32 w_1_3 = w*.333333f;
         f32 w_2_3 = w*.666667f;
-        
-        
+
+
         UI_Style ui_style = get_ui_style(state->style);
         u32 outline, back, fore;
-        
+
         outline = ui_style.bright;
 
         wid.sub_id2 = 0;
-        
+
         x0 = (w_1_2 + top_arrow.x0);
         x1 = (w_1_3 + top_arrow.x0);
         x2 = (w_2_3 + top_arrow.x0);
-        
+
         ++wid.sub_id2;
         y0 = (w_1_3 + top_arrow.y0);
         y1 = (w_2_3 + top_arrow.y0);
@@ -938,7 +938,7 @@ do_scroll_bar(UI_State *state, i32_Rect rect){
         get_colors(state, &back, &fore, wid, ui_style);
         draw_rectangle(target, top_arrow, back);
         draw_rectangle_outline(target, top_arrow, outline);
-        
+
         ++wid.sub_id2;
         y0 = (w_2_3 + bottom_arrow.y0);
         y1 = (w_1_3 + bottom_arrow.y0);
@@ -946,19 +946,19 @@ do_scroll_bar(UI_State *state, i32_Rect rect){
         get_colors(state, &back, &fore, wid, ui_style);
         draw_rectangle(target, bottom_arrow, back);
         draw_rectangle_outline(target, bottom_arrow, outline);
-        
+
         ++wid.sub_id2;
         get_colors(state, &back, &fore, wid, ui_style);
         draw_rectangle(target, slider, back);
         draw_rectangle_outline(target, slider, outline);
-        
+
         draw_rectangle_outline(target, rect, outline);
     }    
 }
 
 internal void
 draw_gradient_slider(Render_Target *target, Vec4 base, i32 channel,
-                     i32 steps, f32 top, f32_Rect slider, b32 hsla){
+    i32 steps, f32 top, f32_Rect slider, b32 hsla){
     Vec4 low, high;
     f32 *lowv, *highv;
     f32 x;
@@ -966,14 +966,14 @@ draw_gradient_slider(Render_Target *target, Vec4 base, i32 channel,
     f32 x_step;
     f32 v_step;
     f32 m;
-    
+
     x = (real32)slider.x0;
     x_step = (real32)(slider.x1 - slider.x0) / steps;
     v_step = top / steps;
     m = 1.f / top;
     lowv = &low.v[channel];
     highv = &high.v[channel];
-    
+
     if (hsla){
         for (i32 i = 0; i < steps; ++i){
             low = high = base;
@@ -983,7 +983,7 @@ draw_gradient_slider(Render_Target *target, Vec4 base, i32 channel,
             *highv *= m;
             low = hsla_to_rgba(low);
             high = hsla_to_rgba(high);
-            
+
             next_x = x + x_step;
             draw_gradient_2corner_clipped(
                 target, x, slider.y0, next_x, slider.y1,
@@ -998,7 +998,7 @@ draw_gradient_slider(Render_Target *target, Vec4 base, i32 channel,
             *highv = *lowv + v_step;
             *lowv *= m;
             *highv *= m;
-            
+
             next_x = x + x_step;
             draw_gradient_2corner_clipped(
                 target, x, slider.y0, next_x, slider.y1,
@@ -1022,7 +1022,7 @@ draw_rgb_slider(Render_Target *target, Vec4 base, i32 channel,
 
 internal b32
 do_main_file_box(System_Functions *system, UI_State *state, UI_Layout *layout,
-                 Hot_Directory *hot_directory, b32 try_to_match, b32 case_sensitive, char *end){
+    Hot_Directory *hot_directory, b32 try_to_match, b32 case_sensitive, char *end){
     b32 result = 0;
     Style *style = state->style;
     String *string = &hot_directory->string;
@@ -1030,7 +1030,7 @@ do_main_file_box(System_Functions *system, UI_State *state, UI_Layout *layout,
     i16 font_id = state->font_id;
     i32 line_height = get_font_info(state->font_set, font_id)->height;
     i32_Rect box = layout_rect(layout, line_height + 2);
-    
+
     if (state->input_stage){
         if (ui_do_file_field_input(system, state, hot_directory, try_to_match, case_sensitive)){
             result = 1;
@@ -1046,7 +1046,7 @@ do_main_file_box(System_Functions *system, UI_State *state, UI_Layout *layout,
         x = draw_string(target, font_id, string->str, x, box.y0, fore);
         if (end) draw_string(target, font_id, end, x, box.y0, special);
     }
-    
+
     layout->y = box.y1;
     return result;
 }
@@ -1055,11 +1055,11 @@ internal b32
 do_main_string_box(System_Functions *system, UI_State *state, UI_Layout *layout, String *string){
     b32 result = 0;
     Style *style = state->style;
-    
+
     i16 font_id = state->font_id;
     i32 line_height = get_font_info(state->font_set, font_id)->height;
     i32_Rect box = layout_rect(layout, line_height + 2);
-    
+
     if (state->input_stage){
         if (ui_do_line_field_input(system, state, string)){
             result = 1;
@@ -1073,7 +1073,7 @@ do_main_string_box(System_Functions *system, UI_State *state, UI_Layout *layout,
         i32 x = box.x0;
         x = draw_string(target, font_id, string->str, x, box.y0, fore);
     }
-    
+
     layout->y = box.y1;
     return result;
 }
@@ -1082,13 +1082,13 @@ internal b32
 do_list_option(i32 id, UI_State *state, UI_Layout *layout, String text){
     b32 result = 0;
     Style *style = state->style;
-        
+
     i16 font_id = state->font_id;
     i32 character_h = get_font_info(state->font_set, font_id)->height;
-    
+
     i32_Rect box = layout_rect(layout, character_h*2);
     Widget_ID wid = make_id(state, id);
-    
+
     if (state->input_stage){
         if (ui_do_button_input(state, box, wid, 0)){
             result = 1;
@@ -1103,13 +1103,13 @@ do_list_option(i32 id, UI_State *state, UI_Layout *layout, String text){
         pop = style->main.file_info_style.pop2_color;
         if (is_hover(state, wid)) outline = style->main.margin_active_color;
         else outline = style->main.margin_color;
-        
+
         draw_rectangle(target, inner, back);
         i32 x = inner.x0, y = box.y0 + character_h/2;
         x = draw_string(target, font_id, text, x, y, fore);
         draw_margin(target, box, inner, outline);
     }
-    
+
     layout->y = box.y1;
     return result;
 }
@@ -1118,13 +1118,13 @@ internal b32
 do_checkbox_list_option(i32 id, UI_State *state, UI_Layout *layout, String text, b32 is_on){
     b32 result = 0;
     Style *style = state->style;
-    
+
     i16 font_id = state->font_id;
     i32 character_h = get_font_info(state->font_set, font_id)->height;
-    
+
     i32_Rect box = layout_rect(layout, character_h*2);
     Widget_ID wid = make_id(state, id);
-    
+
     if (state->input_stage){
         if (ui_do_button_input(state, box, wid, 0)){
             result = 1;
@@ -1140,21 +1140,21 @@ do_checkbox_list_option(i32 id, UI_State *state, UI_Layout *layout, String text,
         if (is_hover(state, wid)) outline = style->main.margin_active_color;
         else outline = style->main.margin_color;
         box_color = style->main.margin_active_color;
-        
+
         draw_rectangle(target, inner, back);
-        
+
         i32_Rect square;
         square = get_inner_rect(inner, character_h/3);
         square.x1 = square.x0 + (square.y1 - square.y0);
         if (is_on) draw_rectangle(target, square, box_color);
         else draw_margin(target, square, 1, box_color);
-        
+
         i32 x = square.x1 + 3;
         i32 y = box.y0 + character_h/2;
         x = draw_string(target, font_id, text, x, y, fore);
         draw_margin(target, box, inner, outline);
     }
-    
+
     layout->y = box.y1;
     return result;
 }
@@ -1167,10 +1167,10 @@ do_file_option(i32 id, UI_State *state, UI_Layout *layout, String filename, b32 
     i16 font_id = state->font_id;
     i32 character_h = get_font_info(state->font_set, font_id)->height;
     char slash_buf[2] = { slash, 0 };
-    
+
     i32_Rect box = layout_rect(layout, character_h*2);
     Widget_ID wid = make_id(state, id);
-    
+
     if (state->input_stage){
         if (ui_do_button_input(state, box, wid, 0)){
             result = 1;
@@ -1185,7 +1185,7 @@ do_file_option(i32 id, UI_State *state, UI_Layout *layout, String filename, b32 
         pop = style->main.file_info_style.pop2_color;
         if (is_hover(state, wid)) outline = style->main.margin_active_color;
         else outline = style->main.margin_color;
-        
+
         draw_rectangle(target, inner, back);
         i32 x = inner.x0, y = box.y0 + character_h/2;
         x = draw_string(target, font_id, filename, x, y, fore);
@@ -1193,7 +1193,7 @@ do_file_option(i32 id, UI_State *state, UI_Layout *layout, String filename, b32 
         draw_string(target, font_id, extra, x, y, pop);
         draw_margin(target, box, inner, outline);
     }
-    
+
     layout->y = box.y1;
     return result;
 }
@@ -1215,45 +1215,45 @@ do_file_list_box(System_Functions *system, UI_State *state, UI_Layout *layout,
         persist String message_unsaved = make_lit_string(" LOADED *");
         persist String message_unsynced = make_lit_string(" LOADED !");
         persist String message_nothing = {};
-        
+
         char front_name_space[256];
         String front_name = make_fixed_width_string(front_name_space);
         get_front_of_directory(&front_name, hot_dir->string);
-        
+
         Absolutes absolutes;
         get_absolutes(front_name, &absolutes, 1, 1);
-        
+
         char full_path_[256];
         String full_path = make_fixed_width_string(full_path_);
         get_path_of_directory(&full_path, hot_dir->string);
         i32 restore_size = full_path.size;
-        
+
         i32 i;
         File_Info *info, *end;
         end = files->infos + files->count;
         for (info = files->infos, i = 0; info != end; ++info, ++i){
             String filename = info->filename;
-            
+
             append(&full_path, filename);
             terminate_with_null(&full_path);
-            
+
             Editing_File *file = working_set_contains(system, state->working_set, full_path);
             full_path.size = restore_size;
-            
+
             b8 is_folder = (info->folder != 0);
             b8 ext_match = (match(file_extension(filename), p4c_extension) != 0);
             b8 name_match = (filename_match(front_name, &absolutes, filename, case_sensitive) != 0);
             b8 is_loaded = (file != 0 && file_is_ready(file));
-            
+
             String message = message_nothing;
             if (is_loaded){
                 switch (buffer_get_sync(file)){
-                case SYNC_GOOD: message = message_loaded; break;
-                case SYNC_BEHIND_OS: message = message_unsynced; break;
-                case SYNC_UNSAVED: message = message_unsaved; break;
+                    case SYNC_GOOD: message = message_loaded; break;
+                    case SYNC_BEHIND_OS: message = message_unsynced; break;
+                    case SYNC_UNSAVED: message = message_unsaved; break;
                 }
             }
-            
+
             if ((is_folder || !has_filter || ext_match) && name_match){
                 if (do_file_option(100+i, state, layout, filename, is_folder, message, system->slash)){
                     result = 1;
@@ -1271,13 +1271,13 @@ do_file_list_box(System_Functions *system, UI_State *state, UI_Layout *layout,
             }
         }
     }
-    
+
     return result;
 }
 
 internal b32
 do_live_file_list_box(System_Functions *system, UI_State *state, UI_Layout *layout,
-                      Working_Set *working_set, String *string, b32 *selected){
+    Working_Set *working_set, String *string, b32 *selected){
     b32 result = 0;
     
     if (do_main_string_box(system, state, layout, string)){

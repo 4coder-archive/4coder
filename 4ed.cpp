@@ -864,6 +864,8 @@ COMMAND_DECL(interactive_open){
             // calls so that they still allocate the buffer right away.  This way
             // it's still possible to get at the buffer if so wished in the API.
             // The switch for this view doesn't need to happen until the file is ready.
+            // 
+            // Alternatively... fuck all delayed actions.  Please make them go away.
             delayed_open(delay, string, panel);
         }
     }
@@ -3954,7 +3956,7 @@ App_Step_Sig(app_step){
         for (dll_items(panel, used_panels)){
             view = panel->view;
             active = (panel == cmd->panel);
-            if (step_file_view(view, active)){
+            if (step_file_view(system, view, active)){
                 app_result.redraw = 1;
             }
         }
@@ -4404,7 +4406,7 @@ App_Step_Sig(app_step){
                     }
                     // TODO(allen): We could handle the case where someone tries to save the same thing
                     // twice... that would be nice to have under control.
-                    if (file && buffer_needs_save(file)){
+                    if (file && buffer_get_sync(file) != SYNC_GOOD){
                         i32 sys_id = file_save(system, exchange, mem, file, file->name.source_path.str);
                         if (sys_id){
                             if (act->type == DACT_SAVE_AS){

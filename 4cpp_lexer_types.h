@@ -8,6 +8,24 @@ enum Cpp_Token_Type{
 	CPP_TOKEN_JUNK,
 	CPP_TOKEN_COMMENT,
     
+	CPP_PP_INCLUDE,
+	CPP_PP_DEFINE,
+	CPP_PP_UNDEF,
+	CPP_PP_IF,
+	CPP_PP_IFDEF,
+	CPP_PP_IFNDEF,
+	CPP_PP_ELSE,
+	CPP_PP_ELIF,
+	CPP_PP_ENDIF,
+	CPP_PP_ERROR,
+	CPP_PP_IMPORT,
+	CPP_PP_USING,
+	CPP_PP_LINE,
+	CPP_PP_PRAGMA,
+	CPP_PP_STRINGIFY,
+	CPP_PP_CONCAT,
+	CPP_PP_UNKNOWN,
+    
 	CPP_TOKEN_KEY_TYPE,
 	CPP_TOKEN_KEY_MODIFIER,
 	CPP_TOKEN_KEY_QUALIFIER,
@@ -142,29 +160,14 @@ enum Cpp_Token_Type{
     // NOTE(allen): Precedence 16, LtoR
 	CPP_TOKEN_COMMA,
     
-	CPP_PP_INCLUDE,
-	CPP_PP_DEFINE,
-	CPP_PP_UNDEF,
-	CPP_PP_IF,
-	CPP_PP_IFDEF,
-	CPP_PP_IFNDEF,
-	CPP_PP_ELSE,
-	CPP_PP_ELIF,
-	CPP_PP_ENDIF,
-	CPP_PP_ERROR,
-	CPP_PP_IMPORT,
-	CPP_PP_USING,
-	CPP_PP_LINE,
-	CPP_PP_PRAGMA,
-	CPP_PP_STRINGIFY,
-	CPP_PP_CONCAT,
-	CPP_PP_UNKNOWN,
     CPP_TOKEN_DEFINED,
 	CPP_TOKEN_INCLUDE_FILE,
     CPP_TOKEN_ERROR_MESSAGE,
     
     // NOTE(allen): used in the parser
-    CPP_TOKEN_EOF
+    CPP_TOKEN_EOF,
+    
+    CPP_TOKEN_TYPE_COUNT
 };
 
 // TODO(allen): This is a dumb redundant type... probably just
@@ -176,9 +179,9 @@ struct Cpp_File{
 
 struct Cpp_Token{
 	Cpp_Token_Type type;
-	fcpp_i32 start, size;
-	fcpp_u16 state_flags;
-	fcpp_u16 flags;
+	int start, size;
+	unsigned short state_flags;
+	unsigned short flags;
 };
 
 enum Cpp_Token_Flag{
@@ -208,15 +211,15 @@ enum Cpp_Preprocessor_State{
 
 struct Cpp_Lex_Data{
 	Cpp_Preprocessor_State pp_state;
-	fcpp_i32 pos;
-    fcpp_bool32 complete;
+	int pos;
+    int complete;
 };
 
 struct Cpp_Read_Result{
 	Cpp_Token token;
-	fcpp_i32 pos;
-	fcpp_bool8 newline;
-	fcpp_bool8 has_result;
+	int pos;
+	char newline;
+	char has_result;
 };
 
 struct Cpp_Token_Stack{
@@ -226,17 +229,17 @@ struct Cpp_Token_Stack{
 
 struct Cpp_Token_Merge{
 	Cpp_Token new_token;
-	fcpp_bool32 did_merge;
+	int did_merge;
 };
 
 struct Seek_Result{
-    fcpp_i32 pos;
-    fcpp_bool32 new_line;
+    int pos;
+    int new_line;
 };
 
 struct Cpp_Get_Token_Result{
-	fcpp_i32 token_index;
-	fcpp_bool32 in_whitespace;
+	int token_index;
+	int in_whitespace;
 };
 
 struct Cpp_Relex_State{

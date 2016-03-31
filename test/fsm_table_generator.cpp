@@ -7,6 +7,21 @@
 
 // TOP
 
+/* TODO(allen):
+
+1. Reduce away states that only ever show up as terminal states.
+2. Reduce away states that cannot ever be reached.
+3. Output new enum that only includes the reduced states.
+4. How to name these things so that we can deal with different
+    pp_states that want very similar fsm main states?
+    4.a. Perhaps a lookup table to convert back to canonical enum
+           values after the fsm is finished?
+
+5. How can we eliminate S.tb for keywords?? They are too long for
+    building into an FSM table... (state,index,input) -> state ???
+
+*/
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -14,7 +29,316 @@
 
 #define ArrayCount(a) (sizeof(a)/sizeof(*a))
 
+#include "../4cpp_lexer_types.h"
 #include "4cpp_lexer_fsms.h"
+
+static String_And_Flag preprop_strings[] = {
+	{"include", CPP_PP_INCLUDE},
+	{"INCLUDE", CPP_PP_INCLUDE},
+	{"ifndef", CPP_PP_IFNDEF},
+	{"IFNDEF", CPP_PP_IFNDEF},
+	{"define", CPP_PP_DEFINE},
+	{"DEFINE", CPP_PP_DEFINE},
+	{"import", CPP_PP_IMPORT},
+	{"IMPORT", CPP_PP_IMPORT},
+	{"pragma", CPP_PP_PRAGMA},
+	{"PRAGMA", CPP_PP_PRAGMA},
+	{"undef", CPP_PP_UNDEF},
+	{"UNDEF", CPP_PP_UNDEF},
+	{"endif", CPP_PP_ENDIF},
+	{"ENDIF", CPP_PP_ENDIF},
+	{"error", CPP_PP_ERROR},
+	{"ERROR", CPP_PP_ERROR},
+	{"ifdef", CPP_PP_IFDEF},
+	{"IFDEF", CPP_PP_IFDEF},
+	{"using", CPP_PP_USING},
+	{"USING", CPP_PP_USING},
+	{"else", CPP_PP_ELSE},
+	{"ELSE", CPP_PP_ELSE},
+	{"elif", CPP_PP_ELIF},
+	{"ELIF", CPP_PP_ELIF},
+	{"line", CPP_PP_LINE},
+	{"LINE", CPP_PP_LINE},
+	{"if", CPP_PP_IF},
+    {"IF", CPP_PP_IF},
+};
+static String_And_Flag keyword_strings[] = {
+    {"and", CPP_TOKEN_AND},
+    {"and_eq", CPP_TOKEN_ANDEQ},
+    {"bitand", CPP_TOKEN_BIT_AND},
+    {"bitor", CPP_TOKEN_BIT_OR},
+    {"or", CPP_TOKEN_OR},
+    {"or_eq", CPP_TOKEN_OREQ},
+    {"sizeof", CPP_TOKEN_SIZEOF},
+    {"alignof", CPP_TOKEN_ALIGNOF},
+    {"decltype", CPP_TOKEN_DECLTYPE},
+    {"throw", CPP_TOKEN_THROW},
+    {"new", CPP_TOKEN_NEW},
+    {"delete", CPP_TOKEN_DELETE},
+    {"xor", CPP_TOKEN_BIT_XOR},
+    {"xor_eq", CPP_TOKEN_XOREQ},
+    {"not", CPP_TOKEN_NOT},
+    {"not_eq", CPP_TOKEN_NOTEQ},
+    {"typeid", CPP_TOKEN_TYPEID},
+    {"compl", CPP_TOKEN_BIT_NOT},
+    
+    {"void", CPP_TOKEN_KEY_TYPE},
+    {"bool", CPP_TOKEN_KEY_TYPE},
+    {"char", CPP_TOKEN_KEY_TYPE},
+    {"int", CPP_TOKEN_KEY_TYPE},
+    {"float", CPP_TOKEN_KEY_TYPE},
+    {"double", CPP_TOKEN_KEY_TYPE},
+    
+    {"long", CPP_TOKEN_KEY_MODIFIER},
+    {"short", CPP_TOKEN_KEY_MODIFIER},
+    {"unsigned", CPP_TOKEN_KEY_MODIFIER},
+    
+    {"const", CPP_TOKEN_KEY_QUALIFIER},
+    {"volatile", CPP_TOKEN_KEY_QUALIFIER},
+    
+    {"asm", CPP_TOKEN_KEY_CONTROL_FLOW},
+    {"break", CPP_TOKEN_KEY_CONTROL_FLOW},
+    {"case", CPP_TOKEN_KEY_CONTROL_FLOW},
+    {"catch", CPP_TOKEN_KEY_CONTROL_FLOW},
+    {"continue", CPP_TOKEN_KEY_CONTROL_FLOW},
+    {"default", CPP_TOKEN_KEY_CONTROL_FLOW},
+    {"do", CPP_TOKEN_KEY_CONTROL_FLOW},
+    {"else", CPP_TOKEN_KEY_CONTROL_FLOW},
+    {"for", CPP_TOKEN_KEY_CONTROL_FLOW},
+    {"goto", CPP_TOKEN_KEY_CONTROL_FLOW},
+    {"if", CPP_TOKEN_KEY_CONTROL_FLOW},
+    {"return", CPP_TOKEN_KEY_CONTROL_FLOW},
+    {"switch", CPP_TOKEN_KEY_CONTROL_FLOW},
+    {"try", CPP_TOKEN_KEY_CONTROL_FLOW},
+    {"while", CPP_TOKEN_KEY_CONTROL_FLOW},
+    {"static_assert", CPP_TOKEN_KEY_CONTROL_FLOW},
+    
+    {"const_cast", CPP_TOKEN_KEY_CAST},
+    {"dynamic_cast", CPP_TOKEN_KEY_CAST},
+    {"reinterpret_cast", CPP_TOKEN_KEY_CAST},
+    {"static_cast", CPP_TOKEN_KEY_CAST},
+    
+    {"class", CPP_TOKEN_KEY_TYPE_DECLARATION},
+    {"enum", CPP_TOKEN_KEY_TYPE_DECLARATION},
+    {"struct", CPP_TOKEN_KEY_TYPE_DECLARATION},
+    {"typedef", CPP_TOKEN_KEY_TYPE_DECLARATION},
+    {"union", CPP_TOKEN_KEY_TYPE_DECLARATION},
+    {"template", CPP_TOKEN_KEY_TYPE_DECLARATION},
+    {"typename", CPP_TOKEN_KEY_TYPE_DECLARATION},
+    
+    {"friend", CPP_TOKEN_KEY_ACCESS},
+    {"namespace", CPP_TOKEN_KEY_ACCESS},
+    {"private", CPP_TOKEN_KEY_ACCESS},
+    {"protected", CPP_TOKEN_KEY_ACCESS},
+    {"public", CPP_TOKEN_KEY_ACCESS},
+    {"using", CPP_TOKEN_KEY_ACCESS},
+    
+    {"extern", CPP_TOKEN_KEY_LINKAGE},
+    {"export", CPP_TOKEN_KEY_LINKAGE},
+    {"inline", CPP_TOKEN_KEY_LINKAGE},
+    {"static", CPP_TOKEN_KEY_LINKAGE},
+    {"virtual", CPP_TOKEN_KEY_LINKAGE},
+    
+    {"alignas", CPP_TOKEN_KEY_OTHER},
+    {"explicit", CPP_TOKEN_KEY_OTHER},
+    {"noexcept", CPP_TOKEN_KEY_OTHER},
+    {"nullptr", CPP_TOKEN_KEY_OTHER},
+    {"operator", CPP_TOKEN_KEY_OTHER},
+    {"register", CPP_TOKEN_KEY_OTHER},
+    {"this", CPP_TOKEN_KEY_OTHER},
+    {"thread_local", CPP_TOKEN_KEY_OTHER},
+};
+
+#define TerminalBase 200
+
+struct FSM_State{
+    unsigned char transition_rule[256];
+};
+
+struct FSM{
+    FSM_State *states;
+    unsigned short count, max;
+};
+
+struct Match_Node{
+    Match_Node *first_child;
+    Match_Node *next_sibling;
+    
+    int *words;
+    int count, max;
+    int index;
+    
+    FSM_State *state;
+};
+
+struct Match_Tree{
+    Match_Node *nodes;
+    int count, max;
+};
+
+Match_Node*
+match_get_node(Match_Tree *tree){
+    Match_Node *result;
+    assert(tree->count < tree->max);
+    result = &tree->nodes[tree->count++];
+    return(result);
+}
+
+void
+match_init_node(Match_Node *node, int match_count){
+    *node = {};
+    node->words = (int*)malloc(sizeof(int)*match_count);
+    node->max = match_count;
+}
+
+void
+match_add_word(Match_Node *node, int word){
+    assert(node->count < node->max);
+    node->words[node->count++] = word;
+}
+
+FSM_State*
+fsm_get_state(FSM *fsm){
+    FSM_State *result;
+    unsigned short i;
+    assert(fsm->count < fsm->max);
+    result = &fsm->states[fsm->count++];
+    for (i = 0; i < 256; ++i){
+        result->transition_rule[i] = TerminalBase;
+	}
+    return(result);
+}
+
+unsigned char
+fsm_index(FSM *fsm, FSM_State *s){
+    unsigned char result;
+    result = (unsigned char)(unsigned long long)(s - fsm->states);
+    return(result);
+}
+
+void
+fsm_add_transition(FSM_State *state, char c, unsigned char dest){
+    state->transition_rule[c] = dest;
+}
+
+struct Terminal_Lookup_Table{
+    unsigned int state_to_type[60];
+    unsigned char type_to_state[CPP_TOKEN_TYPE_COUNT];
+    unsigned char state_count;
+};
+
+void
+process_match_node(String_And_Flag *input, Match_Node *node, Match_Tree *tree, FSM *fsm, Terminal_Lookup_Table *terminal_table = 0){
+    int next_index = node->index + 1;
+    int match_count = node->count;
+    FSM_State *this_state = node->state;
+    
+    int i, j, *words = node->words;
+    
+    String_And_Flag saf;
+    int l;
+    
+    char c;
+    Match_Node *next_nodes[256];
+    Match_Node *newest_child = 0;
+    Match_Node *n;
+    int count = 0;
+    
+    unsigned char unjunkify = 0;
+    
+    memset(next_nodes, 0, sizeof(next_nodes));
+    
+    for (i = 0; i < match_count; ++i){
+        j = words[i];
+        saf = input[j];
+        l = (int)strlen(saf.str);
+        
+        if (next_index < l){
+            c = saf.str[next_index];
+            
+            if (next_nodes[c] == 0){
+                next_nodes[c] = match_get_node(tree);
+                match_init_node(next_nodes[c], match_count);
+                next_nodes[c]->state = fsm_get_state(fsm);
+                next_nodes[c]->index = next_index;
+                if (newest_child == 0){
+                    assert(node->first_child == 0);
+                    node->first_child = next_nodes[c];
+				}
+                else{
+                    assert(newest_child->next_sibling == 0);
+                    newest_child->next_sibling = next_nodes[c];
+				}
+                newest_child = next_nodes[c];
+                ++count;
+			}
+            
+            match_add_word(next_nodes[c], j);
+            fsm_add_transition(this_state, c, fsm_index(fsm, next_nodes[c]->state));
+		}
+        else if (next_index == l){
+            assert(unjunkify == 0);
+            if (terminal_table == 0){
+                unjunkify = (unsigned char)saf.flags;
+            }
+            else{
+                unjunkify = terminal_table->type_to_state[saf.flags];
+			}
+            assert(unjunkify < 55);
+        }
+	}
+    
+    if (unjunkify){
+        for (i = 0; i < 256; ++i){
+            if (this_state->transition_rule[i] == TerminalBase){
+                this_state->transition_rule[i] = TerminalBase + unjunkify;
+			}
+		}
+	}
+    
+    for (n = node->first_child; n; n = n->next_sibling){
+        process_match_node(input, n, tree, fsm, terminal_table);
+	}
+}
+
+FSM
+generate_pp_directive_fsm(){
+    Match_Tree tree;
+    Match_Node *root_node;
+    FSM fsm;
+    FSM_State *root_state;
+    int memsize;
+    
+    fsm.max = 200;
+    fsm.count = 0;
+    memsize = sizeof(FSM_State)*fsm.max;
+    fsm.states = (FSM_State*)malloc(memsize);
+    
+    tree.max = 200;
+    tree.count = 0;
+    memsize = sizeof(Match_Node)*tree.max;
+    tree.nodes = (Match_Node*)malloc(memsize);
+    
+    root_state = fsm_get_state(&fsm);
+    
+    root_node = match_get_node(&tree);
+    match_init_node(root_node, ArrayCount(preprop_strings));
+    for (int i = 0; i < ArrayCount(preprop_strings); ++i){
+        root_node->words[i] = i;
+	}
+    root_node->count = ArrayCount(preprop_strings);
+    root_node->state = root_state;
+    root_node->index = -1;
+    process_match_node(preprop_strings, root_node, &tree, &fsm);
+    
+    root_state->transition_rule[' '] = 0;
+    root_state->transition_rule['\t'] = 0;
+    root_state->transition_rule['\r'] = 0;
+    root_state->transition_rule['\v'] = 0;
+    root_state->transition_rule['\f'] = 0;
+    
+    return(fsm);
+}
 
 Whitespace_FSM
 whitespace_skip_fsm(Whitespace_FSM wfsm, char c){
@@ -165,7 +489,15 @@ main_fsm(Lex_FSM fsm, unsigned char pp_state, unsigned char c){
                 case '=': fsm.state = LS_eq; break;
                 case '!': fsm.state = LS_bang; break;
 
-                case '#': fsm.state = LS_pound; break;
+                case '#':
+                if (pp_state == LSPP_default){
+                    fsm.state = LS_pp;
+                    fsm.emit_token = 1;
+                }
+                else{
+					fsm.state = LS_pound;
+				}
+                break;
 
 #define OperCase(op,type) case op: fsm.emit_token = 1; break;
                 OperCase('{', CPP_TOKEN_BRACE_OPEN);
@@ -196,29 +528,18 @@ main_fsm(Lex_FSM fsm, unsigned char pp_state, unsigned char c){
             break;
 
             case LS_pound:
-            if (pp_state == LSPP_default){
-                if (c == ' ' || c == '\t' || c == '\r' || c == '\f' || c == '\v'){
-                    fsm.state = LS_pound;
-                }
-                else if (c == '\n'){
-                    fsm.emit_token = 1;
-                }
-                else{
-                    fsm.state = LS_pp;
-                }
-            }
-            else{
-                switch (c){
-                    case '#': fsm.emit_token = 1; break;
-                    default: fsm.emit_token = 1; break;
-                }
+            switch (c){
+                case '#': fsm.emit_token = 1; break;
+                default: fsm.emit_token = 1; break;
             }
             break;
 
             case LS_pp:
+#if 0
             if (!((c >= '0' && c <= '9') || (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_')){
                 fsm.emit_token = 1;
             }
+#endif
             break;
 
             case LS_char:
@@ -529,6 +850,16 @@ struct FSM_Tables{
 };
 
 void
+allocate_full_tables(FSM_Tables *table, unsigned char state_count){
+    table->full_transition_table = (unsigned char*)malloc(state_count * 256);
+    table->marks = (unsigned char*)malloc(state_count * 256);
+    table->eq_class = (unsigned char*)malloc(state_count * 256);
+    table->eq_class_rep = (unsigned char*)malloc(state_count * 256);
+    table->state_count = state_count;
+    memset(table->marks, 0, 256);
+}
+
+void
 do_table_reduction(FSM_Tables *table, unsigned short state_count){
     {
         table->eq_class_counter = 0;
@@ -566,12 +897,7 @@ FSM_Tables
 generate_whitespace_skip_table(){
 	unsigned char state_count = LSPP_count;
     FSM_Tables table;
-    table.full_transition_table = (unsigned char*)malloc(state_count * 256);
-    table.marks = (unsigned char*)malloc(state_count * 256);
-    table.eq_class = (unsigned char*)malloc(state_count * 256);
-    table.eq_class_rep = (unsigned char*)malloc(state_count * 256);
-    table.state_count = state_count;
-    memset(table.marks, 0, 256);
+    allocate_full_tables(&table, state_count);
     
     int i = 0;
     Whitespace_FSM wfsm = {0};
@@ -594,12 +920,7 @@ FSM_Tables
 generate_int_table(){
 	unsigned char state_count = LSINT_count;
     FSM_Tables table;
-    table.full_transition_table = (unsigned char*)malloc(state_count * 256);
-    table.marks = (unsigned char*)malloc(state_count * 256);
-    table.eq_class = (unsigned char*)malloc(state_count * 256);
-    table.eq_class_rep = (unsigned char*)malloc(state_count * 256);
-    table.state_count = state_count;
-    memset(table.marks, 0, 256);
+    allocate_full_tables(&table, state_count);
     
     int i = 0;
     Lex_FSM fsm = {0};
@@ -622,12 +943,7 @@ FSM_Tables
 generate_fsm_table(unsigned char pp_state){
     unsigned char state_count = LS_count;
     FSM_Tables table;
-    table.full_transition_table = (unsigned char*)malloc(state_count * 256);
-    table.marks = (unsigned char*)malloc(state_count * 256);
-    table.eq_class = (unsigned char*)malloc(state_count * 256);
-    table.eq_class_rep = (unsigned char*)malloc(state_count * 256);
-    table.state_count = state_count;
-    memset(table.marks, 0, 256);
+    allocate_full_tables(&table, state_count);
     
     int i = 0;
     Lex_FSM fsm = {0};
@@ -668,6 +984,11 @@ render_fsm_table(FILE *file, FSM_Tables tables, char *group_name){
     end_table(file);
 }
 
+void
+render_variable(FILE *file, char *type, char *variable, unsigned int x){
+    fprintf(file, "%s %s = %d;\n\n", type, variable, x);
+}
+
 struct PP_Names{
     unsigned char pp_state;
     char *name;
@@ -685,7 +1006,29 @@ PP_Names pp_names[] = {
     {LSPP_junk, "pp_junk_fsm"},
 };
 
-int main(){
+FSM_Tables
+generate_table_from_abstract_fsm(FSM fsm){
+    unsigned char state_count = (unsigned char)fsm.count;
+    FSM_Tables table;
+    allocate_full_tables(&table, state_count);
+    
+    int i = 0;
+    unsigned char new_state;
+    for (unsigned short c = 0; c < 256; ++c){
+        for (unsigned char state = 0; state < state_count; ++state){
+            new_state = fsm.states[state].transition_rule[c];
+            table.full_transition_table[i++] = new_state;
+		}
+	}
+    
+    do_table_reduction(&table, state_count);
+    
+    return(table);
+}
+
+
+int
+main(){
     FILE *file;
     file = fopen("4cpp_lexer_tables.c", "wb");
     
@@ -721,6 +1064,14 @@ int main(){
         end_row(file);
     }
     end_table(file);
+    
+    FSM pp_directive_fsm = generate_pp_directive_fsm();
+    FSM_Tables pp_directive_tables = generate_table_from_abstract_fsm(pp_directive_fsm);
+    
+    render_fsm_table(file, pp_directive_tables, "pp_directive");
+    render_variable(file, "unsigned char", "LSDIR_default", 0);
+    render_variable(file, "unsigned char", "LSDIR_count", pp_directive_fsm.count);
+    render_variable(file, "unsigned char", "pp_directive_terminal_base", TerminalBase);
     
     fclose(file);
     return(0);

@@ -1444,7 +1444,7 @@ Win32Callback(HWND hwnd, UINT uMsg,
             }
 
             Font_Load_Parameters *params = win32vars.fnt.params + lParam;
-            i32 oversample = DpiMultiplier(2, win32vars.target.dpi);
+            i32 oversample = 2;
 
             for (b32 success = 0; success == 0;){
                 success = draw_font_load(win32vars.fnt.part.base,

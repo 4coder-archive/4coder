@@ -75,14 +75,16 @@ struct View{
     Command_Map *map;
 
     Editing_File *file;
+    f32 prev_wrap_width;
 
     View_UI showing_ui;
     GUI_Target gui_target;
-
-#if 0
-    // interactive stuff
+    
     Interactive_Interaction interaction;
     Interactive_Action action;
+    
+#if 0
+    // interactive stuff
     b32 finished;
     char query_[256];
     char dest_[256];
@@ -151,10 +153,13 @@ view_lock_level(View *view){
     return(result);
 }
 
+// TODO(allen): need to be able to get this from a gui interpretation loop somehow.
 inline f32
-view_compute_width(View *view){
+view_wrap_width(View *view){
     Panel *panel = view->panel;
-    return (f32)(panel->inner.x1 - panel->inner.x0);
+    f32 result = (f32)(panel->inner.x1 - panel->inner.x0);
+    result -= GUIScrollbarWidth;
+    return (result);
 }
 
 inline f32
@@ -472,7 +477,7 @@ view_compute_lowest_line(View *view){
         else{
             f32 wrap_y = view->line_wrap_y[last_line];
             lowest_line = FLOOR32(wrap_y / view->font_height);
-            f32 max_width = view_compute_width(view);
+            f32 max_width = view_wrap_width(view);
 
             Editing_File *file = view->file;
             Assert(!file->state.is_dummy);
@@ -506,7 +511,7 @@ view_measure_wraps(System_Functions *system,
     }
 
     f32 line_height = (f32)view->font_height;
-    f32 max_width = view_compute_width(view);
+    f32 max_width = view_wrap_width(view);
     buffer_measure_wrap_y(buffer, view->line_wrap_y, line_height, max_width);
 
     view->line_count = line_count;
@@ -1123,7 +1128,7 @@ view_compute_cursor_from_pos(View *view, i32 pos){
 
     Full_Cursor result = {};
     if (font){
-        f32 max_width = view_compute_width(view);
+        f32 max_width = view_wrap_width(view);
         result = buffer_cursor_from_pos(&file->state.buffer, pos, view->line_wrap_y,
             max_width, (f32)view->font_height, font->advance_data);
     }
@@ -1138,10 +1143,9 @@ view_compute_cursor_from_unwrapped_xy(View *view, f32 seek_x, f32 seek_y, b32 ro
 
     Full_Cursor result = {};
     if (font){
-        f32 max_width = view_compute_width(view);
+        f32 max_width = view_wrap_width(view);
         result = buffer_cursor_from_unwrapped_xy(&file->state.buffer, seek_x, seek_y,
-            round_down, view->line_wrap_y,
-            max_width, (f32)view->font_height, font->advance_data);
+            round_down, view->line_wrap_y, max_width, (f32)view->font_height, font->advance_data);
     }
 
     return result;
@@ -1155,7 +1159,7 @@ view_compute_cursor_from_wrapped_xy(View *view, f32 seek_x, f32 seek_y, b32 roun
 
     Full_Cursor result = {};
     if (font){
-        f32 max_width = view_compute_width(view);
+        f32 max_width = view_wrap_width(view);
         result = buffer_cursor_from_wrapped_xy(&file->state.buffer, seek_x, seek_y,
             round_down, view->line_wrap_y,
             max_width, (f32)view->font_height, font->advance_data);
@@ -1172,7 +1176,7 @@ view_compute_cursor_from_line_pos(View *view, i32 line, i32 pos){
 
     Full_Cursor result = {};
     if (font){
-        f32 max_width = view_compute_width(view);
+        f32 max_width = view_wrap_width(view);
         result = buffer_cursor_from_line_character(&file->state.buffer, line, pos,
             view->line_wrap_y, max_width, (f32)view->font_height, font->advance_data);
     }
@@ -2481,6 +2485,7 @@ style_get_color(Style *style, Cpp_Token token){
 
             default:
             result = &style->main.default_color;
+            break;
         }
     }
     return result;
@@ -2488,8 +2493,9 @@ style_get_color(Style *style, Cpp_Token token){
 
 inline f32
 view_compute_max_target_y(i32 lowest_line, i32 line_height, f32 view_height){
-    real32 max_target_y = ((lowest_line+.5f)*line_height) - view_height*.5f;
-    return max_target_y;
+    f32 max_target_y = ((lowest_line+.5f)*line_height) - view_height*.5f;
+    if (max_target_y < 0) max_target_y = 0;
+    return(max_target_y);
 }
 
 internal f32
@@ -2499,7 +2505,7 @@ view_compute_max_target_y(View *view){
     f32 view_height = view_compute_height(view);
     f32 max_target_y = view_compute_max_target_y(
         lowest_line, line_height, view_height);
-    return max_target_y;
+    return(max_target_y);
 }
 
 internal void
@@ -2613,8 +2619,6 @@ view_show_interactive(System_Functions *system, View *view, Command_Map *gui_map
     view->map_for_file = view->map;
     view->map = gui_map;
     view->showing_ui = VUI_Interactive;
-    view->action = action;
-    view->interaction = interaction;
     view->finished = 0;
 
     copy(&view->query, query);
@@ -2646,7 +2650,17 @@ view_show_config(View *view, Command_Map *gui_map){}
 inline void
 view_show_interactive(System_Functions *system, View *view,
     Command_Map *gui_map, Interactive_Action action,
-    Interactive_Interaction interaction, String query){}
+    Interactive_Interaction interaction, String query){
+    
+    Models *models = view->models;
+    
+    view->showing_ui = VUI_Interactive;
+    view->action = action;
+    view->interaction = interaction;
+    
+    hot_directory_clean_end(&models->hot_directory);
+    hot_directory_reload(system, &models->hot_directory, &models->working_set);
+}
 
 inline void
 view_show_theme(View *view, Command_Map *gui_map){}
@@ -2663,9 +2677,8 @@ view_show_file(View *view, Command_Map *file_map){
     view->showing_ui = VUI_None;
 }
 
-#if 0
 internal void
-interactive_view_complete(View *view){
+interactive_view_complete(View *view, String dest, i32 user_action){
     Models *models = view->models;
     Panel *panel = view->panel;
     Editing_File *old_file = view->file;
@@ -2688,16 +2701,16 @@ interactive_view_complete(View *view){
         break;
 
         case IAct_Switch:
-        delayed_switch(&models->delay1, view->dest, panel);
+        delayed_switch(&models->delay1, dest, panel);
         delayed_touch_file(&models->delay1, old_file);
         break;
 
         case IAct_Kill:
-        delayed_try_kill(&models->delay1, view->dest);
+        delayed_try_kill(&models->delay1, dest);
         break;
 
         case IAct_Sure_To_Close:
-        switch (view->user_action){
+        switch (user_action){
             case 0:
             delayed_close(&models->delay1);
             break;
@@ -2712,9 +2725,9 @@ interactive_view_complete(View *view){
         break;
         
         case IAct_Sure_To_Kill:
-        switch (view->user_action){
+        switch (user_action){
             case 0:
-            delayed_kill(&models->delay1, view->dest);
+            delayed_kill(&models->delay1, dest);
             break;
 
             case 1:
@@ -2723,8 +2736,8 @@ interactive_view_complete(View *view){
             case 2:
             // TODO(allen): This is fishy! What if the save doesn't happen this time around?
             // We need to ensure delayed acts happen in order I think.
-            delayed_save(&models->delay1, view->dest);
-            delayed_kill(&models->delay1, view->dest);
+            delayed_save(&models->delay1, dest);
+            delayed_kill(&models->delay1, dest);
             break;
         }
         break;
@@ -2735,7 +2748,6 @@ interactive_view_complete(View *view){
     // underlying file which is a giant pain.
     view->file = 0;
 }
-#endif
 
 #if 0
 internal void
@@ -3424,7 +3436,7 @@ view_reinit_scrolling(View *view){
         cursor_x = view_get_cursor_x(view);
         cursor_y = view_get_cursor_y(view);
 
-        w = view_compute_width(view);
+        w = view_wrap_width(view);
         h = view_compute_height(view);
 
         if (cursor_x >= target_x + w){
@@ -3455,32 +3467,16 @@ file_step(View *view, i32_Rect region, Input_Summary *user_input, b32 is_active)
         
         f32 delta_y = 3.f*line_height;
         
-        f32 max_y = (f32)(region.y1 - region.y0);
+        // TODO(allen): Would prefer to use this commented version,
+        // but then it disagrees with other values of max_y...
+        //f32 max_y = (f32)(region.y1 - region.y0);
+        f32 max_y = view_compute_height(view);
         f32 max_x = (f32)(region.x1 - region.x0);
         f32 max_target_y = view_compute_max_target_y(lowest_line, (i32)line_height, max_y);
-        
-        if (user_input->mouse.wheel != 0){
-            f32 wheel_multiplier = 3.f;
-            f32 delta_target_y = delta_y*user_input->mouse.wheel*wheel_multiplier;
-            target_y += delta_target_y;
+        f32 cursor_max_y = max_y - view->font_height * 3;
 
-            if (target_y < view->scroll_min_limit) target_y = view->scroll_min_limit;
-            if (target_y > max_target_y) target_y = max_target_y;
-
-            f32 old_cursor_y = cursor_y;
-            if (cursor_y >= target_y + max_y) cursor_y = target_y + max_y;
-            if (cursor_y < target_y - view->scroll_min_limit) cursor_y = target_y - view->scroll_min_limit;
-
-            if (cursor_y != old_cursor_y){
-                view->cursor =
-                    view_compute_cursor_from_xy(view, view->preferred_x, cursor_y);
-            }
-
-            result = 1;
-        }
-
-        if (cursor_y > target_y + max_y){
-            target_y = cursor_y - max_y + delta_y;
+        if (cursor_y > target_y + cursor_max_y){
+            target_y = cursor_y - cursor_max_y + delta_y;
         }
         if (cursor_y < target_y - view->scroll_min_limit){
             target_y = cursor_y - delta_y + view->scroll_min_limit;
@@ -3550,33 +3546,277 @@ view_do_queries(View *view, GUI_Target *target){
 	}
 }
 
-internal i32
-step_file_view(View *view, b32 is_active){
-    gui_begin_top_level(&view->gui_target);
+internal void
+do_widget(View *view, GUI_Target *target){
+    gui_begin_serial_section(target);
     {
-        gui_do_top_bar(&view->gui_target);
-        
-        gui_begin_overlap(&view->gui_target);
-        {
-            gui_begin_serial_section(&view->gui_target);
-            {
-                view_do_queries(view, &view->gui_target);
-            }
-            gui_end_serial_section(&view->gui_target);
+        view_do_queries(view, target);
+    }
+    gui_end_serial_section(target);
+}
 
-            gui_begin_serial_section(&view->gui_target);
+internal i32
+step_file_view(System_Functions *system, View *view, b32 is_active){
+    GUI_Target *target = &view->gui_target;
+    Models *models = view->models;
+    
+    f32 max_y = view_compute_height(view);
+    
+    i32 lowest_line = view_compute_lowest_line(view);
+    f32 min_target_y = view->scroll_min_limit;
+    f32 max_target_y = view_compute_max_target_y(lowest_line, view->font_height, max_y);
+    
+
+    gui_begin_top_level(target);
+    {
+        gui_do_top_bar(target);
+
+        if (view->showing_ui == VUI_None){
+            gui_begin_overlap(target);
+            do_widget(view, target);
+
+            gui_begin_serial_section(target);
+            {
+                f32 v = unlerp(min_target_y, view->target_y, max_target_y);
+                f32 old_cursor_y = view_get_cursor_y(view);
+                f32 cursor_y = old_cursor_y;
+                f32 cursor_max_y = max_y - view->font_height * 3;
+
+                f32 delta = 9.f * view->font_height;
+                f32 lerp_space_delta = (delta); 
+                if (max_target_y > min_target_y){
+                    lerp_space_delta /= (max_target_y - min_target_y);
+                }
+
+                if (gui_start_scrollable(target, &v, lerp_space_delta)){
+                    view->target_y = lerp(min_target_y, v, max_target_y);
+
+                    if (view->target_y < min_target_y) view->target_y = min_target_y;
+                    if (view->target_y > max_target_y) view->target_y = max_target_y;
+
+                    if (cursor_y > view->target_y + cursor_max_y) cursor_y = view->target_y + cursor_max_y;
+                    if (cursor_y < view->target_y - view->scroll_min_limit) cursor_y = view->target_y - view->scroll_min_limit;
+
+                    if (cursor_y != old_cursor_y){
+                        if (cursor_y > old_cursor_y){
+                            cursor_y += view->font_height;
+						}
+                        else{
+							cursor_y -= view->font_height;
+						}
+                        view->cursor = view_compute_cursor_from_xy(view, view->preferred_x, cursor_y);
+                    }
+                }
+
+                if (view->scroll_y < min_target_y) view->scroll_y = min_target_y;
+                if (view->scroll_y > max_target_y) view->scroll_y = max_target_y;
+
+                gui_do_file(target);
+            }
+            gui_end_serial_section(target);
+
+            gui_end_overlap(target);
+        }
+        else{
+            do_widget(view, target);
+            switch (view->showing_ui){
+                case VUI_Interactive:
+                switch (view->interaction){
+                    case IInt_Sys_File_List:
+                    {
+                        persist String p4c_extension = make_lit_string("p4c");
+                        persist String message_loaded = make_lit_string(" LOADED");
+                        persist String message_unsaved = make_lit_string(" LOADED *");
+                        persist String message_unsynced = make_lit_string(" LOADED !");
+                        persist String message_nothing = {};
+
+                        char front_name_space[256];
+                        String front_name = make_fixed_width_string(front_name_space);
+
+                        char full_path_[256];
+                        String full_path = make_fixed_width_string(full_path_);
+
+                        Absolutes absolutes;
+
+                        i32 i, r;
+                        Hot_Directory *hdir = &models->hot_directory;
+                        File_List *files = &hdir->file_list;
+                        File_Info *info = files->infos;
+                        Editing_File *file = 0;
+                        GUI_id file_option_id;
+
+                        get_front_of_directory(&front_name, hdir->string);
+                        get_absolutes(front_name, &absolutes, 1, 1);
+
+                        get_path_of_directory(&full_path, hdir->string);
+                        r = full_path.size;
+
+                        String message = {0};
+                        String text = {0};
+                        switch (view->action){
+                            case IAct_Open: message = make_lit_string("Open: "); break;
+                            case IAct_Save_As: message = make_lit_string("Save As: "); break;
+                            case IAct_New: message = make_lit_string("New: "); break;
+                        }
+                        gui_do_text_field(target, message, text);
+
+                        gui_start_scrollable(target, 0, 3.f);
+                        for (i = 0; i < files->count; ++i, ++info){
+                            append(&full_path, info->filename);
+                            terminate_with_null(&full_path);
+                            file = working_set_contains(system, &models->working_set, full_path);
+                            full_path.size = r;
+
+                            b8 is_folder = (info->folder != 0);
+                            b8 name_match = (filename_match(front_name, &absolutes, info->filename, 0) != 0);
+                            b8 is_loaded = (file != 0 && file_is_ready(file));
+
+                            String message = message_nothing;
+                            if (is_loaded){
+                                switch (buffer_get_sync(file)){
+                                    case SYNC_GOOD: message = message_loaded; break;
+                                    case SYNC_BEHIND_OS: message = message_unsynced; break;
+                                    case SYNC_UNSAVED: message = message_unsaved; break;
+                                }
+                            }
+
+                            if (name_match){
+                                file_option_id.id[0] = (u64)(info);
+                                if (gui_do_file_option(target, file_option_id, info->filename, is_folder, message)){
+                                    // TODO(allen): actually perform whatever action we need
+                                }
+                            }
+                        }
+                    }break;
+                }break;
+            }
+        }
+    }
+    gui_end_top_level(target);
+
+#if 0
+    gui_begin_top_level(target);
+    {
+        gui_begin_overlap(target);
+        {
+            gui_begin_serial_section(target);
+            {
+                view_do_queries(view, target);
+            }
+            gui_end_serial_section(target);
+
+            gui_begin_serial_section(target);
             {
                 switch (view->showing_ui){
                     case VUI_None:
-                    gui_do_file(&view->gui_target);
-                    break;
+                    {
+                        f32 v = unlerp(min_target_y, view->target_y, max_target_y);
+                        f32 old_cursor_y = view_get_cursor_y(view);
+                        f32 cursor_y = old_cursor_y;
+                        
+                        f32 delta = 9.f * view->font_height;
+                        f32 lerp_space_delta = (delta); 
+                        if (max_target_y > min_target_y){
+                            lerp_space_delta /= (max_target_y - min_target_y);
+                        }
+                        
+                        if (gui_start_scrollable(target, &v, lerp_space_delta)){
+                            view->target_y = lerp(min_target_y, v, max_target_y);
+                            
+                            if (view->target_y < min_target_y) view->target_y = min_target_y;
+                            if (view->target_y > max_target_y) view->target_y = max_target_y;
+                            
+                            if (cursor_y >= view->target_y + max_y) cursor_y = view->target_y + max_y;
+                            if (cursor_y < view->target_y - view->scroll_min_limit) cursor_y = view->target_y - view->scroll_min_limit;
+                            
+                            if (cursor_y != old_cursor_y){
+                                view->cursor = view_compute_cursor_from_xy(view, view->preferred_x, cursor_y);
+							}
+                        }
+                        
+                        if (view->scroll_y < min_target_y) view->scroll_y = min_target_y;
+                        if (view->scroll_y > max_target_y) view->scroll_y = max_target_y;
+                        
+                        gui_do_file(target);
+					}break;
+                    
+                    case VUI_Interactive:
+                    switch (view->interaction){
+						case IInt_Sys_File_List:
+                        {
+                            persist String p4c_extension = make_lit_string("p4c");
+                            persist String message_loaded = make_lit_string(" LOADED");
+                            persist String message_unsaved = make_lit_string(" LOADED *");
+                            persist String message_unsynced = make_lit_string(" LOADED !");
+                            persist String message_nothing = {};
+                            
+                            char front_name_space[256];
+                            String front_name = make_fixed_width_string(front_name_space);
+
+                            char full_path_[256];
+                            String full_path = make_fixed_width_string(full_path_);
+
+                            Absolutes absolutes;
+
+                            i32 i, r;
+                            Hot_Directory *hdir = &models->hot_directory;
+                            File_List *files = &hdir->file_list;
+                            File_Info *info = files->infos;
+                            Editing_File *file = 0;
+                            GUI_id file_option_id;
+
+                            get_front_of_directory(&front_name, hdir->string);
+                            get_absolutes(front_name, &absolutes, 1, 1);
+
+                            get_path_of_directory(&full_path, hdir->string);
+                            r = full_path.size;
+
+                            String message = {0};
+                            String text = {0};
+                            switch (view->action){
+                                case IAct_Open: message = make_lit_string("Open: "); break;
+                                case IAct_Save_As: message = make_lit_string("Save As: "); break;
+                                case IAct_New: message = make_lit_string("New: "); break;
+                            }
+                            gui_do_text_field(target, message, text);
+
+                            gui_start_scrollable(target, 0, 3.f);
+                            for (i = 0; i < files->count; ++i, ++info){
+                                append(&full_path, info->filename);
+                                terminate_with_null(&full_path);
+                                file = working_set_contains(system, &models->working_set, full_path);
+                                full_path.size = r;
+
+                                b8 is_folder = (info->folder != 0);
+                                b8 name_match = (filename_match(front_name, &absolutes, info->filename, 0) != 0);
+                                b8 is_loaded = (file != 0 && file_is_ready(file));
+
+                                String message = message_nothing;
+                                if (is_loaded){
+                                    switch (buffer_get_sync(file)){
+                                        case SYNC_GOOD: message = message_loaded; break;
+                                        case SYNC_BEHIND_OS: message = message_unsynced; break;
+                                        case SYNC_UNSAVED: message = message_unsaved; break;
+                                    }
+                                }
+
+                                if (name_match){
+                                    file_option_id.id[0] = (u64)(info);
+                                    if (gui_do_file_option(target, file_option_id, info->filename, is_folder, message)){
+                                        // TODO(allen): actually perform whatever action we need
+                                    }
+                                }
+                            }
+                        }break;
+                    }break;
                 }
             }
-            gui_end_serial_section(&view->gui_target);
+            gui_end_serial_section(target);
         }
-        gui_end_overlap(&view->gui_target);
+        gui_end_overlap(target);
     }
-    gui_end_top_level(&view->gui_target);
+    gui_end_top_level(target);
+#endif
 
     return(1);
 }
@@ -3584,18 +3824,21 @@ step_file_view(View *view, b32 is_active){
 internal i32
 do_input_file_view(System_Functions *system, Exchange *exchange,
     View *view, i32_Rect rect, b32 is_active, Input_Summary *user_input){
-
+    
     i32 result = 0;
-
+    
     GUI_Session gui_session;
     GUI_Header *h;
-
+    GUI_Target *target = &view->gui_target;
+    
     gui_session_init(&gui_session, rect, view->font_height);
     
-    for (h = (GUI_Header*)view->gui_target.push.base;
+    target->active = {0};
+    
+    for (h = (GUI_Header*)target->push.base;
         h->type;
         h = NextHeader(h)){
-        if (gui_interpret(&gui_session, h)){
+        if (gui_interpret(target, &gui_session, h)){
             switch (h->type){
                 case guicom_top_bar: break;
                 
@@ -3611,16 +3854,117 @@ do_input_file_view(System_Functions *system, Exchange *exchange,
                 }break;
                 
                 case guicom_text_field: break;
+                
+                case guicom_file_option:
+                {
+                    GUI_Interactive *b = (GUI_Interactive*)h;
+                    i32 mx = user_input->mouse.x;
+                    i32 my = user_input->mouse.y;
+                    
+                    if (hit_check(mx, my, gui_session.rect)){
+                        target->hover = b->id;
+                        if (user_input->mouse.press_l){
+                            target->hot = b->id;
+                        }
+                        if (user_input->mouse.release_l && gui_id_eq(target->hot, b->id)){
+                            target->active = b->id;
+                            target->hot = {0};
+                        }
+                    }
+                    else if (gui_id_eq(target->hover, b->id)){
+                        target->hover = {0};
+					}
+                }break;
+                
+                case guicom_scrollable_top:
+                {
+                    GUI_id id = gui_id_scrollbar_top();
+                    i32 mx = user_input->mouse.x;
+                    i32 my = user_input->mouse.y;
+                    
+                    if (hit_check(mx, my, gui_session.rect)){
+                        target->hover = id;
+                        if (user_input->mouse.press_l){
+                            target->hot = id;
+                        }
+                        if (user_input->mouse.release_l && gui_id_eq(target->hot, id)){
+                            target->active = gui_id_scrollbar();
+                            target->hot = {0};
+                            target->scroll_v -= target->scroll_delta;
+                            if (target->scroll_v < 0) target->scroll_v = 0;
+                        }
+					}
+                    else if (gui_id_eq(target->hover, id)){
+                        target->hover = {0};
+					}
+				}break;
+                
+                case guicom_scrollable_slider:
+                {
+                    GUI_id id = gui_id_scrollbar_slider();
+                    i32 mx = user_input->mouse.x;
+                    i32 my = user_input->mouse.y;
+					
+                    if (hit_check(mx, my, gui_session.rect)){
+                        target->hover = id;
+                        if (user_input->mouse.press_l){
+                            target->hot = id;
+                        }
+					}
+                    else if (gui_id_eq(target->hover, id)){
+                        target->hover = {0};
+					}
+                    
+                    if (gui_id_eq(target->hot, id)){
+                        target->active = gui_id_scrollbar();
+                        target->scroll_v = unlerp(gui_session.scroll_top, (f32)my, gui_session.scroll_bottom);
+                        if (target->scroll_v < 0) target->scroll_v = 0;
+                        if (target->scroll_v > 1) target->scroll_v = 1;
+                    }
+                    
+                    if (user_input->mouse.wheel != 0){
+                        target->active = gui_id_scrollbar();
+                        target->scroll_v += user_input->mouse.wheel*target->scroll_delta;
+                        if (target->scroll_v < 0) target->scroll_v = 0;
+                        if (target->scroll_v > 1) target->scroll_v = 1;
+					}
+                }break;
+
+                case guicom_scrollable_bottom:
+                {
+                    GUI_id id = gui_id_scrollbar_bottom();
+                    i32 mx = user_input->mouse.x;
+                    i32 my = user_input->mouse.y;
+                    
+                    if (hit_check(mx, my, gui_session.rect)){
+                        target->hover = id;
+                        if (user_input->mouse.press_l){
+                            target->hot = id;
+                        }
+                        if (user_input->mouse.release_l && gui_id_eq(target->hot, id)){
+                            target->active = gui_id_scrollbar();
+                            target->hot = {0};
+                            target->scroll_v += target->scroll_delta;
+                            if (target->scroll_v > 1) target->scroll_v = 1;
+                        }
+					}
+                    else if (gui_id_eq(target->hover, id)){
+                        target->hover = {0};
+					}
+				}break;
             }
         }
     }
-
+    
+    if (!user_input->mouse.l){
+        target->hot = {0};
+	}
+    
     return(result);
-
+    
 #if 0
     Models *models = view->models;
     i32 result = 0;
-
     i32 widget_height = 0;
     AllowLocal(models);
     
@@ -3899,14 +4243,14 @@ do_render_text_field(Render_Target *target, View *view, i32_Rect rect, String p,
     u32 text2_color = style->main.file_info_style.pop1_color;
     
     i32 x = rect.x0;
-    i32 y = rect.y0;
+    i32 y = rect.y0 + 3;
     
     i16 font_id = models->global_font.font_id;
     
     if (target){
         draw_rectangle(target, rect, back_color);
-        x = draw_string(target, font_id, p, x, y + 1, text2_color);
-        draw_string(target, font_id, t, x, y + 1, text1_color);
+        x = draw_string(target, font_id, p, x, y, text2_color);
+        draw_string(target, font_id, t, x, y, text1_color);
 	}
 }
 
@@ -3983,6 +4327,46 @@ do_render_file_bar(Render_Target *target, View *view, Editing_File *file, i32_Re
     }
 }
 
+internal void
+draw_fat_option_block(GUI_Target *gui_target, Render_Target *target, View *view, i32_Rect rect, GUI_id id, String text, String pop){
+    Models *models = view->models;
+    Style *style = &models->style;
+    
+    i32 active_level = gui_active_level(gui_target, id);
+    i16 font_id = models->global_font.font_id;
+    
+    i32_Rect inner = get_inner_rect(rect, 3);
+    
+    u32 margin;
+    u32 back = style->main.back_color;
+    u32 text_color = style->main.default_color;
+    u32 pop_color = style->main.special_character_color;
+    
+    i32 h = view->font_height;
+    i32 x = inner.x0 + 3;
+    i32 y = inner.y0 + h/2 - 1;
+    
+    switch (active_level){
+		case 0:
+        margin = style->main.margin_color;
+        break;
+        
+        case 1: case 2:
+        margin = style->main.margin_hover_color;
+        break;
+        
+        default:
+        margin = style->main.margin_active_color;
+        break;
+	}
+    
+    draw_rectangle(target, inner, back);
+    draw_margin(target, rect, inner, margin);
+    
+    x = draw_string(target, font_id, text, x, y, text_color);
+    draw_string(target, font_id, pop, x, y, pop_color);
+}
+
 internal i32
 do_render_file_view(System_Functions *system, Exchange *exchange,
     View *view, View *active, i32_Rect rect, b32 is_active,
@@ -3993,13 +4377,14 @@ do_render_file_view(System_Functions *system, Exchange *exchange,
     
     GUI_Session gui_session = {0};
     GUI_Header *h;
+    GUI_Target *gui_target = &view->gui_target;
     
     gui_session_init(&gui_session, rect, view->font_height);
     
-    for (h = (GUI_Header*)view->gui_target.push.base;
+    for (h = (GUI_Header*)gui_target->push.base;
         h->type;
         h = NextHeader(h)){
-        if (gui_interpret(&gui_session, h)){
+        if (gui_interpret(&view->gui_target, &gui_session, h)){
             switch (h->type){
                 case guicom_top_bar:
                 {
@@ -4027,6 +4412,83 @@ do_render_file_view(System_Functions *system, Exchange *exchange,
                     String t = gui_read_string(&ptr);
                     do_render_text_field(target, view, gui_session.rect, p, t);
                 }break;
+                
+                case guicom_file_option:
+                {
+                    GUI_Interactive *b = (GUI_Interactive*)h;
+                    void *ptr = (b + 1);
+                    b32 folder = gui_read_integer(&ptr);
+                    String f = gui_read_string(&ptr);
+                    String m = gui_read_string(&ptr);
+                    
+                    if (folder){
+                        append(&f, system->slash);
+					}
+                    
+                    draw_fat_option_block(gui_target, target, view, gui_session.rect, b->id, f, m);
+				}break;
+                
+                case guicom_scrollable:
+                {
+                    Models *models = view->models;
+                    Style *style = &models->style;
+                    
+                    u32 back;
+                    u32 outline;
+                    
+                    i32_Rect bar = gui_session.rect;
+                    
+                    back = style->main.back_color;
+                    if (is_active){
+                        outline = style->main.margin_active_color;
+                    }
+                    else{
+						outline = style->main.margin_color;
+					}
+
+                    draw_rectangle(target, bar, back);
+                    draw_rectangle_outline(target, bar, outline);
+				}break;
+                
+                case guicom_scrollable_top:
+                case guicom_scrollable_slider:
+                case guicom_scrollable_bottom:
+                {
+                    GUI_id id;
+					Models *models = view->models;
+                    Style *style = &models->style;
+                    
+                    i32 active_level;
+                    
+                    u32 back;
+                    u32 outline;
+                    
+                    i32_Rect box = gui_session.rect;
+                    
+                    switch (h->type){
+                        case guicom_scrollable_top: id = gui_id_scrollbar_top(); break;
+                        case guicom_scrollable_bottom: id = gui_id_scrollbar_bottom(); break;
+                        default: id = gui_id_scrollbar_slider(); break;
+					}
+                    
+                    active_level = gui_active_level(gui_target, id);
+                    
+                    switch (active_level){
+                        case 0: back = style->main.back_color; break;
+                        case 1: case 2: back = style->main.margin_hover_color; break;
+                        default: back = style->main.margin_active_color; break;
+                    }
+                    
+                    if (is_active){
+                        outline = style->main.margin_active_color;
+                    }
+                    else{
+						outline = style->main.margin_color;
+                    }
+                    
+                    draw_rectangle(target, box, back);
+                    draw_rectangle_outline(target, box, outline);
+				}break;
 			}
 		}
 	}
