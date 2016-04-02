@@ -50,7 +50,7 @@ free_query_slot(Query_Set *set, Query_Bar *match_bar){
         if (slot->query_bar == match_bar) break;
         prev = slot;
     }
-
+    
     if (slot){
         if (prev){
             prev->next = slot->next;
@@ -73,6 +73,19 @@ struct GUI_id{
     u64 id[1];
 };
 
+struct GUI_Scroll_Vars{
+    f32 scroll_y;
+    f32 target_y;
+    f32 prev_target_y;
+    f32 min_y, max_y;
+    
+    f32 scroll_x;
+    f32 target_x;
+    f32 prev_target_x;
+    
+    i32_Rect region;
+};
+
 struct GUI_Target{
     Partition push;
     
@@ -80,10 +93,10 @@ struct GUI_Target{
     GUI_id hot;
     GUI_id hover;
     
-    f32 scroll_v;
-    f32 scroll_delta;
+    GUI_Scroll_Vars scroll_original;
+    GUI_Scroll_Vars scroll_updated;
+    f32 delta;
     u32 scroll_id;
-    i32_Rect scrollable_area;
 };
 
 struct GUI_Header{
@@ -237,7 +250,6 @@ gui_push_string(GUI_Target *target, GUI_Header *h, String s){
 internal void
 gui_begin_top_level(GUI_Target *target){
     target->push.pos = 0;
-    target->scroll_delta = 0;
 }
 
 internal void
@@ -328,31 +340,35 @@ gui_id_scrollbar_bottom(){
 }
 
 internal b32
-gui_start_scrollable(GUI_Target *target, u32 scroll_id, f32 *v, f32 d, i32_Rect *rect){
+gui_get_scroll_vars(GUI_Target *target, u32 scroll_id, GUI_Scroll_Vars *vars_out){
     b32 result = 0;
-    GUI_Header *h;
-    
-    target->scroll_delta = d;
-    h = gui_push_simple_command(target, guicom_scrollable);
-    if (gui_id_eq(gui_id_scrollbar(), target->active) && target->scroll_id == scroll_id){
-        if (v) *v = target->scroll_v;
+    if (gui_id_eq(target->active, gui_id_scrollbar()) && target->scroll_id == scroll_id){
+        *vars_out = target->scroll_updated;
         result = 1;
 	}
-    else{
-        if (v) target->scroll_v = *v;
-	}
-    if (target->scroll_id == scroll_id){
-        *rect = target->scrollable_area;
-	}
+    return(result);
+}
+
+internal void
+gui_start_scrollable(GUI_Target *target, u32 scroll_id, GUI_Scroll_Vars scroll_vars, f32 delta){
+    GUI_Header *h;
+    
+    target->delta = delta;
+    h = gui_push_simple_command(target, guicom_scrollable);
+    
+    target->scroll_original = scroll_vars;
+    target->scroll_updated = scroll_vars;
     target->scroll_id = scroll_id;
     
     gui_push_simple_command(target, guicom_scrollable_top);
     gui_push_simple_command(target, guicom_scrollable_slider);
     gui_push_simple_command(target, guicom_scrollable_bottom);
-    
-    return(result);
 }
 
+internal void
+gui_activate_scrolling(GUI_Target *target){
+    target->active = gui_id_scrollbar();
+}
 
 struct GUI_Section{
     b32 overlapped;
@@ -470,12 +486,16 @@ gui_interpret(GUI_Target *target, GUI_Session *session, GUI_Header *h){
     i32_Rect rect = {0};
     i32 y = 0;
     i32 end_v = -1;
+    f32 lerp_space_scroll_v = 0;
+    i32 scroll_v = (i32)target->scroll_original.scroll_y;
     
     Assert(session->t < ArrayCount(session->sections));
     section = session->sections + session->t;
     y = section->v;
     
-    if (y < session->full_rect.y1){
+    if (!session->is_scrollable) scroll_v = 0;
+    
+    if (y - scroll_v < session->full_rect.y1){
         switch (h->type){
             case guicom_null: Assert(0); break;
             
@@ -525,6 +545,7 @@ gui_interpret(GUI_Target *target, GUI_Session *session, GUI_Header *h){
             rect = gui_layout_top_bottom(session, y, session->full_rect.y1);
             end_v = rect.y1;
             end_section = section;
+            scroll_v = 0;
             break;
             
             case guicom_text_field:
@@ -552,10 +573,15 @@ gui_interpret(GUI_Target *target, GUI_Session *session, GUI_Header *h){
             session->scroll_rect = rect;
             session->is_scrollable = 1;
 
-            target->scrollable_area.x0 = session->full_rect.x0;
-            target->scrollable_area.x1 = rect.x0;
-            target->scrollable_area.y0 = rect.y0;
-            target->scrollable_area.y1 = rect.y1;
+            {
+                i32_Rect scrollable_rect;
+                scrollable_rect.x0 = session->full_rect.x0;
+                scrollable_rect.x1 = rect.x0;
+                scrollable_rect.y0 = rect.y0;
+                scrollable_rect.y1 = rect.y1;
+                
+                target->scroll_updated.region = scrollable_rect;
+			}
             break;
             
             case guicom_scrollable_top:
@@ -563,13 +589,17 @@ gui_interpret(GUI_Target *target, GUI_Session *session, GUI_Header *h){
             Assert(!section->overlapped);
             give_to_user = 1;
             gui_scrollbar_top(session->scroll_rect, &rect);
+            scroll_v = 0;
             break;
             
             case guicom_scrollable_slider:
             Assert(session->is_scrollable);
             Assert(!section->overlapped);
             give_to_user = 1;
-            gui_scrollbar_slider(session->scroll_rect, &rect, target->scroll_v, &session->scroll_top, &session->scroll_bottom);
+            lerp_space_scroll_v = unlerp(
+                (f32)target->scroll_original.min_y, (f32)target->scroll_original.target_y, (f32)target->scroll_original.max_y);
+            gui_scrollbar_slider(session->scroll_rect, &rect, lerp_space_scroll_v, &session->scroll_top, &session->scroll_bottom);
+            scroll_v = 0;
             break;
             
             case guicom_scrollable_bottom:
@@ -577,6 +607,7 @@ gui_interpret(GUI_Target *target, GUI_Session *session, GUI_Header *h){
             Assert(!section->overlapped);
             give_to_user = 1;
             gui_scrollbar_bottom(session->scroll_rect, &rect);
+            scroll_v = 0;
             break;
         }
         
@@ -591,11 +622,22 @@ gui_interpret(GUI_Target *target, GUI_Session *session, GUI_Header *h){
                 }
             }
             
-            session->rect = rect;
-            if (rect.y0 < max_v){
-                rect.y0 = max_v;
+            rect.y0 -= scroll_v;
+            rect.y1 -= scroll_v;
+            
+            if (rect.y1 > session->full_rect.y0){
+                session->rect = rect;
+
+                rect.y0 += scroll_v;
+                if (rect.y0 < max_v){
+                    rect.y0 = max_v;
+                }
+                rect.y0 -= scroll_v;
+                session->clip_rect = rect;
             }
-            session->clip_rect = rect;
+            else{
+                give_to_user = 0;
+			}
         }
         
         if (end_section){
