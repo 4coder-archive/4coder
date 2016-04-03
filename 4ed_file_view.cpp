@@ -3571,7 +3571,7 @@ step_file_view(System_Functions *system, View *view, b32 is_active){
                 f32 cursor_max_y = CursorMaxY(view_file_height(view), line_height);
                 f32 cursor_min_y = CursorMinY(min_target_y, line_height);
                 f32 delta = 9.f * view->font_height;
-                f32 target_y;
+                f32 target_y = 0;
                 
                 if (gui_get_scroll_vars(target, view->showing_ui, &view->file_scroll)){
                     target_y = view->file_scroll.target_y;
@@ -3641,13 +3641,13 @@ step_file_view(System_Functions *system, View *view, b32 is_active){
                         r = full_path.size;
 
                         String message = {0};
-                        String text = {0};
                         switch (view->action){
                             case IAct_Open: message = make_lit_string("Open: "); break;
                             case IAct_Save_As: message = make_lit_string("Save As: "); break;
                             case IAct_New: message = make_lit_string("New: "); break;
                         }
-                        gui_do_text_field(target, message, text);
+                        gui_do_text_field(target, message, hdir->string);
+                        gui_do_file_input(target, hdir);
 
                         gui_get_scroll_vars(target, view->showing_ui, &view->gui_scroll);
                         gui_begin_scrollable(target, view->showing_ui, view->gui_scroll, 9.f * view->font_height);
@@ -3701,6 +3701,168 @@ view_get_scroll_y(View *view){
     return(v);
 }
 
+struct Single_Line_Input_Step{
+	b8 hit_newline;
+	b8 hit_ctrl_newline;
+	b8 hit_a_character;
+    b8 hit_backspace;
+	b8 hit_esc;
+	b8 made_a_change;
+    b8 did_command;
+    b8 no_file_match;
+};
+
+enum Single_Line_Input_Type{
+	SINGLE_LINE_STRING,
+	SINGLE_LINE_FILE
+};
+
+struct Single_Line_Mode{
+	Single_Line_Input_Type type;
+	String *string;
+	Hot_Directory *hot_directory;
+    b32 fast_folder_select;
+    b32 try_to_match;
+    b32 case_sensitive;
+};
+
+internal Single_Line_Input_Step
+app_single_line_input_core(System_Functions *system, Working_Set *working_set,
+                           Key_Event_Data key, Single_Line_Mode mode){
+    Single_Line_Input_Step result = {};
+    
+    if (key.keycode == key_back){
+        result.hit_backspace = 1;
+        if (mode.string->size > 0){
+            result.made_a_change = 1;
+            --mode.string->size;
+            switch (mode.type){
+            case SINGLE_LINE_STRING:
+                mode.string->str[mode.string->size] = 0; break;
+            
+            case SINGLE_LINE_FILE:
+            {
+                char end_character = mode.string->str[mode.string->size];
+                if (char_is_slash(end_character)){
+                    mode.string->size = reverse_seek_slash(*mode.string) + 1;
+                    mode.string->str[mode.string->size] = 0;
+                    hot_directory_set(system, mode.hot_directory, *mode.string, working_set);
+                }
+                else{
+                    mode.string->str[mode.string->size] = 0;
+                }
+            }break;
+            }
+        }
+    }
+    
+    else if (key.character == '\n' || key.character == '\t'){
+        result.made_a_change = 1;
+        if (key.modifiers[MDFR_CONTROL_INDEX] ||
+            key.modifiers[MDFR_ALT_INDEX]){
+            result.hit_ctrl_newline = 1;
+        }
+        else{
+            result.hit_newline = 1;
+            if (mode.fast_folder_select){
+                Hot_Directory_Match match;
+                char front_name_space[256];
+                String front_name = make_fixed_width_string(front_name_space);
+                get_front_of_directory(&front_name, *mode.string);
+                
+                match =
+                    hot_directory_first_match(mode.hot_directory, front_name, 1, 1, mode.case_sensitive);
+
+                if (mode.try_to_match && !match.filename.str){
+                    match = hot_directory_first_match(mode.hot_directory, front_name, 1, 0, mode.case_sensitive);
+                }
+                if (match.filename.str){
+                    if (match.is_folder){
+                        set_last_folder(mode.string, match.filename, mode.hot_directory->slash);
+                        hot_directory_set(system, mode.hot_directory, *mode.string, working_set);
+                        result.hit_newline = 0;
+                    }
+                    else{
+                        if (mode.try_to_match){
+                            mode.string->size = reverse_seek_slash(*mode.string) + 1;
+                            append(mode.string, match.filename);
+                        }
+                    }
+                }
+                else{
+                    if (mode.try_to_match){
+                        result.no_file_match = 1;
+                    }
+                }
+            }
+        }
+    }
+    
+    else if (key.keycode == key_esc){
+        result.hit_esc = 1;
+        result.made_a_change = 1;
+    }
+    
+    else if (key.character){
+        result.hit_a_character = 1;
+        if (!key.modifiers[MDFR_CONTROL_INDEX] &&
+            !key.modifiers[MDFR_ALT_INDEX]){
+            if (mode.string->size+1 < mode.string->memory_size){
+                u8 new_character = (u8)key.character;
+                mode.string->str[mode.string->size] = new_character;
+                mode.string->size++;
+                mode.string->str[mode.string->size] = 0;
+                if (mode.type == SINGLE_LINE_FILE && char_is_slash(new_character)){
+                    hot_directory_set(system, mode.hot_directory, *mode.string, working_set);
+                }
+                result.made_a_change = 1;
+            }
+        }
+        else{
+            result.did_command = 1;
+            result.made_a_change = 1;
+        }
+    }
+    
+    return result;
+}
+
+inline Single_Line_Input_Step
+app_single_line_input_step(System_Functions *system, Key_Event_Data key, String *string){
+	Single_Line_Mode mode = {};
+	mode.type = SINGLE_LINE_STRING;
+	mode.string = string;
+	return app_single_line_input_core(system, 0, key, mode);
+}
+
+inline Single_Line_Input_Step
+app_single_file_input_step(System_Functions *system,
+                           Working_Set *working_set, Key_Event_Data key,
+						   String *string, Hot_Directory *hot_directory,
+                           b32 fast_folder_select, b32 try_to_match, b32 case_sensitive){
+	Single_Line_Mode mode = {};
+	mode.type = SINGLE_LINE_FILE;
+	mode.string = string;
+	mode.hot_directory = hot_directory;
+    mode.fast_folder_select = fast_folder_select;
+    mode.try_to_match = try_to_match;
+    mode.case_sensitive = case_sensitive;
+    return app_single_line_input_core(system, working_set, key, mode);
+}
+
+inline Single_Line_Input_Step
+app_single_number_input_step(System_Functions *system, Key_Event_Data key, String *string){
+    Single_Line_Input_Step result = {};
+    Single_Line_Mode mode = {};
+    mode.type = SINGLE_LINE_STRING;
+    mode.string = string;
+
+    char c = (char)key.character;
+    if (c == 0 || c == '\n' || char_is_numeric(c))
+        result = app_single_line_input_core(system, 0, key, mode);
+    return result;
+}
+
 internal i32
 do_input_file_view(System_Functions *system, Exchange *exchange,
     View *view, i32_Rect rect, b32 is_active, Input_Summary *user_input){
@@ -3725,17 +3887,11 @@ do_input_file_view(System_Functions *system, Exchange *exchange,
                 
                 case guicom_file:
                 {
-                    f32 old_min_y = view->gui_target.scroll_updated.min_y;
                     f32 new_min_y = -(f32)(gui_session.clip_rect.y0 - gui_session.rect.y0);
-                    if (old_min_y != new_min_y){
-                        view->gui_target.scroll_updated.min_y = new_min_y;
-                    }
-                    
-                    f32 old_max_y = view->gui_target.scroll_updated.max_y;
                     f32 new_max_y = view_compute_max_target_y(view);
-                    if (old_max_y != new_max_y){
-						view->gui_target.scroll_updated.max_y = new_max_y;
-					}
+                    
+                    view->gui_target.scroll_updated.min_y = new_min_y;
+                    view->gui_target.scroll_updated.max_y = new_max_y;
                     
                     if (view->reinit_scrolling){
                         view_reinit_scrolling(view);
@@ -3746,7 +3902,25 @@ do_input_file_view(System_Functions *system, Exchange *exchange,
                     is_file_scroll = 1;
                 }break;
                 
-                case guicom_text_field: break;
+                case guicom_file_input:
+                {
+                    Single_Line_Input_Step step;
+                    Key_Event_Data key;
+                    
+                    GUI_Edit *e = (GUI_Edit*)h;
+                    Hot_Directory *hdir = (Hot_Directory*)e->out;
+                    Key_Summary *keys = &user_input->keys;
+                    Working_Set *working_set = &view->models->working_set;
+                    
+                    i32 i, count;
+                    
+                    count = keys->count;
+                    for (i = 0; i < count; ++i){
+                        key = get_single_key(keys, i);
+                        step = app_single_file_input_step(system, working_set, key, &hdir->string, hdir, 1, 1, 0);
+                        if ((step.hit_newline || step.hit_ctrl_newline) && !step.no_file_match) result = 1;
+					}
+				}break;
                 
                 case guicom_file_option:
                 {
@@ -3788,11 +3962,11 @@ do_input_file_view(System_Functions *system, Exchange *exchange,
                             }
                             gui_activate_scrolling(target);
                         }
-					}
+                    }
                     else if (gui_id_eq(target->hover, id)){
                         target->hover = {0};
-					}
-				}break;
+                    }
+                }break;
                 
                 case guicom_scrollable_slider:
                 {
@@ -3800,7 +3974,7 @@ do_input_file_view(System_Functions *system, Exchange *exchange,
                     i32 mx = user_input->mouse.x;
                     i32 my = user_input->mouse.y;
                     f32 v = 0;
-					
+                    
                     if (hit_check(mx, my, gui_session.rect)){
                         target->hover = id;
                         if (user_input->mouse.press_l){
@@ -3821,7 +3995,7 @@ do_input_file_view(System_Functions *system, Exchange *exchange,
                     
                     if (user_input->mouse.wheel != 0){
                         target->scroll_updated.target_y += user_input->mouse.wheel*target->delta;
-
+                        
                         if (target->scroll_updated.target_y < target->scroll_updated.min_y){
                             target->scroll_updated.target_y = target->scroll_updated.min_y;
                         }
@@ -3829,9 +4003,9 @@ do_input_file_view(System_Functions *system, Exchange *exchange,
                             target->scroll_updated.target_y = target->scroll_updated.max_y;
                         }
                         gui_activate_scrolling(target);
-					}
+                    }
                 }break;
-
+                
                 case guicom_scrollable_bottom:
                 {
                     GUI_id id = gui_id_scrollbar_bottom();
@@ -3851,11 +4025,11 @@ do_input_file_view(System_Functions *system, Exchange *exchange,
                             }
                             gui_activate_scrolling(target);
                         }
-					}
+                    }
                     else if (gui_id_eq(target->hover, id)){
                         target->hover = {0};
-					}
-				}break;
+                    }
+                }break;
                 
                 case guicom_scrollable_section_end:
                 {
@@ -3865,14 +4039,14 @@ do_input_file_view(System_Functions *system, Exchange *exchange,
                         if (old_min_y != new_min_y){
                             view->gui_target.scroll_updated.min_y = new_min_y;
                         }
-
+                        
                         f32 old_max_y = view->gui_target.scroll_updated.max_y;
                         f32 new_max_y = gui_session.suggested_max_y;
                         if (old_max_y != new_max_y){
                             view->gui_target.scroll_updated.max_y = new_max_y;
                         }
                     }
-				}break;
+                }break;
             }
         }
     }

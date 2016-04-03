@@ -109,6 +109,11 @@ struct GUI_Interactive{
     GUI_id id;
 };
 
+struct GUI_Edit{
+    GUI_Header h;
+    void *out;
+};
+
 enum GUI_Command_Type{
     guicom_null,
     guicom_begin_overlap,
@@ -118,6 +123,7 @@ enum GUI_Command_Type{
     guicom_top_bar,
     guicom_file,
     guicom_text_field,
+    guicom_file_input,
     guicom_file_option,
     guicom_scrollable,
     guicom_scrollable_top,
@@ -217,6 +223,17 @@ gui_push_simple_command(GUI_Target *target, i32 type){
     return(result);
 }
 
+internal GUI_Edit*
+gui_push_string_edit_command(GUI_Target *target, i32 type, void *out){
+    GUI_Edit *result = 0;
+    GUI_Edit item;
+    item.h.type = type;
+    item.h.size = sizeof(item);
+    item.out = out;
+    result = (GUI_Edit*)gui_push_item(target, &item, sizeof(item));
+    return(result);
+}
+
 internal GUI_Interactive*
 gui_push_button_command(GUI_Target *target, i32 type, GUI_id id){
     GUI_Interactive *result = 0;
@@ -294,6 +311,11 @@ gui_do_text_field(GUI_Target *target, String prompt, String text){
     GUI_Header *h = gui_push_simple_command(target, guicom_text_field);
     gui_push_string(target, h, prompt);
     gui_push_string(target, h, text);
+}
+
+internal void
+gui_do_file_input(GUI_Target *target, void *out){
+    gui_push_string_edit_command(target, guicom_file_input, out);
 }
 
 internal b32
@@ -568,7 +590,11 @@ gui_interpret(GUI_Target *target, GUI_Session *session, GUI_Header *h){
         end_v = rect.y1;
         end_section = section;
         break;
-
+        
+        case guicom_file_input:
+        always_give_to_user = 1;
+        break;
+        
         case guicom_file_option:
         give_to_user = 1;
         rect = gui_layout_fixed_h(session, y, session->line_height * 2);
@@ -714,6 +740,13 @@ gui_read_string(void **ptr){
     return(result);
 }
 
+internal void*
+gui_read_out(void **ptr){
+    void *result;
+    result = *(void**)*ptr;
+    *ptr = ((void**)ptr) + 1;
+    return(result);
+}
 
 // BOTTOM
 
