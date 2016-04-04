@@ -3547,6 +3547,70 @@ do_widget(View *view, GUI_Target *target){
     gui_end_serial_section(target);
 }
 
+struct Exhaustive_File_Loop{
+    char front_name_[256];
+    char full_path_[256];
+    String front_name, full_path;
+    
+    Absolutes absolutes;
+    
+    File_Info *infos;
+    i32 count, r;
+};
+
+struct Exhaustive_File_Info{
+    File_Info *info;
+    String message;
+    b8 is_folder;
+    b8 name_match;
+    b8 is_loaded;
+};
+
+internal void
+begin_exhaustive_loop(Exhaustive_File_Loop *loop, Hot_Directory *hdir){
+    loop->front_name = make_fixed_width_string(loop->front_name_);
+    loop->full_path = make_fixed_width_string(loop->full_path_);
+    
+    loop->infos = hdir->file_list.infos;
+    loop->count = hdir->file_list.count;
+    
+    get_front_of_directory(&loop->front_name, hdir->string);
+    get_absolutes(loop->front_name, &loop->absolutes, 1, 1);
+    get_path_of_directory(&loop->full_path, hdir->string);
+    loop->r = loop->full_path.size;
+}
+
+internal Exhaustive_File_Info
+get_exhaustive_info(System_Functions *system, Working_Set *working_set, Exhaustive_File_Loop *loop, i32 i){
+    persist String message_loaded = make_lit_string(" LOADED");
+    persist String message_unsaved = make_lit_string(" LOADED *");
+    persist String message_unsynced = make_lit_string(" LOADED !");
+    
+    Exhaustive_File_Info result = {0};
+    Editing_File *file = 0;
+    
+    result.info = loop->infos + i;
+    loop->full_path.size = loop->r;
+    append(&loop->full_path, result.info->filename);
+    terminate_with_null(&loop->full_path);
+    file = working_set_contains(system, working_set, loop->full_path);
+    
+    result.is_folder = (result.info->folder != 0);
+    result.name_match = (filename_match(loop->front_name, &loop->absolutes, result.info->filename, 0) != 0);
+    result.is_loaded = (file != 0 && file_is_ready(file));
+    
+    result.message = {0};
+    if (result.is_loaded){
+        switch (buffer_get_sync(file)){
+            case SYNC_GOOD: result.message = message_loaded; break;
+            case SYNC_BEHIND_OS: result.message = message_unsynced; break;
+            case SYNC_UNSAVED: result.message = message_unsaved; break;
+		}
+	}
+    
+    return(result);
+}
+
 internal i32
 step_file_view(System_Functions *system, View *view, b32 is_active){
     GUI_Target *target = &view->gui_target;
@@ -3613,71 +3677,57 @@ step_file_view(System_Functions *system, View *view, b32 is_active){
                 switch (view->interaction){
                     case IInt_Sys_File_List:
                     {
-                        persist String p4c_extension = make_lit_string("p4c");
-                        persist String message_loaded = make_lit_string(" LOADED");
-                        persist String message_unsaved = make_lit_string(" LOADED *");
-                        persist String message_unsynced = make_lit_string(" LOADED !");
-                        persist String message_nothing = {};
-
-                        char front_name_space[256];
-                        String front_name = make_fixed_width_string(front_name_space);
-
-                        char full_path_[256];
-                        String full_path = make_fixed_width_string(full_path_);
-
-                        Absolutes absolutes;
-
-                        i32 i, r;
-                        Hot_Directory *hdir = &models->hot_directory;
-                        File_List *files = &hdir->file_list;
-                        File_Info *info = files->infos;
-                        Editing_File *file = 0;
-                        GUI_id file_option_id;
-
-                        get_front_of_directory(&front_name, hdir->string);
-                        get_absolutes(front_name, &absolutes, 1, 1);
-
-                        get_path_of_directory(&full_path, hdir->string);
-                        r = full_path.size;
-
                         String message = {0};
                         switch (view->action){
                             case IAct_Open: message = make_lit_string("Open: "); break;
                             case IAct_Save_As: message = make_lit_string("Save As: "); break;
                             case IAct_New: message = make_lit_string("New: "); break;
                         }
+                        
+                        
+                        Exhaustive_File_Loop loop;
+                        Exhaustive_File_Info file_info;
+                        
+                        GUI_id file_option_id, str_edit_id;
+                        i32 i;
+                        b32 do_new_directory = 0;
+                        Hot_Directory *hdir = &models->hot_directory;
+                        
                         gui_do_text_field(target, message, hdir->string);
-                        gui_do_file_input(target, hdir);
-
+                        
+                        str_edit_id.id[0] = (u64)(hdir);
+                        if (gui_do_file_input(target, str_edit_id, hdir)){
+                            interactive_view_complete(view, hdir->string, 0);
+						}
+                        
                         gui_get_scroll_vars(target, view->showing_ui, &view->gui_scroll);
                         gui_begin_scrollable(target, view->showing_ui, view->gui_scroll, 9.f * view->font_height);
                         
-                        for (i = 0; i < files->count; ++i, ++info){
-                            append(&full_path, info->filename);
-                            terminate_with_null(&full_path);
-                            file = working_set_contains(system, &models->working_set, full_path);
+                        begin_exhaustive_loop(&loop, hdir);
+                        for (i = 0; i < loop.count; ++i){
+                            file_info = get_exhaustive_info(system, &models->working_set, &loop, i);
                             
-                            b8 is_folder = (info->folder != 0);
-                            b8 name_match = (filename_match(front_name, &absolutes, info->filename, 0) != 0);
-                            b8 is_loaded = (file != 0 && file_is_ready(file));
-                            
-                            String message = message_nothing;
-                            if (is_loaded){
-                                switch (buffer_get_sync(file)){
-                                    case SYNC_GOOD: message = message_loaded; break;
-                                    case SYNC_BEHIND_OS: message = message_unsynced; break;
-                                    case SYNC_UNSAVED: message = message_unsaved; break;
+                            ///////////////////////////
+                            if (file_info.name_match){
+                                file_option_id.id[0] = (u64)(file_info.info);
+                                if (gui_do_file_option(target, file_option_id,
+                                        file_info.info->filename, file_info.is_folder, file_info.message)){
+                                    if (file_info.is_folder){
+                                        append(&hdir->string, file_info.info->filename);
+                                        append(&hdir->string, "/");
+                                        do_new_directory = 1;
+                                    }
+                                    else{
+                                        interactive_view_complete(view, loop.full_path, 0);
+                                    }
                                 }
                             }
-                            
-                            if (name_match){
-                                file_option_id.id[0] = (u64)(info);
-                                if (gui_do_file_option(target, file_option_id, info->filename, is_folder, message)){
-                                    interactive_view_complete(view, full_path, 0);
-                                }
-                            }
-                            full_path.size = r;
+                            ///////////////////////////
                         }
+                        
+                        if (do_new_directory){
+                            hot_directory_reload(system, hdir, &models->working_set);
+						}
                         
                         gui_end_scrollable(target);
                     }break;
@@ -3873,7 +3923,7 @@ do_input_file_view(System_Functions *system, Exchange *exchange,
     GUI_Session gui_session;
     GUI_Header *h;
     GUI_Target *target = &view->gui_target;
-
+    
     gui_session_init(&gui_session, rect, view->font_height);
     
     target->active = {0};
@@ -3918,7 +3968,10 @@ do_input_file_view(System_Functions *system, Exchange *exchange,
                     for (i = 0; i < count; ++i){
                         key = get_single_key(keys, i);
                         step = app_single_file_input_step(system, working_set, key, &hdir->string, hdir, 1, 1, 0);
-                        if ((step.hit_newline || step.hit_ctrl_newline) && !step.no_file_match) result = 1;
+                        if ((step.hit_newline || step.hit_ctrl_newline) && !step.no_file_match){
+                            result = 1;
+                            view->gui_target.active = e->id;
+                        }
 					}
 				}break;
                 
@@ -4074,109 +4127,27 @@ do_input_file_view(System_Functions *system, Exchange *exchange,
         view->gui_target.scroll_updated = scroll_vars;
 	}
     
-    return(result);
-    
-#if 0
-    Models *models = view->models;
-    i32 result = 0;
-    i32 widget_height = 0;
-    AllowLocal(models);
-    
-#if 0
     {
-        UI_State state = 
-            ui_state_init(&view->widget.state, 0, user_input,
-            &models->style, models->global_font.font_id, models->font_set, 0, 1);
-
-        UI_Layout layout;
-        begin_layout(&layout, rect);
-
-        switch (view->widget.type){
-            case FWIDG_NONE:
-            {
-                if (file && view->showing_ui == VUI_None){
-                    do_file_bar(view, file, &layout, 0);
-                }
-                draw_file_view_queries(view, &state, &layout);
-            }break;
-
-            case FWIDG_TIMELINES:
-            {
-                i32 scrub_max = view->scrub_max;
-                i32 undo_count = file->state.undo.undo.edit_count;
-                i32 redo_count = file->state.undo.redo.edit_count;
-                i32 total_count = undo_count + redo_count;
-                undo_shit(system, view, &state, &layout, total_count, undo_count, scrub_max);
-            }break;
+        Key_Summary *keys = &user_input->keys;
+        b32 did_esc = 0;
+        Key_Event_Data key;
+        i32 i, count;
+        
+        count = keys->count;
+        for (i = 0; i < count; ++i){
+            key = get_single_key(keys, i);
+            if (key.keycode == key_esc){
+                did_esc = 1;
+                break;
+			}
         }
-
-        widget_height = layout.y - rect.y0;
-        if (ui_finish_frame(&view->widget.state, &state, &layout, rect, 0, 0)){
-            result = 1;
-        }
-    }
-#endif
-
-
-    view->scroll_min_limit = (f32)-widget_height;
-    if (view->reinit_scrolling){
-        view_reinit_scrolling(view);
-    }
-
-    if (view->showing_ui == VUI_None){
-        if (file_step(view, rect, user_input, is_active)){
-            result = 1;
+        
+        if (did_esc && view->showing_ui != VUI_None){
+            view_show_file(view, 0);
 		}
-    }
-
-#if 0
-    {
-        UI_State state =
-            ui_state_init(&view->ui_state, 0, user_input,
-            &models->style, models->global_font.font_id, models->font_set, &models->working_set, 1);
-
-        UI_Layout layout;
-        begin_layout(&layout, rect);
-
-        Super_Color color = {};
-
-        switch (view->showing_ui){
-            case VUI_None: break;
-            case VUI_Theme:
-            {
-                theme_shit(system, exchange, view, 0, &state, &layout, &color);
-            }break;
-            case VUI_Interactive:
-            {
-                if (interactive_shit(system, view, &state, &layout)){
-                    result = 1;
-                }
-            }break;
-            case VUI_Menu:
-            {
-                menu_shit(view, &state, &layout);
-            }break;
-            case VUI_Config:
-            {
-                config_shit(view, &state, &layout);
-            }break;
-        }
-
-        i32 did_activation = 0;
-        if (ui_finish_frame(&view->ui_state, &state, &layout, rect, 0, &did_activation)){
-            result = 1;
-        }
-        if (did_activation){
-            if (view->showing_ui == VUI_Theme){
-                view->color = color;
-                result = 1;
-            }
-        }
-    }
-#endif
-
+	}
+    
     return(result);
-#endif
 }
 
 internal i32

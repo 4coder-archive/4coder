@@ -111,6 +111,7 @@ struct GUI_Interactive{
 
 struct GUI_Edit{
     GUI_Header h;
+    GUI_id id;
     void *out;
 };
 
@@ -224,11 +225,12 @@ gui_push_simple_command(GUI_Target *target, i32 type){
 }
 
 internal GUI_Edit*
-gui_push_string_edit_command(GUI_Target *target, i32 type, void *out){
+gui_push_string_edit_command(GUI_Target *target, i32 type, GUI_id id, void *out){
     GUI_Edit *result = 0;
     GUI_Edit item;
     item.h.type = type;
     item.h.size = sizeof(item);
+    item.id = id;
     item.out = out;
     result = (GUI_Edit*)gui_push_item(target, &item, sizeof(item));
     return(result);
@@ -313,22 +315,29 @@ gui_do_text_field(GUI_Target *target, String prompt, String text){
     gui_push_string(target, h, text);
 }
 
-internal void
-gui_do_file_input(GUI_Target *target, void *out){
-    gui_push_string_edit_command(target, guicom_file_input, out);
+internal b32
+gui_do_file_input(GUI_Target *target, GUI_id id, void *out){
+    b32 result = 0;
+    gui_push_string_edit_command(target, guicom_file_input, id, out);
+    
+    if (gui_id_eq(id, target->active)){
+        result = 1;
+	}
+    
+    return(result);
 }
 
 internal b32
-gui_do_file_option(GUI_Target *target, GUI_id file_id, String filename, b32 is_folder, String message){
+gui_do_file_option(GUI_Target *target, GUI_id id, String filename, b32 is_folder, String message){
     b32 result = 0;
     
-    GUI_Interactive *b = gui_push_button_command(target, guicom_file_option, file_id);
+    GUI_Interactive *b = gui_push_button_command(target, guicom_file_option, id);
     GUI_Header *h = (GUI_Header*)b;
     gui_push_item(target, h, &is_folder, sizeof(is_folder));
     gui_push_string(target, h, filename, 1);
     gui_push_string(target, h, message);
     
-    if (gui_id_eq(file_id, target->active)){
+    if (gui_id_eq(id, target->active)){
         result = 1;
 	}
     
