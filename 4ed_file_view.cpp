@@ -84,13 +84,14 @@ struct View{
     Interactive_Interaction interaction;
     Interactive_Action action;
     
+    char dest_[256];
+    String dest;
+    
 #if 0
     // interactive stuff
     b32 finished;
     char query_[256];
-    char dest_[256];
     String query;
-    String dest;
     i32 user_action;
 
     // theme stuff
@@ -2656,6 +2657,7 @@ view_show_interactive(System_Functions *system, View *view,
     view->gui_scroll = {0};
     view->action = action;
     view->interaction = interaction;
+    view->dest = make_fixed_width_string(view->dest_);
     
     hot_directory_clean_end(&models->hot_directory);
     hot_directory_reload(system, &models->hot_directory, &models->working_set);
@@ -3707,7 +3709,6 @@ step_file_view(System_Functions *system, View *view, b32 is_active){
                         for (i = 0; i < loop.count; ++i){
                             file_info = get_exhaustive_info(system, &models->working_set, &loop, i);
                             
-                            ///////////////////////////
                             if (file_info.name_match){
                                 file_option_id.id[0] = (u64)(file_info.info);
                                 if (gui_do_file_option(target, file_option_id,
@@ -3722,7 +3723,6 @@ step_file_view(System_Functions *system, View *view, b32 is_active){
                                     }
                                 }
                             }
-                            ///////////////////////////
                         }
                         
                         if (do_new_directory){
@@ -3731,6 +3731,59 @@ step_file_view(System_Functions *system, View *view, b32 is_active){
                         
                         gui_end_scrollable(target);
                     }break;
+                    
+                    case IInt_Live_File_List:
+                    {
+                        persist String message_unsaved = make_lit_string(" *");
+                        persist String message_unsynced = make_lit_string(" !");
+                        
+                        String message = {0};
+                        switch (view->action){
+                            case IAct_Switch: message = make_lit_string("Switch: "); break;
+                            case IAct_Kill: message = make_lit_string("Kill: "); break;
+                        }
+                        
+                        
+                        Absolutes absolutes;
+                        GUI_id file_option_id, str_edit_id;
+                        Editing_File *file;
+                        File_Node *node, *used_nodes;
+                        Working_Set *working_set = &models->working_set;
+                        
+                        get_absolutes(view->dest, &absolutes, 1, 1);
+                        
+                        gui_do_text_field(target, message, view->dest);
+                        
+                        str_edit_id.id[0] = (u64)(&view->dest);
+                        if (gui_do_text_input(target, str_edit_id, &view->dest)){
+                            interactive_view_complete(view, view->dest, 0);
+						}
+                        
+                        gui_get_scroll_vars(target, view->showing_ui, &view->gui_scroll);
+                        gui_begin_scrollable(target, view->showing_ui, view->gui_scroll, 9.f * view->font_height);
+                        
+                        used_nodes = &working_set->used_sentinel;
+                        for (dll_items(node, used_nodes)){
+                            file = (Editing_File*)node;
+                            Assert(!file->state.is_dummy);
+                            
+                            message = {0};
+                            switch (buffer_get_sync(file)){
+                                case SYNC_BEHIND_OS: message = message_unsynced; break;
+                                case SYNC_UNSAVED: message = message_unsaved; break;
+							}
+                            
+                            if (filename_match(view->dest, &absolutes, file->name.live_name, 1)){
+                                file_option_id.id[0] = (u64)(file);
+                                if (gui_do_file_option(target, file_option_id, file->name.live_name, 0, message)){
+                                    interactive_view_complete(view, file->name.live_name, 0);
+                                }
+							}
+						}
+                        
+                        gui_end_scrollable(target);
+					}break;
+                    
                 }break;
             }
         }
@@ -3951,6 +4004,28 @@ do_input_file_view(System_Functions *system, Exchange *exchange,
                     }
                     is_file_scroll = 1;
                 }break;
+                
+                case guicom_text_input:
+                {
+                    Single_Line_Input_Step step;
+                    Key_Event_Data key;
+                    
+                    GUI_Edit *e = (GUI_Edit*)h;
+                    String *string = (String*)e->out;
+                    Key_Summary *keys = &user_input->keys;
+                    
+                    i32 i, count;
+                    
+                    count = keys->count;
+                    for (i = 0; i < count; ++i){
+                        key = get_single_key(keys, i);
+                        step = app_single_line_input_step(system, key, string);
+                        if ((step.hit_newline || step.hit_ctrl_newline) && !step.no_file_match){
+                            result = 1;
+                            view->gui_target.active = e->id;
+                        }
+					}
+				}break;
                 
                 case guicom_file_input:
                 {

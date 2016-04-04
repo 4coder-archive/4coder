@@ -124,6 +124,7 @@ enum GUI_Command_Type{
     guicom_top_bar,
     guicom_file,
     guicom_text_field,
+    guicom_text_input,
     guicom_file_input,
     guicom_file_option,
     guicom_scrollable,
@@ -316,14 +317,22 @@ gui_do_text_field(GUI_Target *target, String prompt, String text){
 }
 
 internal b32
+gui_do_text_input(GUI_Target *target, GUI_id id, void *out){
+    b32 result = 0;
+    gui_push_string_edit_command(target, guicom_text_input, id, out);
+    if (gui_id_eq(id, target->active)){
+        result = 1;
+    }
+    return(result);
+}
+
+internal b32
 gui_do_file_input(GUI_Target *target, GUI_id id, void *out){
     b32 result = 0;
     gui_push_string_edit_command(target, guicom_file_input, id, out);
-    
     if (gui_id_eq(id, target->active)){
         result = 1;
-	}
-    
+    }
     return(result);
 }
 
@@ -600,6 +609,7 @@ gui_interpret(GUI_Target *target, GUI_Session *session, GUI_Header *h){
         end_section = section;
         break;
         
+        case guicom_text_input:
         case guicom_file_input:
         always_give_to_user = 1;
         break;
