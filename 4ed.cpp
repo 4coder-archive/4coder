@@ -4501,11 +4501,9 @@ App_Step_Sig(app_step){
 
                     if (file && !file->settings.never_kill){
                         if (buffer_needs_save(file)){
+                            copy(&view->dest, file->name.live_name);
                             view_show_interactive(system, view, &models->map_ui,
                                 IAct_Sure_To_Kill, IInt_Sure_To_Kill, make_lit_string("Are you sure?"));
-#if 0
-                            copy(&view->dest, file->name.live_name);
-#endif
                         }
                         else{
                             working_set_remove(system, working_set, file->name.source_path);

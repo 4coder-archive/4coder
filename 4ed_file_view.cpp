@@ -2659,6 +2659,9 @@ view_show_interactive(System_Functions *system, View *view,
     view->interaction = interaction;
     view->dest = make_fixed_width_string(view->dest_);
     
+    view->map_for_file = view->map;
+    view->map = gui_map;
+    
     hot_directory_clean_end(&models->hot_directory);
     hot_directory_reload(system, &models->hot_directory, &models->working_set);
 }
@@ -2723,7 +2726,7 @@ interactive_view_complete(View *view, String dest, i32 user_action){
             break;
         }
         break;
-        
+
         case IAct_Sure_To_Kill:
         switch (user_action){
             case 0:
@@ -2735,7 +2738,7 @@ interactive_view_complete(View *view, String dest, i32 user_action){
 
             case 2:
             // TODO(allen): This is fishy! What if the save doesn't happen this time around?
-            // We need to ensure delayed acts happen in order I think.
+            // We need to ensure delayed acts happen in order I think... or better yet destroy delayed action entirely.
             delayed_save(&models->delay1, dest);
             delayed_kill(&models->delay1, dest);
             break;
@@ -3784,6 +3787,65 @@ step_file_view(System_Functions *system, View *view, b32 is_active){
                         gui_end_scrollable(target);
 					}break;
                     
+                    case IInt_Sure_To_Close:
+                    {
+                        i32 action = -1;
+                        
+                        GUI_id id;
+                        String empty_str = {0};
+                        String message = make_lit_string("There is one or more files unsaved changes, close anyway?");
+                        
+                        gui_do_text_field(target, message, empty_str);
+                        
+                        id.id[0] = (u64)('y' + (IInt_Sure_To_Close << 8));
+                        message = make_lit_string("(Y)es");
+                        if (gui_do_fixed_option(target, id, message, 'y')){
+                            action = 0;
+                        }
+                        
+                        id.id[0] = (u64)('n' + (IInt_Sure_To_Close << 8));
+                        message = make_lit_string("(N)o");
+                        if (gui_do_fixed_option(target, id, message, 'n')){
+                            action = 1;
+                        }
+                        
+                        if (action != -1){
+                            interactive_view_complete(view, view->dest, action);
+						}
+                    }break;
+                    
+                    case IInt_Sure_To_Kill:
+                    {
+                        i32 action = -1;
+                        
+                        GUI_id id;
+                        String empty_str = {0};
+                        String message = make_lit_string("There are unsaved changes, close anyway?");
+                        
+                        gui_do_text_field(target, message, empty_str);
+                        
+                        id.id[0] = (u64)('y' + (IInt_Sure_To_Close << 8));
+                        message = make_lit_string("(Y)es");
+                        if (gui_do_fixed_option(target, id, message, 'y')){
+                            action = 0;
+                        }
+                        
+                        id.id[0] = (u64)('n' + (IInt_Sure_To_Close << 8));
+                        message = make_lit_string("(N)o");
+                        if (gui_do_fixed_option(target, id, message, 'n')){
+                            action = 1;
+                        }
+                        
+                        id.id[0] = (u64)('s' + (IInt_Sure_To_Close << 8));
+                        message = make_lit_string("(S)ave and kill");
+                        if (gui_do_fixed_option(target, id, message, 's')){
+                            action = 2;
+                        }
+                        
+                        if (action != -1){
+                            interactive_view_complete(view, {0}, action);
+						}
+                    }break;
                 }break;
             }
         }
@@ -3832,7 +3894,7 @@ struct Single_Line_Mode{
 internal Single_Line_Input_Step
 app_single_line_input_core(System_Functions *system, Working_Set *working_set,
                            Key_Event_Data key, Single_Line_Mode mode){
-    Single_Line_Input_Step result = {};
+    Single_Line_Input_Step result = {0};
     
     if (key.keycode == key_back){
         result.hit_backspace = 1;
@@ -3841,7 +3903,9 @@ app_single_line_input_core(System_Functions *system, Working_Set *working_set,
             --mode.string->size;
             switch (mode.type){
             case SINGLE_LINE_STRING:
-                mode.string->str[mode.string->size] = 0; break;
+            {
+				mode.string->str[mode.string->size] = 0;
+			}break;
             
             case SINGLE_LINE_FILE:
             {
@@ -4056,6 +4120,7 @@ do_input_file_view(System_Functions *system, Exchange *exchange,
                     i32 mx = user_input->mouse.x;
                     i32 my = user_input->mouse.y;
                     
+                    // TODO(allen): deduplicate button related stuff
                     if (hit_check(mx, my, gui_session.rect)){
                         target->hover = b->id;
                         if (user_input->mouse.press_l){
@@ -4070,7 +4135,49 @@ do_input_file_view(System_Functions *system, Exchange *exchange,
                         target->hover = {0};
 					}
                 }break;
-
+                
+                case guicom_fixed_option:
+                {
+                    Key_Event_Data key;
+                    Key_Summary *keys = &user_input->keys;
+                    
+                    GUI_Interactive *b = (GUI_Interactive*)h;
+                    void *ptr = (b + 1);
+                    String string;
+                    char activation_key;
+                    
+                    i32 mx = user_input->mouse.x;
+                    i32 my = user_input->mouse.y;
+                    
+                    i32 i, count;
+                    
+                    if (hit_check(mx, my, gui_session.rect)){
+                        target->hover = b->id;
+                        if (user_input->mouse.press_l){
+                            target->hot = b->id;
+                        }
+                        if (user_input->mouse.release_l && gui_id_eq(target->hot, b->id)){
+                            target->active = b->id;
+                            target->hot = {0};
+                        }
+                    }
+                    else if (gui_id_eq(target->hover, b->id)){
+                        target->hover = {0};
+					}
+                    
+                    string = gui_read_string(&ptr);
+                    activation_key = *(char*)ptr;
+                    
+                    count = keys->count;
+                    for (i = 0; i < count; ++i){
+                        key = get_single_key(keys, i);
+                        if (char_to_upper(key.character) == char_to_upper(activation_key)){
+                            target->active = b->id;
+                            break;
+						}
+					}
+                }break;
+                
                 case guicom_scrollable_top:
                 {
                     GUI_id id = gui_id_scrollbar_top();
@@ -4159,20 +4266,14 @@ do_input_file_view(System_Functions *system, Exchange *exchange,
                     }
                 }break;
                 
-                case guicom_scrollable_section_end:
+                case guicom_end_scrollable_section:
                 {
                     if (!is_file_scroll){
-                        f32 old_min_y = view->gui_target.scroll_updated.min_y;
                         f32 new_min_y = gui_session.suggested_min_y;
-                        if (old_min_y != new_min_y){
-                            view->gui_target.scroll_updated.min_y = new_min_y;
-                        }
-                        
-                        f32 old_max_y = view->gui_target.scroll_updated.max_y;
                         f32 new_max_y = gui_session.suggested_max_y;
-                        if (old_max_y != new_max_y){
-                            view->gui_target.scroll_updated.max_y = new_max_y;
-                        }
+                        
+                        view->gui_target.scroll_updated.min_y = new_min_y;
+                        view->gui_target.scroll_updated.max_y = new_max_y;
                     }
                 }break;
             }
@@ -4588,6 +4689,16 @@ do_render_file_view(System_Functions *system, Exchange *exchange,
                     draw_fat_option_block(gui_target, target, view, gui_session.rect, b->id, f, m);
 				}break;
                 
+                case guicom_fixed_option:
+                {
+                    GUI_Interactive *b = (GUI_Interactive*)h;
+                    void *ptr = (b + 1);
+                    String f = gui_read_string(&ptr);
+                    String m = {0};
+                    
+                    draw_fat_option_block(gui_target, target, view, gui_session.rect, b->id, f, m);
+				}break;
+                
                 case guicom_scrollable:
                 {
                     Models *models = view->models;
@@ -4617,13 +4728,12 @@ do_render_file_view(System_Functions *system, Exchange *exchange,
                     GUI_id id;
 					Models *models = view->models;
                     Style *style = &models->style;
+                    i32_Rect box = gui_session.rect;
                     
                     i32 active_level;
                     
                     u32 back;
                     u32 outline;
-                    
-                    i32_Rect box = gui_session.rect;
                     
                     switch (h->type){
                         case guicom_scrollable_top: id = gui_id_scrollbar_top(); break;
@@ -4635,7 +4745,7 @@ do_render_file_view(System_Functions *system, Exchange *exchange,
                     
                     switch (active_level){
                         case 0: back = style->main.back_color; break;
-                        case 1: case 2: back = style->main.margin_hover_color; break;
+                        case 1: back = style->main.margin_hover_color; break;
                         default: back = style->main.margin_active_color; break;
                     }
                     
@@ -4647,15 +4757,15 @@ do_render_file_view(System_Functions *system, Exchange *exchange,
                     }
                     
                     draw_rectangle(target, box, back);
-                    draw_rectangle_outline(target, box, outline);
+                    draw_margin(target, box, get_inner_rect(box, 2), outline);
 				}break;
                 
-                case guicom_scrollable_section_begin:
+                case guicom_begin_scrollable_section:
                 {
                     target->push_clip(target, gui_session.absolute_rect);
 				}break;
                 
-                case guicom_scrollable_section_end:
+                case guicom_end_scrollable_section:
                 {
                     target->pop_clip(target);
                 }break;

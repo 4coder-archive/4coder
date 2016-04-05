@@ -127,12 +127,13 @@ enum GUI_Command_Type{
     guicom_text_input,
     guicom_file_input,
     guicom_file_option,
+    guicom_fixed_option,
     guicom_scrollable,
     guicom_scrollable_top,
     guicom_scrollable_slider,
     guicom_scrollable_bottom,
-    guicom_scrollable_section_begin,
-    guicom_scrollable_section_end,
+    guicom_begin_scrollable_section,
+    guicom_end_scrollable_section,
 };
 
 internal b32
@@ -185,6 +186,15 @@ gui_align(GUI_Target *target){
 }
 
 internal void*
+gui_align(GUI_Target *target, GUI_Header *h){
+    void *ptr;
+    partition_align(&target->push, 8);
+    ptr = partition_current(&target->push);
+    h->size = (i32)((char*)ptr - (char*)h);
+    return(ptr);
+}
+
+internal void*
 advance_to_alignment(void *ptr){
     u64 p = (u64)ptr;
     p = (p + 7) & (~7);
@@ -193,15 +203,14 @@ advance_to_alignment(void *ptr){
 
 internal void*
 gui_push_aligned_item(GUI_Target *target, GUI_Header *h, void *item, i32 size){
-    char *start, *end;
-    start = (char*)partition_allocate(&target->push, size);
-    if (start){
-        memcpy(start, item, size);
+    char *ptr, *end;
+    ptr = (char*)partition_allocate(&target->push, size);
+    if (ptr){
+        memcpy(ptr, item, size);
 	}
     end = (char*)gui_align(target);
-    size = (i32)(end - start);
-    h->size += size;
-    return(start);
+    h->size = (i32)(end - (char*)h);
+    return(ptr);
 }
 
 internal void*
@@ -339,12 +348,27 @@ gui_do_file_input(GUI_Target *target, GUI_id id, void *out){
 internal b32
 gui_do_file_option(GUI_Target *target, GUI_id id, String filename, b32 is_folder, String message){
     b32 result = 0;
-    
     GUI_Interactive *b = gui_push_button_command(target, guicom_file_option, id);
     GUI_Header *h = (GUI_Header*)b;
     gui_push_item(target, h, &is_folder, sizeof(is_folder));
     gui_push_string(target, h, filename, 1);
     gui_push_string(target, h, message);
+    
+    if (gui_id_eq(id, target->active)){
+        result = 1;
+	}
+    
+    return(result);
+}
+
+internal b32
+gui_do_fixed_option(GUI_Target *target, GUI_id id, String message, char key){
+    b32 result = 0;
+    GUI_Interactive *b = gui_push_button_command(target, guicom_fixed_option, id);
+    GUI_Header *h = (GUI_Header*)b;
+    gui_push_string(target, h, message);
+    gui_push_item(target, h, &key, 1);
+    gui_align(target, h);
     
     if (gui_id_eq(id, target->active)){
         result = 1;
@@ -407,12 +431,12 @@ gui_begin_scrollable(GUI_Target *target, u32 scroll_id, GUI_Scroll_Vars scroll_v
     gui_push_simple_command(target, guicom_scrollable_top);
     gui_push_simple_command(target, guicom_scrollable_slider);
     gui_push_simple_command(target, guicom_scrollable_bottom);
-    gui_push_simple_command(target, guicom_scrollable_section_begin);
+    gui_push_simple_command(target, guicom_begin_scrollable_section);
 }
 
 internal void
 gui_end_scrollable(GUI_Target *target){
-    gui_push_simple_command(target, guicom_scrollable_section_end);
+    gui_push_simple_command(target, guicom_end_scrollable_section);
 }
 
 internal void
@@ -437,6 +461,7 @@ struct GUI_Session{
     i32 line_height;
     i32 scroll_bar_w;
     b32 is_scrollable;
+    i32 scrollable_items_bottom;
     
     i32_Rect scroll_rect;
     f32 scroll_top, scroll_bottom;
@@ -493,7 +518,6 @@ gui_layout_fixed_h(GUI_Session *session, i32 y, i32 h){
 internal void
 gui_scrollbar_top(i32_Rect bar, i32_Rect *top){
     i32 w = (bar.x1 - bar.x0);
-    
     top->x0 = bar.x0;
     top->x1 = bar.x1;
     top->y0 = bar.y0;
@@ -501,20 +525,37 @@ gui_scrollbar_top(i32_Rect bar, i32_Rect *top){
 }
 
 internal void
-gui_scrollbar_slider(i32_Rect bar, i32_Rect *slider, f32 s, f32 *min_out, f32 *max_out){
-    i32 w = (bar.x1 - bar.x0);
+gui_scrollbar_slider(i32_Rect bar, i32_Rect *slider, f32 s, f32 *min_out, f32 *max_out, f32 target_min, f32 target_max){
+    i32 h, w = (bar.x1 - bar.x0);
     i32 min, max, pos;
+    
+    f32 screen_size;
+    f32 full_size;
+    f32 ratio;
+    
+    screen_size = (f32)(bar.y1 - bar.y0);
+    full_size = (f32)(target_max - target_min + screen_size);
+    ratio = 1.f;
+    if (full_size > screen_size){
+        ratio = screen_size/full_size;
+    }
+    
+    h = (i32)(ratio * bar.y1 - bar.y0 - w*2);
+    
+    if (h < w){
+        h = w;
+    }
     
     slider->x0 = bar.x0;
     slider->x1 = bar.x1;
-
-    min = bar.y0 + w + w/2;
-    max = bar.y1 - w - w/2;
+    
+    min = bar.y0 + w + h/2;
+    max = bar.y1 - w - h/2;
     
     pos = lerp(min, s, max);
     
-    slider->y0 = pos - w/2;
-    slider->y1 = slider->y0 + w;
+    slider->y0 = pos - h/2;
+    slider->y1 = slider->y0 + h;
     
     *min_out = (f32)min;
     *max_out = (f32)max;
@@ -523,7 +564,6 @@ gui_scrollbar_slider(i32_Rect bar, i32_Rect *slider, f32 s, f32 *min_out, f32 *m
 internal void
 gui_scrollbar_bottom(i32_Rect bar, i32_Rect *bottom){
     i32 w = (bar.x1 - bar.x0);
-    
     bottom->x0 = bar.x0;
     bottom->x1 = bar.x1;
     bottom->y1 = bar.y1;
@@ -538,6 +578,7 @@ gui_interpret(GUI_Target *target, GUI_Session *session, GUI_Header *h){
     GUI_Section *end_section = 0;
     b32 give_to_user = 0;
     b32 always_give_to_user = 0;
+    b32 do_layout = 1;
     i32_Rect rect = {0};
     i32 y = 0;
     i32 end_v = -1;
@@ -612,15 +653,17 @@ gui_interpret(GUI_Target *target, GUI_Session *session, GUI_Header *h){
         case guicom_text_input:
         case guicom_file_input:
         always_give_to_user = 1;
+        do_layout = 0;
         break;
         
         case guicom_file_option:
+        case guicom_fixed_option:
         give_to_user = 1;
         rect = gui_layout_fixed_h(session, y, session->line_height * 2);
         end_v = rect.y1;
         end_section = section;
         break;
-
+        
         case guicom_scrollable:
         Assert(session->is_scrollable == 0);
         Assert(!section->overlapped);
@@ -638,7 +681,6 @@ gui_interpret(GUI_Target *target, GUI_Session *session, GUI_Header *h){
             scrollable_rect.x1 = rect.x0;
             scrollable_rect.y0 = rect.y0;
             scrollable_rect.y1 = rect.y1;
-
             target->scroll_updated.region = scrollable_rect;
         }
         break;
@@ -655,9 +697,14 @@ gui_interpret(GUI_Target *target, GUI_Session *session, GUI_Header *h){
         Assert(session->is_scrollable);
         Assert(!section->overlapped);
         give_to_user = 1;
+        
         lerp_space_scroll_v = unlerp(
-            (f32)target->scroll_original.min_y, (f32)target->scroll_original.target_y, (f32)target->scroll_original.max_y);
-        gui_scrollbar_slider(session->scroll_rect, &rect, lerp_space_scroll_v, &session->scroll_top, &session->scroll_bottom);
+            (f32)target->scroll_original.min_y,
+            (f32)target->scroll_original.target_y,
+            (f32)target->scroll_original.max_y);
+        
+        gui_scrollbar_slider(session->scroll_rect, &rect, lerp_space_scroll_v,
+            &session->scroll_top, &session->scroll_bottom, target->scroll_original.min_y, target->scroll_original.max_y);
         scroll_v = 0;
         break;
 
@@ -669,33 +716,38 @@ gui_interpret(GUI_Target *target, GUI_Session *session, GUI_Header *h){
         scroll_v = 0;
         break;
 
-        case guicom_scrollable_section_begin:
+        case guicom_begin_scrollable_section:
         always_give_to_user = 1;
-        session->suggested_min_y = -(f32)(session->clip_rect.y0 - session->rect.y0);
-        session->suggested_max_y = (f32)(session->absolute_rect.y1 - session->full_rect.y1 * .5f);
+        session->scrollable_items_bottom = 0;
         rect = gui_layout_top_bottom(session, y, session->full_rect.y1);
         end_v = rect.y1;
         break;
 
-        case guicom_scrollable_section_end:
+        case guicom_end_scrollable_section:
         always_give_to_user = 1;
+        session->suggested_min_y = -(f32)(session->clip_rect.y0 - session->rect.y0);
+        session->suggested_max_y = (f32)(session->scrollable_items_bottom - session->full_rect.y1 * .5f);
         break;
     }
 
-    {
+    if (do_layout){
         GUI_Section *section = session->sections;
         i32 max_v = 0;
         i32 i = 0;
-
-        for (i = 0; i <= session->t; ++i, ++section){
-            if (section->overlapped){
-                max_v = Max(max_v, section->max_v);
-            }
-        }
-
+        
         session->absolute_rect = rect;
 
         if (give_to_user){
+            for (i = 0; i <= session->t; ++i, ++section){
+                if (section->overlapped){
+                    max_v = Max(max_v, section->max_v);
+                }
+            }
+
+            if (session->is_scrollable){
+                session->scrollable_items_bottom = Max(session->scrollable_items_bottom, rect.y1);
+            }
+
             rect.y0 -= scroll_v;
             rect.y1 -= scroll_v;
 
@@ -713,14 +765,14 @@ gui_interpret(GUI_Target *target, GUI_Session *session, GUI_Header *h){
                 give_to_user = 0;
             }
         }
-    }
 
-    if (end_section){
-        gui_section_end_item(end_section, end_v);
-    }
+        if (end_section){
+            gui_section_end_item(end_section, end_v);
+        }
 
-    if (y - scroll_v >= session->full_rect.y1){
-        give_to_user = 0;
+        if (y - scroll_v >= session->full_rect.y1){
+            give_to_user = 0;
+        }
     }
 
     return(give_to_user || always_give_to_user);
