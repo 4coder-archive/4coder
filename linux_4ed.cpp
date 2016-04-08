@@ -40,6 +40,7 @@
 #include <sys/time.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <sys/mman.h>
 #include <dirent.h>
 #include <stdio.h>
 #include <X11/Xlib.h>
@@ -177,7 +178,6 @@ globalvar Exchange exchange_vars;
 
 internal void*
 LinuxGetMemory_(i32 size, i32 line_number, char *file_name){
-    // TODO(allen): Implement without stdlib.h
     void *result = 0;
     
     Assert(size != 0);
@@ -197,7 +197,15 @@ LinuxGetMemory_(i32 size, i32 line_number, char *file_name){
     result = bubble + 1;
     
 #else
-    result = malloc(size);
+    size_t real_size = size + sizeof(size_t);
+    result = mmap(0, real_size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+    if(result == MAP_FAILED){
+        perror("mmap");
+        result = NULL;
+    } else {
+        memcpy(result, &real_size, sizeof(size_t));
+        result = (char*)result + sizeof(size_t);
+    }
 #endif
     
     return(result);
@@ -205,8 +213,6 @@ LinuxGetMemory_(i32 size, i32 line_number, char *file_name){
 
 internal void
 LinuxFreeMemory(void *block){
-    // TODO(allen): Implement without stdlib.h
-    
     if (block){
 #if FRED_INTERNAL
         Sys_Bubble *bubble;
@@ -220,7 +226,9 @@ LinuxFreeMemory(void *block){
         
         free(bubble);
 #else
-        free(block);
+        block = (char*)block - sizeof(size_t);
+        size_t len = *(size_t*)block;
+        munmap(block, len);
 #endif
     }
 }
@@ -1145,23 +1153,29 @@ Sys_To_Binary_Path(system_to_binary_path){
 }
 
 internal b32
-LinuxLoadAppCode(){
+LinuxLoadAppCode(String* base_dir){
     b32 result = 0;
     App_Get_Functions *get_funcs = 0;
 
-    linuxvars.app_code = dlopen("./4ed_app.so", RTLD_LAZY);
+    if(!system_to_binary_path(base_dir, "4ed_app.so")){
+        return 0;
+    }
+
+    printf("DLOPEN: %s\n", base_dir->str);
+
+    linuxvars.app_code = dlopen(base_dir->str, RTLD_LAZY);
     if (linuxvars.app_code){
         get_funcs = (App_Get_Functions*)
             dlsym(linuxvars.app_code, "app_get_functions");
     } else {
         fprintf(stderr, "dlopen failed: %s\n", dlerror());
     }
-    
+
     if (get_funcs){
         result = 1;
         linuxvars.app = get_funcs();
     }
-    
+
     return(result);
 }
 
@@ -1802,11 +1816,14 @@ main(int argc, char **argv)
 
     linuxvars.first = 1;
 
-    if (!LinuxLoadAppCode()){
+    char base_dir_mem[PATH_MAX];
+    String base_dir = make_fixed_width_string(base_dir_mem);
+
+    if (!LinuxLoadAppCode(&base_dir)){
         // TODO(allen): Failed to load app code, serious problem.
         return 99;
     }
-    
+
     System_Functions system_;
     System_Functions *system = &system_;
     linuxvars.system = system;
@@ -1885,11 +1902,15 @@ main(int argc, char **argv)
     keycode_init(linuxvars.XDisplay);
 
 #ifdef FRED_SUPER
-    char *custom_file_default = "./4coder_custom.so";
+    char custom_file_default[] = "4coder_custom.so";
     char *custom_file;
-    if (linuxvars.settings.custom_dll) custom_file = linuxvars.settings.custom_dll;
-    else custom_file = custom_file_default;
-    
+    if (linuxvars.settings.custom_dll){
+        custom_file = linuxvars.settings.custom_dll;
+    } else {
+        system_to_binary_path(&base_dir, custom_file_default);
+        custom_file = base_dir.str;
+    }
+
     linuxvars.custom = dlopen(custom_file, RTLD_LAZY);
     if (!linuxvars.custom && custom_file != custom_file_default){
         if (!linuxvars.settings.custom_dll_is_strict){
@@ -1961,7 +1982,7 @@ main(int argc, char **argv)
     linuxvars.target.max = Mbytes(1);
     linuxvars.target.push_buffer = (byte*)system_get_memory(linuxvars.target.max);
     
-    File_Slot file_slots[32];
+    File_Slot file_slots[32] = {};
     sysshared_init_file_exchange(&exchange_vars, file_slots, ArrayCount(file_slots), 0);
 
     Font_Load_Parameters params[8];
