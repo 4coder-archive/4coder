@@ -13,22 +13,6 @@
 
 internal void
 keycode_init(Display* dpy){
-#if 0
-    // NOTE(inso): these are for XInput, currently not used.
-
-    keycode_lookup_table[KEY_BACKSPACE] = codes->back;
-    keycode_lookup_table[KEY_DELETE] = codes->del;
-    keycode_lookup_table[KEY_UP] = codes->up;
-    keycode_lookup_table[KEY_DOWN] = codes->down;
-    keycode_lookup_table[KEY_LEFT] = codes->left;
-    keycode_lookup_table[KEY_RIGHT] = codes->right;
-    keycode_lookup_table[KEY_INSERT] = codes->insert;
-    keycode_lookup_table[KEY_HOME] = codes->home;
-    keycode_lookup_table[KEY_END] = codes->end;
-    keycode_lookup_table[KEY_PAGEUP] = codes->page_up;
-    keycode_lookup_table[KEY_PAGEDOWN] = codes->page_down;
-    keycode_lookup_table[KEY_ESC] = codes->esc;
-#endif
 
     // NOTE(inso): This looks a bit dumb, but it's the best way I can think of to do it, since:
     // KeySyms are the type representing "virtual" keys, like XK_BackSpace, but they are 32-bit ints.
@@ -55,7 +39,19 @@ keycode_init(Display* dpy){
         { XK_End, key_end },
         { XK_Page_Up, key_page_up },
         { XK_Page_Down, key_page_down },
-        { XK_Escape, key_esc }
+        { XK_Escape, key_esc },
+        { XK_F1, key_f1 },
+        { XK_F2, key_f2 },
+        { XK_F3, key_f3 },
+        { XK_F4, key_f4 },
+        { XK_F5, key_f5 },
+        { XK_F6, key_f6 },
+        { XK_F7, key_f7 },
+        { XK_F8, key_f8 },
+        { XK_F9, key_f9 },
+        { XK_F10, key_f10 },
+        { XK_F11, key_f11 },
+        { XK_F12, key_f12 },
     };
 
     const int table_size = sizeof(sym_table) / sizeof(struct SymMapping);
