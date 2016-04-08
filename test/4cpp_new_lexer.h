@@ -115,38 +115,6 @@ static String_And_Flag keyword_strings[] = {
 };
 static String_List keywords = lexer_string_list(keyword_strings);
 
-static String_And_Flag preprop_strings[] = {
-	{"include", CPP_PP_INCLUDE},
-	{"INCLUDE", CPP_PP_INCLUDE},
-	{"ifndef", CPP_PP_IFNDEF},
-	{"IFNDEF", CPP_PP_IFNDEF},
-	{"define", CPP_PP_DEFINE},
-	{"DEFINE", CPP_PP_DEFINE},
-	{"import", CPP_PP_IMPORT},
-	{"IMPORT", CPP_PP_IMPORT},
-	{"pragma", CPP_PP_PRAGMA},
-	{"PRAGMA", CPP_PP_PRAGMA},
-	{"undef", CPP_PP_UNDEF},
-	{"UNDEF", CPP_PP_UNDEF},
-	{"endif", CPP_PP_ENDIF},
-	{"ENDIF", CPP_PP_ENDIF},
-	{"error", CPP_PP_ERROR},
-	{"ERROR", CPP_PP_ERROR},
-	{"ifdef", CPP_PP_IFDEF},
-	{"IFDEF", CPP_PP_IFDEF},
-	{"using", CPP_PP_USING},
-	{"USING", CPP_PP_USING},
-	{"else", CPP_PP_ELSE},
-	{"ELSE", CPP_PP_ELSE},
-	{"elif", CPP_PP_ELIF},
-	{"ELIF", CPP_PP_ELIF},
-	{"line", CPP_PP_LINE},
-	{"LINE", CPP_PP_LINE},
-	{"if", CPP_PP_IF},
-    {"IF", CPP_PP_IF},
-};
-static String_List preprops = lexer_string_list(preprop_strings);
-
 lexer_link Sub_Match_List_Result
 sub_match_list(char *chunk, int size, int pos, String_List list, int sub_size){
 	Sub_Match_List_Result result;

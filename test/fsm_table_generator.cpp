@@ -9,6 +9,10 @@
 
 /* TODO(allen):
 
+Next Time:
+Finish linking from one FSM to the next in the keyword recognizer.
+
+
 1. Reduce away states that only ever show up as terminal states.
 2. Reduce away states that cannot ever be reached.
 3. Output new enum that only includes the reduced states.
@@ -63,6 +67,9 @@ static String_And_Flag preprop_strings[] = {
     {"IF", CPP_PP_IF},
 };
 static String_And_Flag keyword_strings[] = {
+    {"true", CPP_TOKEN_BOOLEAN_CONSTANT},
+    {"false", CPP_TOKEN_BOOLEAN_CONSTANT},
+    
     {"and", CPP_TOKEN_AND},
     {"and_eq", CPP_TOKEN_ANDEQ},
     {"bitand", CPP_TOKEN_BIT_AND},
@@ -149,15 +156,26 @@ static String_And_Flag keyword_strings[] = {
     {"thread_local", CPP_TOKEN_KEY_OTHER},
 };
 
-#define TerminalBase 200
-
 struct FSM_State{
     unsigned char transition_rule[256];
+    unsigned char override;
 };
 
 struct FSM{
     FSM_State *states;
     unsigned short count, max;
+    
+    FSM_State *term_states;
+    unsigned short term_count, term_max;
+    
+    unsigned char terminal_base;
+    
+    char *comment;
+};
+
+struct FSM_Stack{
+    FSM *fsms;
+    int count, max;
 };
 
 struct Match_Node{
@@ -176,6 +194,108 @@ struct Match_Tree{
     int count, max;
 };
 
+struct Match_Tree_Stack{
+    Match_Tree *trees;
+    int count, max;
+};
+
+struct Future_FSM{
+    Match_Node *source;
+};
+
+struct Future_FSM_Stack{
+    Future_FSM *futures;
+    int count, max;
+};
+
+FSM*
+get_fsm(FSM_Stack *stack){
+    FSM* result = 0;
+    assert(stack->count < stack->max);
+    result = &stack->fsms[stack->count++];
+    return(result);
+}
+
+Match_Tree*
+get_tree(Match_Tree_Stack *stack){
+    Match_Tree* result = 0;
+    assert(stack->count < stack->max);
+    result = &stack->trees[stack->count++];
+    return(result);
+}
+
+FSM
+fsm_init(unsigned short max){
+    FSM fsm;
+    int memsize;
+    fsm.max = max;
+    fsm.count = 0;
+    memsize = sizeof(FSM_State)*fsm.max;
+    fsm.states = (FSM_State*)malloc(memsize);
+    
+    fsm.term_max = max;
+    fsm.term_count = 0;
+    memsize = sizeof(FSM_State)*fsm.term_max;
+    fsm.term_states = (FSM_State*)malloc(memsize);
+    
+    fsm.comment = 0;
+    return(fsm);
+}
+
+void
+fsm_add_comment(FSM *fsm, char *str){
+    int comment_len;
+    int str_len;
+    char *new_comment;
+    
+    str_len = (int)strlen(str);
+    
+    if (fsm->comment != 0){
+        comment_len = (int)strlen(fsm->comment);
+        new_comment = (char*)malloc(str_len + comment_len + 1);
+
+        memcpy(new_comment, fsm->comment, comment_len);
+        memcpy(new_comment + comment_len, str, str_len);
+        new_comment[comment_len + str_len] = 0;
+        
+        free(fsm->comment);
+        fsm->comment = new_comment;
+    }
+    else{
+        fsm->comment = (char*)malloc(str_len + 1);
+        memcpy(fsm->comment, str, str_len);
+        fsm->comment[str_len] = 0;
+	}
+}
+
+Match_Tree
+tree_init(unsigned short max){
+    Match_Tree tree;
+    int memsize;
+    tree.max = max;
+    tree.count = 0;
+    memsize = sizeof(Match_Node)*tree.max;
+    tree.nodes = (Match_Node*)malloc(memsize);
+    return(tree);
+}
+
+void
+push_future_fsm(Future_FSM_Stack *stack, Match_Node *node){
+    Future_FSM *future;
+    assert(stack->count < stack->max);
+    future = &stack->futures[stack->count++];
+    future->source = node;
+}
+
+Future_FSM*
+pop_future_fsm(Future_FSM_Stack *stack){
+    Future_FSM *result = 0;
+    assert(stack->count > 0);
+    --stack->count;
+    result = stack->futures + stack->count;
+    return(result);
+}
+
 Match_Node*
 match_get_node(Match_Tree *tree){
     Match_Node *result;
@@ -192,20 +312,40 @@ match_init_node(Match_Node *node, int match_count){
 }
 
 void
+match_copy_init_node(Match_Node *node, Match_Node *source){
+    *node = {};
+    node->max = source->count;
+    node->count = source->count;
+    node->words = (int*)malloc(sizeof(int)*source->count);
+    node->index = source->index;
+    memcpy(node->words, source->words, sizeof(int)*source->count);
+}
+
+void
 match_add_word(Match_Node *node, int word){
     assert(node->count < node->max);
     node->words[node->count++] = word;
 }
 
 FSM_State*
-fsm_get_state(FSM *fsm){
+fsm_get_state(FSM *fsm, unsigned char terminal_base){
     FSM_State *result;
     unsigned short i;
     assert(fsm->count < fsm->max);
     result = &fsm->states[fsm->count++];
     for (i = 0; i < 256; ++i){
-        result->transition_rule[i] = TerminalBase;
+        result->transition_rule[i] = terminal_base;
 	}
+    result->override = 0;
+    return(result);
+}
+
+FSM_State*
+fsm_get_term_state(FSM *fsm, unsigned char override){
+    FSM_State *result;
+    assert(fsm->term_count < fsm->term_max);
+    result = &fsm->term_states[fsm->term_count++];
+    result->override = override;
     return(result);
 }
 
@@ -213,6 +353,9 @@ unsigned char
 fsm_index(FSM *fsm, FSM_State *s){
     unsigned char result;
     result = (unsigned char)(unsigned long long)(s - fsm->states);
+    if (s->override){
+        result = fsm->terminal_base + s->override;
+	}
     return(result);
 }
 
@@ -228,7 +371,9 @@ struct Terminal_Lookup_Table{
 };
 
 void
-process_match_node(String_And_Flag *input, Match_Node *node, Match_Tree *tree, FSM *fsm, Terminal_Lookup_Table *terminal_table = 0){
+process_match_node(String_And_Flag *input, Match_Node *node, Match_Tree *tree, FSM *fsm, unsigned char terminal_base,
+    Terminal_Lookup_Table *terminal_table = 0, int levels_to_go = -1, Future_FSM_Stack *unfinished_fsms = 0){
+    
     int next_index = node->index + 1;
     int match_count = node->count;
     FSM_State *this_state = node->state;
@@ -245,8 +390,14 @@ process_match_node(String_And_Flag *input, Match_Node *node, Match_Tree *tree, F
     int count = 0;
     
     unsigned char unjunkify = 0;
+    unsigned char state_override = 0;
     
+    fsm->terminal_base = terminal_base;
     memset(next_nodes, 0, sizeof(next_nodes));
+
+    if (levels_to_go == 1){
+        state_override = terminal_table->state_count;
+	}
     
     for (i = 0; i < match_count; ++i){
         j = words[i];
@@ -259,77 +410,86 @@ process_match_node(String_And_Flag *input, Match_Node *node, Match_Tree *tree, F
             if (next_nodes[c] == 0){
                 next_nodes[c] = match_get_node(tree);
                 match_init_node(next_nodes[c], match_count);
-                next_nodes[c]->state = fsm_get_state(fsm);
+                
                 next_nodes[c]->index = next_index;
+                if (state_override){
+                    next_nodes[c]->state = fsm_get_term_state(fsm, state_override++);
+                }
+                else{
+                    next_nodes[c]->state = fsm_get_state(fsm, terminal_base);
+				}
+                
                 if (newest_child == 0){
                     assert(node->first_child == 0);
                     node->first_child = next_nodes[c];
-				}
+                }
                 else{
                     assert(newest_child->next_sibling == 0);
                     newest_child->next_sibling = next_nodes[c];
-				}
+                }
                 newest_child = next_nodes[c];
                 ++count;
-			}
+            }
             
             match_add_word(next_nodes[c], j);
             fsm_add_transition(this_state, c, fsm_index(fsm, next_nodes[c]->state));
-		}
+        }
         else if (next_index == l){
-            assert(unjunkify == 0);
             if (terminal_table == 0){
+                assert(unjunkify == 0);
                 unjunkify = (unsigned char)saf.flags;
+                assert(unjunkify < 55);
             }
             else{
-                unjunkify = terminal_table->type_to_state[saf.flags];
+				assert(unjunkify == 0);
+                unjunkify = terminal_table->type_to_state[(unsigned char)saf.flags];
+                assert(unjunkify < 55);
 			}
-            assert(unjunkify < 55);
         }
-	}
+    }
     
     if (unjunkify){
         for (i = 0; i < 256; ++i){
-            if (this_state->transition_rule[i] == TerminalBase){
-                this_state->transition_rule[i] = TerminalBase + unjunkify;
-			}
-		}
-	}
-    
-    for (n = node->first_child; n; n = n->next_sibling){
-        process_match_node(input, n, tree, fsm, terminal_table);
-	}
+            if (this_state->transition_rule[i] == terminal_base){
+                this_state->transition_rule[i] = terminal_base + unjunkify;
+            }
+        }
+    }
+
+    if (levels_to_go == 1){
+        for (n = node->first_child; n; n = n->next_sibling){
+            push_future_fsm(unfinished_fsms, n);
+        }
+    }
+    else{
+        for (n = node->first_child; n; n = n->next_sibling){
+            process_match_node(input, n, tree, fsm, terminal_base, terminal_table, levels_to_go - 1, unfinished_fsms);
+        }
+    }
 }
 
 FSM
 generate_pp_directive_fsm(){
     Match_Tree tree;
-    Match_Node *root_node;
     FSM fsm;
+    Match_Node *root_node;
     FSM_State *root_state;
-    int memsize;
+    int i;
     
-    fsm.max = 200;
-    fsm.count = 0;
-    memsize = sizeof(FSM_State)*fsm.max;
-    fsm.states = (FSM_State*)malloc(memsize);
+    fsm = fsm_init(200);
+    tree = tree_init(200);
     
-    tree.max = 200;
-    tree.count = 0;
-    memsize = sizeof(Match_Node)*tree.max;
-    tree.nodes = (Match_Node*)malloc(memsize);
-    
-    root_state = fsm_get_state(&fsm);
+    root_state = fsm_get_state(&fsm, 200);
     
     root_node = match_get_node(&tree);
     match_init_node(root_node, ArrayCount(preprop_strings));
-    for (int i = 0; i < ArrayCount(preprop_strings); ++i){
+    for (i = 0; i < ArrayCount(preprop_strings); ++i){
         root_node->words[i] = i;
 	}
     root_node->count = ArrayCount(preprop_strings);
     root_node->state = root_state;
     root_node->index = -1;
-    process_match_node(preprop_strings, root_node, &tree, &fsm);
+    process_match_node(preprop_strings, root_node, &tree, &fsm, 200);
     
     root_state->transition_rule[' '] = 0;
     root_state->transition_rule['\t'] = 0;
@@ -338,6 +498,89 @@ generate_pp_directive_fsm(){
     root_state->transition_rule['\f'] = 0;
     
     return(fsm);
+}
+
+FSM_Stack
+generate_keyword_fsms(){
+    Terminal_Lookup_Table terminal_table;
+    Cpp_Token_Type type;
+    
+    Future_FSM_Stack unfinished_futures;
+    Match_Tree_Stack tree_stack;
+    FSM_Stack fsm_stack;
+    Match_Tree *tree;
+    FSM *fsm;
+    Future_FSM *future;
+    Match_Node *root_node;
+    FSM_State *root_state;
+    int i;
+    
+    memset(terminal_table.type_to_state, 0, sizeof(terminal_table.type_to_state));
+    memset(terminal_table.state_to_type, 0, sizeof(terminal_table.state_to_type));
+    
+    for (i = 0; i < ArrayCount(keyword_strings); ++i){
+        type = (Cpp_Token_Type)keyword_strings[i].flags;
+        if (terminal_table.type_to_state[type] == 0){
+            terminal_table.type_to_state[type] = terminal_table.state_count;
+            terminal_table.state_to_type[terminal_table.state_count] = type;
+            ++terminal_table.state_count;
+		}
+	}
+    
+    fsm_stack.max = 1024;
+    fsm_stack.count = 0;
+    fsm_stack.fsms = (FSM*)malloc(sizeof(FSM)*fsm_stack.max);
+    
+    tree_stack.max = 1024;
+    tree_stack.count = 0;
+    tree_stack.trees = (Match_Tree*)malloc(sizeof(Match_Tree)*tree_stack.max);
+    
+    unfinished_futures.max = 1024;
+    unfinished_futures.count = 0;
+    unfinished_futures.futures = (Future_FSM*)malloc(sizeof(Future_FSM)*unfinished_futures.max);
+    
+    fsm = get_fsm(&fsm_stack);
+    tree = get_tree(&tree_stack);
+    
+    *fsm = fsm_init(200);
+    *tree = tree_init(200);
+    
+    root_state = fsm_get_state(fsm, 40);
+    root_node = match_get_node(tree);
+    match_init_node(root_node, ArrayCount(keyword_strings));
+    for (i = 0; i < ArrayCount(keyword_strings); ++i){
+        root_node->words[i] = i;
+	}
+    
+    root_node->count = ArrayCount(keyword_strings);
+    root_node->state = root_state;
+    root_node->index = -1;
+    
+    process_match_node(keyword_strings, root_node, tree, fsm, 40, &terminal_table, 2, &unfinished_futures);
+    
+    while (unfinished_futures.count > 0){
+        future = pop_future_fsm(&unfinished_futures);
+        
+        fsm = get_fsm(&fsm_stack);
+        tree = get_tree(&tree_stack);
+        
+        *fsm = fsm_init(200);
+        *tree = tree_init(200);
+        
+        root_state = fsm_get_state(fsm, 40);
+        root_node = match_get_node(tree);
+        match_copy_init_node(root_node, future->source);
+        root_node->state = root_state;
+
+        for (i = 0; i < root_node->count; ++i){
+            char space[1024];
+            sprintf(space, "%s\n", keyword_strings[root_node->words[i]].str);
+            fsm_add_comment(fsm, space);
+        }
+        process_match_node(keyword_strings, root_node, tree, fsm, 40, &terminal_table, 2, &unfinished_futures);
+	}
+    
+    return(fsm_stack);
 }
 
 Whitespace_FSM
@@ -534,13 +777,7 @@ main_fsm(Lex_FSM fsm, unsigned char pp_state, unsigned char c){
             }
             break;
 
-            case LS_pp:
-#if 0
-            if (!((c >= '0' && c <= '9') || (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_')){
-                fsm.emit_token = 1;
-            }
-#endif
-            break;
+            case LS_pp:break;
 
             case LS_char:
             case LS_char_multiline:
@@ -989,6 +1226,11 @@ render_variable(FILE *file, char *type, char *variable, unsigned int x){
     fprintf(file, "%s %s = %d;\n\n", type, variable, x);
 }
 
+void
+render_comment(FILE *file, char *comment){
+    fprintf(file, "/*\n%s*/\n", comment);
+}
+
 struct PP_Names{
     unsigned char pp_state;
     char *name;
@@ -1010,22 +1252,22 @@ FSM_Tables
 generate_table_from_abstract_fsm(FSM fsm){
     unsigned char state_count = (unsigned char)fsm.count;
     FSM_Tables table;
-    allocate_full_tables(&table, state_count);
     
+    allocate_full_tables(&table, state_count);
+
     int i = 0;
     unsigned char new_state;
     for (unsigned short c = 0; c < 256; ++c){
         for (unsigned char state = 0; state < state_count; ++state){
             new_state = fsm.states[state].transition_rule[c];
             table.full_transition_table[i++] = new_state;
-		}
-	}
-    
+        }
+    }
+
     do_table_reduction(&table, state_count);
     
     return(table);
 }
-
 
 int
 main(){
@@ -1044,7 +1286,7 @@ main(){
     }
     end_row(file);
     end_table(file);
-        
+    
     for (int i = 0; i < ArrayCount(pp_names); ++i){
         assert(i == pp_names[i].pp_state);
         FSM_Tables tables = generate_fsm_table(pp_names[i].pp_state);
@@ -1071,8 +1313,22 @@ main(){
     render_fsm_table(file, pp_directive_tables, "pp_directive");
     render_variable(file, "unsigned char", "LSDIR_default", 0);
     render_variable(file, "unsigned char", "LSDIR_count", pp_directive_fsm.count);
-    render_variable(file, "unsigned char", "pp_directive_terminal_base", TerminalBase);
+    render_variable(file, "unsigned char", "pp_directive_terminal_base", pp_directive_fsm.terminal_base);
+
+    FSM_Stack keyword_fsms = generate_keyword_fsms();
     
+    render_variable(file, "unsigned char", "keywords_part_terminal_base", keyword_fsms.fsms[0].terminal_base);
+    for (int i = 0; i < keyword_fsms.count; ++i){
+        FSM_Tables partial_keywords_table = generate_table_from_abstract_fsm(keyword_fsms.fsms[i]);
+        if (keyword_fsms.fsms[i].comment){
+            render_comment(file, keyword_fsms.fsms[i].comment);
+        }
+        
+        char name[1024];
+        sprintf(name, "keyword_part_%d_table", i);
+        render_fsm_table(file, partial_keywords_table, name);
+	}
+
     fclose(file);
     return(0);
 }
