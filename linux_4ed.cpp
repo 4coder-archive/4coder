@@ -2277,6 +2277,11 @@ main(int argc, char **argv)
                     Event.xkey.state &= ~LockMask;
                     XLookupString(&Event.xkey, no_caps_buff, sizeof(no_caps_buff), NULL, NULL);
 
+                    if(keysym == XK_ISO_Left_Tab){
+                        *buff = *no_caps_buff = '\t';
+                        mods[MDFR_SHIFT_INDEX] = 1;
+                    }
+
                     u8 key = keycode_lookup(Event.xkey.keycode);
 
                     if(key){
