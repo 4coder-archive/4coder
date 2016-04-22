@@ -317,6 +317,9 @@ struct Lex_Data{
     unsigned char pp_state;
     unsigned char completed;
     
+    unsigned short *key_eq_classes;
+    unsigned char *key_table;
+    
     Cpp_Token token;
     
     int __pc__;
@@ -354,6 +357,7 @@ cpp_lex_nonalloc(Lex_Data *S_ptr, char *chunk, int size, Cpp_Token_Stack *token_
         DrCase(4);
         DrCase(5);
         DrCase(6);
+        DrCase(7);
     }
     
     for (;;){
@@ -481,6 +485,37 @@ cpp_lex_nonalloc(Lex_Data *S_ptr, char *chunk, int size, Cpp_Token_Stack *token_
 
                     case LS_identifier:
                     {
+                        S.fsm.state = 0;
+                        S.fsm.emit_token = 0;
+                        S.fsm.sub_machine = 0;
+                        S.key_table = key_tables[S.fsm.sub_machine];
+                        S.key_eq_classes = key_eq_class_tables[S.fsm.sub_machine];
+                        --S.pos;
+                        for (;;){
+                            for (; S.fsm.state < LSKEY_totally_finished && S.pos < end_pos;){
+                                for (; S.fsm.state < LSKEY_table_transition && S.pos < end_pos;){
+                                    c = chunk[S.pos++];
+                                    S.fsm.state = S.key_table[S.fsm.state + S.key_eq_classes[c]];
+                                }
+                                // TODO(allen): udpate table
+                                S.fsm.sub_machine = 0;
+                                S.key_table = key_tables[S.fsm.sub_machine];
+                                S.key_eq_classes = key_eq_class_tables[S.fsm.sub_machine];
+                            }
+                            S.fsm.emit_token = (S.fsm.int_state >= LSKEY_totally_finished);
+
+                            if (S.fsm.emit_token == 0){
+                                DrYield(7, 1);
+                            }
+                            else break;
+                        }
+                        --S.pos;
+
+                        // TODO(allen): do stuff regarding the actual type of the token
+                        S.token.type = CPP_TOKEN_INTEGER_CONSTANT;
+                        S.token.flags = 0;
+                        
+#if 0
                         --S.pos;
 
                         int word_size = S.pos - S.token_start;
@@ -513,6 +548,8 @@ cpp_lex_nonalloc(Lex_Data *S_ptr, char *chunk, int size, Cpp_Token_Stack *token_
                                 S.token.flags = 0;
                             }
                         }
+#endif
+
                     }break;
 
                     case LS_pound:
@@ -558,24 +595,22 @@ cpp_lex_nonalloc(Lex_Data *S_ptr, char *chunk, int size, Cpp_Token_Stack *token_
                     case LS_number:
                     case LS_number0:
                     case LS_hex:
-                    {
-                        S.fsm.int_state = LSINT_default;
-                        S.fsm.emit_token = 0;
-                        --S.pos;
-                        for (;;){
-                            for (; S.fsm.int_state < LSINT_count && S.pos < end_pos;){
-                                c = chunk[S.pos++];
-                                S.fsm.int_state = int_fsm_table[S.fsm.int_state + int_fsm_eq_classes[c]];
-                            }
-                            S.fsm.emit_token = (S.fsm.int_state >= LSINT_count);
-
-                            if (S.fsm.emit_token == 0){
-                                DrYield(5, 1);
-                            }
-                            else break;
+                    S.fsm.int_state = LSINT_default;
+                    S.fsm.emit_token = 0;
+                    --S.pos;
+                    for (;;){
+                        for (; S.fsm.int_state < LSINT_count && S.pos < end_pos;){
+                            c = chunk[S.pos++];
+                            S.fsm.int_state = int_fsm_table[S.fsm.int_state + int_fsm_eq_classes[c]];
                         }
-                        --S.pos;
+                        S.fsm.emit_token = (S.fsm.int_state >= LSINT_count);
+
+                        if (S.fsm.emit_token == 0){
+                            DrYield(5, 1);
+                        }
+                        else break;
                     }
+                    --S.pos;
 
                     S.token.type = CPP_TOKEN_INTEGER_CONSTANT;
                     S.token.flags = 0;

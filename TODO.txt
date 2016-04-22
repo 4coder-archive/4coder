@@ -104,7 +104,7 @@
 ; [] simple multi-line editing
 ; [] allow for arbitrary wrap positions independent of view width
 ; [] word level wrapping ~ temporary measure really want to have totally formatted code 
-; [] manipulate scroll starget API
+; [] manipulate scroll target API
 ; [] error parsing and jump to error
 ; [] additional hooks
 ;    [X] new file
@@ -112,19 +112,19 @@
 ; [] double binding warnings
 ; [] kill rect
 ;
+; GUI related tech
+;    [X] consolidate all GUI code properly
+;    [X] rewrite GUI
+;    [] arrow navigation of GUIs
+;    [] GUI API
+;    [] text links -> arbitrary commands / callbacks?
+;
 ; search related tech
 ;    [X] replace word (incremental and/or in range)
 ;    [] optimize search
 ;    [] allow search wrap around beginning/end
 ;    [] improved custom API for text "streams"
 ;    [] caps insensitivety
-;
-; GUI related tech
-;    [X] consolidate all GUI code properly
-;    [] rewrite GUI
-;    [] GUI API
-;    [] arrow navigation of GUIs
-;    [] text links -> arbitrary commands / callbacks?
 ;
 ; theme related business
 ;    [] fix the versioning system for themes

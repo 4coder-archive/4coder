@@ -3536,19 +3536,17 @@ file_step(View *view, i32_Rect region, Input_Summary *user_input, b32 is_active)
 }
 
 internal void
-view_do_queries(View *view, GUI_Target *target){
+do_widget(View *view, GUI_Target *target){
     Query_Slot *slot;
     Query_Bar *bar;
+    
+    gui_begin_serial_section(target);
+    
     for (slot = view->query_set.used_slot; slot != 0; slot = slot->next){
         bar = slot->query_bar;
         gui_do_text_field(target, bar->prompt, bar->string);
 	}
-}
-
-internal void
-do_widget(View *view, GUI_Target *target){
-    gui_begin_serial_section(target);
-    view_do_queries(view, target);
+    
     gui_end_serial_section(target);
 }
 
@@ -3624,9 +3622,32 @@ step_file_view(System_Functions *system, View *view, b32 is_active){
     f32 min_target_y = view->file_scroll.min_y;
     f32 max_target_y = view->file_scroll.max_y;
     
+    b32 debug = 1;
+    
     gui_begin_top_level(target);
     {
         gui_do_top_bar(target);
+        
+        if (debug){
+            char prompt_space[256];
+            char text_space[256];
+            String prompt, text;
+            
+            prompt = make_fixed_width_string(prompt_space);
+            text = make_fixed_width_string(text_space);
+            
+            copy(&prompt, "U: ");
+            int_to_str((int)view->gui_scroll.target_y, &text);
+            gui_do_text_field(target, prompt, text);
+            
+            copy(&prompt, "O: ");
+            int_to_str((int)view->gui_target.scroll_original.target_y, &text);
+            gui_do_text_field(target, prompt, text);
+            
+            copy(&prompt, "N: ");
+            int_to_str((int)view->gui_target.scroll_updated.target_y, &text);
+            gui_do_text_field(target, prompt, text);
+        }
         
         if (view->showing_ui == VUI_None){
             gui_begin_overlap(target);

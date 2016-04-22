@@ -188,7 +188,7 @@ struct Render_Target{
     Draw_Pop_Clip *pop_clip;
     Draw_Push_Piece *push_piece;
     
-    i32 dpi;
+    //i32 dpi;
 };
 
 #define DpiMultiplier(n,dpi) ((n) * (dpi) / 96)

@@ -12,17 +12,8 @@
 Next Time:
 Finish linking from one FSM to the next in the keyword recognizer.
 
-
-1. Reduce away states that only ever show up as terminal states.
-2. Reduce away states that cannot ever be reached.
-3. Output new enum that only includes the reduced states.
-4. How to name these things so that we can deal with different
-    pp_states that want very similar fsm main states?
-    4.a. Perhaps a lookup table to convert back to canonical enum
-           values after the fsm is finished?
-
-5. How can we eliminate S.tb for keywords?? They are too long for
-    building into an FSM table... (state,index,input) -> state ???
+1. Make sure each FSM follows the rules about state types correctly.
+2. Make a look up table from final states to resulting token types.
 
 */
 
@@ -176,6 +167,9 @@ struct FSM{
 struct FSM_Stack{
     FSM *fsms;
     int count, max;
+    
+    unsigned char table_transition_state;
+    unsigned char final_state;
 };
 
 struct Match_Node{
@@ -212,7 +206,8 @@ FSM*
 get_fsm(FSM_Stack *stack){
     FSM* result = 0;
     assert(stack->count < stack->max);
-    result = &stack->fsms[stack->count++];
+    result = &stack->fsms[stack->count];
+    ++stack->count;
     return(result);
 }
 
@@ -225,7 +220,7 @@ get_tree(Match_Tree_Stack *stack){
 }
 
 FSM
-fsm_init(unsigned short max){
+fsm_init(unsigned short max, unsigned char terminal_base){
     FSM fsm;
     int memsize;
     fsm.max = max;
@@ -239,6 +234,7 @@ fsm_init(unsigned short max){
     fsm.term_states = (FSM_State*)malloc(memsize);
     
     fsm.comment = 0;
+    fsm.terminal_base = terminal_base;
     return(fsm);
 }
 
@@ -328,9 +324,10 @@ match_add_word(Match_Node *node, int word){
 }
 
 FSM_State*
-fsm_get_state(FSM *fsm, unsigned char terminal_base){
+fsm_get_state(FSM *fsm){
     FSM_State *result;
     unsigned short i;
+    unsigned char terminal_base = fsm->terminal_base;
     assert(fsm->count < fsm->max);
     result = &fsm->states[fsm->count++];
     for (i = 0; i < 256; ++i){
@@ -371,12 +368,13 @@ struct Terminal_Lookup_Table{
 };
 
 void
-process_match_node(String_And_Flag *input, Match_Node *node, Match_Tree *tree, FSM *fsm, unsigned char terminal_base,
+process_match_node(String_And_Flag *input, Match_Node *node, Match_Tree *tree, FSM *fsm,
     Terminal_Lookup_Table *terminal_table = 0, int levels_to_go = -1, Future_FSM_Stack *unfinished_fsms = 0){
     
     int next_index = node->index + 1;
     int match_count = node->count;
     FSM_State *this_state = node->state;
+    unsigned char terminal_base = fsm->terminal_base;
     
     int i, j, *words = node->words;
     
@@ -416,7 +414,7 @@ process_match_node(String_And_Flag *input, Match_Node *node, Match_Tree *tree, F
                     next_nodes[c]->state = fsm_get_term_state(fsm, state_override++);
                 }
                 else{
-                    next_nodes[c]->state = fsm_get_state(fsm, terminal_base);
+                    next_nodes[c]->state = fsm_get_state(fsm);
 				}
                 
                 if (newest_child == 0){
@@ -463,7 +461,7 @@ process_match_node(String_And_Flag *input, Match_Node *node, Match_Tree *tree, F
     }
     else{
         for (n = node->first_child; n; n = n->next_sibling){
-            process_match_node(input, n, tree, fsm, terminal_base, terminal_table, levels_to_go - 1, unfinished_fsms);
+            process_match_node(input, n, tree, fsm, terminal_table, levels_to_go - 1, unfinished_fsms);
         }
     }
 }
@@ -476,10 +474,10 @@ generate_pp_directive_fsm(){
     FSM_State *root_state;
     int i;
     
-    fsm = fsm_init(200);
+    fsm = fsm_init(200, 200);
     tree = tree_init(200);
     
-    root_state = fsm_get_state(&fsm, 200);
+    root_state = fsm_get_state(&fsm);
     
     root_node = match_get_node(&tree);
     match_init_node(root_node, ArrayCount(preprop_strings));
@@ -489,7 +487,7 @@ generate_pp_directive_fsm(){
     root_node->count = ArrayCount(preprop_strings);
     root_node->state = root_state;
     root_node->index = -1;
-    process_match_node(preprop_strings, root_node, &tree, &fsm, 200);
+    process_match_node(preprop_strings, root_node, &tree, &fsm);
     
     root_state->transition_rule[' '] = 0;
     root_state->transition_rule['\t'] = 0;
@@ -530,6 +528,7 @@ generate_keyword_fsms(){
     fsm_stack.max = 1024;
     fsm_stack.count = 0;
     fsm_stack.fsms = (FSM*)malloc(sizeof(FSM)*fsm_stack.max);
+    fsm_stack.table_transition_state = 26;
     
     tree_stack.max = 1024;
     tree_stack.count = 0;
@@ -542,10 +541,10 @@ generate_keyword_fsms(){
     fsm = get_fsm(&fsm_stack);
     tree = get_tree(&tree_stack);
     
-    *fsm = fsm_init(200);
+    *fsm = fsm_init(200, fsm_stack.table_transition_state);
     *tree = tree_init(200);
     
-    root_state = fsm_get_state(fsm, 40);
+    root_state = fsm_get_state(fsm);
     root_node = match_get_node(tree);
     match_init_node(root_node, ArrayCount(keyword_strings));
     for (i = 0; i < ArrayCount(keyword_strings); ++i){
@@ -556,7 +555,7 @@ generate_keyword_fsms(){
     root_node->state = root_state;
     root_node->index = -1;
     
-    process_match_node(keyword_strings, root_node, tree, fsm, 40, &terminal_table, 2, &unfinished_futures);
+    process_match_node(keyword_strings, root_node, tree, fsm, &terminal_table, 2, &unfinished_futures);
     
     while (unfinished_futures.count > 0){
         future = pop_future_fsm(&unfinished_futures);
@@ -564,21 +563,25 @@ generate_keyword_fsms(){
         fsm = get_fsm(&fsm_stack);
         tree = get_tree(&tree_stack);
         
-        *fsm = fsm_init(200);
+        *fsm = fsm_init(200, fsm_stack.table_transition_state);
         *tree = tree_init(200);
         
-        root_state = fsm_get_state(fsm, 40);
+        root_state = fsm_get_state(fsm);
         root_node = match_get_node(tree);
         match_copy_init_node(root_node, future->source);
         root_node->state = root_state;
-
+        
         for (i = 0; i < root_node->count; ++i){
             char space[1024];
             sprintf(space, "%s\n", keyword_strings[root_node->words[i]].str);
             fsm_add_comment(fsm, space);
         }
-        process_match_node(keyword_strings, root_node, tree, fsm, 40, &terminal_table, 2, &unfinished_futures);
+        
+        process_match_node(keyword_strings, root_node, tree, fsm, &terminal_table, 12, &unfinished_futures);
 	}
+    
+    assert(fsm_stack.count < 255);
+    fsm_stack.final_state = fsm_stack.table_transition_state + (unsigned char)fsm_stack.count;
     
     return(fsm_stack);
 }
@@ -697,6 +700,7 @@ main_fsm(Lex_FSM fsm, unsigned char pp_state, unsigned char c){
             case LS_default:
             if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_'){
                 fsm.state = LS_identifier;
+                fsm.emit_token = 1;
             }
             else if (c >= '1' && c <= '9'){
                 fsm.state = LS_number;
@@ -764,11 +768,13 @@ main_fsm(Lex_FSM fsm, unsigned char pp_state, unsigned char c){
             }
             break;
 
+#if 0
             case LS_identifier:
             if (!((c >= '0' && c <= '9') || (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_')){
                 fsm.emit_token = 1;
             }
             break;
+#endif
 
             case LS_pound:
             switch (c){
@@ -1317,6 +1323,7 @@ main(){
 
     FSM_Stack keyword_fsms = generate_keyword_fsms();
     
+    char name[1024];
     render_variable(file, "unsigned char", "keywords_part_terminal_base", keyword_fsms.fsms[0].terminal_base);
     for (int i = 0; i < keyword_fsms.count; ++i){
         FSM_Tables partial_keywords_table = generate_table_from_abstract_fsm(keyword_fsms.fsms[i]);
@@ -1324,11 +1331,29 @@ main(){
             render_comment(file, keyword_fsms.fsms[i].comment);
         }
         
-        char name[1024];
         sprintf(name, "keyword_part_%d_table", i);
         render_fsm_table(file, partial_keywords_table, name);
 	}
-
+    
+    begin_ptr_table(file, "short", "key_eq_class_tables");
+    for (int i = 0; i < keyword_fsms.count; ++i){
+        sprintf(name, "keyword_part_%d_table_eq_classes", i);
+        do_table_item_direct(file, name, "");
+        end_row(file);
+    }
+    end_table(file);
+    
+    begin_ptr_table(file, "char", "key_tables");
+    for (int i = 0; i < keyword_fsms.count; ++i){
+        sprintf(name, "keyword_part_%d_table_table", i);
+        do_table_item_direct(file, name, "");
+        end_row(file);
+    }
+    end_table(file);
+    
+    fprintf(file, "#define LSKEY_table_transition %d\n", (int)(keyword_fsms.table_transition_state));
+    fprintf(file, "#define LSKEY_totally_finished %d\n", (int)(keyword_fsms.final_state));
+    
     fclose(file);
     return(0);
 }

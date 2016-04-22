@@ -3385,7 +3385,7 @@ App_Init_Sig(app_init){
                 font_setup[i].file_name_len);
             String name = make_string(font_setup[i].c_name,
                 font_setup[i].name_len);
-            i32 pt_size = DpiMultiplier(font_setup[i].pt_size, target->dpi);
+            i32 pt_size = font_setup[i].pt_size;
 
             font_set_add(partition, models->font_set, file_name, name, pt_size);
         }

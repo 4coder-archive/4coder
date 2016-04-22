@@ -1923,14 +1923,6 @@ WinMain(HINSTANCE hInstance,
     HDC hdc = GetDC(window_handle);
     win32vars.window_hdc = hdc;
     
-    i32 xdpi = GetDeviceCaps(hdc, LOGPIXELSX);
-    i32 ydpi = GetDeviceCaps(hdc, LOGPIXELSY);
-    
-    win32vars.target.dpi = xdpi;
-    if (win32vars.target.dpi < ydpi){
-        win32vars.target.dpi = ydpi;
-    }
-    
     GetClientRect(window_handle, &window_rect);
     
     static PIXELFORMATDESCRIPTOR pfd = {

@@ -99,6 +99,7 @@ struct Lex_FSM{
     union{
         unsigned char int_state;
         unsigned char directive_state;
+        unsigned char sub_machine;
     };
     unsigned char emit_token;
     unsigned char multi_line;
