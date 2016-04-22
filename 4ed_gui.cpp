@@ -410,6 +410,13 @@ gui_get_scroll_vars(GUI_Target *target, u32 scroll_id, GUI_Scroll_Vars *vars_out
     b32 result = 0;
     if (target->scroll_id == scroll_id){
         *vars_out = target->scroll_updated;
+        
+        if (vars_out->target_y < vars_out->min_y) vars_out->target_y = vars_out->min_y;
+        if (vars_out->target_y > vars_out->max_y) vars_out->target_y = vars_out->max_y;
+        
+        if (vars_out->scroll_y < vars_out->min_y) vars_out->scroll_y = vars_out->min_y;
+        if (vars_out->scroll_y > vars_out->max_y) vars_out->scroll_y = vars_out->max_y;
+        
         if (gui_id_eq(target->active, gui_id_scrollbar())){
             result = 1;
         }
@@ -727,6 +734,9 @@ gui_interpret(GUI_Target *target, GUI_Session *session, GUI_Header *h){
         always_give_to_user = 1;
         session->suggested_min_y = -(f32)(session->clip_rect.y0 - session->rect.y0);
         session->suggested_max_y = (f32)(session->scrollable_items_bottom - session->full_rect.y1 * .5f);
+        if (session->suggested_max_y < 0){
+            session->suggested_max_y = 0;
+        }
         break;
     }
 

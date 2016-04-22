@@ -3620,15 +3620,13 @@ step_file_view(System_Functions *system, View *view, b32 is_active){
     Models *models = view->models;
     
     f32 min_target_y = view->file_scroll.min_y;
-    f32 max_target_y = view->file_scroll.max_y;
-    
-    b32 debug = 1;
     
     gui_begin_top_level(target);
     {
         gui_do_top_bar(target);
         
-        if (debug){
+#if 0
+        {
             char prompt_space[256];
             char text_space[256];
             String prompt, text;
@@ -3648,6 +3646,7 @@ step_file_view(System_Functions *system, View *view, b32 is_active){
             int_to_str((int)view->gui_target.scroll_updated.target_y, &text);
             gui_do_text_field(target, prompt, text);
         }
+#endif
         
         if (view->showing_ui == VUI_None){
             gui_begin_overlap(target);
@@ -3684,10 +3683,7 @@ step_file_view(System_Functions *system, View *view, b32 is_active){
 				}
                 
                 gui_begin_scrollable(target, view->showing_ui, view->file_scroll, delta);
-                
-                if (view->file_scroll.scroll_y < min_target_y) view->file_scroll.scroll_y = min_target_y;
-                if (view->file_scroll.scroll_y > max_target_y) view->file_scroll.scroll_y = max_target_y;
-                
+
                 gui_do_file(target);
                 
                 gui_end_scrollable(target);
