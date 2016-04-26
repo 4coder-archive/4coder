@@ -3625,29 +3625,6 @@ step_file_view(System_Functions *system, View *view, b32 is_active){
     {
         gui_do_top_bar(target);
         
-#if 0
-        {
-            char prompt_space[256];
-            char text_space[256];
-            String prompt, text;
-            
-            prompt = make_fixed_width_string(prompt_space);
-            text = make_fixed_width_string(text_space);
-            
-            copy(&prompt, "U: ");
-            int_to_str((int)view->gui_scroll.target_y, &text);
-            gui_do_text_field(target, prompt, text);
-            
-            copy(&prompt, "O: ");
-            int_to_str((int)view->gui_target.scroll_original.target_y, &text);
-            gui_do_text_field(target, prompt, text);
-            
-            copy(&prompt, "N: ");
-            int_to_str((int)view->gui_target.scroll_updated.target_y, &text);
-            gui_do_text_field(target, prompt, text);
-        }
-#endif
-        
         if (view->showing_ui == VUI_None){
             gui_begin_overlap(target);
             {
@@ -3859,7 +3836,7 @@ step_file_view(System_Functions *system, View *view, b32 is_active){
                         }
                         
                         if (action != -1){
-                            interactive_view_complete(view, {0}, action);
+                            interactive_view_complete(view, view->dest, action);
 						}
                     }break;
                 }break;
