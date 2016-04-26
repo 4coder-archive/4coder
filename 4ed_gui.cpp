@@ -428,6 +428,8 @@ internal void
 gui_begin_scrollable(GUI_Target *target, u32 scroll_id, GUI_Scroll_Vars scroll_vars, f32 delta){
     GUI_Header *h;
     
+    gui_begin_serial_section(target);
+    
     target->delta = delta;
     h = gui_push_simple_command(target, guicom_scrollable);
     
@@ -444,6 +446,7 @@ gui_begin_scrollable(GUI_Target *target, u32 scroll_id, GUI_Scroll_Vars scroll_v
 internal void
 gui_end_scrollable(GUI_Target *target){
     gui_push_simple_command(target, guicom_end_scrollable_section);
+    gui_end_serial_section(target);
 }
 
 internal void
@@ -453,17 +456,16 @@ gui_activate_scrolling(GUI_Target *target){
 
 struct GUI_Section{
     b32 overlapped;
-    i32 max_v, v;
+    i32 max_v, v, top_v;
 };
 
 struct GUI_Session{
     i32_Rect full_rect;
-    i32_Rect clip_rect;
     i32_Rect rect;
-    i32_Rect absolute_rect;
     
     f32 suggested_min_y;
     f32 suggested_max_y;
+    i32 clip_y;
     
     i32 line_height;
     i32 scroll_bar_w;
@@ -478,6 +480,26 @@ struct GUI_Session{
 };
 
 #define GUIScrollbarWidth 16
+
+internal i32
+gui_session_get_eclipsed_y(GUI_Session *session){
+    GUI_Section *section = session->sections;
+    i32 count = session->t + 1, i;
+    i32 max_v = 0;
+    for (i = 0; i < count; ++i, ++section){
+        if (section->overlapped){
+            max_v = Max(max_v, section->max_v);
+        }
+    }
+    max_v = Max(max_v, session->sections[count-1].top_v);
+    return(max_v);
+}
+
+internal i32
+gui_session_get_current_top(GUI_Session *session){
+    i32 result = session->sections[session->t].top_v;
+    return(result);
+}
 
 internal void
 gui_session_init(GUI_Session *session, i32_Rect full_rect, i32 line_height){
@@ -498,7 +520,9 @@ gui_section_end_item(GUI_Section *section, i32 v){
     if (!section->overlapped){
         section->v = v;
 	}
-    section->max_v = v;
+    if (section->max_v < v){
+        section->max_v = v;
+    }
 }
 
 inline i32_Rect
@@ -608,6 +632,7 @@ gui_interpret(GUI_Target *target, GUI_Session *session, GUI_Header *h){
         new_section->overlapped = 1;
         new_section->v = y;
         new_section->max_v = y;
+        new_section->top_v = y;
         break;
 
         case guicom_end_overlap:
@@ -625,6 +650,7 @@ gui_interpret(GUI_Target *target, GUI_Session *session, GUI_Header *h){
         new_section->overlapped = 0;
         new_section->v = y;
         new_section->max_v = y;
+        new_section->top_v = y;
         break;
 
         case guicom_end_serial:
@@ -732,59 +758,42 @@ gui_interpret(GUI_Target *target, GUI_Session *session, GUI_Header *h){
 
         case guicom_end_scrollable_section:
         always_give_to_user = 1;
-        session->suggested_min_y = -(f32)(session->clip_rect.y0 - session->rect.y0);
+        session->suggested_min_y = -(f32)(gui_session_get_eclipsed_y(session) - gui_session_get_current_top(session));
         session->suggested_max_y = (f32)(session->scrollable_items_bottom - session->full_rect.y1 * .5f);
         if (session->suggested_max_y < 0){
             session->suggested_max_y = 0;
         }
         break;
     }
-
+    
     if (do_layout){
-        GUI_Section *section = session->sections;
-        i32 max_v = 0;
-        i32 i = 0;
-        
-        session->absolute_rect = rect;
-
         if (give_to_user){
-            for (i = 0; i <= session->t; ++i, ++section){
-                if (section->overlapped){
-                    max_v = Max(max_v, section->max_v);
-                }
-            }
-
             if (session->is_scrollable){
                 session->scrollable_items_bottom = Max(session->scrollable_items_bottom, rect.y1);
             }
-
+            
             rect.y0 -= scroll_v;
             rect.y1 -= scroll_v;
-
+            
             if (rect.y1 > session->full_rect.y0){
                 session->rect = rect;
-
-                rect.y0 += scroll_v;
-                if (rect.y0 < max_v){
-                    rect.y0 = max_v;
-                }
-                rect.y0 -= scroll_v;
-                session->clip_rect = rect;
             }
             else{
                 give_to_user = 0;
             }
         }
-
+        
         if (end_section){
             gui_section_end_item(end_section, end_v);
         }
-
+        
         if (y - scroll_v >= session->full_rect.y1){
             give_to_user = 0;
         }
     }
-
+    
+    session->clip_y = gui_session_get_eclipsed_y(session);
+    
     return(give_to_user || always_give_to_user);
 }
 

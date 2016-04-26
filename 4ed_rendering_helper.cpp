@@ -19,6 +19,12 @@ draw_pop_clip(Render_Target *target){
     target->pop_clip(target);
 }
 
+inline void
+draw_change_clip(Render_Target *target, i32_Rect clip_box){
+    target->pop_clip(target);
+    target->push_clip(target, clip_box);
+}
+
 internal void
 begin_render_section(Render_Target *target, System_Functions *system){
     Font_Set *font_set = &target->font_set;

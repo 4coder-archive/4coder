@@ -3650,46 +3650,45 @@ step_file_view(System_Functions *system, View *view, b32 is_active){
         
         if (view->showing_ui == VUI_None){
             gui_begin_overlap(target);
-            do_widget(view, target);
-            
-            gui_begin_serial_section(target);
             {
-                i32 line_height = view->font_height;
-                f32 old_cursor_y = view_get_cursor_y(view);
-                f32 cursor_y = old_cursor_y;
-                f32 cursor_max_y = CursorMaxY(view_file_height(view), line_height);
-                f32 cursor_min_y = CursorMinY(min_target_y, line_height);
-                f32 delta = 9.f * view->font_height;
-                f32 target_y = 0;
+                do_widget(view, target);
                 
-                if (gui_get_scroll_vars(target, view->showing_ui, &view->file_scroll)){
-                    target_y = view->file_scroll.target_y;
-					if (cursor_y > target_y + cursor_max_y){
-                        cursor_y = target_y + cursor_max_y;
-                    }
-                    if (target_y != 0 && cursor_y < target_y + cursor_min_y){
-                        cursor_y = target_y + cursor_min_y;
-                    }
+                gui_begin_serial_section(target);
+                {
+                    i32 line_height = view->font_height;
+                    f32 old_cursor_y = view_get_cursor_y(view);
+                    f32 cursor_y = old_cursor_y;
+                    f32 cursor_max_y = CursorMaxY(view_file_height(view), line_height);
+                    f32 cursor_min_y = CursorMinY(min_target_y, line_height);
+                    f32 delta = 9.f * view->font_height;
+                    f32 target_y = 0;
                     
-                    if (cursor_y != old_cursor_y){
-                        if (cursor_y > old_cursor_y){
-                            cursor_y += view->font_height;
-						}
-                        else{
-							cursor_y -= view->font_height;
-						}
-                        view->cursor = view_compute_cursor_from_xy(view, view->preferred_x, cursor_y);
-                    }
-				}
-                
-                gui_begin_scrollable(target, view->showing_ui, view->file_scroll, delta);
+                    if (gui_get_scroll_vars(target, view->showing_ui, &view->file_scroll)){
+                        target_y = view->file_scroll.target_y;
+                        if (cursor_y > target_y + cursor_max_y){
+                            cursor_y = target_y + cursor_max_y;
+                        }
+                        if (target_y != 0 && cursor_y < target_y + cursor_min_y){
+                            cursor_y = target_y + cursor_min_y;
+                        }
 
-                gui_do_file(target);
-                
-                gui_end_scrollable(target);
+                        if (cursor_y != old_cursor_y){
+                            if (cursor_y > old_cursor_y){
+                                cursor_y += view->font_height;
+                            }
+                            else{
+                                cursor_y -= view->font_height;
+                            }
+                            view->cursor = view_compute_cursor_from_xy(view, view->preferred_x, cursor_y);
+                        }
+                    }
+
+                    gui_begin_scrollable(target, view->showing_ui, view->file_scroll, delta);
+                    gui_do_file(target);
+                    gui_end_scrollable(target);
+                }
+                gui_end_serial_section(target);
             }
-            gui_end_serial_section(target);
-            
             gui_end_overlap(target);
         }
         else{
@@ -3705,7 +3704,7 @@ step_file_view(System_Functions *system, View *view, b32 is_active){
                             case IAct_Save_As: message = make_lit_string("Save As: "); break;
                             case IAct_New: message = make_lit_string("New: "); break;
                         }
-                        
+
                         
                         Exhaustive_File_Loop loop;
                         Exhaustive_File_Info file_info;
@@ -4071,7 +4070,7 @@ do_input_file_view(System_Functions *system, Exchange *exchange,
                 
                 case guicom_file:
                 {
-                    f32 new_min_y = -(f32)(gui_session.clip_rect.y0 - gui_session.rect.y0);
+                    f32 new_min_y = -(f32)(gui_session_get_eclipsed_y(&gui_session)  - gui_session.rect.y0);
                     f32 new_max_y = view_compute_max_target_y(view);
                     
                     view->gui_target.scroll_updated.min_y = new_min_y;
@@ -4663,10 +4662,19 @@ do_render_file_view(System_Functions *system, Exchange *exchange,
     
     v = view_get_scroll_y(view);
     
+    i32_Rect clip_rect = rect;
+    draw_push_clip(target, clip_rect);
+    
     for (h = (GUI_Header*)gui_target->push.base;
         h->type;
         h = NextHeader(h)){
         if (gui_interpret(&view->gui_target, &gui_session, h)){
+            
+            if (gui_session.clip_y > clip_rect.y0){
+                clip_rect.y0 = gui_session.clip_y;
+                draw_change_clip(target, clip_rect);
+            }
+            
             switch (h->type){
                 case guicom_top_bar:
                 {
@@ -4778,17 +4786,19 @@ do_render_file_view(System_Functions *system, Exchange *exchange,
 				}break;
                 
                 case guicom_begin_scrollable_section:
-                {
-                    target->push_clip(target, gui_session.absolute_rect);
-				}break;
+                clip_rect.x1 -= gui_session.scroll_bar_w;
+                draw_push_clip(target, clip_rect);
+                break;
                 
                 case guicom_end_scrollable_section:
-                {
-                    target->pop_clip(target);
-                }break;
+                clip_rect.x1 += gui_session.scroll_bar_w;
+                draw_pop_clip(target);
+                break;
 			}
 		}
 	}
+    
+    draw_pop_clip(target);
 
     return(result);
     
