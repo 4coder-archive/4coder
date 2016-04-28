@@ -128,6 +128,7 @@ enum GUI_Command_Type{
     guicom_file_input,
     guicom_file_option,
     guicom_fixed_option,
+    guicom_fixed_option_checkbox,
     guicom_scrollable,
     guicom_scrollable_top,
     guicom_scrollable_slider,
@@ -368,6 +369,23 @@ gui_do_fixed_option(GUI_Target *target, GUI_id id, String message, char key){
     GUI_Header *h = (GUI_Header*)b;
     gui_push_string(target, h, message);
     gui_push_item(target, h, &key, 1);
+    gui_align(target, h);
+    
+    if (gui_id_eq(id, target->active)){
+        result = 1;
+	}
+    
+    return(result);
+}
+
+internal b32
+gui_do_fixed_option_checkbox(GUI_Target *target, GUI_id id, String message, char key, b8 state){
+    b32 result = 0;
+    GUI_Interactive *b = gui_push_button_command(target, guicom_fixed_option_checkbox, id);
+    GUI_Header *h = (GUI_Header*)b;
+    gui_push_string(target, h, message);
+    gui_push_item(target, h, &key, 1);
+    gui_push_item(target, h, &state, 1);
     gui_align(target, h);
     
     if (gui_id_eq(id, target->active)){
@@ -691,6 +709,7 @@ gui_interpret(GUI_Target *target, GUI_Session *session, GUI_Header *h){
         
         case guicom_file_option:
         case guicom_fixed_option:
+        case guicom_fixed_option_checkbox:
         give_to_user = 1;
         rect = gui_layout_fixed_h(session, y, session->line_height * 2);
         end_v = rect.y1;
@@ -798,6 +817,14 @@ gui_interpret(GUI_Target *target, GUI_Session *session, GUI_Header *h){
 }
 
 #define NextHeader(h) ((GUI_Header*)((char*)(h) + (h)->size))
+
+internal i8
+gui_read_byte(void **ptr){
+    i8 result;
+    result = *(i8*)*ptr;
+    *ptr = ((char*)*ptr) + 1;
+    return(result);
+}
 
 internal i32
 gui_read_integer(void **ptr){

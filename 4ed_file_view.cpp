@@ -88,12 +88,6 @@ struct View{
     String dest;
     
 #if 0
-    // interactive stuff
-    b32 finished;
-    char query_[256];
-    String query;
-    i32 user_action;
-
     // theme stuff
     View *hot_file_view;
     u32 *palette;
@@ -2639,12 +2633,19 @@ view_show_theme(View *view, Command_Map *gui_map){
 }
 #endif
 
+inline void
+view_show_menu(View *view, Command_Map *gui_map){
+    view->map_for_file = view->map;
+    view->map = gui_map;
+    view->showing_ui = VUI_Menu;
+}
 
 inline void
-view_show_menu(View *view, Command_Map *gui_map){}
-
-inline void
-view_show_config(View *view, Command_Map *gui_map){}
+view_show_config(View *view, Command_Map *gui_map){
+    view->map_for_file = view->map;
+    view->map = gui_map;
+    view->showing_ui = VUI_Config;
+}
 
 inline void
 view_show_interactive(System_Functions *system, View *view,
@@ -3671,6 +3672,44 @@ step_file_view(System_Functions *system, View *view, b32 is_active){
         else{
             do_widget(view, target);
             switch (view->showing_ui){
+                case VUI_Menu:
+                {
+                    String message = make_lit_string("Menu");
+                    String empty_string = {0};
+                    GUI_id id = {0};
+                    
+                    gui_do_text_field(target, message, empty_string);
+                    
+                    id.id[0] = (u64)(0 + (IInt_Sure_To_Close << 8));
+                    message = make_lit_string("Theme");
+                    if (gui_do_fixed_option(target, id, message, 0)){
+                        view_show_theme(view, view->map);
+                    }
+                    
+                    id.id[0] = (u64)(1 + (IInt_Sure_To_Close << 8));
+                    message = make_lit_string("Config");
+                    if (gui_do_fixed_option(target, id, message, 0)){
+                        view_show_config(view, view->map);
+                    }
+                }
+                break;
+                
+                case VUI_Config:
+                {
+                    String message = make_lit_string("Config");
+                    String empty_string = {0};
+                    GUI_id id = {0};
+                    
+                    gui_do_text_field(target, message, empty_string);
+                    
+                    id.id[0] = (u64)(0 + (IInt_Sure_To_Close << 8));
+                    message = make_lit_string("Left Ctrl + Left Alt = AltGr");
+                    if (gui_do_fixed_option_checkbox(target, id, message, 0, (b8)models->settings.lctrl_lalt_is_altgr)){
+                        models->settings.lctrl_lalt_is_altgr = !models->settings.lctrl_lalt_is_altgr;
+                    }
+                }
+                break;
+                
                 case VUI_Interactive:
                 switch (view->interaction){
                     case IInt_Sys_File_List:
@@ -4130,6 +4169,7 @@ do_input_file_view(System_Functions *system, Exchange *exchange,
                 }break;
                 
                 case guicom_fixed_option:
+                case guicom_fixed_option_checkbox:
                 {
                     Key_Event_Data key;
                     Key_Summary *keys = &user_input->keys;
@@ -4582,7 +4622,8 @@ do_render_file_bar(Render_Target *target, View *view, Editing_File *file, i32_Re
 }
 
 internal void
-draw_fat_option_block(GUI_Target *gui_target, Render_Target *target, View *view, i32_Rect rect, GUI_id id, String text, String pop){
+draw_fat_option_block(GUI_Target *gui_target, Render_Target *target, View *view, i32_Rect rect, GUI_id id,
+    String text, String pop, i8 checkbox = -1){
     Models *models = view->models;
     Style *style = &models->style;
     
@@ -4616,6 +4657,21 @@ draw_fat_option_block(GUI_Target *gui_target, Render_Target *target, View *view,
     
     draw_rectangle(target, inner, back);
     draw_margin(target, rect, inner, margin);
+    
+    if (checkbox != -1){
+        u32 checkbox_color = style->main.margin_active_color;
+        i32_Rect checkbox_rect = get_inner_rect(inner, (inner.y1 - inner.y0 - h)/2);
+        checkbox_rect.x1 = checkbox_rect.x0 + (checkbox_rect.y1 - checkbox_rect.y0);
+        
+        if (checkbox == 0){
+            draw_rectangle_outline(target, checkbox_rect, checkbox_color);
+        }
+        else{
+            draw_rectangle(target, checkbox_rect, checkbox_color);
+        }
+        
+        x = checkbox_rect.x1 + 3;
+    }
     
     x = draw_string(target, font_id, text, x, y, text_color);
     draw_string(target, font_id, pop, x, y, pop_color);
@@ -4699,6 +4755,18 @@ do_render_file_view(System_Functions *system, Exchange *exchange,
                     String m = {0};
                     
                     draw_fat_option_block(gui_target, target, view, gui_session.rect, b->id, f, m);
+				}break;
+                
+                case guicom_fixed_option_checkbox:
+                {
+                    GUI_Interactive *b = (GUI_Interactive*)h;
+                    void *ptr = (b + 1);
+                    String f = gui_read_string(&ptr);
+                    gui_read_byte(&ptr);
+                    b8 status = (b8)gui_read_byte(&ptr);
+                    String m = {0};
+                    
+                    draw_fat_option_block(gui_target, target, view, gui_session.rect, b->id, f, m, status);
 				}break;
                 
                 case guicom_scrollable:
