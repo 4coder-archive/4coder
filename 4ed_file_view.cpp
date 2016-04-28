@@ -3619,6 +3619,48 @@ get_exhaustive_info(System_Functions *system, Working_Set *working_set, Exhausti
     return(result);
 }
 
+struct Style_Color_Edit{
+    Style_Tag target;
+    Style_Tag fore;
+    Style_Tag back;
+    char *text;
+};
+
+static Style_Color_Edit colors_to_edit[] = {
+    {Stag_Back, Stag_Default, Stag_Back, "Background"},
+    {Stag_Margin, Stag_Default, Stag_Margin, "Margin"},
+    {Stag_Margin_Hover, Stag_Default, Stag_Margin_Hover, "Margin Hover"},
+    {Stag_Margin_Active, Stag_Default, Stag_Margin_Active, "Margin Active"},
+    
+    {Stag_Cursor, Stag_At_Cursor, Stag_Cursor, "Cursor"},
+    {Stag_At_Cursor, Stag_At_Cursor, Stag_Cursor, "Text At Cursor"},
+    {Stag_Mark, Stag_Mark, Stag_Back, "Mark"},
+    
+    {Stag_Highlight, Stag_At_Highlight, Stag_Highlight, "Highlight"},
+    {Stag_At_Highlight, Stag_At_Highlight, Stag_Highlight, "Text At Highlight"},
+    
+    {Stag_Default, Stag_Default, Stag_Back, "Text Default"},
+    {Stag_Comment, Stag_Comment, Stag_Back, "Comment"},
+    {Stag_Keyword, Stag_Keyword, Stag_Back, "Keyword"},
+    {Stag_Str_Constant, Stag_Str_Constant, Stag_Back, "String Constant"},
+    {Stag_Char_Constant, Stag_Char_Constant, Stag_Back, "Character Constant"},
+    {Stag_Int_Constant, Stag_Int_Constant, Stag_Back, "Integer Constant"},
+    {Stag_Float_Constant, Stag_Float_Constant, Stag_Back, "Float Constant"},
+    {Stag_Bool_Constant, Stag_Bool_Constant, Stag_Back, "Boolean Constant"},
+    {Stag_Preproc, Stag_Preproc, Stag_Back, "Preprocessor"},
+    {Stag_Special_Character, Stag_Special_Character, Stag_Back, "Special Character"},
+    
+    {Stag_Highlight_Junk, Stag_Default, Stag_Highlight_Junk, "Junk Highlight"},
+    {Stag_Highlight_White, Stag_Default, Stag_Highlight_White, "Whitespace Highlight"},
+    
+    {Stag_Paste, Stag_Paste, Stag_Back, "Paste Color"},
+    
+    {Stag_Bar, Stag_Base, Stag_Bar, "Bar"},
+    {Stag_Base, Stag_Base, Stag_Bar, "Bar Text"},
+    {Stag_Pop1, Stag_Pop1, Stag_Bar, "Bar Pop 1"},
+    {Stag_Pop2, Stag_Pop2, Stag_Bar, "Bar Pop 2"},
+};
+
 internal i32
 step_file_view(System_Functions *system, View *view, View *active_view){
     GUI_Target *target = &view->gui_target;
@@ -3756,7 +3798,7 @@ step_file_view(System_Functions *system, View *view, View *active_view){
                         break;
                         
                         case CV_Mode_Adjusting:
-                        // TODO(allen): write this
+                        
                         break;
                     }
                 }break;
