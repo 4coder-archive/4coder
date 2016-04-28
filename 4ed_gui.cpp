@@ -69,6 +69,49 @@ struct Super_Color{
     u32 *out;
 };
 
+internal Super_Color
+super_color_create(u32 packed){
+    Super_Color result = {};
+    result.rgba = unpack_color4(packed);
+    result.hsla = rgba_to_hsla(result.rgba);
+    return result;
+}
+
+internal void
+super_color_post_hsla(Super_Color *color, Vec4 hsla){
+    color->hsla = hsla;
+    if (hsla.h == 1.f)
+        hsla.h = 0.f;
+    color->rgba = hsla_to_rgba(hsla);
+    *color->out = pack_color4(color->rgba);
+}
+
+internal void
+super_color_post_rgba(Super_Color *color, Vec4 rgba){
+    color->rgba = rgba;
+    color->hsla = rgba_to_hsla(rgba);
+    *color->out = pack_color4(rgba);
+}
+
+internal void
+super_color_post_packed(Super_Color *color, u32 packed){
+    color->rgba = unpack_color4(packed);
+    color->hsla = rgba_to_hsla(color->rgba);
+    *color->out = packed;
+}
+
+u32 super_color_clear_masks[] = {0xFF00FFFF, 0xFFFF00FF, 0xFFFFFF00};
+u32 super_color_shifts[] = {16, 8, 0};
+
+internal u32
+super_color_post_byte(Super_Color *color, i32 channel, u8 byte){
+    u32 packed = *color->out;
+    packed &= super_color_clear_masks[channel];
+    packed |= (byte << super_color_shifts[channel]);
+    super_color_post_packed(color, packed);
+    return packed;
+}
+
 struct GUI_id{
     u64 id[1];
 };
@@ -129,6 +172,7 @@ enum GUI_Command_Type{
     guicom_file_option,
     guicom_fixed_option,
     guicom_fixed_option_checkbox,
+    guicom_style_preview,
     guicom_scrollable,
     guicom_scrollable_top,
     guicom_scrollable_slider,
@@ -204,13 +248,11 @@ advance_to_alignment(void *ptr){
 
 internal void*
 gui_push_aligned_item(GUI_Target *target, GUI_Header *h, void *item, i32 size){
-    char *ptr, *end;
-    ptr = (char*)partition_allocate(&target->push, size);
-    if (ptr){
+    char *ptr = (char*)partition_allocate(&target->push, size);
+    if (ptr && item){
         memcpy(ptr, item, size);
 	}
-    end = (char*)gui_align(target);
-    h->size = (i32)(end - (char*)h);
+    gui_align(target, h);
     return(ptr);
 }
 
@@ -218,7 +260,7 @@ internal void*
 gui_push_item(GUI_Target *target, GUI_Header *h, void *item, i32 size){
     void *ptr;
     ptr = (char*)partition_allocate(&target->push, size);
-    if (ptr){
+    if (ptr && item){
         memcpy(ptr, item, size);
 	}
     h->size += size;
@@ -256,6 +298,12 @@ gui_push_button_command(GUI_Target *target, i32 type, GUI_id id){
     item.id = id;
     result = (GUI_Interactive*)gui_push_item(target, &item, sizeof(item));
     return(result);
+}
+
+internal void
+gui_push_style(GUI_Target *target, GUI_Header *h, Style *style){
+    Style *new_style = (Style*)gui_push_item(target, h, 0, sizeof(Style));
+    style_copy(new_style, style);
 }
 
 internal void
@@ -386,6 +434,21 @@ gui_do_fixed_option_checkbox(GUI_Target *target, GUI_id id, String message, char
     gui_push_string(target, h, message);
     gui_push_item(target, h, &key, 1);
     gui_push_item(target, h, &state, 1);
+    gui_align(target, h);
+    
+    if (gui_id_eq(id, target->active)){
+        result = 1;
+	}
+    
+    return(result);
+}
+
+internal b32
+gui_do_style_preview(GUI_Target *target, GUI_id id, Style *style){
+    b32 result = 0;
+    GUI_Interactive *b = gui_push_button_command(target, guicom_style_preview, id);
+    GUI_Header *h = (GUI_Header*)b;
+    gui_push_style(target, h, style);
     gui_align(target, h);
     
     if (gui_id_eq(id, target->active)){
@@ -712,6 +775,13 @@ gui_interpret(GUI_Target *target, GUI_Session *session, GUI_Header *h){
         case guicom_fixed_option_checkbox:
         give_to_user = 1;
         rect = gui_layout_fixed_h(session, y, session->line_height * 2);
+        end_v = rect.y1;
+        end_section = section;
+        break;
+        
+        case guicom_style_preview:
+        give_to_user = 1;
+        rect = gui_layout_fixed_h(session, y, session->line_height * 3 + 6);
         end_v = rect.y1;
         end_section = section;
         break;

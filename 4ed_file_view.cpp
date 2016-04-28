@@ -87,18 +87,17 @@ struct View{
     char dest_[256];
     String dest;
     
-#if 0
     // theme stuff
     View *hot_file_view;
     u32 *palette;
     i32 palette_size;
     Color_View_Mode color_mode;
+    Super_Color color;
     b32 p4c_only;
     Style_Library inspecting_styles;
     b8 import_export_check[64];
     i32 import_file_id;
-#endif
-
+    
     // file stuff
     i32 font_advance;
     i32 font_height;
@@ -2655,7 +2654,6 @@ view_show_interactive(System_Functions *system, View *view,
     Models *models = view->models;
     
     view->showing_ui = VUI_Interactive;
-    view->gui_scroll = {0};
     view->action = action;
     view->interaction = interaction;
     view->dest = make_fixed_width_string(view->dest_);
@@ -2668,7 +2666,13 @@ view_show_interactive(System_Functions *system, View *view,
 }
 
 inline void
-view_show_theme(View *view, Command_Map *gui_map){}
+view_show_theme(View *view, Command_Map *gui_map){
+    view->map_for_file = view->map;
+    view->map = gui_map;
+    view->showing_ui = VUI_Theme;
+    view->color_mode = CV_Mode_Library;
+    view->color = super_color_create(0xFF000000);
+}
 
 
 inline void
@@ -3616,7 +3620,7 @@ get_exhaustive_info(System_Functions *system, Working_Set *working_set, Exhausti
 }
 
 internal i32
-step_file_view(System_Functions *system, View *view, b32 is_active){
+step_file_view(System_Functions *system, View *view, View *active_view){
     GUI_Target *target = &view->gui_target;
     Models *models = view->models;
     
@@ -3691,8 +3695,7 @@ step_file_view(System_Functions *system, View *view, b32 is_active){
                     if (gui_do_fixed_option(target, id, message, 0)){
                         view_show_config(view, view->map);
                     }
-                }
-                break;
+                }break;
                 
                 case VUI_Config:
                 {
@@ -3707,8 +3710,56 @@ step_file_view(System_Functions *system, View *view, b32 is_active){
                     if (gui_do_fixed_option_checkbox(target, id, message, 0, (b8)models->settings.lctrl_lalt_is_altgr)){
                         models->settings.lctrl_lalt_is_altgr = !models->settings.lctrl_lalt_is_altgr;
                     }
-                }
-                break;
+                }break;
+                
+                case VUI_Theme:
+                {
+                    if (view != active_view){
+                        view->hot_file_view = active_view;
+                    }
+                    
+                    String message;
+                    String empty_string = {0};
+                    
+                    GUI_id id = {0};
+                    
+                    switch (view->color_mode){
+                        case CV_Mode_Library:
+                        message = make_lit_string("Current Theme - Click to Edit");
+                        gui_do_text_field(target, message, empty_string);
+                        
+                        id.id[0] = (u64)(&models->style);
+                        if (gui_do_style_preview(target, id, &models->style)){
+                            view->color_mode = CV_Mode_Adjusting;
+                        }
+                        
+                        message = make_lit_string("Theme Library - Click to Select");
+                        gui_do_text_field(target, message, empty_string);
+                        
+                        gui_get_scroll_vars(target, view->showing_ui, &view->gui_scroll);
+                        gui_begin_scrollable(target, view->showing_ui, view->gui_scroll, 9.f * view->font_height);
+                        
+                        {
+                            i32 count = models->styles.count;
+                            Style *style = models->styles.styles;
+                            i32 i;
+                            
+                            for (i = 0; i < count; ++i, ++style){
+                                id.id[0] = (u64)(style);
+                                if (gui_do_style_preview(target, id, style)){
+                                    style_copy(&models->style, style);
+                                }
+                            }
+                        }
+                        
+                        gui_end_scrollable(target);
+                        break;
+                        
+                        case CV_Mode_Adjusting:
+                        // TODO(allen): write this
+                        break;
+                    }
+                }break;
                 
                 case VUI_Interactive:
                 switch (view->interaction){
@@ -4147,6 +4198,7 @@ do_input_file_view(System_Functions *system, Exchange *exchange,
 				}break;
                 
                 case guicom_file_option:
+                case guicom_style_preview:
                 {
                     GUI_Interactive *b = (GUI_Interactive*)h;
                     i32 mx = user_input->mouse.x;
@@ -4171,6 +4223,7 @@ do_input_file_view(System_Functions *system, Exchange *exchange,
                 case guicom_fixed_option:
                 case guicom_fixed_option_checkbox:
                 {
+                    // TODO(allen): deduplicate
                     Key_Event_Data key;
                     Key_Summary *keys = &user_input->keys;
                     
@@ -4210,7 +4263,7 @@ do_input_file_view(System_Functions *system, Exchange *exchange,
 						}
 					}
                 }break;
-                
+
                 case guicom_scrollable_top:
                 {
                     GUI_id id = gui_id_scrollbar_top();
@@ -4621,6 +4674,27 @@ do_render_file_bar(Render_Target *target, View *view, Editing_File *file, i32_Re
     }
 }
 
+u32
+get_margin_color(i32 active_level, Style *style){
+    u32 margin = 0xFFFFFFFF;
+        
+    switch (active_level){
+        default:
+        margin = style->main.margin_color;
+        break;
+        
+        case 1: case 2:
+        margin = style->main.margin_hover_color;
+        break;
+        
+        case 3: case 4:
+        margin = style->main.margin_active_color;
+        break;
+	}
+
+    return(margin);
+}
+
 internal void
 draw_fat_option_block(GUI_Target *gui_target, Render_Target *target, View *view, i32_Rect rect, GUI_id id,
     String text, String pop, i8 checkbox = -1){
@@ -4632,7 +4706,7 @@ draw_fat_option_block(GUI_Target *gui_target, Render_Target *target, View *view,
     
     i32_Rect inner = get_inner_rect(rect, 3);
     
-    u32 margin;
+    u32 margin = get_margin_color(active_level, style);
     u32 back = style->main.back_color;
     u32 text_color = style->main.default_color;
     u32 pop_color = style->main.special_character_color;
@@ -4640,20 +4714,6 @@ draw_fat_option_block(GUI_Target *gui_target, Render_Target *target, View *view,
     i32 h = view->font_height;
     i32 x = inner.x0 + 3;
     i32 y = inner.y0 + h/2 - 1;
-    
-    switch (active_level){
-		case 0:
-        margin = style->main.margin_color;
-        break;
-        
-        case 1: case 2:
-        margin = style->main.margin_hover_color;
-        break;
-        
-        default:
-        margin = style->main.margin_active_color;
-        break;
-	}
     
     draw_rectangle(target, inner, back);
     draw_margin(target, rect, inner, margin);
@@ -4675,6 +4735,49 @@ draw_fat_option_block(GUI_Target *gui_target, Render_Target *target, View *view,
     
     x = draw_string(target, font_id, text, x, y, text_color);
     draw_string(target, font_id, pop, x, y, pop_color);
+}
+
+internal void
+draw_style_preview(GUI_Target *gui_target, Render_Target *target, View *view, i32_Rect rect, GUI_id id, Style *style){
+    Models *models = view->models;
+    
+    i32 active_level = gui_active_level(gui_target, id);
+    i16 font_id = models->global_font.font_id;
+    Font_Info *info = get_font_info(models->font_set, font_id);
+    
+    i32_Rect inner = get_inner_rect(rect, 3);
+    
+    u32 margin_color = get_margin_color(active_level, style);
+    u32 back = style->main.back_color;
+    u32 text_color = style->main.default_color;
+    u32 keyword_color = style->main.keyword_color;
+    u32 int_constant_color = style->main.int_constant_color;
+    u32 comment_color = style->main.comment_color;
+    
+    draw_margin(target, rect, inner, margin_color);
+    draw_rectangle(target, inner, back);
+
+    i32 y = inner.y0;
+    i32 x = inner.x0;
+    x = draw_string(target, font_id, style->name.str, x, y, text_color);
+    i32 font_x = (i32)(inner.x1 - font_string_width(target, font_id, info->name.str));
+    if (font_x > x + 10){
+        draw_string(target, font_id, info->name.str, font_x, y, text_color);
+    }
+
+    x = inner.x0;
+    y += info->height;
+    x = draw_string(target, font_id, "if", x, y, keyword_color);
+    x = draw_string(target, font_id, "(x < ", x, y, text_color);
+    x = draw_string(target, font_id, "0", x, y, int_constant_color);
+    x = draw_string(target, font_id, ") { x = ", x, y, text_color);
+    x = draw_string(target, font_id, "0", x, y, int_constant_color);
+    x = draw_string(target, font_id, "; } ", x, y, text_color);
+    x = draw_string(target, font_id, "// comment", x, y, comment_color);
+    
+    x = inner.x0;
+    y += info->height;
+    x = draw_string(target, font_id, "[] () {}; * -> +-/ <>= ! && || % ^", x, y, text_color);
 }
 
 internal i32
@@ -4747,24 +4850,26 @@ do_render_file_view(System_Functions *system, Exchange *exchange,
                     draw_fat_option_block(gui_target, target, view, gui_session.rect, b->id, f, m);
 				}break;
                 
+                case guicom_style_preview:
+                {
+                    GUI_Interactive *b = (GUI_Interactive*)h;
+                    Style *style = (Style*)(b + 1);
+                    
+                    draw_style_preview(gui_target, target, view, gui_session.rect, b->id, style);
+                }break;
+                
+                case guicom_fixed_option_checkbox:
                 case guicom_fixed_option:
                 {
                     GUI_Interactive *b = (GUI_Interactive*)h;
                     void *ptr = (b + 1);
                     String f = gui_read_string(&ptr);
                     String m = {0};
-                    
-                    draw_fat_option_block(gui_target, target, view, gui_session.rect, b->id, f, m);
-				}break;
-                
-                case guicom_fixed_option_checkbox:
-                {
-                    GUI_Interactive *b = (GUI_Interactive*)h;
-                    void *ptr = (b + 1);
-                    String f = gui_read_string(&ptr);
-                    gui_read_byte(&ptr);
-                    b8 status = (b8)gui_read_byte(&ptr);
-                    String m = {0};
+                    i8 status = -1;
+                    if (h->type == guicom_fixed_option_checkbox){
+                        gui_read_byte(&ptr);
+                        status = (i8)gui_read_byte(&ptr);
+                    }
                     
                     draw_fat_option_block(gui_target, target, view, gui_session.rect, b->id, f, m, status);
 				}break;

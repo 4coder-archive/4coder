@@ -1323,49 +1323,6 @@ do_live_file_list_box(System_Functions *system, UI_State *state, UI_Layout *layo
     return result;
 }
 
-internal Super_Color
-super_color_create(u32 packed){
-    Super_Color result = {};
-    result.rgba = unpack_color4(packed);
-    result.hsla = rgba_to_hsla(result.rgba);
-    return result;
-}
-
-internal void
-super_color_post_hsla(Super_Color *color, Vec4 hsla){
-    color->hsla = hsla;
-    if (hsla.h == 1.f)
-        hsla.h = 0.f;
-    color->rgba = hsla_to_rgba(hsla);
-    *color->out = pack_color4(color->rgba);
-}
-
-internal void
-super_color_post_rgba(Super_Color *color, Vec4 rgba){
-    color->rgba = rgba;
-    color->hsla = rgba_to_hsla(rgba);
-    *color->out = pack_color4(rgba);
-}
-
-internal void
-super_color_post_packed(Super_Color *color, u32 packed){
-    color->rgba = unpack_color4(packed);
-    color->hsla = rgba_to_hsla(color->rgba);
-    *color->out = packed;
-}
-
-u32 super_color_clear_masks[] = {0xFF00FFFF, 0xFFFF00FF, 0xFFFFFF00};
-u32 super_color_shifts[] = {16, 8, 0};
-
-internal u32
-super_color_post_byte(Super_Color *color, i32 channel, u8 byte){
-    u32 packed = *color->out;
-    packed &= super_color_clear_masks[channel];
-    packed |= (byte << super_color_shifts[channel]);
-    super_color_post_packed(color, packed);
-    return packed;
-}
-
 struct Color_Highlight{
     i32 ids[4];
 };

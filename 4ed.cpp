@@ -3858,12 +3858,13 @@ App_Step_Sig(app_step){
                 }
 
                 if (pass_in){
-                    models->command_coroutine = system->resume_coroutine(command_coroutine, &user_in, models->command_coroutine_flags);
+                    models->command_coroutine =
+                        system->resume_coroutine(command_coroutine, &user_in, models->command_coroutine_flags);
                     app_result.redraw = 1;
 
                     // TOOD(allen): Deduplicate
-                    // TODO(allen): Allow a view to clean up however it wants after a command 
-                    // finishes, or after transfering to another view mid command.
+                    // TODO(allen): Should I somehow allow a view to clean up however it wants after a
+                    // command finishes, or after transfering to another view mid command?
                     if (view != 0 && models->command_coroutine == 0){
                         init_query_set(&view->query_set);
                     }
@@ -3926,8 +3927,8 @@ App_Step_Sig(app_step){
                 app_result.redraw = 1;
 
                 // TOOD(allen): Deduplicate
-                // TODO(allen): Allow a view to clean up however it wants after a command finishes,
-                // or after transfering to another view mid command?
+                // TODO(allen): Should I somehow allow a view to clean up however it wants after a
+                // command finishes, or after transfering to another view mid command?
                 if (view != 0 && models->command_coroutine == 0){
                     init_query_set(&view->query_set);
                 }
@@ -3950,14 +3951,13 @@ App_Step_Sig(app_step){
     ProfileStart(fill_gui_command_buffers);
     {
         Panel *panel, *used_panels;
-        View *view;
-        b32 active;
+        View *view, *active_view;
 
+        active_view = cmd->panel->view;
         used_panels = &models->layout.used_sentinel;
         for (dll_items(panel, used_panels)){
             view = panel->view;
-            active = (panel == cmd->panel);
-            if (step_file_view(system, view, active)){
+            if (step_file_view(system, view, active_view)){
                 app_result.redraw = 1;
             }
         }
