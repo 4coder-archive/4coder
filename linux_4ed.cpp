@@ -116,6 +116,7 @@ struct Linux_Vars{
 
     String clipboard_contents;
     String clipboard_outgoing;
+    b32 new_clipboard;
 
     Atom atom_CLIPBOARD;
     Atom atom_UTF8_STRING;
@@ -1098,7 +1099,7 @@ Font_Load_Sig(system_draw_font_load){
     b32 success = 0;
     i32 attempts = 0;
 
-    i32 oversample = (i32)(2.0f * (linuxvars.target.dpi / 96.0f) + 0.5f);
+    i32 oversample = 2;
 
     for(; attempts < 3; ++attempts){
         success = draw_font_load(
@@ -2057,28 +2058,6 @@ main(int argc, char **argv)
         exit(1);
     }
 
-    {
-        int scr = DefaultScreen(linuxvars.XDisplay);
-
-        int dw = DisplayWidth(linuxvars.XDisplay, scr);
-        int dh = DisplayHeight(linuxvars.XDisplay, scr);
-
-        int dw_mm = DisplayWidthMM(linuxvars.XDisplay, scr);
-        int dh_mm = DisplayHeightMM(linuxvars.XDisplay, scr);
-
-        if(dw_mm <= 0 || dh_mm <= 0){
-            linuxvars.target.dpi = 96;
-        } else {
-            int xdpi = dw / (dw_mm / 25.4);
-            int ydpi = dh / (dh_mm / 25.4);
-
-            fprintf(stderr, "%dx%d - %dmmx%dmm DPI: %dx%d\n", dw, dh, dw_mm, dh_mm, xdpi, ydpi);
-
-            linuxvars.target.dpi = xdpi > ydpi ? xdpi : ydpi;
-        }
-
-    }
-
     //NOTE(inso): Set the window's type to normal
     Atom _NET_WM_WINDOW_TYPE = XInternAtom(linuxvars.XDisplay, "_NET_WM_WINDOW_TYPE", False);
     Atom _NET_WIN_TYPE_NORMAL = XInternAtom(linuxvars.XDisplay, "_NET_WM_WINDOW_TYPE_NORMAL", False);
@@ -2107,7 +2086,7 @@ main(int argc, char **argv)
         1
     );
 
-#define WINDOW_NAME "4coder: " VERSION " linux"
+#define WINDOW_NAME "4coder 4linux: " VERSION
 
     //NOTE(inso): set wm properties
     XStoreName(linuxvars.XDisplay, linuxvars.XWindow, WINDOW_NAME);
@@ -2131,7 +2110,7 @@ main(int argc, char **argv)
     wm_hints->input = True;
 
     cl_hints->res_name = "4coder";
-    cl_hints->res_class = "4coder-class";
+    cl_hints->res_class = "4coder";
 
     XSetWMProperties(
         linuxvars.XDisplay,
@@ -2233,6 +2212,7 @@ main(int argc, char **argv)
                        linuxvars.custom_api);
 
     LinuxResizeTarget(WinWidth, WinHeight);
+
     b32 keep_running = 1;
 
     while(1)
@@ -2461,6 +2441,7 @@ main(int argc, char **argv)
 
                         if(result == Success && fmt == 8){
                             LinuxStringDup(&linuxvars.clipboard_contents, data, nitems);
+                            linuxvars.new_clipboard = 1;
                             XFree(data);
                         }
                     }
@@ -2505,6 +2486,12 @@ main(int argc, char **argv)
         Mouse_State mouse;
         Application_Step_Result result;
 
+        String clipboard = {};
+        if(linuxvars.new_clipboard){
+            clipboard = linuxvars.clipboard_contents;
+            linuxvars.new_clipboard = 0;
+        }
+
         input_data = linuxvars.key_data;
         mouse = linuxvars.mouse_data;
 
@@ -2528,7 +2515,7 @@ main(int argc, char **argv)
                            &linuxvars.target,
                            &memory_vars,
                            &exchange_vars,
-                           linuxvars.clipboard_contents,
+                           clipboard,
                            1, linuxvars.first, linuxvars.redraw,
                            &result);
 
