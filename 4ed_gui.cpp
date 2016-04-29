@@ -140,6 +140,11 @@ struct GUI_Target{
     GUI_Scroll_Vars scroll_updated;
     f32 delta;
     u32 scroll_id;
+    b32 has_keys;
+};
+
+struct GUI_Item_Update{
+    i32 partition_point;
 };
 
 struct GUI_Header{
@@ -170,6 +175,7 @@ enum GUI_Command_Type{
     guicom_text_input,
     guicom_file_input,
     guicom_color_button,
+    guicom_text_with_cursor,
     guicom_file_option,
     guicom_fixed_option,
     guicom_button,
@@ -213,6 +219,16 @@ gui_active_level(GUI_Target *target, GUI_id id){
         level = 1;
     }
     return(level);
+}
+
+internal void
+gui_rollback(GUI_Target *target, GUI_Item_Update *update){
+    target->push.pos = update->partition_point;
+}
+
+internal void
+gui_fill_item_update(GUI_Item_Update *update, GUI_Target *target, GUI_Header *h){
+    update->partition_point = (i32)((char*)h - (char*)target->push.base);
 }
 
 internal void*
@@ -350,8 +366,9 @@ gui_end_serial_section(GUI_Target *target){
 }
 
 internal void
-gui_begin_top_level(GUI_Target *target){
+gui_begin_top_level(GUI_Target *target, Input_Summary input){
     target->push.pos = 0;
+    target->has_keys = (input.keys.count > 0);
 }
 
 internal void
@@ -374,6 +391,18 @@ gui_do_text_field(GUI_Target *target, String prompt, String text){
     GUI_Header *h = gui_push_simple_command(target, guicom_text_field);
     gui_push_string(target, h, prompt);
     gui_push_string(target, h, text);
+}
+
+internal b32
+gui_do_text_with_cursor(GUI_Target *target, i32 pos, String text, GUI_Item_Update *update){
+    b32 result = 1;
+    GUI_Header *h = gui_push_simple_command(target, guicom_text_with_cursor);
+    gui_push_string(target, h, text);
+    gui_push_item(target, h, &pos, sizeof(i32));
+    
+    result = target->has_keys;
+    gui_fill_item_update(update, target, h);
+    return(result);
 }
 
 internal b32
@@ -790,6 +819,7 @@ gui_interpret(GUI_Target *target, GUI_Session *session, GUI_Header *h){
         scroll_v = 0;
         break;
 
+        case guicom_text_with_cursor:
         case guicom_text_field:
         give_to_user = 1;
         rect = gui_layout_fixed_h(session, y, session->line_height + 2);
@@ -805,7 +835,7 @@ gui_interpret(GUI_Target *target, GUI_Session *session, GUI_Header *h){
         
         case guicom_color_button:
         give_to_user = 1;
-        rect = gui_layout_fixed_h(session, y, session->line_height);
+        rect = gui_layout_fixed_h(session, y, session->line_height + 2);
         end_v = rect.y1;
         end_section = section;
         break;

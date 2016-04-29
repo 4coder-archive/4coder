@@ -139,7 +139,10 @@ FCPP_LINK int   str_to_int(char *s);
 FCPP_LINK int   str_to_int(String s);
 FCPP_LINK int   hexchar_to_int(char c);
 FCPP_LINK char  int_to_hexchar(int c);
-FCPP_LINK int   hexstr_to_int(String s);
+FCPP_LINK unsigned int   hexstr_to_int(String s);
+
+FCPP_LINK bool color_to_hexstr(unsigned int color, String *s_out);
+FCPP_LINK bool hexstr_to_color(String s, unsigned int *color);
 
 FCPP_LINK int   copy_fast_unsafe(char *dest, char *src);
 FCPP_LINK void  copy_fast_unsafe(char *dest, String src);
@@ -810,9 +813,10 @@ int_to_hexchar(int x){
     return (x<10)?((char)x+'0'):((char)x+'a'-10);
 }
 
-FCPP_LINK int
+FCPP_LINK unsigned int
 hexstr_to_int(String str){
-    int x, i;
+    unsigned int x;
+    int i;
     if (str.size == 0){
         x = 0;
     }
@@ -824,6 +828,51 @@ hexstr_to_int(String str){
         }
     }
     return x;
+}
+
+FCPP_LINK bool
+color_to_hexstr(unsigned int color, String *s){
+    bool result = 0;
+    int i;
+    
+    if (s->memory_size == 7 || s->memory_size == 8){
+        result = 1;
+        s->size = 6;
+        s->str[6] = 0;
+        color = color & 0x00FFFFFF;
+        for (i = 5; i >= 0; --i){
+            s->str[i] = int_to_hexchar(color & 0xF);
+            color >>= 4;
+        }
+    }
+    else if (s->memory_size > 8){
+        result = 1;
+        s->size = 8;
+        s->str[8] = 0;
+        for (i = 7; i >= 0; --i){
+            s->str[i] = int_to_hexchar(color & 0xF);
+            color >>= 4;
+        }
+    }
+    return(result);
+}
+
+FCPP_LINK bool
+hexstr_to_color(String s, unsigned int *out){
+    bool result = 0;
+    unsigned int color = 0;
+    if (s.size == 6){
+        result = 1;
+        color = (unsigned int)hexstr_to_int(s);
+        color |= (0xFF << 24);
+        *out = color;
+    }
+    else if (s.size == 8){
+        result = 1;
+        color = (unsigned int)hexstr_to_int(s);
+        *out = color;
+    }
+    return(result);
 }
 
 FCPP_LINK int

@@ -3947,22 +3947,6 @@ App_Step_Sig(app_step){
         }
     }
     ProfileStart(frame_hook);
-
-    ProfileStart(fill_gui_command_buffers);
-    {
-        Panel *panel, *used_panels;
-        View *view, *active_view;
-
-        active_view = cmd->panel->view;
-        used_panels = &models->layout.used_sentinel;
-        for (dll_items(panel, used_panels)){
-            view = panel->view;
-            if (step_file_view(system, view, active_view)){
-                app_result.redraw = 1;
-            }
-        }
-    }
-    ProfileStart(fill_gui_command_buffers);
     
     // NOTE(allen): pass raw input to the panels
     ProfileStart(step);
@@ -4005,17 +3989,28 @@ App_Step_Sig(app_step){
     if (consumed_input[5]){
         mouse_state.wheel = 0;
     }
-
+    
     {
         Panel *panel, *used_panels;
-        View *view;
+        View *view, *active_view;
         b32 active;
+        Input_Summary input;
 
+        active_view = cmd->panel->view;
         used_panels = &models->layout.used_sentinel;
         for (dll_items(panel, used_panels)){
             view = panel->view;
             active = (panel == cmd->panel);
-            Input_Summary input = (active)?(active_input):(dead_input);
+            input = (active)?(active_input):(dead_input);
+            if (step_file_view(system, view, active_view, input)){
+                app_result.redraw = 1;
+            }
+        }
+        
+        for (dll_items(panel, used_panels)){
+            view = panel->view;
+            active = (panel == cmd->panel);
+            input = (active)?(active_input):(dead_input);
             if (panel == mouse_panel && !mouse->out_of_window){
                 input.mouse = mouse_state;
             }

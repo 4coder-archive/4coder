@@ -98,6 +98,7 @@ struct View{
     b8 import_export_check[64];
     i32 import_file_id;
     i32 current_color_editing;
+    i32 color_cursor;
     
     // file stuff
     i32 font_advance;
@@ -3664,13 +3665,14 @@ static Style_Color_Edit colors_to_edit[] = {
 };
 
 internal i32
-step_file_view(System_Functions *system, View *view, View *active_view){
+step_file_view(System_Functions *system, View *view, View *active_view, Input_Summary input){
     GUI_Target *target = &view->gui_target;
     Models *models = view->models;
+    Key_Summary keys = input.keys;
     
     f32 min_target_y = view->file_scroll.min_y;
     
-    gui_begin_top_level(target);
+    gui_begin_top_level(target, input);
     {
         gui_do_top_bar(target);
         
@@ -3816,6 +3818,8 @@ step_file_view(System_Functions *system, View *view, View *active_view){
                             
                             gui_get_scroll_vars(target, view->showing_ui, &view->gui_scroll);
                             gui_begin_scrollable(target, view->showing_ui, view->gui_scroll, 9.f * view->font_height);
+
+                            i32 next_color_editing = view->current_color_editing;
                             
                             for (i = 0; i < ArrayCount(colors_to_edit); ++i){
                                 edit_color = style_index_by_tag(&style->main, colors_to_edit[i].target);
@@ -3825,12 +3829,62 @@ step_file_view(System_Functions *system, View *view, View *active_view){
                                 back = style_index_by_tag(&style->main, colors_to_edit[i].back);
                                 
                                 if (gui_do_color_button(target, id, *fore, *back, colors_to_edit[i].text)){
-                                    view->current_color_editing = i;
+                                    next_color_editing = i;
+                                    view->color_cursor = 0;
                                 }
                                 
                                 if (view->current_color_editing == i){
-                                    // TODO(allen): color editor
+                                    GUI_Item_Update update = {0};
+                                    char text_space[7];
+                                    String text = make_fixed_width_string(text_space);
+                                    
+                                    color_to_hexstr(*edit_color, &text);
+                                    if (gui_do_text_with_cursor(target, view->color_cursor, text, &update)){
+                                        b32 r = 0;
+                                        i32 j = 0;
+
+                                        for (j = 0; j < keys.count; ++j){
+                                            i16 key = keys.keys[j].keycode;
+                                            switch (key){
+                                                case key_left: --view->color_cursor; r = 1; break;
+                                                case key_right: ++view->color_cursor; r = 1; break;
+                                                
+                                                case key_up:
+                                                if (next_color_editing > 0){
+                                                    --next_color_editing;
+                                                }
+                                                break;
+                                                
+                                                case key_down:
+                                                if (next_color_editing <= ArrayCount(colors_to_edit)-1){
+                                                    ++next_color_editing;
+                                                }
+                                                break;
+                                                
+                                                default:
+                                                if ((key >= '0' && key <= '9') || (key >= 'a' && key <= 'f') || (key >= 'A' && key <= 'F')){
+                                                    text.str[view->color_cursor] = (char)key;
+                                                    r = 1; 
+                                                }
+                                                break;
+                                            }
+
+                                            if (view->color_cursor < 0) view->color_cursor = 0;
+                                            if (view->color_cursor >= 6) view->color_cursor = 5;
+                                        }
+                                        
+                                        if (r){
+                                            hexstr_to_color(text, edit_color);
+                                            gui_rollback(target, &update);
+                                            gui_do_text_with_cursor(target, view->color_cursor, text, 0);
+                                        }
+                                    }
                                 }
+                            }
+                            
+                            if (view->current_color_editing != next_color_editing){
+                                view->current_color_editing = next_color_editing;
+                                view->color_cursor = 0;
                             }
                             
                             gui_end_scrollable(target);
