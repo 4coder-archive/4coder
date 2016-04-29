@@ -3728,13 +3728,13 @@ step_file_view(System_Functions *system, View *view, View *active_view){
                     
                     gui_do_text_field(target, message, empty_string);
                     
-                    id.id[0] = (u64)(0 + (IInt_Sure_To_Close << 8));
+                    id.id[0] = (u64)(0 + (VUI_Menu << 8));
                     message = make_lit_string("Theme");
                     if (gui_do_fixed_option(target, id, message, 0)){
                         view_show_theme(view, view->map);
                     }
                     
-                    id.id[0] = (u64)(1 + (IInt_Sure_To_Close << 8));
+                    id.id[0] = (u64)(1 + (VUI_Menu << 8));
                     message = make_lit_string("Config");
                     if (gui_do_fixed_option(target, id, message, 0)){
                         view_show_config(view, view->map);
@@ -3749,7 +3749,7 @@ step_file_view(System_Functions *system, View *view, View *active_view){
                     
                     gui_do_text_field(target, message, empty_string);
                     
-                    id.id[0] = (u64)(0 + (IInt_Sure_To_Close << 8));
+                    id.id[0] = (u64)(0 + (VUI_Config << 8));
                     message = make_lit_string("Left Ctrl + Left Alt = AltGr");
                     if (gui_do_fixed_option_checkbox(target, id, message, 0, (b8)models->settings.lctrl_lalt_is_altgr)){
                         models->settings.lctrl_lalt_is_altgr = !models->settings.lctrl_lalt_is_altgr;
@@ -3807,6 +3807,13 @@ step_file_view(System_Functions *system, View *view, View *active_view){
                             GUI_id id = {0};
                             i32 i = 0;
                             
+                            String message = make_lit_string("Back");
+                            
+                            id.id[0] = (u64)(0 + (VUI_Theme << 8));
+                            if (gui_do_button(target, id, message)){
+                                view->color_mode = CV_Mode_Library;
+                            }
+                            
                             gui_get_scroll_vars(target, view->showing_ui, &view->gui_scroll);
                             gui_begin_scrollable(target, view->showing_ui, view->gui_scroll, 9.f * view->font_height);
                             
@@ -3842,7 +3849,6 @@ step_file_view(System_Functions *system, View *view, View *active_view){
                             case IAct_New: message = make_lit_string("New: "); break;
                         }
 
-                        
                         Exhaustive_File_Loop loop;
                         Exhaustive_File_Info file_info;
                         
@@ -3950,13 +3956,13 @@ step_file_view(System_Functions *system, View *view, View *active_view){
                         
                         gui_do_text_field(target, message, empty_str);
                         
-                        id.id[0] = (u64)('y' + (IInt_Sure_To_Close << 8));
+                        id.id[0] = (u64)('y' + (VUI_Interactive << 8));
                         message = make_lit_string("(Y)es");
                         if (gui_do_fixed_option(target, id, message, 'y')){
                             action = 0;
                         }
                         
-                        id.id[0] = (u64)('n' + (IInt_Sure_To_Close << 8));
+                        id.id[0] = (u64)('n' + (VUI_Interactive << 8));
                         message = make_lit_string("(N)o");
                         if (gui_do_fixed_option(target, id, message, 'n')){
                             action = 1;
@@ -3977,19 +3983,19 @@ step_file_view(System_Functions *system, View *view, View *active_view){
                         
                         gui_do_text_field(target, message, empty_str);
                         
-                        id.id[0] = (u64)('y' + (IInt_Sure_To_Close << 8));
+                        id.id[0] = (u64)('y' + (VUI_Interactive << 8));
                         message = make_lit_string("(Y)es");
                         if (gui_do_fixed_option(target, id, message, 'y')){
                             action = 0;
                         }
                         
-                        id.id[0] = (u64)('n' + (IInt_Sure_To_Close << 8));
+                        id.id[0] = (u64)('n' + (VUI_Interactive << 8));
                         message = make_lit_string("(N)o");
                         if (gui_do_fixed_option(target, id, message, 'n')){
                             action = 1;
                         }
                         
-                        id.id[0] = (u64)('s' + (IInt_Sure_To_Close << 8));
+                        id.id[0] = (u64)('s' + (VUI_Interactive << 8));
                         message = make_lit_string("(S)ave and kill");
                         if (gui_do_fixed_option(target, id, message, 's')){
                             action = 2;
@@ -4268,6 +4274,7 @@ do_input_file_view(System_Functions *system, Exchange *exchange,
 				}break;
                 
                 case guicom_color_button:
+                case guicom_button:
                 case guicom_file_option:
                 case guicom_style_preview:
                 {
@@ -4825,6 +4832,32 @@ draw_fat_option_block(GUI_Target *gui_target, Render_Target *target, View *view,
 }
 
 internal void
+draw_button(GUI_Target *gui_target, Render_Target *target, View *view, i32_Rect rect, GUI_id id, String text){
+    Models *models = view->models;
+    Style *style = &models->style;
+    
+    i32 active_level = gui_active_level(gui_target, id);
+    i16 font_id = models->global_font.font_id;
+    
+    i32_Rect inner = get_inner_rect(rect, 3);
+    
+    u32 margin = style->main.default_color;
+    u32 back = get_margin_color(active_level, style);
+    u32 text_color = style->main.default_color;
+    
+    i32 h = view->font_height;
+    i32 y = inner.y0 + h/2 - 1;
+    
+    i32 w = (i32)font_string_width(target, font_id, text);
+    i32 x = (inner.x1 + inner.x0 - w)/2;
+    
+    draw_rectangle(target, inner, back);
+    draw_rectangle_outline(target, inner, margin);
+    
+    draw_string(target, font_id, text, x, y, text_color);
+}
+
+internal void
 draw_style_preview(GUI_Target *gui_target, Render_Target *target, View *view, i32_Rect rect, GUI_id id, Style *style){
     Models *models = view->models;
     
@@ -4970,6 +5003,15 @@ do_render_file_view(System_Functions *system, Exchange *exchange,
                     }
                     
                     draw_fat_option_block(gui_target, target, view, gui_session.rect, b->id, f, m, status);
+				}break;
+                
+                case guicom_button:
+                {
+                    GUI_Interactive *b = (GUI_Interactive*)h;
+                    void *ptr = (b + 1);
+                    String t = gui_read_string(&ptr);
+                    
+                    draw_button(gui_target, target, view, gui_session.rect, b->id, t);
 				}break;
                 
                 case guicom_scrollable:
