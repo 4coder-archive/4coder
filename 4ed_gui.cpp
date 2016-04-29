@@ -169,6 +169,7 @@ enum GUI_Command_Type{
     guicom_text_field,
     guicom_text_input,
     guicom_file_input,
+    guicom_color_button,
     guicom_file_option,
     guicom_fixed_option,
     guicom_fixed_option_checkbox,
@@ -391,6 +392,22 @@ gui_do_file_input(GUI_Target *target, GUI_id id, void *out){
     if (gui_id_eq(id, target->active)){
         result = 1;
     }
+    return(result);
+}
+
+internal b32
+gui_do_color_button(GUI_Target *target, GUI_id id, u32 fore, u32 back, String text){
+    b32 result = 0;
+    GUI_Interactive *b = gui_push_button_command(target, guicom_color_button, id);
+    GUI_Header *h = (GUI_Header*)b;
+    gui_push_item(target, h, &fore, sizeof(fore));
+    gui_push_item(target, h, &back, sizeof(back));
+    gui_push_string(target, h, text);
+        
+    if (gui_id_eq(id, target->active)){
+        result = 1;
+	}
+    
     return(result);
 }
 
@@ -768,6 +785,13 @@ gui_interpret(GUI_Target *target, GUI_Session *session, GUI_Header *h){
         case guicom_file_input:
         always_give_to_user = 1;
         do_layout = 0;
+        break;
+        
+        case guicom_color_button:
+        give_to_user = 1;
+        rect = gui_layout_fixed_h(session, y, session->line_height);
+        end_v = rect.y1;
+        end_section = section;
         break;
         
         case guicom_file_option:

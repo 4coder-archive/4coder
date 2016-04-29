@@ -97,6 +97,7 @@ struct View{
     Style_Library inspecting_styles;
     b8 import_export_check[64];
     i32 import_file_id;
+    i32 current_color_editing;
     
     // file stuff
     i32 font_advance;
@@ -2672,6 +2673,7 @@ view_show_theme(View *view, Command_Map *gui_map){
     view->showing_ui = VUI_Theme;
     view->color_mode = CV_Mode_Library;
     view->color = super_color_create(0xFF000000);
+    view->current_color_editing = -1;
 }
 
 
@@ -3623,42 +3625,42 @@ struct Style_Color_Edit{
     Style_Tag target;
     Style_Tag fore;
     Style_Tag back;
-    char *text;
+    String text;
 };
 
 static Style_Color_Edit colors_to_edit[] = {
-    {Stag_Back, Stag_Default, Stag_Back, "Background"},
-    {Stag_Margin, Stag_Default, Stag_Margin, "Margin"},
-    {Stag_Margin_Hover, Stag_Default, Stag_Margin_Hover, "Margin Hover"},
-    {Stag_Margin_Active, Stag_Default, Stag_Margin_Active, "Margin Active"},
+    {Stag_Back, Stag_Default, Stag_Back, make_lit_string("Background")},
+    {Stag_Margin, Stag_Default, Stag_Margin, make_lit_string("Margin")},
+    {Stag_Margin_Hover, Stag_Default, Stag_Margin_Hover, make_lit_string("Margin Hover")},
+    {Stag_Margin_Active, Stag_Default, Stag_Margin_Active, make_lit_string("Margin Active")},
     
-    {Stag_Cursor, Stag_At_Cursor, Stag_Cursor, "Cursor"},
-    {Stag_At_Cursor, Stag_At_Cursor, Stag_Cursor, "Text At Cursor"},
-    {Stag_Mark, Stag_Mark, Stag_Back, "Mark"},
+    {Stag_Cursor, Stag_At_Cursor, Stag_Cursor, make_lit_string("Cursor")},
+    {Stag_At_Cursor, Stag_At_Cursor, Stag_Cursor, make_lit_string("Text At Cursor")},
+    {Stag_Mark, Stag_Mark, Stag_Back, make_lit_string("Mark")},
     
-    {Stag_Highlight, Stag_At_Highlight, Stag_Highlight, "Highlight"},
-    {Stag_At_Highlight, Stag_At_Highlight, Stag_Highlight, "Text At Highlight"},
+    {Stag_Highlight, Stag_At_Highlight, Stag_Highlight, make_lit_string("Highlight")},
+    {Stag_At_Highlight, Stag_At_Highlight, Stag_Highlight, make_lit_string("Text At Highlight")},
     
-    {Stag_Default, Stag_Default, Stag_Back, "Text Default"},
-    {Stag_Comment, Stag_Comment, Stag_Back, "Comment"},
-    {Stag_Keyword, Stag_Keyword, Stag_Back, "Keyword"},
-    {Stag_Str_Constant, Stag_Str_Constant, Stag_Back, "String Constant"},
-    {Stag_Char_Constant, Stag_Char_Constant, Stag_Back, "Character Constant"},
-    {Stag_Int_Constant, Stag_Int_Constant, Stag_Back, "Integer Constant"},
-    {Stag_Float_Constant, Stag_Float_Constant, Stag_Back, "Float Constant"},
-    {Stag_Bool_Constant, Stag_Bool_Constant, Stag_Back, "Boolean Constant"},
-    {Stag_Preproc, Stag_Preproc, Stag_Back, "Preprocessor"},
-    {Stag_Special_Character, Stag_Special_Character, Stag_Back, "Special Character"},
+    {Stag_Default, Stag_Default, Stag_Back, make_lit_string("Text Default")},
+    {Stag_Comment, Stag_Comment, Stag_Back, make_lit_string("Comment")},
+    {Stag_Keyword, Stag_Keyword, Stag_Back, make_lit_string("Keyword")},
+    {Stag_Str_Constant, Stag_Str_Constant, Stag_Back, make_lit_string("String Constant")},
+    {Stag_Char_Constant, Stag_Char_Constant, Stag_Back, make_lit_string("Character Constant")},
+    {Stag_Int_Constant, Stag_Int_Constant, Stag_Back, make_lit_string("Integer Constant")},
+    {Stag_Float_Constant, Stag_Float_Constant, Stag_Back, make_lit_string("Float Constant")},
+    {Stag_Bool_Constant, Stag_Bool_Constant, Stag_Back, make_lit_string("Boolean Constant")},
+    {Stag_Preproc, Stag_Preproc, Stag_Back, make_lit_string("Preprocessor")},
+    {Stag_Special_Character, Stag_Special_Character, Stag_Back, make_lit_string("Special Character")},
     
-    {Stag_Highlight_Junk, Stag_Default, Stag_Highlight_Junk, "Junk Highlight"},
-    {Stag_Highlight_White, Stag_Default, Stag_Highlight_White, "Whitespace Highlight"},
+    {Stag_Highlight_Junk, Stag_Default, Stag_Highlight_Junk, make_lit_string("Junk Highlight")},
+    {Stag_Highlight_White, Stag_Default, Stag_Highlight_White, make_lit_string("Whitespace Highlight")},
     
-    {Stag_Paste, Stag_Paste, Stag_Back, "Paste Color"},
+    {Stag_Paste, Stag_Paste, Stag_Back, make_lit_string("Paste Color")},
     
-    {Stag_Bar, Stag_Base, Stag_Bar, "Bar"},
-    {Stag_Base, Stag_Base, Stag_Bar, "Bar Text"},
-    {Stag_Pop1, Stag_Pop1, Stag_Bar, "Bar Pop 1"},
-    {Stag_Pop2, Stag_Pop2, Stag_Bar, "Bar Pop 2"},
+    {Stag_Bar, Stag_Base, Stag_Bar, make_lit_string("Bar")},
+    {Stag_Base, Stag_Base, Stag_Bar, make_lit_string("Bar Text")},
+    {Stag_Pop1, Stag_Pop1, Stag_Bar, make_lit_string("Bar Pop 1")},
+    {Stag_Pop2, Stag_Pop2, Stag_Bar, make_lit_string("Bar Pop 2")},
 };
 
 internal i32
@@ -3798,8 +3800,34 @@ step_file_view(System_Functions *system, View *view, View *active_view){
                         break;
                         
                         case CV_Mode_Adjusting:
-                        
-                        break;
+                        {
+                            Style *style = &models->style;
+                            u32 *edit_color = 0;
+                            u32 *fore = 0, *back = 0;
+                            GUI_id id = {0};
+                            i32 i = 0;
+                            
+                            gui_get_scroll_vars(target, view->showing_ui, &view->gui_scroll);
+                            gui_begin_scrollable(target, view->showing_ui, view->gui_scroll, 9.f * view->font_height);
+                            
+                            for (i = 0; i < ArrayCount(colors_to_edit); ++i){
+                                edit_color = style_index_by_tag(&style->main, colors_to_edit[i].target);
+                                id.id[0] = (u64)(edit_color);
+                                
+                                fore = style_index_by_tag(&style->main, colors_to_edit[i].fore);
+                                back = style_index_by_tag(&style->main, colors_to_edit[i].back);
+                                
+                                if (gui_do_color_button(target, id, *fore, *back, colors_to_edit[i].text)){
+                                    view->current_color_editing = i;
+                                }
+                                
+                                if (view->current_color_editing == i){
+                                    // TODO(allen): color editor
+                                }
+                            }
+                            
+                            gui_end_scrollable(target);
+                        }break;
                     }
                 }break;
                 
@@ -4239,6 +4267,7 @@ do_input_file_view(System_Functions *system, Exchange *exchange,
 					}
 				}break;
                 
+                case guicom_color_button:
                 case guicom_file_option:
                 case guicom_style_preview:
                 {
@@ -4738,6 +4767,22 @@ get_margin_color(i32 active_level, Style *style){
 }
 
 internal void
+draw_color_button(GUI_Target *gui_target, Render_Target *target, View *view,
+    i32_Rect rect, GUI_id id, u32 fore, u32 back, String text){
+    Models *models = view->models;
+    
+    i32 active_level = gui_active_level(gui_target, id);
+    i16 font_id = models->global_font.font_id;
+    
+    if (active_level > 0){
+        Swap(back, fore);
+    }
+    
+    draw_rectangle(target, rect, back);
+    draw_string(target, font_id, text, rect.x0, rect.y0, fore);
+}
+
+internal void
 draw_fat_option_block(GUI_Target *gui_target, Render_Target *target, View *view, i32_Rect rect, GUI_id id,
     String text, String pop, i8 checkbox = -1){
     Models *models = view->models;
@@ -4877,6 +4922,17 @@ do_render_file_view(System_Functions *system, Exchange *exchange,
                     do_render_text_field(target, view, gui_session.rect, p, t);
                 }break;
                 
+                case guicom_color_button:
+                {
+                    GUI_Interactive *b = (GUI_Interactive*)h;
+                    void *ptr = (b + 1);
+                    u32 fore = (u32)gui_read_integer(&ptr);
+                    u32 back = (u32)gui_read_integer(&ptr);
+                    String t = gui_read_string(&ptr);
+                    
+                    draw_color_button(gui_target, target, view, gui_session.rect, b->id, fore, back, t);
+                }break;
+
                 case guicom_file_option:
                 {
                     GUI_Interactive *b = (GUI_Interactive*)h;
