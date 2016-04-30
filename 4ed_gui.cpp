@@ -228,7 +228,9 @@ gui_rollback(GUI_Target *target, GUI_Item_Update *update){
 
 internal void
 gui_fill_item_update(GUI_Item_Update *update, GUI_Target *target, GUI_Header *h){
-    update->partition_point = (i32)((char*)h - (char*)target->push.base);
+    if (update){
+        update->partition_point = (i32)((char*)h - (char*)target->push.base);
+    }
 }
 
 internal void*

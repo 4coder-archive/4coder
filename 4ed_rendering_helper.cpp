@@ -188,7 +188,7 @@ font_string_width(Render_Target *target, i16 font_id, String str){
     return x;
 }
 
-internal i32
+internal f32
 draw_string(Render_Target *target, i16 font_id,
             char *str, i32 x_, i32 y, u32 color){
     real32 x = (real32)x_;
@@ -199,7 +199,7 @@ draw_string(Render_Target *target, i16 font_id,
         font_draw_glyph(target, font_id, c, x, (f32)y, color);
         x += font_get_glyph_width(target, font_id, c);
     }
-    return CEIL32(x);
+    return x;
 }
 
 internal f32
@@ -215,7 +215,7 @@ draw_string_mono(Render_Target *target, i16 font_id,
     return x;
 }
 
-internal i32
+internal f32
 draw_string(Render_Target *target, i16 font_id,
             String str, i32 x_, i32 y, u32 color){
     f32 x = (f32)x_;
@@ -227,7 +227,7 @@ draw_string(Render_Target *target, i16 font_id,
                         x, (f32)y, color);
         x += font_get_glyph_width(target, font_id, c);
     }
-    return CEIL32(x);
+    return x;
 }
 
 internal f32

@@ -445,6 +445,7 @@ get_opaque_font_advance(Render_Font *font){
     return result;
 }
 
+#if 0
 internal void
 file_remeasure_widths_(System_Functions *system,
     General_Memory *general, Buffer_Type *buffer, Render_Font *font,
@@ -453,6 +454,7 @@ file_remeasure_widths_(System_Functions *system,
     file_grow_starts_widths_as_needed(general, buffer, line_shift);
     buffer_remeasure_widths(buffer, font->advance_data, line_start, line_end, line_shift);
 }
+#endif
 
 inline i32
 view_wrapped_line_span(f32 line_width, f32 max_width){
@@ -4713,7 +4715,7 @@ draw_file_loaded(View *view, i32_Rect rect, b32 is_active, Render_Target *target
 }
 
 internal void
-do_render_text_field(Render_Target *target, View *view, i32_Rect rect, String p, String t){
+draw_text_field(Render_Target *target, View *view, i32_Rect rect, String p, String t){
     Models *models = view->models;
     Style *style = &models->style;
     
@@ -4722,19 +4724,64 @@ do_render_text_field(Render_Target *target, View *view, i32_Rect rect, String p,
     u32 text2_color = style->main.file_info_style.pop1_color;
     
     i32 x = rect.x0;
-    i32 y = rect.y0 + 3;
+    i32 y = rect.y0 + 2;
     
     i16 font_id = models->global_font.font_id;
     
     if (target){
         draw_rectangle(target, rect, back_color);
-        x = draw_string(target, font_id, p, x, y, text2_color);
+        x = CEIL32(draw_string(target, font_id, p, x, y, text2_color));
         draw_string(target, font_id, t, x, y, text1_color);
 	}
 }
 
 internal void
-do_render_file_bar(Render_Target *target, View *view, Editing_File *file, i32_Rect rect){
+draw_text_with_cursor(Render_Target *target, View *view, i32_Rect rect, String s, i32 pos){
+    Models *models = view->models;
+    Style *style = &models->style;
+    
+    u32 back_color = style->main.margin_color;
+    u32 text_color = style->main.default_color;
+    u32 cursor_color = style->main.cursor_color;
+    u32 at_cursor_color = style->main.at_cursor_color;
+    
+    f32 x = (f32)rect.x0;
+    i32 y = rect.y0 + 2;
+    
+    i16 font_id = models->global_font.font_id;
+    
+    if (target){
+        draw_rectangle(target, rect, back_color);
+        
+        if (pos >= 0 && pos <  s.size){
+            String part1, part2, part3;
+            i32_Rect cursor_rect;
+            Render_Font *font = get_font_info(models->font_set, font_id)->font;
+            
+            part1 = substr(s, 0, pos);
+            part2 = substr(s, pos, 1);
+            part3 = substr(s, pos+1, s.size-pos-1);
+            
+            
+            x = draw_string(target, font_id, part1, FLOOR32(x), y, text_color);
+            
+            cursor_rect.x0 = FLOOR32(x);
+            cursor_rect.x1 = FLOOR32(x) + CEIL32(font->advance_data[s.str[pos]]);
+            cursor_rect.y0 = y;
+            cursor_rect.y1 = y + view->font_height;
+            draw_rectangle(target, cursor_rect, cursor_color);
+            x = draw_string(target, font_id, part2, FLOOR32(x), y, at_cursor_color);
+            
+            draw_string(target, font_id, part3, FLOOR32(x), y, text_color);
+        }
+        else{
+            draw_string(target, font_id, s, FLOOR32(x), y, text_color);
+        }
+	}
+}
+
+internal void
+draw_file_bar(Render_Target *target, View *view, Editing_File *file, i32_Rect rect){
     File_Bar bar;
     Models *models = view->models;
     Style_Font *font = &models->global_font;
@@ -4881,7 +4928,7 @@ draw_fat_option_block(GUI_Target *gui_target, Render_Target *target, View *view,
         x = checkbox_rect.x1 + 3;
     }
     
-    x = draw_string(target, font_id, text, x, y, text_color);
+    x = CEIL32(draw_string(target, font_id, text, x, y, text_color));
     draw_string(target, font_id, pop, x, y, pop_color);
 }
 
@@ -4933,7 +4980,7 @@ draw_style_preview(GUI_Target *gui_target, Render_Target *target, View *view, i3
 
     i32 y = inner.y0;
     i32 x = inner.x0;
-    x = draw_string(target, font_id, style->name.str, x, y, text_color);
+    x = CEIL32(draw_string(target, font_id, style->name.str, x, y, text_color));
     i32 font_x = (i32)(inner.x1 - font_string_width(target, font_id, info->name.str));
     if (font_x > x + 10){
         draw_string(target, font_id, info->name.str, font_x, y, text_color);
@@ -4941,17 +4988,17 @@ draw_style_preview(GUI_Target *gui_target, Render_Target *target, View *view, i3
 
     x = inner.x0;
     y += info->height;
-    x = draw_string(target, font_id, "if", x, y, keyword_color);
-    x = draw_string(target, font_id, "(x < ", x, y, text_color);
-    x = draw_string(target, font_id, "0", x, y, int_constant_color);
-    x = draw_string(target, font_id, ") { x = ", x, y, text_color);
-    x = draw_string(target, font_id, "0", x, y, int_constant_color);
-    x = draw_string(target, font_id, "; } ", x, y, text_color);
-    x = draw_string(target, font_id, "// comment", x, y, comment_color);
+    x = CEIL32(draw_string(target, font_id, "if", x, y, keyword_color));
+    x = CEIL32(draw_string(target, font_id, "(x < ", x, y, text_color));
+    x = CEIL32(draw_string(target, font_id, "0", x, y, int_constant_color));
+    x = CEIL32(draw_string(target, font_id, ") { x = ", x, y, text_color));
+    x = CEIL32(draw_string(target, font_id, "0", x, y, int_constant_color));
+    x = CEIL32(draw_string(target, font_id, "; } ", x, y, text_color));
+    x = CEIL32(draw_string(target, font_id, "// comment", x, y, comment_color));
     
     x = inner.x0;
     y += info->height;
-    x = draw_string(target, font_id, "[] () {}; * -> +-/ <>= ! && || % ^", x, y, text_color);
+    draw_string(target, font_id, "[] () {}; * -> +-/ <>= ! && || % ^", x, y, text_color);
 }
 
 internal i32
@@ -4988,7 +5035,7 @@ do_render_file_view(System_Functions *system, Exchange *exchange,
             switch (h->type){
                 case guicom_top_bar:
                 {
-                    do_render_file_bar(target, view, file, gui_session.rect);
+                    draw_file_bar(target, view, file, gui_session.rect);
                 }break;
 
                 case guicom_file:
@@ -5006,7 +5053,16 @@ do_render_file_view(System_Functions *system, Exchange *exchange,
                     void *ptr = (h+1);
                     String p = gui_read_string(&ptr);
                     String t = gui_read_string(&ptr);
-                    do_render_text_field(target, view, gui_session.rect, p, t);
+                    draw_text_field(target, view, gui_session.rect, p, t);
+                }break;
+                
+                case guicom_text_with_cursor:
+                {
+                    void *ptr = (h+1);
+                    String s = gui_read_string(&ptr);
+                    i32 pos = gui_read_integer(&ptr);
+                    
+                    draw_text_with_cursor(target, view, gui_session.rect, s, pos);
                 }break;
                 
                 case guicom_color_button:
