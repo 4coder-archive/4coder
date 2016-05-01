@@ -175,6 +175,7 @@ enum GUI_Command_Type{
     guicom_text_input,
     guicom_file_input,
     guicom_color_button,
+    guicom_font_button,
     guicom_text_with_cursor,
     guicom_file_option,
     guicom_fixed_option,
@@ -435,7 +436,23 @@ gui_do_color_button(GUI_Target *target, GUI_id id, u32 fore, u32 back, String te
     gui_push_item(target, h, &fore, sizeof(fore));
     gui_push_item(target, h, &back, sizeof(back));
     gui_push_string(target, h, text);
-        
+    
+    if (gui_id_eq(id, target->active)){
+        result = 1;
+	}
+    
+    return(result);
+}
+
+internal b32
+gui_do_font_button(GUI_Target *target, GUI_id id, i16 font_id, String text){
+    b32 result = 0;
+    i32 font_id32 = font_id;
+    GUI_Interactive *b = gui_push_button_command(target, guicom_font_button, id);
+    GUI_Header *h = (GUI_Header*)b;
+    gui_push_item(target, h, &font_id32, sizeof(font_id32));
+    gui_push_string(target, h, text);
+    
     if (gui_id_eq(id, target->active)){
         result = 1;
 	}
@@ -836,6 +853,7 @@ gui_interpret(GUI_Target *target, GUI_Session *session, GUI_Header *h){
         break;
         
         case guicom_color_button:
+        case guicom_font_button:
         give_to_user = 1;
         rect = gui_layout_fixed_h(session, y, session->line_height + 2);
         end_v = rect.y1;

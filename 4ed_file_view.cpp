@@ -56,11 +56,7 @@ enum View_UI{
 
 enum Color_View_Mode{
     CV_Mode_Library,
-    CV_Mode_Import_File,
-    CV_Mode_Export_File,
-    CV_Mode_Import,
-    CV_Mode_Export,
-    CV_Mode_Import_Wait,
+    CV_Mode_Font,
     CV_Mode_Adjusting
 };
 
@@ -3766,9 +3762,8 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                         view->hot_file_view = active_view;
                     }
                     
-                    String message;
+                    String message = {0};
                     String empty_string = {0};
-                    
                     GUI_id id = {0};
                     
                     switch (view->color_mode){
@@ -3779,6 +3774,12 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                         id.id[0] = (u64)(&models->style);
                         if (gui_do_style_preview(target, id, &models->style)){
                             view->color_mode = CV_Mode_Adjusting;
+                        }
+                        
+                        message = make_lit_string("Set Font");
+                        id.id[0] = (u64)(&models->global_font);
+                        if (gui_do_button(target, id, message)){
+                            view->color_mode = CV_Mode_Font;
                         }
                         
                         message = make_lit_string("Theme Library - Click to Select");
@@ -3802,6 +3803,45 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                         
                         gui_end_scrollable(target);
                         break;
+
+                        case CV_Mode_Font:
+                        {
+                            Font_Set *font_set = models->font_set;
+                            Font_Info *info = 0;
+                            
+                            i16 i = 1, count = (i16)models->font_set->count + 1;
+                            i16 font_id = 0, new_font_id = 0;
+                            GUI_id id = {0};
+                            
+                            String message = make_lit_string("Back");
+                            
+                            id.id[0] = (u64)(0 + (CV_Mode_Font << 9));
+                            if (gui_do_button(target, id, message)){
+                                view->color_mode = CV_Mode_Library;
+                            }
+                            
+                            font_id = models->global_font.font_id;
+                            new_font_id = font_id;
+                            
+                            for (i = 1; i < count; ++i){
+                                info = get_font_info(font_set, i);
+                                id.id[0] = (u64)(i + (CV_Mode_Font << 9));
+                                if (i != font_id){
+                                    if (gui_do_font_button(target, id, i, info->name)){
+                                        new_font_id = i;
+                                    }
+                                }
+                                else{
+                                    char message_space[256];
+                                    message = make_fixed_width_string(message_space);
+                                    copy(&message, make_lit_string("currently selected: "));
+                                    append(&message, info->name);
+                                    gui_do_font_button(target, id, i, message);
+                                }
+                            }
+
+                            models->global_font.font_id = (i16)(new_font_id);
+                        }break;
                         
                         case CV_Mode_Adjusting:
                         {
@@ -4330,6 +4370,7 @@ do_input_file_view(System_Functions *system, Exchange *exchange,
 				}break;
                 
                 case guicom_color_button:
+                case guicom_font_button:
                 case guicom_button:
                 case guicom_file_option:
                 case guicom_style_preview:
@@ -4881,13 +4922,30 @@ draw_color_button(GUI_Target *gui_target, Render_Target *target, View *view,
     
     i32 active_level = gui_active_level(gui_target, id);
     i16 font_id = models->global_font.font_id;
-    
+        
     if (active_level > 0){
         Swap(back, fore);
     }
     
     draw_rectangle(target, rect, back);
-    draw_string(target, font_id, text, rect.x0, rect.y0, fore);
+    draw_string(target, font_id, text, rect.x0, rect.y0 + 1, fore);
+}
+
+internal void
+draw_font_button(GUI_Target *gui_target, Render_Target *target, View *view,
+    i32_Rect rect, GUI_id id, i16 font_id, String text){
+    Models *models = view->models;
+    Style *style = &models->style;
+    
+    i32 active_level = gui_active_level(gui_target, id);
+    
+    u32 margin = get_margin_color(active_level, style);
+    u32 back = style->main.back_color;
+    u32 text_color = style->main.default_color;
+
+    draw_rectangle(target, rect, back);
+    draw_rectangle_outline(target, rect, margin);
+    draw_string(target, font_id, text, rect.x0, rect.y0 + 1, text_color);
 }
 
 internal void
@@ -5074,6 +5132,16 @@ do_render_file_view(System_Functions *system, Exchange *exchange,
                     String t = gui_read_string(&ptr);
                     
                     draw_color_button(gui_target, target, view, gui_session.rect, b->id, fore, back, t);
+                }break;
+                
+                case guicom_font_button:
+                {
+                    GUI_Interactive *b = (GUI_Interactive*)h;
+                    void *ptr = (b + 1);
+                    i16 font_id = (i16)gui_read_integer(&ptr);
+                    String t = gui_read_string(&ptr);
+                    
+                    draw_font_button(gui_target, target, view, gui_session.rect, b->id, font_id, t);
                 }break;
 
                 case guicom_file_option:
