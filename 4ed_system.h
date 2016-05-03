@@ -45,6 +45,13 @@ typedef Sys_Set_File_List_Sig(System_Set_File_List);
 #define Sys_File_Unique_Hash_Sig(name) Unique_Hash name(String filename, b32 *success)
 typedef Sys_File_Unique_Hash_Sig(System_File_Unique_Hash);
 
+#define Sys_File_Track_Sig(name) void name(String filename)
+typedef Sys_File_Track_Sig(System_File_Track);
+
+#define Sys_File_Untrack_Sig(name) void name(String filename)
+typedef Sys_File_Untrack_Sig(System_File_Untrack);
+
+
 #define Sys_Post_Clipboard_Sig(name) void name(String str)
 typedef Sys_Post_Clipboard_Sig(System_Post_Clipboard);
 
@@ -193,10 +200,12 @@ typedef INTERNAL_Sys_Get_Thread_States_Sig(INTERNAL_System_Get_Thread_States);
 typedef INTERNAL_Sys_Debug_Message_Sig(INTERNAL_System_Debug_Message);
 
 struct System_Functions{
-    // files: 3
+    // files: 4
     System_File_Time_Stamp *file_time_stamp;
     System_Set_File_List *set_file_list;
     System_File_Unique_Hash *file_unique_hash;
+    System_File_Track *file_track;
+    System_File_Untrack *file_untrack;
 
     // file system navigation (4coder_custom.h): 2
     File_Exists_Function *file_exists;
@@ -262,9 +271,16 @@ struct File_Exchange{
     i32 num_active, max;
 };
 
+struct Write_Event{
+    Write_Event *next, *prev;
+    String filename;
+    u64 time_stamp;
+};
+
 struct Exchange{
     Thread_Exchange thread;
     File_Exchange file;
+    Write_Event write_event_sentinel;
 };
 
 // BOTTOM

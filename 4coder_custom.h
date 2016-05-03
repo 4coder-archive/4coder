@@ -249,7 +249,6 @@ enum Param_ID{
 enum Hook_ID{
     hook_start,
     hook_open_file,
-    hook_frame,
     hook_new_file,
     hook_file_out_of_sync,
     // never below this

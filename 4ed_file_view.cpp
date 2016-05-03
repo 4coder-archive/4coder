@@ -382,7 +382,6 @@ file_grow_starts_widths_as_needed(General_Memory *general, Buffer_Type *buffer, 
 internal void
 file_measure_starts_widths(System_Functions *system, General_Memory *general,
     Buffer_Type *buffer, float *advance_data){
-    ProfileMomentFunction();
     if (!buffer->line_starts){
         i32 max = buffer->line_max = Kbytes(1);
         buffer->line_starts = (i32*)general_memory_allocate(general, max*sizeof(i32), BUBBLE_STARTS);
@@ -441,17 +440,6 @@ get_opaque_font_advance(Render_Font *font){
     return result;
 }
 
-#if 0
-internal void
-file_remeasure_widths_(System_Functions *system,
-    General_Memory *general, Buffer_Type *buffer, Render_Font *font,
-    i32 line_start, i32 line_end, i32 line_shift){
-    ProfileMomentFunction();
-    file_grow_starts_widths_as_needed(general, buffer, line_shift);
-    buffer_remeasure_widths(buffer, font->advance_data, line_start, line_end, line_shift);
-}
-#endif
-
 inline i32
 view_wrapped_line_span(f32 line_width, f32 max_width){
     i32 line_count = CEIL32(line_width / max_width);
@@ -485,7 +473,6 @@ view_compute_lowest_line(View *view){
 internal void
 view_measure_wraps(System_Functions *system,
     General_Memory *general, View *view){
-    ProfileMomentFunction();
     Buffer_Type *buffer;
 
     buffer = &view->file->state.buffer;
@@ -1655,7 +1642,6 @@ internal void
 file_do_single_edit(System_Functions *system,
     Models *models, Editing_File *file,
     Edit_Spec spec, History_Mode history_mode, b32 use_high_permission = 0){
-    ProfileMomentFunction();
     if (!use_high_permission && file->settings.read_only) return;
 
     Mem_Options *mem = &models->mem;
@@ -1731,7 +1717,6 @@ file_do_single_edit(System_Functions *system,
 internal void
 file_do_white_batch_edit(System_Functions *system, Models *models, Editing_File *file,
     Edit_Spec spec, History_Mode history_mode, b32 use_high_permission = 0){
-    ProfileMomentFunction();
     if (!use_high_permission && file->settings.read_only) return;
 
     Mem_Options *mem = &models->mem;
@@ -5540,7 +5525,7 @@ search_hit_add(General_Memory *general, Table *hits, String_Space *space, char *
         *hits = new_hits;
     }
 
-    if (!table_add(hits, &ostring, space->space, tbl_offset_string_hash, tbl_offset_string_compare)){
+    if (table_add(hits, &ostring, space->space, tbl_offset_string_hash, tbl_offset_string_compare)){
         result = 1;
         strspace_keep_prev(space);
     }

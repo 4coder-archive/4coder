@@ -77,45 +77,6 @@ HOOK_SIG(my_file_settings){
     return(0);
 }
 
-HOOK_SIG(my_frame){
-    // NOTE(allen|a4): Please use me sparingly! This get's called roughly once every *33 ms*
-    // if everything is going well. But if you start doing a lot in here, there's nothing 4codes does
-    // to stop you from making it a lot slower.
-
-    int result = 0;
-    Theme_Color theme_color_1[] = {
-        {Stag_Cursor, 0x00FF00},
-        {Stag_At_Cursor, 0x000000}
-    };
-
-    Theme_Color theme_color_2[2] = {
-        {Stag_Cursor, 0x000000},
-        {Stag_At_Cursor, 0xFFFFFF}
-    };
-
-    Theme_Color *theme_color;
-
-    ++blink_t;
-
-    if (blink_t == 20 || blink_t == 40){
-        if (blink_t == 20){
-            theme_color = theme_color_2;
-        }
-        else{
-            theme_color = theme_color_1;
-            blink_t = 0;
-        }
-
-        result = 1;
-        app->set_theme_colors(app, theme_color, 2);
-    }
-
-    // return non-zero if you do anything that might change the screen!
-    // 4coder won't redraw unless you tell it you've changed something important.
-    // If you redraw *all* the time it's going to slow 4coder down and increase power consumption.
-    return(result);
-}
-
 CUSTOM_COMMAND_SIG(write_allen_todo){
     write_string(app, make_lit_string("// TODO(allen): "));
 }

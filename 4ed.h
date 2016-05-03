@@ -97,7 +97,6 @@ enum Application_Mouse_Cursor{
 
 struct Application_Step_Result{
 	Application_Mouse_Cursor mouse_cursor_type;
-    b32 redraw;
     b32 lctrl_lalt_is_altgr;
     b32 trying_to_kill;
     b32 perform_kill;
@@ -111,7 +110,7 @@ name(System_Functions *system,                         \
     Application_Memory *memory,                        \
     Exchange *exchange,                                \
     String clipboard,                                  \
-    b32 time_step, b32 first_step, b32 force_redraw,   \
+    f32 dt, b32 first_step,   \
     Application_Step_Result *result)
 
 typedef App_Step_Sig(App_Step);

@@ -235,7 +235,7 @@ COMMAND_DECL(null){
 }
 
 COMMAND_DECL(write_character){
-    ProfileMomentFunction();
+    
     USE_MODELS(models);
     REQ_OPEN_VIEW(view);
     REQ_FILE(file, view);
@@ -282,7 +282,7 @@ seek_token_right(Cpp_Token_Stack *tokens, i32 pos){
 }
 
 COMMAND_DECL(seek_left){
-    ProfileMomentFunction();
+    
     REQ_READABLE_VIEW(view);
     REQ_FILE(file, view);
 
@@ -335,7 +335,7 @@ COMMAND_DECL(seek_left){
 }
 
 COMMAND_DECL(seek_right){
-    ProfileMomentFunction();
+    
     REQ_READABLE_VIEW(view);
     REQ_FILE(file, view);
 
@@ -390,7 +390,7 @@ COMMAND_DECL(seek_right){
 }
 
 COMMAND_DECL(seek_whitespace_up){
-    ProfileMomentFunction();
+    
     REQ_READABLE_VIEW(view);
     REQ_FILE(file, view);
 
@@ -399,7 +399,7 @@ COMMAND_DECL(seek_whitespace_up){
 }
 
 COMMAND_DECL(seek_whitespace_down){
-    ProfileMomentFunction();
+    
     REQ_READABLE_VIEW(view);
     REQ_FILE(file, view);
 
@@ -408,7 +408,7 @@ COMMAND_DECL(seek_whitespace_down){
 }
 
 COMMAND_DECL(center_view){
-    ProfileMomentFunction();
+    
     USE_VIEW(view);
     REQ_FILE(file, view);
 
@@ -428,7 +428,7 @@ COMMAND_DECL(center_view){
 }
 
 COMMAND_DECL(word_complete){
-    ProfileMomentFunction();
+    
     USE_MODELS(models);
     USE_VARS(vars);
     REQ_OPEN_VIEW(view);
@@ -588,7 +588,7 @@ COMMAND_DECL(word_complete){
 }
 
 COMMAND_DECL(set_mark){
-    ProfileMomentFunction();
+    
     REQ_READABLE_VIEW(view);
     REQ_FILE(file, view);
 
@@ -596,7 +596,7 @@ COMMAND_DECL(set_mark){
 }
 
 COMMAND_DECL(copy){
-    ProfileMomentFunction();
+    
     USE_MODELS(models);
     REQ_READABLE_VIEW(view);
     REQ_FILE(file, view);
@@ -631,7 +631,7 @@ COMMAND_DECL(copy){
 }
 
 COMMAND_DECL(cut){
-    ProfileMomentFunction();
+    
     USE_MODELS(models);
     REQ_OPEN_VIEW(view);
     REQ_FILE(file, view);
@@ -672,7 +672,7 @@ COMMAND_DECL(cut){
 }
 
 COMMAND_DECL(paste){
-    ProfileMomentFunction();
+    
     USE_MODELS(models);
     REQ_OPEN_VIEW(view);
     REQ_FILE(file, view);
@@ -702,7 +702,7 @@ COMMAND_DECL(paste){
 }
 
 COMMAND_DECL(paste_next){
-    ProfileMomentFunction();
+    
     USE_MODELS(models);
     REQ_OPEN_VIEW(view);
     REQ_FILE(file, view);
@@ -737,7 +737,7 @@ COMMAND_DECL(paste_next){
 }
 
 COMMAND_DECL(delete_range){
-    ProfileMomentFunction();
+    
     USE_MODELS(models);
     REQ_OPEN_VIEW(view);
     REQ_FILE(file, view);
@@ -756,7 +756,7 @@ COMMAND_DECL(delete_range){
 }
 
 COMMAND_DECL(timeline_scrub){
-    ProfileMomentFunction();
+    
     REQ_OPEN_VIEW(view);
     REQ_FILE_HISTORY(file, view);
 
@@ -766,7 +766,7 @@ COMMAND_DECL(timeline_scrub){
 }
 
 COMMAND_DECL(undo){
-    ProfileMomentFunction();
+    
     USE_MODELS(models);
     REQ_OPEN_VIEW(view);
     REQ_FILE_HISTORY(file, view);
@@ -775,7 +775,7 @@ COMMAND_DECL(undo){
 }
 
 COMMAND_DECL(redo){
-    ProfileMomentFunction();
+    
     USE_MODELS(models);
     REQ_OPEN_VIEW(view);
     REQ_FILE_HISTORY(file, view);
@@ -784,7 +784,7 @@ COMMAND_DECL(redo){
 }
 
 COMMAND_DECL(history_backward){
-    ProfileMomentFunction();
+    
     USE_MODELS(models);
     REQ_OPEN_VIEW(view);
     REQ_FILE_HISTORY(file, view);
@@ -793,7 +793,7 @@ COMMAND_DECL(history_backward){
 }
 
 COMMAND_DECL(history_forward){
-    ProfileMomentFunction();
+    
     USE_MODELS(models);
     REQ_OPEN_VIEW(view);
     REQ_FILE_HISTORY(file, view);
@@ -802,7 +802,7 @@ COMMAND_DECL(history_forward){
 }
 
 COMMAND_DECL(interactive_new){
-    ProfileMomentFunction();
+    
     USE_MODELS(models);
     USE_VIEW(view);
 
@@ -828,7 +828,7 @@ struct App_Open_File_Result{
 };
 
 COMMAND_DECL(interactive_open){
-    ProfileMomentFunction();
+    
     USE_MODELS(models);
     USE_PANEL(panel);
     USE_VIEW(view);
@@ -908,7 +908,7 @@ view_file_in_panel(Command_Data *cmd, Panel *panel, Editing_File *file){
 // - Keep current version open and do some sort of diff to keep
 //    the cursor position correct
 COMMAND_DECL(reopen){
-    ProfileMomentFunction();
+    
     USE_VARS(vars);
     USE_MODELS(models);
     USE_VIEW(view);
@@ -933,7 +933,7 @@ COMMAND_DECL(reopen){
 }
 
 COMMAND_DECL(save){
-    ProfileMomentFunction();
+    
     USE_MODELS(models);
     USE_VIEW(view);
     USE_FILE(file, view);
@@ -1009,7 +1009,7 @@ COMMAND_DECL(save){
 }
 
 COMMAND_DECL(change_active_panel){
-    ProfileMomentFunction();
+    
     USE_MODELS(models);
     USE_PANEL(panel);
 
@@ -1021,7 +1021,7 @@ COMMAND_DECL(change_active_panel){
 }
 
 COMMAND_DECL(interactive_switch_buffer){
-    ProfileMomentFunction();
+    
     USE_VIEW(view);
     USE_MODELS(models);
 
@@ -1030,7 +1030,7 @@ COMMAND_DECL(interactive_switch_buffer){
 }
 
 COMMAND_DECL(interactive_kill_buffer){
-    ProfileMomentFunction();
+    
     USE_VIEW(view);
     USE_MODELS(models);
 
@@ -1039,7 +1039,7 @@ COMMAND_DECL(interactive_kill_buffer){
 }
 
 COMMAND_DECL(kill_buffer){
-    ProfileMomentFunction();
+    
     USE_MODELS(models);
     USE_VIEW(view);
     USE_FILE(file, view);
@@ -1068,7 +1068,7 @@ COMMAND_DECL(kill_buffer){
 }
 
 COMMAND_DECL(toggle_line_wrap){
-    ProfileMomentFunction();
+    
     REQ_READABLE_VIEW(view);
     REQ_FILE(file, view);
 
@@ -1092,14 +1092,14 @@ COMMAND_DECL(toggle_line_wrap){
 }
 
 COMMAND_DECL(toggle_show_whitespace){
-    ProfileMomentFunction();
+    
     REQ_READABLE_VIEW(view);
     view->show_whitespace = !view->show_whitespace;
 }
 
 COMMAND_DECL(toggle_tokens){
 #if BUFFER_EXPERIMENT_SCALPEL <= 0
-    ProfileMomentFunction();
+    
     USE_MODELS(models);
     REQ_OPEN_VIEW(view);
     REQ_FILE(file, view);
@@ -1145,7 +1145,7 @@ case_change_range(System_Functions *system,
 }
 
 COMMAND_DECL(to_uppercase){
-    ProfileMomentFunction();
+    
     USE_MODELS(models);
     REQ_OPEN_VIEW(view);
     REQ_FILE(file, view);
@@ -1153,7 +1153,7 @@ COMMAND_DECL(to_uppercase){
 }
 
 COMMAND_DECL(to_lowercase){
-    ProfileMomentFunction();
+    
     USE_MODELS(models);
     REQ_OPEN_VIEW(view);
     REQ_FILE(file, view);
@@ -1161,7 +1161,7 @@ COMMAND_DECL(to_lowercase){
 }
 
 COMMAND_DECL(clean_all_lines){
-    ProfileMomentFunction();
+    
     USE_MODELS(models);
     REQ_OPEN_VIEW(view);
     REQ_FILE(file, view);
@@ -1170,7 +1170,7 @@ COMMAND_DECL(clean_all_lines){
 }
 
 COMMAND_DECL(eol_dosify){
-    ProfileMomentFunction();
+    
     REQ_READABLE_VIEW(view);
     REQ_FILE(file, view);
 
@@ -1179,7 +1179,7 @@ COMMAND_DECL(eol_dosify){
 }
 
 COMMAND_DECL(eol_nixify){
-    ProfileMomentFunction();
+    
     REQ_READABLE_VIEW(view);
     REQ_FILE(file, view);
 
@@ -1188,7 +1188,7 @@ COMMAND_DECL(eol_nixify){
 }
 
 COMMAND_DECL(auto_tab_range){
-    ProfileMomentFunction();
+    
     USE_MODELS(models);
     REQ_OPEN_VIEW(view);
     REQ_FILE(file, view);
@@ -1233,7 +1233,7 @@ COMMAND_DECL(auto_tab_range){
 }
 
 COMMAND_DECL(open_panel_vsplit){
-    ProfileMomentFunction();
+    
     USE_VARS(vars);
     USE_MODELS(models);
     USE_PANEL(panel);
@@ -1261,7 +1261,7 @@ COMMAND_DECL(open_panel_vsplit){
 }
 
 COMMAND_DECL(open_panel_hsplit){
-    ProfileMomentFunction();
+    
     USE_VARS(vars);
     USE_MODELS(models);
     USE_PANEL(panel);
@@ -1289,7 +1289,7 @@ COMMAND_DECL(open_panel_hsplit){
 }
 
 COMMAND_DECL(close_panel){
-    ProfileMomentFunction();
+    
     USE_MODELS(models);
     USE_PANEL(panel);
     USE_VIEW(view);
@@ -1370,7 +1370,7 @@ COMMAND_DECL(close_panel){
 }
 
 COMMAND_DECL(move_left){
-    ProfileMomentFunction();
+    
     REQ_READABLE_VIEW(view);
     REQ_FILE(file, view);
 
@@ -1380,7 +1380,7 @@ COMMAND_DECL(move_left){
 }
 
 COMMAND_DECL(move_right){
-    ProfileMomentFunction();
+    
     REQ_READABLE_VIEW(view);
     REQ_FILE(file, view);
 
@@ -1391,7 +1391,7 @@ COMMAND_DECL(move_right){
 }
 
 COMMAND_DECL(delete){
-    ProfileMomentFunction();
+    
     USE_MODELS(models);
     REQ_OPEN_VIEW(view);
     REQ_FILE(file, view);
@@ -1412,7 +1412,7 @@ COMMAND_DECL(delete){
 }
 
 COMMAND_DECL(backspace){
-    ProfileMomentFunction();
+    
     USE_MODELS(models);
     REQ_OPEN_VIEW(view);
     REQ_FILE(file, view);
@@ -1434,7 +1434,7 @@ COMMAND_DECL(backspace){
 }
 
 COMMAND_DECL(move_up){
-    ProfileMomentFunction();
+    
     USE_MODELS(models);
     REQ_READABLE_VIEW(view);
     REQ_FILE(file, view);
@@ -1449,7 +1449,7 @@ COMMAND_DECL(move_up){
 }
 
 COMMAND_DECL(move_down){
-    ProfileMomentFunction();
+    
     USE_MODELS(models);
     REQ_READABLE_VIEW(view);
     REQ_FILE(file, view);
@@ -1462,7 +1462,7 @@ COMMAND_DECL(move_down){
 }
 
 COMMAND_DECL(seek_end_of_line){
-    ProfileMomentFunction();
+    
     REQ_READABLE_VIEW(view);
     REQ_FILE(file, view);
 
@@ -1471,7 +1471,7 @@ COMMAND_DECL(seek_end_of_line){
 }
 
 COMMAND_DECL(seek_beginning_of_line){
-    ProfileMomentFunction();
+    
     REQ_READABLE_VIEW(view);
     REQ_FILE(file, view);
 
@@ -1480,7 +1480,7 @@ COMMAND_DECL(seek_beginning_of_line){
 }
 
 COMMAND_DECL(page_down){
-    ProfileMomentFunction();
+    
     REQ_READABLE_VIEW(view);
 
     f32 height = view_file_height(view);
@@ -1494,7 +1494,7 @@ COMMAND_DECL(page_down){
 }
 
 COMMAND_DECL(page_up){
-    ProfileMomentFunction();
+    
     REQ_READABLE_VIEW(view);
 
     f32 height = view_file_height(view);
@@ -1508,7 +1508,7 @@ COMMAND_DECL(page_up){
 }
 
 COMMAND_DECL(open_color_tweaker){
-    ProfileMomentFunction();
+    
     USE_VIEW(view);
     USE_MODELS(models);
 
@@ -1516,7 +1516,7 @@ COMMAND_DECL(open_color_tweaker){
 }
 
 COMMAND_DECL(open_config){
-    ProfileMomentFunction();
+    
     USE_VIEW(view);
     USE_MODELS(models);
 
@@ -1524,7 +1524,7 @@ COMMAND_DECL(open_config){
 }
 
 COMMAND_DECL(open_menu){
-    ProfileMomentFunction();
+    
     USE_VIEW(view);
     USE_MODELS(models);
 
@@ -1532,7 +1532,7 @@ COMMAND_DECL(open_menu){
 }
 
 COMMAND_DECL(close_minor_view){
-    ProfileMomentFunction();
+    
     USE_VIEW(view);
     USE_MODELS(models);
 
@@ -1544,7 +1544,7 @@ COMMAND_DECL(close_minor_view){
 }
 
 COMMAND_DECL(cursor_mark_swap){
-    ProfileMomentFunction();
+    
     REQ_READABLE_VIEW(view);
 
     i32 pos = view->cursor.pos;
@@ -1553,12 +1553,12 @@ COMMAND_DECL(cursor_mark_swap){
 }
 
 COMMAND_DECL(user_callback){
-    ProfileMomentFunction();
+    
     if (binding.custom) binding.custom(&app_links);
 }
 
 COMMAND_DECL(set_settings){
-    ProfileMomentFunction();
+    
     REQ_READABLE_VIEW(view);
     REQ_FILE(file, view);
     USE_MODELS(models);
@@ -1641,7 +1641,7 @@ COMMAND_DECL(set_settings){
 }
 
 COMMAND_DECL(command_line){
-    ProfileMomentFunction();
+    
     USE_VARS(vars);
     USE_MODELS(models);
     USE_PANEL(panel);
@@ -3487,17 +3487,11 @@ update_cli_handle_with_file(System_Functions *system, Models *models,
 }
 
 App_Step_Sig(app_step){
-    ProfileStart(OS_syncing);
     Application_Step_Result app_result = *result;
-    app_result.redraw = force_redraw;
 
     App_Vars *vars = (App_Vars*)memory->vars_memory;
     Models *models = &vars->models;
     target->partition = &models->mem.part;
-
-    if (first_step || !time_step){
-        app_result.redraw = 1;
-    }
 
     // NOTE(allen): OS clipboard event handling
     if (clipboard.str){
@@ -3505,7 +3499,6 @@ App_Step_Sig(app_step){
         dest->size = eol_convert_in(dest->str, clipboard.str, clipboard.size);
     }
 
-    // TODO(allen): profile this see if it's costing me lots of power (I think it is).
     // NOTE(allen): check files are up to date
     {
         File_Node *node, *used_nodes;
@@ -3519,22 +3512,22 @@ App_Step_Sig(app_step){
             time_stamp = system->file_time_stamp(make_c_str(file->name.source_path));
 
             if (time_stamp > 0){
-                File_Sync_State prev_sync = buffer_get_sync(file);
-                
                 file->state.last_sys_write_time = time_stamp;
+#if 0
+                File_Sync_State prev_sync = buffer_get_sync(file);
                 file->state.sync = buffer_get_sync(file);
-                
                 if (file->state.last_sys_write_time != file->state.last_4ed_write_time){
                     if (file->state.sync != prev_sync){
                         app_result.redraw = 1;
                     }
                 }
+#endif
             }
         }
     }
 
     // NOTE(allen): update child processes
-    if (time_step){
+    if (dt > 0){
         Temp_Memory temp = begin_temp_memory(&models->mem.part);
         u32 max = Kbytes(32);
         char *dest = push_array(&models->mem.part, char, max);
@@ -3546,7 +3539,6 @@ App_Step_Sig(app_step){
 
             if (file != 0){
                 i32 r = update_cli_handle_with_file(system, models, &proc->cli, file, dest, max, 0);
-                if (r) app_result.redraw = 1;
                 if (r < 0){
                     *proc = vars->cli_processes.procs[--count];
                     --i;
@@ -3582,8 +3574,6 @@ App_Step_Sig(app_step){
                 // be handled in the same place.
                 view_change_size(system, &models->mem.general, view);
             }
-
-            app_result.redraw = 1;
         }
     }
 
@@ -3598,9 +3588,6 @@ App_Step_Sig(app_step){
 
     mouse->wheel = -mouse->wheel;
 
-    ProfileEnd(OS_syncing);
-
-    ProfileStart(hover_status);
     // NOTE(allen): detect mouse hover status
     i32 mx = mouse->x;
     i32 my = mouse->y;
@@ -3677,11 +3664,8 @@ App_Step_Sig(app_step){
             mouse_divider_id = 0;
         }
     }
-    ProfileEnd(hover_status);
-
+    
     // NOTE(allen): prepare to start executing commands
-    ProfileStart(prepare_commands);
-
     Command_Data *cmd = &vars->command_data;
 
     cmd->models = models;
@@ -3757,10 +3741,8 @@ App_Step_Sig(app_step){
             do_feedback_message(system, models, welcome);
         }
     }
-    ProfileEnd(prepare_commands);
-
+    
     // NOTE(allen): try to abort the command corroutine if we are shutting down
-    ProfileStart(try_to_shutdown);
     if (app_result.trying_to_kill){
         b32 there_is_unsaved = 0;
         
@@ -3802,16 +3784,13 @@ App_Step_Sig(app_step){
                 IAct_Sure_To_Close, IInt_Sure_To_Close, make_lit_string("Are you sure?"));
 
             models->command_coroutine = command_coroutine;
-            app_result.redraw = 1;
         }
         else{
             app_result.perform_kill = 1;
         }
     }
-    ProfileEnd(try_to_shutdown);
     
     // NOTE(allen): process the command_coroutine if it is unfinished
-    ProfileStart(command_coroutine);
     b8 consumed_input[6] = {0};
 
     if (models->command_coroutine != 0){
@@ -3860,7 +3839,6 @@ App_Step_Sig(app_step){
                 if (pass_in){
                     models->command_coroutine =
                         system->resume_coroutine(command_coroutine, &user_in, models->command_coroutine_flags);
-                    app_result.redraw = 1;
 
                     // TOOD(allen): Deduplicate
                     // TODO(allen): Should I somehow allow a view to clean up however it wants after a
@@ -3924,7 +3902,6 @@ App_Step_Sig(app_step){
             if (pass_in){
                 models->command_coroutine = system->resume_coroutine(command_coroutine, &user_in,
                     models->command_coroutine_flags);
-                app_result.redraw = 1;
 
                 // TOOD(allen): Deduplicate
                 // TODO(allen): Should I somehow allow a view to clean up however it wants after a
@@ -3937,20 +3914,9 @@ App_Step_Sig(app_step){
     }
 
     update_command_data(vars, cmd);
-
-    ProfileEnd(command_coroutine);
-
-    ProfileStart(frame_hook);
-    if (models->hooks[hook_frame]){
-        if ((models->hooks[hook_frame])(&app_links)){
-            app_result.redraw = 1;
-        }
-    }
-    ProfileStart(frame_hook);
     
     // NOTE(allen): pass raw input to the panels
-    ProfileStart(step);
-
+    
     Input_Summary dead_input = {};
     dead_input.mouse.x = mouse->x;
     dead_input.mouse.y = mouse->y;
@@ -4002,9 +3968,7 @@ App_Step_Sig(app_step){
             view = panel->view;
             active = (panel == cmd->panel);
             input = (active)?(active_input):(dead_input);
-            if (step_file_view(system, view, active_view, input)){
-                app_result.redraw = 1;
-            }
+            step_file_view(system, view, active_view, input);
         }
         
         for (dll_items(panel, used_panels)){
@@ -4014,17 +3978,13 @@ App_Step_Sig(app_step){
             if (panel == mouse_panel && !mouse->out_of_window){
                 input.mouse = mouse_state;
             }
-            if (do_input_file_view(system, exchange, view, panel->inner, active, &input)){
-                app_result.redraw = 1;
-            }
+            do_input_file_view(system, exchange, view, panel->inner, active, &input);
         }
     }
 
     update_command_data(vars, cmd);
-    ProfileEnd(step);
-
+    
     // NOTE(allen): command execution
-    ProfileStart(command);
     if (!consumed_input[0] || !consumed_input[1]){
         b32 consumed_input2[2] = {0};
 
@@ -4065,7 +4025,6 @@ App_Step_Sig(app_step){
                             models->command_coroutine = system->launch_coroutine(models->command_coroutine,
                                 &cmd_in, models->command_coroutine_flags);
                             models->prev_command = cmd_bind;
-                            app_result.redraw = 1;
                         }
                     }
                 }break;
@@ -4084,9 +4043,7 @@ App_Step_Sig(app_step){
     }
 
     update_command_data(vars, cmd);
-    ProfileEnd(command);
-
-    ProfileStart(resizing);
+    
     // NOTE(allen): panel resizing
     switch (vars->state){
         case APP_STATE_EDIT:
@@ -4158,7 +4115,6 @@ App_Step_Sig(app_step){
 
         case APP_STATE_RESIZING:
         {
-            app_result.redraw = 1;
             if (mouse->l){
                 Panel_Divider *divider = vars->resizing.divider;
                 if (divider->v_divider){
@@ -4185,14 +4141,11 @@ App_Step_Sig(app_step){
 
     if (mouse_in_edit_area && mouse_panel != 0 && mouse->press_l){
         models->layout.active_panel = (i32)(mouse_panel - models->layout.panels);
-        app_result.redraw = 1;
     }
 
     update_command_data(vars, cmd);
-    ProfileEnd(resizing);
-
+    
     // NOTE(allen): processing sys app bindings
-    ProfileStart(sys_app_bind_processing);
     {
         Mem_Options *mem = &models->mem;
         General_Memory *general = &mem->general;
@@ -4236,8 +4189,6 @@ App_Step_Sig(app_step){
                         view_measure_wraps(system, general, iter.view);
                         view_cursor_move(iter.view, preload_settings.start_line, 0);
                     }
-
-                    app_result.redraw = 1;
                 }
                 else{
                     if (binding->fail & SysAppCreateNewBuffer){
@@ -4250,8 +4201,6 @@ App_Step_Sig(app_step){
                         working_set_remove(system, &models->working_set, ed_file->name.source_path);
                         working_set_free_file(&models->working_set, ed_file);
                     }
-
-                    app_result.redraw = 1;
                 }
 
                 exchange_free_file(exchange, binding->sys_id);
@@ -4283,10 +4232,8 @@ App_Step_Sig(app_step){
             }
         }
     }
-    ProfileEnd(sys_app_bind_processing);
-
+    
     // NOTE(allen): process as many delayed actions as possible
-    ProfileStart(delayed_actions);
     if (models->delay1.count > 0){
         Working_Set *working_set = &models->working_set;
         Mem_Options *mem = &models->mem;
@@ -4321,8 +4268,6 @@ App_Step_Sig(app_step){
                     {
                         String filename = string;
                         i32 file_id;
-                        
-                        filename.str[0] = char_to_lower(filename.str[0]);
     
                         result.file = working_set_contains(system, working_set, filename);
                         if (result.file == 0){
@@ -4522,9 +4467,7 @@ App_Step_Sig(app_step){
     }
 
     end_temp_memory(param_stack_temp);
-    ProfileEnd(delayed_actions);
-
-    ProfileStart(resize);
+    
     // NOTE(allen): send resize messages to panels that have changed size
     {
         Panel *panel, *used_panels;
@@ -4539,9 +4482,7 @@ App_Step_Sig(app_step){
             panel->prev_inner = inner;
         }
     }
-    ProfileEnd(resize);
-
-    ProfileStart(style_change);
+    
     // NOTE(allen): send style change messages if the style has changed
     if (models->global_font.font_changed){
         models->global_font.font_changed = 0;
@@ -4564,11 +4505,9 @@ App_Step_Sig(app_step){
             remeasure_file_view(system, panel->view, panel->inner);
         }
     }
-    ProfileEnd(style_change);
-
-    ProfileStart(redraw);
-    if (mouse_panel != models->prev_mouse_panel) app_result.redraw = 1;
-    if (app_result.redraw){
+    
+    // NOTE(allen): rendering
+    {
         begin_render_section(target, system);
 
         target->clip_top = -1;
@@ -4610,9 +4549,7 @@ App_Step_Sig(app_step){
 
         end_render_section(target, system);
     }
-    ProfileEnd(redraw);
-
-    ProfileStart(get_cursor);
+    
     // NOTE(allen): get cursor type
     if (mouse_in_edit_area){
             app_result.mouse_cursor_type = APP_MOUSE_CURSOR_ARROW;
@@ -4631,8 +4568,7 @@ App_Step_Sig(app_step){
         }
     }
     models->prev_mouse_panel = mouse_panel;
-    ProfileEnd(get_cursor);
-
+    
     app_result.lctrl_lalt_is_altgr = models->settings.lctrl_lalt_is_altgr;
     *result = app_result;
 

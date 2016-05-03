@@ -429,7 +429,11 @@ working_set_add(System_Functions *system, Working_Set *working_set, Editing_File
     working_set__grow_if_needed(&working_set->table, general, system, tbl_string_hash, tbl_file_compare);
     working_set__entry_comp(system, file->name.source_path, &entry_comp);
     entry_comp.entry.id = file->id;
-    table_add(&working_set->table, &entry_comp, system, tbl_string_hash, tbl_file_compare);
+    if (table_add(&working_set->table, &entry_comp, system, tbl_string_hash, tbl_file_compare)){
+        if (!uhash_equal(entry_comp.hash, uhash_zero())){
+            system->file_track(file->name.source_path);
+        }
+    }
 }
 
 inline void
@@ -437,14 +441,15 @@ working_set_remove(System_Functions *system, Working_Set *working_set, String fi
     File_Entry_Comparison entry_comp;
     working_set__entry_comp(system, filename, &entry_comp);
     table_remove_match(&working_set->table, &entry_comp, system, tbl_string_hash, tbl_file_compare);
+    if (!uhash_equal(entry_comp.hash, uhash_zero())){
+        system->file_untrack(filename);
+    }
 }
 
 // TODO(allen): Pick better first options.
 internal Editing_File*
 working_set_lookup_file(Working_Set *working_set, String string){
     Editing_File *file = 0;
-    
-    replace_char(string, '\\', '/');
     
     {
         File_Node *node, *used_nodes;
@@ -562,8 +567,6 @@ internal b32
 filename_match(String query, Absolutes *absolutes, String filename, b32 case_sensitive){
     b32 result;
     result = (query.size == 0);
-    replace_char(query, '\\', '/');
-    replace_char(filename, '\\', '/');
     if (!result) result = wildcard_match(absolutes, filename, case_sensitive);
     return result;
 }
@@ -575,8 +578,6 @@ hot_directory_first_match(Hot_Directory *hot_directory,
                           b32 exact_match,
                           b32 case_sensitive){
     Hot_Directory_Match result = {};
-    
-    replace_char(str, '\\', '/');
     
     Absolutes absolutes;
     if (!exact_match)
