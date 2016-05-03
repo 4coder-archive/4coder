@@ -3978,7 +3978,9 @@ App_Step_Sig(app_step){
             if (panel == mouse_panel && !mouse->out_of_window){
                 input.mouse = mouse_state;
             }
-            do_input_file_view(system, exchange, view, panel->inner, active, &input);
+            if (do_input_file_view(system, exchange, view, panel->inner, active, &input)){
+                app_result.animating = 1;
+            }
         }
     }
 

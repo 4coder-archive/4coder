@@ -100,6 +100,7 @@ struct Application_Step_Result{
     b32 lctrl_lalt_is_altgr;
     b32 trying_to_kill;
     b32 perform_kill;
+    b32 animating;
 };
 
 #define App_Step_Sig(name) void                        \

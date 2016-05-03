@@ -3457,9 +3457,9 @@ view_reinit_scrolling(View *view){
 #define CursorMaxY(m,h) (CursorMaxY_(m,h) > 0)?(CursorMaxY_(m,h)):(0)
 #define CursorMinY(m,h) (CursorMinY_(m,h) > 0)?(CursorMinY_(m,h)):(0)
 
-internal i32
+internal b32
 file_step(View *view, i32_Rect region, Input_Summary *user_input, b32 is_active){
-    i32 result  = 0;
+    i32 is_animating = 0;
     Editing_File *file = view->file;
     if (file && !file->state.is_loading){
         // TODO(allen): rewrite with real scrolling system now.
@@ -3504,7 +3504,7 @@ file_step(View *view, i32_Rect region, Input_Summary *user_input, b32 is_active)
         
         if (file->state.paste_effect.tick_down > 0){
             --file->state.paste_effect.tick_down;
-            result = 1;
+            is_animating = 1;
         }
         
         if (user_input->mouse.press_l && is_active){
@@ -3518,12 +3518,11 @@ file_step(View *view, i32_Rect region, Input_Summary *user_input, b32 is_active)
                     view->mode = {};
                 }
             }
-            result = 1;
         }
         if (!is_active) view_set_widget(view, FWIDG_NONE);
 	}
     
-    return(result);
+    return(is_animating);
 }
 
 internal void
@@ -4270,11 +4269,11 @@ app_single_number_input_step(System_Functions *system, Key_Event_Data key, Strin
     return result;
 }
 
-internal i32
+internal b32
 do_input_file_view(System_Functions *system, Exchange *exchange,
     View *view, i32_Rect rect, b32 is_active, Input_Summary *user_input){
     
-    i32 result = 0;
+    b32 is_animating = 0;
     b32 is_file_scroll = 0;
     
     GUI_Session gui_session;
@@ -4304,7 +4303,7 @@ do_input_file_view(System_Functions *system, Exchange *exchange,
                         view_reinit_scrolling(view);
                     }
                     if (file_step(view, gui_session.rect, user_input, is_active)){
-                        result = 1;
+                        is_animating = 1;
                     }
                     is_file_scroll = 1;
                 }break;
@@ -4325,7 +4324,6 @@ do_input_file_view(System_Functions *system, Exchange *exchange,
                         key = get_single_key(keys, i);
                         step = app_single_line_input_step(system, key, string);
                         if ((step.hit_newline || step.hit_ctrl_newline) && !step.no_file_match){
-                            result = 1;
                             view->gui_target.active = e->id;
                         }
 					}
@@ -4348,7 +4346,6 @@ do_input_file_view(System_Functions *system, Exchange *exchange,
                         key = get_single_key(keys, i);
                         step = app_single_file_input_step(system, working_set, key, &hdir->string, hdir, 1, 1, 0);
                         if ((step.hit_newline || step.hit_ctrl_newline) && !step.no_file_match){
-                            result = 1;
                             view->gui_target.active = e->id;
                         }
 					}
@@ -4540,7 +4537,7 @@ do_input_file_view(System_Functions *system, Exchange *exchange,
                 scroll_vars.target_x, scroll_vars.target_y,
                 &scroll_vars.scroll_x, &scroll_vars.scroll_y,
                 (view->id) + 1, is_new_target)){
-            result = 1;
+            is_animating = 1;
         }
 
         scroll_vars.prev_target_x = scroll_vars.target_x;
@@ -4569,7 +4566,7 @@ do_input_file_view(System_Functions *system, Exchange *exchange,
 		}
 	}
     
-    return(result);
+    return(is_animating);
 }
 
 internal i32

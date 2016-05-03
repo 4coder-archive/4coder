@@ -48,11 +48,12 @@
 #define frame_useconds (1000000 / FPS)
 
 // TODO(allen): Do we still need all of these? I've abandoned the
-// main thread / update loop thread thing for a while at least.
+// main thread / update loop thread thing (at least for a while).
 #define WM_4coder_LOAD_FONT (WM_USER + 1)
 #define WM_4coder_PAINT (WM_USER + 2)
 #define WM_4coder_SET_CURSOR (WM_USER + 3)
 #define WM_4coder_ANIMATE (WM_USER + 4)
+#define WM_4coder_EVENT_COMPLETE (WM_USER + 5)
 
 struct Thread_Context{
     u32 job_id;
@@ -649,35 +650,35 @@ Win32GenHandle(HANDLE h){
 }
 
 internal DWORD WINAPI
-ThreadProc(LPVOID lpParameter){
+JobThreadProc(LPVOID lpParameter){
     Thread_Context *thread = (Thread_Context*)lpParameter;
     Work_Queue *queue = thread->queue;
-    
+
     for (;;){
         u32 read_index = queue->read_position;
         u32 write_index = queue->write_position;
-        
+
         if (read_index != write_index){
             u32 next_read_index = (read_index + 1) % JOB_ID_WRAP;
             u32 safe_read_index =
                 InterlockedCompareExchange(&queue->read_position,
-                                           next_read_index, read_index);
-            
+                next_read_index, read_index);
+
             if (safe_read_index == read_index){
                 Full_Job_Data *full_job = queue->jobs + (safe_read_index % QUEUE_WRAP);
                 // NOTE(allen): This is interlocked so that it plays nice
                 // with the cancel job routine, which may try to cancel this job
                 // at the same time that we try to run it
-                
+
                 i32 safe_running_thread =
                     InterlockedCompareExchange(&full_job->running_thread,
-                                               thread->id, THREAD_NOT_ASSIGNED);
-                
+                    thread->id, THREAD_NOT_ASSIGNED);
+
                 if (safe_running_thread == THREAD_NOT_ASSIGNED){
                     thread->job_id = full_job->id;
                     thread->running = 1;
                     Thread_Memory *thread_memory = 0;
-                    
+
                     // TODO(allen): remove memory_request
                     if (full_job->job.memory_request != 0){
                         thread_memory = win32vars.thread_memory + thread->id - 1;
@@ -691,7 +692,8 @@ ThreadProc(LPVOID lpParameter){
                         }
                     }
                     full_job->job.callback(win32vars.system, thread, thread_memory,
-                                           &exchange_vars.thread, full_job->job.data);
+                        &exchange_vars.thread, full_job->job.data);
+                    PostMessage(win32vars.window_handle, WM_4coder_EVENT_COMPLETE, 0, 0);
                     full_job->running_thread = 0;
                     thread->running = 0;
                 }
@@ -755,7 +757,7 @@ Sys_Cancel_Job_Sig(system_cancel_job){
         thread = group->threads + thread_id - 1;
         TerminateThread(thread->handle, 0);
         u32 creation_flag = 0;
-        thread->handle = CreateThread(0, 0, ThreadProc, thread, creation_flag, (LPDWORD)&thread->windows_id);
+        thread->handle = CreateThread(0, 0, JobThreadProc, thread, creation_flag, (LPDWORD)&thread->windows_id);
         system_release_lock(CANCEL_LOCK0 + thread_id - 1);
         thread->running = 0;
     }
@@ -1597,6 +1599,7 @@ UpdateStep(){
                 else{
                     file->flags |= FEx_Save_Failed;
                 }
+                PostMessage(0, WM_4coder_EVENT_COMPLETE, 0, 0);
             }
 
             if (file->flags & FEx_Request){
@@ -1612,6 +1615,7 @@ UpdateStep(){
                     file->data = sysfile.data;
                     file->size = sysfile.size;
                 }
+                PostMessage(0, WM_4coder_EVENT_COMPLETE, 0, 0);
             }
         }
 
@@ -1648,7 +1652,9 @@ UpdateStep(){
     system_acquire_lock(FRAME_LOCK);
     timer_start = system_time();
     
-    PostMessage(NULL, WM_4coder_ANIMATE, 0, 0);
+    if (result.animating){
+        PostMessage(0, WM_4coder_ANIMATE, 0, 0);
+    }
 }
 
 DWORD
@@ -1841,7 +1847,7 @@ int main(int argc, char **argv){
         memory->id = thread->id;
 
         thread->queue = &exchange_vars.thread.queues[BACKGROUND_THREADS];
-        thread->handle = CreateThread(0, 0, ThreadProc, thread, creation_flag, (LPDWORD)&thread->windows_id);
+        thread->handle = CreateThread(0, 0, JobThreadProc, thread, creation_flag, (LPDWORD)&thread->windows_id);
     }
 
     Assert(win32vars.locks);
