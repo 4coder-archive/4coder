@@ -121,6 +121,7 @@ struct Win32_Vars{
     
     Win32_Input_Chunk input_chunk;
     b32 lctrl_lalt_is_altgr;
+    b32 got_useful_event;
     
 	HCURSOR cursor_ibeam;
 	HCURSOR cursor_arrow;
@@ -1189,6 +1190,7 @@ Win32Callback(HWND hwnd, UINT uMsg,
         case WM_KEYDOWN:
         case WM_KEYUP:
         {
+            win32vars.got_useful_event = 1;
             switch (wParam){
                 case VK_CONTROL:case VK_LCONTROL:case VK_RCONTROL:
                 case VK_MENU:case VK_LMENU:case VK_RMENU:
@@ -1198,8 +1200,6 @@ Win32Callback(HWND hwnd, UINT uMsg,
                     b8 *control_keys = 0;
                     controls = &win32vars.input_chunk.pers.controls;
                     control_keys = win32vars.input_chunk.pers.control_keys;
-
-                    system_acquire_lock(INPUT_LOCK);
 
                     b8 down = ((lParam & Bit_31)?(0):(1));
                     b8 is_right = ((lParam & Bit_24)?(1):(0));
@@ -1238,7 +1238,6 @@ Win32Callback(HWND hwnd, UINT uMsg,
                         control_keys[MDFR_CONTROL_INDEX] = ctrl;
                         control_keys[MDFR_ALT_INDEX] = alt;
                     }
-                    system_release_lock(INPUT_LOCK);
                 }break;
 
                 default:
@@ -1254,7 +1253,6 @@ Win32Callback(HWND hwnd, UINT uMsg,
                     b8 *control_keys = 0;
                     i32 control_keys_size = 0;
 
-                    system_acquire_lock(INPUT_LOCK);                
                     if (!previous_state){
                         count = &win32vars.input_chunk.trans.key_data.press_count;
                         data = win32vars.input_chunk.trans.key_data.press;
@@ -1320,26 +1318,28 @@ Win32Callback(HWND hwnd, UINT uMsg,
                         ++(*count);
                     }
                 }
-                system_release_lock(INPUT_LOCK);
 
                 result = DefWindowProc(hwnd, uMsg, wParam, lParam);
             }
         }break;
 
-        case WM_INPUT:
-
-
         case WM_MOUSEMOVE:
         {
-            system_acquire_lock(INPUT_LOCK);
-            win32vars.input_chunk.pers.mouse_x = LOWORD(lParam);
-            win32vars.input_chunk.pers.mouse_y = HIWORD(lParam);
-            system_release_lock(INPUT_LOCK);
+            i32 new_x = LOWORD(lParam);
+            i32 new_y = HIWORD(lParam);
+
+            if (new_x != win32vars.input_chunk.pers.mouse_x
+                    || new_y != win32vars.input_chunk.pers.mouse_y){
+                win32vars.input_chunk.pers.mouse_x = new_x;
+                win32vars.input_chunk.pers.mouse_y = new_y;
+
+                win32vars.got_useful_event = 1;
+            }
         }break;
 
         case WM_MOUSEWHEEL:
         {
-            system_acquire_lock(INPUT_LOCK);
+            win32vars.got_useful_event = 1;
             i16 rotation = GET_WHEEL_DELTA_WPARAM(wParam);
             if (rotation > 0){
                 win32vars.input_chunk.trans.mouse_wheel = 1;
@@ -1347,57 +1347,51 @@ Win32Callback(HWND hwnd, UINT uMsg,
             else{
                 win32vars.input_chunk.trans.mouse_wheel = -1;
             }
-            system_release_lock(INPUT_LOCK);
         }break;
 
         case WM_LBUTTONDOWN:
         {
-            system_acquire_lock(INPUT_LOCK);
+            win32vars.got_useful_event = 1;
             win32vars.input_chunk.trans.mouse_l_press = 1;
             win32vars.input_chunk.pers.mouse_l = 1;
-            system_release_lock(INPUT_LOCK);
         }break;
 
         case WM_RBUTTONDOWN:
         {
-            system_acquire_lock(INPUT_LOCK);
+            win32vars.got_useful_event = 1;
             win32vars.input_chunk.trans.mouse_r_press = 1;
             win32vars.input_chunk.pers.mouse_r = 1;
-            system_release_lock(INPUT_LOCK);
         }break;
 
         case WM_LBUTTONUP:
         {
-            system_acquire_lock(INPUT_LOCK);
+            win32vars.got_useful_event = 1;
             win32vars.input_chunk.trans.mouse_l_release = 1;
             win32vars.input_chunk.pers.mouse_l = 0;
-            system_release_lock(INPUT_LOCK);
         }break;
 
         case WM_RBUTTONUP:
         {
-            system_acquire_lock(INPUT_LOCK);
+            win32vars.got_useful_event = 1;
             win32vars.input_chunk.trans.mouse_r_release = 1;
             win32vars.input_chunk.pers.mouse_r = 0;
-            system_release_lock(INPUT_LOCK);
         }break;
 
         case WM_KILLFOCUS:
         case WM_SETFOCUS:
         {
-            system_acquire_lock(INPUT_LOCK);
+            win32vars.got_useful_event = 1;
             win32vars.input_chunk.pers.mouse_l = 0;
             win32vars.input_chunk.pers.mouse_r = 0;
 
             b8 *control_keys = win32vars.input_chunk.pers.control_keys;
             for (int i = 0; i < MDFR_INDEX_COUNT; ++i) control_keys[i] = 0;
             win32vars.input_chunk.pers.controls = {};
-
-            system_release_lock(INPUT_LOCK);
         }break;
 
         case WM_SIZE:
         {
+            win32vars.got_useful_event = 1;
             if (win32vars.target.handle){
                 i32 new_width = LOWORD(lParam);
                 i32 new_height = HIWORD(lParam);
@@ -1408,11 +1402,11 @@ Win32Callback(HWND hwnd, UINT uMsg,
 
         case WM_PAINT:
         {
+            win32vars.got_useful_event = 1;
             PAINTSTRUCT ps;
             HDC hdc = BeginPaint(hwnd, &ps);
             Win32RedrawScreen(hdc);
             EndPaint(hwnd, &ps);
-
         }break;
 
         case WM_4coder_PAINT:
@@ -1443,9 +1437,8 @@ Win32Callback(HWND hwnd, UINT uMsg,
         case WM_CLOSE: // NOTE(allen): I expect WM_CLOSE not WM_DESTROY
         case WM_DESTROY:
         {
-            system_acquire_lock(INPUT_LOCK);
+            win32vars.got_useful_event = 1;
             win32vars.input_chunk.trans.trying_to_kill = 1;
-            system_release_lock(INPUT_LOCK);
         }break;
 
         case WM_4coder_LOAD_FONT:
@@ -1477,6 +1470,11 @@ Win32Callback(HWND hwnd, UINT uMsg,
             system_release_lock(FONT_LOCK);
         }break;
 
+        case WM_4coder_ANIMATE:
+        case WM_4coder_EVENT_COMPLETE:
+        win32vars.got_useful_event = 1;
+        break;
+        
         default:
         {
             result = DefWindowProc(hwnd, uMsg, wParam, lParam);
@@ -1489,10 +1487,8 @@ internal void
 UpdateStep(){
     i64 timer_start = system_time();
 
-    system_acquire_lock(INPUT_LOCK);
     Win32_Input_Chunk input_chunk = win32vars.input_chunk;
     win32vars.input_chunk.trans = {};
-    system_release_lock(INPUT_LOCK);
 
     input_chunk.pers.control_keys[MDFR_CAPS_INDEX] = GetKeyState(VK_CAPITAL) & 0x1;
 
@@ -1599,7 +1595,7 @@ UpdateStep(){
                 else{
                     file->flags |= FEx_Save_Failed;
                 }
-                PostMessage(0, WM_4coder_EVENT_COMPLETE, 0, 0);
+                PostMessage(win32vars.window_handle, WM_4coder_EVENT_COMPLETE, 0, 0);
             }
 
             if (file->flags & FEx_Request){
@@ -1615,7 +1611,7 @@ UpdateStep(){
                     file->data = sysfile.data;
                     file->size = sysfile.size;
                 }
-                PostMessage(0, WM_4coder_EVENT_COMPLETE, 0, 0);
+                PostMessage(win32vars.window_handle, WM_4coder_EVENT_COMPLETE, 0, 0);
             }
         }
 
@@ -1653,7 +1649,7 @@ UpdateStep(){
     timer_start = system_time();
     
     if (result.animating){
-        PostMessage(0, WM_4coder_ANIMATE, 0, 0);
+        PostMessage(win32vars.window_handle, WM_4coder_ANIMATE, 0, 0);
     }
 }
 
@@ -2034,29 +2030,28 @@ int main(int argc, char **argv){
 
     MSG msg;
     for (;win32vars.input_chunk.pers.keep_playing;){
-        if (GetMessage(&msg, 0, 0, 0)){
-            if (msg.message == WM_QUIT){
-                //system_acquire_lock(INPUT_LOCK);
-                win32vars.input_chunk.pers.keep_playing = 0;
-                //system_release_lock(INPUT_LOCK);
-            }else{
-                TranslateMessage(&msg);
-                DispatchMessage(&msg);
-            }
-            
-            while (PeekMessage(&msg, 0, 0, 0, 1)){
+        win32vars.got_useful_event = 0;
+        for (;win32vars.got_useful_event == 0;){
+            if (GetMessage(&msg, 0, 0, 0)){
                 if (msg.message == WM_QUIT){
-                    //system_acquire_lock(INPUT_LOCK);
                     win32vars.input_chunk.pers.keep_playing = 0;
-                    //system_release_lock(INPUT_LOCK);
                 }else{
                     TranslateMessage(&msg);
                     DispatchMessage(&msg);
                 }
             }
-            
-            UpdateStep();
         }
+        
+        while (PeekMessage(&msg, 0, 0, 0, 1)){
+            if (msg.message == WM_QUIT){
+                win32vars.input_chunk.pers.keep_playing = 0;
+            }else{
+                TranslateMessage(&msg);
+                DispatchMessage(&msg);
+            }
+        }
+        
+        UpdateStep();
     }
 
     return 0;

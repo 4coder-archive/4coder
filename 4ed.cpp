@@ -165,14 +165,14 @@ globalvar Application_Links app_links;
 #define USE_VARS(n) App_Vars *n = command->vars
 #define USE_PANEL(n) Panel *n = command->panel
 #define USE_VIEW(n) View *n = command->view
-#define USE_FILE(n,v) Editing_File *n = (v)->file
+#define USE_FILE(n,v) Editing_File *n = (v)->file_data.file
 #define USE_EXCHANGE(n) Exchange *n = command->exchange
 
 #define REQ_OPEN_VIEW(n) View *n = command->panel->view; if (view_lock_level(n) > LockLevel_Open) return
 #define REQ_READABLE_VIEW(n) View *n = command->panel->view; if (view_lock_level(n) > LockLevel_NoWrite) return
 
-#define REQ_FILE(n,v) Editing_File *n = (v)->file; if (!n) return
-#define REQ_FILE_HISTORY(n,v) Editing_File *n = (v)->file; if (!n || !n->state.undo.undo.edits) return
+#define REQ_FILE(n,v) Editing_File *n = (v)->file_data.file; if (!n) return
+#define REQ_FILE_HISTORY(n,v) Editing_File *n = (v)->file_data.file; if (!n || !n->state.undo.undo.edits) return
 
 #define COMMAND_DECL(n) internal void command_##n(System_Functions *system, Command_Data *command, Command_Binding binding)
 
@@ -245,8 +245,8 @@ COMMAND_DECL(write_character){
 
     character = command->key.character;
     if (character != 0){
-        pos = view->cursor.pos;
-        next_cursor_pos = view->cursor.pos + 1;
+        pos = view->file_data.cursor.pos;
+        next_cursor_pos = view->file_data.cursor.pos + 1;
         view_replace_range(system, models, view, pos, pos, &character, 1, next_cursor_pos);
         view_cursor_move(view, next_cursor_pos);
     }
@@ -302,27 +302,27 @@ COMMAND_DECL(seek_left){
     i32 pos[4] = {0};
 
     if (flags & (1)){
-        pos[0] = buffer_seek_whitespace_left(&file->state.buffer, view->cursor.pos);
+        pos[0] = buffer_seek_whitespace_left(&file->state.buffer, view->file_data.cursor.pos);
     }
 
     if (flags & (1 << 1)){
         if (file->state.tokens_complete){
-            pos[1] = seek_token_left(&file->state.token_stack, view->cursor.pos);
+            pos[1] = seek_token_left(&file->state.token_stack, view->file_data.cursor.pos);
         }
         else{
-            pos[1] = buffer_seek_whitespace_left(&file->state.buffer, view->cursor.pos);
+            pos[1] = buffer_seek_whitespace_left(&file->state.buffer, view->file_data.cursor.pos);
         }
     }
 
     if (flags & (1 << 2)){
-        pos[2] = buffer_seek_alphanumeric_left(&file->state.buffer, view->cursor.pos);
+        pos[2] = buffer_seek_alphanumeric_left(&file->state.buffer, view->file_data.cursor.pos);
         if (flags & (1 << 3)){
-            pos[3] = buffer_seek_range_camel_left(&file->state.buffer, view->cursor.pos, pos[2]);
+            pos[3] = buffer_seek_range_camel_left(&file->state.buffer, view->file_data.cursor.pos, pos[2]);
         }
     }
     else{
         if (flags & (1 << 3)){
-            pos[3] = buffer_seek_alphanumeric_or_camel_left(&file->state.buffer, view->cursor.pos);
+            pos[3] = buffer_seek_alphanumeric_or_camel_left(&file->state.buffer, view->file_data.cursor.pos);
         }
     }
 
@@ -357,27 +357,27 @@ COMMAND_DECL(seek_right){
     for (i32 i = 0; i < ArrayCount(pos); ++i) pos[i] = size;
 
     if (flags & (1)){
-        pos[0] = buffer_seek_whitespace_right(&file->state.buffer, view->cursor.pos);
+        pos[0] = buffer_seek_whitespace_right(&file->state.buffer, view->file_data.cursor.pos);
     }
 
     if (flags & (1 << 1)){
         if (file->state.tokens_complete){
-            pos[1] = seek_token_right(&file->state.token_stack, view->cursor.pos);
+            pos[1] = seek_token_right(&file->state.token_stack, view->file_data.cursor.pos);
         }
         else{
-            pos[1] = buffer_seek_whitespace_right(&file->state.buffer, view->cursor.pos);
+            pos[1] = buffer_seek_whitespace_right(&file->state.buffer, view->file_data.cursor.pos);
         }
     }
 
     if (flags & (1 << 2)){
-        pos[2] = buffer_seek_alphanumeric_right(&file->state.buffer, view->cursor.pos);
+        pos[2] = buffer_seek_alphanumeric_right(&file->state.buffer, view->file_data.cursor.pos);
         if (flags & (1 << 3)){
-            pos[3] = buffer_seek_range_camel_right(&file->state.buffer, view->cursor.pos, pos[2]);
+            pos[3] = buffer_seek_range_camel_right(&file->state.buffer, view->file_data.cursor.pos, pos[2]);
         }
     }
     else{
         if (flags & (1 << 3)){
-            pos[3] = buffer_seek_alphanumeric_or_camel_right(&file->state.buffer, view->cursor.pos);
+            pos[3] = buffer_seek_alphanumeric_or_camel_right(&file->state.buffer, view->file_data.cursor.pos);
         }
     }
 
@@ -394,7 +394,7 @@ COMMAND_DECL(seek_whitespace_up){
     REQ_READABLE_VIEW(view);
     REQ_FILE(file, view);
 
-    i32 pos = buffer_seek_whitespace_up(&file->state.buffer, view->cursor.pos);
+    i32 pos = buffer_seek_whitespace_up(&file->state.buffer, view->file_data.cursor.pos);
     view_cursor_move(view, pos);
 }
 
@@ -403,7 +403,7 @@ COMMAND_DECL(seek_whitespace_down){
     REQ_READABLE_VIEW(view);
     REQ_FILE(file, view);
 
-    i32 pos = buffer_seek_whitespace_down(&file->state.buffer, view->cursor.pos);
+    i32 pos = buffer_seek_whitespace_down(&file->state.buffer, view->file_data.cursor.pos);
     view_cursor_move(view, pos);
 }
 
@@ -413,18 +413,18 @@ COMMAND_DECL(center_view){
     REQ_FILE(file, view);
 
     f32 y, h;
-    if (view->unwrapped_lines){
-        y = view->cursor.unwrapped_y;
+    if (view->file_data.unwrapped_lines){
+        y = view->file_data.cursor.unwrapped_y;
     }
     else{
-        y = view->cursor.wrapped_y;
+        y = view->file_data.cursor.wrapped_y;
     }
 
     h = view_file_height(view);
     y -= h * .5f;
-    if (y < view->file_scroll.min_y) y = view->file_scroll.min_y;
+    if (y < view->file_data.file_scroll.min_y) y = view->file_data.file_scroll.min_y;
 
-    view->file_scroll.target_y = y;
+    view->file_data.file_scroll.target_y = y;
 }
 
 COMMAND_DECL(word_complete){
@@ -471,7 +471,7 @@ COMMAND_DECL(word_complete){
     }
 
     if (do_init){
-        word_end = view->cursor.pos;
+        word_end = view->file_data.cursor.pos;
         word_start = word_end;
         cursor_pos = word_end - 1;
 
@@ -588,15 +588,13 @@ COMMAND_DECL(word_complete){
 }
 
 COMMAND_DECL(set_mark){
-    
     REQ_READABLE_VIEW(view);
     REQ_FILE(file, view);
 
-    view->mark = (i32)view->cursor.pos;
+    view->file_data.mark = (i32)view->file_data.cursor.pos;
 }
 
 COMMAND_DECL(copy){
-    
     USE_MODELS(models);
     REQ_READABLE_VIEW(view);
     REQ_FILE(file, view);
@@ -622,7 +620,7 @@ COMMAND_DECL(copy){
         }
     }
 
-    Range range = make_range(view->cursor.pos, view->mark);
+    Range range = make_range(view->file_data.cursor.pos, view->file_data.mark);
     if (start_set) range.start = r_start;
     if (end_set) range.end = r_end;
     if (range.start < range.end){
@@ -631,7 +629,6 @@ COMMAND_DECL(copy){
 }
 
 COMMAND_DECL(cut){
-    
     USE_MODELS(models);
     REQ_OPEN_VIEW(view);
     REQ_FILE(file, view);
@@ -657,7 +654,7 @@ COMMAND_DECL(cut){
         }
     }
 
-    Range range = make_range(view->cursor.pos, view->mark);
+    Range range = make_range(view->file_data.cursor.pos, view->file_data.mark);
     if (start_set) range.start = r_start;
     if (end_set) range.end = r_end;
     if (range.start < range.end){
@@ -666,7 +663,7 @@ COMMAND_DECL(cut){
         clipboard_copy(system, &models->mem.general, &models->working_set, range, file);
         view_replace_range(system, models, view, range.start, range.end, 0, 0, next_cursor_pos);
 
-        view->mark = range.start;
+        view->file_data.mark = range.start;
         view_cursor_move(view, next_cursor_pos);
     }
 }
@@ -685,13 +682,13 @@ COMMAND_DECL(paste){
         view->next_mode.rewrite = 1;
 
         src = working_set_clipboard_head(&models->working_set);
-        pos_left = view->cursor.pos;
+        pos_left = view->file_data.cursor.pos;
 
         next_cursor_pos = pos_left+src->size;
         view_replace_range(system, models, view, pos_left, pos_left, src->str, src->size, next_cursor_pos);
 
         view_cursor_move(view, next_cursor_pos);
-        view->mark = pos_left;
+        view->file_data.mark = pos_left;
 
         for (iter = file_view_iter_init(&models->layout, file, 0);
             file_view_iter_good(iter);
@@ -702,7 +699,6 @@ COMMAND_DECL(paste){
 }
 
 COMMAND_DECL(paste_next){
-    
     USE_MODELS(models);
     REQ_OPEN_VIEW(view);
     REQ_FILE(file, view);
@@ -715,7 +711,7 @@ COMMAND_DECL(paste_next){
     if (models->working_set.clipboard_size > 0 && view->mode.rewrite == 1){
         view->next_mode.rewrite = 1;
 
-        range = make_range(view->mark, view->cursor.pos);
+        range = make_range(view->file_data.mark, view->file_data.cursor.pos);
         src = working_set_clipboard_roll_down(&models->working_set);
         next_cursor_pos = range.start+src->size;
         view_replace_range(system,
@@ -723,7 +719,7 @@ COMMAND_DECL(paste_next){
             src->str, src->size, next_cursor_pos);
 
         view_cursor_move(view, next_cursor_pos);
-        view->mark = range.start;
+        view->file_data.mark = range.start;
 
         for (iter = file_view_iter_init(&models->layout, file, 0);
             file_view_iter_good(iter);
@@ -737,7 +733,6 @@ COMMAND_DECL(paste_next){
 }
 
 COMMAND_DECL(delete_range){
-    
     USE_MODELS(models);
     REQ_OPEN_VIEW(view);
     REQ_FILE(file, view);
@@ -745,18 +740,17 @@ COMMAND_DECL(delete_range){
     Range range;
     i32 next_cursor_pos;
 
-    range = make_range(view->cursor.pos, view->mark);
+    range = make_range(view->file_data.cursor.pos, view->file_data.mark);
     if (range.start < range.end){
         next_cursor_pos = range.start;
         Assert(range.end <= buffer_size(&file->state.buffer));
         view_replace_range(system, models, view, range.start, range.end, 0, 0, next_cursor_pos);
         view_cursor_move(view, next_cursor_pos);
-        view->mark = range.start;
+        view->file_data.mark = range.start;
     }
 }
 
 COMMAND_DECL(timeline_scrub){
-    
     REQ_OPEN_VIEW(view);
     REQ_FILE_HISTORY(file, view);
 
@@ -766,7 +760,6 @@ COMMAND_DECL(timeline_scrub){
 }
 
 COMMAND_DECL(undo){
-    
     USE_MODELS(models);
     REQ_OPEN_VIEW(view);
     REQ_FILE_HISTORY(file, view);
@@ -933,7 +926,6 @@ COMMAND_DECL(reopen){
 }
 
 COMMAND_DECL(save){
-    
     USE_MODELS(models);
     USE_VIEW(view);
     USE_FILE(file, view);
@@ -1068,38 +1060,35 @@ COMMAND_DECL(kill_buffer){
 }
 
 COMMAND_DECL(toggle_line_wrap){
-    
     REQ_READABLE_VIEW(view);
     REQ_FILE(file, view);
 
     Relative_Scrolling scrolling = view_get_relative_scrolling(view);
-    if (view->unwrapped_lines){
-        view->unwrapped_lines = 0;
+    if (view->file_data.unwrapped_lines){
+        view->file_data.unwrapped_lines = 0;
         file->settings.unwrapped_lines = 0;
-        view->file_scroll.target_x = 0;
-        view->cursor =view_compute_cursor_from_pos(
-            view, view->cursor.pos);
-        view->preferred_x = view->cursor.wrapped_x;
+        view->file_data.file_scroll.target_x = 0;
+        view->file_data.cursor =view_compute_cursor_from_pos(
+            view, view->file_data.cursor.pos);
+        view->file_data.preferred_x = view->file_data.cursor.wrapped_x;
     }
     else{
-        view->unwrapped_lines = 1;
+        view->file_data.unwrapped_lines = 1;
         file->settings.unwrapped_lines = 1;
-        view->cursor =
-            view_compute_cursor_from_pos(view, view->cursor.pos);
-        view->preferred_x = view->cursor.unwrapped_x;
+        view->file_data.cursor =
+            view_compute_cursor_from_pos(view, view->file_data.cursor.pos);
+        view->file_data.preferred_x = view->file_data.cursor.unwrapped_x;
     }
     view_set_relative_scrolling(view, scrolling);
 }
 
 COMMAND_DECL(toggle_show_whitespace){
-    
     REQ_READABLE_VIEW(view);
-    view->show_whitespace = !view->show_whitespace;
+    view->file_data.show_whitespace = !view->file_data.show_whitespace;
 }
 
 COMMAND_DECL(toggle_tokens){
 #if BUFFER_EXPERIMENT_SCALPEL <= 0
-    
     USE_MODELS(models);
     REQ_OPEN_VIEW(view);
     REQ_FILE(file, view);
@@ -1118,7 +1107,7 @@ case_change_range(System_Functions *system,
     Mem_Options *mem, View *view, Editing_File *file,
     u8 a, u8 z, u8 char_delta){
 #if BUFFER_EXPERIMENT_SCALPEL <= 0
-    Range range = make_range(view->cursor.pos, view->mark);
+    Range range = make_range(view->file_data.cursor.pos, view->file_data.mark);
     if (range.start < range.end){
         Edit_Step step = {};
         step.type = ED_NORMAL;
@@ -1225,7 +1214,7 @@ COMMAND_DECL(auto_tab_range){
     }
 
     if (file->state.token_stack.tokens && file->state.tokens_complete && !file->state.still_lexing){
-        Range range = make_range(view->cursor.pos, view->mark);
+        Range range = make_range(view->file_data.cursor.pos, view->file_data.mark);
         if (start_set) range.start = r_start;
         if (end_set) range.end = r_end;
         view_auto_tab_tokens(system, models, view, range.start, range.end, clear_blank_lines, use_tabs);
@@ -1374,30 +1363,28 @@ COMMAND_DECL(move_left){
     REQ_READABLE_VIEW(view);
     REQ_FILE(file, view);
 
-    i32 pos = view->cursor.pos;
+    i32 pos = view->file_data.cursor.pos;
     if (pos > 0) --pos;
     view_cursor_move(view, pos);
 }
 
 COMMAND_DECL(move_right){
-    
     REQ_READABLE_VIEW(view);
     REQ_FILE(file, view);
 
     i32 size = buffer_size(&file->state.buffer);
-    i32 pos = view->cursor.pos;
+    i32 pos = view->file_data.cursor.pos;
     if (pos < size) ++pos;
     view_cursor_move(view, pos);
 }
 
 COMMAND_DECL(delete){
-    
     USE_MODELS(models);
     REQ_OPEN_VIEW(view);
     REQ_FILE(file, view);
 
     i32 size = buffer_size(&file->state.buffer);
-    i32 cursor_pos = view->cursor.pos;
+    i32 cursor_pos = view->file_data.cursor.pos;
     if (0 < size && cursor_pos < size){
         i32 start, end;
         start = cursor_pos;
@@ -1412,13 +1399,12 @@ COMMAND_DECL(delete){
 }
 
 COMMAND_DECL(backspace){
-    
     USE_MODELS(models);
     REQ_OPEN_VIEW(view);
     REQ_FILE(file, view);
 
     i32 size = buffer_size(&file->state.buffer);
-    i32 cursor_pos = view->cursor.pos;
+    i32 cursor_pos = view->file_data.cursor.pos;
     if (cursor_pos > 0 && cursor_pos <= size){
         i32 start, end;
         end = cursor_pos;
@@ -1427,24 +1413,23 @@ COMMAND_DECL(backspace){
         i32 shift = (end - start);
         Assert(shift > 0);
 
-        i32 next_cursor_pos = view->cursor.pos - shift;
+        i32 next_cursor_pos = view->file_data.cursor.pos - shift;
         view_replace_range(system, models, view, start, end, 0, 0, next_cursor_pos);
         view_cursor_move(view, next_cursor_pos);
     }
 }
 
 COMMAND_DECL(move_up){
-    
     USE_MODELS(models);
     REQ_READABLE_VIEW(view);
     REQ_FILE(file, view);
 
     f32 font_height = (f32)get_font_info(models->font_set, models->global_font.font_id)->height;
     f32 cy = view_get_cursor_y(view)-font_height;
-    f32 px = view->preferred_x;
+    f32 px = view->file_data.preferred_x;
     if (cy >= 0){
-        view->cursor = view_compute_cursor_from_xy(view, px, cy);
-        file->state.cursor_pos = view->cursor.pos;
+        view->file_data.cursor = view_compute_cursor_from_xy(view, px, cy);
+        file->state.cursor_pos = view->file_data.cursor.pos;
     }
 }
 
@@ -1456,59 +1441,54 @@ COMMAND_DECL(move_down){
 
     f32 font_height = (f32)get_font_info(models->font_set, models->global_font.font_id)->height;
     f32 cy = view_get_cursor_y(view)+font_height;
-    f32 px = view->preferred_x;
-    view->cursor = view_compute_cursor_from_xy(view, px, cy);
-    file->state.cursor_pos = view->cursor.pos;
+    f32 px = view->file_data.preferred_x;
+    view->file_data.cursor = view_compute_cursor_from_xy(view, px, cy);
+    file->state.cursor_pos = view->file_data.cursor.pos;
 }
 
 COMMAND_DECL(seek_end_of_line){
-    
     REQ_READABLE_VIEW(view);
     REQ_FILE(file, view);
 
-    i32 pos = view_find_end_of_line(view, view->cursor.pos);
+    i32 pos = view_find_end_of_line(view, view->file_data.cursor.pos);
     view_cursor_move(view, pos);
 }
 
 COMMAND_DECL(seek_beginning_of_line){
-    
     REQ_READABLE_VIEW(view);
     REQ_FILE(file, view);
 
-    i32 pos = view_find_beginning_of_line(view, view->cursor.pos);
+    i32 pos = view_find_beginning_of_line(view, view->file_data.cursor.pos);
     view_cursor_move(view, pos);
 }
 
 COMMAND_DECL(page_down){
-    
     REQ_READABLE_VIEW(view);
 
     f32 height = view_file_height(view);
-    f32 max_target_y = view->file_scroll.max_y;
+    f32 max_target_y = view->file_data.file_scroll.max_y;
 
-    view->file_scroll.target_y += height;
-    if (view->file_scroll.target_y > max_target_y) view->file_scroll.target_y = max_target_y;
+    view->file_data.file_scroll.target_y += height;
+    if (view->file_data.file_scroll.target_y > max_target_y) view->file_data.file_scroll.target_y = max_target_y;
 
-    view->cursor = view_compute_cursor_from_xy(
-        view, 0, view->file_scroll.target_y + (height - view->font_height)*.5f);
+    view->file_data.cursor = view_compute_cursor_from_xy(
+        view, 0, view->file_data.file_scroll.target_y + (height - view->font_height)*.5f);
 }
 
 COMMAND_DECL(page_up){
-    
     REQ_READABLE_VIEW(view);
 
     f32 height = view_file_height(view);
-    f32 min_target_y = view->file_scroll.min_y;
+    f32 min_target_y = view->file_data.file_scroll.min_y;
 
-    view->file_scroll.target_y -= height;
-    if (view->file_scroll.target_y < min_target_y) view->file_scroll.target_y = min_target_y;
+    view->file_data.file_scroll.target_y -= height;
+    if (view->file_data.file_scroll.target_y < min_target_y) view->file_data.file_scroll.target_y = min_target_y;
 
-    view->cursor = view_compute_cursor_from_xy(
-        view, 0, view->file_scroll.target_y + (height - view->font_height)*.5f);
+    view->file_data.cursor = view_compute_cursor_from_xy(
+        view, 0, view->file_data.file_scroll.target_y + (height - view->font_height)*.5f);
 }
 
 COMMAND_DECL(open_color_tweaker){
-    
     USE_VIEW(view);
     USE_MODELS(models);
 
@@ -1516,7 +1496,6 @@ COMMAND_DECL(open_color_tweaker){
 }
 
 COMMAND_DECL(open_config){
-    
     USE_VIEW(view);
     USE_MODELS(models);
 
@@ -1524,7 +1503,6 @@ COMMAND_DECL(open_config){
 }
 
 COMMAND_DECL(open_menu){
-    
     USE_VIEW(view);
     USE_MODELS(models);
 
@@ -1532,33 +1510,29 @@ COMMAND_DECL(open_menu){
 }
 
 COMMAND_DECL(close_minor_view){
-    
     USE_VIEW(view);
     USE_MODELS(models);
 
     Command_Map *map = &models->map_top;
-    if (view->file){
-        map = app_get_map(models, view->file->settings.base_map_id);
+    if (view->file_data.file){
+        map = app_get_map(models, view->file_data.file->settings.base_map_id);
     }
     view_show_file(view, map);
 }
 
 COMMAND_DECL(cursor_mark_swap){
-    
     REQ_READABLE_VIEW(view);
 
-    i32 pos = view->cursor.pos;
-    view_cursor_move(view, view->mark);
-    view->mark = pos;
+    i32 pos = view->file_data.cursor.pos;
+    view_cursor_move(view, view->file_data.mark);
+    view->file_data.mark = pos;
 }
 
 COMMAND_DECL(user_callback){
-    
     if (binding.custom) binding.custom(&app_links);
 }
 
 COMMAND_DECL(set_settings){
-    
     REQ_READABLE_VIEW(view);
     REQ_FILE(file, view);
     USE_MODELS(models);
@@ -1587,29 +1561,29 @@ COMMAND_DECL(set_settings){
             case par_wrap_lines:
             {
                 int v = dynamic_to_bool(&param->param.value);
-                if (view->unwrapped_lines){
+                if (view->file_data.unwrapped_lines){
                     if (v){
-                        view->unwrapped_lines = 0;
+                        view->file_data.unwrapped_lines = 0;
                         file->settings.unwrapped_lines = 0;
 
                         if (!file->state.is_loading){
                             Relative_Scrolling scrolling = view_get_relative_scrolling(view);
-                            view->file_scroll.target_x = 0;
-                            view->cursor =
-                                view_compute_cursor_from_pos(view, view->cursor.pos);
+                            view->file_data.file_scroll.target_x = 0;
+                            view->file_data.cursor =
+                                view_compute_cursor_from_pos(view, view->file_data.cursor.pos);
                             view_set_relative_scrolling(view, scrolling);
                         }
                     }
                 }
                 else{
                     if (!v){
-                        view->unwrapped_lines = 1;
+                        view->file_data.unwrapped_lines = 1;
                         file->settings.unwrapped_lines = 1;
 
                         if (!file->state.is_loading){
                             Relative_Scrolling scrolling = view_get_relative_scrolling(view);
-                            view->cursor =
-                                view_compute_cursor_from_pos(view, view->cursor.pos);
+                            view->file_data.cursor =
+                                view_compute_cursor_from_pos(view, view->file_data.cursor.pos);
                             view_set_relative_scrolling(view, scrolling);
                         }
                     }
@@ -1805,17 +1779,17 @@ COMMAND_DECL(command_line){
             {
                 Temp_Memory temp;
                 Range range;
-                Editing_File *view_file;
+                Editing_File *file2;
                 i32 size;
 
                 temp = begin_temp_memory(part);
                 if (!script){
-                    view_file = view->file;
-                    if (view_file){
-                        range = make_range(view->cursor.pos, view->mark);
+                    file2 = view->file_data.file;
+                    if (file2){
+                        range = make_range(view->file_data.cursor.pos, view->file_data.mark);
                         size = range.end - range.start;
                         script = push_array(part, char, size + 1);
-                        buffer_stringify(&view_file->state.buffer, range.start, range.end, script);
+                        buffer_stringify(&file2->state.buffer, range.start, range.end, script);
                         script[size] = 0;
                     }
                     else{
@@ -1883,11 +1857,11 @@ fill_view_summary(View_Summary *view, View *vptr, Live_Views *live_set, Working_
         view->exists = 1;
         view->view_id = (int)(vptr - live_set->views) + 1;
         view->line_height = vptr->font_height;
-        view->unwrapped_lines = vptr->unwrapped_lines;
+        view->unwrapped_lines = vptr->file_data.unwrapped_lines;
 
-        if (vptr->file){
+        if (vptr->file_data.file){
             lock_level = view_lock_level(vptr);
-            buffer_id = vptr->file->id.id;
+            buffer_id = vptr->file_data.file->id.id;
 
             if (lock_level <= 0){
                 view->buffer_id = buffer_id;
@@ -1910,9 +1884,9 @@ fill_view_summary(View_Summary *view, View *vptr, Live_Views *live_set, Working_
                 view->hidden_buffer_id = 0;
             }
 
-            view->mark = view_compute_cursor_from_pos(vptr, vptr->mark);
-            view->cursor = vptr->cursor;
-            view->preferred_x = vptr->preferred_x;
+            view->mark = view_compute_cursor_from_pos(vptr, vptr->file_data.mark);
+            view->cursor = vptr->file_data.cursor;
+            view->preferred_x = vptr->file_data.preferred_x;
         }
     }
 }
@@ -2028,7 +2002,7 @@ extern "C"{
         Editing_File *file;
 
         if (view_lock_level(view) <= LockLevel_Open){
-            file = view->file;
+            file = view->file_data.file;
             if (file){
                 fill_buffer_summary(&buffer, file, &cmd->models->working_set);
             }
@@ -2344,18 +2318,18 @@ extern "C"{
             view_id = view->view_id - 1;
             if (view_id >= 0 && view_id < live_set->max){
                 vptr = live_set->views + view_id;
-                file = vptr->file;
+                file = vptr->file_data.file;
                 if (file && !file->state.is_loading){
                     result = 1;
                     if (seek.type == buffer_seek_line_char && seek.character <= 0){
                         seek.character = 1;
                     }
-                    vptr->cursor = view_compute_cursor(vptr, seek);
+                    vptr->file_data.cursor = view_compute_cursor(vptr, seek);
                     if (set_preferred_x){
-                        vptr->preferred_x = view_get_cursor_x(vptr);
+                        vptr->file_data.preferred_x = view_get_cursor_x(vptr);
                     }
                     fill_view_summary(view, vptr, live_set, &cmd->models->working_set);
-                    file->state.cursor_pos = vptr->cursor.pos;
+                    file->state.cursor_pos = vptr->file_data.cursor.pos;
                 }
             }
         }
@@ -2379,10 +2353,10 @@ extern "C"{
                 result = 1;
                 if (seek.type != buffer_seek_pos){
                     cursor = view_compute_cursor(vptr, seek);
-                    vptr->mark = cursor.pos;
+                    vptr->file_data.mark = cursor.pos;
                 }
                 else{
-                    vptr->mark = seek.pos;
+                    vptr->file_data.mark = seek.pos;
                 }
                 fill_view_summary(view, vptr, live_set, &cmd->models->working_set);
             }
@@ -2408,7 +2382,7 @@ extern "C"{
                     view_set_temp_highlight(vptr, start, end);
                 }
                 else{
-                    vptr->show_temp_highlight = 0;
+                    vptr->file_data.show_temp_highlight = 0;
                 }
                 fill_view_summary(view, vptr, live_set, &cmd->models->working_set);
             }
@@ -2438,7 +2412,7 @@ extern "C"{
 
                 if (file){
                     result = 1;
-                    if (file != vptr->file){
+                    if (file != vptr->file_data.file){
                         view_set_file(vptr, file, models, cmd->system,
                             models->hooks[hook_open_file], &app_links);
                     }
@@ -3488,6 +3462,7 @@ update_cli_handle_with_file(System_Functions *system, Models *models,
 
 App_Step_Sig(app_step){
     Application_Step_Result app_result = *result;
+    app_result.animating = 0;
 
     App_Vars *vars = (App_Vars*)memory->vars_memory;
     Models *models = &vars->models;
@@ -3721,25 +3696,6 @@ App_Step_Sig(app_step){
         if (i < models->layout.panel_count){
             view_file_in_panel(cmd, panel, models->message_buffer);
         }
-
-        {
-            String welcome = make_lit_string(
-                "Welcome to " VERSION "\n"
-                    "If you're new to 4coder there's no tutorial yet :(\n"
-                    "you can use the key combo control + o to look for a file\n"
-                    "and if you load README.txt you'll find all the key combos there are.\n"
-                    "\n"
-                    "Newest features:\n"
-                    "-The file count limit is over 8 million now\n"
-                    "-File equality is handled better so renamings (such as 'subst') are safe now\n"
-                    "-This buffer will report events including errors that happen in 4coder\n"
-                    "-Super users can post their own messages here with app->print_message\n"
-                    "-<ctrl e> centers view on cursor; cmdid_center_view in customization API\n"
-                    "-Set font size on command line with -f N, N = 16 by default\n\n"
-            );
-
-            do_feedback_message(system, models, welcome);
-        }
     }
     
     // NOTE(allen): try to abort the command corroutine if we are shutting down
@@ -3968,7 +3924,9 @@ App_Step_Sig(app_step){
             view = panel->view;
             active = (panel == cmd->panel);
             input = (active)?(active_input):(dead_input);
-            step_file_view(system, view, active_view, input);
+            if (step_file_view(system, view, active_view, input)){
+                app_result.animating = 1;
+            }
         }
         
         for (dll_items(panel, used_panels)){
@@ -3980,6 +3938,17 @@ App_Step_Sig(app_step){
             }
             if (do_input_file_view(system, exchange, view, panel->inner, active, &input)){
                 app_result.animating = 1;
+            }
+        }
+        
+        // TODO(allen): This is a pretty big hack at the moment.
+        for (dll_items(panel, used_panels)){
+            view = panel->view;
+            if (view->showing_ui == VUI_None){
+                gui_get_scroll_vars(&view->gui_target, view->showing_ui, &view->file_data.file_scroll);
+            }
+            else{
+                gui_get_scroll_vars(&view->gui_target, view->showing_ui, &view->gui_scroll);
             }
         }
     }
@@ -4045,6 +4014,26 @@ App_Step_Sig(app_step){
     }
 
     update_command_data(vars, cmd);
+    
+    // NOTE(allen): initialize message
+    if (first_step){
+        String welcome = make_lit_string(
+            "Welcome to " VERSION "\n"
+                "If you're new to 4coder there's no tutorial yet :(\n"
+                "you can use the key combo control + o to look for a file\n"
+                "and if you load README.txt you'll find all the key combos there are.\n"
+                "\n"
+                "Newest features:\n"
+                "-The file count limit is over 8 million now\n"
+                "-File equality is handled better so renamings (such as 'subst') are safe now\n"
+                "-This buffer will report events including errors that happen in 4coder\n"
+                "-Super users can post their own messages here with app->print_message\n"
+                "-<ctrl e> centers view on cursor; cmdid_center_view in customization API\n"
+                "-Set font size on command line with -f N, N = 16 by default\n\n"
+        );
+
+        do_feedback_message(system, models, welcome);
+    }
     
     // NOTE(allen): panel resizing
     switch (vars->state){
@@ -4318,7 +4307,7 @@ App_Step_Sig(app_step){
                     // TODO(allen): deduplicate
                     Editing_File *file = 0;
                     if (panel){
-                        file = panel->view->file;
+                        file = panel->view->file_data.file;
                     }
                     else if (string.str && string.size > 0){
                         file = working_set_lookup_file(working_set, string);
@@ -4340,7 +4329,7 @@ App_Step_Sig(app_step){
                         if (panel){
                             View *view = panel->view;
                             Assert(view);
-                            file = view->file;
+                            file = view->file_data.file;
                         }
                         else{
                             file = working_set_lookup_file(working_set, string);

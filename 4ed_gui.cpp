@@ -614,6 +614,8 @@ gui_id_scrollbar_bottom(){
     return(id);
 }
 
+// TODO(allen): Rethink this a little, seems like there are two separate things we want to do here:
+// Getting the updated scroll vars, and telling the user when scrolling actions occur.
 internal b32
 gui_get_scroll_vars(GUI_Target *target, u32 scroll_id, GUI_Scroll_Vars *vars_out){
     b32 result = 0;
