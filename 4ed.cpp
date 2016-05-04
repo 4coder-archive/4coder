@@ -4157,30 +4157,29 @@ App_Step_Sig(app_step){
             b32 remove = 0;
             b32 failed = 0;
             binding = vars->sys_app_bindings + i;
-
+            
             byte *data;
             i32 size, max;
             Editing_File *ed_file;
             Editing_File_Preload preload_settings;
             char *filename;
-
+            
             Working_Set *working_set = &models->working_set;
-
+            
             if (exchange_file_ready(exchange, binding->sys_id, &data, &size, &max)){
                 ed_file = working_set_get_active_file(working_set, binding->app_id);
                 Assert(ed_file);
-
+                
                 filename = exchange_file_filename(exchange, binding->sys_id);
                 preload_settings = ed_file->preload;
                 if (data){
                     String val = make_string((char*)data, size);
-                    // TODO(allen): reduce to just passing models
                     file_create_from_string(system, models, ed_file, filename, val);
-
+                    
                     if (ed_file->settings.tokens_exist){
                         file_first_lex_parallel(system, general, ed_file);
                     }
-
+                    
                     if ((binding->success & SysAppCreateView) && binding->panel != 0){
                         view_file_in_panel(cmd, binding->panel, ed_file);
                     }

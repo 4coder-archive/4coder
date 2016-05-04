@@ -76,6 +76,7 @@ struct View{
     GUI_Target gui_target;
     void *gui_mem;
     GUI_Scroll_Vars gui_scroll;
+    i32 list_i;
     
     Interactive_Interaction interaction;
     Interactive_Action action;
@@ -497,13 +498,6 @@ view_measure_wraps(System_Functions *system,
     view->line_count = line_count;
 }
 
-internal void*
-alloc_for_buffer(void *context, int *size){
-    *size = LargeRoundUp(*size, Kbytes(4));
-    void *data = general_memory_allocate((General_Memory*)context, *size, BUBBLE_BUFFER);
-    return data;
-}
-
 internal void
 file_create_from_string(System_Functions *system, Models *models,
     Editing_File *file, char *filename, String val, b8 read_only = 0){
@@ -550,6 +544,7 @@ file_create_from_string(System_Functions *system, Models *models,
 
     file->settings.read_only = read_only;
     if (!read_only){
+        // TODO(allen): Redo undo system (if you don't mind the pun)
         i32 request_size = Kbytes(64);
         file->state.undo.undo.max = request_size;
         file->state.undo.undo.strings = (u8*)general_memory_allocate(general, request_size, BUBBLE_UNDO_STRING);
@@ -2642,6 +2637,7 @@ view_show_interactive(System_Functions *system, View *view,
     view->action = action;
     view->interaction = interaction;
     view->dest = make_fixed_width_string(view->dest_);
+    view->list_i = 0;
     
     view->map_for_file = view->map;
     view->map = gui_map;
@@ -2657,7 +2653,7 @@ view_show_theme(View *view, Command_Map *gui_map){
     view->showing_ui = VUI_Theme;
     view->color_mode = CV_Mode_Library;
     view->color = super_color_create(0xFF000000);
-    view->current_color_editing = -1;
+    view->current_color_editing = 0;
 }
 
 
@@ -2739,7 +2735,7 @@ interactive_view_complete(View *view, String dest, i32 user_action){
     view_show_file(view, 0);
 
     // TODO(allen): This is here to prevent the key press from being passed to the
-    // underlying file which is a giant pain.
+    // underlying file which is a giant pain.  But I want a better system.
     view->file = 0;
 }
 
@@ -3932,40 +3928,73 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                         Exhaustive_File_Loop loop;
                         Exhaustive_File_Info file_info;
                         
-                        GUI_id file_option_id, str_edit_id;
-                        i32 i;
-                        b32 do_new_directory = 0;
+                        GUI_id id;
+                        GUI_Item_Update update = {0};
                         Hot_Directory *hdir = &models->hot_directory;
+                        b32 do_new_directory = 0;
+                        i32 i = 0;
                         
                         gui_do_text_field(target, message, hdir->string);
                         
-                        str_edit_id.id[0] = (u64)(hdir);
-                        if (gui_do_file_input(target, str_edit_id, hdir)){
+                        id.id[0] = (u64)(hdir);
+                        if (gui_do_file_input(target, id, hdir)){
                             interactive_view_complete(view, hdir->string, 0);
 						}
                         
                         gui_get_scroll_vars(target, view->showing_ui, &view->gui_scroll);
                         gui_begin_scrollable(target, view->showing_ui, view->gui_scroll, 9.f * view->font_height);
                         
-                        begin_exhaustive_loop(&loop, hdir);
-                        for (i = 0; i < loop.count; ++i){
-                            file_info = get_exhaustive_info(system, &models->working_set, &loop, i);
+                        id.id[0] = (u64)(hdir) + 1;
+                        if (gui_begin_list(target, id, view->list_i, 0, &update)){
+                            if (update.has_adjustment){
+                                view->list_i = update.adjustment_value;
+                            }
                             
-                            if (file_info.name_match){
-                                file_option_id.id[0] = (u64)(file_info.info);
-                                if (gui_do_file_option(target, file_option_id,
-                                        file_info.info->filename, file_info.is_folder, file_info.message)){
-                                    if (file_info.is_folder){
-                                        append(&hdir->string, file_info.info->filename);
-                                        append(&hdir->string, "/");
-                                        do_new_directory = 1;
-                                    }
-                                    else{
-                                        interactive_view_complete(view, loop.full_path, 0);
+                            b32 indirectly_activate = 0;
+                            for (i32 j = 0; j < keys.count; ++j){
+                                i16 key = keys.keys[j].keycode;
+                                switch (key){
+                                    case key_up:
+                                    --view->list_i;
+                                    break;
+                                    
+                                    case key_down:
+                                    ++view->list_i;
+                                    break;
+                                    
+                                    case '\n':
+                                    indirectly_activate = 1;
+                                    break;
+                                }
+                            }
+                            
+                            gui_rollback(target, &update);
+                            gui_begin_list(target, id, view->list_i, indirectly_activate, 0);
+                        }
+                        
+                        {
+                            begin_exhaustive_loop(&loop, hdir);
+                            for (i = 0; i < loop.count; ++i){
+                                file_info = get_exhaustive_info(system, &models->working_set, &loop, i);
+                                
+                                if (file_info.name_match){
+                                    id.id[0] = (u64)(file_info.info);
+                                    if (gui_do_file_option(target, id,
+                                            file_info.info->filename, file_info.is_folder, file_info.message)){
+                                        if (file_info.is_folder){
+                                            append(&hdir->string, file_info.info->filename);
+                                            append(&hdir->string, "/");
+                                            do_new_directory = 1;
+                                        }
+                                        else{
+                                            interactive_view_complete(view, loop.full_path, 0);
+                                        }
                                     }
                                 }
                             }
                         }
+                        
+                        gui_end_list(target);
                         
                         if (do_new_directory){
                             hot_directory_reload(system, hdir, &models->working_set);

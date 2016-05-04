@@ -145,6 +145,9 @@ struct GUI_Target{
 
 struct GUI_Item_Update{
     i32 partition_point;
+    b32 activate;
+    b32 has_adjustment;
+    i32 adjustment_value;
 };
 
 struct GUI_Header{
@@ -177,6 +180,8 @@ enum GUI_Command_Type{
     guicom_color_button,
     guicom_font_button,
     guicom_text_with_cursor,
+    guicom_begin_list,
+    guicom_end_list,
     guicom_file_option,
     guicom_fixed_option,
     guicom_button,
@@ -228,9 +233,23 @@ gui_rollback(GUI_Target *target, GUI_Item_Update *update){
 }
 
 internal void
-gui_fill_item_update(GUI_Item_Update *update, GUI_Target *target, GUI_Header *h){
+gui_fill_item_update(GUI_Item_Update *update, GUI_Target *target, GUI_Header *h,
+    b32 activate){
     if (update){
         update->partition_point = (i32)((char*)h - (char*)target->push.base);
+        update->activate = activate;
+        update->has_adjustment = 0;
+    }
+}
+
+internal void
+gui_fill_item_update(GUI_Item_Update *update, GUI_Target *target, GUI_Header *h,
+    b32 active, i32 adjustment_value){
+    if (update){
+        update->partition_point = (i32)((char*)h - (char*)target->push.base);
+        update->activate = active;
+        update->has_adjustment = 1;
+        update->adjustment_value = adjustment_value;
     }
 }
 
@@ -398,13 +417,16 @@ gui_do_text_field(GUI_Target *target, String prompt, String text){
 
 internal b32
 gui_do_text_with_cursor(GUI_Target *target, i32 pos, String text, GUI_Item_Update *update){
-    b32 result = 1;
+    b32 result = 0;
     GUI_Header *h = gui_push_simple_command(target, guicom_text_with_cursor);
     gui_push_string(target, h, text);
     gui_push_item(target, h, &pos, sizeof(i32));
     
     result = target->has_keys;
-    gui_fill_item_update(update, target, h);
+    if (result){
+        gui_fill_item_update(update, target, h, 0);
+    }
+    
     return(result);
 }
 
@@ -458,6 +480,31 @@ gui_do_font_button(GUI_Target *target, GUI_id id, i16 font_id, String text){
 	}
     
     return(result);
+}
+
+internal b32
+gui_begin_list(GUI_Target *target, GUI_id id, i32 list_i, b32 activate_item, GUI_Item_Update *update){
+    b32 result = 0;
+    b32 active = 0;
+    GUI_Interactive *b = gui_push_button_command(target, guicom_begin_list, id);
+    GUI_Header *h = (GUI_Header*)b;
+    
+    result = target->has_keys;
+    if (gui_id_eq(id, target->active)){
+        active = 1;
+        result = 1;
+	}
+    
+    if (result){
+        gui_fill_item_update(update, target, h, active);
+    }
+    
+    return(result);
+}
+
+internal void
+gui_end_list(GUI_Target *target){
+    gui_push_simple_command(target, guicom_end_list);
 }
 
 internal b32
