@@ -188,7 +188,7 @@ struct Linux_Vars{
 #define FPS 60L
 #define frame_useconds (1000000UL / FPS)
 
-#if 0
+#if FRED_INTERNAL
 #define LINUX_FN_DEBUG(fmt, ...) do { \
         fprintf(stderr, "%s: " fmt "\n", __func__, ##__VA_ARGS__); \
     } while(0)
@@ -1481,7 +1481,7 @@ InitializeOpenGLContext(Display *XDisplay, Window XWindow, GLXFBConfig &bestFbc,
 #if FRED_INTERNAL
     PFNGLDEBUGMESSAGECALLBACKARBPROC gl_dbg_callback = (PFNGLDEBUGMESSAGECALLBACKARBPROC)glXGetProcAddress((const GLubyte*)"glDebugMessageCallback");
     if(gl_dbg_callback){
-        fputs("enabling gl debug", stderr);
+        fputs("enabling gl debug\n", stderr);
         gl_dbg_callback(&gl_log, 0);
         glEnable(GL_DEBUG_OUTPUT);
     }
@@ -1737,6 +1737,7 @@ internal void
 LinuxHandleX11Events(void)
 {
     XEvent PrevEvent = {};
+    b32 should_step = 0;
 
     while(XPending(linuxvars.XDisplay))
     {
@@ -1749,6 +1750,8 @@ LinuxHandleX11Events(void)
 
         switch (Event.type){
             case KeyPress: {
+                should_step = 1;
+
                 b32 is_hold = (PrevEvent.type         == KeyRelease &&
                                PrevEvent.xkey.time    == Event.xkey.time &&
                                PrevEvent.xkey.keycode == Event.xkey.keycode);
@@ -1797,12 +1800,18 @@ LinuxHandleX11Events(void)
                 }
             }break;
 
+            case KeyRelease: {
+                should_step = 1;
+            }break;
+
             case MotionNotify: {
+                should_step = 1;
                 linuxvars.mouse_data.x = Event.xmotion.x;
                 linuxvars.mouse_data.y = Event.xmotion.y;
             }break;
 
             case ButtonPress: {
+                should_step = 1;
                 switch(Event.xbutton.button){
                     case Button1: {
                         linuxvars.mouse_data.press_l = 1;
@@ -1826,6 +1835,7 @@ LinuxHandleX11Events(void)
             }break;
 
             case ButtonRelease: {
+                should_step = 1;
                 switch(Event.xbutton.button){
                     case Button1: {
                         linuxvars.mouse_data.release_l = 1;
@@ -1839,20 +1849,24 @@ LinuxHandleX11Events(void)
             }break;
 
             case EnterNotify: {
+                should_step = 1;
                 linuxvars.mouse_data.out_of_window = 0;
             }break;
 
             case LeaveNotify: {
+                should_step = 1;
                 linuxvars.mouse_data.out_of_window = 1;
             }break;
 
             case FocusIn:
             case FocusOut: {
+                should_step = 1;
                 linuxvars.mouse_data.l = 0;
                 linuxvars.mouse_data.r = 0;
             }break;
 
             case ConfigureNotify: {
+                should_step = 1;
                 i32 w = Event.xconfigure.width, h = Event.xconfigure.height;
 
                 if(w != linuxvars.target.width || h != linuxvars.target.height){
@@ -1869,6 +1883,7 @@ LinuxHandleX11Events(void)
 
             case ClientMessage: {
                 if ((Atom)Event.xclient.data.l[0] == linuxvars.atom_WM_DELETE_WINDOW) {
+                    should_step = 1;
                     linuxvars.keep_running = 0;
                 }
                 else if ((Atom)Event.xclient.data.l[0] == linuxvars.atom_NET_WM_PING) {
@@ -1931,6 +1946,7 @@ LinuxHandleX11Events(void)
 
                 // NOTE(inso): A program is giving us the clipboard data we asked for.
             case SelectionNotify: {
+                should_step = 1;
                 XSelectionEvent* e = (XSelectionEvent*)&Event;
                 if(
                     e->selection == linuxvars.atom_CLIPBOARD &&
@@ -1966,6 +1982,7 @@ LinuxHandleX11Events(void)
 
             case Expose:
             case VisibilityNotify: {
+                should_step = 1;
                 linuxvars.redraw = 1;
             }break;
 
@@ -1986,8 +2003,9 @@ LinuxHandleX11Events(void)
         PrevEvent = Event;
     }
 
-    linuxvars.redraw = 1;
-    LinuxScheduleStep();
+    if(should_step){
+        LinuxScheduleStep();
+    }
 }
 
 internal void
@@ -2006,8 +2024,6 @@ LinuxHandleFileEvents()
 int
 main(int argc, char **argv)
 {
-    linuxvars = {};
-    exchange_vars = {};
 
 #if FRED_INTERNAL
     linuxvars.internal_bubble.next = &linuxvars.internal_bubble;
@@ -2443,7 +2459,7 @@ main(int argc, char **argv)
     LinuxScheduleStep();
     linuxvars.keep_running = 1;
 
-    while(linuxvars.keep_running){
+    while(1){
 
         struct epoll_event events[16];
         int num_events = epoll_wait(linuxvars.epoll, events, ArrayCount(events), -1);
@@ -2492,7 +2508,7 @@ main(int argc, char **argv)
                 } break;
 
                 case LINUX_4ED_EVENT_CLI: {
-                    do_step = 1;
+                    LinuxScheduleStep();
                 } break;
             }
         }
@@ -2507,9 +2523,9 @@ main(int argc, char **argv)
             result.mouse_cursor_type = APP_MOUSE_CURSOR_DEFAULT;
             result.trying_to_kill = !linuxvars.keep_running;
 
-            if(__sync_bool_compare_and_swap(&exchange_vars.thread.force_redraw, 1, 0)){
-                linuxvars.redraw = 1;
-            }
+//            if(__sync_bool_compare_and_swap(&exchange_vars.thread.force_redraw, 1, 0)){
+//                linuxvars.redraw = 1;
+//            }
 
             f32 dt = frame_useconds / 1000000.f;
 
@@ -2574,6 +2590,8 @@ main(int argc, char **argv)
                     else{
                         file->flags |= FEx_Save_Failed;
                     }
+
+                    LinuxScheduleStep();
                 }
 
                 if (file->flags & FEx_Request){
@@ -2588,6 +2606,8 @@ main(int argc, char **argv)
                         file->data = sysfile.data;
                         file->size = sysfile.size;
                     }
+
+                    LinuxScheduleStep();
                 }
             }
 
