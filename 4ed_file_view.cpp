@@ -4141,17 +4141,11 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                         }
                         
                         gui_do_text_field(target, message, hdir->string);
-                        
-#if 0
-                        id.id[0] = (u64)(hdir);
-                        if (gui_do_file_input(target, id, hdir)){
-                            interactive_view_complete(view, hdir->string, 0);
-						}
-#endif
 
                         gui_get_scroll_vars(target, view->showing_ui, &view->gui_scroll);
                         gui_begin_scrollable(target, view->showing_ui, view->gui_scroll, 9.f * view->font_height);
                         
+                        // TODO(allen): Deduplicate. Perhaps we want a standard list helper?
                         id.id[0] = (u64)(hdir) + 1;
                         if (gui_begin_list(target, id, view->list_i, 0, &update)){
                             if (update.has_adjustment){
@@ -4225,6 +4219,7 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                         Editing_File *file;
                         File_Node *node, *used_nodes;
                         Working_Set *working_set = &models->working_set;
+                        GUI_Item_Update update = {0};
                         
                         {
                             Single_Line_Input_Step step;
@@ -4246,6 +4241,35 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                         gui_get_scroll_vars(target, view->showing_ui, &view->gui_scroll);
                         gui_begin_scrollable(target, view->showing_ui, view->gui_scroll, 9.f * view->font_height);
                         
+                        // TODO(allen): Deduplicate. Perhaps we want a standard list helper?
+                        id.id[0] = (u64)(working_set) + 1;
+                        if (gui_begin_list(target, id, view->list_i, 0, &update)){
+                            if (update.has_adjustment){
+                                view->list_i = update.adjustment_value;
+                            }
+                            
+                            b32 indirectly_activate = 0;
+                            for (i32 j = 0; j < keys.count; ++j){
+                                i16 key = keys.keys[j].keycode;
+                                switch (key){
+                                    case key_up:
+                                    --view->list_i;
+                                    break;
+                                    
+                                    case key_down:
+                                    ++view->list_i;
+                                    break;
+                                    
+                                    case '\n':
+                                    indirectly_activate = 1;
+                                    break;
+                                }
+                            }
+                            
+                            gui_rollback(target, &update);
+                            gui_begin_list(target, id, view->list_i, indirectly_activate, 0);
+                        }
+                        
                         used_nodes = &working_set->used_sentinel;
                         for (dll_items(node, used_nodes)){
                             file = (Editing_File*)node;
@@ -4264,6 +4288,8 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                                 }
 							}
 						}
+                        
+                        gui_end_list(target);
                         
                         gui_end_scrollable(target);
 					}break;
