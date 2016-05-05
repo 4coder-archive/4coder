@@ -3656,6 +3656,172 @@ static Style_Color_Edit colors_to_edit[] = {
     {Stag_Pop2, Stag_Pop2, Stag_Bar, make_lit_string("Bar Pop 2")},
 };
 
+struct Single_Line_Input_Step{
+	b8 hit_newline;
+	b8 hit_ctrl_newline;
+	b8 hit_a_character;
+    b8 hit_backspace;
+	b8 hit_esc;
+	b8 made_a_change;
+    b8 did_command;
+    b8 no_file_match;
+};
+
+enum Single_Line_Input_Type{
+	SINGLE_LINE_STRING,
+	SINGLE_LINE_FILE
+};
+
+struct Single_Line_Mode{
+	Single_Line_Input_Type type;
+	String *string;
+	Hot_Directory *hot_directory;
+    b32 fast_folder_select;
+    b32 try_to_match;
+    b32 case_sensitive;
+};
+
+internal Single_Line_Input_Step
+app_single_line_input_core(System_Functions *system, Working_Set *working_set,
+    Key_Event_Data key, Single_Line_Mode mode){
+    Single_Line_Input_Step result = {0};
+
+    if (key.keycode == key_back){
+        result.hit_backspace = 1;
+        if (mode.string->size > 0){
+            result.made_a_change = 1;
+            --mode.string->size;
+            switch (mode.type){
+                case SINGLE_LINE_STRING:
+                {
+                    mode.string->str[mode.string->size] = 0;
+                }break;
+
+                case SINGLE_LINE_FILE:
+                {
+                    char end_character = mode.string->str[mode.string->size];
+                    if (char_is_slash(end_character)){
+                        mode.string->size = reverse_seek_slash(*mode.string) + 1;
+                        mode.string->str[mode.string->size] = 0;
+                        hot_directory_set(system, mode.hot_directory, *mode.string, working_set);
+                    }
+                    else{
+                        mode.string->str[mode.string->size] = 0;
+                    }
+                }break;
+            }
+        }
+    }
+
+    else if (key.character == '\n' || key.character == '\t'){
+#if 0
+        result.made_a_change = 1;
+        if (key.modifiers[MDFR_CONTROL_INDEX] ||
+                key.modifiers[MDFR_ALT_INDEX]){
+            result.hit_ctrl_newline = 1;
+        }
+        else{
+            result.hit_newline = 1;
+            if (mode.fast_folder_select){
+                Hot_Directory_Match match;
+                char front_name_space[256];
+                String front_name = make_fixed_width_string(front_name_space);
+                get_front_of_directory(&front_name, *mode.string);
+
+                match =
+                    hot_directory_first_match(mode.hot_directory, front_name, 1, 1, mode.case_sensitive);
+
+                if (mode.try_to_match && !match.filename.str){
+                    match = hot_directory_first_match(mode.hot_directory, front_name, 1, 0, mode.case_sensitive);
+                }
+                if (match.filename.str){
+                    if (match.is_folder){
+                        set_last_folder(mode.string, match.filename, mode.hot_directory->slash);
+                        hot_directory_set(system, mode.hot_directory, *mode.string, working_set);
+                        result.hit_newline = 0;
+                    }
+                    else{
+                        if (mode.try_to_match){
+                            mode.string->size = reverse_seek_slash(*mode.string) + 1;
+                            append(mode.string, match.filename);
+                        }
+                    }
+                }
+                else{
+                    if (mode.try_to_match){
+                        result.no_file_match = 1;
+                    }
+                }
+            }
+        }
+#endif
+    }
+
+    else if (key.keycode == key_esc){
+        result.hit_esc = 1;
+        result.made_a_change = 1;
+    }
+
+    else if (key.character){
+        result.hit_a_character = 1;
+        if (!key.modifiers[MDFR_CONTROL_INDEX] &&
+                !key.modifiers[MDFR_ALT_INDEX]){
+            if (mode.string->size+1 < mode.string->memory_size){
+                u8 new_character = (u8)key.character;
+                mode.string->str[mode.string->size] = new_character;
+                mode.string->size++;
+                mode.string->str[mode.string->size] = 0;
+                if (mode.type == SINGLE_LINE_FILE && char_is_slash(new_character)){
+                    hot_directory_set(system, mode.hot_directory, *mode.string, working_set);
+                }
+                result.made_a_change = 1;
+            }
+        }
+        else{
+            result.did_command = 1;
+            result.made_a_change = 1;
+        }
+    }
+
+    return result;
+}
+
+inline Single_Line_Input_Step
+app_single_line_input_step(System_Functions *system, Key_Event_Data key, String *string){
+	Single_Line_Mode mode = {};
+	mode.type = SINGLE_LINE_STRING;
+	mode.string = string;
+	return app_single_line_input_core(system, 0, key, mode);
+}
+
+inline Single_Line_Input_Step
+app_single_file_input_step(System_Functions *system,
+                           Working_Set *working_set, Key_Event_Data key,
+						   String *string, Hot_Directory *hot_directory,
+                           b32 fast_folder_select, b32 try_to_match, b32 case_sensitive){
+	Single_Line_Mode mode = {};
+	mode.type = SINGLE_LINE_FILE;
+	mode.string = string;
+	mode.hot_directory = hot_directory;
+    mode.fast_folder_select = fast_folder_select;
+    mode.try_to_match = try_to_match;
+    mode.case_sensitive = case_sensitive;
+    return app_single_line_input_core(system, working_set, key, mode);
+}
+
+inline Single_Line_Input_Step
+app_single_number_input_step(System_Functions *system, Key_Event_Data key, String *string){
+    Single_Line_Input_Step result = {};
+    Single_Line_Mode mode = {};
+    mode.type = SINGLE_LINE_STRING;
+    mode.string = string;
+
+    char c = (char)key.character;
+    if (c == 0 || c == '\n' || char_is_numeric(c))
+        result = app_single_line_input_core(system, 0, key, mode);
+    return result;
+}
+
 internal b32
 step_file_view(System_Functions *system, View *view, View *active_view, Input_Summary input){
     GUI_Target *target = &view->gui_target;
@@ -3960,13 +4126,29 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                         b32 do_new_directory = 0;
                         i32 i = 0;
                         
+                        {
+                            Single_Line_Input_Step step = {0};
+                            Key_Event_Data key = {0};
+                            i32 i;
+                            
+                            for (i = 0; i < keys.count; ++i){
+                                key = get_single_key(&keys, i);
+                                step = app_single_file_input_step(system, &models->working_set, key, &hdir->string, hdir, 1, 1, 0);
+                                if (step.made_a_change){
+                                    view->list_i = 0;
+                                }
+                            }
+                        }
+                        
                         gui_do_text_field(target, message, hdir->string);
                         
+#if 0
                         id.id[0] = (u64)(hdir);
                         if (gui_do_file_input(target, id, hdir)){
                             interactive_view_complete(view, hdir->string, 0);
 						}
-                        
+#endif
+
                         gui_get_scroll_vars(target, view->showing_ui, &view->gui_scroll);
                         gui_begin_scrollable(target, view->showing_ui, view->gui_scroll, 9.f * view->font_height);
                         
@@ -4005,11 +4187,9 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                                 
                                 if (file_info.name_match){
                                     id.id[0] = (u64)(file_info.info);
-                                    if (gui_do_file_option(target, id,
-                                            file_info.info->filename, file_info.is_folder, file_info.message)){
+                                    if (gui_do_file_option(target, id, file_info.info->filename, file_info.is_folder, file_info.message)){
                                         if (file_info.is_folder){
-                                            append(&hdir->string, file_info.info->filename);
-                                            append(&hdir->string, "/");
+                                            set_last_folder(&hdir->string, file_info.info->filename, '/');
                                             do_new_directory = 1;
                                         }
                                         else{
@@ -4040,21 +4220,28 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                             case IAct_Kill: message = make_lit_string("Kill: "); break;
                         }
                         
-                        
                         Absolutes absolutes;
-                        GUI_id file_option_id, str_edit_id;
+                        GUI_id id;
                         Editing_File *file;
                         File_Node *node, *used_nodes;
                         Working_Set *working_set = &models->working_set;
                         
+                        {
+                            Single_Line_Input_Step step;
+                            Key_Event_Data key;
+                            i32 i;
+                            for (i = 0; i < keys.count; ++i){
+                                key = get_single_key(&keys, i);
+                                step = app_single_line_input_step(system, key, &view->dest);
+                                if (step.made_a_change){
+                                    view->list_i = 0;
+                                }
+                            }
+                        }
+                        
                         get_absolutes(view->dest, &absolutes, 1, 1);
                         
                         gui_do_text_field(target, message, view->dest);
-                        
-                        str_edit_id.id[0] = (u64)(&view->dest);
-                        if (gui_do_text_input(target, str_edit_id, &view->dest)){
-                            interactive_view_complete(view, view->dest, 0);
-						}
                         
                         gui_get_scroll_vars(target, view->showing_ui, &view->gui_scroll);
                         gui_begin_scrollable(target, view->showing_ui, view->gui_scroll, 9.f * view->font_height);
@@ -4071,8 +4258,8 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
 							}
                             
                             if (filename_match(view->dest, &absolutes, file->name.live_name, 1)){
-                                file_option_id.id[0] = (u64)(file);
-                                if (gui_do_file_option(target, file_option_id, file->name.live_name, 0, message)){
+                                id.id[0] = (u64)(file);
+                                if (gui_do_file_option(target, id, file->name.live_name, 0, message)){
                                     interactive_view_complete(view, file->name.live_name, 0);
                                 }
 							}
@@ -4160,170 +4347,6 @@ view_get_scroll_y(View *view){
     return(v);
 }
 
-struct Single_Line_Input_Step{
-	b8 hit_newline;
-	b8 hit_ctrl_newline;
-	b8 hit_a_character;
-    b8 hit_backspace;
-	b8 hit_esc;
-	b8 made_a_change;
-    b8 did_command;
-    b8 no_file_match;
-};
-
-enum Single_Line_Input_Type{
-	SINGLE_LINE_STRING,
-	SINGLE_LINE_FILE
-};
-
-struct Single_Line_Mode{
-	Single_Line_Input_Type type;
-	String *string;
-	Hot_Directory *hot_directory;
-    b32 fast_folder_select;
-    b32 try_to_match;
-    b32 case_sensitive;
-};
-
-internal Single_Line_Input_Step
-app_single_line_input_core(System_Functions *system, Working_Set *working_set,
-                           Key_Event_Data key, Single_Line_Mode mode){
-    Single_Line_Input_Step result = {0};
-    
-    if (key.keycode == key_back){
-        result.hit_backspace = 1;
-        if (mode.string->size > 0){
-            result.made_a_change = 1;
-            --mode.string->size;
-            switch (mode.type){
-            case SINGLE_LINE_STRING:
-            {
-				mode.string->str[mode.string->size] = 0;
-			}break;
-            
-            case SINGLE_LINE_FILE:
-            {
-                char end_character = mode.string->str[mode.string->size];
-                if (char_is_slash(end_character)){
-                    mode.string->size = reverse_seek_slash(*mode.string) + 1;
-                    mode.string->str[mode.string->size] = 0;
-                    hot_directory_set(system, mode.hot_directory, *mode.string, working_set);
-                }
-                else{
-                    mode.string->str[mode.string->size] = 0;
-                }
-            }break;
-            }
-        }
-    }
-    
-    else if (key.character == '\n' || key.character == '\t'){
-        result.made_a_change = 1;
-        if (key.modifiers[MDFR_CONTROL_INDEX] ||
-            key.modifiers[MDFR_ALT_INDEX]){
-            result.hit_ctrl_newline = 1;
-        }
-        else{
-            result.hit_newline = 1;
-            if (mode.fast_folder_select){
-                Hot_Directory_Match match;
-                char front_name_space[256];
-                String front_name = make_fixed_width_string(front_name_space);
-                get_front_of_directory(&front_name, *mode.string);
-                
-                match =
-                    hot_directory_first_match(mode.hot_directory, front_name, 1, 1, mode.case_sensitive);
-
-                if (mode.try_to_match && !match.filename.str){
-                    match = hot_directory_first_match(mode.hot_directory, front_name, 1, 0, mode.case_sensitive);
-                }
-                if (match.filename.str){
-                    if (match.is_folder){
-                        set_last_folder(mode.string, match.filename, mode.hot_directory->slash);
-                        hot_directory_set(system, mode.hot_directory, *mode.string, working_set);
-                        result.hit_newline = 0;
-                    }
-                    else{
-                        if (mode.try_to_match){
-                            mode.string->size = reverse_seek_slash(*mode.string) + 1;
-                            append(mode.string, match.filename);
-                        }
-                    }
-                }
-                else{
-                    if (mode.try_to_match){
-                        result.no_file_match = 1;
-                    }
-                }
-            }
-        }
-    }
-    
-    else if (key.keycode == key_esc){
-        result.hit_esc = 1;
-        result.made_a_change = 1;
-    }
-    
-    else if (key.character){
-        result.hit_a_character = 1;
-        if (!key.modifiers[MDFR_CONTROL_INDEX] &&
-            !key.modifiers[MDFR_ALT_INDEX]){
-            if (mode.string->size+1 < mode.string->memory_size){
-                u8 new_character = (u8)key.character;
-                mode.string->str[mode.string->size] = new_character;
-                mode.string->size++;
-                mode.string->str[mode.string->size] = 0;
-                if (mode.type == SINGLE_LINE_FILE && char_is_slash(new_character)){
-                    hot_directory_set(system, mode.hot_directory, *mode.string, working_set);
-                }
-                result.made_a_change = 1;
-            }
-        }
-        else{
-            result.did_command = 1;
-            result.made_a_change = 1;
-        }
-    }
-    
-    return result;
-}
-
-inline Single_Line_Input_Step
-app_single_line_input_step(System_Functions *system, Key_Event_Data key, String *string){
-	Single_Line_Mode mode = {};
-	mode.type = SINGLE_LINE_STRING;
-	mode.string = string;
-	return app_single_line_input_core(system, 0, key, mode);
-}
-
-inline Single_Line_Input_Step
-app_single_file_input_step(System_Functions *system,
-                           Working_Set *working_set, Key_Event_Data key,
-						   String *string, Hot_Directory *hot_directory,
-                           b32 fast_folder_select, b32 try_to_match, b32 case_sensitive){
-	Single_Line_Mode mode = {};
-	mode.type = SINGLE_LINE_FILE;
-	mode.string = string;
-	mode.hot_directory = hot_directory;
-    mode.fast_folder_select = fast_folder_select;
-    mode.try_to_match = try_to_match;
-    mode.case_sensitive = case_sensitive;
-    return app_single_line_input_core(system, working_set, key, mode);
-}
-
-inline Single_Line_Input_Step
-app_single_number_input_step(System_Functions *system, Key_Event_Data key, String *string){
-    Single_Line_Input_Step result = {};
-    Single_Line_Mode mode = {};
-    mode.type = SINGLE_LINE_STRING;
-    mode.string = string;
-
-    char c = (char)key.character;
-    if (c == 0 || c == '\n' || char_is_numeric(c))
-        result = app_single_line_input_core(system, 0, key, mode);
-    return result;
-}
-
 internal b32
 do_input_file_view(System_Functions *system, Exchange *exchange,
     View *view, i32_Rect rect, b32 is_active, Input_Summary *user_input){
@@ -4334,6 +4357,7 @@ do_input_file_view(System_Functions *system, Exchange *exchange,
     GUI_Session gui_session;
     GUI_Header *h;
     GUI_Target *target = &view->gui_target;
+    GUI_Interpret_Result interpret_result = {0};
     
     gui_session_init(&gui_session, rect, view->font_height);
     
@@ -4342,7 +4366,33 @@ do_input_file_view(System_Functions *system, Exchange *exchange,
     for (h = (GUI_Header*)target->push.base;
         h->type;
         h = NextHeader(h)){
-        if (gui_interpret(target, &gui_session, h)){
+        interpret_result = gui_interpret(target, &gui_session, h);
+        
+        // TODO(allen): If something is auto hot or auto activated and
+        // not on screen do some sort of scrolling towards it.
+        
+        switch (h->type){
+            case guicom_file_option:
+            case guicom_fixed_option:
+            case guicom_fixed_option_checkbox:
+            {
+                GUI_Interactive *b = (GUI_Interactive*)h;
+                
+                if (interpret_result.auto_activate){
+                    target->auto_hot = {0};
+                    target->active = b->id;
+                    is_animating = 1;
+                }
+                else if (interpret_result.auto_hot){
+                    if (!gui_id_eq(target->auto_hot, b->id)){
+                        target->auto_hot = b->id;
+                        is_animating = 1;
+                    }
+                }
+            }break;
+        }
+        
+        if (interpret_result.has_info){
             switch (h->type){
                 case guicom_top_bar: break;
                 
@@ -4362,7 +4412,8 @@ do_input_file_view(System_Functions *system, Exchange *exchange,
                     }
                     is_file_scroll = 1;
                 }break;
-                
+
+#if 0
                 case guicom_text_input:
                 {
                     Single_Line_Input_Step step;
@@ -4407,27 +4458,28 @@ do_input_file_view(System_Functions *system, Exchange *exchange,
                         }
 					}
 				}break;
-                
+#endif
+
                 case guicom_color_button:
                 case guicom_font_button:
                 case guicom_button:
                 case guicom_file_option:
                 case guicom_style_preview:
                 {
+                    // TODO(allen): deduplicate button related stuff
                     GUI_Interactive *b = (GUI_Interactive*)h;
                     i32 mx = user_input->mouse.x;
                     i32 my = user_input->mouse.y;
                     
-                    // TODO(allen): deduplicate button related stuff
                     if (hit_check(mx, my, gui_session.rect)){
                         target->hover = b->id;
                         if (user_input->mouse.press_l){
-                            target->hot = b->id;
+                            target->mouse_hot = b->id;
                             is_animating = 1;
                         }
-                        if (user_input->mouse.release_l && gui_id_eq(target->hot, b->id)){
+                        if (user_input->mouse.release_l && gui_id_eq(target->mouse_hot, b->id)){
                             target->active = b->id;
-                            target->hot = {0};
+                            target->mouse_hot = {0};
                             is_animating = 1;
                         }
                     }
@@ -4456,12 +4508,12 @@ do_input_file_view(System_Functions *system, Exchange *exchange,
                     if (hit_check(mx, my, gui_session.rect)){
                         target->hover = b->id;
                         if (user_input->mouse.press_l){
-                            target->hot = b->id;
+                            target->mouse_hot = b->id;
                             is_animating = 1;
                         }
-                        if (user_input->mouse.release_l && gui_id_eq(target->hot, b->id)){
+                        if (user_input->mouse.release_l && gui_id_eq(target->mouse_hot, b->id)){
                             target->active = b->id;
-                            target->hot = {0};
+                            target->mouse_hot = {0};
                             is_animating = 1;
                         }
                     }
@@ -4492,11 +4544,11 @@ do_input_file_view(System_Functions *system, Exchange *exchange,
                     if (hit_check(mx, my, gui_session.rect)){
                         target->hover = id;
                         if (user_input->mouse.press_l){
-                            target->hot = id;
+                            target->mouse_hot = id;
                             is_animating = 1;
                         }
-                        if (user_input->mouse.release_l && gui_id_eq(target->hot, id)){
-                            target->hot = {0};
+                        if (user_input->mouse.release_l && gui_id_eq(target->mouse_hot, id)){
+                            target->mouse_hot = {0};
                             target->scroll_updated.target_y -= target->delta;
                             if (target->scroll_updated.target_y < target->scroll_updated.min_y){
                                 target->scroll_updated.target_y = target->scroll_updated.min_y;
@@ -4520,7 +4572,7 @@ do_input_file_view(System_Functions *system, Exchange *exchange,
                     if (hit_check(mx, my, gui_session.rect)){
                         target->hover = id;
                         if (user_input->mouse.press_l){
-                            target->hot = id;
+                            target->mouse_hot = id;
                             is_animating = 1;
                         }
 					}
@@ -4528,7 +4580,7 @@ do_input_file_view(System_Functions *system, Exchange *exchange,
                         target->hover = {0};
 					}
                     
-                    if (gui_id_eq(target->hot, id)){
+                    if (gui_id_eq(target->mouse_hot, id)){
                         v = unlerp(gui_session.scroll_top, (f32)my, gui_session.scroll_bottom);
                         if (v < 0) v = 0;
                         if (v > 1.f) v = 1.f;
@@ -4560,11 +4612,11 @@ do_input_file_view(System_Functions *system, Exchange *exchange,
                     if (hit_check(mx, my, gui_session.rect)){
                         target->hover = id;
                         if (user_input->mouse.press_l){
-                            target->hot = id;
+                            target->mouse_hot = id;
                             is_animating = 1;
                         }
-                        if (user_input->mouse.release_l && gui_id_eq(target->hot, id)){
-                            target->hot = {0};
+                        if (user_input->mouse.release_l && gui_id_eq(target->mouse_hot, id)){
+                            target->mouse_hot = {0};
                             target->scroll_updated.target_y += target->delta;
                             if (target->scroll_updated.target_y > target->scroll_updated.max_y){
                                 target->scroll_updated.target_y = target->scroll_updated.max_y;
@@ -4593,8 +4645,8 @@ do_input_file_view(System_Functions *system, Exchange *exchange,
     }
     
     if (!user_input->mouse.l){
-        if (!gui_id_eq(target->hot, {0})){
-            target->hot = {0};
+        if (!gui_id_eq(target->mouse_hot, {0})){
+            target->mouse_hot = {0};
             is_animating = 1;
         }
 	}
@@ -5124,6 +5176,7 @@ do_render_file_view(System_Functions *system, Exchange *exchange,
     GUI_Session gui_session = {0};
     GUI_Header *h;
     GUI_Target *gui_target = &view->gui_target;
+    GUI_Interpret_Result interpret_result = {0};
     
     f32 v;
     
@@ -5137,8 +5190,8 @@ do_render_file_view(System_Functions *system, Exchange *exchange,
     for (h = (GUI_Header*)gui_target->push.base;
         h->type;
         h = NextHeader(h)){
-        if (gui_interpret(&view->gui_target, &gui_session, h)){
-            
+        interpret_result = gui_interpret(gui_target, &gui_session, h);
+        if (interpret_result.has_info){
             if (gui_session.clip_y > clip_rect.y0){
                 clip_rect.y0 = gui_session.clip_y;
                 draw_change_clip(target, clip_rect);

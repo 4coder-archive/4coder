@@ -133,11 +133,18 @@ struct GUI_Target{
     Partition push;
     
     GUI_id active;
-    GUI_id hot;
+    GUI_id mouse_hot;
+    GUI_id auto_hot;
     GUI_id hover;
     
     GUI_Scroll_Vars scroll_original;
     GUI_Scroll_Vars scroll_updated;
+    
+    // TODO(allen): Would rather have a way of tracking this
+    // for more than one list.  Perhaps just throw in a hash table?
+    // Or maybe this only needs to be tracked for the active list.
+    i32 list_max;
+    
     f32 delta;
     u32 scroll_id;
     b32 has_keys;
@@ -175,8 +182,12 @@ enum GUI_Command_Type{
     guicom_top_bar,
     guicom_file,
     guicom_text_field,
+
+#if 0 
     guicom_text_input,
     guicom_file_input,
+#endif
+
     guicom_color_button,
     guicom_font_button,
     guicom_text_with_cursor,
@@ -213,7 +224,10 @@ gui_active_level(GUI_Target *target, GUI_id id){
     if (gui_id_eq(target->active, id)){
         level = 4;
 	}
-    else if (gui_id_eq(target->hot, id)){
+    else if (gui_id_eq(target->auto_hot, id)){
+        level = 3;
+    }
+    else if (gui_id_eq(target->mouse_hot, id)){
         if (gui_id_eq(target->hover, id)){
             level = 3;
 		}
@@ -221,7 +235,7 @@ gui_active_level(GUI_Target *target, GUI_id id){
             level = 2;
         }
     }
-    else if (gui_id_eq(target->hover, id) && gui_id_is_null(target->hot)){
+    else if (gui_id_eq(target->hover, id) && gui_id_is_null(target->mouse_hot)){
         level = 1;
     }
     return(level);
@@ -430,6 +444,7 @@ gui_do_text_with_cursor(GUI_Target *target, i32 pos, String text, GUI_Item_Updat
     return(result);
 }
 
+#if 0
 internal b32
 gui_do_text_input(GUI_Target *target, GUI_id id, void *out){
     b32 result = 0;
@@ -449,6 +464,7 @@ gui_do_file_input(GUI_Target *target, GUI_id id, void *out){
     }
     return(result);
 }
+#endif
 
 internal b32
 gui_do_color_button(GUI_Target *target, GUI_id id, u32 fore, u32 back, String text){
@@ -488,6 +504,8 @@ gui_begin_list(GUI_Target *target, GUI_id id, i32 list_i, b32 activate_item, GUI
     b32 active = 0;
     GUI_Interactive *b = gui_push_button_command(target, guicom_begin_list, id);
     GUI_Header *h = (GUI_Header*)b;
+    gui_push_item(target, h, &list_i, sizeof(list_i));
+    gui_push_item(target, h, &activate_item, sizeof(activate_item));
     
     result = target->has_keys;
     if (gui_id_eq(id, target->active)){
@@ -670,6 +688,13 @@ struct GUI_Section{
     i32 max_v, v, top_v;
 };
 
+struct GUI_List_Vars{
+    b32 in_list;
+    i32 index;
+    i32 auto_hot;
+    i32 auto_activate;
+};
+
 struct GUI_Session{
     i32_Rect full_rect;
     i32_Rect rect;
@@ -685,6 +710,8 @@ struct GUI_Session{
     
     i32_Rect scroll_rect;
     f32 scroll_top, scroll_bottom;
+    
+    GUI_List_Vars list;
     
     GUI_Section sections[64];
     i32 t;
@@ -812,8 +839,65 @@ gui_scrollbar_bottom(i32_Rect bar, i32_Rect *bottom){
     bottom->y0 = bottom->y1 - w;
 }
 
-internal b32
+#define NextHeader(h) ((GUI_Header*)((char*)(h) + (h)->size))
+
+internal i8
+gui_read_byte(void **ptr){
+    i8 result;
+    result = *(i8*)*ptr;
+    *ptr = ((char*)*ptr) + 1;
+    return(result);
+}
+
+internal i32
+gui_read_integer(void **ptr){
+    i32 result;
+    result = *(i32*)*ptr;
+    *ptr = ((char*)*ptr) + 4;
+    return(result);
+}
+
+internal f32
+gui_read_float(void **ptr){
+    f32 result;
+    result = *(f32*)*ptr;
+    *ptr = ((char*)*ptr) + 4;
+    return(result);
+}
+
+internal String
+gui_read_string(void **ptr){
+    String result;
+    
+    result.size = *(i32*)*ptr;
+    *ptr = ((i32*)*ptr) + 1;
+    result.memory_size = *(i32*)*ptr;
+    *ptr = ((i32*)*ptr) + 1;
+    
+    result.str = (char*)*ptr;
+    *ptr = result.str + result.memory_size;
+    
+    return(result);
+}
+
+internal void*
+gui_read_out(void **ptr){
+    void *result;
+    result = *(void**)*ptr;
+    *ptr = ((void**)ptr) + 1;
+    return(result);
+}
+
+struct GUI_Interpret_Result{
+    b32 has_info;
+    b32 auto_hot;
+    b32 auto_activate;
+    i32 screen_orientation;
+};
+
+internal GUI_Interpret_Result
 gui_interpret(GUI_Target *target, GUI_Session *session, GUI_Header *h){
+    GUI_Interpret_Result result = {0};
     GUI_Section *section = 0;
     GUI_Section *new_section = 0;
     GUI_Section *prev_section = 0;
@@ -894,13 +978,15 @@ gui_interpret(GUI_Target *target, GUI_Session *session, GUI_Header *h){
         end_v = rect.y1;
         end_section = section;
         break;
-        
+
+#if 0        
         case guicom_text_input:
         case guicom_file_input:
         always_give_to_user = 1;
         do_layout = 0;
         break;
-        
+#endif
+
         case guicom_color_button:
         case guicom_font_button:
         give_to_user = 1;
@@ -908,11 +994,52 @@ gui_interpret(GUI_Target *target, GUI_Session *session, GUI_Header *h){
         end_v = rect.y1;
         end_section = section;
         break;
+
+        case guicom_begin_list:
+        {
+            GUI_Interactive *b = (GUI_Interactive*)h;
+            void *ptr = (b + 1);
+            i32 index = gui_read_integer(&ptr);
+            b32 activate = (b32)gui_read_integer(&ptr);
+            
+            Assert(session->list.in_list == 0);
+            session->list.in_list = 1;
+            session->list.index = 0;
+            session->list.auto_hot = index;
+            session->list.auto_activate = -1;
+            if (activate){
+                session->list.auto_activate = index;
+            }
+        }break;
+        
+        case guicom_end_list:
+        Assert(session->list.in_list == 1);
+        session->list.in_list = 0;
+        target->list_max = session->list.index;
+        break;
         
         case guicom_file_option:
         case guicom_fixed_option:
-        case guicom_button:
         case guicom_fixed_option_checkbox:
+        {
+            if (session->list.in_list){
+                if (session->list.auto_hot == session->list.index){
+                    result.auto_hot = 1;
+                }
+                if (session->list.auto_activate == session->list.index){
+                    result.auto_activate = 1;
+                }
+                
+                ++session->list.index;
+            }
+
+            give_to_user = 1;
+            rect = gui_layout_fixed_h(session, y, session->line_height * 2);
+            end_v = rect.y1;
+            end_section = section;
+        }break;
+        
+        case guicom_button:
         give_to_user = 1;
         rect = gui_layout_fixed_h(session, y, session->line_height * 2);
         end_v = rect.y1;
@@ -1009,6 +1136,7 @@ gui_interpret(GUI_Target *target, GUI_Session *session, GUI_Header *h){
             }
             else{
                 give_to_user = 0;
+                result.screen_orientation = -1;
             }
         }
         
@@ -1016,62 +1144,17 @@ gui_interpret(GUI_Target *target, GUI_Session *session, GUI_Header *h){
             gui_section_end_item(end_section, end_v);
         }
         
+        // TODO(allen): Why is this here, is there a particular reason?
         if (y - scroll_v >= session->full_rect.y1){
             give_to_user = 0;
+            result.screen_orientation = 1;
         }
     }
     
     session->clip_y = gui_session_get_eclipsed_y(session);
     
-    return(give_to_user || always_give_to_user);
-}
-
-#define NextHeader(h) ((GUI_Header*)((char*)(h) + (h)->size))
-
-internal i8
-gui_read_byte(void **ptr){
-    i8 result;
-    result = *(i8*)*ptr;
-    *ptr = ((char*)*ptr) + 1;
-    return(result);
-}
-
-internal i32
-gui_read_integer(void **ptr){
-    i32 result;
-    result = *(i32*)*ptr;
-    *ptr = ((char*)*ptr) + 4;
-    return(result);
-}
-
-internal f32
-gui_read_float(void **ptr){
-    f32 result;
-    result = *(f32*)*ptr;
-    *ptr = ((char*)*ptr) + 4;
-    return(result);
-}
-
-internal String
-gui_read_string(void **ptr){
-    String result;
+    result.has_info = (give_to_user || always_give_to_user);
     
-    result.size = *(i32*)*ptr;
-    *ptr = ((i32*)*ptr) + 1;
-    result.memory_size = *(i32*)*ptr;
-    *ptr = ((i32*)*ptr) + 1;
-    
-    result.str = (char*)*ptr;
-    *ptr = result.str + result.memory_size;
-    
-    return(result);
-}
-
-internal void*
-gui_read_out(void **ptr){
-    void *result;
-    result = *(void**)*ptr;
-    *ptr = ((void**)ptr) + 1;
     return(result);
 }
 
