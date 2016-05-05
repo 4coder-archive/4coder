@@ -9,6 +9,15 @@
 
 // TOP
 
+internal b32
+usable_ascii(char c){
+    b32 result = 1;
+    if ((c < ' ' || c > '~') && c != '\n' && c != '\r' && c != '\t'){
+        result = 0;
+    }
+    return(result);
+}
+
 internal void
 sysshared_filter_real_files(char **files, i32 *file_count){
     i32 i, j;

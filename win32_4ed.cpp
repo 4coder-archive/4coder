@@ -1263,40 +1263,66 @@ Win32Callback(HWND hwnd, UINT uMsg,
                     }
                     control_keys = win32vars.input_chunk.pers.control_keys;
                     control_keys_size = sizeof(win32vars.input_chunk.pers.control_keys);
-
+                    
                     if (*count < KEY_INPUT_BUFFER_SIZE){
                         if (!key){
                             UINT vk = (UINT)wParam;
                             UINT scan = (UINT)((lParam >> 16) & 0x7F);
                             BYTE state[256];
-                            WORD x1 = 0, x2 = 0, x = 0;
+                            BYTE control_state = 0;
+                            WORD x1 = 0, x2 = 0, x = 0, junk_x;
                             int result1 = 0, result2 = 0, result = 0;
-
+                            
                             GetKeyboardState(state);
                             x1 = 0;
                             result1 = ToAscii(vk, scan, state, &x1, 0);
+                            if (result1 < 0){
+                                ToAscii(vk, scan, state, &junk_x, 0);
+                            }
+                            result1 = (result1 == 1);
+                            if (!usable_ascii((char)x1)){
+                                result1 = 0;
+                            }
+                            
+                            control_state = state[VK_CONTROL];
                             state[VK_CONTROL] = 0;
                             x2 = 0;
                             result2 = ToAscii(vk, scan, state, &x2, 0);
-
+                            if (result2 < 0){
+                                ToAscii(vk, scan, state, &junk_x, 0);
+                            }
+                            result2 = (result2 == 1);
+                            if (!usable_ascii((char)x2)){
+                                result2 = 0;
+                            }
+                            
                             if (result1){
                                 x = x1;
+                                state[VK_CONTROL] = control_state;
                                 result = 1;
                             }
                             else if (result2){
                                 x = x2;
                                 result = 1;
                             }
-
+                            
                             if (result == 1 && x < 128){
                                 key = (u8)x;
                                 if (key == '\r') key = '\n';
                                 data[*count].character = key;
-
+                                
                                 state[VK_CAPITAL] = 0;
                                 x = 0;
                                 result = ToAscii(vk, scan, state, &x, 0);
-                                if (result == 1 && x < 128){
+                                if (result < 0){
+                                    ToAscii(vk, scan, state, &junk_x, 0);
+                                }
+                                result = (result == 1);
+                                if (!usable_ascii((char)x)){
+                                    result = 0;
+                                }
+                                
+                                if (result){
                                     key = (u8)x;
                                     if (key == '\r') key = '\n';
                                     data[*count].character_no_caps_lock = key;
@@ -1318,11 +1344,11 @@ Win32Callback(HWND hwnd, UINT uMsg,
                         ++(*count);
                     }
                 }
-
+                
                 result = DefWindowProc(hwnd, uMsg, wParam, lParam);
             }
         }break;
-
+        
         case WM_MOUSEMOVE:
         {
             i32 new_x = LOWORD(lParam);
