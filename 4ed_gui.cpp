@@ -967,14 +967,6 @@ gui_interpret(GUI_Target *target, GUI_Session *session, GUI_Header *h){
         end_section = section;
         break;
 
-#if 0        
-        case guicom_text_input:
-        case guicom_file_input:
-        always_give_to_user = 1;
-        do_layout = 0;
-        break;
-#endif
-
         case guicom_color_button:
         case guicom_font_button:
         give_to_user = 1;
@@ -1144,6 +1136,35 @@ gui_interpret(GUI_Target *target, GUI_Session *session, GUI_Header *h){
     result.has_info = (give_to_user || always_give_to_user);
     
     return(result);
+}
+
+internal void
+gui_standard_list(GUI_Target *target, GUI_id id,
+    Key_Summary *keys, i32 *list_i, GUI_Item_Update *update){
+    if (update->has_adjustment){
+        *list_i = update->adjustment_value;
+    }
+    
+    b32 indirectly_activate = 0;
+    for (i32 j = 0; j < keys->count; ++j){
+        i16 key = keys->keys[j].keycode;
+        switch (key){
+            case key_up:
+            --*list_i;
+            break;
+            
+            case key_down:
+            ++*list_i;
+            break;
+            
+            case '\n':
+            indirectly_activate = 1;
+            break;
+        }
+    }
+    
+    gui_rollback(target, update);
+    gui_begin_list(target, id, *list_i, indirectly_activate, 0);
 }
 
 // BOTTOM

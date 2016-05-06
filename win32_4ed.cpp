@@ -1296,6 +1296,22 @@ Win32Callback(HWND hwnd, UINT uMsg,
                                 result2 = 0;
                             }
                             
+                            // TODO(allen): This is becoming a really major issue.  Apparently
+                            // control + i outputs a '\t' which is VALID ascii according to this system.
+                            // So it reports the key as '\t'.  This wasn't an issue before because we were
+                            // ignoring control when computing character_no_caps_lock which is what
+                            // is used for commands.  But that is incorrect for some keyboard layouts where
+                            // control+alt is used to signal AltGr for important keys.
+                            if (result1 && result2){
+                                char c1 = char_to_upper((char)x1);
+                                char c2 = char_to_upper((char)x2);
+                                char cParam = char_to_upper((char)wParam);
+                                
+                                if (c1 != cParam && c2 == cParam){
+                                    result1 = 0;
+                                }
+                            }
+
                             if (result1){
                                 x = x1;
                                 state[VK_CONTROL] = control_state;

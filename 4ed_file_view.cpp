@@ -4147,6 +4147,8 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                             // TODO(allen): Deduplicate. Perhaps we want a standard list helper?
                             id.id[0] = (u64)(hdir) + 1;
                             if (gui_begin_list(target, id, view->list_i, 0, &update)){
+                                gui_standard_list(target, id, &keys, &view->list_i, &update);
+#if 0
                                 if (update.has_adjustment){
                                     view->list_i = update.adjustment_value;
                                 }
@@ -4171,6 +4173,7 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
 
                                 gui_rollback(target, &update);
                                 gui_begin_list(target, id, view->list_i, indirectly_activate, 0);
+#endif
                             }
 
                             {
@@ -4243,6 +4246,8 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                             // TODO(allen): Deduplicate. Perhaps we want a standard list helper?
                             id.id[0] = (u64)(working_set) + 1;
                             if (gui_begin_list(target, id, view->list_i, 0, &update)){
+                                gui_standard_list(target, id, &keys, &view->list_i, &update);
+#if 0
                                 if (update.has_adjustment){
                                     view->list_i = update.adjustment_value;
                                 }
@@ -4267,6 +4272,7 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
 
                                 gui_rollback(target, &update);
                                 gui_begin_list(target, id, view->list_i, indirectly_activate, 0);
+#endif
                             }
 
                             used_nodes = &working_set->used_sentinel;
