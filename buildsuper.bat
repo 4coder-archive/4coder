@@ -5,7 +5,7 @@ IF NOT DEFINED clset (call "C:\Program Files (x86)\Microsoft Visual Studio 12.0\
 SET clset=64
 
 SET SRC=%1
-if "%SRC%" == "" SET SRC=4coder_custom.cpp
+if "%SRC%" == "" SET SRC=4coder_default_bindings.cpp
 
 SET OPTS=/W4 /wd4310 /wd4100 /wd4201 /wd4505 /wd4996 /wd4127 /wd4510 /wd4512 /wd4610 /WX
 SET OPTS=%OPTS% /GR- /nologo

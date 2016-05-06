@@ -1,7 +1,7 @@
 
 // TOP
 
-#include "4coder_default.cpp"
+#include "4coder_default_include.cpp"
 
 unsigned char blink_t = 0;
 
@@ -265,7 +265,7 @@ CUSTOM_COMMAND_SIG(ruin_theme){
     app->set_theme_colors(app, colors, count);
 }
 
-void default_get_bindings(Bind_Helper *context, int set_hooks){
+void get_bindings(Bind_Helper *context, int set_hooks){
     // NOTE(allen|a3.1): Hooks have no loyalties to maps. All hooks are global
     // and once set they always apply, regardless of what map is active.
     if (set_hooks){

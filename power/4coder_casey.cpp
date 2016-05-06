@@ -11,42 +11,6 @@
    merchantability, fitness for a particular purpose, or non-infringement.
 */
 
-/* NOTE(allen): Should be fixed now
-     - Need file limit to be substantially higher than 128 (65536?)
-     ~ file limit is now over 8 million
-
-     - Font size is too big
-     ~ -f N option on command line, default N = 16
-
-     - Asking for a buffer to be saved if you have not modified the buffer should not save the
-       buffer, or perhaps more "safely", it should diff the buffer against the existing on-disk
-       contents and only save if there is a detected change between them.
-
-     - Search:
-       - Needs to be case-insensitive, or at least have the option to be
-       - Needs to replace using the case of the thing being replaced, or at least have the option to do so
-
-     - Bug with opening too many files where it simply no longer can switch to a buffer at all?
-     ~ I assume this refers to a file limit issue, if not then maybe it's not actually fixed.
-
-     - Bug where opening the same buffer with open-file leads to a confusing situation
-       where you don't know what you're editing or something??
-
-     - Bug where replacing v4 with rectangle2 only replaces some instances???
-     ~ For the interested programmer: the range recomputation wasn't working right so it was always
-          using the original range from cursor to mark.  So if the string gets too long later occurances of
-          v4 get pushed outside of the range.
-
-     - Bug in search where extra backspaces after there are no characters yet "remembers"
-       how many you hit and then eats that many real characters you type?
-
-     - Some way to recenter the view so that the line containing the cursor becomes the
-       center line vertically.
-     ~ cmdid_center_view
-
-     - Have buffers normalize slashes to always be forward-slash - right now I'm doing this manually
-*/
-
 /* TODO(casey): Here are our current issues
 
    - High priority:
@@ -109,7 +73,7 @@
 #include <math.h>
 #include <stdio.h>
 
-#include "..\4coder_default.cpp"
+#include "..\4coder_default_includes.cpp"
 
 enum maps{
 	my_code_map
@@ -1407,13 +1371,11 @@ HOOK_SIG(casey_start)
 }
 
 void
-casey_get_bindings(Bind_Helper *context)
+get_bindings(Bind_Helper *context)
 {
     set_hook(context, hook_start, casey_start);
     set_hook(context, hook_open_file, casey_file_settings);
-// TODO(casey): re-enable my scroll once the view_id bug is fixed
     set_scroll_rule(context, casey_smooth_scroll_rule);
-//    set_scroll_rule(context, smooth_scroll_rule);
 
     EnumWindows(win32_find_4coder_window, 0);
 
