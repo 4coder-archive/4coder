@@ -350,12 +350,6 @@ gui_push_button_command(GUI_Target *target, i32 type, GUI_id id){
 }
 
 internal void
-gui_push_style(GUI_Target *target, GUI_Header *h, Style *style){
-    Style *new_style = (Style*)gui_push_item(target, h, 0, sizeof(Style));
-    style_copy(new_style, style);
-}
-
-internal void
 gui_push_string(GUI_Target *target, GUI_Header *h, String s, i32 extra){
     u8 *start, *end, *str_start;
     i32 size;
@@ -572,11 +566,11 @@ gui_do_fixed_option_checkbox(GUI_Target *target, GUI_id id, String message, char
 }
 
 internal b32
-gui_do_style_preview(GUI_Target *target, GUI_id id, Style *style){
+gui_do_style_preview(GUI_Target *target, GUI_id id, i32 style_index){
     b32 result = 0;
     GUI_Interactive *b = gui_push_button_command(target, guicom_style_preview, id);
     GUI_Header *h = (GUI_Header*)b;
-    gui_push_style(target, h, style);
+    gui_push_item(target, h, &style_index, sizeof(style_index));
     gui_align(target, h);
     
     if (gui_id_eq(id, target->active)){

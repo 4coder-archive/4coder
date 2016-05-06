@@ -9,10 +9,6 @@
 
 // TOP
 
-// TODO(allen):
-//  Font changing UI should be in the library menu now, it's not tied to the fonts any more
-//  Get the import export stuff up and running for styles again
-
 struct Style_Font{
     i16 font_id;
     i16 font_changed;

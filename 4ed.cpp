@@ -690,10 +690,12 @@ COMMAND_DECL(paste){
         view_cursor_move(view, next_cursor_pos);
         view->file_data.mark = pos_left;
 
+        Style *style = main_style(models);
+        u32 paste_color = style->main.paste_color;
         for (iter = file_view_iter_init(&models->layout, file, 0);
             file_view_iter_good(iter);
             iter = file_view_iter_next(iter)){
-            view_post_paste_effect(iter.view, 20, pos_left, src->size, models->style.main.paste_color);
+            view_post_paste_effect(iter.view, 20, pos_left, src->size, paste_color);
         }
     }
 }
@@ -721,10 +723,12 @@ COMMAND_DECL(paste_next){
         view_cursor_move(view, next_cursor_pos);
         view->file_data.mark = range.start;
 
+        Style *style = main_style(models);
+        u32 paste_color = style->main.paste_color;
         for (iter = file_view_iter_init(&models->layout, file, 0);
             file_view_iter_good(iter);
             iter = file_view_iter_next(iter)){
-            view_post_paste_effect(iter.view, 20, range.start, src->size, models->style.main.paste_color);
+            view_post_paste_effect(iter.view, 20, range.start, src->size, paste_color);
         }
     }
     else{
@@ -2489,7 +2493,7 @@ extern "C"{
         s = styles->styles;
         for (i = 0; i < count; ++i, ++s){
             if (match(s->name, theme_name)){
-                style_copy(&cmd->models->style, s);
+                style_copy(main_style(cmd->models), s);
                 break;
             }
         }
@@ -2510,7 +2514,7 @@ extern "C"{
     
     SET_THEME_COLORS_SIG(external_set_theme_colors){
         Command_Data *cmd = (Command_Data*)app->cmd_context;
-        Style *style = &cmd->models->style;
+        Style *style = main_style(cmd->models);
         Theme_Color *theme_color;
         u32 *color;
         i32 i;
@@ -2696,7 +2700,7 @@ app_hardcode_styles(Models *models){
     Interactive_Style file_info_style;
     Style *styles, *style;
     styles = models->styles.styles;
-    style = styles;
+    style = styles + 1;
 
     i16 fonts = 1;
     models->global_font.font_id = fonts + 0;
@@ -2859,9 +2863,9 @@ app_hardcode_styles(Models *models){
     style_set_name(style, make_lit_string("stb"));
 
     style->main.back_color = 0xFFD6D6D6;
-    style->main.margin_color = 0xFF5C5C5C;
+    style->main.margin_color = 0xFF9E9E9E;
     style->main.margin_hover_color = 0xFF7E7E7E;
-    style->main.margin_active_color = 0xFF9E9E9E;
+    style->main.margin_active_color = 0xFF5C5C5C;
     style->main.cursor_color = 0xFF000000;
     style->main.at_cursor_color = 0xFFD6D6D6;
     style->main.mark_color = 0xFF525252;
@@ -2895,7 +2899,7 @@ app_hardcode_styles(Models *models){
 
     models->styles.count = (i32)(style - styles);
     models->styles.max = ArrayCount(models->styles.styles);
-    style_copy(&models->style, models->styles.styles);
+    style_copy(main_style(models), models->styles.styles + 1);
 }
 
 char *_4coder_get_extension(const char *filename, int len, int *extension_len){
@@ -4520,7 +4524,7 @@ App_Step_Sig(app_step){
             i32_Rect inner = panel->inner;
 
             View *view = panel->view;
-            Style *style = &models->style;
+            Style *style = main_style(models);
 
             b32 active = (panel == cmd->panel);
             u32 back_color = style->main.back_color;

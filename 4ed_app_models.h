@@ -1,7 +1,7 @@
 /*
  * Mr. 4th Dimention - Allen Webster
  *
- * 27.01.2016
+ * 06.05.2016 (dd.mm.yyyy)
  *
  * Global app level settings definition
  *
@@ -46,7 +46,6 @@ struct Models{
     
     Font_Set *font_set;
     Style_Font global_font;
-    Style style;
     Style_Library styles;
     u32 *palette;
     i32 palette_size;
@@ -67,4 +66,6 @@ struct Models{
 };
 
 // BOTTOM
+
+
 

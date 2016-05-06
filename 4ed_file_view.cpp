@@ -1837,6 +1837,16 @@ view_post_paste_effect(View *view, i32 ticks, i32 start, i32 size, u32 color){
     file->state.paste_effect.tick_max = ticks;
 }
 
+internal Style*
+get_style(Models *models, i32 i){
+    return (&models->styles.styles[i]);
+}
+
+internal Style*
+main_style(Models *models){
+    return (get_style(models, 0));
+}
+
 internal void
 view_undo_redo(System_Functions *system,
     Models *models, View *view,
@@ -1861,8 +1871,9 @@ view_undo_redo(System_Functions *system,
             else view_cursor_move(view, step.post_pos);
             view->file_data.mark = view->file_data.cursor.pos;
 
+            Style *style = main_style(models);
             view_post_paste_effect(view, 10, step.edit.start, step.edit.len,
-                models->style.main.undo_color);
+                style->main.undo_color);
         }
         else{
             TentativeAssert(spec.step.special_type == 1);
@@ -2497,127 +2508,6 @@ remeasure_file_view(System_Functions *system, View *view, i32_Rect rect){
     }
 }
 
-#if 0
-internal void
-undo_shit(System_Functions *system, View *view, UI_State *state, UI_Layout *layout,
-    i32 total_count, i32 undo_count, i32 scrub_max){
-
-    Editing_File *file = view->file;
-
-    if (view->widget.timeline.undo_line){
-        if (do_button(1, state, layout, "- Undo", 1)){
-            view->widget.timeline.undo_line = 0;
-        }
-
-        if (view->widget.timeline.undo_line){
-            Widget_ID wid = make_id(state, 2);
-            i32 new_count;
-            if (do_undo_slider(wid, state, layout, total_count, undo_count, 0, &new_count)){
-                for (i32 i = 0; i < scrub_max && new_count < undo_count; ++i){
-                    view_undo(system, view->models, view);
-                    --undo_count;
-                }
-                for (i32 i = 0; i < scrub_max && new_count > undo_count; ++i){
-                    view_redo(system, view->models, view);
-                    ++undo_count;
-                }
-            }
-        }
-    }
-    else{
-        if (do_button(1, state, layout, "+ Undo", 1)){
-            view->widget.timeline.undo_line = 1;
-        }
-    }
-
-    if (view->widget.timeline.history_line){
-        if (do_button(3, state, layout, "- History", 1)){
-            view->widget.timeline.history_line = 0;
-        }
-
-        Widget_ID wid = make_id(state, 4);
-        if (view->widget.timeline.history_line){
-            i32 new_count;
-            i32 mid = ((file->state.undo.history.edit_count + file->state.undo.edit_history_cursor) >> 1);
-            i32 count = file->state.undo.edit_history_cursor;
-            if (do_undo_slider(wid, state, layout, mid, count, &file->state.undo, &new_count)){
-                for (i32 i = 0; i < scrub_max && new_count < count; ++i){
-                    view_history_step(system, view->models, view, hist_backward);
-                }
-                for (i32 i = 0; i < scrub_max && new_count > count; ++i){
-                    view_history_step(system, view->models, view, hist_forward);
-                }
-            }
-        }
-    }
-    else{
-        if (do_button(3, state, layout, "+ History", 1)){
-            view->widget.timeline.history_line = 1;
-        }
-    }
-}
-
-internal void
-draw_file_view_queries(View *view, UI_State *state, UI_Layout *layout){
-    Widget_ID wid;
-    Query_Slot *slot;
-    Query_Bar *bar;
-    i32 i = 1;
-
-    for (slot = view->query_set.used_slot; slot != 0; slot = slot->next){
-        wid = make_id(state, i++);
-        bar = slot->query_bar;
-        do_text_field(wid, state, layout, bar->prompt, bar->string);
-    }
-}
-
-inline void
-view_show_menu(View *view, Command_Map *gui_map){
-    view->ui_state = {};
-    view->map_for_file = view->map;
-    view->map = gui_map;
-    view->showing_ui = VUI_Menu;
-}
-
-inline void
-view_show_config(View *view, Command_Map *gui_map){
-    view->ui_state = {};
-    view->map_for_file = view->map;
-    view->map = gui_map;
-    view->showing_ui = VUI_Config;
-}
-
-inline void
-view_show_interactive(System_Functions *system, View *view, Command_Map *gui_map,
-    Interactive_Action action, Interactive_Interaction interaction, String query){
-
-    Models *models = view->models;
-
-    view->ui_state = {};
-    view->map_for_file = view->map;
-    view->map = gui_map;
-    view->showing_ui = VUI_Interactive;
-    view->finished = 0;
-
-    copy(&view->query, query);
-    view->dest.str[0] = 0;
-    view->dest.size = 0;
-
-    hot_directory_clean_end(&models->hot_directory);
-    hot_directory_reload(system, &models->hot_directory, &models->working_set);
-}
-
-inline void
-view_show_theme(View *view, Command_Map *gui_map){
-    view->ui_state = {};
-    view->map_for_file = view->map;
-    view->map = gui_map;
-    view->showing_ui = VUI_Theme;
-    view->color_mode = CV_Mode_Library;
-    view->color = super_color_create(0xFF000000);
-}
-#endif
-
 inline void
 view_show_menu(View *view, Command_Map *gui_map){
     view->map_for_file = view->map;
@@ -2833,577 +2723,6 @@ update_highlighting(View *view){
     else{
         view->highlight.ids[2] = 0;
         view->highlight.ids[3] = 0;
-    }
-}
-
-internal b32
-theme_library_shit(System_Functions *system, Exchange *exchange,
-    View *view, UI_State *state, UI_Layout *layout){
-
-    Models *models = view->models;
-    Mem_Options *mem = &models->mem;
-
-    i32 result = 0;
-
-    Library_UI ui;
-    ui.state = state;
-    ui.layout = layout;
-
-    ui.fonts = models->font_set;
-    ui.hot_directory = &models->hot_directory;
-    ui.styles = &models->styles;
-
-    Color_View_Mode mode = view->color_mode;
-
-    i32_Rect bar_rect = ui.layout->rect;
-    bar_rect.x0 = bar_rect.x1 - 20;
-    do_scroll_bar(ui.state, bar_rect);
-
-    ui.layout->y -= FLOOR32(view->ui_state.view_y);
-    ui.layout->rect.x1 -= 20;
-
-    b32 case_sensitive = 0;
-
-    switch (mode){
-        case CV_Mode_Library:
-        {
-            do_label(ui.state, ui.layout, literal("Current Theme - Click to Edit"));
-            if (do_style_preview(&ui, &models->style)){
-                view->color_mode = CV_Mode_Adjusting;
-                view->ui_state.selected = {};
-                ui.state->view_y = 0;
-                result = 1;
-            }
-
-            begin_row(ui.layout, 3);
-            if (ui.state->style->name.size >= 1){
-                if (do_button(-2, ui.state, ui.layout, "Save", 2)){
-                    //style_library_add(ui.styles, ui.state->style);
-                }
-            }
-            else{
-                do_button(-2, ui.state, ui.layout, "~Need's Name~", 2);
-            }
-            if (do_button(-3, ui.state, ui.layout, "Import", 2)){
-                view->color_mode = CV_Mode_Import_File;
-                hot_directory_clean_end(&models->hot_directory);
-                hot_directory_reload(system, &models->hot_directory, &models->working_set);
-            }
-            if (do_button(-4, ui.state, ui.layout, "Export", 2)){
-                view->color_mode = CV_Mode_Export;
-                hot_directory_clean_end(&models->hot_directory);
-                hot_directory_reload(system, &models->hot_directory, &models->working_set);
-                memset(view->import_export_check, 0, sizeof(view->import_export_check));
-            }
-
-            do_label(ui.state, ui.layout, literal("Theme Library - Click to Select"));
-
-            i32 style_count = models->styles.count;
-            Style *style = models->styles.styles;
-            for (i32 i = 0; i < style_count; ++i, ++style){
-                if (do_style_preview(&ui, style)){
-                    style_copy(&models->style, style);
-                    result = 1;
-                }
-            }
-        }break;
-
-        case CV_Mode_Import_File:
-        {
-            do_label(ui.state, ui.layout, literal("Current Theme"));
-            do_style_preview(&ui, &models->style);
-
-            b32 file_selected = 0;
-
-            do_label(ui.state, ui.layout, literal("Import Which File?"));
-            begin_row(ui.layout, 2);
-            if (do_button(-2, ui.state, ui.layout, "*.p4c only", 2, 1, view->p4c_only)){
-                view->p4c_only = !view->p4c_only;
-            }
-            if (do_button(-3, ui.state, ui.layout, "Cancel", 2)){
-                view->color_mode = CV_Mode_Library;
-            }
-
-            b32 new_dir = 0;
-            if (do_file_list_box(system, ui.state, ui.layout,
-                    ui.hot_directory, view->p4c_only, 1, case_sensitive,
-                    &new_dir, &file_selected, 0)){
-                result = 1;
-            }
-
-            if (new_dir){
-                hot_directory_reload(system, ui.hot_directory, ui.state->working_set);
-            }
-            if (file_selected){
-                memset(&view->inspecting_styles, 0, sizeof(Style_Library));
-                memset(view->import_export_check, 1,
-                    sizeof(view->import_export_check));
-
-                view->import_file_id = exchange_request_file(exchange,
-                    models->hot_directory.string.str,
-                    models->hot_directory.string.size);
-                view->color_mode = CV_Mode_Import_Wait;
-
-            }
-        }break;
-
-        case CV_Mode_Import_Wait:
-        {
-            Style *styles = view->inspecting_styles.styles;
-            Data file = {};
-            i32 file_max = 0;
-
-            i32 count = 0;
-            i32 max = ArrayCount(view->inspecting_styles.styles);
-
-            AllowLocal(styles);
-            AllowLocal(max);
-
-            if (exchange_file_ready(exchange, view->import_file_id,
-                    &file.data, &file.size, &file_max)){
-                if (file.data){
-                    if (0 /* && style_library_import(file, ui.fonts, styles, max, &count) */){
-                        view->color_mode = CV_Mode_Import;
-                    }
-                    else{
-                        view->color_mode = CV_Mode_Library;
-                    }
-                    view->inspecting_styles.count = count;
-                }
-                else{
-                    Assert(!"this shouldn't happen!");
-                }
-
-                exchange_free_file(exchange, view->import_file_id);
-            }
-        }break;
-
-        case CV_Mode_Export_File:
-        {
-            do_label(ui.state, ui.layout, literal("Current Theme"));
-            do_style_preview(&ui, &models->style);
-
-            b32 file_selected = 0;
-
-            do_label(ui.state, ui.layout, literal("Export File Name?"));
-            begin_row(ui.layout, 2);
-            if (do_button(-2, ui.state, ui.layout, "Finish Export", 2)){
-                file_selected = 1;
-            }
-            if (do_button(-3, ui.state, ui.layout, "Cancel", 2)){
-                view->color_mode = CV_Mode_Library;
-            }
-
-            b32 new_dir = 0;
-            if (do_file_list_box(system, ui.state, ui.layout,
-                    ui.hot_directory, 1, 1, case_sensitive,
-                    &new_dir, &file_selected, ".p4c")){
-                result = 1;
-            }
-
-            if (new_dir){
-                hot_directory_reload(system,
-                    ui.hot_directory, ui.state->working_set);
-            }
-            if (file_selected){
-                i32 count = ui.styles->count;
-                Temp_Memory temp = begin_temp_memory(&mem->part);
-                Style **styles = push_array(&mem->part, Style*, sizeof(Style*)*count);
-
-                Style *style = ui.styles->styles;
-                b8 *export_check = view->import_export_check;
-                i32 export_count = 0;
-                for (i32 i = 0; i < count; ++i, ++style){
-                    if (export_check[i]){
-                        styles[export_count++] = style;
-                    }
-                }
-                char *data = push_array(&mem->part, char, ui.hot_directory->string.size + 5);
-                String str = make_string(data, 0, ui.hot_directory->string.size + 5);
-                copy(&str, ui.hot_directory->string);
-                append(&str, make_lit_string(".p4c"));
-                /*style_library_export(system, exchange, mem, &target->font_set, str.str, styles, export_count);*/
-
-                end_temp_memory(temp);
-                view->color_mode = CV_Mode_Library;
-            }
-        }break;
-
-        case CV_Mode_Import:
-        {
-            do_label(ui.state, ui.layout, literal("Current Theme"));
-            do_style_preview(&ui, &models->style);
-
-            i32 style_count = view->inspecting_styles.count;
-            Style *styles = view->inspecting_styles.styles;
-            b8 *import_check = view->import_export_check;
-
-            do_label(ui.state, ui.layout, literal("Pack"));
-            begin_row(ui.layout, 2);
-            if (do_button(-2, ui.state, ui.layout, "Finish Import", 2)){
-                Style *style = styles;
-                for (i32 i = 0; i < style_count; ++i, ++style){
-                    //if (import_check[i]) style_library_add(ui.styles, style);
-                }
-                view->color_mode = CV_Mode_Library;
-            }
-            if (do_button(-3, ui.state, ui.layout, "Cancel", 2)){
-                view->color_mode = CV_Mode_Library;
-            }
-
-            Style *style = styles;
-            for (i32 i = 0; i < style_count; ++i, ++style){
-                if (do_style_preview(&ui, style, import_check[i])){
-                    import_check[i] = !import_check[i];
-                    result = 1;
-                }
-            }
-        }break;
-
-        case CV_Mode_Export:
-        {
-            do_label(ui.state, ui.layout, literal("Current Theme"));
-            do_style_preview(&ui, &models->style);
-
-            do_label(ui.state, ui.layout, literal("Export Which Themes?"));
-            begin_row(ui.layout, 2);
-            if (do_button(-2, ui.state, ui.layout, "Export", 2)){
-                view->color_mode = CV_Mode_Export_File;
-            }
-            if (do_button(-3, ui.state, ui.layout, "Cancel", 2)){
-                view->color_mode = CV_Mode_Library;
-            }
-
-            i32 style_count = models->styles.count;
-            Style *style = models->styles.styles;
-            b8 *export_check = view->import_export_check;
-            for (i32 i = 0; i < style_count; ++i, ++style){
-                if (do_style_preview(&ui, style, export_check[i])){
-                    export_check[i] = !export_check[i];
-                    result = 1;
-                }
-            }
-        }break;
-    }
-
-    return (result);
-}
-
-internal b32
-theme_adjusting_shit(View *view, UI_State *state, UI_Layout *layout, Super_Color *color){
-    update_highlighting(view);
-
-    Models *models = view->models;
-
-    Style *style = &models->style;
-    i32 result = 0;
-
-    Color_UI ui;
-    ui.state = state;
-    ui.layout = layout;
-
-    ui.fonts = models->font_set;
-    ui.global_font = &models->global_font;
-    ui.highlight = view->highlight;
-    ui.color = view->color;
-    ui.has_hover_color = 0;
-    ui.state->sub_id1_change = 0;
-    ui.hex_advance = font_get_max_width(ui.fonts, ui.state->font_id, "0123456789abcdefx");
-    ui.palette = models->palette;
-    ui.palette_size = models->palette_size;
-
-    i32_Rect bar_rect = ui.layout->rect;
-    bar_rect.x0 = bar_rect.x1 - 20;
-    do_scroll_bar(ui.state, bar_rect);
-
-    ui.layout->y -= FLOOR32(view->ui_state.view_y);
-    ui.layout->rect.x1 -= 20;
-
-    if (do_button(-1, ui.state, ui.layout, "Back to Library", 2)){
-        view->color_mode = CV_Mode_Library;
-        ui.state->view_y = 0;
-    }
-
-    do_style_name(&ui);
-    do_font_switch(&ui);
-
-    do_color_adjuster(&ui, &style->main.back_color,
-        style->main.default_color, style->main.back_color,
-        "Background");
-    do_color_adjuster(&ui, &style->main.margin_color,
-        style->main.default_color, style->main.margin_color,
-        "Margin");
-    do_color_adjuster(&ui, &style->main.margin_hover_color,
-        style->main.default_color, style->main.margin_hover_color,
-        "Margin Hover");
-    do_color_adjuster(&ui, &style->main.margin_active_color,
-        style->main.default_color, style->main.margin_active_color,
-        "Margin Active");
-
-    do_color_adjuster(&ui, &style->main.cursor_color,
-        style->main.at_cursor_color, style->main.cursor_color,
-        "Cursor");
-    do_color_adjuster(&ui, &style->main.at_cursor_color,
-        style->main.at_cursor_color, style->main.cursor_color,
-        "Text At Cursor");
-    do_color_adjuster(&ui, &style->main.mark_color,
-        style->main.mark_color, style->main.back_color,
-        "Mark");
-
-    do_color_adjuster(&ui, &style->main.highlight_color,
-        style->main.at_highlight_color, style->main.highlight_color,
-        "Highlight");
-    do_color_adjuster(&ui, &style->main.at_highlight_color,
-        style->main.at_highlight_color, style->main.highlight_color,
-        "Text At Highlight");
-
-    do_color_adjuster(&ui, &style->main.default_color,
-        style->main.default_color, style->main.back_color,
-        "Text Default");
-    do_color_adjuster(&ui, &style->main.comment_color,
-        style->main.comment_color, style->main.back_color,
-        "Comment");
-    do_color_adjuster(&ui, &style->main.keyword_color,
-        style->main.keyword_color, style->main.back_color,
-        "Keyword");
-    do_color_adjuster(&ui, &style->main.str_constant_color,
-        style->main.str_constant_color, style->main.back_color,
-        "String Constant");
-    do_color_adjuster(&ui, &style->main.char_constant_color,
-        style->main.char_constant_color, style->main.back_color,
-        "Character Constant");
-    do_color_adjuster(&ui, &style->main.int_constant_color,
-        style->main.int_constant_color, style->main.back_color,
-        "Integer Constant");
-    do_color_adjuster(&ui, &style->main.float_constant_color,
-        style->main.float_constant_color, style->main.back_color,
-        "Float Constant");
-    do_color_adjuster(&ui, &style->main.bool_constant_color,
-        style->main.bool_constant_color, style->main.back_color,
-        "Boolean Constant");
-    do_color_adjuster(&ui, &style->main.preproc_color,
-        style->main.preproc_color, style->main.back_color,
-        "Preprocessor");
-    do_color_adjuster(&ui, &style->main.include_color,
-        style->main.include_color, style->main.back_color,
-        "Include Constant");
-    do_color_adjuster(&ui, &style->main.special_character_color,
-        style->main.special_character_color, style->main.back_color,
-        "Special Character");
-
-    do_color_adjuster(&ui, &style->main.highlight_junk_color,
-        style->main.default_color, style->main.highlight_junk_color,
-        "Junk Highlight");
-    do_color_adjuster(&ui, &style->main.highlight_white_color,
-        style->main.default_color, style->main.highlight_white_color,
-        "Whitespace Highlight");
-
-    do_color_adjuster(&ui, &style->main.paste_color,
-        style->main.paste_color, style->main.back_color,
-        "Paste Color");
-
-    Interactive_Style *bar_style = &style->main.file_info_style;
-    do_color_adjuster(&ui, &bar_style->bar_color,
-        bar_style->base_color, bar_style->bar_color,
-        "Bar");
-    do_color_adjuster(&ui, &bar_style->base_color,
-        bar_style->base_color, bar_style->bar_color,
-        "Bar Text");
-    do_color_adjuster(&ui, &bar_style->pop1_color,
-        bar_style->pop1_color, bar_style->bar_color,
-        "Bar Pop 1");
-    do_color_adjuster(&ui, &bar_style->pop2_color,
-        bar_style->pop2_color, bar_style->bar_color,
-        "Bar Pop 2");
-
-    *color = ui.hover_color;
-
-    return (result);
-}
-
-internal b32
-theme_shit(System_Functions *system, Exchange *exchange,
-    View *view, View *active, UI_State *state, UI_Layout *layout, Super_Color *color){
-    b32 result = 0;
-
-    if (view != active){
-        view->hot_file_view = active;
-    }
-
-    switch (view->color_mode){
-        case CV_Mode_Library:
-        case CV_Mode_Import_File:
-        case CV_Mode_Export_File:
-        case CV_Mode_Import:
-        case CV_Mode_Export:
-        case CV_Mode_Import_Wait:
-        if (theme_library_shit(system, exchange, view, state, layout)){
-            result = 1;
-        }
-        break;
-
-        case CV_Mode_Adjusting:
-        if (theme_adjusting_shit(view, state, layout, color)){
-            result = 1;
-        }
-        break;
-    }
-
-    return(result);
-}
-
-internal b32
-interactive_shit(System_Functions *system, View *view, UI_State *state, UI_Layout *layout){
-    b32 result = 0;
-    b32 new_dir = 0;
-    b32 complete = 0;
-
-    Models *models = view->models;
-
-    do_label(state, layout, view->query, 1.f);
-
-    b32 case_sensitive = 0;
-
-    b32 input_stage = state->input_stage;
-    Key_Summary *keys = state->keys;
-
-    switch (view->interaction){
-        case IInt_Sys_File_List:
-        {
-            b32 is_new = (view->action == IAct_New);
-
-            if (do_file_list_box(system, state, layout,
-                    &models->hot_directory, 0, !is_new, case_sensitive,
-                    &new_dir, &complete, 0)){
-                result = 1;
-            }
-            if (new_dir){
-                hot_directory_reload(system, &models->hot_directory, &models->working_set);
-            }
-        }break;
-
-        case IInt_Live_File_List:
-        {
-            if (do_live_file_list_box(system, state, layout, &models->working_set, &view->dest, &complete)){
-                result = 1;
-            }
-        }break;
-
-        case IInt_Sure_To_Close:
-        {
-            i32 action = -1;
-            char s_[256];
-            String s;
-            s = make_fixed_width_string(s_);
-            append(&s, "There are unsaved changes in, close anyway?");
-            do_label(state, layout, s, 1.f);
-
-            i32 id = 0;
-            if (do_list_option(++id, state, layout, make_lit_string("(Y)es"))){
-                action = 0;
-            }
-
-            if (do_list_option(++id, state, layout, make_lit_string("(N)o"))){
-                action = 1;
-            }
-
-            if (action == -1 && input_stage){
-                i32 key_count = keys->count;
-                for (i32 i = 0; i < key_count; ++i){
-                    Key_Event_Data key = keys->keys[i];
-                    switch (key.character){
-                        case 'y': case 'Y': action = 0; break;
-                        case 'n': case 'N': action = 1; break;
-                    }
-                    if (action == -1 && key.keycode == key_esc) action = 1;
-                    if (action != -1) break;
-                }
-            }
-
-            if (action != -1){
-                complete = 1;
-                view->user_action = action;
-            }
-        }break;
-        
-        case IInt_Sure_To_Kill:
-        {
-            i32 action = -1;
-            char s_[256];
-            String s;
-            s = make_fixed_width_string(s_);
-            append(&s, view->dest);
-            append(&s, " has unsaved changes, kill it?");
-            do_label(state, layout, s, 1.f);
-            
-            i32 id = 0;
-            if (do_list_option(++id, state, layout, make_lit_string("(Y)es"))){
-                action = 0;
-            }
-            
-            if (do_list_option(++id, state, layout, make_lit_string("(N)o"))){
-                action = 1;
-            }
-            
-            if (do_list_option(++id, state, layout, make_lit_string("(S)ave and kill"))){
-                action = 2;
-            }
-            
-            if (action == -1 && input_stage){
-                i32 key_count = keys->count;
-                for (i32 i = 0; i < key_count; ++i){
-                    Key_Event_Data key = keys->keys[i];
-                    switch (key.character){
-                        case 'y': case 'Y': action = 0; break;
-                        case 'n': case 'N': action = 1; break;
-                        case 's': case 'S': action = 2; break;
-                    }
-                    if (action == -1 && key.keycode == key_esc) action = 1;
-                    if (action != -1) break;
-                }
-            }
-            
-            if (action != -1){
-                complete = 1;
-                view->user_action = action;
-            }
-        }break;
-    }
-    
-    if (complete){
-        view->finished = 1;
-        interactive_view_complete(view);
-        result= 1;
-    }
-    
-    return(result);
-}
-
-internal void
-menu_shit(View *view, UI_State *state, UI_Layout *layout){
-    i32 id = 0;
-
-    do_label(state, layout, literal("Menu"), 2.f);
-
-    if (do_list_option(++id, state, layout, make_lit_string("Theme Options"))){
-        view_show_theme(view, view->map);
-    }
-
-    if (do_list_option(++id, state, layout, make_lit_string("Keyboard Layout Options"))){
-        view_show_config(view, view->map);
-    }
-}
-
-internal void
-config_shit(View *view, UI_State *state, UI_Layout *layout){
-    i32 id = 0;
-    Models *models = view->models;
-
-    do_label(state, layout, literal("Config"), 2.f);
-
-    if (do_checkbox_list_option(++id, state, layout, make_lit_string("Left Ctrl + Left Alt = AltGr"),
-            models->settings.lctrl_lalt_is_altgr)){
-        models->settings.lctrl_lalt_is_altgr = !models->settings.lctrl_lalt_is_altgr;
     }
 }
 #endif
@@ -3938,8 +3257,8 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                         message = make_lit_string("Current Theme - Click to Edit");
                         gui_do_text_field(target, message, empty_string);
                         
-                        id.id[0] = (u64)(&models->style);
-                        if (gui_do_style_preview(target, id, &models->style)){
+                        id.id[0] = (u64)(main_style(models));
+                        if (gui_do_style_preview(target, id, 0)){
                             view->color_mode = CV_Mode_Adjusting;
                         }
                         
@@ -3958,13 +3277,14 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                         
                         {
                             i32 count = models->styles.count;
-                            Style *style = models->styles.styles;
+                            Style *style;
                             i32 i;
                             
-                            for (i = 0; i < count; ++i, ++style){
+                            for (i = 1; i < count; ++i, ++style){
+                                style = get_style(models, i);
                                 id.id[0] = (u64)(style);
-                                if (gui_do_style_preview(target, id, style)){
-                                    style_copy(&models->style, style);
+                                if (gui_do_style_preview(target, id, i)){
+                                    style_copy(main_style(models), style);
                                 }
                             }
                         }
@@ -4012,7 +3332,7 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                         
                         case CV_Mode_Adjusting:
                         {
-                            Style *style = &models->style;
+                            Style *style = main_style(models);
                             u32 *edit_color = 0;
                             u32 *fore = 0, *back = 0;
                             i32 i = 0;
@@ -4144,36 +3464,9 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                             gui_get_scroll_vars(target, view->showing_ui, &view->gui_scroll);
                             gui_begin_scrollable(target, view->showing_ui, view->gui_scroll, 9.f * view->font_height);
 
-                            // TODO(allen): Deduplicate. Perhaps we want a standard list helper?
                             id.id[0] = (u64)(hdir) + 1;
                             if (gui_begin_list(target, id, view->list_i, 0, &update)){
                                 gui_standard_list(target, id, &keys, &view->list_i, &update);
-#if 0
-                                if (update.has_adjustment){
-                                    view->list_i = update.adjustment_value;
-                                }
-
-                                b32 indirectly_activate = 0;
-                                for (i32 j = 0; j < keys.count; ++j){
-                                    i16 key = keys.keys[j].keycode;
-                                    switch (key){
-                                        case key_up:
-                                        --view->list_i;
-                                        break;
-
-                                        case key_down:
-                                        ++view->list_i;
-                                        break;
-
-                                        case '\n':
-                                        indirectly_activate = 1;
-                                        break;
-                                    }
-                                }
-
-                                gui_rollback(target, &update);
-                                gui_begin_list(target, id, view->list_i, indirectly_activate, 0);
-#endif
                             }
 
                             {
@@ -4243,36 +3536,9 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                             gui_get_scroll_vars(target, view->showing_ui, &view->gui_scroll);
                             gui_begin_scrollable(target, view->showing_ui, view->gui_scroll, 9.f * view->font_height);
 
-                            // TODO(allen): Deduplicate. Perhaps we want a standard list helper?
                             id.id[0] = (u64)(working_set) + 1;
                             if (gui_begin_list(target, id, view->list_i, 0, &update)){
                                 gui_standard_list(target, id, &keys, &view->list_i, &update);
-#if 0
-                                if (update.has_adjustment){
-                                    view->list_i = update.adjustment_value;
-                                }
-
-                                b32 indirectly_activate = 0;
-                                for (i32 j = 0; j < keys.count; ++j){
-                                    i16 key = keys.keys[j].keycode;
-                                    switch (key){
-                                        case key_up:
-                                        --view->list_i;
-                                        break;
-
-                                        case key_down:
-                                        ++view->list_i;
-                                        break;
-
-                                        case '\n':
-                                        indirectly_activate = 1;
-                                        break;
-                                    }
-                                }
-
-                                gui_rollback(target, &update);
-                                gui_begin_list(target, id, view->list_i, indirectly_activate, 0);
-#endif
                             }
 
                             used_nodes = &working_set->used_sentinel;
@@ -4680,7 +3946,7 @@ internal i32
 draw_file_loaded(View *view, i32_Rect rect, b32 is_active, Render_Target *target){
     Models *models = view->models;
     Editing_File *file = view->file_data.file;
-    Style *style = &models->style;
+    Style *style = main_style(models);
     i32 line_height = view->font_height;
 
     i32 max_x = rect.x1 - rect.x0;
@@ -4847,7 +4113,7 @@ draw_file_loaded(View *view, i32_Rect rect, b32 is_active, Render_Target *target
 internal void
 draw_text_field(Render_Target *target, View *view, i32_Rect rect, String p, String t){
     Models *models = view->models;
-    Style *style = &models->style;
+    Style *style = main_style(models);
     
     u32 back_color = style->main.margin_color;
     u32 text1_color = style->main.default_color;
@@ -4868,7 +4134,7 @@ draw_text_field(Render_Target *target, View *view, i32_Rect rect, String p, Stri
 internal void
 draw_text_with_cursor(Render_Target *target, View *view, i32_Rect rect, String s, i32 pos){
     Models *models = view->models;
-    Style *style = &models->style;
+    Style *style = main_style(models);
     
     u32 back_color = style->main.margin_color;
     u32 text_color = style->main.default_color;
@@ -4915,7 +4181,8 @@ draw_file_bar(Render_Target *target, View *view, Editing_File *file, i32_Rect re
     File_Bar bar;
     Models *models = view->models;
     Style_Font *font = &models->global_font;
-    Interactive_Style bar_style = models->style.main.file_info_style;
+    Style *style = main_style(models);
+    Interactive_Style bar_style = style->main.file_info_style;
 
     u32 back_color = bar_style.bar_color;
     u32 base_color = bar_style.base_color;
@@ -5024,7 +4291,7 @@ internal void
 draw_font_button(GUI_Target *gui_target, Render_Target *target, View *view,
     i32_Rect rect, GUI_id id, i16 font_id, String text){
     Models *models = view->models;
-    Style *style = &models->style;
+    Style *style = main_style(models);
     
     i32 active_level = gui_active_level(gui_target, id);
     
@@ -5041,7 +4308,7 @@ internal void
 draw_fat_option_block(GUI_Target *gui_target, Render_Target *target, View *view, i32_Rect rect, GUI_id id,
     String text, String pop, i8 checkbox = -1){
     Models *models = view->models;
-    Style *style = &models->style;
+    Style *style = main_style(models);
     
     i32 active_level = gui_active_level(gui_target, id);
     i16 font_id = models->global_font.font_id;
@@ -5082,7 +4349,7 @@ draw_fat_option_block(GUI_Target *gui_target, Render_Target *target, View *view,
 internal void
 draw_button(GUI_Target *gui_target, Render_Target *target, View *view, i32_Rect rect, GUI_id id, String text){
     Models *models = view->models;
-    Style *style = &models->style;
+    Style *style = main_style(models);
     
     i32 active_level = gui_active_level(gui_target, id);
     i16 font_id = models->global_font.font_id;
@@ -5252,13 +4519,14 @@ do_render_file_view(System_Functions *system, Exchange *exchange,
                 case guicom_style_preview:
                 {
                     GUI_Interactive *b = (GUI_Interactive*)h;
-                    Style *style = (Style*)(b + 1);
+                    i32 style_index = *(i32*)(b + 1);
+                    Style *style = get_style(view->models, style_index);
                     
                     draw_style_preview(gui_target, target, view, gui_session.rect, b->id, style);
                 }break;
                 
-                case guicom_fixed_option_checkbox:
                 case guicom_fixed_option:
+                case guicom_fixed_option_checkbox:
                 {
                     GUI_Interactive *b = (GUI_Interactive*)h;
                     void *ptr = (b + 1);
@@ -5285,7 +4553,7 @@ do_render_file_view(System_Functions *system, Exchange *exchange,
                 case guicom_scrollable:
                 {
                     Models *models = view->models;
-                    Style *style = &models->style;
+                    Style *style = main_style(models);
                     
                     u32 back;
                     u32 outline;
@@ -5310,7 +4578,7 @@ do_render_file_view(System_Functions *system, Exchange *exchange,
                 {
                     GUI_id id;
 					Models *models = view->models;
-                    Style *style = &models->style;
+                    Style *style = main_style(models);
                     i32_Rect box = gui_session.rect;
                     
                     i32 active_level;
