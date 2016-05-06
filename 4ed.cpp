@@ -3701,6 +3701,7 @@ App_Step_Sig(app_step){
     // NOTE(allen): try to abort the command corroutine if we are shutting down
     if (app_result.trying_to_kill){
         b32 there_is_unsaved = 0;
+        app_result.animating = 1;
         
         File_Node *node, *sent;
         sent = &models->working_set.used_sentinel;
@@ -3723,7 +3724,7 @@ App_Step_Sig(app_step){
                 command_coroutine = system->resume_coroutine(command_coroutine, &user_in, models->command_coroutine_flags);
                 ++i;
                 if (i >= 128){
-                    // TODO(allen): post grave warning, resource cleanup system
+                    // TODO(allen): post grave warning, resource cleanup system.
                     command_coroutine = 0;
                 }
             }
@@ -3749,6 +3750,7 @@ App_Step_Sig(app_step){
     // NOTE(allen): process the command_coroutine if it is unfinished
     b8 consumed_input[6] = {0};
 
+    // NOTE(allen): Keyboard input to command coroutine.
     if (models->command_coroutine != 0){
         Coroutine *command_coroutine = models->command_coroutine;
         u32 get_flags = models->command_coroutine_flags[0];
@@ -3795,6 +3797,7 @@ App_Step_Sig(app_step){
                 if (pass_in){
                     models->command_coroutine =
                         system->resume_coroutine(command_coroutine, &user_in, models->command_coroutine_flags);
+                    app_result.animating = 1;
 
                     // TOOD(allen): Deduplicate
                     // TODO(allen): Should I somehow allow a view to clean up however it wants after a
@@ -3807,6 +3810,7 @@ App_Step_Sig(app_step){
             }
         }
 
+        // NOTE(allen): Mouse input to command coroutine
         if (models->command_coroutine != 0 && (get_flags & EventOnMouse)){
             View *view = cmd->view;
             b32 pass_in = 0;
@@ -3858,7 +3862,9 @@ App_Step_Sig(app_step){
             if (pass_in){
                 models->command_coroutine = system->resume_coroutine(command_coroutine, &user_in,
                     models->command_coroutine_flags);
-
+                
+                app_result.animating = 1;
+                
                 // TOOD(allen): Deduplicate
                 // TODO(allen): Should I somehow allow a view to clean up however it wants after a
                 // command finishes, or after transfering to another view mid command?
@@ -3941,14 +3947,15 @@ App_Step_Sig(app_step){
             }
         }
         
-        // TODO(allen): This is a pretty big hack at the moment.
+        // TODO(allen): This is perhaps not the best system...
+        // The problem is that the exact region and scroll position is pretty important
+        // for some commands, so this is here to eliminate the one frame of lag.
+        // Going to leave this here for now because the oder of events is going to
+        // change a lot soon.
         for (dll_items(panel, used_panels)){
             view = panel->view;
-            if (view->showing_ui == VUI_None){
-                gui_get_scroll_vars(&view->gui_target, view->showing_ui, &view->file_data.file_scroll);
-            }
-            else{
-                gui_get_scroll_vars(&view->gui_target, view->showing_ui, &view->gui_scroll);
+            if (view->current_scroll){
+                gui_get_scroll_vars(&view->gui_target, view->showing_ui, view->current_scroll);
             }
         }
     }
@@ -3996,6 +4003,8 @@ App_Step_Sig(app_step){
                             models->command_coroutine = system->launch_coroutine(models->command_coroutine,
                                 &cmd_in, models->command_coroutine_flags);
                             models->prev_command = cmd_bind;
+                            
+                            app_result.animating = 1;
                         }
                     }
                 }break;

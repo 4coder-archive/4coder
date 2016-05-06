@@ -96,6 +96,7 @@ struct View{
     
     File_Viewing_Data file_data;
     
+    GUI_Scroll_Vars *current_scroll;
     View_UI showing_ui;
     GUI_Target gui_target;
     void *gui_mem;
@@ -3827,9 +3828,10 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
     GUI_Target *target = &view->gui_target;
     Models *models = view->models;
     Key_Summary keys = input.keys;
-    b32 is_animating = 0;
     
     f32 min_target_y = view->file_data.file_scroll.min_y;
+    
+    view->current_scroll = 0;
     
     gui_begin_top_level(target, input);
     {
@@ -3850,6 +3852,7 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                     f32 delta = 9.f * view->font_height;
                     f32 target_y = 0;
                     
+                    view->current_scroll = &view->file_data.file_scroll;
                     if (gui_get_scroll_vars(target, view->showing_ui, &view->file_data.file_scroll)){
                         target_y = view->file_data.file_scroll.target_y;
                         if (cursor_y > target_y + cursor_max_y){
@@ -3886,16 +3889,17 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                     String message = make_lit_string("Menu");
                     String empty_string = {0};
                     GUI_id id = {0};
+                    id.id[1] = VUI_Menu;
                     
                     gui_do_text_field(target, message, empty_string);
                     
-                    id.id[0] = (u64)(0 + (VUI_Menu << 8));
+                    id.id[0] = 0;
                     message = make_lit_string("Theme");
                     if (gui_do_fixed_option(target, id, message, 0)){
                         view_show_theme(view, view->map);
                     }
                     
-                    id.id[0] = (u64)(1 + (VUI_Menu << 8));
+                    id.id[0] = 1;
                     message = make_lit_string("Config");
                     if (gui_do_fixed_option(target, id, message, 0)){
                         view_show_config(view, view->map);
@@ -3907,10 +3911,11 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                     String message = make_lit_string("Config");
                     String empty_string = {0};
                     GUI_id id = {0};
+                    id.id[1] = VUI_Config;
                     
                     gui_do_text_field(target, message, empty_string);
                     
-                    id.id[0] = (u64)(0 + (VUI_Config << 8));
+                    id.id[0] = 0;
                     message = make_lit_string("Left Ctrl + Left Alt = AltGr");
                     if (gui_do_fixed_option_checkbox(target, id, message, 0, (b8)models->settings.lctrl_lalt_is_altgr)){
                         models->settings.lctrl_lalt_is_altgr = !models->settings.lctrl_lalt_is_altgr;
@@ -3926,6 +3931,7 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                     String message = {0};
                     String empty_string = {0};
                     GUI_id id = {0};
+                    id.id[1] = VUI_Theme + ((u64)view->color_mode << 32);
                     
                     switch (view->color_mode){
                         case CV_Mode_Library:
@@ -3935,19 +3941,18 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                         id.id[0] = (u64)(&models->style);
                         if (gui_do_style_preview(target, id, &models->style)){
                             view->color_mode = CV_Mode_Adjusting;
-                            is_animating = 1;
                         }
                         
                         message = make_lit_string("Set Font");
                         id.id[0] = (u64)(&models->global_font);
                         if (gui_do_button(target, id, message)){
                             view->color_mode = CV_Mode_Font;
-                            is_animating = 1;
                         }
                         
                         message = make_lit_string("Theme Library - Click to Select");
                         gui_do_text_field(target, message, empty_string);
                         
+                        view->current_scroll = &view->gui_scroll;
                         gui_get_scroll_vars(target, view->showing_ui, &view->gui_scroll);
                         gui_begin_scrollable(target, view->showing_ui, view->gui_scroll, 9.f * view->font_height);
                         
@@ -3960,7 +3965,6 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                                 id.id[0] = (u64)(style);
                                 if (gui_do_style_preview(target, id, style)){
                                     style_copy(&models->style, style);
-                                    is_animating = 1;
                                 }
                             }
                         }
@@ -3975,14 +3979,12 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                             
                             i16 i = 1, count = (i16)models->font_set->count + 1;
                             i16 font_id = 0, new_font_id = 0;
-                            GUI_id id = {0};
                             
                             String message = make_lit_string("Back");
                             
-                            id.id[0] = (u64)(0 + (CV_Mode_Font << 9));
+                            id.id[0] = 0;
                             if (gui_do_button(target, id, message)){
                                 view->color_mode = CV_Mode_Library;
-                                is_animating = 1;
                             }
                             
                             font_id = models->global_font.font_id;
@@ -3990,11 +3992,10 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                             
                             for (i = 1; i < count; ++i){
                                 info = get_font_info(font_set, i);
-                                id.id[0] = (u64)(i + (CV_Mode_Font << 9));
+                                id.id[0] = (u64)i;
                                 if (i != font_id){
                                     if (gui_do_font_button(target, id, i, info->name)){
                                         new_font_id = i;
-                                        is_animating = 1;
                                     }
                                 }
                                 else{
@@ -4014,17 +4015,16 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                             Style *style = &models->style;
                             u32 *edit_color = 0;
                             u32 *fore = 0, *back = 0;
-                            GUI_id id = {0};
                             i32 i = 0;
                             
                             String message = make_lit_string("Back");
                             
-                            id.id[0] = (u64)(0 + (VUI_Theme << 8));
+                            id.id[0] = 0;
                             if (gui_do_button(target, id, message)){
                                 view->color_mode = CV_Mode_Library;
-                                is_animating = 1;
                             }
-                            
+
+                            view->current_scroll = &view->gui_scroll;
                             gui_get_scroll_vars(target, view->showing_ui, &view->gui_scroll);
                             gui_begin_scrollable(target, view->showing_ui, view->gui_scroll, 9.f * view->font_height);
 
@@ -4055,22 +4055,18 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                                         for (j = 0; j < keys.count; ++j){
                                             i16 key = keys.keys[j].keycode;
                                             switch (key){
-                                                case key_left: --view->color_cursor; r = 1; 
-                                                is_animating = 1; break;
-                                                case key_right: ++view->color_cursor; r = 1; 
-                                                is_animating = 1; break;
+                                                case key_left: --view->color_cursor; r = 1; break;
+                                                case key_right: ++view->color_cursor; r = 1; break;
                                                 
                                                 case key_up:
                                                 if (next_color_editing > 0){
                                                     --next_color_editing;
-                                                    is_animating = 1;
                                                 }
                                                 break;
                                                 
                                                 case key_down:
                                                 if (next_color_editing <= ArrayCount(colors_to_edit)-1){
                                                     ++next_color_editing;
-                                                    is_animating = 1;
                                                 }
                                                 break;
                                                 
@@ -4098,7 +4094,6 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                             if (view->current_color_editing != next_color_editing){
                                 view->current_color_editing = next_color_editing;
                                 view->color_cursor = 0;
-                                is_animating = 1;
                             }
                             
                             gui_end_scrollable(target);
@@ -4107,258 +4102,261 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                 }break;
                 
                 case VUI_Interactive:
-                switch (view->interaction){
-                    case IInt_Sys_File_List:
-                    {
-                        String message = {0};
-                        switch (view->action){
-                            case IAct_Open: message = make_lit_string("Open: "); break;
-                            case IAct_Save_As: message = make_lit_string("Save As: "); break;
-                            case IAct_New: message = make_lit_string("New: "); break;
-                        }
-
-                        Exhaustive_File_Loop loop;
-                        Exhaustive_File_Info file_info;
-                        
-                        GUI_id id;
-                        GUI_Item_Update update = {0};
-                        Hot_Directory *hdir = &models->hot_directory;
-                        b32 do_new_directory = 0;
-                        i32 i = 0;
-                        
+                {
+                    GUI_id id = {0};
+                    id.id[1] = VUI_Interactive + ((u64)view->interaction << 32);
+                    
+                    switch (view->interaction){
+                        case IInt_Sys_File_List:
                         {
-                            Single_Line_Input_Step step = {0};
-                            Key_Event_Data key = {0};
-                            i32 i;
-                            
-                            for (i = 0; i < keys.count; ++i){
-                                key = get_single_key(&keys, i);
-                                step = app_single_file_input_step(system, &models->working_set, key, &hdir->string, hdir, 1, 1, 0);
-                                if (step.made_a_change){
-                                    view->list_i = 0;
+                            String message = {0};
+                            switch (view->action){
+                                case IAct_Open: message = make_lit_string("Open: "); break;
+                                case IAct_Save_As: message = make_lit_string("Save As: "); break;
+                                case IAct_New: message = make_lit_string("New: "); break;
+                            }
+
+                            Exhaustive_File_Loop loop;
+                            Exhaustive_File_Info file_info;
+
+                            GUI_Item_Update update = {0};
+                            Hot_Directory *hdir = &models->hot_directory;
+                            b32 do_new_directory = 0;
+                            i32 i = 0;
+
+                            {
+                                Single_Line_Input_Step step = {0};
+                                Key_Event_Data key = {0};
+                                i32 i;
+
+                                for (i = 0; i < keys.count; ++i){
+                                    key = get_single_key(&keys, i);
+                                    step = app_single_file_input_step(system, &models->working_set, key, &hdir->string, hdir, 1, 1, 0);
+                                    if (step.made_a_change){
+                                        view->list_i = 0;
+                                    }
                                 }
                             }
-                        }
-                        
-                        gui_do_text_field(target, message, hdir->string);
 
-                        gui_get_scroll_vars(target, view->showing_ui, &view->gui_scroll);
-                        gui_begin_scrollable(target, view->showing_ui, view->gui_scroll, 9.f * view->font_height);
-                        
-                        // TODO(allen): Deduplicate. Perhaps we want a standard list helper?
-                        id.id[0] = (u64)(hdir) + 1;
-                        if (gui_begin_list(target, id, view->list_i, 0, &update)){
-                            if (update.has_adjustment){
-                                view->list_i = update.adjustment_value;
-                            }
-                            
-                            b32 indirectly_activate = 0;
-                            for (i32 j = 0; j < keys.count; ++j){
-                                i16 key = keys.keys[j].keycode;
-                                switch (key){
-                                    case key_up:
-                                    --view->list_i;
-                                    break;
-                                    
-                                    case key_down:
-                                    ++view->list_i;
-                                    break;
-                                    
-                                    case '\n':
-                                    indirectly_activate = 1;
-                                    break;
+                            gui_do_text_field(target, message, hdir->string);
+
+                            view->current_scroll = &view->gui_scroll;
+                            gui_get_scroll_vars(target, view->showing_ui, &view->gui_scroll);
+                            gui_begin_scrollable(target, view->showing_ui, view->gui_scroll, 9.f * view->font_height);
+
+                            // TODO(allen): Deduplicate. Perhaps we want a standard list helper?
+                            id.id[0] = (u64)(hdir) + 1;
+                            if (gui_begin_list(target, id, view->list_i, 0, &update)){
+                                if (update.has_adjustment){
+                                    view->list_i = update.adjustment_value;
                                 }
+
+                                b32 indirectly_activate = 0;
+                                for (i32 j = 0; j < keys.count; ++j){
+                                    i16 key = keys.keys[j].keycode;
+                                    switch (key){
+                                        case key_up:
+                                        --view->list_i;
+                                        break;
+
+                                        case key_down:
+                                        ++view->list_i;
+                                        break;
+
+                                        case '\n':
+                                        indirectly_activate = 1;
+                                        break;
+                                    }
+                                }
+
+                                gui_rollback(target, &update);
+                                gui_begin_list(target, id, view->list_i, indirectly_activate, 0);
                             }
-                            
-                            gui_rollback(target, &update);
-                            gui_begin_list(target, id, view->list_i, indirectly_activate, 0);
-                        }
-                        
-                        {
-                            begin_exhaustive_loop(&loop, hdir);
-                            for (i = 0; i < loop.count; ++i){
-                                file_info = get_exhaustive_info(system, &models->working_set, &loop, i);
-                                
-                                if (file_info.name_match){
-                                    id.id[0] = (u64)(file_info.info);
-                                    if (gui_do_file_option(target, id, file_info.info->filename, file_info.is_folder, file_info.message)){
-                                        if (file_info.is_folder){
-                                            set_last_folder(&hdir->string, file_info.info->filename, '/');
-                                            do_new_directory = 1;
-                                        }
-                                        else{
-                                            interactive_view_complete(view, loop.full_path, 0);
+
+                            {
+                                begin_exhaustive_loop(&loop, hdir);
+                                for (i = 0; i < loop.count; ++i){
+                                    file_info = get_exhaustive_info(system, &models->working_set, &loop, i);
+
+                                    if (file_info.name_match){
+                                        id.id[0] = (u64)(file_info.info);
+                                        if (gui_do_file_option(target, id, file_info.info->filename, file_info.is_folder, file_info.message)){
+                                            if (file_info.is_folder){
+                                                set_last_folder(&hdir->string, file_info.info->filename, '/');
+                                                do_new_directory = 1;
+                                            }
+                                            else{
+                                                interactive_view_complete(view, loop.full_path, 0);
+                                            }
                                         }
                                     }
                                 }
                             }
-                        }
-                        
-                        gui_end_list(target);
-                        
-                        if (do_new_directory){
-                            hot_directory_reload(system, hdir, &models->working_set);
-						}
-                        
-                        gui_end_scrollable(target);
-                    }break;
-                    
-                    case IInt_Live_File_List:
-                    {
-                        persist String message_unsaved = make_lit_string(" *");
-                        persist String message_unsynced = make_lit_string(" !");
-                        
-                        String message = {0};
-                        switch (view->action){
-                            case IAct_Switch: message = make_lit_string("Switch: "); break;
-                            case IAct_Kill: message = make_lit_string("Kill: "); break;
-                        }
-                        
-                        Absolutes absolutes;
-                        GUI_id id;
-                        Editing_File *file;
-                        File_Node *node, *used_nodes;
-                        Working_Set *working_set = &models->working_set;
-                        GUI_Item_Update update = {0};
-                        
+
+                            gui_end_list(target);
+
+                            if (do_new_directory){
+                                hot_directory_reload(system, hdir, &models->working_set);
+                            }
+
+                            gui_end_scrollable(target);
+                        }break;
+
+                        case IInt_Live_File_List:
                         {
-                            Single_Line_Input_Step step;
-                            Key_Event_Data key;
-                            i32 i;
-                            for (i = 0; i < keys.count; ++i){
-                                key = get_single_key(&keys, i);
-                                step = app_single_line_input_step(system, key, &view->dest);
-                                if (step.made_a_change){
-                                    view->list_i = 0;
+                            persist String message_unsaved = make_lit_string(" *");
+                            persist String message_unsynced = make_lit_string(" !");
+
+                            String message = {0};
+                            switch (view->action){
+                                case IAct_Switch: message = make_lit_string("Switch: "); break;
+                                case IAct_Kill: message = make_lit_string("Kill: "); break;
+                            }
+
+                            Absolutes absolutes;
+                            Editing_File *file;
+                            File_Node *node, *used_nodes;
+                            Working_Set *working_set = &models->working_set;
+                            GUI_Item_Update update = {0};
+
+                            {
+                                Single_Line_Input_Step step;
+                                Key_Event_Data key;
+                                i32 i;
+                                for (i = 0; i < keys.count; ++i){
+                                    key = get_single_key(&keys, i);
+                                    step = app_single_line_input_step(system, key, &view->dest);
+                                    if (step.made_a_change){
+                                        view->list_i = 0;
+                                    }
                                 }
                             }
-                        }
-                        
-                        get_absolutes(view->dest, &absolutes, 1, 1);
-                        
-                        gui_do_text_field(target, message, view->dest);
-                        
-                        gui_get_scroll_vars(target, view->showing_ui, &view->gui_scroll);
-                        gui_begin_scrollable(target, view->showing_ui, view->gui_scroll, 9.f * view->font_height);
-                        
-                        // TODO(allen): Deduplicate. Perhaps we want a standard list helper?
-                        id.id[0] = (u64)(working_set) + 1;
-                        if (gui_begin_list(target, id, view->list_i, 0, &update)){
-                            if (update.has_adjustment){
-                                view->list_i = update.adjustment_value;
+
+                            get_absolutes(view->dest, &absolutes, 1, 1);
+
+                            gui_do_text_field(target, message, view->dest);
+
+                            view->current_scroll = &view->gui_scroll;
+                            gui_get_scroll_vars(target, view->showing_ui, &view->gui_scroll);
+                            gui_begin_scrollable(target, view->showing_ui, view->gui_scroll, 9.f * view->font_height);
+
+                            // TODO(allen): Deduplicate. Perhaps we want a standard list helper?
+                            id.id[0] = (u64)(working_set) + 1;
+                            if (gui_begin_list(target, id, view->list_i, 0, &update)){
+                                if (update.has_adjustment){
+                                    view->list_i = update.adjustment_value;
+                                }
+
+                                b32 indirectly_activate = 0;
+                                for (i32 j = 0; j < keys.count; ++j){
+                                    i16 key = keys.keys[j].keycode;
+                                    switch (key){
+                                        case key_up:
+                                        --view->list_i;
+                                        break;
+
+                                        case key_down:
+                                        ++view->list_i;
+                                        break;
+
+                                        case '\n':
+                                        indirectly_activate = 1;
+                                        break;
+                                    }
+                                }
+
+                                gui_rollback(target, &update);
+                                gui_begin_list(target, id, view->list_i, indirectly_activate, 0);
                             }
-                            
-                            b32 indirectly_activate = 0;
-                            for (i32 j = 0; j < keys.count; ++j){
-                                i16 key = keys.keys[j].keycode;
-                                switch (key){
-                                    case key_up:
-                                    --view->list_i;
-                                    break;
-                                    
-                                    case key_down:
-                                    ++view->list_i;
-                                    break;
-                                    
-                                    case '\n':
-                                    indirectly_activate = 1;
-                                    break;
+
+                            used_nodes = &working_set->used_sentinel;
+                            for (dll_items(node, used_nodes)){
+                                file = (Editing_File*)node;
+                                Assert(!file->state.is_dummy);
+
+                                message = {0};
+                                switch (buffer_get_sync(file)){
+                                    case SYNC_BEHIND_OS: message = message_unsynced; break;
+                                    case SYNC_UNSAVED: message = message_unsaved; break;
+                                }
+
+                                if (filename_match(view->dest, &absolutes, file->name.live_name, 1)){
+                                    id.id[0] = (u64)(file);
+                                    if (gui_do_file_option(target, id, file->name.live_name, 0, message)){
+                                        interactive_view_complete(view, file->name.live_name, 0);
+                                    }
                                 }
                             }
-                            
-                            gui_rollback(target, &update);
-                            gui_begin_list(target, id, view->list_i, indirectly_activate, 0);
-                        }
-                        
-                        used_nodes = &working_set->used_sentinel;
-                        for (dll_items(node, used_nodes)){
-                            file = (Editing_File*)node;
-                            Assert(!file->state.is_dummy);
-                            
-                            message = {0};
-                            switch (buffer_get_sync(file)){
-                                case SYNC_BEHIND_OS: message = message_unsynced; break;
-                                case SYNC_UNSAVED: message = message_unsaved; break;
-							}
-                            
-                            if (filename_match(view->dest, &absolutes, file->name.live_name, 1)){
-                                id.id[0] = (u64)(file);
-                                if (gui_do_file_option(target, id, file->name.live_name, 0, message)){
-                                    interactive_view_complete(view, file->name.live_name, 0);
-                                }
-							}
-						}
-                        
-                        gui_end_list(target);
-                        
-                        gui_end_scrollable(target);
-					}break;
-                    
-                    case IInt_Sure_To_Close:
-                    {
-                        i32 action = -1;
-                        
-                        GUI_id id;
-                        String empty_str = {0};
-                        String message = make_lit_string("There is one or more files unsaved changes, close anyway?");
-                        
-                        gui_do_text_field(target, message, empty_str);
-                        
-                        id.id[0] = (u64)('y' + (VUI_Interactive << 8));
-                        message = make_lit_string("(Y)es");
-                        if (gui_do_fixed_option(target, id, message, 'y')){
-                            action = 0;
-                        }
-                        
-                        id.id[0] = (u64)('n' + (VUI_Interactive << 8));
-                        message = make_lit_string("(N)o");
-                        if (gui_do_fixed_option(target, id, message, 'n')){
-                            action = 1;
-                        }
-                        
-                        if (action != -1){
-                            interactive_view_complete(view, view->dest, action);
-						}
-                    }break;
-                    
-                    case IInt_Sure_To_Kill:
-                    {
-                        i32 action = -1;
-                        
-                        GUI_id id;
-                        String empty_str = {0};
-                        String message = make_lit_string("There are unsaved changes, close anyway?");
-                        
-                        gui_do_text_field(target, message, empty_str);
-                        
-                        id.id[0] = (u64)('y' + (VUI_Interactive << 8));
-                        message = make_lit_string("(Y)es");
-                        if (gui_do_fixed_option(target, id, message, 'y')){
-                            action = 0;
-                        }
-                        
-                        id.id[0] = (u64)('n' + (VUI_Interactive << 8));
-                        message = make_lit_string("(N)o");
-                        if (gui_do_fixed_option(target, id, message, 'n')){
-                            action = 1;
-                        }
-                        
-                        id.id[0] = (u64)('s' + (VUI_Interactive << 8));
-                        message = make_lit_string("(S)ave and kill");
-                        if (gui_do_fixed_option(target, id, message, 's')){
-                            action = 2;
-                        }
-                        
-                        if (action != -1){
-                            interactive_view_complete(view, view->dest, action);
-						}
-                    }break;
+
+                            gui_end_list(target);
+
+                            gui_end_scrollable(target);
+                        }break;
+
+                        case IInt_Sure_To_Close:
+                        {
+                            i32 action = -1;
+
+                            String empty_str = {0};
+                            String message = make_lit_string("There is one or more files unsaved changes, close anyway?");
+
+                            gui_do_text_field(target, message, empty_str);
+
+                            id.id[0] = (u64)('y');
+                            message = make_lit_string("(Y)es");
+                            if (gui_do_fixed_option(target, id, message, 'y')){
+                                action = 0;
+                            }
+
+                            id.id[0] = (u64)('n');
+                            message = make_lit_string("(N)o");
+                            if (gui_do_fixed_option(target, id, message, 'n')){
+                                action = 1;
+                            }
+
+                            if (action != -1){
+                                interactive_view_complete(view, view->dest, action);
+                            }
+                        }break;
+
+                        case IInt_Sure_To_Kill:
+                        {
+                            i32 action = -1;
+
+                            String empty_str = {0};
+                            String message = make_lit_string("There are unsaved changes, close anyway?");
+
+                            gui_do_text_field(target, message, empty_str);
+
+                            id.id[0] = (u64)('y');
+                            message = make_lit_string("(Y)es");
+                            if (gui_do_fixed_option(target, id, message, 'y')){
+                                action = 0;
+                            }
+
+                            id.id[0] = (u64)('n');
+                            message = make_lit_string("(N)o");
+                            if (gui_do_fixed_option(target, id, message, 'n')){
+                                action = 1;
+                            }
+
+                            id.id[0] = (u64)('s');
+                            message = make_lit_string("(S)ave and kill");
+                            if (gui_do_fixed_option(target, id, message, 's')){
+                                action = 2;
+                            }
+
+                            if (action != -1){
+                                interactive_view_complete(view, view->dest, action);
+                            }
+                        }break;
+                    }
                 }break;
             }
         }
     }
     gui_end_top_level(target);
-    return(is_animating);
+    return(target->animating);
 }
 
 internal f32
@@ -4438,53 +4436,6 @@ do_input_file_view(System_Functions *system, Exchange *exchange,
                     }
                     is_file_scroll = 1;
                 }break;
-
-#if 0
-                case guicom_text_input:
-                {
-                    Single_Line_Input_Step step;
-                    Key_Event_Data key;
-                    
-                    GUI_Edit *e = (GUI_Edit*)h;
-                    String *string = (String*)e->out;
-                    Key_Summary *keys = &user_input->keys;
-                    
-                    i32 i, count;
-                    
-                    count = keys->count;
-                    for (i = 0; i < count; ++i){
-                        key = get_single_key(keys, i);
-                        step = app_single_line_input_step(system, key, string);
-                        if ((step.hit_newline || step.hit_ctrl_newline) && !step.no_file_match){
-                            view->gui_target.active = e->id;
-                            is_animating = 1;
-                        }
-					}
-				}break;
-                
-                case guicom_file_input:
-                {
-                    Single_Line_Input_Step step;
-                    Key_Event_Data key;
-                    
-                    GUI_Edit *e = (GUI_Edit*)h;
-                    Hot_Directory *hdir = (Hot_Directory*)e->out;
-                    Key_Summary *keys = &user_input->keys;
-                    Working_Set *working_set = &view->models->working_set;
-                    
-                    i32 i, count;
-                    
-                    count = keys->count;
-                    for (i = 0; i < count; ++i){
-                        key = get_single_key(keys, i);
-                        step = app_single_file_input_step(system, working_set, key, &hdir->string, hdir, 1, 1, 0);
-                        if ((step.hit_newline || step.hit_ctrl_newline) && !step.no_file_match){
-                            view->gui_target.active = e->id;
-                            is_animating = 1;
-                        }
-					}
-				}break;
-#endif
 
                 case guicom_color_button:
                 case guicom_font_button:
@@ -4671,7 +4622,7 @@ do_input_file_view(System_Functions *system, Exchange *exchange,
     }
     
     if (!user_input->mouse.l){
-        if (!gui_id_eq(target->mouse_hot, {0})){
+        if (!gui_id_is_null(target->mouse_hot)){
             target->mouse_hot = {0};
             is_animating = 1;
         }
@@ -5402,110 +5353,6 @@ do_render_file_view(System_Functions *system, Exchange *exchange,
     draw_pop_clip(target);
 
     return(result);
-    
-#if 0    
-        
-    Editing_File *file = view->file;
-    i32 result = 0;
-    
-    {
-        i32 line_height = view->font_height;
-        i32_Rect bar_rect = rect;
-        bar_rect.y1 = bar_rect.y0 + line_height + 2;
-        do_render_file_bar(target, view, file, bar_rect);
-
-        rect.y0 = bar_rect.y1;
-    }
-    
-    target->push_clip(target, rect);
-    if (view->gui_target.show_file){
-        view->scroll_min_limit = 0;
-        if (view->reinit_scrolling){
-            view_reinit_scrolling(view);
-        }
-        
-        switch (view->showing_ui){
-            case VUI_None:
-            {
-                if (file && file_is_ready(file)){
-                    result = draw_file_loaded(view, rect, is_active, target);
-                }
-            }break;
-        }
-	}
-    target->pop_clip(target);
-
-    return(result);
-#endif
-    
-#if 0
-    Models *models = view->models;
-    Editing_File *file = view->file;
-    i32 result = 0;
-
-    i32 widget_height = 0;
-    AllowLocal(models);
-
-#if 0
-    {
-        UI_State state =
-            ui_state_init(&view->widget.state, target, 0,
-            &models->style, models->global_font.font_id, models->font_set, 0, 0);
-
-        UI_Layout layout;
-        begin_layout(&layout, rect);
-
-        switch (view->widget.type){
-            case FWIDG_NONE:
-            {
-                if (file && view->showing_ui == VUI_None){
-                    do_file_bar(view, file, &layout, target);
-                }
-
-                draw_file_view_queries(view, &state, &layout);
-            }break;
-
-            case FWIDG_TIMELINES:
-            {
-                if (file){
-                    i32 undo_count = file->state.undo.undo.edit_count;
-                    i32 redo_count = file->state.undo.redo.edit_count;
-                    i32 total_count = undo_count + redo_count;
-                    undo_shit(0, view, &state, &layout, total_count, undo_count, 0);
-                }
-                else{
-                    view->widget.type = FWIDG_NONE;
-                }
-            }break;
-        }
-
-        widget_height = layout.y - rect.y0;
-        ui_finish_frame(&view->widget.state, &state, &layout, rect, 0, 0);
-    }
-#endif
-
-    view->scroll_min_limit = (f32)-widget_height;
-
-    {
-        rect.y0 += widget_height;
-        target->push_clip(target, rect);
-
-        rect.y0 -= widget_height;
-
-        switch (view->showing_ui){
-            case VUI_None:
-            {
-                if (file && file_is_ready(file)){
-                    result = draw_file_loaded(view, rect, is_active, target);
-                }
-            }break;
-        }
-
-        target->pop_clip(target);
-    }
-
-    return (result);
-#endif
 }
 
 // TODO(allen): Passing this hook and app pointer is a hack. It can go as soon as we start

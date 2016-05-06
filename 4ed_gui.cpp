@@ -113,7 +113,7 @@ super_color_post_byte(Super_Color *color, i32 channel, u8 byte){
 }
 
 struct GUI_id{
-    u64 id[1];
+    u64 id[2];
 };
 
 struct GUI_Scroll_Vars{
@@ -148,6 +148,7 @@ struct GUI_Target{
     f32 delta;
     u32 scroll_id;
     b32 has_keys;
+    b32 animating;
 };
 
 struct GUI_Item_Update{
@@ -182,12 +183,6 @@ enum GUI_Command_Type{
     guicom_top_bar,
     guicom_file,
     guicom_text_field,
-
-#if 0 
-    guicom_text_input,
-    guicom_file_input,
-#endif
-
     guicom_color_button,
     guicom_font_button,
     guicom_text_with_cursor,
@@ -208,13 +203,13 @@ enum GUI_Command_Type{
 
 internal b32
 gui_id_eq(GUI_id id1, GUI_id id2){
-    b32 result = (id1.id[0] == id2.id[0]);
+    b32 result = (id1.id[0] == id2.id[0] && id1.id[1] == id2.id[1]);
     return(result);
 }
 
 internal b32
 gui_id_is_null(GUI_id id){
-    b32 result = (id.id[0] == 0);
+    b32 result = (id.id[0] == 0 && id.id[1] == 0);
     return(result);
 }
 
@@ -405,6 +400,7 @@ internal void
 gui_begin_top_level(GUI_Target *target, Input_Summary input){
     target->push.pos = 0;
     target->has_keys = (input.keys.count > 0);
+    target->animating = 0;
 }
 
 internal void
@@ -439,32 +435,11 @@ gui_do_text_with_cursor(GUI_Target *target, i32 pos, String text, GUI_Item_Updat
     result = target->has_keys;
     if (result){
         gui_fill_item_update(update, target, h, 0);
+        target->animating = 1;
     }
     
     return(result);
 }
-
-#if 0
-internal b32
-gui_do_text_input(GUI_Target *target, GUI_id id, void *out){
-    b32 result = 0;
-    gui_push_string_edit_command(target, guicom_text_input, id, out);
-    if (gui_id_eq(id, target->active)){
-        result = 1;
-    }
-    return(result);
-}
-
-internal b32
-gui_do_file_input(GUI_Target *target, GUI_id id, void *out){
-    b32 result = 0;
-    gui_push_string_edit_command(target, guicom_file_input, id, out);
-    if (gui_id_eq(id, target->active)){
-        result = 1;
-    }
-    return(result);
-}
-#endif
 
 internal b32
 gui_do_color_button(GUI_Target *target, GUI_id id, u32 fore, u32 back, String text){
@@ -477,6 +452,7 @@ gui_do_color_button(GUI_Target *target, GUI_id id, u32 fore, u32 back, String te
     
     if (gui_id_eq(id, target->active)){
         result = 1;
+        target->animating = 1;
 	}
     
     return(result);
@@ -493,6 +469,7 @@ gui_do_font_button(GUI_Target *target, GUI_id id, i16 font_id, String text){
     
     if (gui_id_eq(id, target->active)){
         result = 1;
+        target->animating = 1;
 	}
     
     return(result);
@@ -515,6 +492,7 @@ gui_begin_list(GUI_Target *target, GUI_id id, i32 list_i, b32 activate_item, GUI
     
     if (result){
         gui_fill_item_update(update, target, h, active);
+        target->animating = 1;
     }
     
     return(result);
@@ -536,6 +514,7 @@ gui_do_file_option(GUI_Target *target, GUI_id id, String filename, b32 is_folder
     
     if (gui_id_eq(id, target->active)){
         result = 1;
+        target->animating = 1;
 	}
     
     return(result);
@@ -551,6 +530,7 @@ gui_do_button(GUI_Target *target, GUI_id id, String message){
     
     if (gui_id_eq(id, target->active)){
         result = 1;
+        target->animating = 1;
 	}
     
     return(result);
@@ -567,6 +547,7 @@ gui_do_fixed_option(GUI_Target *target, GUI_id id, String message, char key){
     
     if (gui_id_eq(id, target->active)){
         result = 1;
+        target->animating = 1;
 	}
     
     return(result);
@@ -584,6 +565,7 @@ gui_do_fixed_option_checkbox(GUI_Target *target, GUI_id id, String message, char
     
     if (gui_id_eq(id, target->active)){
         result = 1;
+        target->animating = 1;
 	}
     
     return(result);
@@ -599,6 +581,7 @@ gui_do_style_preview(GUI_Target *target, GUI_id id, Style *style){
     
     if (gui_id_eq(id, target->active)){
         result = 1;
+        target->animating = 1;
 	}
     
     return(result);
@@ -607,28 +590,32 @@ gui_do_style_preview(GUI_Target *target, GUI_id id, Style *style){
 internal GUI_id
 gui_id_scrollbar(){
     GUI_id id;
-    id.id[0] = max_u64;
+    id.id[0] = 0;
+    id.id[1] = max_u64;
     return(id);
 }
 
 internal GUI_id
 gui_id_scrollbar_top(){
     GUI_id id;
-    id.id[0] = max_u64 - 1;
+    id.id[0] = 1;
+    id.id[1] = max_u64;
     return(id);
 }
 
 internal GUI_id
 gui_id_scrollbar_slider(){
     GUI_id id;
-    id.id[0] = max_u64 - 2;
+    id.id[0] = 2;
+    id.id[1] = max_u64;
     return(id);
 }
 
 internal GUI_id
 gui_id_scrollbar_bottom(){
     GUI_id id;
-    id.id[0] = max_u64 - 3;
+    id.id[0] = 3;
+    id.id[1] = max_u64;
     return(id);
 }
 
@@ -648,6 +635,7 @@ gui_get_scroll_vars(GUI_Target *target, u32 scroll_id, GUI_Scroll_Vars *vars_out
         
         if (gui_id_eq(target->active, gui_id_scrollbar())){
             result = 1;
+            target->animating = 1;
         }
 	}
     return(result);
