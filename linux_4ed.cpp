@@ -1946,7 +1946,6 @@ LinuxHandleX11Events(void)
 
                 // NOTE(inso): A program is giving us the clipboard data we asked for.
             case SelectionNotify: {
-                should_step = 1;
                 XSelectionEvent* e = (XSelectionEvent*)&Event;
                 if(
                     e->selection == linuxvars.atom_CLIPBOARD &&
@@ -1975,6 +1974,8 @@ LinuxHandleX11Events(void)
 
                     if(result == Success && fmt == 8){
                         LinuxStringDup(&linuxvars.clipboard_contents, data, nitems);
+                        should_step = 1;
+                        linuxvars.new_clipboard = 1;
                         XFree(data);
                     }
                 }
@@ -2519,13 +2520,32 @@ main(int argc, char **argv)
             // TODO(inso): not all events should require a redraw?
             linuxvars.redraw = 1;
 
+            if(linuxvars.first || !linuxvars.has_xfixes){
+                XConvertSelection(
+                    linuxvars.XDisplay,
+                    linuxvars.atom_CLIPBOARD,
+                    linuxvars.atom_UTF8_STRING,
+                    linuxvars.atom_CLIPBOARD,
+                    linuxvars.XWindow,
+                    CurrentTime
+                );
+            }
+
             Application_Step_Result result = {};
             result.mouse_cursor_type = APP_MOUSE_CURSOR_DEFAULT;
             result.trying_to_kill = !linuxvars.keep_running;
 
-//            if(__sync_bool_compare_and_swap(&exchange_vars.thread.force_redraw, 1, 0)){
-//                linuxvars.redraw = 1;
-//            }
+#if 0
+            if(__sync_bool_compare_and_swap(&exchange_vars.thread.force_redraw, 1, 0)){
+                linuxvars.redraw = 1;
+            }
+#endif
+
+            String clipboard = {};
+            if(linuxvars.new_clipboard){
+                clipboard = linuxvars.clipboard_contents;
+                linuxvars.new_clipboard = 0;
+            }
 
             f32 dt = frame_useconds / 1000000.f;
 
@@ -2536,7 +2556,7 @@ main(int argc, char **argv)
                 &linuxvars.target,
                 &memory_vars,
                 &exchange_vars,
-                linuxvars.clipboard_contents,
+                clipboard,
                 dt,
                 linuxvars.first,
                 &result
