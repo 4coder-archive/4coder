@@ -3959,7 +3959,9 @@ App_Step_Sig(app_step){
         for (dll_items(panel, used_panels)){
             view = panel->view;
             if (view->current_scroll){
-                gui_get_scroll_vars(&view->gui_target, view->showing_ui, view->current_scroll);
+                GUI_Scroll_Vars vars = {0};
+                gui_get_scroll_vars(&view->gui_target, view->showing_ui, &vars);
+                view->current_scroll->region = vars.region;
             }
         }
     }

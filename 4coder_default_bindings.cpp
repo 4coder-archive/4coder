@@ -235,6 +235,7 @@ CUSTOM_COMMAND_SIG(build_at_launch_location){
     exec_command(app, cmdid_command_line);
 }
 
+#if 0
 // NOTE(allen|a4) See 4coder_styles.h for a list of available style tags.
 // There are style tags corresponding to every color in the theme editor.
 CUSTOM_COMMAND_SIG(improve_theme){
@@ -264,15 +265,16 @@ CUSTOM_COMMAND_SIG(ruin_theme){
 
     app->set_theme_colors(app, colors, count);
 }
+#endif
 
-void default_get_bindings(Bind_Helper *context, int set_hooks){
+int get_bindings(void *data, int size){
+    Bind_Helper context_ = begin_bind_helper(data, size);
+    Bind_Helper *context = &context_;
+    
     // NOTE(allen|a3.1): Hooks have no loyalties to maps. All hooks are global
     // and once set they always apply, regardless of what map is active.
-    if (set_hooks){
-        set_hook(context, hook_start, my_start);
-        set_hook(context, hook_open_file, my_file_settings);
-        //set_hook(context, hook_frame, my_frame); // Example of a frame hook, but disabled by default.
-    }
+    set_hook(context, hook_start, my_start);
+    set_hook(context, hook_open_file, my_file_settings);
 
     set_scroll_rule(context, smooth_scroll_rule);
 
@@ -298,9 +300,6 @@ void default_get_bindings(Bind_Helper *context, int set_hooks){
     // go look at them and see what they do.
     bind(context, 'M', MDFR_ALT | MDFR_CTRL, open_my_files);
     bind(context, 'M', MDFR_ALT, build_at_launch_location);
-
-    bind(context, '`', MDFR_ALT, improve_theme);
-    bind(context, '~', MDFR_ALT, ruin_theme);
 
     end_map(context);
 
@@ -431,6 +430,9 @@ void default_get_bindings(Bind_Helper *context, int set_hooks){
     bind(context, 'T', MDFR_CTRL | MDFR_ALT, begin_html_mode);
 
     end_map(context);
+    
+    int result = end_bind_helper(context);
+    return(result);
 }
 
 // BOTTOM
