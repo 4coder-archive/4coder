@@ -2,7 +2,7 @@ CPP_FILES := $(wildcard *.cpp) $(wildcard **/*.cpp)
 H_FILES := $(wildcard *.h) $(wildcard **/*.h)
 WARNINGS := -Wno-write-strings 
 PLAT_LINKS := -L/usr/local/lib -lX11 -lpthread -lm -lrt -lGL -ldl -lXfixes
-FLAGS := -fPIC -fno-threadsafe-statics -pthread -I../foreign -g
+FLAGS := -fPIC -fno-threadsafe-statics -pthread -I../foreign -g -O0
 
 all: ../4ed_app.so ../4ed
 

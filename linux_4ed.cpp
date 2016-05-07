@@ -1761,42 +1761,64 @@ LinuxHandleX11Events(void)
                 if(Event.xkey.state & ControlMask) mods[MDFR_CONTROL_INDEX] = 1;
                 if(Event.xkey.state & LockMask) mods[MDFR_CAPS_INDEX] = 1;
                 if(Event.xkey.state & Mod1Mask) mods[MDFR_ALT_INDEX] = 1;
-                // NOTE(inso): mod5 == AltGr
-                // if(Event.xkey.state & Mod5Mask) mods[MDFR_ALT_INDEX] = 1;
 
+                Event.xkey.state &= ~(ControlMask);
+
+                Status status;
                 KeySym keysym = NoSymbol;
-                char buff[32], no_caps_buff[32];
+                char buff[32] = {};
 
-                // NOTE(inso): Turn ControlMask off like the win32 code does.
-                if(mods[MDFR_CONTROL_INDEX] && !mods[MDFR_ALT_INDEX]){
-                    Event.xkey.state &= ~(ControlMask);
+                Xutf8LookupString(
+                    linuxvars.input_context,
+                    &Event.xkey,
+                    buff,
+                    sizeof(buff) - 1,
+                    &keysym,
+                    &status
+                );
+
+                if(status == XBufferOverflow){
+                    //TODO(inso): handle properly
+                    Xutf8ResetIC(linuxvars.input_context);
+                    XSetICFocus(linuxvars.input_context);
+                    fputs("FIXME: XBufferOverflow from LookupString.\n", stderr);
                 }
 
-                // TODO(inso): Use one of the Xutf8LookupString funcs to allow for non-ascii chars
-                XLookupString(&Event.xkey, buff, sizeof(buff), &keysym, NULL);
+                u8 key = *buff, key_no_caps = key;
 
-                Event.xkey.state &= ~LockMask;
-                XLookupString(&Event.xkey, no_caps_buff, sizeof(no_caps_buff), NULL, NULL);
+                if(mods[MDFR_CAPS_INDEX] && status == XLookupBoth && Event.xkey.keycode){
+                    char buff_no_caps[32] = {};
+                    Event.xkey.state &= ~(LockMask);
+
+                    XLookupString(
+                        &Event.xkey,
+                        buff_no_caps,
+                        sizeof(buff_no_caps) - 1,
+                        NULL,
+                        NULL
+                    );
+
+                    if(*buff_no_caps){
+                        key_no_caps = *buff_no_caps;
+                    }
+                }
+
+                if(key         == '\r') key         = '\n';
+                if(key_no_caps == '\r') key_no_caps = '\n';
 
                 if(keysym == XK_ISO_Left_Tab){
-                    *buff = *no_caps_buff = '\t';
+                    key = key_no_caps = '\t';
                     mods[MDFR_SHIFT_INDEX] = 1;
                 }
 
-                u8 key = keycode_lookup(Event.xkey.keycode);
+                u8 special_key = keycode_lookup(Event.xkey.keycode);
 
-                if(key){
-                    LinuxPushKey(key, 0, 0, &mods, is_hold);
+                if(special_key){
+                    LinuxPushKey(special_key, 0, 0, &mods, is_hold);
+                } else if(key < 128){
+                    LinuxPushKey(key, key, key_no_caps, &mods, is_hold);
                 } else {
-                    key = buff[0] & 0xFF;
-                    if(key < 128){
-                        u8 no_caps_key = no_caps_buff[0] & 0xFF;
-                        if(key == '\r') key = '\n';
-                        if(no_caps_key == '\r') no_caps_key = '\n';
-                        LinuxPushKey(key, key, no_caps_key, &mods, is_hold);
-                    } else {
-                        LinuxPushKey(0, 0, 0, &mods, is_hold);
-                    }
+                    LinuxPushKey(0, 0, 0, &mods, is_hold);
                 }
             }break;
 
