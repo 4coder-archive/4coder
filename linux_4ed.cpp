@@ -1292,7 +1292,7 @@ LinuxResizeTarget(i32 width, i32 height){
 
 // NOTE(allen): Thanks to Casey for providing the linux OpenGL launcher.
 static bool ctxErrorOccurred = false;
-static int XInput2OpCode = 0;
+
 internal int
 ctxErrorHandler( Display *dpy, XErrorEvent *ev )
 {
@@ -1309,7 +1309,7 @@ static void gl_log(
     GLsizei length,
     const GLchar* message,
     const void* userParam
-                   ){
+){
     fprintf(stderr, "GL DEBUG: %s\n", message);
 }
 #endif
@@ -1320,48 +1320,52 @@ InitializeOpenGLContext(Display *XDisplay, Window XWindow, GLXFBConfig &bestFbc,
     IsLegacy = false;
     
     typedef GLXContext (*glXCreateContextAttribsARBProc)(Display*, GLXFBConfig, GLXContext, Bool, const int*);
+
+    typedef PFNGLXSWAPINTERVALEXTPROC     glXSwapIntervalEXTProc;
+    typedef PFNGLXSWAPINTERVALMESAPROC    glXSwapIntervalMESAProc;
+    typedef PFNGLXGETSWAPINTERVALMESAPROC glXGetSwapIntervalMESAProc;
+    typedef PFNGLXSWAPINTERVALSGIPROC     glXSwapIntervalSGIProc;
+
     const char *glxExts = glXQueryExtensionsString(XDisplay, DefaultScreen(XDisplay));
-    
-    glXCreateContextAttribsARBProc glXCreateContextAttribsARB = 0;
-    glXCreateContextAttribsARB = (glXCreateContextAttribsARBProc)
-        glXGetProcAddressARB( (const GLubyte *) "glXCreateContextAttribsARB" );
+  
+    #define GLXLOAD(x) x ## Proc x = (x ## Proc) glXGetProcAddressARB( (const GLubyte*) #x);
+
+    GLXLOAD(glXCreateContextAttribsARB);
  
     GLXContext ctx = 0;
     ctxErrorOccurred = false;
-    int (*oldHandler)(Display*, XErrorEvent*) =
-        XSetErrorHandler(&ctxErrorHandler);
+    int (*oldHandler)(Display*, XErrorEvent*) = XSetErrorHandler(&ctxErrorHandler);
+
     if (!glXCreateContextAttribsARB)
     {
-        fprintf(stderr,  "glXCreateContextAttribsARB() not found"
-                " ... using old-style GLX context\n" );
+        fprintf(stderr,  "glXCreateContextAttribsARB() not found, using old-style GLX context\n" );
         ctx = glXCreateNewContext( XDisplay, bestFbc, GLX_RGBA_TYPE, 0, True );
     } 
     else
     {
         int context_attribs[] =
-            {
-                GLX_CONTEXT_MAJOR_VERSION_ARB, 4,
-                GLX_CONTEXT_MINOR_VERSION_ARB, 3,
-                GLX_CONTEXT_PROFILE_MASK_ARB , GLX_CONTEXT_COMPATIBILITY_PROFILE_BIT_ARB,
+        {
+            GLX_CONTEXT_MAJOR_VERSION_ARB, 4,
+            GLX_CONTEXT_MINOR_VERSION_ARB, 3,
+            GLX_CONTEXT_PROFILE_MASK_ARB , GLX_CONTEXT_COMPATIBILITY_PROFILE_BIT_ARB,
 #if FRED_INTERNAL
-                GLX_CONTEXT_FLAGS_ARB        , GLX_CONTEXT_DEBUG_BIT_ARB,
+            GLX_CONTEXT_FLAGS_ARB        , GLX_CONTEXT_DEBUG_BIT_ARB,
 #endif
-                None
-            };
+            None
+        };
 
         fprintf(stderr, "Attribs: %d %d %d %d %d\n",
-               context_attribs[0],
-               context_attribs[1],
-               context_attribs[2],
-               context_attribs[3],
-               context_attribs[4]);
+                context_attribs[0],
+                context_attribs[1],
+                context_attribs[2],
+                context_attribs[3],
+                context_attribs[4]);
  
-        fprintf(stderr,  "Creating context\n" );
-        ctx = glXCreateContextAttribsARB( XDisplay, bestFbc, 0,
-                                          True, context_attribs );
+        fprintf(stderr,  "Creating context\n");
+        ctx = glXCreateContextAttribsARB(XDisplay, bestFbc, 0, True, context_attribs);
  
         XSync( XDisplay, False );
-        if ( !ctxErrorOccurred && ctx )
+        if (!ctxErrorOccurred && ctx)
         {
             fprintf(stderr,  "Created GL 4.3 context\n" );
         }
@@ -1373,12 +1377,11 @@ InitializeOpenGLContext(Display *XDisplay, Window XWindow, GLXFBConfig &bestFbc,
             context_attribs[3] = 2;
  
             fprintf(stderr,  "Creating context\n" );
-            ctx = glXCreateContextAttribsARB( XDisplay, bestFbc, 0,
-                                              True, context_attribs );
+            ctx = glXCreateContextAttribsARB( XDisplay, bestFbc, 0, True, context_attribs );
  
-            XSync( XDisplay, False );
+            XSync(XDisplay, False);
 
-            if ( !ctxErrorOccurred && ctx )
+            if (!ctxErrorOccurred && ctx)
             {
                 fprintf(stderr,  "Created GL 3.2 context\n" );
             }
@@ -1389,41 +1392,38 @@ InitializeOpenGLContext(Display *XDisplay, Window XWindow, GLXFBConfig &bestFbc,
  
                 ctxErrorOccurred = false;
  
-                fprintf(stderr,  "Failed to create GL 3.2 context"
-                        " ... using old-style GLX context\n" );
-                ctx = glXCreateContextAttribsARB( XDisplay, bestFbc, 0, 
-                                                  True, context_attribs );
+                fprintf(stderr, "Failed to create GL 3.2 context, using old-style GLX context\n");
+                ctx = glXCreateContextAttribsARB(XDisplay, bestFbc, 0, True, context_attribs);
 
                 IsLegacy = true;
             }
         }
     }
  
-    XSync( XDisplay, False );
-    XSetErrorHandler( oldHandler );
+    XSync(XDisplay, False);
+    XSetErrorHandler(oldHandler);
  
-    if ( ctxErrorOccurred || !ctx )
+    if (ctxErrorOccurred || !ctx)
     {
-        fprintf(stderr,  "Failed to create an OpenGL context\n" );
+        fprintf(stderr,  "Failed to create an OpenGL context\n");
         exit(1);
     }
  
-    if ( ! glXIsDirect ( XDisplay, ctx ) )
+    if (!glXIsDirect(XDisplay, ctx))
     {
-        fprintf(stderr,  "Indirect GLX rendering context obtained\n" );
+        fprintf(stderr,  "Indirect GLX rendering context obtained\n");
     }
     else
     {
-        fprintf(stderr,  "Direct GLX rendering context obtained\n" );
+        fprintf(stderr,  "Direct GLX rendering context obtained\n");
     }
     
-    fprintf(stderr,  "Making context current\n" );
+    fprintf(stderr,  "Making context current\n");
     glXMakeCurrent( XDisplay, XWindow, ctx );
     
-    GLint n;
-    char *Vendor = (char *)glGetString(GL_VENDOR);
+    char *Vendor   = (char *)glGetString(GL_VENDOR);
     char *Renderer = (char *)glGetString(GL_RENDERER);
-    char *Version = (char *)glGetString(GL_VERSION);
+    char *Version  = (char *)glGetString(GL_VERSION);
 
     //TODO(inso): glGetStringi is required in core profile if the GL version is >= 3.0
     char *Extensions = (char *)glGetString(GL_EXTENSIONS);
@@ -1431,32 +1431,33 @@ InitializeOpenGLContext(Display *XDisplay, Window XWindow, GLXFBConfig &bestFbc,
     fprintf(stderr, "GL_VENDOR: %s\n", Vendor);
     fprintf(stderr, "GL_RENDERER: %s\n", Renderer);
     fprintf(stderr, "GL_VERSION: %s\n", Version);
-//    fprintf(stderr, "GL_EXTENSIONS: %s\n", Extensions);
+//  fprintf(stderr, "GL_EXTENSIONS: %s\n", Extensions);
 
     //NOTE(inso): enable vsync if available. this should probably be optional
     if(strstr(glxExts, "GLX_EXT_swap_control ")){
-        PFNGLXSWAPINTERVALEXTPROC glx_swap_interval_ext =
-            (PFNGLXSWAPINTERVALEXTPROC) glXGetProcAddressARB((const GLubyte*)"glXSwapIntervalEXT");
 
-        if(glx_swap_interval_ext){
-            glx_swap_interval_ext(XDisplay, XWindow, 1);
+        GLXLOAD(glXSwapIntervalEXT);
+
+        if(glXSwapIntervalEXT){
+            glXSwapIntervalEXT(XDisplay, XWindow, 1);
 
             unsigned int swap_val = 0;
             glXQueryDrawable(XDisplay, XWindow, GLX_SWAP_INTERVAL_EXT, &swap_val);
+
             linuxvars.vsync = swap_val == 1;
             fprintf(stderr, "VSync enabled? %s.\n", linuxvars.vsync ? "Yes" : "No");
         }
+
     } else if(strstr(glxExts, "GLX_MESA_swap_control ")){
-        PFNGLXSWAPINTERVALMESAPROC glx_swap_interval_mesa = 
-            (PFNGLXSWAPINTERVALMESAPROC) glXGetProcAddressARB((const GLubyte*)"glXSwapIntervalMESA");
 
-        PFNGLXGETSWAPINTERVALMESAPROC glx_get_swap_interval_mesa =
-            (PFNGLXGETSWAPINTERVALMESAPROC) glXGetProcAddressARB((const GLubyte*)"glXGetSwapIntervalMESA");
+        GLXLOAD(glXSwapIntervalMESA);
+        GLXLOAD(glXGetSwapIntervalMESA);
 
-        if(glx_swap_interval_mesa){
-            glx_swap_interval_mesa(1);
-            if(glx_get_swap_interval_mesa){
-                linuxvars.vsync = glx_get_swap_interval_mesa();
+        if(glXSwapIntervalMESA){
+            glXSwapIntervalMESA(1);
+
+            if(glXGetSwapIntervalMESA){
+                linuxvars.vsync = glXGetSwapIntervalMESA();
                 fprintf(stderr, "VSync enabled? %s (MESA)\n", linuxvars.vsync ? "Yes" : "No");
             } else {
                 // NOTE(inso): assume it worked?
@@ -1464,25 +1465,31 @@ InitializeOpenGLContext(Display *XDisplay, Window XWindow, GLXFBConfig &bestFbc,
                 fputs("VSync enabled? possibly (MESA)", stderr);
             }
         }
-    } else if(strstr(glxExts, "GLX_SGI_swap_control ")){
-        PFNGLXSWAPINTERVALSGIPROC glx_swap_interval_sgi = 
-            (PFNGLXSWAPINTERVALSGIPROC) glXGetProcAddressARB((const GLubyte*)"glXSwapIntervalSGI");
 
-        if(glx_swap_interval_sgi){
-            glx_swap_interval_sgi(1);
+    } else if(strstr(glxExts, "GLX_SGI_swap_control ")){
+
+        GLXLOAD(glXSwapIntervalSGI);
+
+        if(glXSwapIntervalSGI){
+            glXSwapIntervalSGI(1);
+
             //NOTE(inso): The SGI one doesn't seem to have a way to confirm we got it...
             linuxvars.vsync = 1;
             fputs("VSync enabled? hopefully (SGI)", stderr);
         }
+
     } else {
         fputs("VSync enabled? nope, no suitable extension", stderr);
     }
 
 #if FRED_INTERNAL
-    PFNGLDEBUGMESSAGECALLBACKARBPROC gl_dbg_callback = (PFNGLDEBUGMESSAGECALLBACKARBPROC)glXGetProcAddress((const GLubyte*)"glDebugMessageCallback");
-    if(gl_dbg_callback){
+    typedef PFNGLDEBUGMESSAGECALLBACKARBPROC glDebugMessageCallbackProc;
+
+    GLXLOAD(glDebugMessageCallback);
+
+    if(glDebugMessageCallback){
         fputs("enabling gl debug\n", stderr);
-        gl_dbg_callback(&gl_log, 0);
+        glDebugMessageCallback(&gl_log, 0);
         glEnable(GL_DEBUG_OUTPUT);
     }
 #endif
@@ -1491,6 +1498,8 @@ InitializeOpenGLContext(Display *XDisplay, Window XWindow, GLXFBConfig &bestFbc,
     glEnable(GL_SCISSOR_TEST);
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+#undef GLXLOAD
 
     return(ctx);
 }
@@ -1507,8 +1516,7 @@ GLXCanUseFBConfig(Display *XDisplay)
     if(glXQueryVersion(XDisplay, &GLXMajor, &GLXMinor))
     {
         fprintf(stderr, "GLX version %d.%d\n", GLXMajor, GLXMinor);
-        if(((GLXMajor == 1 ) && (GLXMinor >= 3)) ||
-           (GLXMajor > 1))
+        if(((GLXMajor == 1 ) && (GLXMinor >= 3)) || (GLXMajor > 1))
         {
             Result = true;
         }
@@ -1572,14 +1580,60 @@ internal Init_Input_Result
 InitializeXInput(Display *dpy, Window XWindow)
 {
     Init_Input_Result result = {};
-    XIMStyle style;
     XIMStyles *styles = 0;
-    i32 i, count;
+    XIMStyle style;
+    unsigned long xim_event_mask = 0;
+    i32 i;
 
 	setlocale(LC_ALL, "");
     XSetLocaleModifiers("");
 	fprintf(stderr, "Supported locale?: %s.\n", XSupportsLocale() ? "Yes" : "No");
     // TODO(inso): handle the case where it isn't supported somehow?
+
+    result.input_method = XOpenIM(dpy, 0, 0, 0);
+    if (!result.input_method){
+        // NOTE(inso): Try falling back to the internal XIM implementation that
+        // should in theory always exist.
+
+        XSetLocaleModifiers("@im=none");
+        result.input_method = XOpenIM(dpy, 0, 0, 0);
+    }
+
+    if (result.input_method){
+        if (!XGetIMValues(result.input_method, XNQueryInputStyle, &styles, NULL) && styles){
+            for (i = 0; i < styles->count_styles; ++i){
+                style = styles->supported_styles[i];
+                if (style == (XIMPreeditNothing | XIMStatusNothing)){
+                    result.best_style = style;
+                    break;
+                }
+            }
+        }
+            
+        if (result.best_style){
+            XFree(styles);
+
+            result.xic = XCreateIC(
+                result.input_method,
+                XNInputStyle, result.best_style,
+                XNClientWindow, XWindow,
+                XNFocusWindow, XWindow,
+                NULL
+            );
+
+            if (XGetICValues(result.xic, XNFilterEvents, &xim_event_mask, NULL)){
+                xim_event_mask = 0;
+            }
+        }
+        else{
+            result = {};
+            fputs("Could not get minimum required input style.\n", stderr);
+        }
+    }
+    else{
+        result = {};
+        fputs("Could not open X Input Method.\n", stderr);
+    }
 
     XSelectInput(
         linuxvars.XDisplay,
@@ -1593,52 +1647,9 @@ InitializeXInput(Display *dpy, Window XWindow)
         StructureNotifyMask |
         MappingNotify |
         ExposureMask |
-        VisibilityChangeMask
+        VisibilityChangeMask |
+        xim_event_mask
     );
-
-    result.input_method = XOpenIM(dpy, 0, 0, 0);
-    if (!result.input_method){
-        // NOTE(inso): Try falling back to the internal XIM implementation that
-        // should in theory always exist.
-
-        XSetLocaleModifiers("@im=none");
-        result.input_method = XOpenIM(dpy, 0, 0, 0);
-    }
-
-    if (result.input_method){
-
-        if (!XGetIMValues(result.input_method, XNQueryInputStyle, &styles, NULL) &&
-            styles){
-            result.best_style = 0;
-            count = styles->count_styles;
-            for (i = 0; i < count; ++i){
-                style = styles->supported_styles[i];
-                if (style == (XIMPreeditNothing | XIMStatusNothing)){
-                    result.best_style = style;
-                    break;
-                }
-            }
-            
-            if (result.best_style){
-                XFree(styles);
-
-                result.xic =
-                    XCreateIC(result.input_method, XNInputStyle, result.best_style,
-                              XNClientWindow, XWindow,
-                              XNFocusWindow, XWindow,
-                              0, 0,
-                              NULL);
-            }
-            else{
-                result = {};
-                fputs("Could not get minimum required input style", stderr);
-            }
-        }
-    }
-    else{
-        result = {};
-        fputs("Could not open X Input Method", stderr);
-    }
 
     return(result);
 }
@@ -1699,18 +1710,18 @@ LinuxMaximizeWindow(Display* d, Window w, b32 maximize)
 internal void
 LinuxSetIcon(Display* d, Window w)
 {
-	Atom WM_ICON = XInternAtom(d, "_NET_WM_ICON", False);
+    Atom WM_ICON = XInternAtom(d, "_NET_WM_ICON", False);
 
-	XChangeProperty(
-		d,
-		w,
-		WM_ICON,
-		XA_CARDINAL,
-		32,
-		PropModeReplace,
-		(unsigned char*)linux_icon,
-		sizeof(linux_icon) / sizeof(long)
-	);
+    XChangeProperty(
+        d,
+        w,
+        WM_ICON,
+        XA_CARDINAL,
+        32,
+        PropModeReplace,
+        (unsigned char*)linux_icon,
+        sizeof(linux_icon) / sizeof(long)
+    );
 }
 
 internal void
@@ -2616,12 +2627,9 @@ main(int argc, char **argv)
             linuxvars.mouse_data.wheel = 0;
 
             File_Slot *file;
-            int d = 0;
-
             for (file = exchange_vars.file.active.next;
                 file != &exchange_vars.file.active;
                 file = file->next){
-                ++d;
 
                 if (file->flags & FEx_Save){
                     Assert((file->flags & FEx_Request) == 0);
