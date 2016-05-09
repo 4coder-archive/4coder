@@ -23,7 +23,7 @@
 #include "4ed_mem.cpp"
 #include "4ed_math.cpp"
 
-#include "4coder_custom.cpp"
+#include "4coder_default_bindings.cpp"
 
 #undef exec_command
 #undef exec_command_keep_stack

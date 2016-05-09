@@ -172,12 +172,15 @@ set_scroll_rule(Bind_Helper *helper, Scroll_Rule_Function *func){
     write_unit(helper, unit);
 }
 
-inline void
+inline int
 end_bind_helper(Bind_Helper *helper){
+    int result;
     if (helper->header){
         helper->header->header.total_size = (int)(helper->cursor - helper->start);
         helper->header->header.error = helper->error;
     }
+    result = helper->write_total;
+    return(result);
 }
 
 // NOTE(allen): Useful functions and overloads on app links
