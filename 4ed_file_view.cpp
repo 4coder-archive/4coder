@@ -3643,6 +3643,29 @@ view_get_scroll_y(View *view){
     return(v);
 }
 
+internal void
+click_button_input(GUI_Target *target, GUI_Session *session, Input_Summary *user_input,
+    GUI_Interactive *b, b32 *is_animating){
+    i32 mx = user_input->mouse.x;
+    i32 my = user_input->mouse.y;
+
+    if (hit_check(mx, my, session->rect)){
+        target->hover = b->id;
+        if (user_input->mouse.press_l){
+            target->mouse_hot = b->id;
+            *is_animating = 1;
+        }
+        if (user_input->mouse.release_l && gui_id_eq(target->mouse_hot, b->id)){
+            target->active = b->id;
+            target->mouse_hot = {0};
+            *is_animating = 1;
+        }
+    }
+    else if (gui_id_eq(target->hover, b->id)){
+        target->hover = {0};
+    }
+}
+
 internal b32
 scroll_button_input(GUI_Target *target, GUI_Session *session, Input_Summary *user_input,
     GUI_id id, b32 *is_animating){
@@ -3737,73 +3760,41 @@ do_input_file_view(System_Functions *system, Exchange *exchange,
                 case guicom_file_option:
                 case guicom_style_preview:
                 {
-                    // TODO(allen): deduplicate button related stuff
                     GUI_Interactive *b = (GUI_Interactive*)h;
-                    i32 mx = user_input->mouse.x;
-                    i32 my = user_input->mouse.y;
                     
-                    if (hit_check(mx, my, gui_session.rect)){
-                        target->hover = b->id;
-                        if (user_input->mouse.press_l){
-                            target->mouse_hot = b->id;
-                            is_animating = 1;
-                        }
-                        if (user_input->mouse.release_l && gui_id_eq(target->mouse_hot, b->id)){
-                            target->active = b->id;
-                            target->mouse_hot = {0};
-                            is_animating = 1;
-                        }
-                    }
-                    else if (gui_id_eq(target->hover, b->id)){
-                        target->hover = {0};
-					}
+                    click_button_input(target, &gui_session, user_input, b, &is_animating);
                 }break;
                 
                 case guicom_fixed_option:
                 case guicom_fixed_option_checkbox:
                 {
-                    // TODO(allen): deduplicate
-                    Key_Event_Data key;
-                    Key_Summary *keys = &user_input->keys;
-                    
                     GUI_Interactive *b = (GUI_Interactive*)h;
-                    void *ptr = (b + 1);
-                    String string;
-                    char activation_key;
                     
-                    i32 mx = user_input->mouse.x;
-                    i32 my = user_input->mouse.y;
+                    click_button_input(target, &gui_session, user_input, b, &is_animating);
                     
-                    i32 i, count;
-                    
-                    if (hit_check(mx, my, gui_session.rect)){
-                        target->hover = b->id;
-                        if (user_input->mouse.press_l){
-                            target->mouse_hot = b->id;
-                            is_animating = 1;
-                        }
-                        if (user_input->mouse.release_l && gui_id_eq(target->mouse_hot, b->id)){
-                            target->active = b->id;
-                            target->mouse_hot = {0};
-                            is_animating = 1;
+                    {
+                        Key_Event_Data key;
+                        Key_Summary *keys = &user_input->keys;
+                        
+                        void *ptr = (b + 1);
+                        String string;
+                        char activation_key;
+
+                        i32 i, count;
+
+                        string = gui_read_string(&ptr);
+                        activation_key = *(char*)ptr;
+
+                        count = keys->count;
+                        for (i = 0; i < count; ++i){
+                            key = get_single_key(keys, i);
+                            if (char_to_upper(key.character) == char_to_upper(activation_key)){
+                                target->active = b->id;
+                                is_animating = 1;
+                                break;
+                            }
                         }
                     }
-                    else if (gui_id_eq(target->hover, b->id)){
-                        target->hover = {0};
-					}
-                    
-                    string = gui_read_string(&ptr);
-                    activation_key = *(char*)ptr;
-                    
-                    count = keys->count;
-                    for (i = 0; i < count; ++i){
-                        key = get_single_key(keys, i);
-                        if (char_to_upper(key.character) == char_to_upper(activation_key)){
-                            target->active = b->id;
-                            is_animating = 1;
-                            break;
-						}
-					}
                 }break;
                 
                 case guicom_scrollable_slider:

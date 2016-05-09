@@ -2074,13 +2074,18 @@ int main(int argc, char **argv){
     for (;win32vars.input_chunk.pers.keep_playing;){
         win32vars.got_useful_event = 0;
         for (;win32vars.got_useful_event == 0;){
+            system_release_lock(FRAME_LOCK);
             if (GetMessage(&msg, 0, 0, 0)){
+                system_acquire_lock(FRAME_LOCK);
                 if (msg.message == WM_QUIT){
                     win32vars.input_chunk.pers.keep_playing = 0;
                 }else{
                     TranslateMessage(&msg);
                     DispatchMessage(&msg);
                 }
+            }
+            else{
+                system_acquire_lock(FRAME_LOCK);
             }
         }
         
