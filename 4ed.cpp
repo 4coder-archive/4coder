@@ -422,9 +422,9 @@ COMMAND_DECL(center_view){
 
     h = view_file_height(view);
     y -= h * .5f;
-    if (y < view->file_data.file_scroll.min_y) y = view->file_data.file_scroll.min_y;
+    if (y < view->file_scroll.min_y) y = view->file_scroll.min_y;
 
-    view->file_data.file_scroll.target_y = y;
+    view->file_scroll.target_y = y;
 }
 
 COMMAND_DECL(word_complete){
@@ -1071,7 +1071,7 @@ COMMAND_DECL(toggle_line_wrap){
     if (view->file_data.unwrapped_lines){
         view->file_data.unwrapped_lines = 0;
         file->settings.unwrapped_lines = 0;
-        view->file_data.file_scroll.target_x = 0;
+        view->file_scroll.target_x = 0;
         view->file_data.cursor =view_compute_cursor_from_pos(
             view, view->file_data.cursor.pos);
         view->file_data.preferred_x = view->file_data.cursor.wrapped_x;
@@ -1470,26 +1470,26 @@ COMMAND_DECL(page_down){
     REQ_READABLE_VIEW(view);
 
     f32 height = view_file_height(view);
-    f32 max_target_y = view->file_data.file_scroll.max_y;
+    f32 max_target_y = view->file_scroll.max_y;
 
-    view->file_data.file_scroll.target_y += height;
-    if (view->file_data.file_scroll.target_y > max_target_y) view->file_data.file_scroll.target_y = max_target_y;
+    view->file_scroll.target_y += height;
+    if (view->file_scroll.target_y > max_target_y) view->file_scroll.target_y = max_target_y;
 
     view->file_data.cursor = view_compute_cursor_from_xy(
-        view, 0, view->file_data.file_scroll.target_y + (height - view->font_height)*.5f);
+        view, 0, view->file_scroll.target_y + (height - view->font_height)*.5f);
 }
 
 COMMAND_DECL(page_up){
     REQ_READABLE_VIEW(view);
 
     f32 height = view_file_height(view);
-    f32 min_target_y = view->file_data.file_scroll.min_y;
+    f32 min_target_y = view->file_scroll.min_y;
 
-    view->file_data.file_scroll.target_y -= height;
-    if (view->file_data.file_scroll.target_y < min_target_y) view->file_data.file_scroll.target_y = min_target_y;
+    view->file_scroll.target_y -= height;
+    if (view->file_scroll.target_y < min_target_y) view->file_scroll.target_y = min_target_y;
 
     view->file_data.cursor = view_compute_cursor_from_xy(
-        view, 0, view->file_data.file_scroll.target_y + (height - view->font_height)*.5f);
+        view, 0, view->file_scroll.target_y + (height - view->font_height)*.5f);
 }
 
 COMMAND_DECL(open_color_tweaker){
@@ -1572,7 +1572,7 @@ COMMAND_DECL(set_settings){
 
                         if (!file->state.is_loading){
                             Relative_Scrolling scrolling = view_get_relative_scrolling(view);
-                            view->file_data.file_scroll.target_x = 0;
+                            view->file_scroll.target_x = 0;
                             view->file_data.cursor =
                                 view_compute_cursor_from_pos(view, view->file_data.cursor.pos);
                             view_set_relative_scrolling(view, scrolling);
