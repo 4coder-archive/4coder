@@ -3644,6 +3644,28 @@ view_get_scroll_y(View *view){
 }
 
 internal b32
+scroll_button_input(GUI_Target *target, GUI_Session *session, Input_Summary *user_input,
+    GUI_id id, b32 *is_animating){
+    b32 result = 0;
+    i32 mx = user_input->mouse.x;
+    i32 my = user_input->mouse.y;
+    
+    if (hit_check(mx, my, session->rect)){
+        target->hover = id;
+        if (user_input->mouse.l){
+            target->mouse_hot = id;
+            gui_activate_scrolling(target);
+            *is_animating = 1;
+            result = 1;
+        }
+    }
+    else if (gui_id_eq(target->hover, id)){
+        target->hover = {0};
+    }
+    return(result);
+}
+
+internal b32
 do_input_file_view(System_Functions *system, Exchange *exchange,
     View *view, i32_Rect rect, b32 is_active, Input_Summary *user_input){
     
@@ -3783,33 +3805,6 @@ do_input_file_view(System_Functions *system, Exchange *exchange,
 						}
 					}
                 }break;
-
-                case guicom_scrollable_top:
-                {
-                    GUI_id id = gui_id_scrollbar_top();
-                    i32 mx = user_input->mouse.x;
-                    i32 my = user_input->mouse.y;
-                    
-                    if (hit_check(mx, my, gui_session.rect)){
-                        target->hover = id;
-                        if (user_input->mouse.press_l){
-                            target->mouse_hot = id;
-                            is_animating = 1;
-                        }
-                        if (user_input->mouse.release_l && gui_id_eq(target->mouse_hot, id)){
-                            target->mouse_hot = {0};
-                            target->scroll_updated.target_y -= target->delta;
-                            if (target->scroll_updated.target_y < target->scroll_updated.min_y){
-                                target->scroll_updated.target_y = target->scroll_updated.min_y;
-                            }
-                            gui_activate_scrolling(target);
-                            is_animating = 1;
-                        }
-                    }
-                    else if (gui_id_eq(target->hover, id)){
-                        target->hover = {0};
-                    }
-                }break;
                 
                 case guicom_scrollable_slider:
                 {
@@ -3852,30 +3847,27 @@ do_input_file_view(System_Functions *system, Exchange *exchange,
                     }
                 }break;
                 
+                case guicom_scrollable_top:
+                {
+                    GUI_id id = gui_id_scrollbar_top();
+                    
+                    if (scroll_button_input(target, &gui_session, user_input, id, &is_animating)){
+                        target->scroll_updated.target_y -= target->delta * 0.25f;
+                        if (target->scroll_updated.target_y < target->scroll_updated.min_y){
+                            target->scroll_updated.target_y = target->scroll_updated.min_y;
+                        }
+                    }
+                }break;
+
                 case guicom_scrollable_bottom:
                 {
                     GUI_id id = gui_id_scrollbar_bottom();
-                    i32 mx = user_input->mouse.x;
-                    i32 my = user_input->mouse.y;
                     
-                    if (hit_check(mx, my, gui_session.rect)){
-                        target->hover = id;
-                        if (user_input->mouse.press_l){
-                            target->mouse_hot = id;
-                            is_animating = 1;
+                    if (scroll_button_input(target, &gui_session, user_input, id, &is_animating)){
+                        target->scroll_updated.target_y += target->delta * 0.25f;
+                        if (target->scroll_updated.target_y > target->scroll_updated.max_y){
+                            target->scroll_updated.target_y = target->scroll_updated.max_y;
                         }
-                        if (user_input->mouse.release_l && gui_id_eq(target->mouse_hot, id)){
-                            target->mouse_hot = {0};
-                            target->scroll_updated.target_y += target->delta;
-                            if (target->scroll_updated.target_y > target->scroll_updated.max_y){
-                                target->scroll_updated.target_y = target->scroll_updated.max_y;
-                            }
-                            gui_activate_scrolling(target);
-                            is_animating = 1;
-                        }
-                    }
-                    else if (gui_id_eq(target->hover, id)){
-                        target->hover = {0};
                     }
                 }break;
                 
