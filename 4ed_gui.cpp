@@ -613,6 +613,12 @@ gui_id_scrollbar_bottom(){
     return(id);
 }
 
+internal b32
+gui_scroll_eq(GUI_Scroll_Vars *a, GUI_Scroll_Vars *b){
+    b32 result = (memcmp(a, b, sizeof(*a)) == 0);
+    return(result);
+}
+
 // TODO(allen): Rethink this a little, seems like there are two separate things we want to do here:
 // Getting the updated scroll vars, and telling the user when scrolling actions occur.
 internal b32
@@ -633,6 +639,15 @@ gui_get_scroll_vars(GUI_Target *target, u32 scroll_id, GUI_Scroll_Vars *vars_out
         }
 	}
     return(result);
+}
+
+internal void
+gui_post_scroll_vars(GUI_Target *target, GUI_Scroll_Vars *vars_in){
+    if (!gui_scroll_eq(vars_in, &target->scroll_updated)){
+        target->scroll_updated = *vars_in;
+        target->animating = 1;
+        target->active = gui_id_scrollbar();
+    }
 }
 
 internal void

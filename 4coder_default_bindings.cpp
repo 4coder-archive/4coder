@@ -3,15 +3,13 @@
 
 #include "4coder_default_include.cpp"
 
-unsigned char blink_t = 0;
-
 // NOTE(allen|a3.3): All of your custom ids should be enumerated
 // as shown here, they may start at 0, and you can only have
 // 2^24 of them so don't be wasteful!
 enum My_Maps{
     my_code_map,
-    my_html_map,
     // for testing
+    my_html_map,
     my_empty_map1,
     my_empty_map2,
     my_maps_count

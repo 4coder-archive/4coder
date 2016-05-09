@@ -3492,15 +3492,6 @@ App_Step_Sig(app_step){
 
             if (time_stamp > 0){
                 file->state.last_sys_write_time = time_stamp;
-#if 0
-                File_Sync_State prev_sync = buffer_get_sync(file);
-                file->state.sync = buffer_get_sync(file);
-                if (file->state.last_sys_write_time != file->state.last_4ed_write_time){
-                    if (file->state.sync != prev_sync){
-                        app_result.redraw = 1;
-                    }
-                }
-#endif
             }
         }
     }
@@ -3959,9 +3950,7 @@ App_Step_Sig(app_step){
         for (dll_items(panel, used_panels)){
             view = panel->view;
             if (view->current_scroll){
-                GUI_Scroll_Vars vars = {0};
-                gui_get_scroll_vars(&view->gui_target, view->showing_ui, &vars);
-                view->current_scroll->region = vars.region;
+                gui_get_scroll_vars(&view->gui_target, view->showing_ui, view->current_scroll);
             }
         }
     }
@@ -4485,6 +4474,19 @@ App_Step_Sig(app_step){
                 remeasure_file_view(system, panel->view, panel->inner);
             }
             panel->prev_inner = inner;
+        }
+    }
+    
+    // NOTE(allen): post scroll vars back to the view's gui targets
+    {
+        View *view;
+        Panel *panel, *used_panels;
+        used_panels = &models->layout.used_sentinel;
+        for (dll_items(panel, used_panels)){
+            view = panel->view;
+            if (view->current_scroll){
+                gui_post_scroll_vars(&view->gui_target, view->current_scroll);
+            }
         }
     }
     
