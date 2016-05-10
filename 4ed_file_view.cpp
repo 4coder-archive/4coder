@@ -2131,8 +2131,9 @@ file_compute_whitespace_edit(Mem_Options *mem, Editing_File *file, i32 cursor_po
     i32 inv_str_pos = 0;
     Buffer_Invert_Batch state = {};
     if (buffer_invert_batch(&state, &file->state.buffer, edits, edit_count,
-            inverse_array, inv_str, &inv_str_pos, inv_max))
+            inverse_array, inv_str, &inv_str_pos, inv_max)){
         Assert(0);
+    }
 
     i32 first_child =
         undo_children_push(general, &file->state.undo.children,

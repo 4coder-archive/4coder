@@ -1,4 +1,4 @@
-Distribution Date: 24.03.2016 (dd.mm.yyyy)
+Distribution Date: 10.05.2016 (dd.mm.yyyy)
 
 Thank you for contributing to the 4coder project!
 
@@ -26,6 +26,13 @@ See comments in 4coder_default_bindings.cpp for more detailed information.
 
 Functions to implement (optional in the dll, but required if you are using buildsuper.bat):
 get_bindings
+
+NEW IN 4.0.3:
+================
+The build system for customizations has been changed.  There is no longer a 4coder_custom.cpp.
+Instead the default customizations are in 4coder_default_bindings.cpp.  The batch file takes a parameter
+that tells it what file to treat as the target for building, if the parameter is not defined it defaults to
+4coder_default_bindings.cpp.
 
 NEW IN 4.0.2:
 ================

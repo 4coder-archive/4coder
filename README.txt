@@ -1,4 +1,4 @@
-Distribution Date: 24.03.2016 (dd.mm.yyyy)
+Distribution Date: 10.05.2016 (dd.mm.yyyy)
 
 Thank you for contributing to the 4coder project!
 
@@ -26,6 +26,23 @@ if you start digging and pressing hard enough.
 -----------------------------------------------------
 INSTRUCTIONS FOR USE
 -----------------------------------------------------
+
+****Changes in 4.0.3****
+4coder now uses 0% CPU when you are not using it.
+
+There is a scrollbar on files now.  (It is not the nicest scrollbar to use in the world,
+but the real purpose it serves is to indicate where in a file you are.  I imagine most
+scrolling will still happen with the wheel or cursor navigation.)
+
+File lists are now arrow navigatable and scrollable... these two systems do no work
+together very well yet.
+
+Color adjusting is possible again, but the UI is heavily downgraded from the fancieness
+of the old system.
+
+While editing:
+alt + Z: execute command line with the same output buffer and same command
+   as in the previous use of "alt + z".
 
 ****Changes in 4.0.2****
 The previous file limit of 128 has been raised to something over 8 million.
