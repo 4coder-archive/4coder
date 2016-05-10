@@ -166,6 +166,8 @@ struct Win32_Vars{
     // will involve more coroutines.
     Win32_Coroutine coroutine_data[18];
     Win32_Coroutine *coroutine_free;
+    
+    i32 running_cli;
 };
 
 globalvar Win32_Vars win32vars;
@@ -932,6 +934,8 @@ Sys_CLI_Call_Sig(system_cli_call){
                     *(HANDLE*)&cli_out->proc = info.hProcess;
                     *(HANDLE*)&cli_out->out_read = out_read;
                     *(HANDLE*)&cli_out->out_write = out_write;
+                    
+                    ++win32vars.running_cli;
                 }
                 else{
                     CloseHandle(out_read);
@@ -943,6 +947,11 @@ Sys_CLI_Call_Sig(system_cli_call){
             }
             else{
                 // TODO(allen): failed SetHandleInformation
+                CloseHandle(out_read);
+                CloseHandle(out_write);
+                *(HANDLE*)&cli_out->proc = INVALID_HANDLE_VALUE;
+                *(HANDLE*)&cli_out->out_read = INVALID_HANDLE_VALUE;
+                *(HANDLE*)&cli_out->out_write = INVALID_HANDLE_VALUE;
             }
         }
         else{
@@ -1016,6 +1025,8 @@ Sys_CLI_End_Update_Sig(system_cli_end_update){
         CloseHandle(*(HANDLE*)&cli->proc);
         CloseHandle(*(HANDLE*)&cli->out_read);
         CloseHandle(*(HANDLE*)&cli->out_write);
+        
+        --win32vars.running_cli;
     }
     return close_me;
 }
@@ -1708,17 +1719,22 @@ UpdateLoop(LPVOID param){
 #include <stdio.h>
 #endif
 
-#if 0
+#if 1
 int
 WinMain(HINSTANCE hInstance,
     HINSTANCE hPrevInstance,
     LPSTR lpCmdLine,
     int nCmdShow){
+    
+    int argc = __argc;
+    char **argv = __argv;
+    
 #else
 int main(int argc, char **argv){
-#endif
-
+    
     HINSTANCE hInstance = GetModuleHandle(0);
+#endif
+    
     HANDLE original_out = GetStdHandle(STD_OUTPUT_HANDLE);
 
     win32vars = {};
@@ -1840,70 +1856,70 @@ int main(int argc, char **argv){
             GetProcAddress(win32vars.custom, "get_bindings");
     }
 #endif
-
-    //FreeConsole();
-
+    
+    FreeConsole();
+    
     sysshared_filter_real_files(files, file_count);
-
+    
     LARGE_INTEGER lpf;
     QueryPerformanceFrequency(&lpf);
     win32vars.performance_frequency = lpf.QuadPart;
     QueryPerformanceCounter(&lpf);
     win32vars.start_pcount = lpf.QuadPart;
-
+    
     FILETIME filetime;
     GetSystemTimeAsFileTime(&filetime);
     win32vars.start_time = ((u64)filetime.dwHighDateTime << 32) | (filetime.dwLowDateTime);
     win32vars.start_time /= 10;
-
+    
     keycode_init();
-
+    
     if (win32vars.custom_api.get_bindings == 0){
         win32vars.custom_api.get_bindings = (Get_Binding_Data_Function*)get_bindings;
     }
-
+    
     Thread_Context background[4];
     memset(background, 0, sizeof(background));
     win32vars.groups[BACKGROUND_THREADS].threads = background;
     win32vars.groups[BACKGROUND_THREADS].count = ArrayCount(background);
-
+    
     Thread_Memory thread_memory[ArrayCount(background)];
     win32vars.thread_memory = thread_memory;
-
+    
     exchange_vars.thread.queues[BACKGROUND_THREADS].semaphore =
         Win32GenHandle(
         CreateSemaphore(0, 0, win32vars.groups[BACKGROUND_THREADS].count, 0)
     );
-
+    
     u32 creation_flag = 0;
     for (i32 i = 0; i < win32vars.groups[BACKGROUND_THREADS].count; ++i){
         Thread_Context *thread = win32vars.groups[BACKGROUND_THREADS].threads + i;
         thread->id = i + 1;
-
+        
         Thread_Memory *memory = win32vars.thread_memory + i;
         *memory = {};
         memory->id = thread->id;
-
+        
         thread->queue = &exchange_vars.thread.queues[BACKGROUND_THREADS];
         thread->handle = CreateThread(0, 0, JobThreadProc, thread, creation_flag, (LPDWORD)&thread->windows_id);
     }
-
+    
     Assert(win32vars.locks);
     for (i32 i = 0; i < LOCK_COUNT; ++i){
         win32vars.locks[i] = CreateSemaphore(0, 1, 1, 0);
     }
     win32vars.DEBUG_sysmem_lock = CreateSemaphore(0, 1, 1, 0);
-
+    
     Win32LoadRenderCode();
     win32vars.target.max = Mbytes(1);
     win32vars.target.push_buffer = (byte*)system_get_memory(win32vars.target.max);
-
+    
     win32vars.cursor_ibeam = LoadCursor(NULL, IDC_IBEAM);
     win32vars.cursor_arrow = LoadCursor(NULL, IDC_ARROW);
     win32vars.cursor_leftright = LoadCursor(NULL, IDC_SIZEWE);
     win32vars.cursor_updown = LoadCursor(NULL, IDC_SIZENS);
     win32vars.prev_mouse_cursor = APP_MOUSE_CURSOR_ARROW;
-
+    
     WNDCLASS window_class = {};
     window_class.style = CS_HREDRAW|CS_VREDRAW|CS_OWNDC;
     window_class.lpfnWndProc = Win32Callback;
@@ -2052,7 +2068,7 @@ int main(int argc, char **argv){
     win32vars.input_chunk.pers.keep_playing = 1;
     win32vars.first = 1;
     timeBeginPeriod(1);
-
+    
 #if 0
     win32vars.update_loop_thread =
         CreateThread(0,
@@ -2062,30 +2078,37 @@ int main(int argc, char **argv){
         CREATE_SUSPENDED,
         &win32vars.update_loop_thread_id);
 #endif
-
+    
     system_acquire_lock(FRAME_LOCK);
-
+    
     SetForegroundWindow(window_handle);
     SetActiveWindow(window_handle);
-
+    
+#if 0
     ResumeThread(win32vars.update_loop_thread);
-
+#endif
+    
     MSG msg;
     for (;win32vars.input_chunk.pers.keep_playing;){
-        win32vars.got_useful_event = 0;
-        for (;win32vars.got_useful_event == 0;){
-            system_release_lock(FRAME_LOCK);
-            if (GetMessage(&msg, 0, 0, 0)){
-                system_acquire_lock(FRAME_LOCK);
-                if (msg.message == WM_QUIT){
-                    win32vars.input_chunk.pers.keep_playing = 0;
-                }else{
-                    TranslateMessage(&msg);
-                    DispatchMessage(&msg);
+        // TODO(allen): Find a good way to wait on a pipe
+        // without interfering with the reading process
+        
+        if (win32vars.running_cli == 0){
+            win32vars.got_useful_event = 0;
+            for (;win32vars.got_useful_event == 0;){
+                system_release_lock(FRAME_LOCK);
+                if (GetMessage(&msg, 0, 0, 0)){
+                    system_acquire_lock(FRAME_LOCK);
+                    if (msg.message == WM_QUIT){
+                        win32vars.input_chunk.pers.keep_playing = 0;
+                    }else{
+                        TranslateMessage(&msg);
+                        DispatchMessage(&msg);
+                    }
                 }
-            }
-            else{
-                system_acquire_lock(FRAME_LOCK);
+                else{
+                    system_acquire_lock(FRAME_LOCK);
+                }
             }
         }
         

@@ -67,7 +67,7 @@ HOOK_SIG(my_file_settings){
     }
 
     push_parameter(app, par_lex_as_cpp_file, treat_as_code);
-    push_parameter(app, par_wrap_lines, !treat_as_code);
+    push_parameter(app, par_wrap_lines, wrap_lines);
     push_parameter(app, par_key_mapid, (treat_as_code)?((int)my_code_map):((int)mapid_file));
     exec_command(app, cmdid_set_settings);
 
@@ -293,6 +293,7 @@ int get_bindings(void *data, int size){
     bind(context, 'm', MDFR_ALT, build_search);
     bind(context, 'x', MDFR_ALT, execute_arbitrary_command);
     bind(context, 'z', MDFR_ALT, execute_any_cli);
+    bind(context, 'Z', MDFR_ALT, execute_previous_cli);
 
     // NOTE(allen): These callbacks may not actually be useful to you, but
     // go look at them and see what they do.

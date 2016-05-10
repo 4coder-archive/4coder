@@ -513,20 +513,21 @@ CUSTOM_COMMAND_SIG(open_all_code){
     app->free_file_list(app, list);
 }
 
+char out_buffer_space[1024], command_space[1024], hot_directory_space[1024];
+
 CUSTOM_COMMAND_SIG(execute_any_cli){
     Query_Bar bar_out, bar_cmd;
     String hot_directory;
-    char space[1024], more_space[1024], even_more_space[1024];
 
     bar_out.prompt = make_lit_string("Output Buffer: ");
-    bar_out.string = make_fixed_width_string(space);
+    bar_out.string = make_fixed_width_string(out_buffer_space);
     if (!query_user_string(app, &bar_out)) return;
 
     bar_cmd.prompt = make_lit_string("Command: ");
-    bar_cmd.string = make_fixed_width_string(more_space);
+    bar_cmd.string = make_fixed_width_string(command_space);
     if (!query_user_string(app, &bar_cmd)) return;
 
-    hot_directory = make_fixed_width_string(even_more_space);
+    hot_directory = make_fixed_width_string(hot_directory_space);
     hot_directory.size = app->directory_get_hot(app, hot_directory.str, hot_directory.memory_size);
 
     push_parameter(app, par_flags, CLI_OverlapWithConflict);
@@ -534,6 +535,26 @@ CUSTOM_COMMAND_SIG(execute_any_cli){
     push_parameter(app, par_cli_path, hot_directory.str, hot_directory.size);
     push_parameter(app, par_cli_command, bar_cmd.string.str, bar_cmd.string.size);
     exec_command(app, cmdid_command_line);
+    
+    terminate_with_null(&bar_out.string);
+    terminate_with_null(&bar_cmd.string);
+    terminate_with_null(&hot_directory);
+}
+
+CUSTOM_COMMAND_SIG(execute_previous_cli){
+    String out_buffer, cmd, hot_directory;
+    
+    out_buffer = make_string_slowly(out_buffer_space);
+    cmd = make_string_slowly(command_space);
+    hot_directory = make_string_slowly(hot_directory_space);
+    
+    if (out_buffer.size > 0 && cmd.size > 0 && hot_directory.size > 0){
+        push_parameter(app, par_flags, CLI_OverlapWithConflict);
+        push_parameter(app, par_name, out_buffer.str, out_buffer.size);
+        push_parameter(app, par_cli_path, hot_directory.str, hot_directory.size);
+        push_parameter(app, par_cli_command, cmd.str, cmd.size);
+        exec_command(app, cmdid_command_line);
+    }
 }
 
 CUSTOM_COMMAND_SIG(execute_arbitrary_command){

@@ -1166,7 +1166,7 @@ gui_standard_list(GUI_Target *target, GUI_id id,
             ++*list_i;
             break;
             
-            case '\n':
+            case '\n': case '\t':
             indirectly_activate = 1;
             break;
         }

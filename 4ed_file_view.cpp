@@ -4783,7 +4783,7 @@ search_hit_add(General_Memory *general, Table *hits, String_Space *space, char *
         *hits = new_hits;
     }
 
-    if (table_add(hits, &ostring, space->space, tbl_offset_string_hash, tbl_offset_string_compare)){
+    if (!table_add(hits, &ostring, space->space, tbl_offset_string_hash, tbl_offset_string_compare)){
         result = 1;
         strspace_keep_prev(space);
     }
