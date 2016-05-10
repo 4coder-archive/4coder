@@ -25,7 +25,7 @@ copy README.txt ..\current_dist_super\4coder\*
 copy TODO.txt ..\current_dist_super\4coder\*
 copy SUPERREADME.txt ..\current_dist_super\4coder\*
 copy ..\current_dist\4coder\3rdparty\* ..\current_dist_super\4coder\3rdparty\*
-del ..\current_dist_super\4coder\*.pdb
+REM del ..\current_dist_super\4coder\*.pdb
 del ..\current_dist_super\4coder\*.lib
 del ..\current_dist_super\4coder\*.obj
 del ..\current_dist_super\4coder\4coder_custom.dll
