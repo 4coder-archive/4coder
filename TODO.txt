@@ -67,10 +67,10 @@
 ; [X] chronal's map setting issue
 ; [X] linux save jankieness
 ; [] indication on failure to save
+; [X] bouncing when scrolling down
 ; [] clean whitespace doesn't appear to be cleaning trailing whitespace anymore???
 ; [] sometimes the main cursor is not the same width as the mark cursor in the same spot
 ; [] tab character wrong width
-; [] bouncing when scrolling down
 ; [] miblo's off screen cursor thing
 ;
 ;
@@ -115,7 +115,7 @@
 ; GUI related tech
 ;    [X] consolidate all GUI code properly
 ;    [X] rewrite GUI
-;    [] arrow navigation of GUIs
+;    [X] arrow navigation of GUIs
 ;    [] GUI API
 ;    [] text links -> arbitrary commands / callbacks?
 ;
@@ -140,7 +140,7 @@
 ;    [] macros
 ;
 ; code engine
-;    [] lexer with multiple chunk input
+;    [X] lexer with multiple chunk input
 ;    [] switch over to gap buffer
 ;    [] more correct auto-indentation
 ;    [] preprocessor
@@ -167,6 +167,7 @@
 ; [] the "main_4coder" experiment
 ;
 ; [] tutorials
+; [] 4edT thing
 ;
 
 ; INTERNAL TODOS
@@ -189,14 +190,14 @@
 ;
 
 ; HARD BUGS
+; [X] reduce cpu consumption
+; [?] minimize and reopen problem (reported by two users now, still not reproduced here)
+; [X] repainting too slow for resize looks really dumb
 ; [] fyoucon's segfaults with malloc on win10
-; [] minimize and reopen problem (reported by two users now, still not reproduced here)
-; [] repainting too slow for resize looks really dumb
 ; [] handling cursor in non-client part of window so it doesn't spaz
 ; [] fill screen right away
 ; [] how to get fast repaint (do I really need double buffering?)
 ; [] history breaks when heavily used (disk swaping?)
-; [] reduce cpu consumption
 ;
 
 ; PORTING TODOS
