@@ -193,21 +193,23 @@ internal void*
 Win32GetMemory_(i32 size, i32 line_number, char *file_name){
 	void *ptr = 0;
     
+    if (size > 0){
 #if FRED_INTERNAL
-    ptr = VirtualAlloc(0, size + sizeof(Sys_Bubble), MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
+        ptr = VirtualAlloc(0, size + sizeof(Sys_Bubble), MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
 
-    Sys_Bubble *bubble = (Sys_Bubble*)ptr;
-    bubble->flags = MEM_BUBBLE_SYS_DEBUG;
-    bubble->line_number = line_number;
-    bubble->file_name = file_name;
-    bubble->size = size;
-    WaitForSingleObject(win32vars.DEBUG_sysmem_lock, INFINITE);
-    insert_bubble(&win32vars.internal_bubble, bubble);
-    ReleaseSemaphore(win32vars.DEBUG_sysmem_lock, 1, 0);
-    ptr = bubble + 1;
+        Sys_Bubble *bubble = (Sys_Bubble*)ptr;
+        bubble->flags = MEM_BUBBLE_SYS_DEBUG;
+        bubble->line_number = line_number;
+        bubble->file_name = file_name;
+        bubble->size = size;
+        WaitForSingleObject(win32vars.DEBUG_sysmem_lock, INFINITE);
+        insert_bubble(&win32vars.internal_bubble, bubble);
+        ReleaseSemaphore(win32vars.DEBUG_sysmem_lock, 1, 0);
+        ptr = bubble + 1;
 #else
-    ptr = VirtualAlloc(0, size, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
+        ptr = VirtualAlloc(0, size, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
 #endif
+    }
     
 	return ptr;
 }
@@ -265,9 +267,9 @@ system_free_memory(void *block){
     Win32FreeMemory(block);
 }
 
-internal Data
+internal File_Data
 system_load_file(char *filename){
-    Data result = {};
+    File_Data result = {0};
     HANDLE file;
     
     String fname_str = make_string_slowly(filename);
@@ -293,23 +295,31 @@ system_load_file(char *filename){
         return result;
     }
     
-    result.size = (lo) + (((u64)hi) << 32);
-    result.data = (byte*)Win32GetMemory(result.size);
+    result.data.size = (lo) + (((u64)hi) << 32);
     
-    if (!result.data){
-        CloseHandle(file);
-        result = {};
-        return result;
+    if (result.data.size > 0){
+        result.data.data = (byte*)Win32GetMemory(result.data.size);
+
+        if (!result.data.data){
+            CloseHandle(file);
+            result = {0};
+            return result;
+        }
+
+        DWORD read_size;
+        BOOL read_result = ReadFile(file,
+            result.data.data, result.data.size,
+            &read_size, 0);
+        result.got_file = 1;
+        if (!read_result || read_size != (u32)result.data.size){
+            CloseHandle(file);
+            Win32FreeMemory(result.data.data);
+            result = {0};
+            return result;
+        }
     }
-    
-    DWORD read_size;
-    BOOL read_result = ReadFile(file, result.data, result.size,
-                                &read_size, 0);
-    if (!read_result || read_size != (u32)result.size){
-        CloseHandle(file);
-        Win32FreeMemory(result.data);
-        result = {};
-        return result;
+    else{
+        result.got_file = 1;
     }
     
     CloseHandle(file);
@@ -1654,15 +1664,14 @@ UpdateStep(){
             if (file->flags & FEx_Request){
                 Assert((file->flags & FEx_Save) == 0);
                 file->flags &= (~FEx_Request);
-                Data sysfile =
-                    system_load_file(file->filename);
-                if (sysfile.data == 0){
+                File_Data sysfile = system_load_file(file->filename);
+                if (!sysfile.got_file){
                     file->flags |= FEx_Not_Exist;
                 }
                 else{
                     file->flags |= FEx_Ready;
-                    file->data = sysfile.data;
-                    file->size = sysfile.size;
+                    file->data = sysfile.data.data;
+                    file->size = sysfile.data.size;
                 }
                 PostMessage(win32vars.window_handle, WM_4coder_EVENT_COMPLETE, 0, 0);
             }

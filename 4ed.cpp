@@ -4156,22 +4156,22 @@ App_Step_Sig(app_step){
             b32 failed = 0;
             binding = vars->sys_app_bindings + i;
             
-            byte *data;
-            i32 size, max;
             Editing_File *ed_file;
             Editing_File_Preload preload_settings;
             char *filename;
             
             Working_Set *working_set = &models->working_set;
+            File_Ready_Result file_result =
+                exchange_file_ready(exchange, binding->sys_id);
             
-            if (exchange_file_ready(exchange, binding->sys_id, &data, &size, &max)){
+            if (file_result.ready){
                 ed_file = working_set_get_active_file(working_set, binding->app_id);
                 Assert(ed_file);
                 
                 filename = exchange_file_filename(exchange, binding->sys_id);
                 preload_settings = ed_file->preload;
-                if (data){
-                    String val = make_string((char*)data, size);
+                if (file_result.exists){
+                    String val = make_string((char*)file_result.data, file_result.size);
                     file_create_from_string(system, models, ed_file, filename, val);
                     
                     if (ed_file->settings.tokens_exist){
@@ -4206,6 +4206,10 @@ App_Step_Sig(app_step){
                 remove = 1;
             }
 
+            // TODO(allen): Switch to multiple return struct.
+            byte *data;
+            i32 size, max;
+            
             if (exchange_file_save_complete(exchange, binding->sys_id, &data, &size, &max, &failed)){
                 Assert(remove == 0);
 

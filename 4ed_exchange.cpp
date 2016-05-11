@@ -92,28 +92,39 @@ exchange_request_file(Exchange *exchange, char *filename, int len){
     return result;
 }
 
-internal b32
-exchange_file_ready(Exchange *exchange, i32 file_id, byte **data, int *size, int *max){
-    File_Exchange *files = &exchange->file;
-    b32 result = 0;
+struct File_Ready_Result{
+    byte *data;
+    i32 size;
+    i32 max;
+    b32 exists;
+    b32 ready;
+};
 
+internal File_Ready_Result
+exchange_file_ready(Exchange *exchange, i32 file_id){
+    File_Ready_Result result = {0};
+    File_Exchange *files = &exchange->file;
+    File_Slot *file = 0;
+    
     if (file_id > 0 && file_id <= files->max){
-        File_Slot *file = files->files + file_id - 1;
+        file = files->files + file_id - 1;
         if (file->flags & FEx_Ready){
-            *data = file->data;
-            *size = file->size;
-            *max = file->max;
-            result = 1;
+            result.data = file->data;
+            result.size = file->size;
+            result.max = file->max;
+            result.exists = 1;
+            result.ready = 1;
         }
         if (file->flags & FEx_Not_Exist){
-            *data = 0;
-            *size = 0;
-            *max = 0;
-            result = 1;
+            result.data = 0;
+            result.size = 0;
+            result.max = 0;
+            result.exists = 0;
+            result.ready = 1;
         }
     }
     
-    return result;
+    return(result);
 }
 
 internal b32

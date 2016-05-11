@@ -32,10 +32,15 @@ struct Font_Load_System{
     i32 max;
 };
 
+struct File_Data{
+    Data data;
+    b32 got_file;
+};
+
 #define Sys_Get_Memory_Sig(name) void* name(i32 size, i32 line_number, char *file_name)
 #define Sys_Free_Memory_Sig(name) void name(void *block)
 #define Sys_File_Can_Be_Made(name) b32 name(char *filename)
-#define Sys_Load_File_Sig(name) Data name(char *filename)
+#define Sys_Load_File_Sig(name) File_Data name(char *filename)
 #define Sys_Save_File_Sig(name) b32 name(char *filename, char *data, i32 size)
 #define Sys_To_Binary_Path(name) b32 name(String *out_filename, char *filename)
 

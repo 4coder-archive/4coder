@@ -304,7 +304,7 @@ draw_font_info_load(Partition *partition,
     if (!translate_success) return 0;
     
     i32 result = 1;
-    Data file;
+    File_Data file;
     file = system_load_file(filename.str);
     
     Temp_Memory temp = begin_temp_memory(partition);
@@ -317,12 +317,12 @@ draw_font_info_load(Partition *partition,
     tex_height = pt_size*2*oversample;
     void *block = push_block(partition, tex_width * tex_height);
     
-    if (!file.data){
+    if (!file.data.data){
         result = 0;
     }
     else{
         stbtt_fontinfo font;
-        if (!stbtt_InitFont(&font, (u8*)file.data, 0)){
+        if (!stbtt_InitFont(&font, (u8*)file.data.data, 0)){
             result = 0;
         }
         else{
@@ -343,7 +343,7 @@ draw_font_info_load(Partition *partition,
             stbtt_pack_context spc;
             if (stbtt_PackBegin(&spc, (u8*)block, tex_width, tex_height, tex_width, 1, partition)){
                 stbtt_PackSetOversampling(&spc, oversample, oversample);
-                if (stbtt_PackFontRange(&spc, (u8*)file.data, 0,
+                if (stbtt_PackFontRange(&spc, (u8*)file.data.data, 0,
                                         STBTT_POINT_SIZE((f32)pt_size), 0, 128, chardata)){
                     // do nothing
                 }
@@ -373,7 +373,7 @@ draw_font_info_load(Partition *partition,
             }
         }
         
-        system_free_memory(file.data);
+        system_free_memory(file.data.data);
     }
     
     end_temp_memory(temp);
@@ -395,7 +395,7 @@ draw_font_load(void *base_block, i32 size,
     if (!translate_success) return 0;
 
     i32 result = 1;
-    Data file;
+    File_Data file;
     file = system_load_file(filename.str);
 
     Partition partition_ = partition_open(base_block, size);
@@ -409,13 +409,13 @@ draw_font_load(void *base_block, i32 size,
     tex_height = pt_size*2*oversample;
     void *block = push_block(partition, tex_width * tex_height);
 
-    if (!file.data){
+    if (!file.data.data){
         result = 0;
     }
 
     else{
         stbtt_fontinfo font;
-        if (!stbtt_InitFont(&font, (u8*)file.data, 0)){
+        if (!stbtt_InitFont(&font, (u8*)file.data.data, 0)){
             result = 0;
         }
         else{
@@ -443,7 +443,7 @@ draw_font_load(void *base_block, i32 size,
 
             if (stbtt_PackBegin(&spc, (u8*)block, tex_width, tex_height, tex_width, 1, partition)){
                 stbtt_PackSetOversampling(&spc, oversample, oversample);
-                if (stbtt_PackFontRange(&spc, (u8*)file.data, 0,
+                if (stbtt_PackFontRange(&spc, (u8*)file.data.data, 0,
                         STBTT_POINT_SIZE((f32)pt_size), 0, 128, chardata)){
                     // do nothing
                 }
@@ -492,7 +492,7 @@ draw_font_load(void *base_block, i32 size,
             }
 
         }
-        system_free_memory(file.data);
+        system_free_memory(file.data.data);
     }
 
     return result;
