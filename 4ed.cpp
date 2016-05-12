@@ -1820,7 +1820,7 @@ globalvar Command_Function command_table[cmdid_count];
 
 internal void
 fill_buffer_summary(Buffer_Summary *buffer, Editing_File *file, Working_Set *working_set){
-    *buffer = {};
+    *buffer = buffer_summary_zero();
     if (!file->state.is_dummy){
         buffer->exists = 1;
         buffer->ready = file_is_ready(file);
@@ -1843,7 +1843,7 @@ internal void
 fill_view_summary(View_Summary *view, View *vptr, Live_Views *live_set, Working_Set *working_set){
     i32 lock_level;
     int buffer_id;
-    *view = {};
+    *view = view_summary_zero();
 
     if (vptr->in_use){
         view->exists = 1;
@@ -1969,7 +1969,7 @@ extern "C"{
             fill_buffer_summary(buffer, file, working_set);
         }
         else{
-            *buffer = {};
+            *buffer = buffer_summary_zero();
         }
     }
 
@@ -2259,11 +2259,11 @@ extern "C"{
                 fill_view_summary(view, panel->view, &cmd->vars->live_set, &cmd->models->working_set);
             }
             else{
-                *view = {};
+                *view = view_summary_zero();
             }
         }
         else{
-            *view = {};
+            *view = view_summary_zero();
         }
     }
 
@@ -2529,7 +2529,7 @@ command_caller(Coroutine *coroutine){
 
     // TODO(allen): this isn't really super awesome, could have issues if
     // the file view get's change out under us.
-    view->next_mode = {};
+    view->next_mode = view_mode_zero();
     cmd_in->bind.function(cmd->system, cmd, cmd_in->bind);
     view->mode = view->next_mode;
 }
@@ -3032,12 +3032,18 @@ init_command_line_settings(App_Settings *settings, Plat_Settings *plat_settings,
     }
 }
 
+inline App_Vars
+app_vars_zero(){
+    App_Vars vars={0};
+    return(vars);
+}
+
 internal App_Vars*
 app_setup_memory(Application_Memory *memory){
     Partition _partition = partition_open(memory->vars_memory, memory->vars_memory_size);
     App_Vars *vars = push_struct(&_partition, App_Vars);
     Assert(vars);
-    *vars = {};
+    *vars = app_vars_zero();
     vars->models.mem.part = _partition;
 
     general_memory_open(&vars->models.mem.general, memory->target_memory, memory->target_memory_size);
@@ -3061,6 +3067,12 @@ execute_special_tool(void *memory, i32 size, Command_Line_Parameters clparams){
     return(result);
 }
 
+inline App_Settings
+app_settings_zero(){
+    App_Settings settings={0};
+    return(settings);
+}
+
 App_Read_Command_Line_Sig(app_read_command_line){
     App_Vars *vars;
     App_Settings *settings;
@@ -3073,7 +3085,7 @@ App_Read_Command_Line_Sig(app_read_command_line){
         vars = app_setup_memory(memory);
 
         settings = &vars->models.settings;
-        *settings = {};
+        *settings = app_settings_zero();
         settings->font_size = 16;
         
         if (clparams.argc > 1){
@@ -3637,12 +3649,12 @@ App_Step_Sig(app_step){
 
     cmd->screen_width = target->width;
     cmd->screen_height = target->height;
-
-    cmd->key = {};
-
+    
+    cmd->key = key_event_data_zero();
+    
     Temp_Memory param_stack_temp = begin_temp_memory(&models->mem.part);
     cmd->part = partition_sub_part(&models->mem.part, 16 << 10);
-
+    
     if (first_step){
         General_Memory *general = &models->mem.general;
         Editing_File *file = working_set_alloc_always(&models->working_set, general);
@@ -4456,7 +4468,7 @@ App_Step_Sig(app_step){
                 general_memory_free(general, string.str);
             }
         }
-        Swap(models->delay1, models->delay2);
+        Swap(Delay, models->delay1, models->delay2);
     }
 
     end_temp_memory(param_stack_temp);

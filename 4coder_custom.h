@@ -39,6 +39,11 @@ typedef struct Key_Event_Data{
     
 	char modifiers[MDFR_INDEX_COUNT];
 } Key_Event_Data;
+inline Key_Event_Data
+key_event_data_zero(){
+    Key_Event_Data data={0};
+    return(data);
+}
 
 typedef struct Mouse_State{
 	char l, r;
@@ -279,6 +284,11 @@ struct Buffer_Summary{
     int is_lexed;
     int map_id;
 };
+inline Buffer_Summary
+buffer_summary_zero(){
+    Buffer_Summary summary={0};
+    return(summary);
+}
 
 struct View_Summary{
     int exists;
@@ -293,6 +303,11 @@ struct View_Summary{
     int line_height;
     int unwrapped_lines;
 };
+inline View_Summary
+view_summary_zero(){
+    View_Summary summary={0};
+    return(summary);
+}
 
 #define UserInputKey 0
 #define UserInputMouse 1

@@ -80,15 +80,15 @@ sysshared_init_file_exchange(
     i32 i;
     
     exchange->file.max = max;
-    exchange->file.available = {};
+    exchange->file.available = file_slot_zero();
     exchange->file.available.next = &exchange->file.available;
     exchange->file.available.prev = &exchange->file.available;
     
-    exchange->file.active = {};
+    exchange->file.active = file_slot_zero();
     exchange->file.active.next = &exchange->file.active;
     exchange->file.active.prev = &exchange->file.active;
     
-    exchange->file.free_list = {};
+    exchange->file.free_list = file_slot_zero();
     exchange->file.free_list.next = &exchange->file.free_list;
     exchange->file.free_list.prev = &exchange->file.free_list;
 

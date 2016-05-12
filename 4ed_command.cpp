@@ -110,13 +110,19 @@ map_drop(Command_Map *map, u16 event_code, u8 modifiers){
     return result;
 }
 
+inline Command_Binding
+command_binding_zero(){
+    Command_Binding binding = {0};
+    return(binding);
+}
+
 internal void
 map_init(Command_Map *commands, Partition *part, i32 max, Command_Map *parent){
     max = ((max < 6)?(6):(max));
     commands->parent = parent;
     commands->commands = push_array(part, Command_Binding, max);
     memset(commands->commands, 0, max*sizeof(*commands->commands));
-    commands->vanilla_keyboard_default = {};
+    commands->vanilla_keyboard_default = command_binding_zero();
     commands->max = max;
     commands->count = 0;
 }

@@ -263,6 +263,12 @@ working_set_extend_memory(Working_Set *working_set, Editing_File *new_space, i16
     }
 }
 
+inline Editing_File
+editing_file_zero(){
+    Editing_File file = {0};
+    return(file);
+}
+
 internal Editing_File*
 working_set_alloc(Working_Set *working_set){
     Editing_File *result = 0;
@@ -278,7 +284,7 @@ working_set_alloc(Working_Set *working_set){
         // NOTE(allen): What I really want to do here is clear everything
         // except id, but writing that out will be a pain to maintain.
         id = result->id;
-        *result = {};
+        *result = editing_file_zero();
         result->id = id;
         dll_insert(&working_set->used_sentinel, node);
         ++working_set->file_count;
@@ -504,11 +510,11 @@ hot_directory_quick_partition(File_Info *infos, i32 start, i32 pivot){
         comp = p->folder - a->folder;
         if (comp == 0) comp = compare(a->filename, p->filename);
         if (comp < 0){
-            Swap(*a, infos[start]);
+            Swap(File_Info, *a, infos[start]);
             ++start;
         }
     }
-    Swap(*p, infos[start]);
+    Swap(File_Info, *p, infos[start]);
     return start;
 }
 
@@ -639,10 +645,22 @@ file_is_ready(Editing_File *file){
     return(result);
 }
 
+inline Editing_File_State
+editing_file_state_zero(){
+    Editing_File_State state={0};
+    return(state);
+}
+
+inline Editing_File_Settings
+editing_file_settings_zero(){
+    Editing_File_Settings settings={0};
+    return(settings);
+}
+
 inline void
 file_set_to_loading(Editing_File *file){
-    file->state = {};
-    file->settings = {};
+    file->state = editing_file_state_zero();
+    file->settings = editing_file_settings_zero();
     file->state.is_loading = 1;
 }
 

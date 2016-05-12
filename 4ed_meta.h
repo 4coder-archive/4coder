@@ -99,7 +99,7 @@ _OutDbgStr(u8*);
 #define OffsetOfStruct(S,c) ((i64)(& ((S*)0)->c ))
 #define OffsetOfPtr(s,c) ((i64)((char*)(&(s)->c) - (char*)(s)))
 
-#define Swap(a,b) {auto t = a; a = b; b = t;}
+#define Swap(T,a,b) do{ T t = a; a = b; b = t; } while(0)
 
 #ifndef literal
 #define literal(s) s, (sizeof(s)-1)

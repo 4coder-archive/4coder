@@ -29,6 +29,11 @@ enum Interactive_Interaction{
 struct View_Mode{
     i32 rewrite;
 };
+inline View_Mode
+view_mode_zero(){
+    View_Mode mode={0};
+    return(mode);
+}
 
 enum View_Widget_Type{
     FWIDG_NONE,
@@ -79,6 +84,11 @@ struct File_Viewing_Data{
     i32 line_count, line_max;
     f32 *line_wrap_y;
 };
+inline File_Viewing_Data
+file_viewing_data_zero(){
+    File_Viewing_Data data={0};
+    return(data);
+}
 
 struct View{
     View *next, *prev;
@@ -515,7 +525,7 @@ file_create_from_string(System_Functions *system, Models *models,
     Buffer_Init_Type init;
     i32 page_size, scratch_size, init_success;
 
-    file->state = {};
+    file->state = editing_file_state_zero();
 
     init = buffer_begin_init(&file->state.buffer, val.str, val.size);
     for (; buffer_init_need_more(&init); ){
@@ -581,16 +591,14 @@ file_create_from_string(System_Functions *system, Models *models,
 internal b32
 file_create_empty(System_Functions *system,
     Models *models, Editing_File *file, char *filename){
-
-    file_create_from_string(system, models, file, filename, {});
+    file_create_from_string(system, models, file, filename, string_zero());
     return (1);
 }
 
 internal b32
 file_create_read_only(System_Functions *system,
     Models *models, Editing_File *file, char *filename){
-
-    file_create_from_string(system, models, file, filename, {}, 1);
+    file_create_from_string(system, models, file, filename, string_zero(), 1);
     return (1);
 }
 
@@ -707,7 +715,7 @@ file_kill_tokens(System_Functions *system,
         general_memory_free(general, file->state.token_stack.tokens);
     }
     file->state.tokens_complete = 0;
-    file->state.token_stack = {};
+    file->state.token_stack = cpp_token_stack_zero();
 }
 
 #if BUFFER_EXPERIMENT_SCALPEL <= 0
@@ -1270,7 +1278,7 @@ view_set_file(
 
     // NOTE(allen): Stuff that doesn't assume file exists.
     // TODO(allen): Use a proper file changer here.
-    view->file_data = {0};
+    view->file_data = file_viewing_data_zero();;
     view->file_data.file = file;
 
     // NOTE(allen): Stuff that does assume file exists.
@@ -1812,6 +1820,7 @@ file_replace_range(System_Functions *system, Models *models, Editing_File *file,
     spec.step.type = ED_NORMAL;
     spec.step.edit.start =  start;
     spec.step.edit.end = end;
+
     spec.step.edit.len = len;
     spec.step.pre_pos = file->state.cursor_pos;
     spec.step.post_pos = next_cursor;
@@ -2580,7 +2589,7 @@ file_view_nullify_file(View *view){
     if (view->file_data.line_wrap_y){
         general_memory_free(general, view->file_data.line_wrap_y);
     }
-    view->file_data = {0};
+    view->file_data = file_viewing_data_zero();
 }
 
 internal void
@@ -2861,7 +2870,7 @@ file_step(View *view, i32_Rect region, Input_Summary *user_input, b32 is_active)
                 view_set_widget(view, FWIDG_NONE);
                 if (rx >= 0 && rx < max_x && ry >= 0 && ry < max_visible_y){
                     view_cursor_move(view, rx + scroll_vars.scroll_x, ry + scroll_vars.scroll_y, 1);
-                    view->mode = {};
+                    view->mode = view_mode_zero();
                 }
             }
         }
@@ -2938,7 +2947,7 @@ get_exhaustive_info(System_Functions *system, Working_Set *working_set, Exhausti
     result.name_match = (filename_match(loop->front_name, &loop->absolutes, result.info->filename, 0) != 0);
     result.is_loaded = (file != 0 && file_is_ready(file));
     
-    result.message = {0};
+    result.message = string_zero();
     if (result.is_loaded){
         switch (buffer_get_sync(file)){
             case SYNC_GOOD: result.message = message_loaded; break;
@@ -3577,7 +3586,7 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                                 file = (Editing_File*)node;
                                 Assert(!file->state.is_dummy);
 
-                                message = {0};
+                                message = string_zero();
                                 switch (buffer_get_sync(file)){
                                     case SYNC_BEHIND_OS: message = message_unsynced; break;
                                     case SYNC_UNSAVED: message = message_unsaved; break;
@@ -3688,12 +3697,12 @@ click_button_input(GUI_Target *target, GUI_Session *session, Input_Summary *user
         }
         if (user_input->mouse.release_l && gui_id_eq(target->mouse_hot, b->id)){
             target->active = b->id;
-            target->mouse_hot = {0};
+            target->mouse_hot = gui_id_zero();
             *is_animating = 1;
         }
     }
     else if (gui_id_eq(target->hover, b->id)){
-        target->hover = {0};
+        target->hover = gui_id_zero();
     }
 }
 
@@ -3714,7 +3723,7 @@ scroll_button_input(GUI_Target *target, GUI_Session *session, Input_Summary *use
         }
     }
     else if (gui_id_eq(target->hover, id)){
-        target->hover = {0};
+        target->hover = gui_id_zero();
     }
     return(result);
 }
@@ -3733,7 +3742,7 @@ do_input_file_view(System_Functions *system, Exchange *exchange,
     
     gui_session_init(&gui_session, rect, view->font_height);
     
-    target->active = {0};
+    target->active = gui_id_zero();
     
     for (h = (GUI_Header*)target->push.base;
         h->type;
@@ -3751,7 +3760,7 @@ do_input_file_view(System_Functions *system, Exchange *exchange,
                 GUI_Interactive *b = (GUI_Interactive*)h;
                 
                 if (interpret_result.auto_activate){
-                    target->auto_hot = {0};
+                    target->auto_hot = gui_id_zero();
                     target->active = b->id;
                     is_animating = 1;
                 }
@@ -3844,7 +3853,7 @@ do_input_file_view(System_Functions *system, Exchange *exchange,
                         }
 					}
                     else if (gui_id_eq(target->hover, id)){
-                        target->hover = {0};
+                        target->hover = gui_id_zero();
 					}
                     
                     if (gui_id_eq(target->mouse_hot, id)){
@@ -3910,7 +3919,7 @@ do_input_file_view(System_Functions *system, Exchange *exchange,
     
     if (!user_input->mouse.l){
         if (!gui_id_is_null(target->mouse_hot)){
-            target->mouse_hot = {0};
+            target->mouse_hot = gui_id_zero();
             is_animating = 1;
         }
 	}
@@ -4297,7 +4306,7 @@ draw_color_button(GUI_Target *gui_target, Render_Target *target, View *view,
     i16 font_id = models->global_font.font_id;
         
     if (active_level > 0){
-        Swap(back, fore);
+        Swap(u32, back, fore);
     }
     
     draw_rectangle(target, rect, back);

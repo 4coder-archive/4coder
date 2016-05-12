@@ -75,13 +75,19 @@ panel_init(Panel *panel){
     panel->view = 0;
     panel->parent = -1;
     panel->which_child = 0;
-    panel->screen_region.full = {};
-    panel->screen_region.inner = {};
-    panel->screen_region.prev_inner = {};
+    panel->screen_region.full = i32_rect_zero();
+    panel->screen_region.inner = i32_rect_zero();
+    panel->screen_region.prev_inner = i32_rect_zero();
     panel->l_margin = 3;
     panel->r_margin = 3;
     panel->t_margin = 3;
     panel->b_margin = 3;
+}
+
+inline Panel_Divider
+panel_divider_zero(){
+    Panel_Divider divider={0};
+    return(divider);
 }
 
 internal Divider_And_ID
@@ -92,7 +98,7 @@ layout_alloc_divider(Editing_Layout *layout){
     result.divider = layout->free_divider;
     layout->free_divider = result.divider->next;
     
-    *result.divider = {};
+    *result.divider = panel_divider_zero();
     result.divider->parent = -1;
     result.divider->child1 = -1;
     result.divider->child2 = -1;
