@@ -754,15 +754,6 @@ COMMAND_DECL(delete_range){
     }
 }
 
-COMMAND_DECL(timeline_scrub){
-    REQ_OPEN_VIEW(view);
-    REQ_FILE_HISTORY(file, view);
-
-    view_set_widget(view, FWIDG_TIMELINES);
-    view->widget.timeline.undo_line = 1;
-    view->widget.timeline.history_line = 1;
-}
-
 COMMAND_DECL(undo){
     USE_MODELS(models);
     REQ_OPEN_VIEW(view);
@@ -772,7 +763,6 @@ COMMAND_DECL(undo){
 }
 
 COMMAND_DECL(redo){
-    
     USE_MODELS(models);
     REQ_OPEN_VIEW(view);
     REQ_FILE_HISTORY(file, view);
@@ -781,7 +771,6 @@ COMMAND_DECL(redo){
 }
 
 COMMAND_DECL(history_backward){
-    
     USE_MODELS(models);
     REQ_OPEN_VIEW(view);
     REQ_FILE_HISTORY(file, view);
@@ -790,7 +779,6 @@ COMMAND_DECL(history_backward){
 }
 
 COMMAND_DECL(history_forward){
-    
     USE_MODELS(models);
     REQ_OPEN_VIEW(view);
     REQ_FILE_HISTORY(file, view);
@@ -799,7 +787,6 @@ COMMAND_DECL(history_forward){
 }
 
 COMMAND_DECL(interactive_new){
-    
     USE_MODELS(models);
     USE_VIEW(view);
 
@@ -890,8 +877,9 @@ view_file_in_panel(Command_Data *cmd, Panel *panel, Editing_File *file){
     temp = begin_temp_memory(part);
     cmd->part = partition_sub_part(part, Kbytes(16));
 
-    view_set_file(panel->view, file, models, system,
-        models->hooks[hook_open_file], &app_links);
+    View *view = panel->view;
+    view_set_file(view, file, models, system, models->hooks[hook_open_file], &app_links);
+    view_show_file(view, 0);
 
     cmd->part = old_part;
     end_temp_memory(temp);
@@ -923,6 +911,7 @@ COMMAND_DECL(reopen){
 
         view_set_file(view, file, models, system,
             models->hooks[hook_open_file], &app_links);
+        view_show_file(view, 0);
     }
     else{
         do_feedback_message(system, models, make_lit_string("ERROR: no file load slot available\n"));
@@ -2419,6 +2408,7 @@ extern "C"{
                     if (file != vptr->file_data.file){
                         view_set_file(vptr, file, models, cmd->system,
                             models->hooks[hook_open_file], &app_links);
+                        view_show_file(vptr, 0);
                     }
                 }
 
@@ -2649,7 +2639,6 @@ setup_command_table(){
     SET(paste);
     SET(paste_next);
     SET(delete_range);
-    SET(timeline_scrub);
     SET(undo);
     SET(redo);
     SET(history_backward);
@@ -4030,7 +4019,7 @@ App_Step_Sig(app_step){
                 "Newest features:\n"
                 "Scroll bar on files and file lists\n"
                 "Arrow navigation in lists\n"
-                "A new minimal theme\n"
+                "A new minimal theme editor\n"
                 "\n"
                 "New in alpha 4.0.2:\n"
                 "-The file count limit is over 8 million now\n"
@@ -4375,6 +4364,7 @@ App_Step_Sig(app_step){
                     View *view = panel->view;
 
                     view_set_file(view, file, models, system, models->hooks[hook_open_file], &app_links);
+                    view_show_file(view, 0);
                     view->map = app_get_map(models, file->settings.base_map_id);
 
                     Hook_Function *new_file_fnc = models->hooks[hook_new_file];
@@ -4405,6 +4395,7 @@ App_Step_Sig(app_step){
 
                         view_set_file(view, file, models, system,
                             models->hooks[hook_open_file], &app_links);
+                        view_show_file(view, 0);
                         view->map = app_get_map(models, file->settings.base_map_id);
                     }
                 }break;

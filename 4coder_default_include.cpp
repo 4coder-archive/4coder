@@ -334,7 +334,9 @@ isearch(Application_Links *app, int start_reversed){
             }
         }
         else{
-            match.end = match.start + bar.string.size;
+            if (match.end > match.start + bar.string.size){
+                match.end = match.start + bar.string.size;
+            }
         }
 
         app->view_set_highlight(app, &view, match.start, match.end, 1);

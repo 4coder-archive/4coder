@@ -224,6 +224,35 @@ get_range(View_Summary *view){
     return(range);
 }
 
+struct Buffer_Rect{
+    int char0,line0;
+    int char1,line1;
+};
+
+#ifndef Swap
+#define Swap(a,b) do{ auto t = a; a = b; b = t; } while(0)
+#endif
+
+inline Buffer_Rect
+get_rect(View_Summary *view){
+    Buffer_Rect rect;
+    
+    rect.char0 = view->mark.character;
+    rect.line0 = view->mark.line;
+        
+    rect.char1 = view->cursor.character;
+    rect.line1 = view->cursor.line;
+    
+    if (rect.line0 > rect.line1){
+        Swap(rect.line0, rect.line1);
+    }
+    if (rect.char0 > rect.char1){
+        Swap(rect.char0, rect.char1);
+    }
+    
+    return(rect);
+}
+
 inline void
 exec_command(Application_Links *app, Command_ID id){
     app->exec_command_keep_stack(app, id);

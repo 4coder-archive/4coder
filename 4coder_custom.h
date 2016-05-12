@@ -177,7 +177,6 @@ enum Command_ID{
     cmdid_paste,
     cmdid_paste_next,
     cmdid_delete_range,
-    cmdid_timeline_scrub,
     cmdid_undo,
     cmdid_redo,
     cmdid_history_backward,

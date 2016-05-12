@@ -1295,11 +1295,13 @@ view_set_file(
         }
     }
 
+#if 0
     if (set_vui){
         // TODO(allen): Fix this! There should be a way to easily separate setting a file,
         // and switching to file mode, so that they don't cross over eachother like this.
         view->showing_ui = VUI_None;
     }
+#endif
 }
 
 struct Relative_Scrolling{
@@ -2516,6 +2518,7 @@ view_show_menu(View *view, Command_Map *gui_map){
     view->map_for_file = view->map;
     view->map = gui_map;
     view->showing_ui = VUI_Menu;
+    view->current_scroll = &view->gui_scroll;
 }
 
 inline void
@@ -2523,6 +2526,7 @@ view_show_config(View *view, Command_Map *gui_map){
     view->map_for_file = view->map;
     view->map = gui_map;
     view->showing_ui = VUI_Config;
+    view->current_scroll = &view->gui_scroll;
 }
 
 inline void
@@ -2537,6 +2541,7 @@ view_show_interactive(System_Functions *system, View *view,
     view->interaction = interaction;
     view->dest = make_fixed_width_string(view->dest_);
     view->list_i = 0;
+    view->current_scroll = &view->gui_scroll;
     
     view->map_for_file = view->map;
     view->map = gui_map;
@@ -2553,6 +2558,7 @@ view_show_theme(View *view, Command_Map *gui_map){
     view->color_mode = CV_Mode_Library;
     view->color = super_color_create(0xFF000000);
     view->current_color_editing = 0;
+    view->current_scroll = &view->gui_scroll;
 }
 
 
@@ -2565,6 +2571,7 @@ view_show_file(View *view, Command_Map *file_map){
         view->map = view->map_for_file;
     }
     view->showing_ui = VUI_None;
+    view->current_scroll = &view->file_scroll;
 }
 
 inline void
@@ -2747,7 +2754,6 @@ intbar_draw_string(Render_Target *target, File_Bar *bar, String str, u32 char_co
     bar->pos_x += font_string_width(target, font_id, str);
 }
 
-// TODO(allen): wtf is this?
 internal void
 view_reinit_scrolling(View *view){
     Editing_File *file = view->file_data.file;
@@ -2780,10 +2786,14 @@ view_reinit_scrolling(View *view){
     view->file_scroll.target_y = target_y;
     view->file_scroll.scroll_y = target_y;
     view->file_scroll.prev_target_y = -1000.f;
+    view->file_scroll.min_y = view->gui_target.scroll_updated.min_y;
+    view->file_scroll.max_y = view->gui_target.scroll_updated.max_y;
 
     view->file_scroll.target_x = target_x;
     view->file_scroll.scroll_x = target_x;
     view->file_scroll.prev_target_x = -1000.f;
+    
+    gui_post_scroll_vars(&view->gui_target, &view->file_scroll);
 }
 
 #define CursorMaxY_(m,h) ((m) - (h)*3)
@@ -2797,18 +2807,17 @@ file_step(View *view, i32_Rect region, Input_Summary *user_input, b32 is_active)
     i32 is_animating = 0;
     Editing_File *file = view->file_data.file;
     if (file && !file->state.is_loading){
-        // TODO(allen): rewrite with real scrolling system now.
         f32 line_height = (f32)view->font_height;
         f32 delta_y = 3.f*line_height;
 
-        f32 cursor_y = view_get_cursor_y(view);
-
         f32 max_visible_y = view_file_height(view);
         f32 max_x = view_file_width(view);
+        
+        f32 cursor_y = view_get_cursor_y(view);
         f32 cursor_x = view_get_cursor_x(view);
 
 
-        GUI_Scroll_Vars scroll_vars = view->gui_target.scroll_original;
+        GUI_Scroll_Vars scroll_vars = view->gui_target.scroll_updated;
         f32 target_y = scroll_vars.target_y;
         f32 target_x = scroll_vars.target_x;
 
@@ -3434,6 +3443,13 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                     switch (view->interaction){
                         case IInt_Sys_File_List:
                         {
+                            b32 use_item_in_list = 1;
+                            b32 activate_directly = 0;
+                            
+                            if (view->action == IAct_Save_As || view->action == IAct_New){
+                                use_item_in_list = 0;
+                            }
+
                             String message = {0};
                             switch (view->action){
                                 case IAct_Open: message = make_lit_string("Open: "); break;
@@ -3453,16 +3469,19 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                                 Single_Line_Input_Step step = {0};
                                 Key_Event_Data key = {0};
                                 i32 i;
-
+                                
                                 for (i = 0; i < keys.count; ++i){
                                     key = get_single_key(&keys, i);
                                     step = app_single_file_input_step(system, &models->working_set, key, &hdir->string, hdir, 1, 1, 0);
                                     if (step.made_a_change){
                                         view->list_i = 0;
                                     }
+                                    if (!use_item_in_list && (key.keycode == '\n' || key.keycode == '\t')){
+                                        activate_directly = 1;
+                                    }
                                 }
                             }
-
+                            
                             gui_do_text_field(target, message, hdir->string);
 
                             view->current_scroll = &view->gui_scroll;
@@ -3470,6 +3489,7 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                             gui_begin_scrollable(target, view->showing_ui, view->gui_scroll, 9.f * view->font_height);
 
                             id.id[0] = (u64)(hdir) + 1;
+
                             if (gui_begin_list(target, id, view->list_i, 0, &update)){
                                 gui_standard_list(target, id, &keys, &view->list_i, &update);
                             }
@@ -3478,7 +3498,7 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                                 begin_exhaustive_loop(&loop, hdir);
                                 for (i = 0; i < loop.count; ++i){
                                     file_info = get_exhaustive_info(system, &models->working_set, &loop, i);
-
+                                    
                                     if (file_info.name_match){
                                         id.id[0] = (u64)(file_info.info);
                                         if (gui_do_file_option(target, id, file_info.info->filename, file_info.is_folder, file_info.message)){
@@ -3486,16 +3506,20 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                                                 set_last_folder(&hdir->string, file_info.info->filename, '/');
                                                 do_new_directory = 1;
                                             }
-                                            else{
+                                            else if (use_item_in_list){
                                                 interactive_view_complete(view, loop.full_path, 0);
                                             }
                                         }
                                     }
                                 }
                             }
-
+                            
                             gui_end_list(target);
-
+                            
+                            if (activate_directly){
+                                interactive_view_complete(view, hdir->string, 0);
+                            }
+                            
                             if (do_new_directory){
                                 hot_directory_reload(system, hdir, &models->working_set);
                             }
@@ -3752,6 +3776,7 @@ do_input_file_view(System_Functions *system, Exchange *exchange,
                     
                     if (view->reinit_scrolling){
                         view_reinit_scrolling(view);
+                        is_animating = 1;
                     }
                     if (file_step(view, gui_session.rect, user_input, is_active)){
                         is_animating = 1;
@@ -4202,6 +4227,8 @@ draw_file_bar(Render_Target *target, View *view, Editing_File *file, i32_Rect re
                 String line_number = make_fixed_width_string(line_number_space);
                 append(&line_number, " L#");
                 append_int_to_str(view->file_data.cursor.line, &line_number);
+                append(&line_number, " C#");
+                append_int_to_str(view->file_data.cursor.character, &line_number);
 
                 intbar_draw_string(target, &bar, line_number, base_color);
 

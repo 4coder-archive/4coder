@@ -15,66 +15,6 @@ enum My_Maps{
     my_maps_count
 };
 
-HOOK_SIG(my_start){
-    exec_command(app, cmdid_open_panel_vsplit);
-    exec_command(app, cmdid_change_active_panel);
-
-    app->change_theme(app, literal("4coder"));
-    app->change_font(app, literal("liberation sans"));
-
-    // Theme options:
-    //  "4coder"
-    //  "Handmade Hero"
-    //  "Twilight"
-    //  "Woverine"
-    //  "stb"
-
-    // Font options:
-    //  "liberation sans"
-    //  "liberation mono"
-    //  "hack"
-    //  "cutive mono"
-    //  "inconsolata"
-
-    // no meaning for return
-    return(0);
-}
-
-HOOK_SIG(my_file_settings){
-    // NOTE(allen|a4): In hooks that want parameters, such as this file
-    // opened hook.  The file created hook is guaranteed to have only
-    // and exactly one buffer parameter.  In normal command callbacks
-    // there are no parameter buffers.
-    Buffer_Summary buffer = app->get_parameter_buffer(app, 0);
-    assert(buffer.exists);
-
-    int treat_as_code = 0;
-    int wrap_lines = 1;
-
-    if (buffer.file_name && buffer.size < (16 << 20)){
-        String ext = file_extension(make_string(buffer.file_name, buffer.file_name_len));
-        if (match(ext, make_lit_string("cpp"))) treat_as_code = 1;
-        else if (match(ext, make_lit_string("h"))) treat_as_code = 1;
-        else if (match(ext, make_lit_string("c"))) treat_as_code = 1;
-        else if (match(ext, make_lit_string("hpp"))) treat_as_code = 1;
-    }
-
-    if (treat_as_code){
-        wrap_lines = 0;
-    }
-    if (buffer.file_name[0] == '*'){
-        wrap_lines = 0;
-    }
-
-    push_parameter(app, par_lex_as_cpp_file, treat_as_code);
-    push_parameter(app, par_wrap_lines, wrap_lines);
-    push_parameter(app, par_key_mapid, (treat_as_code)?((int)my_code_map):((int)mapid_file));
-    exec_command(app, cmdid_set_settings);
-
-    // no meaning for return
-    return(0);
-}
-
 CUSTOM_COMMAND_SIG(write_allen_todo){
     write_string(app, make_lit_string("// TODO(allen): "));
 }
@@ -265,17 +205,70 @@ CUSTOM_COMMAND_SIG(ruin_theme){
 }
 #endif
 
-int get_bindings(void *data, int size){
-    Bind_Helper context_ = begin_bind_helper(data, size);
-    Bind_Helper *context = &context_;
+HOOK_SIG(my_start){
+    exec_command(app, cmdid_open_panel_vsplit);
+    exec_command(app, cmdid_change_active_panel);
     
-    // NOTE(allen|a3.1): Hooks have no loyalties to maps. All hooks are global
-    // and once set they always apply, regardless of what map is active.
-    set_hook(context, hook_start, my_start);
-    set_hook(context, hook_open_file, my_file_settings);
+    app->change_theme(app, literal("4coder"));
+    app->change_font(app, literal("liberation sans"));
+    
+    // Theme options:
+    //  "4coder"
+    //  "Handmade Hero"
+    //  "Twilight"
+    //  "Woverine"
+    //  "stb"
 
-    set_scroll_rule(context, smooth_scroll_rule);
+    // Font options:
+    //  "liberation sans"
+    //  "liberation mono"
+    //  "hack"
+    //  "cutive mono"
+    //  "inconsolata"
 
+    // no meaning for return
+    return(0);
+}
+
+HOOK_SIG(my_file_settings){
+    // NOTE(allen|a4): In hooks that want parameters, such as this file
+    // opened hook.  The file created hook is guaranteed to have only
+    // and exactly one buffer parameter.  In normal command callbacks
+    // there are no parameter buffers.
+    Buffer_Summary buffer = app->get_parameter_buffer(app, 0);
+    assert(buffer.exists);
+
+    int treat_as_code = 0;
+    int wrap_lines = 1;
+
+    if (buffer.file_name && buffer.size < (16 << 20)){
+        String ext = file_extension(make_string(buffer.file_name, buffer.file_name_len));
+        if (match(ext, make_lit_string("cpp"))) treat_as_code = 1;
+        else if (match(ext, make_lit_string("h"))) treat_as_code = 1;
+        else if (match(ext, make_lit_string("c"))) treat_as_code = 1;
+        else if (match(ext, make_lit_string("hpp"))) treat_as_code = 1;
+    }
+
+    if (treat_as_code){
+        wrap_lines = 0;
+    }
+    if (buffer.file_name[0] == '*'){
+        wrap_lines = 0;
+    }
+
+    push_parameter(app, par_lex_as_cpp_file, treat_as_code);
+    push_parameter(app, par_wrap_lines, wrap_lines);
+    push_parameter(app, par_key_mapid, (treat_as_code)?((int)my_code_map):((int)mapid_file));
+    exec_command(app, cmdid_set_settings);
+
+    // no meaning for return
+    return(0);
+}
+
+typedef void (Extension_Bindings)(Bind_Helper *context);
+
+void
+default_keys(Bind_Helper *context, Extension_Bindings *extension = 0){
     begin_map(context, mapid_global);
 
     bind(context, 'p', MDFR_CTRL, cmdid_open_panel_vsplit);
@@ -389,49 +382,65 @@ int get_bindings(void *data, int size){
     bind(context, key_back, MDFR_ALT, snipe_token_or_word);
 
     bind(context, ' ', MDFR_CTRL, cmdid_set_mark);
-    bind(context, 'm', MDFR_CTRL, cmdid_cursor_mark_swap);
+    bind(context, 'a', MDFR_CTRL, replace_in_range);
     bind(context, 'c', MDFR_CTRL, cmdid_copy);
-    bind(context, 'x', MDFR_CTRL, cmdid_cut);
-    bind(context, 'v', MDFR_CTRL, cmdid_paste);
-    bind(context, 'V', MDFR_CTRL, cmdid_paste_next);
-    bind(context, 'Z', MDFR_CTRL, cmdid_timeline_scrub);
-    bind(context, 'z', MDFR_CTRL, cmdid_undo);
-    bind(context, 'y', MDFR_CTRL, cmdid_redo);
+    bind(context, 'd', MDFR_CTRL, cmdid_delete_range);
+    bind(context, 'e', MDFR_CTRL, cmdid_center_view);
+    bind(context, 'f', MDFR_CTRL, search);
+    bind(context, 'g', MDFR_CTRL, goto_line);
     bind(context, 'h', MDFR_CTRL, cmdid_history_backward);
     bind(context, 'H', MDFR_CTRL, cmdid_history_forward);
-    bind(context, 'd', MDFR_CTRL, cmdid_delete_range);
     bind(context, 'l', MDFR_CTRL, cmdid_toggle_line_wrap);
-    bind(context, 'L', MDFR_CTRL, cmdid_toggle_endline_mode);
-    bind(context, 'u', MDFR_CTRL, cmdid_to_uppercase);
     bind(context, 'j', MDFR_CTRL, cmdid_to_lowercase);
-    bind(context, '?', MDFR_CTRL, cmdid_toggle_show_whitespace);
-
-    bind(context, '~', MDFR_CTRL, cmdid_clean_all_lines);
-    bind(context, '1', MDFR_CTRL, cmdid_eol_dosify);
-    bind(context, '!', MDFR_CTRL, cmdid_eol_nixify);
-
-    bind(context, 'f', MDFR_CTRL, search);
-    bind(context, 'r', MDFR_CTRL, reverse_search);
-    bind(context, 'g', MDFR_CTRL, goto_line);
-    bind(context, 'q', MDFR_CTRL, query_replace);
-    bind(context, 'a', MDFR_CTRL, replace_in_range);
-    bind(context, 's', MDFR_ALT, rewrite_as_single_caps);
-
     bind(context, 'K', MDFR_CTRL, cmdid_kill_buffer);
+    bind(context, 'L', MDFR_CTRL, cmdid_toggle_endline_mode);
+    bind(context, 'm', MDFR_CTRL, cmdid_cursor_mark_swap);
     bind(context, 'O', MDFR_CTRL, cmdid_reopen);
+    bind(context, 'q', MDFR_CTRL, query_replace);
+    bind(context, 'r', MDFR_CTRL, reverse_search);
+    bind(context, 's', MDFR_ALT, rewrite_as_single_caps);
     bind(context, 's', MDFR_CTRL, cmdid_save);
-
+    bind(context, 'u', MDFR_CTRL, cmdid_to_uppercase);
+    bind(context, 'v', MDFR_CTRL, cmdid_paste);
+    bind(context, 'V', MDFR_CTRL, cmdid_paste_next);
+    bind(context, 'x', MDFR_CTRL, cmdid_cut);
+    bind(context, 'y', MDFR_CTRL, cmdid_redo);
+    bind(context, 'z', MDFR_CTRL, cmdid_undo);
+    
+    bind(context, '1', MDFR_CTRL, cmdid_eol_dosify);
+    
+    bind(context, '?', MDFR_CTRL, cmdid_toggle_show_whitespace);
+    bind(context, '~', MDFR_CTRL, cmdid_clean_all_lines);
+    bind(context, '!', MDFR_CTRL, cmdid_eol_nixify);
     bind(context, '\n', MDFR_SHIFT, write_and_auto_tab);
     bind(context, ' ', MDFR_SHIFT, cmdid_write_character);
-
-    bind(context, 'e', MDFR_CTRL, cmdid_center_view);
-
-    bind(context, 'T', MDFR_CTRL | MDFR_ALT, begin_html_mode);
-
+    
+    if (extension != 0){
+        extension(context);
+    }
+    
     end_map(context);
+}
+
+#ifndef NO_BINDING
+
+int get_bindings(void *data, int size){
+    Bind_Helper context_ = begin_bind_helper(data, size);
+    Bind_Helper *context = &context_;
+    
+    // NOTE(allen|a3.1): Hooks have no loyalties to maps. All hooks are global
+    // and once set they always apply, regardless of what map is active.
+    set_hook(context, hook_start, my_start);
+    set_hook(context, hook_open_file, my_file_settings);
+
+    set_scroll_rule(context, smooth_scroll_rule);
+    
+    default_keys(context);
     
     int result = end_bind_helper(context);
     return(result);
 }
+
+#endif
 
 // BOTTOM

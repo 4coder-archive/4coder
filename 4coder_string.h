@@ -192,6 +192,7 @@ FCPP_LINK String file_extension_slowly(char *str);
 FCPP_LINK char * file_extension_c(String str);
 FCPP_LINK bool   remove_last_folder(String *str);
 FCPP_LINK void   replace_char(String str, char replace, char with);
+FCPP_LINK void   replace_char(char *str, char replace, char with);
 
 inline String make_string(void *str, int size, int mem_size){
     String result;
@@ -1128,6 +1129,13 @@ replace_char(String str, char replace, char with){
     
     for (i = 0; i < str.size; ++i, ++s){
         if (*s == replace) *s = with;
+    }
+}
+
+FCPP_LINK void
+replace_char(char *str, char replace, char with){
+    for (; *str; ++str){
+        if (*str == replace) *str = with;
     }
 }
 

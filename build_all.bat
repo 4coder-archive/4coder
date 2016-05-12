@@ -15,7 +15,8 @@ pushd ..\code
 popd
 
 pushd ..\build
-call "..\code\buildsuper.bat" ..\code\4coder_default_bindings.cpp
+REM call "..\code\buildsuper.bat" ..\code\4coder_default_bindings.cpp
+call "..\code\buildsuper.bat" ..\code\power\4coder_experiments.cpp
 
 set EXPORTS=/EXPORT:app_get_functions
 cl %OPTS% %INCLUDES% %DEFINES% ..\code\4ed_app_target.cpp %* /Fe4ed_app /LD /link /INCREMENTAL:NO /OPT:REF %EXPORTS%
