@@ -990,9 +990,9 @@ Sys_Load_File_Sig(system_load_file){
         }
     } while(bytes_to_read);
 
+    result.got_file = 1;
     result.data.size = info.st_size;
     result.data.data = ptr;
-    result.got_file = 1;
 
 out:
     if(fd >= 0) close(fd);
@@ -2699,4 +2699,5 @@ main(int argc, char **argv)
 }
 
 // BOTTOM
+// vim: expandtab:ts=4:sts=4:sw=4
 
