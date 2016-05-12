@@ -2823,29 +2823,31 @@ file_step(View *view, i32_Rect region, Input_Summary *user_input, b32 is_active)
 
         f32 cursor_max_y = CursorMaxY(max_visible_y, line_height);
         f32 cursor_min_y = CursorMinY(scroll_vars.min_y, line_height);
+        
+        if (!gui_id_eq(view->gui_target.active, gui_id_scrollbar())){
+            if (cursor_y > target_y + cursor_max_y){
+                target_y = cursor_y - cursor_max_y + delta_y;
+            }
+            if (cursor_y < target_y + cursor_min_y){
+                target_y = cursor_y - delta_y - cursor_min_y;
+            }
 
-        if (cursor_y > target_y + cursor_max_y){
-            target_y = cursor_y - cursor_max_y + delta_y;
-        }
-        if (cursor_y < target_y + cursor_min_y){
-            target_y = cursor_y - delta_y - cursor_min_y;
+            if (target_y > scroll_vars.max_y) target_y = scroll_vars.max_y;
+            if (target_y < scroll_vars.min_y) target_y = view->file_scroll.min_y;
+
+            if (cursor_x < target_x){
+                target_x = (f32)Max(0, cursor_x - max_x/2);
+            }
+            else if (cursor_x >= target_x + max_x){
+                target_x = (f32)(cursor_x - max_x/2);
+            }
+
+            if (target_x != scroll_vars.target_x || target_y != scroll_vars.target_y){
+                view->gui_target.scroll_updated.target_x = target_x;
+                view->gui_target.scroll_updated.target_y = target_y;
+            }
         }
 
-        if (target_y > scroll_vars.max_y) target_y = scroll_vars.max_y;
-        if (target_y < scroll_vars.min_y) target_y = view->file_scroll.min_y;
-        
-        if (cursor_x < target_x){
-            target_x = (f32)Max(0, cursor_x - max_x/2);
-        }
-        else if (cursor_x >= target_x + max_x){
-            target_x = (f32)(cursor_x - max_x/2);
-        }
-        
-        if (target_x != scroll_vars.target_x || target_y != scroll_vars.target_y){
-            view->gui_target.scroll_updated.target_x = target_x;
-            view->gui_target.scroll_updated.target_y = target_y;
-        }
-        
         if (file->state.paste_effect.tick_down > 0){
             --file->state.paste_effect.tick_down;
             is_animating = 1;

@@ -147,7 +147,6 @@ do_feedback_message(System_Functions *system, Models *models, String value){
 
     if (file){
         output_file_append(system, models, file, value, 1);
-        
         i32 pos = buffer_size(&file->state.buffer);
         for (View_Iter iter = file_view_iter_init(&models->layout, file, 0);
             file_view_iter_good(iter);
