@@ -934,7 +934,7 @@ Sys_File_Can_Be_Made(system_file_can_be_made){
 
 internal
 Sys_Load_File_Sig(system_load_file){
-    Data result = {};
+    File_Data result = {};
     struct stat info = {};
     int fd;
     u8 *ptr, *read_ptr;
@@ -986,8 +986,9 @@ Sys_Load_File_Sig(system_load_file){
         }
     } while(bytes_to_read);
 
-    result.size = info.st_size;
-    result.data = ptr;
+    result.got_file = 1;
+    result.data.size = info.st_size;
+    result.data.data = ptr;
 
 out:
     if(fd >= 0) close(fd);
@@ -2647,14 +2648,14 @@ main(int argc, char **argv)
                 if (file->flags & FEx_Request){
                     Assert((file->flags & FEx_Save) == 0);
                     file->flags &= (~FEx_Request);
-                    Data sysfile = system_load_file(file->filename);
-                    if (sysfile.data == 0){
+                    File_Data sysfile = system_load_file(file->filename);
+                    if (!sysfile.got_file){
                         file->flags |= FEx_Not_Exist;
                     }
                     else{
                         file->flags |= FEx_Ready;
-                        file->data = sysfile.data;
-                        file->size = sysfile.size;
+                        file->data = sysfile.data.data;
+                        file->size = sysfile.data.size;
                     }
 
                     LinuxScheduleStep();
@@ -2689,4 +2690,5 @@ main(int argc, char **argv)
 }
 
 // BOTTOM
+// vim: expandtab:ts=4:sts=4:sw=4
 
