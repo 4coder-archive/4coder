@@ -14,6 +14,13 @@
 /* TODO(casey): Here are our current issues
 
    - High priority:
+     - Buffer switching still seems a little bit broken.  I find I can't reliably hit switch-return
+       and switch to the most recently viewed file that wasn't one of the two currently viewed buffers?
+       But maybe I'm imagining things?
+     - High-DPI settings break rendering and all fonts just show up as solid squares
+     - Pretty sure auto-indent has some bugs.  Things that should be pretty easy to indent
+       properly even from only a few surrounding lines seem to be indented improperly at the moment
+     - Multi-line comments should default to indenting to the indentation of the line prior?
      - Would like the option to indent to hanging parentheses, equals signs, etc. instead of
        always just "one tab in from the previous line".
        - Actually, maybe just expose the dirty state, so that the user can decide whether to
@@ -24,18 +31,29 @@
      - Auto-complete doesn't pick nearby words first, it seems, which makes it much slower to use?
      - Bug with not being able to switch-to-corresponding-file in another buffer
        without accidentally bringing up the file open dialog?
-     
+     - Up/down arrows and mouse clicks on wrapped lines don't seem to work properly with several wraps.
+       (eg., a line wrapped to more than 2 physical lines on the screen often doesn't work anymore,
+        with up or down jumping to totally wrong places, and mouse clicking jumping to wrong places
+        as well - similarly, scrolling breaks, in that it thinks it has "hit the end" of the buffer
+        when you cursor down, but the cursor and the rest of the wrapped lines are actually off
+        the bottom of the screen)
+
    - Display:
+     - There are often repaint bugs with 4coder coming to the front / unminimizing, etc.
+       I think this might have something to do with the way you're doing lots of semaphore
+       locking but I haven't investigated yet.
      - Need a word-wrap mode that wraps at word boundaries instead of characters
      - Need to be able to set a word wrap length at something other than the window
 ?FIXED First go-to-line for a file seems to still just go to the beginning of the buffer?
        Not sure Allen's right about the slash problem, but either way, we need some
        way to fix it.
-     - Need a way of highlighting the current line like Emacs does for the benefit
-       of people on The Stream(TM)
      - NOTE / IMPORTANT / TODO highlighting?  Ability to customize?  Whatever.
      - Some kind of parentheses highlighting?  I can write this myself, but I
        would need some way of adding highlight information to the buffer.
+     - Need a way of highlighting the current line like Emacs does for the benefit
+       of people on The Stream(TM)
+     - Some kind of matching brace display so in long ifs, etc., you can see
+       what they match (maybe draw it directly into the buffer?)
 
    - Indentation:
      - Multiple // lines don't seem to indent properly.  The first one will go to the correct place, but the subsequent ones will go to the first column regardless?
@@ -44,28 +62,44 @@
        the same margin as the prev. line (4coder just goes back to column 1).  It'd
        be nice if it go _better_ than Emacs, with no need to manually flow comments,
        etc.
-     - Up/down arrows and mouse clicks on wrapped lines don't seem to work properly after the second wrap 
-       (eg., a line wrapped to more than 2 physical lines on the screen.)
 
    - Buffer management: 
-     - Switch-to-buffer with no typing, just return, should switch to the most recently
-       used buffer that is not currently displayed in a view.
-  ?FIXED Kill-buffer should perform this switch automatically, or it should be easy
-       to build a custom kill buffer that does
      - Seems like there's no way to switch to buffers whose names are substrings of other
        buffers' names without using the mouse?
        - Also, mouse-clicking on buffers doesn't seem to work reliably?  Often it just goes to a 
          blank window?
+
+   - File system
+     - When switching to a buffer that has changed on disk, notify?  Really this can just
+       be some way to query the modification flag and then the customization layer can do it?
+     - Still can't seem to open a zero-length file?
+     - I'd prefer it if file-open could create new files, and that I could get called on that
+       so I can insert my boilerplate headers on new files
+     - I'd prefer it if file-open deleted per-character instead of deleting entire path sections
 
    - Need auto-complete for things like "arbitrary command", with options listed, etc.,
      so this should either be built into 4ed, or the custom DLL should have the ability
      to display possible completions and iterate over internal cmdid's, etc.  Possibly
      the latter, for maximal ability of customizers to add their own commands?
 
-   - Default directory for file open / build search should be that of the current
-     buffer, not tracked separately?  Probably I should code this on my own.
-
    - Macro recording/playback
+
+   - Arbitrary cool features:
+     - LOC count for the buffer and for all buffers summed shown in the title bar?
+     - Show auto-parsed #if/if/for/while/etc. statements at else and closing places.
+     - Automatic highlighting of the region in side the parentheses / etc.
+     - You should just implement a shell inside 4coder which can call all the 4coder
+       stuff as well as execute system stuff, so that from now on you just write
+       scripts "in 4coder", etc., so they are always portable everywhere 4coder runs?
+
+   - Things I should write:
+     - Ability to do "file open from same directory as the current buffer"
+     - Spell-checker
+     - To-do list dependent on project?
+     - Repeat last replace?
+     - Maybe search could be a permanent thing, so instead of initiating a search,
+       you're just _changing_ the search term with MODAL-S, and then there's _always_
+       a next-of-these-in... and that could go through buffers in order, to...
 */
 
 // NOTE(casey): Microsoft/Windows is poopsauce.
@@ -73,10 +107,10 @@
 #include <math.h>
 #include <stdio.h>
 
-#include "..\4coder_default_includes.cpp"
+#include "..\4coder_default_include.cpp"
 
 enum maps{
-	my_code_map
+    my_code_map
 };
 
 #ifndef Assert
@@ -90,6 +124,7 @@ struct Parsed_Error
 
     String target_file_name;
     int target_line_number;
+    int target_column_number;
 
     int source_buffer_id;
     int source_position;
@@ -114,6 +149,7 @@ enum token_type
     Token_Percent,
     Token_Colon,
     Token_Number,
+    Token_Comma,
 
     Token_EndOfStream,
 };
@@ -231,6 +267,7 @@ GetToken(tokenizer *Tokenizer)
         case '/': {Token.Type = Token_ForwardSlash;} break;
         case '%': {Token.Type = Token_Percent;} break;
         case ':': {Token.Type = Token_Colon;} break;
+        case ',': {Token.Type = Token_Comma;} break;
 
         default:
         {
@@ -380,6 +417,7 @@ CUSTOM_COMMAND_SIG(casey_kill_to_end_of_line)
 
     Buffer_Summary buffer = app->get_buffer(app, view.buffer_id);
     app->buffer_replace_range(app, &buffer, range.min, range.max, 0, 0);
+    exec_command(app, auto_tab_line_at_cursor);
 }
 
 CUSTOM_COMMAND_SIG(casey_paste_and_tab)
@@ -394,6 +432,12 @@ CUSTOM_COMMAND_SIG(casey_seek_beginning_of_line_and_tab)
 {
     exec_command(app, cmdid_seek_beginning_of_line);
     exec_command(app, auto_tab_line_at_cursor);
+}
+
+CUSTOM_COMMAND_SIG(casey_seek_beginning_of_line)
+{
+    exec_command(app, auto_tab_line_at_cursor);
+    exec_command(app, cmdid_seek_beginning_of_line);
 }
 
 struct switch_to_result
@@ -621,7 +665,7 @@ casey_goto_error(Application_Links *app, Parsed_Error e)
         switch_to_result Switch = SwitchToOrLoadFile(app, e.target_file_name, false);
         if(Switch.Switched)
         {
-            app->view_set_cursor(app, &Switch.view, seek_line_char(e.target_line_number, 0), 1);
+            app->view_set_cursor(app, &Switch.view, seek_line_char(e.target_line_number, e.target_column_number), 1);
         }
 
         View_Summary compilation_view = get_first_view_with_buffer(app, e.source_buffer_id);
@@ -667,6 +711,18 @@ casey_parse_error(Application_Links *app, Buffer_Summary buffer, View_Summary vi
             if(LineToken.Type == Token_Number)
             {
                 token CloseToken = GetToken(&Tokenizer);
+
+                int column_number = 0;
+                if(CloseToken.Type == Token_Comma)
+                {
+                    token ColumnToken = GetToken(&Tokenizer);
+                    if(ColumnToken.Type == Token_Number)
+                    {
+                        column_number = atoi(ColumnToken.Text);
+                        CloseToken = GetToken(&Tokenizer);
+                    }
+                }
+
                 if(CloseToken.Type == Token_CloseParen)
                 {
                     token ColonToken = GetToken(&Tokenizer);
@@ -693,6 +749,7 @@ casey_parse_error(Application_Links *app, Buffer_Summary buffer, View_Summary vi
                         result.exists = true;
                         result.target_file_name = make_string(Seek, (int)(Token.Text - Seek));;
                         result.target_line_number = line_number;
+                        result.target_column_number = column_number;
                         result.source_buffer_id = buffer.buffer_id;
                         result.source_position = start + (int)(ColonToken.Text - ParsingRegion);
 
@@ -1066,7 +1123,8 @@ CUSTOM_COMMAND_SIG(casey_execute_arbitrary_command)
 internal void
 UpdateModalIndicator(Application_Links *app)
 {
-    Theme_Color normal_colors[] = {
+    Theme_Color normal_colors[] = 
+    {
         {Stag_Cursor, 0x40FF40},
         {Stag_At_Cursor, 0x161616},
         {Stag_Mark, 0x808080},
@@ -1076,7 +1134,8 @@ UpdateModalIndicator(Application_Links *app)
         {Stag_Bar, 0xCACACA}
     };
 
-    Theme_Color edit_colors[] = {
+    Theme_Color edit_colors[] = 
+    {
         {Stag_Cursor, 0xFF0000},
         {Stag_At_Cursor, 0x00FFFF},
         {Stag_Mark, 0xFF6F1A},
@@ -1137,22 +1196,22 @@ DEFINE_MODAL_KEY(modal_forward_slash, cmdid_change_active_panel);
 DEFINE_MODAL_KEY(modal_semicolon, cmdid_cursor_mark_swap); // TODO(casey): Maybe cmdid_history_backward?
 DEFINE_BIMODAL_KEY(modal_open_bracket, casey_begin_keyboard_macro_recording, write_and_auto_tab);
 DEFINE_BIMODAL_KEY(modal_close_bracket, casey_end_keyboard_macro_recording, write_and_auto_tab);
-DEFINE_MODAL_KEY(modal_a, cmdid_write_character); // TODO(casey): Available
+DEFINE_MODAL_KEY(modal_a, cmdid_write_character); // TODO(casey): Arbitrary command + casey_quick_calc
 DEFINE_MODAL_KEY(modal_b, cmdid_interactive_switch_buffer);
 DEFINE_MODAL_KEY(modal_c, casey_find_corresponding_file);
-DEFINE_MODAL_KEY(modal_d, cmdid_write_character); // TODO(casey): Available
+DEFINE_MODAL_KEY(modal_d, casey_kill_to_end_of_line);
 DEFINE_MODAL_KEY(modal_e, cmdid_write_character); // TODO(casey): Available
 DEFINE_MODAL_KEY(modal_f, casey_paste_and_tab);
 DEFINE_MODAL_KEY(modal_g, goto_line);
 DEFINE_MODAL_KEY(modal_h, cmdid_auto_tab_range);
-DEFINE_MODAL_KEY(modal_i, cmdid_redo);
-DEFINE_MODAL_KEY(modal_j, casey_imenu);
-DEFINE_MODAL_KEY(modal_k, casey_kill_to_end_of_line);
-DEFINE_MODAL_KEY(modal_l, replace_in_range);
+DEFINE_MODAL_KEY(modal_i, cmdid_move_up);
+DEFINE_MODAL_KEY(modal_j, seek_white_or_token_left);
+DEFINE_MODAL_KEY(modal_k, cmdid_move_down);
+DEFINE_MODAL_KEY(modal_l, seek_white_or_token_right);
 DEFINE_MODAL_KEY(modal_m, casey_save_and_make_without_asking);
 DEFINE_MODAL_KEY(modal_n, casey_goto_next_error);
 DEFINE_MODAL_KEY(modal_o, query_replace);
-DEFINE_MODAL_KEY(modal_p, casey_quick_calc);
+DEFINE_MODAL_KEY(modal_p, replace_in_range);
 DEFINE_MODAL_KEY(modal_q, cmdid_copy);
 DEFINE_MODAL_KEY(modal_r, reverse_search); // NOTE(allen): I've modified my default search so you can use it now.
 DEFINE_MODAL_KEY(modal_s, search);
@@ -1161,7 +1220,7 @@ DEFINE_MODAL_KEY(modal_u, cmdid_undo);
 DEFINE_MODAL_KEY(modal_v, casey_switch_buffer_other_window);
 DEFINE_MODAL_KEY(modal_w, cmdid_cut);
 DEFINE_MODAL_KEY(modal_x, casey_find_corresponding_file_other_window);
-DEFINE_MODAL_KEY(modal_y, auto_tab_line_at_cursor);
+DEFINE_MODAL_KEY(modal_y, cmdid_redo);
 DEFINE_MODAL_KEY(modal_z, cmdid_interactive_open);
 
 DEFINE_MODAL_KEY(modal_1, casey_build_search); // TODO(casey): Shouldn't need to bind a key for this?
@@ -1183,7 +1242,7 @@ DEFINE_BIMODAL_KEY(modal_down, cmdid_move_down, cmdid_move_down);
 DEFINE_BIMODAL_KEY(modal_left, seek_white_or_token_left, cmdid_move_left); 
 DEFINE_BIMODAL_KEY(modal_right, seek_white_or_token_right, cmdid_move_right);
 DEFINE_BIMODAL_KEY(modal_delete, casey_delete_token_right, cmdid_delete);
-DEFINE_BIMODAL_KEY(modal_home, cmdid_seek_beginning_of_line, casey_seek_beginning_of_line_and_tab);
+DEFINE_BIMODAL_KEY(modal_home, casey_seek_beginning_of_line, casey_seek_beginning_of_line_and_tab);
 DEFINE_BIMODAL_KEY(modal_end, cmdid_seek_end_of_line, cmdid_seek_end_of_line);
 DEFINE_BIMODAL_KEY(modal_page_up, cmdid_page_up, cmdid_seek_whitespace_up);
 DEFINE_BIMODAL_KEY(modal_page_down, cmdid_page_down, cmdid_seek_whitespace_down);
@@ -1365,14 +1424,50 @@ HOOK_SIG(casey_start)
     app->change_theme(app, literal("Handmade Hero"));
     app->change_font(app, literal("liberation mono"));
 
+    Theme_Color colors[] =
+    {
+        {Stag_Default, 0xA08563},
+        // {Stag_Bar, },
+        // {Stag_Bar_Active, },
+        // {Stag_Base, },
+        // {Stag_Pop1, },
+        // {Stag_Pop2, },
+        // {Stag_Back, },
+        // {Stag_Margin, },
+        // {Stag_Margin_Hover, },
+        // {Stag_Margin_Active, },
+        // {Stag_Cursor, },
+        // {Stag_At_Cursor, },
+        // {Stag_Highlight, },
+        // {Stag_At_Highlight, },
+        {Stag_Comment, 0x7D7D7D},
+        {Stag_Keyword, 0xCD950C},
+        // {Stag_Str_Constant, },
+        // {Stag_Char_Constant, },
+        // {Stag_Int_Constant, },
+        // {Stag_Float_Constant, },
+        // {Stag_Bool_Constant, },
+        {Stag_Preproc, 0xDAB98F},
+        {Stag_Include, 0x6B8E23},
+        // {Stag_Special_Character, },
+        // {Stag_Highlight_Junk, },
+        // {Stag_Highlight_White, },
+        // {Stag_Paste, },
+        // {Stag_Undo, },
+        // {Stag_Next_Undo, },
+    };
+    app->set_theme_colors(app, colors, ArrayCount(colors));
+
     win32_toggle_fullscreen();
 
     return(0);
 }
 
-void
-get_bindings(Bind_Helper *context)
+extern "C" GET_BINDING_DATA(get_bindings)
 {
+    Bind_Helper context_actual = begin_bind_helper(data, size);
+    Bind_Helper *context = &context_actual;
+
     set_hook(context, hook_start, casey_start);
     set_hook(context, hook_open_file, casey_file_settings);
     set_scroll_rule(context, casey_smooth_scroll_rule);
@@ -1388,18 +1483,12 @@ get_bindings(Bind_Helper *context)
         bind(context, 'b', MDFR_NONE, cmdid_interactive_switch_buffer);
         bind(context, key_page_up, MDFR_NONE, search);
         bind(context, key_page_down, MDFR_NONE, reverse_search);
-
-        // NOTE(allen): I added this here myself, I believe this is what you want.
         bind(context, 'm', MDFR_NONE, casey_save_and_make_without_asking);
     }        
     end_map(context);
 
     begin_map(context, mapid_file);
 
-    // NOTE(allen): This is a new concept in the API. Binding this can be thought of as binding
-    // all combos which have an ascii code (shifted or not) and unmodified by CTRL or ALT.
-    // As of now, if this is used it cannot be overriden for particular combos; this overrides
-    // normal bindings.
     bind_vanilla_keys(context, cmdid_write_character);
 
     bind(context, key_insert, MDFR_NONE, begin_free_typing);
@@ -1496,4 +1585,8 @@ get_bindings(Bind_Helper *context)
     bind(context, '\t', MDFR_SHIFT, modal_tab);
 
     end_map(context);
+
+    end_bind_helper(context);
+    return context->write_total;
 }
+

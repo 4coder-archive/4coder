@@ -40,6 +40,7 @@ struct Models{
     u32 command_coroutine_flags[2];
     
     Hook_Function *hooks[hook_type_count];
+    Application_Links *app;
     
     i32 *buffer_param_indices;
     i32 buffer_param_count, buffer_param_max;

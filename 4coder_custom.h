@@ -357,6 +357,7 @@ struct Application_Links;
 #define GET_PARAMETER_BUFFER_SIG(n) Buffer_Summary n(Application_Links *app, int param_index)
 #define GET_BUFFER_BY_NAME(n) Buffer_Summary n(Application_Links *app, char *filename, int len)
 
+// TODO(allen): Need more flexible seek system somehow.  Regex?  Just expose the text stream to the user?
 #define BUFFER_SEEK_DELIMITER_SIG(n) int n(Application_Links *app, Buffer_Summary *buffer, int start, char delim, int seek_forward, int *out)
 #define BUFFER_SEEK_STRING_SIG(n) int n(Application_Links *app, Buffer_Summary *buffer, int start, char *str, int len, int seek_forward, int *out)
 #define BUFFER_SEEK_STRING_INSENSITIVE_SIG(n) int n(Application_Links *app, Buffer_Summary *buffer, int start, char *str, int len, int seek_forward, int *out)

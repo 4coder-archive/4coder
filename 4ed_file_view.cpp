@@ -576,6 +576,9 @@ file_create_from_string(System_Functions *system, Models *models,
         file->state.undo.history_head_block = 0;
         file->state.undo.current_block_normal = 1;
     }
+    
+    Hook_Function *open_hook = models->hooks[hook_open_file];
+    open_hook(models->app);
 }
 
 internal b32
@@ -1283,9 +1286,8 @@ view_set_file(
             view->reinit_scrolling = 1;
         }
     }
-
-    // TODO(allen): Bypass all this nonsense, it's a hack!  Hooks need parameters!
-    // Just accept it and pass the file to the open hook when it is loaded.
+    
+#if 0
     if (file){
         if (open_hook && file->settings.is_initialized == 0){
             models->buffer_param_indices[models->buffer_param_count++] = file->id.id;
@@ -1293,13 +1295,6 @@ view_set_file(
             models->buffer_param_count = 0;
             file->settings.is_initialized = 1;
         }
-    }
-
-#if 0
-    if (set_vui){
-        // TODO(allen): Fix this! There should be a way to easily separate setting a file,
-        // and switching to file mode, so that they don't cross over eachother like this.
-        view->showing_ui = VUI_None;
     }
 #endif
 }
