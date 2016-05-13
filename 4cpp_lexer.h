@@ -139,11 +139,14 @@ FCPP_LINK Cpp_Token_Merge cpp_attempt_token_merge(Cpp_Token prev, Cpp_Token next
 FCPP_LINK bool cpp_push_token_no_merge(Cpp_Token_Stack *stack, Cpp_Token token);
 FCPP_LINK bool cpp_push_token_nonalloc(Cpp_Token_Stack *stack, Cpp_Token token);
 
+inline    Cpp_Lex_Data cpp_lex_data_zero() { Cpp_Lex_Data data = {(Cpp_Preprocessor_State)0}; return(data); }
+inline    Cpp_Token_Stack cpp_token_stack_zero() { Cpp_Token_Stack stack={0}; return(stack); }
+
 FCPP_LINK Cpp_Read_Result cpp_lex_step(Cpp_File file, Cpp_Lex_Data *lex);
 
 FCPP_LINK int            cpp_lex_file_token_count(Cpp_File file);
 FCPP_LINK Cpp_Lex_Data   cpp_lex_file_nonalloc(Cpp_File file, Cpp_Token_Stack *stack, Cpp_Lex_Data data);
-inline    Cpp_Lex_Data   cpp_lex_file_nonalloc(Cpp_File file, Cpp_Token_Stack *stack) { return cpp_lex_file_nonalloc(file, stack, {}); }
+inline    Cpp_Lex_Data   cpp_lex_file_nonalloc(Cpp_File file, Cpp_Token_Stack *stack) { return cpp_lex_file_nonalloc(file, stack, cpp_lex_data_zero()); }
 
 FCPP_LINK Cpp_Get_Token_Result cpp_get_token(Cpp_Token_Stack *stack, int pos);
 

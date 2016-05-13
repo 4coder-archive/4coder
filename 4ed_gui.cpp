@@ -115,6 +115,11 @@ super_color_post_byte(Super_Color *color, i32 channel, u8 byte){
 struct GUI_id{
     u64 id[2];
 };
+inline GUI_id
+gui_id_zero(){
+    GUI_id id = {0};
+    return(id);
+}
 
 struct GUI_Scroll_Vars{
     f32 scroll_y;
@@ -736,11 +741,17 @@ gui_session_get_current_top(GUI_Session *session){
     return(result);
 }
 
+inline GUI_Session
+gui_session_zero(){
+    GUI_Session session={0};
+    return(session);
+}
+
 internal void
 gui_session_init(GUI_Session *session, i32_Rect full_rect, i32 line_height){
     GUI_Section *section;
     
-    *session = {0};
+    *session = gui_session_zero();
     session->full_rect = full_rect;
     session->line_height = line_height;
     session->scroll_bar_w = GUIScrollbarWidth;

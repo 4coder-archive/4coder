@@ -14,6 +14,10 @@
 
 #include "4ed_meta.h"
 
+#if (__cplusplus <= 199711L)
+#define static_assert(x, ...)
+#endif
+
 #define FCPP_FORBID_MALLOC
 
 #include "4cpp_types.h"
@@ -934,7 +938,7 @@ Sys_File_Can_Be_Made(system_file_can_be_made){
 
 internal
 Sys_Load_File_Sig(system_load_file){
-    Data result = {};
+    File_Data result = {};
     struct stat info = {};
     int fd;
     u8 *ptr, *read_ptr;
@@ -986,8 +990,9 @@ Sys_Load_File_Sig(system_load_file){
         }
     } while(bytes_to_read);
 
-    result.size = info.st_size;
-    result.data = ptr;
+    result.got_file = 1;
+    result.data.size = info.st_size;
+    result.data.data = ptr;
 
 out:
     if(fd >= 0) close(fd);
@@ -1574,6 +1579,11 @@ struct Init_Input_Result{
     XIMStyle best_style;
     XIC xic;
 };
+inline Init_Input_Result
+init_input_result_zero(){
+    Init_Input_Result result={0};
+    return(result);
+}
 
 // NOTE(inso): doesn't actually use XInput anymore, i should change the name...
 internal Init_Input_Result
@@ -1626,12 +1636,12 @@ InitializeXInput(Display *dpy, Window XWindow)
             }
         }
         else{
-            result = {};
+            result = init_input_result_zero();
             fputs("Could not get minimum required input style.\n", stderr);
         }
     }
     else{
-        result = {};
+        result = init_input_result_zero();
         fputs("Could not open X Input Method.\n", stderr);
     }
 
@@ -2214,7 +2224,7 @@ main(int argc, char **argv)
         thread->id = i + 1;
 
         Thread_Memory *memory = linuxvars.thread_memory + i;
-        *memory = {};
+        *memory = thread_memory_zero();
         memory->id = thread->id;
 
         thread->queue = &exchange_vars.thread.queues[BACKGROUND_THREADS];
@@ -2619,7 +2629,7 @@ main(int argc, char **argv)
 
             linuxvars.first = 0;
             linuxvars.redraw = 0;
-            linuxvars.key_data = {};
+            linuxvars.key_data = key_input_data_zero();
             linuxvars.mouse_data.press_l = 0;
             linuxvars.mouse_data.release_l = 0;
             linuxvars.mouse_data.press_r = 0;
@@ -2647,14 +2657,14 @@ main(int argc, char **argv)
                 if (file->flags & FEx_Request){
                     Assert((file->flags & FEx_Save) == 0);
                     file->flags &= (~FEx_Request);
-                    Data sysfile = system_load_file(file->filename);
-                    if (sysfile.data == 0){
+                    File_Data sysfile = system_load_file(file->filename);
+                    if (!sysfile.got_file){
                         file->flags |= FEx_Not_Exist;
                     }
                     else{
                         file->flags |= FEx_Ready;
-                        file->data = sysfile.data;
-                        file->size = sysfile.size;
+                        file->data = sysfile.data.data;
+                        file->size = sysfile.data.size;
                     }
 
                     LinuxScheduleStep();
@@ -2689,4 +2699,5 @@ main(int argc, char **argv)
 }
 
 // BOTTOM
+// vim: expandtab:ts=4:sts=4:sw=4
 

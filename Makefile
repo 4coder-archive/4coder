@@ -7,10 +7,10 @@ FLAGS := -fPIC -fno-threadsafe-statics -pthread -I../foreign -g -O0
 all: ../4ed_app.so ../4ed
 
 ../4ed_app.so: $(CPP_FILES) $(H_FILES)
-	g++ $(WARNINGS) $(FLAGS) -std=gnu++0x -shared 4ed_app_target.cpp -iquoteforeign -o $@
+	g++ $(WARNINGS) $(FLAGS) -shared 4ed_app_target.cpp -iquoteforeign -o $@
 
 ../4ed: $(CPP_FILES) $(H_FILES)
-	g++ $(WARNINGS) $(FLAGS) -std=gnu++0x linux_4ed.cpp -iquoteforeign $(PLAT_LINKS) -o $@
+	g++ $(WARNINGS) $(FLAGS) linux_4ed.cpp -iquoteforeign $(PLAT_LINKS) -o $@
 
 clean:
 	$(RM) -f ../4ed_app.so ../4ed

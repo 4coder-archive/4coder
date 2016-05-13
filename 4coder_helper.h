@@ -230,7 +230,7 @@ struct Buffer_Rect{
 };
 
 #ifndef Swap
-#define Swap(a,b) do{ auto t = a; a = b; b = t; } while(0)
+#define Swap(T,a,b) do{ T t = a; a = b; b = t; } while(0)
 #endif
 
 inline Buffer_Rect
@@ -244,10 +244,10 @@ get_rect(View_Summary *view){
     rect.line1 = view->cursor.line;
     
     if (rect.line0 > rect.line1){
-        Swap(rect.line0, rect.line1);
+        Swap(int, rect.line0, rect.line1);
     }
     if (rect.char0 > rect.char1){
-        Swap(rect.char0, rect.char1);
+        Swap(int, rect.char0, rect.char1);
     }
     
     return(rect);

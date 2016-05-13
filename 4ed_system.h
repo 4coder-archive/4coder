@@ -133,6 +133,11 @@ struct Thread_Memory{
     i32 size;
     i32 id;
 };
+inline Thread_Memory
+thread_memory_zero(){
+    Thread_Memory memory={0};
+    return(memory);
+}
 
 struct Thread_Exchange;
 struct System_Functions;
@@ -255,6 +260,11 @@ struct File_Slot{
     i32 filename_len;
     u32 flags;
 };
+inline File_Slot
+file_slot_zero(){
+    File_Slot slot={0};
+    return(slot);
+}
 
 enum File_Exchange_Flag{
     FEx_Request = 0x1,

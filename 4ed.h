@@ -30,6 +30,11 @@ struct Key_Input_Data{
 	i32 press_count;
     i32 hold_count;
 };
+inline Key_Input_Data
+key_input_data_zero(){
+    Key_Input_Data data={0};
+    return(data);
+}
 
 struct Key_Summary{
     i32 count;

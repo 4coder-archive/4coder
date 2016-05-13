@@ -109,6 +109,18 @@ struct f32_Rect{
 };
 
 inline i32_Rect
+i32_rect_zero(){
+    i32_Rect rect={0};
+    return(rect);
+}
+
+inline f32_Rect
+f32_rect_zero(){
+    f32_Rect rect={0};
+    return(rect);
+}
+
+inline i32_Rect
 i32R(i32 l, i32 t, i32 r, i32 b){
     i32_Rect rect;
     rect.x0 = l; rect.y0 = t;

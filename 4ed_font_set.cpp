@@ -40,6 +40,12 @@ font__remove(Font_Slot *slot){
     n->prev = p;
 }
 
+internal Font_Slot
+font_slot_zero(){
+    Font_Slot slot = {};
+    return(slot);
+}
+
 internal void
 font_set_init(Font_Set *set, Partition *partition, i32 max, i16 live_max){
     partition_align(partition, 8);
@@ -52,8 +58,8 @@ font_set_init(Font_Set *set, Partition *partition, i32 max, i16 live_max){
     partition_align(partition, 8);
     set->font_block = push_block(partition, live_max*(sizeof(Render_Font) + sizeof(Font_Slot)));
 
-    set->free_slots = {};
-    set->used_slots = {};
+    set->free_slots = font_slot_zero();
+    set->used_slots = font_slot_zero();
 
     dll_init_sentinel(&set->free_slots);
     dll_init_sentinel(&set->used_slots);
