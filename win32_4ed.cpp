@@ -41,7 +41,6 @@
 
 #include "4ed_dll_reader.cpp"
 #include "4ed_internal.h"
-#include "4ed_win32_keyboard.cpp"
 #include "system_shared.h"
 
 #define FPS 30
@@ -1221,6 +1220,24 @@ keycode_init(){
     keycode_lookup_table[VK_PRIOR] = key_page_up;
     keycode_lookup_table[VK_NEXT] = key_page_down;
     keycode_lookup_table[VK_ESCAPE] = key_esc;
+    
+    keycode_lookup_table[VK_F1] = key_f1;
+    keycode_lookup_table[VK_F2] = key_f2;
+    keycode_lookup_table[VK_F3] = key_f3;
+    keycode_lookup_table[VK_F4] = key_f4;
+    keycode_lookup_table[VK_F5] = key_f5;
+    keycode_lookup_table[VK_F6] = key_f6;
+    keycode_lookup_table[VK_F7] = key_f7;
+    keycode_lookup_table[VK_F8] = key_f8;
+    keycode_lookup_table[VK_F9] = key_f9;
+    
+    keycode_lookup_table[VK_F10] = key_f10;
+    keycode_lookup_table[VK_F11] = key_f11;
+    keycode_lookup_table[VK_F12] = key_f12;
+    keycode_lookup_table[VK_F13] = key_f13;
+    keycode_lookup_table[VK_F14] = key_f14;
+    keycode_lookup_table[VK_F15] = key_f15;
+    keycode_lookup_table[VK_F16] = key_f16;
 }
 
 internal LRESULT
