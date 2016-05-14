@@ -256,6 +256,11 @@ HOOK_SIG(my_file_settings){
         wrap_lines = 0;
     }
 
+    // NOTE(allen|a4.0.5): Unlike previous versions the command cmdid_set_settings
+    // no longer automatically effects the active buffer.  This command will actually be
+    // phased out in favor of an app call soon.
+    push_parameter(app, par_buffer_id, buffer.buffer_id);
+    
     push_parameter(app, par_lex_as_cpp_file, treat_as_code);
     push_parameter(app, par_wrap_lines, wrap_lines);
     push_parameter(app, par_key_mapid, (treat_as_code)?((int)my_code_map):((int)mapid_file));

@@ -158,7 +158,8 @@ do_feedback_message(System_Functions *system, Models *models, String value){
 
 // Commands
 
-globalvar Application_Links app_links;
+// TODO(allen): MOVE THIS TO models
+//globalvar Application_Links app_links;
 
 #define USE_MODELS(n) Models *n = command->models
 #define USE_VARS(n) App_Vars *n = command->vars
@@ -223,7 +224,7 @@ panel_make_empty(System_Functions *system, Exchange *exchange, App_Vars *vars, P
 
     Assert(panel->view == 0);
     new_view = live_set_alloc_view(&vars->live_set, panel, models);
-    view_set_file(new_view.view, 0, models, 0, 0, 0);
+    view_set_file(new_view.view, 0, models, 0);
     new_view.view->map = app_get_map(models, mapid_global);
 
     return(new_view.view);
@@ -877,7 +878,7 @@ view_file_in_panel(Command_Data *cmd, Panel *panel, Editing_File *file){
     cmd->part = partition_sub_part(part, Kbytes(16));
 
     View *view = panel->view;
-    view_set_file(view, file, models, system, models->hooks[hook_open_file], &app_links);
+    view_set_file(view, file, models, system);
     view_show_file(view, 0);
 
     cmd->part = old_part;
@@ -908,8 +909,7 @@ COMMAND_DECL(reopen){
         index = file->id.id;
         app_push_file_binding(vars, file_id, index);
 
-        view_set_file(view, file, models, system,
-            models->hooks[hook_open_file], &app_links);
+        view_set_file(view, file, models, system);
         view_show_file(view, 0);
     }
     else{
@@ -1521,14 +1521,14 @@ COMMAND_DECL(cursor_mark_swap){
 }
 
 COMMAND_DECL(user_callback){
-    if (binding.custom) binding.custom(&app_links);
+    USE_MODELS(models);
+    if (binding.custom) binding.custom(&models->app_links);
 }
 
 COMMAND_DECL(set_settings){
-    REQ_READABLE_VIEW(view);
-    REQ_FILE(file, view);
     USE_MODELS(models);
     
+    Editing_File *file = 0;
     b32 set_mapid = 0;
     i32 new_mapid = 0;
     
@@ -1537,61 +1537,47 @@ COMMAND_DECL(set_settings){
     for (; param < end; param = param_next(param, end)){
         int p = dynamic_to_int(&param->param.param);
         switch (p){
+            case par_buffer_id:
+            {
+                int v = dynamic_to_int(&param->param.value);
+                file = working_set_get_active_file(&models->working_set, v);
+            }break;
+            
             case par_lex_as_cpp_file:
             {
 #if BUFFER_EXPERIMENT_SCALPEL <= 0
-                int v = dynamic_to_bool(&param->param.value);
-                if (file->settings.tokens_exist){
-                    if (!v) file_kill_tokens(system, &models->mem.general, file);
-                }
-                else{
-                    if (v) file_first_lex_parallel(system, &models->mem.general, file);
+                if (file){
+                    int v = dynamic_to_bool(&param->param.value);
+                    if (file->settings.tokens_exist){
+                        if (!v) file_kill_tokens(system, &models->mem.general, file);
+                    }
+                    else{
+                        if (v) file_first_lex_parallel(system, &models->mem.general, file);
+                    }
                 }
 #endif
             }break;
-
+            
             case par_wrap_lines:
             {
                 int v = dynamic_to_bool(&param->param.value);
-                if (view->file_data.unwrapped_lines){
-                    if (v){
-                        view->file_data.unwrapped_lines = 0;
-                        file->settings.unwrapped_lines = 0;
-
-                        if (!file->state.is_loading){
-                            Relative_Scrolling scrolling = view_get_relative_scrolling(view);
-                            view->file_scroll.target_x = 0;
-                            view->file_data.cursor =
-                                view_compute_cursor_from_pos(view, view->file_data.cursor.pos);
-                            view_set_relative_scrolling(view, scrolling);
-                        }
-                    }
-                }
-                else{
-                    if (!v){
-                        view->file_data.unwrapped_lines = 1;
-                        file->settings.unwrapped_lines = 1;
-
-                        if (!file->state.is_loading){
-                            Relative_Scrolling scrolling = view_get_relative_scrolling(view);
-                            view->file_data.cursor =
-                                view_compute_cursor_from_pos(view, view->file_data.cursor.pos);
-                            view_set_relative_scrolling(view, scrolling);
-                        }
-                    }
+                if (file){
+                    file->settings.unwrapped_lines = !v;
                 }
             }break;
 
             case par_key_mapid:
             {
-                set_mapid = 1;
-                int v = dynamic_to_int(&param->param.value);
-                if (v == mapid_global) file->settings.base_map_id = mapid_global;
-                else if (v == mapid_file) file->settings.base_map_id = mapid_file;
-                else if (v < mapid_global){
-                    new_mapid = app_get_map_index(models, v);
-                    if (new_mapid  < models->user_map_count) file->settings.base_map_id = v;
-                    else file->settings.base_map_id = mapid_file;
+                if (file){
+                    set_mapid = 1;
+                    int v = dynamic_to_int(&param->param.value);
+                    if (v == mapid_global) file->settings.base_map_id = mapid_global;
+                    else if (v == mapid_file) file->settings.base_map_id = mapid_file;
+                    else if (v < mapid_global){
+                        new_mapid = app_get_map_index(models, v);
+                        if (new_mapid  < models->user_map_count) file->settings.base_map_id = v;
+                        else file->settings.base_map_id = mapid_file;
+                    }
                 }
             }break;
         }
@@ -2405,8 +2391,7 @@ extern "C"{
                 if (file){
                     result = 1;
                     if (file != vptr->file_data.file){
-                        view_set_file(vptr, file, models, cmd->system,
-                            models->hooks[hook_open_file], &app_links);
+                        view_set_file(vptr, file, models, cmd->system);
                         view_show_file(vptr, 0);
                     }
                 }
@@ -2535,58 +2520,58 @@ command_caller(Coroutine *coroutine){
 }
 
 internal void
-app_links_init(System_Functions *system, void *data, int size){
-    app_links.memory = data;
-    app_links.memory_size = size;
+app_links_init(System_Functions *system, Application_Links *app_links, void *data, int size){
+    app_links->memory = data;
+    app_links->memory_size = size;
 
-    app_links.exec_command_keep_stack = external_exec_command_keep_stack;
-    app_links.push_parameter = external_push_parameter;
-    app_links.push_memory = external_push_memory;
-    app_links.clear_parameters = external_clear_parameters;
+    app_links->exec_command_keep_stack = external_exec_command_keep_stack;
+    app_links->push_parameter = external_push_parameter;
+    app_links->push_memory = external_push_memory;
+    app_links->clear_parameters = external_clear_parameters;
 
-    app_links.directory_get_hot = external_directory_get_hot;
-    app_links.file_exists = system->file_exists;
-    app_links.directory_cd = system->directory_cd;
-    app_links.get_file_list = external_get_file_list;
-    app_links.free_file_list = external_free_file_list;
+    app_links->directory_get_hot = external_directory_get_hot;
+    app_links->file_exists = system->file_exists;
+    app_links->directory_cd = system->directory_cd;
+    app_links->get_file_list = external_get_file_list;
+    app_links->free_file_list = external_free_file_list;
 
-    app_links.get_buffer_first = external_get_buffer_first;
-    app_links.get_buffer_next = external_get_buffer_next;
+    app_links->get_buffer_first = external_get_buffer_first;
+    app_links->get_buffer_next = external_get_buffer_next;
 
-    app_links.get_buffer = external_get_buffer;
-    app_links.get_active_buffer = external_get_active_buffer;
-    app_links.get_parameter_buffer = external_get_parameter_buffer;
-    app_links.get_buffer_by_name = external_get_buffer_by_name;
+    app_links->get_buffer = external_get_buffer;
+    app_links->get_active_buffer = external_get_active_buffer;
+    app_links->get_parameter_buffer = external_get_parameter_buffer;
+    app_links->get_buffer_by_name = external_get_buffer_by_name;
 
-    app_links.refresh_buffer = external_refresh_buffer;
-    app_links.buffer_seek_delimiter = external_buffer_seek_delimiter;
-    app_links.buffer_seek_string = external_buffer_seek_string;
-    app_links.buffer_seek_string_insensitive = external_buffer_seek_string_insensitive;
-    app_links.buffer_read_range = external_buffer_read_range;
-    app_links.buffer_replace_range = external_buffer_replace_range;
+    app_links->refresh_buffer = external_refresh_buffer;
+    app_links->buffer_seek_delimiter = external_buffer_seek_delimiter;
+    app_links->buffer_seek_string = external_buffer_seek_string;
+    app_links->buffer_seek_string_insensitive = external_buffer_seek_string_insensitive;
+    app_links->buffer_read_range = external_buffer_read_range;
+    app_links->buffer_replace_range = external_buffer_replace_range;
 
-    app_links.get_view_first = external_get_view_first;
-    app_links.get_view_next = external_get_view_next;
+    app_links->get_view_first = external_get_view_first;
+    app_links->get_view_next = external_get_view_next;
 
-    app_links.get_view = external_get_view;
-    app_links.get_active_view = external_get_active_view;
+    app_links->get_view = external_get_view;
+    app_links->get_active_view = external_get_active_view;
 
-    app_links.refresh_view = external_refresh_view;
-    app_links.view_set_cursor = external_view_set_cursor;
-    app_links.view_set_mark = external_view_set_mark;
-    app_links.view_set_highlight = external_view_set_highlight;
-    app_links.view_set_buffer = external_view_set_buffer;
+    app_links->refresh_view = external_refresh_view;
+    app_links->view_set_cursor = external_view_set_cursor;
+    app_links->view_set_mark = external_view_set_mark;
+    app_links->view_set_highlight = external_view_set_highlight;
+    app_links->view_set_buffer = external_view_set_buffer;
 
-    app_links.get_user_input = external_get_user_input;
-    app_links.get_command_input = external_get_command_input;
+    app_links->get_user_input = external_get_user_input;
+    app_links->get_command_input = external_get_command_input;
 
-    app_links.start_query_bar = external_start_query_bar;
-    app_links.end_query_bar = external_end_query_bar;
-    app_links.print_message = external_print_message;
+    app_links->start_query_bar = external_start_query_bar;
+    app_links->end_query_bar = external_end_query_bar;
+    app_links->print_message = external_print_message;
 
-    app_links.change_theme = external_change_theme;
-    app_links.change_font = external_change_font;
-    app_links.set_theme_colors = external_set_theme_colors;
+    app_links->change_theme = external_change_theme;
+    app_links->change_font = external_change_font;
+    app_links->set_theme_colors = external_set_theme_colors;
 }
 
 internal void
@@ -3123,13 +3108,13 @@ App_Init_Sig(app_init){
     i32 panel_max_count;
     i32 divider_max_count;
 
-    app_links_init(system, memory->user_memory, memory->user_memory_size);
-
     vars = (App_Vars*)memory->vars_memory;
     models = &vars->models;
 
+    app_links_init(system, &models->app_links, memory->user_memory, memory->user_memory_size);
+
     models->config_api = api;
-    app_links.cmd_context = &vars->command_data;
+    models->app_links.cmd_context = &vars->command_data;
 
     partition = &models->mem.part;
     target->partition = partition;
@@ -3195,14 +3180,14 @@ App_Init_Sig(app_init){
         global = &models->map_top;
         Assert(models->config_api.get_bindings != 0);
 
-        wanted_size = models->config_api.get_bindings(app_links.memory, app_links.memory_size);
+        wanted_size = models->config_api.get_bindings(models->app_links.memory, models->app_links.memory_size);
 
-        if (wanted_size <= app_links.memory_size){
+        if (wanted_size <= models->app_links.memory_size){
             Command_Map *map_ptr = 0;
             Binding_Unit *unit, *end;
             i32 user_map_count;
 
-            unit = (Binding_Unit*)app_links.memory;
+            unit = (Binding_Unit*)models->app_links.memory;
             if (unit->type == unit_header && unit->header.error == 0){
                 end = unit + unit->header.total_size;
 
@@ -3306,7 +3291,7 @@ App_Init_Sig(app_init){
             }
         }
 
-        memset(app_links.memory, 0, wanted_size);
+        memset(models->app_links.memory, 0, wanted_size);
         if (!did_top) setup_top_commands(&models->map_top, &models->mem.part, global);
         if (!did_file) setup_file_commands(&models->map_file, &models->mem.part, global);
 
@@ -3667,7 +3652,7 @@ App_Step_Sig(app_step){
         models->message_buffer = file;
         
         if (models->hooks[hook_start]){
-            models->hooks[hook_start](&app_links);
+            models->hooks[hook_start](&models->app_links);
             cmd->part.pos = 0;
         }
 
@@ -4374,14 +4359,14 @@ App_Step_Sig(app_step){
 
                     View *view = panel->view;
 
-                    view_set_file(view, file, models, system, models->hooks[hook_open_file], &app_links);
+                    view_set_file(view, file, models, system);
                     view_show_file(view, 0);
                     view->map = app_get_map(models, file->settings.base_map_id);
 
                     Hook_Function *new_file_fnc = models->hooks[hook_new_file];
                     if (new_file_fnc){
                         models->buffer_param_indices[models->buffer_param_count++] = file->id.id;
-                        new_file_fnc(&app_links);
+                        new_file_fnc(&models->app_links);
                         models->buffer_param_count = 0;
                         file->settings.is_initialized = 1;
                     }
@@ -4404,8 +4389,7 @@ App_Step_Sig(app_step){
                     if (file){
                         View *view = panel->view;
 
-                        view_set_file(view, file, models, system,
-                            models->hooks[hook_open_file], &app_links);
+                        view_set_file(view, file, models, system);
                         view_show_file(view, 0);
                         view->map = app_get_map(models, file->settings.base_map_id);
                     }
@@ -4422,8 +4406,7 @@ App_Step_Sig(app_step){
 
                     if (file && !file->settings.never_kill){
                         working_set_remove(system, working_set, file->name.source_path);
-                        kill_file(system, exchange, models, file,
-                            models->hooks[hook_open_file], &app_links); 
+                        kill_file(system, exchange, models, file); 
                     }
                 }break;
 
@@ -4452,8 +4435,7 @@ App_Step_Sig(app_step){
                         }
                         else{
                             working_set_remove(system, working_set, file->name.source_path);
-                            kill_file(system, exchange, models, file,
-                                models->hooks[hook_open_file], &app_links);
+                            kill_file(system, exchange, models, file);
                         }
                     }
                 }break;

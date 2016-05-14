@@ -588,7 +588,21 @@ file_create_from_string(System_Functions *system, Models *models,
     }
     
     Hook_Function *open_hook = models->hooks[hook_open_file];
-    open_hook(models->app);
+    models->buffer_param_indices[models->buffer_param_count++] = file->id.id;
+    open_hook(&models->app_links);
+    models->buffer_param_count = 0;
+    file->settings.is_initialized = 1;
+        
+#if 0
+    if (file){
+        if (open_hook && file->settings.is_initialized == 0){
+            models->buffer_param_indices[models->buffer_param_count++] = file->id.id;
+            open_hook(app);
+            models->buffer_param_count = 0;
+            file->settings.is_initialized = 1;
+        }
+    }
+#endif
 }
 
 internal b32
@@ -1267,10 +1281,7 @@ view_set_file(
     View *view, Editing_File *file, Models *models,
 
     // NOTE(allen): Necessary when file != 0
-    System_Functions *system, Hook_Function *open_hook, Application_Links *app,
-
-    // other
-    b32 set_vui = 1){
+    System_Functions *system){
 
     Font_Info *fnt_info;
 
@@ -1796,6 +1807,7 @@ file_do_white_batch_edit(System_Functions *system, Models *models, Editing_File 
             for (; token->start < edit->start && edit->start < token->start + token->size &&
                     token < end_token; ++token){
                 token->size += local_shift;
+                token->start += shift_amount;
             }
             for (; token->start < edit->start && token < end_token; ++token){
                 token->start += shift_amount;
@@ -2222,9 +2234,8 @@ view_clean_whitespace(System_Functions *system, Models *models, View *view){
 }
 
 internal void
-view_auto_tab_tokens(System_Functions *system,
-    Models *models, View *view,
-    i32 start, i32 end, b32 empty_blank_lines, b32 use_tabs){
+view_auto_tab_tokens(System_Functions *system, Models *models,
+    View *view, i32 start, i32 end, b32 empty_blank_lines, b32 use_tabs){
 #if BUFFER_EXPERIMENT_SCALPEL <= 0
     Editing_File *file = view->file_data.file;
     Mem_Options *mem = &models->mem;
@@ -2251,90 +2262,131 @@ view_auto_tab_tokens(System_Functions *system,
         Cpp_Token *token, *self_token;
 
         {
-            i32 start_pos = file->state.buffer.line_starts[line_start];
+            i32 start_pos = buffer->line_starts[line_start];
             Cpp_Get_Token_Result result = cpp_get_token(&tokens, start_pos);
             token_i = result.token_index;
             if (result.in_whitespace) token_i += 1;
             self_token = tokens.tokens + token_i;
         }
-
-        i32 line = line_start - 1;
-        for (; line >= 0; --line){
-            i32 start = file->state.buffer.line_starts[line];
-            b32 all_whitespace = 0;
-            b32 all_space = 0;
-            buffer_find_hard_start(&file->state.buffer, start,
-                &all_whitespace, &all_space, &current_indent, 4);
-            if (!all_whitespace) break;
+        
+        // NOTE(allen): This part looks at code before the current code to figure out
+        // how much to indent the current code.
+        
+        for (token = self_token; token_i > 0; --token_i, --token){
+            switch(token->type){
+                case CPP_TOKEN_BRACKET_OPEN:
+                case CPP_TOKEN_BRACKET_CLOSE:
+                token_i = 0;
+                break;
+            }
         }
-
+        
+        i32 line = 0;
+        {
+            i32 start = 0;
+            b32 all_whitespace = 0, all_space = 0;
+            
+            line = buffer_get_line_index(buffer, token->start);
+            start = buffer->line_starts[line];
+            buffer_find_hard_start(buffer, start, &all_whitespace, &all_space, &current_indent, 4);
+        }
+        
+        // NOTE(allen): It is not clear what this part does...
+        // it looks like it figures out the current token from the line, but
+        // the system now figures out the line from the current token...
+        // All we really need here is to make sure we start on the first
+        // token of the line we want to start at I think.
+        
         if (line < 0){
             token_i = 0;
             token = tokens.tokens + token_i;
         }
         else{
-            i32 start_pos = file->state.buffer.line_starts[line];
+            i32 start_pos = buffer->line_starts[line];
             Cpp_Get_Token_Result result = cpp_get_token(&tokens, start_pos);
             token_i = result.token_index;
             if (result.in_whitespace) token_i += 1;
             token = tokens.tokens + token_i;
-
+            
             while (token >= tokens.tokens &&
                     token->flags & CPP_TFLAG_PP_DIRECTIVE ||
                     token->flags & CPP_TFLAG_PP_BODY){
                 --token;
             }
-
+            
             if (token < tokens.tokens){
                 ++token;
                 current_indent = 0;
             }
             else if (token->start < start_pos){
-                line = buffer_get_line_index(&file->state.buffer, token->start);
-                i32 start = file->state.buffer.line_starts[line];
+                line = buffer_get_line_index(buffer, token->start);
+                i32 start = buffer->line_starts[line];
                 b32 all_whitespace = 0;
                 b32 all_space = 0;
-                buffer_find_hard_start(&file->state.buffer, start,
-                    &all_whitespace, &all_space, &current_indent, 4);
+                buffer_find_hard_start(buffer, start, &all_whitespace, &all_space, &current_indent, 4);
                 Assert(!all_whitespace);
             }
         }
-
+        
         indent_marks -= line_start;
         i32 line_i = line_start;
-        i32 next_line_start = file->state.buffer.line_starts[line_i];
+        i32 next_line_start = buffer->line_starts[line_i];
         switch (token->type){
             case CPP_TOKEN_BRACKET_OPEN: current_indent += 4; break;
             case CPP_TOKEN_PARENTHESE_OPEN: current_indent += 4; break;
             case CPP_TOKEN_BRACE_OPEN: current_indent += 4; break;
         }
 
-        Cpp_Token *prev_token = token;
+        Cpp_Token T;
+        Cpp_Token prev_token = *token;
         ++token;
-        for (; line_i < line_end; ++token_i, ++token){
-            for (; token->start >= next_line_start && line_i < line_end;){
+        
+        for (; line_i < line_end; ++token){
+            if (token < tokens.tokens + tokens.count){
+                T = *token;
+            }
+            else{
+                T.type = CPP_TOKEN_EOF;
+                T.start = buffer_size(buffer);
+                T.flags = 0;
+            }
+            
+            for (; T.start >= next_line_start && line_i < line_end;){
                 i32 this_line_start = next_line_start;
-                next_line_start = file->state.buffer.line_starts[line_i+1];
+                if (line_i+1 < buffer->line_count){
+                    next_line_start = buffer->line_starts[line_i+1];
+                }
+                else{
+                    next_line_start = buffer_size(buffer);
+                }
+
                 i32 this_indent;
-                if (prev_token && prev_token->type == CPP_TOKEN_COMMENT &&
-                        prev_token->start <= this_line_start && prev_token->start + prev_token->size > this_line_start){
-                    this_indent = -1;
+                if (prev_token.type == CPP_TOKEN_COMMENT &&
+                        prev_token.start <= this_line_start && prev_token.start + prev_token.size > this_line_start){
+                    if (line_i > 0){
+                        this_indent = indent_marks[line_i-1];
+                    }
+                    else{
+                        this_indent = 0;
+                    }
                 }
                 else{
                     this_indent = current_indent;
-                    if (token->start < next_line_start){
-                        if (token->flags & CPP_TFLAG_PP_DIRECTIVE) this_indent = 0;
+                    if (T.start < next_line_start){
+                        if (T.flags & CPP_TFLAG_PP_DIRECTIVE){
+                            this_indent = 0;
+                        }
                         else{
-                            switch (token->type){
+                            switch (T.type){
                                 case CPP_TOKEN_BRACKET_CLOSE: this_indent -= 4; break;
                                 case CPP_TOKEN_PARENTHESE_CLOSE: this_indent -= 4; break;
                                 case CPP_TOKEN_BRACE_CLOSE: this_indent -= 4; break;
                                 case CPP_TOKEN_BRACE_OPEN: break;
                                 default:
-                                if (current_indent > 0 && prev_token){
-                                    if (!(prev_token->flags & CPP_TFLAG_PP_BODY ||
-                                                prev_token->flags & CPP_TFLAG_PP_DIRECTIVE)){
-                                        switch (prev_token->type){
+                                if (current_indent > 0){
+                                    if (!(prev_token.flags & CPP_TFLAG_PP_BODY ||
+                                                prev_token.flags & CPP_TFLAG_PP_DIRECTIVE)){
+                                        switch (prev_token.type){
                                             case CPP_TOKEN_BRACKET_OPEN: case CPP_TOKEN_PARENTHESE_OPEN:
                                             case CPP_TOKEN_BRACE_OPEN: case CPP_TOKEN_BRACE_CLOSE:
                                             case CPP_TOKEN_SEMICOLON: case CPP_TOKEN_COLON: break;
@@ -2352,7 +2404,7 @@ view_auto_tab_tokens(System_Functions *system,
                 ++line_i;
             }
 
-            switch (token->type){
+            switch (T.type){
                 case CPP_TOKEN_BRACKET_OPEN: current_indent += 4; break;
                 case CPP_TOKEN_BRACKET_CLOSE: current_indent -= 4; break;
                 case CPP_TOKEN_PARENTHESE_OPEN: current_indent += 4; break;
@@ -2360,7 +2412,7 @@ view_auto_tab_tokens(System_Functions *system,
                 case CPP_TOKEN_BRACE_OPEN: current_indent += 4; break;
                 case CPP_TOKEN_BRACE_CLOSE: current_indent -= 4; break;
             }
-            prev_token = token;
+            prev_token = T;
         }
     }
 
@@ -2369,14 +2421,14 @@ view_auto_tab_tokens(System_Functions *system,
     char *str_base = (char*)part->base + part->pos;
     i32 str_size = 0;
     for (i32 line_i = line_start; line_i < line_end; ++line_i){
-        i32 start = file->state.buffer.line_starts[line_i];
+        i32 start = buffer->line_starts[line_i];
         i32 preferred_indentation;
         i32 correct_indentation;
         b32 all_whitespace = 0;
         b32 all_space = 0;
         i32 tab_width = 4;
         i32 hard_start =
-            buffer_find_hard_start(&file->state.buffer, start, &all_whitespace, &all_space,
+            buffer_find_hard_start(buffer, start, &all_whitespace, &all_space,
                 &preferred_indentation, tab_width);
 
         correct_indentation = indent_marks[line_i];
@@ -2427,7 +2479,7 @@ view_auto_tab_tokens(System_Functions *system,
         i32 preferred_indentation;
         i32 start = view->file_data.cursor.pos;
         i32 hard_start = buffer_find_hard_start(
-            &file->state.buffer, start, &all_whitespace, &all_space,
+            buffer, start, &all_whitespace, &all_space,
             &preferred_indentation, 4);
 
         view_cursor_move(view, hard_start);
@@ -4650,11 +4702,8 @@ do_render_file_view(System_Functions *system, Exchange *exchange,
     return(result);
 }
 
-// TODO(allen): Passing this hook and app pointer is a hack. It can go as soon as we start
-// initializing files independently of setting them to views.
 internal void
-kill_file(System_Functions *system, Exchange *exchange, Models *models, Editing_File *file,
-    Hook_Function *open_hook, Application_Links *app){
+kill_file(System_Functions *system, Exchange *exchange, Models *models, Editing_File *file){
     File_Node *node, *used;
 
     file_close(system, &models->mem.general, file);
@@ -4668,12 +4717,12 @@ kill_file(System_Functions *system, Exchange *exchange, Models *models, Editing_
         iter = file_view_iter_next(iter)){
         if (node != used){
             iter.view->file_data.file = 0;
-            view_set_file(iter.view, (Editing_File*)node, models, system, open_hook, app, 0);
+            view_set_file(iter.view, (Editing_File*)node, models, system);
             node = node->next;
         }
         else{
             iter.view->file_data.file = 0;
-            view_set_file(iter.view, 0, models, system, open_hook, app, 0);
+            view_set_file(iter.view, 0, models, system);
         }
     }
 }

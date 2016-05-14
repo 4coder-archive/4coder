@@ -1198,6 +1198,31 @@ Win32RedrawScreen(HDC hdc){
     SwapBuffers(hdc);
 }
 
+// NOTE(allen): Old contents of 4ed_keyboard.cpp
+globalvar u8 keycode_lookup_table[255];
+
+inline u8
+keycode_lookup(u8 system_code){
+	return keycode_lookup_table[system_code];
+}
+
+// NOTE(allen): Old contents of 4ed_win32_keyboard.cpp
+internal void
+keycode_init(){
+    keycode_lookup_table[VK_BACK] = key_back;
+    keycode_lookup_table[VK_DELETE] = key_del;
+    keycode_lookup_table[VK_UP] = key_up;
+    keycode_lookup_table[VK_DOWN] = key_down;
+    keycode_lookup_table[VK_LEFT] = key_left;
+    keycode_lookup_table[VK_RIGHT] = key_right;
+    keycode_lookup_table[VK_INSERT] = key_insert;
+    keycode_lookup_table[VK_HOME] = key_home;
+    keycode_lookup_table[VK_END] = key_end;
+    keycode_lookup_table[VK_PRIOR] = key_page_up;
+    keycode_lookup_table[VK_NEXT] = key_page_down;
+    keycode_lookup_table[VK_ESCAPE] = key_esc;
+}
+
 internal LRESULT
 Win32Callback(HWND hwnd, UINT uMsg,
     WPARAM wParam, LPARAM lParam){
@@ -1325,10 +1350,12 @@ Win32Callback(HWND hwnd, UINT uMsg,
                             // control+alt is used to signal AltGr for important keys.
                             if (result1 && result2){
                                 char c1 = char_to_upper((char)x1);
-                                char c2 = char_to_upper((char)x2);
                                 char cParam = char_to_upper((char)wParam);
                                 
-                                if (c1 != cParam && c2 == cParam){
+                                if ((c1 == '\n' || c1 == '\r') && cParam != VK_RETURN){
+                                    result1 = 0;
+                                }
+                                if (c1 == '\t' && cParam != VK_TAB){
                                     result1 = 0;
                                 }
                             }

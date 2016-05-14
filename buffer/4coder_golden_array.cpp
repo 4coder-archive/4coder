@@ -192,18 +192,18 @@ buffer_replace_range(Buffer *buffer, int start, int end, char *str, int len, int
 
 internal_4tech int
 buffer_batch_edit_step(Buffer_Batch_State *state, Buffer *buffer, Buffer_Edit *sorted_edits,
-                       char *strings, int edit_count, void *scratch, int scratch_size, int *request_amount){
+    char *strings, int edit_count, void *scratch, int scratch_size, int *request_amount){
     Buffer_Edit *edit;
     int i, result;
     int shift_total, shift_amount;
-    
+
     result = 0;
     shift_total = state->shift_total;
     i = state->i;
 
     edit = sorted_edits + i;
     for (; i < edit_count; ++i, ++edit){
-        assert(edit->end + shift_total < buffer_size(buffer));
+        assert(edit->end + shift_total <= buffer_size(buffer));
         result = buffer_replace_range(buffer, edit->start + shift_total, edit->end + shift_total,
             strings + edit->str_start, edit->len, &shift_amount,
             scratch, scratch_size, request_amount);
