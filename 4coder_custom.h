@@ -390,6 +390,7 @@ struct Application_Links;
 #define GET_ACTIVE_VIEW_SIG(n) View_Summary n(Application_Links *app)
 
 #define REFRESH_VIEW_SIG(n) int n(Application_Links *app, View_Summary *view)
+#define VIEW_COMPUTE_CURSOR_SIG(n) Full_Cursor n(Application_Links *app, View_Summary *view, Buffer_Seek seek)
 #define VIEW_SET_CURSOR_SIG(n) int n(Application_Links *app, View_Summary *view, Buffer_Seek seek, int set_preferred_x)
 #define VIEW_SET_MARK_SIG(n) int n(Application_Links *app, View_Summary *view, Buffer_Seek seek)
 #define VIEW_SET_HIGHLIGHT_SIG(n) int n(Application_Links *app, View_Summary *view, int start, int end, int turn_on)
@@ -472,6 +473,7 @@ extern "C"{
     typedef GET_ACTIVE_VIEW_SIG(Get_Active_View_Function);
     
     typedef REFRESH_VIEW_SIG(Refresh_View_Function);
+    typedef VIEW_COMPUTE_CURSOR_SIG(View_Compute_Cursor_Function);
     typedef VIEW_SET_CURSOR_SIG(View_Set_Cursor_Function);
     typedef VIEW_SET_MARK_SIG(View_Set_Mark_Function);
     typedef VIEW_SET_HIGHLIGHT_SIG(View_Set_Highlight_Function);
@@ -536,6 +538,7 @@ struct Application_Links{
     Get_Active_View_Function *get_active_view;
     
     Refresh_View_Function *refresh_view;
+    View_Compute_Cursor_Function *view_compute_cursor;
     View_Set_Cursor_Function *view_set_cursor;
     View_Set_Mark_Function *view_set_mark;
     View_Set_Highlight_Function *view_set_highlight;

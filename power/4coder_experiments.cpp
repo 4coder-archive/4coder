@@ -7,6 +7,7 @@
 CUSTOM_COMMAND_SIG(kill_rect){
     View_Summary view = app->get_active_view(app);
     Buffer_Summary buffer = app->get_buffer(app, view.buffer_id);
+    Full_Cursor cursor;
     
     Buffer_Rect rect = get_rect(&view);
     
@@ -14,13 +15,11 @@ CUSTOM_COMMAND_SIG(kill_rect){
         int start = 0;
         int end = 0;
         
-        app->view_set_cursor(app, &view, seek_line_char(line, rect.char0), 0);
-        app->refresh_view(app, &view);
-        start = view.cursor.pos;
+        cursor = app->view_compute_cursor(app, &view, seek_line_char(line, rect.char0));
+        start = cursor.pos;
         
-        app->view_set_cursor(app, &view, seek_line_char(line, rect.char1), 0);
-        app->refresh_view(app, &view);
-        end = view.cursor.pos;
+        cursor = app->view_compute_cursor(app, &view, seek_line_char(line, rect.char1));
+        end = cursor.pos;
         
         app->buffer_replace_range(app, &buffer, start, end, 0, 0);
     }

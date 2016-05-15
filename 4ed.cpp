@@ -1169,15 +1169,16 @@ COMMAND_DECL(eol_nixify){
 }
 
 COMMAND_DECL(auto_tab_range){
-    
     USE_MODELS(models);
     REQ_OPEN_VIEW(view);
     REQ_FILE(file, view);
 
     int r_start = 0, r_end = 0;
     int start_set = 0, end_set = 0;
-    int clear_blank_lines = 1;
-    int use_tabs = 0;
+    Indent_Options opts;
+    opts.empty_blank_lines = 1;
+    opts.use_tabs = 0;
+    opts.tab_width = 4;
 
     // TODO(allen): deduplicate
     Command_Parameter *end = param_stack_end(&command->part);
@@ -1196,11 +1197,11 @@ COMMAND_DECL(auto_tab_range){
             break;
 
             case par_clear_blank_lines:
-            clear_blank_lines = dynamic_to_bool(&param->param.value);
+            opts.empty_blank_lines = dynamic_to_bool(&param->param.value);
             break;
             
             case par_use_tabs:
-            use_tabs = dynamic_to_bool(&param->param.value);
+            opts.use_tabs = dynamic_to_bool(&param->param.value);
             break;
         }
     }
@@ -1209,7 +1210,7 @@ COMMAND_DECL(auto_tab_range){
         Range range = make_range(view->file_data.cursor.pos, view->file_data.mark);
         if (start_set) range.start = r_start;
         if (end_set) range.end = r_end;
-        view_auto_tab_tokens(system, models, view, range.start, range.end, clear_blank_lines, use_tabs);
+        view_auto_tab_tokens(system, models, view, range.start, range.end, opts);
     }
 }
 
@@ -2282,7 +2283,34 @@ extern "C"{
         result = view->exists;
         return(result);
     }
-
+    
+    VIEW_COMPUTE_CURSOR_SIG(external_view_compute_cursor){
+        Command_Data *cmd = (Command_Data*)app->cmd_context;
+        Live_Views *live_set;
+        View *vptr;
+        Editing_File *file;
+        Full_Cursor result = {0};
+        int view_id;
+        
+        if (view->exists){
+            live_set = cmd->live_set;
+            view_id = view->view_id - 1;
+            if (view_id >= 0 && view_id < live_set->max){
+                vptr = live_set->views + view_id;
+                file = vptr->file_data.file;
+                if (file && !file->state.is_loading){
+                    if (seek.type == buffer_seek_line_char && seek.character <= 0){
+                        seek.character = 1;
+                    }
+                    result = view_compute_cursor(vptr, seek);
+                    fill_view_summary(view, vptr, live_set, &cmd->models->working_set);
+                }
+            }
+        }
+        
+        return(result);
+    }
+    
     VIEW_SET_CURSOR_SIG(external_view_set_cursor){
         Command_Data *cmd = (Command_Data*)app->cmd_context;
         Live_Views *live_set;
@@ -2557,6 +2585,7 @@ app_links_init(System_Functions *system, Application_Links *app_links, void *dat
     app_links->get_active_view = external_get_active_view;
 
     app_links->refresh_view = external_refresh_view;
+    app_links->view_compute_cursor = external_view_compute_cursor;
     app_links->view_set_cursor = external_view_set_cursor;
     app_links->view_set_mark = external_view_set_mark;
     app_links->view_set_highlight = external_view_set_highlight;
@@ -4013,9 +4042,9 @@ App_Step_Sig(app_step){
                 "and if you load README.txt you'll find all the key combos there are.\n"
                 "\n"
                 "Newest features:\n"
-                "Scroll bar on files and file lists\n"
-                "Arrow navigation in lists\n"
-                "A new minimal theme editor\n"
+                "-Scroll bar on files and file lists\n"
+                "-Arrow navigation in lists\n"
+                "-A new minimal theme editor\n"
                 "\n"
                 "New in alpha 4.0.2:\n"
                 "-The file count limit is over 8 million now\n"
