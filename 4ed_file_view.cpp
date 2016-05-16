@@ -2432,6 +2432,11 @@ get_line_indentation_marks(Partition *part, Buffer *buffer, Cpp_Token_Stack toke
     indent_marks -= line_start;
     
     i32 line_i = buffer_get_line_index(buffer, token->start);
+    
+    if (line_i > line_start){
+        line_i = line_start;
+    }
+    
     i32 next_line_start = buffer->line_starts[line_i+1];
     switch (token->type){
         case CPP_TOKEN_BRACKET_OPEN: indent.current_indent += tab_width; break;
