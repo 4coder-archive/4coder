@@ -173,7 +173,7 @@ char str_alloc_copy[] =
 char delayed_action_zero[] =
 "inline Delayed_Action\n"
 "delayed_action_zero(){\n"
-"    Delayed_Action result = {0};\n"
+"    Delayed_Action result = {(Action_Type)0};\n"
 "    return(result);\n"
 "}\n\n"
 ;
@@ -286,6 +286,7 @@ char* generate_delayed_action(){
     struct_end(file);
     
     fprintf(file, "%s", str_alloc_copy);
+    fprintf(file, "%s", delayed_action_zero);
     fprintf(file, "%s%s", delayed_action_function_top, delayed_action_function_bottom);
     
     for (i = 0; i < ArrayCount(dact_param_sets); ++i){

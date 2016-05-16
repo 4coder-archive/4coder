@@ -38,7 +38,11 @@ str_alloc_copy(General_Memory *general, String str){
     return(result);
 }
 
-
+inline Delayed_Action
+delayed_action_zero(){
+    Delayed_Action result = {(Action_Type)0};
+    return(result);
+}
 
 inline Delayed_Action*
 delayed_action_(Delay *delay, Action_Type type){
@@ -48,7 +52,7 @@ delayed_action_(Delay *delay, Action_Type type){
         delay->acts = (Delayed_Action*)general_memory_reallocate(delay->general, delay->acts, delay->count*sizeof(Delayed_Action), delay->max*sizeof(Delayed_Action), 0);
     }
     result = delay->acts + delay->count++;
-    *result = {};
+    *result = delayed_action_zero();
     result->type = type;
     return(result);
 }
