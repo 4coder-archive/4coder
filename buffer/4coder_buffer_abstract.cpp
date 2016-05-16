@@ -470,40 +470,45 @@ buffer_seek_alphanumeric_or_camel_left(Buffer_Type *buffer, int pos){
     return(result);
 }
 
-internal_4tech int
-buffer_find_hard_start(Buffer_Type *buffer, int line_start, int *all_whitespace,
-    int *all_space, int *preferred_indent, int tab_width){
-    
+struct Hard_Start_Result{
+    int char_pos;
+    int indent_pos;
+    int all_whitespace;
+    int all_space;
+};
+
+internal_4tech Hard_Start_Result
+buffer_find_hard_start(Buffer_Type *buffer, int line_start, int tab_width){
+    Hard_Start_Result result = {0};
     Buffer_Stringify_Type loop;
     char *data;
     int size, end;
-    int result;
     char c;
     
-    *all_space = 1;
-    *preferred_indent = 0;
+    result.all_space = 1;
+    result.indent_pos = 0;
     
     size = buffer_size(buffer);
     
     tab_width -= 1;
     
-    result = line_start;
+    result.char_pos = line_start;
     for (loop = buffer_stringify_loop(buffer, line_start, size);
          buffer_stringify_good(&loop);
          buffer_stringify_next(&loop)){
         end = loop.size + loop.absolute_pos;
         data = loop.data - loop.absolute_pos;
-        for (; result < end; ++result){
-            c = data[result];
+        for (; result.char_pos < end; ++result.char_pos){
+            c = data[result.char_pos];
             
             if (c == '\n' || c == 0){
-                *all_whitespace = 1;
+                result.all_whitespace = 1;
                 goto buffer_find_hard_start_end;
             }
             if (c >= '!' && c <= '~') goto buffer_find_hard_start_end;
-            if (c == '\t') *preferred_indent += tab_width;
-            if (c != ' ') *all_space = 0;
-            *preferred_indent += 1;
+            if (c == '\t') result.indent_pos += tab_width;
+            if (c != ' ') result.all_space = 0;
+            result.indent_pos += 1;
         }
     }
     

@@ -124,7 +124,7 @@ general_memory_open(General_Memory *general, void *memory, i32 size){
     insert_bubble(&general->sentinel, first);
 }
 
-internal void
+internal b32
 general_memory_check(General_Memory *general){
     Bubble *sentinel = &general->sentinel;
     for (Bubble *bubble = sentinel->next;
@@ -145,6 +145,7 @@ general_memory_check(General_Memory *general){
             Assert(end_ptr == next_ptr);
         }
     }
+    return(1);
 }
 
 #define BUBBLE_MIN_SIZE 1024

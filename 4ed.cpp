@@ -224,7 +224,7 @@ panel_make_empty(System_Functions *system, Exchange *exchange, App_Vars *vars, P
 
     Assert(panel->view == 0);
     new_view = live_set_alloc_view(&vars->live_set, panel, models);
-    view_set_file(new_view.view, 0, models, 0);
+    view_set_file(new_view.view, 0, models);
     new_view.view->map = app_get_map(models, mapid_global);
 
     return(new_view.view);
@@ -861,7 +861,6 @@ COMMAND_DECL(interactive_open){
 
 internal void
 view_file_in_panel(Command_Data *cmd, Panel *panel, Editing_File *file){
-    System_Functions *system = cmd->system;
     Models *models = cmd->models;
 
     Partition old_part;
@@ -878,7 +877,7 @@ view_file_in_panel(Command_Data *cmd, Panel *panel, Editing_File *file){
     cmd->part = partition_sub_part(part, Kbytes(16));
 
     View *view = panel->view;
-    view_set_file(view, file, models, system);
+    view_set_file(view, file, models);
     view_show_file(view, 0);
 
     cmd->part = old_part;
@@ -909,7 +908,7 @@ COMMAND_DECL(reopen){
         index = file->id.id;
         app_push_file_binding(vars, file_id, index);
 
-        view_set_file(view, file, models, system);
+        view_set_file(view, file, models);
         view_show_file(view, 0);
     }
     else{
@@ -2419,7 +2418,7 @@ extern "C"{
                 if (file){
                     result = 1;
                     if (file != vptr->file_data.file){
-                        view_set_file(vptr, file, models, cmd->system);
+                        view_set_file(vptr, file, models);
                         view_show_file(vptr, 0);
                     }
                 }
@@ -3556,7 +3555,7 @@ App_Step_Sig(app_step){
                 Assert(view);
                 // TODO(allen): All responses to a panel changing size should
                 // be handled in the same place.
-                view_change_size(system, &models->mem.general, view);
+                view_change_size(&models->mem.general, view);
             }
         }
     }
@@ -4199,7 +4198,7 @@ App_Step_Sig(app_step){
                     for (View_Iter iter = file_view_iter_init(&models->layout, ed_file, 0);
                         file_view_iter_good(iter);
                         iter = file_view_iter_next(iter)){
-                        view_measure_wraps(system, general, iter.view);
+                        view_measure_wraps(general, iter.view);
                         view_cursor_move(iter.view, preload_settings.start_line, 0);
                     }
                 }
@@ -4388,7 +4387,7 @@ App_Step_Sig(app_step){
 
                     View *view = panel->view;
 
-                    view_set_file(view, file, models, system);
+                    view_set_file(view, file, models);
                     view_show_file(view, 0);
                     view->map = app_get_map(models, file->settings.base_map_id);
 
@@ -4418,7 +4417,7 @@ App_Step_Sig(app_step){
                     if (file){
                         View *view = panel->view;
 
-                        view_set_file(view, file, models, system);
+                        view_set_file(view, file, models);
                         view_show_file(view, 0);
                         view->map = app_get_map(models, file->settings.base_map_id);
                     }
@@ -4600,7 +4599,9 @@ App_Step_Sig(app_step){
     
     app_result.lctrl_lalt_is_altgr = models->settings.lctrl_lalt_is_altgr;
     *result = app_result;
-
+    
+    Assert(general_memory_check(&models->mem.general));
+    
     // end-of-app_step
 }
 

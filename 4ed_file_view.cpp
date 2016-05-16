@@ -407,7 +407,7 @@ file_measure_starts_widths(System_Functions *system, General_Memory *general,
     }
     if (!buffer->line_widths){
         i32 max = buffer->widths_max = Kbytes(1);
-        buffer->line_widths = (f32*)general_memory_allocate(general, max*sizeof(f32), BUBBLE_STARTS);
+        buffer->line_widths = (f32*)general_memory_allocate(general, max*sizeof(f32), BUBBLE_WIDTHS);
         TentativeAssert(buffer->line_starts);
         // TODO(allen): when unable to allocate?
     }
@@ -488,8 +488,7 @@ view_compute_lowest_line(View *view){
 }
 
 internal void
-view_measure_wraps(System_Functions *system,
-    General_Memory *general, View *view){
+view_measure_wraps(General_Memory *general, View *view){
     Buffer_Type *buffer;
 
     buffer = &view->file_data.file->state.buffer;
@@ -1276,12 +1275,7 @@ view_get_cursor_y(View *view){
 }
 
 internal void
-view_set_file(
-    // NOTE(allen): These parameters are always meaningful
-    View *view, Editing_File *file, Models *models,
-
-    // NOTE(allen): Necessary when file != 0
-    System_Functions *system){
+view_set_file(View *view, Editing_File *file, Models *models){
 
     Font_Info *fnt_info;
 
@@ -1300,7 +1294,7 @@ view_set_file(
         view->file_data.unwrapped_lines = file->settings.unwrapped_lines;
 
         if (file_is_ready(file)){
-            view_measure_wraps(system, &models->mem.general, view);
+            view_measure_wraps(&models->mem.general, view);
             view->file_data.cursor = view_compute_cursor_from_pos(view, file->state.cursor_pos);
             view->reinit_scrolling = 1;
         }
@@ -1605,7 +1599,7 @@ file_edit_cursor_fix(System_Functions *system,
     for (dll_items(panel, used_panels)){
         view = panel->view;
         if (view->file_data.file == file){
-            view_measure_wraps(system, general, view);
+            view_measure_wraps(general, view);
             write_cursor_with_index(cursors, &cursor_count, view->file_data.cursor.pos);
             write_cursor_with_index(cursors, &cursor_count, view->file_data.mark - 1);
             write_cursor_with_index(cursors, &cursor_count, view->file_data.scroll_i - 1);
@@ -1715,7 +1709,7 @@ file_do_single_edit(System_Functions *system,
     for (dll_items(panel, used_panels)){
         View *view = panel->view;
         if (view->file_data.file == file){
-            view_measure_wraps(system, general, view);
+            view_measure_wraps(general, view);
         }
     }
 
@@ -2192,24 +2186,20 @@ view_clean_whitespace(System_Functions *system, Models *models, View *view){
     i32 str_size = 0;
     for (i32 line_i = 0; line_i < line_count; ++line_i){
         i32 start = file->state.buffer.line_starts[line_i];
-        i32 preferred_indentation;
-        b32 all_whitespace = 0;
-        b32 all_space = 0;
-        i32 hard_start =
-            buffer_find_hard_start(&file->state.buffer, start, &all_whitespace, &all_space,
-            &preferred_indentation, 4);
+        Hard_Start_Result hard_start = 
+            buffer_find_hard_start(&file->state.buffer, start, 4);
 
-        if (all_whitespace) preferred_indentation = 0;
+        if (hard_start.all_whitespace) hard_start.indent_pos = 0;
 
-        if ((all_whitespace && hard_start > start) || !all_space){
+        if ((hard_start.all_whitespace && hard_start.char_pos > start) || !hard_start.all_space){
             Buffer_Edit new_edit;
             new_edit.str_start = str_size;
-            str_size += preferred_indentation;
-            char *str = push_array(part, char, preferred_indentation);
-            for (i32 j = 0; j < preferred_indentation; ++j) str[j] = ' ';
-            new_edit.len = preferred_indentation;
+            str_size += hard_start.indent_pos;
+            char *str = push_array(part, char, hard_start.indent_pos);
+            for (i32 j = 0; j < hard_start.indent_pos; ++j) str[j] = ' ';
+            new_edit.len = hard_start.indent_pos;
             new_edit.start = start;
-            new_edit.end = hard_start;
+            new_edit.end = hard_start.char_pos;
             edits[edit_count++] = new_edit;
         }
         Assert(edit_count <= edit_max);
@@ -2248,64 +2238,197 @@ struct Make_Batch_Result{
     i32 edit_count;
 };
 
-internal i32*
-get_line_indentation_marks(Partition *part, Buffer *buffer, Cpp_Token_Stack tokens,
-    i32 line_start, i32 line_end){
+internal Cpp_Token*
+get_first_token_at_line(Buffer *buffer, Cpp_Token_Stack tokens, i32 line){
+    Cpp_Token *result = 0;
+    i32 start_pos = 0;
+    Cpp_Get_Token_Result get_token = {0};
+    
+    start_pos = buffer->line_starts[line];
+    get_token = cpp_get_token(&tokens, start_pos);
+    if (get_token.in_whitespace) get_token.token_index += 1;
+    result = tokens.tokens + get_token.token_index;
+    
+    return(result);
+}
 
-    i32 indent_mark_count = line_end - line_start;
-    i32 *indent_marks = push_array(part, i32, indent_mark_count);
-
-    i32 current_indent = 0;
-    i32 token_i;
-    Cpp_Token *token, *self_token;
-
-    {
-        i32 start_pos = buffer->line_starts[line_start];
-        Cpp_Get_Token_Result result = cpp_get_token(&tokens, start_pos);
-        token_i = result.token_index;
-        if (result.in_whitespace) token_i += 1;
-        self_token = tokens.tokens + token_i;
-    }
-
-    for (token = self_token; token_i > 0; --token_i, --token){
-        switch(token->type){
-            case CPP_TOKEN_BRACKET_OPEN:
-            case CPP_TOKEN_BRACKET_CLOSE:
-            token_i = 0;
-            break;
+internal Cpp_Token*
+seek_matching_token_backwards(Cpp_Token_Stack tokens, Cpp_Token *token,
+    Cpp_Token_Type open_type, Cpp_Token_Type close_type){
+    int nesting_level = 0;
+    for (; token > tokens.tokens; --token){
+        if (!(token->flags & CPP_TFLAG_PP_BODY)){
+            if (token->type == close_type){
+                ++nesting_level;
+            }
+            else if (token->type == open_type){
+                if (nesting_level == 0){
+                    break;
+                }
+                else{
+                    --nesting_level;
+                }
+            }
         }
     }
+    return(token);
+}
 
-    i32 line = 0;
-    {
-        i32 start = 0;
-        b32 all_whitespace = 0, all_space = 0;
+struct Indent_Parse_State{
+    i32 current_indent;
+    i32 previous_line_indent;
+    i32 paren_nesting;
+    i32 paren_anchor_indent[16];
+};
 
-        line = buffer_get_line_index(buffer, token->start);
-        start = buffer->line_starts[line];
-        buffer_find_hard_start(buffer, start, &all_whitespace, &all_space, &current_indent, 4);
+internal i32
+compute_this_indent(Buffer *buffer, Indent_Parse_State indent,
+    Cpp_Token T, Cpp_Token prev_token, i32 line_i, i32 tab_width){
+    
+    i32 previous_indent = indent.previous_line_indent;
+    i32 this_indent = 0;
+    
+    i32 this_line_start = buffer->line_starts[line_i];
+    i32 next_line_start = 0;
+    
+    if (line_i+1 < buffer->line_count){
+        next_line_start = buffer->line_starts[line_i+1];
+    }
+    else{
+        next_line_start = buffer_size(buffer);
+    }
+    
+    if (prev_token.type == CPP_TOKEN_COMMENT &&
+            prev_token.start <= this_line_start && prev_token.start + prev_token.size > this_line_start){
+        this_indent = previous_indent;
+    }
+    else{
+        this_indent = indent.current_indent;
+        if (T.start < next_line_start){
+            if (T.flags & CPP_TFLAG_PP_DIRECTIVE){
+                this_indent = 0;
+            }
+            else{
+                switch (T.type){
+                    case CPP_TOKEN_BRACKET_CLOSE: this_indent -= tab_width; break;
+                    case CPP_TOKEN_BRACE_CLOSE: this_indent -= tab_width; break;
+                    case CPP_TOKEN_BRACE_OPEN: break;
+                    
+                    default:
+                    if (indent.current_indent > 0){
+                        if (!(prev_token.flags & CPP_TFLAG_PP_BODY ||
+                                    prev_token.flags & CPP_TFLAG_PP_DIRECTIVE)){
+                            switch (prev_token.type){
+                                case CPP_TOKEN_BRACKET_OPEN:
+                                case CPP_TOKEN_BRACE_OPEN: case CPP_TOKEN_BRACE_CLOSE:
+                                case CPP_TOKEN_SEMICOLON: case CPP_TOKEN_COLON:
+                                case CPP_TOKEN_COMMA: case CPP_TOKEN_COMMENT: break;
+                                default: this_indent += tab_width;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        if (this_indent < 0) this_indent = 0;
     }
 
-    i32 start_pos = buffer->line_starts[line];
-    Cpp_Get_Token_Result result = cpp_get_token(&tokens, start_pos);
-    token_i = result.token_index;
-    if (result.in_whitespace) token_i += 1;
-    token = tokens.tokens + token_i;
+    if (indent.paren_nesting > 0){
+        i32 level = indent.paren_nesting-1;
+        if (level >= ArrayCount(indent.paren_anchor_indent)){
+            level = ArrayCount(indent.paren_anchor_indent)-1;
+        }
+        this_indent = indent.paren_anchor_indent[level];
+    }
+    return(this_indent);
+}
 
-    // NOTE(allen): Shift the array so that line_i can just take on it's natural value.
+internal i32*
+get_line_indentation_marks(Partition *part, Buffer *buffer, Cpp_Token_Stack tokens,
+    i32 line_start, i32 line_end, i32 tab_width){
+    
+    i32 indent_mark_count = line_end - line_start;
+    i32 *indent_marks = push_array(part, i32, indent_mark_count);
+    
+    Indent_Parse_State indent = {0};
+    Cpp_Token *token = get_first_token_at_line(buffer, tokens, line_start);
+    
+    if (token != tokens.tokens){
+        --token;
+        for (; token > tokens.tokens; --token){
+            if (!(token->flags & CPP_TFLAG_PP_BODY)){
+                switch(token->type){
+                    case CPP_TOKEN_BRACE_OPEN:
+                    case CPP_TOKEN_BRACE_CLOSE:
+                    case CPP_TOKEN_PARENTHESE_OPEN:
+                    goto out_of_loop;
+                }
+            }
+        }
+        out_of_loop:;
+    }
+    
+    // TODO(allen): This can maybe be it's own function now, so that we
+    // can do the decls in the order we want and avoid the extra binary search.
+    i32 found_safe_start_position = 0;
+    do{
+        i32 line = buffer_get_line_index(buffer, token->start);
+        i32 start = buffer->line_starts[line];
+        Hard_Start_Result hard_start = buffer_find_hard_start(buffer, start, tab_width);
+
+        indent.current_indent = hard_start.indent_pos;
+
+        Cpp_Token *start_token = get_first_token_at_line(buffer, tokens, line);
+        Cpp_Token *brace_token = token;
+
+        int close = 0;
+
+        for (token = start_token; token < brace_token; ++token){
+            switch(token->type){
+                case CPP_TOKEN_PARENTHESE_CLOSE:
+                case CPP_TOKEN_BRACKET_CLOSE:
+                case CPP_TOKEN_BRACE_CLOSE:
+                close = token->type;
+                goto out_of_loop2;
+            }
+        }
+        out_of_loop2:;
+
+        switch (close){
+            case 0: token = start_token; found_safe_start_position = 1; break;
+
+            case CPP_TOKEN_PARENTHESE_CLOSE:
+            token = seek_matching_token_backwards(tokens, token-1,
+                CPP_TOKEN_PARENTHESE_OPEN, CPP_TOKEN_PARENTHESE_CLOSE);
+            break;
+
+            case CPP_TOKEN_BRACKET_CLOSE:
+            token = seek_matching_token_backwards(tokens, token-1,
+                CPP_TOKEN_BRACKET_OPEN, CPP_TOKEN_BRACKET_CLOSE);
+            break;
+
+            case CPP_TOKEN_BRACE_CLOSE:
+            token = seek_matching_token_backwards(tokens, token-1,
+                CPP_TOKEN_BRACE_OPEN, CPP_TOKEN_BRACE_CLOSE);
+            break;
+        }
+    } while(found_safe_start_position == 0);
+    
+    // NOTE(allen): Shift the array so that line_i can just operate in
+    // it's natural value range.
     indent_marks -= line_start;
-    i32 line_i = line_start;
+    
+    i32 line_i = buffer_get_line_index(buffer, token->start);
     i32 next_line_start = buffer->line_starts[line_i];
     switch (token->type){
-        case CPP_TOKEN_BRACKET_OPEN: current_indent += 4; break;
-        case CPP_TOKEN_PARENTHESE_OPEN: current_indent += 4; break;
-        case CPP_TOKEN_BRACE_OPEN: current_indent += 4; break;
+        case CPP_TOKEN_BRACKET_OPEN: indent.current_indent += tab_width; break;
+        case CPP_TOKEN_BRACE_OPEN: indent.current_indent += tab_width; break;
     }
-
+    
     Cpp_Token T;
     Cpp_Token prev_token = *token;
     ++token;
-
+    
     for (; line_i < line_end; ++token){
         if (token < tokens.tokens + tokens.count){
             T = *token;
@@ -2317,71 +2440,61 @@ get_line_indentation_marks(Partition *part, Buffer *buffer, Cpp_Token_Stack toke
         }
 
         for (; T.start >= next_line_start && line_i < line_end;){
-            i32 this_line_start = next_line_start;
             if (line_i+1 < buffer->line_count){
                 next_line_start = buffer->line_starts[line_i+1];
             }
             else{
                 next_line_start = buffer_size(buffer);
             }
+            
+            // TODO(allen): Since this is called in one place we can probably go back
+            // to directly passing in next_line_start and this_line_start.
+            i32 this_indent = compute_this_indent(buffer, indent, T, prev_token, line_i, tab_width);
 
-            i32 this_indent;
-            if (prev_token.type == CPP_TOKEN_COMMENT &&
-                    prev_token.start <= this_line_start && prev_token.start + prev_token.size > this_line_start){
-                if (line_i > line_start){
-                    this_indent = indent_marks[line_i-1];
-                }
-                else{
-                    this_indent = 0;
-                }
+            if (line_i >= line_start){
+                indent_marks[line_i] = this_indent;
             }
-            else{
-                this_indent = current_indent;
-                if (T.start < next_line_start){
-                    if (T.flags & CPP_TFLAG_PP_DIRECTIVE){
-                        this_indent = 0;
-                    }
-                    else{
-                        switch (T.type){
-                            case CPP_TOKEN_BRACKET_CLOSE: this_indent -= 4; break;
-                            case CPP_TOKEN_PARENTHESE_CLOSE: this_indent -= 4; break;
-                            case CPP_TOKEN_BRACE_CLOSE: this_indent -= 4; break;
-                            case CPP_TOKEN_BRACE_OPEN: break;
-                            default:
-                            if (current_indent > 0){
-                                if (!(prev_token.flags & CPP_TFLAG_PP_BODY ||
-                                            prev_token.flags & CPP_TFLAG_PP_DIRECTIVE)){
-                                    switch (prev_token.type){
-                                        case CPP_TOKEN_BRACKET_OPEN: case CPP_TOKEN_PARENTHESE_OPEN:
-                                        case CPP_TOKEN_BRACE_OPEN: case CPP_TOKEN_BRACE_CLOSE:
-                                        case CPP_TOKEN_SEMICOLON: case CPP_TOKEN_COLON: break;
-                                        case CPP_TOKEN_COMMA: case CPP_TOKEN_COMMENT: break;
-                                        default: this_indent += 4;
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-                if (this_indent < 0) this_indent = 0;
-            }
-            indent_marks[line_i] = this_indent;
             ++line_i;
+            
+            indent.previous_line_indent = this_indent;
         }
-
+        
         switch (T.type){
-            case CPP_TOKEN_BRACKET_OPEN: current_indent += 4; break;
-            case CPP_TOKEN_BRACKET_CLOSE: current_indent -= 4; break;
-            case CPP_TOKEN_PARENTHESE_OPEN: current_indent += 4; break;
-            case CPP_TOKEN_PARENTHESE_CLOSE: current_indent -= 4; break;
-            case CPP_TOKEN_BRACE_OPEN: current_indent += 4; break;
-            case CPP_TOKEN_BRACE_CLOSE: current_indent -= 4; break;
+            case CPP_TOKEN_BRACKET_OPEN: indent.current_indent += 4; break;
+            case CPP_TOKEN_BRACKET_CLOSE: indent.current_indent -= 4; break;
+            case CPP_TOKEN_BRACE_OPEN: indent.current_indent += 4; break;
+            case CPP_TOKEN_BRACE_CLOSE: indent.current_indent -= 4; break;
+            
+            case CPP_TOKEN_PARENTHESE_OPEN:
+            if (!(T.flags & CPP_TFLAG_PP_BODY)){
+                if (indent.paren_nesting < ArrayCount(indent.paren_anchor_indent)){
+                    i32 line = buffer_get_line_index(buffer, T.start);
+                    i32 start = buffer->line_starts[line];
+                    i32 char_pos = T.start - start;
+                    
+                    Hard_Start_Result hard_start = buffer_find_hard_start(
+                        buffer, start, tab_width);
+                    
+                    i32 line_pos = hard_start.char_pos - start;
+                    
+                    indent.paren_anchor_indent[indent.paren_nesting] =
+                        char_pos - line_pos + indent.previous_line_indent + 1;
+                }
+                ++indent.paren_nesting;
+            }
+            break;
+
+            case CPP_TOKEN_PARENTHESE_CLOSE:
+            if (!(T.flags & CPP_TFLAG_PP_BODY)){
+                --indent.paren_nesting;
+            }
+            break;
         }
         prev_token = T;
     }
     
     // NOTE(allen): Unshift the indent_marks array so that the return value
-    // is the exact starting point of the array of indent marks.
+    // is the exact starting point of the array that was actually allocated.
     indent_marks += line_start;
     
     return(indent_marks);
@@ -2401,24 +2514,21 @@ make_batch_from_indent_marks(Partition *part, Buffer *buffer, i32 line_start, i3
     char *str_base = (char*)part->base + part->pos;
     i32 str_size = 0;
     
-    // NOTE(allen): Shift the array so that line_i can just take on it's natural value.
+    // NOTE(allen): Shift the array so that line_i can just operate in
+    // it's natural value range.
     indent_marks -= line_start;
     
     for (i32 line_i = line_start; line_i < line_end; ++line_i){
         i32 start = buffer->line_starts[line_i];
-        i32 preferred_indentation = 0;
-        i32 correct_indentation = 0;
-        b32 all_whitespace = 0;
-        b32 all_space = 0;
-        i32 hard_start =
-            buffer_find_hard_start(buffer, start, &all_whitespace, &all_space,
-                &preferred_indentation, opts.tab_width);
+        Hard_Start_Result hard_start = 
+            buffer_find_hard_start(buffer, start, opts.tab_width);
 
-        correct_indentation = indent_marks[line_i];
-        if (all_whitespace && opts.empty_blank_lines) correct_indentation = 0;
-        if (correct_indentation == -1) correct_indentation = preferred_indentation;
+        i32 correct_indentation = indent_marks[line_i];
+        if (hard_start.all_whitespace && opts.empty_blank_lines) correct_indentation = 0;
+        if (correct_indentation == -1) correct_indentation = hard_start.indent_pos;
 
-        if ((all_whitespace && hard_start > start) || !all_space || correct_indentation != preferred_indentation){
+        if ((hard_start.all_whitespace && hard_start.char_pos > start) ||
+                !hard_start.all_space || correct_indentation != hard_start.indent_pos){
             Buffer_Edit new_edit;
             new_edit.str_start = str_size;
             str_size += correct_indentation;
@@ -2434,7 +2544,7 @@ make_batch_from_indent_marks(Partition *part, Buffer *buffer, i32 line_start, i3
             }
             new_edit.len = j;
             new_edit.start = start;
-            new_edit.end = hard_start;
+            new_edit.end = hard_start.char_pos;
             edits[edit_count++] = new_edit;
         }
 
@@ -2459,19 +2569,19 @@ view_auto_tab_tokens(System_Functions *system, Models *models,
     Mem_Options *mem = &models->mem;
     Partition *part = &mem->part;
     Buffer *buffer = &file->state.buffer;
-
+    
     Assert(file && !file->state.is_dummy);
     Cpp_Token_Stack tokens = file->state.token_stack;
     Assert(tokens.tokens);
-
+    
     i32 line_start = buffer_get_line_index(buffer, start);
     i32 line_end = buffer_get_line_index(buffer, end) + 1;
-
+    
     Temp_Memory temp = begin_temp_memory(part);
-    
+
     i32 *indent_marks =
-        get_line_indentation_marks(part, buffer, tokens, line_start, line_end);
-    
+        get_line_indentation_marks(part, buffer, tokens, line_start, line_end, opts.tab_width);
+
     Make_Batch_Result batch = 
         make_batch_from_indent_marks(part, buffer, line_start, line_end, indent_marks, opts);
 
@@ -2493,15 +2603,10 @@ view_auto_tab_tokens(System_Functions *system, Models *models,
     end_temp_memory(temp);
 
     {
-        b32 all_whitespace = 0;
-        b32 all_space = 0;
-        i32 preferred_indentation;
         i32 start = view->file_data.cursor.pos;
-        i32 hard_start = buffer_find_hard_start(
-            buffer, start, &all_whitespace, &all_space,
-            &preferred_indentation, 4);
-
-        view_cursor_move(view, hard_start);
+        Hard_Start_Result hard_start = buffer_find_hard_start(buffer, start, 4);
+        
+        view_cursor_move(view, hard_start.char_pos);
     }
 #endif
 }
@@ -2579,7 +2684,7 @@ internal void
 remeasure_file_view(System_Functions *system, View *view, i32_Rect rect){
     if (file_is_ready(view->file_data.file)){
         Relative_Scrolling relative = view_get_relative_scrolling(view);
-        view_measure_wraps(system, &view->models->mem.general, view);
+        view_measure_wraps(&view->models->mem.general, view);
         view_cursor_move(view, view->file_data.cursor.pos);
         view->file_data.preferred_x = view_get_cursor_x(view);
         view_set_relative_scrolling(view, relative);
@@ -4734,12 +4839,12 @@ kill_file(System_Functions *system, Exchange *exchange, Models *models, Editing_
         iter = file_view_iter_next(iter)){
         if (node != used){
             iter.view->file_data.file = 0;
-            view_set_file(iter.view, (Editing_File*)node, models, system);
+            view_set_file(iter.view, (Editing_File*)node, models);
             node = node->next;
         }
         else{
             iter.view->file_data.file = 0;
-            view_set_file(iter.view, 0, models, system);
+            view_set_file(iter.view, 0, models);
         }
     }
 }
@@ -4945,9 +5050,9 @@ search_next_match(Partition *part, Search_Set *set, Search_Iter *iter_){
 }
 
 inline void
-view_change_size(System_Functions *system, General_Memory *general, View *view){
+view_change_size(General_Memory *general, View *view){
     if (view->file_data.file){
-        view_measure_wraps(system, general, view);
+        view_measure_wraps(general, view);
         view->file_data.cursor = view_compute_cursor_from_pos(view, view->file_data.cursor.pos);
     }
 }
