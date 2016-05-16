@@ -4031,28 +4031,33 @@ App_Step_Sig(app_step){
     }
 
     update_command_data(vars, cmd);
-    
+
     // NOTE(allen): initialize message
     if (first_step){
         String welcome = make_lit_string(
-            "Welcome to " VERSION "\n"
-                "If you're new to 4coder there's no tutorial yet :(\n"
-                "you can use the key combo control + o to look for a file\n"
-                "and if you load README.txt you'll find all the key combos there are.\n"
-                "\n"
-                "Newest features:\n"
-                "-Scroll bar on files and file lists\n"
-                "-Arrow navigation in lists\n"
-                "-A new minimal theme editor\n"
-                "\n"
-                "New in alpha 4.0.2:\n"
-                "-The file count limit is over 8 million now\n"
-                "-File equality is handled better so renamings (such as 'subst') are safe now\n"
-                "-This buffer will report events including errors that happen in 4coder\n"
-                "-Super users can post their own messages here with app->print_message\n"
-                "-<ctrl e> centers view on cursor; cmdid_center_view in customization API\n"
-                "-Set font size on command line with -f N, N = 16 by default\n\n"
-        );
+                                         "Welcome to " VERSION "\n"
+                                         "If you're new to 4coder there's no tutorial yet :(\n"
+                                         "you can use the key combo control + o to look for a file\n"
+                                         "and if you load README.txt you'll find all the key combos there are.\n"
+                                         "\n"
+                                         "Newest features:\n"
+                                         "-New indent rule\n"
+                                         "-app->buffer_compute_cursor in the customization API\n"
+                                         "-f keys are available\n"
+                                         "\n"
+                                         "New in alpha 4.0.3 and 4.0.4\n"
+                                         "-Scroll bar on files and file lists\n"
+                                         "-Arrow navigation in lists\n"
+                                         "-A new minimal theme editor\n"
+                                         "\n"
+                                         "New in alpha 4.0.2:\n"
+                                         "-The file count limit is over 8 million now\n"
+                                         "-File equality is handled better so renamings (such as 'subst') are safe now\n"
+                                         "-This buffer will report events including errors that happen in 4coder\n"
+                                         "-Super users can post their own messages here with app->print_message\n"
+                                         "-<ctrl e> centers view on cursor; cmdid_center_view in customization API\n"
+                                         "-Set font size on command line with -f N, N = 16 by default\n\n"
+                                         );
 
         do_feedback_message(system, models, welcome);
     }

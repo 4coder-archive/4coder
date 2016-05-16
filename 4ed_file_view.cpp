@@ -2256,17 +2256,22 @@ internal Cpp_Token*
 seek_matching_token_backwards(Cpp_Token_Stack tokens, Cpp_Token *token,
     Cpp_Token_Type open_type, Cpp_Token_Type close_type){
     int nesting_level = 0;
-    for (; token > tokens.tokens; --token){
-        if (!(token->flags & CPP_TFLAG_PP_BODY)){
-            if (token->type == close_type){
-                ++nesting_level;
-            }
-            else if (token->type == open_type){
-                if (nesting_level == 0){
-                    break;
+    if (token <= tokens.tokens){
+        token = tokens.tokens;
+    }
+    else{
+        for (; token > tokens.tokens; --token){
+            if (!(token->flags & CPP_TFLAG_PP_BODY)){
+                if (token->type == close_type){
+                    ++nesting_level;
                 }
-                else{
-                    --nesting_level;
+                else if (token->type == open_type){
+                    if (nesting_level == 0){
+                        break;
+                    }
+                    else{
+                        --nesting_level;
+                    }
                 }
             }
         }
@@ -2392,7 +2397,7 @@ get_line_indentation_marks(Partition *part, Buffer *buffer, Cpp_Token_Stack toke
         else{
             int close = 0;
 
-            for (token = start_token; token < brace_token; ++token){
+            for (token = brace_token; token >= start_token; --token){
                 switch(token->type){
                     case CPP_TOKEN_PARENTHESE_CLOSE:
                     case CPP_TOKEN_BRACKET_CLOSE:
@@ -2402,7 +2407,7 @@ get_line_indentation_marks(Partition *part, Buffer *buffer, Cpp_Token_Stack toke
                 }
             }
             out_of_loop2:;
-
+            
             switch (close){
                 case 0: token = start_token; found_safe_start_position = 1; break;
 
