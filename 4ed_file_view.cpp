@@ -2381,39 +2381,52 @@ get_line_indentation_marks(Partition *part, Buffer *buffer, Cpp_Token_Stack toke
         Cpp_Token *start_token = get_first_token_at_line(buffer, tokens, line);
         Cpp_Token *brace_token = token;
 
-        int close = 0;
-
-        for (token = start_token; token < brace_token; ++token){
-            switch(token->type){
-                case CPP_TOKEN_PARENTHESE_CLOSE:
-                case CPP_TOKEN_BRACKET_CLOSE:
-                case CPP_TOKEN_BRACE_CLOSE:
-                close = token->type;
-                goto out_of_loop2;
+        if (start_token->type == CPP_TOKEN_PARENTHESE_OPEN){
+            if (start_token == tokens.tokens){
+                found_safe_start_position = 1;
+            }
+            else{
+                token = start_token-1;
             }
         }
-        out_of_loop2:;
+        else{
+            int close = 0;
 
-        switch (close){
-            case 0: token = start_token; found_safe_start_position = 1; break;
+            for (token = start_token; token < brace_token; ++token){
+                switch(token->type){
+                    case CPP_TOKEN_PARENTHESE_CLOSE:
+                    case CPP_TOKEN_BRACKET_CLOSE:
+                    case CPP_TOKEN_BRACE_CLOSE:
+                    close = token->type;
+                    goto out_of_loop2;
+                }
+            }
+            out_of_loop2:;
 
-            case CPP_TOKEN_PARENTHESE_CLOSE:
-            token = seek_matching_token_backwards(tokens, token-1,
-                CPP_TOKEN_PARENTHESE_OPEN, CPP_TOKEN_PARENTHESE_CLOSE);
-            break;
+            switch (close){
+                case 0: token = start_token; found_safe_start_position = 1; break;
 
-            case CPP_TOKEN_BRACKET_CLOSE:
-            token = seek_matching_token_backwards(tokens, token-1,
-                CPP_TOKEN_BRACKET_OPEN, CPP_TOKEN_BRACKET_CLOSE);
-            break;
+                case CPP_TOKEN_PARENTHESE_CLOSE:
+                token = seek_matching_token_backwards(tokens, token-1,
+                                                      CPP_TOKEN_PARENTHESE_OPEN,
+                                                      CPP_TOKEN_PARENTHESE_CLOSE);
+                break;
 
-            case CPP_TOKEN_BRACE_CLOSE:
-            token = seek_matching_token_backwards(tokens, token-1,
-                CPP_TOKEN_BRACE_OPEN, CPP_TOKEN_BRACE_CLOSE);
-            break;
+                case CPP_TOKEN_BRACKET_CLOSE:
+                token = seek_matching_token_backwards(tokens, token-1,
+                                                      CPP_TOKEN_BRACKET_OPEN,
+                                                      CPP_TOKEN_BRACKET_CLOSE);
+                break;
+
+                case CPP_TOKEN_BRACE_CLOSE:
+                token = seek_matching_token_backwards(tokens, token-1,
+                                                      CPP_TOKEN_BRACE_OPEN,
+                                                      CPP_TOKEN_BRACE_CLOSE);
+                break;
+            }
         }
     } while(found_safe_start_position == 0);
-    
+
     // NOTE(allen): Shift the array so that line_i can just operate in
     // it's natural value range.
     indent_marks -= line_start;
