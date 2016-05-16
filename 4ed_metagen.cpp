@@ -167,8 +167,16 @@ char str_alloc_copy[] =
 "    result.str = (char*)general_memory_allocate(general, result.memory_size, 0);\n"
 "    memcpy(result.str, str.str, str.size);\n"
 "    result.str[result.size] = 0;\n"
-"    return(result);"
+"    return(result);\n"
 "}\n\n";
+
+char delayed_action_zero[] =
+"inline Delayed_Action\n"
+"delayed_action_zero(){\n"
+"    Delayed_Action result = {0};\n"
+"    return(result);\n"
+"}\n\n"
+;
 
 char daction_name[] = "Delayed_Action";
 Struct_Field daction_fields[] = {
@@ -218,7 +226,7 @@ char delayed_action_function_bottom[] =
 "delay->general, delay->acts, delay->count*sizeof(Delayed_Action), delay->max*sizeof(Delayed_Action), 0);\n"
 "    }\n"
 "    result = delay->acts + delay->count++;\n"
-"    *result = {};\n"
+"    *result = delayed_action_zero();\n"
 "    result->type = type;\n"
 "    return(result);\n"
 "}\n\n";

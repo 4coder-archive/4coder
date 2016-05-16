@@ -9,7 +9,16 @@
 
 // TOP
 
-#include "4ed_keyboard.cpp"
+// TODO(allen): Let's go ahead and eliminate this file
+// like I did with the win32 keyboard files.
+
+// NOTE(allen): Old contents of 4ed_keyboard.cpp
+globalvar u8 keycode_lookup_table[255];
+
+inline u8
+keycode_lookup(u8 system_code){
+	return keycode_lookup_table[system_code];
+}
 
 internal void
 keycode_init(Display* dpy){
