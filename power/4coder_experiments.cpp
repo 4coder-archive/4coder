@@ -313,12 +313,22 @@ void experiment_extension(Bind_Helper *context){
 
 #include <stdio.h>
 
+#define SETTINGS_FILE ".4coder_settings"
 HOOK_SIG(experimental_start_hook){
     my_start(app);
     
-    FILE *file = fopen(".4coder_settings", "rb");
     char theme_name[128];
     char font_name[128];
+    
+    FILE *file = fopen(SETTINGS_FILE, "rb");
+    
+    if (!file){
+        char module_path[512];
+        int len;
+        len = app->get_4ed_path(app, module_path, 448);
+        memcpy(module_path+len, SETTINGS_FILE, sizeof(SETTINGS_FILE));
+        file = fopen(module_path, "rb");
+    }
     
     if (file){
         fscanf(file, "%127s\n%127s", theme_name, font_name);

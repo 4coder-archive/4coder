@@ -2365,7 +2365,6 @@ get_line_indentation_marks(Partition *part, Buffer *buffer, Cpp_Token_Stack toke
                 switch(token->type){
                     case CPP_TOKEN_BRACE_OPEN:
                     case CPP_TOKEN_BRACE_CLOSE:
-                    case CPP_TOKEN_PARENTHESE_OPEN:
                     goto out_of_loop;
                 }
             }

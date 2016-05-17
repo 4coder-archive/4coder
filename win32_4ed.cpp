@@ -43,7 +43,7 @@
 #include "4ed_internal.h"
 #include "system_shared.h"
 
-#define FPS 30
+#define FPS 60
 #define frame_useconds (1000000 / FPS)
 
 // TODO(allen): Do we still need all of these? I've abandoned the
@@ -579,6 +579,18 @@ DIRECTORY_CD_SIG(system_directory_cd){
     
     *len = directory.size;
     
+    return(result);
+}
+
+GET_4ED_PATH_SIG(system_get_4ed_path){
+    String str = make_string(out, 0, capacity);
+    i32 result = 0;
+    i32 size = GetModuleFileName(0, out, capacity);
+    if (size < capacity-1){
+        str.size = size;
+        remove_last_folder(&str);
+        result = str.size;
+    }
     return(result);
 }
 
@@ -1124,6 +1136,7 @@ Win32LoadSystemCode(){
 
     win32vars.system->file_exists = system_file_exists;
     win32vars.system->directory_cd = system_directory_cd;
+    win32vars.system->get_4ed_path = system_get_4ed_path;
 
     win32vars.system->post_clipboard = system_post_clipboard;
     win32vars.system->time = system_time;

@@ -212,9 +212,10 @@ struct System_Functions{
     System_File_Track *file_track;
     System_File_Untrack *file_untrack;
 
-    // file system navigation (4coder_custom.h): 2
+    // file system navigation (4coder_custom.h): 3
     File_Exists_Function *file_exists;
     Directory_CD_Function *directory_cd;
+    Get_4ed_Path_Function *get_4ed_path;
 
     // clipboard: 1
     System_Post_Clipboard *post_clipboard;

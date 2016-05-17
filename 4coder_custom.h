@@ -358,6 +358,7 @@ struct Application_Links;
 
 // File system navigation
 #define DIRECTORY_GET_HOT_SIG(n) int n(Application_Links *app, char *out, int capacity)
+#define GET_4ED_PATH_SIG(n) int n(Application_Links *app, char *out, int capacity)
 #define FILE_EXISTS_SIG(n) int n(Application_Links *app, char *filename, int len)
 #define DIRECTORY_CD_SIG(n) int n(Application_Links *app, char *dir, int *len, int capacity, char *rel_path, int rel_len)
 #define GET_FILE_LIST_SIG(n) File_List n(Application_Links *app, char *dir, int len)
@@ -442,6 +443,7 @@ extern "C"{
     
     // File system navigation
     typedef DIRECTORY_GET_HOT_SIG(Directory_Get_Hot_Function);
+    typedef GET_4ED_PATH_SIG(Get_4ed_Path_Function);
     typedef FILE_EXISTS_SIG(File_Exists_Function);
     typedef DIRECTORY_CD_SIG(Directory_CD_Function);
     typedef GET_FILE_LIST_SIG(Get_File_List_Function);
@@ -507,6 +509,7 @@ struct Application_Links{
     
     // File system navigation
     Directory_Get_Hot_Function *directory_get_hot;
+    Get_4ed_Path_Function *get_4ed_path;
     File_Exists_Function *file_exists;
     Directory_CD_Function *directory_cd;
     Get_File_List_Function *get_file_list;

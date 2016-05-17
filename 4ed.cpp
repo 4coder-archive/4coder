@@ -2557,6 +2557,7 @@ app_links_init(System_Functions *system, Application_Links *app_links, void *dat
     app_links->clear_parameters = external_clear_parameters;
 
     app_links->directory_get_hot = external_directory_get_hot;
+    app_links->get_4ed_path = system->get_4ed_path;
     app_links->file_exists = system->file_exists;
     app_links->directory_cd = system->directory_cd;
     app_links->get_file_list = external_get_file_list;
