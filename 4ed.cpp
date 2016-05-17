@@ -752,6 +752,8 @@ COMMAND_DECL(delete_range){
         view_cursor_move(view, next_cursor_pos);
         view->file_data.mark = range.start;
     }
+    
+    general_memory_check(&models->mem.general);
 }
 
 COMMAND_DECL(undo){

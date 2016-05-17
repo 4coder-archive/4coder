@@ -1,11 +1,11 @@
 /*
- * Mr. 4th Dimention - Allen Webster
- *
- * 19.08.2015
- *
- * File editing view for 4coder
- *
- */
+* Mr. 4th Dimention - Allen Webster
+*
+* 19.08.2015
+*
+* File editing view for 4coder
+*
+*/
 
 // TOP
 
@@ -67,20 +67,20 @@ enum Color_View_Mode{
 
 struct File_Viewing_Data{
     Editing_File *file;
-    
+
     Full_Cursor cursor;
     i32 mark;
     f32 preferred_x;
     i32 scroll_i;
-    
+
     Full_Cursor temp_highlight;
     i32 temp_highlight_end_pos;
     b32 show_temp_highlight;
-    
+
     b32 unwrapped_lines;
     b32 show_whitespace;
     b32 file_locked;
-     
+
     i32 line_count, line_max;
     f32 *line_wrap_y;
 };
@@ -94,32 +94,32 @@ struct View{
     View *next, *prev;
     b32 in_use;
     i32 id;
-    
+
     // TODO(allen): eliminate this models pointer: explicitly parameterize.
     Models *models;
-    
+
     Panel *panel;
     Command_Map *map;
     Command_Map *map_for_file;
-    
+
     File_Viewing_Data file_data;
-    
+
     GUI_Scroll_Vars file_scroll;
-    
+
     GUI_Scroll_Vars *current_scroll;
     View_UI showing_ui;
     GUI_Target gui_target;
     void *gui_mem;
     GUI_Scroll_Vars gui_scroll;
     i32 list_i;
-    
+
     // interactive stuff
     Interactive_Interaction interaction;
     Interactive_Action action;
-    
+
     char dest_[256];
     String dest;
-    
+
     // theme stuff
     View *hot_file_view;
     u32 *palette;
@@ -132,15 +132,15 @@ struct View{
     i32 import_file_id;
     i32 current_color_editing;
     i32 color_cursor;
-    
+
     i32 font_advance;
     i32 font_height;
-    
+
     View_Mode mode, next_mode;
     View_Widget widget;
     Query_Set query_set;
     i32 scrub_max;
-    
+
     b32 reinit_scrolling;
 };
 
@@ -297,7 +297,7 @@ file_synchronize_times(System_Functions *system, Editing_File *file, char *filen
 
 internal i32
 file_save(System_Functions *system, Exchange *exchange, Mem_Options *mem,
-    Editing_File *file, char *filename){
+          Editing_File *file, char *filename){
     i32 result = 0;
 
     i32 max, size;
@@ -331,8 +331,8 @@ file_save(System_Functions *system, Exchange *exchange, Mem_Options *mem,
 
 inline b32
 file_save_and_set_names(System_Functions *system, Exchange *exchange,
-    Mem_Options *mem, Working_Set *working_set, Editing_File *file,
-    char *filename){
+                        Mem_Options *mem, Working_Set *working_set, Editing_File *file,
+                        char *filename){
     b32 result = 0;
     result = file_save(system, exchange, mem, file, filename);
     if (result){
@@ -370,12 +370,12 @@ file_grow_starts_widths_as_needed(General_Memory *general, Buffer_Type *buffer, 
         max = LargeRoundUp(target_lines + max, Kbytes(1));
 
         f32 *new_widths = (f32*)general_memory_reallocate(
-            general, buffer->line_widths,
-            sizeof(f32)*count, sizeof(f32)*max, BUBBLE_WIDTHS);
+                                                          general, buffer->line_widths,
+                                                          sizeof(f32)*count, sizeof(f32)*max, BUBBLE_WIDTHS);
 
         i32 *new_lines = (i32*)general_memory_reallocate(
-            general, buffer->line_starts,
-            sizeof(i32)*count, sizeof(i32)*max, BUBBLE_STARTS);
+                                                         general, buffer->line_starts,
+                                                         sizeof(i32)*count, sizeof(i32)*max, BUBBLE_STARTS);
 
         if (new_lines){
             buffer->line_starts = new_lines;
@@ -398,7 +398,7 @@ file_grow_starts_widths_as_needed(General_Memory *general, Buffer_Type *buffer, 
 
 internal void
 file_measure_starts_widths(System_Functions *system, General_Memory *general,
-    Buffer_Type *buffer, float *advance_data){
+                           Buffer_Type *buffer, float *advance_data){
     if (!buffer->line_starts){
         i32 max = buffer->line_max = Kbytes(1);
         buffer->line_starts = (i32*)general_memory_allocate(general, max*sizeof(i32), BUBBLE_STARTS);
@@ -420,7 +420,7 @@ file_measure_starts_widths(System_Functions *system, General_Memory *general,
 
         {
             i32 *new_lines = (i32*)general_memory_reallocate(
-                general, buffer->line_starts, sizeof(i32)*count, sizeof(i32)*max, BUBBLE_STARTS);
+                                                             general, buffer->line_starts, sizeof(i32)*count, sizeof(i32)*max, BUBBLE_STARTS);
 
             // TODO(allen): when unable to grow?
             TentativeAssert(new_lines);
@@ -431,7 +431,7 @@ file_measure_starts_widths(System_Functions *system, General_Memory *general,
         {
             f32 *new_lines = (f32*)
                 general_memory_reallocate(general, buffer->line_widths,
-                sizeof(f32)*count, sizeof(f32)*max, BUBBLE_WIDTHS);
+                                          sizeof(f32)*count, sizeof(f32)*max, BUBBLE_WIDTHS);
 
             // TODO(allen): when unable to grow?
             TentativeAssert(new_lines);
@@ -515,7 +515,7 @@ view_measure_wraps(General_Memory *general, View *view){
 
 internal void
 file_create_from_string(System_Functions *system, Models *models,
-    Editing_File *file, char *filename, String val, b8 read_only = 0){
+                        Editing_File *file, char *filename, String val, b8 read_only = 0){
 
     Font_Set *font_set = models->font_set;
     Working_Set *working_set = &models->working_set;
@@ -585,13 +585,13 @@ file_create_from_string(System_Functions *system, Models *models,
         file->state.undo.history_head_block = 0;
         file->state.undo.current_block_normal = 1;
     }
-    
+
     Hook_Function *open_hook = models->hooks[hook_open_file];
     models->buffer_param_indices[models->buffer_param_count++] = file->id.id;
     open_hook(&models->app_links);
     models->buffer_param_count = 0;
     file->settings.is_initialized = 1;
-        
+
 #if 0
     if (file){
         if (open_hook && file->settings.is_initialized == 0){
@@ -606,14 +606,14 @@ file_create_from_string(System_Functions *system, Models *models,
 
 internal b32
 file_create_empty(System_Functions *system,
-    Models *models, Editing_File *file, char *filename){
+                  Models *models, Editing_File *file, char *filename){
     file_create_from_string(system, models, file, filename, string_zero());
     return (1);
 }
 
 internal b32
 file_create_read_only(System_Functions *system,
-    Models *models, Editing_File *file, char *filename){
+                      Models *models, Editing_File *file, char *filename){
     file_create_from_string(system, models, file, filename, string_zero(), 1);
     return (1);
 }
@@ -718,7 +718,7 @@ Job_Callback_Sig(job_full_lex){
 
 internal void
 file_kill_tokens(System_Functions *system,
-    General_Memory *general, Editing_File *file){
+                 General_Memory *general, Editing_File *file){
     file->settings.tokens_exist = 0;
     if (file->state.still_lexing){
         system->cancel_job(BACKGROUND_THREADS, file->state.lex_job);
@@ -737,7 +737,7 @@ file_kill_tokens(System_Functions *system,
 #if BUFFER_EXPERIMENT_SCALPEL <= 0
 internal void
 file_first_lex_parallel(System_Functions *system,
-    General_Memory *general, Editing_File *file){
+                        General_Memory *general, Editing_File *file){
     file->settings.tokens_exist = 1;
 
     if (file->state.is_loading == 0 && file->state.still_lexing == 0){
@@ -758,8 +758,8 @@ file_first_lex_parallel(System_Functions *system,
 
 internal void
 file_relex_parallel(System_Functions *system,
-    Mem_Options *mem, Editing_File *file,
-    i32 start_i, i32 end_i, i32 amount){
+                    Mem_Options *mem, Editing_File *file,
+                    i32 start_i, i32 end_i, i32 amount){
     General_Memory *general = &mem->general;
     Partition *part = &mem->part;
     if (file->state.token_stack.tokens == 0){
@@ -777,7 +777,7 @@ file_relex_parallel(System_Functions *system,
 
         Cpp_Relex_State state = 
             cpp_relex_nonalloc_start(cpp_file, stack,
-            start_i, end_i, amount, 100);
+                                     start_i, end_i, amount, 100);
 
         Temp_Memory temp = begin_temp_memory(part);
         i32 relex_end;
@@ -798,8 +798,8 @@ file_relex_parallel(System_Functions *system,
                     int new_max = LargeRoundUp(new_count, Kbytes(1));
                     stack->tokens = (Cpp_Token*)
                         general_memory_reallocate(general, stack->tokens,
-                        stack->count*sizeof(Cpp_Token),
-                        new_max*sizeof(Cpp_Token), BUBBLE_TOKENS);
+                                                  stack->count*sizeof(Cpp_Token),
+                                                  new_max*sizeof(Cpp_Token), BUBBLE_TOKENS);
                     stack->max_count = new_max;
                 }
 
@@ -807,14 +807,14 @@ file_relex_parallel(System_Functions *system,
                 if (shift_size > 0){
                     Cpp_Token *old_base = stack->tokens + relex_end;
                     memmove(old_base + shift_amount, old_base,
-                        sizeof(Cpp_Token)*shift_size);
+                            sizeof(Cpp_Token)*shift_size);
                 }
 
                 stack->count += shift_amount;
             }
 
             memcpy(state.stack->tokens + state.start_token_i, relex_space.tokens,
-                sizeof(Cpp_Token)*relex_space.count);
+                   sizeof(Cpp_Token)*relex_space.count);
         }
 
         end_temp_memory(temp);
@@ -824,10 +824,10 @@ file_relex_parallel(System_Functions *system,
         Cpp_Token_Stack *stack = &file->state.token_stack;
         Cpp_Get_Token_Result get_token_result = cpp_get_token(stack, end_i);
         i32 end_token_i = get_token_result.token_index;
-        
+
         if (end_token_i < 0) end_token_i = 0;
         else if (end_i > stack->tokens[end_token_i].start) ++end_token_i;
-        
+
         cpp_shift_token_starts(stack, end_token_i, amount);
         --end_token_i;
         if (end_token_i >= 0){
@@ -894,7 +894,7 @@ child_stack_grow_edits(General_Memory *general, Small_Edit_Stack *stack, i32 amo
 
 internal i32
 undo_children_push(General_Memory *general, Small_Edit_Stack *children,
-    Buffer_Edit *edits, i32 edit_count, u8 *strings, i32 string_size){
+                   Buffer_Edit *edits, i32 edit_count, u8 *strings, i32 string_size){
     i32 result = children->edit_count;
     if (children->edit_count + edit_count > children->edit_max)
         child_stack_grow_edits(general, children, edit_count);
@@ -924,7 +924,7 @@ struct Edit_Spec{
 
 internal Edit_Step*
 file_post_undo(General_Memory *general, Editing_File *file,
-    Edit_Step step, bool32 do_merge, bool32 can_merge){
+               Edit_Step step, bool32 do_merge, bool32 can_merge){
     if (step.type == ED_NORMAL){
         file->state.undo.redo.size = 0;
         file->state.undo.redo.edit_count = 0;
@@ -939,7 +939,7 @@ file_post_undo(General_Memory *general, Editing_File *file,
 
         Buffer_Edit inv;
         buffer_invert_edit(&file->state.buffer, step.edit, &inv,
-            (char*)undo->strings, &undo->size, undo->max);
+                           (char*)undo->strings, &undo->size, undo->max);
 
         Edit_Step inv_step = {};
         inv_step.edit = inv;
@@ -1006,7 +1006,7 @@ file_post_redo(General_Memory *general, Editing_File *file, Edit_Step step){
 
         Buffer_Edit inv;
         buffer_invert_edit(&file->state.buffer, step.edit, &inv,
-            (char*)redo->strings, &redo->size, redo->max);
+                           (char*)redo->strings, &redo->size, redo->max);
 
         Edit_Step inv_step = {};
         inv_step.edit = inv;
@@ -1057,7 +1057,7 @@ file_unpost_history_block(Editing_File *file){
 
 internal Edit_Step*
 file_post_history(General_Memory *general, Editing_File *file,
-    Edit_Step step, b32 do_merge, b32 can_merge){
+                  Edit_Step step, b32 do_merge, b32 can_merge){
     Edit_Stack *history = &file->state.undo.history;
     Edit_Step *result = 0;
 
@@ -1075,7 +1075,7 @@ file_post_history(General_Memory *general, Editing_File *file,
 
         Buffer_Edit inv;
         buffer_invert_edit(&file->state.buffer, step.edit, &inv,
-            (char*)history->strings, &history->size, history->max);
+                           (char*)history->strings, &history->size, history->max);
 
         Edit_Step inv_step = {};
         inv_step.edit = inv;
@@ -1135,7 +1135,7 @@ view_compute_cursor_from_pos(View *view, i32 pos){
     if (font){
         f32 max_width = view_file_width(view);
         result = buffer_cursor_from_pos(&file->state.buffer, pos, view->file_data.line_wrap_y,
-            max_width, (f32)view->font_height, font->advance_data);
+                                        max_width, (f32)view->font_height, font->advance_data);
     }
     return result;
 }
@@ -1150,7 +1150,7 @@ view_compute_cursor_from_unwrapped_xy(View *view, f32 seek_x, f32 seek_y, b32 ro
     if (font){
         f32 max_width = view_file_width(view);
         result = buffer_cursor_from_unwrapped_xy(&file->state.buffer, seek_x, seek_y,
-            round_down, view->file_data.line_wrap_y, max_width, (f32)view->font_height, font->advance_data);
+                                                 round_down, view->file_data.line_wrap_y, max_width, (f32)view->font_height, font->advance_data);
     }
 
     return result;
@@ -1166,8 +1166,8 @@ view_compute_cursor_from_wrapped_xy(View *view, f32 seek_x, f32 seek_y, b32 roun
     if (font){
         f32 max_width = view_file_width(view);
         result = buffer_cursor_from_wrapped_xy(&file->state.buffer, seek_x, seek_y,
-            round_down, view->file_data.line_wrap_y,
-            max_width, (f32)view->font_height, font->advance_data);
+                                               round_down, view->file_data.line_wrap_y,
+                                               max_width, (f32)view->font_height, font->advance_data);
     }
 
     return (result);
@@ -1183,7 +1183,7 @@ view_compute_cursor_from_line_pos(View *view, i32 line, i32 pos){
     if (font){
         f32 max_width = view_file_width(view);
         result = buffer_cursor_from_line_character(&file->state.buffer, line, pos,
-            view->file_data.line_wrap_y, max_width, (f32)view->font_height, font->advance_data);
+                                                   view->file_data.line_wrap_y, max_width, (f32)view->font_height, font->advance_data);
     }
 
     return (result);
@@ -1299,7 +1299,7 @@ view_set_file(View *view, Editing_File *file, Models *models){
             view->reinit_scrolling = 1;
         }
     }
-    
+
 #if 0
     if (file){
         if (open_hook && file->settings.is_initialized == 0){
@@ -1398,7 +1398,7 @@ enum History_Mode{
 
 internal void
 file_update_history_before_edit(Mem_Options *mem, Editing_File *file, Edit_Step step, u8 *str,
-    History_Mode history_mode){
+                                History_Mode history_mode){
     if (!file->state.undo.undo.edits) return;
     General_Memory *general = &mem->general;
 
@@ -1552,8 +1552,8 @@ file_update_history_before_edit(Mem_Options *mem, Editing_File *file, Edit_Step 
 
 inline void
 file_pre_edit_maintenance(System_Functions *system,
-    General_Memory *general,
-    Editing_File *file){
+                          General_Memory *general,
+                          Editing_File *file){
     if (file->state.still_lexing){
         system->cancel_job(BACKGROUND_THREADS, file->state.lex_job);
         if (file->state.swap_stack.tokens){
@@ -1580,9 +1580,9 @@ struct Cursor_Fix_Descriptor{
 
 internal void
 file_edit_cursor_fix(System_Functions *system,
-    Partition *part, General_Memory *general,
-    Editing_File *file, Editing_Layout *layout,
-    Cursor_Fix_Descriptor desc){
+                     Partition *part, General_Memory *general,
+                     Editing_File *file, Editing_Layout *layout,
+                     Cursor_Fix_Descriptor desc){
 
     Full_Cursor temp_cursor;
     Temp_Memory cursor_temp = begin_temp_memory(part);
@@ -1610,12 +1610,12 @@ file_edit_cursor_fix(System_Functions *system,
         buffer_sort_cursors(cursors, cursor_count);
         if (desc.is_batch){
             buffer_batch_edit_update_cursors(cursors, cursor_count,
-                desc.batch, desc.batch_size);
+                                             desc.batch, desc.batch_size);
         }
         else{
             buffer_update_cursors(cursors, cursor_count,
-                desc.start, desc.end,
-                desc.shift_amount + (desc.end - desc.start));
+                                  desc.start, desc.end,
+                                  desc.shift_amount + (desc.end - desc.start));
         }
         buffer_unsort_cursors(cursors, cursor_count);
 
@@ -1625,7 +1625,7 @@ file_edit_cursor_fix(System_Functions *system,
             if (view && view->file_data.file == file){
                 view_cursor_move(view, cursors[cursor_count++].pos);
                 view->file_data.preferred_x = view_get_cursor_x(view);
- 
+
                 view->file_data.mark = cursors[cursor_count++].pos + 1;
                 i32 new_scroll_i = cursors[cursor_count++].pos + 1;
                 if (view->file_data.scroll_i != new_scroll_i){
@@ -1653,8 +1653,8 @@ file_edit_cursor_fix(System_Functions *system,
 
 internal void
 file_do_single_edit(System_Functions *system,
-    Models *models, Editing_File *file,
-    Edit_Spec spec, History_Mode history_mode, b32 use_high_permission = 0){
+                    Models *models, Editing_File *file,
+                    Edit_Spec spec, History_Mode history_mode, b32 use_high_permission = 0){
     if (!use_high_permission && file->settings.read_only) return;
 
     Mem_Options *mem = &models->mem;
@@ -1680,7 +1680,7 @@ file_do_single_edit(System_Functions *system,
     i32 request_amount = 0;
     Assert(end <= buffer_size(&file->state.buffer));
     while (buffer_replace_range(&file->state.buffer, start, end, str, str_len, &shift_amount,
-            part->base + part->pos, scratch_size, &request_amount)){
+                                part->base + part->pos, scratch_size, &request_amount)){
         void *new_data = 0;
         if (request_amount > 0){
             new_data = general_memory_allocate(general, request_amount, BUBBLE_BUFFER);
@@ -1729,7 +1729,7 @@ file_do_single_edit(System_Functions *system,
 
 internal void
 file_do_white_batch_edit(System_Functions *system, Models *models, Editing_File *file,
-    Edit_Spec spec, History_Mode history_mode, b32 use_high_permission = 0){
+                         Edit_Spec spec, History_Mode history_mode, b32 use_high_permission = 0){
     if (!use_high_permission && file->settings.read_only) return;
 
     Mem_Options *mem = &models->mem;
@@ -1755,8 +1755,8 @@ file_do_white_batch_edit(System_Functions *system, Models *models, Editing_File 
     Buffer_Batch_State state = {};
     i32 request_amount;
     while (buffer_batch_edit_step(&state, &file->state.buffer, batch,
-            (char*)str_base, batch_size, part->base + part->pos,
-            scratch_size, &request_amount)){
+                                  (char*)str_base, batch_size, part->base + part->pos,
+                                  scratch_size, &request_amount)){
         void *new_data = 0;
         if (request_amount > 0){
             new_data = general_memory_allocate(general, request_amount, BUBBLE_BUFFER);
@@ -1789,34 +1789,64 @@ file_do_white_batch_edit(System_Functions *system, Models *models, Editing_File 
         Cpp_Token_Stack tokens = file->state.token_stack;
         Cpp_Token *token = tokens.tokens;
         Cpp_Token *end_token = tokens.tokens + tokens.count;
-
+        Cpp_Token original = {(Cpp_Token_Type)0};
+        
         Buffer_Edit *edit = batch;
         Buffer_Edit *end_edit = batch + batch_size;
-
+        
         i32 shift_amount = 0;
         i32 local_shift = 0;
-
-        for (; token < end_token && edit < end_edit; ++edit){
-            local_shift = (edit->len - (edit->end - edit->start));
-            for (; token->start < edit->start && edit->start < token->start + token->size &&
-                    token < end_token; ++token){
-                token->size += local_shift;
-                token->start += shift_amount;
+        
+        for (; token < end_token; ++token){
+            original = *token;
+            for (; edit < end_edit && edit->start <= original.start; ++edit){
+                local_shift = (edit->len - (edit->end - edit->start));
+                shift_amount += local_shift;
             }
-            for (; token->start < edit->start && token < end_token; ++token){
-                token->start += shift_amount;
+            token->start += shift_amount;
+            local_shift = 0;
+            for (; edit < end_edit && edit->start < original.start + original.size; ++edit){
+                local_shift += (edit->len - (edit->end - edit->start));
             }
+            token->size += local_shift;
             shift_amount += local_shift;
+        }
+        
+#if 0
+        for (; token < end_token && edit < end_edit;){
+            local_shift = (edit->len - (edit->end - edit->start));
+            for (; token->start + token->size < edit->start && token < end_token; ++token){
+                token->start += shift_amount;
+            }
+            if (token->start <= edit->start){
+                original = *token;
+                if (original.start == edit->start){
+                    shift_amount += local_shift;
+                    token->start += shift_amount;
+                    ++edit;
+                }
+                for (; edit->start < original.start + original.size && edit < end_edit; ++edit){
+                    local_shift = (edit->len - (edit->end - edit->start));
+                    token->size += local_shift;
+                    shift_amount += local_shift;
+                }
+                ++token;
+            }
+            else{
+                shift_amount += local_shift;
+                ++edit;
+            }
         }
         for (; token < end_token; ++token){
             token->start += shift_amount;
         }
+#endif
     }
 }
 
 inline void
 file_replace_range(System_Functions *system, Models *models, Editing_File *file,
-    i32 start, i32 end, char *str, i32 len, i32 next_cursor, b32 use_high_permission = 0){
+                   i32 start, i32 end, char *str, i32 len, i32 next_cursor, b32 use_high_permission = 0){
     Edit_Spec spec = {};
     spec.step.type = ED_NORMAL;
     spec.step.edit.start =  start;
@@ -1836,7 +1866,7 @@ file_clear(System_Functions *system, Models *models, Editing_File *file, b32 use
 
 inline void
 view_replace_range(System_Functions *system, Models *models, View *view,
-    i32 start, i32 end, char *str, i32 len, i32 next_cursor){
+                   i32 start, i32 end, char *str, i32 len, i32 next_cursor){
     file_replace_range(system, models, view->file_data.file, start, end, str, len, next_cursor);
 }
 
@@ -1863,8 +1893,8 @@ main_style(Models *models){
 
 internal void
 view_undo_redo(System_Functions *system,
-    Models *models, View *view,
-    Edit_Stack *stack, Edit_Type expected_type){
+               Models *models, View *view,
+               Edit_Stack *stack, Edit_Type expected_type){
     Editing_File *file = view->file_data.file;
 
     if (stack->edit_count > 0){
@@ -1887,7 +1917,7 @@ view_undo_redo(System_Functions *system,
 
             Style *style = main_style(models);
             view_post_paste_effect(view, 10, step.edit.start, step.edit.len,
-                style->main.undo_color);
+                                   style->main.undo_color);
         }
         else{
             TentativeAssert(spec.step.special_type == 1);
@@ -2056,7 +2086,7 @@ view_find_beginning_of_next_line(View *view, i32 pos){
     Editing_File *file = view->file_data.file;
     char *data = file->state.buffer.data;
     while (pos < file->state.buffer.size &&
-            !starts_new_line(data[pos])){
+           !starts_new_line(data[pos])){
         ++pos;
     }
     if (pos < file->state.buffer.size){
@@ -2135,24 +2165,24 @@ clipboard_copy(System_Functions *system, General_Memory *general, Working_Set *w
 
 internal Edit_Spec
 file_compute_whitespace_edit(Mem_Options *mem, Editing_File *file, i32 cursor_pos,
-    Buffer_Edit *edits, char *str_base, i32 str_size,
-    Buffer_Edit *inverse_array, char *inv_str, i32 inv_max,
-    i32 edit_count){
+                             Buffer_Edit *edits, char *str_base, i32 str_size,
+                             Buffer_Edit *inverse_array, char *inv_str, i32 inv_max,
+                             i32 edit_count){
     General_Memory *general = &mem->general;
 
     i32 inv_str_pos = 0;
     Buffer_Invert_Batch state = {};
     if (buffer_invert_batch(&state, &file->state.buffer, edits, edit_count,
-            inverse_array, inv_str, &inv_str_pos, inv_max)){
+                            inverse_array, inv_str, &inv_str_pos, inv_max)){
         Assert(0);
     }
 
     i32 first_child =
         undo_children_push(general, &file->state.undo.children,
-        edits, edit_count, (u8*)(str_base), str_size);
+                           edits, edit_count, (u8*)(str_base), str_size);
     i32 inverse_first_child =
         undo_children_push(general, &file->state.undo.children,
-        inverse_array, edit_count, (u8*)(inv_str), inv_str_pos);
+                           inverse_array, edit_count, (u8*)(inv_str), inv_str_pos);
 
     Edit_Spec spec = {};
     spec.step.type = ED_NORMAL;
@@ -2215,7 +2245,7 @@ view_clean_whitespace(System_Functions *system, Models *models, View *view){
         char *inv_str = (char*)part->base + part->pos;
         Edit_Spec spec =
             file_compute_whitespace_edit(mem, file, view->file_data.cursor.pos, edits, str_base, str_size,
-            inverse_array, inv_str, part->max - part->pos, edit_count);
+                                         inverse_array, inv_str, part->max - part->pos, edit_count);
 
         file_do_white_batch_edit(system, models, view->file_data.file, spec, hist_normal);
     }
@@ -2232,7 +2262,7 @@ struct Indent_Options{
 struct Make_Batch_Result{
     char *str_base;
     i32 str_size;
-    
+
     Buffer_Edit *edits;
     i32 edit_max;
     i32 edit_count;
@@ -2243,18 +2273,18 @@ get_first_token_at_line(Buffer *buffer, Cpp_Token_Stack tokens, i32 line){
     Cpp_Token *result = 0;
     i32 start_pos = 0;
     Cpp_Get_Token_Result get_token = {0};
-    
+
     start_pos = buffer->line_starts[line];
     get_token = cpp_get_token(&tokens, start_pos);
     if (get_token.in_whitespace) get_token.token_index += 1;
     result = tokens.tokens + get_token.token_index;
-    
+
     return(result);
 }
 
 internal Cpp_Token*
 seek_matching_token_backwards(Cpp_Token_Stack tokens, Cpp_Token *token,
-    Cpp_Token_Type open_type, Cpp_Token_Type close_type){
+                              Cpp_Token_Type open_type, Cpp_Token_Type close_type){
     int nesting_level = 0;
     if (token <= tokens.tokens){
         token = tokens.tokens;
@@ -2288,23 +2318,23 @@ struct Indent_Parse_State{
 
 internal i32
 compute_this_indent(Buffer *buffer, Indent_Parse_State indent,
-    Cpp_Token T, Cpp_Token prev_token, i32 line_i, i32 tab_width){
-    
+                    Cpp_Token T, Cpp_Token prev_token, i32 line_i, i32 tab_width){
+
     i32 previous_indent = indent.previous_line_indent;
     i32 this_indent = 0;
-    
+
     i32 this_line_start = buffer->line_starts[line_i];
     i32 next_line_start = 0;
-    
+
     if (line_i+1 < buffer->line_count){
         next_line_start = buffer->line_starts[line_i+1];
     }
     else{
         next_line_start = buffer_size(buffer);
     }
-    
-    if (prev_token.type == CPP_TOKEN_COMMENT &&
-            prev_token.start <= this_line_start && prev_token.start + prev_token.size > this_line_start){
+
+    if ((prev_token.type == CPP_TOKEN_COMMENT || prev_token.type == CPP_TOKEN_STRING_CONSTANT) &&
+        prev_token.start <= this_line_start && prev_token.start + prev_token.size > this_line_start){
         this_indent = previous_indent;
     }
     else{
