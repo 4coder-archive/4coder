@@ -752,8 +752,6 @@ COMMAND_DECL(delete_range){
         view_cursor_move(view, next_cursor_pos);
         view->file_data.mark = range.start;
     }
-    
-    general_memory_check(&models->mem.general);
 }
 
 COMMAND_DECL(undo){
@@ -762,6 +760,9 @@ COMMAND_DECL(undo){
     REQ_FILE_HISTORY(file, view);
 
     view_undo(system, models, view);
+    
+    Assert(file->state.undo.undo.size >= 0);
+
 }
 
 COMMAND_DECL(redo){
@@ -770,6 +771,8 @@ COMMAND_DECL(redo){
     REQ_FILE_HISTORY(file, view);
 
     view_redo(system, models, view);
+    
+    Assert(file->state.undo.undo.size >= 0);
 }
 
 COMMAND_DECL(history_backward){

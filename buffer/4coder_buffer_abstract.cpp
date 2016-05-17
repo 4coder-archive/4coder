@@ -1235,6 +1235,7 @@ buffer_invert_edit_shift(Buffer_Type *buffer, Buffer_Edit edit, Buffer_Edit *inv
     
     pos = *str_pos;
     len = edit.end - edit.start;
+    assert_4tech(pos >= 0);
     assert_4tech(pos + len <= max);
     *str_pos = pos + len;
     

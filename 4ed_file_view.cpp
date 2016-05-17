@@ -924,19 +924,19 @@ struct Edit_Spec{
 
 internal Edit_Step*
 file_post_undo(General_Memory *general, Editing_File *file,
-               Edit_Step step, bool32 do_merge, bool32 can_merge){
+               Edit_Step step, b32 do_merge, b32 can_merge){
     if (step.type == ED_NORMAL){
         file->state.undo.redo.size = 0;
         file->state.undo.redo.edit_count = 0;
     }
-
+    
     Edit_Stack *undo = &file->state.undo.undo;
     Edit_Step *result = 0;
 
     if (step.child_count == 0){
         if (step.edit.end - step.edit.start + undo->size > undo->max)
             undo_stack_grow_string(general, undo, step.edit.end - step.edit.start);
-
+        
         Buffer_Edit inv;
         buffer_invert_edit(&file->state.buffer, step.edit, &inv,
                            (char*)undo->strings, &undo->size, undo->max);
@@ -948,7 +948,7 @@ file_post_undo(General_Memory *general, Editing_File *file,
         inv_step.can_merge = (b8)can_merge;
         inv_step.type = ED_UNDO;
 
-        bool32 did_merge = 0;
+        b32 did_merge = 0;
         if (do_merge && undo->edit_count > 0){
             Edit_Step prev = undo->edits[undo->edit_count-1];
             if (prev.can_merge && inv_step.edit.len == 0 && prev.edit.len == 0){
@@ -967,6 +967,7 @@ file_post_undo(General_Memory *general, Editing_File *file,
         else{
             if (undo->edit_count == undo->edit_max)
                 undo_stack_grow_edits(general, undo);
+            
             result = undo->edits + (undo->edit_count++);
             *result = inv_step;
         }
@@ -992,12 +993,14 @@ inline void
 undo_stack_pop(Edit_Stack *stack){
     if (stack->edit_count > 0){
         Edit_Step *edit = stack->edits + (--stack->edit_count);
-        stack->size -= edit->edit.len;
+        if (edit->child_count == 0){
+            stack->size -= edit->edit.len;
+        }
     }
 }
 
 internal void
-file_post_redo(General_Memory *general, Editing_File *file, Edit_Step step){
+file_post_redo(General_Memory *general, Editing_File      *file, Edit_Step step){
     Edit_Stack *redo = &file->state.undo.redo;
 
     if (step.child_count == 0){
@@ -1411,7 +1414,7 @@ file_update_history_before_edit(Mem_Options *mem, Editing_File *file, Edit_Step 
 
             if (history_mode != hist_forward)
                 file_post_history(general, file, step, do_merge, can_merge);
-
+            
             file_post_undo(general, file, step, do_merge, can_merge);
         }break;
 
@@ -1663,7 +1666,7 @@ file_do_single_edit(System_Functions *system,
     // NOTE(allen): fixing stuff beforewards????
     file_update_history_before_edit(mem, file, spec.step, spec.str, history_mode);
     file_pre_edit_maintenance(system, &mem->general, file);
-
+        
     // NOTE(allen): actual text replacement
     i32 shift_amount = 0;
     General_Memory *general = &mem->general;
@@ -1811,36 +1814,6 @@ file_do_white_batch_edit(System_Functions *system, Models *models, Editing_File 
             token->size += local_shift;
             shift_amount += local_shift;
         }
-        
-#if 0
-        for (; token < end_token && edit < end_edit;){
-            local_shift = (edit->len - (edit->end - edit->start));
-            for (; token->start + token->size < edit->start && token < end_token; ++token){
-                token->start += shift_amount;
-            }
-            if (token->start <= edit->start){
-                original = *token;
-                if (original.start == edit->start){
-                    shift_amount += local_shift;
-                    token->start += shift_amount;
-                    ++edit;
-                }
-                for (; edit->start < original.start + original.size && edit < end_edit; ++edit){
-                    local_shift = (edit->len - (edit->end - edit->start));
-                    token->size += local_shift;
-                    shift_amount += local_shift;
-                }
-                ++token;
-            }
-            else{
-                shift_amount += local_shift;
-                ++edit;
-            }
-        }
-        for (; token < end_token; ++token){
-            token->start += shift_amount;
-        }
-#endif
     }
 }
 
