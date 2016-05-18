@@ -150,6 +150,8 @@ struct GUI_Target{
     // for more than one list.  Perhaps just throw in a hash table?
     // Or maybe this only needs to be tracked for the active list.
     i32 list_max;
+    b32 has_list_index_position;
+    i32_Rect list_index_position;
     
     f32 delta;
     u32 scroll_id;
@@ -159,9 +161,12 @@ struct GUI_Target{
 
 struct GUI_Item_Update{
     i32 partition_point;
-    b32 activate;
+    
     b32 has_adjustment;
     i32 adjustment_value;
+    
+    b32 has_index_position;
+    i32_Rect index_position;
 };
 
 struct GUI_Header{
@@ -207,13 +212,13 @@ enum GUI_Command_Type{
     guicom_end_scrollable_section,
 };
 
-internal b32
+inline b32
 gui_id_eq(GUI_id id1, GUI_id id2){
     b32 result = (id1.id[0] == id2.id[0] && id1.id[1] == id2.id[1]);
     return(result);
 }
 
-internal b32
+inline b32
 gui_id_is_null(GUI_id id){
     b32 result = (id.id[0] == 0 && id.id[1] == 0);
     return(result);
@@ -248,23 +253,27 @@ gui_rollback(GUI_Target *target, GUI_Item_Update *update){
 }
 
 internal void
-gui_fill_item_update(GUI_Item_Update *update, GUI_Target *target, GUI_Header *h,
-    b32 activate){
+gui_fill_update(GUI_Item_Update *update, GUI_Target *target, GUI_Header *h){
     if (update){
         update->partition_point = (i32)((char*)h - (char*)target->push.base);
-        update->activate = activate;
         update->has_adjustment = 0;
+        update->has_index_position = 0;
     }
 }
 
 internal void
-gui_fill_item_update(GUI_Item_Update *update, GUI_Target *target, GUI_Header *h,
-    b32 active, i32 adjustment_value){
+gui_update_adjustment(GUI_Item_Update *update, i32 adjustment_value){
     if (update){
-        update->partition_point = (i32)((char*)h - (char*)target->push.base);
-        update->activate = active;
         update->has_adjustment = 1;
         update->adjustment_value = adjustment_value;
+    }
+}
+
+internal void
+gui_update_position(GUI_Item_Update *update, i32_Rect position){
+    if (update){
+        update->has_index_position = 1;
+        update->index_position = position;
     }
 }
 
@@ -406,6 +415,7 @@ gui_begin_top_level(GUI_Target *target, Input_Summary input){
 internal void
 gui_end_top_level(GUI_Target *target){
     gui_push_simple_command(target, guicom_null);
+    target->has_list_index_position = 0;
 }
 
 internal void
@@ -434,7 +444,7 @@ gui_do_text_with_cursor(GUI_Target *target, i32 pos, String text, GUI_Item_Updat
     
     result = target->has_keys;
     if (result){
-        gui_fill_item_update(update, target, h, 0);
+        gui_fill_update(update, target, h);
         target->animating = 1;
     }
     
@@ -491,15 +501,17 @@ gui_begin_list(GUI_Target *target, GUI_id id, i32 list_i, b32 activate_item, GUI
 	}
     
     if (result){
+        gui_fill_update(update, target, h);
         if (list_i < 0){
-            gui_fill_item_update(update, target, h, active, 0);
+            gui_update_adjustment(update, 0);
         }
         else if (list_i >= target->list_max){
-            gui_fill_item_update(update, target, h, active, target->list_max - 1);
+            gui_update_adjustment(update, target->list_max - 1);
         }
-        else{
-            gui_fill_item_update(update, target, h, active);
+        if (target->has_list_index_position){
+            gui_update_position(update, target->list_index_position);
         }
+        
         target->animating = 1;
     }
     
@@ -1031,9 +1043,16 @@ gui_interpret(GUI_Target *target, GUI_Session *session, GUI_Header *h){
         case guicom_fixed_option:
         case guicom_fixed_option_checkbox:
         {
+            give_to_user = 1;
+            rect = gui_layout_fixed_h(session, y, session->line_height * 2);
+            end_v = rect.y1;
+            end_section = section;
+            
             if (session->list.in_list){
                 if (session->list.auto_hot == session->list.index){
                     result.auto_hot = 1;
+                    target->has_list_index_position = 1;
+                    target->list_index_position = rect;
                 }
                 if (session->list.auto_activate == session->list.index){
                     result.auto_activate = 1;
@@ -1041,11 +1060,6 @@ gui_interpret(GUI_Target *target, GUI_Session *session, GUI_Header *h){
                 
                 ++session->list.index;
             }
-
-            give_to_user = 1;
-            rect = gui_layout_fixed_h(session, y, session->line_height * 2);
-            end_v = rect.y1;
-            end_section = section;
         }break;
         
         case guicom_button:

@@ -3697,7 +3697,44 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                             id.id[0] = (u64)(hdir) + 1;
                             
                             if (gui_begin_list(target, id, view->list_i, 0, &update)){
+                                i32 *list_i = &view->list_i;
+                                
+                                if (update.has_adjustment){
+                                    *list_i = update.adjustment_value;
+                                }
+                                
+                                if (update.has_index_position){
+                                    // TODO(allen): update scrolling here.
+                                    // TODO(allen): THOUGHT:
+                                    //  Could we better abstract this idea of having something that
+                                    // wants to stay in view so that users don't have to manage this
+                                    // nasty view back and forth directly if they don't want?
+                                }
+                                
+                                b32 indirectly_activate = 0;
+                                for (i32 j = 0; j < keys.count; ++j){
+                                    i16 key = keys.keys[j].keycode;
+                                    switch (key){
+                                        case key_up:
+                                        --*list_i;
+                                        break;
+                                        
+                                        case key_down:
+                                        ++*list_i;
+                                        break;
+                                        
+                                        case '\n': case '\t':
+                                        indirectly_activate = 1;
+                                        break;
+                                    }
+                                }
+                                
+                                gui_rollback(target, &update);
+                                gui_begin_list(target, id, *list_i, indirectly_activate, 0);
+                                
+#if 0
                                 gui_standard_list(target, id, &keys, &view->list_i, &update);
+#endif
                             }
                             
                             {
