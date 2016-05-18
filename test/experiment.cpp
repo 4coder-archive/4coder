@@ -338,11 +338,11 @@ show_time(Times t, int repeats, char *type){
 
 int main(){
     int repeats = 1;
-    int verbose_level = 0;
-    int chunk_start = 1;
-    int chunk_end = 32;
-#define TEST_FILE "junk.cpp"
-#define SINGLE_ITEM 0
+    int verbose_level = 1;
+    int chunk_start = 0;
+    int chunk_end = 0;
+#define TEST_FILE "parser_test1.cpp"
+#define SINGLE_ITEM 1
 
     int chunks = (chunk_start > 0 && chunk_start <= chunk_end);
     int c = 0;

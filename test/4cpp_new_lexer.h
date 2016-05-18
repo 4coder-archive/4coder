@@ -482,35 +482,40 @@ cpp_lex_nonalloc(Lex_Data *S_ptr, char *chunk, int size, Cpp_Token_Stack *token_
                         S.token.flags = CPP_TFLAG_IS_OPERATOR;
                     }
                     break;
-
+                    
                     case LS_identifier:
                     {
                         S.fsm.state = 0;
                         S.fsm.emit_token = 0;
                         S.fsm.sub_machine = 0;
-                        S.key_table = key_tables[S.fsm.sub_machine];
-                        S.key_eq_classes = key_eq_class_tables[S.fsm.sub_machine];
                         --S.pos;
                         for (;;){
+                            // TODO(allen): Need to drop down to the instructions to optimize
+                            // this correctly I think.  This looks like it will have more branches
+                            // than it needs unless I am very careful.
                             for (; S.fsm.state < LSKEY_totally_finished && S.pos < end_pos;){
+                                // TODO(allen): Rebase these super tables so that we don't have
+                                // to do a subtract on the state.
+                                S.key_table = key_tables[S.fsm.sub_machine];
+                                S.key_eq_classes = key_eq_class_tables[S.fsm.sub_machine];
                                 for (; S.fsm.state < LSKEY_table_transition && S.pos < end_pos;){
                                     c = chunk[S.pos++];
                                     S.fsm.state = S.key_table[S.fsm.state + S.key_eq_classes[c]];
                                 }
-                                // TODO(allen): udpate table
-                                S.fsm.sub_machine = 0;
-                                S.key_table = key_tables[S.fsm.sub_machine];
-                                S.key_eq_classes = key_eq_class_tables[S.fsm.sub_machine];
+                                if (S.fsm.state >= LSKEY_table_transition && S.fsm.state < LSKEY_totally_finished){
+                                    S.fsm.sub_machine = S.fsm.state - LSKEY_table_transition;
+                                    S.fsm.state = 0;
+                                }
                             }
                             S.fsm.emit_token = (S.fsm.int_state >= LSKEY_totally_finished);
-
+                            
                             if (S.fsm.emit_token == 0){
                                 DrYield(7, 1);
                             }
                             else break;
                         }
                         --S.pos;
-
+                        
                         // TODO(allen): do stuff regarding the actual type of the token
                         S.token.type = CPP_TOKEN_INTEGER_CONSTANT;
                         S.token.flags = 0;

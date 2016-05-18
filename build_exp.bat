@@ -7,7 +7,7 @@ pushd ..\build
 cl %WARNINGOPS% ..\code\test\fsm_table_generator.cpp /Fefsm_gen %*
 
 pushd ..\code\test
-..\build\fsm_gen
+..\..\build\fsm_gen
 popd
 
 cl %WARNINGOPS% ..\code\test\experiment.cpp /Fexperiment %*
