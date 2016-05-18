@@ -1000,7 +1000,7 @@ undo_stack_pop(Edit_Stack *stack){
 }
 
 internal void
-file_post_redo(General_Memory *general, Editing_File      *file, Edit_Step step){
+file_post_redo(General_Memory *general, Editing_File *file, Edit_Step step){
     Edit_Stack *redo = &file->state.undo.redo;
 
     if (step.child_count == 0){
@@ -3689,17 +3689,17 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                             }
                             
                             gui_do_text_field(target, message, hdir->string);
-
+                            
                             view->current_scroll = &view->gui_scroll;
                             gui_get_scroll_vars(target, view->showing_ui, &view->gui_scroll);
                             gui_begin_scrollable(target, view->showing_ui, view->gui_scroll, 9.f * view->font_height);
-
+                            
                             id.id[0] = (u64)(hdir) + 1;
-
+                            
                             if (gui_begin_list(target, id, view->list_i, 0, &update)){
                                 gui_standard_list(target, id, &keys, &view->list_i, &update);
                             }
-
+                            
                             {
                                 begin_exhaustive_loop(&loop, hdir);
                                 for (i = 0; i < loop.count; ++i){
@@ -3707,7 +3707,8 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                                     
                                     if (file_info.name_match){
                                         id.id[0] = (u64)(file_info.info);
-                                        if (gui_do_file_option(target, id, file_info.info->filename, file_info.is_folder, file_info.message)){
+                                        if (gui_do_file_option(target, id, file_info.info->filename,
+                                                               file_info.is_folder, file_info.message)){
                                             if (file_info.is_folder){
                                                 set_last_folder(&hdir->string, file_info.info->filename, '/');
                                                 do_new_directory = 1;
@@ -3729,7 +3730,7 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                             if (do_new_directory){
                                 hot_directory_reload(system, hdir, &models->working_set);
                             }
-
+                            
                             gui_end_scrollable(target);
                         }break;
 

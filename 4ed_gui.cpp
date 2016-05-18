@@ -142,6 +142,7 @@ struct GUI_Target{
     GUI_id auto_hot;
     GUI_id hover;
     
+    // TODO(allen): Can we remove original yet?
     GUI_Scroll_Vars scroll_original;
     GUI_Scroll_Vars scroll_updated;
     
@@ -490,7 +491,15 @@ gui_begin_list(GUI_Target *target, GUI_id id, i32 list_i, b32 activate_item, GUI
 	}
     
     if (result){
-        gui_fill_item_update(update, target, h, active);
+        if (list_i < 0){
+            gui_fill_item_update(update, target, h, active, 0);
+        }
+        else if (list_i >= target->list_max){
+            gui_fill_item_update(update, target, h, active, target->list_max - 1);
+        }
+        else{
+            gui_fill_item_update(update, target, h, active);
+        }
         target->animating = 1;
     }
     
