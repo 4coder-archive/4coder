@@ -130,8 +130,6 @@ struct GUI_Scroll_Vars{
     f32 scroll_x;
     f32 target_x;
     f32 prev_target_x;
-    
-    i32_Rect region;
 };
 
 struct GUI_Target{
@@ -144,7 +142,10 @@ struct GUI_Target{
     
     // TODO(allen): Can we remove original yet?
     GUI_Scroll_Vars scroll_original;
+    i32_Rect region_original;
+    
     GUI_Scroll_Vars scroll_updated;
+    i32_Rect region_updated;
     
     // TODO(allen): Would rather have a way of tracking this
     // for more than one list.  Perhaps just throw in a hash table?
@@ -669,10 +670,11 @@ gui_scroll_eq(GUI_Scroll_Vars *a, GUI_Scroll_Vars *b){
 // TODO(allen): Rethink this a little, seems like there are two separate things we want to do here:
 // Getting the updated scroll vars, and telling the user when scrolling actions occur.
 internal b32
-gui_get_scroll_vars(GUI_Target *target, u32 scroll_id, GUI_Scroll_Vars *vars_out){
+gui_get_scroll_vars(GUI_Target *target, u32 scroll_id, GUI_Scroll_Vars *vars_out, i32_Rect *region_out){
     b32 result = 0;
     if (target->scroll_id == scroll_id){
         *vars_out = target->scroll_updated;
+        *region_out = target->region_updated;
         
         if (vars_out->target_y < vars_out->min_y) vars_out->target_y = vars_out->min_y;
         if (vars_out->target_y > vars_out->max_y) vars_out->target_y = vars_out->max_y;
@@ -1129,7 +1131,7 @@ gui_interpret(GUI_Target *target, GUI_Session *session, GUI_Header *h){
             scrollable_rect.x1 = rect.x0;
             scrollable_rect.y0 = rect.y0;
             scrollable_rect.y1 = rect.y1;
-            target->scroll_updated.region = scrollable_rect;
+            target->region_updated = scrollable_rect;
         }
         break;
         
@@ -1189,7 +1191,7 @@ gui_interpret(GUI_Target *target, GUI_Session *session, GUI_Header *h){
     if (do_layout){
         if (session->list.in_list && is_list_item){
             i32 list_i = session->list.index - 1;
-            i32_Rect region = target->scroll_updated.region;
+            i32_Rect region = target->region_updated;
             
             if (rect.y0 - target_v >= region.y0 &&
                 rect.y1 - target_v <= region.y1){
@@ -1244,11 +1246,11 @@ struct GUI_View_Jump{
 };
 
 internal GUI_View_Jump
-gui_compute_view_jump(GUI_Scroll_Vars scroll, i32_Rect position){
+gui_compute_view_jump(i32_Rect scroll_region, i32_Rect position){
     GUI_View_Jump jump = {0};
-    i32 region_h = scroll.region.y1 - scroll.region.y0;
-    jump.view_min = (f32)position.y1 - region_h - scroll.region.y0;
-    jump.view_max = (f32)position.y0 - scroll.region.y0;
+    i32 region_h = scroll_region.y1 - scroll_region.y0;
+    jump.view_min = (f32)position.y1 - region_h - scroll_region.y0;
+    jump.view_max = (f32)position.y0 - scroll_region.y0;
     return(jump);
 }
 
@@ -1266,7 +1268,7 @@ gui_do_jump(GUI_Target *target, GUI_View_Jump jump){
 }
 
 internal void
-gui_standard_list(GUI_Target *target, GUI_id id, GUI_Scroll_Vars scroll,
+gui_standard_list(GUI_Target *target, GUI_id id, i32_Rect scroll_region,
     Key_Summary *keys, i32 *list_i, GUI_Item_Update *update){
     
     if (update->has_adjustment){
@@ -1275,7 +1277,7 @@ gui_standard_list(GUI_Target *target, GUI_id id, GUI_Scroll_Vars scroll,
     
     if (update->has_index_position){
         GUI_View_Jump jump =
-            gui_compute_view_jump(scroll, update->index_position);
+            gui_compute_view_jump(scroll_region, update->index_position);
         jump.view_min += 45.f;
         jump.view_max -= 45.f;
         gui_do_jump(target, jump);

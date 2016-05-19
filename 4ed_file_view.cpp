@@ -90,6 +90,11 @@ file_viewing_data_zero(){
     return(data);
 }
 
+struct Recent_File_Data{
+    u64 unique_buffer_id;
+    GUI_Scroll_Vars scroll;
+};
+
 struct View{
     View *next, *prev;
     b32 in_use;
@@ -104,9 +109,13 @@ struct View{
 
     File_Viewing_Data file_data;
 
-    GUI_Scroll_Vars file_scroll;
+    //GUI_Scroll_Vars file_scroll;
+
+    i32_Rect scroll_region;
+    Recent_File_Data recent[16];
 
     GUI_Scroll_Vars *current_scroll;
+
     View_UI showing_ui;
     GUI_Target gui_target;
     void *gui_mem;
@@ -164,14 +173,14 @@ view_lock_level(View *view){
 
 inline f32
 view_file_width(View *view){
-    i32_Rect file_rect = view->file_scroll.region;
+    i32_Rect file_rect = view->scroll_region;
     f32 result = (f32)(file_rect.x1 - file_rect.x0);
     return (result);
 }
 
 inline f32
 view_file_height(View *view){
-    i32_Rect file_rect = view->file_scroll.region;
+    i32_Rect file_rect = view->scroll_region;
     f32 result = (f32)(file_rect.y1 - file_rect.y0);
     return (result);
 }
@@ -929,14 +938,14 @@ file_post_undo(General_Memory *general, Editing_File *file,
         file->state.undo.redo.size = 0;
         file->state.undo.redo.edit_count = 0;
     }
-    
+
     Edit_Stack *undo = &file->state.undo.undo;
     Edit_Step *result = 0;
 
     if (step.child_count == 0){
         if (step.edit.end - step.edit.start + undo->size > undo->max)
             undo_stack_grow_string(general, undo, step.edit.end - step.edit.start);
-        
+
         Buffer_Edit inv;
         buffer_invert_edit(&file->state.buffer, step.edit, &inv,
                            (char*)undo->strings, &undo->size, undo->max);
@@ -967,7 +976,7 @@ file_post_undo(General_Memory *general, Editing_File *file,
         else{
             if (undo->edit_count == undo->edit_max)
                 undo_stack_grow_edits(general, undo);
-            
+
             result = undo->edits + (undo->edit_count++);
             *result = inv_step;
         }
@@ -1279,40 +1288,59 @@ view_get_cursor_y(View *view){
 
 internal void
 view_set_file(View *view, Editing_File *file, Models *models){
-
+    
     Font_Info *fnt_info;
-
+    
     // TODO(allen): This belongs somewhere else.
     fnt_info = get_font_info(models->font_set, models->global_font.font_id);
     view->font_advance = fnt_info->advance;
     view->font_height = fnt_info->height;
-
+    
     // NOTE(allen): Stuff that doesn't assume file exists.
     // TODO(allen): Use a proper file changer here.
-    view->file_data = file_viewing_data_zero();;
+    view->file_data = file_viewing_data_zero();
     view->file_data.file = file;
 
     // NOTE(allen): Stuff that does assume file exists.
     if (file){
+        u64 unique_buffer_id = file->unique_buffer_id;
+        Recent_File_Data *recent = view->recent;
+        Recent_File_Data temp_recent = {0};
+        i32 i = 0;
+        i32 max = ArrayCount(view->recent)-1;
+        b32 found_recent_entry = 0;
+
+        for (; i < max; ++i, ++recent){
+            if (recent->unique_buffer_id == unique_buffer_id){
+                temp_recent = *recent;
+                memmove(view->recent+1, view->recent, sizeof(*recent)*i);
+                view->recent[0] = temp_recent;
+                found_recent_entry = 1;
+                break;
+            }
+        }
+
+        if (!found_recent_entry){
+            i = 15;
+            recent = view->recent + i;
+            temp_recent = *recent;
+            memmove(view->recent+1, view->recent, sizeof(*recent)*i);
+            view->recent[0] = temp_recent;
+
+            recent = view->recent;
+            recent->unique_buffer_id = unique_buffer_id;
+        }
+
         view->file_data.unwrapped_lines = file->settings.unwrapped_lines;
 
         if (file_is_ready(file)){
             view_measure_wraps(&models->mem.general, view);
             view->file_data.cursor = view_compute_cursor_from_pos(view, file->state.cursor_pos);
-            view->reinit_scrolling = 1;
+            if (!found_recent_entry){
+                view->reinit_scrolling = 1;
+            }
         }
     }
-
-#if 0
-    if (file){
-        if (open_hook && file->settings.is_initialized == 0){
-            models->buffer_param_indices[models->buffer_param_count++] = file->id.id;
-            open_hook(app);
-            models->buffer_param_count = 0;
-            file->settings.is_initialized = 1;
-        }
-    }
-#endif
 }
 
 struct Relative_Scrolling{
@@ -1326,9 +1354,9 @@ view_get_relative_scrolling(View *view){
     Relative_Scrolling result;
     f32 cursor_y;
     cursor_y = view_get_cursor_y(view);
-    result.scroll_y = cursor_y - view->file_scroll.scroll_y;
-    result.target_y = cursor_y - view->file_scroll.target_y;
-    result.scroll_min_limit = view->file_scroll.min_y;
+    result.scroll_y = cursor_y - view->recent->scroll.scroll_y;
+    result.target_y = cursor_y - view->recent->scroll.target_y;
+    result.scroll_min_limit = view->recent->scroll.min_y;
     return(result);
 }
 
@@ -1336,10 +1364,10 @@ internal void
 view_set_relative_scrolling(View *view, Relative_Scrolling scrolling){
     f32 cursor_y;
     cursor_y = view_get_cursor_y(view);
-    view->file_scroll.scroll_y = cursor_y - scrolling.scroll_y;
-    view->file_scroll.target_y = cursor_y - scrolling.target_y;
-    if (view->file_scroll.target_y < scrolling.scroll_min_limit){
-        view->file_scroll.target_y = scrolling.scroll_min_limit;
+    view->recent->scroll.scroll_y = cursor_y - scrolling.scroll_y;
+    view->recent->scroll.target_y = cursor_y - scrolling.target_y;
+    if (view->recent->scroll.target_y < scrolling.scroll_min_limit){
+        view->recent->scroll.target_y = scrolling.scroll_min_limit;
     }
 }
 
@@ -1634,17 +1662,17 @@ file_edit_cursor_fix(System_Functions *system,
                 if (view->file_data.scroll_i != new_scroll_i){
                     view->file_data.scroll_i = new_scroll_i;
                     temp_cursor = view_compute_cursor_from_pos(view, view->file_data.scroll_i);
-                    y_offset = MOD(view->file_scroll.scroll_y, view->font_height);
+                    y_offset = MOD(view->recent->scroll.scroll_y, view->font_height);
 
                     if (view->file_data.unwrapped_lines){
                         y_position = temp_cursor.unwrapped_y + y_offset;
-                        view->file_scroll.target_y += (y_position - view->file_scroll.scroll_y);
-                        view->file_scroll.scroll_y = y_position;
+                        view->recent->scroll.target_y += (y_position - view->recent->scroll.scroll_y);
+                        view->recent->scroll.scroll_y = y_position;
                     }
                     else{
                         y_position = temp_cursor.wrapped_y + y_offset;
-                        view->file_scroll.target_y += (y_position - view->file_scroll.scroll_y);
-                        view->file_scroll.scroll_y = y_position;
+                        view->recent->scroll.target_y += (y_position - view->recent->scroll.scroll_y);
+                        view->recent->scroll.scroll_y = y_position;
                     }
                 }
             }
@@ -2765,7 +2793,6 @@ view_show_theme(View *view, Command_Map *gui_map){
     view->current_scroll = &view->gui_scroll;
 }
 
-
 inline void
 view_show_file(View *view, Command_Map *file_map){
     if (file_map){
@@ -2775,7 +2802,7 @@ view_show_file(View *view, Command_Map *file_map){
         view->map = view->map_for_file;
     }
     view->showing_ui = VUI_None;
-    view->current_scroll = &view->file_scroll;
+    view->current_scroll = &view->recent->scroll;
 }
 
 inline void
@@ -2982,22 +3009,22 @@ view_reinit_scrolling(View *view){
         }
 
         target_y = (f32)FLOOR32(cursor_y - h*.5f);
-        if (target_y < view->file_scroll.min_y){
-            target_y = view->file_scroll.min_y;
+        if (target_y < view->recent->scroll.min_y){
+            target_y = view->recent->scroll.min_y;
         }
     }
 
-    view->file_scroll.target_y = target_y;
-    view->file_scroll.scroll_y = target_y;
-    view->file_scroll.prev_target_y = -1000.f;
-    view->file_scroll.min_y = view->gui_target.scroll_updated.min_y;
-    view->file_scroll.max_y = view->gui_target.scroll_updated.max_y;
+    view->recent->scroll.target_y = target_y;
+    view->recent->scroll.scroll_y = target_y;
+    view->recent->scroll.prev_target_y = -1000.f;
+    view->recent->scroll.min_y = view->gui_target.scroll_updated.min_y;
+    view->recent->scroll.max_y = view->gui_target.scroll_updated.max_y;
 
-    view->file_scroll.target_x = target_x;
-    view->file_scroll.scroll_x = target_x;
-    view->file_scroll.prev_target_x = -1000.f;
+    view->recent->scroll.target_x = target_x;
+    view->recent->scroll.scroll_x = target_x;
+    view->recent->scroll.prev_target_x = -1000.f;
     
-    gui_post_scroll_vars(&view->gui_target, &view->file_scroll);
+    gui_post_scroll_vars(&view->gui_target, &view->recent->scroll);
 }
 
 #define CursorMaxY_(m,h) ((m) - (h)*3)
@@ -3036,7 +3063,7 @@ file_step(View *view, i32_Rect region, Input_Summary *user_input, b32 is_active)
             }
             
             if (target_y > scroll_vars.max_y) target_y = scroll_vars.max_y;
-            if (target_y < scroll_vars.min_y) target_y = view->file_scroll.min_y;
+            if (target_y < scroll_vars.min_y) target_y = view->recent->scroll.min_y;
             
             if (cursor_x < target_x){
                 target_x = (f32)Max(0, cursor_x - max_x/2);
@@ -3060,7 +3087,7 @@ file_step(View *view, i32_Rect region, Input_Summary *user_input, b32 is_active)
             f32 rx = (f32)(user_input->mouse.x - region.x0);
             f32 ry = (f32)(user_input->mouse.y - region.y0);
             
-            if (ry >= -view->file_scroll.min_y){
+            if (ry >= -view->recent->scroll.min_y){
                 view_set_widget(view, FWIDG_NONE);
                 if (rx >= 0 && rx < max_x && ry >= 0 && ry < max_visible_y){
                     view_cursor_move(view, rx + scroll_vars.scroll_x, ry + scroll_vars.scroll_y, 1);
@@ -3367,7 +3394,7 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
     Models *models = view->models;
     Key_Summary keys = input.keys;
     
-    f32 min_target_y = view->file_scroll.min_y;
+    f32 min_target_y = view->recent->scroll.min_y;
     
     view->current_scroll = 0;
     
@@ -3390,9 +3417,9 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                     f32 delta = 9.f * view->font_height;
                     f32 target_y = 0;
                     
-                    view->current_scroll = &view->file_scroll;
-                    if (gui_get_scroll_vars(target, view->showing_ui, &view->file_scroll)){
-                        target_y = view->file_scroll.target_y;
+                    view->current_scroll = &view->recent->scroll;
+                    if (gui_get_scroll_vars(target, view->showing_ui, &view->recent->scroll, &view->scroll_region)){
+                        target_y = view->recent->scroll.target_y;
                         if (cursor_y > target_y + cursor_max_y){
                             cursor_y = target_y + cursor_max_y;
                         }
@@ -3411,7 +3438,7 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                         }
                     }
 
-                    gui_begin_scrollable(target, view->showing_ui, view->file_scroll, delta);
+                    gui_begin_scrollable(target, view->showing_ui, view->recent->scroll, delta);
                     gui_do_file(target);
                     gui_end_scrollable(target);
                 }
@@ -3491,7 +3518,7 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                         gui_do_text_field(target, message, empty_string);
                         
                         view->current_scroll = &view->gui_scroll;
-                        gui_get_scroll_vars(target, view->showing_ui, &view->gui_scroll);
+                        gui_get_scroll_vars(target, view->showing_ui, &view->gui_scroll, &view->scroll_region);
                         gui_begin_scrollable(target, view->showing_ui, view->gui_scroll, 9.f * view->font_height);
                         
                         {
@@ -3564,7 +3591,7 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                             }
 
                             view->current_scroll = &view->gui_scroll;
-                            gui_get_scroll_vars(target, view->showing_ui, &view->gui_scroll);
+                            gui_get_scroll_vars(target, view->showing_ui, &view->gui_scroll, &view->scroll_region);
                             gui_begin_scrollable(target, view->showing_ui, view->gui_scroll, 9.f * view->font_height);
 
                             i32 next_color_editing = view->current_color_editing;
@@ -3692,7 +3719,7 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                             gui_do_text_field(target, message, hdir->string);
                             
                             view->current_scroll = &view->gui_scroll;
-                            if (gui_get_scroll_vars(target, view->showing_ui, &view->gui_scroll)){
+                            if (gui_get_scroll_vars(target, view->showing_ui, &view->gui_scroll, &view->scroll_region)){
                                 snap_into_view = 1;
                             }
                             gui_begin_scrollable(target, view->showing_ui,
@@ -3702,7 +3729,7 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                             
                             if (gui_begin_list(target, id, view->list_i, 0,
                                                snap_into_view, &update)){
-                                gui_standard_list(target, id, view->gui_scroll,
+                                gui_standard_list(target, id, view->scroll_region,
                                                   &keys, &view->list_i, &update);
                             }
                             
@@ -3776,7 +3803,7 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                             gui_do_text_field(target, message, view->dest);
                             
                             view->current_scroll = &view->gui_scroll;
-                            if (gui_get_scroll_vars(target, view->showing_ui, &view->gui_scroll)){
+                            if (gui_get_scroll_vars(target, view->showing_ui, &view->gui_scroll, &view->scroll_region)){
                                 snap_into_view = 1;
                             }
                             gui_begin_scrollable(target, view->showing_ui, view->gui_scroll, 9.f * view->font_height);
@@ -3784,7 +3811,7 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                             id.id[0] = (u64)(working_set) + 1;
                             if (gui_begin_list(target, id, view->list_i,
                                                0, snap_into_view, &update)){
-                                gui_standard_list(target, id, view->gui_scroll,
+                                gui_standard_list(target, id, view->scroll_region,
                                                   &keys, &view->list_i, &update);
                             }
                             
@@ -3922,7 +3949,7 @@ internal f32
 view_get_scroll_y(View *view){
     f32 v;
     if (view->showing_ui == VUI_None){
-        v = view->file_scroll.scroll_y;
+        v = view->recent->scroll.scroll_y;
     }
     else{
         v = view->gui_scroll.scroll_y;
@@ -4081,6 +4108,11 @@ do_input_file_view(System_Functions *system, Exchange *exchange,
                             }
                         }
                     }
+                }break;
+                
+                case guicom_scrollable:
+                {
+                    view->scroll_region = target->region_updated;
                 }break;
                 
                 case guicom_scrollable_slider:
@@ -4247,8 +4279,8 @@ draw_file_loaded(View *view, i32_Rect rect, b32 is_active, Render_Target *target
     Buffer_Render_Options opts = {};
 
     f32 *wraps = view->file_data.line_wrap_y;
-    f32 scroll_x = view->file_scroll.scroll_x;
-    f32 scroll_y = view->file_scroll.scroll_y;
+    f32 scroll_x = view->recent->scroll.scroll_x;
+    f32 scroll_y = view->recent->scroll.scroll_y;
 
     {
         render_cursor = buffer_get_start_cursor(&file->state.buffer, wraps, scroll_y,

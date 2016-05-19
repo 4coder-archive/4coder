@@ -1,11 +1,11 @@
 /*
- * Mr. 4th Dimention - Allen Webster
- *
- * 12.12.2014
- *
- * Application layer for project codename "4ed"
- *
- */
+* Mr. 4th Dimention - Allen Webster
+*
+* 12.12.2014
+*
+* Application layer for project codename "4ed"
+*
+*/
 
 // TOP
 
@@ -191,8 +191,8 @@ do_feedback_message(System_Functions *system, Models *models, String value){
         output_file_append(system, models, file, value, 1);
         i32 pos = buffer_size(&file->state.buffer);
         for (View_Iter iter = file_view_iter_init(&models->layout, file, 0);
-            file_view_iter_good(iter);
-            iter = file_view_iter_next(iter)){
+             file_view_iter_good(iter);
+             iter = file_view_iter_next(iter)){
             view_cursor_move(iter.view, pos);
         }
     }
@@ -277,7 +277,7 @@ COMMAND_DECL(null){
 }
 
 COMMAND_DECL(write_character){
-    
+
     USE_MODELS(models);
     REQ_OPEN_VIEW(view);
     REQ_FILE(file, view);
@@ -324,7 +324,7 @@ seek_token_right(Cpp_Token_Stack *tokens, i32 pos){
 }
 
 COMMAND_DECL(seek_left){
-    
+
     REQ_READABLE_VIEW(view);
     REQ_FILE(file, view);
 
@@ -377,7 +377,7 @@ COMMAND_DECL(seek_left){
 }
 
 COMMAND_DECL(seek_right){
-    
+
     REQ_READABLE_VIEW(view);
     REQ_FILE(file, view);
 
@@ -432,7 +432,7 @@ COMMAND_DECL(seek_right){
 }
 
 COMMAND_DECL(seek_whitespace_up){
-    
+
     REQ_READABLE_VIEW(view);
     REQ_FILE(file, view);
 
@@ -441,7 +441,7 @@ COMMAND_DECL(seek_whitespace_up){
 }
 
 COMMAND_DECL(seek_whitespace_down){
-    
+
     REQ_READABLE_VIEW(view);
     REQ_FILE(file, view);
 
@@ -450,7 +450,7 @@ COMMAND_DECL(seek_whitespace_down){
 }
 
 COMMAND_DECL(center_view){
-    
+
     USE_VIEW(view);
     REQ_FILE(file, view);
 
@@ -464,9 +464,9 @@ COMMAND_DECL(center_view){
 
     h = view_file_height(view);
     y -= h * .5f;
-    if (y < view->file_scroll.min_y) y = view->file_scroll.min_y;
+    if (y < view->recent->scroll.min_y) y = view->recent->scroll.min_y;
 
-    view->file_scroll.target_y = y;
+    view->recent->scroll.target_y = y;
 }
 
 COMMAND_DECL(word_complete){
@@ -1105,7 +1105,7 @@ COMMAND_DECL(toggle_line_wrap){
     if (view->file_data.unwrapped_lines){
         view->file_data.unwrapped_lines = 0;
         file->settings.unwrapped_lines = 0;
-        view->file_scroll.target_x = 0;
+        view->recent->scroll.target_x = 0;
         view->file_data.cursor =view_compute_cursor_from_pos(
             view, view->file_data.cursor.pos);
         view->file_data.preferred_x = view->file_data.cursor.wrapped_x;
@@ -1505,26 +1505,26 @@ COMMAND_DECL(page_down){
     REQ_READABLE_VIEW(view);
 
     f32 height = view_file_height(view);
-    f32 max_target_y = view->file_scroll.max_y;
+    f32 max_target_y = view->recent->scroll.max_y;
 
-    view->file_scroll.target_y += height;
-    if (view->file_scroll.target_y > max_target_y) view->file_scroll.target_y = max_target_y;
+    view->recent->scroll.target_y += height;
+    if (view->recent->scroll.target_y > max_target_y) view->recent->scroll.target_y = max_target_y;
 
     view->file_data.cursor = view_compute_cursor_from_xy(
-        view, 0, view->file_scroll.target_y + (height - view->font_height)*.5f);
+        view, 0, view->recent->scroll.target_y + (height - view->font_height)*.5f);
 }
 
 COMMAND_DECL(page_up){
     REQ_READABLE_VIEW(view);
 
     f32 height = view_file_height(view);
-    f32 min_target_y = view->file_scroll.min_y;
+    f32 min_target_y = view->recent->scroll.min_y;
 
-    view->file_scroll.target_y -= height;
-    if (view->file_scroll.target_y < min_target_y) view->file_scroll.target_y = min_target_y;
+    view->recent->scroll.target_y -= height;
+    if (view->recent->scroll.target_y < min_target_y) view->recent->scroll.target_y = min_target_y;
 
     view->file_data.cursor = view_compute_cursor_from_xy(
-        view, 0, view->file_scroll.target_y + (height - view->font_height)*.5f);
+        view, 0, view->recent->scroll.target_y + (height - view->font_height)*.5f);
 }
 
 COMMAND_DECL(open_color_tweaker){
@@ -4029,12 +4029,12 @@ App_Step_Sig(app_step){
         // TODO(allen): This is perhaps not the best system...
         // The problem is that the exact region and scroll position is pretty important
         // for some commands, so this is here to eliminate the one frame of lag.
-        // Going to leave this here for now because the oder of events is going to
-        // change a lot soon.
+        // Going to leave this here for now because the order of events is going to
+        // change a lot soon anyway.
         for (dll_items(panel, used_panels)){
             view = panel->view;
             if (view->current_scroll){
-                gui_get_scroll_vars(&view->gui_target, view->showing_ui, view->current_scroll);
+                gui_get_scroll_vars(&view->gui_target, view->showing_ui, view->current_scroll, &view->scroll_region);
             }
         }
     }

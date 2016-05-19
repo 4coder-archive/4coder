@@ -152,14 +152,14 @@ struct File_Node{
     File_Node *next, *prev;
 };
 
-union File_ID{
+union Buffer_Slot_ID{
     i32 id;
     i16 part[2];
 };
 
-inline File_ID
+inline Buffer_Slot_ID
 to_file_id(i32 id){
-    File_ID result;
+    Buffer_Slot_ID result;
     result.id = id;
     return(result);
 }
@@ -173,12 +173,13 @@ struct Editing_File{
         Editing_File_Preload preload;
     };
     Editing_File_Name name;
-    File_ID id;
+    Buffer_Slot_ID id;
+    u64 unique_buffer_id;
 };
 
 struct Non_File_Table_Entry{
     String name;
-    File_ID id;
+    Buffer_Slot_ID id;
 };
 
 struct File_Array{
@@ -199,12 +200,14 @@ struct Working_Set{
 	String clipboards[64];
 	i32 clipboard_size, clipboard_max_size;
 	i32 clipboard_current, clipboard_rolling;
+    
+    u64 unique_file_counter;
 };
 
 struct File_Entry{
     String short_name;
     String long_name;
-    File_ID id;
+    Buffer_Slot_ID id;
 };
 
 struct File_Entry_Comparison{
@@ -239,7 +242,7 @@ tbl_file_compare(void *a, void *b, void *arg){
 
 internal void
 working_set_extend_memory(Working_Set *working_set, Editing_File *new_space, i16 number_of_files){
-    File_ID id;
+    Buffer_Slot_ID id;
     i16 i, high_part;
     Editing_File *file_ptr;
     File_Node *free_sentinel;
@@ -273,7 +276,7 @@ internal Editing_File*
 working_set_alloc(Working_Set *working_set){
     Editing_File *result = 0;
     File_Node *node;
-    File_ID id;
+    Buffer_Slot_ID id;
     
     if (working_set->file_count < working_set->file_max){
         node = working_set->free_sentinel.next;
@@ -281,15 +284,14 @@ working_set_alloc(Working_Set *working_set){
         result = (Editing_File*)node;
         
         dll_remove(node);
-        // NOTE(allen): What I really want to do here is clear everything
-        // except id, but writing that out will be a pain to maintain.
         id = result->id;
         *result = editing_file_zero();
         result->id = id;
+        result->unique_buffer_id = ++working_set->unique_file_counter;
         dll_insert(&working_set->used_sentinel, node);
         ++working_set->file_count;
     }
-
+    
     return result;
 }
 
@@ -322,7 +324,7 @@ working_set_free_file(Working_Set  *working_set, Editing_File *file){
 }
 
 inline Editing_File*
-working_set_index(Working_Set *working_set, File_ID id){
+working_set_index(Working_Set *working_set, Buffer_Slot_ID id){
     Editing_File *result = 0;
     File_Array *array;
     
@@ -344,7 +346,7 @@ working_set_index(Working_Set *working_set, i32 id){
 }
 
 inline Editing_File*
-working_set_get_active_file(Working_Set *working_set, File_ID id){
+working_set_get_active_file(Working_Set *working_set, Buffer_Slot_ID id){
     Editing_File *result = 0;
     result = working_set_index(working_set, id);
     if (result && result->state.is_dummy){
