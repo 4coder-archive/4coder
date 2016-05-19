@@ -1222,7 +1222,7 @@ COMMAND_DECL(auto_tab_range){
     int r_start = 0, r_end = 0;
     int start_set = 0, end_set = 0;
     Indent_Options opts;
-    opts.empty_blank_lines = 1;
+    opts.empty_blank_lines = 0;
     opts.use_tabs = 0;
     opts.tab_width = 4;
 
@@ -3199,7 +3199,7 @@ App_Init_Sig(app_init){
     {
         i32 i;
 
-        panel_max_count = models->layout.panel_max_count = 16;
+        panel_max_count = models->layout.panel_max_count = MAX_VIEWS;
         divider_max_count = panel_max_count - 1;
         models->layout.panel_count = 0;
 
@@ -4347,9 +4347,7 @@ App_Step_Sig(app_step){
                 case DACT_TOUCH_FILE:
                 {
                     if (file){
-                        Assert(!file->state.is_dummy);
-                        dll_remove(&file->node);
-                        dll_insert(&models->working_set.used_sentinel, &file->node);
+                        touch_file(working_set, file);
                     }
                 }break;
 

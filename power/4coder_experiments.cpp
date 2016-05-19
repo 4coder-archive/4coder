@@ -353,11 +353,16 @@ int get_bindings(void *data, int size){
     
     set_hook(context, hook_start, experimental_start_hook);
     set_hook(context, hook_open_file, my_file_settings);
-
+    
     set_scroll_rule(context, smooth_scroll_rule);
     
-    default_keys(context, 0);
+    default_keys(context);
     
+    // NOTE(allen|4.0.6): Command maps can be opened more than
+    // once so that you can extend existing maps very easily.
+    // You can also use the helper "restart_map" instead of
+    // begin_map to clear everything that was in the map and
+    // bind new things instead.
     begin_map(context, mapid_file);
     bind(context, 'k', MDFR_ALT, kill_rect);
     end_map(context);

@@ -12,6 +12,8 @@
 #ifndef FRED_H
 #define FRED_H
 
+#define MAX_VIEWS 16
+
 struct Application_Memory{
     void *vars_memory;
     i32 vars_memory_size;

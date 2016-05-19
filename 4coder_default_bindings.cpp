@@ -272,10 +272,8 @@ HOOK_SIG(my_file_settings){
     return(0);
 }
 
-typedef void (Extension_Bindings)(Bind_Helper *context);
-
 void
-default_keys(Bind_Helper *context, Extension_Bindings *extension = 0){
+default_keys(Bind_Helper *context){
     begin_map(context, mapid_global);
 
     bind(context, 'p', MDFR_CTRL, cmdid_open_panel_vsplit);
@@ -422,10 +420,6 @@ default_keys(Bind_Helper *context, Extension_Bindings *extension = 0){
     bind(context, '!', MDFR_CTRL, cmdid_eol_nixify);
     bind(context, '\n', MDFR_SHIFT, write_and_auto_tab);
     bind(context, ' ', MDFR_SHIFT, cmdid_write_character);
-    
-    if (extension != 0){
-        extension(context);
-    }
     
     end_map(context);
 }

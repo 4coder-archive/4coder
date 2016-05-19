@@ -3754,8 +3754,8 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                             
                             Absolutes absolutes;
                             Editing_File *file;
-                            File_Node *node, *used_nodes;
                             Working_Set *working_set = &models->working_set;
+                            Editing_Layout *layout = &models->layout;
                             GUI_Item_Update update = {0};
                             
                             {
@@ -3788,39 +3788,79 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                                                   &keys, &view->list_i, &update);
                             }
                             
-                            used_nodes = &working_set->used_sentinel;
-                            for (dll_items(node, used_nodes)){
-                                file = (Editing_File*)node;
-                                Assert(!file->state.is_dummy);
-
-                                message = string_zero();
-                                switch (buffer_get_sync(file)){
-                                    case SYNC_BEHIND_OS: message = message_unsynced; break;
-                                    case SYNC_UNSAVED: message = message_unsaved; break;
+                            {
+                                Partition *part = &models->mem.part;
+                                Temp_Memory temp = begin_temp_memory(part);
+                                File_Node *node = 0, *used_nodes = 0;
+                                Editing_File **reserved_files = 0;
+                                i32 reserved_top = 0, i = 0;
+                                View_Iter iter = {0};
+                                
+                                partition_align(part, sizeof(i32));
+                                reserved_files = (Editing_File**)partition_current(part);
+                                
+                                used_nodes = &working_set->used_sentinel;
+                                for (dll_items(node, used_nodes)){
+                                    file = (Editing_File*)node;
+                                    Assert(!file->state.is_dummy);
+                                    
+                                    if (filename_match(view->dest, &absolutes, file->name.live_name, 1)){
+                                        iter = file_view_iter_init(layout, file, 0);
+                                        if (file_view_iter_good(iter)){
+                                            reserved_files[reserved_top++] = file;
+                                        }
+                                        else{
+                                            if (file->name.live_name.str[0] == '*'){
+                                                reserved_files[reserved_top++] = file;
+                                            }
+                                            else{
+                                                message = string_zero();
+                                                switch (buffer_get_sync(file)){
+                                                    case SYNC_BEHIND_OS: message = message_unsynced; break;
+                                                    case SYNC_UNSAVED: message = message_unsaved; break;
+                                                }
+                                                
+                                                id.id[0] = (u64)(file);
+                                                if (gui_do_file_option(target, id, file->name.live_name, 0, message)){
+                                                    interactive_view_complete(view, file->name.live_name, 0);
+                                                }
+                                            }
+                                        }
+                                    }
                                 }
-
-                                if (filename_match(view->dest, &absolutes, file->name.live_name, 1)){
+                                
+                                for (i = 0; i < reserved_top; ++i){
+                                    file = reserved_files[i];
+                                    
+                                    message = string_zero();
+                                    switch (buffer_get_sync(file)){
+                                        case SYNC_BEHIND_OS: message = message_unsynced; break;
+                                        case SYNC_UNSAVED: message = message_unsaved; break;
+                                    }
+                                    
                                     id.id[0] = (u64)(file);
                                     if (gui_do_file_option(target, id, file->name.live_name, 0, message)){
                                         interactive_view_complete(view, file->name.live_name, 0);
                                     }
                                 }
+                                
+                                end_temp_memory(temp);
                             }
-
+                            
                             gui_end_list(target);
-
+                            
                             gui_end_scrollable(target);
                         }break;
-
+                        
                         case IInt_Sure_To_Close:
                         {
                             i32 action = -1;
-
+                            
                             String empty_str = {0};
                             String message = make_lit_string("There is one or more files unsaved changes, close anyway?");
-
+                            
                             gui_do_text_field(target, message, empty_str);
-
+                            
                             id.id[0] = (u64)('y');
                             message = make_lit_string("(Y)es");
                             if (gui_do_fixed_option(target, id, message, 'y')){
@@ -3915,11 +3955,11 @@ click_button_input(GUI_Target *target, GUI_Session *session, Input_Summary *user
 
 internal b32
 scroll_button_input(GUI_Target *target, GUI_Session *session, Input_Summary *user_input,
-    GUI_id id, b32 *is_animating){
+                    GUI_id id, b32 *is_animating){
     b32 result = 0;
     i32 mx = user_input->mouse.x;
     i32 my = user_input->mouse.y;
-    
+
     if (hit_check(mx, my, session->rect)){
         target->hover = id;
         if (user_input->mouse.l){
@@ -3937,13 +3977,13 @@ scroll_button_input(GUI_Target *target, GUI_Session *session, Input_Summary *use
 
 internal b32
 do_input_file_view(System_Functions *system, Exchange *exchange,
-    View *view, i32_Rect rect, b32 is_active, Input_Summary *user_input){
-    
+                   View *view, i32_Rect rect, b32 is_active,
+                   Input_Summary *user_input){
     b32 is_animating = 0;
     b32 is_file_scroll = 0;
     
-    GUI_Session gui_session;
-    GUI_Header *h;
+    GUI_Session gui_session = {0};
+    GUI_Header *h = 0;
     GUI_Target *target = &view->gui_target;
     GUI_Interpret_Result interpret_result = {0};
     
@@ -3952,13 +3992,10 @@ do_input_file_view(System_Functions *system, Exchange *exchange,
     target->active = gui_id_zero();
     
     for (h = (GUI_Header*)target->push.base;
-        h->type;
-        h = NextHeader(h)){
+         h->type;
+         h = NextHeader(h)){
         interpret_result = gui_interpret(target, &gui_session, h);
-        
-        // TODO(allen): If something is auto hot or auto activated and
-        // not on screen do some sort of scrolling towards it.
-        
+
         switch (h->type){
             case guicom_file_option:
             case guicom_fixed_option:
@@ -3986,7 +4023,8 @@ do_input_file_view(System_Functions *system, Exchange *exchange,
                 
                 case guicom_file:
                 {
-                    f32 new_min_y = -(f32)(gui_session_get_eclipsed_y(&gui_session)  - gui_session.rect.y0);
+                    f32 new_min_y = -(f32)(gui_session_get_eclipsed_y(&gui_session) -
+                                           gui_session.rect.y0);
                     f32 new_max_y = view_compute_max_target_y(view);
                     
                     view->gui_target.scroll_updated.min_y = new_min_y;
@@ -4001,7 +4039,7 @@ do_input_file_view(System_Functions *system, Exchange *exchange,
                     }
                     is_file_scroll = 1;
                 }break;
-
+                
                 case guicom_color_button:
                 case guicom_font_button:
                 case guicom_button:
@@ -4330,7 +4368,7 @@ draw_file_loaded(View *view, i32_Rect rect, b32 is_active, Render_Target *target
         }
         if (item->glyphid != 0){
             font_draw_glyph(target, font_id, (u8)item->glyphid,
-                item->x0, item->y0, char_color);
+                            item->x0, item->y0, char_color);
         }
         prev_ind = ind;
     }

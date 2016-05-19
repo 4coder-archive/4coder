@@ -484,6 +484,13 @@ working_set_lookup_file(Working_Set *working_set, String string){
 	return (file);
 }
 
+internal void
+touch_file(Working_Set *working_set, Editing_File *file){
+    Assert(!file->state.is_dummy);
+    dll_remove(&file->node);
+    dll_insert(&working_set->used_sentinel, &file->node);
+}
+
 // Hot Directory
 
 struct Hot_Directory{
