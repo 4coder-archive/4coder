@@ -99,36 +99,39 @@ struct View{
     View *next, *prev;
     b32 in_use;
     i32 id;
-
+    
     // TODO(allen): eliminate this models pointer: explicitly parameterize.
     Models *models;
-
+    
     Panel *panel;
     Command_Map *map;
     Command_Map *map_for_file;
-
+    
     File_Viewing_Data file_data;
-
-    //GUI_Scroll_Vars file_scroll;
-
+    
+    i32_Rect file_region_prev;
+    i32_Rect file_region;
+    
     i32_Rect scroll_region;
     Recent_File_Data recent[16];
-
+    
     GUI_Scroll_Vars *current_scroll;
-
+    
     View_UI showing_ui;
     GUI_Target gui_target;
     void *gui_mem;
     GUI_Scroll_Vars gui_scroll;
     i32 list_i;
-
+    
+    b32 hide_scrollbar;
+    
     // interactive stuff
     Interactive_Interaction interaction;
     Interactive_Action action;
-
+    
     char dest_[256];
     String dest;
-
+    
     // theme stuff
     View *hot_file_view;
     u32 *palette;
@@ -141,15 +144,15 @@ struct View{
     i32 import_file_id;
     i32 current_color_editing;
     i32 color_cursor;
-
+    
     i32 font_advance;
     i32 font_height;
-
+    
     View_Mode mode, next_mode;
     View_Widget widget;
     Query_Set query_set;
     i32 scrub_max;
-
+    
     b32 reinit_scrolling;
 };
 
@@ -2735,7 +2738,7 @@ view_compute_max_target_y(View *view){
 }
 
 internal void
-remeasure_file_view(System_Functions *system, View *view, i32_Rect rect){
+remeasure_file_view(System_Functions *system, View *view){
     if (file_is_ready(view->file_data.file)){
         Relative_Scrolling relative = view_get_relative_scrolling(view);
         view_measure_wraps(&view->models->mem.general, view);
@@ -3396,7 +3399,7 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
     
     f32 min_target_y = view->recent->scroll.min_y;
     
-    b32 show_scrollbar = 0;
+    b32 show_scrollbar = !view->hide_scrollbar;
     
     view->current_scroll = 0;
     
@@ -4062,10 +4065,11 @@ do_input_file_view(System_Functions *system, Exchange *exchange,
                     f32 new_min_y = -(f32)(gui_session_get_eclipsed_y(&gui_session) -
                                            gui_session.rect.y0);
                     f32 new_max_y = view_compute_max_target_y(view);
-
+                    
+                    view->file_region = view->scroll_region;
                     view->gui_target.scroll_updated.min_y = new_min_y;
                     view->gui_target.scroll_updated.max_y = new_max_y;
-
+                    
                     if (view->reinit_scrolling){
                         view_reinit_scrolling(view);
                         is_animating = 1;
@@ -4075,7 +4079,7 @@ do_input_file_view(System_Functions *system, Exchange *exchange,
                     }
                     is_file_scroll = 1;
                 }break;
-
+                
                 case guicom_color_button:
                 case guicom_font_button:
                 case guicom_button:
@@ -4931,7 +4935,7 @@ do_render_file_view(System_Functions *system, Exchange *exchange,
                 }break;
                 
                 case guicom_begin_scrollable_section:
-                clip_rect = gui_target->region_updated;
+                clip_rect.x1 = Min(gui_target->region_updated.x1, clip_rect.x1);
                 draw_push_clip(target, clip_rect);
                 break;
                 

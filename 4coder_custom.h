@@ -219,6 +219,8 @@ enum Command_ID{
     cmdid_open_color_tweaker,
     cmdid_cursor_mark_swap,
     cmdid_open_menu,
+    cmdid_hide_scrollbar,
+    cmdid_show_scrollbar,
     cmdid_set_settings,
     cmdid_command_line,
     //

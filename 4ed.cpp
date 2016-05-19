@@ -1572,6 +1572,16 @@ COMMAND_DECL(user_callback){
     if (binding.custom) binding.custom(&models->app_links);
 }
 
+COMMAND_DECL(hide_scrollbar){
+    USE_VIEW(view);
+    view->hide_scrollbar = 1;
+}
+
+COMMAND_DECL(show_scrollbar){
+    USE_VIEW(view);
+    view->hide_scrollbar = 0;
+}
+
 COMMAND_DECL(set_settings){
     USE_MODELS(models);
     
@@ -2737,6 +2747,8 @@ setup_command_table(){
     SET(open_color_tweaker);
     SET(cursor_mark_swap);
     SET(open_menu);
+    SET(hide_scrollbar);
+    SET(show_scrollbar);
     SET(set_settings);
     SET(command_line);
 
@@ -4030,7 +4042,7 @@ App_Step_Sig(app_step){
         // The problem is that the exact region and scroll position is pretty important
         // for some commands, so this is here to eliminate the one frame of lag.
         // Going to leave this here for now because the order of events is going to
-        // change a lot soon anyway.
+        // change a lot soon anyway.// NOTE(allen): 
         for (dll_items(panel, used_panels)){
             view = panel->view;
             if (view->current_scroll){
@@ -4559,16 +4571,17 @@ App_Step_Sig(app_step){
     
     // NOTE(allen): send resize messages to panels that have changed size
     {
-        Panel *panel, *used_panels;
+        Panel *panel = 0, *used_panels = 0;
+        
         used_panels = &models->layout.used_sentinel;
         for (dll_items(panel, used_panels)){
-            i32_Rect prev = panel->prev_inner;
-            i32_Rect inner = panel->inner;
-            if (prev.x0 != inner.x0 || prev.y0 != inner.y0 ||
-                    prev.x1 != inner.x1 || prev.y1 != inner.y1){
-                remeasure_file_view(system, panel->view, panel->inner);
+            View *view = panel->view;
+            i32_Rect prev = view->file_region_prev;
+            i32_Rect region = view->file_region;
+            if (!rect_equal(prev, region)){
+                remeasure_file_view(system, panel->view);
             }
-            panel->prev_inner = inner;
+            view->file_region_prev = region;
         }
     }
     
@@ -4604,7 +4617,7 @@ App_Step_Sig(app_step){
         Panel *panel, *used_panels;
         used_panels = &models->layout.used_sentinel;
         for (dll_items(panel, used_panels)){
-            remeasure_file_view(system, panel->view, panel->inner);
+            remeasure_file_view(system, panel->view);
         }
     }
     

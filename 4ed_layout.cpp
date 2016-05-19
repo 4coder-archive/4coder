@@ -21,7 +21,6 @@ struct Panel_Divider{
 struct Screen_Region{
     i32_Rect full;
     i32_Rect inner;
-    i32_Rect prev_inner;
     i32 l_margin, r_margin;
     i32 t_margin, b_margin;
 };
@@ -77,7 +76,6 @@ panel_init(Panel *panel){
     panel->which_child = 0;
     panel->screen_region.full = i32_rect_zero();
     panel->screen_region.inner = i32_rect_zero();
-    panel->screen_region.prev_inner = i32_rect_zero();
     panel->l_margin = 3;
     panel->r_margin = 3;
     panel->t_margin = 3;

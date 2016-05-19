@@ -404,14 +404,16 @@ default_keys(Bind_Helper *context){
     bind(context, 'O', MDFR_CTRL, cmdid_reopen);
     bind(context, 'q', MDFR_CTRL, query_replace);
     bind(context, 'r', MDFR_CTRL, reverse_search);
-    bind(context, 's', MDFR_ALT, rewrite_as_single_caps);
+    bind(context, 's', MDFR_ALT, cmdid_show_scrollbar);
     bind(context, 's', MDFR_CTRL, cmdid_save);
     bind(context, 'u', MDFR_CTRL, cmdid_to_uppercase);
     bind(context, 'v', MDFR_CTRL, cmdid_paste);
     bind(context, 'V', MDFR_CTRL, cmdid_paste_next);
+    bind(context, 'w', MDFR_ALT, cmdid_hide_scrollbar);
     bind(context, 'x', MDFR_CTRL, cmdid_cut);
     bind(context, 'y', MDFR_CTRL, cmdid_redo);
     bind(context, 'z', MDFR_CTRL, cmdid_undo);
+    
     
     bind(context, '1', MDFR_CTRL, cmdid_eol_dosify);
     
