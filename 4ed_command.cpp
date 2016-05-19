@@ -117,14 +117,23 @@ command_binding_zero(){
 }
 
 internal void
-map_init(Command_Map *commands, Partition *part, i32 max, Command_Map *parent){
-    max = ((max < 6)?(6):(max));
-    commands->parent = parent;
-    commands->commands = push_array(part, Command_Binding, max);
+map_clear(Command_Map *commands){
+    i32 max = commands->max;
     memset(commands->commands, 0, max*sizeof(*commands->commands));
     commands->vanilla_keyboard_default = command_binding_zero();
-    commands->max = max;
     commands->count = 0;
+}
+
+internal void
+map_init(Command_Map *commands, Partition *part, i32 max, Command_Map *parent){
+    if (commands->commands == 0){
+        max = ((max < 6)?(6):(max));
+        commands->parent = parent;
+        commands->commands = push_array(part, Command_Binding, max);
+        commands->max = max;
+        
+        map_clear(commands);
+    }
 }
 
 internal void

@@ -118,17 +118,59 @@ app_get_map_index(Models *models, i32 mapid){
 }
 
 internal Command_Map*
-app_get_map(Models *models, i32 mapid){
+app_get_map_base(Models *models, i32 mapid, b32 add){
     Command_Map *map = 0;
     if (mapid < mapid_global){
-        mapid = app_get_map_index(models, mapid);
+        if (add){
+            mapid = app_get_or_add_map_index(models, mapid);
+        }
+        else{
+            mapid = app_get_map_index(models, mapid);
+        }
         if (mapid < models->user_map_count){
             map = models->user_maps + mapid;
         }
     }
     else if (mapid == mapid_global) map = &models->map_top;
     else if (mapid == mapid_file) map = &models->map_file;
-    return map;
+    return(map);
+}
+
+internal Command_Map*
+app_get_or_add_map(Models *models, i32 mapid){
+    Command_Map *map = app_get_map_base(models, mapid, 1);
+    return(map);
+}
+
+internal Command_Map*
+app_get_map(Models *models, i32 mapid){
+    Command_Map *map = app_get_map_base(models, mapid, 0);
+    return(map);
+}
+
+internal void
+app_map_set_count(Models *models, i32 mapid, i32 count){
+    Command_Map *map = app_get_or_add_map(models, mapid);
+    Assert(map->commands == 0);
+    map->count = count;
+    if (map->max < count){
+        map->max = count;
+    }
+}
+
+internal i32
+app_map_get_count(Models *models, i32 mapid){
+    Command_Map *map = app_get_or_add_map(models, mapid);
+    i32 count = map->count;
+    Assert(map->commands == 0);
+    return(count);
+}
+
+internal i32
+app_map_get_max_count(Models *models, i32 mapid){
+    Command_Map *map = app_get_or_add_map(models, mapid);
+    i32 count = map->max;
+    return(count);
 }
 
 inline void
@@ -2614,8 +2656,9 @@ setup_ui_commands(Command_Map *commands, Partition *part, Command_Map *parent){
 
     commands->vanilla_keyboard_default.function = command_null;
 
-    // TODO(allen): This is hacky, when the new UI stuff happens, let's fix it, and by that
-    // I mean actually fix it, don't just say you fixed it with something stupid again.
+    // TODO(allen): This is hacky, when the new UI stuff happens, let's fix it,
+    // and by that I mean actually fix it, don't just say you fixed it with
+    // something stupid again.
     u8 mdfr;
     u8 mdfr_array[] = {MDFR_NONE, MDFR_SHIFT, MDFR_CTRL, MDFR_SHIFT | MDFR_CTRL};
     for (i32 i = 0; i < 4; ++i){
@@ -3220,7 +3263,7 @@ App_Init_Sig(app_init){
             Command_Map *map_ptr = 0;
             Binding_Unit *unit, *end;
             i32 user_map_count;
-
+            
             unit = (Binding_Unit*)models->app_links.memory;
             if (unit->type == unit_header && unit->header.error == 0){
                 end = unit + unit->header.total_size;
@@ -3235,13 +3278,31 @@ App_Init_Sig(app_init){
                     &models->mem.part, Command_Map, user_map_count);
 
                 models->user_map_count = user_map_count;
-
+                
                 for (++unit; unit < end; ++unit){
                     switch (unit->type){
                         case unit_map_begin:
                         {
-                            int table_max = unit->map_begin.bind_count * 3 / 2;
                             int mapid = unit->map_begin.mapid;
+                            int count = app_map_get_count(models, mapid);
+                            if (unit->map_begin.replace){
+                                app_map_set_count(models, mapid, unit->map_begin.bind_count);
+                            }
+                            else{
+                                app_map_set_count(models, mapid, unit->map_begin.bind_count + count);
+                            }
+                        };
+                    }
+                }
+                
+                unit = (Binding_Unit*)models->app_links.memory;
+                for (++unit; unit < end; ++unit){
+                    switch (unit->type){
+                        case unit_map_begin:
+                        {
+                            int mapid = unit->map_begin.mapid;
+                            int count = app_map_get_max_count(models, mapid);
+                            int table_max = count * 3 / 2;
                             if (mapid == mapid_global){
                                 map_ptr = &models->map_top;
                                 map_init(map_ptr, &models->mem.part, table_max, global);
@@ -3259,8 +3320,12 @@ App_Init_Sig(app_init){
                                 map_init(map_ptr, &models->mem.part, table_max, global);
                             }
                             else map_ptr = 0;
+                            
+                            if (map_ptr && unit->map_begin.replace){
+                                map_clear(map_ptr);
+                            }
                         }break;
-
+                        
                         case unit_inherit:
                         if (map_ptr){
                             Command_Map *parent = 0;

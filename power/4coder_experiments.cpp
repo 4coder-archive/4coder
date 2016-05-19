@@ -305,11 +305,13 @@ CUSTOM_COMMAND_SIG(save_theme_settings){
 }
 #endif
 
+#if 0
 void experiment_extension(Bind_Helper *context){
     bind(context, 'k', MDFR_ALT, kill_rect);
     bind(context, '/', MDFR_ALT, mark_matching_brace);
     bind(context, '\'', MDFR_ALT, cursor_to_surrounding_scope);
 }
+#endif
 
 #include <stdio.h>
 
@@ -354,7 +356,16 @@ int get_bindings(void *data, int size){
 
     set_scroll_rule(context, smooth_scroll_rule);
     
-    default_keys(context, experiment_extension);
+    default_keys(context, 0);
+    
+    begin_map(context, mapid_file);
+    bind(context, 'k', MDFR_ALT, kill_rect);
+    end_map(context);
+    
+    begin_map(context, my_code_map);
+    bind(context, '/', MDFR_ALT, mark_matching_brace);
+    bind(context, '\'', MDFR_ALT, cursor_to_surrounding_scope);
+    end_map(context);
     
     int result = end_bind_helper(context);
     return(result);

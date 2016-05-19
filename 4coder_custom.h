@@ -604,7 +604,7 @@ struct Binding_Unit{
     union{
         struct{ int total_size; int user_map_count; int error; } header;
         
-        struct{ int mapid; int bind_count; } map_begin;
+        struct{ int mapid; int replace; int bind_count; } map_begin;
         struct{ int mapid; } map_inherit;
         struct{
             short code;

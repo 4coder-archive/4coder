@@ -75,15 +75,26 @@ begin_bind_helper(void *data, int size){
 }
 
 inline void
-begin_map(Bind_Helper *helper, int mapid){
+begin_map_(Bind_Helper *helper, int mapid, int replace){
     if (helper->group != 0 && helper->error == 0) helper->error = BH_ERR_MISSING_END;
     if (!helper->error && mapid < mapid_global) ++helper->header->header.user_map_count;
     
     Binding_Unit unit;
     unit.type = unit_map_begin;
     unit.map_begin.mapid = mapid;
+    unit.map_begin.replace = replace;
     helper->group = write_unit(helper, unit);
     helper->group->map_begin.bind_count = 0;
+}
+
+inline void
+begin_map(Bind_Helper *helper, int mapid){
+    begin_map_(helper, mapid, 0);
+}
+
+inline void
+restart_map(Bind_Helper *helper, int mapid){
+    begin_map_(helper, mapid, 1);
 }
 
 inline void

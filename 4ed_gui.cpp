@@ -1274,11 +1274,6 @@ gui_standard_list(GUI_Target *target, GUI_id id, GUI_Scroll_Vars scroll,
     }
     
     if (update->has_index_position){
-        // TODO(allen): THOUGHT:
-        //  Could we better abstract this idea of having something that
-        // wants to stay in view so that users don't have to manage this
-        // nasty view back and forth directly if they don't want?
-        
         GUI_View_Jump jump =
             gui_compute_view_jump(scroll, update->index_position);
         jump.view_min += 45.f;
