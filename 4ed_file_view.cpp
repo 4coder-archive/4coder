@@ -3700,50 +3700,10 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                             
                             id.id[0] = (u64)(hdir) + 1;
                             
-                            if (gui_begin_list(target, id, view->list_i, 0, snap_into_view, &update)){
-                                i32 *list_i = &view->list_i;
-                                
-                                if (update.has_adjustment){
-                                    *list_i = update.adjustment_value;
-                                }
-                                
-                                if (update.has_index_position){
-                                    // TODO(allen): THOUGHT:
-                                    //  Could we better abstract this idea of having something that
-                                    // wants to stay in view so that users don't have to manage this
-                                    // nasty view back and forth directly if they don't want?
-                                    
-                                    GUI_View_Jump jump =
-                                        gui_compute_view_jump(view->gui_scroll, update.index_position);
-                                    jump.view_min += 60.f;
-                                    jump.view_max -= 60.f;
-                                    gui_do_jump(target, jump);
-                                }
-                                
-                                b32 indirectly_activate = 0;
-                                for (i32 j = 0; j < keys.count; ++j){
-                                    i16 key = keys.keys[j].keycode;
-                                    switch (key){
-                                        case key_up:
-                                        --*list_i;
-                                        break;
-                                        
-                                        case key_down:
-                                        ++*list_i;
-                                        break;
-                                        
-                                        case '\n': case '\t':
-                                        indirectly_activate = 1;
-                                        break;
-                                    }
-                                }
-                                
-                                gui_rollback(target, &update);
-                                gui_begin_list(target, id, *list_i, indirectly_activate, 0, 0);
-                                
-#if 0
-                                gui_standard_list(target, id, &keys, &view->list_i, &update);
-#endif
+                            if (gui_begin_list(target, id, view->list_i, 0,
+                                               snap_into_view, &update)){
+                                gui_standard_list(target, id, view->gui_scroll,
+                                                  &keys, &view->list_i, &update);
                             }
                             
                             {
@@ -3782,21 +3742,22 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
 
                         case IInt_Live_File_List:
                         {
+                            b32 snap_into_view = 0;
                             persist String message_unsaved = make_lit_string(" *");
                             persist String message_unsynced = make_lit_string(" !");
-
+                            
                             String message = {0};
                             switch (view->action){
                                 case IAct_Switch: message = make_lit_string("Switch: "); break;
                                 case IAct_Kill: message = make_lit_string("Kill: "); break;
                             }
-
+                            
                             Absolutes absolutes;
                             Editing_File *file;
                             File_Node *node, *used_nodes;
                             Working_Set *working_set = &models->working_set;
                             GUI_Item_Update update = {0};
-
+                            
                             {
                                 Single_Line_Input_Step step;
                                 Key_Event_Data key;
@@ -3809,20 +3770,24 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                                     }
                                 }
                             }
-
+                            
                             get_absolutes(view->dest, &absolutes, 1, 1);
-
+                            
                             gui_do_text_field(target, message, view->dest);
-
+                            
                             view->current_scroll = &view->gui_scroll;
-                            gui_get_scroll_vars(target, view->showing_ui, &view->gui_scroll);
-                            gui_begin_scrollable(target, view->showing_ui, view->gui_scroll, 9.f * view->font_height);
-
-                            id.id[0] = (u64)(working_set) + 1;
-                            if (gui_begin_list(target, id, view->list_i, 0, 0, &update)){
-                                gui_standard_list(target, id, &keys, &view->list_i, &update);
+                            if (gui_get_scroll_vars(target, view->showing_ui, &view->gui_scroll)){
+                                snap_into_view = 1;
                             }
-
+                            gui_begin_scrollable(target, view->showing_ui, view->gui_scroll, 9.f * view->font_height);
+                            
+                            id.id[0] = (u64)(working_set) + 1;
+                            if (gui_begin_list(target, id, view->list_i,
+                                               0, snap_into_view, &update)){
+                                gui_standard_list(target, id, view->gui_scroll,
+                                                  &keys, &view->list_i, &update);
+                            }
+                            
                             used_nodes = &working_set->used_sentinel;
                             for (dll_items(node, used_nodes)){
                                 file = (Editing_File*)node;

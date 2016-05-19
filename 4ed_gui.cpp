@@ -1238,35 +1238,6 @@ gui_interpret(GUI_Target *target, GUI_Session *session, GUI_Header *h){
     return(result);
 }
 
-internal void
-gui_standard_list(GUI_Target *target, GUI_id id,
-    Key_Summary *keys, i32 *list_i, GUI_Item_Update *update){
-    if (update->has_adjustment){
-        *list_i = update->adjustment_value;
-    }
-    
-    b32 indirectly_activate = 0;
-    for (i32 j = 0; j < keys->count; ++j){
-        i16 key = keys->keys[j].keycode;
-        switch (key){
-            case key_up:
-            --*list_i;
-            break;
-            
-            case key_down:
-            ++*list_i;
-            break;
-            
-            case '\n': case '\t':
-            indirectly_activate = 1;
-            break;
-        }
-    }
-    
-    gui_rollback(target, update);
-    gui_begin_list(target, id, *list_i, indirectly_activate, 0, 0);
-}
-
 struct GUI_View_Jump{
     f32 view_min;
     f32 view_max;
@@ -1292,6 +1263,49 @@ gui_do_jump(GUI_Target *target, GUI_View_Jump jump){
         vars.target_y = jump.view_max;
         gui_post_scroll_vars(target, &vars);
     }
+}
+
+internal void
+gui_standard_list(GUI_Target *target, GUI_id id, GUI_Scroll_Vars scroll,
+    Key_Summary *keys, i32 *list_i, GUI_Item_Update *update){
+    
+    if (update->has_adjustment){
+        *list_i = update->adjustment_value;
+    }
+    
+    if (update->has_index_position){
+        // TODO(allen): THOUGHT:
+        //  Could we better abstract this idea of having something that
+        // wants to stay in view so that users don't have to manage this
+        // nasty view back and forth directly if they don't want?
+        
+        GUI_View_Jump jump =
+            gui_compute_view_jump(scroll, update->index_position);
+        jump.view_min += 45.f;
+        jump.view_max -= 45.f;
+        gui_do_jump(target, jump);
+    }
+    
+    b32 indirectly_activate = 0;
+    for (i32 j = 0; j < keys->count; ++j){
+        i16 key = keys->keys[j].keycode;
+        switch (key){
+            case key_up:
+            --*list_i;
+            break;
+            
+            case key_down:
+            ++*list_i;
+            break;
+            
+            case '\n': case '\t':
+            indirectly_activate = 1;
+            break;
+        }
+    }
+    
+    gui_rollback(target, update);
+    gui_begin_list(target, id, *list_i, indirectly_activate, 0, 0);
 }
 
 // BOTTOM
