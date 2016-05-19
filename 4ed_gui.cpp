@@ -152,6 +152,8 @@ struct GUI_Target{
     i32 list_max;
     b32 has_list_index_position;
     i32_Rect list_index_position;
+    i32 list_view_min;
+    i32 list_view_max;
     
     f32 delta;
     u32 scroll_id;
@@ -486,9 +488,14 @@ gui_do_font_button(GUI_Target *target, GUI_id id, i16 font_id, String text){
 }
 
 internal b32
-gui_begin_list(GUI_Target *target, GUI_id id, i32 list_i, b32 activate_item, GUI_Item_Update *update){
+gui_begin_list(GUI_Target *target, GUI_id id, i32 list_i,
+               b32 activate_item, b32 snap_into_view, GUI_Item_Update *update){
     b32 result = 0;
     b32 active = 0;
+    
+    i32 list_min = 0;
+    i32 list_max = target->list_max;
+    
     GUI_Interactive *b = gui_push_button_command(target, guicom_begin_list, id);
     GUI_Header *h = (GUI_Header*)b;
     gui_push_item(target, h, &list_i, sizeof(list_i));
@@ -500,13 +507,26 @@ gui_begin_list(GUI_Target *target, GUI_id id, i32 list_i, b32 activate_item, GUI
         result = 1;
 	}
     
+    if (snap_into_view){
+        if (target->list_view_min > list_min){
+            list_min = target->list_view_min;
+        }
+        if (target->list_view_max < list_max){
+            list_max = target->list_view_max;
+        }
+    }
+    
+    if (list_i < list_min || list_i >= list_max){
+        result = 1;
+    }
+    
     if (result){
         gui_fill_update(update, target, h);
-        if (list_i < 0){
-            gui_update_adjustment(update, 0);
+        if (list_i < list_min){
+            gui_update_adjustment(update, list_min);
         }
-        else if (list_i >= target->list_max){
-            gui_update_adjustment(update, target->list_max - 1);
+        else if (list_i >= list_max){
+            gui_update_adjustment(update, list_max - 1);
         }
         if (target->has_list_index_position){
             gui_update_position(update, target->list_index_position);
@@ -524,7 +544,8 @@ gui_end_list(GUI_Target *target){
 }
 
 internal b32
-gui_do_file_option(GUI_Target *target, GUI_id id, String filename, b32 is_folder, String message){
+gui_do_file_option(GUI_Target *target, GUI_id id, String filename,
+                   b32 is_folder, String message){
     b32 result = 0;
     GUI_Interactive *b = gui_push_button_command(target, guicom_file_option, id);
     GUI_Header *h = (GUI_Header*)b;
@@ -668,7 +689,7 @@ gui_get_scroll_vars(GUI_Target *target, u32 scroll_id, GUI_Scroll_Vars *vars_out
 }
 
 internal GUI_Scroll_Vars
-gui_get_scroll_vars(GUI_Target *target){
+gui_current_scroll_vars(GUI_Target *target){
     GUI_Scroll_Vars vars = target->scroll_updated;
     return(vars);
 }
@@ -775,7 +796,8 @@ gui_session_zero(){
 }
 
 internal void
-gui_session_init(GUI_Session *session, i32_Rect full_rect, i32 line_height){
+gui_session_init(GUI_Session *session, GUI_Target *target,
+                 i32_Rect full_rect, i32 line_height){
     GUI_Section *section;
     
     *session = gui_session_zero();
@@ -786,6 +808,9 @@ gui_session_init(GUI_Session *session, i32_Rect full_rect, i32 line_height){
     section = &session->sections[0];
     section->v = full_rect.y0;
     section->max_v = full_rect.y0;
+    
+    target->list_view_min = max_i32;
+    target->list_view_max = min_i32;
 }
 
 internal void
@@ -940,11 +965,13 @@ gui_interpret(GUI_Target *target, GUI_Session *session, GUI_Header *h){
     b32 give_to_user = 0;
     b32 always_give_to_user = 0;
     b32 do_layout = 1;
+    b32 is_list_item = 0;
     i32_Rect rect = {0};
     i32 y = 0;
     i32 end_v = -1;
     f32 lerp_space_scroll_v = 0;
     i32 scroll_v = (i32)target->scroll_original.scroll_y;
+    i32 target_v = (i32)target->scroll_updated.target_y;
     
     Assert(session->t < ArrayCount(session->sections));
     section = session->sections + session->t;
@@ -1053,6 +1080,7 @@ gui_interpret(GUI_Target *target, GUI_Session *session, GUI_Header *h){
             rect = gui_layout_fixed_h(session, y, session->line_height * 2);
             end_v = rect.y1;
             end_section = section;
+            is_list_item = 1;
             
             if (session->list.in_list){
                 if (session->list.auto_hot == session->list.index){
@@ -1094,7 +1122,7 @@ gui_interpret(GUI_Target *target, GUI_Session *session, GUI_Header *h){
         rect.y1 = session->full_rect.y1;
         session->scroll_rect = rect;
         session->is_scrollable = 1;
-
+        
         {
             i32_Rect scrollable_rect;
             scrollable_rect.x0 = session->full_rect.x0;
@@ -1104,7 +1132,7 @@ gui_interpret(GUI_Target *target, GUI_Session *session, GUI_Header *h){
             target->scroll_updated.region = scrollable_rect;
         }
         break;
-
+        
         case guicom_scrollable_top:
         Assert(session->is_scrollable);
         Assert(!section->overlapped);
@@ -1112,19 +1140,20 @@ gui_interpret(GUI_Target *target, GUI_Session *session, GUI_Header *h){
         gui_scrollbar_top(session->scroll_rect, &rect);
         scroll_v = 0;
         break;
-
+        
         case guicom_scrollable_slider:
         Assert(session->is_scrollable);
         Assert(!section->overlapped);
         give_to_user = 1;
         
-        lerp_space_scroll_v = unlerp(
-            (f32)target->scroll_original.min_y,
-            (f32)target->scroll_original.target_y,
-            (f32)target->scroll_original.max_y);
+        lerp_space_scroll_v =
+            unlerp((f32)target->scroll_original.min_y,
+                   (f32)target->scroll_original.target_y,
+                   (f32)target->scroll_original.max_y);
         
         gui_scrollbar_slider(session->scroll_rect, &rect, lerp_space_scroll_v,
-            &session->scroll_top, &session->scroll_bottom, target->scroll_original.min_y, target->scroll_original.max_y);
+                             &session->scroll_top, &session->scroll_bottom,
+                             target->scroll_original.min_y, target->scroll_original.max_y);
         scroll_v = 0;
         break;
 
@@ -1145,8 +1174,12 @@ gui_interpret(GUI_Target *target, GUI_Session *session, GUI_Header *h){
 
         case guicom_end_scrollable_section:
         always_give_to_user = 1;
-        session->suggested_min_y = -(f32)(gui_session_get_eclipsed_y(session) - gui_session_get_current_top(session));
-        session->suggested_max_y = (f32)(session->scrollable_items_bottom - session->full_rect.y1 * .5f);
+        session->suggested_min_y =
+            -(f32)(gui_session_get_eclipsed_y(session) -
+                   gui_session_get_current_top(session));
+        session->suggested_max_y =
+            (f32)(session->scrollable_items_bottom -
+                  session->full_rect.y1 * .5f);
         if (session->suggested_max_y < 0){
             session->suggested_max_y = 0;
         }
@@ -1154,9 +1187,25 @@ gui_interpret(GUI_Target *target, GUI_Session *session, GUI_Header *h){
     }
     
     if (do_layout){
+        if (session->list.in_list && is_list_item){
+            i32 list_i = session->list.index - 1;
+            i32_Rect region = target->scroll_updated.region;
+            
+            if (rect.y0 - target_v >= region.y0 &&
+                rect.y1 - target_v <= region.y1){
+                if (list_i < target->list_view_min){
+                    target->list_view_min = list_i;
+                }
+                if (list_i+1 > target->list_view_max){
+                    target->list_view_max = list_i+1;
+                }
+            }
+        }
+        
         if (give_to_user){
             if (session->is_scrollable){
-                session->scrollable_items_bottom = Max(session->scrollable_items_bottom, rect.y1);
+                session->scrollable_items_bottom =
+                    Max(session->scrollable_items_bottom, rect.y1);
             }
             
             rect.y0 -= scroll_v;
@@ -1215,7 +1264,7 @@ gui_standard_list(GUI_Target *target, GUI_id id,
     }
     
     gui_rollback(target, update);
-    gui_begin_list(target, id, *list_i, indirectly_activate, 0);
+    gui_begin_list(target, id, *list_i, indirectly_activate, 0, 0);
 }
 
 struct GUI_View_Jump{
@@ -1234,7 +1283,7 @@ gui_compute_view_jump(GUI_Scroll_Vars scroll, i32_Rect position){
 
 internal void
 gui_do_jump(GUI_Target *target, GUI_View_Jump jump){
-    GUI_Scroll_Vars vars = gui_get_scroll_vars(target);
+    GUI_Scroll_Vars vars = gui_current_scroll_vars(target);
     if (vars.target_y < jump.view_min){
         vars.target_y = jump.view_min;
         gui_post_scroll_vars(target, &vars);

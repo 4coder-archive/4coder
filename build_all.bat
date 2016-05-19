@@ -33,6 +33,9 @@ if %ERRORLEVEL% neq 0 (set FirstError=1)
 cl %OPTS% %INCLUDES% %DEFINES% ..\code\win32_4ed.cpp %LIBS% %ICON% %* /Fe4ed
 if %ERRORLEVEL% neq 0 (set FirstError=1)
 
+call "print_size.bat" 4ed_app.dll
+call "print_size.bat" 4ed.exe
+
 popd
 
 call "ctime" -end 4ed_data.ctm %FirstError%

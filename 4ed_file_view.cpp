@@ -3013,18 +3013,17 @@ file_step(View *view, i32_Rect region, Input_Summary *user_input, b32 is_active)
     if (file && !file->state.is_loading){
         f32 line_height = (f32)view->font_height;
         f32 delta_y = 3.f*line_height;
-
+        
         f32 max_visible_y = view_file_height(view);
         f32 max_x = view_file_width(view);
         
         f32 cursor_y = view_get_cursor_y(view);
         f32 cursor_x = view_get_cursor_x(view);
-
-
+        
         GUI_Scroll_Vars scroll_vars = view->gui_target.scroll_updated;
         f32 target_y = scroll_vars.target_y;
         f32 target_x = scroll_vars.target_x;
-
+        
         f32 cursor_max_y = CursorMaxY(max_visible_y, line_height);
         f32 cursor_min_y = CursorMinY(scroll_vars.min_y, line_height);
         
@@ -3035,23 +3034,23 @@ file_step(View *view, i32_Rect region, Input_Summary *user_input, b32 is_active)
             if (cursor_y < target_y + cursor_min_y){
                 target_y = cursor_y - delta_y - cursor_min_y;
             }
-
+            
             if (target_y > scroll_vars.max_y) target_y = scroll_vars.max_y;
             if (target_y < scroll_vars.min_y) target_y = view->file_scroll.min_y;
-
+            
             if (cursor_x < target_x){
                 target_x = (f32)Max(0, cursor_x - max_x/2);
             }
             else if (cursor_x >= target_x + max_x){
                 target_x = (f32)(cursor_x - max_x/2);
             }
-
+            
             if (target_x != scroll_vars.target_x || target_y != scroll_vars.target_y){
                 view->gui_target.scroll_updated.target_x = target_x;
                 view->gui_target.scroll_updated.target_y = target_y;
             }
         }
-
+        
         if (file->state.paste_effect.tick_down > 0){
             --file->state.paste_effect.tick_down;
             is_animating = 1;
@@ -3060,7 +3059,7 @@ file_step(View *view, i32_Rect region, Input_Summary *user_input, b32 is_active)
         if (user_input->mouse.press_l && is_active){
             f32 rx = (f32)(user_input->mouse.x - region.x0);
             f32 ry = (f32)(user_input->mouse.y - region.y0);
-
+            
             if (ry >= -view->file_scroll.min_y){
                 view_set_widget(view, FWIDG_NONE);
                 if (rx >= 0 && rx < max_x && ry >= 0 && ry < max_visible_y){
@@ -3070,7 +3069,7 @@ file_step(View *view, i32_Rect region, Input_Summary *user_input, b32 is_active)
             }
         }
         if (!is_active) view_set_widget(view, FWIDG_NONE);
-	}
+    }
     
     return(is_animating);
 }
@@ -3085,7 +3084,7 @@ do_widget(View *view, GUI_Target *target){
     for (slot = view->query_set.used_slot; slot != 0; slot = slot->next){
         bar = slot->query_bar;
         gui_do_text_field(target, bar->prompt, bar->string);
-	}
+    }
     
     gui_end_serial_section(target);
 }
@@ -3148,8 +3147,8 @@ get_exhaustive_info(System_Functions *system, Working_Set *working_set, Exhausti
             case SYNC_GOOD: result.message = message_loaded; break;
             case SYNC_BEHIND_OS: result.message = message_unsynced; break;
             case SYNC_UNSAVED: result.message = message_unsaved; break;
-		}
-	}
+        }
+    }
     
     return(result);
 }
@@ -3197,25 +3196,25 @@ static Style_Color_Edit colors_to_edit[] = {
 };
 
 struct Single_Line_Input_Step{
-	b8 hit_newline;
-	b8 hit_ctrl_newline;
-	b8 hit_a_character;
+    b8 hit_newline;
+    b8 hit_ctrl_newline;
+    b8 hit_a_character;
     b8 hit_backspace;
-	b8 hit_esc;
-	b8 made_a_change;
+    b8 hit_esc;
+    b8 made_a_change;
     b8 did_command;
     b8 no_file_match;
 };
 
 enum Single_Line_Input_Type{
-	SINGLE_LINE_STRING,
-	SINGLE_LINE_FILE
+    SINGLE_LINE_STRING,
+    SINGLE_LINE_FILE
 };
 
 struct Single_Line_Mode{
-	Single_Line_Input_Type type;
-	String *string;
-	Hot_Directory *hot_directory;
+    Single_Line_Input_Type type;
+    String *string;
+    Hot_Directory *hot_directory;
     b32 fast_folder_select;
     b32 try_to_match;
     b32 case_sensitive;
@@ -3337,12 +3336,12 @@ app_single_line_input_step(System_Functions *system, Key_Event_Data key, String 
 inline Single_Line_Input_Step
 app_single_file_input_step(System_Functions *system,
                            Working_Set *working_set, Key_Event_Data key,
-						   String *string, Hot_Directory *hot_directory,
+                           String *string, Hot_Directory *hot_directory,
                            b32 fast_folder_select, b32 try_to_match, b32 case_sensitive){
-	Single_Line_Mode mode = {};
-	mode.type = SINGLE_LINE_FILE;
-	mode.string = string;
-	mode.hot_directory = hot_directory;
+    Single_Line_Mode mode = {};
+    mode.type = SINGLE_LINE_FILE;
+    mode.string = string;
+    mode.hot_directory = hot_directory;
     mode.fast_folder_select = fast_folder_select;
     mode.try_to_match = try_to_match;
     mode.case_sensitive = case_sensitive;
@@ -3669,6 +3668,7 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                             GUI_Item_Update update = {0};
                             Hot_Directory *hdir = &models->hot_directory;
                             b32 do_new_directory = 0;
+                            b32 snap_into_view = 0;
                             i32 i = 0;
 
                             {
@@ -3692,13 +3692,15 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                             gui_do_text_field(target, message, hdir->string);
                             
                             view->current_scroll = &view->gui_scroll;
-                            gui_get_scroll_vars(target, view->showing_ui, &view->gui_scroll);
+                            if (gui_get_scroll_vars(target, view->showing_ui, &view->gui_scroll)){
+                                snap_into_view = 1;
+                            }
                             gui_begin_scrollable(target, view->showing_ui,
                                                  view->gui_scroll, 9.f * view->font_height);
                             
                             id.id[0] = (u64)(hdir) + 1;
                             
-                            if (gui_begin_list(target, id, view->list_i, 0, &update)){
+                            if (gui_begin_list(target, id, view->list_i, 0, snap_into_view, &update)){
                                 i32 *list_i = &view->list_i;
                                 
                                 if (update.has_adjustment){
@@ -3737,7 +3739,7 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                                 }
                                 
                                 gui_rollback(target, &update);
-                                gui_begin_list(target, id, *list_i, indirectly_activate, 0);
+                                gui_begin_list(target, id, *list_i, indirectly_activate, 0, 0);
                                 
 #if 0
                                 gui_standard_list(target, id, &keys, &view->list_i, &update);
@@ -3817,7 +3819,7 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                             gui_begin_scrollable(target, view->showing_ui, view->gui_scroll, 9.f * view->font_height);
 
                             id.id[0] = (u64)(working_set) + 1;
-                            if (gui_begin_list(target, id, view->list_i, 0, &update)){
+                            if (gui_begin_list(target, id, view->list_i, 0, 0, &update)){
                                 gui_standard_list(target, id, &keys, &view->list_i, &update);
                             }
 
@@ -3916,10 +3918,10 @@ view_get_scroll_y(View *view){
     f32 v;
     if (view->showing_ui == VUI_None){
         v = view->file_scroll.scroll_y;
-	}
+    }
     else{
         v = view->gui_scroll.scroll_y;
-	}
+    }
     return(v);
 }
 
@@ -3980,7 +3982,7 @@ do_input_file_view(System_Functions *system, Exchange *exchange,
     GUI_Target *target = &view->gui_target;
     GUI_Interpret_Result interpret_result = {0};
     
-    gui_session_init(&gui_session, rect, view->font_height);
+    gui_session_init(&gui_session, target, rect, view->font_height);
     
     target->active = gui_id_zero();
     
@@ -4091,10 +4093,10 @@ do_input_file_view(System_Functions *system, Exchange *exchange,
                             target->mouse_hot = id;
                             is_animating = 1;
                         }
-					}
+                    }
                     else if (gui_id_eq(target->hover, id)){
                         target->hover = gui_id_zero();
-					}
+                    }
                     
                     if (gui_id_eq(target->mouse_hot, id)){
                         v = unlerp(gui_session.scroll_top, (f32)my, gui_session.scroll_bottom);
@@ -4162,27 +4164,26 @@ do_input_file_view(System_Functions *system, Exchange *exchange,
             target->mouse_hot = gui_id_zero();
             is_animating = 1;
         }
-	}
-    
+    }
+
     {
         GUI_Scroll_Vars scroll_vars = view->gui_target.scroll_updated;
         b32 is_new_target = 0;
         if (scroll_vars.target_x != scroll_vars.prev_target_x) is_new_target = 1;
         if (scroll_vars.target_y != scroll_vars.prev_target_y) is_new_target = 1;
 
-        if (view->models->scroll_rule(
-                scroll_vars.target_x, scroll_vars.target_y,
-                &scroll_vars.scroll_x, &scroll_vars.scroll_y,
-                (view->id) + 1, is_new_target)){
+        if (view->models->scroll_rule(scroll_vars.target_x, scroll_vars.target_y,
+                                      &scroll_vars.scroll_x, &scroll_vars.scroll_y,
+                                      (view->id) + 1, is_new_target)){
             is_animating = 1;
         }
-
+        
         scroll_vars.prev_target_x = scroll_vars.target_x;
         scroll_vars.prev_target_y = scroll_vars.target_y;
         
         view->gui_target.scroll_updated = scroll_vars;
-	}
-    
+    }
+
     {
         Key_Summary *keys = &user_input->keys;
         b32 did_esc = 0;
@@ -4195,13 +4196,13 @@ do_input_file_view(System_Functions *system, Exchange *exchange,
             if (key.keycode == key_esc){
                 did_esc = 1;
                 break;
-			}
+            }
         }
         
         if (did_esc && view->showing_ui != VUI_None){
             view_show_file(view, 0);
-		}
-	}
+        }
+    }
     
     return(is_animating);
 }
@@ -4465,7 +4466,7 @@ draw_file_bar(Render_Target *target, View *view, Editing_File *file, i32_Rect re
         draw_rectangle(target, bar.rect, back_color);    
         if (!file){
             intbar_draw_string(target, &bar, make_lit_string("*NULL*"), base_color);
-		}
+        }
         else{
             intbar_draw_string(target, &bar, file->name.live_name, base_color);
             intbar_draw_string(target, &bar, make_lit_string(" -"), base_color);
@@ -4696,7 +4697,7 @@ do_render_file_view(System_Functions *system, Exchange *exchange,
     
     f32 v;
     
-    gui_session_init(&gui_session, rect, view->font_height);
+    gui_session_init(&gui_session, gui_target, rect, view->font_height);
     
     v = view_get_scroll_y(view);
     
@@ -4728,7 +4729,7 @@ do_render_file_view(System_Functions *system, Exchange *exchange,
                         result = draw_file_loaded(view, gui_session.rect, is_active, target);
                     }
                 }break;
-
+                
                 case guicom_text_field:
                 {
                     void *ptr = (h+1);
@@ -4766,7 +4767,7 @@ do_render_file_view(System_Functions *system, Exchange *exchange,
                     
                     draw_font_button(gui_target, target, view, gui_session.rect, b->id, font_id, t);
                 }break;
-
+                
                 case guicom_file_option:
                 {
                     GUI_Interactive *b = (GUI_Interactive*)h;
@@ -4777,10 +4778,10 @@ do_render_file_view(System_Functions *system, Exchange *exchange,
                     
                     if (folder){
                         append(&f, system->slash);
-					}
+                    }
                     
                     draw_fat_option_block(gui_target, target, view, gui_session.rect, b->id, f, m);
-				}break;
+                }break;
                 
                 case guicom_style_preview:
                 {
@@ -4805,7 +4806,7 @@ do_render_file_view(System_Functions *system, Exchange *exchange,
                     }
                     
                     draw_fat_option_block(gui_target, target, view, gui_session.rect, b->id, f, m, status);
-				}break;
+                }break;
                 
                 case guicom_button:
                 {
@@ -4814,7 +4815,7 @@ do_render_file_view(System_Functions *system, Exchange *exchange,
                     String t = gui_read_string(&ptr);
                     
                     draw_button(gui_target, target, view, gui_session.rect, b->id, t);
-				}break;
+                }break;
                 
                 case guicom_scrollable:
                 {
@@ -4831,19 +4832,19 @@ do_render_file_view(System_Functions *system, Exchange *exchange,
                         outline = style->main.margin_active_color;
                     }
                     else{
-						outline = style->main.margin_color;
-					}
-
+                        outline = style->main.margin_color;
+                    }
+                    
                     draw_rectangle(target, bar, back);
                     draw_rectangle_outline(target, bar, outline);
-				}break;
+                }break;
                 
                 case guicom_scrollable_top:
                 case guicom_scrollable_slider:
                 case guicom_scrollable_bottom:
                 {
                     GUI_id id;
-					Models *models = view->models;
+                    Models *models = view->models;
                     Style *style = main_style(models);
                     i32_Rect box = gui_session.rect;
                     
@@ -4856,7 +4857,7 @@ do_render_file_view(System_Functions *system, Exchange *exchange,
                         case guicom_scrollable_top: id = gui_id_scrollbar_top(); break;
                         case guicom_scrollable_bottom: id = gui_id_scrollbar_bottom(); break;
                         default: id = gui_id_scrollbar_slider(); break;
-					}
+                    }
                     
                     active_level = gui_active_level(gui_target, id);
                     
@@ -4870,12 +4871,12 @@ do_render_file_view(System_Functions *system, Exchange *exchange,
                         outline = style->main.margin_active_color;
                     }
                     else{
-						outline = style->main.margin_color;
+                        outline = style->main.margin_color;
                     }
                     
                     draw_rectangle(target, box, back);
                     draw_margin(target, box, get_inner_rect(box, 2), outline);
-				}break;
+                }break;
                 
                 case guicom_begin_scrollable_section:
                 clip_rect.x1 -= gui_session.scroll_bar_w;
