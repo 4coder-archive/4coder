@@ -494,7 +494,7 @@ gui_begin_list(GUI_Target *target, GUI_id id, i32 list_i, b32 activate_item, GUI
     gui_push_item(target, h, &list_i, sizeof(list_i));
     gui_push_item(target, h, &activate_item, sizeof(activate_item));
     
-    result = target->has_keys;
+    result = target->has_keys || target->has_list_index_position;
     if (gui_id_eq(id, target->active)){
         active = 1;
         result = 1;
@@ -665,6 +665,12 @@ gui_get_scroll_vars(GUI_Target *target, u32 scroll_id, GUI_Scroll_Vars *vars_out
         }
 	}
     return(result);
+}
+
+internal GUI_Scroll_Vars
+gui_get_scroll_vars(GUI_Target *target){
+    GUI_Scroll_Vars vars = target->scroll_updated;
+    return(vars);
 }
 
 internal void
@@ -1051,8 +1057,10 @@ gui_interpret(GUI_Target *target, GUI_Session *session, GUI_Header *h){
             if (session->list.in_list){
                 if (session->list.auto_hot == session->list.index){
                     result.auto_hot = 1;
-                    target->has_list_index_position = 1;
-                    target->list_index_position = rect;
+                    if (!rect_equal(target->list_index_position, rect)){
+                        target->has_list_index_position = 1;
+                        target->list_index_position = rect;
+                    }
                 }
                 if (session->list.auto_activate == session->list.index){
                     result.auto_activate = 1;
@@ -1208,6 +1216,33 @@ gui_standard_list(GUI_Target *target, GUI_id id,
     
     gui_rollback(target, update);
     gui_begin_list(target, id, *list_i, indirectly_activate, 0);
+}
+
+struct GUI_View_Jump{
+    f32 view_min;
+    f32 view_max;
+};
+
+internal GUI_View_Jump
+gui_compute_view_jump(GUI_Scroll_Vars scroll, i32_Rect position){
+    GUI_View_Jump jump = {0};
+    i32 region_h = scroll.region.y1 - scroll.region.y0;
+    jump.view_min = (f32)position.y1 - region_h - scroll.region.y0;
+    jump.view_max = (f32)position.y0 - scroll.region.y0;
+    return(jump);
+}
+
+internal void
+gui_do_jump(GUI_Target *target, GUI_View_Jump jump){
+    GUI_Scroll_Vars vars = gui_get_scroll_vars(target);
+    if (vars.target_y < jump.view_min){
+        vars.target_y = jump.view_min;
+        gui_post_scroll_vars(target, &vars);
+    }
+    else if (vars.target_y > jump.view_max){
+        vars.target_y = jump.view_max;
+        gui_post_scroll_vars(target, &vars);
+    }
 }
 
 // BOTTOM

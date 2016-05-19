@@ -23,6 +23,10 @@ CUSTOM_COMMAND_SIG(write_allen_note){
     write_string(app, make_lit_string("// NOTE(allen): "));
 }
 
+CUSTOM_COMMAND_SIG(write_zero_struct){
+    write_string(app, make_lit_string(" = {0};"));
+}
+
 CUSTOM_COMMAND_SIG(write_h){
     write_string(app, make_lit_string("<h1></h1>"));
 }
@@ -184,7 +188,6 @@ CUSTOM_COMMAND_SIG(improve_theme){
         {Stag_Margin_Active, 0xDD0088},
         {Stag_Cursor, 0xFF0000},
     };
-
     int count = ArrayCount(colors);
 
     app->set_theme_colors(app, colors, count);
@@ -198,7 +201,6 @@ CUSTOM_COMMAND_SIG(ruin_theme){
         {Stag_Margin_Active, 0x323232},
         {Stag_Cursor, 0x00EE00},
     };
-
     int count = ArrayCount(colors);
 
     app->set_theme_colors(app, colors, count);
@@ -351,6 +353,7 @@ default_keys(Bind_Helper *context, Extension_Bindings *extension = 0){
     bind(context, '9', MDFR_CTRL, paren_wrap);
     bind(context, 'i', MDFR_ALT, if0_off);
     bind(context, '1', MDFR_ALT, open_file_in_quotes);
+    bind(context, '0', MDFR_CTRL, write_zero_struct);
 
     end_map(context);
 
@@ -429,7 +432,8 @@ default_keys(Bind_Helper *context, Extension_Bindings *extension = 0){
 
 #ifndef NO_BINDING
 
-int get_bindings(void *data, int size){
+extern "C" int
+get_bindings(void *data, int size){
     Bind_Helper context_ = begin_bind_helper(data, size);
     Bind_Helper *context = &context_;
     

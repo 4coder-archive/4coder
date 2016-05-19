@@ -173,6 +173,15 @@ f32XYWH(f32 x, f32 y, f32 w, f32 h){
 }
 
 inline b32
+rect_equal(i32_Rect r1, i32_Rect r2){
+    b32 result = (r1.x0 == r2.x0 &&
+                  r1.y0 == r2.y0 &&
+                  r1.x1 == r2.x1 &&
+                  r1.y1 == r2.y1);
+    return(result);
+}
+
+inline b32
 hit_check(i32 x, i32 y, i32 x0, i32 y0, i32 x1, i32 y1){
     return (x >= x0 && x < x1 && y >= y0 && y < y1);
 }

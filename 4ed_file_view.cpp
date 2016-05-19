@@ -3678,7 +3678,8 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                                 
                                 for (i = 0; i < keys.count; ++i){
                                     key = get_single_key(&keys, i);
-                                    step = app_single_file_input_step(system, &models->working_set, key, &hdir->string, hdir, 1, 1, 0);
+                                    step = app_single_file_input_step(system, &models->working_set, key,
+                                                                      &hdir->string, hdir, 1, 1, 0);
                                     if (step.made_a_change){
                                         view->list_i = 0;
                                     }
@@ -3692,7 +3693,8 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                             
                             view->current_scroll = &view->gui_scroll;
                             gui_get_scroll_vars(target, view->showing_ui, &view->gui_scroll);
-                            gui_begin_scrollable(target, view->showing_ui, view->gui_scroll, 9.f * view->font_height);
+                            gui_begin_scrollable(target, view->showing_ui,
+                                                 view->gui_scroll, 9.f * view->font_height);
                             
                             id.id[0] = (u64)(hdir) + 1;
                             
@@ -3704,11 +3706,16 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                                 }
                                 
                                 if (update.has_index_position){
-                                    // TODO(allen): update scrolling here.
                                     // TODO(allen): THOUGHT:
                                     //  Could we better abstract this idea of having something that
                                     // wants to stay in view so that users don't have to manage this
                                     // nasty view back and forth directly if they don't want?
+                                    
+                                    GUI_View_Jump jump =
+                                        gui_compute_view_jump(view->gui_scroll, update.index_position);
+                                    jump.view_min += 60.f;
+                                    jump.view_max -= 60.f;
+                                    gui_do_jump(target, jump);
                                 }
                                 
                                 b32 indirectly_activate = 0;
