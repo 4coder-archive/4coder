@@ -208,9 +208,11 @@ enum GUI_Command_Type{
     guicom_fixed_option_checkbox,
     guicom_style_preview,
     guicom_scrollable,
+    guicom_scrollable_bar,
     guicom_scrollable_top,
     guicom_scrollable_slider,
     guicom_scrollable_bottom,
+    guicom_scrollable_invisible,
     guicom_begin_scrollable_section,
     guicom_end_scrollable_section,
 };
@@ -706,7 +708,8 @@ gui_post_scroll_vars(GUI_Target *target, GUI_Scroll_Vars *vars_in){
 }
 
 internal void
-gui_begin_scrollable(GUI_Target *target, u32 scroll_id, GUI_Scroll_Vars scroll_vars, f32 delta){
+gui_begin_scrollable(GUI_Target *target, u32 scroll_id,
+                     GUI_Scroll_Vars scroll_vars, f32 delta, b32 show_bar){
     GUI_Header *h;
     
     gui_begin_serial_section(target);
@@ -718,9 +721,15 @@ gui_begin_scrollable(GUI_Target *target, u32 scroll_id, GUI_Scroll_Vars scroll_v
     target->scroll_updated = scroll_vars;
     target->scroll_id = scroll_id;
     
-    gui_push_simple_command(target, guicom_scrollable_top);
-    gui_push_simple_command(target, guicom_scrollable_slider);
-    gui_push_simple_command(target, guicom_scrollable_bottom);
+    if (show_bar){
+        gui_push_simple_command(target, guicom_scrollable_bar);
+        gui_push_simple_command(target, guicom_scrollable_top);
+        gui_push_simple_command(target, guicom_scrollable_slider);
+        gui_push_simple_command(target, guicom_scrollable_bottom);
+    }
+    else{
+        gui_push_simple_command(target, guicom_scrollable_invisible);
+    }
     gui_push_simple_command(target, guicom_begin_scrollable_section);
 }
 
@@ -756,10 +765,10 @@ struct GUI_Session{
     i32 clip_y;
     
     i32 line_height;
-    i32 scroll_bar_w;
     b32 is_scrollable;
     i32 scrollable_items_bottom;
     
+    i32_Rect scroll_region;
     i32_Rect scroll_rect;
     f32 scroll_top, scroll_bottom;
     
@@ -805,7 +814,6 @@ gui_session_init(GUI_Session *session, GUI_Target *target,
     *session = gui_session_zero();
     session->full_rect = full_rect;
     session->line_height = line_height;
-    session->scroll_bar_w = GUIScrollbarWidth;
     
     section = &session->sections[0];
     section->v = full_rect.y0;
@@ -827,15 +835,18 @@ gui_section_end_item(GUI_Section *section, i32 v){
 
 inline i32_Rect
 gui_layout_top_bottom(GUI_Session *session, i32 y0, i32 y1){
-    i32_Rect rect;
-    i32_Rect full_rect = session->full_rect;
+    i32_Rect rect = {0};
+    
     rect.y0 = y0;
     rect.y1 = y1;
-    rect.x0 = full_rect.x0;
-    rect.x1 = full_rect.x1;
+    rect.x0 = session->full_rect.x0;
+    rect.x1 = session->full_rect.x1;
+    
     if (session->is_scrollable){
-        rect.x1 -= session->scroll_bar_w;
+        rect.x0 = session->scroll_region.x0;
+        rect.x1 = session->scroll_region.x1;
 	}
+    
     return(rect);
 }
 
@@ -1117,22 +1128,40 @@ gui_interpret(GUI_Target *target, GUI_Session *session, GUI_Header *h){
         case guicom_scrollable:
         Assert(session->is_scrollable == 0);
         Assert(!section->overlapped);
+        session->is_scrollable = 1;
+        always_give_to_user = 1;
+        
+        {
+            i32_Rect scrollable_rect = {0};
+            scrollable_rect.x0 = session->full_rect.x0;
+            scrollable_rect.x1 = session->full_rect.x1;
+            scrollable_rect.y0 = y;
+            scrollable_rect.y1 = session->full_rect.y1;
+            target->region_updated = scrollable_rect;
+            session->scroll_region = scrollable_rect;
+        }
+        break;
+        
+        case guicom_scrollable_bar:
+        Assert(session->is_scrollable);
+        Assert(!section->overlapped);
         give_to_user = 1;
         rect.x1 = session->full_rect.x1;
-        rect.x0 = rect.x1 - session->scroll_bar_w;
+        rect.x0 = rect.x1 - GUIScrollbarWidth;
         rect.y0 = y;
         rect.y1 = session->full_rect.y1;
         session->scroll_rect = rect;
-        session->is_scrollable = 1;
         
         {
-            i32_Rect scrollable_rect;
+            i32_Rect scrollable_rect = {0};
             scrollable_rect.x0 = session->full_rect.x0;
             scrollable_rect.x1 = rect.x0;
-            scrollable_rect.y0 = rect.y0;
-            scrollable_rect.y1 = rect.y1;
+            scrollable_rect.y0 = y;
+            scrollable_rect.y1 = session->full_rect.y1;
             target->region_updated = scrollable_rect;
+            session->scroll_region = scrollable_rect;
         }
+        scroll_v = 0;
         break;
         
         case guicom_scrollable_top:
@@ -1158,7 +1187,13 @@ gui_interpret(GUI_Target *target, GUI_Session *session, GUI_Header *h){
                              target->scroll_original.min_y, target->scroll_original.max_y);
         scroll_v = 0;
         break;
-
+        
+        case guicom_scrollable_invisible:
+        Assert(session->is_scrollable);
+        Assert(!section->overlapped);
+        always_give_to_user = 1;
+        break;
+        
         case guicom_scrollable_bottom:
         Assert(session->is_scrollable);
         Assert(!section->overlapped);

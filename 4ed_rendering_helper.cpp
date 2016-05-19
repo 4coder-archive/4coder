@@ -14,9 +14,10 @@ draw_push_clip(Render_Target *target, i32_Rect clip_box){
     target->push_clip(target, clip_box);
 }
 
-inline void
+inline i32_Rect
 draw_pop_clip(Render_Target *target){
-    target->pop_clip(target);
+    i32_Rect result = target->pop_clip(target);
+    return(result);
 }
 
 inline void

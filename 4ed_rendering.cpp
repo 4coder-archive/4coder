@@ -86,14 +86,18 @@ draw_push_clip(Render_Target *target, i32_Rect clip_box){
     draw_push_piece_clip(target, clip_box);
 }
 
-internal void
+internal i32_Rect
 draw_pop_clip(Render_Target *target){
-    i32_Rect clip_box;
+    i32_Rect result = {0};
+    i32_Rect clip_box = {0};
+    
     Assert(target->clip_top > 0);
+    result = target->clip_boxes[target->clip_top];
     --target->clip_top;
     clip_box = target->clip_boxes[target->clip_top];
-    
     draw_push_piece_clip(target, clip_box);
+    
+    return(result);
 }
 
 #define ExtractStruct(s) ((s*)cursor); cursor += sizeof(s)

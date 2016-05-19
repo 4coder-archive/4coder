@@ -105,7 +105,7 @@ struct Render_Target;
 #define Draw_Push_Clip_Sig(name) void name(Render_Target *target, i32_Rect clip_box)
 typedef Draw_Push_Clip_Sig(Draw_Push_Clip);
 
-#define Draw_Pop_Clip_Sig(name) void name(Render_Target *target)
+#define Draw_Pop_Clip_Sig(name) i32_Rect name(Render_Target *target)
 typedef Draw_Pop_Clip_Sig(Draw_Pop_Clip);
 
 #define Draw_Push_Piece_Sig(name) void name(Render_Target *target, Render_Piece_Combined piece)
