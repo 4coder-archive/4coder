@@ -3206,8 +3206,10 @@ view_get_cursor_view_change_state(View *view){
         cursor_change = (view->prev_cursor_pos != view->file_data.cursor.pos);
     }
     
-    if (!gui_scroll_eq(view->current_scroll, &view->gui_target.scroll_updated)){
-        view_change = 1;
+    if (view->current_scroll){
+        if (!gui_scroll_eq(view->current_scroll, &view->gui_target.scroll_updated)){
+            view_change = 1;
+        }
     }
     
     if (cursor_change){
@@ -3230,6 +3232,13 @@ view_get_cursor_view_change_state(View *view){
     return(result);
 }
 
+internal void
+view_record_prev_cursor(View *view){
+    if (view->gui_target.did_file){
+        view->prev_cursor_pos = view->file_data.cursor.pos;
+    }
+}
+
 internal b32
 file_step(View *view, i32_Rect region, Input_Summary *user_input, b32 is_active){
     i32 is_animating = 0;
@@ -3239,8 +3248,6 @@ file_step(View *view, i32_Rect region, Input_Summary *user_input, b32 is_active)
         f32 max_x = view_file_width(view);
         
         GUI_Scroll_Vars scroll_vars = view->gui_target.scroll_updated;
-        
-        view->prev_cursor_pos = view->file_data.cursor.pos;
         
 #if 0
         if (!gui_id_eq(view->gui_target.active, gui_id_scrollbar())){

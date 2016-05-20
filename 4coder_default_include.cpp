@@ -74,38 +74,16 @@ CUSTOM_COMMAND_SIG(open_long_braces_break){
     long_braces(app, text, size);
 }
 
-CUSTOM_COMMAND_SIG(paren_wrap){
-    View_Summary view;
-    Buffer_Summary buffer;
-
-    char text1[] = "(";
-    int size1 = sizeof(text1) - 1;
-
-    char text2[] = ")";
-    int size2 = sizeof(text2) - 1;
-
-    Range range;
-    int pos;
-
-    view = app->get_active_view(app);
-    buffer = app->get_active_buffer(app);
-
-    range = get_range(&view);
-    pos = range.max;
-    app->buffer_replace_range(app, &buffer, pos, pos, text2, size2);
-
-    pos = range.min;
-    app->buffer_replace_range(app, &buffer, pos, pos, text1, size1);
-}
-
+// TODO(allen): Have this thing check if it is on
+// a blank line and insert newlines as needed.
 CUSTOM_COMMAND_SIG(if0_off){
     View_Summary view;
     Buffer_Summary buffer;
 
-    char text1[] = "\n#if 0";
+    char text1[] = "#if 0";
     int size1 = sizeof(text1) - 1;
 
-    char text2[] = "#endif\n";
+    char text2[] = "#endif";
     int size2 = sizeof(text2) - 1;
 
     Range range;

@@ -3467,6 +3467,82 @@ update_cli_handle_with_file(System_Functions *system, Models *models,
     return(result);
 }
 
+enum Input_Types{
+    Input_AnyKey,
+    Input_Esc,
+    Input_MouseMove,
+    Input_MouseLeftButton,
+    Input_MouseRightButton,
+    Input_MouseWheel,
+    Input_Count
+};
+
+struct Available_Input{
+    Key_Summary *keys;
+    Mouse_State *mouse;
+    b32 consumed[Input_Count];
+};
+
+Available_Input
+init_available_input(Key_Summary *keys, Mouse_State *mouse){
+    Available_Input result = {0};
+    result.keys = keys;
+    result.mouse = mouse;
+    return(result);
+}
+
+Key_Summary
+get_key_data(Available_Input *available){
+    Key_Summary result = {0};
+    
+    if (!available->consumed[Input_AnyKey]){
+        result = *available->keys;
+    }
+    else if (!available->consumed[Input_Esc]){
+        i32 i = 0;
+        i32 count = available->keys->count;
+        Key_Event_Data key = {0};
+        
+        for (i = 0; i < count; ++i){
+            key = get_single_key(available->keys, i);
+            if (key.keycode == key_esc){
+                result.count = 1;
+                result.keys[0] = key;
+                break;
+            }
+        }
+    }
+    
+    return(result);
+}
+
+Mouse_State
+get_mouse_state(Available_Input *available){
+    Mouse_State mouse = *available->mouse;
+    if (available->consumed[Input_MouseLeftButton]){
+        mouse.l = 0;
+        mouse.press_l = 0;
+        mouse.release_l = 0;
+    }
+    
+    if (available->consumed[Input_MouseRightButton]){
+        mouse.r = 0;
+        mouse.press_r = 0;
+        mouse.release_r = 0;
+    }
+    
+    if (available->consumed[Input_MouseWheel]){
+        mouse.wheel = 0;
+    }
+    
+    return(mouse);
+}
+
+void
+consume_input(Available_Input *available, i32 input_type){
+    available->consumed[input_type] = 1;
+}
+
 App_Step_Sig(app_step){
     Application_Step_Result app_result = *result;
     app_result.animating = 0;
@@ -3549,25 +3625,25 @@ App_Step_Sig(app_step){
             }
         }
     }
-
+    
     // NOTE(allen): prepare input information
-    Key_Summary key_data = {};
+    Key_Summary key_summary = {0};
     for (i32 i = 0; i < input->press_count; ++i){
-        key_data.keys[key_data.count++] = input->press[i];
+        key_summary.keys[key_summary.count++] = input->press[i];
     }
     for (i32 i = 0; i < input->hold_count; ++i){
-        key_data.keys[key_data.count++] = input->hold[i];
+        key_summary.keys[key_summary.count++] = input->hold[i];
     }
-
+    
     mouse->wheel = -mouse->wheel;
-
+    
     // NOTE(allen): detect mouse hover status
     i32 mx = mouse->x;
     i32 my = mouse->y;
     b32 mouse_in_edit_area = 0;
     b32 mouse_in_margin_area = 0;
     Panel *mouse_panel, *used_panels;
-
+    
     used_panels = &models->layout.used_sentinel;
     for (dll_items(mouse_panel, used_panels)){
         if (hit_check(mx, my, mouse_panel->inner)){
@@ -3746,7 +3822,7 @@ App_Step_Sig(app_step){
     }
     
     // NOTE(allen): process the command_coroutine if it is unfinished
-    b8 consumed_input[6] = {0};
+    Available_Input available_input = init_available_input(&key_summary, mouse);
 
     // NOTE(allen): Keyboard input to command coroutine.
     if (models->command_coroutine != 0){
@@ -3757,6 +3833,8 @@ App_Step_Sig(app_step){
         get_flags |= abort_flags;
 
         if ((get_flags & EventOnAnyKey) || (get_flags & EventOnEsc)){
+            Key_Summary key_data = get_key_data(&available_input);
+            
             for (i32 key_i = 0; key_i < key_data.count; ++key_i){
                 Key_Event_Data key = get_single_key(&key_data, key_i);
                 View *view = cmd->view;
@@ -3783,13 +3861,13 @@ App_Step_Sig(app_step){
 
                 if (EventOnAnyKey & get_flags){
                     pass_in = 1;
-                    consumed_input[0] = 1;
+                    consume_input(&available_input, Input_AnyKey);
                 }
                 if (key.keycode == key_esc){
                     if (EventOnEsc & get_flags){
                         pass_in = 1;
                     }
-                    consumed_input[1] = 1;
+                    consume_input(&available_input, Input_Esc);
                 }
 
                 if (pass_in){
@@ -3824,7 +3902,7 @@ App_Step_Sig(app_step){
             }
             if (get_flags & EventOnMouseMove){
                 pass_in = 1;
-                consumed_input[2] = 1;
+                consume_input(&available_input, Input_MouseMove);
             }
 
             if (mouse->press_l || mouse->release_l || mouse->l){
@@ -3833,7 +3911,7 @@ App_Step_Sig(app_step){
                 }
                 if (get_flags & EventOnLeftButton){
                     pass_in = 1;
-                    consumed_input[3] = 1;
+                    consume_input(&available_input, Input_MouseLeftButton);
                 }
             }
 
@@ -3843,7 +3921,7 @@ App_Step_Sig(app_step){
                 }
                 if (get_flags & EventOnRightButton){
                     pass_in = 1;
-                    consumed_input[4] = 1;
+                    consume_input(&available_input, Input_MouseRightButton);
                 }
             }
 
@@ -3853,7 +3931,7 @@ App_Step_Sig(app_step){
                 }
                 if (get_flags & EventOnWheel){
                     pass_in = 1;
-                    consumed_input[5] = 1;
+                    consume_input(&available_input, Input_MouseWheel);
                 }
             }
 
@@ -3884,37 +3962,10 @@ App_Step_Sig(app_step){
     Input_Summary active_input = {};
     active_input.mouse.x = mouse->x;
     active_input.mouse.y = mouse->y;
-    if (!consumed_input[0]){
-        active_input.keys = key_data;
-    }
-    else if (!consumed_input[1]){
-        for (i32 i = 0; i < key_data.count; ++i){
-            Key_Event_Data key = get_single_key(&key_data, i);
-            if (key.keycode == key_esc){
-                active_input.keys.count = 1;
-                active_input.keys.keys[0] = key;
-                break;
-            }
-        }
-    }
-
-    Mouse_State mouse_state = *mouse;
-
-    if (consumed_input[3]){
-        mouse_state.l = 0;
-        mouse_state.press_l = 0;
-        mouse_state.release_l = 0;
-    }
-
-    if (consumed_input[4]){
-        mouse_state.r = 0;
-        mouse_state.press_r = 0;
-        mouse_state.release_r = 0;
-    }
-
-    if (consumed_input[5]){
-        mouse_state.wheel = 0;
-    }
+    
+    active_input.keys = get_key_data(&available_input);
+    
+    Mouse_State mouse_state = get_mouse_state(&available_input);
     
     {
         Panel *panel, *used_panels;
@@ -3961,9 +4012,11 @@ App_Step_Sig(app_step){
     update_command_data(vars, cmd);
     
     // NOTE(allen): command execution
-    if (!consumed_input[0] || !consumed_input[1]){
-        b32 consumed_input2[2] = {0};
-
+    {
+        Key_Summary key_data = get_key_data(&available_input);
+        b32 hit_something = 0;
+        b32 hit_esc = 0;
+        
         for (i32 key_i = 0; key_i < key_data.count; ++key_i){
             if (models->command_coroutine != 0) break;
 
@@ -3971,39 +4024,36 @@ App_Step_Sig(app_step){
                 case APP_STATE_EDIT:
                 {
                     Key_Event_Data key = get_single_key(&key_data, key_i);
-                    b32 hit_esc = (key.keycode == key_esc);
                     cmd->key = key;
-
-                    if (hit_esc || !consumed_input[0]){
-                        View *view = cmd->view;
-
-                        Command_Map *map = 0;
-                        if (view) map = view->map;
-                        if (map == 0) map = &models->map_top;
-                        Command_Binding cmd_bind = map_extract_recursive(map, key);
-
-                        if (cmd_bind.function){
-                            if (hit_esc){
-                                consumed_input2[1] = 1;
-                            }
-                            else{
-                                consumed_input2[0] = 1;
-                            }
-
-                            Assert(models->command_coroutine == 0);
-                            Coroutine *command_coroutine = system->create_coroutine(command_caller);
-                            models->command_coroutine = command_coroutine;
-
-                            Command_In cmd_in;
-                            cmd_in.cmd = cmd;
-                            cmd_in.bind = cmd_bind;
-
-                            models->command_coroutine = system->launch_coroutine(models->command_coroutine,
-                                &cmd_in, models->command_coroutine_flags);
-                            models->prev_command = cmd_bind;
-                            
-                            app_result.animating = 1;
+                    
+                    View *view = cmd->view;
+                    
+                    Command_Map *map = 0;
+                    if (view) map = view->map;
+                    if (map == 0) map = &models->map_top;
+                    Command_Binding cmd_bind = map_extract_recursive(map, key);
+                    
+                    if (cmd_bind.function){
+                        if (key.keycode == key_esc){
+                            hit_esc = 1;
                         }
+                        else{
+                            hit_something = 1;
+                        }
+                        
+                        Assert(models->command_coroutine == 0);
+                        Coroutine *command_coroutine = system->create_coroutine(command_caller);
+                        models->command_coroutine = command_coroutine;
+                        
+                        Command_In cmd_in;
+                        cmd_in.cmd = cmd;
+                        cmd_in.bind = cmd_bind;
+                        
+                        models->command_coroutine = system->launch_coroutine(models->command_coroutine,
+                                                                             &cmd_in, models->command_coroutine_flags);
+                        models->prev_command = cmd_bind;
+                        
+                        app_result.animating = 1;
                     }
                 }break;
 
@@ -4015,9 +4065,13 @@ App_Step_Sig(app_step){
                 }break;
             }
         }
-
-        consumed_input[0] |= consumed_input2[0];
-        consumed_input[1] |= consumed_input2[1];
+        
+        if (hit_something){
+            consume_input(&available_input, Input_AnyKey);
+        }
+        if (hit_esc){
+            consume_input(&available_input, Input_Esc);
+        }
     }
 
     update_command_data(vars, cmd);
@@ -4521,6 +4575,8 @@ App_Step_Sig(app_step){
                 break;
             }
         }
+        
+        view_record_prev_cursor(view);
     }
     
     // NOTE(allen): send style change messages if the style has changed
