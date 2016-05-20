@@ -23,8 +23,6 @@
      - Multi-line comments should default to indenting to the indentation of the line prior?
      - Would like the option to indent to hanging parentheses, equals signs, etc. instead of
        always just "one tab in from the previous line".
-       - Actually, maybe just expose the dirty state, so that the user can decide whether to
-         save or not?  Not sure...
      - Replace:
        - Needs to be case-insensitive, or at least have the option to be
        - Needs to replace using the case of the thing being replaced, or at least have the option to do so
@@ -107,7 +105,7 @@
 #include <math.h>
 #include <stdio.h>
 
-#include "..\4coder_default_include.cpp"
+#include "../4coder_default_include.cpp"
 
 enum maps{
     my_code_map
@@ -1266,9 +1264,10 @@ HOOK_SIG(casey_file_settings)
         treat_as_project = match(ext, make_lit_string("prj"));
     }
 
+    push_parameter(app, par_buffer_id, buffer.buffer_id);
     push_parameter(app, par_lex_as_cpp_file, treat_as_code);
     push_parameter(app, par_wrap_lines, !treat_as_code);
-    push_parameter(app, par_key_mapid, (treat_as_code)?((int)my_code_map):((int)mapid_file));
+    push_parameter(app, par_key_mapid, mapid_file);
     exec_command(app, cmdid_set_settings);
 
     if(treat_as_project)
@@ -1420,7 +1419,15 @@ win32_toggle_fullscreen(void)
 
 HOOK_SIG(casey_start)
 {
+    // NOTE(allen): I added some stuff here based on wishes expressed on stream:
+    // - Two calls to cmdid_hide_scrollbar to hide the scrollbar GUI elements
+    // - One call to cmdid_change_active_panel so that 4coder starts on the right panel
+    
+    exec_command(app, cmdid_hide_scrollbar);
     exec_command(app, cmdid_open_panel_vsplit);
+    exec_command(app, cmdid_hide_scrollbar);
+    exec_command(app, cmdid_change_active_panel);
+    
     app->change_theme(app, literal("Handmade Hero"));
     app->change_font(app, literal("liberation mono"));
 
@@ -1589,4 +1596,3 @@ extern "C" GET_BINDING_DATA(get_bindings)
     end_bind_helper(context);
     return context->write_total;
 }
-

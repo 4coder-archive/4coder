@@ -9,6 +9,92 @@
 
 // TOP
 
+internal i32
+get_or_add_map_index(Models *models, i32 mapid){
+    i32 result;
+    i32 user_map_count = models->user_map_count;
+    i32 *map_id_table = models->map_id_table;
+    for (result = 0; result < user_map_count; ++result){
+        if (map_id_table[result] == mapid) break;
+        if (map_id_table[result] == -1){
+            map_id_table[result] = mapid;
+            break;
+        }
+    }
+    return result;
+}
+
+internal i32
+get_map_index(Models *models, i32 mapid){
+    i32 result;
+    i32 user_map_count = models->user_map_count;
+    i32 *map_id_table = models->map_id_table;
+    for (result = 0; result < user_map_count; ++result){
+        if (map_id_table[result] == mapid) break;
+        if (map_id_table[result] == 0){
+            result = user_map_count;
+            break;
+        }
+    }
+    return result;
+}
+
+internal Command_Map*
+get_map_base(Models *models, i32 mapid, b32 add){
+    Command_Map *map = 0;
+    if (mapid < mapid_global){
+        if (add){
+            mapid = get_or_add_map_index(models, mapid);
+        }
+        else{
+            mapid = get_map_index(models, mapid);
+        }
+        if (mapid < models->user_map_count){
+            map = models->user_maps + mapid;
+        }
+    }
+    else if (mapid == mapid_global) map = &models->map_top;
+    else if (mapid == mapid_file) map = &models->map_file;
+    return(map);
+}
+
+internal Command_Map*
+get_or_add_map(Models *models, i32 mapid){
+    Command_Map *map = get_map_base(models, mapid, 1);
+    return(map);
+}
+
+internal Command_Map*
+get_map(Models *models, i32 mapid){
+    Command_Map *map = get_map_base(models, mapid, 0);
+    return(map);
+}
+
+internal void
+map_set_count(Models *models, i32 mapid, i32 count){
+    Command_Map *map = get_or_add_map(models, mapid);
+    Assert(map->commands == 0);
+    map->count = count;
+    if (map->max < count){
+        map->max = count;
+    }
+}
+
+internal i32
+map_get_count(Models *models, i32 mapid){
+    Command_Map *map = get_or_add_map(models, mapid);
+    i32 count = map->count;
+    Assert(map->commands == 0);
+    return(count);
+}
+
+internal i32
+map_get_max_count(Models *models, i32 mapid){
+    Command_Map *map = get_or_add_map(models, mapid);
+    i32 count = map->max;
+    return(count);
+}
+
 enum Interactive_Action{
     IAct_Open,
     IAct_Save_As,
@@ -105,7 +191,6 @@ struct View{
     
     Panel *panel;
     Command_Map *map;
-    Command_Map *map_for_file;
     
     File_Viewing_Data file_data;
     
@@ -2750,7 +2835,6 @@ remeasure_file_view(System_Functions *system, View *view){
 
 inline void
 view_show_menu(View *view, Command_Map *gui_map){
-    view->map_for_file = view->map;
     view->map = gui_map;
     view->showing_ui = VUI_Menu;
     view->current_scroll = &view->gui_scroll;
@@ -2758,7 +2842,6 @@ view_show_menu(View *view, Command_Map *gui_map){
 
 inline void
 view_show_config(View *view, Command_Map *gui_map){
-    view->map_for_file = view->map;
     view->map = gui_map;
     view->showing_ui = VUI_Config;
     view->current_scroll = &view->gui_scroll;
@@ -2778,7 +2861,6 @@ view_show_interactive(System_Functions *system, View *view,
     view->list_i = 0;
     view->current_scroll = &view->gui_scroll;
     
-    view->map_for_file = view->map;
     view->map = gui_map;
     
     hot_directory_clean_end(&models->hot_directory);
@@ -2787,7 +2869,6 @@ view_show_interactive(System_Functions *system, View *view,
 
 inline void
 view_show_theme(View *view, Command_Map *gui_map){
-    view->map_for_file = view->map;
     view->map = gui_map;
     view->showing_ui = VUI_Theme;
     view->color_mode = CV_Mode_Library;
@@ -2797,12 +2878,13 @@ view_show_theme(View *view, Command_Map *gui_map){
 }
 
 inline void
-view_show_file(View *view, Command_Map *file_map){
-    if (file_map){
-        view->map = file_map;
+view_show_file(View *view){
+    Editing_File *file = view->file_data.file;
+    if (file){
+        view->map = get_map(view->models, file->settings.base_map_id);
     }
     else{
-        view->map = view->map_for_file;
+        view->map = get_map(view->models, mapid_global);
     }
     view->showing_ui = VUI_None;
     view->current_scroll = &view->recent->scroll;
@@ -2881,8 +2963,8 @@ interactive_view_complete(View *view, String dest, i32 user_action){
         }
         break;
     }
-    view_show_file(view, 0);
-
+    view_show_file(view);
+    
     // TODO(allen): This is here to prevent the key press from being passed to the
     // underlying file which is a giant pain.  But I want a better system.
     file_view_nullify_file(view);
@@ -4256,7 +4338,7 @@ do_input_file_view(System_Functions *system, Exchange *exchange,
         }
         
         if (did_esc && view->showing_ui != VUI_None){
-            view_show_file(view, 0);
+            view_show_file(view);
         }
     }
     

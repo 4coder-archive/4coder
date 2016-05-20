@@ -87,92 +87,6 @@ struct App_Vars{
     Command_Data command_data;
 };
 
-internal i32
-app_get_or_add_map_index(Models *models, i32 mapid){
-    i32 result;
-    i32 user_map_count = models->user_map_count;
-    i32 *map_id_table = models->map_id_table;
-    for (result = 0; result < user_map_count; ++result){
-        if (map_id_table[result] == mapid) break;
-        if (map_id_table[result] == -1){
-            map_id_table[result] = mapid;
-            break;
-        }
-    }
-    return result;
-}
-
-internal i32
-app_get_map_index(Models *models, i32 mapid){
-    i32 result;
-    i32 user_map_count = models->user_map_count;
-    i32 *map_id_table = models->map_id_table;
-    for (result = 0; result < user_map_count; ++result){
-        if (map_id_table[result] == mapid) break;
-        if (map_id_table[result] == 0){
-            result = user_map_count;
-            break;
-        }
-    }
-    return result;
-}
-
-internal Command_Map*
-app_get_map_base(Models *models, i32 mapid, b32 add){
-    Command_Map *map = 0;
-    if (mapid < mapid_global){
-        if (add){
-            mapid = app_get_or_add_map_index(models, mapid);
-        }
-        else{
-            mapid = app_get_map_index(models, mapid);
-        }
-        if (mapid < models->user_map_count){
-            map = models->user_maps + mapid;
-        }
-    }
-    else if (mapid == mapid_global) map = &models->map_top;
-    else if (mapid == mapid_file) map = &models->map_file;
-    return(map);
-}
-
-internal Command_Map*
-app_get_or_add_map(Models *models, i32 mapid){
-    Command_Map *map = app_get_map_base(models, mapid, 1);
-    return(map);
-}
-
-internal Command_Map*
-app_get_map(Models *models, i32 mapid){
-    Command_Map *map = app_get_map_base(models, mapid, 0);
-    return(map);
-}
-
-internal void
-app_map_set_count(Models *models, i32 mapid, i32 count){
-    Command_Map *map = app_get_or_add_map(models, mapid);
-    Assert(map->commands == 0);
-    map->count = count;
-    if (map->max < count){
-        map->max = count;
-    }
-}
-
-internal i32
-app_map_get_count(Models *models, i32 mapid){
-    Command_Map *map = app_get_or_add_map(models, mapid);
-    i32 count = map->count;
-    Assert(map->commands == 0);
-    return(count);
-}
-
-internal i32
-app_map_get_max_count(Models *models, i32 mapid){
-    Command_Map *map = app_get_or_add_map(models, mapid);
-    i32 count = map->max;
-    return(count);
-}
-
 inline void
 output_file_append(System_Functions *system, Models *models, Editing_File *file, String value, b32 cursor_at_end){
     i32 end = buffer_size(&file->state.buffer);
@@ -267,7 +181,7 @@ panel_make_empty(System_Functions *system, Exchange *exchange, App_Vars *vars, P
     Assert(panel->view == 0);
     new_view = live_set_alloc_view(&vars->live_set, panel, models);
     view_set_file(new_view.view, 0, models);
-    new_view.view->map = app_get_map(models, mapid_global);
+    new_view.view->map = get_map(models, mapid_global);
 
     return(new_view.view);
 }
@@ -925,13 +839,13 @@ view_file_in_panel(Command_Data *cmd, Panel *panel, Editing_File *file){
 
     View *view = panel->view;
     view_set_file(view, file, models);
-    view_show_file(view, 0);
+    view_show_file(view);
 
     cmd->part = old_part;
     end_temp_memory(temp);
     cmd->view = old_view;
 
-    panel->view->map = app_get_map(models, file->settings.base_map_id);
+    panel->view->map = get_map(models, file->settings.base_map_id);
 }
 
 // TODO(allen): Improvements to reopen
@@ -956,7 +870,7 @@ COMMAND_DECL(reopen){
         app_push_file_binding(vars, file_id, index);
 
         view_set_file(view, file, models);
-        view_show_file(view, 0);
+        view_show_file(view);
     }
     else{
         do_feedback_message(system, models, make_lit_string("ERROR: no file load slot available\n"));
@@ -1550,13 +1464,7 @@ COMMAND_DECL(open_menu){
 
 COMMAND_DECL(close_minor_view){
     USE_VIEW(view);
-    USE_MODELS(models);
-
-    Command_Map *map = &models->map_top;
-    if (view->file_data.file){
-        map = app_get_map(models, view->file_data.file->settings.base_map_id);
-    }
-    view_show_file(view, map);
+    view_show_file(view);
 }
 
 COMMAND_DECL(cursor_mark_swap){
@@ -1631,7 +1539,7 @@ COMMAND_DECL(set_settings){
                     if (v == mapid_global) file->settings.base_map_id = mapid_global;
                     else if (v == mapid_file) file->settings.base_map_id = mapid_file;
                     else if (v < mapid_global){
-                        new_mapid = app_get_map_index(models, v);
+                        new_mapid = get_map_index(models, v);
                         if (new_mapid  < models->user_map_count) file->settings.base_map_id = v;
                         else file->settings.base_map_id = mapid_file;
                     }
@@ -1644,7 +1552,7 @@ COMMAND_DECL(set_settings){
         for (View_Iter iter = file_view_iter_init(&models->layout, file, 0);
             file_view_iter_good(iter);
             iter = file_view_iter_next(iter)){
-            iter.view->map = app_get_map(models, file->settings.base_map_id);
+            iter.view->map = get_map(models, file->settings.base_map_id);
         }
     }
 }
@@ -2476,7 +2384,7 @@ extern "C"{
                     result = 1;
                     if (file != vptr->file_data.file){
                         view_set_file(vptr, file, models);
-                        view_show_file(vptr, 0);
+                        view_show_file(vptr);
                     }
                 }
 
@@ -2818,20 +2726,19 @@ app_hardcode_styles(Models *models){
     style->main.mark_color = 0xFF808080;
     style->main.highlight_color = 0xFF703419;
     style->main.at_highlight_color = 0xFFCDAA7D;
-    style->main.default_color = 0xFFCDAA7D;
-    style->main.comment_color = 0xFF7F7F7F;
+    style->main.default_color = 0xFFA08563;
+    style->main.comment_color = 0xFF7D7D7D;
     style->main.keyword_color = 0xFFCD950C;
     style->main.str_constant_color = 0xFF6B8E23;
     style->main.char_constant_color = style->main.str_constant_color;
     style->main.int_constant_color = style->main.str_constant_color;
     style->main.float_constant_color = style->main.str_constant_color;
     style->main.bool_constant_color = style->main.str_constant_color;
-    style->main.include_color = style->main.str_constant_color;
-    style->main.preproc_color = style->main.default_color;
+    style->main.include_color = 0xFF6B8E23;
+    style->main.preproc_color = 0xFFDAB98F;
     style->main.special_character_color = 0xFFFF0000;
 
     style->main.paste_color = 0xFFFFBB00;
-    style->main.undo_color = 0xFFFF00BB;
     style->main.undo_color = 0xFF80005D;
 
     style->main.highlight_junk_color = 0xFF3A0000;
@@ -3296,12 +3203,12 @@ App_Init_Sig(app_init){
                         case unit_map_begin:
                         {
                             int mapid = unit->map_begin.mapid;
-                            int count = app_map_get_count(models, mapid);
+                            int count = map_get_count(models, mapid);
                             if (unit->map_begin.replace){
-                                app_map_set_count(models, mapid, unit->map_begin.bind_count);
+                                map_set_count(models, mapid, unit->map_begin.bind_count);
                             }
                             else{
-                                app_map_set_count(models, mapid, unit->map_begin.bind_count + count);
+                                map_set_count(models, mapid, unit->map_begin.bind_count + count);
                             }
                         };
                     }
@@ -3313,7 +3220,7 @@ App_Init_Sig(app_init){
                         case unit_map_begin:
                         {
                             int mapid = unit->map_begin.mapid;
-                            int count = app_map_get_max_count(models, mapid);
+                            int count = map_get_max_count(models, mapid);
                             int table_max = count * 3 / 2;
                             if (mapid == mapid_global){
                                 map_ptr = &models->map_top;
@@ -3326,7 +3233,7 @@ App_Init_Sig(app_init){
                                 did_file = 1;
                             }
                             else if (mapid < mapid_global){
-                                i32 index = app_get_or_add_map_index(models, mapid);
+                                i32 index = get_or_add_map_index(models, mapid);
                                 Assert(index < user_map_count);
                                 map_ptr = models->user_maps + index;
                                 map_init(map_ptr, &models->mem.part, table_max, global);
@@ -3345,7 +3252,7 @@ App_Init_Sig(app_init){
                             if (mapid == mapid_global) parent = &models->map_top;
                             else if (mapid == mapid_file) parent = &models->map_file;
                             else if (mapid < mapid_global){
-                                i32 index = app_get_or_add_map_index(models, mapid);
+                                i32 index = get_or_add_map_index(models, mapid);
                                 if (index < user_map_count) parent = models->user_maps + index;
                                 else parent = 0;
                             }
@@ -4474,8 +4381,8 @@ App_Step_Sig(app_step){
                     View *view = panel->view;
 
                     view_set_file(view, file, models);
-                    view_show_file(view, 0);
-                    view->map = app_get_map(models, file->settings.base_map_id);
+                    view_show_file(view);
+                    view->map = get_map(models, file->settings.base_map_id);
 
                     Hook_Function *new_file_fnc = models->hooks[hook_new_file];
                     if (new_file_fnc){
@@ -4504,8 +4411,8 @@ App_Step_Sig(app_step){
                         View *view = panel->view;
 
                         view_set_file(view, file, models);
-                        view_show_file(view, 0);
-                        view->map = app_get_map(models, file->settings.base_map_id);
+                        view_show_file(view);
+                        view->map = get_map(models, file->settings.base_map_id);
                     }
                 }break;
 
