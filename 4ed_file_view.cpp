@@ -3201,9 +3201,11 @@ view_get_cursor_view_change_state(View *view){
     i32 result = 0;
     b32 cursor_change = 0;
     b32 view_change = 0;
+    i32 pos = 0;
 
     if (view->gui_target.did_file){
-        cursor_change = (view->prev_cursor_pos != view->file_data.cursor.pos);
+        pos = view_get_cursor_pos(view);
+        cursor_change = (view->prev_cursor_pos != pos);
     }
     
     if (view->current_scroll){
