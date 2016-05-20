@@ -193,6 +193,7 @@ struct View{
     Command_Map *map;
     
     File_Viewing_Data file_data;
+    i32 prev_cursor_pos;
     
     i32_Rect file_region_prev;
     i32_Rect file_region;
@@ -3118,51 +3119,135 @@ view_reinit_scrolling(View *view){
 #define CursorMaxY(m,h) (CursorMaxY_(m,h) > 0)?(CursorMaxY_(m,h)):(0)
 #define CursorMinY(m,h) (CursorMinY_(m,h) > 0)?(CursorMinY_(m,h)):(0)
 
+internal void
+view_move_cursor_to_view(View *view){
+    f32 min_target_y = view->recent->scroll.min_y;
+    i32 line_height = view->font_height;
+    f32 old_cursor_y = view_get_cursor_y(view);
+    f32 cursor_y = old_cursor_y;
+    f32 target_y = view->recent->scroll.target_y;
+    f32 cursor_max_y = CursorMaxY(view_file_height(view), line_height);
+    f32 cursor_min_y = CursorMinY(min_target_y, line_height);
+
+    if (cursor_y > target_y + cursor_max_y){
+        cursor_y = target_y + cursor_max_y;
+    }
+    if (target_y != 0 && cursor_y < target_y + cursor_min_y){
+        cursor_y = target_y + cursor_min_y;
+    }
+
+    if (cursor_y != old_cursor_y){
+        if (cursor_y > old_cursor_y){
+            cursor_y += line_height;
+        }
+        else{
+            cursor_y -= line_height;
+        }
+        view->file_data.cursor =
+            view_compute_cursor_from_xy(view, view->file_data.preferred_x, cursor_y);
+    }
+}
+
+internal void
+view_move_view_to_cursor(View *view){
+    f32 line_height = (f32)view->font_height;
+    f32 delta_y = 3.f*line_height;
+
+    f32 max_visible_y = view_file_height(view);
+    f32 max_x = view_file_width(view);
+
+    f32 cursor_y = view_get_cursor_y(view);
+    f32 cursor_x = view_get_cursor_x(view);
+
+    GUI_Scroll_Vars scroll_vars = view->gui_target.scroll_updated;
+    f32 target_y = scroll_vars.target_y;
+    f32 target_x = scroll_vars.target_x;
+    
+    f32 cursor_max_y = CursorMaxY(max_visible_y, line_height);
+    f32 cursor_min_y = CursorMinY(scroll_vars.min_y, line_height);
+    
+    if (cursor_y > target_y + cursor_max_y){
+        target_y = cursor_y - cursor_max_y + delta_y;
+    }
+    if (cursor_y < target_y + cursor_min_y){
+        target_y = cursor_y - delta_y - cursor_min_y;
+    }
+
+    if (target_y > scroll_vars.max_y) target_y = scroll_vars.max_y;
+    if (target_y < scroll_vars.min_y) target_y = view->recent->scroll.min_y;
+
+    if (cursor_x < target_x){
+        target_x = (f32)Max(0, cursor_x - max_x/2);
+    }
+    else if (cursor_x >= target_x + max_x){
+        target_x = (f32)(cursor_x - max_x/2);
+    }
+
+    if (target_x != scroll_vars.target_x || target_y != scroll_vars.target_y){
+        view->gui_target.scroll_updated.target_x = target_x;
+        view->gui_target.scroll_updated.target_y = target_y;
+    }
+}
+
+enum CursorView_State{
+    CursorView_NoChange,
+    CursorView_Cursor,
+    CursorView_View,
+    CursorView_Both
+};
+
+internal i32
+view_get_cursor_view_change_state(View *view){
+    i32 result = 0;
+    b32 cursor_change = 0;
+    b32 view_change = 0;
+
+    if (view->gui_target.did_file){
+        cursor_change = (view->prev_cursor_pos != view->file_data.cursor.pos);
+    }
+    
+    if (!gui_scroll_eq(view->current_scroll, &view->gui_target.scroll_updated)){
+        view_change = 1;
+    }
+    
+    if (cursor_change){
+        if (view_change){
+            result = CursorView_Both;
+        }
+        else{
+            result = CursorView_Cursor;
+        }
+    }
+    else{
+        if (view_change){
+            result = CursorView_View;
+        }
+        else{
+            result = CursorView_NoChange;
+        }
+    }
+    
+    return(result);
+}
+
 internal b32
 file_step(View *view, i32_Rect region, Input_Summary *user_input, b32 is_active){
     i32 is_animating = 0;
     Editing_File *file = view->file_data.file;
     if (file && !file->state.is_loading){
-        f32 line_height = (f32)view->font_height;
-        f32 delta_y = 3.f*line_height;
-        
         f32 max_visible_y = view_file_height(view);
         f32 max_x = view_file_width(view);
         
-        f32 cursor_y = view_get_cursor_y(view);
-        f32 cursor_x = view_get_cursor_x(view);
-        
         GUI_Scroll_Vars scroll_vars = view->gui_target.scroll_updated;
-        f32 target_y = scroll_vars.target_y;
-        f32 target_x = scroll_vars.target_x;
         
-        f32 cursor_max_y = CursorMaxY(max_visible_y, line_height);
-        f32 cursor_min_y = CursorMinY(scroll_vars.min_y, line_height);
+        view->prev_cursor_pos = view->file_data.cursor.pos;
         
+#if 0
         if (!gui_id_eq(view->gui_target.active, gui_id_scrollbar())){
-            if (cursor_y > target_y + cursor_max_y){
-                target_y = cursor_y - cursor_max_y + delta_y;
-            }
-            if (cursor_y < target_y + cursor_min_y){
-                target_y = cursor_y - delta_y - cursor_min_y;
-            }
-            
-            if (target_y > scroll_vars.max_y) target_y = scroll_vars.max_y;
-            if (target_y < scroll_vars.min_y) target_y = view->recent->scroll.min_y;
-            
-            if (cursor_x < target_x){
-                target_x = (f32)Max(0, cursor_x - max_x/2);
-            }
-            else if (cursor_x >= target_x + max_x){
-                target_x = (f32)(cursor_x - max_x/2);
-            }
-            
-            if (target_x != scroll_vars.target_x || target_y != scroll_vars.target_y){
-                view->gui_target.scroll_updated.target_x = target_x;
-                view->gui_target.scroll_updated.target_y = target_y;
-            }
+            view_move_view_to_cursor(view);
         }
-        
+#endif
+
         if (file->state.paste_effect.tick_down > 0){
             --file->state.paste_effect.tick_down;
             is_animating = 1;
@@ -3479,8 +3564,6 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
     Models *models = view->models;
     Key_Summary keys = input.keys;
     
-    f32 min_target_y = view->recent->scroll.min_y;
-    
     b32 show_scrollbar = !view->hide_scrollbar;
     
     view->current_scroll = 0;
@@ -3496,37 +3579,14 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                 
                 gui_begin_serial_section(target);
                 {
-                    i32 line_height = view->font_height;
-                    f32 old_cursor_y = view_get_cursor_y(view);
-                    f32 cursor_y = old_cursor_y;
-                    f32 cursor_max_y = CursorMaxY(view_file_height(view), line_height);
-                    f32 cursor_min_y = CursorMinY(min_target_y, line_height);
                     f32 delta = 9.f * view->font_height;
-                    f32 target_y = 0;
                     
                     view->current_scroll = &view->recent->scroll;
                     if (gui_get_scroll_vars(target, view->showing_ui,
                                             &view->recent->scroll, &view->scroll_region)){
-                        target_y = view->recent->scroll.target_y;
-                        if (cursor_y > target_y + cursor_max_y){
-                            cursor_y = target_y + cursor_max_y;
-                        }
-                        if (target_y != 0 && cursor_y < target_y + cursor_min_y){
-                            cursor_y = target_y + cursor_min_y;
-                        }
-
-                        if (cursor_y != old_cursor_y){
-                            if (cursor_y > old_cursor_y){
-                                cursor_y += view->font_height;
-                            }
-                            else{
-                                cursor_y -= view->font_height;
-                            }
-                            view->file_data.cursor =
-                                view_compute_cursor_from_xy(view, view->file_data.preferred_x, cursor_y);
-                        }
+                        view_move_cursor_to_view(view);
                     }
-
+                    
                     gui_begin_scrollable(target, view->showing_ui, view->recent->scroll,
                                          delta, show_scrollbar);
                     gui_do_file(target);

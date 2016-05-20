@@ -4494,14 +4494,40 @@ App_Step_Sig(app_step){
     
     // NOTE(allen): post scroll vars back to the view's gui targets
     {
-        View *view;
-        Panel *panel, *used_panels;
+        View *view = 0;
+        Panel *panel = 0, *used_panels = 0;
+        i32 cursor_view_state = 0;
+        
         used_panels = &models->layout.used_sentinel;
         for (dll_items(panel, used_panels)){
             view = panel->view;
+            
+            cursor_view_state = view_get_cursor_view_change_state(view);
+            
+            switch (cursor_view_state){
+                case CursorView_NoChange:break;
+                
+                case CursorView_Cursor:
+                case CursorView_Both:
+                view_move_view_to_cursor(view);
+                break;
+                
+                case CursorView_View:
+                gui_post_scroll_vars(&view->gui_target, view->current_scroll);
+                break;
+            }
+
+#if 0
+            if (view->gui_target.did_file){
+                if (view->prev_cursor_pos != view->file_data.cursor.pos){
+                    view_move_view_to_cursor(view);
+                }
+            }
+            
             if (view->current_scroll){
                 gui_post_scroll_vars(&view->gui_target, view->current_scroll);
             }
+#endif
         }
     }
     

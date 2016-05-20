@@ -160,6 +160,7 @@ struct GUI_Target{
     u32 scroll_id;
     b32 has_keys;
     b32 animating;
+    b32 did_file;
 };
 
 struct GUI_Item_Update{
@@ -415,6 +416,7 @@ gui_begin_top_level(GUI_Target *target, Input_Summary input){
     target->push.pos = 0;
     target->has_keys = (input.keys.count > 0);
     target->animating = 0;
+    target->did_file = 0;
 }
 
 internal void
@@ -431,6 +433,7 @@ gui_do_top_bar(GUI_Target *target){
 internal void
 gui_do_file(GUI_Target *target){
     gui_push_simple_command(target, guicom_file);
+    target->did_file = 1;
 }
 
 internal void
