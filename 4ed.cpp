@@ -4554,23 +4554,23 @@ App_Step_Sig(app_step){
     {
         View *view = 0;
         Panel *panel = 0, *used_panels = 0;
-        i32 cursor_view_state = 0;
+        i32 cursor_scroll_state = 0;
         
         used_panels = &models->layout.used_sentinel;
         for (dll_items(panel, used_panels)){
             view = panel->view;
             
-            cursor_view_state = view_get_cursor_view_change_state(view);
+            cursor_scroll_state = view_get_cursor_scroll_change_state(view);
             
-            switch (cursor_view_state){
-                case CursorView_NoChange:break;
+            switch (cursor_scroll_state){
+                case CursorScroll_NoChange:break;
                 
-                case CursorView_Cursor:
-                case CursorView_Both:
+                case CursorScroll_Cursor:
+                case CursorScroll_Both:
                 view_move_view_to_cursor(view);
                 break;
                 
-                case CursorView_View:
+                case CursorScroll_Scroll:
                 gui_post_scroll_vars(&view->gui_target, view->current_scroll);
                 break;
             }

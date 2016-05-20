@@ -262,14 +262,14 @@ view_lock_level(View *view){
 
 inline f32
 view_file_width(View *view){
-    i32_Rect file_rect = view->scroll_region;
+    i32_Rect file_rect = view->file_region;
     f32 result = (f32)(file_rect.x1 - file_rect.x0);
     return (result);
 }
 
 inline f32
 view_file_height(View *view){
-    i32_Rect file_rect = view->scroll_region;
+    i32_Rect file_rect = view->file_region;
     f32 result = (f32)(file_rect.y1 - file_rect.y0);
     return (result);
 }
@@ -3189,15 +3189,15 @@ view_move_view_to_cursor(View *view){
     }
 }
 
-enum CursorView_State{
-    CursorView_NoChange,
-    CursorView_Cursor,
-    CursorView_View,
-    CursorView_Both
+enum CursorScroll_State{
+    CursorScroll_NoChange,
+    CursorScroll_Cursor,
+    CursorScroll_Scroll,
+    CursorScroll_Both
 };
 
 internal i32
-view_get_cursor_view_change_state(View *view){
+view_get_cursor_scroll_change_state(View *view){
     i32 result = 0;
     b32 cursor_change = 0;
     b32 view_change = 0;
@@ -3216,18 +3216,18 @@ view_get_cursor_view_change_state(View *view){
     
     if (cursor_change){
         if (view_change){
-            result = CursorView_Both;
+            result = CursorScroll_Both;
         }
         else{
-            result = CursorView_Cursor;
+            result = CursorScroll_Cursor;
         }
     }
     else{
         if (view_change){
-            result = CursorView_View;
+            result = CursorScroll_Scroll;
         }
         else{
-            result = CursorView_NoChange;
+            result = CursorScroll_NoChange;
         }
     }
     
@@ -3237,7 +3237,7 @@ view_get_cursor_view_change_state(View *view){
 internal void
 view_record_prev_cursor(View *view){
     if (view->gui_target.did_file){
-        view->prev_cursor_pos = view->file_data.cursor.pos;
+        view->prev_cursor_pos = view_get_cursor_pos(view);
     }
 }
 
