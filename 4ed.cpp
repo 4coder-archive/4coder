@@ -4031,11 +4031,15 @@ App_Step_Sig(app_step){
                                          "and if you load README.txt you'll find all the key combos there are.\n"
                                          "\n"
                                          "Newest features:\n"
+                                         "-Tied the view scrolling and the list arrow navigation together\n"
+                                         "-Scroll bars are now toggleable with ALT-s for show and ALT-w for hide\n"
+                                         "\n"
+                                         "New in alpha 4.0.5:"
                                          "-New indent rule\n"
                                          "-app->buffer_compute_cursor in the customization API\n"
                                          "-f keys are available\n"
                                          "\n"
-                                         "New in alpha 4.0.3 and 4.0.4\n"
+                                         "New in alpha 4.0.3 and 4.0.4:\n"
                                          "-Scroll bar on files and file lists\n"
                                          "-Arrow navigation in lists\n"
                                          "-A new minimal theme editor\n"
@@ -4516,18 +4520,6 @@ App_Step_Sig(app_step){
                 gui_post_scroll_vars(&view->gui_target, view->current_scroll);
                 break;
             }
-
-#if 0
-            if (view->gui_target.did_file){
-                if (view->prev_cursor_pos != view->file_data.cursor.pos){
-                    view_move_view_to_cursor(view);
-                }
-            }
-            
-            if (view->current_scroll){
-                gui_post_scroll_vars(&view->gui_target, view->current_scroll);
-            }
-#endif
         }
     }
     
