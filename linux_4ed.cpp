@@ -495,6 +495,20 @@ Sys_File_Unique_Hash_Sig(system_file_unique_hash){
     return result;
 }
 
+internal
+GET_4ED_PATH_SIG(system_get_4ed_path){
+    ssize_t size = readlink("/proc/self/exe", out, capacity - 1);
+    if(size != -1 && size < capacity - 1){
+        String str = make_string(out, size, capacity);
+        remove_last_folder(&str);
+        terminate_with_null(&str);
+        size = str.size;
+    } else {
+        size = 0;
+    }
+    return size;
+}
+
 Sys_Post_Clipboard_Sig(system_post_clipboard){
     LinuxStringDup(&linuxvars.clipboard_outgoing, str.str, str.size);
     XSetSelectionOwner(linuxvars.XDisplay, linuxvars.atom_CLIPBOARD, linuxvars.XWindow, CurrentTime);
@@ -1197,6 +1211,7 @@ Sys_To_Binary_Path(system_to_binary_path){
     return (translate_success);
 }
 
+
 internal b32
 LinuxLoadAppCode(String* base_dir){
     b32 result = 0;
@@ -1225,13 +1240,14 @@ LinuxLoadAppCode(String* base_dir){
 internal void
 LinuxLoadSystemCode(){
     linuxvars.system->file_time_stamp = system_file_time_stamp;
+    linuxvars.system->file_unique_hash = system_file_unique_hash;
     linuxvars.system->set_file_list = system_set_file_list;
     linuxvars.system->file_track = system_file_track;
     linuxvars.system->file_untrack = system_file_untrack;
 
     linuxvars.system->file_exists = system_file_exists;
     linuxvars.system->directory_cd = system_directory_cd;
-    linuxvars.system->file_unique_hash = system_file_unique_hash;
+    linuxvars.system->get_4ed_path = system_get_4ed_path;
 
     linuxvars.system->post_clipboard = system_post_clipboard;
     linuxvars.system->time = system_time;
