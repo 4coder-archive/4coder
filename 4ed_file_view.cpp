@@ -4217,7 +4217,7 @@ do_input_file_view(System_Functions *system, Exchange *exchange,
                                            gui_session.rect.y0);
                     f32 new_max_y = view_compute_max_target_y(view);
                     
-                    view->file_region = view->scroll_region;
+                    view->file_region = gui_session.rect;
                     view->gui_target.scroll_updated.min_y = new_min_y;
                     view->gui_target.scroll_updated.max_y = new_max_y;
                     

@@ -299,8 +299,8 @@ default_keys(Bind_Helper *context){
     bind(context, 'M', MDFR_ALT, build_at_launch_location);
 
     end_map(context);
-
-
+    
+    
     begin_map(context, my_html_map);
     inherit_map(context, mapid_file);
     bind(context, 'h', MDFR_ALT, write_h);
