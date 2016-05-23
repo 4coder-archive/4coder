@@ -3646,12 +3646,7 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                     view->current_scroll = &view->recent->scroll;
                     gui_get_scroll_vars(target, scroll_context,
                                         &view->recent->scroll, &view->scroll_region);
-#if 0
-                    if (gui_get_scroll_vars(target, scroll_context,
-                                            &view->recent->scroll, &view->scroll_region)){
-                        view_move_cursor_to_view(view);
-                    }
-#endif
+                    
                     gui_begin_scrollable(target, scroll_context, view->recent->scroll,
                                          delta, show_scrollbar);
                     gui_do_file(target);
@@ -3666,6 +3661,8 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
             switch (view->showing_ui){
                 case VUI_Menu:
                 {
+                    view->current_scroll = &view->gui_scroll;
+                    
                     String message = make_lit_string("Menu");
                     String empty_string = {0};
                     GUI_id id = {0};
@@ -3688,6 +3685,8 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
 
                 case VUI_Config:
                 {
+                    view->current_scroll = &view->gui_scroll;
+                    
                     String message = make_lit_string("Config");
                     String empty_string = {0};
                     GUI_id id = {0};
@@ -3704,6 +3703,8 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
 
                 case VUI_Theme:
                 {
+                    view->current_scroll = &view->gui_scroll;
+                    
                     if (view != active_view){
                         view->hot_file_view = active_view;
                     }
@@ -3891,6 +3892,8 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
 
                 case VUI_Interactive:
                 {
+                    view->current_scroll = &view->gui_scroll;
+                    
                     GUI_id id = {0};
                     id.id[1] = VUI_Interactive + ((u64)view->interaction << 32);
                                         
@@ -3943,7 +3946,6 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                             
                             gui_do_text_field(target, message, hdir->string);
                             
-                            view->current_scroll = &view->gui_scroll;
                             scroll_context.id[0] = (u64)(hdir);
                             if (gui_get_scroll_vars(target, scroll_context,
                                                     &view->gui_scroll, &view->scroll_region)){
@@ -4029,7 +4031,6 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
 
                             gui_do_text_field(target, message, view->dest);
 
-                            view->current_scroll = &view->gui_scroll;
                             scroll_context.id[0] = (u64)(working_set);
                             if (gui_get_scroll_vars(target, scroll_context,
                                                     &view->gui_scroll, &view->scroll_region)){
@@ -5450,6 +5451,7 @@ live_set_alloc_view(Live_Views *live_set, Panel *panel, Models *models){
 
     result.view->models = models;
     result.view->scrub_max = 1;
+    result.view->current_scroll = &result.view->recent->scroll;
 
     init_query_set(&result.view->query_set);
 

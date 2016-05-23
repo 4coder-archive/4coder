@@ -66,8 +66,8 @@
 ; [X] open empty file bug
 ; [X] chronal's map setting issue
 ; [X] linux save jankieness
-; [] indication on failure to save
 ; [X] bouncing when scrolling down
+; [] indication on failure to save
 ; [] clean whitespace doesn't appear to be cleaning trailing whitespace anymore???
 ; [] sometimes the main cursor is not the same width as the mark cursor in the same spot
 ; [] tab character wrong width
@@ -98,6 +98,7 @@
 ; [X] catch unsaved files on close
 ; [X] feedback messages
 ; [X] feedback message API
+; [X] kill rect
 ; 
 ; [] file status in custom API
 ; [] user file bar string
@@ -110,7 +111,6 @@
 ;    [X] new file
 ;    [] file out of sync
 ; [] double binding warnings
-; [] kill rect
 ;
 ; GUI related tech
 ;    [X] consolidate all GUI code properly
@@ -168,6 +168,7 @@
 ;
 ; [] tutorials
 ; [] 4edT thing
+; [] unicode/UTF support
 ;
 
 ; INTERNAL TODOS

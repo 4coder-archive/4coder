@@ -1175,7 +1175,6 @@ COMMAND_DECL(auto_tab_range){
 }
 
 COMMAND_DECL(open_panel_vsplit){
-    
     USE_VARS(vars);
     USE_MODELS(models);
     USE_PANEL(panel);
