@@ -4006,12 +4006,15 @@ App_Step_Sig(app_step){
             }
             
             
+            GUI_Scroll_Vars *vars = view->current_scroll;
+            // TODO(allen): I feel like the scroll context should actually not
+            // be allowed to change in here at all.
             result = do_input_file_view(system, exchange, view, panel->inner, active,
-                                        &input, *view->current_scroll, view->scroll_region);
+                                        &input, *vars, view->scroll_region);
             if (result.is_animating){
                 app_result.animating = 1;
             }
-            *view->current_scroll = result.vars;
+            *vars = result.vars;
             view->scroll_region = result.region;
         }
 

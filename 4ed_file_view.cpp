@@ -180,6 +180,29 @@ struct Recent_File_Data{
     f32 preferred_x;
     i32 scroll_i;
 };
+inline Recent_File_Data
+recent_file_data_zero(){
+    Recent_File_Data data = {0};
+    return(data);
+}
+
+struct Scroll_Context{
+    Editing_File *file;
+    GUI_id scroll;
+    View_UI mode;
+};
+inline b32
+context_eq(Scroll_Context a, Scroll_Context b){
+    b32 result = 0;
+    if (gui_id_eq(a.scroll, b.scroll)){
+        if (a.file == b.file){
+            if (a.mode == b.mode){
+                result = 1;
+            }
+        }
+    }
+    return(result);
+}
 
 struct View{
     View *next, *prev;
@@ -194,6 +217,7 @@ struct View{
     
     File_Viewing_Data file_data;
     i32 prev_cursor_pos;
+    Scroll_Context prev_context;
     
     i32_Rect file_region_prev;
     i32_Rect file_region;
@@ -1375,9 +1399,93 @@ view_get_cursor_y(View *view){
     return result;
 }
 
+#define CursorMaxY_(m,h) ((m) - (h)*3)
+#define CursorMinY_(m,h) (-(m) + (h)*2)
+
+#define CursorMaxY(m,h) (CursorMaxY_(m,h) > 0)?(CursorMaxY_(m,h)):(0)
+#define CursorMinY(m,h) (CursorMinY_(m,h) > 0)?(CursorMinY_(m,h)):(0)
+
+internal void
+view_move_cursor_to_view(View *view){
+    f32 min_target_y = view->recent->scroll.min_y;
+    i32 line_height = view->font_height;
+    f32 old_cursor_y = view_get_cursor_y(view);
+    f32 cursor_y = old_cursor_y;
+    f32 target_y = view->recent->scroll.target_y;
+    f32 cursor_max_y = CursorMaxY(view_file_height(view), line_height);
+    f32 cursor_min_y = CursorMinY(min_target_y, line_height);
+
+    if (cursor_y > target_y + cursor_max_y){
+        cursor_y = target_y + cursor_max_y;
+    }
+    if (target_y != 0 && cursor_y < target_y + cursor_min_y){
+        cursor_y = target_y + cursor_min_y;
+    }
+
+    if (cursor_y != old_cursor_y){
+        if (cursor_y > old_cursor_y){
+            cursor_y += line_height;
+        }
+        else{
+            cursor_y -= line_height;
+        }
+        view->recent->cursor =
+            view_compute_cursor_from_xy(view, view->recent->preferred_x, cursor_y);
+    }
+}
+
+internal void
+view_move_view_to_cursor(View *view, GUI_Scroll_Vars *scroll){
+    f32 line_height = (f32)view->font_height;
+    f32 delta_y = 3.f*line_height;
+    
+    f32 max_visible_y = view_file_height(view);
+    f32 max_x = view_file_width(view);
+    
+    f32 cursor_y = view_get_cursor_y(view);
+    f32 cursor_x = view_get_cursor_x(view);
+    
+    GUI_Scroll_Vars scroll_vars = *scroll;
+    f32 target_y = scroll_vars.target_y;
+    f32 target_x = scroll_vars.target_x;
+    
+    f32 cursor_max_y = CursorMaxY(max_visible_y, line_height);
+    f32 cursor_min_y = CursorMinY(scroll_vars.min_y, line_height);
+    
+    if (cursor_y > target_y + cursor_max_y){
+        target_y = cursor_y - cursor_max_y + delta_y;
+    }
+    if (cursor_y < target_y + cursor_min_y){
+        target_y = cursor_y - delta_y - cursor_min_y;
+    }
+    
+    if (target_y > scroll_vars.max_y) target_y = scroll_vars.max_y;
+    if (target_y < scroll_vars.min_y) target_y = view->recent->scroll.min_y;
+    
+    if (cursor_x < target_x){
+        target_x = (f32)Max(0, cursor_x - max_x/2);
+    }
+    else if (cursor_x >= target_x + max_x){
+        target_x = (f32)(cursor_x - max_x/2);
+    }
+    
+    if (target_x != scroll_vars.target_x || target_y != scroll_vars.target_y){
+        scroll->target_x = target_x;
+        scroll->target_y = target_y;
+    }
+}
+
+inline void
+file_view_nullify_file(View *view){
+    General_Memory *general = &view->models->mem.general;
+    if (view->file_data.line_wrap_y){
+        general_memory_free(general, view->file_data.line_wrap_y);
+    }
+    view->file_data = file_viewing_data_zero();
+}
+
 internal void
 view_set_file(View *view, Editing_File *file, Models *models){
-    
     Font_Info *fnt_info;
     
     // TODO(allen): This belongs somewhere else.
@@ -1385,12 +1493,9 @@ view_set_file(View *view, Editing_File *file, Models *models){
     view->font_advance = fnt_info->advance;
     view->font_height = fnt_info->height;
     
-    // NOTE(allen): Stuff that doesn't assume file exists.
-    // TODO(allen): Use a proper file changer here.
-    view->file_data = file_viewing_data_zero();
+    file_view_nullify_file(view);
     view->file_data.file = file;
 
-    // NOTE(allen): Stuff that does assume file exists.
     if (file){
         u64 unique_buffer_id = file->unique_buffer_id;
         Recent_File_Data *recent = view->recent;
@@ -1398,6 +1503,8 @@ view_set_file(View *view, Editing_File *file, Models *models){
         i32 i = 0;
         i32 max = ArrayCount(view->recent)-1;
         b32 found_recent_entry = 0;
+
+        view->file_data.unwrapped_lines = file->settings.unwrapped_lines;
 
         for (; i < max; ++i, ++recent){
             if (recent->unique_buffer_id == unique_buffer_id){
@@ -1408,25 +1515,31 @@ view_set_file(View *view, Editing_File *file, Models *models){
                 break;
             }
         }
-
-        if (!found_recent_entry){
+        
+        if (found_recent_entry){
+            if (file_is_ready(file)){
+                view_measure_wraps(&models->mem.general, view);
+                view->recent->cursor = view_compute_cursor_from_pos(view, view->recent->cursor.pos);
+                view_move_view_to_cursor(view, &view->recent->scroll);
+            }
+        }
+        else{
             i = 15;
             recent = view->recent + i;
-            temp_recent = *recent;
             memmove(view->recent+1, view->recent, sizeof(*recent)*i);
-            view->recent[0] = temp_recent;
-
+            view->recent[0] = recent_file_data_zero();
+            
             recent = view->recent;
             recent->unique_buffer_id = unique_buffer_id;
-        }
-
-        view->file_data.unwrapped_lines = file->settings.unwrapped_lines;
-
-        if (file_is_ready(file)){
-            view_measure_wraps(&models->mem.general, view);
-            view->recent->cursor = view_compute_cursor_from_pos(view, file->state.cursor_pos);
-            if (!found_recent_entry){
-                view->reinit_scrolling = 1;
+            
+            if (file_is_ready(file)){
+                view_measure_wraps(&models->mem.general, view);
+                view->recent->cursor = view_compute_cursor_from_pos(view, file->state.cursor_pos);
+                view->recent->scroll.max_y = 1000000000.f;
+                view_move_view_to_cursor(view, &view->recent->scroll);
+                if (!found_recent_entry){
+                    view->reinit_scrolling = 1;
+                }
             }
         }
     }
@@ -2891,15 +3004,6 @@ view_show_file(View *view){
     view->current_scroll = &view->recent->scroll;
 }
 
-inline void
-file_view_nullify_file(View *view){
-    General_Memory *general = &view->models->mem.general;
-    if (view->file_data.line_wrap_y){
-        general_memory_free(general, view->file_data.line_wrap_y);
-    }
-    view->file_data = file_viewing_data_zero();
-}
-
 internal void
 interactive_view_complete(View *view, String dest, i32 user_action){
     Models *models = view->models;
@@ -3109,121 +3213,37 @@ view_reinit_scrolling(View *view){
     view->recent->scroll.prev_target_x = -1000.f;
 }
 
-#define CursorMaxY_(m,h) ((m) - (h)*3)
-#define CursorMinY_(m,h) (-(m) + (h)*2)
-
-#define CursorMaxY(m,h) (CursorMaxY_(m,h) > 0)?(CursorMaxY_(m,h)):(0)
-#define CursorMinY(m,h) (CursorMinY_(m,h) > 0)?(CursorMinY_(m,h)):(0)
-
-internal void
-view_move_cursor_to_view(View *view){
-    f32 min_target_y = view->recent->scroll.min_y;
-    i32 line_height = view->font_height;
-    f32 old_cursor_y = view_get_cursor_y(view);
-    f32 cursor_y = old_cursor_y;
-    f32 target_y = view->recent->scroll.target_y;
-    f32 cursor_max_y = CursorMaxY(view_file_height(view), line_height);
-    f32 cursor_min_y = CursorMinY(min_target_y, line_height);
-
-    if (cursor_y > target_y + cursor_max_y){
-        cursor_y = target_y + cursor_max_y;
-    }
-    if (target_y != 0 && cursor_y < target_y + cursor_min_y){
-        cursor_y = target_y + cursor_min_y;
-    }
-
-    if (cursor_y != old_cursor_y){
-        if (cursor_y > old_cursor_y){
-            cursor_y += line_height;
-        }
-        else{
-            cursor_y -= line_height;
-        }
-        view->recent->cursor =
-            view_compute_cursor_from_xy(view, view->recent->preferred_x, cursor_y);
-    }
-}
-
-internal void
-view_move_view_to_cursor(View *view){
-    f32 line_height = (f32)view->font_height;
-    f32 delta_y = 3.f*line_height;
-    
-    f32 max_visible_y = view_file_height(view);
-    f32 max_x = view_file_width(view);
-    
-    f32 cursor_y = view_get_cursor_y(view);
-    f32 cursor_x = view_get_cursor_x(view);
-    
-    GUI_Scroll_Vars scroll_vars = *view->current_scroll;
-    f32 target_y = scroll_vars.target_y;
-    f32 target_x = scroll_vars.target_x;
-    
-    f32 cursor_max_y = CursorMaxY(max_visible_y, line_height);
-    f32 cursor_min_y = CursorMinY(scroll_vars.min_y, line_height);
-    
-    if (cursor_y > target_y + cursor_max_y){
-        target_y = cursor_y - cursor_max_y + delta_y;
-    }
-    if (cursor_y < target_y + cursor_min_y){
-        target_y = cursor_y - delta_y - cursor_min_y;
-    }
-    
-    if (target_y > scroll_vars.max_y) target_y = scroll_vars.max_y;
-    if (target_y < scroll_vars.min_y) target_y = view->recent->scroll.min_y;
-    
-    if (cursor_x < target_x){
-        target_x = (f32)Max(0, cursor_x - max_x/2);
-    }
-    else if (cursor_x >= target_x + max_x){
-        target_x = (f32)(cursor_x - max_x/2);
-    }
-    
-    if (target_x != scroll_vars.target_x || target_y != scroll_vars.target_y){
-        view->current_scroll->target_x = target_x;
-        view->current_scroll->target_y = target_y;
-    }
-}
-
 enum CursorScroll_State{
-    CursorScroll_NoChange,
-    CursorScroll_Cursor,
-    CursorScroll_Scroll,
-    CursorScroll_Both
+    CursorScroll_NoChange = 0x0,
+    CursorScroll_Cursor = 0x1,
+    CursorScroll_Scroll = 0x2,
+    CursorScroll_ContextChange = 0x4
 };
 
-internal i32
+internal u32
 view_get_cursor_scroll_change_state(View *view){
-    i32 result = 0;
-    b32 cursor_change = 0;
-    b32 view_change = 0;
+    u32 result = 0;
     i32 pos = 0;
-
+    Scroll_Context context = {0};
+    
     if (view->gui_target.did_file){
         pos = view_get_cursor_pos(view);
-        cursor_change = (view->prev_cursor_pos != pos);
-    }
-    
-    if (view->current_scroll){
-        if (!gui_scroll_eq(view->current_scroll, &view->gui_target.scroll_original)){
-            view_change = 1;
+        if ((view->prev_cursor_pos != pos)){
+            result |= CursorScroll_Cursor;
         }
-    }
-    
-    if (cursor_change){
-        if (view_change){
-            result = CursorScroll_Both;
+        
+        if (view->current_scroll){
+            if (!gui_scroll_eq(view->current_scroll, &view->gui_target.scroll_original)){
+                result |= CursorScroll_Scroll;
+            }
         }
-        else{
-            result = CursorScroll_Cursor;
-        }
-    }
-    else{
-        if (view_change){
-            result = CursorScroll_Scroll;
-        }
-        else{
-            result = CursorScroll_NoChange;
+        
+        context.file = view->file_data.file;
+        context.scroll = view->gui_target.scroll_id;
+        context.mode = view->showing_ui;
+        
+        if (!context_eq(view->prev_context, context)){
+            result |= CursorScroll_ContextChange;
         }
     }
     
@@ -3232,7 +3252,13 @@ view_get_cursor_scroll_change_state(View *view){
 
 internal void
 view_begin_cursor_scroll_updates(View *view){
-    Assert(view->prev_cursor_pos == view_get_cursor_pos(view));
+    if (view->file_data.file == view->prev_context.file){
+        Assert(view->prev_cursor_pos == view_get_cursor_pos(view));
+    }
+    
+    view->prev_context.file = view->file_data.file;
+    view->prev_context.scroll = view->gui_target.scroll_id;
+    view->prev_context.mode = view->showing_ui;
 }
 
 internal void
@@ -3244,8 +3270,8 @@ view_end_cursor_scroll_updates(View *view){
         case CursorScroll_NoChange:break;
         
         case CursorScroll_Cursor:
-        case CursorScroll_Both:
-        view_move_view_to_cursor(view);
+        case CursorScroll_Cursor|CursorScroll_Scroll:
+        view_move_view_to_cursor(view, view->current_scroll);
         gui_post_scroll_vars(&view->gui_target, view->current_scroll, view->scroll_region);
         break;
         
@@ -3253,6 +3279,12 @@ view_end_cursor_scroll_updates(View *view){
         view_move_cursor_to_view(view);
         gui_post_scroll_vars(&view->gui_target, view->current_scroll, view->scroll_region);
         break;
+    }
+    
+    if (cursor_scroll_state & CursorScroll_ContextChange){
+        view->current_scroll->scroll_y = view->current_scroll->target_y;
+        view->current_scroll->scroll_x = view->current_scroll->target_x;
+        gui_post_scroll_vars(&view->gui_target, view->current_scroll, view->scroll_region);
     }
     
     if (view->gui_target.did_file){
