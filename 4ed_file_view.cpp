@@ -3231,20 +3231,25 @@ view_get_cursor_scroll_change_state(View *view){
         if ((view->prev_cursor_pos != pos)){
             result |= CursorScroll_Cursor;
         }
-        
-        if (view->current_scroll){
-            if (!gui_scroll_eq(view->current_scroll, &view->gui_target.scroll_original)){
-                result |= CursorScroll_Scroll;
-            }
+    }
+    
+    if (view->current_scroll){
+        if (!gui_scroll_eq(view->current_scroll, &view->gui_target.scroll_original)){
+            result |= CursorScroll_Scroll;
         }
-        
+    }
+    
+    if (context.mode == VUI_None){
         context.file = view->file_data.file;
-        context.scroll = view->gui_target.scroll_id;
-        context.mode = view->showing_ui;
-        
-        if (!context_eq(view->prev_context, context)){
-            result |= CursorScroll_ContextChange;
-        }
+    }
+    else{
+        context.file = view->prev_context.file;
+    }
+    context.scroll = view->gui_target.scroll_id;
+    context.mode = view->showing_ui;
+    
+    if (!context_eq(view->prev_context, context)){
+        result |= CursorScroll_ContextChange;
     }
     
     return(result);
