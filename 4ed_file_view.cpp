@@ -3890,7 +3890,7 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                     id.id[1] = VUI_Interactive + ((u64)view->interaction << 32);
                                         
                     GUI_id scroll_context = {0};
-                    scroll_context.id[1] = VUI_Theme + ((u64)view->color_mode << 32);
+                    scroll_context.id[1] = VUI_Interactive + ((u64)view->interaction << 32);
 
                     switch (view->interaction){
                         case IInt_Sys_File_List:

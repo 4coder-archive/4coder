@@ -1356,7 +1356,7 @@ buffer_get_render_data(Buffer_Type *buffer, Buffer_Render_Item *items, int max, 
                 ch = data[i];
                 ch_width = measure_character(advance_data, ch);
             
-                if (ch_width + x > width + shift_x && wrapped){
+                if (ch_width + x > width + shift_x && wrapped && ch != '\n'){
                     x = shift_x;
                     y += font_height;
                 }
