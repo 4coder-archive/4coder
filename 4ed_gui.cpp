@@ -156,8 +156,8 @@ struct GUI_Target{
     i32 list_view_min;
     i32 list_view_max;
     
+    GUI_id scroll_id; 
     f32 delta;
-    u32 scroll_id;
     b32 has_keys;
     b32 animating;
     b32 did_file;
@@ -675,9 +675,9 @@ gui_scroll_eq(GUI_Scroll_Vars *a, GUI_Scroll_Vars *b){
 // TODO(allen): Rethink this a little, seems like there are two separate things we want to do here:
 // Getting the updated scroll vars, and telling the user when scrolling actions occur.
 internal b32
-gui_get_scroll_vars(GUI_Target *target, u32 scroll_id, GUI_Scroll_Vars *vars_out, i32_Rect *region_out){
+gui_get_scroll_vars(GUI_Target *target, GUI_id scroll_context_id, GUI_Scroll_Vars *vars_out, i32_Rect *region_out){
     b32 result = 0;
-    if (target->scroll_id == scroll_id){
+    if (gui_id_eq(scroll_context_id, target->scroll_id)){
         *vars_out = target->scroll_updated;
         *region_out = target->region_updated;
         
@@ -695,23 +695,19 @@ gui_get_scroll_vars(GUI_Target *target, u32 scroll_id, GUI_Scroll_Vars *vars_out
     return(result);
 }
 
-internal GUI_Scroll_Vars
-gui_current_scroll_vars(GUI_Target *target){
-    GUI_Scroll_Vars vars = target->scroll_updated;
-    return(vars);
-}
-
 internal void
-gui_post_scroll_vars(GUI_Target *target, GUI_Scroll_Vars *vars_in){
-    if (!gui_scroll_eq(vars_in, &target->scroll_updated)){
+gui_post_scroll_vars(GUI_Target *target, GUI_Scroll_Vars *vars_in, i32_Rect region_in){
+    if (!gui_scroll_eq(vars_in, &target->scroll_updated) ||
+        !rect_equal(region_in, target->region_updated)){
         target->scroll_updated = *vars_in;
+        target->region_updated = region_in;
         target->animating = 1;
         target->active = gui_id_scrollbar();
     }
 }
 
 internal void
-gui_begin_scrollable(GUI_Target *target, u32 scroll_id,
+gui_begin_scrollable(GUI_Target *target, GUI_id scroll_context_id,
                      GUI_Scroll_Vars scroll_vars, f32 delta, b32 show_bar){
     GUI_Header *h;
     
@@ -722,7 +718,7 @@ gui_begin_scrollable(GUI_Target *target, u32 scroll_id,
     
     target->scroll_original = scroll_vars;
     target->scroll_updated = scroll_vars;
-    target->scroll_id = scroll_id;
+    target->scroll_id = scroll_context_id;
     
     if (show_bar){
         gui_push_simple_command(target, guicom_scrollable_bar);
@@ -969,10 +965,14 @@ struct GUI_Interpret_Result{
     b32 auto_hot;
     b32 auto_activate;
     i32 screen_orientation;
+    
+    b32 has_region;
+    i32_Rect region;
 };
 
 internal GUI_Interpret_Result
-gui_interpret(GUI_Target *target, GUI_Session *session, GUI_Header *h){
+gui_interpret(GUI_Target *target, GUI_Session *session, GUI_Header *h,
+              GUI_Scroll_Vars vars, i32_Rect region){
     GUI_Interpret_Result result = {0};
     GUI_Section *section = 0;
     GUI_Section *new_section = 0;
@@ -987,7 +987,7 @@ gui_interpret(GUI_Target *target, GUI_Session *session, GUI_Header *h){
     i32 end_v = -1;
     f32 lerp_space_scroll_v = 0;
     i32 scroll_v = (i32)target->scroll_original.scroll_y;
-    i32 target_v = (i32)target->scroll_updated.target_y;
+    i32 target_v = (i32)vars.target_y;
     
     Assert(session->t < ArrayCount(session->sections));
     section = session->sections + session->t;
@@ -1140,7 +1140,8 @@ gui_interpret(GUI_Target *target, GUI_Session *session, GUI_Header *h){
             scrollable_rect.x1 = session->full_rect.x1;
             scrollable_rect.y0 = y;
             scrollable_rect.y1 = session->full_rect.y1;
-            target->region_updated = scrollable_rect;
+            result.has_region = 1;
+            result.region = scrollable_rect;
             session->scroll_region = scrollable_rect;
         }
         break;
@@ -1161,7 +1162,8 @@ gui_interpret(GUI_Target *target, GUI_Session *session, GUI_Header *h){
             scrollable_rect.x1 = rect.x0;
             scrollable_rect.y0 = y;
             scrollable_rect.y1 = session->full_rect.y1;
-            target->region_updated = scrollable_rect;
+            result.has_region = 1;
+            result.region = scrollable_rect;
             session->scroll_region = scrollable_rect;
         }
         scroll_v = 0;
@@ -1229,7 +1231,6 @@ gui_interpret(GUI_Target *target, GUI_Session *session, GUI_Header *h){
     if (do_layout){
         if (session->list.in_list && is_list_item){
             i32 list_i = session->list.index - 1;
-            i32_Rect region = target->region_updated;
             
             if (rect.y0 - target_v >= region.y0 &&
                 rect.y1 - target_v <= region.y1){
@@ -1292,21 +1293,19 @@ gui_compute_view_jump(i32_Rect scroll_region, i32_Rect position){
     return(jump);
 }
 
-internal void
-gui_do_jump(GUI_Target *target, GUI_View_Jump jump){
-    GUI_Scroll_Vars vars = gui_current_scroll_vars(target);
+internal GUI_Scroll_Vars
+gui_do_jump(GUI_Target *target, GUI_View_Jump jump, GUI_Scroll_Vars vars){
     if (vars.target_y < jump.view_min){
         vars.target_y = jump.view_min;
-        gui_post_scroll_vars(target, &vars);
     }
     else if (vars.target_y > jump.view_max){
         vars.target_y = jump.view_max;
-        gui_post_scroll_vars(target, &vars);
     }
+    return(vars);
 }
 
 internal void
-gui_standard_list(GUI_Target *target, GUI_id id, i32_Rect scroll_region,
+gui_standard_list(GUI_Target *target, GUI_id id, GUI_Scroll_Vars *vars, i32_Rect scroll_region,
     Key_Summary *keys, i32 *list_i, GUI_Item_Update *update){
     
     if (update->has_adjustment){
@@ -1318,7 +1317,7 @@ gui_standard_list(GUI_Target *target, GUI_id id, i32_Rect scroll_region,
             gui_compute_view_jump(scroll_region, update->index_position);
         jump.view_min += 45.f;
         jump.view_max -= 45.f;
-        gui_do_jump(target, jump);
+        *vars = gui_do_jump(target, jump, *vars);
     }
     
     b32 indirectly_activate = 0;

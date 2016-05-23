@@ -80,10 +80,10 @@ CUSTOM_COMMAND_SIG(if0_off){
     View_Summary view;
     Buffer_Summary buffer;
 
-    char text1[] = "#if 0";
+    char text1[] = "\n#if 0";
     int size1 = sizeof(text1) - 1;
 
-    char text2[] = "#endif";
+    char text2[] = "#endif\n";
     int size2 = sizeof(text2) - 1;
 
     Range range;

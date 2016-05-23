@@ -201,8 +201,8 @@ COMMAND_DECL(write_character){
 
     character = command->key.character;
     if (character != 0){
-        pos = view->file_data.cursor.pos;
-        next_cursor_pos = view->file_data.cursor.pos + 1;
+        pos = view->recent->cursor.pos;
+        next_cursor_pos = view->recent->cursor.pos + 1;
         view_replace_range(system, models, view, pos, pos, &character, 1, next_cursor_pos);
         view_cursor_move(view, next_cursor_pos);
     }
@@ -258,27 +258,27 @@ COMMAND_DECL(seek_left){
     i32 pos[4] = {0};
 
     if (flags & (1)){
-        pos[0] = buffer_seek_whitespace_left(&file->state.buffer, view->file_data.cursor.pos);
+        pos[0] = buffer_seek_whitespace_left(&file->state.buffer, view->recent->cursor.pos);
     }
 
     if (flags & (1 << 1)){
         if (file->state.tokens_complete){
-            pos[1] = seek_token_left(&file->state.token_stack, view->file_data.cursor.pos);
+            pos[1] = seek_token_left(&file->state.token_stack, view->recent->cursor.pos);
         }
         else{
-            pos[1] = buffer_seek_whitespace_left(&file->state.buffer, view->file_data.cursor.pos);
+            pos[1] = buffer_seek_whitespace_left(&file->state.buffer, view->recent->cursor.pos);
         }
     }
 
     if (flags & (1 << 2)){
-        pos[2] = buffer_seek_alphanumeric_left(&file->state.buffer, view->file_data.cursor.pos);
+        pos[2] = buffer_seek_alphanumeric_left(&file->state.buffer, view->recent->cursor.pos);
         if (flags & (1 << 3)){
-            pos[3] = buffer_seek_range_camel_left(&file->state.buffer, view->file_data.cursor.pos, pos[2]);
+            pos[3] = buffer_seek_range_camel_left(&file->state.buffer, view->recent->cursor.pos, pos[2]);
         }
     }
     else{
         if (flags & (1 << 3)){
-            pos[3] = buffer_seek_alphanumeric_or_camel_left(&file->state.buffer, view->file_data.cursor.pos);
+            pos[3] = buffer_seek_alphanumeric_or_camel_left(&file->state.buffer, view->recent->cursor.pos);
         }
     }
 
@@ -313,27 +313,27 @@ COMMAND_DECL(seek_right){
     for (i32 i = 0; i < ArrayCount(pos); ++i) pos[i] = size;
 
     if (flags & (1)){
-        pos[0] = buffer_seek_whitespace_right(&file->state.buffer, view->file_data.cursor.pos);
+        pos[0] = buffer_seek_whitespace_right(&file->state.buffer, view->recent->cursor.pos);
     }
 
     if (flags & (1 << 1)){
         if (file->state.tokens_complete){
-            pos[1] = seek_token_right(&file->state.token_stack, view->file_data.cursor.pos);
+            pos[1] = seek_token_right(&file->state.token_stack, view->recent->cursor.pos);
         }
         else{
-            pos[1] = buffer_seek_whitespace_right(&file->state.buffer, view->file_data.cursor.pos);
+            pos[1] = buffer_seek_whitespace_right(&file->state.buffer, view->recent->cursor.pos);
         }
     }
 
     if (flags & (1 << 2)){
-        pos[2] = buffer_seek_alphanumeric_right(&file->state.buffer, view->file_data.cursor.pos);
+        pos[2] = buffer_seek_alphanumeric_right(&file->state.buffer, view->recent->cursor.pos);
         if (flags & (1 << 3)){
-            pos[3] = buffer_seek_range_camel_right(&file->state.buffer, view->file_data.cursor.pos, pos[2]);
+            pos[3] = buffer_seek_range_camel_right(&file->state.buffer, view->recent->cursor.pos, pos[2]);
         }
     }
     else{
         if (flags & (1 << 3)){
-            pos[3] = buffer_seek_alphanumeric_or_camel_right(&file->state.buffer, view->file_data.cursor.pos);
+            pos[3] = buffer_seek_alphanumeric_or_camel_right(&file->state.buffer, view->recent->cursor.pos);
         }
     }
 
@@ -350,7 +350,7 @@ COMMAND_DECL(seek_whitespace_up){
     REQ_READABLE_VIEW(view);
     REQ_FILE(file, view);
 
-    i32 pos = buffer_seek_whitespace_up(&file->state.buffer, view->file_data.cursor.pos);
+    i32 pos = buffer_seek_whitespace_up(&file->state.buffer, view->recent->cursor.pos);
     view_cursor_move(view, pos);
 }
 
@@ -359,7 +359,7 @@ COMMAND_DECL(seek_whitespace_down){
     REQ_READABLE_VIEW(view);
     REQ_FILE(file, view);
 
-    i32 pos = buffer_seek_whitespace_down(&file->state.buffer, view->file_data.cursor.pos);
+    i32 pos = buffer_seek_whitespace_down(&file->state.buffer, view->recent->cursor.pos);
     view_cursor_move(view, pos);
 }
 
@@ -370,10 +370,10 @@ COMMAND_DECL(center_view){
 
     f32 y, h;
     if (view->file_data.unwrapped_lines){
-        y = view->file_data.cursor.unwrapped_y;
+        y = view->recent->cursor.unwrapped_y;
     }
     else{
-        y = view->file_data.cursor.wrapped_y;
+        y = view->recent->cursor.wrapped_y;
     }
 
     h = view_file_height(view);
@@ -427,7 +427,7 @@ COMMAND_DECL(word_complete){
     }
 
     if (do_init){
-        word_end = view->file_data.cursor.pos;
+        word_end = view->recent->cursor.pos;
         word_start = word_end;
         cursor_pos = word_end - 1;
 
@@ -547,7 +547,7 @@ COMMAND_DECL(set_mark){
     REQ_READABLE_VIEW(view);
     REQ_FILE(file, view);
 
-    view->file_data.mark = (i32)view->file_data.cursor.pos;
+    view->recent->mark = (i32)view->recent->cursor.pos;
 }
 
 COMMAND_DECL(copy){
@@ -576,7 +576,7 @@ COMMAND_DECL(copy){
         }
     }
 
-    Range range = make_range(view->file_data.cursor.pos, view->file_data.mark);
+    Range range = make_range(view->recent->cursor.pos, view->recent->mark);
     if (start_set) range.start = r_start;
     if (end_set) range.end = r_end;
     if (range.start < range.end){
@@ -610,7 +610,7 @@ COMMAND_DECL(cut){
         }
     }
 
-    Range range = make_range(view->file_data.cursor.pos, view->file_data.mark);
+    Range range = make_range(view->recent->cursor.pos, view->recent->mark);
     if (start_set) range.start = r_start;
     if (end_set) range.end = r_end;
     if (range.start < range.end){
@@ -619,7 +619,7 @@ COMMAND_DECL(cut){
         clipboard_copy(system, &models->mem.general, &models->working_set, range, file);
         view_replace_range(system, models, view, range.start, range.end, 0, 0, next_cursor_pos);
 
-        view->file_data.mark = range.start;
+        view->recent->mark = range.start;
         view_cursor_move(view, next_cursor_pos);
     }
 }
@@ -638,13 +638,13 @@ COMMAND_DECL(paste){
         view->next_mode.rewrite = 1;
 
         src = working_set_clipboard_head(&models->working_set);
-        pos_left = view->file_data.cursor.pos;
+        pos_left = view->recent->cursor.pos;
 
         next_cursor_pos = pos_left+src->size;
         view_replace_range(system, models, view, pos_left, pos_left, src->str, src->size, next_cursor_pos);
 
         view_cursor_move(view, next_cursor_pos);
-        view->file_data.mark = pos_left;
+        view->recent->mark = pos_left;
 
         Style *style = main_style(models);
         u32 paste_color = style->main.paste_color;
@@ -669,7 +669,7 @@ COMMAND_DECL(paste_next){
     if (models->working_set.clipboard_size > 0 && view->mode.rewrite == 1){
         view->next_mode.rewrite = 1;
 
-        range = make_range(view->file_data.mark, view->file_data.cursor.pos);
+        range = make_range(view->recent->mark, view->recent->cursor.pos);
         src = working_set_clipboard_roll_down(&models->working_set);
         next_cursor_pos = range.start+src->size;
         view_replace_range(system,
@@ -677,7 +677,7 @@ COMMAND_DECL(paste_next){
             src->str, src->size, next_cursor_pos);
 
         view_cursor_move(view, next_cursor_pos);
-        view->file_data.mark = range.start;
+        view->recent->mark = range.start;
 
         Style *style = main_style(models);
         u32 paste_color = style->main.paste_color;
@@ -700,13 +700,13 @@ COMMAND_DECL(delete_range){
     Range range;
     i32 next_cursor_pos;
 
-    range = make_range(view->file_data.cursor.pos, view->file_data.mark);
+    range = make_range(view->recent->cursor.pos, view->recent->mark);
     if (range.start < range.end){
         next_cursor_pos = range.start;
         Assert(range.end <= buffer_size(&file->state.buffer));
         view_replace_range(system, models, view, range.start, range.end, 0, 0, next_cursor_pos);
         view_cursor_move(view, next_cursor_pos);
-        view->file_data.mark = range.start;
+        view->recent->mark = range.start;
     }
 }
 
@@ -1020,16 +1020,16 @@ COMMAND_DECL(toggle_line_wrap){
         view->file_data.unwrapped_lines = 0;
         file->settings.unwrapped_lines = 0;
         view->recent->scroll.target_x = 0;
-        view->file_data.cursor =view_compute_cursor_from_pos(
-            view, view->file_data.cursor.pos);
-        view->file_data.preferred_x = view->file_data.cursor.wrapped_x;
+        view->recent->cursor =view_compute_cursor_from_pos(
+            view, view->recent->cursor.pos);
+        view->recent->preferred_x = view->recent->cursor.wrapped_x;
     }
     else{
         view->file_data.unwrapped_lines = 1;
         file->settings.unwrapped_lines = 1;
-        view->file_data.cursor =
-            view_compute_cursor_from_pos(view, view->file_data.cursor.pos);
-        view->file_data.preferred_x = view->file_data.cursor.unwrapped_x;
+        view->recent->cursor =
+            view_compute_cursor_from_pos(view, view->recent->cursor.pos);
+        view->recent->preferred_x = view->recent->cursor.unwrapped_x;
     }
     view_set_relative_scrolling(view, scrolling);
 }
@@ -1059,7 +1059,7 @@ case_change_range(System_Functions *system,
     Mem_Options *mem, View *view, Editing_File *file,
     u8 a, u8 z, u8 char_delta){
 #if BUFFER_EXPERIMENT_SCALPEL <= 0
-    Range range = make_range(view->file_data.cursor.pos, view->file_data.mark);
+    Range range = make_range(view->recent->cursor.pos, view->recent->mark);
     if (range.start < range.end){
         Edit_Step step = {};
         step.type = ED_NORMAL;
@@ -1167,7 +1167,7 @@ COMMAND_DECL(auto_tab_range){
     }
 
     if (file->state.token_stack.tokens && file->state.tokens_complete && !file->state.still_lexing){
-        Range range = make_range(view->file_data.cursor.pos, view->file_data.mark);
+        Range range = make_range(view->recent->cursor.pos, view->recent->mark);
         if (start_set) range.start = r_start;
         if (end_set) range.end = r_end;
         view_auto_tab_tokens(system, models, view, range.start, range.end, opts);
@@ -1316,7 +1316,7 @@ COMMAND_DECL(move_left){
     REQ_READABLE_VIEW(view);
     REQ_FILE(file, view);
 
-    i32 pos = view->file_data.cursor.pos;
+    i32 pos = view->recent->cursor.pos;
     if (pos > 0) --pos;
     view_cursor_move(view, pos);
 }
@@ -1326,7 +1326,7 @@ COMMAND_DECL(move_right){
     REQ_FILE(file, view);
 
     i32 size = buffer_size(&file->state.buffer);
-    i32 pos = view->file_data.cursor.pos;
+    i32 pos = view->recent->cursor.pos;
     if (pos < size) ++pos;
     view_cursor_move(view, pos);
 }
@@ -1337,7 +1337,7 @@ COMMAND_DECL(delete){
     REQ_FILE(file, view);
 
     i32 size = buffer_size(&file->state.buffer);
-    i32 cursor_pos = view->file_data.cursor.pos;
+    i32 cursor_pos = view->recent->cursor.pos;
     if (0 < size && cursor_pos < size){
         i32 start, end;
         start = cursor_pos;
@@ -1357,7 +1357,7 @@ COMMAND_DECL(backspace){
     REQ_FILE(file, view);
 
     i32 size = buffer_size(&file->state.buffer);
-    i32 cursor_pos = view->file_data.cursor.pos;
+    i32 cursor_pos = view->recent->cursor.pos;
     if (cursor_pos > 0 && cursor_pos <= size){
         i32 start, end;
         end = cursor_pos;
@@ -1366,7 +1366,7 @@ COMMAND_DECL(backspace){
         i32 shift = (end - start);
         Assert(shift > 0);
 
-        i32 next_cursor_pos = view->file_data.cursor.pos - shift;
+        i32 next_cursor_pos = view->recent->cursor.pos - shift;
         view_replace_range(system, models, view, start, end, 0, 0, next_cursor_pos);
         view_cursor_move(view, next_cursor_pos);
     }
@@ -1379,10 +1379,10 @@ COMMAND_DECL(move_up){
 
     f32 font_height = (f32)get_font_info(models->font_set, models->global_font.font_id)->height;
     f32 cy = view_get_cursor_y(view)-font_height;
-    f32 px = view->file_data.preferred_x;
+    f32 px = view->recent->preferred_x;
     if (cy >= 0){
-        view->file_data.cursor = view_compute_cursor_from_xy(view, px, cy);
-        file->state.cursor_pos = view->file_data.cursor.pos;
+        view->recent->cursor = view_compute_cursor_from_xy(view, px, cy);
+        file->state.cursor_pos = view->recent->cursor.pos;
     }
 }
 
@@ -1394,16 +1394,16 @@ COMMAND_DECL(move_down){
 
     f32 font_height = (f32)get_font_info(models->font_set, models->global_font.font_id)->height;
     f32 cy = view_get_cursor_y(view)+font_height;
-    f32 px = view->file_data.preferred_x;
-    view->file_data.cursor = view_compute_cursor_from_xy(view, px, cy);
-    file->state.cursor_pos = view->file_data.cursor.pos;
+    f32 px = view->recent->preferred_x;
+    view->recent->cursor = view_compute_cursor_from_xy(view, px, cy);
+    file->state.cursor_pos = view->recent->cursor.pos;
 }
 
 COMMAND_DECL(seek_end_of_line){
     REQ_READABLE_VIEW(view);
     REQ_FILE(file, view);
 
-    i32 pos = view_find_end_of_line(view, view->file_data.cursor.pos);
+    i32 pos = view_find_end_of_line(view, view->recent->cursor.pos);
     view_cursor_move(view, pos);
 }
 
@@ -1411,7 +1411,7 @@ COMMAND_DECL(seek_beginning_of_line){
     REQ_READABLE_VIEW(view);
     REQ_FILE(file, view);
 
-    i32 pos = view_find_beginning_of_line(view, view->file_data.cursor.pos);
+    i32 pos = view_find_beginning_of_line(view, view->recent->cursor.pos);
     view_cursor_move(view, pos);
 }
 
@@ -1424,7 +1424,7 @@ COMMAND_DECL(page_down){
     view->recent->scroll.target_y += height;
     if (view->recent->scroll.target_y > max_target_y) view->recent->scroll.target_y = max_target_y;
 
-    view->file_data.cursor = view_compute_cursor_from_xy(
+    view->recent->cursor = view_compute_cursor_from_xy(
         view, 0, view->recent->scroll.target_y + (height - view->font_height)*.5f);
 }
 
@@ -1437,7 +1437,7 @@ COMMAND_DECL(page_up){
     view->recent->scroll.target_y -= height;
     if (view->recent->scroll.target_y < min_target_y) view->recent->scroll.target_y = min_target_y;
 
-    view->file_data.cursor = view_compute_cursor_from_xy(
+    view->recent->cursor = view_compute_cursor_from_xy(
         view, 0, view->recent->scroll.target_y + (height - view->font_height)*.5f);
 }
 
@@ -1470,9 +1470,9 @@ COMMAND_DECL(close_minor_view){
 COMMAND_DECL(cursor_mark_swap){
     REQ_READABLE_VIEW(view);
 
-    i32 pos = view->file_data.cursor.pos;
-    view_cursor_move(view, view->file_data.mark);
-    view->file_data.mark = pos;
+    i32 pos = view->recent->cursor.pos;
+    view_cursor_move(view, view->recent->mark);
+    view->recent->mark = pos;
 }
 
 COMMAND_DECL(user_callback){
@@ -1729,7 +1729,7 @@ COMMAND_DECL(command_line){
                 if (!script){
                     file2 = view->file_data.file;
                     if (file2){
-                        range = make_range(view->file_data.cursor.pos, view->file_data.mark);
+                        range = make_range(view->recent->cursor.pos, view->recent->mark);
                         size = range.end - range.start;
                         script = push_array(part, char, size + 1);
                         buffer_stringify(&file2->state.buffer, range.start, range.end, script);
@@ -1827,9 +1827,9 @@ fill_view_summary(View_Summary *view, View *vptr, Live_Views *live_set, Working_
                 view->hidden_buffer_id = 0;
             }
 
-            view->mark = view_compute_cursor_from_pos(vptr, vptr->file_data.mark);
-            view->cursor = vptr->file_data.cursor;
-            view->preferred_x = vptr->file_data.preferred_x;
+            view->mark = view_compute_cursor_from_pos(vptr, vptr->recent->mark);
+            view->cursor = vptr->recent->cursor;
+            view->preferred_x = vptr->recent->preferred_x;
         }
     }
 }
@@ -2294,12 +2294,12 @@ extern "C"{
                     if (seek.type == buffer_seek_line_char && seek.character <= 0){
                         seek.character = 1;
                     }
-                    vptr->file_data.cursor = view_compute_cursor(vptr, seek);
+                    vptr->recent->cursor = view_compute_cursor(vptr, seek);
                     if (set_preferred_x){
-                        vptr->file_data.preferred_x = view_get_cursor_x(vptr);
+                        vptr->recent->preferred_x = view_get_cursor_x(vptr);
                     }
                     fill_view_summary(view, vptr, live_set, &cmd->models->working_set);
-                    file->state.cursor_pos = vptr->file_data.cursor.pos;
+                    file->state.cursor_pos = vptr->recent->cursor.pos;
                 }
             }
         }
@@ -2323,10 +2323,10 @@ extern "C"{
                 result = 1;
                 if (seek.type != buffer_seek_pos){
                     cursor = view_compute_cursor(vptr, seek);
-                    vptr->file_data.mark = cursor.pos;
+                    vptr->recent->mark = cursor.pos;
                 }
                 else{
-                    vptr->file_data.mark = seek.pos;
+                    vptr->recent->mark = seek.pos;
                 }
                 fill_view_summary(view, vptr, live_set, &cmd->models->working_set);
             }
@@ -3575,30 +3575,6 @@ App_Step_Sig(app_step){
         }
     }
 
-    // NOTE(allen): update child processes
-    if (dt > 0){
-        Temp_Memory temp = begin_temp_memory(&models->mem.part);
-        u32 max = Kbytes(32);
-        char *dest = push_array(&models->mem.part, char, max);
-
-        i32 count = vars->cli_processes.count;
-        for (i32 i = 0; i < count; ++i){
-            CLI_Process *proc = vars->cli_processes.procs + i;
-            Editing_File *file = proc->out_file;
-
-            if (file != 0){
-                i32 r = update_cli_handle_with_file(system, models, &proc->cli, file, dest, max, 0);
-                if (r < 0){
-                    *proc = vars->cli_processes.procs[--count];
-                    --i;
-                }
-            }
-        }
-
-        vars->cli_processes.count = count;
-        end_temp_memory(temp);
-    }
-    
     // NOTE(allen): reorganizing panels on screen
     {
         i32 prev_width = models->layout.full_width;
@@ -3712,6 +3688,41 @@ App_Step_Sig(app_step){
             mouse_on_divider = 0;
             mouse_divider_id = 0;
         }
+    }
+    
+    // NOTE(allen): begin allowing the cursors and scroll locations
+    // to move around.
+    {
+        Panel *panel = 0, *used_panels = 0;
+        used_panels = &models->layout.used_sentinel;
+        for (dll_items(panel, used_panels)){
+            Assert(panel->view);
+            view_begin_cursor_scroll_updates(panel->view);
+        }
+    }
+    
+    // NOTE(allen): update child processes
+    if (dt > 0){
+        Temp_Memory temp = begin_temp_memory(&models->mem.part);
+        u32 max = Kbytes(32);
+        char *dest = push_array(&models->mem.part, char, max);
+        
+        i32 count = vars->cli_processes.count;
+        for (i32 i = 0; i < count; ++i){
+            CLI_Process *proc = vars->cli_processes.procs + i;
+            Editing_File *file = proc->out_file;
+            
+            if (file != 0){
+                i32 r = update_cli_handle_with_file(system, models, &proc->cli, file, dest, max, 0);
+                if (r < 0){
+                    *proc = vars->cli_processes.procs[--count];
+                    --i;
+                }
+            }
+        }
+        
+        vars->cli_processes.count = count;
+        end_temp_memory(temp);
     }
     
     // NOTE(allen): prepare to start executing commands
@@ -3968,11 +3979,12 @@ App_Step_Sig(app_step){
     Mouse_State mouse_state = get_mouse_state(&available_input);
     
     {
-        Panel *panel, *used_panels;
-        View *view, *active_view;
-        b32 active;
-        Input_Summary input;
-
+        Panel *panel = 0, *used_panels = 0;
+        View *view = 0, *active_view = 0;
+        b32 active = 0;
+        Input_Summary input = {0};
+        Input_Process_Result result = {0};
+        
         active_view = cmd->panel->view;
         used_panels = &models->layout.used_sentinel;
         for (dll_items(panel, used_panels)){
@@ -3986,16 +3998,24 @@ App_Step_Sig(app_step){
         
         for (dll_items(panel, used_panels)){
             view = panel->view;
+            Assert(view->current_scroll);
             active = (panel == cmd->panel);
             input = (active)?(active_input):(dead_input);
             if (panel == mouse_panel && !mouse->out_of_window){
                 input.mouse = mouse_state;
             }
-            if (do_input_file_view(system, exchange, view, panel->inner, active, &input)){
+            
+            
+            result = do_input_file_view(system, exchange, view, panel->inner, active,
+                                        &input, *view->current_scroll, view->scroll_region);
+            if (result.is_animating){
                 app_result.animating = 1;
             }
+            *view->current_scroll = result.vars;
+            view->scroll_region = result.region;
         }
-        
+
+#if 0
         // TODO(allen): This is perhaps not the best system...
         // The problem is that the exact region and scroll position is pretty important
         // for some commands, so this is here to eliminate the one frame of lag.
@@ -4003,10 +4023,11 @@ App_Step_Sig(app_step){
         // change a lot soon anyway.// NOTE(allen): 
         for (dll_items(panel, used_panels)){
             view = panel->view;
-            if (view->current_scroll){
-                gui_get_scroll_vars(&view->gui_target, view->showing_ui, view->current_scroll, &view->scroll_region);
-            }
+            Assert(view->current_scroll);
+            view->current_scroll = ;
+            gui_get_scroll_vars(&view->gui_target, view->showing_ui, view->current_scroll, &view->scroll_region);
         }
+#endif
     }
 
     update_command_data(vars, cmd);
@@ -4550,35 +4571,6 @@ App_Step_Sig(app_step){
         }
     }
     
-    // NOTE(allen): post scroll vars back to the view's gui targets
-    {
-        View *view = 0;
-        Panel *panel = 0, *used_panels = 0;
-        i32 cursor_scroll_state = 0;
-        
-        used_panels = &models->layout.used_sentinel;
-        for (dll_items(panel, used_panels)){
-            view = panel->view;
-            
-            cursor_scroll_state = view_get_cursor_scroll_change_state(view);
-            
-            switch (cursor_scroll_state){
-                case CursorScroll_NoChange:break;
-                
-                case CursorScroll_Cursor:
-                case CursorScroll_Both:
-                view_move_view_to_cursor(view);
-                break;
-                
-                case CursorScroll_Scroll:
-                gui_post_scroll_vars(&view->gui_target, view->current_scroll);
-                break;
-            }
-            
-            view_record_prev_cursor(view);
-        }
-    }
-    
     // NOTE(allen): send style change messages if the style has changed
     if (models->global_font.font_changed){
         models->global_font.font_changed = 0;
@@ -4599,6 +4591,17 @@ App_Step_Sig(app_step){
         used_panels = &models->layout.used_sentinel;
         for (dll_items(panel, used_panels)){
             remeasure_file_view(system, panel->view);
+        }
+    }
+    
+    // NOTE(allen): post scroll vars back to the view's gui targets
+    {
+        Panel *panel = 0, *used_panels = 0;
+        
+        used_panels = &models->layout.used_sentinel;
+        for (dll_items(panel, used_panels)){
+            Assert(panel->view);
+            view_end_cursor_scroll_updates(panel->view);
         }
     }
     
