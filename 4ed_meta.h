@@ -91,6 +91,7 @@ _OutDbgStr(u8*);
 #endif
 
 #define TentativeAssert(c) Assert(c)
+#define NotImplemented Assert(!"This is not implemented yet!")
 
 #define FatalError(message) system_fatal_error((u8*)message)
 

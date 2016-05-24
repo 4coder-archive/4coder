@@ -206,13 +206,16 @@ context_eq(Scroll_Context a, Scroll_Context b){
 
 struct View{
     View *next, *prev;
+    Panel *panel;
     b32 in_use;
     i32 id;
+    
+    Coroutine *coroutine;
+    View_Routine_Function *view_routine;
     
     // TODO(allen): eliminate this models pointer: explicitly parameterize.
     Models *models;
     
-    Panel *panel;
     Command_Map *map;
     
     File_Viewing_Data file_data;
@@ -1520,6 +1523,7 @@ view_set_file(View *view, Editing_File *file, Models *models){
             if (file_is_ready(file)){
                 view_measure_wraps(&models->mem.general, view);
                 view->recent->cursor = view_compute_cursor_from_pos(view, view->recent->cursor.pos);
+                view->recent->scroll.max_y = 1000000000.f;
                 view_move_view_to_cursor(view, &view->recent->scroll);
             }
         }

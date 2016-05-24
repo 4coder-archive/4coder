@@ -2511,6 +2511,13 @@ command_caller(Coroutine *coroutine){
 }
 
 internal void
+view_caller(Coroutine *coroutine){
+    View *view = (View*)coroutine->in;
+    
+    view->view_routine(view->id);
+}
+
+internal void
 app_links_init(System_Functions *system, Application_Links *app_links, void *data, int size){
     app_links->memory = data;
     app_links->memory_size = size;
@@ -3142,41 +3149,63 @@ App_Init_Sig(app_init){
         div->next = 0;
         models->layout.free_divider = dividers;
     }
-
+    
     {
         View *vptr = 0;
         i32 i = 0;
         i32 max = 0;
-
+        
         vars->live_set.count = 0;
         vars->live_set.max = panel_max_count;
-
+        
         vars->live_set.views = push_array(partition, View, vars->live_set.max);
-
+        
         dll_init_sentinel(&vars->live_set.free_sentinel);
-
+        
         max = vars->live_set.max;
         vptr = vars->live_set.views;
         for (i = 0; i < max; ++i, ++vptr){
             dll_insert(&vars->live_set.free_sentinel, vptr);
         }
     }
-
+    
+    {
+        Panel *panel = 0, *used_panels = 0;
+        View *view = 0;
+        
+        used_panels = &models->layout.used_sentinel;
+        for (dll_items(panel, used_panels)){
+            view = panel->view;
+            
+            view->view_routine = models->config_api.view_routine;
+            view->coroutine =
+                system->create_coroutine(view_caller);
+            
+            view->coroutine =
+                system->launch_coroutine(view->coroutine, view, view);
+            
+            if (!view->coroutine){
+                // TODO(allen): Error message and recover
+                NotImplemented;
+            }
+        }
+    }
+    
     {
         Command_Map *global;
         i32 wanted_size = 0;
         b32 did_top = 0;
         b32 did_file = 0;
-
+        
         models->scroll_rule = fallback_scroll_rule;
-
+        
         setup_command_table();
-
+        
         global = &models->map_top;
         Assert(models->config_api.get_bindings != 0);
-
+        
         wanted_size = models->config_api.get_bindings(models->app_links.memory, models->app_links.memory_size);
-
+        
         if (wanted_size <= models->app_links.memory_size){
             Command_Map *map_ptr = 0;
             Binding_Unit *unit, *end;

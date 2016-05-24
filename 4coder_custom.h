@@ -337,13 +337,14 @@ struct Theme_Color{
 };
 
 
-
+#define VIEW_ROUTINE_SIG(name) void name(int view_id)
 #define GET_BINDING_DATA(name) int name(void *data, int size)
 #define CUSTOM_COMMAND_SIG(name) void name(struct Application_Links *app)
 #define HOOK_SIG(name) int name(struct Application_Links *app)
 #define SCROLL_RULE_SIG(name) int name(float target_x, float target_y, float *scroll_x, float *scroll_y, int view_id, int is_new_target)
 
 extern "C"{
+    typedef VIEW_ROUTINE_SIG(View_Routine_Function);
     typedef CUSTOM_COMMAND_SIG(Custom_Command_Function);
     typedef GET_BINDING_DATA(Get_Binding_Data_Function);
     typedef HOOK_SIG(Hook_Function);
@@ -576,6 +577,7 @@ extern "C" _GET_VERSION_SIG(get_alpha_4coder_version){
 }
 
 struct Custom_API{
+    View_Routine_Function *view_routine;
     Get_Binding_Data_Function *get_bindings;
     _Get_Version_Function *get_alpha_4coder_version;
 };
