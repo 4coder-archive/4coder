@@ -87,32 +87,59 @@ struct App_Vars{
     Command_Data command_data;
 };
 
+enum Coroutine_Type{
+    Co_View,
+    Co_Command
+};
+struct App_Coroutine_State{
+    void *co;
+    int type;
+};
+inline App_Coroutine_State
+get_state(Application_Links *app){
+    App_Coroutine_State state = {0};
+    state.co = app->current_coroutine;
+    state.type = app->type_coroutine;
+    return(state);
+}
+inline void
+restore_state(Application_Links *app, App_Coroutine_State state){
+    app->current_coroutine = state.co;
+    app->type_coroutine = state.type;
+}
+
 inline Coroutine*
-app_launch_coroutine(System_Functions *system, Application_Links *app,
+app_launch_coroutine(System_Functions *system, Application_Links *app, Coroutine_Type type,
                      Coroutine *co, void *in, void *out){
     Coroutine* result = 0;
     
-    Coroutine *prev_coroutine = (Coroutine*)app->current_coroutine;
+    App_Coroutine_State prev_state = get_state(app);
+    
     app->current_coroutine = co;
+    app->type_coroutine = type;
     {
         result = system->launch_coroutine(co, in, out);
     }
-    app->current_coroutine = prev_coroutine;
+    
+    restore_state(app, prev_state);
     
     return(result);
 }
 
 inline Coroutine*
-app_resume_coroutine(System_Functions *system, Application_Links *app,
+app_resume_coroutine(System_Functions *system, Application_Links *app, Coroutine_Type type,
                      Coroutine *co, void *in, void *out){
     Coroutine* result = 0;
     
-    Coroutine *prev_coroutine = (Coroutine*)app->current_coroutine;
+    App_Coroutine_State prev_state = get_state(app);
+    
     app->current_coroutine = co;
+    app->type_coroutine = type;
     {
         result = system->resume_coroutine(co, in, out);
     }
-    app->current_coroutine = prev_coroutine;
+    
+    restore_state(app, prev_state);
     
     return(result);
 }
@@ -2427,14 +2454,16 @@ extern "C"{
     GET_USER_INPUT_SIG(external_get_user_input){
         Command_Data *cmd = (Command_Data*)app->cmd_context;
         System_Functions *system = cmd->system;
-        Coroutine *coroutine = cmd->models->command_coroutine;
-        User_Input result;
+        Coroutine *coroutine = (Coroutine*)app->current_coroutine;
+        User_Input result = {0};
         
-        Assert(coroutine);
-        *((u32*)coroutine->out+0) = get_type;
-        *((u32*)coroutine->out+1) = abort_type;
-        system->yield_coroutine(coroutine);
-        result = *(User_Input*)coroutine->in;
+        if (app->type_coroutine == Co_Command){
+            Assert(coroutine);
+            *((u32*)coroutine->out+0) = get_type;
+            *((u32*)coroutine->out+1) = abort_type;
+            system->yield_coroutine(coroutine);
+            result = *(User_Input*)coroutine->in;
+        }
         
         return(result);
     }
@@ -2456,9 +2485,11 @@ extern "C"{
         System_Functions *system = (System_Functions*)app->system_links;
         Coroutine *coroutine = (Coroutine*)app->current_coroutine;
         
-        Assert(coroutine);
-        system->yield_coroutine(coroutine);
-        message = *(Event_Message*)coroutine->in;
+        if (app->type_coroutine == Co_View){
+            Assert(coroutine);
+            system->yield_coroutine(coroutine);
+            message = *(Event_Message*)coroutine->in;
+        }
         
         return(message);
     }
@@ -3836,7 +3867,7 @@ App_Step_Sig(app_step){
                 models->command_coroutine = persistent->coroutine;
                 
                 persistent->coroutine =
-                    app_launch_coroutine(system, &models->app_links,
+                    app_launch_coroutine(system, &models->app_links, Co_View,
                                          persistent->coroutine,
                                          view,
                                          0);
@@ -3912,7 +3943,7 @@ App_Step_Sig(app_step){
                 user_in.abort = 1;
                 
                 command_coroutine =
-                    app_resume_coroutine(system, &models->app_links,
+                    app_resume_coroutine(system, &models->app_links, Co_Command,
                                          command_coroutine,
                                          &user_in,
                                          models->command_coroutine_flags);
@@ -3993,7 +4024,7 @@ App_Step_Sig(app_step){
 
                 if (pass_in){
                     models->command_coroutine =
-                        app_resume_coroutine(system, &models->app_links,
+                        app_resume_coroutine(system, &models->app_links, Co_Command,
                                              command_coroutine,
                                              &user_in,
                                              models->command_coroutine_flags);
@@ -4062,7 +4093,7 @@ App_Step_Sig(app_step){
 
             if (pass_in){
                 models->command_coroutine = 
-                    app_resume_coroutine(system, &models->app_links,
+                    app_resume_coroutine(system, &models->app_links, Co_Command,
                                          command_coroutine,
                                          &user_in,
                                          models->command_coroutine_flags);
@@ -4191,7 +4222,7 @@ App_Step_Sig(app_step){
                         cmd_in.bind = cmd_bind;
                         
                         models->command_coroutine =
-                            app_launch_coroutine(system, &models->app_links,
+                            app_launch_coroutine(system, &models->app_links, Co_Command,
                                                  models->command_coroutine,
                                                  &cmd_in,
                                                  models->command_coroutine_flags);

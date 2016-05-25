@@ -315,6 +315,7 @@ view_summary_zero(){
 }
 
 enum User_Input_Type{
+    UserInputNone,
     UserInputKey,
     UserInputMouse
 };
@@ -336,6 +337,7 @@ struct Query_Bar{
 };
 
 enum Event_Message_Type{
+    EM_No_Message,
     EM_Open_View,
     EM_Frame,
     EM_Close_View
@@ -591,8 +593,9 @@ struct Application_Links{
     
     // Internal
     void *cmd_context;
-    void *current_coroutine;
     void *system_links;
+    void *current_coroutine;
+    int type_coroutine;
 };
 
 #define _GET_VERSION_SIG(n) int n(int maj, int min, int patch)
