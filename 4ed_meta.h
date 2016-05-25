@@ -96,7 +96,9 @@ _OutDbgStr(u8*);
 #define FatalError(message) system_fatal_error((u8*)message)
 
 #define AllowLocal(name) (void)name
+#ifndef ArrayCount
 #define ArrayCount(array) (sizeof(array)/sizeof(array[0]))
+#endif
 #define OffsetOfStruct(S,c) ((i64)(& ((S*)0)->c ))
 #define OffsetOfPtr(s,c) ((i64)((char*)(&(s)->c) - (char*)(s)))
 

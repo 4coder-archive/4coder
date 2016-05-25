@@ -27,35 +27,29 @@ ABS(f32 x){
     return x;
 }
 
+#if C_MATH
 inline f32
 MOD(f32 x, i32 m){
-#if C_MATH
     f32 whole, frac;
     frac = modff(x, &whole);
     return ((i32)(whole) % m) + frac;
-#endif
 }
 
 inline f32
 SQRT(f32 x){
-#if C_MATH
     return sqrt(x);
-#endif
 }
 
 inline f32
 SIN(f32 x_degrees){
-#if C_MATH
     return sinf(x_degrees * DEG_TO_RAD);
-#endif
 }
 
 inline f32
 COS(f32 x_degrees){
-#if C_MATH
     return cosf(x_degrees * DEG_TO_RAD);
-#endif
 }
+#endif
 
 /*
  * Rounding
@@ -92,148 +86,6 @@ ROUNDPOT32(u32 v){
     v |= v >> 16;
     v++;
     return v;
-}
-
-/*
- * Rectangles
- */
-
-struct i32_Rect{
-	i32 x0, y0;
-	i32 x1, y1;
-};
-
-struct f32_Rect{
-	f32 x0, y0;
-	f32 x1, y1;
-};
-
-inline i32_Rect
-i32_rect_zero(){
-    i32_Rect rect={0};
-    return(rect);
-}
-
-inline f32_Rect
-f32_rect_zero(){
-    f32_Rect rect={0};
-    return(rect);
-}
-
-inline i32_Rect
-i32R(i32 l, i32 t, i32 r, i32 b){
-    i32_Rect rect;
-    rect.x0 = l; rect.y0 = t;
-    rect.x1 = r; rect.y1 = b;
-    return rect;
-}
-
-inline i32_Rect
-i32R(f32_Rect r){
-    i32_Rect rect;
-    rect.x0 = (i32)r.x0;
-    rect.y0 = (i32)r.y0;
-    rect.x1 = (i32)r.x1;
-    rect.y1 = (i32)r.y1;
-    return rect;
-}
-
-inline i32_Rect
-i32XYWH(i32 x, i32 y, i32 w, i32 h){
-    i32_Rect rect;
-    rect.x0 = x; rect.y0 = y;
-    rect.x1 = x+w; rect.y1 = y+h;
-    return rect;
-}
-
-inline f32_Rect
-f32R(f32 l, f32 t, f32 r, f32 b){
-    f32_Rect rect;
-    rect.x0 = l; rect.y0 = t;
-    rect.x1 = r; rect.y1 = b;
-    return rect;
-}
-
-inline f32_Rect
-f32R(i32_Rect r){
-    f32_Rect rect;
-    rect.x0 = (f32)r.x0;
-    rect.y0 = (f32)r.y0;
-    rect.x1 = (f32)r.x1;
-    rect.y1 = (f32)r.y1;
-    return rect;
-}
-
-inline f32_Rect
-f32XYWH(f32 x, f32 y, f32 w, f32 h){
-    f32_Rect rect;
-    rect.x0 = x; rect.y0 = y;
-    rect.x1 = x+w; rect.y1 = y+h;
-    return rect;
-}
-
-inline b32
-rect_equal(i32_Rect r1, i32_Rect r2){
-    b32 result = (r1.x0 == r2.x0 &&
-                  r1.y0 == r2.y0 &&
-                  r1.x1 == r2.x1 &&
-                  r1.y1 == r2.y1);
-    return(result);
-}
-
-inline b32
-hit_check(i32 x, i32 y, i32 x0, i32 y0, i32 x1, i32 y1){
-    return (x >= x0 && x < x1 && y >= y0 && y < y1);
-}
-
-inline b32
-hit_check(i32 x, i32 y, i32_Rect rect){
-    return (hit_check(x, y, rect.x0, rect.y0, rect.x1, rect.y1));
-}
-
-inline b32
-hit_check(i32 x, i32 y, f32 x0, f32 y0, f32 x1, f32 y1){
-    return (x >= x0 && x < x1 && y >= y0 && y < y1);
-}
-
-inline b32
-hit_check(i32 x, i32 y, f32_Rect rect){
-    return (hit_check(x, y, rect.x0, rect.y0, rect.x1, rect.y1));
-}
-
-inline b32
-positive_area(i32_Rect rect){
-    return (rect.x0 < rect.x1 && rect.y0 < rect.y1);
-}
-
-inline i32_Rect
-get_inner_rect(i32_Rect outer, i32 margin){
-    i32_Rect r;
-    r.x0 = outer.x0 + margin;
-    r.y0 = outer.y0 + margin;
-    r.x1 = outer.x1 - margin;
-    r.y1 = outer.y1 - margin;
-    return r;
-}
-
-inline b32
-fits_inside(i32_Rect rect, i32_Rect outer){
-    return (rect.x0 >= outer.x0 && rect.x1 <= outer.x1 &&
-            rect.y0 >= outer.y0 && rect.y1 <= outer.y1);
-}
-
-inline i32_Rect
-rect_clamp_to_rect(i32_Rect rect, i32_Rect clamp_box){
-	if (rect.x0 < clamp_box.x0) rect.x0 = clamp_box.x0;
-	if (rect.y0 < clamp_box.y0) rect.y0 = clamp_box.y0;
-	if (rect.x1 > clamp_box.x1) rect.x1 = clamp_box.x1;
-	if (rect.y1 > clamp_box.y1) rect.y1 = clamp_box.y1;
-	return rect;
-}
-
-inline i32_Rect
-rect_clamp_to_rect(i32 left, i32 top, i32 right, i32 bottom, i32_Rect clamp_box){
-	return rect_clamp_to_rect(i32R(left, top, right, bottom), clamp_box);
 }
 
 /*
@@ -576,6 +428,7 @@ rotate(Vec2 v, real32 theta_degrees){
     return result;
 }
 
+#if 0
 /*
  * Coordinates
  */
@@ -606,6 +459,7 @@ invert(Matrix2 m){
     result.y_axis.y = m.x_axis.x*det;
     return result;
 }
+#endif
 
 /*
  * Lerps, Clamps, Thresholds, Etc

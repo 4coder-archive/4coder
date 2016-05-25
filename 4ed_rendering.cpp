@@ -385,6 +385,7 @@ draw_font_info_load(Partition *partition,
     return(result);
 }
 
+// TODO(allen): Why the hell am I not just passing in a partition here?
 internal i32
 draw_font_load(void *base_block, i32 size,
     Render_Font *font_out,
@@ -402,7 +403,7 @@ draw_font_load(void *base_block, i32 size,
     File_Data file;
     file = system_load_file(filename.str);
 
-    Partition partition_ = partition_open(base_block, size);
+    Partition partition_ = make_part(base_block, size);
     Partition *partition = &partition_;
 
     stbtt_packedchar *chardata = font_out->chardata;

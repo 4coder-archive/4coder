@@ -2513,8 +2513,9 @@ command_caller(Coroutine *coroutine){
 internal void
 view_caller(Coroutine *coroutine){
     View *view = (View*)coroutine->in;
+    View_Persistent *persistent = &view->persistent;
     
-    view->view_routine(view->id);
+    persistent->view_routine(&persistent->models->app_links, persistent->id);
 }
 
 internal void
@@ -3027,7 +3028,7 @@ app_vars_zero(){
 
 internal App_Vars*
 app_setup_memory(Application_Memory *memory){
-    Partition _partition = partition_open(memory->vars_memory, memory->vars_memory_size);
+    Partition _partition = make_part(memory->vars_memory, memory->vars_memory_size);
     App_Vars *vars = push_struct(&_partition, App_Vars);
     Assert(vars);
     *vars = app_vars_zero();
@@ -3151,7 +3152,8 @@ App_Init_Sig(app_init){
     }
     
     {
-        View *vptr = 0;
+        View *view = 0;
+        View_Persistent *persistent = 0;
         i32 i = 0;
         i32 max = 0;
         
@@ -3163,31 +3165,14 @@ App_Init_Sig(app_init){
         dll_init_sentinel(&vars->live_set.free_sentinel);
         
         max = vars->live_set.max;
-        vptr = vars->live_set.views;
-        for (i = 0; i < max; ++i, ++vptr){
-            dll_insert(&vars->live_set.free_sentinel, vptr);
-        }
-    }
-    
-    {
-        Panel *panel = 0, *used_panels = 0;
-        View *view = 0;
-        
-        used_panels = &models->layout.used_sentinel;
-        for (dll_items(panel, used_panels)){
-            view = panel->view;
+        view = vars->live_set.views;
+        for (i = 0; i < max; ++i, ++view){
+            dll_insert(&vars->live_set.free_sentinel, view);
             
-            view->view_routine = models->config_api.view_routine;
-            view->coroutine =
-                system->create_coroutine(view_caller);
-            
-            view->coroutine =
-                system->launch_coroutine(view->coroutine, view, view);
-            
-            if (!view->coroutine){
-                // TODO(allen): Error message and recover
-                NotImplemented;
-            }
+            persistent = &view->persistent;
+            persistent->id = i;
+            persistent->models = models;
+            persistent->view_routine = models->config_api.view_routine;
         }
     }
     
@@ -3774,6 +3759,35 @@ App_Step_Sig(app_step){
     cmd->part = partition_sub_part(&models->mem.part, 16 << 10);
     
     if (first_step){
+        {
+            View *view = 0;
+            View_Persistent *persistent = 0;
+            i32 i = 0;
+            i32 max = 0;
+            
+            max = vars->live_set.max;
+            view = vars->live_set.views;
+            for (i = 1; i <= max; ++i, ++view){
+                persistent = &view->persistent;
+                
+                persistent->coroutine =
+                    system->create_coroutine(view_caller);
+                
+                models->command_coroutine = persistent->coroutine;
+                persistent->coroutine =
+                    system->launch_coroutine(persistent->coroutine,
+                                             view,
+                                             &view->persistent.coroutine_flags);
+                
+                if (!persistent->coroutine){
+                    // TODO(allen): Error message and recover
+                    NotImplemented;
+                }
+            }
+            
+            models->command_coroutine = 0;
+        }
+        
         General_Memory *general = &models->mem.general;
         Editing_File *file = working_set_alloc_always(&models->working_set, general);
         file_create_read_only(system, models, file, "*messages*");

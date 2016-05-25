@@ -5,7 +5,10 @@
 #include "4coder_version.h"
 #include "4coder_keycodes.h"
 #include "4coder_style.h"
+#include "4coder_rect.h"
+#include "4coder_mem.h"
 #include "4coder_buffer_types.h"
+#include "4coder_gui.h"
 
 #ifndef FRED_STRING_STRUCT
 #define FRED_STRING_STRUCT
@@ -311,9 +314,10 @@ view_summary_zero(){
     return(summary);
 }
 
-#define UserInputKey 0
-#define UserInputMouse 1
-
+enum User_Input_Type{
+    UserInputKey,
+    UserInputMouse
+};
 struct User_Input{
     int type;
     int abort;
@@ -331,13 +335,22 @@ struct Query_Bar{
     String string;
 };
 
+enum Event_Message_Type{
+    EM_Open_View,
+    EM_Frame,
+    EM_Close_View
+};
+struct Event_Message{
+    int type;
+};
+
 struct Theme_Color{
     Style_Tag tag;
     unsigned int color;
 };
 
 
-#define VIEW_ROUTINE_SIG(name) void name(int view_id)
+#define VIEW_ROUTINE_SIG(name) void name(struct Application_Links *app, int view_id)
 #define GET_BINDING_DATA(name) int name(void *data, int size)
 #define CUSTOM_COMMAND_SIG(name) void name(struct Application_Links *app)
 #define HOOK_SIG(name) int name(struct Application_Links *app)
@@ -403,16 +416,20 @@ struct Application_Links;
 // Directly get user input
 #define GET_USER_INPUT_SIG(n) User_Input n(Application_Links *app, unsigned int get_type, unsigned int abort_type)
 #define GET_COMMAND_INPUT_SIG(n) User_Input n(Application_Links *app)
+#define GET_EVENT_MESSAGE_SIG(n) Event_Message n(Application_Links *app)
 
 // Queries and information display
 #define START_QUERY_BAR_SIG(n) int n(Application_Links *app, Query_Bar *bar, unsigned int flags)
 #define END_QUERY_BAR_SIG(n) void n(Application_Links *app, Query_Bar *bar, unsigned int flags)
 #define PRINT_MESSAGE_SIG(n) void n(Application_Links *app, char *string, int len)
+#define GET_GUI_FUNCTIONS_SIG(n) GUI_Functions* n(Application_Links *app);
+#define GET_GUI_SIG(n) GUI* n(Application_Links *app, int view_id);
 
 // Color settings
 #define CHANGE_THEME_SIG(n) void n(Application_Links *app, char *name, int len)
 #define CHANGE_FONT_SIG(n) void n(Application_Links *app, char *name, int len)
 #define SET_THEME_COLORS_SIG(n) void n(Application_Links *app, Theme_Color *colors, int count)
+
 
 
 // Boundry type flags
@@ -487,11 +504,14 @@ extern "C"{
     // Directly get user input
     typedef GET_USER_INPUT_SIG(Get_User_Input_Function);
     typedef GET_COMMAND_INPUT_SIG(Get_Command_Input_Function);
+    typedef GET_EVENT_MESSAGE_SIG(Get_Event_Message_Function);
     
-    // Queries
+    // GUI
     typedef START_QUERY_BAR_SIG(Start_Query_Bar_Function);
     typedef END_QUERY_BAR_SIG(End_Query_Bar_Function);
     typedef PRINT_MESSAGE_SIG(Print_Message_Function);
+    typedef GET_GUI_FUNCTIONS_SIG(Get_GUI_Functions_Function);
+    typedef GET_GUI_SIG(Get_GUI_Function);
     
     // Color settings
     typedef CHANGE_THEME_SIG(Change_Theme_Function);
@@ -554,10 +574,15 @@ struct Application_Links{
     Get_User_Input_Function *get_user_input;
     Get_Command_Input_Function *get_command_input;
     
+    Get_Event_Message_Function *get_event_message;
+    
     // Queries
     Start_Query_Bar_Function *start_query_bar;
     End_Query_Bar_Function *end_query_bar;
     Print_Message_Function *print_message;
+    
+    Get_GUI_Functions_Function *get_gui_functions;
+    Get_GUI_Function *get_gui;
     
     // Theme
     Change_Theme_Function *change_theme;

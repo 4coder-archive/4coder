@@ -112,26 +112,6 @@ super_color_post_byte(Super_Color *color, i32 channel, u8 byte){
     return packed;
 }
 
-struct GUI_id{
-    u64 id[2];
-};
-inline GUI_id
-gui_id_zero(){
-    GUI_id id = {0};
-    return(id);
-}
-
-struct GUI_Scroll_Vars{
-    f32 scroll_y;
-    f32 target_y;
-    f32 prev_target_y;
-    f32 min_y, max_y;
-    
-    f32 scroll_x;
-    f32 target_x;
-    f32 prev_target_x;
-};
-
 struct GUI_Target{
     Partition push;
     

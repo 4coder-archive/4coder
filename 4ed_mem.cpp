@@ -9,16 +9,6 @@
 
 // TOP
 
-struct Partition{
-    u8 *base;
-    i32 pos, max;
-};
-
-struct Temp_Memory{
-    void *handle;
-    int pos;
-};
-
 enum Memory_Bubble_Flag{
     MEM_BUBBLE_USED = 0x1,
     MEM_BUBBLE_DEBUG = 0xD3000000,
@@ -43,53 +33,6 @@ struct Mem_Options{
     Partition part;
     General_Memory general;
 };
-
-inline Partition
-partition_open(void *memory, i32 size){
-    Partition partition;
-    partition.base = (u8*)memory;
-    partition.pos = 0;
-    partition.max = size;
-    return partition;
-}
-
-inline void*
-partition_allocate(Partition *data, i32 size){
-    void *ret = 0;
-    if (size > 0 && data->pos + size <= data->max){
-        ret = data->base + data->pos;
-        data->pos += size;
-    }
-    return ret;
-}
-
-inline void
-partition_align(Partition *data, u32 boundary){
-    --boundary;
-    data->pos = (data->pos + boundary) & (~boundary);
-}
-
-inline void*
-partition_current(Partition *data){
-    return data->base + data->pos;
-}
-
-inline i32
-partition_remaining(Partition *data){
-    return data->max - data->pos;
-}
-
-inline Partition
-partition_sub_part(Partition *data, i32 size){
-    Partition result = {};
-    void *d = partition_allocate(data, size);
-    if (d) result = partition_open(d, size);
-    return result;
-}
-
-#define push_struct(part, T) (T*)partition_allocate(part, sizeof(T))
-#define push_array(part, T, size) (T*)partition_allocate(part, sizeof(T)*(size))
-#define push_block(part, size) partition_allocate(part, size)
 
 inline void
 insert_bubble(Bubble *prev, Bubble *bubble){
@@ -236,19 +179,6 @@ general_memory_reallocate(General_Memory *general, void *old, i32 old_size, i32 
 inline void*
 general_memory_reallocate_nocopy(General_Memory *general, void *old, i32 size, u32 type = 0){
     return general_memory_reallocate(general, old, 0, size, type);
-}
-
-internal Temp_Memory
-begin_temp_memory(Partition *data){
-    Temp_Memory result;
-    result.handle = data;
-    result.pos = data->pos;
-    return result;
-}
-
-internal void
-end_temp_memory(Temp_Memory temp){
-    ((Partition*)temp.handle)->pos = temp.pos;
 }
 
 #define reset_temp_memory end_temp_memory

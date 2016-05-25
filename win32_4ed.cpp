@@ -9,6 +9,8 @@
 
 // TOP
 
+#include "4coder_default_bindings.cpp"
+
 #include "4ed_config.h"
 
 #include "4ed_meta.h"
@@ -25,8 +27,6 @@
 #include "4ed_dll_reader.h"
 
 #include <stdlib.h>
-
-#include "4coder_default_bindings.cpp"
 
 #undef exec_command
 #undef exec_command_keep_stack
@@ -241,7 +241,7 @@ Win32ScratchPartition(i32 size){
     Partition part;
     void *data;
     data = Win32GetMemory(size);
-    part = partition_open(data, size);
+    part = make_part(data, size);
     return(part);
 }
 
@@ -252,7 +252,7 @@ Win32ScratchPartitionGrow(Partition *part, i32 new_size){
         data = Win32GetMemory(new_size);
         memcpy(data, part->base, part->pos);
         Win32FreeMemory(part->base);
-        part->base = (u8*)data;
+        part->base = (char*)data;
     }
 }
 
@@ -1889,30 +1889,30 @@ int main(int argc, char **argv){
         &files, &file_count,
         clparams);
     //
-
+    
     if (output_size > 0){
         DWORD written;
         WriteFile(original_out, memory_vars.target_memory, output_size, &written, 0);
     }
     if (output_size != 0) return 0;
-
+    
 #ifdef FRED_SUPER
     char *custom_file_default = "4coder_custom.dll";
     char *custom_file;
     if (win32vars.settings.custom_dll) custom_file = win32vars.settings.custom_dll;
     else custom_file = custom_file_default;
-
+    
     win32vars.custom = LoadLibraryA(custom_file);
     if (!win32vars.custom && custom_file != custom_file_default){
         if (!win32vars.settings.custom_dll_is_strict){
             win32vars.custom = LoadLibraryA(custom_file_default);
         }
     }
-
+    
     if (win32vars.custom){
         win32vars.custom_api.get_alpha_4coder_version = (_Get_Version_Function*)
             GetProcAddress(win32vars.custom, "get_alpha_4coder_version");
-        //
+        
         if (win32vars.custom_api.get_alpha_4coder_version == 0 ||
                 win32vars.custom_api.get_alpha_4coder_version(MAJOR, MINOR, PATCH) == 0){
             printf("Error: application and custom version numbers don't match");
@@ -1920,6 +1920,8 @@ int main(int argc, char **argv){
         }
         win32vars.custom_api.get_bindings = (Get_Binding_Data_Function*)
             GetProcAddress(win32vars.custom, "get_bindings");
+        win32vars.custom_api.view_routine = (View_Routine_Function*)
+            GetProcAddress(win32vars.custom, "view_routine");
     }
 #endif
     

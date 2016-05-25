@@ -347,7 +347,8 @@ HOOK_SIG(experimental_start_hook){
     return(0);
 }
 
-int get_bindings(void *data, int size){
+extern "C" int
+get_bindings(void *data, int size){
     Bind_Helper context_ = begin_bind_helper(data, size);
     Bind_Helper *context = &context_;
     
@@ -374,6 +375,11 @@ int get_bindings(void *data, int size){
     
     int result = end_bind_helper(context);
     return(result);
+}
+
+extern "C" void
+view_routine(Application_Links *app, int view_id){
+    app->get_user_input(app, 0, 0);
 }
 
 // BOTTOM

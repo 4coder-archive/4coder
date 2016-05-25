@@ -9,6 +9,8 @@
 
 // TOP
 
+#include "4coder_custom.h"
+
 #include "4ed_config.h"
 
 #define BUFFER_EXPERIMENT_SCALPEL 0
@@ -22,7 +24,6 @@
 #include "4ed_mem.cpp"
 #include "4ed_math.cpp"
 
-#include "4coder_custom.h"
 #include "4ed_system.h"
 #include "4ed_rendering.h"
 #include "4ed.h"
