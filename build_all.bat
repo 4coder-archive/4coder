@@ -11,7 +11,7 @@ set DEFINES=
 set FirstError=0
 
 pushd ..\meta
-cl %OPTS% ..\code\4ed_metagen.cpp /Femetagen
+cl %OPTS% ..\code\4ed_metagen.cpp %* /Femetagen
 if %ERRORLEVEL% neq 0 (set FirstError=1)
 popd
 

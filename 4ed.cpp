@@ -1891,7 +1891,7 @@ fill_view_summary(View_Summary *view, View *vptr, Live_Views *live_set, Working_
 }
 
 extern "C"{
-    EXECUTE_COMMAND_SIG(external_exec_command_keep_stack){
+    EXEC_COMMAND_KEEP_STACK_SIG(external_exec_command_keep_stack){
         Command_Data *cmd = (Command_Data*)app->cmd_context;
         Command_Function function = command_table[command_id];
         Command_Binding binding = {};
@@ -2022,7 +2022,7 @@ extern "C"{
         return(buffer);
     }
 
-    GET_BUFFER_BY_NAME(external_get_buffer_by_name){
+    GET_BUFFER_BY_NAME_SIG(external_get_buffer_by_name){
         Command_Data *cmd = (Command_Data*)app->cmd_context;
         Buffer_Summary buffer = {};
         Editing_File *file;

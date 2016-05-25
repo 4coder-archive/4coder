@@ -27,19 +27,6 @@ CUSTOM_COMMAND_SIG(write_zero_struct){
     write_string(app, make_lit_string(" = {0};"));
 }
 
-CUSTOM_COMMAND_SIG(write_h){
-    write_string(app, make_lit_string("<h1></h1>"));
-}
-
-CUSTOM_COMMAND_SIG(write_div){
-    write_string(app, make_lit_string("<div></div>"));
-}
-
-CUSTOM_COMMAND_SIG(begin_html_mode){
-    push_parameter(app, par_key_mapid, my_empty_map1);
-    exec_command(app, cmdid_set_settings);
-}
-
 CUSTOM_COMMAND_SIG(write_capital){
     User_Input command_in = app->get_command_input(app);
     char c = command_in.key.character_no_caps_lock;
@@ -103,25 +90,29 @@ CUSTOM_COMMAND_SIG(move_down_10){
 CUSTOM_COMMAND_SIG(rewrite_as_single_caps){
     View_Summary view;
     Buffer_Summary buffer;
+    Full_Cursor cursor;
     Range range;
     String string;
     int is_first, i;
-
-    exec_command(app, seek_token_left);
+    
     view = app->get_active_view(app);
+    cursor = view.cursor;
+    
+    exec_command(app, seek_token_left);
+    app->refresh_view(app, &view);
     range.min = view.cursor.pos;
-
+    
     exec_command(app, seek_token_right);
     app->refresh_view(app, &view);
     range.max = view.cursor.pos;
-
+    
     string.str = (char*)app->memory;
     string.size = range.max - range.min;
     assert(string.size < app->memory_size);
 
     buffer = app->get_buffer(app, view.buffer_id);
     app->buffer_read_range(app, &buffer, range.min, range.max, string.str);
-
+    
     is_first = 1;
     for (i = 0; i < string.size; ++i){
         if (char_is_alpha_true(string.str[i])){
@@ -132,8 +123,12 @@ CUSTOM_COMMAND_SIG(rewrite_as_single_caps){
             is_first = 1;
         }
     }
-
+    
     app->buffer_replace_range(app, &buffer, range.min, range.max, string.str, string.size);
+    
+    app->view_set_cursor(app, &view,
+                         seek_line_char(cursor.line+1, cursor.character),
+                         1);
 }
 
 CUSTOM_COMMAND_SIG(open_my_files){
@@ -300,13 +295,6 @@ default_keys(Bind_Helper *context){
 
     end_map(context);
     
-    
-    begin_map(context, my_html_map);
-    inherit_map(context, mapid_file);
-    bind(context, 'h', MDFR_ALT, write_h);
-    bind(context, 'd', MDFR_ALT, write_div);
-    end_map(context);
-
     begin_map(context, my_empty_map1);
     inherit_map(context, mapid_nomap);
     end_map(context);
@@ -406,6 +394,7 @@ default_keys(Bind_Helper *context){
     bind(context, 's', MDFR_ALT, cmdid_show_scrollbar);
     bind(context, 's', MDFR_CTRL, cmdid_save);
     bind(context, 'u', MDFR_CTRL, cmdid_to_uppercase);
+    bind(context, 'U', MDFR_CTRL, rewrite_as_single_caps);
     bind(context, 'v', MDFR_CTRL, cmdid_paste);
     bind(context, 'V', MDFR_CTRL, cmdid_paste_next);
     bind(context, 'w', MDFR_ALT, cmdid_hide_scrollbar);

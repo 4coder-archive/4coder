@@ -60,6 +60,7 @@ void to_camel(char *src, char *dst){
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <assert.h>
 
 void struct_begin(FILE *file, char *name){
     fprintf(file, "struct %s{\n", name);
@@ -455,6 +456,208 @@ char* generate_style(){
     return(filename);
 }
 
+struct Function_Signature{
+    String name;
+    String ret;
+    String args;
+    int valid;
+};
+
+String
+file_dump(char *filename){
+    String result = {0};
+    FILE *file = fopen(filename, "rb");
+    
+    if (file){
+        fseek(file, 0, SEEK_END);
+        result.size = ftell(file);
+        fseek(file, 0, SEEK_SET);
+        
+        result.memory_size = result.size + 1;
+        result.str = (char*)malloc(result.memory_size);
+        
+        fread(result.str, 1, result.size, file);
+        result.str[result.size] = 0;
+        
+        fclose(file);
+    }
+    
+    return(result);
+}
+
+String
+get_first_line(String source){
+    String line = {0};
+    int pos = find(source, 0, '\n');
+    
+    line = substr(source, 0, pos);
+    
+    return(line);
+}
+
+String
+get_next_line(String source, String line){
+    String next = {0};
+    int pos = (int)(line.str - source.str) + line.size;
+    int start = 0;
+    
+    if (pos < source.size){
+        assert(source.str[pos] == '\n');
+        start = pos + 1;
+        
+        if (start < source.size){
+            pos = find(source, start, '\n');
+            next = substr(source, start, pos - start);
+        }
+    }
+    
+    return(next);
+}
+
+String
+skip_whitespace(String str){
+    String result = {0};
+    int i = 0;
+    for (; i < str.size && char_is_whitespace(str.str[i]); ++i);
+    result = substr(str, i, str.size - i);
+    return(result);
+}
+
+int
+is_comment(String str){
+    int result = 0;
+    if (str.size >= 2){
+        if (str.str[0] == '/' &&
+            str.str[1] == '/'){
+            result = 1;
+        }
+    }
+    return(result);
+}
+
+char*
+generate_custom_headers(){
+    char *filename = "4coder_custom_api.h";
+    String data = file_dump("custom_api_spec.txt");
+    
+    int line_count = 0;
+    String line = {0};
+    for (line = get_first_line(data);
+         line.str;
+         line = get_next_line(data, line)){
+        ++line_count;
+    }
+    
+    Function_Signature *sigs =
+        (Function_Signature*)malloc(sizeof(Function_Signature)*line_count);
+    
+    int max_name_size = 0;
+    int sig_count = 0;
+    line_count = 0;
+    for (line = get_first_line(data);
+         line.str;
+         line = get_next_line(data, line)){
+        
+        ++line_count;
+        
+        String parse = line;
+        parse = skip_whitespace(parse);
+        if (parse.size > 0){
+            if (!is_comment(parse)){
+                Function_Signature *sig = sigs + sig_count;
+                memset(sig, 0, sizeof(Function_Signature));
+                
+                ++sig_count;
+                
+                int pos = find(parse, 0, ' ');
+                sig->ret = substr(parse, 0, pos);
+                parse = substr(parse, pos);
+                parse = skip_whitespace(parse);
+                
+                if (parse.size > 0){
+                    pos = find(parse, 0, '(');
+                    sig->name = substr(parse, 0, pos);
+                    parse = substr(parse, pos);
+                    
+                    if (parse.size > 0){
+                        sig->args = parse;
+                        sig->valid = 1;
+                        
+                        if (max_name_size < sig->name.size){
+                            max_name_size = sig->name.size;
+                        }
+                    }
+                }
+                
+                if (!sig->valid){
+                    printf("custom_api_spec.txt(%d) : generator warning : invalid function signature\n",
+                           line_count);
+                }
+            }
+        }
+    }
+    
+    FILE *file = fopen("4coder_custom_api.h", "wb");
+    int buffer_size = max_name_size + 1;
+    char *name_buffer = (char*)malloc(buffer_size);
+    
+    for (int i = 0; i < sig_count; ++i){
+        Function_Signature *sig = sigs + i;
+        
+        copy_fast_unsafe(name_buffer, sig->name);
+        name_buffer[sig->name.size] = 0;
+        to_upper(name_buffer, name_buffer);
+        
+        fprintf(file, "#define %s_SIG(n) %.*s n%.*s\n",
+                name_buffer,
+                sig->ret.size, sig->ret.str,
+                sig->args.size, sig->args.str
+                );
+    }
+    
+    fprintf(file, "extern \"C\"{\n");
+    for (int i = 0; i < sig_count; ++i){
+        Function_Signature *sig = sigs + i;
+        
+        copy_fast_unsafe(name_buffer, sig->name);
+        name_buffer[sig->name.size] = 0;
+        to_upper(name_buffer, name_buffer);
+        
+        fprintf(file, "    typedef %s_SIG(%.*s_Function);\n",
+                name_buffer,
+                sig->name.size, sig->name.str);
+    }
+    fprintf(file, "}\n");
+    
+    fprintf(file, "struct Application_Links{\n");
+    fprintf(file,
+            "    void *memory;\n"
+            "    int memory_size;\n"
+            );
+    for (int i = 0; i < sig_count; ++i){
+        Function_Signature *sig = sigs + i;
+        
+        copy_fast_unsafe(name_buffer, sig->name);
+        name_buffer[sig->name.size] = 0;
+        to_lower(name_buffer, name_buffer);
+        
+        fprintf(file, "    %.*s_Function *%s;\n",
+                sig->name.size, sig->name.str,
+                name_buffer);
+    }
+    fprintf(file,
+            "    void *cmd_context;\n"
+            "    void *system_links;\n"
+            "    void *current_coroutine;\n"
+            "    int type_coroutine;\n"
+            );
+    fprintf(file, "};\n");
+    
+    fclose(file);
+    
+    return(filename);
+}
+
 int main(){
     char *filename;
     
@@ -465,6 +668,9 @@ int main(){
     printf("gen success: %s\n", filename);
     
     filename = generate_style();
+    printf("gen success: %s\n", filename);
+    
+    filename = generate_custom_headers();
     printf("gen success: %s\n", filename);
 }
 

@@ -368,6 +368,9 @@ extern "C"{
 
 struct Application_Links;
 
+#include "4coder_custom_api.h"
+
+#if 0
 // Command exectuion
 #define PUSH_PARAMETER_SIG(n) void n(Application_Links *app, Dynamic param, Dynamic value)
 #define PUSH_MEMORY_SIG(n) char* n(Application_Links *app, int len)
@@ -431,30 +434,6 @@ struct Application_Links;
 #define CHANGE_THEME_SIG(n) void n(Application_Links *app, char *name, int len)
 #define CHANGE_FONT_SIG(n) void n(Application_Links *app, char *name, int len)
 #define SET_THEME_COLORS_SIG(n) void n(Application_Links *app, Theme_Color *colors, int count)
-
-
-
-// Boundry type flags
-#define BoundryWhitespace 0x1
-#define BoundryToken 0x2
-#define BoundryAlphanumeric 0x4
-#define BoundryCamelCase 0x8
-
-
-
-// Input type flags
-#define EventOnAnyKey 0x1
-#define EventOnEsc 0x2
-#define EventOnLeftButton 0x4
-#define EventOnRightButton 0x8
-#define EventOnWheel 0x10
-#define EventOnButton (EventOnLeftButton | EventOnRightButton | EventOnWheel)
-
-// NOTE(allen): These don't work so much, so let's pretend they're not here for now.
-#define EventOnMouseMove 0x20
-#define EventOnMouse (EventOnButton | EventOnMouseMove)
-
-
 
 extern "C"{
     // Command exectuion
@@ -597,6 +576,31 @@ struct Application_Links{
     void *current_coroutine;
     int type_coroutine;
 };
+#endif
+
+
+
+// Boundry type flags
+#define BoundryWhitespace 0x1
+#define BoundryToken 0x2
+#define BoundryAlphanumeric 0x4
+#define BoundryCamelCase 0x8
+
+
+
+// Input type flags
+#define EventOnAnyKey 0x1
+#define EventOnEsc 0x2
+#define EventOnLeftButton 0x4
+#define EventOnRightButton 0x8
+#define EventOnWheel 0x10
+#define EventOnButton (EventOnLeftButton | EventOnRightButton | EventOnWheel)
+
+// NOTE(allen): These don't work so much, so let's pretend they're not here for now.
+#define EventOnMouseMove 0x20
+#define EventOnMouse (EventOnButton | EventOnMouseMove)
+
+
 
 #define _GET_VERSION_SIG(n) int n(int maj, int min, int patch)
 typedef _GET_VERSION_SIG(_Get_Version_Function);
