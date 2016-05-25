@@ -87,6 +87,36 @@ struct App_Vars{
     Command_Data command_data;
 };
 
+inline Coroutine*
+app_launch_coroutine(System_Functions *system, Application_Links *app,
+                     Coroutine *co, void *in, void *out){
+    Coroutine* result = 0;
+    
+    Coroutine *prev_coroutine = (Coroutine*)app->current_coroutine;
+    app->current_coroutine = co;
+    {
+        result = system->launch_coroutine(co, in, out);
+    }
+    app->current_coroutine = prev_coroutine;
+    
+    return(result);
+}
+
+inline Coroutine*
+app_resume_coroutine(System_Functions *system, Application_Links *app,
+                     Coroutine *co, void *in, void *out){
+    Coroutine* result = 0;
+    
+    Coroutine *prev_coroutine = (Coroutine*)app->current_coroutine;
+    app->current_coroutine = co;
+    {
+        result = system->resume_coroutine(co, in, out);
+    }
+    app->current_coroutine = prev_coroutine;
+    
+    return(result);
+}
+
 inline void
 output_file_append(System_Functions *system, Models *models, Editing_File *file, String value, b32 cursor_at_end){
     i32 end = buffer_size(&file->state.buffer);
@@ -2333,14 +2363,14 @@ extern "C"{
 
         return(result);
     }
-
+    
     VIEW_SET_HIGHLIGHT_SIG(external_view_set_highlight){
         Command_Data *cmd = (Command_Data*)app->cmd_context;
         Live_Views *live_set;
         View *vptr;
         int result = 0;
         int view_id;
-
+        
         if (view->exists){
             live_set = cmd->live_set;
             view_id = view->view_id - 1;
@@ -2356,10 +2386,10 @@ extern "C"{
                 fill_view_summary(view, vptr, live_set, &cmd->models->working_set);
             }
         }
-
+        
         return(result);
     }
-
+    
     VIEW_SET_BUFFER_SIG(external_view_set_buffer){
         Command_Data *cmd = (Command_Data*)app->cmd_context;
         Live_Views *live_set;
@@ -2369,7 +2399,7 @@ extern "C"{
         Models *models;
         int result = 0;
         int view_id;
-
+        
         if (view->exists){
             models = cmd->models;
             live_set = cmd->live_set;
@@ -2378,7 +2408,7 @@ extern "C"{
                 vptr = live_set->views + view_id;
                 working_set = &models->working_set;
                 file = working_set_get_active_file(working_set, buffer_id);
-
+                
                 if (file){
                     result = 1;
                     if (file != vptr->file_data.file){
@@ -2386,26 +2416,26 @@ extern "C"{
                         view_show_file(vptr);
                     }
                 }
-
+                
                 fill_view_summary(view, vptr, live_set, working_set);
             }
         }
-
+        
         return(result);
     }
-
+    
     GET_USER_INPUT_SIG(external_get_user_input){
         Command_Data *cmd = (Command_Data*)app->cmd_context;
         System_Functions *system = cmd->system;
         Coroutine *coroutine = cmd->models->command_coroutine;
         User_Input result;
-
+        
         Assert(coroutine);
         *((u32*)coroutine->out+0) = get_type;
         *((u32*)coroutine->out+1) = abort_type;
         system->yield_coroutine(coroutine);
         result = *(User_Input*)coroutine->in;
-
+        
         return(result);
     }
     
@@ -2421,19 +2451,31 @@ extern "C"{
         return(result);
     }
     
+    GET_EVENT_MESSAGE_SIG(external_get_event_message){
+        Event_Message message = {0};
+        System_Functions *system = (System_Functions*)app->system_links;
+        Coroutine *coroutine = (Coroutine*)app->current_coroutine;
+        
+        Assert(coroutine);
+        system->yield_coroutine(coroutine);
+        message = *(Event_Message*)coroutine->in;
+        
+        return(message);
+    }
+    
     START_QUERY_BAR_SIG(external_start_query_bar){
         Command_Data *cmd = (Command_Data*)app->cmd_context;
         Query_Slot *slot = 0;
         View *vptr;
-
+        
         vptr = cmd->view;
-
+        
         slot = alloc_query_slot(&vptr->query_set);
         slot->query_bar = bar;
-
+        
         return(slot != 0);
     }
-
+    
     END_QUERY_BAR_SIG(external_end_query_bar){
         Command_Data *cmd = (Command_Data*)app->cmd_context;
         View *vptr;
@@ -2445,6 +2487,18 @@ extern "C"{
         Command_Data *cmd = (Command_Data*)app->cmd_context;
         Models *models = cmd->models;
         do_feedback_message(cmd->system, models, make_string(string, len));
+    }
+    
+    GET_GUI_FUNCTIONS_SIG(external_get_gui_functions){
+        GUI_Functions *guifn = 0;
+        NotImplemented;
+        return(guifn);
+    }
+    
+    GET_GUI_SIG(external_get_gui){
+        GUI *gui = 0;
+        NotImplemented;
+        return(gui);
     }
     
     CHANGE_THEME_SIG(external_change_theme){
@@ -2522,57 +2576,63 @@ internal void
 app_links_init(System_Functions *system, Application_Links *app_links, void *data, int size){
     app_links->memory = data;
     app_links->memory_size = size;
-
+    
     app_links->exec_command_keep_stack = external_exec_command_keep_stack;
     app_links->push_parameter = external_push_parameter;
     app_links->push_memory = external_push_memory;
     app_links->clear_parameters = external_clear_parameters;
-
+    
     app_links->directory_get_hot = external_directory_get_hot;
     app_links->get_4ed_path = system->get_4ed_path;
     app_links->file_exists = system->file_exists;
     app_links->directory_cd = system->directory_cd;
     app_links->get_file_list = external_get_file_list;
     app_links->free_file_list = external_free_file_list;
-
+    
     app_links->get_buffer_first = external_get_buffer_first;
     app_links->get_buffer_next = external_get_buffer_next;
-
+    
     app_links->get_buffer = external_get_buffer;
     app_links->get_active_buffer = external_get_active_buffer;
     app_links->get_parameter_buffer = external_get_parameter_buffer;
     app_links->get_buffer_by_name = external_get_buffer_by_name;
-
+    
     app_links->refresh_buffer = external_refresh_buffer;
     app_links->buffer_seek_delimiter = external_buffer_seek_delimiter;
     app_links->buffer_seek_string = external_buffer_seek_string;
     app_links->buffer_seek_string_insensitive = external_buffer_seek_string_insensitive;
     app_links->buffer_read_range = external_buffer_read_range;
     app_links->buffer_replace_range = external_buffer_replace_range;
-
+    
     app_links->get_view_first = external_get_view_first;
     app_links->get_view_next = external_get_view_next;
-
+    
     app_links->get_view = external_get_view;
     app_links->get_active_view = external_get_active_view;
-
+    
     app_links->refresh_view = external_refresh_view;
     app_links->view_compute_cursor = external_view_compute_cursor;
     app_links->view_set_cursor = external_view_set_cursor;
     app_links->view_set_mark = external_view_set_mark;
     app_links->view_set_highlight = external_view_set_highlight;
     app_links->view_set_buffer = external_view_set_buffer;
-
+    
     app_links->get_user_input = external_get_user_input;
     app_links->get_command_input = external_get_command_input;
-
+    app_links->get_event_message = external_get_event_message;
+    
     app_links->start_query_bar = external_start_query_bar;
     app_links->end_query_bar = external_end_query_bar;
     app_links->print_message = external_print_message;
-
+    app_links->get_gui_functions = external_get_gui_functions;
+    app_links->get_gui = external_get_gui;
+    
     app_links->change_theme = external_change_theme;
     app_links->change_font = external_change_font;
     app_links->set_theme_colors = external_set_theme_colors;
+    
+    app_links->current_coroutine = 0;
+    app_links->system_links = system;
 }
 
 internal void
@@ -3089,7 +3149,7 @@ App_Read_Command_Line_Sig(app_read_command_line){
 
 extern "C" SCROLL_RULE_SIG(fallback_scroll_rule){
     int result = 0;
-
+    
     if (target_x != *scroll_x){
         *scroll_x = target_x;
         result = 1;
@@ -3098,7 +3158,7 @@ extern "C" SCROLL_RULE_SIG(fallback_scroll_rule){
         *scroll_y = target_y;
         result = 1;
     }
-
+    
     return(result);
 }
 
@@ -3110,39 +3170,39 @@ App_Init_Sig(app_init){
     Panel_Divider *dividers, *div;
     i32 panel_max_count;
     i32 divider_max_count;
-
+    
     vars = (App_Vars*)memory->vars_memory;
     models = &vars->models;
-
+    
     app_links_init(system, &models->app_links, memory->user_memory, memory->user_memory_size);
-
+    
     models->config_api = api;
     models->app_links.cmd_context = &vars->command_data;
-
+    
     partition = &models->mem.part;
     target->partition = partition;
-
+    
     {
         i32 i;
-
+        
         panel_max_count = models->layout.panel_max_count = MAX_VIEWS;
         divider_max_count = panel_max_count - 1;
         models->layout.panel_count = 0;
-
+        
         panels = push_array(partition, Panel, panel_max_count);
         models->layout.panels = panels;
-
+        
         dll_init_sentinel(&models->layout.free_sentinel);
         dll_init_sentinel(&models->layout.used_sentinel);
-
+        
         panel = panels;
         for (i = 0; i < panel_max_count; ++i, ++panel){
             dll_insert(&models->layout.free_sentinel, panel);
         }
-
+        
         dividers = push_array(partition, Panel_Divider, divider_max_count);
         models->layout.dividers = dividers;
-
+        
         div = dividers;
         for (i = 0; i < divider_max_count-1; ++i, ++div){
             div->next = (div + 1);
@@ -3177,7 +3237,7 @@ App_Init_Sig(app_init){
     }
     
     {
-        Command_Map *global;
+        Command_Map *global = 0;
         i32 wanted_size = 0;
         b32 did_top = 0;
         b32 did_file = 0;
@@ -3199,16 +3259,16 @@ App_Init_Sig(app_init){
             unit = (Binding_Unit*)models->app_links.memory;
             if (unit->type == unit_header && unit->header.error == 0){
                 end = unit + unit->header.total_size;
-
+                
                 user_map_count = unit->header.user_map_count;
-
+                
                 models->map_id_table = push_array(
-                    &models->mem.part, i32, user_map_count);
+                                                  &models->mem.part, i32, user_map_count);
                 memset(models->map_id_table, -1, user_map_count*sizeof(i32));
-
+                
                 models->user_maps = push_array(
-                    &models->mem.part, Command_Map, user_map_count);
-
+                                               &models->mem.part, Command_Map, user_map_count);
+                
                 models->user_map_count = user_map_count;
                 
                 for (++unit; unit < end; ++unit){
@@ -3271,7 +3331,7 @@ App_Init_Sig(app_init){
                             }
                             map_ptr->parent = parent;
                         }break;
-
+                        
                         case unit_binding:
                         if (map_ptr){
                             Command_Function func = 0;
@@ -3288,7 +3348,7 @@ App_Init_Sig(app_init){
                             }
                         }
                         break;
-
+                        
                         case unit_callback:
                         if (map_ptr){
                             Command_Function func = command_user_callback;
@@ -3304,7 +3364,7 @@ App_Init_Sig(app_init){
                             }
                         }
                         break;
-
+                        
                         case unit_hook:
                         {
                             int hook_id = unit->hook.hook_id;
@@ -3321,22 +3381,22 @@ App_Init_Sig(app_init){
                 }
             }
         }
-
+        
         memset(models->app_links.memory, 0, wanted_size);
         if (!did_top) setup_top_commands(&models->map_top, &models->mem.part, global);
         if (!did_file) setup_file_commands(&models->map_file, &models->mem.part, global);
-
+        
 #ifndef FRED_SUPER
         models->hooks[hook_start] = 0;
 #endif
-
+        
         setup_ui_commands(&models->map_ui, &models->mem.part, global);
     }
-
+    
     // NOTE(allen): font setup
     {
         models->font_set = &target->font_set;
-
+        
         font_set_init(models->font_set, partition, 16, 5);
         
         struct Font_Setup{
@@ -3355,19 +3415,19 @@ App_Init_Sig(app_init){
             {literal("LiberationSans-Regular.ttf"),
                 literal("liberation sans"),
                 font_size},
-
+            
             {literal("liberation-mono.ttf"),
                 literal("liberation mono"),
                 font_size},
-
+            
             {literal("Hack-Regular.ttf"),
                 literal("hack"),
                 font_size},
-
+            
             {literal("CutiveMono-Regular.ttf"),
                 literal("cutive mono"),
                 font_size},
-
+            
             {literal("Inconsolata-Regular.ttf"),
                 literal("inconsolata"),
                 font_size},
@@ -3376,11 +3436,11 @@ App_Init_Sig(app_init){
         
         for (i32 i = 0; i < font_count; ++i){
             String file_name = make_string(font_setup[i].c_file_name,
-                font_setup[i].file_name_len);
+                                           font_setup[i].file_name_len);
             String name = make_string(font_setup[i].c_name,
-                font_setup[i].name_len);
+                                      font_setup[i].name_len);
             i32 pt_size = font_setup[i].pt_size;
-
+            
             font_set_add(partition, models->font_set, file_name, name, pt_size);
         }
     }
@@ -3393,50 +3453,50 @@ App_Init_Sig(app_init){
     models->working_set.clipboard_size = 0;
     models->working_set.clipboard_current = 0;
     models->working_set.clipboard_rolling = 0;
-
+    
     // TODO(allen): more robust allocation solution for the clipboard
     if (clipboard.str){
         String *dest = working_set_next_clipboard_string(&models->mem.general, &models->working_set, clipboard.size);
         copy(dest, make_string((char*)clipboard.str, clipboard.size));
     }
-
+    
     // NOTE(allen): delay setup
     models->delay1.general = &models->mem.general;
     models->delay1.max = 16;
     models->delay1.acts = (Delayed_Action*)general_memory_allocate(
-        &models->mem.general, models->delay1.max*sizeof(Delayed_Action), 0);
-
+                                                                   &models->mem.general, models->delay1.max*sizeof(Delayed_Action), 0);
+    
     models->delay2.general = &models->mem.general;
     models->delay2.max = 16;
     models->delay2.acts = (Delayed_Action*)general_memory_allocate(
-        &models->mem.general, models->delay2.max*sizeof(Delayed_Action), 0);
-
+                                                                   &models->mem.general, models->delay2.max*sizeof(Delayed_Action), 0);
+    
     // NOTE(allen): style setup
     app_hardcode_styles(models);
-
+    
     models->palette_size = 40;
     models->palette = push_array(partition, u32, models->palette_size);
-
+    
     // NOTE(allen): init first panel
     Panel_And_ID p = layout_alloc_panel(&models->layout);
     panel_make_empty(system, exchange, vars, p.panel);
     models->layout.active_panel = p.id;
-
+    
     String hdbase = make_fixed_width_string(models->hot_dir_base_);
     hot_directory_init(&models->hot_directory, hdbase, current_directory, system->slash);
-
+    
     // NOTE(allen): child proc list setup
     i32 max_children = 16;
     partition_align(partition, 8);
     vars->cli_processes.procs = push_array(partition, CLI_Process, max_children);
     vars->cli_processes.max = max_children;
     vars->cli_processes.count = 0;
-
+    
     // NOTE(allen): sys app binding setup
     vars->sys_app_max = exchange->file.max;
     vars->sys_app_count = 0;
     vars->sys_app_bindings = (Sys_App_Binding*)push_array(partition, Sys_App_Binding, vars->sys_app_max);
-
+    
     // NOTE(allen): parameter setup
     models->buffer_param_max = 1;
     models->buffer_param_count = 0;
@@ -3774,10 +3834,12 @@ App_Step_Sig(app_step){
                     system->create_coroutine(view_caller);
                 
                 models->command_coroutine = persistent->coroutine;
+                
                 persistent->coroutine =
-                    system->launch_coroutine(persistent->coroutine,
-                                             view,
-                                             &view->persistent.coroutine_flags);
+                    app_launch_coroutine(system, &models->app_links,
+                                         persistent->coroutine,
+                                         view,
+                                         0);
                 
                 if (!persistent->coroutine){
                     // TODO(allen): Error message and recover
@@ -3848,7 +3910,13 @@ App_Step_Sig(app_step){
             while (command_coroutine){
                 User_Input user_in = {0};
                 user_in.abort = 1;
-                command_coroutine = system->resume_coroutine(command_coroutine, &user_in, models->command_coroutine_flags);
+                
+                command_coroutine =
+                    app_resume_coroutine(system, &models->app_links,
+                                         command_coroutine,
+                                         &user_in,
+                                         models->command_coroutine_flags);
+                
                 ++i;
                 if (i >= 128){
                     // TODO(allen): post grave warning, resource cleanup system.
@@ -3925,7 +3993,11 @@ App_Step_Sig(app_step){
 
                 if (pass_in){
                     models->command_coroutine =
-                        system->resume_coroutine(command_coroutine, &user_in, models->command_coroutine_flags);
+                        app_resume_coroutine(system, &models->app_links,
+                                             command_coroutine,
+                                             &user_in,
+                                             models->command_coroutine_flags);
+                    
                     app_result.animating = 1;
 
                     // TOOD(allen): Deduplicate
@@ -3989,8 +4061,11 @@ App_Step_Sig(app_step){
             }
 
             if (pass_in){
-                models->command_coroutine = system->resume_coroutine(command_coroutine, &user_in,
-                    models->command_coroutine_flags);
+                models->command_coroutine = 
+                    app_resume_coroutine(system, &models->app_links,
+                                         command_coroutine,
+                                         &user_in,
+                                         models->command_coroutine_flags);
                 
                 app_result.animating = 1;
                 
@@ -4115,8 +4190,12 @@ App_Step_Sig(app_step){
                         cmd_in.cmd = cmd;
                         cmd_in.bind = cmd_bind;
                         
-                        models->command_coroutine = system->launch_coroutine(models->command_coroutine,
-                                                                             &cmd_in, models->command_coroutine_flags);
+                        models->command_coroutine =
+                            app_launch_coroutine(system, &models->app_links,
+                                                 models->command_coroutine,
+                                                 &cmd_in,
+                                                 models->command_coroutine_flags);
+                        
                         models->prev_command = cmd_bind;
                         
                         app_result.animating = 1;

@@ -21,8 +21,8 @@ if %ERRORLEVEL% neq 0 (set FirstError=1)
 popd
 
 pushd ..\build
-REM call "..\code\buildsuper.bat" ..\code\4coder_default_bindings.cpp
-call "..\code\buildsuper.bat" ..\code\power\4coder_experiments.cpp
+call "..\code\buildsuper.bat" ..\code\4coder_default_bindings.cpp
+REM call "..\code\buildsuper.bat" ..\code\power\4coder_experiments.cpp
 REM call "..\code\buildsuper.bat" ..\code\power\4coder_casey.cpp
 if %ERRORLEVEL% neq 0 (set FirstError=1)
 

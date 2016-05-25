@@ -422,8 +422,8 @@ struct Application_Links;
 #define START_QUERY_BAR_SIG(n) int n(Application_Links *app, Query_Bar *bar, unsigned int flags)
 #define END_QUERY_BAR_SIG(n) void n(Application_Links *app, Query_Bar *bar, unsigned int flags)
 #define PRINT_MESSAGE_SIG(n) void n(Application_Links *app, char *string, int len)
-#define GET_GUI_FUNCTIONS_SIG(n) GUI_Functions* n(Application_Links *app);
-#define GET_GUI_SIG(n) GUI* n(Application_Links *app, int view_id);
+#define GET_GUI_FUNCTIONS_SIG(n) GUI_Functions* n(Application_Links *app)
+#define GET_GUI_SIG(n) GUI* n(Application_Links *app, int view_id)
 
 // Color settings
 #define CHANGE_THEME_SIG(n) void n(Application_Links *app, char *name, int len)
@@ -591,6 +591,8 @@ struct Application_Links{
     
     // Internal
     void *cmd_context;
+    void *current_coroutine;
+    void *system_links;
 };
 
 #define _GET_VERSION_SIG(n) int n(int maj, int min, int patch)

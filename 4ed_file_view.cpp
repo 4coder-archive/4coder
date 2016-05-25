@@ -209,7 +209,7 @@ struct View_Persistent{
     
     View_Routine_Function *view_routine;
     Coroutine *coroutine;
-    u32 coroutine_flags[2];
+    Event_Message message_passing_slot;
     
     // TODO(allen): eliminate this models pointer: explicitly parameterize.
     Models *models;
