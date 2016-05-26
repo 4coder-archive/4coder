@@ -77,6 +77,11 @@ struct Control_Keys{
     b8 l_alt;
     b8 r_alt;
 };
+inline Control_Keys
+control_keys_zero(){
+    Control_Keys result = {0};
+    return(result);
+}
 
 struct Win32_Input_Chunk_Transient{
     Key_Input_Data key_data;
@@ -88,6 +93,11 @@ struct Win32_Input_Chunk_Transient{
     
     b8 trying_to_kill;
 };
+inline Win32_Input_Chunk_Transient
+win32_input_chunk_transient_zero(){
+    Win32_Input_Chunk_Transient result = {0};
+    return(result);
+}
 
 struct Win32_Input_Chunk_Persistent{
     i32 mouse_x, mouse_y;
@@ -301,7 +311,7 @@ system_load_file(char *filename){
 
         if (!result.data.data){
             CloseHandle(file);
-            result = {0};
+            result = file_data_zero();
             return result;
         }
 
@@ -313,7 +323,7 @@ system_load_file(char *filename){
         if (!read_result || read_size != (u32)result.data.size){
             CloseHandle(file);
             Win32FreeMemory(result.data.data);
-            result = {0};
+            result = file_data_zero();
             return result;
         }
     }
@@ -1506,7 +1516,7 @@ Win32Callback(HWND hwnd, UINT uMsg,
 
             b8 *control_keys = win32vars.input_chunk.pers.control_keys;
             for (int i = 0; i < MDFR_INDEX_COUNT; ++i) control_keys[i] = 0;
-            win32vars.input_chunk.pers.controls = {};
+            win32vars.input_chunk.pers.controls = control_keys_zero();
         }break;
 
         case WM_SIZE:
@@ -1600,7 +1610,7 @@ Win32Callback(HWND hwnd, UINT uMsg,
             result = DefWindowProc(hwnd, uMsg, wParam, lParam);
         }break;
     }
-    return result;
+    return(result);
 }
 
 internal void
@@ -1608,7 +1618,7 @@ UpdateStep(){
     i64 timer_start = system_time();
 
     Win32_Input_Chunk input_chunk = win32vars.input_chunk;
-    win32vars.input_chunk.trans = {};
+    win32vars.input_chunk.trans = win32_input_chunk_transient_zero();
 
     input_chunk.pers.control_keys[MDFR_CAPS_INDEX] = GetKeyState(VK_CAPITAL) & 0x1;
 
@@ -1623,7 +1633,7 @@ UpdateStep(){
         input_chunk.trans.out_of_window = 1;
     }
 
-    win32vars.clipboard_contents = {};
+    win32vars.clipboard_contents = string_zero();
     if (win32vars.clipboard_sequence != 0){
         DWORD new_number = GetClipboardSequenceNumber();
         if (new_number != win32vars.clipboard_sequence){
@@ -1803,8 +1813,8 @@ int main(int argc, char **argv){
     
     HANDLE original_out = GetStdHandle(STD_OUTPUT_HANDLE);
 
-    win32vars = {};
-    exchange_vars = {};
+    memset(&win32vars, 0, sizeof(win32vars));
+    memset(&exchange_vars, 0, sizeof(exchange_vars));
 
 #if FRED_INTERNAL
     win32vars.internal_bubble.next = &win32vars.internal_bubble;
@@ -1965,7 +1975,7 @@ int main(int argc, char **argv){
         thread->id = i + 1;
         
         Thread_Memory *memory = win32vars.thread_memory + i;
-        *memory = {};
+        *memory = thread_memory_zero();
         memory->id = thread->id;
         
         thread->queue = &exchange_vars.thread.queues[BACKGROUND_THREADS];
