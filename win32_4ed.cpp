@@ -10,6 +10,9 @@
 // TOP
 
 #include "4coder_default_bindings.cpp"
+#undef exec_command
+#undef exec_command_keep_stack
+#undef clear_parameters
 
 #include "4ed_config.h"
 
@@ -27,10 +30,6 @@
 #include "4ed_dll_reader.h"
 
 #include <stdlib.h>
-
-#undef exec_command
-#undef exec_command_keep_stack
-#undef clear_parameters
 
 #include "4ed_system.h"
 #include "4ed_rendering.h"
@@ -1791,9 +1790,25 @@ UpdateLoop(LPVOID param){
     return(0);
 }
 
+// TODO(allen): What is this doing here?
 #ifndef FRED_NOT_PACKAGE
 #include <stdio.h>
 #endif
+
+#define GL_DEBUG_OUTPUT_SYNCHRONOUS 0x8242
+#define GL_DEBUG_OUTPUT 0x92E0
+
+typedef void GLDEBUGPROC_TYPE(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, char * message, GLvoid * userParam);
+typedef GLDEBUGPROC_TYPE * GLDEBUGPROC;
+typedef void glDebugMessageControl_type(GLenum source, GLenum type, GLenum severity, GLsizei count, GLuint * ids, GLboolean enabled);
+typedef void glDebugMessageCallback_type(GLDEBUGPROC callback, void * userParam);
+
+internal void
+OpenGLDebugCallback(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, char *message, void *userParam)
+{
+    OutputDebugStringA(message);
+    OutputDebugStringA("\n");
+}
 
 #if 1
 int
@@ -2092,6 +2107,19 @@ int main(int argc, char **argv){
     win32vars.target.handle = hdc;
     win32vars.target.context = wglCreateContext(hdc);
     wglMakeCurrent(hdc, (HGLRC)win32vars.target.context);
+    
+#if FRED_INTERNAL
+	// NOTE(casey): This slows down GL but puts error messages to the debug console immediately whenever you do something wrong
+	glDebugMessageCallback_type *glDebugMessageCallback = (glDebugMessageCallback_type *)wglGetProcAddress("glDebugMessageCallback");
+	glDebugMessageControl_type *glDebugMessageControl = (glDebugMessageControl_type *)wglGetProcAddress("glDebugMessageControl");
+	if(glDebugMessageCallback && glDebugMessageControl)
+	{
+		glDebugMessageCallback(OpenGLDebugCallback, 0);
+		glDebugMessageControl(GL_DONT_CARE, GL_DONT_CARE, GL_DONT_CARE, 0, 0, GL_TRUE);
+		glEnable(GL_DEBUG_OUTPUT);
+		glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
+	}
+#endif
 
     glEnable(GL_TEXTURE_2D);
     glEnable(GL_SCISSOR_TEST);
