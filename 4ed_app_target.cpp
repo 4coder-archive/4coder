@@ -11,8 +11,6 @@
 
 #include "4coder_custom.h"
 
-#include "4ed_config.h"
-
 #define BUFFER_EXPERIMENT_SCALPEL 0
 
 #include "4ed_meta.h"
@@ -27,8 +25,6 @@
 #include "4ed_system.h"
 #include "4ed_rendering.h"
 #include "4ed.h"
-
-#include "4ed_internal.h"
 
 #include "4tech_table.cpp"
 

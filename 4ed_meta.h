@@ -57,56 +57,22 @@ raw_ptr_dif(void *a, void *b) { return (i32)((u8*)a - (u8*)b); }
 #define S_(X) S(X)
 #define S__LINE__ S_(__LINE__)
 
-#if FRED_PRINT_DEBUG == 1
-internal void
-_OutDbgStr(u8*);
-#  include <stdio.h>
-#  if FRED_PRINT_DEBUG_FILE_LINE
-#    define FredDbg(con, size, ...) {_OutDbgStr((u8*)("FILE:"__FILE__"LINE:"S__LINE__"\n")); char msg[size]; sprintf(msg, __VA_ARGS__); _OutDbgStr((u8*)msg);}
-#  else
-#    define FredDbg(con, size, ...) {char msg[size]; sprintf(msg, __VA_ARGS__); _OutDbgStr((u8*)msg);}
-#  endif
-#elif FRED_PRINT_DEBUG == 2
-#  include <stdio.h>
-#  if FRED_PRINT_DEBUG_FILE_LINE
-#    define FredDbg(con, size, ...) {fprintf((con)->log, ("FILE:"__FILE__"LINE:"S__LINE__"\n")); fprintf(__VA_ARGS__);}
-#  else
-#    define FredDbg(con, size, ...) {fprintf((con)->log, __VA_ARGS__);}
-#  endif
-#else
-#  define FredDbg(con, size, ...)
-#endif
-
-#if FRED_INTERNAL && FRED_FULL_ERRORS
-#  include <stdio.h>
-#  define FatalErrorFormat(alt, size, ...) {char msg[size]; sprintf(msg, __VA_ARGS__); FatalError(msg);}
-#else
-#  define FatalErrorFormat(alt, size, ...) {FatalError(alt);}
-#endif
-
-#if FRED_SLOW
+#if FRED_INTERNAL || FRED_KEEP_ASSERT
 #  define Assert(c) assert(c)
 #else
 #  define Assert(c)
 #endif
-
 #define TentativeAssert(c) Assert(c)
 #define NotImplemented Assert(!"This is not implemented yet!")
 
-#define FatalError(message) system_fatal_error((u8*)message)
-
 #define AllowLocal(name) (void)name
 #ifndef ArrayCount
-#define ArrayCount(array) (sizeof(array)/sizeof(array[0]))
+#  define ArrayCount(array) (sizeof(array)/sizeof(array[0]))
 #endif
 #define OffsetOfStruct(S,c) ((i64)(& ((S*)0)->c ))
 #define OffsetOfPtr(s,c) ((i64)((char*)(&(s)->c) - (char*)(s)))
 
 #define Swap(T,a,b) do{ T t = a; a = b; b = t; } while(0)
-
-#ifndef literal
-#define literal(s) s, (sizeof(s)-1)
-#endif
 
 #define Min(a,b) (((a)<(b))?(a):(b))
 #define Max(a,b) (((a)>(b))?(a):(b))
@@ -183,15 +149,6 @@ LargeRoundUp(i32 x, i32 granularity){
 #define Bit_29 (1 << 29)
 #define Bit_30 (1 << 30)
 #define Bit_31 (1 << 31)
-
-#define Byte_0 (0xFFU)
-#define Byte_1 (0xFFU << 8)
-#define Byte_2 (0xFFU << 16)
-#define Byte_3 (0xFFU << 24)
-#define Byte_4 (0xFFU << 32)
-#define Byte_5 (0xFFU << 40)
-#define Byte_6 (0xFFU << 48)
-#define Byte_7 (0xFFU << 56)
 
 #define bytes(n) (n)
 #define Kbytes(n) ((n) << 10)

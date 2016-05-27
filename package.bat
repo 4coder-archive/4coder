@@ -8,7 +8,7 @@ pushd W:\4ed\code
 
 ..\meta\readmegen
 
-call "build_all.bat" /O2
+call "build_all.bat" /O2 /DFRED_KEEP_ASSERT
 copy ..\build\4ed.exe ..\current_dist\4coder\*
 copy ..\build\4ed.pdb ..\current_dist\4coder\*
 copy ..\build\4ed_app.dll ..\current_dist\4coder\*
@@ -20,7 +20,7 @@ del ..\current_dist\SUPERREADME.txt
 del ..\current_dist\4coder\basic.cpp
 del ..\current_dist\4coder\.4coder_settings
 
-call "build_all.bat" /O2 /DFRED_SUPER
+call "build_all.bat" /O2 /DFRED_SUPER /DFRED_KEEP_ASSERT
 copy ..\build\4ed.exe ..\current_dist_super\4coder\*
 copy ..\build\4ed.pdb ..\current_dist_super\4coder\*
 copy ..\build\4ed_app.dll ..\current_dist_super\4coder\*

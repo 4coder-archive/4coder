@@ -14,8 +14,6 @@
 #undef exec_command_keep_stack
 #undef clear_parameters
 
-#include "4ed_config.h"
-
 #include "4ed_meta.h"
 
 #define FCPP_FORBID_MALLOC
@@ -27,8 +25,6 @@
 #include "4ed_mem.cpp"
 #include "4ed_math.cpp"
 
-#include "4ed_dll_reader.h"
-
 #include <stdlib.h>
 
 #include "4ed_system.h"
@@ -38,9 +34,16 @@
 #include <windows.h>
 #include <GL/gl.h>
 
-#include "4ed_dll_reader.cpp"
-#include "4ed_internal.h"
 #include "system_shared.h"
+
+#if FRED_INTERNAL
+
+struct Sys_Bubble : public Bubble{
+    i32 line_number;
+    char *file_name;
+};
+
+#endif
 
 #define FPS 60
 #define frame_useconds (1000000 / FPS)
@@ -69,6 +72,11 @@ struct Thread_Group{
 };
 
 #define UseWinDll 1
+
+#if UseWinDll == 0
+#include "4ed_dll_reader.h"
+#include "4ed_dll_reader.cpp"
+#endif
 
 struct Control_Keys{
     b8 l_ctrl;
@@ -1166,7 +1174,7 @@ Win32LoadSystemCode(){
     win32vars.system->acquire_lock = system_acquire_lock;
     win32vars.system->release_lock = system_release_lock;
 
-#ifdef FRED_NOT_PACKAGE
+#ifdef FRED_INTERNAL
     win32vars.system->internal_sentinel = INTERNAL_system_sentinel;
     win32vars.system->internal_get_thread_states = INTERNAL_get_thread_states;
     win32vars.system->internal_debug_message = INTERNAL_system_debug_message;
@@ -1790,11 +1798,6 @@ UpdateLoop(LPVOID param){
     return(0);
 }
 
-// TODO(allen): What is this doing here?
-#ifndef FRED_NOT_PACKAGE
-#include <stdio.h>
-#endif
-
 #define GL_DEBUG_OUTPUT_SYNCHRONOUS 0x8242
 #define GL_DEBUG_OUTPUT 0x92E0
 
@@ -1923,7 +1926,7 @@ int main(int argc, char **argv){
     
 #ifdef FRED_SUPER
     char *custom_file_default = "4coder_custom.dll";
-    char *custom_file;
+    char *custom_file = 0;
     if (win32vars.settings.custom_dll) custom_file = win32vars.settings.custom_dll;
     else custom_file = custom_file_default;
     
@@ -1940,7 +1943,7 @@ int main(int argc, char **argv){
         
         if (win32vars.custom_api.get_alpha_4coder_version == 0 ||
                 win32vars.custom_api.get_alpha_4coder_version(MAJOR, MINOR, PATCH) == 0){
-            printf("Error: application and custom version numbers don't match");
+            OutputDebugStringA("Error: application and custom version numbers don't match");
             return 22;
         }
         win32vars.custom_api.get_bindings = (Get_Binding_Data_Function*)

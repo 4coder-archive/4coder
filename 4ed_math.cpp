@@ -9,17 +9,16 @@
 
 // TOP
 
+#define C_MATH 1
+
 /*
  * Scalar operators
  */
-
-#define C_MATH 1
 
 #define DEG_TO_RAD 0.0174533f
 
 #if C_MATH
 #include <math.h>
-#endif
 
 inline f32
 ABS(f32 x){
@@ -27,7 +26,6 @@ ABS(f32 x){
     return x;
 }
 
-#if C_MATH
 inline f32
 MOD(f32 x, i32 m){
     f32 whole, frac;
@@ -428,39 +426,6 @@ rotate(Vec2 v, real32 theta_degrees){
     return result;
 }
 
-#if 0
-/*
- * Coordinates
- */
-
-struct Matrix2{
-    Vec2 x_axis;
-    Vec2 y_axis;
-};
-
-internal Matrix2
-invert(Vec2 x_axis, Vec2 y_axis){
-    Matrix2 result = {};
-    real32 det = 1.f / (x_axis.x*y_axis.y - x_axis.y*y_axis.x);
-    result.x_axis.x = y_axis.y*det;
-    result.y_axis.x = -y_axis.x*det;
-    result.x_axis.y = -x_axis.y*det;
-    result.y_axis.y = x_axis.x*det;
-    return result;
-}
-
-internal Matrix2
-invert(Matrix2 m){
-    Matrix2 result = {};
-    real32 det = 1.f / (m.x_axis.x*m.y_axis.y - m.x_axis.y*m.y_axis.x);
-    result.x_axis.x = m.y_axis.y*det;
-    result.y_axis.x = -m.y_axis.x*det;
-    result.x_axis.y = -m.x_axis.y*det;
-    result.y_axis.y = m.x_axis.x*det;
-    return result;
-}
-#endif
-
 /*
  * Lerps, Clamps, Thresholds, Etc
  */
@@ -509,7 +474,7 @@ clamp(f32 a, f32 n, f32 z){
  */
 
 // TODO(allen): Convert colors to Vec4
-inline internal u32
+inline u32
 color_blend(u32 a, real32 t, u32 b){
     union{
         u8 byte[4];
@@ -527,7 +492,7 @@ color_blend(u32 a, real32 t, u32 b){
     return R.comp;
 }
 
-internal Vec3
+inline Vec3
 unpack_color3(u32 color){
     Vec3 result;
     result.r = ((color >> 16) & 0xFF) / 255.f;
@@ -536,7 +501,7 @@ unpack_color3(u32 color){
     return result;
 }
 
-internal Vec4
+inline Vec4
 unpack_color4(u32 color){
     Vec4 result;
     result.a = ((color >> 24) & 0xFF) / 255.f;
@@ -546,7 +511,7 @@ unpack_color4(u32 color){
     return result;
 }
 
-internal u32
+inline u32
 pack_color4(Vec4 color){
     u32 result =
         ((u8)(color.a * 255) << 24) |
