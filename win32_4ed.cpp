@@ -48,13 +48,9 @@ struct Sys_Bubble : public Bubble{
 #define FPS 60
 #define frame_useconds (1000000 / FPS)
 
-// TODO(allen): Do we still need all of these? I've abandoned the
-// main thread / update loop thread thing (at least for a while).
-#define WM_4coder_LOAD_FONT (WM_USER + 1)
-#define WM_4coder_PAINT (WM_USER + 2)
-#define WM_4coder_SET_CURSOR (WM_USER + 3)
-#define WM_4coder_ANIMATE (WM_USER + 4)
-#define WM_4coder_EVENT_COMPLETE (WM_USER + 5)
+#define WM_4coder_SET_CURSOR (WM_USER + 1)
+#define WM_4coder_ANIMATE (WM_USER + 2)
+#define WM_4coder_EVENT_COMPLETE (WM_USER + 3)
 
 struct Thread_Context{
     u32 job_id;
@@ -639,14 +635,6 @@ Sys_Release_Lock_Sig(system_release_lock){
 }
 
 internal void
-Win32RedrawFromUpdate(){
-    SendMessage(
-        win32vars.window_handle,
-        WM_4coder_PAINT,
-        0, 0);
-}
-
-internal void
 Win32SetCursorFromUpdate(Application_Mouse_Cursor cursor){
     SendMessage(
         win32vars.window_handle,
@@ -1201,9 +1189,30 @@ Font_Load_Sig(system_draw_font_load){
     params->pt_size = pt_size;
     params->tab_width = tab_width;
 
-    SendMessage(win32vars.window_handle,
-        WM_4coder_LOAD_FONT,
-        0, (i32)(params - win32vars.fnt.params));
+    if (win32vars.fnt.part.base == 0){
+        win32vars.fnt.part = Win32ScratchPartition(Mbytes(8));
+    }
+    
+    i32 oversample = 2;
+    
+    for (b32 success = 0; success == 0;){
+        success = draw_font_load(win32vars.fnt.part.base,
+                                 win32vars.fnt.part.max,
+                                 params->font_out,
+                                 params->filename,
+                                 params->pt_size,
+                                 params->tab_width,
+                                 oversample);
+        
+        if (!success){
+            Win32ScratchPartitionDouble(&win32vars.fnt.part);
+        }
+    }
+    
+    system_acquire_lock(FONT_LOCK);
+    fnt__remove(params);
+    fnt__insert(&win32vars.fnt.free_param, params);
+    system_release_lock(FONT_LOCK);
     return(1);
 }
 
@@ -1225,6 +1234,15 @@ Win32RedrawScreen(HDC hdc){
     system_release_lock(RENDER_LOCK);
     glFlush();
     SwapBuffers(hdc);
+}
+
+internal void
+Win32RedrawFromUpdate(){
+    PAINTSTRUCT ps;
+    HWND hwnd = win32vars.window_handle;
+    HDC hdc = BeginPaint(hwnd, &ps);
+    Win32RedrawScreen(hdc);
+    EndPaint(hwnd, &ps);
 }
 
 // NOTE(allen): Old contents of 4ed_keyboard.cpp
@@ -1546,14 +1564,6 @@ Win32Callback(HWND hwnd, UINT uMsg,
             EndPaint(hwnd, &ps);
         }break;
 
-        case WM_4coder_PAINT:
-        {
-            PAINTSTRUCT ps;
-            HDC hdc = BeginPaint(hwnd, &ps);
-            Win32RedrawScreen(hdc);
-            EndPaint(hwnd, &ps);
-        }break;
-
         case WM_4coder_SET_CURSOR:
         {
             switch (wParam){
@@ -1576,35 +1586,6 @@ Win32Callback(HWND hwnd, UINT uMsg,
         {
             win32vars.got_useful_event = 1;
             win32vars.input_chunk.trans.trying_to_kill = 1;
-        }break;
-
-        case WM_4coder_LOAD_FONT:
-        {
-            if (win32vars.fnt.part.base == 0){
-                win32vars.fnt.part = Win32ScratchPartition(Mbytes(8));
-            }
-
-            Font_Load_Parameters *params = win32vars.fnt.params + lParam;
-            i32 oversample = 2;
-
-            for (b32 success = 0; success == 0;){
-                success = draw_font_load(win32vars.fnt.part.base,
-                    win32vars.fnt.part.max,
-                    params->font_out,
-                    params->filename,
-                    params->pt_size,
-                    params->tab_width,
-                    oversample);
-
-                if (!success){
-                    Win32ScratchPartitionDouble(&win32vars.fnt.part);
-                }
-            }
-
-            system_acquire_lock(FONT_LOCK);
-            fnt__remove(params);
-            fnt__insert(&win32vars.fnt.free_param, params);
-            system_release_lock(FONT_LOCK);
         }break;
 
         case WM_4coder_ANIMATE:
