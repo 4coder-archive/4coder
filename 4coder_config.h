@@ -8,13 +8,13 @@ NOTES ON USE:
 
 #ifdef FCPP_NO_CRT
 # ifndef FCPP_NO_MALLOC
-# define FCPP_NO_MALLOC
+#  define FCPP_NO_MALLOC
 # endif
 # ifndef FCPP_NO_ASSERT
-# define FCPP_NO_ASSERT
+#  define FCPP_NO_ASSERT
 # endif
 # ifndef FCPP_NO_STRING
-# define FCPP_NO_STRING
+#  define FCPP_NO_STRING
 # endif
 #endif
 
@@ -36,10 +36,10 @@ NOTES ON USE:
 
 #ifndef FCPP_NO_MALLOC
 # ifndef FCPP_GET_MEMORY
-# define FCPP_GET_MEMORY malloc
+#  define FCPP_GET_MEMORY malloc
 # endif
 # ifndef FCPP_FREE_MEMORY
-# define FCPP_FREE_MEMORY free
+#  define FCPP_FREE_MEMORY free
 # endif
 #else
 # ifndef FCPP_FORBID_MALLOC

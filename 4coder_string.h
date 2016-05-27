@@ -9,7 +9,7 @@ NOTES ON USE:
                               - this option is unset after use so that future includes of this file
                                 in the same unit do not continue to output implementations
    
-   FCPP_LINK - defines linkage of non-inline functions, defaults to static
+   FSTRING_LINK - defines linkage of non-inline functions, defaults to static
    FCPP_EXTERN changes FCPP_LINK default to extern, this option is ignored if FCPP_LINK is defined
 
    include the file "4cpp_clear_config.h" if yo want to undefine all options for some reason
@@ -19,16 +19,17 @@ NOTES ON USE:
  */
 
 // TOP
-// TODO(allen):
-// - comments
-// - memcpy / memmove replacements (different file for optimization options?)
-// - examples and docs
-// 
-
-#include "4coder_config.h"
 
 #ifndef FCPP_STRING_INC
 #define FCPP_STRING_INC
+
+#ifndef FSTRING_LINK
+# define FSTRING_LINK static
+#endif
+
+#ifndef FSTRING_INLINE
+# define FSTRING_INLINE inline
+#endif
 
 #ifndef FRED_STRING_STRUCT
 #define FRED_STRING_STRUCT
@@ -44,29 +45,29 @@ struct Offset_String{
 };
 #endif
 
-inline bool char_not_slash(char c) { return (c != '\\' && c != '/'); }
-inline bool char_is_slash(char c) { return (c == '\\' || c == '/'); }
+FSTRING_INLINE bool char_not_slash(char c) { return (c != '\\' && c != '/'); }
+FSTRING_INLINE bool char_is_slash(char c) { return (c == '\\' || c == '/'); }
 
-inline char char_to_upper(char c) { return (c >= 'a' && c <= 'z') ? c + (char)('A' - 'a') : c; }
-inline char char_to_lower(char c) { return (c >= 'A' && c <= 'Z') ? c - (char)('A' - 'a') : c; }
-inline int  char_to_int(char c) { return (c - '0'); }
-inline char int_to_char(int x) { return (char)(x + '0'); }
+FSTRING_INLINE char char_to_upper(char c) { return (c >= 'a' && c <= 'z') ? c + (char)('A' - 'a') : c; }
+FSTRING_INLINE char char_to_lower(char c) { return (c >= 'A' && c <= 'Z') ? c - (char)('A' - 'a') : c; }
+FSTRING_INLINE int  char_to_int(char c) { return (c - '0'); }
+FSTRING_INLINE char int_to_char(int x) { return (char)(x + '0'); }
 
-inline bool char_is_whitespace(char c) { return (c == ' ' || c == '\n' || c == '\r' || c == '\t'); }
-inline bool char_is_white_not_r(char c) { return (c == ' ' || c == '\n' || c == '\t'); }
-inline bool char_is_lower(char c) { return (c >= 'a' && c <= 'z'); }
-inline bool char_is_upper(char c) { return (c >= 'A' && c <= 'Z'); }
-inline bool char_is_alpha(char c) { return (c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c == '_'); }
-inline bool char_is_alpha_true(char c) { return (c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z'); }
-inline bool char_is_numeric(char c) { return (c >= '0' && c <= '9'); }
-inline bool char_is_alpha_numeric_true(char c) { return (c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c >= '0' && c <= '9'); }
-inline bool char_is_alpha_numeric(char c) { return (c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c >= '0' && c <= '9' || c == '_'); }
-inline bool char_is_hex(char c) { return c >= '0' && c <= '9' || c >= 'A' && c <= 'F' || c >= 'a' && c <= 'f'; }
-inline bool char_is_basic(char c) { return c >= ' ' && c <= '~'; }
+FSTRING_INLINE bool char_is_whitespace(char c) { return (c == ' ' || c == '\n' || c == '\r' || c == '\t'); }
+FSTRING_INLINE bool char_is_white_not_r(char c) { return (c == ' ' || c == '\n' || c == '\t'); }
+FSTRING_INLINE bool char_is_lower(char c) { return (c >= 'a' && c <= 'z'); }
+FSTRING_INLINE bool char_is_upper(char c) { return (c >= 'A' && c <= 'Z'); }
+FSTRING_INLINE bool char_is_alpha(char c) { return (c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c == '_'); }
+FSTRING_INLINE bool char_is_alpha_true(char c) { return (c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z'); }
+FSTRING_INLINE bool char_is_numeric(char c) { return (c >= '0' && c <= '9'); }
+FSTRING_INLINE bool char_is_alpha_numeric_true(char c) { return (c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c >= '0' && c <= '9'); }
+FSTRING_INLINE bool char_is_alpha_numeric(char c) { return (c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c >= '0' && c <= '9' || c == '_'); }
+FSTRING_INLINE bool char_is_hex(char c) { return c >= '0' && c <= '9' || c >= 'A' && c <= 'F' || c >= 'a' && c <= 'f'; }
+FSTRING_INLINE bool char_is_basic(char c) { return c >= ' ' && c <= '~'; }
 
-inline String string_zero();
-inline String make_string(void *s, int size, int mem_size);
-inline String make_string(void *s, int size);
+FSTRING_INLINE String string_zero();
+FSTRING_INLINE String make_string(void *s, int size, int mem_size);
+FSTRING_INLINE String make_string(void *s, int size);
 
 #define make_lit_string(str) (make_string((char*)(str), sizeof(str)-1, sizeof(str)))
 #define make_fixed_width_string(str) (make_string((char*)(str), 0, sizeof(str)))
@@ -77,92 +78,92 @@ inline String make_string(void *s, int size);
 
 #define expand_str(s) ((s).str), ((s).size)
 
-inline String make_string_slowly(void *s);
-inline char*  make_c_str(String s);
+FSTRING_INLINE String make_string_slowly(void *s);
+FSTRING_INLINE char*  make_c_str(String s);
 
-inline String substr(String str, int start);
-inline String substr(String str, int start, int size);
-inline String substr_slowly(char *s, int start);
-inline String substr(char *s, int start, int size);
-inline String tailstr(String s);
+FSTRING_INLINE String substr(String str, int start);
+FSTRING_INLINE String substr(String str, int start, int size);
+FSTRING_INLINE String substr_slowly(char *s, int start);
+FSTRING_INLINE String substr(char *s, int start, int size);
+FSTRING_INLINE String tailstr(String s);
 
 
-FCPP_LINK int   str_size(char *s);
+FSTRING_LINK int   str_size(char *s);
 
-FCPP_LINK bool  match(char *a, char *b);
-FCPP_LINK bool  match(String a, char *b);
-inline    bool  match(char *a, String b) { return match(b,a); }
-FCPP_LINK bool  match(String a, String b);
+FSTRING_LINK bool  match(char *a, char *b);
+FSTRING_LINK bool  match(String a, char *b);
+FSTRING_INLINE    bool  match(char *a, String b) { return match(b,a); }
+FSTRING_LINK bool  match(String a, String b);
 
-FCPP_LINK bool  match_part(char *a, char *b, int *len);
-FCPP_LINK bool  match_part(String a, char *b, int *len);
-inline    bool  match_part(char *a, char *b) { int x; return match_part(a,b,&x); }
-inline    bool  match_part(String a, char *b) { int x; return match_part(a,b,&x); }
-FCPP_LINK bool  match_part(char *a, String b);
-FCPP_LINK bool  match_part(String a, String b);
+FSTRING_LINK bool  match_part(char *a, char *b, int *len);
+FSTRING_LINK bool  match_part(String a, char *b, int *len);
+FSTRING_INLINE    bool  match_part(char *a, char *b) { int x; return match_part(a,b,&x); }
+FSTRING_INLINE    bool  match_part(String a, char *b) { int x; return match_part(a,b,&x); }
+FSTRING_LINK bool  match_part(char *a, String b);
+FSTRING_LINK bool  match_part(String a, String b);
 
-FCPP_LINK bool  match_unsensitive(char *a, char *b);
-FCPP_LINK bool  match_unsensitive(String a, char *b);
-inline    bool  match_unsensitive(char *a, String b) { return match_unsensitive(b,a); }
-FCPP_LINK bool  match_unsensitive(String a, String b);
+FSTRING_LINK bool  match_unsensitive(char *a, char *b);
+FSTRING_LINK bool  match_unsensitive(String a, char *b);
+FSTRING_INLINE    bool  match_unsensitive(char *a, String b) { return match_unsensitive(b,a); }
+FSTRING_LINK bool  match_unsensitive(String a, String b);
 
-FCPP_LINK bool  match_part_unsensitive(char *a, char *b, int *len);
-FCPP_LINK bool  match_part_unsensitive(String a, char *b, int *len);
-inline    bool  match_part_unsensitive(char *a, char *b) { int x; return match_part(a,b,&x); }
-inline    bool  match_part_unsensitive(String a, char *b) { int x; return match_part(a,b,&x); }
-FCPP_LINK bool  match_part_unsensitive(char *a, String b);
-FCPP_LINK bool  match_part_unsensitive(String a, String b);
+FSTRING_LINK bool  match_part_unsensitive(char *a, char *b, int *len);
+FSTRING_LINK bool  match_part_unsensitive(String a, char *b, int *len);
+FSTRING_INLINE    bool  match_part_unsensitive(char *a, char *b) { int x; return match_part(a,b,&x); }
+FSTRING_INLINE    bool  match_part_unsensitive(String a, char *b) { int x; return match_part(a,b,&x); }
+FSTRING_LINK bool  match_part_unsensitive(char *a, String b);
+FSTRING_LINK bool  match_part_unsensitive(String a, String b);
 
-FCPP_LINK int   find(char *s, int start, char c);
-FCPP_LINK int   find(String s, int start, char c);
-FCPP_LINK int   find(char *s, int start, char *c);
-FCPP_LINK int   find(String s, int start, char *c);
+FSTRING_LINK int   find(char *s, int start, char c);
+FSTRING_LINK int   find(String s, int start, char c);
+FSTRING_LINK int   find(char *s, int start, char *c);
+FSTRING_LINK int   find(String s, int start, char *c);
 
-FCPP_LINK int   find_substr(char *s, int start, String seek);
-FCPP_LINK int   find_substr(String s, int start, String seek);
-FCPP_LINK int   rfind_substr(String s, int start, String seek);
+FSTRING_LINK int   find_substr(char *s, int start, String seek);
+FSTRING_LINK int   find_substr(String s, int start, String seek);
+FSTRING_LINK int   rfind_substr(String s, int start, String seek);
 
-FCPP_LINK int   find_substr_unsensitive(char *s, int start, String seek);
-FCPP_LINK int   find_substr_unsensitive(String s, int start, String seek);
+FSTRING_LINK int   find_substr_unsensitive(char *s, int start, String seek);
+FSTRING_LINK int   find_substr_unsensitive(String s, int start, String seek);
 
-inline    bool  has_substr(char *s, String seek) { return (s[find_substr(s, 0, seek)] != 0); }
-inline    bool  has_substr(String s, String seek) { return (find_substr(s, 0, seek) < s.size); }
+FSTRING_INLINE    bool  has_substr(char *s, String seek) { return (s[find_substr(s, 0, seek)] != 0); }
+FSTRING_INLINE    bool  has_substr(String s, String seek) { return (find_substr(s, 0, seek) < s.size); }
 
-inline    bool  has_substr_unsensitive(char *s, String seek) { return (s[find_substr_unsensitive(s, 0, seek)] != 0); }
-inline    bool  has_substr_unsensitive(String s, String seek) { return (find_substr_unsensitive(s, 0, seek) < s.size); }
+FSTRING_INLINE    bool  has_substr_unsensitive(char *s, String seek) { return (s[find_substr_unsensitive(s, 0, seek)] != 0); }
+FSTRING_INLINE    bool  has_substr_unsensitive(String s, String seek) { return (find_substr_unsensitive(s, 0, seek) < s.size); }
 
-FCPP_LINK int   int_to_str_size(int x);
-FCPP_LINK int   int_to_str(int x, char *s_out);
-FCPP_LINK bool  int_to_str(int x, String *s_out);
-FCPP_LINK bool  append_int_to_str(int x, String *s_out);
+FSTRING_LINK int   int_to_str_size(int x);
+FSTRING_LINK int   int_to_str(int x, char *s_out);
+FSTRING_LINK bool  int_to_str(int x, String *s_out);
+FSTRING_LINK bool  append_int_to_str(int x, String *s_out);
 
-FCPP_LINK int   str_to_int(char *s);
-FCPP_LINK int   str_to_int(String s);
-FCPP_LINK int   hexchar_to_int(char c);
-FCPP_LINK char  int_to_hexchar(int c);
-FCPP_LINK unsigned int   hexstr_to_int(String s);
+FSTRING_LINK int   str_to_int(char *s);
+FSTRING_LINK int   str_to_int(String s);
+FSTRING_LINK int   hexchar_to_int(char c);
+FSTRING_LINK char  int_to_hexchar(int c);
+FSTRING_LINK unsigned int   hexstr_to_int(String s);
 
-FCPP_LINK bool color_to_hexstr(unsigned int color, String *s_out);
-FCPP_LINK bool hexstr_to_color(String s, unsigned int *color);
+FSTRING_LINK bool color_to_hexstr(unsigned int color, String *s_out);
+FSTRING_LINK bool hexstr_to_color(String s, unsigned int *color);
 
-FCPP_LINK int   copy_fast_unsafe(char *dest, char *src);
-FCPP_LINK void  copy_fast_unsafe(char *dest, String src);
-FCPP_LINK bool  copy_checked(String *dest, String src);
-FCPP_LINK bool  copy_partial(String *dest, char *src);
-FCPP_LINK bool  copy_partial(String *dest, String src);
+FSTRING_LINK int   copy_fast_unsafe(char *dest, char *src);
+FSTRING_LINK void  copy_fast_unsafe(char *dest, String src);
+FSTRING_LINK bool  copy_checked(String *dest, String src);
+FSTRING_LINK bool  copy_partial(String *dest, char *src);
+FSTRING_LINK bool  copy_partial(String *dest, String src);
 
-inline    int   copy(char *dest, char *src) { return copy_fast_unsafe(dest, src); }
-inline    void  copy(String *dest, String src) { copy_checked(dest, src); }
-inline    void  copy(String *dest, char *src) { copy_partial(dest, src); }
+FSTRING_INLINE    int   copy(char *dest, char *src) { return copy_fast_unsafe(dest, src); }
+FSTRING_INLINE    void  copy(String *dest, String src) { copy_checked(dest, src); }
+FSTRING_INLINE    void  copy(String *dest, char *src) { copy_partial(dest, src); }
 
-FCPP_LINK bool  append_checked(String *dest, String src);
-FCPP_LINK bool  append_partial(String *dest, char *src);
-FCPP_LINK bool  append_partial(String *dest, String src);
+FSTRING_LINK bool  append_checked(String *dest, String src);
+FSTRING_LINK bool  append_partial(String *dest, char *src);
+FSTRING_LINK bool  append_partial(String *dest, String src);
 
-FCPP_LINK bool  append(String *dest, char c);
-inline    bool  append(String *dest, String src) { return append_partial(dest, src); }
-inline    bool  append(String *dest, char *src) { return append_partial(dest, src); }
-inline    bool  terminate_with_null(String *str){
+FSTRING_LINK bool  append(String *dest, char c);
+FSTRING_INLINE    bool  append(String *dest, String src) { return append_partial(dest, src); }
+FSTRING_INLINE    bool  append(String *dest, char *src) { return append_partial(dest, src); }
+FSTRING_INLINE    bool  terminate_with_null(String *str){
     bool result;
     if (str->size < str->memory_size){
         str->str[str->size] = 0;
@@ -175,32 +176,32 @@ inline    bool  terminate_with_null(String *str){
     return result;
 }
 
-FCPP_LINK int   compare(char *a, char *b);
-FCPP_LINK int   compare(String a, char *b);
-inline    int   compare(char *a, String b) { return -compare(b,a); }
-FCPP_LINK int   compare(String a, String b);
+FSTRING_LINK int   compare(char *a, char *b);
+FSTRING_LINK int   compare(String a, char *b);
+FSTRING_INLINE    int   compare(char *a, String b) { return -compare(b,a); }
+FSTRING_LINK int   compare(String a, String b);
 
-FCPP_LINK int    reverse_seek_slash(String str);
-FCPP_LINK int    reverse_seek_slash(String str, int start_pos);
-inline    String  front_of_directory(String dir) { return substr(dir, reverse_seek_slash(dir) + 1); }
-inline    String  path_of_directory(String dir) { return substr(dir, 0, reverse_seek_slash(dir) + 1); }
-inline    bool   get_front_of_directory(String *dest, String dir) { return append_checked(dest, front_of_directory(dir)); }
-inline    bool   get_path_of_directory(String *dest, String dir) { return append_checked(dest, path_of_directory(dir)); }
-FCPP_LINK bool   set_last_folder(String *dir, char *folder_name, char slash);
-FCPP_LINK bool   set_last_folder(String *dir, String folder_name, char slash);
-FCPP_LINK String file_extension(String str);
-FCPP_LINK String file_extension_slowly(char *str);
-FCPP_LINK char * file_extension_c(String str);
-FCPP_LINK bool   remove_last_folder(String *str);
-FCPP_LINK void   replace_char(String str, char replace, char with);
-FCPP_LINK void   replace_char(char *str, char replace, char with);
+FSTRING_LINK int    reverse_seek_slash(String str);
+FSTRING_LINK int    reverse_seek_slash(String str, int start_pos);
+FSTRING_INLINE    String  front_of_directory(String dir) { return substr(dir, reverse_seek_slash(dir) + 1); }
+FSTRING_INLINE    String  path_of_directory(String dir) { return substr(dir, 0, reverse_seek_slash(dir) + 1); }
+FSTRING_INLINE    bool   get_front_of_directory(String *dest, String dir) { return append_checked(dest, front_of_directory(dir)); }
+FSTRING_INLINE    bool   get_path_of_directory(String *dest, String dir) { return append_checked(dest, path_of_directory(dir)); }
+FSTRING_LINK bool   set_last_folder(String *dir, char *folder_name, char slash);
+FSTRING_LINK bool   set_last_folder(String *dir, String folder_name, char slash);
+FSTRING_LINK String file_extension(String str);
+FSTRING_LINK String file_extension_slowly(char *str);
+FSTRING_LINK char * file_extension_c(String str);
+FSTRING_LINK bool   remove_last_folder(String *str);
+FSTRING_LINK void   replace_char(String str, char replace, char with);
+FSTRING_LINK void   replace_char(char *str, char replace, char with);
 
-inline String string_zero(){
+FSTRING_INLINE String string_zero(){
     String str={0};
     return(str);
 }
 
-inline String make_string(void *str, int size, int mem_size){
+FSTRING_INLINE String make_string(void *str, int size, int mem_size){
     String result;
     result.str = (char*)str;
     result.size = size;
@@ -208,7 +209,7 @@ inline String make_string(void *str, int size, int mem_size){
     return result;
 }
 
-inline String
+FSTRING_INLINE String
 make_string(void *str, int size){
     String result;
     result.str = (char*)str;
@@ -217,7 +218,7 @@ make_string(void *str, int size){
     return result;
 }
 
-inline String
+FSTRING_INLINE String
 make_string_slowly(void *str){
     String result;
     result.str = (char*)str;
@@ -226,7 +227,7 @@ make_string_slowly(void *str){
     return result;
 }
 
-inline char*
+FSTRING_INLINE char*
 make_c_str(String str){
     if (str.size < str.memory_size){
         str.str[str.size] = 0;
@@ -237,7 +238,7 @@ make_c_str(String str){
     return (char*)str.str;
 }
 
-inline String
+FSTRING_INLINE String
 substr(String str, int start){
     String result;
     result.str = str.str + start;
@@ -245,7 +246,7 @@ substr(String str, int start){
     return result;
 }
 
-inline String
+FSTRING_INLINE String
 substr(String str, int start, int size){
     String result;
     result.str = str.str + start;
@@ -258,7 +259,7 @@ substr(String str, int start, int size){
     return result;
 }
 
-inline String
+FSTRING_INLINE String
 substr_slowly(char *str, int start){
     String result;
     result.str = str + start;
@@ -266,7 +267,7 @@ substr_slowly(char *str, int start){
     return result;
 }
 
-inline String
+FSTRING_INLINE String
 substr(char *str, int start, int size){
     String result;
     result.str = str + start;
@@ -280,7 +281,7 @@ substr(char *str, int start, int size){
     return result;
 }
 
-inline String
+FSTRING_INLINE String
 tailstr(String str){
     String result;
     result.str = str.str + str.size;
@@ -296,14 +297,14 @@ tailstr(String str){
 #ifndef FCPP_DID_STRING_IMPLEMENTATION
 #define FCPP_DID_STRING_IMPLEMENTATION
 
-FCPP_LINK int
+FSTRING_LINK int
 str_size(char *str){
     int i = 0;
     while (str[i]) ++i;
     return i;
 }
 
-FCPP_LINK bool
+FSTRING_LINK bool
 match(char *a, char *b){
     for (int i = 0;; ++i){
         if (a[i] != b[i]){
@@ -315,7 +316,7 @@ match(char *a, char *b){
     }
 }
 
-FCPP_LINK bool
+FSTRING_LINK bool
 match(String a, char *b){
     int i = 0;
     for (; i < a.size; ++i){
@@ -329,7 +330,7 @@ match(String a, char *b){
     return 1;
 }
 
-FCPP_LINK bool
+FSTRING_LINK bool
 match(String a, String b){
     if (a.size != b.size){
         return 0;
@@ -342,7 +343,7 @@ match(String a, String b){
     return 1;
 }
 
-FCPP_LINK bool
+FSTRING_LINK bool
 match_part(char *a, char *b, int *len){
     int i;
     for (i = 0; b[i] != 0; ++i){
@@ -354,7 +355,7 @@ match_part(char *a, char *b, int *len){
     return 1;
 }
 
-FCPP_LINK bool
+FSTRING_LINK bool
 match_part(String a, char *b, int *len){
     int i;
     for (i = 0; b[i] != 0; ++i){
@@ -366,7 +367,7 @@ match_part(String a, char *b, int *len){
     return 1;
 }
 
-FCPP_LINK bool
+FSTRING_LINK bool
 match_part(char *a, String b){
     for (int i = 0; i != b.size; ++i){
         if (a[i] != b.str[i]){
@@ -376,7 +377,7 @@ match_part(char *a, String b){
     return 1;
 }
 
-FCPP_LINK bool
+FSTRING_LINK bool
 match_part(String a, String b){
     if (a.size < b.size){
         return 0;
@@ -389,7 +390,7 @@ match_part(String a, String b){
     return 1;
 }
 
-FCPP_LINK bool
+FSTRING_LINK bool
 match_unsensitive(char *a, char *b){
     for (int i = 0;; ++i){
         if (char_to_upper(a[i]) !=
@@ -402,7 +403,7 @@ match_unsensitive(char *a, char *b){
     }
 }
 
-FCPP_LINK bool
+FSTRING_LINK bool
 match_unsensitive(String a, char *b){
     int i = 0;
     for (; i < a.size; ++i){
@@ -417,7 +418,7 @@ match_unsensitive(String a, char *b){
     return 1;
 }
 
-FCPP_LINK bool
+FSTRING_LINK bool
 match_unsensitive(String a, String b){
     if (a.size != b.size){
         return 0;
@@ -431,7 +432,7 @@ match_unsensitive(String a, String b){
     return 1;
 }
 
-FCPP_LINK bool
+FSTRING_LINK bool
 match_part_unsensitive(char *a, char *b, int *len){
     int i;
     for (i = 0; b[i] != 0; ++i){
@@ -443,7 +444,7 @@ match_part_unsensitive(char *a, char *b, int *len){
     return 1;
 }
 
-FCPP_LINK bool
+FSTRING_LINK bool
 match_part_unsensitive(String a, char *b, int *len){
     int i;
     for (i = 0; b[i] != 0; ++i){
@@ -456,7 +457,7 @@ match_part_unsensitive(String a, char *b, int *len){
     return 1;
 }
 
-FCPP_LINK bool
+FSTRING_LINK bool
 match_part_unsensitive(char *a, String b){
     for (int i = 0; i != b.size; ++i){
         if (char_to_upper(a[i]) != char_to_upper(b.str[i])){
@@ -466,7 +467,7 @@ match_part_unsensitive(char *a, String b){
     return 1;
 }
 
-FCPP_LINK bool
+FSTRING_LINK bool
 match_part_unsensitive(String a, String b){
     if (a.size < b.size){
         return 0;
@@ -479,21 +480,21 @@ match_part_unsensitive(String a, String b){
     return 1;
 }
 
-FCPP_LINK int
+FSTRING_LINK int
 find(char *str, int start, char character){
     int i = start;
     while (str[i] != character && str[i] != 0) ++i;
     return i;
 }
 
-FCPP_LINK int
+FSTRING_LINK int
 find(String str, int start, char character){
     int i = start;
     while (i < str.size && str.str[i] != character) ++i;
     return i;
 }
 
-FCPP_LINK int
+FSTRING_LINK int
 find(char *str, int start, char *characters){
     int i = start, j;
     while (str[i] != 0){
@@ -507,7 +508,7 @@ find(char *str, int start, char *characters){
     return i;
 }
 
-FCPP_LINK int
+FSTRING_LINK int
 find(String str, int start, char *characters){
     int i = start, j;
     while (i < str.size){
@@ -521,7 +522,7 @@ find(String str, int start, char *characters){
     return i;
 }
 
-FCPP_LINK int
+FSTRING_LINK int
 find_substr(char *str, int start, String seek){
     int i, j, k;
     bool hit;
@@ -546,7 +547,7 @@ find_substr(char *str, int start, String seek){
     return i;
 }
 
-FCPP_LINK int
+FSTRING_LINK int
 find_substr(String str, int start, String seek){
     int stop_at, i, j, k;
     bool hit;
@@ -572,7 +573,7 @@ find_substr(String str, int start, String seek){
     return str.size;
 }
 
-FCPP_LINK int
+FSTRING_LINK int
 rfind_substr(String str, int start, String seek){
     int i, j, k;
     bool hit;
@@ -600,7 +601,7 @@ rfind_substr(String str, int start, String seek){
     return -1;
 }
 
-FCPP_LINK int
+FSTRING_LINK int
 find_substr_unsensitive(char *str, int start, String seek){
     int i, j, k;
     bool hit;
@@ -628,7 +629,7 @@ find_substr_unsensitive(char *str, int start, String seek){
     return i;
 }
 
-FCPP_LINK int
+FSTRING_LINK int
 find_substr_unsensitive(String str, int start, String seek){
     int i, j, k;
     int stop_at;
@@ -658,7 +659,7 @@ find_substr_unsensitive(String str, int start, String seek){
     return str.size;
 }
 
-FCPP_LINK int
+FSTRING_LINK int
 int_to_str_size(int x){
     int size;
     if (x < 0){
@@ -675,7 +676,7 @@ int_to_str_size(int x){
     return size;
 }
 
-FCPP_LINK int
+FSTRING_LINK int
 int_to_str(int x, char *str){
     int size, i, j;
     bool negative;
@@ -712,7 +713,7 @@ int_to_str(int x, char *str){
     return size;
 }
 
-FCPP_LINK bool
+FSTRING_LINK bool
 int_to_str(int x, String *dest){
     bool result = 1;
     char *str = dest->str;
@@ -758,7 +759,7 @@ int_to_str(int x, String *dest){
     return result;
 }
 
-FCPP_LINK bool
+FSTRING_LINK bool
 append_int_to_str(int x, String *dest){
     String last_part = tailstr(*dest);
     bool result = int_to_str(x, &last_part);
@@ -768,7 +769,7 @@ append_int_to_str(int x, String *dest){
     return result;
 }
 
-FCPP_LINK int
+FSTRING_LINK int
 str_to_int(char *str){
     int x = 0;
     for (; *str; ++str){
@@ -784,7 +785,7 @@ str_to_int(char *str){
     return(x);
 }
 
-FCPP_LINK int
+FSTRING_LINK int
 str_to_int(String str){
     int x, i;
     if (str.size == 0){
@@ -800,7 +801,7 @@ str_to_int(String str){
     return x;
 }
 
-FCPP_LINK int
+FSTRING_LINK int
 hexchar_to_int(char c){
     int x;
     if (c >= '0' && c <= '9'){
@@ -815,12 +816,12 @@ hexchar_to_int(char c){
     return x;
 }
 
-FCPP_LINK char
+FSTRING_LINK char
 int_to_hexchar(int x){
     return (x<10)?((char)x+'0'):((char)x+'a'-10);
 }
 
-FCPP_LINK unsigned int
+FSTRING_LINK unsigned int
 hexstr_to_int(String str){
     unsigned int x;
     int i;
@@ -837,7 +838,7 @@ hexstr_to_int(String str){
     return x;
 }
 
-FCPP_LINK bool
+FSTRING_LINK bool
 color_to_hexstr(unsigned int color, String *s){
     bool result = 0;
     int i;
@@ -864,7 +865,7 @@ color_to_hexstr(unsigned int color, String *s){
     return(result);
 }
 
-FCPP_LINK bool
+FSTRING_LINK bool
 hexstr_to_color(String s, unsigned int *out){
     bool result = 0;
     unsigned int color = 0;
@@ -882,7 +883,7 @@ hexstr_to_color(String s, unsigned int *out){
     return(result);
 }
 
-FCPP_LINK int
+FSTRING_LINK int
 copy_fast_unsafe(char *dest, char *src){
     char *start = dest;
     while (*src != 0){
@@ -893,7 +894,7 @@ copy_fast_unsafe(char *dest, char *src){
     return (int)(dest - start);
 }
 
-FCPP_LINK void
+FSTRING_LINK void
 copy_fast_unsafe(char *dest, String src){
     int i = 0;
     while (i != src.size){
@@ -902,7 +903,7 @@ copy_fast_unsafe(char *dest, String src){
     }
 }
 
-FCPP_LINK bool
+FSTRING_LINK bool
 copy_checked(String *dest, String src){
     char *dest_str;
     int i;
@@ -917,7 +918,7 @@ copy_checked(String *dest, String src){
     return 1;
 }
 
-FCPP_LINK bool
+FSTRING_LINK bool
 copy_partial(String *dest, char *src){
     int i = 0;
     int memory_size = dest->memory_size;
@@ -933,7 +934,7 @@ copy_partial(String *dest, char *src){
     return 1;
 }
 
-FCPP_LINK bool
+FSTRING_LINK bool
 copy_partial(String *dest, String src){
     bool result;
     int memory_size = dest->memory_size;
@@ -955,7 +956,7 @@ copy_partial(String *dest, String src){
     return result;
 }
 
-FCPP_LINK bool
+FSTRING_LINK bool
 append_checked(String *dest, String src){
     String end;
     end = tailstr(*dest);
@@ -966,7 +967,7 @@ append_checked(String *dest, String src){
     return result;
 }
 
-FCPP_LINK bool
+FSTRING_LINK bool
 append_partial(String *dest, char *src){
     String end = tailstr(*dest);
     bool result = copy_partial(&end, src);
@@ -974,7 +975,7 @@ append_partial(String *dest, char *src){
     return result;
 }
 
-FCPP_LINK bool
+FSTRING_LINK bool
 append_partial(String *dest, String src){
     String end = tailstr(*dest);
     bool result = copy_partial(&end, src);
@@ -982,7 +983,7 @@ append_partial(String *dest, String src){
     return result;
 }
 
-FCPP_LINK bool
+FSTRING_LINK bool
 append(String *dest, char c){
     bool result = 0;
     if (dest->size < dest->memory_size){
@@ -992,7 +993,7 @@ append(String *dest, char c){
     return result;
 }
 
-FCPP_LINK int
+FSTRING_LINK int
 compare(char *a, char *b){
     int i = 0;
     while (a[i] == b[i] && a[i] != 0){
@@ -1001,7 +1002,7 @@ compare(char *a, char *b){
     return (a[i] > b[i]) - (a[i] < b[i]);
 }
 
-FCPP_LINK int
+FSTRING_LINK int
 compare(String a, char *b){
     int i = 0;
     while (i < a.size && a.str[i] == b[i]){
@@ -1020,7 +1021,7 @@ compare(String a, char *b){
     }
 }
 
-FCPP_LINK int
+FSTRING_LINK int
 compare(String a, String b){
     int i = 0;
     while (i < a.size && i < b.size && a.str[i] == b.str[i]){
@@ -1034,7 +1035,7 @@ compare(String a, String b){
     }
 }
 
-FCPP_LINK int
+FSTRING_LINK int
 reverse_seek_slash(String str, int pos){
     int i = str.size - 1 - pos;
     while (i >= 0 && char_not_slash(str.str[i])){
@@ -1043,12 +1044,12 @@ reverse_seek_slash(String str, int pos){
     return i;
 }
 
-FCPP_LINK int
+FSTRING_LINK int
 reverse_seek_slash(String str){
     return(reverse_seek_slash(str, 0));
 }
 
-FCPP_LINK bool
+FSTRING_LINK bool
 set_last_folder(String *dir, char *folder_name, char slash){
     char str[2];
     bool result = 0;
@@ -1067,7 +1068,7 @@ set_last_folder(String *dir, char *folder_name, char slash){
     return result;
 }
 
-FCPP_LINK bool
+FSTRING_LINK bool
 set_last_folder(String *dir, String folder_name, char slash){
     char str[2];
     bool result = 0;
@@ -1086,7 +1087,7 @@ set_last_folder(String *dir, String folder_name, char slash){
     return result;
 }
 
-FCPP_LINK String
+FSTRING_LINK String
 file_extension(String str){
     int i;
     for (i = str.size - 1; i >= 0; --i){
@@ -1096,7 +1097,7 @@ file_extension(String str){
     return make_string(str.str+i, str.size-i);
 }
 
-FCPP_LINK String
+FSTRING_LINK String
 file_extension_slowly(char *str){
     int s, i;
     for (s = 0; str[s]; ++s);
@@ -1107,7 +1108,7 @@ file_extension_slowly(char *str){
     return make_string(str+i, s-i);
 }
 
-FCPP_LINK char*
+FSTRING_LINK char*
 file_extension_c(String str){
     int i;
     for (i = str.size - 1; i >= 0; --i){
@@ -1117,7 +1118,7 @@ file_extension_c(String str){
     return str.str+i;
 }
 
-FCPP_LINK bool
+FSTRING_LINK bool
 remove_last_folder(String *str){
     bool result = 0;
     int end = reverse_seek_slash(*str, 1);
@@ -1128,7 +1129,7 @@ remove_last_folder(String *str){
     return(result);
 }
 
-FCPP_LINK void
+FSTRING_LINK void
 replace_char(String str, char replace, char with){
     char *s = str.str;
     int i;
@@ -1138,7 +1139,7 @@ replace_char(String str, char replace, char with){
     }
 }
 
-FCPP_LINK void
+FSTRING_LINK void
 replace_char(char *str, char replace, char with){
     for (; *str; ++str){
         if (*str == replace) *str = with;
@@ -1157,7 +1158,7 @@ struct Absolutes{
     int count;
 };
 
-FCPP_LINK void
+FSTRING_LINK void
 get_absolutes(String name, Absolutes *absolutes, bool implicit_first, bool implicit_last){
     int count = 0;
     int max = ArrayCount(absolutes->a) - 1;
@@ -1203,7 +1204,7 @@ get_absolutes(String name, Absolutes *absolutes, bool implicit_first, bool impli
     absolutes->count = count;
 }
 
-FCPP_LINK bool
+FSTRING_LINK bool
 wildcard_match(Absolutes *absolutes, char *x, int case_sensitive){
     bool r = 1;
     String *a = absolutes->a;
@@ -1261,7 +1262,7 @@ wildcard_match(Absolutes *absolutes, char *x, int case_sensitive){
     return r;
 }
 
-FCPP_LINK bool
+FSTRING_LINK bool
 wildcard_match(Absolutes *absolutes, String x, int case_sensitive){
     terminate_with_null(&x);
     return wildcard_match(absolutes, x.str, case_sensitive);

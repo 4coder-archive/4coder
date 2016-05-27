@@ -7,6 +7,8 @@
 #define UseInterfacesThatArePhasingOut 0
 #include "4coder_helper.h"
 
+#include <assert.h>
+
 static void
 write_string(Application_Links *app, String string){
     Buffer_Summary buffer = app->get_active_buffer(app);

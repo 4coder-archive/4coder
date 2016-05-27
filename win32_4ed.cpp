@@ -10,22 +10,14 @@
 // TOP
 
 #include "4coder_default_bindings.cpp"
-#undef exec_command
-#undef exec_command_keep_stack
-#undef clear_parameters
 
 #include "4ed_meta.h"
 
-#define FCPP_FORBID_MALLOC
-
-#include "4cpp_types.h"
 #define FCPP_STRING_IMPLEMENTATION
 #include "4coder_string.h"
 
 #include "4ed_mem.cpp"
 #include "4ed_math.cpp"
-
-#include <stdlib.h>
 
 #include "4ed_system.h"
 #include "4ed_rendering.h"
@@ -36,21 +28,10 @@
 
 #include "system_shared.h"
 
-#if FRED_INTERNAL
-
-struct Sys_Bubble : public Bubble{
-    i32 line_number;
-    char *file_name;
-};
-
-#endif
-
 #define FPS 60
 #define frame_useconds (1000000 / FPS)
 
-#define WM_4coder_SET_CURSOR (WM_USER + 1)
-#define WM_4coder_ANIMATE (WM_USER + 2)
-#define WM_4coder_EVENT_COMPLETE (WM_USER + 3)
+#define WM_4coder_ANIMATE (WM_USER + 1)
 
 struct Thread_Context{
     u32 job_id;
@@ -123,6 +104,13 @@ struct Win32_Coroutine{
     int done;
 };
 
+#if FRED_INTERNAL
+struct Sys_Bubble : public Bubble{
+    i32 line_number;
+    char *file_name;
+};
+#endif
+
 struct Win32_Vars{
 	HWND window_handle;
     HDC window_hdc;
@@ -194,7 +182,7 @@ INTERNAL_system_sentinel(){
 
 internal void
 INTERNAL_system_debug_message(char *message){
-    OutputDebugString(message);
+    OutputDebugStringA(message);
 }
 
 #endif
@@ -636,10 +624,19 @@ Sys_Release_Lock_Sig(system_release_lock){
 
 internal void
 Win32SetCursorFromUpdate(Application_Mouse_Cursor cursor){
-    SendMessage(
-        win32vars.window_handle,
-        WM_4coder_SET_CURSOR,
-        cursor, 0);
+    switch (cursor){
+        case APP_MOUSE_CURSOR_ARROW:
+        SetCursor(win32vars.cursor_arrow); break;
+        
+        case APP_MOUSE_CURSOR_IBEAM:
+        SetCursor(win32vars.cursor_ibeam); break;
+        
+        case APP_MOUSE_CURSOR_LEFTRIGHT:
+        SetCursor(win32vars.cursor_leftright); break;
+        
+        case APP_MOUSE_CURSOR_UPDOWN:
+        SetCursor(win32vars.cursor_updown); break;
+    }
 }
 
 internal void
@@ -722,7 +719,7 @@ JobThreadProc(LPVOID lpParameter){
                     }
                     full_job->job.callback(win32vars.system, thread, thread_memory,
                         &exchange_vars.thread, full_job->job.data);
-                    PostMessage(win32vars.window_handle, WM_4coder_EVENT_COMPLETE, 0, 0);
+                    PostMessage(win32vars.window_handle, WM_4coder_ANIMATE, 0, 0);
                     full_job->running_thread = 0;
                     thread->running = 0;
                 }
@@ -1085,12 +1082,12 @@ Win32LoadAppCode(){
     }
 
 #else
-    Data file = system_load_file("4ed_app.dll");
+    File_Data file = system_load_file("4ed_app.dll");
 
-    if (file.data){
+    if (file.got_file){
         i32 error;
         DLL_Data dll_data;
-        if (dll_parse_headers(file, &dll_data, &error)){
+        if (dll_parse_headers(file.data, &dll_data, &error)){
             Data img;
             img.size = dll_total_loaded_size(&dll_data);
             img.data = (byte*)
@@ -1098,7 +1095,7 @@ Win32LoadAppCode(){
                 MEM_COMMIT | MEM_RESERVE,
                 PAGE_READWRITE);
 
-            dll_load(img, &win32vars.app_dll, file, &dll_data);
+            dll_load(img, &win32vars.app_dll, file.data, &dll_data);
 
             DWORD extra_;
             VirtualProtect(img.data + win32vars.app_dll.text_start,
@@ -1113,9 +1110,7 @@ Win32LoadAppCode(){
             // TODO(allen): file loading error
         }
 
-        system_free(file.data);
-
-        DUMP((byte*)(Tbytes(3)), Kbytes(400));
+        Win32FreeMemory(file.data.data);
     }
     else{
         // TODO(allen): file loading error
@@ -1564,23 +1559,6 @@ Win32Callback(HWND hwnd, UINT uMsg,
             EndPaint(hwnd, &ps);
         }break;
 
-        case WM_4coder_SET_CURSOR:
-        {
-            switch (wParam){
-                case APP_MOUSE_CURSOR_ARROW:
-                SetCursor(win32vars.cursor_arrow); break;
-
-                case APP_MOUSE_CURSOR_IBEAM:
-                SetCursor(win32vars.cursor_ibeam); break;
-
-                case APP_MOUSE_CURSOR_LEFTRIGHT:
-                SetCursor(win32vars.cursor_leftright); break;
-
-                case APP_MOUSE_CURSOR_UPDOWN:
-                SetCursor(win32vars.cursor_updown); break;
-            }
-        }break;
-
         case WM_CLOSE: // NOTE(allen): I expect WM_CLOSE not WM_DESTROY
         case WM_DESTROY:
         {
@@ -1589,7 +1567,6 @@ Win32Callback(HWND hwnd, UINT uMsg,
         }break;
 
         case WM_4coder_ANIMATE:
-        case WM_4coder_EVENT_COMPLETE:
         win32vars.got_useful_event = 1;
         break;
         
@@ -1713,7 +1690,7 @@ UpdateStep(){
                 else{
                     file->flags |= FEx_Save_Failed;
                 }
-                PostMessage(win32vars.window_handle, WM_4coder_EVENT_COMPLETE, 0, 0);
+                PostMessage(win32vars.window_handle, WM_4coder_ANIMATE, 0, 0);
             }
 
             if (file->flags & FEx_Request){
@@ -1728,7 +1705,7 @@ UpdateStep(){
                     file->data = sysfile.data.data;
                     file->size = sysfile.data.size;
                 }
-                PostMessage(win32vars.window_handle, WM_4coder_EVENT_COMPLETE, 0, 0);
+                PostMessage(win32vars.window_handle, WM_4coder_ANIMATE, 0, 0);
             }
         }
 
@@ -2044,7 +2021,7 @@ int main(int argc, char **argv){
     }
 
     // TODO(allen): not Windows XP compatible, do we care?
-    SetProcessDPIAware();
+    // SetProcessDPIAware();
 
     HWND window_handle = {};
     window_handle = CreateWindowA(
