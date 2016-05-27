@@ -869,9 +869,6 @@ INTERNAL_Sys_Sentinel_Sig(internal_sentinel){
 #else
     result = 0;
 #endif
-
-    return 0;
-
     return(result);
 }
 
