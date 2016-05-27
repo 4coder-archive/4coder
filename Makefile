@@ -2,9 +2,10 @@ CPP_FILES := $(wildcard *.cpp) $(wildcard **/*.cpp)
 H_FILES := $(wildcard *.h) $(wildcard **/*.h)
 WARNINGS := -Wno-write-strings 
 PLAT_LINKS := -L/usr/local/lib -lX11 -lpthread -lm -lrt -lGL -ldl -lXfixes
-FLAGS := -fPIC -fno-threadsafe-statics -pthread -I../foreign -g -O0
+FLAGS := -fPIC -fno-threadsafe-statics -pthread -I../foreign
 
-all: ../4ed_app.so ../4ed
+debug: FLAGS += -DFRED_KEEP_ASSERT=1 -DFRED_INTERNAL=0 -DFRED_SUPER -g -O0
+debug: ../4ed_app.so ../4ed
 
 ../4ed_app.so: $(CPP_FILES) $(H_FILES)
 	g++ $(WARNINGS) $(FLAGS) -shared 4ed_app_target.cpp -iquoteforeign -o $@
@@ -29,6 +30,6 @@ release_super: release
 release32_super: FLAGS += -D FRED_SUPER 
 release32_super: release32
 
-.PHONY: clean release release32 release_super release32_super
+.PHONY: debug clean release release32 release_super release32_super
 
 

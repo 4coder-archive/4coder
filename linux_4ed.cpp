@@ -9,8 +9,11 @@
 
 // TOP
 
-#include "4ed_config.h"
+#include "4coder_default_bindings.cpp"
 
+#undef exec_command
+#undef exec_command_keep_stack
+#undef clear_parameters
 
 #include "4ed_meta.h"
 
@@ -27,61 +30,60 @@
 #include "4ed_mem.cpp"
 #include "4ed_math.cpp"
 
-#include "4coder_default_bindings.cpp"
-
-#undef exec_command
-#undef exec_command_keep_stack
-#undef clear_parameters
-
 #include "4ed_system.h"
 #include "4ed_rendering.h"
 #include "4ed.h"
 
 #include <stdio.h>
-#include <memory.h>
 #include <math.h>
+#include <time.h>
+#include <stdlib.h>
+#include <locale.h>
+#include <memory.h>
+#include <dirent.h>
+#include <dlfcn.h>
+#include <unistd.h>
+#include <xmmintrin.h>
+#include <fcntl.h>
+#include <errno.h>
+#include <pthread.h>
+#include <semaphore.h>
+#include <signal.h>
+#include <ucontext.h>
+
+#include <sys/types.h>
 #include <sys/ioctl.h>
 #include <sys/time.h>
-#include <sys/types.h>
+#include <sys/wait.h>
 #include <sys/stat.h>
 #include <sys/mman.h>
 #include <sys/timerfd.h>
 #include <sys/eventfd.h>
 #include <sys/epoll.h>
 #include <sys/inotify.h>
-#include <dirent.h>
-#include <stdio.h>
+
 #include <X11/Xlib.h>
 #include <X11/cursorfont.h>
 #include <X11/Xatom.h>
 #include <X11/extensions/Xfixes.h>
+
 #include <GL/glx.h>
 #include <GL/gl.h>
 #include <GL/glext.h>
-#include <xmmintrin.h>
-#include <linux/fs.h>
-//#include <X11/extensions/XInput2.h>
-#include <linux/input.h>
-#include <time.h>
-#include <dlfcn.h>
-#include <unistd.h>
 
-#include "4ed_internal.h"
+#include <linux/fs.h>
+#include <linux/input.h>
+
 #include "system_shared.h"
 
-#include <stdlib.h>
-#include <locale.h>
-#include <sys/stat.h>
-#include <fcntl.h>
-#include <errno.h>
-#include <pthread.h>
-#include <semaphore.h>
-#include <signal.h>
-#include <sys/types.h>
-#include <sys/wait.h>
-#include <ucontext.h>
+#if FRED_INTERNAL
 
-//#define FRED_USE_FONTCONFIG 1
+struct Sys_Bubble : public Bubble{
+    i32 line_number;
+    char *file_name;
+};
+
+#endif
 
 #if FRED_USE_FONTCONFIG
 #include <fontconfig/fontconfig.h>
@@ -179,6 +181,7 @@ struct Linux_Vars{
 
 #if FRED_INTERNAL
     Sys_Bubble internal_bubble;
+    pthread_mutex_t DEBUG_sysmem_lock;
 #endif
 
     Font_Load_System fnt;
@@ -214,19 +217,21 @@ LinuxGetMemory_(i32 size, i32 line_number, char *file_name){
     Assert(size != 0);
     
 #if FRED_INTERNAL
-    Sys_Bubble *bubble;
+    result = mmap(0, size + sizeof(Sys_Bubble), PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
     
-    result = malloc(size + sizeof(Sys_Bubble));
-    bubble = (Sys_Bubble*)result;
+    Sys_Bubble* bubble = (Sys_Bubble*)result;
     bubble->flags = MEM_BUBBLE_SYS_DEBUG;
     bubble->line_number = line_number;
     bubble->file_name = file_name;
     bubble->size = size;
-    
-    // TODO(allen): make Sys_Bubble list thread safe
+
+    pthread_mutex_lock(&linuxvars.DEBUG_sysmem_lock);
     insert_bubble(&linuxvars.internal_bubble, bubble);
+    pthread_mutex_unlock(&linuxvars.DEBUG_sysmem_lock);
+
     result = bubble + 1;
     
+    printf("new bubble: %p\n", result);
 #else
     size_t real_size = size + sizeof(size_t);
     result = mmap(0, real_size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
@@ -246,20 +251,20 @@ internal void
 LinuxFreeMemory(void *block){
     if (block){
 #if FRED_INTERNAL
-        Sys_Bubble *bubble;
-        
-        bubble = (Sys_Bubble*)block;
-        --bubble;
+        Sys_Bubble *bubble = ((Sys_Bubble*)block) - 1;
         Assert((bubble->flags & MEM_BUBBLE_DEBUG_MASK) == MEM_BUBBLE_SYS_DEBUG);
 
-        // TODO(allen): make Sys_Bubble list thread safe
+        size_t size = bubble->size + sizeof(Sys_Bubble);
+
+        pthread_mutex_lock(&linuxvars.DEBUG_sysmem_lock);
         remove_bubble(bubble);
+        pthread_mutex_unlock(&linuxvars.DEBUG_sysmem_lock);
         
-        free(bubble);
+        munmap(bubble, size);
 #else
         block = (char*)block - sizeof(size_t);
-        size_t len = *(size_t*)block;
-        munmap(block, len);
+        size_t size = *(size_t*)block;
+        munmap(block, size);
 #endif
     }
 }
@@ -269,7 +274,7 @@ LinuxScratchPartition(i32 size){
     Partition part;
     void *data;
     data = LinuxGetMemory(size);
-    part = partition_open(data, size);
+    part = make_part(data, size);
     return(part);
 }
 
@@ -280,7 +285,7 @@ LinuxScratchPartitionGrow(Partition *part, i32 new_size){
         data = LinuxGetMemory(new_size);
         memcpy(data, part->base, part->pos);
         LinuxFreeMemory(part->base);
-        part->base = (u8*)data;
+        part->base = (char*)data;
     }
 }
 
@@ -336,7 +341,7 @@ Sys_File_Time_Stamp_Sig(system_file_time_stamp){
 #endif
     }
 
-    LINUX_FN_DEBUG("%s = %" PRIu64, filename, microsecond_timestamp);
+    //LINUX_FN_DEBUG("%s = %" PRIu64, filename, microsecond_timestamp);
 
     return(microsecond_timestamp);
 }
@@ -864,6 +869,9 @@ INTERNAL_Sys_Sentinel_Sig(internal_sentinel){
 #else
     result = 0;
 #endif
+
+    return 0;
+
     return(result);
 }
 
@@ -1198,7 +1206,7 @@ Sys_To_Binary_Path(system_to_binary_path){
     i32 max = out_filename->memory_size;
     i32 size = readlink("/proc/self/exe", out_filename->str, max);
 
-    LINUX_FN_DEBUG("%d, %d", max, size);
+    LINUX_FN_DEBUG("max: %d, size: %d", max, size);
 
     if (size > 0 && size < max-1){
         out_filename->size = size;
@@ -1374,20 +1382,13 @@ InitializeOpenGLContext(Display *XDisplay, Window XWindow, GLXFBConfig &bestFbc,
             None
         };
 
-        fprintf(stderr, "Attribs: %d %d %d %d %d\n",
-                context_attribs[0],
-                context_attribs[1],
-                context_attribs[2],
-                context_attribs[3],
-                context_attribs[4]);
- 
-        fprintf(stderr,  "Creating context\n");
+        fprintf(stderr,  "Creating GL 4.3 context...\n");
         ctx = glXCreateContextAttribsARB(XDisplay, bestFbc, 0, True, context_attribs);
  
         XSync( XDisplay, False );
         if (!ctxErrorOccurred && ctx)
         {
-            fprintf(stderr,  "Created GL 4.3 context\n" );
+            fprintf(stderr,  "Created GL 4.3 context.\n" );
         }
         else
         {
@@ -1396,14 +1397,14 @@ InitializeOpenGLContext(Display *XDisplay, Window XWindow, GLXFBConfig &bestFbc,
             context_attribs[1] = 3;
             context_attribs[3] = 2;
  
-            fprintf(stderr,  "Creating context\n" );
+            fprintf(stderr,  "GL 4.3 unavailable, creating GL 3.2 context...\n" );
             ctx = glXCreateContextAttribsARB( XDisplay, bestFbc, 0, True, context_attribs );
  
             XSync(XDisplay, False);
 
             if (!ctxErrorOccurred && ctx)
             {
-                fprintf(stderr,  "Created GL 3.2 context\n" );
+                fprintf(stderr,  "Created GL 3.2 context.\n" );
             }
             else
             {
@@ -1508,7 +1509,7 @@ InitializeOpenGLContext(Display *XDisplay, Window XWindow, GLXFBConfig &bestFbc,
     GLXLOAD(glDebugMessageCallback);
 
     if(glDebugMessageCallback){
-        fputs("enabling gl debug\n", stderr);
+        fputs("Enabling GL Debug Callback\n", stderr);
         glDebugMessageCallback(&gl_log, 0);
         glEnable(GL_DEBUG_OUTPUT);
     }
@@ -1574,17 +1575,29 @@ ChooseGLXConfig(Display *XDisplay, int XScreenIndex)
 		None
 	};    
 
-	int ConfigCount;
+	int ConfigCount = 0;
 	GLXFBConfig *Configs = glXChooseFBConfig(XDisplay,
 											 XScreenIndex,
 											 DesiredAttributes,
 											 &ConfigCount);
-	if(ConfigCount > 0)
+	if(Configs && ConfigCount > 0)
 	{
-		Result.Found = true;
-		Result.BestConfig = *Configs;
-		Result.BestInfo = *glXGetVisualFromFBConfig(XDisplay, *Configs);
-	}
+        XVisualInfo* VI = glXGetVisualFromFBConfig(XDisplay, Configs[0]);
+        if(VI)
+        {
+            Result.Found = true;
+            Result.BestConfig = Configs[0];
+		    Result.BestInfo = *VI;
+
+            int id = 0;
+            glXGetFBConfigAttrib(XDisplay, Result.BestConfig, GLX_FBCONFIG_ID, &id);
+            fprintf(stderr, "Using FBConfig: %d (0x%x)\n", id, id);
+
+            XFree(VI);
+        }
+
+        XFree(Configs);
+    }
 
     return(Result);
 }
@@ -1594,6 +1607,7 @@ struct Init_Input_Result{
     XIMStyle best_style;
     XIC xic;
 };
+
 inline Init_Input_Result
 init_input_result_zero(){
     Init_Input_Result result={0};
@@ -2172,6 +2186,8 @@ main(int argc, char **argv)
     linuxvars.internal_bubble.next = &linuxvars.internal_bubble;
     linuxvars.internal_bubble.prev = &linuxvars.internal_bubble;
     linuxvars.internal_bubble.flags = MEM_BUBBLE_SYS_DEBUG;
+
+    pthread_mutex_init(&linuxvars.DEBUG_sysmem_lock, 0);
 #endif
 
     linuxvars.first = 1;
@@ -2206,6 +2222,15 @@ main(int argc, char **argv)
     memory_vars.target_memory = system_get_memory(memory_vars.target_memory_size);
     memory_vars.user_memory_size = Mbytes(2);
     memory_vars.user_memory = system_get_memory(memory_vars.user_memory_size);
+
+#if 0
+    memory_vars.vars_memory_size = Mbytes(2);
+    memory_vars.vars_memory = mmap(0, memory_vars.vars_memory_size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+    memory_vars.target_memory_size = Mbytes(512);
+    memory_vars.target_memory = mmap(0, memory_vars.target_memory_size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+    memory_vars.user_memory_size = Mbytes(2);
+    memory_vars.user_memory = mmap(0, memory_vars.user_memory_size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+#endif
 
     String current_directory;
     i32 curdir_req, curdir_size;
@@ -2282,21 +2307,23 @@ main(int argc, char **argv)
 
     if (linuxvars.custom){
         linuxvars.custom_api.get_alpha_4coder_version = (_Get_Version_Function*)
-        dlsym(linuxvars.custom, "get_alpha_4coder_version");
+            dlsym(linuxvars.custom, "get_alpha_4coder_version");
 
         if (linuxvars.custom_api.get_alpha_4coder_version == 0 ||
             linuxvars.custom_api.get_alpha_4coder_version(MAJOR, MINOR, PATCH) == 0){
-            fprintf(stderr, "failed to use 4coder_custom.so: version mismatch\n");
+            fprintf(stderr, "*** Failed to use 4coder_custom.so: version mismatch ***\n");
         }
         else{
             linuxvars.custom_api.get_bindings = (Get_Binding_Data_Function*)
-            dlsym(linuxvars.custom, "get_bindings");
+                dlsym(linuxvars.custom, "get_bindings");
+            linuxvars.custom_api.view_routine = (View_Routine_Function*)
+                dlsym(linuxvars.custom, "view_routine");
 
             if (linuxvars.custom_api.get_bindings == 0){
-                fprintf(stderr, "failed to use 4coder_custom.so: get_bindings not exported\n");
+                fprintf(stderr, "*** Failed to use 4coder_custom.so: get_bindings not exported ***\n");
             }
             else{
-                fprintf(stderr, "successfully loaded 4coder_custom.so\n");
+                fprintf(stderr, "Successfully loaded 4coder_custom.so\n");
             }
         }
     }
@@ -2372,6 +2399,8 @@ main(int argc, char **argv)
         exit(1);
     }
 
+    // TODO(inso): maybe should try the default screen first? or only the default without iterating.
+
     for(int XScreenIndex = 0;
         XScreenIndex < XScreenCount;
         ++XScreenIndex)
@@ -2396,12 +2425,12 @@ main(int argc, char **argv)
             swa.event_mask = StructureNotifyMask;
 
             linuxvars.XWindow =
-            XCreateWindow(linuxvars.XDisplay,
-                          RootWindow(linuxvars.XDisplay, Config.BestInfo.screen),
-                          0, 0, WinWidth, WinHeight,
-                          0, Config.BestInfo.depth, InputOutput, 
-                          Config.BestInfo.visual, 
-                          CWBorderPixel|CWColormap|CWEventMask, &swa);
+                XCreateWindow(linuxvars.XDisplay,
+                              RootWindow(linuxvars.XDisplay, Config.BestInfo.screen),
+                              0, 0, WinWidth, WinHeight,
+                              0, Config.BestInfo.depth, InputOutput,
+                              Config.BestInfo.visual,
+                              CWBorderPixel|CWColormap|CWEventMask, &swa);
 
             if(linuxvars.XWindow)
             {
@@ -2485,6 +2514,8 @@ main(int argc, char **argv)
     XFree(sz_hints);
     XFree(wm_hints);
     XFree(cl_hints);
+
+    XFree(win_name.value);
 
     LinuxSetIcon(linuxvars.XDisplay, linuxvars.XWindow);
 
