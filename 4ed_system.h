@@ -51,6 +51,20 @@ typedef Sys_File_Track_Sig(System_File_Track);
 #define Sys_File_Untrack_Sig(name) void name(String filename)
 typedef Sys_File_Untrack_Sig(System_File_Untrack);
 
+struct File_Loading{
+    Plat_Handle handle;
+    i32 size;
+};
+
+#define Sys_File_Load_Begin_Sig(name) File_Loading name(char *filename)
+typedef Sys_File_Load_Begin_Sig(System_File_Load_Begin);
+
+#define Sys_File_Load_End_Sig(name) b32 name(File_Loading loading, char *buffer)
+typedef Sys_File_Load_End_Sig(System_File_Load_End);
+
+#define Sys_File_Save_Sig(name) void name(char *filename, char *buffer, i32 size)
+typedef Sys_File_Save_Sig(System_File_Save);
+
 
 #define Sys_Post_Clipboard_Sig(name) void name(String str)
 typedef Sys_Post_Clipboard_Sig(System_Post_Clipboard);
@@ -109,9 +123,6 @@ struct Thread_Context;
 
 enum Lock_ID{
     FRAME_LOCK,
-    INPUT_LOCK,
-    FONT_LOCK,
-    RENDER_LOCK,
     CANCEL_LOCK0,
     CANCEL_LOCK1,
     CANCEL_LOCK2,
@@ -205,12 +216,15 @@ typedef INTERNAL_Sys_Get_Thread_States_Sig(INTERNAL_System_Get_Thread_States);
 typedef INTERNAL_Sys_Debug_Message_Sig(INTERNAL_System_Debug_Message);
 
 struct System_Functions{
-    // files: 4
+    // files: 6
     System_File_Time_Stamp *file_time_stamp;
     System_Set_File_List *set_file_list;
     System_File_Unique_Hash *file_unique_hash;
     System_File_Track *file_track;
     System_File_Untrack *file_untrack;
+    System_File_Load_Begin *file_load_begin;
+    System_File_Load_End *file_load_end;
+    System_File_Save *file_save;
 
     // file system navigation (4coder_custom.h): 3
     File_Exists_Function *file_exists;

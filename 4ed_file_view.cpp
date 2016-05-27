@@ -4270,250 +4270,243 @@ do_input_file_view(System_Functions *system, Exchange *exchange,
     GUI_Header *h = 0;
     GUI_Target *target = &view->gui_target;
     GUI_Interpret_Result interpret_result = {0};
-
+    
     result.vars = vars;
     result.region = region;
     
-    gui_session_init(&gui_session, target, rect, view->font_height);
-
     target->active = gui_id_zero();
-
-    for (h = (GUI_Header*)target->push.base;
-         h->type;
-         h = NextHeader(h)){
-        interpret_result = gui_interpret(target, &gui_session, h,
-                                         result.vars, result.region);
+    
+    if (target->push.pos > 0){
+        gui_session_init(&gui_session, target, rect, view->font_height);
         
-        if (interpret_result.has_region){
-            result.region = interpret_result.region;
-        }
-        
-        switch (h->type){
-            case guicom_file_option:
-            case guicom_fixed_option:
-            case guicom_fixed_option_checkbox:
-            {
-                GUI_Interactive *b = (GUI_Interactive*)h;
-
-                if (interpret_result.auto_activate){
-                    target->auto_hot = gui_id_zero();
-                    target->active = b->id;
-                    result.is_animating = 1;
-                }
-                else if (interpret_result.auto_hot){
-                    if (!gui_id_eq(target->auto_hot, b->id)){
-                        target->auto_hot = b->id;
-                        result.is_animating = 1;
-                    }
-                }
-            }break;
-        }
-
-        if (interpret_result.has_info){
+        for (h = (GUI_Header*)target->push.base;
+             h->type;
+             h = NextHeader(h)){
+            interpret_result = gui_interpret(target, &gui_session, h,
+                                             result.vars, result.region);
+            
+            if (interpret_result.has_region){
+                result.region = interpret_result.region;
+            }
+            
             switch (h->type){
-                case guicom_top_bar: break;
-
-                case guicom_file:
-                {
-                    f32 new_min_y = -(f32)(gui_session_get_eclipsed_y(&gui_session) -
-                                           gui_session.rect.y0);
-                    f32 new_max_y = view_compute_max_target_y(view);
-                    
-                    view->file_region = gui_session.rect;
-                    result.vars.min_y = new_min_y;
-                    result.vars.max_y = new_max_y;
-                    
-                    if (view->reinit_scrolling){
-                        view_reinit_scrolling(view);
-                        result.is_animating = 1;
-                    }
-                    if (file_step(view, gui_session.rect, user_input, is_active)){
-                        result.is_animating = 1;
-                    }
-                    is_file_scroll = 1;
-                }break;
-                
-                case guicom_color_button:
-                case guicom_font_button:
-                case guicom_button:
                 case guicom_file_option:
-                case guicom_style_preview:
-                {
-                    GUI_Interactive *b = (GUI_Interactive*)h;
-
-                    click_button_input(target, &gui_session, user_input, b, &result.is_animating);
-                }break;
-
                 case guicom_fixed_option:
                 case guicom_fixed_option_checkbox:
                 {
                     GUI_Interactive *b = (GUI_Interactive*)h;
-
-                    click_button_input(target, &gui_session, user_input, b, &result.is_animating);
-
-                    {
-                        Key_Event_Data key;
-                        Key_Summary *keys = &user_input->keys;
-
-                        void *ptr = (b + 1);
-                        String string;
-                        char activation_key;
-
-                        i32 i, count;
-
-                        string = gui_read_string(&ptr);
-                        activation_key = *(char*)ptr;
-
-                        count = keys->count;
-                        for (i = 0; i < count; ++i){
-                            key = get_single_key(keys, i);
-                            if (char_to_upper(key.character) == char_to_upper(activation_key)){
-                                target->active = b->id;
-                                result.is_animating = 1;
-                                break;
-                            }
-                        }
+                    
+                    if (interpret_result.auto_activate){
+                        target->auto_hot = gui_id_zero();
+                        target->active = b->id;
+                        result.is_animating = 1;
                     }
-                }break;
-
-                case guicom_scrollable:
-                {
-#if 0
-                    // TODO(allen): Think about this... should we be setting anything in the view?
-                    // Seems like an issue.  Should instead return this and have the user set it
-                    // right?
-                    view->scroll_region = result.region;
-#endif
-                }break;
-
-                case guicom_scrollable_slider:
-                {
-                    GUI_id id = gui_id_scrollbar_slider();
-                    i32 mx = user_input->mouse.x;
-                    i32 my = user_input->mouse.y;
-                    f32 v = 0;
-
-                    if (hit_check(mx, my, gui_session.rect)){
-                        target->hover = id;
-                        if (user_input->mouse.press_l){
-                            target->mouse_hot = id;
+                    else if (interpret_result.auto_hot){
+                        if (!gui_id_eq(target->auto_hot, b->id)){
+                            target->auto_hot = b->id;
                             result.is_animating = 1;
                         }
                     }
-                    else if (gui_id_eq(target->hover, id)){
-                        target->hover = gui_id_zero();
-                    }
-                    
-                    if (gui_id_eq(target->mouse_hot, id)){
-                        v = unlerp(gui_session.scroll_top, (f32)my,
-                                   gui_session.scroll_bottom);
-                        if (v < 0) v = 0;
-                        if (v > 1.f) v = 1.f;
-                        result.vars.target_y =
-                            lerp(result.vars.min_y, v, result.vars.max_y);
-                        
-                        gui_activate_scrolling(target);
-                        result.is_animating = 1;
-                    }
-                }
-                // NOTE(allen): NO BREAK HERE!!
-                
-                case guicom_scrollable_invisible:
-                {
-                    if (user_input->mouse.wheel != 0){
-                        result.vars.target_y += user_input->mouse.wheel*target->delta;
-                        
-                        if (result.vars.target_y < result.vars.min_y){
-                            result.vars.target_y = result.vars.min_y;
-                        }
-                        if (result.vars.target_y > result.vars.max_y){
-                            result.vars.target_y = result.vars.max_y;
-                        }
-                        gui_activate_scrolling(target);
-                        result.is_animating = 1;
-                    }
                 }break;
-                
-                case guicom_scrollable_top:
-                {
-                    GUI_id id = gui_id_scrollbar_top();
+            }
+            
+            if (interpret_result.has_info){
+                switch (h->type){
+                    case guicom_top_bar: break;
                     
-                    if (scroll_button_input(target, &gui_session, user_input, id, &result.is_animating)){
-                        result.vars.target_y -= target->delta * 0.25f;
-                        if (result.vars.target_y < result.vars.min_y){
-                            result.vars.target_y = result.vars.min_y;
-                        }
-                    }
-                }break;
-
-                case guicom_scrollable_bottom:
-                {
-                    GUI_id id = gui_id_scrollbar_bottom();
-                    
-                    if (scroll_button_input(target, &gui_session, user_input, id, &result.is_animating)){
-                        result.vars.target_y += target->delta * 0.25f;
-                        if (result.vars.target_y > result.vars.max_y){
-                            result.vars.target_y = result.vars.max_y;
-                        }
-                    }
-                }break;
-                
-                case guicom_end_scrollable_section:
-                {
-                    if (!is_file_scroll){
-                        f32 new_min_y = gui_session.suggested_min_y;
-                        f32 new_max_y = gui_session.suggested_max_y;
+                    case guicom_file:
+                    {
+                        f32 new_min_y = -(f32)(gui_session_get_eclipsed_y(&gui_session) -
+                                               gui_session.rect.y0);
+                        f32 new_max_y = view_compute_max_target_y(view);
                         
+                        view->file_region = gui_session.rect;
                         result.vars.min_y = new_min_y;
                         result.vars.max_y = new_max_y;
+                        
+                        if (view->reinit_scrolling){
+                            view_reinit_scrolling(view);
+                            result.is_animating = 1;
+                        }
+                        if (file_step(view, gui_session.rect, user_input, is_active)){
+                            result.is_animating = 1;
+                        }
+                        is_file_scroll = 1;
+                    }break;
+                    
+                    case guicom_color_button:
+                    case guicom_font_button:
+                    case guicom_button:
+                    case guicom_file_option:
+                    case guicom_style_preview:
+                    {
+                        GUI_Interactive *b = (GUI_Interactive*)h;
+                        
+                        click_button_input(target, &gui_session, user_input, b, &result.is_animating);
+                    }break;
+                    
+                    case guicom_fixed_option:
+                    case guicom_fixed_option_checkbox:
+                    {
+                        GUI_Interactive *b = (GUI_Interactive*)h;
+                        
+                        click_button_input(target, &gui_session, user_input, b, &result.is_animating);
+                        
+                        {
+                            Key_Event_Data key;
+                            Key_Summary *keys = &user_input->keys;
+                            
+                            void *ptr = (b + 1);
+                            String string;
+                            char activation_key;
+                            
+                            i32 i, count;
+                            
+                            string = gui_read_string(&ptr);
+                            activation_key = *(char*)ptr;
+                            
+                            count = keys->count;
+                            for (i = 0; i < count; ++i){
+                                key = get_single_key(keys, i);
+                                if (char_to_upper(key.character) == char_to_upper(activation_key)){
+                                    target->active = b->id;
+                                    result.is_animating = 1;
+                                    break;
+                                }
+                            }
+                        }
+                    }break;
+                    
+                    case guicom_scrollable_slider:
+                    {
+                        GUI_id id = gui_id_scrollbar_slider();
+                        i32 mx = user_input->mouse.x;
+                        i32 my = user_input->mouse.y;
+                        f32 v = 0;
+                        
+                        if (hit_check(mx, my, gui_session.rect)){
+                            target->hover = id;
+                            if (user_input->mouse.press_l){
+                                target->mouse_hot = id;
+                                result.is_animating = 1;
+                            }
+                        }
+                        else if (gui_id_eq(target->hover, id)){
+                            target->hover = gui_id_zero();
+                        }
+                        
+                        if (gui_id_eq(target->mouse_hot, id)){
+                            v = unlerp(gui_session.scroll_top, (f32)my,
+                                       gui_session.scroll_bottom);
+                            if (v < 0) v = 0;
+                            if (v > 1.f) v = 1.f;
+                            result.vars.target_y =
+                                lerp(result.vars.min_y, v, result.vars.max_y);
+                            
+                            gui_activate_scrolling(target);
+                            result.is_animating = 1;
+                        }
                     }
-                }break;
+                    // NOTE(allen): NO BREAK HERE!!
+                    
+                    case guicom_scrollable_invisible:
+                    {
+                        if (user_input->mouse.wheel != 0){
+                            result.vars.target_y += user_input->mouse.wheel*target->delta;
+                            
+                            if (result.vars.target_y < result.vars.min_y){
+                                result.vars.target_y = result.vars.min_y;
+                            }
+                            if (result.vars.target_y > result.vars.max_y){
+                                result.vars.target_y = result.vars.max_y;
+                            }
+                            gui_activate_scrolling(target);
+                            result.is_animating = 1;
+                        }
+                    }break;
+                    
+                    case guicom_scrollable_top:
+                    {
+                        GUI_id id = gui_id_scrollbar_top();
+                        
+                        if (scroll_button_input(target, &gui_session, user_input, id, &result.is_animating)){
+                            result.vars.target_y -= target->delta * 0.25f;
+                            if (result.vars.target_y < result.vars.min_y){
+                                result.vars.target_y = result.vars.min_y;
+                            }
+                        }
+                    }break;
+                    
+                    case guicom_scrollable_bottom:
+                    {
+                        GUI_id id = gui_id_scrollbar_bottom();
+                        
+                        if (scroll_button_input(target, &gui_session, user_input, id, &result.is_animating)){
+                            result.vars.target_y += target->delta * 0.25f;
+                            if (result.vars.target_y > result.vars.max_y){
+                                result.vars.target_y = result.vars.max_y;
+                            }
+                        }
+                    }break;
+                    
+                    case guicom_end_scrollable_section:
+                    {
+                        if (!is_file_scroll){
+                            f32 new_min_y = gui_session.suggested_min_y;
+                            f32 new_max_y = gui_session.suggested_max_y;
+                            
+                            result.vars.min_y = new_min_y;
+                            result.vars.max_y = new_max_y;
+                        }
+                    }break;
+                }
             }
         }
-    }
-    
-    if (!user_input->mouse.l){
-        if (!gui_id_is_null(target->mouse_hot)){
-            target->mouse_hot = gui_id_zero();
-            result.is_animating = 1;
-        }
-    }
-
-    {
-        GUI_Scroll_Vars scroll_vars = result.vars;
-        b32 is_new_target = 0;
-        if (scroll_vars.target_x != scroll_vars.prev_target_x) is_new_target = 1;
-        if (scroll_vars.target_y != scroll_vars.prev_target_y) is_new_target = 1;
-
-        if (view->persistent.models->scroll_rule(scroll_vars.target_x, scroll_vars.target_y,
-                                      &scroll_vars.scroll_x, &scroll_vars.scroll_y,
-                                      (view->persistent.id) + 1, is_new_target)){
-            result.is_animating = 1;
-        }
         
-        scroll_vars.prev_target_x = scroll_vars.target_x;
-        scroll_vars.prev_target_y = scroll_vars.target_y;
-        
-        result.vars = scroll_vars;
-    }
-    
-    {
-        Key_Summary *keys = &user_input->keys;
-        b32 did_esc = 0;
-        Key_Event_Data key;
-        i32 i, count;
-        
-        count = keys->count;
-        for (i = 0; i < count; ++i){
-            key = get_single_key(keys, i);
-            if (key.keycode == key_esc){
-                did_esc = 1;
-                break;
+        if (!user_input->mouse.l){
+            if (!gui_id_is_null(target->mouse_hot)){
+                target->mouse_hot = gui_id_zero();
+                result.is_animating = 1;
             }
         }
         
-        if (did_esc && view->showing_ui != VUI_None){
-            view_show_file(view);
+        {
+            GUI_Scroll_Vars scroll_vars = result.vars;
+            b32 is_new_target = 0;
+            if (scroll_vars.target_x != scroll_vars.prev_target_x) is_new_target = 1;
+            if (scroll_vars.target_y != scroll_vars.prev_target_y) is_new_target = 1;
+            
+            if (view->persistent.models->scroll_rule(scroll_vars.target_x, scroll_vars.target_y,
+                                                     &scroll_vars.scroll_x, &scroll_vars.scroll_y,
+                                                     (view->persistent.id) + 1, is_new_target)){
+                result.is_animating = 1;
+            }
+            
+            scroll_vars.prev_target_x = scroll_vars.target_x;
+            scroll_vars.prev_target_y = scroll_vars.target_y;
+            
+            result.vars = scroll_vars;
+        }
+        
+        // TODO(allen): GET RID OF THIS!!!
+        {
+            Key_Summary *keys = &user_input->keys;
+            b32 did_esc = 0;
+            Key_Event_Data key;
+            i32 i, count;
+            
+            count = keys->count;
+            for (i = 0; i < count; ++i){
+                key = get_single_key(keys, i);
+                if (key.keycode == key_esc){
+                    did_esc = 1;
+                    break;
+                }
+            }
+            
+            if (did_esc && view->showing_ui != VUI_None){
+                view_show_file(view);
+            }
         }
     }
     
@@ -5009,11 +5002,12 @@ do_render_file_view(System_Functions *system, Exchange *exchange,
     GUI_Interpret_Result interpret_result = {0};
     
     f32 v;
-    
+        
+    if (gui_target->push.pos > 0){
     gui_session_init(&gui_session, gui_target, rect, view->font_height);
     
     v = view_get_scroll_y(view);
-    
+
     i32_Rect clip_rect = rect;
     draw_push_clip(target, clip_rect);
     
@@ -5207,6 +5201,7 @@ do_render_file_view(System_Functions *system, Exchange *exchange,
 	}
     
     draw_pop_clip(target);
+}
 
     return(result);
 }

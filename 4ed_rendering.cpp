@@ -304,7 +304,7 @@ draw_font_info_load(Partition *partition,
     
     char space_[1024];
     String filename = make_fixed_width_string(space_);
-    b32 translate_success = system_to_binary_path(&filename, filename_untranslated);
+    b32 translate_success = sysshared_to_binary_path(&filename, filename_untranslated);
     if (!translate_success) return 0;
     
     i32 result = 1;
@@ -396,7 +396,7 @@ draw_font_load(void *base_block, i32 size,
 
     char space_[1024];
     String filename = make_fixed_width_string(space_);
-    b32 translate_success = system_to_binary_path(&filename, filename_untranslated);
+    b32 translate_success = sysshared_to_binary_path(&filename, filename_untranslated);
     if (!translate_success) return 0;
 
     i32 result = 1;

@@ -33,6 +33,10 @@
 
 #define WM_4coder_ANIMATE (WM_USER + 1)
 
+//
+// Win32_Vars structs
+//
+
 struct Thread_Context{
     u32 job_id;
     b32 running;
@@ -69,12 +73,10 @@ control_keys_zero(){
 
 struct Win32_Input_Chunk_Transient{
     Key_Input_Data key_data;
-    
     b8 mouse_l_press, mouse_l_release;
     b8 mouse_r_press, mouse_r_release;
     b8 out_of_window;
     i8 mouse_wheel;
-    
     b8 trying_to_kill;
 };
 inline Win32_Input_Chunk_Transient
@@ -116,9 +118,6 @@ struct Win32_Vars{
     HDC window_hdc;
     Render_Target target;
     
-    HANDLE update_loop_thread;
-    DWORD update_loop_thread_id;
-    
     Win32_Input_Chunk input_chunk;
     b32 lctrl_lalt_is_altgr;
     b32 got_useful_event;
@@ -127,7 +126,6 @@ struct Win32_Vars{
 	HCURSOR cursor_arrow;
 	HCURSOR cursor_leftright;
 	HCURSOR cursor_updown;
-	Application_Mouse_Cursor prev_mouse_cursor;
 	String clipboard_contents;
 	b32 next_clipboard_is_self;
 	DWORD clipboard_sequence;
@@ -150,6 +148,8 @@ struct Win32_Vars{
     DLL_Loaded custom_dll;
 #endif
     
+    Partition font_part;
+    
     Plat_Settings settings;
     System_Functions *system;
     App_Functions app;
@@ -160,10 +160,6 @@ struct Win32_Vars{
     Sys_Bubble internal_bubble;
 #endif
     
-    Font_Load_System fnt;
-    
-    // NOTE(allen): Going to do an experiment that
-    // will involve more coroutines.
     Win32_Coroutine coroutine_data[18];
     Win32_Coroutine *coroutine_free;
     
@@ -173,6 +169,67 @@ struct Win32_Vars{
 globalvar Win32_Vars win32vars;
 globalvar Application_Memory memory_vars;
 globalvar Exchange exchange_vars;
+
+//
+// System Layer Memory
+//
+
+#if FRED_INTERNAL
+
+internal
+Sys_Get_Memory_Sig(system_get_memory_){
+    void *ptr = 0;
+    if (size > 0){
+        ptr = VirtualAlloc(0, size + sizeof(Sys_Bubble), MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
+        Sys_Bubble *bubble = (Sys_Bubble*)ptr;
+        bubble->flags = MEM_BUBBLE_SYS_DEBUG;
+        bubble->line_number = line_number;
+        bubble->file_name = file_name;
+        bubble->size = size;
+        WaitForSingleObject(win32vars.DEBUG_sysmem_lock, INFINITE);
+        insert_bubble(&win32vars.internal_bubble, bubble);
+        ReleaseSemaphore(win32vars.DEBUG_sysmem_lock, 1, 0);
+        ptr = bubble + 1;
+    }
+    return(ptr);
+}
+internal
+Sys_Free_Memory_Sig(system_free_memory){
+    if (block){
+        Sys_Bubble *bubble = ((Sys_Bubble*)block) - 1;
+        Assert((bubble->flags & MEM_BUBBLE_DEBUG_MASK) == MEM_BUBBLE_SYS_DEBUG);
+        WaitForSingleObject(win32vars.DEBUG_sysmem_lock, INFINITE);
+        remove_bubble(bubble);
+        ReleaseSemaphore(win32vars.DEBUG_sysmem_lock, 1, 0);
+        VirtualFree(bubble, 0, MEM_RELEASE);
+    }
+}
+
+#else
+
+internal
+Sys_Get_Memory_Sig(system_get_memory_){
+    void *ptr = 0;
+    if (size > 0){
+        ptr = VirtualAlloc(0, size, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
+    }
+    return(ptr);
+}
+internal
+Sys_Free_Memory_Sig(system_free_memory){
+    if (block){
+        VirtualFree(block, 0, MEM_RELEASE);
+    }
+}
+
+#endif
+
+#define Win32GetMemory(size) system_get_memory_(size, __LINE__, __FILE__)
+#define Win32FreeMemory(ptr) system_free_memory(ptr)
+
+#define Win32ScratchPartition sysshared_scratch_partition
+#define Win32ScratchPartitionGrow sysshared_partition_grow
+#define Win32ScratchPartitionDouble sysshared_partition_double
 
 #if FRED_INTERNAL
 internal Bubble*
@@ -184,173 +241,14 @@ internal void
 INTERNAL_system_debug_message(char *message){
     OutputDebugStringA(message);
 }
-
 #endif
 
-// TODO(allen): Transition towards using system_shared functions
-
-internal void*
-Win32GetMemory_(i32 size, i32 line_number, char *file_name){
-	void *ptr = 0;
-    
-    if (size > 0){
-#if FRED_INTERNAL
-        ptr = VirtualAlloc(0, size + sizeof(Sys_Bubble), MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
-
-        Sys_Bubble *bubble = (Sys_Bubble*)ptr;
-        bubble->flags = MEM_BUBBLE_SYS_DEBUG;
-        bubble->line_number = line_number;
-        bubble->file_name = file_name;
-        bubble->size = size;
-        WaitForSingleObject(win32vars.DEBUG_sysmem_lock, INFINITE);
-        insert_bubble(&win32vars.internal_bubble, bubble);
-        ReleaseSemaphore(win32vars.DEBUG_sysmem_lock, 1, 0);
-        ptr = bubble + 1;
-#else
-        ptr = VirtualAlloc(0, size, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
-#endif
-    }
-    
-	return ptr;
-}
+//
+// System Layer File Services
+//
 
 internal
-Sys_Get_Memory_Sig(system_get_memory_){
-    return(Win32GetMemory_(size, line_number, file_name));
-}
-
-#define Win32GetMemory(size) Win32GetMemory_(size, __LINE__, __FILE__)
-
-internal void
-Win32FreeMemory(void *block){
-    if (block){
-#if FRED_INTERNAL
-        Sys_Bubble *bubble = ((Sys_Bubble*)block) - 1;
-        Assert((bubble->flags & MEM_BUBBLE_DEBUG_MASK) == MEM_BUBBLE_SYS_DEBUG);
-        WaitForSingleObject(win32vars.DEBUG_sysmem_lock, INFINITE);
-        remove_bubble(bubble);
-        ReleaseSemaphore(win32vars.DEBUG_sysmem_lock, 1, 0);
-        VirtualFree(bubble, 0, MEM_RELEASE);
-#else
-        VirtualFree(block, 0, MEM_RELEASE);
-#endif
-    }
-}
-
-internal Partition
-Win32ScratchPartition(i32 size){
-    Partition part;
-    void *data;
-    data = Win32GetMemory(size);
-    part = make_part(data, size);
-    return(part);
-}
-
-internal void
-Win32ScratchPartitionGrow(Partition *part, i32 new_size){
-    void *data;
-    if (new_size > part->max){
-        data = Win32GetMemory(new_size);
-        memcpy(data, part->base, part->pos);
-        Win32FreeMemory(part->base);
-        part->base = (char*)data;
-    }
-}
-
-internal void
-Win32ScratchPartitionDouble(Partition *part){
-    Win32ScratchPartitionGrow(part, part->max*2);
-}
-
-inline void
-system_free_memory(void *block){
-    Win32FreeMemory(block);
-}
-
-internal File_Data
-system_load_file(char *filename){
-    File_Data result = {0};
-    HANDLE file;
-    
-    String fname_str = make_string_slowly(filename);
-    if (fname_str.size >= 1024) return result;
-    
-    char fixed_space[1024];
-    String fixed_str = make_fixed_width_string(fixed_space);
-    copy(&fixed_str, fname_str);
-    terminate_with_null(&fixed_str);
-    replace_char(fixed_str, '/', '\\');
-    
-    file = CreateFile((char*)fixed_str.str, GENERIC_READ, 0, 0,
-                      OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
-    if (!file || file == INVALID_HANDLE_VALUE){
-        return result;
-    }
-    
-    DWORD lo, hi;
-    lo = GetFileSize(file, &hi);
-    
-    if (hi != 0){
-        CloseHandle(file);
-        return result;
-    }
-    
-    result.data.size = (lo) + (((u64)hi) << 32);
-    
-    if (result.data.size > 0){
-        result.data.data = (byte*)Win32GetMemory(result.data.size);
-
-        if (!result.data.data){
-            CloseHandle(file);
-            result = file_data_zero();
-            return result;
-        }
-
-        DWORD read_size;
-        BOOL read_result = ReadFile(file,
-            result.data.data, result.data.size,
-            &read_size, 0);
-        result.got_file = 1;
-        if (!read_result || read_size != (u32)result.data.size){
-            CloseHandle(file);
-            Win32FreeMemory(result.data.data);
-            result = file_data_zero();
-            return result;
-        }
-    }
-    else{
-        result.got_file = 1;
-    }
-    
-    CloseHandle(file);
-    return result;
-}
-
-internal b32
-system_save_file(char *filename, void *data, i32 size){
-	HANDLE file;
-	file = CreateFile((char*)filename, GENERIC_WRITE, 0, 0,
-					  CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, 0);
-	
-	if (!file || file == INVALID_HANDLE_VALUE){
-		return 0;
-	}
-	
-	BOOL write_result;
-	DWORD bytes_written;
-	write_result = WriteFile(file, data, size, &bytes_written, 0);
-	
-	CloseHandle(file);
-	
-	if (!write_result || bytes_written != (u32)size){
-		return 0;
-	}
-	
-	return 1;
-}
-
-internal b32
-system_file_can_be_made(char *filename){
+Sys_File_Can_Be_Made_Sig(system_file_can_be_made){
 	HANDLE file;
 	file = CreateFile((char*)filename, FILE_APPEND_DATA, 0, 0,
 					  OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, 0);
@@ -361,8 +259,98 @@ system_file_can_be_made(char *filename){
 	
 	CloseHandle(file);
 	
-	return 1;
+    return(1);
 }
+
+internal
+Sys_Load_File_Sig(system_load_file){
+    File_Data result = {0};
+    HANDLE file = 0;
+    
+    String fname_str = make_string_slowly(filename);
+    if (fname_str.size >= 1024) return(result);
+    
+    char fixed_space[1024];
+    String fixed_str = make_fixed_width_string(fixed_space);
+    copy(&fixed_str, fname_str);
+    terminate_with_null(&fixed_str);
+    replace_char(fixed_str, '/', '\\');
+    
+    file = CreateFile((char*)fixed_str.str, GENERIC_READ, 0, 0,
+                      OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
+    if (!file || file == INVALID_HANDLE_VALUE){
+        return(result);
+    }
+    
+    DWORD lo, hi;
+    lo = GetFileSize(file, &hi);
+    
+    if (hi != 0){
+        CloseHandle(file);
+        return(result);
+    }
+    
+    result.data.size = (lo) + (((u64)hi) << 32);
+    
+    if (result.data.size > 0){
+        result.data.data = (byte*)Win32GetMemory(result.data.size);
+
+        if (!result.data.data){
+            CloseHandle(file);
+            result = file_data_zero();
+            return(result);
+        }
+        
+        DWORD read_size;
+        BOOL read_result =
+            ReadFile(file,
+                     result.data.data, result.data.size,
+                     &read_size, 0);
+        result.got_file = 1;
+        if (!read_result || read_size != (u32)result.data.size){
+            CloseHandle(file);
+            Win32FreeMemory(result.data.data);
+            result = file_data_zero();
+            return(result);
+        }
+    }
+    else{
+        result.got_file = 1;
+    }
+    
+    CloseHandle(file);
+    return(result);
+}
+
+internal
+Sys_Save_File_Sig(system_save_file){
+	HANDLE file =
+        CreateFile((char*)filename, GENERIC_WRITE, 0, 0,
+                   CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, 0);
+    
+	if (!file || file == INVALID_HANDLE_VALUE){
+		return(0);
+	}
+	
+	BOOL write_result = 0;
+	DWORD bytes_written = 0;
+	write_result = WriteFile(file, data, size, &bytes_written, 0);
+	
+	CloseHandle(file);
+	
+	if (!write_result || bytes_written != (u32)size){
+		return(0);
+	}
+	
+	return(1);
+}
+
+// TODO(allen): THIS system does not really work.
+// I want to eliminate them both entirely and find a better
+// way to track the dirty state of files.  It shouldn't be too
+// hard to get the * part right.  The trick is how we will know
+// when a file is updated... hmm... maybe we can keep the file_time_stamp
+// part.
 
 internal
 Sys_File_Time_Stamp_Sig(system_file_time_stamp){
@@ -378,7 +366,7 @@ Sys_File_Time_Stamp_Sig(system_file_time_stamp){
         result /= 10;
     }
     
-    return result;
+    return(result);
 }
 
 internal
@@ -583,16 +571,22 @@ DIRECTORY_CD_SIG(system_directory_cd){
     return(result);
 }
 
-GET_4ED_PATH_SIG(system_get_4ed_path){
-    String str = make_string(out, 0, capacity);
+internal
+Sys_Get_Binary_Path_Sig(system_get_binary_path){
     i32 result = 0;
-    i32 size = GetModuleFileName(0, out, capacity);
-    if (size < capacity-1){
-        str.size = size;
-        remove_last_folder(&str);
-        result = str.size;
+    i32 size = GetModuleFileName(0, out->str, out->memory_size);
+    if (size < out->memory_size-1){
+        out->size = size;
+        remove_last_folder(out);
+        terminate_with_null(out);
+        result = out->size;
     }
     return(result);
+}
+
+GET_4ED_PATH_SIG(system_get_4ed_path){
+    String str = make_string(out, 0, capacity);
+    return(system_get_binary_path(&str));
 }
 
 internal
@@ -1054,21 +1048,6 @@ Sys_CLI_End_Update_Sig(system_cli_end_update){
     return close_me;
 }
 
-internal
-Sys_To_Binary_Path(system_to_binary_path){
-    b32 translate_success = 0;
-    i32 max = out_filename->memory_size;
-    i32 size = GetModuleFileName(0, out_filename->str, max);
-    if (size > 0 && size < max-1){
-        out_filename->size = size;
-        remove_last_folder(out_filename);
-        if (append(out_filename, filename) && terminate_with_null(out_filename)){
-            translate_success = 1;
-        }
-    }
-    return (translate_success);
-}
-
 internal b32
 Win32LoadAppCode(){
     b32 result = 0;
@@ -1171,43 +1150,28 @@ Win32LoadSystemCode(){
 
 internal
 Font_Load_Sig(system_draw_font_load){
-    Font_Load_Parameters *params;
-
-    system_acquire_lock(FONT_LOCK);
-    params = win32vars.fnt.free_param.next;
-    fnt__remove(params);
-    fnt__insert(&win32vars.fnt.used_param, params);
-    system_release_lock(FONT_LOCK);
-
-    params->font_out = font_out;
-    params->filename = filename;
-    params->pt_size = pt_size;
-    params->tab_width = tab_width;
-
-    if (win32vars.fnt.part.base == 0){
-        win32vars.fnt.part = Win32ScratchPartition(Mbytes(8));
+    if (win32vars.font_part.base == 0){
+        win32vars.font_part = Win32ScratchPartition(Mbytes(8));
     }
     
     i32 oversample = 2;
     
     for (b32 success = 0; success == 0;){
-        success = draw_font_load(win32vars.fnt.part.base,
-                                 win32vars.fnt.part.max,
-                                 params->font_out,
-                                 params->filename,
-                                 params->pt_size,
-                                 params->tab_width,
+        success = draw_font_load(win32vars.font_part.base,
+                                 win32vars.font_part.max,
+                                 font_out,
+                                 filename,
+                                 pt_size,
+                                 tab_width,
                                  oversample);
         
+        // TODO(allen): Make the growable partition something that can
+        // just be passed directly to font load and let it be grown there.
         if (!success){
-            Win32ScratchPartitionDouble(&win32vars.fnt.part);
+            Win32ScratchPartitionDouble(&win32vars.font_part);
         }
     }
     
-    system_acquire_lock(FONT_LOCK);
-    fnt__remove(params);
-    fnt__insert(&win32vars.fnt.free_param, params);
-    system_release_lock(FONT_LOCK);
     return(1);
 }
 
@@ -1224,9 +1188,7 @@ Win32LoadRenderCode(){
 
 internal void
 Win32RedrawScreen(HDC hdc){
-    system_acquire_lock(RENDER_LOCK);
     launch_rendering(&win32vars.target);
-    system_release_lock(RENDER_LOCK);
     glFlush();
     SwapBuffers(hdc);
 }
@@ -1240,15 +1202,8 @@ Win32RedrawFromUpdate(){
     EndPaint(hwnd, &ps);
 }
 
-// NOTE(allen): Old contents of 4ed_keyboard.cpp
 globalvar u8 keycode_lookup_table[255];
 
-inline u8
-keycode_lookup(u8 system_code){
-	return keycode_lookup_table[system_code];
-}
-
-// NOTE(allen): Old contents of 4ed_win32_keyboard.cpp
 internal void
 keycode_init(){
     keycode_lookup_table[VK_BACK] = key_back;
@@ -1352,7 +1307,7 @@ Win32Callback(HWND hwnd, UINT uMsg,
                 current_state = ((lParam & Bit_31)?(0):(1));
 
                 if (current_state){
-                    u8 key = keycode_lookup((u8)wParam);
+                    u8 key = keycode_lookup_table[(u8)wParam];
 
                     i32 *count = 0;
                     Key_Event_Data *data = 0;
@@ -1559,7 +1514,7 @@ Win32Callback(HWND hwnd, UINT uMsg,
             EndPaint(hwnd, &ps);
         }break;
 
-        case WM_CLOSE: // NOTE(allen): I expect WM_CLOSE not WM_DESTROY
+        case WM_CLOSE:
         case WM_DESTROY:
         {
             win32vars.got_useful_event = 1;
@@ -1576,184 +1531,6 @@ Win32Callback(HWND hwnd, UINT uMsg,
         }break;
     }
     return(result);
-}
-
-internal void
-UpdateStep(){
-    i64 timer_start = system_time();
-
-    Win32_Input_Chunk input_chunk = win32vars.input_chunk;
-    win32vars.input_chunk.trans = win32_input_chunk_transient_zero();
-
-    input_chunk.pers.control_keys[MDFR_CAPS_INDEX] = GetKeyState(VK_CAPITAL) & 0x1;
-
-    POINT mouse_point;
-    if (GetCursorPos(&mouse_point) && ScreenToClient(win32vars.window_handle, &mouse_point)){
-        if (mouse_point.x < 0 || mouse_point.x >= win32vars.target.width ||
-                mouse_point.y < 0 || mouse_point.y >= win32vars.target.height){
-            input_chunk.trans.out_of_window = 1;
-        }
-    }
-    else{
-        input_chunk.trans.out_of_window = 1;
-    }
-
-    win32vars.clipboard_contents = string_zero();
-    if (win32vars.clipboard_sequence != 0){
-        DWORD new_number = GetClipboardSequenceNumber();
-        if (new_number != win32vars.clipboard_sequence){
-            win32vars.clipboard_sequence = new_number;
-            if (win32vars.next_clipboard_is_self){
-                win32vars.next_clipboard_is_self = 0;
-            }
-            else if (IsClipboardFormatAvailable(CF_TEXT)){
-                if (OpenClipboard(win32vars.window_handle)){
-                    HANDLE clip_data;
-                    clip_data = GetClipboardData(CF_TEXT);
-                    if (clip_data){
-                        win32vars.clipboard_contents.str = (char*)GlobalLock(clip_data);
-                        if (win32vars.clipboard_contents.str){
-                            win32vars.clipboard_contents.size = str_size((char*)win32vars.clipboard_contents.str);
-                            GlobalUnlock(clip_data);
-                        }
-                    }
-                    CloseClipboard();
-                }
-            }
-        }
-    }
-
-    Key_Input_Data input_data;
-    Mouse_State mouse;
-    Application_Step_Result result;
-
-    input_data = input_chunk.trans.key_data;
-    mouse.out_of_window = input_chunk.trans.out_of_window;
-
-    mouse.l = input_chunk.pers.mouse_l;
-    mouse.press_l = input_chunk.trans.mouse_l_press;
-    mouse.release_l = input_chunk.trans.mouse_l_release;
-
-    mouse.r = input_chunk.pers.mouse_r;
-    mouse.press_r = input_chunk.trans.mouse_r_press;
-    mouse.release_r = input_chunk.trans.mouse_r_release;
-
-    mouse.wheel = input_chunk.trans.mouse_wheel;
-
-    mouse.x = input_chunk.pers.mouse_x;
-    mouse.y = input_chunk.pers.mouse_y;
-
-    result.mouse_cursor_type = APP_MOUSE_CURSOR_DEFAULT;
-    result.lctrl_lalt_is_altgr = win32vars.lctrl_lalt_is_altgr;
-    result.trying_to_kill = input_chunk.trans.trying_to_kill;
-    result.perform_kill = 0;
-    
-    // NOTE(allen): The expected dt given the frame limit in seconds.
-    f32 dt = frame_useconds / 1000000.f;
-    
-    win32vars.app.step(win32vars.system,
-        &input_data,
-        &mouse,
-        &win32vars.target,
-        &memory_vars,
-        &exchange_vars,
-        win32vars.clipboard_contents,
-        dt, win32vars.first,
-        &result);
-
-    if (result.perform_kill){
-        win32vars.input_chunk.pers.keep_playing = 0;
-    }
-
-    Win32SetCursorFromUpdate(result.mouse_cursor_type);
-    win32vars.lctrl_lalt_is_altgr = result.lctrl_lalt_is_altgr;
-
-    Win32RedrawFromUpdate();
-
-    win32vars.first = 0;
-
-    {
-        File_Slot *file;
-        int d = 0;
-
-        for (file = exchange_vars.file.active.next;
-            file != &exchange_vars.file.active;
-            file = file->next){
-            ++d;
-
-            if (file->flags & FEx_Save){
-                Assert((file->flags & FEx_Request) == 0);
-                file->flags &= (~FEx_Save);
-                if (system_save_file(file->filename, file->data, file->size)){
-                    file->flags |= FEx_Save_Complete;
-                }
-                else{
-                    file->flags |= FEx_Save_Failed;
-                }
-                PostMessage(win32vars.window_handle, WM_4coder_ANIMATE, 0, 0);
-            }
-
-            if (file->flags & FEx_Request){
-                Assert((file->flags & FEx_Save) == 0);
-                file->flags &= (~FEx_Request);
-                File_Data sysfile = system_load_file(file->filename);
-                if (!sysfile.got_file){
-                    file->flags |= FEx_Not_Exist;
-                }
-                else{
-                    file->flags |= FEx_Ready;
-                    file->data = sysfile.data.data;
-                    file->size = sysfile.data.size;
-                }
-                PostMessage(win32vars.window_handle, WM_4coder_ANIMATE, 0, 0);
-            }
-        }
-
-        int free_list_count = 0;
-        for (file = exchange_vars.file.free_list.next;
-            file != &exchange_vars.file.free_list;
-            file = file->next){
-            ++free_list_count;
-            if (file->data){
-                system_free_memory(file->data);
-            }
-        }
-
-        if (exchange_vars.file.free_list.next != &exchange_vars.file.free_list){
-            Assert(free_list_count != 0);
-            ex__insert_range(exchange_vars.file.free_list.next, exchange_vars.file.free_list.prev,
-                &exchange_vars.file.available);
-
-            exchange_vars.file.num_active -= free_list_count;
-        }
-
-        ex__check(&exchange_vars.file);
-    }
-    
-    i64 timer_end = system_time();
-    i64 end_target = (timer_start + frame_useconds);
-
-    system_release_lock(FRAME_LOCK);
-    while (timer_end < end_target){
-        DWORD samount = (DWORD)((end_target - timer_end) / 1000);
-        if (samount > 0) Sleep(samount);
-        timer_end = system_time();
-    }
-    system_acquire_lock(FRAME_LOCK);
-    timer_start = system_time();
-    
-    if (result.animating){
-        PostMessage(win32vars.window_handle, WM_4coder_ANIMATE, 0, 0);
-    }
-}
-
-DWORD
-UpdateLoop(LPVOID param){
-    ConvertThreadToFiber(0);
-    for (;win32vars.input_chunk.pers.keep_playing;){
-        UpdateStep();
-    }
-    return(0);
 }
 
 #define GL_DEBUG_OUTPUT_SYNCHRONOUS 0x8242
@@ -1874,7 +1651,6 @@ int main(int argc, char **argv){
         &win32vars.settings,
         &files, &file_count,
         clparams);
-    //
     
     if (output_size > 0){
         DWORD written;
@@ -1972,7 +1748,6 @@ int main(int argc, char **argv){
     win32vars.cursor_arrow = LoadCursor(NULL, IDC_ARROW);
     win32vars.cursor_leftright = LoadCursor(NULL, IDC_SIZEWE);
     win32vars.cursor_updown = LoadCursor(NULL, IDC_SIZENS);
-    win32vars.prev_mouse_cursor = APP_MOUSE_CURSOR_ARROW;
     
     WNDCLASS window_class = {};
     window_class.style = CS_HREDRAW|CS_VREDRAW|CS_OWNDC;
@@ -1980,11 +1755,11 @@ int main(int argc, char **argv){
     window_class.hInstance = hInstance;
     window_class.lpszClassName = "4coder-win32-wndclass";
     window_class.hIcon = LoadIcon(hInstance, "main");
-
+    
     if (!RegisterClass(&window_class)){
         return 1;
     }
-
+    
     RECT window_rect = {};
 
     if (win32vars.settings.set_window_size){
@@ -2122,9 +1897,6 @@ int main(int argc, char **argv){
     File_Slot file_slots[32];
     sysshared_init_file_exchange(&exchange_vars, file_slots, ArrayCount(file_slots), 0);
 
-    Font_Load_Parameters params[32];
-    sysshared_init_font_params(&win32vars.fnt, params, ArrayCount(params));
-
     win32vars.app.init(win32vars.system, &win32vars.target,
         &memory_vars, &exchange_vars,
         win32vars.clipboard_contents, current_directory,
@@ -2135,30 +1907,18 @@ int main(int argc, char **argv){
     win32vars.input_chunk.pers.keep_playing = 1;
     win32vars.first = 1;
     timeBeginPeriod(1);
-    
-#if 0
-    win32vars.update_loop_thread =
-        CreateThread(0,
-        0,
-        UpdateLoop,
-        0,
-        CREATE_SUSPENDED,
-        &win32vars.update_loop_thread_id);
-#endif
-    
+
     system_acquire_lock(FRAME_LOCK);
     
     SetForegroundWindow(window_handle);
     SetActiveWindow(window_handle);
     
-#if 0
-    ResumeThread(win32vars.update_loop_thread);
-#endif
-    
     MSG msg;
     for (;win32vars.input_chunk.pers.keep_playing;){
         // TODO(allen): Find a good way to wait on a pipe
         // without interfering with the reading process
+        //  Looks like we can ReadFile with a size of zero
+        // in an IOCP for this effect.
         
         if (win32vars.running_cli == 0){
             win32vars.got_useful_event = 0;
@@ -2188,9 +1948,177 @@ int main(int argc, char **argv){
             }
         }
         
-        UpdateStep();
+        {
+            i64 timer_start = system_time();
+            
+            POINT mouse_point;
+            if (GetCursorPos(&mouse_point) && ScreenToClient(win32vars.window_handle, &mouse_point)){
+                if (!hit_check(mouse_point.x, mouse_point.y,
+                               0, 0, win32vars.target.width, win32vars.target.height)){
+                    win32vars.input_chunk.trans.out_of_window = 1;
+                }
+                win32vars.input_chunk.pers.mouse_x = mouse_point.x;
+                win32vars.input_chunk.pers.mouse_y = mouse_point.y;
+            }
+            else{
+                win32vars.input_chunk.trans.out_of_window = 1;
+            }
+            
+            Win32_Input_Chunk input_chunk = win32vars.input_chunk;
+            win32vars.input_chunk.trans = win32_input_chunk_transient_zero();
+            
+            input_chunk.pers.control_keys[MDFR_CAPS_INDEX] = GetKeyState(VK_CAPITAL) & 0x1;
+            
+            win32vars.clipboard_contents = string_zero();
+            if (win32vars.clipboard_sequence != 0){
+                DWORD new_number = GetClipboardSequenceNumber();
+                if (new_number != win32vars.clipboard_sequence){
+                    win32vars.clipboard_sequence = new_number;
+                    if (win32vars.next_clipboard_is_self){
+                        win32vars.next_clipboard_is_self = 0;
+                    }
+                    else if (IsClipboardFormatAvailable(CF_TEXT)){
+                        if (OpenClipboard(win32vars.window_handle)){
+                            HANDLE clip_data;
+                            clip_data = GetClipboardData(CF_TEXT);
+                            if (clip_data){
+                                win32vars.clipboard_contents.str = (char*)GlobalLock(clip_data);
+                                if (win32vars.clipboard_contents.str){
+                                    win32vars.clipboard_contents.size = str_size((char*)win32vars.clipboard_contents.str);
+                                    GlobalUnlock(clip_data);
+                                }
+                            }
+                            CloseClipboard();
+                        }
+                    }
+                }
+            }
+            
+            Key_Input_Data input_data;
+            Mouse_State mouse;
+            Application_Step_Result result;
+            
+            input_data = input_chunk.trans.key_data;
+            mouse.out_of_window = input_chunk.trans.out_of_window;
+            
+            mouse.l = input_chunk.pers.mouse_l;
+            mouse.press_l = input_chunk.trans.mouse_l_press;
+            mouse.release_l = input_chunk.trans.mouse_l_release;
+            
+            mouse.r = input_chunk.pers.mouse_r;
+            mouse.press_r = input_chunk.trans.mouse_r_press;
+            mouse.release_r = input_chunk.trans.mouse_r_release;
+            
+            mouse.wheel = input_chunk.trans.mouse_wheel;
+            
+            mouse.x = input_chunk.pers.mouse_x;
+            mouse.y = input_chunk.pers.mouse_y;
+            
+            result.mouse_cursor_type = APP_MOUSE_CURSOR_DEFAULT;
+            result.lctrl_lalt_is_altgr = win32vars.lctrl_lalt_is_altgr;
+            result.trying_to_kill = input_chunk.trans.trying_to_kill;
+            result.perform_kill = 0;
+            
+            // NOTE(allen): The expected dt given the frame limit in seconds.
+            f32 dt = frame_useconds / 1000000.f;
+            
+            win32vars.app.step(win32vars.system,
+                               &input_data,
+                               &mouse,
+                               &win32vars.target,
+                               &memory_vars,
+                               &exchange_vars,
+                               win32vars.clipboard_contents,
+                               dt, win32vars.first,
+                               &result);
+            
+            if (result.perform_kill){
+                win32vars.input_chunk.pers.keep_playing = 0;
+            }
+            
+            Win32SetCursorFromUpdate(result.mouse_cursor_type);
+            win32vars.lctrl_lalt_is_altgr = result.lctrl_lalt_is_altgr;
+            
+            Win32RedrawFromUpdate();
+            
+            win32vars.first = 0;
+            
+            {
+                File_Slot *file;
+                int d = 0;
+                
+                for (file = exchange_vars.file.active.next;
+                     file != &exchange_vars.file.active;
+                     file = file->next){
+                    ++d;
+                    
+                    if (file->flags & FEx_Save){
+                        Assert((file->flags & FEx_Request) == 0);
+                        file->flags &= (~FEx_Save);
+                        if (system_save_file(file->filename, (char*)file->data, file->size)){
+                            file->flags |= FEx_Save_Complete;
+                        }
+                        else{
+                            file->flags |= FEx_Save_Failed;
+                        }
+                        PostMessage(win32vars.window_handle, WM_4coder_ANIMATE, 0, 0);
+                    }
+                    
+                    if (file->flags & FEx_Request){
+                        Assert((file->flags & FEx_Save) == 0);
+                        file->flags &= (~FEx_Request);
+                        File_Data sysfile = system_load_file(file->filename);
+                        if (!sysfile.got_file){
+                            file->flags |= FEx_Not_Exist;
+                        }
+                        else{
+                            file->flags |= FEx_Ready;
+                            file->data = sysfile.data.data;
+                            file->size = sysfile.data.size;
+                        }
+                        PostMessage(win32vars.window_handle, WM_4coder_ANIMATE, 0, 0);
+                    }
+                }
+                
+                int free_list_count = 0;
+                for (file = exchange_vars.file.free_list.next;
+                     file != &exchange_vars.file.free_list;
+                     file = file->next){
+                    ++free_list_count;
+                    if (file->data){
+                        system_free_memory(file->data);
+                    }
+                }
+                
+                if (exchange_vars.file.free_list.next != &exchange_vars.file.free_list){
+                    Assert(free_list_count != 0);
+                    ex__insert_range(exchange_vars.file.free_list.next, exchange_vars.file.free_list.prev,
+                                     &exchange_vars.file.available);
+                    
+                    exchange_vars.file.num_active -= free_list_count;
+                }
+                
+                ex__check(&exchange_vars.file);
+            }
+            
+            i64 timer_end = system_time();
+            i64 end_target = (timer_start + frame_useconds);
+            
+            system_release_lock(FRAME_LOCK);
+            while (timer_end < end_target){
+                DWORD samount = (DWORD)((end_target - timer_end) / 1000);
+                if (samount > 0) Sleep(samount);
+                timer_end = system_time();
+            }
+            system_acquire_lock(FRAME_LOCK);
+            timer_start = system_time();
+            
+            if (result.animating){
+                PostMessage(win32vars.window_handle, WM_4coder_ANIMATE, 0, 0);
+            }
+        }
     }
-
+    
     return 0;
 }
 

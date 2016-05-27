@@ -108,39 +108,43 @@ sysshared_init_file_exchange(
     if (filename_space_out) *filename_space_out = filename_space;
 }
 
-internal void
-fnt__remove(Font_Load_Parameters *params){
-    params->next->prev = params->prev;
-    params->prev->next = params->next;
+internal Partition
+sysshared_scratch_partition(i32 size){
+    void *data = system_get_memory(size);
+    Partition part = make_part(data, size);
+    return(part);
 }
 
 internal void
-fnt__insert(Font_Load_Parameters *pos, Font_Load_Parameters *params){
-    params->next = pos->next;
-    pos->next->prev = params;
-    pos->next = params;
-    params->prev = pos;
-}
-
-internal void
-sysshared_init_font_params(
-    Font_Load_System *fnt, Font_Load_Parameters *params, i32 max){
-    Font_Load_Parameters *param;
-    i32 i;
-    
-    fnt->params = params;
-    fnt->max = max;
-    
-    fnt->free_param.next = &fnt->free_param;
-    fnt->free_param.prev = &fnt->free_param;
-    
-    fnt->used_param.next = &fnt->free_param;
-    fnt->used_param.prev = &fnt->free_param;
-
-    param = params;
-    for (i = 0; i < max; ++i, ++param){
-        fnt__insert(&fnt->free_param, param);
+sysshared_partition_grow(Partition *part, i32 new_size){
+    void *data = 0;
+    if (new_size > part->max){
+        // TODO(allen): attempt to grow in place by just
+        // acquiring larger vpages?!
+        data = system_get_memory(new_size);
+        memcpy(data, part->base, part->pos);
+        system_free_memory(part->base);
+        part->base = (char*)data;
     }
+}
+
+internal void
+sysshared_partition_double(Partition *part){
+    sysshared_partition_grow(part, part->max*2);
+}
+
+internal b32
+sysshared_to_binary_path(String *out_filename, char *filename){
+    b32 translate_success = 0;
+    i32 max = out_filename->memory_size;
+    i32 size = system_get_binary_path(out_filename);
+    if (size > 0 && size < max-1){
+        out_filename->size = size;
+        if (append(out_filename, filename) && terminate_with_null(out_filename)){
+            translate_success = 1;
+        }
+    }
+    return (translate_success);
 }
 
 // BOTTOM

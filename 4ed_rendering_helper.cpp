@@ -29,7 +29,6 @@ draw_change_clip(Render_Target *target, i32_Rect clip_box){
 internal void
 begin_render_section(Render_Target *target, System_Functions *system){
     Font_Set *font_set = &target->font_set;
-    system->acquire_lock(RENDER_LOCK);
     font_set->used_this_frame = 0;
     memset(font_set->font_used_flags, 0, font_set->max);
     target->size = 0;
@@ -46,7 +45,6 @@ begin_render_section(Render_Target *target, System_Functions *system){
 internal void
 end_render_section(Render_Target *target, System_Functions *system){
     Assert(target->clip_top == 0);
-    system->release_lock(RENDER_LOCK);
 }
 
 internal void
