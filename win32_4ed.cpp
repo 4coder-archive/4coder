@@ -170,6 +170,35 @@ globalvar Win32_Vars win32vars;
 globalvar Application_Memory memory_vars;
 globalvar Exchange exchange_vars;
 
+internal HANDLE
+Win32Handle(Plat_Handle h){
+    HANDLE result;
+    memcpy(&result, &h, sizeof(result));
+    return(result);
+}
+
+internal Plat_Handle
+Win32Handle(HANDLE h){
+    Plat_Handle result = {0};
+    Assert(sizeof(Plat_Handle) >= sizeof(h));
+    memcpy(&result, &h, sizeof(h));
+    return(result);
+}
+
+internal void*
+Win32Ptr(Plat_Handle h){
+    void *result;
+    memcpy(&result, &h, sizeof(result));
+    return(result);
+}
+
+internal Plat_Handle
+Win32Ptr(void *h){
+    Plat_Handle result = {0};
+    memcpy(&result, &h, sizeof(h));
+    return(result);
+}
+
 //
 // System Layer Memory
 //
@@ -244,7 +273,7 @@ INTERNAL_system_debug_message(char *message){
 #endif
 
 //
-// System Layer File Services
+// Platform Layer File Services
 //
 
 internal
@@ -263,9 +292,86 @@ Sys_File_Can_Be_Made_Sig(system_file_can_be_made){
 }
 
 internal
+Sys_File_Load_Begin_Sig(system_file_load_begin){
+    File_Loading loading = {0};
+    HANDLE file = 0;
+    
+    file = CreateFile(filename, GENERIC_READ, 0, 0,
+                      OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
+    
+    if (file && file != INVALID_HANDLE_VALUE){
+        DWORD lo, hi;
+        lo = GetFileSize(file, &hi);
+        
+        if (hi == 0){
+            loading.handle = Win32Handle(file);
+            loading.size = lo;
+            loading.exists = 1;
+        }
+        else{
+            CloseHandle(file);
+        }
+    }
+    
+    return(loading);
+}
+
+internal
+Sys_File_Load_End_Sig(system_file_load_end){
+    b32 success = 0;
+    HANDLE file = Win32Handle(loading.handle);
+    
+    DWORD read_size = 0;
+    BOOL read_result = 0;
+    
+    if (loading.exists && file != INVALID_HANDLE_VALUE){
+        read_result = 
+            ReadFile(file,
+                     buffer, loading.size,
+                     &read_size, 0);
+        
+        if (read_result && read_size == (DWORD)loading.size){
+            success = 1;
+        }
+        
+        CloseHandle(file);
+    }
+    
+    return(success);
+}
+
+internal
+Sys_File_Save_Sig(system_file_save){
+    b32 success = 0;
+    
+    HANDLE file =
+        CreateFile((char*)filename, GENERIC_WRITE, 0, 0,
+                   CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, 0);
+    
+	if (!file || file == INVALID_HANDLE_VALUE){
+        success = 0;
+	}
+    else{
+        BOOL write_result = 0;
+        DWORD bytes_written = 0;
+        
+        if (buffer){
+            write_result = WriteFile(file, buffer, size, &bytes_written, 0);
+        }
+        
+        CloseHandle(file);
+        
+        if (!write_result || bytes_written != (u32)size){
+            success = 0;
+        }
+    }
+    
+    return(success);
+}
+
+internal
 Sys_Load_File_Sig(system_load_file){
     File_Data result = {0};
-    HANDLE file = 0;
     
     String fname_str = make_string_slowly(filename);
     if (fname_str.size >= 1024) return(result);
@@ -274,83 +380,45 @@ Sys_Load_File_Sig(system_load_file){
     String fixed_str = make_fixed_width_string(fixed_space);
     copy(&fixed_str, fname_str);
     terminate_with_null(&fixed_str);
+    
     replace_char(fixed_str, '/', '\\');
     
-    file = CreateFile((char*)fixed_str.str, GENERIC_READ, 0, 0,
-                      OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
-    if (!file || file == INVALID_HANDLE_VALUE){
-        return(result);
-    }
+    File_Loading loading =
+        system_file_load_begin(fixed_str.str);
     
-    DWORD lo, hi;
-    lo = GetFileSize(file, &hi);
+    result.got_file = loading.exists;
     
-    if (hi != 0){
-        CloseHandle(file);
-        return(result);
-    }
-    
-    result.data.size = (lo) + (((u64)hi) << 32);
-    
-    if (result.data.size > 0){
+    if (loading.size > 0){
+        result.data.size = loading.size;
         result.data.data = (byte*)Win32GetMemory(result.data.size);
-
-        if (!result.data.data){
-            CloseHandle(file);
-            result = file_data_zero();
-            return(result);
-        }
         
-        DWORD read_size;
-        BOOL read_result =
-            ReadFile(file,
-                     result.data.data, result.data.size,
-                     &read_size, 0);
-        result.got_file = 1;
-        if (!read_result || read_size != (u32)result.data.size){
-            CloseHandle(file);
-            Win32FreeMemory(result.data.data);
+        if (!result.data.data){
+            system_file_load_end(loading, 0);
             result = file_data_zero();
-            return(result);
         }
-    }
-    else{
-        result.got_file = 1;
+        else{
+            if (!system_file_load_end(loading, (char*)result.data.data)){
+                Win32FreeMemory(result.data.data);
+                result = file_data_zero();
+            }
+        }
     }
     
-    CloseHandle(file);
     return(result);
 }
 
+// TODO(allen): eliminate this
 internal
 Sys_Save_File_Sig(system_save_file){
-	HANDLE file =
-        CreateFile((char*)filename, GENERIC_WRITE, 0, 0,
-                   CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, 0);
-    
-	if (!file || file == INVALID_HANDLE_VALUE){
-		return(0);
-	}
-	
-	BOOL write_result = 0;
-	DWORD bytes_written = 0;
-	write_result = WriteFile(file, data, size, &bytes_written, 0);
-	
-	CloseHandle(file);
-	
-	if (!write_result || bytes_written != (u32)size){
-		return(0);
-	}
-	
-	return(1);
+    return(system_file_save(filename, data, size));
 }
 
 // TODO(allen): THIS system does not really work.
 // I want to eliminate them both entirely and find a better
 // way to track the dirty state of files.  It shouldn't be too
 // hard to get the * part right.  The trick is how we will know
-// when a file is updated... hmm... maybe we can keep the file_time_stamp
-// part.
+// when a file is updated... hmm... maybe we can keep the
+// file_time_stamp part. 
 
 internal
 Sys_File_Time_Stamp_Sig(system_file_time_stamp){
@@ -647,28 +715,6 @@ Win32Resize(i32 width, i32 height){
     }
 }
 
-internal HANDLE
-Win32Handle(Plat_Handle h){
-    HANDLE result;
-    memcpy(&result, &h, sizeof(result));
-    return(result);
-}
-
-internal void*
-Win32Ptr(Plat_Handle h){
-    void *result;
-    memcpy(&result, &h, sizeof(result));
-    return(result);
-}
-
-internal Plat_Handle
-Win32GenHandle(HANDLE h){
-    Plat_Handle result = {};
-    Assert(sizeof(Plat_Handle) >= sizeof(h));
-    memcpy(&result, &h, sizeof(h));
-    return(result);
-}
-
 internal DWORD WINAPI
 JobThreadProc(LPVOID lpParameter){
     Thread_Context *thread = (Thread_Context*)lpParameter;
@@ -853,7 +899,7 @@ Sys_Create_Coroutine_Sig(system_create_coroutine){
     
     fiber = CreateFiber(0, Win32CoroutineMain, coroutine);
     
-    coroutine->plat_handle = Win32GenHandle(fiber);
+    coroutine->plat_handle = Win32Handle(fiber);
     coroutine->func = func;
     
     return(coroutine);
@@ -1112,6 +1158,9 @@ Win32LoadSystemCode(){
     win32vars.system->set_file_list = system_set_file_list;
     win32vars.system->file_track = system_file_track;
     win32vars.system->file_untrack = system_file_untrack;
+    win32vars.system->file_load_begin = system_file_load_begin;
+    win32vars.system->file_load_end = system_file_load_end;
+    win32vars.system->file_save = system_file_save;
 
     win32vars.system->file_exists = system_file_exists;
     win32vars.system->directory_cd = system_directory_cd;
@@ -1717,9 +1766,8 @@ int main(int argc, char **argv){
     win32vars.thread_memory = thread_memory;
     
     exchange_vars.thread.queues[BACKGROUND_THREADS].semaphore =
-        Win32GenHandle(
-        CreateSemaphore(0, 0, win32vars.groups[BACKGROUND_THREADS].count, 0)
-    );
+        Win32Handle(CreateSemaphore(0, 0,
+                                    win32vars.groups[BACKGROUND_THREADS].count, 0));
     
     u32 creation_flag = 0;
     for (i32 i = 0; i < win32vars.groups[BACKGROUND_THREADS].count; ++i){

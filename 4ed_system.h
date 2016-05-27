@@ -54,6 +54,7 @@ typedef Sys_File_Untrack_Sig(System_File_Untrack);
 struct File_Loading{
     Plat_Handle handle;
     i32 size;
+    b32 exists;
 };
 
 #define Sys_File_Load_Begin_Sig(name) File_Loading name(char *filename)
@@ -62,7 +63,7 @@ typedef Sys_File_Load_Begin_Sig(System_File_Load_Begin);
 #define Sys_File_Load_End_Sig(name) b32 name(File_Loading loading, char *buffer)
 typedef Sys_File_Load_End_Sig(System_File_Load_End);
 
-#define Sys_File_Save_Sig(name) void name(char *filename, char *buffer, i32 size)
+#define Sys_File_Save_Sig(name) b32 name(char *filename, char *buffer, i32 size)
 typedef Sys_File_Save_Sig(System_File_Save);
 
 
