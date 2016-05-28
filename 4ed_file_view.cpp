@@ -436,45 +436,48 @@ file_synchronize_times(System_Functions *system, Editing_File *file, char *filen
 }
 
 internal i32
-file_save(System_Functions *system, File_Exchange *files, Mem_Options *mem,
-          Editing_File *file, char *filename){
+file_save(System_Functions *system, Mem_Options *mem, Editing_File *file, char *filename){
     i32 result = 0;
-
+    
     i32 max, size;
     b32 dos_write_mode = file->settings.dos_write_mode;
     char *data;
     Buffer_Type *buffer = &file->state.buffer;
-
-    if (dos_write_mode)
+    
+    if (dos_write_mode){
         max = buffer_size(buffer) + buffer->line_count + 1;
-    else
-        max = buffer_size(buffer);
-
-    data = (char*)general_memory_allocate(&mem->general, max, 0);
-    Assert(data);
-
-    if (dos_write_mode)
-        size = buffer_convert_out(buffer, data, max);
-    else
-        buffer_stringify(buffer, 0, size = max, data);
-
-    result = exchange_save_file(files, filename, str_size(filename), (byte*)data, size, max);
-
-    if (result == 0){
-        general_memory_free(&mem->general, data);
     }
-
+    else{
+        max = buffer_size(buffer);
+    }
+    
+    Temp_Memory temp = begin_temp_memory(&mem->part);
+    data = (char*)push_array(&mem->part, char, max);
+    Assert(data);
+    
+    if (dos_write_mode){
+        size = buffer_convert_out(buffer, data, max);
+    }
+    else{
+        size = max;
+        buffer_stringify(buffer, 0, size, data);
+    }
+    
+    result = system->file_save(filename, data, size);
+    
     file_synchronize_times(system, file, filename);
-
+    
+    end_temp_memory(temp);
+    
     return(result);
 }
 
 inline b32
-file_save_and_set_names(System_Functions *system, File_Exchange *files,
-                        Mem_Options *mem, Working_Set *working_set, Editing_File *file,
+file_save_and_set_names(System_Functions *system, Mem_Options *mem,
+                        Working_Set *working_set, Editing_File *file,
                         char *filename){
     b32 result = 0;
-    result = file_save(system, files, mem, file, filename);
+    result = file_save(system, mem, file, filename);
     if (result){
         file_set_name(working_set, file, filename);
     }
@@ -731,17 +734,6 @@ file_create_from_string(System_Functions *system, Models *models,
     open_hook(&models->app_links);
     models->buffer_param_count = 0;
     file->settings.is_initialized = 1;
-
-#if 0
-    if (file){
-        if (open_hook && file->settings.is_initialized == 0){
-            models->buffer_param_indices[models->buffer_param_count++] = file->id.id;
-            open_hook(app);
-            models->buffer_param_count = 0;
-            file->settings.is_initialized = 1;
-        }
-    }
-#endif
 }
 
 internal b32
@@ -892,9 +884,9 @@ file_first_lex_parallel(System_Functions *system,
         job.data[1] = general;
         job.memory_request = Kbytes(64);
         file->state.lex_job = system->post_job(BACKGROUND_THREADS, job);
-#endif
     }
 }
+#endif
 
 internal void
 file_relex_parallel(System_Functions *system,

@@ -266,31 +266,17 @@ struct System_Functions{
     char slash;
 };
 
-#define FileNameMax (1 << 9)
-
-struct File_Slot{
-    File_Slot *next, *prev;
-    byte *data;
-    i32 size, max;
-    char *filename;
-    i32 filename_len;
-    u32 flags;
-};
-inline File_Slot
-file_slot_zero(){
-    File_Slot slot={0};
-    return(slot);
-}
-
+#if 0
 struct Write_Event{
     Write_Event *next, *prev;
     String filename;
     u64 time_stamp;
 };
+#endif
 
 struct Exchange{
     Thread_Exchange thread;
-    Write_Event write_event_sentinel;
+//    Write_Event write_event_sentinel;
 };
 
 // BOTTOM

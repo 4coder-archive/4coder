@@ -36,15 +36,6 @@ struct CLI_List{
 #define SysAppCreateView 0x1
 #define SysAppCreateNewBuffer 0x2
 
-struct Sys_App_Binding{
-    i32 sys_id;
-    i32 app_id;
-
-    u32 success;
-    u32 fail;
-    Panel *panel;
-};
-
 struct Complete_State{
     Search_Set set;
     Search_Iter iter;
@@ -75,9 +66,6 @@ struct App_Vars{
 
     CLI_List cli_processes;
 
-    Sys_App_Binding *sys_app_bindings;
-    i32 sys_app_count, sys_app_max;
-
     Live_Views live_set;
 
     App_State state;
@@ -85,9 +73,6 @@ struct App_Vars{
     Complete_State complete_state;
 
     Command_Data command_data;
-    
-    File_Slot slots[32];
-    char filename_space[32 * FileNameMax];
 };
 
 enum Coroutine_Type{
@@ -815,23 +800,6 @@ COMMAND_DECL(interactive_new){
         IAct_New, IInt_Sys_File_List, make_lit_string("New: "));
 }
 
-internal Sys_App_Binding*
-app_push_file_binding(App_Vars *vars, int sys_id, int app_id){
-    Sys_App_Binding *binding;
-    Assert(vars->sys_app_count < vars->sys_app_max);
-    binding = vars->sys_app_bindings + vars->sys_app_count++;
-    binding->sys_id = sys_id;
-    binding->app_id = app_id;
-    return(binding);
-}
-
-struct App_Open_File_Result{
-    Editing_File *file;
-    i32 sys_id;
-    i32 file_index;
-    b32 is_new;
-};
-
 COMMAND_DECL(interactive_open){
     
     USE_MODELS(models);
@@ -908,30 +876,53 @@ view_file_in_panel(Command_Data *cmd, Panel *panel, Editing_File *file){
     panel->view->map = get_map(models, file->settings.base_map_id);
 }
 
+internal void
+init_normal_file(System_Functions *system, Models *models, Editing_File *file,
+                 char *buffer, i32 size){
+    
+    General_Memory *general = &models->mem.general;
+    
+    String val = make_string(buffer, size);
+    file_create_from_string(system, models, file, file->name.source_path.str, val);
+    
+    if (file->settings.tokens_exist){
+        file_first_lex_parallel(system, general, file);
+    }
+    
+    for (View_Iter iter = file_view_iter_init(&models->layout, file, 0);
+         file_view_iter_good(iter);
+         iter = file_view_iter_next(iter)){
+        view_measure_wraps(general, iter.view);
+    }
+}
+
 // TODO(allen): Improvements to reopen
 // - Preserve existing token stack
 // - Keep current version open and do some sort of diff to keep
 //    the cursor position correct
 COMMAND_DECL(reopen){
-    USE_VARS(vars);
     USE_MODELS(models);
     USE_VIEW(view);
     REQ_FILE(file, view);
     
     if (match(file->name.source_path, file->name.live_name)) return;
     
-    i32 file_id = exchange_request_file(&models->files, expand_str(file->name.source_path));
-    i32 index = 0;
-    if (file_id){
-        file_set_to_loading(file);
-        index = file->id.id;
-        app_push_file_binding(vars, file_id, index);
-
-        view_set_file(view, file, models);
-        view_show_file(view);
-    }
-    else{
-        do_feedback_message(system, models, make_lit_string("ERROR: no file load slot available\n"));
+    File_Loading loading = system->file_load_begin(file->name.source_path.str);
+    
+    if (loading.exists){
+        Partition *part = &models->mem.part;
+        Temp_Memory temp = begin_temp_memory(part);
+        char *buffer = push_array(part, char, loading.size);
+        
+        if (system->file_load_end(loading, buffer)){
+            General_Memory *general = &models->mem.general;
+            
+            file_close(system, general, file);
+            
+            init_normal_file(system, models, file, buffer, loading.size);
+        }
+        
+        end_temp_memory(temp);
     }
 }
 
@@ -962,9 +953,6 @@ COMMAND_DECL(save){
 			update_names = dynamic_to_bool(&param->param.value);
 		}
     }
-
-#if 0
-#endif
 
     if (buffer_id != -1){
         file = working_set_get_active_file(&models->working_set, buffer_id);
@@ -3215,41 +3203,6 @@ App_Init_Sig(app_init){
     target->partition = partition;
     
     {
-        File_Exchange *files = &models->files;
-        File_Slot *slots = vars->slots;
-        i32 max = ArrayCount(vars->slots);
-        {
-            char *filename_space;
-            i32 i;
-            
-            files->max = max;
-            files->available = file_slot_zero();
-            files->available.next = &files->available;
-            files->available.prev = &files->available;
-            
-            files->active = file_slot_zero();
-            files->active.next = &files->active;
-            files->active.prev = &files->active;
-            
-            files->free_list = file_slot_zero();
-            files->free_list.next = &files->free_list;
-            files->free_list.prev = &files->free_list;
-            
-            files->files = slots;
-            memset(slots, 0, sizeof(File_Slot)*max);
-            
-            filename_space = vars->filename_space;
-            
-            File_Slot *slot = slots;
-            for (i = 0; i < files->max; ++i, ++slot){
-                ex__file_insert(&files->available, slot);
-                slot->filename = filename_space;
-                filename_space += FileNameMax;
-            }
-        }
-    }
-    
-    {
         i32 i;
         
         panel_max_count = models->layout.panel_max_count = MAX_VIEWS;
@@ -3558,11 +3511,6 @@ App_Init_Sig(app_init){
     vars->cli_processes.procs = push_array(partition, CLI_Process, max_children);
     vars->cli_processes.max = max_children;
     vars->cli_processes.count = 0;
-    
-    // NOTE(allen): sys app binding setup
-    vars->sys_app_max = models->files.max;
-    vars->sys_app_count = 0;
-    vars->sys_app_bindings = (Sys_App_Binding*)push_array(partition, Sys_App_Binding, vars->sys_app_max);
     
     // NOTE(allen): parameter setup
     models->buffer_param_max = 1;
@@ -4425,6 +4373,7 @@ App_Step_Sig(app_step){
     
     Temp_Memory file_temp = begin_temp_memory(&models->mem.part);
     
+#if 0
     // NOTE(allen): Simulate what use to happen on the system side
     // for processing file exchange.
     {
@@ -4490,7 +4439,7 @@ App_Step_Sig(app_step){
         
         ex__check(files);
     }
-    
+
     // NOTE(allen): processing sys app bindings
     {
         File_Exchange *files = &models->files;
@@ -4582,27 +4531,28 @@ App_Step_Sig(app_step){
             }
         }
     }
+#endif
     
     end_temp_memory(file_temp);
     
     // NOTE(allen): process as many delayed actions as possible
     if (models->delay1.count > 0){
-        File_Exchange *files = &models->files;
         Working_Set *working_set = &models->working_set;
         Mem_Options *mem = &models->mem;
         General_Memory *general = &mem->general;
-
+        Partition *part = &mem->part;
+        
         i32 count = models->delay1.count;
         models->delay1.count = 0;
         models->delay2.count = 0;
-
+        
         Delayed_Action *act = models->delay1.acts;
         for (i32 i = 0; i < count; ++i, ++act){
             String string = act->string;
             Panel *panel = act->panel;
             Editing_File *file = act->file;
             i32 integer = act->integer;
-
+            
             // TODO(allen): Paramter checking in each DACT case.
             switch (act->type){
                 case DACT_TOUCH_FILE:
@@ -4611,18 +4561,49 @@ App_Step_Sig(app_step){
                         touch_file(working_set, file);
                     }
                 }break;
-
+                
                 case DACT_OPEN:
                 case DACT_OPEN_BACKGROUND:
                 {
-                    App_Open_File_Result result = {};
+                    String filename = string;
+                    Editing_File *file = working_set_contains(system, working_set, filename);
+                    
+                    if (file == 0){
+                        File_Loading loading = system->file_load_begin(filename.str);
+                        
+                        if (loading.exists){
+                            Temp_Memory temp = begin_temp_memory(part);
+                            char *buffer = push_array(part, char, loading.size);
+                            
+                            if (system->file_load_end(loading, buffer)){
+                                file = working_set_alloc_always(working_set, general);
+                                if (file){
+                                    file_init_strings(file);
+                                    file_set_name(working_set, file, filename.str);
+                                    working_set_add(system, working_set, file, general);
+                                    
+                                    init_normal_file(system, models, file,
+                                                     buffer, loading.size);
+                                }
+                            }
+                            
+                            end_temp_memory(temp);
+                        }
+                    }
+                    
+                    if (file){
+                        if (act->type == DACT_OPEN){
+                            view_file_in_panel(cmd, panel, file);
+                        }
+                    }
+                    
+#if 0
                     {
                         String filename = string;
                         i32 file_id;
     
                         result.file = working_set_contains(system, working_set, filename);
                         if (result.file == 0){
-                            result.is_new = 1;
                             result.file = working_set_alloc_always(working_set, general);
                             if (result.file){
                                 file_id = exchange_request_file(files, filename.str, filename.size);
@@ -4643,7 +4624,7 @@ App_Step_Sig(app_step){
                             }
                         }
                     }
-
+                    
                     if (result.is_new){
                         if (result.file){
                             Assert(result.sys_id);
@@ -4661,6 +4642,7 @@ App_Step_Sig(app_step){
                             }
                         }
                     }
+#endif
                 }break;
 
                 case DACT_SET_LINE:
@@ -4686,6 +4668,7 @@ App_Step_Sig(app_step){
                 case DACT_SAVE:
                 case DACT_SAVE_AS:
                 {
+#if 0
                     if (!file){
                         if (panel){
                             View *view = panel->view;
@@ -4712,6 +4695,7 @@ App_Step_Sig(app_step){
                             delayed_action_repush(&models->delay2, act);
                         }
                     }
+#endif
                 }break;
 
                 case DACT_NEW:

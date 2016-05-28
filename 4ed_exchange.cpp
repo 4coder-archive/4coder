@@ -9,6 +9,7 @@
 
 // TOP
 
+#if 0
 enum File_Exchange_Flag{
     FEx_Request = 0x1,
     FEx_Ready = 0x2,
@@ -17,6 +18,22 @@ enum File_Exchange_Flag{
     FEx_Save_Complete = 0x10,
     FEx_Save_Failed = 0x20
 };
+
+#define FileNameMax (1 << 9)
+
+struct File_Slot{
+    File_Slot *next, *prev;
+    byte *data;
+    i32 size, max;
+    char *filename;
+    i32 filename_len;
+    u32 flags;
+};
+inline File_Slot
+file_slot_zero(){
+    File_Slot slot={0};
+    return(slot);
+}
 
 struct File_Exchange{
     File_Slot available, active, free_list;
@@ -237,6 +254,7 @@ exchange_clear_file(File_Exchange *files, i32 file_id){
         ex__clear(file);
     }
 }
+#endif
 
 internal b32
 queue_job_is_pending(Work_Queue *queue, u32 job_id){
