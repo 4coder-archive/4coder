@@ -153,7 +153,7 @@ sysshared_partition_grow(Partition *part, i32 new_size){
     void *data = 0;
     if (new_size > part->max){
         // TODO(allen): attempt to grow in place by just
-        // acquiring larger vpages?!
+        // acquiring next vpages?!
         data = system_get_memory(new_size);
         memcpy(data, part->base, part->pos);
         system_free_memory(part->base);
@@ -164,6 +164,17 @@ sysshared_partition_grow(Partition *part, i32 new_size){
 internal void
 sysshared_partition_double(Partition *part){
     sysshared_partition_grow(part, part->max*2);
+}
+
+internal void*
+sysshared_push_block(Partition *part, i32 size){
+    void *result = 0;
+    result = push_block(part, size);
+    if (!result){
+        sysshared_partition_grow(part, size+part->max);
+        result = push_block(part, size);
+    }
+    return(result);
 }
 
 internal b32

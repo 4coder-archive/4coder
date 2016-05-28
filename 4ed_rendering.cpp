@@ -385,39 +385,35 @@ draw_font_info_load(Partition *partition,
     return(result);
 }
 
-// TODO(allen): Why the hell am I not just passing in a partition here?
 internal i32
-draw_font_load(void *base_block, i32 size,
-    Render_Font *font_out,
-    char *filename_untranslated,
-    i32 pt_size,
-    i32 tab_width,
-    i32 oversample){
-
+draw_font_load(Partition *part,
+               Render_Font *font_out,
+               char *filename_untranslated,
+               i32 pt_size,
+               i32 tab_width,
+               i32 oversample){
+    
     char space_[1024];
     String filename = make_fixed_width_string(space_);
     b32 translate_success = sysshared_to_binary_path(&filename, filename_untranslated);
     if (!translate_success) return 0;
-
+    
     i32 result = 1;
-    File_Data file;
-    file = sysshared_load_file(filename.str);
-
-    Partition partition_ = make_part(base_block, size);
-    Partition *partition = &partition_;
-
+    
     stbtt_packedchar *chardata = font_out->chardata;
-
-
-    i32 tex_width, tex_height;
-    tex_width = pt_size*128*oversample;
-    tex_height = pt_size*2*oversample;
-    void *block = push_block(partition, tex_width * tex_height);
-
+    
+    Temp_Memory temp = begin_temp_memory(part);
+    
+    i32 tex_width = pt_size*16*oversample;
+    i32 tex_height = pt_size*16*oversample;
+    void *block = sysshared_push_block(part, tex_width * tex_height);
+    
+    File_Data file = sysshared_load_file(filename.str);
+    
     if (!file.data.data){
         result = 0;
     }
-
+    
     else{
         stbtt_fontinfo font;
         if (!stbtt_InitFont(&font, (u8*)file.data.data, 0)){
@@ -426,61 +422,62 @@ draw_font_load(void *base_block, i32 size,
         else{
             i32 ascent, descent, line_gap;
             f32 scale;
-
+            
             stbtt_GetFontVMetrics(&font, &ascent, &descent, &line_gap);
             scale = stbtt_ScaleForPixelHeight(&font, (f32)pt_size);
-
+            
             f32 scaled_ascent, scaled_descent, scaled_line_gap;
-
+            
             scaled_ascent = scale*ascent;
             scaled_descent = scale*descent;
             scaled_line_gap = scale*line_gap;
-
+            
             font_out->height = (i32)(scaled_ascent - scaled_descent + scaled_line_gap);
             font_out->ascent = (i32)(scaled_ascent);
             font_out->descent = (i32)(scaled_descent);
             font_out->line_skip = (i32)(scaled_line_gap);
-
+            
             font_out->tex_width = tex_width;
             font_out->tex_height = tex_height;
-
+            
             stbtt_pack_context spc;
-
-            if (stbtt_PackBegin(&spc, (u8*)block, tex_width, tex_height, tex_width, 1, partition)){
+            
+            // TODO(allen): If this fails we can just expand the partition here now
+            // rather than forcing the user to do it.
+            if (stbtt_PackBegin(&spc, (u8*)block, tex_width, tex_height,
+                                tex_width, 1, part)){
                 stbtt_PackSetOversampling(&spc, oversample, oversample);
-                if (stbtt_PackFontRange(&spc, (u8*)file.data.data, 0,
-                        STBTT_POINT_SIZE((f32)pt_size), 0, 128, chardata)){
-                    // do nothing
-                }
-                else{
+                if (!stbtt_PackFontRange(&spc, (u8*)file.data.data, 0,
+                                         STBTT_POINT_SIZE((f32)pt_size),
+                                         0, 128, chardata)){
                     result = 0;
                 }
-
+                
                 stbtt_PackEnd(&spc);
             }
             else{
                 result = 0;
             }
-
+            
             if (result){
                 GLuint font_tex;
                 glGenTextures(1, &font_tex);
                 glBindTexture(GL_TEXTURE_2D, font_tex);
-
+                
                 glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
                 glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
                 glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-
+                
                 glTexImage2D(GL_TEXTURE_2D, 0, GL_ALPHA, tex_width, tex_height, 0, GL_ALPHA, GL_UNSIGNED_BYTE, block);
-
+                
                 font_out->tex = font_tex;
                 glBindTexture(GL_TEXTURE_2D, 0);
-
+                
                 font_out->chardata['\r'] = font_out->chardata[' '];
                 font_out->chardata['\n'] = font_out->chardata[' '];
                 font_out->chardata['\t'] = font_out->chardata[' '];
                 font_out->chardata['\t'].xadvance *= tab_width;
-
+                
                 i32 max_advance = 0;
                 for (u8 code_point = 0; code_point < 128; ++code_point){
                     if (stbtt_FindGlyphIndex(&font, code_point) != 0){
@@ -495,12 +492,14 @@ draw_font_load(void *base_block, i32 size,
                 }
                 font_out->advance = max_advance - 1;
             }
-
+            
         }
         system_free_memory(file.data.data);
     }
-
-    return result;
+    
+    end_temp_memory(temp);
+    
+    return(result);
 }
 
 internal

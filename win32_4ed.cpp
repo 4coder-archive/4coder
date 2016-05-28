@@ -1172,8 +1172,7 @@ Font_Load_Sig(system_draw_font_load){
     i32 oversample = 2;
     
     for (b32 success = 0; success == 0;){
-        success = draw_font_load(win32vars.font_part.base,
-                                 win32vars.font_part.max,
+        success = draw_font_load(&win32vars.font_part,
                                  font_out,
                                  filename,
                                  pt_size,
