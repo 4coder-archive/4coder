@@ -4,7 +4,7 @@ WARNINGS := -Wno-write-strings
 PLAT_LINKS := -L/usr/local/lib -lX11 -lpthread -lm -lrt -lGL -ldl -lXfixes
 FLAGS := -fPIC -fno-threadsafe-statics -pthread -I../foreign
 
-debug: FLAGS += -DFRED_KEEP_ASSERT=1 -DFRED_INTERNAL=0 -DFRED_SUPER -g -O0
+debug: FLAGS += -DFRED_INTERNAL=1 -DFRED_SUPER=1 -g -O0
 debug: ../4ed_app.so ../4ed
 
 ../4ed_app.so: $(CPP_FILES) $(H_FILES)
