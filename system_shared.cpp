@@ -66,6 +66,7 @@ sysshared_filter_real_files(char **files, i32 *file_count){
     *file_count = j;
 }
 
+#if 0
 void
 ex__file_insert(File_Slot *pos, File_Slot *file){
     file->next = pos->next;
@@ -140,6 +141,7 @@ sysshared_init_file_exchange(
 
     if (filename_space_out) *filename_space_out = filename_space;
 }
+#endif
 
 internal Partition
 sysshared_scratch_partition(i32 size){

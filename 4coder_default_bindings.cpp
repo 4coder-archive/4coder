@@ -76,7 +76,7 @@ CUSTOM_COMMAND_SIG(move_down_10){
     x = view.preferred_x;
 
     if (view.unwrapped_lines){
-        y = view.cursor.wrapped_y;
+        y = view.cursor.unwrapped_y;
     }
     else{
         y = view.cursor.wrapped_y;

@@ -17,6 +17,17 @@ ex__file_insert(File_Slot *pos, File_Slot *file){
     file->prev = pos;
 }
 
+void
+ex__insert_range(File_Slot *start, File_Slot *end, File_Slot *pos){
+    end->next->prev = start->prev;
+    start->prev->next = end->next;
+    
+    end->next = pos->next;
+    start->prev = pos;
+    pos->next->prev = end;
+    pos->next = start;
+}
+
 internal void
 ex__file_remove(File_Slot *file){
     file->next->prev = file->prev;

@@ -85,6 +85,9 @@ struct App_Vars{
     Complete_State complete_state;
 
     Command_Data command_data;
+    
+    File_Slot slots[32];
+    char filename_space[32 * FileNameMax];
 };
 
 enum Coroutine_Type{
@@ -3214,6 +3217,41 @@ App_Init_Sig(app_init){
     target->partition = partition;
     
     {
+        //exchange
+        File_Slot *slots = vars->slots;
+        i32 max = ArrayCount(vars->slots);
+        {
+            char *filename_space;
+            i32 i;
+            
+            exchange->file.max = max;
+            exchange->file.available = file_slot_zero();
+            exchange->file.available.next = &exchange->file.available;
+            exchange->file.available.prev = &exchange->file.available;
+            
+            exchange->file.active = file_slot_zero();
+            exchange->file.active.next = &exchange->file.active;
+            exchange->file.active.prev = &exchange->file.active;
+            
+            exchange->file.free_list = file_slot_zero();
+            exchange->file.free_list.next = &exchange->file.free_list;
+            exchange->file.free_list.prev = &exchange->file.free_list;
+            
+            exchange->file.files = slots;
+            memset(slots, 0, sizeof(File_Slot)*max);
+            
+            filename_space = vars->filename_space;
+            
+            File_Slot *slot = slots;
+            for (i = 0; i < exchange->file.max; ++i, ++slot){
+                ex__file_insert(&exchange->file.available, slot);
+                slot->filename = filename_space;
+                filename_space += FileNameMax;
+            }
+        }
+    }
+    
+    {
         i32 i;
         
         panel_max_count = models->layout.panel_max_count = MAX_VIEWS;
@@ -4380,18 +4418,85 @@ App_Step_Sig(app_step){
             }
         }break;
     }
-
+    
     if (mouse_in_edit_area && mouse_panel != 0 && mouse->press_l){
         models->layout.active_panel = (i32)(mouse_panel - models->layout.panels);
     }
-
+    
     update_command_data(vars, cmd);
+    
+    Temp_Memory file_temp = begin_temp_memory(&models->mem.part);
+    
+    // NOTE(allen): Simulate what use to happen on the system side
+    // for processing file exchange.
+    {
+        File_Slot *file;
+        int d = 0;
+        
+        for (file = exchange->file.active.next;
+             file != &exchange->file.active;
+             file = file->next){
+            ++d;
+            
+            if (file->flags & FEx_Save){
+                Assert((file->flags & FEx_Request) == 0);
+                file->flags &= (~FEx_Save);
+                if (system->file_save(file->filename,
+                                      (char*)file->data, file->size)){
+                    file->flags |= FEx_Save_Complete;
+                }
+                else{
+                    file->flags |= FEx_Save_Failed;
+                }
+                app_result.animating = 1;
+            }
+            
+            if (file->flags & FEx_Request){
+                Assert((file->flags & FEx_Save) == 0);
+                file->flags &= (~FEx_Request);
+                
+                File_Loading loading = system->file_load_begin(file->filename);
+                
+                if (loading.exists){
+                    char *data = push_array(&models->mem.part, char, loading.size);
+                    if (system->file_load_end(loading, data)){
+                        file->flags |= FEx_Ready;
+                        file->data = (byte*)data;
+                        file->size = loading.size;
+                    }
+                }
+                else{
+                    system->file_load_end(loading, 0);
+                    file->flags |= FEx_Not_Exist;
+                }
+                
+                app_result.animating = 1;
+            }
+        }
+        
+        int free_list_count = 0;
+        for (file = exchange->file.free_list.next;
+             file != &exchange->file.free_list;
+             file = file->next){
+            ++free_list_count;
+        }
+        
+        if (exchange->file.free_list.next != &exchange->file.free_list){
+            Assert(free_list_count != 0);
+            ex__insert_range(exchange->file.free_list.next,
+                             exchange->file.free_list.prev,
+                             &exchange->file.available);
+            exchange->file.num_active -= free_list_count;
+        }
+        
+        ex__check(&exchange->file);
+    }
     
     // NOTE(allen): processing sys app bindings
     {
         Mem_Options *mem = &models->mem;
         General_Memory *general = &mem->general;
-
+        
         for (i32 i = 0; i < vars->sys_app_count; ++i){
             Sys_App_Binding *binding;
             b32 remove = 0;
@@ -4477,6 +4582,8 @@ App_Step_Sig(app_step){
             }
         }
     }
+    
+    end_temp_memory(file_temp);
     
     // NOTE(allen): process as many delayed actions as possible
     if (models->delay1.count > 0){

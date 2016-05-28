@@ -1906,9 +1906,11 @@ int main(int argc, char **argv){
             }
         }
     }
-
+    
+#if 0
     File_Slot file_slots[32];
     sysshared_init_file_exchange(&exchange_vars, file_slots, ArrayCount(file_slots), 0);
+#endif
 
     win32vars.app.init(win32vars.system, &win32vars.target,
         &memory_vars, &exchange_vars,
@@ -2056,6 +2058,7 @@ int main(int argc, char **argv){
             
             win32vars.first = 0;
             
+#if 0
             {
                 File_Slot *file;
                 int d = 0;
@@ -2113,6 +2116,7 @@ int main(int argc, char **argv){
                 
                 ex__check(&exchange_vars.file);
             }
+#endif
             
             i64 timer_end = system_time();
             i64 end_target = (timer_start + frame_useconds);
