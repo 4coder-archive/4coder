@@ -296,20 +296,30 @@ Sys_File_Load_Begin_Sig(system_file_load_begin){
     File_Loading loading = {0};
     HANDLE file = 0;
     
-    file = CreateFile(filename, GENERIC_READ, 0, 0,
-                      OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
-    
-    if (file && file != INVALID_HANDLE_VALUE){
-        DWORD lo, hi;
-        lo = GetFileSize(file, &hi);
+    String fname_str = make_string_slowly(filename);
+    if (fname_str.size < 1024){
+        char fixed_space[1024];
+        String fixed_str = make_fixed_width_string(fixed_space);
+        copy(&fixed_str, fname_str);
+        terminate_with_null(&fixed_str);
         
-        if (hi == 0){
-            loading.handle = Win32Handle(file);
-            loading.size = lo;
-            loading.exists = 1;
-        }
-        else{
-            CloseHandle(file);
+        replace_char(fixed_str, '/', '\\');
+        
+        file = CreateFile(fixed_str.str, GENERIC_READ, 0, 0,
+                          OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
+        
+        if (file && file != INVALID_HANDLE_VALUE){
+            DWORD lo, hi;
+            lo = GetFileSize(file, &hi);
+            
+            if (hi == 0){
+                loading.handle = Win32Handle(file);
+                loading.size = lo;
+                loading.exists = 1;
+            }
+            else{
+                CloseHandle(file);
+            }
         }
     }
     
@@ -367,50 +377,6 @@ Sys_File_Save_Sig(system_file_save){
     }
     
     return(success);
-}
-
-internal
-Sys_Load_File_Sig(system_load_file){
-    File_Data result = {0};
-    
-    String fname_str = make_string_slowly(filename);
-    if (fname_str.size >= 1024) return(result);
-    
-    char fixed_space[1024];
-    String fixed_str = make_fixed_width_string(fixed_space);
-    copy(&fixed_str, fname_str);
-    terminate_with_null(&fixed_str);
-    
-    replace_char(fixed_str, '/', '\\');
-    
-    File_Loading loading =
-        system_file_load_begin(fixed_str.str);
-    
-    result.got_file = loading.exists;
-    
-    if (loading.size > 0){
-        result.data.size = loading.size;
-        result.data.data = (byte*)Win32GetMemory(result.data.size);
-        
-        if (!result.data.data){
-            system_file_load_end(loading, 0);
-            result = file_data_zero();
-        }
-        else{
-            if (!system_file_load_end(loading, (char*)result.data.data)){
-                Win32FreeMemory(result.data.data);
-                result = file_data_zero();
-            }
-        }
-    }
-    
-    return(result);
-}
-
-// TODO(allen): eliminate this
-internal
-Sys_Save_File_Sig(system_save_file){
-    return(system_file_save(filename, data, size));
 }
 
 // TODO(allen): THIS system does not really work.
@@ -2103,7 +2069,7 @@ int main(int argc, char **argv){
                     if (file->flags & FEx_Save){
                         Assert((file->flags & FEx_Request) == 0);
                         file->flags &= (~FEx_Save);
-                        if (system_save_file(file->filename, (char*)file->data, file->size)){
+                        if (sysshared_save_file(file->filename, (char*)file->data, file->size)){
                             file->flags |= FEx_Save_Complete;
                         }
                         else{
@@ -2115,7 +2081,7 @@ int main(int argc, char **argv){
                     if (file->flags & FEx_Request){
                         Assert((file->flags & FEx_Save) == 0);
                         file->flags &= (~FEx_Request);
-                        File_Data sysfile = system_load_file(file->filename);
+                        File_Data sysfile = sysshared_load_file(file->filename);
                         if (!sysfile.got_file){
                             file->flags |= FEx_Not_Exist;
                         }

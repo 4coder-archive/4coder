@@ -9,6 +9,39 @@
 
 // TOP
 
+internal File_Data
+sysshared_load_file(char *filename){
+    File_Data result = {0};
+    
+    File_Loading loading =
+        system_file_load_begin(filename);
+    
+    result.got_file = loading.exists;
+    
+    if (loading.size > 0){
+        result.data.size = loading.size;
+        result.data.data = (byte*)Win32GetMemory(result.data.size);
+        
+        if (!result.data.data){
+            system_file_load_end(loading, 0);
+            result = file_data_zero();
+        }
+        else{
+            if (!system_file_load_end(loading, (char*)result.data.data)){
+                Win32FreeMemory(result.data.data);
+                result = file_data_zero();
+            }
+        }
+    }
+    
+    return(result);
+}
+
+internal b32
+sysshared_save_file(char *filename, char *data, i32 size){
+    return(system_file_save(filename, data, size));
+}
+
 internal b32
 usable_ascii(char c){
     b32 result = 1;

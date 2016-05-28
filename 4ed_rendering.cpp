@@ -309,7 +309,7 @@ draw_font_info_load(Partition *partition,
     
     i32 result = 1;
     File_Data file;
-    file = system_load_file(filename.str);
+    file = sysshared_load_file(filename.str);
     
     Temp_Memory temp = begin_temp_memory(partition);
     stbtt_packedchar *chardata = push_array(partition, stbtt_packedchar, 256);
@@ -401,7 +401,7 @@ draw_font_load(void *base_block, i32 size,
 
     i32 result = 1;
     File_Data file;
-    file = system_load_file(filename.str);
+    file = sysshared_load_file(filename.str);
 
     Partition partition_ = make_part(base_block, size);
     Partition *partition = &partition_;
