@@ -1906,11 +1906,6 @@ int main(int argc, char **argv){
             }
         }
     }
-    
-#if 0
-    File_Slot file_slots[32];
-    sysshared_init_file_exchange(&exchange_vars, file_slots, ArrayCount(file_slots), 0);
-#endif
 
     win32vars.app.init(win32vars.system, &win32vars.target,
         &memory_vars, &exchange_vars,
@@ -2057,66 +2052,6 @@ int main(int argc, char **argv){
             Win32RedrawFromUpdate();
             
             win32vars.first = 0;
-            
-#if 0
-            {
-                File_Slot *file;
-                int d = 0;
-                
-                for (file = exchange_vars.file.active.next;
-                     file != &exchange_vars.file.active;
-                     file = file->next){
-                    ++d;
-                    
-                    if (file->flags & FEx_Save){
-                        Assert((file->flags & FEx_Request) == 0);
-                        file->flags &= (~FEx_Save);
-                        if (sysshared_save_file(file->filename, (char*)file->data, file->size)){
-                            file->flags |= FEx_Save_Complete;
-                        }
-                        else{
-                            file->flags |= FEx_Save_Failed;
-                        }
-                        PostMessage(win32vars.window_handle, WM_4coder_ANIMATE, 0, 0);
-                    }
-                    
-                    if (file->flags & FEx_Request){
-                        Assert((file->flags & FEx_Save) == 0);
-                        file->flags &= (~FEx_Request);
-                        File_Data sysfile = sysshared_load_file(file->filename);
-                        if (!sysfile.got_file){
-                            file->flags |= FEx_Not_Exist;
-                        }
-                        else{
-                            file->flags |= FEx_Ready;
-                            file->data = sysfile.data.data;
-                            file->size = sysfile.data.size;
-                        }
-                        PostMessage(win32vars.window_handle, WM_4coder_ANIMATE, 0, 0);
-                    }
-                }
-                
-                int free_list_count = 0;
-                for (file = exchange_vars.file.free_list.next;
-                     file != &exchange_vars.file.free_list;
-                     file = file->next){
-                    ++free_list_count;
-                    if (file->data){
-                        system_free_memory(file->data);
-                    }
-                }
-                
-                if (exchange_vars.file.free_list.next != &exchange_vars.file.free_list){
-                    Assert(free_list_count != 0);
-                    ex__insert_range(exchange_vars.file.free_list.next, exchange_vars.file.free_list.prev,
-                                     &exchange_vars.file.available);
-                    
-                    exchange_vars.file.num_active -= free_list_count;
-                }
-                
-                ex__check(&exchange_vars.file);
-            }
-#endif
             
             i64 timer_end = system_time();
             i64 end_target = (timer_start + frame_useconds);

@@ -282,21 +282,6 @@ file_slot_zero(){
     return(slot);
 }
 
-enum File_Exchange_Flag{
-    FEx_Request = 0x1,
-    FEx_Ready = 0x2,
-    FEx_Not_Exist = 0x4,
-    FEx_Save = 0x8,
-    FEx_Save_Complete = 0x10,
-    FEx_Save_Failed = 0x20
-};
-
-struct File_Exchange{
-    File_Slot available, active, free_list;
-    File_Slot *files;
-    i32 num_active, max;
-};
-
 struct Write_Event{
     Write_Event *next, *prev;
     String filename;
@@ -305,7 +290,6 @@ struct Write_Event{
 
 struct Exchange{
     Thread_Exchange thread;
-    File_Exchange file;
     Write_Event write_event_sentinel;
 };
 

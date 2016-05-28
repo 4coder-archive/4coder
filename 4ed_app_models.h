@@ -64,6 +64,8 @@ struct Models{
     
     Custom_API config_api;
     Scroll_Rule_Function *scroll_rule;
+    
+    File_Exchange files;
 };
 
 // BOTTOM

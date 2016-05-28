@@ -436,7 +436,7 @@ file_synchronize_times(System_Functions *system, Editing_File *file, char *filen
 }
 
 internal i32
-file_save(System_Functions *system, Exchange *exchange, Mem_Options *mem,
+file_save(System_Functions *system, File_Exchange *files, Mem_Options *mem,
           Editing_File *file, char *filename){
     i32 result = 0;
 
@@ -458,7 +458,7 @@ file_save(System_Functions *system, Exchange *exchange, Mem_Options *mem,
     else
         buffer_stringify(buffer, 0, size = max, data);
 
-    result = exchange_save_file(exchange, filename, str_size(filename), (byte*)data, size, max);
+    result = exchange_save_file(files, filename, str_size(filename), (byte*)data, size, max);
 
     if (result == 0){
         general_memory_free(&mem->general, data);
@@ -470,11 +470,11 @@ file_save(System_Functions *system, Exchange *exchange, Mem_Options *mem,
 }
 
 inline b32
-file_save_and_set_names(System_Functions *system, Exchange *exchange,
+file_save_and_set_names(System_Functions *system, File_Exchange *files,
                         Mem_Options *mem, Working_Set *working_set, Editing_File *file,
                         char *filename){
     b32 result = 0;
-    result = file_save(system, exchange, mem, file, filename);
+    result = file_save(system, files, mem, file, filename);
     if (result){
         file_set_name(working_set, file, filename);
     }

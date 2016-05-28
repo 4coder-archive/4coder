@@ -913,16 +913,14 @@ view_file_in_panel(Command_Data *cmd, Panel *panel, Editing_File *file){
 // - Keep current version open and do some sort of diff to keep
 //    the cursor position correct
 COMMAND_DECL(reopen){
-    
     USE_VARS(vars);
     USE_MODELS(models);
     USE_VIEW(view);
     REQ_FILE(file, view);
-    USE_EXCHANGE(exchange);
     
     if (match(file->name.source_path, file->name.live_name)) return;
     
-    i32 file_id = exchange_request_file(exchange, expand_str(file->name.source_path));
+    i32 file_id = exchange_request_file(&models->files, expand_str(file->name.source_path));
     i32 index = 0;
     if (file_id){
         file_set_to_loading(file);
@@ -3217,34 +3215,34 @@ App_Init_Sig(app_init){
     target->partition = partition;
     
     {
-        //exchange
+        File_Exchange *files = &models->files;
         File_Slot *slots = vars->slots;
         i32 max = ArrayCount(vars->slots);
         {
             char *filename_space;
             i32 i;
             
-            exchange->file.max = max;
-            exchange->file.available = file_slot_zero();
-            exchange->file.available.next = &exchange->file.available;
-            exchange->file.available.prev = &exchange->file.available;
+            files->max = max;
+            files->available = file_slot_zero();
+            files->available.next = &files->available;
+            files->available.prev = &files->available;
             
-            exchange->file.active = file_slot_zero();
-            exchange->file.active.next = &exchange->file.active;
-            exchange->file.active.prev = &exchange->file.active;
+            files->active = file_slot_zero();
+            files->active.next = &files->active;
+            files->active.prev = &files->active;
             
-            exchange->file.free_list = file_slot_zero();
-            exchange->file.free_list.next = &exchange->file.free_list;
-            exchange->file.free_list.prev = &exchange->file.free_list;
+            files->free_list = file_slot_zero();
+            files->free_list.next = &files->free_list;
+            files->free_list.prev = &files->free_list;
             
-            exchange->file.files = slots;
+            files->files = slots;
             memset(slots, 0, sizeof(File_Slot)*max);
             
             filename_space = vars->filename_space;
             
             File_Slot *slot = slots;
-            for (i = 0; i < exchange->file.max; ++i, ++slot){
-                ex__file_insert(&exchange->file.available, slot);
+            for (i = 0; i < files->max; ++i, ++slot){
+                ex__file_insert(&files->available, slot);
                 slot->filename = filename_space;
                 filename_space += FileNameMax;
             }
@@ -3562,7 +3560,7 @@ App_Init_Sig(app_init){
     vars->cli_processes.count = 0;
     
     // NOTE(allen): sys app binding setup
-    vars->sys_app_max = exchange->file.max;
+    vars->sys_app_max = models->files.max;
     vars->sys_app_count = 0;
     vars->sys_app_bindings = (Sys_App_Binding*)push_array(partition, Sys_App_Binding, vars->sys_app_max);
     
@@ -4430,11 +4428,12 @@ App_Step_Sig(app_step){
     // NOTE(allen): Simulate what use to happen on the system side
     // for processing file exchange.
     {
+        File_Exchange *files = &models->files;
         File_Slot *file;
         int d = 0;
         
-        for (file = exchange->file.active.next;
-             file != &exchange->file.active;
+        for (file = files->active.next;
+             file != &files->active;
              file = file->next){
             ++d;
             
@@ -4475,25 +4474,26 @@ App_Step_Sig(app_step){
         }
         
         int free_list_count = 0;
-        for (file = exchange->file.free_list.next;
-             file != &exchange->file.free_list;
+        for (file = files->free_list.next;
+             file != &files->free_list;
              file = file->next){
             ++free_list_count;
         }
         
-        if (exchange->file.free_list.next != &exchange->file.free_list){
+        if (files->free_list.next != &files->free_list){
             Assert(free_list_count != 0);
-            ex__insert_range(exchange->file.free_list.next,
-                             exchange->file.free_list.prev,
-                             &exchange->file.available);
-            exchange->file.num_active -= free_list_count;
+            ex__insert_range(files->free_list.next,
+                             files->free_list.prev,
+                             &files->available);
+            files->num_active -= free_list_count;
         }
         
-        ex__check(&exchange->file);
+        ex__check(files);
     }
     
     // NOTE(allen): processing sys app bindings
     {
+        File_Exchange *files = &models->files;
         Mem_Options *mem = &models->mem;
         General_Memory *general = &mem->general;
         
@@ -4509,13 +4509,13 @@ App_Step_Sig(app_step){
             
             Working_Set *working_set = &models->working_set;
             File_Ready_Result file_result =
-                exchange_file_ready(exchange, binding->sys_id);
+                exchange_file_ready(files, binding->sys_id);
             
             if (file_result.ready){
                 ed_file = working_set_get_active_file(working_set, binding->app_id);
                 Assert(ed_file);
                 
-                filename = exchange_file_filename(exchange, binding->sys_id);
+                filename = exchange_file_filename(files, binding->sys_id);
                 preload_settings = ed_file->preload;
                 if (file_result.exists){
                     String val = make_string((char*)file_result.data, file_result.size);
@@ -4549,7 +4549,7 @@ App_Step_Sig(app_step){
                     }
                 }
 
-                exchange_free_file(exchange, binding->sys_id);
+                exchange_free_file(files, binding->sys_id);
                 remove = 1;
             }
 
@@ -4557,12 +4557,12 @@ App_Step_Sig(app_step){
             byte *data;
             i32 size, max;
             
-            if (exchange_file_save_complete(exchange, binding->sys_id, &data, &size, &max, &failed)){
+            if (exchange_file_save_complete(files, binding->sys_id, &data, &size, &max, &failed)){
                 Assert(remove == 0);
 
                 if (data){
                     general_memory_free(general, data);
-                    exchange_clear_file(exchange, binding->sys_id);
+                    exchange_clear_file(files, binding->sys_id);
                 }
 
                 Editing_File *file = working_set_get_active_file(working_set, binding->app_id);
@@ -4570,7 +4570,7 @@ App_Step_Sig(app_step){
                     file_synchronize_times(system, file, file->name.source_path.str);
                 }
 
-                exchange_free_file(exchange, binding->sys_id);
+                exchange_free_file(files, binding->sys_id);
                 remove = 1;
 
                 // if (failed) { TODO(allen): saving error, now what? }
@@ -4587,6 +4587,7 @@ App_Step_Sig(app_step){
     
     // NOTE(allen): process as many delayed actions as possible
     if (models->delay1.count > 0){
+        File_Exchange *files = &models->files;
         Working_Set *working_set = &models->working_set;
         Mem_Options *mem = &models->mem;
         General_Memory *general = &mem->general;
@@ -4624,7 +4625,7 @@ App_Step_Sig(app_step){
                             result.is_new = 1;
                             result.file = working_set_alloc_always(working_set, general);
                             if (result.file){
-                                file_id = exchange_request_file(exchange, filename.str, filename.size);
+                                file_id = exchange_request_file(files, filename.str, filename.size);
                                 if (file_id){
                                     file_init_strings(result.file);
                                     file_set_name(working_set, result.file, filename.str);
@@ -4698,7 +4699,7 @@ App_Step_Sig(app_step){
                     // TODO(allen): We could handle the case where someone tries to save the same thing
                     // twice... that would be nice to have under control.
                     if (file && buffer_get_sync(file) != SYNC_GOOD){
-                        i32 sys_id = file_save(system, exchange, mem, file, file->name.source_path.str);
+                        i32 sys_id = file_save(system, files, mem, file, file->name.source_path.str);
                         if (sys_id){
                             if (act->type == DACT_SAVE_AS){
                                 file_set_name(working_set, file, string.str);

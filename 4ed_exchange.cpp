@@ -9,6 +9,21 @@
 
 // TOP
 
+enum File_Exchange_Flag{
+    FEx_Request = 0x1,
+    FEx_Ready = 0x2,
+    FEx_Not_Exist = 0x4,
+    FEx_Save = 0x8,
+    FEx_Save_Complete = 0x10,
+    FEx_Save_Failed = 0x20
+};
+
+struct File_Exchange{
+    File_Slot available, active, free_list;
+    File_Slot *files;
+    i32 num_active, max;
+};
+
 internal void
 ex__file_insert(File_Slot *pos, File_Slot *file){
     pos->next->prev = file;
@@ -63,8 +78,7 @@ ex__clear(File_Slot *file){
 }
 
 internal File_Slot*
-ex__get_file(Exchange *exchange){
-    File_Exchange *files = &exchange->file;
+ex__get_file(File_Exchange *files){
     File_Slot *file;
 
     ++files->num_active;
@@ -86,13 +100,12 @@ ex__set_filename(File_Slot *file, char *filename, int len){
 }
 
 internal i32
-exchange_request_file(Exchange *exchange, char *filename, int len){
-    File_Exchange *files = &exchange->file;
+exchange_request_file(File_Exchange *files, char *filename, int len){
     i32 result = 0;
 
     if (len+1 < FileNameMax){
         if (files->num_active < files->max){
-            File_Slot *file = ex__get_file(exchange);
+            File_Slot *file = ex__get_file(files);
             ex__set_filename(file, filename, len);
             
             file->flags |= FEx_Request;
@@ -112,9 +125,8 @@ struct File_Ready_Result{
 };
 
 internal File_Ready_Result
-exchange_file_ready(Exchange *exchange, i32 file_id){
+exchange_file_ready(File_Exchange *files, i32 file_id){
     File_Ready_Result result = {0};
-    File_Exchange *files = &exchange->file;
     File_Slot *file = 0;
     
     if (file_id > 0 && file_id <= files->max){
@@ -139,8 +151,7 @@ exchange_file_ready(Exchange *exchange, i32 file_id){
 }
 
 internal b32
-exchange_file_does_not_exist(Exchange *exchange, i32 file_id){
-    File_Exchange *files = &exchange->file;
+exchange_file_does_not_exist(File_Exchange *files, i32 file_id){
     b32 result = 1;
     File_Slot *slot;
     
@@ -155,14 +166,13 @@ exchange_file_does_not_exist(Exchange *exchange, i32 file_id){
 }
 
 internal i32
-exchange_save_file(Exchange *exchange, char *filename, int len,
+exchange_save_file(File_Exchange *files, char *filename, int len,
                    byte *data, int size, int max){
-    File_Exchange *files = &exchange->file;
     i32 result = 0;
 
     if (len+1 < FileNameMax){
         if (files->num_active < files->max){
-            File_Slot *file = ex__get_file(exchange);
+            File_Slot *file = ex__get_file(files);
             ex__set_filename(file, filename, len);
             
             file->flags |= FEx_Save;
@@ -178,8 +188,8 @@ exchange_save_file(Exchange *exchange, char *filename, int len,
 }
 
 internal b32
-exchange_file_save_complete(Exchange *exchange, i32 file_id, byte **data, int *size, int *max, int *failed){
-    File_Exchange *files = &exchange->file;
+exchange_file_save_complete(File_Exchange *files, i32 file_id,
+                            byte **data, int *size, int *max, int *failed){
     b32 result = 0;
 
     if (file_id > 0 && file_id <= files->max){
@@ -198,8 +208,7 @@ exchange_file_save_complete(Exchange *exchange, i32 file_id, byte **data, int *s
 }
 
 internal char*
-exchange_file_filename(Exchange *exchange, i32 file_id, i32 *size = 0){
-    File_Exchange *files = &exchange->file;
+exchange_file_filename(File_Exchange *files, i32 file_id, i32 *size = 0){
     char *result = 0;
 
     if (file_id > 0 && file_id <= files->max){
@@ -212,9 +221,7 @@ exchange_file_filename(Exchange *exchange, i32 file_id, i32 *size = 0){
 }
 
 internal void
-exchange_free_file(Exchange *exchange, i32 file_id){
-    File_Exchange *files = &exchange->file;
-
+exchange_free_file(File_Exchange *files, i32 file_id){
     if (file_id > 0 && file_id <= files->max){
         File_Slot *file = files->files + file_id - 1;
         ex__file_remove(file);
@@ -224,9 +231,7 @@ exchange_free_file(Exchange *exchange, i32 file_id){
 }
 
 internal void
-exchange_clear_file(Exchange *exchange, i32 file_id){
-    File_Exchange *files = &exchange->file;
-
+exchange_clear_file(File_Exchange *files, i32 file_id){
     if (file_id > 0 && file_id <= files->max){
         File_Slot *file = files->files + file_id - 1;
         ex__clear(file);
