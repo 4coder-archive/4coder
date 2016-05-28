@@ -266,17 +266,8 @@ struct System_Functions{
     char slash;
 };
 
-#if 0
-struct Write_Event{
-    Write_Event *next, *prev;
-    String filename;
-    u64 time_stamp;
-};
-#endif
-
 struct Exchange{
     Thread_Exchange thread;
-//    Write_Event write_event_sentinel;
 };
 
 // BOTTOM

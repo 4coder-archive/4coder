@@ -435,9 +435,9 @@ file_synchronize_times(System_Functions *system, Editing_File *file, char *filen
     file->state.sync = buffer_get_sync(file);
 }
 
-internal i32
+internal b32
 file_save(System_Functions *system, Mem_Options *mem, Editing_File *file, char *filename){
-    i32 result = 0;
+    b32 result = 0;
     
     i32 max, size;
     b32 dos_write_mode = file->settings.dos_write_mode;
@@ -3520,47 +3520,7 @@ app_single_line_input_core(System_Functions *system, Working_Set *working_set,
     }
 
     else if (key.character == '\n' || key.character == '\t'){
-#if 0
-        result.made_a_change = 1;
-        if (key.modifiers[MDFR_CONTROL_INDEX] ||
-                key.modifiers[MDFR_ALT_INDEX]){
-            result.hit_ctrl_newline = 1;
-        }
-        else{
-            result.hit_newline = 1;
-            if (mode.fast_folder_select){
-                Hot_Directory_Match match;
-                char front_name_space[256];
-                String front_name = make_fixed_width_string(front_name_space);
-                get_front_of_directory(&front_name, *mode.string);
-
-                match =
-                    hot_directory_first_match(mode.hot_directory, front_name, 1, 1, mode.case_sensitive);
-
-                if (mode.try_to_match && !match.filename.str){
-                    match = hot_directory_first_match(mode.hot_directory, front_name, 1, 0, mode.case_sensitive);
-                }
-                if (match.filename.str){
-                    if (match.is_folder){
-                        set_last_folder(mode.string, match.filename, mode.hot_directory->slash);
-                        hot_directory_set(system, mode.hot_directory, *mode.string, working_set);
-                        result.hit_newline = 0;
-                    }
-                    else{
-                        if (mode.try_to_match){
-                            mode.string->size = reverse_seek_slash(*mode.string) + 1;
-                            append(mode.string, match.filename);
-                        }
-                    }
-                }
-                else{
-                    if (mode.try_to_match){
-                        result.no_file_match = 1;
-                    }
-                }
-            }
-        }
-#endif
+        // NOTE(allen): do nothing!
     }
 
     else if (key.keycode == key_esc){

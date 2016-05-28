@@ -4149,20 +4149,6 @@ App_Step_Sig(app_step){
             *vars = result.vars;
             view->scroll_region = result.region;
         }
-
-#if 0
-        // TODO(allen): This is perhaps not the best system...
-        // The problem is that the exact region and scroll position is pretty important
-        // for some commands, so this is here to eliminate the one frame of lag.
-        // Going to leave this here for now because the order of events is going to
-        // change a lot soon anyway.// NOTE(allen): 
-        for (dll_items(panel, used_panels)){
-            view = panel->view;
-            Assert(view->current_scroll);
-            view->current_scroll = ;
-            gui_get_scroll_vars(&view->gui_target, view->showing_ui, view->current_scroll, &view->scroll_region);
-        }
-#endif
     }
 
     update_command_data(vars, cmd);
@@ -4371,170 +4357,6 @@ App_Step_Sig(app_step){
     
     update_command_data(vars, cmd);
     
-    Temp_Memory file_temp = begin_temp_memory(&models->mem.part);
-    
-#if 0
-    // NOTE(allen): Simulate what use to happen on the system side
-    // for processing file exchange.
-    {
-        File_Exchange *files = &models->files;
-        File_Slot *file;
-        int d = 0;
-        
-        for (file = files->active.next;
-             file != &files->active;
-             file = file->next){
-            ++d;
-            
-            if (file->flags & FEx_Save){
-                Assert((file->flags & FEx_Request) == 0);
-                file->flags &= (~FEx_Save);
-                if (system->file_save(file->filename,
-                                      (char*)file->data, file->size)){
-                    file->flags |= FEx_Save_Complete;
-                }
-                else{
-                    file->flags |= FEx_Save_Failed;
-                }
-                app_result.animating = 1;
-            }
-            
-            if (file->flags & FEx_Request){
-                Assert((file->flags & FEx_Save) == 0);
-                file->flags &= (~FEx_Request);
-                
-                File_Loading loading = system->file_load_begin(file->filename);
-                
-                if (loading.exists){
-                    char *data = push_array(&models->mem.part, char, loading.size);
-                    if (system->file_load_end(loading, data)){
-                        file->flags |= FEx_Ready;
-                        file->data = (byte*)data;
-                        file->size = loading.size;
-                    }
-                }
-                else{
-                    system->file_load_end(loading, 0);
-                    file->flags |= FEx_Not_Exist;
-                }
-                
-                app_result.animating = 1;
-            }
-        }
-        
-        int free_list_count = 0;
-        for (file = files->free_list.next;
-             file != &files->free_list;
-             file = file->next){
-            ++free_list_count;
-        }
-        
-        if (files->free_list.next != &files->free_list){
-            Assert(free_list_count != 0);
-            ex__insert_range(files->free_list.next,
-                             files->free_list.prev,
-                             &files->available);
-            files->num_active -= free_list_count;
-        }
-        
-        ex__check(files);
-    }
-
-    // NOTE(allen): processing sys app bindings
-    {
-        File_Exchange *files = &models->files;
-        Mem_Options *mem = &models->mem;
-        General_Memory *general = &mem->general;
-        
-        for (i32 i = 0; i < vars->sys_app_count; ++i){
-            Sys_App_Binding *binding;
-            b32 remove = 0;
-            b32 failed = 0;
-            binding = vars->sys_app_bindings + i;
-            
-            Editing_File *ed_file;
-            Editing_File_Preload preload_settings;
-            char *filename;
-            
-            Working_Set *working_set = &models->working_set;
-            File_Ready_Result file_result =
-                exchange_file_ready(files, binding->sys_id);
-            
-            if (file_result.ready){
-                ed_file = working_set_get_active_file(working_set, binding->app_id);
-                Assert(ed_file);
-                
-                filename = exchange_file_filename(files, binding->sys_id);
-                preload_settings = ed_file->preload;
-                if (file_result.exists){
-                    String val = make_string((char*)file_result.data, file_result.size);
-                    file_create_from_string(system, models, ed_file, filename, val);
-                    
-                    if (ed_file->settings.tokens_exist){
-                        file_first_lex_parallel(system, general, ed_file);
-                    }
-                    
-                    if ((binding->success & SysAppCreateView) && binding->panel != 0){
-                        view_file_in_panel(cmd, binding->panel, ed_file);
-                    }
-                    
-                    for (View_Iter iter = file_view_iter_init(&models->layout, ed_file, 0);
-                        file_view_iter_good(iter);
-                        iter = file_view_iter_next(iter)){
-                        view_measure_wraps(general, iter.view);
-                        view_cursor_move(iter.view, preload_settings.start_line, 0);
-                    }
-                }
-                else{
-                    if (binding->fail & SysAppCreateNewBuffer){
-                        file_create_empty(system, models, ed_file, filename);
-                        if (binding->fail & SysAppCreateView){
-                            view_file_in_panel(cmd, binding->panel, ed_file);
-                        }
-                    }
-                    else{
-                        working_set_remove(system, &models->working_set, ed_file->name.source_path);
-                        working_set_free_file(&models->working_set, ed_file);
-                    }
-                }
-
-                exchange_free_file(files, binding->sys_id);
-                remove = 1;
-            }
-
-            // TODO(allen): Switch to multiple return struct.
-            byte *data;
-            i32 size, max;
-            
-            if (exchange_file_save_complete(files, binding->sys_id, &data, &size, &max, &failed)){
-                Assert(remove == 0);
-
-                if (data){
-                    general_memory_free(general, data);
-                    exchange_clear_file(files, binding->sys_id);
-                }
-
-                Editing_File *file = working_set_get_active_file(working_set, binding->app_id);
-                if (file){
-                    file_synchronize_times(system, file, file->name.source_path.str);
-                }
-
-                exchange_free_file(files, binding->sys_id);
-                remove = 1;
-
-                // if (failed) { TODO(allen): saving error, now what? }
-            }
-
-            if (remove){
-                *binding = vars->sys_app_bindings[--vars->sys_app_count];
-                --i;
-            }
-        }
-    }
-#endif
-    
-    end_temp_memory(file_temp);
-    
     // NOTE(allen): process as many delayed actions as possible
     if (models->delay1.count > 0){
         Working_Set *working_set = &models->working_set;
@@ -4596,59 +4418,11 @@ App_Step_Sig(app_step){
                             view_file_in_panel(cmd, panel, file);
                         }
                     }
-                    
-#if 0
-                    {
-                        String filename = string;
-                        i32 file_id;
-    
-                        result.file = working_set_contains(system, working_set, filename);
-                        if (result.file == 0){
-                            result.file = working_set_alloc_always(working_set, general);
-                            if (result.file){
-                                file_id = exchange_request_file(files, filename.str, filename.size);
-                                if (file_id){
-                                    file_init_strings(result.file);
-                                    file_set_name(working_set, result.file, filename.str);
-                                    file_set_to_loading(result.file);
-                                    working_set_add(system, working_set, result.file, general);
-
-                                    result.sys_id = file_id;
-                                    result.file_index = result.file->id.id;
-                                }
-                                else{
-                                    working_set_free_file(working_set, result.file);
-                                    delayed_action_repush(&models->delay2, act);
-                                    break;
-                                }
-                            }
-                        }
-                    }
-                    
-                    if (result.is_new){
-                        if (result.file){
-                            Assert(result.sys_id);
-                            Sys_App_Binding *binding = app_push_file_binding(vars, result.sys_id, result.file_index);
-                            binding->success = (act->type == DACT_OPEN) ? SysAppCreateView : 0;
-                            binding->fail = 0;
-                            binding->panel = panel;
-                        }
-                    }
-                    else{
-                        if (act->type == DACT_OPEN){
-                            Assert(result.file);
-                            if (!result.file->state.is_loading){
-                                view_file_in_panel(cmd, panel, result.file);
-                            }
-                        }
-                    }
-#endif
                 }break;
 
                 case DACT_SET_LINE:
                 {
                     // TODO(allen): deduplicate
-                    Editing_File *file = 0;
                     if (panel){
                         file = panel->view->file_data.file;
                     }
@@ -4668,7 +4442,6 @@ App_Step_Sig(app_step){
                 case DACT_SAVE:
                 case DACT_SAVE_AS:
                 {
-#if 0
                     if (!file){
                         if (panel){
                             View *view = panel->view;
@@ -4679,23 +4452,14 @@ App_Step_Sig(app_step){
                             file = working_set_lookup_file(working_set, string);
                         }
                     }
-                    // TODO(allen): We could handle the case where someone tries to save the same thing
-                    // twice... that would be nice to have under control.
+                    
                     if (file && buffer_get_sync(file) != SYNC_GOOD){
-                        i32 sys_id = file_save(system, files, mem, file, file->name.source_path.str);
-                        if (sys_id){
+                        if (file_save(system, mem, file, string.str)){
                             if (act->type == DACT_SAVE_AS){
                                 file_set_name(working_set, file, string.str);
                             }
-                            // TODO(allen): This is fishy! Shouldn't we bind it to a file name instead? This file
-                            // might be killed before we get notified that the saving is done!
-                            app_push_file_binding(vars, sys_id, file->id.id);
-                        }
-                        else{
-                            delayed_action_repush(&models->delay2, act);
                         }
                     }
-#endif
                 }break;
 
                 case DACT_NEW:
