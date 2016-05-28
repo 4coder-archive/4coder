@@ -17,10 +17,6 @@
 
 #include "4ed_meta.h"
 
-#if (__cplusplus <= 199711L)
-#define static_assert(x, ...)
-#endif
-
 #define FCPP_FORBID_MALLOC
 
 #include "4cpp_types.h"
@@ -76,6 +72,10 @@
 
 #include "system_shared.h"
 
+//
+// Linux structs / enums
+//
+
 #if FRED_INTERNAL
 
 struct Sys_Bubble : public Bubble{
@@ -83,10 +83,6 @@ struct Sys_Bubble : public Bubble{
     char *file_name;
 };
 
-#endif
-
-#if FRED_USE_FONTCONFIG
-#include <fontconfig/fontconfig.h>
 #endif
 
 enum {
@@ -159,10 +155,6 @@ struct Linux_Vars{
 
     Application_Mouse_Cursor cursor;
 
-#if FRED_USE_FONTCONFIG
-    FcConfig *fontconfig;
-#endif
-
     void *app_code;
     void *custom;
 
@@ -170,6 +162,8 @@ struct Linux_Vars{
     Thread_Group groups[THREAD_GROUP_COUNT];
     sem_t thread_semaphores[THREAD_GROUP_COUNT];
     pthread_mutex_t locks[LOCK_COUNT];
+
+    Partition font_part;
 
     Plat_Settings settings;
     System_Functions *system;
@@ -184,31 +178,85 @@ struct Linux_Vars{
     pthread_mutex_t DEBUG_sysmem_lock;
 #endif
 
-    Font_Load_System fnt;
-
     Linux_Coroutine coroutine_data[18];
     Linux_Coroutine *coroutine_free;
 };
+
+//
+// Linux macros
+//
 
 #define LINUX_MAX_PASTE_CHARS 0x10000L
 #define FPS 60L
 #define frame_useconds (1000000UL / FPS)
 
+#define LinuxGetMemory(size) LinuxGetMemory_(size, __LINE__, __FILE__)
+
 #if FRED_INTERNAL
-#define LINUX_FN_DEBUG(fmt, ...) do { \
+    #define LINUX_FN_DEBUG(fmt, ...) do { \
         fprintf(stderr, "%s: " fmt "\n", __func__, ##__VA_ARGS__); \
     } while(0)
 #else
-#define LINUX_FN_DEBUG(fmt, ...)
+    #define LINUX_FN_DEBUG(fmt, ...)
 #endif
+
+#if (__cplusplus <= 199711L)
+    #define static_assert(x, ...)
+#endif
+
+#if defined(_BSD_SOURCE) || defined(_SVID_SOURCE) || _POSIX_C_SOURCE >= 200809L || _XOPEN_SOURCE >= 700
+    #define OLD_STAT_NANO_TIME 0
+#else
+    #define OLD_STAT_NANO_TIME 1
+#endif
+
+//
+// Linux globals
+//
 
 globalvar Linux_Vars linuxvars;
 globalvar Application_Memory memory_vars;
 globalvar Exchange exchange_vars;
 
-internal void LinuxScheduleStep(void);
+//
+// Linux forward declarations
+//
 
-#define LinuxGetMemory(size) LinuxGetMemory_(size, __LINE__, __FILE__)
+internal void        LinuxScheduleStep(void);
+
+internal Plat_Handle LinuxSemToHandle(sem_t*);
+internal sem_t*      LinuxHandleToSem(Plat_Handle);
+
+internal Plat_Handle LinuxFDToHandle(int);
+internal int         LinuxHandleToFD(Plat_Handle);
+
+internal void        LinuxStringDup(String*, void*, size_t);
+
+internal             Sys_Acquire_Lock_Sig(system_acquire_lock);
+internal             Sys_Release_Lock_Sig(system_release_lock);
+
+//
+// Linux static assertions
+//
+
+static_assert(sizeof(Plat_Handle) >= sizeof(ucontext_t*), "Plat_Handle not big enough");
+static_assert(sizeof(Plat_Handle) >= sizeof(sem_t*),      "Plat_Handle not big enough");
+static_assert(sizeof(Plat_Handle) >= sizeof(int),         "Plat_Handle not big enough");
+
+static_assert(
+    (sizeof(((struct stat*)0)->st_dev) + 
+    sizeof(((struct stat*)0)->st_ino)) <= 
+    sizeof(Unique_Hash),
+    "Unique_Hash not big enough"
+);
+
+//
+// Linux shared/system functions
+//
+
+//
+// Memory
+//
 
 internal void*
 LinuxGetMemory_(i32 size, i32 line_number, char *file_name){
@@ -231,7 +279,7 @@ LinuxGetMemory_(i32 size, i32 line_number, char *file_name){
 
     result = bubble + 1;
     
-    printf("new bubble: %p\n", result);
+    fprintf(stderr, "new bubble: %p\n", result);
 #else
     size_t real_size = size + sizeof(size_t);
     result = mmap(0, real_size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
@@ -251,6 +299,8 @@ internal void
 LinuxFreeMemory(void *block){
     if (block){
 #if FRED_INTERNAL
+        fprintf(stderr, "del bubble: %p\n", block);
+
         Sys_Bubble *bubble = ((Sys_Bubble*)block) - 1;
         Assert((bubble->flags & MEM_BUBBLE_DEBUG_MASK) == MEM_BUBBLE_SYS_DEBUG);
 
@@ -269,31 +319,6 @@ LinuxFreeMemory(void *block){
     }
 }
 
-internal Partition
-LinuxScratchPartition(i32 size){
-    Partition part;
-    void *data;
-    data = LinuxGetMemory(size);
-    part = make_part(data, size);
-    return(part);
-}
-
-internal void
-LinuxScratchPartitionGrow(Partition *part, i32 new_size){
-    void *data;
-    if (new_size > part->max){
-        data = LinuxGetMemory(new_size);
-        memcpy(data, part->base, part->pos);
-        LinuxFreeMemory(part->base);
-        part->base = (char*)data;
-    }
-}
-
-internal void
-LinuxScratchPartitionDouble(Partition *part){
-    LinuxScratchPartitionGrow(part, part->max*2);
-}
-
 internal
 Sys_Get_Memory_Sig(system_get_memory_){
     return(LinuxGetMemory_(size, line_number, file_name));
@@ -304,27 +329,41 @@ Sys_Free_Memory_Sig(system_free_memory){
     LinuxFreeMemory(block);
 }
 
-internal void
-LinuxStringDup(String* str, void* data, size_t size){
-    if(str->memory_size < size){
-        if(str->str){
-            LinuxFreeMemory(str->str);
-        }
-        str->memory_size = size;
-        str->str = (char*)LinuxGetMemory(size);
-        //TODO(inso): handle alloc failure case
-    }
+//
+// File
+//
 
-    str->size = size;
-    memcpy(str->str, data, size);
+internal
+Sys_File_Can_Be_Made_Sig(system_file_can_be_made){
+    b32 result = access(filename, W_OK) == 0;
+    LINUX_FN_DEBUG("%s = %d", filename, result);
+    return(result);
 }
 
-#if defined(_BSD_SOURCE) || defined(_SVID_SOURCE) || _POSIX_C_SOURCE >= 200809L || _XOPEN_SOURCE >= 700
-    #define OLD_STAT_NANO_TIME 0
-#else
-    #define OLD_STAT_NANO_TIME 1
-#endif
+internal
+Sys_Get_Binary_Path_Sig(system_get_binary_path){
+    ssize_t size = readlink("/proc/self/exe", out->str, out->memory_size - 1);
+    if(size != -1 && size < out->memory_size - 1){
+        out->size = size;
+        remove_last_folder(out);
+        terminate_with_null(out);
+        size = out->size;
+    } else {
+        size = 0;
+    }
 
+    return size;
+}
+
+//
+// Linux application/system functions
+//
+
+//
+// File
+//
+
+internal
 Sys_File_Time_Stamp_Sig(system_file_time_stamp){
     struct stat info = {};
     u64 microsecond_timestamp = 0;
@@ -346,20 +385,7 @@ Sys_File_Time_Stamp_Sig(system_file_time_stamp){
     return(microsecond_timestamp);
 }
 
-// TODO(allen): DOES THIS AGREE WITH THE FILESTAMP TIMES?
-// NOTE(inso): I changed it to CLOCK_REALTIME, which should agree with file times
-Sys_Time_Sig(system_time){
-    struct timespec spec;
-    u64 result;
-    
-    clock_gettime(CLOCK_REALTIME, &spec);
-    result = (spec.tv_sec * UINT64_C(1000000)) + (spec.tv_nsec / UINT64_C(1000));
-
-    //LINUX_FN_DEBUG("ts: %" PRIu64, result);
-
-    return(result);
-}
-
+internal
 Sys_Set_File_List_Sig(system_set_file_list){
     DIR *d;
     struct dirent *entry;
@@ -455,6 +481,23 @@ Sys_Set_File_List_Sig(system_set_file_list){
 }
 
 internal
+Sys_File_Unique_Hash_Sig(system_file_unique_hash){
+    Unique_Hash result = {};
+    struct stat st = {};
+    *success = 0;
+
+    if(stat(filename.str, &st) == 0){
+        memcpy(&result, &st.st_dev, sizeof(st.st_dev));
+        memcpy((char*)&result + sizeof(st.st_dev), &st.st_ino, sizeof(st.st_ino));
+        *success = 1;
+    }
+
+//    LINUX_FN_DEBUG("%s = %ld:%ld", filename.str, (long)st.st_dev, (long)st.st_ino);
+
+    return result;
+}
+
+internal
 Sys_File_Track_Sig(system_file_track){
     if(filename.size <= 0 || !filename.str) return;
 
@@ -477,47 +520,191 @@ Sys_File_Untrack_Sig(system_file_untrack){
     //    inotify_rm_watch(...)
 }
 
-static_assert(
-    (sizeof(((struct stat*)0)->st_dev) + 
-    sizeof(((struct stat*)0)->st_ino)) <= 
-    sizeof(Unique_Hash),
-    "Unique_Hash too small"
-);
+internal
+Sys_File_Load_Begin_Sig(system_file_load_begin){
+    File_Loading loading = {};
+    struct stat info = {};
 
-Sys_File_Unique_Hash_Sig(system_file_unique_hash){
-    Unique_Hash result = {};
-    struct stat st = {};
-    *success = 0;
+    LINUX_FN_DEBUG("%s", filename);
 
-    if(stat(filename.str, &st) == 0){
-        memcpy(&result, &st.st_dev, sizeof(st.st_dev));
-        memcpy((char*)&result + sizeof(st.st_dev), &st.st_ino, sizeof(st.st_ino));
-        *success = 1;
+    int fd = open(filename, O_RDONLY);
+    if(fd < 0){
+        fprintf(stderr, "sys_open_file: open '%s': %s\n", filename, strerror(errno));
+        goto out;
+    }
+    if(fstat(fd, &info) < 0){
+        fprintf(stderr, "sys_open_file: stat '%s': %s\n", filename, strerror(errno));
+        goto out;
+    }
+    if(info.st_size < 0){
+        fprintf(stderr, "sys_open_file: st_size < 0: %ld\n", info.st_size);
+        goto out;
     }
 
-//    LINUX_FN_DEBUG("%s = %ld:%ld", filename.str, (long)st.st_dev, (long)st.st_ino);
+    loading.handle = LinuxFDToHandle(fd);
+    loading.size = info.st_size;
+    loading.exists = 1;
 
-    return result;
+out:
+    if(fd != -1 && !loading.exists) close(fd);
+    return(loading);
+}
+
+internal
+Sys_File_Load_End_Sig(system_file_load_end){
+    int fd = LinuxHandleToFD(loading.handle);
+    char* ptr = buffer;
+    size_t size = loading.size;
+
+    LINUX_FN_DEBUG("%d %p %zu", fd, ptr, size);
+
+    if(!loading.exists || fd == -1) return 0;
+
+    do {
+        ssize_t read_result = read(fd, buffer, size);
+        if(read_result == -1){
+            if(errno != EINTR){
+                perror("system_file_load_end");
+                break;
+            }
+        } else {
+            size -= read_result;
+            ptr  += read_result;
+        }
+    } while(size);
+
+    close(fd);
+
+    return (size == 0);
+}
+
+internal
+Sys_File_Save_Sig(system_file_save){
+    b32 result = 0;
+    int fd = open(filename, O_WRONLY | O_TRUNC | O_CREAT, 00640);
+
+    LINUX_FN_DEBUG("%s %d", filename, size);
+
+    if(fd < 0){
+        fprintf(stderr, "system_save_file: open '%s': %s\n", filename, strerror(errno));
+    } else {
+        do {
+            ssize_t written = write(fd, buffer, size);
+            if(written == -1){
+                if(errno != EINTR){
+                    perror("system_save_file: write");
+                    break;
+                }
+            } else {
+                size -= written;
+                buffer += written;
+            }
+        } while(size);
+
+        close(fd);
+    }
+
+    return (size == 0);
+}
+
+//
+// Filesystem navigation
+//
+
+internal
+FILE_EXISTS_SIG(system_file_exists){
+    int result = 0;
+    char buff[PATH_MAX] = {};
+
+    if(len + 1 > PATH_MAX){
+        fputs("system_directory_has_file: path too long\n", stderr);
+    } else {
+        memcpy(buff, filename, len);
+        buff[len] = 0;
+        struct stat st;
+        result = stat(buff, &st) == 0 && S_ISREG(st.st_mode);
+    }
+
+    LINUX_FN_DEBUG("%s: %d", buff, result);
+
+    return(result);
+}
+
+internal
+DIRECTORY_CD_SIG(system_directory_cd){
+    String directory = make_string(dir, *len, capacity);
+    b32 result = 0;
+    i32 old_size;
+    
+    if (rel_path[0] != 0){
+        if (rel_path[0] == '.' && rel_path[1] == 0){
+            result = 1;
+        }
+        else if (rel_path[0] == '.' && rel_path[1] == '.' && rel_path[2] == 0){
+            result = remove_last_folder(&directory);
+            terminate_with_null(&directory);
+        }
+        else{
+            if (directory.size + rel_len + 1 > directory.memory_size){
+                old_size = directory.size;
+                append_partial(&directory, rel_path);
+                append_partial(&directory, "/");
+                terminate_with_null(&directory);
+
+                struct stat st;
+                if (stat(directory.str, &st) == 0 && S_ISDIR(st.st_mode)){
+                    result = 1;
+                }
+                else{
+                    directory.size = old_size;
+                }
+            }
+        }
+    }
+    
+    *len = directory.size;
+
+    LINUX_FN_DEBUG("%.*s: %d", directory.size, directory.str, result);
+    
+    return(result);
 }
 
 internal
 GET_4ED_PATH_SIG(system_get_4ed_path){
-    ssize_t size = readlink("/proc/self/exe", out, capacity - 1);
-    if(size != -1 && size < capacity - 1){
-        String str = make_string(out, size, capacity);
-        remove_last_folder(&str);
-        terminate_with_null(&str);
-        size = str.size;
-    } else {
-        size = 0;
-    }
-    return size;
+    String str = make_string(out, 0, capacity);
+    return(system_get_binary_path(&str));
 }
 
+//
+// Clipboard
+//
+
+internal
 Sys_Post_Clipboard_Sig(system_post_clipboard){
     LinuxStringDup(&linuxvars.clipboard_outgoing, str.str, str.size);
     XSetSelectionOwner(linuxvars.XDisplay, linuxvars.atom_CLIPBOARD, linuxvars.XWindow, CurrentTime);
 }
+
+//
+// Time
+//
+
+internal
+Sys_Time_Sig(system_time){
+    struct timespec spec;
+    u64 result;
+    
+    clock_gettime(CLOCK_REALTIME, &spec);
+    result = (spec.tv_sec * UINT64_C(1000000)) + (spec.tv_nsec / UINT64_C(1000));
+
+    //LINUX_FN_DEBUG("ts: %" PRIu64, result);
+
+    return(result);
+}
+
+//
+// Coroutine
+//
 
 internal Linux_Coroutine*
 LinuxAllocCoroutine(){
@@ -545,8 +732,6 @@ LinuxCoroutineMain(void *arg_){
     LinuxFreeCoroutine(c);
     setcontext((ucontext_t*)c->coroutine.yield_handle);
 }
-
-static_assert(sizeof(Plat_Handle) >= sizeof(ucontext_t*), "Plat handle not big enough");
 
 internal
 Sys_Create_Coroutine_Sig(system_create_coroutine){
@@ -580,6 +765,7 @@ Sys_Launch_Coroutine_Sig(system_launch_coroutine){
     return(coroutine);
 }
 
+internal
 Sys_Resume_Coroutine_Sig(system_resume_coroutine){
     Linux_Coroutine *c = (Linux_Coroutine*)coroutine;
     void *fiber;
@@ -602,10 +788,16 @@ Sys_Resume_Coroutine_Sig(system_resume_coroutine){
     return(coroutine);
 }
 
+internal
 Sys_Yield_Coroutine_Sig(system_yield_coroutine){
 	swapcontext(*(ucontext_t**)&coroutine->plat_handle, (ucontext*)coroutine->yield_handle);
 }
 
+//
+// CLI
+//
+
+internal
 Sys_CLI_Call_Sig(system_cli_call){
     LINUX_FN_DEBUG("%s %s", path, script_name);
 
@@ -656,10 +848,12 @@ Sys_CLI_Call_Sig(system_cli_call){
     return 1;
 }
 
+internal
 Sys_CLI_Begin_Update_Sig(system_cli_begin_update){
     // NOTE(inso): I don't think anything needs to be done here.
 }
 
+internal
 Sys_CLI_Update_Step_Sig(system_cli_update_step){
     
     int pipe_read_fd = *(int*)&cli->out_read;
@@ -690,6 +884,7 @@ Sys_CLI_Update_Step_Sig(system_cli_update_step){
     return (ptr - dest) > 0;
 }
 
+internal
 Sys_CLI_End_Update_Sig(system_cli_end_update){
     pid_t pid = *(pid_t*)&cli->proc;
     b32 close_me = 0;
@@ -710,17 +905,9 @@ Sys_CLI_End_Update_Sig(system_cli_end_update){
     return close_me;
 }
 
-static_assert(sizeof(Plat_Handle) >= sizeof(sem_t*), "Plat_Handle not big enough");
-
-internal Plat_Handle
-LinuxSemToHandle(sem_t* sem){
-    return *(Plat_Handle*)&sem;
-}
-
-internal sem_t*
-LinuxHandleToSem(Plat_Handle h){
-    return *(sem_t**)&h;
-}
+//
+// Threads
+//
 
 internal void*
 ThreadProc(void* arg){
@@ -779,6 +966,7 @@ ThreadProc(void* arg){
     }
 }
 
+internal
 Sys_Post_Job_Sig(system_post_job){
     Work_Queue *queue = exchange_vars.thread.queues + group_id;
     
@@ -807,14 +995,7 @@ Sys_Post_Job_Sig(system_post_job){
     return result;
 }
 
-Sys_Acquire_Lock_Sig(system_acquire_lock){
-    pthread_mutex_lock(linuxvars.locks + id);
-}
-
-Sys_Release_Lock_Sig(system_release_lock){
-    pthread_mutex_unlock(linuxvars.locks + id);
-}
-
+internal
 Sys_Cancel_Job_Sig(system_cancel_job){
     Work_Queue *queue = exchange_vars.thread.queues + group_id;
     Thread_Group *group = linuxvars.groups + group_id;
@@ -845,6 +1026,7 @@ Sys_Cancel_Job_Sig(system_cancel_job){
 
 }
 
+internal
 Sys_Grow_Thread_Memory_Sig(system_grow_thread_memory){
     void *old_data;
     i32 old_size, new_size;
@@ -862,16 +1044,28 @@ Sys_Grow_Thread_Memory_Sig(system_grow_thread_memory){
     system_release_lock(CANCEL_LOCK0 + memory->id - 1);
 }
 
-INTERNAL_Sys_Sentinel_Sig(internal_sentinel){
-    Bubble *result;
-#if FRED_INTERNAL
-    result = &linuxvars.internal_bubble;
-#else
-    result = 0;
-#endif
-    return(result);
+internal
+Sys_Acquire_Lock_Sig(system_acquire_lock){
+    pthread_mutex_lock(linuxvars.locks + id);
 }
 
+internal
+Sys_Release_Lock_Sig(system_release_lock){
+    pthread_mutex_unlock(linuxvars.locks + id);
+}
+
+//
+// Debug
+//
+
+#if FRED_INTERNAL
+
+internal
+INTERNAL_Sys_Sentinel_Sig(internal_sentinel){
+    return (&linuxvars.internal_bubble);
+}
+
+internal
 INTERNAL_Sys_Get_Thread_States_Sig(internal_get_thread_states){
     Work_Queue *queue = exchange_vars.thread.queues + id;
     u32 write = queue->write_position;
@@ -885,291 +1079,38 @@ INTERNAL_Sys_Get_Thread_States_Sig(internal_get_thread_states){
     }
 }
 
+internal
 INTERNAL_Sys_Debug_Message_Sig(internal_debug_message){
     fprintf(stderr, "%s", message);
 }
 
-internal
-FILE_EXISTS_SIG(system_file_exists){
-    int result = 0;
-    char buff[PATH_MAX] = {};
-
-    if(len + 1 > PATH_MAX){
-        fputs("system_directory_has_file: path too long\n", stderr);
-    } else {
-        memcpy(buff, filename, len);
-        buff[len] = 0;
-        struct stat st;
-        result = stat(buff, &st) == 0 && S_ISREG(st.st_mode);
-    }
-
-    LINUX_FN_DEBUG("%s: %d", buff, result);
-
-    return(result);
-}
-
-
-DIRECTORY_CD_SIG(system_directory_cd){
-    String directory = make_string(dir, *len, capacity);
-    b32 result = 0;
-    i32 old_size;
-    
-    if (rel_path[0] != 0){
-        if (rel_path[0] == '.' && rel_path[1] == 0){
-            result = 1;
-        }
-        else if (rel_path[0] == '.' && rel_path[1] == '.' && rel_path[2] == 0){
-            result = remove_last_folder(&directory);
-            terminate_with_null(&directory);
-        }
-        else{
-            if (directory.size + rel_len + 1 > directory.memory_size){
-                old_size = directory.size;
-                append_partial(&directory, rel_path);
-                append_partial(&directory, "/");
-                terminate_with_null(&directory);
-
-                struct stat st;
-                if (stat(directory.str, &st) == 0 && S_ISDIR(st.st_mode)){
-                    result = 1;
-                }
-                else{
-                    directory.size = old_size;
-                }
-            }
-        }
-    }
-    
-    *len = directory.size;
-
-    LINUX_FN_DEBUG("%.*s: %d", directory.size, directory.str, result);
-    
-    return(result);
-}
-
-internal
-Sys_File_Can_Be_Made(system_file_can_be_made){
-    b32 result = access(filename, W_OK) == 0;
-    LINUX_FN_DEBUG("%s = %d", filename, result);
-    return(result);
-}
-
-internal
-Sys_Load_File_Sig(system_load_file){
-    File_Data result = {};
-    struct stat info = {};
-    int fd;
-    u8 *ptr, *read_ptr;
-    size_t bytes_to_read;
-    ssize_t num;
-
-    LINUX_FN_DEBUG("%s", filename);
-
-    fd = open(filename, O_RDONLY);
-    if(fd < 0){
-        fprintf(stderr, "sys_open_file: open '%s': %s\n", filename, strerror(errno));
-        goto out;
-    }
-    if(fstat(fd, &info) < 0){
-        fprintf(stderr, "sys_open_file: stat '%s': %s\n", filename, strerror(errno));
-        goto out;
-    }
-    if(info.st_size < 0){
-        fprintf(stderr, "sys_open_file: st_size < 0: %ld\n", info.st_size);
-        goto out;
-    }
-
-    // NOTE(inso): add 1 extra byte since malloc(0) can return NULL
-    ptr = (u8*)LinuxGetMemory(info.st_size + 1);
-    if(!ptr){
-        fputs("sys_open_file: null pointer from LGM", stderr);
-        goto out;
-    }
-
-    // NOTE(inso): might as well null terminate with the extra byte
-    ptr[info.st_size] = 0;
-    read_ptr = ptr;
-    bytes_to_read = info.st_size;
-
-    do {
-        num = read(fd, read_ptr, bytes_to_read);
-        if(num < 0){
-            if(errno == EINTR){
-                continue;
-            } else {
-                //TODO(inso): error handling
-                perror("sys_load_file: read");
-                LinuxFreeMemory(ptr);
-                goto out;
-            }
-        } else {
-            bytes_to_read -= num;
-            read_ptr += num;
-        }
-    } while(bytes_to_read);
-
-    result.got_file = 1;
-    result.data.size = info.st_size;
-    result.data.data = ptr;
-
-out:
-    if(fd >= 0) close(fd);
-    return(result);
-}
-
-internal
-Sys_Save_File_Sig(system_save_file){
-    b32 result = 0;
-    int fd = open(filename, O_WRONLY | O_TRUNC | O_CREAT, 00640);
-
-    LINUX_FN_DEBUG("%s %d", filename, size);
-
-    if(fd < 0){
-        fprintf(stderr, "system_save_file: open '%s': %s\n", filename, strerror(errno));
-    } else {
-        do {
-            ssize_t written = write(fd, data, size);
-            if(written == -1){
-                if(errno != EINTR){
-                    perror("system_save_file: write");
-                    close(fd);
-                    return result;
-                }
-            } else {
-                size -= written;
-                data += written;
-            }
-        } while(size);
-
-        close(fd);
-        result = 1;
-    }
-
-    return result;
-}
-
-//NOTE(inso): this is a version that writes to a temp file & renames, but might be causing save issues?
-#if 0
-internal
-Sys_Save_File_Sig(system_save_file){
-    b32 result = 0;
-
-    const size_t save_fsz   = strlen(filename);
-    const char   tmp_end[]  = ".4ed.XXXXXX";
-    char*        tmp_fname  = (char*) alloca(save_fsz + sizeof(tmp_end));
-
-    memcpy(tmp_fname, filename, save_fsz);
-    memcpy(tmp_fname + save_fsz, tmp_end, sizeof(tmp_end));
-
-    int tmp_fd = mkstemp(tmp_fname);
-    if(tmp_fd == -1){
-        perror("system_save_file: mkstemp");
-        return result;
-    }
-
-    do {
-        ssize_t written = write(tmp_fd, data, size);
-        if(written == -1){
-            if(errno == EINTR){
-                continue;
-            } else {
-                perror("system_save_file: write");
-                unlink(tmp_fname);
-                return result;
-            }
-        } else {
-            size -= written;
-            data += written;
-        }
-    } while(size);
-
-    if(rename(tmp_fname, filename) == -1){
-        perror("system_save_file: rename");
-        unlink(tmp_fname);
-        return result;
-    }
-
-    result = 1;
-    return(result);
-}
 #endif
 
-#if FRED_USE_FONTCONFIG
-internal char*
-LinuxFontConfigGetName(char* approx_name, double pts){
-    char* result = 0;
-
-    FcPattern* pat = FcPatternBuild(
-        NULL,
-        FC_POSTSCRIPT_NAME, FcTypeString, approx_name,
-        FC_SIZE, FcTypeDouble, pts,
-        FC_FONTFORMAT, FcTypeString, "TrueType",
-        NULL
-    );
-
-    FcConfigSubstitute(linuxvars.fontconfig, pat, FcMatchPattern);
-    FcDefaultSubstitute(pat);
-
-    FcResult res;
-    FcPattern* font = FcFontMatch(linuxvars.fontconfig, pat, &res);
-    FcChar8* fname = 0;
-
-    if(font){
-        FcPatternGetString(font, FC_FILE, 0, &fname);
-        if(fname){
-            result = strdup((char*)fname);
-            fprintf(stderr, "Got system font from FontConfig: %s\n", result);
-        }
-        FcPatternDestroy(font);
-    }
-
-    FcPatternDestroy(pat);
-
-    if(!result){
-        result = strdup(approx_name);
-    }
-
-    return result; 
-}
-#endif
+//
+// Linux rendering/font system functions
+//
 
 #include "system_shared.cpp"
 #include "4ed_rendering.cpp"
 
 internal
 Font_Load_Sig(system_draw_font_load){
-    Font_Load_Parameters *params;
-    b32 free_name = 0;
-    char* chosen_name = filename;
-
-#if FRED_USE_FONTCONFIG
-    if(access(filename, F_OK) != 0){
-        chosen_name = LinuxFontConfigGetName(basename(filename), pt_size);
-        free_name = 1;
-    }
-#endif
-
-    system_acquire_lock(FONT_LOCK);
-    params = linuxvars.fnt.free_param.next;
-    fnt__remove(params);
-    fnt__insert(&linuxvars.fnt.used_param, params);
-    system_release_lock(FONT_LOCK);
-
-    if (linuxvars.fnt.part.base == 0){
-        linuxvars.fnt.part = LinuxScratchPartition(Mbytes(8));
-    }
-
     b32 success = 0;
     i32 attempts = 0;
+
+    LINUX_FN_DEBUG("%p %s %d %d", font_out, filename, pt_size, tab_width);
+
+    if (linuxvars.font_part.base == 0){
+        linuxvars.font_part = sysshared_scratch_partition(Mbytes(8));
+    }
 
     i32 oversample = 2;
 
     for(; attempts < 3; ++attempts){
         success = draw_font_load(
-            linuxvars.fnt.part.base,
-            linuxvars.fnt.part.max,
+            &linuxvars.font_part,
             font_out,
-            chosen_name,
+            filename,
             pt_size,
             tab_width,
             oversample
@@ -1178,51 +1119,28 @@ Font_Load_Sig(system_draw_font_load){
         if(success){
             break;
         } else {
-            fprintf(stderr, "draw_font_load failed, %d\n", linuxvars.fnt.part.max);
-            LinuxScratchPartitionDouble(&linuxvars.fnt.part);
+            fprintf(stderr, "draw_font_load failed, %p %d\n", linuxvars.font_part.base, linuxvars.font_part.max);
+            sysshared_partition_double(&linuxvars.font_part);
         }
     }
-
-    if(success){
-        system_acquire_lock(FONT_LOCK);
-        fnt__remove(params);
-        fnt__insert(&linuxvars.fnt.free_param, params);
-        system_release_lock(FONT_LOCK);
-    }
-
-    if(free_name){
-        free(chosen_name);
-    }
-
+    
     return success;
 }
 
-internal
-Sys_To_Binary_Path(system_to_binary_path){
-    b32 translate_success = 0;
-    i32 max = out_filename->memory_size;
-    i32 size = readlink("/proc/self/exe", out_filename->str, max);
+//
+// End of system funcs
+//
 
-    LINUX_FN_DEBUG("max: %d, size: %d", max, size);
-
-    if (size > 0 && size < max-1){
-        out_filename->size = size;
-        remove_last_folder(out_filename);
-        if (append(out_filename, filename) && terminate_with_null(out_filename)){
-            LINUX_FN_DEBUG("%.*s", out_filename->size, out_filename->str);
-            translate_success = 1;
-        }
-    }
-    return (translate_success);
-}
-
+//
+// Linux init functions
+//
 
 internal b32
 LinuxLoadAppCode(String* base_dir){
     b32 result = 0;
     App_Get_Functions *get_funcs = 0;
 
-    if(!system_to_binary_path(base_dir, "4ed_app.so")){
+    if(!sysshared_to_binary_path(base_dir, "4ed_app.so")){
         return 0;
     }
 
@@ -1249,6 +1167,9 @@ LinuxLoadSystemCode(){
     linuxvars.system->set_file_list = system_set_file_list;
     linuxvars.system->file_track = system_file_track;
     linuxvars.system->file_untrack = system_file_untrack;
+    linuxvars.system->file_load_begin = system_file_load_begin;
+    linuxvars.system->file_load_end = system_file_load_end;
+    linuxvars.system->file_save = system_file_save;
 
     linuxvars.system->file_exists = system_file_exists;
     linuxvars.system->directory_cd = system_directory_cd;
@@ -1272,10 +1193,12 @@ LinuxLoadSystemCode(){
     linuxvars.system->grow_thread_memory = system_grow_thread_memory;
     linuxvars.system->acquire_lock = system_acquire_lock;
     linuxvars.system->release_lock = system_release_lock;
-    
+
+#if FRED_INTERNAL
     linuxvars.system->internal_sentinel = internal_sentinel;
     linuxvars.system->internal_get_thread_states = internal_get_thread_states;
     linuxvars.system->internal_debug_message = internal_debug_message;
+#endif
 
     linuxvars.system->slash = '/';
 }
@@ -1291,12 +1214,14 @@ LinuxLoadRenderCode(){
     linuxvars.target.font_set.release_font = draw_release_font;
 }
 
+//
+// Renderer
+//
+
 internal void
 LinuxRedrawTarget(){
-    system_acquire_lock(RENDER_LOCK);
     launch_rendering(&linuxvars.target);
-    system_release_lock(RENDER_LOCK);
-//    glFlush();
+    //glFlush();
     glXSwapBuffers(linuxvars.XDisplay, linuxvars.XWindow);
 }
 
@@ -1315,6 +1240,10 @@ LinuxResizeTarget(i32 width, i32 height){
     }
 }
 
+//
+// OpenGL init
+//
+
 // NOTE(allen): Thanks to Casey for providing the linux OpenGL launcher.
 static bool ctxErrorOccurred = false;
 
@@ -1326,7 +1255,8 @@ ctxErrorHandler( Display *dpy, XErrorEvent *ev )
 }
 
 #if FRED_INTERNAL
-static void gl_log(
+
+static void LinuxGLDebugCallback(
     GLenum source,
     GLenum type,
     GLuint id,
@@ -1337,6 +1267,7 @@ static void gl_log(
 ){
     fprintf(stderr, "GL DEBUG: %s\n", message);
 }
+
 #endif
 
 internal GLXContext
@@ -1449,7 +1380,7 @@ InitializeOpenGLContext(Display *XDisplay, Window XWindow, GLXFBConfig &bestFbc,
     fprintf(stderr, "GL_VENDOR: %s\n", Vendor);
     fprintf(stderr, "GL_RENDERER: %s\n", Renderer);
     fprintf(stderr, "GL_VERSION: %s\n", Version);
-//  fprintf(stderr, "GL_EXTENSIONS: %s\n", Extensions);
+    //  fprintf(stderr, "GL_EXTENSIONS: %s\n", Extensions);
 
     //NOTE(inso): enable vsync if available. this should probably be optional
     if(strstr(glxExts, "GLX_EXT_swap_control ")){
@@ -1507,7 +1438,7 @@ InitializeOpenGLContext(Display *XDisplay, Window XWindow, GLXFBConfig &bestFbc,
 
     if(glDebugMessageCallback){
         fputs("Enabling GL Debug Callback\n", stderr);
-        glDebugMessageCallback(&gl_log, 0);
+        glDebugMessageCallback(&LinuxGLDebugCallback, 0);
         glEnable(GL_DEBUG_OUTPUT);
     }
 #endif
@@ -1598,6 +1529,10 @@ ChooseGLXConfig(Display *XDisplay, int XScreenIndex)
 
     return(Result);
 }
+
+//
+// X11 input / events init
+//
 
 struct Init_Input_Result{
     XIM input_method;
@@ -1690,15 +1625,14 @@ InitializeXInput(Display *dpy, Window XWindow)
     return(result);
 }
 
+//
+// Keyboard handling funcs
+//
+
 globalvar u8 keycode_lookup_table[255];
 
-inline u8
-keycode_lookup(u8 system_code){
-	return keycode_lookup_table[system_code];
-}
-
 internal void
-keycode_init(Display* dpy){
+LinuxKeycodeInit(Display* dpy){
 
     // NOTE(inso): This looks a bit dumb, but it's the best way I can think of to do it, since:
     // KeySyms are the type representing "virtual" keys, like XK_BackSpace, but they are 32-bit ints.
@@ -1799,6 +1733,69 @@ LinuxPushKey(u8 code, u8 chr, u8 chr_nocaps, b8 (*mods)[MDFR_INDEX_COUNT], b32 i
 	}
 }
 
+//
+// Misc utility funcs
+//
+
+internal Plat_Handle
+LinuxSemToHandle(sem_t* sem){
+    return *(Plat_Handle*)&sem;
+}
+
+internal sem_t*
+LinuxHandleToSem(Plat_Handle h){
+    return *(sem_t**)&h;
+}
+
+internal Plat_Handle
+LinuxFDToHandle(int fd){
+    return *(Plat_Handle*)&fd;
+}
+
+internal int
+LinuxHandleToFD(Plat_Handle h){
+    return *(int*)&h;
+}
+
+internal void
+LinuxStringDup(String* str, void* data, size_t size){
+    if(str->memory_size < size){
+        if(str->str){
+            LinuxFreeMemory(str->str);
+        }
+        str->memory_size = size;
+        str->str = (char*)LinuxGetMemory(size);
+        //TODO(inso): handle alloc failure case
+    }
+
+    str->size = size;
+    memcpy(str->str, data, size);
+}
+
+internal void
+LinuxScheduleStep(void)
+{
+    u64 now  = system_time();
+    u64 diff = (now - linuxvars.last_step);
+
+    if(diff > (u64)frame_useconds){
+        u64 ev = 1;
+        write(linuxvars.step_event_fd, &ev, sizeof(ev));
+    } else {
+        struct itimerspec its = {};
+        timerfd_gettime(linuxvars.step_timer_fd, &its);
+
+        if(its.it_value.tv_sec == 0 && its.it_value.tv_nsec == 0){
+            its.it_value.tv_nsec = (frame_useconds - diff) * 1000UL;
+            timerfd_settime(linuxvars.step_timer_fd, 0, &its, NULL);
+        }
+    }
+}
+
+//
+// X11 utility funcs
+//
+
 internal void
 LinuxMaximizeWindow(Display* d, Window w, b32 maximize)
 {
@@ -1844,25 +1841,6 @@ LinuxSetIcon(Display* d, Window w)
     );
 }
 
-internal void
-LinuxScheduleStep(void)
-{
-    u64 now  = system_time();
-    u64 diff = (now - linuxvars.last_step);
-
-    if(diff > (u64)frame_useconds){
-        u64 ev = 1;
-        write(linuxvars.step_event_fd, &ev, sizeof(ev));
-    } else {
-        struct itimerspec its = {};
-        timerfd_gettime(linuxvars.step_timer_fd, &its);
-
-        if(its.it_value.tv_sec == 0 && its.it_value.tv_nsec == 0){
-            its.it_value.tv_nsec = (frame_useconds - diff) * 1000UL;
-            timerfd_settime(linuxvars.step_timer_fd, 0, &its, NULL);
-        }
-    }
-}
 
 internal void
 LinuxHandleX11Events(void)
@@ -1942,7 +1920,7 @@ LinuxHandleX11Events(void)
                     mods[MDFR_SHIFT_INDEX] = 1;
                 }
 
-                u8 special_key = keycode_lookup(Event.xkey.keycode);
+                u8 special_key = keycode_lookup_table[(u8)Event.xkey.keycode];
 
                 if(special_key){
                     LinuxPushKey(special_key, 0, 0, &mods, is_hold);
@@ -2030,7 +2008,7 @@ LinuxHandleX11Events(void)
             case MappingNotify: {
                 if(Event.xmapping.request == MappingModifier || Event.xmapping.request == MappingKeyboard){
                     XRefreshKeyboardMapping(&Event.xmapping);
-                    keycode_init(linuxvars.XDisplay);
+                    LinuxKeycodeInit(linuxvars.XDisplay);
                 }
             }break;
 
@@ -2162,6 +2140,10 @@ LinuxHandleX11Events(void)
     }
 }
 
+//
+// inotify utility func
+//
+
 internal void
 LinuxHandleFileEvents()
 {
@@ -2174,6 +2156,10 @@ LinuxHandleFileEvents()
         // TODO: do something with the e->wd / e->name & report that in app.step?
     }
 }
+
+//
+// Entry point
+//
 
 int
 main(int argc, char **argv)
@@ -2281,11 +2267,11 @@ main(int argc, char **argv)
         return 1;
     }
 
-    keycode_init(linuxvars.XDisplay);
+    LinuxKeycodeInit(linuxvars.XDisplay);
 
 #ifdef FRED_SUPER
     char *custom_file_default = "4coder_custom.so";
-    system_to_binary_path(&base_dir, custom_file_default);
+    sysshared_to_binary_path(&base_dir, custom_file_default);
     custom_file_default = base_dir.str;
 
     char *custom_file;
@@ -2358,23 +2344,14 @@ main(int argc, char **argv)
         pthread_mutex_init(linuxvars.locks + i, NULL);
     }
 
-#if FRED_USE_FONTCONFIG
-    linuxvars.fontconfig = FcInitLoadConfigAndFonts();
-#endif
-
     LinuxLoadRenderCode();
     linuxvars.target.max = Mbytes(1);
     linuxvars.target.push_buffer = (byte*)system_get_memory(linuxvars.target.max);
 
-    File_Slot file_slots[32] = {};
-    sysshared_init_file_exchange(&exchange_vars, file_slots, ArrayCount(file_slots), 0);
-
-    Font_Load_Parameters params[8];
-    sysshared_init_font_params(&linuxvars.fnt, params, ArrayCount(params));
-
     // NOTE(allen): Here begins the linux screen setup stuff.
     // Behold the true nature of this wonderful OS:
     // (thanks again to Casey for providing this stuff)
+
     Colormap cmap;
     XSetWindowAttributes swa;
     int WinWidth, WinHeight;
@@ -2705,12 +2682,6 @@ main(int argc, char **argv)
             result.mouse_cursor_type = APP_MOUSE_CURSOR_DEFAULT;
             result.trying_to_kill = !linuxvars.keep_running;
 
-#if 0
-            if(__sync_bool_compare_and_swap(&exchange_vars.thread.force_redraw, 1, 0)){
-                linuxvars.redraw = 1;
-            }
-#endif
-
             String clipboard = {};
             if(linuxvars.new_clipboard){
                 clipboard = linuxvars.clipboard_contents;
@@ -2762,61 +2733,6 @@ main(int argc, char **argv)
             linuxvars.mouse_data.press_r = 0;
             linuxvars.mouse_data.release_r = 0;
             linuxvars.mouse_data.wheel = 0;
-
-            File_Slot *file;
-            for (file = exchange_vars.file.active.next;
-                file != &exchange_vars.file.active;
-                file = file->next){
-
-                if (file->flags & FEx_Save){
-                    Assert((file->flags & FEx_Request) == 0);
-                    file->flags &= (~FEx_Save);
-                    if (system_save_file(file->filename, (char*)file->data, file->size)){
-                        file->flags |= FEx_Save_Complete;
-                    }
-                    else{
-                        file->flags |= FEx_Save_Failed;
-                    }
-
-                    LinuxScheduleStep();
-                }
-
-                if (file->flags & FEx_Request){
-                    Assert((file->flags & FEx_Save) == 0);
-                    file->flags &= (~FEx_Request);
-                    File_Data sysfile = system_load_file(file->filename);
-                    if (!sysfile.got_file){
-                        file->flags |= FEx_Not_Exist;
-                    }
-                    else{
-                        file->flags |= FEx_Ready;
-                        file->data = sysfile.data.data;
-                        file->size = sysfile.data.size;
-                    }
-
-                    LinuxScheduleStep();
-                }
-            }
-
-            int free_list_count = 0;
-            for (file = exchange_vars.file.free_list.next;
-                file != &exchange_vars.file.free_list;
-                file = file->next){
-                ++free_list_count;
-                if (file->data){
-                    system_free_memory(file->data);
-                }
-            }
-
-            if (exchange_vars.file.free_list.next != &exchange_vars.file.free_list){
-                Assert(free_list_count != 0);
-                ex__insert_range(exchange_vars.file.free_list.next, exchange_vars.file.free_list.prev,
-                                 &exchange_vars.file.available);
-
-                exchange_vars.file.num_active -= free_list_count;
-            }
-
-            ex__check(&exchange_vars.file);
         }
 
         system_release_lock(FRAME_LOCK);

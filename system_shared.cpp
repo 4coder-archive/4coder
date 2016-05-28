@@ -20,7 +20,7 @@ sysshared_load_file(char *filename){
     
     if (loading.size > 0){
         result.data.size = loading.size;
-        result.data.data = (byte*)Win32GetMemory(result.data.size);
+        result.data.data = (byte*)system_get_memory(result.data.size);
         
         if (!result.data.data){
             system_file_load_end(loading, 0);
@@ -28,7 +28,7 @@ sysshared_load_file(char *filename){
         }
         else{
             if (!system_file_load_end(loading, (char*)result.data.data)){
-                Win32FreeMemory(result.data.data);
+                system_free_memory(result.data.data);
                 result = file_data_zero();
             }
         }
