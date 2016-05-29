@@ -226,15 +226,15 @@ struct System_Functions{
     System_File_Load_Begin *file_load_begin;
     System_File_Load_End *file_load_end;
     System_File_Save *file_save;
-
+    
     // file system navigation (4coder_custom.h): 3
     File_Exists_Function *file_exists;
     Directory_CD_Function *directory_cd;
     Get_4ed_Path_Function *get_4ed_path;
-
+    
     // clipboard: 1
     System_Post_Clipboard *post_clipboard;
-
+    
     // time: 1
     System_Time *time;
     
@@ -249,14 +249,14 @@ struct System_Functions{
     System_CLI_Begin_Update *cli_begin_update;
     System_CLI_Update_Step *cli_update_step;
     System_CLI_End_Update *cli_end_update;
-
+    
     // threads: 5
     System_Post_Job *post_job;
     System_Cancel_Job *cancel_job;
     System_Grow_Thread_Memory *grow_thread_memory;
     System_Acquire_Lock *acquire_lock;
     System_Release_Lock *release_lock;
-
+    
     // debug: 3
     INTERNAL_System_Sentinel *internal_sentinel;
     INTERNAL_System_Get_Thread_States *internal_get_thread_states;

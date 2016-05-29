@@ -143,7 +143,9 @@ general_memory_attempt_merge(Bubble *left, Bubble *right){
 internal void
 general_memory_free(General_Memory *general, void *memory){
     Bubble *bubble = ((Bubble*)memory) - 1;
-    Assert((!FRED_INTERNAL) || (bubble->flags & MEM_BUBBLE_DEBUG_MASK) == MEM_BUBBLE_DEBUG);
+#if FRED_INTERNAL
+    Assert((bubble->flags & MEM_BUBBLE_DEBUG_MASK) == MEM_BUBBLE_DEBUG);
+#endif
     bubble->flags &= ~MEM_BUBBLE_USED;
     bubble->type = 0;
     Bubble *prev, *next;
@@ -158,7 +160,9 @@ general_memory_reallocate(General_Memory *general, void *old, i32 old_size, i32 
     void *result = old;
     Bubble *bubble = ((Bubble*)old) - 1;
     bubble->type = type;
-    Assert((!FRED_INTERNAL) || (bubble->flags & MEM_BUBBLE_DEBUG_MASK) == MEM_BUBBLE_DEBUG);
+#if FRED_INTERNAL
+    Assert((bubble->flags & MEM_BUBBLE_DEBUG_MASK) == MEM_BUBBLE_DEBUG);
+#endif
     i32 additional_space = size - bubble->size;
     if (additional_space > 0){
         Bubble *next = bubble->next;

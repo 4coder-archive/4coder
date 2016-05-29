@@ -4,6 +4,8 @@
 #define NO_BINDING
 #include "../4coder_default_bindings.cpp"
 
+#include <string.h>
+
 CUSTOM_COMMAND_SIG(kill_rect){
     View_Summary view = app->get_active_view(app);
     Buffer_Summary buffer = app->get_buffer(app, view.buffer_id);
@@ -377,10 +379,7 @@ get_bindings(void *data, int size){
     return(result);
 }
 
-extern "C" void
-view_routine(Application_Links *app, int view_id){
-    app->get_user_input(app, 0, 0);
-}
+#include "..\4coder_default_view.cpp"
 
 // BOTTOM
 

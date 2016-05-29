@@ -200,7 +200,7 @@ Win32Ptr(void *h){
 }
 
 //
-// System Layer Memory
+// Memory (not exposed to application, but needed in system_shared.cpp)
 //
 
 #if FRED_INTERNAL
@@ -273,7 +273,7 @@ INTERNAL_system_debug_message(char *message){
 #endif
 
 //
-// Platform Layer File Services
+// File
 //
 
 internal
@@ -388,8 +388,7 @@ Sys_File_Save_Sig(system_file_save){
 
 internal
 Sys_File_Time_Stamp_Sig(system_file_time_stamp){
-    u64 result;
-    result = 0;
+    u64 result = 0;
     
     FILETIME last_write;
     WIN32_FILE_ATTRIBUTE_DATA data;
@@ -539,6 +538,7 @@ Sys_File_Unique_Hash_Sig(system_file_unique_hash){
     return(hash);
 }
 
+// NOTE(allen): Exposed to the custom layer.
 internal
 FILE_EXISTS_SIG(system_file_exists){
     char full_filename_space[1024];
@@ -571,6 +571,7 @@ b32 Win32DirectoryExists(char *path){
             (attrib & FILE_ATTRIBUTE_DIRECTORY));
 }
 
+// NOTE(allen): Exposed to the custom layer.
 internal
 DIRECTORY_CD_SIG(system_directory_cd){
     String directory = make_string(dir, *len, capacity);
@@ -618,10 +619,15 @@ Sys_Get_Binary_Path_Sig(system_get_binary_path){
     return(result);
 }
 
+// NOTE(allen): Exposed to the custom layer.
 GET_4ED_PATH_SIG(system_get_4ed_path){
     String str = make_string(out, 0, capacity);
     return(system_get_binary_path(&str));
 }
+
+//
+// Clipboard
+//
 
 internal
 Sys_Post_Clipboard_Sig(system_post_clipboard){
@@ -640,6 +646,10 @@ Sys_Post_Clipboard_Sig(system_post_clipboard){
 	}
 }
 
+//
+// Multithreading
+//
+
 internal
 Sys_Acquire_Lock_Sig(system_acquire_lock){
     WaitForSingleObject(win32vars.locks[id], INFINITE);
@@ -650,38 +660,7 @@ Sys_Release_Lock_Sig(system_release_lock){
     ReleaseSemaphore(win32vars.locks[id], 1, 0);
 }
 
-internal void
-Win32SetCursorFromUpdate(Application_Mouse_Cursor cursor){
-    switch (cursor){
-        case APP_MOUSE_CURSOR_ARROW:
-        SetCursor(win32vars.cursor_arrow); break;
-        
-        case APP_MOUSE_CURSOR_IBEAM:
-        SetCursor(win32vars.cursor_ibeam); break;
-        
-        case APP_MOUSE_CURSOR_LEFTRIGHT:
-        SetCursor(win32vars.cursor_leftright); break;
-        
-        case APP_MOUSE_CURSOR_UPDOWN:
-        SetCursor(win32vars.cursor_updown); break;
-    }
-}
-
-internal void
-Win32Resize(i32 width, i32 height){
-    if (width > 0 && height > 0){
-        glViewport(0, 0, width, height);
-        glMatrixMode(GL_PROJECTION);
-        glLoadIdentity();
-        glOrtho(0, width, height, 0, -1, 1);
-        glScissor(0, 0, width, height);
-        
-        win32vars.target.width = width;
-        win32vars.target.height = height;
-    }
-}
-
-internal DWORD WINAPI
+internal DWORD
 JobThreadProc(LPVOID lpParameter){
     Thread_Context *thread = (Thread_Context*)lpParameter;
     Work_Queue *queue = thread->queue;
@@ -766,6 +745,8 @@ Sys_Post_Job_Sig(system_post_job){
     return result;
 }
 
+// TODO(allen): I would like to get rid of job canceling
+// but I still don't know what exactly I would do without it.
 internal
 Sys_Cancel_Job_Sig(system_cancel_job){
     Work_Queue *queue = exchange_vars.thread.queues + group_id;
@@ -828,6 +809,10 @@ INTERNAL_get_thread_states(Thread_Group_ID id, bool8 *running, i32 *pending){
     }
 }
 #endif
+
+//
+// Coroutine
+//
 
 internal Win32_Coroutine*
 Win32AllocCoroutine(){
@@ -918,6 +903,10 @@ Sys_Resume_Coroutine_Sig(system_resume_coroutine){
 Sys_Yield_Coroutine_Sig(system_yield_coroutine){
     SwitchToFiber(coroutine->yield_handle);
 }
+
+//
+// Command Line Exectuion
+//
 
 internal
 Sys_CLI_Call_Sig(system_cli_call){
@@ -1060,6 +1049,40 @@ Sys_CLI_End_Update_Sig(system_cli_end_update){
     return close_me;
 }
 
+
+#include "system_shared.cpp"
+#include "4ed_rendering.cpp"
+
+internal
+Font_Load_Sig(system_draw_font_load){
+    if (win32vars.font_part.base == 0){
+        win32vars.font_part = Win32ScratchPartition(Mbytes(8));
+    }
+    
+    i32 oversample = 2;
+    
+    for (b32 success = 0; success == 0;){
+        success = draw_font_load(&win32vars.font_part,
+                                 font_out,
+                                 filename,
+                                 pt_size,
+                                 tab_width,
+                                 oversample);
+        
+        // TODO(allen): Make the growable partition something that can
+        // just be passed directly to font load and let it be grown there.
+        if (!success){
+            Win32ScratchPartitionDouble(&win32vars.font_part);
+        }
+    }
+    
+    return(1);
+}
+
+//
+// Linkage to Custom and Application
+//
+
 internal b32
 Win32LoadAppCode(){
     b32 result = 0;
@@ -1151,42 +1174,13 @@ Win32LoadSystemCode(){
     win32vars.system->acquire_lock = system_acquire_lock;
     win32vars.system->release_lock = system_release_lock;
 
-#ifdef FRED_INTERNAL
+#if FRED_INTERNAL
     win32vars.system->internal_sentinel = INTERNAL_system_sentinel;
     win32vars.system->internal_get_thread_states = INTERNAL_get_thread_states;
     win32vars.system->internal_debug_message = INTERNAL_system_debug_message;
 #endif
 
     win32vars.system->slash = '/';
-}
-
-#include "system_shared.cpp"
-#include "4ed_rendering.cpp"
-
-internal
-Font_Load_Sig(system_draw_font_load){
-    if (win32vars.font_part.base == 0){
-        win32vars.font_part = Win32ScratchPartition(Mbytes(8));
-    }
-    
-    i32 oversample = 2;
-    
-    for (b32 success = 0; success == 0;){
-        success = draw_font_load(&win32vars.font_part,
-                                 font_out,
-                                 filename,
-                                 pt_size,
-                                 tab_width,
-                                 oversample);
-        
-        // TODO(allen): Make the growable partition something that can
-        // just be passed directly to font load and let it be grown there.
-        if (!success){
-            Win32ScratchPartitionDouble(&win32vars.font_part);
-        }
-    }
-    
-    return(1);
 }
 
 internal void
@@ -1200,26 +1194,14 @@ Win32LoadRenderCode(){
     win32vars.target.font_set.release_font = draw_release_font;
 }
 
-internal void
-Win32RedrawScreen(HDC hdc){
-    launch_rendering(&win32vars.target);
-    glFlush();
-    SwapBuffers(hdc);
-}
-
-internal void
-Win32RedrawFromUpdate(){
-    PAINTSTRUCT ps;
-    HWND hwnd = win32vars.window_handle;
-    HDC hdc = BeginPaint(hwnd, &ps);
-    Win32RedrawScreen(hdc);
-    EndPaint(hwnd, &ps);
-}
+//
+// Helpers
+//
 
 globalvar u8 keycode_lookup_table[255];
 
 internal void
-keycode_init(){
+Win32KeycodeInit(){
     keycode_lookup_table[VK_BACK] = key_back;
     keycode_lookup_table[VK_DELETE] = key_del;
     keycode_lookup_table[VK_UP] = key_up;
@@ -1252,9 +1234,55 @@ keycode_init(){
     keycode_lookup_table[VK_F16] = key_f16;
 }
 
+internal void
+Win32RedrawScreen(HDC hdc){
+    launch_rendering(&win32vars.target);
+    glFlush();
+    SwapBuffers(hdc);
+}
+
+internal void
+Win32RedrawFromUpdate(){
+    PAINTSTRUCT ps;
+    HWND hwnd = win32vars.window_handle;
+    HDC hdc = BeginPaint(hwnd, &ps);
+    Win32RedrawScreen(hdc);
+    EndPaint(hwnd, &ps);
+}
+
+internal void
+Win32Resize(i32 width, i32 height){
+    if (width > 0 && height > 0){
+        glViewport(0, 0, width, height);
+        glMatrixMode(GL_PROJECTION);
+        glLoadIdentity();
+        glOrtho(0, width, height, 0, -1, 1);
+        glScissor(0, 0, width, height);
+        
+        win32vars.target.width = width;
+        win32vars.target.height = height;
+    }
+}
+
+internal void
+Win32SetCursorFromUpdate(Application_Mouse_Cursor cursor){
+    switch (cursor){
+        case APP_MOUSE_CURSOR_ARROW:
+        SetCursor(win32vars.cursor_arrow); break;
+        
+        case APP_MOUSE_CURSOR_IBEAM:
+        SetCursor(win32vars.cursor_ibeam); break;
+        
+        case APP_MOUSE_CURSOR_LEFTRIGHT:
+        SetCursor(win32vars.cursor_leftright); break;
+        
+        case APP_MOUSE_CURSOR_UPDOWN:
+        SetCursor(win32vars.cursor_updown); break;
+    }
+}
+
 internal LRESULT
-Win32Callback(HWND hwnd, UINT uMsg,
-    WPARAM wParam, LPARAM lParam){
+Win32Callback(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
     LRESULT result = {};
     switch (uMsg){
         case WM_MENUCHAR:
@@ -1562,7 +1590,6 @@ OpenGLDebugCallback(GLenum source, GLenum type, GLuint id, GLenum severity, GLsi
     OutputDebugStringA("\n");
 }
 
-#if 1
 int
 WinMain(HINSTANCE hInstance,
     HINSTANCE hPrevInstance,
@@ -1571,12 +1598,6 @@ WinMain(HINSTANCE hInstance,
     
     int argc = __argc;
     char **argv = __argv;
-    
-#else
-int main(int argc, char **argv){
-    
-    HINSTANCE hInstance = GetModuleHandle(0);
-#endif
     
     HANDLE original_out = GetStdHandle(STD_OUTPUT_HANDLE);
 
@@ -1701,6 +1722,14 @@ int main(int argc, char **argv){
     }
 #endif
     
+    if (win32vars.custom_api.get_bindings == 0){
+        win32vars.custom_api.get_bindings = (Get_Binding_Data_Function*)get_bindings;
+    }
+    
+    if (win32vars.custom_api.view_routine == 0){
+        win32vars.custom_api.view_routine = (View_Routine_Function*)view_routine;
+    }
+    
     FreeConsole();
     
     sysshared_filter_real_files(files, file_count);
@@ -1716,11 +1745,7 @@ int main(int argc, char **argv){
     win32vars.start_time = ((u64)filetime.dwHighDateTime << 32) | (filetime.dwLowDateTime);
     win32vars.start_time /= 10;
     
-    keycode_init();
-    
-    if (win32vars.custom_api.get_bindings == 0){
-        win32vars.custom_api.get_bindings = (Get_Binding_Data_Function*)get_bindings;
-    }
+    Win32KeycodeInit();
     
     Thread_Context background[4];
     memset(background, 0, sizeof(background));
@@ -2073,6 +2098,14 @@ int main(int argc, char **argv){
     
     return 0;
 }
+
+#if 0
+// NOTE(allen): In case I want to switch back to a console
+// application at some point.
+int main(int argc, char **argv){
+    HINSTANCE hInstance = GetModuleHandle(0);
+}
+#endif
 
 // BOTTOM
 
