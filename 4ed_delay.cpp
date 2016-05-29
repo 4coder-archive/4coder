@@ -2,9 +2,6 @@ enum Action_Type{
     DACT_OPEN,
     DACT_OPEN_BACKGROUND,
     DACT_SET_LINE,
-    DACT_SAVE_AS,
-    DACT_SAVE,
-    DACT_NEW,
     DACT_SWITCH,
     DACT_TRY_KILL,
     DACT_KILL,
@@ -130,9 +127,6 @@ delayed_action_repush(Delay *delay, Delayed_Action *act){
 #define delayed_open(delay, ...) delayed_action_(delay, DACT_OPEN, ##__VA_ARGS__)
 #define delayed_open_background(delay, ...) delayed_action_(delay, DACT_OPEN_BACKGROUND, ##__VA_ARGS__)
 #define delayed_set_line(delay, ...) delayed_action_(delay, DACT_SET_LINE, ##__VA_ARGS__)
-#define delayed_save_as(delay, ...) delayed_action_(delay, DACT_SAVE_AS, ##__VA_ARGS__)
-#define delayed_save(delay, ...) delayed_action_(delay, DACT_SAVE, ##__VA_ARGS__)
-#define delayed_new(delay, ...) delayed_action_(delay, DACT_NEW, ##__VA_ARGS__)
 #define delayed_switch(delay, ...) delayed_action_(delay, DACT_SWITCH, ##__VA_ARGS__)
 #define delayed_try_kill(delay, ...) delayed_action_(delay, DACT_TRY_KILL, ##__VA_ARGS__)
 #define delayed_kill(delay, ...) delayed_action_(delay, DACT_KILL, ##__VA_ARGS__)

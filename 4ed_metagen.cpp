@@ -149,9 +149,11 @@ char *daction_enum[] = {
     "OPEN",
     "OPEN_BACKGROUND",
     "SET_LINE",
+#if 0
     "SAVE_AS",
     "SAVE",
     "NEW",
+#endif
     "SWITCH",
     "TRY_KILL",
     "KILL",
@@ -456,6 +458,7 @@ char* generate_style(){
     return(filename);
 }
 
+//////////////////////////////////////////////////////////////////////////////////////////////////
 struct Function_Signature{
     String name;
     String ret;

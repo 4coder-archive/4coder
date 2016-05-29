@@ -931,8 +931,6 @@ COMMAND_DECL(save){
     USE_VIEW(view);
     USE_FILE(file, view);
 
-    Delay *delay = &models->delay1;
-    
     char *filename = 0;
     int filename_len = 0;
     int buffer_id = -1;
@@ -963,11 +961,12 @@ COMMAND_DECL(save){
         if (filename){
             name = make_string(filename, filename_len);
         }
-
+        
         if (file){
             if (name.str){
                 if (!file->state.is_dummy && file_is_ready(file)){
-                    delayed_save_as(delay, name, file);
+                    view_save_file(system, &models->mem, &models->working_set,
+                                   file, 0, name, 1);
                 }
             }
             else{
@@ -977,7 +976,7 @@ COMMAND_DECL(save){
         }
     }
     else{
-        String name = {};
+        String name = {0};
         if (filename){
             name = make_string(filename, filename_len);
         }
@@ -988,11 +987,13 @@ COMMAND_DECL(save){
         if (name.size != 0){
             if (file){
                 if (!file->state.is_dummy && file_is_ready(file)){
-                    delayed_save(delay, name, file);
+                    view_save_file(system, &models->mem, &models->working_set,
+                                   file, 0, name, 0);
                 }
             }
             else{
-                delayed_save(delay, name);
+                view_save_file(system, &models->mem, &models->working_set,
+                               0, 0, name, 0);
             }
         }
     }
@@ -4437,54 +4438,20 @@ App_Step_Sig(app_step){
                     }
                 }break;
                 
+#if 0
                 case DACT_SAVE:
                 case DACT_SAVE_AS:
                 {
-                    if (!file){
-                        if (panel){
-                            View *view = panel->view;
-                            Assert(view);
-                            file = view->file_data.file;
-                        }
-                        else{
-                            file = working_set_lookup_file(working_set, string);
-                        }
-                    }
                     
-                    if (file && buffer_get_sync(file) != SYNC_GOOD){
-                        if (file_save(system, mem, file, string.str)){
-                            if (act->type == DACT_SAVE_AS){
-                                file_set_name(working_set, file, string.str);
-                            }
-                        }
-                    }
                 }break;
-
+#endif
+                
+#if 0
                 case DACT_NEW:
                 {
-                    Editing_File *file = working_set_alloc_always(working_set, general);
-                    file_create_empty(system, models, file, string.str);
-                    working_set_add(system, working_set, file, general);
-
-                    View *view = panel->view;
-
-                    view_set_file(view, file, models);
-                    view_show_file(view);
-                    view->map = get_map(models, file->settings.base_map_id);
-
-                    Hook_Function *new_file_fnc = models->hooks[hook_new_file];
-                    if (new_file_fnc){
-                        models->buffer_param_indices[models->buffer_param_count++] = file->id.id;
-                        new_file_fnc(&models->app_links);
-                        models->buffer_param_count = 0;
-                        file->settings.is_initialized = 1;
-                    }
-
-#if BUFFER_EXPERIMENT_SCALPEL <= 0
-                    if (file->settings.tokens_exist)
-                        file_first_lex_parallel(system, general, file);
-#endif
+                    
                 }break;
+#endif
 
                 case DACT_SWITCH:
                 {
