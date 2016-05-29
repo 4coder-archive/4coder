@@ -1148,7 +1148,6 @@ COMMAND_DECL(to_lowercase){
 }
 
 COMMAND_DECL(clean_all_lines){
-    
     USE_MODELS(models);
     REQ_OPEN_VIEW(view);
     REQ_FILE(file, view);
@@ -1157,21 +1156,19 @@ COMMAND_DECL(clean_all_lines){
 }
 
 COMMAND_DECL(eol_dosify){
-    
     REQ_READABLE_VIEW(view);
     REQ_FILE(file, view);
 
     file->settings.dos_write_mode = 1;
-    file->state.last_4ed_edit_time = system->time();
+    file->state.last_4ed_edit_time = system->now_time_stamp();
 }
 
 COMMAND_DECL(eol_nixify){
-    
     REQ_READABLE_VIEW(view);
     REQ_FILE(file, view);
 
     file->settings.dos_write_mode = 0;
-    file->state.last_4ed_edit_time = system->time();
+    file->state.last_4ed_edit_time = system->now_time_stamp();
 }
 
 COMMAND_DECL(auto_tab_range){

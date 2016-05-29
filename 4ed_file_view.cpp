@@ -1162,8 +1162,9 @@ file_post_redo(General_Memory *general, Editing_File *file, Edit_Step step){
         inv_step.child_count = step.inverse_child_count;
         inv_step.inverse_child_count = step.child_count;
 
-        if (redo->edit_count == redo->edit_max)
+        if (redo->edit_count == redo->edit_max){
             undo_stack_grow_edits(general, redo);
+        }
         redo->edits[redo->edit_count++] = inv_step;
     }
 }
@@ -1805,7 +1806,7 @@ file_pre_edit_maintenance(System_Functions *system,
             file->state.swap_stack.tokens = 0;
         }
     }
-    file->state.last_4ed_edit_time = system->time();
+    file->state.last_4ed_edit_time = system->now_time_stamp();
 }
 
 struct Cursor_Fix_Descriptor{

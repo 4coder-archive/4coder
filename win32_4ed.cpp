@@ -114,31 +114,9 @@ struct Sys_Bubble : public Bubble{
 #endif
 
 struct Win32_Vars{
-	HWND window_handle;
-    Render_Target target;
-    
-    Win32_Input_Chunk input_chunk;
-    b32 lctrl_lalt_is_altgr;
-    b32 got_useful_event;
-    
-	HCURSOR cursor_ibeam;
-	HCURSOR cursor_arrow;
-	HCURSOR cursor_leftright;
-	HCURSOR cursor_updown;
-	String clipboard_contents;
-	b32 next_clipboard_is_self;
-	DWORD clipboard_sequence;
-    
-    Thread_Group groups[THREAD_GROUP_COUNT];
-    CRITICAL_SECTION locks[LOCK_COUNT];
-    CRITICAL_SECTION DEBUG_sysmem_lock;
-
-    Thread_Memory *thread_memory;
-
-    u64 performance_frequency;
-    u64 start_pcount;
-    u64 start_time;
-    
+    System_Functions system;
+    App_Functions app;
+    Custom_API custom_api;
 #if UseWinDll
     HMODULE app_code;
     HMODULE custom;
@@ -147,22 +125,44 @@ struct Win32_Vars{
     DLL_Loaded custom_dll;
 #endif
     
+    Plat_Settings settings;
+    
+    
+    Thread_Group groups[THREAD_GROUP_COUNT];
+    CRITICAL_SECTION locks[LOCK_COUNT];
+    CRITICAL_SECTION DEBUG_sysmem_lock;
+    Thread_Memory *thread_memory;
+    Win32_Coroutine coroutine_data[18];
+    Win32_Coroutine *coroutine_free;
+    
+    
+    Win32_Input_Chunk input_chunk;
+    b32 lctrl_lalt_is_altgr;
+    b32 got_useful_event;
+    
+    
+    HCURSOR cursor_ibeam;
+    HCURSOR cursor_arrow;
+    HCURSOR cursor_leftright;
+    HCURSOR cursor_updown;
+    String clipboard_contents;
+    b32 next_clipboard_is_self;
+    DWORD clipboard_sequence;
+    
+    
+    HWND window_handle;
+    Render_Target target;
     Partition font_part;
     
-    Plat_Settings settings;
-    System_Functions *system;
-    App_Functions app;
-    Custom_API custom_api;
+    
+    u64 count_per_usecond;
     b32 first;
+    i32 running_cli;
+    
     
 #if FRED_INTERNAL
     Sys_Bubble internal_bubble;
 #endif
-    
-    Win32_Coroutine coroutine_data[18];
-    Win32_Coroutine *coroutine_free;
-    
-    i32 running_cli;
 };
 
 globalvar Win32_Vars win32vars;
@@ -366,13 +366,6 @@ Sys_File_Save_Sig(system_file_save){
     return(success);
 }
 
-// TODO(allen): THIS system does not really work.
-// I want to eliminate them both entirely and find a better
-// way to track the dirty state of files.  It shouldn't be too
-// hard to get the * part right.  The trick is how we will know
-// when a file is updated... hmm... maybe we can keep the
-// file_time_stamp part. 
-
 internal
 Sys_File_Time_Stamp_Sig(system_file_time_stamp){
     u64 result = 0;
@@ -383,21 +376,18 @@ Sys_File_Time_Stamp_Sig(system_file_time_stamp){
         last_write = data.ftLastWriteTime;
         
         result = ((u64)last_write.dwHighDateTime << 32) | (last_write.dwLowDateTime);
-        result /= 10;
     }
     
     return(result);
 }
 
 internal
-Sys_Time_Sig(system_time){
+Sys_Now_Time_Stamp_Sig(system_now_time_stamp){
 	u64 result = 0;
-	LARGE_INTEGER time;
-	if (QueryPerformanceCounter(&time)){
-		result = (u64)(time.QuadPart - win32vars.start_pcount) * 1000000 / win32vars.performance_frequency;
-        result += win32vars.start_time;
-	}
-	return result;
+    FILETIME filetime;
+    GetSystemTimeAsFileTime(&filetime);
+    result = ((u64)filetime.dwHighDateTime << 32) | (filetime.dwLowDateTime);
+    return(result);
 }
 
 internal
@@ -633,6 +623,29 @@ Sys_Post_Clipboard_Sig(system_post_clipboard){
 	}
 }
 
+internal b32
+Win32ReadClipboardContents(){
+    b32 result = 0;
+    
+    if (IsClipboardFormatAvailable(CF_TEXT)){
+        result = 1;
+        if (OpenClipboard(win32vars.window_handle)){
+            HANDLE clip_data;
+            clip_data = GetClipboardData(CF_TEXT);
+            if (clip_data){
+                win32vars.clipboard_contents.str = (char*)GlobalLock(clip_data);
+                if (win32vars.clipboard_contents.str){
+                    win32vars.clipboard_contents.size = str_size((char*)win32vars.clipboard_contents.str);
+                    GlobalUnlock(clip_data);
+                }
+            }
+            CloseClipboard();
+        }
+    }
+    
+    return(result);
+}
+
 //
 // Multithreading
 //
@@ -651,32 +664,32 @@ internal DWORD
 JobThreadProc(LPVOID lpParameter){
     Thread_Context *thread = (Thread_Context*)lpParameter;
     Work_Queue *queue = thread->queue;
-
+    
     for (;;){
         u32 read_index = queue->read_position;
         u32 write_index = queue->write_position;
-
+        
         if (read_index != write_index){
             u32 next_read_index = (read_index + 1) % JOB_ID_WRAP;
             u32 safe_read_index =
                 InterlockedCompareExchange(&queue->read_position,
-                next_read_index, read_index);
-
+                                           next_read_index, read_index);
+            
             if (safe_read_index == read_index){
                 Full_Job_Data *full_job = queue->jobs + (safe_read_index % QUEUE_WRAP);
                 // NOTE(allen): This is interlocked so that it plays nice
                 // with the cancel job routine, which may try to cancel this job
                 // at the same time that we try to run it
-
+                
                 i32 safe_running_thread =
                     InterlockedCompareExchange(&full_job->running_thread,
-                    thread->id, THREAD_NOT_ASSIGNED);
-
+                                               thread->id, THREAD_NOT_ASSIGNED);
+                
                 if (safe_running_thread == THREAD_NOT_ASSIGNED){
                     thread->job_id = full_job->id;
                     thread->running = 1;
                     Thread_Memory *thread_memory = 0;
-
+                    
                     // TODO(allen): remove memory_request
                     if (full_job->job.memory_request != 0){
                         thread_memory = win32vars.thread_memory + thread->id - 1;
@@ -689,8 +702,8 @@ JobThreadProc(LPVOID lpParameter){
                             thread_memory->size = new_size;
                         }
                     }
-                    full_job->job.callback(win32vars.system, thread, thread_memory,
-                        &exchange_vars.thread, full_job->job.data);
+                    full_job->job.callback(&win32vars.system, thread, thread_memory,
+                                           &exchange_vars.thread, full_job->job.data);
                     PostMessage(win32vars.window_handle, WM_4coder_ANIMATE, 0, 0);
                     full_job->running_thread = 0;
                     thread->running = 0;
@@ -1129,45 +1142,45 @@ Win32LoadAppCode(){
 
 internal void
 Win32LoadSystemCode(){
-    win32vars.system->file_time_stamp = system_file_time_stamp;
-    win32vars.system->file_unique_hash = system_file_unique_hash;
-    win32vars.system->set_file_list = system_set_file_list;
-    win32vars.system->file_track = system_file_track;
-    win32vars.system->file_untrack = system_file_untrack;
-    win32vars.system->file_load_begin = system_file_load_begin;
-    win32vars.system->file_load_end = system_file_load_end;
-    win32vars.system->file_save = system_file_save;
+    win32vars.system.file_time_stamp = system_file_time_stamp;
+    win32vars.system.now_time_stamp = system_now_time_stamp;
+    win32vars.system.file_unique_hash = system_file_unique_hash;
+    win32vars.system.set_file_list = system_set_file_list;
+    win32vars.system.file_track = system_file_track;
+    win32vars.system.file_untrack = system_file_untrack;
+    win32vars.system.file_load_begin = system_file_load_begin;
+    win32vars.system.file_load_end = system_file_load_end;
+    win32vars.system.file_save = system_file_save;
 
-    win32vars.system->file_exists = system_file_exists;
-    win32vars.system->directory_cd = system_directory_cd;
-    win32vars.system->get_4ed_path = system_get_4ed_path;
+    win32vars.system.file_exists = system_file_exists;
+    win32vars.system.directory_cd = system_directory_cd;
+    win32vars.system.get_4ed_path = system_get_4ed_path;
 
-    win32vars.system->post_clipboard = system_post_clipboard;
-    win32vars.system->time = system_time;
+    win32vars.system.post_clipboard = system_post_clipboard;
 
-    win32vars.system->create_coroutine = system_create_coroutine;
-    win32vars.system->launch_coroutine = system_launch_coroutine;
-    win32vars.system->resume_coroutine = system_resume_coroutine;
-    win32vars.system->yield_coroutine = system_yield_coroutine;
+    win32vars.system.create_coroutine = system_create_coroutine;
+    win32vars.system.launch_coroutine = system_launch_coroutine;
+    win32vars.system.resume_coroutine = system_resume_coroutine;
+    win32vars.system.yield_coroutine = system_yield_coroutine;
 
-    win32vars.system->cli_call = system_cli_call;
-    win32vars.system->cli_begin_update = system_cli_begin_update;
-    win32vars.system->cli_update_step = system_cli_update_step;
-    win32vars.system->cli_end_update = system_cli_end_update;
+    win32vars.system.cli_call = system_cli_call;
+    win32vars.system.cli_begin_update = system_cli_begin_update;
+    win32vars.system.cli_update_step = system_cli_update_step;
+    win32vars.system.cli_end_update = system_cli_end_update;
 
-    win32vars.system->post_job = system_post_job;
-    win32vars.system->cancel_job = system_cancel_job;
-    win32vars.system->grow_thread_memory = system_grow_thread_memory;
-    win32vars.system->acquire_lock = system_acquire_lock;
-    win32vars.system->release_lock = system_release_lock;
+    win32vars.system.post_job = system_post_job;
+    win32vars.system.cancel_job = system_cancel_job;
+    win32vars.system.grow_thread_memory = system_grow_thread_memory;
+    win32vars.system.acquire_lock = system_acquire_lock;
+    win32vars.system.release_lock = system_release_lock;
 
 #if FRED_INTERNAL
-    win32vars.system->internal_sentinel = INTERNAL_system_sentinel;
-    win32vars.system->internal_get_thread_states = INTERNAL_get_thread_states;
-    win32vars.system->internal_debug_message = INTERNAL_system_debug_message;
+    win32vars.system.internal_sentinel = INTERNAL_system_sentinel;
+    win32vars.system.internal_get_thread_states = INTERNAL_get_thread_states;
+    win32vars.system.internal_debug_message = INTERNAL_system_debug_message;
 #endif
 
-    win32vars.system->slash = '/';
+    win32vars.system.slash = '/';
 }
 
 internal void
@@ -1229,15 +1242,6 @@ Win32RedrawScreen(HDC hdc){
 }
 
 internal void
-Win32RedrawFromUpdate(){
-    PAINTSTRUCT ps;
-    HWND hwnd = win32vars.window_handle;
-    HDC hdc = BeginPaint(hwnd, &ps);
-    Win32RedrawScreen(hdc);
-    EndPaint(hwnd, &ps);
-}
-
-internal void
 Win32Resize(i32 width, i32 height){
     if (width > 0 && height > 0){
         glViewport(0, 0, width, height);
@@ -1267,6 +1271,18 @@ Win32SetCursorFromUpdate(Application_Mouse_Cursor cursor){
         SetCursor(win32vars.cursor_updown); break;
     }
 }
+
+internal u64
+Win32HighResolutionTime(){
+    u64 result = 0;
+    LARGE_INTEGER t;
+    if (QueryPerformanceCounter(&t)){
+        result = (u64)t.QuadPart / win32vars.count_per_usecond;
+    }
+    return(result);
+}
+
+
 
 internal LRESULT
 Win32Callback(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
@@ -1686,9 +1702,6 @@ WinMain(HINSTANCE hInstance,
         exit(1);
     }
     
-    System_Functions system_;
-    System_Functions *system = &system_;
-    win32vars.system = system;
     Win32LoadSystemCode();
     
     Win32LoadRenderCode();
@@ -1698,9 +1711,7 @@ WinMain(HINSTANCE hInstance,
     // Read Command Line
     //
     
-    DWORD required = GetCurrentDirectory(0, 0);
-    required += 1;
-    required *= 4;
+    DWORD required = (GetCurrentDirectory(0, 0)*4) + 1;
     char *current_directory_mem = (char*)system_get_memory(required);
     DWORD written = GetCurrentDirectory(required, current_directory_mem);
     
@@ -1712,13 +1723,10 @@ WinMain(HINSTANCE hInstance,
     clparams.argv = argv;
     clparams.argc = argc;
     
-    char **files;
-    i32 *file_count;
+    char **files = 0;
+    i32 *file_count = 0;
     
-    files = 0;
-    file_count = 0;
-    
-    win32vars.app.read_command_line(system,
+    win32vars.app.read_command_line(&win32vars.system,
                                     &memory_vars,
                                     current_directory,
                                     &win32vars.settings,
@@ -1751,7 +1759,7 @@ WinMain(HINSTANCE hInstance,
         
         if (win32vars.custom_api.get_alpha_4coder_version == 0 ||
                 win32vars.custom_api.get_alpha_4coder_version(MAJOR, MINOR, PATCH) == 0){
-            OutputDebugStringA("Error: application and custom version numbers don't match");
+            OutputDebugStringA("Error: application and custom version numbers don't match\n");
             exit(1);
         }
         win32vars.custom_api.get_bindings = (Get_Binding_Data_Function*)
@@ -1903,7 +1911,6 @@ WinMain(HINSTANCE hInstance,
     //
     
     win32vars.clipboard_sequence = GetClipboardSequenceNumber();
-    
     if (win32vars.clipboard_sequence == 0){
         system_post_clipboard(make_lit_string(""));
         
@@ -1911,37 +1918,12 @@ WinMain(HINSTANCE hInstance,
         win32vars.next_clipboard_is_self = 0;
         
         if (win32vars.clipboard_sequence == 0){
-            // TODO(allen): diagnostics
+            OutputDebugStringA("Failure while initializing clipboard\n");
         }
     }
-    
     else{
-        if (IsClipboardFormatAvailable(CF_TEXT)){
-            if (OpenClipboard(win32vars.window_handle)){
-                HANDLE clip_data;
-                clip_data = GetClipboardData(CF_TEXT);
-                if (clip_data){
-                    win32vars.clipboard_contents.str = (char*)GlobalLock(clip_data);
-                    if (win32vars.clipboard_contents.str){
-                        win32vars.clipboard_contents.size = str_size((char*)win32vars.clipboard_contents.str);
-                        GlobalUnlock(clip_data);
-                    }
-                }
-                CloseClipboard();
-            }
-        }
+        Win32ReadClipboardContents();
     }
-    
-    LARGE_INTEGER lpf;
-    QueryPerformanceFrequency(&lpf);
-    win32vars.performance_frequency = lpf.QuadPart;
-    QueryPerformanceCounter(&lpf);
-    win32vars.start_pcount = lpf.QuadPart;
-    
-    FILETIME filetime;
-    GetSystemTimeAsFileTime(&filetime);
-    win32vars.start_time = ((u64)filetime.dwHighDateTime << 32) | (filetime.dwLowDateTime);
-    win32vars.start_time /= 10;
     
     Win32KeycodeInit();
     
@@ -1950,12 +1932,21 @@ WinMain(HINSTANCE hInstance,
     win32vars.cursor_leftright = LoadCursor(NULL, IDC_SIZEWE);
     win32vars.cursor_updown = LoadCursor(NULL, IDC_SIZENS);
     
+    LARGE_INTEGER f;
+    if (QueryPerformanceFrequency(&f)){
+        win32vars.count_per_usecond = (u64)f.QuadPart / 1000000;
+    }
+    else{
+        // NOTE(allen): Just guess.
+        win32vars.count_per_usecond = 1;
+    }
+    
     
     //
     // Main Loop
     //
     
-    win32vars.app.init(win32vars.system, &win32vars.target,
+    win32vars.app.init(&win32vars.system, &win32vars.target,
                        &memory_vars, &exchange_vars,
                        win32vars.clipboard_contents, current_directory,
                        win32vars.custom_api);
@@ -1966,9 +1957,11 @@ WinMain(HINSTANCE hInstance,
     win32vars.first = 1;
     timeBeginPeriod(1);
     
+    
     SetForegroundWindow(win32vars.window_handle);
     SetActiveWindow(win32vars.window_handle);
     
+    u64 timer_start = Win32HighResolutionTime();
     system_acquire_lock(FRAME_LOCK);
     MSG msg;
     for (;win32vars.input_chunk.pers.keep_playing;){
@@ -1977,21 +1970,18 @@ WinMain(HINSTANCE hInstance,
         //  Looks like we can ReadFile with a size of zero
         // in an IOCP for this effect.
         
+        system_release_lock(FRAME_LOCK);
+        
         if (win32vars.running_cli == 0){
             win32vars.got_useful_event = 0;
             for (;win32vars.got_useful_event == 0;){
-                system_release_lock(FRAME_LOCK);
                 if (GetMessage(&msg, 0, 0, 0)){
-                    system_acquire_lock(FRAME_LOCK);
                     if (msg.message == WM_QUIT){
                         win32vars.input_chunk.pers.keep_playing = 0;
                     }else{
                         TranslateMessage(&msg);
                         DispatchMessage(&msg);
                     }
-                }
-                else{
-                    system_acquire_lock(FRAME_LOCK);
                 }
             }
         }
@@ -2005,117 +1995,111 @@ WinMain(HINSTANCE hInstance,
             }
         }
         
-        {
-            i64 timer_start = system_time();
+        system_acquire_lock(FRAME_LOCK);
+        
+        POINT mouse_point;
+        if (GetCursorPos(&mouse_point) &&
+            ScreenToClient(win32vars.window_handle, &mouse_point)){
             
-            POINT mouse_point;
-            if (GetCursorPos(&mouse_point) && ScreenToClient(win32vars.window_handle, &mouse_point)){
-                if (!hit_check(mouse_point.x, mouse_point.y,
-                               0, 0, win32vars.target.width, win32vars.target.height)){
-                    win32vars.input_chunk.trans.out_of_window = 1;
-                }
-                win32vars.input_chunk.pers.mouse_x = mouse_point.x;
-                win32vars.input_chunk.pers.mouse_y = mouse_point.y;
-            }
-            else{
+            i32_Rect screen =
+                i32R(0, 0, win32vars.target.width, win32vars.target.height);
+            
+            if (!hit_check(mouse_point.x, mouse_point.y, screen)){
                 win32vars.input_chunk.trans.out_of_window = 1;
             }
             
-            Win32_Input_Chunk input_chunk = win32vars.input_chunk;
-            win32vars.input_chunk.trans = win32_input_chunk_transient_zero();
-            
-            input_chunk.pers.control_keys[MDFR_CAPS_INDEX] = GetKeyState(VK_CAPITAL) & 0x1;
-            
-            win32vars.clipboard_contents = string_zero();
-            if (win32vars.clipboard_sequence != 0){
-                DWORD new_number = GetClipboardSequenceNumber();
-                if (new_number != win32vars.clipboard_sequence){
-                    win32vars.clipboard_sequence = new_number;
-                    if (win32vars.next_clipboard_is_self){
-                        win32vars.next_clipboard_is_self = 0;
-                    }
-                    else if (IsClipboardFormatAvailable(CF_TEXT)){
-                        if (OpenClipboard(win32vars.window_handle)){
-                            HANDLE clip_data;
-                            clip_data = GetClipboardData(CF_TEXT);
-                            if (clip_data){
-                                win32vars.clipboard_contents.str = (char*)GlobalLock(clip_data);
-                                if (win32vars.clipboard_contents.str){
-                                    win32vars.clipboard_contents.size = str_size((char*)win32vars.clipboard_contents.str);
-                                    GlobalUnlock(clip_data);
-                                }
-                            }
-                            CloseClipboard();
-                        }
-                    }
+            win32vars.input_chunk.pers.mouse_x = mouse_point.x;
+            win32vars.input_chunk.pers.mouse_y = mouse_point.y;
+        }
+        else{
+            win32vars.input_chunk.trans.out_of_window = 1;
+        }
+        
+        Win32_Input_Chunk input_chunk = win32vars.input_chunk;
+        win32vars.input_chunk.trans = win32_input_chunk_transient_zero();
+        
+        input_chunk.pers.control_keys[MDFR_CAPS_INDEX] = GetKeyState(VK_CAPITAL) & 0x1;
+        
+        win32vars.clipboard_contents = string_zero();
+        if (win32vars.clipboard_sequence != 0){
+            DWORD new_number = GetClipboardSequenceNumber();
+            if (new_number != win32vars.clipboard_sequence){
+                win32vars.clipboard_sequence = new_number;
+                if (win32vars.next_clipboard_is_self){
+                    win32vars.next_clipboard_is_self = 0;
+                }
+                else{
+                    Win32ReadClipboardContents();
                 }
             }
-            
-            Key_Input_Data input_data;
-            Mouse_State mouse;
-            Application_Step_Result result;
-            
-            input_data = input_chunk.trans.key_data;
-            mouse.out_of_window = input_chunk.trans.out_of_window;
-            
-            mouse.l = input_chunk.pers.mouse_l;
-            mouse.press_l = input_chunk.trans.mouse_l_press;
-            mouse.release_l = input_chunk.trans.mouse_l_release;
-            
-            mouse.r = input_chunk.pers.mouse_r;
-            mouse.press_r = input_chunk.trans.mouse_r_press;
-            mouse.release_r = input_chunk.trans.mouse_r_release;
-            
-            mouse.wheel = input_chunk.trans.mouse_wheel;
-            
-            mouse.x = input_chunk.pers.mouse_x;
-            mouse.y = input_chunk.pers.mouse_y;
-            
-            result.mouse_cursor_type = APP_MOUSE_CURSOR_DEFAULT;
-            result.lctrl_lalt_is_altgr = win32vars.lctrl_lalt_is_altgr;
-            result.trying_to_kill = input_chunk.trans.trying_to_kill;
-            result.perform_kill = 0;
-            
-            // NOTE(allen): The expected dt given the frame limit in seconds.
-            f32 dt = frame_useconds / 1000000.f;
-            
-            win32vars.app.step(win32vars.system,
-                               &input_data,
-                               &mouse,
-                               &win32vars.target,
-                               &memory_vars,
-                               &exchange_vars,
-                               win32vars.clipboard_contents,
-                               dt, win32vars.first,
-                               &result);
-            
-            if (result.perform_kill){
-                win32vars.input_chunk.pers.keep_playing = 0;
-            }
-            
-            Win32SetCursorFromUpdate(result.mouse_cursor_type);
-            win32vars.lctrl_lalt_is_altgr = result.lctrl_lalt_is_altgr;
-            
-            Win32RedrawFromUpdate();
-            
-            win32vars.first = 0;
-            
-            i64 timer_end = system_time();
-            i64 end_target = (timer_start + frame_useconds);
-            
-            system_release_lock(FRAME_LOCK);
-            while (timer_end < end_target){
-                DWORD samount = (DWORD)((end_target - timer_end) / 1000);
-                if (samount > 0) Sleep(samount);
-                timer_end = system_time();
-            }
-            system_acquire_lock(FRAME_LOCK);
-            timer_start = system_time();
-            
-            if (result.animating){
-                PostMessage(win32vars.window_handle, WM_4coder_ANIMATE, 0, 0);
-            }
         }
+        
+        Key_Input_Data input_data;
+        Mouse_State mouse;
+        Application_Step_Result result;
+        
+        input_data = input_chunk.trans.key_data;
+        mouse.out_of_window = input_chunk.trans.out_of_window;
+        
+        mouse.l = input_chunk.pers.mouse_l;
+        mouse.press_l = input_chunk.trans.mouse_l_press;
+        mouse.release_l = input_chunk.trans.mouse_l_release;
+        
+        mouse.r = input_chunk.pers.mouse_r;
+        mouse.press_r = input_chunk.trans.mouse_r_press;
+        mouse.release_r = input_chunk.trans.mouse_r_release;
+        
+        mouse.wheel = input_chunk.trans.mouse_wheel;
+        
+        mouse.x = input_chunk.pers.mouse_x;
+        mouse.y = input_chunk.pers.mouse_y;
+        
+        result.mouse_cursor_type = APP_MOUSE_CURSOR_DEFAULT;
+        result.lctrl_lalt_is_altgr = win32vars.lctrl_lalt_is_altgr;
+        result.trying_to_kill = input_chunk.trans.trying_to_kill;
+        result.perform_kill = 0;
+        
+        // NOTE(allen): The expected dt given the frame limit in seconds.
+        f32 dt = frame_useconds / 1000000.f;
+        
+        win32vars.app.step(&win32vars.system,
+                           &input_data,
+                           &mouse,
+                           &win32vars.target,
+                           &memory_vars,
+                           &exchange_vars,
+                           win32vars.clipboard_contents,
+                           dt, win32vars.first,
+                           &result);
+        
+        if (result.perform_kill){
+            win32vars.input_chunk.pers.keep_playing = 0;
+        }
+        
+        Win32SetCursorFromUpdate(result.mouse_cursor_type);
+        win32vars.lctrl_lalt_is_altgr = result.lctrl_lalt_is_altgr;
+        
+        HDC hdc = GetDC(win32vars.window_handle);
+        Win32RedrawScreen(hdc);
+        ReleaseDC(win32vars.window_handle, hdc);
+
+        win32vars.first = 0;
+        
+        if (result.animating){
+            PostMessage(win32vars.window_handle, WM_4coder_ANIMATE, 0, 0);
+        }
+        
+        u64 timer_end = Win32HighResolutionTime();
+        u64 end_target = timer_start + frame_useconds;
+        
+        system_release_lock(FRAME_LOCK);
+        while (timer_end < end_target){
+            DWORD samount = (DWORD)((end_target - timer_end) / 1000);
+            if (samount > 0) Sleep(samount);
+            timer_end = Win32HighResolutionTime();
+        }
+        system_acquire_lock(FRAME_LOCK);
+        timer_start = Win32HighResolutionTime();
     }
     
     return(0);

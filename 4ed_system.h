@@ -35,8 +35,15 @@ uhash_equal(Unique_Hash a, Unique_Hash b){
     return(result);
 }
 
+// NOTE(allen): These two time functions should return values
+// in the same time space.  There is no requirement about 
+// resolution but the higher the better.  These functions
+// should not be used for profiling purposes.
 #define Sys_File_Time_Stamp_Sig(name) u64 name(char *filename)
 typedef Sys_File_Time_Stamp_Sig(System_File_Time_Stamp);
+
+#define Sys_Now_Time_Stamp_Sig(name) u64 name()
+typedef Sys_Now_Time_Stamp_Sig(System_Now_Time_Stamp);
 
 // TODO(allen): make directory a char* to signal that it must be null terminated
 #define Sys_Set_File_List_Sig(name) void name(File_List *file_list, String directory)
@@ -66,12 +73,8 @@ typedef Sys_File_Load_End_Sig(System_File_Load_End);
 #define Sys_File_Save_Sig(name) b32 name(char *filename, char *buffer, i32 size)
 typedef Sys_File_Save_Sig(System_File_Save);
 
-
 #define Sys_Post_Clipboard_Sig(name) void name(String str)
 typedef Sys_Post_Clipboard_Sig(System_Post_Clipboard);
-
-#define Sys_Time_Sig(name) u64 name()
-typedef Sys_Time_Sig(System_Time);
 
 // cli
 struct CLI_Handles{
@@ -217,8 +220,9 @@ typedef INTERNAL_Sys_Get_Thread_States_Sig(INTERNAL_System_Get_Thread_States);
 typedef INTERNAL_Sys_Debug_Message_Sig(INTERNAL_System_Debug_Message);
 
 struct System_Functions{
-    // files: 6
+    // files: 7
     System_File_Time_Stamp *file_time_stamp;
+    System_Now_Time_Stamp *now_time_stamp;
     System_Set_File_List *set_file_list;
     System_File_Unique_Hash *file_unique_hash;
     System_File_Track *file_track;
@@ -234,9 +238,6 @@ struct System_Functions{
     
     // clipboard: 1
     System_Post_Clipboard *post_clipboard;
-    
-    // time: 1
-    System_Time *time;
     
     // coroutine: 4
     System_Create_Coroutine *create_coroutine;
