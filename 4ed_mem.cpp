@@ -77,7 +77,7 @@ general_memory_check(General_Memory *general){
         
         Bubble *next = bubble->next;
         Assert(bubble == next->prev);
-        if (next != sentinel){
+        if (next != sentinel && bubble->prev != sentinel){
             Assert(bubble->next > bubble);
             Assert(bubble > bubble->prev);
             
