@@ -146,8 +146,10 @@ char* generate_keycode_enum(){
 //////////////////////////////////////////////////////////////////////////////////////////////////
 char daction_enum_name[] = "Action_Type";
 char *daction_enum[] = {
+#if 0
     "OPEN",
     "OPEN_BACKGROUND",
+#endif
     "SET_LINE",
 #if 0
     "SAVE_AS",

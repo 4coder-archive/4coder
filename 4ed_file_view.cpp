@@ -3073,6 +3073,65 @@ view_new_file(System_Functions *system, Models *models,
 }
 
 internal void
+init_normal_file(System_Functions *system, Models *models, Editing_File *file,
+                 char *buffer, i32 size){
+    
+    General_Memory *general = &models->mem.general;
+    
+    String val = make_string(buffer, size);
+    file_create_from_string(system, models, file, file->name.source_path.str, val);
+    
+    if (file->settings.tokens_exist){
+        file_first_lex_parallel(system, general, file);
+    }
+    
+    for (View_Iter iter = file_view_iter_init(&models->layout, file, 0);
+         file_view_iter_good(iter);
+         iter = file_view_iter_next(iter)){
+        view_measure_wraps(general, iter.view);
+    }
+}
+
+internal void
+view_open_file(System_Functions *system, Models *models,
+               View *view, String filename){
+    Working_Set *working_set = &models->working_set;
+    General_Memory *general = &models->mem.general;
+    Partition *part = &models->mem.part;
+    
+    Editing_File *file = working_set_contains(system, working_set, filename);
+    
+    if (file == 0){
+        File_Loading loading = system->file_load_begin(filename.str);
+        
+        if (loading.exists){
+            Temp_Memory temp = begin_temp_memory(part);
+            char *buffer = push_array(part, char, loading.size);
+            
+            if (system->file_load_end(loading, buffer)){
+                file = working_set_alloc_always(working_set, general);
+                if (file){
+                    file_init_strings(file);
+                    file_set_name(working_set, file, filename.str);
+                    working_set_add(system, working_set, file, general);
+                    
+                    init_normal_file(system, models, file,
+                                     buffer, loading.size);
+                }
+            }
+            
+            end_temp_memory(temp);
+        }
+    }
+    
+    if (file){
+        if (view){
+            view_set_file(view, file, models);
+        }
+    }
+}
+
+internal void
 interactive_view_complete(System_Functions *system, View *view, String dest, i32 user_action){
     Models *models = view->persistent.models;
     Panel *panel = view->panel;
@@ -3080,7 +3139,7 @@ interactive_view_complete(System_Functions *system, View *view, String dest, i32
     
     switch (view->action){
         case IAct_Open:
-        delayed_open(&models->delay1, dest, panel);
+        view_open_file(system, models, view, dest);
         delayed_touch_file(&models->delay1, old_file);
         break;
         

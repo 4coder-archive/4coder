@@ -801,12 +801,8 @@ COMMAND_DECL(interactive_new){
 }
 
 COMMAND_DECL(interactive_open){
-    
     USE_MODELS(models);
-    USE_PANEL(panel);
     USE_VIEW(view);
-
-    Delay *delay = &models->delay1;
 
     char *filename = 0;
     int filename_len = 0;
@@ -830,69 +826,15 @@ COMMAND_DECL(interactive_open){
     if (filename){
         String string = make_string(filename, filename_len);
         if (do_in_background){
-            delayed_open_background(delay, string);
+            view_open_file(system, models, 0, string);
         }
         else{
-            // TODO(allen): Change the behavior of all delayed_open/background
-            // calls so that they still allocate the buffer right away.  This way
-            // it's still possible to get at the buffer if so wished in the API.
-            // The switch for this view doesn't need to happen until the file is ready.
-            // 
-            // Alternatively... fuck all delayed actions.  Please make them go away.
-            delayed_open(delay, string, panel);
+            view_open_file(system, models, view, string);
         }
     }
     else{
         view_show_interactive(system, view, &models->map_ui,
             IAct_Open, IInt_Sys_File_List, make_lit_string("Open: "));
-    }
-}
-
-internal void
-view_file_in_panel(Command_Data *cmd, Panel *panel, Editing_File *file){
-    Models *models = cmd->models;
-
-    Partition old_part;
-    Temp_Memory temp;
-    View *old_view;
-    Partition *part;
-
-    old_view = cmd->view;
-    old_part = cmd->part;
-
-    cmd->view = panel->view;
-    part = &models->mem.part;
-    temp = begin_temp_memory(part);
-    cmd->part = partition_sub_part(part, Kbytes(16));
-
-    View *view = panel->view;
-    view_set_file(view, file, models);
-    view_show_file(view);
-
-    cmd->part = old_part;
-    end_temp_memory(temp);
-    cmd->view = old_view;
-
-    panel->view->map = get_map(models, file->settings.base_map_id);
-}
-
-internal void
-init_normal_file(System_Functions *system, Models *models, Editing_File *file,
-                 char *buffer, i32 size){
-    
-    General_Memory *general = &models->mem.general;
-    
-    String val = make_string(buffer, size);
-    file_create_from_string(system, models, file, file->name.source_path.str, val);
-    
-    if (file->settings.tokens_exist){
-        file_first_lex_parallel(system, general, file);
-    }
-    
-    for (View_Iter iter = file_view_iter_init(&models->layout, file, 0);
-         file_view_iter_good(iter);
-         iter = file_view_iter_next(iter)){
-        view_measure_wraps(general, iter.view);
     }
 }
 
@@ -1601,10 +1543,8 @@ COMMAND_DECL(set_settings){
 }
 
 COMMAND_DECL(command_line){
-    
     USE_VARS(vars);
     USE_MODELS(models);
-    USE_PANEL(panel);
     USE_VIEW(view);
 
     Partition *part = &models->mem.part;
@@ -1784,7 +1724,7 @@ COMMAND_DECL(command_line){
                 }
 
                 if (bind_to_new_view){
-                    view_file_in_panel(command, panel, file);
+                    view_set_file(view, file, models);
                 }
 
                 proc = procs + vars->cli_processes.count++;
@@ -3878,26 +3818,26 @@ App_Step_Sig(app_step){
         }
 
         i32 i;
-        String file_name;
+        String filename;
         Panel *panel = models->layout.used_sentinel.next;
         for (i = 0;
              i < models->settings.init_files_count;
              ++i, panel = panel->next){
-            file_name = make_string_slowly(models->settings.init_files[i]);
+            filename = make_string_slowly(models->settings.init_files[i]);
 
             if (i < models->layout.panel_count){
-                delayed_open(&models->delay1, file_name, panel);
+                view_open_file(system, models, panel->view, filename);
                 if (i == 0){
                     delayed_set_line(&models->delay1, panel, models->settings.initial_line);
                 }
             }
             else{
-                delayed_open_background(&models->delay1, file_name);
+                view_open_file(system, models, 0, filename);
             }
         }
         
         if (i < models->layout.panel_count){
-            view_file_in_panel(cmd, panel, models->message_buffer);
+            view_set_file(panel->view, models->message_buffer, models);
         }
     }
     
@@ -4361,7 +4301,6 @@ App_Step_Sig(app_step){
         Working_Set *working_set = &models->working_set;
         Mem_Options *mem = &models->mem;
         General_Memory *general = &mem->general;
-        Partition *part = &mem->part;
         
         i32 count = models->delay1.count;
         models->delay1.count = 0;
@@ -4383,41 +4322,13 @@ App_Step_Sig(app_step){
                     }
                 }break;
                 
+#if 0
                 case DACT_OPEN:
                 case DACT_OPEN_BACKGROUND:
                 {
-                    String filename = string;
-                    Editing_File *file = working_set_contains(system, working_set, filename);
                     
-                    if (file == 0){
-                        File_Loading loading = system->file_load_begin(filename.str);
-                        
-                        if (loading.exists){
-                            Temp_Memory temp = begin_temp_memory(part);
-                            char *buffer = push_array(part, char, loading.size);
-                            
-                            if (system->file_load_end(loading, buffer)){
-                                file = working_set_alloc_always(working_set, general);
-                                if (file){
-                                    file_init_strings(file);
-                                    file_set_name(working_set, file, filename.str);
-                                    working_set_add(system, working_set, file, general);
-                                    
-                                    init_normal_file(system, models, file,
-                                                     buffer, loading.size);
-                                }
-                            }
-                            
-                            end_temp_memory(temp);
-                        }
-                    }
-                    
-                    if (file){
-                        if (act->type == DACT_OPEN){
-                            view_file_in_panel(cmd, panel, file);
-                        }
-                    }
                 }break;
+#endif
 
                 case DACT_SET_LINE:
                 {
