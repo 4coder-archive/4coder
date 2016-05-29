@@ -89,8 +89,6 @@ struct Win32_Input_Chunk_Persistent{
     i32 mouse_x, mouse_y;
     b8 mouse_l, mouse_r;
     
-    b8 keep_playing;
-
     Control_Keys controls;
     b8 control_keys[MDFR_INDEX_COUNT];
 };
@@ -124,13 +122,11 @@ struct Win32_Vars{
     DLL_Loaded app_dll;
     DLL_Loaded custom_dll;
 #endif
-    
     Plat_Settings settings;
     
     
     Thread_Group groups[THREAD_GROUP_COUNT];
     CRITICAL_SECTION locks[LOCK_COUNT];
-    CRITICAL_SECTION DEBUG_sysmem_lock;
     Thread_Memory *thread_memory;
     Win32_Coroutine coroutine_data[18];
     Win32_Coroutine *coroutine_free;
@@ -161,6 +157,7 @@ struct Win32_Vars{
     
     
 #if FRED_INTERNAL
+    CRITICAL_SECTION DEBUG_sysmem_lock;
     Sys_Bubble internal_bubble;
 #endif
 };
@@ -168,6 +165,11 @@ struct Win32_Vars{
 globalvar Win32_Vars win32vars;
 globalvar Application_Memory memory_vars;
 globalvar Exchange exchange_vars;
+
+
+//
+// Helpers
+//
 
 internal HANDLE
 Win32Handle(Plat_Handle h){
@@ -197,6 +199,7 @@ Win32Ptr(void *h){
     memcpy(&result, &h, sizeof(h));
     return(result);
 }
+
 
 //
 // Memory (not exposed to application, but needed in system_shared.cpp)
@@ -259,8 +262,269 @@ INTERNAL_system_debug_message(char *message){
 }
 #endif
 
+
 //
-// File
+// Multithreading
+//
+
+internal
+Sys_Acquire_Lock_Sig(system_acquire_lock){
+    EnterCriticalSection(&win32vars.locks[id]);
+}
+
+internal
+Sys_Release_Lock_Sig(system_release_lock){
+    LeaveCriticalSection(&win32vars.locks[id]);
+}
+
+internal DWORD
+JobThreadProc(LPVOID lpParameter){
+    Thread_Context *thread = (Thread_Context*)lpParameter;
+    Work_Queue *queue = thread->queue;
+    
+    for (;;){
+        u32 read_index = queue->read_position;
+        u32 write_index = queue->write_position;
+        
+        if (read_index != write_index){
+            u32 next_read_index = (read_index + 1) % JOB_ID_WRAP;
+            u32 safe_read_index =
+                InterlockedCompareExchange(&queue->read_position,
+                                           next_read_index, read_index);
+            
+            if (safe_read_index == read_index){
+                Full_Job_Data *full_job = queue->jobs + (safe_read_index % QUEUE_WRAP);
+                // NOTE(allen): This is interlocked so that it plays nice
+                // with the cancel job routine, which may try to cancel this job
+                // at the same time that we try to run it
+                
+                i32 safe_running_thread =
+                    InterlockedCompareExchange(&full_job->running_thread,
+                                               thread->id, THREAD_NOT_ASSIGNED);
+                
+                if (safe_running_thread == THREAD_NOT_ASSIGNED){
+                    thread->job_id = full_job->id;
+                    thread->running = 1;
+                    Thread_Memory *thread_memory = 0;
+                    
+                    // TODO(allen): remove memory_request
+                    if (full_job->job.memory_request != 0){
+                        thread_memory = win32vars.thread_memory + thread->id - 1;
+                        if (thread_memory->size < full_job->job.memory_request){
+                            if (thread_memory->data){
+                                Win32FreeMemory(thread_memory->data);
+                            }
+                            i32 new_size = LargeRoundUp(full_job->job.memory_request, Kbytes(4));
+                            thread_memory->data = Win32GetMemory(new_size);
+                            thread_memory->size = new_size;
+                        }
+                    }
+                    full_job->job.callback(&win32vars.system, thread, thread_memory,
+                                           &exchange_vars.thread, full_job->job.data);
+                    PostMessage(win32vars.window_handle, WM_4coder_ANIMATE, 0, 0);
+                    full_job->running_thread = 0;
+                    thread->running = 0;
+                }
+            }
+        }
+        else{
+            WaitForSingleObject(Win32Handle(queue->semaphore), INFINITE);
+        }
+    }
+}
+
+internal
+Sys_Post_Job_Sig(system_post_job){
+    Work_Queue *queue = exchange_vars.thread.queues + group_id;
+    
+    Assert((queue->write_position + 1) % QUEUE_WRAP != queue->read_position % QUEUE_WRAP);
+    
+    b32 success = 0;
+    u32 result = 0;
+    while (!success){
+        u32 write_index = queue->write_position;
+        u32 next_write_index = (write_index + 1) % JOB_ID_WRAP;
+        u32 safe_write_index =
+            InterlockedCompareExchange(&queue->write_position,
+                                       next_write_index, write_index);
+        if (safe_write_index  == write_index){
+            result = write_index;
+            write_index = write_index % QUEUE_WRAP;
+            queue->jobs[write_index].job = job;
+            queue->jobs[write_index].running_thread = THREAD_NOT_ASSIGNED;
+            queue->jobs[write_index].id = result;
+            success = 1;
+        }
+    }
+    
+    ReleaseSemaphore(Win32Handle(queue->semaphore), 1, 0);
+    
+    return result;
+}
+
+// TODO(allen): I would like to get rid of job canceling
+// but I still don't know what exactly I would do without it.
+internal
+Sys_Cancel_Job_Sig(system_cancel_job){
+    Work_Queue *queue = exchange_vars.thread.queues + group_id;
+    Thread_Group *group = win32vars.groups + group_id;
+    
+    u32 job_index;
+    u32 thread_id;
+    Full_Job_Data *full_job;
+    Thread_Context *thread;
+    
+    job_index = job_id % QUEUE_WRAP;
+    full_job = queue->jobs + job_index;
+    
+    Assert(full_job->id == job_id);
+    thread_id =
+        InterlockedCompareExchange(&full_job->running_thread,
+                                   0, THREAD_NOT_ASSIGNED);
+    
+    if (thread_id != THREAD_NOT_ASSIGNED){
+        system_acquire_lock(CANCEL_LOCK0 + thread_id - 1);
+        thread = group->threads + thread_id - 1;
+        TerminateThread(thread->handle, 0);
+        u32 creation_flag = 0;
+        thread->handle = CreateThread(0, 0, JobThreadProc, thread, creation_flag, (LPDWORD)&thread->windows_id);
+        system_release_lock(CANCEL_LOCK0 + thread_id - 1);
+        thread->running = 0;
+    }
+}
+
+internal void
+system_grow_thread_memory(Thread_Memory *memory){
+    void *old_data;
+    i32 old_size, new_size;
+    
+    system_acquire_lock(CANCEL_LOCK0 + memory->id - 1);
+    old_data = memory->data;
+    old_size = memory->size;
+    new_size = LargeRoundUp(memory->size*2, Kbytes(4));
+    memory->data = system_get_memory(new_size);
+    memory->size = new_size;
+    if (old_data){
+        memcpy(memory->data, old_data, old_size);
+        system_free_memory(old_data);
+    }
+    system_release_lock(CANCEL_LOCK0 + memory->id - 1);
+}
+
+#if FRED_INTERNAL
+internal void
+INTERNAL_get_thread_states(Thread_Group_ID id, bool8 *running, i32 *pending){
+    Work_Queue *queue = exchange_vars.thread.queues + id;
+    u32 write = queue->write_position;
+    u32 read = queue->read_position;
+    if (write < read) write += JOB_ID_WRAP;
+    *pending = (i32)(write - read);
+    
+    Thread_Group *group = win32vars.groups + id;
+    for (i32 i = 0; i < group->count; ++i){
+        running[i] = (group->threads[i].running != 0);
+    }
+}
+#endif
+
+
+//
+// Coroutines
+//
+
+internal Win32_Coroutine*
+Win32AllocCoroutine(){
+    Win32_Coroutine *result = win32vars.coroutine_free;
+    Assert(result != 0);
+    win32vars.coroutine_free = result->next;
+    return(result);
+}
+
+internal void
+Win32FreeCoroutine(Win32_Coroutine *data){
+    data->next = win32vars.coroutine_free;
+    win32vars.coroutine_free = data;
+}
+
+internal void
+Win32CoroutineMain(void *arg_){
+    Win32_Coroutine *c = (Win32_Coroutine*)arg_;
+    c->coroutine.func(&c->coroutine);
+    c->done = 1;
+    Win32FreeCoroutine(c);
+    SwitchToFiber(c->coroutine.yield_handle);
+}
+
+internal
+Sys_Create_Coroutine_Sig(system_create_coroutine){
+    Win32_Coroutine *c;
+    Coroutine *coroutine;
+    void *fiber;
+    
+    c = Win32AllocCoroutine();
+    c->done = 0;
+    
+    coroutine = &c->coroutine;
+    
+    fiber = CreateFiber(0, Win32CoroutineMain, coroutine);
+    
+    coroutine->plat_handle = Win32Handle(fiber);
+    coroutine->func = func;
+    
+    return(coroutine);
+}
+
+internal
+Sys_Launch_Coroutine_Sig(system_launch_coroutine){
+    Win32_Coroutine *c = (Win32_Coroutine*)coroutine;
+    void *fiber;
+    
+    fiber = Win32Handle(coroutine->plat_handle);
+    coroutine->yield_handle = GetCurrentFiber();
+    coroutine->in = in;
+    coroutine->out = out;
+    
+    SwitchToFiber(fiber);
+    
+    if (c->done){
+        DeleteFiber(fiber);
+        Win32FreeCoroutine(c);
+        coroutine = 0;
+    }
+    
+    return(coroutine);
+}
+
+Sys_Resume_Coroutine_Sig(system_resume_coroutine){
+    Win32_Coroutine *c = (Win32_Coroutine*)coroutine;
+    void *fiber;
+    
+    Assert(c->done == 0);
+    
+    coroutine->yield_handle = GetCurrentFiber();
+    coroutine->in = in;
+    coroutine->out = out;
+    
+    fiber = Win32Ptr(coroutine->plat_handle);
+    
+    SwitchToFiber(fiber);
+    
+    if (c->done){
+        DeleteFiber(fiber);
+        Win32FreeCoroutine(c);
+        coroutine = 0;
+    }
+    
+    return(coroutine);
+}
+
+Sys_Yield_Coroutine_Sig(system_yield_coroutine){
+    SwitchToFiber(coroutine->yield_handle);
+}
+
+
+//
+// Files
 //
 
 internal
@@ -602,6 +866,7 @@ GET_4ED_PATH_SIG(system_get_4ed_path){
     return(system_get_binary_path(&str));
 }
 
+
 //
 // Clipboard
 //
@@ -646,263 +911,6 @@ Win32ReadClipboardContents(){
     return(result);
 }
 
-//
-// Multithreading
-//
-
-internal
-Sys_Acquire_Lock_Sig(system_acquire_lock){
-    EnterCriticalSection(&win32vars.locks[id]);
-}
-
-internal
-Sys_Release_Lock_Sig(system_release_lock){
-    LeaveCriticalSection(&win32vars.locks[id]);
-}
-
-internal DWORD
-JobThreadProc(LPVOID lpParameter){
-    Thread_Context *thread = (Thread_Context*)lpParameter;
-    Work_Queue *queue = thread->queue;
-    
-    for (;;){
-        u32 read_index = queue->read_position;
-        u32 write_index = queue->write_position;
-        
-        if (read_index != write_index){
-            u32 next_read_index = (read_index + 1) % JOB_ID_WRAP;
-            u32 safe_read_index =
-                InterlockedCompareExchange(&queue->read_position,
-                                           next_read_index, read_index);
-            
-            if (safe_read_index == read_index){
-                Full_Job_Data *full_job = queue->jobs + (safe_read_index % QUEUE_WRAP);
-                // NOTE(allen): This is interlocked so that it plays nice
-                // with the cancel job routine, which may try to cancel this job
-                // at the same time that we try to run it
-                
-                i32 safe_running_thread =
-                    InterlockedCompareExchange(&full_job->running_thread,
-                                               thread->id, THREAD_NOT_ASSIGNED);
-                
-                if (safe_running_thread == THREAD_NOT_ASSIGNED){
-                    thread->job_id = full_job->id;
-                    thread->running = 1;
-                    Thread_Memory *thread_memory = 0;
-                    
-                    // TODO(allen): remove memory_request
-                    if (full_job->job.memory_request != 0){
-                        thread_memory = win32vars.thread_memory + thread->id - 1;
-                        if (thread_memory->size < full_job->job.memory_request){
-                            if (thread_memory->data){
-                                Win32FreeMemory(thread_memory->data);
-                            }
-                            i32 new_size = LargeRoundUp(full_job->job.memory_request, Kbytes(4));
-                            thread_memory->data = Win32GetMemory(new_size);
-                            thread_memory->size = new_size;
-                        }
-                    }
-                    full_job->job.callback(&win32vars.system, thread, thread_memory,
-                                           &exchange_vars.thread, full_job->job.data);
-                    PostMessage(win32vars.window_handle, WM_4coder_ANIMATE, 0, 0);
-                    full_job->running_thread = 0;
-                    thread->running = 0;
-                }
-            }
-        }
-        else{
-            WaitForSingleObject(Win32Handle(queue->semaphore), INFINITE);
-        }
-    }
-}
-
-internal
-Sys_Post_Job_Sig(system_post_job){
-    Work_Queue *queue = exchange_vars.thread.queues + group_id;
-    
-    Assert((queue->write_position + 1) % QUEUE_WRAP != queue->read_position % QUEUE_WRAP);
-    
-    b32 success = 0;
-    u32 result = 0;
-    while (!success){
-        u32 write_index = queue->write_position;
-        u32 next_write_index = (write_index + 1) % JOB_ID_WRAP;
-        u32 safe_write_index =
-            InterlockedCompareExchange(&queue->write_position,
-                                       next_write_index, write_index);
-        if (safe_write_index  == write_index){
-            result = write_index;
-            write_index = write_index % QUEUE_WRAP;
-            queue->jobs[write_index].job = job;
-            queue->jobs[write_index].running_thread = THREAD_NOT_ASSIGNED;
-            queue->jobs[write_index].id = result;
-            success = 1;
-        }
-    }
-    
-    ReleaseSemaphore(Win32Handle(queue->semaphore), 1, 0);
-    
-    return result;
-}
-
-// TODO(allen): I would like to get rid of job canceling
-// but I still don't know what exactly I would do without it.
-internal
-Sys_Cancel_Job_Sig(system_cancel_job){
-    Work_Queue *queue = exchange_vars.thread.queues + group_id;
-    Thread_Group *group = win32vars.groups + group_id;
-    
-    u32 job_index;
-    u32 thread_id;
-    Full_Job_Data *full_job;
-    Thread_Context *thread;
-    
-    job_index = job_id % QUEUE_WRAP;
-    full_job = queue->jobs + job_index;
-    
-    Assert(full_job->id == job_id);
-    thread_id =
-        InterlockedCompareExchange(&full_job->running_thread,
-                                   0, THREAD_NOT_ASSIGNED);
-    
-    if (thread_id != THREAD_NOT_ASSIGNED){
-        system_acquire_lock(CANCEL_LOCK0 + thread_id - 1);
-        thread = group->threads + thread_id - 1;
-        TerminateThread(thread->handle, 0);
-        u32 creation_flag = 0;
-        thread->handle = CreateThread(0, 0, JobThreadProc, thread, creation_flag, (LPDWORD)&thread->windows_id);
-        system_release_lock(CANCEL_LOCK0 + thread_id - 1);
-        thread->running = 0;
-    }
-}
-
-internal void
-system_grow_thread_memory(Thread_Memory *memory){
-    void *old_data;
-    i32 old_size, new_size;
-    
-    system_acquire_lock(CANCEL_LOCK0 + memory->id - 1);
-    old_data = memory->data;
-    old_size = memory->size;
-    new_size = LargeRoundUp(memory->size*2, Kbytes(4));
-    memory->data = system_get_memory(new_size);
-    memory->size = new_size;
-    if (old_data){
-        memcpy(memory->data, old_data, old_size);
-        system_free_memory(old_data);
-    }
-    system_release_lock(CANCEL_LOCK0 + memory->id - 1);
-}
-
-#if FRED_INTERNAL
-internal void
-INTERNAL_get_thread_states(Thread_Group_ID id, bool8 *running, i32 *pending){
-    Work_Queue *queue = exchange_vars.thread.queues + id;
-    u32 write = queue->write_position;
-    u32 read = queue->read_position;
-    if (write < read) write += JOB_ID_WRAP;
-    *pending = (i32)(write - read);
-    
-    Thread_Group *group = win32vars.groups + id;
-    for (i32 i = 0; i < group->count; ++i){
-        running[i] = (group->threads[i].running != 0);
-    }
-}
-#endif
-
-//
-// Coroutine
-//
-
-internal Win32_Coroutine*
-Win32AllocCoroutine(){
-    Win32_Coroutine *result = win32vars.coroutine_free;
-    Assert(result != 0);
-    win32vars.coroutine_free = result->next;
-    return(result);
-}
-
-internal void
-Win32FreeCoroutine(Win32_Coroutine *data){
-    data->next = win32vars.coroutine_free;
-    win32vars.coroutine_free = data;
-}
-
-internal void
-Win32CoroutineMain(void *arg_){
-    Win32_Coroutine *c = (Win32_Coroutine*)arg_;
-    c->coroutine.func(&c->coroutine);
-    c->done = 1;
-    Win32FreeCoroutine(c);
-    SwitchToFiber(c->coroutine.yield_handle);
-}
-
-internal
-Sys_Create_Coroutine_Sig(system_create_coroutine){
-    Win32_Coroutine *c;
-    Coroutine *coroutine;
-    void *fiber;
-    
-    c = Win32AllocCoroutine();
-    c->done = 0;
-    
-    coroutine = &c->coroutine;
-    
-    fiber = CreateFiber(0, Win32CoroutineMain, coroutine);
-    
-    coroutine->plat_handle = Win32Handle(fiber);
-    coroutine->func = func;
-    
-    return(coroutine);
-}
-
-internal
-Sys_Launch_Coroutine_Sig(system_launch_coroutine){
-    Win32_Coroutine *c = (Win32_Coroutine*)coroutine;
-    void *fiber;
-    
-    fiber = Win32Handle(coroutine->plat_handle);
-    coroutine->yield_handle = GetCurrentFiber();
-    coroutine->in = in;
-    coroutine->out = out;
-    
-    SwitchToFiber(fiber);
-    
-    if (c->done){
-        DeleteFiber(fiber);
-        Win32FreeCoroutine(c);
-        coroutine = 0;
-    }
-    
-    return(coroutine);
-}
-
-Sys_Resume_Coroutine_Sig(system_resume_coroutine){
-    Win32_Coroutine *c = (Win32_Coroutine*)coroutine;
-    void *fiber;
-    
-    Assert(c->done == 0);
-    
-    coroutine->yield_handle = GetCurrentFiber();
-    coroutine->in = in;
-    coroutine->out = out;
-    
-    fiber = Win32Ptr(coroutine->plat_handle);
-    
-    SwitchToFiber(fiber);
-    
-    if (c->done){
-        DeleteFiber(fiber);
-        Win32FreeCoroutine(c);
-        coroutine = 0;
-    }
-    
-    return(coroutine);
-}
-
-Sys_Yield_Coroutine_Sig(system_yield_coroutine){
-    SwitchToFiber(coroutine->yield_handle);
-}
 
 //
 // Command Line Exectuion
@@ -1780,6 +1788,7 @@ WinMain(HINSTANCE hInstance,
     }
     
     win32vars.custom_api.view_routine = (View_Routine_Function*)0;
+    
 #if 0
     if (win32vars.custom_api.view_routine == 0){
         win32vars.custom_api.view_routine = (View_Routine_Function*)view_routine;
@@ -1953,7 +1962,7 @@ WinMain(HINSTANCE hInstance,
     
     system_free_memory(current_directory.str);
     
-    win32vars.input_chunk.pers.keep_playing = 1;
+    b32 keep_playing = 1;
     win32vars.first = 1;
     timeBeginPeriod(1);
     
@@ -1964,7 +1973,7 @@ WinMain(HINSTANCE hInstance,
     u64 timer_start = Win32HighResolutionTime();
     system_acquire_lock(FRAME_LOCK);
     MSG msg;
-    for (;win32vars.input_chunk.pers.keep_playing;){
+    for (;keep_playing;){
         // TODO(allen): Find a good way to wait on a pipe
         // without interfering with the reading process
         //  Looks like we can ReadFile with a size of zero
@@ -1977,7 +1986,7 @@ WinMain(HINSTANCE hInstance,
             for (;win32vars.got_useful_event == 0;){
                 if (GetMessage(&msg, 0, 0, 0)){
                     if (msg.message == WM_QUIT){
-                        win32vars.input_chunk.pers.keep_playing = 0;
+                        keep_playing = 0;
                     }else{
                         TranslateMessage(&msg);
                         DispatchMessage(&msg);
@@ -1988,7 +1997,7 @@ WinMain(HINSTANCE hInstance,
         
         while (PeekMessage(&msg, 0, 0, 0, 1)){
             if (msg.message == WM_QUIT){
-                win32vars.input_chunk.pers.keep_playing = 0;
+                keep_playing = 0;
             }else{
                 TranslateMessage(&msg);
                 DispatchMessage(&msg);
@@ -2034,46 +2043,47 @@ WinMain(HINSTANCE hInstance,
             }
         }
         
-        Key_Input_Data input_data;
-        Mouse_State mouse;
-        Application_Step_Result result;
+        Application_Step_Input input = {0};
         
-        input_data = input_chunk.trans.key_data;
-        mouse.out_of_window = input_chunk.trans.out_of_window;
+        input.first_step = win32vars.first;
         
-        mouse.l = input_chunk.pers.mouse_l;
-        mouse.press_l = input_chunk.trans.mouse_l_press;
-        mouse.release_l = input_chunk.trans.mouse_l_release;
+        // NOTE(allen): The expected dt given the frame limit in seconds.
+        input.dt = frame_useconds / 1000000.f;
         
-        mouse.r = input_chunk.pers.mouse_r;
-        mouse.press_r = input_chunk.trans.mouse_r_press;
-        mouse.release_r = input_chunk.trans.mouse_r_release;
+        input.keys = input_chunk.trans.key_data;
         
-        mouse.wheel = input_chunk.trans.mouse_wheel;
+        input.mouse.out_of_window = input_chunk.trans.out_of_window;
         
-        mouse.x = input_chunk.pers.mouse_x;
-        mouse.y = input_chunk.pers.mouse_y;
+        input.mouse.l = input_chunk.pers.mouse_l;
+        input.mouse.press_l = input_chunk.trans.mouse_l_press;
+        input.mouse.release_l = input_chunk.trans.mouse_l_release;
         
+        input.mouse.r = input_chunk.pers.mouse_r;
+        input.mouse.press_r = input_chunk.trans.mouse_r_press;
+        input.mouse.release_r = input_chunk.trans.mouse_r_release;
+        
+        input.mouse.wheel = input_chunk.trans.mouse_wheel;
+        input.mouse.x = input_chunk.pers.mouse_x;
+        input.mouse.y = input_chunk.pers.mouse_y;
+        
+        input.clipboard = win32vars.clipboard_contents;
+        
+        
+        Application_Step_Result result = {(Application_Mouse_Cursor)0};
         result.mouse_cursor_type = APP_MOUSE_CURSOR_DEFAULT;
         result.lctrl_lalt_is_altgr = win32vars.lctrl_lalt_is_altgr;
         result.trying_to_kill = input_chunk.trans.trying_to_kill;
         result.perform_kill = 0;
         
-        // NOTE(allen): The expected dt given the frame limit in seconds.
-        f32 dt = frame_useconds / 1000000.f;
-        
         win32vars.app.step(&win32vars.system,
-                           &input_data,
-                           &mouse,
                            &win32vars.target,
                            &memory_vars,
                            &exchange_vars,
-                           win32vars.clipboard_contents,
-                           dt, win32vars.first,
+                           &input,
                            &result);
         
         if (result.perform_kill){
-            win32vars.input_chunk.pers.keep_playing = 0;
+            keep_playing = 0;
         }
         
         Win32SetCursorFromUpdate(result.mouse_cursor_type);

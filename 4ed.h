@@ -81,16 +81,18 @@ struct Plat_Settings{
 
 typedef App_Read_Command_Line_Sig(App_Read_Command_Line);
 
+
 #define App_Init_Sig(name) void                                    \
 name(System_Functions *system,                                     \
-    Render_Target *target,                                         \
-    Application_Memory *memory,                                    \
-    Exchange *exchange,                                            \
-    String clipboard,                                              \
-    String current_directory,                                      \
-    Custom_API api)
+     Render_Target *target,                                        \
+     Application_Memory *memory,                                   \
+     Exchange *exchange,                                           \
+     String clipboard,                                             \
+     String current_directory,                                     \
+     Custom_API api)
 
 typedef App_Init_Sig(App_Init);
+
 
 enum Application_Mouse_Cursor{
 	APP_MOUSE_CURSOR_DEFAULT,
@@ -110,18 +112,24 @@ struct Application_Step_Result{
     b32 animating;
 };
 
+struct Application_Step_Input{
+    b32 first_step;
+    f32 dt;
+    Key_Input_Data keys;
+    Mouse_State mouse;
+    String clipboard;
+};
+
 #define App_Step_Sig(name) void                        \
 name(System_Functions *system,                         \
-    Key_Input_Data *input,                             \
-    Mouse_State *mouse,                                \
     Render_Target *target,                             \
     Application_Memory *memory,                        \
     Exchange *exchange,                                \
-    String clipboard,                                  \
-    f32 dt, b32 first_step,   \
+    Application_Step_Input *input,                     \
     Application_Step_Result *result)
 
 typedef App_Step_Sig(App_Step);
+
 
 struct App_Functions{
     App_Read_Command_Line *read_command_line;

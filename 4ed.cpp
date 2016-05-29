@@ -3631,51 +3631,53 @@ consume_input(Available_Input *available, i32 input_type){
 App_Step_Sig(app_step){
     Application_Step_Result app_result = *result;
     app_result.animating = 0;
-
+    
     App_Vars *vars = (App_Vars*)memory->vars_memory;
     Models *models = &vars->models;
     target->partition = &models->mem.part;
-
+    
     // NOTE(allen): OS clipboard event handling
+    String clipboard = input->clipboard;
+    
     if (clipboard.str){
         String *dest = working_set_next_clipboard_string(&models->mem.general, &models->working_set, clipboard.size);
         dest->size = eol_convert_in(dest->str, clipboard.str, clipboard.size);
     }
-
+    
     // NOTE(allen): check files are up to date
     {
         File_Node *node, *used_nodes;
         Editing_File *file;
         u64 time_stamp;
-
+        
         used_nodes = &models->working_set.used_sentinel;
         for (dll_items(node, used_nodes)){
             file = (Editing_File*)node;
-
+            
             time_stamp = system->file_time_stamp(make_c_str(file->name.source_path));
-
+            
             if (time_stamp > 0){
                 file->state.last_sys_write_time = time_stamp;
             }
         }
     }
-
+    
     // NOTE(allen): reorganizing panels on screen
     {
         i32 prev_width = models->layout.full_width;
         i32 prev_height = models->layout.full_height;
         i32 current_width = target->width;
         i32 current_height = target->height;
-
+        
         Panel *panel, *used_panels;
         View *view;
-
+        
         models->layout.full_width = current_width;
         models->layout.full_height = current_height;
-
+        
         if (prev_width != current_width || prev_height != current_height){
             layout_refit(&models->layout, prev_width, prev_height);
-
+            
             used_panels = &models->layout.used_sentinel;
             for (dll_items(panel, used_panels)){
                 view = panel->view;
@@ -3689,18 +3691,18 @@ App_Step_Sig(app_step){
     
     // NOTE(allen): prepare input information
     Key_Summary key_summary = {0};
-    for (i32 i = 0; i < input->press_count; ++i){
-        key_summary.keys[key_summary.count++] = input->press[i];
+    for (i32 i = 0; i < input->keys.press_count; ++i){
+        key_summary.keys[key_summary.count++] = input->keys.press[i];
     }
-    for (i32 i = 0; i < input->hold_count; ++i){
-        key_summary.keys[key_summary.count++] = input->hold[i];
+    for (i32 i = 0; i < input->keys.hold_count; ++i){
+        key_summary.keys[key_summary.count++] = input->keys.hold[i];
     }
     
-    mouse->wheel = -mouse->wheel;
+    input->mouse.wheel = -input->mouse.wheel;
     
     // NOTE(allen): detect mouse hover status
-    i32 mx = mouse->x;
-    i32 my = mouse->y;
+    i32 mx = input->mouse.x;
+    i32 my = input->mouse.y;
     b32 mouse_in_edit_area = 0;
     b32 mouse_in_margin_area = 0;
     Panel *mouse_panel, *used_panels;
@@ -3787,7 +3789,7 @@ App_Step_Sig(app_step){
     }
     
     // NOTE(allen): update child processes
-    if (dt > 0){
+    if (input->dt > 0){
         Temp_Memory temp = begin_temp_memory(&models->mem.part);
         u32 max = Kbytes(32);
         char *dest = push_array(&models->mem.part, char, max);
@@ -3830,7 +3832,7 @@ App_Step_Sig(app_step){
     Temp_Memory param_stack_temp = begin_temp_memory(&models->mem.part);
     cmd->part = partition_sub_part(&models->mem.part, 16 << 10);
     
-    if (first_step){
+    if (input->first_step){
         
 #if 0
         {
@@ -3954,7 +3956,7 @@ App_Step_Sig(app_step){
     }
     
     // NOTE(allen): process the command_coroutine if it is unfinished
-    Available_Input available_input = init_available_input(&key_summary, mouse);
+    Available_Input available_input = init_available_input(&key_summary, &input->mouse);
     
     // NOTE(allen): Keyboard input to command coroutine.
     if (models->command_coroutine != 0){
@@ -4029,7 +4031,7 @@ App_Step_Sig(app_step){
 
             User_Input user_in;
             user_in.type = UserInputMouse;
-            user_in.mouse = *mouse;
+            user_in.mouse = input->mouse;
             user_in.command = 0;
             user_in.abort = 0;
 
@@ -4041,7 +4043,7 @@ App_Step_Sig(app_step){
                 consume_input(&available_input, Input_MouseMove);
             }
 
-            if (mouse->press_l || mouse->release_l || mouse->l){
+            if (input->mouse.press_l || input->mouse.release_l || input->mouse.l){
                 if (abort_flags & EventOnLeftButton){
                     user_in.abort = 1;
                 }
@@ -4051,7 +4053,7 @@ App_Step_Sig(app_step){
                 }
             }
 
-            if (mouse->press_r || mouse->release_r || mouse->r){
+            if (input->mouse.press_r || input->mouse.release_r || input->mouse.r){
                 if (abort_flags & EventOnRightButton){
                     user_in.abort = 1;
                 }
@@ -4061,7 +4063,7 @@ App_Step_Sig(app_step){
                 }
             }
 
-            if (mouse->wheel != 0){
+            if (input->mouse.wheel != 0){
                 if (abort_flags & EventOnWheel){
                     user_in.abort = 1;
                 }
@@ -4095,12 +4097,12 @@ App_Step_Sig(app_step){
     // NOTE(allen): pass raw input to the panels
     
     Input_Summary dead_input = {};
-    dead_input.mouse.x = mouse->x;
-    dead_input.mouse.y = mouse->y;
+    dead_input.mouse.x = input->mouse.x;
+    dead_input.mouse.y = input->mouse.y;
 
     Input_Summary active_input = {};
-    active_input.mouse.x = mouse->x;
-    active_input.mouse.y = mouse->y;
+    active_input.mouse.x = input->mouse.x;
+    active_input.mouse.y = input->mouse.y;
     
     active_input.keys = get_key_data(&available_input);
     
@@ -4110,7 +4112,7 @@ App_Step_Sig(app_step){
         Panel *panel = 0, *used_panels = 0;
         View *view = 0, *active_view = 0;
         b32 active = 0;
-        Input_Summary input = {0};
+        Input_Summary summary = {0};
         Input_Process_Result result = {0};
         
         active_view = cmd->panel->view;
@@ -4118,8 +4120,8 @@ App_Step_Sig(app_step){
         for (dll_items(panel, used_panels)){
             view = panel->view;
             active = (panel == cmd->panel);
-            input = (active)?(active_input):(dead_input);
-            if (step_file_view(system, view, active_view, input)){
+            summary = (active)?(active_input):(dead_input);
+            if (step_file_view(system, view, active_view, summary)){
                 app_result.animating = 1;
             }
         }
@@ -4128,9 +4130,9 @@ App_Step_Sig(app_step){
             view = panel->view;
             Assert(view->current_scroll);
             active = (panel == cmd->panel);
-            input = (active)?(active_input):(dead_input);
-            if (panel == mouse_panel && !mouse->out_of_window){
-                input.mouse = mouse_state;
+            summary = (active)?(active_input):(dead_input);
+            if (panel == mouse_panel && !input->mouse.out_of_window){
+                summary.mouse = mouse_state;
             }
             
             
@@ -4138,7 +4140,7 @@ App_Step_Sig(app_step){
             // TODO(allen): I feel like the scroll context should actually not
             // be allowed to change in here at all.
             result = do_input_file_view(system, exchange, view, panel->inner, active,
-                                        &input, *vars, view->scroll_region);
+                                        &summary, *vars, view->scroll_region);
             if (result.is_animating){
                 app_result.animating = 1;
             }
@@ -4219,7 +4221,7 @@ App_Step_Sig(app_step){
     update_command_data(vars, cmd);
     
     // NOTE(allen): initialize message
-    if (first_step){
+    if (input->first_step){
         String welcome =
             make_lit_string("Welcome to " VERSION "\n"
                             "If you're new to 4coder there's no tutorial yet :(\n"
@@ -4256,7 +4258,7 @@ App_Step_Sig(app_step){
     switch (vars->state){
         case APP_STATE_EDIT:
         {
-            if (mouse->press_l && mouse_on_divider){
+            if (input->mouse.press_l && mouse_on_divider){
                 vars->state = APP_STATE_RESIZING;
                 Divider_And_ID div = layout_get_divider(&models->layout, mouse_divider_id);
                 vars->resizing.divider = div.divider;
@@ -4323,7 +4325,7 @@ App_Step_Sig(app_step){
 
         case APP_STATE_RESIZING:
         {
-            if (mouse->l){
+            if (input->mouse.l){
                 Panel_Divider *divider = vars->resizing.divider;
                 if (divider->v_divider){
                     divider->pos = mx;
@@ -4347,7 +4349,7 @@ App_Step_Sig(app_step){
         }break;
     }
     
-    if (mouse_in_edit_area && mouse_panel != 0 && mouse->press_l){
+    if (mouse_in_edit_area && mouse_panel != 0 && input->mouse.press_l){
         models->layout.active_panel = (i32)(mouse_panel - models->layout.panels);
     }
     
