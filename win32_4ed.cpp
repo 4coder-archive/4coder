@@ -115,7 +115,6 @@ struct Sys_Bubble : public Bubble{
 
 struct Win32_Vars{
 	HWND window_handle;
-    HDC window_hdc;
     Render_Target target;
     
     Win32_Input_Chunk input_chunk;
@@ -131,8 +130,8 @@ struct Win32_Vars{
 	DWORD clipboard_sequence;
     
     Thread_Group groups[THREAD_GROUP_COUNT];
-    HANDLE locks[LOCK_COUNT];
-    HANDLE DEBUG_sysmem_lock;
+    CRITICAL_SECTION locks[LOCK_COUNT];
+    CRITICAL_SECTION DEBUG_sysmem_lock;
 
     Thread_Memory *thread_memory;
 
@@ -203,55 +202,43 @@ Win32Ptr(void *h){
 // Memory (not exposed to application, but needed in system_shared.cpp)
 //
 
-#if FRED_INTERNAL
-
 internal
 Sys_Get_Memory_Sig(system_get_memory_){
     void *ptr = 0;
     if (size > 0){
+        
+#if FRED_INTERNAL
         ptr = VirtualAlloc(0, size + sizeof(Sys_Bubble), MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
         Sys_Bubble *bubble = (Sys_Bubble*)ptr;
         bubble->flags = MEM_BUBBLE_SYS_DEBUG;
         bubble->line_number = line_number;
         bubble->file_name = file_name;
         bubble->size = size;
-        WaitForSingleObject(win32vars.DEBUG_sysmem_lock, INFINITE);
+        EnterCriticalSection(&win32vars.DEBUG_sysmem_lock);
         insert_bubble(&win32vars.internal_bubble, bubble);
-        ReleaseSemaphore(win32vars.DEBUG_sysmem_lock, 1, 0);
+        LeaveCriticalSection(&win32vars.DEBUG_sysmem_lock);
         ptr = bubble + 1;
+#else
+        ptr = VirtualAlloc(0, size, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
+#endif
     }
     return(ptr);
 }
 internal
 Sys_Free_Memory_Sig(system_free_memory){
     if (block){
+#if FRED_INTERNAL
         Sys_Bubble *bubble = ((Sys_Bubble*)block) - 1;
         Assert((bubble->flags & MEM_BUBBLE_DEBUG_MASK) == MEM_BUBBLE_SYS_DEBUG);
-        WaitForSingleObject(win32vars.DEBUG_sysmem_lock, INFINITE);
+        EnterCriticalSection(&win32vars.DEBUG_sysmem_lock);
         remove_bubble(bubble);
-        ReleaseSemaphore(win32vars.DEBUG_sysmem_lock, 1, 0);
+        LeaveCriticalSection(&win32vars.DEBUG_sysmem_lock);
         VirtualFree(bubble, 0, MEM_RELEASE);
-    }
-}
-
 #else
-
-internal
-Sys_Get_Memory_Sig(system_get_memory_){
-    void *ptr = 0;
-    if (size > 0){
-        ptr = VirtualAlloc(0, size, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
-    }
-    return(ptr);
-}
-internal
-Sys_Free_Memory_Sig(system_free_memory){
-    if (block){
         VirtualFree(block, 0, MEM_RELEASE);
+#endif
     }
 }
-
-#endif
 
 #define Win32GetMemory(size) system_get_memory_(size, __LINE__, __FILE__)
 #define Win32FreeMemory(ptr) system_free_memory(ptr)
@@ -278,16 +265,16 @@ INTERNAL_system_debug_message(char *message){
 
 internal
 Sys_File_Can_Be_Made_Sig(system_file_can_be_made){
-	HANDLE file;
-	file = CreateFile((char*)filename, FILE_APPEND_DATA, 0, 0,
-					  OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, 0);
-	
-	if (!file || file == INVALID_HANDLE_VALUE){
-		return 0;
-	}
-	
-	CloseHandle(file);
-	
+    HANDLE file;
+    file = CreateFile((char*)filename, FILE_APPEND_DATA, 0, 0,
+                      OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, 0);
+    
+    if (!file || file == INVALID_HANDLE_VALUE){
+        return 0;
+    }
+    
+    CloseHandle(file);
+    
     return(1);
 }
 
@@ -652,12 +639,12 @@ Sys_Post_Clipboard_Sig(system_post_clipboard){
 
 internal
 Sys_Acquire_Lock_Sig(system_acquire_lock){
-    WaitForSingleObject(win32vars.locks[id], INFINITE);
+    EnterCriticalSection(&win32vars.locks[id]);
 }
 
 internal
 Sys_Release_Lock_Sig(system_release_lock){
-    ReleaseSemaphore(win32vars.locks[id], 1, 0);
+    LeaveCriticalSection(&win32vars.locks[id]);
 }
 
 internal DWORD
@@ -1599,153 +1586,13 @@ WinMain(HINSTANCE hInstance,
     int argc = __argc;
     char **argv = __argv;
     
-    HANDLE original_out = GetStdHandle(STD_OUTPUT_HANDLE);
-
     memset(&win32vars, 0, sizeof(win32vars));
     memset(&exchange_vars, 0, sizeof(exchange_vars));
-
-#if FRED_INTERNAL
-    win32vars.internal_bubble.next = &win32vars.internal_bubble;
-    win32vars.internal_bubble.prev = &win32vars.internal_bubble;
-    win32vars.internal_bubble.flags = MEM_BUBBLE_SYS_DEBUG;
-#endif
-
-    if (!Win32LoadAppCode()){
-        // TODO(allen): Failed to load app code, serious problem.
-        return 99;
-    }
-
-    System_Functions system_;
-    System_Functions *system = &system_;
-    win32vars.system = system;
-    Win32LoadSystemCode();
-
-    ConvertThreadToFiber(0);
-    win32vars.coroutine_free = win32vars.coroutine_data;
-    for (i32 i = 0; i+1 < ArrayCount(win32vars.coroutine_data); ++i){
-        win32vars.coroutine_data[i].next = win32vars.coroutine_data + i + 1;
-    }
-
-    LPVOID base;
-#if FRED_INTERNAL
-    base = (LPVOID)Tbytes(1);
-#else
-    base = (LPVOID)0;
-#endif
-
-    memory_vars.vars_memory_size = Mbytes(2);
-    memory_vars.vars_memory = VirtualAlloc(base, memory_vars.vars_memory_size,
-        MEM_COMMIT | MEM_RESERVE,
-        PAGE_READWRITE);
-
-#if FRED_INTERNAL
-    base = (LPVOID)Tbytes(2);
-#else
-    base = (LPVOID)0;
-#endif
-    memory_vars.target_memory_size = Mbytes(512);
-    memory_vars.target_memory = VirtualAlloc(base, memory_vars.target_memory_size,
-        MEM_COMMIT | MEM_RESERVE,
-        PAGE_READWRITE);
-
-    base = (LPVOID)0;
-    memory_vars.user_memory_size = Mbytes(2);
-    memory_vars.user_memory = VirtualAlloc(base, memory_vars.target_memory_size,
-        MEM_COMMIT | MEM_RESERVE,
-        PAGE_READWRITE);
+    
+    
     //
-
-    if (!memory_vars.vars_memory){
-        return 4;
-    }
-
-    DWORD required = GetCurrentDirectory(0, 0);
-    required += 1;
-    required *= 4;
-    char *current_directory_mem = (char*)system_get_memory(required);
-    DWORD written = GetCurrentDirectory(required, current_directory_mem);
-
-    String current_directory = make_string(current_directory_mem, written, required);
-    terminate_with_null(&current_directory);
-    replace_char(current_directory, '\\', '/');
-
-    Command_Line_Parameters clparams;
-    clparams.argv = argv;
-    clparams.argc = argc;
-
-    char **files;
-    i32 *file_count;
-
-    files = 0;
-    file_count = 0;
-
-    i32 output_size =
-        win32vars.app.read_command_line(system,
-        &memory_vars,
-        current_directory,
-        &win32vars.settings,
-        &files, &file_count,
-        clparams);
-    
-    if (output_size > 0){
-        DWORD written;
-        WriteFile(original_out, memory_vars.target_memory, output_size, &written, 0);
-    }
-    if (output_size != 0) return 0;
-    
-#ifdef FRED_SUPER
-    char *custom_file_default = "4coder_custom.dll";
-    char *custom_file = 0;
-    if (win32vars.settings.custom_dll) custom_file = win32vars.settings.custom_dll;
-    else custom_file = custom_file_default;
-    
-    win32vars.custom = LoadLibraryA(custom_file);
-    if (!win32vars.custom && custom_file != custom_file_default){
-        if (!win32vars.settings.custom_dll_is_strict){
-            win32vars.custom = LoadLibraryA(custom_file_default);
-        }
-    }
-    
-    if (win32vars.custom){
-        win32vars.custom_api.get_alpha_4coder_version = (_Get_Version_Function*)
-            GetProcAddress(win32vars.custom, "get_alpha_4coder_version");
-        
-        if (win32vars.custom_api.get_alpha_4coder_version == 0 ||
-                win32vars.custom_api.get_alpha_4coder_version(MAJOR, MINOR, PATCH) == 0){
-            OutputDebugStringA("Error: application and custom version numbers don't match");
-            return 22;
-        }
-        win32vars.custom_api.get_bindings = (Get_Binding_Data_Function*)
-            GetProcAddress(win32vars.custom, "get_bindings");
-        win32vars.custom_api.view_routine = (View_Routine_Function*)
-            GetProcAddress(win32vars.custom, "view_routine");
-    }
-#endif
-    
-    if (win32vars.custom_api.get_bindings == 0){
-        win32vars.custom_api.get_bindings = (Get_Binding_Data_Function*)get_bindings;
-    }
-    
-    if (win32vars.custom_api.view_routine == 0){
-        win32vars.custom_api.view_routine = (View_Routine_Function*)view_routine;
-    }
-    
-    FreeConsole();
-    
-    sysshared_filter_real_files(files, file_count);
-    
-    LARGE_INTEGER lpf;
-    QueryPerformanceFrequency(&lpf);
-    win32vars.performance_frequency = lpf.QuadPart;
-    QueryPerformanceCounter(&lpf);
-    win32vars.start_pcount = lpf.QuadPart;
-    
-    FILETIME filetime;
-    GetSystemTimeAsFileTime(&filetime);
-    win32vars.start_time = ((u64)filetime.dwHighDateTime << 32) | (filetime.dwLowDateTime);
-    win32vars.start_time /= 10;
-    
-    Win32KeycodeInit();
+    // Threads and Coroutines
+    //
     
     Thread_Context background[4];
     memset(background, 0, sizeof(background));
@@ -1774,32 +1621,172 @@ WinMain(HINSTANCE hInstance,
     
     Assert(win32vars.locks);
     for (i32 i = 0; i < LOCK_COUNT; ++i){
-        win32vars.locks[i] = CreateSemaphore(0, 1, 1, 0);
+        InitializeCriticalSection(&win32vars.locks[i]);
     }
-    win32vars.DEBUG_sysmem_lock = CreateSemaphore(0, 1, 1, 0);
+    InitializeCriticalSection(&win32vars.DEBUG_sysmem_lock);
+        
+    ConvertThreadToFiber(0);
+    win32vars.coroutine_free = win32vars.coroutine_data;
+    for (i32 i = 0; i+1 < ArrayCount(win32vars.coroutine_data); ++i){
+        win32vars.coroutine_data[i].next = win32vars.coroutine_data + i + 1;
+    }
     
-    Win32LoadRenderCode();
+    
+    //
+    // Memory Initialization
+    //
+    
+#if FRED_INTERNAL
+    win32vars.internal_bubble.next = &win32vars.internal_bubble;
+    win32vars.internal_bubble.prev = &win32vars.internal_bubble;
+    win32vars.internal_bubble.flags = MEM_BUBBLE_SYS_DEBUG;
+#endif
+    
+    LPVOID base;
+#if FRED_INTERNAL
+    base = (LPVOID)Tbytes(1);
+#else
+    base = (LPVOID)0;
+#endif
+    
+    memory_vars.vars_memory_size = Mbytes(2);
+    memory_vars.vars_memory = VirtualAlloc(base, memory_vars.vars_memory_size,
+                                           MEM_COMMIT | MEM_RESERVE,
+                                           PAGE_READWRITE);
+    
+#if FRED_INTERNAL
+    base = (LPVOID)Tbytes(2);
+#else
+    base = (LPVOID)0;
+#endif
+    memory_vars.target_memory_size = Mbytes(512);
+    memory_vars.target_memory =
+        VirtualAlloc(base, memory_vars.target_memory_size,
+                     MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
+    
+    base = (LPVOID)0;
+    memory_vars.user_memory_size = Mbytes(2);
+    memory_vars.user_memory =
+        VirtualAlloc(base, memory_vars.target_memory_size,
+                     MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
+    
+    if (!memory_vars.vars_memory){
+        exit(1);
+    }
+    
     win32vars.target.max = Mbytes(1);
     win32vars.target.push_buffer = (byte*)system_get_memory(win32vars.target.max);
     
-    win32vars.cursor_ibeam = LoadCursor(NULL, IDC_IBEAM);
-    win32vars.cursor_arrow = LoadCursor(NULL, IDC_ARROW);
-    win32vars.cursor_leftright = LoadCursor(NULL, IDC_SIZEWE);
-    win32vars.cursor_updown = LoadCursor(NULL, IDC_SIZENS);
+    
+    //
+    // System and Application Layer Linkage
+    //
+    
+    if (!Win32LoadAppCode()){
+        exit(1);
+    }
+    
+    System_Functions system_;
+    System_Functions *system = &system_;
+    win32vars.system = system;
+    Win32LoadSystemCode();
+    
+    Win32LoadRenderCode();
+    
+    
+    //
+    // Read Command Line
+    //
+    
+    DWORD required = GetCurrentDirectory(0, 0);
+    required += 1;
+    required *= 4;
+    char *current_directory_mem = (char*)system_get_memory(required);
+    DWORD written = GetCurrentDirectory(required, current_directory_mem);
+    
+    String current_directory = make_string(current_directory_mem, written, required);
+    terminate_with_null(&current_directory);
+    replace_char(current_directory, '\\', '/');
+    
+    Command_Line_Parameters clparams;
+    clparams.argv = argv;
+    clparams.argc = argc;
+    
+    char **files;
+    i32 *file_count;
+    
+    files = 0;
+    file_count = 0;
+    
+    win32vars.app.read_command_line(system,
+                                    &memory_vars,
+                                    current_directory,
+                                    &win32vars.settings,
+                                    &files, &file_count,
+                                    clparams);
+    
+    sysshared_filter_real_files(files, file_count);
+    
+    
+    //
+    // Custom Layer Linkage
+    //
+    
+#ifdef FRED_SUPER
+    char *custom_file_default = "4coder_custom.dll";
+    char *custom_file = 0;
+    if (win32vars.settings.custom_dll) custom_file = win32vars.settings.custom_dll;
+    else custom_file = custom_file_default;
+    
+    win32vars.custom = LoadLibraryA(custom_file);
+    if (!win32vars.custom && custom_file != custom_file_default){
+        if (!win32vars.settings.custom_dll_is_strict){
+            win32vars.custom = LoadLibraryA(custom_file_default);
+        }
+    }
+    
+    if (win32vars.custom){
+        win32vars.custom_api.get_alpha_4coder_version = (_Get_Version_Function*)
+            GetProcAddress(win32vars.custom, "get_alpha_4coder_version");
+        
+        if (win32vars.custom_api.get_alpha_4coder_version == 0 ||
+                win32vars.custom_api.get_alpha_4coder_version(MAJOR, MINOR, PATCH) == 0){
+            OutputDebugStringA("Error: application and custom version numbers don't match");
+            exit(1);
+        }
+        win32vars.custom_api.get_bindings = (Get_Binding_Data_Function*)
+            GetProcAddress(win32vars.custom, "get_bindings");
+        win32vars.custom_api.view_routine = (View_Routine_Function*)
+            GetProcAddress(win32vars.custom, "view_routine");
+    }
+#endif
+    
+    if (win32vars.custom_api.get_bindings == 0){
+        win32vars.custom_api.get_bindings = (Get_Binding_Data_Function*)get_bindings;
+    }
+    
+    if (win32vars.custom_api.view_routine == 0){
+        win32vars.custom_api.view_routine = (View_Routine_Function*)view_routine;
+    }
+    
+    
+    //
+    // Window and GL Initialization
+    //
     
     WNDCLASS window_class = {};
-    window_class.style = CS_HREDRAW|CS_VREDRAW|CS_OWNDC;
+    window_class.style = CS_HREDRAW|CS_VREDRAW;
     window_class.lpfnWndProc = Win32Callback;
     window_class.hInstance = hInstance;
     window_class.lpszClassName = "4coder-win32-wndclass";
     window_class.hIcon = LoadIcon(hInstance, "main");
     
     if (!RegisterClass(&window_class)){
-        return 1;
+        exit(1);
     }
     
     RECT window_rect = {};
-
+    
     if (win32vars.settings.set_window_size){
         window_rect.right = win32vars.settings.window_w;
         window_rect.bottom = win32vars.settings.window_h;
@@ -1808,17 +1795,17 @@ WinMain(HINSTANCE hInstance,
         window_rect.right = 800;
         window_rect.bottom = 600;
     }
-
+    
     if (!AdjustWindowRect(&window_rect, WS_OVERLAPPEDWINDOW, false)){
         // TODO(allen): non-fatal diagnostics
     }
-
+    
 #define WINDOW_NAME "4coder-window: " VERSION
-
+    
     i32 window_x;
     i32 window_y;
     i32 window_style;
-
+    
     if (win32vars.settings.set_window_pos){
         window_x = win32vars.settings.window_x;
         window_y = win32vars.settings.window_y;
@@ -1827,35 +1814,30 @@ WinMain(HINSTANCE hInstance,
         window_x = CW_USEDEFAULT;
         window_y = CW_USEDEFAULT;
     }
-
+    
     window_style = WS_OVERLAPPEDWINDOW | WS_VISIBLE;
     if (win32vars.settings.maximize_window){
         window_style |= WS_MAXIMIZE;
     }
-
+    
+    win32vars.window_handle =
+        CreateWindowA(window_class.lpszClassName,
+                      WINDOW_NAME, window_style,
+                      window_x, window_y,
+                      window_rect.right - window_rect.left,
+                      window_rect.bottom - window_rect.top,
+                      0, 0, hInstance, 0);
+    
+    if (win32vars.window_handle == 0){
+        exit(1);
+    }
+    
+    
     // TODO(allen): not Windows XP compatible, do we care?
     // SetProcessDPIAware();
-
-    HWND window_handle = {};
-    window_handle = CreateWindowA(
-        window_class.lpszClassName,
-        WINDOW_NAME, window_style,
-        window_x, window_y,
-        window_rect.right - window_rect.left,
-        window_rect.bottom - window_rect.top,
-        0, 0, hInstance, 0);
-
-    if (window_handle == 0){
-        return 2;
-    }
-
-    // TODO(allen): errors?
-    win32vars.window_handle = window_handle;
-    HDC hdc = GetDC(window_handle);
-    win32vars.window_hdc = hdc;
-
-    GetClientRect(window_handle, &window_rect);
-
+    
+    GetClientRect(win32vars.window_handle, &window_rect);
+    
     static PIXELFORMATDESCRIPTOR pfd = {
         sizeof(PIXELFORMATDESCRIPTOR),
         1,
@@ -1873,48 +1855,57 @@ WinMain(HINSTANCE hInstance,
         PFD_MAIN_PLANE,
         0,
         0, 0, 0 };
-
-    i32 pixel_format;
-    pixel_format = ChoosePixelFormat(hdc, &pfd);
-    SetPixelFormat(hdc, pixel_format, &pfd);
-
-    win32vars.target.handle = hdc;
-    win32vars.target.context = wglCreateContext(hdc);
-    wglMakeCurrent(hdc, (HGLRC)win32vars.target.context);
+    
+    HDC hdc = GetDC(win32vars.window_handle);
+    {
+        i32 pixel_format;
+        pixel_format = ChoosePixelFormat(hdc, &pfd);
+        SetPixelFormat(hdc, pixel_format, &pfd);
+        
+        win32vars.target.handle = hdc;
+        win32vars.target.context = wglCreateContext(hdc);
+        wglMakeCurrent(hdc, (HGLRC)win32vars.target.context);
+    }
+    ReleaseDC(win32vars.window_handle, hdc);
     
 #if FRED_INTERNAL
-	// NOTE(casey): This slows down GL but puts error messages to the debug console immediately whenever you do something wrong
-	glDebugMessageCallback_type *glDebugMessageCallback = (glDebugMessageCallback_type *)wglGetProcAddress("glDebugMessageCallback");
-	glDebugMessageControl_type *glDebugMessageControl = (glDebugMessageControl_type *)wglGetProcAddress("glDebugMessageControl");
-	if(glDebugMessageCallback && glDebugMessageControl)
-	{
-		glDebugMessageCallback(OpenGLDebugCallback, 0);
-		glDebugMessageControl(GL_DONT_CARE, GL_DONT_CARE, GL_DONT_CARE, 0, 0, GL_TRUE);
-		glEnable(GL_DEBUG_OUTPUT);
-		glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
-	}
+    // NOTE(casey): This slows down GL but puts error messages to the debug console immediately whenever you do something wrong
+    glDebugMessageCallback_type *glDebugMessageCallback = (glDebugMessageCallback_type *)wglGetProcAddress("glDebugMessageCallback");
+    glDebugMessageControl_type *glDebugMessageControl = (glDebugMessageControl_type *)wglGetProcAddress("glDebugMessageControl");
+    if(glDebugMessageCallback && glDebugMessageControl)
+    {
+        glDebugMessageCallback(OpenGLDebugCallback, 0);
+        glDebugMessageControl(GL_DONT_CARE, GL_DONT_CARE, GL_DONT_CARE, 0, 0, GL_TRUE);
+        glEnable(GL_DEBUG_OUTPUT);
+        glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
+    }
 #endif
-
+    
     glEnable(GL_TEXTURE_2D);
     glEnable(GL_SCISSOR_TEST);
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-
+    
     Win32Resize(window_rect.right - window_rect.left, window_rect.bottom - window_rect.top);
-
+    
+    
+    //
+    // Misc System Initializations
+    //
+    
     win32vars.clipboard_sequence = GetClipboardSequenceNumber();
-
+    
     if (win32vars.clipboard_sequence == 0){
         system_post_clipboard(make_lit_string(""));
-
+        
         win32vars.clipboard_sequence = GetClipboardSequenceNumber();
         win32vars.next_clipboard_is_self = 0;
-
+        
         if (win32vars.clipboard_sequence == 0){
             // TODO(allen): diagnostics
         }
     }
-
+    
     else{
         if (IsClipboardFormatAvailable(CF_TEXT)){
             if (OpenClipboard(win32vars.window_handle)){
@@ -1931,23 +1922,45 @@ WinMain(HINSTANCE hInstance,
             }
         }
     }
-
+    
+    LARGE_INTEGER lpf;
+    QueryPerformanceFrequency(&lpf);
+    win32vars.performance_frequency = lpf.QuadPart;
+    QueryPerformanceCounter(&lpf);
+    win32vars.start_pcount = lpf.QuadPart;
+    
+    FILETIME filetime;
+    GetSystemTimeAsFileTime(&filetime);
+    win32vars.start_time = ((u64)filetime.dwHighDateTime << 32) | (filetime.dwLowDateTime);
+    win32vars.start_time /= 10;
+    
+    Win32KeycodeInit();
+    
+    win32vars.cursor_ibeam = LoadCursor(NULL, IDC_IBEAM);
+    win32vars.cursor_arrow = LoadCursor(NULL, IDC_ARROW);
+    win32vars.cursor_leftright = LoadCursor(NULL, IDC_SIZEWE);
+    win32vars.cursor_updown = LoadCursor(NULL, IDC_SIZENS);
+    
+    
+    //
+    // Main Loop
+    //
+    
     win32vars.app.init(win32vars.system, &win32vars.target,
-        &memory_vars, &exchange_vars,
-        win32vars.clipboard_contents, current_directory,
-        win32vars.custom_api);
-
+                       &memory_vars, &exchange_vars,
+                       win32vars.clipboard_contents, current_directory,
+                       win32vars.custom_api);
+    
     system_free_memory(current_directory.str);
-
+    
     win32vars.input_chunk.pers.keep_playing = 1;
     win32vars.first = 1;
     timeBeginPeriod(1);
-
+    
+    SetForegroundWindow(win32vars.window_handle);
+    SetActiveWindow(win32vars.window_handle);
+    
     system_acquire_lock(FRAME_LOCK);
-    
-    SetForegroundWindow(window_handle);
-    SetActiveWindow(window_handle);
-    
     MSG msg;
     for (;win32vars.input_chunk.pers.keep_playing;){
         // TODO(allen): Find a good way to wait on a pipe
@@ -2096,7 +2109,7 @@ WinMain(HINSTANCE hInstance,
         }
     }
     
-    return 0;
+    return(0);
 }
 
 #if 0
