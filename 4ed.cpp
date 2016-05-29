@@ -3255,7 +3255,7 @@ App_Init_Sig(app_init){
             persistent->view_routine = models->config_api.view_routine;
         }
     }
-    
+
     {
         Command_Map *global = 0;
         i32 wanted_size = 0;
@@ -3834,6 +3834,8 @@ App_Step_Sig(app_step){
     cmd->part = partition_sub_part(&models->mem.part, 16 << 10);
     
     if (first_step){
+        
+#if 0
         {
             View *view = 0;
             View_Persistent *persistent = 0;
@@ -3848,22 +3850,17 @@ App_Step_Sig(app_step){
                 persistent->coroutine =
                     system->create_coroutine(view_caller);
                 
-                models->command_coroutine = persistent->coroutine;
-                
                 persistent->coroutine =
                     app_launch_coroutine(system, &models->app_links, Co_View,
-                                         persistent->coroutine,
-                                         view,
-                                         0);
+                                         persistent->coroutine, view, 0);
                 
                 if (!persistent->coroutine){
                     // TODO(allen): Error message and recover
                     NotImplemented;
                 }
             }
-            
-            models->command_coroutine = 0;
         }
+#endif
         
         General_Memory *general = &models->mem.general;
         Editing_File *file = working_set_alloc_always(&models->working_set, general);
@@ -3883,7 +3880,9 @@ App_Step_Sig(app_step){
         i32 i;
         String file_name;
         Panel *panel = models->layout.used_sentinel.next;
-        for (i = 0; i < models->settings.init_files_count; ++i, panel = panel->next){
+        for (i = 0;
+             i < models->settings.init_files_count;
+             ++i, panel = panel->next){
             file_name = make_string_slowly(models->settings.init_files[i]);
 
             if (i < models->layout.panel_count){
@@ -3902,7 +3901,7 @@ App_Step_Sig(app_step){
         }
     }
     
-    // NOTE(allen): try to abort the command corroutine if we are shutting down
+    // NOTE(allen): respond if the user is trying to kill the application
     if (app_result.trying_to_kill){
         b32 there_is_unsaved = 0;
         app_result.animating = 1;
@@ -3921,15 +3920,14 @@ App_Step_Sig(app_step){
             Coroutine *command_coroutine = models->command_coroutine;
             View *view = cmd->view;
             i32 i = 0;
-
+            
             while (command_coroutine){
                 User_Input user_in = {0};
                 user_in.abort = 1;
                 
                 command_coroutine =
                     app_resume_coroutine(system, &models->app_links, Co_Command,
-                                         command_coroutine,
-                                         &user_in,
+                                         command_coroutine, &user_in,
                                          models->command_coroutine_flags);
                 
                 ++i;
@@ -3941,15 +3939,16 @@ App_Step_Sig(app_step){
             if (view != 0){
                 init_query_set(&view->query_set);
             }
-
+            
             if (view == 0){
                 Panel *panel = models->layout.used_sentinel.next;
                 view = panel->view;
             }
-
+            
             view_show_interactive(system, view, &models->map_ui,
-                IAct_Sure_To_Close, IInt_Sure_To_Close, make_lit_string("Are you sure?"));
-
+                                  IAct_Sure_To_Close, IInt_Sure_To_Close,
+                                  make_lit_string("Are you sure?"));
+            
             models->command_coroutine = command_coroutine;
         }
         else{
@@ -3959,7 +3958,7 @@ App_Step_Sig(app_step){
     
     // NOTE(allen): process the command_coroutine if it is unfinished
     Available_Input available_input = init_available_input(&key_summary, mouse);
-
+    
     // NOTE(allen): Keyboard input to command coroutine.
     if (models->command_coroutine != 0){
         Coroutine *command_coroutine = models->command_coroutine;

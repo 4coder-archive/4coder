@@ -436,8 +436,6 @@ get_bindings(void *data, int size){
     return(result);
 }
 
-#include "4coder_default_view.cpp"
-
 #endif
 
 // BOTTOM

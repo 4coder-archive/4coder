@@ -1756,8 +1756,14 @@ WinMain(HINSTANCE hInstance,
         }
         win32vars.custom_api.get_bindings = (Get_Binding_Data_Function*)
             GetProcAddress(win32vars.custom, "get_bindings");
+        
+        // NOTE(allen): I am temporarily taking the view routine
+        // back out, it will be back soon.
+#if 0
         win32vars.custom_api.view_routine = (View_Routine_Function*)
             GetProcAddress(win32vars.custom, "view_routine");
+#endif
+        
     }
 #endif
     
@@ -1765,10 +1771,13 @@ WinMain(HINSTANCE hInstance,
         win32vars.custom_api.get_bindings = (Get_Binding_Data_Function*)get_bindings;
     }
     
+    win32vars.custom_api.view_routine = (View_Routine_Function*)0;
+#if 0
     if (win32vars.custom_api.view_routine == 0){
         win32vars.custom_api.view_routine = (View_Routine_Function*)view_routine;
     }
-    
+#endif
+
     
     //
     // Window and GL Initialization

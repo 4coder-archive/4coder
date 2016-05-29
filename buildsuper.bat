@@ -11,7 +11,7 @@ SET OPTS=/W4 /wd4310 /wd4100 /wd4201 /wd4505 /wd4996 /wd4127 /wd4510 /wd4512 /wd
 SET OPTS=%OPTS% /GR- /nologo
 SET DEBUG=/Zi
 set BUILD_DLL=/LD /link /INCREMENTAL:NO /OPT:REF
-SET EXPORTS=/EXPORT:view_routine /EXPORT:get_bindings /EXPORT:get_alpha_4coder_version
+SET EXPORTS=/EXPORT:get_bindings /EXPORT:get_alpha_4coder_version
 
 REM SET LINKS=user32.lib gdi32.lib
 SET LINKS=
