@@ -2214,7 +2214,7 @@ main(int argc, char **argv)
     memory_vars.user_memory_size = Mbytes(2);
     memory_vars.user_memory = mmap(0, memory_vars.user_memory_size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
 #endif
-
+    
     String current_directory;
     i32 curdir_req, curdir_size;
     char *curdir_mem;
