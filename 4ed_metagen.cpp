@@ -156,14 +156,11 @@ char *daction_enum[] = {
     "SAVE",
     "NEW",
     "SWITCH",
-#endif
     "TRY_KILL",
-#if 0
     "KILL",
     "TOUCH_FILE",
-#endif
-    
     "CLOSE",
+#endif
 };
 
 char str_alloc_copy[] =

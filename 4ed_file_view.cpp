@@ -3170,6 +3170,35 @@ kill_file(System_Functions *system, Models *models,
 }
 
 internal void
+try_kill_file(System_Functions *system, Models *models,
+              Editing_File *file, View *view, String string){
+    Working_Set *working_set = &models->working_set;
+    
+    if (!file && string.str){
+        file = working_set_lookup_file(working_set, string);
+        if (!file){
+            file = working_set_contains(system, working_set, string);
+        }
+    }
+    
+    if (file && !file->settings.never_kill){
+        if (buffer_needs_save(file)){
+            if (view == 0){
+                view = models->layout.panels[models->layout.active_panel].view;
+            }
+            view_show_interactive(system, view, &models->map_ui,
+                                  IAct_Sure_To_Kill, IInt_Sure_To_Kill,
+                                  make_lit_string("Are you sure?"));
+            copy(&view->dest, file->name.live_name);
+        }
+        else{
+            kill_file(system, models, file, string_zero());
+            view_show_file(view);
+        }
+    }
+}
+
+internal void
 interactive_view_complete(System_Functions *system, View *view, String dest, i32 user_action){
     Models *models = view->persistent.models;
     Editing_File *old_file = view->file_data.file;
@@ -3178,10 +3207,12 @@ interactive_view_complete(System_Functions *system, View *view, String dest, i32
         case IAct_Open:
         view_open_file(system, models, view, dest);
         touch_file(&models->working_set, old_file);
+        view_show_file(view);
         break;
         
         case IAct_Save_As:
         view_save_file(system, models, 0, view, dest, 1);
+        view_show_file(view);
         break;
         
         case IAct_New:
@@ -3189,6 +3220,7 @@ interactive_view_complete(System_Functions *system, View *view, String dest, i32
         if (dest.size > 0 &&
             !char_is_slash(models->hot_directory.string.str[dest.size-1])){
             view_new_file(system, models, view, dest);
+            view_show_file(view);
         }break;
         
         case IAct_Switch:
@@ -3205,24 +3237,25 @@ interactive_view_complete(System_Functions *system, View *view, String dest, i32
             if (file){
                 view_set_file(view, file, models);
             }
+            view_show_file(view);
         }
         break;
         
         case IAct_Kill:
-        delayed_try_kill(&models->delay1, dest);
+        try_kill_file(system, models, 0, 0, dest);
         break;
         
         case IAct_Sure_To_Close:
         switch (user_action){
             case 0:
-            delayed_close(&models->delay1);
+            models->keep_playing = 0;
             break;
             
             case 1:
             break;
             
             case 2:
-            // TODO(allen): Save all.
+            // TODO(allen): Save all and close.
             break;
         }
         break;
@@ -3231,6 +3264,7 @@ interactive_view_complete(System_Functions *system, View *view, String dest, i32
         switch (user_action){
             case 0:
             kill_file(system, models, 0, dest);
+            view_show_file(view);
             break;
             
             case 1:
@@ -3238,12 +3272,12 @@ interactive_view_complete(System_Functions *system, View *view, String dest, i32
             
             case 2:
             view_save_file(system, models, 0, 0, dest, 0);
-            kill_file(system, models, 0, dest);;
+            kill_file(system, models, 0, dest);
+            view_show_file(view);
             break;
         }
         break;
     }
-    view_show_file(view);
 }
 
 #if 0
@@ -4023,6 +4057,11 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
 
                 case VUI_Interactive:
                 {
+                    b32 complete = 0;
+                    char comp_dest_space[1024];
+                    String comp_dest = make_fixed_width_string(comp_dest_space);
+                    i32 comp_action = 0;
+                    
                     view->current_scroll = &view->gui_scroll;
                     
                     GUI_id id = {0};
@@ -4107,7 +4146,8 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                                                 do_new_directory = 1;
                                             }
                                             else if (use_item_in_list){
-                                                interactive_view_complete(system, view, loop.full_path, 0);
+                                                complete = 1;
+                                                copy(&comp_dest, loop.full_path);
                                             }
                                         }
                                     }
@@ -4117,7 +4157,8 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                             gui_end_list(target);
                             
                             if (activate_directly){
-                                interactive_view_complete(system, view, hdir->string, 0);
+                                complete = 1;
+                                copy(&comp_dest, hdir->string);
                             }
                             
                             if (do_new_directory){
@@ -4211,7 +4252,8 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
 
                                                 id.id[0] = (u64)(file);
                                                 if (gui_do_file_option(target, id, file->name.live_name, 0, message)){
-                                                    interactive_view_complete(system, view, file->name.live_name, 0);
+                                                    complete = 1;
+                                                    copy(&comp_dest, file->name.live_name);
                                                 }
                                             }
                                         }
@@ -4229,7 +4271,8 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
 
                                     id.id[0] = (u64)(file);
                                     if (gui_do_file_option(target, id, file->name.live_name, 0, message)){
-                                        interactive_view_complete(system, view, file->name.live_name, 0);
+                                        complete = 1;
+                                        copy(&comp_dest, file->name.live_name);
                                     }
                                 }
 
@@ -4263,7 +4306,9 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                             }
 
                             if (action != -1){
-                                interactive_view_complete(system, view, view->dest, action);
+                                complete = 1;
+                                copy(&comp_dest, view->dest);
+                                comp_action = action;
                             }
                         }break;
 
@@ -4293,11 +4338,18 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                             if (gui_do_fixed_option(target, id, message, 's')){
                                 action = 2;
                             }
-
+                            
                             if (action != -1){
-                                interactive_view_complete(system, view, view->dest, action);
+                                complete = 1;
+                                copy(&comp_dest, view->dest);
+                                comp_action = action;
                             }
                         }break;
+                    }
+                    
+                    if (complete){
+                        terminate_with_null(&comp_dest);
+                        interactive_view_complete(system, view, comp_dest, comp_action);
                     }
                 }break;
             }

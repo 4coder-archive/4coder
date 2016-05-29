@@ -969,12 +969,10 @@ COMMAND_DECL(interactive_kill_buffer){
 }
 
 COMMAND_DECL(kill_buffer){
-    
     USE_MODELS(models);
     USE_VIEW(view);
     USE_FILE(file, view);
 
-    Delay *delay = &models->delay1;
     int buffer_id = 0;
 
     Command_Parameter *end = param_stack_end(&command->part);
@@ -993,7 +991,8 @@ COMMAND_DECL(kill_buffer){
         }
     }
     else if (file){
-        delayed_try_kill(delay, file, view->panel);
+        try_kill_file(system, models,
+                      file, view, string_zero());
     }
 }
 
@@ -3128,6 +3127,7 @@ App_Init_Sig(app_init){
     
     vars = (App_Vars*)memory->vars_memory;
     models = &vars->models;
+    models->keep_playing = 1;
     
     app_links_init(system, &models->app_links, memory->user_memory, memory->user_memory_size);
     
@@ -4374,41 +4374,21 @@ App_Step_Sig(app_step){
                 }break;
 #endif
 
+                
+#if 0
                 case DACT_TRY_KILL:
                 {
-                    View *view = 0;
-                    if (panel){
-                        view = panel->view;
-                    }
-                    else{
-                        view = (models->layout.panels + models->layout.active_panel)->view;
-                    }
                     
-                    if (!file && string.str){
-                        file = working_set_lookup_file(working_set, string);
-                        if (!file){
-                            file = working_set_contains(system, working_set, string);
-                        }
-                    }
-                    
-                    if (file && !file->settings.never_kill){
-                        if (buffer_needs_save(file)){
-                            view_show_interactive(system, view, &models->map_ui,
-                                                  IAct_Sure_To_Kill, IInt_Sure_To_Kill,
-                                                  make_lit_string("Are you sure?"));
-                            copy(&view->dest, file->name.live_name);
-                        }
-                        else{
-                            working_set_remove(system, working_set, file->name.source_path);
-                            kill_file(system, models, file, string_zero());
-                        }
-                    }
                 }break;
-                
+#endif
+
+#if 0
                 case DACT_CLOSE:
                 {
-                    app_result.perform_kill = 1;
+                    
                 }break;
+#endif
+
             }
 
             if (string.str){
@@ -4537,6 +4517,8 @@ App_Step_Sig(app_step){
     *result = app_result;
     
     Assert(general_memory_check(&models->mem.general));
+    
+    app_result.perform_kill = models->keep_playing;
     
     // end-of-app_step
 }
