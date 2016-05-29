@@ -627,7 +627,7 @@ view_compute_lowest_line(View *view){
             f32 max_width = view_file_width(view);
             
             Editing_File *file = view->file_data.file;
-            Assert(!file->state.is_dummy);
+            Assert(!file->is_dummy);
             f32 width = file->state.buffer.line_widths[last_line];
             i32 line_span = view_wrapped_line_span(width, max_width);
             lowest_line += line_span - 1;
@@ -878,7 +878,7 @@ file_first_lex_parallel(System_Functions *system,
                         General_Memory *general, Editing_File *file){
     file->settings.tokens_exist = 1;
     
-    if (file->state.is_loading == 0 && file->state.still_lexing == 0){
+    if (file->is_loading == 0 && file->state.still_lexing == 0){
         Assert(file->state.token_stack.tokens == 0);
         
         file->state.tokens_complete = 0;
@@ -2428,7 +2428,7 @@ view_clean_whitespace(System_Functions *system, Models *models, View *view){
     i32 edit_max = line_count * 2;
     i32 edit_count = 0;
     
-    Assert(file && !file->state.is_dummy);
+    Assert(file && !file->is_dummy);
     
     Temp_Memory temp = begin_temp_memory(part);
     Buffer_Edit *edits = push_array(part, Buffer_Edit, edit_max);
@@ -2844,7 +2844,7 @@ view_auto_tab_tokens(System_Functions *system, Models *models,
     Partition *part = &mem->part;
     Buffer *buffer = &file->state.buffer;
     
-    Assert(file && !file->state.is_dummy);
+    Assert(file && !file->is_dummy);
     Cpp_Token_Stack tokens = file->state.token_stack;
     Assert(tokens.tokens);
     
@@ -3506,7 +3506,7 @@ internal b32
 file_step(View *view, i32_Rect region, Input_Summary *user_input, b32 is_active){
     i32 is_animating = 0;
     Editing_File *file = view->file_data.file;
-    if (file && !file->state.is_loading){
+    if (file && !file->is_loading){
         f32 max_visible_y = view_file_height(view);
         f32 max_x = view_file_width(view);
         
@@ -4232,7 +4232,7 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                                 used_nodes = &working_set->used_sentinel;
                                 for (dll_items(node, used_nodes)){
                                     file = (Editing_File*)node;
-                                    Assert(!file->state.is_dummy);
+                                    Assert(!file->is_dummy);
 
                                     if (filename_match(view->dest, &absolutes, file->name.live_name, 1)){
                                         iter = file_view_iter_init(layout, file, 0);
@@ -4687,7 +4687,7 @@ draw_file_loaded(View *view, i32_Rect rect, b32 is_active, Render_Target *target
     i32 max_x = rect.x1 - rect.x0;
     i32 max_y = rect.y1 - rect.y0 + line_height;
 
-    Assert(file && !file->state.is_dummy && buffer_good(&file->state.buffer));
+    Assert(file && !file->is_dummy && buffer_good(&file->state.buffer));
 
     b32 tokens_use = 0;
     Cpp_Token_Stack token_stack = {};
@@ -4941,7 +4941,7 @@ draw_file_bar(Render_Target *target, View *view, Editing_File *file, i32_Rect re
             intbar_draw_string(target, &bar, file->name.live_name, base_color);
             intbar_draw_string(target, &bar, make_lit_string(" -"), base_color);
             
-            if (file->state.is_loading){
+            if (file->is_loading){
                 intbar_draw_string(target, &bar, make_lit_string(" loading"), base_color);
             }
             else{

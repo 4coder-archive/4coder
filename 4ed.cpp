@@ -906,7 +906,7 @@ COMMAND_DECL(save){
         
         if (file){
             if (name.str){
-                if (!file->state.is_dummy && file_is_ready(file)){
+                if (!file->is_dummy && file_is_ready(file)){
                     view_save_file(system, models, file, 0, name, 1);
                 }
             }
@@ -927,7 +927,7 @@ COMMAND_DECL(save){
         
         if (name.size != 0){
             if (file){
-                if (!file->state.is_dummy && file_is_ready(file)){
+                if (!file->is_dummy && file_is_ready(file)){
                     view_save_file(system, models, file, 0, name, 0);
                 }
             }
@@ -1751,7 +1751,7 @@ globalvar Command_Function command_table[cmdid_count];
 internal void
 fill_buffer_summary(Buffer_Summary *buffer, Editing_File *file, Working_Set *working_set){
     *buffer = buffer_summary_zero();
-    if (!file->state.is_dummy){
+    if (!file->is_dummy){
         buffer->exists = 1;
         buffer->ready = file_is_ready(file);
 
@@ -1952,7 +1952,7 @@ extern "C"{
         Working_Set *working_set = &cmd->models->working_set;
 
         file = working_set_contains(cmd->system, working_set, make_string(filename, len));
-        if (file && !file->state.is_dummy){
+        if (file && !file->is_dummy){
             fill_buffer_summary(&buffer, file, working_set);
         }
         
@@ -2241,7 +2241,7 @@ extern "C"{
             if (view_id >= 0 && view_id < live_set->max){
                 vptr = live_set->views + view_id;
                 file = vptr->file_data.file;
-                if (file && !file->state.is_loading){
+                if (file && !file->is_loading){
                     if (seek.type == buffer_seek_line_char && seek.character <= 0){
                         seek.character = 1;
                     }
@@ -2268,7 +2268,7 @@ extern "C"{
             if (view_id >= 0 && view_id < live_set->max){
                 vptr = live_set->views + view_id;
                 file = vptr->file_data.file;
-                if (file && !file->state.is_loading){
+                if (file && !file->is_loading){
                     result = 1;
                     if (seek.type == buffer_seek_line_char && seek.character <= 0){
                         seek.character = 1;
@@ -2945,12 +2945,12 @@ init_command_line_settings(App_Settings *settings, Plat_Settings *plat_settings,
                     switch (arg[1]){
                         case 'u': action = CLAct_UserFile; strict = 0;     break;
                         case 'U': action = CLAct_UserFile; strict = 1;     break;
-
+                        
                         case 'd': action = CLAct_CustomDLL; strict = 0;    break;
                         case 'D': action = CLAct_CustomDLL; strict = 1;    break;
-
+                        
                         case 'i': action = CLAct_InitialFilePosition;      break;
-
+                        
                         case 'w': action = CLAct_WindowSize;               break;
                         case 'W': action = CLAct_WindowMaximize;         break;
                         case 'p': action = CLAct_WindowPosition;           break;
@@ -2965,7 +2965,7 @@ init_command_line_settings(App_Settings *settings, Plat_Settings *plat_settings,
                     }
                 }
             }break;
-
+            
             case CLAct_UserFile:
             {
                 settings->user_file_is_strict = strict;
@@ -2974,7 +2974,7 @@ init_command_line_settings(App_Settings *settings, Plat_Settings *plat_settings,
                 }
                 action = CLAct_Nothing;
             }break;
-
+            
             case CLAct_CustomDLL:
             {
                 plat_settings->custom_dll_is_strict = strict;
@@ -2983,7 +2983,7 @@ init_command_line_settings(App_Settings *settings, Plat_Settings *plat_settings,
                 }
                 action = CLAct_Nothing;
             }break;
-
+            
             case CLAct_InitialFilePosition:
             {
                 if (i < clparams.argc){
@@ -2991,33 +2991,33 @@ init_command_line_settings(App_Settings *settings, Plat_Settings *plat_settings,
                 }
                 action = CLAct_Nothing;
             }break;
-
+            
             case CLAct_WindowSize:
             {
                 if (i + 1 < clparams.argc){
                     plat_settings->set_window_size  = 1;
                     plat_settings->window_w = str_to_int(clparams.argv[i]);
                     plat_settings->window_h = str_to_int(clparams.argv[i+1]);
-
+                    
                     ++i;
                 }
                 action = CLAct_Nothing;
             }break;
-
+            
             case CLAct_WindowMaximize:
             {
                 --i;
                 plat_settings->maximize_window = 1;
                 action = CLAct_Nothing;
             }break;
-
+            
             case CLAct_WindowPosition:
             {
                 if (i + 1 < clparams.argc){
                     plat_settings->set_window_pos  = 1;
                     plat_settings->window_x = str_to_int(clparams.argv[i]);
                     plat_settings->window_y = str_to_int(clparams.argv[i+1]);
-
+                    
                     ++i;
                 }
                 action = CLAct_Nothing;
@@ -3029,7 +3029,7 @@ init_command_line_settings(App_Settings *settings, Plat_Settings *plat_settings,
                     settings->font_size = str_to_int(clparams.argv[i]);
                 }
                 action = CLAct_Nothing;
-			}break;
+            }break;
         }
     }
 }
@@ -3047,9 +3047,9 @@ app_setup_memory(Application_Memory *memory){
     Assert(vars);
     *vars = app_vars_zero();
     vars->models.mem.part = _partition;
-
+    
     general_memory_open(&vars->models.mem.general, memory->target_memory, memory->target_memory_size);
-
+    
     return(vars);
 }
 
@@ -3079,13 +3079,13 @@ App_Read_Command_Line_Sig(app_read_command_line){
     App_Vars *vars;
     App_Settings *settings;
     i32 out_size = 0;
-
+    
     if (clparams.argc > 1 && match(clparams.argv[1], "-T")){
         out_size = execute_special_tool(memory->target_memory, memory->target_memory_size, clparams);
     }
     else{
         vars = app_setup_memory(memory);
-
+        
         settings = &vars->models.settings;
         *settings = app_settings_zero();
         settings->font_size = 16;
@@ -3097,7 +3097,7 @@ App_Read_Command_Line_Sig(app_read_command_line){
         *files = vars->models.settings.init_files;
         *file_count = &vars->models.settings.init_files_count;
     }
-
+    
     return(out_size);
 }
 
@@ -3190,7 +3190,7 @@ App_Init_Sig(app_init){
             persistent->view_routine = models->config_api.view_routine;
         }
     }
-
+    
     {
         Command_Map *global = 0;
         i32 wanted_size = 0;
@@ -3415,17 +3415,6 @@ App_Init_Sig(app_init){
         copy(dest, make_string((char*)clipboard.str, clipboard.size));
     }
     
-    // NOTE(allen): delay setup
-    models->delay1.general = &models->mem.general;
-    models->delay1.max = 16;
-    models->delay1.acts = (Delayed_Action*)general_memory_allocate(
-                                                                   &models->mem.general, models->delay1.max*sizeof(Delayed_Action), 0);
-    
-    models->delay2.general = &models->mem.general;
-    models->delay2.max = 16;
-    models->delay2.acts = (Delayed_Action*)general_memory_allocate(
-                                                                   &models->mem.general, models->delay2.max*sizeof(Delayed_Action), 0);
-    
     // NOTE(allen): style setup
     app_hardcode_styles(models);
     
@@ -3455,17 +3444,17 @@ App_Init_Sig(app_init){
 
 internal i32
 update_cli_handle_with_file(System_Functions *system, Models *models,
-    CLI_Handles *cli, Editing_File *file, char *dest, i32 max, b32 cursor_at_end){
+                            CLI_Handles *cli, Editing_File *file, char *dest, i32 max, b32 cursor_at_end){
     i32 result = 0;
     u32 amount;
     
     for (system->cli_begin_update(cli);
-        system->cli_update_step(cli, dest, max, &amount);){
+         system->cli_update_step(cli, dest, max, &amount);){
         amount = eol_in_place_convert_in(dest, amount);
         output_file_append(system, models, file, make_string(dest, amount), cursor_at_end);
         result = 1;
     }
-
+    
     if (system->cli_end_update(cli)){
         char str_space[256];
         String str = make_fixed_width_string(str_space);
@@ -3474,16 +3463,16 @@ update_cli_handle_with_file(System_Functions *system, Models *models,
         output_file_append(system, models, file, str, cursor_at_end);
         result = -1;
     }
-
+    
     i32 new_cursor = 0;
     
     if (cursor_at_end){
         new_cursor = buffer_size(&file->state.buffer);
     }
-
+    
     for (View_Iter iter = file_view_iter_init(&models->layout, file, 0);
-        file_view_iter_good(iter);
-        iter = file_view_iter_next(iter)){
+         file_view_iter_good(iter);
+         iter = file_view_iter_next(iter)){
         view_cursor_move(iter.view, new_cursor);
     }
     
@@ -3656,16 +3645,16 @@ App_Step_Sig(app_step){
             break;
         }
     }
-
+    
     if (!(mouse_in_edit_area || mouse_in_margin_area)){
         mouse_panel = 0;
     }
-
+    
     b32 mouse_on_divider = 0;
     b32 mouse_divider_vertical = 0;
     i32 mouse_divider_id = 0;
     i32 mouse_divider_side = 0;
-
+    
     if (mouse_in_margin_area){
         Panel *panel = mouse_panel;
         if (mx >= panel->inner.x0 && mx < panel->inner.x1){
@@ -3686,20 +3675,20 @@ App_Step_Sig(app_step){
                 mouse_divider_side = 1;
             }
         }
-
+        
         if (models->layout.panel_count > 1){
             i32 which_child;
             mouse_divider_id = panel->parent;
             which_child = panel->which_child;
             for (;;){
                 Divider_And_ID div = layout_get_divider(&models->layout, mouse_divider_id);
-
+                
                 if (which_child == mouse_divider_side &&
-                        div.divider->v_divider == mouse_divider_vertical){
+                    div.divider->v_divider == mouse_divider_vertical){
                     mouse_on_divider = 1;
                     break;
                 }
-
+                
                 if (mouse_divider_id == models->layout.root){
                     break;
                 }
@@ -3752,16 +3741,16 @@ App_Step_Sig(app_step){
     
     // NOTE(allen): prepare to start executing commands
     Command_Data *cmd = &vars->command_data;
-
+    
     cmd->models = models;
     cmd->vars = vars;
     cmd->system = system;
     cmd->exchange = exchange;
     cmd->live_set = &vars->live_set;
-
+    
     cmd->panel = models->layout.panels + models->layout.active_panel;
     cmd->view = cmd->panel->view;
-
+    
     cmd->screen_width = target->width;
     cmd->screen_height = target->height;
     
@@ -3813,7 +3802,7 @@ App_Step_Sig(app_step){
             models->hooks[hook_start](&models->app_links);
             cmd->part.pos = 0;
         }
-
+        
         i32 i;
         String filename;
         Panel *panel = models->layout.used_sentinel.next;
@@ -3821,12 +3810,18 @@ App_Step_Sig(app_step){
              i < models->settings.init_files_count;
              ++i, panel = panel->next){
             filename = make_string_slowly(models->settings.init_files[i]);
-
+            
             if (i < models->layout.panel_count){
                 view_open_file(system, models, panel->view, filename);
+#if 0
                 if (i == 0){
-                    delayed_set_line(&models->delay1, panel, models->settings.initial_line);
+                    if (panel->view->file_data.file){
+                        // TODO(allen): How to set the cursor of a file on the first frame?
+                        view_compute_cursor_from_line_pos(panel->view, models->settings.initial_line, 1);
+                        view_move_view_to_cursor(panel->view, &panel->view->recent->scroll);
+                    }
                 }
+#endif
             }
             else{
                 view_open_file(system, models, 0, filename);
@@ -3901,9 +3896,9 @@ App_Step_Sig(app_step){
         Coroutine *command_coroutine = models->command_coroutine;
         u32 get_flags = models->command_coroutine_flags[0];
         u32 abort_flags = models->command_coroutine_flags[1];
-
+        
         get_flags |= abort_flags;
-
+        
         if ((get_flags & EventOnAnyKey) || (get_flags & EventOnEsc)){
             Key_Summary key_data = get_key_data(&available_input);
             
@@ -3912,25 +3907,25 @@ App_Step_Sig(app_step){
                 View *view = cmd->view;
                 b32 pass_in = 0;
                 cmd->key = key;
-
+                
                 Command_Map *map = 0;
                 if (view) map = view->map;
                 if (map == 0) map = &models->map_top;
                 Command_Binding cmd_bind = map_extract_recursive(map, key);
-
+                
                 User_Input user_in;
                 user_in.type = UserInputKey;
                 user_in.key = key;
                 user_in.command = (unsigned long long)cmd_bind.custom;
                 user_in.abort = 0;
-
+                
                 if ((EventOnEsc & abort_flags) && key.keycode == key_esc){
                     user_in.abort = 1;
                 }
                 else if (EventOnAnyKey & abort_flags){
                     user_in.abort = 1;
                 }
-
+                
                 if (EventOnAnyKey & get_flags){
                     pass_in = 1;
                     consume_input(&available_input, Input_AnyKey);
@@ -3941,7 +3936,7 @@ App_Step_Sig(app_step){
                     }
                     consume_input(&available_input, Input_Esc);
                 }
-
+                
                 if (pass_in){
                     models->command_coroutine =
                         app_resume_coroutine(system, &models->app_links, Co_Command,
@@ -3950,7 +3945,7 @@ App_Step_Sig(app_step){
                                              models->command_coroutine_flags);
                     
                     app_result.animating = 1;
-
+                    
                     // TOOD(allen): Deduplicate
                     // TODO(allen): Should I somehow allow a view to clean up however it wants after a
                     // command finishes, or after transfering to another view mid command?
@@ -3961,18 +3956,18 @@ App_Step_Sig(app_step){
                 }
             }
         }
-
+        
         // NOTE(allen): Mouse input to command coroutine
         if (models->command_coroutine != 0 && (get_flags & EventOnMouse)){
             View *view = cmd->view;
             b32 pass_in = 0;
-
+            
             User_Input user_in;
             user_in.type = UserInputMouse;
             user_in.mouse = input->mouse;
             user_in.command = 0;
             user_in.abort = 0;
-
+            
             if (abort_flags & EventOnMouseMove){
                 user_in.abort = 1;
             }
@@ -3980,7 +3975,7 @@ App_Step_Sig(app_step){
                 pass_in = 1;
                 consume_input(&available_input, Input_MouseMove);
             }
-
+            
             if (input->mouse.press_l || input->mouse.release_l || input->mouse.l){
                 if (abort_flags & EventOnLeftButton){
                     user_in.abort = 1;
@@ -3990,7 +3985,7 @@ App_Step_Sig(app_step){
                     consume_input(&available_input, Input_MouseLeftButton);
                 }
             }
-
+            
             if (input->mouse.press_r || input->mouse.release_r || input->mouse.r){
                 if (abort_flags & EventOnRightButton){
                     user_in.abort = 1;
@@ -4000,7 +3995,7 @@ App_Step_Sig(app_step){
                     consume_input(&available_input, Input_MouseRightButton);
                 }
             }
-
+            
             if (input->mouse.wheel != 0){
                 if (abort_flags & EventOnWheel){
                     user_in.abort = 1;
@@ -4010,7 +4005,7 @@ App_Step_Sig(app_step){
                     consume_input(&available_input, Input_MouseWheel);
                 }
             }
-
+            
             if (pass_in){
                 models->command_coroutine = 
                     app_resume_coroutine(system, &models->app_links, Co_Command,
@@ -4029,7 +4024,7 @@ App_Step_Sig(app_step){
             }
         }
     }
-
+    
     update_command_data(vars, cmd);
     
     // NOTE(allen): pass raw input to the panels
@@ -4037,7 +4032,7 @@ App_Step_Sig(app_step){
     Input_Summary dead_input = {};
     dead_input.mouse.x = input->mouse.x;
     dead_input.mouse.y = input->mouse.y;
-
+    
     Input_Summary active_input = {};
     active_input.mouse.x = input->mouse.x;
     active_input.mouse.y = input->mouse.y;
@@ -4086,7 +4081,7 @@ App_Step_Sig(app_step){
             view->scroll_region = result.region;
         }
     }
-
+    
     update_command_data(vars, cmd);
     
     // NOTE(allen): command execution
@@ -4097,7 +4092,7 @@ App_Step_Sig(app_step){
         
         for (i32 key_i = 0; key_i < key_data.count; ++key_i){
             if (models->command_coroutine != 0) break;
-
+            
             switch (vars->state){
                 case APP_STATE_EDIT:
                 {
@@ -4200,7 +4195,7 @@ App_Step_Sig(app_step){
                 vars->state = APP_STATE_RESIZING;
                 Divider_And_ID div = layout_get_divider(&models->layout, mouse_divider_id);
                 vars->resizing.divider = div.divider;
-
+                
                 i32 min, max;
                 {
                     i32 mid, MIN, MAX;
@@ -4215,7 +4210,7 @@ App_Step_Sig(app_step){
                     }
                     min = MIN;
                     max = MAX;
-
+                    
                     i32 divider_id = div.id;
                     do{
                         Divider_And_ID other_div = layout_get_divider(&models->layout, divider_id);
@@ -4229,12 +4224,12 @@ App_Step_Sig(app_step){
                         }
                         divider_id = other_div.divider->parent;
                     }while(divider_id != -1);
-
+                    
                     Temp_Memory temp = begin_temp_memory(&models->mem.part);
                     i32 *divider_stack = push_array(&models->mem.part, i32, models->layout.panel_count);
                     i32 top = 0;
                     divider_stack[top++] = div.id;
-
+                    
                     while (top > 0){
                         Divider_And_ID other_div = layout_get_divider(&models->layout, divider_stack[--top]);
                         b32 divider_match = (other_div.divider->v_divider == mouse_divider_vertical);
@@ -4252,15 +4247,15 @@ App_Step_Sig(app_step){
                             divider_stack[top++] = other_div.divider->child2;
                         }
                     }
-
+                    
                     end_temp_memory(temp);
                 }
-
+                
                 vars->resizing.min = min;
                 vars->resizing.max = max;
             }
         }break;
-
+        
         case APP_STATE_RESIZING:
         {
             if (input->mouse.l){
@@ -4271,14 +4266,14 @@ App_Step_Sig(app_step){
                 else{
                     divider->pos = my;
                 }
-
+                
                 if (divider->pos < vars->resizing.min){
                     divider->pos = vars->resizing.min;
                 }
                 else if (divider->pos > vars->resizing.max){
                     divider->pos = vars->resizing.max - 1;
                 }
-
+                
                 layout_fix_all_panels(&models->layout);
             }
             else{
@@ -4293,111 +4288,6 @@ App_Step_Sig(app_step){
     
     update_command_data(vars, cmd);
     
-    // NOTE(allen): process as many delayed actions as possible
-    if (models->delay1.count > 0){
-        Working_Set *working_set = &models->working_set;
-        Mem_Options *mem = &models->mem;
-        General_Memory *general = &mem->general;
-        
-        i32 count = models->delay1.count;
-        models->delay1.count = 0;
-        models->delay2.count = 0;
-        
-        Delayed_Action *act = models->delay1.acts;
-        for (i32 i = 0; i < count; ++i, ++act){
-            String string = act->string;
-            Panel *panel = act->panel;
-            Editing_File *file = act->file;
-            i32 integer = act->integer;
-            
-            // TODO(allen): Paramter checking in each DACT case.
-            switch (act->type){
-#if 0
-                case DACT_TOUCH_FILE:
-                {
-                    
-                }break;
-#endif
-#if 0
-                case DACT_OPEN:
-                case DACT_OPEN_BACKGROUND:
-                {
-                    
-                }break;
-#endif
-                
-                case DACT_SET_LINE:
-                {
-                    // TODO(allen): deduplicate
-                    if (panel){
-                        file = panel->view->file_data.file;
-                    }
-                    else if (string.str && string.size > 0){
-                        file = working_set_lookup_file(working_set, string);
-                    }
-                    if (file){
-                        if (file->state.is_loading){
-                            file->preload.start_line = integer;
-                        }
-                        else{
-                            // TODO(allen): write this case
-                        }
-                    }
-                }break;
-                
-#if 0
-                case DACT_SAVE:
-                case DACT_SAVE_AS:
-                {
-                    
-                }break;
-#endif
-                
-#if 0
-                case DACT_NEW:
-                {
-                    
-                }break;
-#endif
-                
-#if 0
-                case DACT_SWITCH:
-                {
-                    
-                }break;
-#endif
-
-#if 0
-                case DACT_KILL:
-                {
-                    
-                }break;
-#endif
-
-                
-#if 0
-                case DACT_TRY_KILL:
-                {
-                    
-                }break;
-#endif
-
-#if 0
-                case DACT_CLOSE:
-                {
-                    
-                }break;
-#endif
-
-            }
-
-            if (string.str){
-                general_memory_free(general, string.str);
-            }
-        }
-        Swap(Delay, models->delay1, models->delay2);
-    }
-
     end_temp_memory(param_stack_temp);
     
     // NOTE(allen): send resize messages to panels that have changed size

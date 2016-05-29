@@ -44,7 +44,6 @@
 #include "4ed_file.cpp"
 #include "4ed_gui.cpp"
 #include "4ed_layout.cpp"
-#include "4ed_delay.cpp"
 #include "4ed_app_models.h"
 #include "4ed_file_view.cpp"
 #include "4ed.cpp"
