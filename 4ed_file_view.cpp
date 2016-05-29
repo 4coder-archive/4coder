@@ -3023,8 +3023,11 @@ view_show_file(View *view){
 }
 
 internal void
-view_save_file(System_Functions *system, Mem_Options *mem, Working_Set *working_set,
+view_save_file(System_Functions *system, Models *models,
                Editing_File *file, View *view, String filename, b32 save_as){
+    Mem_Options *mem = &models->mem;
+    Working_Set *working_set = &models->working_set;
+    
     if (!file){
         if (view){
             file = view->file_data.file;
@@ -3132,6 +3135,41 @@ view_open_file(System_Functions *system, Models *models,
 }
 
 internal void
+kill_file(System_Functions *system, Models *models,
+          Editing_File *file, String string){
+    Working_Set *working_set = &models->working_set;
+    
+    if (!file && string.str){
+        file = working_set_lookup_file(working_set, string);
+        if (!file){
+            file = working_set_contains(system, working_set, string);
+        }
+    }
+    
+    if (file && !file->settings.never_kill){
+        working_set_remove(system, working_set, file->name.source_path);
+        file_close(system, &models->mem.general, file);
+        working_set_free_file(&models->working_set, file);
+        
+        File_Node *used = &models->working_set.used_sentinel;
+        File_Node *node = used->next;
+        for (View_Iter iter = file_view_iter_init(&models->layout, file, 0);
+             file_view_iter_good(iter);
+             iter = file_view_iter_next(iter)){
+            if (node != used){
+                iter.view->file_data.file = 0;
+                view_set_file(iter.view, (Editing_File*)node, models);
+                node = node->next;
+            }
+            else{
+                iter.view->file_data.file = 0;
+                view_set_file(iter.view, 0, models);
+            }
+        }
+    }
+}
+
+internal void
 interactive_view_complete(System_Functions *system, View *view, String dest, i32 user_action){
     Models *models = view->persistent.models;
     Panel *panel = view->panel;
@@ -3144,8 +3182,7 @@ interactive_view_complete(System_Functions *system, View *view, String dest, i32
         break;
         
         case IAct_Save_As:
-        view_save_file(system, &models->mem, &models->working_set,
-                       0, view, dest, 1);
+        view_save_file(system, models, 0, view, dest, 1);
         break;
         
         case IAct_New:
@@ -3182,16 +3219,15 @@ interactive_view_complete(System_Functions *system, View *view, String dest, i32
         case IAct_Sure_To_Kill:
         switch (user_action){
             case 0:
-            delayed_kill(&models->delay1, dest);
+            kill_file(system, models, 0, dest);
             break;
             
             case 1:
             break;
             
             case 2:
-            view_save_file(system, &models->mem, &models->working_set,
-                           0, 0, dest, 0);
-            delayed_kill(&models->delay1, dest);
+            view_save_file(system, models, 0, 0, dest, 0);
+            kill_file(system, models, 0, dest);;
             break;
         }
         break;
@@ -5055,8 +5091,8 @@ draw_style_preview(GUI_Target *gui_target, Render_Target *target, View *view, i3
 
 internal i32
 do_render_file_view(System_Functions *system, Exchange *exchange,
-    View *view, View *active, i32_Rect rect, b32 is_active,
-    Render_Target *target, Input_Summary *user_input){
+                    View *view, View *active, i32_Rect rect, b32 is_active,
+                    Render_Target *target, Input_Summary *user_input){
     
     Editing_File *file = view->file_data.file;
     i32 result = 0;
@@ -5067,233 +5103,208 @@ do_render_file_view(System_Functions *system, Exchange *exchange,
     GUI_Interpret_Result interpret_result = {0};
     
     f32 v;
-        
+    
     if (gui_target->push.pos > 0){
-    gui_session_init(&gui_session, gui_target, rect, view->font_height);
-    
-    v = view_get_scroll_y(view);
-
-    i32_Rect clip_rect = rect;
-    draw_push_clip(target, clip_rect);
-    
-    for (h = (GUI_Header*)gui_target->push.base;
-        h->type;
-        h = NextHeader(h)){
-        interpret_result = gui_interpret(gui_target, &gui_session, h,
-                                         *view->current_scroll,
-                                         view->scroll_region);
+        gui_session_init(&gui_session, gui_target, rect, view->font_height);
         
-        if (interpret_result.has_info){
-            if (gui_session.clip_y > clip_rect.y0){
-                clip_rect.y0 = gui_session.clip_y;
-                draw_change_clip(target, clip_rect);
-            }
+        v = view_get_scroll_y(view);
+        
+        i32_Rect clip_rect = rect;
+        draw_push_clip(target, clip_rect);
+        
+        for (h = (GUI_Header*)gui_target->push.base;
+             h->type;
+             h = NextHeader(h)){
+            interpret_result = gui_interpret(gui_target, &gui_session, h,
+                                             *view->current_scroll,
+                                             view->scroll_region);
             
-            switch (h->type){
-                case guicom_top_bar:
-                {
-                    draw_file_bar(target, view, file, gui_session.rect);
-                }break;
-
-                case guicom_file:
-                {
-                    if (view->reinit_scrolling){
-                        view_reinit_scrolling(view);
-                    }
-                    if (file && file_is_ready(file)){
-                        result = draw_file_loaded(view, gui_session.rect, is_active, target);
-                    }
-                }break;
+            if (interpret_result.has_info){
+                if (gui_session.clip_y > clip_rect.y0){
+                    clip_rect.y0 = gui_session.clip_y;
+                    draw_change_clip(target, clip_rect);
+                }
                 
-                case guicom_text_field:
-                {
-                    void *ptr = (h+1);
-                    String p = gui_read_string(&ptr);
-                    String t = gui_read_string(&ptr);
-                    draw_text_field(target, view, gui_session.rect, p, t);
-                }break;
-                
-                case guicom_text_with_cursor:
-                {
-                    void *ptr = (h+1);
-                    String s = gui_read_string(&ptr);
-                    i32 pos = gui_read_integer(&ptr);
+                switch (h->type){
+                    case guicom_top_bar:
+                    {
+                        draw_file_bar(target, view, file, gui_session.rect);
+                    }break;
                     
-                    draw_text_with_cursor(target, view, gui_session.rect, s, pos);
-                }break;
-                
-                case guicom_color_button:
-                {
-                    GUI_Interactive *b = (GUI_Interactive*)h;
-                    void *ptr = (b + 1);
-                    u32 fore = (u32)gui_read_integer(&ptr);
-                    u32 back = (u32)gui_read_integer(&ptr);
-                    String t = gui_read_string(&ptr);
+                    case guicom_file:
+                    {
+                        if (view->reinit_scrolling){
+                            view_reinit_scrolling(view);
+                        }
+                        if (file && file_is_ready(file)){
+                            result = draw_file_loaded(view, gui_session.rect, is_active, target);
+                        }
+                    }break;
                     
-                    draw_color_button(gui_target, target, view, gui_session.rect, b->id, fore, back, t);
-                }break;
-                
-                case guicom_font_button:
-                {
-                    GUI_Interactive *b = (GUI_Interactive*)h;
-                    void *ptr = (b + 1);
-                    i16 font_id = (i16)gui_read_integer(&ptr);
-                    String t = gui_read_string(&ptr);
+                    case guicom_text_field:
+                    {
+                        void *ptr = (h+1);
+                        String p = gui_read_string(&ptr);
+                        String t = gui_read_string(&ptr);
+                        draw_text_field(target, view, gui_session.rect, p, t);
+                    }break;
                     
-                    draw_font_button(gui_target, target, view, gui_session.rect, b->id, font_id, t);
-                }break;
-                
-                case guicom_file_option:
-                {
-                    GUI_Interactive *b = (GUI_Interactive*)h;
-                    void *ptr = (b + 1);
-                    b32 folder = gui_read_integer(&ptr);
-                    String f = gui_read_string(&ptr);
-                    String m = gui_read_string(&ptr);
+                    case guicom_text_with_cursor:
+                    {
+                        void *ptr = (h+1);
+                        String s = gui_read_string(&ptr);
+                        i32 pos = gui_read_integer(&ptr);
+                        
+                        draw_text_with_cursor(target, view, gui_session.rect, s, pos);
+                    }break;
                     
-                    if (folder){
-                        append(&f, system->slash);
-                    }
+                    case guicom_color_button:
+                    {
+                        GUI_Interactive *b = (GUI_Interactive*)h;
+                        void *ptr = (b + 1);
+                        u32 fore = (u32)gui_read_integer(&ptr);
+                        u32 back = (u32)gui_read_integer(&ptr);
+                        String t = gui_read_string(&ptr);
+                        
+                        draw_color_button(gui_target, target, view, gui_session.rect, b->id, fore, back, t);
+                    }break;
                     
-                    draw_fat_option_block(gui_target, target, view, gui_session.rect, b->id, f, m);
-                }break;
-                
-                case guicom_style_preview:
-                {
-                    GUI_Interactive *b = (GUI_Interactive*)h;
-                    i32 style_index = *(i32*)(b + 1);
-                    Style *style = get_style(view->persistent.models, style_index);
+                    case guicom_font_button:
+                    {
+                        GUI_Interactive *b = (GUI_Interactive*)h;
+                        void *ptr = (b + 1);
+                        i16 font_id = (i16)gui_read_integer(&ptr);
+                        String t = gui_read_string(&ptr);
+                        
+                        draw_font_button(gui_target, target, view, gui_session.rect, b->id, font_id, t);
+                    }break;
                     
-                    draw_style_preview(gui_target, target, view, gui_session.rect, b->id, style);
-                }break;
-                
-                case guicom_fixed_option:
-                case guicom_fixed_option_checkbox:
-                {
-                    GUI_Interactive *b = (GUI_Interactive*)h;
-                    void *ptr = (b + 1);
-                    String f = gui_read_string(&ptr);
-                    String m = {0};
-                    i8 status = -1;
-                    if (h->type == guicom_fixed_option_checkbox){
-                        gui_read_byte(&ptr);
-                        status = (i8)gui_read_byte(&ptr);
-                    }
+                    case guicom_file_option:
+                    {
+                        GUI_Interactive *b = (GUI_Interactive*)h;
+                        void *ptr = (b + 1);
+                        b32 folder = gui_read_integer(&ptr);
+                        String f = gui_read_string(&ptr);
+                        String m = gui_read_string(&ptr);
+                        
+                        if (folder){
+                            append(&f, system->slash);
+                        }
+                        
+                        draw_fat_option_block(gui_target, target, view, gui_session.rect, b->id, f, m);
+                    }break;
                     
-                    draw_fat_option_block(gui_target, target, view, gui_session.rect, b->id, f, m, status);
-                }break;
-                
-                case guicom_button:
-                {
-                    GUI_Interactive *b = (GUI_Interactive*)h;
-                    void *ptr = (b + 1);
-                    String t = gui_read_string(&ptr);
+                    case guicom_style_preview:
+                    {
+                        GUI_Interactive *b = (GUI_Interactive*)h;
+                        i32 style_index = *(i32*)(b + 1);
+                        Style *style = get_style(view->persistent.models, style_index);
+                        
+                        draw_style_preview(gui_target, target, view, gui_session.rect, b->id, style);
+                    }break;
                     
-                    draw_button(gui_target, target, view, gui_session.rect, b->id, t);
-                }break;
-                
-                case guicom_scrollable_bar:
-                {
-                    Models *models = view->persistent.models;
-                    Style *style = main_style(models);
+                    case guicom_fixed_option:
+                    case guicom_fixed_option_checkbox:
+                    {
+                        GUI_Interactive *b = (GUI_Interactive*)h;
+                        void *ptr = (b + 1);
+                        String f = gui_read_string(&ptr);
+                        String m = {0};
+                        i8 status = -1;
+                        if (h->type == guicom_fixed_option_checkbox){
+                            gui_read_byte(&ptr);
+                            status = (i8)gui_read_byte(&ptr);
+                        }
+                        
+                        draw_fat_option_block(gui_target, target, view, gui_session.rect, b->id, f, m, status);
+                    }break;
                     
-                    u32 back;
-                    u32 outline;
+                    case guicom_button:
+                    {
+                        GUI_Interactive *b = (GUI_Interactive*)h;
+                        void *ptr = (b + 1);
+                        String t = gui_read_string(&ptr);
+                        
+                        draw_button(gui_target, target, view, gui_session.rect, b->id, t);
+                    }break;
                     
-                    i32_Rect bar = gui_session.rect;
+                    case guicom_scrollable_bar:
+                    {
+                        Models *models = view->persistent.models;
+                        Style *style = main_style(models);
+                        
+                        u32 back;
+                        u32 outline;
+                        
+                        i32_Rect bar = gui_session.rect;
+                        
+                        back = style->main.back_color;
+                        if (is_active){
+                            outline = style->main.margin_active_color;
+                        }
+                        else{
+                            outline = style->main.margin_color;
+                        }
+                        
+                        draw_rectangle(target, bar, back);
+                        draw_rectangle_outline(target, bar, outline);
+                    }break;
                     
-                    back = style->main.back_color;
-                    if (is_active){
-                        outline = style->main.margin_active_color;
-                    }
-                    else{
-                        outline = style->main.margin_color;
-                    }
+                    case guicom_scrollable_top:
+                    case guicom_scrollable_slider:
+                    case guicom_scrollable_bottom:
+                    {
+                        GUI_id id;
+                        Models *models = view->persistent.models;
+                        Style *style = main_style(models);
+                        i32_Rect box = gui_session.rect;
+                        
+                        i32 active_level;
+                        
+                        u32 back;
+                        u32 outline;
+                        
+                        switch (h->type){
+                            case guicom_scrollable_top: id = gui_id_scrollbar_top(); break;
+                            case guicom_scrollable_bottom: id = gui_id_scrollbar_bottom(); break;
+                            default: id = gui_id_scrollbar_slider(); break;
+                        }
+                        
+                        active_level = gui_active_level(gui_target, id);
+                        
+                        switch (active_level){
+                            case 0: back = style->main.back_color; break;
+                            case 1: back = style->main.margin_hover_color; break;
+                            default: back = style->main.margin_active_color; break;
+                        }
+                        
+                        if (is_active){
+                            outline = style->main.margin_active_color;
+                        }
+                        else{
+                            outline = style->main.margin_color;
+                        }
+                        
+                        draw_rectangle(target, box, back);
+                        draw_margin(target, box, get_inner_rect(box, 2), outline);
+                    }break;
                     
-                    draw_rectangle(target, bar, back);
-                    draw_rectangle_outline(target, bar, outline);
-                }break;
-                
-                case guicom_scrollable_top:
-                case guicom_scrollable_slider:
-                case guicom_scrollable_bottom:
-                {
-                    GUI_id id;
-                    Models *models = view->persistent.models;
-                    Style *style = main_style(models);
-                    i32_Rect box = gui_session.rect;
+                    case guicom_begin_scrollable_section:
+                    clip_rect.x1 = Min(gui_session.scroll_region.x1, clip_rect.x1);
+                    draw_push_clip(target, clip_rect);
+                    break;
                     
-                    i32 active_level;
-                    
-                    u32 back;
-                    u32 outline;
-                    
-                    switch (h->type){
-                        case guicom_scrollable_top: id = gui_id_scrollbar_top(); break;
-                        case guicom_scrollable_bottom: id = gui_id_scrollbar_bottom(); break;
-                        default: id = gui_id_scrollbar_slider(); break;
-                    }
-                    
-                    active_level = gui_active_level(gui_target, id);
-                    
-                    switch (active_level){
-                        case 0: back = style->main.back_color; break;
-                        case 1: back = style->main.margin_hover_color; break;
-                        default: back = style->main.margin_active_color; break;
-                    }
-                    
-                    if (is_active){
-                        outline = style->main.margin_active_color;
-                    }
-                    else{
-                        outline = style->main.margin_color;
-                    }
-                    
-                    draw_rectangle(target, box, back);
-                    draw_margin(target, box, get_inner_rect(box, 2), outline);
-                }break;
-                
-                case guicom_begin_scrollable_section:
-                clip_rect.x1 = Min(gui_session.scroll_region.x1, clip_rect.x1);
-                draw_push_clip(target, clip_rect);
-                break;
-                
-                case guicom_end_scrollable_section:
-                clip_rect = draw_pop_clip(target);
-                break;
-			}
-		}
-	}
-    
-    draw_pop_clip(target);
-}
-
-    return(result);
-}
-
-internal void
-kill_file(System_Functions *system, Exchange *exchange, Models *models, Editing_File *file){
-    File_Node *node, *used;
-
-    file_close(system, &models->mem.general, file);
-    working_set_free_file(&models->working_set, file);
-
-    used = &models->working_set.used_sentinel;
-    node = used->next;
-
-    for (View_Iter iter = file_view_iter_init(&models->layout, file, 0);
-        file_view_iter_good(iter);
-        iter = file_view_iter_next(iter)){
-        if (node != used){
-            iter.view->file_data.file = 0;
-            view_set_file(iter.view, (Editing_File*)node, models);
-            node = node->next;
+                    case guicom_end_scrollable_section:
+                    clip_rect = draw_pop_clip(target);
+                    break;
+                }
+            }
         }
-        else{
-            iter.view->file_data.file = 0;
-            view_set_file(iter.view, 0, models);
-        }
+        
+        draw_pop_clip(target);
     }
+    
+    return(result);
 }
 
 inline void

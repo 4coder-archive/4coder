@@ -907,8 +907,7 @@ COMMAND_DECL(save){
         if (file){
             if (name.str){
                 if (!file->state.is_dummy && file_is_ready(file)){
-                    view_save_file(system, &models->mem, &models->working_set,
-                                   file, 0, name, 1);
+                    view_save_file(system, models, file, 0, name, 1);
                 }
             }
             else{
@@ -929,13 +928,11 @@ COMMAND_DECL(save){
         if (name.size != 0){
             if (file){
                 if (!file->state.is_dummy && file_is_ready(file)){
-                    view_save_file(system, &models->mem, &models->working_set,
-                                   file, 0, name, 0);
+                    view_save_file(system, models, file, 0, name, 0);
                 }
             }
             else{
-                view_save_file(system, &models->mem, &models->working_set,
-                               0, 0, name, 0);
+                view_save_file(system, models, 0, 0, name, 0);
             }
         }
     }
@@ -992,7 +989,7 @@ COMMAND_DECL(kill_buffer){
     if (buffer_id != 0){
         file = working_set_get_active_file(&models->working_set, buffer_id);
         if (file){
-            delayed_kill(delay, file);
+            kill_file(system, models, file, string_zero());
         }
     }
     else if (file){
@@ -4381,21 +4378,13 @@ App_Step_Sig(app_step){
                         view->map = get_map(models, file->settings.base_map_id);
                     }
                 }break;
-
+                
+#if 0
                 case DACT_KILL:
                 {
-                    if (!file && string.str){
-                        file = working_set_lookup_file(working_set, string);
-                        if (!file){
-                            file = working_set_contains(system, working_set, string);
-                        }
-                    }
-
-                    if (file && !file->settings.never_kill){
-                        working_set_remove(system, working_set, file->name.source_path);
-                        kill_file(system, exchange, models, file); 
-                    }
+                    
                 }break;
+#endif
 
                 case DACT_TRY_KILL:
                 {
@@ -4413,16 +4402,17 @@ App_Step_Sig(app_step){
                             file = working_set_contains(system, working_set, string);
                         }
                     }
-
+                    
                     if (file && !file->settings.never_kill){
                         if (buffer_needs_save(file)){
-                            copy(&view->dest, file->name.live_name);
                             view_show_interactive(system, view, &models->map_ui,
-                                IAct_Sure_To_Kill, IInt_Sure_To_Kill, make_lit_string("Are you sure?"));
+                                                  IAct_Sure_To_Kill, IInt_Sure_To_Kill,
+                                                  make_lit_string("Are you sure?"));
+                            copy(&view->dest, file->name.live_name);
                         }
                         else{
                             working_set_remove(system, working_set, file->name.source_path);
-                            kill_file(system, exchange, models, file);
+                            kill_file(system, models, file, string_zero());
                         }
                     }
                 }break;

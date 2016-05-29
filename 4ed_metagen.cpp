@@ -158,8 +158,11 @@ char *daction_enum[] = {
 #endif
     "SWITCH",
     "TRY_KILL",
+#if 0
     "KILL",
+#endif
     "TOUCH_FILE",
+    
     "CLOSE",
 };
 
