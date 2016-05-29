@@ -3172,7 +3172,6 @@ kill_file(System_Functions *system, Models *models,
 internal void
 interactive_view_complete(System_Functions *system, View *view, String dest, i32 user_action){
     Models *models = view->persistent.models;
-    Panel *panel = view->panel;
     Editing_File *old_file = view->file_data.file;
     
     switch (view->action){
@@ -3193,8 +3192,20 @@ interactive_view_complete(System_Functions *system, View *view, String dest, i32
         }break;
         
         case IAct_Switch:
-        delayed_switch(&models->delay1, dest, panel);
-        touch_file(&models->working_set, old_file);
+        {
+            touch_file(&models->working_set, old_file);
+            
+            Editing_File *file = 0;
+            String string = dest;
+            
+            file = working_set_lookup_file(&models->working_set, string);
+            if (!file){
+                file = working_set_contains(system, &models->working_set, string);
+            }
+            if (file){
+                view_set_file(view, file, models);
+            }
+        }
         break;
         
         case IAct_Kill:

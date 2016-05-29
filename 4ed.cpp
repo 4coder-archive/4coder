@@ -4359,25 +4359,14 @@ App_Step_Sig(app_step){
                     
                 }break;
 #endif
-
+                
+#if 0
                 case DACT_SWITCH:
                 {
-                    if (!file && string.str){
-                        file = working_set_lookup_file(working_set, string);
-                        if (!file){
-                            file = working_set_contains(system, working_set, string);
-                        }
-                    }
                     
-                    if (file){
-                        View *view = panel->view;
-
-                        view_set_file(view, file, models);
-                        view_show_file(view);
-                        view->map = get_map(models, file->settings.base_map_id);
-                    }
                 }break;
-                
+#endif
+
 #if 0
                 case DACT_KILL:
                 {

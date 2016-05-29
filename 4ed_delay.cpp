@@ -1,6 +1,5 @@
 enum Action_Type{
     DACT_SET_LINE,
-    DACT_SWITCH,
     DACT_TRY_KILL,
     DACT_CLOSE,
 };
@@ -121,6 +120,5 @@ delayed_action_repush(Delay *delay, Delayed_Action *act){
 }
 
 #define delayed_set_line(delay, ...) delayed_action_(delay, DACT_SET_LINE, ##__VA_ARGS__)
-#define delayed_switch(delay, ...) delayed_action_(delay, DACT_SWITCH, ##__VA_ARGS__)
 #define delayed_try_kill(delay, ...) delayed_action_(delay, DACT_TRY_KILL, ##__VA_ARGS__)
 #define delayed_close(delay, ...) delayed_action_(delay, DACT_CLOSE, ##__VA_ARGS__)

@@ -155,8 +155,8 @@ char *daction_enum[] = {
     "SAVE_AS",
     "SAVE",
     "NEW",
-#endif
     "SWITCH",
+#endif
     "TRY_KILL",
 #if 0
     "KILL",
