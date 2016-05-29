@@ -4312,13 +4312,12 @@ App_Step_Sig(app_step){
             
             // TODO(allen): Paramter checking in each DACT case.
             switch (act->type){
+#if 0
                 case DACT_TOUCH_FILE:
                 {
-                    if (file){
-                        touch_file(working_set, file);
-                    }
+                    
                 }break;
-                
+#endif
 #if 0
                 case DACT_OPEN:
                 case DACT_OPEN_BACKGROUND:
@@ -4326,7 +4325,7 @@ App_Step_Sig(app_step){
                     
                 }break;
 #endif
-
+                
                 case DACT_SET_LINE:
                 {
                     // TODO(allen): deduplicate

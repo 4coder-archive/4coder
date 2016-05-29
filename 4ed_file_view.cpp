@@ -3178,7 +3178,7 @@ interactive_view_complete(System_Functions *system, View *view, String dest, i32
     switch (view->action){
         case IAct_Open:
         view_open_file(system, models, view, dest);
-        delayed_touch_file(&models->delay1, old_file);
+        touch_file(&models->working_set, old_file);
         break;
         
         case IAct_Save_As:
@@ -3194,7 +3194,7 @@ interactive_view_complete(System_Functions *system, View *view, String dest, i32
         
         case IAct_Switch:
         delayed_switch(&models->delay1, dest, panel);
-        delayed_touch_file(&models->delay1, old_file);
+        touch_file(&models->working_set, old_file);
         break;
         
         case IAct_Kill:
