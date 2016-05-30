@@ -1811,6 +1811,7 @@ file_pre_edit_maintenance(System_Functions *system,
             general_memory_free(general, file->state.swap_stack.tokens);
             file->state.swap_stack.tokens = 0;
         }
+        file->state.still_lexing = 0;
     }
     file->state.last_4ed_edit_time = system->now_time_stamp();
 }
@@ -3216,9 +3217,7 @@ interactive_view_complete(System_Functions *system, View *view, String dest, i32
         break;
         
         case IAct_New:
-        // TODO(allen): The !char_is_slash part confuses me... let's investigate this soon.
-        if (dest.size > 0 &&
-            !char_is_slash(models->hot_directory.string.str[dest.size-1])){
+        if (dest.size > 0 && !char_is_slash(dest.str[dest.size-1])){
             view_new_file(system, models, view, dest);
             view_show_file(view);
         }break;
@@ -3782,8 +3781,15 @@ app_single_number_input_step(System_Functions *system, Key_Event_Data key, Strin
     return result;
 }
 
-internal b32
+struct View_Step_Result{
+    b32 animating;
+    b32 consume_keys;
+    b32 consume_esc;
+};
+
+internal View_Step_Result
 step_file_view(System_Functions *system, View *view, View *active_view, Input_Summary input){
+    View_Step_Result result = {0};
     GUI_Target *target = &view->gui_target;
     Models *models = view->persistent.models;
     Key_Summary keys = input.keys;
@@ -3791,6 +3797,25 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
     b32 show_scrollbar = !view->hide_scrollbar;
     
     view->current_scroll = 0;
+    
+    if (view->showing_ui != VUI_None){
+        b32 did_esc = 0;
+        Key_Event_Data key;
+        i32 i;
+        
+        for (i = 0; i < keys.count; ++i){
+            key = get_single_key(&keys, i);
+            if (key.keycode == key_esc){
+                did_esc = 1;
+                break;
+            }
+        }
+        
+        if (did_esc){
+            view_show_file(view);
+            result.consume_esc = 1;
+        }
+    }
     
     gui_begin_top_level(target, input);
     {
@@ -3832,22 +3857,22 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                     String empty_string = {0};
                     GUI_id id = {0};
                     id.id[1] = VUI_Menu;
-
+                    
                     gui_do_text_field(target, message, empty_string);
-
+                    
                     id.id[0] = 0;
                     message = make_lit_string("Theme");
                     if (gui_do_fixed_option(target, id, message, 0)){
                         view_show_theme(view, view->map);
                     }
-
+                    
                     id.id[0] = 1;
                     message = make_lit_string("Config");
                     if (gui_do_fixed_option(target, id, message, 0)){
                         view_show_config(view, view->map);
                     }
                 }break;
-
+                
                 case VUI_Config:
                 {
                     view->current_scroll = &view->gui_scroll;
@@ -3856,16 +3881,16 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                     String empty_string = {0};
                     GUI_id id = {0};
                     id.id[1] = VUI_Config;
-
+                    
                     gui_do_text_field(target, message, empty_string);
-
+                    
                     id.id[0] = 0;
                     message = make_lit_string("Left Ctrl + Left Alt = AltGr");
                     if (gui_do_fixed_option_checkbox(target, id, message, 0, (b8)models->settings.lctrl_lalt_is_altgr)){
                         models->settings.lctrl_lalt_is_altgr = !models->settings.lctrl_lalt_is_altgr;
                     }
                 }break;
-
+                
                 case VUI_Theme:
                 {
                     view->current_scroll = &view->gui_scroll;
@@ -3873,7 +3898,7 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                     if (view != active_view){
                         view->hot_file_view = active_view;
                     }
-
+                    
                     String message = {0};
                     String empty_string = {0};
                     
@@ -3995,47 +4020,50 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                                     next_color_editing = i;
                                     view->color_cursor = 0;
                                 }
-
+                                
                                 if (view->current_color_editing == i){
                                     GUI_Item_Update update = {0};
                                     char text_space[7];
                                     String text = make_fixed_width_string(text_space);
-
+                                    
                                     color_to_hexstr(*edit_color, &text);
                                     if (gui_do_text_with_cursor(target, view->color_cursor, text, &update)){
                                         b32 r = 0;
                                         i32 j = 0;
-
+                                        
                                         for (j = 0; j < keys.count; ++j){
                                             i16 key = keys.keys[j].keycode;
                                             switch (key){
-                                                case key_left: --view->color_cursor; r = 1; break;
-                                                case key_right: ++view->color_cursor; r = 1; break;
-
+                                                case key_left: --view->color_cursor; r = 1; result.consume_keys = 1; break;
+                                                case key_right: ++view->color_cursor; r = 1; result.consume_keys = 1; break;
+                                                
                                                 case key_up:
                                                 if (next_color_editing > 0){
                                                     --next_color_editing;
                                                 }
+                                                result.consume_keys = 1;
                                                 break;
-
+                                                
                                                 case key_down:
                                                 if (next_color_editing <= ArrayCount(colors_to_edit)-1){
                                                     ++next_color_editing;
                                                 }
+                                                result.consume_keys = 1;
                                                 break;
-
+                                                
                                                 default:
                                                 if ((key >= '0' && key <= '9') || (key >= 'a' && key <= 'f') || (key >= 'A' && key <= 'F')){
                                                     text.str[view->color_cursor] = (char)key;
                                                     r = 1; 
+                                                    result.consume_keys = 1;
                                                 }
                                                 break;
                                             }
-
+                                            
                                             if (view->color_cursor < 0) view->color_cursor = 0;
                                             if (view->color_cursor >= 6) view->color_cursor = 5;
                                         }
-
+                                        
                                         if (r){
                                             hexstr_to_color(text, edit_color);
                                             gui_rollback(target, &update);
@@ -4044,12 +4072,12 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                                     }
                                 }
                             }
-
+                            
                             if (view->current_color_editing != next_color_editing){
                                 view->current_color_editing = next_color_editing;
                                 view->color_cursor = 0;
                             }
-
+                            
                             gui_end_scrollable(target);
                         }break;
                     }
@@ -4107,9 +4135,11 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                                                                       &hdir->string, hdir, 1, 1, 0);
                                     if (step.made_a_change){
                                         view->list_i = 0;
+                                        result.consume_keys = 1;
                                     }
                                     if (!use_item_in_list && (key.keycode == '\n' || key.keycode == '\t')){
                                         activate_directly = 1;
+                                        result.consume_keys = 1;
                                     }
                                 }
                             }
@@ -4128,6 +4158,7 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                             
                             if (gui_begin_list(target, id, view->list_i, 0,
                                                snap_into_view, &update)){
+                                // TODO(allen): Allow me to handle key consumption correctly here!
                                 gui_standard_list(target, id, view->current_scroll, view->scroll_region,
                                                   &keys, &view->list_i, &update);
                             }
@@ -4173,19 +4204,19 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                             b32 snap_into_view = 0;
                             persist String message_unsaved = make_lit_string(" *");
                             persist String message_unsynced = make_lit_string(" !");
-
+                            
                             String message = {0};
                             switch (view->action){
                                 case IAct_Switch: message = make_lit_string("Switch: "); break;
                                 case IAct_Kill: message = make_lit_string("Kill: "); break;
                             }
-
+                            
                             Absolutes absolutes;
                             Editing_File *file;
                             Working_Set *working_set = &models->working_set;
                             Editing_Layout *layout = &models->layout;
                             GUI_Item_Update update = {0};
-
+                            
                             {
                                 Single_Line_Input_Step step;
                                 Key_Event_Data key;
@@ -4195,14 +4226,15 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                                     step = app_single_line_input_step(system, key, &view->dest);
                                     if (step.made_a_change){
                                         view->list_i = 0;
+                                        result.consume_keys = 1;
                                     }
                                 }
                             }
-
+                            
                             get_absolutes(view->dest, &absolutes, 1, 1);
-
+                            
                             gui_do_text_field(target, message, view->dest);
-
+                            
                             scroll_context.id[0] = (u64)(working_set);
                             if (gui_get_scroll_vars(target, scroll_context,
                                                     &view->gui_scroll, &view->scroll_region)){
@@ -4210,7 +4242,7 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                             }
                             gui_begin_scrollable(target, scroll_context, view->gui_scroll,
                                                  9.f * view->font_height, show_scrollbar);
-
+                            
                             id.id[0] = (u64)(working_set) + 1;
                             if (gui_begin_list(target, id, view->list_i,
                                                0, snap_into_view, &update)){
@@ -4356,7 +4388,9 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
         }
     }
     gui_end_top_level(target);
-    return(target->animating);
+    
+    result.animating = target->animating;
+    return(result);
 }
 
 internal f32
@@ -4650,27 +4684,6 @@ do_input_file_view(System_Functions *system, Exchange *exchange,
             scroll_vars.prev_target_y = scroll_vars.target_y;
             
             result.vars = scroll_vars;
-        }
-        
-        // TODO(allen): GET RID OF THIS!!!
-        {
-            Key_Summary *keys = &user_input->keys;
-            b32 did_esc = 0;
-            Key_Event_Data key;
-            i32 i, count;
-            
-            count = keys->count;
-            for (i = 0; i < count; ++i){
-                key = get_single_key(keys, i);
-                if (key.keycode == key_esc){
-                    did_esc = 1;
-                    break;
-                }
-            }
-            
-            if (did_esc && view->showing_ui != VUI_None){
-                view_show_file(view);
-            }
         }
     }
     

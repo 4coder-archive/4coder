@@ -3884,14 +3884,13 @@ App_Step_Sig(app_step){
             models->command_coroutine = command_coroutine;
         }
         else{
-            app_result.perform_kill = 1;
+            models->keep_playing = 0;
         }
     }
     
-    // NOTE(allen): process the command_coroutine if it is unfinished
+    // NOTE(allen): Keyboard input to command coroutine.
     Available_Input available_input = init_available_input(&key_summary, &input->mouse);
     
-    // NOTE(allen): Keyboard input to command coroutine.
     if (models->command_coroutine != 0){
         Coroutine *command_coroutine = models->command_coroutine;
         u32 get_flags = models->command_coroutine_flags[0];
@@ -4028,7 +4027,6 @@ App_Step_Sig(app_step){
     update_command_data(vars, cmd);
     
     // NOTE(allen): pass raw input to the panels
-    
     Input_Summary dead_input = {};
     dead_input.mouse.x = input->mouse.x;
     dead_input.mouse.y = input->mouse.y;
@@ -4054,8 +4052,16 @@ App_Step_Sig(app_step){
             view = panel->view;
             active = (panel == cmd->panel);
             summary = (active)?(active_input):(dead_input);
-            if (step_file_view(system, view, active_view, summary)){
+            
+            View_Step_Result result = step_file_view(system, view, active_view, summary);
+            if (result.animating){
                 app_result.animating = 1;
+            }
+            if (result.consume_keys){
+                consume_input(&available_input, Input_AnyKey);
+            }
+            if (result.consume_keys || result.consume_esc){
+                consume_input(&available_input, Input_Esc);
             }
         }
         
@@ -4404,11 +4410,11 @@ App_Step_Sig(app_step){
     models->prev_mouse_panel = mouse_panel;
     
     app_result.lctrl_lalt_is_altgr = models->settings.lctrl_lalt_is_altgr;
+    app_result.perform_kill = !models->keep_playing;
+    
     *result = app_result;
     
     Assert(general_memory_check(&models->mem.general));
-    
-    app_result.perform_kill = models->keep_playing;
     
     // end-of-app_step
 }

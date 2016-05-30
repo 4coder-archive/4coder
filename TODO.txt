@@ -1,7 +1,3 @@
-
-; before shipping:
-;  [] make sure 4coder_handmade_hero.cpp works
-
 ; Started this list on: (18.01.2016)(dd.mm.yyyy)
 ;  This list is an informal todo list, it may very well miss items
 ; checked or unchecked, that I inted to do some day. It is included
@@ -67,12 +63,15 @@
 ; [X] chronal's map setting issue
 ; [X] linux save jankieness
 ; [X] bouncing when scrolling down
+; [X] sometimes the main cursor is not the same width as the mark cursor in the same spot
+; [X] tab character wrong width
+; [X] miblo's off screen cursor thing
+; [X] paste snaps the cursor back into view!
+; [X] new file is messed up for code files, it never finishes parsing!
 ; [] indication on failure to save
 ; [] clean whitespace doesn't appear to be cleaning trailing whitespace anymore???
-; [] sometimes the main cursor is not the same width as the mark cursor in the same spot
-; [] tab character wrong width
-; [] miblo's off screen cursor thing
 ;
+; [] key presses that should be consumed in the GUI are now passed to the file!
 ;
 
 ; TODOS
@@ -117,14 +116,13 @@
 ;    [X] rewrite GUI
 ;    [X] arrow navigation of GUIs
 ;    [] GUI API
-;    [] text links -> arbitrary commands / callbacks?
 ;
 ; search related tech
 ;    [X] replace word (incremental and/or in range)
+;    [X] caps insensitivety
 ;    [] optimize search
 ;    [] allow search wrap around beginning/end
 ;    [] improved custom API for text "streams"
-;    [] caps insensitivety
 ;
 ; theme related business
 ;    [] fix the versioning system for themes
@@ -173,12 +171,11 @@
 
 ; INTERNAL TODOS
 ; [X] switch building non-extensible version by statically linking to custom.cpp
+; [X] pack fonts more squarely
 ; [] general parameter handling
 ; [] hashed string pool for clipboard/filenames/etc
-; [] ask for clipboards to update by request, not on loop
-; [] pack fonts more squarely
-; [] setup tests through special tool
 ; [] new profiling/debugging system
+; [] change job canceling to a polling based thing
 ;
 
 ; EASY TODOS
@@ -199,6 +196,7 @@
 ; [] fill screen right away
 ; [] how to get fast repaint (do I really need double buffering?)
 ; [] history breaks when heavily used (disk swaping?)
+; [] window stops repainting bug on a handful of machines (Win 10? Driver?)
 ;
 
 ; PORTING TODOS
