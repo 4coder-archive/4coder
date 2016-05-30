@@ -278,8 +278,6 @@ LinuxGetMemory_(i32 size, i32 line_number, char *file_name){
     pthread_mutex_unlock(&linuxvars.DEBUG_sysmem_lock);
 
     result = bubble + 1;
-    
-    fprintf(stderr, "new bubble: %p\n", result);
 #else
     size_t real_size = size + sizeof(size_t);
     result = mmap(0, real_size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
@@ -299,8 +297,6 @@ internal void
 LinuxFreeMemory(void *block){
     if (block){
 #if FRED_INTERNAL
-        fprintf(stderr, "del bubble: %p\n", block);
-
         Sys_Bubble *bubble = ((Sys_Bubble*)block) - 1;
         Assert((bubble->flags & MEM_BUBBLE_DEBUG_MASK) == MEM_BUBBLE_SYS_DEBUG);
 
@@ -556,8 +552,6 @@ Sys_File_Load_End_Sig(system_file_load_end){
     char* ptr = buffer;
     size_t size = loading.size;
 
-    LINUX_FN_DEBUG("%d %p %zu", fd, ptr, size);
-
     if(!loading.exists || fd == -1) return 0;
 
     do {
@@ -574,6 +568,8 @@ Sys_File_Load_End_Sig(system_file_load_end){
     } while(size);
 
     close(fd);
+
+    LINUX_FN_DEBUG("success == %d", (size == 0));
 
     return (size == 0);
 }
@@ -1098,7 +1094,7 @@ Font_Load_Sig(system_draw_font_load){
     b32 success = 0;
     i32 attempts = 0;
 
-    LINUX_FN_DEBUG("%p %s %d %d", font_out, filename, pt_size, tab_width);
+    LINUX_FN_DEBUG("%s, %dpt, tab_width: %d", filename, pt_size, tab_width);
 
     if (linuxvars.font_part.base == 0){
         linuxvars.font_part = sysshared_scratch_partition(Mbytes(8));
@@ -2309,11 +2305,18 @@ main(int argc, char **argv)
                 fprintf(stderr, "Successfully loaded 4coder_custom.so\n");
             }
         }
+    } else {
+        const char* error = dlerror();
+        fprintf(stderr, "*** Failed to load 4coder_custom.so: %s\n", error ? error : "dlopen failed.");
     }
 #endif
 
     if (linuxvars.custom_api.get_bindings == 0){
         linuxvars.custom_api.get_bindings = get_bindings;
+    }
+
+    if (linuxvars.custom_api.view_routine == 0){
+        linuxvars.custom_api.view_routine = view_routine;
     }
 
     Thread_Context background[4] = {};
