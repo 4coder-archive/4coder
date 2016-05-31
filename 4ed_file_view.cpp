@@ -3251,6 +3251,7 @@ interactive_view_complete(System_Functions *system, View *view, String dest, i32
             break;
             
             case 1:
+            view_show_file(view);
             break;
             
             case 2:
@@ -3267,6 +3268,7 @@ interactive_view_complete(System_Functions *system, View *view, String dest, i32
             break;
             
             case 1:
+            view_show_file(view);
             break;
             
             case 2:
