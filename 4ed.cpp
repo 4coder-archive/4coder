@@ -33,9 +33,6 @@ struct CLI_List{
     i32 count, max;
 };
 
-#define SysAppCreateView 0x1
-#define SysAppCreateNewBuffer 0x2
-
 struct Complete_State{
     Search_Set set;
     Search_Iter iter;
@@ -49,7 +46,6 @@ struct Command_Data{
     Models *models;
     struct App_Vars *vars;
     System_Functions *system;
-    Exchange *exchange;
     Live_Views *live_set;
 
     Panel *panel;
@@ -167,7 +163,6 @@ do_feedback_message(System_Functions *system, Models *models, String value){
 #define USE_PANEL(n) Panel *n = command->panel
 #define USE_VIEW(n) View *n = command->view
 #define USE_FILE(n,v) Editing_File *n = (v)->file_data.file
-#define USE_EXCHANGE(n) Exchange *n = command->exchange
 
 #define REQ_OPEN_VIEW(n) View *n = command->panel->view; if (view_lock_level(n) > LockLevel_Open) return
 #define REQ_READABLE_VIEW(n) View *n = command->panel->view; if (view_lock_level(n) > LockLevel_NoWrite) return
@@ -219,7 +214,7 @@ param_stack_end(Partition *part){
 }
 
 internal View*
-panel_make_empty(System_Functions *system, Exchange *exchange, App_Vars *vars, Panel *panel){
+panel_make_empty(System_Functions *system, App_Vars *vars, Panel *panel){
     Models *models = &vars->models;
     View_And_ID new_view;
 
@@ -1160,7 +1155,6 @@ COMMAND_DECL(open_panel_vsplit){
     USE_VARS(vars);
     USE_MODELS(models);
     USE_PANEL(panel);
-    USE_EXCHANGE(exchange);
 
     if (models->layout.panel_count < models->layout.panel_max_count){
         Split_Result split = layout_split_panel(&models->layout, panel, 1);
@@ -1179,16 +1173,14 @@ COMMAND_DECL(open_panel_vsplit){
         panel2->prev_inner = panel2->inner;
 
         models->layout.active_panel = (i32)(panel2 - models->layout.panels);
-        panel_make_empty(system, exchange, vars, panel2);
+        panel_make_empty(system, vars, panel2);
     }
 }
 
 COMMAND_DECL(open_panel_hsplit){
-    
     USE_VARS(vars);
     USE_MODELS(models);
     USE_PANEL(panel);
-    USE_EXCHANGE(exchange);
 
     if (models->layout.panel_count < models->layout.panel_max_count){
         Split_Result split = layout_split_panel(&models->layout, panel, 0);
@@ -1207,16 +1199,14 @@ COMMAND_DECL(open_panel_hsplit){
         panel2->prev_inner = panel2->inner;
 
         models->layout.active_panel = (i32)(panel2 - models->layout.panels);
-        panel_make_empty(system, exchange, vars, panel2);
+        panel_make_empty(system, vars, panel2);
     }
 }
 
 COMMAND_DECL(close_panel){
-    
     USE_MODELS(models);
     USE_PANEL(panel);
     USE_VIEW(view);
-    USE_EXCHANGE(exchange);
 
     Panel *panel_ptr, *used_panels;
     Divider_And_ID div, parent_div, child_div;
@@ -1226,7 +1216,7 @@ COMMAND_DECL(close_panel){
     i32 active;
 
     if (models->layout.panel_count > 1){
-        live_set_free_view(system, exchange, command->live_set, view);
+        live_set_free_view(system, command->live_set, view);
         panel->view = 0;
 
         div = layout_get_divider(&models->layout, panel->parent);
@@ -3411,7 +3401,7 @@ App_Init_Sig(app_init){
     
     // NOTE(allen): init first panel
     Panel_And_ID p = layout_alloc_panel(&models->layout);
-    panel_make_empty(system, exchange, vars, p.panel);
+    panel_make_empty(system, vars, p.panel);
     models->layout.active_panel = p.id;
     
     String hdbase = make_fixed_width_string(models->hot_dir_base_);
@@ -3733,7 +3723,6 @@ App_Step_Sig(app_step){
     cmd->models = models;
     cmd->vars = vars;
     cmd->system = system;
-    cmd->exchange = exchange;
     cmd->live_set = &vars->live_set;
     
     cmd->panel = models->layout.panels + models->layout.active_panel;
@@ -4066,7 +4055,7 @@ App_Step_Sig(app_step){
             GUI_Scroll_Vars *vars = view->current_scroll;
             // TODO(allen): I feel like the scroll context should actually not
             // be allowed to change in here at all.
-            result = do_input_file_view(system, exchange, view, panel->inner, active,
+            result = do_input_file_view(system, view, panel->inner, active,
                                         &summary, *vars, view->scroll_region);
             if (result.is_animating){
                 app_result.animating = 1;
@@ -4356,7 +4345,8 @@ App_Step_Sig(app_step){
             draw_rectangle(target, full, back_color);
 
             draw_push_clip(target, panel->inner);
-            do_render_file_view(system, exchange, view, cmd->view, panel->inner, active, target, &dead_input);
+            do_render_file_view(system, view, cmd->view,
+                                panel->inner, active, target, &dead_input);
             draw_pop_clip(target);
 
             u32 margin_color;

@@ -86,7 +86,6 @@ typedef App_Read_Command_Line_Sig(App_Read_Command_Line);
 name(System_Functions *system,                                     \
      Render_Target *target,                                        \
      Application_Memory *memory,                                   \
-     Exchange *exchange,                                           \
      String clipboard,                                             \
      String current_directory,                                     \
      Custom_API api)
@@ -124,7 +123,6 @@ struct Application_Step_Input{
 name(System_Functions *system,                         \
     Render_Target *target,                             \
     Application_Memory *memory,                        \
-    Exchange *exchange,                                \
     Application_Step_Input *input,                     \
     Application_Step_Result *result)
 

@@ -157,9 +157,11 @@ thread_memory_zero(){
 struct Thread_Exchange;
 struct System_Functions;
 
-#define Job_Callback_Sig(name) void name(                               \
-        System_Functions *system, Thread_Context *thread, Thread_Memory *memory, \
-        Thread_Exchange *exchange, void *data[2])
+#define Job_Callback_Sig(name) void name(        \
+        System_Functions *system,                \
+        Thread_Context *thread,                  \
+        Thread_Memory *memory,                   \
+        void *data[2])
 typedef Job_Callback_Sig(Job_Callback);
 
 struct Job_Data{
@@ -188,11 +190,6 @@ struct Work_Queue{
 
 #define JOB_ID_WRAP (ArrayCount(queue->jobs) * 4)
 #define QUEUE_WRAP (ArrayCount(queue->jobs))
-
-struct Thread_Exchange{
-    Work_Queue queues[THREAD_GROUP_COUNT];
-    volatile u32 force_redraw;
-};
 
 #define Sys_Post_Job_Sig(name) u32 name(Thread_Group_ID group_id, Job_Data job)
 typedef Sys_Post_Job_Sig(System_Post_Job);
@@ -265,10 +262,6 @@ struct System_Functions{
     
     // non-function details
     char slash;
-};
-
-struct Exchange{
-    Thread_Exchange thread;
 };
 
 // BOTTOM

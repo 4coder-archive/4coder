@@ -68,10 +68,11 @@
 ; [X] miblo's off screen cursor thing
 ; [X] new file is messed up for code files, it never finishes parsing!
 ; [X] key presses that should be consumed in the GUI are now passed to the file!
+; [X] paste snaps the cursor back into view!
+;
 ; [] indication on failure to save
 ; [] clean whitespace doesn't appear to be cleaning trailing whitespace anymore???
 ;
-; [] paste snaps the cursor back into view!
 ;
 
 ; TODOS

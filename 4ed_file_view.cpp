@@ -844,8 +844,6 @@ Job_Callback_Sig(job_full_lex){
     }
     system->release_lock(FRAME_LOCK);
     
-    exchange->force_redraw = 1;
-    
     // NOTE(allen): These are outside the locked section because I don't
     // think getting these out of order will cause critical bugs, and I
     // want to minimize what's done in locked sections.
@@ -4459,7 +4457,7 @@ struct Input_Process_Result{
 };
 
 internal Input_Process_Result
-do_input_file_view(System_Functions *system, Exchange *exchange,
+do_input_file_view(System_Functions *system,
                    View *view, i32_Rect rect, b32 is_active,
                    Input_Summary *user_input,
                    GUI_Scroll_Vars vars, i32_Rect region){
@@ -5168,8 +5166,8 @@ draw_style_preview(GUI_Target *gui_target, Render_Target *target, View *view, i3
 }
 
 internal i32
-do_render_file_view(System_Functions *system, Exchange *exchange,
-                    View *view, View *active, i32_Rect rect, b32 is_active,
+do_render_file_view(System_Functions *system, View *view,
+                    View *active, i32_Rect rect, b32 is_active,
                     Render_Target *target, Input_Summary *user_input){
     
     Editing_File *file = view->file_data.file;
@@ -5635,7 +5633,7 @@ live_set_alloc_view(Live_Views *live_set, Panel *panel, Models *models){
 }
 
 inline void
-live_set_free_view(System_Functions *system, Exchange *exchange, Live_Views *live_set, View *view){
+live_set_free_view(System_Functions *system, Live_Views *live_set, View *view){
     Assert(live_set->count > 0);
     --live_set->count;
     file_view_free_buffers(view);

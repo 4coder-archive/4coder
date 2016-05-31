@@ -125,6 +125,7 @@ struct Win32_Vars{
     Plat_Settings settings;
     
     
+    Work_Queue queues[THREAD_GROUP_COUNT];
     Thread_Group groups[THREAD_GROUP_COUNT];
     CRITICAL_SECTION locks[LOCK_COUNT];
     Thread_Memory *thread_memory;
@@ -164,7 +165,6 @@ struct Win32_Vars{
 
 globalvar Win32_Vars win32vars;
 globalvar Application_Memory memory_vars;
-globalvar Exchange exchange_vars;
 
 
 //
@@ -319,8 +319,8 @@ JobThreadProc(LPVOID lpParameter){
                             thread_memory->size = new_size;
                         }
                     }
-                    full_job->job.callback(&win32vars.system, thread, thread_memory,
-                                           &exchange_vars.thread, full_job->job.data);
+                    full_job->job.callback(&win32vars.system,
+                                           thread, thread_memory, full_job->job.data);
                     PostMessage(win32vars.window_handle, WM_4coder_ANIMATE, 0, 0);
                     full_job->running_thread = 0;
                     thread->running = 0;
@@ -335,7 +335,7 @@ JobThreadProc(LPVOID lpParameter){
 
 internal
 Sys_Post_Job_Sig(system_post_job){
-    Work_Queue *queue = exchange_vars.thread.queues + group_id;
+    Work_Queue *queue = win32vars.queues + group_id;
     
     Assert((queue->write_position + 1) % QUEUE_WRAP != queue->read_position % QUEUE_WRAP);
     
@@ -366,7 +366,7 @@ Sys_Post_Job_Sig(system_post_job){
 // but I still don't know what exactly I would do without it.
 internal
 Sys_Cancel_Job_Sig(system_cancel_job){
-    Work_Queue *queue = exchange_vars.thread.queues + group_id;
+    Work_Queue *queue = win32vars.queues + group_id;
     Thread_Group *group = win32vars.groups + group_id;
     
     u32 job_index;
@@ -414,7 +414,7 @@ system_grow_thread_memory(Thread_Memory *memory){
 #if FRED_INTERNAL
 internal void
 INTERNAL_get_thread_states(Thread_Group_ID id, bool8 *running, i32 *pending){
-    Work_Queue *queue = exchange_vars.thread.queues + id;
+    Work_Queue *queue = win32vars.queues + id;
     u32 write = queue->write_position;
     u32 read = queue->read_position;
     if (write < read) write += JOB_ID_WRAP;
@@ -1611,7 +1611,6 @@ WinMain(HINSTANCE hInstance,
     char **argv = __argv;
     
     memset(&win32vars, 0, sizeof(win32vars));
-    memset(&exchange_vars, 0, sizeof(exchange_vars));
     
     
     //
@@ -1626,7 +1625,7 @@ WinMain(HINSTANCE hInstance,
     Thread_Memory thread_memory[ArrayCount(background)];
     win32vars.thread_memory = thread_memory;
     
-    exchange_vars.thread.queues[BACKGROUND_THREADS].semaphore =
+    win32vars.queues[BACKGROUND_THREADS].semaphore =
         Win32Handle(CreateSemaphore(0, 0,
                                     win32vars.groups[BACKGROUND_THREADS].count, 0));
     
@@ -1639,7 +1638,7 @@ WinMain(HINSTANCE hInstance,
         *memory = thread_memory_zero();
         memory->id = thread->id;
         
-        thread->queue = &exchange_vars.thread.queues[BACKGROUND_THREADS];
+        thread->queue = &win32vars.queues[BACKGROUND_THREADS];
         thread->handle = CreateThread(0, 0, JobThreadProc, thread, creation_flag, (LPDWORD)&thread->windows_id);
     }
     
@@ -1955,9 +1954,11 @@ WinMain(HINSTANCE hInstance,
     // Main Loop
     //
     
-    win32vars.app.init(&win32vars.system, &win32vars.target,
-                       &memory_vars, &exchange_vars,
-                       win32vars.clipboard_contents, current_directory,
+    win32vars.app.init(&win32vars.system,
+                       &win32vars.target,
+                       &memory_vars,
+                       win32vars.clipboard_contents,
+                       current_directory,
                        win32vars.custom_api);
     
     system_free_memory(current_directory.str);
@@ -2078,7 +2079,6 @@ WinMain(HINSTANCE hInstance,
         win32vars.app.step(&win32vars.system,
                            &win32vars.target,
                            &memory_vars,
-                           &exchange_vars,
                            &input,
                            &result);
         

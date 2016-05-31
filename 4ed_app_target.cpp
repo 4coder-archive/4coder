@@ -39,7 +39,6 @@
 
 #include "4ed_style.h"
 #include "4ed_style.cpp"
-#include "4ed_exchange.cpp"
 #include "4ed_command.cpp"
 #include "4ed_file.cpp"
 #include "4ed_gui.cpp"
