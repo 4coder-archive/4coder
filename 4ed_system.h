@@ -197,6 +197,9 @@ typedef Sys_Post_Job_Sig(System_Post_Job);
 #define Sys_Cancel_Job_Sig(name) void name(Thread_Group_ID group_id, u32 job_id)
 typedef Sys_Cancel_Job_Sig(System_Cancel_Job);
 
+#define Sys_Check_Cancel_Sig(name) b32 name(Thread_Context *thread)
+typedef Sys_Check_Cancel_Sig(System_Check_Cancel);
+
 #define Sys_Grow_Thread_Memory_Sig(name) void name(Thread_Memory *memory)
 typedef Sys_Grow_Thread_Memory_Sig(System_Grow_Thread_Memory);
 
@@ -248,9 +251,10 @@ struct System_Functions{
     System_CLI_Update_Step *cli_update_step;
     System_CLI_End_Update *cli_end_update;
     
-    // threads: 5
+    // threads: 7
     System_Post_Job *post_job;
     System_Cancel_Job *cancel_job;
+    System_Check_Cancel *check_cancel;
     System_Grow_Thread_Memory *grow_thread_memory;
     System_Acquire_Lock *acquire_lock;
     System_Release_Lock *release_lock;

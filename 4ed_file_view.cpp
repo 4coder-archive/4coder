@@ -809,14 +809,32 @@ Job_Callback_Sig(job_full_lex){
     tokens.max_count = memory->size / sizeof(Cpp_Token);
     tokens.count = 0;
     
-    Cpp_Lex_Data status = cpp_lex_file_nonalloc(cpp_file, &tokens);
+    Cpp_Lex_Data status = {};
     
-    while (!status.complete){
-        system->grow_thread_memory(memory);
-        tokens.tokens = (Cpp_Token*)memory->data;
-        tokens.max_count = memory->size / sizeof(Cpp_Token);
-        status = cpp_lex_file_nonalloc(cpp_file, &tokens, status);
-    }
+    do{
+        for (i32 r = 2048; r > 0 && status.pos < cpp_file.size; --r){
+            Cpp_Lex_Data prev_lex = status;
+            Cpp_Read_Result step_result = cpp_lex_step(cpp_file, &status);
+            
+            if (step_result.has_result){
+                if (!cpp_push_token_nonalloc(&tokens, step_result.token)){
+                    status = prev_lex;
+                    system->grow_thread_memory(memory);
+                    tokens.tokens = (Cpp_Token*)memory->data;
+                    tokens.max_count = memory->size / sizeof(Cpp_Token);
+                }
+            }
+        }
+        
+        if (status.pos >= cpp_file.size){
+            status.complete = 1;
+        }
+        else{
+            if (system->check_cancel(thread)){
+                return;
+            }
+        }
+    } while(!status.complete);
     
     i32 new_max = LargeRoundUp(tokens.count+1, Kbytes(1));
     
@@ -835,11 +853,13 @@ Job_Callback_Sig(job_full_lex){
     
     system->acquire_lock(FRAME_LOCK);
     {
-        file->state.token_stack.count = tokens.count;
-        file->state.token_stack.max_count = new_max;
-        if (file->state.token_stack.tokens)
-            general_memory_free(general, file->state.token_stack.tokens);
-        file->state.token_stack.tokens = file->state.swap_stack.tokens;
+        Cpp_Token_Stack *file_stack = &file->state.token_stack;
+        file_stack->count = tokens.count;
+        file_stack->max_count = new_max;
+        if (file_stack->tokens){
+            general_memory_free(general, file_stack->tokens);
+        }
+        file_stack->tokens = file->state.swap_stack.tokens;
         file->state.swap_stack.tokens = 0;
     }
     system->release_lock(FRAME_LOCK);
@@ -1498,6 +1518,22 @@ file_view_nullify_file(View *view){
     view->file_data = file_viewing_data_zero();
 }
 
+inline f32
+view_compute_max_target_y(i32 lowest_line, i32 line_height, f32 view_height){
+    f32 max_target_y = ((lowest_line+.5f)*line_height) - view_height*.5f;
+    max_target_y = clamp_bottom(0.f, max_target_y);
+    return(max_target_y);
+}
+
+internal f32
+view_compute_max_target_y(View *view){
+    i32 lowest_line = view_compute_lowest_line(view);
+    i32 line_height = view->font_height;
+    f32 view_height = view_file_height(view);
+    f32 max_target_y = view_compute_max_target_y(lowest_line, line_height, view_height);
+    return(max_target_y);
+}
+
 internal void
 view_set_file(View *view, Editing_File *file, Models *models){
     Font_Info *fnt_info;
@@ -1534,10 +1570,7 @@ view_set_file(View *view, Editing_File *file, Models *models){
             if (file_is_ready(file)){
                 view_measure_wraps(&models->mem.general, view);
                 view->recent->cursor = view_compute_cursor_from_pos(view, view->recent->cursor.pos);
-                
-#if 0
-                view->recent->scroll.max_y = 1000000000.f;
-#endif
+                view->recent->scroll.max_y = view_compute_max_target_y(view);
                 
                 view_move_view_to_cursor(view, &view->recent->scroll);
             }
@@ -1554,10 +1587,7 @@ view_set_file(View *view, Editing_File *file, Models *models){
             if (file_is_ready(file)){
                 view_measure_wraps(&models->mem.general, view);
                 view->recent->cursor = view_compute_cursor_from_pos(view, file->state.cursor_pos);
-                
-#if 0
-                view->recent->scroll.max_y = 1000000000.f;
-#endif
+                view->recent->scroll.max_y = view_compute_max_target_y(view);
                 
                 view_move_view_to_cursor(view, &view->recent->scroll);
                 view->reinit_scrolling = 1;
@@ -2938,22 +2968,6 @@ style_get_color(Style *style, Cpp_Token token){
     return result;
 }
 
-inline f32
-view_compute_max_target_y(i32 lowest_line, i32 line_height, f32 view_height){
-    f32 max_target_y = ((lowest_line+.5f)*line_height) - view_height*.5f;
-    max_target_y = clamp_bottom(0.f, max_target_y);
-    return(max_target_y);
-}
-
-internal f32
-view_compute_max_target_y(View *view){
-    i32 lowest_line = view_compute_lowest_line(view);
-    i32 line_height = view->font_height;
-    f32 view_height = view_file_height(view);
-    f32 max_target_y = view_compute_max_target_y(lowest_line, line_height, view_height);
-    return(max_target_y);
-}
-
 internal void
 remeasure_file_view(System_Functions *system, View *view){
     if (file_is_ready(view->file_data.file)){
@@ -3108,8 +3122,20 @@ view_open_file(System_Functions *system, Models *models,
         File_Loading loading = system->file_load_begin(filename.str);
         
         if (loading.exists){
+            b32 in_general_mem = 0;
             Temp_Memory temp = begin_temp_memory(part);
             char *buffer = push_array(part, char, loading.size);
+            
+            // TODO(allen): How will we get temporary space for large
+            // buffers?  The main partition isn't always big enough
+            // but getting a general block this large and copying it
+            // then freeing it is *super* dumb!
+            if (buffer == 0){
+                buffer = (char*)general_memory_allocate(general, loading.size);
+                if (buffer != 0){
+                    in_general_mem = 1;
+                }
+            }
             
             if (system->file_load_end(loading, buffer)){
                 file = working_set_alloc_always(working_set, general);
@@ -3121,6 +3147,10 @@ view_open_file(System_Functions *system, Models *models,
                     init_normal_file(system, models, file,
                                      buffer, loading.size);
                 }
+            }
+            
+            if (in_general_mem){
+                general_memory_free(general, buffer);
             }
             
             end_temp_memory(temp);
