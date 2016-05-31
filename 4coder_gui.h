@@ -17,7 +17,7 @@ struct GUI_Scroll_Vars{
     float scroll_y;
     float target_y;
     float prev_target_y;
-    float min_y, max_y;
+    float max_y;
     
     float scroll_x;
     float target_x;

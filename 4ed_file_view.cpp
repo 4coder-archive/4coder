@@ -1422,7 +1422,7 @@ view_get_cursor_y(View *view){
 
 internal void
 view_move_cursor_to_view(View *view){
-    f32 min_target_y = view->recent->scroll.min_y;
+    f32 min_target_y = 0;
     i32 line_height = view->font_height;
     f32 old_cursor_y = view_get_cursor_y(view);
     f32 cursor_y = old_cursor_y;
@@ -1465,7 +1465,7 @@ view_move_view_to_cursor(View *view, GUI_Scroll_Vars *scroll){
     f32 target_x = scroll_vars.target_x;
     
     f32 cursor_max_y = CursorMaxY(max_visible_y, line_height);
-    f32 cursor_min_y = CursorMinY(scroll_vars.min_y, line_height);
+    f32 cursor_min_y = CursorMinY(0, line_height);
     
     if (cursor_y > target_y + cursor_max_y){
         target_y = cursor_y - cursor_max_y + delta_y;
@@ -1474,8 +1474,7 @@ view_move_view_to_cursor(View *view, GUI_Scroll_Vars *scroll){
         target_y = cursor_y - delta_y - cursor_min_y;
     }
     
-    if (target_y > scroll_vars.max_y) target_y = scroll_vars.max_y;
-    if (target_y < scroll_vars.min_y) target_y = view->recent->scroll.min_y;
+    target_y = clamp(0.f, target_y, scroll_vars.max_y);
     
     if (cursor_x < target_x){
         target_x = (f32)Max(0, cursor_x - max_x/2);
@@ -1535,7 +1534,11 @@ view_set_file(View *view, Editing_File *file, Models *models){
             if (file_is_ready(file)){
                 view_measure_wraps(&models->mem.general, view);
                 view->recent->cursor = view_compute_cursor_from_pos(view, view->recent->cursor.pos);
+                
+#if 0
                 view->recent->scroll.max_y = 1000000000.f;
+#endif
+                
                 view_move_view_to_cursor(view, &view->recent->scroll);
             }
         }
@@ -1551,11 +1554,13 @@ view_set_file(View *view, Editing_File *file, Models *models){
             if (file_is_ready(file)){
                 view_measure_wraps(&models->mem.general, view);
                 view->recent->cursor = view_compute_cursor_from_pos(view, file->state.cursor_pos);
+                
+#if 0
                 view->recent->scroll.max_y = 1000000000.f;
+#endif
+                
                 view_move_view_to_cursor(view, &view->recent->scroll);
-                if (!found_recent_entry){
-                    view->reinit_scrolling = 1;
-                }
+                view->reinit_scrolling = 1;
             }
         }
     }
@@ -1564,7 +1569,6 @@ view_set_file(View *view, Editing_File *file, Models *models){
 struct Relative_Scrolling{
     f32 scroll_x, scroll_y;
     f32 target_x, target_y;
-    f32 scroll_min_limit;
 };
 
 internal Relative_Scrolling
@@ -1574,7 +1578,6 @@ view_get_relative_scrolling(View *view){
     cursor_y = view_get_cursor_y(view);
     result.scroll_y = cursor_y - view->recent->scroll.scroll_y;
     result.target_y = cursor_y - view->recent->scroll.target_y;
-    result.scroll_min_limit = view->recent->scroll.min_y;
     return(result);
 }
 
@@ -1583,10 +1586,8 @@ view_set_relative_scrolling(View *view, Relative_Scrolling scrolling){
     f32 cursor_y;
     cursor_y = view_get_cursor_y(view);
     view->recent->scroll.scroll_y = cursor_y - scrolling.scroll_y;
-    view->recent->scroll.target_y = cursor_y - scrolling.target_y;
-    if (view->recent->scroll.target_y < scrolling.scroll_min_limit){
-        view->recent->scroll.target_y = scrolling.scroll_min_limit;
-    }
+    view->recent->scroll.target_y =
+        clamp_bottom(0.f, cursor_y - scrolling.target_y);
 }
 
 inline void
@@ -2940,7 +2941,7 @@ style_get_color(Style *style, Cpp_Token token){
 inline f32
 view_compute_max_target_y(i32 lowest_line, i32 line_height, f32 view_height){
     f32 max_target_y = ((lowest_line+.5f)*line_height) - view_height*.5f;
-    if (max_target_y < 0) max_target_y = 0;
+    max_target_y = clamp_bottom(0.f, max_target_y);
     return(max_target_y);
 }
 
@@ -3402,10 +3403,7 @@ view_reinit_scrolling(View *view){
             target_x = (f32)(cursor_x - w*.5f);
         }
         
-        target_y = (f32)FLOOR32(cursor_y - h*.5f);
-        if (target_y < view->recent->scroll.min_y){
-            target_y = view->recent->scroll.min_y;
-        }
+        target_y = clamp_bottom(0.f, (f32)FLOOR32(cursor_y - h*.5f));
     }
     
     view->recent->scroll.target_y = target_y;
@@ -3520,7 +3518,7 @@ file_step(View *view, i32_Rect region, Input_Summary *user_input, b32 is_active)
             f32 rx = (f32)(user_input->mouse.x - region.x0);
             f32 ry = (f32)(user_input->mouse.y - region.y0);
             
-            if (ry >= -view->recent->scroll.min_y){
+            if (ry >= 0){
                 view_set_widget(view, FWIDG_NONE);
                 if (rx >= 0 && rx < max_x && ry >= 0 && ry < max_visible_y){
                     view_cursor_move(view, rx + scroll_vars.scroll_x, ry + scroll_vars.scroll_y, 1);
@@ -3539,14 +3537,10 @@ do_widget(View *view, GUI_Target *target){
     Query_Slot *slot;
     Query_Bar *bar;
     
-    gui_begin_serial_section(target);
-    
     for (slot = view->query_set.used_slot; slot != 0; slot = slot->next){
         bar = slot->query_bar;
         gui_do_text_field(target, bar->prompt, bar->string);
     }
-    
-    gui_end_serial_section(target);
 }
 
 struct Exhaustive_File_Loop{
@@ -3820,34 +3814,29 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
     gui_begin_top_level(target, input);
     {
         gui_do_top_bar(target);
+        do_widget(view, target);
         
         if (view->showing_ui == VUI_None){
-            gui_begin_overlap(target);
+            
+            gui_begin_serial_section(target);
             {
-                do_widget(view, target);
+                f32 delta = 9.f * view->font_height;
+                GUI_id scroll_context = {0};
+                scroll_context.id[1] = view->showing_ui;
+                scroll_context.id[0] = (u64)(view->file_data.file);
                 
-                gui_begin_serial_section(target);
-                {
-                    f32 delta = 9.f * view->font_height;
-                    GUI_id scroll_context = {0};
-                    scroll_context.id[1] = view->showing_ui;
-                    scroll_context.id[0] = (u64)(view->file_data.file);
-                    
-                    view->current_scroll = &view->recent->scroll;
-                    gui_get_scroll_vars(target, scroll_context,
-                                        &view->recent->scroll, &view->scroll_region);
-                    
-                    gui_begin_scrollable(target, scroll_context, view->recent->scroll,
-                                         delta, show_scrollbar);
-                    gui_do_file(target);
-                    gui_end_scrollable(target);
-                }
-                gui_end_serial_section(target);
+                view->current_scroll = &view->recent->scroll;
+                gui_get_scroll_vars(target, scroll_context,
+                                    &view->recent->scroll, &view->scroll_region);
+                
+                gui_begin_scrollable(target, scroll_context, view->recent->scroll,
+                                     delta, show_scrollbar);
+                gui_do_file(target);
+                gui_end_scrollable(target);
             }
-            gui_end_overlap(target);
+            gui_end_serial_section(target);
         }
         else{
-            do_widget(view, target);
             switch (view->showing_ui){
                 case VUI_Menu:
                 {
@@ -4514,12 +4503,9 @@ do_input_file_view(System_Functions *system,
                     
                     case guicom_file:
                     {
-                        f32 new_min_y = -(f32)(gui_session_get_eclipsed_y(&gui_session) -
-                                               gui_session.rect.y0);
                         f32 new_max_y = view_compute_max_target_y(view);
                         
                         view->file_region = gui_session.rect;
-                        result.vars.min_y = new_min_y;
                         result.vars.max_y = new_max_y;
                         
                         if (view->reinit_scrolling){
@@ -4596,10 +4582,8 @@ do_input_file_view(System_Functions *system,
                         if (gui_id_eq(target->mouse_hot, id)){
                             v = unlerp(gui_session.scroll_top, (f32)my,
                                        gui_session.scroll_bottom);
-                            if (v < 0) v = 0;
-                            if (v > 1.f) v = 1.f;
-                            result.vars.target_y =
-                                lerp(result.vars.min_y, v, result.vars.max_y);
+                            v = clamp(0.f, v, 1.f);
+                            result.vars.target_y = lerp(0.f, v, result.vars.max_y);
                             
                             gui_activate_scrolling(target);
                             result.is_animating = 1;
@@ -4612,12 +4596,8 @@ do_input_file_view(System_Functions *system,
                         if (user_input->mouse.wheel != 0){
                             result.vars.target_y += user_input->mouse.wheel*target->delta;
                             
-                            if (result.vars.target_y < result.vars.min_y){
-                                result.vars.target_y = result.vars.min_y;
-                            }
-                            if (result.vars.target_y > result.vars.max_y){
-                                result.vars.target_y = result.vars.max_y;
-                            }
+                            result.vars.target_y =
+                                clamp(0.f, result.vars.target_y, result.vars.max_y);
                             gui_activate_scrolling(target);
                             result.is_animating = 1;
                         }
@@ -4629,9 +4609,7 @@ do_input_file_view(System_Functions *system,
                         
                         if (scroll_button_input(target, &gui_session, user_input, id, &result.is_animating)){
                             result.vars.target_y -= target->delta * 0.25f;
-                            if (result.vars.target_y < result.vars.min_y){
-                                result.vars.target_y = result.vars.min_y;
-                            }
+                            result.vars.target_y = clamp_bottom(0.f, result.vars.target_y);
                         }
                     }break;
                     
@@ -4641,19 +4619,14 @@ do_input_file_view(System_Functions *system,
                         
                         if (scroll_button_input(target, &gui_session, user_input, id, &result.is_animating)){
                             result.vars.target_y += target->delta * 0.25f;
-                            if (result.vars.target_y > result.vars.max_y){
-                                result.vars.target_y = result.vars.max_y;
-                            }
+                            result.vars.target_y = clamp_top(0.f, result.vars.max_y);
                         }
                     }break;
                     
                     case guicom_end_scrollable_section:
                     {
                         if (!is_file_scroll){
-                            f32 new_min_y = gui_session.suggested_min_y;
                             f32 new_max_y = gui_session.suggested_max_y;
-                            
-                            result.vars.min_y = new_min_y;
                             result.vars.max_y = new_max_y;
                         }
                     }break;

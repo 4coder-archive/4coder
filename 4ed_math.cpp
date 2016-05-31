@@ -465,8 +465,22 @@ unlerp(f32 a, f32 x, f32 b){
 }
 
 inline f32
+clamp_bottom(f32 a, f32 n){
+    if (n < a) n = a;
+    return (n);
+}
+
+inline f32
+clamp_top(f32 n, f32 z){
+    if (n  > z) n = z;
+    return (n);
+}
+
+inline f32
 clamp(f32 a, f32 n, f32 z){
-    return (n<a)?(a):((n>z)?(z):n);
+    if (n < a) n = a;
+    else if (n  > z) n = z;
+    return (n);
 }
 
 /*

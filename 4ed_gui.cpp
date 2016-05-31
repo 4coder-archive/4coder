@@ -171,8 +171,6 @@ struct GUI_Edit{
 
 enum GUI_Command_Type{
     guicom_null,
-    guicom_begin_overlap,
-    guicom_end_overlap,
     guicom_begin_serial,
     guicom_end_serial,
     guicom_top_bar,
@@ -369,16 +367,6 @@ gui_push_string(GUI_Target *target, GUI_Header *h, String s, i32 extra){
 internal void
 gui_push_string(GUI_Target *target, GUI_Header *h, String s){
     gui_push_string(target, h, s, 0);
-}
-
-internal void
-gui_begin_overlap(GUI_Target *target){
-    gui_push_simple_command(target, guicom_begin_overlap);
-}
-
-internal void
-gui_end_overlap(GUI_Target *target){
-    gui_push_simple_command(target, guicom_end_overlap);
 }
 
 internal void
@@ -661,10 +649,10 @@ gui_get_scroll_vars(GUI_Target *target, GUI_id scroll_context_id, GUI_Scroll_Var
         *vars_out = target->scroll_updated;
         *region_out = target->region_updated;
         
-        if (vars_out->target_y < vars_out->min_y) vars_out->target_y = vars_out->min_y;
+        if (vars_out->target_y < 0) vars_out->target_y = 0;
         if (vars_out->target_y > vars_out->max_y) vars_out->target_y = vars_out->max_y;
         
-        if (vars_out->scroll_y < vars_out->min_y) vars_out->scroll_y = vars_out->min_y;
+        if (vars_out->scroll_y < 0) vars_out->scroll_y = 0;
         if (vars_out->scroll_y > vars_out->max_y) vars_out->scroll_y = vars_out->max_y;
         
         if (gui_id_eq(target->active, gui_id_scrollbar())){
@@ -724,7 +712,6 @@ gui_activate_scrolling(GUI_Target *target){
 }
 
 struct GUI_Section{
-    b32 overlapped;
     i32 max_v, v, top_v;
 };
 
@@ -739,7 +726,6 @@ struct GUI_Session{
     i32_Rect full_rect;
     i32_Rect rect;
     
-    f32 suggested_min_y;
     f32 suggested_max_y;
     i32 clip_y;
     
@@ -759,17 +745,11 @@ struct GUI_Session{
 
 #define GUIScrollbarWidth 16
 
+// TODO(allen): We can probably totally get rid of this now.
 internal i32
 gui_session_get_eclipsed_y(GUI_Session *session){
-    GUI_Section *section = session->sections;
-    i32 count = session->t + 1, i;
-    i32 max_v = 0;
-    for (i = 0; i < count; ++i, ++section){
-        if (section->overlapped){
-            max_v = Max(max_v, section->max_v);
-        }
-    }
-    max_v = Max(max_v, session->sections[count-1].top_v);
+    i32 count = session->t + 1;
+    i32 max_v = session->sections[count-1].top_v;
     return(max_v);
 }
 
@@ -804,9 +784,7 @@ gui_session_init(GUI_Session *session, GUI_Target *target,
 
 internal void
 gui_section_end_item(GUI_Section *section, i32 v){
-    if (!section->overlapped){
-        section->v = v;
-	}
+    section->v = v;
     if (section->max_v < v){
         section->max_v = v;
     }
@@ -978,29 +956,10 @@ gui_interpret(GUI_Target *target, GUI_Session *session, GUI_Header *h,
     switch (h->type){
         case guicom_null: Assert(0); break;
 
-        case guicom_begin_overlap:
-        ++session->t;
-        Assert(session->t < ArrayCount(session->sections));
-        new_section = &session->sections[session->t];
-        new_section->overlapped = 1;
-        new_section->v = y;
-        new_section->max_v = y;
-        new_section->top_v = y;
-        break;
-
-        case guicom_end_overlap:
-        Assert(session->t > 0);
-        Assert(section->overlapped);
-        prev_section = &session->sections[--session->t];
-        end_v = section->max_v;
-        end_section = prev_section;
-        break;
-
         case guicom_begin_serial:
         ++session->t;
         Assert(session->t < ArrayCount(session->sections));
         new_section = &session->sections[session->t];
-        new_section->overlapped = 0;
         new_section->v = y;
         new_section->max_v = y;
         new_section->top_v = y;
@@ -1008,7 +967,6 @@ gui_interpret(GUI_Target *target, GUI_Session *session, GUI_Header *h,
 
         case guicom_end_serial:
         Assert(session->t > 0);
-        Assert(!section->overlapped);
         prev_section = &session->sections[--session->t];
         end_v = section->max_v;
         end_section = prev_section;
@@ -1110,7 +1068,6 @@ gui_interpret(GUI_Target *target, GUI_Session *session, GUI_Header *h,
         
         case guicom_scrollable:
         Assert(session->is_scrollable == 0);
-        Assert(!section->overlapped);
         session->is_scrollable = 1;
         always_give_to_user = 1;
         
@@ -1128,7 +1085,6 @@ gui_interpret(GUI_Target *target, GUI_Session *session, GUI_Header *h,
         
         case guicom_scrollable_bar:
         Assert(session->is_scrollable);
-        Assert(!section->overlapped);
         give_to_user = 1;
         rect.x1 = session->full_rect.x1;
         rect.x0 = rect.x1 - GUIScrollbarWidth;
@@ -1151,7 +1107,6 @@ gui_interpret(GUI_Target *target, GUI_Session *session, GUI_Header *h,
         
         case guicom_scrollable_top:
         Assert(session->is_scrollable);
-        Assert(!section->overlapped);
         give_to_user = 1;
         gui_scrollbar_top(session->scroll_rect, &rect);
         scroll_v = 0;
@@ -1159,29 +1114,26 @@ gui_interpret(GUI_Target *target, GUI_Session *session, GUI_Header *h,
         
         case guicom_scrollable_slider:
         Assert(session->is_scrollable);
-        Assert(!section->overlapped);
         give_to_user = 1;
         
         lerp_space_scroll_v =
-            unlerp((f32)target->scroll_original.min_y,
+            unlerp(0,
                    (f32)target->scroll_original.target_y,
                    (f32)target->scroll_original.max_y);
         
         gui_scrollbar_slider(session->scroll_rect, &rect, lerp_space_scroll_v,
                              &session->scroll_top, &session->scroll_bottom,
-                             target->scroll_original.min_y, target->scroll_original.max_y);
+                             0, target->scroll_original.max_y);
         scroll_v = 0;
         break;
         
         case guicom_scrollable_invisible:
         Assert(session->is_scrollable);
-        Assert(!section->overlapped);
         always_give_to_user = 1;
         break;
         
         case guicom_scrollable_bottom:
         Assert(session->is_scrollable);
-        Assert(!section->overlapped);
         give_to_user = 1;
         gui_scrollbar_bottom(session->scroll_rect, &rect);
         scroll_v = 0;
@@ -1196,9 +1148,6 @@ gui_interpret(GUI_Target *target, GUI_Session *session, GUI_Header *h,
 
         case guicom_end_scrollable_section:
         always_give_to_user = 1;
-        session->suggested_min_y =
-            -(f32)(gui_session_get_eclipsed_y(session) -
-                   gui_session_get_current_top(session));
         session->suggested_max_y =
             (f32)(session->scrollable_items_bottom -
                   session->full_rect.y1 * .5f);

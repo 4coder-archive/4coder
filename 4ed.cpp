@@ -415,10 +415,9 @@ COMMAND_DECL(center_view){
     else{
         y = view->recent->cursor.wrapped_y;
     }
-
+    
     h = view_file_height(view);
-    y -= h * .5f;
-    if (y < view->recent->scroll.min_y) y = view->recent->scroll.min_y;
+    y = clamp_bottom(0.f, y - h*.5f);
 
     view->recent->scroll.target_y = y;
 }
@@ -1362,7 +1361,7 @@ COMMAND_DECL(move_down){
     USE_MODELS(models);
     REQ_READABLE_VIEW(view);
     REQ_FILE(file, view);
-
+    
     f32 font_height = (f32)get_font_info(models->font_set, models->global_font.font_id)->height;
     f32 cy = view_get_cursor_y(view)+font_height;
     f32 px = view->recent->preferred_x;
@@ -1373,7 +1372,7 @@ COMMAND_DECL(move_down){
 COMMAND_DECL(seek_end_of_line){
     REQ_READABLE_VIEW(view);
     REQ_FILE(file, view);
-
+    
     i32 pos = view_find_end_of_line(view, view->recent->cursor.pos);
     view_cursor_move(view, pos);
 }
@@ -1381,48 +1380,47 @@ COMMAND_DECL(seek_end_of_line){
 COMMAND_DECL(seek_beginning_of_line){
     REQ_READABLE_VIEW(view);
     REQ_FILE(file, view);
-
+    
     i32 pos = view_find_beginning_of_line(view, view->recent->cursor.pos);
     view_cursor_move(view, pos);
 }
 
 COMMAND_DECL(page_down){
     REQ_READABLE_VIEW(view);
-
+    
     f32 height = view_file_height(view);
     f32 max_target_y = view->recent->scroll.max_y;
-
-    view->recent->scroll.target_y += height;
-    if (view->recent->scroll.target_y > max_target_y) view->recent->scroll.target_y = max_target_y;
-
-    view->recent->cursor = view_compute_cursor_from_xy(
-        view, 0, view->recent->scroll.target_y + (height - view->font_height)*.5f);
+    
+    view->recent->scroll.target_y =
+        clamp_top(view->recent->scroll.target_y + height, max_target_y);
+    
+    view->recent->cursor =
+        view_compute_cursor_from_xy(view, 0, view->recent->scroll.target_y + (height - view->font_height)*.5f);
 }
 
 COMMAND_DECL(page_up){
     REQ_READABLE_VIEW(view);
-
+    
     f32 height = view_file_height(view);
-    f32 min_target_y = view->recent->scroll.min_y;
-
-    view->recent->scroll.target_y -= height;
-    if (view->recent->scroll.target_y < min_target_y) view->recent->scroll.target_y = min_target_y;
-
-    view->recent->cursor = view_compute_cursor_from_xy(
-        view, 0, view->recent->scroll.target_y + (height - view->font_height)*.5f);
+    
+    view->recent->scroll.target_y =
+        clamp_bottom(0.f, view->recent->scroll.target_y - height);
+    
+    view->recent->cursor =
+        view_compute_cursor_from_xy(view, 0, view->recent->scroll.target_y + (height - view->font_height)*.5f);
 }
 
 COMMAND_DECL(open_color_tweaker){
     USE_VIEW(view);
     USE_MODELS(models);
-
+    
     view_show_theme(view, &models->map_ui);
 }
 
 COMMAND_DECL(open_config){
     USE_VIEW(view);
     USE_MODELS(models);
-
+    
     view_show_config(view, &models->map_ui);
 }
 
