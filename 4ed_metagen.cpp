@@ -476,6 +476,24 @@ generate_custom_headers(){
             );
     fprintf(file, "};\n");
     
+    // TODO(allen): Generate app->function(app, ...) to function(app, ...) wrappers.
+    // Need to parse parameter names to do this.
+#if 0    
+    for (int i = 0; i < sig_count; ++i){
+        Function_Signature *sig = sigs + i;
+        
+        copy_fast_unsafe(name_buffer, sig->name);
+        name_buffer[sig->name.size] = 0;
+        to_lower(name_buffer, name_buffer);
+        
+        fprintf(file,
+                "inline %.*s\n"
+                "%s%.*s{ app->%s(",
+                sig->name.size, sig->name.str,
+                name_buffer);
+    }
+#endif
+
     fclose(file);
     
     return(filename);

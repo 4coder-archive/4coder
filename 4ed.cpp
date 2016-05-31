@@ -1917,22 +1917,6 @@ extern "C"{
         return(buffer);
     }
 
-    GET_ACTIVE_BUFFER_SIG(external_get_active_buffer){
-        Command_Data *cmd = (Command_Data*)app->cmd_context;
-        Buffer_Summary buffer = {};
-        View *view = cmd->view;
-        Editing_File *file;
-
-        if (view_lock_level(view) <= LockLevel_Open){
-            file = view->file_data.file;
-            if (file){
-                fill_buffer_summary(&buffer, file, &cmd->models->working_set);
-            }
-        }
-
-        return(buffer);
-    }
-
     GET_PARAMETER_BUFFER_SIG(external_get_parameter_buffer){
         Command_Data *cmd = (Command_Data*)app->cmd_context;
         Models *models = cmd->models;
@@ -1958,7 +1942,8 @@ extern "C"{
         
         return(buffer);
     }
-
+    
+#if 0
     BUFFER_SEEK_DELIMITER_SIG(external_buffer_seek_delimiter){
         Command_Data *cmd = (Command_Data*)app->cmd_context;
         Editing_File *file;
@@ -2071,7 +2056,8 @@ extern "C"{
 
         return(result);
     }
-    
+#endif
+
     REFRESH_BUFFER_SIG(external_refresh_buffer){
         int result;
         *buffer = external_get_buffer(app, buffer->buffer_id);
@@ -2522,7 +2508,6 @@ internal void
 view_caller(Coroutine *coroutine){
     View *view = (View*)coroutine->in;
     View_Persistent *persistent = &view->persistent;
-    
     persistent->view_routine(&persistent->models->app_links, persistent->id);
 }
 
@@ -2547,14 +2532,17 @@ app_links_init(System_Functions *system, Application_Links *app_links, void *dat
     app_links->get_buffer_next = external_get_buffer_next;
     
     app_links->get_buffer = external_get_buffer;
-    app_links->get_active_buffer = external_get_active_buffer;
     app_links->get_parameter_buffer = external_get_parameter_buffer;
     app_links->get_buffer_by_name = external_get_buffer_by_name;
     
     app_links->refresh_buffer = external_refresh_buffer;
+    
+#if 0
     app_links->buffer_seek_delimiter = external_buffer_seek_delimiter;
     app_links->buffer_seek_string = external_buffer_seek_string;
     app_links->buffer_seek_string_insensitive = external_buffer_seek_string_insensitive;
+#endif
+
     app_links->buffer_read_range = external_buffer_read_range;
     app_links->buffer_replace_range = external_buffer_replace_range;
     

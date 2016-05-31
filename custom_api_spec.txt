@@ -18,14 +18,12 @@ Buffer_Summary Get_Buffer_First(Application_Links *app)
 void Get_Buffer_Next(Application_Links *app, Buffer_Summary *buffer)
 
 Buffer_Summary Get_Buffer(Application_Links *app, int index)
-Buffer_Summary Get_Active_Buffer(Application_Links *app)
 Buffer_Summary Get_Parameter_Buffer(Application_Links *app, int param_index)
 Buffer_Summary Get_Buffer_By_Name(Application_Links *app, char *filename, int len)
 
-// TODO(allen): Need more flexible seek system somehow.  Regex?  Just expose the text stream to the user?
-int Buffer_Seek_Delimiter(Application_Links *app, Buffer_Summary *buffer, int start, char delim, int seek_forward, int *out)
-int Buffer_Seek_String(Application_Links *app, Buffer_Summary *buffer, int start, char *str, int len, int seek_forward, int *out)
-int Buffer_Seek_String_Insensitive(Application_Links *app, Buffer_Summary *buffer, int start, char *str, int len, int seek_forward, int *out)
+//int Buffer_Seek_Delimiter(Application_Links *app, Buffer_Summary *buffer, int start, char delim, int seek_forward, int *out)
+//int Buffer_Seek_String(Application_Links *app, Buffer_Summary *buffer, int start, char *str, int len, int seek_forward, int *out)
+//int Buffer_Seek_String_Insensitive(Application_Links *app, Buffer_Summary *buffer, int start, char *str, int len, int seek_forward, int *out)
 
 int Refresh_Buffer(Application_Links *app, Buffer_Summary *buffer)
 int Buffer_Read_Range(Application_Links *app, Buffer_Summary *buffer, int start, int end, char *out)

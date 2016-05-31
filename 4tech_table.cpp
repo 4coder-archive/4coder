@@ -88,12 +88,13 @@ table_add(Table *table, void *item, void *arg, Hash_Function *hash_func, Compare
 internal b32
 table_find_pos(Table *table, void *search_key, void *arg, i32 *pos, i32 *index, Hash_Function *hash_func, Compare_Function *comp_func){
     u32 hash, *inspect;
-    i32 i;
+    i32 i, start;
     
     Assert((table->count - 1) * 8 < table->max * 7);
     
     hash = (hash_func(search_key, arg) | TableHashMin);
     i = hash % table->max;
+    start = i;
     inspect = table->hash_array + i;
     
     while (*inspect != TableHashEmpty){

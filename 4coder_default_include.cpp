@@ -4,14 +4,13 @@
 #define FCPP_STRING_IMPLEMENTATION
 #include "4coder_string.h"
 
-#define UseInterfacesThatArePhasingOut 0
 #include "4coder_helper.h"
 
 #include <assert.h>
 
 static void
 write_string(Application_Links *app, String string){
-    Buffer_Summary buffer = app->get_active_buffer(app);
+    Buffer_Summary buffer = get_active_buffer(app);
     app->buffer_replace_range(app, &buffer, buffer.buffer_cursor_pos, buffer.buffer_cursor_pos, string.str, string.size);
 }
 
@@ -92,7 +91,7 @@ CUSTOM_COMMAND_SIG(if0_off){
     int pos;
 
     view = app->get_active_view(app);
-    buffer = app->get_active_buffer(app);
+    buffer = app->get_buffer(app, view.buffer_id);
 
     range = get_range(&view);
     pos = range.min;
@@ -161,8 +160,8 @@ CUSTOM_COMMAND_SIG(open_file_in_quotes){
     view = app->get_active_view(app);
     buffer = app->get_buffer(app, view.buffer_id);
     pos = view.cursor.pos;
-    app->buffer_seek_delimiter(app, &buffer, pos, '"', 1, &end);
-    app->buffer_seek_delimiter(app, &buffer, pos, '"', 0, &start);
+    buffer_seek_delimiter_forward(app, &buffer, pos, '"', &end);
+    buffer_seek_delimiter_backward(app, &buffer, pos, '"', &start);
 
     ++start;
     size = end - start;
@@ -213,39 +212,39 @@ isearch(Application_Links *app, int start_reversed){
     Buffer_Summary buffer;
     User_Input in;
     Query_Bar bar;
-
+    
     view = app->get_active_view(app);
     buffer = app->get_buffer(app, view.locked_buffer_id);
     
     if (!buffer.exists) return;
     
     if (app->start_query_bar(app, &bar, 0) == 0) return;
-
+    
     Range match;
     int reverse = start_reversed;
     int pos;
     
     pos = view.cursor.pos;
     match = make_range(pos, pos);
-
+    
     char bar_string_space[256];
     bar.string = make_fixed_width_string(bar_string_space);
-
+    
     String isearch = make_lit_string("I-Search: ");
     String rsearch = make_lit_string("Reverse-I-Search: ");
-
+    
     while (1){
         // NOTE(allen): Change the bar's prompt to match the current direction.
         if (reverse) bar.prompt = rsearch;
         else bar.prompt = isearch;
-
+        
         in = app->get_user_input(app, EventOnAnyKey, EventOnEsc | EventOnButton);
         if (in.abort) break;
-
+        
         // NOTE(allen): If we're getting mouse events here it's a 4coder bug, because we
         // only asked to intercept key events.
         assert(in.type == UserInputKey);
-
+        
         int made_change = 0;
         if (in.key.keycode == '\n' || in.key.keycode == '\t'){
             break;
@@ -260,15 +259,15 @@ isearch(Application_Links *app, int start_reversed){
                 made_change = 1;
             }
         }
-
+        
         int step_forward = 0;
         int step_backward = 0;
-
+        
         if (CommandEqual(in.command, search) ||
-                in.key.keycode == key_page_down || in.key.keycode == key_down) step_forward = 1;
+            in.key.keycode == key_page_down || in.key.keycode == key_down) step_forward = 1;
         if (CommandEqual(in.command, reverse_search) ||
-                in.key.keycode == key_page_up || in.key.keycode == key_up) step_backward = 1;
-
+            in.key.keycode == key_page_up || in.key.keycode == key_up) step_backward = 1;
+        
         int start_pos = pos;
         if (step_forward && reverse){
             start_pos = match.start + 1;
@@ -282,17 +281,18 @@ isearch(Application_Links *app, int start_reversed){
             reverse = 1;
             step_backward = 0;
         }
-
+        
         if (in.key.keycode != key_back){
             int new_pos;
             if (reverse){
-                // TODO(allen): Need a good way to allow users to implement seeks for themselves.
-                app->buffer_seek_string_insensitive(app, &buffer, start_pos - 1, bar.string.str, bar.string.size, 0, &new_pos);
+                buffer_seek_string_insensitive_backward(app, &buffer, start_pos - 1,
+                                                        bar.string.str, bar.string.size, &new_pos);
                 if (new_pos >= 0){
                     if (step_backward){
                         pos = new_pos;
                         start_pos = new_pos;
-                        app->buffer_seek_string_insensitive(app, &buffer, start_pos - 1, bar.string.str, bar.string.size, 0, &new_pos);
+                        buffer_seek_string_insensitive_backward(app, &buffer, start_pos - 1,
+                                                                bar.string.str, bar.string.size, &new_pos);
                         if (new_pos < 0) new_pos = start_pos;
                     }
                     match.start = new_pos;
@@ -300,12 +300,14 @@ isearch(Application_Links *app, int start_reversed){
                 }
             }
             else{
-                app->buffer_seek_string_insensitive(app, &buffer, start_pos + 1, bar.string.str, bar.string.size, 1, &new_pos);
+                buffer_seek_string_insensitive_forward(app, &buffer, start_pos + 1,
+                                                       bar.string.str, bar.string.size, &new_pos);
                 if (new_pos < buffer.size){
                     if (step_forward){
                         pos = new_pos;
                         start_pos = new_pos;
-                        app->buffer_seek_string_insensitive(app, &buffer, start_pos + 1, bar.string.str, bar.string.size, 1, &new_pos);
+                        buffer_seek_string_insensitive_forward(app, &buffer, start_pos + 1,
+                                                               bar.string.str, bar.string.size, &new_pos);
                         if (new_pos >= buffer.size) new_pos = start_pos;
                     }
                     match.start = new_pos;
@@ -318,12 +320,12 @@ isearch(Application_Links *app, int start_reversed){
                 match.end = match.start + bar.string.size;
             }
         }
-
+        
         app->view_set_highlight(app, &view, match.start, match.end, 1);
     }
     app->view_set_highlight(app, &view, 0, 0, 0);
     if (in.abort) return;
-
+    
     app->view_set_cursor(app, &view, seek_pos(match.min), 1);
 }
 
@@ -365,14 +367,14 @@ CUSTOM_COMMAND_SIG(replace_in_range){
 
     int pos, new_pos;
     pos = range.min;
-    app->buffer_seek_string(app, &buffer, pos, r.str, r.size, 1, &new_pos);
+    buffer_seek_string_forward(app, &buffer, pos, r.str, r.size, &new_pos);
 
     while (new_pos + r.size <= range.end){
         app->buffer_replace_range(app, &buffer, new_pos, new_pos + r.size, w.str, w.size);
         app->refresh_view(app, &view);
         range = get_range(&view);
         pos = new_pos + w.size;
-        app->buffer_seek_string(app, &buffer, pos, r.str, r.size, 1, &new_pos);
+        buffer_seek_string_forward(app, &buffer, pos, r.str, r.size, &new_pos);
     }
 }
 
@@ -410,7 +412,7 @@ CUSTOM_COMMAND_SIG(query_replace){
     buffer = app->get_buffer(app, view.buffer_id);
 
     pos = view.cursor.pos;
-    app->buffer_seek_string(app, &buffer, pos, r.str, r.size, 1, &new_pos);
+    buffer_seek_string_forward(app, &buffer, pos, r.str, r.size, &new_pos);
 
     User_Input in = {0};
     while (new_pos < buffer.size){
@@ -428,7 +430,7 @@ CUSTOM_COMMAND_SIG(query_replace){
             pos = match.max;
         }
 
-        app->buffer_seek_string(app, &buffer, pos, r.str, r.size, 1, &new_pos);
+        buffer_seek_string_forward(app, &buffer, pos, r.str, r.size, &new_pos);
     }
 
     app->view_set_highlight(app, &view, 0, 0, 0);
@@ -663,7 +665,7 @@ CUSTOM_COMMAND_SIG(auto_tab_line_at_cursor){
 }
 
 CUSTOM_COMMAND_SIG(auto_tab_whole_file){
-    Buffer_Summary buffer = app->get_active_buffer(app);
+    Buffer_Summary buffer = get_active_buffer(app);
     push_parameter(app, par_range_start, 0);
     push_parameter(app, par_range_end, buffer.size);
     exec_command(app, cmdid_auto_tab_range);

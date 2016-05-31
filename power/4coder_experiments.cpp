@@ -27,102 +27,6 @@ CUSTOM_COMMAND_SIG(kill_rect){
     }
 }
 
-// NOTE(allen): This stream stuff will be moved to helper if it looks
-// like it will be helpful.  So if you want to use it to build your own
-// commands I suggest you move it there first.
-struct Stream_Chunk{
-    Application_Links *app;
-    Buffer_Summary *buffer;
-    
-    char *base_data;
-    int start, end;
-    int data_size;
-    
-    char *data;
-};
-
-int
-round_down(int x, int b){
-    int r = 0;
-    if (x >= 0){
-        r = x - (x % b);
-    }
-    return(r);
-}
-
-int
-round_up(int x, int b){
-    int r = 0;
-    if (x >= 0){
-        r = x - (x % b) + b;
-    }
-    return(r);
-}
-
-int
-init_stream_chunk(Stream_Chunk *chunk,
-    Application_Links *app, Buffer_Summary *buffer,
-    int pos, char *data, int size){
-    int result = 0;
-    
-    app->refresh_buffer(app, buffer);
-    if (pos >= 0 && pos < buffer->size && size > 0){
-        result = 1;
-        chunk->app = app;
-        chunk->buffer = buffer;
-        chunk->base_data = data;
-        chunk->data_size = size;
-        chunk->start = round_down(pos, size);
-        chunk->end = round_up(pos, size);
-        if (chunk->end > buffer->size){
-            chunk->end = buffer->size;
-        }
-        app->buffer_read_range(app, buffer, chunk->start, chunk->end, chunk->base_data);
-        chunk->data = chunk->base_data - chunk->start;
-    }
-    return(result);
-}
-
-int
-forward_stream_chunk(Stream_Chunk *chunk){
-    Application_Links *app = chunk->app;
-    Buffer_Summary *buffer = chunk->buffer;
-    int result = 0;
-    
-    app->refresh_buffer(app, buffer);
-    if (chunk->end < buffer->size){
-        result = 1;
-        chunk->start = chunk->end;
-        chunk->end += chunk->data_size;
-        if (chunk->end > buffer->size){
-            chunk->end = buffer->size;
-        }
-        app->buffer_read_range(app, buffer, chunk->start, chunk->end, chunk->base_data);
-        chunk->data = chunk->base_data - chunk->start;
-    }
-    return(result);
-}
-
-int
-backward_stream_chunk(Stream_Chunk *chunk){
-    Application_Links *app = chunk->app;
-    Buffer_Summary *buffer = chunk->buffer;
-    int result = 0;
-    
-    app->refresh_buffer(app, buffer);
-    if (chunk->start > 0){
-        result = 1;
-        chunk->end = chunk->start;
-        chunk->start -= chunk->data_size;
-        if (chunk->start < 0){
-            chunk->start = 0;
-        }
-        app->buffer_read_range(app, buffer, chunk->start, chunk->end, chunk->base_data);
-        chunk->data = chunk->base_data - chunk->start;
-    }
-    return(result);
-}
-
 // TODO(allen): Both of these brace related commands would work better
 // if the API exposed access to the tokens in a code file.
 CUSTOM_COMMAND_SIG(mark_matching_brace){
@@ -146,7 +50,8 @@ CUSTOM_COMMAND_SIG(mark_matching_brace){
     int nesting_counter = 0;
     char at_cursor = 0;
     
-    if (init_stream_chunk(&chunk, app, &buffer, i, chunk_space, sizeof(chunk_space))){
+    if (init_stream_chunk(&chunk, app, &buffer, i,
+                          chunk_space, sizeof(chunk_space))){
         
         // NOTE(allen): This is important! The data array is a pointer that is adjusted
         // so that indexing it with "i" will put it with the chunk that is actually loaded.

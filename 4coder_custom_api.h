@@ -11,12 +11,8 @@
 #define GET_BUFFER_FIRST_SIG(n) Buffer_Summary n(Application_Links *app)
 #define GET_BUFFER_NEXT_SIG(n) void n(Application_Links *app, Buffer_Summary *buffer)
 #define GET_BUFFER_SIG(n) Buffer_Summary n(Application_Links *app, int index)
-#define GET_ACTIVE_BUFFER_SIG(n) Buffer_Summary n(Application_Links *app)
 #define GET_PARAMETER_BUFFER_SIG(n) Buffer_Summary n(Application_Links *app, int param_index)
 #define GET_BUFFER_BY_NAME_SIG(n) Buffer_Summary n(Application_Links *app, char *filename, int len)
-#define BUFFER_SEEK_DELIMITER_SIG(n) int n(Application_Links *app, Buffer_Summary *buffer, int start, char delim, int seek_forward, int *out)
-#define BUFFER_SEEK_STRING_SIG(n) int n(Application_Links *app, Buffer_Summary *buffer, int start, char *str, int len, int seek_forward, int *out)
-#define BUFFER_SEEK_STRING_INSENSITIVE_SIG(n) int n(Application_Links *app, Buffer_Summary *buffer, int start, char *str, int len, int seek_forward, int *out)
 #define REFRESH_BUFFER_SIG(n) int n(Application_Links *app, Buffer_Summary *buffer)
 #define BUFFER_READ_RANGE_SIG(n) int n(Application_Links *app, Buffer_Summary *buffer, int start, int end, char *out)
 #define BUFFER_REPLACE_RANGE_SIG(n) int n(Application_Links *app, Buffer_Summary *buffer, int start, int end, char *str, int len)
@@ -56,12 +52,8 @@ extern "C"{
     typedef GET_BUFFER_FIRST_SIG(Get_Buffer_First_Function);
     typedef GET_BUFFER_NEXT_SIG(Get_Buffer_Next_Function);
     typedef GET_BUFFER_SIG(Get_Buffer_Function);
-    typedef GET_ACTIVE_BUFFER_SIG(Get_Active_Buffer_Function);
     typedef GET_PARAMETER_BUFFER_SIG(Get_Parameter_Buffer_Function);
     typedef GET_BUFFER_BY_NAME_SIG(Get_Buffer_By_Name_Function);
-    typedef BUFFER_SEEK_DELIMITER_SIG(Buffer_Seek_Delimiter_Function);
-    typedef BUFFER_SEEK_STRING_SIG(Buffer_Seek_String_Function);
-    typedef BUFFER_SEEK_STRING_INSENSITIVE_SIG(Buffer_Seek_String_Insensitive_Function);
     typedef REFRESH_BUFFER_SIG(Refresh_Buffer_Function);
     typedef BUFFER_READ_RANGE_SIG(Buffer_Read_Range_Function);
     typedef BUFFER_REPLACE_RANGE_SIG(Buffer_Replace_Range_Function);
@@ -104,12 +96,8 @@ struct Application_Links{
     Get_Buffer_First_Function *get_buffer_first;
     Get_Buffer_Next_Function *get_buffer_next;
     Get_Buffer_Function *get_buffer;
-    Get_Active_Buffer_Function *get_active_buffer;
     Get_Parameter_Buffer_Function *get_parameter_buffer;
     Get_Buffer_By_Name_Function *get_buffer_by_name;
-    Buffer_Seek_Delimiter_Function *buffer_seek_delimiter;
-    Buffer_Seek_String_Function *buffer_seek_string;
-    Buffer_Seek_String_Insensitive_Function *buffer_seek_string_insensitive;
     Refresh_Buffer_Function *refresh_buffer;
     Buffer_Read_Range_Function *buffer_read_range;
     Buffer_Replace_Range_Function *buffer_replace_range;

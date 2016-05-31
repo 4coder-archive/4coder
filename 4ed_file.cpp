@@ -582,6 +582,7 @@ filename_match(String query, Absolutes *absolutes, String filename, b32 case_sen
     return result;
 }
 
+#if 0
 internal Hot_Directory_Match
 hot_directory_first_match(Hot_Directory *hot_directory,
                           String str,
@@ -605,7 +606,7 @@ hot_directory_first_match(Hot_Directory *hot_directory,
                 if (match(filename, str)) is_match = 1;
             }
             else{
-                if (match_unsensitive(filename, str)) is_match = 1;
+                if (match_insensitive(filename, str)) is_match = 1;
             }
         }
         else{
@@ -621,6 +622,7 @@ hot_directory_first_match(Hot_Directory *hot_directory,
     
     return result;
 }
+#endif
 
 inline File_Sync_State
 buffer_get_sync(Editing_File *file){
