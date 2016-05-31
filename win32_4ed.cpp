@@ -319,6 +319,14 @@ JobThreadProc(LPVOID lpParameter){
     i32 cancel_lock = group->cancel_lock0 + thread_index;
     i32 cancel_cv = group->cancel_cv0 + thread_index;
     
+    Thread_Memory *thread_memory = win32vars.thread_memory + thread_index;
+    
+    if (thread_memory->size == 0){
+        i32 new_size = Kbytes(64);
+        thread_memory->data = Win32GetMemory(new_size);
+        thread_memory->size = new_size;
+    }
+    
     for (;;){
         u32 read_index = queue->read_position;
         u32 write_index = queue->write_position;
@@ -342,20 +350,7 @@ JobThreadProc(LPVOID lpParameter){
                 if (safe_running_thread == THREAD_NOT_ASSIGNED){
                     thread->job_id = full_job->id;
                     thread->running = 1;
-                    Thread_Memory *thread_memory = 0;
                     
-                    // TODO(allen): remove memory_request
-                    if (full_job->job.memory_request != 0){
-                        thread_memory = win32vars.thread_memory + thread->id - 1;
-                        if (thread_memory->size < full_job->job.memory_request){
-                            if (thread_memory->data){
-                                Win32FreeMemory(thread_memory->data);
-                            }
-                            i32 new_size = LargeRoundUp(full_job->job.memory_request, Kbytes(4));
-                            thread_memory->data = Win32GetMemory(new_size);
-                            thread_memory->size = new_size;
-                        }
-                    }
                     full_job->job.callback(&win32vars.system,
                                            thread, thread_memory, full_job->job.data);
                     PostMessage(win32vars.window_handle, WM_4coder_ANIMATE, 0, 0);
@@ -1699,6 +1694,27 @@ WinMain(HINSTANCE hInstance,
     // Threads and Coroutines
     //
     
+    // NOTE(allen): These should come before threads are started!
+    // Threads now get memory right away and so they use
+    // the internal_bubble and DEBUG_sysmem_lock
+    
+#if FRED_INTERNAL
+    win32vars.internal_bubble.next = &win32vars.internal_bubble;
+    win32vars.internal_bubble.prev = &win32vars.internal_bubble;
+    win32vars.internal_bubble.flags = MEM_BUBBLE_SYS_DEBUG;
+    
+    InitializeCriticalSection(&win32vars.DEBUG_sysmem_lock);
+#endif
+    
+    for (i32 i = 0; i < LOCK_COUNT; ++i){
+        InitializeCriticalSection(&win32vars.locks[i]);
+    }
+    
+    for (i32 i = 0; i < CV_COUNT; ++i){
+        InitializeConditionVariable(&win32vars.condition_vars[i]);
+    }
+    
+    
     Thread_Context background[4];
     memset(background, 0, sizeof(background));
     win32vars.groups[BACKGROUND_THREADS].threads = background;
@@ -1728,12 +1744,6 @@ WinMain(HINSTANCE hInstance,
         thread->handle = CreateThread(0, 0, JobThreadProc, thread, creation_flag, (LPDWORD)&thread->windows_id);
     }
     
-    Assert(win32vars.locks);
-    for (i32 i = 0; i < LOCK_COUNT; ++i){
-        InitializeCriticalSection(&win32vars.locks[i]);
-    }
-    InitializeCriticalSection(&win32vars.DEBUG_sysmem_lock);
-        
     ConvertThreadToFiber(0);
     win32vars.coroutine_free = win32vars.coroutine_data;
     for (i32 i = 0; i+1 < ArrayCount(win32vars.coroutine_data); ++i){
@@ -1744,12 +1754,6 @@ WinMain(HINSTANCE hInstance,
     //
     // Memory Initialization
     //
-    
-#if FRED_INTERNAL
-    win32vars.internal_bubble.next = &win32vars.internal_bubble;
-    win32vars.internal_bubble.prev = &win32vars.internal_bubble;
-    win32vars.internal_bubble.flags = MEM_BUBBLE_SYS_DEBUG;
-#endif
     
     LPVOID base;
 #if FRED_INTERNAL

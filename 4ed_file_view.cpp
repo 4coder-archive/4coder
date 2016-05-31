@@ -906,7 +906,6 @@ file_first_lex_parallel(System_Functions *system,
         job.callback = job_full_lex;
         job.data[0] = file;
         job.data[1] = general;
-        job.memory_request = Kbytes(64);
         file->state.lex_job = system->post_job(BACKGROUND_THREADS, job);
     }
 }
@@ -999,7 +998,6 @@ file_relex_parallel(System_Functions *system,
         job.callback = job_full_lex;
         job.data[0] = file;
         job.data[1] = general;
-        job.memory_request = Kbytes(64);
         file->state.lex_job = system->post_job(BACKGROUND_THREADS, job);
     }
 }
@@ -2584,8 +2582,10 @@ compute_this_indent(Buffer *buffer, Indent_Parse_State indent,
         next_line_start = buffer_size(buffer);
     }
     
-    if ((prev_token.type == CPP_TOKEN_COMMENT || prev_token.type == CPP_TOKEN_STRING_CONSTANT) &&
-        prev_token.start <= this_line_start && prev_token.start + prev_token.size > this_line_start){
+    if ((prev_token.type == CPP_TOKEN_COMMENT ||
+         prev_token.type == CPP_TOKEN_STRING_CONSTANT) &&
+        prev_token.start <= this_line_start &&
+        prev_token.start + prev_token.size > this_line_start){
         this_indent = previous_indent;
     }
     else{
@@ -2620,11 +2620,13 @@ compute_this_indent(Buffer *buffer, Indent_Parse_State indent,
     }
     
     if (indent.paren_nesting > 0){
-        i32 level = indent.paren_nesting-1;
-        if (level >= ArrayCount(indent.paren_anchor_indent)){
-            level = ArrayCount(indent.paren_anchor_indent)-1;
+        if (prev_token.type != CPP_TOKEN_PARENTHESE_OPEN){
+            i32 level = indent.paren_nesting-1;
+            if (level >= ArrayCount(indent.paren_anchor_indent)){
+                level = ArrayCount(indent.paren_anchor_indent)-1;
+            }
+            this_indent = indent.paren_anchor_indent[level];
         }
-        this_indent = indent.paren_anchor_indent[level];
     }
     return(this_indent);
 }
@@ -2726,6 +2728,7 @@ get_line_indentation_marks(Partition *part, Buffer *buffer, Cpp_Token_Stack toke
     switch (token->type){
         case CPP_TOKEN_BRACKET_OPEN: indent.current_indent += tab_width; break;
         case CPP_TOKEN_BRACE_OPEN: indent.current_indent += tab_width; break;
+        case CPP_TOKEN_PARENTHESE_OPEN: indent.current_indent += tab_width; break;
     }
     
     indent.previous_line_indent = indent.current_indent;
@@ -2754,6 +2757,18 @@ get_line_indentation_marks(Partition *part, Buffer *buffer, Cpp_Token_Stack toke
             // TODO(allen): Since this is called in one place we can probably go back
             // to directly passing in next_line_start and this_line_start.
             i32 this_indent = compute_this_indent(buffer, indent, T, prev_token, line_i, tab_width);
+            
+            // NOTE(allen): Rebase the paren anchor if the first token
+            // after an open paren is on the next line.
+            if (indent.paren_nesting > 0){
+                if (prev_token.type == CPP_TOKEN_PARENTHESE_OPEN){
+                    i32 level = indent.paren_nesting-1;
+                    if (level >= ArrayCount(indent.paren_anchor_indent)){
+                        level = ArrayCount(indent.paren_anchor_indent)-1;
+                    }
+                    indent.paren_anchor_indent[level] = this_indent;
+                }
+            }
             
             if (line_i >= line_start){
                 indent_marks[line_i] = this_indent;

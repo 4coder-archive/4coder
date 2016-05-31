@@ -12,7 +12,7 @@
 // NOTE(allen): This is an experiment, BUT remember a lot of people shit on templates.
 // So if you start getting a wiff of stupidity from this back out immediately!
 //
-// experience 1: no badness, haven't seen any anoying template errors
+// experience 1: no badness, haven't seen any annoying template errors
 // ...
 
 template<typename T>

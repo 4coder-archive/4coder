@@ -190,15 +190,24 @@
 
 ; HARD BUGS
 ; [X] reduce cpu consumption
-; [?] minimize and reopen problem (reported by two users now, still not reproduced here)
 ; [X] repainting too slow for resize looks really dumb
 ; [] fyoucon's segfaults with malloc on win10
 ; [] handling cursor in non-client part of window so it doesn't spaz
 ; [] fill screen right away
 ; [] how to get fast repaint (do I really need double buffering?)
 ; [] history breaks when heavily used (disk swaping?)
-; [] window stops repainting bug on a handful of machines (Win 10? Driver?)
 ;
+; [] minimize and reopen problem (reported by two users now, still not reproduced here)
+;
+
+; FANCY PANTS IDEAS
+; [] pass messages to 'jobs' to try to avoid cancelling them
+;    if the job still thinks it should be cancelled it will say so
+;    but otherwise the job can try to incorporate the new info
+;    without throwing away the progress it has made so far.
+;
+;
+
 
 ; PORTING TODOS
 ; [X] command line parameters

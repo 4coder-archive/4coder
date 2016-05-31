@@ -167,7 +167,7 @@ typedef Job_Callback_Sig(Job_Callback);
 struct Job_Data{
     Job_Callback *callback;
     void *data[2];
-    i32 memory_request;
+    //i32 memory_request;
 };
 
 struct Full_Job_Data{

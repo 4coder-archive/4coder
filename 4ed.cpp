@@ -155,9 +155,6 @@ do_feedback_message(System_Functions *system, Models *models, String value){
 
 // Commands
 
-// TODO(allen): MOVE THIS TO models
-//globalvar Application_Links app_links;
-
 #define USE_MODELS(n) Models *n = command->models
 #define USE_VARS(n) App_Vars *n = command->vars
 #define USE_PANEL(n) Panel *n = command->panel
@@ -428,52 +425,52 @@ COMMAND_DECL(word_complete){
     USE_VARS(vars);
     REQ_OPEN_VIEW(view);
     REQ_FILE(file, view);
-
+    
     Partition *part = &models->mem.part;
     General_Memory *general = &models->mem.general;
     Working_Set *working_set = &models->working_set;
     Complete_State *complete_state = &vars->complete_state;
     Search_Range *ranges;
     Search_Match match;
-
+    
     Temp_Memory temp;
-
+    
     Buffer_Type *buffer;
     Buffer_Backify_Type loop;
     char *data;
     i32 end;
     i32 size_of_buffer;
-
+    
     i32 cursor_pos, word_start, word_end;
     char c;
-
+    
     char *spare;
     i32 size;
-
+    
     i32 match_size;
     b32 do_init = 0;
-
+    
     buffer = &file->state.buffer;
     size_of_buffer = buffer_size(buffer);
-
+    
     if (view->mode.rewrite != 2){
         do_init = 1;
     }
     view->next_mode.rewrite = 2;
-
+    
     if (complete_state->initialized == 0){
         do_init = 1;
     }
-
+    
     if (do_init){
         word_end = view->recent->cursor.pos;
         word_start = word_end;
         cursor_pos = word_end - 1;
-
+        
         // TODO(allen): macros for these buffer loops and some method of breaking out of them.
         for (loop = buffer_backify_loop(buffer, cursor_pos, 0);
-            buffer_backify_good(&loop);
-            buffer_backify_next(&loop)){
+             buffer_backify_good(&loop);
+             buffer_backify_next(&loop)){
             end = loop.absolute_pos;
             data = loop.data - loop.absolute_pos;
             for (; cursor_pos >= end; --cursor_pos){
@@ -487,35 +484,35 @@ COMMAND_DECL(word_complete){
             }
         }
         double_break:;
-
+        
         size = word_end - word_start;
-
+        
         if (size == 0){
             complete_state->initialized = 0;
             return;
         }
-
+        
         complete_state->initialized = 1;
         search_iter_init(general, &complete_state->iter, size);
         buffer_stringify(buffer, word_start, word_end, complete_state->iter.word.str);
         complete_state->iter.word.size = size;
-
+        
         {
             File_Node *node, *used_nodes;
             Editing_File *file_ptr;
             i32 buffer_count, j;
-
+            
             buffer_count = working_set->file_count;
             search_set_init(general, &complete_state->set, buffer_count + 1);
             ranges = complete_state->set.ranges;
             ranges[0].buffer = buffer;
             ranges[0].start = 0;
             ranges[0].size = word_start;
-
+            
             ranges[1].buffer = buffer;
             ranges[1].start = word_end;
             ranges[1].size = size_of_buffer - word_end;
-
+            
             used_nodes = &working_set->used_sentinel;
             j = 2;
             for (dll_items(node, used_nodes)){
@@ -529,11 +526,11 @@ COMMAND_DECL(word_complete){
             }
             complete_state->set.count = j;
         }
-
+        
         search_hits_init(general, &complete_state->hits, &complete_state->str, 100, Kbytes(4));
         search_hit_add(general, &complete_state->hits, &complete_state->str,
-            complete_state->iter.word.str, complete_state->iter.word.size);
-
+                       complete_state->iter.word.str, complete_state->iter.word.size);
+        
         complete_state->word_start = word_start;
         complete_state->word_end = word_end;
     }
@@ -542,20 +539,20 @@ COMMAND_DECL(word_complete){
         word_end = complete_state->word_end;
         size = complete_state->iter.word.size;
     }
-
+    
     if (size > 0){
         for (;;){
             match = search_next_match(part, &complete_state->set, &complete_state->iter);
-
+            
             if (match.found_match){
                 temp = begin_temp_memory(part);
                 match_size = match.end - match.start;
                 spare = (char*)push_array(part, char, match_size);
                 buffer_stringify(match.buffer, match.start, match.end, spare);
-
+                
                 if (search_hit_add(general, &complete_state->hits, &complete_state->str, spare, match_size)){
                     view_replace_range(system, models, view, word_start, word_end, spare, match_size, word_end);
-
+                    
                     complete_state->word_end = word_start + match_size;
                     complete_state->set.ranges[1].start = word_start + match_size;
                     break;
@@ -565,15 +562,15 @@ COMMAND_DECL(word_complete){
             else{
                 complete_state->iter.pos = 0;
                 complete_state->iter.i = 0;
-
+                
                 search_hits_init(general, &complete_state->hits, &complete_state->str, 100, Kbytes(4));
                 search_hit_add(general, &complete_state->hits, &complete_state->str,
-                    complete_state->iter.word.str, complete_state->iter.word.size);
-
+                               complete_state->iter.word.str, complete_state->iter.word.size);
+                
                 match_size = complete_state->iter.word.size;
                 view_replace_range(system, models, view, word_start, word_end,
-                    complete_state->iter.word.str, match_size, word_end);
-
+                                   complete_state->iter.word.str, match_size, word_end);
+                
                 complete_state->word_end = word_start + match_size;
                 complete_state->set.ranges[1].start = word_start + match_size;
                 break;
