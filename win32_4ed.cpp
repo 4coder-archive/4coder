@@ -28,6 +28,8 @@
 
 #include "system_shared.h"
 
+#define SUPPORT_DPI 1
+
 #define FPS 60
 #define frame_useconds (1000000 / FPS)
 
@@ -168,7 +170,9 @@ struct Win32_Vars{
     HWND window_handle;
     Render_Target target;
     Partition font_part;
-    
+#if SUPPORT_DPI
+    i32 dpi_x, dpi_y;
+#endif
     
     u64 count_per_usecond;
     b32 first;
@@ -1137,6 +1141,15 @@ Sys_CLI_End_Update_Sig(system_cli_end_update){
 #include "system_shared.cpp"
 #include "4ed_rendering.cpp"
 
+internal f32
+size_change(i32 dpi_x, i32 dpi_y){
+    // TODO(allen): We're just hoping dpi_x == dpi_y for now I guess.
+    f32 size_x = win32vars.dpi_x / 96.f;
+    f32 size_y = win32vars.dpi_y / 96.f;
+    f32 size_max = Max(size_x, size_y);
+    return(size_max);
+}
+
 internal
 Font_Load_Sig(system_draw_font_load){
     if (win32vars.font_part.base == 0){
@@ -1144,6 +1157,10 @@ Font_Load_Sig(system_draw_font_load){
     }
     
     i32 oversample = 2;
+    
+#if SUPPORT_DPI
+    pt_size = ROUND32(pt_size * size_change(win32vars.dpi_x, win32vars.dpi_y));
+#endif
     
     for (b32 success = 0; success == 0;){
         success = draw_font_load(&win32vars.font_part,
@@ -1947,9 +1964,18 @@ WinMain(HINSTANCE hInstance,
         exit(1);
     }
     
+    HDC hdc = GetDC(win32vars.window_handle);
     
-    // TODO(allen): not Windows XP compatible, do we care?
-    // SetProcessDPIAware();
+#if SUPPORT_DPI
+    // TODO(allen): not Windows XP compatible, how do I handle that?
+    SetProcessDPIAware();
+    
+    win32vars.dpi_x = GetDeviceCaps(hdc, LOGPIXELSX);
+    win32vars.dpi_y = GetDeviceCaps(hdc, LOGPIXELSY);
+#else
+    win32vars.dpi_x = 1;
+    win32vars.dpi_y = 1;
+#endif
     
     GetClientRect(win32vars.window_handle, &window_rect);
     
@@ -1971,7 +1997,6 @@ WinMain(HINSTANCE hInstance,
         0,
         0, 0, 0 };
     
-    HDC hdc = GetDC(win32vars.window_handle);
     {
         i32 pixel_format;
         pixel_format = ChoosePixelFormat(hdc, &pfd);

@@ -57,12 +57,13 @@ table_at_capacity(Table *table){
 internal b32
 table_add(Table *table, void *item, void *arg, Hash_Function *hash_func, Compare_Function *comp_func){
     u32 hash, *inspect;
-    i32 i;
+    i32 i, start;
     
     Assert(table->count * 8 < table->max * 7);
-        
+    
     hash = (hash_func(item, arg) | TableHashMin);
     i = hash % table->max;
+    start = i;
     inspect = table->hash_array + i;
     
     while (*inspect >= TableHashMin){
@@ -77,6 +78,7 @@ table_add(Table *table, void *item, void *arg, Hash_Function *hash_func, Compare
             i = 0;
             inspect = table->hash_array;
         }
+        Assert(i != start);
     }
     *inspect = hash;
     memcpy(table->data_array + i*table->item_size, item, table->item_size);
@@ -111,6 +113,7 @@ table_find_pos(Table *table, void *search_key, void *arg, i32 *pos, i32 *index, 
             i = 0;
             inspect = table->hash_array;
         }
+        if (i == start) break;
     }
     
     return(0);
