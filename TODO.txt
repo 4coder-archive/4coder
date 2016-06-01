@@ -99,6 +99,9 @@
 ; [X] feedback messages
 ; [X] feedback message API
 ; [X] kill rect
+; [X] add high DPI support
+; 
+; [] OS font rendering
 ; 
 ; [] file status in custom API
 ; [] user file bar string

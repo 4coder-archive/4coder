@@ -809,6 +809,40 @@ Job_Callback_Sig(job_full_lex){
     tokens.max_count = memory->size / sizeof(Cpp_Token);
     tokens.count = 0;
     
+#if 0
+    
+    b32 still_lexing = 1;
+    
+    Lex_Data lex = {0};
+    
+    do{
+        i32 result = 
+            cpp_lex_nonalloc(&lex, cpp_file.data, cpp_file.size, &tokens, 2048);
+        
+        switch (result){
+            case LexNeedChunk: Assert(!"Invalid Path"); break;
+            
+            case LexNeedTokenMemory:
+            if (system->check_cancel(thread)){
+                return;
+            }
+            system->grow_thread_memory(memory);
+            tokens.tokens = (Cpp_Token*)memory->data;
+            tokens.max_count = memory->size / sizeof(Cpp_Token);
+            break;
+            
+            case LexHitTokenLimit:
+            if (system->check_cancel(thread)){
+                return;
+            }
+            break;
+            
+            case LexFinished: still_lexing = 0; break;
+        }
+    } while (still_lexing);
+    
+#else
+    
     Cpp_Lex_Data status = {};
     
     do{
@@ -835,6 +869,10 @@ Job_Callback_Sig(job_full_lex){
             }
         }
     } while(!status.complete);
+    
+#endif
+    
+    
     
     i32 new_max = LargeRoundUp(tokens.count+1, Kbytes(1));
     
@@ -948,9 +986,9 @@ file_relex_parallel(System_Functions *system,
             i32 shift_amount = relex_space.count - delete_amount;
             
             if (shift_amount != 0){
-                int new_count = stack->count + shift_amount;
+                i32 new_count = stack->count + shift_amount;
                 if (new_count > stack->max_count){
-                    int new_max = LargeRoundUp(new_count, Kbytes(1));
+                    i32 new_max = LargeRoundUp(new_count, Kbytes(1));
                     stack->tokens = (Cpp_Token*)
                         general_memory_reallocate(general, stack->tokens,
                                                   stack->count*sizeof(Cpp_Token),
@@ -958,7 +996,7 @@ file_relex_parallel(System_Functions *system,
                     stack->max_count = new_max;
                 }
                 
-                int shift_size = stack->count - relex_end;
+                i32 shift_size = stack->count - relex_end;
                 if (shift_size > 0){
                     Cpp_Token *old_base = stack->tokens + relex_end;
                     memmove(old_base + shift_amount, old_base,
@@ -3238,7 +3276,6 @@ try_kill_file(System_Functions *system, Models *models,
         }
         else{
             kill_file(system, models, file, string_zero());
-            view_show_file(view);
         }
     }
 }
@@ -3286,6 +3323,7 @@ interactive_view_complete(System_Functions *system, View *view, String dest, i32
         
         case IAct_Kill:
         try_kill_file(system, models, 0, 0, dest);
+        view_show_file(view);
         break;
         
         case IAct_Sure_To_Close:

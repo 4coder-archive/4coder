@@ -65,6 +65,19 @@ NOTES ON USE:
 
 #include "4cpp_lexer_types.h"
 
+struct Cpp_Lex_Data{
+	Cpp_Preprocessor_State pp_state;
+	int pos;
+    int complete;
+};
+
+struct Cpp_Read_Result{
+	Cpp_Token token;
+	int pos;
+	char newline;
+	char has_result;
+};
+
 Cpp_File
 data_as_cpp_file(Data data){
     Cpp_File result;
@@ -140,7 +153,6 @@ FCPP_LINK bool cpp_push_token_no_merge(Cpp_Token_Stack *stack, Cpp_Token token);
 FCPP_LINK bool cpp_push_token_nonalloc(Cpp_Token_Stack *stack, Cpp_Token token);
 
 inline    Cpp_Lex_Data cpp_lex_data_zero() { Cpp_Lex_Data data = {(Cpp_Preprocessor_State)0}; return(data); }
-inline    Cpp_Token_Stack cpp_token_stack_zero() { Cpp_Token_Stack stack={0}; return(stack); }
 
 FCPP_LINK Cpp_Read_Result cpp_lex_step(Cpp_File file, Cpp_Lex_Data *lex);
 
@@ -1266,10 +1278,10 @@ cpp_lex_step(Cpp_File file, Cpp_Lex_Data *lex_data){
             }
         }
     }
-
+    
     result.token.state_flags = state_flags;
     result.has_result = has_result;
-
+    
     *lex_data = lex;
     return result;
 }

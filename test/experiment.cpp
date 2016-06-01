@@ -7,6 +7,9 @@
  *
  */
 
+// TODO(allen): In what corner cases, such as invalid files
+// does the new lexer suffer???
+
 // TOP
 
 #include "../4ed_meta.h"
@@ -204,104 +207,166 @@ end_t(Times *t){
 }
 
 static void
-run_experiment(Experiment *exp, char *filename, int verbose, int chunks){
+run_experiment(Experiment *exp, char *filename, int verbose,
+               int chunks, int max_tokens){
     String extension = {};
     Data file_data;
     Cpp_File file_cpp;
     new_lex::Lex_Data ld = {0};
     int pass;
     int k, chunk_size, is_last;
-
+    
     extension = file_extension(make_string_slowly(filename));
-
+    
     if (match(extension, "cpp") || match(extension, "h")){
         file_data = dump_file(filename);
         if (file_data.size < (100 << 10)){
             pass = 1;
             if (verbose >= 0) printf("testing on file: %s\n", filename);
             exp->test_total++;
-
+            
             exp->correct_stack.count = 0;
             exp->testing_stack.count = 0;
-
-            memset(exp->correct_stack.tokens, TOKEN_ARRAY_SIZE, 0);
-            memset(exp->testing_stack.tokens, TOKEN_ARRAY_SIZE, 0);
-
+            
+            memset(exp->correct_stack.tokens, 0, TOKEN_ARRAY_SIZE);
+            memset(exp->testing_stack.tokens, 0, TOKEN_ARRAY_SIZE);
+            
             file_cpp.data = (char*)file_data.data;
             file_cpp.size = file_data.size;
-
+            
             ld.tb = (char*)malloc(file_data.size + 1);
-
+            
             {
                 i64 start;
-
+                
                 start = __rdtsc();
                 cpp_lex_file_nonalloc(file_cpp, &exp->correct_stack, lex_data);
                 time.handcoded += (__rdtsc() - start);
-
-                start = __rdtsc();
-                if (chunks){
-                    int relevant_size = file_data.size + 1;
-                    is_last = 0;
-                    for (k = 0; k < relevant_size; k += chunks){
-                        chunk_size = chunks;
-                        if (chunk_size + k >= relevant_size){
-                            chunk_size = relevant_size - k;
-                            is_last = 1;
+                
+                if (max_tokens == 0){
+                    if (chunks){
+                        start = __rdtsc();
+                        int relevant_size = file_data.size + 1;
+                        is_last = 0;
+                        for (k = 0; k < relevant_size; k += chunks){
+                            chunk_size = chunks;
+                            if (chunk_size + k >= relevant_size){
+                                chunk_size = relevant_size - k;
+                                is_last = 1;
+                            }
+                            
+                            int result =
+                                new_lex::cpp_lex_nonalloc(&ld,
+                                                          (char*)file_data.data + k, chunk_size,
+                                                          &exp->testing_stack);
+                            
+                            if (result == new_lex::LexFinished ||
+                                result == new_lex::LexNeedTokenMemory) break;
                         }
-
-                        int result = new_lex::cpp_lex_nonalloc(&ld, (char*)file_data.data + k, chunk_size, &exp->testing_stack);
-                        if (result == 0 || result == 2) break;
+                        time.fsm += (__rdtsc() - start);
+                    }
+                    else{
+                        start = __rdtsc();
+                        new_lex::cpp_lex_nonalloc(&ld,
+                                                  (char*)file_data.data, file_data.size,
+                                                  &exp->testing_stack);
+                        time.fsm += (__rdtsc() - start);
                     }
                 }
                 else{
-                    new_lex::cpp_lex_nonalloc(&ld, (char*)file_data.data, file_data.size, &exp->testing_stack);
+                    if (chunks){
+                        start = __rdtsc();
+                        int relevant_size = file_data.size + 1;
+                        is_last = 0;
+                        for (k = 0; k < relevant_size; k += chunks){
+                            chunk_size = chunks;
+                            if (chunk_size + k >= relevant_size){
+                                chunk_size = relevant_size - k;
+                                is_last = 1;
+                            }
+                            
+                            int result = 0;
+                            int still_lexing = 1;
+                            do{
+                                result =
+                                    new_lex::cpp_lex_size_nonalloc(&ld,
+                                                                   (char*)file_data.data + k, chunk_size, file_data.size,
+                                                                   &exp->testing_stack,
+                                                                   max_tokens);
+                                if (result == new_lex::LexFinished ||
+                                    result == new_lex::LexNeedTokenMemory ||
+                                    result == new_lex::LexNeedChunk){
+                                    still_lexing = 0;
+                                }
+                            } while(still_lexing);
+                            
+                            
+                            if (result == new_lex::LexFinished ||
+                                result == new_lex::LexNeedTokenMemory) break;
+                        }
+                        time.fsm += (__rdtsc() - start);
+                    }
+                    else{
+                        start = __rdtsc();
+                        int still_lexing = 1;
+                        do{
+                            int result = 
+                                new_lex::cpp_lex_size_nonalloc(&ld,
+                                                               (char*)file_data.data, file_data.size, file_data.size,
+                                                               &exp->testing_stack,
+                                                               max_tokens);
+                            if (result == new_lex::LexFinished ||
+                                result == new_lex::LexNeedTokenMemory){
+                                still_lexing = 0;
+                            }
+                        } while(still_lexing);
+                        time.fsm += (__rdtsc() - start);
+                    }
                 }
-                time.fsm += (__rdtsc() - start);
             }
-
+            
             free(ld.tb);
-
+            
             if (exp->correct_stack.count != exp->testing_stack.count){
                 pass = 0;
                 if (verbose >= 0){
                     printf("error: stack size mismatch %d original and %d testing\n",
-                        exp->correct_stack.count, exp->testing_stack.count);
+                           exp->correct_stack.count, exp->testing_stack.count);
                 }
             }
-
+            
             int min_count = exp->correct_stack.count;
             if (min_count > exp->testing_stack.count) min_count = exp->testing_stack.count;
-
+            
             for (int j = 0; j < min_count; ++j){
                 Cpp_Token *correct, *testing;
                 correct = exp->correct_stack.tokens + j;
                 testing = exp->testing_stack.tokens + j;
-
+                
                 if (correct->type != testing->type){
                     pass = 0;
                     if (verbose >= 1) printf("type mismatch at token %d\n", j);
                 }
-
+                
                 if (correct->start != testing->start || correct->size != testing->size){
                     pass = 0;
                     if (verbose >= 1){
                         printf("token range mismatch at token %d\n"
-                                "    %d:%d original %d:%d testing\n"
-                                "    %.*s original %.*s testing\n",
-                            j,
-                            correct->start, correct->size, testing->start, testing->size,
-                            correct->size, file_cpp.data + correct->start,
-                            testing->size, file_cpp.data + testing->start);
+                               "    %d:%d original %d:%d testing\n"
+                               "    %.*s original %.*s testing\n",
+                               j,
+                               correct->start, correct->size, testing->start, testing->size,
+                               correct->size, file_cpp.data + correct->start,
+                               testing->size, file_cpp.data + testing->start);
                     }
                 }
-
+                
                 if (correct->flags != testing->flags){
                     pass = 0;
                     if (verbose >= 1) printf("token flag mismatch at token %d\n", j);
                 }
             }
-
+            
             if (pass){
                 exp->passed_total++;
                 if (verbose >= 0) printf("test passed!\n\n");
@@ -310,7 +375,7 @@ run_experiment(Experiment *exp, char *filename, int verbose, int chunks){
                 if (verbose >= 0) printf("test failed, you failed, fix it now!\n\n");
             }
         }
-
+        
         free(file_data.data);
     }
 }
@@ -338,12 +403,13 @@ show_time(Times t, int repeats, char *type){
 
 int main(){
     int repeats = 1;
-    int verbose_level = 1;
-    int chunk_start = 0;
-    int chunk_end = 0;
+    int verbose_level = 0;
+    int chunk_start = 32;
+    int chunk_end = 64;
 #define TEST_FILE "parser_test1.cpp"
-#define SINGLE_ITEM 1
-
+#define SINGLE_ITEM 0
+    int token_limit = 2;
+    
     int chunks = (chunk_start > 0 && chunk_start <= chunk_end);
     int c = 0;
 
@@ -371,14 +437,14 @@ int main(){
         begin_t(&chunk_exp_t);
         printf("With chunks of %d\n", chunks);
         for (c = chunk_start; c <= chunk_end; ++c){
-            run_experiment(&chunk_exp, BASE_DIR TEST_FILE, 1, c);
+            run_experiment(&chunk_exp, BASE_DIR TEST_FILE, 1, c, token_limit);
         }
         end_t(&chunk_exp_t);
     }
 
     begin_t(&exp_t);
     printf("Unchunked\n");
-    run_experiment(&exp, BASE_DIR TEST_FILE, 1, 0);
+    run_experiment(&exp, BASE_DIR TEST_FILE, 1, 0, token_limit);
     end_t(&exp_t);
 
 #else
@@ -391,19 +457,19 @@ int main(){
                 if (chunks){
                     begin_t(&chunk_exp_t);
                     for (c = chunk_start; c <= chunk_end; ++c){
-                        run_experiment(&chunk_exp, all_files.infos[i].filename.str, verbose_level, c);
+                        run_experiment(&chunk_exp, all_files.infos[i].filename.str, verbose_level, c, token_limit);
                     }
                     end_t(&chunk_exp_t);
                 }
-
+                
                 begin_t(&exp_t);
                 if (verbose_level == -1 && chunks){
                     for (c = chunk_start; c <= chunk_end; ++c){
-                        run_experiment(&exp, all_files.infos[i].filename.str, verbose_level, 0);
+                        run_experiment(&exp, all_files.infos[i].filename.str, verbose_level, 0, token_limit);
                     }
                 }
                 else{
-                    run_experiment(&exp, all_files.infos[i].filename.str, verbose_level, 0);
+                    run_experiment(&exp, all_files.infos[i].filename.str, verbose_level, 0, token_limit);
                 }
                 end_t(&exp_t);
             }
