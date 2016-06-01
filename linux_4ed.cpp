@@ -73,6 +73,36 @@
 #include "system_shared.h"
 
 //
+// Linux macros
+//
+
+#define LINUX_MAX_PASTE_CHARS 0x10000L
+#define FPS 60L
+#define frame_useconds (1000000UL / FPS)
+
+#define LinuxGetMemory(size) LinuxGetMemory_(size, __LINE__, __FILE__)
+
+#if FRED_INTERNAL
+    #define LINUX_FN_DEBUG(fmt, ...) do { \
+        fprintf(stderr, "%s: " fmt "\n", __func__, ##__VA_ARGS__); \
+    } while(0)
+#else
+    #define LINUX_FN_DEBUG(fmt, ...)
+#endif
+
+#if (__cplusplus <= 199711L)
+    #define static_assert(x, ...)
+#endif
+
+#if defined(_BSD_SOURCE) || defined(_SVID_SOURCE) || _POSIX_C_SOURCE >= 200809L || _XOPEN_SOURCE >= 700
+    #define OLD_STAT_NANO_TIME 0
+#else
+    #define OLD_STAT_NANO_TIME 1
+#endif
+
+#define SUPPORT_DPI 1
+
+//
 // Linux structs / enums
 //
 
@@ -175,6 +205,10 @@ struct Linux_Vars{
 
     Partition font_part;
 
+#if SUPPORT_DPI
+    i32 dpi_x, dpi_y;
+#endif
+
     Plat_Settings settings;
     System_Functions system;
     App_Functions app;
@@ -189,34 +223,6 @@ struct Linux_Vars{
     Linux_Coroutine coroutine_data[18];
     Linux_Coroutine *coroutine_free;
 };
-
-//
-// Linux macros
-//
-
-#define LINUX_MAX_PASTE_CHARS 0x10000L
-#define FPS 60L
-#define frame_useconds (1000000UL / FPS)
-
-#define LinuxGetMemory(size) LinuxGetMemory_(size, __LINE__, __FILE__)
-
-#if FRED_INTERNAL
-    #define LINUX_FN_DEBUG(fmt, ...) do { \
-        fprintf(stderr, "%s: " fmt "\n", __func__, ##__VA_ARGS__); \
-    } while(0)
-#else
-    #define LINUX_FN_DEBUG(fmt, ...)
-#endif
-
-#if (__cplusplus <= 199711L)
-    #define static_assert(x, ...)
-#endif
-
-#if defined(_BSD_SOURCE) || defined(_SVID_SOURCE) || _POSIX_C_SOURCE >= 200809L || _XOPEN_SOURCE >= 700
-    #define OLD_STAT_NANO_TIME 0
-#else
-    #define OLD_STAT_NANO_TIME 1
-#endif
 
 //
 // Linux globals
@@ -913,12 +919,20 @@ internal void*
 ThreadProc(void* arg){
     Thread_Context *thread = (Thread_Context*)arg;
     Work_Queue *queue = linuxvars.queues + thread->group_id;
-    Thread_Group* group = linuxvars.groups + thread->group_id;
+    Thread_Group *group = linuxvars.groups + thread->group_id;
 
     i32 thread_index = thread->id - 1;
 
     i32 cancel_lock = group->cancel_lock0 + thread_index;
     i32 cancel_cv   = group->cancel_cv0   + thread_index;
+
+    Thread_Memory *thread_memory = linuxvars.thread_memory + thread_index;
+
+    if (thread_memory->size == 0){
+        i32 new_size = Kbytes(64);
+        thread_memory->data = LinuxGetMemory(new_size);
+        thread_memory->size = new_size;
+    }
 
     for (;;){
         u32 read_index = queue->read_position;
@@ -943,20 +957,7 @@ ThreadProc(void* arg){
                 if (safe_running_thread == THREAD_NOT_ASSIGNED){
                     thread->job_id = full_job->id;
                     thread->running = 1;
-                    Thread_Memory *thread_memory = 0;
                     
-                    // TODO(allen): remove memory_request
-                    if (full_job->job.memory_request != 0){
-                        thread_memory = linuxvars.thread_memory + thread->id - 1;
-                        if (thread_memory->size < full_job->job.memory_request){
-                            if (thread_memory->data){
-                                LinuxFreeMemory(thread_memory->data);
-                            }
-                            i32 new_size = LargeRoundUp(full_job->job.memory_request, Kbytes(4));
-                            thread_memory->data = LinuxGetMemory(new_size);
-                            thread_memory->size = new_size;
-                        }
-                    }
                     full_job->job.callback(&linuxvars.system, thread, thread_memory, full_job->job.data);
                     full_job->running_thread = 0;
                     thread->running = 0;
@@ -1131,6 +1132,15 @@ INTERNAL_Sys_Debug_Message_Sig(internal_debug_message){
 #include "system_shared.cpp"
 #include "4ed_rendering.cpp"
 
+internal f32
+size_change(i32 dpi_x, i32 dpi_y){
+    // TODO(allen): We're just hoping dpi_x == dpi_y for now I guess.
+    f32 size_x = linuxvars.dpi_x / 96.f;
+    f32 size_y = linuxvars.dpi_y / 96.f;
+    f32 size_max = Max(size_x, size_y);
+    return(size_max);
+}
+
 internal
 Font_Load_Sig(system_draw_font_load){
     b32 success = 0;
@@ -1143,6 +1153,10 @@ Font_Load_Sig(system_draw_font_load){
     }
 
     i32 oversample = 2;
+
+#if SUPPORT_DPI
+    pt_size = ROUND32(pt_size * size_change(linuxvars.dpi_x, linuxvars.dpi_y));
+#endif
 
     for(; attempts < 3; ++attempts){
         success = draw_font_load(
@@ -2062,7 +2076,7 @@ LinuxX11WindowInit(int argc, char** argv, int* WinWidth, int* WinHeight)
 internal void
 LinuxHandleX11Events(void)
 {
-    XEvent PrevEvent = {};
+    static XEvent PrevEvent = {};
     b32 should_step = 0;
 
     while(XPending(linuxvars.XDisplay))
@@ -2412,7 +2426,7 @@ main(int argc, char **argv)
 
     linuxvars.target.max         = Mbytes(1);
     linuxvars.target.push_buffer = (byte*)system_get_memory(linuxvars.target.max);
-   
+
     //
     // Read command line
     //
@@ -2520,7 +2534,7 @@ main(int argc, char **argv)
         linuxvars.coroutine_data[i].next = linuxvars.coroutine_data + i + 1;
     }
 
-    const size_t stack_size = Mbytes(16);
+    const size_t stack_size = Mbytes(2);
     for (i32 i = 0; i < ArrayCount(linuxvars.coroutine_data); ++i){
         linuxvars.coroutine_data[i].stack.ss_size = stack_size;
         linuxvars.coroutine_data[i].stack.ss_sp = system_get_memory(stack_size);
@@ -2623,6 +2637,27 @@ main(int argc, char **argv)
         XCreateFontCursor(linuxvars.XDisplay, XC_sb_h_double_arrow),
         XCreateFontCursor(linuxvars.XDisplay, XC_sb_v_double_arrow)
     };
+
+    //
+    // DPI
+    //
+
+#if SUPPORT_DPI
+    {
+        int scr = DefaultScreen(linuxvars.XDisplay);
+
+        int dw = DisplayWidth(linuxvars.XDisplay, scr);
+        int dh = DisplayHeight(linuxvars.XDisplay, scr);
+
+        int dw_mm = DisplayWidthMM(linuxvars.XDisplay, scr);
+        int dh_mm = DisplayHeightMM(linuxvars.XDisplay, scr);
+
+        linuxvars.dpi_x = dw_mm ? dw / (dw_mm / 25.4) : 96;
+        linuxvars.dpi_y = dh_mm ? dh / (dh_mm / 25.4) : 96;
+
+        fprintf(stderr, "%dx%d - %dmmx%dmm DPI: %dx%d\n", dw, dh, dw_mm, dh_mm, linuxvars.dpi_x, linuxvars.dpi_y);
+    }
+#endif
 
     //
     // Epoll init
