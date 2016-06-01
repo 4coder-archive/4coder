@@ -86,11 +86,12 @@ struct Sys_Bubble : public Bubble{
 #endif
 
 enum {
-    LINUX_4ED_EVENT_X11,
-    LINUX_4ED_EVENT_FILE,
-    LINUX_4ED_EVENT_STEP,
-    LINUX_4ED_EVENT_STEP_TIMER,
-    LINUX_4ED_EVENT_CLI,
+    LINUX_4ED_EVENT_X11          = (UINT64_C(1) << 32),
+    LINUX_4ED_EVENT_X11_INTERNAL = (UINT64_C(1) << 33),
+    LINUX_4ED_EVENT_FILE         = (UINT64_C(1) << 34),
+    LINUX_4ED_EVENT_STEP         = (UINT64_C(1) << 35),
+    LINUX_4ED_EVENT_STEP_TIMER   = (UINT64_C(1) << 36),
+    LINUX_4ED_EVENT_CLI          = (UINT64_C(1) << 37),
 };
 
 struct Linux_Coroutine {
@@ -104,15 +105,20 @@ struct Linux_Coroutine {
 struct Thread_Context{
     u32 job_id;
     b32 running;
+    b32 cancel;
     
     Work_Queue *queue;
     u32 id;
+    u32 group_id;
     pthread_t handle;
 };
 
 struct Thread_Group{
     Thread_Context *threads;
     i32 count;
+
+    i32 cancel_lock0;
+    i32 cancel_cv0;
 };
 
 struct Linux_Vars{
@@ -162,8 +168,10 @@ struct Linux_Vars{
 
     Thread_Memory *thread_memory;
     Thread_Group groups[THREAD_GROUP_COUNT];
-    sem_t thread_semaphores[THREAD_GROUP_COUNT];
+    Work_Queue queues[THREAD_GROUP_COUNT];
     pthread_mutex_t locks[LOCK_COUNT];
+    pthread_cond_t conds[8];
+    sem_t thread_semaphore;
 
     Partition font_part;
 
@@ -216,7 +224,6 @@ struct Linux_Vars{
 
 globalvar Linux_Vars linuxvars;
 globalvar Application_Memory memory_vars;
-globalvar Exchange exchange_vars;
 
 //
 // Linux forward declarations
@@ -905,8 +912,14 @@ Sys_CLI_End_Update_Sig(system_cli_end_update){
 internal void*
 ThreadProc(void* arg){
     Thread_Context *thread = (Thread_Context*)arg;
-    Work_Queue *queue = thread->queue;
-    
+    Work_Queue *queue = linuxvars.queues + thread->group_id;
+    Thread_Group* group = linuxvars.groups + thread->group_id;
+
+    i32 thread_index = thread->id - 1;
+
+    i32 cancel_lock = group->cancel_lock0 + thread_index;
+    i32 cancel_cv   = group->cancel_cv0   + thread_index;
+
     for (;;){
         u32 read_index = queue->read_position;
         u32 write_index = queue->write_position;
@@ -944,10 +957,16 @@ ThreadProc(void* arg){
                             thread_memory->size = new_size;
                         }
                     }
-                    full_job->job.callback(&linuxvars.system, thread, thread_memory,
-                                           &exchange_vars.thread, full_job->job.data);
+                    full_job->job.callback(&linuxvars.system, thread, thread_memory, full_job->job.data);
                     full_job->running_thread = 0;
                     thread->running = 0;
+
+                    system_acquire_lock(cancel_lock);
+                    if(thread->cancel){
+                        thread->cancel = 0;
+                        pthread_cond_signal(linuxvars.conds + cancel_cv);
+                    }
+                    system_release_lock(cancel_lock);
 
                     LinuxScheduleStep();
                 }
@@ -961,7 +980,7 @@ ThreadProc(void* arg){
 
 internal
 Sys_Post_Job_Sig(system_post_job){
-    Work_Queue *queue = exchange_vars.thread.queues + group_id;
+    Work_Queue *queue = linuxvars.queues + group_id;
     
     Assert((queue->write_position + 1) % QUEUE_WRAP != queue->read_position % QUEUE_WRAP);
     
@@ -990,13 +1009,12 @@ Sys_Post_Job_Sig(system_post_job){
 
 internal
 Sys_Cancel_Job_Sig(system_cancel_job){
-    Work_Queue *queue = exchange_vars.thread.queues + group_id;
+    Work_Queue *queue = linuxvars.queues + group_id;
     Thread_Group *group = linuxvars.groups + group_id;
     
     u32 job_index;
     u32 thread_id;
     Full_Job_Data *full_job;
-    Thread_Context *thread;
     
     job_index = job_id % QUEUE_WRAP;
     full_job = queue->jobs + job_index;
@@ -1006,17 +1024,44 @@ Sys_Cancel_Job_Sig(system_cancel_job){
         __sync_val_compare_and_swap(&full_job->running_thread,
                                    THREAD_NOT_ASSIGNED, 0);
     
-    if (thread_id != THREAD_NOT_ASSIGNED){
-        system_acquire_lock(CANCEL_LOCK0 + thread_id - 1);
-        thread = group->threads + thread_id - 1;
-        pthread_kill(thread->handle, SIGINT); //NOTE(inso) SIGKILL if you really want it to die.
-        pthread_create(&thread->handle, NULL, &ThreadProc, thread);
-        system_release_lock(CANCEL_LOCK0 + thread_id - 1);
-        thread->running = 0;
+    if (thread_id != THREAD_NOT_ASSIGNED && thread_id != 0){
+        i32 thread_index = thread_id - 1;
+
+        i32 cancel_lock = group->cancel_lock0 + thread_index;
+        i32 cancel_cv = group->cancel_cv0 + thread_index;
+        Thread_Context *thread = group->threads + thread_index;
+
+        system_acquire_lock(cancel_lock);
+        thread->cancel = 1;
+
+        system_release_lock(FRAME_LOCK);
+        do {
+            pthread_cond_wait(linuxvars.conds + cancel_cv, linuxvars.locks + cancel_lock);
+        } while(thread->cancel == 1);
+        system_acquire_lock(FRAME_LOCK);
+
+        system_release_lock(cancel_lock);
 
         LinuxScheduleStep();
     }
 
+}
+
+internal
+Sys_Check_Cancel_Sig(system_check_cancel){
+    b32 result = 0;
+
+    Thread_Group* group = linuxvars.groups + thread->group_id;
+    i32 thread_index = thread->id - 1;
+    i32 cancel_lock = group->cancel_lock0 + thread_index;
+
+    system_acquire_lock(cancel_lock);
+    if (thread->cancel){
+        result = 1;
+    }
+    system_release_lock(cancel_lock);
+
+    return (result);
 }
 
 internal
@@ -1060,7 +1105,7 @@ INTERNAL_Sys_Sentinel_Sig(internal_sentinel){
 
 internal
 INTERNAL_Sys_Get_Thread_States_Sig(internal_get_thread_states){
-    Work_Queue *queue = exchange_vars.thread.queues + id;
+    Work_Queue *queue = linuxvars.queues + id;
     u32 write = queue->write_position;
     u32 read = queue->read_position;
     if (write < read) write += JOB_ID_WRAP;
@@ -1183,6 +1228,7 @@ LinuxLoadSystemCode(){
 
     linuxvars.system.post_job = system_post_job;
     linuxvars.system.cancel_job = system_cancel_job;
+    linuxvars.system.check_cancel = system_check_cancel;
     linuxvars.system.grow_thread_memory = system_grow_thread_memory;
     linuxvars.system.acquire_lock = system_acquire_lock;
     linuxvars.system.release_lock = system_release_lock;
@@ -1604,7 +1650,6 @@ LinuxInputInit(Display *dpy, Window XWindow)
         KeyPressMask | KeyReleaseMask |
         ButtonPressMask | ButtonReleaseMask |
         EnterWindowMask | LeaveWindowMask |
-        PropertyChangeMask |
         PointerMotionMask |
         FocusChangeMask |
         StructureNotifyMask |
@@ -1833,12 +1878,22 @@ LinuxSetIcon(Display* d, Window w)
     );
 }
 
+internal void
+LinuxX11ConnectionWatch(Display* dpy, XPointer cdata, int fd, Bool opening, XPointer* wdata){
+    struct epoll_event e = {};
+    e.events = EPOLLIN | EPOLLET;
+    e.data.u64 = LINUX_4ED_EVENT_X11_INTERNAL | fd;
+
+    int op = opening ? EPOLL_CTL_ADD : EPOLL_CTL_DEL;
+    epoll_ctl(linuxvars.epoll, op, fd, &e);
+}
+
 //
 // X11 window init
 //
 
-internal
-b32 LinuxX11WindowInit(int argc, char** argv, int* WinWidth, int* WinHeight)
+internal b32
+LinuxX11WindowInit(int argc, char** argv, int* WinWidth, int* WinHeight)
 {
     // NOTE(allen): Here begins the linux screen setup stuff.
     // Behold the true nature of this wonderful OS:
@@ -1920,16 +1975,17 @@ b32 LinuxX11WindowInit(int argc, char** argv, int* WinWidth, int* WinHeight)
     XWMHints   *wm_hints = XAllocWMHints();
     XClassHint *cl_hints = XAllocClassHint();
 
-    sz_hints->flags = PMinSize | PMaxSize | PBaseSize | PWinGravity;
+    sz_hints->flags = PMinSize | PMaxSize | PWinGravity;
 
     sz_hints->min_width = 50;
     sz_hints->min_height = 50;
 
     sz_hints->max_width = sz_hints->max_height = (1UL << 16UL);
 
+/* NOTE(inso): fluxbox thinks this is minimum, so don't set it
     sz_hints->base_width = BASE_W;
     sz_hints->base_height = BASE_H;
-
+*/
     sz_hints->win_gravity = NorthWestGravity;
 
     if (linuxvars.settings.set_window_pos){
@@ -2473,24 +2529,25 @@ main(int argc, char **argv)
     Thread_Context background[4] = {};
     linuxvars.groups[BACKGROUND_THREADS].threads = background;
     linuxvars.groups[BACKGROUND_THREADS].count = ArrayCount(background);
+    linuxvars.groups[BACKGROUND_THREADS].cancel_lock0 = CANCEL_LOCK0;
+    linuxvars.groups[BACKGROUND_THREADS].cancel_cv0 = 0;
 
     Thread_Memory thread_memory[ArrayCount(background)];
     linuxvars.thread_memory = thread_memory;
 
-    sem_init(&linuxvars.thread_semaphores[BACKGROUND_THREADS], 0, 0);
-
-    exchange_vars.thread.queues[BACKGROUND_THREADS].semaphore = 
-        LinuxSemToHandle(&linuxvars.thread_semaphores[BACKGROUND_THREADS]);
+    sem_init(&linuxvars.thread_semaphore, 0, 0);
+    linuxvars.queues[BACKGROUND_THREADS].semaphore = LinuxSemToHandle(&linuxvars.thread_semaphore);
 
     for(i32 i = 0; i < linuxvars.groups[BACKGROUND_THREADS].count; ++i){
         Thread_Context *thread = linuxvars.groups[BACKGROUND_THREADS].threads + i;
         thread->id = i + 1;
+        thread->group_id = BACKGROUND_THREADS;
 
         Thread_Memory *memory = linuxvars.thread_memory + i;
         *memory = thread_memory_zero();
         memory->id = thread->id;
 
-        thread->queue = &exchange_vars.thread.queues[BACKGROUND_THREADS];
+        thread->queue = &linuxvars.queues[BACKGROUND_THREADS];
         pthread_create(&thread->handle, NULL, &ThreadProc, thread);
     }
 
@@ -2498,10 +2555,14 @@ main(int argc, char **argv)
         pthread_mutex_init(linuxvars.locks + i, NULL);
     }
 
+    for(i32 i = 0; i < ArrayCount(linuxvars.conds); ++i){
+        pthread_cond_init(linuxvars.conds + i, NULL);
+    }
+
     //
     // X11 init
     //
-    
+
     linuxvars.XDisplay = XOpenDisplay(0);
     if(!linuxvars.XDisplay){
         fprintf(stderr, "Can't open display!\n");
@@ -2590,13 +2651,18 @@ main(int argc, char **argv)
         e.data.u64 = LINUX_4ED_EVENT_STEP_TIMER;
         epoll_ctl(linuxvars.epoll, EPOLL_CTL_ADD, linuxvars.step_timer_fd, &e);
     }
-    
+
     //
     // App init
     //
 
-    linuxvars.app.init(&linuxvars.system, &linuxvars.target, &memory_vars, &exchange_vars,
-                       linuxvars.clipboard_contents, current_directory,
+    XAddConnectionWatch(linuxvars.XDisplay, &LinuxX11ConnectionWatch, NULL);
+
+    linuxvars.app.init(&linuxvars.system,
+                       &linuxvars.target,
+                       &memory_vars,
+                       linuxvars.clipboard_contents,
+                       current_directory,
                        linuxvars.custom_api);
 
     LinuxResizeTarget(WinWidth, WinHeight);
@@ -2604,6 +2670,8 @@ main(int argc, char **argv)
     //
     // Main loop
     //
+
+    system_acquire_lock(FRAME_LOCK);
 
     LinuxScheduleStep();
 
@@ -2613,8 +2681,16 @@ main(int argc, char **argv)
 
     while(1){
 
+        if(XEventsQueued(linuxvars.XDisplay, QueuedAlready)){
+            LinuxHandleX11Events();
+        }
+
+        system_release_lock(FRAME_LOCK);
+
         struct epoll_event events[16];
         int num_events = epoll_wait(linuxvars.epoll, events, ArrayCount(events), -1);
+
+        system_acquire_lock(FRAME_LOCK);
 
         if(num_events == -1){
             if(errno != EINTR){
@@ -2623,14 +2699,20 @@ main(int argc, char **argv)
             continue;
         }
 
-        system_acquire_lock(FRAME_LOCK);
-
         b32 do_step = 0;
 
         for(int i = 0; i < num_events; ++i){
-            switch(events[i].data.u64){
+
+            int fd   = events[i].data.u64 & UINT32_MAX;
+            u64 type = events[i].data.u64 & ~fd;
+
+            switch(type){
                 case LINUX_4ED_EVENT_X11: {
                     LinuxHandleX11Events();
+                } break;
+
+                case LINUX_4ED_EVENT_X11_INTERNAL: {
+                    XProcessInternalConnection(linuxvars.XDisplay, fd);
                 } break;
 
                 case LINUX_4ED_EVENT_FILE: {
@@ -2694,7 +2776,6 @@ main(int argc, char **argv)
                 &linuxvars.system,
                 &linuxvars.target,
                 &memory_vars,
-                &exchange_vars,
                 &linuxvars.input,
                 &result
             );
@@ -2711,7 +2792,7 @@ main(int argc, char **argv)
 
             LinuxRedrawTarget();
 
-            if(result.mouse_cursor_type != linuxvars.cursor){
+            if(result.mouse_cursor_type != linuxvars.cursor && !linuxvars.input.mouse.l){
                 Cursor c = xcursors[result.mouse_cursor_type];
                 XDefineCursor(linuxvars.XDisplay, linuxvars.XWindow, c);
                 linuxvars.cursor = result.mouse_cursor_type;
@@ -2725,8 +2806,6 @@ main(int argc, char **argv)
             linuxvars.input.mouse.release_r = 0;
             linuxvars.input.mouse.wheel = 0;
         }
-
-        system_release_lock(FRAME_LOCK);
     }
 
     return 0;
