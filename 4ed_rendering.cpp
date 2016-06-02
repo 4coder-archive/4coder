@@ -34,28 +34,36 @@ draw_set_color(Render_Target *target, u32 color){
     }
 }
 
-#define PutStruct(s,x) *(s*)(target->push_buffer + target->size) = x; target->size += sizeof(s)
+inline void
+draw_safe_push(Render_Target *target, i32 size, void *x){
+    if (size + target->size <= target->max){
+        memcpy(target->push_buffer + target->size, x, size);
+        target->size += size;
+    }
+}
+
+#define PutStruct(s,x) draw_safe_push(target, sizeof(s), &x)
 
 internal void
 draw_push_piece(Render_Target *target, Render_Piece_Combined piece){
     PutStruct(Render_Piece_Header, piece.header);
     
     switch (piece.header.type){
-    case piece_type_rectangle:
-    case piece_type_outline:
+        case piece_type_rectangle:
+        case piece_type_outline:
         PutStruct(Render_Piece_Rectangle, piece.rectangle);
         break;
         
-    case piece_type_gradient:
+        case piece_type_gradient:
         PutStruct(Render_Piece_Gradient, piece.gradient);
         break;
         
-    case piece_type_glyph:
-    case piece_type_mono_glyph:
+        case piece_type_glyph:
+        case piece_type_mono_glyph:
         PutStruct(Render_Piece_Glyph, piece.glyph);
         break;
         
-    case piece_type_mono_glyph_advance:
+        case piece_type_mono_glyph_advance:
         PutStruct(Render_Piece_Glyph_Advance, piece.glyph_advance);
         break;
     }

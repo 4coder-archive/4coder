@@ -1313,6 +1313,42 @@ buffer_get_start_cursor(Buffer_Type *buffer, float *wraps, float scroll_y,
     return(result);
 }
 
+#define BRFlag_Special_Character (1 << 0)
+
+typedef struct Buffer_Render_Item{
+    int index;
+    unsigned short glyphid;
+    unsigned short flags;
+    float x0, y0;
+    float x1, y1;
+} Buffer_Render_Item;
+
+inline_4tech void
+write_render_item(Buffer_Render_Item *item,
+                  int index,
+                  unsigned short glyphid,
+                  float x, float y,
+                  float w, float h){
+    item->index = index;
+    item->glyphid = glyphid;
+    item->x0 = x;
+    item->y0 = y;
+    item->x1 = x + w;
+    item->y1 = y + h;
+}
+
+inline_4tech float
+write_render_item_inline(Buffer_Render_Item *item,
+                         int index,
+                         unsigned short glyphid,
+                         float x, float y,
+                         float *advance_data, float h){
+    float ch_width;
+    ch_width = measure_character(advance_data, (char)glyphid);
+    write_render_item(item, index, glyphid, x, y, ch_width, h);
+    return(ch_width);
+}
+
 internal_4tech void
 buffer_get_render_data(Buffer_Type *buffer, Buffer_Render_Item *items, int max, int *count,
                        float port_x, float port_y,
@@ -1324,6 +1360,7 @@ buffer_get_render_data(Buffer_Type *buffer, Buffer_Render_Item *items, int max, 
     
     Buffer_Stringify_Type loop;
     Buffer_Render_Item *item;
+    Buffer_Render_Item *item_end;
     char *data;
     int size, end;
     float shift_x, shift_y;
@@ -1343,115 +1380,140 @@ buffer_get_render_data(Buffer_Type *buffer, Buffer_Render_Item *items, int max, 
     y = shift_y;
     item_i = 0;
     item = items + item_i;
+    item_end = items + max;
     
+    // TODO(allen): What's the plan for when there is not enough space to store
+    // more render items?  It seems like we should be able to use the view_x
+    // to skip items that are not in view right?  That way I think it would
+    // just always fit in the buffer.
     if (advance_data){
         for (loop = buffer_stringify_loop(buffer, start_cursor.pos, size);
-             buffer_stringify_good(&loop);
+             buffer_stringify_good(&loop) && item < item_end;
              buffer_stringify_next(&loop)){
-        
+            
             end = loop.size + loop.absolute_pos;
             data = loop.data - loop.absolute_pos;
-        
+            
             for (i = loop.absolute_pos; i < end; ++i){
                 ch = data[i];
                 ch_width = measure_character(advance_data, ch);
-            
+                
                 if (ch_width + x > width + shift_x && wrapped && ch != '\n'){
                     x = shift_x;
                     y += font_height;
                 }
                 if (y > height + shift_y) goto buffer_get_render_data_end;
-            
-                switch (ch){
-                case '\n':
-                    write_render_item_inline(item, i, ' ', x, y, advance_data, font_height);
-                    item->flags = 0;
-                    ++item_i;
-                    ++item;
                 
-                    x = shift_x;
-                    y += font_height;
-                    break;
-
-                case 0:
-                    ch_width = write_render_item_inline(item, i, '\\', x, y, advance_data, font_height);
-                    item->flags = BRFlag_Special_Character;
-                    ++item_i;
-                    ++item;
-                    x += ch_width;
-
-                    ch_width = write_render_item_inline(item, i, '0', x, y, advance_data, font_height);
-                    item->flags = BRFlag_Special_Character;
-                    ++item_i;
-                    ++item;
-                    x += ch_width;
-                    break;
-
-                case '\r':
-                    ch_width = write_render_item_inline(item, i, '\\', x, y, advance_data, font_height);
-                    item->flags = BRFlag_Special_Character;
-                    ++item_i;
-                    ++item;
-                    x += ch_width;
-
-                    ch_width = write_render_item_inline(item, i, 'r', x, y, advance_data, font_height);
-                    item->flags = BRFlag_Special_Character;
-                    ++item_i;
-                    ++item;
-                    x += ch_width;
-                    break;
-
-                case '\t':
-                    if (opts.show_slash_t){
-                        ch_width_sub = write_render_item_inline(item, i, '\\', x, y, advance_data, font_height);
-                        item->flags = BRFlag_Special_Character;
-                        ++item_i;
-                        ++item;
-                        
-                        write_render_item_inline(item, i, 't', x + ch_width_sub, y, advance_data, font_height);
-                        item->flags = BRFlag_Special_Character;
-                        ++item_i;
-                        ++item;
-                    }
-                    else{
+                switch (ch){
+                    case '\n':
+                    if (item < item_end){
                         write_render_item_inline(item, i, ' ', x, y, advance_data, font_height);
                         item->flags = 0;
                         ++item_i;
                         ++item;
+                        
+                        x = shift_x;
+                        y += font_height;
+                    }
+                    break;
+                    
+                    case 0:
+                    if (item < item_end){
+                        ch_width = write_render_item_inline(item, i, '\\', x, y, advance_data, font_height);
+                        item->flags = BRFlag_Special_Character;
+                        ++item_i;
+                        ++item;
+                        x += ch_width;
+                        
+                        if (item < item_end){
+                            ch_width = write_render_item_inline(item, i, '0', x, y, advance_data, font_height);
+                            item->flags = BRFlag_Special_Character;
+                            ++item_i;
+                            ++item;
+                            x += ch_width;
+                        }
+                    }
+                    break;
+                    
+                    case '\r':
+                    if (item < item_end){
+                        ch_width = write_render_item_inline(item, i, '\\', x, y, advance_data, font_height);
+                        item->flags = BRFlag_Special_Character;
+                        ++item_i;
+                        ++item;
+                        x += ch_width;
+                        
+                        if (item < item_end){
+                            ch_width = write_render_item_inline(item, i, 'r', x, y, advance_data, font_height);
+                            item->flags = BRFlag_Special_Character;
+                            ++item_i;
+                            ++item;
+                            x += ch_width;
+                        }
+                    }
+                    break;
+                    
+                    case '\t':
+                    if (opts.show_slash_t){
+                        if (item < item_end){
+                            ch_width_sub = write_render_item_inline(item, i, '\\', x, y, advance_data, font_height);
+                            item->flags = BRFlag_Special_Character;
+                            ++item_i;
+                            ++item;
+                            if (item < item_end){
+                                write_render_item_inline(item, i, 't', x + ch_width_sub, y, advance_data, font_height);
+                                item->flags = BRFlag_Special_Character;
+                                ++item_i;
+                                ++item;
+                            }
+                        }
+                    }
+                    else{
+                        if (item < item_end){
+                            write_render_item_inline(item, i, ' ', x, y, advance_data, font_height);
+                            item->flags = 0;
+                            ++item_i;
+                            ++item;
+                        }
                     }
                     x += ch_width;
                     break;
-
-                default:
-                    write_render_item(item, i, ch, x, y, ch_width, font_height);
-                    item->flags = 0;
-                    ++item_i;
-                    ++item;
-                    x += ch_width;
-                
+                    
+                    default:
+                    if (item < item_end){
+                        write_render_item(item, i, ch, x, y, ch_width, font_height);
+                        item->flags = 0;
+                        ++item_i;
+                        ++item;
+                        x += ch_width;
+                    }
                     break;
                 }
                 if (y > height + shift_y) goto buffer_get_render_data_end;
             }
         }
-    
-buffer_get_render_data_end:
+        
+        buffer_get_render_data_end:
         if (y <= height + shift_y || item == items){
+            if (item < item_end){
+                ch = 0;
+                ch_width = measure_character(advance_data, ' ');
+                write_render_item(item, size, ch, x, y, ch_width, font_height);
+                ++item_i;
+                ++item;
+                x += ch_width;
+            }
+        }
+    }
+    else{
+        if (item < item_end){
             ch = 0;
-            ch_width = measure_character(advance_data, ' ');
+            ch_width = 0;
             write_render_item(item, size, ch, x, y, ch_width, font_height);
             ++item_i;
             ++item;
             x += ch_width;
         }
-    }
-    else{
-        ch = 0;
-        ch_width = 0;
-        write_render_item(item, size, ch, x, y, ch_width, font_height);
-        ++item_i;
-        ++item;
-        x += ch_width;
     }
     
     // TODO(allen): handle this with a control state

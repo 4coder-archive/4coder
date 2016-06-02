@@ -636,6 +636,22 @@ view_compute_lowest_line(View *view){
     return lowest_line;
 }
 
+inline f32
+view_compute_max_target_y(i32 lowest_line, i32 line_height, f32 view_height){
+    f32 max_target_y = ((lowest_line+.5f)*line_height) - view_height*.5f;
+    max_target_y = clamp_bottom(0.f, max_target_y);
+    return(max_target_y);
+}
+
+inline f32
+view_compute_max_target_y(View *view){
+    i32 lowest_line = view_compute_lowest_line(view);
+    i32 line_height = view->font_height;
+    f32 view_height = view_file_height(view);
+    f32 max_target_y = view_compute_max_target_y(lowest_line, line_height, view_height);
+    return(max_target_y);
+}
+
 internal void
 view_measure_wraps(General_Memory *general, View *view){
     Buffer_Type *buffer;
@@ -1477,12 +1493,12 @@ view_get_cursor_y(View *view){
 #define CursorMinY(m,h) (CursorMinY_(m,h) > 0)?(CursorMinY_(m,h)):(0)
 
 internal void
-view_move_cursor_to_view(View *view){
+view_move_cursor_to_view(View *view, GUI_Scroll_Vars scroll){
     f32 min_target_y = 0;
     i32 line_height = view->font_height;
     f32 old_cursor_y = view_get_cursor_y(view);
     f32 cursor_y = old_cursor_y;
-    f32 target_y = view->recent->scroll.target_y;
+    f32 target_y = scroll.target_y;
     f32 cursor_max_y = CursorMaxY(view_file_height(view), line_height);
     f32 cursor_min_y = CursorMinY(min_target_y, line_height);
     
@@ -1552,22 +1568,6 @@ file_view_nullify_file(View *view){
         general_memory_free(general, view->file_data.line_wrap_y);
     }
     view->file_data = file_viewing_data_zero();
-}
-
-inline f32
-view_compute_max_target_y(i32 lowest_line, i32 line_height, f32 view_height){
-    f32 max_target_y = ((lowest_line+.5f)*line_height) - view_height*.5f;
-    max_target_y = clamp_bottom(0.f, max_target_y);
-    return(max_target_y);
-}
-
-internal f32
-view_compute_max_target_y(View *view){
-    i32 lowest_line = view_compute_lowest_line(view);
-    i32 line_height = view->font_height;
-    f32 view_height = view_file_height(view);
-    f32 max_target_y = view_compute_max_target_y(lowest_line, line_height, view_height);
-    return(max_target_y);
 }
 
 internal void
@@ -3561,12 +3561,15 @@ view_end_cursor_scroll_updates(View *view){
         
         case CursorScroll_Cursor:
         case CursorScroll_Cursor|CursorScroll_Scroll:
+        if (view->gui_target.did_file){
+            view->recent->scroll.max_y = view_compute_max_target_y(view);
+        }
         view_move_view_to_cursor(view, view->current_scroll);
         gui_post_scroll_vars(&view->gui_target, view->current_scroll, view->scroll_region);
         break;
         
         case CursorScroll_Scroll:
-        view_move_cursor_to_view(view);
+        view_move_cursor_to_view(view, view->recent->scroll);
         gui_post_scroll_vars(&view->gui_target, view->current_scroll, view->scroll_region);
         break;
     }
