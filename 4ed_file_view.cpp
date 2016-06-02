@@ -1470,27 +1470,54 @@ view_get_cursor_y(View *view){
     return result;
 }
 
-#define CursorMaxY_(m,h) ((m) - (h)*3)
-#define CursorMinY_(m,h) (-(m) + (h)*2)
+struct Cursor_Limits{
+    f32 min, max;
+    f32 delta;
+};
 
-#define CursorMaxY(m,h) (CursorMaxY_(m,h) > 0)?(CursorMaxY_(m,h)):(0)
-#define CursorMinY(m,h) (CursorMinY_(m,h) > 0)?(CursorMinY_(m,h)):(0)
+inline Cursor_Limits
+view_cursor_limits(View *view){
+    Cursor_Limits limits = {0};
+    
+    f32 line_height = (f32)view->line_height;
+    f32 visible_height = view_file_height(view);
+    
+    limits.max = visible_height - line_height*3.f;
+    limits.min = line_height * 2;
+    
+    if (limits.max - limits.min <= line_height){
+        if (visible_height >= line_height){
+            limits.max = visible_height - line_height;
+            limits.min = -line_height;
+        }
+        else{
+            limits.max = visible_height;
+            limits.min = -line_height;
+        }
+    }
+    
+    limits.max = (limits.max > 0)?(limits.max):(0);
+    limits.min = (limits.min > 0)?(limits.min):(0);
+    
+    limits.delta = clamp_top(line_height*3.f, (limits.max - limits.min)*.5f);
+    
+    return(limits);
+}
 
 internal void
 view_move_cursor_to_view(View *view, GUI_Scroll_Vars scroll){
-    f32 min_target_y = 0;
     i32 line_height = view->line_height;
     f32 old_cursor_y = view_get_cursor_y(view);
     f32 cursor_y = old_cursor_y;
     f32 target_y = scroll.target_y;
-    f32 cursor_max_y = CursorMaxY(view_file_height(view), line_height);
-    f32 cursor_min_y = CursorMinY(min_target_y, line_height);
     
-    if (cursor_y > target_y + cursor_max_y){
-        cursor_y = target_y + cursor_max_y;
+    Cursor_Limits limits = view_cursor_limits(view);
+    
+    if (cursor_y > target_y + limits.max){
+        cursor_y = target_y + limits.max;
     }
-    if (target_y != 0 && cursor_y < target_y + cursor_min_y){
-        cursor_y = target_y + cursor_min_y;
+    if (target_y != 0 && cursor_y < target_y + limits.min){
+        cursor_y = target_y + limits.min;
     }
     
     if (cursor_y != old_cursor_y){
@@ -1507,10 +1534,6 @@ view_move_cursor_to_view(View *view, GUI_Scroll_Vars scroll){
 
 internal void
 view_move_view_to_cursor(View *view, GUI_Scroll_Vars *scroll){
-    f32 line_height = (f32)view->line_height;
-    f32 delta_y = 3.f*line_height;
-    
-    f32 max_visible_y = view_file_height(view);
     f32 max_x = view_file_width(view);
     
     f32 cursor_y = view_get_cursor_y(view);
@@ -1520,14 +1543,13 @@ view_move_view_to_cursor(View *view, GUI_Scroll_Vars *scroll){
     f32 target_y = scroll_vars.target_y;
     f32 target_x = scroll_vars.target_x;
     
-    f32 cursor_max_y = CursorMaxY(max_visible_y, line_height);
-    f32 cursor_min_y = CursorMinY(0, line_height);
+    Cursor_Limits limits = view_cursor_limits(view);
     
-    if (cursor_y > target_y + cursor_max_y){
-        target_y = cursor_y - cursor_max_y + delta_y;
+    if (cursor_y > target_y + limits.max){
+        target_y = cursor_y - limits.max + limits.delta;
     }
-    if (cursor_y < target_y + cursor_min_y){
-        target_y = cursor_y - delta_y - cursor_min_y;
+    if (cursor_y < target_y + limits.min){
+        target_y = cursor_y - limits.delta - limits.min;
     }
     
     target_y = clamp(0.f, target_y, scroll_vars.max_y);
@@ -4693,7 +4715,7 @@ do_input_file_view(System_Functions *system,
                         
                         if (scroll_button_input(target, &gui_session, user_input, id, &result.is_animating)){
                             result.vars.target_y += target->delta * 0.25f;
-                            result.vars.target_y = clamp_top(0.f, result.vars.max_y);
+                            result.vars.target_y = clamp_top(result.vars.target_y, result.vars.max_y);
                         }
                     }break;
                     
