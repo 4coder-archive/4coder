@@ -166,6 +166,7 @@ struct Linux_Vars{
     String clipboard_outgoing;
     b32 new_clipboard;
 
+    Atom atom_TARGETS;
     Atom atom_CLIPBOARD;
     Atom atom_UTF8_STRING;
     Atom atom__NET_WM_STATE;
@@ -2272,27 +2273,57 @@ LinuxHandleX11Events(void)
                 response.time = request.time;
                 response.property = None;
 
-                //TODO(inso): handle TARGETS negotiation instead of requiring UTF8_STRING
                 if (
                     linuxvars.clipboard_outgoing.size &&
-                    request.target == linuxvars.atom_UTF8_STRING &&
                     request.selection == linuxvars.atom_CLIPBOARD &&
                     request.property != None &&
                     request.display &&
                     request.requestor
                 ){
-                    XChangeProperty(
-                        request.display,
-                        request.requestor,
-                        request.property,
-                        request.target,
-                        8,
-                        PropModeReplace,
-                        (unsigned char*)linuxvars.clipboard_outgoing.str,
-                        linuxvars.clipboard_outgoing.size
-                    );
+                    Atom atoms[] = {
+                        XA_STRING,
+                        linuxvars.atom_UTF8_STRING
+                    };
 
-                    response.property = request.property;
+                    if(request.target == linuxvars.atom_TARGETS){
+
+                        XChangeProperty(
+                            request.display,
+                            request.requestor,
+                            request.property,
+                            XA_ATOM,
+                            32,
+                            PropModeReplace,
+                            (u8*)atoms,
+                            ArrayCount(atoms)
+                        );
+
+                        response.property = request.property;
+
+                    } else {
+                        b32 found = false;
+                        for(int i = 0; i < ArrayCount(atoms); ++i){
+                            if(request.target == atoms[i]){
+                                found = true;
+                                break;
+                            }
+                        }
+
+                        if(found){
+                            XChangeProperty(
+                                request.display,
+                                request.requestor,
+                                request.property,
+                                request.target,
+                                8,
+                                PropModeReplace,
+                                (u8*)linuxvars.clipboard_outgoing.str,
+                                linuxvars.clipboard_outgoing.size
+                            );
+
+                            response.property = request.property;
+                        }
+                    }
                 }
 
                 XSendEvent(request.display, request.requestor, True, 0, (XEvent*)&response);
@@ -2339,6 +2370,7 @@ LinuxHandleX11Events(void)
                         should_step = 1;
                         linuxvars.new_clipboard = 1;
                         XFree(data);
+                        XDeleteProperty(linuxvars.XDisplay, linuxvars.XWindow, linuxvars.atom_CLIPBOARD);
                     }
                 }
             }break;
@@ -2585,6 +2617,7 @@ main(int argc, char **argv)
 
 #define LOAD_ATOM(x) linuxvars.atom_##x = XInternAtom(linuxvars.XDisplay, #x, False);
 
+    LOAD_ATOM(TARGETS);
     LOAD_ATOM(CLIPBOARD);
     LOAD_ATOM(UTF8_STRING);
     LOAD_ATOM(_NET_WM_STATE);
@@ -2619,6 +2652,8 @@ main(int argc, char **argv)
             linuxvars.atom_CLIPBOARD,
             XFixesSetSelectionOwnerNotifyMask
         );
+    } else {
+        fputs("Your X server doesn't support XFIXES, mention this fact if you report any clipboard-related issues.\n", stderr);
     }
 
     Init_Input_Result input_result =
