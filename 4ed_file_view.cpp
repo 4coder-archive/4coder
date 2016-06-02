@@ -121,22 +121,6 @@ view_mode_zero(){
     return(mode);
 }
 
-enum View_Widget_Type{
-    FWIDG_NONE,
-    FWIDG_TIMELINES,
-    // never below this
-    FWIDG_TYPE_COUNT
-};
-
-struct View_Widget{
-    View_Widget_Type type;
-    i32 height_;
-    struct{
-        b32 undo_line;
-        b32 history_line;
-    } timeline;
-};
-
 enum View_UI{
     VUI_None,
     VUI_Theme,
@@ -263,13 +247,13 @@ struct View{
     i32 current_color_editing;
     i32 color_cursor;
     
+    // misc
     i32 font_advance;
-    i32 font_height;
+    i32 line_height;
     
     View_Mode mode, next_mode;
-    View_Widget widget;
     Query_Set query_set;
-    i32 scrub_max;
+    f32 widget_height;
     
     b32 reinit_scrolling;
 };
@@ -623,7 +607,7 @@ view_compute_lowest_line(View *view){
         }
         else{
             f32 wrap_y = view->file_data.line_wrap_y[last_line];
-            lowest_line = FLOOR32(wrap_y / view->font_height);
+            lowest_line = FLOOR32(wrap_y / view->line_height);
             f32 max_width = view_file_width(view);
             
             Editing_File *file = view->file_data.file;
@@ -646,7 +630,7 @@ view_compute_max_target_y(i32 lowest_line, i32 line_height, f32 view_height){
 inline f32
 view_compute_max_target_y(View *view){
     i32 lowest_line = view_compute_lowest_line(view);
-    i32 line_height = view->font_height;
+    i32 line_height = view->line_height;
     f32 view_height = view_file_height(view);
     f32 max_target_y = view_compute_max_target_y(lowest_line, line_height, view_height);
     return(max_target_y);
@@ -671,7 +655,7 @@ view_measure_wraps(General_Memory *general, View *view){
         }
     }
     
-    f32 line_height = (f32)view->font_height;
+    f32 line_height = (f32)view->line_height;
     f32 max_width = view_file_width(view);
     buffer_measure_wrap_y(buffer, view->file_data.line_wrap_y, line_height, max_width);
     
@@ -1347,7 +1331,7 @@ view_compute_cursor_from_pos(View *view, i32 pos){
     if (font){
         f32 max_width = view_file_width(view);
         result = buffer_cursor_from_pos(&file->state.buffer, pos, view->file_data.line_wrap_y,
-                                        max_width, (f32)view->font_height, font->advance_data);
+                                        max_width, (f32)view->line_height, font->advance_data);
     }
     return result;
 }
@@ -1362,7 +1346,7 @@ view_compute_cursor_from_unwrapped_xy(View *view, f32 seek_x, f32 seek_y, b32 ro
     if (font){
         f32 max_width = view_file_width(view);
         result = buffer_cursor_from_unwrapped_xy(&file->state.buffer, seek_x, seek_y,
-                                                 round_down, view->file_data.line_wrap_y, max_width, (f32)view->font_height, font->advance_data);
+                                                 round_down, view->file_data.line_wrap_y, max_width, (f32)view->line_height, font->advance_data);
     }
     
     return result;
@@ -1379,7 +1363,7 @@ view_compute_cursor_from_wrapped_xy(View *view, f32 seek_x, f32 seek_y, b32 roun
         f32 max_width = view_file_width(view);
         result = buffer_cursor_from_wrapped_xy(&file->state.buffer, seek_x, seek_y,
                                                round_down, view->file_data.line_wrap_y,
-                                               max_width, (f32)view->font_height, font->advance_data);
+                                               max_width, (f32)view->line_height, font->advance_data);
     }
     
     return (result);
@@ -1395,7 +1379,7 @@ view_compute_cursor_from_line_pos(View *view, i32 line, i32 pos){
     if (font){
         f32 max_width = view_file_width(view);
         result = buffer_cursor_from_line_character(&file->state.buffer, line, pos,
-                                                   view->file_data.line_wrap_y, max_width, (f32)view->font_height, font->advance_data);
+                                                   view->file_data.line_wrap_y, max_width, (f32)view->line_height, font->advance_data);
     }
     
     return (result);
@@ -1495,7 +1479,7 @@ view_get_cursor_y(View *view){
 internal void
 view_move_cursor_to_view(View *view, GUI_Scroll_Vars scroll){
     f32 min_target_y = 0;
-    i32 line_height = view->font_height;
+    i32 line_height = view->line_height;
     f32 old_cursor_y = view_get_cursor_y(view);
     f32 cursor_y = old_cursor_y;
     f32 target_y = scroll.target_y;
@@ -1523,7 +1507,7 @@ view_move_cursor_to_view(View *view, GUI_Scroll_Vars scroll){
 
 internal void
 view_move_view_to_cursor(View *view, GUI_Scroll_Vars *scroll){
-    f32 line_height = (f32)view->font_height;
+    f32 line_height = (f32)view->line_height;
     f32 delta_y = 3.f*line_height;
     
     f32 max_visible_y = view_file_height(view);
@@ -1577,7 +1561,7 @@ view_set_file(View *view, Editing_File *file, Models *models){
     // TODO(allen): This belongs somewhere else.
     fnt_info = get_font_info(models->font_set, models->global_font.font_id);
     view->font_advance = fnt_info->advance;
-    view->font_height = fnt_info->height;
+    view->line_height = fnt_info->height;
     
     file_view_nullify_file(view);
     view->file_data.file = file;
@@ -1688,19 +1672,14 @@ view_cursor_move(View *view, i32 line, i32 pos){
     view_cursor_move(view, cursor);
 }
 
-inline void
-view_set_widget(View *view, View_Widget_Type type){
-    view->widget.type = type;
-}
-
 
 inline i32_Rect
-view_widget_rect(View *view, i32 font_height){
+view_widget_rect(View *view, i32 line_height){
     Panel *panel = view->panel;
     i32_Rect result = panel->inner;
     
     if (view->file_data.file){
-        result.y0 = result.y0 + font_height + 2;
+        result.y0 = result.y0 + line_height + 2;
     }
     
     return(result);
@@ -1948,7 +1927,7 @@ file_edit_cursor_fix(System_Functions *system,
                 if (view->recent->scroll_i != new_scroll_i){
                     view->recent->scroll_i = new_scroll_i;
                     temp_cursor = view_compute_cursor_from_pos(view, view->recent->scroll_i);
-                    y_offset = MOD(view->recent->scroll.scroll_y, view->font_height);
+                    y_offset = MOD(view->recent->scroll.scroll_y, view->line_height);
                     
                     if (view->file_data.unwrapped_lines){
                         y_position = temp_cursor.unwrapped_y + y_offset;
@@ -3545,10 +3524,6 @@ view_begin_cursor_scroll_updates(View *view){
     if (view->file_data.file && view->file_data.file == view->prev_context.file){
         Assert(view->prev_cursor_pos == view_get_cursor_pos(view));
     }
-    
-    view->prev_context.file = view->file_data.file;
-    view->prev_context.scroll = view->gui_target.scroll_id;
-    view->prev_context.mode = view->showing_ui;
 }
 
 internal void
@@ -3580,9 +3555,11 @@ view_end_cursor_scroll_updates(View *view){
         gui_post_scroll_vars(&view->gui_target, view->current_scroll, view->scroll_region);
     }
     
-    if (view->gui_target.did_file){
-        view->prev_cursor_pos = view_get_cursor_pos(view);
-    }
+    view->prev_cursor_pos = view_get_cursor_pos(view);
+    
+    view->prev_context.file = view->file_data.file;
+    view->prev_context.scroll = view->gui_target.scroll_id;
+    view->prev_context.mode = view->showing_ui;
 }
 
 internal b32
@@ -3605,14 +3582,15 @@ file_step(View *view, i32_Rect region, Input_Summary *user_input, b32 is_active)
             f32 ry = (f32)(user_input->mouse.y - region.y0);
             
             if (ry >= 0){
-                view_set_widget(view, FWIDG_NONE);
                 if (rx >= 0 && rx < max_x && ry >= 0 && ry < max_visible_y){
-                    view_cursor_move(view, rx + scroll_vars.scroll_x, ry + scroll_vars.scroll_y, 1);
+                    view_cursor_move(view,
+                                     rx + scroll_vars.scroll_x,
+                                     ry + scroll_vars.scroll_y,
+                                     1);
                     view->mode = view_mode_zero();
                 }
             }
         }
-        if (!is_active) view_set_widget(view, FWIDG_NONE);
     }
     
     return(is_animating);
@@ -3623,10 +3601,20 @@ do_widget(View *view, GUI_Target *target){
     Query_Slot *slot;
     Query_Bar *bar;
     
+    // NOTE(allen): A temporary measure... although in
+    // general we maybe want the user to be able to ask
+    // how large a particular section of the GUI turns
+    // out to be after layout?
+    f32 height = 0.f;
+    
     for (slot = view->query_set.used_slot; slot != 0; slot = slot->next){
         bar = slot->query_bar;
         gui_do_text_field(target, bar->prompt, bar->string);
+        
+        height += view->line_height + 2;
     }
+    
+    view->widget_height = height;
 }
 
 struct Exhaustive_File_Loop{
@@ -3906,7 +3894,7 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
             
             gui_begin_serial_section(target);
             {
-                f32 delta = 9.f * view->font_height;
+                f32 delta = 9.f * view->line_height;
                 GUI_id scroll_context = {0};
                 scroll_context.id[1] = view->showing_ui;
                 scroll_context.id[0] = (u64)(view->file_data.file);
@@ -4006,7 +3994,7 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                         view->current_scroll = &view->gui_scroll;
                         gui_get_scroll_vars(target, scroll_context, &view->gui_scroll, &view->scroll_region);
                         gui_begin_scrollable(target, scroll_context, view->gui_scroll,
-                                             9.f * view->font_height, show_scrollbar);
+                                             9.f * view->line_height, show_scrollbar);
                         
                         {
                             i32 count = models->styles.count;
@@ -4080,7 +4068,7 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                             view->current_scroll = &view->gui_scroll;
                             gui_get_scroll_vars(target, scroll_context, &view->gui_scroll, &view->scroll_region);
                             gui_begin_scrollable(target, scroll_context, view->gui_scroll,
-                                                 9.f * view->font_height, show_scrollbar);
+                                                 9.f * view->line_height, show_scrollbar);
                             
                             i32 next_color_editing = view->current_color_editing;
                             
@@ -4227,7 +4215,7 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                                 snap_into_view = 1;
                             }
                             gui_begin_scrollable(target, scroll_context, view->gui_scroll,
-                                                 9.f * view->font_height, show_scrollbar);
+                                                 9.f * view->line_height, show_scrollbar);
                             
                             id.id[0] = (u64)(hdir) + 1;
                             
@@ -4316,7 +4304,7 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                                 snap_into_view = 1;
                             }
                             gui_begin_scrollable(target, scroll_context, view->gui_scroll,
-                                                 9.f * view->font_height, show_scrollbar);
+                                                 9.f * view->line_height, show_scrollbar);
                             
                             id.id[0] = (u64)(working_set) + 1;
                             if (gui_begin_list(target, id, view->list_i,
@@ -4550,7 +4538,7 @@ do_input_file_view(System_Functions *system,
     target->active = gui_id_zero();
     
     if (target->push.pos > 0){
-        gui_session_init(&gui_session, target, rect, view->font_height);
+        gui_session_init(&gui_session, target, rect, view->line_height);
         
         for (h = (GUI_Header*)target->push.base;
              h->type;
@@ -4754,47 +4742,54 @@ draw_file_loaded(View *view, i32_Rect rect, b32 is_active, Render_Target *target
     Models *models = view->persistent.models;
     Editing_File *file = view->file_data.file;
     Style *style = main_style(models);
-    i32 line_height = view->font_height;
-
+    i32 line_height = view->line_height;
+    
     i32 max_x = rect.x1 - rect.x0;
     i32 max_y = rect.y1 - rect.y0 + line_height;
-
+    
     Assert(file && !file->is_dummy && buffer_good(&file->state.buffer));
-
+    
     b32 tokens_use = 0;
     Cpp_Token_Stack token_stack = {};
     if (file){
         tokens_use = file->state.tokens_complete && (file->state.token_stack.count > 0);
         token_stack = file->state.token_stack;
     }
-
+    
     Partition *part = &models->mem.part;
-
+    
     Temp_Memory temp = begin_temp_memory(part);
-
+    
     partition_align(part, 4);
     i32 max = partition_remaining(part) / sizeof(Buffer_Render_Item);
     Buffer_Render_Item *items = push_array(part, Buffer_Render_Item, max);
-
+    
     i16 font_id = models->global_font.font_id;
     Render_Font *font = get_font_info(models->font_set, font_id)->font;
     float *advance_data = 0;
     if (font) advance_data = font->advance_data;
-
+    
     i32 count;
     Full_Cursor render_cursor;
     Buffer_Render_Options opts = {};
-
+    
     f32 *wraps = view->file_data.line_wrap_y;
     f32 scroll_x = view->recent->scroll.scroll_x;
     f32 scroll_y = view->recent->scroll.scroll_y;
-
+    
+    // NOTE(allen): For now we will temporarily adjust scroll_y to try
+    // to prevent the view moving around until floating sections are added
+    // to the gui system.
+    scroll_y += view->widget_height;
+    
     {
         render_cursor = buffer_get_start_cursor(&file->state.buffer, wraps, scroll_y,
-            !view->file_data.unwrapped_lines, (f32)max_x, advance_data, (f32)line_height);
-
+                                                !view->file_data.unwrapped_lines,
+                                                (f32)max_x,
+                                                advance_data, (f32)line_height);
+        
         view->recent->scroll_i = render_cursor.pos;
-
+        
         buffer_get_render_data(&file->state.buffer, items, max, &count,
                                (f32)rect.x0, (f32)rect.y0,
                                scroll_x, scroll_y, render_cursor,
@@ -4803,9 +4798,9 @@ draw_file_loaded(View *view, i32_Rect rect, b32 is_active, Render_Target *target
                                advance_data, (f32)line_height,
                                opts);
     }
-
+    
     Assert(count > 0);
-
+    
     i32 cursor_begin, cursor_end;
     u32 cursor_color, at_cursor_color;
     if (view->file_data.show_temp_highlight){
@@ -4820,7 +4815,7 @@ draw_file_loaded(View *view, i32_Rect rect, b32 is_active, Render_Target *target
         cursor_color = style->main.cursor_color;
         at_cursor_color = style->main.at_cursor_color;
     }
-
+    
     i32 token_i = 0;
     u32 main_color = style->main.default_color;
     u32 special_color = style->main.special_character_color;
@@ -4829,19 +4824,19 @@ draw_file_loaded(View *view, i32_Rect rect, b32 is_active, Render_Target *target
         main_color = *style_get_color(style, token_stack.tokens[result.token_index]);
         token_i = result.token_index + 1;
     }
-
+    
     u32 mark_color = style->main.mark_color;
     Buffer_Render_Item *item = items;
     i32 prev_ind = -1;
     u32 highlight_color = 0;
     u32 highlight_this_color = 0;
-
+    
     for (i32 i = 0; i < count; ++i, ++item){
         i32 ind = item->index;
         highlight_this_color = 0;
         if (tokens_use && ind != prev_ind){
             Cpp_Token current_token = token_stack.tokens[token_i-1];
-
+            
             if (token_i < token_stack.count){
                 if (ind >= token_stack.tokens[token_i].start){
                     main_color =
@@ -4853,7 +4848,7 @@ draw_file_loaded(View *view, i32_Rect rect, b32 is_active, Render_Target *target
                     main_color = 0xFFFFFFFF;
                 }
             }
-
+            
             if (current_token.type == CPP_TOKEN_JUNK &&
                 i >= current_token.start && i < current_token.start + current_token.size){
                 highlight_color = style->main.highlight_junk_color;
@@ -4862,10 +4857,10 @@ draw_file_loaded(View *view, i32_Rect rect, b32 is_active, Render_Target *target
                 highlight_color = 0;
             }
         }
-
+        
         u32 char_color = main_color;
         if (item->flags & BRFlag_Special_Character) char_color = special_color;
-
+        
         f32_Rect char_rect = f32R(item->x0, item->y0, item->x1, item->y1);
         if (view->file_data.show_whitespace && highlight_color == 0 &&
             char_is_whitespace((char)item->glyphid)){
@@ -4874,7 +4869,7 @@ draw_file_loaded(View *view, i32_Rect rect, b32 is_active, Render_Target *target
         else{
             highlight_this_color = highlight_color;
         }
-
+        
         if (cursor_begin <= ind && ind < cursor_end && (ind != prev_ind || cursor_begin < ind)){
             if (is_active){
                 draw_rectangle(target, char_rect, cursor_color);
@@ -4889,19 +4884,19 @@ draw_file_loaded(View *view, i32_Rect rect, b32 is_active, Render_Target *target
         else if (highlight_this_color){
             draw_rectangle(target, char_rect, highlight_this_color);
         }
-
+        
         u32 fade_color = 0xFFFF00FF;
         f32 fade_amount = 0.f;
-
+        
         if (file->state.paste_effect.tick_down > 0 &&
             file->state.paste_effect.start <= ind &&
             ind < file->state.paste_effect.end){
             fade_color = file->state.paste_effect.color;
             fade_amount = (f32)(file->state.paste_effect.tick_down) / file->state.paste_effect.tick_max;
         }
-
+        
         char_color = color_blend(char_color, fade_amount, fade_color);
-
+        
         if (ind == view->recent->mark && prev_ind != ind){
             draw_rectangle_outline(target, char_rect, mark_color);
         }
@@ -4911,9 +4906,9 @@ draw_file_loaded(View *view, i32_Rect rect, b32 is_active, Render_Target *target
         }
         prev_ind = ind;
     }
-
+    
     end_temp_memory(temp);
-
+    
     return(0);
 }
 
@@ -4971,7 +4966,7 @@ draw_text_with_cursor(Render_Target *target, View *view, i32_Rect rect, String s
             cursor_rect.x0 = FLOOR32(x);
             cursor_rect.x1 = FLOOR32(x) + CEIL32(font->advance_data[s.str[pos]]);
             cursor_rect.y0 = y;
-            cursor_rect.y1 = y + view->font_height;
+            cursor_rect.y1 = y + view->line_height;
             draw_rectangle(target, cursor_rect, cursor_color);
             x = draw_string(target, font_id, part2, FLOOR32(x), y, at_cursor_color);
             
@@ -5129,7 +5124,7 @@ draw_fat_option_block(GUI_Target *gui_target, Render_Target *target, View *view,
     u32 text_color = style->main.default_color;
     u32 pop_color = style->main.special_character_color;
     
-    i32 h = view->font_height;
+    i32 h = view->line_height;
     i32 x = inner.x0 + 3;
     i32 y = inner.y0 + h/2 - 1;
     
@@ -5169,7 +5164,7 @@ draw_button(GUI_Target *gui_target, Render_Target *target, View *view, i32_Rect 
     u32 back = get_margin_color(active_level, style);
     u32 text_color = style->main.default_color;
     
-    i32 h = view->font_height;
+    i32 h = view->line_height;
     i32 y = inner.y0 + h/2 - 1;
     
     i32 w = (i32)font_string_width(target, font_id, text);
@@ -5240,7 +5235,7 @@ do_render_file_view(System_Functions *system, View *view,
     f32 v;
     
     if (gui_target->push.pos > 0){
-        gui_session_init(&gui_session, gui_target, rect, view->font_height);
+        gui_session_init(&gui_session, gui_target, rect, view->line_height);
         
         v = view_get_scroll_y(view);
         
@@ -5675,7 +5670,6 @@ live_set_alloc_view(Live_Views *live_set, Panel *panel, Models *models){
     result.view->panel = panel;
 
     result.view->persistent.models = models;
-    result.view->scrub_max = 1;
     result.view->current_scroll = &result.view->recent->scroll;
 
     init_query_set(&result.view->query_set);

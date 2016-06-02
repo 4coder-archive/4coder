@@ -649,11 +649,7 @@ gui_get_scroll_vars(GUI_Target *target, GUI_id scroll_context_id, GUI_Scroll_Var
         *vars_out = target->scroll_updated;
         *region_out = target->region_updated;
         
-        if (vars_out->target_y < 0) vars_out->target_y = 0;
-        if (vars_out->target_y > vars_out->max_y) vars_out->target_y = vars_out->max_y;
-        
-        if (vars_out->scroll_y < 0) vars_out->scroll_y = 0;
-        if (vars_out->scroll_y > vars_out->max_y) vars_out->scroll_y = vars_out->max_y;
+        vars_out->target_y = clamp(0.f, vars_out->target_y, vars_out->max_y);
         
         if (gui_id_eq(target->active, gui_id_scrollbar())){
             result = 1;

@@ -584,6 +584,7 @@ COMMAND_DECL(set_mark){
     REQ_FILE(file, view);
 
     view->recent->mark = (i32)view->recent->cursor.pos;
+    view->recent->preferred_x = view_get_cursor_x(view);
 }
 
 COMMAND_DECL(copy){
@@ -996,7 +997,7 @@ COMMAND_DECL(toggle_line_wrap){
         view->file_data.unwrapped_lines = 0;
         file->settings.unwrapped_lines = 0;
         view->recent->scroll.target_x = 0;
-        view->recent->cursor =view_compute_cursor_from_pos(
+        view->recent->cursor = view_compute_cursor_from_pos(
             view, view->recent->cursor.pos);
         view->recent->preferred_x = view->recent->cursor.wrapped_x;
     }
@@ -1344,8 +1345,8 @@ COMMAND_DECL(move_up){
     REQ_READABLE_VIEW(view);
     REQ_FILE(file, view);
 
-    f32 font_height = (f32)get_font_info(models->font_set, models->global_font.font_id)->height;
-    f32 cy = view_get_cursor_y(view)-font_height;
+    f32 line_height = (f32)get_font_info(models->font_set, models->global_font.font_id)->height;
+    f32 cy = view_get_cursor_y(view)-line_height;
     f32 px = view->recent->preferred_x;
     if (cy >= 0){
         view->recent->cursor = view_compute_cursor_from_xy(view, px, cy);
@@ -1359,8 +1360,8 @@ COMMAND_DECL(move_down){
     REQ_READABLE_VIEW(view);
     REQ_FILE(file, view);
     
-    f32 font_height = (f32)get_font_info(models->font_set, models->global_font.font_id)->height;
-    f32 cy = view_get_cursor_y(view)+font_height;
+    f32 line_height = (f32)get_font_info(models->font_set, models->global_font.font_id)->height;
+    f32 cy = view_get_cursor_y(view)+line_height;
     f32 px = view->recent->preferred_x;
     view->recent->cursor = view_compute_cursor_from_xy(view, px, cy);
     file->state.cursor_pos = view->recent->cursor.pos;
@@ -1392,7 +1393,7 @@ COMMAND_DECL(page_down){
         clamp_top(view->recent->scroll.target_y + height, max_target_y);
     
     view->recent->cursor =
-        view_compute_cursor_from_xy(view, 0, view->recent->scroll.target_y + (height - view->font_height)*.5f);
+        view_compute_cursor_from_xy(view, 0, view->recent->scroll.target_y + (height - view->line_height)*.5f);
 }
 
 COMMAND_DECL(page_up){
@@ -1404,7 +1405,7 @@ COMMAND_DECL(page_up){
         clamp_bottom(0.f, view->recent->scroll.target_y - height);
     
     view->recent->cursor =
-        view_compute_cursor_from_xy(view, 0, view->recent->scroll.target_y + (height - view->font_height)*.5f);
+        view_compute_cursor_from_xy(view, 0, view->recent->scroll.target_y + (height - view->line_height)*.5f);
 }
 
 COMMAND_DECL(open_color_tweaker){
@@ -1763,7 +1764,7 @@ fill_view_summary(View_Summary *view, View *vptr, Live_Views *live_set, Working_
     if (vptr->in_use){
         view->exists = 1;
         view->view_id = (int)(vptr - live_set->views) + 1;
-        view->line_height = vptr->font_height;
+        view->line_height = vptr->line_height;
         view->unwrapped_lines = vptr->file_data.unwrapped_lines;
 
         if (vptr->file_data.file){
@@ -3562,6 +3563,17 @@ App_Step_Sig(app_step){
         }
     }
     
+    // NOTE(allen): begin allowing the cursors and scroll locations
+    // to move around.
+    {
+        Panel *panel = 0, *used_panels = 0;
+        used_panels = &models->layout.used_sentinel;
+        for (dll_items(panel, used_panels)){
+            Assert(panel->view);
+            view_begin_cursor_scroll_updates(panel->view);
+        }
+    }
+    
     // NOTE(allen): reorganizing panels on screen
     {
         i32 prev_width = models->layout.full_width;
@@ -3674,17 +3686,6 @@ App_Step_Sig(app_step){
         else{
             mouse_on_divider = 0;
             mouse_divider_id = 0;
-        }
-    }
-    
-    // NOTE(allen): begin allowing the cursors and scroll locations
-    // to move around.
-    {
-        Panel *panel = 0, *used_panels = 0;
-        used_panels = &models->layout.used_sentinel;
-        for (dll_items(panel, used_panels)){
-            Assert(panel->view);
-            view_begin_cursor_scroll_updates(panel->view);
         }
     }
     
