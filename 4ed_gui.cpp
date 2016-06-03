@@ -655,7 +655,7 @@ gui_get_scroll_vars(GUI_Target *target, GUI_id scroll_context_id, GUI_Scroll_Var
             result = 1;
             target->animating = 1;
         }
-	}
+    }
     return(result);
 }
 
@@ -1213,7 +1213,7 @@ internal GUI_View_Jump
 gui_compute_view_jump(i32_Rect scroll_region, i32_Rect position){
     GUI_View_Jump jump = {0};
     i32 region_h = scroll_region.y1 - scroll_region.y0;
-    jump.view_min = (f32)position.y1 - region_h - scroll_region.y0;
+    jump.view_min = (f32)position.y1 - scroll_region.y0 - region_h;
     jump.view_max = (f32)position.y0 - scroll_region.y0;
     return(jump);
 }
@@ -1240,8 +1240,8 @@ gui_standard_list(GUI_Target *target, GUI_id id, GUI_Scroll_Vars *vars, i32_Rect
     if (update->has_index_position){
         GUI_View_Jump jump =
             gui_compute_view_jump(scroll_region, update->index_position);
-        jump.view_min += 45.f;
-        jump.view_max -= 45.f;
+        jump.view_min = clamp_bottom(0.f, jump.view_min + 45.f);
+        jump.view_max = clamp_bottom(0.f, jump.view_max - 45.f);
         *vars = gui_do_jump(target, jump, *vars);
     }
     

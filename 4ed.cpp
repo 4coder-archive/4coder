@@ -3786,6 +3786,7 @@ App_Step_Sig(app_step){
             
             if (i < models->layout.panel_count){
                 view_open_file(system, models, panel->view, filename);
+                view_show_file(panel->view);
 #if 0
                 if (i == 0){
                     if (panel->view->file_data.file){
@@ -3803,6 +3804,7 @@ App_Step_Sig(app_step){
         
         if (i < models->layout.panel_count){
             view_set_file(panel->view, models->message_buffer, models);
+            view_show_file(panel->view);
         }
     }
     
