@@ -1240,8 +1240,8 @@ gui_standard_list(GUI_Target *target, GUI_id id, GUI_Scroll_Vars *vars, i32_Rect
     if (update->has_index_position){
         GUI_View_Jump jump =
             gui_compute_view_jump(scroll_region, update->index_position);
-        jump.view_min = clamp_bottom(0.f, jump.view_min + 45.f);
-        jump.view_max = clamp_bottom(0.f, jump.view_max - 45.f);
+        jump.view_min = jump.view_min + 45.f;
+        jump.view_max = jump.view_max - 45.f;
         *vars = gui_do_jump(target, jump, *vars);
     }
     

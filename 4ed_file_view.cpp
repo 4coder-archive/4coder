@@ -4542,10 +4542,10 @@ struct Input_Process_Result{
 };
 
 internal Input_Process_Result
-do_input_file_view(System_Functions *system,
-                   View *view, i32_Rect rect, b32 is_active,
-                   Input_Summary *user_input,
-                   GUI_Scroll_Vars vars, i32_Rect region){
+do_step_file_view(System_Functions *system,
+                  View *view, i32_Rect rect, b32 is_active,
+                  Input_Summary *user_input,
+                  GUI_Scroll_Vars vars, i32_Rect region){
     Input_Process_Result result = {0};
     b32 is_file_scroll = 0;
     
@@ -4553,6 +4553,8 @@ do_input_file_view(System_Functions *system,
     GUI_Header *h = 0;
     GUI_Target *target = &view->gui_target;
     GUI_Interpret_Result interpret_result = {0};
+    
+    vars.target_y = clamp(0.f, vars.target_y, vars.max_y);
     
     result.vars = vars;
     result.region = region;

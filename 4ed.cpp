@@ -227,24 +227,6 @@ COMMAND_DECL(null){
     AllowLocal(command);
 }
 
-COMMAND_DECL(write_character){
-
-    USE_MODELS(models);
-    REQ_OPEN_VIEW(view);
-    REQ_FILE(file, view);
-
-    char character;
-    i32 pos, next_cursor_pos;
-
-    character = command->key.character;
-    if (character != 0){
-        pos = view->recent->cursor.pos;
-        next_cursor_pos = view->recent->cursor.pos + 1;
-        view_replace_range(system, models, view, pos, pos, &character, 1, next_cursor_pos);
-        view_cursor_move(view, next_cursor_pos);
-    }
-}
-
 internal i32
 seek_token_left(Cpp_Token_Stack *tokens, i32 pos){
     Cpp_Get_Token_Result get = cpp_get_token(tokens, pos);
@@ -275,7 +257,6 @@ seek_token_right(Cpp_Token_Stack *tokens, i32 pos){
 }
 
 COMMAND_DECL(seek_left){
-
     REQ_READABLE_VIEW(view);
     REQ_FILE(file, view);
 
@@ -328,7 +309,6 @@ COMMAND_DECL(seek_left){
 }
 
 COMMAND_DECL(seek_right){
-
     REQ_READABLE_VIEW(view);
     REQ_FILE(file, view);
 
@@ -382,26 +362,7 @@ COMMAND_DECL(seek_right){
     view_cursor_move(view, new_pos);
 }
 
-COMMAND_DECL(seek_whitespace_up){
-
-    REQ_READABLE_VIEW(view);
-    REQ_FILE(file, view);
-
-    i32 pos = buffer_seek_whitespace_up(&file->state.buffer, view->recent->cursor.pos);
-    view_cursor_move(view, pos);
-}
-
-COMMAND_DECL(seek_whitespace_down){
-
-    REQ_READABLE_VIEW(view);
-    REQ_FILE(file, view);
-
-    i32 pos = buffer_seek_whitespace_down(&file->state.buffer, view->recent->cursor.pos);
-    view_cursor_move(view, pos);
-}
-
 COMMAND_DECL(center_view){
-
     USE_VIEW(view);
     REQ_FILE(file, view);
 
@@ -420,7 +381,6 @@ COMMAND_DECL(center_view){
 }
 
 COMMAND_DECL(word_complete){
-    
     USE_MODELS(models);
     USE_VARS(vars);
     REQ_OPEN_VIEW(view);
@@ -579,14 +539,6 @@ COMMAND_DECL(word_complete){
     }
 }
 
-COMMAND_DECL(set_mark){
-    REQ_READABLE_VIEW(view);
-    REQ_FILE(file, view);
-
-    view->recent->mark = (i32)view->recent->cursor.pos;
-    view->recent->preferred_x = view_get_cursor_x(view);
-}
-
 COMMAND_DECL(copy){
     USE_MODELS(models);
     REQ_READABLE_VIEW(view);
@@ -729,24 +681,6 @@ COMMAND_DECL(paste_next){
     }
 }
 
-COMMAND_DECL(delete_range){
-    USE_MODELS(models);
-    REQ_OPEN_VIEW(view);
-    REQ_FILE(file, view);
-
-    Range range;
-    i32 next_cursor_pos;
-
-    range = make_range(view->recent->cursor.pos, view->recent->mark);
-    if (range.start < range.end){
-        next_cursor_pos = range.start;
-        Assert(range.end <= buffer_size(&file->state.buffer));
-        view_replace_range(system, models, view, range.start, range.end, 0, 0, next_cursor_pos);
-        view_cursor_move(view, next_cursor_pos);
-        view->recent->mark = range.start;
-    }
-}
-
 COMMAND_DECL(undo){
     USE_MODELS(models);
     REQ_OPEN_VIEW(view);
@@ -755,7 +689,6 @@ COMMAND_DECL(undo){
     view_undo(system, models, view);
     
     Assert(file->state.undo.undo.size >= 0);
-
 }
 
 COMMAND_DECL(redo){
@@ -1279,6 +1212,7 @@ COMMAND_DECL(close_panel){
     }
 }
 
+#if 0
 COMMAND_DECL(move_left){
     
     REQ_READABLE_VIEW(view);
@@ -1303,18 +1237,17 @@ COMMAND_DECL(delete){
     USE_MODELS(models);
     REQ_OPEN_VIEW(view);
     REQ_FILE(file, view);
-
+    
     i32 size = buffer_size(&file->state.buffer);
     i32 cursor_pos = view->recent->cursor.pos;
     if (0 < size && cursor_pos < size){
         i32 start, end;
         start = cursor_pos;
         end = cursor_pos+1;
-
-        Assert(end - start > 0);
-
+        
         i32 next_cursor_pos = start;
-        view_replace_range(system, models, view, start, end, 0, 0, next_cursor_pos);
+        view_replace_range(system, models, view,
+                           start, end, 0, 0, next_cursor_pos);
         view_cursor_move(view, next_cursor_pos);
     }
 }
@@ -1331,41 +1264,12 @@ COMMAND_DECL(backspace){
         end = cursor_pos;
         start = cursor_pos-1;
 
-        i32 shift = (end - start);
-        Assert(shift > 0);
-
-        i32 next_cursor_pos = view->recent->cursor.pos - shift;
+        i32 next_cursor_pos = view->recent->cursor.pos - 1;
         view_replace_range(system, models, view, start, end, 0, 0, next_cursor_pos);
         view_cursor_move(view, next_cursor_pos);
     }
 }
-
-COMMAND_DECL(move_up){
-    USE_MODELS(models);
-    REQ_READABLE_VIEW(view);
-    REQ_FILE(file, view);
-
-    f32 line_height = (f32)get_font_info(models->font_set, models->global_font.font_id)->height;
-    f32 cy = view_get_cursor_y(view)-line_height;
-    f32 px = view->recent->preferred_x;
-    if (cy >= 0){
-        view->recent->cursor = view_compute_cursor_from_xy(view, px, cy);
-        file->state.cursor_pos = view->recent->cursor.pos;
-    }
-}
-
-COMMAND_DECL(move_down){
-    
-    USE_MODELS(models);
-    REQ_READABLE_VIEW(view);
-    REQ_FILE(file, view);
-    
-    f32 line_height = (f32)get_font_info(models->font_set, models->global_font.font_id)->height;
-    f32 cy = view_get_cursor_y(view)+line_height;
-    f32 px = view->recent->preferred_x;
-    view->recent->cursor = view_compute_cursor_from_xy(view, px, cy);
-    file->state.cursor_pos = view->recent->cursor.pos;
-}
+#endif
 
 COMMAND_DECL(seek_end_of_line){
     REQ_READABLE_VIEW(view);
@@ -1463,6 +1367,8 @@ COMMAND_DECL(set_settings){
     Editing_File *file = 0;
     b32 set_mapid = 0;
     i32 new_mapid = 0;
+    b32 set_show_whitespace = 0;
+    b32 show_whitespace = 0;
     
     Command_Parameter *end = param_stack_end(&command->part);
     Command_Parameter *param = param_stack_first(&command->part, end);
@@ -1512,13 +1418,19 @@ COMMAND_DECL(set_settings){
                     }
                 }
             }break;
+            
+            case par_show_whitespace:
+            {
+                set_show_whitespace = 1;
+                show_whitespace = dynamic_to_bool(&param->param.value);
+            }break;
         }
     }
     
     if (set_mapid){
         for (View_Iter iter = file_view_iter_init(&models->layout, file, 0);
-            file_view_iter_good(iter);
-            iter = file_view_iter_next(iter)){
+             file_view_iter_good(iter);
+             iter = file_view_iter_next(iter)){
             iter.view->map = get_map(models, file->settings.base_map_id);
         }
     }
@@ -1760,12 +1672,14 @@ fill_view_summary(View_Summary *view, View *vptr, Live_Views *live_set, Working_
     i32 lock_level;
     int buffer_id;
     *view = view_summary_zero();
-
+    
     if (vptr->in_use){
         view->exists = 1;
         view->view_id = (int)(vptr - live_set->views) + 1;
-        view->line_height = vptr->line_height;
+        view->line_height = (float)(vptr->line_height);
         view->unwrapped_lines = vptr->file_data.unwrapped_lines;
+        view->show_whitespace = vptr->file_data.show_whitespace;
+        
 
         if (vptr->file_data.file){
             lock_level = view_lock_level(vptr);
@@ -1929,121 +1843,6 @@ extern "C"{
         return(buffer);
     }
     
-#if 0
-    BUFFER_SEEK_DELIMITER_SIG(external_buffer_seek_delimiter){
-        Command_Data *cmd = (Command_Data*)app->cmd_context;
-        Editing_File *file;
-        Working_Set *working_set;
-        int result = 0;
-        int size;
-
-        if (buffer->exists){
-            working_set = &cmd->models->working_set;
-            file = working_set_get_active_file(working_set, buffer->buffer_id);
-            if (file && file_is_ready(file)){
-                size = buffer_size(&file->state.buffer);
-                result = 1;
-
-                if (start < 0 && !seek_forward) *out = start;
-                else if (start >= size && seek_forward) *out = start;
-                else{
-                    if (seek_forward){
-                        *out = buffer_seek_delimiter(&file->state.buffer, start, delim);
-                    }
-                    else{
-                        *out = buffer_reverse_seek_delimiter(&file->state.buffer, start, delim);
-                    }
-                }
-
-                fill_buffer_summary(buffer, file, working_set);
-            }
-        }
-
-        return(result);
-    }
-
-    BUFFER_SEEK_STRING_SIG(external_buffer_seek_string){
-        Command_Data *cmd = (Command_Data*)app->cmd_context;
-        Models *models;
-        Editing_File *file;
-        Working_Set *working_set;
-        Partition *part;
-        Temp_Memory temp;
-        char *spare;
-        int result = 0;
-        int size;
-
-        if (buffer->exists){
-            models = cmd->models;
-            working_set = &models->working_set;
-            file = working_set_get_active_file(working_set, buffer->buffer_id);
-            if (file && file_is_ready(file)){
-                size = buffer_size(&file->state.buffer);
-
-                if (start < 0 && !seek_forward) *out = start;
-                else if (start >= size && seek_forward) *out = start;
-                else{
-                    part = &models->mem.part;
-                    temp = begin_temp_memory(part);
-                    spare = push_array(part, char, len);
-                    result = 1;
-                    if (seek_forward){
-                        *out = buffer_find_string(&file->state.buffer, start, size, str, len, spare);
-                    }
-                    else{
-                        *out = buffer_rfind_string(&file->state.buffer, start, str, len, spare);
-                    }
-                    end_temp_memory(temp);
-                }
-                fill_buffer_summary(buffer, file, working_set);
-            }
-        }
-
-        return(result);
-    }
-    
-    // TODO(allen): Reduce duplication between this and external_buffer_seek_string
-    BUFFER_SEEK_STRING_SIG(external_buffer_seek_string_insensitive){
-        Command_Data *cmd = (Command_Data*)app->cmd_context;
-        Models *models;
-        Editing_File *file;
-        Working_Set *working_set;
-        Partition *part;
-        Temp_Memory temp;
-        char *spare;
-        int result = 0;
-        int size;
-
-        if (buffer->exists){
-            models = cmd->models;
-            working_set = &models->working_set;
-            file = working_set_get_active_file(working_set, buffer->buffer_id);
-            if (file && file_is_ready(file)){
-                size = buffer_size(&file->state.buffer);
-
-                if (start < 0 && !seek_forward) *out = start;
-                else if (start >= size && seek_forward) *out = start;
-                else{
-                    part = &models->mem.part;
-                    temp = begin_temp_memory(part);
-                    spare = push_array(part, char, len);
-                    result = 1;
-                    if (seek_forward){
-                        *out = buffer_find_string_insensitive(&file->state.buffer, start, size, str, len, spare);
-                    }
-                    else{
-                        *out = buffer_rfind_string_insensitive(&file->state.buffer, start, str, len, spare);
-                    }
-                    end_temp_memory(temp);
-                }
-                fill_buffer_summary(buffer, file, working_set);
-            }
-        }
-
-        return(result);
-    }
-#endif
-
     REFRESH_BUFFER_SIG(external_refresh_buffer){
         int result;
         *buffer = external_get_buffer(app, buffer->buffer_id);
@@ -2523,12 +2322,6 @@ app_links_init(System_Functions *system, Application_Links *app_links, void *dat
     
     app_links->refresh_buffer = external_refresh_buffer;
     
-#if 0
-    app_links->buffer_seek_delimiter = external_buffer_seek_delimiter;
-    app_links->buffer_seek_string = external_buffer_seek_string;
-    app_links->buffer_seek_string_insensitive = external_buffer_seek_string_insensitive;
-#endif
-
     app_links->buffer_read_range = external_buffer_read_range;
     app_links->buffer_replace_range = external_buffer_replace_range;
     
@@ -2598,21 +2391,15 @@ setup_top_commands(Command_Map *commands, Partition *part, Command_Map *parent){
 internal void
 setup_command_table(){
 #define SET(n) command_table[cmdid_##n] = command_##n
-
     SET(null);
-    SET(write_character);
     SET(seek_left);
     SET(seek_right);
-    SET(seek_whitespace_up);
-    SET(seek_whitespace_down);
     SET(center_view);
     SET(word_complete);
-    SET(set_mark);
     SET(copy);
     SET(cut);
     SET(paste);
     SET(paste_next);
-    SET(delete_range);
     SET(undo);
     SET(redo);
     SET(history_backward);
@@ -2621,14 +2408,13 @@ setup_command_table(){
     SET(interactive_open);
     SET(reopen);
     SET(save);
-    //SET(interactive_save_as);
     SET(change_active_panel);
     SET(interactive_switch_buffer);
     SET(interactive_kill_buffer);
     SET(kill_buffer);
-    SET(toggle_line_wrap);
     SET(to_uppercase);
     SET(to_lowercase);
+    SET(toggle_line_wrap);
     SET(toggle_show_whitespace);
     SET(clean_all_lines);
     SET(eol_dosify);
@@ -2637,12 +2423,7 @@ setup_command_table(){
     SET(open_panel_vsplit);
     SET(open_panel_hsplit);
     SET(close_panel);
-    SET(move_left);
-    SET(move_right);
-    SET(delete);
-    SET(backspace);
-    SET(move_up);
-    SET(move_down);
+    
     SET(seek_end_of_line);
     SET(seek_beginning_of_line);
     SET(page_up);
@@ -4049,12 +3830,11 @@ App_Step_Sig(app_step){
                 summary.mouse = mouse_state;
             }
             
-            
             GUI_Scroll_Vars *vars = view->current_scroll;
             // TODO(allen): I feel like the scroll context should actually not
             // be allowed to change in here at all.
-            result = do_input_file_view(system, view, panel->inner, active,
-                                        &summary, *vars, view->scroll_region);
+            result = do_step_file_view(system, view, panel->inner, active,
+                                       &summary, *vars, view->scroll_region);
             if (result.is_animating){
                 app_result.animating = 1;
             }

@@ -8,14 +8,289 @@
 
 #include <assert.h>
 
-static void
-write_string(Application_Links *app, String string){
-    Buffer_Summary buffer = get_active_buffer(app);
-    app->buffer_replace_range(app, &buffer, buffer.buffer_cursor_pos, buffer.buffer_cursor_pos, string.str, string.size);
+inline float
+get_view_y(View_Summary view){
+    float y;
+    if (view.unwrapped_lines){
+        y = view.cursor.unwrapped_y;
+    }
+    else{
+        y = view.cursor.wrapped_y;
+    }
+    return(y);
 }
 
-CUSTOM_COMMAND_SIG(write_increment){
-    write_string(app, make_lit_string("++"));
+inline float
+get_view_x(View_Summary view){
+    float x;
+    if (view.unwrapped_lines){
+        x = view.cursor.unwrapped_x;
+    }
+    else{
+        x = view.cursor.wrapped_x;
+    }
+    return(x);
+}
+
+//
+// Fundamental Editing
+//
+
+CUSTOM_COMMAND_SIG(write_character){
+    View_Summary view = app->get_active_view(app);
+    
+    User_Input in = app->get_command_input(app);
+    char character = 0;
+    
+    if (in.type == UserInputKey){
+        character = in.key.character;
+    }
+    
+    if (character != 0){
+        Buffer_Summary buffer = app->get_buffer(app, view.buffer_id);
+        int pos = view.cursor.pos;
+        int next_pos = pos + 1;
+        app->buffer_replace_range(app, &buffer,
+                                  pos, pos, &character, 1);
+        app->view_set_cursor(app, &view, seek_pos(next_pos), true);
+    }
+}
+
+CUSTOM_COMMAND_SIG(delete_char){
+    View_Summary view = app->get_active_view(app);
+    Buffer_Summary buffer = app->get_buffer(app, view.buffer_id);
+    
+    int pos = view.cursor.pos;
+    if (0 < buffer.size && pos < buffer.size){
+        app->buffer_replace_range(app, &buffer,
+                                  pos, pos+1, 0, 0);
+    }
+}
+
+CUSTOM_COMMAND_SIG(backspace_char){
+    View_Summary view = app->get_active_view(app);
+    Buffer_Summary buffer = app->get_buffer(app, view.buffer_id);
+    
+    int pos = view.cursor.pos;
+    if (0 < pos && pos <= buffer.size){
+        app->buffer_replace_range(app, &buffer,
+                                  pos-1, pos, 0, 0);
+        
+        app->view_set_cursor(app, &view, seek_pos(pos-1), true);
+    }
+}
+
+CUSTOM_COMMAND_SIG(set_mark){
+    View_Summary view = app->get_active_view(app);
+    
+    app->view_set_mark(app, &view, seek_pos(view.cursor.pos));
+}
+
+CUSTOM_COMMAND_SIG(delete_range){
+    View_Summary view = app->get_active_view(app);
+    Buffer_Summary buffer = app->get_buffer(app, view.buffer_id);
+    
+    Range range = get_range(&view);
+    
+    app->buffer_replace_range(app, &buffer,
+                              range.min, range.max,
+                              0, 0);
+}
+
+//
+// Basic Navigation
+//
+
+inline void
+move_vertical(Application_Links *app, float line_multiplier){
+    View_Summary view = app->get_active_view(app);
+    
+    float new_y = get_view_y(view) + line_multiplier*view.line_height;
+    float x = view.preferred_x;
+    
+    app->view_set_cursor(app, &view,
+                         seek_xy(x, new_y, false, view.unwrapped_lines),
+                         false);
+}
+
+CUSTOM_COMMAND_SIG(move_up){
+    move_vertical(app, -1.f);
+}
+
+CUSTOM_COMMAND_SIG(move_down){
+    move_vertical(app, 1.f);
+}
+
+CUSTOM_COMMAND_SIG(move_up_10){
+    move_vertical(app, -10.f);
+}
+
+CUSTOM_COMMAND_SIG(move_down_10){
+    move_vertical(app, 10.f);
+}
+
+
+CUSTOM_COMMAND_SIG(move_left){
+    View_Summary view = app->get_active_view(app);
+    int new_pos = view.cursor.pos - 1;
+    app->view_set_cursor(app, &view,
+                         seek_pos(new_pos),
+                         true);
+}
+
+CUSTOM_COMMAND_SIG(move_right){
+    View_Summary view = app->get_active_view(app);
+    int new_pos = view.cursor.pos + 1;
+    app->view_set_cursor(app, &view,
+                         seek_pos(new_pos),
+                         true);
+}
+
+//
+// Various Forms of Seek
+//
+
+static int
+buffer_seek_whitespace_up(Application_Links *app, Buffer_Summary *buffer, int pos){
+    char chunk[1024];
+    int chunk_size = sizeof(chunk);
+    Stream_Chunk stream = {0};
+    
+    int no_hard;
+    int still_looping;
+    char at_pos;
+    
+    --pos;
+    if (init_stream_chunk(&stream, app, buffer, pos, chunk, chunk_size)){
+        // Step 1: Find the first non-whitespace character
+        // behind the current position.
+        still_looping = true;
+        do{
+            for (; pos >= stream.start; --pos){
+                at_pos = stream.data[pos];
+                if (!char_is_whitespace(at_pos)){
+                    goto double_break_1;
+                }
+            }
+            still_looping = backward_stream_chunk(&stream);
+        } while(still_looping);
+        double_break_1:;
+        
+        // Step 2: Continue scanning backward, at each '\n'
+        // mark the beginning of another line by setting
+        // no_hard to true, set it back to false if a
+        // non-whitespace character is discovered before
+        // the next '\n'
+        no_hard = false;
+        while (still_looping){
+            for (; pos >= stream.start; --pos){
+                at_pos = stream.data[pos];
+                if (at_pos == '\n'){
+                    if (no_hard){
+                        goto double_break_2;
+                    }
+                    else{
+                        no_hard = true;
+                    }
+                }
+                else if (!char_is_whitespace(at_pos)){
+                    no_hard = false;
+                }
+            }
+            still_looping = backward_stream_chunk(&stream);
+        }
+        double_break_2:;
+        
+        if (pos != 0){
+            ++pos;
+        }
+    }
+
+    return(pos);
+}
+
+static int
+buffer_seek_whitespace_down(Application_Links *app, Buffer_Summary *buffer, int pos){
+    char chunk[1024];
+    int chunk_size = sizeof(chunk);
+    Stream_Chunk stream = {0};
+    
+    int no_hard;
+    int prev_endline;
+    int still_looping;
+    char at_pos;
+    
+    if (init_stream_chunk(&stream, app, buffer, pos, chunk, chunk_size)){
+        // Step 1: Find the first non-whitespace character
+        // ahead of the current position.
+        still_looping = true;
+        do{
+            for (; pos < stream.end; ++pos){
+                at_pos = stream.data[pos];
+                if (!char_is_whitespace(at_pos)){
+                    goto double_break_1;
+                }
+            }
+            still_looping = forward_stream_chunk(&stream);
+        } while(still_looping);
+        double_break_1:;
+        
+        // Step 2: Continue scanning forward, at each '\n'
+        // mark it as the beginning of a new line by updating
+        // the prev_endline value.  If another '\n' is found
+        // with non-whitespace then the previous line was
+        // all whitespace.
+        no_hard = false;
+        prev_endline = -1;
+        while(still_looping){
+            for (; pos < stream.end; ++pos){
+                at_pos = stream.data[pos];
+                if (at_pos == '\n'){
+                    if (no_hard){
+                        goto double_break_2;
+                    }
+                    else{
+                        no_hard = true;
+                        prev_endline = pos;
+                    }
+                }
+                else if (!char_is_whitespace(at_pos)){
+                    no_hard = false;
+                }
+            }
+            still_looping = forward_stream_chunk(&stream);
+        }
+        double_break_2:;
+        
+        if (prev_endline == -1 || prev_endline+1 >= buffer->size){
+            pos = buffer->size;
+        }
+        else{
+            pos = prev_endline+1;
+        }
+    }
+    
+    return(pos);
+}
+
+CUSTOM_COMMAND_SIG(seek_whitespace_up){
+    View_Summary view = app->get_active_view(app);
+    Buffer_Summary buffer = app->get_buffer(app, view.locked_buffer_id);
+    
+    int new_pos = buffer_seek_whitespace_up(app, &buffer, view.cursor.pos);
+    app->view_set_cursor(app, &view,
+                         seek_pos(new_pos),
+                         true);
+}
+
+CUSTOM_COMMAND_SIG(seek_whitespace_down){
+    View_Summary view = app->get_active_view(app);
+    Buffer_Summary buffer = app->get_buffer(app, view.locked_buffer_id);
+    
+    int new_pos = buffer_seek_whitespace_down(app, &buffer, view.cursor.pos);
+    app->view_set_cursor(app, &view,
+                         seek_pos(new_pos),
+                         true);
 }
 
 static void
@@ -37,6 +312,23 @@ SEEK_COMMAND(alphanumeric, right, BoundryAlphanumeric)
 SEEK_COMMAND(alphanumeric, left, BoundryAlphanumeric)
 SEEK_COMMAND(alphanumeric_or_camel, right, BoundryAlphanumeric | BoundryCamelCase)
 SEEK_COMMAND(alphanumeric_or_camel, left, BoundryAlphanumeric | BoundryCamelCase)
+
+
+//
+// Special string writing commands
+//
+
+static void
+write_string(Application_Links *app, String string){
+    Buffer_Summary buffer = get_active_buffer(app);
+    app->buffer_replace_range(app, &buffer,
+                              buffer.buffer_cursor_pos, buffer.buffer_cursor_pos,
+                              string.str, string.size);
+}
+
+CUSTOM_COMMAND_SIG(write_increment){
+    write_string(app, make_lit_string("++"));
+}
 
 static void
 long_braces(Application_Links *app, char *text, int size){
@@ -672,7 +964,7 @@ CUSTOM_COMMAND_SIG(auto_tab_whole_file){
 }
 
 CUSTOM_COMMAND_SIG(write_and_auto_tab){
-    exec_command(app, cmdid_write_character);
+    exec_command(app, write_character);
     exec_command(app, auto_tab_line_at_cursor);
 }
 

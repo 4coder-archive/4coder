@@ -49,44 +49,6 @@ CUSTOM_COMMAND_SIG(switch_to_compilation){
     app->view_set_buffer(app, &view, buffer.buffer_id);
 }
 
-CUSTOM_COMMAND_SIG(move_up_10){
-    View_Summary view;
-    float x, y;
-
-    view = app->get_active_view(app);
-    x = view.preferred_x;
-
-    if (view.unwrapped_lines){
-        y = view.cursor.unwrapped_y;
-    }
-    else{
-        y = view.cursor.wrapped_y;
-    }
-
-    y -= 10*view.line_height;
-
-    app->view_set_cursor(app, &view, seek_xy(x, y, 0, view.unwrapped_lines), 0);
-}
-
-CUSTOM_COMMAND_SIG(move_down_10){
-    View_Summary view;
-    float x, y;
-
-    view = app->get_active_view(app);
-    x = view.preferred_x;
-
-    if (view.unwrapped_lines){
-        y = view.cursor.unwrapped_y;
-    }
-    else{
-        y = view.cursor.wrapped_y;
-    }
-
-    y += 10*view.line_height;
-
-    app->view_set_cursor(app, &view, seek_xy(x, y, 0, view.unwrapped_lines), 0);
-}
-
 CUSTOM_COMMAND_SIG(rewrite_as_single_caps){
     View_Summary view;
     Buffer_Summary buffer;
@@ -264,7 +226,7 @@ HOOK_SIG(my_file_settings){
     push_parameter(app, par_wrap_lines, wrap_lines);
     push_parameter(app, par_key_mapid, (treat_as_code)?((int)my_code_map):((int)mapid_file));
     exec_command(app, cmdid_set_settings);
-
+    
     // no meaning for return
     return(0);
 }
@@ -272,7 +234,7 @@ HOOK_SIG(my_file_settings){
 void
 default_keys(Bind_Helper *context){
     begin_map(context, mapid_global);
-
+    
     bind(context, 'p', MDFR_CTRL, cmdid_open_panel_vsplit);
     bind(context, '_', MDFR_CTRL, cmdid_open_panel_hsplit);
     bind(context, 'P', MDFR_CTRL, cmdid_close_panel);
@@ -284,40 +246,40 @@ default_keys(Bind_Helper *context){
     bind(context, 'c', MDFR_ALT, cmdid_open_color_tweaker);
     bind(context, 'o', MDFR_ALT, open_in_other);
     bind(context, 'w', MDFR_CTRL, save_as);
-
+    
     bind(context, 'm', MDFR_ALT, build_search);
     bind(context, 'x', MDFR_ALT, execute_arbitrary_command);
     bind(context, 'z', MDFR_ALT, execute_any_cli);
     bind(context, 'Z', MDFR_ALT, execute_previous_cli);
-
+    
     // NOTE(allen): These callbacks may not actually be useful to you, but
     // go look at them and see what they do.
     bind(context, 'M', MDFR_ALT | MDFR_CTRL, open_my_files);
     bind(context, 'M', MDFR_ALT, build_at_launch_location);
-
+    
     end_map(context);
     
     begin_map(context, my_empty_map1);
     inherit_map(context, mapid_nomap);
     end_map(context);
-
+    
     begin_map(context, my_empty_map2);
     inherit_map(context, mapid_nomap);
     end_map(context);
-
+    
     begin_map(context, my_code_map);
-
+    
     // NOTE(allen|a3.1): Set this map (my_code_map == mapid_user_custom) to
     // inherit from mapid_file.  When searching if a key is bound
     // in this map, if it is not found here it will then search mapid_file.
     //
     // If this is not set, it defaults to mapid_global.
     inherit_map(context, mapid_file);
-
+    
     // NOTE(allen|a3.1): Children can override parent's bindings.
     bind(context, key_right, MDFR_CTRL, seek_alphanumeric_or_camel_right);
     bind(context, key_left, MDFR_CTRL, seek_alphanumeric_or_camel_left);
-
+    
     // NOTE(allen|a3.2): Specific keys can override vanilla keys,
     // and write character writes whichever character corresponds
     // to the key that triggered the command.
@@ -327,11 +289,11 @@ default_keys(Bind_Helper *context){
     bind(context, ']', MDFR_NONE, write_and_auto_tab);
     bind(context, ';', MDFR_NONE, write_and_auto_tab);
     bind(context, '#', MDFR_NONE, write_and_auto_tab);
-
+    
     bind(context, '\t', MDFR_NONE, cmdid_word_complete);
     bind(context, '\t', MDFR_CTRL, cmdid_auto_tab_range);
     bind(context, '\t', MDFR_SHIFT, auto_tab_line_at_cursor);
-
+    
     bind(context, '=', MDFR_CTRL, write_increment);
     bind(context, 't', MDFR_ALT, write_allen_todo);
     bind(context, 'n', MDFR_ALT, write_allen_note);
@@ -341,54 +303,53 @@ default_keys(Bind_Helper *context){
     bind(context, 'i', MDFR_ALT, if0_off);
     bind(context, '1', MDFR_ALT, open_file_in_quotes);
     bind(context, '0', MDFR_CTRL, write_zero_struct);
-
+    
     end_map(context);
-
-
+    
+    
     begin_map(context, mapid_file);
-
+    
     // NOTE(allen|a3.4.4): Binding this essentially binds
     // all key combos that would normally insert a character
     // into a buffer. If the code for the key is not an enum
     // value such as key_left or key_back then it is a vanilla key.
     // It is possible to override this binding for individual keys.
-    bind_vanilla_keys(context, cmdid_write_character);
-
-    bind(context, key_left, MDFR_NONE, cmdid_move_left);
-    bind(context, key_right, MDFR_NONE, cmdid_move_right);
-    bind(context, key_del, MDFR_NONE, cmdid_delete);
-    bind(context, key_back, MDFR_NONE, cmdid_backspace);
-    bind(context, key_up, MDFR_NONE, cmdid_move_up);
-    bind(context, key_down, MDFR_NONE, cmdid_move_down);
+    bind_vanilla_keys(context, write_character);
+    
+    bind(context, key_left, MDFR_NONE, move_left);
+    bind(context, key_right, MDFR_NONE, move_right);
+    bind(context, key_del, MDFR_NONE, delete_char);
+    bind(context, key_back, MDFR_NONE, backspace_char);
+    bind(context, key_up, MDFR_NONE, move_up);
+    bind(context, key_down, MDFR_NONE, move_down);
     bind(context, key_end, MDFR_NONE, cmdid_seek_end_of_line);
     bind(context, key_home, MDFR_NONE, cmdid_seek_beginning_of_line);
     bind(context, key_page_up, MDFR_NONE, cmdid_page_up);
     bind(context, key_page_down, MDFR_NONE, cmdid_page_down);
-
+    
     bind(context, key_right, MDFR_CTRL, seek_whitespace_right);
     bind(context, key_left, MDFR_CTRL, seek_whitespace_left);
-    bind(context, key_up, MDFR_CTRL, cmdid_seek_whitespace_up);
-    bind(context, key_down, MDFR_CTRL, cmdid_seek_whitespace_down);
-
+    bind(context, key_up, MDFR_CTRL, seek_whitespace_up);
+    bind(context, key_down, MDFR_CTRL, seek_whitespace_down);
+    
     bind(context, key_up, MDFR_ALT, move_up_10);
     bind(context, key_down, MDFR_ALT, move_down_10);
-
+    
     bind(context, key_back, MDFR_CTRL, backspace_word);
     bind(context, key_back, MDFR_ALT, snipe_token_or_word);
-
-    bind(context, ' ', MDFR_CTRL, cmdid_set_mark);
+    
+    bind(context, ' ', MDFR_CTRL, set_mark);
     bind(context, 'a', MDFR_CTRL, replace_in_range);
     bind(context, 'c', MDFR_CTRL, cmdid_copy);
-    bind(context, 'd', MDFR_CTRL, cmdid_delete_range);
+    bind(context, 'd', MDFR_CTRL, delete_range);
     bind(context, 'e', MDFR_CTRL, cmdid_center_view);
     bind(context, 'f', MDFR_CTRL, search);
     bind(context, 'g', MDFR_CTRL, goto_line);
     bind(context, 'h', MDFR_CTRL, cmdid_history_backward);
     bind(context, 'H', MDFR_CTRL, cmdid_history_forward);
-    bind(context, 'l', MDFR_CTRL, cmdid_toggle_line_wrap);
     bind(context, 'j', MDFR_CTRL, cmdid_to_lowercase);
     bind(context, 'K', MDFR_CTRL, cmdid_kill_buffer);
-    bind(context, 'L', MDFR_CTRL, cmdid_toggle_endline_mode);
+    bind(context, 'l', MDFR_CTRL, cmdid_toggle_line_wrap);
     bind(context, 'm', MDFR_CTRL, cmdid_cursor_mark_swap);
     bind(context, 'O', MDFR_CTRL, cmdid_reopen);
     bind(context, 'q', MDFR_CTRL, query_replace);
@@ -411,7 +372,7 @@ default_keys(Bind_Helper *context){
     bind(context, '~', MDFR_CTRL, cmdid_clean_all_lines);
     bind(context, '!', MDFR_CTRL, cmdid_eol_nixify);
     bind(context, '\n', MDFR_SHIFT, write_and_auto_tab);
-    bind(context, ' ', MDFR_SHIFT, cmdid_write_character);
+    bind(context, ' ', MDFR_SHIFT, write_character);
     
     end_map(context);
 }
@@ -427,7 +388,7 @@ get_bindings(void *data, int size){
     // and once set they always apply, regardless of what map is active.
     set_hook(context, hook_start, my_start);
     set_hook(context, hook_open_file, my_file_settings);
-
+    
     set_scroll_rule(context, smooth_scroll_rule);
     
     default_keys(context);

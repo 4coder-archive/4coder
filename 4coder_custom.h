@@ -172,55 +172,57 @@ typedef struct File_List{
 
 enum Command_ID{
     cmdid_null,
-    cmdid_write_character,
+    
     cmdid_seek_left,
     cmdid_seek_right,
-    cmdid_seek_whitespace_up,
-    cmdid_seek_whitespace_down,
+    
     cmdid_center_view,
+    
     cmdid_word_complete,
-    cmdid_set_mark,
+    
     cmdid_copy,
     cmdid_cut,
     cmdid_paste,
     cmdid_paste_next,
-    cmdid_delete_range,
+    
     cmdid_undo,
     cmdid_redo,
     cmdid_history_backward,
     cmdid_history_forward,
+    
     cmdid_interactive_new,
     cmdid_interactive_open,
     cmdid_reopen,
     cmdid_save,
-    cmdid_change_active_panel,
     cmdid_interactive_switch_buffer,
     cmdid_interactive_kill_buffer,
     cmdid_kill_buffer,
-    cmdid_toggle_line_wrap,
-    cmdid_toggle_endline_mode,
+    
+    cmdid_change_active_panel,
+    
     cmdid_to_uppercase,
     cmdid_to_lowercase,
+    
+    cmdid_toggle_line_wrap,
     cmdid_toggle_show_whitespace,
-    cmdid_clean_all_lines,
+    
     cmdid_eol_dosify,
     cmdid_eol_nixify,
+    
+    cmdid_clean_all_lines,
     cmdid_auto_tab_range,
+    
     cmdid_open_panel_vsplit,
     cmdid_open_panel_hsplit,
     cmdid_close_panel,
-    cmdid_move_left,
-    cmdid_move_right,
-    cmdid_delete,
-    cmdid_backspace,
-    cmdid_move_up,
-    cmdid_move_down,
+    
     cmdid_seek_end_of_line,
     cmdid_seek_beginning_of_line,
     cmdid_page_up,
     cmdid_page_down,
-    cmdid_open_color_tweaker,
     cmdid_cursor_mark_swap,
+    
+    cmdid_open_color_tweaker,
     cmdid_open_menu,
     cmdid_hide_scrollbar,
     cmdid_show_scrollbar,
@@ -240,6 +242,7 @@ enum Param_ID{
     par_lex_as_cpp_file,
     par_wrap_lines,
     par_key_mapid,
+    par_show_whitespace,
     par_cli_path,
     par_cli_command,
     par_clear_blank_lines,
@@ -270,9 +273,9 @@ enum Special_Hook_ID{
     _hook_scroll_rule = hook_type_count,
 };
 
-// NOTE(allen): None of the members of *_Summary structs nor any of the
-// data pointed to by the members should be modified, I would have made
-// them all const... but that causes a lot problems for C++ reasons.
+// None of the members of *_Summary structs nor any of the data pointed
+// to by the members should be modified, I would have made them all
+// const... but that causes a lot problems for C++ reasons.
 struct Buffer_Summary{
     int exists;
     int ready;
@@ -305,8 +308,9 @@ struct View_Summary{
     Full_Cursor cursor;
     Full_Cursor mark;
     float preferred_x;
-    int line_height;
+    float line_height;
     int unwrapped_lines;
+    int show_whitespace;
 };
 inline View_Summary
 view_summary_zero(){

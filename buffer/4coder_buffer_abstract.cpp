@@ -128,6 +128,8 @@ buffer_reverse_seek_delimiter(Buffer_Type *buffer, int pos, char delim){
     return(pos);
 }
 
+
+#if 0
 internal_4tech int
 buffer_seek_whitespace_down(Buffer_Type *buffer, int pos){
     Buffer_Stringify_Type loop;
@@ -219,6 +221,7 @@ buffer_seek_whitespace_up_end:
 
     return pos;
 }
+#endif
 
 internal_4tech int
 buffer_seek_whitespace_right(Buffer_Type *buffer, int pos){
