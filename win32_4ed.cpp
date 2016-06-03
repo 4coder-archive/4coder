@@ -29,6 +29,7 @@
 #include "system_shared.h"
 
 #define SUPPORT_DPI 1
+#define USE_WIN32_FONTS 1
 
 #define FPS 60
 #define frame_useconds (1000000 / FPS)
@@ -1137,9 +1138,11 @@ Sys_CLI_End_Update_Sig(system_cli_end_update){
     return close_me;
 }
 
-
 #include "system_shared.cpp"
 #include "4ed_rendering.cpp"
+#if USE_WIN32_FONTS
+#include "win32_font.cpp"
+#endif
 
 internal f32
 size_change(i32 dpi_x, i32 dpi_y){
@@ -1168,10 +1171,12 @@ Font_Load_Sig(system_draw_font_load){
                                  filename,
                                  pt_size,
                                  tab_width,
-                                 oversample);
+                                 oversample,
+                                 store_texture);
         
-        // TODO(allen): Make the growable partition something that can
-        // just be passed directly to font load and let it be grown there.
+        // TODO(allen): Make the growable partition something
+        // that can just be passed directly to font load and
+        // let it be grown there.
         if (!success){
             Win32ScratchPartitionDouble(&win32vars.font_part);
         }
@@ -1190,13 +1195,15 @@ Win32LoadAppCode(){
     App_Get_Functions *get_funcs = 0;
 
 #if UseWinDll
+    
     win32vars.app_code = LoadLibraryA("4ed_app.dll");
     if (win32vars.app_code){
         get_funcs = (App_Get_Functions*)
             GetProcAddress(win32vars.app_code, "app_get_functions");
     }
-
+    
 #else
+    
     File_Data file = system_load_file("4ed_app.dll");
 
     if (file.got_file){
@@ -1291,7 +1298,7 @@ Win32LoadRenderCode(){
     win32vars.target.pop_clip = draw_pop_clip;
     win32vars.target.push_piece = draw_push_piece;
 
-    win32vars.target.font_set.font_info_load = draw_font_info_load;
+    //win32vars.target.font_set.font_info_load = draw_font_info_load;
     win32vars.target.font_set.font_load = system_draw_font_load;
     win32vars.target.font_set.release_font = draw_release_font;
 }

@@ -115,16 +115,11 @@ typedef Draw_Push_Piece_Sig(Draw_Push_Piece);
         Render_Font *font_out,                                          \
         char *filename,                                                 \
         i32 pt_size,                                                    \
-        i32 tab_width)
+        i32 tab_width,                                                  \
+        b32 store_texture)
 typedef Font_Load_Sig(Font_Load);
 
-#define Font_Info_Load_Sig(name) i32 name(         \
-        Partition *partition,                      \
-        char *filename,                            \
-        i32 pt_size,                               \
-        i32 *height,                               \
-        i32 *advance)
-typedef Font_Info_Load_Sig(Font_Info_Load);
+
 
 #define Release_Font_Sig(name) void name(Render_Font *font)
 typedef Release_Font_Sig(Release_Font);
@@ -158,7 +153,7 @@ struct Font_Set{
     Font_Slot free_slots;
     Font_Slot used_slots;
 
-    Font_Info_Load *font_info_load;
+    //Font_Info_Load *font_info_load;
     Font_Load *font_load;
     Release_Font *release_font;
 

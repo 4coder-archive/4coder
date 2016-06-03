@@ -128,101 +128,6 @@ buffer_reverse_seek_delimiter(Buffer_Type *buffer, int pos, char delim){
     return(pos);
 }
 
-
-#if 0
-internal_4tech int
-buffer_seek_whitespace_down(Buffer_Type *buffer, int pos){
-    Buffer_Stringify_Type loop;
-    char *data;
-    int end;
-    int size;
-    int no_hard;
-    int prev_endline;
-    
-    size = buffer_size(buffer);
-    loop = buffer_stringify_loop(buffer, pos, size);
-    
-    for (;buffer_stringify_good(&loop);
-         buffer_stringify_next(&loop)){
-        end = loop.size + loop.absolute_pos;
-        data = loop.data - loop.absolute_pos;
-        for (;pos < end; ++pos){
-            if (!is_whitespace(data[pos])) goto buffer_seek_whitespace_down_mid;
-        }
-    }
-
-buffer_seek_whitespace_down_mid:
-    no_hard = 0;
-    prev_endline = -1;
-    for (;buffer_stringify_good(&loop);
-         buffer_stringify_next(&loop)){
-        end = loop.size + loop.absolute_pos;
-        data = loop.data - loop.absolute_pos;
-        for (; pos < end; ++pos){
-            if (data[pos] == '\n'){
-                if (no_hard) goto buffer_seek_whitespace_down_end;
-                else{
-                    no_hard = 1;
-                    prev_endline = pos;
-                }
-            }
-            else if (!is_whitespace(data[pos])){
-                no_hard = 0;
-            }
-        }
-    }
-    
-buffer_seek_whitespace_down_end:
-    if (prev_endline == -1 || prev_endline+1 >= size) pos = size;
-    else pos = prev_endline+1;
-
-    return pos;
-}
-
-internal_4tech int
-buffer_seek_whitespace_up(Buffer_Type *buffer, int pos){
-    Buffer_Backify_Type loop;
-    char *data;
-    int end;
-    int size;
-    int no_hard;
-    
-    size = buffer_size(buffer);
-    loop = buffer_backify_loop(buffer, pos-1, 1);
-    
-    for (;buffer_backify_good(&loop);
-         buffer_backify_next(&loop)){
-        end = loop.absolute_pos;
-        data = loop.data - loop.absolute_pos;
-        for (;pos >= end; --pos){
-            if (!is_whitespace(data[pos])) goto buffer_seek_whitespace_up_mid;
-        }
-    }
-
-buffer_seek_whitespace_up_mid:
-    no_hard = 0;
-    for (;buffer_backify_good(&loop);
-         buffer_backify_next(&loop)){
-        end = loop.absolute_pos;
-        data = loop.data - loop.absolute_pos;
-        for (; pos >= end; --pos){
-            if (data[pos] == '\n'){
-                if (no_hard) goto buffer_seek_whitespace_up_end;
-                else no_hard = 1;
-            }
-            else if (!is_whitespace(data[pos])){
-                no_hard = 0;
-            }
-        }
-    }
-    
-buffer_seek_whitespace_up_end:
-    if (pos != 0) ++pos;
-
-    return pos;
-}
-#endif
-
 internal_4tech int
 buffer_seek_whitespace_right(Buffer_Type *buffer, int pos){
     Buffer_Stringify_Type loop;
@@ -948,6 +853,8 @@ buffer_get_line_index_range(Buffer_Type *buffer, int pos, int l_bound, int u_bou
         
     lines = buffer->line_starts;
     
+    assert_4tech(lines != 0);
+    
     start = l_bound;
     end = u_bound;
     for (;;){
@@ -967,8 +874,7 @@ buffer_get_line_index_range(Buffer_Type *buffer, int pos, int l_bound, int u_bou
 
 inline_4tech int
 buffer_get_line_index(Buffer_Type *buffer, int pos){
-    int result;
-    result = buffer_get_line_index_range(buffer, pos, 0, buffer->line_count);
+    int result = buffer_get_line_index_range(buffer, pos, 0, buffer->line_count);
     return(result);
 }
 
