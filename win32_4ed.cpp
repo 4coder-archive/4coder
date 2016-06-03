@@ -1166,6 +1166,18 @@ Font_Load_Sig(system_draw_font_load){
 #endif
     
     for (b32 success = 0; success == 0;){
+#if USE_WIN32_FONTS
+        
+        success = win32_draw_font_load(&win32vars.font_part,
+                                       font_out,
+                                       filename,
+                                       pt_size,
+                                       tab_width,
+                                       oversample,
+                                       store_texture);
+        
+#else
+        
         success = draw_font_load(&win32vars.font_part,
                                  font_out,
                                  filename,
@@ -1173,6 +1185,8 @@ Font_Load_Sig(system_draw_font_load){
                                  tab_width,
                                  oversample,
                                  store_texture);
+        
+#endif
         
         // TODO(allen): Make the growable partition something
         // that can just be passed directly to font load and

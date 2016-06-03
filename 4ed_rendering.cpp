@@ -305,6 +305,9 @@ launch_rendering(Render_Target *target){
 
 #undef ExtractStruct
 
+// TODO(allen): Put the burden of translation outside
+// of this function (and other functions implementing
+// the same interface).
 internal i32
 draw_font_load(Partition *part,
                Render_Font *font_out,
