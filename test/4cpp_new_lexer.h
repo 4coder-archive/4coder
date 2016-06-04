@@ -4,7 +4,7 @@
 #ifndef FCPP_NEW_LEXER_INC
 #define FCPP_NEW_LEXER_INC
 
-#include "..\4cpp_lexer_types.h"
+#include "../4cpp_lexer_types.h"
 #include "4cpp_lexer_fsms.h"
 #include "4cpp_lexer_tables.c"
 
@@ -294,7 +294,7 @@ cpp_place_token_nonalloc(Cpp_Token *out_tokens, int token_i, Cpp_Token token){
     
     if (token_i > 0){
         prev_token = out_tokens[token_i - 1];
-        merge = new_lex::cpp_attempt_token_merge(prev_token, token);
+        merge = cpp_attempt_token_merge(prev_token, token);
         if (merge.did_merge){
             out_tokens[token_i - 1] = merge.new_token;
         }
@@ -336,6 +336,13 @@ struct Lex_Data{
     
     int __pc__;
 };
+inline Lex_Data
+lex_data_init(char *tb){
+    Lex_Data data = {0};
+    data.tb = tb;
+    return(data);
+}
+
 
 #define DrCase(PC) case PC: goto resumespot_##PC
 
@@ -355,7 +362,9 @@ enum Lex_Result{
 };
 
 lexer_link int
-cpp_lex_nonalloc(Lex_Data *S_ptr, char *chunk, int size, Cpp_Token_Stack *token_stack_out){
+cpp_lex_nonalloc(Lex_Data *S_ptr,
+                 char *chunk, int size,
+                 Cpp_Token_Stack *token_stack_out){
     Lex_Data S = *S_ptr;
     
     Cpp_Token *out_tokens = token_stack_out->tokens;
@@ -403,20 +412,22 @@ cpp_lex_nonalloc(Lex_Data *S_ptr, char *chunk, int size, Cpp_Token_Stack *token_
         
         S.token_start = S.pos;
         S.tb_pos = 0;
-        S.fsm = {0};
+        S.fsm = zero_lex_fsm();
         for(;;){
-            unsigned short *eq_classes = get_eq_classes[S.pp_state];
-            unsigned char *fsm_table = get_table[S.pp_state];
-            
-            for (; S.fsm.state < LS_count && S.pos < end_pos;){
-                c = chunk[S.pos++];
-                S.tb[S.tb_pos++] = c;
+            {
+                unsigned short *eq_classes = get_eq_classes[S.pp_state];
+                unsigned char *fsm_table = get_table[S.pp_state];
                 
-                int i = S.fsm.state + eq_classes[c];
-                S.fsm.state = fsm_table[i];
-                S.fsm.multi_line |= multiline_state_table[S.fsm.state];
+                for (; S.fsm.state < LS_count && S.pos < end_pos;){
+                    c = chunk[S.pos++];
+                    S.tb[S.tb_pos++] = c;
+                    
+                    int i = S.fsm.state + eq_classes[c];
+                    S.fsm.state = fsm_table[i];
+                    S.fsm.multi_line |= multiline_state_table[S.fsm.state];
+                }
+                S.fsm.emit_token = (S.fsm.state >= LS_count);
             }
-            S.fsm.emit_token = (S.fsm.state >= LS_count);
             
             if (S.fsm.emit_token == 0){
                 S.chunk_pos += size;
@@ -950,7 +961,8 @@ cpp_lex_nonalloc(Lex_Data *S_ptr, char *chunk, int size, Cpp_Token_Stack *token_
 #undef DrCase
 
 lexer_link int
-cpp_lex_nonalloc(Lex_Data *S_ptr, char *chunk, int size,
+cpp_lex_nonalloc(Lex_Data *S_ptr,
+                 char *chunk, int size,
                  Cpp_Token_Stack *token_stack_out, int max_tokens){
     Cpp_Token_Stack temp_stack = *token_stack_out;
     if (temp_stack.max_count > temp_stack.count + max_tokens){
@@ -971,7 +983,8 @@ cpp_lex_nonalloc(Lex_Data *S_ptr, char *chunk, int size,
 }
 
 lexer_link int
-cpp_lex_size_nonalloc(Lex_Data *S_ptr, char *chunk, int size, int full_size,
+cpp_lex_size_nonalloc(Lex_Data *S_ptr,
+                      char *chunk, int size, int full_size,
                       Cpp_Token_Stack *token_stack_out){
     int result = 0;
     if (S_ptr->pos >= full_size){
@@ -991,7 +1004,8 @@ cpp_lex_size_nonalloc(Lex_Data *S_ptr, char *chunk, int size, int full_size,
 }
 
 lexer_link int
-cpp_lex_size_nonalloc(Lex_Data *S_ptr, char *chunk, int size, int full_size,
+cpp_lex_size_nonalloc(Lex_Data *S_ptr,
+                      char *chunk, int size, int full_size,
                       Cpp_Token_Stack *token_stack_out, int max_tokens){
     Cpp_Token_Stack temp_stack = *token_stack_out;
     if (temp_stack.max_count > temp_stack.count + max_tokens){
@@ -1012,7 +1026,6 @@ cpp_lex_size_nonalloc(Lex_Data *S_ptr, char *chunk, int size, int full_size,
     return(result);
 }
 
-#if 0
 lexer_link Cpp_Relex_State
 cpp_relex_nonalloc_start(Cpp_File file, Cpp_Token_Stack *stack,
                          int start, int end, int amount, int tolerance){
@@ -1024,7 +1037,7 @@ cpp_relex_nonalloc_start(Cpp_File file, Cpp_Token_Stack *stack,
     state.amount = amount;
     state.tolerance = tolerance;
     
-    Cpp_Get_Token_Result result = new_lex::cpp_get_token(stack, start);
+    Cpp_Get_Token_Result result = cpp_get_token(stack, start);
     if (result.token_index <= 0){
         state.start_token_i = 0;
     }
@@ -1032,7 +1045,7 @@ cpp_relex_nonalloc_start(Cpp_File file, Cpp_Token_Stack *stack,
         state.start_token_i = result.token_index-1;
     }
     
-    result = new_lex::cpp_get_token(stack, end);
+    result = cpp_get_token(stack, end);
     if (result.token_index < 0) result.token_index = 0;
     else if (end > stack->tokens[result.token_index].start) ++result.token_index;
     state.end_token_i = result.token_index;
@@ -1043,6 +1056,11 @@ cpp_relex_nonalloc_start(Cpp_File file, Cpp_Token_Stack *stack,
     state.space_request = state.end_token_i - state.start_token_i + tolerance + 1;
     
     return(state);
+}
+
+inline Cpp_Preprocessor_State
+cpp_token_get_pp_state(fcpp_u16 bitfield){
+    return (Cpp_Preprocessor_State)(bitfield);
 }
 
 // TODO(allen): Eliminate this once we actually store the EOF token
@@ -1064,23 +1082,62 @@ cpp__get_token(Cpp_Token_Stack *stack, Cpp_Token *tokens, int size, int index){
 }
 
 FCPP_LINK bool
-cpp_relex_nonalloc_main(Cpp_Relex_State *state, Cpp_Token_Stack *relex_stack, int *relex_end){
+cpp_relex_nonalloc_main(Cpp_Relex_State *state,
+                        Cpp_Token_Stack *relex_stack,
+                        int *relex_end,
+                        char *spare){
     Cpp_Token_Stack *stack = state->stack;
     Cpp_Token *tokens = stack->tokens;
     
-    new_lex::cpp_shift_token_starts(stack, state->end_token_i, state->amount);
+    cpp_shift_token_starts(stack, state->end_token_i, state->amount);
     
-    Lex_Data lex = {};
+    Lex_Data lex = lex_data_init(spare);
     lex.pp_state = cpp_token_get_pp_state(tokens[state->start_token_i].state_flags);
     lex.pos = state->relex_start;
     
     int relex_end_i = state->end_token_i;
     Cpp_Token match_token = cpp__get_token(stack, tokens, state->file.size, relex_end_i);
     Cpp_Token end_token = match_token;
-    bool went_too_far = 0;
+    int went_too_far = false;
     
+    // TODO(allen): This can be better now I suspect.
     for (;;){
-        Cpp_Read_Result read = cpp_lex_step(state->file, &lex);
+        int result = 
+            cpp_lex_nonalloc(&lex,
+                             state->file.data, state->file.size,
+                             stack, 1);
+        
+        switch (result){
+            case LexHitTokenLimit:
+            {
+                Cpp_Token token =
+                    stack->tokens[stack->count-1];
+                if (token.start == end_token.start &&
+                    token.size == end_token.size &&
+                    token.flags == end_token.flags &&
+                    token.state_flags == end_token.state_flags){
+                    --stack->count;
+                    goto double_break;
+                }
+                
+                while (lex.pos > end_token.start && relex_end_i < stack->count){
+                    ++relex_end_i;
+                    end_token = cpp__get_token(stack, tokens, state->file.size, relex_end_i);
+                }
+            }
+            break;
+            
+            case LexNeedChunk: Assert(!"Invalid path"); break;
+            
+            case LexNeedTokenMemory:
+            went_too_far = true;
+            goto double_break;
+            
+            case LexFinished:
+            goto double_break;
+        }
+        
+#if 0
         if (read.has_result){
             if (read.token.start == end_token.start &&
                 read.token.size == end_token.size &&
@@ -1095,12 +1152,14 @@ cpp_relex_nonalloc_main(Cpp_Relex_State *state, Cpp_Token_Stack *relex_stack, in
                 end_token = cpp__get_token(stack, tokens, state->file.size, relex_end_i);
             }
             if (relex_stack->count == relex_stack->max_count){
-                went_too_far = 1;
+                went_too_far = true;
                 break;
             }
         }
         if (lex.pos >= state->file.size) break;
+#endif
     }
+    double_break:;
     
     if (!went_too_far){
         if (relex_stack->count > 0){
@@ -1133,7 +1192,6 @@ cpp_relex_nonalloc_main(Cpp_Relex_State *state, Cpp_Token_Stack *relex_stack, in
     
     return went_too_far;
 }
-#endif
 
 #endif
 

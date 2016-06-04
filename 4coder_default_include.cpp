@@ -84,6 +84,8 @@ CUSTOM_COMMAND_SIG(set_mark){
     View_Summary view = app->get_active_view(app);
     
     app->view_set_mark(app, &view, seek_pos(view.cursor.pos));
+    // TODO(allen): Just expose the preferred_x seperately
+    app->view_set_cursor(app, &view, seek_pos(view.cursor.pos), 1);
 }
 
 CUSTOM_COMMAND_SIG(delete_range){

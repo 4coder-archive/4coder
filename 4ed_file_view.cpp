@@ -804,20 +804,31 @@ Job_Callback_Sig(job_full_lex){
     cpp_file.data = file->state.buffer.data;
     cpp_file.size = file->state.buffer.size;
     
+    i32 buffer_size = file->state.buffer.size;
+    buffer_size = (buffer_size + 3)&(~3);
+    
+    while (memory->size < buffer_size*2){
+        system->grow_thread_memory(memory);
+    }
+    
+    char *tb = (char*)memory->data;
+    
     Cpp_Token_Stack tokens;
-    tokens.tokens = (Cpp_Token*)memory->data;
-    tokens.max_count = memory->size / sizeof(Cpp_Token);
+    tokens.tokens = (Cpp_Token*)((char*)memory->data + buffer_size);
+    tokens.max_count = (memory->size - buffer_size) / sizeof(Cpp_Token);
     tokens.count = 0;
     
-#if 0
+#if 1
     
     b32 still_lexing = 1;
     
-    Lex_Data lex = {0};
+    Lex_Data lex = lex_data_init(tb);
     
     do{
         i32 result = 
-            cpp_lex_nonalloc(&lex, cpp_file.data, cpp_file.size, &tokens, 2048);
+            cpp_lex_size_nonalloc(&lex,
+                                  cpp_file.data, cpp_file.size, cpp_file.size,
+                                  &tokens, 2048);
         
         switch (result){
             case LexNeedChunk: Assert(!"Invalid Path"); break;
@@ -843,7 +854,7 @@ Job_Callback_Sig(job_full_lex){
     
 #else
     
-    Cpp_Lex_Data status = {};
+    Cpp_Lex_Data status = {0};
     
     do{
         for (i32 r = 2048; r > 0 && status.pos < cpp_file.size; --r){
@@ -978,7 +989,10 @@ file_relex_parallel(System_Functions *system,
         relex_space.count = 0;
         relex_space.max_count = state.space_request;
         relex_space.tokens = push_array(part, Cpp_Token, relex_space.max_count);
-        if (cpp_relex_nonalloc_main(&state, &relex_space, &relex_end)){
+        
+        char *spare = push_array(part, char, cpp_file.size);
+        
+        if (cpp_relex_nonalloc_main(&state, &relex_space, &relex_end, spare)){
             inline_lex = 0;
         }
         else{
@@ -3088,6 +3102,7 @@ view_show_file(View *view){
     }
     view->showing_ui = VUI_None;
     view->current_scroll = &view->recent->scroll;
+    view->recent->scroll.max_y = view_compute_max_target_y(view);
 }
 
 internal void

@@ -104,6 +104,11 @@ struct Lex_FSM{
     unsigned char emit_token;
     unsigned char multi_line;
 };
+inline Lex_FSM
+zero_lex_fsm(){
+    Lex_FSM fsm = {0};
+    return(fsm);
+}
 
 // BOTTOM
 

@@ -1404,7 +1404,7 @@ cpp_relex_nonalloc_start(Cpp_File file, Cpp_Token_Stack *stack,
     state.end = end;
     state.amount = amount;
     state.tolerance = tolerance;
-
+    
     Cpp_Get_Token_Result result = cpp_get_token(stack, start);
     if (result.token_index <= 0){
         state.start_token_i = 0;
@@ -1412,18 +1412,24 @@ cpp_relex_nonalloc_start(Cpp_File file, Cpp_Token_Stack *stack,
     else{
         state.start_token_i = result.token_index-1;
     }
-
+    
     result = cpp_get_token(stack, end);
-    if (result.token_index < 0) result.token_index = 0;
-    else if (end > stack->tokens[result.token_index].start) ++result.token_index;
+    if (result.token_index < 0){
+        result.token_index = 0;
+    }
+    else if (end > stack->tokens[result.token_index].start){
+        ++result.token_index;
+    }
     state.end_token_i = result.token_index;
-
+    
     state.relex_start = stack->tokens[state.start_token_i].start;
-    if (start < state.relex_start) state.relex_start = start;
-
+    if (start < state.relex_start){
+        state.relex_start = start;
+    }
+    
     state.space_request = state.end_token_i - state.start_token_i + tolerance + 1;
-
-    return state;
+    
+    return(state);
 }
 
 inline Cpp_Token
@@ -1446,18 +1452,18 @@ FCPP_LINK bool
 cpp_relex_nonalloc_main(Cpp_Relex_State *state, Cpp_Token_Stack *relex_stack, int *relex_end){
     Cpp_Token_Stack *stack = state->stack;
     Cpp_Token *tokens = stack->tokens;
-
+    
     cpp_shift_token_starts(stack, state->end_token_i, state->amount);
-
+    
     Cpp_Lex_Data lex = {};
     lex.pp_state = cpp_token_get_pp_state(tokens[state->start_token_i].state_flags);
     lex.pos = state->relex_start;
-
+    
     int relex_end_i = state->end_token_i;
     Cpp_Token match_token = cpp__get_token(stack, tokens, state->file.size, relex_end_i);
     Cpp_Token end_token = match_token;
     bool went_too_far = 0;
-
+    
     for (;;){
         Cpp_Read_Result read = cpp_lex_step(state->file, &lex);
         if (read.has_result){
@@ -1468,7 +1474,7 @@ cpp_relex_nonalloc_main(Cpp_Relex_State *state, Cpp_Token_Stack *relex_stack, in
                 break;
             }
             cpp_push_token_nonalloc(relex_stack, read.token);
-
+            
             while (lex.pos > end_token.start && relex_end_i < stack->count){
                 ++relex_end_i;
                 end_token = cpp__get_token(stack, tokens, state->file.size, relex_end_i);
@@ -1480,7 +1486,7 @@ cpp_relex_nonalloc_main(Cpp_Relex_State *state, Cpp_Token_Stack *relex_stack, in
         }
         if (lex.pos >= state->file.size) break;
     }
-
+    
     if (!went_too_far){
         if (relex_stack->count > 0){
             if (state->start_token_i > 0){
@@ -1492,7 +1498,7 @@ cpp_relex_nonalloc_main(Cpp_Relex_State *state, Cpp_Token_Stack *relex_stack, in
                     relex_stack->tokens[0] = merge.new_token;
                 }
             }
-
+            
             if (relex_end_i < state->stack->count){
                 Cpp_Token_Merge merge =
                     cpp_attempt_token_merge(relex_stack->tokens[relex_stack->count-1],
@@ -1503,14 +1509,14 @@ cpp_relex_nonalloc_main(Cpp_Relex_State *state, Cpp_Token_Stack *relex_stack, in
                 }
             }
         }
-
+        
         *relex_end = relex_end_i;
     }
     else{
         cpp_shift_token_starts(stack, state->end_token_i, -state->amount);
     }
-
-    return went_too_far;
+    
+    return(went_too_far);
 }
 
 #ifndef FCPP_FORBID_MALLOC
