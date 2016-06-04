@@ -1113,7 +1113,8 @@ Font_Load_Sig(system_draw_font_load){
             filename,
             pt_size,
             tab_width,
-            oversample
+            oversample,
+            store_texture
         );
 
         if(success){
@@ -1209,7 +1210,6 @@ LinuxLoadRenderCode(){
     linuxvars.target.pop_clip = draw_pop_clip;
     linuxvars.target.push_piece = draw_push_piece;
     
-    linuxvars.target.font_set.font_info_load = draw_font_info_load;
     linuxvars.target.font_set.font_load = system_draw_font_load;
     linuxvars.target.font_set.release_font = draw_release_font;
 }
