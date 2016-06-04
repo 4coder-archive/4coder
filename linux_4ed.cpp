@@ -1136,8 +1136,8 @@ INTERNAL_Sys_Debug_Message_Sig(internal_debug_message){
 internal f32
 size_change(i32 dpi_x, i32 dpi_y){
     // TODO(allen): We're just hoping dpi_x == dpi_y for now I guess.
-    f32 size_x = linuxvars.dpi_x / 96.f;
-    f32 size_y = linuxvars.dpi_y / 96.f;
+    f32 size_x = dpi_x / 96.f;
+    f32 size_y = dpi_y / 96.f;
     f32 size_max = Max(size_x, size_y);
     return(size_max);
 }

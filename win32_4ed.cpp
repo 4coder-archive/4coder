@@ -1147,8 +1147,8 @@ Sys_CLI_End_Update_Sig(system_cli_end_update){
 internal f32
 size_change(i32 dpi_x, i32 dpi_y){
     // TODO(allen): We're just hoping dpi_x == dpi_y for now I guess.
-    f32 size_x = win32vars.dpi_x / 96.f;
-    f32 size_y = win32vars.dpi_y / 96.f;
+    f32 size_x = dpi_x / 96.f;
+    f32 size_y = dpi_y / 96.f;
     f32 size_max = Max(size_x, size_y);
     return(size_max);
 }
