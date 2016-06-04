@@ -386,3 +386,361 @@ query_user_number(Application_Links *app, Query_Bar *bar){
 }
 
 inline String empty_string() {String Result = {}; return(Result);}
+
+inline Buffer_Summary
+get_active_buffer(Application_Links *app){
+    View_Summary view = app->get_active_view(app);
+    Buffer_Summary buffer = app->get_buffer(app, view.buffer_id);
+    return(buffer);
+}
+
+
+struct Stream_Chunk{
+    Application_Links *app;
+    Buffer_Summary *buffer;
+    
+    char *base_data;
+    int start, end;
+    int data_size;
+    
+    char *data;
+};
+
+int
+round_down(int x, int b){
+    int r = 0;
+    if (x >= 0){
+        r = x - (x % b);
+    }
+    return(r);
+}
+
+int
+round_up(int x, int b){
+    int r = 0;
+    if (x >= 0){
+        r = x - (x % b) + b;
+    }
+    return(r);
+}
+
+int
+init_stream_chunk(Stream_Chunk *chunk,
+                  Application_Links *app, Buffer_Summary *buffer,
+                  int pos, char *data, int size){
+    int result = 0;
+    
+    app->refresh_buffer(app, buffer);
+    if (pos >= 0 && pos < buffer->size && size > 0){
+        result = 1;
+        chunk->app = app;
+        chunk->buffer = buffer;
+        chunk->base_data = data;
+        chunk->data_size = size;
+        chunk->start = round_down(pos, size);
+        chunk->end = round_up(pos, size);
+        if (chunk->end > buffer->size){
+            chunk->end = buffer->size;
+        }
+        app->buffer_read_range(app, buffer, chunk->start, chunk->end, chunk->base_data);
+        chunk->data = chunk->base_data - chunk->start;
+    }
+    return(result);
+}
+
+int
+forward_stream_chunk(Stream_Chunk *chunk){
+    Application_Links *app = chunk->app;
+    Buffer_Summary *buffer = chunk->buffer;
+    int result = 0;
+    
+    app->refresh_buffer(app, buffer);
+    if (chunk->end < buffer->size){
+        result = 1;
+        chunk->start = chunk->end;
+        chunk->end += chunk->data_size;
+        if (chunk->end > buffer->size){
+            chunk->end = buffer->size;
+        }
+        app->buffer_read_range(app, buffer, chunk->start, chunk->end, chunk->base_data);
+        chunk->data = chunk->base_data - chunk->start;
+    }
+    return(result);
+}
+
+int
+backward_stream_chunk(Stream_Chunk *chunk){
+    Application_Links *app = chunk->app;
+    Buffer_Summary *buffer = chunk->buffer;
+    int result = 0;
+    
+    app->refresh_buffer(app, buffer);
+    if (chunk->start > 0){
+        result = 1;
+        chunk->end = chunk->start;
+        chunk->start -= chunk->data_size;
+        if (chunk->start < 0){
+            chunk->start = 0;
+        }
+        app->buffer_read_range(app, buffer, chunk->start, chunk->end, chunk->base_data);
+        chunk->data = chunk->base_data - chunk->start;
+    }
+    return(result);
+}
+
+void
+buffer_seek_delimiter_forward(Application_Links *app, Buffer_Summary *buffer,
+                              int pos, char delim, int *result){
+    if (buffer->exists){
+        char chunk[1024];
+        int size = sizeof(chunk);
+        Stream_Chunk stream = {0};
+        
+        if (init_stream_chunk(&stream, app, buffer, pos, chunk, size)){
+            int still_looping = 1;
+            do{
+                for(; pos < stream.end; ++pos){
+                    char at_pos = stream.data[pos];
+                    if (at_pos == delim){
+                        *result = pos;
+                        goto finished;
+                    }
+                }
+                still_looping = forward_stream_chunk(&stream);
+            }while (still_looping);
+        }
+    }
+    
+    *result = buffer->size;
+    
+    finished:;
+}
+
+void
+buffer_seek_delimiter_backward(Application_Links *app, Buffer_Summary *buffer,
+                              int pos, char delim, int *result){
+    if (buffer->exists){
+        char chunk[1024];
+        int size = sizeof(chunk);
+        Stream_Chunk stream = {0};
+        
+        if (init_stream_chunk(&stream, app, buffer, pos, chunk, size)){
+            int still_looping = 1;
+            do{
+                for(; pos >= stream.start; --pos){
+                    char at_pos = stream.data[pos];
+                    if (at_pos == delim){
+                        *result = pos;
+                        goto finished;
+                    }
+                }
+                still_looping = backward_stream_chunk(&stream);
+            }while (still_looping);
+        }
+    }
+    
+    *result = 0;
+    
+    finished:;
+}
+
+// TODO(allen): This duplication is driving me crazy... I've gotta
+// upgrade the meta programming system another level.
+
+// NOTE(allen): This is limitted to a string size of 512.
+// You can push it up or do something more clever by just
+// replacing char read_buffer[512]; with more memory.
+void
+buffer_seek_string_forward(Application_Links *app, Buffer_Summary *buffer,
+                           int pos, char *str, int size, int *result){
+    char read_buffer[512];
+    char chunk[1024];
+    int chunk_size = sizeof(chunk);
+    Stream_Chunk stream = {0};
+    
+    if (size <= 0){
+        *result = pos;
+    }
+    else if (size > sizeof(read_buffer)){
+        *result = pos;
+    }
+    else{
+        if (buffer->exists){
+            String read_str = make_fixed_width_string(read_buffer);
+            String needle_str = make_string(str, size);
+            char first_char = str[0];
+            
+            read_str.size = size;
+            
+            if (init_stream_chunk(&stream, app, buffer, pos, chunk, chunk_size)){
+                int still_looping = 1;
+                do{
+                    for(; pos < stream.end; ++pos){
+                        char at_pos = stream.data[pos];
+                        if (at_pos == first_char){
+                            app->buffer_read_range(app, buffer, pos, pos+size, read_buffer);
+                            if (match(needle_str, read_str)){
+                                *result = pos;
+                                goto finished;
+                            }
+                        }
+                    }
+                    still_looping = forward_stream_chunk(&stream);
+                }while (still_looping);
+            }
+        }
+        
+        *result = buffer->size;
+        
+        finished:;
+    }
+}
+
+// NOTE(allen): This is limitted to a string size of 512.
+// You can push it up or do something more clever by just
+// replacing char read_buffer[512]; with more memory.
+void
+buffer_seek_string_backward(Application_Links *app, Buffer_Summary *buffer,
+                            int pos, char *str, int size, int *result){
+    char read_buffer[512];
+    char chunk[1024];
+    int chunk_size = sizeof(chunk);
+    Stream_Chunk stream = {0};
+    
+    if (size <= 0){
+        *result = 0;
+    }
+    else if (size > sizeof(read_buffer)){
+        *result = 0;
+    }
+    else{
+        if (buffer->exists){
+            String read_str = make_fixed_width_string(read_buffer);
+            String needle_str = make_string(str, size);
+            char first_char = str[0];
+            
+            read_str.size = size;
+            
+            if (init_stream_chunk(&stream, app, buffer, pos, chunk, chunk_size)){
+                int still_looping = 1;
+                do{
+                    for(; pos >= stream.start; --pos){
+                        char at_pos = stream.data[pos];
+                        if (at_pos == first_char){
+                            app->buffer_read_range(app, buffer, pos, pos+size, read_buffer);
+                            if (match(needle_str, read_str)){
+                                *result = pos;
+                                goto finished;
+                            }
+                        }
+                    }
+                    still_looping = backward_stream_chunk(&stream);
+                }while (still_looping);
+            }
+        }
+        
+        *result = 0;
+        
+        finished:;
+    }
+}
+
+// NOTE(allen): This is limitted to a string size of 512.
+// You can push it up or do something more clever by just
+// replacing char read_buffer[512]; with more memory.
+void
+buffer_seek_string_insensitive_forward(Application_Links *app, Buffer_Summary *buffer,
+                                       int pos, char *str, int size, int *result){
+    char read_buffer[512];
+    char chunk[1024];
+    int chunk_size = sizeof(chunk);
+    Stream_Chunk stream = {0};
+    
+    if (size <= 0){
+        *result = pos;
+    }
+    else if (size > sizeof(read_buffer)){
+        *result = pos;
+    }
+    else{
+        if (buffer->exists){
+            String read_str = make_fixed_width_string(read_buffer);
+            String needle_str = make_string(str, size);
+            char first_char = char_to_upper(str[0]);
+            
+            read_str.size = size;
+            
+            if (init_stream_chunk(&stream, app, buffer, pos, chunk, chunk_size)){
+                int still_looping = 1;
+                do{
+                    for(; pos < stream.end; ++pos){
+                        char at_pos = char_to_upper(stream.data[pos]);
+                        if (at_pos == first_char){
+                            app->buffer_read_range(app, buffer, pos, pos+size, read_buffer);
+                            if (match_insensitive(needle_str, read_str)){
+                                *result = pos;
+                                goto finished;
+                            }
+                        }
+                    }
+                    still_looping = forward_stream_chunk(&stream);
+                }while (still_looping);
+            }
+        }
+        
+        *result = buffer->size;
+        
+        finished:;
+    }
+}
+
+// NOTE(allen): This is limitted to a string size of 512.
+// You can push it up or do something more clever by just
+// replacing char read_buffer[512]; with more memory.
+void
+buffer_seek_string_insensitive_backward(Application_Links *app, Buffer_Summary *buffer,
+                                        int pos, char *str, int size, int *result){
+    char read_buffer[512];
+    char chunk[1024];
+    int chunk_size = sizeof(chunk);
+    Stream_Chunk stream = {0};
+    
+    if (size <= 0){
+        *result = -1;
+    }
+    else if (size > sizeof(read_buffer)){
+        *result = -1;
+    }
+    else{
+        if (buffer->exists){
+            String read_str = make_fixed_width_string(read_buffer);
+            String needle_str = make_string(str, size);
+            char first_char = char_to_upper(str[0]);
+            
+            read_str.size = size;
+            
+            if (init_stream_chunk(&stream, app, buffer, pos, chunk, chunk_size)){
+                int still_looping = 1;
+                do{
+                    for(; pos >= stream.start; --pos){
+                        char at_pos = char_to_upper(stream.data[pos]);
+                        if (at_pos == first_char){
+                            app->buffer_read_range(app, buffer, pos, pos+size, read_buffer);
+                            if (match_insensitive(needle_str, read_str)){
+                                *result = pos;
+                                goto finished;
+                            }
+                        }
+                    }
+                    still_looping = backward_stream_chunk(&stream);
+                }while (still_looping);
+            }
+        }
+        
+        *result = -1;
+        
+        finished:;
+    }
+}
+
+

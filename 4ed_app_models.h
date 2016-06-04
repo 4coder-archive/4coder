@@ -58,16 +58,12 @@ struct Models{
     char hot_dir_base_[256];
     Hot_Directory hot_directory;
     
-    Delay delay1, delay2;
-    
     Panel *prev_mouse_panel;
     
     Custom_API config_api;
     Scroll_Rule_Function *scroll_rule;
     
-#if 0    
-    File_Exchange files;
-#endif
+    b32 keep_playing;
 };
 
 // BOTTOM

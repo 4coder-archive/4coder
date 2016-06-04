@@ -73,116 +73,6 @@
 #include "system_shared.h"
 
 //
-// Linux structs / enums
-//
-
-#if FRED_INTERNAL
-
-struct Sys_Bubble : public Bubble{
-    i32 line_number;
-    char *file_name;
-};
-
-#endif
-
-enum {
-    LINUX_4ED_EVENT_X11,
-    LINUX_4ED_EVENT_FILE,
-    LINUX_4ED_EVENT_STEP,
-    LINUX_4ED_EVENT_STEP_TIMER,
-    LINUX_4ED_EVENT_CLI,
-};
-
-struct Linux_Coroutine {
-	Coroutine coroutine;
-	Linux_Coroutine *next;
-	ucontext_t ctx, yield_ctx;
-    stack_t stack;
-	b32 done;
-};
-
-struct Thread_Context{
-    u32 job_id;
-    b32 running;
-    
-    Work_Queue *queue;
-    u32 id;
-    pthread_t handle;
-};
-
-struct Thread_Group{
-    Thread_Context *threads;
-    i32 count;
-};
-
-struct Linux_Vars{
-    Display *XDisplay;
-    Window XWindow;
-    Render_Target target;
-
-    XIM input_method;
-    XIMStyle input_style;
-    XIC input_context;
-
-    Key_Input_Data key_data;
-    Mouse_State mouse_data;
-
-    String clipboard_contents;
-    String clipboard_outgoing;
-    b32 new_clipboard;
-
-    Atom atom_CLIPBOARD;
-    Atom atom_UTF8_STRING;
-    Atom atom_NET_WM_STATE;
-    Atom atom_NET_WM_STATE_MAXIMIZED_HORZ;
-    Atom atom_NET_WM_STATE_MAXIMIZED_VERT;
-    Atom atom_NET_WM_PING;
-    Atom atom_WM_DELETE_WINDOW;
-
-    b32 has_xfixes;
-    int xfixes_selection_event;
-
-    int epoll;
-
-    int step_timer_fd;
-    int step_event_fd;
-    int x11_fd;
-    int inotify_fd;
-
-    u64 last_step;
-
-    b32 keep_running;
-
-    Application_Mouse_Cursor cursor;
-
-    void *app_code;
-    void *custom;
-
-    Thread_Memory *thread_memory;
-    Thread_Group groups[THREAD_GROUP_COUNT];
-    sem_t thread_semaphores[THREAD_GROUP_COUNT];
-    pthread_mutex_t locks[LOCK_COUNT];
-
-    Partition font_part;
-
-    Plat_Settings settings;
-    System_Functions *system;
-    App_Functions app;
-    Custom_API custom_api;
-    b32 first;
-    b32 redraw;
-    b32 vsync;
-
-#if FRED_INTERNAL
-    Sys_Bubble internal_bubble;
-    pthread_mutex_t DEBUG_sysmem_lock;
-#endif
-
-    Linux_Coroutine coroutine_data[18];
-    Linux_Coroutine *coroutine_free;
-};
-
-//
 // Linux macros
 //
 
@@ -210,13 +100,137 @@ struct Linux_Vars{
     #define OLD_STAT_NANO_TIME 1
 #endif
 
+#define SUPPORT_DPI 1
+
+//
+// Linux structs / enums
+//
+
+#if FRED_INTERNAL
+
+struct Sys_Bubble : public Bubble{
+    i32 line_number;
+    char *file_name;
+};
+
+#endif
+
+enum {
+    LINUX_4ED_EVENT_X11          = (UINT64_C(1) << 32),
+    LINUX_4ED_EVENT_X11_INTERNAL = (UINT64_C(1) << 33),
+    LINUX_4ED_EVENT_FILE         = (UINT64_C(1) << 34),
+    LINUX_4ED_EVENT_STEP         = (UINT64_C(1) << 35),
+    LINUX_4ED_EVENT_STEP_TIMER   = (UINT64_C(1) << 36),
+    LINUX_4ED_EVENT_CLI          = (UINT64_C(1) << 37),
+};
+
+struct Linux_Coroutine {
+	Coroutine coroutine;
+	Linux_Coroutine *next;
+	ucontext_t ctx, yield_ctx;
+    stack_t stack;
+	b32 done;
+};
+
+struct Thread_Context{
+    u32 job_id;
+    b32 running;
+    b32 cancel;
+    
+    Work_Queue *queue;
+    u32 id;
+    u32 group_id;
+    pthread_t handle;
+};
+
+struct Thread_Group{
+    Thread_Context *threads;
+    i32 count;
+
+    i32 cancel_lock0;
+    i32 cancel_cv0;
+};
+
+struct Linux_Vars{
+    Display *XDisplay;
+    Window XWindow;
+    Render_Target target;
+
+    XIM input_method;
+    XIMStyle input_style;
+    XIC input_context;
+
+    Application_Step_Input input;
+
+    String clipboard_contents;
+    String clipboard_outgoing;
+    b32 new_clipboard;
+
+    Atom atom_TARGETS;
+    Atom atom_CLIPBOARD;
+    Atom atom_UTF8_STRING;
+    Atom atom__NET_WM_STATE;
+    Atom atom__NET_WM_STATE_MAXIMIZED_HORZ;
+    Atom atom__NET_WM_STATE_MAXIMIZED_VERT;
+    Atom atom__NET_WM_PING;
+    Atom atom__NET_WM_WINDOW_TYPE;
+    Atom atom__NET_WM_WINDOW_TYPE_NORMAL;
+    Atom atom__NET_WM_PID;
+    Atom atom_WM_DELETE_WINDOW;
+
+    b32 has_xfixes;
+    int xfixes_selection_event;
+
+    int epoll;
+
+    int step_timer_fd;
+    int step_event_fd;
+    int x11_fd;
+    int inotify_fd;
+
+    u64 last_step;
+
+    b32 keep_running;
+
+    Application_Mouse_Cursor cursor;
+
+    void *app_code;
+    void *custom;
+
+    Thread_Memory *thread_memory;
+    Thread_Group groups[THREAD_GROUP_COUNT];
+    Work_Queue queues[THREAD_GROUP_COUNT];
+    pthread_mutex_t locks[LOCK_COUNT];
+    pthread_cond_t conds[8];
+    sem_t thread_semaphore;
+
+    Partition font_part;
+
+#if SUPPORT_DPI
+    i32 dpi_x, dpi_y;
+#endif
+
+    Plat_Settings settings;
+    System_Functions system;
+    App_Functions app;
+    Custom_API custom_api;
+    b32 vsync;
+
+#if FRED_INTERNAL
+    Sys_Bubble internal_bubble;
+    pthread_mutex_t DEBUG_sysmem_lock;
+#endif
+
+    Linux_Coroutine coroutine_data[18];
+    Linux_Coroutine *coroutine_free;
+};
+
 //
 // Linux globals
 //
 
 globalvar Linux_Vars linuxvars;
 globalvar Application_Memory memory_vars;
-globalvar Exchange exchange_vars;
 
 //
 // Linux forward declarations
@@ -278,8 +292,6 @@ LinuxGetMemory_(i32 size, i32 line_number, char *file_name){
     pthread_mutex_unlock(&linuxvars.DEBUG_sysmem_lock);
 
     result = bubble + 1;
-    
-    fprintf(stderr, "new bubble: %p\n", result);
 #else
     size_t real_size = size + sizeof(size_t);
     result = mmap(0, real_size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
@@ -299,8 +311,6 @@ internal void
 LinuxFreeMemory(void *block){
     if (block){
 #if FRED_INTERNAL
-        fprintf(stderr, "del bubble: %p\n", block);
-
         Sys_Bubble *bubble = ((Sys_Bubble*)block) - 1;
         Assert((bubble->flags & MEM_BUBBLE_DEBUG_MASK) == MEM_BUBBLE_SYS_DEBUG);
 
@@ -384,6 +394,20 @@ Sys_File_Time_Stamp_Sig(system_file_time_stamp){
 
     return(microsecond_timestamp);
 }
+
+internal
+Sys_Now_Time_Stamp_Sig(system_now_time_stamp){
+    struct timespec spec;
+    u64 result;
+    
+    clock_gettime(CLOCK_REALTIME, &spec);
+    result = (spec.tv_sec * UINT64_C(1000000)) + (spec.tv_nsec / UINT64_C(1000));
+
+    //LINUX_FN_DEBUG("ts: %" PRIu64, result);
+
+    return(result);
+}
+
 
 internal
 Sys_Set_File_List_Sig(system_set_file_list){
@@ -556,8 +580,6 @@ Sys_File_Load_End_Sig(system_file_load_end){
     char* ptr = buffer;
     size_t size = loading.size;
 
-    LINUX_FN_DEBUG("%d %p %zu", fd, ptr, size);
-
     if(!loading.exists || fd == -1) return 0;
 
     do {
@@ -574,6 +596,8 @@ Sys_File_Load_End_Sig(system_file_load_end){
     } while(size);
 
     close(fd);
+
+    LINUX_FN_DEBUG("success == %d", (size == 0));
 
     return (size == 0);
 }
@@ -683,23 +707,6 @@ internal
 Sys_Post_Clipboard_Sig(system_post_clipboard){
     LinuxStringDup(&linuxvars.clipboard_outgoing, str.str, str.size);
     XSetSelectionOwner(linuxvars.XDisplay, linuxvars.atom_CLIPBOARD, linuxvars.XWindow, CurrentTime);
-}
-
-//
-// Time
-//
-
-internal
-Sys_Time_Sig(system_time){
-    struct timespec spec;
-    u64 result;
-    
-    clock_gettime(CLOCK_REALTIME, &spec);
-    result = (spec.tv_sec * UINT64_C(1000000)) + (spec.tv_nsec / UINT64_C(1000));
-
-    //LINUX_FN_DEBUG("ts: %" PRIu64, result);
-
-    return(result);
 }
 
 //
@@ -912,8 +919,22 @@ Sys_CLI_End_Update_Sig(system_cli_end_update){
 internal void*
 ThreadProc(void* arg){
     Thread_Context *thread = (Thread_Context*)arg;
-    Work_Queue *queue = thread->queue;
-    
+    Work_Queue *queue = linuxvars.queues + thread->group_id;
+    Thread_Group *group = linuxvars.groups + thread->group_id;
+
+    i32 thread_index = thread->id - 1;
+
+    i32 cancel_lock = group->cancel_lock0 + thread_index;
+    i32 cancel_cv   = group->cancel_cv0   + thread_index;
+
+    Thread_Memory *thread_memory = linuxvars.thread_memory + thread_index;
+
+    if (thread_memory->size == 0){
+        i32 new_size = Kbytes(64);
+        thread_memory->data = LinuxGetMemory(new_size);
+        thread_memory->size = new_size;
+    }
+
     for (;;){
         u32 read_index = queue->read_position;
         u32 write_index = queue->write_position;
@@ -937,24 +958,17 @@ ThreadProc(void* arg){
                 if (safe_running_thread == THREAD_NOT_ASSIGNED){
                     thread->job_id = full_job->id;
                     thread->running = 1;
-                    Thread_Memory *thread_memory = 0;
                     
-                    // TODO(allen): remove memory_request
-                    if (full_job->job.memory_request != 0){
-                        thread_memory = linuxvars.thread_memory + thread->id - 1;
-                        if (thread_memory->size < full_job->job.memory_request){
-                            if (thread_memory->data){
-                                LinuxFreeMemory(thread_memory->data);
-                            }
-                            i32 new_size = LargeRoundUp(full_job->job.memory_request, Kbytes(4));
-                            thread_memory->data = LinuxGetMemory(new_size);
-                            thread_memory->size = new_size;
-                        }
-                    }
-                    full_job->job.callback(linuxvars.system, thread, thread_memory,
-                                           &exchange_vars.thread, full_job->job.data);
+                    full_job->job.callback(&linuxvars.system, thread, thread_memory, full_job->job.data);
                     full_job->running_thread = 0;
                     thread->running = 0;
+
+                    system_acquire_lock(cancel_lock);
+                    if(thread->cancel){
+                        thread->cancel = 0;
+                        pthread_cond_signal(linuxvars.conds + cancel_cv);
+                    }
+                    system_release_lock(cancel_lock);
 
                     LinuxScheduleStep();
                 }
@@ -968,7 +982,7 @@ ThreadProc(void* arg){
 
 internal
 Sys_Post_Job_Sig(system_post_job){
-    Work_Queue *queue = exchange_vars.thread.queues + group_id;
+    Work_Queue *queue = linuxvars.queues + group_id;
     
     Assert((queue->write_position + 1) % QUEUE_WRAP != queue->read_position % QUEUE_WRAP);
     
@@ -997,13 +1011,12 @@ Sys_Post_Job_Sig(system_post_job){
 
 internal
 Sys_Cancel_Job_Sig(system_cancel_job){
-    Work_Queue *queue = exchange_vars.thread.queues + group_id;
+    Work_Queue *queue = linuxvars.queues + group_id;
     Thread_Group *group = linuxvars.groups + group_id;
     
     u32 job_index;
     u32 thread_id;
     Full_Job_Data *full_job;
-    Thread_Context *thread;
     
     job_index = job_id % QUEUE_WRAP;
     full_job = queue->jobs + job_index;
@@ -1013,17 +1026,44 @@ Sys_Cancel_Job_Sig(system_cancel_job){
         __sync_val_compare_and_swap(&full_job->running_thread,
                                    THREAD_NOT_ASSIGNED, 0);
     
-    if (thread_id != THREAD_NOT_ASSIGNED){
-        system_acquire_lock(CANCEL_LOCK0 + thread_id - 1);
-        thread = group->threads + thread_id - 1;
-        pthread_kill(thread->handle, SIGINT); //NOTE(inso) SIGKILL if you really want it to die.
-        pthread_create(&thread->handle, NULL, &ThreadProc, thread);
-        system_release_lock(CANCEL_LOCK0 + thread_id - 1);
-        thread->running = 0;
+    if (thread_id != THREAD_NOT_ASSIGNED && thread_id != 0){
+        i32 thread_index = thread_id - 1;
+
+        i32 cancel_lock = group->cancel_lock0 + thread_index;
+        i32 cancel_cv = group->cancel_cv0 + thread_index;
+        Thread_Context *thread = group->threads + thread_index;
+
+        system_acquire_lock(cancel_lock);
+        thread->cancel = 1;
+
+        system_release_lock(FRAME_LOCK);
+        do {
+            pthread_cond_wait(linuxvars.conds + cancel_cv, linuxvars.locks + cancel_lock);
+        } while(thread->cancel == 1);
+        system_acquire_lock(FRAME_LOCK);
+
+        system_release_lock(cancel_lock);
 
         LinuxScheduleStep();
     }
 
+}
+
+internal
+Sys_Check_Cancel_Sig(system_check_cancel){
+    b32 result = 0;
+
+    Thread_Group* group = linuxvars.groups + thread->group_id;
+    i32 thread_index = thread->id - 1;
+    i32 cancel_lock = group->cancel_lock0 + thread_index;
+
+    system_acquire_lock(cancel_lock);
+    if (thread->cancel){
+        result = 1;
+    }
+    system_release_lock(cancel_lock);
+
+    return (result);
 }
 
 internal
@@ -1067,7 +1107,7 @@ INTERNAL_Sys_Sentinel_Sig(internal_sentinel){
 
 internal
 INTERNAL_Sys_Get_Thread_States_Sig(internal_get_thread_states){
-    Work_Queue *queue = exchange_vars.thread.queues + id;
+    Work_Queue *queue = linuxvars.queues + id;
     u32 write = queue->write_position;
     u32 read = queue->read_position;
     if (write < read) write += JOB_ID_WRAP;
@@ -1093,18 +1133,31 @@ INTERNAL_Sys_Debug_Message_Sig(internal_debug_message){
 #include "system_shared.cpp"
 #include "4ed_rendering.cpp"
 
+internal f32
+size_change(i32 dpi_x, i32 dpi_y){
+    // TODO(allen): We're just hoping dpi_x == dpi_y for now I guess.
+    f32 size_x = linuxvars.dpi_x / 96.f;
+    f32 size_y = linuxvars.dpi_y / 96.f;
+    f32 size_max = Max(size_x, size_y);
+    return(size_max);
+}
+
 internal
 Font_Load_Sig(system_draw_font_load){
     b32 success = 0;
     i32 attempts = 0;
 
-    LINUX_FN_DEBUG("%p %s %d %d", font_out, filename, pt_size, tab_width);
+    LINUX_FN_DEBUG("%s, %dpt, tab_width: %d", filename, pt_size, tab_width);
 
     if (linuxvars.font_part.base == 0){
         linuxvars.font_part = sysshared_scratch_partition(Mbytes(8));
     }
 
     i32 oversample = 2;
+
+#if SUPPORT_DPI
+    pt_size = ROUND32(pt_size * size_change(linuxvars.dpi_x, linuxvars.dpi_y));
+#endif
 
     for(; attempts < 3; ++attempts){
         success = draw_font_load(
@@ -1163,45 +1216,46 @@ LinuxLoadAppCode(String* base_dir){
 
 internal void
 LinuxLoadSystemCode(){
-    linuxvars.system->file_time_stamp = system_file_time_stamp;
-    linuxvars.system->file_unique_hash = system_file_unique_hash;
-    linuxvars.system->set_file_list = system_set_file_list;
-    linuxvars.system->file_track = system_file_track;
-    linuxvars.system->file_untrack = system_file_untrack;
-    linuxvars.system->file_load_begin = system_file_load_begin;
-    linuxvars.system->file_load_end = system_file_load_end;
-    linuxvars.system->file_save = system_file_save;
+    linuxvars.system.file_time_stamp = system_file_time_stamp;
+    linuxvars.system.file_unique_hash = system_file_unique_hash;
+    linuxvars.system.set_file_list = system_set_file_list;
+    linuxvars.system.file_track = system_file_track;
+    linuxvars.system.file_untrack = system_file_untrack;
+    linuxvars.system.file_load_begin = system_file_load_begin;
+    linuxvars.system.file_load_end = system_file_load_end;
+    linuxvars.system.file_save = system_file_save;
 
-    linuxvars.system->file_exists = system_file_exists;
-    linuxvars.system->directory_cd = system_directory_cd;
-    linuxvars.system->get_4ed_path = system_get_4ed_path;
+    linuxvars.system.file_exists = system_file_exists;
+    linuxvars.system.directory_cd = system_directory_cd;
+    linuxvars.system.get_4ed_path = system_get_4ed_path;
 
-    linuxvars.system->post_clipboard = system_post_clipboard;
-    linuxvars.system->time = system_time;
+    linuxvars.system.post_clipboard = system_post_clipboard;
+    linuxvars.system.now_time_stamp = system_now_time_stamp;
     
-    linuxvars.system->create_coroutine = system_create_coroutine;
-    linuxvars.system->launch_coroutine = system_launch_coroutine;
-    linuxvars.system->resume_coroutine = system_resume_coroutine;
-    linuxvars.system->yield_coroutine = system_yield_coroutine;
+    linuxvars.system.create_coroutine = system_create_coroutine;
+    linuxvars.system.launch_coroutine = system_launch_coroutine;
+    linuxvars.system.resume_coroutine = system_resume_coroutine;
+    linuxvars.system.yield_coroutine = system_yield_coroutine;
 
-    linuxvars.system->cli_call = system_cli_call;
-    linuxvars.system->cli_begin_update = system_cli_begin_update;
-    linuxvars.system->cli_update_step = system_cli_update_step;
-    linuxvars.system->cli_end_update = system_cli_end_update;
+    linuxvars.system.cli_call = system_cli_call;
+    linuxvars.system.cli_begin_update = system_cli_begin_update;
+    linuxvars.system.cli_update_step = system_cli_update_step;
+    linuxvars.system.cli_end_update = system_cli_end_update;
 
-    linuxvars.system->post_job = system_post_job;
-    linuxvars.system->cancel_job = system_cancel_job;
-    linuxvars.system->grow_thread_memory = system_grow_thread_memory;
-    linuxvars.system->acquire_lock = system_acquire_lock;
-    linuxvars.system->release_lock = system_release_lock;
+    linuxvars.system.post_job = system_post_job;
+    linuxvars.system.cancel_job = system_cancel_job;
+    linuxvars.system.check_cancel = system_check_cancel;
+    linuxvars.system.grow_thread_memory = system_grow_thread_memory;
+    linuxvars.system.acquire_lock = system_acquire_lock;
+    linuxvars.system.release_lock = system_release_lock;
 
 #if FRED_INTERNAL
-    linuxvars.system->internal_sentinel = internal_sentinel;
-    linuxvars.system->internal_get_thread_states = internal_get_thread_states;
-    linuxvars.system->internal_debug_message = internal_debug_message;
+    linuxvars.system.internal_sentinel = internal_sentinel;
+    linuxvars.system.internal_get_thread_states = internal_get_thread_states;
+    linuxvars.system.internal_debug_message = internal_debug_message;
 #endif
 
-    linuxvars.system->slash = '/';
+    linuxvars.system.slash = '/';
 }
 
 internal void
@@ -1236,7 +1290,6 @@ LinuxResizeTarget(i32 width, i32 height){
         
         linuxvars.target.width = width;
         linuxvars.target.height = height;
-        linuxvars.redraw = 1;
     }
 }
 
@@ -1546,9 +1599,8 @@ init_input_result_zero(){
     return(result);
 }
 
-// NOTE(inso): doesn't actually use XInput anymore, i should change the name...
 internal Init_Input_Result
-InitializeXInput(Display *dpy, Window XWindow)
+LinuxInputInit(Display *dpy, Window XWindow)
 {
     Init_Input_Result result = {};
     XIMStyles *styles = 0;
@@ -1715,11 +1767,11 @@ LinuxPushKey(u8 code, u8 chr, u8 chr_nocaps, b8 (*mods)[MDFR_INDEX_COUNT], b32 i
     Key_Event_Data *data;
 
     if(is_hold){
-        count = &linuxvars.key_data.hold_count;
-        data = linuxvars.key_data.hold;
+        count = &linuxvars.input.keys.hold_count;
+        data = linuxvars.input.keys.hold;
     } else {
-        count = &linuxvars.key_data.press_count;
-        data = linuxvars.key_data.press;
+        count = &linuxvars.input.keys.press_count;
+        data = linuxvars.input.keys.press;
     }
 
 	if(*count < KEY_INPUT_BUFFER_SIZE){
@@ -1775,7 +1827,7 @@ LinuxStringDup(String* str, void* data, size_t size){
 internal void
 LinuxScheduleStep(void)
 {
-    u64 now  = system_time();
+    u64 now  = system_now_time_stamp();
     u64 diff = (now - linuxvars.last_step);
 
     if(diff > (u64)frame_useconds){
@@ -1806,12 +1858,12 @@ LinuxMaximizeWindow(Display* d, Window w, b32 maximize)
     XEvent e = {};
 
     e.xany.type = ClientMessage;
-    e.xclient.message_type = linuxvars.atom_NET_WM_STATE;
+    e.xclient.message_type = linuxvars.atom__NET_WM_STATE;
     e.xclient.format = 32;
     e.xclient.window = w;
     e.xclient.data.l[0] = maximize ? STATE_ADD : STATE_REMOVE;
-    e.xclient.data.l[1] = linuxvars.atom_NET_WM_STATE_MAXIMIZED_VERT;
-    e.xclient.data.l[2] = linuxvars.atom_NET_WM_STATE_MAXIMIZED_HORZ;
+    e.xclient.data.l[1] = linuxvars.atom__NET_WM_STATE_MAXIMIZED_VERT;
+    e.xclient.data.l[2] = linuxvars.atom__NET_WM_STATE_MAXIMIZED_HORZ;
     e.xclient.data.l[3] = 0L;
 
     XSendEvent(
@@ -1841,11 +1893,191 @@ LinuxSetIcon(Display* d, Window w)
     );
 }
 
+internal void
+LinuxX11ConnectionWatch(Display* dpy, XPointer cdata, int fd, Bool opening, XPointer* wdata){
+    struct epoll_event e = {};
+    e.events = EPOLLIN | EPOLLET;
+    e.data.u64 = LINUX_4ED_EVENT_X11_INTERNAL | fd;
+
+    int op = opening ? EPOLL_CTL_ADD : EPOLL_CTL_DEL;
+    epoll_ctl(linuxvars.epoll, op, fd, &e);
+}
+
+//
+// X11 window init
+//
+
+internal b32
+LinuxX11WindowInit(int argc, char** argv, int* WinWidth, int* WinHeight)
+{
+    // NOTE(allen): Here begins the linux screen setup stuff.
+    // Behold the true nature of this wonderful OS:
+    // (thanks again to Casey for providing this stuff)
+
+#define BASE_W 800
+#define BASE_H 600
+
+    if (linuxvars.settings.set_window_size){
+        *WinWidth = linuxvars.settings.window_w;
+        *WinHeight = linuxvars.settings.window_h;
+    } else {
+        *WinWidth = BASE_W;
+        *WinHeight = BASE_H;
+    }
+
+    if (!GLXCanUseFBConfig(linuxvars.XDisplay)){
+        fprintf(stderr, "Your GLX version is too old.\n");
+        return false;
+    }
+
+    glx_config_result Config = ChooseGLXConfig(linuxvars.XDisplay, DefaultScreen(linuxvars.XDisplay));
+    if (!Config.Found){
+        fprintf(stderr, "Could not create GLX FBConfig.\n");
+    }
+
+    XSetWindowAttributes swa = {};
+    swa.backing_store = WhenMapped;
+    swa.event_mask = StructureNotifyMask;
+    swa.bit_gravity = NorthWestGravity;
+    swa.colormap = XCreateColormap(linuxvars.XDisplay,
+                                   RootWindow(linuxvars.XDisplay, Config.BestInfo.screen),
+                                   Config.BestInfo.visual, AllocNone);
+
+    linuxvars.XWindow =
+        XCreateWindow(linuxvars.XDisplay,
+                      RootWindow(linuxvars.XDisplay, Config.BestInfo.screen),
+                      0, 0, *WinWidth, *WinHeight,
+                      0, Config.BestInfo.depth, InputOutput,
+                      Config.BestInfo.visual,
+                      CWBackingStore|CWBitGravity|CWBackPixel|CWBorderPixel|CWColormap|CWEventMask, &swa);
+
+    if (!linuxvars.XWindow){
+        fprintf(stderr, "Error creating window.\n");
+        return false;
+    }
+
+    //NOTE(inso): Set the window's type to normal
+    XChangeProperty(
+        linuxvars.XDisplay,
+        linuxvars.XWindow,
+        linuxvars.atom__NET_WM_WINDOW_TYPE,
+        XA_ATOM,
+        32,
+        PropModeReplace,
+        (unsigned char*)&linuxvars.atom__NET_WM_WINDOW_TYPE_NORMAL,
+        1
+    );
+
+    //NOTE(inso): window managers want the PID as a window property for some reason.
+    pid_t pid = getpid();
+    XChangeProperty(
+        linuxvars.XDisplay,
+        linuxvars.XWindow,
+        linuxvars.atom__NET_WM_PID,
+        XA_CARDINAL,
+        32,
+        PropModeReplace,
+        (unsigned char*)&pid,
+        1
+    );
+
+#define WINDOW_NAME "4coder 4linux: " VERSION
+
+    //NOTE(inso): set wm properties
+    XStoreName(linuxvars.XDisplay, linuxvars.XWindow, WINDOW_NAME);
+
+    XSizeHints *sz_hints = XAllocSizeHints();
+    XWMHints   *wm_hints = XAllocWMHints();
+    XClassHint *cl_hints = XAllocClassHint();
+
+    sz_hints->flags = PMinSize | PMaxSize | PWinGravity;
+
+    sz_hints->min_width = 50;
+    sz_hints->min_height = 50;
+
+    sz_hints->max_width = sz_hints->max_height = (1UL << 16UL);
+
+/* NOTE(inso): fluxbox thinks this is minimum, so don't set it
+    sz_hints->base_width = BASE_W;
+    sz_hints->base_height = BASE_H;
+*/
+    sz_hints->win_gravity = NorthWestGravity;
+
+    if (linuxvars.settings.set_window_pos){
+        sz_hints->flags |= USPosition;
+        sz_hints->x = linuxvars.settings.window_x;
+        sz_hints->y = linuxvars.settings.window_y;
+    }
+
+    wm_hints->flags |= InputHint | StateHint;
+    wm_hints->input = True;
+    wm_hints->initial_state = NormalState;
+
+    cl_hints->res_name = "4coder";
+    cl_hints->res_class = "4coder";
+
+    char* win_name_list[] = { WINDOW_NAME };
+    XTextProperty win_name;
+    XStringListToTextProperty(win_name_list, 1, &win_name);
+
+    XSetWMProperties(
+        linuxvars.XDisplay,
+        linuxvars.XWindow,
+        &win_name, NULL,
+        argv, argc,
+        sz_hints, wm_hints, cl_hints
+    );
+
+    XFree(win_name.value);
+
+    XFree(sz_hints);
+    XFree(wm_hints);
+    XFree(cl_hints);
+
+    LinuxSetIcon(linuxvars.XDisplay, linuxvars.XWindow);
+
+    //NOTE(inso): make the window visible
+    XMapWindow(linuxvars.XDisplay, linuxvars.XWindow);
+
+    b32 IsLegacy = false;
+    GLXContext GLContext =
+        InitializeOpenGLContext(linuxvars.XDisplay, linuxvars.XWindow, Config.BestConfig, IsLegacy);
+
+    XRaiseWindow(linuxvars.XDisplay, linuxvars.XWindow);
+
+    if (linuxvars.settings.set_window_pos){
+        XMoveWindow(
+            linuxvars.XDisplay,
+            linuxvars.XWindow,
+            linuxvars.settings.window_x,
+            linuxvars.settings.window_y
+        );
+    }
+
+    if (linuxvars.settings.maximize_window){
+        LinuxMaximizeWindow(linuxvars.XDisplay, linuxvars.XWindow, 1);
+    }
+    XSync(linuxvars.XDisplay, False);
+
+    XWindowAttributes WinAttribs;
+    if (XGetWindowAttributes(linuxvars.XDisplay, linuxvars.XWindow, &WinAttribs))
+    {
+        *WinWidth = WinAttribs.width;
+        *WinHeight = WinAttribs.height;
+    }
+
+    Atom wm_protos[] = {
+        linuxvars.atom_WM_DELETE_WINDOW,
+        linuxvars.atom__NET_WM_PING
+    };
+
+    XSetWMProtocols(linuxvars.XDisplay, linuxvars.XWindow, wm_protos, 2);
+}
 
 internal void
 LinuxHandleX11Events(void)
 {
-    XEvent PrevEvent = {};
+    static XEvent PrevEvent = {};
     b32 should_step = 0;
 
     while(XPending(linuxvars.XDisplay))
@@ -1937,30 +2169,30 @@ LinuxHandleX11Events(void)
 
             case MotionNotify: {
                 should_step = 1;
-                linuxvars.mouse_data.x = Event.xmotion.x;
-                linuxvars.mouse_data.y = Event.xmotion.y;
+                linuxvars.input.mouse.x = Event.xmotion.x;
+                linuxvars.input.mouse.y = Event.xmotion.y;
             }break;
 
             case ButtonPress: {
                 should_step = 1;
                 switch(Event.xbutton.button){
                     case Button1: {
-                        linuxvars.mouse_data.press_l = 1;
-                        linuxvars.mouse_data.l = 1;
+                        linuxvars.input.mouse.press_l = 1;
+                        linuxvars.input.mouse.l = 1;
                     } break;
                     case Button3: {
-                        linuxvars.mouse_data.press_r = 1;
-                        linuxvars.mouse_data.r = 1;
+                        linuxvars.input.mouse.press_r = 1;
+                        linuxvars.input.mouse.r = 1;
                     } break;
 
                     //NOTE(inso): scroll up
                     case Button4: {
-                        linuxvars.mouse_data.wheel = 1;
+                        linuxvars.input.mouse.wheel = 1;
                     }break;
 
                     //NOTE(inso): scroll down
                     case Button5: {
-                        linuxvars.mouse_data.wheel = -1;
+                        linuxvars.input.mouse.wheel = -1;
                     }break;
                 }
             }break;
@@ -1969,31 +2201,31 @@ LinuxHandleX11Events(void)
                 should_step = 1;
                 switch(Event.xbutton.button){
                     case Button1: {
-                        linuxvars.mouse_data.release_l = 1;
-                        linuxvars.mouse_data.l = 0;
+                        linuxvars.input.mouse.release_l = 1;
+                        linuxvars.input.mouse.l = 0;
                     } break;
                     case Button3: {
-                        linuxvars.mouse_data.release_r = 1;
-                        linuxvars.mouse_data.r = 0;
+                        linuxvars.input.mouse.release_r = 1;
+                        linuxvars.input.mouse.r = 0;
                     } break;
                 }
             }break;
 
             case EnterNotify: {
                 should_step = 1;
-                linuxvars.mouse_data.out_of_window = 0;
+                linuxvars.input.mouse.out_of_window = 0;
             }break;
 
             case LeaveNotify: {
                 should_step = 1;
-                linuxvars.mouse_data.out_of_window = 1;
+                linuxvars.input.mouse.out_of_window = 1;
             }break;
 
             case FocusIn:
             case FocusOut: {
                 should_step = 1;
-                linuxvars.mouse_data.l = 0;
-                linuxvars.mouse_data.r = 0;
+                linuxvars.input.mouse.l = 0;
+                linuxvars.input.mouse.r = 0;
             }break;
 
             case ConfigureNotify: {
@@ -2017,7 +2249,7 @@ LinuxHandleX11Events(void)
                     should_step = 1;
                     linuxvars.keep_running = 0;
                 }
-                else if ((Atom)Event.xclient.data.l[0] == linuxvars.atom_NET_WM_PING) {
+                else if ((Atom)Event.xclient.data.l[0] == linuxvars.atom__NET_WM_PING) {
                     Event.xclient.window = DefaultRootWindow(linuxvars.XDisplay);
                     XSendEvent(
                         linuxvars.XDisplay,
@@ -2041,27 +2273,57 @@ LinuxHandleX11Events(void)
                 response.time = request.time;
                 response.property = None;
 
-                //TODO(inso): handle TARGETS negotiation instead of requiring UTF8_STRING
                 if (
                     linuxvars.clipboard_outgoing.size &&
-                    request.target == linuxvars.atom_UTF8_STRING &&
                     request.selection == linuxvars.atom_CLIPBOARD &&
                     request.property != None &&
                     request.display &&
                     request.requestor
                 ){
-                    XChangeProperty(
-                        request.display,
-                        request.requestor,
-                        request.property,
-                        request.target,
-                        8,
-                        PropModeReplace,
-                        (unsigned char*)linuxvars.clipboard_outgoing.str,
-                        linuxvars.clipboard_outgoing.size
-                    );
+                    Atom atoms[] = {
+                        XA_STRING,
+                        linuxvars.atom_UTF8_STRING
+                    };
 
-                    response.property = request.property;
+                    if(request.target == linuxvars.atom_TARGETS){
+
+                        XChangeProperty(
+                            request.display,
+                            request.requestor,
+                            request.property,
+                            XA_ATOM,
+                            32,
+                            PropModeReplace,
+                            (u8*)atoms,
+                            ArrayCount(atoms)
+                        );
+
+                        response.property = request.property;
+
+                    } else {
+                        b32 found = false;
+                        for(int i = 0; i < ArrayCount(atoms); ++i){
+                            if(request.target == atoms[i]){
+                                found = true;
+                                break;
+                            }
+                        }
+
+                        if(found){
+                            XChangeProperty(
+                                request.display,
+                                request.requestor,
+                                request.property,
+                                request.target,
+                                8,
+                                PropModeReplace,
+                                (u8*)linuxvars.clipboard_outgoing.str,
+                                linuxvars.clipboard_outgoing.size
+                            );
+
+                            response.property = request.property;
+                        }
+                    }
                 }
 
                 XSendEvent(request.display, request.requestor, True, 0, (XEvent*)&response);
@@ -2108,6 +2370,7 @@ LinuxHandleX11Events(void)
                         should_step = 1;
                         linuxvars.new_clipboard = 1;
                         XFree(data);
+                        XDeleteProperty(linuxvars.XDisplay, linuxvars.XWindow, linuxvars.atom_CLIPBOARD);
                     }
                 }
             }break;
@@ -2115,7 +2378,6 @@ LinuxHandleX11Events(void)
             case Expose:
             case VisibilityNotify: {
                 should_step = 1;
-                linuxvars.redraw = 1;
             }break;
 
             default: {
@@ -2164,6 +2426,9 @@ LinuxHandleFileEvents()
 int
 main(int argc, char **argv)
 {
+    //
+    // System & Memory init
+    //
 
 #if FRED_INTERNAL
     linuxvars.internal_bubble.next = &linuxvars.internal_bubble;
@@ -2173,68 +2438,38 @@ main(int argc, char **argv)
     pthread_mutex_init(&linuxvars.DEBUG_sysmem_lock, 0);
 #endif
 
-    linuxvars.first = 1;
-
     char base_dir_mem[PATH_MAX];
     String base_dir = make_fixed_width_string(base_dir_mem);
 
     if (!LinuxLoadAppCode(&base_dir)){
-        // TODO(allen): Failed to load app code, serious problem.
+        fprintf(stderr, "Could not load 4ed_app.so! It should be in the same dir as 4ed.\n");
         return 99;
     }
 
-    System_Functions system_;
-    System_Functions *system = &system_;
-    linuxvars.system = system;
     LinuxLoadSystemCode();
+    LinuxLoadRenderCode();
 
-    linuxvars.coroutine_free = linuxvars.coroutine_data;
-    for (i32 i = 0; i+1 < ArrayCount(linuxvars.coroutine_data); ++i){
-        linuxvars.coroutine_data[i].next = linuxvars.coroutine_data + i + 1;
-    }
-
-    const size_t stack_size = Mbytes(16);
-    for (i32 i = 0; i < ArrayCount(linuxvars.coroutine_data); ++i){
-        linuxvars.coroutine_data[i].stack.ss_size = stack_size;
-        linuxvars.coroutine_data[i].stack.ss_sp = system_get_memory(stack_size);
-    }
-
-    memory_vars.vars_memory_size = Mbytes(2);
-    memory_vars.vars_memory = system_get_memory(memory_vars.vars_memory_size);
+    memory_vars.vars_memory_size   = Mbytes(2);
+    memory_vars.vars_memory        = system_get_memory(memory_vars.vars_memory_size);
     memory_vars.target_memory_size = Mbytes(512);
-    memory_vars.target_memory = system_get_memory(memory_vars.target_memory_size);
-    memory_vars.user_memory_size = Mbytes(2);
-    memory_vars.user_memory = system_get_memory(memory_vars.user_memory_size);
+    memory_vars.target_memory      = system_get_memory(memory_vars.target_memory_size);
+    memory_vars.user_memory_size   = Mbytes(2);
+    memory_vars.user_memory        = system_get_memory(memory_vars.user_memory_size);
 
-#if 0
-    memory_vars.vars_memory_size = Mbytes(2);
-    memory_vars.vars_memory = mmap(0, memory_vars.vars_memory_size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-    memory_vars.target_memory_size = Mbytes(512);
-    memory_vars.target_memory = mmap(0, memory_vars.target_memory_size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-    memory_vars.user_memory_size = Mbytes(2);
-    memory_vars.user_memory = mmap(0, memory_vars.user_memory_size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-#endif
-    
-    String current_directory;
-    i32 curdir_req, curdir_size;
-    char *curdir_mem;
+    linuxvars.target.max         = Mbytes(1);
+    linuxvars.target.push_buffer = (byte*)system_get_memory(linuxvars.target.max);
 
-    curdir_req = (1 << 9);
-    curdir_mem = (char*)system_get_memory(curdir_req);
-    for (; getcwd(curdir_mem, curdir_req) == 0 && curdir_req < (1 << 13);){
-        system_free_memory(curdir_mem);
-        curdir_req *= 4;
-        curdir_mem = (char*)system_get_memory(curdir_req);
+    //
+    // Read command line
+    //
+
+    char* cwd = get_current_dir_name();
+    if(!cwd){
+        perror("get_current_dir_name");
+        return 1;
     }
 
-    if (curdir_req >= (1 << 13)){
-        // TODO(allen): bullshit string APIs makin' me pissed
-        return 57;
-    }
-
-    for (curdir_size = 0; curdir_mem[curdir_size]; ++curdir_size);
-
-    current_directory = make_string(curdir_mem, curdir_size, curdir_req);
+    String current_directory = make_string_slowly(cwd);
 
     Command_Line_Parameters clparams;
     clparams.argv = argv;
@@ -2245,12 +2480,12 @@ main(int argc, char **argv)
     i32 output_size;
 
     output_size =
-    linuxvars.app.read_command_line(system,
-                                    &memory_vars,
-                                    current_directory,
-                                    &linuxvars.settings,
-                                    &files, &file_count,
-                                    clparams);
+        linuxvars.app.read_command_line(&linuxvars.system,
+                                        &memory_vars,
+                                        current_directory,
+                                        &linuxvars.settings,
+                                        &files, &file_count,
+                                        clparams);
 
     if (output_size > 0){
         // TODO(allen): crt free version
@@ -2260,16 +2495,12 @@ main(int argc, char **argv)
 
     sysshared_filter_real_files(files, file_count);
 
-    linuxvars.XDisplay = XOpenDisplay(0);
-
-    if(!linuxvars.XDisplay){
-        fprintf(stderr, "Can't open display!\n");
-        return 1;
-    }
-
-    LinuxKeycodeInit(linuxvars.XDisplay);
+    //
+    // Custom layer linkage
+    //
 
 #ifdef FRED_SUPER
+
     char *custom_file_default = "4coder_custom.so";
     sysshared_to_binary_path(&base_dir, custom_file_default);
     custom_file_default = base_dir.str;
@@ -2309,34 +2540,60 @@ main(int argc, char **argv)
                 fprintf(stderr, "Successfully loaded 4coder_custom.so\n");
             }
         }
+    } else {
+        const char* error = dlerror();
+        fprintf(stderr, "*** Failed to load 4coder_custom.so: %s\n", error ? error : "dlopen failed.");
     }
+
 #endif
 
     if (linuxvars.custom_api.get_bindings == 0){
         linuxvars.custom_api.get_bindings = get_bindings;
     }
 
+#if 0
+    if (linuxvars.custom_api.view_routine == 0){
+        linuxvars.custom_api.view_routine = view_routine;
+    }
+#endif
+
+    //
+    // Coroutine / Thread / Semaphore / Mutex init
+    //
+
+    linuxvars.coroutine_free = linuxvars.coroutine_data;
+    for (i32 i = 0; i+1 < ArrayCount(linuxvars.coroutine_data); ++i){
+        linuxvars.coroutine_data[i].next = linuxvars.coroutine_data + i + 1;
+    }
+
+    const size_t stack_size = Mbytes(2);
+    for (i32 i = 0; i < ArrayCount(linuxvars.coroutine_data); ++i){
+        linuxvars.coroutine_data[i].stack.ss_size = stack_size;
+        linuxvars.coroutine_data[i].stack.ss_sp = system_get_memory(stack_size);
+    }
+
     Thread_Context background[4] = {};
     linuxvars.groups[BACKGROUND_THREADS].threads = background;
     linuxvars.groups[BACKGROUND_THREADS].count = ArrayCount(background);
+    linuxvars.groups[BACKGROUND_THREADS].cancel_lock0 = CANCEL_LOCK0;
+    linuxvars.groups[BACKGROUND_THREADS].cancel_cv0 = 0;
 
     Thread_Memory thread_memory[ArrayCount(background)];
     linuxvars.thread_memory = thread_memory;
 
-    sem_init(&linuxvars.thread_semaphores[BACKGROUND_THREADS], 0, 0);
-
-    exchange_vars.thread.queues[BACKGROUND_THREADS].semaphore = 
-    LinuxSemToHandle(&linuxvars.thread_semaphores[BACKGROUND_THREADS]);
+    sem_init(&linuxvars.thread_semaphore, 0, 0);
+    linuxvars.queues[BACKGROUND_THREADS].semaphore = LinuxSemToHandle(&linuxvars.thread_semaphore);
 
     for(i32 i = 0; i < linuxvars.groups[BACKGROUND_THREADS].count; ++i){
         Thread_Context *thread = linuxvars.groups[BACKGROUND_THREADS].threads + i;
         thread->id = i + 1;
+        thread->group_id = BACKGROUND_THREADS;
 
         Thread_Memory *memory = linuxvars.thread_memory + i;
         *memory = thread_memory_zero();
         memory->id = thread->id;
 
-        thread->queue = &exchange_vars.thread.queues[BACKGROUND_THREADS];
+        thread->queue = &linuxvars.queues[BACKGROUND_THREADS];
         pthread_create(&thread->handle, NULL, &ThreadProc, thread);
     }
 
@@ -2344,210 +2601,42 @@ main(int argc, char **argv)
         pthread_mutex_init(linuxvars.locks + i, NULL);
     }
 
-    LinuxLoadRenderCode();
-    linuxvars.target.max = Mbytes(1);
-    linuxvars.target.push_buffer = (byte*)system_get_memory(linuxvars.target.max);
+    for(i32 i = 0; i < ArrayCount(linuxvars.conds); ++i){
+        pthread_cond_init(linuxvars.conds + i, NULL);
+    }
 
-    // NOTE(allen): Here begins the linux screen setup stuff.
-    // Behold the true nature of this wonderful OS:
-    // (thanks again to Casey for providing this stuff)
+    //
+    // X11 init
+    //
 
-    Colormap cmap;
-    XSetWindowAttributes swa;
+    linuxvars.XDisplay = XOpenDisplay(0);
+    if(!linuxvars.XDisplay){
+        fprintf(stderr, "Can't open display!\n");
+        return 1;
+    }
+
+#define LOAD_ATOM(x) linuxvars.atom_##x = XInternAtom(linuxvars.XDisplay, #x, False);
+
+    LOAD_ATOM(TARGETS);
+    LOAD_ATOM(CLIPBOARD);
+    LOAD_ATOM(UTF8_STRING);
+    LOAD_ATOM(_NET_WM_STATE);
+    LOAD_ATOM(_NET_WM_STATE_MAXIMIZED_HORZ);
+    LOAD_ATOM(_NET_WM_STATE_MAXIMIZED_VERT);
+    LOAD_ATOM(_NET_WM_PING);
+    LOAD_ATOM(_NET_WM_WINDOW_TYPE);
+    LOAD_ATOM(_NET_WM_WINDOW_TYPE_NORMAL);
+    LOAD_ATOM(_NET_WM_PID);
+    LOAD_ATOM(WM_DELETE_WINDOW);
+
+#undef LOAD_ATOM
+
     int WinWidth, WinHeight;
-    b32 window_setup_success = 0;
-
-    if (linuxvars.settings.set_window_size){
-        WinWidth = linuxvars.settings.window_w;
-        WinHeight = linuxvars.settings.window_h;
-    } else {
-        WinWidth = 800;
-        WinHeight = 600;
-    }
-
-    int XScreenCount = ScreenCount(linuxvars.XDisplay);
-    glx_config_result Config = {};
-
-    if(!GLXCanUseFBConfig(linuxvars.XDisplay)){
-        fprintf(stderr, "Your GLX version is too old.\n");
-        exit(1);
-    }
-
-    // TODO(inso): maybe should try the default screen first? or only the default without iterating.
-
-    for(int XScreenIndex = 0;
-        XScreenIndex < XScreenCount;
-        ++XScreenIndex)
-    {
-        Screen *XScreen = ScreenOfDisplay(linuxvars.XDisplay, XScreenIndex);
-
-        i32 ScrnWidth, ScrnHeight;
-        ScrnWidth = WidthOfScreen(XScreen);
-        ScrnHeight = HeightOfScreen(XScreen);
-
-        if (ScrnWidth + 50 < WinWidth) WinWidth = ScrnWidth + 50;
-        if (ScrnHeight + 50 < WinHeight) WinHeight = ScrnHeight + 50;
-
-        Config = ChooseGLXConfig(linuxvars.XDisplay, XScreenIndex);
-        if(Config.Found)
-        {
-            swa.colormap = cmap = XCreateColormap(linuxvars.XDisplay,
-                                                  RootWindow(linuxvars.XDisplay, Config.BestInfo.screen ), 
-                                                  Config.BestInfo.visual, AllocNone);
-            swa.background_pixmap = None;
-            swa.border_pixel = 0;
-            swa.event_mask = StructureNotifyMask;
-
-            linuxvars.XWindow =
-                XCreateWindow(linuxvars.XDisplay,
-                              RootWindow(linuxvars.XDisplay, Config.BestInfo.screen),
-                              0, 0, WinWidth, WinHeight,
-                              0, Config.BestInfo.depth, InputOutput,
-                              Config.BestInfo.visual,
-                              CWBorderPixel|CWColormap|CWEventMask, &swa);
-
-            if(linuxvars.XWindow)
-            {
-                window_setup_success = 1;
-                break;
-            }
-        }
-    }
-
-    if (!window_setup_success){
-        fprintf(stderr, "Error creating window.\n");
-        exit(1);
-    }
-
-    //NOTE(inso): Set the window's type to normal
-    Atom _NET_WM_WINDOW_TYPE = XInternAtom(linuxvars.XDisplay, "_NET_WM_WINDOW_TYPE", False);
-    Atom _NET_WIN_TYPE_NORMAL = XInternAtom(linuxvars.XDisplay, "_NET_WM_WINDOW_TYPE_NORMAL", False);
-    XChangeProperty(
-        linuxvars.XDisplay,
-        linuxvars.XWindow,
-        _NET_WM_WINDOW_TYPE,
-        XA_ATOM,
-        32,
-        PropModeReplace,
-        (unsigned char*)&_NET_WIN_TYPE_NORMAL,
-        1
-    );
-
-    //NOTE(inso): window managers want the PID as a window property for some reason.
-    Atom _NET_WM_PID = XInternAtom(linuxvars.XDisplay, "_NET_WM_PID", False);
-    pid_t pid = getpid();
-    XChangeProperty(
-        linuxvars.XDisplay,
-        linuxvars.XWindow,
-        _NET_WM_PID,
-        XA_CARDINAL,
-        32,
-        PropModeReplace,
-        (unsigned char*)&pid,
-        1
-    );
-
-#define WINDOW_NAME "4coder 4linux: " VERSION
-
-    //NOTE(inso): set wm properties
-    XStoreName(linuxvars.XDisplay, linuxvars.XWindow, WINDOW_NAME);
-
-    char* win_name_list[] = { WINDOW_NAME };
-    XTextProperty win_name;
-
-    XStringListToTextProperty(win_name_list, 1, &win_name);
-
-    XSizeHints *sz_hints = XAllocSizeHints();
-    XWMHints   *wm_hints = XAllocWMHints();
-    XClassHint *cl_hints = XAllocClassHint();
-
-    if(linuxvars.settings.set_window_pos){
-        sz_hints->flags |= USPosition;
-        sz_hints->x = linuxvars.settings.window_x;
-        sz_hints->y = linuxvars.settings.window_y;
-    }
-
-    wm_hints->flags |= InputHint;
-    wm_hints->input = True;
-
-    cl_hints->res_name = "4coder";
-    cl_hints->res_class = "4coder";
-
-    XSetWMProperties(
-        linuxvars.XDisplay,
-        linuxvars.XWindow,
-        &win_name,
-        NULL,
-        argv,
-        argc,
-        sz_hints,
-        wm_hints,
-        cl_hints
-    );
-
-    XFree(sz_hints);
-    XFree(wm_hints);
-    XFree(cl_hints);
-
-    XFree(win_name.value);
-
-    LinuxSetIcon(linuxvars.XDisplay, linuxvars.XWindow);
-
-    //NOTE(inso): make the window visible
-    XMapWindow(linuxvars.XDisplay, linuxvars.XWindow);
-
-    Init_Input_Result input_result = 
-    InitializeXInput(linuxvars.XDisplay, linuxvars.XWindow);
-
-    linuxvars.input_method = input_result.input_method;
-    linuxvars.input_style = input_result.best_style;
-    linuxvars.input_context = input_result.xic;
-
-    b32 IsLegacy = false;
-    GLXContext GLContext =
-    InitializeOpenGLContext(linuxvars.XDisplay, linuxvars.XWindow, Config.BestConfig, IsLegacy);
-
-    XWindowAttributes WinAttribs;
-    if(XGetWindowAttributes(linuxvars.XDisplay, linuxvars.XWindow, &WinAttribs))
-    {
-        WinWidth = WinAttribs.width;
-        WinHeight = WinAttribs.height;
-    }
-
-    XRaiseWindow(linuxvars.XDisplay, linuxvars.XWindow);
-    XSync(linuxvars.XDisplay, False);
-
-    if (linuxvars.settings.set_window_pos){
-        XMoveWindow(
-            linuxvars.XDisplay,
-            linuxvars.XWindow,
-            linuxvars.settings.window_x,
-            linuxvars.settings.window_y
-        );
-    }
-
-    Cursor xcursors[APP_MOUSE_CURSOR_COUNT] = {
-        None,
-        XCreateFontCursor(linuxvars.XDisplay, XC_arrow),
-        XCreateFontCursor(linuxvars.XDisplay, XC_xterm),
-        XCreateFontCursor(linuxvars.XDisplay, XC_sb_h_double_arrow),
-        XCreateFontCursor(linuxvars.XDisplay, XC_sb_v_double_arrow)
-    };
-
-    XSetICFocus(linuxvars.input_context);
-
-    linuxvars.atom_CLIPBOARD = XInternAtom(linuxvars.XDisplay, "CLIPBOARD", False);
-    linuxvars.atom_UTF8_STRING = XInternAtom(linuxvars.XDisplay, "UTF8_STRING", False);
-    linuxvars.atom_NET_WM_STATE = XInternAtom(linuxvars.XDisplay, "_NET_WM_STATE", False);
-    linuxvars.atom_NET_WM_STATE_MAXIMIZED_HORZ = XInternAtom(linuxvars.XDisplay, "_NET_WM_STATE_MAXIMIZED_HORZ", False);
-    linuxvars.atom_NET_WM_STATE_MAXIMIZED_VERT = XInternAtom(linuxvars.XDisplay, "_NET_WM_STATE_MAXIMIZED_VERT", False);
-
-    if (linuxvars.settings.maximize_window){
-        LinuxMaximizeWindow(linuxvars.XDisplay, linuxvars.XWindow, 1);
+    if(!LinuxX11WindowInit(argc, argv, &WinWidth, &WinHeight)){
+        return 1;
     }
 
     int xfixes_version_unused, xfixes_err_unused;
-
     linuxvars.has_xfixes = XQueryExtension(
         linuxvars.XDisplay,
         "XFIXES",
@@ -2563,22 +2652,51 @@ main(int argc, char **argv)
             linuxvars.atom_CLIPBOARD,
             XFixesSetSelectionOwnerNotifyMask
         );
+    } else {
+        fputs("Your X server doesn't support XFIXES, mention this fact if you report any clipboard-related issues.\n", stderr);
     }
 
-    linuxvars.atom_WM_DELETE_WINDOW = XInternAtom(linuxvars.XDisplay, "WM_DELETE_WINDOW", False);
-    linuxvars.atom_NET_WM_PING = XInternAtom(linuxvars.XDisplay, "_NET_WM_PING", False);
+    Init_Input_Result input_result =
+        LinuxInputInit(linuxvars.XDisplay, linuxvars.XWindow);
 
-    Atom wm_protos[] = {
-        linuxvars.atom_WM_DELETE_WINDOW,
-        linuxvars.atom_NET_WM_PING
+    linuxvars.input_method = input_result.input_method;
+    linuxvars.input_style = input_result.best_style;
+    linuxvars.input_context = input_result.xic;
+
+    LinuxKeycodeInit(linuxvars.XDisplay);
+
+    Cursor xcursors[APP_MOUSE_CURSOR_COUNT] = {
+        None,
+        XCreateFontCursor(linuxvars.XDisplay, XC_arrow),
+        XCreateFontCursor(linuxvars.XDisplay, XC_xterm),
+        XCreateFontCursor(linuxvars.XDisplay, XC_sb_h_double_arrow),
+        XCreateFontCursor(linuxvars.XDisplay, XC_sb_v_double_arrow)
     };
-    XSetWMProtocols(linuxvars.XDisplay, linuxvars.XWindow, wm_protos, 2);
 
-    linuxvars.app.init(linuxvars.system, &linuxvars.target, &memory_vars, &exchange_vars,
-                       linuxvars.clipboard_contents, current_directory,
-                       linuxvars.custom_api);
+    //
+    // DPI
+    //
 
-    LinuxResizeTarget(WinWidth, WinHeight);
+#if SUPPORT_DPI
+    {
+        int scr = DefaultScreen(linuxvars.XDisplay);
+
+        int dw = DisplayWidth(linuxvars.XDisplay, scr);
+        int dh = DisplayHeight(linuxvars.XDisplay, scr);
+
+        int dw_mm = DisplayWidthMM(linuxvars.XDisplay, scr);
+        int dh_mm = DisplayHeightMM(linuxvars.XDisplay, scr);
+
+        linuxvars.dpi_x = dw_mm ? dw / (dw_mm / 25.4) : 96;
+        linuxvars.dpi_y = dh_mm ? dh / (dh_mm / 25.4) : 96;
+
+        fprintf(stderr, "%dx%d - %dmmx%dmm DPI: %dx%d\n", dw, dh, dw_mm, dh_mm, linuxvars.dpi_x, linuxvars.dpi_y);
+    }
+#endif
+
+    //
+    // Epoll init
+    //
 
     linuxvars.x11_fd        = ConnectionNumber(linuxvars.XDisplay);
     linuxvars.inotify_fd    = inotify_init1(IN_NONBLOCK);
@@ -2604,13 +2722,45 @@ main(int argc, char **argv)
         epoll_ctl(linuxvars.epoll, EPOLL_CTL_ADD, linuxvars.step_timer_fd, &e);
     }
 
+    //
+    // App init
+    //
+
+    XAddConnectionWatch(linuxvars.XDisplay, &LinuxX11ConnectionWatch, NULL);
+
+    linuxvars.app.init(&linuxvars.system,
+                       &linuxvars.target,
+                       &memory_vars,
+                       linuxvars.clipboard_contents,
+                       current_directory,
+                       linuxvars.custom_api);
+
+    LinuxResizeTarget(WinWidth, WinHeight);
+
+    //
+    // Main loop
+    //
+
+    system_acquire_lock(FRAME_LOCK);
+
     LinuxScheduleStep();
+
     linuxvars.keep_running = 1;
+    linuxvars.input.first_step = 1;
+    linuxvars.input.dt = (frame_useconds / 1000000.f);
 
     while(1){
 
+        if(XEventsQueued(linuxvars.XDisplay, QueuedAlready)){
+            LinuxHandleX11Events();
+        }
+
+        system_release_lock(FRAME_LOCK);
+
         struct epoll_event events[16];
         int num_events = epoll_wait(linuxvars.epoll, events, ArrayCount(events), -1);
+
+        system_acquire_lock(FRAME_LOCK);
 
         if(num_events == -1){
             if(errno != EINTR){
@@ -2619,14 +2769,20 @@ main(int argc, char **argv)
             continue;
         }
 
-        system_acquire_lock(FRAME_LOCK);
-
         b32 do_step = 0;
 
         for(int i = 0; i < num_events; ++i){
-            switch(events[i].data.u64){
+
+            int fd   = events[i].data.u64 & UINT32_MAX;
+            u64 type = events[i].data.u64 & ~fd;
+
+            switch(type){
                 case LINUX_4ED_EVENT_X11: {
                     LinuxHandleX11Events();
+                } break;
+
+                case LINUX_4ED_EVENT_X11_INTERNAL: {
+                    XProcessInternalConnection(linuxvars.XDisplay, fd);
                 } break;
 
                 case LINUX_4ED_EVENT_FILE: {
@@ -2662,12 +2818,9 @@ main(int argc, char **argv)
         }
 
         if(do_step){
-            linuxvars.last_step = system_time();
+            linuxvars.last_step = system_now_time_stamp();
 
-            // TODO(inso): not all events should require a redraw?
-            linuxvars.redraw = 1;
-
-            if(linuxvars.first || !linuxvars.has_xfixes){
+            if(linuxvars.input.first_step || !linuxvars.has_xfixes){
                 XConvertSelection(
                     linuxvars.XDisplay,
                     linuxvars.atom_CLIPBOARD,
@@ -2682,24 +2835,18 @@ main(int argc, char **argv)
             result.mouse_cursor_type = APP_MOUSE_CURSOR_DEFAULT;
             result.trying_to_kill = !linuxvars.keep_running;
 
-            String clipboard = {};
             if(linuxvars.new_clipboard){
-                clipboard = linuxvars.clipboard_contents;
+                linuxvars.input.clipboard = linuxvars.clipboard_contents;
                 linuxvars.new_clipboard = 0;
+            } else {
+                linuxvars.input.clipboard = string_zero();
             }
 
-            f32 dt = frame_useconds / 1000000.f;
-
             linuxvars.app.step(
-                linuxvars.system,
-                &linuxvars.key_data,
-                &linuxvars.mouse_data,
+                &linuxvars.system,
                 &linuxvars.target,
                 &memory_vars,
-                &exchange_vars,
-                clipboard,
-                dt,
-                linuxvars.first,
+                &linuxvars.input,
                 &result
             );
 
@@ -2710,32 +2857,25 @@ main(int argc, char **argv)
             }
 
             if(result.animating){
-                linuxvars.redraw = 1;
                 LinuxScheduleStep();
             }
 
-            if(linuxvars.redraw){
-                LinuxRedrawTarget();
-                linuxvars.redraw = 0;
-            }
+            LinuxRedrawTarget();
 
-            if(result.mouse_cursor_type != linuxvars.cursor){
+            if(result.mouse_cursor_type != linuxvars.cursor && !linuxvars.input.mouse.l){
                 Cursor c = xcursors[result.mouse_cursor_type];
                 XDefineCursor(linuxvars.XDisplay, linuxvars.XWindow, c);
                 linuxvars.cursor = result.mouse_cursor_type;
             }
 
-            linuxvars.first = 0;
-            linuxvars.redraw = 0;
-            linuxvars.key_data = key_input_data_zero();
-            linuxvars.mouse_data.press_l = 0;
-            linuxvars.mouse_data.release_l = 0;
-            linuxvars.mouse_data.press_r = 0;
-            linuxvars.mouse_data.release_r = 0;
-            linuxvars.mouse_data.wheel = 0;
+            linuxvars.input.first_step = 0;
+            linuxvars.input.keys = key_input_data_zero();
+            linuxvars.input.mouse.press_l = 0;
+            linuxvars.input.mouse.release_l = 0;
+            linuxvars.input.mouse.press_r = 0;
+            linuxvars.input.mouse.release_r = 0;
+            linuxvars.input.mouse.wheel = 0;
         }
-
-        system_release_lock(FRAME_LOCK);
     }
 
     return 0;

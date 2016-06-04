@@ -88,36 +88,6 @@ typedef struct Buffer_Batch_State{
     int shift_total;
 } Buffer_Batch_State;
 
-#define BRFlag_Special_Character (1 << 0)
-
-typedef struct Buffer_Render_Item{
-    int index;
-    unsigned short glyphid;
-    unsigned short flags;
-    float x0, y0;
-    float x1, y1;
-} Buffer_Render_Item;
-
-inline_4tech void
-write_render_item(Buffer_Render_Item *item, int index, unsigned short glyphid,
-                  float x, float y, float w, float h){
-    item->index = index;
-    item->glyphid = glyphid;
-    item->x0 = x;
-    item->y0 = y;
-    item->x1 = x + w;
-    item->y1 = y + h;
-}
-
-inline_4tech float
-write_render_item_inline(Buffer_Render_Item *item, int index, unsigned short glyphid,
-                         float x, float y, float *advance_data, float h){
-    float ch_width;
-    ch_width = measure_character(advance_data, (char)glyphid);
-    write_render_item(item, index, glyphid, x, y, ch_width, h);
-    return(ch_width);
-}
-
 inline_4tech Full_Cursor
 make_cursor_hint(int line_index, int *starts, float *wrap_ys, float font_height){
     Full_Cursor hint;

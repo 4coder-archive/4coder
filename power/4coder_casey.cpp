@@ -104,12 +104,10 @@
 
 #include <math.h>
 #include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
 
 #include "../4coder_default_include.cpp"
-
-enum maps{
-    my_code_map
-};
 
 #ifndef Assert
 #define internal static

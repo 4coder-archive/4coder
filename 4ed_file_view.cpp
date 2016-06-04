@@ -121,22 +121,6 @@ view_mode_zero(){
     return(mode);
 }
 
-enum View_Widget_Type{
-    FWIDG_NONE,
-    FWIDG_TIMELINES,
-    // never below this
-    FWIDG_TYPE_COUNT
-};
-
-struct View_Widget{
-    View_Widget_Type type;
-    i32 height_;
-    struct{
-        b32 undo_line;
-        b32 history_line;
-    } timeline;
-};
-
 enum View_UI{
     VUI_None,
     VUI_Theme,
@@ -263,13 +247,13 @@ struct View{
     i32 current_color_editing;
     i32 color_cursor;
     
+    // misc
     i32 font_advance;
-    i32 font_height;
+    i32 line_height;
     
     View_Mode mode, next_mode;
-    View_Widget widget;
     Query_Set query_set;
-    i32 scrub_max;
+    f32 widget_height;
     
     b32 reinit_scrolling;
 };
@@ -452,7 +436,13 @@ file_save(System_Functions *system, Mem_Options *mem, Editing_File *file, char *
     }
     
     Temp_Memory temp = begin_temp_memory(&mem->part);
-    data = (char*)push_array(&mem->part, char, max);
+    char empty = 0;
+    if (max == 0){
+        data = &empty;
+    }
+    else{
+        data = (char*)push_array(&mem->part, char, max);
+    }
     Assert(data);
     
     if (dos_write_mode){
@@ -508,18 +498,18 @@ file_grow_starts_widths_as_needed(General_Memory *general, Buffer_Type *buffer, 
     i32 count = buffer->line_count;
     i32 target_lines = count + additional_lines;
     Assert(max == buffer->widths_max);
-
+    
     if (target_lines > max || max == 0){
         max = LargeRoundUp(target_lines + max, Kbytes(1));
-
+        
         f32 *new_widths = (f32*)general_memory_reallocate(
                                                           general, buffer->line_widths,
                                                           sizeof(f32)*count, sizeof(f32)*max, BUBBLE_WIDTHS);
-
+        
         i32 *new_lines = (i32*)general_memory_reallocate(
                                                          general, buffer->line_starts,
                                                          sizeof(i32)*count, sizeof(i32)*max, BUBBLE_STARTS);
-
+        
         if (new_lines){
             buffer->line_starts = new_lines;
             buffer->line_max = max;
@@ -535,7 +525,7 @@ file_grow_starts_widths_as_needed(General_Memory *general, Buffer_Type *buffer, 
             result = GROW_FAILED;
         }
     }
-
+    
     return(result);
 }
 
@@ -554,34 +544,34 @@ file_measure_starts_widths(System_Functions *system, General_Memory *general,
         TentativeAssert(buffer->line_starts);
         // TODO(allen): when unable to allocate?
     }
-
+    
     Buffer_Measure_Starts state = {};
     while (buffer_measure_starts_widths(&state, buffer, advance_data)){
         i32 count = state.count;
         i32 max = buffer->line_max;
         max = ((max + 1) << 1);
-
+        
         {
             i32 *new_lines = (i32*)general_memory_reallocate(
                                                              general, buffer->line_starts, sizeof(i32)*count, sizeof(i32)*max, BUBBLE_STARTS);
-
+            
             // TODO(allen): when unable to grow?
             TentativeAssert(new_lines);
             buffer->line_starts = new_lines;
             buffer->line_max = max;
         }
-
+        
         {
             f32 *new_lines = (f32*)
                 general_memory_reallocate(general, buffer->line_widths,
                                           sizeof(f32)*count, sizeof(f32)*max, BUBBLE_WIDTHS);
-
+            
             // TODO(allen): when unable to grow?
             TentativeAssert(new_lines);
             buffer->line_widths = new_lines;
             buffer->widths_max = max;
         }
-
+        
     }
     buffer->line_count = state.count;
     buffer->widths_count = state.count;
@@ -617,11 +607,11 @@ view_compute_lowest_line(View *view){
         }
         else{
             f32 wrap_y = view->file_data.line_wrap_y[last_line];
-            lowest_line = FLOOR32(wrap_y / view->font_height);
+            lowest_line = FLOOR32(wrap_y / view->line_height);
             f32 max_width = view_file_width(view);
-
+            
             Editing_File *file = view->file_data.file;
-            Assert(!file->state.is_dummy);
+            Assert(!file->is_dummy);
             f32 width = file->state.buffer.line_widths[last_line];
             i32 line_span = view_wrapped_line_span(width, max_width);
             lowest_line += line_span - 1;
@@ -630,13 +620,29 @@ view_compute_lowest_line(View *view){
     return lowest_line;
 }
 
+inline f32
+view_compute_max_target_y(i32 lowest_line, i32 line_height, f32 view_height){
+    f32 max_target_y = ((lowest_line+.5f)*line_height) - view_height*.5f;
+    max_target_y = clamp_bottom(0.f, max_target_y);
+    return(max_target_y);
+}
+
+inline f32
+view_compute_max_target_y(View *view){
+    i32 lowest_line = view_compute_lowest_line(view);
+    i32 line_height = view->line_height;
+    f32 view_height = view_file_height(view);
+    f32 max_target_y = view_compute_max_target_y(lowest_line, line_height, view_height);
+    return(max_target_y);
+}
+
 internal void
 view_measure_wraps(General_Memory *general, View *view){
     Buffer_Type *buffer;
-
+    
     buffer = &view->file_data.file->state.buffer;
     i32 line_count = buffer->line_count;
-
+    
     if (view->file_data.line_max < line_count){
         i32 max = view->file_data.line_max = LargeRoundUp(line_count, Kbytes(1));
         if (view->file_data.line_wrap_y){
@@ -648,27 +654,27 @@ view_measure_wraps(General_Memory *general, View *view){
                 general_memory_allocate(general, sizeof(f32)*max, BUBBLE_WRAPS);
         }
     }
-
-    f32 line_height = (f32)view->font_height;
+    
+    f32 line_height = (f32)view->line_height;
     f32 max_width = view_file_width(view);
     buffer_measure_wrap_y(buffer, view->file_data.line_wrap_y, line_height, max_width);
-
+    
     view->file_data.line_count = line_count;
 }
 
 internal void
 file_create_from_string(System_Functions *system, Models *models,
                         Editing_File *file, char *filename, String val, b8 read_only = 0){
-
+    
     Font_Set *font_set = models->font_set;
     Working_Set *working_set = &models->working_set;
     General_Memory *general = &models->mem.general;
     Partition *part = &models->mem.part;
     Buffer_Init_Type init;
     i32 page_size, scratch_size, init_success;
-
+    
     file->state = editing_file_state_zero();
-
+    
     init = buffer_begin_init(&file->state.buffer, val.str, val.size);
     for (; buffer_init_need_more(&init); ){
         page_size = buffer_init_page_size(&init);
@@ -677,29 +683,29 @@ file_create_from_string(System_Functions *system, Models *models,
         void *data = general_memory_allocate(general, page_size, BUBBLE_BUFFER);
         buffer_init_provide_page(&init, data, page_size);
     }
-
+    
     scratch_size = partition_remaining(part);
     Assert(scratch_size > 0);
     init_success = buffer_end_init(&init, part->base + part->pos, scratch_size);
     AllowLocal(init_success);
     Assert(init_success);
-
+    
     if (buffer_size(&file->state.buffer) < val.size){
         file->settings.dos_write_mode = 1;
     }
-
+    
     file_init_strings(file);
     file_set_name(working_set, file, (char*)filename);
-
+    
     file->state.font_id = models->global_font.font_id;
-
+    
     file_synchronize_times(system, file, filename);
-
+    
     Render_Font *font = get_font_info(font_set, file->state.font_id)->font;
     float *advance_data = 0;
     if (font) advance_data = font->advance_data;
     file_measure_starts_widths(system, general, &file->state.buffer, advance_data);
-
+    
     file->settings.read_only = read_only;
     if (!read_only){
         // TODO(allen): Redo undo system (if you don't mind the pun)
@@ -708,27 +714,27 @@ file_create_from_string(System_Functions *system, Models *models,
         file->state.undo.undo.strings = (u8*)general_memory_allocate(general, request_size, BUBBLE_UNDO_STRING);
         file->state.undo.undo.edit_max = request_size / sizeof(Edit_Step);
         file->state.undo.undo.edits = (Edit_Step*)general_memory_allocate(general, request_size, BUBBLE_UNDO);
-
+        
         file->state.undo.redo.max = request_size;
         file->state.undo.redo.strings = (u8*)general_memory_allocate(general, request_size, BUBBLE_UNDO_STRING);
         file->state.undo.redo.edit_max = request_size / sizeof(Edit_Step);
         file->state.undo.redo.edits = (Edit_Step*)general_memory_allocate(general, request_size, BUBBLE_UNDO);
-
+        
         file->state.undo.history.max = request_size;
         file->state.undo.history.strings = (u8*)general_memory_allocate(general, request_size, BUBBLE_UNDO_STRING);
         file->state.undo.history.edit_max = request_size / sizeof(Edit_Step);
         file->state.undo.history.edits = (Edit_Step*)general_memory_allocate(general, request_size, BUBBLE_UNDO);
-
+        
         file->state.undo.children.max = request_size;
         file->state.undo.children.strings = (u8*)general_memory_allocate(general, request_size, BUBBLE_UNDO_STRING);
         file->state.undo.children.edit_max = request_size / sizeof(Buffer_Edit);
         file->state.undo.children.edits = (Buffer_Edit*)general_memory_allocate(general, request_size, BUBBLE_UNDO);
-
+        
         file->state.undo.history_block_count = 1;
         file->state.undo.history_head_block = 0;
         file->state.undo.current_block_normal = 1;
     }
-
+    
     Hook_Function *open_hook = models->hooks[hook_open_file];
     models->buffer_param_indices[models->buffer_param_count++] = file->id.id;
     open_hook(&models->app_links);
@@ -762,24 +768,24 @@ file_close(System_Functions *system, General_Memory *general, Editing_File *file
     if (file->state.token_stack.tokens){
         general_memory_free(general, file->state.token_stack.tokens);
     }
-
+    
     Buffer_Type *buffer = &file->state.buffer;
     if (buffer->data){
         general_memory_free(general, buffer->data);
         general_memory_free(general, buffer->line_starts);
         general_memory_free(general, buffer->line_widths);
     }
-
+    
     if (file->state.undo.undo.edits){
         general_memory_free(general, file->state.undo.undo.strings);
         general_memory_free(general, file->state.undo.undo.edits);
-
+        
         general_memory_free(general, file->state.undo.redo.strings);
         general_memory_free(general, file->state.undo.redo.edits);
-
+        
         general_memory_free(general, file->state.undo.history.strings);
         general_memory_free(general, file->state.undo.history.edits);
-
+        
         general_memory_free(general, file->state.undo.children.strings);
         general_memory_free(general, file->state.undo.children.edits);
     }
@@ -793,27 +799,83 @@ internal
 Job_Callback_Sig(job_full_lex){
     Editing_File *file = (Editing_File*)data[0];
     General_Memory *general = (General_Memory*)data[1];
-
+    
     Cpp_File cpp_file;
     cpp_file.data = file->state.buffer.data;
     cpp_file.size = file->state.buffer.size;
-
+    
     Cpp_Token_Stack tokens;
     tokens.tokens = (Cpp_Token*)memory->data;
     tokens.max_count = memory->size / sizeof(Cpp_Token);
     tokens.count = 0;
-
-    Cpp_Lex_Data status = cpp_lex_file_nonalloc(cpp_file, &tokens);
-
-    while (!status.complete){
-        system->grow_thread_memory(memory);
-        tokens.tokens = (Cpp_Token*)memory->data;
-        tokens.max_count = memory->size / sizeof(Cpp_Token);
-        status = cpp_lex_file_nonalloc(cpp_file, &tokens, status);
-    }
-
+    
+#if 0
+    
+    b32 still_lexing = 1;
+    
+    Lex_Data lex = {0};
+    
+    do{
+        i32 result = 
+            cpp_lex_nonalloc(&lex, cpp_file.data, cpp_file.size, &tokens, 2048);
+        
+        switch (result){
+            case LexNeedChunk: Assert(!"Invalid Path"); break;
+            
+            case LexNeedTokenMemory:
+            if (system->check_cancel(thread)){
+                return;
+            }
+            system->grow_thread_memory(memory);
+            tokens.tokens = (Cpp_Token*)memory->data;
+            tokens.max_count = memory->size / sizeof(Cpp_Token);
+            break;
+            
+            case LexHitTokenLimit:
+            if (system->check_cancel(thread)){
+                return;
+            }
+            break;
+            
+            case LexFinished: still_lexing = 0; break;
+        }
+    } while (still_lexing);
+    
+#else
+    
+    Cpp_Lex_Data status = {};
+    
+    do{
+        for (i32 r = 2048; r > 0 && status.pos < cpp_file.size; --r){
+            Cpp_Lex_Data prev_lex = status;
+            Cpp_Read_Result step_result = cpp_lex_step(cpp_file, &status);
+            
+            if (step_result.has_result){
+                if (!cpp_push_token_nonalloc(&tokens, step_result.token)){
+                    status = prev_lex;
+                    system->grow_thread_memory(memory);
+                    tokens.tokens = (Cpp_Token*)memory->data;
+                    tokens.max_count = memory->size / sizeof(Cpp_Token);
+                }
+            }
+        }
+        
+        if (status.pos >= cpp_file.size){
+            status.complete = 1;
+        }
+        else{
+            if (system->check_cancel(thread)){
+                return;
+            }
+        }
+    } while(!status.complete);
+    
+#endif
+    
+    
+    
     i32 new_max = LargeRoundUp(tokens.count+1, Kbytes(1));
-
+    
     system->acquire_lock(FRAME_LOCK);
     {
         Assert(file->state.swap_stack.tokens == 0);
@@ -821,25 +883,25 @@ Job_Callback_Sig(job_full_lex){
             general_memory_allocate(general, new_max*sizeof(Cpp_Token), BUBBLE_TOKENS);
     }
     system->release_lock(FRAME_LOCK);
-
+    
     u8 *dest = (u8*)file->state.swap_stack.tokens;
     u8 *src = (u8*)tokens.tokens;
-
+    
     memcpy(dest, src, tokens.count*sizeof(Cpp_Token));
-
+    
     system->acquire_lock(FRAME_LOCK);
     {
-        file->state.token_stack.count = tokens.count;
-        file->state.token_stack.max_count = new_max;
-        if (file->state.token_stack.tokens)
-            general_memory_free(general, file->state.token_stack.tokens);
-        file->state.token_stack.tokens = file->state.swap_stack.tokens;
+        Cpp_Token_Stack *file_stack = &file->state.token_stack;
+        file_stack->count = tokens.count;
+        file_stack->max_count = new_max;
+        if (file_stack->tokens){
+            general_memory_free(general, file_stack->tokens);
+        }
+        file_stack->tokens = file->state.swap_stack.tokens;
         file->state.swap_stack.tokens = 0;
     }
     system->release_lock(FRAME_LOCK);
-
-    exchange->force_redraw = 1;
-
+    
     // NOTE(allen): These are outside the locked section because I don't
     // think getting these out of order will cause critical bugs, and I
     // want to minimize what's done in locked sections.
@@ -871,18 +933,17 @@ internal void
 file_first_lex_parallel(System_Functions *system,
                         General_Memory *general, Editing_File *file){
     file->settings.tokens_exist = 1;
-
-    if (file->state.is_loading == 0 && file->state.still_lexing == 0){
+    
+    if (file->is_loading == 0 && file->state.still_lexing == 0){
         Assert(file->state.token_stack.tokens == 0);
-
+        
         file->state.tokens_complete = 0;
         file->state.still_lexing = 1;
-
+        
         Job_Data job;
         job.callback = job_full_lex;
         job.data[0] = file;
         job.data[1] = general;
-        job.memory_request = Kbytes(64);
         file->state.lex_job = system->post_job(BACKGROUND_THREADS, job);
     }
 }
@@ -898,19 +959,19 @@ file_relex_parallel(System_Functions *system,
         file_first_lex_parallel(system, general, file);
         return;
     }
-
+    
     b32 inline_lex = !file->state.still_lexing;
     if (inline_lex){
         Cpp_File cpp_file;
         cpp_file.data = file->state.buffer.data;
         cpp_file.size = file->state.buffer.size;
-
+        
         Cpp_Token_Stack *stack = &file->state.token_stack;
-
+        
         Cpp_Relex_State state = 
             cpp_relex_nonalloc_start(cpp_file, stack,
                                      start_i, end_i, amount, 100);
-
+        
         Temp_Memory temp = begin_temp_memory(part);
         i32 relex_end;
         Cpp_Token_Stack relex_space;
@@ -923,43 +984,43 @@ file_relex_parallel(System_Functions *system,
         else{
             i32 delete_amount = relex_end - state.start_token_i;
             i32 shift_amount = relex_space.count - delete_amount;
-
+            
             if (shift_amount != 0){
-                int new_count = stack->count + shift_amount;
+                i32 new_count = stack->count + shift_amount;
                 if (new_count > stack->max_count){
-                    int new_max = LargeRoundUp(new_count, Kbytes(1));
+                    i32 new_max = LargeRoundUp(new_count, Kbytes(1));
                     stack->tokens = (Cpp_Token*)
                         general_memory_reallocate(general, stack->tokens,
                                                   stack->count*sizeof(Cpp_Token),
                                                   new_max*sizeof(Cpp_Token), BUBBLE_TOKENS);
                     stack->max_count = new_max;
                 }
-
-                int shift_size = stack->count - relex_end;
+                
+                i32 shift_size = stack->count - relex_end;
                 if (shift_size > 0){
                     Cpp_Token *old_base = stack->tokens + relex_end;
                     memmove(old_base + shift_amount, old_base,
                             sizeof(Cpp_Token)*shift_size);
                 }
-
+                
                 stack->count += shift_amount;
             }
-
+            
             memcpy(state.stack->tokens + state.start_token_i, relex_space.tokens,
                    sizeof(Cpp_Token)*relex_space.count);
         }
-
+        
         end_temp_memory(temp);
     }
-
+    
     if (!inline_lex){
         Cpp_Token_Stack *stack = &file->state.token_stack;
         Cpp_Get_Token_Result get_token_result = cpp_get_token(stack, end_i);
         i32 end_token_i = get_token_result.token_index;
-
+        
         if (end_token_i < 0) end_token_i = 0;
         else if (end_i > stack->tokens[end_token_i].start) ++end_token_i;
-
+        
         cpp_shift_token_starts(stack, end_token_i, amount);
         --end_token_i;
         if (end_token_i >= 0){
@@ -968,14 +1029,13 @@ file_relex_parallel(System_Functions *system,
                 token->size += amount;
             }
         }
-
+        
         file->state.still_lexing = 1;
-
+        
         Job_Data job;
         job.callback = job_full_lex;
         job.data[0] = file;
         job.data[1] = general;
-        job.memory_request = Kbytes(64);
         file->state.lex_job = system->post_job(BACKGROUND_THREADS, job);
     }
 }
@@ -1030,22 +1090,22 @@ undo_children_push(General_Memory *general, Small_Edit_Stack *children,
     i32 result = children->edit_count;
     if (children->edit_count + edit_count > children->edit_max)
         child_stack_grow_edits(general, children, edit_count);
-
+    
     if (children->size + string_size > children->max)
         child_stack_grow_string(general, children, string_size);
-
+    
     memcpy(children->edits + children->edit_count, edits, edit_count*sizeof(Buffer_Edit));
     memcpy(children->strings + children->size, strings, string_size);
-
+    
     Buffer_Edit *edit = children->edits + children->edit_count;
     i32 start_pos = children->size;
     for (i32 i = 0; i < edit_count; ++i, ++edit){
         edit->str_start += start_pos;
     }
-
+    
     children->edit_count += edit_count;
     children->size += string_size;
-
+    
     return result;
 }
 
@@ -1061,25 +1121,25 @@ file_post_undo(General_Memory *general, Editing_File *file,
         file->state.undo.redo.size = 0;
         file->state.undo.redo.edit_count = 0;
     }
-
+    
     Edit_Stack *undo = &file->state.undo.undo;
     Edit_Step *result = 0;
-
+    
     if (step.child_count == 0){
         if (step.edit.end - step.edit.start + undo->size > undo->max)
             undo_stack_grow_string(general, undo, step.edit.end - step.edit.start);
-
+        
         Buffer_Edit inv;
         buffer_invert_edit(&file->state.buffer, step.edit, &inv,
                            (char*)undo->strings, &undo->size, undo->max);
-
+        
         Edit_Step inv_step = {};
         inv_step.edit = inv;
         inv_step.pre_pos = step.pre_pos;
         inv_step.post_pos = step.post_pos;
         inv_step.can_merge = (b8)can_merge;
         inv_step.type = ED_UNDO;
-
+        
         b32 did_merge = 0;
         if (do_merge && undo->edit_count > 0){
             Edit_Step prev = undo->edits[undo->edit_count-1];
@@ -1091,7 +1151,7 @@ file_post_undo(General_Memory *general, Editing_File *file,
                 }
             }
         }
-
+        
         if (did_merge){
             result = undo->edits + (undo->edit_count-1);
             *result = inv_step;
@@ -1099,7 +1159,7 @@ file_post_undo(General_Memory *general, Editing_File *file,
         else{
             if (undo->edit_count == undo->edit_max)
                 undo_stack_grow_edits(general, undo);
-
+            
             result = undo->edits + (undo->edit_count++);
             *result = inv_step;
         }
@@ -1112,7 +1172,7 @@ file_post_undo(General_Memory *general, Editing_File *file,
         inv_step.special_type = step.special_type;
         inv_step.child_count = step.inverse_child_count;
         inv_step.inverse_child_count = step.child_count;
-
+        
         if (undo->edit_count == undo->edit_max)
             undo_stack_grow_edits(general, undo);
         result = undo->edits + (undo->edit_count++);
@@ -1134,21 +1194,21 @@ undo_stack_pop(Edit_Stack *stack){
 internal void
 file_post_redo(General_Memory *general, Editing_File *file, Edit_Step step){
     Edit_Stack *redo = &file->state.undo.redo;
-
+    
     if (step.child_count == 0){
         if (step.edit.end - step.edit.start + redo->size > redo->max)
             undo_stack_grow_string(general, redo, step.edit.end - step.edit.start);
-
+        
         Buffer_Edit inv;
         buffer_invert_edit(&file->state.buffer, step.edit, &inv,
                            (char*)redo->strings, &redo->size, redo->max);
-
+        
         Edit_Step inv_step = {};
         inv_step.edit = inv;
         inv_step.pre_pos = step.pre_pos;
         inv_step.post_pos = step.post_pos;
         inv_step.type = ED_REDO;
-
+        
         if (redo->edit_count == redo->edit_max)
             undo_stack_grow_edits(general, redo);
         redo->edits[redo->edit_count++] = inv_step;
@@ -1161,9 +1221,10 @@ file_post_redo(General_Memory *general, Editing_File *file, Edit_Step step){
         inv_step.special_type = step.special_type;
         inv_step.child_count = step.inverse_child_count;
         inv_step.inverse_child_count = step.child_count;
-
-        if (redo->edit_count == redo->edit_max)
+        
+        if (redo->edit_count == redo->edit_max){
             undo_stack_grow_edits(general, redo);
+        }
         redo->edits[redo->edit_count++] = inv_step;
     }
 }
@@ -1172,7 +1233,7 @@ inline void
 file_post_history_block(Editing_File *file, i32 pos){
     Assert(file->state.undo.history_head_block < pos);
     Assert(pos < file->state.undo.history.edit_count);
-
+    
     Edit_Step *history = file->state.undo.history.edits;
     Edit_Step *step = history + file->state.undo.history_head_block;
     step->next_block = pos;
@@ -1195,7 +1256,7 @@ file_post_history(General_Memory *general, Editing_File *file,
                   Edit_Step step, b32 do_merge, b32 can_merge){
     Edit_Stack *history = &file->state.undo.history;
     Edit_Step *result = 0;
-
+    
     persist Edit_Type reverse_types[4];
     if (reverse_types[ED_UNDO] == 0){
         reverse_types[ED_NORMAL] = ED_REVERSE_NORMAL;
@@ -1203,22 +1264,22 @@ file_post_history(General_Memory *general, Editing_File *file,
         reverse_types[ED_UNDO] = ED_REDO;
         reverse_types[ED_REDO] = ED_UNDO;
     }
-
+    
     if (step.child_count == 0){
         if (step.edit.end - step.edit.start + history->size > history->max)
             undo_stack_grow_string(general, history, step.edit.end - step.edit.start);
-
+        
         Buffer_Edit inv;
         buffer_invert_edit(&file->state.buffer, step.edit, &inv,
                            (char*)history->strings, &history->size, history->max);
-
+        
         Edit_Step inv_step = {};
         inv_step.edit = inv;
         inv_step.pre_pos = step.pre_pos;
         inv_step.post_pos = step.post_pos;
         inv_step.can_merge = (b8)can_merge;
         inv_step.type = reverse_types[step.type];
-
+        
         bool32 did_merge = 0;
         if (do_merge && history->edit_count > 0){
             Edit_Step prev = history->edits[history->edit_count-1];
@@ -1230,7 +1291,7 @@ file_post_history(General_Memory *general, Editing_File *file,
                 }
             }
         }
-
+        
         if (did_merge){
             result = history->edits + (history->edit_count-1);
         }
@@ -1239,7 +1300,7 @@ file_post_history(General_Memory *general, Editing_File *file,
                 undo_stack_grow_edits(general, history);
             result = history->edits + (history->edit_count++);
         }
-
+        
         *result = inv_step;
     }
     else{
@@ -1250,13 +1311,13 @@ file_post_history(General_Memory *general, Editing_File *file,
         inv_step.special_type = step.special_type;
         inv_step.inverse_child_count = step.child_count;
         inv_step.child_count = step.inverse_child_count;
-
+        
         if (history->edit_count == history->edit_max)
             undo_stack_grow_edits(general, history);
         result = history->edits + (history->edit_count++);
         *result = inv_step;
     }
-
+    
     return result;
 }
 
@@ -1265,12 +1326,12 @@ view_compute_cursor_from_pos(View *view, i32 pos){
     Editing_File *file = view->file_data.file;
     Models *models = view->persistent.models;
     Render_Font *font = get_font_info(models->font_set, models->global_font.font_id)->font;
-
+    
     Full_Cursor result = {};
     if (font){
         f32 max_width = view_file_width(view);
         result = buffer_cursor_from_pos(&file->state.buffer, pos, view->file_data.line_wrap_y,
-                                        max_width, (f32)view->font_height, font->advance_data);
+                                        max_width, (f32)view->line_height, font->advance_data);
     }
     return result;
 }
@@ -1280,14 +1341,14 @@ view_compute_cursor_from_unwrapped_xy(View *view, f32 seek_x, f32 seek_y, b32 ro
     Editing_File *file = view->file_data.file;
     Models *models = view->persistent.models;
     Render_Font *font = get_font_info(models->font_set, models->global_font.font_id)->font;
-
+    
     Full_Cursor result = {};
     if (font){
         f32 max_width = view_file_width(view);
         result = buffer_cursor_from_unwrapped_xy(&file->state.buffer, seek_x, seek_y,
-                                                 round_down, view->file_data.line_wrap_y, max_width, (f32)view->font_height, font->advance_data);
+                                                 round_down, view->file_data.line_wrap_y, max_width, (f32)view->line_height, font->advance_data);
     }
-
+    
     return result;
 }
 
@@ -1296,15 +1357,15 @@ view_compute_cursor_from_wrapped_xy(View *view, f32 seek_x, f32 seek_y, b32 roun
     Editing_File *file = view->file_data.file;
     Models *models = view->persistent.models;
     Render_Font *font = get_font_info(models->font_set, models->global_font.font_id)->font;
-
+    
     Full_Cursor result = {};
     if (font){
         f32 max_width = view_file_width(view);
         result = buffer_cursor_from_wrapped_xy(&file->state.buffer, seek_x, seek_y,
                                                round_down, view->file_data.line_wrap_y,
-                                               max_width, (f32)view->font_height, font->advance_data);
+                                               max_width, (f32)view->line_height, font->advance_data);
     }
-
+    
     return (result);
 }
 
@@ -1313,39 +1374,39 @@ view_compute_cursor_from_line_pos(View *view, i32 line, i32 pos){
     Editing_File *file = view->file_data.file;
     Models *models = view->persistent.models;
     Render_Font *font = get_font_info(models->font_set, models->global_font.font_id)->font;
-
+    
     Full_Cursor result = {};
     if (font){
         f32 max_width = view_file_width(view);
         result = buffer_cursor_from_line_character(&file->state.buffer, line, pos,
-                                                   view->file_data.line_wrap_y, max_width, (f32)view->font_height, font->advance_data);
+                                                   view->file_data.line_wrap_y, max_width, (f32)view->line_height, font->advance_data);
     }
-
+    
     return (result);
 }
 
 inline Full_Cursor
 view_compute_cursor(View *view, Buffer_Seek seek){
     Full_Cursor result = {};
-
+    
     switch(seek.type){
         case buffer_seek_pos:
         result = view_compute_cursor_from_pos(view, seek.pos);
         break;
-
+        
         case buffer_seek_wrapped_xy:
         result = view_compute_cursor_from_wrapped_xy(view, seek.x, seek.y);
         break;
-
+        
         case buffer_seek_unwrapped_xy:
         result = view_compute_cursor_from_unwrapped_xy(view, seek.x, seek.y);
         break;
-
+        
         case buffer_seek_line_char:
         result = view_compute_cursor_from_line_pos(view, seek.line, seek.character);
         break;
     }
-
+    
     return (result);
 }
 
@@ -1399,39 +1460,66 @@ inline f32
 view_get_cursor_y(View *view){
     Full_Cursor *cursor;
     f32 result;
-
+    
     if (view->file_data.show_temp_highlight) cursor = &view->file_data.temp_highlight;
     else cursor = &view->recent->cursor;
-
+    
     if (view->file_data.unwrapped_lines) result = cursor->unwrapped_y;
     else result = cursor->wrapped_y;
-
+    
     return result;
 }
 
-#define CursorMaxY_(m,h) ((m) - (h)*3)
-#define CursorMinY_(m,h) (-(m) + (h)*2)
+struct Cursor_Limits{
+    f32 min, max;
+    f32 delta;
+};
 
-#define CursorMaxY(m,h) (CursorMaxY_(m,h) > 0)?(CursorMaxY_(m,h)):(0)
-#define CursorMinY(m,h) (CursorMinY_(m,h) > 0)?(CursorMinY_(m,h)):(0)
+inline Cursor_Limits
+view_cursor_limits(View *view){
+    Cursor_Limits limits = {0};
+    
+    f32 line_height = (f32)view->line_height;
+    f32 visible_height = view_file_height(view);
+    
+    limits.max = visible_height - line_height*3.f;
+    limits.min = line_height * 2;
+    
+    if (limits.max - limits.min <= line_height){
+        if (visible_height >= line_height){
+            limits.max = visible_height - line_height;
+            limits.min = -line_height;
+        }
+        else{
+            limits.max = visible_height;
+            limits.min = -line_height;
+        }
+    }
+    
+    limits.max = (limits.max > 0)?(limits.max):(0);
+    limits.min = (limits.min > 0)?(limits.min):(0);
+    
+    limits.delta = clamp_top(line_height*3.f, (limits.max - limits.min)*.5f);
+    
+    return(limits);
+}
 
 internal void
-view_move_cursor_to_view(View *view){
-    f32 min_target_y = view->recent->scroll.min_y;
-    i32 line_height = view->font_height;
+view_move_cursor_to_view(View *view, GUI_Scroll_Vars scroll){
+    i32 line_height = view->line_height;
     f32 old_cursor_y = view_get_cursor_y(view);
     f32 cursor_y = old_cursor_y;
-    f32 target_y = view->recent->scroll.target_y;
-    f32 cursor_max_y = CursorMaxY(view_file_height(view), line_height);
-    f32 cursor_min_y = CursorMinY(min_target_y, line_height);
-
-    if (cursor_y > target_y + cursor_max_y){
-        cursor_y = target_y + cursor_max_y;
+    f32 target_y = scroll.target_y;
+    
+    Cursor_Limits limits = view_cursor_limits(view);
+    
+    if (cursor_y > target_y + limits.max){
+        cursor_y = target_y + limits.max;
     }
-    if (target_y != 0 && cursor_y < target_y + cursor_min_y){
-        cursor_y = target_y + cursor_min_y;
+    if (target_y != 0 && cursor_y < target_y + limits.min){
+        cursor_y = target_y + limits.min;
     }
-
+    
     if (cursor_y != old_cursor_y){
         if (cursor_y > old_cursor_y){
             cursor_y += line_height;
@@ -1446,10 +1534,6 @@ view_move_cursor_to_view(View *view){
 
 internal void
 view_move_view_to_cursor(View *view, GUI_Scroll_Vars *scroll){
-    f32 line_height = (f32)view->font_height;
-    f32 delta_y = 3.f*line_height;
-    
-    f32 max_visible_y = view_file_height(view);
     f32 max_x = view_file_width(view);
     
     f32 cursor_y = view_get_cursor_y(view);
@@ -1459,18 +1543,16 @@ view_move_view_to_cursor(View *view, GUI_Scroll_Vars *scroll){
     f32 target_y = scroll_vars.target_y;
     f32 target_x = scroll_vars.target_x;
     
-    f32 cursor_max_y = CursorMaxY(max_visible_y, line_height);
-    f32 cursor_min_y = CursorMinY(scroll_vars.min_y, line_height);
+    Cursor_Limits limits = view_cursor_limits(view);
     
-    if (cursor_y > target_y + cursor_max_y){
-        target_y = cursor_y - cursor_max_y + delta_y;
+    if (cursor_y > target_y + limits.max){
+        target_y = cursor_y - limits.max + limits.delta;
     }
-    if (cursor_y < target_y + cursor_min_y){
-        target_y = cursor_y - delta_y - cursor_min_y;
+    if (cursor_y < target_y + limits.min){
+        target_y = cursor_y - limits.delta - limits.min;
     }
     
-    if (target_y > scroll_vars.max_y) target_y = scroll_vars.max_y;
-    if (target_y < scroll_vars.min_y) target_y = view->recent->scroll.min_y;
+    target_y = clamp(0.f, target_y, scroll_vars.max_y);
     
     if (cursor_x < target_x){
         target_x = (f32)Max(0, cursor_x - max_x/2);
@@ -1501,7 +1583,7 @@ view_set_file(View *view, Editing_File *file, Models *models){
     // TODO(allen): This belongs somewhere else.
     fnt_info = get_font_info(models->font_set, models->global_font.font_id);
     view->font_advance = fnt_info->advance;
-    view->font_height = fnt_info->height;
+    view->line_height = fnt_info->height;
     
     file_view_nullify_file(view);
     view->file_data.file = file;
@@ -1530,7 +1612,8 @@ view_set_file(View *view, Editing_File *file, Models *models){
             if (file_is_ready(file)){
                 view_measure_wraps(&models->mem.general, view);
                 view->recent->cursor = view_compute_cursor_from_pos(view, view->recent->cursor.pos);
-                view->recent->scroll.max_y = 1000000000.f;
+                view->recent->scroll.max_y = view_compute_max_target_y(view);
+                
                 view_move_view_to_cursor(view, &view->recent->scroll);
             }
         }
@@ -1546,11 +1629,10 @@ view_set_file(View *view, Editing_File *file, Models *models){
             if (file_is_ready(file)){
                 view_measure_wraps(&models->mem.general, view);
                 view->recent->cursor = view_compute_cursor_from_pos(view, file->state.cursor_pos);
-                view->recent->scroll.max_y = 1000000000.f;
+                view->recent->scroll.max_y = view_compute_max_target_y(view);
+                
                 view_move_view_to_cursor(view, &view->recent->scroll);
-                if (!found_recent_entry){
-                    view->reinit_scrolling = 1;
-                }
+                view->reinit_scrolling = 1;
             }
         }
     }
@@ -1559,7 +1641,6 @@ view_set_file(View *view, Editing_File *file, Models *models){
 struct Relative_Scrolling{
     f32 scroll_x, scroll_y;
     f32 target_x, target_y;
-    f32 scroll_min_limit;
 };
 
 internal Relative_Scrolling
@@ -1569,7 +1650,6 @@ view_get_relative_scrolling(View *view){
     cursor_y = view_get_cursor_y(view);
     result.scroll_y = cursor_y - view->recent->scroll.scroll_y;
     result.target_y = cursor_y - view->recent->scroll.target_y;
-    result.scroll_min_limit = view->recent->scroll.min_y;
     return(result);
 }
 
@@ -1578,10 +1658,8 @@ view_set_relative_scrolling(View *view, Relative_Scrolling scrolling){
     f32 cursor_y;
     cursor_y = view_get_cursor_y(view);
     view->recent->scroll.scroll_y = cursor_y - scrolling.scroll_y;
-    view->recent->scroll.target_y = cursor_y - scrolling.target_y;
-    if (view->recent->scroll.target_y < scrolling.scroll_min_limit){
-        view->recent->scroll.target_y = scrolling.scroll_min_limit;
-    }
+    view->recent->scroll.target_y =
+        clamp_bottom(0.f, cursor_y - scrolling.target_y);
 }
 
 inline void
@@ -1616,21 +1694,16 @@ view_cursor_move(View *view, i32 line, i32 pos){
     view_cursor_move(view, cursor);
 }
 
-inline void
-view_set_widget(View *view, View_Widget_Type type){
-    view->widget.type = type;
-}
-
 
 inline i32_Rect
-view_widget_rect(View *view, i32 font_height){
+view_widget_rect(View *view, i32 line_height){
     Panel *panel = view->panel;
     i32_Rect result = panel->inner;
-
+    
     if (view->file_data.file){
-        result.y0 = result.y0 + font_height + 2;
+        result.y0 = result.y0 + line_height + 2;
     }
-
+    
     return(result);
 }
 
@@ -1645,30 +1718,30 @@ file_update_history_before_edit(Mem_Options *mem, Editing_File *file, Edit_Step 
                                 History_Mode history_mode){
     if (!file->state.undo.undo.edits) return;
     General_Memory *general = &mem->general;
-
+    
     b32 can_merge = 0, do_merge = 0;
     switch (step.type){
         case ED_NORMAL:
         {
             if (step.edit.len == 1 && str && char_is_alpha_numeric(*str)) can_merge = 1;
             if (step.edit.len == 1 && str && (can_merge || char_is_whitespace(*str))) do_merge = 1;
-
+            
             if (history_mode != hist_forward)
                 file_post_history(general, file, step, do_merge, can_merge);
             
             file_post_undo(general, file, step, do_merge, can_merge);
         }break;
-
+        
         case ED_REVERSE_NORMAL:
         {
             if (history_mode != hist_forward)
                 file_post_history(general, file, step, do_merge, can_merge);
-
+            
             undo_stack_pop(&file->state.undo.undo);
-
+            
             b32 restore_redos = 0;
             Edit_Step *redo_end = 0;
-
+            
             if (history_mode == hist_backward && file->state.undo.edit_history_cursor > 0){
                 restore_redos = 1;
                 redo_end = file->state.undo.history.edits + (file->state.undo.edit_history_cursor - 1);
@@ -1677,7 +1750,7 @@ file_update_history_before_edit(Mem_Options *mem, Editing_File *file, Edit_Step 
                 restore_redos = 1;
                 redo_end = file->state.undo.history.edits + (file->state.undo.history.edit_count - 1);
             }
-
+            
             if (restore_redos){
                 Edit_Step *redo_start = redo_end;
                 i32 steps_of_redo = 0;
@@ -1696,25 +1769,25 @@ file_update_history_before_edit(Mem_Options *mem, Editing_File *file, Edit_Step 
                     }
                     --redo_start;
                 }
-
+                
                 if (redo_start < redo_end){
                     ++redo_start;
                     ++redo_end;
-
+                    
                     if (file->state.undo.redo.edit_count + steps_of_redo > file->state.undo.redo.edit_max)
                         undo_stack_grow_edits(general, &file->state.undo.redo);
-
+                    
                     if (file->state.undo.redo.size + strings_of_redo > file->state.undo.redo.max)
                         undo_stack_grow_string(general, &file->state.undo.redo, strings_of_redo);
-
+                    
                     u8 *str_src = file->state.undo.history.strings + redo_end->edit.str_start;
                     u8 *str_dest_base = file->state.undo.redo.strings;
                     i32 str_redo_pos = file->state.undo.redo.size + strings_of_redo;
-
+                    
                     Edit_Step *edit_src = redo_end;
                     Edit_Step *edit_dest =
                         file->state.undo.redo.edits + file->state.undo.redo.edit_count + steps_of_redo;
-
+                    
                     i32 undo_count = 0;
                     for (i32 i = 0; i < steps_of_redo;){
                         --edit_src;
@@ -1725,13 +1798,13 @@ file_update_history_before_edit(Mem_Options *mem, Editing_File *file, Edit_Step 
                             }
                             else{
                                 ++i;
-
+                                
                                 --edit_dest;
                                 *edit_dest = *edit_src;
-
+                                
                                 str_redo_pos -= edit_dest->edit.len;
                                 edit_dest->edit.str_start = str_redo_pos;
-
+                                
                                 memcpy(str_dest_base + str_redo_pos, str_src, edit_dest->edit.len);
                             }
                         }
@@ -1740,13 +1813,13 @@ file_update_history_before_edit(Mem_Options *mem, Editing_File *file, Edit_Step 
                         }
                     }
                     Assert(undo_count == 0);
-
+                    
                     file->state.undo.redo.size += strings_of_redo;
                     file->state.undo.redo.edit_count += steps_of_redo;
                 }
             }
         }break;
-
+        
         case ED_UNDO:
         {
             if (history_mode != hist_forward)
@@ -1754,20 +1827,20 @@ file_update_history_before_edit(Mem_Options *mem, Editing_File *file, Edit_Step 
             file_post_redo(general, file, step);
             undo_stack_pop(&file->state.undo.undo);
         }break;
-
+        
         case ED_REDO:
         {
             if (step.edit.len == 1 && str && char_is_alpha_numeric(*str)) can_merge = 1;
             if (step.edit.len == 1 && str && (can_merge || char_is_whitespace(*str))) do_merge = 1;
-
+            
             if (history_mode != hist_forward)
                 file_post_history(general, file, step, do_merge, can_merge);
-
+            
             file_post_undo(general, file, step, do_merge, can_merge);
             undo_stack_pop(&file->state.undo.redo);
         }break;
     }
-
+    
     if (history_mode != hist_forward){
         if (step.type == ED_UNDO || step.type == ED_REDO){
             if (file->state.undo.current_block_normal){
@@ -1788,7 +1861,7 @@ file_update_history_before_edit(Mem_Options *mem, Editing_File *file, Edit_Step 
             file->state.undo.current_block_normal = !file->state.undo.current_block_normal;
         }
     }
-
+    
     if (history_mode == hist_normal){
         file->state.undo.edit_history_cursor = file->state.undo.history.edit_count;
     }
@@ -1804,8 +1877,9 @@ file_pre_edit_maintenance(System_Functions *system,
             general_memory_free(general, file->state.swap_stack.tokens);
             file->state.swap_stack.tokens = 0;
         }
+        file->state.still_lexing = 0;
     }
-    file->state.last_4ed_edit_time = system->time();
+    file->state.last_4ed_edit_time = system->now_time_stamp();
 }
 
 struct Cursor_Fix_Descriptor{
@@ -1827,19 +1901,19 @@ file_edit_cursor_fix(System_Functions *system,
                      Partition *part, General_Memory *general,
                      Editing_File *file, Editing_Layout *layout,
                      Cursor_Fix_Descriptor desc){
-
+    
     Full_Cursor temp_cursor;
     Temp_Memory cursor_temp = begin_temp_memory(part);
     i32 cursor_max = layout->panel_max_count * 2;
     Cursor_With_Index *cursors = push_array(part, Cursor_With_Index, cursor_max);
-
+    
     f32 y_offset = 0, y_position = 0;
     i32 cursor_count = 0;
-
+    
     View *view;
     Panel *panel, *used_panels;
     used_panels = &layout->used_sentinel;
-
+    
     for (dll_items(panel, used_panels)){
         view = panel->view;
         if (view->file_data.file == file){
@@ -1849,7 +1923,7 @@ file_edit_cursor_fix(System_Functions *system,
             write_cursor_with_index(cursors, &cursor_count, view->recent->scroll_i - 1);
         }
     }
-
+    
     if (cursor_count > 0){
         buffer_sort_cursors(cursors, cursor_count);
         if (desc.is_batch){
@@ -1862,20 +1936,20 @@ file_edit_cursor_fix(System_Functions *system,
                                   desc.shift_amount + (desc.end - desc.start));
         }
         buffer_unsort_cursors(cursors, cursor_count);
-
+        
         cursor_count = 0;
         for (dll_items(panel, used_panels)){
             view = panel->view;
             if (view && view->file_data.file == file){
                 view_cursor_move(view, cursors[cursor_count++].pos);
                 view->recent->preferred_x = view_get_cursor_x(view);
-
+                
                 view->recent->mark = cursors[cursor_count++].pos + 1;
                 i32 new_scroll_i = cursors[cursor_count++].pos + 1;
                 if (view->recent->scroll_i != new_scroll_i){
                     view->recent->scroll_i = new_scroll_i;
                     temp_cursor = view_compute_cursor_from_pos(view, view->recent->scroll_i);
-                    y_offset = MOD(view->recent->scroll.scroll_y, view->font_height);
+                    y_offset = MOD(view->recent->scroll.scroll_y, view->line_height);
                     
                     if (view->file_data.unwrapped_lines){
                         y_position = temp_cursor.unwrapped_y + y_offset;
@@ -1891,7 +1965,7 @@ file_edit_cursor_fix(System_Functions *system,
             }
         }
     }
-
+    
     end_temp_memory(cursor_temp);
 }
 
@@ -1900,26 +1974,26 @@ file_do_single_edit(System_Functions *system,
                     Models *models, Editing_File *file,
                     Edit_Spec spec, History_Mode history_mode, b32 use_high_permission = 0){
     if (!use_high_permission && file->settings.read_only) return;
-
+    
     Mem_Options *mem = &models->mem;
     Editing_Layout *layout = &models->layout;
-
+    
     // NOTE(allen): fixing stuff beforewards????
     file_update_history_before_edit(mem, file, spec.step, spec.str, history_mode);
     file_pre_edit_maintenance(system, &mem->general, file);
-        
+    
     // NOTE(allen): actual text replacement
     i32 shift_amount = 0;
     General_Memory *general = &mem->general;
     Partition *part = &mem->part;
-
+    
     char *str = (char*)spec.str;
     i32 start = spec.step.edit.start;
     i32 end = spec.step.edit.end;
     i32 str_len = spec.step.edit.len;
-
+    
     i32 scratch_size = partition_remaining(part);
-
+    
     Assert(scratch_size > 0);
     i32 request_amount = 0;
     Assert(end <= buffer_size(&file->state.buffer));
@@ -1932,42 +2006,42 @@ file_do_single_edit(System_Functions *system,
         void *old_data = buffer_edit_provide_memory(&file->state.buffer, new_data, request_amount);
         if (old_data) general_memory_free(general, old_data);
     }
-
+    
     Buffer_Type *buffer = &file->state.buffer;
     i32 line_start = buffer_get_line_index(&file->state.buffer, start);
     i32 line_end = buffer_get_line_index(&file->state.buffer, end);
     i32 replaced_line_count = line_end - line_start;
     i32 new_line_count = buffer_count_newlines(&file->state.buffer, start, start+str_len);
     i32 line_shift =  new_line_count - replaced_line_count;
-
+    
     Render_Font *font = get_font_info(models->font_set, file->state.font_id)->font;
-
+    
     file_grow_starts_widths_as_needed(general, buffer, line_shift);
     buffer_remeasure_starts(buffer, line_start, line_end, line_shift, shift_amount);
     buffer_remeasure_widths(buffer, font->advance_data, line_start, line_end, line_shift);
-
+    
     // NOTE(allen): update the views looking at this file
     Panel *panel, *used_panels;
     used_panels = &layout->used_sentinel;
-
+    
     for (dll_items(panel, used_panels)){
         View *view = panel->view;
         if (view->file_data.file == file){
             view_measure_wraps(general, view);
         }
     }
-
+    
 #if BUFFER_EXPERIMENT_SCALPEL <= 0
     // NOTE(allen): fixing stuff afterwards
     if (file->settings.tokens_exist)
         file_relex_parallel(system, mem, file, start, end, shift_amount);
 #endif
-
+    
     Cursor_Fix_Descriptor desc = {};
     desc.start = start;
     desc.end = end;
     desc.shift_amount = shift_amount;
-
+    
     file_edit_cursor_fix(system, part, general, file, layout, desc);
 }
 
@@ -1975,26 +2049,26 @@ internal void
 file_do_white_batch_edit(System_Functions *system, Models *models, Editing_File *file,
                          Edit_Spec spec, History_Mode history_mode, b32 use_high_permission = 0){
     if (!use_high_permission && file->settings.read_only) return;
-
+    
     Mem_Options *mem = &models->mem;
     Editing_Layout *layout = &models->layout;
-
+    
     // NOTE(allen): fixing stuff "beforewards"???    
     Assert(spec.str == 0);
     file_update_history_before_edit(mem, file, spec.step, 0, history_mode);
     file_pre_edit_maintenance(system, &mem->general, file);
-
+    
     // NOTE(allen): actual text replacement
     General_Memory *general = &mem->general;
     Partition *part = &mem->part;
-
+    
     u8 *str_base = file->state.undo.children.strings;
     i32 batch_size = spec.step.child_count;
     Buffer_Edit *batch = file->state.undo.children.edits + spec.step.first_child;
-
+    
     Assert(spec.step.first_child < file->state.undo.children.edit_count);
     Assert(batch_size >= 0);
-
+    
     i32 scratch_size = partition_remaining(part);
     Buffer_Batch_State state = {};
     i32 request_amount;
@@ -2008,7 +2082,7 @@ file_do_white_batch_edit(System_Functions *system, Models *models, Editing_File 
         void *old_data = buffer_edit_provide_memory(&file->state.buffer, new_data, request_amount);
         if (old_data) general_memory_free(general, old_data);
     }
-
+    
     // NOTE(allen): meta data
     {
         Buffer_Measure_Starts state = {};
@@ -2017,17 +2091,17 @@ file_do_white_batch_edit(System_Functions *system, Models *models, Editing_File 
         if (font) advance_data = font->advance_data;
         buffer_measure_starts_widths(&state, &file->state.buffer, advance_data);
     }
-
+    
     // NOTE(allen): cursor fixing
     {
         Cursor_Fix_Descriptor desc = {};
         desc.is_batch = 1;
         desc.batch = batch;
         desc.batch_size = batch_size;
-
+        
         file_edit_cursor_fix(system, part, general, file, layout, desc);
     }
-
+    
     // NOTE(allen): token fixing
     if (file->state.tokens_complete){
         Cpp_Token_Stack tokens = file->state.token_stack;
@@ -2065,7 +2139,7 @@ file_replace_range(System_Functions *system, Models *models, Editing_File *file,
     spec.step.type = ED_NORMAL;
     spec.step.edit.start =  start;
     spec.step.edit.end = end;
-
+    
     spec.step.edit.len = len;
     spec.step.pre_pos = file->state.cursor_pos;
     spec.step.post_pos = next_cursor;
@@ -2087,7 +2161,7 @@ view_replace_range(System_Functions *system, Models *models, View *view,
 inline void
 view_post_paste_effect(View *view, i32 ticks, i32 start, i32 size, u32 color){
     Editing_File *file = view->file_data.file;
-
+    
     file->state.paste_effect.start = start;
     file->state.paste_effect.end = start + size;
     file->state.paste_effect.color = color;
@@ -2110,25 +2184,25 @@ view_undo_redo(System_Functions *system,
                Models *models, View *view,
                Edit_Stack *stack, Edit_Type expected_type){
     Editing_File *file = view->file_data.file;
-
+    
     if (stack->edit_count > 0){
         Edit_Step step = stack->edits[stack->edit_count-1];
-
+        
         Assert(step.type == expected_type);
-
+        
         Edit_Spec spec = {};
         spec.step = step;
-
+        
         if (step.child_count == 0){
             spec.step.edit.str_start = 0;
             spec.str = stack->strings + step.edit.str_start;
-
+            
             file_do_single_edit(system, models, file, spec, hist_normal);
-
+            
             if (expected_type == ED_UNDO) view_cursor_move(view, step.pre_pos);
             else view_cursor_move(view, step.post_pos);
             view->recent->mark = view->recent->cursor.pos;
-
+            
             Style *style = main_style(models);
             view_post_paste_effect(view, 10, step.edit.start, step.edit.len,
                                    style->main.undo_color);
@@ -2162,9 +2236,9 @@ write_data(u8 *ptr, void *x, i32 size){
 internal void
 file_dump_history(System_Functions *system, Mem_Options *mem, Editing_File *file, char *filename){
     if (!file->state.undo.undo.edits) return;
-
+    
     i32 size = 0;
-
+    
     size += sizeof(i32);
     size += file->state.undo.undo.edit_count*sizeof(Edit_Step);
     size += sizeof(i32);
@@ -2173,7 +2247,7 @@ file_dump_history(System_Functions *system, Mem_Options *mem, Editing_File *file
     size += file->state.undo.history.edit_count*sizeof(Edit_Step);
     size += sizeof(i32);
     size += file->state.undo.children.edit_count*sizeof(Buffer_Edit);
-
+    
     size += sizeof(i32);
     size += file->state.undo.undo.size;
     size += sizeof(i32);
@@ -2182,7 +2256,7 @@ file_dump_history(System_Functions *system, Mem_Options *mem, Editing_File *file
     size += file->state.undo.history.size;
     size += sizeof(i32);
     size += file->state.undo.children.size;
-
+    
     Partition *part = &mem->part;
     i32 remaining = partition_remaining(part);
     if (size < remaining){
@@ -2197,17 +2271,17 @@ file_dump_history(System_Functions *system, Mem_Options *mem, Editing_File *file
         curs = write_data(curs, &file->state.undo.redo.size, 4);
         curs = write_data(curs, &file->state.undo.history.size, 4);
         curs = write_data(curs, &file->state.undo.children.size, 4);
-
+        
         curs = write_data(curs, file->state.undo.undo.edits, sizeof(Edit_Step)*file->state.undo.undo.edit_count);
         curs = write_data(curs, file->state.undo.redo.edits, sizeof(Edit_Step)*file->state.undo.redo.edit_count);
         curs = write_data(curs, file->state.undo.history.edits, sizeof(Edit_Step)*file->state.undo.history.edit_count);
         curs = write_data(curs, file->state.undo.children.edits, sizeof(Buffer_Edit)*file->state.undo.children.edit_count);
-
+        
         curs = write_data(curs, file->state.undo.undo.strings, file->state.undo.undo.size);
         curs = write_data(curs, file->state.undo.redo.strings, file->state.undo.redo.size);
         curs = write_data(curs, file->state.undo.history.strings, file->state.undo.history.size);
         curs = write_data(curs, file->state.undo.children.strings, file->state.undo.children.size);
-
+        
         Assert((i32)(curs - data) == size);
         system->save_file(filename, data, size);
     }
@@ -2217,9 +2291,9 @@ file_dump_history(System_Functions *system, Mem_Options *mem, Editing_File *file
 internal void
 view_history_step(System_Functions *system, Models *models, View *view, History_Mode history_mode){
     Assert(history_mode != hist_normal);
-
+    
     Editing_File *file = view->file_data.file;
-
+    
     b32 do_history_step = 0;
     Edit_Step step = {};
     if (history_mode == hist_backward){
@@ -2237,23 +2311,23 @@ view_history_step(System_Functions *system, Models *models, View *view, History_
             do_history_step = 1;
         }
     }
-
+    
     if (do_history_step){
         Edit_Spec spec;
         spec.step = step;
-
+        
         if (spec.step.child_count == 0){
             spec.step.edit.str_start = 0;
             spec.str = file->state.undo.history.strings + step.edit.str_start;
-
+            
             file_do_single_edit(system, models, file, spec, history_mode);
-
+            
             switch (spec.step.type){
                 case ED_NORMAL:
                 case ED_REDO:
                 view_cursor_move(view, step.post_pos);
                 break;
-
+                
                 case ED_REVERSE_NORMAL:
                 case ED_UNDO:
                 view_cursor_move(view, step.pre_pos);
@@ -2383,21 +2457,21 @@ file_compute_whitespace_edit(Mem_Options *mem, Editing_File *file, i32 cursor_po
                              Buffer_Edit *inverse_array, char *inv_str, i32 inv_max,
                              i32 edit_count){
     General_Memory *general = &mem->general;
-
+    
     i32 inv_str_pos = 0;
     Buffer_Invert_Batch state = {};
     if (buffer_invert_batch(&state, &file->state.buffer, edits, edit_count,
                             inverse_array, inv_str, &inv_str_pos, inv_max)){
         Assert(0);
     }
-
+    
     i32 first_child =
         undo_children_push(general, &file->state.undo.children,
                            edits, edit_count, (u8*)(str_base), str_size);
     i32 inverse_first_child =
         undo_children_push(general, &file->state.undo.children,
                            inverse_array, edit_count, (u8*)(inv_str), inv_str_pos);
-
+    
     Edit_Spec spec = {};
     spec.step.type = ED_NORMAL;
     spec.step.first_child = first_child;
@@ -2407,7 +2481,7 @@ file_compute_whitespace_edit(Mem_Options *mem, Editing_File *file, i32 cursor_po
     spec.step.inverse_child_count = edit_count;
     spec.step.pre_pos = cursor_pos;
     spec.step.post_pos = cursor_pos;
-
+    
     return spec;
 }
 
@@ -2415,26 +2489,26 @@ internal void
 view_clean_whitespace(System_Functions *system, Models *models, View *view){
     Mem_Options *mem = &models->mem;
     Editing_File *file = view->file_data.file;
-
+    
     Partition *part = &mem->part;
     i32 line_count = file->state.buffer.line_count;
     i32 edit_max = line_count * 2;
     i32 edit_count = 0;
-
-    Assert(file && !file->state.is_dummy);
-
+    
+    Assert(file && !file->is_dummy);
+    
     Temp_Memory temp = begin_temp_memory(part);
     Buffer_Edit *edits = push_array(part, Buffer_Edit, edit_max);
-
+    
     char *str_base = (char*)part->base + part->pos;
     i32 str_size = 0;
     for (i32 line_i = 0; line_i < line_count; ++line_i){
         i32 start = file->state.buffer.line_starts[line_i];
         Hard_Start_Result hard_start = 
             buffer_find_hard_start(&file->state.buffer, start, 4);
-
+        
         if (hard_start.all_whitespace) hard_start.indent_pos = 0;
-
+        
         if ((hard_start.all_whitespace && hard_start.char_pos > start) || !hard_start.all_space){
             Buffer_Edit new_edit;
             new_edit.str_start = str_size;
@@ -2448,22 +2522,22 @@ view_clean_whitespace(System_Functions *system, Models *models, View *view){
         }
         Assert(edit_count <= edit_max);
     }
-
+    
     if (edit_count > 0){
         Assert(buffer_batch_debug_sort_check(edits, edit_count));
-
+        
         // NOTE(allen): computing edit spec, doing batch edit
         Buffer_Edit *inverse_array = push_array(part, Buffer_Edit, edit_count);
         Assert(inverse_array);
-
+        
         char *inv_str = (char*)part->base + part->pos;
         Edit_Spec spec =
             file_compute_whitespace_edit(mem, file, view->recent->cursor.pos, edits, str_base, str_size,
                                          inverse_array, inv_str, part->max - part->pos, edit_count);
-
+        
         file_do_white_batch_edit(system, models, view->file_data.file, spec, hist_normal);
     }
-
+    
     end_temp_memory(temp);
 }
 
@@ -2476,7 +2550,7 @@ struct Indent_Options{
 struct Make_Batch_Result{
     char *str_base;
     i32 str_size;
-
+    
     Buffer_Edit *edits;
     i32 edit_max;
     i32 edit_count;
@@ -2487,12 +2561,12 @@ get_first_token_at_line(Buffer *buffer, Cpp_Token_Stack tokens, i32 line){
     Cpp_Token *result = 0;
     i32 start_pos = 0;
     Cpp_Get_Token_Result get_token = {0};
-
+    
     start_pos = buffer->line_starts[line];
     get_token = cpp_get_token(&tokens, start_pos);
     if (get_token.in_whitespace) get_token.token_index += 1;
     result = tokens.tokens + get_token.token_index;
-
+    
     return(result);
 }
 
@@ -2533,22 +2607,24 @@ struct Indent_Parse_State{
 internal i32
 compute_this_indent(Buffer *buffer, Indent_Parse_State indent,
                     Cpp_Token T, Cpp_Token prev_token, i32 line_i, i32 tab_width){
-
+    
     i32 previous_indent = indent.previous_line_indent;
     i32 this_indent = 0;
-
+    
     i32 this_line_start = buffer->line_starts[line_i];
     i32 next_line_start = 0;
-
+    
     if (line_i+1 < buffer->line_count){
         next_line_start = buffer->line_starts[line_i+1];
     }
     else{
         next_line_start = buffer_size(buffer);
     }
-
-    if ((prev_token.type == CPP_TOKEN_COMMENT || prev_token.type == CPP_TOKEN_STRING_CONSTANT) &&
-        prev_token.start <= this_line_start && prev_token.start + prev_token.size > this_line_start){
+    
+    if ((prev_token.type == CPP_TOKEN_COMMENT ||
+         prev_token.type == CPP_TOKEN_STRING_CONSTANT) &&
+        prev_token.start <= this_line_start &&
+        prev_token.start + prev_token.size > this_line_start){
         this_indent = previous_indent;
     }
     else{
@@ -2566,7 +2642,7 @@ compute_this_indent(Buffer *buffer, Indent_Parse_State indent,
                     default:
                     if (indent.current_indent > 0){
                         if (!(prev_token.flags & CPP_TFLAG_PP_BODY ||
-                                    prev_token.flags & CPP_TFLAG_PP_DIRECTIVE)){
+                              prev_token.flags & CPP_TFLAG_PP_DIRECTIVE)){
                             switch (prev_token.type){
                                 case CPP_TOKEN_BRACKET_OPEN:
                                 case CPP_TOKEN_BRACE_OPEN: case CPP_TOKEN_BRACE_CLOSE:
@@ -2581,20 +2657,22 @@ compute_this_indent(Buffer *buffer, Indent_Parse_State indent,
         }
         if (this_indent < 0) this_indent = 0;
     }
-
+    
     if (indent.paren_nesting > 0){
-        i32 level = indent.paren_nesting-1;
-        if (level >= ArrayCount(indent.paren_anchor_indent)){
-            level = ArrayCount(indent.paren_anchor_indent)-1;
+        if (prev_token.type != CPP_TOKEN_PARENTHESE_OPEN){
+            i32 level = indent.paren_nesting-1;
+            if (level >= ArrayCount(indent.paren_anchor_indent)){
+                level = ArrayCount(indent.paren_anchor_indent)-1;
+            }
+            this_indent = indent.paren_anchor_indent[level];
         }
-        this_indent = indent.paren_anchor_indent[level];
     }
     return(this_indent);
 }
 
 internal i32*
 get_line_indentation_marks(Partition *part, Buffer *buffer, Cpp_Token_Stack tokens,
-    i32 line_start, i32 line_end, i32 tab_width){
+                           i32 line_start, i32 line_end, i32 tab_width){
     
     i32 indent_mark_count = line_end - line_start;
     i32 *indent_marks = push_array(part, i32, indent_mark_count);
@@ -2623,12 +2701,12 @@ get_line_indentation_marks(Partition *part, Buffer *buffer, Cpp_Token_Stack toke
         i32 line = buffer_get_line_index(buffer, token->start);
         i32 start = buffer->line_starts[line];
         Hard_Start_Result hard_start = buffer_find_hard_start(buffer, start, tab_width);
-
+        
         indent.current_indent = hard_start.indent_pos;
-
+        
         Cpp_Token *start_token = get_first_token_at_line(buffer, tokens, line);
         Cpp_Token *brace_token = token;
-
+        
         if (start_token->type == CPP_TOKEN_PARENTHESE_OPEN){
             if (start_token == tokens.tokens){
                 found_safe_start_position = 1;
@@ -2639,7 +2717,7 @@ get_line_indentation_marks(Partition *part, Buffer *buffer, Cpp_Token_Stack toke
         }
         else{
             int close = 0;
-
+            
             for (token = brace_token; token >= start_token; --token){
                 switch(token->type){
                     case CPP_TOKEN_PARENTHESE_CLOSE:
@@ -2653,19 +2731,19 @@ get_line_indentation_marks(Partition *part, Buffer *buffer, Cpp_Token_Stack toke
             
             switch (close){
                 case 0: token = start_token; found_safe_start_position = 1; break;
-
+                
                 case CPP_TOKEN_PARENTHESE_CLOSE:
                 token = seek_matching_token_backwards(tokens, token-1,
                                                       CPP_TOKEN_PARENTHESE_OPEN,
                                                       CPP_TOKEN_PARENTHESE_CLOSE);
                 break;
-
+                
                 case CPP_TOKEN_BRACKET_CLOSE:
                 token = seek_matching_token_backwards(tokens, token-1,
                                                       CPP_TOKEN_BRACKET_OPEN,
                                                       CPP_TOKEN_BRACKET_CLOSE);
                 break;
-
+                
                 case CPP_TOKEN_BRACE_CLOSE:
                 token = seek_matching_token_backwards(tokens, token-1,
                                                       CPP_TOKEN_BRACE_OPEN,
@@ -2674,7 +2752,7 @@ get_line_indentation_marks(Partition *part, Buffer *buffer, Cpp_Token_Stack toke
             }
         }
     } while(found_safe_start_position == 0);
-
+    
     // NOTE(allen): Shift the array so that line_i can just operate in
     // it's natural value range.
     indent_marks -= line_start;
@@ -2689,6 +2767,7 @@ get_line_indentation_marks(Partition *part, Buffer *buffer, Cpp_Token_Stack toke
     switch (token->type){
         case CPP_TOKEN_BRACKET_OPEN: indent.current_indent += tab_width; break;
         case CPP_TOKEN_BRACE_OPEN: indent.current_indent += tab_width; break;
+        case CPP_TOKEN_PARENTHESE_OPEN: indent.current_indent += tab_width; break;
     }
     
     indent.previous_line_indent = indent.current_indent;
@@ -2705,7 +2784,7 @@ get_line_indentation_marks(Partition *part, Buffer *buffer, Cpp_Token_Stack toke
             T.start = buffer_size(buffer);
             T.flags = 0;
         }
-
+        
         for (; T.start >= next_line_start && line_i < line_end;){
             if (line_i+1 < buffer->line_count){
                 next_line_start = buffer->line_starts[line_i+1];
@@ -2717,7 +2796,19 @@ get_line_indentation_marks(Partition *part, Buffer *buffer, Cpp_Token_Stack toke
             // TODO(allen): Since this is called in one place we can probably go back
             // to directly passing in next_line_start and this_line_start.
             i32 this_indent = compute_this_indent(buffer, indent, T, prev_token, line_i, tab_width);
-
+            
+            // NOTE(allen): Rebase the paren anchor if the first token
+            // after an open paren is on the next line.
+            if (indent.paren_nesting > 0){
+                if (prev_token.type == CPP_TOKEN_PARENTHESE_OPEN){
+                    i32 level = indent.paren_nesting-1;
+                    if (level >= ArrayCount(indent.paren_anchor_indent)){
+                        level = ArrayCount(indent.paren_anchor_indent)-1;
+                    }
+                    indent.paren_anchor_indent[level] = this_indent;
+                }
+            }
+            
             if (line_i >= line_start){
                 indent_marks[line_i] = this_indent;
             }
@@ -2740,7 +2831,7 @@ get_line_indentation_marks(Partition *part, Buffer *buffer, Cpp_Token_Stack toke
                     i32 char_pos = T.start - start;
                     
                     Hard_Start_Result hard_start = buffer_find_hard_start(
-                        buffer, start, tab_width);
+                                                                          buffer, start, tab_width);
                     
                     i32 line_pos = hard_start.char_pos - start;
                     
@@ -2750,7 +2841,7 @@ get_line_indentation_marks(Partition *part, Buffer *buffer, Cpp_Token_Stack toke
                 ++indent.paren_nesting;
             }
             break;
-
+            
             case CPP_TOKEN_PARENTHESE_CLOSE:
             if (!(T.flags & CPP_TFLAG_PP_BODY)){
                 --indent.paren_nesting;
@@ -2769,7 +2860,7 @@ get_line_indentation_marks(Partition *part, Buffer *buffer, Cpp_Token_Stack toke
 
 internal Make_Batch_Result
 make_batch_from_indent_marks(Partition *part, Buffer *buffer, i32 line_start, i32 line_end,
-    i32 *indent_marks, Indent_Options opts){
+                             i32 *indent_marks, Indent_Options opts){
     
     Make_Batch_Result result = {0};
     
@@ -2789,13 +2880,13 @@ make_batch_from_indent_marks(Partition *part, Buffer *buffer, i32 line_start, i3
         i32 start = buffer->line_starts[line_i];
         Hard_Start_Result hard_start = 
             buffer_find_hard_start(buffer, start, opts.tab_width);
-
+        
         i32 correct_indentation = indent_marks[line_i];
         if (hard_start.all_whitespace && opts.empty_blank_lines) correct_indentation = 0;
         if (correct_indentation == -1) correct_indentation = hard_start.indent_pos;
-
+        
         if ((hard_start.all_whitespace && hard_start.char_pos > start) ||
-                !hard_start.all_space || correct_indentation != hard_start.indent_pos){
+            !hard_start.all_space || correct_indentation != hard_start.indent_pos){
             Buffer_Edit new_edit;
             new_edit.str_start = str_size;
             str_size += correct_indentation;
@@ -2814,7 +2905,7 @@ make_batch_from_indent_marks(Partition *part, Buffer *buffer, i32 line_start, i3
             new_edit.end = hard_start.char_pos;
             edits[edit_count++] = new_edit;
         }
-
+        
         Assert(edit_count <= edit_max);
     }
     
@@ -2830,14 +2921,14 @@ make_batch_from_indent_marks(Partition *part, Buffer *buffer, i32 line_start, i3
 
 internal void
 view_auto_tab_tokens(System_Functions *system, Models *models,
-    View *view, i32 start, i32 end, Indent_Options opts){
+                     View *view, i32 start, i32 end, Indent_Options opts){
 #if BUFFER_EXPERIMENT_SCALPEL <= 0
     Editing_File *file = view->file_data.file;
     Mem_Options *mem = &models->mem;
     Partition *part = &mem->part;
     Buffer *buffer = &file->state.buffer;
     
-    Assert(file && !file->state.is_dummy);
+    Assert(file && !file->is_dummy);
     Cpp_Token_Stack tokens = file->state.token_stack;
     Assert(tokens.tokens);
     
@@ -2845,30 +2936,30 @@ view_auto_tab_tokens(System_Functions *system, Models *models,
     i32 line_end = buffer_get_line_index(buffer, end) + 1;
     
     Temp_Memory temp = begin_temp_memory(part);
-
+    
     i32 *indent_marks =
         get_line_indentation_marks(part, buffer, tokens, line_start, line_end, opts.tab_width);
-
+    
     Make_Batch_Result batch = 
         make_batch_from_indent_marks(part, buffer, line_start, line_end, indent_marks, opts);
-
+    
     if (batch.edit_count > 0){
         Assert(buffer_batch_debug_sort_check(batch.edits, batch.edit_count));
-
+        
         // NOTE(allen): computing edit spec, doing batch edit
         Buffer_Edit *inverse_array = push_array(part, Buffer_Edit, batch.edit_count);
         Assert(inverse_array);
-
+        
         char *inv_str = (char*)part->base + part->pos;
         Edit_Spec spec =
             file_compute_whitespace_edit(mem, file, view->recent->cursor.pos,
-                batch.edits, batch.str_base, batch.str_size,
-                inverse_array, inv_str, part->max - part->pos, batch.edit_count);
-
+                                         batch.edits, batch.str_base, batch.str_size,
+                                         inverse_array, inv_str, part->max - part->pos, batch.edit_count);
+        
         file_do_white_batch_edit(system, models, view->file_data.file, spec, hist_normal);
     }
     end_temp_memory(temp);
-
+    
     {
         i32 start = view->recent->cursor.pos;
         Hard_Start_Result hard_start = buffer_find_hard_start(buffer, start, 4);
@@ -2902,49 +2993,33 @@ style_get_color(Style *style, Cpp_Token token){
             case CPP_TOKEN_COMMENT:
             result = &style->main.comment_color;
             break;
-
+            
             case CPP_TOKEN_STRING_CONSTANT:
             result = &style->main.str_constant_color;
             break;
-
+            
             case CPP_TOKEN_CHARACTER_CONSTANT:
             result = &style->main.char_constant_color;
             break;
-
+            
             case CPP_TOKEN_INTEGER_CONSTANT:
             result = &style->main.int_constant_color;
             break;
-
+            
             case CPP_TOKEN_FLOATING_CONSTANT:
             result = &style->main.float_constant_color;
             break;
-
+            
             case CPP_TOKEN_INCLUDE_FILE:
             result = &style->main.include_color;
             break;
-
+            
             default:
             result = &style->main.default_color;
             break;
         }
     }
     return result;
-}
-
-inline f32
-view_compute_max_target_y(i32 lowest_line, i32 line_height, f32 view_height){
-    f32 max_target_y = ((lowest_line+.5f)*line_height) - view_height*.5f;
-    if (max_target_y < 0) max_target_y = 0;
-    return(max_target_y);
-}
-
-internal f32
-view_compute_max_target_y(View *view){
-    i32 lowest_line = view_compute_lowest_line(view);
-    i32 line_height = view->font_height;
-    f32 view_height = view_file_height(view);
-    f32 max_target_y = view_compute_max_target_y(lowest_line, line_height, view_height);
-    return(max_target_y);
 }
 
 internal void
@@ -2974,8 +3049,8 @@ view_show_config(View *view, Command_Map *gui_map){
 
 inline void
 view_show_interactive(System_Functions *system, View *view,
-    Command_Map *gui_map, Interactive_Action action,
-    Interactive_Interaction interaction, String query){
+                      Command_Map *gui_map, Interactive_Action action,
+                      Interactive_Interaction interaction, String query){
     
     Models *models = view->persistent.models;
     
@@ -3016,74 +3091,277 @@ view_show_file(View *view){
 }
 
 internal void
-interactive_view_complete(View *view, String dest, i32 user_action){
-    Models *models = view->persistent.models;
-    Panel *panel = view->panel;
-    Editing_File *old_file = view->file_data.file;
+view_save_file(System_Functions *system, Models *models,
+               Editing_File *file, View *view, String filename, b32 save_as){
+    Mem_Options *mem = &models->mem;
+    Working_Set *working_set = &models->working_set;
+    
+    if (!file){
+        if (view){
+            file = view->file_data.file;
+        }
+        else{
+            file = working_set_lookup_file(working_set, filename);
+        }
+    }
+    
+    if (file && buffer_get_sync(file) != SYNC_GOOD){
+        if (file_save(system, mem, file, filename.str)){
+            if (save_as){
+                file_set_name(working_set, file, filename.str);
+            }
+        }
+    }
+}
 
+internal void
+view_new_file(System_Functions *system, Models *models,
+              View *view, String string){
+    Working_Set *working_set = &models->working_set;
+    General_Memory *general = &models->mem.general;
+    
+    Editing_File *file = working_set_alloc_always(working_set, general);
+    file_create_empty(system, models, file, string.str);
+    working_set_add(system, working_set, file, general);
+    
+    view_set_file(view, file, models);
+    view_show_file(view);
+    view->map = get_map(models, file->settings.base_map_id);
+    
+    Hook_Function *new_file_fnc = models->hooks[hook_new_file];
+    if (new_file_fnc){
+        models->buffer_param_indices[models->buffer_param_count++] = file->id.id;
+        new_file_fnc(&models->app_links);
+        models->buffer_param_count = 0;
+        file->settings.is_initialized = 1;
+    }
+    
+#if BUFFER_EXPERIMENT_SCALPEL <= 0
+    if (file->settings.tokens_exist){
+        file_first_lex_parallel(system, general, file);
+    }
+#endif
+}
+
+internal void
+init_normal_file(System_Functions *system, Models *models, Editing_File *file,
+                 char *buffer, i32 size){
+    
+    General_Memory *general = &models->mem.general;
+    
+    String val = make_string(buffer, size);
+    file_create_from_string(system, models, file, file->name.source_path.str, val);
+    
+    if (file->settings.tokens_exist){
+        file_first_lex_parallel(system, general, file);
+    }
+    
+    for (View_Iter iter = file_view_iter_init(&models->layout, file, 0);
+         file_view_iter_good(iter);
+         iter = file_view_iter_next(iter)){
+        view_measure_wraps(general, iter.view);
+    }
+}
+
+internal void
+view_open_file(System_Functions *system, Models *models,
+               View *view, String filename){
+    Working_Set *working_set = &models->working_set;
+    General_Memory *general = &models->mem.general;
+    Partition *part = &models->mem.part;
+    
+    Editing_File *file = working_set_contains(system, working_set, filename);
+    
+    if (file == 0){
+        File_Loading loading = system->file_load_begin(filename.str);
+        
+        if (loading.exists){
+            b32 in_general_mem = 0;
+            Temp_Memory temp = begin_temp_memory(part);
+            char *buffer = push_array(part, char, loading.size);
+            
+            // TODO(allen): How will we get temporary space for large
+            // buffers?  The main partition isn't always big enough
+            // but getting a general block this large and copying it
+            // then freeing it is *super* dumb!
+            if (buffer == 0){
+                buffer = (char*)general_memory_allocate(general, loading.size);
+                if (buffer != 0){
+                    in_general_mem = 1;
+                }
+            }
+            
+            if (system->file_load_end(loading, buffer)){
+                file = working_set_alloc_always(working_set, general);
+                if (file){
+                    file_init_strings(file);
+                    file_set_name(working_set, file, filename.str);
+                    working_set_add(system, working_set, file, general);
+                    
+                    init_normal_file(system, models, file,
+                                     buffer, loading.size);
+                }
+            }
+            
+            if (in_general_mem){
+                general_memory_free(general, buffer);
+            }
+            
+            end_temp_memory(temp);
+        }
+    }
+    
+    if (file){
+        if (view){
+            view_set_file(view, file, models);
+        }
+    }
+}
+
+internal void
+kill_file(System_Functions *system, Models *models,
+          Editing_File *file, String string){
+    Working_Set *working_set = &models->working_set;
+    
+    if (!file && string.str){
+        file = working_set_lookup_file(working_set, string);
+        if (!file){
+            file = working_set_contains(system, working_set, string);
+        }
+    }
+    
+    if (file && !file->settings.never_kill){
+        working_set_remove(system, working_set, file->name.source_path);
+        file_close(system, &models->mem.general, file);
+        working_set_free_file(&models->working_set, file);
+        
+        File_Node *used = &models->working_set.used_sentinel;
+        File_Node *node = used->next;
+        for (View_Iter iter = file_view_iter_init(&models->layout, file, 0);
+             file_view_iter_good(iter);
+             iter = file_view_iter_next(iter)){
+            if (node != used){
+                iter.view->file_data.file = 0;
+                view_set_file(iter.view, (Editing_File*)node, models);
+                node = node->next;
+            }
+            else{
+                iter.view->file_data.file = 0;
+                view_set_file(iter.view, 0, models);
+            }
+        }
+    }
+}
+
+internal void
+try_kill_file(System_Functions *system, Models *models,
+              Editing_File *file, View *view, String string){
+    Working_Set *working_set = &models->working_set;
+    
+    if (!file && string.str){
+        file = working_set_lookup_file(working_set, string);
+        if (!file){
+            file = working_set_contains(system, working_set, string);
+        }
+    }
+    
+    if (file && !file->settings.never_kill){
+        if (buffer_needs_save(file)){
+            if (view == 0){
+                view = models->layout.panels[models->layout.active_panel].view;
+            }
+            view_show_interactive(system, view, &models->map_ui,
+                                  IAct_Sure_To_Kill, IInt_Sure_To_Kill,
+                                  make_lit_string("Are you sure?"));
+            copy(&view->dest, file->name.live_name);
+        }
+        else{
+            kill_file(system, models, file, string_zero());
+        }
+    }
+}
+
+internal void
+interactive_view_complete(System_Functions *system, View *view, String dest, i32 user_action){
+    Models *models = view->persistent.models;
+    Editing_File *old_file = view->file_data.file;
+    
     switch (view->action){
         case IAct_Open:
-        delayed_open(&models->delay1, dest, panel);
-        delayed_touch_file(&models->delay1, old_file);
+        view_open_file(system, models, view, dest);
+        touch_file(&models->working_set, old_file);
+        view_show_file(view);
         break;
-
+        
         case IAct_Save_As:
-        delayed_save_as(&models->delay1, dest, panel);
+        view_save_file(system, models, 0, view, dest, 1);
+        view_show_file(view);
         break;
-
+        
         case IAct_New:
-        if (dest.size > 0 &&
-                !char_is_slash(models->hot_directory.string.str[dest.size-1])){
-            delayed_new(&models->delay1, dest, panel);
+        if (dest.size > 0 && !char_is_slash(dest.str[dest.size-1])){
+            view_new_file(system, models, view, dest);
+            view_show_file(view);
         }break;
-
+        
         case IAct_Switch:
-        delayed_switch(&models->delay1, dest, panel);
-        delayed_touch_file(&models->delay1, old_file);
+        {
+            touch_file(&models->working_set, old_file);
+            
+            Editing_File *file = 0;
+            String string = dest;
+            
+            file = working_set_lookup_file(&models->working_set, string);
+            if (!file){
+                file = working_set_contains(system, &models->working_set, string);
+            }
+            if (file){
+                view_set_file(view, file, models);
+            }
+            view_show_file(view);
+        }
         break;
-
+        
         case IAct_Kill:
-        delayed_try_kill(&models->delay1, dest);
+        try_kill_file(system, models, 0, 0, dest);
+        view_show_file(view);
         break;
-
+        
         case IAct_Sure_To_Close:
         switch (user_action){
             case 0:
-            delayed_close(&models->delay1);
+            models->keep_playing = 0;
             break;
-
+            
             case 1:
+            view_show_file(view);
             break;
-
+            
             case 2:
-            // TODO(allen): Save all.
+            // TODO(allen): Save all and close.
             break;
         }
         break;
-
+        
         case IAct_Sure_To_Kill:
         switch (user_action){
             case 0:
-            delayed_kill(&models->delay1, dest);
+            kill_file(system, models, 0, dest);
+            view_show_file(view);
             break;
-
+            
             case 1:
+            view_show_file(view);
             break;
-
+            
             case 2:
-            // TODO(allen): This is fishy! What if the save doesn't happen this time around?
-            // We need to ensure delayed acts happen in order I think... or better yet destroy delayed action entirely.
-            delayed_save(&models->delay1, dest);
-            delayed_kill(&models->delay1, dest);
+            view_save_file(system, models, 0, 0, dest, 0);
+            kill_file(system, models, 0, dest);
+            view_show_file(view);
             break;
         }
         break;
     }
-    view_show_file(view);
-    
-    // TODO(allen): This is here to prevent the key press from being passed to the
-    // underlying file which is a giant pain.  But I want a better system.
-    file_view_nullify_file(view);
 }
 
 #if 0
@@ -3209,10 +3487,7 @@ view_reinit_scrolling(View *view){
             target_x = (f32)(cursor_x - w*.5f);
         }
         
-        target_y = (f32)FLOOR32(cursor_y - h*.5f);
-        if (target_y < view->recent->scroll.min_y){
-            target_y = view->recent->scroll.min_y;
-        }
+        target_y = clamp_bottom(0.f, (f32)FLOOR32(cursor_y - h*.5f));
     }
     
     view->recent->scroll.target_y = target_y;
@@ -3268,13 +3543,9 @@ view_get_cursor_scroll_change_state(View *view){
 
 internal void
 view_begin_cursor_scroll_updates(View *view){
-    if (view->file_data.file == view->prev_context.file){
+    if (view->file_data.file && view->file_data.file == view->prev_context.file){
         Assert(view->prev_cursor_pos == view_get_cursor_pos(view));
     }
-    
-    view->prev_context.file = view->file_data.file;
-    view->prev_context.scroll = view->gui_target.scroll_id;
-    view->prev_context.mode = view->showing_ui;
 }
 
 internal void
@@ -3287,12 +3558,15 @@ view_end_cursor_scroll_updates(View *view){
         
         case CursorScroll_Cursor:
         case CursorScroll_Cursor|CursorScroll_Scroll:
+        if (view->gui_target.did_file){
+            view->recent->scroll.max_y = view_compute_max_target_y(view);
+        }
         view_move_view_to_cursor(view, view->current_scroll);
         gui_post_scroll_vars(&view->gui_target, view->current_scroll, view->scroll_region);
         break;
         
         case CursorScroll_Scroll:
-        view_move_cursor_to_view(view);
+        view_move_cursor_to_view(view, view->recent->scroll);
         gui_post_scroll_vars(&view->gui_target, view->current_scroll, view->scroll_region);
         break;
     }
@@ -3303,16 +3577,18 @@ view_end_cursor_scroll_updates(View *view){
         gui_post_scroll_vars(&view->gui_target, view->current_scroll, view->scroll_region);
     }
     
-    if (view->gui_target.did_file){
-        view->prev_cursor_pos = view_get_cursor_pos(view);
-    }
+    view->prev_cursor_pos = view_get_cursor_pos(view);
+    
+    view->prev_context.file = view->file_data.file;
+    view->prev_context.scroll = view->gui_target.scroll_id;
+    view->prev_context.mode = view->showing_ui;
 }
 
 internal b32
 file_step(View *view, i32_Rect region, Input_Summary *user_input, b32 is_active){
     i32 is_animating = 0;
     Editing_File *file = view->file_data.file;
-    if (file && !file->state.is_loading){
+    if (file && !file->is_loading){
         f32 max_visible_y = view_file_height(view);
         f32 max_x = view_file_width(view);
         
@@ -3327,15 +3603,16 @@ file_step(View *view, i32_Rect region, Input_Summary *user_input, b32 is_active)
             f32 rx = (f32)(user_input->mouse.x - region.x0);
             f32 ry = (f32)(user_input->mouse.y - region.y0);
             
-            if (ry >= -view->recent->scroll.min_y){
-                view_set_widget(view, FWIDG_NONE);
+            if (ry >= 0){
                 if (rx >= 0 && rx < max_x && ry >= 0 && ry < max_visible_y){
-                    view_cursor_move(view, rx + scroll_vars.scroll_x, ry + scroll_vars.scroll_y, 1);
+                    view_cursor_move(view,
+                                     rx + scroll_vars.scroll_x,
+                                     ry + scroll_vars.scroll_y,
+                                     1);
                     view->mode = view_mode_zero();
                 }
             }
         }
-        if (!is_active) view_set_widget(view, FWIDG_NONE);
     }
     
     return(is_animating);
@@ -3346,14 +3623,20 @@ do_widget(View *view, GUI_Target *target){
     Query_Slot *slot;
     Query_Bar *bar;
     
-    gui_begin_serial_section(target);
+    // NOTE(allen): A temporary measure... although in
+    // general we maybe want the user to be able to ask
+    // how large a particular section of the GUI turns
+    // out to be after layout?
+    f32 height = 0.f;
     
     for (slot = view->query_set.used_slot; slot != 0; slot = slot->next){
         bar = slot->query_bar;
         gui_do_text_field(target, bar->prompt, bar->string);
+        
+        height += view->line_height + 2;
     }
     
-    gui_end_serial_section(target);
+    view->widget_height = height;
 }
 
 struct Exhaustive_File_Loop{
@@ -3588,8 +3871,15 @@ app_single_number_input_step(System_Functions *system, Key_Event_Data key, Strin
     return result;
 }
 
-internal b32
+struct View_Step_Result{
+    b32 animating;
+    b32 consume_keys;
+    b32 consume_esc;
+};
+
+internal View_Step_Result
 step_file_view(System_Functions *system, View *view, View *active_view, Input_Summary input){
+    View_Step_Result result = {0};
     GUI_Target *target = &view->gui_target;
     Models *models = view->persistent.models;
     Key_Summary keys = input.keys;
@@ -3598,37 +3888,51 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
     
     view->current_scroll = 0;
     
+    if (view->showing_ui != VUI_None){
+        b32 did_esc = 0;
+        Key_Event_Data key;
+        i32 i;
+        
+        for (i = 0; i < keys.count; ++i){
+            key = get_single_key(&keys, i);
+            if (key.keycode == key_esc){
+                did_esc = 1;
+                break;
+            }
+        }
+        
+        if (did_esc){
+            view_show_file(view);
+            result.consume_esc = 1;
+        }
+    }
+    
     gui_begin_top_level(target, input);
     {
         gui_do_top_bar(target);
+        do_widget(view, target);
         
         if (view->showing_ui == VUI_None){
-            gui_begin_overlap(target);
+            
+            gui_begin_serial_section(target);
             {
-                do_widget(view, target);
+                f32 delta = 9.f * view->line_height;
+                GUI_id scroll_context = {0};
+                scroll_context.id[1] = view->showing_ui;
+                scroll_context.id[0] = (u64)(view->file_data.file);
                 
-                gui_begin_serial_section(target);
-                {
-                    f32 delta = 9.f * view->font_height;
-                    GUI_id scroll_context = {0};
-                    scroll_context.id[1] = view->showing_ui;
-                    scroll_context.id[0] = (u64)(view->file_data.file);
-                    
-                    view->current_scroll = &view->recent->scroll;
-                    gui_get_scroll_vars(target, scroll_context,
-                                        &view->recent->scroll, &view->scroll_region);
-                    
-                    gui_begin_scrollable(target, scroll_context, view->recent->scroll,
-                                         delta, show_scrollbar);
-                    gui_do_file(target);
-                    gui_end_scrollable(target);
-                }
-                gui_end_serial_section(target);
+                view->current_scroll = &view->recent->scroll;
+                gui_get_scroll_vars(target, scroll_context,
+                                    &view->recent->scroll, &view->scroll_region);
+                
+                gui_begin_scrollable(target, scroll_context, view->recent->scroll,
+                                     delta, show_scrollbar);
+                gui_do_file(target);
+                gui_end_scrollable(target);
             }
-            gui_end_overlap(target);
+            gui_end_serial_section(target);
         }
         else{
-            do_widget(view, target);
             switch (view->showing_ui){
                 case VUI_Menu:
                 {
@@ -3638,22 +3942,22 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                     String empty_string = {0};
                     GUI_id id = {0};
                     id.id[1] = VUI_Menu;
-
+                    
                     gui_do_text_field(target, message, empty_string);
-
+                    
                     id.id[0] = 0;
                     message = make_lit_string("Theme");
                     if (gui_do_fixed_option(target, id, message, 0)){
                         view_show_theme(view, view->map);
                     }
-
+                    
                     id.id[0] = 1;
                     message = make_lit_string("Config");
                     if (gui_do_fixed_option(target, id, message, 0)){
                         view_show_config(view, view->map);
                     }
                 }break;
-
+                
                 case VUI_Config:
                 {
                     view->current_scroll = &view->gui_scroll;
@@ -3662,16 +3966,16 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                     String empty_string = {0};
                     GUI_id id = {0};
                     id.id[1] = VUI_Config;
-
+                    
                     gui_do_text_field(target, message, empty_string);
-
+                    
                     id.id[0] = 0;
                     message = make_lit_string("Left Ctrl + Left Alt = AltGr");
                     if (gui_do_fixed_option_checkbox(target, id, message, 0, (b8)models->settings.lctrl_lalt_is_altgr)){
                         models->settings.lctrl_lalt_is_altgr = !models->settings.lctrl_lalt_is_altgr;
                     }
                 }break;
-
+                
                 case VUI_Theme:
                 {
                     view->current_scroll = &view->gui_scroll;
@@ -3679,7 +3983,7 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                     if (view != active_view){
                         view->hot_file_view = active_view;
                     }
-
+                    
                     String message = {0};
                     String empty_string = {0};
                     
@@ -3712,7 +4016,7 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                         view->current_scroll = &view->gui_scroll;
                         gui_get_scroll_vars(target, scroll_context, &view->gui_scroll, &view->scroll_region);
                         gui_begin_scrollable(target, scroll_context, view->gui_scroll,
-                                             9.f * view->font_height, show_scrollbar);
+                                             9.f * view->line_height, show_scrollbar);
                         
                         {
                             i32 count = models->styles.count;
@@ -3786,7 +4090,7 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                             view->current_scroll = &view->gui_scroll;
                             gui_get_scroll_vars(target, scroll_context, &view->gui_scroll, &view->scroll_region);
                             gui_begin_scrollable(target, scroll_context, view->gui_scroll,
-                                                 9.f * view->font_height, show_scrollbar);
+                                                 9.f * view->line_height, show_scrollbar);
                             
                             i32 next_color_editing = view->current_color_editing;
                             
@@ -3801,47 +4105,50 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                                     next_color_editing = i;
                                     view->color_cursor = 0;
                                 }
-
+                                
                                 if (view->current_color_editing == i){
                                     GUI_Item_Update update = {0};
                                     char text_space[7];
                                     String text = make_fixed_width_string(text_space);
-
+                                    
                                     color_to_hexstr(*edit_color, &text);
                                     if (gui_do_text_with_cursor(target, view->color_cursor, text, &update)){
                                         b32 r = 0;
                                         i32 j = 0;
-
+                                        
                                         for (j = 0; j < keys.count; ++j){
                                             i16 key = keys.keys[j].keycode;
                                             switch (key){
-                                                case key_left: --view->color_cursor; r = 1; break;
-                                                case key_right: ++view->color_cursor; r = 1; break;
-
+                                                case key_left: --view->color_cursor; r = 1; result.consume_keys = 1; break;
+                                                case key_right: ++view->color_cursor; r = 1; result.consume_keys = 1; break;
+                                                
                                                 case key_up:
                                                 if (next_color_editing > 0){
                                                     --next_color_editing;
                                                 }
+                                                result.consume_keys = 1;
                                                 break;
-
+                                                
                                                 case key_down:
                                                 if (next_color_editing <= ArrayCount(colors_to_edit)-1){
                                                     ++next_color_editing;
                                                 }
+                                                result.consume_keys = 1;
                                                 break;
-
+                                                
                                                 default:
                                                 if ((key >= '0' && key <= '9') || (key >= 'a' && key <= 'f') || (key >= 'A' && key <= 'F')){
                                                     text.str[view->color_cursor] = (char)key;
                                                     r = 1; 
+                                                    result.consume_keys = 1;
                                                 }
                                                 break;
                                             }
-
+                                            
                                             if (view->color_cursor < 0) view->color_cursor = 0;
                                             if (view->color_cursor >= 6) view->color_cursor = 5;
                                         }
-
+                                        
                                         if (r){
                                             hexstr_to_color(text, edit_color);
                                             gui_rollback(target, &update);
@@ -3850,12 +4157,12 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                                     }
                                 }
                             }
-
+                            
                             if (view->current_color_editing != next_color_editing){
                                 view->current_color_editing = next_color_editing;
                                 view->color_cursor = 0;
                             }
-
+                            
                             gui_end_scrollable(target);
                         }break;
                     }
@@ -3863,6 +4170,11 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
 
                 case VUI_Interactive:
                 {
+                    b32 complete = 0;
+                    char comp_dest_space[1024];
+                    String comp_dest = make_fixed_width_string(comp_dest_space);
+                    i32 comp_action = 0;
+                    
                     view->current_scroll = &view->gui_scroll;
                     
                     GUI_id id = {0};
@@ -3908,9 +4220,11 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                                                                       &hdir->string, hdir, 1, 1, 0);
                                     if (step.made_a_change){
                                         view->list_i = 0;
+                                        result.consume_keys = 1;
                                     }
                                     if (!use_item_in_list && (key.keycode == '\n' || key.keycode == '\t')){
                                         activate_directly = 1;
+                                        result.consume_keys = 1;
                                     }
                                 }
                             }
@@ -3923,12 +4237,13 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                                 snap_into_view = 1;
                             }
                             gui_begin_scrollable(target, scroll_context, view->gui_scroll,
-                                                 9.f * view->font_height, show_scrollbar);
+                                                 9.f * view->line_height, show_scrollbar);
                             
                             id.id[0] = (u64)(hdir) + 1;
                             
                             if (gui_begin_list(target, id, view->list_i, 0,
                                                snap_into_view, &update)){
+                                // TODO(allen): Allow me to handle key consumption correctly here!
                                 gui_standard_list(target, id, view->current_scroll, view->scroll_region,
                                                   &keys, &view->list_i, &update);
                             }
@@ -3947,7 +4262,8 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                                                 do_new_directory = 1;
                                             }
                                             else if (use_item_in_list){
-                                                interactive_view_complete(view, loop.full_path, 0);
+                                                complete = 1;
+                                                copy(&comp_dest, loop.full_path);
                                             }
                                         }
                                     }
@@ -3957,7 +4273,8 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                             gui_end_list(target);
                             
                             if (activate_directly){
-                                interactive_view_complete(view, hdir->string, 0);
+                                complete = 1;
+                                copy(&comp_dest, hdir->string);
                             }
                             
                             if (do_new_directory){
@@ -3972,19 +4289,19 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                             b32 snap_into_view = 0;
                             persist String message_unsaved = make_lit_string(" *");
                             persist String message_unsynced = make_lit_string(" !");
-
+                            
                             String message = {0};
                             switch (view->action){
                                 case IAct_Switch: message = make_lit_string("Switch: "); break;
                                 case IAct_Kill: message = make_lit_string("Kill: "); break;
                             }
-
+                            
                             Absolutes absolutes;
                             Editing_File *file;
                             Working_Set *working_set = &models->working_set;
                             Editing_Layout *layout = &models->layout;
                             GUI_Item_Update update = {0};
-
+                            
                             {
                                 Single_Line_Input_Step step;
                                 Key_Event_Data key;
@@ -3994,22 +4311,23 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                                     step = app_single_line_input_step(system, key, &view->dest);
                                     if (step.made_a_change){
                                         view->list_i = 0;
+                                        result.consume_keys = 1;
                                     }
                                 }
                             }
-
+                            
                             get_absolutes(view->dest, &absolutes, 1, 1);
-
+                            
                             gui_do_text_field(target, message, view->dest);
-
+                            
                             scroll_context.id[0] = (u64)(working_set);
                             if (gui_get_scroll_vars(target, scroll_context,
                                                     &view->gui_scroll, &view->scroll_region)){
                                 snap_into_view = 1;
                             }
                             gui_begin_scrollable(target, scroll_context, view->gui_scroll,
-                                                 9.f * view->font_height, show_scrollbar);
-
+                                                 9.f * view->line_height, show_scrollbar);
+                            
                             id.id[0] = (u64)(working_set) + 1;
                             if (gui_begin_list(target, id, view->list_i,
                                                0, snap_into_view, &update)){
@@ -4031,7 +4349,7 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                                 used_nodes = &working_set->used_sentinel;
                                 for (dll_items(node, used_nodes)){
                                     file = (Editing_File*)node;
-                                    Assert(!file->state.is_dummy);
+                                    Assert(!file->is_dummy);
 
                                     if (filename_match(view->dest, &absolutes, file->name.live_name, 1)){
                                         iter = file_view_iter_init(layout, file, 0);
@@ -4051,7 +4369,8 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
 
                                                 id.id[0] = (u64)(file);
                                                 if (gui_do_file_option(target, id, file->name.live_name, 0, message)){
-                                                    interactive_view_complete(view, file->name.live_name, 0);
+                                                    complete = 1;
+                                                    copy(&comp_dest, file->name.live_name);
                                                 }
                                             }
                                         }
@@ -4069,7 +4388,8 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
 
                                     id.id[0] = (u64)(file);
                                     if (gui_do_file_option(target, id, file->name.live_name, 0, message)){
-                                        interactive_view_complete(view, file->name.live_name, 0);
+                                        complete = 1;
+                                        copy(&comp_dest, file->name.live_name);
                                     }
                                 }
 
@@ -4103,7 +4423,9 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                             }
 
                             if (action != -1){
-                                interactive_view_complete(view, view->dest, action);
+                                complete = 1;
+                                copy(&comp_dest, view->dest);
+                                comp_action = action;
                             }
                         }break;
 
@@ -4133,18 +4455,27 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                             if (gui_do_fixed_option(target, id, message, 's')){
                                 action = 2;
                             }
-
+                            
                             if (action != -1){
-                                interactive_view_complete(view, view->dest, action);
+                                complete = 1;
+                                copy(&comp_dest, view->dest);
+                                comp_action = action;
                             }
                         }break;
+                    }
+                    
+                    if (complete){
+                        terminate_with_null(&comp_dest);
+                        interactive_view_complete(system, view, comp_dest, comp_action);
                     }
                 }break;
             }
         }
     }
     gui_end_top_level(target);
-    return(target->animating);
+    
+    result.animating = target->animating;
+    return(result);
 }
 
 internal f32
@@ -4211,10 +4542,10 @@ struct Input_Process_Result{
 };
 
 internal Input_Process_Result
-do_input_file_view(System_Functions *system, Exchange *exchange,
-                   View *view, i32_Rect rect, b32 is_active,
-                   Input_Summary *user_input,
-                   GUI_Scroll_Vars vars, i32_Rect region){
+do_step_file_view(System_Functions *system,
+                  View *view, i32_Rect rect, b32 is_active,
+                  Input_Summary *user_input,
+                  GUI_Scroll_Vars vars, i32_Rect region){
     Input_Process_Result result = {0};
     b32 is_file_scroll = 0;
     
@@ -4223,13 +4554,15 @@ do_input_file_view(System_Functions *system, Exchange *exchange,
     GUI_Target *target = &view->gui_target;
     GUI_Interpret_Result interpret_result = {0};
     
+    vars.target_y = clamp(0.f, vars.target_y, vars.max_y);
+    
     result.vars = vars;
     result.region = region;
     
     target->active = gui_id_zero();
     
     if (target->push.pos > 0){
-        gui_session_init(&gui_session, target, rect, view->font_height);
+        gui_session_init(&gui_session, target, rect, view->line_height);
         
         for (h = (GUI_Header*)target->push.base;
              h->type;
@@ -4268,12 +4601,9 @@ do_input_file_view(System_Functions *system, Exchange *exchange,
                     
                     case guicom_file:
                     {
-                        f32 new_min_y = -(f32)(gui_session_get_eclipsed_y(&gui_session) -
-                                               gui_session.rect.y0);
                         f32 new_max_y = view_compute_max_target_y(view);
                         
                         view->file_region = gui_session.rect;
-                        result.vars.min_y = new_min_y;
                         result.vars.max_y = new_max_y;
                         
                         if (view->reinit_scrolling){
@@ -4350,10 +4680,8 @@ do_input_file_view(System_Functions *system, Exchange *exchange,
                         if (gui_id_eq(target->mouse_hot, id)){
                             v = unlerp(gui_session.scroll_top, (f32)my,
                                        gui_session.scroll_bottom);
-                            if (v < 0) v = 0;
-                            if (v > 1.f) v = 1.f;
-                            result.vars.target_y =
-                                lerp(result.vars.min_y, v, result.vars.max_y);
+                            v = clamp(0.f, v, 1.f);
+                            result.vars.target_y = lerp(0.f, v, result.vars.max_y);
                             
                             gui_activate_scrolling(target);
                             result.is_animating = 1;
@@ -4366,12 +4694,8 @@ do_input_file_view(System_Functions *system, Exchange *exchange,
                         if (user_input->mouse.wheel != 0){
                             result.vars.target_y += user_input->mouse.wheel*target->delta;
                             
-                            if (result.vars.target_y < result.vars.min_y){
-                                result.vars.target_y = result.vars.min_y;
-                            }
-                            if (result.vars.target_y > result.vars.max_y){
-                                result.vars.target_y = result.vars.max_y;
-                            }
+                            result.vars.target_y =
+                                clamp(0.f, result.vars.target_y, result.vars.max_y);
                             gui_activate_scrolling(target);
                             result.is_animating = 1;
                         }
@@ -4383,9 +4707,7 @@ do_input_file_view(System_Functions *system, Exchange *exchange,
                         
                         if (scroll_button_input(target, &gui_session, user_input, id, &result.is_animating)){
                             result.vars.target_y -= target->delta * 0.25f;
-                            if (result.vars.target_y < result.vars.min_y){
-                                result.vars.target_y = result.vars.min_y;
-                            }
+                            result.vars.target_y = clamp_bottom(0.f, result.vars.target_y);
                         }
                     }break;
                     
@@ -4395,19 +4717,14 @@ do_input_file_view(System_Functions *system, Exchange *exchange,
                         
                         if (scroll_button_input(target, &gui_session, user_input, id, &result.is_animating)){
                             result.vars.target_y += target->delta * 0.25f;
-                            if (result.vars.target_y > result.vars.max_y){
-                                result.vars.target_y = result.vars.max_y;
-                            }
+                            result.vars.target_y = clamp_top(result.vars.target_y, result.vars.max_y);
                         }
                     }break;
                     
                     case guicom_end_scrollable_section:
                     {
                         if (!is_file_scroll){
-                            f32 new_min_y = gui_session.suggested_min_y;
                             f32 new_max_y = gui_session.suggested_max_y;
-                            
-                            result.vars.min_y = new_min_y;
                             result.vars.max_y = new_max_y;
                         }
                     }break;
@@ -4439,27 +4756,6 @@ do_input_file_view(System_Functions *system, Exchange *exchange,
             
             result.vars = scroll_vars;
         }
-        
-        // TODO(allen): GET RID OF THIS!!!
-        {
-            Key_Summary *keys = &user_input->keys;
-            b32 did_esc = 0;
-            Key_Event_Data key;
-            i32 i, count;
-            
-            count = keys->count;
-            for (i = 0; i < count; ++i){
-                key = get_single_key(keys, i);
-                if (key.keycode == key_esc){
-                    did_esc = 1;
-                    break;
-                }
-            }
-            
-            if (did_esc && view->showing_ui != VUI_None){
-                view_show_file(view);
-            }
-        }
     }
     
     return(result);
@@ -4470,47 +4766,54 @@ draw_file_loaded(View *view, i32_Rect rect, b32 is_active, Render_Target *target
     Models *models = view->persistent.models;
     Editing_File *file = view->file_data.file;
     Style *style = main_style(models);
-    i32 line_height = view->font_height;
-
+    i32 line_height = view->line_height;
+    
     i32 max_x = rect.x1 - rect.x0;
     i32 max_y = rect.y1 - rect.y0 + line_height;
-
-    Assert(file && !file->state.is_dummy && buffer_good(&file->state.buffer));
-
+    
+    Assert(file && !file->is_dummy && buffer_good(&file->state.buffer));
+    
     b32 tokens_use = 0;
     Cpp_Token_Stack token_stack = {};
     if (file){
         tokens_use = file->state.tokens_complete && (file->state.token_stack.count > 0);
         token_stack = file->state.token_stack;
     }
-
+    
     Partition *part = &models->mem.part;
-
+    
     Temp_Memory temp = begin_temp_memory(part);
-
+    
     partition_align(part, 4);
     i32 max = partition_remaining(part) / sizeof(Buffer_Render_Item);
     Buffer_Render_Item *items = push_array(part, Buffer_Render_Item, max);
-
+    
     i16 font_id = models->global_font.font_id;
     Render_Font *font = get_font_info(models->font_set, font_id)->font;
     float *advance_data = 0;
     if (font) advance_data = font->advance_data;
-
+    
     i32 count;
     Full_Cursor render_cursor;
     Buffer_Render_Options opts = {};
-
+    
     f32 *wraps = view->file_data.line_wrap_y;
     f32 scroll_x = view->recent->scroll.scroll_x;
     f32 scroll_y = view->recent->scroll.scroll_y;
-
+    
+    // NOTE(allen): For now we will temporarily adjust scroll_y to try
+    // to prevent the view moving around until floating sections are added
+    // to the gui system.
+    scroll_y += view->widget_height;
+    
     {
         render_cursor = buffer_get_start_cursor(&file->state.buffer, wraps, scroll_y,
-            !view->file_data.unwrapped_lines, (f32)max_x, advance_data, (f32)line_height);
-
+                                                !view->file_data.unwrapped_lines,
+                                                (f32)max_x,
+                                                advance_data, (f32)line_height);
+        
         view->recent->scroll_i = render_cursor.pos;
-
+        
         buffer_get_render_data(&file->state.buffer, items, max, &count,
                                (f32)rect.x0, (f32)rect.y0,
                                scroll_x, scroll_y, render_cursor,
@@ -4519,9 +4822,9 @@ draw_file_loaded(View *view, i32_Rect rect, b32 is_active, Render_Target *target
                                advance_data, (f32)line_height,
                                opts);
     }
-
+    
     Assert(count > 0);
-
+    
     i32 cursor_begin, cursor_end;
     u32 cursor_color, at_cursor_color;
     if (view->file_data.show_temp_highlight){
@@ -4536,7 +4839,7 @@ draw_file_loaded(View *view, i32_Rect rect, b32 is_active, Render_Target *target
         cursor_color = style->main.cursor_color;
         at_cursor_color = style->main.at_cursor_color;
     }
-
+    
     i32 token_i = 0;
     u32 main_color = style->main.default_color;
     u32 special_color = style->main.special_character_color;
@@ -4545,19 +4848,19 @@ draw_file_loaded(View *view, i32_Rect rect, b32 is_active, Render_Target *target
         main_color = *style_get_color(style, token_stack.tokens[result.token_index]);
         token_i = result.token_index + 1;
     }
-
+    
     u32 mark_color = style->main.mark_color;
     Buffer_Render_Item *item = items;
     i32 prev_ind = -1;
     u32 highlight_color = 0;
     u32 highlight_this_color = 0;
-
+    
     for (i32 i = 0; i < count; ++i, ++item){
         i32 ind = item->index;
         highlight_this_color = 0;
         if (tokens_use && ind != prev_ind){
             Cpp_Token current_token = token_stack.tokens[token_i-1];
-
+            
             if (token_i < token_stack.count){
                 if (ind >= token_stack.tokens[token_i].start){
                     main_color =
@@ -4569,7 +4872,7 @@ draw_file_loaded(View *view, i32_Rect rect, b32 is_active, Render_Target *target
                     main_color = 0xFFFFFFFF;
                 }
             }
-
+            
             if (current_token.type == CPP_TOKEN_JUNK &&
                 i >= current_token.start && i < current_token.start + current_token.size){
                 highlight_color = style->main.highlight_junk_color;
@@ -4578,10 +4881,10 @@ draw_file_loaded(View *view, i32_Rect rect, b32 is_active, Render_Target *target
                 highlight_color = 0;
             }
         }
-
+        
         u32 char_color = main_color;
         if (item->flags & BRFlag_Special_Character) char_color = special_color;
-
+        
         f32_Rect char_rect = f32R(item->x0, item->y0, item->x1, item->y1);
         if (view->file_data.show_whitespace && highlight_color == 0 &&
             char_is_whitespace((char)item->glyphid)){
@@ -4590,7 +4893,7 @@ draw_file_loaded(View *view, i32_Rect rect, b32 is_active, Render_Target *target
         else{
             highlight_this_color = highlight_color;
         }
-
+        
         if (cursor_begin <= ind && ind < cursor_end && (ind != prev_ind || cursor_begin < ind)){
             if (is_active){
                 draw_rectangle(target, char_rect, cursor_color);
@@ -4605,19 +4908,19 @@ draw_file_loaded(View *view, i32_Rect rect, b32 is_active, Render_Target *target
         else if (highlight_this_color){
             draw_rectangle(target, char_rect, highlight_this_color);
         }
-
+        
         u32 fade_color = 0xFFFF00FF;
         f32 fade_amount = 0.f;
-
+        
         if (file->state.paste_effect.tick_down > 0 &&
             file->state.paste_effect.start <= ind &&
             ind < file->state.paste_effect.end){
             fade_color = file->state.paste_effect.color;
             fade_amount = (f32)(file->state.paste_effect.tick_down) / file->state.paste_effect.tick_max;
         }
-
+        
         char_color = color_blend(char_color, fade_amount, fade_color);
-
+        
         if (ind == view->recent->mark && prev_ind != ind){
             draw_rectangle_outline(target, char_rect, mark_color);
         }
@@ -4627,9 +4930,9 @@ draw_file_loaded(View *view, i32_Rect rect, b32 is_active, Render_Target *target
         }
         prev_ind = ind;
     }
-
+    
     end_temp_memory(temp);
-
+    
     return(0);
 }
 
@@ -4687,7 +4990,7 @@ draw_text_with_cursor(Render_Target *target, View *view, i32_Rect rect, String s
             cursor_rect.x0 = FLOOR32(x);
             cursor_rect.x1 = FLOOR32(x) + CEIL32(font->advance_data[s.str[pos]]);
             cursor_rect.y0 = y;
-            cursor_rect.y1 = y + view->font_height;
+            cursor_rect.y1 = y + view->line_height;
             draw_rectangle(target, cursor_rect, cursor_color);
             x = draw_string(target, font_id, part2, FLOOR32(x), y, at_cursor_color);
             
@@ -4729,7 +5032,7 @@ draw_file_bar(Render_Target *target, View *view, Editing_File *file, i32_Rect re
             intbar_draw_string(target, &bar, file->name.live_name, base_color);
             intbar_draw_string(target, &bar, make_lit_string(" -"), base_color);
             
-            if (file->state.is_loading){
+            if (file->is_loading){
                 intbar_draw_string(target, &bar, make_lit_string(" loading"), base_color);
             }
             else{
@@ -4845,7 +5148,7 @@ draw_fat_option_block(GUI_Target *gui_target, Render_Target *target, View *view,
     u32 text_color = style->main.default_color;
     u32 pop_color = style->main.special_character_color;
     
-    i32 h = view->font_height;
+    i32 h = view->line_height;
     i32 x = inner.x0 + 3;
     i32 y = inner.y0 + h/2 - 1;
     
@@ -4885,7 +5188,7 @@ draw_button(GUI_Target *gui_target, Render_Target *target, View *view, i32_Rect 
     u32 back = get_margin_color(active_level, style);
     u32 text_color = style->main.default_color;
     
-    i32 h = view->font_height;
+    i32 h = view->line_height;
     i32 y = inner.y0 + h/2 - 1;
     
     i32 w = (i32)font_string_width(target, font_id, text);
@@ -4941,9 +5244,9 @@ draw_style_preview(GUI_Target *gui_target, Render_Target *target, View *view, i3
 }
 
 internal i32
-do_render_file_view(System_Functions *system, Exchange *exchange,
-    View *view, View *active, i32_Rect rect, b32 is_active,
-    Render_Target *target, Input_Summary *user_input){
+do_render_file_view(System_Functions *system, View *view,
+                    View *active, i32_Rect rect, b32 is_active,
+                    Render_Target *target, Input_Summary *user_input){
     
     Editing_File *file = view->file_data.file;
     i32 result = 0;
@@ -4954,233 +5257,208 @@ do_render_file_view(System_Functions *system, Exchange *exchange,
     GUI_Interpret_Result interpret_result = {0};
     
     f32 v;
-        
+    
     if (gui_target->push.pos > 0){
-    gui_session_init(&gui_session, gui_target, rect, view->font_height);
-    
-    v = view_get_scroll_y(view);
-
-    i32_Rect clip_rect = rect;
-    draw_push_clip(target, clip_rect);
-    
-    for (h = (GUI_Header*)gui_target->push.base;
-        h->type;
-        h = NextHeader(h)){
-        interpret_result = gui_interpret(gui_target, &gui_session, h,
-                                         *view->current_scroll,
-                                         view->scroll_region);
+        gui_session_init(&gui_session, gui_target, rect, view->line_height);
         
-        if (interpret_result.has_info){
-            if (gui_session.clip_y > clip_rect.y0){
-                clip_rect.y0 = gui_session.clip_y;
-                draw_change_clip(target, clip_rect);
-            }
+        v = view_get_scroll_y(view);
+        
+        i32_Rect clip_rect = rect;
+        draw_push_clip(target, clip_rect);
+        
+        for (h = (GUI_Header*)gui_target->push.base;
+             h->type;
+             h = NextHeader(h)){
+            interpret_result = gui_interpret(gui_target, &gui_session, h,
+                                             *view->current_scroll,
+                                             view->scroll_region);
             
-            switch (h->type){
-                case guicom_top_bar:
-                {
-                    draw_file_bar(target, view, file, gui_session.rect);
-                }break;
-
-                case guicom_file:
-                {
-                    if (view->reinit_scrolling){
-                        view_reinit_scrolling(view);
-                    }
-                    if (file && file_is_ready(file)){
-                        result = draw_file_loaded(view, gui_session.rect, is_active, target);
-                    }
-                }break;
+            if (interpret_result.has_info){
+                if (gui_session.clip_y > clip_rect.y0){
+                    clip_rect.y0 = gui_session.clip_y;
+                    draw_change_clip(target, clip_rect);
+                }
                 
-                case guicom_text_field:
-                {
-                    void *ptr = (h+1);
-                    String p = gui_read_string(&ptr);
-                    String t = gui_read_string(&ptr);
-                    draw_text_field(target, view, gui_session.rect, p, t);
-                }break;
-                
-                case guicom_text_with_cursor:
-                {
-                    void *ptr = (h+1);
-                    String s = gui_read_string(&ptr);
-                    i32 pos = gui_read_integer(&ptr);
+                switch (h->type){
+                    case guicom_top_bar:
+                    {
+                        draw_file_bar(target, view, file, gui_session.rect);
+                    }break;
                     
-                    draw_text_with_cursor(target, view, gui_session.rect, s, pos);
-                }break;
-                
-                case guicom_color_button:
-                {
-                    GUI_Interactive *b = (GUI_Interactive*)h;
-                    void *ptr = (b + 1);
-                    u32 fore = (u32)gui_read_integer(&ptr);
-                    u32 back = (u32)gui_read_integer(&ptr);
-                    String t = gui_read_string(&ptr);
+                    case guicom_file:
+                    {
+                        if (view->reinit_scrolling){
+                            view_reinit_scrolling(view);
+                        }
+                        if (file && file_is_ready(file)){
+                            result = draw_file_loaded(view, gui_session.rect, is_active, target);
+                        }
+                    }break;
                     
-                    draw_color_button(gui_target, target, view, gui_session.rect, b->id, fore, back, t);
-                }break;
-                
-                case guicom_font_button:
-                {
-                    GUI_Interactive *b = (GUI_Interactive*)h;
-                    void *ptr = (b + 1);
-                    i16 font_id = (i16)gui_read_integer(&ptr);
-                    String t = gui_read_string(&ptr);
+                    case guicom_text_field:
+                    {
+                        void *ptr = (h+1);
+                        String p = gui_read_string(&ptr);
+                        String t = gui_read_string(&ptr);
+                        draw_text_field(target, view, gui_session.rect, p, t);
+                    }break;
                     
-                    draw_font_button(gui_target, target, view, gui_session.rect, b->id, font_id, t);
-                }break;
-                
-                case guicom_file_option:
-                {
-                    GUI_Interactive *b = (GUI_Interactive*)h;
-                    void *ptr = (b + 1);
-                    b32 folder = gui_read_integer(&ptr);
-                    String f = gui_read_string(&ptr);
-                    String m = gui_read_string(&ptr);
+                    case guicom_text_with_cursor:
+                    {
+                        void *ptr = (h+1);
+                        String s = gui_read_string(&ptr);
+                        i32 pos = gui_read_integer(&ptr);
+                        
+                        draw_text_with_cursor(target, view, gui_session.rect, s, pos);
+                    }break;
                     
-                    if (folder){
-                        append(&f, system->slash);
-                    }
+                    case guicom_color_button:
+                    {
+                        GUI_Interactive *b = (GUI_Interactive*)h;
+                        void *ptr = (b + 1);
+                        u32 fore = (u32)gui_read_integer(&ptr);
+                        u32 back = (u32)gui_read_integer(&ptr);
+                        String t = gui_read_string(&ptr);
+                        
+                        draw_color_button(gui_target, target, view, gui_session.rect, b->id, fore, back, t);
+                    }break;
                     
-                    draw_fat_option_block(gui_target, target, view, gui_session.rect, b->id, f, m);
-                }break;
-                
-                case guicom_style_preview:
-                {
-                    GUI_Interactive *b = (GUI_Interactive*)h;
-                    i32 style_index = *(i32*)(b + 1);
-                    Style *style = get_style(view->persistent.models, style_index);
+                    case guicom_font_button:
+                    {
+                        GUI_Interactive *b = (GUI_Interactive*)h;
+                        void *ptr = (b + 1);
+                        i16 font_id = (i16)gui_read_integer(&ptr);
+                        String t = gui_read_string(&ptr);
+                        
+                        draw_font_button(gui_target, target, view, gui_session.rect, b->id, font_id, t);
+                    }break;
                     
-                    draw_style_preview(gui_target, target, view, gui_session.rect, b->id, style);
-                }break;
-                
-                case guicom_fixed_option:
-                case guicom_fixed_option_checkbox:
-                {
-                    GUI_Interactive *b = (GUI_Interactive*)h;
-                    void *ptr = (b + 1);
-                    String f = gui_read_string(&ptr);
-                    String m = {0};
-                    i8 status = -1;
-                    if (h->type == guicom_fixed_option_checkbox){
-                        gui_read_byte(&ptr);
-                        status = (i8)gui_read_byte(&ptr);
-                    }
+                    case guicom_file_option:
+                    {
+                        GUI_Interactive *b = (GUI_Interactive*)h;
+                        void *ptr = (b + 1);
+                        b32 folder = gui_read_integer(&ptr);
+                        String f = gui_read_string(&ptr);
+                        String m = gui_read_string(&ptr);
+                        
+                        if (folder){
+                            append(&f, system->slash);
+                        }
+                        
+                        draw_fat_option_block(gui_target, target, view, gui_session.rect, b->id, f, m);
+                    }break;
                     
-                    draw_fat_option_block(gui_target, target, view, gui_session.rect, b->id, f, m, status);
-                }break;
-                
-                case guicom_button:
-                {
-                    GUI_Interactive *b = (GUI_Interactive*)h;
-                    void *ptr = (b + 1);
-                    String t = gui_read_string(&ptr);
+                    case guicom_style_preview:
+                    {
+                        GUI_Interactive *b = (GUI_Interactive*)h;
+                        i32 style_index = *(i32*)(b + 1);
+                        Style *style = get_style(view->persistent.models, style_index);
+                        
+                        draw_style_preview(gui_target, target, view, gui_session.rect, b->id, style);
+                    }break;
                     
-                    draw_button(gui_target, target, view, gui_session.rect, b->id, t);
-                }break;
-                
-                case guicom_scrollable_bar:
-                {
-                    Models *models = view->persistent.models;
-                    Style *style = main_style(models);
+                    case guicom_fixed_option:
+                    case guicom_fixed_option_checkbox:
+                    {
+                        GUI_Interactive *b = (GUI_Interactive*)h;
+                        void *ptr = (b + 1);
+                        String f = gui_read_string(&ptr);
+                        String m = {0};
+                        i8 status = -1;
+                        if (h->type == guicom_fixed_option_checkbox){
+                            gui_read_byte(&ptr);
+                            status = (i8)gui_read_byte(&ptr);
+                        }
+                        
+                        draw_fat_option_block(gui_target, target, view, gui_session.rect, b->id, f, m, status);
+                    }break;
                     
-                    u32 back;
-                    u32 outline;
+                    case guicom_button:
+                    {
+                        GUI_Interactive *b = (GUI_Interactive*)h;
+                        void *ptr = (b + 1);
+                        String t = gui_read_string(&ptr);
+                        
+                        draw_button(gui_target, target, view, gui_session.rect, b->id, t);
+                    }break;
                     
-                    i32_Rect bar = gui_session.rect;
+                    case guicom_scrollable_bar:
+                    {
+                        Models *models = view->persistent.models;
+                        Style *style = main_style(models);
+                        
+                        u32 back;
+                        u32 outline;
+                        
+                        i32_Rect bar = gui_session.rect;
+                        
+                        back = style->main.back_color;
+                        if (is_active){
+                            outline = style->main.margin_active_color;
+                        }
+                        else{
+                            outline = style->main.margin_color;
+                        }
+                        
+                        draw_rectangle(target, bar, back);
+                        draw_rectangle_outline(target, bar, outline);
+                    }break;
                     
-                    back = style->main.back_color;
-                    if (is_active){
-                        outline = style->main.margin_active_color;
-                    }
-                    else{
-                        outline = style->main.margin_color;
-                    }
+                    case guicom_scrollable_top:
+                    case guicom_scrollable_slider:
+                    case guicom_scrollable_bottom:
+                    {
+                        GUI_id id;
+                        Models *models = view->persistent.models;
+                        Style *style = main_style(models);
+                        i32_Rect box = gui_session.rect;
+                        
+                        i32 active_level;
+                        
+                        u32 back;
+                        u32 outline;
+                        
+                        switch (h->type){
+                            case guicom_scrollable_top: id = gui_id_scrollbar_top(); break;
+                            case guicom_scrollable_bottom: id = gui_id_scrollbar_bottom(); break;
+                            default: id = gui_id_scrollbar_slider(); break;
+                        }
+                        
+                        active_level = gui_active_level(gui_target, id);
+                        
+                        switch (active_level){
+                            case 0: back = style->main.back_color; break;
+                            case 1: back = style->main.margin_hover_color; break;
+                            default: back = style->main.margin_active_color; break;
+                        }
+                        
+                        if (is_active){
+                            outline = style->main.margin_active_color;
+                        }
+                        else{
+                            outline = style->main.margin_color;
+                        }
+                        
+                        draw_rectangle(target, box, back);
+                        draw_margin(target, box, get_inner_rect(box, 2), outline);
+                    }break;
                     
-                    draw_rectangle(target, bar, back);
-                    draw_rectangle_outline(target, bar, outline);
-                }break;
-                
-                case guicom_scrollable_top:
-                case guicom_scrollable_slider:
-                case guicom_scrollable_bottom:
-                {
-                    GUI_id id;
-                    Models *models = view->persistent.models;
-                    Style *style = main_style(models);
-                    i32_Rect box = gui_session.rect;
+                    case guicom_begin_scrollable_section:
+                    clip_rect.x1 = Min(gui_session.scroll_region.x1, clip_rect.x1);
+                    draw_push_clip(target, clip_rect);
+                    break;
                     
-                    i32 active_level;
-                    
-                    u32 back;
-                    u32 outline;
-                    
-                    switch (h->type){
-                        case guicom_scrollable_top: id = gui_id_scrollbar_top(); break;
-                        case guicom_scrollable_bottom: id = gui_id_scrollbar_bottom(); break;
-                        default: id = gui_id_scrollbar_slider(); break;
-                    }
-                    
-                    active_level = gui_active_level(gui_target, id);
-                    
-                    switch (active_level){
-                        case 0: back = style->main.back_color; break;
-                        case 1: back = style->main.margin_hover_color; break;
-                        default: back = style->main.margin_active_color; break;
-                    }
-                    
-                    if (is_active){
-                        outline = style->main.margin_active_color;
-                    }
-                    else{
-                        outline = style->main.margin_color;
-                    }
-                    
-                    draw_rectangle(target, box, back);
-                    draw_margin(target, box, get_inner_rect(box, 2), outline);
-                }break;
-                
-                case guicom_begin_scrollable_section:
-                clip_rect.x1 = Min(gui_session.scroll_region.x1, clip_rect.x1);
-                draw_push_clip(target, clip_rect);
-                break;
-                
-                case guicom_end_scrollable_section:
-                clip_rect = draw_pop_clip(target);
-                break;
-			}
-		}
-	}
-    
-    draw_pop_clip(target);
-}
-
-    return(result);
-}
-
-internal void
-kill_file(System_Functions *system, Exchange *exchange, Models *models, Editing_File *file){
-    File_Node *node, *used;
-
-    file_close(system, &models->mem.general, file);
-    working_set_free_file(&models->working_set, file);
-
-    used = &models->working_set.used_sentinel;
-    node = used->next;
-
-    for (View_Iter iter = file_view_iter_init(&models->layout, file, 0);
-        file_view_iter_good(iter);
-        iter = file_view_iter_next(iter)){
-        if (node != used){
-            iter.view->file_data.file = 0;
-            view_set_file(iter.view, (Editing_File*)node, models);
-            node = node->next;
+                    case guicom_end_scrollable_section:
+                    clip_rect = draw_pop_clip(target);
+                    break;
+                }
+            }
         }
-        else{
-            iter.view->file_data.file = 0;
-            view_set_file(iter.view, 0, models);
-        }
+        
+        draw_pop_clip(target);
     }
+    
+    return(result);
 }
 
 inline void
@@ -5416,7 +5694,6 @@ live_set_alloc_view(Live_Views *live_set, Panel *panel, Models *models){
     result.view->panel = panel;
 
     result.view->persistent.models = models;
-    result.view->scrub_max = 1;
     result.view->current_scroll = &result.view->recent->scroll;
 
     init_query_set(&result.view->query_set);
@@ -5433,7 +5710,7 @@ live_set_alloc_view(Live_Views *live_set, Panel *panel, Models *models){
 }
 
 inline void
-live_set_free_view(System_Functions *system, Exchange *exchange, Live_Views *live_set, View *view){
+live_set_free_view(System_Functions *system, Live_Views *live_set, View *view){
     Assert(live_set->count > 0);
     --live_set->count;
     file_view_free_buffers(view);

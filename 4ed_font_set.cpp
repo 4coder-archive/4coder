@@ -1,11 +1,11 @@
 /*
- * Mr. 4th Dimention - Allen Webster
- *
- * 18.12.2015
- *
- * Font set for 4coder
- *
- */
+* Mr. 4th Dimention - Allen Webster
+*
+* 18.12.2015
+*
+* Font set for 4coder
+*
+*/
 
 // TOP
 
@@ -40,9 +40,9 @@ font__remove(Font_Slot *slot){
     n->prev = p;
 }
 
-internal Font_Slot
+inline Font_Slot
 font_slot_zero(){
-    Font_Slot slot = {};
+    Font_Slot slot = {0};
     return(slot);
 }
 
@@ -57,10 +57,10 @@ font_set_init(Font_Set *set, Partition *partition, i32 max, i16 live_max){
     
     partition_align(partition, 8);
     set->font_block = push_block(partition, live_max*(sizeof(Render_Font) + sizeof(Font_Slot)));
-
+    
     set->free_slots = font_slot_zero();
     set->used_slots = font_slot_zero();
-
+    
     dll_init_sentinel(&set->free_slots);
     dll_init_sentinel(&set->used_slots);
     
@@ -69,7 +69,7 @@ font_set_init(Font_Set *set, Partition *partition, i32 max, i16 live_max){
         dll_insert(&set->free_slots, (Font_Slot*)ptr);
         ptr += sizeof(Font_Slot) + sizeof(Render_Font);
     }
-
+    
     set->font_used_flags = push_array(partition, b8, max);
     set->live_max = live_max;
 }
@@ -87,12 +87,12 @@ font_set_add_hash(Font_Set *set, String name, i16 font_id){
     entry.hash = font_hash(name);
     entry.name = name;
     entry.font_id = font_id;
-
+    
     u32 i, j;
     i = entry.hash % set->max;
     j = i - 1;
     if (i <= 1) j += set->max;
-
+    
     for (; i != j; ++i){
         if (i == set->max) i = 0;
         if (set->entries[i].font_id == 0){
@@ -100,7 +100,7 @@ font_set_add_hash(Font_Set *set, String name, i16 font_id){
             break;
         }
     }
-
+    
     Assert(i != j);
 }
 
@@ -119,7 +119,7 @@ font_set_load(Partition *partition, Font_Set *set, i16 font_id){
     font__insert(&set->used_slots, slot);
     
     Render_Font *font = (Render_Font*)(slot + 1);
-    set->font_load(font, info->filename.str, info->pt_size, 4);
+    set->font_load(font, info->filename.str, info->pt_size, 4, 1);
     info->font = font;
     slot->font_id = font_id;
 }
@@ -145,7 +145,7 @@ internal void
 font_set_use(Partition *partition, Font_Set *set, i16 font_id){
     b8 already_used;
     already_used = set->font_used_flags[font_id-1];
-
+    
     if (!already_used){
         if (set->used_this_frame < set->live_max){
             ++set->used_this_frame;
@@ -153,7 +153,7 @@ font_set_use(Partition *partition, Font_Set *set, i16 font_id){
             already_used = 1;
         }
     }
-
+    
     if (already_used){
         // TODO(allen): optimize if you don't mind!!!!
         Font_Info *info = get_font_info(set, font_id);
@@ -165,7 +165,7 @@ font_set_use(Partition *partition, Font_Set *set, i16 font_id){
             font_set_load(partition, set, font_id);
         }
         slot = ((Font_Slot*)info->font) - 1;
-    
+        
         font__remove(slot);
         font__insert(&set->used_slots, slot);
     }
@@ -176,12 +176,16 @@ font_set_add(Partition *partition, Font_Set *set,
              String filename, String name, i32 pt_size){
     b32 result = 0;
     if (font_set_can_add(set)){
+        Render_Font dummy_font = {0};
         i16 font_id = (i16)(++set->count);
         Font_Info *info = get_font_info(set, font_id);
         info->filename = filename;
         info->name = name;
         info->pt_size = pt_size;
-        set->font_info_load(partition, filename.str, pt_size, &info->height, &info->advance);
+        set->font_load(&dummy_font, info->filename.str, info->pt_size, 4, 0);
+        info->height = dummy_font.height;
+        info->advance = dummy_font.advance;
+        
         font_set_add_hash(set, name, font_id);
         
         if (font_set_can_load(set)){
@@ -201,7 +205,7 @@ font_set_find_pos(Font_Set *set, String name, u32 *position){
     i = hash % set->max;
     j = i - 1;
     if (j <= 1) j += set->max;
-
+    
     result = 0;
     Font_Table_Entry *entry;
     for (; i != j; ++i){
@@ -215,7 +219,7 @@ font_set_find_pos(Font_Set *set, String name, u32 *position){
             }
         }
     }
-
+    
     return(result);
 }
 
@@ -228,7 +232,7 @@ font_set_extract(Font_Set *set, String name, i16 *font_id){
     if (result){
         *font_id = set->entries[position].font_id;
     }
-
+    
     return(result);
 }
 

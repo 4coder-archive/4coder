@@ -102,17 +102,17 @@ FSTRING_INLINE    bool  match_part(String a, char *b) { int x; return match_part
 FSTRING_LINK bool  match_part(char *a, String b);
 FSTRING_LINK bool  match_part(String a, String b);
 
-FSTRING_LINK bool  match_unsensitive(char *a, char *b);
-FSTRING_LINK bool  match_unsensitive(String a, char *b);
-FSTRING_INLINE    bool  match_unsensitive(char *a, String b) { return match_unsensitive(b,a); }
-FSTRING_LINK bool  match_unsensitive(String a, String b);
+FSTRING_LINK bool  match_insensitive(char *a, char *b);
+FSTRING_LINK bool  match_insensitive(String a, char *b);
+FSTRING_INLINE    bool  match_insensitive(char *a, String b) { return match_insensitive(b,a); }
+FSTRING_LINK bool  match_insensitive(String a, String b);
 
-FSTRING_LINK bool  match_part_unsensitive(char *a, char *b, int *len);
-FSTRING_LINK bool  match_part_unsensitive(String a, char *b, int *len);
-FSTRING_INLINE    bool  match_part_unsensitive(char *a, char *b) { int x; return match_part(a,b,&x); }
-FSTRING_INLINE    bool  match_part_unsensitive(String a, char *b) { int x; return match_part(a,b,&x); }
-FSTRING_LINK bool  match_part_unsensitive(char *a, String b);
-FSTRING_LINK bool  match_part_unsensitive(String a, String b);
+FSTRING_LINK bool  match_part_insensitive(char *a, char *b, int *len);
+FSTRING_LINK bool  match_part_insensitive(String a, char *b, int *len);
+FSTRING_INLINE    bool  match_part_insensitive(char *a, char *b) { int x; return match_part(a,b,&x); }
+FSTRING_INLINE    bool  match_part_insensitive(String a, char *b) { int x; return match_part(a,b,&x); }
+FSTRING_LINK bool  match_part_insensitive(char *a, String b);
+FSTRING_LINK bool  match_part_insensitive(String a, String b);
 
 FSTRING_LINK int   find(char *s, int start, char c);
 FSTRING_LINK int   find(String s, int start, char c);
@@ -123,14 +123,14 @@ FSTRING_LINK int   find_substr(char *s, int start, String seek);
 FSTRING_LINK int   find_substr(String s, int start, String seek);
 FSTRING_LINK int   rfind_substr(String s, int start, String seek);
 
-FSTRING_LINK int   find_substr_unsensitive(char *s, int start, String seek);
-FSTRING_LINK int   find_substr_unsensitive(String s, int start, String seek);
+FSTRING_LINK int   find_substr_insensitive(char *s, int start, String seek);
+FSTRING_LINK int   find_substr_insensitive(String s, int start, String seek);
 
 FSTRING_INLINE    bool  has_substr(char *s, String seek) { return (s[find_substr(s, 0, seek)] != 0); }
 FSTRING_INLINE    bool  has_substr(String s, String seek) { return (find_substr(s, 0, seek) < s.size); }
 
-FSTRING_INLINE    bool  has_substr_unsensitive(char *s, String seek) { return (s[find_substr_unsensitive(s, 0, seek)] != 0); }
-FSTRING_INLINE    bool  has_substr_unsensitive(String s, String seek) { return (find_substr_unsensitive(s, 0, seek) < s.size); }
+FSTRING_INLINE    bool  has_substr_insensitive(char *s, String seek) { return (s[find_substr_insensitive(s, 0, seek)] != 0); }
+FSTRING_INLINE    bool  has_substr_insensitive(String s, String seek) { return (find_substr_insensitive(s, 0, seek) < s.size); }
 
 FSTRING_LINK int   int_to_str_size(int x);
 FSTRING_LINK int   int_to_str(int x, char *s_out);
@@ -391,7 +391,7 @@ match_part(String a, String b){
 }
 
 FSTRING_LINK bool
-match_unsensitive(char *a, char *b){
+match_insensitive(char *a, char *b){
     for (int i = 0;; ++i){
         if (char_to_upper(a[i]) !=
             char_to_upper(b[i])){
@@ -404,7 +404,7 @@ match_unsensitive(char *a, char *b){
 }
 
 FSTRING_LINK bool
-match_unsensitive(String a, char *b){
+match_insensitive(String a, char *b){
     int i = 0;
     for (; i < a.size; ++i){
         if (char_to_upper(a.str[i]) !=
@@ -419,7 +419,7 @@ match_unsensitive(String a, char *b){
 }
 
 FSTRING_LINK bool
-match_unsensitive(String a, String b){
+match_insensitive(String a, String b){
     if (a.size != b.size){
         return 0;
     }
@@ -433,7 +433,7 @@ match_unsensitive(String a, String b){
 }
 
 FSTRING_LINK bool
-match_part_unsensitive(char *a, char *b, int *len){
+match_part_insensitive(char *a, char *b, int *len){
     int i;
     for (i = 0; b[i] != 0; ++i){
         if (char_to_upper(a[i]) != char_to_upper(b[i])){
@@ -445,7 +445,7 @@ match_part_unsensitive(char *a, char *b, int *len){
 }
 
 FSTRING_LINK bool
-match_part_unsensitive(String a, char *b, int *len){
+match_part_insensitive(String a, char *b, int *len){
     int i;
     for (i = 0; b[i] != 0; ++i){
         if (char_to_upper(a.str[i]) != char_to_upper(b[i]) ||
@@ -458,7 +458,7 @@ match_part_unsensitive(String a, char *b, int *len){
 }
 
 FSTRING_LINK bool
-match_part_unsensitive(char *a, String b){
+match_part_insensitive(char *a, String b){
     for (int i = 0; i != b.size; ++i){
         if (char_to_upper(a[i]) != char_to_upper(b.str[i])){
             return 0;
@@ -468,7 +468,7 @@ match_part_unsensitive(char *a, String b){
 }
 
 FSTRING_LINK bool
-match_part_unsensitive(String a, String b){
+match_part_insensitive(String a, String b){
     if (a.size < b.size){
         return 0;
     }
@@ -602,7 +602,7 @@ rfind_substr(String str, int start, String seek){
 }
 
 FSTRING_LINK int
-find_substr_unsensitive(char *str, int start, String seek){
+find_substr_insensitive(char *str, int start, String seek){
     int i, j, k;
     bool hit;
     char a_upper, b_upper;
@@ -630,7 +630,7 @@ find_substr_unsensitive(char *str, int start, String seek){
 }
 
 FSTRING_LINK int
-find_substr_unsensitive(String str, int start, String seek){
+find_substr_insensitive(String str, int start, String seek){
     int i, j, k;
     int stop_at;
     bool hit;
@@ -1217,8 +1217,8 @@ wildcard_match(Absolutes *absolutes, char *x, int case_sensitive){
         match_part_func = match_part;
     }
     else{
-        match_func = match_unsensitive;
-        match_part_func = match_part_unsensitive;
+        match_func = match_insensitive;
+        match_part_func = match_part_insensitive;
     }
     
     if (absolutes->count == 1){

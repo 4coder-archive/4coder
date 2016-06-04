@@ -111,9 +111,6 @@ struct Editing_File_Settings{
 // NOTE(allen): This part of the Editing_File is cleared whenever
 // the contents of the file is set.
 struct Editing_File_State{
-    b32 is_dummy;
-    b32 is_loading;
-    
     i16 font_id;
     Buffer_Type buffer;
     
@@ -133,10 +130,6 @@ struct Editing_File_State{
     u64 last_4ed_write_time;
     u64 last_4ed_edit_time;
     u64 last_sys_write_time;
-};
-
-struct Editing_File_Preload{
-    i32 start_line;
 };
 
 struct Editing_File_Name{
@@ -168,9 +161,10 @@ struct Editing_File{
     // NOTE(allen): node must be the first member of Editing_File!
     File_Node node;
     Editing_File_Settings settings;
-    union{
+    struct{
+        b32 is_loading;
+        b32 is_dummy;
         Editing_File_State state;
-        Editing_File_Preload preload;
     };
     Editing_File_Name name;
     Buffer_Slot_ID id;
@@ -317,7 +311,7 @@ working_set_alloc_always(Working_Set *working_set, General_Memory *general){
 
 inline void
 working_set_free_file(Working_Set  *working_set, Editing_File *file){
-    file->state.is_dummy = 1;
+    file->is_dummy = 1;
     dll_remove(&file->node);
     dll_insert(&working_set->free_sentinel, &file->node);
     --working_set->file_count;
@@ -349,7 +343,7 @@ inline Editing_File*
 working_set_get_active_file(Working_Set *working_set, Buffer_Slot_ID id){
     Editing_File *result = 0;
     result = working_set_index(working_set, id);
-    if (result && result->state.is_dummy){
+    if (result && result->is_dummy){
         result = 0;
     }
     return(result);
@@ -383,7 +377,7 @@ working_set_init(Working_Set *working_set, Partition *partition, General_Memory 
 
     null_file = working_set_index(working_set, 0);
     dll_remove(&null_file->node);
-    null_file->state.is_dummy = 1;
+    null_file->is_dummy = 1;
     ++working_set->file_count;
 
     table_size = working_set->file_max;
@@ -488,9 +482,11 @@ working_set_lookup_file(Working_Set *working_set, String string){
 
 internal void
 touch_file(Working_Set *working_set, Editing_File *file){
-    Assert(!file->state.is_dummy);
-    dll_remove(&file->node);
-    dll_insert(&working_set->used_sentinel, &file->node);
+    if (file){
+        Assert(!file->is_dummy);
+        dll_remove(&file->node);
+        dll_insert(&working_set->used_sentinel, &file->node);
+    }
 }
 
 // Hot Directory
@@ -586,6 +582,7 @@ filename_match(String query, Absolutes *absolutes, String filename, b32 case_sen
     return result;
 }
 
+#if 0
 internal Hot_Directory_Match
 hot_directory_first_match(Hot_Directory *hot_directory,
                           String str,
@@ -609,7 +606,7 @@ hot_directory_first_match(Hot_Directory *hot_directory,
                 if (match(filename, str)) is_match = 1;
             }
             else{
-                if (match_unsensitive(filename, str)) is_match = 1;
+                if (match_insensitive(filename, str)) is_match = 1;
             }
         }
         else{
@@ -625,6 +622,7 @@ hot_directory_first_match(Hot_Directory *hot_directory,
     
     return result;
 }
+#endif
 
 inline File_Sync_State
 buffer_get_sync(Editing_File *file){
@@ -648,7 +646,7 @@ buffer_needs_save(Editing_File *file){
 inline b32
 file_is_ready(Editing_File *file){
     b32 result = 0;
-    if (file && file->state.is_loading == 0){
+    if (file && file->is_loading == 0){
         result = 1;
     }
     return(result);
@@ -670,7 +668,7 @@ inline void
 file_set_to_loading(Editing_File *file){
     file->state = editing_file_state_zero();
     file->settings = editing_file_settings_zero();
-    file->state.is_loading = 1;
+    file->is_loading = 1;
 }
 
 // BOTTOM

@@ -209,23 +209,15 @@ enum Cpp_Preprocessor_State{
 	CPP_LEX_PP_COUNT
 };
 
-struct Cpp_Lex_Data{
-	Cpp_Preprocessor_State pp_state;
-	int pos;
-    int complete;
-};
-
-struct Cpp_Read_Result{
-	Cpp_Token token;
-	int pos;
-	char newline;
-	char has_result;
-};
-
 struct Cpp_Token_Stack{
 	Cpp_Token *tokens;
 	int count, max_count;
 };
+inline Cpp_Token_Stack
+cpp_token_stack_zero(){
+    Cpp_Token_Stack stack={0}; 
+    return(stack);
+}
 
 struct Cpp_Token_Merge{
 	Cpp_Token new_token;

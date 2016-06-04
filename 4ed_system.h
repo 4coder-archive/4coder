@@ -35,8 +35,15 @@ uhash_equal(Unique_Hash a, Unique_Hash b){
     return(result);
 }
 
+// NOTE(allen): These two time functions should return values
+// in the same time space.  There is no requirement about 
+// resolution but the higher the better.  These functions
+// should not be used for profiling purposes.
 #define Sys_File_Time_Stamp_Sig(name) u64 name(char *filename)
 typedef Sys_File_Time_Stamp_Sig(System_File_Time_Stamp);
+
+#define Sys_Now_Time_Stamp_Sig(name) u64 name()
+typedef Sys_Now_Time_Stamp_Sig(System_Now_Time_Stamp);
 
 // TODO(allen): make directory a char* to signal that it must be null terminated
 #define Sys_Set_File_List_Sig(name) void name(File_List *file_list, String directory)
@@ -66,12 +73,8 @@ typedef Sys_File_Load_End_Sig(System_File_Load_End);
 #define Sys_File_Save_Sig(name) b32 name(char *filename, char *buffer, i32 size)
 typedef Sys_File_Save_Sig(System_File_Save);
 
-
 #define Sys_Post_Clipboard_Sig(name) void name(String str)
 typedef Sys_Post_Clipboard_Sig(System_Post_Clipboard);
-
-#define Sys_Time_Sig(name) u64 name()
-typedef Sys_Time_Sig(System_Time);
 
 // cli
 struct CLI_Handles{
@@ -154,15 +157,17 @@ thread_memory_zero(){
 struct Thread_Exchange;
 struct System_Functions;
 
-#define Job_Callback_Sig(name) void name(                               \
-        System_Functions *system, Thread_Context *thread, Thread_Memory *memory, \
-        Thread_Exchange *exchange, void *data[2])
+#define Job_Callback_Sig(name) void name(        \
+        System_Functions *system,                \
+        Thread_Context *thread,                  \
+        Thread_Memory *memory,                   \
+        void *data[2])
 typedef Job_Callback_Sig(Job_Callback);
 
 struct Job_Data{
     Job_Callback *callback;
     void *data[2];
-    i32 memory_request;
+    //i32 memory_request;
 };
 
 struct Full_Job_Data{
@@ -186,16 +191,14 @@ struct Work_Queue{
 #define JOB_ID_WRAP (ArrayCount(queue->jobs) * 4)
 #define QUEUE_WRAP (ArrayCount(queue->jobs))
 
-struct Thread_Exchange{
-    Work_Queue queues[THREAD_GROUP_COUNT];
-    volatile u32 force_redraw;
-};
-
 #define Sys_Post_Job_Sig(name) u32 name(Thread_Group_ID group_id, Job_Data job)
 typedef Sys_Post_Job_Sig(System_Post_Job);
 
 #define Sys_Cancel_Job_Sig(name) void name(Thread_Group_ID group_id, u32 job_id)
 typedef Sys_Cancel_Job_Sig(System_Cancel_Job);
+
+#define Sys_Check_Cancel_Sig(name) b32 name(Thread_Context *thread)
+typedef Sys_Check_Cancel_Sig(System_Check_Cancel);
 
 #define Sys_Grow_Thread_Memory_Sig(name) void name(Thread_Memory *memory)
 typedef Sys_Grow_Thread_Memory_Sig(System_Grow_Thread_Memory);
@@ -217,8 +220,9 @@ typedef INTERNAL_Sys_Get_Thread_States_Sig(INTERNAL_System_Get_Thread_States);
 typedef INTERNAL_Sys_Debug_Message_Sig(INTERNAL_System_Debug_Message);
 
 struct System_Functions{
-    // files: 6
+    // files: 7
     System_File_Time_Stamp *file_time_stamp;
+    System_Now_Time_Stamp *now_time_stamp;
     System_Set_File_List *set_file_list;
     System_File_Unique_Hash *file_unique_hash;
     System_File_Track *file_track;
@@ -226,17 +230,14 @@ struct System_Functions{
     System_File_Load_Begin *file_load_begin;
     System_File_Load_End *file_load_end;
     System_File_Save *file_save;
-
+    
     // file system navigation (4coder_custom.h): 3
     File_Exists_Function *file_exists;
     Directory_CD_Function *directory_cd;
     Get_4ed_Path_Function *get_4ed_path;
-
+    
     // clipboard: 1
     System_Post_Clipboard *post_clipboard;
-
-    // time: 1
-    System_Time *time;
     
     // coroutine: 4
     System_Create_Coroutine *create_coroutine;
@@ -249,14 +250,15 @@ struct System_Functions{
     System_CLI_Begin_Update *cli_begin_update;
     System_CLI_Update_Step *cli_update_step;
     System_CLI_End_Update *cli_end_update;
-
-    // threads: 5
+    
+    // threads: 7
     System_Post_Job *post_job;
     System_Cancel_Job *cancel_job;
+    System_Check_Cancel *check_cancel;
     System_Grow_Thread_Memory *grow_thread_memory;
     System_Acquire_Lock *acquire_lock;
     System_Release_Lock *release_lock;
-
+    
     // debug: 3
     INTERNAL_System_Sentinel *internal_sentinel;
     INTERNAL_System_Get_Thread_States *internal_get_thread_states;
@@ -264,10 +266,6 @@ struct System_Functions{
     
     // non-function details
     char slash;
-};
-
-struct Exchange{
-    Thread_Exchange thread;
 };
 
 // BOTTOM

@@ -144,184 +144,6 @@ char* generate_keycode_enum(){
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////
-char daction_enum_name[] = "Action_Type";
-char *daction_enum[] = {
-    "OPEN",
-    "OPEN_BACKGROUND",
-    "SET_LINE",
-    "SAVE_AS",
-    "SAVE",
-    "NEW",
-    "SWITCH",
-    "TRY_KILL",
-    "KILL",
-    "TOUCH_FILE",
-    "CLOSE",
-};
-
-char str_alloc_copy[] =
-"internal String\n"
-"str_alloc_copy(General_Memory *general, String str){\n"
-"    String result;\n"
-"    result.memory_size = str.memory_size + 1;\n"
-"    result.size = str.size;\n"
-"    result.str = (char*)general_memory_allocate(general, result.memory_size, 0);\n"
-"    memcpy(result.str, str.str, str.size);\n"
-"    result.str[result.size] = 0;\n"
-"    return(result);\n"
-"}\n\n";
-
-char delayed_action_zero[] =
-"inline Delayed_Action\n"
-"delayed_action_zero(){\n"
-"    Delayed_Action result = {(Action_Type)0};\n"
-"    return(result);\n"
-"}\n\n"
-;
-
-char daction_name[] = "Delayed_Action";
-Struct_Field daction_fields[] = {
-    {"Action_Type", "type"},
-};
-Struct_Field daction_fields_primary[] = {
-    {"String", "string"},
-    {"Panel*", "panel"},
-    {"Editing_File*", "file"},
-    {"i32", "integer"},
-};
-enum Daction_Field_Handle{
-    dfph_null,
-    dfph_string,
-    dfph_panel,
-    dfph_file,
-    dfph_integer,
-};
-Daction_Field_Handle dact_param_sets[] = {
-    dfph_string, dfph_null,
-    dfph_panel, dfph_null,
-    dfph_file, dfph_null,
-    dfph_file, dfph_panel, dfph_null,
-    dfph_string, dfph_panel, dfph_null,
-    dfph_string, dfph_file, dfph_null,
-    dfph_panel, dfph_integer, dfph_null,
-};
-
-char delay_name[] = "Delay";
-Struct_Field delay_fields[] = {
-    {"General_Memory*", "general"},
-    {"Delayed_Action*", "acts"},
-    {"i32", "count"},
-    {"i32", "max"},
-};
-
-char delayed_action_function_top[] = 
-"inline Delayed_Action*\n"
-"delayed_action_(Delay *delay, Action_Type type";
-
-char delayed_action_function_bottom[] = 
-"){\n"
-"    Delayed_Action *result;\n"
-"    if (delay->count == delay->max){\n"
-"        delay->max *= 2;\n"
-"        delay->acts = (Delayed_Action*)general_memory_reallocate("
-"delay->general, delay->acts, delay->count*sizeof(Delayed_Action), delay->max*sizeof(Delayed_Action), 0);\n"
-"    }\n"
-"    result = delay->acts + delay->count++;\n"
-"    *result = delayed_action_zero();\n"
-"    result->type = type;\n"
-"    return(result);\n"
-"}\n\n";
-
-char delayed_action_special_param[] = ", %s %s";
-
-char delayed_action_specialized_middle[] =
-"){\n"
-"    Delayed_Action *result;\n"
-"    result = delayed_action_(delay, type);\n";
-
-char delayed_action_special_line[] =
-"    result->%s = %s;\n";
-
-char delayed_action_special_string_line[] =
-"    result->%s = str_alloc_copy(delay->general, %s);\n";
-
-char delayed_action_specialized_bottom[] =
-"    return(result);\n"
-"}\n\n";
-
-char delayed_action_macro[] =
-"#define delayed_%s(delay, ...) delayed_action_(delay, DACT_%s, ##__VA_ARGS__)\n";
-
-char delayed_action_repush_function[] =
-"inline Delayed_Action*\n"
-"delayed_action_repush(Delay *delay, Delayed_Action *act){\n"
-"    Delayed_Action *new_act = delayed_action_(delay, (Action_Type)0);\n"
-"    *new_act = *act;\n"
-"    if (act->string.str){\n"
-"        new_act->string = str_alloc_copy(delay->general, act->string);\n"
-"    }\n"
-"    return(new_act);\n"
-"}\n\n";
-
-char* generate_delayed_action(){
-    FILE *file;
-    char *filename = "4ed_delay.cpp";
-    char scratch[256];
-    int i,j;
-    
-    file = fopen(filename, "wb");
-    
-    fprintf(file, "enum %s{\n", daction_enum_name);
-    for (i = 0; i < ArrayCount(daction_enum); ++i){
-        fprintf(file, "    DACT_%s,\n", daction_enum[i]);
-    }
-    fprintf(file, "};\n\n");
-    
-    struct_begin(file, daction_name);
-    struct_fields(file, daction_fields, ArrayCount(daction_fields));
-    struct_fields(file, daction_fields_primary, ArrayCount(daction_fields_primary));
-    struct_end(file);
-    
-    struct_begin(file, delay_name);
-    struct_fields(file, delay_fields, ArrayCount(delay_fields));
-    struct_end(file);
-    
-    fprintf(file, "%s", str_alloc_copy);
-    fprintf(file, "%s", delayed_action_zero);
-    fprintf(file, "%s%s", delayed_action_function_top, delayed_action_function_bottom);
-    
-    for (i = 0; i < ArrayCount(dact_param_sets); ++i){
-        j =  i;
-        fprintf(file, "%s", delayed_action_function_top);
-        for (; dact_param_sets[i] != dfph_null; ++i){
-            Struct_Field field = daction_fields_primary[dact_param_sets[i] - 1];
-            fprintf(file, delayed_action_special_param, field.type, field.name);
-        }
-        fprintf(file, "%s", delayed_action_specialized_middle);
-        for (; dact_param_sets[j] != dfph_null; ++j){
-            int handle = (int)(dact_param_sets[j]);
-            Struct_Field field = daction_fields_primary[handle - 1];
-            if (handle == dfph_string){
-                fprintf(file, delayed_action_special_string_line, field.name, field.name);
-            }
-            else{
-                fprintf(file, delayed_action_special_line, field.name, field.name);
-            }
-        }
-        fprintf(file, "%s", delayed_action_specialized_bottom);
-    }
-    
-    fprintf(file, "%s", delayed_action_repush_function);
-    
-    for (i = 0; i < ArrayCount(daction_enum); ++i){
-        to_lower(daction_enum[i], scratch);
-        fprintf(file, delayed_action_macro, scratch, daction_enum[i]);
-    }
-    
-    return(filename);
-}
-
-//////////////////////////////////////////////////////////////////////////////////////////////////
 char* bar_style_fields[] = {
     "bar",
     "bar_active",
@@ -456,6 +278,7 @@ char* generate_style(){
     return(filename);
 }
 
+//////////////////////////////////////////////////////////////////////////////////////////////////
 struct Function_Signature{
     String name;
     String ret;
@@ -653,6 +476,24 @@ generate_custom_headers(){
             );
     fprintf(file, "};\n");
     
+    // TODO(allen): Generate app->function(app, ...) to function(app, ...) wrappers.
+    // Need to parse parameter names to do this.
+#if 0    
+    for (int i = 0; i < sig_count; ++i){
+        Function_Signature *sig = sigs + i;
+        
+        copy_fast_unsafe(name_buffer, sig->name);
+        name_buffer[sig->name.size] = 0;
+        to_lower(name_buffer, name_buffer);
+        
+        fprintf(file,
+                "inline %.*s\n"
+                "%s%.*s{ app->%s(",
+                sig->name.size, sig->name.str,
+                name_buffer);
+    }
+#endif
+
     fclose(file);
     
     return(filename);
@@ -662,9 +503,6 @@ int main(){
     char *filename;
     
     filename = generate_keycode_enum();
-    printf("gen success: %s\n", filename);
-    
-    filename = generate_delayed_action();
     printf("gen success: %s\n", filename);
     
     filename = generate_style();
