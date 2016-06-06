@@ -349,7 +349,7 @@ CUSTOM_COMMAND_SIG(casey_clean_and_save)
 
 CUSTOM_COMMAND_SIG(casey_newline_and_indent)
 {
-    exec_command(app, cmdid_write_character);
+    exec_command(app, write_character);
     exec_command(app, auto_tab_line_at_cursor);
 }
 
@@ -1174,7 +1174,7 @@ CUSTOM_COMMAND_SIG(binding_name) \
 }
 
 #define DEFINE_BIMODAL_KEY(binding_name,edit_code,normal_code) DEFINE_FULL_BIMODAL_KEY(binding_name,exec_command(app,edit_code),exec_command(app,normal_code))
-#define DEFINE_MODAL_KEY(binding_name,edit_code) DEFINE_BIMODAL_KEY(binding_name,edit_code,cmdid_write_character)
+#define DEFINE_MODAL_KEY(binding_name,edit_code) DEFINE_BIMODAL_KEY(binding_name,edit_code,write_character)
 
 //    cmdid_paste_next ?
 //    cmdid_timeline_scrub ?
@@ -1183,7 +1183,7 @@ CUSTOM_COMMAND_SIG(binding_name) \
 //    cmdid_toggle_line_wrap,
 //    cmdid_close_minor_view,
 
-DEFINE_MODAL_KEY(modal_space, cmdid_set_mark);
+DEFINE_MODAL_KEY(modal_space, set_mark);
 DEFINE_MODAL_KEY(modal_back_slash, casey_clean_and_save);
 DEFINE_MODAL_KEY(modal_single_quote, casey_call_keyboard_macro);
 DEFINE_MODAL_KEY(modal_comma, casey_goto_previous_error);
@@ -1192,17 +1192,17 @@ DEFINE_MODAL_KEY(modal_forward_slash, cmdid_change_active_panel);
 DEFINE_MODAL_KEY(modal_semicolon, cmdid_cursor_mark_swap); // TODO(casey): Maybe cmdid_history_backward?
 DEFINE_BIMODAL_KEY(modal_open_bracket, casey_begin_keyboard_macro_recording, write_and_auto_tab);
 DEFINE_BIMODAL_KEY(modal_close_bracket, casey_end_keyboard_macro_recording, write_and_auto_tab);
-DEFINE_MODAL_KEY(modal_a, cmdid_write_character); // TODO(casey): Arbitrary command + casey_quick_calc
+DEFINE_MODAL_KEY(modal_a, write_character); // TODO(casey): Arbitrary command + casey_quick_calc
 DEFINE_MODAL_KEY(modal_b, cmdid_interactive_switch_buffer);
 DEFINE_MODAL_KEY(modal_c, casey_find_corresponding_file);
 DEFINE_MODAL_KEY(modal_d, casey_kill_to_end_of_line);
-DEFINE_MODAL_KEY(modal_e, cmdid_write_character); // TODO(casey): Available
+DEFINE_MODAL_KEY(modal_e, write_character); // TODO(casey): Available
 DEFINE_MODAL_KEY(modal_f, casey_paste_and_tab);
 DEFINE_MODAL_KEY(modal_g, goto_line);
 DEFINE_MODAL_KEY(modal_h, cmdid_auto_tab_range);
-DEFINE_MODAL_KEY(modal_i, cmdid_move_up);
+DEFINE_MODAL_KEY(modal_i, move_up);
 DEFINE_MODAL_KEY(modal_j, seek_white_or_token_left);
-DEFINE_MODAL_KEY(modal_k, cmdid_move_down);
+DEFINE_MODAL_KEY(modal_k, move_down);
 DEFINE_MODAL_KEY(modal_l, seek_white_or_token_right);
 DEFINE_MODAL_KEY(modal_m, casey_save_and_make_without_asking);
 DEFINE_MODAL_KEY(modal_n, casey_goto_next_error);
@@ -1220,28 +1220,28 @@ DEFINE_MODAL_KEY(modal_y, cmdid_redo);
 DEFINE_MODAL_KEY(modal_z, cmdid_interactive_open);
 
 DEFINE_MODAL_KEY(modal_1, casey_build_search); // TODO(casey): Shouldn't need to bind a key for this?
-DEFINE_MODAL_KEY(modal_2, cmdid_write_character); // TODO(casey): Available
-DEFINE_MODAL_KEY(modal_3, cmdid_write_character); // TODO(casey): Available
-DEFINE_MODAL_KEY(modal_4, cmdid_write_character); // TODO(casey): Available
-DEFINE_MODAL_KEY(modal_5, cmdid_write_character); // TODO(casey): Available
-DEFINE_MODAL_KEY(modal_6, cmdid_write_character); // TODO(casey): Available
-DEFINE_MODAL_KEY(modal_7, cmdid_write_character); // TODO(casey): Available
-DEFINE_MODAL_KEY(modal_8, cmdid_write_character); // TODO(casey): Available
-DEFINE_MODAL_KEY(modal_9, cmdid_write_character); // TODO(casey): Available
+DEFINE_MODAL_KEY(modal_2, write_character); // TODO(casey): Available
+DEFINE_MODAL_KEY(modal_3, write_character); // TODO(casey): Available
+DEFINE_MODAL_KEY(modal_4, write_character); // TODO(casey): Available
+DEFINE_MODAL_KEY(modal_5, write_character); // TODO(casey): Available
+DEFINE_MODAL_KEY(modal_6, write_character); // TODO(casey): Available
+DEFINE_MODAL_KEY(modal_7, write_character); // TODO(casey): Available
+DEFINE_MODAL_KEY(modal_8, write_character); // TODO(casey): Available
+DEFINE_MODAL_KEY(modal_9, write_character); // TODO(casey): Available
 DEFINE_MODAL_KEY(modal_0, cmdid_kill_buffer);
-DEFINE_MODAL_KEY(modal_minus, cmdid_write_character); // TODO(casey): Available
+DEFINE_MODAL_KEY(modal_minus, write_character); // TODO(casey): Available
 DEFINE_MODAL_KEY(modal_equals, casey_execute_arbitrary_command);
 
-DEFINE_BIMODAL_KEY(modal_backspace, casey_delete_token_left, cmdid_backspace);
-DEFINE_BIMODAL_KEY(modal_up, cmdid_move_up, cmdid_move_up);
-DEFINE_BIMODAL_KEY(modal_down, cmdid_move_down, cmdid_move_down);
-DEFINE_BIMODAL_KEY(modal_left, seek_white_or_token_left, cmdid_move_left); 
-DEFINE_BIMODAL_KEY(modal_right, seek_white_or_token_right, cmdid_move_right);
-DEFINE_BIMODAL_KEY(modal_delete, casey_delete_token_right, cmdid_delete);
+DEFINE_BIMODAL_KEY(modal_backspace, casey_delete_token_left, backspace_char);
+DEFINE_BIMODAL_KEY(modal_up, move_up, move_up);
+DEFINE_BIMODAL_KEY(modal_down, move_down, move_down);
+DEFINE_BIMODAL_KEY(modal_left, seek_white_or_token_left, move_left); 
+DEFINE_BIMODAL_KEY(modal_right, seek_white_or_token_right, move_right);
+DEFINE_BIMODAL_KEY(modal_delete, casey_delete_token_right, delete_char);
 DEFINE_BIMODAL_KEY(modal_home, casey_seek_beginning_of_line, casey_seek_beginning_of_line_and_tab);
 DEFINE_BIMODAL_KEY(modal_end, cmdid_seek_end_of_line, cmdid_seek_end_of_line);
-DEFINE_BIMODAL_KEY(modal_page_up, cmdid_page_up, cmdid_seek_whitespace_up);
-DEFINE_BIMODAL_KEY(modal_page_down, cmdid_page_down, cmdid_seek_whitespace_down);
+DEFINE_BIMODAL_KEY(modal_page_up, cmdid_page_up, seek_whitespace_up);
+DEFINE_BIMODAL_KEY(modal_page_down, cmdid_page_down, seek_whitespace_down);
 DEFINE_BIMODAL_KEY(modal_tab, cmdid_word_complete, cmdid_word_complete);
 
 HOOK_SIG(casey_file_settings)
@@ -1494,7 +1494,7 @@ extern "C" GET_BINDING_DATA(get_bindings)
 
     begin_map(context, mapid_file);
 
-    bind_vanilla_keys(context, cmdid_write_character);
+    bind_vanilla_keys(context, write_character);
 
     bind(context, key_insert, MDFR_NONE, begin_free_typing);
     bind(context, '`', MDFR_NONE, begin_free_typing);

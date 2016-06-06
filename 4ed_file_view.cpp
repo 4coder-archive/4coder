@@ -435,6 +435,7 @@ file_save(System_Functions *system, Mem_Options *mem, Editing_File *file, char *
         max = buffer_size(buffer);
     }
     
+    b32 used_general = 0;
     Temp_Memory temp = begin_temp_memory(&mem->part);
     char empty = 0;
     if (max == 0){
@@ -442,6 +443,11 @@ file_save(System_Functions *system, Mem_Options *mem, Editing_File *file, char *
     }
     else{
         data = (char*)push_array(&mem->part, char, max);
+        
+        if (!data){
+            used_general = 1;
+            data = (char*)general_memory_allocate(&mem->general, max, 0);
+        }
     }
     Assert(data);
     
@@ -457,6 +463,9 @@ file_save(System_Functions *system, Mem_Options *mem, Editing_File *file, char *
     
     file_synchronize_times(system, file, filename);
     
+    if (used_general){
+        general_memory_free(&mem->general, data);
+    }
     end_temp_memory(temp);
     
     return(result);
@@ -1000,7 +1009,6 @@ file_relex_parallel(System_Functions *system,
         relex_space.tokens = push_array(part, Cpp_Token, relex_space.max_count);
         
 //        char *spare = push_array(part, char, cpp_file.size);
-        
 //        if (cpp_relex_nonalloc_main(&state, &relex_space, &relex_end, spare)){
         if (cpp_relex_nonalloc_main(&state, &relex_space, &relex_end)){
             inline_lex = 0;
@@ -3239,6 +3247,7 @@ view_open_file(System_Functions *system, Models *models,
     if (file){
         if (view){
             view_set_file(view, file, models);
+            view_show_file(view);
         }
     }
 }
@@ -3853,7 +3862,6 @@ app_single_line_input_core(System_Functions *system, Working_Set *working_set,
         }
         else{
             result.did_command = 1;
-            result.made_a_change = 1;
         }
     }
 
