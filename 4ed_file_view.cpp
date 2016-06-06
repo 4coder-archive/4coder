@@ -1619,6 +1619,10 @@ view_set_file(View *view, Editing_File *file, Models *models){
     view->font_advance = fnt_info->advance;
     view->line_height = fnt_info->height;
     
+    if (view->file_data.file != 0){
+        touch_file(&models->working_set, view->file_data.file);
+    }
+    
     file_view_nullify_file(view);
     view->file_data.file = file;
     
@@ -3325,12 +3329,12 @@ try_kill_file(System_Functions *system, Models *models,
 internal void
 interactive_view_complete(System_Functions *system, View *view, String dest, i32 user_action){
     Models *models = view->persistent.models;
-    Editing_File *old_file = view->file_data.file;
+    //Editing_File *old_file = view->file_data.file;
     
     switch (view->action){
         case IAct_Open:
         view_open_file(system, models, view, dest);
-        touch_file(&models->working_set, old_file);
+        //touch_file(&models->working_set, old_file);
         view_show_file(view);
         break;
         
@@ -3347,7 +3351,7 @@ interactive_view_complete(System_Functions *system, View *view, String dest, i32
         
         case IAct_Switch:
         {
-            touch_file(&models->working_set, old_file);
+            //touch_file(&models->working_set, old_file);
             
             Editing_File *file = 0;
             String string = dest;

@@ -427,19 +427,19 @@ CUSTOM_COMMAND_SIG(snipe_token_or_word){
     View_Summary view;
     Buffer_Summary buffer;
     int pos1, pos2;
-
+    
     view = app->get_active_view(app);
-
+    
     push_parameter(app, par_flags, BoundryToken | BoundryWhitespace);
     exec_command(app, cmdid_seek_left);
     app->refresh_view(app, &view);
     pos1 = view.cursor.pos;
-
+    
     push_parameter(app, par_flags, BoundryToken | BoundryWhitespace);
     exec_command(app, cmdid_seek_right);
     app->refresh_view(app, &view);
     pos2 = view.cursor.pos;
-
+    
     Range range = make_range(pos1, pos2);
     buffer = app->get_buffer(app, view.buffer_id);
     app->buffer_replace_range(app, &buffer, range.start, range.end, 0, 0);
@@ -450,28 +450,28 @@ CUSTOM_COMMAND_SIG(open_file_in_quotes){
     Buffer_Summary buffer;
     char short_file_name[128];
     int pos, start, end, size;
-
+    
     view = app->get_active_view(app);
     buffer = app->get_buffer(app, view.buffer_id);
     pos = view.cursor.pos;
     buffer_seek_delimiter_forward(app, &buffer, pos, '"', &end);
     buffer_seek_delimiter_backward(app, &buffer, pos, '"', &start);
-
+    
     ++start;
     size = end - start;
-
+    
     // NOTE(allen): This check is necessary because app->buffer_read_range
     // requiers that the output buffer you provide is at least (end - start) bytes long.
     if (size < sizeof(short_file_name)){
         char file_name_[256];
         String file_name = make_fixed_width_string(file_name_);
-
+        
         app->buffer_read_range(app, &buffer, start, end, short_file_name);
-
+        
         copy(&file_name, make_string(buffer.file_name, buffer.file_name_len));
         remove_last_folder(&file_name);
         append(&file_name, make_string(short_file_name, size));
-
+        
         exec_command(app, cmdid_change_active_panel);
         push_parameter(app, par_name, expand_str(file_name));
         exec_command(app, cmdid_interactive_open);
@@ -736,20 +736,29 @@ CUSTOM_COMMAND_SIG(query_replace){
 CUSTOM_COMMAND_SIG(close_all_code){
     String extension;
     Buffer_Summary buffer;
-
+    
+    // TODO(allen): Get better memory constructs to the custom layer
+    // so that it doesn't have to rely on arbitrary limits like this one.
+    int buffers_to_close[2048];
+    int buffers_to_close_count = 0;
+    
     for (buffer = app->get_buffer_first(app);
-        buffer.exists;
-        app->get_buffer_next(app, &buffer)){
-
+         buffer.exists;
+         app->get_buffer_next(app, &buffer)){
+        
         extension = file_extension(make_string(buffer.file_name, buffer.file_name_len));
         if (match(extension, make_lit_string("cpp")) ||
-                match(extension, make_lit_string("hpp")) ||
-                match(extension, make_lit_string("c")) ||
-                match(extension, make_lit_string("h"))){
-            //
-            push_parameter(app, par_buffer_id, buffer.buffer_id);
-            exec_command(app, cmdid_kill_buffer);
+            match(extension, make_lit_string("hpp")) ||
+            match(extension, make_lit_string("c")) ||
+            match(extension, make_lit_string("h"))){
+            
+            buffers_to_close[buffers_to_close_count++] = buffer.buffer_id;
         }
+    }
+    
+    for (int i = 0; i < buffers_to_close_count; ++i){
+        push_parameter(app, par_buffer_id, buffers_to_close[i]);
+        exec_command(app, cmdid_kill_buffer);
     }
 }
 
