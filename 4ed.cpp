@@ -3803,6 +3803,8 @@ App_Step_Sig(app_step){
             active = (panel == cmd->panel);
             summary = (active)?(active_input):(dead_input);
             
+            view->changed_context_in_step = 0;
+            
             View_Step_Result result = step_file_view(system, view, active_view, summary);
             if (result.animating){
                 app_result.animating = 1;
@@ -3817,23 +3819,26 @@ App_Step_Sig(app_step){
         
         for (dll_items(panel, used_panels)){
             view = panel->view;
-            Assert(view->current_scroll);
-            active = (panel == cmd->panel);
-            summary = (active)?(active_input):(dead_input);
-            if (panel == mouse_panel && !input->mouse.out_of_window){
-                summary.mouse = mouse_state;
-            }
             
-            GUI_Scroll_Vars *vars = view->current_scroll;
-            // TODO(allen): I feel like the scroll context should actually not
-            // be allowed to change in here at all.
-            result = do_step_file_view(system, view, panel->inner, active,
-                                       &summary, *vars, view->scroll_region);
-            if (result.is_animating){
-                app_result.animating = 1;
+            if (view->changed_context_in_step == 0){
+                Assert(view->current_scroll);
+                active = (panel == cmd->panel);
+                summary = (active)?(active_input):(dead_input);
+                if (panel == mouse_panel && !input->mouse.out_of_window){
+                    summary.mouse = mouse_state;
+                }
+                
+                GUI_Scroll_Vars *vars = view->current_scroll;
+                // TODO(allen): I feel like the scroll context should actually not
+                // be allowed to change in here at all.
+                result = do_step_file_view(system, view, panel->inner, active,
+                                           &summary, *vars, view->scroll_region);
+                if (result.is_animating){
+                    app_result.animating = 1;
+                }
+                *vars = result.vars;
+                view->scroll_region = result.region;
             }
-            *vars = result.vars;
-            view->scroll_region = result.region;
         }
     }
     

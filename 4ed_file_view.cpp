@@ -137,15 +137,15 @@ enum Color_View_Mode{
 
 struct File_Viewing_Data{
     Editing_File *file;
-
+    
     Full_Cursor temp_highlight;
     i32 temp_highlight_end_pos;
     b32 show_temp_highlight;
-
+    
     b32 unwrapped_lines;
     b32 show_whitespace;
     b32 file_locked;
-
+    
     i32 line_count, line_max;
     f32 *line_wrap_y;
 };
@@ -234,6 +234,8 @@ struct View{
     char dest_[256];
     String dest;
     
+    b32 changed_context_in_step;
+    
     // theme stuff
     View *hot_file_view;
     u32 *palette;
@@ -302,7 +304,7 @@ view_file_height(View *view){
 
 struct View_Iter{
     View *view;
-
+    
     Editing_File *file;
     View *skip;
     Panel *used_panels;
@@ -312,7 +314,7 @@ struct View_Iter{
 internal View_Iter
 file_view_iter_next(View_Iter iter){
     View *view;
-
+    
     for (iter.panel = iter.panel->next; iter.panel != iter.used_panels; iter.panel = iter.panel->next){
         view = iter.panel->view;
         if (view != iter.skip && (view->file_data.file == iter.file || iter.file == 0)){
@@ -320,7 +322,7 @@ file_view_iter_next(View_Iter iter){
             break;
         }
     }
-
+    
     return(iter);
 }
 
@@ -331,9 +333,9 @@ file_view_iter_init(Editing_Layout *layout, Editing_File *file, View *skip){
     result.panel = result.used_panels;
     result.file = file;
     result.skip = skip;
-
+    
     result = file_view_iter_next(result);
-
+    
     return(result);
 }
 
@@ -3070,6 +3072,7 @@ view_show_menu(View *view, Command_Map *gui_map){
     view->map = gui_map;
     view->showing_ui = VUI_Menu;
     view->current_scroll = &view->gui_scroll;
+    view->changed_context_in_step = 1;
 }
 
 inline void
@@ -3077,6 +3080,7 @@ view_show_config(View *view, Command_Map *gui_map){
     view->map = gui_map;
     view->showing_ui = VUI_Config;
     view->current_scroll = &view->gui_scroll;
+    view->changed_context_in_step = 1;
 }
 
 inline void
@@ -3097,6 +3101,7 @@ view_show_interactive(System_Functions *system, View *view,
     
     hot_directory_clean_end(&models->hot_directory);
     hot_directory_reload(system, &models->hot_directory, &models->working_set);
+    view->changed_context_in_step = 1;
 }
 
 inline void
@@ -3107,6 +3112,7 @@ view_show_theme(View *view, Command_Map *gui_map){
     view->color = super_color_create(0xFF000000);
     view->current_color_editing = 0;
     view->current_scroll = &view->gui_scroll;
+    view->changed_context_in_step = 1;
 }
 
 inline void
@@ -3121,6 +3127,7 @@ view_show_file(View *view){
     view->showing_ui = VUI_None;
     view->current_scroll = &view->recent->scroll;
     view->recent->scroll.max_y = view_compute_max_target_y(view);
+    view->changed_context_in_step = 1;
 }
 
 internal void
