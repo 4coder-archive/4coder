@@ -807,6 +807,7 @@ Job_Callback_Sig(job_full_lex){
     i32 buffer_size = file->state.buffer.size;
     buffer_size = (buffer_size + 3)&(~3);
     
+#if 0
     while (memory->size < buffer_size*2){
         system->grow_thread_memory(memory);
     }
@@ -817,8 +818,6 @@ Job_Callback_Sig(job_full_lex){
     tokens.tokens = (Cpp_Token*)((char*)memory->data + buffer_size);
     tokens.max_count = (memory->size - buffer_size) / sizeof(Cpp_Token);
     tokens.count = 0;
-    
-#if 1
     
     b32 still_lexing = 1;
     
@@ -855,7 +854,16 @@ Job_Callback_Sig(job_full_lex){
     
 #else
     
-    Cpp_Lex_Data status = {0};
+    while (memory->size < buffer_size){
+        system->grow_thread_memory(memory);
+    }
+    
+    Cpp_Token_Stack tokens;
+    tokens.tokens = (Cpp_Token*)(char*)memory->data;
+    tokens.max_count = (memory->size) / sizeof(Cpp_Token);
+    tokens.count = 0;
+    
+    Cpp_Lex_Data status = {};
     
     do{
         for (i32 r = 2048; r > 0 && status.pos < cpp_file.size; --r){
@@ -991,9 +999,10 @@ file_relex_parallel(System_Functions *system,
         relex_space.max_count = state.space_request;
         relex_space.tokens = push_array(part, Cpp_Token, relex_space.max_count);
         
-        char *spare = push_array(part, char, cpp_file.size);
+//        char *spare = push_array(part, char, cpp_file.size);
         
-        if (cpp_relex_nonalloc_main(&state, &relex_space, &relex_end, spare)){
+//        if (cpp_relex_nonalloc_main(&state, &relex_space, &relex_end, spare)){
+        if (cpp_relex_nonalloc_main(&state, &relex_space, &relex_end)){
             inline_lex = 0;
         }
         else{

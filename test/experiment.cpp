@@ -18,12 +18,13 @@
 
 #include "../4cpp_types.h"
 #include "../4cpp_lexer_types.h"
-#define FCPP_LEXER_IMPLEMENTATION
-#include "../4cpp_lexer.h"
 
 namespace new_lex{
 # include "4cpp_new_lexer.h"
 }
+
+#define FCPP_LEXER_IMPLEMENTATION
+#include "../4cpp_lexer.h"
 
 #include <windows.h>
 #include <intrin.h>
@@ -403,12 +404,12 @@ show_time(Times t, int repeats, char *type){
 
 int main(){
     int repeats = 1;
-    int verbose_level = 0;
-    int chunk_start = 32;
+    int verbose_level = 1;
+    int chunk_start = 64;
     int chunk_end = 64;
-#define TEST_FILE "parser_test1.cpp"
-#define SINGLE_ITEM 0
-    int token_limit = 2;
+#define TEST_FILE "lexer_test2.cpp"
+#define SINGLE_ITEM 1
+    int token_limit = 1;
     
     int chunks = (chunk_start > 0 && chunk_start <= chunk_end);
     int c = 0;

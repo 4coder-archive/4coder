@@ -632,6 +632,7 @@ cpp_lex_nonalloc(Lex_Data *S_ptr,
                     break;
                     
                     case LS_char:
+                    case LS_char_slashed:
                     S.token.type = CPP_TOKEN_CHARACTER_CONSTANT;
                     S.token.flags = 0;
                     break;
@@ -642,6 +643,7 @@ cpp_lex_nonalloc(Lex_Data *S_ptr,
                     break;
                     
                     case LS_string:
+                    case LS_string_slashed:
                     S.token.type = CPP_TOKEN_STRING_CONSTANT;
                     S.token.flags = 0;
                     break;
@@ -662,7 +664,10 @@ cpp_lex_nonalloc(Lex_Data *S_ptr,
                     }
                     break;
                     
-                    case LS_comment: case LS_comment_block_ending:
+                    case LS_comment:
+                    case LS_comment_slashed:
+                    case LS_comment_block:
+                    case LS_comment_block_ending:
                     S.token.type = CPP_TOKEN_COMMENT;
                     S.token.flags = 0;
                     pos_update_rule = PUR_unget_whitespace;
