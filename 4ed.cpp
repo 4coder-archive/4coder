@@ -712,11 +712,11 @@ COMMAND_DECL(history_forward){
 }
 
 COMMAND_DECL(interactive_new){
-    USE_MODELS(models);
     USE_VIEW(view);
     
-    view_show_interactive(system, view, &models->map_ui,
-                          IAct_New, IInt_Sys_File_List, make_lit_string("New: "));
+    view_show_interactive(system, view,
+                          IAct_New, IInt_Sys_File_List,
+                          make_lit_string("New: "));
 }
 
 COMMAND_DECL(interactive_open){
@@ -752,8 +752,9 @@ COMMAND_DECL(interactive_open){
         }
     }
     else{
-        view_show_interactive(system, view, &models->map_ui,
-                              IAct_Open, IInt_Sys_File_List, make_lit_string("Open: "));
+        view_show_interactive(system, view,
+                              IAct_Open, IInt_Sys_File_List,
+                              make_lit_string("Open: "));
     }
 }
 
@@ -830,8 +831,9 @@ COMMAND_DECL(save){
                 }
             }
             else{
-                view_show_interactive(system, view, &models->map_ui,
-                                      IAct_Save_As, IInt_Sys_File_List, make_lit_string("Save As: "));
+                view_show_interactive(system, view,
+                                      IAct_Save_As, IInt_Sys_File_List,
+                                      make_lit_string("Save As: "));
             }
         }
     }
@@ -858,7 +860,6 @@ COMMAND_DECL(save){
 }
 
 COMMAND_DECL(change_active_panel){
-    
     USE_MODELS(models);
     USE_PANEL(panel);
     
@@ -870,21 +871,19 @@ COMMAND_DECL(change_active_panel){
 }
 
 COMMAND_DECL(interactive_switch_buffer){
-    
     USE_VIEW(view);
-    USE_MODELS(models);
     
-    view_show_interactive(system, view, &models->map_ui,
-                          IAct_Switch, IInt_Live_File_List, make_lit_string("Switch Buffer: "));
+    view_show_interactive(system, view,
+                          IAct_Switch, IInt_Live_File_List,
+                          make_lit_string("Switch Buffer: "));
 }
 
 COMMAND_DECL(interactive_kill_buffer){
-    
     USE_VIEW(view);
-    USE_MODELS(models);
     
-    view_show_interactive(system, view, &models->map_ui,
-                          IAct_Kill, IInt_Live_File_List, make_lit_string("Kill Buffer: "));
+    view_show_interactive(system, view,
+                          IAct_Kill, IInt_Live_File_List,
+                          make_lit_string("Kill Buffer: "));
 }
 
 COMMAND_DECL(kill_buffer){
@@ -1206,81 +1205,6 @@ COMMAND_DECL(close_panel){
     }
 }
 
-#if 0
-COMMAND_DECL(move_left){
-    
-    REQ_READABLE_VIEW(view);
-    REQ_FILE(file, view);
-    
-    i32 pos = view->recent->cursor.pos;
-    if (pos > 0) --pos;
-    view_cursor_move(view, pos);
-}
-
-COMMAND_DECL(move_right){
-    REQ_READABLE_VIEW(view);
-    REQ_FILE(file, view);
-    
-    i32 size = buffer_size(&file->state.buffer);
-    i32 pos = view->recent->cursor.pos;
-    if (pos < size) ++pos;
-    view_cursor_move(view, pos);
-}
-
-COMMAND_DECL(delete){
-    USE_MODELS(models);
-    REQ_OPEN_VIEW(view);
-    REQ_FILE(file, view);
-    
-    i32 size = buffer_size(&file->state.buffer);
-    i32 cursor_pos = view->recent->cursor.pos;
-    if (0 < size && cursor_pos < size){
-        i32 start, end;
-        start = cursor_pos;
-        end = cursor_pos+1;
-        
-        i32 next_cursor_pos = start;
-        view_replace_range(system, models, view,
-                           start, end, 0, 0, next_cursor_pos);
-        view_cursor_move(view, next_cursor_pos);
-    }
-}
-
-COMMAND_DECL(backspace){
-    USE_MODELS(models);
-    REQ_OPEN_VIEW(view);
-    REQ_FILE(file, view);
-    
-    i32 size = buffer_size(&file->state.buffer);
-    i32 cursor_pos = view->recent->cursor.pos;
-    if (cursor_pos > 0 && cursor_pos <= size){
-        i32 start, end;
-        end = cursor_pos;
-        start = cursor_pos-1;
-        
-        i32 next_cursor_pos = view->recent->cursor.pos - 1;
-        view_replace_range(system, models, view, start, end, 0, 0, next_cursor_pos);
-        view_cursor_move(view, next_cursor_pos);
-    }
-}
-#endif
-
-COMMAND_DECL(seek_end_of_line){
-    REQ_READABLE_VIEW(view);
-    REQ_FILE(file, view);
-    
-    i32 pos = view_find_end_of_line(view, view->recent->cursor.pos);
-    view_cursor_move(view, pos);
-}
-
-COMMAND_DECL(seek_beginning_of_line){
-    REQ_READABLE_VIEW(view);
-    REQ_FILE(file, view);
-    
-    i32 pos = view_find_beginning_of_line(view, view->recent->cursor.pos);
-    view_cursor_move(view, pos);
-}
-
 COMMAND_DECL(page_down){
     REQ_READABLE_VIEW(view);
     
@@ -1308,36 +1232,22 @@ COMMAND_DECL(page_up){
 
 COMMAND_DECL(open_color_tweaker){
     USE_VIEW(view);
-    USE_MODELS(models);
-    
-    view_show_theme(view, &models->map_ui);
+    view_show_theme(view);
 }
 
 COMMAND_DECL(open_config){
     USE_VIEW(view);
-    USE_MODELS(models);
-    
-    view_show_config(view, &models->map_ui);
+    view_show_GUI(view, VUI_Config);
 }
 
 COMMAND_DECL(open_menu){
     USE_VIEW(view);
-    USE_MODELS(models);
-    
-    view_show_menu(view, &models->map_ui);
+    view_show_GUI(view, VUI_Menu);
 }
 
-COMMAND_DECL(close_minor_view){
+COMMAND_DECL(open_debug){
     USE_VIEW(view);
-    view_show_file(view);
-}
-
-COMMAND_DECL(cursor_mark_swap){
-    REQ_READABLE_VIEW(view);
-    
-    i32 pos = view->recent->cursor.pos;
-    view_cursor_move(view, view->recent->mark);
-    view->recent->mark = pos;
+    view_show_GUI(view, VUI_Debug);
 }
 
 COMMAND_DECL(user_callback){
@@ -2368,7 +2278,6 @@ setup_ui_commands(Command_Map *commands, Partition *part, Command_Map *parent){
         map_add(commands, key_up, mdfr, command_null);
         map_add(commands, key_down, mdfr, command_null);
         map_add(commands, key_back, mdfr, command_null);
-        map_add(commands, key_esc, mdfr, command_close_minor_view);
     }
 }
 
@@ -2418,16 +2327,19 @@ setup_command_table(){
     SET(open_panel_hsplit);
     SET(close_panel);
     
-    SET(seek_end_of_line);
-    SET(seek_beginning_of_line);
     SET(page_up);
     SET(page_down);
+    
     SET(open_color_tweaker);
-    SET(cursor_mark_swap);
+    SET(open_config);
     SET(open_menu);
+    SET(open_debug);
+    
     SET(hide_scrollbar);
     SET(show_scrollbar);
+    
     SET(set_settings);
+    
     SET(command_line);
     
 #undef SET
@@ -3601,9 +3513,10 @@ App_Step_Sig(app_step){
         if (there_is_unsaved){
             Coroutine *command_coroutine = models->command_coroutine;
             View *view = cmd->view;
-            i32 i = 0;
             
-            while (command_coroutine){
+            for (i32 i = 0;
+                 i < 128 && command_coroutine;
+                 ++i){
                 User_Input user_in = {0};
                 user_in.abort = 1;
                 
@@ -3611,12 +3524,10 @@ App_Step_Sig(app_step){
                     app_resume_coroutine(system, &models->app_links, Co_Command,
                                          command_coroutine, &user_in,
                                          models->command_coroutine_flags);
-                
-                ++i;
-                if (i >= 128){
-                    // TODO(allen): post grave warning, resource cleanup system.
-                    command_coroutine = 0;
-                }
+            }
+            if (command_coroutine != 0){
+                // TODO(allen): post grave warning
+                command_coroutine = 0;
             }
             if (view != 0){
                 init_query_set(&view->query_set);
@@ -3627,7 +3538,7 @@ App_Step_Sig(app_step){
                 view = panel->view;
             }
             
-            view_show_interactive(system, view, &models->map_ui,
+            view_show_interactive(system, view,
                                   IAct_Sure_To_Close, IInt_Sure_To_Close,
                                   make_lit_string("Are you sure?"));
             

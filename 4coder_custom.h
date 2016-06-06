@@ -216,14 +216,14 @@ enum Command_ID{
     cmdid_open_panel_hsplit,
     cmdid_close_panel,
     
-    cmdid_seek_end_of_line,
-    cmdid_seek_beginning_of_line,
     cmdid_page_up,
     cmdid_page_down,
-    cmdid_cursor_mark_swap,
     
     cmdid_open_color_tweaker,
+    cmdid_open_config,
     cmdid_open_menu,
+    cmdid_open_debug,
+    
     cmdid_hide_scrollbar,
     cmdid_show_scrollbar,
     cmdid_set_settings,

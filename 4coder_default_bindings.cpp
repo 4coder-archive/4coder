@@ -322,8 +322,8 @@ default_keys(Bind_Helper *context){
     bind(context, key_back, MDFR_NONE, backspace_char);
     bind(context, key_up, MDFR_NONE, move_up);
     bind(context, key_down, MDFR_NONE, move_down);
-    bind(context, key_end, MDFR_NONE, cmdid_seek_end_of_line);
-    bind(context, key_home, MDFR_NONE, cmdid_seek_beginning_of_line);
+    bind(context, key_end, MDFR_NONE, seek_end_of_line);
+    bind(context, key_home, MDFR_NONE, seek_beginning_of_line);
     bind(context, key_page_up, MDFR_NONE, cmdid_page_up);
     bind(context, key_page_down, MDFR_NONE, cmdid_page_down);
     
@@ -350,7 +350,7 @@ default_keys(Bind_Helper *context){
     bind(context, 'j', MDFR_CTRL, cmdid_to_lowercase);
     bind(context, 'K', MDFR_CTRL, cmdid_kill_buffer);
     bind(context, 'l', MDFR_CTRL, cmdid_toggle_line_wrap);
-    bind(context, 'm', MDFR_CTRL, cmdid_cursor_mark_swap);
+    bind(context, 'm', MDFR_CTRL, cursor_mark_swap);
     bind(context, 'O', MDFR_CTRL, cmdid_reopen);
     bind(context, 'q', MDFR_CTRL, query_replace);
     bind(context, 'r', MDFR_CTRL, reverse_search);

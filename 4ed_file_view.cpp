@@ -127,6 +127,7 @@ enum View_UI{
     VUI_Interactive,
     VUI_Menu,
     VUI_Config,
+    VUI_Debug
 };
 
 enum Color_View_Mode{
@@ -2380,48 +2381,6 @@ view_history_step(System_Functions *system, Models *models, View *view, History_
     }
 }
 
-// TODO(allen): write these as streamed operations
-internal i32
-view_find_end_of_line(View *view, i32 pos){
-#if BUFFER_EXPERIMENT_SCALPEL <= 0
-    Editing_File *file = view->file_data.file;
-    char *data = file->state.buffer.data;
-    while (pos < file->state.buffer.size && data[pos] != '\n') ++pos;
-    if (pos > file->state.buffer.size) pos = file->state.buffer.size;
-#endif
-    return pos;
-}
-
-internal i32
-view_find_beginning_of_line(View *view, i32 pos){
-#if BUFFER_EXPERIMENT_SCALPEL <= 0
-    Editing_File *file = view->file_data.file;
-    char *data = file->state.buffer.data;
-    if (pos > 0){
-        --pos;
-        while (pos > 0 && data[pos] != '\n') --pos;
-        if (pos != 0) ++pos;
-    }
-#endif
-    return pos;
-}
-
-internal i32
-view_find_beginning_of_next_line(View *view, i32 pos){
-#if BUFFER_EXPERIMENT_SCALPEL <= 0
-    Editing_File *file = view->file_data.file;
-    char *data = file->state.buffer.data;
-    while (pos < file->state.buffer.size &&
-           !starts_new_line(data[pos])){
-        ++pos;
-    }
-    if (pos < file->state.buffer.size){
-        ++pos;
-    }
-#endif
-    return pos;
-}
-
 internal String*
 working_set_next_clipboard_string(General_Memory *general, Working_Set *working, i32 str_size){
     String *result = 0;
@@ -3072,25 +3031,18 @@ remeasure_file_view(System_Functions *system, View *view){
 }
 
 inline void
-view_show_menu(View *view, Command_Map *gui_map){
-    view->map = gui_map;
-    view->showing_ui = VUI_Menu;
-    view->current_scroll = &view->gui_scroll;
-    view->changed_context_in_step = 1;
-}
-
-inline void
-view_show_config(View *view, Command_Map *gui_map){
-    view->map = gui_map;
-    view->showing_ui = VUI_Config;
+view_show_GUI(View *view, View_UI ui){
+    view->map = &view->persistent.models->map_ui;
+    view->showing_ui = ui;
     view->current_scroll = &view->gui_scroll;
     view->changed_context_in_step = 1;
 }
 
 inline void
 view_show_interactive(System_Functions *system, View *view,
-                      Command_Map *gui_map, Interactive_Action action,
-                      Interactive_Interaction interaction, String query){
+                      Interactive_Action action,
+                      Interactive_Interaction interaction,
+                      String query){
     
     Models *models = view->persistent.models;
     
@@ -3101,7 +3053,7 @@ view_show_interactive(System_Functions *system, View *view,
     view->list_i = 0;
     view->current_scroll = &view->gui_scroll;
     
-    view->map = gui_map;
+    view->map = &models->map_ui;
     
     hot_directory_clean_end(&models->hot_directory);
     hot_directory_reload(system, &models->hot_directory, &models->working_set);
@@ -3109,8 +3061,8 @@ view_show_interactive(System_Functions *system, View *view,
 }
 
 inline void
-view_show_theme(View *view, Command_Map *gui_map){
-    view->map = gui_map;
+view_show_theme(View *view){
+    view->map = &view->persistent.models->map_ui;
     view->showing_ui = VUI_Theme;
     view->color_mode = CV_Mode_Library;
     view->color = super_color_create(0xFF000000);
@@ -3315,7 +3267,7 @@ try_kill_file(System_Functions *system, Models *models,
             if (view == 0){
                 view = models->layout.panels[models->layout.active_panel].view;
             }
-            view_show_interactive(system, view, &models->map_ui,
+            view_show_interactive(system, view,
                                   IAct_Sure_To_Kill, IInt_Sure_To_Kill,
                                   make_lit_string("Are you sure?"));
             copy(&view->dest, file->name.live_name);
@@ -3992,13 +3944,13 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                     id.id[0] = 0;
                     message = make_lit_string("Theme");
                     if (gui_do_fixed_option(target, id, message, 0)){
-                        view_show_theme(view, view->map);
+                        view_show_theme(view);
                     }
                     
                     id.id[0] = 1;
                     message = make_lit_string("Config");
                     if (gui_do_fixed_option(target, id, message, 0)){
-                        view_show_config(view, view->map);
+                        view_show_GUI(view, VUI_Config);
                     }
                 }break;
                 
@@ -4513,6 +4465,11 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                         interactive_view_complete(system, view, comp_dest, comp_action);
                     }
                 }break;
+                
+                case VUI_Debug:
+                {
+
+}break;
             }
         }
     }

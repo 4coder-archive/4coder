@@ -40,6 +40,13 @@
 // Win32_Vars structs
 //
 
+#if FRED_INTERNAL
+struct Debug_Log_Entry{
+    u64 time;
+    i64 message;
+};
+#endif
+
 struct Thread_Context{
     u32 job_id;
     b32 running;

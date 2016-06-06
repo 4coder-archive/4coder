@@ -85,7 +85,17 @@ CUSTOM_COMMAND_SIG(set_mark){
     
     app->view_set_mark(app, &view, seek_pos(view.cursor.pos));
     // TODO(allen): Just expose the preferred_x seperately
-    app->view_set_cursor(app, &view, seek_pos(view.cursor.pos), 1);
+    app->view_set_cursor(app, &view, seek_pos(view.cursor.pos), true);
+}
+
+CUSTOM_COMMAND_SIG(cursor_mark_swap){
+    View_Summary view = app->get_active_view(app);
+    
+    int cursor = view.cursor.pos;
+    int mark = view.mark.pos;
+    
+    app->view_set_cursor(app, &view, seek_pos(mark), true);
+    app->view_set_mark(app, &view, seek_pos(cursor));
 }
 
 CUSTOM_COMMAND_SIG(delete_range){
@@ -293,6 +303,86 @@ CUSTOM_COMMAND_SIG(seek_whitespace_down){
     app->view_set_cursor(app, &view,
                          seek_pos(new_pos),
                          true);
+}
+
+static int
+seek_line_end(Application_Links *app, Buffer_Summary *buffer, int pos){
+    char chunk[1024];
+    int chunk_size = sizeof(chunk);
+    Stream_Chunk stream = {0};
+    
+    int still_looping;
+    char at_pos;
+    
+    if (init_stream_chunk(&stream, app, buffer, pos, chunk, chunk_size)){
+        still_looping = 1;
+        do{
+            for (; pos < stream.end; ++pos){
+                at_pos = stream.data[pos];
+                if (at_pos == '\n'){
+                    goto double_break;
+                }
+            }
+            still_looping = forward_stream_chunk(&stream);
+        }while(still_looping);
+        double_break:;
+        
+        if (pos > buffer->size){
+            pos = buffer->size;
+        }
+    }
+    
+    return(pos);
+}
+
+static int
+seek_line_beginning(Application_Links *app, Buffer_Summary *buffer, int pos){
+    char chunk[1024];
+    int chunk_size = sizeof(chunk);
+    Stream_Chunk stream = {0};
+    
+    int still_looping;
+    char at_pos;
+    
+    --pos;
+    if (init_stream_chunk(&stream, app, buffer, pos, chunk, chunk_size)){
+        still_looping = 1;
+        do{
+            for (; pos >= stream.start; --pos){
+                at_pos = stream.data[pos];
+                if (at_pos == '\n'){
+                    goto double_break;
+                }
+            }
+            still_looping = backward_stream_chunk(&stream);
+        }while(still_looping);
+        double_break:;
+        
+        if (pos != 0){
+            ++pos;
+        }
+        if (pos < 0){
+            pos = 0;
+        }
+    }
+    
+    return(pos);
+}
+
+CUSTOM_COMMAND_SIG(seek_end_of_line){
+    View_Summary view = app->get_active_view(app);
+    Buffer_Summary buffer = app->get_buffer(app, view.locked_buffer_id);
+    
+    int new_pos = seek_line_end(app, &buffer, view.cursor.pos);
+    app->view_set_cursor(app, &view, seek_pos(new_pos), true);
+}
+
+CUSTOM_COMMAND_SIG(seek_beginning_of_line){
+    View_Summary view = app->get_active_view(app);
+    Buffer_Summary buffer = app->get_buffer(app, view.locked_buffer_id);
+    
+    int new_pos = seek_line_beginning(app, &buffer, view.cursor.pos);
+    app->view_set_cursor(app, &view, seek_pos(new_pos), true);
 }
 
 static void
