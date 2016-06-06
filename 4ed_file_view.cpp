@@ -2750,7 +2750,7 @@ get_line_indentation_marks(Partition *part, Buffer *buffer, Cpp_Token_Stack toke
         else{
             int close = 0;
             
-            for (token = brace_token; token >= start_token; --token){
+            for (token = brace_token; token > start_token; --token){
                 switch(token->type){
                     case CPP_TOKEN_PARENTHESE_CLOSE:
                     case CPP_TOKEN_BRACKET_CLOSE:
