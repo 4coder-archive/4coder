@@ -29,7 +29,7 @@
 #include "system_shared.h"
 
 #define SUPPORT_DPI 1
-#define USE_WIN32_FONTS 1
+#define USE_WIN32_FONTS 0
 
 #define FPS 60
 #define frame_useconds (1000000 / FPS)

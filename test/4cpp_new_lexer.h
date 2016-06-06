@@ -1038,29 +1038,35 @@ cpp_relex_nonalloc_start(Cpp_File file, Cpp_Token_Stack *stack,
     state.tolerance = tolerance;
     
     Cpp_Get_Token_Result result = cpp_get_token(stack, start);
-    if (result.token_index <= 0){
+    
+    state.start_token_i = result.token_index-1;
+    if (state.start_token_i < 0){
         state.start_token_i = 0;
-    }
-    else{
-        state.start_token_i = result.token_index-1;
     }
     
     result = cpp_get_token(stack, end);
-    if (result.token_index < 0) result.token_index = 0;
-    else if (end > stack->tokens[result.token_index].start) ++result.token_index;
+    
     state.end_token_i = result.token_index;
+    if (end > stack->tokens[state.end_token_i].start){
+        ++state.end_token_i;
+    }
+    if (state.end_token_i < 0){
+        state.end_token_i = 0;
+    }
     
     state.relex_start = stack->tokens[state.start_token_i].start;
-    if (start < state.relex_start) state.relex_start = start;
+    if (start < state.relex_start){
+        state.relex_start = start;
+    }
     
     state.space_request = state.end_token_i - state.start_token_i + tolerance + 1;
     
     return(state);
 }
 
-inline Cpp_Preprocessor_State
+inline char
 cpp_token_get_pp_state(fcpp_u16 bitfield){
-    return (Cpp_Preprocessor_State)(bitfield);
+    return (char)(bitfield);
 }
 
 // TODO(allen): Eliminate this once we actually store the EOF token
@@ -1081,7 +1087,7 @@ cpp__get_token(Cpp_Token_Stack *stack, Cpp_Token *tokens, int size, int index){
     return result;
 }
 
-FCPP_LINK bool
+FCPP_LINK int
 cpp_relex_nonalloc_main(Cpp_Relex_State *state,
                         Cpp_Token_Stack *relex_stack,
                         int *relex_end,
@@ -1100,23 +1106,24 @@ cpp_relex_nonalloc_main(Cpp_Relex_State *state,
     Cpp_Token end_token = match_token;
     int went_too_far = false;
     
-    // TODO(allen): This can be better now I suspect.
+    // TODO(allen): This can be better I suspect.
     for (;;){
         int result = 
-            cpp_lex_nonalloc(&lex,
-                             state->file.data, state->file.size,
-                             stack, 1);
+            cpp_lex_size_nonalloc(&lex,
+                                  state->file.data,
+                                  state->file.size,
+                                  state->file.size,
+                                  relex_stack, 1);
         
         switch (result){
             case LexHitTokenLimit:
             {
-                Cpp_Token token =
-                    stack->tokens[stack->count-1];
+                Cpp_Token token = relex_stack->tokens[relex_stack->count-1];
                 if (token.start == end_token.start &&
                     token.size == end_token.size &&
                     token.flags == end_token.flags &&
                     token.state_flags == end_token.state_flags){
-                    --stack->count;
+                    --relex_stack->count;
                     goto double_break;
                 }
                 
@@ -1136,28 +1143,6 @@ cpp_relex_nonalloc_main(Cpp_Relex_State *state,
             case LexFinished:
             goto double_break;
         }
-        
-#if 0
-        if (read.has_result){
-            if (read.token.start == end_token.start &&
-                read.token.size == end_token.size &&
-                read.token.flags == end_token.flags &&
-                read.token.state_flags == end_token.state_flags){
-                break;
-            }
-            cpp_push_token_nonalloc(relex_stack, read.token);
-            
-            while (lex.pos > end_token.start && relex_end_i < stack->count){
-                ++relex_end_i;
-                end_token = cpp__get_token(stack, tokens, state->file.size, relex_end_i);
-            }
-            if (relex_stack->count == relex_stack->max_count){
-                went_too_far = true;
-                break;
-            }
-        }
-        if (lex.pos >= state->file.size) break;
-#endif
     }
     double_break:;
     
@@ -1190,7 +1175,7 @@ cpp_relex_nonalloc_main(Cpp_Relex_State *state,
         cpp_shift_token_starts(stack, state->end_token_i, -state->amount);
     }
     
-    return went_too_far;
+    return(went_too_far);
 }
 
 #endif

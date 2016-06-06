@@ -838,7 +838,8 @@ Job_Callback_Sig(job_full_lex){
                 return;
             }
             system->grow_thread_memory(memory);
-            tokens.tokens = (Cpp_Token*)memory->data;
+            lex.tb = (char*)memory->data;
+            tokens.tokens = (Cpp_Token*)((char*)memory->data + buffer_size);
             tokens.max_count = memory->size / sizeof(Cpp_Token);
             break;
             
