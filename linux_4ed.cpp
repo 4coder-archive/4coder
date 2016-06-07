@@ -471,18 +471,15 @@ Sys_Set_File_List_Sig(system_set_file_list){
             cursor_start = cursor;
             for (; *fname; ) *cursor++ = *fname++;
 
-#ifdef _DIRENT_HAVE_D_TYPE
-            if(entry->d_type != DT_UNKNOWN){
-                info_ptr->folder = entry->d_type == DT_DIR;
-            } else
-#endif
-            {
+            if(entry->d_type == DT_LNK){
                 struct stat st;
-                if(lstat(entry->d_name, &st) != -1){
+                if(stat(entry->d_name, &st) != -1){
                     info_ptr->folder = S_ISDIR(st.st_mode);
                 } else {
                     info_ptr->folder = 0;
                 }
+            } else {
+                info_ptr->folder = entry->d_type == DT_DIR;
             }
 
             info_ptr->filename.str = cursor_start;
