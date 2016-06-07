@@ -2095,6 +2095,8 @@ LinuxHandleX11Events(void)
                                PrevEvent.xkey.keycode == Event.xkey.keycode);
 
                 b8 mods[MDFR_INDEX_COUNT] = {};
+                mods[MDFR_HOLD_INDEX] = is_hold;
+
                 if(Event.xkey.state & ShiftMask) mods[MDFR_SHIFT_INDEX] = 1;
                 if(Event.xkey.state & ControlMask) mods[MDFR_CONTROL_INDEX] = 1;
                 if(Event.xkey.state & LockMask) mods[MDFR_CAPS_INDEX] = 1;
