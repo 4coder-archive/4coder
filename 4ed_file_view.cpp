@@ -4487,8 +4487,6 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                     char space1[512];
                     String string = make_fixed_width_string(space1);
                     
-                    String message = string_zero();
-                    
                     // Time Watcher
                     {
                         string.size = 0;
@@ -4501,7 +4499,6 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                     }
                     
                     // Incoming input
-                    //  - keeping track of where something get's consumed!?
                     //  - convert mouse clicks into key coded events??!!
                     {
                         Debug_Data *debug = &view->persistent.models->debug;
@@ -4578,12 +4575,18 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                                 }
                             }
                             
-                            message.size = 0;
                             if (input_event->consumer[0] != 0){
-                                message = make_string_slowly(input_event->consumer);
+                                i32 next_pos = 40;
+                                i32 offset = next_pos - string.size;
+                                if (offset < 0) offset = 0;
+                                for (i32 r = 0; r < offset; ++r){
+                                    append(&string, ' ');
+                                }
+                                
+                                append(&string, input_event->consumer);
                             }
                             
-                            gui_do_text_field(target, string, message);
+                            gui_do_text_field(target, string, empty_str);
                         }
                     }
                 }break;

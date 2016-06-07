@@ -3235,6 +3235,9 @@ consume_input(Available_Input *available, i32 input_type, char *consumer){
         copy(&str, consumer);
         terminate_with_null(&str);
     }
+    else{
+        record->consumer[0] = 0;
+    }
 }
 
 App_Step_Sig(app_step){
@@ -3882,8 +3885,29 @@ App_Step_Sig(app_step){
     // NOTE(allen): pass consumption data to debug
 #if FRED_INTERNAL
     {
-        //Debug_Data *debug = &models->debug;
+        Debug_Data *debug = &models->debug;
+        i32 count = debug->this_frame_count;
         
+        Consumption_Record *record = &available_input.records[Input_Esc];
+        
+        if (record->consumed && record->consumer[0] != 0){
+            Debug_Input_Event *event = debug->input_events;
+            for (i32 i = 0; i < count; ++i, ++event){
+                if (event->key == key_esc){
+                    memcpy(event->consumer, record->consumer, sizeof(record->consumer));
+                }
+            }
+        }
+        
+        record = &available_input.records[Input_AnyKey];
+        if (record->consumed){
+            Debug_Input_Event *event = debug->input_events;
+            for (i32 i = 0; i < count; ++i, ++event){
+                if (event->consumer[0] == 0){
+                    memcpy(event->consumer, record->consumer, sizeof(record->consumer));
+                }
+            }
+        }
     }
 #endif
     

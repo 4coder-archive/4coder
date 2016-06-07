@@ -157,15 +157,15 @@ FSTRING_LINK fstr_bool  copy_checked(String *dest, String src);
 FSTRING_LINK fstr_bool  copy_partial(String *dest, char *src);
 FSTRING_LINK fstr_bool  copy_partial(String *dest, String src);
 
-FSTRING_INLINE    int32_t   copy(char *dest, char *src) { return copy_fast_unsafe(dest, src); }
-FSTRING_INLINE    void  copy(String *dest, String src) { copy_checked(dest, src); }
-FSTRING_INLINE    void  copy(String *dest, char *src) { copy_partial(dest, src); }
+FSTRING_INLINE    int32_t    copy(char *dest, char *src) { return copy_fast_unsafe(dest, src); }
+FSTRING_INLINE    void       copy(String *dest, String src) { copy_checked(dest, src); }
+FSTRING_INLINE    void       copy(String *dest, char *src) { copy_partial(dest, src); }
 
-FSTRING_LINK fstr_bool  append_checked(String *dest, String src);
-FSTRING_LINK fstr_bool  append_partial(String *dest, char *src);
-FSTRING_LINK fstr_bool  append_partial(String *dest, String src);
+FSTRING_LINK      fstr_bool  append_checked(String *dest, String src);
+FSTRING_LINK      fstr_bool  append_partial(String *dest, char *src);
+FSTRING_LINK      fstr_bool  append_partial(String *dest, String src);
 
-FSTRING_LINK fstr_bool  append(String *dest, char c);
+FSTRING_LINK      fstr_bool  append(String *dest, char c);
 FSTRING_INLINE    fstr_bool  append(String *dest, String src) { return append_partial(dest, src); }
 FSTRING_INLINE    fstr_bool  append(String *dest, char *src) { return append_partial(dest, src); }
 FSTRING_INLINE    fstr_bool  terminate_with_null(String *str){
