@@ -4466,6 +4466,7 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                     }
                 }break;
                 
+#if FRED_INTERNAL
                 case VUI_Debug:
                 {
                     view->current_scroll = &view->gui_scroll;
@@ -4487,7 +4488,7 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                         string.size = 0;
                         u64 time = system->now_time_stamp();
                         
-                        append(&string, "last event time stamp: ");
+                        append(&string, "last redraw: ");
                         append_u64_to_str(&string, time);
                         
                         gui_do_text_field(target, string, empty_str);
@@ -4547,20 +4548,35 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                                 append(&string, "      ");
                             }
                             
-                            if (input_event->key >= ' ' && input_event->key <= '~'){
+                            if (input_event->key > ' ' && input_event->key <= '~'){
                                 append(&string, make_string(&input_event->key, 1));
+                            }
+                            else if (input_event->key == ' '){
+                                append(&string, "space");
+                            }
+                            else if (input_event->key == '\n'){
+                                append(&string, "\\n");
+                            }
+                            else if (input_event->key == '\t'){
+                                append(&string, "\\t");
                             }
                             else{
                                 String str;
                                 str.str = global_key_name(input_event->key, &str.size);
-                                str.memory_size = str.size + 1;
-                                append(&string, str);
+                                if (str.str){
+                                    str.memory_size = str.size + 1;
+                                    append(&string, str);
+                                }
+                                else{
+                                    append(&string, "unrecognized!");
+                                }
                             }
                             
                             gui_do_text_field(target, string, empty_str);
                         }
                     }
                 }break;
+#endif
             }
         }
     }

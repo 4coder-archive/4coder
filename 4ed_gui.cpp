@@ -490,8 +490,10 @@ gui_begin_list(GUI_Target *target, GUI_id id, i32 list_i,
         }
     }
     
-    if (list_i < list_min || list_i >= list_max){
-        result = 1;
+    if (list_max > 0){
+        if (list_i < list_min || list_i >= list_max){
+            result = 1;
+        }
     }
     
     if (result){
@@ -500,7 +502,12 @@ gui_begin_list(GUI_Target *target, GUI_id id, i32 list_i,
             gui_update_adjustment(update, list_min);
         }
         else if (list_i >= list_max){
-            gui_update_adjustment(update, list_max - 1);
+            if (list_max > 0){
+                gui_update_adjustment(update, list_max - 1);
+            }
+            else{
+                gui_update_adjustment(update, 0);
+            }
         }
         if (target->has_list_index_position){
             gui_update_position(update, target->list_index_position);

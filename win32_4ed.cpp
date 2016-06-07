@@ -1420,7 +1420,7 @@ Win32Callback(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
     switch (uMsg){
         case WM_MENUCHAR:
         case WM_SYSCHAR:break;
-
+        
         case WM_SYSKEYDOWN:
         case WM_SYSKEYUP:
         case WM_KEYDOWN:
@@ -1436,59 +1436,59 @@ Win32Callback(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
                     b8 *control_keys = 0;
                     controls = &win32vars.input_chunk.pers.controls;
                     control_keys = win32vars.input_chunk.pers.control_keys;
-
+                    
                     b8 down = ((lParam & Bit_31)?(0):(1));
                     b8 is_right = ((lParam & Bit_24)?(1):(0));
-
+                    
                     if (wParam != 255){
                         switch (wParam){
                             case VK_SHIFT:
                             {
                                 control_keys[MDFR_SHIFT_INDEX] = down;
                             }break;
-
+                            
                             case VK_CONTROL:
                             {
                                 if (is_right) controls->r_ctrl = down;
                                 else controls->l_ctrl = down;
                             }break;
-
+                            
                             case VK_MENU:
                             {
                                 if (is_right) controls->r_alt = down;
                                 else controls->l_alt = down;
                             }break;
                         }
-
+                        
                         b8 ctrl, alt;
                         ctrl = (controls->r_ctrl || (controls->l_ctrl && !controls->r_alt));
                         alt = (controls->l_alt || (controls->r_alt && !controls->l_ctrl));
-
+                        
                         if (win32vars.lctrl_lalt_is_altgr){
                             if (controls->l_alt && controls->l_ctrl){
                                 ctrl = 0;
                                 alt = 0;
                             }
                         }
-
+                        
                         control_keys[MDFR_CONTROL_INDEX] = ctrl;
                         control_keys[MDFR_ALT_INDEX] = alt;
                     }
                 }break;
-
+                
                 default:
                 b8 previous_state, current_state;
                 previous_state = ((lParam & Bit_30)?(1):(0));
                 current_state = ((lParam & Bit_31)?(0):(1));
-
+                
                 if (current_state){
                     u8 key = keycode_lookup_table[(u8)wParam];
-
+                    
                     i32 *count = 0;
                     Key_Event_Data *data = 0;
                     b8 *control_keys = 0;
                     i32 control_keys_size = 0;
-
+                    
                     if (!previous_state){
                         count = &win32vars.input_chunk.trans.key_data.press_count;
                         data = win32vars.input_chunk.trans.key_data.press;
@@ -1532,12 +1532,13 @@ Win32Callback(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
                                 result2 = 0;
                             }
                             
-                            // TODO(allen): This is becoming a really major issue.  Apparently
-                            // control + i outputs a '\t' which is VALID ascii according to this system.
-                            // So it reports the key as '\t'.  This wasn't an issue before because we were
-                            // ignoring control when computing character_no_caps_lock which is what
-                            // is used for commands.  But that is incorrect for some keyboard layouts where
-                            // control+alt is used to signal AltGr for important keys.
+                            // TODO(allen): This is becoming a really major issue.
+                            // Apparently control + i outputs a '\t' which is VALID ascii
+                            // according to this system. So it reports the key as '\t'.
+                            // This wasn't an issue before because we were ignoring control
+                            // when computing character_no_caps_lock which is what is used
+                            // for commands. But that is incorrect for some keyboard layouts
+                            // where control+alt is used to signal AltGr for important keys.
                             if (result1 && result2){
                                 char c1 = char_to_upper((char)x1);
                                 char cParam = char_to_upper((char)wParam);
@@ -1549,7 +1550,7 @@ Win32Callback(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
                                     result1 = 0;
                                 }
                             }
-
+                            
                             if (result1){
                                 x = x1;
                                 state[VK_CONTROL] = control_state;
@@ -1595,6 +1596,7 @@ Win32Callback(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
                             data[*count].keycode = key;
                         }
                         memcpy(data[*count].modifiers, control_keys, control_keys_size);
+                        data[*count].modifiers[MDFR_HOLD_INDEX] = previous_state;
                         ++(*count);
                     }
                 }
@@ -1607,16 +1609,16 @@ Win32Callback(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
         {
             i32 new_x = LOWORD(lParam);
             i32 new_y = HIWORD(lParam);
-
+            
             if (new_x != win32vars.input_chunk.pers.mouse_x
-                    || new_y != win32vars.input_chunk.pers.mouse_y){
+                || new_y != win32vars.input_chunk.pers.mouse_y){
                 win32vars.input_chunk.pers.mouse_x = new_x;
                 win32vars.input_chunk.pers.mouse_y = new_y;
-
+                
                 win32vars.got_useful_event = 1;
             }
         }break;
-
+        
         case WM_MOUSEWHEEL:
         {
             win32vars.got_useful_event = 1;
@@ -1628,58 +1630,58 @@ Win32Callback(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
                 win32vars.input_chunk.trans.mouse_wheel = -1;
             }
         }break;
-
+        
         case WM_LBUTTONDOWN:
         {
             win32vars.got_useful_event = 1;
             win32vars.input_chunk.trans.mouse_l_press = 1;
             win32vars.input_chunk.pers.mouse_l = 1;
         }break;
-
+        
         case WM_RBUTTONDOWN:
         {
             win32vars.got_useful_event = 1;
             win32vars.input_chunk.trans.mouse_r_press = 1;
             win32vars.input_chunk.pers.mouse_r = 1;
         }break;
-
+        
         case WM_LBUTTONUP:
         {
             win32vars.got_useful_event = 1;
             win32vars.input_chunk.trans.mouse_l_release = 1;
             win32vars.input_chunk.pers.mouse_l = 0;
         }break;
-
+        
         case WM_RBUTTONUP:
         {
             win32vars.got_useful_event = 1;
             win32vars.input_chunk.trans.mouse_r_release = 1;
             win32vars.input_chunk.pers.mouse_r = 0;
         }break;
-
+        
         case WM_KILLFOCUS:
         case WM_SETFOCUS:
         {
             win32vars.got_useful_event = 1;
             win32vars.input_chunk.pers.mouse_l = 0;
             win32vars.input_chunk.pers.mouse_r = 0;
-
+            
             b8 *control_keys = win32vars.input_chunk.pers.control_keys;
             for (int i = 0; i < MDFR_INDEX_COUNT; ++i) control_keys[i] = 0;
             win32vars.input_chunk.pers.controls = control_keys_zero();
         }break;
-
+        
         case WM_SIZE:
         {
             win32vars.got_useful_event = 1;
             if (win32vars.target.handle){
                 i32 new_width = LOWORD(lParam);
                 i32 new_height = HIWORD(lParam);
-
+                
                 Win32Resize(new_width, new_height);
             }
         }break;
-
+        
         case WM_PAINT:
         {
             win32vars.got_useful_event = 1;
@@ -1688,14 +1690,14 @@ Win32Callback(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
             Win32RedrawScreen(hdc);
             EndPaint(hwnd, &ps);
         }break;
-
+        
         case WM_CLOSE:
         case WM_DESTROY:
         {
             win32vars.got_useful_event = 1;
             win32vars.input_chunk.trans.trying_to_kill = 1;
         }break;
-
+        
         case WM_4coder_ANIMATE:
         win32vars.got_useful_event = 1;
         break;

@@ -31,6 +31,7 @@ typedef enum{
 	MDFR_CONTROL_INDEX,
 	MDFR_ALT_INDEX,
     MDFR_CAPS_INDEX,
+    MDFR_HOLD_INDEX,
 	// always last
 	MDFR_INDEX_COUNT
 } Key_Control;

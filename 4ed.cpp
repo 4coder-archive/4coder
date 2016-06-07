@@ -3559,8 +3559,35 @@ App_Step_Sig(app_step){
         }
     }
     
-    // NOTE(allen): Keyboard input to command coroutine.
+    // NOTE(allen): Pass keyboard events to debug
     Available_Input available_input = init_available_input(&key_summary, &input->mouse);
+    
+#if FRED_INTERNAL
+    {
+        Debug_Data *debug = &models->debug;
+        Key_Summary key_data = get_key_data(&available_input);
+        
+        Debug_Input_Event *events = debug->input_events;
+        
+        i32 count = key_data.count;
+        i32 preserved_inputs = ArrayCount(debug->input_events) - count;
+        
+        memmove(events + count, events,
+                sizeof(Debug_Input_Event)*preserved_inputs);
+        
+        for (i32 i = 0; i < key_data.count; ++i){
+            Key_Event_Data key = get_single_key(&key_data,  i);
+            events[i].key = key.keycode;
+            
+            events[i].is_hold = key.modifiers[MDFR_HOLD_INDEX];
+            events[i].is_ctrl = key.modifiers[MDFR_CONTROL_INDEX];
+            events[i].is_alt = key.modifiers[MDFR_ALT_INDEX];
+            events[i].is_shift = key.modifiers[MDFR_SHIFT_INDEX];
+        }
+    }
+#endif
+    
+    // NOTE(allen): Keyboard input to command coroutine.
     
     if (models->command_coroutine != 0){
         Coroutine *command_coroutine = models->command_coroutine;
