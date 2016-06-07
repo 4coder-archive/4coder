@@ -125,7 +125,7 @@ char* generate_keycode_enum(){
     file = fopen(filename, "wb");
     fprintf(file, "enum Key_Code{\n");
     count = ArrayCount(keys_that_need_codes);
-    for (i = 0; i < count;){
+    for (i = 0; i < count; i){
         if (strcmp(keys_that_need_codes[i], "f1") == 0 && code < 0x7F){
             code = 0x7F;
         }
@@ -134,11 +134,32 @@ char* generate_keycode_enum(){
         case '\t': code++; break;
         case 0x20: code = 0x7F; break;
         default:
-        fprintf(file, "    key_%s = %d,\n", keys_that_need_codes[i++], code++);
+        fprintf(file, "key_%s = %d,\n", keys_that_need_codes[i++], code++);
         break;
         }
     }
     fprintf(file, "};\n");
+    
+    fprintf(file,
+            "static char*\n"
+            "global_key_name(int key_code, int *size){\n"
+            "char *result = 0;\n"
+            "switch(key_code){\n"
+            );
+    for (i = 0; i < count; ++i){
+        fprintf(file,
+                "case key_%s: result = \"%s\"; *size = sizeof(\"%s\")-1; break;\n",
+                keys_that_need_codes[i],
+                keys_that_need_codes[i],
+                keys_that_need_codes[i]
+                );
+    }
+    fprintf(file,
+            "}\n"
+            "return(result);\n"
+            "}\n"
+            );
+    
     fclose(file);
     return(filename);
 }

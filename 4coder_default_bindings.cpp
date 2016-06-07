@@ -244,6 +244,7 @@ default_keys(Bind_Helper *context){
     bind(context, 'k', MDFR_CTRL, cmdid_interactive_kill_buffer);
     bind(context, 'i', MDFR_CTRL, cmdid_interactive_switch_buffer);
     bind(context, 'c', MDFR_ALT, cmdid_open_color_tweaker);
+    bind(context, 'd', MDFR_ALT, cmdid_open_debug);
     bind(context, 'o', MDFR_ALT, open_in_other);
     bind(context, 'w', MDFR_CTRL, save_as);
     

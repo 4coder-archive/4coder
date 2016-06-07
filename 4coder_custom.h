@@ -198,23 +198,21 @@ enum Command_ID{
     cmdid_interactive_kill_buffer,
     cmdid_kill_buffer,
     
-    cmdid_change_active_panel,
-    
     cmdid_to_uppercase,
     cmdid_to_lowercase,
     
     cmdid_toggle_line_wrap,
     cmdid_toggle_show_whitespace,
     
-    cmdid_eol_dosify,
-    cmdid_eol_nixify,
-    
     cmdid_clean_all_lines,
     cmdid_auto_tab_range,
+    cmdid_eol_dosify,
+    cmdid_eol_nixify,
     
     cmdid_open_panel_vsplit,
     cmdid_open_panel_hsplit,
     cmdid_close_panel,
+    cmdid_change_active_panel,
     
     cmdid_page_up,
     cmdid_page_down,
@@ -226,7 +224,9 @@ enum Command_ID{
     
     cmdid_hide_scrollbar,
     cmdid_show_scrollbar,
+    
     cmdid_set_settings,
+    
     cmdid_command_line,
     //
     cmdid_count
@@ -360,7 +360,7 @@ struct Theme_Color{
 #define GET_BINDING_DATA(name) int name(void *data, int size)
 #define CUSTOM_COMMAND_SIG(name) void name(struct Application_Links *app)
 #define HOOK_SIG(name) int name(struct Application_Links *app)
-#define SCROLL_RULE_SIG(name) int name(float target_x, float target_y, float *scroll_x, float *scroll_y, int view_id, int is_new_target)
+#define SCROLL_RULE_SIG(name) int name(float target_x, float target_y, float *scroll_x, float *scroll_y, int view_id, int is_new_target, float dt)
 
 extern "C"{
     typedef VIEW_ROUTINE_SIG(View_Routine_Function);

@@ -2295,37 +2295,47 @@ internal void
 setup_command_table(){
 #define SET(n) command_table[cmdid_##n] = command_##n
     SET(null);
+    
     SET(seek_left);
     SET(seek_right);
+    
     SET(center_view);
+    
     SET(word_complete);
+    
     SET(copy);
     SET(cut);
     SET(paste);
     SET(paste_next);
+    
     SET(undo);
     SET(redo);
     SET(history_backward);
     SET(history_forward);
+    
     SET(interactive_new);
     SET(interactive_open);
     SET(reopen);
     SET(save);
-    SET(change_active_panel);
     SET(interactive_switch_buffer);
     SET(interactive_kill_buffer);
     SET(kill_buffer);
+        
     SET(to_uppercase);
     SET(to_lowercase);
+    
     SET(toggle_line_wrap);
     SET(toggle_show_whitespace);
+    
     SET(clean_all_lines);
+    SET(auto_tab_range);
     SET(eol_dosify);
     SET(eol_nixify);
-    SET(auto_tab_range);
+    
     SET(open_panel_vsplit);
     SET(open_panel_hsplit);
     SET(close_panel);
+    SET(change_active_panel);
     
     SET(page_up);
     SET(page_down);
@@ -3120,7 +3130,7 @@ update_cli_handle_with_file(System_Functions *system, Models *models,
         char str_space[256];
         String str = make_fixed_width_string(str_space);
         append(&str, "exited with code ");
-        append_int_to_str(cli->exit, &str);
+        append_int_to_str(&str, cli->exit);
         output_file_append(system, models, file, str, cursor_at_end);
         result = -1;
     }
@@ -3705,7 +3715,6 @@ App_Step_Sig(app_step){
         View *view = 0, *active_view = 0;
         b32 active = 0;
         Input_Summary summary = {0};
-        Input_Process_Result result = {0};
         
         active_view = cmd->panel->view;
         used_panels = &models->layout.used_sentinel;
@@ -3726,13 +3735,8 @@ App_Step_Sig(app_step){
             if (result.consume_keys || result.consume_esc){
                 consume_input(&available_input, Input_Esc);
             }
-        }
-        
-        for (dll_items(panel, used_panels)){
-            view = panel->view;
             
             if (view->changed_context_in_step == 0){
-                Assert(view->current_scroll);
                 active = (panel == cmd->panel);
                 summary = (active)?(active_input):(dead_input);
                 if (panel == mouse_panel && !input->mouse.out_of_window){
@@ -3740,15 +3744,15 @@ App_Step_Sig(app_step){
                 }
                 
                 GUI_Scroll_Vars *vars = view->current_scroll;
-                // TODO(allen): I feel like the scroll context should actually not
-                // be allowed to change in here at all.
-                result = do_step_file_view(system, view, panel->inner, active,
-                                           &summary, *vars, view->scroll_region);
-                if (result.is_animating){
+                Input_Process_Result ip_result =
+                    do_step_file_view(system, view, panel->inner, active,
+                                      &summary, *vars, view->scroll_region);
+                if (ip_result.is_animating){
                     app_result.animating = 1;
                 }
-                *vars = result.vars;
-                view->scroll_region = result.region;
+                Assert(view->current_scroll == vars);
+                *vars = ip_result.vars;
+                view->scroll_region = ip_result.region;
             }
         }
     }

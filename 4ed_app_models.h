@@ -23,6 +23,19 @@ struct App_Settings{
     i32 font_size;
 };
 
+struct Debug_Input_Event{
+    char key;
+    
+    b8 is_hold;
+    b8 is_ctrl;
+    b8 is_alt;
+    b8 is_shift;
+};
+
+struct Debug_Data{
+    Debug_Input_Event input_events[16];
+};
+
 struct Models{
     Mem_Options mem;
     App_Settings settings;
@@ -64,6 +77,8 @@ struct Models{
     Scroll_Rule_Function *scroll_rule;
     
     b32 keep_playing;
+    
+    Debug_Data debug;
 };
 
 // BOTTOM

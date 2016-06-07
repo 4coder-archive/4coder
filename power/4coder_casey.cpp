@@ -1326,10 +1326,9 @@ struct Casey_Scroll_Velocity
 };
 
 Casey_Scroll_Velocity casey_scroll_velocity_[16] = {0};
-Casey_Scroll_Velocity *casey_scroll_velocity = casey_scroll_velocity_;
+Casey_Scroll_Velocity *casey_scroll_velocity = casey_scroll_velocity_ - 1;
 
 SCROLL_RULE_SIG(casey_smooth_scroll_rule){
-    float dt = 1.0f/60.0f; // TODO(casey): Why do I not get the timestep here?
     Casey_Scroll_Velocity *velocity = casey_scroll_velocity + view_id;
     int result = 0;
     if(is_new_target)

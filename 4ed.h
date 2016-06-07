@@ -54,6 +54,7 @@ get_single_key(Key_Summary *summary, i32 index){
 struct Input_Summary{
     Mouse_State mouse;
     Key_Summary keys;
+    f32 dt;
 };
 
 struct Command_Line_Parameters{

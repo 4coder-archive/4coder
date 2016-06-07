@@ -404,7 +404,7 @@ file_set_name(Working_Set *working_set, Editing_File *file, char *filename){
             if (hit_conflict){
                 file->name.live_name.size = original_len;
                 append(&file->name.live_name, " <");
-                append_int_to_str(file_x, &file->name.live_name);
+                append_int_to_str(&file->name.live_name, file_x);
                 append(&file->name.live_name, ">");
             }
         }
@@ -4428,24 +4428,24 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                         case IInt_Sure_To_Kill:
                         {
                             i32 action = -1;
-
+                            
                             String empty_str = {0};
                             String message = make_lit_string("There are unsaved changes, close anyway?");
-
+                            
                             gui_do_text_field(target, message, empty_str);
-
+                            
                             id.id[0] = (u64)('y');
                             message = make_lit_string("(Y)es");
                             if (gui_do_fixed_option(target, id, message, 'y')){
                                 action = 0;
                             }
-
+                            
                             id.id[0] = (u64)('n');
                             message = make_lit_string("(N)o");
                             if (gui_do_fixed_option(target, id, message, 'n')){
                                 action = 1;
                             }
-
+                            
                             id.id[0] = (u64)('s');
                             message = make_lit_string("(S)ave and kill");
                             if (gui_do_fixed_option(target, id, message, 's')){
@@ -4468,8 +4468,99 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                 
                 case VUI_Debug:
                 {
-
-}break;
+                    view->current_scroll = &view->gui_scroll;
+                    
+                    // TODO(allen):
+                    // - Incoming input
+                    // - Memory info
+                    // - Thread info
+                    // - View inspection
+                    // - Buffer inspection
+                    // - Command maps inspection
+                    
+                    String empty_str = string_zero();
+                    char space[512];
+                    String string = make_fixed_width_string(space);
+                    
+                    // Time Watcher
+                    {
+                        string.size = 0;
+                        u64 time = system->now_time_stamp();
+                        
+                        append(&string, "last event time stamp: ");
+                        append_u64_to_str(&string, time);
+                        
+                        gui_do_text_field(target, string, empty_str);
+                    }
+                    
+                    // Incoming input
+                    //  - keeping track of where something get's consumed!?
+                    //  - convert mouse clicks into key coded events??!!
+                    {
+                        Debug_Data *debug = &view->persistent.models->debug;
+                        
+                        {
+                            int mx = input.mouse.x;
+                            int my = input.mouse.y;
+                            
+                            string.size = 0;
+                            append(&string, "mouse: (");
+                            append_int_to_str(&string, mx);
+                            append(&string, ",");
+                            append_int_to_str(&string, my);
+                            append(&string, ")");
+                        }
+                        
+                        gui_do_text_field(target, string, empty_str);
+                        
+                        Debug_Input_Event *input_event = debug->input_events;
+                        for (i32 i = 0;
+                             i < ArrayCount(debug->input_events);
+                             ++i, ++input_event){
+                            string.size = 0;
+                            
+                            if (input_event->is_hold){
+                                append(&string, "hold:  ");
+                            }
+                            else{
+                                append(&string, "press: ");
+                            }
+                            
+                            if (input_event->is_ctrl){
+                                append(&string, "ctrl-");
+                            }
+                            else{
+                                append(&string, "    -");
+                            }
+                            
+                            if (input_event->is_alt){
+                                append(&string, "alt-");
+                            }
+                            else{
+                                append(&string, "   -");
+                            }
+                            
+                            if (input_event->is_shift){
+                                append(&string, "shift ");
+                            }
+                            else{
+                                append(&string, "      ");
+                            }
+                            
+                            if (input_event->key >= ' ' && input_event->key <= '~'){
+                                append(&string, make_string(&input_event->key, 1));
+                            }
+                            else{
+                                String str;
+                                str.str = global_key_name(input_event->key, &str.size);
+                                str.memory_size = str.size + 1;
+                                append(&string, str);
+                            }
+                            
+                            gui_do_text_field(target, string, empty_str);
+                        }
+                    }
+                }break;
             }
         }
     }
@@ -4748,7 +4839,7 @@ do_step_file_view(System_Functions *system,
             
             if (view->persistent.models->scroll_rule(scroll_vars.target_x, scroll_vars.target_y,
                                                      &scroll_vars.scroll_x, &scroll_vars.scroll_y,
-                                                     (view->persistent.id) + 1, is_new_target)){
+                                                     (view->persistent.id) + 1, is_new_target, user_input->dt)){
                 result.is_animating = 1;
             }
             
@@ -5040,9 +5131,9 @@ draw_file_bar(Render_Target *target, View *view, Editing_File *file, i32_Rect re
                 char line_number_space[30];
                 String line_number = make_fixed_width_string(line_number_space);
                 append(&line_number, " L#");
-                append_int_to_str(view->recent->cursor.line, &line_number);
+                append_int_to_str(&line_number, view->recent->cursor.line);
                 append(&line_number, " C#");
-                append_int_to_str(view->recent->cursor.character, &line_number);
+                append_int_to_str(&line_number, view->recent->cursor.character);
 
                 intbar_draw_string(target, &bar, line_number, base_color);
 
