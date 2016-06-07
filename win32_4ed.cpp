@@ -2197,6 +2197,7 @@ WinMain(HINSTANCE hInstance,
         input.dt = frame_useconds / 1000000.f;
         
         input.keys = input_chunk.trans.key_data;
+        memcpy(input.keys.modifiers, input_chunk.pers.control_keys, sizeof(input_chunk.pers.control_keys));
         
         input.mouse.out_of_window = input_chunk.trans.out_of_window;
         

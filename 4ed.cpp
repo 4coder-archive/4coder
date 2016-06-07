@@ -3252,7 +3252,10 @@ App_Step_Sig(app_step){
     String clipboard = input->clipboard;
     
     if (clipboard.str){
-        String *dest = working_set_next_clipboard_string(&models->mem.general, &models->working_set, clipboard.size);
+        String *dest =
+            working_set_next_clipboard_string(&models->mem.general,
+                                              &models->working_set,
+                                              clipboard.size);
         dest->size = eol_convert_in(dest->str, clipboard.str, clipboard.size);
     }
     
@@ -3266,7 +3269,8 @@ App_Step_Sig(app_step){
         for (dll_items(node, used_nodes)){
             file = (Editing_File*)node;
             
-            time_stamp = system->file_time_stamp(make_c_str(file->name.source_path));
+            time_stamp =
+                system->file_time_stamp(make_c_str(file->name.source_path));
             
             if (time_stamp > 0){
                 file->state.last_sys_write_time = time_stamp;
@@ -3314,14 +3318,33 @@ App_Step_Sig(app_step){
     
     // NOTE(allen): prepare input information
     Key_Summary key_summary = {0};
-    for (i32 i = 0; i < input->keys.press_count; ++i){
-        key_summary.keys[key_summary.count++] = input->keys.press[i];
-    }
-    for (i32 i = 0; i < input->keys.hold_count; ++i){
-        key_summary.keys[key_summary.count++] = input->keys.hold[i];
-    }
     
-    input->mouse.wheel = -input->mouse.wheel;
+    {
+        for (i32 i = 0; i < input->keys.press_count; ++i){
+            key_summary.keys[key_summary.count++] = input->keys.press[i];
+        }
+        for (i32 i = 0; i < input->keys.hold_count; ++i){
+            key_summary.keys[key_summary.count++] = input->keys.hold[i];
+        }
+        
+        Key_Event_Data mouse_event = {0};
+        if (input->mouse.press_l ||
+            input->mouse.press_r){
+            memcpy(mouse_event.modifiers, input->keys.modifiers, sizeof(input->keys.modifiers));
+        }
+        
+        if (input->mouse.press_l){
+            mouse_event.keycode = key_mouse_left;
+            key_summary.keys[key_summary.count++] = mouse_event;
+        }
+        
+        if (input->mouse.press_r){
+            mouse_event.keycode = key_mouse_right;
+            key_summary.keys[key_summary.count++] = mouse_event;
+        }
+        
+        input->mouse.wheel = -input->mouse.wheel;
+    }
     
     // NOTE(allen): detect mouse hover status
     i32 mx = input->mouse.x;
@@ -3377,7 +3400,7 @@ App_Step_Sig(app_step){
             mouse_divider_id = panel->parent;
             which_child = panel->which_child;
             for (;;){
-                Divider_And_ID div = layout_get_divider(&models->layout, mouse_divider_id);
+                Divider_And_ID div =layout_get_divider(&models->layout, mouse_divider_id);
                 
                 if (which_child == mouse_divider_side &&
                     div.divider->v_divider == mouse_divider_vertical){
@@ -3781,11 +3804,11 @@ App_Step_Sig(app_step){
             }
             if (result.consume_keys){
                 consume_input(&available_input, Input_AnyKey,
-                              "step_file_view");
+                              "file view step");
             }
             if (result.consume_keys || result.consume_esc){
                 consume_input(&available_input, Input_Esc,
-                              "step_file_view");
+                              "file view step");
             }
             
             if (view->changed_context_in_step == 0){
@@ -3801,6 +3824,14 @@ App_Step_Sig(app_step){
                                       &summary, *vars, view->scroll_region);
                 if (ip_result.is_animating){
                     app_result.animating = 1;
+                }
+                if (ip_result.consumed_l){
+                    consume_input(&available_input, Input_MouseLeftButton,
+                                  "file view step");
+                }
+                if (ip_result.consumed_r){
+                    consume_input(&available_input, Input_MouseRightButton,
+                                  "file view step");
                 }
                 Assert(view->current_scroll == vars);
                 *vars = ip_result.vars;
@@ -3888,12 +3919,36 @@ App_Step_Sig(app_step){
         Debug_Data *debug = &models->debug;
         i32 count = debug->this_frame_count;
         
-        Consumption_Record *record = &available_input.records[Input_Esc];
+        Consumption_Record *record = 0;
         
+        record = &available_input.records[Input_MouseLeftButton];
         if (record->consumed && record->consumer[0] != 0){
             Debug_Input_Event *event = debug->input_events;
             for (i32 i = 0; i < count; ++i, ++event){
-                if (event->key == key_esc){
+                if (event->key == key_mouse_left &&
+                    event->consumer[0] == 0){
+                    memcpy(event->consumer, record->consumer, sizeof(record->consumer));
+                }
+            }
+        }
+        
+        record = &available_input.records[Input_MouseRightButton];
+        if (record->consumed && record->consumer[0] != 0){
+            Debug_Input_Event *event = debug->input_events;
+            for (i32 i = 0; i < count; ++i, ++event){
+                if (event->key == key_mouse_right &&
+                    event->consumer[0] == 0){
+                    memcpy(event->consumer, record->consumer, sizeof(record->consumer));
+                }
+            }
+        }
+        
+        record = &available_input.records[Input_Esc];
+        if (record->consumed && record->consumer[0] != 0){
+            Debug_Input_Event *event = debug->input_events;
+            for (i32 i = 0; i < count; ++i, ++event){
+                if (event->key == key_esc &&
+                    event->consumer[0] == 0){
                     memcpy(event->consumer, record->consumer, sizeof(record->consumer));
                 }
             }

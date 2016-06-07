@@ -24,7 +24,7 @@ struct App_Settings{
 };
 
 struct Debug_Input_Event{
-    char key;
+    Code key;
     
     char consumer[32];
     

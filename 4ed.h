@@ -31,6 +31,8 @@ struct Key_Input_Data{
 	Key_Event_Data hold[KEY_INPUT_BUFFER_SIZE];
 	i32 press_count;
     i32 hold_count;
+    
+    char modifiers[MDFR_INDEX_COUNT];
 };
 inline Key_Input_Data
 key_input_data_zero(){
@@ -40,7 +42,7 @@ key_input_data_zero(){
 
 struct Key_Summary{
     i32 count;
-    Key_Event_Data keys[KEY_INPUT_BUFFER_DSIZE];
+    Key_Event_Data keys[KEY_INPUT_BUFFER_DSIZE + 2];
 };
 
 inline Key_Event_Data

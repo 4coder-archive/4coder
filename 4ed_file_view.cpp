@@ -3582,7 +3582,7 @@ view_end_cursor_scroll_updates(View *view){
 }
 
 internal b32
-file_step(View *view, i32_Rect region, Input_Summary *user_input, b32 is_active){
+file_step(View *view, i32_Rect region, Input_Summary *user_input, b32 is_active, b32 *consumed_l){
     i32 is_animating = 0;
     Editing_File *file = view->file_data.file;
     if (file && !file->is_loading){
@@ -3602,6 +3602,7 @@ file_step(View *view, i32_Rect region, Input_Summary *user_input, b32 is_active)
             
             if (ry >= 0){
                 if (rx >= 0 && rx < max_x && ry >= 0 && ry < max_visible_y){
+                    *consumed_l = true;
                     view_cursor_move(view,
                                      rx + scroll_vars.scroll_x,
                                      ry + scroll_vars.scroll_y,
@@ -4612,9 +4613,10 @@ view_get_scroll_y(View *view){
     return(v);
 }
 
-internal void
+internal b32
 click_button_input(GUI_Target *target, GUI_Session *session, Input_Summary *user_input,
                    GUI_Interactive *b, b32 *is_animating){
+    b32 result = 0;
     i32 mx = user_input->mouse.x;
     i32 my = user_input->mouse.y;
 
@@ -4623,6 +4625,7 @@ click_button_input(GUI_Target *target, GUI_Session *session, Input_Summary *user
         if (user_input->mouse.press_l){
             target->mouse_hot = b->id;
             *is_animating = 1;
+            result = 1;
         }
         if (user_input->mouse.release_l && gui_id_eq(target->mouse_hot, b->id)){
             target->active = b->id;
@@ -4633,6 +4636,7 @@ click_button_input(GUI_Target *target, GUI_Session *session, Input_Summary *user
     else if (gui_id_eq(target->hover, b->id)){
         target->hover = gui_id_zero();
     }
+    return(result);
 }
 
 internal b32
@@ -4661,6 +4665,8 @@ struct Input_Process_Result{
     GUI_Scroll_Vars vars;
     i32_Rect region;
     b32 is_animating;
+    b32 consumed_l;
+    b32 consumed_r;
 };
 
 internal Input_Process_Result
@@ -4706,12 +4712,12 @@ do_step_file_view(System_Functions *system,
                     if (interpret_result.auto_activate){
                         target->auto_hot = gui_id_zero();
                         target->active = b->id;
-                        result.is_animating = 1;
+                        result.is_animating = true;
                     }
                     else if (interpret_result.auto_hot){
                         if (!gui_id_eq(target->auto_hot, b->id)){
                             target->auto_hot = b->id;
-                            result.is_animating = 1;
+                            result.is_animating = true;
                         }
                     }
                 }break;
@@ -4730,10 +4736,10 @@ do_step_file_view(System_Functions *system,
                         
                         if (view->reinit_scrolling){
                             view_reinit_scrolling(view);
-                            result.is_animating = 1;
+                            result.is_animating = true;
                         }
-                        if (file_step(view, gui_session.rect, user_input, is_active)){
-                            result.is_animating = 1;
+                        if (file_step(view, gui_session.rect, user_input, is_active, &result.consumed_l)){
+                            result.is_animating = true;
                         }
                         is_file_scroll = 1;
                     }break;
@@ -4746,7 +4752,10 @@ do_step_file_view(System_Functions *system,
                     {
                         GUI_Interactive *b = (GUI_Interactive*)h;
                         
-                        click_button_input(target, &gui_session, user_input, b, &result.is_animating);
+                        if (click_button_input(target, &gui_session, user_input,
+                                               b, &result.is_animating)){
+                            result.consumed_l = true;
+                        }
                     }break;
                     
                     case guicom_fixed_option:
@@ -4754,7 +4763,10 @@ do_step_file_view(System_Functions *system,
                     {
                         GUI_Interactive *b = (GUI_Interactive*)h;
                         
-                        click_button_input(target, &gui_session, user_input, b, &result.is_animating);
+                        if (click_button_input(target, &gui_session, user_input,
+                                               b, &result.is_animating)){
+                            result.consumed_l = true;
+                        }
                         
                         {
                             Key_Event_Data key;
@@ -4774,7 +4786,7 @@ do_step_file_view(System_Functions *system,
                                 key = get_single_key(keys, i);
                                 if (char_to_upper(key.character) == char_to_upper(activation_key)){
                                     target->active = b->id;
-                                    result.is_animating = 1;
+                                    result.is_animating = true;
                                     break;
                                 }
                             }
@@ -4792,7 +4804,8 @@ do_step_file_view(System_Functions *system,
                             target->hover = id;
                             if (user_input->mouse.press_l){
                                 target->mouse_hot = id;
-                                result.is_animating = 1;
+                                result.is_animating = true;
+                                result.consumed_l = true;
                             }
                         }
                         else if (gui_id_eq(target->hover, id)){
@@ -4806,7 +4819,7 @@ do_step_file_view(System_Functions *system,
                             result.vars.target_y = lerp(0.f, v, result.vars.max_y);
                             
                             gui_activate_scrolling(target);
-                            result.is_animating = 1;
+                            result.is_animating = true;
                         }
                     }
                     // NOTE(allen): NO BREAK HERE!!
@@ -4819,7 +4832,7 @@ do_step_file_view(System_Functions *system,
                             result.vars.target_y =
                                 clamp(0.f, result.vars.target_y, result.vars.max_y);
                             gui_activate_scrolling(target);
-                            result.is_animating = 1;
+                            result.is_animating = true;
                         }
                     }break;
                     
@@ -4830,6 +4843,7 @@ do_step_file_view(System_Functions *system,
                         if (scroll_button_input(target, &gui_session, user_input, id, &result.is_animating)){
                             result.vars.target_y -= target->delta * 0.25f;
                             result.vars.target_y = clamp_bottom(0.f, result.vars.target_y);
+                            result.consumed_l = true;
                         }
                     }break;
                     
@@ -4840,6 +4854,7 @@ do_step_file_view(System_Functions *system,
                         if (scroll_button_input(target, &gui_session, user_input, id, &result.is_animating)){
                             result.vars.target_y += target->delta * 0.25f;
                             result.vars.target_y = clamp_top(result.vars.target_y, result.vars.max_y);
+                            result.consumed_l = true;
                         }
                     }break;
                     
@@ -4857,20 +4872,20 @@ do_step_file_view(System_Functions *system,
         if (!user_input->mouse.l){
             if (!gui_id_is_null(target->mouse_hot)){
                 target->mouse_hot = gui_id_zero();
-                result.is_animating = 1;
+                result.is_animating = true;
             }
         }
         
         {
             GUI_Scroll_Vars scroll_vars = result.vars;
-            b32 is_new_target = 0;
-            if (scroll_vars.target_x != scroll_vars.prev_target_x) is_new_target = 1;
-            if (scroll_vars.target_y != scroll_vars.prev_target_y) is_new_target = 1;
+            b32 is_new_target = false;
+            if (scroll_vars.target_x != scroll_vars.prev_target_x) is_new_target = true;
+            if (scroll_vars.target_y != scroll_vars.prev_target_y) is_new_target = true;
             
             if (view->persistent.models->scroll_rule(scroll_vars.target_x, scroll_vars.target_y,
                                                      &scroll_vars.scroll_x, &scroll_vars.scroll_y,
                                                      (view->persistent.id) + 1, is_new_target, user_input->dt)){
-                result.is_animating = 1;
+                result.is_animating = true;
             }
             
             scroll_vars.prev_target_x = scroll_vars.target_x;

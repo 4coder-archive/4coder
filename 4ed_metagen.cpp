@@ -1,11 +1,11 @@
 /*
- * Mr. 4th Dimention - Allen Webster
- *
- * 25.02.2016
- *
- * File editing view for 4coder
- *
- */
+* Mr. 4th Dimention - Allen Webster
+*
+* 25.02.2016
+*
+* File editing view for 4coder
+*
+*/
 
 // TOP
 
@@ -84,18 +84,21 @@ void enum_begin(FILE *file, char *name){
 
 
 char *keys_that_need_codes[] = {
-	"back",
-	"up",
-	"down",
-	"left",
-	"right",
-	"del",
-	"insert",
-	"home",
-	"end",
-	"page_up",
-	"page_down",
-	"esc",
+    "back",
+    "up",
+    "down",
+    "left",
+    "right",
+    "del",
+    "insert",
+    "home",
+    "end",
+    "page_up",
+    "page_down",
+    "esc",
+    
+    "mouse_left",
+    "mouse_right",
     
     "f1",
     "f2",
@@ -130,12 +133,12 @@ char* generate_keycode_enum(){
             code = 0x7F;
         }
         switch (code){
-        case '\n': code++; break;
-        case '\t': code++; break;
-        case 0x20: code = 0x7F; break;
-        default:
-        fprintf(file, "key_%s = %d,\n", keys_that_need_codes[i++], code++);
-        break;
+            case '\n': code++; break;
+            case '\t': code++; break;
+            case 0x20: code = 0x7F; break;
+            default:
+            fprintf(file, "key_%s = %d,\n", keys_that_need_codes[i++], code++);
+            break;
         }
     }
     fprintf(file, "};\n");
@@ -175,27 +178,27 @@ char* bar_style_fields[] = {
 
 char* main_style_fields[] = {
     "back",
-	"margin",
-	"margin_hover",
-	"margin_active",
-	"cursor",
-	"at_cursor",
-	"highlight",
-	"at_highlight",
-	"mark",
-	"default",
-	"comment",
-	"keyword",
-	"str_constant",
-	"char_constant",
-	"int_constant",
-	"float_constant",
-	"bool_constant",
+    "margin",
+    "margin_hover",
+    "margin_active",
+    "cursor",
+    "at_cursor",
+    "highlight",
+    "at_highlight",
+    "mark",
+    "default",
+    "comment",
+    "keyword",
+    "str_constant",
+    "char_constant",
+    "int_constant",
+    "float_constant",
+    "bool_constant",
     "preproc",
-	"include",
-	"special_character",
-	"highlight_junk",
-	"highlight_white",
+    "include",
+    "special_character",
+    "highlight_junk",
+    "highlight_white",
     "paste",
     "undo",
     "next_undo",
@@ -210,7 +213,7 @@ make_style_tag(char *tag){
     str = (char*)malloc(len + 1);
     to_camel(tag, str);
     str[len] = 0;
-
+    
     return(str);
 }
 
@@ -235,7 +238,7 @@ char* generate_style(){
     FILE *file;
     char *tag;
     int count, i;
-
+    
     file = fopen(filename_4coder, "wb");
     enum_begin(file, "Style_Tag");
     {
@@ -514,7 +517,7 @@ generate_custom_headers(){
                 name_buffer);
     }
 #endif
-
+    
     fclose(file);
     
     return(filename);

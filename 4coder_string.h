@@ -151,8 +151,8 @@ FSTRING_LINK uint32_t  hexstr_to_int(String s);
 FSTRING_LINK fstr_bool color_to_hexstr(uint32_t color, String *s_out);
 FSTRING_LINK fstr_bool hexstr_to_color(String s, uint32_t *color);
 
-FSTRING_LINK int32_t   copy_fast_unsafe(char *dest, char *src);
-FSTRING_LINK void  copy_fast_unsafe(char *dest, String src);
+FSTRING_LINK int32_t    copy_fast_unsafe(char *dest, char *src);
+FSTRING_LINK void       copy_fast_unsafe(char *dest, String src);
 FSTRING_LINK fstr_bool  copy_checked(String *dest, String src);
 FSTRING_LINK fstr_bool  copy_partial(String *dest, char *src);
 FSTRING_LINK fstr_bool  copy_partial(String *dest, String src);
