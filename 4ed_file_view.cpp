@@ -130,6 +130,11 @@ enum View_UI{
     VUI_Debug
 };
 
+enum Debug_Mode{
+    DBG_Input,
+    DBG_Memory
+};
+
 enum Color_View_Mode{
     CV_Mode_Library,
     CV_Mode_Font,
@@ -259,6 +264,8 @@ struct View{
     f32 widget_height;
     
     b32 reinit_scrolling;
+    
+    Debug_Mode debug_mode;
 };
 inline void*
 get_view_body(View *view){
@@ -3906,7 +3913,9 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
     
     gui_begin_top_level(target, input);
     {
-        gui_do_top_bar(target);
+        if (view->showing_ui != VUI_Debug){
+            gui_do_top_bar(target);
+        }
         do_widget(view, target);
         
         if (view->showing_ui == VUI_None){
@@ -4392,43 +4401,43 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                                         copy(&comp_dest, file->name.live_name);
                                     }
                                 }
-
+                                
                                 end_temp_memory(temp);
                             }
-
+                            
                             gui_end_list(target);
-
+                            
                             gui_end_scrollable(target);
                         }break;
-
+                        
                         case IInt_Sure_To_Close:
                         {
                             i32 action = -1;
-
+                            
                             String empty_str = {0};
                             String message = make_lit_string("There is one or more files unsaved changes, close anyway?");
-
+                            
                             gui_do_text_field(target, message, empty_str);
-
+                            
                             id.id[0] = (u64)('y');
                             message = make_lit_string("(Y)es");
                             if (gui_do_fixed_option(target, id, message, 'y')){
                                 action = 0;
                             }
-
+                            
                             id.id[0] = (u64)('n');
                             message = make_lit_string("(N)o");
                             if (gui_do_fixed_option(target, id, message, 'n')){
                                 action = 1;
                             }
-
+                            
                             if (action != -1){
                                 complete = 1;
                                 copy(&comp_dest, view->dest);
                                 comp_action = action;
                             }
                         }break;
-
+                        
                         case IInt_Sure_To_Kill:
                         {
                             i32 action = -1;
@@ -4473,15 +4482,19 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
 #if FRED_INTERNAL
                 case VUI_Debug:
                 {
+                    GUI_id scroll_context = {0};
+                    scroll_context.id[1] = VUI_Debug + ((u64)view->interaction << 32);
+                    
                     view->current_scroll = &view->gui_scroll;
                     
                     // TODO(allen):
-                    // - Incoming input
-                    // - Memory info
+                    // + Incoming input
+                    // + Memory info
                     // - Thread info
                     // - View inspection
                     // - Buffer inspection
                     // - Command maps inspection
+                    // - Clipboard
                     
                     String empty_str = string_zero();
                     
@@ -4499,97 +4512,149 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                         gui_do_text_field(target, string, empty_str);
                     }
                     
-                    // Incoming input
-                    //  - convert mouse clicks into key coded events??!!
                     {
-                        Debug_Data *debug = &view->persistent.models->debug;
-                        
-                        {
-                            int mx = input.mouse.x;
-                            int my = input.mouse.y;
+                        Debug_Mode prev_mode = view->debug_mode;
+                        for (i32 i = 0; i < keys.count; ++i){
+                            Key_Event_Data key = get_single_key(&keys, i);
                             
-                            string.size = 0;
-                            append(&string, "mouse: (");
-                            append_int_to_str(&string, mx);
-                            append(&string, ",");
-                            append_int_to_str(&string, my);
-                            append(&string, ")");
+                            if (key.modifiers[MDFR_CONTROL_INDEX] == 0 &&
+                                key.modifiers[MDFR_ALT_INDEX] == 0){
+                                if (key.keycode == 'i'){
+                                    view->debug_mode = DBG_Input;
+                                }
+                                if (key.keycode == 'm'){
+                                    view->debug_mode = DBG_Memory;
+                                }
+                            }
                         }
-                        
-                        gui_do_text_field(target, string, empty_str);
-                        
-                        Debug_Input_Event *input_event = debug->input_events;
-                        for (i32 i = 0;
-                             i < ArrayCount(debug->input_events);
-                             ++i, ++input_event){
-                            string.size = 0;
+                        if (prev_mode != view->debug_mode){
+                            result.consume_keys = 1;
+                        }
+                    }
+                    
+                    gui_begin_scrollable(target, scroll_context, view->gui_scroll,
+                                         9.f * view->line_height, show_scrollbar);
+                    
+                    switch (view->debug_mode)
+                    {
+                        case DBG_Input:
+                        {
+                            Debug_Data *debug = &view->persistent.models->debug;
                             
-                            if (input_event->is_hold){
-                                append(&string, "hold:  ");
-                            }
-                            else{
-                                append(&string, "press: ");
-                            }
-                            
-                            if (input_event->is_ctrl){
-                                append(&string, "ctrl-");
-                            }
-                            else{
-                                append(&string, "    -");
-                            }
-                            
-                            if (input_event->is_alt){
-                                append(&string, "alt-");
-                            }
-                            else{
-                                append(&string, "   -");
-                            }
-                            
-                            if (input_event->is_shift){
-                                append(&string, "shift ");
-                            }
-                            else{
-                                append(&string, "      ");
-                            }
-                            
-                            if (input_event->key > ' ' && input_event->key <= '~'){
-                                append(&string, make_string(&input_event->key, 1));
-                            }
-                            else if (input_event->key == ' '){
-                                append(&string, "space");
-                            }
-                            else if (input_event->key == '\n'){
-                                append(&string, "\\n");
-                            }
-                            else if (input_event->key == '\t'){
-                                append(&string, "\\t");
-                            }
-                            else{
-                                String str;
-                                str.str = global_key_name(input_event->key, &str.size);
-                                if (str.str){
-                                    str.memory_size = str.size + 1;
-                                    append(&string, str);
-                                }
-                                else{
-                                    append(&string, "unrecognized!");
-                                }
-                            }
-                            
-                            if (input_event->consumer[0] != 0){
-                                i32 next_pos = 40;
-                                i32 offset = next_pos - string.size;
-                                if (offset < 0) offset = 0;
-                                for (i32 r = 0; r < offset; ++r){
-                                    append(&string, ' ');
-                                }
+                            {
+                                int mx = input.mouse.x;
+                                int my = input.mouse.y;
                                 
-                                append(&string, input_event->consumer);
+                                string.size = 0;
+                                append(&string, "mouse: (");
+                                append_int_to_str(&string, mx);
+                                append(&string, ",");
+                                append_int_to_str(&string, my);
+                                append(&string, ")");
                             }
                             
                             gui_do_text_field(target, string, empty_str);
-                        }
+                            
+                            Debug_Input_Event *input_event = debug->input_events;
+                            for (i32 i = 0;
+                                 i < ArrayCount(debug->input_events);
+                                 ++i, ++input_event){
+                                string.size = 0;
+                                
+                                if (input_event->is_hold){
+                                    append(&string, "hold:  ");
+                                }
+                                else{
+                                    append(&string, "press: ");
+                                }
+                                
+                                if (input_event->is_ctrl){
+                                    append(&string, "ctrl-");
+                                }
+                                else{
+                                    append(&string, "    -");
+                                }
+                                
+                                if (input_event->is_alt){
+                                    append(&string, "alt-");
+                                }
+                                else{
+                                    append(&string, "   -");
+                                }
+                                
+                                if (input_event->is_shift){
+                                    append(&string, "shift ");
+                                }
+                                else{
+                                    append(&string, "      ");
+                                }
+                                
+                                if (input_event->key > ' ' && input_event->key <= '~'){
+                                    append(&string, make_string(&input_event->key, 1));
+                                }
+                                else if (input_event->key == ' '){
+                                    append(&string, "space");
+                                }
+                                else if (input_event->key == '\n'){
+                                    append(&string, "\\n");
+                                }
+                                else if (input_event->key == '\t'){
+                                    append(&string, "\\t");
+                                }
+                                else{
+                                    String str;
+                                    str.str = global_key_name(input_event->key, &str.size);
+                                    if (str.str){
+                                        str.memory_size = str.size + 1;
+                                        append(&string, str);
+                                    }
+                                    else{
+                                        append(&string, "unrecognized!");
+                                    }
+                                }
+                                
+                                if (input_event->consumer[0] != 0){
+                                    append_padding(&string, ' ', 40);
+                                    append(&string, input_event->consumer);
+                                }
+                                
+                                gui_do_text_field(target, string, empty_str);
+                            }
+                        }break;
+                        
+                        case DBG_Memory:
+                        {
+                            Partition *part = &models->mem.part;
+                            General_Memory *general = &models->mem.general;
+                            
+                            string.size = 0;
+                            append(&string, "part memory: ");
+                            append_int_to_str(&string, part->pos);
+                            append(&string, "/");
+                            append_int_to_str(&string, part->max);
+                            gui_do_text_field(target, string, empty_str);
+                            
+                            Bubble *bubble, *sentinel;
+                            sentinel = &general->sentinel;
+                            for (dll_items(bubble, sentinel)){
+                                string.size = 0;
+                                if (bubble->flags & MEM_BUBBLE_USED){
+                                    append(&string, " used: ");
+                                }
+                                else{
+                                    append(&string, " free: ");
+                                }
+                                
+                                append_int_to_str(&string, bubble->size);
+                                append_padding(&string, ' ', 40);
+                                append(&string, " type: ");
+                                append_int_to_str(&string, bubble->type);
+                                gui_do_text_field(target, string, empty_str);
+                            }
+                        }break;
                     }
+                    
+                    gui_end_scrollable(target);
                 }break;
 #endif
             }

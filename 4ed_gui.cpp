@@ -1141,19 +1141,19 @@ gui_interpret(GUI_Target *target, GUI_Session *session, GUI_Header *h,
         gui_scrollbar_bottom(session->scroll_rect, &rect);
         scroll_v = 0;
         break;
-
+        
         case guicom_begin_scrollable_section:
         always_give_to_user = 1;
         session->scrollable_items_bottom = 0;
         rect = gui_layout_top_bottom(session, y, session->full_rect.y1);
         end_v = rect.y1;
         break;
-
+        
         case guicom_end_scrollable_section:
         always_give_to_user = 1;
         session->suggested_max_y =
             (f32)(session->scrollable_items_bottom -
-                  session->full_rect.y1 * .5f);
+                  (session->full_rect.y0 + session->full_rect.y1)*.5f);
         if (session->suggested_max_y < 0){
             session->suggested_max_y = 0;
         }

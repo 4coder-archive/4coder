@@ -1247,7 +1247,10 @@ COMMAND_DECL(open_menu){
 
 COMMAND_DECL(open_debug){
     USE_VIEW(view);
+#if FRED_INTERNAL
     view_show_GUI(view, VUI_Debug);
+    view->debug_mode = DBG_Input;
+#endif
 }
 
 COMMAND_DECL(user_callback){
@@ -1523,6 +1526,7 @@ COMMAND_DECL(command_line){
                 
                 if (bind_to_new_view){
                     view_set_file(view, file, models);
+                    view_show_file(view);
                 }
                 
                 proc = procs + vars->cli_processes.count++;

@@ -181,6 +181,8 @@ FSTRING_INLINE    fstr_bool  terminate_with_null(String *str){
     return result;
 }
 
+FSTRING_LINK      fstr_bool  append_padding(String *dest, char c, int32_t target_size);
+
 FSTRING_LINK int32_t   compare(char *a, char *b);
 FSTRING_LINK int32_t   compare(String a, char *b);
 FSTRING_INLINE    int32_t   compare(char *a, String b) { return -compare(b,a); }
@@ -1021,6 +1023,22 @@ append(String *dest, char c){
         result = 1;
     }
     return result;
+}
+
+FSTRING_LINK fstr_bool
+append_padding(String *dest, char c, int32_t target_size){
+    fstr_bool result = 1;
+    int32_t offset = target_size - dest->size;
+    int32_t r;
+    if (offset > 0){
+        for (r = 0; r < offset; ++r){
+            if (append(dest, c) == 0){
+                result = 0;
+                break;
+            }
+        }
+    }
+    return(result);
 }
 
 FSTRING_LINK int32_t
