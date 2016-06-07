@@ -4163,7 +4163,7 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                         }break;
                     }
                 }break;
-
+                
                 case VUI_Interactive:
                 {
                     b32 complete = 0;
@@ -4175,10 +4175,10 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                     
                     GUI_id id = {0};
                     id.id[1] = VUI_Interactive + ((u64)view->interaction << 32);
-                                        
+                    
                     GUI_id scroll_context = {0};
                     scroll_context.id[1] = VUI_Interactive + ((u64)view->interaction << 32);
-
+                    
                     switch (view->interaction){
                         case IInt_Sys_File_List:
                         {
@@ -4330,7 +4330,7 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                                 gui_standard_list(target, id, view->current_scroll, view->scroll_region,
                                                   &keys, &view->list_i, &update);
                             }
-
+                            
                             {
                                 Partition *part = &models->mem.part;
                                 Temp_Memory temp = begin_temp_memory(part);
@@ -4338,15 +4338,15 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                                 Editing_File **reserved_files = 0;
                                 i32 reserved_top = 0, i = 0;
                                 View_Iter iter = {0};
-
+                                
                                 partition_align(part, sizeof(i32));
                                 reserved_files = (Editing_File**)partition_current(part);
-
+                                
                                 used_nodes = &working_set->used_sentinel;
                                 for (dll_items(node, used_nodes)){
                                     file = (Editing_File*)node;
                                     Assert(!file->is_dummy);
-
+                                    
                                     if (filename_match(view->dest, &absolutes, file->name.live_name, 1)){
                                         iter = file_view_iter_init(layout, file, 0);
                                         if (file_view_iter_good(iter)){
@@ -4358,11 +4358,14 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                                             }
                                             else{
                                                 message = string_zero();
-                                                switch (buffer_get_sync(file)){
-                                                    case SYNC_BEHIND_OS: message = message_unsynced; break;
-                                                    case SYNC_UNSAVED: message = message_unsaved; break;
+                                                
+                                                if (!file->settings.unimportant){
+                                                    switch (buffer_get_sync(file)){
+                                                        case SYNC_BEHIND_OS: message = message_unsynced; break;
+                                                        case SYNC_UNSAVED: message = message_unsaved; break;
+                                                    }
                                                 }
-
+                                                
                                                 id.id[0] = (u64)(file);
                                                 if (gui_do_file_option(target, id, file->name.live_name, 0, message)){
                                                     complete = 1;
@@ -4372,16 +4375,16 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                                         }
                                     }
                                 }
-
+                                
                                 for (i = 0; i < reserved_top; ++i){
                                     file = reserved_files[i];
-
+                                    
                                     message = string_zero();
                                     switch (buffer_get_sync(file)){
                                         case SYNC_BEHIND_OS: message = message_unsynced; break;
                                         case SYNC_UNSAVED: message = message_unsaved; break;
                                     }
-
+                                    
                                     id.id[0] = (u64)(file);
                                     if (gui_do_file_option(target, id, file->name.live_name, 0, message)){
                                         complete = 1;
@@ -4480,8 +4483,11 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                     // - Command maps inspection
                     
                     String empty_str = string_zero();
-                    char space[512];
-                    String string = make_fixed_width_string(space);
+                    
+                    char space1[512];
+                    String string = make_fixed_width_string(space1);
+                    
+                    String message = string_zero();
                     
                     // Time Watcher
                     {
@@ -4572,7 +4578,12 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                                 }
                             }
                             
-                            gui_do_text_field(target, string, empty_str);
+                            message.size = 0;
+                            if (input_event->consumer[0] != 0){
+                                message = make_string_slowly(input_event->consumer);
+                            }
+                            
+                            gui_do_text_field(target, string, message);
                         }
                     }
                 }break;

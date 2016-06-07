@@ -26,6 +26,8 @@ struct App_Settings{
 struct Debug_Input_Event{
     char key;
     
+    char consumer[32];
+    
     b8 is_hold;
     b8 is_ctrl;
     b8 is_alt;
@@ -34,6 +36,7 @@ struct Debug_Input_Event{
 
 struct Debug_Data{
     Debug_Input_Event input_events[16];
+    i32 this_frame_count;
 };
 
 struct Models{
