@@ -132,7 +132,8 @@ enum View_UI{
 
 enum Debug_Mode{
     DBG_Input,
-    DBG_Memory
+    DBG_Threads_And_Memory,
+    DBG_View_Inspection
 };
 
 enum Color_View_Mode{
@@ -368,15 +369,15 @@ file_init_strings(Editing_File *file){
 inline void
 file_set_name(Working_Set *working_set, Editing_File *file, char *filename){
     String f, ext;
-
+    
     Assert(file->name.live_name.str != 0);
-
+    
     f = make_string_slowly(filename);
     copy_checked(&file->name.source_path, f);
-
+    
     file->name.live_name.size = 0;
     get_front_of_directory(&file->name.live_name, f);
-
+    
     if (file->name.source_path.size == file->name.live_name.size){
         file->name.extension.size = 0;
     }
@@ -384,13 +385,13 @@ file_set_name(Working_Set *working_set, Editing_File *file, char *filename){
         ext = file_extension(f);
         copy(&file->name.extension, ext);
     }
-
+    
     {
         File_Node *node, *used_nodes;
         Editing_File *file_ptr;
         i32 file_x, original_len;
         b32 hit_conflict;
-
+        
         used_nodes = &working_set->used_sentinel;
         original_len = file->name.live_name.size;
         hit_conflict = 1;
@@ -407,7 +408,7 @@ file_set_name(Working_Set *working_set, Editing_File *file, char *filename){
                     }
                 }
             }
-
+            
             if (hit_conflict){
                 file->name.live_name.size = original_len;
                 append(&file->name.live_name, " <");
@@ -1018,8 +1019,8 @@ file_relex_parallel(System_Functions *system,
         relex_space.max_count = state.space_request;
         relex_space.tokens = push_array(part, Cpp_Token, relex_space.max_count);
         
-//        char *spare = push_array(part, char, cpp_file.size);
-//        if (cpp_relex_nonalloc_main(&state, &relex_space, &relex_end, spare)){
+        //        char *spare = push_array(part, char, cpp_file.size);
+        //        if (cpp_relex_nonalloc_main(&state, &relex_space, &relex_end, spare)){
         if (cpp_relex_nonalloc_main(&state, &relex_space, &relex_end)){
             inline_lex = 0;
         }
@@ -2767,7 +2768,11 @@ get_line_indentation_marks(Partition *part, Buffer *buffer, Cpp_Token_Stack toke
         line_i = line_start;
     }
     
-    i32 next_line_start = buffer->line_starts[line_i+1];
+    i32 next_line_start = buffer_size(buffer);
+    if (line_i+1 < buffer->line_count){
+        next_line_start = buffer->line_starts[line_i+1];
+    }
+    
     switch (token->type){
         case CPP_TOKEN_BRACKET_OPEN: indent.current_indent += tab_width; break;
         case CPP_TOKEN_BRACE_OPEN: indent.current_indent += tab_width; break;
@@ -2797,9 +2802,8 @@ get_line_indentation_marks(Partition *part, Buffer *buffer, Cpp_Token_Stack toke
                 next_line_start = buffer_size(buffer);
             }
             
-            // TODO(allen): Since this is called in one place we can probably go back
-            // to directly passing in next_line_start and this_line_start.
-            i32 this_indent = compute_this_indent(buffer, indent, T, prev_token, line_i, tab_width);
+            i32 this_indent =
+                compute_this_indent(buffer, indent, T, prev_token, line_i, tab_width);
             
             // NOTE(allen): Rebase the paren anchor if the first token
             // after an open paren is on the next line.
@@ -2834,8 +2838,8 @@ get_line_indentation_marks(Partition *part, Buffer *buffer, Cpp_Token_Stack toke
                     i32 start = buffer->line_starts[line];
                     i32 char_pos = T.start - start;
                     
-                    Hard_Start_Result hard_start = buffer_find_hard_start(
-                                                                          buffer, start, tab_width);
+                    Hard_Start_Result hard_start =
+                        buffer_find_hard_start(buffer, start, tab_width);
                     
                     i32 line_pos = hard_start.char_pos - start;
                     
@@ -4490,7 +4494,7 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                     // TODO(allen):
                     // + Incoming input
                     // + Memory info
-                    // - Thread info
+                    // + Thread info
                     // - View inspection
                     // - Buffer inspection
                     // - Command maps inspection
@@ -4523,7 +4527,10 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                                     view->debug_mode = DBG_Input;
                                 }
                                 if (key.keycode == 'm'){
-                                    view->debug_mode = DBG_Memory;
+                                    view->debug_mode = DBG_Threads_And_Memory;
+                                }
+                                if (key.keycode == 'v'){
+                                    view->debug_mode = DBG_View_Inspection;
                                 }
                             }
                         }
@@ -4622,8 +4629,34 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                             }
                         }break;
                         
-                        case DBG_Memory:
+                        case DBG_Threads_And_Memory:
                         {
+                            b8 threads[4];
+                            i32 pending = 0;
+                            system->internal_get_thread_states(BACKGROUND_THREADS,
+                                                               threads, &pending);
+                            
+                            string.size = 0;
+                            append(&string, "pending jobs: ");
+                            append_int_to_str(&string, pending);
+                            gui_do_text_field(target, string, empty_str);
+                            
+                            for (i32 i = 0; i < 4; ++i){
+                                string.size = 0;
+                                append(&string, "thread ");
+                                append_int_to_str(&string, i);
+                                append(&string, ": ");
+                                
+                                if (threads[i]){
+                                    append(&string, "running");
+                                }
+                                else{
+                                    append(&string, "waiting");
+                                }
+                                
+                                gui_do_text_field(target, string, empty_str);
+                            }
+                            
                             Partition *part = &models->mem.part;
                             General_Memory *general = &models->mem.general;
                             
@@ -4650,6 +4683,35 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                                 append(&string, " type: ");
                                 append_int_to_str(&string, bubble->type);
                                 gui_do_text_field(target, string, empty_str);
+                            }
+                        }break;
+                        
+                        case DBG_View_Inspection:
+                        {
+                            Editing_Layout *layout = &models->layout;
+                            Panel *panel, *sentinel;
+                            sentinel = &layout->used_sentinel;
+                            for (dll_items(panel, sentinel)){
+                                View *view = panel->view;
+                                string.size = 0;
+                                append(&string, "view: ");
+                                append_int_to_str(&string, view->persistent.id);
+                                gui_do_text_field(target, string, empty_str);
+                                
+                                string.size = 0;
+                                Editing_File *file = view->file_data.file;
+                                append(&string, " > buffer: ");
+                                if (file){
+                                    append(&string, file->name.live_name);
+                                    gui_do_text_field(target, string, empty_str);
+                                    string.size = 0;
+                                    append(&string, " > buffer-slot-id: ");
+                                    append_int_to_str(&string, file->id.id);
+                                }
+                                else{
+                                    append(&string, "*NULL*");
+                                    gui_do_text_field(target, string, empty_str);
+                                }
                             }
                         }break;
                     }
