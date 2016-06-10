@@ -4010,10 +4010,10 @@ show_gui_region(GUI_Target *target, String *string,
                 i32 indent_level, i32 h_align, char *message,
                 i32_Rect region){
     show_gui_line(target, string, indent_level, 0, message, 0);
-    show_gui_int (target, string, indent_level+1, h_align, " x0", region.x0);
-    show_gui_int (target, string, indent_level+1, h_align, " y0", region.y0);
-    show_gui_int (target, string, indent_level+1, h_align, " x1", region.x1);
-    show_gui_int (target, string, indent_level+1, h_align, " y1", region.y1);
+    show_gui_int (target, string, indent_level+1, h_align, " x0 ", region.x0);
+    show_gui_int (target, string, indent_level+1, h_align, " y0 ", region.y0);
+    show_gui_int (target, string, indent_level+1, h_align, " x1 ", region.x1);
+    show_gui_int (target, string, indent_level+1, h_align, " y1 ", region.y1);
 }
 
 struct View_Step_Result{
@@ -4634,10 +4634,12 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                     // + Incoming input
                     // + Memory info
                     // + Thread info
-                    // - View inspection
+                    // + View inspection
+                    //   - auto generate?
+                    //   - expand/collapse sections
                     // - Buffer inspection
                     // - Command maps inspection
-                    // - Clipboard
+                    // - Clipboard inspection
                     
                     String empty_str = string_zero();
                     
@@ -4940,6 +4942,9 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                                     GUI_Scroll_Vars scroll = *view_ptr->current_scroll;
                                     
                                     SHOW_GUI_BLANK(0);
+                                    SHOW_GUI_REGION(1, h_align, "scroll region", view_ptr->scroll_region);
+                                    
+                                    SHOW_GUI_BLANK(0);
                                     SHOW_GUI_LINE(1, "recent file data");
                                     {
                                         i32 recent_index = 0;
@@ -4967,20 +4972,27 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                                     SHOW_GUI_INT_INT(2, h_align, "gui partition",
                                                      view_ptr->gui_target.push.pos,
                                                      view_ptr->gui_target.push.max);
+                                    
+                                    SHOW_GUI_BLANK  (2);
                                     SHOW_GUI_ID     (2, h_align, "active", view_ptr->gui_target.active);
                                     SHOW_GUI_ID     (2, h_align, "mouse_hot", view_ptr->gui_target.mouse_hot);
                                     SHOW_GUI_ID     (2, h_align, "auto_hot", view_ptr->gui_target.auto_hot);
                                     SHOW_GUI_ID     (2, h_align, "hover", view_ptr->gui_target.hover);
+                                    SHOW_GUI_ID     (2, h_align, "scroll_id", view_ptr->gui_target.scroll_id);
+                                    
+                                    SHOW_GUI_BLANK  (2);
                                     SHOW_GUI_SCROLL (2, h_align, "scroll_original", view_ptr->gui_target.scroll_original);
                                     SHOW_GUI_REGION (2, h_align, "region_original", view_ptr->gui_target.region_original);
+                                    
+                                    SHOW_GUI_BLANK  (2);
                                     SHOW_GUI_SCROLL (2, h_align, "scroll_updated", view_ptr->gui_target.scroll_updated);
                                     SHOW_GUI_REGION (2, h_align, "region_updated", view_ptr->gui_target.region_updated);
                                     
                                     
+                                    SHOW_GUI_BLANK  (1);
                                     SHOW_GUI_SCROLL (1, h_align, "gui scroll", view_ptr->gui_scroll);
                                 }
                             }
-                            
                         }break;
                     }
                     
