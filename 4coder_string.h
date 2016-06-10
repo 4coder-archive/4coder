@@ -142,6 +142,10 @@ FSTRING_LINK    int32_t    u64_to_str_size(uint64_t x);
 FSTRING_LINK    fstr_bool  u64_to_str(String *s_out, uint64_t x);
 FSTRING_LINK    fstr_bool  append_u64_to_str(String *s_out, uint64_t x);
 
+FSTRING_LINK    int32_t    float_to_str_size(float x);
+FSTRING_LINK    fstr_bool  float_to_str(String *s_out, float x);
+FSTRING_LINK    fstr_bool  append_float_to_str(String *s_out, float x);
+
 FSTRING_LINK int32_t   str_to_int(char *s);
 FSTRING_LINK int32_t   str_to_int(String s);
 FSTRING_LINK int32_t   hexchar_to_int(char c);
@@ -797,6 +801,59 @@ append_u64_to_str(String *dest, uint64_t x){
     if (result){
         dest->size += last_part.size;
     }
+    return(result);
+}
+
+struct Float_To_Str_Variables{
+    fstr_bool negative;
+    int32_t int_part;
+    int32_t dec_part;
+};
+
+FSTRING_INLINE Float_To_Str_Variables
+get_float_vars(float x){
+    Float_To_Str_Variables vars = {0};
+    
+    if (x < 0){
+        vars.negative = true;
+        x = -x;
+    }
+    
+    vars.int_part = (int32_t)(x);
+    vars.dec_part = (int32_t)((x - vars.int_part) * 1000);
+    
+    return(vars);
+}
+
+FSTRING_LINK int32_t
+float_to_str_size(float x){
+    Float_To_Str_Variables vars = get_float_vars(x);
+    int32_t size =
+        vars.negative + int_to_str_size(vars.int_part) + 1 + int_to_str_size(vars.dec_part);
+    return(size);
+}
+
+FSTRING_LINK fstr_bool
+append_float_to_str(String *dest, float x){
+    fstr_bool result = 1;
+    Float_To_Str_Variables vars = get_float_vars(x);
+    
+    if (vars.negative){
+        append(dest, '-');
+    }
+    
+    append_int_to_str(dest, vars.int_part);
+    append(dest, '.');
+    append_int_to_str(dest, vars.dec_part);
+    
+    return(result);
+}
+
+FSTRING_LINK fstr_bool
+float_to_str(String *dest, float x){
+    fstr_bool result = 1;
+    dest->size = 0;
+    append_float_to_str(dest, x);
     return(result);
 }
 

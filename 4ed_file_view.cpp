@@ -206,6 +206,16 @@ struct View_Persistent{
     Models *models;
 };
 
+struct Debug_Vars{
+    i32 mode;
+    i32 inspecting_view_id;
+};
+inline Debug_Vars
+debug_vars_zero(){
+    Debug_Vars vars = {0};
+    return(vars);
+}
+
 struct View{
     View_Persistent persistent;
     
@@ -266,7 +276,7 @@ struct View{
     
     b32 reinit_scrolling;
     
-    Debug_Mode debug_mode;
+    Debug_Vars debug_vars;
 };
 inline void*
 get_view_body(View *view){
@@ -282,6 +292,12 @@ get_view_size(){
 struct View_And_ID{
     View *view;
     i32 id;
+};
+
+struct Live_Views{
+    View *views;
+    View free_sentinel;
+    i32 count, max;
 };
 
 #define LockLevel_Open 0
@@ -3879,6 +3895,63 @@ app_single_number_input_step(System_Functions *system, Key_Event_Data key, Strin
     return result;
 }
 
+internal void
+append_label(String *string, i32 indent_level, char *message){
+    i32 r = 0;
+    for (r = 0; r < indent_level; ++r){
+        append(string, '>');
+    }
+    append(string, message);
+}
+
+internal void
+show_gui_line(GUI_Target *target, String *string,
+              i32 indent_level, i32 h_align, char *message, char *follow_up){
+    string->size = 0;
+    append_label(string, indent_level, message);
+    if (follow_up){
+        append_padding(string, '-', h_align);
+        append(string, ' ');
+        append(string, follow_up);
+    }
+    gui_do_text_field(target, *string, string_zero());
+}
+
+internal void
+show_gui_int(GUI_Target *target, String *string,
+             i32 indent_level, i32 h_align, char *message, i32 x){
+    string->size = 0;
+    append_label(string, indent_level, message);
+    append_padding(string, '-', h_align);
+    append(string, ' ');
+    append_int_to_str(string, x);
+    gui_do_text_field(target, *string, string_zero());
+}
+
+internal void
+show_gui_int_int(GUI_Target *target, String *string,
+             i32 indent_level, i32 h_align, char *message, i32 x, i32 m){
+    string->size = 0;
+    append_label(string, indent_level, message);
+    append_padding(string, '-', h_align);
+    append(string, ' ');
+    append_int_to_str(string, x);
+    append(string, '/');
+    append_int_to_str(string, m);
+    gui_do_text_field(target, *string, string_zero());
+}
+
+internal void
+show_gui_float(GUI_Target *target, String *string,
+               i32 indent_level, i32 h_align, char *message, float x){
+    string->size = 0;
+    append_label(string, indent_level, message);
+    append_padding(string, '-', h_align);
+    append(string, ' ');
+    append_float_to_str(string, x);
+    gui_do_text_field(target, *string, string_zero());
+}
+
 struct View_Step_Result{
     b32 animating;
     b32 consume_keys;
@@ -4483,11 +4556,13 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                     }
                 }break;
                 
-#if FRED_INTERNAL
                 case VUI_Debug:
                 {
                     GUI_id scroll_context = {0};
-                    scroll_context.id[1] = VUI_Debug + ((u64)view->interaction << 32);
+                    scroll_context.id[1] = VUI_Debug + ((u64)view->debug_vars.mode << 32);
+                    
+                    GUI_id id = {0};
+                    id.id[1] = VUI_Debug + ((u64)view->debug_vars.mode << 32);
                     
                     view->current_scroll = &view->gui_scroll;
                     
@@ -4517,24 +4592,24 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                     }
                     
                     {
-                        Debug_Mode prev_mode = view->debug_mode;
+                        i32 prev_mode = view->debug_vars.mode;
                         for (i32 i = 0; i < keys.count; ++i){
                             Key_Event_Data key = get_single_key(&keys, i);
                             
                             if (key.modifiers[MDFR_CONTROL_INDEX] == 0 &&
                                 key.modifiers[MDFR_ALT_INDEX] == 0){
                                 if (key.keycode == 'i'){
-                                    view->debug_mode = DBG_Input;
+                                    view->debug_vars.mode = DBG_Input;
                                 }
                                 if (key.keycode == 'm'){
-                                    view->debug_mode = DBG_Threads_And_Memory;
+                                    view->debug_vars.mode = DBG_Threads_And_Memory;
                                 }
                                 if (key.keycode == 'v'){
-                                    view->debug_mode = DBG_View_Inspection;
+                                    view->debug_vars.mode = DBG_View_Inspection;
                                 }
                             }
                         }
-                        if (prev_mode != view->debug_mode){
+                        if (prev_mode != view->debug_vars.mode){
                             result.consume_keys = 1;
                         }
                     }
@@ -4542,7 +4617,7 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                     gui_begin_scrollable(target, scroll_context, view->gui_scroll,
                                          9.f * view->line_height, show_scrollbar);
                     
-                    switch (view->debug_mode)
+                    switch (view->debug_vars.mode)
                     {
                         case DBG_Input:
                         {
@@ -4688,37 +4763,132 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                         
                         case DBG_View_Inspection:
                         {
-                            Editing_Layout *layout = &models->layout;
-                            Panel *panel, *sentinel;
-                            sentinel = &layout->used_sentinel;
-                            for (dll_items(panel, sentinel)){
-                                View *view = panel->view;
+                            i32 inspecting_id = view->debug_vars.inspecting_view_id;
+                            View *views_to_inspect[16];
+                            i32 view_count = 0;
+                            b32 low_detail = true;
+                            
+                            if (inspecting_id == 0){
+                                Editing_Layout *layout = &models->layout;
+                                
+                                Panel *panel, *sentinel;
+                                sentinel = &layout->used_sentinel;
+                                for (dll_items(panel, sentinel)){
+                                    View *view_ptr = panel->view;
+                                    views_to_inspect[view_count++] = view_ptr;
+                                }
+                            }
+                            else if (inspecting_id >= 1 && inspecting_id <= 16){
+                                Live_Views *live_set = models->live_set;
+                                View *view_ptr = live_set->views + inspecting_id - 1;
+                                views_to_inspect[view_count++] = view_ptr;
+                                low_detail = false;
+                            }
+                            
+                            for (i32 i = 0; i < view_count; ++i){
+                                View *view_ptr = views_to_inspect[i];
+                                
                                 string.size = 0;
                                 append(&string, "view: ");
-                                append_int_to_str(&string, view->persistent.id);
+                                append_int_to_str(&string, view_ptr->persistent.id + 1);
                                 gui_do_text_field(target, string, empty_str);
                                 
                                 string.size = 0;
-                                Editing_File *file = view->file_data.file;
+                                Editing_File *file = view_ptr->file_data.file;
                                 append(&string, " > buffer: ");
                                 if (file){
                                     append(&string, file->name.live_name);
                                     gui_do_text_field(target, string, empty_str);
                                     string.size = 0;
-                                    append(&string, " > buffer-slot-id: ");
+                                    append(&string, " >> buffer-slot-id: ");
                                     append_int_to_str(&string, file->id.id);
                                 }
                                 else{
                                     append(&string, "*NULL*");
                                     gui_do_text_field(target, string, empty_str);
                                 }
+                                
+                                if (low_detail){
+                                    string.size = 0;
+                                    append(&string, "inspect this");
+                                    
+                                    id.id[0] = (u64)(view_ptr->persistent.id);
+                                    if (gui_do_button(target, id, string)){
+                                        view->debug_vars.inspecting_view_id = view_ptr->persistent.id + 1;
+                                    }
+                                }
+                                else{
+                                    
+#define SHOW_GUI_BLANK() gui_do_text_field(target, empty_str, empty_str)
+#define SHOW_GUI_LINE(n, str) show_gui_line(target, &string, n, 0, " " str, 0);
+#define SHOW_GUI_STRING(n, h, str, mes) show_gui_line(target, &string, n, h, " " str " ", mes);
+#define SHOW_GUI_INT(n, h, str, v) show_gui_int(target, &string, n, h, " " str " ", v);
+#define SHOW_GUI_INT_INT(n, h, str, v, m) show_gui_int_int(target, &string, n, h, " " str " ", v, m);
+#define SHOW_GUI_FLOAT(n, h, str, v) show_gui_float(target, &string, n, h, " " str " ", v);
+#define SHOW_GUI_BOOL(n, h, str, v) do { if (v) { show_gui_line(target, &string, n, h, " " str " ", "true"); }\
+                                        else { show_gui_line(target, &string, n, h, " " str " ", "false"); } } while(false)
+                                    
+                                    i32 h_align = 31;
+                                    
+                                    SHOW_GUI_BLANK();
+                                    {
+                                        Command_Map *map = view_ptr->map;
+                                        
+#define MAP_LABEL "command map"
+                                        
+                                        if (map == &models->map_top){
+                                            SHOW_GUI_STRING(1, h_align, MAP_LABEL, "global");
+                                        }
+                                        else if (map == &models->map_file){
+                                            SHOW_GUI_STRING(1, h_align, MAP_LABEL, "file");
+                                        }
+                                        else if (map == &models->map_ui){
+                                            SHOW_GUI_STRING(1, h_align, MAP_LABEL, "gui");
+                                        }
+                                        else{
+                                            i32 map_index = (i32)(view_ptr->map - models->user_maps);
+                                            i32 map_id = models->map_id_table[map_index];
+                                            
+                                            SHOW_GUI_STRING(1, h_align, MAP_LABEL, "user");
+                                            SHOW_GUI_INT(2, h_align, "custom map id", map_id);
+                                        }
+                                    }
+                                    
+                                    SHOW_GUI_BLANK();
+                                    SHOW_GUI_LINE(1, "file data:");
+                                    SHOW_GUI_BOOL(2, h_align, "has file", view_ptr->file_data.file);
+                                    SHOW_GUI_BOOL(2, h_align, "show temp highlight", view_ptr->file_data.show_temp_highlight);
+                                    SHOW_GUI_INT (2, h_align, "start temp highlight", view_ptr->file_data.temp_highlight.pos);
+                                    SHOW_GUI_INT (2, h_align, "end temp highlight", view_ptr->file_data.temp_highlight_end_pos);
+                                    SHOW_GUI_BOOL(2, h_align, "unwrapped lines", view_ptr->file_data.unwrapped_lines);
+                                    SHOW_GUI_BOOL(2, h_align, "show whitespace", view_ptr->file_data.show_whitespace);
+                                    SHOW_GUI_BOOL(2, h_align, "locked", view_ptr->file_data.file_locked);
+                                    SHOW_GUI_INT_INT(2, h_align, "line count",
+                                                     view_ptr->file_data.line_count,
+                                                     view_ptr->file_data.line_max);
+                                    
+                                    GUI_Scroll_Vars scroll = *view_ptr->current_scroll;
+                                    
+                                    SHOW_GUI_BLANK();
+                                    SHOW_GUI_LINE(1, "current scroll:");
+                                    SHOW_GUI_FLOAT(2, h_align, "scroll_y", scroll.scroll_y);
+                                    SHOW_GUI_FLOAT(2, h_align, "target_y", scroll.target_y);
+                                    SHOW_GUI_FLOAT(2, h_align, "prev_target_y", scroll.prev_target_y);
+                                    SHOW_GUI_FLOAT(2, h_align, "max_y", scroll.max_y);
+                                    
+                                    SHOW_GUI_FLOAT(2, h_align, "scroll_x", scroll.scroll_x);
+                                    SHOW_GUI_FLOAT(2, h_align, "target_x", scroll.target_x);
+                                    SHOW_GUI_FLOAT(2, h_align, "prev_target_x", scroll.prev_target_x);
+                                    
+                                    // TODO(allen): cursor
+                                }
                             }
+                            
                         }break;
                     }
                     
                     gui_end_scrollable(target);
                 }break;
-#endif
             }
         }
     }
@@ -5932,12 +6102,6 @@ view_change_size(General_Memory *general, View *view){
         view->recent->cursor = view_compute_cursor_from_pos(view, view->recent->cursor.pos);
     }
 }
-
-struct Live_Views{
-    View *views;
-    View free_sentinel;
-    i32 count, max;
-};
 
 internal View_And_ID
 live_set_alloc_view(Live_Views *live_set, Panel *panel, Models *models){

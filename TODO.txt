@@ -102,6 +102,7 @@
 ; [X] add high DPI support
 ; 
 ; [] OS font rendering
+; [] support full length unicode file names
 ; 
 ; [] file status in custom API
 ; [] user file bar string

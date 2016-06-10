@@ -59,10 +59,12 @@ struct Command_Data{
 
 struct App_Vars{
     Models models;
+    // TODO(allen): This wants to live in
+    // models with everyone else but the order
+    // of declaration is a little bit off...
+    Live_Views live_set;
     
     CLI_List cli_processes;
-    
-    Live_Views live_set;
     
     App_State state;
     App_State_Resizing resizing;
@@ -1247,10 +1249,8 @@ COMMAND_DECL(open_menu){
 
 COMMAND_DECL(open_debug){
     USE_VIEW(view);
-#if FRED_INTERNAL
     view_show_GUI(view, VUI_Debug);
-    view->debug_mode = DBG_Input;
-#endif
+    view->debug_vars = debug_vars_zero();
 }
 
 COMMAND_DECL(user_callback){
@@ -2846,6 +2846,8 @@ App_Init_Sig(app_init){
         View_Persistent *persistent = 0;
         i32 i = 0;
         i32 max = 0;
+        
+        models->live_set = &vars->live_set;
         
         vars->live_set.count = 0;
         vars->live_set.max = panel_max_count;

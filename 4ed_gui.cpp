@@ -263,9 +263,15 @@ gui_update_position(GUI_Item_Update *update, i32_Rect position){
 
 internal void*
 gui_push_item(GUI_Target *target, void *item, i32 size){
-    void *dest = partition_allocate(&target->push, size);
-    if (dest && item){
-        memcpy(dest, item, size);
+    void *dest = 0;
+    if (size == 0){
+        dest = partition_current(&target->push);
+    }
+    else{
+        dest = partition_allocate(&target->push, size);
+        if (dest && item){
+            memcpy(dest, item, size);
+        }
     }
     return(dest);
 }
