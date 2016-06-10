@@ -1454,11 +1454,11 @@ view_compute_cursor(View *view, Buffer_Seek seek){
         break;
         
         case buffer_seek_wrapped_xy:
-        result = view_compute_cursor_from_wrapped_xy(view, seek.x, seek.y);
+        result = view_compute_cursor_from_wrapped_xy(view, seek.x, seek.y, seek.round_down);
         break;
         
         case buffer_seek_unwrapped_xy:
-        result = view_compute_cursor_from_unwrapped_xy(view, seek.x, seek.y);
+        result = view_compute_cursor_from_unwrapped_xy(view, seek.x, seek.y, seek.round_down);
         break;
         
         case buffer_seek_line_char:
@@ -3613,30 +3613,9 @@ file_step(View *view, i32_Rect region, Input_Summary *user_input, b32 is_active,
     i32 is_animating = 0;
     Editing_File *file = view->file_data.file;
     if (file && !file->is_loading){
-        f32 max_visible_y = view_file_height(view);
-        f32 max_x = view_file_width(view);
-        
-        GUI_Scroll_Vars scroll_vars = *view->current_scroll;
-        
         if (file->state.paste_effect.tick_down > 0){
             --file->state.paste_effect.tick_down;
             is_animating = 1;
-        }
-        
-        if (user_input->mouse.press_l && is_active){
-            f32 rx = (f32)(user_input->mouse.x - region.x0);
-            f32 ry = (f32)(user_input->mouse.y - region.y0);
-            
-            if (ry >= 0){
-                if (rx >= 0 && rx < max_x && ry >= 0 && ry < max_visible_y){
-                    *consumed_l = true;
-                    view_cursor_move(view,
-                                     rx + scroll_vars.scroll_x,
-                                     ry + scroll_vars.scroll_y,
-                                     1);
-                    view->mode = view_mode_zero();
-                }
-            }
         }
     }
     
@@ -4021,6 +4000,18 @@ struct View_Step_Result{
     b32 consume_keys;
     b32 consume_esc;
 };
+
+inline void
+gui_show_mouse(GUI_Target *target, String *string, i32 mx, i32 my){
+    string->size = 0;
+    append(string, "mouse: (");
+    append_int_to_str(string, mx);
+    append(string, ",");
+    append_int_to_str(string, my);
+    append(string, ")");
+    
+    gui_do_text_field(target, *string, string_zero());
+}
 
 internal View_Step_Result
 step_file_view(System_Functions *system, View *view, View *active_view, Input_Summary input){
@@ -4689,19 +4680,7 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                         {
                             Debug_Data *debug = &view->persistent.models->debug;
                             
-                            {
-                                int mx = input.mouse.x;
-                                int my = input.mouse.y;
-                                
-                                string.size = 0;
-                                append(&string, "mouse: (");
-                                append_int_to_str(&string, mx);
-                                append(&string, ",");
-                                append_int_to_str(&string, my);
-                                append(&string, ")");
-                            }
-                            
-                            gui_do_text_field(target, string, empty_str);
+                            gui_show_mouse(target, &string, input.mouse.x, input.mouse.y);
                             
                             Debug_Input_Event *input_event = debug->input_events;
                             for (i32 i = 0;
@@ -4884,6 +4863,8 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                                     }
                                 }
                                 else{
+                                    
+                                    gui_show_mouse(target, &string, input.mouse.x, input.mouse.y);
                                     
 #define SHOW_GUI_BLANK(n) show_gui_line(target, &string, n, 0, "", 0)
 #define SHOW_GUI_LINE(n, str) show_gui_line(target, &string, n, 0, " " str, 0)

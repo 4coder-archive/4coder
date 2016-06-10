@@ -1,11 +1,11 @@
 /*
-* Mr. 4th Dimention - Allen Webster
-*
-* 25.02.2016
-*
-* File editing view for 4coder
-*
-*/
+ * Mr. 4th Dimention - Allen Webster
+ *
+ * 25.02.2016
+ *
+ * File editing view for 4coder
+ *
+ */
 
 // TOP
 

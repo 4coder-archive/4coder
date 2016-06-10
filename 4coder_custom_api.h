@@ -30,6 +30,7 @@
 #define GET_USER_INPUT_SIG(n) User_Input n(Application_Links *app, unsigned int get_type, unsigned int abort_type)
 #define GET_COMMAND_INPUT_SIG(n) User_Input n(Application_Links *app)
 #define GET_EVENT_MESSAGE_SIG(n) Event_Message n(Application_Links *app)
+#define GET_MOUSE_STATE_SIG(n) Mouse_State n(Application_Links *app)
 #define START_QUERY_BAR_SIG(n) int n(Application_Links *app, Query_Bar *bar, unsigned int flags)
 #define END_QUERY_BAR_SIG(n) void n(Application_Links *app, Query_Bar *bar, unsigned int flags)
 #define PRINT_MESSAGE_SIG(n) void n(Application_Links *app, char *string, int len)
@@ -71,6 +72,7 @@ extern "C"{
     typedef GET_USER_INPUT_SIG(Get_User_Input_Function);
     typedef GET_COMMAND_INPUT_SIG(Get_Command_Input_Function);
     typedef GET_EVENT_MESSAGE_SIG(Get_Event_Message_Function);
+    typedef GET_MOUSE_STATE_SIG(Get_Mouse_State_Function);
     typedef START_QUERY_BAR_SIG(Start_Query_Bar_Function);
     typedef END_QUERY_BAR_SIG(End_Query_Bar_Function);
     typedef PRINT_MESSAGE_SIG(Print_Message_Function);
@@ -115,6 +117,7 @@ struct Application_Links{
     Get_User_Input_Function *get_user_input;
     Get_Command_Input_Function *get_command_input;
     Get_Event_Message_Function *get_event_message;
+    Get_Mouse_State_Function *get_mouse_state;
     Start_Query_Bar_Function *start_query_bar;
     End_Query_Bar_Function *end_query_bar;
     Print_Message_Function *print_message;

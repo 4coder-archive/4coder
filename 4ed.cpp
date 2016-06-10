@@ -57,6 +57,108 @@ struct Command_Data{
     Partition part;
 };
 
+enum Input_Types{
+    Input_AnyKey,
+    Input_Esc,
+    Input_MouseMove,
+    Input_MouseLeftButton,
+    Input_MouseRightButton,
+    Input_MouseWheel,
+    Input_Count
+};
+
+struct Consumption_Record{
+    b32 consumed;
+    char consumer[32];
+};
+
+struct Available_Input{
+    Key_Summary *keys;
+    Mouse_State *mouse;
+    Consumption_Record records[Input_Count];
+};
+
+Available_Input
+init_available_input(Key_Summary *keys, Mouse_State *mouse){
+    Available_Input result = {0};
+    result.keys = keys;
+    result.mouse = mouse;
+    return(result);
+}
+
+Key_Summary
+direct_get_key_data(Available_Input *available){
+    Key_Summary result = *available->keys;
+    return(result);
+}
+
+Mouse_State
+direct_get_mouse_state(Available_Input *available){
+    Mouse_State result = *available->mouse;
+    return(result);
+}
+
+Key_Summary
+get_key_data(Available_Input *available){
+    Key_Summary result = {0};
+    
+    if (!available->records[Input_AnyKey].consumed){
+        result = *available->keys;
+    }
+    else if (!available->records[Input_Esc].consumed){
+        i32 i = 0;
+        i32 count = available->keys->count;
+        Key_Event_Data key = {0};
+        
+        for (i = 0; i < count; ++i){
+            key = get_single_key(available->keys, i);
+            if (key.keycode == key_esc){
+                result.count = 1;
+                result.keys[0] = key;
+                break;
+            }
+        }
+    }
+    
+    return(result);
+}
+
+Mouse_State
+get_mouse_state(Available_Input *available){
+    Mouse_State mouse = *available->mouse;
+    if (available->records[Input_MouseLeftButton].consumed){
+        mouse.l = 0;
+        mouse.press_l = 0;
+        mouse.release_l = 0;
+    }
+    
+    if (available->records[Input_MouseRightButton].consumed){
+        mouse.r = 0;
+        mouse.press_r = 0;
+        mouse.release_r = 0;
+    }
+    
+    if (available->records[Input_MouseWheel].consumed){
+        mouse.wheel = 0;
+    }
+    
+    return(mouse);
+}
+
+void
+consume_input(Available_Input *available, i32 input_type, char *consumer){
+    Consumption_Record *record = &available->records[input_type];
+    record->consumed = 1;
+    if (consumer){
+        String str = make_fixed_width_string(record->consumer);
+        copy(&str, consumer);
+        terminate_with_null(&str);
+    }
+    else{
+        record->consumer[0] = 0;
+    }
+}
+
 struct App_Vars{
     Models models;
     // TODO(allen): This wants to live in
@@ -71,6 +173,8 @@ struct App_Vars{
     Complete_State complete_state;
     
     Command_Data command_data;
+    
+    Available_Input available_input;
 };
 
 enum Coroutine_Type{
@@ -376,6 +480,47 @@ COMMAND_DECL(center_view){
     view->recent->scroll.target_y = y;
 }
 
+COMMAND_DECL(left_adjust_view){
+    REQ_READABLE_VIEW(view);
+    REQ_FILE(file, view);
+    
+    f32 x;
+    if (view->file_data.unwrapped_lines){
+        x = view->recent->cursor.unwrapped_x;
+    }
+    else{
+        x = view->recent->cursor.wrapped_x;
+    }
+    
+    x = clamp_bottom(0.f, x - 30.f);
+    view->recent->scroll.target_x = x;
+}
+
+COMMAND_DECL(set_cursor){
+    REQ_READABLE_VIEW(view);
+    REQ_FILE(file, view);
+    USE_VARS(vars);
+    
+    i32_Rect file_region = view->file_region;
+    Mouse_State mouse = direct_get_mouse_state(&vars->available_input);
+    
+    f32 max_y = view_file_height(view);
+    f32 max_x = view_file_width(view);
+    GUI_Scroll_Vars scroll_vars = view->gui_target.scroll_updated;
+    
+    f32 rx = (f32)(mouse.x - file_region.x0);
+    f32 ry = (f32)(mouse.y - file_region.y0);
+    
+    if (ry >= 0){
+        if (rx >= 0 && rx < max_x && ry >= 0 && ry < max_y){
+            view_cursor_move(view,
+                             rx + scroll_vars.scroll_x,
+                             ry + scroll_vars.scroll_y,
+                             1);
+        }
+    }
+}
+
 COMMAND_DECL(word_complete){
     USE_MODELS(models);
     USE_VARS(vars);
@@ -677,6 +822,7 @@ COMMAND_DECL(paste_next){
     }
 }
 
+// TODO(allen): FIX THIS FUCKIN SHIT!
 COMMAND_DECL(undo){
     USE_MODELS(models);
     REQ_OPEN_VIEW(view);
@@ -1617,6 +1763,9 @@ fill_view_summary(View_Summary *view, View *vptr, Live_Views *live_set, Working_
             view->mark = view_compute_cursor_from_pos(vptr, vptr->recent->mark);
             view->cursor = vptr->recent->cursor;
             view->preferred_x = vptr->recent->preferred_x;
+            
+            view->file_region = vptr->file_region;
+            view->scroll_vars = *vptr->current_scroll;
         }
     }
 }
@@ -2082,6 +2231,13 @@ extern "C"{
         return(result);
     }
     
+    GET_MOUSE_STATE_SIG(external_get_mouse_state){
+        Command_Data *cmd = (Command_Data*)app->cmd_context;
+        App_Vars *vars = cmd->vars;
+        Mouse_State mouse = direct_get_mouse_state(&vars->available_input);
+        return(mouse);
+    }
+    
     GET_EVENT_MESSAGE_SIG(external_get_event_message){
         Event_Message message = {0};
         System_Functions *system = (System_Functions*)app->system_links;
@@ -2249,6 +2405,7 @@ app_links_init(System_Functions *system, Application_Links *app_links, void *dat
     app_links->get_user_input = external_get_user_input;
     app_links->get_command_input = external_get_command_input;
     app_links->get_event_message = external_get_event_message;
+    app_links->get_mouse_state = external_get_mouse_state;
     
     app_links->start_query_bar = external_start_query_bar;
     app_links->end_query_bar = external_end_query_bar;
@@ -2304,6 +2461,7 @@ setup_command_table(){
     SET(seek_right);
     
     SET(center_view);
+    SET(left_adjust_view);
     
     SET(word_complete);
     
@@ -3156,96 +3314,6 @@ update_cli_handle_with_file(System_Functions *system, Models *models,
     return(result);
 }
 
-enum Input_Types{
-    Input_AnyKey,
-    Input_Esc,
-    Input_MouseMove,
-    Input_MouseLeftButton,
-    Input_MouseRightButton,
-    Input_MouseWheel,
-    Input_Count
-};
-
-struct Consumption_Record{
-    b32 consumed;
-    char consumer[32];
-};
-
-struct Available_Input{
-    Key_Summary *keys;
-    Mouse_State *mouse;
-    Consumption_Record records[Input_Count];
-};
-
-Available_Input
-init_available_input(Key_Summary *keys, Mouse_State *mouse){
-    Available_Input result = {0};
-    result.keys = keys;
-    result.mouse = mouse;
-    return(result);
-}
-
-Key_Summary
-get_key_data(Available_Input *available){
-    Key_Summary result = {0};
-    
-    if (!available->records[Input_AnyKey].consumed){
-        result = *available->keys;
-    }
-    else if (!available->records[Input_Esc].consumed){
-        i32 i = 0;
-        i32 count = available->keys->count;
-        Key_Event_Data key = {0};
-        
-        for (i = 0; i < count; ++i){
-            key = get_single_key(available->keys, i);
-            if (key.keycode == key_esc){
-                result.count = 1;
-                result.keys[0] = key;
-                break;
-            }
-        }
-    }
-    
-    return(result);
-}
-
-Mouse_State
-get_mouse_state(Available_Input *available){
-    Mouse_State mouse = *available->mouse;
-    if (available->records[Input_MouseLeftButton].consumed){
-        mouse.l = 0;
-        mouse.press_l = 0;
-        mouse.release_l = 0;
-    }
-    
-    if (available->records[Input_MouseRightButton].consumed){
-        mouse.r = 0;
-        mouse.press_r = 0;
-        mouse.release_r = 0;
-    }
-    
-    if (available->records[Input_MouseWheel].consumed){
-        mouse.wheel = 0;
-    }
-    
-    return(mouse);
-}
-
-void
-consume_input(Available_Input *available, i32 input_type, char *consumer){
-    Consumption_Record *record = &available->records[input_type];
-    record->consumed = 1;
-    if (consumer){
-        String str = make_fixed_width_string(record->consumer);
-        copy(&str, consumer);
-        terminate_with_null(&str);
-    }
-    else{
-        record->consumer[0] = 0;
-    }
-}
-
 App_Step_Sig(app_step){
     Application_Step_Result app_result = *result;
     app_result.animating = 0;
@@ -3567,9 +3635,7 @@ App_Step_Sig(app_step){
             Coroutine *command_coroutine = models->command_coroutine;
             View *view = cmd->view;
             
-            for (i32 i = 0;
-                 i < 128 && command_coroutine;
-                 ++i){
+            for (i32 i = 0; i < 128 && command_coroutine; ++i){
                 User_Input user_in = {0};
                 user_in.abort = 1;
                 
@@ -3603,12 +3669,12 @@ App_Step_Sig(app_step){
     }
     
     // NOTE(allen): pass events to debug
-    Available_Input available_input = init_available_input(&key_summary, &input->mouse);
+    vars->available_input = init_available_input(&key_summary, &input->mouse);
     
 #if FRED_INTERNAL
     {
         Debug_Data *debug = &models->debug;
-        Key_Summary key_data = get_key_data(&available_input);
+        Key_Summary key_data = get_key_data(&vars->available_input);
         
         Debug_Input_Event *events = debug->input_events;
         
@@ -3643,7 +3709,7 @@ App_Step_Sig(app_step){
         get_flags |= abort_flags;
         
         if ((get_flags & EventOnAnyKey) || (get_flags & EventOnEsc)){
-            Key_Summary key_data = get_key_data(&available_input);
+            Key_Summary key_data = get_key_data(&vars->available_input);
             
             for (i32 key_i = 0; key_i < key_data.count; ++key_i){
                 Key_Event_Data key = get_single_key(&key_data, key_i);
@@ -3671,14 +3737,14 @@ App_Step_Sig(app_step){
                 
                 if (EventOnAnyKey & get_flags){
                     pass_in = 1;
-                    consume_input(&available_input, Input_AnyKey,
+                    consume_input(&vars->available_input, Input_AnyKey,
                                   "command coroutine");
                 }
                 if (key.keycode == key_esc){
                     if (EventOnEsc & get_flags){
                         pass_in = 1;
                     }
-                    consume_input(&available_input, Input_Esc,
+                    consume_input(&vars->available_input, Input_Esc,
                                   "command coroutine");
                 }
                 
@@ -3718,7 +3784,7 @@ App_Step_Sig(app_step){
             }
             if (get_flags & EventOnMouseMove){
                 pass_in = 1;
-                consume_input(&available_input, Input_MouseMove,
+                consume_input(&vars->available_input, Input_MouseMove,
                               "command coroutine");
             }
             
@@ -3728,7 +3794,7 @@ App_Step_Sig(app_step){
                 }
                 if (get_flags & EventOnLeftButton){
                     pass_in = 1;
-                    consume_input(&available_input, Input_MouseLeftButton,
+                    consume_input(&vars->available_input, Input_MouseLeftButton,
                                   "command coroutine");
                 }
             }
@@ -3739,7 +3805,7 @@ App_Step_Sig(app_step){
                 }
                 if (get_flags & EventOnRightButton){
                     pass_in = 1;
-                    consume_input(&available_input, Input_MouseRightButton,
+                    consume_input(&vars->available_input, Input_MouseRightButton,
                                   "command coroutine");
                 }
             }
@@ -3750,7 +3816,7 @@ App_Step_Sig(app_step){
                 }
                 if (get_flags & EventOnWheel){
                     pass_in = 1;
-                    consume_input(&available_input, Input_MouseWheel,
+                    consume_input(&vars->available_input, Input_MouseWheel,
                                   "command coroutine");
                 }
             }
@@ -3785,9 +3851,9 @@ App_Step_Sig(app_step){
     active_input.mouse.x = input->mouse.x;
     active_input.mouse.y = input->mouse.y;
     
-    active_input.keys = get_key_data(&available_input);
+    active_input.keys = get_key_data(&vars->available_input);
     
-    Mouse_State mouse_state = get_mouse_state(&available_input);
+    Mouse_State mouse_state = get_mouse_state(&vars->available_input);
     
     {
         Panel *panel = 0, *used_panels = 0;
@@ -3809,11 +3875,11 @@ App_Step_Sig(app_step){
                 app_result.animating = 1;
             }
             if (result.consume_keys){
-                consume_input(&available_input, Input_AnyKey,
+                consume_input(&vars->available_input, Input_AnyKey,
                               "file view step");
             }
             if (result.consume_keys || result.consume_esc){
-                consume_input(&available_input, Input_Esc,
+                consume_input(&vars->available_input, Input_Esc,
                               "file view step");
             }
             
@@ -3824,23 +3890,23 @@ App_Step_Sig(app_step){
                     summary.mouse = mouse_state;
                 }
                 
-                GUI_Scroll_Vars *vars = view->current_scroll;
+                GUI_Scroll_Vars *scroll_vars = view->current_scroll;
                 Input_Process_Result ip_result =
                     do_step_file_view(system, view, panel->inner, active,
-                                      &summary, *vars, view->scroll_region);
+                                      &summary, *scroll_vars, view->scroll_region);
                 if (ip_result.is_animating){
                     app_result.animating = 1;
                 }
                 if (ip_result.consumed_l){
-                    consume_input(&available_input, Input_MouseLeftButton,
+                    consume_input(&vars->available_input, Input_MouseLeftButton,
                                   "file view step");
                 }
                 if (ip_result.consumed_r){
-                    consume_input(&available_input, Input_MouseRightButton,
+                    consume_input(&vars->available_input, Input_MouseRightButton,
                                   "file view step");
                 }
-                Assert(view->current_scroll == vars);
-                *vars = ip_result.vars;
+                Assert(view->current_scroll == scroll_vars);
+                *scroll_vars = ip_result.vars;
                 view->scroll_region = ip_result.region;
             }
         }
@@ -3848,9 +3914,20 @@ App_Step_Sig(app_step){
     
     update_command_data(vars, cmd);
     
+    // NOTE(allen): post scroll vars back to the view's gui targets
+    {
+        Panel *panel = 0, *used_panels = 0;
+        
+        used_panels = &models->layout.used_sentinel;
+        for (dll_items(panel, used_panels)){
+            Assert(panel->view);
+            view_end_cursor_scroll_updates(panel->view);
+        }
+    }
+    
     // NOTE(allen): command execution
     {
-        Key_Summary key_data = get_key_data(&available_input);
+        Key_Summary key_data = get_key_data(&vars->available_input);
         b32 hit_something = 0;
         b32 hit_esc = 0;
         
@@ -3908,11 +3985,11 @@ App_Step_Sig(app_step){
         }
         
         if (hit_something){
-            consume_input(&available_input, Input_AnyKey,
+            consume_input(&vars->available_input, Input_AnyKey,
                           "command dispatcher");
         }
         if (hit_esc){
-            consume_input(&available_input, Input_Esc,
+            consume_input(&vars->available_input, Input_Esc,
                           "command dispatcher");
         }
     }
@@ -3920,14 +3997,13 @@ App_Step_Sig(app_step){
     update_command_data(vars, cmd);
     
     // NOTE(allen): pass consumption data to debug
-#if FRED_INTERNAL
     {
         Debug_Data *debug = &models->debug;
         i32 count = debug->this_frame_count;
         
         Consumption_Record *record = 0;
         
-        record = &available_input.records[Input_MouseLeftButton];
+        record = &vars->available_input.records[Input_MouseLeftButton];
         if (record->consumed && record->consumer[0] != 0){
             Debug_Input_Event *event = debug->input_events;
             for (i32 i = 0; i < count; ++i, ++event){
@@ -3938,7 +4014,7 @@ App_Step_Sig(app_step){
             }
         }
         
-        record = &available_input.records[Input_MouseRightButton];
+        record = &vars->available_input.records[Input_MouseRightButton];
         if (record->consumed && record->consumer[0] != 0){
             Debug_Input_Event *event = debug->input_events;
             for (i32 i = 0; i < count; ++i, ++event){
@@ -3949,7 +4025,7 @@ App_Step_Sig(app_step){
             }
         }
         
-        record = &available_input.records[Input_Esc];
+        record = &vars->available_input.records[Input_Esc];
         if (record->consumed && record->consumer[0] != 0){
             Debug_Input_Event *event = debug->input_events;
             for (i32 i = 0; i < count; ++i, ++event){
@@ -3960,7 +4036,7 @@ App_Step_Sig(app_step){
             }
         }
         
-        record = &available_input.records[Input_AnyKey];
+        record = &vars->available_input.records[Input_AnyKey];
         if (record->consumed){
             Debug_Input_Event *event = debug->input_events;
             for (i32 i = 0; i < count; ++i, ++event){
@@ -3970,7 +4046,6 @@ App_Step_Sig(app_step){
             }
         }
     }
-#endif
     
     // NOTE(allen): initialize message
     if (input->first_step){

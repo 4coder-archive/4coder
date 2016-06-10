@@ -113,6 +113,63 @@ CUSTOM_COMMAND_SIG(delete_range){
 // Basic Navigation
 //
 
+int
+get_relative_xy(View_Summary *view, int x, int y, float *x_out, float *y_out){
+    int result = false;
+    
+    i32_Rect region = view->file_region;
+    
+    int max_x = (region.x1 - region.x0);
+    int max_y = (region.y1 - region.y0);
+    GUI_Scroll_Vars scroll_vars = view->scroll_vars;
+    
+    int rx = x - region.x0;
+    int ry = y - region.y0;
+    
+    if (ry >= 0){
+        if (rx >= 0 && rx < max_x && ry >= 0 && ry < max_y){
+            result = 1;
+        }
+    }
+    
+    *x_out = (float)rx + scroll_vars.scroll_x;
+    *y_out = (float)ry + scroll_vars.scroll_y;
+    
+    return(result);
+}
+
+CUSTOM_COMMAND_SIG(click_set_cursor){
+    View_Summary view = app->get_active_view(app);
+    
+    // TODO(allen): Need a better system for
+    // weeding out views in a hidden state.
+    if (view.locked_buffer_id != 0){
+        Mouse_State mouse = app->get_mouse_state(app);
+        float rx = 0, ry = 0;
+        if (get_relative_xy(&view, mouse.x, mouse.y, &rx, &ry)){
+            app->view_set_cursor(app, &view,
+                                 seek_xy(rx, ry, true,
+                                         view.unwrapped_lines),
+                                 true);
+        }
+    }
+}
+
+CUSTOM_COMMAND_SIG(click_set_mark){
+    View_Summary view = app->get_active_view(app);
+    
+    if (view.locked_buffer_id != 0){
+        Mouse_State mouse = app->get_mouse_state(app);
+        float rx = 0, ry = 0;
+        if (get_relative_xy(&view, mouse.x, mouse.y, &rx, &ry)){
+            app->view_set_mark(app, &view,
+                               seek_xy(rx, ry, true,
+                                       view.unwrapped_lines)
+                               );
+        }
+    }
+}
+
 inline void
 move_vertical(Application_Links *app, float line_multiplier){
     View_Summary view = app->get_active_view(app);

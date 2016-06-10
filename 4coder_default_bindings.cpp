@@ -317,6 +317,12 @@ default_keys(Bind_Helper *context){
     // It is possible to override this binding for individual keys.
     bind_vanilla_keys(context, write_character);
     
+    // NOTE(allen|a4.0.7): You can now bind left and right clicks.
+    // They only trigger on mouse presses.  Modifiers do work
+    // so control+click shift+click etc can now have special meanings.
+    bind(context, key_mouse_left, MDFR_NONE, click_set_cursor);
+    bind(context, key_mouse_right, MDFR_NONE, click_set_mark);
+    
     bind(context, key_left, MDFR_NONE, move_left);
     bind(context, key_right, MDFR_NONE, move_right);
     bind(context, key_del, MDFR_NONE, delete_char);
@@ -345,6 +351,7 @@ default_keys(Bind_Helper *context){
     bind(context, 'c', MDFR_CTRL, cmdid_copy);
     bind(context, 'd', MDFR_CTRL, delete_range);
     bind(context, 'e', MDFR_CTRL, cmdid_center_view);
+    bind(context, 'E', MDFR_CTRL, cmdid_left_adjust_view);
     bind(context, 'f', MDFR_CTRL, search);
     bind(context, 'g', MDFR_CTRL, goto_line);
     bind(context, 'h', MDFR_CTRL, cmdid_history_backward);

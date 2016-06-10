@@ -178,6 +178,7 @@ enum Command_ID{
     cmdid_seek_right,
     
     cmdid_center_view,
+    cmdid_left_adjust_view,
     
     cmdid_word_complete,
     
@@ -312,6 +313,9 @@ struct View_Summary{
     float line_height;
     int unwrapped_lines;
     int show_whitespace;
+    
+    i32_Rect file_region;
+    GUI_Scroll_Vars scroll_vars;
 };
 inline View_Summary
 view_summary_zero(){
