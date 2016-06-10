@@ -476,22 +476,22 @@ CUSTOM_COMMAND_SIG(if0_off){
 
     view = app->get_active_view(app);
     buffer = app->get_buffer(app, view.buffer_id);
-
+    
     range = get_range(&view);
     pos = range.min;
-
+    
     app->buffer_replace_range(app, &buffer, pos, pos, text1, size1);
-
+    
     push_parameter(app, par_range_start, pos);
     push_parameter(app, par_range_end, pos);
     exec_command(app, cmdid_auto_tab_range);
-
+    
     app->refresh_view(app, &view);
     range = get_range(&view);
     pos = range.max;
-
+    
     app->buffer_replace_range(app, &buffer, pos, pos, text2, size2);
-
+    
     push_parameter(app, par_range_start, pos);
     push_parameter(app, par_range_end, pos);
     exec_command(app, cmdid_auto_tab_range);
@@ -501,14 +501,30 @@ CUSTOM_COMMAND_SIG(backspace_word){
     View_Summary view;
     Buffer_Summary buffer;
     int pos2, pos1;
-
+    
     view = app->get_active_view(app);
-
+    
     pos2 = view.cursor.pos;
     exec_command(app, seek_alphanumeric_left);
     app->refresh_view(app, &view);
     pos1 = view.cursor.pos;
+    
+    buffer = app->get_buffer(app, view.buffer_id);
+    app->buffer_replace_range(app, &buffer, pos1, pos2, 0, 0);
+}
 
+CUSTOM_COMMAND_SIG(delete_word){
+    View_Summary view;
+    Buffer_Summary buffer;
+    int pos2, pos1;
+    
+    view = app->get_active_view(app);
+    
+    pos1 = view.cursor.pos;
+    exec_command(app, seek_alphanumeric_right);
+    app->refresh_view(app, &view);
+    pos2 = view.cursor.pos;
+    
     buffer = app->get_buffer(app, view.buffer_id);
     app->buffer_replace_range(app, &buffer, pos1, pos2, 0, 0);
 }

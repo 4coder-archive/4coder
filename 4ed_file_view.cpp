@@ -3929,8 +3929,19 @@ show_gui_int(GUI_Target *target, String *string,
 }
 
 internal void
+show_gui_u64(GUI_Target *target, String *string,
+             i32 indent_level, i32 h_align, char *message, u64 x){
+    string->size = 0;
+    append_label(string, indent_level, message);
+    append_padding(string, '-', h_align);
+    append(string, ' ');
+    append_u64_to_str(string, x);
+    gui_do_text_field(target, *string, string_zero());
+}
+
+internal void
 show_gui_int_int(GUI_Target *target, String *string,
-             i32 indent_level, i32 h_align, char *message, i32 x, i32 m){
+                 i32 indent_level, i32 h_align, char *message, i32 x, i32 m){
     string->size = 0;
     append_label(string, indent_level, message);
     append_padding(string, '-', h_align);
@@ -3938,6 +3949,20 @@ show_gui_int_int(GUI_Target *target, String *string,
     append_int_to_str(string, x);
     append(string, '/');
     append_int_to_str(string, m);
+    gui_do_text_field(target, *string, string_zero());
+}
+
+internal void
+show_gui_id(GUI_Target *target, String *string,
+            i32 indent_level, i32 h_align, char *message, GUI_id id){
+    string->size = 0;
+    append_label(string, indent_level, message);
+    append_padding(string, '-', h_align);
+    append(string, " [0]: ");
+    append_u64_to_str(string, id.id[0]);
+    append_padding(string, ' ', h_align + 26);
+    append(string, " [1]: ");
+    append_u64_to_str(string, id.id[1]);
     gui_do_text_field(target, *string, string_zero());
 }
 
@@ -3950,6 +3975,45 @@ show_gui_float(GUI_Target *target, String *string,
     append(string, ' ');
     append_float_to_str(string, x);
     gui_do_text_field(target, *string, string_zero());
+}
+
+internal void
+show_gui_scroll(GUI_Target *target, String *string,
+                i32 indent_level, i32 h_align, char *message,
+                GUI_Scroll_Vars scroll){
+    show_gui_line (target, string, indent_level, 0, message, 0);
+    show_gui_float(target, string, indent_level+1, h_align, " scroll_y ", scroll.scroll_y);
+    show_gui_float(target, string, indent_level+1, h_align, " target_y ", scroll.target_y);
+    show_gui_float(target, string, indent_level+1, h_align, " prev_target_y ", scroll.prev_target_y);
+    show_gui_float(target, string, indent_level+1, h_align, " max_y ", scroll.max_y);
+    show_gui_float(target, string, indent_level+1, h_align, " scroll_x ", scroll.scroll_x);
+    show_gui_float(target, string, indent_level+1, h_align, " target_x ", scroll.target_x);
+    show_gui_float(target, string, indent_level+1, h_align, " prev_target_x ", scroll.prev_target_x);
+}
+
+internal void
+show_gui_cursor(GUI_Target *target, String *string,
+                i32 indent_level, i32 h_align, char *message,
+                Full_Cursor cursor){
+    show_gui_line (target, string, indent_level, 0, message, 0);
+    show_gui_int  (target, string, indent_level+1, h_align, " pos ", cursor.pos);
+    show_gui_int  (target, string, indent_level+1, h_align, " line ", cursor.line);
+    show_gui_int  (target, string, indent_level+1, h_align, " column ", cursor.character);
+    show_gui_float(target, string, indent_level+1, h_align, " unwrapped_x ", cursor.unwrapped_x);
+    show_gui_float(target, string, indent_level+1, h_align, " unwrapped_y ", cursor.unwrapped_y);
+    show_gui_float(target, string, indent_level+1, h_align, " wrapped_x ", cursor.wrapped_x);
+    show_gui_float(target, string, indent_level+1, h_align, " wrapped_y ", cursor.wrapped_y);
+}
+
+internal void
+show_gui_region(GUI_Target *target, String *string,
+                i32 indent_level, i32 h_align, char *message,
+                i32_Rect region){
+    show_gui_line(target, string, indent_level, 0, message, 0);
+    show_gui_int (target, string, indent_level+1, h_align, " x0", region.x0);
+    show_gui_int (target, string, indent_level+1, h_align, " y0", region.y0);
+    show_gui_int (target, string, indent_level+1, h_align, " x1", region.x1);
+    show_gui_int (target, string, indent_level+1, h_align, " y1", region.y1);
 }
 
 struct View_Step_Result{
@@ -4819,18 +4883,24 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                                 }
                                 else{
                                     
-#define SHOW_GUI_BLANK() gui_do_text_field(target, empty_str, empty_str)
-#define SHOW_GUI_LINE(n, str) show_gui_line(target, &string, n, 0, " " str, 0);
-#define SHOW_GUI_STRING(n, h, str, mes) show_gui_line(target, &string, n, h, " " str " ", mes);
-#define SHOW_GUI_INT(n, h, str, v) show_gui_int(target, &string, n, h, " " str " ", v);
-#define SHOW_GUI_INT_INT(n, h, str, v, m) show_gui_int_int(target, &string, n, h, " " str " ", v, m);
-#define SHOW_GUI_FLOAT(n, h, str, v) show_gui_float(target, &string, n, h, " " str " ", v);
+#define SHOW_GUI_BLANK(n) show_gui_line(target, &string, n, 0, "", 0)
+#define SHOW_GUI_LINE(n, str) show_gui_line(target, &string, n, 0, " " str, 0)
+#define SHOW_GUI_STRING(n, h, str, mes) show_gui_line(target, &string, n, h, " " str " ", mes)
+#define SHOW_GUI_INT(n, h, str, v) show_gui_int(target, &string, n, h, " " str " ", v)
+#define SHOW_GUI_INT_INT(n, h, str, v, m) show_gui_int_int(target, &string, n, h, " " str " ", v, m)
+#define SHOW_GUI_U64(n, h, str, v) show_gui_u64(target, &string, n, h, " " str " ", v)
+#define SHOW_GUI_ID(n, h, str, v) show_gui_id(target, &string, n, h, " " str, v)
+#define SHOW_GUI_FLOAT(n, h, str, v) show_gui_float(target, &string, n, h, " " str " ", v)
 #define SHOW_GUI_BOOL(n, h, str, v) do { if (v) { show_gui_line(target, &string, n, h, " " str " ", "true"); }\
                                         else { show_gui_line(target, &string, n, h, " " str " ", "false"); } } while(false)
                                     
+#define SHOW_GUI_SCROLL(n, h, str, v) show_gui_scroll(target, &string, n, h, " " str, v)
+#define SHOW_GUI_CURSOR(n, h, str, v) show_gui_cursor(target, &string, n, h, " " str, v)
+#define SHOW_GUI_REGION(n, h, str, v) show_gui_region(target, &string, n, h, " " str, v)
+                                    
                                     i32 h_align = 31;
                                     
-                                    SHOW_GUI_BLANK();
+                                    SHOW_GUI_BLANK(0);
                                     {
                                         Command_Map *map = view_ptr->map;
                                         
@@ -4854,7 +4924,7 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                                         }
                                     }
                                     
-                                    SHOW_GUI_BLANK();
+                                    SHOW_GUI_BLANK(0);
                                     SHOW_GUI_LINE(1, "file data:");
                                     SHOW_GUI_BOOL(2, h_align, "has file", view_ptr->file_data.file);
                                     SHOW_GUI_BOOL(2, h_align, "show temp highlight", view_ptr->file_data.show_temp_highlight);
@@ -4869,18 +4939,45 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                                     
                                     GUI_Scroll_Vars scroll = *view_ptr->current_scroll;
                                     
-                                    SHOW_GUI_BLANK();
-                                    SHOW_GUI_LINE(1, "current scroll:");
-                                    SHOW_GUI_FLOAT(2, h_align, "scroll_y", scroll.scroll_y);
-                                    SHOW_GUI_FLOAT(2, h_align, "target_y", scroll.target_y);
-                                    SHOW_GUI_FLOAT(2, h_align, "prev_target_y", scroll.prev_target_y);
-                                    SHOW_GUI_FLOAT(2, h_align, "max_y", scroll.max_y);
+                                    SHOW_GUI_BLANK(0);
+                                    SHOW_GUI_LINE(1, "recent file data");
+                                    {
+                                        i32 recent_index = 0;
+                                        Recent_File_Data *recent = view_ptr->recent + recent_index;
+                                        
+                                        {
+                                            SHOW_GUI_INT   (2, h_align, "recent", recent_index);
+                                            SHOW_GUI_U64   (3, h_align, "absolute buffer id", recent->unique_buffer_id);
+                                            SHOW_GUI_BLANK (3);
+                                            SHOW_GUI_SCROLL(3, h_align, "scroll:", recent->scroll);
+                                            SHOW_GUI_BLANK (3);
+                                            SHOW_GUI_CURSOR(3, h_align, "cursor:", recent->cursor);
+                                            SHOW_GUI_BLANK (3);
+                                            SHOW_GUI_INT   (3, h_align, "mark", recent->mark);
+                                            SHOW_GUI_FLOAT (3, h_align, "preferred_x", recent->preferred_x);
+                                            SHOW_GUI_INT   (3, h_align, "scroll_i", recent->scroll_i);
+                                        }
+                                    }
                                     
-                                    SHOW_GUI_FLOAT(2, h_align, "scroll_x", scroll.scroll_x);
-                                    SHOW_GUI_FLOAT(2, h_align, "target_x", scroll.target_x);
-                                    SHOW_GUI_FLOAT(2, h_align, "prev_target_x", scroll.prev_target_x);
+                                    SHOW_GUI_BLANK (0);
+                                    SHOW_GUI_SCROLL(1, h_align, "curent scroll:", scroll);
                                     
-                                    // TODO(allen): cursor
+                                    SHOW_GUI_BLANK  (0);
+                                    SHOW_GUI_LINE   (1, "gui target");
+                                    SHOW_GUI_INT_INT(2, h_align, "gui partition",
+                                                     view_ptr->gui_target.push.pos,
+                                                     view_ptr->gui_target.push.max);
+                                    SHOW_GUI_ID     (2, h_align, "active", view_ptr->gui_target.active);
+                                    SHOW_GUI_ID     (2, h_align, "mouse_hot", view_ptr->gui_target.mouse_hot);
+                                    SHOW_GUI_ID     (2, h_align, "auto_hot", view_ptr->gui_target.auto_hot);
+                                    SHOW_GUI_ID     (2, h_align, "hover", view_ptr->gui_target.hover);
+                                    SHOW_GUI_SCROLL (2, h_align, "scroll_original", view_ptr->gui_target.scroll_original);
+                                    SHOW_GUI_REGION (2, h_align, "region_original", view_ptr->gui_target.region_original);
+                                    SHOW_GUI_SCROLL (2, h_align, "scroll_updated", view_ptr->gui_target.scroll_updated);
+                                    SHOW_GUI_REGION (2, h_align, "region_updated", view_ptr->gui_target.region_updated);
+                                    
+                                    
+                                    SHOW_GUI_SCROLL (1, h_align, "gui scroll", view_ptr->gui_scroll);
                                 }
                             }
                             
