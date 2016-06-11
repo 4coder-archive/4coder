@@ -107,7 +107,7 @@
 #include <string.h>
 #include <stdlib.h>
 
-#include "../4coder_default_include.cpp"
+#include "4coder_default_include.cpp"
 
 #ifndef Assert
 #define internal static
@@ -297,38 +297,40 @@ PeekToken(tokenizer *Tokenizer)
     return(Result);
 }
 
-inline bool
+#define casey_bool int
+
+inline casey_bool
 IsH(String extension)
 {
-    bool Result = (match(extension, make_lit_string("h")) ||
+    casey_bool Result = (match(extension, make_lit_string("h")) ||
                    match(extension, make_lit_string("hpp")) ||
                    match(extension, make_lit_string("hin")));
 
     return(Result);
 }
 
-inline bool
+inline casey_bool
 IsCPP(String extension)
 {
-    bool Result = (match(extension, make_lit_string("c")) ||
+    casey_bool Result = (match(extension, make_lit_string("c")) ||
                    match(extension, make_lit_string("cpp")) ||
                    match(extension, make_lit_string("cin")));
 
     return(Result);
 }
 
-inline bool
+inline casey_bool
 IsINL(String extension)
 {
-    bool Result = (match(extension, make_lit_string("inl")));
+    casey_bool Result = (match(extension, make_lit_string("inl")));
 
     return(Result);
 }
 
-inline bool
+inline casey_bool
 IsCode(String extension)
 {
-    bool Result = (IsH(extension) || IsCPP(extension) || IsINL(extension));
+    casey_bool Result = (IsH(extension) || IsCPP(extension) || IsINL(extension));
 
     return(Result);
 }
@@ -401,7 +403,7 @@ CUSTOM_COMMAND_SIG(casey_kill_to_end_of_line)
     View_Summary view = app->get_active_view(app);
 
     int pos2 = view.cursor.pos;
-    exec_command(app, cmdid_seek_end_of_line);
+    exec_command(app, seek_end_of_line);
     app->refresh_view(app, &view);
     int pos1 = view.cursor.pos;
 
@@ -426,20 +428,20 @@ CUSTOM_COMMAND_SIG(casey_paste_and_tab)
 
 CUSTOM_COMMAND_SIG(casey_seek_beginning_of_line_and_tab)
 {
-    exec_command(app, cmdid_seek_beginning_of_line);
+    exec_command(app, seek_beginning_of_line);
     exec_command(app, auto_tab_line_at_cursor);
 }
 
 CUSTOM_COMMAND_SIG(casey_seek_beginning_of_line)
 {
     exec_command(app, auto_tab_line_at_cursor);
-    exec_command(app, cmdid_seek_beginning_of_line);
+    exec_command(app, seek_beginning_of_line);
 }
 
 struct switch_to_result
 {
-    bool Switched;
-    bool Loaded;
+    casey_bool Switched;
+    casey_bool Loaded;
     View_Summary view;
     Buffer_Summary buffer;
 };
@@ -459,7 +461,7 @@ SanitizeSlashes(String Value)
 }
 
 inline switch_to_result
-SwitchToOrLoadFile(struct Application_Links *app, String FileName, bool CreateIfNotFound = false)
+SwitchToOrLoadFile(struct Application_Links *app, String FileName, casey_bool CreateIfNotFound = false)
 {
     switch_to_result Result = {};
 
@@ -645,10 +647,10 @@ CUSTOM_COMMAND_SIG(casey_save_and_make_without_asking)
     }
 }
 
-internal bool
+internal casey_bool
 casey_errors_are_the_same(Parsed_Error a, Parsed_Error b)
 {
-    bool result = ((a.exists == b.exists) && compare(a.target_file_name, b.target_file_name) && (a.target_line_number == b.target_line_number));
+    casey_bool result = ((a.exists == b.exists) && compare(a.target_file_name, b.target_file_name) && (a.target_line_number == b.target_line_number));
 
     return(result);
 }
@@ -1189,7 +1191,7 @@ DEFINE_MODAL_KEY(modal_single_quote, casey_call_keyboard_macro);
 DEFINE_MODAL_KEY(modal_comma, casey_goto_previous_error);
 DEFINE_MODAL_KEY(modal_period, casey_fill_paragraph);
 DEFINE_MODAL_KEY(modal_forward_slash, cmdid_change_active_panel);
-DEFINE_MODAL_KEY(modal_semicolon, cmdid_cursor_mark_swap); // TODO(casey): Maybe cmdid_history_backward?
+DEFINE_MODAL_KEY(modal_semicolon, cursor_mark_swap); // TODO(casey): Maybe cmdid_history_backward?
 DEFINE_BIMODAL_KEY(modal_open_bracket, casey_begin_keyboard_macro_recording, write_and_auto_tab);
 DEFINE_BIMODAL_KEY(modal_close_bracket, casey_end_keyboard_macro_recording, write_and_auto_tab);
 DEFINE_MODAL_KEY(modal_a, write_character); // TODO(casey): Arbitrary command + casey_quick_calc
@@ -1239,7 +1241,7 @@ DEFINE_BIMODAL_KEY(modal_left, seek_white_or_token_left, move_left);
 DEFINE_BIMODAL_KEY(modal_right, seek_white_or_token_right, move_right);
 DEFINE_BIMODAL_KEY(modal_delete, casey_delete_token_right, delete_char);
 DEFINE_BIMODAL_KEY(modal_home, casey_seek_beginning_of_line, casey_seek_beginning_of_line_and_tab);
-DEFINE_BIMODAL_KEY(modal_end, cmdid_seek_end_of_line, cmdid_seek_end_of_line);
+DEFINE_BIMODAL_KEY(modal_end, seek_end_of_line, seek_end_of_line);
 DEFINE_BIMODAL_KEY(modal_page_up, cmdid_page_up, seek_whitespace_up);
 DEFINE_BIMODAL_KEY(modal_page_down, cmdid_page_down, seek_whitespace_down);
 DEFINE_BIMODAL_KEY(modal_tab, cmdid_word_complete, cmdid_word_complete);
@@ -1279,10 +1281,10 @@ HOOK_SIG(casey_file_settings)
     return(0);
 }
 
-bool
+casey_bool
 CubicUpdateFixedDuration1(float *P0, float *V0, float P1, float V1, float Duration, float dt)
 {
-    bool Result = false;
+    casey_bool Result = false;
 
     if(dt > 0)
     {
@@ -1488,6 +1490,11 @@ extern "C" GET_BINDING_DATA(get_bindings)
         bind(context, key_page_up, MDFR_NONE, search);
         bind(context, key_page_down, MDFR_NONE, reverse_search);
         bind(context, 'm', MDFR_NONE, casey_save_and_make_without_asking);
+        
+        // NOTE(allen): Added this so mouse would keep working rougly as before.
+        // Of course now there could be a modal click behavior if that will be useful.
+        // As well as right click.
+        bind(context, key_mouse_left, MDFR_NONE, click_set_cursor);
     }        
     end_map(context);
 
@@ -1587,7 +1594,7 @@ extern "C" GET_BINDING_DATA(get_bindings)
 
     bind(context, '\t', MDFR_NONE, modal_tab);
     bind(context, '\t', MDFR_SHIFT, modal_tab);
-
+    
     end_map(context);
 
     end_bind_helper(context);

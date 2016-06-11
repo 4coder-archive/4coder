@@ -16,7 +16,13 @@ SET EXPORTS=/EXPORT:get_bindings /EXPORT:get_alpha_4coder_version
 REM SET LINKS=user32.lib gdi32.lib
 SET LINKS=
 
-cl %OPTS% %DEBUG% %SRC% %LINKS% /Fe4coder_custom %BUILD_DLL% %EXPORTS%
+REM This stores the path of the buildsuper.bat script
+REM in CODE_HOME.  This way you can always include the
+REM default files no matter where you store your code.
+REM And no matter how you call buildsuper.bat.
+SET CODE_HOME=%~dp0
+
+cl /I%CODE_HOME% %OPTS% %DEBUG% %SRC% %LINKS% /Fe4coder_custom %BUILD_DLL% %EXPORTS%
 
 REM file spammation preventation
 del *.exp

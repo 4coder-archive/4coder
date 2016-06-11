@@ -101,6 +101,7 @@
 ; [X] kill rect
 ; [X] add high DPI support
 ; 
+; [] generate documentation for custom API
 ; [] OS font rendering
 ; [] support full length unicode file names
 ; 
