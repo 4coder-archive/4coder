@@ -1,4 +1,4 @@
-Distribution Date: 31.5.2016 (dd.mm.yyyy)
+Distribution Date: 11.6.2016 (dd.mm.yyyy)
 
 Thank you for contributing to the 4coder project!
 
@@ -26,6 +26,22 @@ See comments in 4coder_default_bindings.cpp for more detailed information.
 
 Functions to implement (optional in the dll, but required if you are using buildsuper.bat):
 get_bindings
+
+NEW IN 4.0.7
+================
+Moved a lot of commands to the custom side.  Almost all of them have the same name
+they use to have just without cmdid_ on the front.  Other than that cmdid_backspace
+became backspace_char, and cmdid_delete became delete_char.
+
+Left and right clicks are now associated to key codes for bindings
+
+app->get_mouse_state returns the current mouse 
+
+NEW IN 4.0.5:
+================
+app->buffer_compute_cursor to get cursor position info without moving the cursor
+
+can now use f keys for bindings
 
 NEW IN 4.0.3:
 ================

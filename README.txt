@@ -1,4 +1,4 @@
-Distribution Date: 31.5.2016 (dd.mm.yyyy)
+Distribution Date: 11.6.2016 (dd.mm.yyyy)
 
 Thank you for contributing to the 4coder project!
 
@@ -26,6 +26,20 @@ if you start digging and pressing hard enough.
 -----------------------------------------------------
 INSTRUCTIONS FOR USE
 -----------------------------------------------------
+
+****Changes in 4.0.7****
+Right clicking in a buffer now sets the mark.
+
+alt + d: brings up the debug view from which there are several options:
+ i - input
+ m - memory and threads
+ v - views
+more debug features coming in the future.  This is mostly here so that
+I can help everyone gather better data for bug reports and get them
+fixed more easily.
+
+****Changes in 4.0.5****
+Improved indentation rule
 
 ****Changes in 4.0.3****
 4coder now uses 0% CPU when you are not using it.
