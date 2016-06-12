@@ -3846,10 +3846,12 @@ App_Step_Sig(app_step){
     Input_Summary dead_input = {};
     dead_input.mouse.x = input->mouse.x;
     dead_input.mouse.y = input->mouse.y;
+    dead_input.dt = input->dt;
     
     Input_Summary active_input = {};
     active_input.mouse.x = input->mouse.x;
     active_input.mouse.y = input->mouse.y;
+    active_input.dt = input->dt;
     
     active_input.keys = get_key_data(&vars->available_input);
     

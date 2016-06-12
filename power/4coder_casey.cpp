@@ -1222,7 +1222,7 @@ DEFINE_MODAL_KEY(modal_y, cmdid_redo);
 DEFINE_MODAL_KEY(modal_z, cmdid_interactive_open);
 
 DEFINE_MODAL_KEY(modal_1, casey_build_search); // TODO(casey): Shouldn't need to bind a key for this?
-DEFINE_MODAL_KEY(modal_2, write_character); // TODO(casey): Available
+DEFINE_MODAL_KEY(modal_2, cmdid_open_debug); // TODO(casey): Available
 DEFINE_MODAL_KEY(modal_3, write_character); // TODO(casey): Available
 DEFINE_MODAL_KEY(modal_4, write_character); // TODO(casey): Available
 DEFINE_MODAL_KEY(modal_5, write_character); // TODO(casey): Available
