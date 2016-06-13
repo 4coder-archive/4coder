@@ -500,9 +500,8 @@ generate_custom_headers(){
             );
     fprintf(file, "};\n");
     
-    // TODO(allen): Generate app->function(app, ...) to function(app, ...) wrappers.
-    // Need to parse parameter names to do this.
-#if 0    
+    fprintf(file,
+            "#define FillAppLinksAPI(app_links) do{");
     for (int i = 0; i < sig_count; ++i){
         Function_Signature *sig = sigs + i;
         
@@ -511,12 +510,12 @@ generate_custom_headers(){
         to_lower(name_buffer, name_buffer);
         
         fprintf(file,
-                "inline %.*s\n"
-                "%s%.*s{ app->%s(",
-                sig->name.size, sig->name.str,
-                name_buffer);
+                "\\\n"
+                "app_links->%s = external_%s;",
+                name_buffer, name_buffer
+                );
     }
-#endif
+    fprintf(file," } while(false)\n");
     
     fclose(file);
     

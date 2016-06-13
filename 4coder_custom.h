@@ -10,6 +10,11 @@
 #include "4coder_buffer_types.h"
 #include "4coder_gui.h"
 
+#define MDFR_NONE 0x0
+#define MDFR_CTRL 0x1
+#define MDFR_ALT 0x2
+#define MDFR_SHIFT 0x4
+
 #ifndef FRED_STRING_STRUCT
 #define FRED_STRING_STRUCT
 typedef struct String{
@@ -40,7 +45,6 @@ typedef struct Key_Event_Data{
 	Code keycode;
 	Code character;
 	Code character_no_caps_lock;
-    
 	char modifiers[MDFR_INDEX_COUNT];
 } Key_Event_Data;
 inline Key_Event_Data
@@ -57,7 +61,6 @@ typedef struct Mouse_State{
 	char out_of_window;
 	int x, y;
 } Mouse_State;
-
 
 typedef union Range{
     struct{
@@ -83,72 +86,6 @@ make_range(int p1, int p2){
 }
 
 
-typedef enum Dynamic_Type{
-    dynamic_type_int,
-    dynamic_type_string,
-    // never below this
-    dynamic_type_count
-} Dynamic_Type;
-
-typedef struct Dynamic{
-    int type;
-    union{
-        struct{
-            int str_len;
-            char *str_value;
-        };
-        int int_value;
-    };
-} Dynamic;
-
-inline Dynamic
-dynamic_int(int x){
-    Dynamic result;
-    result.type = dynamic_type_int;
-    result.int_value = x;
-    return result;
-}
-
-inline Dynamic
-dynamic_string(const char *string, int len){
-    Dynamic result;
-    result.type = dynamic_type_string;
-    result.str_len = len;
-    result.str_value = (char*)(string);
-    return result;
-}
-
-inline int
-dynamic_to_int(Dynamic *dynamic){
-    int result = 0;
-    if (dynamic->type == dynamic_type_int){
-        result = dynamic->int_value;
-    }
-    return result;
-}
-
-inline char*
-dynamic_to_string(Dynamic *dynamic, int *len){
-    char *result = 0;
-    if (dynamic->type == dynamic_type_string){
-        result = dynamic->str_value;
-        *len = dynamic->str_len;
-    }
-    return result;
-}
-
-inline int
-dynamic_to_bool(Dynamic *dynamic){
-    int result = 0;
-    if (dynamic->type == dynamic_type_int){
-        result = (dynamic->int_value != 0);
-    }
-    else{
-        result = 1;
-    }
-    return result;
-}
-
 typedef struct File_Info{
     String filename;
     int folder;
@@ -166,16 +103,17 @@ typedef struct File_List{
     int block_size;
 } File_List;
 
-#define MDFR_NONE 0x0
-#define MDFR_CTRL 0x1
-#define MDFR_ALT 0x2
-#define MDFR_SHIFT 0x4
+// NOTE(allen|a4.0.7): This is used to identify which buffer
+// an operation should work on when you might want to
+// identify it by id or by name.
+typedef struct Buffer_Identifier{
+    char *name;
+    int name_len;
+    int id;
+} Buffer_Identifier;
 
 enum Command_ID{
     cmdid_null,
-    
-    cmdid_seek_left,
-    cmdid_seek_right,
     
     cmdid_center_view,
     cmdid_left_adjust_view,
@@ -196,6 +134,7 @@ enum Command_ID{
     cmdid_interactive_open,
     cmdid_reopen,
     cmdid_save,
+    cmdid_save_as,
     cmdid_interactive_switch_buffer,
     cmdid_interactive_kill_buffer,
     cmdid_kill_buffer,
@@ -207,7 +146,6 @@ enum Command_ID{
     cmdid_toggle_show_whitespace,
     
     cmdid_clean_all_lines,
-    cmdid_auto_tab_range,
     cmdid_eol_dosify,
     cmdid_eol_nixify,
     
@@ -227,36 +165,26 @@ enum Command_ID{
     cmdid_hide_scrollbar,
     cmdid_show_scrollbar,
     
-    cmdid_set_settings,
-    
-    cmdid_command_line,
     //
     cmdid_count
 };
 
-enum Param_ID{
-    par_range_start,
-    par_range_end,
-    par_name,
-    par_buffer_id,
-    par_do_in_background,
-    par_flags,
-    par_lex_as_cpp_file,
-    par_wrap_lines,
-    par_key_mapid,
-    par_show_whitespace,
-    par_cli_path,
-    par_cli_command,
-    par_clear_blank_lines,
-    par_use_tabs,
-    par_save_update_name,
-    
-    // never below this
-    par_type_count
+enum{
+    CLI_OverlapWithConflict = 0x1,
+    CLI_AlwaysBindToView = 0x2,
 };
 
-#define CLI_OverlapWithConflict 0x1
-#define CLI_AlwaysBindToView 0x2
+enum{
+    BufferSetting_Null,
+    BufferSetting_Lex,
+    BufferSetting_WrapLine,
+    BufferSetting_MapID,
+};
+
+enum{
+    AutoTab_ClearLine = 0x1,
+    AutoTab_UseTab = 0x2
+};
 
 // These are regular hooks, any of them can be set to any function
 // that matches the HOOK_SIG pattern.

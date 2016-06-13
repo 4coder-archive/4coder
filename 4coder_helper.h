@@ -194,40 +194,6 @@ end_bind_helper(Bind_Helper *helper){
     return(result);
 }
 
-// NOTE(allen): Useful functions and overloads on app links
-inline void
-push_parameter(Application_Links *app, int param, int value){
-    app->push_parameter(app, dynamic_int(param), dynamic_int(value));
-}
-
-inline void
-push_parameter(Application_Links *app, int param, const char *value, int value_len){
-    char *value_copy = app->push_memory(app, value_len+1);
-    copy(value_copy, value, value_len);
-    value_copy[value_len] = 0;
-    app->push_parameter(app, dynamic_int(param), dynamic_string(value_copy, value_len));
-}
-
-inline void
-push_parameter(Application_Links *app, const char *param, int param_len, int value){
-    char *param_copy = app->push_memory(app, param_len+1);
-    copy(param_copy, param, param_len);
-    param_copy[param_len] = 0;
-    app->push_parameter(app, dynamic_string(param_copy, param_len), dynamic_int(value));
-}
-
-inline void
-push_parameter(Application_Links *app, const char *param, int param_len, const char *value, int value_len){
-    char *param_copy = app->push_memory(app, param_len+1);
-    char *value_copy = app->push_memory(app, value_len+1);
-    copy(param_copy, param, param_len);
-    copy(value_copy, value, value_len);
-    value_copy[value_len] = 0;
-    param_copy[param_len] = 0;
-    
-    app->push_parameter(app, dynamic_string(param_copy, param_len), dynamic_string(value_copy, value_len));
-}
-
 inline Range
 get_range(View_Summary *view){
     Range range;
@@ -266,14 +232,12 @@ get_rect(View_Summary *view){
 
 inline void
 exec_command(Application_Links *app, Command_ID id){
-    app->exec_command_keep_stack(app, id);
-    app->clear_parameters(app);
+    app->exec_command(app, id);
 }
 
 inline void
 exec_command(Application_Links *app, Custom_Command_Function *func){
     func(app);
-    app->clear_parameters(app);
 }
 
 inline void
@@ -741,6 +705,24 @@ buffer_seek_string_insensitive_backward(Application_Links *app, Buffer_Summary *
         
         finished:;
     }
+}
+
+inline Buffer_Identifier
+buffer_identifier(char *str, int len){
+    Buffer_Identifier identifier;
+    identifier.name = str;
+    identifier.name_len = len;
+    identifier.id = 0;
+    return(identifier);
+}
+
+inline Buffer_Identifier
+buffer_identifier(int id){
+    Buffer_Identifier identifier;
+    identifier.name = 0;
+    identifier.name_len = 0;
+    identifier.id = id;
+    return(identifier);
 }
 
 

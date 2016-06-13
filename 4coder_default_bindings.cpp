@@ -94,77 +94,20 @@ CUSTOM_COMMAND_SIG(rewrite_as_single_caps){
 }
 
 CUSTOM_COMMAND_SIG(open_my_files){
-    // NOTE(allen|a3.1): EXAMPLE probably not useful in practice.
-    // 
-    // The command cmdid_interactive_open can now open
-    // a file specified on the parameter stack.  If the file does not exist
-    // cmdid_interactive_open behaves as usual.  If par_do_in_background
-    // is set to true the command is prevented from changing the view under
-    // any circumstance.
-    push_parameter(app, par_name, literal("w:/4ed/data/test/basic.cpp"));
-    exec_command(app, cmdid_interactive_open);
-    
-#if 0
-    exec_command(app, cmdid_change_active_panel);
-    
-    char my_file[256];
-    int my_file_len;
-    
-    my_file_len = sizeof("w:/4ed/data/test/basic.txt") - 1;
-    for (int i = 0; i < my_file_len; ++i){
-        my_file[i] = ("w:/4ed/data/test/basic.txt")[i];
-    }
-    
-    // NOTE(allen|a3.1): null terminators are not needed for strings.
-    push_parameter(app, par_name, my_file, my_file_len);
-    exec_command(app, cmdid_interactive_open);
-    
-    exec_command(app, cmdid_change_active_panel);
-#endif
+    // TODO(allen|a4.0.8): comment
+    View_Summary view = app->get_active_view(app);
+    app->view_open_file(app, &view, literal("w:/4ed/data/test/basic.cpp"), false);
 }
 
 CUSTOM_COMMAND_SIG(build_at_launch_location){
-    // NOTE(allen|a3.3):  EXAMPLE probably not all that useful in practice.
-    // 
-    // An example of calling build by setting all
-    // parameters directly. This only works if build.bat can be called
-    // from the directory the application is launched at.
-    push_parameter(app, par_flags, CLI_OverlapWithConflict);
-    push_parameter(app, par_name, literal("*compilation*"));
-    push_parameter(app, par_cli_path, literal("."));
-    push_parameter(app, par_cli_command, literal("build"));
-    exec_command(app, cmdid_command_line);
+    // TODO(allen|a4.0.8): comment
+    View_Summary view = app->get_active_view(app);
+    app->exec_system_command(app, &view,
+                             buffer_identifier(literal("*compilation*")),
+                             literal("."),
+                             literal("build"),
+                             CLI_OverlapWithConflict);
 }
-
-#if 0
-// NOTE(allen|a4) See 4coder_styles.h for a list of available style tags.
-// There are style tags corresponding to every color in the theme editor.
-CUSTOM_COMMAND_SIG(improve_theme){
-    Theme_Color colors[] = {
-        {Stag_Bar, 0xFF0088},
-        {Stag_Margin, 0x880088},
-        {Stag_Margin_Hover, 0xAA0088},
-        {Stag_Margin_Active, 0xDD0088},
-        {Stag_Cursor, 0xFF0000},
-    };
-    int count = ArrayCount(colors);
-
-    app->set_theme_colors(app, colors, count);
-}
-
-CUSTOM_COMMAND_SIG(ruin_theme){
-    Theme_Color colors[] = {
-        {Stag_Bar, 0x888888},
-        {Stag_Margin, 0x181818},
-        {Stag_Margin_Hover, 0x252525},
-        {Stag_Margin_Active, 0x323232},
-        {Stag_Cursor, 0x00EE00},
-    };
-    int count = ArrayCount(colors);
-
-    app->set_theme_colors(app, colors, count);
-}
-#endif
 
 HOOK_SIG(my_start){
     exec_command(app, cmdid_open_panel_vsplit);
@@ -220,12 +163,11 @@ HOOK_SIG(my_file_settings){
     // NOTE(allen|a4.0.5): Unlike previous versions the command cmdid_set_settings
     // no longer automatically effects the active buffer.  This command will actually be
     // phased out in favor of an app call soon.
-    push_parameter(app, par_buffer_id, buffer.buffer_id);
     
-    push_parameter(app, par_lex_as_cpp_file, treat_as_code);
-    push_parameter(app, par_wrap_lines, wrap_lines);
-    push_parameter(app, par_key_mapid, (treat_as_code)?((int)my_code_map):((int)mapid_file));
-    exec_command(app, cmdid_set_settings);
+    // TODO(allen): also eliminate this hook if you can.
+    app->buffer_set_setting(app, &buffer, BufferSetting_Lex, treat_as_code);
+    app->buffer_set_setting(app, &buffer, BufferSetting_WrapLine, wrap_lines);
+    app->buffer_set_setting(app, &buffer, BufferSetting_MapID, (treat_as_code)?((int)my_code_map):((int)mapid_file));
     
     // no meaning for return
     return(0);
@@ -292,7 +234,7 @@ default_keys(Bind_Helper *context){
     bind(context, '#', MDFR_NONE, write_and_auto_tab);
     
     bind(context, '\t', MDFR_NONE, cmdid_word_complete);
-    bind(context, '\t', MDFR_CTRL, cmdid_auto_tab_range);
+    bind(context, '\t', MDFR_CTRL, auto_tab_range);
     bind(context, '\t', MDFR_SHIFT, auto_tab_line_at_cursor);
     
     bind(context, '=', MDFR_CTRL, write_increment);

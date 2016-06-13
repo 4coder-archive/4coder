@@ -443,24 +443,32 @@ CUSTOM_COMMAND_SIG(seek_beginning_of_line){
 }
 
 static void
-basic_seek(Application_Links *app, Command_ID seek_type, unsigned int flags){
-    push_parameter(app, par_flags, flags);
-    exec_command(app, seek_type);
+basic_seek(Application_Links *app, int seek_type, unsigned int flags){
+    View_Summary view = app->get_active_view(app);
+    Buffer_Summary buffer = app->get_buffer(app, view.locked_buffer_id);
+    int pos = app->buffer_seek(app, &buffer, view.cursor.pos, seek_type, flags);
+    app->view_set_cursor(app, &view, seek_pos(pos), true);
 }
 
 #define SEEK_COMMAND(n, dir, flags)\
-CUSTOM_COMMAND_SIG(seek_##n##_##dir){ basic_seek(app, cmdid_seek_##dir, flags); }
+CUSTOM_COMMAND_SIG(seek_##n##_##dir){ basic_seek(app, dir, flags); }
 
-SEEK_COMMAND(whitespace, right, BoundryWhitespace)
-SEEK_COMMAND(whitespace, left, BoundryWhitespace)
-SEEK_COMMAND(token, right, BoundryToken)
-SEEK_COMMAND(token, left, BoundryToken)
-SEEK_COMMAND(white_or_token, right, BoundryToken | BoundryWhitespace)
-SEEK_COMMAND(white_or_token, left, BoundryToken | BoundryWhitespace)
-SEEK_COMMAND(alphanumeric, right, BoundryAlphanumeric)
-SEEK_COMMAND(alphanumeric, left, BoundryAlphanumeric)
+#define right true
+#define left false
+
+SEEK_COMMAND(whitespace,            right, BoundryWhitespace)
+SEEK_COMMAND(whitespace,            left,  BoundryWhitespace)
+SEEK_COMMAND(token,                 right, BoundryToken)
+SEEK_COMMAND(token,                 left,  BoundryToken)
+SEEK_COMMAND(white_or_token,        right, BoundryToken | BoundryWhitespace)
+SEEK_COMMAND(white_or_token,        left,  BoundryToken | BoundryWhitespace)
+SEEK_COMMAND(alphanumeric,          right, BoundryAlphanumeric)
+SEEK_COMMAND(alphanumeric,          left,  BoundryAlphanumeric)
 SEEK_COMMAND(alphanumeric_or_camel, right, BoundryAlphanumeric | BoundryCamelCase)
-SEEK_COMMAND(alphanumeric_or_camel, left, BoundryAlphanumeric | BoundryCamelCase)
+SEEK_COMMAND(alphanumeric_or_camel, left,  BoundryAlphanumeric | BoundryCamelCase)
+
+#undef right
+#undef left
 
 
 //
@@ -479,23 +487,27 @@ CUSTOM_COMMAND_SIG(write_increment){
     write_string(app, make_lit_string("++"));
 }
 
+#ifndef DEF_TAB_WIDTH
+# define DEF_TAB_WIDTH 4
+#endif
+
 static void
 long_braces(Application_Links *app, char *text, int size){
     View_Summary view;
     Buffer_Summary buffer;
     int pos;
-
+    
     view = app->get_active_view(app);
     buffer = app->get_buffer(app, view.buffer_id);
-
+    
     pos = view.cursor.pos;
     app->buffer_replace_range(app, &buffer, pos, pos, text, size);
-    app->view_set_cursor(app, &view, seek_pos(pos + 2), 1);
-
-    push_parameter(app, par_range_start, pos);
-    push_parameter(app, par_range_end, pos + size);
-    push_parameter(app, par_clear_blank_lines, 0);
-    exec_command(app, cmdid_auto_tab_range);
+    app->view_set_cursor(app, &view, seek_pos(pos + 2), true);
+    
+    app->view_auto_tab(app, &view,
+                       pos, pos + size,
+                       DEF_TAB_WIDTH,
+                       0);
 }
 
 CUSTOM_COMMAND_SIG(open_long_braces){
@@ -539,9 +551,10 @@ CUSTOM_COMMAND_SIG(if0_off){
     
     app->buffer_replace_range(app, &buffer, pos, pos, text1, size1);
     
-    push_parameter(app, par_range_start, pos);
-    push_parameter(app, par_range_end, pos);
-    exec_command(app, cmdid_auto_tab_range);
+    app->view_auto_tab(app, &view,
+                       pos, pos,
+                       DEF_TAB_WIDTH,
+                       0);
     
     app->refresh_view(app, &view);
     range = get_range(&view);
@@ -549,9 +562,10 @@ CUSTOM_COMMAND_SIG(if0_off){
     
     app->buffer_replace_range(app, &buffer, pos, pos, text2, size2);
     
-    push_parameter(app, par_range_start, pos);
-    push_parameter(app, par_range_end, pos);
-    exec_command(app, cmdid_auto_tab_range);
+    app->view_auto_tab(app, &view,
+                       pos, pos,
+                       DEF_TAB_WIDTH,
+                       0);
 }
 
 CUSTOM_COMMAND_SIG(backspace_word){
@@ -592,19 +606,13 @@ CUSTOM_COMMAND_SIG(snipe_token_or_word){
     int pos1, pos2;
     
     view = app->get_active_view(app);
+    buffer = app->get_buffer(app, view.buffer_id);
     
-    push_parameter(app, par_flags, BoundryToken | BoundryWhitespace);
-    exec_command(app, cmdid_seek_left);
-    app->refresh_view(app, &view);
-    pos1 = view.cursor.pos;
+    pos1 = app->buffer_seek(app, &buffer, view.cursor.pos, false, BoundryToken | BoundryWhitespace);
     
-    push_parameter(app, par_flags, BoundryToken | BoundryWhitespace);
-    exec_command(app, cmdid_seek_right);
-    app->refresh_view(app, &view);
-    pos2 = view.cursor.pos;
+    pos2 = app->buffer_seek(app, &buffer, pos1,            true,  BoundryToken | BoundryWhitespace);
     
     Range range = make_range(pos1, pos2);
-    buffer = app->get_buffer(app, view.buffer_id);
     app->buffer_replace_range(app, &buffer, range.start, range.end, 0, 0);
 }
 
@@ -636,14 +644,12 @@ CUSTOM_COMMAND_SIG(open_file_in_quotes){
         append(&file_name, make_string(short_file_name, size));
         
         exec_command(app, cmdid_change_active_panel);
-        push_parameter(app, par_name, expand_str(file_name));
-        exec_command(app, cmdid_interactive_open);
+        app->view_open_file(app, &view, expand_str(file_name), false);
     }
 }
 
 CUSTOM_COMMAND_SIG(save_as){
-    push_parameter(app, par_save_update_name, 1);
-    exec_command(app, cmdid_save);
+    exec_command(app, cmdid_save_as);
 }
 
 CUSTOM_COMMAND_SIG(goto_line){
@@ -919,9 +925,10 @@ CUSTOM_COMMAND_SIG(close_all_code){
         }
     }
     
+    View_Summary view = app->get_active_view(app);
+    
     for (int i = 0; i < buffers_to_close_count; ++i){
-        push_parameter(app, par_buffer_id, buffers_to_close[i]);
-        exec_command(app, cmdid_kill_buffer);
+        app->view_kill_file(app, &view, buffer_identifier(buffers_to_close[i]));
     }
 }
 
@@ -953,8 +960,6 @@ CUSTOM_COMMAND_SIG(open_all_code){
                 // was originally, so that new appends overwrite old ones.
                 dir.size = dir_size;
                 append(&dir, info->filename);
-                push_parameter(app, par_name, dir.str, dir.size);
-                //push_parameter(app, par_do_in_background, 1);
                 exec_command(app, cmdid_interactive_open);
             }
         }
@@ -968,27 +973,32 @@ char out_buffer_space[1024], command_space[1024], hot_directory_space[1024];
 CUSTOM_COMMAND_SIG(execute_any_cli){
     Query_Bar bar_out, bar_cmd;
     String hot_directory;
-
+    
     bar_out.prompt = make_lit_string("Output Buffer: ");
     bar_out.string = make_fixed_width_string(out_buffer_space);
     if (!query_user_string(app, &bar_out)) return;
-
+    
     bar_cmd.prompt = make_lit_string("Command: ");
     bar_cmd.string = make_fixed_width_string(command_space);
     if (!query_user_string(app, &bar_cmd)) return;
-
+    
     hot_directory = make_fixed_width_string(hot_directory_space);
     hot_directory.size = app->directory_get_hot(app, hot_directory.str, hot_directory.memory_size);
-
-    push_parameter(app, par_flags, CLI_OverlapWithConflict);
-    push_parameter(app, par_name, bar_out.string.str, bar_out.string.size);
-    push_parameter(app, par_cli_path, hot_directory.str, hot_directory.size);
-    push_parameter(app, par_cli_command, bar_cmd.string.str, bar_cmd.string.size);
-    exec_command(app, cmdid_command_line);
     
+    // TODO(allen): provide command line call
+    View_Summary view = app->get_active_view(app);
+    
+    // TODO(allen): Make this work without null terminators
     terminate_with_null(&bar_out.string);
     terminate_with_null(&bar_cmd.string);
     terminate_with_null(&hot_directory);
+    
+    app->exec_system_command(app, &view,
+                             buffer_identifier(bar_out.string.str, bar_out.string.size),
+                             hot_directory.str, hot_directory.size,
+                             bar_cmd.string.str, bar_cmd.string.size,
+                             CLI_OverlapWithConflict);
+    
 }
 
 CUSTOM_COMMAND_SIG(execute_previous_cli){
@@ -999,11 +1009,13 @@ CUSTOM_COMMAND_SIG(execute_previous_cli){
     hot_directory = make_string_slowly(hot_directory_space);
     
     if (out_buffer.size > 0 && cmd.size > 0 && hot_directory.size > 0){
-        push_parameter(app, par_flags, CLI_OverlapWithConflict);
-        push_parameter(app, par_name, out_buffer.str, out_buffer.size);
-        push_parameter(app, par_cli_path, hot_directory.str, hot_directory.size);
-        push_parameter(app, par_cli_command, cmd.str, cmd.size);
-        exec_command(app, cmdid_command_line);
+        View_Summary view = app->get_active_view(app);
+        
+        app->exec_system_command(app, &view,
+                                 buffer_identifier(out_buffer.str, out_buffer.size),
+                                 hot_directory.str, hot_directory.size,
+                                 cmd.str, cmd.size,
+                                 CLI_OverlapWithConflict);
     }
 }
 
@@ -1088,32 +1100,40 @@ CUSTOM_COMMAND_SIG(build_search){
 
     int keep_going = 1;
     int old_size;
-    String dir = make_string(app->memory, 0, app->memory_size);
+    int size = app->memory_size/2;
+    
+    String dir = make_string(app->memory, 0, size);
     dir.size = app->directory_get_hot(app, dir.str, dir.memory_size);
-
+    
+    String command = make_string((char*)app->memory + size, 0, size);
+    append(&command, '"');
+    
     while (keep_going){
+        append(&command, dir);
+        
         old_size = dir.size;
         append(&dir, "build.bat");
-
+        
         if (app->file_exists(app, dir.str, dir.size)){
             dir.size = old_size;
-
-            push_parameter(app, par_flags, CLI_OverlapWithConflict);
-            push_parameter(app, par_name, literal("*compilation*"));
-            push_parameter(app, par_cli_path, dir.str, dir.size);
-
-            if (append(&dir, "build")){
-                push_parameter(app, par_cli_command, dir.str, dir.size);
-                exec_command(app, cmdid_command_line);
-            }
-            else{
-                app->clear_parameters(app);
-            }
-
+            append(&command, "build");
+            append(&command, '"');
+            
+            View_Summary view = app->get_active_view(app);
+            
+            terminate_with_null(&dir);
+            terminate_with_null(&command);
+            
+            app->exec_system_command(app, &view,
+                                     buffer_identifier(literal("*compilation*")),
+                                     dir.str, dir.size,
+                                     command.str, command.size,
+                                     CLI_OverlapWithConflict);
+                
             return;
         }
         dir.size = old_size;
-
+        
         if (app->directory_cd(app, dir.str, &dir.size, dir.memory_size, literal("..")) == 0){
             keep_going = 0;
         }
@@ -1124,17 +1144,31 @@ CUSTOM_COMMAND_SIG(build_search){
 
 CUSTOM_COMMAND_SIG(auto_tab_line_at_cursor){
     View_Summary view = app->get_active_view(app);
-    push_parameter(app, par_range_start, view.cursor.pos);
-    push_parameter(app, par_range_end, view.cursor.pos);
-    push_parameter(app, par_clear_blank_lines, 0);
-    exec_command(app, cmdid_auto_tab_range);
+    
+    app->view_auto_tab(app, &view,
+                       view.cursor.pos, view.cursor.pos,
+                       DEF_TAB_WIDTH,
+                       0);
 }
 
 CUSTOM_COMMAND_SIG(auto_tab_whole_file){
-    Buffer_Summary buffer = get_active_buffer(app);
-    push_parameter(app, par_range_start, 0);
-    push_parameter(app, par_range_end, buffer.size);
-    exec_command(app, cmdid_auto_tab_range);
+    View_Summary view = app->get_active_view(app);
+    Buffer_Summary buffer = app->get_buffer(app, view.buffer_id);
+    
+    app->view_auto_tab(app, &view,
+                       0, buffer.size,
+                       DEF_TAB_WIDTH,
+                       0);
+}
+
+CUSTOM_COMMAND_SIG(auto_tab_range){
+    View_Summary view = app->get_active_view(app);
+    Range range = get_range(&view);
+    
+    app->view_auto_tab(app, &view,
+                       range.min, range.max,
+                       DEF_TAB_WIDTH,
+                       0);
 }
 
 CUSTOM_COMMAND_SIG(write_and_auto_tab){
