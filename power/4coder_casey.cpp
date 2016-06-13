@@ -452,10 +452,8 @@ CUSTOM_COMMAND_SIG(casey_kill_to_end_of_line)
 
 CUSTOM_COMMAND_SIG(casey_paste_and_tab)
 {
-    // NOTE(allen): Paste puts the mark at the beginning and the cursor at
-    // the end of the pasted chunk, so it is all set for cmdid_auto_tab_range
     exec_command(app, cmdid_paste);
-    exec_command(app, cmdid_auto_tab_range);
+    exec_command(app, auto_tab_range);
 }
 
 CUSTOM_COMMAND_SIG(casey_seek_beginning_of_line_and_tab)
@@ -514,13 +512,18 @@ SwitchToOrLoadFile(struct Application_Links *app, String FileName, bool CreateIf
     {
         if(app->file_exists(app, FileName.str, FileName.size) || CreateIfNotFound)
         {
+#if 0
             push_parameter(app, par_name, expand_str(FileName));
             // TODO(casey): Do I have to check for existence, or can I pass a parameter
             // to interactive open to tell it to fail if the file isn't there?
             exec_command(app, cmdid_interactive_open);
-
+#endif
+            
+            // NOTE(allen): This opens the file and puts it in &view
+            app->view_open_file(app, &view, expand_str(FileName), false);
+            
             Result.buffer = app->get_buffer_by_name(app, FileName.str, FileName.size);            
-
+            
             Result.Loaded = true;
             Result.Switched = true;
         }
@@ -607,7 +610,7 @@ CUSTOM_COMMAND_SIG(casey_find_corresponding_file)
         int MaxExtensionLength = 3;
         int Space = (int)(buffer.file_name_len + MaxExtensionLength);
         String FileNameStem = make_string(buffer.file_name, (int)(extension.str - buffer.file_name), 0);
-        String TestFileName = make_string(app->push_memory(app, Space), 0, Space);   
+        String TestFileName = make_string(app->memory, 0, Space);   
         for(int ExtensionIndex = 0;
             ExtensionCount;
             ++ExtensionIndex)
@@ -646,11 +649,16 @@ CUSTOM_COMMAND_SIG(casey_save_and_make_without_asking)
         buffer.exists;
         app->get_buffer_next(app, &buffer))
     {
+#if 0
         push_parameter(app, par_name, buffer.file_name, buffer.file_name_len);
         push_parameter(app, par_buffer_id, buffer.buffer_id);
         exec_command(app, cmdid_save);
+#endif
+        
+        app->buffer_save(app, &buffer, buffer.file_name, buffer.file_name_len);
     }
 
+#if 0
     String dir = make_string(app->memory, 0, app->memory_size);
     append(&dir, BuildDirectory);
     for(int At = 0;
@@ -677,6 +685,40 @@ CUSTOM_COMMAND_SIG(casey_save_and_make_without_asking)
     else{
         app->clear_parameters(app);
     }
+#endif
+    
+    // NOTE(allen): The parameter pushing made it a little easier
+    // to deal with this particular pattern where two similar strings
+    // were both used.  Now both strings need to exist at the same
+    // time on the users side.
+    
+    int size = app->memory_size/2;
+    String dir = make_string(app->memory, 0, size);
+    String command = make_string((char*)app->memory + size, 0, size);
+    
+    append(&dir, BuildDirectory);
+    for(int At = 0;
+        At < dir.size;
+        ++At)
+    {
+        if(dir.str[At] == '/')
+        {
+            dir.str[At] = '\\';
+        }
+    }
+    
+    append(&command, dir);
+    
+    if(append(&command, "build.bat"))
+    {
+        View_Summary view = app->get_active_view(app);
+        app->exec_system_command(app, &view,
+                                 buffer_identifier(GlobalCompilationBufferName, (int)strlen(GlobalCompilationBufferName)),
+                                 dir.str, dir.size,
+                                 command.str, command.size,
+                                 CLI_OverlapWithConflict);
+    }
+    exec_command(app, cmdid_change_active_panel);
 }
 
 internal bool
@@ -1105,9 +1147,13 @@ OpenProject(Application_Links *app, char *ProjectFileName)
                         // was originally, so that new appends overwrite old ones.
                         dir.size = dir_size;
                         append(&dir, info->filename);
+#if 0
                         push_parameter(app, par_name, dir.str, dir.size);
                         push_parameter(app, par_do_in_background, 1);
                         exec_command(app, cmdid_interactive_open);
+#endif
+                        
+                        app->view_open_file(app, 0, dir.str, dir.size, true);
                         ++TotalOpenAttempts;
                     }
                 }
@@ -1233,7 +1279,7 @@ DEFINE_MODAL_KEY(modal_d, casey_kill_to_end_of_line);
 DEFINE_MODAL_KEY(modal_e, write_character); // TODO(casey): Available
 DEFINE_MODAL_KEY(modal_f, casey_paste_and_tab);
 DEFINE_MODAL_KEY(modal_g, goto_line);
-DEFINE_MODAL_KEY(modal_h, cmdid_auto_tab_range);
+DEFINE_MODAL_KEY(modal_h, auto_tab_range);
 DEFINE_MODAL_KEY(modal_i, move_up);
 DEFINE_MODAL_KEY(modal_j, seek_white_or_token_left);
 DEFINE_MODAL_KEY(modal_k, move_down);
@@ -1295,13 +1341,19 @@ HOOK_SIG(casey_file_settings)
         treat_as_code = IsCode(ext);
         treat_as_project = match(ext, make_lit_string("prj"));
     }
-
+    
+#if 0
     push_parameter(app, par_buffer_id, buffer.buffer_id);
     push_parameter(app, par_lex_as_cpp_file, treat_as_code);
     push_parameter(app, par_wrap_lines, !treat_as_code);
     push_parameter(app, par_key_mapid, mapid_file);
     exec_command(app, cmdid_set_settings);
-
+#endif
+    
+    app->buffer_set_setting(app, &buffer, BufferSetting_Lex, treat_as_code);
+    app->buffer_set_setting(app, &buffer, BufferSetting_WrapLine, !treat_as_code);
+    app->buffer_set_setting(app, &buffer, BufferSetting_MapID, mapid_file);
+    
     if(treat_as_project)
     {
         OpenProject(app, buffer.file_name);

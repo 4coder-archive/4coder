@@ -16,6 +16,7 @@
 #define BUFFER_REPLACE_RANGE_SIG(n) int n(Application_Links *app, Buffer_Summary *buffer, int start, int end, char *str, int len)
 #define BUFFER_SEEK_SIG(n) int n(Application_Links *app, Buffer_Summary *buffer, int start_pos, int seek_forward, unsigned int flags)
 #define BUFFER_SET_SETTING_SIG(n) int n(Application_Links *app, Buffer_Summary *buffer, int setting, int value)
+#define BUFFER_SAVE_SIG(n) int n(Application_Links *app, Buffer_Summary *buffer, char *filename, int filename_len)
 #define GET_VIEW_FIRST_SIG(n) View_Summary n(Application_Links *app)
 #define GET_VIEW_NEXT_SIG(n) void n(Application_Links *app, View_Summary *view)
 #define GET_VIEW_SIG(n) View_Summary n(Application_Links *app, int index)
@@ -28,7 +29,7 @@
 #define VIEW_SET_HIGHLIGHT_SIG(n) int n(Application_Links *app, View_Summary *view, int start, int end, int turn_on)
 #define VIEW_SET_BUFFER_SIG(n) int n(Application_Links *app, View_Summary *view, int buffer_id)
 #define VIEW_OPEN_FILE_SIG(n) int n(Application_Links *app, View_Summary *view, char *filename, int filename_len, int do_in_background)
-#define VIEW_KILL_FILE_SIG(n) int n(Application_Links *app, View_Summary *view, Buffer_Identifier buffer)
+#define VIEW_KILL_BUFFER_SIG(n) int n(Application_Links *app, View_Summary *view, Buffer_Identifier buffer)
 #define GET_USER_INPUT_SIG(n) User_Input n(Application_Links *app, unsigned int get_type, unsigned int abort_type)
 #define GET_COMMAND_INPUT_SIG(n) User_Input n(Application_Links *app)
 #define GET_EVENT_MESSAGE_SIG(n) Event_Message n(Application_Links *app)
@@ -58,6 +59,7 @@ extern "C"{
     typedef BUFFER_REPLACE_RANGE_SIG(Buffer_Replace_Range_Function);
     typedef BUFFER_SEEK_SIG(Buffer_Seek_Function);
     typedef BUFFER_SET_SETTING_SIG(Buffer_Set_Setting_Function);
+    typedef BUFFER_SAVE_SIG(Buffer_Save_Function);
     typedef GET_VIEW_FIRST_SIG(Get_View_First_Function);
     typedef GET_VIEW_NEXT_SIG(Get_View_Next_Function);
     typedef GET_VIEW_SIG(Get_View_Function);
@@ -70,7 +72,7 @@ extern "C"{
     typedef VIEW_SET_HIGHLIGHT_SIG(View_Set_Highlight_Function);
     typedef VIEW_SET_BUFFER_SIG(View_Set_Buffer_Function);
     typedef VIEW_OPEN_FILE_SIG(View_Open_File_Function);
-    typedef VIEW_KILL_FILE_SIG(View_Kill_File_Function);
+    typedef VIEW_KILL_BUFFER_SIG(View_Kill_Buffer_Function);
     typedef GET_USER_INPUT_SIG(Get_User_Input_Function);
     typedef GET_COMMAND_INPUT_SIG(Get_Command_Input_Function);
     typedef GET_EVENT_MESSAGE_SIG(Get_Event_Message_Function);
@@ -103,6 +105,7 @@ struct Application_Links{
     Buffer_Replace_Range_Function *buffer_replace_range;
     Buffer_Seek_Function *buffer_seek;
     Buffer_Set_Setting_Function *buffer_set_setting;
+    Buffer_Save_Function *buffer_save;
     Get_View_First_Function *get_view_first;
     Get_View_Next_Function *get_view_next;
     Get_View_Function *get_view;
@@ -115,7 +118,7 @@ struct Application_Links{
     View_Set_Highlight_Function *view_set_highlight;
     View_Set_Buffer_Function *view_set_buffer;
     View_Open_File_Function *view_open_file;
-    View_Kill_File_Function *view_kill_file;
+    View_Kill_Buffer_Function *view_kill_buffer;
     Get_User_Input_Function *get_user_input;
     Get_Command_Input_Function *get_command_input;
     Get_Event_Message_Function *get_event_message;
@@ -150,6 +153,7 @@ app_links->buffer_read_range = external_buffer_read_range;\
 app_links->buffer_replace_range = external_buffer_replace_range;\
 app_links->buffer_seek = external_buffer_seek;\
 app_links->buffer_set_setting = external_buffer_set_setting;\
+app_links->buffer_save = external_buffer_save;\
 app_links->get_view_first = external_get_view_first;\
 app_links->get_view_next = external_get_view_next;\
 app_links->get_view = external_get_view;\
@@ -162,7 +166,7 @@ app_links->view_set_mark = external_view_set_mark;\
 app_links->view_set_highlight = external_view_set_highlight;\
 app_links->view_set_buffer = external_view_set_buffer;\
 app_links->view_open_file = external_view_open_file;\
-app_links->view_kill_file = external_view_kill_file;\
+app_links->view_kill_buffer = external_view_kill_buffer;\
 app_links->get_user_input = external_get_user_input;\
 app_links->get_command_input = external_get_command_input;\
 app_links->get_event_message = external_get_event_message;\

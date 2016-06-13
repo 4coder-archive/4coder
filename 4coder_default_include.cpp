@@ -928,7 +928,7 @@ CUSTOM_COMMAND_SIG(close_all_code){
     View_Summary view = app->get_active_view(app);
     
     for (int i = 0; i < buffers_to_close_count; ++i){
-        app->view_kill_file(app, &view, buffer_identifier(buffers_to_close[i]));
+        app->view_kill_buffer(app, &view, buffer_identifier(buffers_to_close[i]));
     }
 }
 

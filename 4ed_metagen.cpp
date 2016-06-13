@@ -370,6 +370,15 @@ skip_whitespace(String str){
     return(result);
 }
 
+String
+chop_whitespace(String str){
+    String result = {0};
+    int i = str.size;
+    for (; i > 0 && char_is_whitespace(str.str[i-1]); --i);
+    result = substr(str, 0, i);
+    return(result);
+}
+
 int
 is_comment(String str){
     int result = 0;
@@ -385,7 +394,7 @@ is_comment(String str){
 char*
 generate_custom_headers(){
     char *filename = "4coder_custom_api.h";
-    String data = file_dump("custom_api_spec.txt");
+    String data = file_dump("custom_api_spec.cpp");
     
     int line_count = 0;
     String line = {0};
@@ -409,10 +418,11 @@ generate_custom_headers(){
         
         String parse = line;
         parse = skip_whitespace(parse);
+        parse = chop_whitespace(parse);
         if (parse.size > 0){
             if (!is_comment(parse)){
                 Function_Signature *sig = sigs + sig_count;
-                memset(sig, 0, sizeof(Function_Signature));
+                memset(sig, 0, sizeof(*sig));
                 
                 ++sig_count;
                 
@@ -427,8 +437,24 @@ generate_custom_headers(){
                     parse = substr(parse, pos);
                     
                     if (parse.size > 0){
-                        sig->args = parse;
-                        sig->valid = 1;
+                        char end = parse.str[parse.size - 1];
+                        int valid = true;
+                        
+                        switch (end){
+                            case ')':
+                            sig->args = parse;
+                            break;
+                            
+                            case ';':
+                            --parse.size;
+                            sig->args = parse;
+                            break;
+                            
+                            default:
+                            valid = false;
+                            break;
+                        }
+                        sig->valid = valid;
                         
                         if (max_name_size < sig->name.size){
                             max_name_size = sig->name.size;
@@ -437,7 +463,7 @@ generate_custom_headers(){
                 }
                 
                 if (!sig->valid){
-                    printf("custom_api_spec.txt(%d) : generator warning : invalid function signature\n",
+                    printf("custom_api_spec.cpp(%d) : generator warning : invalid function signature\n",
                            line_count);
                 }
             }
@@ -500,8 +526,7 @@ generate_custom_headers(){
             );
     fprintf(file, "};\n");
     
-    fprintf(file,
-            "#define FillAppLinksAPI(app_links) do{");
+    fprintf(file, "#define FillAppLinksAPI(app_links) do{");
     for (int i = 0; i < sig_count; ++i){
         Function_Signature *sig = sigs + i;
         
@@ -515,7 +540,7 @@ generate_custom_headers(){
                 name_buffer, name_buffer
                 );
     }
-    fprintf(file," } while(false)\n");
+    fprintf(file, " } while(false)\n");
     
     fclose(file);
     

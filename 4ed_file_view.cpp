@@ -5171,16 +5171,16 @@ do_step_file_view(System_Functions *system,
                             activation_key = char_to_upper(activation_key);
                             
                             if (activation_key != 0){
-                                count = keys->count;
-                                for (i = 0; i < count; ++i){
-                                    key = get_single_key(keys, i);
-                                    if (char_to_upper(key.character) == activation_key){
-                                        target->active = b->id;
-                                        result.is_animating = true;
-                                        break;
-                                    }
+                            count = keys->count;
+                            for (i = 0; i < count; ++i){
+                                key = get_single_key(keys, i);
+                                if (char_to_upper(key.character) == activation_key){
+                                    target->active = b->id;
+                                    result.is_animating = true;
+                                    break;
                                 }
                             }
+                        }
                         }
                     }break;
                     
