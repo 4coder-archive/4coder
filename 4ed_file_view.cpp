@@ -772,7 +772,8 @@ file_create_from_string(System_Functions *system, Models *models,
     }
     
     Hook_Function *open_hook = models->hooks[hook_open_file];
-    models->buffer_param_indices[models->buffer_param_count++] = file->id.id;
+    models->buffer_param_indices[0] = file->id.id;
+    models->buffer_param_count = 1;
     open_hook(&models->app_links);
     models->buffer_param_count = 0;
     file->settings.is_initialized = 1;
@@ -5167,14 +5168,17 @@ do_step_file_view(System_Functions *system,
                             
                             string = gui_read_string(&ptr);
                             activation_key = *(char*)ptr;
+                            activation_key = char_to_upper(activation_key);
                             
-                            count = keys->count;
-                            for (i = 0; i < count; ++i){
-                                key = get_single_key(keys, i);
-                                if (char_to_upper(key.character) == char_to_upper(activation_key)){
-                                    target->active = b->id;
-                                    result.is_animating = true;
-                                    break;
+                            if (activation_key != 0){
+                                count = keys->count;
+                                for (i = 0; i < count; ++i){
+                                    key = get_single_key(keys, i);
+                                    if (char_to_upper(key.character) == activation_key){
+                                        target->active = b->id;
+                                        result.is_animating = true;
+                                        break;
+                                    }
                                 }
                             }
                         }

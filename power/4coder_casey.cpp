@@ -11,18 +11,31 @@
    merchantability, fitness for a particular purpose, or non-infringement.
 */
 
+/* BUGS
+
+Assertion: w:\apps\4coder\source\build\4ed_app.dll
+           w:\apps\4coder\source\code\4ed_file_view.cpp
+           Line: 3261
+           Expression: view->prev_cursor_pos == view_get_cursor_pos(view)
+
+
+Crash in buffer_get_line_index_range - it doesn't check for lines == 0, which can be the case?
+
+*/
+
 /* TODO(casey): Here are our current issues
 
    - High priority:
      - Buffer switching still seems a little bit broken.  I find I can't reliably hit switch-return
        and switch to the most recently viewed file that wasn't one of the two currently viewed buffers?
-       But maybe I'm imagining things?
      - High-DPI settings break rendering and all fonts just show up as solid squares
      - Pretty sure auto-indent has some bugs.  Things that should be pretty easy to indent
        properly even from only a few surrounding lines seem to be indented improperly at the moment
      - Multi-line comments should default to indenting to the indentation of the line prior?
      - Would like the option to indent to hanging parentheses, equals signs, etc. instead of
        always just "one tab in from the previous line".
+       - Actually, maybe just expose the dirty state, so that the user can decide whether to
+         save or not?  Not sure...
      - Replace:
        - Needs to be case-insensitive, or at least have the option to be
        - Needs to replace using the case of the thing being replaced, or at least have the option to do so
@@ -36,7 +49,18 @@
         when you cursor down, but the cursor and the rest of the wrapped lines are actually off
         the bottom of the screen)
 
+   - Search:
+     - Should highlight all matches in the buffer
+     - Seems to buggily break out of the search sometimes for no reason?  (eg., you hit the end and it just drops out of the search instead of stopping?)
+       - Tracked this one down: I think it is because spurious mousewheel or other inputs break
+         out of the search.  How can this be prevented?
+
    - Display:
+     - When switching _back_ to a buffer, it seems like it loses the scroll position, instead preferring
+       to center the cursor?  This is undesirable IMO...
+     - I'd like to be able to hide the mark in text entry mode, and show the whole highlighted
+       region in edit mode - perhaps even with a magic split at the top or bottom that shows where the mark
+       is if it's off screen?
      - There are often repaint bugs with 4coder coming to the front / unminimizing, etc.
        I think this might have something to do with the way you're doing lots of semaphore
        locking but I haven't investigated yet.
@@ -60,12 +84,18 @@
        the same margin as the prev. line (4coder just goes back to column 1).  It'd
        be nice if it go _better_ than Emacs, with no need to manually flow comments,
        etc.
+     - It should never reindent text in comments that it doesn't know how to indent - eg., in a comment block, it shouldn't decide to move things around if it doesn't know what they are
+     - Sometimes when I hit [ it inserts a [ _and_ a space?  I think this is related to the auto-indent?
 
    - Buffer management: 
+     - I'd like to be able to set a buffer to "auto-revert", so it reloads automatically whenever it changes externally
+     - If you undo back to where there are no changes, the "buffer changed" flag should be cleared
      - Seems like there's no way to switch to buffers whose names are substrings of other
        buffers' names without using the mouse?
        - Also, mouse-clicking on buffers doesn't seem to work reliably?  Often it just goes to a 
          blank window?
+     - Buffer switch display should always show the buffer _it will switch to when you hit return_
+       as the first buffer in the list.
 
    - File system
      - When switching to a buffer that has changed on disk, notify?  Really this can just
@@ -83,6 +113,10 @@
    - Macro recording/playback
 
    - Arbitrary cool features:
+     - Once you can highlight things in 4coder buffers, I could make it so that my 
+       metacompiler output _ranges_ for errors, so it highlights the whole token rather
+       than putting the cursor in a spot.
+     - Highlight on the screen what the completion would be if you hit TAB now (eg., if the string appears elsewhere on the screen)
      - LOC count for the buffer and for all buffers summed shown in the title bar?
      - Show auto-parsed #if/if/for/while/etc. statements at else and closing places.
      - Automatic highlighting of the region in side the parentheses / etc.
@@ -297,40 +331,38 @@ PeekToken(tokenizer *Tokenizer)
     return(Result);
 }
 
-#define casey_bool int
-
-inline casey_bool
+inline bool
 IsH(String extension)
 {
-    casey_bool Result = (match(extension, make_lit_string("h")) ||
+    bool Result = (match(extension, make_lit_string("h")) ||
                    match(extension, make_lit_string("hpp")) ||
                    match(extension, make_lit_string("hin")));
 
     return(Result);
 }
 
-inline casey_bool
+inline bool
 IsCPP(String extension)
 {
-    casey_bool Result = (match(extension, make_lit_string("c")) ||
+    bool Result = (match(extension, make_lit_string("c")) ||
                    match(extension, make_lit_string("cpp")) ||
                    match(extension, make_lit_string("cin")));
 
     return(Result);
 }
 
-inline casey_bool
+inline bool
 IsINL(String extension)
 {
-    casey_bool Result = (match(extension, make_lit_string("inl")));
+    bool Result = (match(extension, make_lit_string("inl")) != 0);
 
     return(Result);
 }
 
-inline casey_bool
+inline bool
 IsCode(String extension)
 {
-    casey_bool Result = (IsH(extension) || IsCPP(extension) || IsINL(extension));
+    bool Result = (IsH(extension) || IsCPP(extension) || IsINL(extension));
 
     return(Result);
 }
@@ -440,8 +472,8 @@ CUSTOM_COMMAND_SIG(casey_seek_beginning_of_line)
 
 struct switch_to_result
 {
-    casey_bool Switched;
-    casey_bool Loaded;
+    bool Switched;
+    bool Loaded;
     View_Summary view;
     Buffer_Summary buffer;
 };
@@ -461,7 +493,7 @@ SanitizeSlashes(String Value)
 }
 
 inline switch_to_result
-SwitchToOrLoadFile(struct Application_Links *app, String FileName, casey_bool CreateIfNotFound = false)
+SwitchToOrLoadFile(struct Application_Links *app, String FileName, bool CreateIfNotFound = false)
 {
     switch_to_result Result = {};
 
@@ -647,10 +679,10 @@ CUSTOM_COMMAND_SIG(casey_save_and_make_without_asking)
     }
 }
 
-internal casey_bool
+internal bool
 casey_errors_are_the_same(Parsed_Error a, Parsed_Error b)
 {
-    casey_bool result = ((a.exists == b.exists) && compare(a.target_file_name, b.target_file_name) && (a.target_line_number == b.target_line_number));
+    bool result = ((a.exists == b.exists) && compare(a.target_file_name, b.target_file_name) && (a.target_line_number == b.target_line_number));
 
     return(result);
 }
@@ -1222,7 +1254,7 @@ DEFINE_MODAL_KEY(modal_y, cmdid_redo);
 DEFINE_MODAL_KEY(modal_z, cmdid_interactive_open);
 
 DEFINE_MODAL_KEY(modal_1, casey_build_search); // TODO(casey): Shouldn't need to bind a key for this?
-DEFINE_MODAL_KEY(modal_2, cmdid_open_debug); // TODO(casey): Available
+DEFINE_MODAL_KEY(modal_2, write_character); // TODO(casey): Available
 DEFINE_MODAL_KEY(modal_3, write_character); // TODO(casey): Available
 DEFINE_MODAL_KEY(modal_4, write_character); // TODO(casey): Available
 DEFINE_MODAL_KEY(modal_5, write_character); // TODO(casey): Available
@@ -1281,10 +1313,10 @@ HOOK_SIG(casey_file_settings)
     return(0);
 }
 
-casey_bool
+bool
 CubicUpdateFixedDuration1(float *P0, float *V0, float P1, float V1, float Duration, float dt)
 {
-    casey_bool Result = false;
+    bool Result = false;
 
     if(dt > 0)
     {
@@ -1328,9 +1360,10 @@ struct Casey_Scroll_Velocity
 };
 
 Casey_Scroll_Velocity casey_scroll_velocity_[16] = {0};
-Casey_Scroll_Velocity *casey_scroll_velocity = casey_scroll_velocity_ - 1;
+Casey_Scroll_Velocity *casey_scroll_velocity = casey_scroll_velocity_;
 
 SCROLL_RULE_SIG(casey_smooth_scroll_rule){
+	dt = 1.0f/60.0f;
     Casey_Scroll_Velocity *velocity = casey_scroll_velocity + view_id;
     int result = 0;
     if(is_new_target)
@@ -1418,15 +1451,11 @@ win32_toggle_fullscreen(void)
 
 HOOK_SIG(casey_start)
 {
-    // NOTE(allen): I added some stuff here based on wishes expressed on stream:
-    // - Two calls to cmdid_hide_scrollbar to hide the scrollbar GUI elements
-    // - One call to cmdid_change_active_panel so that 4coder starts on the right panel
-    
     exec_command(app, cmdid_hide_scrollbar);
     exec_command(app, cmdid_open_panel_vsplit);
     exec_command(app, cmdid_hide_scrollbar);
     exec_command(app, cmdid_change_active_panel);
-    
+
     app->change_theme(app, literal("Handmade Hero"));
     app->change_font(app, literal("liberation mono"));
 
@@ -1594,7 +1623,7 @@ extern "C" GET_BINDING_DATA(get_bindings)
 
     bind(context, '\t', MDFR_NONE, modal_tab);
     bind(context, '\t', MDFR_SHIFT, modal_tab);
-    
+
     end_map(context);
 
     end_bind_helper(context);

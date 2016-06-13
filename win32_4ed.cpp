@@ -1019,11 +1019,10 @@ Sys_CLI_Call_Sig(system_cli_call){
     if (success){
         success = 0;
         
-        SECURITY_ATTRIBUTES sec_attributes;
+		SECURITY_ATTRIBUTES sec_attributes = {};
         HANDLE out_read;
         HANDLE out_write;
         
-        sec_attributes = {};
         sec_attributes.nLength = sizeof(SECURITY_ATTRIBUTES);
         sec_attributes.bInheritHandle = TRUE;
         
@@ -1416,7 +1415,7 @@ Win32HighResolutionTime(){
 
 internal LRESULT
 Win32Callback(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
-    LRESULT result = {};
+    LRESULT result = 0;
     switch (uMsg){
         case WM_MENUCHAR:
         case WM_SYSCHAR:break;
@@ -2039,9 +2038,12 @@ WinMain(HINSTANCE hInstance,
     ReleaseDC(win32vars.window_handle, hdc);
     
 #if FRED_INTERNAL
-    // NOTE(casey): This slows down GL but puts error messages to the debug console immediately whenever you do something wrong
-    glDebugMessageCallback_type *glDebugMessageCallback = (glDebugMessageCallback_type *)wglGetProcAddress("glDebugMessageCallback");
-    glDebugMessageControl_type *glDebugMessageControl = (glDebugMessageControl_type *)wglGetProcAddress("glDebugMessageControl");
+    // NOTE(casey): This slows down GL but puts error messages to
+    // the debug console immediately whenever you do something wrong
+    glDebugMessageCallback_type *glDebugMessageCallback =
+        (glDebugMessageCallback_type *)wglGetProcAddress("glDebugMessageCallback");
+    glDebugMessageControl_type *glDebugMessageControl =
+        (glDebugMessageControl_type *)wglGetProcAddress("glDebugMessageControl");
     if(glDebugMessageCallback && glDebugMessageControl)
     {
         glDebugMessageCallback(OpenGLDebugCallback, 0);
