@@ -326,7 +326,8 @@ CLIPBOARD_INDEX_SIG(external_clipboard_index){
     if (str){
         size = str->size;
         if (out){
-            copy_fast_unsafe(out, *str);
+            String out_str = make_string(out, 0, len);
+            copy(&out_str, *str);
         }
     }
     
@@ -930,6 +931,77 @@ VIEW_SET_BUFFER_SIG(external_view_set_buffer){
     return(result);
 }
 
+VIEW_POST_FADE_SIG(external_view_post_fade){
+    Command_Data *cmd = (Command_Data*)app->cmd_context;
+    
+    Live_Views *live_set;
+    View *vptr;
+    Models *models;
+    int view_id;
+    
+    int result = false;
+    
+    if (view->exists){
+        models = cmd->models;
+        live_set = cmd->live_set;
+        view_id = view->view_id - 1;
+        if (view_id >= 0 && view_id < live_set->max){
+            vptr = live_set->views + view_id;
+            
+            if (end > start){
+                int size = end - start;
+                result = true;
+                view_post_paste_effect(vptr, ticks, start, size, color);
+            }
+        }
+    }
+    
+    return(result);
+}
+
+// TODO(allen): standardize the safe get view/buffer code
+VIEW_SET_PASTE_REWRITE__SIG(external_view_set_paste_rewrite_){
+    Command_Data *cmd = (Command_Data*)app->cmd_context;
+    
+    Live_Views *live_set;
+    View *vptr;
+    Models *models;
+    int view_id;
+    
+    if (view->exists){
+        models = cmd->models;
+        live_set = cmd->live_set;
+        view_id = view->view_id - 1;
+        if (view_id >= 0 && view_id < live_set->max){
+            vptr = live_set->views + view_id;
+            vptr->next_mode.rewrite = true;
+        }
+    }
+}
+
+VIEW_GET_PASTE_REWRITE__SIG(external_view_get_paste_rewrite_){
+    Command_Data *cmd = (Command_Data*)app->cmd_context;
+    
+    Live_Views *live_set;
+    View *vptr;
+    Models *models;
+    int view_id;
+    
+    int result = false;
+    
+    if (view->exists){
+        models = cmd->models;
+        live_set = cmd->live_set;
+        view_id = view->view_id - 1;
+        if (view_id >= 0 && view_id < live_set->max){
+            vptr = live_set->views + view_id;
+            result = vptr->mode.rewrite;
+        }
+    }
+    
+    return(result);
+}
+
 VIEW_OPEN_FILE_SIG(external_view_open_file){
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     
@@ -1132,6 +1204,25 @@ SET_THEME_COLORS_SIG(external_set_theme_colors){
     for (i = 0; i < count; ++i, ++theme_color){
         color = style_index_by_tag(&style->main, theme_color->tag);
         if (color) *color = theme_color->color | 0xFF000000;
+    }
+}
+
+GET_THEME_COLORS_SIG(external_get_theme_colors){
+    Command_Data *cmd = (Command_Data*)app->cmd_context;
+    Style *style = main_style(cmd->models);
+    Theme_Color *theme_color;
+    u32 *color;
+    i32 i;
+    
+    theme_color = colors;
+    for (i = 0; i < count; ++i, ++theme_color){
+        color = style_index_by_tag(&style->main, theme_color->tag);
+        if (color){
+            theme_color->color = *color | 0xFF000000;
+        }
+        else{
+            theme_color->color = 0xFF000000;
+        }
     }
 }
 

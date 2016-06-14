@@ -531,105 +531,7 @@ COMMAND_DECL(word_complete){
     }
 }
 
-#if 0
-COMMAND_DECL(copy){
-    USE_MODELS(models);
-    REQ_READABLE_VIEW(view);
-    REQ_FILE(file, view);
-    
-    Range range = make_range(view->recent->cursor.pos, view->recent->mark);
-    if (range.start < range.end){
-        clipboard_copy(system, &models->mem.general, &models->working_set, range, file);
-    }
-}
-
-COMMAND_DECL(cut){
-    USE_MODELS(models);
-    REQ_OPEN_VIEW(view);
-    REQ_FILE(file, view);
-    
-    Range range = make_range(view->recent->cursor.pos, view->recent->mark);
-    if (range.start < range.end){
-        i32 next_cursor_pos = range.start;
-        
-        clipboard_copy(system, &models->mem.general, &models->working_set, range, file);
-        view_replace_range(system, models, view, range.start, range.end, 0, 0, next_cursor_pos);
-        
-        view->recent->mark = range.start;
-        view_cursor_move(view, next_cursor_pos);
-    }
-}
-#endif
-
-COMMAND_DECL(paste){
-    
-    USE_MODELS(models);
-    REQ_OPEN_VIEW(view);
-    REQ_FILE(file, view);
-    
-    View_Iter iter;
-    String *src;
-    i32 pos_left, next_cursor_pos;
-    
-    if (models->working_set.clipboard_size > 0){
-        view->next_mode.rewrite = 1;
-        
-        src = working_set_clipboard_head(&models->working_set);
-        pos_left = view->recent->cursor.pos;
-        
-        next_cursor_pos = pos_left+src->size;
-        view_replace_range(system, models, view, pos_left, pos_left, src->str, src->size, next_cursor_pos);
-        
-        view_cursor_move(view, next_cursor_pos);
-        view->recent->mark = pos_left;
-        
-        Style *style = main_style(models);
-        u32 paste_color = style->main.paste_color;
-        for (iter = file_view_iter_init(&models->layout, file, 0);
-             file_view_iter_good(iter);
-             iter = file_view_iter_next(iter)){
-            view_post_paste_effect(iter.view, 20, pos_left, src->size, paste_color);
-        }
-    }
-}
-
-COMMAND_DECL(paste_next){
-    USE_MODELS(models);
-    REQ_OPEN_VIEW(view);
-    REQ_FILE(file, view);
-    
-    View_Iter iter;
-    Range range;
-    String *src;
-    i32 next_cursor_pos;
-    
-    if (models->working_set.clipboard_size > 0 && view->mode.rewrite == 1){
-        view->next_mode.rewrite = 1;
-        
-        range = make_range(view->recent->mark, view->recent->cursor.pos);
-        src = working_set_clipboard_roll_down(&models->working_set);
-        next_cursor_pos = range.start+src->size;
-        view_replace_range(system,
-                           models, view, range.start, range.end,
-                           src->str, src->size, next_cursor_pos);
-        
-        view_cursor_move(view, next_cursor_pos);
-        view->recent->mark = range.start;
-        
-        Style *style = main_style(models);
-        u32 paste_color = style->main.paste_color;
-        for (iter = file_view_iter_init(&models->layout, file, 0);
-             file_view_iter_good(iter);
-             iter = file_view_iter_next(iter)){
-            view_post_paste_effect(iter.view, 20, range.start, src->size, paste_color);
-        }
-    }
-    else{
-        command_paste(system, command, binding);
-    }
-}
-
-// TODO(allen): FIX THIS FUCKIN SHIT!
+// TODO(allen): FIX THIS SHIT!
 COMMAND_DECL(undo){
     USE_MODELS(models);
     REQ_OPEN_VIEW(view);
@@ -1162,11 +1064,6 @@ setup_command_table(){
     
     SET(word_complete);
     
-    //SET(copy);
-    //SET(cut);
-    SET(paste);
-    SET(paste_next);
-    
     SET(undo);
     SET(redo);
     SET(history_backward);
@@ -1188,7 +1085,6 @@ setup_command_table(){
     SET(toggle_show_whitespace);
     
     SET(clean_all_lines);
-    //SET(auto_tab_range);
     SET(eol_dosify);
     SET(eol_nixify);
     

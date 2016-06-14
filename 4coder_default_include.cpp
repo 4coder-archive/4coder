@@ -222,14 +222,15 @@ CUSTOM_COMMAND_SIG(move_right){
 
 static int
 clipboard_copy(Application_Links *app, int start, int end, Buffer_Summary *buffer_out){
-    Buffer_Summary buffer = get_active_buffer(app);
+    View_Summary view = app->get_active_view(app);
+    Buffer_Summary buffer = app->get_buffer(app, view.locked_buffer_id);
     int result = false;
     
     if (0 <= start && start <= end && end <= buffer.size){
         int size = (end - start);
         char *str = (char*)app->memory;
         
-        if (size > app->memory_size){
+        if (size <= app->memory_size){
             app->buffer_read_range(app, &buffer, start, end, str);
             app->clipboard_post(app, str, size);
             if (buffer_out){*buffer_out = buffer;}
@@ -265,6 +266,94 @@ CUSTOM_COMMAND_SIG(cut){
     clipboard_cut(app, range.min, range.max, 0);
 }
 
+struct View_Paste_Index{
+    int index;
+};
+
+View_Paste_Index view_paste_index_[16];
+View_Paste_Index *view_paste_index = view_paste_index_ - 1;
+
+CUSTOM_COMMAND_SIG(paste){
+    int count = app->clipboard_count(app);
+    if (count > 0){
+        View_Summary view = app->get_active_view(app);
+        
+        // NOTE(allen): THIS is a very temporary poop-sauce
+        // system that I just threw in to get this working.
+        // Please don't start calling it anywhere.
+        app->view_set_paste_rewrite_(app, &view);
+        
+        int paste_index = 0;
+        view_paste_index[view.view_id].index = paste_index;
+        
+        int len = app->clipboard_index(app, paste_index, 0, 0);
+        char *str = 0;
+        
+        if (len <= app->memory_size){
+            str = (char*)app->memory;
+        }
+        
+        if (str){
+            app->clipboard_index(app, paste_index, str, len);
+            
+            Buffer_Summary buffer = app->get_buffer(app, view.buffer_id);
+            int pos = view.cursor.pos;
+            app->buffer_replace_range(app, &buffer, pos, pos, str, len);
+            app->view_set_mark(app, &view, seek_pos(pos));
+            app->view_set_cursor(app, &view, seek_pos(pos + len), true);
+            
+            // TODO(allen): Send this to all views.
+            Theme_Color paste;
+            paste.tag = Stag_Paste;
+            app->get_theme_colors(app, &paste, 1);
+            app->view_post_fade(app, &view, 20, pos, pos + len, paste.color);
+        }
+    }
+}
+
+CUSTOM_COMMAND_SIG(paste_next){
+    int count = app->clipboard_count(app);
+    if (count > 0){
+        View_Summary view = app->get_active_view(app);
+        
+        // NOTE(allen): THIS is a very temporary poop-sauce
+        // system that I just threw in to get this working.
+        // Please don't start calling it anywhere.
+        if (app->view_get_paste_rewrite_(app, &view)){
+            app->view_set_paste_rewrite_(app, &view);
+            
+            int paste_index = view_paste_index[view.view_id].index + 1;
+            view_paste_index[view.view_id].index = paste_index;
+            
+            int len = app->clipboard_index(app, paste_index, 0, 0);
+            char *str = 0;
+            
+            if (len <= app->memory_size){
+                str = (char*)app->memory;
+            }
+            
+            if (str){
+                app->clipboard_index(app, paste_index, str, len);
+                
+                Buffer_Summary buffer = app->get_buffer(app, view.buffer_id);
+                Range range = get_range(&view);
+                int pos = range.min;
+                
+                app->buffer_replace_range(app, &buffer, range.min, range.max, str, len);
+                app->view_set_cursor(app, &view, seek_pos(pos + len), true);
+                
+                // TODO(allen): Send this to all views.
+                Theme_Color paste;
+                paste.tag = Stag_Paste;
+                app->get_theme_colors(app, &paste, 1);
+                app->view_post_fade(app, &view, 20, pos, pos + len, paste.color);
+            }
+        }
+        else{
+            exec_command(app, paste);
+        }
+    }
+}
 
 //
 // Various Forms of Seek

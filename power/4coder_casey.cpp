@@ -452,7 +452,7 @@ CUSTOM_COMMAND_SIG(casey_kill_to_end_of_line)
 
 CUSTOM_COMMAND_SIG(casey_paste_and_tab)
 {
-    exec_command(app, cmdid_paste);
+    exec_command(app, paste);
     exec_command(app, auto_tab_range);
 }
 

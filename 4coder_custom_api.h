@@ -8,7 +8,7 @@
 #define FREE_FILE_LIST_SIG(n) void n(Application_Links *app, File_List list)
 #define CLIPBOARD_POST_SIG(n) int n(Application_Links *app, char *str, int len)
 #define CLIPBOARD_COUNT_SIG(n) int n(Application_Links *app)
-#define CLIPBOARD_INDEX_SIG(n) int n(Application_Links *app, int index, char *out)
+#define CLIPBOARD_INDEX_SIG(n) int n(Application_Links *app, int index, char *out, int len)
 #define GET_BUFFER_FIRST_SIG(n) Buffer_Summary n(Application_Links *app)
 #define GET_BUFFER_NEXT_SIG(n) void n(Application_Links *app, Buffer_Summary *buffer)
 #define GET_BUFFER_SIG(n) Buffer_Summary n(Application_Links *app, int index)
@@ -31,6 +31,9 @@
 #define VIEW_SET_MARK_SIG(n) int n(Application_Links *app, View_Summary *view, Buffer_Seek seek)
 #define VIEW_SET_HIGHLIGHT_SIG(n) int n(Application_Links *app, View_Summary *view, int start, int end, int turn_on)
 #define VIEW_SET_BUFFER_SIG(n) int n(Application_Links *app, View_Summary *view, int buffer_id)
+#define VIEW_POST_FADE_SIG(n) int n(Application_Links *app, View_Summary *view, int ticks, int start, int end, unsigned int color)
+#define VIEW_SET_PASTE_REWRITE__SIG(n) void n(Application_Links *app, View_Summary *view)
+#define VIEW_GET_PASTE_REWRITE__SIG(n) int n(Application_Links *app, View_Summary *view)
 #define VIEW_OPEN_FILE_SIG(n) int n(Application_Links *app, View_Summary *view, char *filename, int filename_len, int do_in_background)
 #define VIEW_KILL_BUFFER_SIG(n) int n(Application_Links *app, View_Summary *view, Buffer_Identifier buffer)
 #define GET_USER_INPUT_SIG(n) User_Input n(Application_Links *app, unsigned int get_type, unsigned int abort_type)
@@ -43,6 +46,7 @@
 #define CHANGE_THEME_SIG(n) void n(Application_Links *app, char *name, int len)
 #define CHANGE_FONT_SIG(n) void n(Application_Links *app, char *name, int len)
 #define SET_THEME_COLORS_SIG(n) void n(Application_Links *app, Theme_Color *colors, int count)
+#define GET_THEME_COLORS_SIG(n) void n(Application_Links *app, Theme_Color *colors, int count)
 extern "C"{
     typedef EXEC_COMMAND_SIG(Exec_Command_Function);
     typedef EXEC_SYSTEM_COMMAND_SIG(Exec_System_Command_Function);
@@ -77,6 +81,9 @@ extern "C"{
     typedef VIEW_SET_MARK_SIG(View_Set_Mark_Function);
     typedef VIEW_SET_HIGHLIGHT_SIG(View_Set_Highlight_Function);
     typedef VIEW_SET_BUFFER_SIG(View_Set_Buffer_Function);
+    typedef VIEW_POST_FADE_SIG(View_Post_Fade_Function);
+    typedef VIEW_SET_PASTE_REWRITE__SIG(View_Set_Paste_Rewrite__Function);
+    typedef VIEW_GET_PASTE_REWRITE__SIG(View_Get_Paste_Rewrite__Function);
     typedef VIEW_OPEN_FILE_SIG(View_Open_File_Function);
     typedef VIEW_KILL_BUFFER_SIG(View_Kill_Buffer_Function);
     typedef GET_USER_INPUT_SIG(Get_User_Input_Function);
@@ -89,6 +96,7 @@ extern "C"{
     typedef CHANGE_THEME_SIG(Change_Theme_Function);
     typedef CHANGE_FONT_SIG(Change_Font_Function);
     typedef SET_THEME_COLORS_SIG(Set_Theme_Colors_Function);
+    typedef GET_THEME_COLORS_SIG(Get_Theme_Colors_Function);
 }
 struct Application_Links{
     void *memory;
@@ -126,6 +134,9 @@ struct Application_Links{
     View_Set_Mark_Function *view_set_mark;
     View_Set_Highlight_Function *view_set_highlight;
     View_Set_Buffer_Function *view_set_buffer;
+    View_Post_Fade_Function *view_post_fade;
+    View_Set_Paste_Rewrite__Function *view_set_paste_rewrite_;
+    View_Get_Paste_Rewrite__Function *view_get_paste_rewrite_;
     View_Open_File_Function *view_open_file;
     View_Kill_Buffer_Function *view_kill_buffer;
     Get_User_Input_Function *get_user_input;
@@ -138,6 +149,7 @@ struct Application_Links{
     Change_Theme_Function *change_theme;
     Change_Font_Function *change_font;
     Set_Theme_Colors_Function *set_theme_colors;
+    Get_Theme_Colors_Function *get_theme_colors;
     void *cmd_context;
     void *system_links;
     void *current_coroutine;
@@ -177,6 +189,9 @@ app_links->view_set_cursor = external_view_set_cursor;\
 app_links->view_set_mark = external_view_set_mark;\
 app_links->view_set_highlight = external_view_set_highlight;\
 app_links->view_set_buffer = external_view_set_buffer;\
+app_links->view_post_fade = external_view_post_fade;\
+app_links->view_set_paste_rewrite_ = external_view_set_paste_rewrite_;\
+app_links->view_get_paste_rewrite_ = external_view_get_paste_rewrite_;\
 app_links->view_open_file = external_view_open_file;\
 app_links->view_kill_buffer = external_view_kill_buffer;\
 app_links->get_user_input = external_get_user_input;\
@@ -188,4 +203,5 @@ app_links->end_query_bar = external_end_query_bar;\
 app_links->print_message = external_print_message;\
 app_links->change_theme = external_change_theme;\
 app_links->change_font = external_change_font;\
-app_links->set_theme_colors = external_set_theme_colors; } while(false)
+app_links->set_theme_colors = external_set_theme_colors;\
+app_links->get_theme_colors = external_get_theme_colors; } while(false)

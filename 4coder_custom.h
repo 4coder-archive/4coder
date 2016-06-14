@@ -120,11 +120,6 @@ enum Command_ID{
     
     cmdid_word_complete,
     
-    //cmdid_copy,
-    //cmdid_cut,
-    cmdid_paste,
-    cmdid_paste_next,
-    
     cmdid_undo,
     cmdid_redo,
     cmdid_history_backward,

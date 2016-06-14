@@ -14,7 +14,7 @@ void Free_File_List(Application_Links *app, File_List list);
 // Clipboard
 int Clipboard_Post(Application_Links *app, char *str, int len);
 int Clipboard_Count(Application_Links *app);
-int Clipboard_Index(Application_Links *app, int index, char *out);
+int Clipboard_Index(Application_Links *app, int index, char *out, int len);
 
 // Direct buffer manipulation
 Buffer_Summary Get_Buffer_First(Application_Links *app);
@@ -50,6 +50,14 @@ int View_Set_Mark(Application_Links *app, View_Summary *view, Buffer_Seek seek);
 int View_Set_Highlight(Application_Links *app, View_Summary *view, int start, int end, int turn_on);
 int View_Set_Buffer(Application_Links *app, View_Summary *view, int buffer_id);
 
+// TODO(allen): Switch from ticks to seconds.
+int View_Post_Fade(Application_Links *app, View_Summary *view, int ticks, int start, int end, unsigned int color);
+
+// TODO(allen):
+// Get rid of this temporary hack ass soon ass possible.
+void View_Set_Paste_Rewrite_(Application_Links *app, View_Summary *view);
+int View_Get_Paste_Rewrite_(Application_Links *app, View_Summary *view);
+
 // TODO(allen): Make sure this is just right.
 int View_Open_File(Application_Links *app, View_Summary *view, char *filename, int filename_len, int do_in_background);
 int View_Kill_Buffer(Application_Links *app, View_Summary *view, Buffer_Identifier buffer);
@@ -71,5 +79,5 @@ void Print_Message(Application_Links *app, char *string, int len);
 void Change_Theme(Application_Links *app, char *name, int len);
 void Change_Font(Application_Links *app, char *name, int len);
 void Set_Theme_Colors(Application_Links *app, Theme_Color *colors, int count);
-
+void Get_Theme_Colors(Application_Links *app, Theme_Color *colors, int count);
 
