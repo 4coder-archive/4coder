@@ -290,7 +290,7 @@ default_keys(Bind_Helper *context){
     
     bind(context, ' ', MDFR_CTRL, set_mark);
     bind(context, 'a', MDFR_CTRL, replace_in_range);
-    bind(context, 'c', MDFR_CTRL, cmdid_copy);
+    bind(context, 'c', MDFR_CTRL, copy);
     bind(context, 'd', MDFR_CTRL, delete_range);
     bind(context, 'e', MDFR_CTRL, cmdid_center_view);
     bind(context, 'E', MDFR_CTRL, cmdid_left_adjust_view);
@@ -312,7 +312,7 @@ default_keys(Bind_Helper *context){
     bind(context, 'v', MDFR_CTRL, cmdid_paste);
     bind(context, 'V', MDFR_CTRL, cmdid_paste_next);
     bind(context, 'w', MDFR_ALT, cmdid_hide_scrollbar);
-    bind(context, 'x', MDFR_CTRL, cmdid_cut);
+    bind(context, 'x', MDFR_CTRL, cut);
     bind(context, 'y', MDFR_CTRL, cmdid_redo);
     bind(context, 'z', MDFR_CTRL, cmdid_undo);
     

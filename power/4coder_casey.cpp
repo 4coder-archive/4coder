@@ -1288,13 +1288,13 @@ DEFINE_MODAL_KEY(modal_m, casey_save_and_make_without_asking);
 DEFINE_MODAL_KEY(modal_n, casey_goto_next_error);
 DEFINE_MODAL_KEY(modal_o, query_replace);
 DEFINE_MODAL_KEY(modal_p, replace_in_range);
-DEFINE_MODAL_KEY(modal_q, cmdid_copy);
+DEFINE_MODAL_KEY(modal_q, copy);
 DEFINE_MODAL_KEY(modal_r, reverse_search); // NOTE(allen): I've modified my default search so you can use it now.
 DEFINE_MODAL_KEY(modal_s, search);
 DEFINE_MODAL_KEY(modal_t, casey_load_todo);
 DEFINE_MODAL_KEY(modal_u, cmdid_undo);
 DEFINE_MODAL_KEY(modal_v, casey_switch_buffer_other_window);
-DEFINE_MODAL_KEY(modal_w, cmdid_cut);
+DEFINE_MODAL_KEY(modal_w, cut);
 DEFINE_MODAL_KEY(modal_x, casey_find_corresponding_file_other_window);
 DEFINE_MODAL_KEY(modal_y, cmdid_redo);
 DEFINE_MODAL_KEY(modal_z, cmdid_interactive_open);

@@ -215,6 +215,57 @@ CUSTOM_COMMAND_SIG(move_right){
                          true);
 }
 
+
+//
+// Clipboard
+//
+
+static int
+clipboard_copy(Application_Links *app, int start, int end, Buffer_Summary *buffer_out){
+    Buffer_Summary buffer = get_active_buffer(app);
+    int result = false;
+    
+    if (0 <= start && start <= end && end <= buffer.size){
+        int size = (end - start);
+        char *str = (char*)app->memory;
+        
+        if (size > app->memory_size){
+            app->buffer_read_range(app, &buffer, start, end, str);
+            app->clipboard_post(app, str, size);
+            if (buffer_out){*buffer_out = buffer;}
+            result = true;
+        }
+    }
+    
+    return(result);
+}
+
+static int
+clipboard_cut(Application_Links *app, int start, int end, Buffer_Summary *buffer_out){
+    Buffer_Summary buffer = {0};
+    int result = false;
+    
+    if (clipboard_copy(app, start, end, &buffer)){
+        app->buffer_replace_range(app, &buffer, start, end, 0, 0);
+        if (buffer_out){*buffer_out = buffer;}
+    }
+    
+    return(result);
+}
+
+CUSTOM_COMMAND_SIG(copy){
+    View_Summary view = app->get_active_view(app);
+    Range range = get_range(&view);
+    clipboard_copy(app, range.min, range.max, 0);
+}
+
+CUSTOM_COMMAND_SIG(cut){
+    View_Summary view = app->get_active_view(app);
+    Range range = get_range(&view);
+    clipboard_cut(app, range.min, range.max, 0);
+}
+
+
 //
 // Various Forms of Seek
 //

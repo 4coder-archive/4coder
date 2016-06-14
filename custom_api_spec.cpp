@@ -11,6 +11,11 @@ int Directory_CD(Application_Links *app, char *dir, int *len, int capacity, char
 File_List Get_File_List(Application_Links *app, char *dir, int len);
 void Free_File_List(Application_Links *app, File_List list);
 
+// Clipboard
+int Clipboard_Post(Application_Links *app, char *str, int len);
+int Clipboard_Count(Application_Links *app);
+int Clipboard_Index(Application_Links *app, int index, char *out);
+
 // Direct buffer manipulation
 Buffer_Summary Get_Buffer_First(Application_Links *app);
 void Get_Buffer_Next(Application_Links *app, Buffer_Summary *buffer);

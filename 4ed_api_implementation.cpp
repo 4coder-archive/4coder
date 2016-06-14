@@ -295,6 +295,44 @@ FREE_FILE_LIST_SIG(external_free_file_list){
     system->set_file_list(&list, make_string(0, 0));
 }
 
+CLIPBOARD_POST_SIG(external_clipboard_post){
+    Command_Data *cmd = (Command_Data*)app->cmd_context;
+    System_Functions *system = cmd->system;
+    Models *models = cmd->models;
+    General_Memory *general = &models->mem.general;
+    Working_Set *working = &models->working_set;
+    int result = false;
+    
+    String *dest = working_set_next_clipboard_string(general, working, len);
+    copy(dest, make_string(str, len));
+    system->post_clipboard(*dest);
+    
+    return(result);
+}
+
+CLIPBOARD_COUNT_SIG(external_clipboard_count){
+    Command_Data *cmd = (Command_Data*)app->cmd_context;
+    Working_Set *working = &cmd->models->working_set;
+    int count = working->clipboard_size;
+    return(count);
+}
+
+CLIPBOARD_INDEX_SIG(external_clipboard_index){
+    Command_Data *cmd = (Command_Data*)app->cmd_context;
+    Working_Set *working = &cmd->models->working_set;
+    
+    int size = 0;
+    String *str = working_set_clipboard_index(working, index);
+    if (str){
+        size = str->size;
+        if (out){
+            copy_fast_unsafe(out, *str);
+        }
+    }
+    
+    return(size);
+}
+
 GET_BUFFER_FIRST_SIG(external_get_buffer_first){
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     Working_Set *working_set = &cmd->models->working_set;

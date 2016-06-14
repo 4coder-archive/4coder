@@ -2439,14 +2439,27 @@ working_set_next_clipboard_string(General_Memory *general, Working_Set *working,
 }
 
 internal String*
+working_set_clipboard_index(Working_Set *working, i32 index){
+    String *result = 0;
+    i32 size = working->clipboard_size;
+    i32 current = working->clipboard_current;
+    if (index >= 0 && size > 0){
+        index = index % size;
+        index = current + size - index;
+        index = index % size;
+        result = &working->clipboards[index];
+    }
+    return(result);
+}
+
+internal String*
 working_set_clipboard_head(Working_Set *working){
     String *result = 0;
     if (working->clipboard_size > 0){
-        i32 clipboard_index = working->clipboard_current;
-        working->clipboard_rolling = clipboard_index;
-        result = &working->clipboards[clipboard_index];
+        working->clipboard_rolling = 0;
+        result = working_set_clipboard_index(working, working->clipboard_rolling);
     }
-    return result;
+    return(result);
 }
 
 internal String*
@@ -2454,14 +2467,11 @@ working_set_clipboard_roll_down(Working_Set *working){
     String *result = 0;
     if (working->clipboard_size > 0){
         i32 clipboard_index = working->clipboard_rolling;
-        --clipboard_index;
-        if (clipboard_index < 0){
-            clipboard_index = working->clipboard_size-1;
-        }
+        ++clipboard_index;
         working->clipboard_rolling = clipboard_index;
-        result = &working->clipboards[clipboard_index];
+        result = working_set_clipboard_index(working, working->clipboard_rolling);
     }
-    return result;
+    return(result);
 }
 
 internal void

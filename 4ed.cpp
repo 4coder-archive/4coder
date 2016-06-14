@@ -531,6 +531,7 @@ COMMAND_DECL(word_complete){
     }
 }
 
+#if 0
 COMMAND_DECL(copy){
     USE_MODELS(models);
     REQ_READABLE_VIEW(view);
@@ -558,6 +559,7 @@ COMMAND_DECL(cut){
         view_cursor_move(view, next_cursor_pos);
     }
 }
+#endif
 
 COMMAND_DECL(paste){
     
@@ -1160,8 +1162,8 @@ setup_command_table(){
     
     SET(word_complete);
     
-    SET(copy);
-    SET(cut);
+    //SET(copy);
+    //SET(cut);
     SET(paste);
     SET(paste_next);
     

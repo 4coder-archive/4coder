@@ -6,6 +6,9 @@
 #define DIRECTORY_CD_SIG(n) int n(Application_Links *app, char *dir, int *len, int capacity, char *rel_path, int rel_len)
 #define GET_FILE_LIST_SIG(n) File_List n(Application_Links *app, char *dir, int len)
 #define FREE_FILE_LIST_SIG(n) void n(Application_Links *app, File_List list)
+#define CLIPBOARD_POST_SIG(n) int n(Application_Links *app, char *str, int len)
+#define CLIPBOARD_COUNT_SIG(n) int n(Application_Links *app)
+#define CLIPBOARD_INDEX_SIG(n) int n(Application_Links *app, int index, char *out)
 #define GET_BUFFER_FIRST_SIG(n) Buffer_Summary n(Application_Links *app)
 #define GET_BUFFER_NEXT_SIG(n) void n(Application_Links *app, Buffer_Summary *buffer)
 #define GET_BUFFER_SIG(n) Buffer_Summary n(Application_Links *app, int index)
@@ -49,6 +52,9 @@ extern "C"{
     typedef DIRECTORY_CD_SIG(Directory_CD_Function);
     typedef GET_FILE_LIST_SIG(Get_File_List_Function);
     typedef FREE_FILE_LIST_SIG(Free_File_List_Function);
+    typedef CLIPBOARD_POST_SIG(Clipboard_Post_Function);
+    typedef CLIPBOARD_COUNT_SIG(Clipboard_Count_Function);
+    typedef CLIPBOARD_INDEX_SIG(Clipboard_Index_Function);
     typedef GET_BUFFER_FIRST_SIG(Get_Buffer_First_Function);
     typedef GET_BUFFER_NEXT_SIG(Get_Buffer_Next_Function);
     typedef GET_BUFFER_SIG(Get_Buffer_Function);
@@ -95,6 +101,9 @@ struct Application_Links{
     Directory_CD_Function *directory_cd;
     Get_File_List_Function *get_file_list;
     Free_File_List_Function *free_file_list;
+    Clipboard_Post_Function *clipboard_post;
+    Clipboard_Count_Function *clipboard_count;
+    Clipboard_Index_Function *clipboard_index;
     Get_Buffer_First_Function *get_buffer_first;
     Get_Buffer_Next_Function *get_buffer_next;
     Get_Buffer_Function *get_buffer;
@@ -143,6 +152,9 @@ app_links->file_exists = external_file_exists;\
 app_links->directory_cd = external_directory_cd;\
 app_links->get_file_list = external_get_file_list;\
 app_links->free_file_list = external_free_file_list;\
+app_links->clipboard_post = external_clipboard_post;\
+app_links->clipboard_count = external_clipboard_count;\
+app_links->clipboard_index = external_clipboard_index;\
 app_links->get_buffer_first = external_get_buffer_first;\
 app_links->get_buffer_next = external_get_buffer_next;\
 app_links->get_buffer = external_get_buffer;\
