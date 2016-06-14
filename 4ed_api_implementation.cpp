@@ -26,6 +26,12 @@ fill_buffer_summary(Buffer_Summary *buffer, Editing_File *file, Working_Set *wor
 }
 
 internal void
+fill_buffer_summary(Buffer_Summary *buffer, Editing_File *file, Command_Data *cmd){
+    Working_Set *working_set = &cmd->models->working_set;
+    fill_buffer_summary(buffer, file, working_set);
+}
+
+internal void
 fill_view_summary(View_Summary *view, View *vptr, Live_Views *live_set, Working_Set *working_set){
     i32 lock_level;
     int buffer_id;
@@ -74,6 +80,11 @@ fill_view_summary(View_Summary *view, View *vptr, Live_Views *live_set, Working_
     }
 }
 
+inline void
+fill_view_summary(View_Summary *view, View *vptr, Command_Data *cmd){
+    fill_view_summary(view, vptr, &cmd->vars->live_set, &cmd->models->working_set);
+}
+
 internal Editing_File*
 get_file_from_identifier(System_Functions *system, Working_Set *working_set, Buffer_Identifier buffer){
     i32 buffer_id = buffer.id;
@@ -92,7 +103,7 @@ get_file_from_identifier(System_Functions *system, Working_Set *working_set, Buf
     return(file);
 }
 
-String
+internal String
 make_string_terminated(Partition *part, char *str, int len){
     char *space = (char*)push_array(part, char, len + 1);
     String string = make_string(str, len, len+1);
@@ -100,6 +111,36 @@ make_string_terminated(Partition *part, char *str, int len){
     string.str = space;
     terminate_with_null(&string);
     return(string);
+}
+
+internal Editing_File*
+imp_get_file(Command_Data *cmd, Buffer_Summary *buffer){
+    Editing_File *file = 0;
+    Working_Set *working_set = &cmd->models->working_set;;
+    
+    if (buffer->exists){
+        file = working_set_get_active_file(working_set, buffer->buffer_id);
+        if (file != 0 && !file_is_ready(file)){
+            file = 0;
+        }
+    }
+    
+    return(file);
+}
+
+internal View*
+imp_get_view(Command_Data *cmd, View_Summary *view){
+    View *vptr = 0;
+    Live_Views *live_set = cmd->live_set;
+    int view_id = view->view_id - 1;
+    
+    if (view->exists){
+        if (view_id >= 0 && view_id < live_set->max){
+            vptr = live_set->views + view_id;
+        }
+    }
+    
+    return(vptr);
 }
 
 EXEC_COMMAND_SIG(external_exec_command){
@@ -409,95 +450,92 @@ REFRESH_BUFFER_SIG(external_refresh_buffer){
 BUFFER_SEEK_SIG(external_buffer_seek){
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     Editing_File *file;
-    Working_Set *working_set;
-    int result = 0;
+    int result = false;
     
-    if (buffer->exists){
-        working_set = &cmd->models->working_set;
-        file = working_set_get_active_file(working_set, buffer->buffer_id);
-        if (file && file_is_ready(file)){
-            // TODO(allen): reduce duplication?
-            {
-                i32 size = buffer_size(&file->state.buffer);
-                i32 pos[4] = {0};
-                i32 new_pos = 0;
+    file = imp_get_file(cmd, buffer);
+    
+    if (file){
+        // TODO(allen): reduce duplication?
+        {
+            i32 size = buffer_size(&file->state.buffer);
+            i32 pos[4] = {0};
+            i32 new_pos = 0;
+            
+            if (start_pos < 0){
+                start_pos = 0;
+            }
+            else if (start_pos > size){
+                start_pos = size;
+            }
+            
+            if (seek_forward){
+                for (i32 i = 0; i < ArrayCount(pos); ++i) pos[i] = size;
                 
-                if (start_pos < 0){
-                    start_pos = 0;
-                }
-                else if (start_pos > size){
-                    start_pos = size;
+                if (flags & (1)){
+                    pos[0] = buffer_seek_whitespace_right(&file->state.buffer, start_pos);
                 }
                 
-                if (seek_forward){
-                    for (i32 i = 0; i < ArrayCount(pos); ++i) pos[i] = size;
-                    
-                    if (flags & (1)){
-                        pos[0] = buffer_seek_whitespace_right(&file->state.buffer, start_pos);
-                    }
-                    
-                    if (flags & (1 << 1)){
-                        if (file->state.tokens_complete){
-                            pos[1] = seek_token_right(&file->state.token_stack, start_pos);
-                        }
-                        else{
-                            pos[1] = buffer_seek_whitespace_right(&file->state.buffer, start_pos);
-                        }
-                    }
-                    
-                    if (flags & (1 << 2)){
-                        pos[2] = buffer_seek_alphanumeric_right(&file->state.buffer, start_pos);
-                        if (flags & (1 << 3)){
-                            pos[3] = buffer_seek_range_camel_right(&file->state.buffer, start_pos, pos[2]);
-                        }
+                if (flags & (1 << 1)){
+                    if (file->state.tokens_complete){
+                        pos[1] = seek_token_right(&file->state.token_stack, start_pos);
                     }
                     else{
-                        if (flags & (1 << 3)){
-                            pos[3] = buffer_seek_alphanumeric_or_camel_right(&file->state.buffer, start_pos);
-                        }
+                        pos[1] = buffer_seek_whitespace_right(&file->state.buffer, start_pos);
                     }
-                    
-                    new_pos = size;
-                    for (i32 i = 0; i < ArrayCount(pos); ++i){
-                        if (pos[i] < new_pos) new_pos = pos[i];
+                }
+                
+                if (flags & (1 << 2)){
+                    pos[2] = buffer_seek_alphanumeric_right(&file->state.buffer, start_pos);
+                    if (flags & (1 << 3)){
+                        pos[3] = buffer_seek_range_camel_right(&file->state.buffer, start_pos, pos[2]);
                     }
                 }
                 else{
-                    if (flags & (1)){
-                        pos[0] = buffer_seek_whitespace_left(&file->state.buffer, start_pos);
-                    }
-                    
-                    if (flags & (1 << 1)){
-                        if (file->state.tokens_complete){
-                            pos[1] = seek_token_left(&file->state.token_stack, start_pos);
-                        }
-                        else{
-                            pos[1] = buffer_seek_whitespace_left(&file->state.buffer, start_pos);
-                        }
-                    }
-                    
-                    if (flags & (1 << 2)){
-                        pos[2] = buffer_seek_alphanumeric_left(&file->state.buffer, start_pos);
-                        if (flags & (1 << 3)){
-                            pos[3] = buffer_seek_range_camel_left(&file->state.buffer, start_pos, pos[2]);
-                        }
-                    }
-                    else{
-                        if (flags & (1 << 3)){
-                            pos[3] = buffer_seek_alphanumeric_or_camel_left(&file->state.buffer, start_pos);
-                        }
-                    }
-                    
-                    new_pos = 0;
-                    for (i32 i = 0; i < ArrayCount(pos); ++i){
-                        if (pos[i] > new_pos) new_pos = pos[i];
+                    if (flags & (1 << 3)){
+                        pos[3] = buffer_seek_alphanumeric_or_camel_right(&file->state.buffer, start_pos);
                     }
                 }
-                result = new_pos;
+                
+                new_pos = size;
+                for (i32 i = 0; i < ArrayCount(pos); ++i){
+                    if (pos[i] < new_pos) new_pos = pos[i];
+                }
             }
-            
-            fill_buffer_summary(buffer, file, working_set);
+            else{
+                if (flags & (1)){
+                    pos[0] = buffer_seek_whitespace_left(&file->state.buffer, start_pos);
+                }
+                
+                if (flags & (1 << 1)){
+                    if (file->state.tokens_complete){
+                        pos[1] = seek_token_left(&file->state.token_stack, start_pos);
+                    }
+                    else{
+                        pos[1] = buffer_seek_whitespace_left(&file->state.buffer, start_pos);
+                    }
+                }
+                
+                if (flags & (1 << 2)){
+                    pos[2] = buffer_seek_alphanumeric_left(&file->state.buffer, start_pos);
+                    if (flags & (1 << 3)){
+                        pos[3] = buffer_seek_range_camel_left(&file->state.buffer, start_pos, pos[2]);
+                    }
+                }
+                else{
+                    if (flags & (1 << 3)){
+                        pos[3] = buffer_seek_alphanumeric_or_camel_left(&file->state.buffer, start_pos);
+                    }
+                }
+                
+                new_pos = 0;
+                for (i32 i = 0; i < ArrayCount(pos); ++i){
+                    if (pos[i] > new_pos) new_pos = pos[i];
+                }
+            }
+            result = new_pos;
         }
+        
+        fill_buffer_summary(buffer, file, cmd);
     }
     
     return(result);
@@ -505,22 +543,17 @@ BUFFER_SEEK_SIG(external_buffer_seek){
 
 BUFFER_READ_RANGE_SIG(external_buffer_read_range){
     Command_Data *cmd = (Command_Data*)app->cmd_context;
-    Editing_File *file;
-    Working_Set *working_set;
-    int result = 0;
+    Editing_File *file = imp_get_file(cmd, buffer);
+    int result = false;
     int size;
     
-    if (buffer->exists){
-        working_set = &cmd->models->working_set;
-        file = working_set_get_active_file(working_set, buffer->buffer_id);
-        if (file && file_is_ready(file)){
-            size = buffer_size(&file->state.buffer);
-            if (0 <= start && start <= end && end <= size){
-                result = 1;
-                buffer_stringify(&file->state.buffer, start, end, out);
-            }
-            fill_buffer_summary(buffer, file, working_set);
+    if (file){
+        size = buffer_size(&file->state.buffer);
+        if (0 <= start && start <= end && end <= size){
+            result = true;
+            buffer_stringify(&file->state.buffer, start, end, out);
         }
+        fill_buffer_summary(buffer, file, cmd);
     }
     
     return(result);
@@ -528,131 +561,92 @@ BUFFER_READ_RANGE_SIG(external_buffer_read_range){
 
 BUFFER_REPLACE_RANGE_SIG(external_buffer_replace_range){
     Command_Data *cmd = (Command_Data*)app->cmd_context;
-    Editing_File *file;
-    Working_Set *working_set;
+    Editing_File *file = imp_get_file(cmd, buffer);
     
-    Models *models;
+    int result = false;
+    int size = 0;
+    int next_cursor = 0, pos = 0;
     
-    int result = 0;
-    int size;
-    int next_cursor, pos;
-    
-    if (buffer->exists){
-        models = cmd->models;
-        working_set = &models->working_set;
-        file = working_set_get_active_file(working_set, buffer->buffer_id);
-        if (file && file_is_ready(file)){
-            size = buffer_size(&file->state.buffer);
-            if (0 <= start && start <= end && end <= size){
-                result = 1;
-                
-                pos = file->state.cursor_pos;
-                if (pos < start) next_cursor = pos;
-                else if (pos < end) next_cursor = start;
-                else next_cursor = pos + end - start - len;
-                
-                file_replace_range(cmd->system, models, file, start, end, str, len, next_cursor);
-            }
-            fill_buffer_summary(buffer, file, working_set);
-        }
-    }
-    
-    return(result);
-}
-
-#if 0
-BUFFER_SET_POS_SIG(external_buffer_set_pos){
-    Command_Data *cmd = (Command_Data*)app->cmd_context;
-    Editing_File *file;
-    Working_Set *working_set;
-    
-    int result = 0;
-    int size;
-    
-    if (buffer->exists){
-        working_set = &cmd->models->working_set;
-        file = working_set_get_active_file(working_set, buffer->buffer_id);
-        if (file && file_is_ready(file)){
+    if (file){
+        size = buffer_size(&file->state.buffer);
+        if (0 <= start && start <= end && end <= size){
             result = 1;
-            size = buffer_size(&file->state.buffer);
-            if (pos < 0) pos = 0;
-            if (pos > size) pos = size;
-            file->state.cursor_pos = pos;
-            fill_buffer_summary(buffer, file, working_set);
+            
+            pos = file->state.cursor_pos;
+            if (pos < start) next_cursor = pos;
+            else if (pos < end) next_cursor = start;
+            else next_cursor = pos + end - start - len;
+            
+            file_replace_range(cmd->system, cmd->models,
+                               file, start, end, str, len, next_cursor);
         }
+        fill_buffer_summary(buffer, file, cmd);
     }
     
     return(result);
 }
-#endif
 
 BUFFER_SET_SETTING_SIG(external_buffer_set_setting){
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     System_Functions *system = cmd->system;
     Models *models = cmd->models;
     
-    Editing_File *file;
-    Working_Set *working_set;
+    Editing_File *file = imp_get_file(cmd, buffer);
     
     int result = false;
     
     i32 new_mapid = 0;
     
-    if (buffer->exists){
-        working_set = &models->working_set;
-        file = working_set_get_active_file(working_set, buffer->buffer_id);
-        if (file && file_is_ready(file)){
-            result = true;
-            switch (setting){
-                case BufferSetting_Lex:
-                {
+    if (file){
+        result = true;
+        switch (setting){
+            case BufferSetting_Lex:
+            {
 #if BUFFER_EXPERIMENT_SCALPEL <= 0
-                    if (file->settings.tokens_exist){
-                        if (!value){
-                            file_kill_tokens(system, &models->mem.general, file);
-                        }
+                if (file->settings.tokens_exist){
+                    if (!value){
+                        file_kill_tokens(system, &models->mem.general, file);
+                    }
+                }
+                else{
+                    if (value){
+                        file_first_lex_parallel(system, &models->mem.general, file);
+                    }
+                }
+#endif
+            }break;
+            
+            case BufferSetting_WrapLine:
+            {
+                file->settings.unwrapped_lines = !value;
+            }break;
+            
+            case BufferSetting_MapID:
+            {
+                if (value == mapid_global){
+                    file->settings.base_map_id = mapid_global;
+                }
+                else if (value == mapid_file){
+                    file->settings.base_map_id = mapid_file;
+                }
+                else if (value < mapid_global){
+                    new_mapid = get_map_index(models, value);
+                    if (new_mapid  < models->user_map_count){
+                        file->settings.base_map_id = value;
                     }
                     else{
-                        if (value){
-                            file_first_lex_parallel(system, &models->mem.general, file);
-                        }
-                    }
-#endif
-                }break;
-                
-                case BufferSetting_WrapLine:
-                {
-                    file->settings.unwrapped_lines = !value;
-                }break;
-                
-                case BufferSetting_MapID:
-                {
-                    if (value == mapid_global){
-                        file->settings.base_map_id = mapid_global;
-                    }
-                    else if (value == mapid_file){
                         file->settings.base_map_id = mapid_file;
                     }
-                    else if (value < mapid_global){
-                        new_mapid = get_map_index(models, value);
-                        if (new_mapid  < models->user_map_count){
-                            file->settings.base_map_id = value;
-                        }
-                        else{
-                            file->settings.base_map_id = mapid_file;
-                        }
-                    }
-                    
-                    for (View_Iter iter = file_view_iter_init(&models->layout, file, 0);
-                         file_view_iter_good(iter);
-                         iter = file_view_iter_next(iter)){
-                        iter.view->map = get_map(models, file->settings.base_map_id);
-                    }
-                }break;
-            }
+                }
+                
+                for (View_Iter iter = file_view_iter_init(&models->layout, file, 0);
+                     file_view_iter_good(iter);
+                     iter = file_view_iter_next(iter)){
+                    iter.view->map = get_map(models, file->settings.base_map_id);
+                }
+            }break;
         }
-        
-        fill_buffer_summary(buffer, file, working_set);
+        fill_buffer_summary(buffer, file, cmd);
     }
     
     return(result);
@@ -663,19 +657,14 @@ BUFFER_SAVE_SIG(external_buffer_save){
     System_Functions *system = cmd->system;
     Models *models = cmd->models;
     
-    Editing_File *file;
-    Working_Set *working_set;
+    Editing_File *file = imp_get_file(cmd, buffer);
     
     int result = false;
     
-    if (buffer->exists){
-        working_set = &models->working_set;
-        file = working_set_get_active_file(working_set, buffer->buffer_id);
-        if (file && !file->is_dummy && file_is_ready(file)){
-            result = true;
-            String name = make_string(filename, filename_len);
-            view_save_file(system, models, file, 0, name, 0);
-        }
+    if (file){
+        result = true;
+        String name = make_string(filename, filename_len);
+        view_save_file(system, models, file, 0, name, 0);
     }
     
     return(result);
@@ -689,7 +678,7 @@ GET_VIEW_FIRST_SIG(external_get_view_first){
     Panel *panel = layout->used_sentinel.next;
     
     Assert(panel != &layout->used_sentinel);
-    fill_view_summary(&view, panel->view, &cmd->vars->live_set, &cmd->models->working_set);
+    fill_view_summary(&view, panel->view, cmd);
     
     return(view);
 }
@@ -755,29 +744,24 @@ VIEW_AUTO_TAB_SIG(external_view_auto_tab){
     
     int result = false;
     
-    Live_Views *live_set;
-    Editing_File *file;
-    View *vptr;
-    int view_id;
+    Editing_File *file = 0;
+    View *vptr = imp_get_view(cmd, view);
     
-    if (view->exists){
-        live_set = cmd->live_set;
-        view_id = view->view_id - 1;
-        if (view_id >= 0 && view_id < live_set->max){
-            vptr = live_set->views + view_id;
-            file = vptr->file_data.file;
+    if (vptr){
+        file = vptr->file_data.file;
+        
+        if (file && file->state.token_stack.tokens &&
+            file->state.tokens_complete && !file->state.still_lexing){
+            result = true;
             
-            if (file && file->state.token_stack.tokens &&
-                file->state.tokens_complete && !file->state.still_lexing){
-                result = true;
-                
-                Indent_Options opts;
-                opts.empty_blank_lines = (flags & AutoTab_ClearLine);
-                opts.use_tabs = (flags & AutoTab_UseTab);
-                opts.tab_width = tab_width;
-                
-                view_auto_tab_tokens(system, models, vptr, start, end, opts);
-            }
+            Indent_Options opts;
+            opts.empty_blank_lines = (flags & AutoTab_ClearLine);
+            opts.use_tabs = (flags & AutoTab_UseTab);
+            opts.tab_width = tab_width;
+            
+            view_auto_tab_tokens(system, models, vptr, start, end, opts);
+            
+            fill_view_summary(view, vptr, cmd);
         }
     }
     
@@ -786,25 +770,18 @@ VIEW_AUTO_TAB_SIG(external_view_auto_tab){
 
 VIEW_COMPUTE_CURSOR_SIG(external_view_compute_cursor){
     Command_Data *cmd = (Command_Data*)app->cmd_context;
-    Live_Views *live_set;
-    View *vptr;
-    Editing_File *file;
+    View *vptr = imp_get_view(cmd, view);
+    Editing_File *file = 0;
     Full_Cursor result = {0};
-    int view_id;
     
-    if (view->exists){
-        live_set = cmd->live_set;
-        view_id = view->view_id - 1;
-        if (view_id >= 0 && view_id < live_set->max){
-            vptr = live_set->views + view_id;
-            file = vptr->file_data.file;
-            if (file && !file->is_loading){
-                if (seek.type == buffer_seek_line_char && seek.character <= 0){
-                    seek.character = 1;
-                }
-                result = view_compute_cursor(vptr, seek);
-                fill_view_summary(view, vptr, live_set, &cmd->models->working_set);
+    if (vptr){
+        file = vptr->file_data.file;
+        if (file && !file->is_loading){
+            if (seek.type == buffer_seek_line_char && seek.character <= 0){
+                seek.character = 1;
             }
+            result = view_compute_cursor(vptr, seek);
+            fill_view_summary(view, vptr, cmd);
         }
     }
     
@@ -813,30 +790,23 @@ VIEW_COMPUTE_CURSOR_SIG(external_view_compute_cursor){
 
 VIEW_SET_CURSOR_SIG(external_view_set_cursor){
     Command_Data *cmd = (Command_Data*)app->cmd_context;
-    Live_Views *live_set;
-    View *vptr;
-    Editing_File *file;
-    int result = 0;
-    int view_id;
+    View *vptr = imp_get_view(cmd, view);
+    Editing_File *file = 0;
+    int result = false;
     
-    if (view->exists){
-        live_set = cmd->live_set;
-        view_id = view->view_id - 1;
-        if (view_id >= 0 && view_id < live_set->max){
-            vptr = live_set->views + view_id;
-            file = vptr->file_data.file;
-            if (file && !file->is_loading){
-                result = 1;
-                if (seek.type == buffer_seek_line_char && seek.character <= 0){
-                    seek.character = 1;
-                }
-                vptr->recent->cursor = view_compute_cursor(vptr, seek);
-                if (set_preferred_x){
-                    vptr->recent->preferred_x = view_get_cursor_x(vptr);
-                }
-                fill_view_summary(view, vptr, live_set, &cmd->models->working_set);
-                file->state.cursor_pos = vptr->recent->cursor.pos;
+    if (vptr){
+        file = vptr->file_data.file;
+        if (file && !file->is_loading){
+            result = true;
+            if (seek.type == buffer_seek_line_char && seek.character <= 0){
+                seek.character = 1;
             }
+            vptr->recent->cursor = view_compute_cursor(vptr, seek);
+            if (set_preferred_x){
+                vptr->recent->preferred_x = view_get_cursor_x(vptr);
+            }
+            fill_view_summary(view, vptr, cmd);
+            file->state.cursor_pos = vptr->recent->cursor.pos;
         }
     }
     
@@ -845,27 +815,20 @@ VIEW_SET_CURSOR_SIG(external_view_set_cursor){
 
 VIEW_SET_MARK_SIG(external_view_set_mark){
     Command_Data *cmd = (Command_Data*)app->cmd_context;
-    Live_Views *live_set;
-    View *vptr;
-    Full_Cursor cursor;
-    int result = 0;
-    int view_id;
+    View *vptr = imp_get_view(cmd, view);
+    Full_Cursor cursor = {0};
+    int result = false;
     
-    if (view->exists){
-        live_set = cmd->live_set;
-        view_id = view->view_id - 1;
-        if (view_id >= 0 && view_id < live_set->max){
-            vptr = live_set->views + view_id;
-            result = 1;
-            if (seek.type != buffer_seek_pos){
-                cursor = view_compute_cursor(vptr, seek);
-                vptr->recent->mark = cursor.pos;
-            }
-            else{
-                vptr->recent->mark = seek.pos;
-            }
-            fill_view_summary(view, vptr, live_set, &cmd->models->working_set);
+    if (vptr){
+        result = true;
+        if (seek.type != buffer_seek_pos){
+            cursor = view_compute_cursor(vptr, seek);
+            vptr->recent->mark = cursor.pos;
         }
+        else{
+            vptr->recent->mark = seek.pos;
+        }
+        fill_view_summary(view, vptr, cmd);
     }
     
     return(result);
@@ -873,25 +836,18 @@ VIEW_SET_MARK_SIG(external_view_set_mark){
 
 VIEW_SET_HIGHLIGHT_SIG(external_view_set_highlight){
     Command_Data *cmd = (Command_Data*)app->cmd_context;
-    Live_Views *live_set;
-    View *vptr;
-    int result = 0;
-    int view_id;
+    View *vptr = imp_get_view(cmd, view);
+    int result = false;
     
-    if (view->exists){
-        live_set = cmd->live_set;
-        view_id = view->view_id - 1;
-        if (view_id >= 0 && view_id < live_set->max){
-            vptr = live_set->views + view_id;
-            result = 1;
-            if (turn_on){
-                view_set_temp_highlight(vptr, start, end);
-            }
-            else{
-                vptr->file_data.show_temp_highlight = 0;
-            }
-            fill_view_summary(view, vptr, live_set, &cmd->models->working_set);
+    if (vptr){
+        result = true;
+        if (turn_on){
+            view_set_temp_highlight(vptr, start, end);
         }
+        else{
+            vptr->file_data.show_temp_highlight = 0;
+        }
+        fill_view_summary(view, vptr, cmd);
     }
     
     return(result);
@@ -899,33 +855,23 @@ VIEW_SET_HIGHLIGHT_SIG(external_view_set_highlight){
 
 VIEW_SET_BUFFER_SIG(external_view_set_buffer){
     Command_Data *cmd = (Command_Data*)app->cmd_context;
-    Live_Views *live_set;
-    View *vptr;
-    Editing_File *file;
-    Working_Set *working_set;
-    Models *models;
-    int result = 0;
-    int view_id;
+    View *vptr = imp_get_view(cmd, view);
+    Models *models = cmd->models;
+    Editing_File *file = 0;
+    int result = false;
     
-    if (view->exists){
-        models = cmd->models;
-        live_set = cmd->live_set;
-        view_id = view->view_id - 1;
-        if (view_id >= 0 && view_id < live_set->max){
-            vptr = live_set->views + view_id;
-            working_set = &models->working_set;
-            file = working_set_get_active_file(working_set, buffer_id);
-            
-            if (file){
-                result = 1;
-                if (file != vptr->file_data.file){
-                    view_set_file(vptr, file, models);
-                    view_show_file(vptr);
-                }
+    if (vptr){
+        file = working_set_get_active_file(&models->working_set, buffer_id);
+        
+        if (file){
+            result = true;
+            if (file != vptr->file_data.file){
+                view_set_file(vptr, file, models);
+                view_show_file(vptr);
             }
-            
-            fill_view_summary(view, vptr, live_set, working_set);
         }
+        
+        fill_view_summary(view, vptr, cmd);
     }
     
     return(result);
@@ -933,72 +879,37 @@ VIEW_SET_BUFFER_SIG(external_view_set_buffer){
 
 VIEW_POST_FADE_SIG(external_view_post_fade){
     Command_Data *cmd = (Command_Data*)app->cmd_context;
-    
-    Live_Views *live_set;
-    View *vptr;
-    Models *models;
-    int view_id;
+    View *vptr = imp_get_view(cmd, view);
     
     int result = false;
     
-    if (view->exists){
-        models = cmd->models;
-        live_set = cmd->live_set;
-        view_id = view->view_id - 1;
-        if (view_id >= 0 && view_id < live_set->max){
-            vptr = live_set->views + view_id;
-            
-            if (end > start){
-                int size = end - start;
-                result = true;
-                view_post_paste_effect(vptr, ticks, start, size, color);
-            }
+    int size = end - start;
+    
+    if (vptr){
+        if (size > 0){
+            result = true;
+            view_post_paste_effect(vptr, ticks, start, size, color);
         }
     }
     
     return(result);
 }
 
-// TODO(allen): standardize the safe get view/buffer code
 VIEW_SET_PASTE_REWRITE__SIG(external_view_set_paste_rewrite_){
     Command_Data *cmd = (Command_Data*)app->cmd_context;
-    
-    Live_Views *live_set;
-    View *vptr;
-    Models *models;
-    int view_id;
-    
-    if (view->exists){
-        models = cmd->models;
-        live_set = cmd->live_set;
-        view_id = view->view_id - 1;
-        if (view_id >= 0 && view_id < live_set->max){
-            vptr = live_set->views + view_id;
-            vptr->next_mode.rewrite = true;
-        }
+    View *vptr = imp_get_view(cmd, view);
+    if (vptr){
+        vptr->next_mode.rewrite = true;
     }
 }
 
 VIEW_GET_PASTE_REWRITE__SIG(external_view_get_paste_rewrite_){
     Command_Data *cmd = (Command_Data*)app->cmd_context;
-    
-    Live_Views *live_set;
-    View *vptr;
-    Models *models;
-    int view_id;
-    
+    View *vptr = imp_get_view(cmd, view);
     int result = false;
-    
-    if (view->exists){
-        models = cmd->models;
-        live_set = cmd->live_set;
-        view_id = view->view_id - 1;
-        if (view_id >= 0 && view_id < live_set->max){
-            vptr = live_set->views + view_id;
-            result = vptr->mode.rewrite;
-        }
+    if (vptr){
+        result = vptr->mode.rewrite;
     }
-    
     return(result);
 }
 
@@ -1014,7 +925,8 @@ VIEW_OPEN_FILE_SIG(external_view_open_file){
     
     int result = false;
     
-    // TODO(allen): do in background option
+    // TODO(allen): do in background
+    // option happens in parallel.
     
     Partition *part = &models->mem.part;
     Temp_Memory temp = begin_temp_memory(part);
@@ -1045,28 +957,19 @@ VIEW_OPEN_FILE_SIG(external_view_open_file){
 VIEW_KILL_BUFFER_SIG(external_view_kill_buffer){
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     System_Functions *system = cmd->system;
-    Live_Views *live_set;
-    View *vptr;
-    Editing_File *file;
-    Working_Set *working_set;
-    Models *models;
+    Models *models = cmd->models;
+    Working_Set *working_set = &models->working_set;
+    View *vptr = imp_get_view(cmd, view);
+    Editing_File *file = 0;
     int result = false;
-    int view_id;
     
-    if (view->exists){
-        models = cmd->models;
-        live_set = cmd->live_set;
-        view_id = view->view_id - 1;
-        if (view_id >= 0 && view_id < live_set->max){
-            vptr = live_set->views + view_id;
-            working_set = &models->working_set;
-            file = get_file_from_identifier(system, working_set, buffer);
-            
-            if (file){
-                result = true;
-                try_kill_file(system, models, file, vptr, string_zero());
-                fill_view_summary(view, vptr, live_set, working_set);
-            }
+    if (vptr){
+        file = get_file_from_identifier(system, working_set, buffer);
+        
+        if (file){
+            result = true;
+            try_kill_file(system, models, file, vptr, string_zero());
+            fill_view_summary(view, vptr, cmd);
         }
     }
     

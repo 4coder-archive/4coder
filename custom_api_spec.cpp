@@ -27,7 +27,6 @@ Buffer_Summary Get_Buffer_By_Name(Application_Links *app, char *filename, int le
 int Refresh_Buffer(Application_Links *app, Buffer_Summary *buffer);
 int Buffer_Read_Range(Application_Links *app, Buffer_Summary *buffer, int start, int end, char *out);
 int Buffer_Replace_Range(Application_Links *app, Buffer_Summary *buffer, int start, int end, char *str, int len);
-//int Buffer_Set_Pos(Application_Links *app, Buffer_Summary *buffer, int pos);
 
 int Buffer_Seek(Application_Links *app, Buffer_Summary *buffer, int start_pos, int seek_forward, unsigned int flags);
 int Buffer_Set_Setting(Application_Links *app, Buffer_Summary *buffer, int setting, int value);
