@@ -2146,6 +2146,11 @@ LinuxHandleX11Events(void)
                 if(key         == '\r') key         = '\n';
                 if(key_no_caps == '\r') key_no_caps = '\n';
 
+                // don't push modifiers
+                if(keysym >= XK_Shift_L && keysym <= XK_Hyper_R){
+                    break;
+                }
+
                 if(keysym == XK_ISO_Left_Tab){
                     key = key_no_caps = '\t';
                     mods[MDFR_SHIFT_INDEX] = 1;
