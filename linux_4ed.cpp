@@ -2795,23 +2795,19 @@ main(int argc, char **argv)
 
                 case LINUX_4ED_EVENT_STEP: {
                     u64 ev;
-                    while(read(linuxvars.step_event_fd, &ev, 8) == -1){
-                        if(errno != EINTR && errno != EAGAIN){
-                            perror("eventfd read");
-                            break;
-                        }
-                    }
+                    int ret;
+                    do {
+                        ret = read(linuxvars.step_event_fd, &ev, 8);
+                    } while(ret != -1 || errno != EAGAIN);
                     do_step = 1;
                 } break;
 
                 case LINUX_4ED_EVENT_STEP_TIMER: {
                     u64 count;
-                    while(read(linuxvars.step_timer_fd, &count, 8) == -1){
-                        if(errno != EINTR && errno != EAGAIN){
-                            perror("timerfd read");
-                            break;
-                        }
-                    }
+                    int ret;
+                    do {
+                        ret = read(linuxvars.step_timer_fd, &count, 8);
+                    } while(ret != -1 || errno != EAGAIN);
                     do_step = 1;
                 } break;
 
