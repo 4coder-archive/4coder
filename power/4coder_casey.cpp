@@ -520,7 +520,8 @@ SwitchToOrLoadFile(struct Application_Links *app, String FileName, bool CreateIf
 #endif
             
             // NOTE(allen): This opens the file and puts it in &view
-            app->view_open_file(app, &view, expand_str(FileName), false);
+            // This returns false if the open fails.
+            view_open_file(app, &view, expand_str(FileName), false);
             
             Result.buffer = app->get_buffer_by_name(app, FileName.str, FileName.size);            
             
@@ -655,7 +656,7 @@ CUSTOM_COMMAND_SIG(casey_save_and_make_without_asking)
         exec_command(app, cmdid_save);
 #endif
         
-        app->buffer_save(app, &buffer, buffer.file_name, buffer.file_name_len);
+        app->save_buffer(app, &buffer, buffer.file_name, buffer.file_name_len);
     }
 
 #if 0
@@ -1153,7 +1154,7 @@ OpenProject(Application_Links *app, char *ProjectFileName)
                         exec_command(app, cmdid_interactive_open);
 #endif
                         
-                        app->view_open_file(app, 0, dir.str, dir.size, true);
+                        view_open_file(app, 0, dir.str, dir.size, true);
                         ++TotalOpenAttempts;
                     }
                 }

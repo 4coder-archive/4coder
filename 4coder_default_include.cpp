@@ -784,7 +784,7 @@ CUSTOM_COMMAND_SIG(open_file_in_quotes){
         append(&file_name, make_string(short_file_name, size));
         
         exec_command(app, cmdid_change_active_panel);
-        app->view_open_file(app, &view, expand_str(file_name), false);
+        view_open_file(app, &view, expand_str(file_name), false);
     }
 }
 
@@ -1065,10 +1065,8 @@ CUSTOM_COMMAND_SIG(close_all_code){
         }
     }
     
-    View_Summary view = app->get_active_view(app);
-    
     for (int i = 0; i < buffers_to_close_count; ++i){
-        app->view_kill_buffer(app, &view, buffer_identifier(buffers_to_close[i]));
+        app->kill_buffer(app, buffer_identifier(buffers_to_close[i]), true, 0);
     }
 }
 

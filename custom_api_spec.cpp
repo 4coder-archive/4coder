@@ -31,7 +31,9 @@ int Buffer_Replace_Range(Application_Links *app, Buffer_Summary *buffer, int sta
 int Buffer_Seek(Application_Links *app, Buffer_Summary *buffer, int start_pos, int seek_forward, unsigned int flags);
 int Buffer_Set_Setting(Application_Links *app, Buffer_Summary *buffer, int setting, int value);
 
-int Buffer_Save(Application_Links *app, Buffer_Summary *buffer, char *filename, int filename_len);
+Buffer_Summary Create_Buffer(Application_Links *app, char *filename, int filename_len, int do_in_background);
+int Save_Buffer(Application_Links *app, Buffer_Summary *buffer, char *filename, int filename_len);
+int Kill_Buffer(Application_Links *app, Buffer_Identifier buffer, int always_kill, int view_id);
 
 // View manipulation
 View_Summary Get_View_First(Application_Links *app);
@@ -56,10 +58,6 @@ int View_Post_Fade(Application_Links *app, View_Summary *view, int ticks, int st
 // Get rid of this temporary hack ass soon ass possible.
 void View_Set_Paste_Rewrite_(Application_Links *app, View_Summary *view);
 int View_Get_Paste_Rewrite_(Application_Links *app, View_Summary *view);
-
-// TODO(allen): Make sure this is just right.
-int View_Open_File(Application_Links *app, View_Summary *view, char *filename, int filename_len, int do_in_background);
-int View_Kill_Buffer(Application_Links *app, View_Summary *view, Buffer_Identifier buffer);
 
 // Directly get user input
 User_Input Get_User_Input(Application_Links *app, unsigned int get_type, unsigned int abort_type);

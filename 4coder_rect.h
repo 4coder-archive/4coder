@@ -31,7 +31,7 @@ i32R(int32_t l, int32_t t, int32_t r, int32_t b){
     i32_Rect rect;
     rect.x0 = l; rect.y0 = t;
     rect.x1 = r; rect.y1 = b;
-    return rect;
+    return(rect);
 }
 
 inline i32_Rect
@@ -41,7 +41,7 @@ i32R(f32_Rect r){
     rect.y0 = (int32_t)r.y0;
     rect.x1 = (int32_t)r.x1;
     rect.y1 = (int32_t)r.y1;
-    return rect;
+    return(rect);
 }
 
 inline i32_Rect
@@ -49,7 +49,7 @@ i32XYWH(int32_t x, int32_t y, int32_t w, int32_t h){
     i32_Rect rect;
     rect.x0 = x; rect.y0 = y;
     rect.x1 = x+w; rect.y1 = y+h;
-    return rect;
+    return(rect);
 }
 
 inline f32_Rect
@@ -57,7 +57,7 @@ f32R(float l, float t, float r, float b){
     f32_Rect rect;
     rect.x0 = l; rect.y0 = t;
     rect.x1 = r; rect.y1 = b;
-    return rect;
+    return(rect);
 }
 
 inline f32_Rect
@@ -67,7 +67,7 @@ f32R(i32_Rect r){
     rect.y0 = (float)r.y0;
     rect.x1 = (float)r.x1;
     rect.y1 = (float)r.y1;
-    return rect;
+    return(rect);
 }
 
 inline f32_Rect
@@ -75,7 +75,7 @@ f32XYWH(float x, float y, float w, float h){
     f32_Rect rect;
     rect.x0 = x; rect.y0 = y;
     rect.x1 = x+w; rect.y1 = y+h;
-    return rect;
+    return(rect);
 }
 
 inline int

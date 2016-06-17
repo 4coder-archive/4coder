@@ -103,7 +103,7 @@ typedef struct File_List{
     int block_size;
 } File_List;
 
-// NOTE(allen|a4.0.7): This is used to identify which buffer
+// NOTE(allen|a4.0.8): This is used to identify which buffer
 // an operation should work on when you might want to
 // identify it by id or by name.
 typedef struct Buffer_Identifier{
@@ -117,6 +117,8 @@ enum Command_ID{
     
     cmdid_center_view,
     cmdid_left_adjust_view,
+    cmdid_page_up,
+    cmdid_page_down,
     
     cmdid_word_complete,
     
@@ -124,6 +126,18 @@ enum Command_ID{
     cmdid_redo,
     cmdid_history_backward,
     cmdid_history_forward,
+    
+    cmdid_to_uppercase,
+    cmdid_to_lowercase,
+    
+    cmdid_toggle_line_wrap,
+    cmdid_toggle_show_whitespace,
+    cmdid_clean_all_lines,
+    cmdid_eol_dosify,
+    cmdid_eol_nixify,
+    
+    cmdid_hide_scrollbar,
+    cmdid_show_scrollbar,
     
     cmdid_interactive_new,
     cmdid_interactive_open,
@@ -134,31 +148,15 @@ enum Command_ID{
     cmdid_interactive_kill_buffer,
     cmdid_kill_buffer,
     
-    cmdid_to_uppercase,
-    cmdid_to_lowercase,
-    
-    cmdid_toggle_line_wrap,
-    cmdid_toggle_show_whitespace,
-    
-    cmdid_clean_all_lines,
-    cmdid_eol_dosify,
-    cmdid_eol_nixify,
-    
-    cmdid_open_panel_vsplit,
-    cmdid_open_panel_hsplit,
-    cmdid_close_panel,
-    cmdid_change_active_panel,
-    
-    cmdid_page_up,
-    cmdid_page_down,
-    
     cmdid_open_color_tweaker,
     cmdid_open_config,
     cmdid_open_menu,
     cmdid_open_debug,
     
-    cmdid_hide_scrollbar,
-    cmdid_show_scrollbar,
+    cmdid_open_panel_vsplit,
+    cmdid_open_panel_hsplit,
+    cmdid_close_panel,
+    cmdid_change_active_panel,
     
     //
     cmdid_count

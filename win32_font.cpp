@@ -9,25 +9,36 @@
 
 // TOP
 
-struct Glyph_Bitmap{
-    HBITMAP bitmap_handle;
-    char *pixels;
+struct GMetrics{
+    f32 advance;
+    f32 xoff;
+    f32 xoff2;
 };
 
-void
-win32_get_box(HDC dc, TCHAR character, int *x0, int *y0, int *x1, int *y1){
-    SIZE size;
-    GetTextExtentPoint32A(dc, &character, 1, &size);
-    *x0 = 0;
-    *y0 = 0;
-    *x1 = size.cx;
-    *y1 = size.cy;
+internal b32
+win32_glyph_metrics(HDC dc, int code, GMetrics *gmetrics){
+    b32 result = false;
+    ABCFLOAT abc = {0};
+    INT width;
+    
+    if (GetCharWidth32W(dc, code, code, &width)){
+        gmetrics->advance = (f32)width;
+        if (GetCharABCWidthsFloat(dc, code, code, &abc)){
+            gmetrics->xoff = abc.abcfA;
+            gmetrics->xoff2 = (abc.abcfA + abc.abcfB);
+            
+            result = true;
+        }
+    }
+    
+    return(result);
 }
 
 internal i32
 win32_draw_font_load(Partition *part,
                      Render_Font *font_out,
                      char *filename_untranslated,
+                     char *fontname,
                      i32 pt_size,
                      i32 tab_width,
                      i32 oversample,
@@ -36,77 +47,127 @@ win32_draw_font_load(Partition *part,
     char space_[1024];
     String filename = make_fixed_width_string(space_);
     b32 translate_success = sysshared_to_binary_path(&filename, filename_untranslated);
-    if (!translate_success) return 0;
     
     i32 result = 0;
     
-    AddFontResourceEx(filename.str, FR_PRIVATE, 0);
-    
-    HFONT font_handle =
-        CreateFontA(pt_size, 0, 0, 0,
-                    FW_NORMAL, // WEIGHT
-                    FALSE,     // ITALICS
-                    FALSE,     // UNDERLINE
-                    FALSE,     // STRIKE-OUT
-                    ANSI_CHARSET,
-                    OUT_DEFAULT_PRECIS,
-                    CLIP_DEFAULT_PRECIS,
-                    ANTIALIASED_QUALITY,
-                    DEFAULT_PITCH|FF_DONTCARE,
-                    filename.str);
-    
-    if (font_handle){
-        HDC dc = CreateCompatibleDC(0);
+    if (translate_success){
+        HDC dc = GetDC(win32vars.window_handle);
         
-        if (dc){
-            TEXTMETRIC metrics;
-            GetTextMetrics(dc, &metrics);
-            font_out->height = metrics.tmHeight + metrics.tmExternalLeading;
-            font_out->ascent = metrics.tmAscent;
-            font_out->descent = -metrics.tmDescent;
-            font_out->line_skip = metrics.tmExternalLeading;
-            font_out->advance = metrics.tmMaxCharWidth;
+        AddFontResourceEx(filename.str, FR_PRIVATE, 0);
+        
+        HFONT font_handle = CreateFont(
+            pt_size,
+            0,
+            0,
+            0,
+            FW_NORMAL,
+            FALSE,
+            FALSE,
+            FALSE,
+            ANSI_CHARSET,
+            OUT_DEFAULT_PRECIS,
+            CLIP_DEFAULT_PRECIS,
+            DEFAULT_QUALITY,
+            FF_DONTCARE | DEFAULT_PITCH,
+            fontname
+            );
+        HBITMAP bmp_handle = CreateBitmap(
+            pt_size*2, pt_size*2,
+            4, 32,
+            0
+            );
+        
+        
+        if (font_handle != 0 && bmp_handle != 0){
+            SelectObject(dc, font_handle);
+            SelectObject(dc, bmp_handle);
             
-            result = 1;
-            if (store_texture){
-                Temp_Memory temp = begin_temp_memory(part);
+            memset(font_out, 0, sizeof(*font_out));
+            
+            TEXTMETRIC metric;
+            if (GetTextMetrics(dc, &metric)){
                 
-                i32 tex_width = pt_size*16*oversample;
-                i32 tex_height = pt_size*16*oversample;
+                font_out->height = (i32)(metric.tmHeight + metric.tmExternalLeading);
+                font_out->ascent = (i32)(metric.tmAscent);
+                font_out->descent = (i32)(metric.tmDescent);
+                font_out->line_skip = (i32)(metric.tmExternalLeading);
                 
-                Glyph_Bitmap glyph_bitmap;
-                glyph_bitmap.bitmap_handle = CreateCompatibleBitmap(dc, tex_width, tex_height);
-                glyph_bitmap.pixels = push_array(part, char, tex_width*tex_height);
-                
-                SelectObject(dc, glyph_bitmap.bitmap_handle);
-                SelectObject(dc, font_handle);
-                
-                SetBkColor(dc, RGB(0, 0, 0));
-                
-                stbtt_pack_context context = {0};
-                stbtt_PackBegin(&context, (unsigned char*)glyph_bitmap.pixels, tex_width, tex_height, 0, 1, part);
-                
-                {
-                    stbtt_pack_context *spc = &context;
-                    int first_unicode_char_in_range = 0;
-                    int num_chars_in_range = 128;
-                    stbtt_packedchar *chardata_for_range = font_out->chardata;
+                if (!store_texture){
+                    result = 1;
+                }
+                else{
+                    Temp_Memory temp = begin_temp_memory(part);
                     
+                    i32 tex_width = pt_size*16;
+                    i32 tex_height = pt_size*16;
+                    void *block = sysshared_push_block(part, tex_width * tex_height);
+                    
+                    font_out->tex_width = tex_width;
+                    font_out->tex_height = tex_height;
+                    
+                    result = 1;
+                    /////////////////////////////////////////////////////////////////
+                    stbtt_pack_context spc_;
+                    
+                    int pack_result;
                     {
-                        stbtt_pack_range range;
-                        range.first_unicode_char_in_range = first_unicode_char_in_range;
-                        range.num_chars_in_range          = num_chars_in_range;
-                        range.chardata_for_range          = chardata_for_range;
+                        stbtt_pack_context *spc = &spc_;
+                        unsigned char  *pixels = (u8*)block;
+                        int pw = tex_width;
+                        int ph = tex_height;
+                        int stride_in_bytes = tex_width;
+                        int padding = 1;
+                        void *alloc_context = part;
                         
                         {
+                            stbrp_context *context = (stbrp_context *) STBTT_malloc(sizeof(*context)            ,alloc_context);
+                            int            num_nodes = pw - padding;
+                            stbrp_node    *nodes   = (stbrp_node    *) STBTT_malloc(sizeof(*nodes  ) * num_nodes,alloc_context);
+                            
+                            if (context == NULL || nodes == NULL) {
+                                if (context != NULL) STBTT_free(context, alloc_context);
+                                if (nodes   != NULL) STBTT_free(nodes  , alloc_context);
+                                pack_result = 0;
+                                goto packbegin_end;
+                            }
+                            
+                            spc->user_allocator_context = alloc_context;
+                            spc->width = pw;
+                            spc->height = ph;
+                            spc->pixels = pixels;
+                            spc->pack_info = context;
+                            spc->nodes = nodes;
+                            spc->padding = padding;
+                            spc->stride_in_bytes = stride_in_bytes != 0 ? stride_in_bytes : pw;
+                            spc->h_oversample = 1;
+                            spc->v_oversample = 1;
+                            
+                            stbrp_init_target(context, pw-padding, ph-padding, nodes, num_nodes);
+                            
+                            STBTT_memset(pixels, 0, pw*ph); // background of 0 around pixels
+                            
+                            pack_result = 1;
+                            goto packbegin_end;
+                        }
+                    }
+                    packbegin_end:;
+                    
+                    if (pack_result){
+                        
+                        int pack_font_range_result;
+                        
+                        {
+                            stbtt_pack_range range;
+                            range.first_unicode_char_in_range = 0;
+                            range.num_chars_in_range          = 128;
+                            range.chardata_for_range          = font_out->chardata;
+                            range.font_size                   = STBTT_POINT_SIZE((f32)pt_size);
+                            
+                            stbtt_pack_context *spc = &spc_;
                             stbtt_pack_range *ranges = &range;
                             int num_ranges = 1;
                             
                             {
-                                float recip_h = 1.0f / spc->h_oversample;
-                                float recip_v = 1.0f / spc->v_oversample;
-                                float sub_x = stbtt__oversample_shift(spc->h_oversample);
-                                float sub_y = stbtt__oversample_shift(spc->v_oversample);
                                 int i,j,k,n, return_value = 1;
                                 stbrp_context *context = (stbrp_context *) spc->pack_info;
                                 stbrp_rect    *rects;
@@ -124,19 +185,32 @@ win32_draw_font_load(Partition *part,
                                     n += ranges[i].num_chars_in_range;
                                 
                                 rects = (stbrp_rect *) STBTT_malloc(sizeof(*rects) * n, spc->user_allocator_context);
-                                if (rects == NULL)
-                                    return 0;
+                                if (rects == NULL){
+                                    pack_font_range_result = 0;
+                                    goto pack_font_range_end;
+                                }
                                 
+                                //info.userdata = spc->user_allocator_context;
+                                //stbtt_InitFont(&info, fontdata, stbtt_GetFontOffsetForIndex(fontdata,font_index));
                                 k=0;
                                 for (i=0; i < num_ranges; ++i) {
+                                    //float fh = ranges[i].font_size;
+                                    //float scale = fh > 0 ? stbtt_ScaleForPixelHeight(&info, fh) : stbtt_ScaleForMappingEmToPixels(&info, -fh);
                                     for (j=0; j < ranges[i].num_chars_in_range; ++j) {
-                                        int x0,y0,x1,y1;
+                                        int w,h;
                                         
-                                        TCHAR character = (TCHAR)(ranges[i].first_unicode_char_in_range + j);
-                                        win32_get_box(dc, character, &x0, &y0, &x1, &y1);
+                                        GMetrics gmetrics;
                                         
-                                        rects[k].w = (stbrp_coord) (x1-x0 + spc->padding + spc->h_oversample-1);
-                                        rects[k].h = (stbrp_coord) (y1-y0 + spc->padding + spc->v_oversample-1);
+                                        if (!win32_glyph_metrics(dc, ranges[i].first_unicode_char_in_range + j, &gmetrics)){
+                                            result = 0;
+                                            break;
+                                        }
+                                        
+                                        w = CEIL32(gmetrics.xoff2 - gmetrics.xoff);
+                                        h = font_out->ascent + font_out->descent;
+                                        
+                                        rects[k].w = (stbrp_coord) (w + spc->padding);
+                                        rects[k].h = (stbrp_coord) (h + spc->padding);
                                         ++k;
                                     }
                                 }
@@ -145,18 +219,15 @@ win32_draw_font_load(Partition *part,
                                 
                                 k = 0;
                                 for (i=0; i < num_ranges; ++i) {
+                                    //float fh = ranges[i].font_size;
+                                    //float scale = fh > 0 ? stbtt_ScaleForPixelHeight(&info, fh) : stbtt_ScaleForMappingEmToPixels(&info, -fh);
                                     for (j=0; j < ranges[i].num_chars_in_range; ++j) {
                                         stbrp_rect *r = &rects[k];
                                         if (r->was_packed) {
                                             stbtt_packedchar *bc = &ranges[i].chardata_for_range[j];
-                                            int advance, x0,y0,x1,y1;
-                                            int glyph = ranges[i].first_unicode_char_in_range + j;
+                                            //int glyph = stbtt_FindGlyphIndex(&info, ranges[i].first_unicode_char_in_range + j);
+                                            int code = ranges[i].first_unicode_char_in_range + j;
                                             stbrp_coord pad = (stbrp_coord) spc->padding;
-                                            
-                                            GetCharWidth32W(dc, glyph, glyph, &advance);
-                                            
-                                            TCHAR character = (TCHAR)(ranges[i].first_unicode_char_in_range + j);
-                                            win32_get_box(dc, character, &x0, &y0, &x1, &y1);
                                             
                                             // pad on left and top
                                             r->x += pad;
@@ -164,28 +235,49 @@ win32_draw_font_load(Partition *part,
                                             r->w -= pad;
                                             r->h -= pad;
                                             
-                                            SetTextColor(dc, RGB(255, 255, 255));
-                                            TextOutA(dc, r->x, r->y, &character, 1);
+#if 0
+                                            int advance, lsb, x0,y0,x1,y1;
                                             
-                                            if (spc->h_oversample > 1)
-                                                stbtt__h_prefilter(spc->pixels + r->x + r->y*spc->stride_in_bytes,
-                                                                   r->w, r->h, spc->stride_in_bytes,
-                                                                   spc->h_oversample);
+                                            stbtt_GetGlyphHMetrics(&info, glyph, &advance, &lsb);
+                                            stbtt_GetGlyphBitmapBox(&info, glyph,
+                                                                    scale * spc->h_oversample,
+                                                                    scale * spc->v_oversample,
+                                                                    &x0,&y0,&x1,&y1);
+                                            stbtt_MakeGlyphBitmapSubpixel(&info,
+                                                                          spc->pixels + r->x + r->y*spc->stride_in_bytes,
+                                                                          r->w - spc->h_oversample+1,
+                                                                          r->h - spc->v_oversample+1,
+                                                                          spc->stride_in_bytes,
+                                                                          scale * spc->h_oversample,
+                                                                          scale * spc->v_oversample,
+                                                                          0,0,
+                                                                          glyph);
+#else
+                                            float advance, x0, y0, x1, y1;
                                             
-                                            if (spc->v_oversample > 1)
-                                                stbtt__v_prefilter(spc->pixels + r->x + r->y*spc->stride_in_bytes,
-                                                                   r->w, r->h, spc->stride_in_bytes,
-                                                                   spc->v_oversample);
+                                            GMetrics gmetrics;
+                                            if (!win32_glyph_metrics(dc, code, &gmetrics)){
+                                                result = false;
+                                                break;
+                                            }
+                                            
+                                            advance = gmetrics.advance;
+                                            x0 = gmetrics.xoff;
+                                            y0 = -font_out->ascent;
+                                            x1 = gmetrics.xoff2;
+                                            y1 = font_out->descent;
+                                            
+#endif
                                             
                                             bc->x0       = (stbtt_int16)  r->x;
                                             bc->y0       = (stbtt_int16)  r->y;
                                             bc->x1       = (stbtt_int16) (r->x + r->w);
                                             bc->y1       = (stbtt_int16) (r->y + r->h);
-                                            bc->xadvance =                (float) advance;
-                                            bc->xoff     =       (float)  x0 * recip_h + sub_x;
-                                            bc->yoff     =       (float)  y0 * recip_v + sub_y;
-                                            bc->xoff2    =                (x0 + r->w) * recip_h + sub_x;
-                                            bc->yoff2    =                (y0 + r->h) * recip_v + sub_y;
+                                            bc->xadvance =       (float)  advance;
+                                            bc->xoff     =       (float)  x0;
+                                            bc->yoff     =       (float)  y0;
+                                            bc->xoff2    =       (float)  (x0 + r->w);
+                                            bc->yoff2    =       (float)  (y0 + r->h);
                                         } else {
                                             return_value = 0; // if any fail, report failure
                                         }
@@ -195,40 +287,68 @@ win32_draw_font_load(Partition *part,
                                 }
                                 
                                 STBTT_free(rects, spc->user_allocator_context);
-                                
-                                result = return_value;
-                                
-                                if (return_value){
-                                    GLuint font_tex;
-                                    glGenTextures(1, &font_tex);
-                                    glBindTexture(GL_TEXTURE_2D, font_tex);
-                                    
-                                    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-                                    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-                                    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-                                    
-                                    glTexImage2D(GL_TEXTURE_2D, 0, GL_ALPHA, tex_width, tex_height, 0, GL_ALPHA, GL_UNSIGNED_BYTE, glyph_bitmap.pixels);
-                                    
-                                    font_out->tex = font_tex;
-                                    glBindTexture(GL_TEXTURE_2D, 0);
-                                    
-                                    font_out->chardata['\r'] = font_out->chardata[' '];
-                                    font_out->chardata['\n'] = font_out->chardata[' '];
-                                    font_out->chardata['\t'] = font_out->chardata[' '];
-                                    font_out->chardata['\t'].xadvance *= tab_width;
-                                }
+                                pack_font_range_result =  return_value;
+                                goto pack_font_range_end;
+                            }
+                        }
+                        pack_font_range_end:;
+                        
+                        
+                        if (!pack_font_range_result){
+                            result = 0;
+                        }
+                        
+                        {
+                            stbtt_pack_context *spc = &spc_;
+                            {
+                                STBTT_free(spc->nodes    , spc->user_allocator_context);
+                                STBTT_free(spc->pack_info, spc->user_allocator_context);
                             }
                         }
                     }
+                    else{
+                        result = 0;
+                    }
+                    /////////////////////////////////////////////////////////////////
+                    
+                    if (result){
+                        GLuint font_tex;
+                        glGenTextures(1, &font_tex);
+                        glBindTexture(GL_TEXTURE_2D, font_tex);
+                        
+                        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+                        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+                        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+                        
+                        memset(block, 0xFF, tex_width*tex_height);
+                        
+                        glTexImage2D(GL_TEXTURE_2D, 0, GL_ALPHA, tex_width, tex_height, 0, GL_ALPHA, GL_UNSIGNED_BYTE, block);
+                        
+                        font_out->tex = font_tex;
+                        glBindTexture(GL_TEXTURE_2D, 0);
+                        
+                        font_out->chardata['\r'] = font_out->chardata[' '];
+                        font_out->chardata['\n'] = font_out->chardata[' '];
+                        font_out->chardata['\t'] = font_out->chardata[' '];
+                        font_out->chardata['\t'].xadvance *= tab_width;
+                        
+                        for (u8 code_point = 0; code_point < 128; ++code_point){
+                            font_out->advance_data[code_point] = font_out->chardata[code_point].xadvance;
+                        }
+                        
+                        i32 max_advance = metric.tmMaxCharWidth;
+                        font_out->advance = max_advance - 1;
+                    }
+                    
+                    end_temp_memory(temp);
                 }
-                
-                stbtt_PackEnd(&context);
-                
-                end_temp_memory(temp);
             }
+            
+            DeleteObject(font_handle);
+            DeleteObject(bmp_handle);
         }
         
-        DeleteObject(font_handle);
+        ReleaseDC(win32vars.window_handle, dc);
     }
     
     return(result);

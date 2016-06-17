@@ -129,15 +129,24 @@ imp_get_file(Command_Data *cmd, Buffer_Summary *buffer){
 }
 
 internal View*
+imp_get_view(Command_Data *cmd, int view_id){
+    Live_Views *live_set = cmd->live_set;
+    View *vptr = 0;
+    
+    view_id = view_id - 1;
+    if (view_id >= 0 && view_id < live_set->max){
+        vptr = live_set->views + view_id;
+    }
+    
+    return(vptr);
+}
+
+internal View*
 imp_get_view(Command_Data *cmd, View_Summary *view){
     View *vptr = 0;
-    Live_Views *live_set = cmd->live_set;
-    int view_id = view->view_id - 1;
     
     if (view->exists){
-        if (view_id >= 0 && view_id < live_set->max){
-            vptr = live_set->views + view_id;
-        }
+        vptr = imp_get_view(cmd, view->view_id);
     }
     
     return(vptr);
@@ -652,7 +661,7 @@ BUFFER_SET_SETTING_SIG(external_buffer_set_setting){
     return(result);
 }
 
-BUFFER_SAVE_SIG(external_buffer_save){
+SAVE_BUFFER_SIG(external_save_buffer){
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     System_Functions *system = cmd->system;
     Models *models = cmd->models;
@@ -665,6 +674,93 @@ BUFFER_SAVE_SIG(external_buffer_save){
         result = true;
         String name = make_string(filename, filename_len);
         view_save_file(system, models, file, 0, name, 0);
+    }
+    
+    return(result);
+}
+
+// TODO(allen): REPLACE THIS WITH CREATE_BUFFER!!!
+CREATE_BUFFER_SIG(external_create_buffer){
+    Command_Data *cmd = (Command_Data*)app->cmd_context;
+    System_Functions *system = cmd->system;
+    Models *models = cmd->models;
+    Working_Set *working_set = &models->working_set;
+    General_Memory *general = &models->mem.general;
+    Partition *part = &models->mem.part;
+    
+    Buffer_Summary result = {0};
+    
+    Temp_Memory temp = begin_temp_memory(part);
+    if (filename != 0){
+        String filename_string = make_string(filename, filename_len);
+        Editing_File *file = working_set_contains(system, working_set, filename_string);
+        if (file == 0){
+            File_Loading loading = system->file_load_begin(filename);
+            if (loading.exists){
+                b32 in_general_mem = false;
+                char *buffer = push_array(part, char, loading.size);
+                
+                if (buffer == 0){
+                    buffer = (char*)general_memory_allocate(general, loading.size);
+                    if (buffer != 0){
+                        in_general_mem = true;
+                    }
+                }
+                
+                if (system->file_load_end(loading, buffer)){
+                    file = working_set_alloc_always(working_set, general);
+                    if (file){
+                        file_init_strings(file);
+                        file_set_name(working_set, file, filename_string);
+                        working_set_add(system, working_set, file, general);
+                        init_normal_file(system, models, file,
+                                         buffer, loading.size);
+                        fill_buffer_summary(&result, file, cmd);
+                    }
+                }
+                
+                if (in_general_mem){
+                    general_memory_free(general, buffer);
+                }
+                
+            }
+            else{
+                file = working_set_alloc_always(working_set, general);
+                if (file){
+                    file_init_strings(file);
+                    file_set_name(working_set, file, filename_string);
+                    working_set_add(system, working_set, file, general);
+                    init_normal_file(system, models, file, 0, 0);
+                    fill_buffer_summary(&result, file, cmd);
+                }
+            }
+        }
+        else{
+            fill_buffer_summary(&result, file, cmd);
+        }
+    }
+    end_temp_memory(temp);
+    
+    return(result);
+}
+
+KILL_BUFFER_SIG(external_kill_buffer){
+    Command_Data *cmd = (Command_Data*)app->cmd_context;
+    System_Functions *system = cmd->system;
+    Models *models = cmd->models;
+    Working_Set *working_set = &models->working_set;
+    View *vptr = imp_get_view(cmd, view_id);
+    Editing_File *file = get_file_from_identifier(system, working_set, buffer);
+    int result = false;
+    
+    if (file){
+        result = true;
+        if (always_kill){
+            kill_file(system, models, file, string_zero());
+        }
+        else{
+            try_kill_file(system, models, file, vptr, string_zero());
+        }
     }
     
     return(result);
@@ -910,69 +1006,6 @@ VIEW_GET_PASTE_REWRITE__SIG(external_view_get_paste_rewrite_){
     if (vptr){
         result = vptr->mode.rewrite;
     }
-    return(result);
-}
-
-VIEW_OPEN_FILE_SIG(external_view_open_file){
-    Command_Data *cmd = (Command_Data*)app->cmd_context;
-    
-    System_Functions *system = cmd->system;
-    Models *models = cmd->models;
-    
-    Working_Set *working_set = &models->working_set;
-    
-    Live_Views *live_set = cmd->live_set;
-    
-    int result = false;
-    
-    // TODO(allen): do in background
-    // option happens in parallel.
-    
-    Partition *part = &models->mem.part;
-    Temp_Memory temp = begin_temp_memory(part);
-    String string = make_string_terminated(part, filename, filename_len);
-    
-    if (do_in_background){
-        result = true;
-        view_open_file(system, models, 0, string);
-    }
-    else if (view){
-        View *vptr = 0;
-        int view_id = view->view_id - 1;
-        if (view_id >= 0 && view_id < live_set->max){
-            vptr = live_set->views + view_id;
-            result = true;
-            
-            view_open_file(system, models, 0, string);
-            
-            fill_view_summary(view, vptr, live_set, working_set);
-        }
-    }
-    
-    end_temp_memory(temp);
-    
-    return(result);
-}
-
-VIEW_KILL_BUFFER_SIG(external_view_kill_buffer){
-    Command_Data *cmd = (Command_Data*)app->cmd_context;
-    System_Functions *system = cmd->system;
-    Models *models = cmd->models;
-    Working_Set *working_set = &models->working_set;
-    View *vptr = imp_get_view(cmd, view);
-    Editing_File *file = 0;
-    int result = false;
-    
-    if (vptr){
-        file = get_file_from_identifier(system, working_set, buffer);
-        
-        if (file){
-            result = true;
-            try_kill_file(system, models, file, vptr, string_zero());
-            fill_view_summary(view, vptr, cmd);
-        }
-    }
-    
     return(result);
 }
 

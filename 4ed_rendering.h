@@ -12,25 +12,14 @@
 #ifndef FRED_RENDERING_H
 #define FRED_RENDERING_H
 
-internal void*
-part_alloc(int size, void *context){
-    Partition *part = (Partition*)context;
-    void *result = push_block(part, size);
-    return(result);
-}
-
-internal void
-part_free(void *ptr, void *context){
-}
-
-#define STBTT_malloc part_alloc
-#define STBTT_free part_free
-
-#define STB_TRUETYPE_IMPLEMENTATION
-#include "stb_truetype.h"
-
 struct Glyph_Data{
     b32 exists;
+    
+    f32 x0, x1;
+    f32 y0, y1;
+    
+    f32 xoff, yoff;
+    f32 xoff2, yoff2;
 };
 
 struct Render_Font{
@@ -38,8 +27,10 @@ struct Render_Font{
     String name;
     b32 loaded;
     
+    // TODO(allen): Have our own type here instead
+    // of stbtt_packedchar, and have both stb fonts
+    // and OS fonts go to our type.
 	Glyph_Data glyphs[256];
-    stbtt_packedchar chardata[256];
     float advance_data[256];
 	i32 height, ascent, descent, line_skip;
     i32 advance;
@@ -114,6 +105,7 @@ typedef Draw_Push_Piece_Sig(Draw_Push_Piece);
 #define Font_Load_Sig(name) i32 name(                                   \
         Render_Font *font_out,                                          \
         char *filename,                                                 \
+        char *fontname,                                                 \
         i32 pt_size,                                                    \
         i32 tab_width,                                                  \
         b32 store_texture)

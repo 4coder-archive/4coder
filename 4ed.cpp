@@ -1793,23 +1793,23 @@ App_Init_Sig(app_init){
         
         Font_Setup font_setup[] = {
             {literal("LiberationSans-Regular.ttf"),
-                literal("liberation sans"),
+                literal("Liberation Sans"),
                 font_size},
             
             {literal("liberation-mono.ttf"),
-                literal("liberation mono"),
+                literal("Liberation Mono"),
                 font_size},
             
             {literal("Hack-Regular.ttf"),
-                literal("hack"),
+                literal("Hack"),
                 font_size},
             
             {literal("CutiveMono-Regular.ttf"),
-                literal("cutive mono"),
+                literal("Cutive Mono"),
                 font_size},
             
             {literal("Inconsolata-Regular.ttf"),
-                literal("inconsolata"),
+                literal("Inconsolata"),
                 font_size},
         };
         i32 font_count = ArrayCount(font_setup);
@@ -2650,7 +2650,7 @@ App_Step_Sig(app_step){
                             "\n"
                             "New in alpha 4.0.7:\n"
                             "-Right click sets the mark\n"
-                            "-Clicks are now have key codes so they can have event bound in customizations\n"
+                            "-Clicks now have key codes so they can have events bound in customizations\n"
                             "-<alt d> opens a debug view, see more in README.txt\n"
                             "\n"
                             "New in alpha 4.0.6:\n"

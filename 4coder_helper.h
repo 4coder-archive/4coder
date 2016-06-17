@@ -725,4 +725,25 @@ buffer_identifier(int id){
     return(identifier);
 }
 
+static int
+view_open_file(Application_Links *app, View_Summary *view,
+               char *filename, int filename_len, int do_in_background){
+    int result = false;
+    Buffer_Summary buffer = app->get_buffer_by_name(app, filename, filename_len);
+    if (buffer.exists){
+        app->view_set_buffer(app, view, buffer.buffer_id);
+        result = true;
+    }
+    else{
+        buffer = app->create_buffer(app, filename, filename_len, do_in_background);
+        if (!do_in_background){
+            if (buffer.exists){
+                app->view_set_buffer(app, view, buffer.buffer_id);
+                result = true;
+            }
+        }
+    }
+    return(result);
+}
+
 

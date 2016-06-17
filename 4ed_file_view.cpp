@@ -382,23 +382,22 @@ file_init_strings(Editing_File *file){
     file->name.extension = make_fixed_width_string(file->name.extension_);
 }
 
-inline void
-file_set_name(Working_Set *working_set, Editing_File *file, char *filename){
-    String f, ext;
+internal void
+file_set_name(Working_Set *working_set, Editing_File *file, String filename){
+    String ext;
     
     Assert(file->name.live_name.str != 0);
     
-    f = make_string_slowly(filename);
-    copy_checked(&file->name.source_path, f);
+    copy_checked(&file->name.source_path, filename);
     
     file->name.live_name.size = 0;
-    get_front_of_directory(&file->name.live_name, f);
+    get_front_of_directory(&file->name.live_name, filename);
     
     if (file->name.source_path.size == file->name.live_name.size){
         file->name.extension.size = 0;
     }
     else{
-        ext = file_extension(f);
+        ext = file_extension(filename);
         copy(&file->name.extension, ext);
     }
     
@@ -433,6 +432,12 @@ file_set_name(Working_Set *working_set, Editing_File *file, char *filename){
             }
         }
     }
+}
+
+inline void
+file_set_name(Working_Set *working_set, Editing_File *file, char *filename){
+    String f = make_string_slowly(filename);
+    file_set_name(working_set, file, f);
 }
 
 inline void
@@ -613,19 +618,6 @@ file_measure_starts_widths(System_Functions *system, General_Memory *general,
     buffer->widths_count = state.count;
 }
 
-struct Opaque_Font_Advance{
-    void *data;
-    int stride;
-};
-
-inline Opaque_Font_Advance
-get_opaque_font_advance(Render_Font *font){
-    Opaque_Font_Advance result;
-    result.data = (char*)font->chardata + OffsetOfPtr(font->chardata, xadvance);
-    result.stride = sizeof(*font->chardata);
-    return result;
-}
-
 inline i32
 view_wrapped_line_span(f32 line_width, f32 max_width){
     i32 line_count = CEIL32(line_width / max_width);
@@ -700,7 +692,8 @@ view_measure_wraps(General_Memory *general, View *view){
 
 internal void
 file_create_from_string(System_Functions *system, Models *models,
-                        Editing_File *file, char *filename, String val, b8 read_only = 0){
+                        Editing_File *file, char *name,
+                        String val, b8 read_only = 0){
     
     Font_Set *font_set = models->font_set;
     Working_Set *working_set = &models->working_set;
@@ -731,11 +724,12 @@ file_create_from_string(System_Functions *system, Models *models,
     }
     
     file_init_strings(file);
-    file_set_name(working_set, file, (char*)filename);
+    
+    file_set_name(working_set, file, (char*)name);
     
     file->state.font_id = models->global_font.font_id;
     
-    file_synchronize_times(system, file, filename);
+    file_synchronize_times(system, file, name);
     
     Render_Font *font = get_font_info(font_set, file->state.font_id)->font;
     float *advance_data = 0;
@@ -5423,7 +5417,14 @@ draw_file_loaded(View *view, i32_Rect rect, b32 is_active, Render_Target *target
         u32 char_color = main_color;
         if (item->flags & BRFlag_Special_Character) char_color = special_color;
         
-        f32_Rect char_rect = f32R(item->x0, item->y0, item->x1, item->y1);
+#if 0
+        i32_Rect char_rect = i32R(item->x0, item->y0,
+                                  item->x1, item->y1);
+#else
+        f32_Rect char_rect = f32R(item->x0, item->y0,
+                                  item->x1,  item->y1);
+#endif
+
         if (view->file_data.show_whitespace && highlight_color == 0 &&
             char_is_whitespace((char)item->glyphid)){
             highlight_this_color = style->main.highlight_white_color;

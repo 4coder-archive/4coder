@@ -119,7 +119,10 @@ font_set_load(Partition *partition, Font_Set *set, i16 font_id){
     font__insert(&set->used_slots, slot);
     
     Render_Font *font = (Render_Font*)(slot + 1);
-    set->font_load(font, info->filename.str, info->pt_size, 4, 1);
+    set->font_load(font,
+                   info->filename.str,
+                   info->name.str,
+                   info->pt_size, 4, true);
     info->font = font;
     slot->font_id = font_id;
 }
@@ -182,7 +185,10 @@ font_set_add(Partition *partition, Font_Set *set,
         info->filename = filename;
         info->name = name;
         info->pt_size = pt_size;
-        set->font_load(&dummy_font, info->filename.str, info->pt_size, 4, 0);
+        set->font_load(&dummy_font,
+                       info->filename.str,
+                       info->name.str,
+                       info->pt_size, 4, false);
         info->height = dummy_font.height;
         info->advance = dummy_font.advance;
         

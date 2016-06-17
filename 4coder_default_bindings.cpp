@@ -96,7 +96,7 @@ CUSTOM_COMMAND_SIG(rewrite_as_single_caps){
 CUSTOM_COMMAND_SIG(open_my_files){
     // TODO(allen|a4.0.8): comment
     View_Summary view = app->get_active_view(app);
-    app->view_open_file(app, &view, literal("w:/4ed/data/test/basic.cpp"), false);
+    view_open_file(app, &view, literal("w:/4ed/data/test/basic.cpp"), false);
 }
 
 CUSTOM_COMMAND_SIG(build_at_launch_location){

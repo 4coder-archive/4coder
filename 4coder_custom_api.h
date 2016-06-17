@@ -19,7 +19,9 @@
 #define BUFFER_REPLACE_RANGE_SIG(n) int n(Application_Links *app, Buffer_Summary *buffer, int start, int end, char *str, int len)
 #define BUFFER_SEEK_SIG(n) int n(Application_Links *app, Buffer_Summary *buffer, int start_pos, int seek_forward, unsigned int flags)
 #define BUFFER_SET_SETTING_SIG(n) int n(Application_Links *app, Buffer_Summary *buffer, int setting, int value)
-#define BUFFER_SAVE_SIG(n) int n(Application_Links *app, Buffer_Summary *buffer, char *filename, int filename_len)
+#define CREATE_BUFFER_SIG(n) Buffer_Summary n(Application_Links *app, char *filename, int filename_len, int do_in_background)
+#define SAVE_BUFFER_SIG(n) int n(Application_Links *app, Buffer_Summary *buffer, char *filename, int filename_len)
+#define KILL_BUFFER_SIG(n) int n(Application_Links *app, Buffer_Identifier buffer, int always_kill, int view_id)
 #define GET_VIEW_FIRST_SIG(n) View_Summary n(Application_Links *app)
 #define GET_VIEW_NEXT_SIG(n) void n(Application_Links *app, View_Summary *view)
 #define GET_VIEW_SIG(n) View_Summary n(Application_Links *app, int index)
@@ -34,8 +36,6 @@
 #define VIEW_POST_FADE_SIG(n) int n(Application_Links *app, View_Summary *view, int ticks, int start, int end, unsigned int color)
 #define VIEW_SET_PASTE_REWRITE__SIG(n) void n(Application_Links *app, View_Summary *view)
 #define VIEW_GET_PASTE_REWRITE__SIG(n) int n(Application_Links *app, View_Summary *view)
-#define VIEW_OPEN_FILE_SIG(n) int n(Application_Links *app, View_Summary *view, char *filename, int filename_len, int do_in_background)
-#define VIEW_KILL_BUFFER_SIG(n) int n(Application_Links *app, View_Summary *view, Buffer_Identifier buffer)
 #define GET_USER_INPUT_SIG(n) User_Input n(Application_Links *app, unsigned int get_type, unsigned int abort_type)
 #define GET_COMMAND_INPUT_SIG(n) User_Input n(Application_Links *app)
 #define GET_EVENT_MESSAGE_SIG(n) Event_Message n(Application_Links *app)
@@ -69,7 +69,9 @@ extern "C"{
     typedef BUFFER_REPLACE_RANGE_SIG(Buffer_Replace_Range_Function);
     typedef BUFFER_SEEK_SIG(Buffer_Seek_Function);
     typedef BUFFER_SET_SETTING_SIG(Buffer_Set_Setting_Function);
-    typedef BUFFER_SAVE_SIG(Buffer_Save_Function);
+    typedef CREATE_BUFFER_SIG(Create_Buffer_Function);
+    typedef SAVE_BUFFER_SIG(Save_Buffer_Function);
+    typedef KILL_BUFFER_SIG(Kill_Buffer_Function);
     typedef GET_VIEW_FIRST_SIG(Get_View_First_Function);
     typedef GET_VIEW_NEXT_SIG(Get_View_Next_Function);
     typedef GET_VIEW_SIG(Get_View_Function);
@@ -84,8 +86,6 @@ extern "C"{
     typedef VIEW_POST_FADE_SIG(View_Post_Fade_Function);
     typedef VIEW_SET_PASTE_REWRITE__SIG(View_Set_Paste_Rewrite__Function);
     typedef VIEW_GET_PASTE_REWRITE__SIG(View_Get_Paste_Rewrite__Function);
-    typedef VIEW_OPEN_FILE_SIG(View_Open_File_Function);
-    typedef VIEW_KILL_BUFFER_SIG(View_Kill_Buffer_Function);
     typedef GET_USER_INPUT_SIG(Get_User_Input_Function);
     typedef GET_COMMAND_INPUT_SIG(Get_Command_Input_Function);
     typedef GET_EVENT_MESSAGE_SIG(Get_Event_Message_Function);
@@ -122,7 +122,9 @@ struct Application_Links{
     Buffer_Replace_Range_Function *buffer_replace_range;
     Buffer_Seek_Function *buffer_seek;
     Buffer_Set_Setting_Function *buffer_set_setting;
-    Buffer_Save_Function *buffer_save;
+    Create_Buffer_Function *create_buffer;
+    Save_Buffer_Function *save_buffer;
+    Kill_Buffer_Function *kill_buffer;
     Get_View_First_Function *get_view_first;
     Get_View_Next_Function *get_view_next;
     Get_View_Function *get_view;
@@ -137,8 +139,6 @@ struct Application_Links{
     View_Post_Fade_Function *view_post_fade;
     View_Set_Paste_Rewrite__Function *view_set_paste_rewrite_;
     View_Get_Paste_Rewrite__Function *view_get_paste_rewrite_;
-    View_Open_File_Function *view_open_file;
-    View_Kill_Buffer_Function *view_kill_buffer;
     Get_User_Input_Function *get_user_input;
     Get_Command_Input_Function *get_command_input;
     Get_Event_Message_Function *get_event_message;
@@ -177,7 +177,9 @@ app_links->buffer_read_range = external_buffer_read_range;\
 app_links->buffer_replace_range = external_buffer_replace_range;\
 app_links->buffer_seek = external_buffer_seek;\
 app_links->buffer_set_setting = external_buffer_set_setting;\
-app_links->buffer_save = external_buffer_save;\
+app_links->create_buffer = external_create_buffer;\
+app_links->save_buffer = external_save_buffer;\
+app_links->kill_buffer = external_kill_buffer;\
 app_links->get_view_first = external_get_view_first;\
 app_links->get_view_next = external_get_view_next;\
 app_links->get_view = external_get_view;\
@@ -192,8 +194,6 @@ app_links->view_set_buffer = external_view_set_buffer;\
 app_links->view_post_fade = external_view_post_fade;\
 app_links->view_set_paste_rewrite_ = external_view_set_paste_rewrite_;\
 app_links->view_get_paste_rewrite_ = external_view_get_paste_rewrite_;\
-app_links->view_open_file = external_view_open_file;\
-app_links->view_kill_buffer = external_view_kill_buffer;\
 app_links->get_user_input = external_get_user_input;\
 app_links->get_command_input = external_get_command_input;\
 app_links->get_event_message = external_get_event_message;\

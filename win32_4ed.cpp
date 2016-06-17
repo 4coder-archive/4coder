@@ -1177,6 +1177,7 @@ Font_Load_Sig(system_draw_font_load){
         success = win32_draw_font_load(&win32vars.font_part,
                                        font_out,
                                        filename,
+                                       fontname,
                                        pt_size,
                                        tab_width,
                                        oversample,
