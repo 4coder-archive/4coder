@@ -101,6 +101,7 @@
 #endif
 
 #define SUPPORT_DPI 1
+#define LINUX_FONTS 1
 
 //
 // Linux structs / enums
@@ -1129,6 +1130,7 @@ INTERNAL_Sys_Debug_Message_Sig(internal_debug_message){
 
 #include "system_shared.cpp"
 #include "4ed_rendering.cpp"
+#include "linux_font.cpp"
 
 internal f32
 size_change(i32 dpi_x, i32 dpi_y){
@@ -1157,6 +1159,9 @@ Font_Load_Sig(system_draw_font_load){
 #endif
 
     for(; attempts < 3; ++attempts){
+#if LINUX_FONTS
+        success = linux_font_load(font_out, filename, pt_size, tab_width);
+#else
         success = draw_font_load(
             &linuxvars.font_part,
             font_out,
@@ -1166,6 +1171,7 @@ Font_Load_Sig(system_draw_font_load){
             oversample,
             store_texture
         );
+#endif
 
         if(success){
             break;
