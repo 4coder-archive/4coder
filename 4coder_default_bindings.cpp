@@ -39,13 +39,14 @@ CUSTOM_COMMAND_SIG(write_capital){
 CUSTOM_COMMAND_SIG(switch_to_compilation){
     View_Summary view;
     Buffer_Summary buffer;
-
+    
     char name[] = "*compilation*";
     int name_size = sizeof(name)-1;
-
-    view = app->get_active_view(app);
-    buffer = app->get_buffer_by_name(app, name, name_size);
-
+    
+    unsigned int access = AccessOpen;
+    view = app->get_active_view(app, access);
+    buffer = app->get_buffer_by_name(app, name, name_size, access);
+    
     app->view_set_buffer(app, &view, buffer.buffer_id);
 }
 
@@ -57,7 +58,8 @@ CUSTOM_COMMAND_SIG(rewrite_as_single_caps){
     String string;
     int is_first, i;
     
-    view = app->get_active_view(app);
+    unsigned int access = AccessOpen;
+    view = app->get_active_view(app, access);
     cursor = view.cursor;
     
     exec_command(app, seek_token_left);
@@ -71,8 +73,8 @@ CUSTOM_COMMAND_SIG(rewrite_as_single_caps){
     string.str = (char*)app->memory;
     string.size = range.max - range.min;
     assert(string.size < app->memory_size);
-
-    buffer = app->get_buffer(app, view.buffer_id);
+    
+    buffer = app->get_buffer(app, view.buffer_id, access);
     app->buffer_read_range(app, &buffer, range.min, range.max, string.str);
     
     is_first = 1;
@@ -95,13 +97,15 @@ CUSTOM_COMMAND_SIG(rewrite_as_single_caps){
 
 CUSTOM_COMMAND_SIG(open_my_files){
     // TODO(allen|a4.0.8): comment
-    View_Summary view = app->get_active_view(app);
+    unsigned int access = AccessProtected|AccessHidden;
+    View_Summary view = app->get_active_view(app, access);
     view_open_file(app, &view, literal("w:/4ed/data/test/basic.cpp"), false);
 }
 
 CUSTOM_COMMAND_SIG(build_at_launch_location){
     // TODO(allen|a4.0.8): comment
-    View_Summary view = app->get_active_view(app);
+    unsigned int access = AccessProtected|AccessHidden;
+    View_Summary view = app->get_active_view(app, access);
     app->exec_system_command(app, &view,
                              buffer_identifier(literal("*compilation*")),
                              literal("."),
@@ -139,7 +143,8 @@ HOOK_SIG(my_file_settings){
     // opened hook.  The file created hook is guaranteed to have only
     // and exactly one buffer parameter.  In normal command callbacks
     // there are no parameter buffers.
-    Buffer_Summary buffer = app->get_parameter_buffer(app, 0);
+    unsigned int access = AccessProtected|AccessHidden;
+    Buffer_Summary buffer = app->get_parameter_buffer(app, 0, access);
     assert(buffer.exists);
 
     int treat_as_code = 0;

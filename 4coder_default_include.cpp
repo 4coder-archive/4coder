@@ -37,7 +37,8 @@ get_view_x(View_Summary view){
 //
 
 CUSTOM_COMMAND_SIG(write_character){
-    View_Summary view = app->get_active_view(app);
+    unsigned int access = AccessOpen;
+    View_Summary view = app->get_active_view(app, access);
     
     User_Input in = app->get_command_input(app);
     char character = 0;
@@ -47,7 +48,8 @@ CUSTOM_COMMAND_SIG(write_character){
     }
     
     if (character != 0){
-        Buffer_Summary buffer = app->get_buffer(app, view.buffer_id);
+        Buffer_Summary buffer = app->get_buffer(app, view.buffer_id, access);
+        
         int pos = view.cursor.pos;
         int next_pos = pos + 1;
         app->buffer_replace_range(app, &buffer,
@@ -57,8 +59,9 @@ CUSTOM_COMMAND_SIG(write_character){
 }
 
 CUSTOM_COMMAND_SIG(delete_char){
-    View_Summary view = app->get_active_view(app);
-    Buffer_Summary buffer = app->get_buffer(app, view.buffer_id);
+    unsigned int access = AccessOpen;
+    View_Summary view = app->get_active_view(app, access);
+    Buffer_Summary buffer = app->get_buffer(app, view.buffer_id, access);
     
     int pos = view.cursor.pos;
     if (0 < buffer.size && pos < buffer.size){
@@ -68,8 +71,9 @@ CUSTOM_COMMAND_SIG(delete_char){
 }
 
 CUSTOM_COMMAND_SIG(backspace_char){
-    View_Summary view = app->get_active_view(app);
-    Buffer_Summary buffer = app->get_buffer(app, view.buffer_id);
+    unsigned int access = AccessOpen;
+    View_Summary view = app->get_active_view(app, access);
+    Buffer_Summary buffer = app->get_buffer(app, view.buffer_id, access);
     
     int pos = view.cursor.pos;
     if (0 < pos && pos <= buffer.size){
@@ -81,7 +85,8 @@ CUSTOM_COMMAND_SIG(backspace_char){
 }
 
 CUSTOM_COMMAND_SIG(set_mark){
-    View_Summary view = app->get_active_view(app);
+    unsigned int access = AccessProtected;
+    View_Summary view = app->get_active_view(app, access);
     
     app->view_set_mark(app, &view, seek_pos(view.cursor.pos));
     // TODO(allen): Just expose the preferred_x seperately
@@ -89,7 +94,8 @@ CUSTOM_COMMAND_SIG(set_mark){
 }
 
 CUSTOM_COMMAND_SIG(cursor_mark_swap){
-    View_Summary view = app->get_active_view(app);
+    unsigned int access = AccessProtected;
+    View_Summary view = app->get_active_view(app, access);
     
     int cursor = view.cursor.pos;
     int mark = view.mark.pos;
@@ -99,8 +105,9 @@ CUSTOM_COMMAND_SIG(cursor_mark_swap){
 }
 
 CUSTOM_COMMAND_SIG(delete_range){
-    View_Summary view = app->get_active_view(app);
-    Buffer_Summary buffer = app->get_buffer(app, view.buffer_id);
+    unsigned int access = AccessOpen;
+    View_Summary view = app->get_active_view(app, access);
+    Buffer_Summary buffer = app->get_buffer(app, view.buffer_id, access);
     
     Range range = get_range(&view);
     
@@ -139,40 +146,37 @@ get_relative_xy(View_Summary *view, int x, int y, float *x_out, float *y_out){
 }
 
 CUSTOM_COMMAND_SIG(click_set_cursor){
-    View_Summary view = app->get_active_view(app);
+    unsigned int access = AccessProtected;
+    View_Summary view = app->get_active_view(app, access);
     
-    // TODO(allen): Need a better system for
-    // weeding out views in a hidden state.
-    if (view.locked_buffer_id != 0){
-        Mouse_State mouse = app->get_mouse_state(app);
-        float rx = 0, ry = 0;
-        if (get_relative_xy(&view, mouse.x, mouse.y, &rx, &ry)){
-            app->view_set_cursor(app, &view,
-                                 seek_xy(rx, ry, true,
-                                         view.unwrapped_lines),
-                                 true);
-        }
+    Mouse_State mouse = app->get_mouse_state(app);
+    float rx = 0, ry = 0;
+    if (get_relative_xy(&view, mouse.x, mouse.y, &rx, &ry)){
+        app->view_set_cursor(app, &view,
+                             seek_xy(rx, ry, true,
+                                     view.unwrapped_lines),
+                             true);
     }
 }
 
 CUSTOM_COMMAND_SIG(click_set_mark){
-    View_Summary view = app->get_active_view(app);
+    unsigned int access = AccessProtected;
+    View_Summary view = app->get_active_view(app, access);
     
-    if (view.locked_buffer_id != 0){
-        Mouse_State mouse = app->get_mouse_state(app);
-        float rx = 0, ry = 0;
-        if (get_relative_xy(&view, mouse.x, mouse.y, &rx, &ry)){
-            app->view_set_mark(app, &view,
-                               seek_xy(rx, ry, true,
-                                       view.unwrapped_lines)
-                               );
-        }
+    Mouse_State mouse = app->get_mouse_state(app);
+    float rx = 0, ry = 0;
+    if (get_relative_xy(&view, mouse.x, mouse.y, &rx, &ry)){
+        app->view_set_mark(app, &view,
+                           seek_xy(rx, ry, true,
+                                   view.unwrapped_lines)
+                           );
     }
 }
 
 inline void
 move_vertical(Application_Links *app, float line_multiplier){
-    View_Summary view = app->get_active_view(app);
+    unsigned int access = AccessProtected;
+    View_Summary view = app->get_active_view(app, access);
     
     float new_y = get_view_y(view) + line_multiplier*view.line_height;
     float x = view.preferred_x;
@@ -200,7 +204,8 @@ CUSTOM_COMMAND_SIG(move_down_10){
 
 
 CUSTOM_COMMAND_SIG(move_left){
-    View_Summary view = app->get_active_view(app);
+    unsigned int access = AccessProtected;
+    View_Summary view = app->get_active_view(app, access);
     int new_pos = view.cursor.pos - 1;
     app->view_set_cursor(app, &view,
                          seek_pos(new_pos),
@@ -208,7 +213,8 @@ CUSTOM_COMMAND_SIG(move_left){
 }
 
 CUSTOM_COMMAND_SIG(move_right){
-    View_Summary view = app->get_active_view(app);
+    unsigned int access = AccessProtected;
+    View_Summary view = app->get_active_view(app, access);
     int new_pos = view.cursor.pos + 1;
     app->view_set_cursor(app, &view,
                          seek_pos(new_pos),
@@ -221,9 +227,10 @@ CUSTOM_COMMAND_SIG(move_right){
 //
 
 static int
-clipboard_copy(Application_Links *app, int start, int end, Buffer_Summary *buffer_out){
-    View_Summary view = app->get_active_view(app);
-    Buffer_Summary buffer = app->get_buffer(app, view.locked_buffer_id);
+clipboard_copy(Application_Links *app, int start, int end, Buffer_Summary *buffer_out,
+               unsigned int access){
+    View_Summary view = app->get_active_view(app, access);
+    Buffer_Summary buffer = app->get_buffer(app, view.buffer_id, access);
     int result = false;
     
     if (0 <= start && start <= end && end <= buffer.size){
@@ -242,11 +249,12 @@ clipboard_copy(Application_Links *app, int start, int end, Buffer_Summary *buffe
 }
 
 static int
-clipboard_cut(Application_Links *app, int start, int end, Buffer_Summary *buffer_out){
+clipboard_cut(Application_Links *app, int start, int end, Buffer_Summary *buffer_out,
+              unsigned int access){
     Buffer_Summary buffer = {0};
     int result = false;
     
-    if (clipboard_copy(app, start, end, &buffer)){
+    if (clipboard_copy(app, start, end, &buffer, access)){
         app->buffer_replace_range(app, &buffer, start, end, 0, 0);
         if (buffer_out){*buffer_out = buffer;}
     }
@@ -255,15 +263,17 @@ clipboard_cut(Application_Links *app, int start, int end, Buffer_Summary *buffer
 }
 
 CUSTOM_COMMAND_SIG(copy){
-    View_Summary view = app->get_active_view(app);
+    unsigned int access = AccessProtected;
+    View_Summary view = app->get_active_view(app, access);
     Range range = get_range(&view);
-    clipboard_copy(app, range.min, range.max, 0);
+    clipboard_copy(app, range.min, range.max, 0, access);
 }
 
 CUSTOM_COMMAND_SIG(cut){
-    View_Summary view = app->get_active_view(app);
+    unsigned int access = AccessOpen;
+    View_Summary view = app->get_active_view(app, access);
     Range range = get_range(&view);
-    clipboard_cut(app, range.min, range.max, 0);
+    clipboard_cut(app, range.min, range.max, 0, access);
 }
 
 struct View_Paste_Index{
@@ -274,9 +284,10 @@ View_Paste_Index view_paste_index_[16];
 View_Paste_Index *view_paste_index = view_paste_index_ - 1;
 
 CUSTOM_COMMAND_SIG(paste){
+    unsigned int access = AccessOpen;
     int count = app->clipboard_count(app);
     if (count > 0){
-        View_Summary view = app->get_active_view(app);
+        View_Summary view = app->get_active_view(app, access);
         
         // NOTE(allen): THIS is a very temporary poop-sauce
         // system that I just threw in to get this working.
@@ -296,7 +307,7 @@ CUSTOM_COMMAND_SIG(paste){
         if (str){
             app->clipboard_index(app, paste_index, str, len);
             
-            Buffer_Summary buffer = app->get_buffer(app, view.buffer_id);
+            Buffer_Summary buffer = app->get_buffer(app, view.buffer_id, access);
             int pos = view.cursor.pos;
             app->buffer_replace_range(app, &buffer, pos, pos, str, len);
             app->view_set_mark(app, &view, seek_pos(pos));
@@ -312,9 +323,10 @@ CUSTOM_COMMAND_SIG(paste){
 }
 
 CUSTOM_COMMAND_SIG(paste_next){
+    unsigned int access = AccessOpen;
     int count = app->clipboard_count(app);
     if (count > 0){
-        View_Summary view = app->get_active_view(app);
+        View_Summary view = app->get_active_view(app, access);
         
         // NOTE(allen): THIS is a very temporary poop-sauce
         // system that I just threw in to get this working.
@@ -335,7 +347,7 @@ CUSTOM_COMMAND_SIG(paste_next){
             if (str){
                 app->clipboard_index(app, paste_index, str, len);
                 
-                Buffer_Summary buffer = app->get_buffer(app, view.buffer_id);
+                Buffer_Summary buffer = app->get_buffer(app, view.buffer_id, access);
                 Range range = get_range(&view);
                 int pos = range.min;
                 
@@ -483,8 +495,9 @@ buffer_seek_whitespace_down(Application_Links *app, Buffer_Summary *buffer, int 
 }
 
 CUSTOM_COMMAND_SIG(seek_whitespace_up){
-    View_Summary view = app->get_active_view(app);
-    Buffer_Summary buffer = app->get_buffer(app, view.locked_buffer_id);
+    unsigned int access = AccessProtected;
+    View_Summary view = app->get_active_view(app, access);
+    Buffer_Summary buffer = app->get_buffer(app, view.buffer_id, access);
     
     int new_pos = buffer_seek_whitespace_up(app, &buffer, view.cursor.pos);
     app->view_set_cursor(app, &view,
@@ -493,8 +506,9 @@ CUSTOM_COMMAND_SIG(seek_whitespace_up){
 }
 
 CUSTOM_COMMAND_SIG(seek_whitespace_down){
-    View_Summary view = app->get_active_view(app);
-    Buffer_Summary buffer = app->get_buffer(app, view.locked_buffer_id);
+    unsigned int access = AccessProtected;
+    View_Summary view = app->get_active_view(app, access);
+    Buffer_Summary buffer = app->get_buffer(app, view.buffer_id, access);
     
     int new_pos = buffer_seek_whitespace_down(app, &buffer, view.cursor.pos);
     app->view_set_cursor(app, &view,
@@ -567,16 +581,18 @@ seek_line_beginning(Application_Links *app, Buffer_Summary *buffer, int pos){
 }
 
 CUSTOM_COMMAND_SIG(seek_end_of_line){
-    View_Summary view = app->get_active_view(app);
-    Buffer_Summary buffer = app->get_buffer(app, view.locked_buffer_id);
+    unsigned int access = AccessProtected;
+    View_Summary view = app->get_active_view(app, access);
+    Buffer_Summary buffer = app->get_buffer(app, view.buffer_id, access);
     
     int new_pos = seek_line_end(app, &buffer, view.cursor.pos);
     app->view_set_cursor(app, &view, seek_pos(new_pos), true);
 }
 
 CUSTOM_COMMAND_SIG(seek_beginning_of_line){
-    View_Summary view = app->get_active_view(app);
-    Buffer_Summary buffer = app->get_buffer(app, view.locked_buffer_id);
+    unsigned int access = AccessProtected;
+    View_Summary view = app->get_active_view(app, access);
+    Buffer_Summary buffer = app->get_buffer(app, view.buffer_id, access);
     
     int new_pos = seek_line_beginning(app, &buffer, view.cursor.pos);
     app->view_set_cursor(app, &view, seek_pos(new_pos), true);
@@ -584,8 +600,9 @@ CUSTOM_COMMAND_SIG(seek_beginning_of_line){
 
 static void
 basic_seek(Application_Links *app, int seek_type, unsigned int flags){
-    View_Summary view = app->get_active_view(app);
-    Buffer_Summary buffer = app->get_buffer(app, view.locked_buffer_id);
+    unsigned int access = AccessProtected;
+    View_Summary view = app->get_active_view(app, access);
+    Buffer_Summary buffer = app->get_buffer(app, view.buffer_id, access);
     int pos = app->buffer_seek(app, &buffer, view.cursor.pos, seek_type, flags);
     app->view_set_cursor(app, &view, seek_pos(pos), true);
 }
@@ -617,7 +634,8 @@ SEEK_COMMAND(alphanumeric_or_camel, left,  BoundryAlphanumeric | BoundryCamelCas
 
 static void
 write_string(Application_Links *app, String string){
-    Buffer_Summary buffer = get_active_buffer(app);
+    unsigned int access = AccessOpen;
+    Buffer_Summary buffer = get_active_buffer(app, access);
     app->buffer_replace_range(app, &buffer,
                               buffer.buffer_cursor_pos, buffer.buffer_cursor_pos,
                               string.str, string.size);
@@ -633,12 +651,10 @@ CUSTOM_COMMAND_SIG(write_increment){
 
 static void
 long_braces(Application_Links *app, char *text, int size){
-    View_Summary view;
-    Buffer_Summary buffer;
+    unsigned int access = AccessOpen;
+    View_Summary view = app->get_active_view(app, access);
+    Buffer_Summary buffer = app->get_buffer(app, view.buffer_id, access);
     int pos;
-    
-    view = app->get_active_view(app);
-    buffer = app->get_buffer(app, view.buffer_id);
     
     pos = view.cursor.pos;
     app->buffer_replace_range(app, &buffer, pos, pos, text, size);
@@ -671,6 +687,8 @@ CUSTOM_COMMAND_SIG(open_long_braces_break){
 // TODO(allen): Have this thing check if it is on
 // a blank line and insert newlines as needed.
 CUSTOM_COMMAND_SIG(if0_off){
+    unsigned int access = AccessOpen;
+    
     View_Summary view;
     Buffer_Summary buffer;
 
@@ -683,8 +701,8 @@ CUSTOM_COMMAND_SIG(if0_off){
     Range range;
     int pos;
 
-    view = app->get_active_view(app);
-    buffer = app->get_buffer(app, view.buffer_id);
+    view = app->get_active_view(app, access);
+    buffer = app->get_buffer(app, view.buffer_id, access);
     
     range = get_range(&view);
     pos = range.min;
@@ -709,44 +727,50 @@ CUSTOM_COMMAND_SIG(if0_off){
 }
 
 CUSTOM_COMMAND_SIG(backspace_word){
+    unsigned int access = AccessOpen;
+    
     View_Summary view;
     Buffer_Summary buffer;
     int pos2, pos1;
     
-    view = app->get_active_view(app);
+    view = app->get_active_view(app, access);
     
     pos2 = view.cursor.pos;
     exec_command(app, seek_alphanumeric_left);
     app->refresh_view(app, &view);
     pos1 = view.cursor.pos;
     
-    buffer = app->get_buffer(app, view.buffer_id);
+    buffer = app->get_buffer(app, view.buffer_id, access);
     app->buffer_replace_range(app, &buffer, pos1, pos2, 0, 0);
 }
 
 CUSTOM_COMMAND_SIG(delete_word){
+    unsigned int access = AccessOpen;
+    
     View_Summary view;
     Buffer_Summary buffer;
     int pos2, pos1;
     
-    view = app->get_active_view(app);
+    view = app->get_active_view(app, access);
     
     pos1 = view.cursor.pos;
     exec_command(app, seek_alphanumeric_right);
     app->refresh_view(app, &view);
     pos2 = view.cursor.pos;
     
-    buffer = app->get_buffer(app, view.buffer_id);
+    buffer = app->get_buffer(app, view.buffer_id, access);
     app->buffer_replace_range(app, &buffer, pos1, pos2, 0, 0);
 }
 
 CUSTOM_COMMAND_SIG(snipe_token_or_word){
+    unsigned int access = AccessOpen;
+    
     View_Summary view;
     Buffer_Summary buffer;
     int pos1, pos2;
     
-    view = app->get_active_view(app);
-    buffer = app->get_buffer(app, view.buffer_id);
+    view = app->get_active_view(app, access);
+    buffer = app->get_buffer(app, view.buffer_id, access);
     
     pos1 = app->buffer_seek(app, &buffer, view.cursor.pos, false, BoundryToken | BoundryWhitespace);
     
@@ -757,13 +781,15 @@ CUSTOM_COMMAND_SIG(snipe_token_or_word){
 }
 
 CUSTOM_COMMAND_SIG(open_file_in_quotes){
+    unsigned int access = AccessProtected;
+    
     View_Summary view;
     Buffer_Summary buffer;
     char short_file_name[128];
     int pos, start, end, size;
     
-    view = app->get_active_view(app);
-    buffer = app->get_buffer(app, view.buffer_id);
+    view = app->get_active_view(app, access);
+    buffer = app->get_buffer(app, view.buffer_id, access);
     pos = view.cursor.pos;
     buffer_seek_delimiter_forward(app, &buffer, pos, '"', &end);
     buffer_seek_delimiter_backward(app, &buffer, pos, '"', &start);
@@ -793,16 +819,18 @@ CUSTOM_COMMAND_SIG(save_as){
 }
 
 CUSTOM_COMMAND_SIG(goto_line){
+    unsigned int access = AccessProtected;
+    
     int line_number;
     Query_Bar bar;
     char string_space[256];
-
+    
     bar.prompt = make_lit_string("Goto Line: ");
     bar.string = make_fixed_width_string(string_space);
-
+    
     if (query_user_number(app, &bar)){
         line_number = str_to_int(bar.string);
-        active_view_to_line(app, line_number);
+        active_view_to_line(app, access, line_number);
     }
 }
 
@@ -811,13 +839,12 @@ CUSTOM_COMMAND_SIG(reverse_search);
 
 static void
 isearch(Application_Links *app, int start_reversed){
-    View_Summary view;
-    Buffer_Summary buffer;
+    unsigned int access = AccessProtected;
+    
+    View_Summary view = app->get_active_view(app, access);
+    Buffer_Summary buffer = app->get_buffer(app, view.buffer_id, access);
     User_Input in;
     Query_Bar bar;
-    
-    view = app->get_active_view(app);
-    buffer = app->get_buffer(app, view.locked_buffer_id);
     
     if (!buffer.exists) return;
     
@@ -945,33 +972,31 @@ CUSTOM_COMMAND_SIG(replace_in_range){
     char replace_space[1024];
     replace.prompt = make_lit_string("Replace: ");
     replace.string = make_fixed_width_string(replace_space);
-
+    
     Query_Bar with;
     char with_space[1024];
     with.prompt = make_lit_string("With: ");
     with.string = make_fixed_width_string(with_space);
-
+    
     if (!query_user_string(app, &replace)) return;
     if (replace.string.size == 0) return;
-
+    
     if (!query_user_string(app, &with)) return;
-
+    
     String r, w;
     r = replace.string;
     w = with.string;
-
-    Buffer_Summary buffer;
-    View_Summary view;
-
-    view = app->get_active_view(app);
-    buffer = app->get_buffer(app, view.buffer_id);
-
+    
+    unsigned int access = AccessOpen;
+    View_Summary view = app->get_active_view(app, access);
+    Buffer_Summary buffer = app->get_buffer(app, view.buffer_id, access);
+    
     Range range = get_range(&view);
-
+    
     int pos, new_pos;
     pos = range.min;
     buffer_seek_string_forward(app, &buffer, pos, r.str, r.size, &new_pos);
-
+    
     while (new_pos + r.size <= range.end){
         app->buffer_replace_range(app, &buffer, new_pos, new_pos + r.size, w.str, w.size);
         app->refresh_view(app, &view);
@@ -986,45 +1011,46 @@ CUSTOM_COMMAND_SIG(query_replace){
     char replace_space[1024];
     replace.prompt = make_lit_string("Replace: ");
     replace.string = make_fixed_width_string(replace_space);
-
+    
     Query_Bar with;
     char with_space[1024];
     with.prompt = make_lit_string("With: ");
     with.string = make_fixed_width_string(with_space);
-
+    
     if (!query_user_string(app, &replace)) return;
     if (replace.string.size == 0) return;
-
+    
     if (!query_user_string(app, &with)) return;
-
+    
     String r, w;
     r = replace.string;
     w = with.string;
-
+    
     Query_Bar bar;
     Buffer_Summary buffer;
     View_Summary view;
     int pos, new_pos;
-
+    
     bar.prompt = make_lit_string("Replace? (y)es, (n)ext, (esc)\n");
     bar.string = empty_string();
-
+    
     app->start_query_bar(app, &bar, 0);
-
-    view = app->get_active_view(app);
-    buffer = app->get_buffer(app, view.buffer_id);
-
+    
+    unsigned int access = AccessOpen;
+    view = app->get_active_view(app, access);
+    buffer = app->get_buffer(app, view.buffer_id, access);
+    
     pos = view.cursor.pos;
     buffer_seek_string_forward(app, &buffer, pos, r.str, r.size, &new_pos);
-
+    
     User_Input in = {0};
     while (new_pos < buffer.size){
         Range match = make_range(new_pos, new_pos + r.size);
         app->view_set_highlight(app, &view, match.min, match.max, 1);
-
+        
         in = app->get_user_input(app, EventOnAnyKey, EventOnButton);
         if (in.abort || in.key.keycode == key_esc || !key_is_unmodified(&in.key))  break;
-
+        
         if (in.key.character == 'y' || in.key.character == 'Y' || in.key.character == '\n' || in.key.character == '\t'){
             app->buffer_replace_range(app, &buffer, match.min, match.max, w.str, w.size);
             pos = match.start + w.size;
@@ -1032,13 +1058,13 @@ CUSTOM_COMMAND_SIG(query_replace){
         else{
             pos = match.max;
         }
-
+        
         buffer_seek_string_forward(app, &buffer, pos, r.str, r.size, &new_pos);
     }
-
+    
     app->view_set_highlight(app, &view, 0, 0, 0);
     if (in.abort) return;
-
+    
     app->view_set_cursor(app, &view, seek_pos(pos), 1);
 }
 
@@ -1051,9 +1077,10 @@ CUSTOM_COMMAND_SIG(close_all_code){
     int buffers_to_close[2048];
     int buffers_to_close_count = 0;
     
-    for (buffer = app->get_buffer_first(app);
+    unsigned int access = AccessProtected|AccessHidden;
+    for (buffer = app->get_buffer_first(app, access);
          buffer.exists;
-         app->get_buffer_next(app, &buffer)){
+         app->get_buffer_next(app, &buffer, access)){
         
         extension = file_extension(make_string(buffer.file_name, buffer.file_name_len));
         if (match(extension, make_lit_string("cpp")) ||
@@ -1123,8 +1150,8 @@ CUSTOM_COMMAND_SIG(execute_any_cli){
     hot_directory = make_fixed_width_string(hot_directory_space);
     hot_directory.size = app->directory_get_hot(app, hot_directory.str, hot_directory.memory_size);
     
-    // TODO(allen): provide command line call
-    View_Summary view = app->get_active_view(app);
+    unsigned int access = AccessProtected|AccessHidden;
+    View_Summary view = app->get_active_view(app, access);
     
     // TODO(allen): Make this work without null terminators
     terminate_with_null(&bar_out.string);
@@ -1147,7 +1174,8 @@ CUSTOM_COMMAND_SIG(execute_previous_cli){
     hot_directory = make_string_slowly(hot_directory_space);
     
     if (out_buffer.size > 0 && cmd.size > 0 && hot_directory.size > 0){
-        View_Summary view = app->get_active_view(app);
+        unsigned int access = AccessProtected|AccessHidden;
+        View_Summary view = app->get_active_view(app, access);
         
         app->exec_system_command(app, &view,
                                  buffer_identifier(out_buffer.str, out_buffer.size),
@@ -1257,7 +1285,8 @@ CUSTOM_COMMAND_SIG(build_search){
             append(&command, "build");
             append(&command, '"');
             
-            View_Summary view = app->get_active_view(app);
+            unsigned int access = AccessOpen;
+            View_Summary view = app->get_active_view(app, access);
             
             terminate_with_null(&dir);
             terminate_with_null(&command);
@@ -1267,7 +1296,7 @@ CUSTOM_COMMAND_SIG(build_search){
                                      dir.str, dir.size,
                                      command.str, command.size,
                                      CLI_OverlapWithConflict);
-                
+            
             return;
         }
         dir.size = old_size;
@@ -1281,7 +1310,8 @@ CUSTOM_COMMAND_SIG(build_search){
 }
 
 CUSTOM_COMMAND_SIG(auto_tab_line_at_cursor){
-    View_Summary view = app->get_active_view(app);
+    unsigned int access = AccessOpen;
+    View_Summary view = app->get_active_view(app, access);
     
     app->view_auto_tab(app, &view,
                        view.cursor.pos, view.cursor.pos,
@@ -1290,8 +1320,9 @@ CUSTOM_COMMAND_SIG(auto_tab_line_at_cursor){
 }
 
 CUSTOM_COMMAND_SIG(auto_tab_whole_file){
-    View_Summary view = app->get_active_view(app);
-    Buffer_Summary buffer = app->get_buffer(app, view.buffer_id);
+    unsigned int access = AccessOpen;
+    View_Summary view = app->get_active_view(app, access);
+    Buffer_Summary buffer = app->get_buffer(app, view.buffer_id, access);
     
     app->view_auto_tab(app, &view,
                        0, buffer.size,
@@ -1300,7 +1331,8 @@ CUSTOM_COMMAND_SIG(auto_tab_whole_file){
 }
 
 CUSTOM_COMMAND_SIG(auto_tab_range){
-    View_Summary view = app->get_active_view(app);
+    unsigned int access = AccessOpen;
+    View_Summary view = app->get_active_view(app, access);
     Range range = get_range(&view);
     
     app->view_auto_tab(app, &view,

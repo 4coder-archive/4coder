@@ -362,13 +362,13 @@ part_free(void *ptr, void *context){
 // of this function (and other functions implementing
 // the same interface).
 internal i32
-draw_font_load(Partition *part,
-               Render_Font *font_out,
-               char *filename_untranslated,
-               i32 pt_size,
-               i32 tab_width,
-               i32 oversample,
-               b32 store_texture){
+font_load(Partition *part,
+          Render_Font *font_out,
+          char *filename_untranslated,
+          i32 pt_size,
+          i32 tab_width,
+          i32 oversample,
+          b32 store_texture){
     
     char space_[1024];
     String filename = make_fixed_width_string(space_);

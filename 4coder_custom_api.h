@@ -9,23 +9,23 @@
 #define CLIPBOARD_POST_SIG(n) int n(Application_Links *app, char *str, int len)
 #define CLIPBOARD_COUNT_SIG(n) int n(Application_Links *app)
 #define CLIPBOARD_INDEX_SIG(n) int n(Application_Links *app, int index, char *out, int len)
-#define GET_BUFFER_FIRST_SIG(n) Buffer_Summary n(Application_Links *app)
-#define GET_BUFFER_NEXT_SIG(n) void n(Application_Links *app, Buffer_Summary *buffer)
-#define GET_BUFFER_SIG(n) Buffer_Summary n(Application_Links *app, int index)
-#define GET_PARAMETER_BUFFER_SIG(n) Buffer_Summary n(Application_Links *app, int param_index)
-#define GET_BUFFER_BY_NAME_SIG(n) Buffer_Summary n(Application_Links *app, char *filename, int len)
+#define GET_BUFFER_FIRST_SIG(n) Buffer_Summary n(Application_Links *app, unsigned int access)
+#define GET_BUFFER_NEXT_SIG(n) void n(Application_Links *app, Buffer_Summary *buffer, unsigned int access)
+#define GET_BUFFER_SIG(n) Buffer_Summary n(Application_Links *app, int index, unsigned int access)
+#define GET_PARAMETER_BUFFER_SIG(n) Buffer_Summary n(Application_Links *app, int param_index, unsigned int access)
+#define GET_BUFFER_BY_NAME_SIG(n) Buffer_Summary n(Application_Links *app, char *filename, int len, unsigned int access)
 #define REFRESH_BUFFER_SIG(n) int n(Application_Links *app, Buffer_Summary *buffer)
 #define BUFFER_READ_RANGE_SIG(n) int n(Application_Links *app, Buffer_Summary *buffer, int start, int end, char *out)
-#define BUFFER_REPLACE_RANGE_SIG(n) int n(Application_Links *app, Buffer_Summary *buffer, int start, int end, char *str, int len)
 #define BUFFER_SEEK_SIG(n) int n(Application_Links *app, Buffer_Summary *buffer, int start_pos, int seek_forward, unsigned int flags)
+#define BUFFER_REPLACE_RANGE_SIG(n) int n(Application_Links *app, Buffer_Summary *buffer, int start, int end, char *str, int len)
 #define BUFFER_SET_SETTING_SIG(n) int n(Application_Links *app, Buffer_Summary *buffer, int setting, int value)
 #define CREATE_BUFFER_SIG(n) Buffer_Summary n(Application_Links *app, char *filename, int filename_len, int do_in_background)
 #define SAVE_BUFFER_SIG(n) int n(Application_Links *app, Buffer_Summary *buffer, char *filename, int filename_len)
 #define KILL_BUFFER_SIG(n) int n(Application_Links *app, Buffer_Identifier buffer, int always_kill, int view_id)
-#define GET_VIEW_FIRST_SIG(n) View_Summary n(Application_Links *app)
-#define GET_VIEW_NEXT_SIG(n) void n(Application_Links *app, View_Summary *view)
-#define GET_VIEW_SIG(n) View_Summary n(Application_Links *app, int index)
-#define GET_ACTIVE_VIEW_SIG(n) View_Summary n(Application_Links *app)
+#define GET_VIEW_FIRST_SIG(n) View_Summary n(Application_Links *app, unsigned int access)
+#define GET_VIEW_NEXT_SIG(n) void n(Application_Links *app, View_Summary *view, unsigned int access)
+#define GET_VIEW_SIG(n) View_Summary n(Application_Links *app, int index, unsigned int access)
+#define GET_ACTIVE_VIEW_SIG(n) View_Summary n(Application_Links *app, unsigned int access)
 #define REFRESH_VIEW_SIG(n) int n(Application_Links *app, View_Summary *view)
 #define VIEW_AUTO_TAB_SIG(n) int n(Application_Links *app, View_Summary *view, int start, int end, int tab_width, unsigned int flags)
 #define VIEW_COMPUTE_CURSOR_SIG(n) Full_Cursor n(Application_Links *app, View_Summary *view, Buffer_Seek seek)
@@ -66,8 +66,8 @@ extern "C"{
     typedef GET_BUFFER_BY_NAME_SIG(Get_Buffer_By_Name_Function);
     typedef REFRESH_BUFFER_SIG(Refresh_Buffer_Function);
     typedef BUFFER_READ_RANGE_SIG(Buffer_Read_Range_Function);
-    typedef BUFFER_REPLACE_RANGE_SIG(Buffer_Replace_Range_Function);
     typedef BUFFER_SEEK_SIG(Buffer_Seek_Function);
+    typedef BUFFER_REPLACE_RANGE_SIG(Buffer_Replace_Range_Function);
     typedef BUFFER_SET_SETTING_SIG(Buffer_Set_Setting_Function);
     typedef CREATE_BUFFER_SIG(Create_Buffer_Function);
     typedef SAVE_BUFFER_SIG(Save_Buffer_Function);
@@ -119,8 +119,8 @@ struct Application_Links{
     Get_Buffer_By_Name_Function *get_buffer_by_name;
     Refresh_Buffer_Function *refresh_buffer;
     Buffer_Read_Range_Function *buffer_read_range;
-    Buffer_Replace_Range_Function *buffer_replace_range;
     Buffer_Seek_Function *buffer_seek;
+    Buffer_Replace_Range_Function *buffer_replace_range;
     Buffer_Set_Setting_Function *buffer_set_setting;
     Create_Buffer_Function *create_buffer;
     Save_Buffer_Function *save_buffer;
@@ -174,8 +174,8 @@ app_links->get_parameter_buffer = external_get_parameter_buffer;\
 app_links->get_buffer_by_name = external_get_buffer_by_name;\
 app_links->refresh_buffer = external_refresh_buffer;\
 app_links->buffer_read_range = external_buffer_read_range;\
-app_links->buffer_replace_range = external_buffer_replace_range;\
 app_links->buffer_seek = external_buffer_seek;\
+app_links->buffer_replace_range = external_buffer_replace_range;\
 app_links->buffer_set_setting = external_buffer_set_setting;\
 app_links->create_buffer = external_create_buffer;\
 app_links->save_buffer = external_save_buffer;\

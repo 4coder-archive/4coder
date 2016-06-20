@@ -260,7 +260,7 @@ do_feedback_message(System_Functions *system, Models *models, String value){
 #define USE_FILE(n,v) Editing_File *n = (v)->file_data.file
 
 #define REQ_OPEN_VIEW(n) View *n = command->panel->view; if (view_lock_level(n) > LockLevel_Open) return
-#define REQ_READABLE_VIEW(n) View *n = command->panel->view; if (view_lock_level(n) > LockLevel_NoWrite) return
+#define REQ_READABLE_VIEW(n) View *n = command->panel->view; if (view_lock_level(n) > LockLevel_Protected) return
 
 #define REQ_FILE(n,v) Editing_File *n = (v)->file_data.file; if (!n) return
 #define REQ_FILE_HISTORY(n,v) Editing_File *n = (v)->file_data.file; if (!n || !n->state.undo.undo.edits) return

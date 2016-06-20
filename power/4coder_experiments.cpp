@@ -7,8 +7,9 @@
 #include <string.h>
 
 CUSTOM_COMMAND_SIG(kill_rect){
-    View_Summary view = app->get_active_view(app);
-    Buffer_Summary buffer = app->get_buffer(app, view.buffer_id);
+    unsigned int access = AccessOpen;
+    View_Summary view = app->get_active_view(app, access);
+    Buffer_Summary buffer = app->get_buffer(app, view.buffer_id, access);
     Full_Cursor cursor;
     
     Buffer_Rect rect = get_rect(&view);
@@ -30,8 +31,9 @@ CUSTOM_COMMAND_SIG(kill_rect){
 // TODO(allen): Both of these brace related commands would work better
 // if the API exposed access to the tokens in a code file.
 CUSTOM_COMMAND_SIG(mark_matching_brace){
-    View_Summary view = app->get_active_view(app);
-    Buffer_Summary buffer = app->get_buffer(app, view.buffer_id);
+    unsigned int access = AccessProtected;
+    View_Summary view = app->get_active_view(app, access);
+    Buffer_Summary buffer = app->get_buffer(app, view.buffer_id, access);
     
     int start_pos = view.cursor.pos;
     
@@ -110,8 +112,9 @@ CUSTOM_COMMAND_SIG(mark_matching_brace){
 }
 
 CUSTOM_COMMAND_SIG(cursor_to_surrounding_scope){
-    View_Summary view = app->get_active_view(app);
-    Buffer_Summary buffer = app->get_buffer(app, view.buffer_id);
+    unsigned int access = AccessProtected;
+    View_Summary view = app->get_active_view(app, access);
+    Buffer_Summary buffer = app->get_buffer(app, view.buffer_id, access);
     
     int start_pos = view.cursor.pos - 1;
     

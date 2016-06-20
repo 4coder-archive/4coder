@@ -17,18 +17,19 @@ int Clipboard_Count(Application_Links *app);
 int Clipboard_Index(Application_Links *app, int index, char *out, int len);
 
 // Direct buffer manipulation
-Buffer_Summary Get_Buffer_First(Application_Links *app);
-void Get_Buffer_Next(Application_Links *app, Buffer_Summary *buffer);
+Buffer_Summary Get_Buffer_First(Application_Links *app, unsigned int access);
+void Get_Buffer_Next(Application_Links *app, Buffer_Summary *buffer, unsigned int access);
 
-Buffer_Summary Get_Buffer(Application_Links *app, int index);
-Buffer_Summary Get_Parameter_Buffer(Application_Links *app, int param_index);
-Buffer_Summary Get_Buffer_By_Name(Application_Links *app, char *filename, int len);
+Buffer_Summary Get_Buffer(Application_Links *app, int index, unsigned int access);
+Buffer_Summary Get_Parameter_Buffer(Application_Links *app, int param_index, unsigned int access);
+Buffer_Summary Get_Buffer_By_Name(Application_Links *app, char *filename, int len, unsigned int access);
 
 int Refresh_Buffer(Application_Links *app, Buffer_Summary *buffer);
-int Buffer_Read_Range(Application_Links *app, Buffer_Summary *buffer, int start, int end, char *out);
-int Buffer_Replace_Range(Application_Links *app, Buffer_Summary *buffer, int start, int end, char *str, int len);
 
+int Buffer_Read_Range(Application_Links *app, Buffer_Summary *buffer, int start, int end, char *out);
 int Buffer_Seek(Application_Links *app, Buffer_Summary *buffer, int start_pos, int seek_forward, unsigned int flags);
+
+int Buffer_Replace_Range(Application_Links *app, Buffer_Summary *buffer, int start, int end, char *str, int len);
 int Buffer_Set_Setting(Application_Links *app, Buffer_Summary *buffer, int setting, int value);
 
 Buffer_Summary Create_Buffer(Application_Links *app, char *filename, int filename_len, int do_in_background);
@@ -36,23 +37,22 @@ int Save_Buffer(Application_Links *app, Buffer_Summary *buffer, char *filename, 
 int Kill_Buffer(Application_Links *app, Buffer_Identifier buffer, int always_kill, int view_id);
 
 // View manipulation
-View_Summary Get_View_First(Application_Links *app);
-void Get_View_Next(Application_Links *app, View_Summary *view);
+View_Summary Get_View_First(Application_Links *app, unsigned int access);
+void Get_View_Next(Application_Links *app, View_Summary *view, unsigned int access);
 
-View_Summary Get_View(Application_Links *app, int index);
-View_Summary Get_Active_View(Application_Links *app);
+View_Summary Get_View(Application_Links *app, int index, unsigned int access);
+View_Summary Get_Active_View(Application_Links *app, unsigned int access);
 
 int Refresh_View(Application_Links *app, View_Summary *view);
 
-int View_Auto_Tab(Application_Links *app, View_Summary *view, int start, int end, int tab_width, unsigned int flags);
-Full_Cursor View_Compute_Cursor(Application_Links *app, View_Summary *view, Buffer_Seek seek);
-int View_Set_Cursor(Application_Links *app, View_Summary *view, Buffer_Seek seek, int set_preferred_x);
-int View_Set_Mark(Application_Links *app, View_Summary *view, Buffer_Seek seek);
-int View_Set_Highlight(Application_Links *app, View_Summary *view, int start, int end, int turn_on);
-int View_Set_Buffer(Application_Links *app, View_Summary *view, int buffer_id);
-
+int         View_Auto_Tab       (Application_Links *app, View_Summary *view, int start, int end, int tab_width, unsigned int flags);
+Full_Cursor View_Compute_Cursor (Application_Links *app, View_Summary *view, Buffer_Seek seek);
+int         View_Set_Cursor     (Application_Links *app, View_Summary *view, Buffer_Seek seek, int set_preferred_x);
+int         View_Set_Mark       (Application_Links *app, View_Summary *view, Buffer_Seek seek);
+int         View_Set_Highlight  (Application_Links *app, View_Summary *view, int start, int end, int turn_on);
+int         View_Set_Buffer     (Application_Links *app, View_Summary *view, int buffer_id);
 // TODO(allen): Switch from ticks to seconds.
-int View_Post_Fade(Application_Links *app, View_Summary *view, int ticks, int start, int end, unsigned int color);
+int         View_Post_Fade      (Application_Links *app, View_Summary *view, int ticks, int start, int end, unsigned int color);
 
 // TODO(allen):
 // Get rid of this temporary hack ass soon ass possible.

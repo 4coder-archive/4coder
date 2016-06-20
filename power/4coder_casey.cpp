@@ -402,7 +402,8 @@ CUSTOM_COMMAND_SIG(casey_switch_buffer_other_window)
 internal void
 DeleteAfterCommand(struct Application_Links *app, unsigned long long CommandID)
 {
-    View_Summary view = app->get_active_view(app);
+    unsigned int access = AccessOpen;
+    View_Summary view = app->get_active_view(app, access);
 
     int pos2 = view.cursor.pos;
     if (CommandID < cmdid_count){
@@ -416,7 +417,7 @@ DeleteAfterCommand(struct Application_Links *app, unsigned long long CommandID)
 
     Range range = make_range(pos1, pos2);
 
-    Buffer_Summary buffer = app->get_buffer(app, view.buffer_id);
+    Buffer_Summary buffer = app->get_buffer(app, view.buffer_id, access);
     app->buffer_replace_range(app, &buffer, range.min, range.max, 0, 0);
 }
 
@@ -432,7 +433,8 @@ CUSTOM_COMMAND_SIG(casey_delete_token_right)
 
 CUSTOM_COMMAND_SIG(casey_kill_to_end_of_line)
 {
-    View_Summary view = app->get_active_view(app);
+    unsigned int access = AccessOpen;
+    View_Summary view = app->get_active_view(app, access);
 
     int pos2 = view.cursor.pos;
     exec_command(app, seek_end_of_line);
@@ -445,7 +447,7 @@ CUSTOM_COMMAND_SIG(casey_kill_to_end_of_line)
         range.max += 1;
     }
 
-    Buffer_Summary buffer = app->get_buffer(app, view.buffer_id);
+    Buffer_Summary buffer = app->get_buffer(app, view.buffer_id, access);
     app->buffer_replace_range(app, &buffer, range.min, range.max, 0, 0);
     exec_command(app, auto_tab_line_at_cursor);
 }
@@ -496,9 +498,10 @@ SwitchToOrLoadFile(struct Application_Links *app, String FileName, bool CreateIf
     switch_to_result Result = {};
 
     SanitizeSlashes(FileName);
-
-    View_Summary view = app->get_active_view(app);
-    Buffer_Summary buffer = app->get_buffer_by_name(app, FileName.str, FileName.size);
+    
+    unsigned int access = AccessAll;
+    View_Summary view = app->get_active_view(app, access);
+    Buffer_Summary buffer = app->get_buffer_by_name(app, FileName.str, FileName.size, access);
 
     Result.view = view;
     Result.buffer = buffer;
@@ -523,7 +526,7 @@ SwitchToOrLoadFile(struct Application_Links *app, String FileName, bool CreateIf
             // This returns false if the open fails.
             view_open_file(app, &view, expand_str(FileName), false);
             
-            Result.buffer = app->get_buffer_by_name(app, FileName.str, FileName.size);            
+            Result.buffer = app->get_buffer_by_name(app, FileName.str, FileName.size, access);            
             
             Result.Loaded = true;
             Result.Switched = true;
@@ -575,8 +578,9 @@ CUSTOM_COMMAND_SIG(casey_build_search)
 
 CUSTOM_COMMAND_SIG(casey_find_corresponding_file)
 {
-    View_Summary view = app->get_active_view(app);
-    Buffer_Summary buffer = app->get_buffer(app, view.buffer_id);
+    unsigned int access = AccessProtected;
+    View_Summary view = app->get_active_view(app, access);
+    Buffer_Summary buffer = app->get_buffer(app, view.buffer_id, access);
 
     String extension = file_extension(make_string(buffer.file_name, buffer.file_name_len));
     if (extension.str)
@@ -630,11 +634,12 @@ CUSTOM_COMMAND_SIG(casey_find_corresponding_file)
 
 CUSTOM_COMMAND_SIG(casey_find_corresponding_file_other_window)
 {
-    View_Summary old_view = app->get_active_view(app);
-    Buffer_Summary buffer = app->get_buffer(app, old_view.buffer_id);
+    unsigned int access = AccessProtected;
+    View_Summary old_view = app->get_active_view(app, access);
+    Buffer_Summary buffer = app->get_buffer(app, old_view.buffer_id, access);
 
     exec_command(app, cmdid_change_active_panel);
-    View_Summary new_view = app->get_active_view(app);
+    View_Summary new_view = app->get_active_view(app, AccessAll);
     app->view_set_buffer(app, &new_view, buffer.buffer_id);
 
 //    exec_command(app, casey_find_corresponding_file);
@@ -646,9 +651,10 @@ CUSTOM_COMMAND_SIG(casey_save_and_make_without_asking)
 
     Buffer_Summary buffer = {};
 
-    for(buffer = app->get_buffer_first(app);
+    unsigned int access = AccessAll;
+    for(buffer = app->get_buffer_first(app, access);
         buffer.exists;
-        app->get_buffer_next(app, &buffer))
+        app->get_buffer_next(app, &buffer, access))
     {
 #if 0
         push_parameter(app, par_name, buffer.file_name, buffer.file_name_len);
@@ -712,7 +718,8 @@ CUSTOM_COMMAND_SIG(casey_save_and_make_without_asking)
     
     if(append(&command, "build.bat"))
     {
-        View_Summary view = app->get_active_view(app);
+        unsigned int access = AccessAll;
+        View_Summary view = app->get_active_view(app, access);
         app->exec_system_command(app, &view,
                                  buffer_identifier(GlobalCompilationBufferName, (int)strlen(GlobalCompilationBufferName)),
                                  dir.str, dir.size,
@@ -843,7 +850,7 @@ casey_parse_error(Application_Links *app, Buffer_Summary buffer, View_Summary vi
 internal void
 casey_seek_error_dy(Application_Links *app, int dy)
 {
-    Buffer_Summary Buffer = app->get_buffer_by_name(app, GlobalCompilationBufferName, (int)strlen(GlobalCompilationBufferName));
+    Buffer_Summary Buffer = app->get_buffer_by_name(app, GlobalCompilationBufferName, (int)strlen(GlobalCompilationBufferName), AccessAll);
     View_Summary compilation_view = get_first_view_with_buffer(app, Buffer.buffer_id);
 
     // NOTE(casey): First get the current error (which may be none, if we've never parsed before)
@@ -1068,7 +1075,8 @@ ParseCalc(tokenizer *Tokenizer)
 
 CUSTOM_COMMAND_SIG(casey_quick_calc)
 {
-    View_Summary view = app->get_active_view(app);
+    unsigned int access = AccessOpen;
+    View_Summary view = app->get_active_view(app, access);
 
     Range range = get_range(&view);
 
@@ -1076,7 +1084,7 @@ CUSTOM_COMMAND_SIG(casey_quick_calc)
     char *Stuff = (char *)malloc(Size + 1);
     Stuff[Size] = 0;
 
-    Buffer_Summary buffer = app->get_buffer(app, view.buffer_id);
+    Buffer_Summary buffer = app->get_buffer(app, view.buffer_id, access);
     app->buffer_read_range(app, &buffer, range.min, range.max, Stuff);
 
     tokenizer Tokenizer = {Stuff};
@@ -1331,7 +1339,8 @@ HOOK_SIG(casey_file_settings)
     // received through functions like this app->get_parameter_buffer.
     // This is different from the past where this hook got a buffer
     // from app->get_active_buffer.
-    Buffer_Summary buffer = app->get_parameter_buffer(app, 0);
+    unsigned int access = AccessAll;
+    Buffer_Summary buffer = app->get_parameter_buffer(app, 0, access);
 
     int treat_as_code = 0;
     int treat_as_project = 0;

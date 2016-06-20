@@ -300,16 +300,36 @@ struct Live_Views{
     i32 count, max;
 };
 
-#define LockLevel_Open 0
-#define LockLevel_NoWrite 1
-#define LockLevel_NoUpdate 2
+enum Lock_Level{
+    LockLevel_Open      = 0,
+    LockLevel_Protected = 1,
+    LockLevel_Hidden    = 2
+};
+
+inline u32
+view_lock_flags(View *view){
+    u32 result = AccessOpen;
+    File_Viewing_Data *data = &view->file_data;
+    if (view->showing_ui != VUI_None){
+        result |= AccessHidden;
+    }
+    if (data->file_locked ||
+        (data->file && data->file->settings.read_only)){
+        result |= AccessProtected;
+    }
+    return(result);
+}
 
 inline i32
 view_lock_level(View *view){
     i32 result = LockLevel_Open;
-    File_Viewing_Data *data = &view->file_data;
-    if (view->showing_ui != VUI_None) result = LockLevel_NoUpdate;
-    else if (data->file_locked || (data->file && data->file->settings.read_only)) result = LockLevel_NoWrite;
+    u32 flags = view_lock_flags(view);
+    if (flags & AccessHidden){
+        result = LockLevel_Hidden;
+    }
+    else if (flags & AccessProtected){
+        result = LockLevel_Protected;
+    }
     return(result);
 }
 

@@ -203,6 +203,7 @@ struct Buffer_Summary{
     int exists;
     int ready;
     int buffer_id;
+    unsigned int lock_flags;
     
     int size;
     
@@ -225,8 +226,7 @@ struct View_Summary{
     int exists;
     int view_id;
     int buffer_id;
-    int locked_buffer_id;
-    int hidden_buffer_id;
+    unsigned int lock_flags;
     
     Full_Cursor cursor;
     Full_Cursor mark;
@@ -279,6 +279,13 @@ struct Event_Message{
 struct Theme_Color{
     Style_Tag tag;
     unsigned int color;
+};
+
+enum Access_Types{
+    AccessOpen      = 0x0,
+    AccessProtected = 0x1,
+    AccessHidden    = 0x2,
+    AccessAll       = 0xFF
 };
 
 

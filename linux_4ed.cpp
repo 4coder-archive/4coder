@@ -1162,7 +1162,7 @@ Font_Load_Sig(system_draw_font_load){
 #if LINUX_FONTS
         success = linux_font_load(font_out, filename, pt_size, tab_width);
 #else
-        success = draw_font_load(
+        success = font_load(
             &linuxvars.font_part,
             font_out,
             filename,

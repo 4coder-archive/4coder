@@ -30,6 +30,7 @@
 
 #define SUPPORT_DPI 1
 #define USE_WIN32_FONTS 0
+#define USE_FT_FONTS 0
 
 #define FPS 60
 #define frame_useconds (1000000 / FPS)
@@ -1146,8 +1147,11 @@ Sys_CLI_End_Update_Sig(system_cli_end_update){
 
 #include "system_shared.cpp"
 #include "4ed_rendering.cpp"
+
 #if USE_WIN32_FONTS
-#include "win32_font.cpp"
+# include "win32_font.cpp"
+#elif USE_FT_FONTS
+# include "win32_ft_font.cpp"
 #endif
 
 internal f32
@@ -1174,24 +1178,28 @@ Font_Load_Sig(system_draw_font_load){
     for (b32 success = 0; success == 0;){
 #if USE_WIN32_FONTS
         
-        success = win32_draw_font_load(&win32vars.font_part,
-                                       font_out,
-                                       filename,
-                                       fontname,
-                                       pt_size,
-                                       tab_width,
-                                       oversample,
-                                       store_texture);
+        success = win32_font_load(&win32vars.font_part,
+                                  font_out,
+                                  filename,
+                                  fontname,
+                                  pt_size,
+                                  tab_width,
+                                  oversample,
+                                  store_texture);
+        
+#elif USE_FT_FONTS
+        
+        success = win32_ft_font_load();
         
 #else
         
-        success = draw_font_load(&win32vars.font_part,
-                                 font_out,
-                                 filename,
-                                 pt_size,
-                                 tab_width,
-                                 oversample,
-                                 store_texture);
+        success = font_load(&win32vars.font_part,
+                            font_out,
+                            filename,
+                            pt_size,
+                            tab_width,
+                            oversample,
+                            store_texture);
         
 #endif
         

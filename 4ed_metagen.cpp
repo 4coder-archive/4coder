@@ -434,6 +434,7 @@ generate_custom_headers(){
                 if (parse.size > 0){
                     pos = find(parse, 0, '(');
                     sig->name = substr(parse, 0, pos);
+                    sig->name = chop_whitespace(sig->name);
                     parse = substr(parse, pos);
                     
                     if (parse.size > 0){

@@ -241,9 +241,9 @@ exec_command(Application_Links *app, Custom_Command_Function *func){
 }
 
 inline void
-active_view_to_line(Application_Links *app, int line_number){
+active_view_to_line(Application_Links *app, unsigned int access, int line_number){
     View_Summary view;
-    view = app->get_active_view(app);
+    view = app->get_active_view(app, access);
     
     // NOTE(allen|a3.4.4): We don't have to worry about whether this is a valid line number.
     // When it's not possible to place a cursor at the position for whatever reason it will set the
@@ -255,11 +255,15 @@ inline View_Summary
 get_first_view_with_buffer(Application_Links *app, int buffer_id){
     View_Summary result = {};
     View_Summary test = {};
-
-    for(test = app->get_view_first(app);
+    
+    unsigned int access = AccessProtected|AccessHidden;
+    for(test = app->get_view_first(app, access);
         test.exists;
-        app->get_view_next(app, &test)){
-        if(test.locked_buffer_id == buffer_id){
+        app->get_view_next(app, &test, access)){
+        
+        Buffer_Summary buffer = app->get_buffer(app, test.buffer_id, access);
+        
+        if(buffer.buffer_id == buffer_id){
             result = test;
             break;
         }
@@ -352,9 +356,9 @@ query_user_number(Application_Links *app, Query_Bar *bar){
 inline String empty_string() {String Result = {}; return(Result);}
 
 inline Buffer_Summary
-get_active_buffer(Application_Links *app){
-    View_Summary view = app->get_active_view(app);
-    Buffer_Summary buffer = app->get_buffer(app, view.buffer_id);
+get_active_buffer(Application_Links *app, unsigned int access){
+    View_Summary view = app->get_active_view(app, access);
+    Buffer_Summary buffer = app->get_buffer(app, view.buffer_id, access);
     return(buffer);
 }
 
@@ -729,7 +733,7 @@ static int
 view_open_file(Application_Links *app, View_Summary *view,
                char *filename, int filename_len, int do_in_background){
     int result = false;
-    Buffer_Summary buffer = app->get_buffer_by_name(app, filename, filename_len);
+    Buffer_Summary buffer = app->get_buffer_by_name(app, filename, filename_len, AccessProtected|AccessHidden);
     if (buffer.exists){
         app->view_set_buffer(app, view, buffer.buffer_id);
         result = true;

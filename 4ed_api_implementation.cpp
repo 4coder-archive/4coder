@@ -4,6 +4,17 @@ The implementation for the custom API
 
 // TOP
 
+inline b32
+access_test(u32 lock_flags, u32 access_flags){
+    b32 result = 0;
+    
+    if ((lock_flags & ~access_flags) == 0){
+        result = 1;
+    }
+    
+    return(result);
+}
+
 internal void
 fill_buffer_summary(Buffer_Summary *buffer, Editing_File *file, Working_Set *working_set){
     *buffer = buffer_summary_zero();
@@ -22,6 +33,11 @@ fill_buffer_summary(Buffer_Summary *buffer, Editing_File *file, Working_Set *wor
         buffer->buffer_name = file->name.live_name.str;
         
         buffer->map_id = file->settings.base_map_id;
+        
+        buffer->lock_flags = 0;
+        if (file->settings.read_only){
+            buffer->lock_flags |= AccessProtected;
+        }
     }
 }
 
@@ -33,8 +49,9 @@ fill_buffer_summary(Buffer_Summary *buffer, Editing_File *file, Command_Data *cm
 
 internal void
 fill_view_summary(View_Summary *view, View *vptr, Live_Views *live_set, Working_Set *working_set){
-    i32 lock_level;
     int buffer_id;
+    File_Viewing_Data *data = &vptr->file_data;
+    
     *view = view_summary_zero();
     
     if (vptr->in_use){
@@ -43,32 +60,12 @@ fill_view_summary(View_Summary *view, View *vptr, Live_Views *live_set, Working_
         view->line_height = (float)(vptr->line_height);
         view->unwrapped_lines = vptr->file_data.unwrapped_lines;
         view->show_whitespace = vptr->file_data.show_whitespace;
+        view->lock_flags = view_lock_flags(vptr);
         
-        
-        if (vptr->file_data.file){
-            lock_level = view_lock_level(vptr);
+        if (data->file){
             buffer_id = vptr->file_data.file->id.id;
             
-            if (lock_level <= 0){
-                view->buffer_id = buffer_id;
-            }
-            else{
-                view->buffer_id = 0;
-            }
-            
-            if (lock_level <= 1){
-                view->locked_buffer_id = buffer_id;
-            }
-            else{
-                view->locked_buffer_id = 0;
-            }
-            
-            if (lock_level <= 2){
-                view->hidden_buffer_id = buffer_id;
-            }
-            else{
-                view->hidden_buffer_id = 0;
-            }
+            view->buffer_id = buffer_id;
             
             view->mark = view_compute_cursor_from_pos(vptr, vptr->recent->mark);
             view->cursor = vptr->recent->cursor;
@@ -384,19 +381,15 @@ CLIPBOARD_INDEX_SIG(external_clipboard_index){
     return(size);
 }
 
-GET_BUFFER_FIRST_SIG(external_get_buffer_first){
-    Command_Data *cmd = (Command_Data*)app->cmd_context;
-    Working_Set *working_set = &cmd->models->working_set;
-    Buffer_Summary result = {};
+internal void
+internal_get_buffer_first(Working_Set *working_set, Buffer_Summary *buffer){
     if (working_set->file_count > 0){
-        fill_buffer_summary(&result, (Editing_File*)working_set->used_sentinel.next, working_set);
+        fill_buffer_summary(buffer, (Editing_File*)working_set->used_sentinel.next, working_set);
     }
-    return(result);
 }
 
-GET_BUFFER_NEXT_SIG(external_get_buffer_next){
-    Command_Data *cmd = (Command_Data*)app->cmd_context;
-    Working_Set *working_set = &cmd->models->working_set;
+internal void
+internal_get_buffer_next(Working_Set *working_set, Buffer_Summary *buffer){
     Editing_File *file;
     
     file = working_set_get_active_file(working_set, buffer->buffer_id);
@@ -409,6 +402,29 @@ GET_BUFFER_NEXT_SIG(external_get_buffer_next){
     }
 }
 
+GET_BUFFER_FIRST_SIG(external_get_buffer_first){
+    Command_Data *cmd = (Command_Data*)app->cmd_context;
+    Working_Set *working_set = &cmd->models->working_set;
+    Buffer_Summary result = {};
+    
+    internal_get_buffer_first(working_set, &result);
+    while (result.exists && !access_test(result.lock_flags, access)){
+        internal_get_buffer_next(working_set, &result);
+    }
+    
+    return(result);
+}
+
+GET_BUFFER_NEXT_SIG(external_get_buffer_next){
+    Command_Data *cmd = (Command_Data*)app->cmd_context;
+    Working_Set *working_set = &cmd->models->working_set;
+    
+    internal_get_buffer_next(working_set, buffer);
+    while (buffer->exists && !access_test(buffer->lock_flags, access)){
+        internal_get_buffer_next(working_set, buffer);
+    }
+}
+
 GET_BUFFER_SIG(external_get_buffer){
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     Working_Set *working_set = &cmd->models->working_set;
@@ -418,6 +434,9 @@ GET_BUFFER_SIG(external_get_buffer){
     file = working_set_get_active_file(working_set, index);
     if (file){
         fill_buffer_summary(&buffer, file, working_set);
+        if (!access_test(buffer.lock_flags, access)){
+            buffer = buffer_summary_zero();
+        }
     }
     
     return(buffer);
@@ -429,7 +448,7 @@ GET_PARAMETER_BUFFER_SIG(external_get_parameter_buffer){
     Buffer_Summary buffer = {};
     
     if (param_index >= 0 && param_index < models->buffer_param_count){
-        buffer = external_get_buffer(app, models->buffer_param_indices[param_index]);
+        buffer = external_get_buffer(app, models->buffer_param_indices[param_index], access);
     }
     
     return(buffer);
@@ -444,6 +463,9 @@ GET_BUFFER_BY_NAME_SIG(external_get_buffer_by_name){
     file = working_set_contains(cmd->system, working_set, make_string(filename, len));
     if (file && !file->is_dummy){
         fill_buffer_summary(&buffer, file, working_set);
+        if (!access_test(buffer.lock_flags, access)){
+            buffer = buffer_summary_zero();
+        }
     }
     
     return(buffer);
@@ -451,7 +473,7 @@ GET_BUFFER_BY_NAME_SIG(external_get_buffer_by_name){
 
 REFRESH_BUFFER_SIG(external_refresh_buffer){
     int result;
-    *buffer = external_get_buffer(app, buffer->buffer_id);
+    *buffer = external_get_buffer(app, buffer->buffer_id, AccessAll);
     result = buffer->exists;
     return(result);
 }
@@ -465,84 +487,82 @@ BUFFER_SEEK_SIG(external_buffer_seek){
     
     if (file){
         // TODO(allen): reduce duplication?
-        {
-            i32 size = buffer_size(&file->state.buffer);
-            i32 pos[4] = {0};
-            i32 new_pos = 0;
+        i32 size = buffer_size(&file->state.buffer);
+        i32 pos[4] = {0};
+        i32 new_pos = 0;
+        
+        if (start_pos < 0){
+            start_pos = 0;
+        }
+        else if (start_pos > size){
+            start_pos = size;
+        }
+        
+        if (seek_forward){
+            for (i32 i = 0; i < ArrayCount(pos); ++i) pos[i] = size;
             
-            if (start_pos < 0){
-                start_pos = 0;
-            }
-            else if (start_pos > size){
-                start_pos = size;
+            if (flags & (1)){
+                pos[0] = buffer_seek_whitespace_right(&file->state.buffer, start_pos);
             }
             
-            if (seek_forward){
-                for (i32 i = 0; i < ArrayCount(pos); ++i) pos[i] = size;
-                
-                if (flags & (1)){
-                    pos[0] = buffer_seek_whitespace_right(&file->state.buffer, start_pos);
-                }
-                
-                if (flags & (1 << 1)){
-                    if (file->state.tokens_complete){
-                        pos[1] = seek_token_right(&file->state.token_stack, start_pos);
-                    }
-                    else{
-                        pos[1] = buffer_seek_whitespace_right(&file->state.buffer, start_pos);
-                    }
-                }
-                
-                if (flags & (1 << 2)){
-                    pos[2] = buffer_seek_alphanumeric_right(&file->state.buffer, start_pos);
-                    if (flags & (1 << 3)){
-                        pos[3] = buffer_seek_range_camel_right(&file->state.buffer, start_pos, pos[2]);
-                    }
+            if (flags & (1 << 1)){
+                if (file->state.tokens_complete){
+                    pos[1] = seek_token_right(&file->state.token_stack, start_pos);
                 }
                 else{
-                    if (flags & (1 << 3)){
-                        pos[3] = buffer_seek_alphanumeric_or_camel_right(&file->state.buffer, start_pos);
-                    }
+                    pos[1] = buffer_seek_whitespace_right(&file->state.buffer, start_pos);
                 }
-                
-                new_pos = size;
-                for (i32 i = 0; i < ArrayCount(pos); ++i){
-                    if (pos[i] < new_pos) new_pos = pos[i];
+            }
+            
+            if (flags & (1 << 2)){
+                pos[2] = buffer_seek_alphanumeric_right(&file->state.buffer, start_pos);
+                if (flags & (1 << 3)){
+                    pos[3] = buffer_seek_range_camel_right(&file->state.buffer, start_pos, pos[2]);
                 }
             }
             else{
-                if (flags & (1)){
-                    pos[0] = buffer_seek_whitespace_left(&file->state.buffer, start_pos);
-                }
-                
-                if (flags & (1 << 1)){
-                    if (file->state.tokens_complete){
-                        pos[1] = seek_token_left(&file->state.token_stack, start_pos);
-                    }
-                    else{
-                        pos[1] = buffer_seek_whitespace_left(&file->state.buffer, start_pos);
-                    }
-                }
-                
-                if (flags & (1 << 2)){
-                    pos[2] = buffer_seek_alphanumeric_left(&file->state.buffer, start_pos);
-                    if (flags & (1 << 3)){
-                        pos[3] = buffer_seek_range_camel_left(&file->state.buffer, start_pos, pos[2]);
-                    }
-                }
-                else{
-                    if (flags & (1 << 3)){
-                        pos[3] = buffer_seek_alphanumeric_or_camel_left(&file->state.buffer, start_pos);
-                    }
-                }
-                
-                new_pos = 0;
-                for (i32 i = 0; i < ArrayCount(pos); ++i){
-                    if (pos[i] > new_pos) new_pos = pos[i];
+                if (flags & (1 << 3)){
+                    pos[3] = buffer_seek_alphanumeric_or_camel_right(&file->state.buffer, start_pos);
                 }
             }
-            result = new_pos;
+            
+            new_pos = size;
+            for (i32 i = 0; i < ArrayCount(pos); ++i){
+                if (pos[i] < new_pos) new_pos = pos[i];
+            }
         }
+        else{
+            if (flags & (1)){
+                pos[0] = buffer_seek_whitespace_left(&file->state.buffer, start_pos);
+            }
+            
+            if (flags & (1 << 1)){
+                if (file->state.tokens_complete){
+                    pos[1] = seek_token_left(&file->state.token_stack, start_pos);
+                }
+                else{
+                    pos[1] = buffer_seek_whitespace_left(&file->state.buffer, start_pos);
+                }
+            }
+            
+            if (flags & (1 << 2)){
+                pos[2] = buffer_seek_alphanumeric_left(&file->state.buffer, start_pos);
+                if (flags & (1 << 3)){
+                    pos[3] = buffer_seek_range_camel_left(&file->state.buffer, start_pos, pos[2]);
+                }
+            }
+            else{
+                if (flags & (1 << 3)){
+                    pos[3] = buffer_seek_alphanumeric_or_camel_left(&file->state.buffer, start_pos);
+                }
+            }
+            
+            new_pos = 0;
+            for (i32 i = 0; i < ArrayCount(pos); ++i){
+                if (pos[i] > new_pos) new_pos = pos[i];
+            }
+        }
+        result = new_pos;
         
         fill_buffer_summary(buffer, file, cmd);
     }
@@ -766,31 +786,29 @@ KILL_BUFFER_SIG(external_kill_buffer){
     return(result);
 }
 
-GET_VIEW_FIRST_SIG(external_get_view_first){
-    Command_Data *cmd = (Command_Data*)app->cmd_context;
+internal void
+internal_get_view_first(Command_Data *cmd, View_Summary *view){
     Editing_Layout *layout = &cmd->models->layout;
-    View_Summary view = {};
-    
     Panel *panel = layout->used_sentinel.next;
     
     Assert(panel != &layout->used_sentinel);
-    fill_view_summary(&view, panel->view, cmd);
-    
-    return(view);
+    fill_view_summary(view, panel->view, cmd);
 }
 
-GET_VIEW_NEXT_SIG(external_get_view_next){
-    Command_Data *cmd = (Command_Data*)app->cmd_context;
+internal void
+internal_get_view_next(Command_Data *cmd, View_Summary *view){
     Editing_Layout *layout = &cmd->models->layout;
     Live_Views *live_set = &cmd->vars->live_set;
-    View *vptr;
-    Panel *panel;
     int index = view->view_id - 1;
+    View *vptr = 0;
+    Panel *panel = 0;
     
     if (index >= 0 && index < live_set->max){
         vptr = live_set->views + index;
         panel = vptr->panel;
-        if (panel) panel = panel->next;
+        if (panel){
+            panel = panel->next;
+        }
         if (panel && panel != &layout->used_sentinel){
             fill_view_summary(view, panel->view, &cmd->vars->live_set, &cmd->models->working_set);
         }
@@ -803,17 +821,41 @@ GET_VIEW_NEXT_SIG(external_get_view_next){
     }
 }
 
+GET_VIEW_FIRST_SIG(external_get_view_first){
+    Command_Data *cmd = (Command_Data*)app->cmd_context;
+    View_Summary view = {};
+    
+    internal_get_view_first(cmd, &view);
+    while (view.exists && !access_test(view.lock_flags, access)){
+        internal_get_view_next(cmd, &view);
+    }
+    
+    return(view);
+}
+
+GET_VIEW_NEXT_SIG(external_get_view_next){
+    Command_Data *cmd = (Command_Data*)app->cmd_context;
+    
+    internal_get_view_next(cmd, view);
+    while (view->exists && !access_test(view->lock_flags, access)){
+        internal_get_view_next(cmd, view);
+    }
+}
+
 GET_VIEW_SIG(external_get_view){
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     View_Summary view = {};
     Live_Views *live_set = cmd->live_set;
     int max = live_set->max;
-    View *vptr;
+    View *vptr = 0;
     
     index -= 1;
     if (index >= 0 && index < max){
         vptr = live_set->views + index;
         fill_view_summary(&view, vptr, live_set, &cmd->models->working_set);
+        if (!access_test(view.lock_flags, access)){
+            view = view_summary_zero();
+        }
     }
     
     return(view);
@@ -823,12 +865,15 @@ GET_ACTIVE_VIEW_SIG(external_get_active_view){
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     View_Summary view = {};
     fill_view_summary(&view, cmd->view, &cmd->vars->live_set, &cmd->models->working_set);
+    if (!access_test(view.lock_flags, access)){
+        view = view_summary_zero();
+    }
     return(view);
 }
 
 REFRESH_VIEW_SIG(external_refresh_view){
     int result;
-    *view = external_get_view(app, view->view_id);
+    *view = external_get_view(app, view->view_id, AccessAll);
     result = view->exists;
     return(result);
 }
