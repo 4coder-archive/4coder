@@ -1,8 +1,8 @@
 CPP_FILES := $(wildcard *.cpp) $(wildcard **/*.cpp)
 H_FILES := $(wildcard *.h) $(wildcard **/*.h)
 WARNINGS := -Wno-write-strings 
-PLAT_LINKS := -L/usr/local/lib -lX11 -lpthread -lm -lrt -lGL -ldl -lXfixes
-FLAGS := -fPIC -fno-threadsafe-statics -pthread -I../foreign
+PLAT_LINKS := -L/usr/local/lib -lX11 -lpthread -lm -lrt -lGL -ldl -lXfixes -lfreetype -lfontconfig
+FLAGS := -fPIC -fno-threadsafe-statics -pthread -I../foreign $(shell pkg-config --cflags freetype2)
 
 debug: FLAGS += -DFRED_INTERNAL=1 -DFRED_SUPER=1 -g -O0
 debug: ../4ed_app.so ../4ed
