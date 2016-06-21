@@ -90,6 +90,7 @@ linux_font_load(Render_Font *rf, char *name, i32 pt_size, i32 tab_width){
     FT_Init_FreeType(&ft);
 
     //NOTE(inso): i'm not sure the LCD filter looks better, and it doesn't work perfectly with the coloring stuff
+    // it will probably need shaders to work properly
 #if ENABLE_LCD_FILTER
     if(FT_Library_SetLcdFilter(ft, FT_LCD_FILTER_DEFAULT) == 0){
         puts("LCD Filter on");
@@ -102,7 +103,7 @@ linux_font_load(Render_Font *rf, char *name, i32 pt_size, i32 tab_width){
 
     // set size & metrics
     FT_Size_RequestRec_ size = {};
-    size.type   = FT_SIZE_REQUEST_TYPE_REAL_DIM;
+    size.type   = FT_SIZE_REQUEST_TYPE_NOMINAL;
     size.height = pt_size << 6;
     FT_Request_Size(face, &size);
 
@@ -134,7 +135,7 @@ linux_font_load(Render_Font *rf, char *name, i32 pt_size, i32 tab_width){
     u32* pixels = (u32*) calloc(tex_width * tex_height, sizeof(u32));
 
     // XXX: test if AUTOHINT looks better or not
-    const u32 ft_extra_flags = use_lcd_filter ? FT_LOAD_TARGET_LCD : FT_LOAD_FORCE_AUTOHINT;
+    const u32 ft_extra_flags = use_lcd_filter ? FT_LOAD_TARGET_LCD : 0; // FT_LOAD_FORCE_AUTOHINT;
 
     for(int i = 0; i < NUM_GLYPHS; ++i){
         if(FT_Load_Char(face, i, FT_LOAD_RENDER | ft_extra_flags) != 0) continue;
@@ -182,12 +183,11 @@ linux_font_load(Render_Font *rf, char *name, i32 pt_size, i32 tab_width){
                 int y = pen_y + j;
 
                 if(use_lcd_filter){
-                    u8 r = face->glyph->bitmap.buffer[j * pitch + i * 3];
-                    u8 g = face->glyph->bitmap.buffer[j * pitch + i * 3 + 1];
+                    u8 a = face->glyph->bitmap.buffer[j * pitch + i * 3 + 1];
+                    u8 r = face->glyph->bitmap.buffer[j * pitch + i * 3 + 0];
                     u8 b = face->glyph->bitmap.buffer[j * pitch + i * 3 + 2];
-                    u8 a = (r + g + b) / 3.0f;
 
-                    pixels[y * tex_width + x] = (a << 24) | (r << 16) | (g << 8) | b;
+                    pixels[y * tex_width + x] = (a << 24) | (b << 16) | (a << 8) | r;
                 } else {
                     pixels[y * tex_width + x] = face->glyph->bitmap.buffer[j * pitch + i] * 0x1010101;
                 }
@@ -201,6 +201,7 @@ linux_font_load(Render_Font *rf, char *name, i32 pt_size, i32 tab_width){
     rf->chardata['\n'] = rf->chardata[' '];
     rf->chardata['\t'] = rf->chardata[' '];
     rf->chardata['\t'].xadvance *= tab_width;
+    rf->advance_data['\t'] = rf->advance_data[' '] * tab_width;
 
     FT_Done_FreeType(ft);
 
