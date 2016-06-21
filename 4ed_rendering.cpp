@@ -585,7 +585,9 @@ font_load_freetype(Partition *part,
     memset(pixels, 0, tex_width * tex_height * sizeof(u32));
     
     // XXX: test if AUTOHINT looks better or not
-    const u32 ft_extra_flags = use_lcd_filter ? FT_LOAD_TARGET_LCD : 0; // FT_LOAD_FORCE_AUTOHINT;
+    // NOTE(allen): As of now FT_LOAD_FORCE_AUTOHINT looks much better for
+    // Liberation Mono which is one of the included 4coder fonts.
+    const u32 ft_extra_flags = use_lcd_filter ? FT_LOAD_TARGET_LCD : FT_LOAD_FORCE_AUTOHINT;
     
     for(int i = 0; i < NUM_GLYPHS; ++i){
         if(FT_Load_Char(face, i, FT_LOAD_RENDER | ft_extra_flags) != 0) continue;
@@ -632,11 +634,22 @@ font_load_freetype(Partition *part,
                 int y = pen_y + j;
                 
                 if(use_lcd_filter){
+#if 1
                     u8 a = face->glyph->bitmap.buffer[j * pitch + i * 3 + 1];
                     u8 r = face->glyph->bitmap.buffer[j * pitch + i * 3 + 0];
                     u8 b = face->glyph->bitmap.buffer[j * pitch + i * 3 + 2];
                     
                     pixels[y * tex_width + x] = (a << 24) | (b << 16) | (a << 8) | r;
+                    
+#else
+                    
+                    u8 r = face->glyph->bitmap.buffer[j * pitch + i * 3];
+                    u8 g = face->glyph->bitmap.buffer[j * pitch + i * 3 + 1];
+                    u8 b = face->glyph->bitmap.buffer[j * pitch + i * 3 + 2];
+                    u8 a = (u8)ROUND32((r + g + b) / 3.0f);
+                    
+                    pixels[y * tex_width + x] = (a << 24) | (r << 16) | (g << 8) | b;
+#endif
                 } else {
                     pixels[y * tex_width + x] = face->glyph->bitmap.buffer[j * pitch + i] * 0x1010101;
                 }
