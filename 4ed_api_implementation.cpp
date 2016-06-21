@@ -289,6 +289,12 @@ EXEC_SYSTEM_COMMAND_SIG(external_exec_system_command){
             
             proc = procs + vars->cli_processes.count++;
             proc->out_file = file;
+            if (flags & CLI_CursorAtEnd){
+                proc->cursor_at_end = 1;
+            }
+            else{
+                proc->cursor_at_end = 0;
+            }
             
             if (!system->cli_call(path_string.str, command_string.str, &proc->cli)){
                 --vars->cli_processes.count;

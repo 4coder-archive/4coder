@@ -256,11 +256,9 @@ clipboard_cut(Application_Links *app, int start, int end, Buffer_Summary *buffer
     Buffer_Summary buffer = {0};
     int result = false;
     
-    if (buffer.exists){
-        if (clipboard_copy(app, start, end, &buffer, access)){
-            app->buffer_replace_range(app, &buffer, start, end, 0, 0);
-            if (buffer_out){*buffer_out = buffer;}
-        }
+    if (clipboard_copy(app, start, end, &buffer, access)){
+        app->buffer_replace_range(app, &buffer, start, end, 0, 0);
+        if (buffer_out){*buffer_out = buffer;}
     }
     
     return(result);
@@ -1137,7 +1135,9 @@ CUSTOM_COMMAND_SIG(open_all_code){
     app->free_file_list(app, list);
 }
 
-char out_buffer_space[1024], command_space[1024], hot_directory_space[1024];
+char out_buffer_space[1024];
+char command_space[1024];
+char hot_directory_space[1024];
 
 CUSTOM_COMMAND_SIG(execute_any_cli){
     Query_Bar bar_out, bar_cmd;
@@ -1161,8 +1161,7 @@ CUSTOM_COMMAND_SIG(execute_any_cli){
                              buffer_identifier(bar_out.string.str, bar_out.string.size),
                              hot_directory.str, hot_directory.size,
                              bar_cmd.string.str, bar_cmd.string.size,
-                             CLI_OverlapWithConflict);
-    
+                             CLI_OverlapWithConflict | CLI_CursorAtEnd);
 }
 
 CUSTOM_COMMAND_SIG(execute_previous_cli){
@@ -1180,7 +1179,7 @@ CUSTOM_COMMAND_SIG(execute_previous_cli){
                                  buffer_identifier(out_buffer.str, out_buffer.size),
                                  hot_directory.str, hot_directory.size,
                                  cmd.str, cmd.size,
-                                 CLI_OverlapWithConflict);
+                                 CLI_OverlapWithConflict | CLI_CursorAtEnd);
     }
 }
 

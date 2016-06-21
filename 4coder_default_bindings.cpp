@@ -117,7 +117,7 @@ HOOK_SIG(my_start){
     exec_command(app, cmdid_hide_scrollbar);
     
     app->change_theme(app, literal("4coder"));
-    app->change_font(app, literal("liberation sans"));
+    app->change_font(app, literal("Liberation Sans"));
     
     // Theme options:
     //  "4coder"
@@ -125,14 +125,14 @@ HOOK_SIG(my_start){
     //  "Twilight"
     //  "Woverine"
     //  "stb"
-
+    
     // Font options:
-    //  "liberation sans"
-    //  "liberation mono"
-    //  "hack"
-    //  "cutive mono"
-    //  "inconsolata"
-
+    //  "Liberation Sans"
+    //  "Liberation Mono"
+    //  "Hack"
+    //  "Cutive Mono"
+    //  "Inconsolata"
+    
     // no meaning for return
     return(0);
 }
@@ -164,15 +164,11 @@ HOOK_SIG(my_file_settings){
         wrap_lines = 0;
     }
     
-    // NOTE(allen|a4.0.5): Unlike previous versions the command cmdid_set_settings
-    // no longer automatically effects the active buffer.  This command will actually be
-    // phased out in favor of an app call soon.
-    
-    // TODO(allen): also eliminate this hook if you can.
     app->buffer_set_setting(app, &buffer, BufferSetting_Lex, treat_as_code);
     app->buffer_set_setting(app, &buffer, BufferSetting_WrapLine, wrap_lines);
     app->buffer_set_setting(app, &buffer, BufferSetting_MapID, (treat_as_code)?((int)my_code_map):((int)mapid_file));
     
+    // TODO(allen): eliminate this hook if you can.
     // no meaning for return
     return(0);
 }

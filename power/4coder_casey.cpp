@@ -1519,7 +1519,7 @@ HOOK_SIG(casey_start)
     exec_command(app, cmdid_change_active_panel);
 
     app->change_theme(app, literal("Handmade Hero"));
-    app->change_font(app, literal("liberation mono"));
+    app->change_font(app, literal("Liberation Mono"));
 
     Theme_Color colors[] =
     {

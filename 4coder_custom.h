@@ -165,6 +165,7 @@ enum Command_ID{
 enum{
     CLI_OverlapWithConflict = 0x1,
     CLI_AlwaysBindToView = 0x2,
+    CLI_CursorAtEnd = 0x4,
 };
 
 enum{

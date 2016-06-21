@@ -38,7 +38,7 @@ HOOK_SIG(chronal_init){
     exec_command(app, cmdid_change_active_panel);
 
     app->change_theme(app, literal("4coder"));
-    app->change_font(app, literal("hack"));
+    app->change_font(app, literal("Hack"));
 
     const int color_bg = 0x15100f;
     const int color_bar = 0x1c1212;

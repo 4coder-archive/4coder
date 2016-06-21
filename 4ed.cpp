@@ -26,6 +26,7 @@ struct App_State_Resizing{
 struct CLI_Process{
     CLI_Handles cli;
     Editing_File *out_file;
+    b32 cursor_at_end;
 };
 
 struct CLI_List{
@@ -1871,10 +1872,10 @@ internal i32
 update_cli_handle_with_file(System_Functions *system, Models *models,
                             CLI_Handles *cli, Editing_File *file, char *dest, i32 max, b32 cursor_at_end){
     i32 result = 0;
-    u32 amount;
+    u32 amount = 0;
     
-    for (system->cli_begin_update(cli);
-         system->cli_update_step(cli, dest, max, &amount);){
+    system->cli_begin_update(cli);
+    if (system->cli_update_step(cli, dest, max, &amount)){
         amount = eol_in_place_convert_in(dest, amount);
         output_file_append(system, models, file, make_string(dest, amount), cursor_at_end);
         result = 1;
@@ -2090,7 +2091,7 @@ App_Step_Sig(app_step){
     // NOTE(allen): update child processes
     if (input->dt > 0){
         Temp_Memory temp = begin_temp_memory(&models->mem.part);
-        u32 max = Kbytes(32);
+        u32 max = Kbytes(128);
         char *dest = push_array(&models->mem.part, char, max);
         
         i32 count = vars->cli_processes.count;
@@ -2099,7 +2100,8 @@ App_Step_Sig(app_step){
             Editing_File *file = proc->out_file;
             
             if (file != 0){
-                i32 r = update_cli_handle_with_file(system, models, &proc->cli, file, dest, max, 0);
+                i32 r = update_cli_handle_with_file(
+                    system, models, &proc->cli, file, dest, max, proc->cursor_at_end);
                 if (r < 0){
                     *proc = vars->cli_processes.procs[--count];
                     --i;
