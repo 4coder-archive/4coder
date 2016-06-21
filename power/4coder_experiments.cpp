@@ -2,7 +2,7 @@
 // TOP
 
 #define NO_BINDING
-#include "../4coder_default_bindings.cpp"
+#include "4coder_default_bindings.cpp"
 
 #include <string.h>
 

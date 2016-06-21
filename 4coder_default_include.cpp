@@ -233,15 +233,17 @@ clipboard_copy(Application_Links *app, int start, int end, Buffer_Summary *buffe
     Buffer_Summary buffer = app->get_buffer(app, view.buffer_id, access);
     int result = false;
     
-    if (0 <= start && start <= end && end <= buffer.size){
-        int size = (end - start);
-        char *str = (char*)app->memory;
-        
-        if (size <= app->memory_size){
-            app->buffer_read_range(app, &buffer, start, end, str);
-            app->clipboard_post(app, str, size);
-            if (buffer_out){*buffer_out = buffer;}
-            result = true;
+    if (buffer.exists){
+        if (0 <= start && start <= end && end <= buffer.size){
+            int size = (end - start);
+            char *str = (char*)app->memory;
+            
+            if (size <= app->memory_size){
+                app->buffer_read_range(app, &buffer, start, end, str);
+                app->clipboard_post(app, str, size);
+                if (buffer_out){*buffer_out = buffer;}
+                result = true;
+            }
         }
     }
     
@@ -254,9 +256,11 @@ clipboard_cut(Application_Links *app, int start, int end, Buffer_Summary *buffer
     Buffer_Summary buffer = {0};
     int result = false;
     
-    if (clipboard_copy(app, start, end, &buffer, access)){
-        app->buffer_replace_range(app, &buffer, start, end, 0, 0);
-        if (buffer_out){*buffer_out = buffer;}
+    if (buffer.exists){
+        if (clipboard_copy(app, start, end, &buffer, access)){
+            app->buffer_replace_range(app, &buffer, start, end, 0, 0);
+            if (buffer_out){*buffer_out = buffer;}
+        }
     }
     
     return(result);
@@ -691,16 +695,16 @@ CUSTOM_COMMAND_SIG(if0_off){
     
     View_Summary view;
     Buffer_Summary buffer;
-
+    
     char text1[] = "\n#if 0";
     int size1 = sizeof(text1) - 1;
-
+    
     char text2[] = "#endif\n";
     int size2 = sizeof(text2) - 1;
-
+    
     Range range;
     int pos;
-
+    
     view = app->get_active_view(app, access);
     buffer = app->get_buffer(app, view.buffer_id, access);
     
@@ -1077,7 +1081,7 @@ CUSTOM_COMMAND_SIG(close_all_code){
     int buffers_to_close[2048];
     int buffers_to_close_count = 0;
     
-    unsigned int access = AccessProtected|AccessHidden;
+    unsigned int access = AccessAll;
     for (buffer = app->get_buffer_first(app, access);
          buffer.exists;
          app->get_buffer_next(app, &buffer, access)){
@@ -1106,11 +1110,11 @@ CUSTOM_COMMAND_SIG(open_all_code){
     String dir = make_string(app->memory, 0, app->memory_size);
     dir.size = app->directory_get_hot(app, dir.str, dir.memory_size);
     int dir_size = dir.size;
-
+    
     // NOTE(allen|a3.4.4): Here we get the list of files in this directory.
     // Notice that we free_file_list at the end.
     File_List list = app->get_file_list(app, dir.str, dir.size);
-
+    
     for (int i = 0; i < list.count; ++i){
         File_Info *info = list.infos + i;
         if (!info->folder){
@@ -1150,13 +1154,8 @@ CUSTOM_COMMAND_SIG(execute_any_cli){
     hot_directory = make_fixed_width_string(hot_directory_space);
     hot_directory.size = app->directory_get_hot(app, hot_directory.str, hot_directory.memory_size);
     
-    unsigned int access = AccessProtected|AccessHidden;
+    unsigned int access = AccessAll;
     View_Summary view = app->get_active_view(app, access);
-    
-    // TODO(allen): Make this work without null terminators
-    terminate_with_null(&bar_out.string);
-    terminate_with_null(&bar_cmd.string);
-    terminate_with_null(&hot_directory);
     
     app->exec_system_command(app, &view,
                              buffer_identifier(bar_out.string.str, bar_out.string.size),
@@ -1174,7 +1173,7 @@ CUSTOM_COMMAND_SIG(execute_previous_cli){
     hot_directory = make_string_slowly(hot_directory_space);
     
     if (out_buffer.size > 0 && cmd.size > 0 && hot_directory.size > 0){
-        unsigned int access = AccessProtected|AccessHidden;
+        unsigned int access = AccessAll;
         View_Summary view = app->get_active_view(app, access);
         
         app->exec_system_command(app, &view,
@@ -1194,15 +1193,15 @@ CUSTOM_COMMAND_SIG(execute_arbitrary_command){
     char space[1024];
     bar.prompt = make_lit_string("Command: ");
     bar.string = make_fixed_width_string(space);
-
+    
     if (!query_user_string(app, &bar)) return;
-
+    
     // NOTE(allen): Here I chose to end this query bar because when I call another
     // command it might ALSO have query bars and I don't want this one hanging
     // around at that point.  Since the bar exists on my stack the result of the query
     // is still available in bar.string though.
     app->end_query_bar(app, &bar, 0);
-
+    
     if (match(bar.string, make_lit_string("open all code"))){
         exec_command(app, open_all_code);
     }
@@ -1263,7 +1262,7 @@ CUSTOM_COMMAND_SIG(build_search){
     // 
     // This doesn't actually change the hot directory of 4coder, it's only effect is to
     // modify the string you passed in to reflect the change in directory if that change was possible.
-
+    
     int keep_going = 1;
     int old_size;
     int size = app->memory_size/2;
@@ -1272,24 +1271,19 @@ CUSTOM_COMMAND_SIG(build_search){
     dir.size = app->directory_get_hot(app, dir.str, dir.memory_size);
     
     String command = make_string((char*)app->memory + size, 0, size);
-    append(&command, '"');
     
     while (keep_going){
-        append(&command, dir);
-        
         old_size = dir.size;
         append(&dir, "build.bat");
         
         if (app->file_exists(app, dir.str, dir.size)){
             dir.size = old_size;
-            append(&command, "build");
             append(&command, '"');
+            append(&command, dir);
+            append(&command, "build\"");
             
-            unsigned int access = AccessOpen;
+            unsigned int access = AccessAll;
             View_Summary view = app->get_active_view(app, access);
-            
-            terminate_with_null(&dir);
-            terminate_with_null(&command);
             
             app->exec_system_command(app, &view,
                                      buffer_identifier(literal("*compilation*")),
@@ -1297,16 +1291,15 @@ CUSTOM_COMMAND_SIG(build_search){
                                      command.str, command.size,
                                      CLI_OverlapWithConflict);
             
-            return;
+            break;
         }
         dir.size = old_size;
         
         if (app->directory_cd(app, dir.str, &dir.size, dir.memory_size, literal("..")) == 0){
             keep_going = 0;
+            app->print_message(app, literal("couldn't find build.bat\n"));
         }
     }
-
-    app->print_message(app, literal("couldn't find build.bat\n"));
 }
 
 CUSTOM_COMMAND_SIG(auto_tab_line_at_cursor){

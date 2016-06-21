@@ -8,10 +8,7 @@
 // 2^24 of them so don't be wasteful!
 enum My_Maps{
     my_code_map,
-    // for testing
-    my_html_map,
-    my_empty_map1,
-    my_empty_map2,
+    
     my_maps_count
 };
 
@@ -115,7 +112,9 @@ CUSTOM_COMMAND_SIG(build_at_launch_location){
 
 HOOK_SIG(my_start){
     exec_command(app, cmdid_open_panel_vsplit);
+    exec_command(app, cmdid_hide_scrollbar);
     exec_command(app, cmdid_change_active_panel);
+    exec_command(app, cmdid_hide_scrollbar);
     
     app->change_theme(app, literal("4coder"));
     app->change_font(app, literal("liberation sans"));
@@ -146,10 +145,10 @@ HOOK_SIG(my_file_settings){
     unsigned int access = AccessProtected|AccessHidden;
     Buffer_Summary buffer = app->get_parameter_buffer(app, 0, access);
     assert(buffer.exists);
-
+    
     int treat_as_code = 0;
     int wrap_lines = 1;
-
+    
     if (buffer.file_name && buffer.size < (16 << 20)){
         String ext = file_extension(make_string(buffer.file_name, buffer.file_name_len));
         if (match(ext, make_lit_string("cpp"))) treat_as_code = 1;
@@ -157,14 +156,14 @@ HOOK_SIG(my_file_settings){
         else if (match(ext, make_lit_string("c"))) treat_as_code = 1;
         else if (match(ext, make_lit_string("hpp"))) treat_as_code = 1;
     }
-
+    
     if (treat_as_code){
         wrap_lines = 0;
     }
     if (buffer.file_name[0] == '*'){
         wrap_lines = 0;
     }
-
+    
     // NOTE(allen|a4.0.5): Unlike previous versions the command cmdid_set_settings
     // no longer automatically effects the active buffer.  This command will actually be
     // phased out in favor of an app call soon.
@@ -205,14 +204,6 @@ default_keys(Bind_Helper *context){
     bind(context, 'M', MDFR_ALT | MDFR_CTRL, open_my_files);
     bind(context, 'M', MDFR_ALT, build_at_launch_location);
     
-    end_map(context);
-    
-    begin_map(context, my_empty_map1);
-    inherit_map(context, mapid_nomap);
-    end_map(context);
-    
-    begin_map(context, my_empty_map2);
-    inherit_map(context, mapid_nomap);
     end_map(context);
     
     begin_map(context, my_code_map);

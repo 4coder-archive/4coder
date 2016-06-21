@@ -25,12 +25,13 @@
 
 #include <windows.h>
 #include <GL/gl.h>
+#include <GL/glext.h>
 
 #include "system_shared.h"
 
 #define SUPPORT_DPI 1
 #define USE_WIN32_FONTS 0
-#define USE_FT_FONTS 0
+#define USE_FT_FONTS 1
 
 #define FPS 60
 #define frame_useconds (1000000 / FPS)
@@ -1170,6 +1171,7 @@ Font_Load_Sig(system_draw_font_load){
     }
     
     i32 oversample = 2;
+    AllowLocal(oversample);
     
 #if SUPPORT_DPI
     pt_size = ROUND32(pt_size * size_change(win32vars.dpi_x, win32vars.dpi_y));
@@ -1189,7 +1191,11 @@ Font_Load_Sig(system_draw_font_load){
         
 #elif USE_FT_FONTS
         
-        success = win32_ft_font_load();
+        success = win32_ft_font_load(&win32vars.font_part,
+                                     font_out,
+                                     filename,
+                                     pt_size,
+                                     tab_width);
         
 #else
         
@@ -1721,13 +1727,13 @@ Win32Callback(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
 #define GL_DEBUG_OUTPUT_SYNCHRONOUS 0x8242
 #define GL_DEBUG_OUTPUT 0x92E0
 
-typedef void GLDEBUGPROC_TYPE(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, char * message, GLvoid * userParam);
-typedef GLDEBUGPROC_TYPE * GLDEBUGPROC;
+//typedef void GLDEBUGPROC_TYPE(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const char * message, const GLvoid * userParam);
+//typedef GLDEBUGPROC_TYPE * GLDEBUGPROC;
 typedef void glDebugMessageControl_type(GLenum source, GLenum type, GLenum severity, GLsizei count, GLuint * ids, GLboolean enabled);
 typedef void glDebugMessageCallback_type(GLDEBUGPROC callback, void * userParam);
 
 internal void
-OpenGLDebugCallback(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, char *message, void *userParam)
+OpenGLDebugCallback(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const char *message, const void *userParam)
 {
     OutputDebugStringA(message);
     OutputDebugStringA("\n");

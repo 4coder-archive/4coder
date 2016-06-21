@@ -229,10 +229,7 @@ EXEC_SYSTEM_COMMAND_SIG(external_exec_system_command){
         
         if (file){
             i32 proc_count = vars->cli_processes.count;
-            View_Iter iter;
-            i32 i;
-            
-            for (i = 0; i < proc_count; ++i){
+            for (i32 i = 0; i < proc_count; ++i){
                 if (procs[i].out_file == file){
                     if (flags & CLI_OverlapWithConflict){
                         procs[i].out_file = 0;
@@ -249,7 +246,7 @@ EXEC_SYSTEM_COMMAND_SIG(external_exec_system_command){
                 file->settings.unimportant = 1;
                 
                 if (!(flags & CLI_AlwaysBindToView)){
-                    iter = file_view_iter_init(&models->layout, file, 0);
+                    View_Iter iter = file_view_iter_init(&models->layout, file, 0);
                     if (file_view_iter_good(iter)){
                         bind_to_new_view = 0;
                     }
