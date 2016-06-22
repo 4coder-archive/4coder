@@ -1583,7 +1583,7 @@ view_move_cursor_to_view(View *view, GUI_Scroll_Vars scroll){
     i32 line_height = view->line_height;
     f32 old_cursor_y = view_get_cursor_y(view);
     f32 cursor_y = old_cursor_y;
-    f32 target_y = scroll.target_y;
+    f32 target_y = scroll.target_y + view->widget_height;
     
     Cursor_Limits limits = view_cursor_limits(view);
     
@@ -3076,8 +3076,10 @@ remeasure_file_view(System_Functions *system, View *view){
     if (file_is_ready(view->file_data.file)){
         Relative_Scrolling relative = view_get_relative_scrolling(view);
         view_measure_wraps(&view->persistent.models->mem.general, view);
-        view_cursor_move(view, view->recent->cursor.pos);
-        view->recent->preferred_x = view_get_cursor_x(view);
+        if (view->file_data.show_temp_highlight == 0){
+            view_cursor_move(view, view->recent->cursor.pos);
+            view->recent->preferred_x = view_get_cursor_x(view);
+        }
         view_set_relative_scrolling(view, relative);
     }
 }
@@ -5345,8 +5347,8 @@ draw_file_loaded(View *view, i32_Rect rect, b32 is_active, Render_Target *target
     float *advance_data = 0;
     if (font) advance_data = font->advance_data;
     
-    i32 count;
-    Full_Cursor render_cursor;
+    i32 count = 0;
+    Full_Cursor render_cursor = {0};
     Buffer_Render_Options opts = {};
     
     f32 *wraps = view->file_data.line_wrap_y;
@@ -5377,8 +5379,8 @@ draw_file_loaded(View *view, i32_Rect rect, b32 is_active, Render_Target *target
     
     Assert(count > 0);
     
-    i32 cursor_begin, cursor_end;
-    u32 cursor_color, at_cursor_color;
+    i32 cursor_begin = 0, cursor_end = 0;
+    u32 cursor_color = 0, at_cursor_color = 0;
     if (view->file_data.show_temp_highlight){
         cursor_begin = view->file_data.temp_highlight.pos;
         cursor_end = view->file_data.temp_highlight_end_pos;
@@ -5437,14 +5439,9 @@ draw_file_loaded(View *view, i32_Rect rect, b32 is_active, Render_Target *target
         u32 char_color = main_color;
         if (item->flags & BRFlag_Special_Character) char_color = special_color;
         
-#if 0
-        i32_Rect char_rect = i32R(item->x0, item->y0,
-                                  item->x1, item->y1);
-#else
         f32_Rect char_rect = f32R(item->x0, item->y0,
                                   item->x1,  item->y1);
-#endif
-
+        
         if (view->file_data.show_whitespace && highlight_color == 0 &&
             char_is_whitespace((char)item->glyphid)){
             highlight_this_color = style->main.highlight_white_color;

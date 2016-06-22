@@ -1,15 +1,15 @@
 /* 
- * Mr. 4th Dimention - Allen Webster
- *  Four Tech
- *
- * public domain -- no warranty is offered or implied; use this code at your own risk
- * 
- * 24.10.2015
- * 
- * Buffer data object
- *  type - Golden Array
- * 
- */
+* Mr. 4th Dimention - Allen Webster
+*  Four Tech
+*
+* public domain -- no warranty is offered or implied; use this code at your own risk
+* 
+* 24.10.2015
+* 
+* Buffer data object
+*  type - Golden Array
+* 
+*/
 
 // TOP
 
@@ -77,7 +77,7 @@ buffer_count_newlines(Buffer_Type *buffer, int start, int end){
     assert_4tech(end <= buffer_size(buffer));
     
     count = 0;
-
+    
     for (loop = buffer_stringify_loop(buffer, start, end);
          buffer_stringify_good(&loop);
          buffer_stringify_next(&loop)){
@@ -163,12 +163,12 @@ buffer_seek_whitespace_left(Buffer_Type *buffer, int pos){
     char *data;
     int end;
     int size;
-
+    
     --pos;
     if (pos > 0){
         size = buffer_size(buffer);
         loop = buffer_backify_loop(buffer, pos, 1);
-    
+        
         for (;buffer_backify_good(&loop);
              buffer_backify_next(&loop)){
             end = loop.absolute_pos;
@@ -176,7 +176,7 @@ buffer_seek_whitespace_left(Buffer_Type *buffer, int pos){
             for (; pos >= end && is_whitespace(data[pos]); --pos);
             if (!is_whitespace(data[pos])) break;
         }
-    
+        
         for (;buffer_backify_good(&loop);
              buffer_backify_next(&loop)){
             end = loop.absolute_pos;
@@ -212,8 +212,8 @@ buffer_seek_word_right_assume_on_word(Buffer_Type *buffer, int pos){
             if (!is_alphanumeric(data[pos])) goto double_break;
         }
     }
-double_break:
-
+    double_break:
+    
     return(pos);
 }
 
@@ -236,7 +236,7 @@ buffer_seek_alphanumeric_right(Buffer_Type *buffer, int pos){
         }
     }
     
-buffer_seek_alphanumeric_right_mid:
+    buffer_seek_alphanumeric_right_mid:
     for (;buffer_stringify_good(&loop);
          buffer_stringify_next(&loop)){
         end = loop.size + loop.absolute_pos;
@@ -246,7 +246,7 @@ buffer_seek_alphanumeric_right_mid:
         }
     }
     
-buffer_seek_alphanumeric_right_end:
+    buffer_seek_alphanumeric_right_end:
     return(pos);
 }
 
@@ -271,7 +271,7 @@ buffer_seek_alphanumeric_left(Buffer_Type *buffer, int pos){
             }
         }
         
-buffer_seek_alphanumeric_left_mid:
+        buffer_seek_alphanumeric_left_mid:
         for (;buffer_backify_good(&loop);
              buffer_backify_next(&loop)){
             end = loop.absolute_pos;
@@ -288,7 +288,7 @@ buffer_seek_alphanumeric_left_mid:
         pos = 0;
     }
     
-buffer_seek_alphanumeric_left_end:
+    buffer_seek_alphanumeric_left_end:
     return(pos);
 }
 
@@ -298,11 +298,11 @@ buffer_seek_range_camel_right(Buffer_Type *buffer, int pos, int an_pos){
     char *data;
     int end, size;
     char ch, prev_ch;
-
+    
     size = buffer_size(buffer);
     assert_4tech(pos <= an_pos);
     assert_4tech(an_pos <= size);
-
+    
     ++pos;
     if (pos < an_pos){
         loop = buffer_stringify_loop(buffer, pos, an_pos);
@@ -326,7 +326,7 @@ buffer_seek_range_camel_right(Buffer_Type *buffer, int pos, int an_pos){
         pos = an_pos;
     }
     
-buffer_seek_alphanumeric_or_camel_right_end:
+    buffer_seek_alphanumeric_or_camel_right_end:
     return(pos);
 }
 
@@ -336,7 +336,7 @@ buffer_seek_range_camel_left(Buffer_Type *buffer, int pos, int an_pos){
     char *data;
     int end, size;
     char ch, prev_ch;
-
+    
     size = buffer_size(buffer);
     assert_4tech(an_pos <= pos);
     assert_4tech(0 <= an_pos);
@@ -358,7 +358,7 @@ buffer_seek_range_camel_left(Buffer_Type *buffer, int pos, int an_pos){
         }
     }
     
-buffer_seek_alphanumeric_or_camel_left_end:
+    buffer_seek_alphanumeric_or_camel_left_end:
     return(pos);
 }
 
@@ -420,7 +420,7 @@ buffer_find_hard_start(Buffer_Type *buffer, int line_start, int tab_width){
         }
     }
     
-buffer_find_hard_start_end:
+    buffer_find_hard_start_end:
     return(result);
 }
 
@@ -429,7 +429,7 @@ buffer_find_string(Buffer_Type *buffer, int start_pos, int end_pos, char *str, i
     Buffer_Stringify_Type loop;
     char *data;
     int end, pos;
-
+    
     pos = start_pos;
     if (len > 0){
         for (loop = buffer_stringify_loop(buffer, start_pos, end_pos - len + 1);
@@ -447,7 +447,7 @@ buffer_find_string(Buffer_Type *buffer, int start_pos, int end_pos, char *str, i
         }
     }
     
-buffer_find_string_end:
+    buffer_find_string_end:
     if (pos >= end_pos - len + 1) pos = end_pos;
     return(pos);
 }
@@ -480,7 +480,7 @@ buffer_rfind_string(Buffer_Type *buffer, int start_pos, char *str, int len, char
         }
     }
     
-buffer_rfind_string_end:
+    buffer_rfind_string_end:
     return(pos);
 }
 
@@ -489,7 +489,7 @@ buffer_find_string_insensitive(Buffer_Type *buffer, int start_pos, int end_pos, 
     Buffer_Stringify_Type loop;
     char *data;
     int end, pos;
-
+    
     pos = start_pos;
     if (len > 0){
         for (loop = buffer_stringify_loop(buffer, start_pos, end_pos - len + 1);
@@ -507,7 +507,7 @@ buffer_find_string_insensitive(Buffer_Type *buffer, int start_pos, int end_pos, 
         }
     }
     
-buffer_find_string_end:
+    buffer_find_string_end:
     if (pos >= end_pos - len + 1) pos = end_pos;
     return(pos);
 }
@@ -540,7 +540,7 @@ buffer_rfind_string_insensitive(Buffer_Type *buffer, int start_pos, char *str, i
         }
     }
     
-buffer_rfind_string_end:
+    buffer_rfind_string_end:
     return(pos);
 }
 
@@ -592,7 +592,7 @@ buffer_measure_starts_widths_(Buffer_Measure_Starts *state, Buffer_Type *buffer,
             ch = data[i];
             if (ch == '\n'){
                 if (start_ptr == start_end) goto buffer_measure_starts_widths_end;
-
+                
                 *width_ptr++ = width;
                 *start_ptr++ = start;
                 start = i + 1;
@@ -611,7 +611,7 @@ buffer_measure_starts_widths_(Buffer_Measure_Starts *state, Buffer_Type *buffer,
     *width_ptr++ = 0;
     result = 0;
     
-buffer_measure_starts_widths_end:
+    buffer_measure_starts_widths_end:
     state->i = i;
     state->count = (int)(start_ptr - buffer->line_starts);
     state->start = start;
@@ -657,7 +657,7 @@ buffer_measure_starts_zero_widths_(Buffer_Measure_Starts *state, Buffer_Type *bu
             ch = data[i];
             if (ch == '\n'){
                 if (start_ptr == start_end) goto buffer_measure_starts_zero_widths_end;
-
+                
                 *width_ptr++ = 0;
                 *start_ptr++ = start;
                 start = i + 1;
@@ -672,7 +672,7 @@ buffer_measure_starts_zero_widths_(Buffer_Measure_Starts *state, Buffer_Type *bu
     *width_ptr++ = 0;
     result = 0;
     
-buffer_measure_starts_zero_widths_end:
+    buffer_measure_starts_zero_widths_end:
     state->i = i;
     state->count = (int)(start_ptr - buffer->line_starts);
     state->start = start;
@@ -690,7 +690,7 @@ buffer_measure_starts_widths(Buffer_Measure_Starts *state, Buffer_Type *buffer, 
     else{
         result = buffer_measure_starts_zero_widths_(state, buffer);
     }
-
+    
     return(result);
 }
 
@@ -732,7 +732,7 @@ buffer_remeasure_starts(Buffer_Type *buffer, int line_start, int line_end, int l
     char_i = starts[line_start];
     line_i = line_start;
     start = char_i;
-
+    
     for (loop = buffer_stringify_loop(buffer, char_i, size);
          buffer_stringify_good(&loop);
          buffer_stringify_next(&loop)){
@@ -751,7 +751,7 @@ buffer_remeasure_starts(Buffer_Type *buffer, int line_start, int line_end, int l
         starts[line_i++] = start;
     }
     
-buffer_remeasure_starts_end:    
+    buffer_remeasure_starts_end:    
     assert_4tech(line_count >= 1);
     buffer->line_count = line_count;
 }
@@ -788,7 +788,7 @@ buffer_remeasure_widths(Buffer_Type *buffer, float *advance_data,
     line_end += line_shift;    
     i = line_start;
     j = starts[i];
-
+    
     if (line_end == line_count) size = buffer_size(buffer);
     else size = starts[line_end];
     
@@ -833,7 +833,7 @@ buffer_measure_wrap_y(Buffer_Type *buffer, float *wraps,
     line_count = buffer->line_count;
     widths = buffer->line_widths;
     y_pos = 0;
-
+    
     for (i = 0; i < line_count; ++i){
         wraps[i] = y_pos;
         if (widths[i] == 0) y_pos += font_height;
@@ -850,7 +850,7 @@ buffer_get_line_index_range(Buffer_Type *buffer, int pos, int l_bound, int u_bou
     assert_4tech(0 <= l_bound);
     assert_4tech(l_bound <= u_bound);
     assert_4tech(u_bound <= buffer->line_count);
-        
+    
     lines = buffer->line_starts;
     
     assert_4tech(lines != 0);
@@ -868,7 +868,7 @@ buffer_get_line_index_range(Buffer_Type *buffer, int pos, int l_bound, int u_bou
         assert_4tech(start < end);
         if (start == end - 1) break;
     }
-        
+    
     return(start);
 }
 
@@ -909,15 +909,15 @@ typedef struct Seek_State{
 
 internal_4tech int
 cursor_seek_step(Seek_State *state, Buffer_Seek seek, int xy_seek, float max_width,
-    float font_height, float *advances, int size, char ch){
+                 float font_height, float *advances, int size, char ch){
     Full_Cursor cursor, prev_cursor;
     float ch_width;
     int result;
     float x, px, y;
-
+    
     cursor = state->cursor;
     prev_cursor = state->prev_cursor;
-
+    
     result = 1;
     prev_cursor = cursor;
     switch (ch){
@@ -929,34 +929,34 @@ cursor_seek_step(Seek_State *state, Buffer_Seek seek, int xy_seek, float max_wid
         cursor.unwrapped_x = 0;
         cursor.wrapped_x = 0;
         break;
-
+        
         default:
         ++cursor.character;
         if (ch == '\r') ch_width = *(float*)(advances + '\\') + *(float*)(advances + 'r');
         else ch_width = *(float*)(advances + ch);
-
+        
         if (cursor.wrapped_x + ch_width >= max_width){
             cursor.wrapped_y += font_height;
             cursor.wrapped_x = 0;
             prev_cursor = cursor;
         }
-
+        
         cursor.unwrapped_x += ch_width;
         cursor.wrapped_x += ch_width;
-
+        
         break;
     }
-
+    
     ++cursor.pos;
-
+    
     if (cursor.pos > size){
         cursor = prev_cursor;
         result = 0;
         goto cursor_seek_step_end;
     }
-
+    
     x = y = px = 0;
-
+    
     switch (seek.type){
         case buffer_seek_pos:
         if (cursor.pos > seek.pos){
@@ -964,15 +964,15 @@ cursor_seek_step(Seek_State *state, Buffer_Seek seek, int xy_seek, float max_wid
             result = 0;
             goto cursor_seek_step_end;
         }break;
-
+        
         case buffer_seek_wrapped_xy:
         x = cursor.wrapped_x; px = prev_cursor.wrapped_x;
         y = cursor.wrapped_y; break;
-
+        
         case buffer_seek_unwrapped_xy:
         x = cursor.unwrapped_x; px = prev_cursor.unwrapped_x;
         y = cursor.unwrapped_y; break;
-
+        
         case buffer_seek_line_char:
         if (cursor.line == seek.line && cursor.character >= seek.character){
             result = 0;
@@ -984,21 +984,21 @@ cursor_seek_step(Seek_State *state, Buffer_Seek seek, int xy_seek, float max_wid
             goto cursor_seek_step_end;
         }break;
     }
-
+    
     if (xy_seek){
         if (y > seek.y){
             cursor = prev_cursor;
             result = 0;
             goto cursor_seek_step_end;
         }
-
+        
         if (y > seek.y - font_height && x >= seek.x){
             if (!seek.round_down){
                 if (ch != '\n' && (seek.x - px) < (x - seek.x)) cursor = prev_cursor;
                 result = 0;
                 goto cursor_seek_step_end;
             }
-
+            
             if (x > seek.x){
                 cursor = prev_cursor;
                 result = 0;
@@ -1006,7 +1006,7 @@ cursor_seek_step(Seek_State *state, Buffer_Seek seek, int xy_seek, float max_wid
             }
         }
     }
-
+    
     cursor_seek_step_end:
     state->cursor = cursor;
     state->prev_cursor = prev_cursor;
@@ -1032,7 +1032,7 @@ buffer_cursor_seek(Buffer_Type *buffer, Buffer_Seek seek, float max_width,
         case buffer_seek_pos:
         if (cursor.pos >= seek.pos) goto buffer_cursor_seek_end;
         break;
-
+        
         case buffer_seek_wrapped_xy:
         if (seek.x == 0 && cursor.wrapped_y >= seek.y) goto buffer_cursor_seek_end;
         break;
@@ -1040,7 +1040,7 @@ buffer_cursor_seek(Buffer_Type *buffer, Buffer_Seek seek, float max_width,
         case buffer_seek_unwrapped_xy:
         if (seek.x == 0 && cursor.unwrapped_y >= seek.y) goto buffer_cursor_seek_end;
         break;
-
+        
         case buffer_seek_line_char:
         if (cursor.line >= seek.line && cursor.character >= seek.character) goto buffer_cursor_seek_end;
         break;
@@ -1049,7 +1049,7 @@ buffer_cursor_seek(Buffer_Type *buffer, Buffer_Seek seek, float max_width,
     if (advance_data){
         size = buffer_size(buffer);
         xy_seek = (seek.type == buffer_seek_wrapped_xy || seek.type == buffer_seek_unwrapped_xy);
-    
+        
         result = 1;
         i = cursor.pos;
         for (loop = buffer_stringify_loop(buffer, i, size);
@@ -1070,7 +1070,7 @@ buffer_cursor_seek(Buffer_Type *buffer, Buffer_Seek seek, float max_width,
         }
     }
     
-buffer_cursor_seek_end:    
+    buffer_cursor_seek_end:    
     return(state.cursor);
 }
 
@@ -1079,12 +1079,15 @@ buffer_cursor_from_pos(Buffer_Type *buffer, int pos, float *wraps,
                        float max_width, float font_height, float *advance_data){
     Full_Cursor result;
     int line_index;
-
+    
+    if (pos > buffer->size) pos = buffer->size;
+    if (pos < 0) pos = 0;
+    
     line_index = buffer_get_line_index_range(buffer, pos, 0, buffer->line_count);
     result = make_cursor_hint(line_index, buffer->line_starts, wraps, font_height);
     result = buffer_cursor_seek(buffer, seek_pos(pos), max_width, font_height,
                                 advance_data, result);
-
+    
     return(result);
 }
 

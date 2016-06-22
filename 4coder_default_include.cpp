@@ -10,24 +10,18 @@
 
 inline float
 get_view_y(View_Summary view){
-    float y;
+    float y = view.cursor.wrapped_y;
     if (view.unwrapped_lines){
         y = view.cursor.unwrapped_y;
-    }
-    else{
-        y = view.cursor.wrapped_y;
     }
     return(y);
 }
 
 inline float
 get_view_x(View_Summary view){
-    float x;
+    float x = view.cursor.wrapped_x;
     if (view.unwrapped_lines){
         x = view.cursor.unwrapped_x;
-    }
-    else{
-        x = view.cursor.wrapped_x;
     }
     return(x);
 }
@@ -852,23 +846,22 @@ isearch(Application_Links *app, int start_reversed){
     
     if (app->start_query_bar(app, &bar, 0) == 0) return;
     
-    Range match;
     int reverse = start_reversed;
-    int pos;
-    
-    pos = view.cursor.pos;
-    match = make_range(pos, pos);
+    int pos = view.cursor.pos;
+    Range match = make_range(pos, pos);
     
     char bar_string_space[256];
     bar.string = make_fixed_width_string(bar_string_space);
     
-    String isearch = make_lit_string("I-Search: ");
-    String rsearch = make_lit_string("Reverse-I-Search: ");
+    String isearch_str = make_lit_string("I-Search: ");
+    String rsearch_str = make_lit_string("Reverse-I-Search: ");
     
-    while (1){
+    for (;;){
+        app->view_set_highlight(app, &view, match.start, match.end, 1);
+        
         // NOTE(allen): Change the bar's prompt to match the current direction.
-        if (reverse) bar.prompt = rsearch;
-        else bar.prompt = isearch;
+        if (reverse) bar.prompt = rsearch_str;
+        else bar.prompt = isearch_str;
         
         in = app->get_user_input(app, EventOnAnyKey, EventOnEsc | EventOnButton);
         if (in.abort) break;
@@ -952,8 +945,6 @@ isearch(Application_Links *app, int start_reversed){
                 match.end = match.start + bar.string.size;
             }
         }
-        
-        app->view_set_highlight(app, &view, match.start, match.end, 1);
     }
     app->view_set_highlight(app, &view, 0, 0, 0);
     if (in.abort) return;
@@ -1053,7 +1044,10 @@ CUSTOM_COMMAND_SIG(query_replace){
         in = app->get_user_input(app, EventOnAnyKey, EventOnButton);
         if (in.abort || in.key.keycode == key_esc || !key_is_unmodified(&in.key))  break;
         
-        if (in.key.character == 'y' || in.key.character == 'Y' || in.key.character == '\n' || in.key.character == '\t'){
+        if (in.key.character == 'y' ||
+            in.key.character == 'Y' ||
+            in.key.character == '\n' ||
+            in.key.character == '\t'){
             app->buffer_replace_range(app, &buffer, match.min, match.max, w.str, w.size);
             pos = match.start + w.size;
         }
