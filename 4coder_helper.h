@@ -174,6 +174,26 @@ set_hook(Bind_Helper *helper, int hook_id, Hook_Function *func){
 }
 
 inline void
+set_open_file_hook(Bind_Helper *helper, Open_File_Hook_Function *func){
+    Binding_Unit unit;
+    unit.type = unit_hook;
+    unit.hook.hook_id = _hook_open_file;
+    unit.hook.func = (void*) func;
+    
+    write_unit(helper, unit);
+}
+
+inline void
+set_new_file_hook(Bind_Helper *helper, Open_File_Hook_Function *func){
+    Binding_Unit unit;
+    unit.type = unit_hook;
+    unit.hook.hook_id = _hook_new_file;
+    unit.hook.func = (void*) func;
+    
+    write_unit(helper, unit);
+}
+
+inline void
 set_scroll_rule(Bind_Helper *helper, Scroll_Rule_Function *func){
     Binding_Unit unit;
     unit.type = unit_hook;
@@ -392,13 +412,23 @@ round_up(int x, int b){
     return(r);
 }
 
+void
+refresh_buffer(Application_Links *app, Buffer_Summary *buffer){
+    *buffer = app->get_buffer(app, buffer->buffer_id, AccessAll);
+}
+
+void
+refresh_view(Application_Links *app, View_Summary *view){
+    *view = app->get_view(app, view->view_id, AccessAll);
+}
+
 int
 init_stream_chunk(Stream_Chunk *chunk,
                   Application_Links *app, Buffer_Summary *buffer,
                   int pos, char *data, int size){
     int result = 0;
     
-    app->refresh_buffer(app, buffer);
+    refresh_buffer(app, buffer);
     if (pos >= 0 && pos < buffer->size && size > 0){
         result = 1;
         chunk->app = app;
@@ -422,7 +452,7 @@ forward_stream_chunk(Stream_Chunk *chunk){
     Buffer_Summary *buffer = chunk->buffer;
     int result = 0;
     
-    app->refresh_buffer(app, buffer);
+    refresh_buffer(app, buffer);
     if (chunk->end < buffer->size){
         result = 1;
         chunk->start = chunk->end;
@@ -442,7 +472,7 @@ backward_stream_chunk(Stream_Chunk *chunk){
     Buffer_Summary *buffer = chunk->buffer;
     int result = 0;
     
-    app->refresh_buffer(app, buffer);
+    refresh_buffer(app, buffer);
     if (chunk->start > 0){
         result = 1;
         chunk->end = chunk->start;

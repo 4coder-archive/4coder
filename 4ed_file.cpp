@@ -414,8 +414,8 @@ working_set__entry_comp(System_Functions *system, String filename, File_Entry_Co
 
 inline Editing_File*
 working_set_contains(System_Functions *system, Working_Set *working_set, String filename){
-    File_Entry_Comparison entry_comp;
-    File_Entry *entry;
+    File_Entry_Comparison entry_comp = {0};
+    File_Entry *entry = 0;
     Editing_File *result = 0;
     working_set__entry_comp(system, filename, &entry_comp);
     entry = (File_Entry*)table_find_item(&working_set->table, &entry_comp, system, tbl_string_hash, tbl_file_compare);
@@ -581,48 +581,6 @@ filename_match(String query, Absolutes *absolutes, String filename, b32 case_sen
     if (!result) result = wildcard_match(absolutes, filename, case_sensitive);
     return result;
 }
-
-#if 0
-internal Hot_Directory_Match
-hot_directory_first_match(Hot_Directory *hot_directory,
-                          String str,
-						  b32 include_files,
-                          b32 exact_match,
-                          b32 case_sensitive){
-    Hot_Directory_Match result = {};
-    
-    Absolutes absolutes;
-    if (!exact_match)
-        get_absolutes(str, &absolutes, 1, 1);
-    
-    File_List *files = &hot_directory->file_list;
-    File_Info *info, *end;
-    end = files->infos + files->count;
-    for (info = files->infos; info != end; ++info){
-        String filename = info->filename;
-        b32 is_match = 0;
-        if (exact_match){
-            if (case_sensitive){
-                if (match(filename, str)) is_match = 1;
-            }
-            else{
-                if (match_insensitive(filename, str)) is_match = 1;
-            }
-        }
-        else{
-            if (filename_match(str, &absolutes, filename, case_sensitive)) is_match = 1;
-        }
-        
-        if (is_match){
-            result.is_folder = info->folder;
-            result.filename = filename;
-            break;
-        }
-    }
-    
-    return result;
-}
-#endif
 
 inline File_Sync_State
 buffer_get_sync(Editing_File *file){

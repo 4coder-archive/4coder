@@ -263,7 +263,7 @@ get_bindings(void *data, int size){
     Bind_Helper *context = &context_;
     
     set_hook(context, hook_start, experimental_start_hook);
-    set_hook(context, hook_open_file, my_file_settings);
+    set_open_file_hook(context, my_file_settings);
     
     set_scroll_rule(context, smooth_scroll_rule);
     

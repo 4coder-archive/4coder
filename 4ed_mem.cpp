@@ -191,5 +191,15 @@ general_memory_reallocate_nocopy(General_Memory *general, void *old, i32 size, u
 #define gen_array(g, T, size) (T*)general_memory_allocate(g, sizeof(T)*(size), 0)
 #define gen_block(g, size) general_memory_open(g, size, 0)
 
+internal String
+make_string_terminated(Partition *part, char *str, int len){
+    char *space = (char*)push_array(part, char, len + 1);
+    String string = make_string(str, len, len+1);
+    copy_fast_unsafe(space, string);
+    string.str = space;
+    terminate_with_null(&string);
+    return(string);
+}
+
 // BOTTOM
 

@@ -412,7 +412,7 @@ DeleteAfterCommand(struct Application_Links *app, unsigned long long CommandID)
     else{
         exec_command(app, (Custom_Command_Function*)CommandID);
     }
-    app->refresh_view(app, &view);
+    refresh_view(app, &view);
     int pos1 = view.cursor.pos;
 
     Range range = make_range(pos1, pos2);
@@ -438,7 +438,7 @@ CUSTOM_COMMAND_SIG(casey_kill_to_end_of_line)
 
     int pos2 = view.cursor.pos;
     exec_command(app, seek_end_of_line);
-    app->refresh_view(app, &view);
+    refresh_view(app, &view);
     int pos1 = view.cursor.pos;
 
     Range range = make_range(pos1, pos2);
@@ -761,19 +761,18 @@ casey_parse_error(Application_Links *app, Buffer_Summary buffer, View_Summary vi
 {
     Parsed_Error result = {};
 
-    app->refresh_view(app, &view);
+    refresh_view(app, &view);
     int restore_pos = view.cursor.pos;
 
+    // TODO(allen): view_compute_cursor can get these
+    // positions without ever changing the position of the cursor.
     app->view_set_cursor(app, &view, seek_line_char(view.cursor.line, 1), 1);
-    app->refresh_view(app, &view);
     int start = view.cursor.pos;
 
     app->view_set_cursor(app, &view, seek_line_char(view.cursor.line, 65536), 1);
-    app->refresh_view(app, &view);
     int end = view.cursor.pos;
 
     app->view_set_cursor(app, &view, seek_pos(restore_pos), 1);
-    app->refresh_view(app, &view);
 
     int size = end - start;
 
@@ -861,7 +860,6 @@ casey_seek_error_dy(Application_Links *app, int dy)
     {
         int prev_pos = compilation_view.cursor.pos;
         app->view_set_cursor(app, &compilation_view, seek_line_char(compilation_view.cursor.line + dy, 0), 1);
-        app->refresh_view(app, &compilation_view);
         if(compilation_view.cursor.pos != prev_pos)
         {
             Parsed_Error Error = casey_parse_error(app, Buffer, compilation_view);
@@ -1333,14 +1331,15 @@ DEFINE_BIMODAL_KEY(modal_page_up, cmdid_page_up, seek_whitespace_up);
 DEFINE_BIMODAL_KEY(modal_page_down, cmdid_page_down, seek_whitespace_down);
 DEFINE_BIMODAL_KEY(modal_tab, cmdid_word_complete, cmdid_word_complete);
 
-HOOK_SIG(casey_file_settings)
+OPEN_FILE_HOOK_SIG(casey_file_settings)
 {
     // NOTE(allen|a4): As of alpha 4 hooks can have parameters which are
     // received through functions like this app->get_parameter_buffer.
     // This is different from the past where this hook got a buffer
     // from app->get_active_buffer.
     unsigned int access = AccessAll;
-    Buffer_Summary buffer = app->get_parameter_buffer(app, 0, access);
+    //Buffer_Summary buffer = app->get_parameter_buffer(app, 0, access);
+    Buffer_Summary buffer = app->get_buffer(app, buffer_id, access);
 
     int treat_as_code = 0;
     int treat_as_project = 0;
@@ -1566,7 +1565,7 @@ extern "C" GET_BINDING_DATA(get_bindings)
     Bind_Helper *context = &context_actual;
 
     set_hook(context, hook_start, casey_start);
-    set_hook(context, hook_open_file, casey_file_settings);
+    set_open_file_hook(context, casey_file_settings);
     set_scroll_rule(context, casey_smooth_scroll_rule);
 
     EnumWindows(win32_find_4coder_window, 0);

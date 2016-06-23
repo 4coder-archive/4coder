@@ -58,9 +58,6 @@ struct Models{
     Hook_Function *hooks[hook_type_count];
     Application_Links app_links;
     
-    i32 *buffer_param_indices;
-    i32 buffer_param_count, buffer_param_max;
-    
     Font_Set *font_set;
     Style_Font global_font;
     Style_Library styles;
@@ -78,6 +75,9 @@ struct Models{
     Panel *prev_mouse_panel;
     
     Custom_API config_api;
+    
+    Open_File_Hook_Function *hook_open_file;
+    Open_File_Hook_Function *hook_new_file;
     Scroll_Rule_Function *scroll_rule;
     
     b32 keep_playing;

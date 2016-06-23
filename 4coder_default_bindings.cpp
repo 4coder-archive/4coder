@@ -60,11 +60,11 @@ CUSTOM_COMMAND_SIG(rewrite_as_single_caps){
     cursor = view.cursor;
     
     exec_command(app, seek_token_left);
-    app->refresh_view(app, &view);
+    refresh_view(app, &view);
     range.min = view.cursor.pos;
     
     exec_command(app, seek_token_right);
-    app->refresh_view(app, &view);
+    refresh_view(app, &view);
     range.max = view.cursor.pos;
     
     string.str = (char*)app->memory;
@@ -137,13 +137,14 @@ HOOK_SIG(my_start){
     return(0);
 }
 
-HOOK_SIG(my_file_settings){
+OPEN_FILE_HOOK_SIG(my_file_settings){
     // NOTE(allen|a4): In hooks that want parameters, such as this file
     // opened hook.  The file created hook is guaranteed to have only
     // and exactly one buffer parameter.  In normal command callbacks
     // there are no parameter buffers.
     unsigned int access = AccessProtected|AccessHidden;
-    Buffer_Summary buffer = app->get_parameter_buffer(app, 0, access);
+    //Buffer_Summary buffer = app->get_parameter_buffer(app, 0, access);
+    Buffer_Summary buffer = app->get_buffer(app, buffer_id, access);
     assert(buffer.exists);
     
     int treat_as_code = 0;
@@ -330,8 +331,8 @@ get_bindings(void *data, int size){
     // NOTE(allen|a3.1): Hooks have no loyalties to maps. All hooks are global
     // and once set they always apply, regardless of what map is active.
     set_hook(context, hook_start, my_start);
-    set_hook(context, hook_open_file, my_file_settings);
     
+    set_open_file_hook(context, my_file_settings);
     set_scroll_rule(context, smooth_scroll_rule);
     
     default_keys(context);

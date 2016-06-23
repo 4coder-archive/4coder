@@ -6,17 +6,15 @@
 #define DIRECTORY_CD_SIG(n) int n(Application_Links *app, char *dir, int *len, int capacity, char *rel_path, int rel_len)
 #define GET_FILE_LIST_SIG(n) File_List n(Application_Links *app, char *dir, int len)
 #define FREE_FILE_LIST_SIG(n) void n(Application_Links *app, File_List list)
-#define CLIPBOARD_POST_SIG(n) int n(Application_Links *app, char *str, int len)
+#define CLIPBOARD_POST_SIG(n) void n(Application_Links *app, char *str, int len)
 #define CLIPBOARD_COUNT_SIG(n) int n(Application_Links *app)
 #define CLIPBOARD_INDEX_SIG(n) int n(Application_Links *app, int index, char *out, int len)
 #define GET_BUFFER_FIRST_SIG(n) Buffer_Summary n(Application_Links *app, unsigned int access)
 #define GET_BUFFER_NEXT_SIG(n) void n(Application_Links *app, Buffer_Summary *buffer, unsigned int access)
-#define GET_BUFFER_SIG(n) Buffer_Summary n(Application_Links *app, int index, unsigned int access)
-#define GET_PARAMETER_BUFFER_SIG(n) Buffer_Summary n(Application_Links *app, int param_index, unsigned int access)
-#define GET_BUFFER_BY_NAME_SIG(n) Buffer_Summary n(Application_Links *app, char *filename, int len, unsigned int access)
-#define REFRESH_BUFFER_SIG(n) int n(Application_Links *app, Buffer_Summary *buffer)
-#define BUFFER_READ_RANGE_SIG(n) int n(Application_Links *app, Buffer_Summary *buffer, int start, int end, char *out)
+#define GET_BUFFER_SIG(n) Buffer_Summary n(Application_Links *app, int buffer_id, unsigned int access)
+#define GET_BUFFER_BY_NAME_SIG(n) Buffer_Summary n(Application_Links *app, char *name, int len, unsigned int access)
 #define BUFFER_SEEK_SIG(n) int n(Application_Links *app, Buffer_Summary *buffer, int start_pos, int seek_forward, unsigned int flags)
+#define BUFFER_READ_RANGE_SIG(n) int n(Application_Links *app, Buffer_Summary *buffer, int start, int end, char *out)
 #define BUFFER_REPLACE_RANGE_SIG(n) int n(Application_Links *app, Buffer_Summary *buffer, int start, int end, char *str, int len)
 #define BUFFER_SET_SETTING_SIG(n) int n(Application_Links *app, Buffer_Summary *buffer, int setting, int value)
 #define CREATE_BUFFER_SIG(n) Buffer_Summary n(Application_Links *app, char *filename, int filename_len, int do_in_background)
@@ -26,7 +24,6 @@
 #define GET_VIEW_NEXT_SIG(n) void n(Application_Links *app, View_Summary *view, unsigned int access)
 #define GET_VIEW_SIG(n) View_Summary n(Application_Links *app, int index, unsigned int access)
 #define GET_ACTIVE_VIEW_SIG(n) View_Summary n(Application_Links *app, unsigned int access)
-#define REFRESH_VIEW_SIG(n) int n(Application_Links *app, View_Summary *view)
 #define VIEW_AUTO_TAB_SIG(n) int n(Application_Links *app, View_Summary *view, int start, int end, int tab_width, unsigned int flags)
 #define VIEW_COMPUTE_CURSOR_SIG(n) Full_Cursor n(Application_Links *app, View_Summary *view, Buffer_Seek seek)
 #define VIEW_SET_CURSOR_SIG(n) int n(Application_Links *app, View_Summary *view, Buffer_Seek seek, int set_preferred_x)
@@ -62,11 +59,9 @@ extern "C"{
     typedef GET_BUFFER_FIRST_SIG(Get_Buffer_First_Function);
     typedef GET_BUFFER_NEXT_SIG(Get_Buffer_Next_Function);
     typedef GET_BUFFER_SIG(Get_Buffer_Function);
-    typedef GET_PARAMETER_BUFFER_SIG(Get_Parameter_Buffer_Function);
     typedef GET_BUFFER_BY_NAME_SIG(Get_Buffer_By_Name_Function);
-    typedef REFRESH_BUFFER_SIG(Refresh_Buffer_Function);
-    typedef BUFFER_READ_RANGE_SIG(Buffer_Read_Range_Function);
     typedef BUFFER_SEEK_SIG(Buffer_Seek_Function);
+    typedef BUFFER_READ_RANGE_SIG(Buffer_Read_Range_Function);
     typedef BUFFER_REPLACE_RANGE_SIG(Buffer_Replace_Range_Function);
     typedef BUFFER_SET_SETTING_SIG(Buffer_Set_Setting_Function);
     typedef CREATE_BUFFER_SIG(Create_Buffer_Function);
@@ -76,7 +71,6 @@ extern "C"{
     typedef GET_VIEW_NEXT_SIG(Get_View_Next_Function);
     typedef GET_VIEW_SIG(Get_View_Function);
     typedef GET_ACTIVE_VIEW_SIG(Get_Active_View_Function);
-    typedef REFRESH_VIEW_SIG(Refresh_View_Function);
     typedef VIEW_AUTO_TAB_SIG(View_Auto_Tab_Function);
     typedef VIEW_COMPUTE_CURSOR_SIG(View_Compute_Cursor_Function);
     typedef VIEW_SET_CURSOR_SIG(View_Set_Cursor_Function);
@@ -115,11 +109,9 @@ struct Application_Links{
     Get_Buffer_First_Function *get_buffer_first;
     Get_Buffer_Next_Function *get_buffer_next;
     Get_Buffer_Function *get_buffer;
-    Get_Parameter_Buffer_Function *get_parameter_buffer;
     Get_Buffer_By_Name_Function *get_buffer_by_name;
-    Refresh_Buffer_Function *refresh_buffer;
-    Buffer_Read_Range_Function *buffer_read_range;
     Buffer_Seek_Function *buffer_seek;
+    Buffer_Read_Range_Function *buffer_read_range;
     Buffer_Replace_Range_Function *buffer_replace_range;
     Buffer_Set_Setting_Function *buffer_set_setting;
     Create_Buffer_Function *create_buffer;
@@ -129,7 +121,6 @@ struct Application_Links{
     Get_View_Next_Function *get_view_next;
     Get_View_Function *get_view;
     Get_Active_View_Function *get_active_view;
-    Refresh_View_Function *refresh_view;
     View_Auto_Tab_Function *view_auto_tab;
     View_Compute_Cursor_Function *view_compute_cursor;
     View_Set_Cursor_Function *view_set_cursor;
@@ -170,11 +161,9 @@ app_links->clipboard_index = external_clipboard_index;\
 app_links->get_buffer_first = external_get_buffer_first;\
 app_links->get_buffer_next = external_get_buffer_next;\
 app_links->get_buffer = external_get_buffer;\
-app_links->get_parameter_buffer = external_get_parameter_buffer;\
 app_links->get_buffer_by_name = external_get_buffer_by_name;\
-app_links->refresh_buffer = external_refresh_buffer;\
-app_links->buffer_read_range = external_buffer_read_range;\
 app_links->buffer_seek = external_buffer_seek;\
+app_links->buffer_read_range = external_buffer_read_range;\
 app_links->buffer_replace_range = external_buffer_replace_range;\
 app_links->buffer_set_setting = external_buffer_set_setting;\
 app_links->create_buffer = external_create_buffer;\
@@ -184,7 +173,6 @@ app_links->get_view_first = external_get_view_first;\
 app_links->get_view_next = external_get_view_next;\
 app_links->get_view = external_get_view;\
 app_links->get_active_view = external_get_active_view;\
-app_links->refresh_view = external_refresh_view;\
 app_links->view_auto_tab = external_view_auto_tab;\
 app_links->view_compute_cursor = external_view_compute_cursor;\
 app_links->view_set_cursor = external_view_set_cursor;\

@@ -710,7 +710,7 @@ CUSTOM_COMMAND_SIG(if0_off){
                        DEF_TAB_WIDTH,
                        0);
     
-    app->refresh_view(app, &view);
+    refresh_view(app, &view);
     range = get_range(&view);
     pos = range.max;
     
@@ -733,7 +733,7 @@ CUSTOM_COMMAND_SIG(backspace_word){
     
     pos2 = view.cursor.pos;
     exec_command(app, seek_alphanumeric_left);
-    app->refresh_view(app, &view);
+    refresh_view(app, &view);
     pos1 = view.cursor.pos;
     
     buffer = app->get_buffer(app, view.buffer_id, access);
@@ -751,7 +751,7 @@ CUSTOM_COMMAND_SIG(delete_word){
     
     pos1 = view.cursor.pos;
     exec_command(app, seek_alphanumeric_right);
-    app->refresh_view(app, &view);
+    refresh_view(app, &view);
     pos2 = view.cursor.pos;
     
     buffer = app->get_buffer(app, view.buffer_id, access);
@@ -992,7 +992,7 @@ CUSTOM_COMMAND_SIG(replace_in_range){
     
     while (new_pos + r.size <= range.end){
         app->buffer_replace_range(app, &buffer, new_pos, new_pos + r.size, w.str, w.size);
-        app->refresh_view(app, &view);
+        refresh_view(app, &view);
         range = get_range(&view);
         pos = new_pos + w.size;
         buffer_seek_string_forward(app, &buffer, pos, r.str, r.size, &new_pos);

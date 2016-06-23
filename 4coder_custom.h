@@ -162,30 +162,10 @@ enum Command_ID{
     cmdid_count
 };
 
-enum{
-    CLI_OverlapWithConflict = 0x1,
-    CLI_AlwaysBindToView = 0x2,
-    CLI_CursorAtEnd = 0x4,
-};
-
-enum{
-    BufferSetting_Null,
-    BufferSetting_Lex,
-    BufferSetting_WrapLine,
-    BufferSetting_MapID,
-};
-
-enum{
-    AutoTab_ClearLine = 0x1,
-    AutoTab_UseTab = 0x2
-};
-
 // These are regular hooks, any of them can be set to any function
 // that matches the HOOK_SIG pattern.
 enum Hook_ID{
     hook_start,
-    hook_open_file,
-    hook_new_file,
     hook_file_out_of_sync,
     // never below this
     hook_type_count
@@ -195,6 +175,8 @@ enum Hook_ID{
 // that do not necessarily have access to the app pointer.
 enum Special_Hook_ID{
     _hook_scroll_rule = hook_type_count,
+    _hook_new_file,
+    _hook_open_file,
 };
 
 // None of the members of *_Summary structs nor any of the data pointed
@@ -245,11 +227,6 @@ view_summary_zero(){
     return(summary);
 }
 
-enum User_Input_Type{
-    UserInputNone,
-    UserInputKey,
-    UserInputMouse
-};
 struct User_Input{
     int type;
     int abort;
@@ -267,12 +244,6 @@ struct Query_Bar{
     String string;
 };
 
-enum Event_Message_Type{
-    EM_No_Message,
-    EM_Open_View,
-    EM_Frame,
-    EM_Close_View
-};
 struct Event_Message{
     int type;
 };
@@ -282,18 +253,73 @@ struct Theme_Color{
     unsigned int color;
 };
 
-enum Access_Types{
+// Flags and enum values
+// TODO(allen): auto generate this and the docs for it
+enum User_Input_Type_ID{
+    UserInputNone,
+    UserInputKey,
+    UserInputMouse
+};
+
+enum Event_Message_Type_ID{
+    EventMessage_NoMessage,
+    EventMessage_OpenView,
+    EventMessage_Frame,
+    EventMessage_CloseView
+};
+
+enum Buffer_Setting_ID{
+    BufferSetting_Null,
+    BufferSetting_Lex,
+    BufferSetting_WrapLine,
+    BufferSetting_MapID,
+};
+
+enum Access_Flag{
     AccessOpen      = 0x0,
     AccessProtected = 0x1,
     AccessHidden    = 0x2,
     AccessAll       = 0xFF
 };
 
+enum Seek_Boundry_Flag{
+    BoundryWhitespace   = 0x1,
+    BoundryToken        = 0x2,
+    BoundryAlphanumeric = 0x4,
+    BoundryCamelCase    = 0x8
+};
+
+enum Command_Line_Input_Flag{
+    CLI_OverlapWithConflict = 0x1,
+    CLI_AlwaysBindToView    = 0x2,
+    CLI_CursorAtEnd         = 0x4,
+};
+
+enum Auto_Tab_Flag{
+    AutoTab_ClearLine = 0x1,
+    AutoTab_UseTab    = 0x2
+};
+
+enum Input_Type_Flag{
+    EventOnAnyKey      = 0x1,
+    EventOnEsc         = 0x2,
+    EventOnLeftButton  = 0x4,
+    EventOnRightButton = 0x8,
+    EventOnWheel       = 0x10,
+    EventOnButton      = (EventOnLeftButton | EventOnRightButton | EventOnWheel),
+    
+    // NOTE(allen): These don't work so much, so let's pretend they're not here for now.
+    EventOnMouseMove   = 0x20,
+    EventOnMouse       = (EventOnButton | EventOnMouseMove),
+    
+    EventAll           = 0xFF
+};
 
 #define VIEW_ROUTINE_SIG(name) void name(struct Application_Links *app, int view_id)
 #define GET_BINDING_DATA(name) int name(void *data, int size)
 #define CUSTOM_COMMAND_SIG(name) void name(struct Application_Links *app)
 #define HOOK_SIG(name) int name(struct Application_Links *app)
+#define OPEN_FILE_HOOK_SIG(name) int name(struct Application_Links *app, int buffer_id)
 #define SCROLL_RULE_SIG(name) int name(float target_x, float target_y, float *scroll_x, float *scroll_y, int view_id, int is_new_target, float dt)
 
 extern "C"{
@@ -301,32 +327,13 @@ extern "C"{
     typedef CUSTOM_COMMAND_SIG(Custom_Command_Function);
     typedef GET_BINDING_DATA(Get_Binding_Data_Function);
     typedef HOOK_SIG(Hook_Function);
+    
+    typedef OPEN_FILE_HOOK_SIG(Open_File_Hook_Function);
     typedef SCROLL_RULE_SIG(Scroll_Rule_Function);
 }
 
 struct Application_Links;
 #include "4coder_custom_api.h"
-
-
-// Boundry type flags
-#define BoundryWhitespace 0x1
-#define BoundryToken 0x2
-#define BoundryAlphanumeric 0x4
-#define BoundryCamelCase 0x8
-
-
-
-// Input type flags
-#define EventOnAnyKey 0x1
-#define EventOnEsc 0x2
-#define EventOnLeftButton 0x4
-#define EventOnRightButton 0x8
-#define EventOnWheel 0x10
-#define EventOnButton (EventOnLeftButton | EventOnRightButton | EventOnWheel)
-
-// NOTE(allen): These don't work so much, so let's pretend they're not here for now.
-#define EventOnMouseMove 0x20
-#define EventOnMouse (EventOnButton | EventOnMouseMove)
 
 
 

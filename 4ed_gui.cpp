@@ -137,7 +137,7 @@ struct GUI_Target{
     i32 list_view_max;
     
     GUI_id scroll_id; 
-    f32 delta;
+    i32 delta;
     b32 has_keys;
     b32 animating;
     b32 did_file;
@@ -662,7 +662,7 @@ gui_get_scroll_vars(GUI_Target *target, GUI_id scroll_context_id, GUI_Scroll_Var
         *vars_out = target->scroll_updated;
         *region_out = target->region_updated;
         
-        vars_out->target_y = clamp(0.f, vars_out->target_y, vars_out->max_y);
+        vars_out->target_y = clamp(0, vars_out->target_y, vars_out->max_y);
         
         if (gui_id_eq(target->active, gui_id_scrollbar())){
             result = 1;
@@ -685,7 +685,7 @@ gui_post_scroll_vars(GUI_Target *target, GUI_Scroll_Vars *vars_in, i32_Rect regi
 
 internal void
 gui_begin_scrollable(GUI_Target *target, GUI_id scroll_context_id,
-                     GUI_Scroll_Vars scroll_vars, f32 delta, b32 show_bar){
+                     GUI_Scroll_Vars scroll_vars, i32 delta, b32 show_bar){
     GUI_Header *h;
     
     gui_begin_serial_section(target);
@@ -735,7 +735,7 @@ struct GUI_Session{
     i32_Rect full_rect;
     i32_Rect rect;
     
-    f32 suggested_max_y;
+    i32 suggested_max_y;
     i32 clip_y;
     
     i32 line_height;
@@ -833,17 +833,14 @@ gui_scrollbar_top(i32_Rect bar, i32_Rect *top){
 }
 
 internal void
-gui_scrollbar_slider(i32_Rect bar, i32_Rect *slider, f32 s, f32 *min_out, f32 *max_out, f32 target_min, f32 target_max){
-    i32 h, w = (bar.x1 - bar.x0);
-    i32 min, max, pos;
+gui_scrollbar_slider(i32_Rect bar, i32_Rect *slider, f32 s, f32 *min_out, f32 *max_out, i32 target_min, i32 target_max){
+    i32 h = 0, w = (bar.x1 - bar.x0);
+    i32 min = 0, max = 0, pos = 0;
     
-    f32 screen_size;
-    f32 full_size;
-    f32 ratio;
+    f32 screen_size = (f32)(bar.y1 - bar.y0);
+    f32 full_size = (f32)(target_max - target_min + screen_size);
+    f32 ratio = 1.f;
     
-    screen_size = (f32)(bar.y1 - bar.y0);
-    full_size = (f32)(target_max - target_min + screen_size);
-    ratio = 1.f;
     if (full_size > screen_size){
         ratio = screen_size/full_size;
     }
@@ -1158,7 +1155,7 @@ gui_interpret(GUI_Target *target, GUI_Session *session, GUI_Header *h,
         case guicom_end_scrollable_section:
         always_give_to_user = 1;
         session->suggested_max_y =
-            (f32)(session->scrollable_items_bottom -
+            CEIL32(session->scrollable_items_bottom -
                   (session->full_rect.y0 + session->full_rect.y1)*.5f);
         if (session->suggested_max_y < 0){
             session->suggested_max_y = 0;
@@ -1218,16 +1215,16 @@ gui_interpret(GUI_Target *target, GUI_Session *session, GUI_Header *h,
 }
 
 struct GUI_View_Jump{
-    f32 view_min;
-    f32 view_max;
+    i32 view_min;
+    i32 view_max;
 };
 
 internal GUI_View_Jump
 gui_compute_view_jump(i32_Rect scroll_region, i32_Rect position){
     GUI_View_Jump jump = {0};
     i32 region_h = scroll_region.y1 - scroll_region.y0;
-    jump.view_min = (f32)position.y1 - scroll_region.y0 - region_h;
-    jump.view_max = (f32)position.y0 - scroll_region.y0;
+    jump.view_min = position.y1 - scroll_region.y0 - region_h;
+    jump.view_max = position.y0 - scroll_region.y0;
     return(jump);
 }
 
@@ -1253,8 +1250,8 @@ gui_standard_list(GUI_Target *target, GUI_id id, GUI_Scroll_Vars *vars, i32_Rect
     if (update->has_index_position){
         GUI_View_Jump jump =
             gui_compute_view_jump(scroll_region, update->index_position);
-        jump.view_min = jump.view_min + 45.f;
-        jump.view_max = jump.view_max - 45.f;
+        jump.view_min = jump.view_min + 45;
+        jump.view_max = jump.view_max - 45;
         *vars = gui_do_jump(target, jump, *vars);
     }
     

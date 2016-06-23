@@ -483,6 +483,25 @@ clamp(f32 a, f32 n, f32 z){
     return (n);
 }
 
+inline i32
+clamp_bottom(i32 a, i32 n){
+    if (n < a) n = a;
+    return (n);
+}
+
+inline i32
+clamp_top(i32 n, i32 z){
+    if (n  > z) n = z;
+    return (n);
+}
+
+inline i32
+clamp(i32 a, i32 n, i32 z){
+    if (n < a) n = a;
+    else if (n  > z) n = z;
+    return (n);
+}
+
 /*
  * Color
  */

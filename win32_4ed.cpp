@@ -830,12 +830,10 @@ Sys_Set_File_List_Sig(system_set_file_list){
 }
 
 internal
-Sys_File_Track_Sig(system_file_track){
-}
+Sys_File_Track_Sig(system_file_track){}
 
 internal
-Sys_File_Untrack_Sig(system_file_untrack){
-}
+Sys_File_Untrack_Sig(system_file_untrack){}
 
 internal
 Sys_File_Unique_Hash_Sig(system_file_unique_hash){
@@ -844,15 +842,15 @@ Sys_File_Unique_Hash_Sig(system_file_unique_hash){
     HANDLE handle;
     char space[1024];
     String str;
-
+    
     if (filename.size < sizeof(space)){
         str = make_fixed_width_string(space);
         copy(&str, filename);
         terminate_with_null(&str);
         
         handle = CreateFile(str.str, GENERIC_READ, 0, 0,
-            OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
-
+                            OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
+        
         *success = 0;
         if (handle && handle != INVALID_HANDLE_VALUE){
             if (GetFileInformationByHandle(handle, &info)){
@@ -861,7 +859,7 @@ Sys_File_Unique_Hash_Sig(system_file_unique_hash){
                 hash.d[0] = info.nFileIndexLow;
                 *success = 1;
             }
-
+            
             CloseHandle(handle);
         }
     }
@@ -871,12 +869,16 @@ Sys_File_Unique_Hash_Sig(system_file_unique_hash){
 
 // NOTE(allen): Exposed to the custom layer.
 internal
-FILE_EXISTS_SIG(system_file_exists){
+FILE_EXISTS_SIG(system_file_exists)/*
+DOC_PARAM(filename, the full path to a file)
+DOC_PARAM(len, the number of characters in the filename string)
+DOC_RETURN(returns non-zero if the file exists, returns zero if the file does not exist)
+*/{
     char full_filename_space[1024];
     String full_filename;
     HANDLE file;
     b32 result;
-
+    
     result = 0;
     
     if (len < sizeof(full_filename_space)){
@@ -885,7 +887,7 @@ FILE_EXISTS_SIG(system_file_exists){
         terminate_with_null(&full_filename);
         
         file = CreateFile(full_filename.str, GENERIC_READ, 0, 0,
-            OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
+                          OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
         
         if (file != INVALID_HANDLE_VALUE){
             CloseHandle(file);
@@ -904,10 +906,32 @@ b32 Win32DirectoryExists(char *path){
 
 // NOTE(allen): Exposed to the custom layer.
 internal
-DIRECTORY_CD_SIG(system_directory_cd){
+DIRECTORY_CD_SIG(system_directory_cd)/*
+DOC_PARAM(dir, a string buffer containing a directory)
+DOC_PARAM(len, the length of the string in the string buffer)
+DOC_PARAM(capacity, the maximum size of the string buffer)
+DOC_PARAM(rel_path, the path to change to, may include '.' or '..')
+DOC_PARAM(rel_len, the length of the rel_path string)
+DOC_RETURN(returns non-zero if the call succeeds, returns zero otherwise)
+DOC
+(
+This call succeeds if the directory exists and the new directory fits inside the dir buffer.
+If the call succeeds the dir buffer is filled with the new directory and len contains the
+length of the string in the buffer.
+
+For instance if dir contains "C:/Users/MySelf" and rel is "Documents" the buffer will contain
+"C:/Users/MySelf/Documents" and len will contain the length of that string.  This call can
+also be used with rel as ".." to traverse to parent folders.
+)
+*/{
     String directory = make_string(dir, *len, capacity);
     b32 result = 0;
     i32 old_size;
+    
+    char rel_path_space[1024];
+    String rel_path_string = make_fixed_width_string(rel_path_space);
+    copy(&rel_path_string, make_string(rel_path, rel_len));
+    terminate_with_null(&rel_path_string);
     
     if (rel_path[0] != 0){
         if (rel_path[0] == '.' && rel_path[1] == 0){
@@ -951,7 +975,11 @@ Sys_Get_Binary_Path_Sig(system_get_binary_path){
 }
 
 // NOTE(allen): Exposed to the custom layer.
-GET_4ED_PATH_SIG(system_get_4ed_path){
+GET_4ED_PATH_SIG(system_get_4ed_path)/*
+DOC_PARAM(out, a buffer that receives the path to the 4ed executable file)
+DOC_PARAM(capacity, the maximum capacity of the output buffer)
+DOC_RETURN(returns non-zero on success, returns zero on failure)
+*/{
     String str = make_string(out, 0, capacity);
     return(system_get_binary_path(&str));
 }

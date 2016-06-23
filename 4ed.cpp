@@ -242,7 +242,7 @@ do_feedback_message(System_Functions *system, Models *models, String value){
     Editing_File *file = models->message_buffer;
     
     if (file){
-        output_file_append(system, models, file, value, 1);
+        output_file_append(system, models, file, value, true);
         i32 pos = buffer_size(&file->state.buffer);
         for (View_Iter iter = file_view_iter_init(&models->layout, file, 0);
              file_view_iter_good(iter);
@@ -318,7 +318,7 @@ COMMAND_DECL(center_view){
     REQ_READABLE_VIEW(view);
     REQ_FILE(file, view);
     
-    f32 y, h;
+    f32 y = 0, h = 0;
     if (view->file_data.unwrapped_lines){
         y = view->recent->cursor.unwrapped_y;
     }
@@ -329,14 +329,14 @@ COMMAND_DECL(center_view){
     h = view_file_height(view);
     y = clamp_bottom(0.f, y - h*.5f);
     
-    view->recent->scroll.target_y = y;
+    view->recent->scroll.target_y = ROUND32(y);
 }
 
 COMMAND_DECL(left_adjust_view){
     REQ_READABLE_VIEW(view);
     REQ_FILE(file, view);
     
-    f32 x;
+    f32 x = 0;
     if (view->file_data.unwrapped_lines){
         x = view->recent->cursor.unwrapped_x;
     }
@@ -345,7 +345,7 @@ COMMAND_DECL(left_adjust_view){
     }
     
     x = clamp_bottom(0.f, x - 30.f);
-    view->recent->scroll.target_x = x;
+    view->recent->scroll.target_x = ROUND32(x);
 }
 
 COMMAND_DECL(set_cursor){
@@ -918,8 +918,8 @@ COMMAND_DECL(close_panel){
 COMMAND_DECL(page_down){
     REQ_READABLE_VIEW(view);
     
-    f32 height = view_file_height(view);
-    f32 max_target_y = view->recent->scroll.max_y;
+    i32 height = CEIL32(view_file_height(view));
+    i32 max_target_y = view->recent->scroll.max_y;
     
     view->recent->scroll.target_y =
         clamp_top(view->recent->scroll.target_y + height, max_target_y);
@@ -931,10 +931,10 @@ COMMAND_DECL(page_down){
 COMMAND_DECL(page_up){
     REQ_READABLE_VIEW(view);
     
-    f32 height = view_file_height(view);
+    i32 height = CEIL32(view_file_height(view));
     
     view->recent->scroll.target_y =
-        clamp_bottom(0.f, view->recent->scroll.target_y - height);
+        clamp_bottom(0, view->recent->scroll.target_y - height);
     
     view->recent->cursor =
         view_compute_cursor_from_xy(view, 0, view->recent->scroll.target_y + (height - view->line_height)*.5f);
@@ -1624,6 +1624,8 @@ App_Init_Sig(app_init){
         b32 did_file = 0;
         
         models->scroll_rule = fallback_scroll_rule;
+        models->hook_open_file = 0;
+        models->hook_new_file = 0;
         
         setup_command_table();
         
@@ -1754,7 +1756,19 @@ App_Init_Sig(app_init){
                                     models->hooks[hook_id] = (Hook_Function*)unit->hook.func;
                                 }
                                 else{
-                                    models->scroll_rule = (Scroll_Rule_Function*)unit->hook.func;
+                                    switch (hook_id){
+                                        case _hook_open_file:
+                                        models->hook_open_file = (Open_File_Hook_Function*)unit->hook.func;
+                                        break;
+                                        
+                                        case _hook_new_file:
+                                        models->hook_new_file = (Open_File_Hook_Function*)unit->hook.func;
+                                        break;
+                                        
+                                        case _hook_scroll_rule:
+                                        models->scroll_rule = (Scroll_Rule_Function*)unit->hook.func;
+                                        break;
+                                    }
                                 }
                             }
                         }break;
@@ -1861,11 +1875,6 @@ App_Init_Sig(app_init){
     vars->cli_processes.procs = push_array(partition, CLI_Process, max_children);
     vars->cli_processes.max = max_children;
     vars->cli_processes.count = 0;
-    
-    // NOTE(allen): parameter setup
-    models->buffer_param_max = 1;
-    models->buffer_param_count = 0;
-    models->buffer_param_indices = push_array(partition, i32, models->buffer_param_max);
 }
 
 internal i32

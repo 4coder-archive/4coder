@@ -15,13 +15,13 @@ gui_id_zero(){
 
 struct GUI_Scroll_Vars{
     float scroll_y;
-    float target_y;
-    float prev_target_y;
-    float max_y;
+    int  target_y;
+    int  prev_target_y;
+    int  max_y;
     
     float scroll_x;
-    float target_x;
-    float prev_target_x;
+    int target_x;
+    int  prev_target_x;
 };
 
 typedef struct GUI GUI;

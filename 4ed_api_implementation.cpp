@@ -100,16 +100,6 @@ get_file_from_identifier(System_Functions *system, Working_Set *working_set, Buf
     return(file);
 }
 
-internal String
-make_string_terminated(Partition *part, char *str, int len){
-    char *space = (char*)push_array(part, char, len + 1);
-    String string = make_string(str, len, len+1);
-    copy_fast_unsafe(space, string);
-    string.str = space;
-    terminate_with_null(&string);
-    return(string);
-}
-
 internal Editing_File*
 imp_get_file(Command_Data *cmd, Buffer_Summary *buffer){
     Editing_File *file = 0;
@@ -149,7 +139,10 @@ imp_get_view(Command_Data *cmd, View_Summary *view){
     return(vptr);
 }
 
-EXEC_COMMAND_SIG(external_exec_command){
+EXEC_COMMAND_SIG(external_exec_command)/*
+DOC_PARAM(command_id, an integer id enumerated in 4coder_custom.h starting with cmdid)
+DOC(Executes the command associated with the command_id passed in)
+*/{
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     Command_Function function = command_table[command_id];
     Command_Binding binding = {};
@@ -160,7 +153,35 @@ EXEC_COMMAND_SIG(external_exec_command){
 }
 
 // TODO(allen): This is a bit of a mess and needs to be fixed soon
-EXEC_SYSTEM_COMMAND_SIG(external_exec_system_command){
+EXEC_SYSTEM_COMMAND_SIG(external_exec_system_command)/*
+DOC_PARAM(view, the target view that will display the output buffer, may be NULL, see description for details)
+DOC_PARAM(buffer, a buffer identifier for the buffer that will be filled with the output from the command)
+DOC_PARAM(path, the path from which the command is executed)
+DOC_PARAM(path_len, the length of the path string)
+DOC_PARAM(command, the command to be executed)
+DOC_PARAM(command_len, the length of the command string)
+DOC_PARAM(flags, may be zero or one or more CLI flags ORed together)
+DOC_RETURN(returns non-zero if the command is successfully started, returns zero otherwise)
+DOC
+(
+Executes a system command as if called from the command line, and sends the output to a buffer. The buffer
+identifier can either name a new buffer that does not exist, name a buffer that does exist, or provide the
+id of a buffer that does exist.  If the buffer already exists the command will fail, unless
+CLI_OverlapWithConflict is set in the flags.
+
+If the buffer is not already in an active view, and the view parameter is no NULL, then the provided view
+will display the output buffer.  If the view parameter is NULL, no view will display the output.
+
+If CLI_OverlapWithConflict is set in the flags, the command will always be executed even if another command
+was outputting to the same buffer still.
+
+If CLI_AlwaysBindToView is set and the view parameter is not NULL, then the specified view will always
+begin displaying the output buffer, even if another active view already displays that buffer.
+
+If CLI_CursorAtEnd is set the cursor in the output buffer will be placed at the end of the buffer instead
+of at the beginning.
+)
+*/{
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     System_Functions *system = cmd->system;
     App_Vars *vars = cmd->vars;
@@ -178,22 +199,9 @@ EXEC_SYSTEM_COMMAND_SIG(external_exec_system_command){
     Partition *part = &models->mem.part;
     Temp_Memory temp = begin_temp_memory(part);
     
-    View *vptr = 0;
-    
     int result = true;
     
-    if (view->exists){
-        Live_Views *live_set = cmd->live_set;
-        i32 view_id = view->view_id - 1;
-        if (view_id >= 0 && view_id < live_set->max){
-            vptr = live_set->views + view_id;
-        }
-    }
-    
-    if (vptr == 0){
-        result = false;
-        goto done;
-    }
+    View *vptr = imp_get_view(cmd, view);
     
     if (vars->cli_processes.count < vars->cli_processes.max){
         file = get_file_from_identifier(system, working_set, buffer);
@@ -248,7 +256,7 @@ EXEC_SYSTEM_COMMAND_SIG(external_exec_system_command){
                 if (!(flags & CLI_AlwaysBindToView)){
                     View_Iter iter = file_view_iter_init(&models->layout, file, 0);
                     if (file_view_iter_good(iter)){
-                        bind_to_new_view = 0;
+                        bind_to_new_view = false;
                     }
                 }
             }
@@ -282,7 +290,7 @@ EXEC_SYSTEM_COMMAND_SIG(external_exec_system_command){
                 command_string = make_string_terminated(part, command, command_len);
             }
             
-            if (bind_to_new_view){
+            if (vptr && bind_to_new_view){
                 view_set_file(vptr, file, models);
                 view_show_file(vptr);
             }
@@ -313,7 +321,19 @@ EXEC_SYSTEM_COMMAND_SIG(external_exec_system_command){
     return(result);
 }
 
-DIRECTORY_GET_HOT_SIG(external_directory_get_hot){
+DIRECTORY_GET_HOT_SIG(external_directory_get_hot)/*
+DOC_PARAM(out, a buffer that receives the 4coder 'hot directory')
+DOC_PARAM(capacity, the maximum size to be output to the output buffer)
+DOC_RETURN(returns the size of the string written into the buffer)
+DOC
+(
+4coder has a concept of a 'hot directory' which is the directory most recently
+accessed in the GUI.  Whenever the GUI is opened it shows the hot directory.
+
+In the future this will be deprecated and eliminated in favor of more flexible
+directories controlled by the custom side.
+)
+*/{
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     Hot_Directory *hot = &cmd->models->hot_directory;
     i32 copy_max = capacity - 1;
@@ -331,7 +351,16 @@ DIRECTORY_GET_HOT_SIG(external_directory_get_hot){
 
 #define external_directory_cd system->directory_cd
 
-GET_FILE_LIST_SIG(external_get_file_list){
+GET_FILE_LIST_SIG(external_get_file_list)/*
+DOC_PARAM(dir, the directory whose files will be enumerated in the returned list)
+DOC_PARAM(len, the length of the dir string)
+DOC_RETURN
+(
+returns a File_List struct containing pointers to the names of the files in
+the specified directory.  The File_List returned should be passed to free_file_list
+when it is no longer in use.
+)
+*/{
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     System_Functions *system = cmd->system;
     File_List result = {};
@@ -339,35 +368,61 @@ GET_FILE_LIST_SIG(external_get_file_list){
     return(result);
 }
 
-FREE_FILE_LIST_SIG(external_free_file_list){
+FREE_FILE_LIST_SIG(external_free_file_list)/*
+DOC_PARAM(list, the file list to be freed)
+DOC(after this call the file list passed in should not be read or written to)
+*/{
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     System_Functions *system = cmd->system;
     system->set_file_list(&list, make_string(0, 0));
 }
 
-CLIPBOARD_POST_SIG(external_clipboard_post){
+CLIPBOARD_POST_SIG(external_clipboard_post)/*
+DOC_PARAM(str, the string to post to the clipboard)
+DOC_PARAM(len, the length of the string str)
+DOC
+(
+Stores the string str in the clipboard initially with index 0.
+Also reports the copy to the operating system, so that it may
+be pasted into other applications.
+)
+*/{
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     System_Functions *system = cmd->system;
     Models *models = cmd->models;
     General_Memory *general = &models->mem.general;
     Working_Set *working = &models->working_set;
-    int result = false;
     
     String *dest = working_set_next_clipboard_string(general, working, len);
     copy(dest, make_string(str, len));
     system->post_clipboard(*dest);
-    
-    return(result);
 }
 
-CLIPBOARD_COUNT_SIG(external_clipboard_count){
+CLIPBOARD_COUNT_SIG(external_clipboard_count)/*
+DOC(returns the number of items in the clipboard)
+*/{
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     Working_Set *working = &cmd->models->working_set;
     int count = working->clipboard_size;
     return(count);
 }
 
-CLIPBOARD_INDEX_SIG(external_clipboard_index){
+CLIPBOARD_INDEX_SIG(external_clipboard_index)/*
+DOC_PARAM(index, the index of the item to be read)
+DOC_PARAM(out, a buffer where the clipboard contents are written or NULL)
+DOC_PARAM(len, the length of the out buffer)
+DOC_RETURN(returns the size of the item on the clipboard associated with the given index)
+DOC
+(
+There are multiple items on the 4coder clipboard.  The most recent copy is always at
+index 0.  The second most recent is at index 1, and so on for all the stored clipboard items.
+This function reads one of the clipboard items and stores it into the out buffer, if the out
+buffer is not NULL.  This function always returns the size of the clipboard item specified
+even if the output buffer is NULL.  If the output buffer is too small to contain the whole
+string, it is filled with the first len character of the clipboard contents.  The output
+string is not null terminated.
+)
+*/{
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     Working_Set *working = &cmd->models->working_set;
     
@@ -405,7 +460,19 @@ internal_get_buffer_next(Working_Set *working_set, Buffer_Summary *buffer){
     }
 }
 
-GET_BUFFER_FIRST_SIG(external_get_buffer_first){
+GET_BUFFER_FIRST_SIG(external_get_buffer_first)/*
+DOC_PARAM(access, the access flags for the access)
+DOC_RETURN(returns the summary of the first buffer in a buffer loop)
+DOC
+(
+Begins a loop across all the buffers.
+
+If the buffer returned does not exist, the loop is finished.  Buffers
+should not be killed durring a buffer loop.
+)
+DOC_SEE(Access_Flag)
+DOC_SEE(get_buffer_next)
+*/{
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     Working_Set *working_set = &cmd->models->working_set;
     Buffer_Summary result = {};
@@ -418,7 +485,21 @@ GET_BUFFER_FIRST_SIG(external_get_buffer_first){
     return(result);
 }
 
-GET_BUFFER_NEXT_SIG(external_get_buffer_next){
+GET_BUFFER_NEXT_SIG(external_get_buffer_next)/*
+DOC_PARAM(buffer, pointer to the loop buffer originally returned by get_buffer_first)
+DOC_PARAM(access, the access flags for the access)
+DOC
+(
+Writes the next buffer into the buffer struct.  To get predictable results every
+call to get_buffer_first and get_buffer_next in the loop should have the same
+access flags.
+
+If the buffer returned does not exist, the loop is finished.  Buffers
+should not be killed durring a buffer loop.
+)
+DOC_SEE(Access_Flag)
+DOC_SEE(get_buffer_first)
+*/{
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     Working_Set *working_set = &cmd->models->working_set;
     
@@ -428,13 +509,17 @@ GET_BUFFER_NEXT_SIG(external_get_buffer_next){
     }
 }
 
-GET_BUFFER_SIG(external_get_buffer){
+GET_BUFFER_SIG(external_get_buffer)/*
+DOC_PARAM(buffer_id, the id of the buffer to get)
+DOC_PARAM(access, the access flags for the access)
+DOC_RETURN(returns a summary that describes the indicated buffer if it exists and is accessible)
+*/{
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     Working_Set *working_set = &cmd->models->working_set;
     Buffer_Summary buffer = {};
     Editing_File *file;
     
-    file = working_set_get_active_file(working_set, index);
+    file = working_set_get_active_file(working_set, buffer_id);
     if (file){
         fill_buffer_summary(&buffer, file, working_set);
         if (!access_test(buffer.lock_flags, access)){
@@ -445,25 +530,18 @@ GET_BUFFER_SIG(external_get_buffer){
     return(buffer);
 }
 
-GET_PARAMETER_BUFFER_SIG(external_get_parameter_buffer){
-    Command_Data *cmd = (Command_Data*)app->cmd_context;
-    Models *models = cmd->models;
-    Buffer_Summary buffer = {};
-    
-    if (param_index >= 0 && param_index < models->buffer_param_count){
-        buffer = external_get_buffer(app, models->buffer_param_indices[param_index], access);
-    }
-    
-    return(buffer);
-}
-
-GET_BUFFER_BY_NAME_SIG(external_get_buffer_by_name){
+GET_BUFFER_BY_NAME_SIG(external_get_buffer_by_name)/*
+DOC_PARAM(name, the name of the buffer)
+DOC_PARAM(len, the length of the name string)
+DOC_PARAM(access, the access flags for the access)
+DOC_RETURN(returns a summary that describes the indicated buffer if it exists and is accessible)
+*/{
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     Buffer_Summary buffer = {};
     Editing_File *file;
     Working_Set *working_set = &cmd->models->working_set;
     
-    file = working_set_contains(cmd->system, working_set, make_string(filename, len));
+    file = working_set_contains(cmd->system, working_set, make_string(name, len));
     if (file && !file->is_dummy){
         fill_buffer_summary(&buffer, file, working_set);
         if (!access_test(buffer.lock_flags, access)){
@@ -474,14 +552,14 @@ GET_BUFFER_BY_NAME_SIG(external_get_buffer_by_name){
     return(buffer);
 }
 
-REFRESH_BUFFER_SIG(external_refresh_buffer){
-    int result;
-    *buffer = external_get_buffer(app, buffer->buffer_id, AccessAll);
-    result = buffer->exists;
-    return(result);
-}
-
-BUFFER_SEEK_SIG(external_buffer_seek){
+BUFFER_SEEK_SIG(external_buffer_seek)/*
+DOC_PARAM(buffer, the buffer to seek through)
+DOC_PARAM(start_pos, the absolute position in the buffer to begin the seek)
+DOC_PARAM(seek_forward, non-zero indicates to seek forward otherwise the seek goes backward)
+DOC_PARAM(flags, one or more types of boundaries to use for stopping the seek)
+DOC_RETURN(returns the position where the seek stops)
+DOC_SEE(Seek_Boundary_Flag)
+*/{
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     Editing_File *file;
     int result = false;
@@ -573,7 +651,18 @@ BUFFER_SEEK_SIG(external_buffer_seek){
     return(result);
 }
 
-BUFFER_READ_RANGE_SIG(external_buffer_read_range){
+BUFFER_READ_RANGE_SIG(external_buffer_read_range)/*
+DOC_PARAM(buffer, the buffer to read out of)
+DOC_PARAM(start, the beginning of the read range)
+DOC_PARAM(end, one past the end of the read range)
+DOC_PARAM(out, the output buffer to fill with the result of the read)
+DOC_RETURN(returns non-zero on success)
+DOC
+(
+The output buffer might have a capacity of at least (end - start)
+The output is not null terminated.
+)
+*/{
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     Editing_File *file = imp_get_file(cmd, buffer);
     int result = false;
@@ -591,7 +680,21 @@ BUFFER_READ_RANGE_SIG(external_buffer_read_range){
     return(result);
 }
 
-BUFFER_REPLACE_RANGE_SIG(external_buffer_replace_range){
+BUFFER_REPLACE_RANGE_SIG(external_buffer_replace_range)/*
+DOC_PARAM(buffer, the buffer to edit)
+DOC_PARAM(start, the start of the range to edit)
+DOC_PARAM(end, the end of the range to edit)
+DOC_PARAM(str, the string to write into the range)
+DOC_PARAM(len, the length of the str string)
+DOC_RETURN(returns non-zero if the replacement succeeds)
+DOC
+(
+Replace simultaneously deletes the range from start to end and writes str
+in the same position.  If end == start then this call is equivalent to
+inserting the string at start.  If len == 0 this call is equivalent to
+deleteing the range from start to end.
+)
+*/{
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     Editing_File *file = imp_get_file(cmd, buffer);
     
@@ -602,7 +705,7 @@ BUFFER_REPLACE_RANGE_SIG(external_buffer_replace_range){
     if (file){
         size = buffer_size(&file->state.buffer);
         if (0 <= start && start <= end && end <= size){
-            result = 1;
+            result = true;
             
             pos = file->state.cursor_pos;
             if (pos < start) next_cursor = pos;
@@ -688,21 +791,18 @@ SAVE_BUFFER_SIG(external_save_buffer){
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     System_Functions *system = cmd->system;
     Models *models = cmd->models;
-    
-    Editing_File *file = imp_get_file(cmd, buffer);
-    
     int result = false;
     
+    Editing_File *file = imp_get_file(cmd, buffer);
     if (file){
         result = true;
         String name = make_string(filename, filename_len);
-        view_save_file(system, models, file, 0, name, 0);
+        view_save_file(system, models, file, 0, name, false);
     }
     
     return(result);
 }
 
-// TODO(allen): REPLACE THIS WITH CREATE_BUFFER!!!
 CREATE_BUFFER_SIG(external_create_buffer){
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     System_Functions *system = cmd->system;
@@ -715,10 +815,10 @@ CREATE_BUFFER_SIG(external_create_buffer){
     
     Temp_Memory temp = begin_temp_memory(part);
     if (filename != 0){
-        String filename_string = make_string(filename, filename_len);
+        String filename_string = make_string_terminated(part, filename, filename_len);
         Editing_File *file = working_set_contains(system, working_set, filename_string);
         if (file == 0){
-            File_Loading loading = system->file_load_begin(filename);
+            File_Loading loading = system->file_load_begin(filename_string.str);
             if (loading.exists){
                 b32 in_general_mem = false;
                 char *buffer = push_array(part, char, loading.size);
@@ -872,13 +972,6 @@ GET_ACTIVE_VIEW_SIG(external_get_active_view){
         view = view_summary_zero();
     }
     return(view);
-}
-
-REFRESH_VIEW_SIG(external_refresh_view){
-    int result;
-    *view = external_get_view(app, view->view_id, AccessAll);
-    result = view->exists;
-    return(result);
 }
 
 VIEW_AUTO_TAB_SIG(external_view_auto_tab){
@@ -1133,29 +1226,15 @@ PRINT_MESSAGE_SIG(external_print_message){
     do_feedback_message(cmd->system, models, make_string(string, len));
 }
 
-#if 0
-GET_GUI_FUNCTIONS_SIG(external_get_gui_functions){
-    GUI_Functions *guifn = 0;
-    NotImplemented;
-    return(guifn);
-}
-
-GET_GUI_SIG(external_get_gui){
-    GUI *gui = 0;
-    NotImplemented;
-    return(gui);
-}
-#endif
-
 CHANGE_THEME_SIG(external_change_theme){
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     Style_Library *styles = &cmd->models->styles;
     String theme_name = make_string(name, len);
-    Style *s;
-    i32 i, count;
     
-    count = styles->count;
-    s = styles->styles;
+    i32 i = 0;
+    i32 count = styles->count;
+    Style *s = styles->styles;
+    
     for (i = 0; i < count; ++i, ++s){
         if (match(s->name, theme_name)){
             style_copy(main_style(cmd->models), s);
@@ -1169,7 +1248,7 @@ CHANGE_FONT_SIG(external_change_font){
     Font_Set *set = cmd->models->font_set;
     Style_Font *global_font = &cmd->models->global_font;
     String font_name = make_string(name, len);
-    i16 font_id;
+    i16 font_id = 0;
     
     if (font_set_extract(set, font_name, &font_id)){
         global_font->font_id = font_id;
@@ -1180,11 +1259,11 @@ CHANGE_FONT_SIG(external_change_font){
 SET_THEME_COLORS_SIG(external_set_theme_colors){
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     Style *style = main_style(cmd->models);
-    Theme_Color *theme_color;
-    u32 *color;
-    i32 i;
     
-    theme_color = colors;
+    u32 *color = 0;
+    i32 i = 0;
+    Theme_Color *theme_color = colors;
+    
     for (i = 0; i < count; ++i, ++theme_color){
         color = style_index_by_tag(&style->main, theme_color->tag);
         if (color) *color = theme_color->color | 0xFF000000;
@@ -1194,11 +1273,11 @@ SET_THEME_COLORS_SIG(external_set_theme_colors){
 GET_THEME_COLORS_SIG(external_get_theme_colors){
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     Style *style = main_style(cmd->models);
-    Theme_Color *theme_color;
-    u32 *color;
-    i32 i;
     
-    theme_color = colors;
+    u32 *color = 0;
+    i32 i = 0;
+    Theme_Color *theme_color = colors;
+    
     for (i = 0; i < count; ++i, ++theme_color){
         color = style_index_by_tag(&style->main, theme_color->tag);
         if (color){
