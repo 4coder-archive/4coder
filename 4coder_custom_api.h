@@ -35,11 +35,10 @@
 #define VIEW_GET_PASTE_REWRITE__SIG(n) int n(Application_Links *app, View_Summary *view)
 #define GET_USER_INPUT_SIG(n) User_Input n(Application_Links *app, unsigned int get_type, unsigned int abort_type)
 #define GET_COMMAND_INPUT_SIG(n) User_Input n(Application_Links *app)
-#define GET_EVENT_MESSAGE_SIG(n) Event_Message n(Application_Links *app)
 #define GET_MOUSE_STATE_SIG(n) Mouse_State n(Application_Links *app)
 #define START_QUERY_BAR_SIG(n) int n(Application_Links *app, Query_Bar *bar, unsigned int flags)
 #define END_QUERY_BAR_SIG(n) void n(Application_Links *app, Query_Bar *bar, unsigned int flags)
-#define PRINT_MESSAGE_SIG(n) void n(Application_Links *app, char *string, int len)
+#define PRINT_MESSAGE_SIG(n) void n(Application_Links *app, char *str, int len)
 #define CHANGE_THEME_SIG(n) void n(Application_Links *app, char *name, int len)
 #define CHANGE_FONT_SIG(n) void n(Application_Links *app, char *name, int len)
 #define SET_THEME_COLORS_SIG(n) void n(Application_Links *app, Theme_Color *colors, int count)
@@ -82,7 +81,6 @@ extern "C"{
     typedef VIEW_GET_PASTE_REWRITE__SIG(View_Get_Paste_Rewrite__Function);
     typedef GET_USER_INPUT_SIG(Get_User_Input_Function);
     typedef GET_COMMAND_INPUT_SIG(Get_Command_Input_Function);
-    typedef GET_EVENT_MESSAGE_SIG(Get_Event_Message_Function);
     typedef GET_MOUSE_STATE_SIG(Get_Mouse_State_Function);
     typedef START_QUERY_BAR_SIG(Start_Query_Bar_Function);
     typedef END_QUERY_BAR_SIG(End_Query_Bar_Function);
@@ -132,7 +130,6 @@ struct Application_Links{
     View_Get_Paste_Rewrite__Function *view_get_paste_rewrite_;
     Get_User_Input_Function *get_user_input;
     Get_Command_Input_Function *get_command_input;
-    Get_Event_Message_Function *get_event_message;
     Get_Mouse_State_Function *get_mouse_state;
     Start_Query_Bar_Function *start_query_bar;
     End_Query_Bar_Function *end_query_bar;
@@ -184,7 +181,6 @@ app_links->view_set_paste_rewrite_ = external_view_set_paste_rewrite_;\
 app_links->view_get_paste_rewrite_ = external_view_get_paste_rewrite_;\
 app_links->get_user_input = external_get_user_input;\
 app_links->get_command_input = external_get_command_input;\
-app_links->get_event_message = external_get_event_message;\
 app_links->get_mouse_state = external_get_mouse_state;\
 app_links->start_query_bar = external_start_query_bar;\
 app_links->end_query_bar = external_end_query_bar;\

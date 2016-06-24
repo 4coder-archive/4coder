@@ -16,6 +16,7 @@ copy ..\build\4ed_app.pdb ..\current_dist\4coder\*
 copy ..\data\* ..\current_dist\4coder\*
 copy README.txt ..\current_dist\4coder\*
 copy TODO.txt ..\current_dist\4coder\*
+copy 4coder_API.html ..\current_dist\4coder\*
 del ..\current_dist\SUPERREADME.txt
 del ..\current_dist\4coder\basic.cpp
 del ..\current_dist\4coder\.4coder_settings
@@ -33,6 +34,7 @@ copy 4coder_*.cpp ..\current_dist_super\4coder\*
 copy README.txt ..\current_dist_super\4coder\*
 copy TODO.txt ..\current_dist_super\4coder\*
 copy SUPERREADME.txt ..\current_dist_super\4coder\*
+copy 4coder_API.html ..\current_dist_super\4coder\*
 copy ..\current_dist\4coder\3rdparty\* ..\current_dist_super\4coder\3rdparty\*
 REM del ..\current_dist_super\4coder\*.pdb
 del ..\current_dist_super\4coder\*.lib

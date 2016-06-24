@@ -56,21 +56,21 @@ void View_Set_Paste_Rewrite_(Application_Links *app, View_Summary *view);
 int View_Get_Paste_Rewrite_(Application_Links *app, View_Summary *view);
 
 // Directly get user input
-User_Input Get_User_Input(Application_Links *app, unsigned int get_type, unsigned int abort_type);
-User_Input Get_Command_Input(Application_Links *app);
-Event_Message Get_Event_Message(Application_Links *app);
-Mouse_State Get_Mouse_State(Application_Links *app);
+User_Input    Get_User_Input    (Application_Links *app, unsigned int get_type, unsigned int abort_type);
+User_Input    Get_Command_Input (Application_Links *app);
+Mouse_State   Get_Mouse_State   (Application_Links *app);
+//Event_Message Get_Event_Message (Application_Links *app);
 
 // Queries and information display
-int Start_Query_Bar(Application_Links *app, Query_Bar *bar, unsigned int flags);
-void End_Query_Bar(Application_Links *app, Query_Bar *bar, unsigned int flags);
-void Print_Message(Application_Links *app, char *string, int len);
+int  Start_Query_Bar (Application_Links *app, Query_Bar *bar, unsigned int flags);
+void End_Query_Bar   (Application_Links *app, Query_Bar *bar, unsigned int flags);
+void Print_Message   (Application_Links *app, char *str, int len);
 //GUI_Functions* Get_GUI_Functions(Application_Links *app);
 //GUI* Get_GUI(Application_Links *app, int view_id);
 
 // Color settings
-void Change_Theme(Application_Links *app, char *name, int len);
-void Change_Font(Application_Links *app, char *name, int len);
-void Set_Theme_Colors(Application_Links *app, Theme_Color *colors, int count);
-void Get_Theme_Colors(Application_Links *app, Theme_Color *colors, int count);
+void Change_Theme     (Application_Links *app, char *name, int len);
+void Change_Font      (Application_Links *app, char *name, int len);
+void Set_Theme_Colors (Application_Links *app, Theme_Color *colors, int count);
+void Get_Theme_Colors (Application_Links *app, Theme_Color *colors, int count);
 

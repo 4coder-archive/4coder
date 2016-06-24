@@ -1310,7 +1310,21 @@ VIEW_GET_PASTE_REWRITE__SIG(external_view_get_paste_rewrite_){
     return(result);
 }
 
-GET_USER_INPUT_SIG(external_get_user_input){
+GET_USER_INPUT_SIG(external_get_user_input)/*
+DOC_PARAM(get_type, input type flag that specifies the types of inputs that should be returned)
+DOC_PARAM(abort_type, input type flag that specifies the types of inputs that should cause an abort signal)
+DOC_RETURN(returns a User_Input that describes an event passed to the command)
+DOC
+(
+This call preempts the command. The command is resumed if either a get or abort condition
+is met, or if another command is executed.  If either the abort condition is met or another
+command is executed an abort signal is returned.  If an abort signal is ever returned the
+command should finish execution without any more calls that preempt the command.
+If a get condition is met the user input is returned
+)
+DOC_SEE(Input_Type_Flag)
+DOC_SEE(User_Input)
+*/{
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     System_Functions *system = cmd->system;
     Coroutine *coroutine = (Coroutine*)app->current_coroutine;
@@ -1327,7 +1341,10 @@ GET_USER_INPUT_SIG(external_get_user_input){
     return(result);
 }
 
-GET_COMMAND_INPUT_SIG(external_get_command_input){
+GET_COMMAND_INPUT_SIG(external_get_command_input)/*
+DOC_RETURN(returns the input that triggered the command in execution.)
+DOC_SEE(User_Input)
+*/{
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     User_Input result;
     
@@ -1339,13 +1356,17 @@ GET_COMMAND_INPUT_SIG(external_get_command_input){
     return(result);
 }
 
-GET_MOUSE_STATE_SIG(external_get_mouse_state){
+GET_MOUSE_STATE_SIG(external_get_mouse_state)/*
+DOC_RETURN(returns the current mouse state)
+DOC_SEE(Mouse_State)
+*/{
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     App_Vars *vars = cmd->vars;
     Mouse_State mouse = direct_get_mouse_state(&vars->available_input);
     return(mouse);
 }
 
+#if 0
 GET_EVENT_MESSAGE_SIG(external_get_event_message){
     Event_Message message = {0};
     System_Functions *system = (System_Functions*)app->system_links;
@@ -1359,8 +1380,18 @@ GET_EVENT_MESSAGE_SIG(external_get_event_message){
     
     return(message);
 }
+#endif
 
-START_QUERY_BAR_SIG(external_start_query_bar){
+START_QUERY_BAR_SIG(external_start_query_bar)/*
+DOC_PARAM(bar, a pointer to the Query_Bar struct that defines the bar's contents)
+DOC_PARAM(flags, not currently used)
+DOC_RETURN(returns non-zero on success)
+DOC
+(
+The memory pointed to by bar must remain valid until a call to end_query_bar or
+until the command returns.
+)
+*/{
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     Query_Slot *slot = 0;
     View *vptr;
@@ -1373,20 +1404,33 @@ START_QUERY_BAR_SIG(external_start_query_bar){
     return(slot != 0);
 }
 
-END_QUERY_BAR_SIG(external_end_query_bar){
+END_QUERY_BAR_SIG(external_end_query_bar)/*
+DOC_PARAM(bar, a pointer to the Query_Bar struct to end)
+DOC_PARAM(flags, not currently used)
+DOC
+(
+bar must be a pointer previously passed to start_query_bar previously in the same command.
+)
+*/{
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     View *vptr;
     vptr = cmd->view;
     free_query_slot(&vptr->query_set, bar);
 }
 
-PRINT_MESSAGE_SIG(external_print_message){
+PRINT_MESSAGE_SIG(external_print_message)/*
+DOC_PARAM(str, the string to post to *messages*)
+DOC_PARAM(len, the length of str string)
+*/{
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     Models *models = cmd->models;
-    do_feedback_message(cmd->system, models, make_string(string, len));
+    do_feedback_message(cmd->system, models, make_string(str, len));
 }
 
-CHANGE_THEME_SIG(external_change_theme){
+CHANGE_THEME_SIG(external_change_theme)/*
+DOC_PARAM(name, the name of the built in theme to change to)
+DOC_PARAM(len, the length of the name string)
+*/{
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     Style_Library *styles = &cmd->models->styles;
     String theme_name = make_string(name, len);
@@ -1403,7 +1447,10 @@ CHANGE_THEME_SIG(external_change_theme){
     }
 }
 
-CHANGE_FONT_SIG(external_change_font){
+CHANGE_FONT_SIG(external_change_font)/*
+DOC_PARAM(name, the name of the built in font to change to)
+DOC_PARAM(len, the length of the name string)
+*/{
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     Font_Set *set = cmd->models->font_set;
     Style_Font *global_font = &cmd->models->global_font;
@@ -1416,7 +1463,15 @@ CHANGE_FONT_SIG(external_change_font){
     }
 }
 
-SET_THEME_COLORS_SIG(external_set_theme_colors){
+SET_THEME_COLORS_SIG(external_set_theme_colors)/*
+DOC_PARAM(colors, an array of color structs pairing differet style tags to color codes)
+DOC_PARAM(count, the number of color structs in the colors array)
+DOC
+(
+For each color struct in the array, the color in the style pallet is set to the color
+code paired with the tag.
+)
+*/{
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     Style *style = main_style(cmd->models);
     
@@ -1430,7 +1485,15 @@ SET_THEME_COLORS_SIG(external_set_theme_colors){
     }
 }
 
-GET_THEME_COLORS_SIG(external_get_theme_colors){
+GET_THEME_COLORS_SIG(external_get_theme_colors)/*
+DOC_PARAM(colors, an array of color structs listing style tags to get color values for)
+DOC_PARAM(count, the number of color structs in the colors array)
+DOC
+(
+For each color struct in the array, the color field of the struct is filled with the
+color from the specified color in the pallet.
+)
+*/{
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     Style *style = main_style(cmd->models);
     

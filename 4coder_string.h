@@ -31,16 +31,16 @@ NOTES ON USE:
 
 #ifndef FRED_STRING_STRUCT
 #define FRED_STRING_STRUCT
-struct String{
+typedef struct String{
     char *str;
     int32_t size;
     int32_t memory_size;
-};
+} String;
 
-struct Offset_String{
+typedef struct Offset_String{
     int32_t offset;
     int32_t size;
-};
+} Offset_String;
 #endif
 
 #ifndef fstr_bool
@@ -187,25 +187,29 @@ FSTRING_INLINE    fstr_bool  terminate_with_null(String *str){
 
 FSTRING_LINK      fstr_bool  append_padding(String *dest, char c, int32_t target_size);
 
-FSTRING_LINK int32_t   compare(char *a, char *b);
-FSTRING_LINK int32_t   compare(String a, char *b);
-FSTRING_INLINE    int32_t   compare(char *a, String b) { return -compare(b,a); }
-FSTRING_LINK int32_t   compare(String a, String b);
+FSTRING_LINK   int32_t   compare(char *a, char *b);
+FSTRING_LINK   int32_t   compare(String a, char *b);
+FSTRING_INLINE int32_t   compare(char *a, String b) { return -compare(b,a); }
+FSTRING_LINK   int32_t   compare(String a, String b);
 
-FSTRING_LINK int32_t    reverse_seek_slash(String str);
-FSTRING_LINK int32_t    reverse_seek_slash(String str, int32_t start_pos);
-FSTRING_INLINE    String  front_of_directory(String dir) { return substr(dir, reverse_seek_slash(dir) + 1); }
-FSTRING_INLINE    String  path_of_directory(String dir) { return substr(dir, 0, reverse_seek_slash(dir) + 1); }
-FSTRING_INLINE    fstr_bool   get_front_of_directory(String *dest, String dir) { return append_checked(dest, front_of_directory(dir)); }
-FSTRING_INLINE    fstr_bool   get_path_of_directory(String *dest, String dir) { return append_checked(dest, path_of_directory(dir)); }
-FSTRING_LINK fstr_bool   set_last_folder(String *dir, char *folder_name, char slash);
-FSTRING_LINK fstr_bool   set_last_folder(String *dir, String folder_name, char slash);
-FSTRING_LINK String file_extension(String str);
-FSTRING_LINK String file_extension_slowly(char *str);
-FSTRING_LINK char * file_extension_c(String str);
-FSTRING_LINK fstr_bool   remove_last_folder(String *str);
-FSTRING_LINK void   replace_char(String str, char replace, char with);
-FSTRING_LINK void   replace_char(char *str, char replace, char with);
+FSTRING_LINK   int32_t     reverse_seek_slash(String str);
+FSTRING_LINK   int32_t     reverse_seek_slash(String str, int32_t start_pos);
+FSTRING_INLINE String      front_of_directory(String dir) { return substr(dir, reverse_seek_slash(dir) + 1); }
+FSTRING_INLINE String      path_of_directory(String dir) { return substr(dir, 0, reverse_seek_slash(dir) + 1); }
+FSTRING_INLINE fstr_bool   get_front_of_directory(String *dest, String dir) { return append_checked(dest, front_of_directory(dir)); }
+FSTRING_INLINE fstr_bool   get_path_of_directory(String *dest, String dir) { return append_checked(dest, path_of_directory(dir)); }
+FSTRING_LINK   fstr_bool   set_last_folder(String *dir, char *folder_name, char slash);
+FSTRING_LINK   fstr_bool   set_last_folder(String *dir, String folder_name, char slash);
+FSTRING_LINK   String      file_extension(String str);
+FSTRING_LINK   String      file_extension_slowly(char *str);
+FSTRING_LINK   char *      file_extension_c(String str);
+FSTRING_LINK   fstr_bool   remove_last_folder(String *str);
+FSTRING_LINK   void        replace_char(String str, char replace, char with);
+FSTRING_LINK   void        replace_char(char *str, char replace, char with);
+
+// TODO(allen): Add hash-table extension to string sets.
+FSTRING_LINK   fstr_bool   string_set_match(String *str_set, int32_t count, String str, int32_t *match_index);
+
 
 FSTRING_INLINE String string_zero(){
     String str={0};
@@ -1249,6 +1253,20 @@ replace_char(char *str, char replace, char with){
     for (; *str; ++str){
         if (*str == replace) *str = with;
     }
+}
+
+FSTRING_LINK fstr_bool
+string_set_match(String *str_set, int32_t count, String str, int32_t *match_index){
+    fstr_bool result = false;
+    int32_t i = 0;
+    for (; i < count; ++i, ++str_set){
+        if (match(*str_set, str)){
+            *match_index = i;
+            result = true;
+            break;
+        }
+    }
+    return(result);
 }
 
 // NOTE(allen): experimental section, things below here are

@@ -1,16 +1,23 @@
 /*
- * Mr. 4th Dimention - Allen Webster
- *
- * 25.02.2016
- *
- * File editing view for 4coder
- *
- */
+* Mr. 4th Dimention - Allen Webster
+*
+* 25.02.2016
+*
+* File editing view for 4coder
+*
+*/
 
 // TOP
 
+#include "4ed_meta.h"
 #define FCPP_STRING_IMPLEMENTATION
 #include "4coder_string.h"
+
+#include "4cpp_types.h"
+#include "4cpp_lexer_types.h"
+
+#define FCPP_LEXER_IMPLEMENTATION
+#include "4cpp_lexer.h"
 
 struct Struct_Field{
     char *type;
@@ -26,6 +33,15 @@ void to_lower(char *src, char *dst){
     *dst = 0;
 }
 
+void to_lower(String *str){
+    char *c;
+    int i = 0;
+    int size = str->size;
+    for (c = str->str; i < size; ++c, ++i){
+        *c = char_to_lower(*c);
+    }
+}
+
 void to_upper(char *src, char *dst){
     char *c, ch;
     for (c = src; *c != 0; ++c){
@@ -33,6 +49,15 @@ void to_upper(char *src, char *dst){
         *dst++ = ch;
     }
     *dst = 0;
+}
+
+void to_upper(String *str){
+    char *c;
+    int i = 0;
+    int size = str->size;
+    for (c = str->str; i < size; ++c, ++i){
+        *c = char_to_upper(*c);
+    }
 }
 
 void to_camel(char *src, char *dst){
@@ -303,12 +328,24 @@ char* generate_style(){
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////
-struct Function_Signature{
-    String name;
-    String ret;
-    String args;
-    int valid;
+struct Function_Set{
+    String *name;
+    String *ret;
+    String *args;
+    
+    String *macros;
+    String *public_name;
+    
+    int    *valid;
 };
+
+void
+zero_index(Function_Set fnc_set, int sig_count){
+    fnc_set.name [sig_count] = string_zero();
+    fnc_set.ret  [sig_count] = string_zero();
+    fnc_set.args [sig_count] = string_zero();
+    fnc_set.valid[sig_count] = 0;
+}
 
 String
 file_dump(char *filename){
@@ -391,9 +428,71 @@ is_comment(String str){
     return(result);
 }
 
+struct Doc_Parse{
+    Cpp_Token_Stack tokens;
+    String doc_string;
+};
+
+int
+check_and_fix_docs(String *lexeme){
+    int result = false;
+    
+    if (lexeme->size > 4){
+        if (lexeme->str[0] == '/'){
+            if (lexeme->str[1] == '*'){
+                if (lexeme->str[lexeme->size - 2] == '*'){
+                    if (lexeme->str[lexeme->size - 1] == '/'){
+                        result = true;
+                        lexeme->str += 2;
+                        lexeme->size -= 4;
+                    }
+                }
+            }
+        }
+    }
+    
+    return(result);
+}
+
+static String
+doc_note_string[] = {
+    make_lit_string("DOC_PARAM"),
+    make_lit_string("DOC_RETURN"),
+    make_lit_string("DOC"),
+    make_lit_string("DOC_SEE"),
+};
+
+void
+perform_doc_parse(Doc_Parse *parse, String lexeme){
+#if 0
+    int keep_parsing = true;
+    int pos = 0;
+    
+    do{
+        String doc_note = doc_parse_identifier(lexeme, &pos);
+        if (doc_note.size == 0){
+            keep_parsing = false;
+        }
+        else{
+            if (string_set_match(doc_note_string, ArrayCount(doc_note_string), doc_note, &match)){
+                
+            }
+            else{
+                // TODO(allen): do warning
+            }
+        }
+    }while(keep_parsing);
+#endif
+}
+
 char*
 generate_custom_headers(){
-    char *filename = "4coder_custom_api.h";
+#define API_H "4coder_custom_api.h"
+#define API_DOC "4coder_API.html"
+    
+    char *filename = API_H " & " API_DOC;
+    
+    // NOTE(allen): Header
     String data = file_dump("custom_api_spec.cpp");
     
     int line_count = 0;
@@ -404,8 +503,14 @@ generate_custom_headers(){
         ++line_count;
     }
     
-    Function_Signature *sigs =
-        (Function_Signature*)malloc(sizeof(Function_Signature)*line_count);
+    Function_Set function_set = {0};
+    
+    function_set.name        = (String*)malloc((sizeof(String)*5 + sizeof(int))*line_count);
+    function_set.ret         = function_set.name + line_count;
+    function_set.args        = function_set.ret + line_count;
+    function_set.macros      = function_set.args + line_count;
+    function_set.public_name = function_set.macros + line_count;
+    function_set.valid       = (int*)(function_set.public_name + line_count);
     
     int max_name_size = 0;
     int sig_count = 0;
@@ -421,85 +526,101 @@ generate_custom_headers(){
         parse = chop_whitespace(parse);
         if (parse.size > 0){
             if (!is_comment(parse)){
-                Function_Signature *sig = sigs + sig_count;
-                memset(sig, 0, sizeof(*sig));
-                
-                ++sig_count;
+                zero_index(function_set, sig_count);
+                int valid = false;
                 
                 int pos = find(parse, 0, ' ');
-                sig->ret = substr(parse, 0, pos);
+                function_set.ret[sig_count] = substr(parse, 0, pos);
                 parse = substr(parse, pos);
                 parse = skip_whitespace(parse);
                 
                 if (parse.size > 0){
                     pos = find(parse, 0, '(');
-                    sig->name = substr(parse, 0, pos);
-                    sig->name = chop_whitespace(sig->name);
+                    
+                    String name_string = substr(parse, 0, pos);
+                    function_set.name[sig_count] = chop_whitespace(name_string);
                     parse = substr(parse, pos);
                     
                     if (parse.size > 0){
                         char end = parse.str[parse.size - 1];
-                        int valid = true;
+                        valid = true;
                         
                         switch (end){
                             case ')':
-                            sig->args = parse;
+                            function_set.args[sig_count] = parse;
                             break;
                             
                             case ';':
                             --parse.size;
-                            sig->args = parse;
+                            function_set.args[sig_count] = parse;
                             break;
                             
                             default:
                             valid = false;
                             break;
                         }
-                        sig->valid = valid;
+                        function_set.valid[sig_count] = valid;
                         
-                        if (max_name_size < sig->name.size){
-                            max_name_size = sig->name.size;
+                        if (max_name_size < name_string.size){
+                            max_name_size = name_string.size;
                         }
                     }
                 }
                 
-                if (!sig->valid){
+                if (!valid){
                     printf("custom_api_spec.cpp(%d) : generator warning : invalid function signature\n",
                            line_count);
                 }
+                
+                ++sig_count;
             }
         }
     }
     
-    FILE *file = fopen("4coder_custom_api.h", "wb");
-    int buffer_size = max_name_size + 1;
-    char *name_buffer = (char*)malloc(buffer_size);
+    FILE *file = fopen(API_H, "wb");
     
     for (int i = 0; i < sig_count; ++i){
-        Function_Signature *sig = sigs + i;
+        String name_string = function_set.name[i];
+        String *macro = function_set.macros + i;
+        String *public_name = function_set.public_name + i;
         
-        copy_fast_unsafe(name_buffer, sig->name);
-        name_buffer[sig->name.size] = 0;
-        to_upper(name_buffer, name_buffer);
+        macro->size = 0;
+        macro->memory_size = name_string.size+4;
         
-        fprintf(file, "#define %s_SIG(n) %.*s n%.*s\n",
-                name_buffer,
-                sig->ret.size, sig->ret.str,
-                sig->args.size, sig->args.str
+        macro->str = (char*)malloc(macro->memory_size);
+        copy(macro, name_string);
+        to_upper(macro);
+        append(macro, make_lit_string("_SIG"));
+        
+        
+        public_name->size = 0;
+        public_name->memory_size = name_string.size;
+        
+        public_name->str = (char*)malloc(public_name->memory_size);
+        copy(public_name, name_string);
+        to_lower(public_name);
+    }
+    
+    for (int i = 0; i < sig_count; ++i){
+        String ret_string   = function_set.ret[i];
+        String args_string  = function_set.args[i];
+        String macro_string = function_set.macros[i];
+        
+        fprintf(file, "#define %.*s(n) %.*s n%.*s\n",
+                macro_string.size, macro_string.str,
+                ret_string.size, ret_string.str,
+                args_string.size, args_string.str
                 );
     }
     
     fprintf(file, "extern \"C\"{\n");
     for (int i = 0; i < sig_count; ++i){
-        Function_Signature *sig = sigs + i;
+        String name_string  = function_set.name[i];
+        String macro_string = function_set.macros[i];
         
-        copy_fast_unsafe(name_buffer, sig->name);
-        name_buffer[sig->name.size] = 0;
-        to_upper(name_buffer, name_buffer);
-        
-        fprintf(file, "    typedef %s_SIG(%.*s_Function);\n",
-                name_buffer,
-                sig->name.size, sig->name.str);
+        fprintf(file, "    typedef %.*s(%.*s_Function);\n",
+                macro_string.size, macro_string.str,
+                name_string.size, name_string.str);
     }
     fprintf(file, "}\n");
     
@@ -509,15 +630,12 @@ generate_custom_headers(){
             "    int memory_size;\n"
             );
     for (int i = 0; i < sig_count; ++i){
-        Function_Signature *sig = sigs + i;
+        String name_string  = function_set.name[i];
+        String public_string = function_set.public_name[i];
         
-        copy_fast_unsafe(name_buffer, sig->name);
-        name_buffer[sig->name.size] = 0;
-        to_lower(name_buffer, name_buffer);
-        
-        fprintf(file, "    %.*s_Function *%s;\n",
-                sig->name.size, sig->name.str,
-                name_buffer);
+        fprintf(file, "    %.*s_Function *%.*s;\n",
+                name_string.size, name_string.str,
+                public_string.size, public_string.str);
     }
     fprintf(file,
             "    void *cmd_context;\n"
@@ -529,19 +647,91 @@ generate_custom_headers(){
     
     fprintf(file, "#define FillAppLinksAPI(app_links) do{");
     for (int i = 0; i < sig_count; ++i){
-        Function_Signature *sig = sigs + i;
-        
-        copy_fast_unsafe(name_buffer, sig->name);
-        name_buffer[sig->name.size] = 0;
-        to_lower(name_buffer, name_buffer);
+        String public_string = function_set.public_name[i];
         
         fprintf(file,
                 "\\\n"
-                "app_links->%s = external_%s;",
-                name_buffer, name_buffer
+                "app_links->%.*s = external_%.*s;",
+                public_string.size, public_string.str,
+                public_string.size, public_string.str
                 );
     }
     fprintf(file, " } while(false)\n");
+    
+    fclose(file);
+    
+    // NOTE(allen): Documentation
+    String code_data[2];
+    Doc_Parse parses[2];
+    
+    code_data[0] = file_dump("4ed_api_implementation.cpp");
+    code_data[1] = file_dump("win32_4ed.cpp");
+    
+    for (int J = 0; J < 2; ++J){
+        String *code = &code_data[J];
+        Doc_Parse *parse = &parses[J];
+        
+        // TODO(allen): KILL THIS FUCKIN' Cpp_File FUCKIN NONSENSE BULLSHIT!!!!!
+        Cpp_File file;
+        file.data = code->str;
+        file.size = code->size;
+        
+        parse->tokens = cpp_make_token_stack(512);
+        cpp_lex_file(file, &parse->tokens);
+        
+        int count = parse->tokens.count;
+        Cpp_Token *tokens = parse->tokens.tokens;
+        
+        Cpp_Token *token = tokens;
+        for (int i = 0; i < count; ++i, ++token){
+            if (token->type == CPP_TOKEN_IDENTIFIER){
+                String lexeme = make_string(file.data + token->start, token->size);
+                int match = 0;
+                if (string_set_match(function_set.macros, sig_count, lexeme, &match)){
+                    for (; i < count; ++i, ++token){
+                        if (token->type == CPP_TOKEN_COMMENT){
+                            lexeme = make_string(file.data + token->start, token->size);
+                            if (check_and_fix_docs(&lexeme)){
+                                perform_doc_parse(parse, lexeme);
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    file = fopen(API_DOC, "wb");
+    
+    fprintf(file,
+            "<html lang=\"en-US\">\n"
+            "<head>\n"
+            "<title>4coder API Docs</title>\n"
+            "</head>\n"
+            "<body style='font-family:Arial;'>\n"
+            "<h1>4coder API</h1>"
+            );
+    
+    fprintf(file,
+            "<h2>\n&sect;1 Introduction</h2>\n"
+            "<div style='margin-bottom: 5mm;'><i>Coming Soon</i></div>");
+    
+    fprintf(file, "<h2>\n&sect;2 Functions</h2>\n");
+    for (int i = 0; i < sig_count; ++i){
+        String name = function_set.public_name[i];
+        fprintf(file,
+                "<div>\n"
+                "%.*s\n"
+                "</div>\n",
+                name.size, name.str
+                );
+    }
+    
+    fprintf(file,
+            "</body>"
+            "</html>\n"
+            );
     
     fclose(file);
     
@@ -549,14 +739,14 @@ generate_custom_headers(){
 }
 
 int main(){
-    char *filename;
-    
+    char *filename = 0;
+        
     filename = generate_keycode_enum();
     printf("gen success: %s\n", filename);
-    
+        
     filename = generate_style();
     printf("gen success: %s\n", filename);
-    
+        
     filename = generate_custom_headers();
     printf("gen success: %s\n", filename);
 }
