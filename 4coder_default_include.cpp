@@ -646,6 +646,34 @@ CUSTOM_COMMAND_SIG(write_increment){
 #endif
 
 static void
+move_past_lead_whitespace(Application_Links *app, View_Summary *view, Buffer_Summary *buffer){
+    refresh_view(app, view);
+    
+    int new_pos = seek_line_beginning(app, buffer, view->cursor.pos);
+    char space[1024];
+    Stream_Chunk chunk = {0};
+    int still_looping = false;
+    
+    int i = new_pos;
+    if (init_stream_chunk(&chunk, app, buffer, i, space, sizeof(space))){
+        do{
+            for (; i < chunk.end; ++i){
+                char at_pos = chunk.data[i];
+                if (at_pos == '\n' || !char_is_whitespace(at_pos)){
+                    goto break2;
+                }
+            }
+            still_looping = forward_stream_chunk(&chunk);
+        }while(still_looping);
+        break2:;
+        
+        if (i > view->cursor.pos){
+            app->view_set_cursor(app, view, seek_pos(i), true);
+        }
+    }
+}
+
+static void
 long_braces(Application_Links *app, char *text, int size){
     unsigned int access = AccessOpen;
     View_Summary view = app->get_active_view(app, access);
@@ -659,7 +687,7 @@ long_braces(Application_Links *app, char *text, int size){
                             pos, pos + size,
                             DEF_TAB_WIDTH,
                             0);
-    // TODO(allen): set cursor position
+    move_past_lead_whitespace(app, &view, &buffer);
 }
 
 CUSTOM_COMMAND_SIG(open_long_braces){
@@ -709,7 +737,7 @@ CUSTOM_COMMAND_SIG(if0_off){
                             pos, pos,
                             DEF_TAB_WIDTH,
                             0);
-    // TODO(allen): place cursor
+    move_past_lead_whitespace(app, &view, &buffer);
     
     refresh_view(app, &view);
     range = get_range(&view);
@@ -721,7 +749,7 @@ CUSTOM_COMMAND_SIG(if0_off){
                             pos, pos,
                             DEF_TAB_WIDTH,
                             0);
-    // TODO(allen): place cursor
+    move_past_lead_whitespace(app, &view, &buffer);
 }
 
 CUSTOM_COMMAND_SIG(backspace_word){
@@ -1306,7 +1334,7 @@ CUSTOM_COMMAND_SIG(auto_tab_line_at_cursor){
                             view.cursor.pos, view.cursor.pos,
                             DEF_TAB_WIDTH,
                             0);
-    // TODO(allen): place cursor
+    move_past_lead_whitespace(app, &view, &buffer);
 }
 
 CUSTOM_COMMAND_SIG(auto_tab_whole_file){
@@ -1318,7 +1346,6 @@ CUSTOM_COMMAND_SIG(auto_tab_whole_file){
                             0, buffer.size,
                             DEF_TAB_WIDTH,
                             0);
-    // TODO(allen): place cursor
 }
 
 CUSTOM_COMMAND_SIG(auto_tab_range){
@@ -1331,7 +1358,7 @@ CUSTOM_COMMAND_SIG(auto_tab_range){
                             range.min, range.max,
                             DEF_TAB_WIDTH,
                             0);
-    // TODO(allen): place cursor
+    move_past_lead_whitespace(app, &view, &buffer);
 }
 
 CUSTOM_COMMAND_SIG(write_and_auto_tab){
