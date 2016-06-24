@@ -3288,9 +3288,11 @@ kill_file(System_Functions *system, Models *models,
     }
 }
 
-internal void
+internal b32
 try_kill_file(System_Functions *system, Models *models,
               Editing_File *file, View *view, String string){
+    
+    b32 kill_dialogue = false;
     Working_Set *working_set = &models->working_set;
     
     if (!file && string.str){
@@ -3309,11 +3311,14 @@ try_kill_file(System_Functions *system, Models *models,
                                   IAct_Sure_To_Kill, IInt_Sure_To_Kill,
                                   make_lit_string("Are you sure?"));
             copy(&view->dest, file->name.live_name);
+            kill_dialogue = true;
         }
         else{
             kill_file(system, models, file, string_zero());
         }
     }
+    
+    return(kill_dialogue);
 }
 
 internal void
@@ -3358,8 +3363,9 @@ interactive_view_complete(System_Functions *system, View *view, String dest, i32
         break;
         
         case IAct_Kill:
-        try_kill_file(system, models, 0, 0, dest);
-        view_show_file(view);
+        if (!try_kill_file(system, models, 0, 0, dest)){
+            view_show_file(view);
+        }
         break;
         
         case IAct_Sure_To_Close:

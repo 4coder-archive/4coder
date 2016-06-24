@@ -1269,14 +1269,19 @@ DOC_SEE(Set_Buffer_Flag)
     return(result);
 }
 
-VIEW_POST_FADE_SIG(external_view_post_fade){
+VIEW_POST_FADE_SIG(external_view_post_fade)/*
+DOC_PARAM(view, the veiw to post a fade effect to)
+DOC_PARAM(seconds, the number of seconds the fade effect should last)
+DOC_PARAM(start, the first character in the fade range)
+DOC_PARAM(end, one after the last character in the fade range)
+DOC_PARAM(color, the color to fade from)
+*/{
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     View *vptr = imp_get_view(cmd, view);
     
     int result = false;
     
     int size = end - start;
-    
     if (vptr){
         if (size > 0){
             result = true;
