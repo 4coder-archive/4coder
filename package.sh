@@ -78,6 +78,7 @@ make release32_super
 cp ./4ed ./4ed_app.so ./code/4coder_*.h ./code/4coder_*.cpp "$TMP_DIR/super/"
 cp ./code/buildsuper.sh "$TMP_DIR/super/"
 cp ./code/README.txt ./code/SUPERREADME.txt ./code/TODO.txt "$TMP_DIR/super/"
+cp ./code/*.html "$TMP_DIR/super/"
 
 echo " "
 
@@ -95,6 +96,7 @@ cp -r "${TEMPLATE_DIR}" "$TMP_DIR/super/"
 cp ./4ed ./4ed_app.so ./code/4coder_*.h ./code/4coder_*.cpp "$TMP_DIR/super/"
 cp ./code/buildsuper.sh "$TMP_DIR/super/"
 cp ./code/README.txt ./code/SUPERREADME.txt ./code/TODO.txt "$TMP_DIR/super/"
+cp ./code/*.html "$TMP_DIR/super/"
 
 echo " "
 
