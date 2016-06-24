@@ -870,7 +870,7 @@ DOC_SEE(Buffer_Create_Flag)
             }
             else{
                 loading = system->file_load_begin(filename_string.str);
-                if (!loading.exists){
+                if (loading.exists){
                     do_new_file = true;
                 }
             }
