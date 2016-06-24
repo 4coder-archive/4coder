@@ -4767,28 +4767,31 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                         {
                             b8 threads[4];
                             i32 pending = 0;
-                            system->internal_get_thread_states(BACKGROUND_THREADS,
-                                                               threads, &pending);
                             
-                            string.size = 0;
-                            append(&string, "pending jobs: ");
-                            append_int_to_str(&string, pending);
-                            gui_do_text_field(target, string, empty_str);
-                            
-                            for (i32 i = 0; i < 4; ++i){
+                            if (system->internal_get_thread_states){
+                                system->internal_get_thread_states(BACKGROUND_THREADS,
+                                                                   threads, &pending);
+                                
                                 string.size = 0;
-                                append(&string, "thread ");
-                                append_int_to_str(&string, i);
-                                append(&string, ": ");
-                                
-                                if (threads[i]){
-                                    append(&string, "running");
-                                }
-                                else{
-                                    append(&string, "waiting");
-                                }
-                                
+                                append(&string, "pending jobs: ");
+                                append_int_to_str(&string, pending);
                                 gui_do_text_field(target, string, empty_str);
+                                
+                                for (i32 i = 0; i < 4; ++i){
+                                    string.size = 0;
+                                    append(&string, "thread ");
+                                    append_int_to_str(&string, i);
+                                    append(&string, ": ");
+                                    
+                                    if (threads[i]){
+                                        append(&string, "running");
+                                    }
+                                    else{
+                                        append(&string, "waiting");
+                                    }
+                                    
+                                    gui_do_text_field(target, string, empty_str);
+                                }
                             }
                             
                             Partition *part = &models->mem.part;
