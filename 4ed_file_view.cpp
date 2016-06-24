@@ -1210,8 +1210,6 @@ file_post_undo(General_Memory *general, Editing_File *file,
         
         Edit_Step inv_step = {};
         inv_step.edit = inv;
-        inv_step.pre_pos = step.pre_pos;
-        inv_step.post_pos = step.post_pos;
         inv_step.can_merge = (b8)can_merge;
         inv_step.type = ED_UNDO;
         
@@ -1222,7 +1220,6 @@ file_post_undo(General_Memory *general, Editing_File *file,
                 if (prev.edit.end == inv_step.edit.start){
                     did_merge = 1;
                     inv_step.edit.start = prev.edit.start;
-                    inv_step.pre_pos = prev.pre_pos;
                 }
             }
         }
@@ -1280,8 +1277,6 @@ file_post_redo(General_Memory *general, Editing_File *file, Edit_Step step){
         
         Edit_Step inv_step = {};
         inv_step.edit = inv;
-        inv_step.pre_pos = step.pre_pos;
-        inv_step.post_pos = step.post_pos;
         inv_step.type = ED_REDO;
         
         if (redo->edit_count == redo->edit_max)
@@ -1350,19 +1345,16 @@ file_post_history(General_Memory *general, Editing_File *file,
         
         Edit_Step inv_step = {};
         inv_step.edit = inv;
-        inv_step.pre_pos = step.pre_pos;
-        inv_step.post_pos = step.post_pos;
         inv_step.can_merge = (b8)can_merge;
         inv_step.type = reverse_types[step.type];
         
-        bool32 did_merge = 0;
+        b32 did_merge = 0;
         if (do_merge && history->edit_count > 0){
             Edit_Step prev = history->edits[history->edit_count-1];
             if (prev.can_merge && inv_step.edit.len == 0 && prev.edit.len == 0){
                 if (prev.edit.end == inv_step.edit.start){
                     did_merge = 1;
                     inv_step.edit.start = prev.edit.start;
-                    inv_step.pre_pos = prev.pre_pos;
                 }
             }
         }
@@ -2218,8 +2210,6 @@ file_replace_range(System_Functions *system, Models *models, Editing_File *file,
     spec.step.edit.end = end;
     
     spec.step.edit.len = len;
-    spec.step.pre_pos = file->state.cursor_pos;
-    spec.step.post_pos = next_cursor;
     spec.str = (u8*)str;
     file_do_single_edit(system, models, file, spec, hist_normal, use_high_permission);
 }
@@ -2276,8 +2266,7 @@ view_undo_redo(System_Functions *system,
             
             file_do_single_edit(system, models, file, spec, hist_normal);
             
-            if (expected_type == ED_UNDO) view_cursor_move(view, step.pre_pos);
-            else view_cursor_move(view, step.post_pos);
+            view_cursor_move(view, step.edit.start + step.edit.len);
             view->recent->mark = view->recent->cursor.pos;
             
             Style *style = main_style(models);
@@ -2390,7 +2379,7 @@ view_history_step(System_Functions *system, Models *models, View *view, History_
     }
     
     if (do_history_step){
-        Edit_Spec spec;
+        Edit_Spec spec = {0};
         spec.step = step;
         
         if (spec.step.child_count == 0){
@@ -2402,12 +2391,12 @@ view_history_step(System_Functions *system, Models *models, View *view, History_
             switch (spec.step.type){
                 case ED_NORMAL:
                 case ED_REDO:
-                view_cursor_move(view, step.post_pos);
+                view_cursor_move(view, step.edit.start + step.edit.len);
                 break;
                 
                 case ED_REVERSE_NORMAL:
                 case ED_UNDO:
-                view_cursor_move(view, step.pre_pos);
+                view_cursor_move(view, step.edit.start + step.edit.len);
                 break;
             }
             view->recent->mark = view->recent->cursor.pos;
@@ -2524,10 +2513,8 @@ file_compute_whitespace_edit(Mem_Options *mem, Editing_File *file, i32 cursor_po
     spec.step.special_type = 1;
     spec.step.child_count = edit_count;
     spec.step.inverse_child_count = edit_count;
-    spec.step.pre_pos = cursor_pos;
-    spec.step.post_pos = cursor_pos;
     
-    return spec;
+    return(spec);
 }
 
 internal void

@@ -305,9 +305,9 @@ enum Command_Line_Input_Flag{
     CLI_CursorAtEnd         = 0x4,
 };
 
-enum Auto_Tab_Flag{
-    AutoTab_ClearLine = 0x1,
-    AutoTab_UseTab    = 0x2
+enum Auto_Indent_Flag{
+    AutoIndent_ClearLine = 0x1,
+    AutoIndent_UseTab    = 0x2
 };
 
 enum Input_Type_Flag{

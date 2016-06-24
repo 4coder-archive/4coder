@@ -650,16 +650,16 @@ long_braces(Application_Links *app, char *text, int size){
     unsigned int access = AccessOpen;
     View_Summary view = app->get_active_view(app, access);
     Buffer_Summary buffer = app->get_buffer(app, view.buffer_id, access);
-    int pos;
+    int pos = view.cursor.pos;
     
-    pos = view.cursor.pos;
     app->buffer_replace_range(app, &buffer, pos, pos, text, size);
     app->view_set_cursor(app, &view, seek_pos(pos + 2), true);
     
-    app->view_auto_tab(app, &view,
-                       pos, pos + size,
-                       DEF_TAB_WIDTH,
-                       0);
+    app->buffer_auto_indent(app, &buffer,
+                            pos, pos + size,
+                            DEF_TAB_WIDTH,
+                            0);
+    // TODO(allen): set cursor position
 }
 
 CUSTOM_COMMAND_SIG(open_long_braces){
@@ -705,10 +705,11 @@ CUSTOM_COMMAND_SIG(if0_off){
     
     app->buffer_replace_range(app, &buffer, pos, pos, text1, size1);
     
-    app->view_auto_tab(app, &view,
-                       pos, pos,
-                       DEF_TAB_WIDTH,
-                       0);
+    app->buffer_auto_indent(app, &buffer,
+                            pos, pos,
+                            DEF_TAB_WIDTH,
+                            0);
+    // TODO(allen): place cursor
     
     refresh_view(app, &view);
     range = get_range(&view);
@@ -716,10 +717,11 @@ CUSTOM_COMMAND_SIG(if0_off){
     
     app->buffer_replace_range(app, &buffer, pos, pos, text2, size2);
     
-    app->view_auto_tab(app, &view,
-                       pos, pos,
-                       DEF_TAB_WIDTH,
-                       0);
+    app->buffer_auto_indent(app, &buffer,
+                            pos, pos,
+                            DEF_TAB_WIDTH,
+                            0);
+    // TODO(allen): place cursor
 }
 
 CUSTOM_COMMAND_SIG(backspace_word){
@@ -1298,11 +1300,13 @@ CUSTOM_COMMAND_SIG(build_search){
 CUSTOM_COMMAND_SIG(auto_tab_line_at_cursor){
     unsigned int access = AccessOpen;
     View_Summary view = app->get_active_view(app, access);
+    Buffer_Summary buffer = app->get_buffer(app, view.buffer_id, access);
     
-    app->view_auto_tab(app, &view,
-                       view.cursor.pos, view.cursor.pos,
-                       DEF_TAB_WIDTH,
-                       0);
+    app->buffer_auto_indent(app, &buffer,
+                            view.cursor.pos, view.cursor.pos,
+                            DEF_TAB_WIDTH,
+                            0);
+    // TODO(allen): place cursor
 }
 
 CUSTOM_COMMAND_SIG(auto_tab_whole_file){
@@ -1310,21 +1314,24 @@ CUSTOM_COMMAND_SIG(auto_tab_whole_file){
     View_Summary view = app->get_active_view(app, access);
     Buffer_Summary buffer = app->get_buffer(app, view.buffer_id, access);
     
-    app->view_auto_tab(app, &view,
-                       0, buffer.size,
-                       DEF_TAB_WIDTH,
-                       0);
+    app->buffer_auto_indent(app, &buffer,
+                            0, buffer.size,
+                            DEF_TAB_WIDTH,
+                            0);
+    // TODO(allen): place cursor
 }
 
 CUSTOM_COMMAND_SIG(auto_tab_range){
     unsigned int access = AccessOpen;
     View_Summary view = app->get_active_view(app, access);
+    Buffer_Summary buffer = app->get_buffer(app, view.buffer_id, access);
     Range range = get_range(&view);
     
-    app->view_auto_tab(app, &view,
-                       range.min, range.max,
-                       DEF_TAB_WIDTH,
-                       0);
+    app->buffer_auto_indent(app, &buffer,
+                            range.min, range.max,
+                            DEF_TAB_WIDTH,
+                            0);
+    // TODO(allen): place cursor
 }
 
 CUSTOM_COMMAND_SIG(write_and_auto_tab){

@@ -792,6 +792,46 @@ DOC_SEE(Buffer_Setting_ID)
     return(result);
 }
 
+BUFFER_AUTO_INDENT_SIG(external_buffer_auto_indent)/*
+DOC_PARAM(buffer, the buffer in which to apply the auto indenting)
+DOC_PARAM(start, the position to start the auto indenting)
+DOC_PARAM(end, the position to end the auto indenting)
+DOC_PARAM(tab_width, the number of spaces to place as a tab)
+DOC_PARAM(flags, the auto tab behavior flags)
+DOC_RETURN(returns non-zero when the call succeeds)
+DOC
+(
+Applies the built in auto-indentation rule to the code in the range from
+start to end by inserting spaces or tabs at the beginning of the lines.
+If the buffer does not have lexing enabled or the lexing job has not
+completed this function will fail.
+)
+DOC_SEE(Auto_Tab_Flag)
+*/{
+    Command_Data *cmd = (Command_Data*)app->cmd_context;
+    System_Functions *system = cmd->system;
+    Models *models = cmd->models;
+    
+    Indent_Options opts = {0};
+    int result = false;
+    
+    Editing_File *file = imp_get_file(cmd, buffer);
+    if (file && file->state.token_stack.tokens &&
+        file->state.tokens_complete && !file->state.still_lexing){
+        result = true;
+        
+        opts.empty_blank_lines = (flags & AutoIndent_ClearLine);
+        opts.use_tabs = (flags & AutoIndent_UseTab);
+        opts.tab_width = tab_width;
+        
+        file_auto_tab_tokens(system, models, file, start, start, end, opts);
+        
+        fill_buffer_summary(buffer, file, cmd);
+    }
+    
+    return(result);
+}
+
 CREATE_BUFFER_SIG(external_create_buffer)/*
 DOC_PARAM(filename, the name of the file to be opened or created)
 DOC_PARAM(filename_len, the length of the filename string)
@@ -1061,42 +1101,6 @@ DOC_RETURN(returns a summary that describes the active view)
         view = view_summary_zero();
     }
     return(view);
-}
-
-VIEW_AUTO_TAB_SIG(external_view_auto_tab)/*
-DOC_PARAM(start, )
-DOC_PARAM(end, )
-DOC_PARAM(tab_width, )
-DOC_PARAM(flags, )
-*/{
-    Command_Data *cmd = (Command_Data*)app->cmd_context;
-    System_Functions *system = cmd->system;
-    Models *models = cmd->models;
-    
-    int result = false;
-    
-    Editing_File *file = 0;
-    View *vptr = imp_get_view(cmd, view);
-    
-    if (vptr){
-        file = vptr->file_data.file;
-        
-        if (file && file->state.token_stack.tokens &&
-            file->state.tokens_complete && !file->state.still_lexing){
-            result = true;
-            
-            Indent_Options opts;
-            opts.empty_blank_lines = (flags & AutoTab_ClearLine);
-            opts.use_tabs = (flags & AutoTab_UseTab);
-            opts.tab_width = tab_width;
-            
-            view_auto_tab_tokens(system, models, vptr, start, end, opts);
-            
-            fill_view_summary(view, vptr, cmd);
-        }
-    }
-    
-    return(result);
 }
 
 VIEW_COMPUTE_CURSOR_SIG(external_view_compute_cursor){

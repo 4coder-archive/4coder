@@ -17,6 +17,7 @@
 #define BUFFER_READ_RANGE_SIG(n) int n(Application_Links *app, Buffer_Summary *buffer, int start, int end, char *out)
 #define BUFFER_REPLACE_RANGE_SIG(n) int n(Application_Links *app, Buffer_Summary *buffer, int start, int end, char *str, int len)
 #define BUFFER_SET_SETTING_SIG(n) int n(Application_Links *app, Buffer_Summary *buffer, int setting, int value)
+#define BUFFER_AUTO_INDENT_SIG(n) int n(Application_Links *app, Buffer_Summary *buffer, int start, int end, int tab_width, unsigned int flags)
 #define CREATE_BUFFER_SIG(n) Buffer_Summary n(Application_Links *app, char *filename, int filename_len, unsigned int flags)
 #define SAVE_BUFFER_SIG(n) int n(Application_Links *app, Buffer_Summary *buffer, char *filename, int filename_len, unsigned int flags)
 #define KILL_BUFFER_SIG(n) int n(Application_Links *app, Buffer_Identifier buffer, int view_id, unsigned int flags)
@@ -24,7 +25,6 @@
 #define GET_VIEW_NEXT_SIG(n) void n(Application_Links *app, View_Summary *view, unsigned int access)
 #define GET_VIEW_SIG(n) View_Summary n(Application_Links *app, int view_id, unsigned int access)
 #define GET_ACTIVE_VIEW_SIG(n) View_Summary n(Application_Links *app, unsigned int access)
-#define VIEW_AUTO_TAB_SIG(n) int n(Application_Links *app, View_Summary *view, int start, int end, int tab_width, unsigned int flags)
 #define VIEW_COMPUTE_CURSOR_SIG(n) Full_Cursor n(Application_Links *app, View_Summary *view, Buffer_Seek seek)
 #define VIEW_SET_CURSOR_SIG(n) int n(Application_Links *app, View_Summary *view, Buffer_Seek seek, int set_preferred_x)
 #define VIEW_SET_MARK_SIG(n) int n(Application_Links *app, View_Summary *view, Buffer_Seek seek)
@@ -64,6 +64,7 @@ extern "C"{
     typedef BUFFER_READ_RANGE_SIG(Buffer_Read_Range_Function);
     typedef BUFFER_REPLACE_RANGE_SIG(Buffer_Replace_Range_Function);
     typedef BUFFER_SET_SETTING_SIG(Buffer_Set_Setting_Function);
+    typedef BUFFER_AUTO_INDENT_SIG(Buffer_Auto_Indent_Function);
     typedef CREATE_BUFFER_SIG(Create_Buffer_Function);
     typedef SAVE_BUFFER_SIG(Save_Buffer_Function);
     typedef KILL_BUFFER_SIG(Kill_Buffer_Function);
@@ -71,7 +72,6 @@ extern "C"{
     typedef GET_VIEW_NEXT_SIG(Get_View_Next_Function);
     typedef GET_VIEW_SIG(Get_View_Function);
     typedef GET_ACTIVE_VIEW_SIG(Get_Active_View_Function);
-    typedef VIEW_AUTO_TAB_SIG(View_Auto_Tab_Function);
     typedef VIEW_COMPUTE_CURSOR_SIG(View_Compute_Cursor_Function);
     typedef VIEW_SET_CURSOR_SIG(View_Set_Cursor_Function);
     typedef VIEW_SET_MARK_SIG(View_Set_Mark_Function);
@@ -114,6 +114,7 @@ struct Application_Links{
     Buffer_Read_Range_Function *buffer_read_range;
     Buffer_Replace_Range_Function *buffer_replace_range;
     Buffer_Set_Setting_Function *buffer_set_setting;
+    Buffer_Auto_Indent_Function *buffer_auto_indent;
     Create_Buffer_Function *create_buffer;
     Save_Buffer_Function *save_buffer;
     Kill_Buffer_Function *kill_buffer;
@@ -121,7 +122,6 @@ struct Application_Links{
     Get_View_Next_Function *get_view_next;
     Get_View_Function *get_view;
     Get_Active_View_Function *get_active_view;
-    View_Auto_Tab_Function *view_auto_tab;
     View_Compute_Cursor_Function *view_compute_cursor;
     View_Set_Cursor_Function *view_set_cursor;
     View_Set_Mark_Function *view_set_mark;
@@ -166,6 +166,7 @@ app_links->buffer_seek = external_buffer_seek;\
 app_links->buffer_read_range = external_buffer_read_range;\
 app_links->buffer_replace_range = external_buffer_replace_range;\
 app_links->buffer_set_setting = external_buffer_set_setting;\
+app_links->buffer_auto_indent = external_buffer_auto_indent;\
 app_links->create_buffer = external_create_buffer;\
 app_links->save_buffer = external_save_buffer;\
 app_links->kill_buffer = external_kill_buffer;\
@@ -173,7 +174,6 @@ app_links->get_view_first = external_get_view_first;\
 app_links->get_view_next = external_get_view_next;\
 app_links->get_view = external_get_view;\
 app_links->get_active_view = external_get_active_view;\
-app_links->view_auto_tab = external_view_auto_tab;\
 app_links->view_compute_cursor = external_view_compute_cursor;\
 app_links->view_set_cursor = external_view_set_cursor;\
 app_links->view_set_mark = external_view_set_mark;\
