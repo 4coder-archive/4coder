@@ -508,20 +508,13 @@ SwitchToOrLoadFile(struct Application_Links *app, String FileName, bool CreateIf
 
     if(buffer.exists)
     {
-        app->view_set_buffer(app, &view, buffer.buffer_id);
+        app->view_set_buffer(app, &view, buffer.buffer_id, 0);
         Result.Switched = true;
     }
     else
     {
         if(app->file_exists(app, FileName.str, FileName.size) || CreateIfNotFound)
         {
-#if 0
-            push_parameter(app, par_name, expand_str(FileName));
-            // TODO(casey): Do I have to check for existence, or can I pass a parameter
-            // to interactive open to tell it to fail if the file isn't there?
-            exec_command(app, cmdid_interactive_open);
-#endif
-            
             // NOTE(allen): This opens the file and puts it in &view
             // This returns false if the open fails.
             view_open_file(app, &view, expand_str(FileName), false);
@@ -640,7 +633,7 @@ CUSTOM_COMMAND_SIG(casey_find_corresponding_file_other_window)
 
     exec_command(app, cmdid_change_active_panel);
     View_Summary new_view = app->get_active_view(app, AccessAll);
-    app->view_set_buffer(app, &new_view, buffer.buffer_id);
+    app->view_set_buffer(app, &new_view, buffer.buffer_id, 0);
 
 //    exec_command(app, casey_find_corresponding_file);
 }
@@ -648,51 +641,16 @@ CUSTOM_COMMAND_SIG(casey_find_corresponding_file_other_window)
 CUSTOM_COMMAND_SIG(casey_save_and_make_without_asking)
 {
     exec_command(app, cmdid_change_active_panel);
-
+    
     Buffer_Summary buffer = {};
-
+    
     unsigned int access = AccessAll;
     for(buffer = app->get_buffer_first(app, access);
         buffer.exists;
         app->get_buffer_next(app, &buffer, access))
     {
-#if 0
-        push_parameter(app, par_name, buffer.file_name, buffer.file_name_len);
-        push_parameter(app, par_buffer_id, buffer.buffer_id);
-        exec_command(app, cmdid_save);
-#endif
-        
-        app->save_buffer(app, &buffer, buffer.file_name, buffer.file_name_len);
+        app->save_buffer(app, &buffer, buffer.file_name, buffer.file_name_len, 0);
     }
-
-#if 0
-    String dir = make_string(app->memory, 0, app->memory_size);
-    append(&dir, BuildDirectory);
-    for(int At = 0;
-        At < dir.size;
-        ++At)
-    {
-        if(dir.str[At] == '/')
-        {
-            dir.str[At] = '\\';
-        }
-    }
-
-
-    push_parameter(app, par_flags, CLI_OverlapWithConflict);
-    push_parameter(app, par_name, GlobalCompilationBufferName, (int)strlen(GlobalCompilationBufferName));
-    push_parameter(app, par_cli_path, dir.str, dir.size);
-
-    if(append(&dir, "build.bat"))
-    {
-        push_parameter(app, par_cli_command, dir.str, dir.size);
-        exec_command(app, cmdid_command_line);
-        exec_command(app, cmdid_change_active_panel);
-    }
-    else{
-        app->clear_parameters(app);
-    }
-#endif
     
     // NOTE(allen): The parameter pushing made it a little easier
     // to deal with this particular pattern where two similar strings
@@ -1154,11 +1112,6 @@ OpenProject(Application_Links *app, char *ProjectFileName)
                         // was originally, so that new appends overwrite old ones.
                         dir.size = dir_size;
                         append(&dir, info->filename);
-#if 0
-                        push_parameter(app, par_name, dir.str, dir.size);
-                        push_parameter(app, par_do_in_background, 1);
-                        exec_command(app, cmdid_interactive_open);
-#endif
                         
                         view_open_file(app, 0, dir.str, dir.size, true);
                         ++TotalOpenAttempts;
@@ -1350,14 +1303,6 @@ OPEN_FILE_HOOK_SIG(casey_file_settings)
         treat_as_code = IsCode(ext);
         treat_as_project = match(ext, make_lit_string("prj"));
     }
-    
-#if 0
-    push_parameter(app, par_buffer_id, buffer.buffer_id);
-    push_parameter(app, par_lex_as_cpp_file, treat_as_code);
-    push_parameter(app, par_wrap_lines, !treat_as_code);
-    push_parameter(app, par_key_mapid, mapid_file);
-    exec_command(app, cmdid_set_settings);
-#endif
     
     app->buffer_set_setting(app, &buffer, BufferSetting_Lex, treat_as_code);
     app->buffer_set_setting(app, &buffer, BufferSetting_WrapLine, !treat_as_code);

@@ -88,7 +88,7 @@ enum File_Sync_State{
 struct Text_Effect{
     i32 start, end;
     u32 color;
-    i32 tick_down, tick_max;
+    f32 seconds_down, seconds_max;
 };
 
 // NOTE(allen): The Editing_File struct is now divided into two

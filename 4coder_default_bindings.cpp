@@ -44,7 +44,7 @@ CUSTOM_COMMAND_SIG(switch_to_compilation){
     view = app->get_active_view(app, access);
     buffer = app->get_buffer_by_name(app, name, name_size, access);
     
-    app->view_set_buffer(app, &view, buffer.buffer_id);
+    app->view_set_buffer(app, &view, buffer.buffer_id, 0);
 }
 
 CUSTOM_COMMAND_SIG(rewrite_as_single_caps){

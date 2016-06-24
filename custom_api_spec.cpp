@@ -43,13 +43,12 @@ void Get_View_Next(Application_Links *app, View_Summary *view, unsigned int acce
 View_Summary Get_View(Application_Links *app, int view_id, unsigned int access);
 View_Summary Get_Active_View(Application_Links *app, unsigned int access);
 
-Full_Cursor View_Compute_Cursor (Application_Links *app, View_Summary *view, Buffer_Seek seek);
-int         View_Set_Cursor     (Application_Links *app, View_Summary *view, Buffer_Seek seek, int set_preferred_x);
-int         View_Set_Mark       (Application_Links *app, View_Summary *view, Buffer_Seek seek);
-int         View_Set_Highlight  (Application_Links *app, View_Summary *view, int start, int end, int turn_on);
-int         View_Set_Buffer     (Application_Links *app, View_Summary *view, int buffer_id);
-// TODO(allen): Switch from ticks to seconds.
-int         View_Post_Fade      (Application_Links *app, View_Summary *view, int ticks, int start, int end, unsigned int color);
+int View_Compute_Cursor (Application_Links *app, View_Summary *view, Buffer_Seek seek, Full_Cursor *cursor_out);
+int View_Set_Cursor     (Application_Links *app, View_Summary *view, Buffer_Seek seek, int set_preferred_x);
+int View_Set_Mark       (Application_Links *app, View_Summary *view, Buffer_Seek seek);
+int View_Set_Highlight  (Application_Links *app, View_Summary *view, int start, int end, int turn_on);
+int View_Set_Buffer     (Application_Links *app, View_Summary *view, int buffer_id, unsigned int flags);
+int View_Post_Fade      (Application_Links *app, View_Summary *view, float seconds, int start, int end, unsigned int color);
 
 // TODO(allen):
 // Get rid of this temporary hack ass soon ass possible.

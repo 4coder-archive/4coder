@@ -10,7 +10,6 @@ CUSTOM_COMMAND_SIG(kill_rect){
     unsigned int access = AccessOpen;
     View_Summary view = app->get_active_view(app, access);
     Buffer_Summary buffer = app->get_buffer(app, view.buffer_id, access);
-    Full_Cursor cursor;
     
     Buffer_Rect rect = get_rect(&view);
     
@@ -18,13 +17,20 @@ CUSTOM_COMMAND_SIG(kill_rect){
         int start = 0;
         int end = 0;
         
-        cursor = app->view_compute_cursor(app, &view, seek_line_char(line, rect.char0));
+        int success = true;
+        Full_Cursor cursor = {0};
+        
+        success = success &&
+            app->view_compute_cursor(app, &view, seek_line_char(line, rect.char0), &cursor);
         start = cursor.pos;
         
-        cursor = app->view_compute_cursor(app, &view, seek_line_char(line, rect.char1));
+        success = success &&
+            app->view_compute_cursor(app, &view, seek_line_char(line, rect.char1), &cursor);
         end = cursor.pos;
         
-        app->buffer_replace_range(app, &buffer, start, end, 0, 0);
+        if (success){
+            app->buffer_replace_range(app, &buffer, start, end, 0, 0);
+        }
     }
 }
 

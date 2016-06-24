@@ -310,6 +310,10 @@ enum Auto_Indent_Flag{
     AutoIndent_UseTab    = 0x2
 };
 
+enum Set_Buffer_Flag{
+    SetBuffer_KeepOriginalGUI = 0x1
+};
+
 enum Input_Type_Flag{
     EventOnAnyKey      = 0x1,
     EventOnEsc         = 0x2,

@@ -2226,14 +2226,14 @@ view_replace_range(System_Functions *system, Models *models, View *view,
 }
 
 inline void
-view_post_paste_effect(View *view, i32 ticks, i32 start, i32 size, u32 color){
+view_post_paste_effect(View *view, f32 seconds, i32 start, i32 size, u32 color){
     Editing_File *file = view->file_data.file;
     
     file->state.paste_effect.start = start;
     file->state.paste_effect.end = start + size;
     file->state.paste_effect.color = color;
-    file->state.paste_effect.tick_down = ticks;
-    file->state.paste_effect.tick_max = ticks;
+    file->state.paste_effect.seconds_down = seconds;
+    file->state.paste_effect.seconds_max = seconds;
 }
 
 internal Style*
@@ -2270,7 +2270,7 @@ view_undo_redo(System_Functions *system,
             view->recent->mark = view->recent->cursor.pos;
             
             Style *style = main_style(models);
-            view_post_paste_effect(view, 10, step.edit.start, step.edit.len,
+            view_post_paste_effect(view, 0.333f, step.edit.start, step.edit.len,
                                    style->main.undo_color);
         }
         else{
@@ -2988,36 +2988,12 @@ file_auto_tab_tokens(System_Functions *system, Models *models,
         Edit_Spec spec =
             file_compute_whitespace_edit(mem, file, pos,
                                          batch.edits, batch.str_base, batch.str_size,
-                                         inverse_array, inv_str, part->max - part->pos, batch.edit_count);
+                                         inverse_array, inv_str, part->max - part->pos,
+                                         batch.edit_count);
         
         file_do_white_batch_edit(system, models, file, spec, hist_normal);
     }
     end_temp_memory(temp);
-#endif
-}
-
-internal void
-view_auto_tab_tokens(System_Functions *system, Models *models,
-                     View *view, i32 start, i32 end, Indent_Options opts){
-#if BUFFER_EXPERIMENT_SCALPEL <= 0
-    
-    Editing_File *file = view->file_data.file;
-    i32 pos = view->recent->cursor.pos;
-    
-    file_auto_tab_tokens(system, models, file, pos, start, end, opts);
-    
-    // TODO(allen): This is the bug dummy
-    {
-        Buffer_Type *buffer = &file->state.buffer;
-        i32 line = buffer_get_line_index(buffer, pos);
-        i32 start = buffer->line_starts[line];
-        
-        Hard_Start_Result hard_start = buffer_find_hard_start(buffer, start, 4);
-        
-        if (hard_start.char_pos > pos){
-            view_cursor_move(view, hard_start.char_pos);
-        }
-    }
 #endif
 }
 
@@ -3645,8 +3621,8 @@ file_step(View *view, i32_Rect region, Input_Summary *user_input, b32 is_active,
     i32 is_animating = 0;
     Editing_File *file = view->file_data.file;
     if (file && !file->is_loading){
-        if (file->state.paste_effect.tick_down > 0){
-            --file->state.paste_effect.tick_down;
+        if (file->state.paste_effect.seconds_down > 0.f){
+            file->state.paste_effect.seconds_down -= user_input->dt;
             is_animating = 1;
         }
     }
@@ -5475,11 +5451,12 @@ draw_file_loaded(View *view, i32_Rect rect, b32 is_active, Render_Target *target
         u32 fade_color = 0xFFFF00FF;
         f32 fade_amount = 0.f;
         
-        if (file->state.paste_effect.tick_down > 0 &&
+        if (file->state.paste_effect.seconds_down > 0.f &&
             file->state.paste_effect.start <= ind &&
             ind < file->state.paste_effect.end){
             fade_color = file->state.paste_effect.color;
-            fade_amount = (f32)(file->state.paste_effect.tick_down) / file->state.paste_effect.tick_max;
+            fade_amount = file->state.paste_effect.seconds_down;
+            fade_amount /= file->state.paste_effect.seconds_max;
         }
         
         char_color = color_blend(char_color, fade_amount, fade_color);

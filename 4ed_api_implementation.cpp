@@ -1103,11 +1103,21 @@ DOC_RETURN(returns a summary that describes the active view)
     return(view);
 }
 
-VIEW_COMPUTE_CURSOR_SIG(external_view_compute_cursor){
+VIEW_COMPUTE_CURSOR_SIG(external_view_compute_cursor)/*
+DOC_PARAM(view, the view on which to run the cursor computation)
+DOC_PARAM(seek, the seek position)
+DOC_PARAM(cursor_out, on success this is filled with result of the seek)
+DOC_RETURN(returns non-zero on success)
+DOC
+(
+Computes a full cursor for the given seek position.
+)
+DOC_SEE(Buffer_Seek)
+*/{
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     View *vptr = imp_get_view(cmd, view);
     Editing_File *file = 0;
-    Full_Cursor result = {0};
+    int result = false;
     
     if (vptr){
         file = vptr->file_data.file;
@@ -1115,7 +1125,8 @@ VIEW_COMPUTE_CURSOR_SIG(external_view_compute_cursor){
             if (seek.type == buffer_seek_line_char && seek.character <= 0){
                 seek.character = 1;
             }
-            result = view_compute_cursor(vptr, seek);
+            result = true;
+            *cursor_out = view_compute_cursor(vptr, seek);
             fill_view_summary(view, vptr, cmd);
         }
     }
@@ -1123,7 +1134,18 @@ VIEW_COMPUTE_CURSOR_SIG(external_view_compute_cursor){
     return(result);
 }
 
-VIEW_SET_CURSOR_SIG(external_view_set_cursor){
+VIEW_SET_CURSOR_SIG(external_view_set_cursor)/*
+DOC_PARAM(view, the view in which to set the cursor)
+DOC_PARAM(seek, the seek position)
+DOC_PARAM(set_preferred_x, if true the preferred x is updated to match the new cursor position)
+DOC_RETURN(returns non-zero on success)
+DOC
+(
+Sets the the view's cursor position.  set_preferred_x should usually be true unless the change in
+cursor position is is a vertical motion that tries to keep the cursor in the same column or x position.
+)
+DOC_SEE(Buffer_Seek)
+*/{
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     View *vptr = imp_get_view(cmd, view);
     Editing_File *file = 0;
@@ -1148,7 +1170,16 @@ VIEW_SET_CURSOR_SIG(external_view_set_cursor){
     return(result);
 }
 
-VIEW_SET_MARK_SIG(external_view_set_mark){
+VIEW_SET_MARK_SIG(external_view_set_mark)/*
+DOC_PARAM(view, the view in which to set the mark)
+DOC_PARAM(seek, the seek position)
+DOC_RETURN(returns non-zero on success)
+DOC
+(
+Sets the the view's mark position.
+)
+DOC_SEE(Buffer_Seek)
+*/{
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     View *vptr = imp_get_view(cmd, view);
     Full_Cursor cursor = {0};
@@ -1169,7 +1200,20 @@ VIEW_SET_MARK_SIG(external_view_set_mark){
     return(result);
 }
 
-VIEW_SET_HIGHLIGHT_SIG(external_view_set_highlight){
+VIEW_SET_HIGHLIGHT_SIG(external_view_set_highlight)/*
+DOC_PARAM(view, the view to set the highlight in)
+DOC_PARAM(start, the start of the highlight range)
+DOC_PARAM(end, the end of the highlight range)
+DOC_PARAM(turn_on, indicates whether the highlight is being turned on or off)
+DOC_RETURN(returns non-zero on success)
+DOC
+(
+The highlight is mutually exclusive to the cursor.  When the turn_on parameter
+is set to true the highlight will be shown and the cursor will be hidden.  After
+that either setting the with view_set_cursor or calling view_set_highlight and
+the turn_on set to false, will switch back to showing the cursor.
+)
+*/{
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     View *vptr = imp_get_view(cmd, view);
     int result = false;
@@ -1188,7 +1232,18 @@ VIEW_SET_HIGHLIGHT_SIG(external_view_set_highlight){
     return(result);
 }
 
-VIEW_SET_BUFFER_SIG(external_view_set_buffer){
+VIEW_SET_BUFFER_SIG(external_view_set_buffer)/*
+DOC_PARAM(view, the view to display the buffer in)
+DOC_PARAM(buffer_id, the buffer to show in the view)
+DOC_PARAM(flags, set buffer behavior flags)
+DOC_RETURN(returns non-zero on success)
+DOC
+(
+On success view_set_buffer sets the specified view's current buffer and
+cancels and dialogue shown in the view and displays the file.
+)
+DOC_SEE(Set_Buffer_Flag)
+*/{
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     View *vptr = imp_get_view(cmd, view);
     Models *models = cmd->models;
@@ -1202,7 +1257,9 @@ VIEW_SET_BUFFER_SIG(external_view_set_buffer){
             result = true;
             if (file != vptr->file_data.file){
                 view_set_file(vptr, file, models);
-                view_show_file(vptr);
+                if (!(flags & SetBuffer_KeepOriginalGUI)){
+                    view_show_file(vptr);
+                }
             }
         }
         
@@ -1223,7 +1280,7 @@ VIEW_POST_FADE_SIG(external_view_post_fade){
     if (vptr){
         if (size > 0){
             result = true;
-            view_post_paste_effect(vptr, ticks, start, size, color);
+            view_post_paste_effect(vptr, seconds, start, size, color);
         }
     }
     

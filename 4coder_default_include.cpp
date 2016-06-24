@@ -313,7 +313,7 @@ CUSTOM_COMMAND_SIG(paste){
             Theme_Color paste;
             paste.tag = Stag_Paste;
             app->get_theme_colors(app, &paste, 1);
-            app->view_post_fade(app, &view, 20, pos, pos + len, paste.color);
+            app->view_post_fade(app, &view, 0.667f, pos, pos + len, paste.color);
         }
     }
 }
@@ -354,7 +354,7 @@ CUSTOM_COMMAND_SIG(paste_next){
                 Theme_Color paste;
                 paste.tag = Stag_Paste;
                 app->get_theme_colors(app, &paste, 1);
-                app->view_post_fade(app, &view, 20, pos, pos + len, paste.color);
+                app->view_post_fade(app, &view, 0.667f, pos, pos + len, paste.color);
             }
         }
         else{
