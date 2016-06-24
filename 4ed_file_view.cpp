@@ -2968,10 +2968,9 @@ make_batch_from_indent_marks(Partition *part, Buffer *buffer, i32 line_start, i3
 }
 
 internal void
-view_auto_tab_tokens(System_Functions *system, Models *models,
-                     View *view, i32 start, i32 end, Indent_Options opts){
+file_auto_tab_tokens(System_Functions *system, Models *models,
+                     Editing_File *file, i32 pos, i32 start, i32 end, Indent_Options opts){
 #if BUFFER_EXPERIMENT_SCALPEL <= 0
-    Editing_File *file = view->file_data.file;
     Mem_Options *mem = &models->mem;
     Partition *part = &mem->part;
     Buffer *buffer = &file->state.buffer;
@@ -3000,19 +2999,37 @@ view_auto_tab_tokens(System_Functions *system, Models *models,
         
         char *inv_str = (char*)part->base + part->pos;
         Edit_Spec spec =
-            file_compute_whitespace_edit(mem, file, view->recent->cursor.pos,
+            file_compute_whitespace_edit(mem, file, pos,
                                          batch.edits, batch.str_base, batch.str_size,
                                          inverse_array, inv_str, part->max - part->pos, batch.edit_count);
         
-        file_do_white_batch_edit(system, models, view->file_data.file, spec, hist_normal);
+        file_do_white_batch_edit(system, models, file, spec, hist_normal);
     }
     end_temp_memory(temp);
+#endif
+}
+
+internal void
+view_auto_tab_tokens(System_Functions *system, Models *models,
+                     View *view, i32 start, i32 end, Indent_Options opts){
+#if BUFFER_EXPERIMENT_SCALPEL <= 0
     
+    Editing_File *file = view->file_data.file;
+    i32 pos = view->recent->cursor.pos;
+    
+    file_auto_tab_tokens(system, models, file, pos, start, end, opts);
+    
+    // TODO(allen): This is the bug dummy
     {
-        i32 start = view->recent->cursor.pos;
+        Buffer_Type *buffer = &file->state.buffer;
+        i32 line = buffer_get_line_index(buffer, pos);
+        i32 start = buffer->line_starts[line];
+        
         Hard_Start_Result hard_start = buffer_find_hard_start(buffer, start, 4);
         
-        view_cursor_move(view, hard_start.char_pos);
+        if (hard_start.char_pos > pos){
+            view_cursor_move(view, hard_start.char_pos);
+        }
     }
 #endif
 }

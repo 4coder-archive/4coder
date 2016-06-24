@@ -275,6 +275,16 @@ enum Buffer_Setting_ID{
     BufferSetting_MapID,
 };
 
+enum Buffer_Kill_Flag{
+    BufferKill_Background  = 0x1,
+    BufferKill_AlwaysKill  = 0x2,
+};
+
+enum Buffer_Create_Flag{
+    BufferCreate_Background = 0x1,
+    BufferCreate_AlwaysNew  = 0x2,
+};
+
 enum Access_Flag{
     AccessOpen      = 0x0,
     AccessProtected = 0x1,

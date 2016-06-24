@@ -169,14 +169,14 @@ identifier can either name a new buffer that does not exist, name a buffer that 
 id of a buffer that does exist.  If the buffer already exists the command will fail, unless
 CLI_OverlapWithConflict is set in the flags.
 
-If the buffer is not already in an active view, and the view parameter is no NULL, then the provided view
+If the buffer is not already in an open view, and the view parameter is no NULL, then the provided view
 will display the output buffer.  If the view parameter is NULL, no view will display the output.
 
 If CLI_OverlapWithConflict is set in the flags, the command will always be executed even if another command
 was outputting to the same buffer still.
 
 If CLI_AlwaysBindToView is set and the view parameter is not NULL, then the specified view will always
-begin displaying the output buffer, even if another active view already displays that buffer.
+begin displaying the output buffer, even if another open view already displays that buffer.
 
 If CLI_CursorAtEnd is set the cursor in the output buffer will be placed at the end of the buffer instead
 of at the beginning.
@@ -721,7 +721,12 @@ deleteing the range from start to end.
     return(result);
 }
 
-BUFFER_SET_SETTING_SIG(external_buffer_set_setting){
+BUFFER_SET_SETTING_SIG(external_buffer_set_setting)/*
+DOC_PARAM(buffer, the buffer to set a setting on)
+DOC_PARAM(setting, one of the Buffer_Setting_ID enum values that identifies the setting to set)
+DOC_PARAM(value, the value to set the specified setting to)
+DOC_SEE(Buffer_Setting_ID)
+*/{
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     System_Functions *system = cmd->system;
     Models *models = cmd->models;
@@ -787,23 +792,21 @@ BUFFER_SET_SETTING_SIG(external_buffer_set_setting){
     return(result);
 }
 
-SAVE_BUFFER_SIG(external_save_buffer){
-    Command_Data *cmd = (Command_Data*)app->cmd_context;
-    System_Functions *system = cmd->system;
-    Models *models = cmd->models;
-    int result = false;
-    
-    Editing_File *file = imp_get_file(cmd, buffer);
-    if (file){
-        result = true;
-        String name = make_string(filename, filename_len);
-        view_save_file(system, models, file, 0, name, false);
-    }
-    
-    return(result);
-}
-
-CREATE_BUFFER_SIG(external_create_buffer){
+CREATE_BUFFER_SIG(external_create_buffer)/*
+DOC_PARAM(filename, the name of the file to be opened or created)
+DOC_PARAM(filename_len, the length of the filename string)
+DOC_PARAM(flags, flags for buffer creation behavior)
+DOC_RETURN(returns the summary of the created buffer on success or a NULL buffer otherwise)
+DOC
+(
+Tries to create a new buffer and associate it to the given filename.  If such a buffer already
+exists the existing buffer is returned in the buffer summary and no new buffer is created.
+If the buffer does not exist a new buffer is created and named after the given filename.  If
+the filename corresponds to a file on the disk that file is loaded and put into buffer, if
+the filename does not correspond to a file on disk the buffer is created empty.
+)
+DOC_SEE(Buffer_Create_Flag)
+*/{
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     System_Functions *system = cmd->system;
     Models *models = cmd->models;
@@ -818,8 +821,21 @@ CREATE_BUFFER_SIG(external_create_buffer){
         String filename_string = make_string_terminated(part, filename, filename_len);
         Editing_File *file = working_set_contains(system, working_set, filename_string);
         if (file == 0){
-            File_Loading loading = system->file_load_begin(filename_string.str);
-            if (loading.exists){
+            File_Loading loading = {0};
+            
+            b32 do_new_file = false;
+            
+            if (flags & BufferCreate_AlwaysNew){
+                do_new_file = true;
+            }
+            else{
+                loading = system->file_load_begin(filename_string.str);
+                if (!loading.exists){
+                    do_new_file = true;
+                }
+            }
+            
+            if (do_new_file){
                 b32 in_general_mem = false;
                 char *buffer = push_array(part, char, loading.size);
                 
@@ -867,7 +883,41 @@ CREATE_BUFFER_SIG(external_create_buffer){
     return(result);
 }
 
-KILL_BUFFER_SIG(external_kill_buffer){
+SAVE_BUFFER_SIG(external_save_buffer)/*
+DOC_PARAM(buffer, the buffer to save to a file)
+DOC_PARAM(filename, the name of the file to save the buffer into)
+DOC_PARAM(filename_len, length of the filename string)
+DOC_PARAM(flags, not currently used)
+DOC_RETURN(returns non-zero if the save succeeds)
+*/{
+    Command_Data *cmd = (Command_Data*)app->cmd_context;
+    System_Functions *system = cmd->system;
+    Models *models = cmd->models;
+    int result = false;
+    
+    Editing_File *file = imp_get_file(cmd, buffer);
+    if (file){
+        result = true;
+        String name = make_string(filename, filename_len);
+        view_save_file(system, models, file, 0, name, false);
+    }
+    
+    return(result);
+}
+
+KILL_BUFFER_SIG(external_kill_buffer)/*
+DOC_PARAM(buffer, a buffer identifier specifying the buffer to try to kill)
+DOC_PARAM(view_id, the id of view that will contain the "are you sure" dialogue)
+DOC_PARAM(flags, flags for buffer kill behavior)
+DOC_RETURN(returns non-zero if the kill succeeds)
+DOC
+(
+Tries to kill the idenfied buffer.  If the buffer is dirty and the "are you sure"
+dialogue needs to be displayed the provided view is used to show the dialogue.
+If the view is not open the kill fails.
+)
+DOC_SEE(Buffer_Kill_Flags)
+*/{
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     System_Functions *system = cmd->system;
     Models *models = cmd->models;
@@ -877,12 +927,18 @@ KILL_BUFFER_SIG(external_kill_buffer){
     int result = false;
     
     if (file){
-        result = true;
-        if (always_kill){
+        if (flags & BufferKill_AlwaysKill){
+            result = true;
             kill_file(system, models, file, string_zero());
         }
         else{
-            try_kill_file(system, models, file, vptr, string_zero());
+            if (vptr == 0){
+                result = true;
+                try_kill_file(system, models, file, vptr, string_zero());
+            }
+            else{
+                // TODO(allen): message
+            }
         }
     }
     
@@ -924,7 +980,19 @@ internal_get_view_next(Command_Data *cmd, View_Summary *view){
     }
 }
 
-GET_VIEW_FIRST_SIG(external_get_view_first){
+GET_VIEW_FIRST_SIG(external_get_view_first)/*
+DOC_PARAM(access, the access flags for the access)
+DOC_RETURN(returns the summary of the first view in a view loop)
+DOC
+(
+Begins a loop across all the open views.
+
+If the view summary returned is NULL, the loop is finished.
+Views should not be closed or opened durring a view loop.
+)
+DOC_SEE(Access_Flag)
+DOC_SEE(get_view_next)
+*/{
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     View_Summary view = {};
     
@@ -936,7 +1004,21 @@ GET_VIEW_FIRST_SIG(external_get_view_first){
     return(view);
 }
 
-GET_VIEW_NEXT_SIG(external_get_view_next){
+GET_VIEW_NEXT_SIG(external_get_view_next)/*
+DOC_PARAM(view, pointer to the loop view originally returned by get_view_first)
+DOC_PARAM(access, the access flags for the access)
+DOC
+(
+Writes the next view into the view struct.  To get predictable results every
+call to get_view_first and get_view_next in the loop should have the same
+access flags.
+
+If the view summary returned is NULL, the loop is finished.
+Views should not be closed or opened durring a view loop.
+)
+DOC_SEE(Access_Flag)
+DOC_SEE(get_view_first)
+*/{
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     
     internal_get_view_next(cmd, view);
@@ -945,16 +1027,20 @@ GET_VIEW_NEXT_SIG(external_get_view_next){
     }
 }
 
-GET_VIEW_SIG(external_get_view){
+GET_VIEW_SIG(external_get_view)/*
+DOC_PARAM(view_id, the id of the view to get)
+DOC_PARAM(access, the access flags for the access)
+DOC_RETURN(returns a summary that describes the indicated view if it is open and is accessible)
+*/{
     Command_Data *cmd = (Command_Data*)app->cmd_context;
-    View_Summary view = {};
+    View_Summary view = {0};
     Live_Views *live_set = cmd->live_set;
     int max = live_set->max;
     View *vptr = 0;
     
-    index -= 1;
-    if (index >= 0 && index < max){
-        vptr = live_set->views + index;
+    view_id -= 1;
+    if (view_id >= 0 && view_id < max){
+        vptr = live_set->views + view_id;
         fill_view_summary(&view, vptr, live_set, &cmd->models->working_set);
         if (!access_test(view.lock_flags, access)){
             view = view_summary_zero();
@@ -964,7 +1050,10 @@ GET_VIEW_SIG(external_get_view){
     return(view);
 }
 
-GET_ACTIVE_VIEW_SIG(external_get_active_view){
+GET_ACTIVE_VIEW_SIG(external_get_active_view)/*
+DOC_PARAM(access, the access flags for the access)
+DOC_RETURN(returns a summary that describes the active view)
+*/{
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     View_Summary view = {};
     fill_view_summary(&view, cmd->view, &cmd->vars->live_set, &cmd->models->working_set);
@@ -974,7 +1063,12 @@ GET_ACTIVE_VIEW_SIG(external_get_active_view){
     return(view);
 }
 
-VIEW_AUTO_TAB_SIG(external_view_auto_tab){
+VIEW_AUTO_TAB_SIG(external_view_auto_tab)/*
+DOC_PARAM(start, )
+DOC_PARAM(end, )
+DOC_PARAM(tab_width, )
+DOC_PARAM(flags, )
+*/{
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     System_Functions *system = cmd->system;
     Models *models = cmd->models;

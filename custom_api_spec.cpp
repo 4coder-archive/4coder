@@ -31,15 +31,15 @@ int Buffer_Read_Range(Application_Links *app, Buffer_Summary *buffer, int start,
 int Buffer_Replace_Range(Application_Links *app, Buffer_Summary *buffer, int start, int end, char *str, int len);
 int Buffer_Set_Setting(Application_Links *app, Buffer_Summary *buffer, int setting, int value);
 
-Buffer_Summary Create_Buffer(Application_Links *app, char *filename, int filename_len, int do_in_background);
-int Save_Buffer(Application_Links *app, Buffer_Summary *buffer, char *filename, int filename_len);
-int Kill_Buffer(Application_Links *app, Buffer_Identifier buffer, int always_kill, int view_id);
+Buffer_Summary Create_Buffer(Application_Links *app, char *filename, int filename_len, unsigned int flags);
+int Save_Buffer(Application_Links *app, Buffer_Summary *buffer, char *filename, int filename_len, unsigned int flags);
+int Kill_Buffer(Application_Links *app, Buffer_Identifier buffer, int view_id, unsigned int flags);
 
 // View manipulation
 View_Summary Get_View_First(Application_Links *app, unsigned int access);
 void Get_View_Next(Application_Links *app, View_Summary *view, unsigned int access);
 
-View_Summary Get_View(Application_Links *app, int index, unsigned int access);
+View_Summary Get_View(Application_Links *app, int view_id, unsigned int access);
 View_Summary Get_Active_View(Application_Links *app, unsigned int access);
 
 int         View_Auto_Tab       (Application_Links *app, View_Summary *view, int start, int end, int tab_width, unsigned int flags);
