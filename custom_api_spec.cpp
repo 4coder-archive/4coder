@@ -53,7 +53,7 @@ int View_Post_Fade      (Application_Links *app, View_Summary *view, float secon
 // TODO(allen):
 // Get rid of this temporary hack ass soon ass possible.
 void View_Set_Paste_Rewrite_(Application_Links *app, View_Summary *view);
-int View_Get_Paste_Rewrite_(Application_Links *app, View_Summary *view);
+int  View_Get_Paste_Rewrite_(Application_Links *app, View_Summary *view);
 
 // Directly get user input
 User_Input    Get_User_Input    (Application_Links *app, unsigned int get_type, unsigned int abort_type);

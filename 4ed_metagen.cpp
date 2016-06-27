@@ -19,6 +19,8 @@
 #define FCPP_LEXER_IMPLEMENTATION
 #include "4cpp_lexer.h"
 
+#include "4coder_version.h"
+
 struct Struct_Field{
     char *type;
     char *name;
@@ -328,16 +330,17 @@ char* generate_style(){
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////
-struct Function_Set{
+typedef struct Function_Set{
     String *name;
     String *ret;
     String *args;
     
     String *macros;
     String *public_name;
+    String *doc_string;
     
     int    *valid;
-};
+} Function_Set;
 
 void
 zero_index(Function_Set fnc_set, int sig_count){
@@ -430,7 +433,6 @@ is_comment(String str){
 
 struct Doc_Parse{
     Cpp_Token_Stack tokens;
-    String doc_string;
 };
 
 int
@@ -462,9 +464,14 @@ doc_note_string[] = {
     make_lit_string("DOC_SEE"),
 };
 
+String
+doc_parse_identifier(String lexeme, int *pos){
+    String result = {0};
+    return(result);
+}
+
 void
 perform_doc_parse(Doc_Parse *parse, String lexeme){
-#if 0
     int keep_parsing = true;
     int pos = 0;
     
@@ -474,15 +481,15 @@ perform_doc_parse(Doc_Parse *parse, String lexeme){
             keep_parsing = false;
         }
         else{
-            if (string_set_match(doc_note_string, ArrayCount(doc_note_string), doc_note, &match)){
-                
+            int doc_note_type;
+            if (string_set_match(doc_note_string, ArrayCount(doc_note_string), doc_note, &doc_note_type)){
+                // TODO(allen): switch on the note type and add the info to the parse data
             }
             else{
                 // TODO(allen): do warning
             }
         }
     }while(keep_parsing);
-#endif
 }
 
 char*
@@ -505,11 +512,12 @@ generate_custom_headers(){
     
     Function_Set function_set = {0};
     
-    function_set.name        = (String*)malloc((sizeof(String)*5 + sizeof(int))*line_count);
+    function_set.name        = (String*)malloc((sizeof(String)*6 + sizeof(int))*line_count);
     function_set.ret         = function_set.name + line_count;
     function_set.args        = function_set.ret + line_count;
     function_set.macros      = function_set.args + line_count;
     function_set.public_name = function_set.macros + line_count;
+    function_set.doc_string  = function_set.public_name + line_count;
     function_set.valid       = (int*)(function_set.public_name + line_count);
     
     int max_name_size = 0;
@@ -671,7 +679,7 @@ generate_custom_headers(){
         String *code = &code_data[J];
         Doc_Parse *parse = &parses[J];
         
-        // TODO(allen): KILL THIS FUCKIN' Cpp_File FUCKIN NONSENSE BULLSHIT!!!!!
+        // TODO(allen): KILL THIS FUCKIN' Cpp_File FUCKIN NONSENSE HORSE SHIT!!!!!
         Cpp_File file;
         file.data = code->str;
         file.size = code->size;
@@ -692,9 +700,13 @@ generate_custom_headers(){
                         if (token->type == CPP_TOKEN_COMMENT){
                             lexeme = make_string(file.data + token->start, token->size);
                             if (check_and_fix_docs(&lexeme)){
+                                function_set.doc_string[match] = lexeme;
                                 perform_doc_parse(parse, lexeme);
                                 break;
                             }
+                        }
+                        else if (token->type == CPP_TOKEN_BRACE_OPEN){
+                            break;
                         }
                     }
                 }
@@ -704,32 +716,145 @@ generate_custom_headers(){
     
     file = fopen(API_DOC, "wb");
     
+#define CODE_STYLE "font-family: \"Courier New\", Courier, monospace; text-align: left;"
+    
+#define BACK_COLOR "#FFFFE0"
+#define POP_COLOR_1 "#007000"
+#define POP_BACK_1 "#E0FFD0"
+#define POP_COLOR_2 "#007070"
+#define POP_COLOR_3 "#005000"
+    
     fprintf(file,
             "<html lang=\"en-US\">\n"
             "<head>\n"
             "<title>4coder API Docs</title>\n"
+            "<style>\n"
+            
+            "body { "
+            "background: " BACK_COLOR "; "
+            "}\n"
+            
+            // H things
+            "h1,h2,h3,h4 { "
+            "color: " POP_COLOR_1 "; "
+            "margin: 0; "
+            "}\n"
+            
+            // ANCHORS
+            "a { "
+            "color: " POP_COLOR_1 "; "
+            "text-decoration: none; "
+            "}\n"
+            "a:visited { "
+            "color: " POP_COLOR_2 "; "
+            "}\n"
+            "a:hover { "
+            "background: " POP_BACK_1 "; "
+            "}\n"
+            
+            // LIST
+            "ul { "
+            "list-style: none; "
+            "padding: 0; "
+            "margin: 0; "
+            "}\n"
+            "li { "
+            "padding-left: 1em;"
+            "text-indent: -.7em;"
+            "}\n"
+            "li:before { "
+            "content: \"4\"; "
+            "color: " POP_COLOR_3 "; "
+            "font-family:\"Webdings\"; "
+            "}\n"
+            
+            "</style>\n"
             "</head>\n"
-            "<body style='font-family:Arial;'>\n"
-            "<h1>4coder API</h1>"
+            "<body>\n"
+            "<div style='"
+            "font-family:Arial; "
+            "position: absolute; "
+            "left: 10mm; "
+            "width: 180mm; "
+            "text-align: justify; "
+            "line-height: 1.25;'>\n"
+            "<h1 style='margin-top: 5mm; margin-bottom: 5mm;'>4coder API</h1>\n"
             );
     
     fprintf(file,
-            "<h2>\n&sect;1 Introduction</h2>\n"
-            "<div style='margin-bottom: 5mm;'><i>Coming Soon</i></div>");
+            "<h2>&sect;1 Introduction</h2>\n"
+            "<div>\n"
+            
+            "<p>\n"
+            "This is the documentation for " VERSION " The documentation has been made as "
+            "accurate as possible but there may be errors. If you have questions or "
+            "discover errors please contact <span style='"CODE_STYLE"'>editor@4coder.net</span>."
+            "</p>\n"
+            
+            "<p>\n"
+            "</p>\n"
+            
+            "</div>\n");
     
-    fprintf(file, "<h2>\n&sect;2 Functions</h2>\n");
-    for (int i = 0; i < sig_count; ++i){
-        String name = function_set.public_name[i];
+    fprintf(file, "<h2>&sect;2 Types and Functions</h2>\n");
+    {
+#undef SECTION
+#define SECTION "2.1"
+        
         fprintf(file,
-                "<div>\n"
-                "%.*s\n"
-                "</div>\n",
-                name.size, name.str
-                );
+                "<h3>&sect;"SECTION" Function List</h3>\n"
+                "<ul>\n");
+        
+        for (int i = 0; i < sig_count; ++i){
+            String name = function_set.public_name[i];
+            fprintf(file,
+                    "<li>\n"
+                    "<a href='#2.2.%d'>%.*s</a>\n"
+                    "</li>\n",
+                    i, name.size, name.str
+                    );
+        }
+        fprintf(file, "</ul>\n");
+        
+#undef SECTION
+#define SECTION "2.2"
+        
+        fprintf(file, "<h3 style='margin-top: 5mm; margin-bottom: 5mm;'>&sect;"SECTION" Descriptions</h3>\n");
+        for (int i = 0; i < sig_count; ++i){
+            String name = function_set.public_name[i];
+            String ret = function_set.ret[i];
+            String args = function_set.args[i];
+            String doc = function_set.doc_string[i];
+            
+            if (doc.size <= 0){
+                doc = make_lit_string("No doc generated ~ assume this call is not meant to be public");
+                printf("warning: missing info for %.*s\n", name.size, name.str);
+            }
+            
+            fprintf(file,
+                    "<div id='"SECTION".%d' style='margin-bottom: 1cm;'>\n"
+                    " <h4>&sect;"SECTION".%d: %.*s</h4>\n"
+                    " <div style='"CODE_STYLE" margin-top: 3mm; margin-bottom: 3mm; font-size: .95em;'>",
+                    i, i,
+                    name.size, name.str
+                    );
+            
+            fprintf(file, "%.*s %.*s", ret.size, ret.str, name.size, name.str);
+            // TODO(allen): replace this with a loop to write each parameter on it's own line
+            fprintf(file, "%.*s", args.size, args.str);
+            
+            fprintf(file, 
+                    "</div>\n"
+                    " <div>%.*s</div>\n"
+                    "</div>\n",
+                    doc.size, doc.str
+                    );
+        }
     }
     
     fprintf(file,
-            "</body>"
+            "</div>\n"
+            "</body>\n"
             "</html>\n"
             );
     

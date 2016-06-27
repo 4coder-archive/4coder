@@ -661,6 +661,9 @@ DOC
 (
 The output buffer might have a capacity of at least (end - start)
 The output is not null terminated.
+
+This call fails if the buffer does not exist, or if the read range
+is not within the bounds of the buffer.
 )
 */{
     Command_Data *cmd = (Command_Data*)app->cmd_context;
@@ -689,10 +692,14 @@ DOC_PARAM(len, the length of the str string)
 DOC_RETURN(returns non-zero if the replacement succeeds)
 DOC
 (
-Replace simultaneously deletes the range from start to end and writes str
-in the same position.  If end == start then this call is equivalent to
-inserting the string at start.  If len == 0 this call is equivalent to
-deleteing the range from start to end.
+If this call succeeds it deletes the range from start to end
+and writes str in the same position.  If end == start then
+this call is equivalent to inserting the string at start.
+If len == 0 this call is equivalent to deleteing the range
+from start to end.
+
+This call fails if the buffer does not exist, or if the replace
+range is not within the bounds of the buffer.
 )
 */{
     Command_Data *cmd = (Command_Data*)app->cmd_context;

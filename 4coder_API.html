@@ -1,145 +1,778 @@
 <html lang="en-US">
 <head>
 <title>4coder API Docs</title>
+<style>
+body { background: #FFFFE0; }
+h1,h2,h3,h4 { color: #007000; margin: 0; }
+a { color: #007000; text-decoration: none; }
+a:visited { color: #007070; }
+a:hover { background: #E0FFD0; }
+ul { list-style: none; padding: 0; margin: 0; }
+li { padding-left: 1em;text-indent: -.7em;}
+li:before { content: "4"; color: #005000; font-family:"Webdings"; }
+</style>
 </head>
-<body style='font-family:Arial;'>
-<h1>4coder API</h1><h2>
-&sect;1 Introduction</h2>
-<div style='margin-bottom: 5mm;'><i>Coming Soon</i></div><h2>
-&sect;2 Functions</h2>
+<body>
+<div style='font-family:Arial; position: absolute; left: 10mm; width: 180mm; text-align: justify; line-height: 1.25;'>
+<h1 style='margin-top: 5mm; margin-bottom: 5mm;'>4coder API</h1>
+<h2>&sect;1 Introduction</h2>
 <div>
-exec_command
+<p>
+This is the documentation for alpha 4.0.8 super! The documentation has been made as accurate as possible but there may be errors. If you have questions or discover errors please contact <span style='font-family: "Courier New", Courier, monospace; text-align: left;'>editor@4coder.net</span>.</p>
+<p>
+</p>
 </div>
-<div>
-exec_system_command
+<h2>&sect;2 Types and Functions</h2>
+<h3>&sect;2.1 Function List</h3>
+<ul>
+<li>
+<a href='#2.2.0'>exec_command</a>
+</li>
+<li>
+<a href='#2.2.1'>exec_system_command</a>
+</li>
+<li>
+<a href='#2.2.2'>directory_get_hot</a>
+</li>
+<li>
+<a href='#2.2.3'>get_4ed_path</a>
+</li>
+<li>
+<a href='#2.2.4'>file_exists</a>
+</li>
+<li>
+<a href='#2.2.5'>directory_cd</a>
+</li>
+<li>
+<a href='#2.2.6'>get_file_list</a>
+</li>
+<li>
+<a href='#2.2.7'>free_file_list</a>
+</li>
+<li>
+<a href='#2.2.8'>clipboard_post</a>
+</li>
+<li>
+<a href='#2.2.9'>clipboard_count</a>
+</li>
+<li>
+<a href='#2.2.10'>clipboard_index</a>
+</li>
+<li>
+<a href='#2.2.11'>get_buffer_first</a>
+</li>
+<li>
+<a href='#2.2.12'>get_buffer_next</a>
+</li>
+<li>
+<a href='#2.2.13'>get_buffer</a>
+</li>
+<li>
+<a href='#2.2.14'>get_buffer_by_name</a>
+</li>
+<li>
+<a href='#2.2.15'>buffer_seek</a>
+</li>
+<li>
+<a href='#2.2.16'>buffer_read_range</a>
+</li>
+<li>
+<a href='#2.2.17'>buffer_replace_range</a>
+</li>
+<li>
+<a href='#2.2.18'>buffer_set_setting</a>
+</li>
+<li>
+<a href='#2.2.19'>buffer_auto_indent</a>
+</li>
+<li>
+<a href='#2.2.20'>create_buffer</a>
+</li>
+<li>
+<a href='#2.2.21'>save_buffer</a>
+</li>
+<li>
+<a href='#2.2.22'>kill_buffer</a>
+</li>
+<li>
+<a href='#2.2.23'>get_view_first</a>
+</li>
+<li>
+<a href='#2.2.24'>get_view_next</a>
+</li>
+<li>
+<a href='#2.2.25'>get_view</a>
+</li>
+<li>
+<a href='#2.2.26'>get_active_view</a>
+</li>
+<li>
+<a href='#2.2.27'>view_compute_cursor</a>
+</li>
+<li>
+<a href='#2.2.28'>view_set_cursor</a>
+</li>
+<li>
+<a href='#2.2.29'>view_set_mark</a>
+</li>
+<li>
+<a href='#2.2.30'>view_set_highlight</a>
+</li>
+<li>
+<a href='#2.2.31'>view_set_buffer</a>
+</li>
+<li>
+<a href='#2.2.32'>view_post_fade</a>
+</li>
+<li>
+<a href='#2.2.33'>view_set_paste_rewrite_</a>
+</li>
+<li>
+<a href='#2.2.34'>view_get_paste_rewrite_</a>
+</li>
+<li>
+<a href='#2.2.35'>get_user_input</a>
+</li>
+<li>
+<a href='#2.2.36'>get_command_input</a>
+</li>
+<li>
+<a href='#2.2.37'>get_mouse_state</a>
+</li>
+<li>
+<a href='#2.2.38'>start_query_bar</a>
+</li>
+<li>
+<a href='#2.2.39'>end_query_bar</a>
+</li>
+<li>
+<a href='#2.2.40'>print_message</a>
+</li>
+<li>
+<a href='#2.2.41'>change_theme</a>
+</li>
+<li>
+<a href='#2.2.42'>change_font</a>
+</li>
+<li>
+<a href='#2.2.43'>set_theme_colors</a>
+</li>
+<li>
+<a href='#2.2.44'>get_theme_colors</a>
+</li>
+</ul>
+<h3 style='margin-top: 5mm; margin-bottom: 5mm;'>&sect;2.2 Descriptions</h3>
+<div id='2.2.0' style='margin-bottom: 1cm;'>
+ <h4>&sect;2.2.0: exec_command</h4>
+ <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em;'>void exec_command(Application_Links *app, int command_id)</div>
+ <div>
+DOC_PARAM(command_id, an integer id enumerated in 4coder_custom.h starting with cmdid)
+DOC(Executes the command associated with the command_id passed in)
 </div>
-<div>
-directory_get_hot
 </div>
-<div>
-get_4ed_path
+<div id='2.2.1' style='margin-bottom: 1cm;'>
+ <h4>&sect;2.2.1: exec_system_command</h4>
+ <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em;'>int exec_system_command(Application_Links *app, View_Summary *view, Buffer_Identifier buffer, char *path, int path_len, char *command, int command_len, unsigned int flags)</div>
+ <div>
+DOC_PARAM(view, the target view that will display the output buffer, may be NULL, see description for details)
+DOC_PARAM(buffer, a buffer identifier for the buffer that will be filled with the output from the command)
+DOC_PARAM(path, the path from which the command is executed)
+DOC_PARAM(path_len, the length of the path string)
+DOC_PARAM(command, the command to be executed)
+DOC_PARAM(command_len, the length of the command string)
+DOC_PARAM(flags, may be zero or one or more CLI flags ORed together)
+DOC_RETURN(returns non-zero if the command is successfully started, returns zero otherwise)
+DOC
+(
+Executes a system command as if called from the command line, and sends the output to a buffer. The buffer
+identifier can either name a new buffer that does not exist, name a buffer that does exist, or provide the
+id of a buffer that does exist.  If the buffer already exists the command will fail, unless
+CLI_OverlapWithConflict is set in the flags.
+
+If the buffer is not already in an open view, and the view parameter is no NULL, then the provided view
+will display the output buffer.  If the view parameter is NULL, no view will display the output.
+
+If CLI_OverlapWithConflict is set in the flags, the command will always be executed even if another command
+was outputting to the same buffer still.
+
+If CLI_AlwaysBindToView is set and the view parameter is not NULL, then the specified view will always
+begin displaying the output buffer, even if another open view already displays that buffer.
+
+If CLI_CursorAtEnd is set the cursor in the output buffer will be placed at the end of the buffer instead
+of at the beginning.
+)
 </div>
-<div>
-file_exists
 </div>
-<div>
-directory_cd
+<div id='2.2.2' style='margin-bottom: 1cm;'>
+ <h4>&sect;2.2.2: directory_get_hot</h4>
+ <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em;'>int directory_get_hot(Application_Links *app, char *out, int capacity)</div>
+ <div>
+DOC_PARAM(out, a buffer that receives the 4coder 'hot directory')
+DOC_PARAM(capacity, the maximum size to be output to the output buffer)
+DOC_RETURN(returns the size of the string written into the buffer)
+DOC
+(
+4coder has a concept of a 'hot directory' which is the directory most recently
+accessed in the GUI.  Whenever the GUI is opened it shows the hot directory.
+
+In the future this will be deprecated and eliminated in favor of more flexible
+directories controlled by the custom side.
+)
 </div>
-<div>
-get_file_list
 </div>
-<div>
-free_file_list
+<div id='2.2.3' style='margin-bottom: 1cm;'>
+ <h4>&sect;2.2.3: get_4ed_path</h4>
+ <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em;'>int get_4ed_path(Application_Links *app, char *out, int capacity)</div>
+ <div>
+DOC_PARAM(out, a buffer that receives the path to the 4ed executable file)
+DOC_PARAM(capacity, the maximum capacity of the output buffer)
+DOC_RETURN(returns non-zero on success, returns zero on failure)
 </div>
-<div>
-clipboard_post
 </div>
-<div>
-clipboard_count
+<div id='2.2.4' style='margin-bottom: 1cm;'>
+ <h4>&sect;2.2.4: file_exists</h4>
+ <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em;'>int file_exists(Application_Links *app, char *filename, int len)</div>
+ <div>
+DOC_PARAM(filename, the full path to a file)
+DOC_PARAM(len, the number of characters in the filename string)
+DOC_RETURN(returns non-zero if the file exists, returns zero if the file does not exist)
 </div>
-<div>
-clipboard_index
 </div>
-<div>
-get_buffer_first
+<div id='2.2.5' style='margin-bottom: 1cm;'>
+ <h4>&sect;2.2.5: directory_cd</h4>
+ <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em;'>int directory_cd(Application_Links *app, char *dir, int *len, int capacity, char *rel_path, int rel_len)</div>
+ <div>
+DOC_PARAM(dir, a string buffer containing a directory)
+DOC_PARAM(len, the length of the string in the string buffer)
+DOC_PARAM(capacity, the maximum size of the string buffer)
+DOC_PARAM(rel_path, the path to change to, may include '.' or '..')
+DOC_PARAM(rel_len, the length of the rel_path string)
+DOC_RETURN(returns non-zero if the call succeeds, returns zero otherwise)
+DOC
+(
+This call succeeds if the directory exists and the new directory fits inside the dir buffer.
+If the call succeeds the dir buffer is filled with the new directory and len contains the
+length of the string in the buffer.
+
+For instance if dir contains "C:/Users/MySelf" and rel is "Documents" the buffer will contain
+"C:/Users/MySelf/Documents" and len will contain the length of that string.  This call can
+also be used with rel as ".." to traverse to parent folders.
+)
 </div>
-<div>
-get_buffer_next
 </div>
-<div>
-get_buffer
+<div id='2.2.6' style='margin-bottom: 1cm;'>
+ <h4>&sect;2.2.6: get_file_list</h4>
+ <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em;'>File_List get_file_list(Application_Links *app, char *dir, int len)</div>
+ <div>
+DOC_PARAM(dir, the directory whose files will be enumerated in the returned list)
+DOC_PARAM(len, the length of the dir string)
+DOC_RETURN
+(
+returns a File_List struct containing pointers to the names of the files in
+the specified directory.  The File_List returned should be passed to free_file_list
+when it is no longer in use.
+)
 </div>
-<div>
-get_buffer_by_name
 </div>
-<div>
-buffer_seek
+<div id='2.2.7' style='margin-bottom: 1cm;'>
+ <h4>&sect;2.2.7: free_file_list</h4>
+ <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em;'>void free_file_list(Application_Links *app, File_List list)</div>
+ <div>
+DOC_PARAM(list, the file list to be freed)
+DOC(after this call the file list passed in should not be read or written to)
 </div>
-<div>
-buffer_read_range
 </div>
-<div>
-buffer_replace_range
+<div id='2.2.8' style='margin-bottom: 1cm;'>
+ <h4>&sect;2.2.8: clipboard_post</h4>
+ <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em;'>void clipboard_post(Application_Links *app, char *str, int len)</div>
+ <div>
+DOC_PARAM(str, the string to post to the clipboard)
+DOC_PARAM(len, the length of the string str)
+DOC
+(
+Stores the string str in the clipboard initially with index 0.
+Also reports the copy to the operating system, so that it may
+be pasted into other applications.
+)
 </div>
-<div>
-buffer_set_setting
 </div>
-<div>
-buffer_auto_indent
+<div id='2.2.9' style='margin-bottom: 1cm;'>
+ <h4>&sect;2.2.9: clipboard_count</h4>
+ <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em;'>int clipboard_count(Application_Links *app)</div>
+ <div>
+DOC(returns the number of items in the clipboard)
 </div>
-<div>
-create_buffer
 </div>
-<div>
-save_buffer
+<div id='2.2.10' style='margin-bottom: 1cm;'>
+ <h4>&sect;2.2.10: clipboard_index</h4>
+ <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em;'>int clipboard_index(Application_Links *app, int index, char *out, int len)</div>
+ <div>
+DOC_PARAM(index, the index of the item to be read)
+DOC_PARAM(out, a buffer where the clipboard contents are written or NULL)
+DOC_PARAM(len, the length of the out buffer)
+DOC_RETURN(returns the size of the item on the clipboard associated with the given index)
+DOC
+(
+There are multiple items on the 4coder clipboard.  The most recent copy is always at
+index 0.  The second most recent is at index 1, and so on for all the stored clipboard items.
+This function reads one of the clipboard items and stores it into the out buffer, if the out
+buffer is not NULL.  This function always returns the size of the clipboard item specified
+even if the output buffer is NULL.  If the output buffer is too small to contain the whole
+string, it is filled with the first len character of the clipboard contents.  The output
+string is not null terminated.
+)
 </div>
-<div>
-kill_buffer
 </div>
-<div>
-get_view_first
+<div id='2.2.11' style='margin-bottom: 1cm;'>
+ <h4>&sect;2.2.11: get_buffer_first</h4>
+ <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em;'>Buffer_Summary get_buffer_first(Application_Links *app, unsigned int access)</div>
+ <div>
+DOC_PARAM(access, the access flags for the access)
+DOC_RETURN(returns the summary of the first buffer in a buffer loop)
+DOC
+(
+Begins a loop across all the buffers.
+
+If the buffer returned does not exist, the loop is finished.  Buffers
+should not be killed durring a buffer loop.
+)
+DOC_SEE(Access_Flag)
+DOC_SEE(get_buffer_next)
 </div>
-<div>
-get_view_next
 </div>
-<div>
-get_view
+<div id='2.2.12' style='margin-bottom: 1cm;'>
+ <h4>&sect;2.2.12: get_buffer_next</h4>
+ <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em;'>void get_buffer_next(Application_Links *app, Buffer_Summary *buffer, unsigned int access)</div>
+ <div>
+DOC_PARAM(buffer, pointer to the loop buffer originally returned by get_buffer_first)
+DOC_PARAM(access, the access flags for the access)
+DOC
+(
+Writes the next buffer into the buffer struct.  To get predictable results every
+call to get_buffer_first and get_buffer_next in the loop should have the same
+access flags.
+
+If the buffer returned does not exist, the loop is finished.  Buffers
+should not be killed durring a buffer loop.
+)
+DOC_SEE(Access_Flag)
+DOC_SEE(get_buffer_first)
 </div>
-<div>
-get_active_view
 </div>
-<div>
-view_compute_cursor
+<div id='2.2.13' style='margin-bottom: 1cm;'>
+ <h4>&sect;2.2.13: get_buffer</h4>
+ <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em;'>Buffer_Summary get_buffer(Application_Links *app, int buffer_id, unsigned int access)</div>
+ <div>
+DOC_PARAM(buffer_id, the id of the buffer to get)
+DOC_PARAM(access, the access flags for the access)
+DOC_RETURN(returns a summary that describes the indicated buffer if it exists and is accessible)
 </div>
-<div>
-view_set_cursor
 </div>
-<div>
-view_set_mark
+<div id='2.2.14' style='margin-bottom: 1cm;'>
+ <h4>&sect;2.2.14: get_buffer_by_name</h4>
+ <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em;'>Buffer_Summary get_buffer_by_name(Application_Links *app, char *name, int len, unsigned int access)</div>
+ <div>
+DOC_PARAM(name, the name of the buffer)
+DOC_PARAM(len, the length of the name string)
+DOC_PARAM(access, the access flags for the access)
+DOC_RETURN(returns a summary that describes the indicated buffer if it exists and is accessible)
 </div>
-<div>
-view_set_highlight
 </div>
-<div>
-view_set_buffer
+<div id='2.2.15' style='margin-bottom: 1cm;'>
+ <h4>&sect;2.2.15: buffer_seek</h4>
+ <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em;'>int buffer_seek(Application_Links *app, Buffer_Summary *buffer, int start_pos, int seek_forward, unsigned int flags)</div>
+ <div>
+DOC_PARAM(buffer, the buffer to seek through)
+DOC_PARAM(start_pos, the absolute position in the buffer to begin the seek)
+DOC_PARAM(seek_forward, non-zero indicates to seek forward otherwise the seek goes backward)
+DOC_PARAM(flags, one or more types of boundaries to use for stopping the seek)
+DOC_RETURN(returns the position where the seek stops)
+DOC_SEE(Seek_Boundary_Flag)
 </div>
-<div>
-view_post_fade
 </div>
-<div>
-view_set_paste_rewrite_
+<div id='2.2.16' style='margin-bottom: 1cm;'>
+ <h4>&sect;2.2.16: buffer_read_range</h4>
+ <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em;'>int buffer_read_range(Application_Links *app, Buffer_Summary *buffer, int start, int end, char *out)</div>
+ <div>
+DOC_PARAM(buffer, the buffer to read out of)
+DOC_PARAM(start, the beginning of the read range)
+DOC_PARAM(end, one past the end of the read range)
+DOC_PARAM(out, the output buffer to fill with the result of the read)
+DOC_RETURN(returns non-zero on success)
+DOC
+(
+The output buffer might have a capacity of at least (end - start)
+The output is not null terminated.
+
+This call fails if the buffer does not exist, or if the read range
+is not within the bounds of the buffer.
+)
 </div>
-<div>
-view_get_paste_rewrite_
 </div>
-<div>
-get_user_input
+<div id='2.2.17' style='margin-bottom: 1cm;'>
+ <h4>&sect;2.2.17: buffer_replace_range</h4>
+ <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em;'>int buffer_replace_range(Application_Links *app, Buffer_Summary *buffer, int start, int end, char *str, int len)</div>
+ <div>
+DOC_PARAM(buffer, the buffer to edit)
+DOC_PARAM(start, the start of the range to edit)
+DOC_PARAM(end, the end of the range to edit)
+DOC_PARAM(str, the string to write into the range)
+DOC_PARAM(len, the length of the str string)
+DOC_RETURN(returns non-zero if the replacement succeeds)
+DOC
+(
+If this call succeeds it deletes the range from start to end
+and writes str in the same position.  If end == start then
+this call is equivalent to inserting the string at start.
+If len == 0 this call is equivalent to deleteing the range
+from start to end.
+
+This call fails if the buffer does not exist, or if the replace
+range is not within the bounds of the buffer.
+)
 </div>
-<div>
-get_command_input
 </div>
-<div>
-get_mouse_state
+<div id='2.2.18' style='margin-bottom: 1cm;'>
+ <h4>&sect;2.2.18: buffer_set_setting</h4>
+ <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em;'>int buffer_set_setting(Application_Links *app, Buffer_Summary *buffer, int setting, int value)</div>
+ <div>
+DOC_PARAM(buffer, the buffer to set a setting on)
+DOC_PARAM(setting, one of the Buffer_Setting_ID enum values that identifies the setting to set)
+DOC_PARAM(value, the value to set the specified setting to)
+DOC_SEE(Buffer_Setting_ID)
 </div>
-<div>
-start_query_bar
 </div>
-<div>
-end_query_bar
+<div id='2.2.19' style='margin-bottom: 1cm;'>
+ <h4>&sect;2.2.19: buffer_auto_indent</h4>
+ <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em;'>int buffer_auto_indent(Application_Links *app, Buffer_Summary *buffer, int start, int end, int tab_width, unsigned int flags)</div>
+ <div>
+DOC_PARAM(buffer, the buffer in which to apply the auto indenting)
+DOC_PARAM(start, the position to start the auto indenting)
+DOC_PARAM(end, the position to end the auto indenting)
+DOC_PARAM(tab_width, the number of spaces to place as a tab)
+DOC_PARAM(flags, the auto tab behavior flags)
+DOC_RETURN(returns non-zero when the call succeeds)
+DOC
+(
+Applies the built in auto-indentation rule to the code in the range from
+start to end by inserting spaces or tabs at the beginning of the lines.
+If the buffer does not have lexing enabled or the lexing job has not
+completed this function will fail.
+)
+DOC_SEE(Auto_Tab_Flag)
 </div>
-<div>
-print_message
 </div>
-<div>
-change_theme
+<div id='2.2.20' style='margin-bottom: 1cm;'>
+ <h4>&sect;2.2.20: create_buffer</h4>
+ <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em;'>Buffer_Summary create_buffer(Application_Links *app, char *filename, int filename_len, unsigned int flags)</div>
+ <div>
+DOC_PARAM(filename, the name of the file to be opened or created)
+DOC_PARAM(filename_len, the length of the filename string)
+DOC_PARAM(flags, flags for buffer creation behavior)
+DOC_RETURN(returns the summary of the created buffer on success or a NULL buffer otherwise)
+DOC
+(
+Tries to create a new buffer and associate it to the given filename.  If such a buffer already
+exists the existing buffer is returned in the buffer summary and no new buffer is created.
+If the buffer does not exist a new buffer is created and named after the given filename.  If
+the filename corresponds to a file on the disk that file is loaded and put into buffer, if
+the filename does not correspond to a file on disk the buffer is created empty.
+)
+DOC_SEE(Buffer_Create_Flag)
 </div>
-<div>
-change_font
 </div>
-<div>
-set_theme_colors
+<div id='2.2.21' style='margin-bottom: 1cm;'>
+ <h4>&sect;2.2.21: save_buffer</h4>
+ <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em;'>int save_buffer(Application_Links *app, Buffer_Summary *buffer, char *filename, int filename_len, unsigned int flags)</div>
+ <div>
+DOC_PARAM(buffer, the buffer to save to a file)
+DOC_PARAM(filename, the name of the file to save the buffer into)
+DOC_PARAM(filename_len, length of the filename string)
+DOC_PARAM(flags, not currently used)
+DOC_RETURN(returns non-zero if the save succeeds)
 </div>
-<div>
-get_theme_colors
 </div>
-</body></html>
+<div id='2.2.22' style='margin-bottom: 1cm;'>
+ <h4>&sect;2.2.22: kill_buffer</h4>
+ <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em;'>int kill_buffer(Application_Links *app, Buffer_Identifier buffer, int view_id, unsigned int flags)</div>
+ <div>
+DOC_PARAM(buffer, a buffer identifier specifying the buffer to try to kill)
+DOC_PARAM(view_id, the id of view that will contain the "are you sure" dialogue)
+DOC_PARAM(flags, flags for buffer kill behavior)
+DOC_RETURN(returns non-zero if the kill succeeds)
+DOC
+(
+Tries to kill the idenfied buffer.  If the buffer is dirty and the "are you sure"
+dialogue needs to be displayed the provided view is used to show the dialogue.
+If the view is not open the kill fails.
+)
+DOC_SEE(Buffer_Kill_Flags)
+</div>
+</div>
+<div id='2.2.23' style='margin-bottom: 1cm;'>
+ <h4>&sect;2.2.23: get_view_first</h4>
+ <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em;'>View_Summary get_view_first(Application_Links *app, unsigned int access)</div>
+ <div>
+DOC_PARAM(access, the access flags for the access)
+DOC_RETURN(returns the summary of the first view in a view loop)
+DOC
+(
+Begins a loop across all the open views.
+
+If the view summary returned is NULL, the loop is finished.
+Views should not be closed or opened durring a view loop.
+)
+DOC_SEE(Access_Flag)
+DOC_SEE(get_view_next)
+</div>
+</div>
+<div id='2.2.24' style='margin-bottom: 1cm;'>
+ <h4>&sect;2.2.24: get_view_next</h4>
+ <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em;'>void get_view_next(Application_Links *app, View_Summary *view, unsigned int access)</div>
+ <div>
+DOC_PARAM(view, pointer to the loop view originally returned by get_view_first)
+DOC_PARAM(access, the access flags for the access)
+DOC
+(
+Writes the next view into the view struct.  To get predictable results every
+call to get_view_first and get_view_next in the loop should have the same
+access flags.
+
+If the view summary returned is NULL, the loop is finished.
+Views should not be closed or opened durring a view loop.
+)
+DOC_SEE(Access_Flag)
+DOC_SEE(get_view_first)
+</div>
+</div>
+<div id='2.2.25' style='margin-bottom: 1cm;'>
+ <h4>&sect;2.2.25: get_view</h4>
+ <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em;'>View_Summary get_view(Application_Links *app, int view_id, unsigned int access)</div>
+ <div>
+DOC_PARAM(view_id, the id of the view to get)
+DOC_PARAM(access, the access flags for the access)
+DOC_RETURN(returns a summary that describes the indicated view if it is open and is accessible)
+</div>
+</div>
+<div id='2.2.26' style='margin-bottom: 1cm;'>
+ <h4>&sect;2.2.26: get_active_view</h4>
+ <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em;'>View_Summary get_active_view(Application_Links *app, unsigned int access)</div>
+ <div>
+DOC_PARAM(access, the access flags for the access)
+DOC_RETURN(returns a summary that describes the active view)
+</div>
+</div>
+<div id='2.2.27' style='margin-bottom: 1cm;'>
+ <h4>&sect;2.2.27: view_compute_cursor</h4>
+ <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em;'>int view_compute_cursor(Application_Links *app, View_Summary *view, Buffer_Seek seek, Full_Cursor *cursor_out)</div>
+ <div>
+DOC_PARAM(view, the view on which to run the cursor computation)
+DOC_PARAM(seek, the seek position)
+DOC_PARAM(cursor_out, on success this is filled with result of the seek)
+DOC_RETURN(returns non-zero on success)
+DOC
+(
+Computes a full cursor for the given seek position.
+)
+DOC_SEE(Buffer_Seek)
+</div>
+</div>
+<div id='2.2.28' style='margin-bottom: 1cm;'>
+ <h4>&sect;2.2.28: view_set_cursor</h4>
+ <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em;'>int view_set_cursor(Application_Links *app, View_Summary *view, Buffer_Seek seek, int set_preferred_x)</div>
+ <div>
+DOC_PARAM(view, the view in which to set the cursor)
+DOC_PARAM(seek, the seek position)
+DOC_PARAM(set_preferred_x, if true the preferred x is updated to match the new cursor position)
+DOC_RETURN(returns non-zero on success)
+DOC
+(
+Sets the the view's cursor position.  set_preferred_x should usually be true unless the change in
+cursor position is is a vertical motion that tries to keep the cursor in the same column or x position.
+)
+DOC_SEE(Buffer_Seek)
+</div>
+</div>
+<div id='2.2.29' style='margin-bottom: 1cm;'>
+ <h4>&sect;2.2.29: view_set_mark</h4>
+ <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em;'>int view_set_mark(Application_Links *app, View_Summary *view, Buffer_Seek seek)</div>
+ <div>
+DOC_PARAM(view, the view in which to set the mark)
+DOC_PARAM(seek, the seek position)
+DOC_RETURN(returns non-zero on success)
+DOC
+(
+Sets the the view's mark position.
+)
+DOC_SEE(Buffer_Seek)
+</div>
+</div>
+<div id='2.2.30' style='margin-bottom: 1cm;'>
+ <h4>&sect;2.2.30: view_set_highlight</h4>
+ <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em;'>int view_set_highlight(Application_Links *app, View_Summary *view, int start, int end, int turn_on)</div>
+ <div>
+DOC_PARAM(view, the view to set the highlight in)
+DOC_PARAM(start, the start of the highlight range)
+DOC_PARAM(end, the end of the highlight range)
+DOC_PARAM(turn_on, indicates whether the highlight is being turned on or off)
+DOC_RETURN(returns non-zero on success)
+DOC
+(
+The highlight is mutually exclusive to the cursor.  When the turn_on parameter
+is set to true the highlight will be shown and the cursor will be hidden.  After
+that either setting the with view_set_cursor or calling view_set_highlight and
+the turn_on set to false, will switch back to showing the cursor.
+)
+</div>
+</div>
+<div id='2.2.31' style='margin-bottom: 1cm;'>
+ <h4>&sect;2.2.31: view_set_buffer</h4>
+ <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em;'>int view_set_buffer(Application_Links *app, View_Summary *view, int buffer_id, unsigned int flags)</div>
+ <div>
+DOC_PARAM(view, the view to display the buffer in)
+DOC_PARAM(buffer_id, the buffer to show in the view)
+DOC_PARAM(flags, set buffer behavior flags)
+DOC_RETURN(returns non-zero on success)
+DOC
+(
+On success view_set_buffer sets the specified view's current buffer and
+cancels and dialogue shown in the view and displays the file.
+)
+DOC_SEE(Set_Buffer_Flag)
+</div>
+</div>
+<div id='2.2.32' style='margin-bottom: 1cm;'>
+ <h4>&sect;2.2.32: view_post_fade</h4>
+ <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em;'>int view_post_fade(Application_Links *app, View_Summary *view, float seconds, int start, int end, unsigned int color)</div>
+ <div>
+DOC_PARAM(view, the veiw to post a fade effect to)
+DOC_PARAM(seconds, the number of seconds the fade effect should last)
+DOC_PARAM(start, the first character in the fade range)
+DOC_PARAM(end, one after the last character in the fade range)
+DOC_PARAM(color, the color to fade from)
+</div>
+</div>
+<div id='2.2.33' style='margin-bottom: 1cm;'>
+ <h4>&sect;2.2.33: view_set_paste_rewrite_</h4>
+ <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em;'>void view_set_paste_rewrite_(Application_Links *app, View_Summary *view)</div>
+ <div>No doc generated ~ assume this call is not meant to be public</div>
+</div>
+<div id='2.2.34' style='margin-bottom: 1cm;'>
+ <h4>&sect;2.2.34: view_get_paste_rewrite_</h4>
+ <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em;'>int view_get_paste_rewrite_(Application_Links *app, View_Summary *view)</div>
+ <div>No doc generated ~ assume this call is not meant to be public</div>
+</div>
+<div id='2.2.35' style='margin-bottom: 1cm;'>
+ <h4>&sect;2.2.35: get_user_input</h4>
+ <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em;'>User_Input get_user_input(Application_Links *app, unsigned int get_type, unsigned int abort_type)</div>
+ <div>
+DOC_PARAM(get_type, input type flag that specifies the types of inputs that should be returned)
+DOC_PARAM(abort_type, input type flag that specifies the types of inputs that should cause an abort signal)
+DOC_RETURN(returns a User_Input that describes an event passed to the command)
+DOC
+(
+This call preempts the command. The command is resumed if either a get or abort condition
+is met, or if another command is executed.  If either the abort condition is met or another
+command is executed an abort signal is returned.  If an abort signal is ever returned the
+command should finish execution without any more calls that preempt the command.
+If a get condition is met the user input is returned
+)
+DOC_SEE(Input_Type_Flag)
+DOC_SEE(User_Input)
+</div>
+</div>
+<div id='2.2.36' style='margin-bottom: 1cm;'>
+ <h4>&sect;2.2.36: get_command_input</h4>
+ <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em;'>User_Input get_command_input(Application_Links *app)</div>
+ <div>
+DOC_RETURN(returns the input that triggered the command in execution.)
+DOC_SEE(User_Input)
+</div>
+</div>
+<div id='2.2.37' style='margin-bottom: 1cm;'>
+ <h4>&sect;2.2.37: get_mouse_state</h4>
+ <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em;'>Mouse_State get_mouse_state(Application_Links *app)</div>
+ <div>
+DOC_RETURN(returns the current mouse state)
+DOC_SEE(Mouse_State)
+</div>
+</div>
+<div id='2.2.38' style='margin-bottom: 1cm;'>
+ <h4>&sect;2.2.38: start_query_bar</h4>
+ <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em;'>int start_query_bar(Application_Links *app, Query_Bar *bar, unsigned int flags)</div>
+ <div>
+DOC_PARAM(bar, a pointer to the Query_Bar struct that defines the bar's contents)
+DOC_PARAM(flags, not currently used)
+DOC_RETURN(returns non-zero on success)
+DOC
+(
+The memory pointed to by bar must remain valid until a call to end_query_bar or
+until the command returns.
+)
+</div>
+</div>
+<div id='2.2.39' style='margin-bottom: 1cm;'>
+ <h4>&sect;2.2.39: end_query_bar</h4>
+ <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em;'>void end_query_bar(Application_Links *app, Query_Bar *bar, unsigned int flags)</div>
+ <div>
+DOC_PARAM(bar, a pointer to the Query_Bar struct to end)
+DOC_PARAM(flags, not currently used)
+DOC
+(
+bar must be a pointer previously passed to start_query_bar previously in the same command.
+)
+</div>
+</div>
+<div id='2.2.40' style='margin-bottom: 1cm;'>
+ <h4>&sect;2.2.40: print_message</h4>
+ <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em;'>void print_message(Application_Links *app, char *str, int len)</div>
+ <div>
+DOC_PARAM(str, the string to post to *messages*)
+DOC_PARAM(len, the length of str string)
+</div>
+</div>
+<div id='2.2.41' style='margin-bottom: 1cm;'>
+ <h4>&sect;2.2.41: change_theme</h4>
+ <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em;'>void change_theme(Application_Links *app, char *name, int len)</div>
+ <div>
+DOC_PARAM(name, the name of the built in theme to change to)
+DOC_PARAM(len, the length of the name string)
+</div>
+</div>
+<div id='2.2.42' style='margin-bottom: 1cm;'>
+ <h4>&sect;2.2.42: change_font</h4>
+ <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em;'>void change_font(Application_Links *app, char *name, int len)</div>
+ <div>
+DOC_PARAM(name, the name of the built in font to change to)
+DOC_PARAM(len, the length of the name string)
+</div>
+</div>
+<div id='2.2.43' style='margin-bottom: 1cm;'>
+ <h4>&sect;2.2.43: set_theme_colors</h4>
+ <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em;'>void set_theme_colors(Application_Links *app, Theme_Color *colors, int count)</div>
+ <div>
+DOC_PARAM(colors, an array of color structs pairing differet style tags to color codes)
+DOC_PARAM(count, the number of color structs in the colors array)
+DOC
+(
+For each color struct in the array, the color in the style pallet is set to the color
+code paired with the tag.
+)
+</div>
+</div>
+<div id='2.2.44' style='margin-bottom: 1cm;'>
+ <h4>&sect;2.2.44: get_theme_colors</h4>
+ <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em;'>void get_theme_colors(Application_Links *app, Theme_Color *colors, int count)</div>
+ <div>
+DOC_PARAM(colors, an array of color structs listing style tags to get color values for)
+DOC_PARAM(count, the number of color structs in the colors array)
+DOC
+(
+For each color struct in the array, the color field of the struct is filled with the
+color from the specified color in the pallet.
+)
+</div>
+</div>
+</div>
+</body>
+</html>

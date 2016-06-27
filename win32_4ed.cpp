@@ -1227,13 +1227,13 @@ Font_Load_Sig(system_draw_font_load){
         
 #else
         
-        success = font_load(&win32vars.font_part,
-                            font_out,
-                            filename,
-                            pt_size,
-                            tab_width,
-                            oversample,
-                            store_texture);
+        success = stb_font_load(&win32vars.font_part,
+                                font_out,
+                                filename,
+                                pt_size,
+                                tab_width,
+                                oversample,
+                                store_texture);
         
 #endif
         
