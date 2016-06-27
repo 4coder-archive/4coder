@@ -359,7 +359,7 @@ part_free(void *ptr, void *context){
 #include "stb_truetype.h"
 
 internal i32
-font_load_stb(Partition *part,
+stb_font_load(Partition *part,
               Render_Font *font_out,
               char *filename_untranslated,
               i32 pt_size,

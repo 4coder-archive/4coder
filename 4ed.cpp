@@ -984,9 +984,7 @@ update_command_data(App_Vars *vars, Command_Data *cmd){
 
 globalvar Command_Function command_table[cmdid_count];
 
-//extern "C"{
 #include "4ed_api_implementation.cpp"
-//}
 
 struct Command_In{
     Command_Data *cmd;

@@ -19,7 +19,7 @@ typedef struct Full_Cursor{
     float wrapped_x, wrapped_y;
 } Full_Cursor;
 
-typedef enum{
+typedef enum Buffer_Seek_Type{
     buffer_seek_pos,
     buffer_seek_wrapped_xy,
     buffer_seek_unwrapped_xy,

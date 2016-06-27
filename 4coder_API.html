@@ -1,145 +1,955 @@
 <html lang="en-US">
 <head>
 <title>4coder API Docs</title>
+<style>
+body { background: #FAFAFA; color: #0D0D0D; }
+h1,h2,h3,h4 { color: #309030; margin: 0; }
+h4 { font-size: 1.1em; }
+a { color: #309030; text-decoration: none; }
+a:visited { color: #007070; }
+a:hover { background: #E0FFD0; }
+ul { list-style: none; padding: 0; margin: 0; }
+li { padding-left: 1em;text-indent: -.7em;}
+li:before { content: "4"; color: #005000; font-family:"Webdings"; }
+</style>
 </head>
-<body style='font-family:Arial;'>
-<h1>4coder API</h1><h2>
-&sect;1 Introduction</h2>
-<div style='margin-bottom: 5mm;'><i>Coming Soon</i></div><h2>
-&sect;2 Functions</h2>
+<body>
+<div style='font-family:Arial; margin: 0 auto; width: 900px; text-align: justify; line-height: 1.25;'>
+<h1 style='margin-top: 5mm; margin-bottom: 5mm;'>4coder API</h1>
+<h2>&sect;1 Introduction</h2>
 <div>
-exec_command
+<p>
+This is the documentation for alpha 4.0.8 super! The documentation has been made as accurate as possible but there may be errors. If you have questions or discover errors please contact <span style='font-family: "Courier New", Courier, monospace; text-align: left;'>editor@4coder.net</span>.</p>
+<p>
+</p>
+</div>
+<h2>&sect;2 Types and Functions</h2>
+<h3>&sect;2.1 Function List</h3>
+<ul>
+<li>
+<a href='#exec_command_doc'>exec_command</a>
+</li>
+<li>
+<a href='#exec_system_command_doc'>exec_system_command</a>
+</li>
+<li>
+<a href='#clipboard_post_doc'>clipboard_post</a>
+</li>
+<li>
+<a href='#clipboard_count_doc'>clipboard_count</a>
+</li>
+<li>
+<a href='#clipboard_index_doc'>clipboard_index</a>
+</li>
+<li>
+<a href='#get_buffer_first_doc'>get_buffer_first</a>
+</li>
+<li>
+<a href='#get_buffer_next_doc'>get_buffer_next</a>
+</li>
+<li>
+<a href='#get_buffer_doc'>get_buffer</a>
+</li>
+<li>
+<a href='#get_buffer_by_name_doc'>get_buffer_by_name</a>
+</li>
+<li>
+<a href='#buffer_boundary_seek_doc'>buffer_boundary_seek</a>
+</li>
+<li>
+<a href='#buffer_read_range_doc'>buffer_read_range</a>
+</li>
+<li>
+<a href='#buffer_replace_range_doc'>buffer_replace_range</a>
+</li>
+<li>
+<a href='#buffer_set_setting_doc'>buffer_set_setting</a>
+</li>
+<li>
+<a href='#buffer_auto_indent_doc'>buffer_auto_indent</a>
+</li>
+<li>
+<a href='#create_buffer_doc'>create_buffer</a>
+</li>
+<li>
+<a href='#save_buffer_doc'>save_buffer</a>
+</li>
+<li>
+<a href='#kill_buffer_doc'>kill_buffer</a>
+</li>
+<li>
+<a href='#get_view_first_doc'>get_view_first</a>
+</li>
+<li>
+<a href='#get_view_next_doc'>get_view_next</a>
+</li>
+<li>
+<a href='#get_view_doc'>get_view</a>
+</li>
+<li>
+<a href='#get_active_view_doc'>get_active_view</a>
+</li>
+<li>
+<a href='#view_compute_cursor_doc'>view_compute_cursor</a>
+</li>
+<li>
+<a href='#view_set_cursor_doc'>view_set_cursor</a>
+</li>
+<li>
+<a href='#view_set_mark_doc'>view_set_mark</a>
+</li>
+<li>
+<a href='#view_set_highlight_doc'>view_set_highlight</a>
+</li>
+<li>
+<a href='#view_set_buffer_doc'>view_set_buffer</a>
+</li>
+<li>
+<a href='#view_post_fade_doc'>view_post_fade</a>
+</li>
+<li>
+<a href='#view_set_paste_rewrite__doc'>view_set_paste_rewrite_</a>
+</li>
+<li>
+<a href='#view_get_paste_rewrite__doc'>view_get_paste_rewrite_</a>
+</li>
+<li>
+<a href='#get_user_input_doc'>get_user_input</a>
+</li>
+<li>
+<a href='#get_command_input_doc'>get_command_input</a>
+</li>
+<li>
+<a href='#get_mouse_state_doc'>get_mouse_state</a>
+</li>
+<li>
+<a href='#start_query_bar_doc'>start_query_bar</a>
+</li>
+<li>
+<a href='#end_query_bar_doc'>end_query_bar</a>
+</li>
+<li>
+<a href='#print_message_doc'>print_message</a>
+</li>
+<li>
+<a href='#change_theme_doc'>change_theme</a>
+</li>
+<li>
+<a href='#change_font_doc'>change_font</a>
+</li>
+<li>
+<a href='#set_theme_colors_doc'>set_theme_colors</a>
+</li>
+<li>
+<a href='#get_theme_colors_doc'>get_theme_colors</a>
+</li>
+<li>
+<a href='#directory_get_hot_doc'>directory_get_hot</a>
+</li>
+<li>
+<a href='#get_file_list_doc'>get_file_list</a>
+</li>
+<li>
+<a href='#free_file_list_doc'>free_file_list</a>
+</li>
+<li>
+<a href='#file_exists_doc'>file_exists</a>
+</li>
+<li>
+<a href='#directory_cd_doc'>directory_cd</a>
+</li>
+<li>
+<a href='#get_4ed_path_doc'>get_4ed_path</a>
+</li>
+</ul>
+<h3 style='margin-top: 5mm; margin-bottom: 5mm;'>&sect;2.2 Descriptions</h3>
+<div id='exec_command_doc' style='margin-bottom: 1cm;'>
+ <h4>&sect;2.2.0: exec_command</h4>
+ <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>void exec_command(
+<div style='margin-left: 4mm;'>Application_Links *app,<br>int command_id<br></div>)
+</div>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Parameters</i></b></div><div>
+<div style='font-weight: 600;'>command_id</div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>an integer id enumerated in 4coder_custom.h starting with cmdid</div></div>
+</div>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>Executes the command associated with the command_id passed in</div></div><hr>
+<div id='exec_system_command_doc' style='margin-bottom: 1cm;'>
+ <h4>&sect;2.2.1: exec_system_command</h4>
+ <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>int exec_system_command(
+<div style='margin-left: 4mm;'>Application_Links *app,<br>View_Summary *view,<br>Buffer_Identifier buffer,<br>char *path,<br>int path_len,<br>char *command,<br>int command_len,<br>unsigned int flags<br></div>)
+</div>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Parameters</i></b></div><div>
+<div style='font-weight: 600;'>view</div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>the target view that will display the output buffer, may be NULL, see description for details</div></div>
 </div>
 <div>
-exec_system_command
+<div style='font-weight: 600;'>buffer</div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>a buffer identifier for the buffer that will be filled with the output from the command</div></div>
 </div>
 <div>
-directory_get_hot
+<div style='font-weight: 600;'>path</div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>the path from which the command is executed</div></div>
 </div>
 <div>
-get_4ed_path
+<div style='font-weight: 600;'>path_len</div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>the length of the path string</div></div>
 </div>
 <div>
-file_exists
+<div style='font-weight: 600;'>command</div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>the command to be executed</div></div>
 </div>
 <div>
-directory_cd
+<div style='font-weight: 600;'>command_len</div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>the length of the command string</div></div>
 </div>
 <div>
-get_file_list
+<div style='font-weight: 600;'>flags</div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>may be zero or one or more CLI flags ORed together</div></div>
+</div>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Return</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>returns non-zero if the command is successfully started, returns zero otherwise</div><div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>Executes a system command as if called from the command line, and sends the output to a buffer. The buffer
+identifier can either name a new buffer that does not exist, name a buffer that does exist, or provide the
+id of a buffer that does exist.  If the buffer already exists the command will fail, unless
+CLI_OverlapWithConflict is set in the flags.
+
+If the buffer is not already in an open view, and the view parameter is no NULL, then the provided view
+will display the output buffer.  If the view parameter is NULL, no view will display the output.
+
+If CLI_OverlapWithConflict is set in the flags, the command will always be executed even if another command
+was outputting to the same buffer still.
+
+If CLI_AlwaysBindToView is set and the view parameter is not NULL, then the specified view will always
+begin displaying the output buffer, even if another open view already displays that buffer.
+
+If CLI_CursorAtEnd is set the cursor in the output buffer will be placed at the end of the buffer instead
+of at the beginning.</div></div><hr>
+<div id='clipboard_post_doc' style='margin-bottom: 1cm;'>
+ <h4>&sect;2.2.2: clipboard_post</h4>
+ <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>void clipboard_post(
+<div style='margin-left: 4mm;'>Application_Links *app,<br>char *str,<br>int len<br></div>)
+</div>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Parameters</i></b></div><div>
+<div style='font-weight: 600;'>str</div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>the string to post to the clipboard</div></div>
 </div>
 <div>
-free_file_list
+<div style='font-weight: 600;'>len</div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>the length of the string str</div></div>
+</div>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>Stores the string str in the clipboard initially with index 0.
+Also reports the copy to the operating system, so that it may
+be pasted into other applications.</div></div><hr>
+<div id='clipboard_count_doc' style='margin-bottom: 1cm;'>
+ <h4>&sect;2.2.3: clipboard_count</h4>
+ <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>int clipboard_count(
+<div style='margin-left: 4mm;'>Application_Links *app<br></div>)
+</div>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>returns the number of items in the clipboard</div></div><hr>
+<div id='clipboard_index_doc' style='margin-bottom: 1cm;'>
+ <h4>&sect;2.2.4: clipboard_index</h4>
+ <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>int clipboard_index(
+<div style='margin-left: 4mm;'>Application_Links *app,<br>int index,<br>char *out,<br>int len<br></div>)
+</div>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Parameters</i></b></div><div>
+<div style='font-weight: 600;'>index</div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>the index of the item to be read</div></div>
 </div>
 <div>
-clipboard_post
+<div style='font-weight: 600;'>out</div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>a buffer where the clipboard contents are written or NULL</div></div>
 </div>
 <div>
-clipboard_count
+<div style='font-weight: 600;'>len</div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>the length of the out buffer</div></div>
+</div>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Return</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>returns the size of the item on the clipboard associated with the given index</div><div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>There are multiple items on the 4coder clipboard.  The most recent copy is always at
+index 0.  The second most recent is at index 1, and so on for all the stored clipboard items.
+This function reads one of the clipboard items and stores it into the out buffer, if the out
+buffer is not NULL.  This function always returns the size of the clipboard item specified
+even if the output buffer is NULL.  If the output buffer is too small to contain the whole
+string, it is filled with the first len character of the clipboard contents.  The output
+string is not null terminated.</div></div><hr>
+<div id='get_buffer_first_doc' style='margin-bottom: 1cm;'>
+ <h4>&sect;2.2.5: get_buffer_first</h4>
+ <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>Buffer_Summary get_buffer_first(
+<div style='margin-left: 4mm;'>Application_Links *app,<br>unsigned int access<br></div>)
+</div>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Parameters</i></b></div><div>
+<div style='font-weight: 600;'>access</div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>the access flags for the access</div></div>
+</div>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Return</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>returns the summary of the first buffer in a buffer loop</div><div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>Begins a loop across all the buffers.
+
+If the buffer returned does not exist, the loop is finished.  Buffers
+should not be killed durring a buffer loop.</div><div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>See Also</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'><a href='#Access_Flag_doc'>Access_Flag</a></div><div style='margin-left: 5mm; margin-right: 5mm;'><a href='#get_buffer_next_doc'>get_buffer_next</a></div></div><hr>
+<div id='get_buffer_next_doc' style='margin-bottom: 1cm;'>
+ <h4>&sect;2.2.6: get_buffer_next</h4>
+ <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>void get_buffer_next(
+<div style='margin-left: 4mm;'>Application_Links *app,<br>Buffer_Summary *buffer,<br>unsigned int access<br></div>)
+</div>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Parameters</i></b></div><div>
+<div style='font-weight: 600;'>buffer</div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>pointer to the loop buffer originally returned by get_buffer_first</div></div>
 </div>
 <div>
-clipboard_index
+<div style='font-weight: 600;'>access</div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>the access flags for the access</div></div>
+</div>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>Writes the next buffer into the buffer struct.  To get predictable results every
+call to get_buffer_first and get_buffer_next in the loop should have the same
+access flags.
+
+If the buffer returned does not exist, the loop is finished.  Buffers
+should not be killed durring a buffer loop.</div><div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>See Also</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'><a href='#Access_Flag_doc'>Access_Flag</a></div><div style='margin-left: 5mm; margin-right: 5mm;'><a href='#get_buffer_first_doc'>get_buffer_first</a></div></div><hr>
+<div id='get_buffer_doc' style='margin-bottom: 1cm;'>
+ <h4>&sect;2.2.7: get_buffer</h4>
+ <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>Buffer_Summary get_buffer(
+<div style='margin-left: 4mm;'>Application_Links *app,<br>int buffer_id,<br>unsigned int access<br></div>)
+</div>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Parameters</i></b></div><div>
+<div style='font-weight: 600;'>buffer_id</div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>the id of the buffer to get</div></div>
 </div>
 <div>
-get_buffer_first
+<div style='font-weight: 600;'>access</div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>the access flags for the access</div></div>
+</div>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Return</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>returns a summary that describes the indicated buffer if it exists and is accessible</div></div><hr>
+<div id='get_buffer_by_name_doc' style='margin-bottom: 1cm;'>
+ <h4>&sect;2.2.8: get_buffer_by_name</h4>
+ <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>Buffer_Summary get_buffer_by_name(
+<div style='margin-left: 4mm;'>Application_Links *app,<br>char *name,<br>int len,<br>unsigned int access<br></div>)
+</div>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Parameters</i></b></div><div>
+<div style='font-weight: 600;'>name</div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>the name of the buffer</div></div>
 </div>
 <div>
-get_buffer_next
+<div style='font-weight: 600;'>len</div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>the length of the name string</div></div>
 </div>
 <div>
-get_buffer
+<div style='font-weight: 600;'>access</div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>the access flags for the access</div></div>
+</div>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Return</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>returns a summary that describes the indicated buffer if it exists and is accessible</div></div><hr>
+<div id='buffer_boundary_seek_doc' style='margin-bottom: 1cm;'>
+ <h4>&sect;2.2.9: buffer_boundary_seek</h4>
+ <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>int buffer_boundary_seek(
+<div style='margin-left: 4mm;'>Application_Links *app,<br>Buffer_Summary *buffer,<br>int start_pos,<br>int seek_forward,<br>unsigned int flags<br></div>)
+</div>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Parameters</i></b></div><div>
+<div style='font-weight: 600;'>buffer</div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>the buffer to seek through</div></div>
 </div>
 <div>
-get_buffer_by_name
+<div style='font-weight: 600;'>start_pos</div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>the absolute position in the buffer to begin the seek</div></div>
 </div>
 <div>
-buffer_seek
+<div style='font-weight: 600;'>seek_forward</div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>non-zero indicates to seek forward otherwise the seek goes backward</div></div>
 </div>
 <div>
-buffer_read_range
+<div style='font-weight: 600;'>flags</div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>one or more types of boundaries to use for stopping the seek</div></div>
+</div>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Return</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>returns the position where the seek stops</div><div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>See Also</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'><a href='#Seek_Boundary_Flag_doc'>Seek_Boundary_Flag</a></div></div><hr>
+<div id='buffer_read_range_doc' style='margin-bottom: 1cm;'>
+ <h4>&sect;2.2.10: buffer_read_range</h4>
+ <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>int buffer_read_range(
+<div style='margin-left: 4mm;'>Application_Links *app,<br>Buffer_Summary *buffer,<br>int start,<br>int end,<br>char *out<br></div>)
+</div>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Parameters</i></b></div><div>
+<div style='font-weight: 600;'>buffer</div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>the buffer to read out of</div></div>
 </div>
 <div>
-buffer_replace_range
+<div style='font-weight: 600;'>start</div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>the beginning of the read range</div></div>
 </div>
 <div>
-buffer_set_setting
+<div style='font-weight: 600;'>end</div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>one past the end of the read range</div></div>
 </div>
 <div>
-buffer_auto_indent
+<div style='font-weight: 600;'>out</div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>the output buffer to fill with the result of the read</div></div>
+</div>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Return</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>returns non-zero on success</div><div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>The output buffer must have a capacity of at least (end - start)
+The output is not null terminated.
+
+This call fails if the buffer does not exist, or if the read range
+is not within the bounds of the buffer.</div></div><hr>
+<div id='buffer_replace_range_doc' style='margin-bottom: 1cm;'>
+ <h4>&sect;2.2.11: buffer_replace_range</h4>
+ <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>int buffer_replace_range(
+<div style='margin-left: 4mm;'>Application_Links *app,<br>Buffer_Summary *buffer,<br>int start,<br>int end,<br>char *str,<br>int len<br></div>)
+</div>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Parameters</i></b></div><div>
+<div style='font-weight: 600;'>buffer</div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>the buffer to edit</div></div>
 </div>
 <div>
-create_buffer
+<div style='font-weight: 600;'>start</div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>the start of the range to edit</div></div>
 </div>
 <div>
-save_buffer
+<div style='font-weight: 600;'>end</div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>the end of the range to edit</div></div>
 </div>
 <div>
-kill_buffer
+<div style='font-weight: 600;'>str</div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>the string to write into the range</div></div>
 </div>
 <div>
-get_view_first
+<div style='font-weight: 600;'>len</div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>the length of the str string</div></div>
+</div>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Return</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>returns non-zero if the replacement succeeds</div><div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>If this call succeeds it deletes the range from start to end
+and writes str in the same position.  If end == start then
+this call is equivalent to inserting the string at start.
+If len == 0 this call is equivalent to deleteing the range
+from start to end.
+
+This call fails if the buffer does not exist, or if the replace
+range is not within the bounds of the buffer.</div></div><hr>
+<div id='buffer_set_setting_doc' style='margin-bottom: 1cm;'>
+ <h4>&sect;2.2.12: buffer_set_setting</h4>
+ <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>int buffer_set_setting(
+<div style='margin-left: 4mm;'>Application_Links *app,<br>Buffer_Summary *buffer,<br>int setting,<br>int value<br></div>)
+</div>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Parameters</i></b></div><div>
+<div style='font-weight: 600;'>buffer</div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>the buffer to set a setting on</div></div>
 </div>
 <div>
-get_view_next
+<div style='font-weight: 600;'>setting</div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>one of the Buffer_Setting_ID enum values that identifies the setting to set</div></div>
 </div>
 <div>
-get_view
+<div style='font-weight: 600;'>value</div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>the value to set the specified setting to</div></div>
+</div>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>See Also</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'><a href='#Buffer_Setting_ID_doc'>Buffer_Setting_ID</a></div></div><hr>
+<div id='buffer_auto_indent_doc' style='margin-bottom: 1cm;'>
+ <h4>&sect;2.2.13: buffer_auto_indent</h4>
+ <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>int buffer_auto_indent(
+<div style='margin-left: 4mm;'>Application_Links *app,<br>Buffer_Summary *buffer,<br>int start,<br>int end,<br>int tab_width,<br>unsigned int flags<br></div>)
+</div>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Parameters</i></b></div><div>
+<div style='font-weight: 600;'>buffer</div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>the buffer in which to apply the auto indenting</div></div>
 </div>
 <div>
-get_active_view
+<div style='font-weight: 600;'>start</div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>the position to start the auto indenting</div></div>
 </div>
 <div>
-view_compute_cursor
+<div style='font-weight: 600;'>end</div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>the position to end the auto indenting</div></div>
 </div>
 <div>
-view_set_cursor
+<div style='font-weight: 600;'>tab_width</div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>the number of spaces to place as a tab</div></div>
 </div>
 <div>
-view_set_mark
+<div style='font-weight: 600;'>flags</div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>the auto tab behavior flags</div></div>
+</div>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Return</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>returns non-zero when the call succeeds</div><div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>Applies the built in auto-indentation rule to the code in the range from
+start to end by inserting spaces or tabs at the beginning of the lines.
+If the buffer does not have lexing enabled or the lexing job has not
+completed this function will fail.</div><div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>See Also</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'><a href='#Auto_Tab_Flag_doc'>Auto_Tab_Flag</a></div></div><hr>
+<div id='create_buffer_doc' style='margin-bottom: 1cm;'>
+ <h4>&sect;2.2.14: create_buffer</h4>
+ <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>Buffer_Summary create_buffer(
+<div style='margin-left: 4mm;'>Application_Links *app,<br>char *filename,<br>int filename_len,<br>unsigned int flags<br></div>)
+</div>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Parameters</i></b></div><div>
+<div style='font-weight: 600;'>filename</div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>the name of the file to be opened or created</div></div>
 </div>
 <div>
-view_set_highlight
+<div style='font-weight: 600;'>filename_len</div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>the length of the filename string</div></div>
 </div>
 <div>
-view_set_buffer
+<div style='font-weight: 600;'>flags</div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>flags for buffer creation behavior</div></div>
+</div>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Return</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>returns the summary of the created buffer on success or a NULL buffer otherwise</div><div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>Tries to create a new buffer and associate it to the given filename.  If such a buffer already
+exists the existing buffer is returned in the buffer summary and no new buffer is created.
+If the buffer does not exist a new buffer is created and named after the given filename.  If
+the filename corresponds to a file on the disk that file is loaded and put into buffer, if
+the filename does not correspond to a file on disk the buffer is created empty.</div><div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>See Also</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'><a href='#Buffer_Create_Flag_doc'>Buffer_Create_Flag</a></div></div><hr>
+<div id='save_buffer_doc' style='margin-bottom: 1cm;'>
+ <h4>&sect;2.2.15: save_buffer</h4>
+ <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>int save_buffer(
+<div style='margin-left: 4mm;'>Application_Links *app,<br>Buffer_Summary *buffer,<br>char *filename,<br>int filename_len,<br>unsigned int flags<br></div>)
+</div>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Parameters</i></b></div><div>
+<div style='font-weight: 600;'>buffer</div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>the buffer to save to a file</div></div>
 </div>
 <div>
-view_post_fade
+<div style='font-weight: 600;'>filename</div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>the name of the file to save the buffer into</div></div>
 </div>
 <div>
-view_set_paste_rewrite_
+<div style='font-weight: 600;'>filename_len</div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>length of the filename string</div></div>
 </div>
 <div>
-view_get_paste_rewrite_
+<div style='font-weight: 600;'>flags</div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>not currently used</div></div>
+</div>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Return</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>returns non-zero if the save succeeds</div></div><hr>
+<div id='kill_buffer_doc' style='margin-bottom: 1cm;'>
+ <h4>&sect;2.2.16: kill_buffer</h4>
+ <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>int kill_buffer(
+<div style='margin-left: 4mm;'>Application_Links *app,<br>Buffer_Identifier buffer,<br>int view_id,<br>unsigned int flags<br></div>)
+</div>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Parameters</i></b></div><div>
+<div style='font-weight: 600;'>buffer</div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>a buffer identifier specifying the buffer to try to kill</div></div>
 </div>
 <div>
-get_user_input
+<div style='font-weight: 600;'>view_id</div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>the id of view that will contain the "are you sure" dialogue</div></div>
 </div>
 <div>
-get_command_input
+<div style='font-weight: 600;'>flags</div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>flags for buffer kill behavior</div></div>
+</div>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Return</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>returns non-zero if the kill succeeds</div><div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>Tries to kill the idenfied buffer.  If the buffer is dirty and the "are you sure"
+dialogue needs to be displayed the provided view is used to show the dialogue.
+If the view is not open the kill fails.</div><div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>See Also</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'><a href='#Buffer_Kill_Flags_doc'>Buffer_Kill_Flags</a></div></div><hr>
+<div id='get_view_first_doc' style='margin-bottom: 1cm;'>
+ <h4>&sect;2.2.17: get_view_first</h4>
+ <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>View_Summary get_view_first(
+<div style='margin-left: 4mm;'>Application_Links *app,<br>unsigned int access<br></div>)
+</div>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Parameters</i></b></div><div>
+<div style='font-weight: 600;'>access</div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>the access flags for the access</div></div>
+</div>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Return</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>returns the summary of the first view in a view loop</div><div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>Begins a loop across all the open views.
+
+If the view summary returned is NULL, the loop is finished.
+Views should not be closed or opened durring a view loop.</div><div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>See Also</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'><a href='#Access_Flag_doc'>Access_Flag</a></div><div style='margin-left: 5mm; margin-right: 5mm;'><a href='#get_view_next_doc'>get_view_next</a></div></div><hr>
+<div id='get_view_next_doc' style='margin-bottom: 1cm;'>
+ <h4>&sect;2.2.18: get_view_next</h4>
+ <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>void get_view_next(
+<div style='margin-left: 4mm;'>Application_Links *app,<br>View_Summary *view,<br>unsigned int access<br></div>)
+</div>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Parameters</i></b></div><div>
+<div style='font-weight: 600;'>view</div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>pointer to the loop view originally returned by get_view_first</div></div>
 </div>
 <div>
-get_mouse_state
+<div style='font-weight: 600;'>access</div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>the access flags for the access</div></div>
+</div>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>Writes the next view into the view struct.  To get predictable results every
+call to get_view_first and get_view_next in the loop should have the same
+access flags.
+
+If the view summary returned is NULL, the loop is finished.
+Views should not be closed or opened durring a view loop.</div><div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>See Also</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'><a href='#Access_Flag_doc'>Access_Flag</a></div><div style='margin-left: 5mm; margin-right: 5mm;'><a href='#get_view_first_doc'>get_view_first</a></div></div><hr>
+<div id='get_view_doc' style='margin-bottom: 1cm;'>
+ <h4>&sect;2.2.19: get_view</h4>
+ <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>View_Summary get_view(
+<div style='margin-left: 4mm;'>Application_Links *app,<br>int view_id,<br>unsigned int access<br></div>)
+</div>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Parameters</i></b></div><div>
+<div style='font-weight: 600;'>view_id</div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>the id of the view to get</div></div>
 </div>
 <div>
-start_query_bar
+<div style='font-weight: 600;'>access</div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>the access flags for the access</div></div>
+</div>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Return</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>returns a summary that describes the indicated view if it is open and is accessible</div></div><hr>
+<div id='get_active_view_doc' style='margin-bottom: 1cm;'>
+ <h4>&sect;2.2.20: get_active_view</h4>
+ <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>View_Summary get_active_view(
+<div style='margin-left: 4mm;'>Application_Links *app,<br>unsigned int access<br></div>)
+</div>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Parameters</i></b></div><div>
+<div style='font-weight: 600;'>access</div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>the access flags for the access</div></div>
+</div>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Return</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>returns a summary that describes the active view</div></div><hr>
+<div id='view_compute_cursor_doc' style='margin-bottom: 1cm;'>
+ <h4>&sect;2.2.21: view_compute_cursor</h4>
+ <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>int view_compute_cursor(
+<div style='margin-left: 4mm;'>Application_Links *app,<br>View_Summary *view,<br>Buffer_Seek seek,<br>Full_Cursor *cursor_out<br></div>)
+</div>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Parameters</i></b></div><div>
+<div style='font-weight: 600;'>view</div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>the view on which to run the cursor computation</div></div>
 </div>
 <div>
-end_query_bar
+<div style='font-weight: 600;'>seek</div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>the seek position</div></div>
 </div>
 <div>
-print_message
+<div style='font-weight: 600;'>cursor_out</div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>on success this is filled with result of the seek</div></div>
+</div>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Return</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>returns non-zero on success</div><div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>Computes a full cursor for the given seek position.</div><div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>See Also</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'><a href='#Buffer_Seek_doc'>Buffer_Seek</a></div></div><hr>
+<div id='view_set_cursor_doc' style='margin-bottom: 1cm;'>
+ <h4>&sect;2.2.22: view_set_cursor</h4>
+ <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>int view_set_cursor(
+<div style='margin-left: 4mm;'>Application_Links *app,<br>View_Summary *view,<br>Buffer_Seek seek,<br>int set_preferred_x<br></div>)
+</div>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Parameters</i></b></div><div>
+<div style='font-weight: 600;'>view</div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>the view in which to set the cursor</div></div>
 </div>
 <div>
-change_theme
+<div style='font-weight: 600;'>seek</div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>the seek position</div></div>
 </div>
 <div>
-change_font
+<div style='font-weight: 600;'>set_preferred_x</div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>if true the preferred x is updated to match the new cursor position</div></div>
+</div>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Return</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>returns non-zero on success</div><div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>Sets the the view's cursor position.  set_preferred_x should usually be true unless the change in
+cursor position is is a vertical motion that tries to keep the cursor in the same column or x position.</div><div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>See Also</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'><a href='#Buffer_Seek_doc'>Buffer_Seek</a></div></div><hr>
+<div id='view_set_mark_doc' style='margin-bottom: 1cm;'>
+ <h4>&sect;2.2.23: view_set_mark</h4>
+ <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>int view_set_mark(
+<div style='margin-left: 4mm;'>Application_Links *app,<br>View_Summary *view,<br>Buffer_Seek seek<br></div>)
+</div>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Parameters</i></b></div><div>
+<div style='font-weight: 600;'>view</div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>the view in which to set the mark</div></div>
 </div>
 <div>
-set_theme_colors
+<div style='font-weight: 600;'>seek</div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>the seek position</div></div>
+</div>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Return</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>returns non-zero on success</div><div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>Sets the the view's mark position.</div><div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>See Also</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'><a href='#Buffer_Seek_doc'>Buffer_Seek</a></div></div><hr>
+<div id='view_set_highlight_doc' style='margin-bottom: 1cm;'>
+ <h4>&sect;2.2.24: view_set_highlight</h4>
+ <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>int view_set_highlight(
+<div style='margin-left: 4mm;'>Application_Links *app,<br>View_Summary *view,<br>int start,<br>int end,<br>int turn_on<br></div>)
+</div>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Parameters</i></b></div><div>
+<div style='font-weight: 600;'>view</div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>the view to set the highlight in</div></div>
 </div>
 <div>
-get_theme_colors
+<div style='font-weight: 600;'>start</div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>the start of the highlight range</div></div>
 </div>
-</body></html>
+<div>
+<div style='font-weight: 600;'>end</div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>the end of the highlight range</div></div>
+</div>
+<div>
+<div style='font-weight: 600;'>turn_on</div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>indicates whether the highlight is being turned on or off</div></div>
+</div>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Return</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>returns non-zero on success</div><div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>The highlight is mutually exclusive to the cursor.  When the turn_on parameter
+is set to true the highlight will be shown and the cursor will be hidden.  After
+that either setting the with view_set_cursor or calling view_set_highlight and
+the turn_on set to false, will switch back to showing the cursor.</div></div><hr>
+<div id='view_set_buffer_doc' style='margin-bottom: 1cm;'>
+ <h4>&sect;2.2.25: view_set_buffer</h4>
+ <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>int view_set_buffer(
+<div style='margin-left: 4mm;'>Application_Links *app,<br>View_Summary *view,<br>int buffer_id,<br>unsigned int flags<br></div>)
+</div>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Parameters</i></b></div><div>
+<div style='font-weight: 600;'>view</div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>the view to display the buffer in</div></div>
+</div>
+<div>
+<div style='font-weight: 600;'>buffer_id</div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>the buffer to show in the view</div></div>
+</div>
+<div>
+<div style='font-weight: 600;'>flags</div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>set buffer behavior flags</div></div>
+</div>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Return</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>returns non-zero on success</div><div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>On success view_set_buffer sets the specified view's current buffer and
+cancels and dialogue shown in the view and displays the file.</div><div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>See Also</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'><a href='#Set_Buffer_Flag_doc'>Set_Buffer_Flag</a></div></div><hr>
+<div id='view_post_fade_doc' style='margin-bottom: 1cm;'>
+ <h4>&sect;2.2.26: view_post_fade</h4>
+ <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>int view_post_fade(
+<div style='margin-left: 4mm;'>Application_Links *app,<br>View_Summary *view,<br>float seconds,<br>int start,<br>int end,<br>unsigned int color<br></div>)
+</div>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Parameters</i></b></div><div>
+<div style='font-weight: 600;'>view</div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>the veiw to post a fade effect to</div></div>
+</div>
+<div>
+<div style='font-weight: 600;'>seconds</div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>the number of seconds the fade effect should last</div></div>
+</div>
+<div>
+<div style='font-weight: 600;'>start</div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>the first character in the fade range</div></div>
+</div>
+<div>
+<div style='font-weight: 600;'>end</div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>one after the last character in the fade range</div></div>
+</div>
+<div>
+<div style='font-weight: 600;'>color</div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>the color to fade from</div></div>
+</div>
+</div><hr>
+<div id='view_set_paste_rewrite__doc' style='margin-bottom: 1cm;'>
+ <h4>&sect;2.2.27: view_set_paste_rewrite_</h4>
+ <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>void view_set_paste_rewrite_(
+<div style='margin-left: 4mm;'>Application_Links *app,<br>View_Summary *view<br></div>)
+</div>
+No documentation generated for this function, assume it is non-public.
+</div><hr>
+<div id='view_get_paste_rewrite__doc' style='margin-bottom: 1cm;'>
+ <h4>&sect;2.2.28: view_get_paste_rewrite_</h4>
+ <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>int view_get_paste_rewrite_(
+<div style='margin-left: 4mm;'>Application_Links *app,<br>View_Summary *view<br></div>)
+</div>
+No documentation generated for this function, assume it is non-public.
+</div><hr>
+<div id='get_user_input_doc' style='margin-bottom: 1cm;'>
+ <h4>&sect;2.2.29: get_user_input</h4>
+ <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>User_Input get_user_input(
+<div style='margin-left: 4mm;'>Application_Links *app,<br>unsigned int get_type,<br>unsigned int abort_type<br></div>)
+</div>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Parameters</i></b></div><div>
+<div style='font-weight: 600;'>get_type</div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>input type flag that specifies the types of inputs that should be returned</div></div>
+</div>
+<div>
+<div style='font-weight: 600;'>abort_type</div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>input type flag that specifies the types of inputs that should cause an abort signal</div></div>
+</div>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Return</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>returns a User_Input that describes an event passed to the command</div><div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>This call preempts the command. The command is resumed if either a get or abort condition
+is met, or if another command is executed.  If either the abort condition is met or another
+command is executed an abort signal is returned.  If an abort signal is ever returned the
+command should finish execution without any more calls that preempt the command.
+If a get condition is met the user input is returned</div><div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>See Also</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'><a href='#Input_Type_Flag_doc'>Input_Type_Flag</a></div><div style='margin-left: 5mm; margin-right: 5mm;'><a href='#User_Input_doc'>User_Input</a></div></div><hr>
+<div id='get_command_input_doc' style='margin-bottom: 1cm;'>
+ <h4>&sect;2.2.30: get_command_input</h4>
+ <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>User_Input get_command_input(
+<div style='margin-left: 4mm;'>Application_Links *app<br></div>)
+</div>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Return</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>returns the input that triggered the command in execution.</div><div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>See Also</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'><a href='#User_Input_doc'>User_Input</a></div></div><hr>
+<div id='get_mouse_state_doc' style='margin-bottom: 1cm;'>
+ <h4>&sect;2.2.31: get_mouse_state</h4>
+ <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>Mouse_State get_mouse_state(
+<div style='margin-left: 4mm;'>Application_Links *app<br></div>)
+</div>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Return</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>returns the current mouse state</div><div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>See Also</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'><a href='#Mouse_State_doc'>Mouse_State</a></div></div><hr>
+<div id='start_query_bar_doc' style='margin-bottom: 1cm;'>
+ <h4>&sect;2.2.32: start_query_bar</h4>
+ <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>int start_query_bar(
+<div style='margin-left: 4mm;'>Application_Links *app,<br>Query_Bar *bar,<br>unsigned int flags<br></div>)
+</div>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Parameters</i></b></div><div>
+<div style='font-weight: 600;'>bar</div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>a pointer to the Query_Bar struct that defines the bar's contents</div></div>
+</div>
+<div>
+<div style='font-weight: 600;'>flags</div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>not currently used</div></div>
+</div>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Return</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>returns non-zero on success</div><div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>The memory pointed to by bar must remain valid until a call to end_query_bar or
+until the command returns.</div></div><hr>
+<div id='end_query_bar_doc' style='margin-bottom: 1cm;'>
+ <h4>&sect;2.2.33: end_query_bar</h4>
+ <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>void end_query_bar(
+<div style='margin-left: 4mm;'>Application_Links *app,<br>Query_Bar *bar,<br>unsigned int flags<br></div>)
+</div>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Parameters</i></b></div><div>
+<div style='font-weight: 600;'>bar</div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>a pointer to the Query_Bar struct to end</div></div>
+</div>
+<div>
+<div style='font-weight: 600;'>flags</div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>not currently used</div></div>
+</div>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>bar must be a pointer previously passed to start_query_bar previously in the same command.</div></div><hr>
+<div id='print_message_doc' style='margin-bottom: 1cm;'>
+ <h4>&sect;2.2.34: print_message</h4>
+ <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>void print_message(
+<div style='margin-left: 4mm;'>Application_Links *app,<br>char *str,<br>int len<br></div>)
+</div>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Parameters</i></b></div><div>
+<div style='font-weight: 600;'>str</div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>the string to post to *messages*</div></div>
+</div>
+<div>
+<div style='font-weight: 600;'>len</div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>the length of str string</div></div>
+</div>
+</div><hr>
+<div id='change_theme_doc' style='margin-bottom: 1cm;'>
+ <h4>&sect;2.2.35: change_theme</h4>
+ <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>void change_theme(
+<div style='margin-left: 4mm;'>Application_Links *app,<br>char *name,<br>int len<br></div>)
+</div>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Parameters</i></b></div><div>
+<div style='font-weight: 600;'>name</div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>the name of the built in theme to change to</div></div>
+</div>
+<div>
+<div style='font-weight: 600;'>len</div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>the length of the name string</div></div>
+</div>
+</div><hr>
+<div id='change_font_doc' style='margin-bottom: 1cm;'>
+ <h4>&sect;2.2.36: change_font</h4>
+ <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>void change_font(
+<div style='margin-left: 4mm;'>Application_Links *app,<br>char *name,<br>int len<br></div>)
+</div>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Parameters</i></b></div><div>
+<div style='font-weight: 600;'>name</div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>the name of the built in font to change to</div></div>
+</div>
+<div>
+<div style='font-weight: 600;'>len</div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>the length of the name string</div></div>
+</div>
+</div><hr>
+<div id='set_theme_colors_doc' style='margin-bottom: 1cm;'>
+ <h4>&sect;2.2.37: set_theme_colors</h4>
+ <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>void set_theme_colors(
+<div style='margin-left: 4mm;'>Application_Links *app,<br>Theme_Color *colors,<br>int count<br></div>)
+</div>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Parameters</i></b></div><div>
+<div style='font-weight: 600;'>colors</div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>an array of color structs pairing differet style tags to color codes</div></div>
+</div>
+<div>
+<div style='font-weight: 600;'>count</div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>the number of color structs in the colors array</div></div>
+</div>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>For each color struct in the array, the color in the style pallet is set to the color
+code paired with the tag.</div></div><hr>
+<div id='get_theme_colors_doc' style='margin-bottom: 1cm;'>
+ <h4>&sect;2.2.38: get_theme_colors</h4>
+ <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>void get_theme_colors(
+<div style='margin-left: 4mm;'>Application_Links *app,<br>Theme_Color *colors,<br>int count<br></div>)
+</div>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Parameters</i></b></div><div>
+<div style='font-weight: 600;'>colors</div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>an array of color structs listing style tags to get color values for</div></div>
+</div>
+<div>
+<div style='font-weight: 600;'>count</div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>the number of color structs in the colors array</div></div>
+</div>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>For each color struct in the array, the color field of the struct is filled with the
+color from the specified color in the pallet.</div></div><hr>
+<div id='directory_get_hot_doc' style='margin-bottom: 1cm;'>
+ <h4>&sect;2.2.39: directory_get_hot</h4>
+ <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>int directory_get_hot(
+<div style='margin-left: 4mm;'>Application_Links *app,<br>char *out,<br>int capacity<br></div>)
+</div>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Parameters</i></b></div><div>
+<div style='font-weight: 600;'>out</div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>a buffer that receives the 4coder 'hot directory'</div></div>
+</div>
+<div>
+<div style='font-weight: 600;'>capacity</div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>the maximum size to be output to the output buffer</div></div>
+</div>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Return</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>returns the size of the string written into the buffer</div><div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>4coder has a concept of a 'hot directory' which is the directory most recently
+accessed in the GUI.  Whenever the GUI is opened it shows the hot directory.
+
+In the future this will be deprecated and eliminated in favor of more flexible
+directories controlled by the custom side.</div></div><hr>
+<div id='get_file_list_doc' style='margin-bottom: 1cm;'>
+ <h4>&sect;2.2.40: get_file_list</h4>
+ <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>File_List get_file_list(
+<div style='margin-left: 4mm;'>Application_Links *app,<br>char *dir,<br>int len<br></div>)
+</div>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Parameters</i></b></div><div>
+<div style='font-weight: 600;'>dir</div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>the directory whose files will be enumerated in the returned list</div></div>
+</div>
+<div>
+<div style='font-weight: 600;'>len</div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>the length of the dir string</div></div>
+</div>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Return</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>returns a File_List struct containing pointers to the names of the files in
+the specified directory.  The File_List returned should be passed to free_file_list
+when it is no longer in use.</div></div><hr>
+<div id='free_file_list_doc' style='margin-bottom: 1cm;'>
+ <h4>&sect;2.2.41: free_file_list</h4>
+ <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>void free_file_list(
+<div style='margin-left: 4mm;'>Application_Links *app,<br>File_List list<br></div>)
+</div>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Parameters</i></b></div><div>
+<div style='font-weight: 600;'>list</div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>the file list to be freed</div></div>
+</div>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>after this call the file list passed in should not be read or written to</div></div><hr>
+<div id='file_exists_doc' style='margin-bottom: 1cm;'>
+ <h4>&sect;2.2.42: file_exists</h4>
+ <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>int file_exists(
+<div style='margin-left: 4mm;'>Application_Links *app,<br>char *filename,<br>int len<br></div>)
+</div>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Parameters</i></b></div><div>
+<div style='font-weight: 600;'>filename</div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>the full path to a file</div></div>
+</div>
+<div>
+<div style='font-weight: 600;'>len</div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>the number of characters in the filename string</div></div>
+</div>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Return</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>returns non-zero if the file exists, returns zero if the file does not exist</div></div><hr>
+<div id='directory_cd_doc' style='margin-bottom: 1cm;'>
+ <h4>&sect;2.2.43: directory_cd</h4>
+ <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>int directory_cd(
+<div style='margin-left: 4mm;'>Application_Links *app,<br>char *dir,<br>int *len,<br>int capacity,<br>char *rel_path,<br>int rel_len<br></div>)
+</div>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Parameters</i></b></div><div>
+<div style='font-weight: 600;'>dir</div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>a string buffer containing a directory</div></div>
+</div>
+<div>
+<div style='font-weight: 600;'>len</div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>the length of the string in the string buffer</div></div>
+</div>
+<div>
+<div style='font-weight: 600;'>capacity</div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>the maximum size of the string buffer</div></div>
+</div>
+<div>
+<div style='font-weight: 600;'>rel_path</div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>the path to change to, may include '.' or '..'</div></div>
+</div>
+<div>
+<div style='font-weight: 600;'>rel_len</div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>the length of the rel_path string</div></div>
+</div>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Return</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>returns non-zero if the call succeeds, returns zero otherwise</div><div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>This call succeeds if the directory exists and the new directory fits inside the dir buffer.
+If the call succeeds the dir buffer is filled with the new directory and len contains the
+length of the string in the buffer.
+
+For instance if dir contains "C:/Users/MySelf" and rel is "Documents" the buffer will contain
+"C:/Users/MySelf/Documents" and len will contain the length of that string.  This call can
+also be used with rel set to ".." to traverse to parent folders.</div></div><hr>
+<div id='get_4ed_path_doc' style='margin-bottom: 1cm;'>
+ <h4>&sect;2.2.44: get_4ed_path</h4>
+ <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>int get_4ed_path(
+<div style='margin-left: 4mm;'>Application_Links *app,<br>char *out,<br>int capacity<br></div>)
+</div>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Parameters</i></b></div><div>
+<div style='font-weight: 600;'>out</div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>a buffer that receives the path to the 4ed executable file</div></div>
+</div>
+<div>
+<div style='font-weight: 600;'>capacity</div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>the maximum capacity of the output buffer</div></div>
+</div>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Return</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>returns non-zero on success, returns zero on failure</div></div><hr>
+</div>
+</body>
+</html>

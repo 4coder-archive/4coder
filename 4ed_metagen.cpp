@@ -19,6 +19,8 @@
 #define FCPP_LEXER_IMPLEMENTATION
 #include "4cpp_lexer.h"
 
+#include "4coder_version.h"
+
 struct Struct_Field{
     char *type;
     char *name;
@@ -328,16 +330,36 @@ char* generate_style(){
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////
-struct Function_Set{
+typedef struct Argument_Breakdown{
+    int count;
+    String *param_string;
+    String *param_name;
+} Argument_Breakdown;
+
+typedef struct Documentation{
+    int param_count;
+    String *param_name;
+    String *param_docs;
+    String return_doc;
+    String main_doc;
+    int see_also_count;
+    String *see_also;
+} Documentation;
+
+typedef struct Function_Set{
     String *name;
     String *ret;
     String *args;
     
     String *macros;
     String *public_name;
+    String *doc_string;
     
     int    *valid;
-};
+    
+    Argument_Breakdown *breakdown;
+    Documentation *doc;
+} Function_Set;
 
 void
 zero_index(Function_Set fnc_set, int sig_count){
@@ -416,6 +438,13 @@ chop_whitespace(String str){
     return(result);
 }
 
+String
+skip_chop_whitespace(String str){
+    str = skip_whitespace(str);
+    str = chop_whitespace(str);
+    return(str);
+}
+
 int
 is_comment(String str){
     int result = 0;
@@ -428,9 +457,8 @@ is_comment(String str){
     return(result);
 }
 
-struct Doc_Parse{
+struct Parse{
     Cpp_Token_Stack tokens;
-    String doc_string;
 };
 
 int
@@ -454,6 +482,13 @@ check_and_fix_docs(String *lexeme){
     return(result);
 }
 
+enum Doc_Note_Type{
+    DOC_PARAM,
+    DOC_RETURN,
+    DOC,
+    DOC_SEE
+};
+
 static String
 doc_note_string[] = {
     make_lit_string("DOC_PARAM"),
@@ -462,27 +497,195 @@ doc_note_string[] = {
     make_lit_string("DOC_SEE"),
 };
 
+String
+doc_parse_note(String source, int *pos){
+    String result = {0};
+    
+    int p = *pos;
+    int start = p;
+    for (; p < source.size; ++p){
+        if (source.str[p] == '('){
+            break;
+        }
+    }
+    if (p != source.size){
+        result = make_string(source.str + start, p - start);
+        result = skip_chop_whitespace(result);
+    }
+    *pos = p;
+    
+    return(result);
+}
+
+String
+doc_parse_note_string(String source, int *pos){
+    String result = {0};
+    
+    assert(source.str[*pos] == '(');
+    
+    int p = *pos + 1;
+    int start = p;
+    
+    int nest_level = 0;
+    
+    for (; p < source.size; ++p){
+        if (source.str[p] == ')'){
+            if (nest_level == 0){
+                break;
+            }
+            else{
+                --nest_level;
+            }
+        }
+        else if (source.str[p] == '('){
+            ++nest_level;
+        }
+    }
+    if (p != source.size){
+        result = make_string(source.str + start, p - start);
+        result = skip_chop_whitespace(result);
+        ++p;
+    }
+    *pos = p;
+    
+    return(result);
+}
+
+String
+doc_parse_parameter(String source, int *pos){
+    String result = {0};
+    
+    int p = *pos;
+    int start = p;
+    
+    for (; p < source.size; ++p){
+        if (source.str[p] == ','){
+            break;
+        }
+    }
+    if (p != source.size){
+        result = make_string(source.str + start, p - start);
+        result = skip_chop_whitespace(result);
+        ++p;
+    }
+    *pos = p;
+    
+    return(result);
+}
+
+String
+doc_parse_last_parameter(String source, int *pos){
+    String result = {0};
+    
+    int p = *pos;
+    int start = p;
+    
+    for (; p < source.size; ++p){
+        if (source.str[p] == ')'){
+            break;
+        }
+    }
+    if (p == source.size){
+        result = make_string(source.str + start, p - start);
+        result = skip_chop_whitespace(result);
+    }
+    *pos = p;
+    
+    return(result);    
+}
+
 void
-perform_doc_parse(Doc_Parse *parse, String lexeme){
-#if 0
+perform_doc_parse(String doc_string, Documentation *doc){
     int keep_parsing = true;
     int pos = 0;
     
+    int param_count = 0;
+    int see_count = 0;
+    
     do{
-        String doc_note = doc_parse_identifier(lexeme, &pos);
+        String doc_note = doc_parse_note(doc_string, &pos);
         if (doc_note.size == 0){
             keep_parsing = false;
         }
         else{
-            if (string_set_match(doc_note_string, ArrayCount(doc_note_string), doc_note, &match)){
+            int doc_note_type;
+            if (string_set_match(doc_note_string, ArrayCount(doc_note_string), doc_note, &doc_note_type)){
                 
-            }
-            else{
-                // TODO(allen): do warning
+                doc_parse_note_string(doc_string, &pos);
+                
+                switch (doc_note_type){
+                    case DOC_PARAM:
+                    ++param_count;
+                    break;
+                    
+                    case DOC_SEE:
+                    ++see_count;
+                    break;
+                }
             }
         }
     }while(keep_parsing);
-#endif
+    
+    if (param_count + see_count > 0){
+        int memory_size = sizeof(String)*(2*param_count + see_count);
+        doc->param_name = (String*)malloc(memory_size);
+        doc->param_docs = doc->param_name + param_count;
+        doc->see_also   = doc->param_docs + param_count;
+        
+        doc->param_count = param_count;
+        doc->see_also_count = see_count;
+    }
+    
+    int param_index = 0;
+    int see_index = 0;
+    
+    keep_parsing = true;
+    pos = 0;
+    do{
+        String doc_note = doc_parse_note(doc_string, &pos);
+        if (doc_note.size == 0){
+            keep_parsing = false;
+        }
+        else{
+            int doc_note_type;
+            if (string_set_match(doc_note_string, ArrayCount(doc_note_string), doc_note, &doc_note_type)){
+                
+                String doc_note_string = doc_parse_note_string(doc_string, &pos);
+                
+                switch (doc_note_type){
+                    case DOC_PARAM:
+                    {
+                        assert(param_index < param_count);
+                        int param_pos = 0;
+                        String param_name = doc_parse_parameter(doc_note_string, &param_pos);
+                        String param_docs = doc_parse_last_parameter(doc_note_string, &param_pos);
+                        doc->param_name[param_index] = param_name;
+                        doc->param_docs[param_index] = param_docs;
+                        ++param_index;
+                    }break;
+                    
+                    case DOC_RETURN:
+                    {
+                        doc->return_doc = doc_note_string;
+                    }break;
+                    
+                    case DOC:
+                    {
+                        doc->main_doc = doc_note_string;
+                    }break;
+                    
+                    case DOC_SEE:
+                    {
+                        assert(see_index < see_count);
+                        doc->see_also[see_index++] = doc_note_string;
+                    }break;
+                }
+            }
+            else{
+                printf("warning: invalid doc note %.*s\n", doc_note.size, doc_note.str);
+            }
+        }
+    }while(keep_parsing);
 }
 
 char*
@@ -492,92 +695,242 @@ generate_custom_headers(){
     
     char *filename = API_H " & " API_DOC;
     
-    // NOTE(allen): Header
-    String data = file_dump("custom_api_spec.cpp");
-    
-    int line_count = 0;
-    String line = {0};
-    for (line = get_first_line(data);
-         line.str;
-         line = get_next_line(data, line)){
-        ++line_count;
-    }
-    
     Function_Set function_set = {0};
     
-    function_set.name        = (String*)malloc((sizeof(String)*5 + sizeof(int))*line_count);
-    function_set.ret         = function_set.name + line_count;
-    function_set.args        = function_set.ret + line_count;
-    function_set.macros      = function_set.args + line_count;
-    function_set.public_name = function_set.macros + line_count;
-    function_set.valid       = (int*)(function_set.public_name + line_count);
+    // NOTE(allen): Documentation
+    String code_data[2];
+    code_data[0] = file_dump("4ed_api_implementation.cpp");
+    code_data[1] = file_dump("win32_api_impl.cpp");
+    Parse parses[2];
     
     int max_name_size = 0;
-    int sig_count = 0;
-    line_count = 0;
-    for (line = get_first_line(data);
-         line.str;
-         line = get_next_line(data, line)){
+    int line_count = 0;
+    
+    for (int J = 0; J < 2; ++J){
+        String *code = &code_data[J];
+        Parse *parse = &parses[J];
         
-        ++line_count;
+        // TODO(allen): KILL THIS FUCKIN' Cpp_File FUCKIN' NONSENSE HORSE SHIT!!!!!
+        Cpp_File file;
+        file.data = code->str;
+        file.size = code->size;
         
-        String parse = line;
-        parse = skip_whitespace(parse);
-        parse = chop_whitespace(parse);
-        if (parse.size > 0){
-            if (!is_comment(parse)){
-                zero_index(function_set, sig_count);
-                int valid = false;
-                
-                int pos = find(parse, 0, ' ');
-                function_set.ret[sig_count] = substr(parse, 0, pos);
-                parse = substr(parse, pos);
-                parse = skip_whitespace(parse);
-                
-                if (parse.size > 0){
-                    pos = find(parse, 0, '(');
-                    
-                    String name_string = substr(parse, 0, pos);
-                    function_set.name[sig_count] = chop_whitespace(name_string);
-                    parse = substr(parse, pos);
-                    
-                    if (parse.size > 0){
-                        char end = parse.str[parse.size - 1];
-                        valid = true;
-                        
-                        switch (end){
-                            case ')':
-                            function_set.args[sig_count] = parse;
-                            break;
-                            
-                            case ';':
-                            --parse.size;
-                            function_set.args[sig_count] = parse;
-                            break;
-                            
-                            default:
-                            valid = false;
+        parse->tokens = cpp_make_token_stack(512);
+        cpp_lex_file(file, &parse->tokens);
+        
+        int count = parse->tokens.count;
+        Cpp_Token *tokens = parse->tokens.tokens;
+        
+        Cpp_Token *token = tokens;
+        
+        for (int i = 0; i < count; ++i, ++token){
+            if (token->type == CPP_TOKEN_IDENTIFIER &&
+                !(token->flags & CPP_TFLAG_PP_BODY)){
+                String lexeme = make_string(file.data + token->start, token->size);
+                if (match(lexeme, "API_EXPORT")){
+                    for (; i < count; ++i, ++token){
+                        if (token->type == CPP_TOKEN_PARENTHESE_OPEN){
                             break;
                         }
-                        function_set.valid[sig_count] = valid;
+                    }
+                    
+                    if (i < count){
+                        --i;
+                        --token;
                         
-                        if (max_name_size < name_string.size){
-                            max_name_size = name_string.size;
+                        if (token->type == CPP_TOKEN_IDENTIFIER){
+                            ++line_count;
+                            
+                            if (max_name_size < token->size){
+                                max_name_size = token->size;
+                            }
                         }
                     }
                 }
-                
-                if (!valid){
-                    printf("custom_api_spec.cpp(%d) : generator warning : invalid function signature\n",
-                           line_count);
-                }
-                
-                ++sig_count;
             }
         }
     }
     
-    FILE *file = fopen(API_H, "wb");
+    int memory_size = (sizeof(String)*6 + sizeof(int) + sizeof(Argument_Breakdown) + sizeof(Documentation))*line_count;
+    
+    function_set.name        = (String*)malloc(memory_size);
+    function_set.ret         = function_set.name + line_count;
+    function_set.args        = function_set.ret + line_count;
+    function_set.macros      = function_set.args + line_count;
+    function_set.public_name = function_set.macros + line_count;
+    function_set.doc_string  = function_set.public_name + line_count;
+    function_set.valid       = (int*)(function_set.doc_string + line_count);
+    function_set.breakdown   = (Argument_Breakdown*)(function_set.valid + line_count);
+    function_set.doc         = (Documentation*)(function_set.breakdown + line_count);
+    
+    memset(function_set.name, 0, memory_size);
+    
+    int sig_count = 0;
+    for (int J = 0; J < 2; ++J){
+        String *code = &code_data[J];
+        Parse *parse = &parses[J];
+        
+        // TODO(allen): KILL THIS FUCKIN' Cpp_File FUCKIN' NONSENSE HORSE SHIT!!!!!
+        Cpp_File file;
+        file.data = code->str;
+        file.size = code->size;
+        
+        int count = parse->tokens.count;
+        Cpp_Token *tokens = parse->tokens.tokens;
+        
+        Cpp_Token *token = 0;
+        
+        // NOTE(allen): Header Parse
+        token = tokens;
+        for (int i = 0; i < count; ++i, ++token){
+            if (token->type == CPP_TOKEN_IDENTIFIER &&
+                !(token->flags & CPP_TFLAG_PP_BODY)){
+                String lexeme = make_string(file.data + token->start, token->size);
+                if (match(lexeme, "API_EXPORT")){
+                    ++i;
+                    ++token;
+                    if (i < count){
+                        Cpp_Token *ret_start_token = token;
+                        
+                        for (; i < count; ++i, ++token){
+                            if (token->type == CPP_TOKEN_PARENTHESE_OPEN){
+                                break;
+                            }
+                        }
+                        
+                        Cpp_Token *args_start_token = token;
+                        
+                        if (i < count){
+                            --i;
+                            --token;
+                            
+                            function_set.name[sig_count] = make_string(file.data + token->start, token->size);
+                            
+                            int size = token->start - ret_start_token->start;
+                            String ret = make_string(file.data + ret_start_token->start, size);
+                            ret = chop_whitespace(ret);
+                            function_set.ret[sig_count] = ret;
+                            
+                            for (; i < count; ++i, ++token){
+                                if (token->type == CPP_TOKEN_PARENTHESE_CLOSE){
+                                    break;
+                                }
+                            }
+                            
+                            if (i < count){
+                                int size = token->start + token->size - args_start_token->start;;
+                                function_set.args[sig_count] =
+                                    make_string(file.data + args_start_token->start, size);
+                                function_set.valid[sig_count] = true;
+                                
+                                int arg_count = 1;
+                                Cpp_Token *arg_token = args_start_token;
+                                for (; arg_token < token; ++arg_token){
+                                    if (arg_token->type == CPP_TOKEN_COMMA){
+                                        ++arg_count;
+                                    }
+                                }
+                                
+                                Argument_Breakdown *breakdown = &function_set.breakdown[sig_count];
+                                breakdown->count = arg_count;
+                                
+                                int memory_size = (sizeof(String)*2)*arg_count;
+                                
+                                breakdown->param_string = (String*)malloc(memory_size);
+                                breakdown->param_name = breakdown->param_string + arg_count;
+                                
+                                memset(breakdown->param_string, 0, memory_size);
+                                
+                                int arg_index = 0;
+                                arg_token = args_start_token + 1;
+                                int param_string_start = arg_token->start;
+                                
+                                for (; arg_token <= token; ++arg_token){
+                                    if (arg_token->type == CPP_TOKEN_COMMA ||
+                                        arg_token->type == CPP_TOKEN_PARENTHESE_CLOSE){
+                                        
+                                        int size = arg_token->start - param_string_start;
+                                        String param_string = make_string(file.data + param_string_start, size);
+                                        param_string = chop_whitespace(param_string);
+                                        breakdown->param_string[arg_index] = param_string;
+                                        
+                                        for (Cpp_Token *param_name_token = arg_token - 1;
+                                             param_name_token->start > param_string_start;
+                                             --param_name_token){
+                                            if (param_name_token->type == CPP_TOKEN_IDENTIFIER){
+                                                int start = param_name_token->start;
+                                                int size = param_name_token->size;
+                                                breakdown->param_name[arg_index] = make_string(file.data + start, size);
+                                                break;
+                                            }
+                                        }
+                                        
+                                        ++arg_index;
+                                        
+                                        ++arg_token;
+                                        if (arg_token <= token){
+                                            param_string_start = arg_token->start;
+                                        }
+                                        --arg_token;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    
+                    if (!function_set.valid[sig_count]){
+                        function_set.ret[sig_count] = string_zero();
+                        function_set.name[sig_count] = string_zero();
+                        function_set.args[sig_count] = string_zero();
+                        // TODO(allen): get warning line numbers
+                        printf("custom_api_spec.cpp(???) : generator warning : invalid function signature\n");
+                    }
+                    ++sig_count;
+                }
+            }
+        }
+        
+        // NOTE(allen): Documentation Parse
+        token = tokens;
+        for (int i = 0; i < count; ++i, ++token){
+            if (token->type == CPP_TOKEN_IDENTIFIER &&
+                !(token->flags & CPP_TFLAG_PP_BODY)){
+                String lexeme = make_string(file.data + token->start, token->size);
+                if (match(lexeme, "API_EXPORT")){
+                    for (; i < count; ++i, ++token){
+                        if (token->type == CPP_TOKEN_PARENTHESE_OPEN){
+                            break;
+                        }
+                    }
+                    
+                    if (i < count){
+                        --i;
+                        --token;
+                        
+                        if (token->type == CPP_TOKEN_IDENTIFIER){
+                            lexeme = make_string(file.data + token->start, token->size);
+                            int match = 0;
+                            if (string_set_match(function_set.name, sig_count, lexeme, &match)){
+                                for (; i < count; ++i, ++token){
+                                    if (token->type == CPP_TOKEN_COMMENT){
+                                        lexeme = make_string(file.data + token->start, token->size);
+                                        if (check_and_fix_docs(&lexeme)){
+                                            function_set.doc_string[match] = lexeme;
+                                            perform_doc_parse(lexeme, &function_set.doc[match]);
+                                            break;
+                                        }
+                                    }
+                                    else if (token->type == CPP_TOKEN_BRACE_OPEN){
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
     
     for (int i = 0; i < sig_count; ++i){
         String name_string = function_set.name[i];
@@ -600,6 +953,9 @@ generate_custom_headers(){
         copy(public_name, name_string);
         to_lower(public_name);
     }
+    
+    // NOTE(allen): Header
+    FILE *file = fopen(API_H, "wb");
     
     for (int i = 0; i < sig_count; ++i){
         String ret_string   = function_set.ret[i];
@@ -647,13 +1003,14 @@ generate_custom_headers(){
     
     fprintf(file, "#define FillAppLinksAPI(app_links) do{");
     for (int i = 0; i < sig_count; ++i){
+        String name = function_set.name[i];
         String public_string = function_set.public_name[i];
         
         fprintf(file,
                 "\\\n"
-                "app_links->%.*s = external_%.*s;",
+                "app_links->%.*s = %.*s;",
                 public_string.size, public_string.str,
-                public_string.size, public_string.str
+                name.size, name.str
                 );
     }
     fprintf(file, " } while(false)\n");
@@ -661,80 +1018,228 @@ generate_custom_headers(){
     fclose(file);
     
     // NOTE(allen): Documentation
-    String code_data[2];
-    Doc_Parse parses[2];
-    
-    code_data[0] = file_dump("4ed_api_implementation.cpp");
-    code_data[1] = file_dump("win32_4ed.cpp");
-    
-    for (int J = 0; J < 2; ++J){
-        String *code = &code_data[J];
-        Doc_Parse *parse = &parses[J];
-        
-        // TODO(allen): KILL THIS FUCKIN' Cpp_File FUCKIN NONSENSE BULLSHIT!!!!!
-        Cpp_File file;
-        file.data = code->str;
-        file.size = code->size;
-        
-        parse->tokens = cpp_make_token_stack(512);
-        cpp_lex_file(file, &parse->tokens);
-        
-        int count = parse->tokens.count;
-        Cpp_Token *tokens = parse->tokens.tokens;
-        
-        Cpp_Token *token = tokens;
-        for (int i = 0; i < count; ++i, ++token){
-            if (token->type == CPP_TOKEN_IDENTIFIER){
-                String lexeme = make_string(file.data + token->start, token->size);
-                int match = 0;
-                if (string_set_match(function_set.macros, sig_count, lexeme, &match)){
-                    for (; i < count; ++i, ++token){
-                        if (token->type == CPP_TOKEN_COMMENT){
-                            lexeme = make_string(file.data + token->start, token->size);
-                            if (check_and_fix_docs(&lexeme)){
-                                perform_doc_parse(parse, lexeme);
-                                break;
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-    
     file = fopen(API_DOC, "wb");
+    
+#define CODE_STYLE "font-family: \"Courier New\", Courier, monospace; text-align: left;"
+    
+#define BACK_COLOR  "#FAFAFA"
+#define TEXT_COLOR  "#0D0D0D"
+#define CODE_BACK   "#DFDFDF"
+#define POP_COLOR_1 "#309030"
+#define POP_BACK_1  "#E0FFD0"
+#define POP_COLOR_2 "#007070"
+#define POP_COLOR_3 "#005000"
     
     fprintf(file,
             "<html lang=\"en-US\">\n"
             "<head>\n"
             "<title>4coder API Docs</title>\n"
+            "<style>\n"
+            
+            "body { "
+            "background: " BACK_COLOR "; "
+            "color: " TEXT_COLOR "; "
+            "}\n"
+            
+            // H things
+            "h1,h2,h3,h4 { "
+            "color: " POP_COLOR_1 "; "
+            "margin: 0; "
+            "}\n"
+            
+            "h4 { "
+            "font-size: 1.1em; "
+            "}\n"
+            
+            // ANCHORS
+            "a { "
+            "color: " POP_COLOR_1 "; "
+            "text-decoration: none; "
+            "}\n"
+            "a:visited { "
+            "color: " POP_COLOR_2 "; "
+            "}\n"
+            "a:hover { "
+            "background: " POP_BACK_1 "; "
+            "}\n"
+            
+            // LIST
+            "ul { "
+            "list-style: none; "
+            "padding: 0; "
+            "margin: 0; "
+            "}\n"
+            "li { "
+            "padding-left: 1em;"
+            "text-indent: -.7em;"
+            "}\n"
+            "li:before { "
+            "content: \"4\"; "
+            "color: " POP_COLOR_3 "; "
+            "font-family:\"Webdings\"; "
+            "}\n"
+            
+            "</style>\n"
             "</head>\n"
-            "<body style='font-family:Arial;'>\n"
-            "<h1>4coder API</h1>"
+            "<body>\n"
+            "<div style='font-family:Arial; margin: 0 auto; "
+            "width: 900px; text-align: justify; line-height: 1.25;'>\n"
+            "<h1 style='margin-top: 5mm; margin-bottom: 5mm;'>4coder API</h1>\n"
             );
     
     fprintf(file,
-            "<h2>\n&sect;1 Introduction</h2>\n"
-            "<div style='margin-bottom: 5mm;'><i>Coming Soon</i></div>");
+            "<h2>&sect;1 Introduction</h2>\n"
+            "<div>\n"
+            
+            "<p>\n"
+            "This is the documentation for " VERSION " The documentation has been made as "
+            "accurate as possible but there may be errors. If you have questions or "
+            "discover errors please contact <span style='"CODE_STYLE"'>editor@4coder.net</span>."
+            "</p>\n"
+            
+            "<p>\n"
+            "</p>\n"
+            
+            "</div>\n");
     
-    fprintf(file, "<h2>\n&sect;2 Functions</h2>\n");
-    for (int i = 0; i < sig_count; ++i){
-        String name = function_set.public_name[i];
+    fprintf(file, "<h2>&sect;2 Types and Functions</h2>\n");
+    {
+#undef SECTION
+#define SECTION "2.1"
+        
         fprintf(file,
-                "<div>\n"
-                "%.*s\n"
-                "</div>\n",
-                name.size, name.str
-                );
+                "<h3>&sect;"SECTION" Function List</h3>\n"
+                "<ul>\n");
+        
+        for (int i = 0; i < sig_count; ++i){
+            String name = function_set.public_name[i];
+            fprintf(file,
+                    "<li>\n"
+                    "<a href='#%.*s_doc'>%.*s</a>\n"
+                    "</li>\n",
+                    name.size, name.str,
+                    name.size, name.str
+                    );
+        }
+        fprintf(file, "</ul>\n");
+        
+#undef SECTION
+#define SECTION "2.2"
+        
+        fprintf(file, "<h3 style='margin-top: 5mm; margin-bottom: 5mm;'>&sect;"SECTION" Descriptions</h3>\n");
+        for (int i = 0; i < sig_count; ++i){
+            String name = function_set.public_name[i];
+            
+            fprintf(file,
+                    "<div id='%.*s_doc' style='margin-bottom: 1cm;'>\n"
+                    " <h4>&sect;"SECTION".%d: %.*s</h4>\n"
+                    " <div style='"CODE_STYLE" margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; "
+                    "background: "CODE_BACK"; padding: 0.25em;'>",
+                    name.size, name.str, i,
+                    name.size, name.str
+                    );
+            
+            String ret = function_set.ret[i];
+            fprintf(file,
+                    "%.*s %.*s(\n"
+                    "<div style='margin-left: 4mm;'>",
+                    ret.size, ret.str, name.size, name.str);
+            
+            Argument_Breakdown *breakdown = &function_set.breakdown[i];
+            int arg_count = breakdown->count;
+            for (int j = 0; j < arg_count; ++j){
+                String param_string = breakdown->param_string[j];
+                if (j < arg_count - 1){
+                    fprintf(file, "%.*s,<br>", param_string.size, param_string.str);
+                }
+                else{
+                    fprintf(file, "%.*s<br>", param_string.size, param_string.str);
+                }
+            }
+            
+            fprintf(file,
+                    "</div>)\n"
+                    "</div>\n");
+            
+            if (function_set.doc_string[i].size == 0){
+                fprintf(file, "No documentation generated for this function, assume it is non-public.\n");
+                printf("warning: no documentation string for %.*s\n", name.size, name.str);
+            }
+            
+#define DOC_HEAD_OPEN  "<div style='margin-top: 3mm; margin-bottom: 3mm; color: "POP_COLOR_1";'><b><i>"
+#define DOC_HEAD_CLOSE "</i></b></div>"
+            
+#define DOC_ITEM_OPEN  "<div style='margin-left: 5mm; margin-right: 5mm;'>"
+#define DOC_ITEM_CLOSE "</div>"
+            
+            Documentation *doc = &function_set.doc[i];
+            
+            int doc_param_count = doc->param_count;
+            if (doc_param_count > 0){
+                fprintf(file, DOC_HEAD_OPEN"Parameters"DOC_HEAD_CLOSE);
+                
+                for (int j = 0; j < doc_param_count; ++j){
+                    String param_name = doc->param_name[j];
+                    String param_docs = doc->param_docs[j];
+                    
+                    // TODO(allen): check that param_name is actually
+                    // a parameter to this function!
+                    
+                    fprintf(file,
+                            "<div>\n"
+                            "<div style='font-weight: 600;'>%.*s</div>\n"
+                            "<div style='margin-bottom: 6mm;'>"DOC_ITEM_OPEN"%.*s"DOC_ITEM_CLOSE"</div>\n"
+                            "</div>\n",
+                            param_name.size, param_name.str,
+                            param_docs.size, param_docs.str
+                            );
+                }
+            }
+            
+            String ret_doc = doc->return_doc;
+            if (ret_doc.size != 0){
+                fprintf(file, DOC_HEAD_OPEN"Return"DOC_HEAD_CLOSE);
+                fprintf(file,
+                        DOC_ITEM_OPEN"%.*s"DOC_ITEM_CLOSE,
+                        ret_doc.size, ret_doc.str
+                        );
+            }
+            
+            String main_doc = doc->main_doc;
+            if (main_doc.size != 0){
+                fprintf(file, DOC_HEAD_OPEN"Description"DOC_HEAD_CLOSE);
+                fprintf(file,
+                        DOC_ITEM_OPEN"%.*s"DOC_ITEM_CLOSE,
+                        main_doc.size, main_doc.str
+                        );
+            }
+            
+            int doc_see_count = doc->see_also_count;
+            if (doc_see_count > 0){
+                fprintf(file, DOC_HEAD_OPEN"See Also"DOC_HEAD_CLOSE);
+                
+                for (int j = 0; j < doc_see_count; ++j){
+                    String see_also = doc->see_also[j];
+                    fprintf(file,
+                            DOC_ITEM_OPEN"<a href='#%.*s_doc'>%.*s</a>"DOC_ITEM_CLOSE,
+                            see_also.size, see_also.str,
+                            see_also.size, see_also.str
+                            );
+                }
+            }
+            
+            fprintf(file, "</div><hr>\n");
+        }
     }
     
     fprintf(file,
-            "</body>"
+            "</div>\n"
+            "</body>\n"
             "</html>\n"
             );
     
     fclose(file);
-    
+
     return(filename);
 }
 
