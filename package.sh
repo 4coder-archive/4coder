@@ -37,8 +37,11 @@ pushd "$CODE_DIR"
 echo "Alpha User"
 
 # ALPHA-32
+pushd "$CODE_DIR/code"
 make clean
 make release32
+popd
+
 cp -r "${TEMPLATE_DIR}" "$TMP_DIR/alpha"
 cp ./4ed ./4ed_app.so "$TMP_DIR/alpha/"
 cp ./code/README.txt ./code/TODO.txt "$TMP_DIR/alpha/"
@@ -53,8 +56,10 @@ rm -rf "$TMP_DIR/alpha"
 echo " "
 
 # ALPHA-64
+pushd "$CODE_DIR/code"
 make clean
 make release
+popd
 cp -r "${TEMPLATE_DIR}" "$TMP_DIR/alpha"
 cp ./4ed ./4ed_app.so "$TMP_DIR/alpha/"
 cp ./code/README.txt ./code/TODO.txt "$TMP_DIR/alpha/"
@@ -73,8 +78,11 @@ echo " "
 echo "Super User"
 
 # SUPER-32
+pushd "$CODE_DIR/code"
 make clean
 make release32_super
+popd
+
 cp ./4ed ./4ed_app.so ./code/4coder_*.h ./code/4coder_*.cpp "$TMP_DIR/super/"
 cp ./code/buildsuper.sh "$TMP_DIR/super/"
 cp ./code/README.txt ./code/SUPERREADME.txt ./code/TODO.txt "$TMP_DIR/super/"
@@ -90,8 +98,11 @@ rm -rf "$TMP_DIR/super"
 echo " "
 
 # SUPER-64
+pushd "$CODE_DIR/code"
 make clean
 make release_super
+popd
+
 cp -r "${TEMPLATE_DIR}" "$TMP_DIR/super/"
 cp ./4ed ./4ed_app.so ./code/4coder_*.h ./code/4coder_*.cpp "$TMP_DIR/super/"
 cp ./code/buildsuper.sh "$TMP_DIR/super/"
