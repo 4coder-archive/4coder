@@ -139,7 +139,10 @@ imp_get_view(Command_Data *cmd, View_Summary *view){
     return(vptr);
 }
 
-EXEC_COMMAND_SIG(external_exec_command)/*
+#define API_EXPORT
+
+API_EXPORT void
+Exec_Command(Application_Links *app, int command_id)/*
 DOC_PARAM(command_id, an integer id enumerated in 4coder_custom.h starting with cmdid)
 DOC(Executes the command associated with the command_id passed in)
 */{
@@ -153,7 +156,8 @@ DOC(Executes the command associated with the command_id passed in)
 }
 
 // TODO(allen): This is a bit of a mess and needs to be fixed soon
-EXEC_SYSTEM_COMMAND_SIG(external_exec_system_command)/*
+API_EXPORT int
+Exec_System_Command(Application_Links *app, View_Summary *view, Buffer_Identifier buffer, char *path, int path_len, char *command, int command_len, unsigned int flags)/*
 DOC_PARAM(view, the target view that will display the output buffer, may be NULL, see description for details)
 DOC_PARAM(buffer, a buffer identifier for the buffer that will be filled with the output from the command)
 DOC_PARAM(path, the path from which the command is executed)
@@ -321,63 +325,8 @@ of at the beginning.
     return(result);
 }
 
-DIRECTORY_GET_HOT_SIG(external_directory_get_hot)/*
-DOC_PARAM(out, a buffer that receives the 4coder 'hot directory')
-DOC_PARAM(capacity, the maximum size to be output to the output buffer)
-DOC_RETURN(returns the size of the string written into the buffer)
-DOC
-(
-4coder has a concept of a 'hot directory' which is the directory most recently
-accessed in the GUI.  Whenever the GUI is opened it shows the hot directory.
-
-In the future this will be deprecated and eliminated in favor of more flexible
-directories controlled by the custom side.
-)
-*/{
-    Command_Data *cmd = (Command_Data*)app->cmd_context;
-    Hot_Directory *hot = &cmd->models->hot_directory;
-    i32 copy_max = capacity - 1;
-    hot_directory_clean_end(hot);
-    if (copy_max > hot->string.size)
-        copy_max = hot->string.size;
-    memcpy(out, hot->string.str, copy_max);
-    out[copy_max] = 0;
-    return(hot->string.size);
-}
-
-#define external_get_4ed_path system->get_4ed_path
-
-#define external_file_exists  system->file_exists
-
-#define external_directory_cd system->directory_cd
-
-GET_FILE_LIST_SIG(external_get_file_list)/*
-DOC_PARAM(dir, the directory whose files will be enumerated in the returned list)
-DOC_PARAM(len, the length of the dir string)
-DOC_RETURN
-(
-returns a File_List struct containing pointers to the names of the files in
-the specified directory.  The File_List returned should be passed to free_file_list
-when it is no longer in use.
-)
-*/{
-    Command_Data *cmd = (Command_Data*)app->cmd_context;
-    System_Functions *system = cmd->system;
-    File_List result = {};
-    system->set_file_list(&result, make_string(dir, len));
-    return(result);
-}
-
-FREE_FILE_LIST_SIG(external_free_file_list)/*
-DOC_PARAM(list, the file list to be freed)
-DOC(after this call the file list passed in should not be read or written to)
-*/{
-    Command_Data *cmd = (Command_Data*)app->cmd_context;
-    System_Functions *system = cmd->system;
-    system->set_file_list(&list, make_string(0, 0));
-}
-
-CLIPBOARD_POST_SIG(external_clipboard_post)/*
+API_EXPORT void
+Clipboard_Post(Application_Links *app, char *str, int len)/*
 DOC_PARAM(str, the string to post to the clipboard)
 DOC_PARAM(len, the length of the string str)
 DOC
@@ -398,7 +347,8 @@ be pasted into other applications.
     system->post_clipboard(*dest);
 }
 
-CLIPBOARD_COUNT_SIG(external_clipboard_count)/*
+API_EXPORT int
+Clipboard_Count(Application_Links *app)/*
 DOC(returns the number of items in the clipboard)
 */{
     Command_Data *cmd = (Command_Data*)app->cmd_context;
@@ -407,7 +357,8 @@ DOC(returns the number of items in the clipboard)
     return(count);
 }
 
-CLIPBOARD_INDEX_SIG(external_clipboard_index)/*
+API_EXPORT int
+Clipboard_Index(Application_Links *app, int index, char *out, int len)/*
 DOC_PARAM(index, the index of the item to be read)
 DOC_PARAM(out, a buffer where the clipboard contents are written or NULL)
 DOC_PARAM(len, the length of the out buffer)
@@ -460,7 +411,8 @@ internal_get_buffer_next(Working_Set *working_set, Buffer_Summary *buffer){
     }
 }
 
-GET_BUFFER_FIRST_SIG(external_get_buffer_first)/*
+API_EXPORT Buffer_Summary
+Get_Buffer_First(Application_Links *app, unsigned int access)/*
 DOC_PARAM(access, the access flags for the access)
 DOC_RETURN(returns the summary of the first buffer in a buffer loop)
 DOC
@@ -485,7 +437,8 @@ DOC_SEE(get_buffer_next)
     return(result);
 }
 
-GET_BUFFER_NEXT_SIG(external_get_buffer_next)/*
+API_EXPORT void
+Get_Buffer_Next(Application_Links *app, Buffer_Summary *buffer, unsigned int access)/*
 DOC_PARAM(buffer, pointer to the loop buffer originally returned by get_buffer_first)
 DOC_PARAM(access, the access flags for the access)
 DOC
@@ -509,7 +462,8 @@ DOC_SEE(get_buffer_first)
     }
 }
 
-GET_BUFFER_SIG(external_get_buffer)/*
+API_EXPORT Buffer_Summary
+Get_Buffer(Application_Links *app, int buffer_id, unsigned int access)/*
 DOC_PARAM(buffer_id, the id of the buffer to get)
 DOC_PARAM(access, the access flags for the access)
 DOC_RETURN(returns a summary that describes the indicated buffer if it exists and is accessible)
@@ -530,7 +484,8 @@ DOC_RETURN(returns a summary that describes the indicated buffer if it exists an
     return(buffer);
 }
 
-GET_BUFFER_BY_NAME_SIG(external_get_buffer_by_name)/*
+API_EXPORT Buffer_Summary
+Get_Buffer_By_Name(Application_Links *app, char *name, int len, unsigned int access)/*
 DOC_PARAM(name, the name of the buffer)
 DOC_PARAM(len, the length of the name string)
 DOC_PARAM(access, the access flags for the access)
@@ -552,7 +507,8 @@ DOC_RETURN(returns a summary that describes the indicated buffer if it exists an
     return(buffer);
 }
 
-BUFFER_SEEK_SIG(external_buffer_seek)/*
+API_EXPORT int
+Buffer_Boundary_Seek(Application_Links *app, Buffer_Summary *buffer, int start_pos, int seek_forward, unsigned int flags)/*
 DOC_PARAM(buffer, the buffer to seek through)
 DOC_PARAM(start_pos, the absolute position in the buffer to begin the seek)
 DOC_PARAM(seek_forward, non-zero indicates to seek forward otherwise the seek goes backward)
@@ -651,7 +607,8 @@ DOC_SEE(Seek_Boundary_Flag)
     return(result);
 }
 
-BUFFER_READ_RANGE_SIG(external_buffer_read_range)/*
+API_EXPORT int
+Buffer_Read_Range(Application_Links *app, Buffer_Summary *buffer, int start, int end, char *out)/*
 DOC_PARAM(buffer, the buffer to read out of)
 DOC_PARAM(start, the beginning of the read range)
 DOC_PARAM(end, one past the end of the read range)
@@ -683,7 +640,8 @@ is not within the bounds of the buffer.
     return(result);
 }
 
-BUFFER_REPLACE_RANGE_SIG(external_buffer_replace_range)/*
+API_EXPORT int
+Buffer_Replace_Range(Application_Links *app, Buffer_Summary *buffer, int start, int end, char *str, int len)/*
 DOC_PARAM(buffer, the buffer to edit)
 DOC_PARAM(start, the start of the range to edit)
 DOC_PARAM(end, the end of the range to edit)
@@ -728,7 +686,8 @@ range is not within the bounds of the buffer.
     return(result);
 }
 
-BUFFER_SET_SETTING_SIG(external_buffer_set_setting)/*
+API_EXPORT int
+Buffer_Set_Setting(Application_Links *app, Buffer_Summary *buffer, int setting, int value)/*
 DOC_PARAM(buffer, the buffer to set a setting on)
 DOC_PARAM(setting, one of the Buffer_Setting_ID enum values that identifies the setting to set)
 DOC_PARAM(value, the value to set the specified setting to)
@@ -799,7 +758,8 @@ DOC_SEE(Buffer_Setting_ID)
     return(result);
 }
 
-BUFFER_AUTO_INDENT_SIG(external_buffer_auto_indent)/*
+API_EXPORT int
+Buffer_Auto_Indent(Application_Links *app, Buffer_Summary *buffer, int start, int end, int tab_width, unsigned int flags)/*
 DOC_PARAM(buffer, the buffer in which to apply the auto indenting)
 DOC_PARAM(start, the position to start the auto indenting)
 DOC_PARAM(end, the position to end the auto indenting)
@@ -839,7 +799,8 @@ DOC_SEE(Auto_Tab_Flag)
     return(result);
 }
 
-CREATE_BUFFER_SIG(external_create_buffer)/*
+API_EXPORT Buffer_Summary
+Create_Buffer(Application_Links *app, char *filename, int filename_len, unsigned int flags)/*
 DOC_PARAM(filename, the name of the file to be opened or created)
 DOC_PARAM(filename_len, the length of the filename string)
 DOC_PARAM(flags, flags for buffer creation behavior)
@@ -930,7 +891,8 @@ DOC_SEE(Buffer_Create_Flag)
     return(result);
 }
 
-SAVE_BUFFER_SIG(external_save_buffer)/*
+API_EXPORT int
+Save_Buffer(Application_Links *app, Buffer_Summary *buffer, char *filename, int filename_len, unsigned int flags)/*
 DOC_PARAM(buffer, the buffer to save to a file)
 DOC_PARAM(filename, the name of the file to save the buffer into)
 DOC_PARAM(filename_len, length of the filename string)
@@ -952,7 +914,8 @@ DOC_RETURN(returns non-zero if the save succeeds)
     return(result);
 }
 
-KILL_BUFFER_SIG(external_kill_buffer)/*
+API_EXPORT int
+Kill_Buffer(Application_Links *app, Buffer_Identifier buffer, int view_id, unsigned int flags)/*
 DOC_PARAM(buffer, a buffer identifier specifying the buffer to try to kill)
 DOC_PARAM(view_id, the id of view that will contain the "are you sure" dialogue)
 DOC_PARAM(flags, flags for buffer kill behavior)
@@ -1027,7 +990,8 @@ internal_get_view_next(Command_Data *cmd, View_Summary *view){
     }
 }
 
-GET_VIEW_FIRST_SIG(external_get_view_first)/*
+API_EXPORT View_Summary
+Get_View_First(Application_Links *app, unsigned int access)/*
 DOC_PARAM(access, the access flags for the access)
 DOC_RETURN(returns the summary of the first view in a view loop)
 DOC
@@ -1051,7 +1015,8 @@ DOC_SEE(get_view_next)
     return(view);
 }
 
-GET_VIEW_NEXT_SIG(external_get_view_next)/*
+API_EXPORT void
+Get_View_Next(Application_Links *app, View_Summary *view, unsigned int access)/*
 DOC_PARAM(view, pointer to the loop view originally returned by get_view_first)
 DOC_PARAM(access, the access flags for the access)
 DOC
@@ -1074,7 +1039,8 @@ DOC_SEE(get_view_first)
     }
 }
 
-GET_VIEW_SIG(external_get_view)/*
+API_EXPORT View_Summary
+Get_View(Application_Links *app, int view_id, unsigned int access)/*
 DOC_PARAM(view_id, the id of the view to get)
 DOC_PARAM(access, the access flags for the access)
 DOC_RETURN(returns a summary that describes the indicated view if it is open and is accessible)
@@ -1097,7 +1063,8 @@ DOC_RETURN(returns a summary that describes the indicated view if it is open and
     return(view);
 }
 
-GET_ACTIVE_VIEW_SIG(external_get_active_view)/*
+API_EXPORT View_Summary
+Get_Active_View(Application_Links *app, unsigned int access)/*
 DOC_PARAM(access, the access flags for the access)
 DOC_RETURN(returns a summary that describes the active view)
 */{
@@ -1110,7 +1077,8 @@ DOC_RETURN(returns a summary that describes the active view)
     return(view);
 }
 
-VIEW_COMPUTE_CURSOR_SIG(external_view_compute_cursor)/*
+API_EXPORT int
+View_Compute_Cursor(Application_Links *app, View_Summary *view, Buffer_Seek seek, Full_Cursor *cursor_out)/*
 DOC_PARAM(view, the view on which to run the cursor computation)
 DOC_PARAM(seek, the seek position)
 DOC_PARAM(cursor_out, on success this is filled with result of the seek)
@@ -1141,7 +1109,8 @@ DOC_SEE(Buffer_Seek)
     return(result);
 }
 
-VIEW_SET_CURSOR_SIG(external_view_set_cursor)/*
+API_EXPORT int
+View_Set_Cursor(Application_Links *app, View_Summary *view, Buffer_Seek seek, int set_preferred_x)/*
 DOC_PARAM(view, the view in which to set the cursor)
 DOC_PARAM(seek, the seek position)
 DOC_PARAM(set_preferred_x, if true the preferred x is updated to match the new cursor position)
@@ -1177,7 +1146,8 @@ DOC_SEE(Buffer_Seek)
     return(result);
 }
 
-VIEW_SET_MARK_SIG(external_view_set_mark)/*
+API_EXPORT int
+View_Set_Mark(Application_Links *app, View_Summary *view, Buffer_Seek seek)/*
 DOC_PARAM(view, the view in which to set the mark)
 DOC_PARAM(seek, the seek position)
 DOC_RETURN(returns non-zero on success)
@@ -1207,7 +1177,8 @@ DOC_SEE(Buffer_Seek)
     return(result);
 }
 
-VIEW_SET_HIGHLIGHT_SIG(external_view_set_highlight)/*
+API_EXPORT int
+View_Set_Highlight(Application_Links *app, View_Summary *view, int start, int end, int turn_on)/*
 DOC_PARAM(view, the view to set the highlight in)
 DOC_PARAM(start, the start of the highlight range)
 DOC_PARAM(end, the end of the highlight range)
@@ -1239,7 +1210,8 @@ the turn_on set to false, will switch back to showing the cursor.
     return(result);
 }
 
-VIEW_SET_BUFFER_SIG(external_view_set_buffer)/*
+API_EXPORT int
+View_Set_Buffer(Application_Links *app, View_Summary *view, int buffer_id, unsigned int flags)/*
 DOC_PARAM(view, the view to display the buffer in)
 DOC_PARAM(buffer_id, the buffer to show in the view)
 DOC_PARAM(flags, set buffer behavior flags)
@@ -1276,7 +1248,8 @@ DOC_SEE(Set_Buffer_Flag)
     return(result);
 }
 
-VIEW_POST_FADE_SIG(external_view_post_fade)/*
+API_EXPORT int
+View_Post_Fade(Application_Links *app, View_Summary *view, float seconds, int start, int end, unsigned int color)/*
 DOC_PARAM(view, the veiw to post a fade effect to)
 DOC_PARAM(seconds, the number of seconds the fade effect should last)
 DOC_PARAM(start, the first character in the fade range)
@@ -1299,7 +1272,8 @@ DOC_PARAM(color, the color to fade from)
     return(result);
 }
 
-VIEW_SET_PASTE_REWRITE__SIG(external_view_set_paste_rewrite_){
+API_EXPORT void
+View_Set_Paste_Rewrite_(Application_Links *app, View_Summary *view){
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     View *vptr = imp_get_view(cmd, view);
     if (vptr){
@@ -1307,7 +1281,8 @@ VIEW_SET_PASTE_REWRITE__SIG(external_view_set_paste_rewrite_){
     }
 }
 
-VIEW_GET_PASTE_REWRITE__SIG(external_view_get_paste_rewrite_){
+API_EXPORT int
+View_Get_Paste_Rewrite_(Application_Links *app, View_Summary *view){
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     View *vptr = imp_get_view(cmd, view);
     int result = false;
@@ -1317,7 +1292,8 @@ VIEW_GET_PASTE_REWRITE__SIG(external_view_get_paste_rewrite_){
     return(result);
 }
 
-GET_USER_INPUT_SIG(external_get_user_input)/*
+API_EXPORT User_Input
+Get_User_Input(Application_Links *app, unsigned int get_type, unsigned int abort_type)/*
 DOC_PARAM(get_type, input type flag that specifies the types of inputs that should be returned)
 DOC_PARAM(abort_type, input type flag that specifies the types of inputs that should cause an abort signal)
 DOC_RETURN(returns a User_Input that describes an event passed to the command)
@@ -1348,7 +1324,8 @@ DOC_SEE(User_Input)
     return(result);
 }
 
-GET_COMMAND_INPUT_SIG(external_get_command_input)/*
+API_EXPORT User_Input
+Get_Command_Input (Application_Links *app)/*
 DOC_RETURN(returns the input that triggered the command in execution.)
 DOC_SEE(User_Input)
 */{
@@ -1363,7 +1340,8 @@ DOC_SEE(User_Input)
     return(result);
 }
 
-GET_MOUSE_STATE_SIG(external_get_mouse_state)/*
+API_EXPORT Mouse_State
+Get_Mouse_State(Application_Links *app)/*
 DOC_RETURN(returns the current mouse state)
 DOC_SEE(Mouse_State)
 */{
@@ -1374,7 +1352,9 @@ DOC_SEE(Mouse_State)
 }
 
 #if 0
-GET_EVENT_MESSAGE_SIG(external_get_event_message){
+//API_EXPORT
+Event_Message
+Get_Event_Message (Application_Links *app){
     Event_Message message = {0};
     System_Functions *system = (System_Functions*)app->system_links;
     Coroutine *coroutine = (Coroutine*)app->current_coroutine;
@@ -1389,7 +1369,8 @@ GET_EVENT_MESSAGE_SIG(external_get_event_message){
 }
 #endif
 
-START_QUERY_BAR_SIG(external_start_query_bar)/*
+API_EXPORT int
+Start_Query_Bar(Application_Links *app, Query_Bar *bar, unsigned int flags)/*
 DOC_PARAM(bar, a pointer to the Query_Bar struct that defines the bar's contents)
 DOC_PARAM(flags, not currently used)
 DOC_RETURN(returns non-zero on success)
@@ -1411,7 +1392,8 @@ until the command returns.
     return(slot != 0);
 }
 
-END_QUERY_BAR_SIG(external_end_query_bar)/*
+API_EXPORT void
+End_Query_Bar(Application_Links *app, Query_Bar *bar, unsigned int flags)/*
 DOC_PARAM(bar, a pointer to the Query_Bar struct to end)
 DOC_PARAM(flags, not currently used)
 DOC
@@ -1425,7 +1407,8 @@ bar must be a pointer previously passed to start_query_bar previously in the sam
     free_query_slot(&vptr->query_set, bar);
 }
 
-PRINT_MESSAGE_SIG(external_print_message)/*
+API_EXPORT void
+Print_Message(Application_Links *app, char *str, int len)/*
 DOC_PARAM(str, the string to post to *messages*)
 DOC_PARAM(len, the length of str string)
 */{
@@ -1434,7 +1417,8 @@ DOC_PARAM(len, the length of str string)
     do_feedback_message(cmd->system, models, make_string(str, len));
 }
 
-CHANGE_THEME_SIG(external_change_theme)/*
+API_EXPORT void
+Change_Theme(Application_Links *app, char *name, int len)/*
 DOC_PARAM(name, the name of the built in theme to change to)
 DOC_PARAM(len, the length of the name string)
 */{
@@ -1454,7 +1438,8 @@ DOC_PARAM(len, the length of the name string)
     }
 }
 
-CHANGE_FONT_SIG(external_change_font)/*
+API_EXPORT void
+Change_Font(Application_Links *app, char *name, int len)/*
 DOC_PARAM(name, the name of the built in font to change to)
 DOC_PARAM(len, the length of the name string)
 */{
@@ -1470,7 +1455,8 @@ DOC_PARAM(len, the length of the name string)
     }
 }
 
-SET_THEME_COLORS_SIG(external_set_theme_colors)/*
+API_EXPORT void
+Set_Theme_Colors(Application_Links *app, Theme_Color *colors, int count)/*
 DOC_PARAM(colors, an array of color structs pairing differet style tags to color codes)
 DOC_PARAM(count, the number of color structs in the colors array)
 DOC
@@ -1492,7 +1478,8 @@ code paired with the tag.
     }
 }
 
-GET_THEME_COLORS_SIG(external_get_theme_colors)/*
+API_EXPORT void
+Get_Theme_Colors(Application_Links *app, Theme_Color *colors, int count)/*
 DOC_PARAM(colors, an array of color structs listing style tags to get color values for)
 DOC_PARAM(count, the number of color structs in the colors array)
 DOC
@@ -1517,6 +1504,63 @@ color from the specified color in the pallet.
             theme_color->color = 0xFF000000;
         }
     }
+}
+
+API_EXPORT int
+Directory_Get_Hot(Application_Links *app, char *out, int capacity)/*
+DOC_PARAM(out, a buffer that receives the 4coder 'hot directory')
+DOC_PARAM(capacity, the maximum size to be output to the output buffer)
+DOC_RETURN(returns the size of the string written into the buffer)
+DOC
+(
+4coder has a concept of a 'hot directory' which is the directory most recently
+accessed in the GUI.  Whenever the GUI is opened it shows the hot directory.
+
+In the future this will be deprecated and eliminated in favor of more flexible
+directories controlled by the custom side.
+)
+*/{
+    Command_Data *cmd = (Command_Data*)app->cmd_context;
+    Hot_Directory *hot = &cmd->models->hot_directory;
+    i32 copy_max = capacity - 1;
+    hot_directory_clean_end(hot);
+    if (copy_max > hot->string.size)
+        copy_max = hot->string.size;
+    memcpy(out, hot->string.str, copy_max);
+    out[copy_max] = 0;
+    return(hot->string.size);
+}
+
+#define Get_4ed_Path system->get_4ed_path
+#define File_Exists system->file_exists
+#define Directory_CD system->directory_cd
+
+API_EXPORT File_List
+Get_File_List(Application_Links *app, char *dir, int len)/*
+DOC_PARAM(dir, the directory whose files will be enumerated in the returned list)
+DOC_PARAM(len, the length of the dir string)
+DOC_RETURN
+(
+returns a File_List struct containing pointers to the names of the files in
+the specified directory.  The File_List returned should be passed to free_file_list
+when it is no longer in use.
+)
+*/{
+    Command_Data *cmd = (Command_Data*)app->cmd_context;
+    System_Functions *system = cmd->system;
+    File_List result = {};
+    system->set_file_list(&result, make_string(dir, len));
+    return(result);
+}
+
+API_EXPORT void
+Free_File_List(Application_Links *app, File_List list)/*
+DOC_PARAM(list, the file list to be freed)
+DOC(after this call the file list passed in should not be read or written to)
+*/{
+    Command_Data *cmd = (Command_Data*)app->cmd_context;
+    System_Functions *system = cmd->system;
+    system->set_file_list(&list, make_string(0, 0));
 }
 
 // BOTTOM

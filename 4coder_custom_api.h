@@ -1,11 +1,5 @@
 #define EXEC_COMMAND_SIG(n) void n(Application_Links *app, int command_id)
 #define EXEC_SYSTEM_COMMAND_SIG(n) int n(Application_Links *app, View_Summary *view, Buffer_Identifier buffer, char *path, int path_len, char *command, int command_len, unsigned int flags)
-#define DIRECTORY_GET_HOT_SIG(n) int n(Application_Links *app, char *out, int capacity)
-#define GET_4ED_PATH_SIG(n) int n(Application_Links *app, char *out, int capacity)
-#define FILE_EXISTS_SIG(n) int n(Application_Links *app, char *filename, int len)
-#define DIRECTORY_CD_SIG(n) int n(Application_Links *app, char *dir, int *len, int capacity, char *rel_path, int rel_len)
-#define GET_FILE_LIST_SIG(n) File_List n(Application_Links *app, char *dir, int len)
-#define FREE_FILE_LIST_SIG(n) void n(Application_Links *app, File_List list)
 #define CLIPBOARD_POST_SIG(n) void n(Application_Links *app, char *str, int len)
 #define CLIPBOARD_COUNT_SIG(n) int n(Application_Links *app)
 #define CLIPBOARD_INDEX_SIG(n) int n(Application_Links *app, int index, char *out, int len)
@@ -13,7 +7,7 @@
 #define GET_BUFFER_NEXT_SIG(n) void n(Application_Links *app, Buffer_Summary *buffer, unsigned int access)
 #define GET_BUFFER_SIG(n) Buffer_Summary n(Application_Links *app, int buffer_id, unsigned int access)
 #define GET_BUFFER_BY_NAME_SIG(n) Buffer_Summary n(Application_Links *app, char *name, int len, unsigned int access)
-#define BUFFER_SEEK_SIG(n) int n(Application_Links *app, Buffer_Summary *buffer, int start_pos, int seek_forward, unsigned int flags)
+#define BUFFER_BOUNDARY_SEEK_SIG(n) int n(Application_Links *app, Buffer_Summary *buffer, int start_pos, int seek_forward, unsigned int flags)
 #define BUFFER_READ_RANGE_SIG(n) int n(Application_Links *app, Buffer_Summary *buffer, int start, int end, char *out)
 #define BUFFER_REPLACE_RANGE_SIG(n) int n(Application_Links *app, Buffer_Summary *buffer, int start, int end, char *str, int len)
 #define BUFFER_SET_SETTING_SIG(n) int n(Application_Links *app, Buffer_Summary *buffer, int setting, int value)
@@ -43,15 +37,15 @@
 #define CHANGE_FONT_SIG(n) void n(Application_Links *app, char *name, int len)
 #define SET_THEME_COLORS_SIG(n) void n(Application_Links *app, Theme_Color *colors, int count)
 #define GET_THEME_COLORS_SIG(n) void n(Application_Links *app, Theme_Color *colors, int count)
+#define DIRECTORY_GET_HOT_SIG(n) int n(Application_Links *app, char *out, int capacity)
+#define GET_FILE_LIST_SIG(n) File_List n(Application_Links *app, char *dir, int len)
+#define FREE_FILE_LIST_SIG(n) void n(Application_Links *app, File_List list)
+#define FILE_EXISTS_SIG(n) int n(Application_Links *app, char *filename, int len)
+#define DIRECTORY_CD_SIG(n) int n(Application_Links *app, char *dir, int *len, int capacity, char *rel_path, int rel_len)
+#define GET_4ED_PATH_SIG(n) int n(Application_Links *app, char *out, int capacity)
 extern "C"{
     typedef EXEC_COMMAND_SIG(Exec_Command_Function);
     typedef EXEC_SYSTEM_COMMAND_SIG(Exec_System_Command_Function);
-    typedef DIRECTORY_GET_HOT_SIG(Directory_Get_Hot_Function);
-    typedef GET_4ED_PATH_SIG(Get_4ed_Path_Function);
-    typedef FILE_EXISTS_SIG(File_Exists_Function);
-    typedef DIRECTORY_CD_SIG(Directory_CD_Function);
-    typedef GET_FILE_LIST_SIG(Get_File_List_Function);
-    typedef FREE_FILE_LIST_SIG(Free_File_List_Function);
     typedef CLIPBOARD_POST_SIG(Clipboard_Post_Function);
     typedef CLIPBOARD_COUNT_SIG(Clipboard_Count_Function);
     typedef CLIPBOARD_INDEX_SIG(Clipboard_Index_Function);
@@ -59,7 +53,7 @@ extern "C"{
     typedef GET_BUFFER_NEXT_SIG(Get_Buffer_Next_Function);
     typedef GET_BUFFER_SIG(Get_Buffer_Function);
     typedef GET_BUFFER_BY_NAME_SIG(Get_Buffer_By_Name_Function);
-    typedef BUFFER_SEEK_SIG(Buffer_Seek_Function);
+    typedef BUFFER_BOUNDARY_SEEK_SIG(Buffer_Boundary_Seek_Function);
     typedef BUFFER_READ_RANGE_SIG(Buffer_Read_Range_Function);
     typedef BUFFER_REPLACE_RANGE_SIG(Buffer_Replace_Range_Function);
     typedef BUFFER_SET_SETTING_SIG(Buffer_Set_Setting_Function);
@@ -89,18 +83,18 @@ extern "C"{
     typedef CHANGE_FONT_SIG(Change_Font_Function);
     typedef SET_THEME_COLORS_SIG(Set_Theme_Colors_Function);
     typedef GET_THEME_COLORS_SIG(Get_Theme_Colors_Function);
+    typedef DIRECTORY_GET_HOT_SIG(Directory_Get_Hot_Function);
+    typedef GET_FILE_LIST_SIG(Get_File_List_Function);
+    typedef FREE_FILE_LIST_SIG(Free_File_List_Function);
+    typedef FILE_EXISTS_SIG(File_Exists_Function);
+    typedef DIRECTORY_CD_SIG(Directory_CD_Function);
+    typedef GET_4ED_PATH_SIG(Get_4ed_Path_Function);
 }
 struct Application_Links{
     void *memory;
     int memory_size;
     Exec_Command_Function *exec_command;
     Exec_System_Command_Function *exec_system_command;
-    Directory_Get_Hot_Function *directory_get_hot;
-    Get_4ed_Path_Function *get_4ed_path;
-    File_Exists_Function *file_exists;
-    Directory_CD_Function *directory_cd;
-    Get_File_List_Function *get_file_list;
-    Free_File_List_Function *free_file_list;
     Clipboard_Post_Function *clipboard_post;
     Clipboard_Count_Function *clipboard_count;
     Clipboard_Index_Function *clipboard_index;
@@ -108,7 +102,7 @@ struct Application_Links{
     Get_Buffer_Next_Function *get_buffer_next;
     Get_Buffer_Function *get_buffer;
     Get_Buffer_By_Name_Function *get_buffer_by_name;
-    Buffer_Seek_Function *buffer_seek;
+    Buffer_Boundary_Seek_Function *buffer_boundary_seek;
     Buffer_Read_Range_Function *buffer_read_range;
     Buffer_Replace_Range_Function *buffer_replace_range;
     Buffer_Set_Setting_Function *buffer_set_setting;
@@ -138,54 +132,60 @@ struct Application_Links{
     Change_Font_Function *change_font;
     Set_Theme_Colors_Function *set_theme_colors;
     Get_Theme_Colors_Function *get_theme_colors;
+    Directory_Get_Hot_Function *directory_get_hot;
+    Get_File_List_Function *get_file_list;
+    Free_File_List_Function *free_file_list;
+    File_Exists_Function *file_exists;
+    Directory_CD_Function *directory_cd;
+    Get_4ed_Path_Function *get_4ed_path;
     void *cmd_context;
     void *system_links;
     void *current_coroutine;
     int type_coroutine;
 };
 #define FillAppLinksAPI(app_links) do{\
-app_links->exec_command = external_exec_command;\
-app_links->exec_system_command = external_exec_system_command;\
-app_links->directory_get_hot = external_directory_get_hot;\
-app_links->get_4ed_path = external_get_4ed_path;\
-app_links->file_exists = external_file_exists;\
-app_links->directory_cd = external_directory_cd;\
-app_links->get_file_list = external_get_file_list;\
-app_links->free_file_list = external_free_file_list;\
-app_links->clipboard_post = external_clipboard_post;\
-app_links->clipboard_count = external_clipboard_count;\
-app_links->clipboard_index = external_clipboard_index;\
-app_links->get_buffer_first = external_get_buffer_first;\
-app_links->get_buffer_next = external_get_buffer_next;\
-app_links->get_buffer = external_get_buffer;\
-app_links->get_buffer_by_name = external_get_buffer_by_name;\
-app_links->buffer_seek = external_buffer_seek;\
-app_links->buffer_read_range = external_buffer_read_range;\
-app_links->buffer_replace_range = external_buffer_replace_range;\
-app_links->buffer_set_setting = external_buffer_set_setting;\
-app_links->buffer_auto_indent = external_buffer_auto_indent;\
-app_links->create_buffer = external_create_buffer;\
-app_links->save_buffer = external_save_buffer;\
-app_links->kill_buffer = external_kill_buffer;\
-app_links->get_view_first = external_get_view_first;\
-app_links->get_view_next = external_get_view_next;\
-app_links->get_view = external_get_view;\
-app_links->get_active_view = external_get_active_view;\
-app_links->view_compute_cursor = external_view_compute_cursor;\
-app_links->view_set_cursor = external_view_set_cursor;\
-app_links->view_set_mark = external_view_set_mark;\
-app_links->view_set_highlight = external_view_set_highlight;\
-app_links->view_set_buffer = external_view_set_buffer;\
-app_links->view_post_fade = external_view_post_fade;\
-app_links->view_set_paste_rewrite_ = external_view_set_paste_rewrite_;\
-app_links->view_get_paste_rewrite_ = external_view_get_paste_rewrite_;\
-app_links->get_user_input = external_get_user_input;\
-app_links->get_command_input = external_get_command_input;\
-app_links->get_mouse_state = external_get_mouse_state;\
-app_links->start_query_bar = external_start_query_bar;\
-app_links->end_query_bar = external_end_query_bar;\
-app_links->print_message = external_print_message;\
-app_links->change_theme = external_change_theme;\
-app_links->change_font = external_change_font;\
-app_links->set_theme_colors = external_set_theme_colors;\
-app_links->get_theme_colors = external_get_theme_colors; } while(false)
+app_links->exec_command = Exec_Command;\
+app_links->exec_system_command = Exec_System_Command;\
+app_links->clipboard_post = Clipboard_Post;\
+app_links->clipboard_count = Clipboard_Count;\
+app_links->clipboard_index = Clipboard_Index;\
+app_links->get_buffer_first = Get_Buffer_First;\
+app_links->get_buffer_next = Get_Buffer_Next;\
+app_links->get_buffer = Get_Buffer;\
+app_links->get_buffer_by_name = Get_Buffer_By_Name;\
+app_links->buffer_boundary_seek = Buffer_Boundary_Seek;\
+app_links->buffer_read_range = Buffer_Read_Range;\
+app_links->buffer_replace_range = Buffer_Replace_Range;\
+app_links->buffer_set_setting = Buffer_Set_Setting;\
+app_links->buffer_auto_indent = Buffer_Auto_Indent;\
+app_links->create_buffer = Create_Buffer;\
+app_links->save_buffer = Save_Buffer;\
+app_links->kill_buffer = Kill_Buffer;\
+app_links->get_view_first = Get_View_First;\
+app_links->get_view_next = Get_View_Next;\
+app_links->get_view = Get_View;\
+app_links->get_active_view = Get_Active_View;\
+app_links->view_compute_cursor = View_Compute_Cursor;\
+app_links->view_set_cursor = View_Set_Cursor;\
+app_links->view_set_mark = View_Set_Mark;\
+app_links->view_set_highlight = View_Set_Highlight;\
+app_links->view_set_buffer = View_Set_Buffer;\
+app_links->view_post_fade = View_Post_Fade;\
+app_links->view_set_paste_rewrite_ = View_Set_Paste_Rewrite_;\
+app_links->view_get_paste_rewrite_ = View_Get_Paste_Rewrite_;\
+app_links->get_user_input = Get_User_Input;\
+app_links->get_command_input = Get_Command_Input;\
+app_links->get_mouse_state = Get_Mouse_State;\
+app_links->start_query_bar = Start_Query_Bar;\
+app_links->end_query_bar = End_Query_Bar;\
+app_links->print_message = Print_Message;\
+app_links->change_theme = Change_Theme;\
+app_links->change_font = Change_Font;\
+app_links->set_theme_colors = Set_Theme_Colors;\
+app_links->get_theme_colors = Get_Theme_Colors;\
+app_links->directory_get_hot = Directory_Get_Hot;\
+app_links->get_file_list = Get_File_List;\
+app_links->free_file_list = Free_File_List;\
+app_links->file_exists = File_Exists;\
+app_links->directory_cd = Directory_CD;\
+app_links->get_4ed_path = Get_4ed_Path; } while(false)

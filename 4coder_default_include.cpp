@@ -599,7 +599,7 @@ basic_seek(Application_Links *app, int seek_type, unsigned int flags){
     unsigned int access = AccessProtected;
     View_Summary view = app->get_active_view(app, access);
     Buffer_Summary buffer = app->get_buffer(app, view.buffer_id, access);
-    int pos = app->buffer_seek(app, &buffer, view.cursor.pos, seek_type, flags);
+    int pos = app->buffer_boundary_seek(app, &buffer, view.cursor.pos, seek_type, flags);
     app->view_set_cursor(app, &view, seek_pos(pos), true);
 }
 
@@ -798,9 +798,9 @@ CUSTOM_COMMAND_SIG(snipe_token_or_word){
     view = app->get_active_view(app, access);
     buffer = app->get_buffer(app, view.buffer_id, access);
     
-    pos1 = app->buffer_seek(app, &buffer, view.cursor.pos, false, BoundryToken | BoundryWhitespace);
+    pos1 = app->buffer_boundary_seek(app, &buffer, view.cursor.pos, false, BoundryToken | BoundryWhitespace);
     
-    pos2 = app->buffer_seek(app, &buffer, pos1,            true,  BoundryToken | BoundryWhitespace);
+    pos2 = app->buffer_boundary_seek(app, &buffer, pos1,            true,  BoundryToken | BoundryWhitespace);
     
     Range range = make_range(pos1, pos2);
     app->buffer_replace_range(app, &buffer, range.start, range.end, 0, 0);
@@ -836,6 +836,7 @@ CUSTOM_COMMAND_SIG(open_file_in_quotes){
         append(&file_name, make_string(short_file_name, size));
         
         exec_command(app, cmdid_change_active_panel);
+        view = app->get_active_view(app, AccessAll);
         view_open_file(app, &view, expand_str(file_name), false);
     }
 }
