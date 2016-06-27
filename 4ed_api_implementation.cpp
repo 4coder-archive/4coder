@@ -616,7 +616,7 @@ DOC_PARAM(out, the output buffer to fill with the result of the read)
 DOC_RETURN(returns non-zero on success)
 DOC
 (
-The output buffer might have a capacity of at least (end - start)
+The output buffer must have a capacity of at least (end - start)
 The output is not null terminated.
 
 This call fails if the buffer does not exist, or if the read range
