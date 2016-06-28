@@ -609,14 +609,14 @@ DOC_SEE(Seek_Boundary_Flag)
 
 API_EXPORT int
 Buffer_Read_Range(Application_Links *app, Buffer_Summary *buffer, int start, int end, char *out)/*
-DOC_PARAM(buffer, the buffer to read out of)
-DOC_PARAM(start, the beginning of the read range)
-DOC_PARAM(end, one past the end of the read range)
-DOC_PARAM(out, the output buffer to fill with the result of the read)
-DOC_RETURN(returns non-zero on success)
+DOC_PARAM(buffer, The buffer to be read.)
+DOC_PARAM(start, The beginning of the read range.)
+DOC_PARAM(end, One past the end of the read range.)
+DOC_PARAM(out, The output buffer to fill with the result of the read.)
+DOC_RETURN(Returns non-zero on success.)
 DOC
 (
-The output buffer must have a capacity of at least (end - start)
+The output buffer must have a capacity of at least (end - start).
 The output is not null terminated.
 
 This call fails if the buffer does not exist, or if the read range
@@ -1107,9 +1107,12 @@ DOC_SEE(get_active_view)
     return(result);
 }
 
-/*
 API_EXPORT int
-View_Set_Split_Proportion_(Application_Links *app, View_Summary *view, float t){
+View_Set_Split_Proportion(Application_Links *app, View_Summary *view, float t)/*
+DOC_PARAM(view, The view on which to adjust size.)
+DOC_PARAM(t, The proportion of the view's containing box that it should occupy in [0,1])
+DOC_RETURN(Returns non-zero on success.)
+*/{
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     Models *models = cmd->models;
     Editing_Layout *layout = &models->layout;
@@ -1121,18 +1124,24 @@ View_Set_Split_Proportion_(Application_Links *app, View_Summary *view, float t){
         
         Panel *panel = vptr->panel;
         Panel_Divider *div = layout->dividers + panel->parent;
+        
+        if (panel->which_child == 1){
+            t = 1-t;
+        }
+        
+        div->pos = t;
+        layout_fix_all_panels(layout);
     }
     
     return(result);
 }
-*/
 
 API_EXPORT int
 View_Compute_Cursor(Application_Links *app, View_Summary *view, Buffer_Seek seek, Full_Cursor *cursor_out)/*
-DOC_PARAM(view, the view on which to run the cursor computation)
-DOC_PARAM(seek, the seek position)
-DOC_PARAM(cursor_out, on success this is filled with result of the seek)
-DOC_RETURN(returns non-zero on success)
+DOC_PARAM(view, The view on which to run the cursor computation.)
+DOC_PARAM(seek, The seek position.)
+DOC_PARAM(cursor_out, On success this is filled with result of the seek.)
+DOC_RETURN(Returns non-zero on success.)
 DOC
 (
 Computes a full cursor for the given seek position.

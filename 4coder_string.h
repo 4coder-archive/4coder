@@ -128,6 +128,10 @@ FSTRING_LINK    int32_t        rfind_substr(String s, int32_t start, String seek
 FSTRING_LINK    int32_t        find_substr_insensitive(char *s, int32_t start, String seek);
 FSTRING_LINK    int32_t        find_substr_insensitive(String s, int32_t start, String seek);
 
+FSTRING_LINK    String     skip_whitespace(String s);
+FSTRING_LINK    String     chop_whitespace(String s);
+FSTRING_LINK    String     skip_chop_whitespace(String s);
+
 FSTRING_INLINE  fstr_bool  has_substr(char *s, String seek) { return (s[find_substr(s, 0, seek)] != 0); }
 FSTRING_INLINE  fstr_bool  has_substr(String s, String seek) { return (find_substr(s, 0, seek) < s.size); }
 
@@ -672,6 +676,31 @@ find_substr_insensitive(String str, int32_t start, String seek){
         }
     }
     return str.size;
+}
+
+FSTRING_LINK String
+skip_whitespace(String str){
+    String result = {0};
+    int i = 0;
+    for (; i < str.size && char_is_whitespace(str.str[i]); ++i);
+    result = substr(str, i, str.size - i);
+    return(result);
+}
+
+FSTRING_LINK String
+chop_whitespace(String str){
+    String result = {0};
+    int i = str.size;
+    for (; i > 0 && char_is_whitespace(str.str[i-1]); --i);
+    result = substr(str, 0, i);
+    return(result);
+}
+
+FSTRING_LINK String
+skip_chop_whitespace(String str){
+    str = skip_whitespace(str);
+    str = chop_whitespace(str);
+    return(str);
 }
 
 FSTRING_LINK int32_t

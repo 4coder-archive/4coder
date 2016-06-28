@@ -420,31 +420,6 @@ get_next_line(String source, String line){
     return(next);
 }
 
-String
-skip_whitespace(String str){
-    String result = {0};
-    int i = 0;
-    for (; i < str.size && char_is_whitespace(str.str[i]); ++i);
-    result = substr(str, i, str.size - i);
-    return(result);
-}
-
-String
-chop_whitespace(String str){
-    String result = {0};
-    int i = str.size;
-    for (; i > 0 && char_is_whitespace(str.str[i-1]); --i);
-    result = substr(str, 0, i);
-    return(result);
-}
-
-String
-skip_chop_whitespace(String str){
-    str = skip_whitespace(str);
-    str = chop_whitespace(str);
-    return(str);
-}
-
 int
 is_comment(String str){
     int result = 0;

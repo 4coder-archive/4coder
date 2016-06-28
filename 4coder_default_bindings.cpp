@@ -1,8 +1,10 @@
 
 // TOP
 
+#ifndef FCODER_DEFAULT_BINDINGS
+#define FCODER_DEFAULT_BINDINGS
+
 #include "4coder_default_include.cpp"
-#include "4coder_default_building.cpp"
 
 // NOTE(allen|a3.3): All of your custom ids should be enumerated
 // as shown here, they may start at 0, and you can only have
@@ -191,7 +193,7 @@ default_keys(Bind_Helper *context){
     bind(context, 'P', MDFR_CTRL, cmdid_close_panel);
     bind(context, 'n', MDFR_CTRL, cmdid_interactive_new);
     bind(context, 'o', MDFR_CTRL, cmdid_interactive_open);
-    bind(context, ',', MDFR_CTRL, change_active_panel_skip_build);
+    bind(context, ',', MDFR_CTRL, change_active_panel);
     bind(context, 'k', MDFR_CTRL, cmdid_interactive_kill_buffer);
     bind(context, 'i', MDFR_CTRL, cmdid_interactive_switch_buffer);
     bind(context, 'c', MDFR_ALT, cmdid_open_color_tweaker);
@@ -199,16 +201,10 @@ default_keys(Bind_Helper *context){
     bind(context, 'o', MDFR_ALT, open_in_other);
     bind(context, 'w', MDFR_CTRL, save_as);
     
-    bind(context, 'm', MDFR_ALT, build_in_build_panel);
-    bind(context, ',', MDFR_ALT, close_build_panel);
+    bind(context, 'm', MDFR_ALT, build_search);
     bind(context, 'x', MDFR_ALT, execute_arbitrary_command);
     bind(context, 'z', MDFR_ALT, execute_any_cli);
     bind(context, 'Z', MDFR_ALT, execute_previous_cli);
-    
-    // NOTE(allen): These callbacks may not actually be useful to you, but
-    // go look at them and see what they do.
-    bind(context, 'M', MDFR_ALT | MDFR_CTRL, open_my_files);
-    bind(context, 'M', MDFR_ALT, build_at_launch_location);
     
     end_map(context);
     
@@ -241,7 +237,7 @@ default_keys(Bind_Helper *context){
     
     bind(context, '=', MDFR_CTRL, write_increment);
     bind(context, 't', MDFR_ALT, write_allen_todo);
-    bind(context, 'n', MDFR_ALT, write_allen_note);
+    bind(context, 'y', MDFR_ALT, write_allen_note);
     bind(context, '[', MDFR_CTRL, open_long_braces);
     bind(context, '{', MDFR_CTRL, open_long_braces_semicolon);
     bind(context, '}', MDFR_CTRL, open_long_braces_break);
@@ -350,6 +346,8 @@ get_bindings(void *data, int size){
     return(result);
 }
 
-#endif
+#endif //NO_BINDING
+
+#endif //FCODER_DEFAULT_BINDINGS
 
 // BOTTOM

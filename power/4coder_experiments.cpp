@@ -1,6 +1,9 @@
 
 // TOP
 
+#include "4coder_default_include.cpp"
+#include "4coder_default_building.cpp"
+
 #define NO_BINDING
 #include "4coder_default_bindings.cpp"
 
@@ -280,6 +283,13 @@ get_bindings(void *data, int size){
     // You can also use the helper "restart_map" instead of
     // begin_map to clear everything that was in the map and
     // bind new things instead.
+    begin_map(context, mapid_global);
+    bind(context, ',', MDFR_ALT, close_build_panel);
+    bind(context, 'n', MDFR_ALT, msvc_goto_next_error);
+    bind(context, 'N', MDFR_ALT, msvc_goto_prev_error);
+    bind(context, 'M', MDFR_ALT, msvc_goto_first_error);
+    end_map(context);
+    
     begin_map(context, mapid_file);
     bind(context, 'k', MDFR_ALT, kill_rect);
     end_map(context);

@@ -279,16 +279,18 @@ get_first_view_with_buffer(Application_Links *app, int buffer_id){
     View_Summary result = {};
     View_Summary test = {};
     
-    unsigned int access = AccessAll;
-    for(test = app->get_view_first(app, access);
-        test.exists;
-        app->get_view_next(app, &test, access)){
-        
-        Buffer_Summary buffer = app->get_buffer(app, test.buffer_id, access);
-        
-        if(buffer.buffer_id == buffer_id){
-            result = test;
-            break;
+    if (buffer_id != 0){
+        unsigned int access = AccessAll;
+        for(test = app->get_view_first(app, access);
+            test.exists;
+            app->get_view_next(app, &test, access)){
+            
+            Buffer_Summary buffer = app->get_buffer(app, test.buffer_id, access);
+            
+            if(buffer.buffer_id == buffer_id){
+                result = test;
+                break;
+            }
         }
     }
 
