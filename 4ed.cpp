@@ -20,7 +20,7 @@ enum App_State{
 
 struct App_State_Resizing{
     Panel_Divider *divider;
-    i32 min, max;
+    f32 min, max;
 };
 
 struct CLI_Process{
@@ -797,9 +797,14 @@ COMMAND_DECL(open_panel_vsplit){
         
         panel2->screen_region = panel1->screen_region;
         
-        panel2->full.x0 = split.divider->pos;
+        i32 x_pos = ROUND32(lerp((f32)panel1->full.x0,
+                                 split.divider->pos,
+                                 (f32)panel1->full.x1)
+                            );
+        
+        panel2->full.x0 = x_pos;
         panel2->full.x1 = panel1->full.x1;
-        panel1->full.x1 = split.divider->pos;
+        panel1->full.x1 = x_pos;
         
         panel_fix_internal_area(panel1);
         panel_fix_internal_area(panel2);
@@ -823,9 +828,14 @@ COMMAND_DECL(open_panel_hsplit){
         
         panel2->screen_region = panel1->screen_region;
         
-        panel2->full.y0 = split.divider->pos;
+        i32 y_pos = ROUND32(lerp((f32)panel1->full.y0,
+                                 split.divider->pos,
+                                 (f32)panel1->full.y1)
+                            );
+        
+        panel2->full.y0 = y_pos;
         panel2->full.y1 = panel1->full.y1;
-        panel1->full.y1 = split.divider->pos;
+        panel1->full.y1 = y_pos;
         
         panel_fix_internal_area(panel1);
         panel_fix_internal_area(panel2);
@@ -2697,26 +2707,22 @@ App_Step_Sig(app_step){
                 Divider_And_ID div = layout_get_divider(&models->layout, mouse_divider_id);
                 vars->resizing.divider = div.divider;
                 
-                i32 min, max;
+                f32 min = 0;
+                f32 max = 0;
                 {
-                    i32 mid, MIN, MAX;
-                    mid = div.divider->pos;
+                    f32 mid = layout_get_position(&models->layout, mouse_divider_id);
                     if (mouse_divider_vertical){
-                        MIN = 0;
-                        MAX = MIN + models->layout.full_width;
+                        max = (f32)models->layout.full_width;
                     }
                     else{
-                        MIN = 0;
-                        MAX = MIN + models->layout.full_height;
+                        max = (f32)models->layout.full_height;
                     }
-                    min = MIN;
-                    max = MAX;
                     
                     i32 divider_id = div.id;
                     do{
                         Divider_And_ID other_div = layout_get_divider(&models->layout, divider_id);
                         b32 divider_match = (other_div.divider->v_divider == mouse_divider_vertical);
-                        i32 pos = other_div.divider->pos;
+                        f32 pos = layout_get_position(&models->layout, divider_id);
                         if (divider_match && pos > mid && pos < max){
                             max = pos;
                         }
@@ -2732,9 +2738,10 @@ App_Step_Sig(app_step){
                     divider_stack[top++] = div.id;
                     
                     while (top > 0){
-                        Divider_And_ID other_div = layout_get_divider(&models->layout, divider_stack[--top]);
+                        --top;
+                        Divider_And_ID other_div = layout_get_divider(&models->layout, divider_stack[top]);
                         b32 divider_match = (other_div.divider->v_divider == mouse_divider_vertical);
-                        i32 pos = other_div.divider->pos;
+                        f32 pos = layout_get_position(&models->layout, divider_stack[top]);
                         if (divider_match && pos > mid && pos < max){
                             max = pos;
                         }
@@ -2752,8 +2759,8 @@ App_Step_Sig(app_step){
                     end_temp_memory(temp);
                 }
                 
-                vars->resizing.min = min;
-                vars->resizing.max = max;
+                vars->resizing.min = 0.f;
+                vars->resizing.max = 1.f;
             }
         }break;
         
@@ -2761,12 +2768,14 @@ App_Step_Sig(app_step){
         {
             if (input->mouse.l){
                 Panel_Divider *divider = vars->resizing.divider;
+                i32 pos = 0;
                 if (divider->v_divider){
-                    divider->pos = mx;
+                    pos = clamp(0, mx, models->layout.full_width);
                 }
                 else{
-                    divider->pos = my;
+                    pos = clamp(0, my, models->layout.full_height);
                 }
+                divider->pos = layout_compute_position(&models->layout, divider, pos);
                 
                 if (divider->pos < vars->resizing.min){
                     divider->pos = vars->resizing.min;
