@@ -773,7 +773,7 @@ start to end by inserting spaces or tabs at the beginning of the lines.
 If the buffer does not have lexing enabled or the lexing job has not
 completed this function will fail.
 )
-DOC_SEE(Auto_Tab_Flag)
+DOC_SEE(Auto_Indent_Flag)
 */{
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     System_Functions *system = cmd->system;
@@ -1067,15 +1067,65 @@ API_EXPORT View_Summary
 Get_Active_View(Application_Links *app, unsigned int access)/*
 DOC_PARAM(access, the access flags for the access)
 DOC_RETURN(returns a summary that describes the active view)
+DOC_SEE(set_active_view)
 */{
     Command_Data *cmd = (Command_Data*)app->cmd_context;
-    View_Summary view = {};
+    View_Summary view = {0};
     fill_view_summary(&view, cmd->view, &cmd->vars->live_set, &cmd->models->working_set);
     if (!access_test(view.lock_flags, access)){
         view = view_summary_zero();
     }
     return(view);
 }
+
+API_EXPORT int
+Set_Active_View(Application_Links *app, View_Summary *view)/*
+DOC_PARAM(view, the view to set as active)
+DOC_RETURN(returns non-zero on success)
+DOC
+(
+If the given view is a currently open view, it is set as the
+active view, and takes subsequent commands and is returned
+from get_active_view.
+)
+DOC_SEE(get_active_view)
+*/{
+    Command_Data *cmd = (Command_Data*)app->cmd_context;
+    Models *models = cmd->models;
+    View *vptr = imp_get_view(cmd, view);
+    int result = false;
+    
+    if (vptr){
+        result = true;
+        
+        Panel *panel = vptr->panel;
+        models->layout.active_panel = (i32)(panel - models->layout.panels);
+        
+        update_command_data(cmd->vars, cmd);
+    }
+    
+    return(result);
+}
+
+/*
+API_EXPORT int
+View_Set_Split_Proportion_(Application_Links *app, View_Summary *view, float t){
+    Command_Data *cmd = (Command_Data*)app->cmd_context;
+    Models *models = cmd->models;
+    Editing_Layout *layout = &models->layout;
+    View *vptr = imp_get_view(cmd, view);
+    int result = false;
+    
+    if (vptr){
+        result = true;
+        
+        Panel *panel = vptr->panel;
+        Panel_Divider *div = layout->dividers + panel->parent;
+    }
+    
+    return(result);
+}
+*/
 
 API_EXPORT int
 View_Compute_Cursor(Application_Links *app, View_Summary *view, Buffer_Seek seek, Full_Cursor *cursor_out)/*

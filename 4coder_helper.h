@@ -2,6 +2,9 @@
  * Bind helper struct and functions
  */
 
+#ifndef FCODER_HELPER_H
+#define FCODER_HELPER_H
+
 struct Bind_Helper{
     Binding_Unit *cursor, *start, *end;
     Binding_Unit *header, *group;
@@ -276,7 +279,7 @@ get_first_view_with_buffer(Application_Links *app, int buffer_id){
     View_Summary result = {};
     View_Summary test = {};
     
-    unsigned int access = AccessProtected|AccessHidden;
+    unsigned int access = AccessAll;
     for(test = app->get_view_first(app, access);
         test.exists;
         app->get_view_next(app, &test, access)){
@@ -780,4 +783,4 @@ view_open_file(Application_Links *app, View_Summary *view,
     return(result);
 }
 
-
+#endif

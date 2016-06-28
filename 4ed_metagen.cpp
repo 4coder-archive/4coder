@@ -1141,7 +1141,7 @@ generate_custom_headers(){
             
             String ret = function_set.ret[i];
             fprintf(file,
-                    "%.*s %.*s(\n"
+                    "%.*s app->%.*s(\n"
                     "<div style='margin-left: 4mm;'>",
                     ret.size, ret.str, name.size, name.str);
             

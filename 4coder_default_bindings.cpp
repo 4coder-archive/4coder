@@ -2,6 +2,7 @@
 // TOP
 
 #include "4coder_default_include.cpp"
+#include "4coder_default_building.cpp"
 
 // NOTE(allen|a3.3): All of your custom ids should be enumerated
 // as shown here, they may start at 0, and you can only have
@@ -34,31 +35,25 @@ CUSTOM_COMMAND_SIG(write_capital){
 }
 
 CUSTOM_COMMAND_SIG(switch_to_compilation){
-    View_Summary view;
-    Buffer_Summary buffer;
     
     char name[] = "*compilation*";
     int name_size = sizeof(name)-1;
     
     unsigned int access = AccessOpen;
-    view = app->get_active_view(app, access);
-    buffer = app->get_buffer_by_name(app, name, name_size, access);
+    View_Summary view = app->get_active_view(app, access);
+    Buffer_Summary buffer = app->get_buffer_by_name(app, name, name_size, access);
     
     app->view_set_buffer(app, &view, buffer.buffer_id, 0);
 }
 
 CUSTOM_COMMAND_SIG(rewrite_as_single_caps){
-    View_Summary view;
-    Buffer_Summary buffer;
-    Full_Cursor cursor;
-    Range range;
-    String string;
-    int is_first, i;
-    
     unsigned int access = AccessOpen;
-    view = app->get_active_view(app, access);
-    cursor = view.cursor;
+    View_Summary view = app->get_active_view(app, access);
+    Full_Cursor cursor = view.cursor;
     
+    // TODO(allen): This can be rewritten now without moving the
+    // cursor around, instead just calling the boundary seek.
+    Range range = {0};
     exec_command(app, seek_token_left);
     refresh_view(app, &view);
     range.min = view.cursor.pos;
@@ -67,21 +62,26 @@ CUSTOM_COMMAND_SIG(rewrite_as_single_caps){
     refresh_view(app, &view);
     range.max = view.cursor.pos;
     
+    String string = {0};
     string.str = (char*)app->memory;
     string.size = range.max - range.min;
     assert(string.size < app->memory_size);
     
-    buffer = app->get_buffer(app, view.buffer_id, access);
+    Buffer_Summary buffer = app->get_buffer(app, view.buffer_id, access);
     app->buffer_read_range(app, &buffer, range.min, range.max, string.str);
     
-    is_first = 1;
-    for (i = 0; i < string.size; ++i){
+    int is_first = true;
+    for (int i = 0; i < string.size; ++i){
         if (char_is_alpha_true(string.str[i])){
-            if (is_first) is_first = 0;
-            else string.str[i] = char_to_lower(string.str[i]);
+            if (is_first){
+                is_first = false;
+            }
+            else{
+                string.str[i] = char_to_lower(string.str[i]);
+            }
         }
         else{
-            is_first = 1;
+            is_first = true;
         }
     }
     
@@ -89,25 +89,33 @@ CUSTOM_COMMAND_SIG(rewrite_as_single_caps){
     
     app->view_set_cursor(app, &view,
                          seek_line_char(cursor.line+1, cursor.character),
-                         1);
+                         true);
 }
 
 CUSTOM_COMMAND_SIG(open_my_files){
-    // TODO(allen|a4.0.8): comment
-    unsigned int access = AccessProtected|AccessHidden;
+    unsigned int access = AccessAll;
     View_Summary view = app->get_active_view(app, access);
     view_open_file(app, &view, literal("w:/4ed/data/test/basic.cpp"), false);
 }
 
 CUSTOM_COMMAND_SIG(build_at_launch_location){
-    // TODO(allen|a4.0.8): comment
-    unsigned int access = AccessProtected|AccessHidden;
+    unsigned int access = AccessAll;
     View_Summary view = app->get_active_view(app, access);
     app->exec_system_command(app, &view,
                              buffer_identifier(literal("*compilation*")),
                              literal("."),
                              literal("build"),
                              CLI_OverlapWithConflict);
+}
+
+CUSTOM_COMMAND_SIG(seek_whitespace_up_end_line){
+    exec_command(app, seek_whitespace_up);
+    exec_command(app, seek_end_of_line);
+}
+
+CUSTOM_COMMAND_SIG(seek_whitespace_down_end_line){
+    exec_command(app, seek_whitespace_down);
+    exec_command(app, seek_end_of_line);
 }
 
 HOOK_SIG(my_start){
@@ -169,7 +177,7 @@ OPEN_FILE_HOOK_SIG(my_file_settings){
     app->buffer_set_setting(app, &buffer, BufferSetting_WrapLine, wrap_lines);
     app->buffer_set_setting(app, &buffer, BufferSetting_MapID, (treat_as_code)?((int)my_code_map):((int)mapid_file));
     
-    // TODO(allen): eliminate this hook if you can.
+    // TODO(allen): Eliminate this hook if you can.
     // no meaning for return
     return(0);
 }
@@ -183,7 +191,7 @@ default_keys(Bind_Helper *context){
     bind(context, 'P', MDFR_CTRL, cmdid_close_panel);
     bind(context, 'n', MDFR_CTRL, cmdid_interactive_new);
     bind(context, 'o', MDFR_CTRL, cmdid_interactive_open);
-    bind(context, ',', MDFR_CTRL, cmdid_change_active_panel);
+    bind(context, ',', MDFR_CTRL, change_active_panel_skip_build);
     bind(context, 'k', MDFR_CTRL, cmdid_interactive_kill_buffer);
     bind(context, 'i', MDFR_CTRL, cmdid_interactive_switch_buffer);
     bind(context, 'c', MDFR_ALT, cmdid_open_color_tweaker);
@@ -191,7 +199,8 @@ default_keys(Bind_Helper *context){
     bind(context, 'o', MDFR_ALT, open_in_other);
     bind(context, 'w', MDFR_CTRL, save_as);
     
-    bind(context, 'm', MDFR_ALT, build_search);
+    bind(context, 'm', MDFR_ALT, build_in_build_panel);
+    bind(context, ',', MDFR_ALT, close_build_panel);
     bind(context, 'x', MDFR_ALT, execute_arbitrary_command);
     bind(context, 'z', MDFR_ALT, execute_any_cli);
     bind(context, 'Z', MDFR_ALT, execute_previous_cli);
@@ -271,8 +280,8 @@ default_keys(Bind_Helper *context){
     
     bind(context, key_right, MDFR_CTRL, seek_whitespace_right);
     bind(context, key_left, MDFR_CTRL, seek_whitespace_left);
-    bind(context, key_up, MDFR_CTRL, seek_whitespace_up);
-    bind(context, key_down, MDFR_CTRL, seek_whitespace_down);
+    bind(context, key_up, MDFR_CTRL, seek_whitespace_up_end_line);
+    bind(context, key_down, MDFR_CTRL, seek_whitespace_down_end_line);
     
     bind(context, key_up, MDFR_ALT, move_up_10);
     bind(context, key_down, MDFR_ALT, move_down_10);
