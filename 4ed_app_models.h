@@ -68,6 +68,7 @@ struct Models{
     Working_Set working_set;
     struct Live_Views *live_set;
     Editing_File *message_buffer;
+    Editing_File *scratch_buffer;
     
     char hot_dir_base_[256];
     Hot_Directory hot_directory;

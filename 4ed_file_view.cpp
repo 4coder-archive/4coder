@@ -1645,12 +1645,12 @@ file_view_nullify_file(View *view){
 
 internal void
 view_set_file(View *view, Editing_File *file, Models *models){
-    Font_Info *fnt_info;
-    
+#if 0
     // TODO(allen): This belongs somewhere else.
-    fnt_info = get_font_info(models->font_set, models->global_font.font_id);
+    Font_Info *fnt_info = get_font_info(models->font_set, models->global_font.font_id);
     view->font_advance = fnt_info->advance;
     view->line_height = fnt_info->height;
+#endif
     
     if (view->file_data.file != 0){
         touch_file(&models->working_set, view->file_data.file);
@@ -3023,6 +3023,13 @@ style_get_color(Style *style, Cpp_Token token){
         }
     }
     return result;
+}
+
+internal void
+update_view_line_height(Models *models, View *view){
+    Font_Info *fnt_info = get_font_info(models->font_set, models->global_font.font_id);
+    view->font_advance = fnt_info->advance;
+    view->line_height = fnt_info->height;
 }
 
 internal void
@@ -4489,7 +4496,6 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                                             }
                                             else{
                                                 message = string_zero();
-                                                
                                                 if (!file->settings.unimportant){
                                                     switch (buffer_get_sync(file)){
                                                         case SYNC_BEHIND_OS: message = message_unsynced; break;
@@ -4511,9 +4517,11 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                                     file = reserved_files[i];
                                     
                                     message = string_zero();
-                                    switch (buffer_get_sync(file)){
-                                        case SYNC_BEHIND_OS: message = message_unsynced; break;
-                                        case SYNC_UNSAVED: message = message_unsaved; break;
+                                    if (!file->settings.unimportant){
+                                        switch (buffer_get_sync(file)){
+                                            case SYNC_BEHIND_OS: message = message_unsynced; break;
+                                            case SYNC_UNSAVED: message = message_unsaved; break;
+                                        }
                                     }
                                     
                                     id.id[0] = (u64)(file);
@@ -5739,7 +5747,7 @@ draw_style_preview(GUI_Target *gui_target, Render_Target *target, View *view, i3
     
     draw_margin(target, rect, inner, margin_color);
     draw_rectangle(target, inner, back);
-
+    
     i32 y = inner.y0;
     i32 x = inner.x0;
     x = CEIL32(draw_string(target, font_id, style->name.str, x, y, text_color));
@@ -5747,7 +5755,7 @@ draw_style_preview(GUI_Target *gui_target, Render_Target *target, View *view, i3
     if (font_x > x + 10){
         draw_string(target, font_id, info->name.str, font_x, y, text_color);
     }
-
+    
     x = inner.x0;
     y += info->height;
     x = CEIL32(draw_string(target, font_id, "if", x, y, keyword_color));
@@ -6017,7 +6025,7 @@ struct Search_Match{
 internal void
 search_iter_init(General_Memory *general, Search_Iter *iter, i32 size){
     i32 str_max;
-
+    
     if (iter->word.str == 0){
         str_max = size*2;
         iter->word.str = (char*)general_memory_allocate(general, str_max, 0);
@@ -6028,7 +6036,7 @@ search_iter_init(General_Memory *general, Search_Iter *iter, i32 size){
         iter->word.str = (char*)general_memory_reallocate_nocopy(general, iter->word.str, str_max, 0);
         iter->word.memory_size = str_max;
     }
-
+    
     iter->i = 0;
     iter->pos = 0;
 }
@@ -6036,7 +6044,7 @@ search_iter_init(General_Memory *general, Search_Iter *iter, i32 size){
 internal void
 search_set_init(General_Memory *general, Search_Set *set, i32 set_count){
     i32 max;
-
+    
     if (set->ranges == 0){
         max = set_count*2;
         set->ranges = (Search_Range*)general_memory_allocate(general, sizeof(Search_Range)*max, 0);
@@ -6048,7 +6056,7 @@ search_set_init(General_Memory *general, Search_Set *set, i32 set_count){
             general, set->ranges, sizeof(Search_Range)*max, 0);
         set->max = max;
     }
-
+    
     set->count = set_count;
 }
 
@@ -6071,7 +6079,7 @@ internal void
 search_hits_init(General_Memory *general, Table *hits, String_Space *str, i32 table_size, i32 str_size){
     void *mem;
     i32 mem_size;
-
+    
     if (hits->hash_array == 0){
         search_hits_table_alloc(general, hits, table_size);
     }
@@ -6080,7 +6088,7 @@ search_hits_init(General_Memory *general, Table *hits, String_Space *str, i32 ta
         mem = general_memory_reallocate_nocopy(general, hits->hash_array, mem_size, 0);
         table_init_memory(hits, mem, table_size, sizeof(Offset_String));
     }
-
+    
     if (str->space == 0){
         str->space = (char*)general_memory_allocate(general, str_size, 0);
         str->max = str_size;
@@ -6089,7 +6097,7 @@ search_hits_init(General_Memory *general, Table *hits, String_Space *str, i32 ta
         str->space = (char*)general_memory_reallocate_nocopy(general, str->space, str_size, 0);
         str->max = str_size;
     }
-
+    
     str->pos = str->new_pos = 0;
     table_clear(hits);
 }
@@ -6100,18 +6108,18 @@ search_hit_add(General_Memory *general, Table *hits, String_Space *space, char *
     i32 new_size;
     Offset_String ostring;
     Table new_hits;
-
+    
     Assert(len != 0);
-
+    
     ostring = strspace_append(space, str, len);
     if (ostring.size == 0){
         new_size = Max(space->max*2, space->max + len);
         space->space = (char*)general_memory_reallocate(general, space->space, space->new_pos, new_size, 0);
         ostring = strspace_append(space, str, len);
     }
-
+    
     Assert(ostring.size != 0);
-
+    
     if (table_at_capacity(hits)){
         search_hits_table_alloc(general, &new_hits, hits->max*2);
         table_clear(&new_hits);
@@ -6119,7 +6127,7 @@ search_hit_add(General_Memory *general, Table *hits, String_Space *space, char *
         general_memory_free(general, hits->hash_array);
         *hits = new_hits;
     }
-
+    
     if (!table_add(hits, &ostring, space->space, tbl_offset_string_hash, tbl_offset_string_compare)){
         result = 1;
         strspace_keep_prev(space);
@@ -6128,7 +6136,7 @@ search_hit_add(General_Memory *general, Table *hits, String_Space *space, char *
         result = 0;
         strspace_discard_prev(space);
     }
-
+    
     return(result);
 }
 
@@ -6140,20 +6148,20 @@ search_next_match(Partition *part, Search_Set *set, Search_Iter *iter_){
     Temp_Memory temp;
     char *spare;
     i32 start_pos, end_pos, count;
-
+    
     temp = begin_temp_memory(part);
     spare = push_array(part, char, iter.word.size);
-
+    
     count = set->count;
     for (; iter.i < count;){
         range = set->ranges + iter.i;
-
+        
         end_pos = range->start + range->size;
-
+        
         if (iter.pos + iter.word.size < end_pos){
             start_pos = Max(iter.pos, range->start);
             result.start = buffer_find_string(range->buffer, start_pos, end_pos, iter.word.str, iter.word.size, spare);
-
+            
             if (result.start < end_pos){
                 iter.pos = result.start + 1;
                 if (result.start == 0 || !char_is_alpha_numeric(buffer_get_char(range->buffer, result.start - 1))){
@@ -6175,9 +6183,9 @@ search_next_match(Partition *part, Search_Set *set, Search_Iter *iter_){
         }
     }
     end_temp_memory(temp);
-
+    
     *iter_ = iter;
-
+    
     return(result);
 }
 
@@ -6192,26 +6200,28 @@ view_change_size(General_Memory *general, View *view){
 internal View_And_ID
 live_set_alloc_view(Live_Views *live_set, Panel *panel, Models *models){
     View_And_ID result = {};
-
+    
     Assert(live_set->count < live_set->max);
     ++live_set->count;
-
+    
     result.view = live_set->free_sentinel.next;
     result.id = (i32)(result.view - live_set->views);
     Assert(result.id == result.view->persistent.id);
-
+    
     dll_remove(result.view);
     memset(get_view_body(result.view), 0, get_view_size());
-
+    
     result.view->in_use = 1;
     panel->view = result.view;
     result.view->panel = panel;
-
+    
     result.view->persistent.models = models;
     result.view->current_scroll = &result.view->recent.scroll;
-
+    
+    update_view_line_height(models, result.view);
+    
     init_query_set(&result.view->query_set);
-
+    
     {
         i32 gui_mem_size = Kbytes(32);
         void *gui_mem = general_memory_allocate(&models->mem.general, gui_mem_size + 8, 0);

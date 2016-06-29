@@ -93,6 +93,9 @@ CUSTOM_COMMAND_SIG(change_active_panel_build){
             view = app->get_active_view(app, AccessAll);
         }
     }
+    else{
+        exec_command(app, cmdid_change_active_panel);
+    }
 }
 
 // TODO(allen): This is a bit nasty.  I want a system for picking

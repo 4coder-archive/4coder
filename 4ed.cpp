@@ -2178,14 +2178,28 @@ App_Step_Sig(app_step){
 #endif
         
         General_Memory *general = &models->mem.general;
-        Editing_File *file = working_set_alloc_always(&models->working_set, general);
-        file_create_read_only(system, models, file, "*messages*");
-        working_set_add(system, &models->working_set, file, general);
-        file->settings.never_kill = 1;
-        file->settings.unimportant = 1;
-        file->settings.unwrapped_lines = 1;
         
-        models->message_buffer = file;
+        {
+            Editing_File *file = working_set_alloc_always(&models->working_set, general);
+            file_create_read_only(system, models, file, "*messages*");
+            working_set_add(system, &models->working_set, file, general);
+            file->settings.never_kill = 1;
+            file->settings.unimportant = 1;
+            file->settings.unwrapped_lines = 1;
+            
+            models->message_buffer = file;
+        }
+        
+        {
+            Editing_File *file = working_set_alloc_always(&models->working_set, general);
+            file_create_empty(system, models, file, "*scratch*");
+            working_set_add(system, &models->working_set, file, general);
+            file->settings.never_kill = 1;
+            file->settings.unimportant = 1;
+            file->settings.unwrapped_lines = 1;
+            
+            models->scratch_buffer = file;
+        }
         
         if (models->hooks[hook_start]){
             models->hooks[hook_start](&models->app_links);
@@ -2219,6 +2233,14 @@ App_Step_Sig(app_step){
         
         if (i < models->layout.panel_count){
             view_set_file(panel->view, models->message_buffer, models);
+            view_show_file(panel->view);
+            
+            ++i;
+            panel = panel->next;
+        }
+        
+        for (;i < models->layout.panel_count; ++i, panel = panel->next){
+            view_set_file(panel->view, models->scratch_buffer, models);
             view_show_file(panel->view);
         }
     }
@@ -2835,6 +2857,7 @@ App_Step_Sig(app_step){
         Panel *panel, *used_panels;
         used_panels = &models->layout.used_sentinel;
         for (dll_items(panel, used_panels)){
+            update_view_line_height(models, panel->view);
             remeasure_file_view(system, panel->view);
         }
     }
