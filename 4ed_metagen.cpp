@@ -657,7 +657,7 @@ perform_doc_parse(String doc_string, Documentation *doc){
                 }
             }
             else{
-                printf("warning: invalid doc note %.*s\n", doc_note.size, doc_note.str);
+                fprintf(stderr, "warning: invalid doc note %.*s\n", doc_note.size, doc_note.str);
             }
         }
     }while(keep_parsing);
@@ -858,7 +858,7 @@ generate_custom_headers(){
                         function_set.name[sig_count] = string_zero();
                         function_set.args[sig_count] = string_zero();
                         // TODO(allen): get warning line numbers
-                        printf("custom_api_spec.cpp(???) : generator warning : invalid function signature\n");
+                        fprintf(stderr, "custom_api_spec.cpp(???) : generator warning : invalid function signature\n");
                     }
                     ++sig_count;
                 }
@@ -997,13 +997,15 @@ generate_custom_headers(){
     
 #define CODE_STYLE "font-family: \"Courier New\", Courier, monospace; text-align: left;"
     
-#define BACK_COLOR  "#FAFAFA"
-#define TEXT_COLOR  "#0D0D0D"
-#define CODE_BACK   "#DFDFDF"
-#define POP_COLOR_1 "#309030"
-#define POP_BACK_1  "#E0FFD0"
-#define POP_COLOR_2 "#007070"
-#define POP_COLOR_3 "#005000"
+#define BACK_COLOR   "#FAFAFA"
+#define TEXT_COLOR   "#0D0D0D"
+#define CODE_BACK    "#DFDFDF"
+    
+#define POP_COLOR_1  "#309030"
+#define POP_BACK_1   "#E0FFD0"
+#define VISITED_LINK "#A0C050"
+    
+#define POP_COLOR_2  "#005000"
     
     fprintf(file,
             "<html lang=\"en-US\">\n"
@@ -1032,7 +1034,7 @@ generate_custom_headers(){
             "text-decoration: none; "
             "}\n"
             "a:visited { "
-            "color: " POP_COLOR_2 "; "
+            "color: " VISITED_LINK "; "
             "}\n"
             "a:hover { "
             "background: " POP_BACK_1 "; "
@@ -1050,7 +1052,7 @@ generate_custom_headers(){
             "}\n"
             "li:before { "
             "content: \"4\"; "
-            "color: " POP_COLOR_3 "; "
+            "color: " POP_COLOR_2 "; "
             "font-family:\"Webdings\"; "
             "}\n"
             
@@ -1138,7 +1140,7 @@ generate_custom_headers(){
             
             if (function_set.doc_string[i].size == 0){
                 fprintf(file, "No documentation generated for this function, assume it is non-public.\n");
-                printf("warning: no documentation string for %.*s\n", name.size, name.str);
+                fprintf(stderr, "warning: no documentation string for %.*s\n", name.size, name.str);
             }
             
 #define DOC_HEAD_OPEN  "<div style='margin-top: 3mm; margin-bottom: 3mm; color: "POP_COLOR_1";'><b><i>"
@@ -1220,15 +1222,10 @@ generate_custom_headers(){
 
 int main(){
     char *filename = 0;
-        
+    
     filename = generate_keycode_enum();
-    printf("gen success: %s\n", filename);
-        
     filename = generate_style();
-    printf("gen success: %s\n", filename);
-        
     filename = generate_custom_headers();
-    printf("gen success: %s\n", filename);
 }
 
 // BOTTOM

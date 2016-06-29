@@ -320,16 +320,16 @@ COMMAND_DECL(center_view){
     
     f32 y = 0, h = 0;
     if (view->file_data.unwrapped_lines){
-        y = view->recent->cursor.unwrapped_y;
+        y = view->recent.cursor.unwrapped_y;
     }
     else{
-        y = view->recent->cursor.wrapped_y;
+        y = view->recent.cursor.wrapped_y;
     }
     
     h = view_file_height(view);
     y = clamp_bottom(0.f, y - h*.5f);
     
-    view->recent->scroll.target_y = ROUND32(y);
+    view->recent.scroll.target_y = ROUND32(y);
 }
 
 COMMAND_DECL(left_adjust_view){
@@ -338,14 +338,14 @@ COMMAND_DECL(left_adjust_view){
     
     f32 x = 0;
     if (view->file_data.unwrapped_lines){
-        x = view->recent->cursor.unwrapped_x;
+        x = view->recent.cursor.unwrapped_x;
     }
     else{
-        x = view->recent->cursor.wrapped_x;
+        x = view->recent.cursor.wrapped_x;
     }
     
     x = clamp_bottom(0.f, x - 30.f);
-    view->recent->scroll.target_x = ROUND32(x);
+    view->recent.scroll.target_x = ROUND32(x);
 }
 
 COMMAND_DECL(set_cursor){
@@ -416,7 +416,7 @@ COMMAND_DECL(word_complete){
     }
     
     if (do_init){
-        word_end = view->recent->cursor.pos;
+        word_end = view->recent.cursor.pos;
         word_start = word_end;
         cursor_pos = word_end - 1;
         
@@ -678,17 +678,17 @@ COMMAND_DECL(toggle_line_wrap){
     if (view->file_data.unwrapped_lines){
         view->file_data.unwrapped_lines = 0;
         file->settings.unwrapped_lines = 0;
-        view->recent->scroll.target_x = 0;
-        view->recent->cursor = view_compute_cursor_from_pos(
-                                                            view, view->recent->cursor.pos);
-        view->recent->preferred_x = view->recent->cursor.wrapped_x;
+        view->recent.scroll.target_x = 0;
+        view->recent.cursor = view_compute_cursor_from_pos(
+                                                            view, view->recent.cursor.pos);
+        view->recent.preferred_x = view->recent.cursor.wrapped_x;
     }
     else{
         view->file_data.unwrapped_lines = 1;
         file->settings.unwrapped_lines = 1;
-        view->recent->cursor =
-            view_compute_cursor_from_pos(view, view->recent->cursor.pos);
-        view->recent->preferred_x = view->recent->cursor.unwrapped_x;
+        view->recent.cursor =
+            view_compute_cursor_from_pos(view, view->recent.cursor.pos);
+        view->recent.preferred_x = view->recent.cursor.unwrapped_x;
     }
     view_set_relative_scrolling(view, scrolling);
 }
@@ -718,7 +718,7 @@ case_change_range(System_Functions *system,
                   Mem_Options *mem, View *view, Editing_File *file,
                   u8 a, u8 z, u8 char_delta){
 #if BUFFER_EXPERIMENT_SCALPEL <= 0
-    Range range = make_range(view->recent->cursor.pos, view->recent->mark);
+    Range range = make_range(view->recent.cursor.pos, view->recent.mark);
     if (range.start < range.end){
         Edit_Step step = {};
         step.type = ED_NORMAL;
@@ -929,13 +929,13 @@ COMMAND_DECL(page_down){
     REQ_READABLE_VIEW(view);
     
     i32 height = CEIL32(view_file_height(view));
-    i32 max_target_y = view->recent->scroll.max_y;
+    i32 max_target_y = view->recent.scroll.max_y;
     
-    view->recent->scroll.target_y =
-        clamp_top(view->recent->scroll.target_y + height, max_target_y);
+    view->recent.scroll.target_y =
+        clamp_top(view->recent.scroll.target_y + height, max_target_y);
     
-    view->recent->cursor =
-        view_compute_cursor_from_xy(view, 0, view->recent->scroll.target_y + (height - view->line_height)*.5f);
+    view->recent.cursor =
+        view_compute_cursor_from_xy(view, 0, view->recent.scroll.target_y + (height - view->line_height)*.5f);
 }
 
 COMMAND_DECL(page_up){
@@ -943,11 +943,11 @@ COMMAND_DECL(page_up){
     
     i32 height = CEIL32(view_file_height(view));
     
-    view->recent->scroll.target_y =
-        clamp_bottom(0, view->recent->scroll.target_y - height);
+    view->recent.scroll.target_y =
+        clamp_bottom(0, view->recent.scroll.target_y - height);
     
-    view->recent->cursor =
-        view_compute_cursor_from_xy(view, 0, view->recent->scroll.target_y + (height - view->line_height)*.5f);
+    view->recent.cursor =
+        view_compute_cursor_from_xy(view, 0, view->recent.scroll.target_y + (height - view->line_height)*.5f);
 }
 
 COMMAND_DECL(open_color_tweaker){
@@ -1162,7 +1162,7 @@ app_hardcode_styles(Models *models){
     file_info_style.bar_color = 0xFF888888;
     file_info_style.bar_active_color = 0xFF666666;
     file_info_style.base_color = 0xFF000000;
-    file_info_style.pop1_color = 0xFF4444AA;
+    file_info_style.pop1_color = 0xFF1050F0;
     file_info_style.pop2_color = 0xFFFF0000;
     style->main.file_info_style = file_info_style;
     ++style;
@@ -2207,7 +2207,7 @@ App_Step_Sig(app_step){
                     if (panel->view->file_data.file){
                         // TODO(allen): How to set the cursor of a file on the first frame?
                         view_compute_cursor_from_line_pos(panel->view, models->settings.initial_line, 1);
-                        view_move_view_to_cursor(panel->view, &panel->view->recent->scroll);
+                        view_move_view_to_cursor(panel->view, &panel->view->recent.scroll);
                     }
                 }
 #endif

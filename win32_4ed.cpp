@@ -943,16 +943,15 @@ Sys_CLI_Call_Sig(system_cli_call){
     char *env_variables = 0;
     char command_line[2048];
     
-    b32 success = 1;
     String s = make_fixed_width_string(command_line);
     copy(&s, make_lit_string("/C "));
     append_partial(&s, script_name);
-    success = terminate_with_null(&s);
+    b32 success = terminate_with_null(&s);
     
     if (success){
         success = 0;
         
-		SECURITY_ATTRIBUTES sec_attributes = {};
+        SECURITY_ATTRIBUTES sec_attributes = {};
         HANDLE out_read;
         HANDLE out_write;
         
@@ -967,14 +966,14 @@ Sys_CLI_Call_Sig(system_cli_call){
                 startup.hStdError = out_write;
                 startup.hStdOutput = out_write;
                 startup.wShowWindow = SW_HIDE;
-
+                
                 PROCESS_INFORMATION info = {};
-
+                
                 Assert(sizeof(Plat_Handle) >= sizeof(HANDLE));
                 if (CreateProcess(cmd, command_line,
-                        0, 0, TRUE, 0,
-                        env_variables, path,
-                        &startup, &info)){
+                                  0, 0, TRUE, 0,
+                                  env_variables, path,
+                                  &startup, &info)){
                     success = 1;
                     CloseHandle(info.hThread);
                     *(HANDLE*)&cli_out->proc = info.hProcess;

@@ -13,6 +13,13 @@
 // Basic Build Behavior
 //
 
+struct Prev_Jump{
+    int buffer_id;
+    int line;
+};
+
+static Prev_Jump prev_location = {0};
+
 CUSTOM_COMMAND_SIG(build_in_build_panel){
     Buffer_Summary buffer =
         app->get_buffer_by_name(app, literal("*compilation*"), AccessAll);
@@ -32,6 +39,8 @@ CUSTOM_COMMAND_SIG(build_in_build_panel){
     app->set_active_view(app, &build_view);
     exec_command(app, build_search);
     app->set_active_view(app, &original_view);
+    
+    prev_location = {0};
 }
 
 // TODO(allen): This is a bit nasty.  I want a system for picking
@@ -203,32 +212,36 @@ jump_to_location(Application_Links *app, View_Summary *view, Jump_Location *l){
 }
 
 static int
-msvc_parse_error(String line, Jump_Location *location, int *colon_char){
+msvc_parse_error(String line, Jump_Location *location,
+                 int skip_sub_errors, int *colon_char){
     int result = false;
     
     int colon_pos = find(line, 0, ')');
     colon_pos = find(line, colon_pos, ':');
     if (colon_pos < line.size){
         String location_str = substr(line, 0, colon_pos);
-        location_str = skip_chop_whitespace(location_str);
         
-        int paren_pos = find(location_str, 0, '(');
-        if (paren_pos < location_str.size){
-            String file = substr(location_str, 0, paren_pos);
-            file = skip_chop_whitespace(file);
+        if (!(skip_sub_errors && location_str.str[0] == ' ')){
+            location_str = skip_chop_whitespace(location_str);
             
-            int close_pos = find(location_str, 0, ')') + 1;
-            if (close_pos == location_str.size && file.size > 0){
-                String line_number = substr(location_str,
-                                            paren_pos+1,
-                                            close_pos-paren_pos-2);
-                line_number = skip_chop_whitespace(line_number);
+            int paren_pos = find(location_str, 0, '(');
+            if (paren_pos < location_str.size){
+                String file = substr(location_str, 0, paren_pos);
+                file = skip_chop_whitespace(file);
                 
-                if (line_number.size > 0){
-                    copy(&location->file, file);
-                    location->line = str_to_int(line_number);
-                    *colon_char = colon_pos;
-                    result = true;
+                int close_pos = find(location_str, 0, ')') + 1;
+                if (close_pos == location_str.size && file.size > 0){
+                    String line_number = substr(location_str,
+                                                paren_pos+1,
+                                                close_pos-paren_pos-2);
+                    line_number = skip_chop_whitespace(line_number);
+                    
+                    if (line_number.size > 0){
+                        copy(&location->file, file);
+                        location->line = str_to_int(line_number);
+                        *colon_char = colon_pos;
+                        result = true;
+                    }
                 }
             }
         }
@@ -243,6 +256,7 @@ msvc_next_error(Application_Links *app,
                 void *memory, int memory_size,
                 Jump_Location *location,
                 int direction,
+                int skip_sub_errors,
                 int *colon_char){
     
     int result = false;
@@ -250,7 +264,7 @@ msvc_next_error(Application_Links *app,
     String line_str = make_string(memory, 0, memory_size);
     for (;;){
         if (read_line(app, comp_out, line, &line_str)){
-            if (msvc_parse_error(line_str, location, colon_char)){
+            if (msvc_parse_error(line_str, location, skip_sub_errors, colon_char)){
                 result = true;
                 break;
             }
@@ -270,41 +284,96 @@ msvc_next_error(Application_Links *app,
     return(result);
 }
 
-static void
-msvc_goto_error(Application_Links *app, int direction){
+static int
+msvc_goto_error(Application_Links *app, int direction, int skip_sub_errors, Jump_Location *loc){
+    int result = false;
     View_Summary active_view = app->get_active_view(app, AccessAll);
     
+    Jump_Location location = {0};
     Buffer_Summary buffer = app->get_buffer_by_name(app, literal("*compilation*"), AccessAll);
     if (buffer.exists){
         View_Summary view = get_first_view_with_buffer(app, buffer.buffer_id);
         int line = view.cursor.line;
         
         int ms = app->memory_size/2;
-        Jump_Location location = {0};
         location.file = make_string(app->memory, 0, ms);
         void *m = (char*)app->memory + ms;
         
         int colon_char = 0;
-        if (msvc_next_error(app, &view, &line, m, ms, &location, direction, &colon_char)){
+        if (msvc_next_error(app, &view, &line, m, ms, &location,
+                            skip_sub_errors, direction, &colon_char)){
             jump_to_location(app, &active_view, &location);
             app->view_set_cursor(app, &view, seek_line_char(line, colon_char+1), true);
+            result = true;
+            if (loc){
+                *loc = location;
+            }
         }
     }
+    return(result);
+}
+
+static Prev_Jump
+jump_location_store(Application_Links *app, Jump_Location loc){
+    Prev_Jump result = {0};
+    Buffer_Summary buffer =
+        app->get_buffer_by_name(app, loc.file.str, loc.file.size, AccessAll);
+    
+    if (buffer.exists){
+        result.buffer_id = buffer.buffer_id;
+        result.line = loc.line;
+    }
+    
+    return(result);
+}
+
+static int
+skip_this_jump(Prev_Jump prev, Prev_Jump jump){
+    int result = false;
+    if (prev.buffer_id != 0 && prev.buffer_id == jump.buffer_id &&
+        prev.line == jump.line){
+        result = true;
+    }
+    return(result);
 }
 
 CUSTOM_COMMAND_SIG(msvc_goto_next_error){
-    msvc_goto_error(app, 1);
+    Jump_Location location = {0};
+    Prev_Jump jump = {0};
+    
+    do{
+        if (msvc_goto_error(app, true, 1, &location)){
+            jump = jump_location_store(app, location);
+        }
+        else{
+            jump.buffer_id = 0;
+        }
+    }while(skip_this_jump(prev_location, jump));
+    prev_location = jump;
 }
 
 CUSTOM_COMMAND_SIG(msvc_goto_prev_error){
-    msvc_goto_error(app, -1);
+    Jump_Location location = {0};
+    Prev_Jump jump = {0};
+    
+    do{
+        if (msvc_goto_error(app, true, -1, &location)){
+            jump = jump_location_store(app, location);
+        }
+        else{
+            jump.buffer_id = 0;
+        }
+    }while(skip_this_jump(prev_location, jump));
+    prev_location = jump;
 }
 
 CUSTOM_COMMAND_SIG(msvc_goto_first_error){
     View_Summary active_view = app->get_active_view(app, AccessAll);
     app->view_set_cursor(app, &active_view, seek_pos(0), true);
     
-    msvc_goto_error(app, 1);
+    Jump_Location location;
+    msvc_goto_error(app, true, 1, &location);
+    prev_location = jump_location_store(app, location);
 }
 
 

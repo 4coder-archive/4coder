@@ -232,7 +232,7 @@ struct View{
     i32_Rect file_region;
     
     i32_Rect scroll_region;
-    Recent_File_Data recent[16];
+    Recent_File_Data recent;
     
     GUI_Scroll_Vars *current_scroll;
     
@@ -1499,7 +1499,7 @@ view_get_cursor_pos(View *view){
         result = view->file_data.temp_highlight.pos;
     }
     else{
-        result = view->recent->cursor.pos;
+        result = view->recent.cursor.pos;
     }
     return result;
 }
@@ -1512,7 +1512,7 @@ view_get_cursor_x(View *view){
         cursor = &view->file_data.temp_highlight;
     }
     else{
-        cursor = &view->recent->cursor;
+        cursor = &view->recent.cursor;
     }
     if (view->file_data.unwrapped_lines){
         result = cursor->unwrapped_x;
@@ -1529,7 +1529,7 @@ view_get_cursor_y(View *view){
     f32 result;
     
     if (view->file_data.show_temp_highlight) cursor = &view->file_data.temp_highlight;
-    else cursor = &view->recent->cursor;
+    else cursor = &view->recent.cursor;
     
     if (view->file_data.unwrapped_lines) result = cursor->unwrapped_y;
     else result = cursor->wrapped_y;
@@ -1594,8 +1594,8 @@ view_move_cursor_to_view(View *view, GUI_Scroll_Vars scroll){
         else{
             cursor_y -= line_height;
         }
-        view->recent->cursor =
-            view_compute_cursor_from_xy(view, view->recent->preferred_x, cursor_y);
+        view->recent.cursor =
+            view_compute_cursor_from_xy(view, view->recent.preferred_x, cursor_y);
     }
 }
 
@@ -1660,51 +1660,21 @@ view_set_file(View *view, Editing_File *file, Models *models){
     view->file_data.file = file;
     
     if (file){
-        u64 unique_buffer_id = file->unique_buffer_id;
-        Recent_File_Data *recent = view->recent;
-        Recent_File_Data temp_recent = {0};
-        i32 i = 0;
-        i32 max = ArrayCount(view->recent)-1;
-        b32 found_recent_entry = 0;
-        
         view->file_data.unwrapped_lines = file->settings.unwrapped_lines;
         
-        for (; i < max; ++i, ++recent){
-            if (recent->unique_buffer_id == unique_buffer_id){
-                temp_recent = *recent;
-                memmove(view->recent+1, view->recent, sizeof(*recent)*i);
-                view->recent[0] = temp_recent;
-                found_recent_entry = 1;
-                break;
-            }
-        }
+        u64 unique_buffer_id = file->unique_buffer_id;
+        Recent_File_Data *recent = &view->recent;
         
-        if (found_recent_entry){
-            if (file_is_ready(file)){
-                view_measure_wraps(&models->mem.general, view);
-                view->recent->cursor = view_compute_cursor_from_pos(view, view->recent->cursor.pos);
-                view->recent->scroll.max_y = view_compute_max_target_y(view);
-                
-                view_move_view_to_cursor(view, &view->recent->scroll);
-            }
-        }
-        else{
-            i = 15;
-            recent = view->recent + i;
-            memmove(view->recent+1, view->recent, sizeof(*recent)*i);
-            view->recent[0] = recent_file_data_zero();
+        view->recent = recent_file_data_zero();
+        recent->unique_buffer_id = unique_buffer_id;
+        
+        if (file_is_ready(file)){
+            view_measure_wraps(&models->mem.general, view);
+            view->recent.cursor = view_compute_cursor_from_pos(view, file->state.cursor_pos);
+            view->recent.scroll.max_y = view_compute_max_target_y(view);
             
-            recent = view->recent;
-            recent->unique_buffer_id = unique_buffer_id;
-            
-            if (file_is_ready(file)){
-                view_measure_wraps(&models->mem.general, view);
-                view->recent->cursor = view_compute_cursor_from_pos(view, file->state.cursor_pos);
-                view->recent->scroll.max_y = view_compute_max_target_y(view);
-                
-                view_move_view_to_cursor(view, &view->recent->scroll);
-                view->reinit_scrolling = 1;
-            }
+            view_move_view_to_cursor(view, &view->recent.scroll);
+            view->reinit_scrolling = 1;
         }
     }
 }
@@ -1718,24 +1688,24 @@ internal Relative_Scrolling
 view_get_relative_scrolling(View *view){
     Relative_Scrolling result;
     f32 cursor_y = view_get_cursor_y(view);
-    result.scroll_y = cursor_y - view->recent->scroll.scroll_y;
-    result.target_y = cursor_y - view->recent->scroll.target_y;
+    result.scroll_y = cursor_y - view->recent.scroll.scroll_y;
+    result.target_y = cursor_y - view->recent.scroll.target_y;
     return(result);
 }
 
 internal void
 view_set_relative_scrolling(View *view, Relative_Scrolling scrolling){
     f32 cursor_y = view_get_cursor_y(view);
-    view->recent->scroll.scroll_y = cursor_y - scrolling.scroll_y;
-    view->recent->scroll.target_y =
+    view->recent.scroll.scroll_y = cursor_y - scrolling.scroll_y;
+    view->recent.scroll.target_y =
         ROUND32(clamp_bottom(0.f, cursor_y - scrolling.target_y));
 }
 
 inline void
 view_cursor_move(View *view, Full_Cursor cursor){
-    view->recent->cursor = cursor;
-    view->recent->preferred_x = view_get_cursor_x(view);
-    view->file_data.file->state.cursor_pos = view->recent->cursor.pos;
+    view->recent.cursor = cursor;
+    view->recent.preferred_x = view_get_cursor_x(view);
+    view->file_data.file->state.cursor_pos = view->recent.cursor.pos;
     view->file_data.show_temp_highlight = 0;
 }
 
@@ -1987,9 +1957,9 @@ file_edit_cursor_fix(System_Functions *system,
         view = panel->view;
         if (view->file_data.file == file){
             view_measure_wraps(general, view);
-            write_cursor_with_index(cursors, &cursor_count, view->recent->cursor.pos);
-            write_cursor_with_index(cursors, &cursor_count, view->recent->mark - 1);
-            write_cursor_with_index(cursors, &cursor_count, view->recent->scroll_i - 1);
+            write_cursor_with_index(cursors, &cursor_count, view->recent.cursor.pos);
+            write_cursor_with_index(cursors, &cursor_count, view->recent.mark - 1);
+            write_cursor_with_index(cursors, &cursor_count, view->recent.scroll_i - 1);
         }
     }
     
@@ -2011,24 +1981,26 @@ file_edit_cursor_fix(System_Functions *system,
             view = panel->view;
             if (view && view->file_data.file == file){
                 view_cursor_move(view, cursors[cursor_count++].pos);
-                view->recent->preferred_x = view_get_cursor_x(view);
+                view->recent.preferred_x = view_get_cursor_x(view);
                 
-                view->recent->mark = cursors[cursor_count++].pos + 1;
+                view->recent.mark = cursors[cursor_count++].pos + 1;
                 i32 new_scroll_i = cursors[cursor_count++].pos + 1;
-                if (view->recent->scroll_i != new_scroll_i){
-                    view->recent->scroll_i = new_scroll_i;
-                    temp_cursor = view_compute_cursor_from_pos(view, view->recent->scroll_i);
-                    y_offset = MOD(view->recent->scroll.scroll_y, view->line_height);
+                if (view->recent.scroll_i != new_scroll_i){
+                    view->recent.scroll_i = new_scroll_i;
+                    temp_cursor = view_compute_cursor_from_pos(view, view->recent.scroll_i);
+                    y_offset = MOD(view->recent.scroll.scroll_y, view->line_height);
                     
                     if (view->file_data.unwrapped_lines){
                         y_position = temp_cursor.unwrapped_y + y_offset;
-                        view->recent->scroll.target_y += ROUND32(y_position - view->recent->scroll.scroll_y);
-                        view->recent->scroll.scroll_y = y_position;
+                        view->recent.scroll.target_y +=
+                            ROUND32(y_position - view->recent.scroll.scroll_y);
+                        view->recent.scroll.scroll_y = y_position;
                     }
                     else{
                         y_position = temp_cursor.wrapped_y + y_offset;
-                        view->recent->scroll.target_y += ROUND32(y_position - view->recent->scroll.scroll_y);
-                        view->recent->scroll.scroll_y = y_position;
+                        view->recent.scroll.target_y +=
+                            ROUND32(y_position - view->recent.scroll.scroll_y);
+                        view->recent.scroll.scroll_y = y_position;
                     }
                 }
             }
@@ -2267,7 +2239,7 @@ view_undo_redo(System_Functions *system,
             file_do_single_edit(system, models, file, spec, hist_normal);
             
             view_cursor_move(view, step.edit.start + step.edit.len);
-            view->recent->mark = view->recent->cursor.pos;
+            view->recent.mark = view->recent.cursor.pos;
             
             Style *style = main_style(models);
             view_post_paste_effect(view, 0.333f, step.edit.start, step.edit.len,
@@ -2399,7 +2371,7 @@ view_history_step(System_Functions *system, Models *models, View *view, History_
                 view_cursor_move(view, step.edit.start + step.edit.len);
                 break;
             }
-            view->recent->mark = view->recent->cursor.pos;
+            view->recent.mark = view->recent.cursor.pos;
         }
         else{
             TentativeAssert(spec.step.special_type == 1);
@@ -2564,8 +2536,11 @@ view_clean_whitespace(System_Functions *system, Models *models, View *view){
         
         char *inv_str = (char*)part->base + part->pos;
         Edit_Spec spec =
-            file_compute_whitespace_edit(mem, file, view->recent->cursor.pos, edits, str_base, str_size,
-                                         inverse_array, inv_str, part->max - part->pos, edit_count);
+            file_compute_whitespace_edit(mem, file,
+                                         view->recent.cursor.pos,
+                                         edits, str_base, str_size,
+                                         inverse_array, inv_str,
+                                         part->max - part->pos, edit_count);
         
         file_do_white_batch_edit(system, models, view->file_data.file, spec, hist_normal);
     }
@@ -3056,8 +3031,8 @@ remeasure_file_view(System_Functions *system, View *view){
         Relative_Scrolling relative = view_get_relative_scrolling(view);
         view_measure_wraps(&view->persistent.models->mem.general, view);
         if (view->file_data.show_temp_highlight == 0){
-            view_cursor_move(view, view->recent->cursor.pos);
-            view->recent->preferred_x = view_get_cursor_x(view);
+            view_cursor_move(view, view->recent.cursor.pos);
+            view->recent.preferred_x = view_get_cursor_x(view);
         }
         view_set_relative_scrolling(view, relative);
     }
@@ -3114,8 +3089,8 @@ view_show_file(View *view){
         view->map = get_map(view->persistent.models, mapid_global);
     }
     view->showing_ui = VUI_None;
-    view->current_scroll = &view->recent->scroll;
-    view->recent->scroll.max_y = view_compute_max_target_y(view);
+    view->current_scroll = &view->recent.scroll;
+    view->recent.scroll.max_y = view_compute_max_target_y(view);
     view->changed_context_in_step = 1;
 }
 
@@ -3528,13 +3503,13 @@ view_reinit_scrolling(View *view){
         target_y = clamp_bottom(0, FLOOR32(cursor_y - h*.5f));
     }
     
-    view->recent->scroll.target_y = target_y;
-    view->recent->scroll.scroll_y = (f32)target_y;
-    view->recent->scroll.prev_target_y = -1000;
+    view->recent.scroll.target_y = target_y;
+    view->recent.scroll.scroll_y = (f32)target_y;
+    view->recent.scroll.prev_target_y = -1000;
     
-    view->recent->scroll.target_x = target_x;
-    view->recent->scroll.scroll_x = (f32)target_x;
-    view->recent->scroll.prev_target_x = -1000;
+    view->recent.scroll.target_x = target_x;
+    view->recent.scroll.scroll_x = (f32)target_x;
+    view->recent.scroll.prev_target_x = -1000;
 }
 
 enum CursorScroll_State{
@@ -3597,14 +3572,14 @@ view_end_cursor_scroll_updates(View *view){
         case CursorScroll_Cursor:
         case CursorScroll_Cursor|CursorScroll_Scroll:
         if (view->gui_target.did_file){
-            view->recent->scroll.max_y = view_compute_max_target_y(view);
+            view->recent.scroll.max_y = view_compute_max_target_y(view);
         }
         view_move_view_to_cursor(view, view->current_scroll);
         gui_post_scroll_vars(&view->gui_target, view->current_scroll, view->scroll_region);
         break;
         
         case CursorScroll_Scroll:
-        view_move_cursor_to_view(view, view->recent->scroll);
+        view_move_cursor_to_view(view, view->recent.scroll);
         gui_post_scroll_vars(&view->gui_target, view->current_scroll, view->scroll_region);
         break;
     }
@@ -4073,11 +4048,11 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                 scroll_context.id[1] = view->showing_ui;
                 scroll_context.id[0] = (u64)(view->file_data.file);
                 
-                view->current_scroll = &view->recent->scroll;
+                view->current_scroll = &view->recent.scroll;
                 gui_get_scroll_vars(target, scroll_context,
-                                    &view->recent->scroll, &view->scroll_region);
+                                    &view->recent.scroll, &view->scroll_region);
                 
-                gui_begin_scrollable(target, scroll_context, view->recent->scroll,
+                gui_begin_scrollable(target, scroll_context, view->recent.scroll,
                                      delta, show_scrollbar);
                 gui_do_file(target);
                 gui_end_scrollable(target);
@@ -4945,21 +4920,17 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                                     SHOW_GUI_BLANK(0);
                                     SHOW_GUI_LINE(1, "recent file data");
                                     {
-                                        i32 recent_index = 0;
-                                        Recent_File_Data *recent = view_ptr->recent + recent_index;
+                                        Recent_File_Data *recent = &view_ptr->recent;
                                         
-                                        {
-                                            SHOW_GUI_INT   (2, h_align, "recent", recent_index);
-                                            SHOW_GUI_U64   (3, h_align, "absolute buffer id", recent->unique_buffer_id);
-                                            SHOW_GUI_BLANK (3);
-                                            SHOW_GUI_SCROLL(3, h_align, "scroll:", recent->scroll);
-                                            SHOW_GUI_BLANK (3);
-                                            SHOW_GUI_CURSOR(3, h_align, "cursor:", recent->cursor);
-                                            SHOW_GUI_BLANK (3);
-                                            SHOW_GUI_INT   (3, h_align, "mark", recent->mark);
-                                            SHOW_GUI_FLOAT (3, h_align, "preferred_x", recent->preferred_x);
-                                            SHOW_GUI_INT   (3, h_align, "scroll_i", recent->scroll_i);
-                                        }
+                                        SHOW_GUI_U64   (2, h_align, "absolute buffer id", recent->unique_buffer_id);
+                                        SHOW_GUI_BLANK (2);
+                                        SHOW_GUI_SCROLL(2, h_align, "scroll:", recent->scroll);
+                                        SHOW_GUI_BLANK (2);
+                                        SHOW_GUI_CURSOR(2, h_align, "cursor:", recent->cursor);
+                                        SHOW_GUI_BLANK (2);
+                                        SHOW_GUI_INT   (2, h_align, "mark", recent->mark);
+                                        SHOW_GUI_FLOAT (2, h_align, "preferred_x", recent->preferred_x);
+                                        SHOW_GUI_INT   (2, h_align, "scroll_i", recent->scroll_i);
                                     }
                                     
                                     SHOW_GUI_BLANK (0);
@@ -5009,7 +4980,7 @@ internal f32
 view_get_scroll_y(View *view){
     f32 v;
     if (view->showing_ui == VUI_None){
-        v = view->recent->scroll.scroll_y;
+        v = view->recent.scroll.scroll_y;
     }
     else{
         v = view->gui_scroll.scroll_y;
@@ -5344,8 +5315,8 @@ draw_file_loaded(View *view, i32_Rect rect, b32 is_active, Render_Target *target
     Buffer_Render_Options opts = {};
     
     f32 *wraps = view->file_data.line_wrap_y;
-    f32 scroll_x = view->recent->scroll.scroll_x;
-    f32 scroll_y = view->recent->scroll.scroll_y;
+    f32 scroll_x = view->recent.scroll.scroll_x;
+    f32 scroll_y = view->recent.scroll.scroll_y;
     
     // NOTE(allen): For now we will temporarily adjust scroll_y to try
     // to prevent the view moving around until floating sections are added
@@ -5358,7 +5329,7 @@ draw_file_loaded(View *view, i32_Rect rect, b32 is_active, Render_Target *target
                                                 (f32)max_x,
                                                 advance_data, (f32)line_height);
         
-        view->recent->scroll_i = render_cursor.pos;
+        view->recent.scroll_i = render_cursor.pos;
         
         buffer_get_render_data(&file->state.buffer, items, max, &count,
                                (f32)rect.x0, (f32)rect.y0,
@@ -5380,7 +5351,7 @@ draw_file_loaded(View *view, i32_Rect rect, b32 is_active, Render_Target *target
         at_cursor_color = style->main.at_highlight_color;
     }
     else{
-        cursor_begin = view->recent->cursor.pos;
+        cursor_begin = view->recent.cursor.pos;
         cursor_end = cursor_begin + 1;
         cursor_color = style->main.cursor_color;
         at_cursor_color = style->main.at_cursor_color;
@@ -5470,7 +5441,7 @@ draw_file_loaded(View *view, i32_Rect rect, b32 is_active, Render_Target *target
         
         char_color = color_blend(char_color, fade_amount, fade_color);
         
-        if (ind == view->recent->mark && prev_ind != ind){
+        if (ind == view->recent.mark && prev_ind != ind){
             draw_rectangle_outline(target, char_rect, mark_color);
         }
         if (item->glyphid != 0){
@@ -5588,9 +5559,9 @@ draw_file_bar(Render_Target *target, View *view, Editing_File *file, i32_Rect re
                 char line_number_space[30];
                 String line_number = make_fixed_width_string(line_number_space);
                 append(&line_number, " L#");
-                append_int_to_str(&line_number, view->recent->cursor.line);
+                append_int_to_str(&line_number, view->recent.cursor.line);
                 append(&line_number, " C#");
-                append_int_to_str(&line_number, view->recent->cursor.character);
+                append_int_to_str(&line_number, view->recent.cursor.character);
 
                 intbar_draw_string(target, &bar, line_number, base_color);
 
@@ -6214,7 +6185,7 @@ inline void
 view_change_size(General_Memory *general, View *view){
     if (view->file_data.file){
         view_measure_wraps(general, view);
-        view->recent->cursor = view_compute_cursor_from_pos(view, view->recent->cursor.pos);
+        view->recent.cursor = view_compute_cursor_from_pos(view, view->recent.cursor.pos);
     }
 }
 
@@ -6237,7 +6208,7 @@ live_set_alloc_view(Live_Views *live_set, Panel *panel, Models *models){
     result.view->panel = panel;
 
     result.view->persistent.models = models;
-    result.view->current_scroll = &result.view->recent->scroll;
+    result.view->current_scroll = &result.view->recent.scroll;
 
     init_query_set(&result.view->query_set);
 

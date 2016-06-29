@@ -67,9 +67,9 @@ fill_view_summary(View_Summary *view, View *vptr, Live_Views *live_set, Working_
             
             view->buffer_id = buffer_id;
             
-            view->mark = view_compute_cursor_from_pos(vptr, vptr->recent->mark);
-            view->cursor = vptr->recent->cursor;
-            view->preferred_x = vptr->recent->preferred_x;
+            view->mark = view_compute_cursor_from_pos(vptr, vptr->recent.mark);
+            view->cursor = vptr->recent.cursor;
+            view->preferred_x = vptr->recent.preferred_x;
             
             view->file_region = vptr->file_region;
             view->scroll_vars = *vptr->current_scroll;
@@ -1193,12 +1193,12 @@ DOC_SEE(Buffer_Seek)
             if (seek.type == buffer_seek_line_char && seek.character <= 0){
                 seek.character = 1;
             }
-            vptr->recent->cursor = view_compute_cursor(vptr, seek);
+            vptr->recent.cursor = view_compute_cursor(vptr, seek);
             if (set_preferred_x){
-                vptr->recent->preferred_x = view_get_cursor_x(vptr);
+                vptr->recent.preferred_x = view_get_cursor_x(vptr);
             }
             fill_view_summary(view, vptr, cmd);
-            file->state.cursor_pos = vptr->recent->cursor.pos;
+            file->state.cursor_pos = vptr->recent.cursor.pos;
         }
     }
     
@@ -1225,10 +1225,10 @@ DOC_SEE(Buffer_Seek)
         result = true;
         if (seek.type != buffer_seek_pos){
             cursor = view_compute_cursor(vptr, seek);
-            vptr->recent->mark = cursor.pos;
+            vptr->recent.mark = cursor.pos;
         }
         else{
-            vptr->recent->mark = seek.pos;
+            vptr->recent.mark = seek.pos;
         }
         fill_view_summary(view, vptr, cmd);
     }
