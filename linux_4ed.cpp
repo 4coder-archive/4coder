@@ -194,6 +194,8 @@ struct Linux_Vars{
     b32 keep_running;
 
     Application_Mouse_Cursor cursor;
+    b32 hide_cursor;
+    Cursor hidden_cursor;
 
     void *app_code;
     void *custom;
@@ -695,6 +697,12 @@ internal
 GET_4ED_PATH_SIG(system_get_4ed_path){
     String str = make_string(out, 0, capacity);
     return(system_get_binary_path(&str));
+}
+
+internal
+SHOW_MOUSE_CURSOR_SIG(system_show_mouse_cursor){
+    linuxvars.hide_cursor = !show;
+    XDefineCursor(linuxvars.XDisplay, linuxvars.XWindow, show ? None : linuxvars.hidden_cursor);
 }
 
 //
@@ -1231,6 +1239,7 @@ LinuxLoadSystemCode(){
     linuxvars.system.file_exists = system_file_exists;
     linuxvars.system.directory_cd = system_directory_cd;
     linuxvars.system.get_4ed_path = system_get_4ed_path;
+    linuxvars.system.show_mouse_cursor = system_show_mouse_cursor;
 
     linuxvars.system.post_clipboard = system_post_clipboard;
     linuxvars.system.now_time_stamp = system_now_time_stamp;
@@ -2683,6 +2692,16 @@ main(int argc, char **argv)
         XCreateFontCursor(linuxvars.XDisplay, XC_sb_v_double_arrow)
     };
 
+    {
+        char data = 0;
+        XColor c  = {};
+        Pixmap p  = XCreateBitmapFromData(linuxvars.XDisplay, linuxvars.XWindow, &data, 1, 1);
+
+        linuxvars.hidden_cursor = XCreatePixmapCursor(linuxvars.XDisplay, p, p, &c, &c, 0, 0);
+
+        XFreePixmap(linuxvars.XDisplay, p);
+    }
+
     //
     // DPI
     //
@@ -2870,7 +2889,9 @@ main(int argc, char **argv)
 
             if(result.mouse_cursor_type != linuxvars.cursor && !linuxvars.input.mouse.l){
                 Cursor c = xcursors[result.mouse_cursor_type];
-                XDefineCursor(linuxvars.XDisplay, linuxvars.XWindow, c);
+                if(!linuxvars.hide_cursor){
+                    XDefineCursor(linuxvars.XDisplay, linuxvars.XWindow, c);
+                }
                 linuxvars.cursor = result.mouse_cursor_type;
             }
 
