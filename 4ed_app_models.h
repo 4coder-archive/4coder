@@ -79,6 +79,7 @@ struct Models{
     
     Open_File_Hook_Function *hook_open_file;
     Open_File_Hook_Function *hook_new_file;
+    Command_Caller_Hook_Function *command_caller;
     Scroll_Rule_Function *scroll_rule;
     
     b32 keep_playing;

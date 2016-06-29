@@ -1005,12 +1005,24 @@ internal void
 command_caller(Coroutine *coroutine){
     Command_In *cmd_in = (Command_In*)coroutine->in;
     Command_Data *cmd = cmd_in->cmd;
+    Models *models = cmd->models;
     View *view = cmd->view;
     
-    // TODO(allen): this isn't really super awesome, could have issues if
-    // the file view get's change out under us.
     view->next_mode = view_mode_zero();
-    cmd_in->bind.function(cmd->system, cmd, cmd_in->bind);
+    if (models->command_caller){
+        Generic_Command generic;
+        if (cmd_in->bind.function == command_user_callback){
+            generic.command = cmd_in->bind.custom;
+            models->command_caller(&models->app_links, generic);
+        }
+        else{
+            generic.cmdid = (Command_ID)cmd_in->bind.custom_id;
+            models->command_caller(&models->app_links, generic);
+        }
+    }
+    else{
+        cmd_in->bind.function(cmd->system, cmd, cmd_in->bind);
+    }
     view->mode = view->next_mode;
 }
 
@@ -1771,6 +1783,10 @@ App_Init_Sig(app_init){
                                         
                                         case _hook_new_file:
                                         models->hook_new_file = (Open_File_Hook_Function*)unit->hook.func;
+                                        break;
+                                        
+                                        case _hook_command_caller:
+                                        models->command_caller = (Command_Caller_Hook_Function*)unit->hook.func;
                                         break;
                                         
                                         case _hook_scroll_rule:

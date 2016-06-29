@@ -275,6 +275,8 @@ CUSTOM_COMMAND_SIG(cut){
 }
 
 struct View_Paste_Index{
+    int rewrite;
+    int next_rewrite;
     int index;
 };
 
@@ -287,10 +289,7 @@ CUSTOM_COMMAND_SIG(paste){
     if (count > 0){
         View_Summary view = app->get_active_view(app, access);
         
-        // NOTE(allen): THIS is a very temporary poop-sauce
-        // system that I just threw in to get this working.
-        // Please don't start calling it anywhere.
-        app->view_set_paste_rewrite_(app, &view);
+        view_paste_index[view.view_id].next_rewrite = true;
         
         int paste_index = 0;
         view_paste_index[view.view_id].index = paste_index;
@@ -329,8 +328,8 @@ CUSTOM_COMMAND_SIG(paste_next){
         // NOTE(allen): THIS is a very temporary poop-sauce
         // system that I just threw in to get this working.
         // Please don't start calling it anywhere.
-        if (app->view_get_paste_rewrite_(app, &view)){
-            app->view_set_paste_rewrite_(app, &view);
+        if (view_paste_index[view.view_id].rewrite){
+            view_paste_index[view.view_id].next_rewrite = true;
             
             int paste_index = view_paste_index[view.view_id].index + 1;
             view_paste_index[view.view_id].index = paste_index;

@@ -197,6 +197,16 @@ set_new_file_hook(Bind_Helper *helper, Open_File_Hook_Function *func){
 }
 
 inline void
+set_command_caller(Bind_Helper *helper, Command_Caller_Hook_Function *func){
+    Binding_Unit unit;
+    unit.type = unit_hook;
+    unit.hook.hook_id = _hook_command_caller;
+    unit.hook.func = (void*) func;
+    
+    write_unit(helper, unit);
+}
+
+inline void
 set_scroll_rule(Bind_Helper *helper, Scroll_Rule_Function *func){
     Binding_Unit unit;
     unit.type = unit_hook;
@@ -261,6 +271,16 @@ exec_command(Application_Links *app, Command_ID id){
 inline void
 exec_command(Application_Links *app, Custom_Command_Function *func){
     func(app);
+}
+
+inline void
+exec_command(Application_Links *app, Generic_Command cmd){
+    if (cmd.cmdid < cmdid_count){
+        exec_command(app, cmd.cmdid);
+    }
+    else{
+        exec_command(app, cmd.command);
+    }
 }
 
 inline void

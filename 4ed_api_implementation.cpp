@@ -142,7 +142,7 @@ imp_get_view(Command_Data *cmd, View_Summary *view){
 #define API_EXPORT
 
 API_EXPORT void
-Exec_Command(Application_Links *app, int command_id)/*
+Exec_Command(Application_Links *app, uint64_t command_id)/*
 DOC_PARAM(command_id, an integer id enumerated in 4coder_custom.h starting with cmdid)
 DOC(Executes the command associated with the command_id passed in)
 */{
@@ -1331,6 +1331,7 @@ DOC_PARAM(color, the color to fade from)
     return(result);
 }
 
+/*
 API_EXPORT void
 View_Set_Paste_Rewrite_(Application_Links *app, View_Summary *view){
     Command_Data *cmd = (Command_Data*)app->cmd_context;
@@ -1350,6 +1351,7 @@ View_Get_Paste_Rewrite_(Application_Links *app, View_Summary *view){
     }
     return(result);
 }
+*/
 
 API_EXPORT User_Input
 Get_User_Input(Application_Links *app, unsigned int get_type, unsigned int abort_type)/*

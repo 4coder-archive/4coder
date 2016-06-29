@@ -148,12 +148,10 @@ HOOK_SIG(my_start){
 }
 
 OPEN_FILE_HOOK_SIG(my_file_settings){
-    // NOTE(allen|a4): In hooks that want parameters, such as this file
-    // opened hook.  The file created hook is guaranteed to have only
-    // and exactly one buffer parameter.  In normal command callbacks
-    // there are no parameter buffers.
+    // NOTE(allen|a4.0.8): The app->get_parameter_buffer was eliminated
+    // and instead the buffer is passed as an explicit parameter through
+    // the function call.  That is where buffer_id comes from here.
     unsigned int access = AccessProtected|AccessHidden;
-    //Buffer_Summary buffer = app->get_parameter_buffer(app, 0, access);
     Buffer_Summary buffer = app->get_buffer(app, buffer_id, access);
     assert(buffer.exists);
     
@@ -181,6 +179,23 @@ OPEN_FILE_HOOK_SIG(my_file_settings){
     
     // TODO(allen): Eliminate this hook if you can.
     // no meaning for return
+    return(0);
+}
+
+// NOTE(allen|a4.0.9): All command calls can now go through this hook
+// If this hook is not implemented a default behavior of calling the
+// command is used.  It is important to note that paste_next does not
+// work without this hook.
+COMMAND_CALLER_HOOK(my_command_caller){
+    View_Summary view = app->get_active_view(app, AccessAll);
+    
+    view_paste_index[view.view_id].next_rewrite = false;
+    
+    exec_command(app, cmd);
+    
+    view_paste_index[view.view_id].rewrite = 
+        view_paste_index[view.view_id].next_rewrite;
+    
     return(0);
 }
 
@@ -338,6 +353,7 @@ get_bindings(void *data, int size){
     set_hook(context, hook_start, my_start);
     
     set_open_file_hook(context, my_file_settings);
+    set_command_caller(context, my_command_caller);
     set_scroll_rule(context, smooth_scroll_rule);
     
     default_keys(context);

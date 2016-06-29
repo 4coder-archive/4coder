@@ -114,12 +114,6 @@ This is the documentation for alpha 4.0.9 super! The documentation has been made
 <a href='#view_post_fade_doc'>view_post_fade</a>
 </li>
 <li>
-<a href='#view_set_paste_rewrite__doc'>view_set_paste_rewrite_</a>
-</li>
-<li>
-<a href='#view_get_paste_rewrite__doc'>view_get_paste_rewrite_</a>
-</li>
-<li>
 <a href='#get_user_input_doc'>get_user_input</a>
 </li>
 <li>
@@ -172,7 +166,7 @@ This is the documentation for alpha 4.0.9 super! The documentation has been made
 <div id='exec_command_doc' style='margin-bottom: 1cm;'>
  <h4>&sect;2.2.0: exec_command</h4>
  <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>void app->exec_command(
-<div style='margin-left: 4mm;'>Application_Links *app,<br>int command_id<br></div>)
+<div style='margin-left: 4mm;'>Application_Links *app,<br>uint64_t command_id<br></div>)
 </div>
 <div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Parameters</i></b></div><div>
 <div style='font-weight: 600;'>command_id</div>
@@ -733,22 +727,8 @@ cancels and dialogue shown in the view and displays the file.</div><div style='m
 <div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>the color to fade from</div></div>
 </div>
 </div><hr>
-<div id='view_set_paste_rewrite__doc' style='margin-bottom: 1cm;'>
- <h4>&sect;2.2.29: view_set_paste_rewrite_</h4>
- <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>void app->view_set_paste_rewrite_(
-<div style='margin-left: 4mm;'>Application_Links *app,<br>View_Summary *view<br></div>)
-</div>
-No documentation generated for this function, assume it is non-public.
-</div><hr>
-<div id='view_get_paste_rewrite__doc' style='margin-bottom: 1cm;'>
- <h4>&sect;2.2.30: view_get_paste_rewrite_</h4>
- <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>int app->view_get_paste_rewrite_(
-<div style='margin-left: 4mm;'>Application_Links *app,<br>View_Summary *view<br></div>)
-</div>
-No documentation generated for this function, assume it is non-public.
-</div><hr>
 <div id='get_user_input_doc' style='margin-bottom: 1cm;'>
- <h4>&sect;2.2.31: get_user_input</h4>
+ <h4>&sect;2.2.29: get_user_input</h4>
  <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>User_Input app->get_user_input(
 <div style='margin-left: 4mm;'>Application_Links *app,<br>unsigned int get_type,<br>unsigned int abort_type<br></div>)
 </div>
@@ -766,19 +746,19 @@ command is executed an abort signal is returned.  If an abort signal is ever ret
 command should finish execution without any more calls that preempt the command.
 If a get condition is met the user input is returned</div><div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>See Also</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'><a href='#Input_Type_Flag_doc'>Input_Type_Flag</a></div><div style='margin-left: 5mm; margin-right: 5mm;'><a href='#User_Input_doc'>User_Input</a></div></div><hr>
 <div id='get_command_input_doc' style='margin-bottom: 1cm;'>
- <h4>&sect;2.2.32: get_command_input</h4>
+ <h4>&sect;2.2.30: get_command_input</h4>
  <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>User_Input app->get_command_input(
 <div style='margin-left: 4mm;'>Application_Links *app<br></div>)
 </div>
 <div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Return</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>returns the input that triggered the command in execution.</div><div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>See Also</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'><a href='#User_Input_doc'>User_Input</a></div></div><hr>
 <div id='get_mouse_state_doc' style='margin-bottom: 1cm;'>
- <h4>&sect;2.2.33: get_mouse_state</h4>
+ <h4>&sect;2.2.31: get_mouse_state</h4>
  <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>Mouse_State app->get_mouse_state(
 <div style='margin-left: 4mm;'>Application_Links *app<br></div>)
 </div>
 <div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Return</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>returns the current mouse state</div><div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>See Also</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'><a href='#Mouse_State_doc'>Mouse_State</a></div></div><hr>
 <div id='start_query_bar_doc' style='margin-bottom: 1cm;'>
- <h4>&sect;2.2.34: start_query_bar</h4>
+ <h4>&sect;2.2.32: start_query_bar</h4>
  <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>int app->start_query_bar(
 <div style='margin-left: 4mm;'>Application_Links *app,<br>Query_Bar *bar,<br>unsigned int flags<br></div>)
 </div>
@@ -793,7 +773,7 @@ If a get condition is met the user input is returned</div><div style='margin-top
 <div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Return</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>returns non-zero on success</div><div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>The memory pointed to by bar must remain valid until a call to end_query_bar or
 until the command returns.</div></div><hr>
 <div id='end_query_bar_doc' style='margin-bottom: 1cm;'>
- <h4>&sect;2.2.35: end_query_bar</h4>
+ <h4>&sect;2.2.33: end_query_bar</h4>
  <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>void app->end_query_bar(
 <div style='margin-left: 4mm;'>Application_Links *app,<br>Query_Bar *bar,<br>unsigned int flags<br></div>)
 </div>
@@ -807,7 +787,7 @@ until the command returns.</div></div><hr>
 </div>
 <div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>bar must be a pointer previously passed to start_query_bar previously in the same command.</div></div><hr>
 <div id='print_message_doc' style='margin-bottom: 1cm;'>
- <h4>&sect;2.2.36: print_message</h4>
+ <h4>&sect;2.2.34: print_message</h4>
  <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>void app->print_message(
 <div style='margin-left: 4mm;'>Application_Links *app,<br>char *str,<br>int len<br></div>)
 </div>
@@ -821,7 +801,7 @@ until the command returns.</div></div><hr>
 </div>
 </div><hr>
 <div id='change_theme_doc' style='margin-bottom: 1cm;'>
- <h4>&sect;2.2.37: change_theme</h4>
+ <h4>&sect;2.2.35: change_theme</h4>
  <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>void app->change_theme(
 <div style='margin-left: 4mm;'>Application_Links *app,<br>char *name,<br>int len<br></div>)
 </div>
@@ -835,7 +815,7 @@ until the command returns.</div></div><hr>
 </div>
 </div><hr>
 <div id='change_font_doc' style='margin-bottom: 1cm;'>
- <h4>&sect;2.2.38: change_font</h4>
+ <h4>&sect;2.2.36: change_font</h4>
  <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>void app->change_font(
 <div style='margin-left: 4mm;'>Application_Links *app,<br>char *name,<br>int len<br></div>)
 </div>
@@ -849,7 +829,7 @@ until the command returns.</div></div><hr>
 </div>
 </div><hr>
 <div id='set_theme_colors_doc' style='margin-bottom: 1cm;'>
- <h4>&sect;2.2.39: set_theme_colors</h4>
+ <h4>&sect;2.2.37: set_theme_colors</h4>
  <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>void app->set_theme_colors(
 <div style='margin-left: 4mm;'>Application_Links *app,<br>Theme_Color *colors,<br>int count<br></div>)
 </div>
@@ -864,7 +844,7 @@ until the command returns.</div></div><hr>
 <div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>For each color struct in the array, the color in the style pallet is set to the color
 code paired with the tag.</div></div><hr>
 <div id='get_theme_colors_doc' style='margin-bottom: 1cm;'>
- <h4>&sect;2.2.40: get_theme_colors</h4>
+ <h4>&sect;2.2.38: get_theme_colors</h4>
  <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>void app->get_theme_colors(
 <div style='margin-left: 4mm;'>Application_Links *app,<br>Theme_Color *colors,<br>int count<br></div>)
 </div>
@@ -879,7 +859,7 @@ code paired with the tag.</div></div><hr>
 <div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>For each color struct in the array, the color field of the struct is filled with the
 color from the specified color in the pallet.</div></div><hr>
 <div id='directory_get_hot_doc' style='margin-bottom: 1cm;'>
- <h4>&sect;2.2.41: directory_get_hot</h4>
+ <h4>&sect;2.2.39: directory_get_hot</h4>
  <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>int app->directory_get_hot(
 <div style='margin-left: 4mm;'>Application_Links *app,<br>char *out,<br>int capacity<br></div>)
 </div>
@@ -897,7 +877,7 @@ accessed in the GUI.  Whenever the GUI is opened it shows the hot directory.
 In the future this will be deprecated and eliminated in favor of more flexible
 directories controlled by the custom side.</div></div><hr>
 <div id='get_file_list_doc' style='margin-bottom: 1cm;'>
- <h4>&sect;2.2.42: get_file_list</h4>
+ <h4>&sect;2.2.40: get_file_list</h4>
  <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>File_List app->get_file_list(
 <div style='margin-left: 4mm;'>Application_Links *app,<br>char *dir,<br>int len<br></div>)
 </div>
@@ -913,7 +893,7 @@ directories controlled by the custom side.</div></div><hr>
 the specified directory.  The File_List returned should be passed to free_file_list
 when it is no longer in use.</div></div><hr>
 <div id='free_file_list_doc' style='margin-bottom: 1cm;'>
- <h4>&sect;2.2.43: free_file_list</h4>
+ <h4>&sect;2.2.41: free_file_list</h4>
  <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>void app->free_file_list(
 <div style='margin-left: 4mm;'>Application_Links *app,<br>File_List list<br></div>)
 </div>
@@ -923,7 +903,7 @@ when it is no longer in use.</div></div><hr>
 </div>
 <div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>after this call the file list passed in should not be read or written to</div></div><hr>
 <div id='file_exists_doc' style='margin-bottom: 1cm;'>
- <h4>&sect;2.2.44: file_exists</h4>
+ <h4>&sect;2.2.42: file_exists</h4>
  <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>int app->file_exists(
 <div style='margin-left: 4mm;'>Application_Links *app,<br>char *filename,<br>int len<br></div>)
 </div>
@@ -937,7 +917,7 @@ when it is no longer in use.</div></div><hr>
 </div>
 <div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Return</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>returns non-zero if the file exists, returns zero if the file does not exist</div></div><hr>
 <div id='directory_cd_doc' style='margin-bottom: 1cm;'>
- <h4>&sect;2.2.45: directory_cd</h4>
+ <h4>&sect;2.2.43: directory_cd</h4>
  <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>int app->directory_cd(
 <div style='margin-left: 4mm;'>Application_Links *app,<br>char *dir,<br>int *len,<br>int capacity,<br>char *rel_path,<br>int rel_len<br></div>)
 </div>
@@ -969,7 +949,7 @@ For instance if dir contains "C:/Users/MySelf" and rel is "Documents" the buffer
 "C:/Users/MySelf/Documents" and len will contain the length of that string.  This call can
 also be used with rel set to ".." to traverse to parent folders.</div></div><hr>
 <div id='get_4ed_path_doc' style='margin-bottom: 1cm;'>
- <h4>&sect;2.2.46: get_4ed_path</h4>
+ <h4>&sect;2.2.44: get_4ed_path</h4>
  <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>int app->get_4ed_path(
 <div style='margin-left: 4mm;'>Application_Links *app,<br>char *out,<br>int capacity<br></div>)
 </div>

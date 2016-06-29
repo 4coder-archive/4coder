@@ -1,4 +1,4 @@
-#define EXEC_COMMAND_SIG(n) void n(Application_Links *app, int command_id)
+#define EXEC_COMMAND_SIG(n) void n(Application_Links *app, uint64_t command_id)
 #define EXEC_SYSTEM_COMMAND_SIG(n) int n(Application_Links *app, View_Summary *view, Buffer_Identifier buffer, char *path, int path_len, char *command, int command_len, unsigned int flags)
 #define CLIPBOARD_POST_SIG(n) void n(Application_Links *app, char *str, int len)
 #define CLIPBOARD_COUNT_SIG(n) int n(Application_Links *app)
@@ -27,8 +27,6 @@
 #define VIEW_SET_HIGHLIGHT_SIG(n) int n(Application_Links *app, View_Summary *view, int start, int end, int turn_on)
 #define VIEW_SET_BUFFER_SIG(n) int n(Application_Links *app, View_Summary *view, int buffer_id, unsigned int flags)
 #define VIEW_POST_FADE_SIG(n) int n(Application_Links *app, View_Summary *view, float seconds, int start, int end, unsigned int color)
-#define VIEW_SET_PASTE_REWRITE__SIG(n) void n(Application_Links *app, View_Summary *view)
-#define VIEW_GET_PASTE_REWRITE__SIG(n) int n(Application_Links *app, View_Summary *view)
 #define GET_USER_INPUT_SIG(n) User_Input n(Application_Links *app, unsigned int get_type, unsigned int abort_type)
 #define GET_COMMAND_INPUT_SIG(n) User_Input n(Application_Links *app)
 #define GET_MOUSE_STATE_SIG(n) Mouse_State n(Application_Links *app)
@@ -75,8 +73,6 @@ extern "C"{
     typedef VIEW_SET_HIGHLIGHT_SIG(View_Set_Highlight_Function);
     typedef VIEW_SET_BUFFER_SIG(View_Set_Buffer_Function);
     typedef VIEW_POST_FADE_SIG(View_Post_Fade_Function);
-    typedef VIEW_SET_PASTE_REWRITE__SIG(View_Set_Paste_Rewrite__Function);
-    typedef VIEW_GET_PASTE_REWRITE__SIG(View_Get_Paste_Rewrite__Function);
     typedef GET_USER_INPUT_SIG(Get_User_Input_Function);
     typedef GET_COMMAND_INPUT_SIG(Get_Command_Input_Function);
     typedef GET_MOUSE_STATE_SIG(Get_Mouse_State_Function);
@@ -126,8 +122,6 @@ struct Application_Links{
     View_Set_Highlight_Function *view_set_highlight;
     View_Set_Buffer_Function *view_set_buffer;
     View_Post_Fade_Function *view_post_fade;
-    View_Set_Paste_Rewrite__Function *view_set_paste_rewrite_;
-    View_Get_Paste_Rewrite__Function *view_get_paste_rewrite_;
     Get_User_Input_Function *get_user_input;
     Get_Command_Input_Function *get_command_input;
     Get_Mouse_State_Function *get_mouse_state;
@@ -179,8 +173,6 @@ app_links->view_set_mark = View_Set_Mark;\
 app_links->view_set_highlight = View_Set_Highlight;\
 app_links->view_set_buffer = View_Set_Buffer;\
 app_links->view_post_fade = View_Post_Fade;\
-app_links->view_set_paste_rewrite_ = View_Set_Paste_Rewrite_;\
-app_links->view_get_paste_rewrite_ = View_Get_Paste_Rewrite_;\
 app_links->get_user_input = Get_User_Input;\
 app_links->get_command_input = Get_Command_Input;\
 app_links->get_mouse_state = Get_Mouse_State;\

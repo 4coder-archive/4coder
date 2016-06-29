@@ -2,6 +2,8 @@
 #ifndef FCODER_CUSTOM_H
 #define FCODER_CUSTOM_H
 
+#include <stdint.h>
+
 #include "4coder_version.h"
 #include "4coder_keycodes.h"
 #include "4coder_style.h"
@@ -112,7 +114,9 @@ typedef struct Buffer_Identifier{
     int id;
 } Buffer_Identifier;
 
-enum Command_ID{
+typedef uint64_t Command_ID;
+
+enum{
     cmdid_null,
     
     cmdid_center_view,
@@ -177,6 +181,7 @@ enum Special_Hook_ID{
     _hook_scroll_rule = hook_type_count,
     _hook_new_file,
     _hook_open_file,
+    _hook_command_caller,
 };
 
 // None of the members of *_Summary structs nor any of the data pointed
@@ -336,15 +341,23 @@ enum Input_Type_Flag{
 #define OPEN_FILE_HOOK_SIG(name) int name(struct Application_Links *app, int buffer_id)
 #define SCROLL_RULE_SIG(name) int name(float target_x, float target_y, float *scroll_x, float *scroll_y, int view_id, int is_new_target, float dt)
 
-extern "C"{
-    typedef VIEW_ROUTINE_SIG(View_Routine_Function);
-    typedef CUSTOM_COMMAND_SIG(Custom_Command_Function);
-    typedef GET_BINDING_DATA(Get_Binding_Data_Function);
-    typedef HOOK_SIG(Hook_Function);
-    
-    typedef OPEN_FILE_HOOK_SIG(Open_File_Hook_Function);
-    typedef SCROLL_RULE_SIG(Scroll_Rule_Function);
-}
+typedef VIEW_ROUTINE_SIG(View_Routine_Function);
+typedef CUSTOM_COMMAND_SIG(Custom_Command_Function);
+typedef GET_BINDING_DATA(Get_Binding_Data_Function);
+typedef HOOK_SIG(Hook_Function);
+
+typedef OPEN_FILE_HOOK_SIG(Open_File_Hook_Function);
+typedef SCROLL_RULE_SIG(Scroll_Rule_Function);
+
+union Generic_Command{
+    Command_ID cmdid;
+    Custom_Command_Function *command;
+};
+
+#define COMMAND_CALLER_HOOK(name) int name(struct Application_Links *app, Generic_Command cmd)
+typedef COMMAND_CALLER_HOOK(Command_Caller_Hook_Function);
+
+
 
 struct Application_Links;
 #include "4coder_custom_api.h"
