@@ -32,6 +32,7 @@ CUSTOM_COMMAND_SIG(build_in_build_panel){
     
     if (!build_view.exists){
         exec_command(app, cmdid_open_panel_hsplit);
+        exec_command(app, hide_scrollbar);
         build_view = app->get_active_view(app, AccessAll);
         app->view_set_split_proportion(app, &build_view, .2f);
     }

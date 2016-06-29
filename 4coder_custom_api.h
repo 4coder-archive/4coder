@@ -20,6 +20,7 @@
 #define GET_VIEW_SIG(n) View_Summary n(Application_Links *app, int view_id, unsigned int access)
 #define GET_ACTIVE_VIEW_SIG(n) View_Summary n(Application_Links *app, unsigned int access)
 #define SET_ACTIVE_VIEW_SIG(n) int n(Application_Links *app, View_Summary *view)
+#define VIEW_SET_SETTING_SIG(n) int n(Application_Links *app, View_Summary *view, int setting, int value)
 #define VIEW_SET_SPLIT_PROPORTION_SIG(n) int n(Application_Links *app, View_Summary *view, float t)
 #define VIEW_COMPUTE_CURSOR_SIG(n) int n(Application_Links *app, View_Summary *view, Buffer_Seek seek, Full_Cursor *cursor_out)
 #define VIEW_SET_CURSOR_SIG(n) int n(Application_Links *app, View_Summary *view, Buffer_Seek seek, int set_preferred_x)
@@ -66,6 +67,7 @@ extern "C"{
     typedef GET_VIEW_SIG(Get_View_Function);
     typedef GET_ACTIVE_VIEW_SIG(Get_Active_View_Function);
     typedef SET_ACTIVE_VIEW_SIG(Set_Active_View_Function);
+    typedef VIEW_SET_SETTING_SIG(View_Set_Setting_Function);
     typedef VIEW_SET_SPLIT_PROPORTION_SIG(View_Set_Split_Proportion_Function);
     typedef VIEW_COMPUTE_CURSOR_SIG(View_Compute_Cursor_Function);
     typedef VIEW_SET_CURSOR_SIG(View_Set_Cursor_Function);
@@ -115,6 +117,7 @@ struct Application_Links{
     Get_View_Function *get_view;
     Get_Active_View_Function *get_active_view;
     Set_Active_View_Function *set_active_view;
+    View_Set_Setting_Function *view_set_setting;
     View_Set_Split_Proportion_Function *view_set_split_proportion;
     View_Compute_Cursor_Function *view_compute_cursor;
     View_Set_Cursor_Function *view_set_cursor;
@@ -166,6 +169,7 @@ app_links->get_view_next = Get_View_Next;\
 app_links->get_view = Get_View;\
 app_links->get_active_view = Get_Active_View;\
 app_links->set_active_view = Set_Active_View;\
+app_links->view_set_setting = View_Set_Setting;\
 app_links->view_set_split_proportion = View_Set_Split_Proportion;\
 app_links->view_compute_cursor = View_Compute_Cursor;\
 app_links->view_set_cursor = View_Set_Cursor;\

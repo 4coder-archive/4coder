@@ -93,6 +93,9 @@ This is the documentation for alpha 4.0.9 super! The documentation has been made
 <a href='#set_active_view_doc'>set_active_view</a>
 </li>
 <li>
+<a href='#view_set_setting_doc'>view_set_setting</a>
+</li>
+<li>
 <a href='#view_set_split_proportion_doc'>view_set_split_proportion</a>
 </li>
 <li>
@@ -420,15 +423,15 @@ range is not within the bounds of the buffer.</div></div><hr>
 </div>
 <div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Parameters</i></b></div><div>
 <div style='font-weight: 600;'>buffer</div>
-<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>the buffer to set a setting on</div></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>The buffer on which to set a setting.</div></div>
 </div>
 <div>
 <div style='font-weight: 600;'>setting</div>
-<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>one of the Buffer_Setting_ID enum values that identifies the setting to set</div></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>One of the Buffer_Setting_ID enum values that identifies the setting to set.</div></div>
 </div>
 <div>
 <div style='font-weight: 600;'>value</div>
-<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>the value to set the specified setting to</div></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>The value to set the specified setting to.</div></div>
 </div>
 <div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>See Also</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'><a href='#Buffer_Setting_ID_doc'>Buffer_Setting_ID</a></div></div><hr>
 <div id='buffer_auto_indent_doc' style='margin-bottom: 1cm;'>
@@ -592,8 +595,26 @@ Views should not be closed or opened durring a view loop.</div><div style='margi
 <div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Return</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>returns non-zero on success</div><div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>If the given view is a currently open view, it is set as the
 active view, and takes subsequent commands and is returned
 from get_active_view.</div><div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>See Also</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'><a href='#get_active_view_doc'>get_active_view</a></div></div><hr>
+<div id='view_set_setting_doc' style='margin-bottom: 1cm;'>
+ <h4>&sect;2.2.22: view_set_setting</h4>
+ <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>int app->view_set_setting(
+<div style='margin-left: 4mm;'>Application_Links *app,<br>View_Summary *view,<br>int setting,<br>int value<br></div>)
+</div>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Parameters</i></b></div><div>
+<div style='font-weight: 600;'>view</div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>The view on which to set a setting.</div></div>
+</div>
+<div>
+<div style='font-weight: 600;'>setting</div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>One of the View_Setting_ID enum values that identifies the setting to set.</div></div>
+</div>
+<div>
+<div style='font-weight: 600;'>value</div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>The value to set the specified setting to.</div></div>
+</div>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>See Also</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'><a href='#View_Setting_ID_doc'>View_Setting_ID</a></div></div><hr>
 <div id='view_set_split_proportion_doc' style='margin-bottom: 1cm;'>
- <h4>&sect;2.2.22: view_set_split_proportion</h4>
+ <h4>&sect;2.2.23: view_set_split_proportion</h4>
  <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>int app->view_set_split_proportion(
 <div style='margin-left: 4mm;'>Application_Links *app,<br>View_Summary *view,<br>float t<br></div>)
 </div>
@@ -607,7 +628,7 @@ from get_active_view.</div><div style='margin-top: 3mm; margin-bottom: 3mm; colo
 </div>
 <div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Return</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>Returns non-zero on success.</div></div><hr>
 <div id='view_compute_cursor_doc' style='margin-bottom: 1cm;'>
- <h4>&sect;2.2.23: view_compute_cursor</h4>
+ <h4>&sect;2.2.24: view_compute_cursor</h4>
  <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>int app->view_compute_cursor(
 <div style='margin-left: 4mm;'>Application_Links *app,<br>View_Summary *view,<br>Buffer_Seek seek,<br>Full_Cursor *cursor_out<br></div>)
 </div>
@@ -625,7 +646,7 @@ from get_active_view.</div><div style='margin-top: 3mm; margin-bottom: 3mm; colo
 </div>
 <div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Return</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>Returns non-zero on success.</div><div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>Computes a full cursor for the given seek position.</div><div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>See Also</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'><a href='#Buffer_Seek_doc'>Buffer_Seek</a></div></div><hr>
 <div id='view_set_cursor_doc' style='margin-bottom: 1cm;'>
- <h4>&sect;2.2.24: view_set_cursor</h4>
+ <h4>&sect;2.2.25: view_set_cursor</h4>
  <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>int app->view_set_cursor(
 <div style='margin-left: 4mm;'>Application_Links *app,<br>View_Summary *view,<br>Buffer_Seek seek,<br>int set_preferred_x<br></div>)
 </div>
@@ -644,7 +665,7 @@ from get_active_view.</div><div style='margin-top: 3mm; margin-bottom: 3mm; colo
 <div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Return</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>returns non-zero on success</div><div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>Sets the the view's cursor position.  set_preferred_x should usually be true unless the change in
 cursor position is is a vertical motion that tries to keep the cursor in the same column or x position.</div><div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>See Also</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'><a href='#Buffer_Seek_doc'>Buffer_Seek</a></div></div><hr>
 <div id='view_set_mark_doc' style='margin-bottom: 1cm;'>
- <h4>&sect;2.2.25: view_set_mark</h4>
+ <h4>&sect;2.2.26: view_set_mark</h4>
  <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>int app->view_set_mark(
 <div style='margin-left: 4mm;'>Application_Links *app,<br>View_Summary *view,<br>Buffer_Seek seek<br></div>)
 </div>
@@ -658,7 +679,7 @@ cursor position is is a vertical motion that tries to keep the cursor in the sam
 </div>
 <div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Return</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>returns non-zero on success</div><div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>Sets the the view's mark position.</div><div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>See Also</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'><a href='#Buffer_Seek_doc'>Buffer_Seek</a></div></div><hr>
 <div id='view_set_highlight_doc' style='margin-bottom: 1cm;'>
- <h4>&sect;2.2.26: view_set_highlight</h4>
+ <h4>&sect;2.2.27: view_set_highlight</h4>
  <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>int app->view_set_highlight(
 <div style='margin-left: 4mm;'>Application_Links *app,<br>View_Summary *view,<br>int start,<br>int end,<br>int turn_on<br></div>)
 </div>
@@ -683,7 +704,7 @@ is set to true the highlight will be shown and the cursor will be hidden.  After
 that either setting the with view_set_cursor or calling view_set_highlight and
 the turn_on set to false, will switch back to showing the cursor.</div></div><hr>
 <div id='view_set_buffer_doc' style='margin-bottom: 1cm;'>
- <h4>&sect;2.2.27: view_set_buffer</h4>
+ <h4>&sect;2.2.28: view_set_buffer</h4>
  <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>int app->view_set_buffer(
 <div style='margin-left: 4mm;'>Application_Links *app,<br>View_Summary *view,<br>int buffer_id,<br>unsigned int flags<br></div>)
 </div>
@@ -702,7 +723,7 @@ the turn_on set to false, will switch back to showing the cursor.</div></div><hr
 <div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Return</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>returns non-zero on success</div><div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>On success view_set_buffer sets the specified view's current buffer and
 cancels and dialogue shown in the view and displays the file.</div><div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>See Also</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'><a href='#Set_Buffer_Flag_doc'>Set_Buffer_Flag</a></div></div><hr>
 <div id='view_post_fade_doc' style='margin-bottom: 1cm;'>
- <h4>&sect;2.2.28: view_post_fade</h4>
+ <h4>&sect;2.2.29: view_post_fade</h4>
  <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>int app->view_post_fade(
 <div style='margin-left: 4mm;'>Application_Links *app,<br>View_Summary *view,<br>float seconds,<br>int start,<br>int end,<br>unsigned int color<br></div>)
 </div>
@@ -728,7 +749,7 @@ cancels and dialogue shown in the view and displays the file.</div><div style='m
 </div>
 </div><hr>
 <div id='get_user_input_doc' style='margin-bottom: 1cm;'>
- <h4>&sect;2.2.29: get_user_input</h4>
+ <h4>&sect;2.2.30: get_user_input</h4>
  <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>User_Input app->get_user_input(
 <div style='margin-left: 4mm;'>Application_Links *app,<br>unsigned int get_type,<br>unsigned int abort_type<br></div>)
 </div>
@@ -746,19 +767,19 @@ command is executed an abort signal is returned.  If an abort signal is ever ret
 command should finish execution without any more calls that preempt the command.
 If a get condition is met the user input is returned</div><div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>See Also</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'><a href='#Input_Type_Flag_doc'>Input_Type_Flag</a></div><div style='margin-left: 5mm; margin-right: 5mm;'><a href='#User_Input_doc'>User_Input</a></div></div><hr>
 <div id='get_command_input_doc' style='margin-bottom: 1cm;'>
- <h4>&sect;2.2.30: get_command_input</h4>
+ <h4>&sect;2.2.31: get_command_input</h4>
  <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>User_Input app->get_command_input(
 <div style='margin-left: 4mm;'>Application_Links *app<br></div>)
 </div>
 <div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Return</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>returns the input that triggered the command in execution.</div><div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>See Also</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'><a href='#User_Input_doc'>User_Input</a></div></div><hr>
 <div id='get_mouse_state_doc' style='margin-bottom: 1cm;'>
- <h4>&sect;2.2.31: get_mouse_state</h4>
+ <h4>&sect;2.2.32: get_mouse_state</h4>
  <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>Mouse_State app->get_mouse_state(
 <div style='margin-left: 4mm;'>Application_Links *app<br></div>)
 </div>
 <div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Return</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>returns the current mouse state</div><div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>See Also</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'><a href='#Mouse_State_doc'>Mouse_State</a></div></div><hr>
 <div id='start_query_bar_doc' style='margin-bottom: 1cm;'>
- <h4>&sect;2.2.32: start_query_bar</h4>
+ <h4>&sect;2.2.33: start_query_bar</h4>
  <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>int app->start_query_bar(
 <div style='margin-left: 4mm;'>Application_Links *app,<br>Query_Bar *bar,<br>unsigned int flags<br></div>)
 </div>
@@ -773,7 +794,7 @@ If a get condition is met the user input is returned</div><div style='margin-top
 <div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Return</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>returns non-zero on success</div><div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>The memory pointed to by bar must remain valid until a call to end_query_bar or
 until the command returns.</div></div><hr>
 <div id='end_query_bar_doc' style='margin-bottom: 1cm;'>
- <h4>&sect;2.2.33: end_query_bar</h4>
+ <h4>&sect;2.2.34: end_query_bar</h4>
  <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>void app->end_query_bar(
 <div style='margin-left: 4mm;'>Application_Links *app,<br>Query_Bar *bar,<br>unsigned int flags<br></div>)
 </div>
@@ -787,7 +808,7 @@ until the command returns.</div></div><hr>
 </div>
 <div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>bar must be a pointer previously passed to start_query_bar previously in the same command.</div></div><hr>
 <div id='print_message_doc' style='margin-bottom: 1cm;'>
- <h4>&sect;2.2.34: print_message</h4>
+ <h4>&sect;2.2.35: print_message</h4>
  <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>void app->print_message(
 <div style='margin-left: 4mm;'>Application_Links *app,<br>char *str,<br>int len<br></div>)
 </div>
@@ -801,7 +822,7 @@ until the command returns.</div></div><hr>
 </div>
 </div><hr>
 <div id='change_theme_doc' style='margin-bottom: 1cm;'>
- <h4>&sect;2.2.35: change_theme</h4>
+ <h4>&sect;2.2.36: change_theme</h4>
  <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>void app->change_theme(
 <div style='margin-left: 4mm;'>Application_Links *app,<br>char *name,<br>int len<br></div>)
 </div>
@@ -815,7 +836,7 @@ until the command returns.</div></div><hr>
 </div>
 </div><hr>
 <div id='change_font_doc' style='margin-bottom: 1cm;'>
- <h4>&sect;2.2.36: change_font</h4>
+ <h4>&sect;2.2.37: change_font</h4>
  <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>void app->change_font(
 <div style='margin-left: 4mm;'>Application_Links *app,<br>char *name,<br>int len<br></div>)
 </div>
@@ -829,7 +850,7 @@ until the command returns.</div></div><hr>
 </div>
 </div><hr>
 <div id='set_theme_colors_doc' style='margin-bottom: 1cm;'>
- <h4>&sect;2.2.37: set_theme_colors</h4>
+ <h4>&sect;2.2.38: set_theme_colors</h4>
  <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>void app->set_theme_colors(
 <div style='margin-left: 4mm;'>Application_Links *app,<br>Theme_Color *colors,<br>int count<br></div>)
 </div>
@@ -844,7 +865,7 @@ until the command returns.</div></div><hr>
 <div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>For each color struct in the array, the color in the style pallet is set to the color
 code paired with the tag.</div></div><hr>
 <div id='get_theme_colors_doc' style='margin-bottom: 1cm;'>
- <h4>&sect;2.2.38: get_theme_colors</h4>
+ <h4>&sect;2.2.39: get_theme_colors</h4>
  <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>void app->get_theme_colors(
 <div style='margin-left: 4mm;'>Application_Links *app,<br>Theme_Color *colors,<br>int count<br></div>)
 </div>
@@ -859,7 +880,7 @@ code paired with the tag.</div></div><hr>
 <div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>For each color struct in the array, the color field of the struct is filled with the
 color from the specified color in the pallet.</div></div><hr>
 <div id='directory_get_hot_doc' style='margin-bottom: 1cm;'>
- <h4>&sect;2.2.39: directory_get_hot</h4>
+ <h4>&sect;2.2.40: directory_get_hot</h4>
  <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>int app->directory_get_hot(
 <div style='margin-left: 4mm;'>Application_Links *app,<br>char *out,<br>int capacity<br></div>)
 </div>
@@ -877,7 +898,7 @@ accessed in the GUI.  Whenever the GUI is opened it shows the hot directory.
 In the future this will be deprecated and eliminated in favor of more flexible
 directories controlled by the custom side.</div></div><hr>
 <div id='get_file_list_doc' style='margin-bottom: 1cm;'>
- <h4>&sect;2.2.40: get_file_list</h4>
+ <h4>&sect;2.2.41: get_file_list</h4>
  <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>File_List app->get_file_list(
 <div style='margin-left: 4mm;'>Application_Links *app,<br>char *dir,<br>int len<br></div>)
 </div>
@@ -893,7 +914,7 @@ directories controlled by the custom side.</div></div><hr>
 the specified directory.  The File_List returned should be passed to free_file_list
 when it is no longer in use.</div></div><hr>
 <div id='free_file_list_doc' style='margin-bottom: 1cm;'>
- <h4>&sect;2.2.41: free_file_list</h4>
+ <h4>&sect;2.2.42: free_file_list</h4>
  <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>void app->free_file_list(
 <div style='margin-left: 4mm;'>Application_Links *app,<br>File_List list<br></div>)
 </div>
@@ -903,7 +924,7 @@ when it is no longer in use.</div></div><hr>
 </div>
 <div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>after this call the file list passed in should not be read or written to</div></div><hr>
 <div id='file_exists_doc' style='margin-bottom: 1cm;'>
- <h4>&sect;2.2.42: file_exists</h4>
+ <h4>&sect;2.2.43: file_exists</h4>
  <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>int app->file_exists(
 <div style='margin-left: 4mm;'>Application_Links *app,<br>char *filename,<br>int len<br></div>)
 </div>
@@ -917,7 +938,7 @@ when it is no longer in use.</div></div><hr>
 </div>
 <div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Return</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>returns non-zero if the file exists, returns zero if the file does not exist</div></div><hr>
 <div id='directory_cd_doc' style='margin-bottom: 1cm;'>
- <h4>&sect;2.2.43: directory_cd</h4>
+ <h4>&sect;2.2.44: directory_cd</h4>
  <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>int app->directory_cd(
 <div style='margin-left: 4mm;'>Application_Links *app,<br>char *dir,<br>int *len,<br>int capacity,<br>char *rel_path,<br>int rel_len<br></div>)
 </div>
@@ -949,7 +970,7 @@ For instance if dir contains "C:/Users/MySelf" and rel is "Documents" the buffer
 "C:/Users/MySelf/Documents" and len will contain the length of that string.  This call can
 also be used with rel set to ".." to traverse to parent folders.</div></div><hr>
 <div id='get_4ed_path_doc' style='margin-bottom: 1cm;'>
- <h4>&sect;2.2.44: get_4ed_path</h4>
+ <h4>&sect;2.2.45: get_4ed_path</h4>
  <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>int app->get_4ed_path(
 <div style='margin-left: 4mm;'>Application_Links *app,<br>char *out,<br>int capacity<br></div>)
 </div>

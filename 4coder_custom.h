@@ -140,9 +140,6 @@ enum{
     cmdid_eol_dosify,
     cmdid_eol_nixify,
     
-    cmdid_hide_scrollbar,
-    cmdid_show_scrollbar,
-    
     cmdid_interactive_new,
     cmdid_interactive_open,
     cmdid_reopen,
@@ -278,6 +275,11 @@ enum Buffer_Setting_ID{
     BufferSetting_Lex,
     BufferSetting_WrapLine,
     BufferSetting_MapID,
+};
+
+enum View_Setting_ID{
+    ViewSetting_Null,
+    ViewSetting_ShowScrollbar,
 };
 
 enum Buffer_Kill_Flag{

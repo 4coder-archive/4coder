@@ -688,9 +688,9 @@ range is not within the bounds of the buffer.
 
 API_EXPORT int
 Buffer_Set_Setting(Application_Links *app, Buffer_Summary *buffer, int setting, int value)/*
-DOC_PARAM(buffer, the buffer to set a setting on)
-DOC_PARAM(setting, one of the Buffer_Setting_ID enum values that identifies the setting to set)
-DOC_PARAM(value, the value to set the specified setting to)
+DOC_PARAM(buffer, The buffer on which to set a setting.)
+DOC_PARAM(setting, One of the Buffer_Setting_ID enum values that identifies the setting to set.)
+DOC_PARAM(value, The value to set the specified setting to.)
 DOC_SEE(Buffer_Setting_ID)
 */{
     Command_Data *cmd = (Command_Data*)app->cmd_context;
@@ -1102,6 +1102,32 @@ DOC_SEE(get_active_view)
         models->layout.active_panel = (i32)(panel - models->layout.panels);
         
         update_command_data(cmd->vars, cmd);
+    }
+    
+    return(result);
+}
+
+API_EXPORT int
+View_Set_Setting(Application_Links *app, View_Summary *view, int setting, int value)/*
+DOC_PARAM(view, The view on which to set a setting.)
+DOC_PARAM(setting, One of the View_Setting_ID enum values that identifies the setting to set.)
+DOC_PARAM(value, The value to set the specified setting to.)
+DOC_SEE(View_Setting_ID)
+*/{
+    Command_Data *cmd = (Command_Data*)app->cmd_context;
+    View *vptr = imp_get_view(cmd, view);
+    int result = false;
+    
+    if (vptr){
+        switch (setting){
+            case ViewSetting_ShowScrollbar:
+            {
+                result = true;
+                vptr->hide_scrollbar = !value;
+            }break;
+        }
+        
+        fill_view_summary(view, vptr, cmd);
     }
     
     return(result);

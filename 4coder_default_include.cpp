@@ -812,6 +812,20 @@ CUSTOM_COMMAND_SIG(snipe_token_or_word){
 }
 
 //
+// Scroll Bar Controlling
+//
+
+CUSTOM_COMMAND_SIG(show_scrollbar){
+    View_Summary view = app->get_active_view(app, AccessProtected);
+    app->view_set_setting(app, &view, ViewSetting_ShowScrollbar, true);
+}
+
+CUSTOM_COMMAND_SIG(hide_scrollbar){
+    View_Summary view = app->get_active_view(app, AccessProtected);
+    app->view_set_setting(app, &view, ViewSetting_ShowScrollbar, false);
+}
+
+//
 //
 //
 

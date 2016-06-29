@@ -976,16 +976,6 @@ COMMAND_DECL(user_callback){
     if (binding.custom) binding.custom(&models->app_links);
 }
 
-COMMAND_DECL(hide_scrollbar){
-    USE_VIEW(view);
-    view->hide_scrollbar = 1;
-}
-
-COMMAND_DECL(show_scrollbar){
-    USE_VIEW(view);
-    view->hide_scrollbar = 0;
-}
-
 internal void
 update_command_data(App_Vars *vars, Command_Data *cmd){
     cmd->panel = cmd->models->layout.panels + cmd->models->layout.active_panel;
@@ -1121,9 +1111,6 @@ setup_command_table(){
     SET(open_config);
     SET(open_menu);
     SET(open_debug);
-    
-    SET(hide_scrollbar);
-    SET(show_scrollbar);
     
 #undef SET
 }
