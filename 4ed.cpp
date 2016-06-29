@@ -1779,6 +1779,10 @@ App_Init_Sig(app_init){
                                         case _hook_scroll_rule:
                                         models->scroll_rule = (Scroll_Rule_Function*)unit->hook.func;
                                         break;
+                                        
+                                        case _hook_input_filter:
+                                        models->input_filter = (Input_Filter_Function*)unit->hook.func;
+                                        break;
                                     }
                                 }
                             }
@@ -2010,6 +2014,10 @@ App_Step_Sig(app_step){
         }
         for (i32 i = 0; i < input->keys.hold_count; ++i){
             key_summary.keys[key_summary.count++] = input->keys.hold[i];
+        }
+        
+        if (models->input_filter){
+            models->input_filter(&input->mouse);
         }
         
         Key_Event_Data mouse_event = {0};
@@ -2690,6 +2698,12 @@ App_Step_Sig(app_step){
                             "and if you load README.txt you'll find all the key combos there are.\n"
                             "\n"
                             "Newest features:\n"
+                            "-A scratch buffer is now opened with 4coder automatically\n"
+                            "-<F2> toggels mouse suppression mode\n"
+                            "-Experimental new work-flow for building a jumping to errors\n"
+                            "  (only available in power for this version)\n"
+                            "\n"
+                            "New in alpha 4.0.8:\n"
                             "-Eliminated the parameter stack\n"
                             "\n"
                             "New in alpha 4.0.7:\n"

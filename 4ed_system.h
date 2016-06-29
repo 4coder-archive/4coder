@@ -231,10 +231,11 @@ struct System_Functions{
     System_File_Load_End *file_load_end;
     System_File_Save *file_save;
     
-    // file system navigation (4coder_custom.h): 3
+    // 4coder_custom.h: 3
     File_Exists_Function *file_exists;
     Directory_CD_Function *directory_cd;
     Get_4ed_Path_Function *get_4ed_path;
+    Show_Mouse_Cursor_Function *show_mouse_cursor;
     
     // clipboard: 1
     System_Post_Clipboard *post_clipboard;

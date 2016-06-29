@@ -199,6 +199,42 @@ COMMAND_CALLER_HOOK(my_command_caller){
     return(0);
 }
 
+// NOTE(allen|a4.0.9): The input filter allows you to modify the input
+// to a frame before 4coder starts processing it at all.
+//
+// Right now it only has access to the mouse state, but it will be
+// extended to have access to the key presses soon.
+static int suppressing_mouse = false;
+
+INPUT_FILTER_SIG(my_suppress_mouse_filter){
+    if (suppressing_mouse){
+        *mouse = mouse_state_zero();
+        mouse->x = -100;
+        mouse->y = -100;
+    }
+}
+
+CUSTOM_COMMAND_SIG(suppress_mouse){
+    suppressing_mouse = true;
+    app->show_mouse_cursor(app, false);
+}
+
+CUSTOM_COMMAND_SIG(allow_mouse){
+    suppressing_mouse = false;
+    app->show_mouse_cursor(app, true);
+}
+
+CUSTOM_COMMAND_SIG(toggle_mouse){
+    if (suppressing_mouse){
+        suppressing_mouse = false;
+        app->show_mouse_cursor(app, true);
+    }
+    else{
+        suppressing_mouse = true;
+        app->show_mouse_cursor(app, false);
+    }
+}
+
 void
 default_keys(Bind_Helper *context){
     begin_map(context, mapid_global);
@@ -220,6 +256,8 @@ default_keys(Bind_Helper *context){
     bind(context, 'x', MDFR_ALT, execute_arbitrary_command);
     bind(context, 'z', MDFR_ALT, execute_any_cli);
     bind(context, 'Z', MDFR_ALT, execute_previous_cli);
+    
+    bind(context, key_f2, MDFR_NONE, toggle_mouse);
     
     end_map(context);
     
@@ -354,6 +392,7 @@ get_bindings(void *data, int size){
     
     set_open_file_hook(context, my_file_settings);
     set_command_caller(context, my_command_caller);
+    set_input_filter(context, my_suppress_mouse_filter);
     set_scroll_rule(context, smooth_scroll_rule);
     
     default_keys(context);

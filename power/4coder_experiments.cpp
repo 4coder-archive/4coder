@@ -273,6 +273,7 @@ get_bindings(void *data, int size){
     
     set_hook(context, hook_start, experimental_start_hook);
     set_open_file_hook(context, my_file_settings);
+    set_input_filter(context, my_suppress_mouse_filter);
     set_command_caller(context, my_command_caller);
     
     set_scroll_rule(context, smooth_scroll_rule);

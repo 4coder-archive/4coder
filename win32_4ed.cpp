@@ -1228,6 +1228,7 @@ Win32LoadSystemCode(){
     win32vars.system.file_exists = File_Exists;
     win32vars.system.directory_cd = Directory_CD;
     win32vars.system.get_4ed_path = Get_4ed_Path;
+    win32vars.system.show_mouse_cursor = Show_Mouse_Cursor;
 
     win32vars.system.post_clipboard = system_post_clipboard;
 

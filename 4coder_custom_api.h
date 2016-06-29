@@ -44,6 +44,7 @@
 #define FILE_EXISTS_SIG(n) int n(Application_Links *app, char *filename, int len)
 #define DIRECTORY_CD_SIG(n) int n(Application_Links *app, char *dir, int *len, int capacity, char *rel_path, int rel_len)
 #define GET_4ED_PATH_SIG(n) int n(Application_Links *app, char *out, int capacity)
+#define SHOW_MOUSE_CURSOR_SIG(n) void n(Application_Links *app, int show)
 extern "C"{
     typedef EXEC_COMMAND_SIG(Exec_Command_Function);
     typedef EXEC_SYSTEM_COMMAND_SIG(Exec_System_Command_Function);
@@ -91,6 +92,7 @@ extern "C"{
     typedef FILE_EXISTS_SIG(File_Exists_Function);
     typedef DIRECTORY_CD_SIG(Directory_CD_Function);
     typedef GET_4ED_PATH_SIG(Get_4ed_Path_Function);
+    typedef SHOW_MOUSE_CURSOR_SIG(Show_Mouse_Cursor_Function);
 }
 struct Application_Links{
     void *memory;
@@ -141,6 +143,7 @@ struct Application_Links{
     File_Exists_Function *file_exists;
     Directory_CD_Function *directory_cd;
     Get_4ed_Path_Function *get_4ed_path;
+    Show_Mouse_Cursor_Function *show_mouse_cursor;
     void *cmd_context;
     void *system_links;
     void *current_coroutine;
@@ -192,4 +195,5 @@ app_links->get_file_list = Get_File_List;\
 app_links->free_file_list = Free_File_List;\
 app_links->file_exists = File_Exists;\
 app_links->directory_cd = Directory_CD;\
-app_links->get_4ed_path = Get_4ed_Path; } while(false)
+app_links->get_4ed_path = Get_4ed_Path;\
+app_links->show_mouse_cursor = Show_Mouse_Cursor; } while(false)

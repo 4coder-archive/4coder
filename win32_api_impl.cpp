@@ -107,5 +107,13 @@ DOC_RETURN(returns non-zero on success, returns zero on failure)
     return(system_get_binary_path(&str));
 }
 
+// TODO(allen): add a "shown but auto-hides on timer" setting here.
+API_EXPORT void
+Show_Mouse_Cursor(Application_Links *app, int show)/*
+DOC_PARAM(show, The show state to put the mouse cursor into.  If this is 1 the mouse cursor is shown.  If it is 0 the mouse cursor is hidden.)
+*/{
+    ShowCursor(show);
+}
+
 // BOTTOM
 

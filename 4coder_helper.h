@@ -207,6 +207,16 @@ set_command_caller(Bind_Helper *helper, Command_Caller_Hook_Function *func){
 }
 
 inline void
+set_input_filter(Bind_Helper *helper, Input_Filter_Function *func){
+    Binding_Unit unit;
+    unit.type = unit_hook;
+    unit.hook.hook_id = _hook_input_filter;
+    unit.hook.func = (void*) func;
+    
+    write_unit(helper, unit);
+}
+
+inline void
 set_scroll_rule(Bind_Helper *helper, Scroll_Rule_Function *func){
     Binding_Unit unit;
     unit.type = unit_hook;

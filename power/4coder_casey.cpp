@@ -1457,9 +1457,9 @@ win32_toggle_fullscreen(void)
 
 HOOK_SIG(casey_start)
 {
-    exec_command(app, cmdid_hide_scrollbar);
+    exec_command(app, hide_scrollbar);
     exec_command(app, cmdid_open_panel_vsplit);
-    exec_command(app, cmdid_hide_scrollbar);
+    exec_command(app, hide_scrollbar);
     exec_command(app, cmdid_change_active_panel);
 
     app->change_theme(app, literal("Handmade Hero"));

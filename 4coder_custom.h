@@ -49,11 +49,6 @@ typedef struct Key_Event_Data{
 	Code character_no_caps_lock;
 	char modifiers[MDFR_INDEX_COUNT];
 } Key_Event_Data;
-inline Key_Event_Data
-key_event_data_zero(){
-    Key_Event_Data data={0};
-    return(data);
-}
 
 typedef struct Mouse_State{
 	char l, r;
@@ -73,6 +68,16 @@ typedef union Range{
     };
 } Range;
 
+inline Key_Event_Data
+key_event_data_zero(){
+    Key_Event_Data data={0};
+    return(data);
+}
+inline Mouse_State
+mouse_state_zero(){
+    Mouse_State data={0};
+    return(data);
+}
 inline Range
 make_range(int p1, int p2){
     Range range;
@@ -179,6 +184,7 @@ enum Special_Hook_ID{
     _hook_new_file,
     _hook_open_file,
     _hook_command_caller,
+    _hook_input_filter,
 };
 
 // None of the members of *_Summary structs nor any of the data pointed
@@ -342,6 +348,7 @@ enum Input_Type_Flag{
 #define HOOK_SIG(name) int name(struct Application_Links *app)
 #define OPEN_FILE_HOOK_SIG(name) int name(struct Application_Links *app, int buffer_id)
 #define SCROLL_RULE_SIG(name) int name(float target_x, float target_y, float *scroll_x, float *scroll_y, int view_id, int is_new_target, float dt)
+#define INPUT_FILTER_SIG(name) void name(Mouse_State *mouse)
 
 typedef VIEW_ROUTINE_SIG(View_Routine_Function);
 typedef CUSTOM_COMMAND_SIG(Custom_Command_Function);
@@ -350,6 +357,7 @@ typedef HOOK_SIG(Hook_Function);
 
 typedef OPEN_FILE_HOOK_SIG(Open_File_Hook_Function);
 typedef SCROLL_RULE_SIG(Scroll_Rule_Function);
+typedef INPUT_FILTER_SIG(Input_Filter_Function);
 
 union Generic_Command{
     Command_ID cmdid;

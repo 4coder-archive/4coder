@@ -947,7 +947,7 @@ DOC_SEE(Buffer_Kill_Flags)
                 try_kill_file(system, models, file, vptr, string_zero());
             }
             else{
-                // TODO(allen): message
+                app->print_message(app, literal("buffer is dirty and no view was specified for a dialogue."));
             }
         }
     }
@@ -1621,6 +1621,7 @@ directories controlled by the custom side.
 #define Get_4ed_Path system->get_4ed_path
 #define File_Exists system->file_exists
 #define Directory_CD system->directory_cd
+#define Show_Mouse_Cursor system->show_mouse_cursor
 
 API_EXPORT File_List
 Get_File_List(Application_Links *app, char *dir, int len)/*
