@@ -794,12 +794,11 @@ Sys_Set_File_List_Sig(system_set_file_list){
                         if (!match(find_data.cFileName, ".") &&
                             !match(find_data.cFileName, "..")){
                             info->folder = (find_data.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) != 0;
-                            info->filename.str = name;
+                            info->filename = name;
                             
                             i32 i = 0;
                             for(;find_data.cFileName[i];++i) *name++ = find_data.cFileName[i];
-                            info->filename.size = i;
-                            info->filename.memory_size = info->filename.size + 1;
+                            info->filename_len = i;
                             *name++ = 0;
                             replace_char(info->filename, '\\', '/');
                             ++info;

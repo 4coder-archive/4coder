@@ -1,4 +1,4 @@
-enum Key_Code{
+enum Key_Code_Names{
 key_back = 1,
 key_up = 2,
 key_down = 3,

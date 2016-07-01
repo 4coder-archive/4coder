@@ -214,25 +214,28 @@ INPUT_FILTER_SIG(my_suppress_mouse_filter){
     }
 }
 
+static void
+set_mouse_suppression(Application_Links *app, int suppress){
+    if (suppress){
+        suppressing_mouse = true;
+        app->show_mouse_cursor(app, MouseCursorShow_Never);
+    }
+    else{
+        suppressing_mouse = false;
+        app->show_mouse_cursor(app, MouseCursorShow_Always);
+    }
+}
+
 CUSTOM_COMMAND_SIG(suppress_mouse){
-    suppressing_mouse = true;
-    app->show_mouse_cursor(app, false);
+    set_mouse_suppression(app, true);
 }
 
 CUSTOM_COMMAND_SIG(allow_mouse){
-    suppressing_mouse = false;
-    app->show_mouse_cursor(app, true);
+    set_mouse_suppression(app, false);
 }
 
 CUSTOM_COMMAND_SIG(toggle_mouse){
-    if (suppressing_mouse){
-        suppressing_mouse = false;
-        app->show_mouse_cursor(app, true);
-    }
-    else{
-        suppressing_mouse = true;
-        app->show_mouse_cursor(app, false);
-    }
+    set_mouse_suppression(app, !suppressing_mouse);
 }
 
 void

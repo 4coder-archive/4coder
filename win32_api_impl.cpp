@@ -99,9 +99,9 @@ also be used with rel set to ".." to traverse to parent folders.
 
 API_EXPORT int
 Get_4ed_Path(Application_Links *app, char *out, int capacity)/*
-DOC_PARAM(out, a buffer that receives the path to the 4ed executable file)
-DOC_PARAM(capacity, the maximum capacity of the output buffer)
-DOC_RETURN(returns non-zero on success, returns zero on failure)
+DOC_PARAM(out, A char buffer that receives the path to the 4ed executable file.)
+DOC_PARAM(capacity, The maximum capacity of the output buffer.)
+DOC_RETURN(Returns non-zero on success, returns zero on failure.)
 */{
     String str = make_string(out, 0, capacity);
     return(system_get_binary_path(&str));
@@ -110,9 +110,20 @@ DOC_RETURN(returns non-zero on success, returns zero on failure)
 // TODO(allen): add a "shown but auto-hides on timer" setting here.
 API_EXPORT void
 Show_Mouse_Cursor(Application_Links *app, int show)/*
-DOC_PARAM(show, The show state to put the mouse cursor into.  If this is 1 the mouse cursor is shown.  If it is 0 the mouse cursor is hidden.)
+DOC_PARAM(show, The show state to put the mouse cursor into, should be one of the Mouse_Cursor_Show_Type enum values.)
+DOC_SEE(Mouse_Cursor_Show_Type)
 */{
-    ShowCursor(show);
+    switch (show){
+        case MouseCursorShow_Never:
+        ShowCursor(false);
+        break;
+        
+        case MouseCursorShow_Always:
+        ShowCursor(true);
+        break;
+        
+        // TODO(allen): MouseCursor_HideWhenStill
+    }
 }
 
 // BOTTOM

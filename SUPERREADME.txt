@@ -1,4 +1,4 @@
-Distribution Date: 29.6.2016 (dd.mm.yyyy)
+Distribution Date: 30.6.2016 (dd.mm.yyyy)
 
 Thank you for contributing to the 4coder project!
 

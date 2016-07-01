@@ -610,16 +610,16 @@ CUSTOM_COMMAND_SIG(seek_##n##_##dir){ basic_seek(app, dir, flags); }
 #define right true
 #define left false
 
-SEEK_COMMAND(whitespace,            right, BoundryWhitespace)
-SEEK_COMMAND(whitespace,            left,  BoundryWhitespace)
-SEEK_COMMAND(token,                 right, BoundryToken)
-SEEK_COMMAND(token,                 left,  BoundryToken)
-SEEK_COMMAND(white_or_token,        right, BoundryToken | BoundryWhitespace)
-SEEK_COMMAND(white_or_token,        left,  BoundryToken | BoundryWhitespace)
-SEEK_COMMAND(alphanumeric,          right, BoundryAlphanumeric)
-SEEK_COMMAND(alphanumeric,          left,  BoundryAlphanumeric)
-SEEK_COMMAND(alphanumeric_or_camel, right, BoundryAlphanumeric | BoundryCamelCase)
-SEEK_COMMAND(alphanumeric_or_camel, left,  BoundryAlphanumeric | BoundryCamelCase)
+SEEK_COMMAND(whitespace,            right, BoundaryWhitespace)
+SEEK_COMMAND(whitespace,            left,  BoundaryWhitespace)
+SEEK_COMMAND(token,                 right, BoundaryToken)
+SEEK_COMMAND(token,                 left,  BoundaryToken)
+SEEK_COMMAND(white_or_token,        right, BoundaryToken | BoundaryWhitespace)
+SEEK_COMMAND(white_or_token,        left,  BoundaryToken | BoundaryWhitespace)
+SEEK_COMMAND(alphanumeric,          right, BoundaryAlphanumeric)
+SEEK_COMMAND(alphanumeric,          left,  BoundaryAlphanumeric)
+SEEK_COMMAND(alphanumeric_or_camel, right, BoundaryAlphanumeric | BoundaryCamelCase)
+SEEK_COMMAND(alphanumeric_or_camel, left,  BoundaryAlphanumeric | BoundaryCamelCase)
 
 #undef right
 #undef left
@@ -803,9 +803,9 @@ CUSTOM_COMMAND_SIG(snipe_token_or_word){
     view = app->get_active_view(app, access);
     buffer = app->get_buffer(app, view.buffer_id, access);
     
-    pos1 = app->buffer_boundary_seek(app, &buffer, view.cursor.pos, false, BoundryToken | BoundryWhitespace);
+    pos1 = app->buffer_boundary_seek(app, &buffer, view.cursor.pos, false, BoundaryToken | BoundaryWhitespace);
     
-    pos2 = app->buffer_boundary_seek(app, &buffer, pos1,            true,  BoundryToken | BoundryWhitespace);
+    pos2 = app->buffer_boundary_seek(app, &buffer, pos1,            true,  BoundaryToken | BoundaryWhitespace);
     
     Range range = make_range(pos1, pos2);
     app->buffer_replace_range(app, &buffer, range.start, range.end, 0, 0);
@@ -1192,7 +1192,8 @@ CUSTOM_COMMAND_SIG(open_all_code){
     for (int i = 0; i < list.count; ++i){
         File_Info *info = list.infos + i;
         if (!info->folder){
-            String extension = file_extension(info->filename);
+            String extension = make_string(info->filename, info->filename_len, info->filename_len+1);
+            extension = file_extension(extension);
             if (match(extension, make_lit_string("cpp")) ||
                     match(extension, make_lit_string("hpp")) ||
                     match(extension, make_lit_string("c")) ||

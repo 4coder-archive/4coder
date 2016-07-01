@@ -916,10 +916,10 @@ DOC_RETURN(returns non-zero if the save succeeds)
 
 API_EXPORT int
 Kill_Buffer(Application_Links *app, Buffer_Identifier buffer, int view_id, unsigned int flags)/*
-DOC_PARAM(buffer, a buffer identifier specifying the buffer to try to kill)
-DOC_PARAM(view_id, the id of view that will contain the "are you sure" dialogue)
-DOC_PARAM(flags, flags for buffer kill behavior)
-DOC_RETURN(returns non-zero if the kill succeeds)
+DOC_PARAM(buffer, A buffer identifier specifying the buffer to try to kill.)
+DOC_PARAM(view_id, The id of view that will contain the "are you sure" dialogue.)
+DOC_PARAM(flags, Flags for buffer kill behavior.)
+DOC_RETURN(Returns non-zero if the kill succeeds.)
 DOC
 (
 Tries to kill the idenfied buffer.  If the buffer is dirty and the "are you sure"

@@ -1119,10 +1119,9 @@ setup_command_table(){
 
 internal void
 app_hardcode_styles(Models *models){
-    Interactive_Style file_info_style;
-    Style *styles, *style;
-    styles = models->styles.styles;
-    style = styles + 1;
+    Interactive_Style file_info_style = {0};
+    Style *styles = models->styles.styles;
+    Style *style = styles + 1;
     
     i16 fonts = 1;
     models->global_font.font_id = fonts + 0;
@@ -1314,6 +1313,44 @@ app_hardcode_styles(Models *models){
     file_info_style.bar_active_color = 0xFF3E3E3E;
     file_info_style.base_color = 0xFF000000;
     file_info_style.pop1_color = 0xFF1111DC;
+    file_info_style.pop2_color = 0xFFE80505;
+    style->main.file_info_style = file_info_style;
+    ++style;
+    
+    /////////////////
+    style_set_name(style, make_lit_string("Magic"));
+    
+    style->main.back_color = 0xFFF0F0F0;
+    style->main.margin_color = 0xFF9E9E9E;
+    style->main.margin_hover_color = 0xFF7E7E7E;
+    style->main.margin_active_color = 0xFF5C5C5C;
+    style->main.cursor_color = 0xFF000000;
+    style->main.at_cursor_color = 0xFFD6D6D6;
+    style->main.mark_color = 0xFF525252;
+    style->main.highlight_color = 0xFFB87600;
+    style->main.at_highlight_color = 0xFF000000;
+    style->main.default_color = 0xFF000000;
+    style->main.comment_color = 0xFF007E00;
+    style->main.keyword_color = 0xFF8B4303;
+    style->main.str_constant_color = 0xFF7C0000;
+    style->main.char_constant_color = 0xFF7C0000;
+    style->main.include_color = 0xFF7C0000;
+    style->main.int_constant_color = 0xFF007C00;
+    style->main.float_constant_color = 0xFF007C00;
+    style->main.bool_constant_color = 0xFF007C00;
+    style->main.preproc_color = 0xFF0000FF;
+    style->main.special_character_color = 0xFF9A0000;
+    
+    style->main.paste_color = 0xFFB87600;
+    style->main.undo_color = 0xFFB87600;
+    
+    style->main.highlight_junk_color = 0xFFFF7878;
+    style->main.highlight_white_color = 0xFFB87600;
+    
+    file_info_style.bar_color = 0xFF606060;
+    file_info_style.bar_active_color = 0xFF3E3E3E;
+    file_info_style.base_color = 0xFFFFFFFF;
+    file_info_style.pop1_color = 0xFF007E00;
     file_info_style.pop2_color = 0xFFE80505;
     style->main.file_info_style = file_info_style;
     ++style;

@@ -3687,8 +3687,11 @@ get_exhaustive_info(System_Functions *system, Working_Set *working_set, Exhausti
     terminate_with_null(&loop->full_path);
     file = working_set_contains(system, working_set, loop->full_path);
     
+    String filename = make_string(result.info->filename,
+                                  result.info->filename_len, result.info->filename_len+1);
+    
     result.is_folder = (result.info->folder != 0);
-    result.name_match = (filename_match(loop->front_name, &loop->absolutes, result.info->filename, 0) != 0);
+    result.name_match = (filename_match(loop->front_name, &loop->absolutes, filename, 0) != 0);
     result.is_loaded = (file != 0 && file_is_ready(file));
     
     result.message = string_zero();
@@ -4389,7 +4392,12 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                                     
                                     if (file_info.name_match){
                                         id.id[0] = (u64)(file_info.info);
-                                        if (gui_do_file_option(target, id, file_info.info->filename,
+                                        
+                                        String filename = make_string(file_info.info->filename,
+                                                                      file_info.info->filename_len,
+                                                                      file_info.info->filename_len+1);
+                                        
+                                        if (gui_do_file_option(target, id, filename,
                                                                file_info.is_folder, file_info.message)){
                                             if (file_info.is_folder){
                                                 set_last_folder(&hdir->string, file_info.info->filename, '/');
