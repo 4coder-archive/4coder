@@ -485,10 +485,9 @@ Sys_Set_File_List_Sig(system_set_file_list){
                 info_ptr->folder = entry->d_type == DT_DIR;
             }
 
-            info_ptr->filename.str = cursor_start;
-            info_ptr->filename.size = (i32)(cursor - cursor_start);
+            info_ptr->filename = cursor_start;
+            info_ptr->filename_len = (int)(cursor - cursor_start);
             *cursor++ = 0;
-            info_ptr->filename.memory_size = info_ptr->filename.size + 1;
             ++info_ptr;
         }
 
@@ -1710,7 +1709,7 @@ LinuxKeycodeInit(Display* dpy){
 
     struct SymMapping {
         KeySym sym;
-        Code code;
+        u8 code;
     } sym_table[] = {
         { XK_BackSpace, key_back },
         { XK_Delete, key_del },
