@@ -12,29 +12,6 @@
 #ifndef FRED_BUFFER_TYPES_H
 #define FRED_BUFFER_TYPES_H
 
-typedef struct Full_Cursor{
-    int pos;
-    int line, character;
-    float unwrapped_x, unwrapped_y;
-    float wrapped_x, wrapped_y;
-} Full_Cursor;
-
-typedef enum Buffer_Seek_Type{
-    buffer_seek_pos,
-    buffer_seek_wrapped_xy,
-    buffer_seek_unwrapped_xy,
-    buffer_seek_line_char
-} Buffer_Seek_Type;
-
-typedef struct Buffer_Seek{
-    Buffer_Seek_Type type;
-    union{
-        struct { int pos; };
-        struct { int round_down; float x, y; };
-        struct { int line, character; };
-    };
-} Buffer_Seek;
-
 static Buffer_Seek
 seek_pos(int pos){
     Buffer_Seek result;

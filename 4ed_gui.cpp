@@ -653,6 +653,7 @@ gui_scroll_eq(GUI_Scroll_Vars *a, GUI_Scroll_Vars *b){
     return(result);
 }
 
+#if 0
 // TODO(allen): Rethink this a little, seems like there are two separate things we want to do here:
 // Getting the updated scroll vars, and telling the user when scrolling actions occur.
 internal b32
@@ -666,6 +667,21 @@ gui_get_scroll_vars(GUI_Target *target, GUI_id scroll_context_id, i32_Rect *regi
             target->animating = 1;
         }
     }
+    return(result);
+}
+#endif
+
+internal b32
+gui_scroll_was_activated(GUI_Target *target, GUI_id scroll_context_id){
+    b32 result = false;
+    
+    if (gui_id_eq(scroll_context_id, target->scroll_id)){
+        if (gui_id_eq(target->active, gui_id_scrollbar())){
+            result = true;
+            target->animating = true;
+        }
+    }
+    
     return(result);
 }
 

@@ -9,8 +9,6 @@
 #include "4coder_style.h"
 #include "4coder_rect.h"
 #include "4coder_mem.h"
-#include "4coder_buffer_types.h"
-#include "4coder_gui.h"
 
 #ifndef FRED_STRING_STRUCT
 #define FRED_STRING_STRUCT
@@ -51,6 +49,8 @@ enum Special_Hook_ID{
 typedef CUSTOM_COMMAND_SIG(Custom_Command_Function);
 
 #include "4coder_types.h"
+#include "4coder_buffer_types.h"
+#include "4coder_gui.h"
 
 #define COMMAND_CALLER_HOOK(name) int name(struct Application_Links *app, Generic_Command cmd)
 typedef COMMAND_CALLER_HOOK(Command_Caller_Hook_Function);

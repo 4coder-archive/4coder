@@ -162,26 +162,6 @@ file_viewing_data_zero(){
     return(data);
 }
 
-enum Edit_Pos_Set_Type{
-    EditPos_None,
-    EditPos_CursorSet,
-    EditPos_ScrollSet
-};
-struct File_Edit_Positions{
-    GUI_Scroll_Vars scroll;
-    Full_Cursor cursor;
-    i32 mark;
-    f32 preferred_x;
-    i32 scroll_i;
-    
-    i32 last_set_type;
-};
-inline File_Edit_Positions
-file_edit_positions_zero(){
-    File_Edit_Positions data = {0};
-    return(data);
-}
-
 struct Scroll_Context{
     Editing_File *file;
     GUI_id scroll;
@@ -231,16 +211,11 @@ struct View{
     
     File_Viewing_Data file_data;
     
-#if 0
-    i32 prev_cursor_pos;
-    Scroll_Context prev_context;
-#endif
-
     i32_Rect file_region_prev;
     i32_Rect file_region;
     
     i32_Rect scroll_region;
-    File_Edit_Positions edit_poss;
+    File_Edit_Positions *edit_pos;
     
     View_UI showing_ui;
     GUI_Target gui_target;
@@ -295,6 +270,328 @@ get_view_size(){
     return(sizeof(View) - sizeof(View_Persistent));
 }
 
+// TODO(allen): Switch over to using an i32 instead of
+// an f32 for these.
+inline f32
+view_file_width(View *view){
+    i32_Rect file_rect = view->file_region;
+    f32 result = (f32)(file_rect.x1 - file_rect.x0);
+    return (result);
+}
+
+inline f32
+view_file_height(View *view){
+    i32_Rect file_rect = view->file_region;
+    f32 result = (f32)(file_rect.y1 - file_rect.y0);
+    return (result);
+}
+
+inline i32
+view_get_cursor_pos(View *view){
+    i32 result = 0;
+    if (view->file_data.show_temp_highlight){
+        result = view->file_data.temp_highlight.pos;
+    }
+    else if (view->edit_pos){
+        result = view->edit_pos->cursor.pos;
+    }
+    return(result);
+}
+
+inline f32
+view_get_cursor_x(View *view){
+    f32 result = 0;
+    
+    Full_Cursor *cursor = 0;
+    if (view->file_data.show_temp_highlight){
+        cursor = &view->file_data.temp_highlight;
+    }
+    else if (view->edit_pos){
+        cursor = &view->edit_pos->cursor;
+    }
+    
+    if (cursor){
+        result = cursor->wrapped_x;
+        if (view->file_data.unwrapped_lines){
+            result = cursor->unwrapped_x;
+        }
+    }
+    
+    return(result);
+}
+
+inline f32
+view_get_cursor_y(View *view){
+    f32 result = 0;
+    
+    Full_Cursor *cursor = 0;
+    if (view->file_data.show_temp_highlight){
+        cursor = &view->file_data.temp_highlight;
+    }
+    else if (view->edit_pos){
+        cursor = &view->edit_pos->cursor;
+    }
+    
+    if (cursor){
+        result = cursor->wrapped_y;
+        if (view->file_data.unwrapped_lines){
+            result = cursor->unwrapped_y;
+        }
+    }
+    
+    return(result);
+}
+
+struct Cursor_Limits{
+    f32 min, max;
+    f32 delta;
+};
+
+inline Cursor_Limits
+view_cursor_limits(View *view){
+    Cursor_Limits limits = {0};
+    
+    f32 line_height = (f32)view->line_height;
+    f32 visible_height = view_file_height(view);
+    
+    limits.max = visible_height - line_height*3.f;
+    limits.min = line_height * 2;
+    
+    if (limits.max - limits.min <= line_height){
+        if (visible_height >= line_height){
+            limits.max = visible_height - line_height;
+            limits.min = -line_height;
+        }
+        else{
+            limits.max = visible_height;
+            limits.min = -line_height;
+        }
+    }
+    
+    limits.max = (limits.max > 0)?(limits.max):(0);
+    limits.min = (limits.min > 0)?(limits.min):(0);
+    
+    limits.delta = clamp_top(line_height*3.f, (limits.max - limits.min)*.5f);
+    
+    return(limits);
+}
+
+inline Full_Cursor
+view_compute_cursor_from_pos(View *view, i32 pos){
+    Editing_File *file = view->file_data.file;
+    Models *models = view->persistent.models;
+    Render_Font *font = get_font_info(models->font_set, models->global_font.font_id)->font;
+    
+    Full_Cursor result = {};
+    if (font){
+        f32 max_width = view_file_width(view);
+        result = buffer_cursor_from_pos(&file->state.buffer, pos, view->file_data.line_wrap_y,
+                                        max_width, (f32)view->line_height, font->advance_data);
+    }
+    return result;
+}
+
+inline Full_Cursor
+view_compute_cursor_from_unwrapped_xy(View *view, f32 seek_x, f32 seek_y, b32 round_down = 0){
+    Editing_File *file = view->file_data.file;
+    Models *models = view->persistent.models;
+    Render_Font *font = get_font_info(models->font_set, models->global_font.font_id)->font;
+    
+    Full_Cursor result = {};
+    if (font){
+        f32 max_width = view_file_width(view);
+        result = buffer_cursor_from_unwrapped_xy(&file->state.buffer, seek_x, seek_y,
+                                                 round_down, view->file_data.line_wrap_y, max_width, (f32)view->line_height, font->advance_data);
+    }
+    
+    return result;
+}
+
+internal Full_Cursor
+view_compute_cursor_from_wrapped_xy(View *view, f32 seek_x, f32 seek_y, b32 round_down = 0){
+    Editing_File *file = view->file_data.file;
+    Models *models = view->persistent.models;
+    Render_Font *font = get_font_info(models->font_set, models->global_font.font_id)->font;
+    
+    Full_Cursor result = {};
+    if (font){
+        f32 max_width = view_file_width(view);
+        result = buffer_cursor_from_wrapped_xy(&file->state.buffer, seek_x, seek_y,
+                                               round_down, view->file_data.line_wrap_y,
+                                               max_width, (f32)view->line_height, font->advance_data);
+    }
+    
+    return (result);
+}
+
+internal Full_Cursor
+view_compute_cursor_from_line_pos(View *view, i32 line, i32 pos){
+    Editing_File *file = view->file_data.file;
+    Models *models = view->persistent.models;
+    Render_Font *font = get_font_info(models->font_set, models->global_font.font_id)->font;
+    
+    Full_Cursor result = {};
+    if (font){
+        f32 max_width = view_file_width(view);
+        result = buffer_cursor_from_line_character(&file->state.buffer, line, pos,
+                                                   view->file_data.line_wrap_y, max_width, (f32)view->line_height, font->advance_data);
+    }
+    
+    return (result);
+}
+
+inline Full_Cursor
+view_compute_cursor(View *view, Buffer_Seek seek){
+    Full_Cursor result = {};
+    
+    switch(seek.type){
+        case buffer_seek_pos:
+        result = view_compute_cursor_from_pos(view, seek.pos);
+        break;
+        
+        case buffer_seek_wrapped_xy:
+        result = view_compute_cursor_from_wrapped_xy(view, seek.x, seek.y, seek.round_down);
+        break;
+        
+        case buffer_seek_unwrapped_xy:
+        result = view_compute_cursor_from_unwrapped_xy(view, seek.x, seek.y, seek.round_down);
+        break;
+        
+        case buffer_seek_line_char:
+        result = view_compute_cursor_from_line_pos(view, seek.line, seek.character);
+        break;
+    }
+    
+    return (result);
+}
+
+inline Full_Cursor
+view_compute_cursor_from_xy(View *view, f32 seek_x, f32 seek_y){
+    Full_Cursor result;
+    if (view->file_data.unwrapped_lines) result = view_compute_cursor_from_unwrapped_xy(view, seek_x, seek_y);
+    else result = view_compute_cursor_from_wrapped_xy(view, seek_x, seek_y);
+    return result;
+}
+
+internal b32
+view_move_view_to_cursor(View *view, GUI_Scroll_Vars *scroll, b32 center_view){
+    b32 result = false;
+    f32 max_x = view_file_width(view);
+    
+    f32 cursor_y = view_get_cursor_y(view);
+    f32 cursor_x = view_get_cursor_x(view);
+    
+    GUI_Scroll_Vars scroll_vars = *scroll;
+    i32 target_y = scroll_vars.target_y;
+    i32 target_x = scroll_vars.target_x;
+    
+    Cursor_Limits limits = view_cursor_limits(view);
+    
+    if (cursor_y > target_y + limits.max){
+        if (center_view){
+            target_y = ROUND32(cursor_y - limits.max*.5f);
+        }
+        else{
+            target_y = CEIL32(cursor_y - limits.max + limits.delta);
+        }
+    }
+    if (cursor_y < target_y + limits.min){
+        if (center_view){
+            target_y = ROUND32(cursor_y - limits.max*.5f);
+        }
+        else{
+            target_y = FLOOR32(cursor_y - limits.delta - limits.min);
+        }
+    }
+    
+    target_y = clamp(0, target_y, scroll_vars.max_y);
+    
+    if (cursor_x >= target_x + max_x){
+        target_x = CEIL32(cursor_x - max_x/2);
+    }
+    else if (cursor_x < target_x){
+        target_x = FLOOR32(Max(0, cursor_x - max_x/2));
+    }
+    
+    if (target_x != scroll_vars.target_x || target_y != scroll_vars.target_y){
+        scroll->target_x = target_x;
+        scroll->target_y = target_y;
+        result = true;
+    }
+    
+    return(result);
+}
+
+internal b32
+view_move_cursor_to_view(View *view, GUI_Scroll_Vars scroll,
+                         Full_Cursor *cursor, f32 preferred_x){
+    b32 result = false;
+    
+    if (view->edit_pos){
+        i32 line_height = view->line_height;
+        f32 old_cursor_y = cursor->wrapped_y;
+        if (view->file_data.unwrapped_lines){
+            old_cursor_y = cursor->unwrapped_y;
+        }
+        f32 cursor_y = old_cursor_y;
+        f32 target_y = scroll.target_y + view->widget_height;
+        
+        Cursor_Limits limits = view_cursor_limits(view);
+        
+        if (cursor_y > target_y + limits.max){
+            cursor_y = target_y + limits.max;
+        }
+        if (target_y != 0 && cursor_y < target_y + limits.min){
+            cursor_y = target_y + limits.min;
+        }
+        
+        if (cursor_y != old_cursor_y){
+            if (cursor_y > old_cursor_y){
+                cursor_y += line_height;
+            }
+            else{
+                cursor_y -= line_height;
+            }
+            
+            *cursor = view_compute_cursor_from_xy(
+                view, preferred_x, cursor_y);
+            
+            result = true;
+        }
+    }
+    
+    return(result);
+}
+
+internal void
+view_set_cursor(View *view,
+                Full_Cursor cursor,
+                b32 set_preferred_x,
+                b32 unwrapped_lines){
+    if (edit_pos_move_to_front(view->file_data.file, view->edit_pos)){
+        edit_pos_set_cursor_(view->edit_pos, cursor, set_preferred_x, unwrapped_lines);
+        
+        GUI_Scroll_Vars scroll = view->edit_pos->scroll;
+        if (view_move_view_to_cursor(view, &scroll, false)){
+            view->edit_pos->scroll = scroll;
+        }
+    }
+}
+
+internal void
+view_set_scroll(View *view,
+                GUI_Scroll_Vars scroll){
+    if (edit_pos_move_to_front(view->file_data.file, view->edit_pos)){
+        edit_pos_set_scroll_(view->edit_pos, scroll);
+        
+        Full_Cursor cursor = view->edit_pos->cursor;
+        if (view_move_cursor_to_view(view, view->edit_pos->scroll,
+                                     &cursor, view->edit_pos->preferred_x)){
+            view->edit_pos->cursor = cursor;
+        }
+    }
+}
+
 struct View_And_ID{
     View *view;
     i32 id;
@@ -337,22 +634,6 @@ view_lock_level(View *view){
         result = LockLevel_Protected;
     }
     return(result);
-}
-
-// TODO(allen): Switch over to using an i32 instead of
-// an f32 for these.
-inline f32
-view_file_width(View *view){
-    i32_Rect file_rect = view->file_region;
-    f32 result = (f32)(file_rect.x1 - file_rect.x0);
-    return (result);
-}
-
-inline f32
-view_file_height(View *view){
-    i32_Rect file_rect = view->file_region;
-    f32 result = (f32)(file_rect.y1 - file_rect.y0);
-    return (result);
 }
 
 struct View_Iter{
@@ -572,12 +853,12 @@ file_grow_starts_widths_as_needed(General_Memory *general, Buffer_Type *buffer, 
         max = LargeRoundUp(target_lines + max, Kbytes(1));
         
         f32 *new_widths = (f32*)general_memory_reallocate(
-                                                          general, buffer->line_widths,
-                                                          sizeof(f32)*count, sizeof(f32)*max, BUBBLE_WIDTHS);
+            general, buffer->line_widths,
+            sizeof(f32)*count, sizeof(f32)*max, BUBBLE_WIDTHS);
         
         i32 *new_lines = (i32*)general_memory_reallocate(
-                                                         general, buffer->line_starts,
-                                                         sizeof(i32)*count, sizeof(i32)*max, BUBBLE_STARTS);
+            general, buffer->line_starts,
+            sizeof(i32)*count, sizeof(i32)*max, BUBBLE_STARTS);
         
         if (new_lines){
             buffer->line_starts = new_lines;
@@ -622,7 +903,7 @@ file_measure_starts_widths(System_Functions *system, General_Memory *general,
         
         {
             i32 *new_lines = (i32*)general_memory_reallocate(
-                                                             general, buffer->line_starts, sizeof(i32)*count, sizeof(i32)*max, BUBBLE_STARTS);
+                general, buffer->line_starts, sizeof(i32)*count, sizeof(i32)*max, BUBBLE_STARTS);
             
             // TODO(allen): when unable to grow?
             TentativeAssert(new_lines);
@@ -1391,104 +1672,7 @@ file_post_history(General_Memory *general, Editing_File *file,
         *result = inv_step;
     }
     
-    return result;
-}
-
-inline Full_Cursor
-view_compute_cursor_from_pos(View *view, i32 pos){
-    Editing_File *file = view->file_data.file;
-    Models *models = view->persistent.models;
-    Render_Font *font = get_font_info(models->font_set, models->global_font.font_id)->font;
-    
-    Full_Cursor result = {};
-    if (font){
-        f32 max_width = view_file_width(view);
-        result = buffer_cursor_from_pos(&file->state.buffer, pos, view->file_data.line_wrap_y,
-                                        max_width, (f32)view->line_height, font->advance_data);
-    }
-    return result;
-}
-
-inline Full_Cursor
-view_compute_cursor_from_unwrapped_xy(View *view, f32 seek_x, f32 seek_y, b32 round_down = 0){
-    Editing_File *file = view->file_data.file;
-    Models *models = view->persistent.models;
-    Render_Font *font = get_font_info(models->font_set, models->global_font.font_id)->font;
-    
-    Full_Cursor result = {};
-    if (font){
-        f32 max_width = view_file_width(view);
-        result = buffer_cursor_from_unwrapped_xy(&file->state.buffer, seek_x, seek_y,
-                                                 round_down, view->file_data.line_wrap_y, max_width, (f32)view->line_height, font->advance_data);
-    }
-    
-    return result;
-}
-
-internal Full_Cursor
-view_compute_cursor_from_wrapped_xy(View *view, f32 seek_x, f32 seek_y, b32 round_down = 0){
-    Editing_File *file = view->file_data.file;
-    Models *models = view->persistent.models;
-    Render_Font *font = get_font_info(models->font_set, models->global_font.font_id)->font;
-    
-    Full_Cursor result = {};
-    if (font){
-        f32 max_width = view_file_width(view);
-        result = buffer_cursor_from_wrapped_xy(&file->state.buffer, seek_x, seek_y,
-                                               round_down, view->file_data.line_wrap_y,
-                                               max_width, (f32)view->line_height, font->advance_data);
-    }
-    
-    return (result);
-}
-
-internal Full_Cursor
-view_compute_cursor_from_line_pos(View *view, i32 line, i32 pos){
-    Editing_File *file = view->file_data.file;
-    Models *models = view->persistent.models;
-    Render_Font *font = get_font_info(models->font_set, models->global_font.font_id)->font;
-    
-    Full_Cursor result = {};
-    if (font){
-        f32 max_width = view_file_width(view);
-        result = buffer_cursor_from_line_character(&file->state.buffer, line, pos,
-                                                   view->file_data.line_wrap_y, max_width, (f32)view->line_height, font->advance_data);
-    }
-    
-    return (result);
-}
-
-inline Full_Cursor
-view_compute_cursor(View *view, Buffer_Seek seek){
-    Full_Cursor result = {};
-    
-    switch(seek.type){
-        case buffer_seek_pos:
-        result = view_compute_cursor_from_pos(view, seek.pos);
-        break;
-        
-        case buffer_seek_wrapped_xy:
-        result = view_compute_cursor_from_wrapped_xy(view, seek.x, seek.y, seek.round_down);
-        break;
-        
-        case buffer_seek_unwrapped_xy:
-        result = view_compute_cursor_from_unwrapped_xy(view, seek.x, seek.y, seek.round_down);
-        break;
-        
-        case buffer_seek_line_char:
-        result = view_compute_cursor_from_line_pos(view, seek.line, seek.character);
-        break;
-    }
-    
-    return (result);
-}
-
-inline Full_Cursor
-view_compute_cursor_from_xy(View *view, f32 seek_x, f32 seek_y){
-    Full_Cursor result;
-    if (view->file_data.unwrapped_lines) result = view_compute_cursor_from_unwrapped_xy(view, seek_x, seek_y);
-    else result = view_compute_cursor_from_wrapped_xy(view, seek_x, seek_y);
-    return result;
+    return(result);
 }
 
 inline void
@@ -1496,184 +1680,6 @@ view_set_temp_highlight(View *view, i32 pos, i32 end_pos){
     view->file_data.temp_highlight = view_compute_cursor_from_pos(view, pos);
     view->file_data.temp_highlight_end_pos = end_pos;
     view->file_data.show_temp_highlight = 1;
-}
-
-internal void
-edit_pos_set_cursor(File_Edit_Positions *edit_poss,
-                    Full_Cursor cursor,
-                    b32 set_preferred_x,
-                    b32 unwrapped_lines){
-    edit_poss->cursor = cursor;
-    if (set_preferred_x){
-        edit_poss->preferred_x = cursor.wrapped_x;
-        if (unwrapped_lines){
-            edit_poss->preferred_x = cursor.unwrapped_x;
-        }
-    }
-    edit_poss->last_set_type = EditPos_CursorSet;
-}
-
-internal void
-edit_pos_set_scroll(File_Edit_Positions *edit_poss,
-                    GUI_Scroll_Vars scroll){
-    edit_poss->scroll = scroll;
-    edit_poss->last_set_type = EditPos_ScrollSet;
-}
-
-inline i32
-view_get_cursor_pos(View *view){
-    i32 result;
-    if (view->file_data.show_temp_highlight){
-        result = view->file_data.temp_highlight.pos;
-    }
-    else{
-        result = view->edit_poss.cursor.pos;
-    }
-    return result;
-}
-
-inline f32
-view_get_cursor_x(View *view){
-    f32 result = 0;
-    
-    Full_Cursor *cursor = &view->edit_poss.cursor;
-    if (view->file_data.show_temp_highlight){
-        cursor = &view->file_data.temp_highlight;
-    }
-    
-    result = cursor->wrapped_y;
-    if (view->file_data.unwrapped_lines){
-        result = cursor->unwrapped_x;
-    }
-    
-    return result;
-}
-
-inline f32
-view_get_cursor_y(View *view){
-    f32 result = 0;
-    
-    Full_Cursor *cursor = &view->edit_poss.cursor;
-    if (view->file_data.show_temp_highlight){
-        cursor = &view->file_data.temp_highlight;
-    }
-    
-    result = cursor->wrapped_y;
-    if (view->file_data.unwrapped_lines){
-        result = cursor->unwrapped_y;
-    }
-    
-    return result;
-}
-
-struct Cursor_Limits{
-    f32 min, max;
-    f32 delta;
-};
-
-inline Cursor_Limits
-view_cursor_limits(View *view){
-    Cursor_Limits limits = {0};
-    
-    f32 line_height = (f32)view->line_height;
-    f32 visible_height = view_file_height(view);
-    
-    limits.max = visible_height - line_height*3.f;
-    limits.min = line_height * 2;
-    
-    if (limits.max - limits.min <= line_height){
-        if (visible_height >= line_height){
-            limits.max = visible_height - line_height;
-            limits.min = -line_height;
-        }
-        else{
-            limits.max = visible_height;
-            limits.min = -line_height;
-        }
-    }
-    
-    limits.max = (limits.max > 0)?(limits.max):(0);
-    limits.min = (limits.min > 0)?(limits.min):(0);
-    
-    limits.delta = clamp_top(line_height*3.f, (limits.max - limits.min)*.5f);
-    
-    return(limits);
-}
-
-internal void
-view_move_cursor_to_view(View *view, GUI_Scroll_Vars scroll){
-    i32 line_height = view->line_height;
-    f32 old_cursor_y = view_get_cursor_y(view);
-    f32 cursor_y = old_cursor_y;
-    f32 target_y = scroll.target_y + view->widget_height;
-    
-    Cursor_Limits limits = view_cursor_limits(view);
-    
-    if (cursor_y > target_y + limits.max){
-        cursor_y = target_y + limits.max;
-    }
-    if (target_y != 0 && cursor_y < target_y + limits.min){
-        cursor_y = target_y + limits.min;
-    }
-    
-    if (cursor_y != old_cursor_y){
-        if (cursor_y > old_cursor_y){
-            cursor_y += line_height;
-        }
-        else{
-            cursor_y -= line_height;
-        }
-        
-        Full_Cursor new_cursor =
-            view_compute_cursor_from_xy(view, view->edit_poss.preferred_x, cursor_y);
-        edit_pos_set_cursor(&view->edit_poss, new_cursor,
-                            false, view->file_data.unwrapped_lines);
-    }
-}
-
-internal void
-view_move_view_to_cursor(View *view, GUI_Scroll_Vars *scroll, b32 center_view){
-    f32 max_x = view_file_width(view);
-    
-    f32 cursor_y = view_get_cursor_y(view);
-    f32 cursor_x = view_get_cursor_x(view);
-    
-    GUI_Scroll_Vars scroll_vars = *scroll;
-    i32 target_y = scroll_vars.target_y;
-    i32 target_x = scroll_vars.target_x;
-   
-    Cursor_Limits limits = view_cursor_limits(view);
-    
-    if (cursor_y > target_y + limits.max){
-        if (center_view){
-            target_y = ROUND32(cursor_y - limits.max*.5f);
-        }
-        else{
-            target_y = CEIL32(cursor_y - limits.max + limits.delta);
-        }
-    }
-    if (cursor_y < target_y + limits.min){
-        if (center_view){
-            target_y = ROUND32(cursor_y - limits.max*.5f);
-        }
-        else{
-            target_y = FLOOR32(cursor_y - limits.delta - limits.min);
-        }
-    }
-    
-    target_y = clamp(0, target_y, scroll_vars.max_y);
-    
-    if (cursor_x >= target_x + max_x){
-        target_x = CEIL32(cursor_x - max_x/2);
-    }
-    else if (cursor_x < target_x){
-        target_x = FLOOR32(Max(0, cursor_x - max_x/2));
-    }
-    
-    if (target_x != scroll_vars.target_x || target_y != scroll_vars.target_y){
-        scroll->target_x = target_x;
-        scroll->target_y = target_y;
-    }
 }
 
 inline void
@@ -1691,26 +1697,34 @@ view_set_file(View *view, Editing_File *file, Models *models){
         touch_file(&models->working_set, view->file_data.file);
     }
     
+    File_Edit_Positions *edit_pos = view->edit_pos;
+    
+    if (edit_pos){
+        edit_pos_unset(view->file_data.file, edit_pos);
+        edit_pos = 0;
+    }
+    
     file_view_nullify_file(view);
     view->file_data.file = file;
     
     if (file){
         view->file_data.unwrapped_lines = file->settings.unwrapped_lines;
         
-        // TODO(allen): Here is where the fancy logic goes for
-        // File_Edit_Positions stuff.
-        
-        File_Edit_Positions *edit_poss = &view->edit_poss;
-        *edit_poss = file_edit_positions_zero();
+        edit_pos = edit_pos_get_new(file, view->persistent.id);
+        view->edit_pos = edit_pos;
         
         if (file_is_ready(file)){
             view_measure_wraps(&models->mem.general, view);
-            edit_poss->cursor = view_compute_cursor_from_pos(view, 0);
-            edit_poss->scroll.max_y = view_compute_max_target_y(view);
-            edit_poss->preferred_x = view_get_cursor_x(view);
             
-            view_move_view_to_cursor(view, &edit_poss->scroll, true);
+#if 0
+            edit_pos->cursor = view_compute_cursor_from_pos(view, 0);
+            edit_pos->scroll.max_y = view_compute_max_target_y(view);
+            edit_pos->preferred_x = view_get_cursor_x(view);
+            
+            view_move_view_to_cursor(view, &edit_pos->scroll, true);
             view->reinit_scrolling = 1;
+#endif
+
         }
     }
 }
@@ -1722,26 +1736,30 @@ struct Relative_Scrolling{
 
 internal Relative_Scrolling
 view_get_relative_scrolling(View *view){
-    Relative_Scrolling result;
-    f32 cursor_y = view_get_cursor_y(view);
-    result.scroll_y = cursor_y - view->edit_poss.scroll.scroll_y;
-    result.target_y = cursor_y - view->edit_poss.scroll.target_y;
+    Relative_Scrolling result = {0};
+    if (view->edit_pos){
+        f32 cursor_y = view_get_cursor_y(view);
+        result.scroll_y = cursor_y - view->edit_pos->scroll.scroll_y;
+        result.target_y = cursor_y - view->edit_pos->scroll.target_y;
+    }
     return(result);
 }
 
 internal void
 view_set_relative_scrolling(View *view, Relative_Scrolling scrolling){
     f32 cursor_y = view_get_cursor_y(view);
-    
-    view->edit_poss.scroll.scroll_y = cursor_y - scrolling.scroll_y;
-    view->edit_poss.scroll.target_y =
-        ROUND32(clamp_bottom(0.f, cursor_y - scrolling.target_y));
+
+    if (view->edit_pos){
+        view->edit_pos->scroll.scroll_y = cursor_y - scrolling.scroll_y;
+        view->edit_pos->scroll.target_y =
+            ROUND32(clamp_bottom(0.f, cursor_y - scrolling.target_y));
+    }
 }
 
 inline void
 view_cursor_move(View *view, Full_Cursor cursor){
-    edit_pos_set_cursor(&view->edit_poss, cursor,
-                        true, view->file_data.unwrapped_lines);
+    view_set_cursor(view, cursor,
+                    true, view->file_data.unwrapped_lines);
     view->file_data.show_temp_highlight = 0;
 }
 
@@ -1992,9 +2010,10 @@ file_edit_cursor_fix(System_Functions *system,
         view = panel->view;
         if (view->file_data.file == file){
             view_measure_wraps(general, view);
-            write_cursor_with_index(cursors, &cursor_count, view->edit_poss.cursor.pos);
-            write_cursor_with_index(cursors, &cursor_count, view->edit_poss.mark - 1);
-            write_cursor_with_index(cursors, &cursor_count, view->edit_poss.scroll_i - 1);
+            Assert(view->edit_pos);
+            write_cursor_with_index(cursors, &cursor_count, view->edit_pos->cursor.pos);
+            write_cursor_with_index(cursors, &cursor_count, view->edit_pos->mark - 1);
+            write_cursor_with_index(cursors, &cursor_count, view->edit_pos->scroll_i - 1);
         }
     }
     
@@ -2014,27 +2033,28 @@ file_edit_cursor_fix(System_Functions *system,
         cursor_count = 0;
         for (dll_items(panel, used_panels)){
             view = panel->view;
-            if (view && view->file_data.file == file){
+            if (view->file_data.file == file){
+                Assert(view->edit_pos);
                 view_cursor_move(view, cursors[cursor_count++].pos);
                 
-                view->edit_poss.mark = cursors[cursor_count++].pos + 1;
+                view->edit_pos->mark = cursors[cursor_count++].pos + 1;
                 i32 new_scroll_i = cursors[cursor_count++].pos + 1;
-                if (view->edit_poss.scroll_i != new_scroll_i){
-                    view->edit_poss.scroll_i = new_scroll_i;
-                    temp_cursor = view_compute_cursor_from_pos(view, view->edit_poss.scroll_i);
+                if (view->edit_pos->scroll_i != new_scroll_i){
+                    view->edit_pos->scroll_i = new_scroll_i;
+                    temp_cursor = view_compute_cursor_from_pos(view, view->edit_pos->scroll_i);
                     
-                    f32 y_offset = MOD(view->edit_poss.scroll.scroll_y, view->line_height);
+                    f32 y_offset = MOD(view->edit_pos->scroll.scroll_y, view->line_height);
                     f32 y_position = temp_cursor.wrapped_y;
                     if (view->file_data.unwrapped_lines){
                         y_position = temp_cursor.unwrapped_y;
                     }
                     y_position += y_offset;
                     
-                    GUI_Scroll_Vars scroll = view->edit_poss.scroll;
+                    GUI_Scroll_Vars scroll = view->edit_pos->scroll;
                     scroll.target_y +=
                         ROUND32(y_position - scroll.scroll_y);
                     scroll.scroll_y = y_position;
-                    edit_pos_set_scroll(&view->edit_poss, scroll);
+                    view_set_scroll(view, scroll);
                 }
             }
         }
@@ -2257,6 +2277,9 @@ view_undo_redo(System_Functions *system,
                Edit_Stack *stack, Edit_Type expected_type){
     Editing_File *file = view->file_data.file;
     
+    Assert(file);
+    Assert(view->edit_pos);
+    
     if (stack->edit_count > 0){
         Edit_Step step = stack->edits[stack->edit_count-1];
         
@@ -2272,10 +2295,11 @@ view_undo_redo(System_Functions *system,
             file_do_single_edit(system, models, file, spec, hist_normal);
             
             view_cursor_move(view, step.edit.start + step.edit.len);
-            view->edit_poss.mark = view->edit_poss.cursor.pos;
+            view->edit_pos->mark = view->edit_pos->cursor.pos;
             
             Style *style = main_style(models);
-            view_post_paste_effect(view, 0.333f, step.edit.start, step.edit.len,
+            view_post_paste_effect(view, 0.333f,
+                                   step.edit.start, step.edit.len,
                                    style->main.undo_color);
         }
         else{
@@ -2365,6 +2389,9 @@ view_history_step(System_Functions *system, Models *models, View *view, History_
     
     Editing_File *file = view->file_data.file;
     
+    Assert(file);
+    Assert(view->edit_pos);
+    
     b32 do_history_step = 0;
     Edit_Step step = {};
     if (history_mode == hist_backward){
@@ -2404,7 +2431,7 @@ view_history_step(System_Functions *system, Models *models, View *view, History_
                 view_cursor_move(view, step.edit.start + step.edit.len);
                 break;
             }
-            view->edit_poss.mark = view->edit_poss.cursor.pos;
+            view->edit_pos->mark = view->edit_pos->cursor.pos;
         }
         else{
             TentativeAssert(spec.step.special_type == 1);
@@ -2533,6 +2560,7 @@ view_clean_whitespace(System_Functions *system, Models *models, View *view){
     i32 edit_count = 0;
     
     Assert(file && !file->is_dummy);
+    Assert(view->edit_pos);
     
     Temp_Memory temp = begin_temp_memory(part);
     Buffer_Edit *edits = push_array(part, Buffer_Edit, edit_max);
@@ -2570,7 +2598,7 @@ view_clean_whitespace(System_Functions *system, Models *models, View *view){
         char *inv_str = (char*)part->base + part->pos;
         Edit_Spec spec =
             file_compute_whitespace_edit(mem, file,
-                                         view->edit_poss.cursor.pos,
+                                         view->edit_pos->cursor.pos,
                                          edits, str_base, str_size,
                                          inverse_array, inv_str,
                                          part->max - part->pos, edit_count);
@@ -3068,11 +3096,14 @@ update_view_line_height(Models *models, View *view){
 internal void
 remeasure_file_view(System_Functions *system, View *view){
     if (file_is_ready(view->file_data.file)){
+        Assert(view->edit_pos);
+        
         Relative_Scrolling relative = view_get_relative_scrolling(view);
         view_measure_wraps(&view->persistent.models->mem.general, view);
         if (view->file_data.show_temp_highlight == 0){
-            view_cursor_move(view, view->edit_poss.cursor.pos);
+            view_cursor_move(view, view->edit_pos->cursor.pos);
         }
+        
         view_set_relative_scrolling(view, relative);
     }
 }
@@ -3128,7 +3159,6 @@ view_show_file(View *view){
     if (view->showing_ui != VUI_None){
         view->showing_ui = VUI_None;
         view->changed_context_in_step = true;
-        view->reinit_scrolling = true;
     }
 }
 
@@ -3568,58 +3598,32 @@ view_begin_cursor_scroll_updates(View *view){
 
 internal void
 view_end_cursor_scroll_updates(View *view){
-    i32 set_type = view->edit_poss.last_set_type;
-    
-    switch (set_type){
-        case EditPos_None: break;
-        
-        case EditPos_CursorSet:
-        {
-            if (view->gui_target.did_file){
-                view->edit_poss.scroll.max_y = view_compute_max_target_y(view);
-            }
-            view_move_view_to_cursor(view, &view->edit_poss.scroll, false);
-            gui_post_scroll_vars(&view->gui_target, &view->edit_poss.scroll, view->scroll_region);
-        }break;
-        
-        case EditPos_ScrollSet:
-        {
-            view_move_cursor_to_view(view, view->edit_poss.scroll);
-            gui_post_scroll_vars(&view->gui_target, &view->edit_poss.scroll, view->scroll_region);
-        }break;
-    }
     
 #if 0
-    switch (cursor_scroll_state){
-        case CursorScroll_NoChange:break;
+    if (view->edit_pos){
+        i32 set_type = view->edit_pos->last_set_type;
         
-        case CursorScroll_Cursor:
-        case CursorScroll_Cursor|CursorScroll_Scroll:
-        if (view->gui_target.did_file){
-            view->recent.scroll.max_y = view_compute_max_target_y(view);
+        switch (set_type){
+            case EditPos_None: break;
+            
+            case EditPos_CursorSet:
+            {
+                if (view->gui_target.did_file){
+                    view->edit_pos->scroll.max_y = view_compute_max_target_y(view);
+                }
+                view_move_view_to_cursor(view, &view->edit_pos->scroll, false);
+                gui_post_scroll_vars(&view->gui_target, &view->edit_pos->scroll, view->scroll_region);
+            }break;
+            
+            case EditPos_ScrollSet:
+            {
+                view_move_cursor_to_view(view, view->edit_pos->scroll);
+                gui_post_scroll_vars(&view->gui_target, &view->edit_pos->scroll, view->scroll_region);
+            }break;
         }
-        view_move_view_to_cursor(view, view->current_scroll, false);
-        gui_post_scroll_vars(&view->gui_target, view->current_scroll, view->scroll_region);
-        break;
-        
-        case CursorScroll_Scroll:
-        view_move_cursor_to_view(view, view->recent.scroll);
-        gui_post_scroll_vars(&view->gui_target, view->current_scroll, view->scroll_region);
-        break;
     }
-    
-    if (cursor_scroll_state & CursorScroll_ContextChange){
-        view->current_scroll->scroll_y = (f32)view->current_scroll->target_y;
-        view->current_scroll->scroll_x = (f32)view->current_scroll->target_x;
-        gui_post_scroll_vars(&view->gui_target, view->current_scroll, view->scroll_region);
-    }
-    
-    view->prev_cursor_pos = view_get_cursor_pos(view);
-    
-    view->prev_context.file = view->file_data.file;
-    view->prev_context.scroll = view->gui_target.scroll_id;
-    view->prev_context.mode = view->showing_ui;
 #endif
+
 }
 
 internal b32
@@ -4077,13 +4081,20 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                 // TODO(allen): ????
                 
 #if 0
-                gui_get_scroll_vars(target, scroll_context,
-                                    &view->recent.scroll, &view->scroll_region);
+                gui_get_scroll_vars(target, scroll_context, &view->scroll_region);
 #endif
-
-                gui_begin_scrollable(target, scroll_context,
-                                     view->edit_poss.scroll,
+                
+                GUI_Scroll_Vars scroll_zero = {0};
+                GUI_Scroll_Vars *scroll = &scroll_zero;
+                
+                if (view->file_data.file){
+                    Assert(view->edit_pos);
+                    scroll = &view->edit_pos->scroll;
+                }
+                
+                gui_begin_scrollable(target, scroll_context, *scroll,
                                      delta, show_scrollbar);
+                
                 gui_do_file(target);
                 gui_end_scrollable(target);
             }
@@ -4164,7 +4175,6 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                         message = make_lit_string("Theme Library - Click to Select");
                         gui_do_text_field(target, message, empty_string);
                         
-                        gui_get_scroll_vars(target, scroll_context, &view->scroll_region);
                         gui_begin_scrollable(target, scroll_context, view->gui_scroll,
                                              9 * view->line_height, show_scrollbar);
                         
@@ -4237,7 +4247,6 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                                 view->color_mode = CV_Mode_Library;
                             }
                             
-                            gui_get_scroll_vars(target, scroll_context, &view->scroll_region);
                             gui_begin_scrollable(target, scroll_context, view->gui_scroll,
                                                  9 * view->line_height, show_scrollbar);
                             
@@ -4353,7 +4362,6 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                             GUI_Item_Update update = {0};
                             Hot_Directory *hdir = &models->hot_directory;
                             b32 do_new_directory = 0;
-                            b32 snap_into_view = 0;
                             i32 i = 0;
                             
                             {
@@ -4378,10 +4386,10 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                             
                             gui_do_text_field(target, message, hdir->string);
                             
+                            b32 snap_into_view = false;
                             scroll_context.id[0] = (u64)(hdir);
-                            if (gui_get_scroll_vars(target, scroll_context,
-                                                    &view->scroll_region)){
-                                snap_into_view = 1;
+                            if (gui_scroll_was_activated(target, scroll_context)){
+                                snap_into_view = true;
                             }
                             gui_begin_scrollable(target, scroll_context, view->gui_scroll,
                                                  9 * view->line_height, show_scrollbar);
@@ -4437,7 +4445,6 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                         
                         case IInt_Live_File_List:
                         {
-                            b32 snap_into_view = 0;
                             persist String message_unsaved = make_lit_string(" *");
                             persist String message_unsynced = make_lit_string(" !");
                             
@@ -4470,10 +4477,10 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                             
                             gui_do_text_field(target, message, view->dest);
                             
+                            b32 snap_into_view = false;
                             scroll_context.id[0] = (u64)(working_set);
-                            if (gui_get_scroll_vars(target, scroll_context,
-                                                    &view->scroll_region)){
-                                snap_into_view = 1;
+                            if (gui_scroll_was_activated(target, scroll_context)){
+                                snap_into_view = true;
                             }
                             gui_begin_scrollable(target, scroll_context, view->gui_scroll,
                                                  9 * view->line_height, show_scrollbar);
@@ -4941,19 +4948,21 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                                     SHOW_GUI_BLANK(0);
                                     SHOW_GUI_LINE(1, "file editing positions");
                                     {
-                                        File_Edit_Positions *edit_poss = &view_ptr->edit_poss;
+                                        File_Edit_Positions *edit_pos = view_ptr->edit_pos;
                                         
-                                        SHOW_GUI_SCROLL(2, h_align, "scroll:", edit_poss->scroll);
-                                        SHOW_GUI_BLANK (2);
-                                        SHOW_GUI_CURSOR(2, h_align, "cursor:", edit_poss->cursor);
-                                        SHOW_GUI_BLANK (2);
-                                        SHOW_GUI_INT   (2, h_align, "mark", edit_poss->mark);
-                                        SHOW_GUI_FLOAT (2, h_align, "preferred_x", edit_poss->preferred_x);
-                                        SHOW_GUI_INT   (2, h_align, "scroll_i", edit_poss->scroll_i);
+                                        if (edit_pos){
+                                            SHOW_GUI_SCROLL(2, h_align, "scroll:", edit_pos->scroll);
+                                            SHOW_GUI_BLANK (2);
+                                            SHOW_GUI_CURSOR(2, h_align, "cursor:", edit_pos->cursor);
+                                            SHOW_GUI_BLANK (2);
+                                            SHOW_GUI_INT   (2, h_align, "mark", edit_pos->mark);
+                                            SHOW_GUI_FLOAT (2, h_align, "preferred_x", edit_pos->preferred_x);
+                                            SHOW_GUI_INT   (2, h_align, "scroll_i", edit_pos->scroll_i);
+                                        }
+                                        else{
+                                            SHOW_GUI_LINE(2, "NULL");
+                                        }
                                     }
-                                    
-                                    SHOW_GUI_BLANK (0);
-                                    SHOW_GUI_SCROLL(1, h_align, "curent scroll:", view_ptr->edit_poss.scroll);
                                     
                                     SHOW_GUI_BLANK (0);
                                     SHOW_GUI_SCROLL(1, h_align, "gui scroll:", view_ptr->gui_scroll);
@@ -4976,7 +4985,6 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                                     SHOW_GUI_REGION (2, h_align, "region_original", view_ptr->gui_target.region_original);
                                     
                                     SHOW_GUI_BLANK  (2);
-//                                    SHOW_GUI_SCROLL (2, h_align, "scroll_updated", view_ptr->gui_target.scroll_updated);
                                     SHOW_GUI_REGION (2, h_align, "region_updated", view_ptr->gui_target.region_updated);
                                     
                                     
@@ -5000,9 +5008,12 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
 
 internal f32
 view_get_scroll_y(View *view){
-    f32 v;
+    f32 v = 0;
     if (view->showing_ui == VUI_None){
-        v = view->edit_poss.scroll.scroll_y;
+        File_Edit_Positions *edit_pos = view->edit_pos;
+        if (edit_pos){
+            v = edit_pos->scroll.scroll_y;
+        }
     }
     else{
         v = view->gui_scroll.scroll_y;
@@ -5312,6 +5323,7 @@ draw_file_loaded(View *view, i32_Rect rect, b32 is_active, Render_Target *target
     i32 max_y = rect.y1 - rect.y0 + line_height;
     
     Assert(file && !file->is_dummy && buffer_good(&file->state.buffer));
+    Assert(view->edit_pos);
     
     b32 tokens_use = 0;
     Cpp_Token_Stack token_stack = {};
@@ -5335,11 +5347,14 @@ draw_file_loaded(View *view, i32_Rect rect, b32 is_active, Render_Target *target
     
     i32 count = 0;
     Full_Cursor render_cursor = {0};
-    Buffer_Render_Options opts = {};
+    Buffer_Render_Options opts = {0};
     
     f32 *wraps = view->file_data.line_wrap_y;
-    f32 scroll_x = view->edit_poss.scroll.scroll_x;
-    f32 scroll_y = view->edit_poss.scroll.scroll_y;
+    f32 scroll_x = 0;
+    f32 scroll_y = 0;
+    
+    scroll_x = view->edit_pos->scroll.scroll_x;
+    scroll_y = view->edit_pos->scroll.scroll_y;
     
     // NOTE(allen): For now we will temporarily adjust scroll_y to try
     // to prevent the view moving around until floating sections are added
@@ -5352,7 +5367,7 @@ draw_file_loaded(View *view, i32_Rect rect, b32 is_active, Render_Target *target
                                                 (f32)max_x,
                                                 advance_data, (f32)line_height);
         
-        view->edit_poss.scroll_i = render_cursor.pos;
+        view->edit_pos->scroll_i = render_cursor.pos;
         
         buffer_get_render_data(&file->state.buffer, items, max, &count,
                                (f32)rect.x0, (f32)rect.y0,
@@ -5374,7 +5389,7 @@ draw_file_loaded(View *view, i32_Rect rect, b32 is_active, Render_Target *target
         at_cursor_color = style->main.at_highlight_color;
     }
     else{
-        cursor_begin = view->edit_poss.cursor.pos;
+        cursor_begin = view->edit_pos->cursor.pos;
         cursor_end = cursor_begin + 1;
         cursor_color = style->main.cursor_color;
         at_cursor_color = style->main.at_cursor_color;
@@ -5464,7 +5479,7 @@ draw_file_loaded(View *view, i32_Rect rect, b32 is_active, Render_Target *target
         
         char_color = color_blend(char_color, fade_amount, fade_color);
         
-        if (ind == view->edit_poss.mark && prev_ind != ind){
+        if (ind == view->edit_pos->mark && prev_ind != ind){
             draw_rectangle_outline(target, char_rect, mark_color);
         }
         if (item->glyphid != 0){
@@ -5582,9 +5597,9 @@ draw_file_bar(Render_Target *target, View *view, Editing_File *file, i32_Rect re
                 char line_number_space[30];
                 String line_number = make_fixed_width_string(line_number_space);
                 append(&line_number, " L#");
-                append_int_to_str(&line_number, view->edit_poss.cursor.line);
+                append_int_to_str(&line_number, view->edit_pos->cursor.line);
                 append(&line_number, " C#");
-                append_int_to_str(&line_number, view->edit_poss.cursor.character);
+                append_int_to_str(&line_number, view->edit_pos->cursor.character);
 
                 intbar_draw_string(target, &bar, line_number, base_color);
 
@@ -6203,10 +6218,12 @@ search_next_match(Partition *part, Search_Set *set, Search_Iter *iter_){
 inline void
 view_change_size(General_Memory *general, View *view){
     if (view->file_data.file){
+        Assert(view->edit_pos);
         view_measure_wraps(general, view);
-        Full_Cursor cursor = view_compute_cursor_from_pos(view, view->edit_poss.cursor.pos);
-        edit_pos_set_cursor(&view->edit_poss, cursor,
-                            false, view->file_data.unwrapped_lines);
+        Full_Cursor cursor =
+            view_compute_cursor_from_pos(view, view->edit_pos->cursor.pos);
+        view_set_cursor(view, cursor,
+                        false, view->file_data.unwrapped_lines);
     }
 }
 

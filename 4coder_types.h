@@ -286,6 +286,18 @@ ENUM(int32_t, Mouse_Cursor_Show_Type){
 //    MouseCursorShow_WhenActive,// TODO(allen): coming soon
 };
 
+/* DOC(UNDOCUMENTED.) */
+ENUM(int32_t, Buffer_Seek_Type){
+    /* DOC(UNDOCUMENTED.) */
+    buffer_seek_pos,
+    /* DOC(UNDOCUMENTED.) */
+    buffer_seek_wrapped_xy,
+    /* DOC(UNDOCUMENTED.) */
+    buffer_seek_unwrapped_xy,
+    /* DOC(UNDOCUMENTED.) */
+    buffer_seek_line_char
+};
+
 /* DOC(
 Generic_Command acts as a name for a command, and can name an
 internal command or a custom command.
@@ -426,6 +438,69 @@ struct Buffer_Identifier{
     int id;
 };
 
+/* DOC(This struct is a part of an incomplete feature.) */
+struct GUI_Scroll_Vars{
+    /* DOC(TODO) */
+    float   scroll_y;
+    /* DOC(TODO) */
+    int32_t target_y;
+    /* DOC(TODO) */
+    int32_t prev_target_y;
+    /* DOC(TODO) */
+    int32_t max_y;
+    
+    /* DOC(TODO) */
+    float   scroll_x;
+    /* DOC(TODO) */
+    int32_t target_x;
+    /* DOC(TODO) */
+    int32_t prev_target_x;
+};
+
+/* DOC(UNDOCUMENTED.) */
+struct Full_Cursor{
+    /* DOC(UNDOCUMENTED.) */
+    int32_t pos;
+    /* DOC(UNDOCUMENTED.) */
+    int32_t line;
+    /* DOC(UNDOCUMENTED.) */
+    int32_t character;
+    /* DOC(UNDOCUMENTED.) */
+    float unwrapped_x;
+    /* DOC(UNDOCUMENTED.) */
+    float unwrapped_y;
+    /* DOC(UNDOCUMENTED.) */
+    float wrapped_x;
+    /* DOC(UNDOCUMENTED.) */
+    float wrapped_y;
+};
+
+/* DOC(UNDOCUMENTED.) */
+struct Buffer_Seek{
+    /* DOC(UNDOCUMENTED.) */
+    Buffer_Seek_Type type;
+    union{
+        struct {
+            /* DOC(UNDOCUMENTED.) */
+            int32_t pos;
+        };
+        struct {
+            /* DOC(UNDOCUMENTED.) */
+            bool32 round_down;
+            /* DOC(UNDOCUMENTED.) */
+            float x;
+            /* DOC(UNDOCUMENTED.) */
+            float y;
+        };
+        struct {
+            /* DOC(UNDOCUMENTED.) */
+            int32_t line;
+            /* DOC(UNDOCUMENTED.) */
+            int32_t character;
+        };
+    };
+};
+
 /* DOC(
 Buffer_Summary acts as a handle to a buffer and describes the state of the buffer.
 ) */
@@ -467,9 +542,7 @@ struct Buffer_Summary{
     int32_t map_id;
 };
 
-/* DOC(
-View_Summary acts as a handle to a view and describes the state of the view.
-) */
+/* DOC(View_Summary acts as a handle to a view and describes the state of the view.) */
 struct View_Summary{
     /* DOC(
     This field indicates whether the View_Summary describes a view that is open in 4coder.
@@ -562,5 +635,4 @@ struct Theme_Color{
     Style_Tag tag;
     int_color color;
 };
-
 

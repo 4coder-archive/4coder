@@ -92,6 +92,7 @@ Coming Soon</i><div>
 <li><a href='#Buffer_Setting_ID_doc'>Buffer_Setting_ID</a></li>
 <li><a href='#View_Setting_ID_doc'>View_Setting_ID</a></li>
 <li><a href='#Mouse_Cursor_Show_Type_doc'>Mouse_Cursor_Show_Type</a></li>
+<li><a href='#Buffer_Seek_Type_doc'>Buffer_Seek_Type</a></li>
 <li><a href='#Key_Modifier_Flag_doc'>Key_Modifier_Flag</a></li>
 <li><a href='#Buffer_Create_Flag_doc'>Buffer_Create_Flag</a></li>
 <li><a href='#Buffer_Kill_Flag_doc'>Buffer_Kill_Flag</a></li>
@@ -108,6 +109,9 @@ Coming Soon</i><div>
 <li><a href='#File_Info_doc'>File_Info</a></li>
 <li><a href='#File_List_doc'>File_List</a></li>
 <li><a href='#Buffer_Identifier_doc'>Buffer_Identifier</a></li>
+<li><a href='#GUI_Scroll_Vars_doc'>GUI_Scroll_Vars</a></li>
+<li><a href='#Full_Cursor_doc'>Full_Cursor</a></li>
+<li><a href='#Buffer_Seek_doc'>Buffer_Seek</a></li>
 <li><a href='#Buffer_Summary_doc'>Buffer_Summary</a></li>
 <li><a href='#View_Summary_doc'>View_Summary</a></li>
 <li><a href='#User_Input_doc'>User_Input</a></li>
@@ -1228,8 +1232,28 @@ the range [1,16].</div></div><hr>
 <div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>The MouseCursorShow_Never mode always shows the cursor.</div></div>
 </div>
 </div><hr>
+<div id='Buffer_Seek_Type_doc' style='margin-bottom: 1cm;'>
+ <h4>&sect;3.4.13: Buffer_Seek_Type</h4>
+ <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>enum Buffer_Seek_Type;</div>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>UNDOCUMENTED.</div><div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Values</i></b></div><div>
+<div><span style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>buffer_seek_pos</span></span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>UNDOCUMENTED.</div></div>
+</div>
+<div>
+<div><span style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>buffer_seek_wrapped_xy</span></span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>UNDOCUMENTED.</div></div>
+</div>
+<div>
+<div><span style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>buffer_seek_unwrapped_xy</span></span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>UNDOCUMENTED.</div></div>
+</div>
+<div>
+<div><span style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>buffer_seek_line_char</span></span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>UNDOCUMENTED.</div></div>
+</div>
+</div><hr>
 <div id='Key_Modifier_Flag_doc' style='margin-bottom: 1cm;'>
- <h4>&sect;3.4.13: Key_Modifier_Flag</h4>
+ <h4>&sect;3.4.14: Key_Modifier_Flag</h4>
  <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>enum Key_Modifier_Flag;</div>
 <div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>A Key_Modifier_Flag field is used to specify a specific state of modifiers.
 Flags can be combined with bit or to specify a state with multiple modifiers.</div><div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Flags</i></b></div><div>
@@ -1250,7 +1274,7 @@ Flags can be combined with bit or to specify a state with multiple modifiers.</d
 </div>
 </div><hr>
 <div id='Buffer_Create_Flag_doc' style='margin-bottom: 1cm;'>
- <h4>&sect;3.4.14: Buffer_Create_Flag</h4>
+ <h4>&sect;3.4.15: Buffer_Create_Flag</h4>
  <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>enum Buffer_Create_Flag;</div>
 <div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>A Buffer_Create_Flag field specifies how a buffer should be created.</div><div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Flags</i></b></div><div>
 <div><span style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>BufferCreate_Background</span> = 0x1</span></div>
@@ -1263,7 +1287,7 @@ Flags can be combined with bit or to specify a state with multiple modifiers.</d
 </div>
 </div><hr>
 <div id='Buffer_Kill_Flag_doc' style='margin-bottom: 1cm;'>
- <h4>&sect;3.4.15: Buffer_Kill_Flag</h4>
+ <h4>&sect;3.4.16: Buffer_Kill_Flag</h4>
  <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>enum Buffer_Kill_Flag;</div>
 <div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>A Buffer_Kill_Flag field specifies how a buffer should be killed.</div><div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Flags</i></b></div><div>
 <div><span style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>BufferKill_Background</span> = 0x1</span></div>
@@ -1276,7 +1300,7 @@ Flags can be combined with bit or to specify a state with multiple modifiers.</d
 </div>
 </div><hr>
 <div id='Access_Flag_doc' style='margin-bottom: 1cm;'>
- <h4>&sect;3.4.16: Access_Flag</h4>
+ <h4>&sect;3.4.17: Access_Flag</h4>
  <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>enum Access_Flag;</div>
 <div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>An Access_Flag field specifies what sort of permission you grant to an
 access call.  An access call is usually one the returns a summary struct.  If a
@@ -1306,7 +1330,7 @@ that protection flag, the object is still returned from the access call.</div><d
 </div>
 </div><hr>
 <div id='Seek_Boundary_Flag_doc' style='margin-bottom: 1cm;'>
- <h4>&sect;3.4.17: Seek_Boundary_Flag</h4>
+ <h4>&sect;3.4.18: Seek_Boundary_Flag</h4>
  <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>enum Seek_Boundary_Flag;</div>
 <div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>A Seek_Boundary_Flag field specifies a set of "boundary" types used in seeks for the
 beginning or end of different types of words.</div><div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Flags</i></b></div><div>
@@ -1327,7 +1351,7 @@ beginning or end of different types of words.</div><div style='margin-top: 3mm; 
 </div>
 </div><hr>
 <div id='Command_Line_Input_Flag_doc' style='margin-bottom: 1cm;'>
- <h4>&sect;3.4.18: Command_Line_Input_Flag</h4>
+ <h4>&sect;3.4.19: Command_Line_Input_Flag</h4>
  <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>enum Command_Line_Input_Flag;</div>
 <div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>A Command_Line_Input_Flag field specifies the behavior of a call to a command line interface.</div><div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Flags</i></b></div><div>
 <div><span style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>CLI_OverlapWithConflict</span> = 0x1</span></div>
@@ -1348,7 +1372,7 @@ beginning or end of different types of words.</div><div style='margin-top: 3mm; 
 </div>
 </div><hr>
 <div id='Auto_Indent_Flag_doc' style='margin-bottom: 1cm;'>
- <h4>&sect;3.4.19: Auto_Indent_Flag</h4>
+ <h4>&sect;3.4.20: Auto_Indent_Flag</h4>
  <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>enum Auto_Indent_Flag;</div>
 <div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>An Auto_Indent_Flag field specifies the behavior of an auto indentation operation.</div><div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Flags</i></b></div><div>
 <div><span style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>AutoIndent_ClearLine</span> = 0x1</span></div>
@@ -1364,7 +1388,7 @@ beginning or end of different types of words.</div><div style='margin-top: 3mm; 
 </div>
 </div><hr>
 <div id='Set_Buffer_Flag_doc' style='margin-bottom: 1cm;'>
- <h4>&sect;3.4.20: Set_Buffer_Flag</h4>
+ <h4>&sect;3.4.21: Set_Buffer_Flag</h4>
  <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>enum Set_Buffer_Flag;</div>
 <div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>A Set_Buffer_Flag field specifies the behavior of an operation that sets the buffer of a view.</div><div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Flags</i></b></div><div>
 <div><span style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>SetBuffer_KeepOriginalGUI</span> = 0x1</span></div>
@@ -1374,7 +1398,7 @@ beginning or end of different types of words.</div><div style='margin-top: 3mm; 
 </div>
 </div><hr>
 <div id='Input_Type_Flag_doc' style='margin-bottom: 1cm;'>
- <h4>&sect;3.4.21: Input_Type_Flag</h4>
+ <h4>&sect;3.4.22: Input_Type_Flag</h4>
  <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>enum Input_Type_Flag;</div>
 <div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>A Input_Type_Flag field specifies a set of input event types.</div><div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Flags</i></b></div><div>
 <div><span style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>EventOnAnyKey</span> = 0x1</span></div>
@@ -1414,7 +1438,7 @@ beginning or end of different types of words.</div><div style='margin-top: 3mm; 
 </div>
 </div><hr>
 <div id='Generic_Command_doc' style='margin-bottom: 1cm;'>
- <h4>&sect;3.4.22: Generic_Command</h4>
+ <h4>&sect;3.4.23: Generic_Command</h4>
  <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>union Generic_Command {<br>
 <div style='margin-left: 8mm;'>
 Command_ID cmdid;<br>
@@ -1435,7 +1459,7 @@ internal command or a custom command.</div><div style='margin-top: 3mm; margin-b
 </div>
 </div><hr>
 <div id='Key_Event_Data_doc' style='margin-bottom: 1cm;'>
- <h4>&sect;3.4.23: Key_Event_Data</h4>
+ <h4>&sect;3.4.24: Key_Event_Data</h4>
  <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>struct Key_Event_Data {<br>
 <div style='margin-left: 8mm;'>
 Key_Code keycode;<br>
@@ -1469,7 +1493,7 @@ at the time of the event.</div><div style='margin-top: 3mm; margin-bottom: 3mm; 
 </div>
 </div><hr>
 <div id='Mouse_State_doc' style='margin-bottom: 1cm;'>
- <h4>&sect;3.4.24: Mouse_State</h4>
+ <h4>&sect;3.4.25: Mouse_State</h4>
  <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>struct Mouse_State {<br>
 <div style='margin-left: 8mm;'>
 char l;<br>
@@ -1529,7 +1553,7 @@ mouse if in the window.</div><div style='margin-top: 3mm; margin-bottom: 3mm; co
 </div>
 </div><hr>
 <div id='Range_doc' style='margin-bottom: 1cm;'>
- <h4>&sect;3.4.25: Range</h4>
+ <h4>&sect;3.4.26: Range</h4>
  <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>union Range {<br>
 <div style='margin-left: 8mm;'>
 struct  {<br>
@@ -1569,7 +1593,7 @@ Throughout the API ranges are thought of in the form [min,max</div><div style='m
 </div>
 </div><hr>
 <div id='File_Info_doc' style='margin-bottom: 1cm;'>
- <h4>&sect;3.4.26: File_Info</h4>
+ <h4>&sect;3.4.27: File_Info</h4>
  <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>struct File_Info {<br>
 <div style='margin-left: 8mm;'>
 char * filename;<br>
@@ -1592,7 +1616,7 @@ int folder;<br>
 </div>
 <div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>See Also</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'><a href='#File_List_doc'>File_List</a></div></div><hr>
 <div id='File_List_doc' style='margin-bottom: 1cm;'>
- <h4>&sect;3.4.27: File_List</h4>
+ <h4>&sect;3.4.28: File_List</h4>
  <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>struct File_List {<br>
 <div style='margin-left: 8mm;'>
 void * block;<br>
@@ -1620,7 +1644,7 @@ int block_size;<br>
 </div>
 </div><hr>
 <div id='Buffer_Identifier_doc' style='margin-bottom: 1cm;'>
- <h4>&sect;3.4.28: Buffer_Identifier</h4>
+ <h4>&sect;3.4.29: Buffer_Identifier</h4>
  <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>struct Buffer_Identifier {<br>
 <div style='margin-left: 8mm;'>
 char * name;<br>
@@ -1644,8 +1668,153 @@ can either be a name or an id.  If the</div><div style='margin-top: 3mm; margin-
 <div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>This field is the id of the buffer.  If name is specified this should be 0.</div></div>
 </div>
 </div><hr>
+<div id='GUI_Scroll_Vars_doc' style='margin-bottom: 1cm;'>
+ <h4>&sect;3.4.30: GUI_Scroll_Vars</h4>
+ <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>struct GUI_Scroll_Vars {<br>
+<div style='margin-left: 8mm;'>
+float scroll_y;<br>
+int32_t target_y;<br>
+int32_t prev_target_y;<br>
+int32_t max_y;<br>
+float scroll_x;<br>
+int32_t target_x;<br>
+int32_t prev_target_x;<br>
+</div>
+};<br>
+</div>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>This struct is a part of an incomplete feature.</div><div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Fields</i></b></div><div>
+<div style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>scroll_y</span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>TODO</div></div>
+</div>
+<div>
+<div style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>target_y</span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>TODO</div></div>
+</div>
+<div>
+<div style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>prev_target_y</span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>TODO</div></div>
+</div>
+<div>
+<div style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>max_y</span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>TODO</div></div>
+</div>
+<div>
+<div style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>scroll_x</span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>TODO</div></div>
+</div>
+<div>
+<div style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>target_x</span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>TODO</div></div>
+</div>
+<div>
+<div style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>prev_target_x</span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>TODO</div></div>
+</div>
+</div><hr>
+<div id='Full_Cursor_doc' style='margin-bottom: 1cm;'>
+ <h4>&sect;3.4.31: Full_Cursor</h4>
+ <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>struct Full_Cursor {<br>
+<div style='margin-left: 8mm;'>
+int32_t pos;<br>
+int32_t line;<br>
+int32_t character;<br>
+float unwrapped_x;<br>
+float unwrapped_y;<br>
+float wrapped_x;<br>
+float wrapped_y;<br>
+</div>
+};<br>
+</div>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>UNDOCUMENTED.</div><div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Fields</i></b></div><div>
+<div style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>pos</span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>UNDOCUMENTED.</div></div>
+</div>
+<div>
+<div style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>line</span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>UNDOCUMENTED.</div></div>
+</div>
+<div>
+<div style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>character</span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>UNDOCUMENTED.</div></div>
+</div>
+<div>
+<div style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>unwrapped_x</span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>UNDOCUMENTED.</div></div>
+</div>
+<div>
+<div style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>unwrapped_y</span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>UNDOCUMENTED.</div></div>
+</div>
+<div>
+<div style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>wrapped_x</span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>UNDOCUMENTED.</div></div>
+</div>
+<div>
+<div style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>wrapped_y</span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>UNDOCUMENTED.</div></div>
+</div>
+</div><hr>
+<div id='Buffer_Seek_doc' style='margin-bottom: 1cm;'>
+ <h4>&sect;3.4.32: Buffer_Seek</h4>
+ <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>struct Buffer_Seek {<br>
+<div style='margin-left: 8mm;'>
+Buffer_Seek_Type type;<br>
+union  {<br>
+<div style='margin-left: 8mm;'>
+struct  {<br>
+<div style='margin-left: 8mm;'>
+int32_t pos;<br>
+</div>
+};<br>
+struct  {<br>
+<div style='margin-left: 8mm;'>
+bool32 round_down;<br>
+float x;<br>
+float y;<br>
+</div>
+};<br>
+struct  {<br>
+<div style='margin-left: 8mm;'>
+int32_t line;<br>
+int32_t character;<br>
+</div>
+};<br>
+</div>
+};<br>
+</div>
+};<br>
+</div>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>UNDOCUMENTED.</div><div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Fields</i></b></div><div>
+<div style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>type</span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>UNDOCUMENTED.</div></div>
+</div>
+<div>
+<div style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>pos</span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>UNDOCUMENTED.</div></div>
+</div>
+<div>
+<div style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>round_down</span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>UNDOCUMENTED.</div></div>
+</div>
+<div>
+<div style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>x</span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>UNDOCUMENTED.</div></div>
+</div>
+<div>
+<div style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>y</span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>UNDOCUMENTED.</div></div>
+</div>
+<div>
+<div style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>line</span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>UNDOCUMENTED.</div></div>
+</div>
+<div>
+<div style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>character</span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>UNDOCUMENTED.</div></div>
+</div>
+</div><hr>
 <div id='Buffer_Summary_doc' style='margin-bottom: 1cm;'>
- <h4>&sect;3.4.29: Buffer_Summary</h4>
+ <h4>&sect;3.4.33: Buffer_Summary</h4>
  <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>struct Buffer_Summary {<br>
 <div style='margin-left: 8mm;'>
 bool32 exists;<br>
@@ -1710,7 +1879,7 @@ int32_t map_id;<br>
 </div>
 </div><hr>
 <div id='View_Summary_doc' style='margin-bottom: 1cm;'>
- <h4>&sect;3.4.30: View_Summary</h4>
+ <h4>&sect;3.4.34: View_Summary</h4>
  <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>struct View_Summary {<br>
 <div style='margin-left: 8mm;'>
 bool32 exists;<br>
@@ -1780,7 +1949,7 @@ GUI_Scroll_Vars scroll_vars;<br>
 </div>
 </div><hr>
 <div id='User_Input_doc' style='margin-bottom: 1cm;'>
- <h4>&sect;3.4.31: User_Input</h4>
+ <h4>&sect;3.4.35: User_Input</h4>
  <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>struct User_Input {<br>
 <div style='margin-left: 8mm;'>
 User_Input_Type_ID type;<br>
@@ -1817,7 +1986,7 @@ Generic_Command command;<br>
 </div>
 <div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>See Also</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'><a href='#User_Input_Type_ID_doc'>User_Input_Type_ID</a></div><div style='margin-left: 5mm; margin-right: 5mm;'><a href='#Generic_Command_doc'>Generic_Command</a></div></div><hr>
 <div id='Query_Bar_doc' style='margin-bottom: 1cm;'>
- <h4>&sect;3.4.32: Query_Bar</h4>
+ <h4>&sect;3.4.36: Query_Bar</h4>
  <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>struct Query_Bar {<br>
 <div style='margin-left: 8mm;'>
 String prompt;<br>
@@ -1836,7 +2005,7 @@ that will be displayed as a drop down bar durring an interactive command.</div><
 </div>
 </div><hr>
 <div id='Event_Message_doc' style='margin-bottom: 1cm;'>
- <h4>&sect;3.4.33: Event_Message</h4>
+ <h4>&sect;3.4.37: Event_Message</h4>
  <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>struct Event_Message {<br>
 <div style='margin-left: 8mm;'>
 int type;<br>
@@ -1849,7 +2018,7 @@ int type;<br>
 </div>
 </div><hr>
 <div id='Theme_Color_doc' style='margin-bottom: 1cm;'>
- <h4>&sect;3.4.34: Theme_Color</h4>
+ <h4>&sect;3.4.38: Theme_Color</h4>
  <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>struct Theme_Color {<br>
 <div style='margin-left: 8mm;'>
 Style_Tag tag;<br>

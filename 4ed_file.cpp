@@ -27,6 +27,26 @@
 
 #include "buffer/4coder_buffer_abstract.cpp"
 
+enum Edit_Pos_Set_Type{
+    EditPos_None,
+    EditPos_CursorSet,
+    EditPos_ScrollSet
+};
+struct File_Edit_Positions{
+    GUI_Scroll_Vars scroll;
+    Full_Cursor cursor;
+    i32 mark;
+    f32 preferred_x;
+    i32 scroll_i;
+    i32 last_set_type;
+    b32 in_view;
+};
+inline File_Edit_Positions
+file_edit_positions_zero(){
+    File_Edit_Positions data = {0};
+    return(data);
+}
+
 enum Edit_Type{
     ED_NORMAL,
     ED_REVERSE_NORMAL,
@@ -126,6 +146,10 @@ struct Editing_File_State{
     u64 last_4ed_write_time;
     u64 last_4ed_edit_time;
     u64 last_sys_write_time;
+    
+    File_Edit_Positions edit_pos_space[16];
+    File_Edit_Positions *edit_poss[16];
+    i32 edit_poss_count;
 };
 
 struct Editing_File_Name{
@@ -229,6 +253,133 @@ tbl_file_compare(void *a, void *b, void *arg){
     
     return(result);
 }
+
+//
+// File_Edit_Positions stuff
+//
+
+internal void
+edit_pos_set_cursor_(File_Edit_Positions *edit_pos,
+                     Full_Cursor cursor,
+                     b32 set_preferred_x,
+                     b32 unwrapped_lines){
+    edit_pos->cursor = cursor;
+    if (set_preferred_x){
+        edit_pos->preferred_x = cursor.wrapped_x;
+        if (unwrapped_lines){
+            edit_pos->preferred_x = cursor.unwrapped_x;
+        }
+    }
+    edit_pos->last_set_type = EditPos_CursorSet;
+}
+
+internal void
+edit_pos_set_scroll_(File_Edit_Positions *edit_pos, GUI_Scroll_Vars scroll){
+    edit_pos->scroll = scroll;
+    edit_pos->last_set_type = EditPos_ScrollSet;
+}
+
+internal i32
+edit_pos_get_index(Editing_File *file, File_Edit_Positions *edit_pos){
+    i32 edit_pos_index = -1;
+    
+    i32 count = file->state.edit_poss_count;
+    File_Edit_Positions **edit_poss = file->state.edit_poss;
+    for (i32 i = 0; i < count; ++i){
+        if (edit_poss[i] == edit_pos){
+            edit_pos_index = i;
+            break;
+        }
+    }
+    
+    return(edit_pos_index);
+}
+
+internal b32
+edit_pos_move_to_front(Editing_File *file, File_Edit_Positions *edit_pos){
+    b32 result = false;
+    
+    if (file && edit_pos){
+        i32 edit_pos_index = edit_pos_get_index(file, edit_pos);
+        Assert(edit_pos_index != -1);
+        
+        File_Edit_Positions **edit_poss = file->state.edit_poss;
+        
+        memmove(edit_poss + 1, edit_poss, edit_pos_index*sizeof(*edit_poss));
+        
+        edit_poss[0] = edit_pos;
+        result = true;
+    }
+    
+    return(result);
+}
+
+internal b32
+edit_pos_unset(Editing_File *file, File_Edit_Positions *edit_pos){
+    b32 result = false;
+    
+    if (file && edit_pos){
+        i32 edit_pos_index = edit_pos_get_index(file, edit_pos);
+        Assert(edit_pos_index != -1);
+        
+        i32 count = file->state.edit_poss_count;
+        File_Edit_Positions **edit_poss = file->state.edit_poss;
+        
+        memmove(edit_poss + edit_pos_index,
+                edit_poss + edit_pos_index + 1,
+                (count - edit_pos_index - 1)*sizeof(*edit_poss));
+        
+        edit_pos->in_view = false;
+        
+        if (file->state.edit_poss_count > 1){
+            file->state.edit_poss_count -= 1;
+        }
+        result = true;
+    }
+    
+    return(result);
+}
+
+internal File_Edit_Positions*
+edit_pos_get_new(Editing_File *file, i32 index){
+    File_Edit_Positions *result = 0;
+    
+    if (file && 0 <= index && index < 16){
+        result = file->state.edit_pos_space + index;
+        i32 edit_pos_index = edit_pos_get_index(file, result);
+        
+        if (edit_pos_index == -1){
+            File_Edit_Positions **edit_poss = file->state.edit_poss;
+            i32 count = file->state.edit_poss_count;
+            
+            if (count > 0){
+                if (edit_poss[0]->in_view){
+                    memcpy(result, edit_poss[0], sizeof(*result));
+                    memmove(edit_poss+1, edit_poss, sizeof(*edit_poss)*count);
+                    file->state.edit_poss_count = count + 1;
+                }
+                else{
+                    Assert(count == 1);
+                    memcpy(result, edit_poss[0], sizeof(*result));
+                }
+            }
+            else{
+                memset(result, 0, sizeof(*result));
+                file->state.edit_poss_count = 1;
+            }
+            
+            edit_poss[0] = result;
+        }
+        
+        result->in_view = true;
+    }
+    
+    return(result);
+}
+
+//
+// Working_Set stuff
+//
 
 internal void
 working_set_extend_memory(Working_Set *working_set, Editing_File *new_space, i16 number_of_files){
@@ -624,6 +775,8 @@ file_set_to_loading(Editing_File *file){
     file->settings = editing_file_settings_zero();
     file->is_loading = 1;
 }
+
+
 
 // BOTTOM
 

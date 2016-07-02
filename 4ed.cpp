@@ -318,34 +318,31 @@ COMMAND_DECL(center_view){
     REQ_READABLE_VIEW(view);
     REQ_FILE(file, view);
     
-    f32 y = 0, h = 0;
+    Assert(view->edit_pos);
+    
+    f32 h = view_file_height(view);
+    f32 y = view->edit_pos->cursor.wrapped_y;
     if (view->file_data.unwrapped_lines){
-        y = view->edit_poss.cursor.unwrapped_y;
-    }
-    else{
-        y = view->edit_poss.cursor.wrapped_y;
+        y = view->edit_pos->cursor.unwrapped_y;
     }
     
-    h = view_file_height(view);
     y = clamp_bottom(0.f, y - h*.5f);
-    
-    view->edit_poss.scroll.target_y = ROUND32(y);
+    view->edit_pos->scroll.target_y = ROUND32(y);
 }
 
 COMMAND_DECL(left_adjust_view){
     REQ_READABLE_VIEW(view);
     REQ_FILE(file, view);
     
-    f32 x = 0;
+    Assert(view->edit_pos);
+    
+    f32 x = view->edit_pos->cursor.wrapped_x;
     if (view->file_data.unwrapped_lines){
-        x = view->edit_poss.cursor.unwrapped_x;
-    }
-    else{
-        x = view->edit_poss.cursor.wrapped_x;
+        x = view->edit_pos->cursor.unwrapped_x;
     }
     
     x = clamp_bottom(0.f, x - 30.f);
-    view->edit_poss.scroll.target_x = ROUND32(x);
+    view->edit_pos->scroll.target_x = ROUND32(x);
 }
 
 COMMAND_DECL(word_complete){
@@ -353,6 +350,8 @@ COMMAND_DECL(word_complete){
     USE_VARS(vars);
     REQ_OPEN_VIEW(view);
     REQ_FILE(file, view);
+    
+    Assert(view->edit_pos);
     
     Partition *part = &models->mem.part;
     General_Memory *general = &models->mem.general;
@@ -381,7 +380,7 @@ COMMAND_DECL(word_complete){
     }
     
     if (do_init){
-        word_end = view->edit_poss.cursor.pos;
+        word_end = view->edit_pos->cursor.pos;
         word_start = word_end;
         cursor_pos = word_end - 1;
         
@@ -642,18 +641,20 @@ COMMAND_DECL(toggle_line_wrap){
     REQ_READABLE_VIEW(view);
     REQ_FILE(file, view);
     
+    Assert(view->edit_pos);
+    
     // TODO(allen): WHAT TO DO HERE???
     Relative_Scrolling scrolling = view_get_relative_scrolling(view);
     if (view->file_data.unwrapped_lines){
         view->file_data.unwrapped_lines = 0;
         file->settings.unwrapped_lines = 0;
-        view->edit_poss.scroll.target_x = 0;
-        view_cursor_move(view, view->edit_poss.cursor.pos);
+        view->edit_pos->scroll.target_x = 0;
+        view_cursor_move(view, view->edit_pos->cursor.pos);
     }
     else{
         view->file_data.unwrapped_lines = 1;
         file->settings.unwrapped_lines = 1;
-        view_cursor_move(view, view->edit_poss.cursor.pos);
+        view_cursor_move(view, view->edit_pos->cursor.pos);
     }
     view_set_relative_scrolling(view, scrolling);
 }
@@ -683,7 +684,7 @@ case_change_range(System_Functions *system,
                   Mem_Options *mem, View *view, Editing_File *file,
                   u8 a, u8 z, u8 char_delta){
 #if BUFFER_EXPERIMENT_SCALPEL <= 0
-    Range range = make_range(view->edit_poss.cursor.pos, view->edit_poss.mark);
+    Range range = make_range(view->edit_pos->cursor.pos, view->edit_pos->mark);
     if (range.start < range.end){
         Edit_Step step = {};
         step.type = ED_NORMAL;
@@ -893,25 +894,27 @@ COMMAND_DECL(close_panel){
 COMMAND_DECL(page_down){
     REQ_READABLE_VIEW(view);
     
+    Assert(view->edit_pos);
+    
     i32 height = CEIL32(view_file_height(view));
     f32 y = view_get_cursor_y(view);
-    f32 x = view->edit_poss.preferred_x;
+    f32 x = view->edit_pos->preferred_x;
     
-    Full_Cursor cursor =
-        view_compute_cursor_from_xy(view, x, y+height);
-    edit_pos_set_cursor(&view->edit_poss, cursor, false, view->file_data.unwrapped_lines);
+    Full_Cursor cursor = view_compute_cursor_from_xy(view, x, y+height);
+    view_set_cursor(view, cursor, false, view->file_data.unwrapped_lines);
 }
 
 COMMAND_DECL(page_up){
     REQ_READABLE_VIEW(view);
     
+    Assert(view->edit_pos);
+    
     i32 height = CEIL32(view_file_height(view));
     f32 y = view_get_cursor_y(view);
-    f32 x = view->edit_poss.preferred_x;
+    f32 x = view->edit_pos->preferred_x;
     
-    Full_Cursor cursor =
-        view_compute_cursor_from_xy(view, x, y-height);
-    edit_pos_set_cursor(&view->edit_poss, cursor, false, view->file_data.unwrapped_lines);
+    Full_Cursor cursor = view_compute_cursor_from_xy(view, x, y-height);
+    view_set_cursor(view, cursor, false, view->file_data.unwrapped_lines);
 }
 
 COMMAND_DECL(open_color_tweaker){
@@ -1124,7 +1127,7 @@ app_hardcode_styles(Models *models){
     file_info_style.bar_color = 0xFF888888;
     file_info_style.bar_active_color = 0xFF666666;
     file_info_style.base_color = 0xFF000000;
-    file_info_style.pop1_color = 0xFF1050F0;
+    file_info_style.pop1_color = 0xFF3C57DC;
     file_info_style.pop2_color = 0xFFFF0000;
     style->main.file_info_style = file_info_style;
     ++style;
@@ -2533,9 +2536,17 @@ App_Step_Sig(app_step){
                     summary.mouse = mouse_state;
                 }
                 
-                GUI_Scroll_Vars *scroll_vars = &view->edit_poss.scroll;
-                if (view->showing_ui != VUI_None){
-                    scroll_vars = &view->gui_scroll;
+                b32 file_scroll = false;
+                GUI_Scroll_Vars scroll_zero = {0};
+                GUI_Scroll_Vars *scroll_vars = &view->gui_scroll;
+                if (view->showing_ui == VUI_None){
+                    if (view->file_data.file){
+                        scroll_vars = &view->edit_pos->scroll;
+                        file_scroll = true;
+                    }
+                    else{
+                        scroll_vars = &scroll_zero;
+                    }
                 }
                 
                 Input_Process_Result ip_result =
@@ -2554,8 +2565,8 @@ App_Step_Sig(app_step){
                 }
                 
                 if (!gui_scroll_eq(scroll_vars, &ip_result.vars)){
-                    if (scroll_vars == &view->edit_poss.scroll){
-                        edit_pos_set_scroll(&view->edit_poss, ip_result.vars);
+                    if (file_scroll){
+                        view_set_scroll(view, ip_result.vars);
                     }
                     else{
                         *scroll_vars = ip_result.vars;
@@ -2927,9 +2938,17 @@ App_Step_Sig(app_step){
             
             draw_push_clip(target, panel->inner);
             
-            GUI_Scroll_Vars *scroll_vars = &view->edit_poss.scroll;
-            if (view->showing_ui != VUI_None){
-                scroll_vars = &view->gui_scroll;
+            b32 file_scroll = false;
+            GUI_Scroll_Vars scroll_zero = {0};
+            GUI_Scroll_Vars *scroll_vars = &view->gui_scroll;
+            if (view->showing_ui == VUI_None){
+                if (view->file_data.file){
+                    scroll_vars = &view->edit_pos->scroll;
+                    file_scroll = true;
+                }
+                else{
+                    scroll_vars = &scroll_zero;
+                }
             }
             
             do_render_file_view(system, view, scroll_vars, cmd->view, 

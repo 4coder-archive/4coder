@@ -13,17 +13,6 @@ gui_id_zero(){
     return(id);
 }
 
-struct GUI_Scroll_Vars{
-    float scroll_y;
-    int  target_y;
-    int  prev_target_y;
-    int  max_y;
-    
-    float scroll_x;
-    int target_x;
-    int  prev_target_x;
-};
-
 typedef struct GUI GUI;
 
 #define GUI_BEGIN_SIG(n) void n(GUI *gui)
@@ -40,19 +29,17 @@ typedef struct GUI GUI;
 
 #define GUI_FILE_SIG(n) void n(GUI *gui, int buffer_id)
 
-extern "C"{
-    typedef GUI_BEGIN_SIG(GUI_Begin_Function);
-    typedef GUI_END_SIG(GUI_End_Function);
-    
-    typedef GUI_TOP_BAR_SIG(GUI_Top_Bar_Function);
-    
-    typedef GUI_GET_SCROLL_VARS_SIG(GUI_Get_Scroll_Vars_Function);
-    
-    typedef GUI_BEGIN_SCROLLABLE_SIG(GUI_Begin_Scrollable_Function);
-    typedef GUI_END_SCROLLABLE_SIG(GUI_End_Scrollable_Function);
-    
-    typedef GUI_FILE_SIG(GUI_File_Function);
-}
+typedef GUI_BEGIN_SIG(GUI_Begin_Function);
+typedef GUI_END_SIG(GUI_End_Function);
+
+typedef GUI_TOP_BAR_SIG(GUI_Top_Bar_Function);
+
+typedef GUI_GET_SCROLL_VARS_SIG(GUI_Get_Scroll_Vars_Function);
+
+typedef GUI_BEGIN_SCROLLABLE_SIG(GUI_Begin_Scrollable_Function);
+typedef GUI_END_SCROLLABLE_SIG(GUI_End_Scrollable_Function);
+
+typedef GUI_FILE_SIG(GUI_File_Function);
 
 struct GUI_Functions{
     GUI_Begin_Function *begin;

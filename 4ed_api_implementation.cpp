@@ -66,12 +66,12 @@ fill_view_summary(View_Summary *view, View *vptr, Live_Views *live_set, Working_
             
             view->buffer_id = buffer_id;
             
-            view->mark = view_compute_cursor_from_pos(vptr, vptr->edit_poss.mark);
-            view->cursor = vptr->edit_poss.cursor;
-            view->preferred_x = vptr->edit_poss.preferred_x;
+            view->mark = view_compute_cursor_from_pos(vptr, vptr->edit_pos->mark);
+            view->cursor = vptr->edit_pos->cursor;
+            view->preferred_x = vptr->edit_pos->preferred_x;
             
             view->file_region = vptr->file_region;
-            view->scroll_vars = vptr->edit_poss.scroll;
+            view->scroll_vars = vptr->edit_pos->scroll;
         }
     }
 }
@@ -1236,8 +1236,8 @@ DOC_SEE(Buffer_Seek)
                 seek.character = 1;
             }
             Full_Cursor cursor = view_compute_cursor(vptr, seek);
-            edit_pos_set_cursor(&vptr->edit_poss, cursor,
-                                set_preferred_x, vptr->file_data.unwrapped_lines);
+            view_set_cursor(vptr, cursor,
+                            set_preferred_x, vptr->file_data.unwrapped_lines);
             fill_view_summary(view, vptr, cmd);
         }
     }
@@ -1255,19 +1255,23 @@ DOC_SEE(Buffer_Seek)
 */{
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     View *vptr = imp_get_view(cmd, view);
+    Editing_File *file = 0;
     Full_Cursor cursor = {0};
     bool32 result = false;
     
     if (vptr){
-        result = true;
-        if (seek.type != buffer_seek_pos){
-            cursor = view_compute_cursor(vptr, seek);
-            vptr->edit_poss.mark = cursor.pos;
+        file = vptr->file_data.file;
+        if (file && !file->is_loading){
+            result = true;
+            if (seek.type != buffer_seek_pos){
+                cursor = view_compute_cursor(vptr, seek);
+                vptr->edit_pos->mark = cursor.pos;
+            }
+            else{
+                vptr->edit_pos->mark = seek.pos;
+            }
+            fill_view_summary(view, vptr, cmd);
         }
-        else{
-            vptr->edit_poss.mark = seek.pos;
-        }
-        fill_view_summary(view, vptr, cmd);
     }
     
     return(result);
