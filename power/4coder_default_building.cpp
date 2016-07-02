@@ -61,9 +61,10 @@ CUSTOM_COMMAND_SIG(build_in_build_panel){
 # define build_search build_in_build_panel
 #endif
 
+#define GET_COMP_BUFFER() app->get_buffer_by_name(app, literal("*compilation*"), AccessAll);
+
 CUSTOM_COMMAND_SIG(close_build_panel){
-    Buffer_Summary buffer =
-        app->get_buffer_by_name(app, literal("*compilation*"), AccessAll);
+    Buffer_Summary buffer = GET_COMP_BUFFER();
     
     if (buffer.exists){
         View_Summary build_view = get_first_view_with_buffer(app, buffer.buffer_id);
@@ -75,8 +76,18 @@ CUSTOM_COMMAND_SIG(close_build_panel){
     }
 }
 
+CUSTOM_COMMAND_SIG(change_to_build_panel){
+    Buffer_Summary buffer = GET_COMP_BUFFER();
+    
+    if (buffer.exists){
+        View_Summary build_view = get_first_view_with_buffer(app, buffer.buffer_id);
+        
+        app->set_active_view(app, &build_view);
+    }
+}
+
 CUSTOM_COMMAND_SIG(change_active_panel_build){
-    Buffer_Summary buffer = app->get_buffer_by_name(app, literal("*compilation*"), AccessAll);
+    Buffer_Summary buffer = GET_COMP_BUFFER();
     
     if (buffer.exists){
         View_Summary build_view = get_first_view_with_buffer(app, buffer.buffer_id);

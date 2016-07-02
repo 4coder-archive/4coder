@@ -11,18 +11,16 @@ as this is the only one that will be used for generating headers and docs.
 
 #define API_EXPORT
 
-API_EXPORT int
+API_EXPORT bool32
 File_Exists(Application_Links *app, char *filename, int len)/*
-DOC_PARAM(filename, the full path to a file)
-DOC_PARAM(len, the number of characters in the filename string)
-DOC_RETURN(returns non-zero if the file exists, returns zero if the file does not exist)
+DOC_PARAM(filename, This parameter specifies the full path to a file; it need not be null terminated.)
+DOC_PARAM(len, This parameter specifies the length of the filename string.)
+DOC_RETURN(This call returns non-zero if and only if the file exists.)
 */{
     char full_filename_space[1024];
     String full_filename;
     HANDLE file;
-    b32 result;
-    
-    result = 0;
+    b32 result = 0;
     
     if (len < sizeof(full_filename_space)){
         full_filename = make_fixed_width_string(full_filename_space);
@@ -41,23 +39,24 @@ DOC_RETURN(returns non-zero if the file exists, returns zero if the file does no
     return(result);
 }
 
-API_EXPORT int
+API_EXPORT bool32
 Directory_CD(Application_Links *app, char *dir, int *len, int capacity, char *rel_path, int rel_len)/*
-DOC_PARAM(dir, a string buffer containing a directory)
-DOC_PARAM(len, the length of the string in the string buffer)
-DOC_PARAM(capacity, the maximum size of the string buffer)
-DOC_PARAM(rel_path, the path to change to, may include '.' or '..')
-DOC_PARAM(rel_len, the length of the rel_path string)
-DOC_RETURN(returns non-zero if the call succeeds, returns zero otherwise)
+DOC_PARAM(dir, This parameter provides a character buffer that stores a directory; it need not be null terminated.)
+DOC_PARAM(len, This parameter specifies the length of the dir string.)
+DOC_PARAM(capacity, This parameter specifies the maximum size of the dir string.)
+DOC_PARAM(rel_path, This parameter specifies the path to change to, may include '.' or '..'; it need not be null terminated.)
+DOC_PARAM(rel_len, This parameter specifies the length of the rel_path string.)
+DOC_RETURN(This call returns non-zero if the call succeeds.)
 DOC
 (
-This call succeeds if the directory exists and the new directory fits inside the dir buffer.
-If the call succeeds the dir buffer is filled with the new directory and len contains the
-length of the string in the buffer.
+This call succeeds if the new directory exists and the it fits inside the
+dir buffer. If the call succeeds the dir buffer is filled with the new
+directory and len is overwritten with the length of the new string in the buffer.
 
-For instance if dir contains "C:/Users/MySelf" and rel is "Documents" the buffer will contain
-"C:/Users/MySelf/Documents" and len will contain the length of that string.  This call can
-also be used with rel set to ".." to traverse to parent folders.
+For instance if dir contains "C:/Users/MySelf" and rel is "Documents" the buffer
+will contain "C:/Users/MySelf/Documents" and len will contain the length of that
+string.  This call can also be used with rel set to ".." to traverse to parent
+folders.
 )
 */{
     String directory = make_string(dir, *len, capacity);
@@ -97,11 +96,11 @@ also be used with rel set to ".." to traverse to parent folders.
     return(result);
 }
 
-API_EXPORT int
-Get_4ed_Path(Application_Links *app, char *out, int capacity)/*
-DOC_PARAM(out, A char buffer that receives the path to the 4ed executable file.)
-DOC_PARAM(capacity, The maximum capacity of the output buffer.)
-DOC_RETURN(Returns non-zero on success, returns zero on failure.)
+API_EXPORT bool32
+Get_4ed_Path(Application_Links *app, char *out, int32_t capacity)/*
+DOC_PARAM(out, This parameter provides a character buffer that receives the path to the 4ed executable file.)
+DOC_PARAM(capacity, This parameter specifies the maximum capacity of the out buffer.)
+DOC_RETURN(This call returns non-zero on success.)
 */{
     String str = make_string(out, 0, capacity);
     return(system_get_binary_path(&str));
@@ -109,8 +108,8 @@ DOC_RETURN(Returns non-zero on success, returns zero on failure.)
 
 // TODO(allen): add a "shown but auto-hides on timer" setting here.
 API_EXPORT void
-Show_Mouse_Cursor(Application_Links *app, int show)/*
-DOC_PARAM(show, The show state to put the mouse cursor into, should be one of the Mouse_Cursor_Show_Type enum values.)
+Show_Mouse_Cursor(Application_Links *app, Mouse_Cursor_Show_Type show)/*
+DOC_PARAM(show, This parameter specifies the new state of the mouse cursor.)
 DOC_SEE(Mouse_Cursor_Show_Type)
 */{
     switch (show){

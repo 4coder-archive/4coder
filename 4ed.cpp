@@ -1318,7 +1318,7 @@ app_hardcode_styles(Models *models){
     ++style;
     
     /////////////////
-    style_set_name(style, make_lit_string("Magic"));
+    style_set_name(style, make_lit_string("Hjortshoej"));
     
     style->main.back_color = 0xFFF0F0F0;
     style->main.margin_color = 0xFF9E9E9E;
@@ -2402,7 +2402,7 @@ App_Step_Sig(app_step){
                 User_Input user_in;
                 user_in.type = UserInputKey;
                 user_in.key = key;
-                user_in.command = (unsigned long long)cmd_bind.custom;
+                user_in.command.command = cmd_bind.custom;
                 user_in.abort = 0;
                 
                 if ((EventOnEsc & abort_flags) && key.keycode == key_esc){
@@ -2453,7 +2453,7 @@ App_Step_Sig(app_step){
             User_Input user_in;
             user_in.type = UserInputMouse;
             user_in.mouse = input->mouse;
-            user_in.command = 0;
+            user_in.command.cmdid = 0;
             user_in.abort = 0;
             
             if (abort_flags & EventOnMouseMove){

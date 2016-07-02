@@ -23,6 +23,12 @@
 
 #include "4coder_mem.h"
 
+struct Global_Settings{
+    int generate_docs;
+};
+
+static Global_Settings global_settings;
+
 struct Struct_Field{
     char *type;
     char *name;
@@ -605,7 +611,7 @@ doc_parse_last_parameter(String source, int *pos){
 }
 
 void
-perform_doc_parse(String doc_string, Documentation *doc){
+perform_doc_parse(Partition *part, String doc_string, Documentation *doc){
     int keep_parsing = true;
     int pos = 0;
     
@@ -638,7 +644,7 @@ perform_doc_parse(String doc_string, Documentation *doc){
     
     if (param_count + see_count > 0){
         int memory_size = sizeof(String)*(2*param_count + see_count);
-        doc->param_name = (String*)malloc(memory_size);
+        doc->param_name = push_array(part, String, memory_size);
         doc->param_docs = doc->param_name + param_count;
         doc->see_also   = doc->param_docs + param_count;
         
@@ -976,6 +982,80 @@ print_struct_html(FILE *file, Struct_Member *member){
     }
 }
 
+#define BACK_COLOR   "#FAFAFA"
+#define TEXT_COLOR   "#0D0D0D"
+#define CODE_BACK    "#DFDFDF"
+
+#define POP_COLOR_1  "#309030"
+#define POP_BACK_1   "#E0FFD0"
+#define VISITED_LINK "#A0C050"
+
+#define POP_COLOR_2  "#005000"
+
+#define CODE_STYLE "font-family: \"Courier New\", Courier, monospace; text-align: left;"
+
+#define DESCRIPT_SECTION_STYLE \
+"margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; " \
+"background: "CODE_BACK"; padding: 0.25em;"
+
+#define DOC_HEAD_OPEN  "<div style='margin-top: 3mm; margin-bottom: 3mm; color: "POP_COLOR_1";'><b><i>"
+#define DOC_HEAD_CLOSE "</i></b></div>"
+
+#define DOC_ITEM_HEAD_STYLE "font-weight: 600;"
+
+#define DOC_ITEM_HEAD_INL_OPEN  "<span style='"DOC_ITEM_HEAD_STYLE"'>"
+#define DOC_ITEM_HEAD_INL_CLOSE "</span>"
+
+#define DOC_ITEM_HEAD_OPEN  "<div style='"DOC_ITEM_HEAD_STYLE"'>"
+#define DOC_ITEM_HEAD_CLOSE "</div>"
+
+#define DOC_ITEM_OPEN  "<div style='margin-left: 5mm; margin-right: 5mm;'>"
+#define DOC_ITEM_CLOSE "</div>"
+
+static void
+print_struct_docs(FILE *file, Partition *part, Struct_Member *member){
+    for (Struct_Member *member_iter = member->first_child;
+         member_iter != 0;
+         member_iter = member_iter->next_sibling){
+        String type = member_iter->type;
+        if (match(type, make_lit_string("struct")) ||
+            match(type, make_lit_string("union"))){
+            print_struct_docs(file, part, member_iter);
+        }
+        else{
+            Documentation doc = {0};
+            perform_doc_parse(part, member_iter->doc_string, &doc);
+            
+            fprintf(file,
+                    "<div>\n"
+                    "<div style='"CODE_STYLE"'>"DOC_ITEM_HEAD_INL_OPEN
+                    "%.*s"DOC_ITEM_HEAD_INL_CLOSE"</div>\n"
+                    "<div style='margin-bottom: 6mm;'>"DOC_ITEM_OPEN"%.*s"DOC_ITEM_CLOSE"</div>\n"
+                    "</div>\n",
+                    member_iter->name.size, member_iter->name.str,
+                    doc.main_doc.size, doc.main_doc.str
+                    );
+        }
+    }
+}
+
+static void
+print_see_also(FILE *file, Documentation *doc){
+    int doc_see_count = doc->see_also_count;
+    if (doc_see_count > 0){
+        fprintf(file, DOC_HEAD_OPEN"See Also"DOC_HEAD_CLOSE);
+        
+        for (int j = 0; j < doc_see_count; ++j){
+            String see_also = doc->see_also[j];
+            fprintf(file,
+                    DOC_ITEM_OPEN"<a href='#%.*s_doc'>%.*s</a>"DOC_ITEM_CLOSE,
+                    see_also.size, see_also.str,
+                    see_also.size, see_also.str
+                    );
+        }
+    }
+}
+
 static int
 parse_enum(Partition *part, Cpp_File file,
            Cpp_Token *tokens, int count,
@@ -1101,210 +1181,6 @@ generate_custom_headers(){
     
     char *filename = API_H " & " API_DOC;
     
-    Function_Set function_set = {0};
-    Typedef_Set typedef_set = {0};
-    Struct_Set struct_set = {0};
-    Enum_Set flag_set = {0};
-    Enum_Set enum_set = {0};
-    
-    
-    String type_code = file_dump("4coder_types.h");
-    
-    
-    // TODO(allen): KILL THIS FUCKIN' Cpp_File FUCKIN' NONSENSE HORSE SHIT!!!!!
-    Cpp_File type_file;
-    type_file.data = type_code.str;
-    type_file.size = type_code.size;
-    
-    Cpp_Token_Stack types_tokens = cpp_make_token_stack(512);
-    cpp_lex_file(type_file, &types_tokens);
-    
-    int typedef_count = 0;
-    int struct_count = 0;
-    int flag_count = 0;
-    int enum_count = 0;
-    
-    {
-        int count = types_tokens.count;
-        Cpp_Token *tokens = types_tokens.tokens;
-        Cpp_Token *token = tokens;
-        
-        static String type_spec_keys[] = {
-            make_lit_string("typedef"),
-            make_lit_string("struct"),
-            make_lit_string("union"),
-            make_lit_string("ENUM"),
-            make_lit_string("FLAGENUM"),
-        };
-        
-        for (int i = 0; i < count; ++i, ++token){
-            if (!(token->flags & CPP_TFLAG_PP_BODY) &&
-                (token->type == CPP_TOKEN_KEY_TYPE_DECLARATION ||
-                 token->type == CPP_TOKEN_IDENTIFIER)){
-                
-                String lexeme = make_string(type_file.data + token->start, token->size);
-                int match_index = 0;
-                if (string_set_match(type_spec_keys, ArrayCount(type_spec_keys),
-                                     lexeme, &match_index)){
-                    switch (match_index){
-                        case 0: //typedef
-                        ++typedef_count; break;
-                        
-                        case 1: case 2: //struct/union
-                        ++struct_count; break;
-                        
-                        case 3: //ENUM
-                        ++enum_count; break;
-                        
-                        case 4: //FLAGENUM
-                        ++flag_count; break;
-                    }
-                }
-            }
-        }
-        
-        if (typedef_count >  0){
-            typedef_set.type = push_array(part, String, typedef_count);
-            typedef_set.name = push_array(part, String, typedef_count);
-            typedef_set.doc_string = push_array(part, String, typedef_count);
-        }
-        
-        if (struct_count > 0){
-            struct_set.structs = push_array(part, Struct_Member, struct_count);
-        }
-        
-        if (enum_count > 0){
-            enum_set.name = push_array(part, String, enum_count);
-            enum_set.type = push_array(part, String, enum_count);
-            enum_set.first_member = push_array(part, Enum_Member*, enum_count);
-            enum_set.doc_string = push_array(part, String, enum_count);
-        }
-        
-        if (flag_count > 0){
-            flag_set.name = push_array(part, String, flag_count);
-            flag_set.first_member = push_array(part, Enum_Member*, flag_count);
-            flag_set.doc_string = push_array(part, String, flag_count);
-        }
-        
-        int typedef_index = 0;
-        int struct_index = 0;
-        int flag_index = 0;
-        int enum_index = 0;
-        
-        token = tokens;
-        for (int i = 0; i < count; ++i, ++token){
-            if (!(token->flags & CPP_TFLAG_PP_BODY) &&
-                (token->type == CPP_TOKEN_KEY_TYPE_DECLARATION ||
-                 token->type == CPP_TOKEN_IDENTIFIER)){
-                
-                String lexeme = make_string(type_file.data + token->start, token->size);
-                int match_index = 0;
-                if (string_set_match(type_spec_keys, ArrayCount(type_spec_keys),
-                                     lexeme, &match_index)){
-                    switch (match_index){
-                        case 0: //typedef
-                        {
-                            String doc_string = {0};
-                            get_type_doc_string(type_file, tokens, i, &doc_string);
-                            
-                            int start_i = i;
-                            Cpp_Token *start_token = token;
-                            
-                            for (; i < count; ++i, ++token){
-                                if (token->type == CPP_TOKEN_SEMICOLON){
-                                    break;
-                                }
-                            }
-                            
-                            if (i < count){
-                                Cpp_Token *token_j = token;
-                                
-                                for (int j = i; j > start_i; --j, --token_j){
-                                    if (token_j->type == CPP_TOKEN_IDENTIFIER){
-                                        break;
-                                    }
-                                }
-                                
-                                String name = make_string(type_file.data + token_j->start, token_j->size);
-                                name = skip_chop_whitespace(name);
-                                
-                                int type_start = start_token->start + start_token->size;
-                                int type_end = token_j->start;
-                                String type = make_string(type_file.data + type_start, type_end - type_start);
-                                type = skip_chop_whitespace(type);
-                                
-                                typedef_set.type[typedef_index] = type;
-                                typedef_set.name[typedef_index] = name;
-                                typedef_set.doc_string[typedef_index] = doc_string;
-                                ++typedef_index;
-                            }
-                        }break;
-                        
-                        case 1: case 2: //struct/union
-                        {
-                            if (parse_struct(part, (match_index == 1),
-                                             type_file, tokens, count, &token,
-                                             struct_set.structs + struct_index)){
-                                ++struct_index;
-                            }
-                            i = (int)(token - tokens);
-                        }break;
-                        
-                        case 3: //ENUM
-                        {
-                            String doc_string = {0};
-                            get_type_doc_string(type_file, tokens, i, &doc_string);
-                            
-                            int start_i = i;
-                            
-                            for (; i < count; ++i, ++token){
-                                if (token->type == CPP_TOKEN_PARENTHESE_CLOSE){
-                                    break;
-                                }
-                            }
-                            
-                            if (parse_enum(part, type_file,
-                                           tokens, count,
-                                           &token, start_i,
-                                           enum_set, enum_index)){
-                                enum_set.doc_string[enum_index] = doc_string;
-                                ++enum_index;
-                            }
-                        }break;
-                        
-                        case 4: //FLAGENUM
-                        {
-                            String doc_string = {0};
-                            get_type_doc_string(type_file, tokens, i, &doc_string);
-                            
-                            int start_i = i;
-                            
-                            for (; i < count; ++i, ++token){
-                                if (token->type == CPP_TOKEN_PARENTHESE_CLOSE){
-                                    break;
-                                }
-                            }
-                            
-                            if (parse_enum(part, type_file,
-                                           tokens, count,
-                                           &token, start_i,
-                                           flag_set, flag_index)){
-                                flag_set.doc_string[flag_index] = doc_string;
-                                ++flag_index;
-                            }
-                            
-                        }break;
-                    }
-                }
-            }
-        }
-        
-        typedef_count = typedef_index;
-        struct_count = struct_index;
-        enum_count = enum_index;
-        flag_count = flag_index;
-    }
-    
     
     String code_data[2];
     code_data[0] = file_dump("4ed_api_implementation.cpp");
@@ -1361,6 +1237,7 @@ generate_custom_headers(){
     
     int memory_size = (sizeof(String)*6 + sizeof(int) + sizeof(Argument_Breakdown) + sizeof(Documentation))*line_count;
     
+    Function_Set function_set = {0};
     function_set.name        = (String*)malloc(memory_size);
     function_set.ret         = function_set.name + line_count;
     function_set.args        = function_set.ret + line_count;
@@ -1524,7 +1401,7 @@ generate_custom_headers(){
                                         lexeme = make_string(file.data + token->start, token->size);
                                         if (check_and_fix_docs(&lexeme)){
                                             function_set.doc_string[match] = lexeme;
-                                            perform_doc_parse(lexeme, &function_set.doc[match]);
+                                            perform_doc_parse(part, lexeme, &function_set.doc[match]);
                                             break;
                                         }
                                     }
@@ -1626,414 +1503,703 @@ generate_custom_headers(){
     fclose(file);
     
     // NOTE(allen): Documentation
-    file = fopen(API_DOC, "wb");
-    
-#define CODE_STYLE "font-family: \"Courier New\", Courier, monospace; text-align: left;"
-    
-#define BACK_COLOR   "#FAFAFA"
-#define TEXT_COLOR   "#0D0D0D"
-#define CODE_BACK    "#DFDFDF"
-    
-#define POP_COLOR_1  "#309030"
-#define POP_BACK_1   "#E0FFD0"
-#define VISITED_LINK "#A0C050"
-    
-#define POP_COLOR_2  "#005000"
-    
-    fprintf(file,
-            "<html lang=\"en-US\">\n"
-            "<head>\n"
-            "<title>4coder API Docs</title>\n"
-            "<style>\n"
-            
-            "body { "
-            "background: " BACK_COLOR "; "
-            "color: " TEXT_COLOR "; "
-            "}\n"
-            
-            // H things
-            "h1,h2,h3,h4 { "
-            "color: " POP_COLOR_1 "; "
-            "margin: 0; "
-            "}\n"
-            
-            "h3 { "
-            "margin-top: 5mm; margin-bottom: 5mm; "
-            "}\n"
-            
-            "h4 { "
-            "font-size: 1.1em; "
-            "}\n"
-            
-            // ANCHORS
-            "a { "
-            "color: " POP_COLOR_1 "; "
-            "text-decoration: none; "
-            "}\n"
-            "a:visited { "
-            "color: " VISITED_LINK "; "
-            "}\n"
-            "a:hover { "
-            "background: " POP_BACK_1 "; "
-            "}\n"
-            
-            // LIST
-            "ul { "
-            "list-style: none; "
-            "padding: 0; "
-            "margin: 0; "
-            "}\n"
-            "li { "
-            "padding-left: 1em;"
-            "text-indent: -.7em;"
-            "}\n"
-            "li:before { "
-            "content: \"4\"; "
-            "color: " POP_COLOR_2 "; "
-            "font-family:\"Webdings\"; "
-            "}\n"
-            
-            "</style>\n"
-            "</head>\n"
-            "<body>\n"
-            "<div style='font-family:Arial; margin: 0 auto; "
-            "width: 900px; text-align: justify; line-height: 1.25;'>\n"
-            "<h1 style='margin-top: 5mm; margin-bottom: 5mm;'>4coder API</h1>\n"
-            );
-    
-    fprintf(file,
-            "<h2>&sect;1 Introduction</h2>\n"
-            "<div>\n"
-            
-            "<p>\n"
-            "This is the documentation for " VERSION " The documentation has been made as "
-            "accurate as possible but there may be errors. If you have questions or "
-            "discover errors please contact <span style='"CODE_STYLE"'>editor@4coder.net</span>."
-            "</p>\n"
-            
-            "<p>\n"
-            "</p>\n"
-            
-            "</div>\n");
-    
-    fprintf(file, "<h2>&sect;2 Types and Functions</h2>\n");
-    {
-#undef SECTION
-#define SECTION "2.1"
+    if (global_settings.generate_docs){
+        Typedef_Set typedef_set = {0};
+        Struct_Set struct_set = {0};
+        Enum_Set flag_set = {0};
+        Enum_Set enum_set = {0};
         
-        fprintf(file,
-                "<h3>&sect;"SECTION" Function List</h3>\n"
-                "<ul>\n");
         
-        for (int i = 0; i < sig_count; ++i){
-            String name = function_set.public_name[i];
-            fprintf(file,
-                    "<li>"
-                    "<a href='#%.*s_doc'>%.*s</a>"
-                    "</li>\n",
-                    name.size, name.str,
-                    name.size, name.str
-                    );
+        String type_code = file_dump("4coder_types.h");
+        
+        
+        // TODO(allen): KILL THIS FUCKIN' Cpp_File FUCKIN' NONSENSE HORSE SHIT!!!!!
+        Cpp_File type_file;
+        type_file.data = type_code.str;
+        type_file.size = type_code.size;
+        
+        Cpp_Token_Stack types_tokens = cpp_make_token_stack(512);
+        cpp_lex_file(type_file, &types_tokens);
+        
+        int typedef_count = 0;
+        int struct_count = 0;
+        int flag_count = 0;
+        int enum_count = 0;
+        
+        {
+            int count = types_tokens.count;
+            Cpp_Token *tokens = types_tokens.tokens;
+            Cpp_Token *token = tokens;
+            
+            static String type_spec_keys[] = {
+                make_lit_string("typedef"),
+                make_lit_string("struct"),
+                make_lit_string("union"),
+                make_lit_string("ENUM"),
+                make_lit_string("FLAGENUM"),
+            };
+            
+            for (int i = 0; i < count; ++i, ++token){
+                if (!(token->flags & CPP_TFLAG_PP_BODY) &&
+                    (token->type == CPP_TOKEN_KEY_TYPE_DECLARATION ||
+                     token->type == CPP_TOKEN_IDENTIFIER)){
+                    
+                    String lexeme = make_string(type_file.data + token->start, token->size);
+                    int match_index = 0;
+                    if (string_set_match(type_spec_keys, ArrayCount(type_spec_keys),
+                                         lexeme, &match_index)){
+                        switch (match_index){
+                            case 0: //typedef
+                            ++typedef_count; break;
+                            
+                            case 1: case 2: //struct/union
+                            ++struct_count; break;
+                            
+                            case 3: //ENUM
+                            ++enum_count; break;
+                            
+                            case 4: //FLAGENUM
+                            ++flag_count; break;
+                        }
+                    }
+                }
+            }
+            
+            if (typedef_count >  0){
+                typedef_set.type = push_array(part, String, typedef_count);
+                typedef_set.name = push_array(part, String, typedef_count);
+                typedef_set.doc_string = push_array(part, String, typedef_count);
+            }
+            
+            if (struct_count > 0){
+                struct_set.structs = push_array(part, Struct_Member, struct_count);
+            }
+            
+            if (enum_count > 0){
+                enum_set.name = push_array(part, String, enum_count);
+                enum_set.type = push_array(part, String, enum_count);
+                enum_set.first_member = push_array(part, Enum_Member*, enum_count);
+                enum_set.doc_string = push_array(part, String, enum_count);
+            }
+            
+            if (flag_count > 0){
+                flag_set.name = push_array(part, String, flag_count);
+                flag_set.first_member = push_array(part, Enum_Member*, flag_count);
+                flag_set.doc_string = push_array(part, String, flag_count);
+            }
+            
+            int typedef_index = 0;
+            int struct_index = 0;
+            int flag_index = 0;
+            int enum_index = 0;
+            
+            token = tokens;
+            for (int i = 0; i < count; ++i, ++token){
+                Assert(i == (i32)(token - tokens));
+                if (!(token->flags & CPP_TFLAG_PP_BODY) &&
+                    (token->type == CPP_TOKEN_KEY_TYPE_DECLARATION ||
+                     token->type == CPP_TOKEN_IDENTIFIER)){
+                    
+                    String lexeme = make_string(type_file.data + token->start, token->size);
+                    int match_index = 0;
+                    if (string_set_match(type_spec_keys, ArrayCount(type_spec_keys),
+                                         lexeme, &match_index)){
+                        switch (match_index){
+                            case 0: //typedef
+                            {
+                                String doc_string = {0};
+                                get_type_doc_string(type_file, tokens, i, &doc_string);
+                                
+                                int start_i = i;
+                                Cpp_Token *start_token = token;
+                                
+                                for (; i < count; ++i, ++token){
+                                    if (token->type == CPP_TOKEN_SEMICOLON){
+                                        break;
+                                    }
+                                }
+                                
+                                if (i < count){
+                                    Cpp_Token *token_j = token;
+                                    
+                                    for (int j = i; j > start_i; --j, --token_j){
+                                        if (token_j->type == CPP_TOKEN_IDENTIFIER){
+                                            break;
+                                        }
+                                    }
+                                    
+                                    String name = make_string(type_file.data + token_j->start, token_j->size);
+                                    name = skip_chop_whitespace(name);
+                                    
+                                    int type_start = start_token->start + start_token->size;
+                                    int type_end = token_j->start;
+                                    String type = make_string(type_file.data + type_start, type_end - type_start);
+                                    type = skip_chop_whitespace(type);
+                                    
+                                    typedef_set.type[typedef_index] = type;
+                                    typedef_set.name[typedef_index] = name;
+                                    typedef_set.doc_string[typedef_index] = doc_string;
+                                    ++typedef_index;
+                                }
+                            }break;
+                            
+                            case 1: case 2: //struct/union
+                            {
+                                if (parse_struct(part, (match_index == 1),
+                                                 type_file, tokens, count, &token,
+                                                 struct_set.structs + struct_index)){
+                                    ++struct_index;
+                                }
+                                i = (int)(token - tokens);
+                            }break;
+                            
+                            case 3: //ENUM
+                            {
+                                String doc_string = {0};
+                                get_type_doc_string(type_file, tokens, i, &doc_string);
+                                
+                                int start_i = i;
+                                
+                                for (; i < count; ++i, ++token){
+                                    if (token->type == CPP_TOKEN_PARENTHESE_CLOSE){
+                                        break;
+                                    }
+                                }
+                                
+                                if (parse_enum(part, type_file,
+                                               tokens, count,
+                                               &token, start_i,
+                                               enum_set, enum_index)){
+                                    enum_set.doc_string[enum_index] = doc_string;
+                                    ++enum_index;
+                                }
+                                i = (i32)(token - tokens);
+                            }break;
+                            
+                            case 4: //FLAGENUM
+                            {
+                                String doc_string = {0};
+                                get_type_doc_string(type_file, tokens, i, &doc_string);
+                                
+                                int start_i = i;
+                                
+                                for (; i < count; ++i, ++token){
+                                    if (token->type == CPP_TOKEN_PARENTHESE_CLOSE){
+                                        break;
+                                    }
+                                }
+                                
+                                if (parse_enum(part, type_file,
+                                               tokens, count,
+                                               &token, start_i,
+                                               flag_set, flag_index)){
+                                    flag_set.doc_string[flag_index] = doc_string;
+                                    ++flag_index;
+                                }
+                                i = (i32)(token - tokens);
+                            }break;
+                        }
+                    }
+                }
+            }
+            
+            typedef_count = typedef_index;
+            struct_count = struct_index;
+            enum_count = enum_index;
+            flag_count = flag_index;
         }
-        fprintf(file, "</ul>\n");
         
-#undef SECTION
-#define SECTION "2.2"
+        
+        file = fopen(API_DOC, "wb");
         
         fprintf(file,
-                "<h3>&sect;"SECTION" Type List</h3>\n"
-                "<ul>\n"
+                "<html lang=\"en-US\">\n"
+                "<head>\n"
+                "<title>4coder API Docs</title>\n"
+                "<style>\n"
+                
+                "body { "
+                "background: " BACK_COLOR "; "
+                "color: " TEXT_COLOR "; "
+                "}\n"
+                
+                // H things
+                "h1,h2,h3,h4 { "
+                "color: " POP_COLOR_1 "; "
+                "margin: 0; "
+                "}\n"
+                
+                "h3 { "
+                "margin-top: 5mm; margin-bottom: 5mm; "
+                "}\n"
+                
+                "h4 { "
+                "font-size: 1.1em; "
+                "}\n"
+                
+                // ANCHORS
+                "a { "
+                "color: " POP_COLOR_1 "; "
+                "text-decoration: none; "
+                "}\n"
+                "a:visited { "
+                "color: " VISITED_LINK "; "
+                "}\n"
+                "a:hover { "
+                "background: " POP_BACK_1 "; "
+                "}\n"
+                
+                // LIST
+                "ul { "
+                "list-style: none; "
+                "padding: 0; "
+                "margin: 0; "
+                "}\n"
+                "li { "
+                "padding-left: 1em;"
+                "text-indent: -.7em;"
+                "}\n"
+                "li:before { "
+                "content: \"4\"; "
+                "color: " POP_COLOR_2 "; "
+                "font-family:\"Webdings\"; "
+                "}\n"
+                
+                "</style>\n"
+                "</head>\n"
+                "<body>\n"
+                "<div style='font-family:Arial; margin: 0 auto; "
+                "width: 900px; text-align: justify; line-height: 1.25;'>\n"
+                "<h1 style='margin-top: 5mm; margin-bottom: 5mm;'>4coder API</h1>\n"
                 );
         
-        for (int i = 0; i < typedef_count; ++i){
-            String name = typedef_set.name[i];
-            fprintf(file,
-                    "<li>"
-                    "<a href='#%.*s_doc'>%.*s</a>"
-                    "</li>\n",
-                    name.size, name.str,
-                    name.size, name.str
-                    );
-        }
+#define MAJOR_SECTION "1"
         
-        for (int i = 0; i < enum_count; ++i){
-            String name = enum_set.name[i];
-            fprintf(file,
-                    "<li>"
-                    "<a href='#%.*s_doc'>%.*s</a>"
-                    "</li>\n",
-                    name.size, name.str,
-                    name.size, name.str
-                    );
-        }
-        
-        for (int i = 0; i < flag_count; ++i){
-            String name = flag_set.name[i];
-            fprintf(file,
-                    "<li>"
-                    "<a href='#%.*s_doc'>%.*s</a>"
-                    "</li>\n",
-                    name.size, name.str,
-                    name.size, name.str
-                    );
-        }
-        
-        for (int i = 0; i < struct_count; ++i){
-            String name = struct_set.structs[i].name;
-            fprintf(file,
-                    "<li>"
-                    "<a href='#%.*s_doc'>%.*s</a>"
-                    "</li>\n",
-                    name.size, name.str,
-                    name.size, name.str
-                    );
-        }
-        
-        fprintf(file, "</ul>\n");
-        
-#define DESCRIPT_SECTION_STYLE \
-        "margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; " \
-            "background: "CODE_BACK"; padding: 0.25em;"
-        
-#undef SECTION
-#define SECTION "2.3"
-        
-        fprintf(file, "<h3>&sect;"SECTION" Function Descriptions</h3>\n");
-        for (int i = 0; i < sig_count; ++i){
-            String name = function_set.public_name[i];
-            
-            fprintf(file,
-                    "<div id='%.*s_doc' style='margin-bottom: 1cm;'>\n"
-                    " <h4>&sect;"SECTION".%d: %.*s</h4>\n"
-                    " <div style='"CODE_STYLE" "DESCRIPT_SECTION_STYLE"'>",
-                    name.size, name.str, i+1,
-                    name.size, name.str
-                    );
-            
-            String ret = function_set.ret[i];
-            fprintf(file,
-                    "%.*s app->%.*s(\n"
-                    "<div style='margin-left: 4mm;'>",
-                    ret.size, ret.str, name.size, name.str);
-            
-            Argument_Breakdown *breakdown = &function_set.breakdown[i];
-            int arg_count = breakdown->count;
-            for (int j = 0; j < arg_count; ++j){
-                String param_string = breakdown->param_string[j];
-                if (j < arg_count - 1){
-                    fprintf(file, "%.*s,<br>", param_string.size, param_string.str);
-                }
-                else{
-                    fprintf(file, "%.*s<br>", param_string.size, param_string.str);
-                }
-            }
-            
-            fprintf(file,
-                    "</div>)\n"
-                    "</div>\n");
-            
-            if (function_set.doc_string[i].size == 0){
-                fprintf(file, "No documentation generated for this function, assume it is non-public.\n");
-                fprintf(stderr, "warning: no documentation string for %.*s\n", name.size, name.str);
-            }
-            
-#define DOC_HEAD_OPEN  "<div style='margin-top: 3mm; margin-bottom: 3mm; color: "POP_COLOR_1";'><b><i>"
-#define DOC_HEAD_CLOSE "</i></b></div>"
-            
-#define DOC_ITEM_OPEN  "<div style='margin-left: 5mm; margin-right: 5mm;'>"
-#define DOC_ITEM_CLOSE "</div>"
-            
-            Documentation *doc = &function_set.doc[i];
-            
-            int doc_param_count = doc->param_count;
-            if (doc_param_count > 0){
-                fprintf(file, DOC_HEAD_OPEN"Parameters"DOC_HEAD_CLOSE);
+        fprintf(file,
+                "<h2>&sect;"MAJOR_SECTION" Introduction</h2>\n"
+                "<div>\n"
                 
-                for (int j = 0; j < doc_param_count; ++j){
-                    String param_name = doc->param_name[j];
-                    String param_docs = doc->param_docs[j];
-                    
-                    // TODO(allen): check that param_name is actually
-                    // a parameter to this function!
-                    
-                    fprintf(file,
-                            "<div>\n"
-                            "<div style='font-weight: 600;'>%.*s</div>\n"
-                            "<div style='margin-bottom: 6mm;'>"DOC_ITEM_OPEN"%.*s"DOC_ITEM_CLOSE"</div>\n"
-                            "</div>\n",
-                            param_name.size, param_name.str,
-                            param_docs.size, param_docs.str
-                            );
-                }
-            }
+                "<p>\n"
+                "This is the documentation for " VERSION " The documentation has been made as "
+                "accurate as possible but there may be errors. If you have questions or "
+                "discover errors please contact <span style='"CODE_STYLE"'>editor@4coder.net</span>."
+                "</p>\n"
+                
+                "<p>\n"
+                "</p>\n"
+                
+                "</div>\n");
+        
+#undef MAJOR_SECTION
+#define MAJOR_SECTION "2"
+        // TODO(allen): Write the 4coder system descriptions.
+        fprintf(file, "<h2>&sect;"MAJOR_SECTION" 4coder Systems</h2>\n");
+        {
             
-            String ret_doc = doc->return_doc;
-            if (ret_doc.size != 0){
-                fprintf(file, DOC_HEAD_OPEN"Return"DOC_HEAD_CLOSE);
+        }
+        
+#undef MAJOR_SECTION
+#define MAJOR_SECTION "3"
+        
+        fprintf(file, "<h2>&sect;"MAJOR_SECTION" Types and Functions</h2>\n");
+        {
+#undef SECTION
+#define SECTION MAJOR_SECTION".1"
+            
+            fprintf(file,
+                    "<h3>&sect;"SECTION" Function List</h3>\n"
+                    "<ul>\n");
+            
+            for (int i = 0; i < sig_count; ++i){
+                String name = function_set.public_name[i];
                 fprintf(file,
-                        DOC_ITEM_OPEN"%.*s"DOC_ITEM_CLOSE,
-                        ret_doc.size, ret_doc.str
+                        "<li>"
+                        "<a href='#%.*s_doc'>%.*s</a>"
+                        "</li>\n",
+                        name.size, name.str,
+                        name.size, name.str
                         );
             }
+            fprintf(file, "</ul>\n");
             
-            String main_doc = doc->main_doc;
-            if (main_doc.size != 0){
-                fprintf(file, DOC_HEAD_OPEN"Description"DOC_HEAD_CLOSE);
-                fprintf(file,
-                        DOC_ITEM_OPEN"%.*s"DOC_ITEM_CLOSE,
-                        main_doc.size, main_doc.str
-                        );
-            }
-            
-            int doc_see_count = doc->see_also_count;
-            if (doc_see_count > 0){
-                fprintf(file, DOC_HEAD_OPEN"See Also"DOC_HEAD_CLOSE);
-                
-                for (int j = 0; j < doc_see_count; ++j){
-                    String see_also = doc->see_also[j];
-                    fprintf(file,
-                            DOC_ITEM_OPEN"<a href='#%.*s_doc'>%.*s</a>"DOC_ITEM_CLOSE,
-                            see_also.size, see_also.str,
-                            see_also.size, see_also.str
-                            );
-                }
-            }
-            
-            fprintf(file, "</div><hr>\n");
-        }
-        
 #undef SECTION
-#define SECTION "2.4"
-        
-        fprintf(file, "<h3>&sect;"SECTION" Type Descriptions</h3>\n");
-        int I = 1;
-        for (int i = 0; i < typedef_count; ++i, ++I){
-            String name = typedef_set.name[i];
-            String type = typedef_set.type[i];
+#define SECTION MAJOR_SECTION".2"
             
             fprintf(file,
-                    "<div id='%.*s_doc' style='margin-bottom: 1cm;'>\n"
-                    " <h4>&sect;"SECTION".%d: %.*s</h4>\n"
-                    " <div style='"CODE_STYLE" "DESCRIPT_SECTION_STYLE"'>",
-                    name.size, name.str, I,
-                    name.size, name.str
+                    "<h3>&sect;"SECTION" Type List</h3>\n"
+                    "<ul>\n"
                     );
             
-            // NOTE(allen): Code box
-            {
+            for (int i = 0; i < typedef_count; ++i){
+                String name = typedef_set.name[i];
                 fprintf(file,
-                        "typedef %.*s %.*s;",
-                        type.size, type.str,
+                        "<li>"
+                        "<a href='#%.*s_doc'>%.*s</a>"
+                        "</li>\n",
+                        name.size, name.str,
                         name.size, name.str
                         );
             }
             
-            fprintf(file, "</div>\n");
-            
-            // NOTE(allen): Descriptive section
-            {
-                
-            }
-            
-            fprintf(file, "</div><hr>\n");
-        }
-        
-        for (int i = 0; i < enum_count; ++i, ++I){
-            String name = enum_set.name[i];
-            
-            fprintf(file,
-                    "<div id='%.*s_doc' style='margin-bottom: 1cm;'>\n"
-                    " <h4>&sect;"SECTION".%d: %.*s</h4>\n"
-                    " <div style='"CODE_STYLE" "DESCRIPT_SECTION_STYLE"'>",
-                    name.size, name.str, I,
-                    name.size, name.str
-                    );
-            
-            // NOTE(allen): Code box
-            {
+            for (int i = 0; i < enum_count; ++i){
+                String name = enum_set.name[i];
                 fprintf(file,
-                        "enum %.*s;",
-                        name.size, name.str);
+                        "<li>"
+                        "<a href='#%.*s_doc'>%.*s</a>"
+                        "</li>\n",
+                        name.size, name.str,
+                        name.size, name.str
+                        );
             }
             
-            fprintf(file, "</div>\n");
-            
-            // NOTE(allen): Descriptive section
-            {
-                
-            }
-            
-            fprintf(file, "</div><hr>\n");
-        }
-        
-        for (int i = 0; i < flag_count; ++i, ++I){
-            String name = flag_set.name[i];
-            
-            fprintf(file,
-                    "<div id='%.*s_doc' style='margin-bottom: 1cm;'>\n"
-                    " <h4>&sect;"SECTION".%d: %.*s</h4>\n"
-                    " <div style='"CODE_STYLE" "DESCRIPT_SECTION_STYLE"'>",
-                    name.size, name.str, I,
-                    name.size, name.str
-                    );
-            
-            // NOTE(allen): Code box
-            {
+            for (int i = 0; i < flag_count; ++i){
+                String name = flag_set.name[i];
                 fprintf(file,
-                        "enum %.*s;",
-                        name.size, name.str);
+                        "<li>"
+                        "<a href='#%.*s_doc'>%.*s</a>"
+                        "</li>\n",
+                        name.size, name.str,
+                        name.size, name.str
+                        );
             }
             
-            fprintf(file, "</div>\n");
+            for (int i = 0; i < struct_count; ++i){
+                String name = struct_set.structs[i].name;
+                fprintf(file,
+                        "<li>"
+                        "<a href='#%.*s_doc'>%.*s</a>"
+                        "</li>\n",
+                        name.size, name.str,
+                        name.size, name.str
+                        );
+            }
             
-            // NOTE(allen): Descriptive section
-            {
+            fprintf(file, "</ul>\n");
+            
+#undef SECTION
+#define SECTION MAJOR_SECTION".3"
+            
+            fprintf(file, "<h3>&sect;"SECTION" Function Descriptions</h3>\n");
+            for (int i = 0; i < sig_count; ++i){
+                String name = function_set.public_name[i];
                 
+                fprintf(file,
+                        "<div id='%.*s_doc' style='margin-bottom: 1cm;'>\n"
+                        " <h4>&sect;"SECTION".%d: %.*s</h4>\n"
+                        " <div style='"CODE_STYLE" "DESCRIPT_SECTION_STYLE"'>",
+                        name.size, name.str, i+1,
+                        name.size, name.str
+                        );
+                
+                String ret = function_set.ret[i];
+                fprintf(file,
+                        "%.*s app->%.*s(\n"
+                        "<div style='margin-left: 4mm;'>",
+                        ret.size, ret.str, name.size, name.str);
+                
+                Argument_Breakdown *breakdown = &function_set.breakdown[i];
+                int arg_count = breakdown->count;
+                for (int j = 0; j < arg_count; ++j){
+                    String param_string = breakdown->param_string[j];
+                    if (j < arg_count - 1){
+                        fprintf(file, "%.*s,<br>", param_string.size, param_string.str);
+                    }
+                    else{
+                        fprintf(file, "%.*s<br>", param_string.size, param_string.str);
+                    }
+                }
+                
+                fprintf(file,
+                        "</div>)\n"
+                        "</div>\n");
+                
+                if (function_set.doc_string[i].size == 0){
+                    fprintf(file, "No documentation generated for this function, assume it is non-public.\n");
+                    fprintf(stderr, "warning: no documentation string for %.*s\n", name.size, name.str);
+                }
+                
+                Documentation *doc = &function_set.doc[i];
+                
+                int doc_param_count = doc->param_count;
+                if (doc_param_count > 0){
+                    fprintf(file, DOC_HEAD_OPEN"Parameters"DOC_HEAD_CLOSE);
+                    
+                    for (int j = 0; j < doc_param_count; ++j){
+                        String param_name = doc->param_name[j];
+                        String param_docs = doc->param_docs[j];
+                        
+                        // TODO(allen): check that param_name is actually
+                        // a parameter to this function!
+                        
+                        fprintf(file,
+                                "<div>\n"
+                                DOC_ITEM_HEAD_OPEN"%.*s"DOC_ITEM_HEAD_CLOSE"\n"
+                                "<div style='margin-bottom: 6mm;'>"DOC_ITEM_OPEN"%.*s"DOC_ITEM_CLOSE"</div>\n"
+                                "</div>\n",
+                                param_name.size, param_name.str,
+                                param_docs.size, param_docs.str
+                                );
+                    }
+                }
+                
+                String ret_doc = doc->return_doc;
+                if (ret_doc.size != 0){
+                    fprintf(file, DOC_HEAD_OPEN"Return"DOC_HEAD_CLOSE);
+                    fprintf(file,
+                            DOC_ITEM_OPEN"%.*s"DOC_ITEM_CLOSE,
+                            ret_doc.size, ret_doc.str
+                            );
+                }
+                
+                String main_doc = doc->main_doc;
+                if (main_doc.size != 0){
+                    fprintf(file, DOC_HEAD_OPEN"Description"DOC_HEAD_CLOSE);
+                    fprintf(file,
+                            DOC_ITEM_OPEN"%.*s"DOC_ITEM_CLOSE,
+                            main_doc.size, main_doc.str
+                            );
+                }
+                
+                print_see_also(file, doc);
+                
+                fprintf(file, "</div><hr>\n");
             }
             
-            fprintf(file, "</div><hr>\n");
+#undef SECTION
+#define SECTION MAJOR_SECTION".4"
+            
+            fprintf(file, "<h3>&sect;"SECTION" Type Descriptions</h3>\n");
+            int I = 1;
+            for (int i = 0; i < typedef_count; ++i, ++I){
+                String name = typedef_set.name[i];
+                String type = typedef_set.type[i];
+                
+                fprintf(file,
+                        "<div id='%.*s_doc' style='margin-bottom: 1cm;'>\n"
+                        " <h4>&sect;"SECTION".%d: %.*s</h4>\n"
+                        " <div style='"CODE_STYLE" "DESCRIPT_SECTION_STYLE"'>",
+                        name.size, name.str, I,
+                        name.size, name.str
+                        );
+                
+                // NOTE(allen): Code box
+                {
+                    fprintf(file,
+                            "typedef %.*s %.*s;",
+                            type.size, type.str,
+                            name.size, name.str
+                            );
+                }
+                
+                fprintf(file, "</div>\n");
+                
+                // NOTE(allen): Descriptive section
+                {
+                    String doc_string = typedef_set.doc_string[i];
+                    Documentation doc = {0};
+                    perform_doc_parse(part, doc_string, &doc);
+                    
+                    String main_doc = doc.main_doc;
+                    if (main_doc.size != 0){
+                        fprintf(file, DOC_HEAD_OPEN"Description"DOC_HEAD_CLOSE);
+                        fprintf(file,
+                                DOC_ITEM_OPEN"%.*s"DOC_ITEM_CLOSE,
+                                main_doc.size, main_doc.str
+                                );
+                    }
+                    
+                    print_see_also(file, &doc);
+                }
+                
+                fprintf(file, "</div><hr>\n");
+            }
+            
+            for (int i = 0; i < enum_count; ++i, ++I){
+                String name = enum_set.name[i];
+                
+                fprintf(file,
+                        "<div id='%.*s_doc' style='margin-bottom: 1cm;'>\n"
+                        " <h4>&sect;"SECTION".%d: %.*s</h4>\n"
+                        " <div style='"CODE_STYLE" "DESCRIPT_SECTION_STYLE"'>",
+                        name.size, name.str, I,
+                        name.size, name.str
+                        );
+                
+                // NOTE(allen): Code box
+                {
+                    fprintf(file,
+                            "enum %.*s;",
+                            name.size, name.str);
+                }
+                
+                fprintf(file, "</div>\n");
+                
+                // NOTE(allen): Descriptive section
+                {
+                    String doc_string = enum_set.doc_string[i];
+                    Documentation doc = {0};
+                    perform_doc_parse(part, doc_string, &doc);
+                    
+                    String main_doc = doc.main_doc;
+                    if (main_doc.size != 0){
+                        fprintf(file, DOC_HEAD_OPEN"Description"DOC_HEAD_CLOSE);
+                        fprintf(file,
+                                DOC_ITEM_OPEN"%.*s"DOC_ITEM_CLOSE,
+                                main_doc.size, main_doc.str
+                                );
+                    }
+                    
+                    if (enum_set.first_member[i]){
+                        fprintf(file, DOC_HEAD_OPEN"Values"DOC_HEAD_CLOSE);
+                        for (Enum_Member *member = enum_set.first_member[i];
+                             member;
+                             member = member->next){
+                            Documentation doc = {0};
+                            perform_doc_parse(part, member->doc_string, &doc);
+                            
+                            fprintf(file,
+                                    "<div>\n"
+                                    "<div><span style='"CODE_STYLE"'>"DOC_ITEM_HEAD_INL_OPEN
+                                    "%.*s"DOC_ITEM_HEAD_INL_CLOSE"</span></div>\n"
+                                    "<div style='margin-bottom: 6mm;'>"DOC_ITEM_OPEN"%.*s"DOC_ITEM_CLOSE"</div>\n"
+                                    "</div>\n",
+                                    member->name.size, member->name.str,
+                                    doc.main_doc.size, doc.main_doc.str
+                                    );
+                        }
+                    }
+                    
+                    print_see_also(file, &doc);
+                }
+                
+                fprintf(file, "</div><hr>\n");
+            }
+            
+            for (int i = 0; i < flag_count; ++i, ++I){
+                String name = flag_set.name[i];
+                
+                fprintf(file,
+                        "<div id='%.*s_doc' style='margin-bottom: 1cm;'>\n"
+                        " <h4>&sect;"SECTION".%d: %.*s</h4>\n"
+                        " <div style='"CODE_STYLE" "DESCRIPT_SECTION_STYLE"'>",
+                        name.size, name.str, I,
+                        name.size, name.str
+                        );
+                
+                // NOTE(allen): Code box
+                {
+                    fprintf(file,
+                            "enum %.*s;",
+                            name.size, name.str);
+                }
+                
+                fprintf(file, "</div>\n");
+                
+                // NOTE(allen): Descriptive section
+                {
+                    String doc_string = flag_set.doc_string[i];
+                    Documentation doc = {0};
+                    perform_doc_parse(part, doc_string, &doc);
+                    
+                    String main_doc = doc.main_doc;
+                    if (main_doc.size != 0){
+                        fprintf(file, DOC_HEAD_OPEN"Description"DOC_HEAD_CLOSE);
+                        fprintf(file,
+                                DOC_ITEM_OPEN"%.*s"DOC_ITEM_CLOSE,
+                                main_doc.size, main_doc.str
+                                );
+                    }
+                    
+                    if (flag_set.first_member[i]){
+                        fprintf(file, DOC_HEAD_OPEN"Flags"DOC_HEAD_CLOSE);
+                        for (Enum_Member *member = flag_set.first_member[i];
+                             member;
+                             member = member->next){
+                            Documentation doc = {0};
+                            perform_doc_parse(part, member->doc_string, &doc);
+                            
+                            fprintf(file,
+                                    "<div>\n"
+                                    "<div><span style='"CODE_STYLE"'>"DOC_ITEM_HEAD_INL_OPEN
+                                    "%.*s"DOC_ITEM_HEAD_INL_CLOSE" = %.*s</span></div>\n"
+                                    "<div style='margin-bottom: 6mm;'>"DOC_ITEM_OPEN"%.*s"DOC_ITEM_CLOSE"</div>\n"
+                                    "</div>\n",
+                                    member->name.size, member->name.str,
+                                    member->value.size, member->value.str,
+                                    doc.main_doc.size, doc.main_doc.str
+                                    );
+                        }
+                    }
+                    
+                    print_see_also(file, &doc);
+                }
+                
+                fprintf(file, "</div><hr>\n");
+            }
+            
+            for (int i = 0; i < struct_count; ++i, ++I){
+                Struct_Member *member = &struct_set.structs[i];
+                String name = member->name;
+                fprintf(file,
+                        "<div id='%.*s_doc' style='margin-bottom: 1cm;'>\n"
+                        " <h4>&sect;"SECTION".%d: %.*s</h4>\n"
+                        " <div style='"CODE_STYLE" "DESCRIPT_SECTION_STYLE"'>",
+                        name.size, name.str, I,
+                        name.size, name.str
+                        );
+                
+                // NOTE(allen): Code box
+                {
+                    print_struct_html(file, member);
+                }
+                
+                fprintf(file, "</div>\n");
+                
+                // NOTE(allen): Descriptive section
+                {
+                    String doc_string = member->doc_string;
+                    Documentation doc = {0};
+                    perform_doc_parse(part, doc_string, &doc);
+                    
+                    String main_doc = doc.main_doc;
+                    if (main_doc.size != 0){
+                        fprintf(file, DOC_HEAD_OPEN"Description"DOC_HEAD_CLOSE);
+                        fprintf(file,
+                                DOC_ITEM_OPEN"%.*s"DOC_ITEM_CLOSE,
+                                main_doc.size, main_doc.str
+                                );
+                    }
+                    
+                    if (member->first_child){
+                        fprintf(file, DOC_HEAD_OPEN"Fields"DOC_HEAD_CLOSE);
+                        print_struct_docs(file, part, member);
+                    }
+                    
+                    print_see_also(file, &doc);
+                }
+                
+                fprintf(file, "</div><hr>\n");
+            }
         }
         
-        for (int i = 0; i < struct_count; ++i, ++I){
-            Struct_Member *member = &struct_set.structs[i];
-            String name = member->name;
-            fprintf(file,
-                    "<div id='%.*s_doc' style='margin-bottom: 1cm;'>\n"
-                    " <h4>&sect;"SECTION".%d: %.*s</h4>\n"
-                    " <div style='"CODE_STYLE" "DESCRIPT_SECTION_STYLE"'>",
-                    name.size, name.str, I,
-                    name.size, name.str
-                    );
-            
-            // NOTE(allen): Code box
-            {
-                print_struct_html(file, member);
-            }
-            
-            fprintf(file, "</div>\n");
-            
-            // NOTE(allen): Descriptive section
-            {
-                
-            }
-            
-            fprintf(file, "</div><hr>\n");
-        }
+        fprintf(file,
+                "</div>\n"
+                "</body>\n"
+                "</html>\n"
+                );
+        
+        fclose(file);
     }
-    
-    fprintf(file,
-            "</div>\n"
-            "</body>\n"
-            "</html>\n"
-            );
-    
-    fclose(file);
 
     return(filename);
 }
 
-int main(){
+int main(int argc, char **argv){
     char *filename = 0;
+    
+    memset(&global_settings, 0, sizeof(global_settings));
+    
+    global_settings.generate_docs = true;
     
     filename = generate_keycode_enum();
     filename = generate_style();

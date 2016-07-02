@@ -163,9 +163,7 @@ file_viewing_data_zero(){
 }
 
 struct Recent_File_Data{
-    u64 unique_buffer_id;
     GUI_Scroll_Vars scroll;
-    
     Full_Cursor cursor;
     i32 mark;
     f32 preferred_x;
@@ -1600,7 +1598,7 @@ view_move_cursor_to_view(View *view, GUI_Scroll_Vars scroll){
 }
 
 internal void
-view_move_view_to_cursor(View *view, GUI_Scroll_Vars *scroll){
+view_move_view_to_cursor(View *view, GUI_Scroll_Vars *scroll, b32 center_view){
     f32 max_x = view_file_width(view);
     
     f32 cursor_y = view_get_cursor_y(view);
@@ -1613,10 +1611,20 @@ view_move_view_to_cursor(View *view, GUI_Scroll_Vars *scroll){
     Cursor_Limits limits = view_cursor_limits(view);
     
     if (cursor_y > target_y + limits.max){
-        target_y = CEIL32(cursor_y - limits.max + limits.delta);
+        if (center_view){
+            target_y = ROUND32(cursor_y - limits.max*.5f);
+        }
+        else{
+            target_y = CEIL32(cursor_y - limits.max + limits.delta);
+        }
     }
     if (cursor_y < target_y + limits.min){
-        target_y = FLOOR32(cursor_y - limits.delta - limits.min);
+        if (center_view){
+            target_y = ROUND32(cursor_y - limits.max*.5f);
+        }
+        else{
+            target_y = FLOOR32(cursor_y - limits.delta - limits.min);
+        }
     }
     
     target_y = clamp(0, target_y, scroll_vars.max_y);
@@ -1645,13 +1653,6 @@ file_view_nullify_file(View *view){
 
 internal void
 view_set_file(View *view, Editing_File *file, Models *models){
-#if 0
-    // TODO(allen): This belongs somewhere else.
-    Font_Info *fnt_info = get_font_info(models->font_set, models->global_font.font_id);
-    view->font_advance = fnt_info->advance;
-    view->line_height = fnt_info->height;
-#endif
-    
     if (view->file_data.file != 0){
         touch_file(&models->working_set, view->file_data.file);
     }
@@ -1662,18 +1663,16 @@ view_set_file(View *view, Editing_File *file, Models *models){
     if (file){
         view->file_data.unwrapped_lines = file->settings.unwrapped_lines;
         
-        u64 unique_buffer_id = file->unique_buffer_id;
         Recent_File_Data *recent = &view->recent;
-        
-        view->recent = recent_file_data_zero();
-        recent->unique_buffer_id = unique_buffer_id;
+        *recent = recent_file_data_zero();
         
         if (file_is_ready(file)){
             view_measure_wraps(&models->mem.general, view);
-            view->recent.cursor = view_compute_cursor_from_pos(view, file->state.cursor_pos);
-            view->recent.scroll.max_y = view_compute_max_target_y(view);
+            recent->cursor = view_compute_cursor_from_pos(view, file->state.cursor_pos);
+            recent->scroll.max_y = view_compute_max_target_y(view);
+            recent->preferred_x = view_get_cursor_x(view);
             
-            view_move_view_to_cursor(view, &view->recent.scroll);
+            view_move_view_to_cursor(view, &recent->scroll, true);
             view->reinit_scrolling = 1;
         }
     }
@@ -3581,7 +3580,7 @@ view_end_cursor_scroll_updates(View *view){
         if (view->gui_target.did_file){
             view->recent.scroll.max_y = view_compute_max_target_y(view);
         }
-        view_move_view_to_cursor(view, view->current_scroll);
+        view_move_view_to_cursor(view, view->current_scroll, false);
         gui_post_scroll_vars(&view->gui_target, view->current_scroll, view->scroll_region);
         break;
         
@@ -4385,28 +4384,26 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                                                   &keys, &view->list_i, &update);
                             }
                             
-                            {
-                                begin_exhaustive_loop(&loop, hdir);
-                                for (i = 0; i < loop.count; ++i){
-                                    file_info = get_exhaustive_info(system, &models->working_set, &loop, i);
+                            begin_exhaustive_loop(&loop, hdir);
+                            for (i = 0; i < loop.count; ++i){
+                                file_info = get_exhaustive_info(system, &models->working_set, &loop, i);
+                                
+                                if (file_info.name_match){
+                                    id.id[0] = (u64)(file_info.info);
                                     
-                                    if (file_info.name_match){
-                                        id.id[0] = (u64)(file_info.info);
-                                        
-                                        String filename = make_string(file_info.info->filename,
-                                                                      file_info.info->filename_len,
-                                                                      file_info.info->filename_len+1);
-                                        
-                                        if (gui_do_file_option(target, id, filename,
-                                                               file_info.is_folder, file_info.message)){
-                                            if (file_info.is_folder){
-                                                set_last_folder(&hdir->string, file_info.info->filename, '/');
-                                                do_new_directory = 1;
-                                            }
-                                            else if (use_item_in_list){
-                                                complete = 1;
-                                                copy(&comp_dest, loop.full_path);
-                                            }
+                                    String filename = make_string(file_info.info->filename,
+                                                                  file_info.info->filename_len,
+                                                                  file_info.info->filename_len+1);
+                                    
+                                    if (gui_do_file_option(target, id, filename,
+                                                           file_info.is_folder, file_info.message)){
+                                        if (file_info.is_folder){
+                                            set_last_folder(&hdir->string, file_info.info->filename, '/');
+                                            do_new_directory = 1;
+                                        }
+                                        else if (use_item_in_list){
+                                            complete = 1;
+                                            copy(&comp_dest, loop.full_path);
                                         }
                                     }
                                 }
@@ -4938,8 +4935,6 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                                     {
                                         Recent_File_Data *recent = &view_ptr->recent;
                                         
-                                        SHOW_GUI_U64   (2, h_align, "absolute buffer id", recent->unique_buffer_id);
-                                        SHOW_GUI_BLANK (2);
                                         SHOW_GUI_SCROLL(2, h_align, "scroll:", recent->scroll);
                                         SHOW_GUI_BLANK (2);
                                         SHOW_GUI_CURSOR(2, h_align, "cursor:", recent->cursor);

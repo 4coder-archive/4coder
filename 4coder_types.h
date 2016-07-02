@@ -1,7 +1,24 @@
 
 
-/* DOC(Key_Code is the type alias for key codes.) */
+/* DOC(bool32 is an alias name to signal that an integer parameter or field is for
+true/false vales.) */
+typedef int32_t bool32;
+
+/* DOC(int_color is an alias name to signal that an integer parameter or field is for
+a color value, colors are specified as 24 bit integers in 3 channels: 0xRRGGBB.) */
+typedef uint32_t int_color;
+
+/* DOC(Key_Code is the alias for key codes including raw codes and codes translated
+to textual input that takes modifiers into account.) */
 typedef unsigned char Key_Code;
+
+/* DOC(Buffer_ID is used to name a 4coder buffer.  Each buffer has a unique id but
+when a buffer is closed it's id may be recycled by future, different buffers.) */
+typedef int32_t Buffer_ID;
+
+/* DOC(View_ID is used to name a 4coder view.  Each view has a unique id in
+the range [1,16].) */
+typedef int32_t View_ID;
 
 #define ENUM(type,name) typedef type name; enum name##_
 #define FLAGENUM(name) typedef uint32_t name; enum name##_
@@ -270,13 +287,25 @@ ENUM(int32_t, Mouse_Cursor_Show_Type){
 };
 
 /* DOC(
+Generic_Command acts as a name for a command, and can name an
+internal command or a custom command.
+)*/
+union Generic_Command{
+    /*DOC(If this Generic_Command represents an internal command the cmdid field
+    will have a value less than cmdid_count, and this field is the command id for the command.)*/
+    Command_ID cmdid;
+    /*DOC(If this Generic_Command does not represent an internal command the command
+    field is the pointer to the custom command..)*/
+    Custom_Command_Function *command;
+};
+
+/* DOC(
 Key_Event_Data describes a key event, including the
 translation to a character, the translation to
 a character ignoring the state of caps lock, and
 an array of all the modifiers that were pressed
 at the time of the event.
-)
-*/
+)*/
 struct Key_Event_Data{
     /* DOC(This field is the raw keycode which is always non-zero in valid key events.) */
 	Key_Code keycode;
@@ -405,39 +434,39 @@ struct Buffer_Summary{
     This field indicates whether the Buffer_Summary describes a buffer that is open in 4coder.
     When this field is false the summary is referred to as a "null summary".
     ) */
-    int exists;
+    bool32 exists;
     /* DOC(If this is not a null summary, this field indicates whether the buffer has finished loading.) */
-    int ready;
+    bool32 ready;
     /* DOC(
     If this is not a null summary this field is the id of the associated buffer.
     If this is a null summary then buffer_id is 0.
     ) */
-    int buffer_id;
+    int32_t buffer_id;
     /*
     DOC(If this is not a null summary, this field contains flags describing the protection status of the buffer.)
     DOC_SEE(Access_Flag)
     */
-    unsigned int lock_flags;
+    Access_Flag lock_flags;
     
     /* DOC(If this is not a null summary, this field specifies the size of the text in the buffer.) */
-    int size;
+    int32_t size;
     
     /* DOC(If this is not a null summary, this field specifies the file name associated to this buffer.) */
     char *file_name;
     /* DOC(This field specifies the length of the file_name string.) */
-    int file_name_len;
+    int32_t file_name_len;
     
     /* DOC(If this is not a null summary, this field specifies the name of the buffer.) */
     char *buffer_name;
     /* DOC(This field specifies the length of the buffer_name string.) */
-    int buffer_name_len;
+    int32_t buffer_name_len;
     
     /* DOC(This is a hold over from an old system, consider it deprecated.) */
-    int buffer_cursor_pos;
+    int32_t buffer_cursor_pos;
     /* DOC(If this is not a null summary, this field indicates whether the buffer is set to lex tokens.) */
-    int is_lexed;
+    bool32 is_lexed;
     /* DOC(If this is not a null summary, this field specifies the id of the command map for this buffer.) */
-    int map_id;
+    int32_t map_id;
 };
 
 /* DOC(
@@ -448,19 +477,19 @@ struct View_Summary{
     This field indicates whether the View_Summary describes a view that is open in 4coder.
     When this field is false the summary is referred to as a "null summary".
     ) */
-    int exists;
+    bool32 exists;
     /* DOC(
     If this is not a null summary, this field is the id of the associated view.
     If this is a null summary then view_id is 0.
     ) */
-    int view_id;
+    int32_t view_id;
     /* DOC(If this is not a null summary, and this view looks at a buffer, this is the id of the buffer.) */
-    int buffer_id;
+    int32_t buffer_id;
     /*
     DOC(If this is not a null summary, this field contains flags describing the protection status of the view.)
     DOC_SEE(Access_Flag)
     */
-    unsigned int lock_flags;
+    Access_Flag lock_flags;
     
     /*
     DOC(If this is not a null summary, this describes the position of the cursor.)
@@ -477,9 +506,9 @@ struct View_Summary{
     /* DOC(If this is not a null summary, this specifies the height of a line rendered in the view.) */
     float line_height;
     /* DOC(If this is not a null summary, this indicates that the view is set to render with unwrapped lines.) */
-    int unwrapped_lines;
+    bool32 unwrapped_lines;
     /* DOC(If this is not a null summary, this indicates that the view is set to highlight white space.) */
-    int show_whitespace;
+    bool32 show_whitespace;
     
     /* DOC(This feature is not fully implemented yet.) */
     i32_Rect file_region;
@@ -487,15 +516,18 @@ struct View_Summary{
     GUI_Scroll_Vars scroll_vars;
 };
 
-/* DOC(User_Input describes a user input event which can be either a key press or mouse event.) */
+/*
+DOC(User_Input describes a user input event which can be either a key press or mouse event.)
+DOC_SEE(User_Input_Type_ID)
+DOC_SEE(Generic_Command)
+*/
 struct User_Input{
     /*
     DOC(This field specifies whether the event was a key press or mouse event.)
-    DOC_SEE(User_Input_Type_ID)
     */
-    int type;
+    User_Input_Type_ID type;
     /* DOC(This field indicates that an abort event has occurred and the command needs to shut down.) */
-    int abort;
+    bool32 abort;
     union{
         /* DOC(This field describes a key press event.) */
         Key_Event_Data key;
@@ -504,9 +536,8 @@ struct User_Input{
     };
     /*
     DOC(If this event would trigger a command, this field specifies what the command would be.)
-    TODO
     */
-    unsigned long long command;
+    Generic_Command command;
 };
 
 /* DOC(Query_Bar is a struct used to store information in the user's control
@@ -527,11 +558,11 @@ struct Event_Message{
 /* 
 DOC(Theme_Color stores a style tag/color pair, for the purpose of setting and getting colors in the theme .)
 DOC_SEE(Style_Tag)
+DOC_SEE(int_color)
 */
 struct Theme_Color{
     Style_Tag tag;
-    /* DOC(This field specifies a color in a 24, bit 3 channel RGB integer.) */
-    uint32_t color;
+    int_color color;
 };
 
 

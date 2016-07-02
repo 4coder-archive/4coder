@@ -26,7 +26,34 @@ typedef struct Offset_String{
 } Offset_String;
 #endif
 
+// These are regular hooks, any of them can be set to any function
+// that matches the HOOK_SIG pattern.
+enum Hook_ID{
+    hook_start,
+    hook_file_out_of_sync,
+    // never below this
+    hook_type_count
+};
+
+// These are for special hooks, each must bind to specialized signatures
+// that do not necessarily have access to the app pointer.
+enum Special_Hook_ID{
+    _hook_scroll_rule = hook_type_count,
+    _hook_new_file,
+    _hook_open_file,
+    _hook_command_caller,
+    _hook_input_filter,
+};
+
+#define CommandEqual(c1,c2) ((unsigned long long)(c1) == (unsigned long long)(c2))
+
+#define CUSTOM_COMMAND_SIG(name) void name(struct Application_Links *app)
+typedef CUSTOM_COMMAND_SIG(Custom_Command_Function);
+
 #include "4coder_types.h"
+
+#define COMMAND_CALLER_HOOK(name) int name(struct Application_Links *app, Generic_Command cmd)
+typedef COMMAND_CALLER_HOOK(Command_Caller_Hook_Function);
 
 inline Key_Event_Data
 key_event_data_zero(){
@@ -51,50 +78,26 @@ make_range(int p1, int p2){
     }
     return(range);
 }
-
-// These are regular hooks, any of them can be set to any function
-// that matches the HOOK_SIG pattern.
-enum Hook_ID{
-    hook_start,
-    hook_file_out_of_sync,
-    // never below this
-    hook_type_count
-};
-
-// These are for special hooks, each must bind to specialized signatures
-// that do not necessarily have access to the app pointer.
-enum Special_Hook_ID{
-    _hook_scroll_rule = hook_type_count,
-    _hook_new_file,
-    _hook_open_file,
-    _hook_command_caller,
-    _hook_input_filter,
-};
-
 inline Buffer_Summary
 buffer_summary_zero(){
     Buffer_Summary summary={0};
     return(summary);
 }
-
 inline View_Summary
 view_summary_zero(){
     View_Summary summary={0};
     return(summary);
 }
 
-#define CommandEqual(c1,c2) ((unsigned long long)(c1) == (unsigned long long)(c2))
-
 #define VIEW_ROUTINE_SIG(name) void name(struct Application_Links *app, int view_id)
 #define GET_BINDING_DATA(name) int name(void *data, int size)
-#define CUSTOM_COMMAND_SIG(name) void name(struct Application_Links *app)
 #define HOOK_SIG(name) int name(struct Application_Links *app)
 #define OPEN_FILE_HOOK_SIG(name) int name(struct Application_Links *app, int buffer_id)
 #define SCROLL_RULE_SIG(name) int name(float target_x, float target_y, float *scroll_x, float *scroll_y, int view_id, int is_new_target, float dt)
 #define INPUT_FILTER_SIG(name) void name(Mouse_State *mouse)
 
 typedef VIEW_ROUTINE_SIG(View_Routine_Function);
-typedef CUSTOM_COMMAND_SIG(Custom_Command_Function);
+
 typedef GET_BINDING_DATA(Get_Binding_Data_Function);
 typedef HOOK_SIG(Hook_Function);
 
@@ -102,13 +105,6 @@ typedef OPEN_FILE_HOOK_SIG(Open_File_Hook_Function);
 typedef SCROLL_RULE_SIG(Scroll_Rule_Function);
 typedef INPUT_FILTER_SIG(Input_Filter_Function);
 
-union Generic_Command{
-    Command_ID cmdid;
-    Custom_Command_Function *command;
-};
-
-#define COMMAND_CALLER_HOOK(name) int name(struct Application_Links *app, Generic_Command cmd)
-typedef COMMAND_CALLER_HOOK(Command_Caller_Hook_Function);
 
 
 

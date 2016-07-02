@@ -286,6 +286,7 @@ get_bindings(void *data, int size){
     // begin_map to clear everything that was in the map and
     // bind new things instead.
     begin_map(context, mapid_global);
+    bind(context, '.', MDFR_ALT, change_to_build_panel);
     bind(context, ',', MDFR_ALT, close_build_panel);
     bind(context, 'n', MDFR_ALT, msvc_goto_next_error);
     bind(context, 'N', MDFR_ALT, msvc_goto_prev_error);

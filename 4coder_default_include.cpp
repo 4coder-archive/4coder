@@ -236,7 +236,7 @@ clipboard_copy(Application_Links *app, int start, int end, Buffer_Summary *buffe
             
             if (size <= app->memory_size){
                 app->buffer_read_range(app, &buffer, start, end, str);
-                app->clipboard_post(app, str, size);
+                app->clipboard_post(app, 0, str, size);
                 if (buffer_out){*buffer_out = buffer;}
                 result = true;
             }
@@ -285,7 +285,7 @@ View_Paste_Index *view_paste_index = view_paste_index_ - 1;
 
 CUSTOM_COMMAND_SIG(paste){
     unsigned int access = AccessOpen;
-    int count = app->clipboard_count(app);
+    int count = app->clipboard_count(app, 0);
     if (count > 0){
         View_Summary view = app->get_active_view(app, access);
         
@@ -294,7 +294,7 @@ CUSTOM_COMMAND_SIG(paste){
         int paste_index = 0;
         view_paste_index[view.view_id].index = paste_index;
         
-        int len = app->clipboard_index(app, paste_index, 0, 0);
+        int len = app->clipboard_index(app, 0, paste_index, 0, 0);
         char *str = 0;
         
         if (len <= app->memory_size){
@@ -302,7 +302,7 @@ CUSTOM_COMMAND_SIG(paste){
         }
         
         if (str){
-            app->clipboard_index(app, paste_index, str, len);
+            app->clipboard_index(app, 0, paste_index, str, len);
             
             Buffer_Summary buffer = app->get_buffer(app, view.buffer_id, access);
             int pos = view.cursor.pos;
@@ -321,7 +321,7 @@ CUSTOM_COMMAND_SIG(paste){
 
 CUSTOM_COMMAND_SIG(paste_next){
     unsigned int access = AccessOpen;
-    int count = app->clipboard_count(app);
+    int count = app->clipboard_count(app, 0);
     if (count > 0){
         View_Summary view = app->get_active_view(app, access);
         
@@ -334,7 +334,7 @@ CUSTOM_COMMAND_SIG(paste_next){
             int paste_index = view_paste_index[view.view_id].index + 1;
             view_paste_index[view.view_id].index = paste_index;
             
-            int len = app->clipboard_index(app, paste_index, 0, 0);
+            int len = app->clipboard_index(app, 0, paste_index, 0, 0);
             char *str = 0;
             
             if (len <= app->memory_size){
@@ -342,7 +342,7 @@ CUSTOM_COMMAND_SIG(paste_next){
             }
             
             if (str){
-                app->clipboard_index(app, paste_index, str, len);
+                app->clipboard_index(app, 0, paste_index, str, len);
                 
                 Buffer_Summary buffer = app->get_buffer(app, view.buffer_id, access);
                 Range range = get_range(&view);
@@ -970,9 +970,9 @@ isearch(Application_Links *app, int start_reversed){
         int step_forward = 0;
         int step_backward = 0;
         
-        if (CommandEqual(in.command, search) ||
+        if ((in.command.command == search) ||
             in.key.keycode == key_page_down || in.key.keycode == key_down) step_forward = 1;
-        if (CommandEqual(in.command, reverse_search) ||
+        if ((in.command.command == reverse_search) ||
             in.key.keycode == key_page_up || in.key.keycode == key_up) step_backward = 1;
         
         int start_pos = pos;
@@ -1365,6 +1365,39 @@ CUSTOM_COMMAND_SIG(write_and_auto_tab){
 // Default Building Stuff
 //
 
+// NOTE(allen|a4.0.9): This is provided to establish a default method of getting
+// a "build directory".  This function tries to setup the build directory in the
+// directory of the given buffer, it cannot it get's the 4coder hot directory.
+// This behavior is a little different than previous versions of 4coder.
+//
+//  There is requirement that a custom build system in 4coder  actually use the
+// directory given by this function.
+static int
+get_build_directory(Application_Links *app, Buffer_Summary *buffer, String *dir_out){
+    int result = false;
+    
+    if (buffer->file_name){
+        if (!match(buffer->file_name, buffer->buffer_name)){
+            String dir = make_string(buffer->file_name,
+                                     buffer->file_name_len,
+                                     buffer->file_name_len+1);
+            remove_last_folder(&dir);
+            append(dir_out, dir);
+            result = true;
+        }
+    }
+    
+    if (!result){
+        int len = app->directory_get_hot(app, dir_out->str,
+                                         dir_out->memory_size - dir_out->size);
+        if (len + dir_out->size < dir_out->memory_size){
+            result = true;
+        }
+    }
+    
+    return(result);
+}
+
 CUSTOM_COMMAND_SIG(build_search_regular){
     // NOTE(allen|a3.3): An example of traversing the filesystem through parent
     // directories looking for a file, in this case a batch file to execute.
@@ -1401,14 +1434,15 @@ CUSTOM_COMMAND_SIG(build_search_regular){
     // This doesn't actually change the hot directory of 4coder, it's only effect is to
     // modify the string you passed in to reflect the change in directory if that change was possible.
     
-    int old_size;
+    int old_size = 0;
     int size = app->memory_size/2;
     
     unsigned int access = AccessAll;
     View_Summary view = app->get_active_view(app, access);
+    Buffer_Summary buffer = app->get_buffer(app, view.buffer_id, access);
     
     String dir = make_string(app->memory, 0, size);
-    dir.size = app->directory_get_hot(app, dir.str, dir.memory_size);
+    get_build_directory(app, &buffer, &dir);
     
     String command = make_string((char*)app->memory + size, 0, size);
     
