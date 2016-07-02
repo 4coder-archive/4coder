@@ -320,16 +320,16 @@ COMMAND_DECL(center_view){
     
     f32 y = 0, h = 0;
     if (view->file_data.unwrapped_lines){
-        y = view->recent.cursor.unwrapped_y;
+        y = view->edit_poss.cursor.unwrapped_y;
     }
     else{
-        y = view->recent.cursor.wrapped_y;
+        y = view->edit_poss.cursor.wrapped_y;
     }
     
     h = view_file_height(view);
     y = clamp_bottom(0.f, y - h*.5f);
     
-    view->recent.scroll.target_y = ROUND32(y);
+    view->edit_poss.scroll.target_y = ROUND32(y);
 }
 
 COMMAND_DECL(left_adjust_view){
@@ -338,39 +338,14 @@ COMMAND_DECL(left_adjust_view){
     
     f32 x = 0;
     if (view->file_data.unwrapped_lines){
-        x = view->recent.cursor.unwrapped_x;
+        x = view->edit_poss.cursor.unwrapped_x;
     }
     else{
-        x = view->recent.cursor.wrapped_x;
+        x = view->edit_poss.cursor.wrapped_x;
     }
     
     x = clamp_bottom(0.f, x - 30.f);
-    view->recent.scroll.target_x = ROUND32(x);
-}
-
-COMMAND_DECL(set_cursor){
-    REQ_READABLE_VIEW(view);
-    REQ_FILE(file, view);
-    USE_VARS(vars);
-    
-    i32_Rect file_region = view->file_region;
-    Mouse_State mouse = direct_get_mouse_state(&vars->available_input);
-    
-    f32 max_y = view_file_height(view);
-    f32 max_x = view_file_width(view);
-    GUI_Scroll_Vars scroll_vars = view->gui_target.scroll_updated;
-    
-    f32 rx = (f32)(mouse.x - file_region.x0);
-    f32 ry = (f32)(mouse.y - file_region.y0);
-    
-    if (ry >= 0){
-        if (rx >= 0 && rx < max_x && ry >= 0 && ry < max_y){
-            view_cursor_move(view,
-                             rx + scroll_vars.scroll_x,
-                             ry + scroll_vars.scroll_y,
-                             1);
-        }
-    }
+    view->edit_poss.scroll.target_x = ROUND32(x);
 }
 
 COMMAND_DECL(word_complete){
@@ -383,49 +358,40 @@ COMMAND_DECL(word_complete){
     General_Memory *general = &models->mem.general;
     Working_Set *working_set = &models->working_set;
     Complete_State *complete_state = &vars->complete_state;
-    Search_Range *ranges;
-    Search_Match match;
+    Search_Range *ranges = 0;
     
-    Temp_Memory temp;
+    Buffer_Type *buffer = &file->state.buffer;
+    i32 size_of_buffer = buffer_size(buffer);
     
-    Buffer_Type *buffer;
-    Buffer_Backify_Type loop;
-    char *data;
-    i32 end;
-    i32 size_of_buffer;
+    i32 cursor_pos = 0;
+    i32 word_start = 0;
+    i32 word_end = 0;
+    char c = 0;
     
-    i32 cursor_pos, word_start, word_end;
-    char c;
+    char *spare = 0;
+    i32 size = 0;
     
-    char *spare;
-    i32 size;
-    
-    i32 match_size;
-    b32 do_init = 0;
-    
-    buffer = &file->state.buffer;
-    size_of_buffer = buffer_size(buffer);
-    
+    b32 do_init = false;
     if (view->mode.rewrite != 2){
-        do_init = 1;
+        do_init = true;
     }
     view->next_mode.rewrite = 2;
-    
     if (complete_state->initialized == 0){
-        do_init = 1;
+        do_init = true;
     }
     
     if (do_init){
-        word_end = view->recent.cursor.pos;
+        word_end = view->edit_poss.cursor.pos;
         word_start = word_end;
         cursor_pos = word_end - 1;
         
-        // TODO(allen): macros for these buffer loops and some method of breaking out of them.
-        for (loop = buffer_backify_loop(buffer, cursor_pos, 0);
+        // TODO(allen): macros for these buffer loops and some method
+        // of breaking out of them.
+        for (Buffer_Backify_Type loop = buffer_backify_loop(buffer, cursor_pos, 0);
              buffer_backify_good(&loop);
              buffer_backify_next(&loop)){
-            end = loop.absolute_pos;
-            data = loop.data - loop.absolute_pos;
+            i32 end = loop.absolute_pos;
+            char *data = loop.data - loop.absolute_pos;
             for (; cursor_pos >= end; --cursor_pos){
                 c = data[cursor_pos];
                 if (char_is_alpha(c)){
@@ -495,10 +461,12 @@ COMMAND_DECL(word_complete){
     
     if (size > 0){
         for (;;){
-            match = search_next_match(part, &complete_state->set, &complete_state->iter);
+            i32 match_size = 0;
+            Search_Match match =
+                search_next_match(part, &complete_state->set, &complete_state->iter);
             
             if (match.found_match){
-                temp = begin_temp_memory(part);
+                Temp_Memory temp = begin_temp_memory(part);
                 match_size = match.end - match.start;
                 spare = (char*)push_array(part, char, match_size);
                 buffer_stringify(match.buffer, match.start, match.end, spare);
@@ -674,21 +642,18 @@ COMMAND_DECL(toggle_line_wrap){
     REQ_READABLE_VIEW(view);
     REQ_FILE(file, view);
     
+    // TODO(allen): WHAT TO DO HERE???
     Relative_Scrolling scrolling = view_get_relative_scrolling(view);
     if (view->file_data.unwrapped_lines){
         view->file_data.unwrapped_lines = 0;
         file->settings.unwrapped_lines = 0;
-        view->recent.scroll.target_x = 0;
-        view->recent.cursor = view_compute_cursor_from_pos(
-                                                            view, view->recent.cursor.pos);
-        view->recent.preferred_x = view->recent.cursor.wrapped_x;
+        view->edit_poss.scroll.target_x = 0;
+        view_cursor_move(view, view->edit_poss.cursor.pos);
     }
     else{
         view->file_data.unwrapped_lines = 1;
         file->settings.unwrapped_lines = 1;
-        view->recent.cursor =
-            view_compute_cursor_from_pos(view, view->recent.cursor.pos);
-        view->recent.preferred_x = view->recent.cursor.unwrapped_x;
+        view_cursor_move(view, view->edit_poss.cursor.pos);
     }
     view_set_relative_scrolling(view, scrolling);
 }
@@ -718,7 +683,7 @@ case_change_range(System_Functions *system,
                   Mem_Options *mem, View *view, Editing_File *file,
                   u8 a, u8 z, u8 char_delta){
 #if BUFFER_EXPERIMENT_SCALPEL <= 0
-    Range range = make_range(view->recent.cursor.pos, view->recent.mark);
+    Range range = make_range(view->edit_poss.cursor.pos, view->edit_poss.mark);
     if (range.start < range.end){
         Edit_Step step = {};
         step.type = ED_NORMAL;
@@ -929,25 +894,24 @@ COMMAND_DECL(page_down){
     REQ_READABLE_VIEW(view);
     
     i32 height = CEIL32(view_file_height(view));
-    i32 max_target_y = view->recent.scroll.max_y;
+    f32 y = view_get_cursor_y(view);
+    f32 x = view->edit_poss.preferred_x;
     
-    view->recent.scroll.target_y =
-        clamp_top(view->recent.scroll.target_y + height, max_target_y);
-    
-    view->recent.cursor =
-        view_compute_cursor_from_xy(view, 0, view->recent.scroll.target_y + (height - view->line_height)*.5f);
+    Full_Cursor cursor =
+        view_compute_cursor_from_xy(view, x, y+height);
+    edit_pos_set_cursor(&view->edit_poss, cursor, false, view->file_data.unwrapped_lines);
 }
 
 COMMAND_DECL(page_up){
     REQ_READABLE_VIEW(view);
     
     i32 height = CEIL32(view_file_height(view));
+    f32 y = view_get_cursor_y(view);
+    f32 x = view->edit_poss.preferred_x;
     
-    view->recent.scroll.target_y =
-        clamp_bottom(0, view->recent.scroll.target_y - height);
-    
-    view->recent.cursor =
-        view_compute_cursor_from_xy(view, 0, view->recent.scroll.target_y + (height - view->line_height)*.5f);
+    Full_Cursor cursor =
+        view_compute_cursor_from_xy(view, x, y-height);
+    edit_pos_set_cursor(&view->edit_poss, cursor, false, view->file_data.unwrapped_lines);
 }
 
 COMMAND_DECL(open_color_tweaker){
@@ -2569,7 +2533,11 @@ App_Step_Sig(app_step){
                     summary.mouse = mouse_state;
                 }
                 
-                GUI_Scroll_Vars *scroll_vars = view->current_scroll;
+                GUI_Scroll_Vars *scroll_vars = &view->edit_poss.scroll;
+                if (view->showing_ui != VUI_None){
+                    scroll_vars = &view->gui_scroll;
+                }
+                
                 Input_Process_Result ip_result =
                     do_step_file_view(system, view, panel->inner, active,
                                       &summary, *scroll_vars, view->scroll_region);
@@ -2584,8 +2552,16 @@ App_Step_Sig(app_step){
                     consume_input(&vars->available_input, Input_MouseRightButton,
                                   "file view step");
                 }
-                Assert(view->current_scroll == scroll_vars);
-                *scroll_vars = ip_result.vars;
+                
+                if (!gui_scroll_eq(scroll_vars, &ip_result.vars)){
+                    if (scroll_vars == &view->edit_poss.scroll){
+                        edit_pos_set_scroll(&view->edit_poss, ip_result.vars);
+                    }
+                    else{
+                        *scroll_vars = ip_result.vars;
+                    }
+                }
+                
                 view->scroll_region = ip_result.region;
             }
         }
@@ -2731,14 +2707,15 @@ App_Step_Sig(app_step){
         String welcome =
             make_lit_string("Welcome to " VERSION "\n"
                             "If you're new to 4coder there's no tutorial yet :(\n"
-                            "you can use the key combo control + o to look for a file\n"
+                            "you can use the key combo <ctrl o> to look for a file\n"
                             "and if you load README.txt you'll find all the key combos there are.\n"
                             "\n"
                             "Newest features:\n"
                             "-A scratch buffer is now opened with 4coder automatically\n"
-                            "-<F2> toggels mouse suppression mode\n"
-                            "-Experimental new work-flow for building a jumping to errors\n"
-                            "  (only available in power for this version)\n"
+                            "-A new mouse suppression mode toggled by <F2>\n"
+                            "-New 4coder_API.html documentation file included for the custom layer API\n"
+                            "-Experimental new work-flow for building and jumping to errors\n"
+                            "  (only available in power for this build)\n"
                             "\n"
                             "New in alpha 4.0.8:\n"
                             "-Eliminated the parameter stack\n"
@@ -2750,12 +2727,12 @@ App_Step_Sig(app_step){
                             "\n"
                             "New in alpha 4.0.6:\n"
                             "-Tied the view scrolling and the list arrow navigation together\n"
-                            "-Scroll bars are now toggleable with ALT-s for show and ALT-w for hide\n"
+                            "-Scroll bars are now toggleable with <alt s> for show and <alt w> for hide\n"
                             "\n"
                             "New in alpha 4.0.5:\n"
                             "-New indent rule\n"
                             "-app->buffer_compute_cursor in the customization API\n"
-                            "-f keys are available\n"
+                            "-f keys are available in the customization system now\n"
                             "\n"
                             "New in alpha 4.0.3 and 4.0.4:\n"
                             "-Scroll bar on files and file lists\n"
@@ -2949,8 +2926,15 @@ App_Step_Sig(app_step){
             draw_rectangle(target, full, back_color);
             
             draw_push_clip(target, panel->inner);
-            do_render_file_view(system, view, cmd->view,
+            
+            GUI_Scroll_Vars *scroll_vars = &view->edit_poss.scroll;
+            if (view->showing_ui != VUI_None){
+                scroll_vars = &view->gui_scroll;
+            }
+            
+            do_render_file_view(system, view, scroll_vars, cmd->view, 
                                 panel->inner, active, target, &dead_input);
+            
             draw_pop_clip(target);
             
             u32 margin_color;

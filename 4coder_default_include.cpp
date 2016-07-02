@@ -632,9 +632,10 @@ SEEK_COMMAND(alphanumeric_or_camel, left,  BoundaryAlphanumeric | BoundaryCamelC
 static void
 write_string(Application_Links *app, String string){
     unsigned int access = AccessOpen;
-    Buffer_Summary buffer = get_active_buffer(app, access);
+    View_Summary view = app->get_active_view(app, access);
+    Buffer_Summary buffer = app->get_buffer(app, view.buffer_id, access);
     app->buffer_replace_range(app, &buffer,
-                              buffer.buffer_cursor_pos, buffer.buffer_cursor_pos,
+                              view.cursor.pos, view.cursor.pos,
                               string.str, string.size);
 }
 

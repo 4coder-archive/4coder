@@ -25,7 +25,6 @@ fill_buffer_summary(Buffer_Summary *buffer, Editing_File *file, Working_Set *wor
         buffer->is_lexed = file->settings.tokens_exist;
         buffer->buffer_id = file->id.id;
         buffer->size = file->state.buffer.size;
-        buffer->buffer_cursor_pos = file->state.cursor_pos;
         
         buffer->file_name_len = file->name.source_path.size;
         buffer->buffer_name_len = file->name.live_name.size;
@@ -67,12 +66,12 @@ fill_view_summary(View_Summary *view, View *vptr, Live_Views *live_set, Working_
             
             view->buffer_id = buffer_id;
             
-            view->mark = view_compute_cursor_from_pos(vptr, vptr->recent.mark);
-            view->cursor = vptr->recent.cursor;
-            view->preferred_x = vptr->recent.preferred_x;
+            view->mark = view_compute_cursor_from_pos(vptr, vptr->edit_poss.mark);
+            view->cursor = vptr->edit_poss.cursor;
+            view->preferred_x = vptr->edit_poss.preferred_x;
             
             view->file_region = vptr->file_region;
-            view->scroll_vars = *vptr->current_scroll;
+            view->scroll_vars = vptr->edit_poss.scroll;
         }
     }
 }
@@ -683,20 +682,14 @@ DOC_SEE(4coder_Buffer_Positioning_System)
     
     bool32 result = false;
     int32_t size = 0;
-    int32_t next_cursor = 0, pos = 0;
     
     if (file){
         size = buffer_size(&file->state.buffer);
         if (0 <= start && start <= end && end <= size){
             result = true;
             
-            pos = file->state.cursor_pos;
-            if (pos < start) next_cursor = pos;
-            else if (pos < end) next_cursor = start;
-            else next_cursor = pos + end - start - len;
-            
             file_replace_range(cmd->system, cmd->models,
-                               file, start, end, str, len, next_cursor);
+                               file, start, end, str, len, 0);
         }
         fill_buffer_summary(buffer, file, cmd);
     }
@@ -1242,12 +1235,10 @@ DOC_SEE(Buffer_Seek)
             if (seek.type == buffer_seek_line_char && seek.character <= 0){
                 seek.character = 1;
             }
-            vptr->recent.cursor = view_compute_cursor(vptr, seek);
-            if (set_preferred_x){
-                vptr->recent.preferred_x = view_get_cursor_x(vptr);
-            }
+            Full_Cursor cursor = view_compute_cursor(vptr, seek);
+            edit_pos_set_cursor(&vptr->edit_poss, cursor,
+                                set_preferred_x, vptr->file_data.unwrapped_lines);
             fill_view_summary(view, vptr, cmd);
-            file->state.cursor_pos = vptr->recent.cursor.pos;
         }
     }
     
@@ -1271,10 +1262,10 @@ DOC_SEE(Buffer_Seek)
         result = true;
         if (seek.type != buffer_seek_pos){
             cursor = view_compute_cursor(vptr, seek);
-            vptr->recent.mark = cursor.pos;
+            vptr->edit_poss.mark = cursor.pos;
         }
         else{
-            vptr->recent.mark = seek.pos;
+            vptr->edit_poss.mark = seek.pos;
         }
         fill_view_summary(view, vptr, cmd);
     }

@@ -124,7 +124,7 @@ struct GUI_Target{
     GUI_Scroll_Vars scroll_original;
     i32_Rect region_original;
     
-    GUI_Scroll_Vars scroll_updated;
+    //GUI_Scroll_Vars scroll_updated;
     i32_Rect region_updated;
     
     // TODO(allen): Would rather have a way of tracking this
@@ -656,13 +656,10 @@ gui_scroll_eq(GUI_Scroll_Vars *a, GUI_Scroll_Vars *b){
 // TODO(allen): Rethink this a little, seems like there are two separate things we want to do here:
 // Getting the updated scroll vars, and telling the user when scrolling actions occur.
 internal b32
-gui_get_scroll_vars(GUI_Target *target, GUI_id scroll_context_id, GUI_Scroll_Vars *vars_out, i32_Rect *region_out){
+gui_get_scroll_vars(GUI_Target *target, GUI_id scroll_context_id, i32_Rect *region_out){
     b32 result = 0;
     if (gui_id_eq(scroll_context_id, target->scroll_id)){
-        *vars_out = target->scroll_updated;
         *region_out = target->region_updated;
-        
-        vars_out->target_y = clamp(0, vars_out->target_y, vars_out->max_y);
         
         if (gui_id_eq(target->active, gui_id_scrollbar())){
             result = 1;
@@ -674,9 +671,7 @@ gui_get_scroll_vars(GUI_Target *target, GUI_id scroll_context_id, GUI_Scroll_Var
 
 internal void
 gui_post_scroll_vars(GUI_Target *target, GUI_Scroll_Vars *vars_in, i32_Rect region_in){
-    if (!gui_scroll_eq(vars_in, &target->scroll_updated) ||
-        !rect_equal(region_in, target->region_updated)){
-        target->scroll_updated = *vars_in;
+    if (!rect_equal(region_in, target->region_updated)){
         target->region_updated = region_in;
         target->animating = 1;
         target->active = gui_id_scrollbar();
@@ -694,7 +689,6 @@ gui_begin_scrollable(GUI_Target *target, GUI_id scroll_context_id,
     h = gui_push_simple_command(target, guicom_scrollable);
     
     target->scroll_original = scroll_vars;
-    target->scroll_updated = scroll_vars;
     target->scroll_id = scroll_context_id;
     
     if (show_bar){
@@ -1230,6 +1224,12 @@ gui_compute_view_jump(i32_Rect scroll_region, i32_Rect position){
 
 internal GUI_Scroll_Vars
 gui_do_jump(GUI_Target *target, GUI_View_Jump jump, GUI_Scroll_Vars vars){
+    if (jump.view_max < 0){
+        jump.view_max = 0;
+    }
+    if (jump.view_min < 0){
+        jump.view_min = 0;
+    }
     if (vars.target_y < jump.view_min){
         vars.target_y = jump.view_min;
     }

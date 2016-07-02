@@ -461,8 +461,6 @@ struct Buffer_Summary{
     /* DOC(This field specifies the length of the buffer_name string.) */
     int32_t buffer_name_len;
     
-    /* DOC(This is a hold over from an old system, consider it deprecated.) */
-    int32_t buffer_cursor_pos;
     /* DOC(If this is not a null summary, this field indicates whether the buffer is set to lex tokens.) */
     bool32 is_lexed;
     /* DOC(If this is not a null summary, this field specifies the id of the command map for this buffer.) */

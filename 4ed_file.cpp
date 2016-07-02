@@ -112,8 +112,6 @@ struct Editing_File_State{
     i16 font_id;
     Buffer_Type buffer;
     
-    i32 cursor_pos;
-    
     Undo_Data undo;
     
     Cpp_Token_Stack token_stack;
