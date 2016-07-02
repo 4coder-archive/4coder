@@ -9,6 +9,7 @@
 
 #include "4coder_helper.h"
 
+
 //
 // Basic Build Behavior
 //
@@ -24,7 +25,10 @@ CUSTOM_COMMAND_SIG(build_in_build_panel){
     Buffer_Summary buffer =
         app->get_buffer_by_name(app, literal("*compilation*"), AccessAll);
     View_Summary build_view = {0};
+    
     View_Summary original_view = app->get_active_view(app, AccessAll);
+    Buffer_Summary original_buffer =
+        app->get_buffer(app, original_view.buffer_id, AccessAll);
     
     if (buffer.exists){
         build_view = get_first_view_with_buffer(app, buffer.buffer_id);
@@ -35,11 +39,11 @@ CUSTOM_COMMAND_SIG(build_in_build_panel){
         exec_command(app, hide_scrollbar);
         build_view = app->get_active_view(app, AccessAll);
         app->view_set_split_proportion(app, &build_view, .2f);
+        app->set_active_view(app, &original_view);
     }
     
-    app->set_active_view(app, &build_view);
-    exec_command(app, build_search);
-    app->set_active_view(app, &original_view);
+    execute_standard_build(app, &build_view, &original_buffer);
+    
     
     prev_location = {0};
 }

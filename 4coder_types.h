@@ -414,12 +414,12 @@ can either be a name or an id.  If the
 ) */
 struct Buffer_Identifier{
     /* DOC(
-    This field is the name of the buffer, need not be null terminated.
-    If id is specified this should be NULL.
+    This field is the name of the buffer; it need not be null terminated.
+    If id is specified this pointer should be NULL.
     ) */
     char *name;
     
-    /* DOC(This field is specifies the length of the name string.) */
+    /* DOC(This field specifies the length of the name string.) */
     int name_len;
     
     /* DOC(This field is the id of the buffer.  If name is specified this should be 0.) */

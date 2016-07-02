@@ -1769,7 +1769,7 @@ generate_custom_headers(){
                 "</head>\n"
                 "<body>\n"
                 "<div style='font-family:Arial; margin: 0 auto; "
-                "width: 900px; text-align: justify; line-height: 1.25;'>\n"
+                "width: 800px; text-align: justify; line-height: 1.25;'>\n"
                 "<h1 style='margin-top: 5mm; margin-bottom: 5mm;'>4coder API</h1>\n"
                 );
         
@@ -1780,12 +1780,18 @@ generate_custom_headers(){
                 "<div>\n"
                 
                 "<p>\n"
-                "This is the documentation for " VERSION " The documentation has been made as "
-                "accurate as possible but there may be errors. If you have questions or "
-                "discover errors please contact <span style='"CODE_STYLE"'>editor@4coder.net</span>."
+                "This is the documentation for " VERSION " The documentation is still under "
+                "construction so some of the links are linking to sections that have not "
+                "been written yet.  What is here should be correct and I suspect useful "
+                "even without some of the other sections. "
                 "</p>\n"
                 
                 "<p>\n"
+                "If you have questions or discover errors please contact "
+                "<span style='"CODE_STYLE"'>editor@4coder.net</span> or "
+                "to get help from community members you can post on the "
+                "4coder forums hosted on handmade.network at "
+                "<span style='"CODE_STYLE"'>4coder.handmade.network</span>"
                 "</p>\n"
                 
                 "</div>\n");
@@ -1795,7 +1801,10 @@ generate_custom_headers(){
         // TODO(allen): Write the 4coder system descriptions.
         fprintf(file, "<h2>&sect;"MAJOR_SECTION" 4coder Systems</h2>\n");
         {
-            
+            fprintf(file,
+                "<div><i>\n"
+                "Coming Soon"
+                "</i><div>\n");
         }
         
 #undef MAJOR_SECTION

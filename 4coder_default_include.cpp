@@ -1391,11 +1391,55 @@ get_build_directory(Application_Links *app, Buffer_Summary *buffer, String *dir_
         int len = app->directory_get_hot(app, dir_out->str,
                                          dir_out->memory_size - dir_out->size);
         if (len + dir_out->size < dir_out->memory_size){
+            dir_out->size += len;
             result = true;
         }
     }
     
     return(result);
+}
+
+static void
+execute_standard_build(Application_Links *app, View_Summary *view, Buffer_Summary *active_buffer){
+    int old_size = 0;
+    int size = app->memory_size/2;
+    
+    String dir = make_string(app->memory, 0, size);
+    get_build_directory(app, active_buffer, &dir);
+    
+    String command = make_string((char*)app->memory + size, 0, size);
+    
+    for(;;){
+        old_size = dir.size;
+        append(&dir, "build.bat");
+        
+        if (app->file_exists(app, dir.str, dir.size)){
+            dir.size = old_size;
+            append(&command, '"');
+            append(&command, dir);
+            append(&command, "build\"");
+            
+            app->exec_system_command(app, view,
+                                     buffer_identifier(literal("*compilation*")),
+                                     dir.str, dir.size,
+                                     command.str, command.size,
+                                     CLI_OverlapWithConflict);
+            
+            break;
+        }
+        dir.size = old_size;
+        
+        if (app->directory_cd(app, dir.str, &dir.size, dir.memory_size, literal("..")) == 0){
+            dir.size = app->directory_get_hot(app, dir.str, dir.memory_size);
+            command = make_lit_string("echo couldn't find build.bat");
+            app->exec_system_command(app, view,
+                                     buffer_identifier(literal("*compilation*")),
+                                     dir.str, dir.size,
+                                     command.str, command.size,
+                                     CLI_OverlapWithConflict);
+            break;
+        }
+    }
 }
 
 CUSTOM_COMMAND_SIG(build_search_regular){
@@ -1434,49 +1478,10 @@ CUSTOM_COMMAND_SIG(build_search_regular){
     // This doesn't actually change the hot directory of 4coder, it's only effect is to
     // modify the string you passed in to reflect the change in directory if that change was possible.
     
-    int old_size = 0;
-    int size = app->memory_size/2;
-    
     unsigned int access = AccessAll;
     View_Summary view = app->get_active_view(app, access);
     Buffer_Summary buffer = app->get_buffer(app, view.buffer_id, access);
-    
-    String dir = make_string(app->memory, 0, size);
-    get_build_directory(app, &buffer, &dir);
-    
-    String command = make_string((char*)app->memory + size, 0, size);
-    
-    for(;;){
-        old_size = dir.size;
-        append(&dir, "build.bat");
-        
-        if (app->file_exists(app, dir.str, dir.size)){
-            dir.size = old_size;
-            append(&command, '"');
-            append(&command, dir);
-            append(&command, "build\"");
-            
-            app->exec_system_command(app, &view,
-                                     buffer_identifier(literal("*compilation*")),
-                                     dir.str, dir.size,
-                                     command.str, command.size,
-                                     CLI_OverlapWithConflict);
-            
-            break;
-        }
-        dir.size = old_size;
-        
-        if (app->directory_cd(app, dir.str, &dir.size, dir.memory_size, literal("..")) == 0){
-            dir.size = app->directory_get_hot(app, dir.str, dir.memory_size);
-            command = make_lit_string("echo couldn't find build.bat");
-            app->exec_system_command(app, &view,
-                                     buffer_identifier(literal("*compilation*")),
-                                     dir.str, dir.size,
-                                     command.str, command.size,
-                                     CLI_OverlapWithConflict);
-            break;
-        }
-    }
+    execute_standard_build(app, &view, &buffer);
 }
 
 // TODO(allen): This is a bit nasty.  I want a system for picking
