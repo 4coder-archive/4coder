@@ -922,15 +922,15 @@ isearch(Application_Links *app, int start_reversed){
     
     View_Summary view = app->get_active_view(app, access);
     Buffer_Summary buffer = app->get_buffer(app, view.buffer_id, access);
-    User_Input in;
-    Query_Bar bar;
     
     if (!buffer.exists) return;
     
+    Query_Bar bar = {0};
     if (app->start_query_bar(app, &bar, 0) == 0) return;
     
     int reverse = start_reversed;
     int pos = view.cursor.pos;
+    int start_pos = pos;
     Range match = make_range(pos, pos);
     
     char bar_string_space[256];
@@ -939,8 +939,9 @@ isearch(Application_Links *app, int start_reversed){
     String isearch_str = make_lit_string("I-Search: ");
     String rsearch_str = make_lit_string("Reverse-I-Search: ");
     
+    User_Input in = {0};
     for (;;){
-        app->view_set_highlight(app, &view, match.start, match.end, 1);
+        app->view_set_highlight(app, &view, match.start, match.end, true);
         
         // NOTE(allen): Change the bar's prompt to match the current direction.
         if (reverse) bar.prompt = rsearch_str;
@@ -1029,10 +1030,13 @@ isearch(Application_Links *app, int start_reversed){
             }
         }
     }
-    app->view_set_highlight(app, &view, 0, 0, 0);
-    if (in.abort) return;
+    app->view_set_highlight(app, &view, 0, 0, false);
+    if (in.abort){
+        app->view_set_cursor(app, &view, seek_pos(start_pos), true);
+        return;
+    }
     
-    app->view_set_cursor(app, &view, seek_pos(match.min), 1);
+    app->view_set_cursor(app, &view, seek_pos(match.min), true);
 }
 
 CUSTOM_COMMAND_SIG(search){

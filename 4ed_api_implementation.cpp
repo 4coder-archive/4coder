@@ -122,6 +122,9 @@ imp_get_view(Command_Data *cmd, View_ID view_id){
     view_id = view_id - 1;
     if (view_id >= 0 && view_id < live_set->max){
         vptr = live_set->views + view_id;
+        if (!vptr->in_use){
+            vptr = 0;
+        }
     }
     
     return(vptr);

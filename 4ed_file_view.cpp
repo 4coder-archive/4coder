@@ -1680,6 +1680,9 @@ view_set_temp_highlight(View *view, i32 pos, i32 end_pos){
     view->file_data.temp_highlight = view_compute_cursor_from_pos(view, pos);
     view->file_data.temp_highlight_end_pos = end_pos;
     view->file_data.show_temp_highlight = 1;
+    
+    view_set_cursor(view, view->file_data.temp_highlight,
+                    false, view->file_data.unwrapped_lines);
 }
 
 inline void
@@ -1715,16 +1718,6 @@ view_set_file(View *view, Editing_File *file, Models *models){
         
         if (file_is_ready(file)){
             view_measure_wraps(&models->mem.general, view);
-            
-#if 0
-            edit_pos->cursor = view_compute_cursor_from_pos(view, 0);
-            edit_pos->scroll.max_y = view_compute_max_target_y(view);
-            edit_pos->preferred_x = view_get_cursor_x(view);
-            
-            view_move_view_to_cursor(view, &edit_pos->scroll, true);
-            view->reinit_scrolling = 1;
-#endif
-
         }
     }
 }
