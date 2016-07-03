@@ -592,6 +592,20 @@ view_set_scroll(View *view,
     }
 }
 
+internal void
+view_set_cursor_and_scroll(View *view,
+                           Full_Cursor cursor,
+                           b32 set_preferred_x,
+                           b32 unwrapped_lines,
+                           GUI_Scroll_Vars scroll){
+    File_Edit_Positions *edit_pos = view->edit_pos;
+    if (edit_pos_move_to_front(view->file_data.file, edit_pos)){
+        edit_pos_set_cursor_(edit_pos, cursor, set_preferred_x, unwrapped_lines);
+        edit_pos_set_scroll_(edit_pos, scroll);
+        edit_pos->last_set_type = EditPos_None;
+    }
+}
+
 struct View_And_ID{
     View *view;
     i32 id;
@@ -1988,7 +2002,6 @@ file_edit_cursor_fix(System_Functions *system,
                      Editing_File *file, Editing_Layout *layout,
                      Cursor_Fix_Descriptor desc){
     
-    Full_Cursor temp_cursor;
     Temp_Memory cursor_temp = begin_temp_memory(part);
     i32 cursor_max = layout->panel_max_count * 2;
     Cursor_With_Index *cursors = push_array(part, Cursor_With_Index, cursor_max);
@@ -2028,13 +2041,20 @@ file_edit_cursor_fix(System_Functions *system,
             view = panel->view;
             if (view->file_data.file == file){
                 Assert(view->edit_pos);
-                view_cursor_move(view, cursors[cursor_count++].pos);
+                
+                i32 cursor_pos = cursors[cursor_count++].pos;
+                Full_Cursor new_cursor = 
+                    view_compute_cursor_from_pos(view, cursor_pos);
+                
+                GUI_Scroll_Vars scroll = view->edit_pos->scroll;
                 
                 view->edit_pos->mark = cursors[cursor_count++].pos + 1;
                 i32 new_scroll_i = cursors[cursor_count++].pos + 1;
                 if (view->edit_pos->scroll_i != new_scroll_i){
                     view->edit_pos->scroll_i = new_scroll_i;
-                    temp_cursor = view_compute_cursor_from_pos(view, view->edit_pos->scroll_i);
+                    
+                    Full_Cursor temp_cursor =
+                        view_compute_cursor_from_pos(view, view->edit_pos->scroll_i);
                     
                     f32 y_offset = MOD(view->edit_pos->scroll.scroll_y, view->line_height);
                     f32 y_position = temp_cursor.wrapped_y;
@@ -2043,12 +2063,14 @@ file_edit_cursor_fix(System_Functions *system,
                     }
                     y_position += y_offset;
                     
-                    GUI_Scroll_Vars scroll = view->edit_pos->scroll;
                     scroll.target_y +=
                         ROUND32(y_position - scroll.scroll_y);
                     scroll.scroll_y = y_position;
-                    view_set_scroll(view, scroll);
                 }
+                
+                view_set_cursor_and_scroll(view, new_cursor,
+                                           true, view->file_data.unwrapped_lines,
+                                           scroll);
             }
         }
     }
