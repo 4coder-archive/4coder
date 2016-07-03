@@ -2708,6 +2708,7 @@ App_Step_Sig(app_step){
                             "Newest features:\n"
                             "-A scratch buffer is now opened with 4coder automatically\n"
                             "-A new mouse suppression mode toggled by <F2>\n"
+                            "-Hinting is disabled by default, a -h flag on the command line enables it\n"
                             "-New 4coder_API.html documentation file included for the custom layer API\n"
                             "-Experimental new work-flow for building and jumping to errors\n"
                             "  (only available in power for this build)\n"

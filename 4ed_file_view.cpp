@@ -1732,6 +1732,7 @@ view_set_file(View *view, Editing_File *file, Models *models){
         
         if (file_is_ready(file)){
             view_measure_wraps(&models->mem.general, view);
+            view->edit_pos->scroll.max_y = view_compute_max_target_y(view);
         }
     }
 }

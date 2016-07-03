@@ -853,12 +853,12 @@ DOC_SEE(Buffer_Create_Flag)
             }
             else{
                 loading = system->file_load_begin(filename_string.str);
-                if (loading.exists){
+                if (!loading.exists){
                     do_new_file = true;
                 }
             }
             
-            if (do_new_file){
+            if (!do_new_file){
                 b32 in_general_mem = false;
                 char *buffer = push_array(part, char, loading.size);
                 
