@@ -1357,6 +1357,7 @@ enum Command_Line_Action{
     CLAct_WindowMaximize,
     CLAct_WindowPosition,
     CLAct_FontSize,
+    CLAct_FontStopHinting,
     CLAct_Count
 };
 
@@ -1378,19 +1379,20 @@ init_command_line_settings(App_Settings *settings, Plat_Settings *plat_settings,
                 if (arg[0] == '-'){
                     action = CLAct_Ignore;
                     switch (arg[1]){
-                        case 'u': action = CLAct_UserFile; strict = 0;     break;
-                        case 'U': action = CLAct_UserFile; strict = 1;     break;
+                        case 'u': action = CLAct_UserFile; strict = false; break;
+                        case 'U': action = CLAct_UserFile; strict = true;  break;
                         
-                        case 'd': action = CLAct_CustomDLL; strict = 0;    break;
-                        case 'D': action = CLAct_CustomDLL; strict = 1;    break;
+                        case 'd': action = CLAct_CustomDLL; strict = false;break;
+                        case 'D': action = CLAct_CustomDLL; strict = true; break;
                         
                         case 'i': action = CLAct_InitialFilePosition;      break;
                         
                         case 'w': action = CLAct_WindowSize;               break;
-                        case 'W': action = CLAct_WindowMaximize;         break;
+                        case 'W': action = CLAct_WindowMaximize;           break;
                         case 'p': action = CLAct_WindowPosition;           break;
                         
-                        case 'f': action = CLAct_FontSize; break;
+                        case 'f': action = CLAct_FontSize;                 break;
+                        case 'h': action = CLAct_FontStopHinting; --i;     break;
                     }
                 }
                 else if (arg[0] != 0){
@@ -1430,7 +1432,7 @@ init_command_line_settings(App_Settings *settings, Plat_Settings *plat_settings,
             case CLAct_WindowSize:
             {
                 if (i + 1 < clparams.argc){
-                    plat_settings->set_window_size  = 1;
+                    plat_settings->set_window_size  = true;
                     plat_settings->window_w = str_to_int(clparams.argv[i]);
                     plat_settings->window_h = str_to_int(clparams.argv[i+1]);
                     
@@ -1442,14 +1444,14 @@ init_command_line_settings(App_Settings *settings, Plat_Settings *plat_settings,
             case CLAct_WindowMaximize:
             {
                 --i;
-                plat_settings->maximize_window = 1;
+                plat_settings->maximize_window = true;
                 action = CLAct_Nothing;
             }break;
             
             case CLAct_WindowPosition:
             {
                 if (i + 1 < clparams.argc){
-                    plat_settings->set_window_pos  = 1;
+                    plat_settings->set_window_pos  = true;
                     plat_settings->window_x = str_to_int(clparams.argv[i]);
                     plat_settings->window_y = str_to_int(clparams.argv[i+1]);
                     
@@ -1463,6 +1465,12 @@ init_command_line_settings(App_Settings *settings, Plat_Settings *plat_settings,
                 if (i < clparams.argc){
                     settings->font_size = str_to_int(clparams.argv[i]);
                 }
+                action = CLAct_Nothing;
+            }break;
+            
+            case CLAct_FontStopHinting:
+            {
+                plat_settings->use_hinting = true;
                 action = CLAct_Nothing;
             }break;
         }
@@ -1488,22 +1496,6 @@ app_setup_memory(Application_Memory *memory){
     return(vars);
 }
 
-internal i32
-execute_special_tool(void *memory, i32 size, Command_Line_Parameters clparams){
-    i32 result;
-    char message[] = "tool was not specified or is invalid";
-    result = sizeof(message) - 1;
-    memcpy(memory, message, result);
-    if (clparams.argc > 2){
-        if (match(clparams.argv[2], "version")){
-            result = sizeof(VERSION) - 1;
-            memcpy(memory, VERSION, result);
-            ((char*)memory)[result++] = '\n';
-        }
-    }
-    return(result);
-}
-
 inline App_Settings
 app_settings_zero(){
     App_Settings settings={0};
@@ -1511,27 +1503,19 @@ app_settings_zero(){
 }
 
 App_Read_Command_Line_Sig(app_read_command_line){
-    App_Vars *vars;
-    App_Settings *settings;
     i32 out_size = 0;
+    App_Vars *vars = app_setup_memory(memory);
+    App_Settings *settings = &vars->models.settings;
     
-    if (clparams.argc > 1 && match(clparams.argv[1], "-T")){
-        out_size = execute_special_tool(memory->target_memory, memory->target_memory_size, clparams);
+    *settings = app_settings_zero();
+    settings->font_size = 16;
+    
+    if (clparams.argc > 1){
+        init_command_line_settings(&vars->models.settings, plat_settings, clparams);
     }
-    else{
-        vars = app_setup_memory(memory);
-        
-        settings = &vars->models.settings;
-        *settings = app_settings_zero();
-        settings->font_size = 16;
-        
-        if (clparams.argc > 1){
-            init_command_line_settings(&vars->models.settings, plat_settings, clparams);
-        }
-        
-        *files = vars->models.settings.init_files;
-        *file_count = &vars->models.settings.init_files_count;
-    }
+    
+    *files = vars->models.settings.init_files;
+    *file_count = &vars->models.settings.init_files_count;
     
     return(out_size);
 }

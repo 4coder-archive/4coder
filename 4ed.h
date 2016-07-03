@@ -67,11 +67,12 @@ struct Command_Line_Parameters{
 struct Plat_Settings{
     char *custom_dll;
     b32 custom_dll_is_strict;
-
+    
     i32 window_w, window_h;
     i32 window_x, window_y;
     b8 set_window_pos, set_window_size;
     b8 maximize_window;
+    b8 use_hinting;
 };
 
 #define App_Read_Command_Line_Sig(name)                 \

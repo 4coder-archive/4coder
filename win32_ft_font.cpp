@@ -6,7 +6,8 @@
 // portable FT rendering.
 
 internal b32
-win32_ft_font_load(Partition *part, Render_Font *rf, char *name, i32 pt_size, i32 tab_width){
+win32_ft_font_load(Partition *part, Render_Font *rf, char *name, 
+                   i32 pt_size, i32 tab_width, b32 use_hinting){
     
     b32 result = 0;
     
@@ -18,7 +19,7 @@ win32_ft_font_load(Partition *part, Render_Font *rf, char *name, i32 pt_size, i3
         String str = make_string(filename, 0, 256);
         sysshared_to_binary_path(&str, name);
         
-        result = font_load_freetype(part, rf, filename, pt_size, tab_width);
+        result = font_load_freetype(part, rf, filename, pt_size, tab_width, use_hinting);
     }
     
     end_temp_memory(temp);

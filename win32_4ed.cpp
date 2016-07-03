@@ -1124,7 +1124,8 @@ Font_Load_Sig(system_draw_font_load){
                                      font_out,
                                      filename,
                                      pt_size,
-                                     tab_width);
+                                     tab_width,
+                                     win32vars.settings.use_hinting);
         
 #else
         

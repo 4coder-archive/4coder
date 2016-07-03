@@ -494,10 +494,7 @@ stb_font_load(Partition *part,
 
 // NOTE(allen): Thanks to insofaras.
 // This is copy-pasted from some work he
-// did to get free type working on linux.
-// Once it is working on both sides it might
-// be possible to pull some parts out as
-// portable FT rendering.
+// did to get free type working on Linux.
 
 #undef internal
 #include <ft2build.h>
@@ -524,7 +521,8 @@ font_load_freetype(Partition *part,
                    Render_Font *rf,
                    char *filename,
                    i32 pt_size,
-                   i32 tab_width){
+                   i32 tab_width,
+                   b32 use_hinting){
     
     memset(rf, 0, sizeof(*rf));
     
@@ -584,10 +582,18 @@ font_load_freetype(Partition *part,
     u32* pixels = push_array(part, u32, tex_width * tex_height);
     memset(pixels, 0, tex_width * tex_height * sizeof(u32));
     
-    // XXX: test if AUTOHINT looks better or not
-    // NOTE(allen): As of now FT_LOAD_FORCE_AUTOHINT looks much better for
-    // Liberation Mono which is one of the included 4coder fonts.
-    const u32 ft_extra_flags = use_lcd_filter ? FT_LOAD_TARGET_LCD : FT_LOAD_FORCE_AUTOHINT;
+    u32 ft_extra_flags = 0;
+    if (use_lcd_filter){
+        ft_extra_flags = FT_LOAD_TARGET_LCD;
+    }
+    else{
+        if (use_hinting){
+            ft_extra_flags = FT_LOAD_FORCE_AUTOHINT;
+        }
+        else{
+            ft_extra_flags = (FT_LOAD_NO_AUTOHINT | FT_LOAD_NO_HINTING);
+        }
+    }
     
     for(int i = 0; i < NUM_GLYPHS; ++i){
         if(FT_Load_Char(face, i, FT_LOAD_RENDER | ft_extra_flags) != 0) continue;
