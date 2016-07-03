@@ -1377,18 +1377,24 @@ CUSTOM_COMMAND_SIG(write_and_auto_tab){
 //
 //  There is requirement that a custom build system in 4coder  actually use the
 // directory given by this function.
+enum Get_Build_Directory_Result{
+    BuildDir_None,
+    BuildDir_AtFile,
+    BuildDir_AtHot
+};
+
 static int
 get_build_directory(Application_Links *app, Buffer_Summary *buffer, String *dir_out){
-    int result = false;
+    int result = BuildDir_None;
     
-    if (buffer->file_name){
+    if (buffer && buffer->file_name){
         if (!match(buffer->file_name, buffer->buffer_name)){
             String dir = make_string(buffer->file_name,
                                      buffer->file_name_len,
                                      buffer->file_name_len+1);
             remove_last_folder(&dir);
             append(dir_out, dir);
-            result = true;
+            result = BuildDir_AtFile;
         }
     }
     
@@ -1397,7 +1403,50 @@ get_build_directory(Application_Links *app, Buffer_Summary *buffer, String *dir_
                                          dir_out->memory_size - dir_out->size);
         if (len + dir_out->size < dir_out->memory_size){
             dir_out->size += len;
+            result = BuildDir_AtHot;
+        }
+    }
+    
+    return(result);
+}
+
+static int
+execute_standard_build_search(Application_Links *app, View_Summary *view,
+                              Buffer_Summary *active_buffer,
+                              String *dir, String *command, int perform_backup){
+    int result = false;
+    
+    for(;;){
+        int old_size = dir->size;
+        append(dir, "build.bat");
+        
+        if (app->file_exists(app, dir->str, dir->size)){
+            dir->size = old_size;
+            append(command, '"');
+            append(command, *dir);
+            append(command, "build\"");
+            
+            app->exec_system_command(app, view,
+                                     buffer_identifier(literal("*compilation*")),
+                                     dir->str, dir->size,
+                                     command->str, command->size,
+                                     CLI_OverlapWithConflict);
             result = true;
+            break;
+        }
+        dir->size = old_size;
+        
+        if (app->directory_cd(app, dir->str, &dir->size, dir->memory_size, literal("..")) == 0){
+            if (perform_backup){
+                dir->size = app->directory_get_hot(app, dir->str, dir->memory_size);
+                String backup_command = make_lit_string("echo couldn't find build.bat");
+                app->exec_system_command(app, view,
+                                         buffer_identifier(literal("*compilation*")),
+                                         dir->str, dir->size,
+                                         backup_command.str, backup_command.size,
+                                         CLI_OverlapWithConflict);
+            }
+            break;
         }
     }
     
@@ -1405,45 +1454,26 @@ get_build_directory(Application_Links *app, Buffer_Summary *buffer, String *dir_
 }
 
 static void
-execute_standard_build(Application_Links *app, View_Summary *view, Buffer_Summary *active_buffer){
-    int old_size = 0;
+execute_standard_build(Application_Links *app, View_Summary *view,
+                       Buffer_Summary *active_buffer){
     int size = app->memory_size/2;
-    
     String dir = make_string(app->memory, 0, size);
-    get_build_directory(app, active_buffer, &dir);
-    
     String command = make_string((char*)app->memory + size, 0, size);
     
-    for(;;){
-        old_size = dir.size;
-        append(&dir, "build.bat");
-        
-        if (app->file_exists(app, dir.str, dir.size)){
-            dir.size = old_size;
-            append(&command, '"');
-            append(&command, dir);
-            append(&command, "build\"");
-            
-            app->exec_system_command(app, view,
-                                     buffer_identifier(literal("*compilation*")),
-                                     dir.str, dir.size,
-                                     command.str, command.size,
-                                     CLI_OverlapWithConflict);
-            
-            break;
+    int build_dir_type = get_build_directory(app, active_buffer, &dir);
+    
+    if (build_dir_type == BuildDir_AtFile){
+        if (!execute_standard_build_search(app, view, active_buffer,
+                                           &dir, &command, false)){
+            dir.size = 0;
+            command.size = 0;
+            build_dir_type = get_build_directory(app, 0, &dir);
         }
-        dir.size = old_size;
-        
-        if (app->directory_cd(app, dir.str, &dir.size, dir.memory_size, literal("..")) == 0){
-            dir.size = app->directory_get_hot(app, dir.str, dir.memory_size);
-            command = make_lit_string("echo couldn't find build.bat");
-            app->exec_system_command(app, view,
-                                     buffer_identifier(literal("*compilation*")),
-                                     dir.str, dir.size,
-                                     command.str, command.size,
-                                     CLI_OverlapWithConflict);
-            break;
-        }
+    }
+    
+    if (build_dir_type == BuildDir_AtHot){
+        execute_standard_build_search(app, view, active_buffer,
+                                      &dir, &command, true);
     }
 }
 
