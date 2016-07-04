@@ -1050,11 +1050,10 @@ file_create_from_string(System_Functions *system, Models *models,
     
     file_set_name(working_set, file, (char*)name);
     
-    file->state.font_id = models->global_font.font_id;
-    
     file_synchronize_times(system, file, name);
     
-    Render_Font *font = get_font_info(font_set, file->state.font_id)->font;
+    i16 font_id = models->global_font.font_id;
+    Render_Font *font = get_font_info(font_set, font_id)->font;
     float *advance_data = 0;
     if (font) advance_data = font->advance_data;
     file_measure_starts_widths(system, general, &file->state.buffer, advance_data);
@@ -2124,7 +2123,8 @@ file_do_single_edit(System_Functions *system,
     i32 new_line_count = buffer_count_newlines(&file->state.buffer, start, start+str_len);
     i32 line_shift =  new_line_count - replaced_line_count;
     
-    Render_Font *font = get_font_info(models->font_set, file->state.font_id)->font;
+    i16 font_id = models->global_font.font_id;
+    Render_Font *font = get_font_info(models->font_set, font_id)->font;
     
     file_grow_starts_widths_as_needed(general, buffer, line_shift);
     buffer_remeasure_starts(buffer, line_start, line_end, line_shift, shift_amount);
@@ -2196,7 +2196,8 @@ file_do_white_batch_edit(System_Functions *system, Models *models, Editing_File 
     // NOTE(allen): meta data
     {
         Buffer_Measure_Starts state = {};
-        Render_Font *font = get_font_info(models->font_set, file->state.font_id)->font;
+        i16 font_id = models->global_font.font_id;
+        Render_Font *font = get_font_info(models->font_set, font_id)->font;
         float *advance_data = 0;
         if (font) advance_data = font->advance_data;
         buffer_measure_starts_widths(&state, &file->state.buffer, advance_data);

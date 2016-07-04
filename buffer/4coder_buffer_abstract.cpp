@@ -682,7 +682,7 @@ buffer_measure_starts_zero_widths_(Buffer_Measure_Starts *state, Buffer_Type *bu
 
 internal_4tech int
 buffer_measure_starts_widths(Buffer_Measure_Starts *state, Buffer_Type *buffer, float *advance_data){
-    int result;
+    int result = 0;
     
     if (advance_data){
         result = buffer_measure_starts_widths_(state, buffer, advance_data);
@@ -697,14 +697,11 @@ buffer_measure_starts_widths(Buffer_Measure_Starts *state, Buffer_Type *buffer, 
 internal_4tech void
 buffer_remeasure_starts(Buffer_Type *buffer, int line_start, int line_end, int line_shift, int text_shift){
     Buffer_Stringify_Type loop;
-    int *starts;
-    int line_count;
-    char *data;
-    int size, end;
-    int line_i, char_i, start;
-    
-    starts = buffer->line_starts;
-    line_count = buffer->line_count;
+    int *starts = buffer->line_starts;
+    int line_count = buffer->line_count;
+    char *data = 0;
+    int size = 0, end = 0;
+    int line_i = 0, char_i = 0, start = 0;
     
     assert_4tech(0 <= line_start);
     assert_4tech(line_start <= line_end);
@@ -760,20 +757,15 @@ internal_4tech void
 buffer_remeasure_widths(Buffer_Type *buffer, float *advance_data,
                         int line_start, int line_end, int line_shift){
     Buffer_Stringify_Type loop;
-    int *starts;
-    float *widths;
-    int line_count;
-    int widths_count;
-    char *data;
-    int size, end;
-    int i, j;
-    float width;
-    char ch;
-    
-    starts = buffer->line_starts;
-    widths = buffer->line_widths;
-    line_count = buffer->line_count;
-    widths_count = buffer->widths_count;
+    int *starts = buffer->line_starts;
+    float *widths = buffer->line_widths;
+    int line_count = buffer->line_count;
+    int widths_count = buffer->widths_count;
+    char *data = 0;
+    int size = 0, end = 0;
+    int i = 0, j = 0;
+    float width = 0;
+    char ch = 0;
     
     assert_4tech(0 <= line_start);
     assert_4tech(line_start <= line_end);
@@ -813,6 +805,11 @@ buffer_remeasure_widths(Buffer_Type *buffer, float *advance_data,
                 width += measure_character(advance_data, ch);
             }
         }
+    }
+    
+    if (j == buffer_size(buffer)){
+        widths[i] = width;
+        assert_4tech(i+1 == line_count);
     }
 }
 

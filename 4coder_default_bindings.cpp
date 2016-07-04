@@ -23,6 +23,10 @@ CUSTOM_COMMAND_SIG(write_allen_note){
     write_string(app, make_lit_string("// NOTE(allen): "));
 }
 
+CUSTOM_COMMAND_SIG(write_allen_doc){
+    write_string(app, make_lit_string("/* DOC() */"));
+}
+
 CUSTOM_COMMAND_SIG(write_zero_struct){
     write_string(app, make_lit_string(" = {0};"));
 }
@@ -294,6 +298,7 @@ default_keys(Bind_Helper *context){
     bind(context, '=', MDFR_CTRL, write_increment);
     bind(context, 't', MDFR_ALT, write_allen_todo);
     bind(context, 'y', MDFR_ALT, write_allen_note);
+    bind(context, 'r', MDFR_ALT, write_allen_note);
     bind(context, '[', MDFR_CTRL, open_long_braces);
     bind(context, '{', MDFR_CTRL, open_long_braces_semicolon);
     bind(context, '}', MDFR_CTRL, open_long_braces_break);
@@ -327,8 +332,8 @@ default_keys(Bind_Helper *context){
     bind(context, key_down, MDFR_NONE, move_down);
     bind(context, key_end, MDFR_NONE, seek_end_of_line);
     bind(context, key_home, MDFR_NONE, seek_beginning_of_line);
-    bind(context, key_page_up, MDFR_NONE, cmdid_page_up);
-    bind(context, key_page_down, MDFR_NONE, cmdid_page_down);
+    bind(context, key_page_up, MDFR_NONE, page_up);
+    bind(context, key_page_down, MDFR_NONE, page_down);
     
     bind(context, key_right, MDFR_CTRL, seek_whitespace_right);
     bind(context, key_left, MDFR_CTRL, seek_whitespace_left);
@@ -354,7 +359,7 @@ default_keys(Bind_Helper *context){
     bind(context, 'H', MDFR_CTRL, cmdid_history_forward);
     bind(context, 'j', MDFR_CTRL, cmdid_to_lowercase);
     bind(context, 'K', MDFR_CTRL, cmdid_kill_buffer);
-    bind(context, 'l', MDFR_CTRL, cmdid_toggle_line_wrap);
+    bind(context, 'l', MDFR_CTRL, toggle_line_wrap);
     bind(context, 'm', MDFR_CTRL, cursor_mark_swap);
     bind(context, 'O', MDFR_CTRL, cmdid_reopen);
     bind(context, 'q', MDFR_CTRL, query_replace);
@@ -371,11 +376,11 @@ default_keys(Bind_Helper *context){
     bind(context, 'z', MDFR_CTRL, cmdid_undo);
     
     
-    bind(context, '1', MDFR_CTRL, cmdid_eol_dosify);
+    bind(context, '1', MDFR_CTRL, eol_dosify);
+    bind(context, '!', MDFR_CTRL, eol_nixify);
     
-    bind(context, '?', MDFR_CTRL, cmdid_toggle_show_whitespace);
+    bind(context, '?', MDFR_CTRL, toggle_show_whitespace);
     bind(context, '~', MDFR_CTRL, cmdid_clean_all_lines);
-    bind(context, '!', MDFR_CTRL, cmdid_eol_nixify);
     bind(context, '\n', MDFR_SHIFT, write_and_auto_tab);
     bind(context, ' ', MDFR_SHIFT, write_character);
     

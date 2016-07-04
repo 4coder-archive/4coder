@@ -659,10 +659,13 @@ COMMAND_DECL(toggle_line_wrap){
     view_set_relative_scrolling(view, scrolling);
 }
 
+#if 0
 COMMAND_DECL(toggle_show_whitespace){
     REQ_READABLE_VIEW(view);
+    
     view->file_data.show_whitespace = !view->file_data.show_whitespace;
 }
+#endif
 
 COMMAND_DECL(toggle_tokens){
 #if BUFFER_EXPERIMENT_SCALPEL <= 0
@@ -734,6 +737,7 @@ COMMAND_DECL(clean_all_lines){
     view_clean_whitespace(system, models, view);
 }
 
+#if 0
 COMMAND_DECL(eol_dosify){
     REQ_READABLE_VIEW(view);
     REQ_FILE(file, view);
@@ -749,6 +753,7 @@ COMMAND_DECL(eol_nixify){
     file->settings.dos_write_mode = 0;
     file->state.last_4ed_edit_time = system->now_time_stamp();
 }
+#endif
 
 COMMAND_DECL(open_panel_vsplit){
     USE_VARS(vars);
@@ -1059,20 +1064,12 @@ setup_command_table(){
     SET(to_uppercase);
     SET(to_lowercase);
     
-    SET(toggle_line_wrap);
-    SET(toggle_show_whitespace);
-    
     SET(clean_all_lines);
-    SET(eol_dosify);
-    SET(eol_nixify);
     
     SET(open_panel_vsplit);
     SET(open_panel_hsplit);
     SET(close_panel);
     SET(change_active_panel);
-    
-    SET(page_up);
-    SET(page_down);
     
     SET(open_color_tweaker);
     SET(open_config);

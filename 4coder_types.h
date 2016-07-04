@@ -54,10 +54,6 @@ ENUM(uint64_t, Command_ID){
     cmdid_center_view,
     /* DOC(cmdid_left_adjust_view adjusts the view to be just left of the cursor's position.) */
     cmdid_left_adjust_view,
-    /* DOC(cmdid_page_up moves the view up one whole screen height and centers the cursor there.) */
-    cmdid_page_up,
-    /* DOC(cmdid_page_down moves the view down one whole screen height and centers the cursor there.) */
-    cmdid_page_down,
     
     /* DOC(cmdid_word_complete begins or continues cycling through completions for a partial word.) */
     cmdid_word_complete,
@@ -76,16 +72,22 @@ ENUM(uint64_t, Command_ID){
     /* DOC(cmdid_to_uppercase makes all the alphabetic characters in the cursor/mark range lowercase.) */
     cmdid_to_lowercase,
     
+#if 0
     /* DOC(cmdid_toggle_line_wrap toggles the line wrap setting of the active view. ) */
     cmdid_toggle_line_wrap,
     /* DOC(cmdid_toggle_line_wrap toggles the show whitespace setting of the active view.) */
     cmdid_toggle_show_whitespace,
+#endif
+
     /* DOC(cmdid_clean_all_lines deletes extra whitespace out the currently active buffer.) */
     cmdid_clean_all_lines,
+    
+#if 0
     /* DOC(cmdid_eol_dosify sets the currently active buffer to dos save mode where the end of a line is "\r\n") */
     cmdid_eol_dosify,
     /* DOC(cmdid_eol_nixify sets the currently active buffer to nix save mode where the end of a line is "\n") */
     cmdid_eol_nixify,
+#endif
     
     /* DOC(cmdid_interactive_new begins an interactive dialogue to create a new buffer.) */
     cmdid_interactive_new,
@@ -152,20 +154,41 @@ ENUM(int32_t, Event_Message_Type_ID){
 ENUM(int32_t, Buffer_Setting_ID){
     /* DOC(BufferSetting_Null is not a valid setting, it is reserved to detect errors.) */
     BufferSetting_Null,
-    /* DOC(The BufferSetting_Lex setting is used to determine whether to store C++ tokens from with the buffer.) */
+    
+    /* DOC(The BufferSetting_Lex setting is used to determine whether to store C++ tokens
+    from with the buffer.) */
     BufferSetting_Lex,
-    /* DOC(The BufferSetting_WrapLine setting is used to determine whether a buffer prefers to be viewed with wrapped lines,
-    individual views can be set to override this value after being tied to the buffer.) */
+    
+    /* DOC(The BufferSetting_WrapLine setting is used to determine whether a buffer prefers
+    to be viewed with wrapped lines, individual views can be set to override this value after
+    being tied to the buffer.) */
     BufferSetting_WrapLine,
-    /* DOC(The BufferSetting_MapID setting specifies the id of the command map that should be active when a buffer is active.) */
+    
+    /* DOC(The BufferSetting_MapID setting specifies the id of the command map that should be
+    active when a buffer is active.) */
     BufferSetting_MapID,
+    
+    /* DOC(The BufferSetting_Eol setting spcifies how line ends should be saved to the backing file. 
+    A 1 indicates dos endings "\r\n" and a 0 indicates nix endings "\n".*/
+    BufferSetting_Eol,
 };
 
 /* DOC(A View_Setting_ID names a setting in a view.) */
 ENUM(int32_t, View_Setting_ID){
     /* DOC(ViewSetting_Null is not a valid setting, it is reserved to detect errors.) */
     ViewSetting_Null,
-    /* DOC(The ViewSetting_ShowScrollbar setting determines whether a scroll bar is attached to a view in it's scrollable section.) */
+    
+    /* DOC(The ViewSetting_WrapLine setting determines whether the view applies line wrapping
+    at the border of the panel for long lines.  Whenever the view switches to a new buffer it
+    will reset this setting to match the 'preferred' line wrapping setting of the buffer.) */
+    ViewSetting_WrapLine,
+    
+    /* DOC(The ViewSetting_ShowWhitespace setting determines whether the view highlights
+    whitespace in a file.  Whenever the view switches to a new buffer this setting is turned off.) */
+    ViewSetting_ShowWhitespace,
+    
+    /* DOC(The ViewSetting_ShowScrollbar setting determines whether a scroll bar is
+    attached to a view in it's scrollable section.) */
     ViewSetting_ShowScrollbar,
 };
 
@@ -286,15 +309,19 @@ ENUM(int32_t, Mouse_Cursor_Show_Type){
 //    MouseCursorShow_WhenActive,// TODO(allen): coming soon
 };
 
-/* DOC(UNDOCUMENTED.) */
+/* DOC(The Buffer_Seek_Type is is used in a Buffer_Seek to identify which
+coordinates are suppose to be used for the seek.)
+DOC_SEE(Buffer_Seek)
+DOC_SEE(4coder_Buffer_Positioning_System)
+*/
 ENUM(int32_t, Buffer_Seek_Type){
-    /* DOC(UNDOCUMENTED.) */
+    /* DOC(This value indicates absolute positioning where positions are measured as the number of bytes from the start of the file.) */
     buffer_seek_pos,
-    /* DOC(UNDOCUMENTED.) */
+    /* DOC(This value indicates xy positioning with wrapped lines where the x and y values are in pixels.) */
     buffer_seek_wrapped_xy,
-    /* DOC(UNDOCUMENTED.) */
+    /* DOC(This value indicates xy positioning with unwrapped lines where the x and y values are in pixels.) */
     buffer_seek_unwrapped_xy,
-    /* DOC(UNDOCUMENTED.) */
+    /* DOC(This value indicates line-character, or line-column positioning.  These coordinates are 1 based to match standard line numbering.) */
     buffer_seek_line_char
 };
 
@@ -457,53 +484,62 @@ struct GUI_Scroll_Vars{
     int32_t prev_target_x;
 };
 
-/* DOC(UNDOCUMENTED.) */
+/* DOC(Full_Cursor describes the position of a cursor in every buffer
+coordinate system supported by 4coder.)
+DOC_SEE(4coder_Buffer_Positioning_System) */
 struct Full_Cursor{
-    /* DOC(UNDOCUMENTED.) */
+    /* DOC(This field contains the cursor's position in absolute positioning.) */
     int32_t pos;
-    /* DOC(UNDOCUMENTED.) */
+    /* DOC(This field contains the number of the line where the cursor is located. This field is one based.) */
     int32_t line;
-    /* DOC(UNDOCUMENTED.) */
+    /* DOC(This field contains the number of the column where the cursor is located. This field is one based.) */
     int32_t character;
-    /* DOC(UNDOCUMENTED.) */
+    /* DOC(This field contains the x position measured with unwrapped lines.) */
     float unwrapped_x;
-    /* DOC(UNDOCUMENTED.) */
+    /* DOC(This field contains the y position measured with unwrapped lines.) */
     float unwrapped_y;
-    /* DOC(UNDOCUMENTED.) */
+    /* DOC(This field contains the x position measured with wrapped lines.) */
     float wrapped_x;
-    /* DOC(UNDOCUMENTED.) */
+    /* DOC(This field contains the y position measured with wrapped lines.) */
     float wrapped_y;
 };
 
-/* DOC(UNDOCUMENTED.) */
+/* DOC(Buffer_Seek describes the destination of a seek operation.  There are helpers
+for concisely creating Buffer_Seek structs.  They can be found in 4coder_buffer_types.h.)
+DOC_SEE(Buffer_Seek_Type)
+DOC_SEE(4coder_Buffer_Positioning_System)*/
 struct Buffer_Seek{
-    /* DOC(UNDOCUMENTED.) */
+    /* DOC(The type field determines the coordinate system of the seek operation.) */
     Buffer_Seek_Type type;
     union{
         struct {
-            /* DOC(UNDOCUMENTED.) */
+            /* DOC(The pos field specified the pos when the seek is in absolute position.) */
             int32_t pos;
         };
         struct {
-            /* DOC(UNDOCUMENTED.) */
+            /* DOC(For xy coordinate seeks, rounding down means that any x in the box of the
+            character lands on that character. For instance when clicking rounding down is the
+            user's expected behavior.  Not rounding down means that the right hand portion of
+            the character's box, which is closer to the next character, will land on that next
+            character.  The unrounded behavior is the expected behavior when moving vertically
+            and keeping the preferred x.) */
             bool32 round_down;
-            /* DOC(UNDOCUMENTED.) */
+            /* DOC(The x coordinate for xy type seeks.) */
             float x;
-            /* DOC(UNDOCUMENTED.) */
+            /* DOC(The y coordinate for xy type seeks.) */
             float y;
         };
         struct {
-            /* DOC(UNDOCUMENTED.) */
+            /* DOC(The line number of a line-character type seek.) */
             int32_t line;
-            /* DOC(UNDOCUMENTED.) */
+            /* DOC(The character number of a line-character type seek.) */
             int32_t character;
         };
     };
 };
 
-/* DOC(
-Buffer_Summary acts as a handle to a buffer and describes the state of the buffer.
-) */
+/* DOC(Buffer_Summary acts as a handle to a buffer and describes the state of the buffer.)
+DOC_SEE(Access_Flag)*/
 struct Buffer_Summary{
     /* DOC(
     This field indicates whether the Buffer_Summary describes a buffer that is open in 4coder.
@@ -519,7 +555,6 @@ struct Buffer_Summary{
     int32_t buffer_id;
     /*
     DOC(If this is not a null summary, this field contains flags describing the protection status of the buffer.)
-    DOC_SEE(Access_Flag)
     */
     Access_Flag lock_flags;
     
@@ -540,9 +575,12 @@ struct Buffer_Summary{
     bool32 is_lexed;
     /* DOC(If this is not a null summary, this field specifies the id of the command map for this buffer.) */
     int32_t map_id;
+    /* DOC(If this is not a null summary, this field indicates whether the buffer 'prefers' wrapped lines.) */
+    bool32 unwrapped_lines;
 };
 
-/* DOC(View_Summary acts as a handle to a view and describes the state of the view.) */
+/* DOC(View_Summary acts as a handle to a view and describes the state of the view.)
+DOC_SEE(Access_Flag)*/
 struct View_Summary{
     /* DOC(
     This field indicates whether the View_Summary describes a view that is open in 4coder.
@@ -558,7 +596,6 @@ struct View_Summary{
     int32_t buffer_id;
     /*
     DOC(If this is not a null summary, this field contains flags describing the protection status of the view.)
-    DOC_SEE(Access_Flag)
     */
     Access_Flag lock_flags;
     

@@ -199,6 +199,36 @@ CUSTOM_COMMAND_SIG(move_down_10){
     move_vertical(app, 10.f);
 }
 
+static float
+get_page_jump(View_Summary *view){
+    i32_Rect region = view->file_region;
+    float page_jump = 1;
+    
+    if (view->line_height > 0){
+        page_jump = (float)(region.y1 - region.y0) / view->line_height;
+        page_jump -= 3.f;
+        if (page_jump <= 0){
+            page_jump = 1.f;
+        }
+    }
+    
+    return(page_jump);
+}
+
+CUSTOM_COMMAND_SIG(page_up){
+    unsigned int access = AccessProtected;
+    View_Summary view = app->get_active_view(app, access);
+    float page_jump = get_page_jump(&view);
+    move_vertical(app, -page_jump);
+}
+
+CUSTOM_COMMAND_SIG(page_down){
+    unsigned int access = AccessProtected;
+    View_Summary view = app->get_active_view(app, access);
+    float page_jump = get_page_jump(&view);
+    move_vertical(app, page_jump);
+}
+
 
 CUSTOM_COMMAND_SIG(move_left){
     unsigned int access = AccessProtected;
@@ -1265,44 +1295,6 @@ CUSTOM_COMMAND_SIG(execute_previous_cli){
     }
 }
 
-CUSTOM_COMMAND_SIG(execute_arbitrary_command){
-    // NOTE(allen): This isn't a super powerful version of this command, I will expand
-    // upon it so that it has all the cmdid_* commands by default.  However, with this
-    // as an example you have everything you need to make it work already. You could
-    // even use app->memory to create a hash table in the start hook.
-    Query_Bar bar;
-    char space[1024];
-    bar.prompt = make_lit_string("Command: ");
-    bar.string = make_fixed_width_string(space);
-    
-    if (!query_user_string(app, &bar)) return;
-    
-    // NOTE(allen): Here I chose to end this query bar because when I call another
-    // command it might ALSO have query bars and I don't want this one hanging
-    // around at that point.  Since the bar exists on my stack the result of the query
-    // is still available in bar.string though.
-    app->end_query_bar(app, &bar, 0);
-    
-    if (match(bar.string, make_lit_string("open all code"))){
-        exec_command(app, open_all_code);
-    }
-    else if(match(bar.string, make_lit_string("close all code"))){
-        exec_command(app, close_all_code);
-    }
-    else if (match(bar.string, make_lit_string("open menu"))){
-        exec_command(app, cmdid_open_menu);
-    }
-    else if (match(bar.string, make_lit_string("dos lines"))){
-        exec_command(app, cmdid_eol_dosify);
-    }
-    else if (match(bar.string, make_lit_string("nix lines"))){
-        exec_command(app, cmdid_eol_nixify);
-    }
-    else{
-        app->print_message(app, literal("unrecognized command\n"));
-    }
-}
-
 CUSTOM_COMMAND_SIG(open_in_other_regular){
     exec_command(app, cmdid_change_active_panel);
     exec_command(app, cmdid_interactive_open);
@@ -1524,6 +1516,76 @@ CUSTOM_COMMAND_SIG(change_active_panel_regular){
 #endif
 
 
+//
+// Common Settings Commands
+//
+
+CUSTOM_COMMAND_SIG(toggle_line_wrap){
+    View_Summary view = app->get_active_view(app, AccessProtected);
+    Buffer_Summary buffer = app->get_buffer(app, view.buffer_id, AccessProtected);
+    
+    bool32 unwrapped = view.unwrapped_lines;
+    if (buffer.exists){
+        unwrapped = buffer.unwrapped_lines;
+    }
+    
+    app->view_set_setting(app, &view, ViewSetting_WrapLine, unwrapped);
+}
+
+CUSTOM_COMMAND_SIG(toggle_show_whitespace){
+    View_Summary view = app->get_active_view(app, AccessProtected);
+    app->view_set_setting(app, &view, ViewSetting_ShowWhitespace, !view.show_whitespace);
+}
+
+CUSTOM_COMMAND_SIG(eol_dosify){
+    View_Summary view = app->get_active_view(app, AccessOpen);
+    Buffer_Summary buffer = app->get_buffer(app, view.buffer_id, AccessOpen);
+    app->buffer_set_setting(app, &buffer, BufferSetting_Eol, true);
+}
+
+CUSTOM_COMMAND_SIG(eol_nixify){
+    View_Summary view = app->get_active_view(app, AccessOpen);
+    Buffer_Summary buffer = app->get_buffer(app, view.buffer_id, AccessOpen);
+    app->buffer_set_setting(app, &buffer, BufferSetting_Eol, false);
+}
+
+CUSTOM_COMMAND_SIG(execute_arbitrary_command){
+    // NOTE(allen): This isn't a super powerful version of this command, I will expand
+    // upon it so that it has all the cmdid_* commands by default.  However, with this
+    // as an example you have everything you need to make it work already. You could
+    // even use app->memory to create a hash table in the start hook.
+    Query_Bar bar;
+    char space[1024];
+    bar.prompt = make_lit_string("Command: ");
+    bar.string = make_fixed_width_string(space);
+    
+    if (!query_user_string(app, &bar)) return;
+    
+    // NOTE(allen): Here I chose to end this query bar because when I call another
+    // command it might ALSO have query bars and I don't want this one hanging
+    // around at that point.  Since the bar exists on my stack the result of the query
+    // is still available in bar.string though.
+    app->end_query_bar(app, &bar, 0);
+    
+    if (match(bar.string, make_lit_string("open all code"))){
+        exec_command(app, open_all_code);
+    }
+    else if(match(bar.string, make_lit_string("close all code"))){
+        exec_command(app, close_all_code);
+    }
+    else if (match(bar.string, make_lit_string("open menu"))){
+        exec_command(app, cmdid_open_menu);
+    }
+    else if (match(bar.string, make_lit_string("dos lines"))){
+        exec_command(app, eol_dosify);
+    }
+    else if (match(bar.string, make_lit_string("nix lines"))){
+        exec_command(app, eol_nixify);
+    }
+    else{
+        app->print_message(app, literal("unrecognized command\n"));
+    }
+}
 
 // NOTE(allen|a4): scroll rule information
 //

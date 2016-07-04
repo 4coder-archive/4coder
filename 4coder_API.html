@@ -1027,14 +1027,6 @@ the range [1,16].</div></div><hr>
 <div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>cmdid_left_adjust_view adjusts the view to be just left of the cursor's position.</div></div>
 </div>
 <div>
-<div><span style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>cmdid_page_up</span></span></div>
-<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>cmdid_page_up moves the view up one whole screen height and centers the cursor there.</div></div>
-</div>
-<div>
-<div><span style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>cmdid_page_down</span></span></div>
-<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>cmdid_page_down moves the view down one whole screen height and centers the cursor there.</div></div>
-</div>
-<div>
 <div><span style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>cmdid_word_complete</span></span></div>
 <div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>cmdid_word_complete begins or continues cycling through completions for a partial word.</div></div>
 </div>
@@ -1196,16 +1188,23 @@ the range [1,16].</div></div><hr>
 </div>
 <div>
 <div><span style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>BufferSetting_Lex</span></span></div>
-<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>The BufferSetting_Lex setting is used to determine whether to store C++ tokens from with the buffer.</div></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>The BufferSetting_Lex setting is used to determine whether to store C++ tokens
+    from with the buffer.</div></div>
 </div>
 <div>
 <div><span style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>BufferSetting_WrapLine</span></span></div>
-<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>The BufferSetting_WrapLine setting is used to determine whether a buffer prefers to be viewed with wrapped lines,
-    individual views can be set to override this value after being tied to the buffer.</div></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>The BufferSetting_WrapLine setting is used to determine whether a buffer prefers
+    to be viewed with wrapped lines, individual views can be set to override this value after
+    being tied to the buffer.</div></div>
 </div>
 <div>
 <div><span style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>BufferSetting_MapID</span></span></div>
-<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>The BufferSetting_MapID setting specifies the id of the command map that should be active when a buffer is active.</div></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>The BufferSetting_MapID setting specifies the id of the command map that should be
+    active when a buffer is active.</div></div>
+</div>
+<div>
+<div><span style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>BufferSetting_Eol</span></span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'></div></div>
 </div>
 </div><hr>
 <div id='View_Setting_ID_doc' style='margin-bottom: 1cm;'>
@@ -1216,8 +1215,20 @@ the range [1,16].</div></div><hr>
 <div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>ViewSetting_Null is not a valid setting, it is reserved to detect errors.</div></div>
 </div>
 <div>
+<div><span style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>ViewSetting_WrapLine</span></span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>The ViewSetting_WrapLine setting determines whether the view applies line wrapping
+    at the border of the panel for long lines.  Whenever the view switches to a new buffer it
+    will reset this setting to match the 'preferred' line wrapping setting of the buffer.</div></div>
+</div>
+<div>
+<div><span style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>ViewSetting_ShowWhitespace</span></span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>The ViewSetting_ShowWhitespace setting determines whether the view highlights
+    whitespace in a file.  Whenever the view switches to a new buffer this setting is turned off.</div></div>
+</div>
+<div>
 <div><span style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>ViewSetting_ShowScrollbar</span></span></div>
-<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>The ViewSetting_ShowScrollbar setting determines whether a scroll bar is attached to a view in it's scrollable section.</div></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>The ViewSetting_ShowScrollbar setting determines whether a scroll bar is
+    attached to a view in it's scrollable section.</div></div>
 </div>
 </div><hr>
 <div id='Mouse_Cursor_Show_Type_doc' style='margin-bottom: 1cm;'>
@@ -1235,23 +1246,24 @@ the range [1,16].</div></div><hr>
 <div id='Buffer_Seek_Type_doc' style='margin-bottom: 1cm;'>
  <h4>&sect;3.4.13: Buffer_Seek_Type</h4>
  <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>enum Buffer_Seek_Type;</div>
-<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>UNDOCUMENTED.</div><div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Values</i></b></div><div>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>The Buffer_Seek_Type is is used in a Buffer_Seek to identify which
+coordinates are suppose to be used for the seek.</div><div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Values</i></b></div><div>
 <div><span style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>buffer_seek_pos</span></span></div>
-<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>UNDOCUMENTED.</div></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>This value indicates absolute positioning where positions are measured as the number of bytes from the start of the file.</div></div>
 </div>
 <div>
 <div><span style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>buffer_seek_wrapped_xy</span></span></div>
-<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>UNDOCUMENTED.</div></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>This value indicates xy positioning with wrapped lines where the x and y values are in pixels.</div></div>
 </div>
 <div>
 <div><span style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>buffer_seek_unwrapped_xy</span></span></div>
-<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>UNDOCUMENTED.</div></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>This value indicates xy positioning with unwrapped lines where the x and y values are in pixels.</div></div>
 </div>
 <div>
 <div><span style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>buffer_seek_line_char</span></span></div>
-<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>UNDOCUMENTED.</div></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>This value indicates line-character, or line-column positioning.  These coordinates are 1 based to match standard line numbering.</div></div>
 </div>
-</div><hr>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>See Also</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'><a href='#Buffer_Seek_doc'>Buffer_Seek</a></div><div style='margin-left: 5mm; margin-right: 5mm;'><a href='#4coder_Buffer_Positioning_System_doc'>4coder_Buffer_Positioning_System</a></div></div><hr>
 <div id='Key_Modifier_Flag_doc' style='margin-bottom: 1cm;'>
  <h4>&sect;3.4.14: Key_Modifier_Flag</h4>
  <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>enum Key_Modifier_Flag;</div>
@@ -1725,35 +1737,36 @@ float wrapped_y;<br>
 </div>
 };<br>
 </div>
-<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>UNDOCUMENTED.</div><div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Fields</i></b></div><div>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>Full_Cursor describes the position of a cursor in every buffer
+coordinate system supported by 4coder.</div><div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Fields</i></b></div><div>
 <div style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>pos</span></div>
-<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>UNDOCUMENTED.</div></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>This field contains the cursor's position in absolute positioning.</div></div>
 </div>
 <div>
 <div style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>line</span></div>
-<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>UNDOCUMENTED.</div></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>This field contains the number of the line where the cursor is located. This field is one based.</div></div>
 </div>
 <div>
 <div style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>character</span></div>
-<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>UNDOCUMENTED.</div></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>This field contains the number of the column where the cursor is located. This field is one based.</div></div>
 </div>
 <div>
 <div style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>unwrapped_x</span></div>
-<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>UNDOCUMENTED.</div></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>This field contains the x position measured with unwrapped lines.</div></div>
 </div>
 <div>
 <div style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>unwrapped_y</span></div>
-<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>UNDOCUMENTED.</div></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>This field contains the y position measured with unwrapped lines.</div></div>
 </div>
 <div>
 <div style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>wrapped_x</span></div>
-<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>UNDOCUMENTED.</div></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>This field contains the x position measured with wrapped lines.</div></div>
 </div>
 <div>
 <div style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>wrapped_y</span></div>
-<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>UNDOCUMENTED.</div></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>This field contains the y position measured with wrapped lines.</div></div>
 </div>
-</div><hr>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>See Also</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'><a href='#4coder_Buffer_Positioning_System_doc'>4coder_Buffer_Positioning_System</a></div></div><hr>
 <div id='Buffer_Seek_doc' style='margin-bottom: 1cm;'>
  <h4>&sect;3.4.32: Buffer_Seek</h4>
  <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>struct Buffer_Seek {<br>
@@ -1784,35 +1797,41 @@ int32_t character;<br>
 </div>
 };<br>
 </div>
-<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>UNDOCUMENTED.</div><div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Fields</i></b></div><div>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>Buffer_Seek describes the destination of a seek operation.  There are helpers
+for concisely creating Buffer_Seek structs.  They can be found in 4coder_buffer_types.h.</div><div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Fields</i></b></div><div>
 <div style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>type</span></div>
-<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>UNDOCUMENTED.</div></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>The type field determines the coordinate system of the seek operation.</div></div>
 </div>
 <div>
 <div style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>pos</span></div>
-<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>UNDOCUMENTED.</div></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>The pos field specified the pos when the seek is in absolute position.</div></div>
 </div>
 <div>
 <div style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>round_down</span></div>
-<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>UNDOCUMENTED.</div></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>For xy coordinate seeks, rounding down means that any x in the box of the
+            character lands on that character. For instance when clicking rounding down is the
+            user's expected behavior.  Not rounding down means that the right hand portion of
+            the character's box, which is closer to the next character, will land on that next
+            character.  The unrounded behavior is the expected behavior when moving vertically
+            and keeping the preferred x.</div></div>
 </div>
 <div>
 <div style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>x</span></div>
-<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>UNDOCUMENTED.</div></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>The x coordinate for xy type seeks.</div></div>
 </div>
 <div>
 <div style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>y</span></div>
-<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>UNDOCUMENTED.</div></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>The y coordinate for xy type seeks.</div></div>
 </div>
 <div>
 <div style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>line</span></div>
-<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>UNDOCUMENTED.</div></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>The line number of a line-character type seek.</div></div>
 </div>
 <div>
 <div style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>character</span></div>
-<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>UNDOCUMENTED.</div></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>The character number of a line-character type seek.</div></div>
 </div>
-</div><hr>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>See Also</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'><a href='#Buffer_Seek_Type_doc'>Buffer_Seek_Type</a></div><div style='margin-left: 5mm; margin-right: 5mm;'><a href='#4coder_Buffer_Positioning_System_doc'>4coder_Buffer_Positioning_System</a></div></div><hr>
 <div id='Buffer_Summary_doc' style='margin-bottom: 1cm;'>
  <h4>&sect;3.4.33: Buffer_Summary</h4>
  <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>struct Buffer_Summary {<br>
@@ -1828,6 +1847,7 @@ char * buffer_name;<br>
 int32_t buffer_name_len;<br>
 bool32 is_lexed;<br>
 int32_t map_id;<br>
+bool32 unwrapped_lines;<br>
 </div>
 };<br>
 </div>
@@ -1877,7 +1897,11 @@ int32_t map_id;<br>
 <div style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>map_id</span></div>
 <div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>If this is not a null summary, this field specifies the id of the command map for this buffer.</div></div>
 </div>
-</div><hr>
+<div>
+<div style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>unwrapped_lines</span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>If this is not a null summary, this field indicates whether the buffer 'prefers' wrapped lines.</div></div>
+</div>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>See Also</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'><a href='#Access_Flag_doc'>Access_Flag</a></div></div><hr>
 <div id='View_Summary_doc' style='margin-bottom: 1cm;'>
  <h4>&sect;3.4.34: View_Summary</h4>
  <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>struct View_Summary {<br>
@@ -1947,7 +1971,7 @@ GUI_Scroll_Vars scroll_vars;<br>
 <div style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>scroll_vars</span></div>
 <div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>This feature is not fully implemented yet.</div></div>
 </div>
-</div><hr>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>See Also</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'><a href='#Access_Flag_doc'>Access_Flag</a></div></div><hr>
 <div id='User_Input_doc' style='margin-bottom: 1cm;'>
  <h4>&sect;3.4.35: User_Input</h4>
  <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>struct User_Input {<br>

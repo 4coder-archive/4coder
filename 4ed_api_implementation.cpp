@@ -22,7 +22,6 @@ fill_buffer_summary(Buffer_Summary *buffer, Editing_File *file, Working_Set *wor
         buffer->exists = 1;
         buffer->ready = file_is_ready(file);
         
-        buffer->is_lexed = file->settings.tokens_exist;
         buffer->buffer_id = file->id.id;
         buffer->size = file->state.buffer.size;
         
@@ -31,7 +30,9 @@ fill_buffer_summary(Buffer_Summary *buffer, Editing_File *file, Working_Set *wor
         buffer->file_name = file->name.source_path.str;
         buffer->buffer_name = file->name.live_name.str;
         
+        buffer->is_lexed = file->settings.tokens_exist;
         buffer->map_id = file->settings.base_map_id;
+        buffer->unwrapped_lines = file->settings.unwrapped_lines;
         
         buffer->lock_flags = 0;
         if (file->settings.read_only){
@@ -765,6 +766,12 @@ DOC_SEE(Buffer_Setting_ID)
                     iter.view->map = get_map(models, file->settings.base_map_id);
                 }
             }break;
+            
+            case BufferSetting_Eol:
+            {
+                file->settings.dos_write_mode = value;
+                file->state.last_4ed_edit_time = system->now_time_stamp();
+            }break;
         }
         fill_buffer_summary(buffer, file, cmd);
     }
@@ -1136,11 +1143,41 @@ DOC_SEE(View_Setting_ID)
     bool32 result = false;
     
     if (vptr){
+        result = true;
         switch (setting){
+            case ViewSetting_WrapLine:
+            {
+                Relative_Scrolling scrolling = view_get_relative_scrolling(vptr);
+                if (value){
+                    if (vptr->file_data.unwrapped_lines){
+                        vptr->file_data.unwrapped_lines = 0;
+                        vptr->edit_pos->scroll.target_x = 0;
+                        view_cursor_move(vptr, vptr->edit_pos->cursor.pos);
+                        view_set_relative_scrolling(vptr, scrolling);
+                    }
+                }
+                else{
+                    if (!vptr->file_data.unwrapped_lines){
+                        vptr->file_data.unwrapped_lines = 1;
+                        view_cursor_move(vptr, vptr->edit_pos->cursor.pos);
+                        view_set_relative_scrolling(vptr, scrolling);
+                    }
+                }
+            }break;
+            
+            case ViewSetting_ShowWhitespace:
+            {
+                vptr->file_data.show_whitespace = value;
+            }break;
+            
             case ViewSetting_ShowScrollbar:
             {
-                result = true;
                 vptr->hide_scrollbar = !value;
+            }break;
+            
+            default:
+            {
+                result = false;
             }break;
         }
         

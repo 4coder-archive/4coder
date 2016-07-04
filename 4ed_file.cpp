@@ -129,7 +129,6 @@ struct Editing_File_Settings{
 // NOTE(allen): This part of the Editing_File is cleared whenever
 // the contents of the file is set.
 struct Editing_File_State{
-    i16 font_id;
     Buffer_Type buffer;
     
     Undo_Data undo;
