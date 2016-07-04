@@ -530,7 +530,7 @@ Win32AllocCoroutine(){
     return(result);
 }
 
-nternal void
+internal void
 Win32FreeCoroutine(Win32_Coroutine *data){
     data->next = win32vars.coroutine_free;
     win32vars.coroutine_free = data;

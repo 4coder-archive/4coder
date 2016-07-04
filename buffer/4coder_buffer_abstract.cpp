@@ -779,6 +779,7 @@ buffer_remeasure_widths(Buffer_Type *buffer, float *advance_data,
     assert_4tech(line_start <= line_end);
     assert_4tech(line_count <= buffer->widths_max);
     
+    ++line_end;
     if (line_shift != 0){
         memmove_4tech(widths + line_end + line_shift, widths + line_end,
                       sizeof(float)*(widths_count - line_end));
