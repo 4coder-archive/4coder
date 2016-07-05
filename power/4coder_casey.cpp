@@ -370,14 +370,14 @@ IsCode(String extension)
 
 CUSTOM_COMMAND_SIG(casey_open_in_other)
 {
-    exec_command(app, cmdid_change_active_panel);
+    exec_command(app, change_active_panel);
     exec_command(app, cmdid_interactive_open);
 }
 
 CUSTOM_COMMAND_SIG(casey_clean_and_save)
 {
     exec_command(app, cmdid_clean_all_lines);
-    exec_command(app, cmdid_eol_nixify);
+    exec_command(app, eol_nixify);
     exec_command(app, cmdid_save);
 }
 
@@ -389,13 +389,13 @@ CUSTOM_COMMAND_SIG(casey_newline_and_indent)
 
 CUSTOM_COMMAND_SIG(casey_open_file_other_window)
 {
-    exec_command(app, cmdid_change_active_panel);
+    exec_command(app, change_active_panel);
     exec_command(app, cmdid_interactive_open);
 }
 
 CUSTOM_COMMAND_SIG(casey_switch_buffer_other_window)
 {
-    exec_command(app, cmdid_change_active_panel);
+    exec_command(app, change_active_panel);
     exec_command(app, cmdid_interactive_switch_buffer);
 }
 
@@ -631,7 +631,7 @@ CUSTOM_COMMAND_SIG(casey_find_corresponding_file_other_window)
     View_Summary old_view = app->get_active_view(app, access);
     Buffer_Summary buffer = app->get_buffer(app, old_view.buffer_id, access);
 
-    exec_command(app, cmdid_change_active_panel);
+    exec_command(app, change_active_panel);
     View_Summary new_view = app->get_active_view(app, AccessAll);
     app->view_set_buffer(app, &new_view, buffer.buffer_id, 0);
 
@@ -640,7 +640,7 @@ CUSTOM_COMMAND_SIG(casey_find_corresponding_file_other_window)
 
 CUSTOM_COMMAND_SIG(casey_save_and_make_without_asking)
 {
-    exec_command(app, cmdid_change_active_panel);
+    exec_command(app, change_active_panel);
     
     Buffer_Summary buffer = {};
     
@@ -684,7 +684,7 @@ CUSTOM_COMMAND_SIG(casey_save_and_make_without_asking)
                                  command.str, command.size,
                                  CLI_OverlapWithConflict);
     }
-    exec_command(app, cmdid_change_active_panel);
+    exec_command(app, change_active_panel);
 }
 
 internal bool
@@ -1103,7 +1103,8 @@ OpenProject(Application_Links *app, char *ProjectFileName)
                 File_Info *info = list.infos + i;
                 if (!info->folder)
                 {
-                    String extension = file_extension(info->filename);
+                    String filename = make_string(info->filename, info->filename_len);
+                    String extension = file_extension(filename);
                     if (IsCode(extension))
                     {
                         // NOTE(allen): There's no way in the 4coder API to use relative
@@ -1228,7 +1229,7 @@ DEFINE_MODAL_KEY(modal_back_slash, casey_clean_and_save);
 DEFINE_MODAL_KEY(modal_single_quote, casey_call_keyboard_macro);
 DEFINE_MODAL_KEY(modal_comma, casey_goto_previous_error);
 DEFINE_MODAL_KEY(modal_period, casey_fill_paragraph);
-DEFINE_MODAL_KEY(modal_forward_slash, cmdid_change_active_panel);
+DEFINE_MODAL_KEY(modal_forward_slash, change_active_panel);
 DEFINE_MODAL_KEY(modal_semicolon, cursor_mark_swap); // TODO(casey): Maybe cmdid_history_backward?
 DEFINE_BIMODAL_KEY(modal_open_bracket, casey_begin_keyboard_macro_recording, write_and_auto_tab);
 DEFINE_BIMODAL_KEY(modal_close_bracket, casey_end_keyboard_macro_recording, write_and_auto_tab);
@@ -1280,8 +1281,8 @@ DEFINE_BIMODAL_KEY(modal_right, seek_white_or_token_right, move_right);
 DEFINE_BIMODAL_KEY(modal_delete, casey_delete_token_right, delete_char);
 DEFINE_BIMODAL_KEY(modal_home, casey_seek_beginning_of_line, casey_seek_beginning_of_line_and_tab);
 DEFINE_BIMODAL_KEY(modal_end, seek_end_of_line, seek_end_of_line);
-DEFINE_BIMODAL_KEY(modal_page_up, cmdid_page_up, seek_whitespace_up);
-DEFINE_BIMODAL_KEY(modal_page_down, cmdid_page_down, seek_whitespace_down);
+DEFINE_BIMODAL_KEY(modal_page_up, page_up, seek_whitespace_up);
+DEFINE_BIMODAL_KEY(modal_page_down, page_down, seek_whitespace_down);
 DEFINE_BIMODAL_KEY(modal_tab, cmdid_word_complete, cmdid_word_complete);
 
 OPEN_FILE_HOOK_SIG(casey_file_settings)
@@ -1458,9 +1459,9 @@ win32_toggle_fullscreen(void)
 HOOK_SIG(casey_start)
 {
     exec_command(app, hide_scrollbar);
-    exec_command(app, cmdid_open_panel_vsplit);
+    exec_command(app, open_panel_vsplit);
     exec_command(app, hide_scrollbar);
-    exec_command(app, cmdid_change_active_panel);
+    exec_command(app, change_active_panel);
 
     app->change_theme(app, literal("Handmade Hero"));
     app->change_font(app, literal("Liberation Mono"));
@@ -1520,7 +1521,7 @@ extern "C" GET_BINDING_DATA(get_bindings)
         bind(context, 'z', MDFR_NONE, cmdid_interactive_open);
         bind(context, 'x', MDFR_NONE, casey_open_in_other);
         bind(context, 't', MDFR_NONE, casey_load_todo);
-        bind(context, '/', MDFR_NONE, cmdid_change_active_panel);
+        bind(context, '/', MDFR_NONE, change_active_panel);
         bind(context, 'b', MDFR_NONE, cmdid_interactive_switch_buffer);
         bind(context, key_page_up, MDFR_NONE, search);
         bind(context, key_page_down, MDFR_NONE, reverse_search);

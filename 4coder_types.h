@@ -141,7 +141,7 @@ ENUM(int32_t, Buffer_Setting_ID){
     BufferSetting_MapID,
     
     /* DOC(The BufferSetting_Eol setting spcifies how line ends should be saved to the backing file. 
-    A 1 indicates dos endings "\r\n" and a 0 indicates nix endings "\n".*/
+    A 1 indicates dos endings "\r\n" and a 0 indicates nix endings "\n".) */
     BufferSetting_Eol,
 };
 

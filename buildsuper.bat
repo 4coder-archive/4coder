@@ -8,7 +8,7 @@ SET SRC=%1
 if "%SRC%" == "" SET SRC=4coder_default_bindings.cpp
 
 SET OPTS=/W4 /wd4310 /wd4100 /wd4201 /wd4505 /wd4996 /wd4127 /wd4510 /wd4512 /wd4610 /WX
-SET OPTS=%OPTS% /GR- /nologo
+SET OPTS=%OPTS% /GR- /nologo /FC
 SET DEBUG=/Zi
 set BUILD_DLL=/LD /link /INCREMENTAL:NO /OPT:REF
 SET EXPORTS=/EXPORT:get_bindings /EXPORT:get_alpha_4coder_version
