@@ -357,7 +357,7 @@ default_keys(Bind_Helper *context){
     bind(context, 'g', MDFR_CTRL, goto_line);
     bind(context, 'h', MDFR_CTRL, cmdid_history_backward);
     bind(context, 'H', MDFR_CTRL, cmdid_history_forward);
-    bind(context, 'j', MDFR_CTRL, cmdid_to_lowercase);
+    bind(context, 'j', MDFR_CTRL, to_lowercase);
     bind(context, 'K', MDFR_CTRL, cmdid_kill_buffer);
     bind(context, 'l', MDFR_CTRL, toggle_line_wrap);
     bind(context, 'm', MDFR_CTRL, cursor_mark_swap);
@@ -366,7 +366,7 @@ default_keys(Bind_Helper *context){
     bind(context, 'r', MDFR_CTRL, reverse_search);
     bind(context, 's', MDFR_ALT, show_scrollbar);
     bind(context, 's', MDFR_CTRL, cmdid_save);
-    bind(context, 'u', MDFR_CTRL, cmdid_to_uppercase);
+    bind(context, 'u', MDFR_CTRL, to_uppercase);
     bind(context, 'U', MDFR_CTRL, rewrite_as_single_caps);
     bind(context, 'v', MDFR_CTRL, paste);
     bind(context, 'V', MDFR_CTRL, paste_next);

@@ -67,11 +67,6 @@ ENUM(uint64_t, Command_ID){
     /* DOC(cmdid_history_forward unperforms the previous cmdid_history_backward step if possib.e) */
     cmdid_history_forward,
     
-    /* DOC(cmdid_to_uppercase makes all the alphabetic characters in the cursor/mark range uppercase.) */
-    cmdid_to_uppercase,
-    /* DOC(cmdid_to_uppercase makes all the alphabetic characters in the cursor/mark range lowercase.) */
-    cmdid_to_lowercase,
-    
     /* DOC(cmdid_clean_all_lines deletes extra whitespace out the currently active buffer.) */
     cmdid_clean_all_lines,
     
@@ -101,15 +96,6 @@ ENUM(uint64_t, Command_ID){
     /* DOC(cmdid_open_debug opens the debug information viewer mode.) */
     cmdid_open_debug,
     
-#if 0
-    /* DOC(cmdid_open_panel_vsplit splits the current panel into two with a vertical divider.) */
-    cmdid_open_panel_vsplit,
-    /* DOC(cmdid_open_panel_hsplit splits the current panel into two with a horizontal divider.) */
-    cmdid_open_panel_hsplit,
-    /* DOC(cmdid_close_panel closes the active panel.) */
-    cmdid_close_panel,
-#endif
-
     // count
     cmdid_count
 };

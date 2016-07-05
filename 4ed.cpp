@@ -1028,15 +1028,13 @@ setup_command_table(){
     
     SET(interactive_new);
     SET(interactive_open);
-    SET(reopen);
-    SET(save);
-    SET(save_as);
     SET(interactive_switch_buffer);
     SET(interactive_kill_buffer);
+    SET(save_as);
+    
+    SET(reopen);
+    SET(save);
     SET(kill_buffer);
-        
-    SET(to_uppercase);
-    SET(to_lowercase);
     
     SET(clean_all_lines);
     

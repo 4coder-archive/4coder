@@ -395,6 +395,44 @@ CUSTOM_COMMAND_SIG(paste_next){
 }
 
 //
+// Fancy Editing
+//
+
+CUSTOM_COMMAND_SIG(to_uppercase){
+    View_Summary view = app->get_active_view(app, AccessOpen);
+    Buffer_Summary buffer = app->get_buffer(app, view.buffer_id, AccessOpen);
+    
+    Range range = get_range(&view);
+    int size = range.max - range.min;
+    if (size <= app->memory_size){
+        char *mem = (char*)app->memory;
+        
+        app->buffer_read_range(app, &buffer, range.min, range.max, mem);
+        for (int i = 0; i < size; ++i){
+            mem[i] = char_to_upper(mem[i]);
+        }
+        app->buffer_replace_range(app, &buffer, range.min, range.max, mem, size);
+    }
+}
+
+CUSTOM_COMMAND_SIG(to_lowercase){
+    View_Summary view = app->get_active_view(app, AccessOpen);
+    Buffer_Summary buffer = app->get_buffer(app, view.buffer_id, AccessOpen);
+    
+    Range range = get_range(&view);
+    int size = range.max - range.min;
+    if (size <= app->memory_size){
+        char *mem = (char*)app->memory;
+        
+        app->buffer_read_range(app, &buffer, range.min, range.max, mem);
+        for (int i = 0; i < size; ++i){
+            mem[i] = char_to_lower(mem[i]);
+        }
+        app->buffer_replace_range(app, &buffer, range.min, range.max, mem, size);
+    }
+}
+
+//
 // Various Forms of Seek
 //
 
