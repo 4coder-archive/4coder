@@ -72,22 +72,8 @@ ENUM(uint64_t, Command_ID){
     /* DOC(cmdid_to_uppercase makes all the alphabetic characters in the cursor/mark range lowercase.) */
     cmdid_to_lowercase,
     
-#if 0
-    /* DOC(cmdid_toggle_line_wrap toggles the line wrap setting of the active view. ) */
-    cmdid_toggle_line_wrap,
-    /* DOC(cmdid_toggle_line_wrap toggles the show whitespace setting of the active view.) */
-    cmdid_toggle_show_whitespace,
-#endif
-
     /* DOC(cmdid_clean_all_lines deletes extra whitespace out the currently active buffer.) */
     cmdid_clean_all_lines,
-    
-#if 0
-    /* DOC(cmdid_eol_dosify sets the currently active buffer to dos save mode where the end of a line is "\r\n") */
-    cmdid_eol_dosify,
-    /* DOC(cmdid_eol_nixify sets the currently active buffer to nix save mode where the end of a line is "\n") */
-    cmdid_eol_nixify,
-#endif
     
     /* DOC(cmdid_interactive_new begins an interactive dialogue to create a new buffer.) */
     cmdid_interactive_new,
@@ -115,15 +101,15 @@ ENUM(uint64_t, Command_ID){
     /* DOC(cmdid_open_debug opens the debug information viewer mode.) */
     cmdid_open_debug,
     
+#if 0
     /* DOC(cmdid_open_panel_vsplit splits the current panel into two with a vertical divider.) */
     cmdid_open_panel_vsplit,
     /* DOC(cmdid_open_panel_hsplit splits the current panel into two with a horizontal divider.) */
     cmdid_open_panel_hsplit,
     /* DOC(cmdid_close_panel closes the active panel.) */
     cmdid_close_panel,
-    /* DOC(cmdid_change_active_panel cycles to the next open panel.) */
-    cmdid_change_active_panel,
-    
+#endif
+
     // count
     cmdid_count
 };
@@ -323,6 +309,19 @@ ENUM(int32_t, Buffer_Seek_Type){
     buffer_seek_unwrapped_xy,
     /* DOC(This value indicates line-character, or line-column positioning.  These coordinates are 1 based to match standard line numbering.) */
     buffer_seek_line_char
+};
+
+/* DOC(A View_Split_Position specifies where a new view should be placed as a result of
+a view split operation.) */
+ENUM(int32_t, View_Split_Position){
+    /* DOC(This value indicates that the new view should be above the existing view.) */
+    ViewSplit_Top,
+    /* DOC(This value indicates that the new view should be below the existing view.) */
+    ViewSplit_Bottom,
+    /* DOC(This value indicates that the new view should be left of the existing view.) */
+    ViewSplit_Left,
+    /* DOC(This value indicates that the new view should be right of the existing view.) */
+    ViewSplit_Right
 };
 
 /* DOC(

@@ -857,7 +857,54 @@ CUSTOM_COMMAND_SIG(hide_scrollbar){
 }
 
 //
+// Panel Management
 //
+
+CUSTOM_COMMAND_SIG(change_active_panel_regular){
+    View_Summary view = app->get_active_view(app, AccessAll);
+    app->get_view_next(app, &view, AccessAll);
+    if (!view.exists){
+        view = app->get_view_first(app, AccessAll);
+    }
+    if (view.exists){
+        app->set_active_view(app, &view);
+    }
+}
+
+// TODO(allen): This is a bit nasty.  I want a system for picking
+// the most advanced and correct version of a command to bind to a
+// name based on which files are included.
+#ifndef  CHANGE_ACTIVE_PANEL
+# define CHANGE_ACTIVE_PANEL 1
+#elif CHANGE_ACTIVE_PANEL <= 1
+# undef  CHANGE_ACTIVE_PANEL
+# define CHANGE_ACTIVE_PANEL 1
+#endif
+
+#if CHANGE_ACTIVE_PANEL <= 1
+# ifdef change_active_panel
+#  undef change_active_panel
+# endif
+# define change_active_panel change_active_panel_regular
+#endif
+
+CUSTOM_COMMAND_SIG(close_panel){
+    View_Summary view = app->get_active_view(app, AccessAll);
+    app->close_view(app, &view);
+}
+
+CUSTOM_COMMAND_SIG(open_panel_vsplit){
+    View_Summary view = app->get_active_view(app, AccessAll);
+    app->open_view(app, &view, ViewSplit_Right);
+}
+
+CUSTOM_COMMAND_SIG(open_panel_hsplit){
+    View_Summary view = app->get_active_view(app, AccessAll);
+    app->open_view(app, &view, ViewSplit_Bottom);
+}
+
+//
+// Open File In Quotes
 //
 
 static int
@@ -898,7 +945,7 @@ CUSTOM_COMMAND_SIG(open_file_in_quotes_regular){
     String file_name = make_fixed_width_string(file_name_);
     
     if (file_name_in_quotes(app, &file_name)){
-        exec_command(app, cmdid_change_active_panel);
+        exec_command(app, change_active_panel_regular);
         View_Summary view = app->get_active_view(app, AccessAll);
         view_open_file(app, &view, expand_str(file_name), false);
     }
@@ -1296,7 +1343,7 @@ CUSTOM_COMMAND_SIG(execute_previous_cli){
 }
 
 CUSTOM_COMMAND_SIG(open_in_other_regular){
-    exec_command(app, cmdid_change_active_panel);
+    exec_command(app, change_active_panel_regular);
     exec_command(app, cmdid_interactive_open);
 }
 
@@ -1494,28 +1541,6 @@ CUSTOM_COMMAND_SIG(build_search_regular){
 #endif
 
 
-CUSTOM_COMMAND_SIG(change_active_panel_regular){
-    exec_command(app, cmdid_change_active_panel);
-}
-
-// TODO(allen): This is a bit nasty.  I want a system for picking
-// the most advanced and correct version of a command to bind to a
-// name based on which files are included.
-#ifndef  CHANGE_ACTIVE_PANEL
-# define CHANGE_ACTIVE_PANEL 1
-#elif CHANGE_ACTIVE_PANEL <= 1
-# undef  CHANGE_ACTIVE_PANEL
-# define CHANGE_ACTIVE_PANEL 1
-#endif
-
-#if CHANGE_ACTIVE_PANEL <= 1
-# ifdef change_active_panel
-#  undef change_active_panel
-# endif
-# define change_active_panel change_active_panel_regular
-#endif
-
-
 //
 // Common Settings Commands
 //
@@ -1530,6 +1555,7 @@ CUSTOM_COMMAND_SIG(toggle_line_wrap){
     }
     
     app->view_set_setting(app, &view, ViewSetting_WrapLine, unwrapped);
+    app->buffer_set_setting(app, &buffer, BufferSetting_WrapLine, unwrapped);
 }
 
 CUSTOM_COMMAND_SIG(toggle_show_whitespace){

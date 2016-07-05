@@ -19,6 +19,8 @@
 #define GET_VIEW_NEXT_SIG(n) void n(Application_Links *app, View_Summary *view, Access_Flag access)
 #define GET_VIEW_SIG(n) View_Summary n(Application_Links *app, View_ID view_id, Access_Flag access)
 #define GET_ACTIVE_VIEW_SIG(n) View_Summary n(Application_Links *app, Access_Flag access)
+#define OPEN_VIEW_SIG(n) View_Summary n(Application_Links *app, View_Summary *view_location, View_Split_Position position)
+#define CLOSE_VIEW_SIG(n) bool32 n(Application_Links *app, View_Summary *view)
 #define SET_ACTIVE_VIEW_SIG(n) bool32 n(Application_Links *app, View_Summary *view)
 #define VIEW_SET_SETTING_SIG(n) bool32 n(Application_Links *app, View_Summary *view, View_Setting_ID setting, int32_t value)
 #define VIEW_SET_SPLIT_PROPORTION_SIG(n) bool32 n(Application_Links *app, View_Summary *view, float t)
@@ -67,6 +69,8 @@ extern "C"{
     typedef GET_VIEW_NEXT_SIG(Get_View_Next_Function);
     typedef GET_VIEW_SIG(Get_View_Function);
     typedef GET_ACTIVE_VIEW_SIG(Get_Active_View_Function);
+    typedef OPEN_VIEW_SIG(Open_View_Function);
+    typedef CLOSE_VIEW_SIG(Close_View_Function);
     typedef SET_ACTIVE_VIEW_SIG(Set_Active_View_Function);
     typedef VIEW_SET_SETTING_SIG(View_Set_Setting_Function);
     typedef VIEW_SET_SPLIT_PROPORTION_SIG(View_Set_Split_Proportion_Function);
@@ -118,6 +122,8 @@ struct Application_Links{
     Get_View_Next_Function *get_view_next;
     Get_View_Function *get_view;
     Get_Active_View_Function *get_active_view;
+    Open_View_Function *open_view;
+    Close_View_Function *close_view;
     Set_Active_View_Function *set_active_view;
     View_Set_Setting_Function *view_set_setting;
     View_Set_Split_Proportion_Function *view_set_split_proportion;
@@ -171,6 +177,8 @@ app_links->get_view_first = Get_View_First;\
 app_links->get_view_next = Get_View_Next;\
 app_links->get_view = Get_View;\
 app_links->get_active_view = Get_Active_View;\
+app_links->open_view = Open_View;\
+app_links->close_view = Close_View;\
 app_links->set_active_view = Set_Active_View;\
 app_links->view_set_setting = View_Set_Setting;\
 app_links->view_set_split_proportion = View_Set_Split_Proportion;\

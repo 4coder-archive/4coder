@@ -35,7 +35,7 @@ CUSTOM_COMMAND_SIG(build_in_build_panel){
     }
     
     if (!build_view.exists){
-        exec_command(app, cmdid_open_panel_hsplit);
+        exec_command(app, open_panel_hsplit);
         exec_command(app, hide_scrollbar);
         build_view = app->get_active_view(app, AccessAll);
         app->view_set_split_proportion(app, &build_view, .2f);
@@ -69,13 +69,13 @@ CUSTOM_COMMAND_SIG(build_in_build_panel){
 
 CUSTOM_COMMAND_SIG(close_build_panel){
     Buffer_Summary buffer = GET_COMP_BUFFER();
+    View_Summary build_view = get_first_view_with_buffer(app, buffer.buffer_id);
     
-    if (buffer.exists){
-        View_Summary build_view = get_first_view_with_buffer(app, buffer.buffer_id);
+    if (build_view.exists){
         View_Summary original_view = app->get_active_view(app, AccessAll);
         
         app->set_active_view(app, &build_view);
-        exec_command(app, cmdid_close_panel);
+        exec_command(app, close_panel);
         app->set_active_view(app, &original_view);
     }
 }
@@ -99,18 +99,18 @@ CUSTOM_COMMAND_SIG(change_active_panel_build){
         View_Summary view = app->get_active_view(app, AccessAll);
         int prev_view_id = view.view_id;
         
-        exec_command(app, cmdid_change_active_panel);
+        exec_command(app, change_active_panel_regular);
         view = app->get_active_view(app, AccessAll);
         
         for (;(view.view_id != prev_view_id &&
                build_view.view_id == view.view_id);){
             prev_view_id = view.view_id;
-            exec_command(app, cmdid_change_active_panel);
+            exec_command(app, change_active_panel_regular);
             view = app->get_active_view(app, AccessAll);
         }
     }
     else{
-        exec_command(app, cmdid_change_active_panel);
+        exec_command(app, change_active_panel_regular);
     }
 }
 

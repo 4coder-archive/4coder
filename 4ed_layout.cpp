@@ -188,25 +188,22 @@ layout_split_panel(Editing_Layout *layout, Panel *panel, b32 vertical){
     div.divider->which_child = panel->which_child;
     if (vertical){
         div.divider->v_divider = 1;
-        //div.divider->pos = (panel->full.x0 + panel->full.x1) / 2;
-        div.divider->pos = 0.5f;
     }
     else{
         div.divider->v_divider = 0;
-        //div.divider->pos = (panel->full.y0 + panel->full.y1) / 2;
-        div.divider->pos = 0.5f;
     }
-
+    div.divider->pos = 0.5f;
+    
     new_panel = layout_alloc_panel(layout);
     panel->parent = div.id;
     panel->which_child = -1;
     new_panel.panel->parent = div.id;
     new_panel.panel->which_child = 1;
-
+    
     result.divider = div.divider;
     result.panel = new_panel.panel;
     
-    return result;
+    return(result);
 }
 
 internal void

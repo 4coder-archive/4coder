@@ -104,6 +104,7 @@
 ; [] generate documentation for custom API
 ; [] OS font rendering
 ; [] support full length unicode file names
+; [] switch based word complete
 ; 
 ; [] file status in custom API
 ; [] user file bar string

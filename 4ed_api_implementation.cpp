@@ -453,11 +453,11 @@ DOC_SEE(get_buffer_next)
 
 API_EXPORT void
 Get_Buffer_Next(Application_Links *app, Buffer_Summary *buffer, Access_Flag  access)/*
-DOC_PARAM(buffer, The buffer summary pointed to by buffer is iterated to the next buffer or to a null summary if this is the last buffer. )
+DOC_PARAM(buffer, The Buffer_Summary pointed to by buffer is iterated to the next buffer or to a null summary if this is the last buffer.)
 DOC_PARAM(access, The access parameter determines what levels of protection this call can access. The buffer outputted will be the next buffer that is accessible.)
 DOC
 (
-This call steps a buffer summary to the next buffer in the global buffer order.
+This call steps a Buffer_Summary to the next buffer in the global buffer order.
 The global buffer order is kept roughly in the order of most recently used to least recently used.
 
 If the buffer outputted does not exist, the loop is finished.
@@ -830,7 +830,7 @@ DOC_RETURN(This call returns the summary of the created buffer.)
 DOC
 (
 Tries to create a new buffer and associate it to the given filename.  If such a buffer already
-exists the existing buffer is returned in the buffer summary and no new buffer is created.
+exists the existing buffer is returned in the Buffer_Summary and no new buffer is created.
 If the buffer does not exist a new buffer is created and named after the given filename.  If
 the filename corresponds to a file on the disk that file is loaded and put into buffer, if
 the filename does not correspond to a file on disk the buffer is created empty.
@@ -1021,7 +1021,7 @@ DOC
 (
 This call begins a loop across all the open views.
 
-If the view summary returned is a null summary, the loop is finished.
+If the View_Summary returned is a null summary, the loop is finished.
 Views should not be closed or opened durring a view loop.
 )
 DOC_SEE(Access_Flag)
@@ -1040,11 +1040,11 @@ DOC_SEE(get_view_next)
 
 API_EXPORT void
 Get_View_Next(Application_Links *app, View_Summary *view, Access_Flag access)/*
-DOC_PARAM(view, pointer to the loop view originally returned by get_view_first)
+DOC_PARAM(view, The View_Summary pointed to by view is iterated to the next view or to a null summary if this is the last view.)
 DOC_PARAM(access, The access parameter determines what levels of protection this call can access. The view outputted will be the next view that is accessible.)
 DOC
 (
-This call steps a view summary to the next view in the global view order.
+This call steps a View_Summary to the next view in the global view order.
 
 If the view outputted does not exist, the loop is finished.
 Views should not be closed or opened durring a view loop.
@@ -1099,6 +1099,164 @@ DOC_SEE(Access_Flag)
         view = view_summary_zero();
     }
     return(view);
+}
+
+API_EXPORT View_Summary
+Open_View(Application_Links *app, View_Summary *view_location, View_Split_Position position)/*
+DOC_PARAM(view_location, The view_location parameter specifies the view to split to open the new view.)
+DOC_PARAM(position, The position parameter specifies how to split the view and where to place the new view.)
+DOC_RETURN(If this call succeeds it returns a View_Summary describing the newly created view, if it fails it
+returns a null summary.)
+DOC(4coder is built with a limit of 16 views.  If 16 views are already open when this is called the
+call will fail.)
+DOC_SEE(View_Split_Position)
+*/{
+    Command_Data *cmd = (Command_Data*)app->cmd_context;
+    System_Functions *system = cmd->system;
+    Models *models = cmd->models;
+    View *vptr = imp_get_view(cmd, view_location);
+    Panel *panel = vptr->panel;
+    View_Summary result = {0};
+    
+    if (models->layout.panel_count < models->layout.panel_max_count){
+        b32 vsplit = ((position == ViewSplit_Left) || (position == ViewSplit_Right));
+        b32 grtsplit = ((position == ViewSplit_Bottom) || (position == ViewSplit_Right));
+        
+        Split_Result split = layout_split_panel(&models->layout, panel, vsplit);
+        
+        Panel *grtpanel = split.panel;
+        Panel *lsrpanel = panel;
+        
+        if (!grtsplit){
+            Swap(i32, panel->which_child, split.panel->which_child);
+            Swap(Panel*, grtpanel, lsrpanel);
+        }
+        
+        split.panel->screen_region = panel->screen_region;
+        if (vsplit){
+            i32 x_pos = ROUND32(lerp((f32)lsrpanel->full.x0,
+                                     split.divider->pos,
+                                     (f32)lsrpanel->full.x1));
+            
+            grtpanel->full.x0 = x_pos;
+            grtpanel->full.x1 = lsrpanel->full.x1;
+            lsrpanel->full.x1 = x_pos;
+        }
+        else{
+            i32 y_pos = ROUND32(lerp((f32)lsrpanel->full.y0,
+                                     split.divider->pos,
+                                     (f32)lsrpanel->full.y1));
+            
+            grtpanel->full.y0 = y_pos;
+            grtpanel->full.y1 = lsrpanel->full.y1;
+            lsrpanel->full.y1 = y_pos;
+        }
+        
+        panel_fix_internal_area(panel);
+        panel_fix_internal_area(split.panel);
+        split.panel->prev_inner = split.panel->inner;
+        
+        models->layout.active_panel = (i32)(split.panel - models->layout.panels);
+        panel_make_empty(system, cmd->vars, split.panel);
+    }
+    
+    update_command_data(cmd->vars, cmd);
+    
+    return(result);
+}
+
+API_EXPORT bool32
+Close_View(Application_Links *app, View_Summary *view)/*
+DOC_PARAM(view, The view parameter specifies which view to close.)
+DOC_RETURN(This call returns non-zero on success.)
+DOC(
+If the given view is open and is not the last view, it will be closed.
+If the given view is the active view, the next active view in the global
+order of view will be made active.
+If the given view is the last open view in the system, the call will fail.
+)
+*/{
+    Command_Data *cmd = (Command_Data*)app->cmd_context;
+    System_Functions *system = cmd->system;
+    Models *models = cmd->models;
+    View *vptr = imp_get_view(cmd, view);
+    Panel *panel = vptr->panel;
+    bool32 result = false;
+    
+    Divider_And_ID div, parent_div, child_div;
+    i32 child;
+    i32 parent;
+    i32 which_child;
+    i32 active;
+    
+    if (models->layout.panel_count > 1){
+        live_set_free_view(system, models->live_set, vptr);
+        panel->view = 0;
+        
+        div = layout_get_divider(&models->layout, panel->parent);
+        
+        // This divider cannot have two child dividers.
+        Assert(div.divider->child1 == -1 || div.divider->child2 == -1);
+        
+        // Get the child who needs to fill in this node's spot
+        child = div.divider->child1;
+        if (child == -1) child = div.divider->child2;
+        
+        parent = div.divider->parent;
+        which_child = div.divider->which_child;
+        
+        // Fill the child in the slot this node use to hold
+        if (parent == -1){
+            Assert(models->layout.root == div.id);
+            models->layout.root = child;
+        }
+        else{
+            parent_div = layout_get_divider(&models->layout, parent);
+            if (which_child == -1){
+                parent_div.divider->child1 = child;
+            }
+            else{
+                parent_div.divider->child2 = child;
+            }
+        }
+        
+        // If there was a child divider, give it information about it's new parent.
+        if (child != -1){
+            child_div = layout_get_divider(&models->layout, child);
+            child_div.divider->parent = parent;
+            child_div.divider->which_child = div.divider->which_child;
+        }
+        
+        // What is the new active panel?
+        active = -1;
+        if (child == -1){
+            Panel *panel_ptr = 0;
+            Panel *used_panels = &models->layout.used_sentinel;
+            for (dll_items(panel_ptr, used_panels)){
+                if (panel_ptr != panel && panel_ptr->parent == div.id){
+                    panel_ptr->parent = parent;
+                    panel_ptr->which_child = which_child;
+                    active = (i32)(panel_ptr - models->layout.panels);
+                    break;
+                }
+            }
+        }
+        else{
+            Panel *panel_ptr = panel->next;
+            if (panel_ptr == &models->layout.used_sentinel) panel_ptr = panel_ptr->next;
+            Assert(panel_ptr != panel);
+            active = (i32)(panel_ptr - models->layout.panels);
+        }
+        
+        Assert(active != -1 && panel != models->layout.panels + active);
+        models->layout.active_panel = active;
+        
+        layout_free_divider(&models->layout, div.divider);
+        layout_free_panel(&models->layout, panel);
+        layout_fix_all_panels(&models->layout);
+    }
+    
+    return(result);
 }
 
 API_EXPORT bool32

@@ -125,9 +125,9 @@ CUSTOM_COMMAND_SIG(seek_whitespace_down_end_line){
 }
 
 HOOK_SIG(my_start){
-    exec_command(app, cmdid_open_panel_vsplit);
+    exec_command(app, open_panel_vsplit);
     exec_command(app, hide_scrollbar);
-    exec_command(app, cmdid_change_active_panel);
+    exec_command(app, change_active_panel);
     exec_command(app, hide_scrollbar);
     
     app->change_theme(app, literal("4coder"));
@@ -246,9 +246,9 @@ void
 default_keys(Bind_Helper *context){
     begin_map(context, mapid_global);
     
-    bind(context, 'p', MDFR_CTRL, cmdid_open_panel_vsplit);
-    bind(context, '_', MDFR_CTRL, cmdid_open_panel_hsplit);
-    bind(context, 'P', MDFR_CTRL, cmdid_close_panel);
+    bind(context, 'p', MDFR_CTRL, open_panel_vsplit);
+    bind(context, '_', MDFR_CTRL, open_panel_hsplit);
+    bind(context, 'P', MDFR_CTRL, close_panel);
     bind(context, 'n', MDFR_CTRL, cmdid_interactive_new);
     bind(context, 'o', MDFR_CTRL, cmdid_interactive_open);
     bind(context, ',', MDFR_CTRL, change_active_panel);
@@ -298,7 +298,7 @@ default_keys(Bind_Helper *context){
     bind(context, '=', MDFR_CTRL, write_increment);
     bind(context, 't', MDFR_ALT, write_allen_todo);
     bind(context, 'y', MDFR_ALT, write_allen_note);
-    bind(context, 'r', MDFR_ALT, write_allen_note);
+    bind(context, 'r', MDFR_ALT, write_allen_doc);
     bind(context, '[', MDFR_CTRL, open_long_braces);
     bind(context, '{', MDFR_CTRL, open_long_braces_semicolon);
     bind(context, '}', MDFR_CTRL, open_long_braces_break);
