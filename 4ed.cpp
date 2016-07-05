@@ -275,7 +275,7 @@ panel_make_empty(System_Functions *system, App_Vars *vars, Panel *panel){
     
     Assert(panel->view == 0);
     new_view = live_set_alloc_view(&vars->live_set, panel, models);
-    view_set_file(new_view.view, 0, models);
+    view_set_file(new_view.view, models->scratch_buffer, models);
     new_view.view->map = get_map(models, mapid_global);
     
     return(new_view.view);
@@ -2673,9 +2673,9 @@ App_Step_Sig(app_step){
                             "-A scratch buffer is now opened with 4coder automatically\n"
                             "-A new mouse suppression mode toggled by <F2>\n"
                             "-Hinting is disabled by default, a -h flag on the command line enables it\n"
-                            "-New 4coder_API.html documentation file included for the custom layer API\n"
+                            "-New 4coder_API.html documentation file provided for the custom layer API\n"
                             "-Experimental new work-flow for building and jumping to errors\n"
-                            "  (only available in power for this build)\n"
+                            "  This system is only for MSVC in the 'power' version as of 4.0.9\n"
                             "\n"
                             "New in alpha 4.0.8:\n"
                             "-Eliminated the parameter stack\n"

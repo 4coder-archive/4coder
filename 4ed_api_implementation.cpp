@@ -1158,6 +1158,8 @@ DOC_SEE(View_Split_Position)
         
         models->layout.active_panel = (i32)(split.panel - models->layout.panels);
         panel_make_empty(system, cmd->vars, split.panel);
+        
+        fill_view_summary(&result, split.panel->view, cmd);
     }
     
     update_command_data(cmd->vars, cmd);

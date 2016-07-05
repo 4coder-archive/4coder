@@ -933,12 +933,14 @@ CUSTOM_COMMAND_SIG(close_panel){
 
 CUSTOM_COMMAND_SIG(open_panel_vsplit){
     View_Summary view = app->get_active_view(app, AccessAll);
-    app->open_view(app, &view, ViewSplit_Right);
+    View_Summary new_view = app->open_view(app, &view, ViewSplit_Right);
+    app->view_set_setting(app, &new_view, ViewSetting_ShowScrollbar, false);
 }
 
 CUSTOM_COMMAND_SIG(open_panel_hsplit){
     View_Summary view = app->get_active_view(app, AccessAll);
-    app->open_view(app, &view, ViewSplit_Bottom);
+    View_Summary new_view = app->open_view(app, &view, ViewSplit_Bottom);
+    app->view_set_setting(app, &new_view, ViewSetting_ShowScrollbar, false);
 }
 
 //
