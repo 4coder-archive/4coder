@@ -35,13 +35,14 @@ copy 4coder_*.cpp ..\current_dist_super\4coder\*
 copy README.txt ..\current_dist_super\4coder\*
 copy TODO.txt ..\current_dist_super\4coder\*
 copy SUPERREADME.txt ..\current_dist_super\4coder\*
-copy 4coder_API.html ..\current_dist_super\4coder\*
 copy ..\current_dist\4coder\3rdparty\* ..\current_dist_super\4coder\3rdparty\*
 REM del ..\current_dist_super\4coder\*.pdb
 del ..\current_dist_super\4coder\*.lib
 del ..\current_dist_super\4coder\*.obj
 del ..\current_dist_super\4coder\4coder_custom.dll
 del ..\current_dist_super\4coder\.4coder_settings
+
+copy 4coder_API.html ..\current_dist_super\*
 
 del ..\current_dist_power\power\* /F /Q
 copy power\* ..\current_dist_power\power\*
