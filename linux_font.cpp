@@ -53,8 +53,7 @@ linux_get_sys_font(char* name, i32 pt_size){
 }
 
 internal b32
-linux_font_load(Partition *part, Render_Font *rf, char *name, i32 pt_size, i32 tab_width){
-
+linux_font_load(Partition *part, Render_Font *rf, char *name, i32 pt_size, i32 tab_width, b32 use_hinting){
     b32 result = 0;
 
     Temp_Memory temp = begin_temp_memory(part);
@@ -70,7 +69,7 @@ linux_font_load(Partition *part, Render_Font *rf, char *name, i32 pt_size, i32 t
 #endif
 
     if (filename != 0){
-        result = font_load_freetype(part, rf, filename, pt_size, tab_width);
+        result = font_load_freetype(part, rf, filename, pt_size, tab_width, use_hinting);
     }
 
     end_temp_memory(temp);
