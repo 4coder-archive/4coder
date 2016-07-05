@@ -1,3 +1,4 @@
+
 /*
  * Mr. 4th Dimention - Allen Webster
  *
@@ -1167,7 +1168,8 @@ Font_Load_Sig(system_draw_font_load){
 
     for(; attempts < 3; ++attempts){
 #if LINUX_FONTS
-        success = linux_font_load(&linuxvars.font_part, font_out, filename, pt_size, tab_width);
+        success = linux_font_load(&linuxvars.font_part, font_out, filename, pt_size, tab_width,
+                                  linuxvars.settings.use_hinting);
 #else
         success = font_load(
             &linuxvars.font_part,
