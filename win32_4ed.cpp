@@ -13,7 +13,7 @@
 
 #include "4ed_meta.h"
 
-#define FCPP_STRING_IMPLEMENTATION
+#define FSTRING_IMPLEMENTATION
 #include "4coder_string.h"
 
 #include "4ed_mem.cpp"
@@ -644,7 +644,7 @@ Sys_File_Load_Begin_Sig(system_file_load_begin){
         copy(&fixed_str, fname_str);
         terminate_with_null(&fixed_str);
         
-        replace_char(fixed_str, '/', '\\');
+        replace_char(&fixed_str, '/', '\\');
         
         file = CreateFile(fixed_str.str, GENERIC_READ, 0, 0,
                           OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
@@ -752,8 +752,9 @@ Sys_Set_File_List_Sig(system_set_file_list){
         append(&dir, directory);
         char trail_str[] = "\\*";
         append(&dir, trail_str);
+        terminate_with_null(&dir);
         
-        char *c_str_dir = make_c_str(dir);
+        char *c_str_dir = dir.str;
         
         WIN32_FIND_DATA find_data;
         HANDLE search;
@@ -774,7 +775,7 @@ Sys_Set_File_List_Sig(system_set_file_list){
                 more_files = FindNextFile(search, &find_data);
             }while(more_files);
             FindClose(search);
-
+            
             i32 required_size = count + file_count * sizeof(File_Info);
             if (file_list->block_size < required_size){
                 Win32FreeMemory(file_list->block);
@@ -800,7 +801,10 @@ Sys_Set_File_List_Sig(system_set_file_list){
                             for(;find_data.cFileName[i];++i) *name++ = find_data.cFileName[i];
                             info->filename_len = i;
                             *name++ = 0;
-                            replace_char(info->filename, '\\', '/');
+                            String fname = make_string(info->filename,
+                                                       info->filename_len,
+                                                       info->filename_len+1);
+                            replace_char(&fname, '\\', '/');
                             ++info;
                         }
                         more_files = FindNextFile(search, &find_data);
@@ -1806,7 +1810,7 @@ WinMain(HINSTANCE hInstance,
     
     String current_directory = make_string(current_directory_mem, written, required);
     terminate_with_null(&current_directory);
-    replace_char(current_directory, '\\', '/');
+    replace_char(&current_directory, '\\', '/');
     
     Command_Line_Parameters clparams;
     clparams.argv = argv;

@@ -16,7 +16,7 @@
 #include "4ed_meta.h"
 
 #include "4cpp_types.h"
-#define FCPP_STRING_IMPLEMENTATION
+#define FSTRING_IMPLEMENTATION
 #include "4coder_string.h"
 
 #include "4ed_mem.cpp"

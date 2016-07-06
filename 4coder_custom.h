@@ -10,8 +10,8 @@
 #include "4coder_rect.h"
 #include "4coder_mem.h"
 
-#ifndef FRED_STRING_STRUCT
-#define FRED_STRING_STRUCT
+#ifndef FSTRING_STRUCT
+#define FSTRING_STRUCT
 typedef struct String{
     char *str;
     int size;

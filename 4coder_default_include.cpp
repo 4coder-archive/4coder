@@ -4,7 +4,7 @@
 
 #include "4coder_custom.h"
 
-#define FCPP_STRING_IMPLEMENTATION
+#define FSTRING_IMPLEMENTATION
 #include "4coder_string.h"
 
 #include "4coder_helper.h"

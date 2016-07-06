@@ -1910,8 +1910,9 @@ App_Step_Sig(app_step){
         for (dll_items(node, used_nodes)){
             file = (Editing_File*)node;
             
+            terminate_with_null(&file->name.source_path);
             time_stamp =
-                system->file_time_stamp(make_c_str(file->name.source_path));
+                system->file_time_stamp(file->name.source_path.str);
             
             if (time_stamp > 0){
                 file->state.last_sys_write_time = time_stamp;

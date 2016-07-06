@@ -713,8 +713,7 @@ file_set_name(Working_Set *working_set, Editing_File *file, String filename){
     
     copy_checked(&file->name.source_path, filename);
     
-    file->name.live_name.size = 0;
-    get_front_of_directory(&file->name.live_name, filename);
+    copy(&file->name.live_name, front_of_directory(filename));
     
     if (file->name.source_path.size == file->name.live_name.size){
         file->name.extension.size = 0;
@@ -3705,9 +3704,9 @@ begin_exhaustive_loop(Exhaustive_File_Loop *loop, Hot_Directory *hdir){
     loop->infos = hdir->file_list.infos;
     loop->count = hdir->file_list.count;
     
-    get_front_of_directory(&loop->front_name, hdir->string);
+    copy(&loop->front_name, front_of_directory(hdir->string));
     get_absolutes(loop->front_name, &loop->absolutes, 1, 1);
-    get_path_of_directory(&loop->full_path, hdir->string);
+    copy(&loop->full_path, path_of_directory(hdir->string));
     loop->r = loop->full_path.size;
 }
 
@@ -4286,7 +4285,7 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                                     char text_space[7];
                                     String text = make_fixed_width_string(text_space);
                                     
-                                    color_to_hexstr(*edit_color, &text);
+                                    color_to_hexstr(&text, *edit_color);
                                     if (gui_do_text_with_cursor(target, view->color_cursor, text, &update)){
                                         b32 r = 0;
                                         i32 j = 0;

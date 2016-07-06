@@ -4,7 +4,7 @@
 
 #include "4coder_custom.h"
 
-#define FCPP_STRING_IMPLEMENTATION
+#define FSTRING_IMPLEMENTATION
 #include "4coder_string.h"
 
 #include "4coder_helper.h"
@@ -19,6 +19,7 @@ struct Prev_Jump{
     int line;
 };
 
+static Prev_Jump null_location = {0};
 static Prev_Jump prev_location = {0};
 
 CUSTOM_COMMAND_SIG(build_in_build_panel){
@@ -44,8 +45,7 @@ CUSTOM_COMMAND_SIG(build_in_build_panel){
     
     execute_standard_build(app, &build_view, &original_buffer);
     
-    
-    prev_location = {0};
+    prev_location = null_location;
 }
 
 // TODO(allen): This is a bit nasty.  I want a system for picking

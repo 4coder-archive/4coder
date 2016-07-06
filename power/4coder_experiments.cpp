@@ -253,12 +253,15 @@ HOOK_SIG(experimental_start_hook){
     
     if (file){
         fscanf(file, "%127s\n%127s", theme_name, font_name);
-
-        replace_char(theme_name, '#', ' ');
-        replace_char(font_name, '#', ' ');
-
+        
+        String theme = make_string_slowly(theme_name);
+        String font = make_string_slowly(font_name);
+        
+        replace_char(&theme, '#', ' ');
+        replace_char(&font, '#', ' ');
+        
         fclose(file);
-
+        
         app->change_theme(app, theme_name, (int)strlen(theme_name));
         app->change_font(app, font_name, (int)strlen(font_name));
     }

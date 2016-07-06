@@ -377,8 +377,8 @@ API_EXPORT int32_t
 Clipboard_Index(Application_Links *app, int32_t clipboard_id, int32_t item_index, char *out, int32_t len)/*
 DOC_PARAM(clipboard_id, This parameter is set up to prepare for future features, it should always be 0 for now.)
 DOC_PARAM(item_index, This parameter specifies which item to read, 0 is the most recent copy, 1 is the second most recent copy, etc.)
-DOC_PARAM(out, a buffer where the clipboard contents are written or NULL)
-DOC_PARAM(len, the length of the out buffer)
+DOC_PARAM(out, This parameter provides a buffer where the clipboard contents are written.  This parameter may be NULL.)
+DOC_PARAM(len, This parameter specifies the length of the out buffer.)
 DOC_RETURN(This call returns the size of the item associated with item_index.)
 DOC
 (
