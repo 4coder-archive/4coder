@@ -291,9 +291,9 @@ get_bindings(void *data, int size){
     begin_map(context, mapid_global);
     bind(context, '.', MDFR_ALT, change_to_build_panel);
     bind(context, ',', MDFR_ALT, close_build_panel);
-    bind(context, 'n', MDFR_ALT, msvc_goto_next_error);
-    bind(context, 'N', MDFR_ALT, msvc_goto_prev_error);
-    bind(context, 'M', MDFR_ALT, msvc_goto_first_error);
+    bind(context, 'n', MDFR_ALT, goto_next_error);
+    bind(context, 'N', MDFR_ALT, goto_prev_error);
+    bind(context, 'M', MDFR_ALT, goto_first_error);
     end_map(context);
     
     begin_map(context, mapid_file);
