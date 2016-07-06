@@ -458,8 +458,6 @@ struct GUI_Scroll_Vars{
     int32_t target_y;
     /* DOC(TODO) */
     int32_t prev_target_y;
-    /* DOC(TODO) */
-    int32_t max_y;
     
     /* DOC(TODO) */
     float   scroll_x;

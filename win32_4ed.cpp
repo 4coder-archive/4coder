@@ -693,14 +693,14 @@ Sys_File_Load_End_Sig(system_file_load_end){
 
 internal
 Sys_File_Save_Sig(system_file_save){
-    b32 success = 0;
+    b32 success = false;
     
     HANDLE file =
         CreateFile((char*)filename, GENERIC_WRITE, 0, 0,
                    CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, 0);
     
 	if (!file || file == INVALID_HANDLE_VALUE){
-        success = 0;
+        success = false;
 	}
     else{
         BOOL write_result = 0;
@@ -712,8 +712,8 @@ Sys_File_Save_Sig(system_file_save){
         
         CloseHandle(file);
         
-        if (!write_result || bytes_written != (u32)size){
-            success = 0;
+        if (write_result && bytes_written == (u32)size){
+            success = true;
         }
     }
     

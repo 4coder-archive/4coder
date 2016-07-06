@@ -11,31 +11,17 @@
    merchantability, fitness for a particular purpose, or non-infringement.
 */
 
-/* BUGS
-
-Assertion: w:\apps\4coder\source\build\4ed_app.dll
-           w:\apps\4coder\source\code\4ed_file_view.cpp
-           Line: 3261
-           Expression: view->prev_cursor_pos == view_get_cursor_pos(view)
-
-
-Crash in buffer_get_line_index_range - it doesn't check for lines == 0, which can be the case?
-
-*/
-
 /* TODO(casey): Here are our current issues
 
    - High priority:
      - Buffer switching still seems a little bit broken.  I find I can't reliably hit switch-return
        and switch to the most recently viewed file that wasn't one of the two currently viewed buffers?
-     - High-DPI settings break rendering and all fonts just show up as solid squares
+
+     - High-DPI settings break rendering and all fonts just show up as solid squares <<< Check this again
+
      - Pretty sure auto-indent has some bugs.  Things that should be pretty easy to indent
        properly even from only a few surrounding lines seem to be indented improperly at the moment
      - Multi-line comments should default to indenting to the indentation of the line prior?
-     - Would like the option to indent to hanging parentheses, equals signs, etc. instead of
-       always just "one tab in from the previous line".
-       - Actually, maybe just expose the dirty state, so that the user can decide whether to
-         save or not?  Not sure...
      - Replace:
        - Needs to be case-insensitive, or at least have the option to be
        - Needs to replace using the case of the thing being replaced, or at least have the option to do so
@@ -57,16 +43,18 @@ Crash in buffer_get_line_index_range - it doesn't check for lines == 0, which ca
 
    - Display:
      - When switching _back_ to a buffer, it seems like it loses the scroll position, instead preferring
-       to center the cursor?  This is undesirable IMO...
+       to center the cursor?  This is undesirable IMO... <<< Check this again
+
      - I'd like to be able to hide the mark in text entry mode, and show the whole highlighted
        region in edit mode - perhaps even with a magic split at the top or bottom that shows where the mark
        is if it's off screen?
      - There are often repaint bugs with 4coder coming to the front / unminimizing, etc.
        I think this might have something to do with the way you're doing lots of semaphore
-       locking but I haven't investigated yet.
+       locking but I haven't investigated yet. <<< How are we doing on this bug? It might be fixed but I haven't heard from anyone.
+
      - Need a word-wrap mode that wraps at word boundaries instead of characters
      - Need to be able to set a word wrap length at something other than the window
-?FIXED First go-to-line for a file seems to still just go to the beginning of the buffer?
+     - First go-to-line for a file seems to still just go to the beginning of the buffer?
        Not sure Allen's right about the slash problem, but either way, we need some
        way to fix it.
      - NOTE / IMPORTANT / TODO highlighting?  Ability to customize?  Whatever.
@@ -85,22 +73,18 @@ Crash in buffer_get_line_index_range - it doesn't check for lines == 0, which ca
        be nice if it go _better_ than Emacs, with no need to manually flow comments,
        etc.
      - It should never reindent text in comments that it doesn't know how to indent - eg., in a comment block, it shouldn't decide to move things around if it doesn't know what they are
-     - Sometimes when I hit [ it inserts a [ _and_ a space?  I think this is related to the auto-indent?
+     - Sometimes when I hit [ it inserts a [ _and_ a space?  I think this is related to the auto-indent? <<< Check this again
 
    - Buffer management: 
      - I'd like to be able to set a buffer to "auto-revert", so it reloads automatically whenever it changes externally
      - If you undo back to where there are no changes, the "buffer changed" flag should be cleared
      - Seems like there's no way to switch to buffers whose names are substrings of other
-       buffers' names without using the mouse?
-       - Also, mouse-clicking on buffers doesn't seem to work reliably?  Often it just goes to a 
-         blank window?
-     - Buffer switch display should always show the buffer _it will switch to when you hit return_
-       as the first buffer in the list.
+       buffers' names without using the mouse? <<< Check this again
 
    - File system
      - When switching to a buffer that has changed on disk, notify?  Really this can just
        be some way to query the modification flag and then the customization layer can do it?
-     - Still can't seem to open a zero-length file?
+     - Still can't seem to open a zero-length file? <<< Check this again
      - I'd prefer it if file-open could create new files, and that I could get called on that
        so I can insert my boilerplate headers on new files
      - I'd prefer it if file-open deleted per-character instead of deleting entire path sections
@@ -641,9 +625,9 @@ CUSTOM_COMMAND_SIG(casey_find_corresponding_file_other_window)
 CUSTOM_COMMAND_SIG(casey_save_and_make_without_asking)
 {
     exec_command(app, change_active_panel);
-    
+
     Buffer_Summary buffer = {};
-    
+
     unsigned int access = AccessAll;
     for(buffer = app->get_buffer_first(app, access);
         buffer.exists;
@@ -800,6 +784,7 @@ casey_parse_error(Application_Links *app, Buffer_Summary buffer, View_Summary vi
             break;
         }
     }
+    free(ParsingRegion);
 
     return(result);
 }
@@ -1370,7 +1355,6 @@ Casey_Scroll_Velocity casey_scroll_velocity_[16] = {0};
 Casey_Scroll_Velocity *casey_scroll_velocity = casey_scroll_velocity_;
 
 SCROLL_RULE_SIG(casey_smooth_scroll_rule){
-	dt = 1.0f/60.0f;
     Casey_Scroll_Velocity *velocity = casey_scroll_velocity + view_id;
     int result = 0;
     if(is_new_target)
@@ -1526,7 +1510,7 @@ extern "C" GET_BINDING_DATA(get_bindings)
         bind(context, key_page_up, MDFR_NONE, search);
         bind(context, key_page_down, MDFR_NONE, reverse_search);
         bind(context, 'm', MDFR_NONE, casey_save_and_make_without_asking);
-        
+
         // NOTE(allen): Added this so mouse would keep working rougly as before.
         // Of course now there could be a modal click behavior if that will be useful.
         // As well as right click.

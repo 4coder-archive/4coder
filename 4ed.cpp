@@ -230,11 +230,7 @@ app_resume_coroutine(System_Functions *system, Application_Links *app, Coroutine
 inline void
 output_file_append(System_Functions *system, Models *models, Editing_File *file, String value, b32 cursor_at_end){
     i32 end = buffer_size(&file->state.buffer);
-    i32 next_cursor = 0;
-    if (cursor_at_end){
-        next_cursor = end + value.size;
-    }
-    file_replace_range(system, models, file, end, end, value.str, value.size, next_cursor, 1);
+    file_replace_range(system, models, file, end, end, value.str, value.size);
 }
 
 inline void
@@ -471,7 +467,7 @@ COMMAND_DECL(word_complete){
                 buffer_stringify(match.buffer, match.start, match.end, spare);
                 
                 if (search_hit_add(general, &complete_state->hits, &complete_state->str, spare, match_size)){
-                    view_replace_range(system, models, view, word_start, word_end, spare, match_size, word_end);
+                    view_replace_range(system, models, view, word_start, word_end, spare, match_size);
                     
                     complete_state->word_end = word_start + match_size;
                     complete_state->set.ranges[1].start = word_start + match_size;
@@ -489,7 +485,7 @@ COMMAND_DECL(word_complete){
                 
                 match_size = complete_state->iter.word.size;
                 view_replace_range(system, models, view, word_start, word_end,
-                                   complete_state->iter.word.str, match_size, word_end);
+                                   complete_state->iter.word.str, match_size);
                 
                 complete_state->word_end = word_start + match_size;
                 complete_state->set.ranges[1].start = word_start + match_size;
@@ -573,9 +569,29 @@ COMMAND_DECL(reopen){
         if (system->file_load_end(loading, buffer)){
             General_Memory *general = &models->mem.general;
             
-            file_close(system, general, file);
+            File_Edit_Positions edit_poss[16];
+            View *vptrs[16];
+            i32 vptr_count = 0;
+            for (View_Iter iter = file_view_iter_init(&models->layout, file, 0);
+                 file_view_iter_good(iter);
+                 iter = file_view_iter_next(iter)){
+                vptrs[vptr_count] = iter.view;
+                edit_poss[vptr_count] = *iter.view->edit_pos;
+                iter.view->edit_pos = 0;
+                ++vptr_count;
+            }
             
+            file_close(system, general, file);
             init_normal_file(system, models, file, buffer, loading.size);
+            
+            for (i32 i = 0;
+                 i < vptr_count;
+                 ++i){
+                view_set_file(vptrs[i], file, models);
+                *vptrs[i]->edit_pos = edit_poss[i];
+                view_set_cursor(vptrs[i], edit_poss[i].cursor,
+                                true, view->file_data.unwrapped_lines);
+            }
         }
         
         end_temp_memory(temp);
@@ -2498,9 +2514,18 @@ App_Step_Sig(app_step){
                     }
                 }
                 
+                i32 max_y = 0;
+                if (view->showing_ui == VUI_None){
+                    max_y = view_compute_max_target_y(view);
+                }
+                else{
+                    max_y = view->gui_max_y;
+                }
+                
                 Input_Process_Result ip_result =
                     do_step_file_view(system, view, panel->inner, active,
-                                      &summary, *scroll_vars, view->scroll_region);
+                                      &summary, *scroll_vars, view->scroll_region, max_y);
+                
                 if (ip_result.is_animating){
                     app_result.animating = 1;
                 }
@@ -2511,6 +2536,10 @@ App_Step_Sig(app_step){
                 if (ip_result.consumed_r){
                     consume_input(&vars->available_input, Input_MouseRightButton,
                                   "file view step");
+                }
+                
+                if (ip_result.has_max_y_suggestion){
+                    view->gui_max_y = ip_result.max_y;
                 }
                 
                 if (!gui_scroll_eq(scroll_vars, &ip_result.vars)){

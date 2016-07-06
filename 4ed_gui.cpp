@@ -946,7 +946,7 @@ struct GUI_Interpret_Result{
 
 internal GUI_Interpret_Result
 gui_interpret(GUI_Target *target, GUI_Session *session, GUI_Header *h,
-              GUI_Scroll_Vars vars, i32_Rect region){
+              GUI_Scroll_Vars vars, i32_Rect region, i32 max_y){
     GUI_Interpret_Result result = {0};
     GUI_Section *section = 0;
     GUI_Section *new_section = 0;
@@ -1135,11 +1135,11 @@ gui_interpret(GUI_Target *target, GUI_Session *session, GUI_Header *h,
         lerp_space_scroll_v =
             unlerp(0,
                    (f32)target->scroll_original.target_y,
-                   (f32)target->scroll_original.max_y);
+                   (f32)max_y);
         
         gui_scrollbar_slider(session->scroll_rect, &rect, lerp_space_scroll_v,
                              &session->scroll_top, &session->scroll_bottom,
-                             0, target->scroll_original.max_y);
+                             0, max_y);
         scroll_v = 0;
         break;
         

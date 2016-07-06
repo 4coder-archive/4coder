@@ -266,7 +266,7 @@ DOC_SEE(Command_Line_Input_Flag)
             }
             
             if (file){
-                file_clear(system, models, file, 1);
+                file_clear(system, models, file);
                 file->settings.unimportant = 1;
                 
                 if (!(flags & CLI_AlwaysBindToView)){
@@ -693,7 +693,7 @@ DOC_SEE(4coder_Buffer_Positioning_System)
             result = true;
             
             file_replace_range(cmd->system, cmd->models,
-                               file, start, end, str, len, 0);
+                               file, start, end, str, len);
         }
         fill_buffer_summary(buffer, file, cmd);
     }

@@ -221,6 +221,7 @@ struct View{
     GUI_Target gui_target;
     void *gui_mem;
     GUI_Scroll_Vars gui_scroll;
+    i32 gui_max_y;
     i32 list_i;
     
     b32 hide_scrollbar;
@@ -473,10 +474,57 @@ view_compute_cursor_from_xy(View *view, f32 seek_x, f32 seek_y){
     return result;
 }
 
+inline i32
+view_wrapped_line_span(f32 line_width, f32 max_width){
+    i32 line_count = CEIL32(line_width / max_width);
+    if (line_count == 0) line_count = 1;
+    return line_count;
+}
+
+internal i32
+view_compute_lowest_line(View *view){
+    i32 lowest_line = 0;
+    i32 last_line = view->file_data.line_count - 1;
+    if (last_line > 0){
+        if (view->file_data.unwrapped_lines){
+            lowest_line = last_line;
+        }
+        else{
+            f32 wrap_y = view->file_data.line_wrap_y[last_line];
+            lowest_line = FLOOR32(wrap_y / view->line_height);
+            f32 max_width = view_file_width(view);
+            
+            Editing_File *file = view->file_data.file;
+            Assert(!file->is_dummy);
+            f32 width = file->state.buffer.line_widths[last_line];
+            i32 line_span = view_wrapped_line_span(width, max_width);
+            lowest_line += line_span - 1;
+        }
+    }
+    return lowest_line;
+}
+
+inline i32
+view_compute_max_target_y(i32 lowest_line, i32 line_height, f32 view_height){
+    f32 max_target_y = ((lowest_line+.5f)*line_height) - view_height*.5f;
+    max_target_y = clamp_bottom(0.f, max_target_y);
+    return(CEIL32(max_target_y));
+}
+
+inline i32
+view_compute_max_target_y(View *view){
+    i32 lowest_line = view_compute_lowest_line(view);
+    i32 line_height = view->line_height;
+    f32 view_height = clamp_bottom((f32)line_height, view_file_height(view));
+    i32 max_target_y = view_compute_max_target_y(lowest_line, line_height, view_height);
+    return(max_target_y);
+}
+
 internal b32
 view_move_view_to_cursor(View *view, GUI_Scroll_Vars *scroll, b32 center_view){
     b32 result = false;
     f32 max_x = view_file_width(view);
+    i32 max_y = view_compute_max_target_y(view);
     
     f32 cursor_y = view_get_cursor_y(view);
     f32 cursor_x = view_get_cursor_x(view);
@@ -504,7 +552,7 @@ view_move_view_to_cursor(View *view, GUI_Scroll_Vars *scroll, b32 center_view){
         }
     }
     
-    target_y = clamp(0, target_y, scroll_vars.max_y);
+    target_y = clamp(0, target_y, max_y);
     
     if (cursor_x >= target_x + max_x){
         target_x = CEIL32(cursor_x - max_x/2);
@@ -938,52 +986,6 @@ file_measure_starts_widths(System_Functions *system, General_Memory *general,
     }
     buffer->line_count = state.count;
     buffer->widths_count = state.count;
-}
-
-inline i32
-view_wrapped_line_span(f32 line_width, f32 max_width){
-    i32 line_count = CEIL32(line_width / max_width);
-    if (line_count == 0) line_count = 1;
-    return line_count;
-}
-
-internal i32
-view_compute_lowest_line(View *view){
-    i32 lowest_line = 0;
-    i32 last_line = view->file_data.line_count - 1;
-    if (last_line > 0){
-        if (view->file_data.unwrapped_lines){
-            lowest_line = last_line;
-        }
-        else{
-            f32 wrap_y = view->file_data.line_wrap_y[last_line];
-            lowest_line = FLOOR32(wrap_y / view->line_height);
-            f32 max_width = view_file_width(view);
-            
-            Editing_File *file = view->file_data.file;
-            Assert(!file->is_dummy);
-            f32 width = file->state.buffer.line_widths[last_line];
-            i32 line_span = view_wrapped_line_span(width, max_width);
-            lowest_line += line_span - 1;
-        }
-    }
-    return lowest_line;
-}
-
-inline i32
-view_compute_max_target_y(i32 lowest_line, i32 line_height, f32 view_height){
-    f32 max_target_y = ((lowest_line+.5f)*line_height) - view_height*.5f;
-    max_target_y = clamp_bottom(0.f, max_target_y);
-    return(CEIL32(max_target_y));
-}
-
-inline i32
-view_compute_max_target_y(View *view){
-    i32 lowest_line = view_compute_lowest_line(view);
-    i32 line_height = view->line_height;
-    f32 view_height = clamp_bottom((f32)line_height, view_file_height(view));
-    i32 max_target_y = view_compute_max_target_y(lowest_line, line_height, view_height);
-    return(max_target_y);
 }
 
 internal void
@@ -1730,7 +1732,6 @@ view_set_file(View *view, Editing_File *file, Models *models){
         
         if (file_is_ready(file)){
             view_measure_wraps(&models->mem.general, view);
-            view->edit_pos->scroll.max_y = view_compute_max_target_y(view);
         }
     }
 }
@@ -2080,8 +2081,7 @@ file_edit_cursor_fix(System_Functions *system,
 internal void
 file_do_single_edit(System_Functions *system,
                     Models *models, Editing_File *file,
-                    Edit_Spec spec, History_Mode history_mode, b32 use_high_permission = 0){
-    if (!use_high_permission && file->settings.read_only) return;
+                    Edit_Spec spec, History_Mode history_mode){
     
     Mem_Options *mem = &models->mem;
     Editing_Layout *layout = &models->layout;
@@ -2156,8 +2156,7 @@ file_do_single_edit(System_Functions *system,
 
 internal void
 file_do_white_batch_edit(System_Functions *system, Models *models, Editing_File *file,
-                         Edit_Spec spec, History_Mode history_mode, b32 use_high_permission = 0){
-    if (!use_high_permission && file->settings.read_only) return;
+                         Edit_Spec spec, History_Mode history_mode){
     
     Mem_Options *mem = &models->mem;
     Editing_Layout *layout = &models->layout;
@@ -2244,26 +2243,25 @@ file_do_white_batch_edit(System_Functions *system, Models *models, Editing_File 
 
 inline void
 file_replace_range(System_Functions *system, Models *models, Editing_File *file,
-                   i32 start, i32 end, char *str, i32 len, i32 next_cursor, b32 use_high_permission = 0){
+                   i32 start, i32 end, char *str, i32 len){
     Edit_Spec spec = {};
     spec.step.type = ED_NORMAL;
     spec.step.edit.start =  start;
     spec.step.edit.end = end;
-    
     spec.step.edit.len = len;
     spec.str = (u8*)str;
-    file_do_single_edit(system, models, file, spec, hist_normal, use_high_permission);
+    file_do_single_edit(system, models, file, spec, hist_normal);
 }
 
 inline void
-file_clear(System_Functions *system, Models *models, Editing_File *file, b32 use_high_permission = 0){
-    file_replace_range(system, models, file, 0, buffer_size(&file->state.buffer), 0, 0, 0, use_high_permission);
+file_clear(System_Functions *system, Models *models, Editing_File *file){
+    file_replace_range(system, models, file, 0, buffer_size(&file->state.buffer), 0, 0);
 }
 
 inline void
 view_replace_range(System_Functions *system, Models *models, View *view,
-                   i32 start, i32 end, char *str, i32 len, i32 next_cursor){
-    file_replace_range(system, models, view->file_data.file, start, end, str, len, next_cursor);
+                   i32 start, i32 end, char *str, i32 len){
+    file_replace_range(system, models, view->file_data.file, start, end, str, len);
 }
 
 inline void
@@ -3198,7 +3196,7 @@ view_save_file(System_Functions *system, Models *models,
         }
     }
     
-    if (file && buffer_get_sync(file) != SYNC_GOOD){
+    if (file && (buffer_get_sync(file) != SYNC_GOOD || save_as)){
         if (file_save(system, mem, file, filename_string.str)){
             if (save_as){
                 file_set_name(working_set, file, filename_string.str);
@@ -4001,7 +3999,6 @@ show_gui_scroll(GUI_Target *target, String *string,
     show_gui_float(target, string, indent_level+1, h_align, " scroll_y ", scroll.scroll_y);
     show_gui_int  (target, string, indent_level+1, h_align, " target_y ", scroll.target_y);
     show_gui_int  (target, string, indent_level+1, h_align, " prev_target_y ", scroll.prev_target_y);
-    show_gui_int  (target, string, indent_level+1, h_align, " max_y ", scroll.max_y);
     show_gui_float(target, string, indent_level+1, h_align, " scroll_x ", scroll.scroll_x);
     show_gui_int  (target, string, indent_level+1, h_align, " target_x ", scroll.target_x);
     show_gui_int  (target, string, indent_level+1, h_align, " prev_target_x ", scroll.prev_target_x);
@@ -4515,7 +4512,6 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                                 File_Node *node = 0, *used_nodes = 0;
                                 Editing_File **reserved_files = 0;
                                 i32 reserved_top = 0, i = 0;
-                                View_Iter iter = {0};
                                 
                                 partition_align(part, sizeof(i32));
                                 reserved_files = (Editing_File**)partition_current(part);
@@ -4526,7 +4522,7 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                                     Assert(!file->is_dummy);
                                     
                                     if (filename_match(view->dest, &absolutes, file->name.live_name, 1)){
-                                        iter = file_view_iter_init(layout, file, 0);
+                                        View_Iter iter = file_view_iter_init(layout, file, 0);
                                         if (file_view_iter_good(iter)){
                                             reserved_files[reserved_top++] = file;
                                         }
@@ -5091,13 +5087,16 @@ struct Input_Process_Result{
     b32 is_animating;
     b32 consumed_l;
     b32 consumed_r;
+    
+    b32 has_max_y_suggestion;
+    i32 max_y;
 };
 
 internal Input_Process_Result
 do_step_file_view(System_Functions *system,
                   View *view, i32_Rect rect, b32 is_active,
                   Input_Summary *user_input,
-                  GUI_Scroll_Vars vars, i32_Rect region){
+                  GUI_Scroll_Vars vars, i32_Rect region, i32 max_y){
     Input_Process_Result result = {0};
     b32 is_file_scroll = 0;
     
@@ -5106,7 +5105,7 @@ do_step_file_view(System_Functions *system,
     GUI_Target *target = &view->gui_target;
     GUI_Interpret_Result interpret_result = {0};
     
-    vars.target_y = clamp(0, vars.target_y, vars.max_y);
+    vars.target_y = clamp(0, vars.target_y, max_y);
     
     result.vars = vars;
     result.region = region;
@@ -5120,7 +5119,7 @@ do_step_file_view(System_Functions *system,
              h->type;
              h = NextHeader(h)){
             interpret_result = gui_interpret(target, &gui_session, h,
-                                             result.vars, result.region);
+                                             result.vars, result.region, max_y);
             
             if (interpret_result.has_region){
                 result.region = interpret_result.region;
@@ -5161,7 +5160,6 @@ do_step_file_view(System_Functions *system,
                             result.vars = view_reinit_scrolling(view);
                             result.is_animating = true;
                         }
-                        result.vars.max_y = view_compute_max_target_y(view);
                         
                         if (file_step(view, gui_session.rect, user_input, is_active, &result.consumed_l)){
                             result.is_animating = true;
@@ -5208,16 +5206,16 @@ do_step_file_view(System_Functions *system,
                             activation_key = char_to_upper(activation_key);
                             
                             if (activation_key != 0){
-                            count = keys->count;
-                            for (i = 0; i < count; ++i){
-                                key = get_single_key(keys, i);
-                                if (char_to_upper(key.character) == activation_key){
-                                    target->active = b->id;
-                                    result.is_animating = true;
-                                    break;
+                                count = keys->count;
+                                for (i = 0; i < count; ++i){
+                                    key = get_single_key(keys, i);
+                                    if (char_to_upper(key.character) == activation_key){
+                                        target->active = b->id;
+                                        result.is_animating = true;
+                                        break;
+                                    }
                                 }
                             }
-                        }
                         }
                     }break;
                     
@@ -5244,7 +5242,7 @@ do_step_file_view(System_Functions *system,
                             v = unlerp(gui_session.scroll_top, (f32)my,
                                        gui_session.scroll_bottom);
                             v = clamp(0.f, v, 1.f);
-                            result.vars.target_y = ROUND32(lerp(0.f, v, (f32)result.vars.max_y));
+                            result.vars.target_y = ROUND32(lerp(0.f, v, (f32)max_y));
                             
                             gui_activate_scrolling(target);
                             result.is_animating = true;
@@ -5258,7 +5256,7 @@ do_step_file_view(System_Functions *system,
                             result.vars.target_y += user_input->mouse.wheel*target->delta;
                             
                             result.vars.target_y =
-                                clamp(0, result.vars.target_y, result.vars.max_y);
+                                clamp(0, result.vars.target_y, max_y);
                             gui_activate_scrolling(target);
                             result.is_animating = true;
                         }
@@ -5281,7 +5279,7 @@ do_step_file_view(System_Functions *system,
                         
                         if (scroll_button_input(target, &gui_session, user_input, id, &result.is_animating)){
                             result.vars.target_y += clamp_bottom(1, target->delta >> 2);
-                            result.vars.target_y = clamp_top(result.vars.target_y, result.vars.max_y);
+                            result.vars.target_y = clamp_top(result.vars.target_y, max_y);
                             result.consumed_l = true;
                         }
                     }break;
@@ -5289,7 +5287,8 @@ do_step_file_view(System_Functions *system,
                     case guicom_end_scrollable_section:
                     {
                         if (!is_file_scroll){
-                            result.vars.max_y = gui_session.suggested_max_y;
+                            result.has_max_y_suggestion = true;
+                            result.max_y = gui_session.suggested_max_y;
                         }
                     }break;
                 }
@@ -5528,7 +5527,7 @@ draw_text_field(Render_Target *target, View *view, i32_Rect rect, String p, Stri
         draw_rectangle(target, rect, back_color);
         x = CEIL32(draw_string(target, font_id, p, x, y, text2_color));
         draw_string(target, font_id, t, x, y, text1_color);
-	}
+    }
 }
 
 internal void
@@ -5573,7 +5572,7 @@ draw_text_with_cursor(Render_Target *target, View *view, i32_Rect rect, String s
         else{
             draw_string(target, font_id, s, FLOOR32(x), y, text_color);
         }
-	}
+    }
 }
 
 internal void
@@ -5583,21 +5582,21 @@ draw_file_bar(Render_Target *target, View *view, Editing_File *file, i32_Rect re
     Style_Font *font = &models->global_font;
     Style *style = main_style(models);
     Interactive_Style bar_style = style->main.file_info_style;
-
+    
     u32 back_color = bar_style.bar_color;
     u32 base_color = bar_style.base_color;
     u32 pop1_color = bar_style.pop1_color;
     u32 pop2_color = bar_style.pop2_color;
-
+    
     bar.rect = rect;
-
+    
     if (target){
         bar.font_id = font->font_id;
         bar.pos_x = (f32)bar.rect.x0;
         bar.pos_y = (f32)bar.rect.y0;
         bar.text_shift_y = 2;
         bar.text_shift_x = 0;
-
+        
         draw_rectangle(target, bar.rect, back_color);    
         if (!file){
             intbar_draw_string(target, &bar, make_lit_string("*NULL*"), base_color);
@@ -5616,22 +5615,22 @@ draw_file_bar(Render_Target *target, View *view, Editing_File *file, i32_Rect re
                 append_int_to_str(&line_number, view->edit_pos->cursor.line);
                 append(&line_number, " C#");
                 append_int_to_str(&line_number, view->edit_pos->cursor.character);
-
+                
                 intbar_draw_string(target, &bar, line_number, base_color);
-
+                
                 intbar_draw_string(target, &bar, make_lit_string(" -"), base_color);
-
+                
                 if (file->settings.dos_write_mode){
                     intbar_draw_string(target, &bar, make_lit_string(" dos"), base_color);
                 }
                 else{
                     intbar_draw_string(target, &bar, make_lit_string(" nix"), base_color);
                 }
-
+                
                 if (file->state.still_lexing){
                     intbar_draw_string(target, &bar, make_lit_string(" parsing"), pop1_color);
                 }
-
+                
                 if (!file->settings.unimportant){
                     switch (buffer_get_sync(file)){
                         case SYNC_BEHIND_OS:
@@ -5639,7 +5638,7 @@ draw_file_bar(Render_Target *target, View *view, Editing_File *file, i32_Rect re
                             persist String out_of_sync = make_lit_string(" !");
                             intbar_draw_string(target, &bar, out_of_sync, pop2_color);
                         }break;
-
+                        
                         case SYNC_UNSAVED:
                         {
                             persist String out_of_sync = make_lit_string(" *");
@@ -5655,7 +5654,7 @@ draw_file_bar(Render_Target *target, View *view, Editing_File *file, i32_Rect re
 u32
 get_margin_color(i32 active_level, Style *style){
     u32 margin = 0xFFFFFFFF;
-        
+    
     switch (active_level){
         default:
         margin = style->main.margin_color;
@@ -5668,19 +5667,19 @@ get_margin_color(i32 active_level, Style *style){
         case 3: case 4:
         margin = style->main.margin_active_color;
         break;
-	}
-
+    }
+    
     return(margin);
 }
 
 internal void
 draw_color_button(GUI_Target *gui_target, Render_Target *target, View *view,
-    i32_Rect rect, GUI_id id, u32 fore, u32 back, String text){
+                  i32_Rect rect, GUI_id id, u32 fore, u32 back, String text){
     Models *models = view->persistent.models;
     
     i32 active_level = gui_active_level(gui_target, id);
     i16 font_id = models->global_font.font_id;
-        
+    
     if (active_level > 0){
         Swap(u32, back, fore);
     }
@@ -5691,7 +5690,7 @@ draw_color_button(GUI_Target *gui_target, Render_Target *target, View *view,
 
 internal void
 draw_font_button(GUI_Target *gui_target, Render_Target *target, View *view,
-    i32_Rect rect, GUI_id id, i16 font_id, String text){
+                 i32_Rect rect, GUI_id id, i16 font_id, String text){
     Models *models = view->persistent.models;
     Style *style = main_style(models);
     
@@ -5700,7 +5699,7 @@ draw_font_button(GUI_Target *gui_target, Render_Target *target, View *view,
     u32 margin = get_margin_color(active_level, style);
     u32 back = style->main.back_color;
     u32 text_color = style->main.default_color;
-
+    
     draw_rectangle(target, rect, back);
     draw_rectangle_outline(target, rect, margin);
     draw_string(target, font_id, text, rect.x0, rect.y0 + 1, text_color);
@@ -5708,7 +5707,7 @@ draw_font_button(GUI_Target *gui_target, Render_Target *target, View *view,
 
 internal void
 draw_fat_option_block(GUI_Target *gui_target, Render_Target *target, View *view, i32_Rect rect, GUI_id id,
-    String text, String pop, i8 checkbox = -1){
+                      String text, String pop, i8 checkbox = -1){
     Models *models = view->persistent.models;
     Style *style = main_style(models);
     
@@ -5830,7 +5829,9 @@ do_render_file_view(System_Functions *system, View *view, GUI_Scroll_Vars *scrol
     GUI_Target *gui_target = &view->gui_target;
     GUI_Interpret_Result interpret_result = {0};
     
-    f32 v;
+    f32 v = {0};
+    
+    i32 max_y = view_compute_max_target_y(view);
     
     if (gui_target->push.pos > 0){
         gui_session_init(&gui_session, gui_target, rect, view->line_height);
@@ -5844,7 +5845,7 @@ do_render_file_view(System_Functions *system, View *view, GUI_Scroll_Vars *scrol
              h->type;
              h = NextHeader(h)){
             interpret_result = gui_interpret(gui_target, &gui_session, h,
-                                             *scroll, view->scroll_region);
+                                             *scroll, view->scroll_region, max_y);
             
             if (interpret_result.has_info){
                 if (gui_session.clip_y > clip_rect.y0){
