@@ -174,7 +174,7 @@ buffer_update_cursors(Cursor_With_Index *sorted_positions, int count, int start,
     shift_amount = (len - (end - start));
     
     position = sorted_positions + count - 1;
-    for (; position >= sorted_positions && position->pos >= end; --position) position->pos += shift_amount;
+    for (; position >= sorted_positions && position->pos > end; --position) position->pos += shift_amount;
     for (; position >= sorted_positions && position->pos >= start; --position) position->pos = start;
 }
 
@@ -239,7 +239,7 @@ buffer_batch_edit_update_cursors(Cursor_With_Index *sorted_positions, int count,
             position->pos += shift_amount;
         }
         
-        for (; position->pos < end && position < end_position; ++position){
+        for (; position->pos <= end && position < end_position; ++position){
             position->pos = start + shift_amount;
         }
         

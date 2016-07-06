@@ -2885,12 +2885,24 @@ App_Step_Sig(app_step){
     
     // NOTE(allen): post scroll vars back to the view's gui targets
     {
-        Panel *panel = 0, *used_panels = 0;
-        
-        used_panels = &models->layout.used_sentinel;
+        Panel *panel = 0, *used_panels = &models->layout.used_sentinel;
         for (dll_items(panel, used_panels)){
             Assert(panel->view);
             view_end_cursor_scroll_updates(panel->view);
+        }
+    }
+    
+    // NOTE(allen): on the first frame there should be no scrolling
+    if (input->first_step){
+        Panel *panel = 0, *used_panels = &models->layout.used_sentinel;
+        for (dll_items(panel, used_panels)){
+            View *view = panel->view;
+            GUI_Scroll_Vars *scroll_vars = &view->gui_scroll;
+            if (view->edit_pos){
+                scroll_vars = &view->edit_pos->scroll;
+            }
+            scroll_vars->scroll_x = (f32)scroll_vars->target_x;
+            scroll_vars->scroll_y = (f32)scroll_vars->target_y;
         }
     }
     

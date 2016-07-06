@@ -6,9 +6,6 @@
 * 
 * 24.10.2015
 * 
-* Buffer data object
-*  type - Golden Array
-* 
 */
 
 // TOP

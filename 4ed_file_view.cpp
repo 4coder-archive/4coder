@@ -2018,8 +2018,8 @@ file_edit_cursor_fix(System_Functions *system,
             view_measure_wraps(general, view);
             Assert(view->edit_pos);
             write_cursor_with_index(cursors, &cursor_count, view->edit_pos->cursor.pos);
-            write_cursor_with_index(cursors, &cursor_count, view->edit_pos->mark - 1);
-            write_cursor_with_index(cursors, &cursor_count, view->edit_pos->scroll_i - 1);
+            write_cursor_with_index(cursors, &cursor_count, view->edit_pos->mark);
+            write_cursor_with_index(cursors, &cursor_count, view->edit_pos->scroll_i);
         }
     }
     
@@ -2048,8 +2048,8 @@ file_edit_cursor_fix(System_Functions *system,
                 
                 GUI_Scroll_Vars scroll = view->edit_pos->scroll;
                 
-                view->edit_pos->mark = cursors[cursor_count++].pos + 1;
-                i32 new_scroll_i = cursors[cursor_count++].pos + 1;
+                view->edit_pos->mark = cursors[cursor_count++].pos;
+                i32 new_scroll_i = cursors[cursor_count++].pos;
                 if (view->edit_pos->scroll_i != new_scroll_i){
                     view->edit_pos->scroll_i = new_scroll_i;
                     
