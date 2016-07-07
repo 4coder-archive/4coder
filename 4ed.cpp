@@ -468,6 +468,7 @@ COMMAND_DECL(word_complete){
                 
                 if (search_hit_add(general, &complete_state->hits, &complete_state->str, spare, match_size)){
                     view_replace_range(system, models, view, word_start, word_end, spare, match_size);
+                    view_cursor_move(view, word_start + match_size);
                     
                     complete_state->word_end = word_start + match_size;
                     complete_state->set.ranges[1].start = word_start + match_size;
@@ -486,6 +487,7 @@ COMMAND_DECL(word_complete){
                 match_size = complete_state->iter.word.size;
                 view_replace_range(system, models, view, word_start, word_end,
                                    complete_state->iter.word.str, match_size);
+                view_cursor_move(view, word_start + match_size);
                 
                 complete_state->word_end = word_start + match_size;
                 complete_state->set.ranges[1].start = word_start + match_size;

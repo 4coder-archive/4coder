@@ -705,6 +705,7 @@ write_string(Application_Links *app, String string){
     app->buffer_replace_range(app, &buffer,
                               view.cursor.pos, view.cursor.pos,
                               string.str, string.size);
+    app->view_set_cursor(app, &view, seek_pos(view.cursor.pos + string.size), true);
 }
 
 CUSTOM_COMMAND_SIG(write_increment){
