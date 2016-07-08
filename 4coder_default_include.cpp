@@ -1491,20 +1491,40 @@ get_build_directory(Application_Links *app, Buffer_Summary *buffer, String *dir_
 }
 
 static int
-execute_standard_build_search(Application_Links *app, View_Summary *view,
-                              Buffer_Summary *active_buffer,
-                              String *dir, String *command, int perform_backup){
+standard_build_search(Application_Links *app,
+                      View_Summary *view,
+                      Buffer_Summary *active_buffer,
+                      String *dir, String *command,
+                      int perform_backup,
+                      int use_path_in_command,
+                      String filename,
+                      String commandname){
     int result = false;
     
     for(;;){
         int old_size = dir->size;
-        append(dir, "build.bat");
+        append(dir, filename);
         
         if (app->file_exists(app, dir->str, dir->size)){
             dir->size = old_size;
-            append(command, '"');
-            append(command, *dir);
-            append(command, "build\"");
+            
+            if (use_path_in_command){
+                append(command, '"');
+                append(command, *dir);
+                append(command, commandname);
+                append(command, '"');
+            }
+            else{
+                append(command, commandname);
+            }
+            
+            char space[512];
+            String message = make_fixed_width_string(space);
+            append(&message, "Building with: ");
+            append(&message, *command);
+            append(&message, '\n');
+            app->print_message(app, message.str, message.size);
+            
             
             app->exec_system_command(app, view,
                                      buffer_identifier(literal("*compilation*")),
@@ -1516,10 +1536,15 @@ execute_standard_build_search(Application_Links *app, View_Summary *view,
         }
         dir->size = old_size;
         
+        app->print_message(app, literal("C\n"));
+        
         if (app->directory_cd(app, dir->str, &dir->size, dir->memory_size, literal("..")) == 0){
             if (perform_backup){
                 dir->size = app->directory_get_hot(app, dir->str, dir->memory_size);
-                String backup_command = make_lit_string("echo couldn't find build.bat");
+                char backup_space[256];
+                String backup_command = make_fixed_width_string(backup_space);
+                append(&backup_command, make_lit_string("echo could not find "));
+                append(&backup_command, filename);
                 app->exec_system_command(app, view,
                                          buffer_identifier(literal("*compilation*")),
                                          dir->str, dir->size,
@@ -1533,12 +1558,63 @@ execute_standard_build_search(Application_Links *app, View_Summary *view,
     return(result);
 }
 
+#if defined(_WIN32)
+
+// NOTE(allen): Build search rule for windows.
+static int
+execute_standard_build_search(Application_Links *app, View_Summary *view,
+                              Buffer_Summary *active_buffer,
+                              String *dir, String *command, int perform_backup){
+    int result = standard_build_search(app, view,
+                                       active_buffer,
+                                       dir, command, perform_backup, true,
+                                       make_lit_string("build.bat"),
+                                       make_lit_string("build"));
+    return(result);
+}
+
+#elif defined(__linux__)
+
+// NOTE(allen): Build search rule for linux.
+static int
+execute_standard_build_search(Application_Links *app, View_Summary *view,
+                              Buffer_Summary *active_buffer,
+                              String *dir, String *command, int perform_backup){
+    
+    char dir_space[512];
+    String dir_copy = make_fixed_width_string(dir_space);
+    copy(&dir_copy, *dir);
+    
+    int result = standard_build_search(app, view,
+                                       active_buffer,
+                                       dir, command, false, true,
+                                       make_lit_string("build.sh"),
+                                       make_lit_string("build.sh"));
+    
+    if (!result){
+        result = standard_build_search(app, view,
+                                       active_buffer,
+                                       &dir_copy, command, perform_backup, false,
+                                       make_lit_string("Makefile"),
+                                       make_lit_string("make"));
+    }
+    
+    return(result);
+}
+
+#else
+# error No build search rule for this platform.
+#endif
+
+
 static void
 execute_standard_build(Application_Links *app, View_Summary *view,
                        Buffer_Summary *active_buffer){
-    int size = app->memory_size/2;
-    String dir = make_string(app->memory, 0, size);
-    String command = make_string((char*)app->memory + size, 0, size);
+    char dir_space[512];
+    String dir = make_fixed_width_string(dir_space);
+    
+    char command_space[512];
+    String command = make_fixed_width_string(command_space);
     
     int build_dir_type = get_build_directory(app, active_buffer, &dir);
     
