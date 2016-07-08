@@ -1,4 +1,4 @@
-Distribution Date: 6.7.2016 (dd.mm.yyyy)
+Distribution Date: 8.7.2016 (dd.mm.yyyy)
 
 Thank you for contributing to the 4coder project!
 
@@ -29,3 +29,4 @@ I am deprecating this readme file now.  A much better documentation than what I 
 provide here is now provided in 4coder_API.html.  This is the last version that will
 feature SUPERREADME.
 
+u

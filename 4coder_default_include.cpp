@@ -1536,8 +1536,6 @@ standard_build_search(Application_Links *app,
         }
         dir->size = old_size;
         
-        app->print_message(app, literal("C\n"));
-        
         if (app->directory_cd(app, dir->str, &dir->size, dir->memory_size, literal("..")) == 0){
             if (perform_backup){
                 dir->size = app->directory_get_hot(app, dir->str, dir->memory_size);
