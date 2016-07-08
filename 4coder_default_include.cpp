@@ -1405,6 +1405,10 @@ CUSTOM_COMMAND_SIG(open_in_other_regular){
 # define open_in_other open_in_other_regular
 #endif
 
+//
+// Auto Indenting and Whitespace
+//
+
 CUSTOM_COMMAND_SIG(auto_tab_line_at_cursor){
     unsigned int access = AccessOpen;
     View_Summary view = app->get_active_view(app, access);
@@ -1446,6 +1450,66 @@ CUSTOM_COMMAND_SIG(write_and_auto_tab){
     exec_command(app, auto_tab_line_at_cursor);
 }
 
+CUSTOM_COMMAND_SIG(clean_all_lines){
+    View_Summary view = app->get_active_view(app, AccessOpen);
+    Buffer_Summary buffer = app->get_buffer(app, view.buffer_id, AccessOpen);
+    
+    int line_count = buffer.line_count;
+    int edit_max = line_count;
+    
+    if (edit_max*sizeof(Buffer_Edit) < app->memory_size){
+        Buffer_Edit *edits = (Buffer_Edit*)app->memory;
+        
+        char data[1024];
+        Stream_Chunk chunk = {0};
+         
+        int i = 0;
+        if (init_stream_chunk(&chunk, app, &buffer,
+                              0, data, sizeof(data))){
+            Buffer_Edit *edit = edits;
+            
+            int buffer_size = buffer.size;
+            int still_looping = true;
+            int need_stopper = true;
+            int last_hard = buffer_size;
+            do{
+                if (need_stopper && !still_looping){
+                    chunk.end = i+1;
+                    chunk.data[0] = '\n';
+                    need_stopper = false;
+                }
+                
+                for (; i < chunk.end; ++i){
+                    char at_pos = chunk.data[i];
+                    if (at_pos == '\n'){
+                        if (last_hard+1 < i){
+                            edit->str_start = 0;
+                            edit->len = 0;
+                            edit->start = last_hard+1;
+                            edit->end = i;
+                            ++edit;
+                            i = buffer_size;
+                        }
+                    }
+                    else if (char_is_whitespace(at_pos)){
+                        // NOTE(allen): do nothing
+                    }
+                    else{
+                        last_hard = i;
+                    }
+                }
+                
+                if (still_looping){
+                    still_looping = forward_stream_chunk(&chunk);
+                }
+            }while(still_looping && need_stopper);
+            
+            int edit_count = (int)(edit - edits);
+            app->buffer_batch_edit(app, &buffer, 0, edits, edit_count, BatchEdit_PreserveTokens);
+        }
+    }
+}
+
 //
 // Default Building Stuff
 //
@@ -1455,7 +1519,7 @@ CUSTOM_COMMAND_SIG(write_and_auto_tab){
 // directory of the given buffer, it cannot it get's the 4coder hot directory.
 // This behavior is a little different than previous versions of 4coder.
 //
-//  There is requirement that a custom build system in 4coder  actually use the
+//  There is no requirement that a custom build system in 4coder actually use the
 // directory given by this function.
 enum Get_Build_Directory_Result{
     BuildDir_None,

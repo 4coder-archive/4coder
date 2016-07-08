@@ -24,6 +24,7 @@ fill_buffer_summary(Buffer_Summary *buffer, Editing_File *file, Working_Set *wor
         
         buffer->buffer_id = file->id.id;
         buffer->size = file->state.buffer.size;
+        buffer->line_count = file->state.buffer.line_count;
         
         buffer->file_name_len = file->name.source_path.size;
         buffer->buffer_name_len = file->name.live_name.size;
@@ -696,6 +697,56 @@ DOC_SEE(4coder_Buffer_Positioning_System)
                                file, start, end, str, len);
         }
         fill_buffer_summary(buffer, file, cmd);
+    }
+    
+    return(result);
+}
+
+API_EXPORT bool32
+Buffer_Batch_Edit(Application_Links *app, Buffer_Summary *buffer, char *str, int32_t str_len, Buffer_Edit *edits, int32_t edit_count, Buffer_Batch_Edit_Type type)/*
+DOC_PARAM(str, This parameter provides all of the source string for the edits in the batch.)
+DOC_PARAM(str_len, This parameter specifies the length of the str string.)
+DOC_PARAM(edits, This parameter provides about the source string and destination range of each edit as an array.)
+DOC_PARAM(edit_count, This parameter specifies the number of Buffer_Edit structs in edits.)
+DOC_PARAM(type, This prameter specifies what type of batch edit to execute.)
+DOC_RETURN(This call returns non-zero if the batch edit succeeds.)
+DOC()
+DOC_SEE(Buffer_Edit)
+DOC_SEE(Buffer_Batch_Edit_Type)
+*/{
+    Command_Data *cmd = (Command_Data*)app->cmd_context;
+    Mem_Options *mem = cmd->models;
+    Partition *part = &models->mem.part;
+    Editing_File *file = imp_get_file(cmd, buffer);
+    
+    bool32 result = false;
+    
+    if (file){
+        Temp_Memory temp = begin_temp_memory(part);
+        Buffer_Edit *inverse_edits = push_array(part, Buffer_Edit, edit_count);
+        char *inv_str = (char*)part->base + part->pos;
+        int inv_str_max = part->max - part->pos;
+        Assert(inverse_edits);
+        
+        switch (type){
+            case BatchEdit_Normal:
+            {
+                // TODO(allen): 
+            }break;
+            
+            case BatchEdit_PreserveTokens:
+            {
+                Edit_Spec spec =
+                    file_compute_whitespace_edit(mem, file,
+                                                 edits, str, str_len,
+                                                 inverse_edits, inv_str, inv_str_max,
+                                                 edit_count);
+                
+                file_do_white_batch_edit(system, models, file, spec, hist_normal);
+            }break;
+        }
+        
+        end_temp_memory(part);
     }
     
     return(result);

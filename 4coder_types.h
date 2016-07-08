@@ -122,6 +122,15 @@ ENUM(int32_t, Event_Message_Type_ID){
     EventMessage_CloseView
 };
 
+/* DOC(A Buffer_Batch_Edit_Type is a type of batch operation.) */
+ENUM(int32_t, Buffer_Batch_Edit_Type){
+    /* DOC(The BatchEdit_Normal operation is always correct but does the most work.) */
+    BatchEdit_Normal,
+    /* DOC(The BatchEdit_PreserveTokens operation is one in which none of the edits add, delete, or change any tokens.
+    This usually applies when whitespace is being replaced with whitespace.) */
+    BatchEdit_PreserveTokens
+}
+
 /* DOC(A Buffer_Setting_ID names a setting in a buffer.) */
 ENUM(int32_t, Buffer_Setting_ID){
     /* DOC(BufferSetting_Null is not a valid setting, it is reserved to detect errors.) */
@@ -521,6 +530,20 @@ struct Buffer_Seek{
     };
 };
 
+/* DOC(Buffer_Edit describes a range of a buffer and string to replace that range.
+A Buffer_Edit has to be paired with a string that contains the actual text that
+will be replaced into the buffer.) */
+struct Buffer_Edit{
+    /* DOC(The str_start field specifies the first character in the accompanying string that corresponds with this edit.) */
+    int32_t str_start;
+    /* DOC(The len field specifies the length of the string being written into the buffer.) */
+    int32_t len;
+    /* DOC(The start field specifies the start of the range in the buffer to replace in absolute position.) */
+    int32_t start;
+    /* DOC(The end field specifies one past the end of the range in the buffer to replace in absolute position.) */
+    int32_t end;
+};
+
 /* DOC(Buffer_Summary acts as a handle to a buffer and describes the state of the buffer.)
 DOC_SEE(Access_Flag)*/
 struct Buffer_Summary{
@@ -543,6 +566,8 @@ struct Buffer_Summary{
     
     /* DOC(If this is not a null summary, this field specifies the size of the text in the buffer.) */
     int32_t size;
+    /* DOC(If this is not a null summary, this field specifies the number of lines in the buffer.) */
+    int32_t line_count;
     
     /* DOC(If this is not a null summary, this field specifies the file name associated to this buffer.) */
     char *file_name;

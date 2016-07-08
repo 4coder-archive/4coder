@@ -78,11 +78,6 @@ lroundup_(int x, int granularity){
 
 #define measure_character(a,c) ((a)[c])
 
-typedef struct Buffer_Edit{
-    int str_start, len;
-    int start, end;
-} Buffer_Edit;
-
 typedef struct Buffer_Batch_State{
     int i;
     int shift_total;

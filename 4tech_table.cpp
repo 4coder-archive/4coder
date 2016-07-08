@@ -20,7 +20,6 @@ struct Table{
     u32 *hash_array;
     u8 *data_array;
     i32 count, max;
-    
     i32 item_size;
 };
 

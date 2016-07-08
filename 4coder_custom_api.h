@@ -10,6 +10,7 @@
 #define BUFFER_BOUNDARY_SEEK_SIG(n) int32_t n(Application_Links *app, Buffer_Summary *buffer, int32_t start_pos, bool32 seek_forward, Seek_Boundary_Flag flags)
 #define BUFFER_READ_RANGE_SIG(n) bool32 n(Application_Links *app, Buffer_Summary *buffer, int32_t start, int32_t end, char *out)
 #define BUFFER_REPLACE_RANGE_SIG(n) bool32 n(Application_Links *app, Buffer_Summary *buffer, int32_t start, int32_t end, char *str, int32_t len)
+#define BUFFER_BATCH_EDIT_SIG(n) bool32 n(Application_Links *app, Buffer_Summary *buffer, char *str, int32_t str_len, Buffer_Edit *edits, int32_t edit_count, Buffer_Batch_Edit_Type type)
 #define BUFFER_SET_SETTING_SIG(n) bool32 n(Application_Links *app, Buffer_Summary *buffer, Buffer_Setting_ID setting, int32_t value)
 #define BUFFER_AUTO_INDENT_SIG(n) bool32 n(Application_Links *app, Buffer_Summary *buffer, int32_t start, int32_t end, int32_t tab_width, Auto_Indent_Flag flags)
 #define CREATE_BUFFER_SIG(n) Buffer_Summary n(Application_Links *app, char *filename, int32_t filename_len, Buffer_Create_Flag flags)
@@ -60,6 +61,7 @@ extern "C"{
     typedef BUFFER_BOUNDARY_SEEK_SIG(Buffer_Boundary_Seek_Function);
     typedef BUFFER_READ_RANGE_SIG(Buffer_Read_Range_Function);
     typedef BUFFER_REPLACE_RANGE_SIG(Buffer_Replace_Range_Function);
+    typedef BUFFER_BATCH_EDIT_SIG(Buffer_Batch_Edit_Function);
     typedef BUFFER_SET_SETTING_SIG(Buffer_Set_Setting_Function);
     typedef BUFFER_AUTO_INDENT_SIG(Buffer_Auto_Indent_Function);
     typedef CREATE_BUFFER_SIG(Create_Buffer_Function);
@@ -113,6 +115,7 @@ struct Application_Links{
     Buffer_Boundary_Seek_Function *buffer_boundary_seek;
     Buffer_Read_Range_Function *buffer_read_range;
     Buffer_Replace_Range_Function *buffer_replace_range;
+    Buffer_Batch_Edit_Function *buffer_batch_edit;
     Buffer_Set_Setting_Function *buffer_set_setting;
     Buffer_Auto_Indent_Function *buffer_auto_indent;
     Create_Buffer_Function *create_buffer;
@@ -168,6 +171,7 @@ app_links->get_buffer_by_name = Get_Buffer_By_Name;\
 app_links->buffer_boundary_seek = Buffer_Boundary_Seek;\
 app_links->buffer_read_range = Buffer_Read_Range;\
 app_links->buffer_replace_range = Buffer_Replace_Range;\
+app_links->buffer_batch_edit = Buffer_Batch_Edit;\
 app_links->buffer_set_setting = Buffer_Set_Setting;\
 app_links->buffer_auto_indent = Buffer_Auto_Indent;\
 app_links->create_buffer = Create_Buffer;\
