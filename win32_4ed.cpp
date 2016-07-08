@@ -1426,132 +1426,133 @@ Win32Callback(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
                 }break;
                 
                 default:
-                b8 previous_state, current_state;
-                previous_state = ((lParam & Bit_30)?(1):(0));
-                current_state = ((lParam & Bit_31)?(0):(1));
-                
-                if (current_state){
-                    u8 key = keycode_lookup_table[(u8)wParam];
+                {
+                    b8 previous_state = ((lParam & Bit_30)?(1):(0));
+                    b8 current_state = ((lParam & Bit_31)?(0):(1));
                     
-                    i32 *count = 0;
-                    Key_Event_Data *data = 0;
-                    b8 *control_keys = 0;
-                    i32 control_keys_size = 0;
-                    
-                    if (!previous_state){
-                        count = &win32vars.input_chunk.trans.key_data.press_count;
-                        data = win32vars.input_chunk.trans.key_data.press;
-                    }
-                    else{
-                        count = &win32vars.input_chunk.trans.key_data.hold_count;
-                        data = win32vars.input_chunk.trans.key_data.hold;
-                    }
-                    control_keys = win32vars.input_chunk.pers.control_keys;
-                    control_keys_size = sizeof(win32vars.input_chunk.pers.control_keys);
-                    
-                    if (*count < KEY_INPUT_BUFFER_SIZE){
-                        if (!key){
-                            UINT vk = (UINT)wParam;
-                            UINT scan = (UINT)((lParam >> 16) & 0x7F);
-                            BYTE state[256];
-                            BYTE control_state = 0;
-                            WORD x1 = 0, x2 = 0, x = 0, junk_x;
-                            int result1 = 0, result2 = 0, result = 0;
-                            
-                            GetKeyboardState(state);
-                            x1 = 0;
-                            result1 = ToAscii(vk, scan, state, &x1, 0);
-                            if (result1 < 0){
-                                ToAscii(vk, scan, state, &junk_x, 0);
-                            }
-                            result1 = (result1 == 1);
-                            if (!usable_ascii((char)x1)){
-                                result1 = 0;
-                            }
-                            
-                            control_state = state[VK_CONTROL];
-                            state[VK_CONTROL] = 0;
-                            x2 = 0;
-                            result2 = ToAscii(vk, scan, state, &x2, 0);
-                            if (result2 < 0){
-                                ToAscii(vk, scan, state, &junk_x, 0);
-                            }
-                            result2 = (result2 == 1);
-                            if (!usable_ascii((char)x2)){
-                                result2 = 0;
-                            }
-                            
-                            // TODO(allen): This is becoming a really major issue.
-                            // Apparently control + i outputs a '\t' which is VALID ascii
-                            // according to this system. So it reports the key as '\t'.
-                            // This wasn't an issue before because we were ignoring control
-                            // when computing character_no_caps_lock which is what is used
-                            // for commands. But that is incorrect for some keyboard layouts
-                            // where control+alt is used to signal AltGr for important keys.
-                            if (result1 && result2){
-                                char c1 = char_to_upper((char)x1);
-                                char cParam = char_to_upper((char)wParam);
-                                
-                                if ((c1 == '\n' || c1 == '\r') && cParam != VK_RETURN){
-                                    result1 = 0;
-                                }
-                                if (c1 == '\t' && cParam != VK_TAB){
-                                    result1 = 0;
-                                }
-                            }
-                            
-                            if (result1){
-                                x = x1;
-                                state[VK_CONTROL] = control_state;
-                                result = 1;
-                            }
-                            else if (result2){
-                                x = x2;
-                                result = 1;
-                            }
-                            
-                            if (result == 1 && x < 128){
-                                key = (u8)x;
-                                if (key == '\r') key = '\n';
-                                data[*count].character = key;
-                                
-                                state[VK_CAPITAL] = 0;
-                                x = 0;
-                                result = ToAscii(vk, scan, state, &x, 0);
-                                if (result < 0){
-                                    ToAscii(vk, scan, state, &junk_x, 0);
-                                }
-                                result = (result == 1);
-                                if (!usable_ascii((char)x)){
-                                    result = 0;
-                                }
-                                
-                                if (result){
-                                    key = (u8)x;
-                                    if (key == '\r') key = '\n';
-                                    data[*count].character_no_caps_lock = key;
-                                    data[*count].keycode = key;
-                                }
-                            }
-                            if (result != 1 || x >= 128){
-                                data[*count].character = 0;
-                                data[*count].character_no_caps_lock = 0;
-                                data[*count].keycode = 0;
-                            }
+                    if (current_state){
+                        u8 key = keycode_lookup_table[(u8)wParam];
+                        
+                        i32 *count = 0;
+                        Key_Event_Data *data = 0;
+                        b8 *control_keys = 0;
+                        i32 control_keys_size = 0;
+                        
+                        if (!previous_state){
+                            count = &win32vars.input_chunk.trans.key_data.press_count;
+                            data = win32vars.input_chunk.trans.key_data.press;
                         }
                         else{
-                            data[*count].character = 0;
-                            data[*count].character_no_caps_lock = 0;
-                            data[*count].keycode = key;
+                            count = &win32vars.input_chunk.trans.key_data.hold_count;
+                            data = win32vars.input_chunk.trans.key_data.hold;
                         }
-                        memcpy(data[*count].modifiers, control_keys, control_keys_size);
-                        data[*count].modifiers[MDFR_HOLD_INDEX] = previous_state;
-                        ++(*count);
+                        control_keys = win32vars.input_chunk.pers.control_keys;
+                        control_keys_size = sizeof(win32vars.input_chunk.pers.control_keys);
+                        
+                        if (*count < KEY_INPUT_BUFFER_SIZE){
+                            if (!key){
+                                UINT vk = (UINT)wParam;
+                                UINT scan = (UINT)((lParam >> 16) & 0x7F);
+                                BYTE state[256];
+                                BYTE control_state = 0;
+                                WORD x1 = 0, x2 = 0, x = 0, junk_x;
+                                i32 result1 = 0, result2 = 0, result = 0;
+                                
+                                GetKeyboardState(state);
+                                x1 = 0;
+                                result1 = ToAscii(vk, scan, state, &x1, 0);
+                                if (result1 < 0){
+                                    ToAscii(vk, scan, state, &junk_x, 0);
+                                }
+                                result1 = (result1 == 1);
+                                if (!usable_ascii((char)x1)){
+                                    result1 = 0;
+                                }
+                                
+                                control_state = state[VK_CONTROL];
+                                state[VK_CONTROL] = 0;
+                                x2 = 0;
+                                result2 = ToAscii(vk, scan, state, &x2, 0);
+                                if (result2 < 0){
+                                    ToAscii(vk, scan, state, &junk_x, 0);
+                                }
+                                result2 = (result2 == 1);
+                                if (!usable_ascii((char)x2)){
+                                    result2 = 0;
+                                }
+                                
+                                // TODO(allen): This is becoming a really major issue.
+                                // Apparently control + i outputs a '\t' which is VALID ascii
+                                // according to this system. So it reports the key as '\t'.
+                                // This wasn't an issue before because we were ignoring control
+                                // when computing character_no_caps_lock which is what is used
+                                // for commands. But that is incorrect for some keyboard layouts
+                                // where control+alt is used to signal AltGr for important keys.
+                                if (result1 && result2){
+                                    char c1 = char_to_upper((char)x1);
+                                    char cParam = char_to_upper((char)wParam);
+                                    
+                                    if ((c1 == '\n' || c1 == '\r') && cParam != VK_RETURN){
+                                        result1 = 0;
+                                    }
+                                    if (c1 == '\t' && cParam != VK_TAB){
+                                        result1 = 0;
+                                    }
+                                }
+                                
+                                if (result1){
+                                    x = x1;
+                                    state[VK_CONTROL] = control_state;
+                                    result = 1;
+                                }
+                                else if (result2){
+                                    x = x2;
+                                    result = 1;
+                                }
+                                
+                                if (result == 1 && x < 128){
+                                    key = (u8)x;
+                                    if (key == '\r') key = '\n';
+                                    data[*count].character = key;
+                                    
+                                    state[VK_CAPITAL] = 0;
+                                    x = 0;
+                                    result = ToAscii(vk, scan, state, &x, 0);
+                                    if (result < 0){
+                                        ToAscii(vk, scan, state, &junk_x, 0);
+                                    }
+                                    result = (result == 1);
+                                    if (!usable_ascii((char)x)){
+                                        result = 0;
+                                    }
+                                    
+                                    if (result){
+                                        key = (u8)x;
+                                        if (key == '\r') key = '\n';
+                                        data[*count].character_no_caps_lock = key;
+                                        data[*count].keycode = key;
+                                    }
+                                }
+                                if (result != 1 || x >= 128){
+                                    data[*count].character = 0;
+                                    data[*count].character_no_caps_lock = 0;
+                                    data[*count].keycode = 0;
+                                }
+                            }
+                            else{
+                                data[*count].character = 0;
+                                data[*count].character_no_caps_lock = 0;
+                                data[*count].keycode = key;
+                            }
+                            memcpy(data[*count].modifiers, control_keys, control_keys_size);
+                            data[*count].modifiers[MDFR_HOLD_INDEX] = previous_state;
+                            ++(*count);
+                        }
                     }
-                }
-                
-                result = DefWindowProc(hwnd, uMsg, wParam, lParam);
-            }
+                    
+                    result = DefWindowProc(hwnd, uMsg, wParam, lParam);
+                }break;
+            }/* switch */
         }break;
         
         case WM_MOUSEMOVE:

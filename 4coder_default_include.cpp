@@ -1591,9 +1591,6 @@ CUSTOM_COMMAND_SIG(toggle_line_wrap){
     Buffer_Summary buffer = app->get_buffer(app, view.buffer_id, AccessProtected);
     
     bool32 unwrapped = view.unwrapped_lines;
-    if (buffer.exists){
-        unwrapped = buffer.unwrapped_lines;
-    }
     
     app->view_set_setting(app, &view, ViewSetting_WrapLine, unwrapped);
     app->buffer_set_setting(app, &buffer, BufferSetting_WrapLine, unwrapped);
