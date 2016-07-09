@@ -739,71 +739,6 @@ COMMAND_DECL(to_lowercase){
     case_change_range(system, &models->mem, view, file, 'A', 'Z', (u8)('a' - 'A'));
 }
 
-COMMAND_DECL(clean_all_lines){
-    USE_MODELS(models);
-    REQ_OPEN_VIEW(view);
-    REQ_FILE(file, view);
-    
-    Mem_Options *mem = &models->mem;
-    Editing_File *file = view->file_data.file;
-    
-    Partition *part = &mem->part;
-    i32 line_count = file->state.buffer.line_count;
-    i32 edit_max = line_count * 2;
-    i32 edit_count = 0;
-    
-    Assert(file && !file->is_dummy);
-    Assert(view->edit_pos);
-    
-    Temp_Memory temp = begin_temp_memory(part);
-    Buffer_Edit *edits = push_array(part, Buffer_Edit, edit_max);
-    
-    char *str_base = (char*)part->base + part->pos;
-    i32 str_size = 0;
-    for (i32 line_i = 0; line_i < line_count; ++line_i){
-        i32 start = file->state.buffer.line_starts[line_i];
-        Hard_Start_Result hard_start = 
-            buffer_find_hard_start(&file->state.buffer, start, 4);
-        
-        if (hard_start.all_whitespace){
-            hard_start.indent_pos = 0;
-        }
-        
-        if ((hard_start.all_whitespace && hard_start.char_pos > start) || !hard_start.all_space){
-            Buffer_Edit new_edit;
-            new_edit.str_start = str_size;
-            str_size += hard_start.indent_pos;
-            char *str = push_array(part, char, hard_start.indent_pos);
-            for (i32 j = 0; j < hard_start.indent_pos; ++j) str[j] = ' ';
-            new_edit.len = hard_start.indent_pos;
-            new_edit.start = start;
-            new_edit.end = hard_start.char_pos;
-            edits[edit_count++] = new_edit;
-        }
-        Assert(edit_count <= edit_max);
-    }
-    
-    if (edit_count > 0){
-        Assert(buffer_batch_debug_sort_check(edits, edit_count));
-        
-        // NOTE(allen): computing edit spec, doing batch edit
-        Buffer_Edit *inverse_array = push_array(part, Buffer_Edit, edit_count);
-        Assert(inverse_array);
-        
-        char *inv_str = (char*)part->base + part->pos;
-        Edit_Spec spec =
-            file_compute_whitespace_edit(mem, file,
-                                         view->edit_pos->cursor.pos,
-                                         edits, str_base, str_size,
-                                         inverse_array, inv_str,
-                                         part->max - part->pos, edit_count);
-        
-        file_do_white_batch_edit(system, models, view->file_data.file, spec, hist_normal);
-    }
-    
-    end_temp_memory(temp);
-}
-
 COMMAND_DECL(open_panel_vsplit){
     USE_VARS(vars);
     USE_MODELS(models);
@@ -1110,8 +1045,6 @@ setup_command_table(){
     SET(reopen);
     SET(save);
     SET(kill_buffer);
-    
-    SET(clean_all_lines);
     
     SET(open_color_tweaker);
     SET(open_config);

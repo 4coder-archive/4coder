@@ -1,5 +1,6 @@
 
 
+
 /* DOC(bool32 is an alias name to signal that an integer parameter or field is for
 true/false vales.) */
 typedef int32_t bool32;
@@ -67,9 +68,6 @@ ENUM(uint64_t, Command_ID){
     /* DOC(cmdid_history_forward unperforms the previous cmdid_history_backward step if possib.e) */
     cmdid_history_forward,
     
-    /* DOC(cmdid_clean_all_lines deletes extra whitespace out the currently active buffer.) */
-    cmdid_clean_all_lines,
-    
     /* DOC(cmdid_interactive_new begins an interactive dialogue to create a new buffer.) */
     cmdid_interactive_new,
     /* DOC(cmdid_interactive_open begins an interactive dialogue to open a file into a buffer.) */
@@ -129,7 +127,7 @@ ENUM(int32_t, Buffer_Batch_Edit_Type){
     /* DOC(The BatchEdit_PreserveTokens operation is one in which none of the edits add, delete, or change any tokens.
     This usually applies when whitespace is being replaced with whitespace.) */
     BatchEdit_PreserveTokens
-}
+};
 
 /* DOC(A Buffer_Setting_ID names a setting in a buffer.) */
 ENUM(int32_t, Buffer_Setting_ID){

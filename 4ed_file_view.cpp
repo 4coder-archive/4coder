@@ -2976,7 +2976,7 @@ file_auto_tab_tokens(System_Functions *system, Models *models,
         
         char *inv_str = (char*)part->base + part->pos;
         Edit_Spec spec =
-            file_compute_whitespace_edit(mem, file, pos,
+            file_compute_whitespace_edit(mem, file,
                                          batch.edits, batch.str_base, batch.str_size,
                                          inverse_array, inv_str, part->max - part->pos,
                                          batch.edit_count);

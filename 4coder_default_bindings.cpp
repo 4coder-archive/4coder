@@ -380,7 +380,7 @@ default_keys(Bind_Helper *context){
     bind(context, '!', MDFR_CTRL, eol_nixify);
     
     bind(context, '?', MDFR_CTRL, toggle_show_whitespace);
-    bind(context, '~', MDFR_CTRL, cmdid_clean_all_lines);
+    bind(context, '~', MDFR_CTRL, clean_all_lines);
     bind(context, '\n', MDFR_SHIFT, write_and_auto_tab);
     bind(context, ' ', MDFR_SHIFT, write_character);
     

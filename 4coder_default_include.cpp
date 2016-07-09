@@ -1462,23 +1462,16 @@ CUSTOM_COMMAND_SIG(clean_all_lines){
         
         char data[1024];
         Stream_Chunk chunk = {0};
-         
+        
         int i = 0;
         if (init_stream_chunk(&chunk, app, &buffer,
-                              0, data, sizeof(data))){
+                              i, data, sizeof(data))){
             Buffer_Edit *edit = edits;
             
             int buffer_size = buffer.size;
             int still_looping = true;
-            int need_stopper = true;
             int last_hard = buffer_size;
             do{
-                if (need_stopper && !still_looping){
-                    chunk.end = i+1;
-                    chunk.data[0] = '\n';
-                    need_stopper = false;
-                }
-                
                 for (; i < chunk.end; ++i){
                     char at_pos = chunk.data[i];
                     if (at_pos == '\n'){
@@ -1488,7 +1481,7 @@ CUSTOM_COMMAND_SIG(clean_all_lines){
                             edit->start = last_hard+1;
                             edit->end = i;
                             ++edit;
-                            i = buffer_size;
+                            last_hard = buffer_size;
                         }
                     }
                     else if (char_is_whitespace(at_pos)){
@@ -1499,13 +1492,19 @@ CUSTOM_COMMAND_SIG(clean_all_lines){
                     }
                 }
                 
-                if (still_looping){
-                    still_looping = forward_stream_chunk(&chunk);
-                }
-            }while(still_looping && need_stopper);
+                still_looping = forward_stream_chunk(&chunk);
+            }while(still_looping);
+            
+            if (last_hard+1 < buffer_size){
+                edit->str_start = 0;
+                edit->len = 0;
+                edit->start = last_hard+1;
+                edit->end = buffer_size;
+                ++edit;
+            }
             
             int edit_count = (int)(edit - edits);
-            app->buffer_batch_edit(app, &buffer, 0, edits, edit_count, BatchEdit_PreserveTokens);
+            app->buffer_batch_edit(app, &buffer, 0, 0, edits, edit_count, BatchEdit_PreserveTokens);
         }
     }
 }

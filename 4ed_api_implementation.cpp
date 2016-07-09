@@ -715,11 +715,22 @@ DOC_SEE(Buffer_Edit)
 DOC_SEE(Buffer_Batch_Edit_Type)
 */{
     Command_Data *cmd = (Command_Data*)app->cmd_context;
-    Mem_Options *mem = cmd->models;
-    Partition *part = &models->mem.part;
+    Models *models = cmd->models;
+    Mem_Options *mem = &models->mem;
+    Partition *part = &mem->part;
     Editing_File *file = imp_get_file(cmd, buffer);
     
     bool32 result = false;
+    
+    app->print_message(app, literal("Buffer_Batch_Edit:\n"));
+    {
+        char space[512];
+        String str = make_fixed_width_string(space);
+        append(&str, "edit_count: ");
+        append_int_to_str(&str, edit_count);
+        append(&str, '\n');
+        app->print_message(app, str.str, str.size);
+    }
     
     if (file){
         Temp_Memory temp = begin_temp_memory(part);
@@ -742,11 +753,11 @@ DOC_SEE(Buffer_Batch_Edit_Type)
                                                  inverse_edits, inv_str, inv_str_max,
                                                  edit_count);
                 
-                file_do_white_batch_edit(system, models, file, spec, hist_normal);
+                file_do_white_batch_edit(cmd->system, models, file, spec, hist_normal);
             }break;
         }
         
-        end_temp_memory(part);
+        end_temp_memory(temp);
     }
     
     return(result);
