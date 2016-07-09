@@ -1,3 +1,4 @@
+
 /*
  * For generating the header of the TODO files so I don't have to
  * keep doing that by hand and accidentally forgetting half the time.
@@ -85,7 +86,6 @@ main(){
     vars.year = tm.tm_year + 1900;
     
     generate("README.txt", "README_body.txt", vars);
-    generate("SUPERREADME.txt", "SUPERREADME_body.txt", vars);
     
     
     return(0);
