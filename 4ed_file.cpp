@@ -528,7 +528,7 @@ working_set_init(Working_Set *working_set, Partition *partition, General_Memory 
 
     table_size = working_set->file_max;
     mem_size = table_required_mem_size(table_size, item_size);
-    mem = general_memory_allocate(general, mem_size, 0);
+    mem = general_memory_allocate(general, mem_size);
     memset(mem, 0, mem_size);
     table_init_memory(&working_set->table, mem, table_size, item_size);
 }
@@ -542,7 +542,7 @@ working_set__grow_if_needed(Table *table, General_Memory *general, void *arg, Ha
     if (table_at_capacity(table)){
         new_max = table->max * 2;
         mem_size = table_required_mem_size(new_max, table->item_size);
-        mem = general_memory_allocate(general, mem_size, 0);
+        mem = general_memory_allocate(general, mem_size);
         table_init_memory(&btable, mem, new_max, table->item_size);
         table_clear(&btable);
         table_rehash(table, &btable, 0, hash_func, comp_func);

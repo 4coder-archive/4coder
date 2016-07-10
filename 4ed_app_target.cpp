@@ -19,14 +19,13 @@
 #define FSTRING_IMPLEMENTATION
 #include "4coder_string.h"
 
-#include "4ed_mem.cpp"
 #include "4ed_math.cpp"
 
 #include "4ed_system.h"
 #include "4ed_rendering.h"
 #include "4ed.h"
 
-#include "4tech_table.cpp"
+#include "4coder_table.cpp"
 
 #define FCPP_LEXER_IMPLEMENTATION
 //#include "test/4cpp_new_lexer.h"

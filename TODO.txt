@@ -174,24 +174,24 @@
 ; [] tutorials
 ; [] 4edT thing
 ; [] unicode/UTF support
+; [] console emulator
 ;
 
 ; INTERNAL TODOS
 ; [X] switch building non-extensible version by statically linking to custom.cpp
 ; [X] pack fonts more squarely
-; [] general parameter handling
+; [X] change job canceling to a polling based thing
 ; [] hashed string pool for clipboard/filenames/etc
 ; [] new profiling/debugging system
-; [] change job canceling to a polling based thing
 ;
 
 ; EASY TODOS
 ; [X] better messages for example not "BEHIND OS"
 ; [X] shift backspace
 ; [X] center view on cursor
+; [X] delta time in scroll interpolation
 ; [] close editor command
 ; [] panel grow/shrink commands
-; [] delta time in scroll interpolation
 ;
 
 ; HARD BUGS
@@ -200,13 +200,12 @@
 ; [] fyoucon's segfaults with malloc on win10
 ; [] handling cursor in non-client part of window so it doesn't spaz
 ; [] fill screen right away
-; [] how to get fast repaint (do I really need double buffering?)
-; [] history breaks when heavily used (disk swaping?)
+; [] history breaks when heavily used? (disk swaping?)
 ;
-; [] minimize and reopen problem (reported by two users now, still not reproduced here)
+; [] minimize and reopen problem (still not reproduced here)
 ;
 
-; FANCY PANTS IDEAS
+; FANCY-PANTS IDEAS
 ; [] pass messages to 'jobs' to try to avoid cancelling them
 ;    if the job still thinks it should be cancelled it will say so
 ;    but otherwise the job can try to incorporate the new info
@@ -225,27 +224,24 @@
 ;    [X] position in file to open
 ;    [X] invoking special tools
 ; [X] transition Win32 layer to using system_shared stuff
+; [X] event driven file synchronization
 ; [] user settings file
 ; [] system fonts
 ; [] file drag and drop
 ; [] low latency stuff
-; [] event driven file synchronization
 ; [] actually write the port
 ;    [X] 4coder code compiling
 ;    [X] opengl window up
 ;    [X] basic versions of system functions
 ;    [X] get 4coder to render to window
-;    [X] keyboard and mouse input               (TY:insofaras)
-;    [X] file exchange               (TY:insofaras)
-;    [X] clipboard               (TY:insofaras)
+;    [X] keyboard and mouse input         (TY:insofaras)
+;    [X] file exchange                    (TY:insofaras)
+;    [X] clipboard                        (TY:insofaras)
 ;    [X] background threads               (TY:insofaras)
-;    [X] cli stuff               (TY:insofaras)
+;    [X] cli stuff                        (TY:insofaras)
+;    [X] event diven file synchronization (TY:insofaras)
 ;    [] system fonts
 ;    [] file drag and drop
-;    [] low latency stuff
 ;    [] allow for multiple clipboards
-;    [] event diven file synchronization
-;
-
 ;
 

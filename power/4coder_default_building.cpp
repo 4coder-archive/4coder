@@ -242,6 +242,9 @@ gcc_style_verify(String line, int colon_pos){
     else if (match_part(line_part, ": warning")){
         result = true;
     }
+    else if (match_part(line_part, ": fatal")){
+        result = true;
+    }
     
     return(result);
 }

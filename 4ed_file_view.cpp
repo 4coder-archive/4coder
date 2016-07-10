@@ -848,7 +848,7 @@ file_save(System_Functions *system, Mem_Options *mem, Editing_File *file, char *
         
         if (!data){
             used_general = 1;
-            data = (char*)general_memory_allocate(&mem->general, max, 0);
+            data = (char*)general_memory_allocate(&mem->general, max);
         }
     }
     Assert(data);
@@ -885,22 +885,11 @@ file_save_and_set_names(System_Functions *system, Mem_Options *mem,
     return result;
 }
 
-enum File_Bubble_Type{
-    BUBBLE_BUFFER = 1,
-    BUBBLE_STARTS,
-    BUBBLE_WIDTHS,
-    BUBBLE_WRAPS,
-    BUBBLE_TOKENS,
-    BUBBLE_UNDO_STRING,
-    BUBBLE_UNDO,
-    BUBBLE_UNDO_CHILDREN,
-    //
-    FILE_BUBBLE_TYPE_END,
+enum{
+    GROW_FAILED,
+    GROW_NOT_NEEDED,
+    GROW_SUCCESS,
 };
-
-#define GROW_FAILED 0
-#define GROW_NOT_NEEDED 1
-#define GROW_SUCCESS 2
 
 internal i32
 file_grow_starts_widths_as_needed(General_Memory *general, Buffer_Type *buffer, i32 additional_lines){
@@ -915,11 +904,11 @@ file_grow_starts_widths_as_needed(General_Memory *general, Buffer_Type *buffer, 
         
         f32 *new_widths = (f32*)general_memory_reallocate(
             general, buffer->line_widths,
-            sizeof(f32)*count, sizeof(f32)*max, BUBBLE_WIDTHS);
+            sizeof(f32)*count, sizeof(f32)*max);
         
         i32 *new_lines = (i32*)general_memory_reallocate(
             general, buffer->line_starts,
-            sizeof(i32)*count, sizeof(i32)*max, BUBBLE_STARTS);
+            sizeof(i32)*count, sizeof(i32)*max);
         
         if (new_lines){
             buffer->line_starts = new_lines;
@@ -945,13 +934,13 @@ file_measure_starts_widths(System_Functions *system, General_Memory *general,
                            Buffer_Type *buffer, float *advance_data){
     if (!buffer->line_starts){
         i32 max = buffer->line_max = Kbytes(1);
-        buffer->line_starts = (i32*)general_memory_allocate(general, max*sizeof(i32), BUBBLE_STARTS);
+        buffer->line_starts = (i32*)general_memory_allocate(general, max*sizeof(i32));
         TentativeAssert(buffer->line_starts);
         // TODO(allen): when unable to allocate?
     }
     if (!buffer->line_widths){
         i32 max = buffer->widths_max = Kbytes(1);
-        buffer->line_widths = (f32*)general_memory_allocate(general, max*sizeof(f32), BUBBLE_WIDTHS);
+        buffer->line_widths = (f32*)general_memory_allocate(general, max*sizeof(f32));
         TentativeAssert(buffer->line_starts);
         // TODO(allen): when unable to allocate?
     }
@@ -964,7 +953,7 @@ file_measure_starts_widths(System_Functions *system, General_Memory *general,
         
         {
             i32 *new_lines = (i32*)general_memory_reallocate(
-                general, buffer->line_starts, sizeof(i32)*count, sizeof(i32)*max, BUBBLE_STARTS);
+                general, buffer->line_starts, sizeof(i32)*count, sizeof(i32)*max);
             
             // TODO(allen): when unable to grow?
             TentativeAssert(new_lines);
@@ -975,7 +964,7 @@ file_measure_starts_widths(System_Functions *system, General_Memory *general,
         {
             f32 *new_lines = (f32*)
                 general_memory_reallocate(general, buffer->line_widths,
-                                          sizeof(f32)*count, sizeof(f32)*max, BUBBLE_WIDTHS);
+                                          sizeof(f32)*count, sizeof(f32)*max);
             
             // TODO(allen): when unable to grow?
             TentativeAssert(new_lines);
@@ -999,11 +988,11 @@ view_measure_wraps(General_Memory *general, View *view){
         i32 max = view->file_data.line_max = LargeRoundUp(line_count, Kbytes(1));
         if (view->file_data.line_wrap_y){
             view->file_data.line_wrap_y = (f32*)
-                general_memory_reallocate_nocopy(general, view->file_data.line_wrap_y, sizeof(f32)*max, BUBBLE_WRAPS);
+                general_memory_reallocate_nocopy(general, view->file_data.line_wrap_y, sizeof(f32)*max);
         }
         else{
             view->file_data.line_wrap_y = (f32*)
-                general_memory_allocate(general, sizeof(f32)*max, BUBBLE_WRAPS);
+                general_memory_allocate(general, sizeof(f32)*max);
         }
     }
     
@@ -1033,7 +1022,7 @@ file_create_from_string(System_Functions *system, Models *models,
         page_size = buffer_init_page_size(&init);
         page_size = LargeRoundUp(page_size, Kbytes(4));
         if (page_size < Kbytes(4)) page_size = Kbytes(4);
-        void *data = general_memory_allocate(general, page_size, BUBBLE_BUFFER);
+        void *data = general_memory_allocate(general, page_size);
         buffer_init_provide_page(&init, data, page_size);
     }
     
@@ -1064,24 +1053,24 @@ file_create_from_string(System_Functions *system, Models *models,
         // TODO(allen): Redo undo system (if you don't mind the pun)
         i32 request_size = Kbytes(64);
         file->state.undo.undo.max = request_size;
-        file->state.undo.undo.strings = (u8*)general_memory_allocate(general, request_size, BUBBLE_UNDO_STRING);
+        file->state.undo.undo.strings = (u8*)general_memory_allocate(general, request_size);
         file->state.undo.undo.edit_max = request_size / sizeof(Edit_Step);
-        file->state.undo.undo.edits = (Edit_Step*)general_memory_allocate(general, request_size, BUBBLE_UNDO);
+        file->state.undo.undo.edits = (Edit_Step*)general_memory_allocate(general, request_size);
         
         file->state.undo.redo.max = request_size;
-        file->state.undo.redo.strings = (u8*)general_memory_allocate(general, request_size, BUBBLE_UNDO_STRING);
+        file->state.undo.redo.strings = (u8*)general_memory_allocate(general, request_size);
         file->state.undo.redo.edit_max = request_size / sizeof(Edit_Step);
-        file->state.undo.redo.edits = (Edit_Step*)general_memory_allocate(general, request_size, BUBBLE_UNDO);
+        file->state.undo.redo.edits = (Edit_Step*)general_memory_allocate(general, request_size);
         
         file->state.undo.history.max = request_size;
-        file->state.undo.history.strings = (u8*)general_memory_allocate(general, request_size, BUBBLE_UNDO_STRING);
+        file->state.undo.history.strings = (u8*)general_memory_allocate(general, request_size);
         file->state.undo.history.edit_max = request_size / sizeof(Edit_Step);
-        file->state.undo.history.edits = (Edit_Step*)general_memory_allocate(general, request_size, BUBBLE_UNDO);
+        file->state.undo.history.edits = (Edit_Step*)general_memory_allocate(general, request_size);
         
         file->state.undo.children.max = request_size;
-        file->state.undo.children.strings = (u8*)general_memory_allocate(general, request_size, BUBBLE_UNDO_STRING);
+        file->state.undo.children.strings = (u8*)general_memory_allocate(general, request_size);
         file->state.undo.children.edit_max = request_size / sizeof(Buffer_Edit);
-        file->state.undo.children.edits = (Buffer_Edit*)general_memory_allocate(general, request_size, BUBBLE_UNDO);
+        file->state.undo.children.edits = (Buffer_Edit*)general_memory_allocate(general, request_size);
         
         file->state.undo.history_block_count = 1;
         file->state.undo.history_head_block = 0;
@@ -1253,7 +1242,7 @@ Job_Callback_Sig(job_full_lex){
     {
         Assert(file->state.swap_stack.tokens == 0);
         file->state.swap_stack.tokens = (Cpp_Token*)
-            general_memory_allocate(general, new_max*sizeof(Cpp_Token), BUBBLE_TOKENS);
+            general_memory_allocate(general, new_max*sizeof(Cpp_Token));
     }
     system->release_lock(FRAME_LOCK);
     
@@ -1368,7 +1357,7 @@ file_relex_parallel(System_Functions *system,
                     stack->tokens = (Cpp_Token*)
                         general_memory_reallocate(general, stack->tokens,
                                                   stack->count*sizeof(Cpp_Token),
-                                                  new_max*sizeof(Cpp_Token), BUBBLE_TOKENS);
+                                                  new_max*sizeof(Cpp_Token));
                     stack->max_count = new_max;
                 }
                 
@@ -2109,7 +2098,7 @@ file_do_single_edit(System_Functions *system,
                                 part->base + part->pos, scratch_size, &request_amount)){
         void *new_data = 0;
         if (request_amount > 0){
-            new_data = general_memory_allocate(general, request_amount, BUBBLE_BUFFER);
+            new_data = general_memory_allocate(general, request_amount);
         }
         void *old_data = buffer_edit_provide_memory(&file->state.buffer, new_data, request_amount);
         if (old_data) general_memory_free(general, old_data);
@@ -2185,7 +2174,7 @@ file_do_white_batch_edit(System_Functions *system, Models *models, Editing_File 
                                   scratch_size, &request_amount)){
         void *new_data = 0;
         if (request_amount > 0){
-            new_data = general_memory_allocate(general, request_amount, BUBBLE_BUFFER);
+            new_data = general_memory_allocate(general, request_amount);
         }
         void *old_data = buffer_edit_provide_memory(&file->state.buffer, new_data, request_amount);
         if (old_data) general_memory_free(general, old_data);
@@ -2258,6 +2247,7 @@ file_clear(System_Functions *system, Models *models, Editing_File *file){
     file_replace_range(system, models, file, 0, buffer_size(&file->state.buffer), 0, 0);
 }
 
+// TODO(allen): get rid of this
 inline void
 view_replace_range(System_Functions *system, Models *models, View *view,
                    i32 start, i32 end, char *str, i32 len){
@@ -3114,6 +3104,17 @@ view_show_file(View *view){
         view->showing_ui = VUI_None;
         view->changed_context_in_step = true;
     }
+}
+
+
+internal String
+make_string_terminated(Partition *part, char *str, i32 len){
+    char *space = (char*)push_array(part, char, len + 1);
+    String string = make_string(str, len, len+1);
+    copy_fast_unsafe(space, string);
+    string.str = space;
+    terminate_with_null(&string);
+    return(string);
 }
 
 internal void
@@ -4774,8 +4775,6 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                                 
                                 append_int_to_str(&string, bubble->size);
                                 append_padding(&string, ' ', 40);
-                                append(&string, " type: ");
-                                append_int_to_str(&string, bubble->type);
                                 gui_do_text_field(target, string, empty_str);
                             }
                         }break;
@@ -6011,12 +6010,12 @@ search_iter_init(General_Memory *general, Search_Iter *iter, i32 size){
     
     if (iter->word.str == 0){
         str_max = size*2;
-        iter->word.str = (char*)general_memory_allocate(general, str_max, 0);
+        iter->word.str = (char*)general_memory_allocate(general, str_max);
         iter->word.memory_size = str_max;
     }
     else if (iter->word.memory_size < size){
         str_max = size*2;
-        iter->word.str = (char*)general_memory_reallocate_nocopy(general, iter->word.str, str_max, 0);
+        iter->word.str = (char*)general_memory_reallocate_nocopy(general, iter->word.str, str_max);
         iter->word.memory_size = str_max;
     }
     
@@ -6030,13 +6029,13 @@ search_set_init(General_Memory *general, Search_Set *set, i32 set_count){
     
     if (set->ranges == 0){
         max = set_count*2;
-        set->ranges = (Search_Range*)general_memory_allocate(general, sizeof(Search_Range)*max, 0);
+        set->ranges = (Search_Range*)general_memory_allocate(general, sizeof(Search_Range)*max);
         set->max = max;
     }
     else if (set->max < set_count){
         max = set_count*2;
         set->ranges = (Search_Range*)general_memory_reallocate_nocopy(
-            general, set->ranges, sizeof(Search_Range)*max, 0);
+            general, set->ranges, sizeof(Search_Range)*max);
         set->max = max;
     }
     
@@ -6050,10 +6049,10 @@ search_hits_table_alloc(General_Memory *general, Table *hits, i32 table_size){
     
     mem_size = table_required_mem_size(table_size, sizeof(Offset_String));
     if (hits->hash_array == 0){
-        mem = general_memory_allocate(general, mem_size, 0);
+        mem = general_memory_allocate(general, mem_size);
     }
     else{
-        mem = general_memory_reallocate_nocopy(general, hits->hash_array, mem_size, 0);
+        mem = general_memory_reallocate_nocopy(general, hits->hash_array, mem_size);
     }
     table_init_memory(hits, mem, table_size, sizeof(Offset_String));
 }
@@ -6068,16 +6067,16 @@ search_hits_init(General_Memory *general, Table *hits, String_Space *str, i32 ta
     }
     else if (hits->max < table_size){
         mem_size = table_required_mem_size(table_size, sizeof(Offset_String));
-        mem = general_memory_reallocate_nocopy(general, hits->hash_array, mem_size, 0);
+        mem = general_memory_reallocate_nocopy(general, hits->hash_array, mem_size);
         table_init_memory(hits, mem, table_size, sizeof(Offset_String));
     }
     
     if (str->space == 0){
-        str->space = (char*)general_memory_allocate(general, str_size, 0);
+        str->space = (char*)general_memory_allocate(general, str_size);
         str->max = str_size;
     }
     else if (str->max < str_size){
-        str->space = (char*)general_memory_reallocate_nocopy(general, str->space, str_size, 0);
+        str->space = (char*)general_memory_reallocate_nocopy(general, str->space, str_size);
         str->max = str_size;
     }
     
@@ -6097,7 +6096,7 @@ search_hit_add(General_Memory *general, Table *hits, String_Space *space, char *
     ostring = strspace_append(space, str, len);
     if (ostring.size == 0){
         new_size = Max(space->max*2, space->max + len);
-        space->space = (char*)general_memory_reallocate(general, space->space, space->new_pos, new_size, 0);
+        space->space = (char*)general_memory_reallocate(general, space->space, space->new_pos, new_size);
         ostring = strspace_append(space, str, len);
     }
     
@@ -6210,7 +6209,7 @@ live_set_alloc_view(Live_Views *live_set, Panel *panel, Models *models){
     
     {
         i32 gui_mem_size = Kbytes(32);
-        void *gui_mem = general_memory_allocate(&models->mem.general, gui_mem_size + 8, 0);
+        void *gui_mem = general_memory_allocate(&models->mem.general, gui_mem_size + 8);
         result.view->gui_mem = gui_mem;
         gui_mem = advance_to_alignment(gui_mem);
         result.view->gui_target.push = make_part(gui_mem, gui_mem_size);

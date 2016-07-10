@@ -11,6 +11,414 @@
 
 #include <assert.h>
 
+//
+// Memory
+//
+
+static Partition scratch;
+
+
+//
+// Buffer Streaming
+//
+
+struct Stream_Chunk{
+    Application_Links *app;
+    Buffer_Summary *buffer;
+    
+    char *base_data;
+    int start, end;
+    int min_start, max_end;
+    int data_size;
+    
+    char *data;
+};
+
+int
+round_down(int x, int b){
+    int r = 0;
+    if (x >= 0){
+        r = x - (x % b);
+    }
+    return(r);
+}
+
+int
+round_up(int x, int b){
+    int r = 0;
+    if (x >= 0){
+        r = x - (x % b) + b;
+    }
+    return(r);
+}
+
+void
+refresh_buffer(Application_Links *app, Buffer_Summary *buffer){
+    *buffer = app->get_buffer(app, buffer->buffer_id, AccessAll);
+}
+
+void
+refresh_view(Application_Links *app, View_Summary *view){
+    *view = app->get_view(app, view->view_id, AccessAll);
+}
+
+int
+init_stream_chunk(Stream_Chunk *chunk,
+                  Application_Links *app, Buffer_Summary *buffer,
+                  int pos, char *data, int size){
+    int result = false;
+    
+    refresh_buffer(app, buffer);
+    if (pos >= 0 && pos < buffer->size && size > 0){
+        chunk->app = app;
+        chunk->buffer = buffer;
+        chunk->base_data = data;
+        chunk->data_size = size;
+        chunk->start = round_down(pos, size);
+        chunk->end = round_up(pos, size);
+        
+        if (chunk->max_end > buffer->size 
+            || chunk->max_end == 0){
+            chunk->max_end = buffer->size;
+        }
+        
+        if (chunk->max_end && chunk->max_end < chunk->end){
+            chunk->end = chunk->max_end;
+        }
+        if (chunk->min_start && chunk->min_start > chunk->start){
+            chunk->start = chunk->min_start;
+        }
+        
+        if (chunk->start < chunk->end){
+            app->buffer_read_range(app, buffer, chunk->start, chunk->end, chunk->base_data);
+            chunk->data = chunk->base_data - chunk->start;
+            result = true;
+        }
+    }
+    return(result);
+}
+
+int
+forward_stream_chunk(Stream_Chunk *chunk){
+    Application_Links *app = chunk->app;
+    Buffer_Summary *buffer = chunk->buffer;
+    int result = false;
+    
+    refresh_buffer(app, buffer);
+    if (chunk->end < buffer->size){
+        chunk->start = chunk->end;
+        chunk->end += chunk->data_size;
+        
+        if (chunk->max_end && chunk->max_end < chunk->end){
+            chunk->end = chunk->max_end;
+        }
+        if (chunk->min_start && chunk->min_start > chunk->start){
+            chunk->start = chunk->min_start;
+        }
+        
+        if (chunk->start < chunk->end){
+            app->buffer_read_range(app, buffer, chunk->start, chunk->end, chunk->base_data);
+            chunk->data = chunk->base_data - chunk->start;
+            result = true;
+        }
+    }
+    return(result);
+}
+
+int
+backward_stream_chunk(Stream_Chunk *chunk){
+    Application_Links *app = chunk->app;
+    Buffer_Summary *buffer = chunk->buffer;
+    int result = false;
+    
+    refresh_buffer(app, buffer);
+    if (chunk->start > 0){
+        chunk->end = chunk->start;
+        chunk->start -= chunk->data_size;
+        
+        if (chunk->max_end && chunk->max_end < chunk->end){
+            chunk->end = chunk->max_end;
+        }
+        if (chunk->min_start && chunk->min_start > chunk->start){
+            chunk->start = chunk->min_start;
+        }
+        
+        if (chunk->start < chunk->end){
+            app->buffer_read_range(app, buffer, chunk->start, chunk->end, chunk->base_data);
+            chunk->data = chunk->base_data - chunk->start;
+            result = true;
+        }
+    }
+    return(result);
+}
+
+void
+buffer_seek_delimiter_forward(Application_Links *app, Buffer_Summary *buffer,
+                              int pos, char delim, int *result){
+    if (buffer->exists){
+        char chunk[1024];
+        int size = sizeof(chunk);
+        Stream_Chunk stream = {0};
+        
+        if (init_stream_chunk(&stream, app, buffer, pos, chunk, size)){
+            int still_looping = 1;
+            do{
+                for(; pos < stream.end; ++pos){
+                    char at_pos = stream.data[pos];
+                    if (at_pos == delim){
+                        *result = pos;
+                        goto finished;
+                    }
+                }
+                still_looping = forward_stream_chunk(&stream);
+            }while (still_looping);
+        }
+    }
+    
+    *result = buffer->size;
+    
+    finished:;
+}
+
+void
+buffer_seek_delimiter_backward(Application_Links *app, Buffer_Summary *buffer,
+                              int pos, char delim, int *result){
+    if (buffer->exists){
+        char chunk[1024];
+        int size = sizeof(chunk);
+        Stream_Chunk stream = {0};
+        
+        if (init_stream_chunk(&stream, app, buffer, pos, chunk, size)){
+            int still_looping = 1;
+            do{
+                for(; pos >= stream.start; --pos){
+                    char at_pos = stream.data[pos];
+                    if (at_pos == delim){
+                        *result = pos;
+                        goto finished;
+                    }
+                }
+                still_looping = backward_stream_chunk(&stream);
+            }while (still_looping);
+        }
+    }
+    
+    *result = 0;
+    
+    finished:;
+}
+
+// TODO(allen): This duplication is driving me crazy... I've gotta
+// upgrade the meta programming system another level.
+
+// NOTE(allen): This is limitted to a string size of 512.
+// You can push it up or do something more clever by just
+// replacing char read_buffer[512]; with more memory.
+void
+buffer_seek_string_forward(Application_Links *app, Buffer_Summary *buffer,
+                           int pos, int end, char *str, int size, int *result){
+    char read_buffer[512];
+    
+    if (size <= 0){
+        *result = pos;
+    }
+    else if (size > sizeof(read_buffer)){
+        *result = pos;
+    }
+    else{
+        if (buffer->exists){
+            String read_str = make_fixed_width_string(read_buffer);
+            String needle_str = make_string(str, size);
+            char first_char = str[0];
+            
+            read_str.size = size;
+            
+            char chunk[1024];
+            int chunk_size = sizeof(chunk);
+            Stream_Chunk stream = {0};
+            stream.max_end = end;
+            
+            if (init_stream_chunk(&stream, app, buffer, pos, chunk, chunk_size)){
+                int still_looping = 1;
+                do{
+                    for(; pos < stream.end; ++pos){
+                        char at_pos = stream.data[pos];
+                        if (at_pos == first_char){
+                            app->buffer_read_range(app, buffer, pos, pos+size, read_buffer);
+                            if (match(needle_str, read_str)){
+                                *result = pos;
+                                goto finished;
+                            }
+                        }
+                    }
+                    still_looping = forward_stream_chunk(&stream);
+                }while (still_looping);
+            }
+        }
+        
+        if (end == 0){
+            *result = buffer->size;
+        }
+        else{
+            *result = end;
+        }
+        
+        finished:;
+    }
+}
+
+// NOTE(allen): This is limitted to a string size of 512.
+// You can push it up or do something more clever by just
+// replacing char read_buffer[512]; with more memory.
+void
+buffer_seek_string_backward(Application_Links *app, Buffer_Summary *buffer,
+                            int pos, int min, char *str, int size, int *result){
+    char read_buffer[512];
+    if (size <= 0){
+        *result = min-1;
+    }
+    else if (size > sizeof(read_buffer)){
+        *result = min-1;
+    }
+    else{
+        if (buffer->exists){
+            String read_str = make_fixed_width_string(read_buffer);
+            String needle_str = make_string(str, size);
+            char first_char = str[0];
+            
+            read_str.size = size;
+            
+            char chunk[1024];
+            int chunk_size = sizeof(chunk);
+            Stream_Chunk stream = {0};
+            stream.min_start = min;
+            
+            if (init_stream_chunk(&stream, app, buffer, pos, chunk, chunk_size)){
+                int still_looping = 1;
+                do{
+                    for(; pos >= stream.start; --pos){
+                        char at_pos = stream.data[pos];
+                        if (at_pos == first_char){
+                            app->buffer_read_range(app, buffer, pos, pos+size, read_buffer);
+                            if (match(needle_str, read_str)){
+                                *result = pos;
+                                goto finished;
+                            }
+                        }
+                    }
+                    still_looping = backward_stream_chunk(&stream);
+                }while (still_looping);
+            }
+        }
+        
+        *result = min-1;
+        
+        finished:;
+    }
+}
+
+// NOTE(allen): This is limitted to a string size of 512.
+// You can push it up or do something more clever by just
+// replacing char read_buffer[512]; with more memory.
+void
+buffer_seek_string_insensitive_forward(Application_Links *app, Buffer_Summary *buffer,
+                                       int pos, char *str, int size, int *result){
+    char read_buffer[512];
+    char chunk[1024];
+    int chunk_size = sizeof(chunk);
+    Stream_Chunk stream = {0};
+    
+    if (size <= 0){
+        *result = buffer->size;
+    }
+    else if (size > sizeof(read_buffer)){
+        *result = buffer->size;
+    }
+    else{
+        if (buffer->exists){
+            String read_str = make_fixed_width_string(read_buffer);
+            String needle_str = make_string(str, size);
+            char first_char = char_to_upper(str[0]);
+            
+            read_str.size = size;
+            
+            if (init_stream_chunk(&stream, app, buffer, pos, chunk, chunk_size)){
+                int still_looping = 1;
+                do{
+                    for(; pos < stream.end; ++pos){
+                        char at_pos = char_to_upper(stream.data[pos]);
+                        if (at_pos == first_char){
+                            app->buffer_read_range(app, buffer, pos, pos+size, read_buffer);
+                            if (match_insensitive(needle_str, read_str)){
+                                *result = pos;
+                                goto finished;
+                            }
+                        }
+                    }
+                    still_looping = forward_stream_chunk(&stream);
+                }while (still_looping);
+            }
+        }
+        
+        *result = buffer->size;
+        
+        finished:;
+    }
+}
+
+// NOTE(allen): This is limitted to a string size of 512.
+// You can push it up or do something more clever by just
+// replacing char read_buffer[512]; with more memory.
+void
+buffer_seek_string_insensitive_backward(Application_Links *app, Buffer_Summary *buffer,
+                                        int pos, char *str, int size, int *result){
+    char read_buffer[512];
+    char chunk[1024];
+    int chunk_size = sizeof(chunk);
+    Stream_Chunk stream = {0};
+    
+    if (size <= 0){
+        *result = -1;
+    }
+    else if (size > sizeof(read_buffer)){
+        *result = -1;
+    }
+    else{
+        if (buffer->exists){
+            String read_str = make_fixed_width_string(read_buffer);
+            String needle_str = make_string(str, size);
+            char first_char = char_to_upper(str[0]);
+            
+            read_str.size = size;
+            
+            if (init_stream_chunk(&stream, app, buffer, pos, chunk, chunk_size)){
+                int still_looping = 1;
+                do{
+                    for(; pos >= stream.start; --pos){
+                        char at_pos = char_to_upper(stream.data[pos]);
+                        if (at_pos == first_char){
+                            app->buffer_read_range(app, buffer, pos, pos+size, read_buffer);
+                            if (match_insensitive(needle_str, read_str)){
+                                *result = pos;
+                                goto finished;
+                            }
+                        }
+                    }
+                    still_looping = backward_stream_chunk(&stream);
+                }while (still_looping);
+            }
+        }
+        
+        *result = -1;
+        
+        finished:;
+    }
+}
+
+//
+// Fundamental Editing
+//
+
 inline float
 get_view_y(View_Summary view){
     float y = view.cursor.wrapped_y;
@@ -28,10 +436,6 @@ get_view_x(View_Summary view){
     }
     return(x);
 }
-
-//
-// Fundamental Editing
-//
 
 CUSTOM_COMMAND_SIG(write_character){
     unsigned int access = AccessOpen;
@@ -304,6 +708,12 @@ CUSTOM_COMMAND_SIG(cut){
     clipboard_cut(app, range.min, range.max, 0, access);
 }
 
+enum Rewrite_Type{
+    RewriteNone,
+    RewritePaste,
+    RewriteWordComplete
+};
+
 struct View_Paste_Index{
     int rewrite;
     int next_rewrite;
@@ -319,7 +729,7 @@ CUSTOM_COMMAND_SIG(paste){
     if (count > 0){
         View_Summary view = app->get_active_view(app, access);
         
-        view_paste_index[view.view_id].next_rewrite = true;
+        view_paste_index[view.view_id].next_rewrite = RewritePaste;
         
         int paste_index = 0;
         view_paste_index[view.view_id].index = paste_index;
@@ -355,11 +765,8 @@ CUSTOM_COMMAND_SIG(paste_next){
     if (count > 0){
         View_Summary view = app->get_active_view(app, access);
         
-        // NOTE(allen): THIS is a very temporary poop-sauce
-        // system that I just threw in to get this working.
-        // Please don't start calling it anywhere.
-        if (view_paste_index[view.view_id].rewrite){
-            view_paste_index[view.view_id].next_rewrite = true;
+        if (view_paste_index[view.view_id].rewrite == RewritePaste){
+            view_paste_index[view.view_id].next_rewrite = RewritePaste;
             
             int paste_index = view_paste_index[view.view_id].index + 1;
             view_paste_index[view.view_id].index = paste_index;
@@ -823,8 +1230,9 @@ CUSTOM_COMMAND_SIG(if0_off){
     move_past_lead_whitespace(app, &view, &buffer);
 }
 
+
 //
-// 
+// Fast Deletes 
 //
 
 CUSTOM_COMMAND_SIG(backspace_word){
@@ -1009,6 +1417,28 @@ CUSTOM_COMMAND_SIG(open_file_in_quotes_regular){
 # define open_file_in_quotes open_file_in_quotes_regular
 #endif
 
+CUSTOM_COMMAND_SIG(open_in_other_regular){
+    exec_command(app, change_active_panel_regular);
+    exec_command(app, cmdid_interactive_open);
+}
+
+// TODO(allen): This is a bit nasty.  I want a system for picking
+// the most advanced and correct version of a command to bind to a
+// name based on which files are included.
+#ifndef  OPEN_IN_OTHER
+# define OPEN_IN_OTHER 1
+#elif OPEN_IN_OTHER <= 1
+# undef  OPEN_IN_OTHER
+# define OPEN_IN_OTHER 1
+#endif
+
+#if OPEN_IN_OTHER <= 1
+# ifdef open_in_other
+#  undef open_in_other
+# endif
+# define open_in_other open_in_other_regular
+#endif
+
 
 
 CUSTOM_COMMAND_SIG(save_as){
@@ -1018,15 +1448,14 @@ CUSTOM_COMMAND_SIG(save_as){
 CUSTOM_COMMAND_SIG(goto_line){
     unsigned int access = AccessProtected;
     
-    int line_number;
-    Query_Bar bar;
+    Query_Bar bar = {0};
     char string_space[256];
     
     bar.prompt = make_lit_string("Goto Line: ");
     bar.string = make_fixed_width_string(string_space);
     
     if (query_user_number(app, &bar)){
-        line_number = str_to_int(bar.string);
+        int line_number = str_to_int(bar.string);
         active_view_to_line(app, access, line_number);
     }
 }
@@ -1070,6 +1499,7 @@ isearch(Application_Links *app, int start_reversed){
         
         // NOTE(allen): If we're getting mouse events here it's a 4coder bug, because we
         // only asked to intercept key events.
+        
         assert(in.type == UserInputKey);
         
         int made_change = 0;
@@ -1095,7 +1525,7 @@ isearch(Application_Links *app, int start_reversed){
         if ((in.command.command == reverse_search) ||
             in.key.keycode == key_page_up || in.key.keycode == key_up) step_backward = 1;
         
-        int start_pos = pos;
+        start_pos = pos;
         if (step_forward && reverse){
             start_pos = match.start + 1;
             pos = start_pos;
@@ -1158,11 +1588,11 @@ isearch(Application_Links *app, int start_reversed){
 }
 
 CUSTOM_COMMAND_SIG(search){
-    isearch(app, 0);
+    isearch(app, false);
 }
 
 CUSTOM_COMMAND_SIG(reverse_search){
-    isearch(app, 1);
+    isearch(app, true);
 }
 
 CUSTOM_COMMAND_SIG(replace_in_range){
@@ -1193,14 +1623,15 @@ CUSTOM_COMMAND_SIG(replace_in_range){
     
     int pos, new_pos;
     pos = range.min;
-    buffer_seek_string_forward(app, &buffer, pos, r.str, r.size, &new_pos);
+    
+    buffer_seek_string_forward(app, &buffer, pos, 0, r.str, r.size, &new_pos);
     
     while (new_pos + r.size <= range.end){
         app->buffer_replace_range(app, &buffer, new_pos, new_pos + r.size, w.str, w.size);
         refresh_view(app, &view);
         range = get_range(&view);
         pos = new_pos + w.size;
-        buffer_seek_string_forward(app, &buffer, pos, r.str, r.size, &new_pos);
+        buffer_seek_string_forward(app, &buffer, pos, 0, r.str, r.size, &new_pos);
     }
 }
 
@@ -1239,7 +1670,7 @@ CUSTOM_COMMAND_SIG(query_replace){
     buffer = app->get_buffer(app, view.buffer_id, access);
     
     pos = view.cursor.pos;
-    buffer_seek_string_forward(app, &buffer, pos, r.str, r.size, &new_pos);
+    buffer_seek_string_forward(app, &buffer, pos, 0, r.str, r.size, &new_pos);
     
     User_Input in = {0};
     while (new_pos < buffer.size){
@@ -1260,7 +1691,7 @@ CUSTOM_COMMAND_SIG(query_replace){
             pos = match.max;
         }
         
-        buffer_seek_string_forward(app, &buffer, pos, r.str, r.size, &new_pos);
+        buffer_seek_string_forward(app, &buffer, pos, 0, r.str, r.size, &new_pos);
     }
     
     app->view_set_highlight(app, &view, 0, 0, 0);
@@ -1268,6 +1699,10 @@ CUSTOM_COMMAND_SIG(query_replace){
     
     app->view_set_cursor(app, &view, seek_pos(pos), 1);
 }
+
+//
+// Fast Buffer Management
+//
 
 CUSTOM_COMMAND_SIG(close_all_code){
     String extension;
@@ -1340,8 +1775,8 @@ char command_space[1024];
 char hot_directory_space[1024];
 
 CUSTOM_COMMAND_SIG(execute_any_cli){
-    Query_Bar bar_out, bar_cmd;
-    String hot_directory;
+    Query_Bar bar_out = {0};
+    Query_Bar bar_cmd = {0};
     
     bar_out.prompt = make_lit_string("Output Buffer: ");
     bar_out.string = make_fixed_width_string(out_buffer_space);
@@ -1351,7 +1786,7 @@ CUSTOM_COMMAND_SIG(execute_any_cli){
     bar_cmd.string = make_fixed_width_string(command_space);
     if (!query_user_string(app, &bar_cmd)) return;
     
-    hot_directory = make_fixed_width_string(hot_directory_space);
+    String hot_directory = make_fixed_width_string(hot_directory_space);
     hot_directory.size = app->directory_get_hot(app, hot_directory.str, hot_directory.memory_size);
     
     unsigned int access = AccessAll;
@@ -1365,11 +1800,9 @@ CUSTOM_COMMAND_SIG(execute_any_cli){
 }
 
 CUSTOM_COMMAND_SIG(execute_previous_cli){
-    String out_buffer, cmd, hot_directory;
-    
-    out_buffer = make_string_slowly(out_buffer_space);
-    cmd = make_string_slowly(command_space);
-    hot_directory = make_string_slowly(hot_directory_space);
+    String out_buffer = make_string_slowly(out_buffer_space);
+    String cmd = make_string_slowly(command_space);
+    String hot_directory = make_string_slowly(hot_directory_space);
     
     if (out_buffer.size > 0 && cmd.size > 0 && hot_directory.size > 0){
         unsigned int access = AccessAll;
@@ -1382,28 +1815,6 @@ CUSTOM_COMMAND_SIG(execute_previous_cli){
                                  CLI_OverlapWithConflict | CLI_CursorAtEnd);
     }
 }
-
-CUSTOM_COMMAND_SIG(open_in_other_regular){
-    exec_command(app, change_active_panel_regular);
-    exec_command(app, cmdid_interactive_open);
-}
-
-// TODO(allen): This is a bit nasty.  I want a system for picking
-// the most advanced and correct version of a command to bind to a
-// name based on which files are included.
-#ifndef  OPEN_IN_OTHER
-# define OPEN_IN_OTHER 1
-#elif OPEN_IN_OTHER <= 1
-# undef  OPEN_IN_OTHER
-# define OPEN_IN_OTHER 1
-#endif
-
-#if OPEN_IN_OTHER <= 1
-# ifdef open_in_other
-#  undef open_in_other
-# endif
-# define open_in_other open_in_other_regular
-#endif
 
 //
 // Auto Indenting and Whitespace
@@ -1515,8 +1926,8 @@ CUSTOM_COMMAND_SIG(clean_all_lines){
 
 // NOTE(allen|a4.0.9): This is provided to establish a default method of getting
 // a "build directory".  This function tries to setup the build directory in the
-// directory of the given buffer, it cannot it get's the 4coder hot directory.
-// This behavior is a little different than previous versions of 4coder.
+// directory of the given buffer, if it cannot get that information it get's the
+// 4coder hot directory.
 //
 //  There is no requirement that a custom build system in 4coder actually use the
 // directory given by this function.
@@ -1674,8 +2085,8 @@ execute_standard_build(Application_Links *app, View_Summary *view,
     char dir_space[512];
     String dir = make_fixed_width_string(dir_space);
     
-    char command_space[512];
-    String command = make_fixed_width_string(command_space);
+    char command_str_space[512];
+    String command = make_fixed_width_string(command_str_space);
     
     int build_dir_type = get_build_directory(app, active_buffer, &dir);
     
@@ -1749,6 +2160,193 @@ CUSTOM_COMMAND_SIG(eol_nixify){
     Buffer_Summary buffer = app->get_buffer(app, view.buffer_id, AccessOpen);
     app->buffer_set_setting(app, &buffer, BufferSetting_Eol, false);
 }
+
+//
+// "Full Search" Based Commands
+//
+
+#include "4coder_table.cpp"
+#include "4coder_search.cpp"
+
+struct Word_Complete_State{
+    Search_Set set;
+    Search_Iter iter;
+    Table hits;
+    String_Space str;
+    int word_start;
+    int word_end;
+    int initialized;
+};
+
+static Word_Complete_State complete_state = {0};
+
+CUSTOM_COMMAND_SIG(word_complete){
+    View_Summary view = app->get_active_view(app, AccessOpen);
+    Buffer_Summary buffer = app->get_buffer(app, view.buffer_id, AccessOpen);
+    
+    // NOTE(allen): I just do this because this command is a lot of work
+    // and there is no point in doing any of it if nothing will happen anyway.
+    if (buffer.exists){
+        int do_init = false;
+        
+        if (view_paste_index[view.view_id].rewrite != RewriteWordComplete){
+            do_init = true;
+        }
+        view_paste_index[view.view_id].next_rewrite != RewriteWordComplete;
+        if (!complete_state.initialized){
+            do_init = true;
+        }
+        
+        int word_end = 0;
+        int word_start = 0;
+        int cursor_pos = 0;
+        int size = 0;
+        
+        if (do_init){
+            // NOTE(allen): Get the range where the
+            // partial word is written.
+            word_end = view.cursor.pos;
+            word_start = word_end;
+            cursor_pos = word_end - 1;
+            
+            char space[1024];
+            Stream_Chunk chunk = {0};
+            if (init_stream_chunk(&chunk, app, &buffer,
+                                  cursor_pos, space, sizeof(space))){
+                int still_looping = true;
+                do{
+                    for (; cursor_pos >= chunk.start; --cursor_pos){
+                        char c = chunk.data[cursor_pos];
+                        if (char_is_alpha(c)){
+                            word_start = cursor_pos;
+                        }
+                        else if (!char_is_numeric(c)){
+                            goto double_break;
+                        }
+                    }
+                    still_looping = backward_stream_chunk(&chunk);
+                }while(still_looping);
+            }
+            double_break:;
+            
+            size = word_end - word_start;
+            
+            if (size == 0){
+                complete_state.initialized = false;
+                return;
+            }
+            
+            // NOTE(allen): Initialize the search iterator
+            // with the partial word.
+            complete_state.initialized = true;
+            search_iter_init(app, &complete_state.iter, size);
+            app->buffer_read_range(app, &buffer, word_start, word_end,
+                                   complete_state.iter.word.str);
+            complete_state.iter.word.size = size;
+            
+            // NOTE(allen): Initialize the set of ranges
+            // to be searched.
+            int buffer_count = app->get_buffer_count(app);
+            search_set_init(app, &complete_state.set, buffer_count);
+            
+            Search_Range *ranges = complete_state.set.ranges;
+            ranges[0].type = SearchRange_Wave;
+            ranges[0].buffer = buffer.buffer_id;
+            ranges[0].start = 0;
+            ranges[0].size = buffer.size;
+            ranges[0].mid_start = word_start;
+            ranges[0].mid_size = size;
+            
+            int j = 1;
+            for (Buffer_Summary buffer_it = app->get_buffer_first(app, AccessAll);
+                 buffer_it.exists;
+                 app->get_buffer_next(app, &buffer_it, AccessAll)){
+                if (buffer.buffer_id != buffer_it.buffer_id){
+                    ranges[j].type = SearchRange_FrontToBack;
+                    ranges[j].buffer = buffer_it.buffer_id;
+                    ranges[j].start = 0;
+                    ranges[j].size = buffer_it.size;
+                    ++j;
+                }
+            }
+            complete_state.set.count = j;
+            
+            // NOTE(allen): Initialize the search hit table.
+            search_hits_init(app, &complete_state.hits, &complete_state.str,
+                             100, (4 << 10));
+            search_hit_add(app, &complete_state.hits, &complete_state.str,
+                           complete_state.iter.word.str,
+                           complete_state.iter.word.size);
+            
+            complete_state.word_start = word_start;
+            complete_state.word_end = word_end;
+        }
+        else{
+            word_start = complete_state.word_start;
+            word_end = complete_state.word_end;
+            size = complete_state.iter.word.size;
+        }
+        
+        // NOTE(allen): Iterate through matches.
+        if (size > 0){
+            for (;;){
+                int match_size = 0;
+                Search_Match match =
+                    search_next_match(app, &complete_state.set,
+                                      &complete_state.iter);
+                
+                if (match.found_match){
+                    int match_size = match.end - match.start;
+                    char *spare = (char*)GET_MEMORY(match_size);
+                    
+                    app->buffer_read_range(app, &match.buffer,
+                                           match.start, match.end, spare);
+                    
+                    if (search_hit_add(app, &complete_state.hits, &complete_state.str,
+                                       spare, match_size)){
+                        app->buffer_replace_range(app, &buffer, word_start, word_end,
+                                                  spare, match_size);
+                        app->view_set_cursor(app, &view,
+                                             seek_pos(word_start + match_size),
+                                             true);
+                        
+                        complete_state.word_end = word_start + match_size;
+                        complete_state.set.ranges[0].mid_size = match_size;
+                        FREE_MEMORY(spare);
+                        break;
+                    }
+                    FREE_MEMORY(spare);
+                }
+                else{
+                    complete_state.iter.pos = 0;
+                    complete_state.iter.i = 0;
+                    
+                    search_hits_init(app, &complete_state.hits, &complete_state.str,
+                                     100, (4 << 10));
+                    search_hit_add(app, &complete_state.hits, &complete_state.str,
+                                   complete_state.iter.word.str,
+                                   complete_state.iter.word.size);
+                    
+                    match_size = complete_state.iter.word.size;
+                    char *str = complete_state.iter.word.str;
+                    app->buffer_replace_range(app, &buffer, word_start, word_end,
+                                              str, match_size);
+                    app->view_set_cursor(app, &view,
+                                         seek_pos(word_start + match_size),
+                                         true);
+                    
+                    complete_state.word_end = word_start + match_size;
+                    complete_state.set.ranges[0].mid_size = match_size;
+                    break;
+                }
+            }
+        }
+    }
+}
+
+//
+//
+//
 
 CUSTOM_COMMAND_SIG(execute_arbitrary_command){
     // NOTE(allen): This isn't a super powerful version of this command, I will expand

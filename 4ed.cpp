@@ -472,6 +472,7 @@ COMMAND_DECL(word_complete){
                     
                     complete_state->word_end = word_start + match_size;
                     complete_state->set.ranges[1].start = word_start + match_size;
+                    end_temp_memory(temp);
                     break;
                 }
                 end_temp_memory(temp);

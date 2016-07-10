@@ -24,7 +24,6 @@
 #define FCPP_STRING_IMPLEMENTATION
 #include "4coder_string.h"
 
-#include "4ed_mem.cpp"
 #include "4ed_math.cpp"
 
 #include "4ed_system.h"
@@ -286,7 +285,7 @@ LinuxGetMemory_(i32 size, i32 line_number, char *file_name){
     result = mmap(0, size + sizeof(Sys_Bubble), PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
     
     Sys_Bubble* bubble = (Sys_Bubble*)result;
-    bubble->flags = MEM_BUBBLE_SYS_DEBUG;
+    bubble->flags = 0;
     bubble->line_number = line_number;
     bubble->file_name = file_name;
     bubble->size = size;
@@ -316,7 +315,6 @@ LinuxFreeMemory(void *block){
     if (block){
 #if FRED_INTERNAL
         Sys_Bubble *bubble = ((Sys_Bubble*)block) - 1;
-        Assert((bubble->flags & MEM_BUBBLE_DEBUG_MASK) == MEM_BUBBLE_SYS_DEBUG);
 
         size_t size = bubble->size + sizeof(Sys_Bubble);
 
@@ -2453,7 +2451,7 @@ main(int argc, char **argv)
 #if FRED_INTERNAL
     linuxvars.internal_bubble.next = &linuxvars.internal_bubble;
     linuxvars.internal_bubble.prev = &linuxvars.internal_bubble;
-    linuxvars.internal_bubble.flags = MEM_BUBBLE_SYS_DEBUG;
+    linuxvars.internal_bubble.flags = 0;
 
     pthread_mutex_init(&linuxvars.DEBUG_sysmem_lock, 0);
 #endif

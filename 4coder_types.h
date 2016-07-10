@@ -98,6 +98,16 @@ ENUM(uint64_t, Command_ID){
     cmdid_count
 };
 
+/* DOC(TODO) */
+FLAGENUM(Memory_Protect_Flags){
+    /* DOC(TODO) */
+    MemProtect_Read = 0x1,
+    /* DOC(TODO) */
+    MemProtect_Write = 0x2,
+    /* DOC(TODO) */
+    MemProtect_Execute = 0x4,
+};
+
 /* DOC(User_Input_Type_ID specifies a type of user input event.) */
 ENUM(int32_t, User_Input_Type_ID){
     /* DOC(UserInputNone indicates that no event has occurred.) */

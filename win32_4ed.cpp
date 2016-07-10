@@ -16,7 +16,6 @@
 #define FSTRING_IMPLEMENTATION
 #include "4coder_string.h"
 
-#include "4ed_mem.cpp"
 #include "4ed_math.cpp"
 
 #include "4ed_system.h"
@@ -245,7 +244,7 @@ Sys_Get_Memory_Sig(system_get_memory_){
 #if FRED_INTERNAL
         ptr = VirtualAlloc(0, size + sizeof(Sys_Bubble), MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
         Sys_Bubble *bubble = (Sys_Bubble*)ptr;
-        bubble->flags = MEM_BUBBLE_SYS_DEBUG;
+        bubble->flags = 0;
         bubble->line_number = line_number;
         bubble->file_name = file_name;
         bubble->size = size;
@@ -264,7 +263,6 @@ Sys_Free_Memory_Sig(system_free_memory){
     if (block){
 #if FRED_INTERNAL
         Sys_Bubble *bubble = ((Sys_Bubble*)block) - 1;
-        Assert((bubble->flags & MEM_BUBBLE_DEBUG_MASK) == MEM_BUBBLE_SYS_DEBUG);
         EnterCriticalSection(&win32vars.DEBUG_sysmem_lock);
         remove_bubble(bubble);
         LeaveCriticalSection(&win32vars.DEBUG_sysmem_lock);
@@ -1698,7 +1696,7 @@ WinMain(HINSTANCE hInstance,
 #if FRED_INTERNAL
     win32vars.internal_bubble.next = &win32vars.internal_bubble;
     win32vars.internal_bubble.prev = &win32vars.internal_bubble;
-    win32vars.internal_bubble.flags = MEM_BUBBLE_SYS_DEBUG;
+    win32vars.internal_bubble.flags = 0;
     
     InitializeCriticalSection(&win32vars.DEBUG_sysmem_lock);
 #endif

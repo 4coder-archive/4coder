@@ -338,6 +338,28 @@ DOC_SEE(Command_Line_Input_Flag)
     return(result);
 }
 
+API_EXPORT void*
+Memory_Alloc(Application_Links *app, int32_t size)/*
+DOC(TODO)
+*/{
+    void *result = 0;
+    return(result);
+}
+
+API_EXPORT int32_t
+Memory_Set_Protection(Application_Links *app, void *ptr, int32_t size, Memory_Protect_Flags flags)/*
+DOC(TODO)
+*/{
+    int32_t result = 0;
+    return(result);
+}
+
+API_EXPORT void
+Memory_Free(Application_Links *app, void *mem)/*
+DOC(TODO)
+*/{
+}
+
 API_EXPORT void
 Clipboard_Post(Application_Links *app, int32_t clipboard_id, char *str, int32_t len)/*
 DOC_PARAM(clipboard_id, This parameter is set up to prepare for future features, it should always be 0 for now.)
@@ -403,6 +425,16 @@ DOC_SEE(The_4coder_Clipboard)
     }
     
     return(size);
+}
+
+API_EXPORT int32_t
+Get_Buffer_Count(Application_Links *app)/*
+DOC(TODO)
+*/{
+    Command_Data *cmd = (Command_Data*)app->cmd_context;
+    Working_Set *working_set = &cmd->models->working_set;
+    int32_t result = working_set->file_count;
+    return(result);
 }
 
 internal void
@@ -710,7 +742,7 @@ DOC_PARAM(edits, This parameter provides about the source string and destination
 DOC_PARAM(edit_count, This parameter specifies the number of Buffer_Edit structs in edits.)
 DOC_PARAM(type, This prameter specifies what type of batch edit to execute.)
 DOC_RETURN(This call returns non-zero if the batch edit succeeds.)
-DOC()
+DOC(TODO)
 DOC_SEE(Buffer_Edit)
 DOC_SEE(Buffer_Batch_Edit_Type)
 */{

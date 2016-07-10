@@ -1,8 +1,12 @@
 #define EXEC_COMMAND_SIG(n) bool32 n(Application_Links *app, Command_ID command_id)
 #define EXEC_SYSTEM_COMMAND_SIG(n) bool32 n(Application_Links *app, View_Summary *view, Buffer_Identifier buffer, char *path, int32_t path_len, char *command, int32_t command_len, Command_Line_Input_Flag flags)
+#define MEMORY_ALLOC_SIG(n) void* n(Application_Links *app, int32_t size)
+#define MEMORY_SET_PROTECTION_SIG(n) int32_t n(Application_Links *app, void *ptr, int32_t size, Memory_Protect_Flags flags)
+#define MEMORY_FREE_SIG(n) void n(Application_Links *app, void *mem)
 #define CLIPBOARD_POST_SIG(n) void n(Application_Links *app, int32_t clipboard_id, char *str, int32_t len)
 #define CLIPBOARD_COUNT_SIG(n) int32_t n(Application_Links *app, int32_t clipboard_id)
 #define CLIPBOARD_INDEX_SIG(n) int32_t n(Application_Links *app, int32_t clipboard_id, int32_t item_index, char *out, int32_t len)
+#define GET_BUFFER_COUNT_SIG(n) int32_t n(Application_Links *app)
 #define GET_BUFFER_FIRST_SIG(n) Buffer_Summary n(Application_Links *app, Access_Flag access)
 #define GET_BUFFER_NEXT_SIG(n) void n(Application_Links *app, Buffer_Summary *buffer, Access_Flag  access)
 #define GET_BUFFER_SIG(n) Buffer_Summary n(Application_Links *app, Buffer_ID buffer_id, Access_Flag access)
@@ -51,9 +55,13 @@
 extern "C"{
     typedef EXEC_COMMAND_SIG(Exec_Command_Function);
     typedef EXEC_SYSTEM_COMMAND_SIG(Exec_System_Command_Function);
+    typedef MEMORY_ALLOC_SIG(Memory_Alloc_Function);
+    typedef MEMORY_SET_PROTECTION_SIG(Memory_Set_Protection_Function);
+    typedef MEMORY_FREE_SIG(Memory_Free_Function);
     typedef CLIPBOARD_POST_SIG(Clipboard_Post_Function);
     typedef CLIPBOARD_COUNT_SIG(Clipboard_Count_Function);
     typedef CLIPBOARD_INDEX_SIG(Clipboard_Index_Function);
+    typedef GET_BUFFER_COUNT_SIG(Get_Buffer_Count_Function);
     typedef GET_BUFFER_FIRST_SIG(Get_Buffer_First_Function);
     typedef GET_BUFFER_NEXT_SIG(Get_Buffer_Next_Function);
     typedef GET_BUFFER_SIG(Get_Buffer_Function);
@@ -105,9 +113,13 @@ struct Application_Links{
     int memory_size;
     Exec_Command_Function *exec_command;
     Exec_System_Command_Function *exec_system_command;
+    Memory_Alloc_Function *memory_alloc;
+    Memory_Set_Protection_Function *memory_set_protection;
+    Memory_Free_Function *memory_free;
     Clipboard_Post_Function *clipboard_post;
     Clipboard_Count_Function *clipboard_count;
     Clipboard_Index_Function *clipboard_index;
+    Get_Buffer_Count_Function *get_buffer_count;
     Get_Buffer_First_Function *get_buffer_first;
     Get_Buffer_Next_Function *get_buffer_next;
     Get_Buffer_Function *get_buffer;
@@ -161,9 +173,13 @@ struct Application_Links{
 #define FillAppLinksAPI(app_links) do{\
 app_links->exec_command = Exec_Command;\
 app_links->exec_system_command = Exec_System_Command;\
+app_links->memory_alloc = Memory_Alloc;\
+app_links->memory_set_protection = Memory_Set_Protection;\
+app_links->memory_free = Memory_Free;\
 app_links->clipboard_post = Clipboard_Post;\
 app_links->clipboard_count = Clipboard_Count;\
 app_links->clipboard_index = Clipboard_Index;\
+app_links->get_buffer_count = Get_Buffer_Count;\
 app_links->get_buffer_first = Get_Buffer_First;\
 app_links->get_buffer_next = Get_Buffer_Next;\
 app_links->get_buffer = Get_Buffer;\
