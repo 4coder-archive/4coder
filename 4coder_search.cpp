@@ -50,7 +50,7 @@ search_iter_init(Application_Links *app, Search_Iter *iter, int size){
         iter->word.memory_size = str_max;
     }
     iter->i = 0;
-    iter->pos = 0;
+    iter->range_initialized = 0;
 }
 
 static void
@@ -221,14 +221,29 @@ search_front_to_back_step(Application_Links *app,
         }
         else{
             found_match = FindResult_PastEnd;
+            *pos = end_pos + 1;
         }
     }
     else{
         found_match = FindResult_PastEnd;
+        *pos = end_pos + 1;
     }
     
     *result_ptr = result;
     
+    return(found_match);
+}
+
+static int
+search_front_to_back(Application_Links *app,
+                     Search_Range *range,
+                     String word,
+                     int *pos,
+                     Search_Match *result_ptr){
+    int found_match = FindResult_None;
+    for (;found_match == FindResult_None;){
+        found_match = search_front_to_back_step(app, range, word, pos, result_ptr);
+    }
     return(found_match);
 }
 
@@ -283,6 +298,19 @@ search_back_to_front_step(Application_Links *app,
     return(found_match);
 }
 
+static int
+search_back_to_front(Application_Links *app,
+                     Search_Range *range,
+                     String word,
+                     int *pos,
+                     Search_Match *result_ptr){
+    int found_match = FindResult_None;
+    for (;found_match == FindResult_None;){
+        found_match = search_back_to_front_step(app, range, word, pos, result_ptr);
+    }
+    return(found_match);
+}
+
 static Search_Match
 search_next_match(Application_Links *app, Search_Set *set, Search_Iter *it_ptr){
     Search_Match result = {0};
@@ -314,36 +342,42 @@ search_next_match(Application_Links *app, Search_Set *set, Search_Iter *it_ptr){
             case SearchRange_FrontToBack:
             {
                 find_result =
-                    search_front_to_back_step(app, range,
-                                              iter.word,
-                                              &iter.pos,
-                                              &result);
+                    search_front_to_back(app, range,
+                                         iter.word,
+                                         &iter.pos,
+                                         &result);
             }break;
             
             case SearchRange_BackToFront:
             {
                 find_result =
-                    search_back_to_front_step(app, range,
-                                              iter.word,
-                                              &iter.back_pos,
-                                              &result);
+                    search_back_to_front(app, range,
+                                         iter.word,
+                                         &iter.back_pos,
+                                         &result);
             }break;
             
             case SearchRange_Wave:
             {
                 Search_Match forward_match = {0};
-                int forward_result =
-                    search_front_to_back_step(app, range,
-                                              iter.word,
-                                              &iter.pos,
-                                              &forward_match);
-                
                 Search_Match backward_match = {0};
-                int backward_result =
-                    search_back_to_front_step(app, range,
-                                              iter.word,
-                                              &iter.back_pos,
-                                              &backward_match);
+                
+                int forward_result = FindResult_PastEnd;
+                int backward_result = FindResult_PastEnd;
+                
+                if (iter.pos < range->start + range->size){
+                    forward_result = search_front_to_back(app, range,
+                                                          iter.word,
+                                                          &iter.pos,
+                                                          &forward_match);
+                }
+                
+                if (iter.back_pos > range->start){
+                    backward_result = search_back_to_front(app, range,
+                                                           iter.word,
+                                                           &iter.back_pos,
+                                                           &backward_match);
+                }
                 
                 if (forward_result == FindResult_FoundMatch){
                     if (backward_result == FindResult_FoundMatch){
@@ -351,15 +385,15 @@ search_next_match(Application_Links *app, Search_Set *set, Search_Iter *it_ptr){
                         
                         int forward_start = range->mid_start + range->mid_size;
                         int forward_distance = (forward_match.start - forward_start);
-                        int backward_distance = (forward_match.end - range->mid_start);
+                        int backward_distance = (range->mid_start - backward_match.end);
                         
                         if (backward_distance < forward_distance){
-                            --iter.pos;
-                            result = forward_match;
+                            iter.pos = forward_match.start;
+                            result = backward_match;
                         }
                         else{
-                            ++iter.back_pos;
-                            result = backward_match;
+                            iter.back_pos = backward_match.start;
+                            result = forward_match;
                         }
                     }
                     else{
