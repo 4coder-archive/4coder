@@ -6142,7 +6142,8 @@ search_next_match(Partition *part, Search_Set *set, Search_Iter *iter_){
         
         if (iter.pos + iter.word.size < end_pos){
             start_pos = Max(iter.pos, range->start);
-            result.start = buffer_find_string(range->buffer, start_pos, end_pos, iter.word.str, iter.word.size, spare);
+            result.start = buffer_find_string(
+                range->buffer, start_pos, end_pos, iter.word.str, iter.word.size, spare);
             
             if (result.start < end_pos){
                 iter.pos = result.start + 1;

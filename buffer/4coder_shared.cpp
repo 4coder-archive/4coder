@@ -163,12 +163,9 @@ buffer_unsort_cursors(Cursor_With_Index *positions, int count){
 
 internal_4tech void
 buffer_update_cursors(Cursor_With_Index *sorted_positions, int count, int start, int end, int len){
-    Cursor_With_Index *position;
-    int shift_amount;
+    int shift_amount = (len - (end - start));
+    Cursor_With_Index *position = sorted_positions + count - 1;
     
-    shift_amount = (len - (end - start));
-    
-    position = sorted_positions + count - 1;
     for (; position >= sorted_positions && position->pos > end; --position) position->pos += shift_amount;
     for (; position >= sorted_positions && position->pos >= start; --position) position->pos = start;
 }

@@ -1,8 +1,5 @@
 #define EXEC_COMMAND_SIG(n) bool32 n(Application_Links *app, Command_ID command_id)
 #define EXEC_SYSTEM_COMMAND_SIG(n) bool32 n(Application_Links *app, View_Summary *view, Buffer_Identifier buffer, char *path, int32_t path_len, char *command, int32_t command_len, Command_Line_Input_Flag flags)
-#define MEMORY_ALLOC_SIG(n) void* n(Application_Links *app, int32_t size)
-#define MEMORY_SET_PROTECTION_SIG(n) int32_t n(Application_Links *app, void *ptr, int32_t size, Memory_Protect_Flags flags)
-#define MEMORY_FREE_SIG(n) void n(Application_Links *app, void *mem)
 #define CLIPBOARD_POST_SIG(n) void n(Application_Links *app, int32_t clipboard_id, char *str, int32_t len)
 #define CLIPBOARD_COUNT_SIG(n) int32_t n(Application_Links *app, int32_t clipboard_id)
 #define CLIPBOARD_INDEX_SIG(n) int32_t n(Application_Links *app, int32_t clipboard_id, int32_t item_index, char *out, int32_t len)
@@ -48,6 +45,9 @@
 #define DIRECTORY_GET_HOT_SIG(n) int32_t n(Application_Links *app, char *out, int32_t capacity)
 #define GET_FILE_LIST_SIG(n) File_List n(Application_Links *app, char *dir, int32_t len)
 #define FREE_FILE_LIST_SIG(n) void n(Application_Links *app, File_List list)
+#define MEMORY_ALLOCATE_SIG(n) void* n(Application_Links *app, int32_t size)
+#define MEMORY_SET_PROTECTION_SIG(n) bool32 n(Application_Links *app, void *ptr, int32_t size, Memory_Protect_Flags flags)
+#define MEMORY_FREE_SIG(n) void n(Application_Links *app, void *mem, int32_t size)
 #define FILE_EXISTS_SIG(n) bool32 n(Application_Links *app, char *filename, int len)
 #define DIRECTORY_CD_SIG(n) bool32 n(Application_Links *app, char *dir, int *len, int capacity, char *rel_path, int rel_len)
 #define GET_4ED_PATH_SIG(n) bool32 n(Application_Links *app, char *out, int32_t capacity)
@@ -55,9 +55,6 @@
 extern "C"{
     typedef EXEC_COMMAND_SIG(Exec_Command_Function);
     typedef EXEC_SYSTEM_COMMAND_SIG(Exec_System_Command_Function);
-    typedef MEMORY_ALLOC_SIG(Memory_Alloc_Function);
-    typedef MEMORY_SET_PROTECTION_SIG(Memory_Set_Protection_Function);
-    typedef MEMORY_FREE_SIG(Memory_Free_Function);
     typedef CLIPBOARD_POST_SIG(Clipboard_Post_Function);
     typedef CLIPBOARD_COUNT_SIG(Clipboard_Count_Function);
     typedef CLIPBOARD_INDEX_SIG(Clipboard_Index_Function);
@@ -103,6 +100,9 @@ extern "C"{
     typedef DIRECTORY_GET_HOT_SIG(Directory_Get_Hot_Function);
     typedef GET_FILE_LIST_SIG(Get_File_List_Function);
     typedef FREE_FILE_LIST_SIG(Free_File_List_Function);
+    typedef MEMORY_ALLOCATE_SIG(Memory_Allocate_Function);
+    typedef MEMORY_SET_PROTECTION_SIG(Memory_Set_Protection_Function);
+    typedef MEMORY_FREE_SIG(Memory_Free_Function);
     typedef FILE_EXISTS_SIG(File_Exists_Function);
     typedef DIRECTORY_CD_SIG(Directory_CD_Function);
     typedef GET_4ED_PATH_SIG(Get_4ed_Path_Function);
@@ -113,9 +113,6 @@ struct Application_Links{
     int memory_size;
     Exec_Command_Function *exec_command;
     Exec_System_Command_Function *exec_system_command;
-    Memory_Alloc_Function *memory_alloc;
-    Memory_Set_Protection_Function *memory_set_protection;
-    Memory_Free_Function *memory_free;
     Clipboard_Post_Function *clipboard_post;
     Clipboard_Count_Function *clipboard_count;
     Clipboard_Index_Function *clipboard_index;
@@ -161,6 +158,9 @@ struct Application_Links{
     Directory_Get_Hot_Function *directory_get_hot;
     Get_File_List_Function *get_file_list;
     Free_File_List_Function *free_file_list;
+    Memory_Allocate_Function *memory_allocate;
+    Memory_Set_Protection_Function *memory_set_protection;
+    Memory_Free_Function *memory_free;
     File_Exists_Function *file_exists;
     Directory_CD_Function *directory_cd;
     Get_4ed_Path_Function *get_4ed_path;
@@ -173,9 +173,6 @@ struct Application_Links{
 #define FillAppLinksAPI(app_links) do{\
 app_links->exec_command = Exec_Command;\
 app_links->exec_system_command = Exec_System_Command;\
-app_links->memory_alloc = Memory_Alloc;\
-app_links->memory_set_protection = Memory_Set_Protection;\
-app_links->memory_free = Memory_Free;\
 app_links->clipboard_post = Clipboard_Post;\
 app_links->clipboard_count = Clipboard_Count;\
 app_links->clipboard_index = Clipboard_Index;\
@@ -221,6 +218,9 @@ app_links->get_theme_colors = Get_Theme_Colors;\
 app_links->directory_get_hot = Directory_Get_Hot;\
 app_links->get_file_list = Get_File_List;\
 app_links->free_file_list = Free_File_List;\
+app_links->memory_allocate = Memory_Allocate;\
+app_links->memory_set_protection = Memory_Set_Protection;\
+app_links->memory_free = Memory_Free;\
 app_links->file_exists = File_Exists;\
 app_links->directory_cd = Directory_CD;\
 app_links->get_4ed_path = Get_4ed_Path;\

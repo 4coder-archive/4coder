@@ -133,6 +133,8 @@ HOOK_SIG(my_start){
     app->change_theme(app, literal("4coder"));
     app->change_font(app, literal("Liberation Sans"));
     
+    init_memory(app);
+    
     // Theme options:
     //  "4coder"
     //  "Handmade Hero"
@@ -291,7 +293,7 @@ default_keys(Bind_Helper *context){
     bind(context, ';', MDFR_NONE, write_and_auto_tab);
     bind(context, '#', MDFR_NONE, write_and_auto_tab);
     
-    bind(context, '\t', MDFR_NONE, cmdid_word_complete);
+    bind(context, '\t', MDFR_NONE, word_complete);
     bind(context, '\t', MDFR_CTRL, auto_tab_range);
     bind(context, '\t', MDFR_SHIFT, auto_tab_line_at_cursor);
     

@@ -1172,7 +1172,7 @@ Win32LoadAppCode(){
 #else
     
     File_Data file = system_load_file("4ed_app.dll");
-
+    
     if (file.got_file){
         i32 error;
         DLL_Data dll_data;
@@ -1181,30 +1181,30 @@ Win32LoadAppCode(){
             img.size = dll_total_loaded_size(&dll_data);
             img.data = (byte*)
                 VirtualAlloc((LPVOID)Tbytes(3), img.size,
-                MEM_COMMIT | MEM_RESERVE,
-                PAGE_READWRITE);
-
+                             MEM_COMMIT | MEM_RESERVE,
+                             PAGE_READWRITE);
+            
             dll_load(img, &win32vars.app_dll, file.data, &dll_data);
-
+            
             DWORD extra_;
             VirtualProtect(img.data + win32vars.app_dll.text_start,
-                win32vars.app_dll.text_size,
-                PAGE_EXECUTE_READ,
-                &extra_);
-
+                           win32vars.app_dll.text_size,
+                           PAGE_EXECUTE_READ,
+                           &extra_);
+            
             get_funcs = (App_Get_Functions*)
                 dll_load_function(&win32vars.app_dll, "app_get_functions", 17);
         }
         else{
             // TODO(allen): file loading error
         }
-
+        
         Win32FreeMemory(file.data.data);
     }
     else{
         // TODO(allen): file loading error
     }
-
+    
 #endif
 
     if (get_funcs){
@@ -1226,37 +1226,38 @@ Win32LoadSystemCode(){
     win32vars.system.file_load_begin = system_file_load_begin;
     win32vars.system.file_load_end = system_file_load_end;
     win32vars.system.file_save = system_file_save;
-
+    
+    win32vars.system.memory_allocate = Memory_Allocate;
     win32vars.system.file_exists = File_Exists;
     win32vars.system.directory_cd = Directory_CD;
     win32vars.system.get_4ed_path = Get_4ed_Path;
     win32vars.system.show_mouse_cursor = Show_Mouse_Cursor;
-
+    
     win32vars.system.post_clipboard = system_post_clipboard;
-
+    
     win32vars.system.create_coroutine = system_create_coroutine;
     win32vars.system.launch_coroutine = system_launch_coroutine;
     win32vars.system.resume_coroutine = system_resume_coroutine;
     win32vars.system.yield_coroutine = system_yield_coroutine;
-
+    
     win32vars.system.cli_call = system_cli_call;
     win32vars.system.cli_begin_update = system_cli_begin_update;
     win32vars.system.cli_update_step = system_cli_update_step;
     win32vars.system.cli_end_update = system_cli_end_update;
-
+    
     win32vars.system.post_job = system_post_job;
     win32vars.system.cancel_job = system_cancel_job;
     win32vars.system.check_cancel = system_check_cancel;
     win32vars.system.grow_thread_memory = system_grow_thread_memory;
     win32vars.system.acquire_lock = system_acquire_lock;
     win32vars.system.release_lock = system_release_lock;
-
+    
 #if FRED_INTERNAL
     win32vars.system.internal_sentinel = INTERNAL_system_sentinel;
     win32vars.system.internal_get_thread_states = INTERNAL_get_thread_states;
     win32vars.system.internal_debug_message = INTERNAL_system_debug_message;
 #endif
-
+    
     win32vars.system.slash = '/';
 }
 

@@ -11,6 +11,57 @@ as this is the only one that will be used for generating headers and docs.
 
 #define API_EXPORT
 
+API_EXPORT void*
+Memory_Allocate(Application_Links *app, int32_t size)/*
+DOC(TODO)
+*/{
+    void *result = VirtualAlloc(0, size, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
+    return(result);
+}
+
+API_EXPORT bool32
+Memory_Set_Protection(Application_Links *app, void *ptr, int32_t size, Memory_Protect_Flags flags)/*
+DOC(TODO)
+*/{
+    bool32 result = false;
+    DWORD old_protect = 0;
+    DWORD protect = 0;
+    
+    flags = flags & 0x7;
+    
+    switch (flags){
+        case 0:
+        protect = PAGE_NOACCESS; break;
+        
+        case MemProtect_Read:
+        protect = PAGE_READONLY; break;
+        
+        case MemProtect_Write:
+        case MemProtect_Read|MemProtect_Write:
+        protect = PAGE_READWRITE; break;
+        
+        case MemProtect_Execute:
+        protect = PAGE_EXECUTE; break;
+        
+        case MemProtect_Execute|MemProtect_Read:
+        protect = PAGE_EXECUTE_READ; break;
+        
+        case MemProtect_Execute|MemProtect_Write:
+        case MemProtect_Execute|MemProtect_Write|MemProtect_Read:
+        protect = PAGE_EXECUTE_READWRITE; break;
+    }
+    
+    VirtualProtect(ptr, size, protect, &old_protect);
+    return(result);
+}
+
+API_EXPORT void
+Memory_Free(Application_Links *app, void *mem, int32_t size)/*
+DOC(TODO)
+*/{
+    VirtualFree(mem, 0, MEM_RELEASE);
+}
+
 API_EXPORT bool32
 File_Exists(Application_Links *app, char *filename, int len)/*
 DOC_PARAM(filename, This parameter specifies the full path to a file; it need not be null terminated.)

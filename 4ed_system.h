@@ -220,7 +220,7 @@ typedef INTERNAL_Sys_Get_Thread_States_Sig(INTERNAL_System_Get_Thread_States);
 typedef INTERNAL_Sys_Debug_Message_Sig(INTERNAL_System_Debug_Message);
 
 struct System_Functions{
-    // files: 7
+    // files: 9
     System_File_Time_Stamp *file_time_stamp;
     System_Now_Time_Stamp *now_time_stamp;
     System_Set_File_List *set_file_list;
@@ -231,7 +231,10 @@ struct System_Functions{
     System_File_Load_End *file_load_end;
     System_File_Save *file_save;
     
-    // 4coder_custom.h: 3
+    // 4coder_custom.h: 7
+    Memory_Allocate_Function *memory_allocate;
+    Memory_Set_Protection_Function *memory_set_protection;
+    Memory_Free_Function *memory_free;
     File_Exists_Function *file_exists;
     Directory_CD_Function *directory_cd;
     Get_4ed_Path_Function *get_4ed_path;

@@ -15,8 +15,21 @@
 // Memory
 //
 
-static Partition scratch;
+static Partition part;
+static General_Memory general;
 
+void
+init_memory(Application_Links *app){
+    int part_size = (1 << 20);
+    int general_size = (1 << 20);
+    
+    
+    void *part_mem = app->memory_allocate(app, part_size);
+    part = make_part(part_mem, part_size);
+    
+    void *general_mem = app->memory_allocate(app, general_size);
+    general_memory_open(&general, general_mem, general_size);
+}
 
 //
 // Buffer Streaming
@@ -819,6 +832,7 @@ CUSTOM_COMMAND_SIG(to_uppercase){
             mem[i] = char_to_upper(mem[i]);
         }
         app->buffer_replace_range(app, &buffer, range.min, range.max, mem, size);
+        app->view_set_cursor(app, &view, seek_pos(range.max), true);
     }
 }
 
@@ -836,6 +850,7 @@ CUSTOM_COMMAND_SIG(to_lowercase){
             mem[i] = char_to_lower(mem[i]);
         }
         app->buffer_replace_range(app, &buffer, range.min, range.max, mem, size);
+        app->view_set_cursor(app, &view, seek_pos(range.max), true);
     }
 }
 
@@ -2192,7 +2207,7 @@ CUSTOM_COMMAND_SIG(word_complete){
         if (view_paste_index[view.view_id].rewrite != RewriteWordComplete){
             do_init = true;
         }
-        view_paste_index[view.view_id].next_rewrite != RewriteWordComplete;
+        view_paste_index[view.view_id].next_rewrite = RewriteWordComplete;
         if (!complete_state.initialized){
             do_init = true;
         }
@@ -2297,7 +2312,8 @@ CUSTOM_COMMAND_SIG(word_complete){
                 
                 if (match.found_match){
                     int match_size = match.end - match.start;
-                    char *spare = (char*)GET_MEMORY(match_size);
+                    Temp_Memory temp = begin_temp_memory(&part);
+                    char *spare = push_array(&part, char, match_size);
                     
                     app->buffer_read_range(app, &match.buffer,
                                            match.start, match.end, spare);
@@ -2312,10 +2328,10 @@ CUSTOM_COMMAND_SIG(word_complete){
                         
                         complete_state.word_end = word_start + match_size;
                         complete_state.set.ranges[0].mid_size = match_size;
-                        FREE_MEMORY(spare);
+                        end_temp_memory(temp);
                         break;
                     }
-                    FREE_MEMORY(spare);
+                    end_temp_memory(temp);
                 }
                 else{
                     complete_state.iter.pos = 0;

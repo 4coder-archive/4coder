@@ -338,28 +338,6 @@ DOC_SEE(Command_Line_Input_Flag)
     return(result);
 }
 
-API_EXPORT void*
-Memory_Alloc(Application_Links *app, int32_t size)/*
-DOC(TODO)
-*/{
-    void *result = 0;
-    return(result);
-}
-
-API_EXPORT int32_t
-Memory_Set_Protection(Application_Links *app, void *ptr, int32_t size, Memory_Protect_Flags flags)/*
-DOC(TODO)
-*/{
-    int32_t result = 0;
-    return(result);
-}
-
-API_EXPORT void
-Memory_Free(Application_Links *app, void *mem)/*
-DOC(TODO)
-*/{
-}
-
 API_EXPORT void
 Clipboard_Post(Application_Links *app, int32_t clipboard_id, char *str, int32_t len)/*
 DOC_PARAM(clipboard_id, This parameter is set up to prepare for future features, it should always be 0 for now.)
@@ -1940,6 +1918,10 @@ directories controlled on the custom side.
     out[copy_max] = 0;
     return(hot->string.size);
 }
+
+#define Memory_Allocate system->memory_allocate
+#define Memory_Set_Protection system->memory_set_protection
+#define Memory_Free system->memory_free
 
 #define Get_4ed_Path system->get_4ed_path
 #define File_Exists system->file_exists

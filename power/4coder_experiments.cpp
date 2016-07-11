@@ -166,43 +166,6 @@ CUSTOM_COMMAND_SIG(cursor_to_surrounding_scope){
     }
 }
 
-// NOTE(allen): Incomplete
-#if 0
-CUSTOM_COMMAND_SIG(complete_word){
-    app->print_message(app, literal("complete_word\n"));
-    
-    View_Summary view = app->get_active_view(app);
-    Buffer_Summary buffer = app->get_buffer(app, view.buffer_id);
-    
-    int start = 0;
-    int end = 0;
-    
-    end = view.cursor.pos;
-    
-    push_parameter(app, par_flags, BoundryAlphanumeric);
-    exec_command(app, cmdid_seek_left);
-    
-    app->refresh_view(app, &view);
-    start = view.cursor.pos;
-    
-    String complete_string;
-    int size = (end - start);
-    char complete_space[256];
-    
-    if (size < sizeof(complete_space) - 1){
-        complete_string = make_fixed_width_string(complete_space);
-        app->buffer_read_range(app, &buffer, start, end, complete_space);
-        complete_string.size = size;
-        complete_string.str[size] = 0;
-        
-        // TODO(allen): Complete this when the heavy duty coroutine stuff
-        // and the hash table are available.
-        
-        app->print_message(app, complete_string.str, complete_string.size);
-    }
-}
-#endif
-
 // TODO(allen): Query theme settings
 #if 0
 CUSTOM_COMMAND_SIG(save_theme_settings){
@@ -215,20 +178,12 @@ CUSTOM_COMMAND_SIG(save_theme_settings){
     if (file){
         replace_char(theme_name, '#', ' ');
         replace_char(font_name, '#', ' ');
-
+        
         fclose(file);
-
+        
         app->change_theme(app, theme_name, strlen(theme_name));
         app->change_font(app, font_name, strlen(font_name));
     }
-}
-#endif
-
-#if 0
-void experiment_extension(Bind_Helper *context){
-    bind(context, 'k', MDFR_ALT, kill_rect);
-    bind(context, '/', MDFR_ALT, mark_matching_brace);
-    bind(context, '\'', MDFR_ALT, cursor_to_surrounding_scope);
 }
 #endif
 

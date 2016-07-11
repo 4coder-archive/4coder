@@ -1,6 +1,6 @@
-
 /*
  * Mr. 4th Dimention - Allen Webster
+ *  (Mostly by insofaras)
  *
  * 14.11.2015
  *
@@ -627,6 +627,68 @@ Sys_File_Save_Sig(system_file_save){
     }
 
     return (size == 0);
+}
+
+//
+// Custom access to OS pages
+//
+
+internal
+MEMORY_ALLOCATE_SIG(system_memory_allocate){
+    // NOTE(allen): This must return the exact base of the vpage.
+    // We will count on the user to keep track of size themselves.
+    void *result = mmap(0, size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+    if(result == MAP_FAILED){
+        perror("mmap");
+        result = NULL;
+    }
+    return(result);
+}
+
+internal 
+MEMORY_SET_PROTECTION_SIG(system_memory_set_protection){
+#if 0
+    // NOTE(allen): Don't know how to do this off the top
+    // of my head.  Here is a copy of the windows version.
+    // There is no such thing as "write only" in windows
+    // so I just made write = write + read in all cases.
+    bool32 result = false;
+    DWORD old_protect = 0;
+    DWORD protect = 0;
+    
+    flags = flags & 0x7;
+    
+    switch (flags){
+        case 0:
+        protect = PAGE_NOACCESS; break;
+        
+        case MemProtect_Read:
+        protect = PAGE_READONLY; break;
+        
+        case MemProtect_Write:
+        case MemProtect_Read|MemProtect_Write:
+        protect = PAGE_READWRITE; break;
+        
+        case MemProtect_Execute:
+        protect = PAGE_EXECUTE; break;
+        
+        case MemProtect_Execute|MemProtect_Read:
+        protect = PAGE_EXECUTE_READ; break;
+        
+        case MemProtect_Execute|MemProtect_Write:
+        case MemProtect_Execute|MemProtect_Write|MemProtect_Read:
+        protect = PAGE_EXECUTE_READWRITE; break;
+    }
+    
+    VirtualProtect(ptr, size, protect, &old_protect);
+    return(result);
+#endif
+}
+
+internal
+MEMORY_FREE_SIG(system_memory_free){
+    // NOTE(allen): This must take the exact base of the vpage.
+    munmap(mem, size);
 }
 
 //

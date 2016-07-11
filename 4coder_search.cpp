@@ -38,24 +38,17 @@ struct Search_Match{
     int found_match;
 };
 
-// TODO(allen): HOW DO I WANT TO GET MEMORY CUSTOM SIDE??
-#define GET_MEMORY(a) (void*)(0)
-#define REGET_MEMORY(a,b) (void*)(0)
-#define REGET_NOCOPY_MEMORY(a,b) (void*)(0)
-#define FREE_MEMORY(a) (void)(a)
-
 static void
 search_iter_init(Application_Links *app, Search_Iter *iter, int size){
     int str_max = size*2;
     if (iter->word.str == 0){
-        iter->word.str = (char*)GET_MEMORY(str_max);
+        iter->word.str = (char*)general_memory_allocate(&general, str_max);
         iter->word.memory_size = str_max;
     }
     else if (iter->word.memory_size < size){
-        iter->word.str = (char*)REGET_MEMORY(iter->word.str, str_max);
+        iter->word.str = (char*)general_memory_reallocate_nocopy(&general, iter->word.str, str_max);
         iter->word.memory_size = str_max;
     }
-    
     iter->i = 0;
     iter->pos = 0;
 }
@@ -65,11 +58,12 @@ search_set_init(Application_Links *app, Search_Set *set, int range_count){
     int max = range_count*2;
     
     if (set->ranges == 0){
-        set->ranges = (Search_Range*)GET_MEMORY(sizeof(Search_Range)*max);
+        set->ranges = (Search_Range*)general_memory_allocate(&general, sizeof(Search_Range)*max);
         set->max = max;
     }
     else if (set->max < range_count){
-        set->ranges = (Search_Range*)REGET_MEMORY(set->ranges, sizeof(Search_Range)*max);
+        set->ranges = (Search_Range*)general_memory_reallocate_nocopy(
+            &general, set->ranges, sizeof(Search_Range)*max);
         set->max = max;
     }
     
@@ -81,10 +75,10 @@ search_hits_table_alloc(Application_Links *app, Table *hits, int table_size){
     void *mem = 0;
     int mem_size = table_required_mem_size(table_size, sizeof(Offset_String));
     if (hits->hash_array == 0){
-        mem = GET_MEMORY(mem_sze);
+        mem = general_memory_allocate(&general, mem_size);
     }
     else{
-        mem = REGET_NOCOPY_MEMORY(hits->hash_array, mem_sze);
+        mem = general_memory_reallocate_nocopy(&general, hits->hash_array, mem_size);
     }
     table_init_memory(hits, mem, table_size, sizeof(Offset_String));
 }
@@ -96,16 +90,16 @@ search_hits_init(Application_Links *app, Table *hits, String_Space *str, int tab
     }
     else{
         int mem_size = table_required_mem_size(table_size, sizeof(Offset_String));
-        void *mem = REGET_NOCOPY_MEMORY(mem, mem_size);
+        void *mem = general_memory_reallocate_nocopy(&general, hits->hash_array, mem_size);
         table_init_memory(hits, mem, table_size, sizeof(Offset_String));
     }
     
     if (str->space == 0){
-        str->space = (char*)GET_MEMORY(str_size);
+        str->space = (char*)general_memory_allocate(&general, str_size);
         str->max = str_size;
     }
     else if (str->max < str_size){
-        str->space = (char*)REGET_NOCOPY_MEMORY(str->space, str_size);
+        str->space = (char*)general_memory_reallocate_nocopy(&general, str->space, str_size);
         str->max = str_size;
     }
     
@@ -125,7 +119,8 @@ search_hit_add(Application_Links *app, Table *hits, String_Space *space, char *s
         if (new_size < space->max + len){
             new_size = space->max + len;
         }
-        space->space = (char*)REGET_MEMORY(space->space, new_size);
+        space->space = (char*)general_memory_reallocate(
+            &general, space->space, space->new_pos, new_size);
         ostring = strspace_append(space, str, len);
     }
     
@@ -136,7 +131,7 @@ search_hit_add(Application_Links *app, Table *hits, String_Space *space, char *s
         search_hits_table_alloc(app, &new_hits, hits->max*2);
         table_clear(&new_hits);
         table_rehash(hits, &new_hits, space->space, tbl_offset_string_hash, tbl_offset_string_compare);
-        FREE_MEMORY(hits->hash_array);
+        general_memory_free(&general, hits->hash_array);
         *hits = new_hits;
     }
     
@@ -293,8 +288,6 @@ search_next_match(Application_Links *app, Search_Set *set, Search_Iter *it_ptr){
     Search_Match result = {0};
     Search_Iter iter = *it_ptr;
     
-    char *spare = (char*)GET_MEMORY(iter.word.size);
-    
     int count = set->count;
     for (; iter.i < count;){
         Search_Range *range = set->ranges + iter.i;
@@ -395,8 +388,6 @@ search_next_match(Application_Links *app, Search_Set *set, Search_Iter *it_ptr){
         }
     }
     double_break:;
-    
-    FREE_MEMORY(spare);
     
     *it_ptr = iter;
     
