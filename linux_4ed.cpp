@@ -647,42 +647,43 @@ MEMORY_ALLOCATE_SIG(system_memory_allocate){
 
 internal 
 MEMORY_SET_PROTECTION_SIG(system_memory_set_protection){
-#if 0
-    // NOTE(allen): Don't know how to do this off the top
-    // of my head.  Here is a copy of the windows version.
+    // NOTE(allen):
     // There is no such thing as "write only" in windows
     // so I just made write = write + read in all cases.
-    bool32 result = false;
-    DWORD old_protect = 0;
-    DWORD protect = 0;
+    bool32 result = 1;
+    int protect = 0;
     
     flags = flags & 0x7;
     
     switch (flags){
         case 0:
-        protect = PAGE_NOACCESS; break;
+        protect = PROT_NONE; break;
         
         case MemProtect_Read:
-        protect = PAGE_READONLY; break;
+        protect = PROT_READ; break;
         
         case MemProtect_Write:
         case MemProtect_Read|MemProtect_Write:
-        protect = PAGE_READWRITE; break;
+        protect = PROT_READ | PROT_WRITE; break;
         
         case MemProtect_Execute:
-        protect = PAGE_EXECUTE; break;
+        protect = PROT_EXEC; break;
         
         case MemProtect_Execute|MemProtect_Read:
-        protect = PAGE_EXECUTE_READ; break;
-        
+        protect = PROT_READ | PROT_EXEC; break;
+       
+        // NOTE(inso): some W^X protection things might be unhappy about this one
         case MemProtect_Execute|MemProtect_Write:
         case MemProtect_Execute|MemProtect_Write|MemProtect_Read:
-        protect = PAGE_EXECUTE_READWRITE; break;
+        protect = PROT_READ | PROT_WRITE | PROT_EXEC; break;
     }
     
-    VirtualProtect(ptr, size, protect, &old_protect);
+    if(mprotect(ptr, size, protect) == -1){
+        result = 0;
+        perror("mprotect");
+    }
+
     return(result);
-#endif
 }
 
 internal
@@ -1288,22 +1289,26 @@ LinuxLoadAppCode(String* base_dir){
 
 internal void
 LinuxLoadSystemCode(){
+    
     linuxvars.system.file_time_stamp = system_file_time_stamp;
-    linuxvars.system.file_unique_hash = system_file_unique_hash;
+    linuxvars.system.now_time_stamp = system_now_time_stamp;
     linuxvars.system.set_file_list = system_set_file_list;
+    linuxvars.system.file_unique_hash = system_file_unique_hash;
     linuxvars.system.file_track = system_file_track;
     linuxvars.system.file_untrack = system_file_untrack;
     linuxvars.system.file_load_begin = system_file_load_begin;
     linuxvars.system.file_load_end = system_file_load_end;
     linuxvars.system.file_save = system_file_save;
 
+    linuxvars.system.memory_allocate = system_memory_allocate;
+    linuxvars.system.memory_set_protection = system_memory_set_protection;
+    linuxvars.system.memory_free = system_memory_free;
     linuxvars.system.file_exists = system_file_exists;
     linuxvars.system.directory_cd = system_directory_cd;
     linuxvars.system.get_4ed_path = system_get_4ed_path;
     linuxvars.system.show_mouse_cursor = system_show_mouse_cursor;
 
     linuxvars.system.post_clipboard = system_post_clipboard;
-    linuxvars.system.now_time_stamp = system_now_time_stamp;
     
     linuxvars.system.create_coroutine = system_create_coroutine;
     linuxvars.system.launch_coroutine = system_launch_coroutine;
@@ -2462,14 +2467,17 @@ LinuxHandleX11Events(void)
 
             default: {
                 if(Event.type == linuxvars.xfixes_selection_event){
-                    XConvertSelection(
-                        linuxvars.XDisplay,
-                        linuxvars.atom_CLIPBOARD,
-                        linuxvars.atom_UTF8_STRING,
-                        linuxvars.atom_CLIPBOARD,
-                        linuxvars.XWindow,
-                        CurrentTime
-                    );
+                    XFixesSelectionNotifyEvent* sne = (XFixesSelectionNotifyEvent*)&Event;
+                    if(sne->subtype == XFixesSelectionNotify && sne->owner != linuxvars.XWindow){
+                        XConvertSelection(
+                            linuxvars.XDisplay,
+                            linuxvars.atom_CLIPBOARD,
+                            linuxvars.atom_UTF8_STRING,
+                            linuxvars.atom_CLIPBOARD,
+                            linuxvars.XWindow,
+                            CurrentTime
+                        );
+                    }
                 }
             }break;
         }
