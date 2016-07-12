@@ -1,4 +1,4 @@
-Distribution Date: 11.7.2016 (dd.mm.yyyy)
+Distribution Date: 12.7.2016 (dd.mm.yyyy)
 
 Thank you for contributing to the 4coder project!
 
@@ -27,63 +27,6 @@ if you start digging and pressing hard enough.
 INSTRUCTIONS FOR USE
 -----------------------------------------------------
 
-****Changes in 4.0.7****
-Right clicking in a buffer now sets the mark.
-
-alt + d: brings up the debug view from which there are several options:
- i - input
- m - memory and threads
- v - views
-more debug features coming in the future.  This is mostly here so that
-I can help everyone gather better data for bug reports and get them
-fixed more easily.
-
-****Changes in 4.0.5****
-Improved indentation rule
-
-****Changes in 4.0.3****
-4coder now uses 0% CPU when you are not using it.
-
-There is a scrollbar on files now.  (It is not the nicest scrollbar to use in the world,
-but the real purpose it serves is to indicate where in a file you are.  I imagine most
-scrolling will still happen with the wheel or cursor navigation.)
-
-File lists are now arrow navigatable and scrollable... these two systems do no work
-together very well yet.
-
-Color adjusting is possible again, but the UI is heavily downgraded from the fancieness
-of the old system.
-
-While editing:
-alt + Z: execute command line with the same output buffer and same command
-   as in the previous use of "alt + z".
-
-****Changes in 4.0.2****
-The previous file limit of 128 has been raised to something over 8 million.
-
-A *messages* buffer is now opened on launch to provide some information about
- new features and messages will be posted there to report events sometimes.
-
-subst and link directories no longer confuse the system, it treats them as one file.
-
-on the command line: -f <N> sets the font size, the default is 16
-
-ctrl + e: centers the view on the cursor
-
-****Changes in 4.0.0****
-alt + x: changed to arbitrary command (NOW WORKS ANYWHERE!)
-Opens a command prompt from which you can execute:
-   "open menu" to open the menu (old behavior of alt+x)
-   "open all code" loads all cpp and h files in current directory
-   "close all code" closes all cpp and h files currently open
-   "open in quotes" opens the file who's name under the cursor is surrounded by quotes
-   "dos lines" dosify the file end of iles
-   "nix lines" nixify the file end of iles
-
-alt + z: execute arbitrary command-line command
-Specify an output buffer and a command to execute
-and the results will be dropped into the specified buffer.
-
 ****Command line options****
 4ed [<files-to-open>] [options]
 
@@ -101,12 +44,13 @@ and the results will be dropped into the specified buffer.
 -T -- invoke special tool isntead of launching 4coder normally
    -T version : prints the 4coder version string
 
-****Old Information****
+****Command Bindings****
 Basic Navigation:
-mouse click - move cursor
+mouse left click - move cursor
+mouse right click - set mark
 arrows - move cursor
 home & end - move cursor to beginning/end of line
-page up & page down - page up & page down respectively
+page up & page down - move up/down by close to the height of the entire screen
 control + left/right - move cursor left/right to first whitespace
 control + up/down - move cursor up or down to first blank line
 
@@ -114,12 +58,20 @@ Fancy Navigation:
 control + f : begin find mode, uses interaction bar
 control + r : begin reverse-find mode, uses interaction bar
 
+control + F : list all locations of a word in all open buffers, uses interaction bar
+    > This command creates a *search* buffer that displays the locations and the line of each
+    > occurence of the requested word.  By positioning the cursor and pressing return the user
+    > jump to the word's occurence.
+
 While in find mode or reverse-find mode, pressing enter ends the mode
 leaving the cursor wherever the find highlighter is, and pressing escape
 ends the mode leaving the cursor wherever it was before the find mode began.
 
-control + g - goto line number
+control + g - goto line number, uses interaction bar
 control + m - swap cursor and mark
+
+control + e - center the view vertically on the cursor
+control + E - in a view with unwrapped lines move the view to a position just left of the cursor
 
 Basic Editing:
 characters keys, delete, and backspace
@@ -129,29 +81,32 @@ control + v : paste at cursor
 control + V : use after normal paste to cycle through older copied text
 control + d : delete between cursor and mark
 control + SPACE : set mark to cursor
+control + backspace : backspace one word
+control + delete : delete one word
+alt + backspace : snipe one word
 
 Undo and History:
 control + z : undo
 control + y : redo
-control + Z: undo / history timelines
 control + h: history back step
 control + H: history forward step
-alt + left: increase rewind speed (through undo)
-alt + right: increase fastforward speed (through redo)
-alt + down: stop redining / fastforwarding
 
 Fancy Editing:
 control + u : to uppercase between cursor and mark
 control + j : to lowercase between cursor and mark
-control + q: query replace
-control + a: replace in range
-control + =: write increment
-control + -: decrement increment
-control + [: write {} pair with cursor in line between
-control + {: as <control + [> with a semicolon after "}"
-control + }: as <control + [> with a "break;" after "}"
-control + 9: wrap the range specified by mark and cursor in parens
-control + i: wrap the range specified by mark and cursor in #if 0 #endif
+control + q : query replace
+control + a : replace in range
+control + ~ : clean the trailing whitespace off of all lines
+
+Fancy Editing in Code Files:
+control + [ : write "{}" pair with cursor in line between
+control + { : as control + [ with a semicolon after "}"
+control + } : as control + [ with a "break;" after "}"
+control + 0 : write "= {0};" at the cursor
+control + i : wrap the range specified by mark and cursor in #if 0 #endif
+
+alt + 1 : if cursor is inside a string, treat the string as a filename and
+    > try to open the file with that name in the other panel
 
 Whitespace Boringness:
 Typing characters: },],),; and inserting newlines cause the line to autotab
@@ -163,25 +118,42 @@ control + ! : set the flie to nix mode for writing to disk
 
 Viewing Options:
 alt + c - open theme selection UI
+alt + d - open debug view
+
 control + p : vertically split the current panel (max 16)
-control + '-' : horizontally split the current panel (max 16)
+control + _ : horizontally split the current panel (max 16)
 control + P : close the currently selected panel
 control + , : switch to another panel
+
 control + l : toggle line wrapping
-control + L : toggle end of line mode
-	mode 1: treat all \r\n and all \n as newline, show \r when not followed by \n
-	mode 2: treat all \r and \n as newline
-	mode 3: treat all \n as newline, show all \r
 control + ? : toggle highlight whitespace mode
 
-Tools:
-alt + m : search in the current hot directory and up through all parent
+f2 : toggle mouse suppresion mode
+
+alt + s : show the scrollbar in this view
+alt + w : hide the scrollbar in this view
+
+Build Tools:
+alt + m :
+[On Windows] search in the current hot directory and up through all parent
     > directories for a build.bat, and execute that bat if it discovered, sending
     > output to the buffer *compilation*
+[On Linux] The behavior is similar but the search looks for build.sh and if that
+    > fails it looks for a Makefile
+
+alt + . : change to the build panel
+alt + , : close the build panel
+alt + n : goto the next error listed in the build panel
+alt + N : goto the previous error listed in the build panel
+alt + M : goto the first error listed in the build panel
+
+alt + z : execute any command line command you specify and send the output to the buffer you specify
+alt + Z : repeat the command previously executed by the alt + z command
 
 File Managing:
 control + n : create a new file, begins interactive input mode
 control + o : open file, begins interactive input mode
+alt + o : open file in other panel, same as control + o but runs first changes the active view
 control + O : reopen the current file
 	(discarding any differences the live version has from the file system's version)
 control + s : save
@@ -190,10 +162,10 @@ control + i : switch active file in this panel, begins interactive input mode
 control + k : kill (close) a file, begins interactive input mode
 control + K : kill (close) the file being viewed in the currently active panel
 
-While in interactive input mode, pressing enter confirms the input for the command, and
-pressing escape (once) will end the input mode and abort the command.  If the file does
-not exist either the nearest match will be opened, or no file will be opened if none is
-considered a match.  Use backspace to go back through directories.
+While in interactive input mode, there are several ways to select an option.
+The options can be clicked.  One option is always highlighted and pressing
+return or tab will select the highlighted option.  Arrow keys navigate the
+highlighted option.  Typing in characters narrows down the list of options.
 
 Menu UI
 Keyboard options:

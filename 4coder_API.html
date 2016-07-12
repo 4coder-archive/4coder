@@ -2244,19 +2244,22 @@ int_color color;<br>
 </div>
 <div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>See Also</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'><a href='#Style_Tag_doc'>Style_Tag</a></div><div style='margin-left: 5mm; margin-right: 5mm;'><a href='#int_color_doc'>int_color</a></div></div><hr>
 <h2 id='section_string_library'>&sect;4 String Library</h2>
-<h3>&sect;4.1 String Function List</h3>
+<h3>&sect;4.1 String Intro</h3>
 <ul>
-<li><a href='#char_not_slash_str_doc'>char_not_slash</a></li>
+<div><i>
+Coming Soon</i><div>
+<h3>&sect;4.2 String Function List</h3>
+<ul>
 <li><a href='#char_is_slash_str_doc'>char_is_slash</a></li>
 <li><a href='#char_to_upper_str_doc'>char_to_upper</a></li>
 <li><a href='#char_to_lower_str_doc'>char_to_lower</a></li>
 <li><a href='#char_is_whitespace_str_doc'>char_is_whitespace</a></li>
 <li><a href='#char_is_alpha_numeric_str_doc'>char_is_alpha_numeric</a></li>
-<li><a href='#char_is_hex_str_doc'>char_is_hex</a></li>
-<li><a href='#char_is_numeric_str_doc'>char_is_numeric</a></li>
+<li><a href='#char_is_alpha_numeric_true_str_doc'>char_is_alpha_numeric_true</a></li>
 <li><a href='#char_is_alpha_str_doc'>char_is_alpha</a></li>
 <li><a href='#char_is_alpha_true_str_doc'>char_is_alpha_true</a></li>
-<li><a href='#char_is_alpha_numeric_true_str_doc'>char_is_alpha_numeric_true</a></li>
+<li><a href='#char_is_hex_str_doc'>char_is_hex</a></li>
+<li><a href='#char_is_numeric_str_doc'>char_is_numeric</a></li>
 <li><a href='#string_zero_str_doc'>string_zero</a></li>
 <li><a href='#make_string_str_doc'>make_string</a></li>
 <li><a href='#make_lit_string_str_doc'>make_lit_string</a></li>
@@ -2265,10 +2268,10 @@ int_color color;<br>
 <li><a href='#str_size_str_doc'>str_size</a></li>
 <li><a href='#make_string_slowly_str_doc'>make_string_slowly</a></li>
 <li><a href='#substr_str_doc'>substr</a></li>
-<li><a href='#tailstr_str_doc'>tailstr</a></li>
 <li><a href='#skip_whitespace_str_doc'>skip_whitespace</a></li>
 <li><a href='#chop_whitespace_str_doc'>chop_whitespace</a></li>
 <li><a href='#skip_chop_whitespace_str_doc'>skip_chop_whitespace</a></li>
+<li><a href='#tailstr_str_doc'>tailstr</a></li>
 <li><a href='#match_str_doc'>match</a></li>
 <li><a href='#match_part_str_doc'>match_part</a></li>
 <li><a href='#match_insensitive_str_doc'>match_insensitive</a></li>
@@ -2313,626 +2316,904 @@ int_color color;<br>
 <li><a href='#remove_last_folder_str_doc'>remove_last_folder</a></li>
 <li><a href='#string_set_match_str_doc'>string_set_match</a></li>
 </ul>
-<h3>&sect;4.2 String Function Descriptions</h3>
+<h3>&sect;4.3 String Function Descriptions</h3>
 <ul>
-<div id='char_not_slash_str_doc'> <h4>&sect;4.2.1: char_not_slash</h4>
- <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>
-fstr_bool char_not_slash(
-<div style='margin-left: 4mm;'>char c<br></div>)
-</div>
-</div><hr>
-<div id='char_is_slash_str_doc'> <h4>&sect;4.2.2: char_is_slash</h4>
+<div id='char_is_slash_str_doc'> <h4>&sect;4.3.1: char_is_slash</h4>
  <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>
 fstr_bool char_is_slash(
 <div style='margin-left: 4mm;'>char c<br></div>)
 </div>
-</div><hr>
-<div id='char_to_upper_str_doc'> <h4>&sect;4.2.3: char_to_upper</h4>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>This call returns non-zero if c is \ or /.</div></div><hr>
+<div id='char_to_upper_str_doc'> <h4>&sect;4.3.2: char_to_upper</h4>
  <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>
 char char_to_upper(
 <div style='margin-left: 4mm;'>char c<br></div>)
 </div>
-</div><hr>
-<div id='char_to_lower_str_doc'> <h4>&sect;4.2.4: char_to_lower</h4>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>If c is a lowercase letter this call returns the uppercase equivalent, otherwise it returns c.</div></div><hr>
+<div id='char_to_lower_str_doc'> <h4>&sect;4.3.3: char_to_lower</h4>
  <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>
 char char_to_lower(
 <div style='margin-left: 4mm;'>char c<br></div>)
 </div>
-</div><hr>
-<div id='char_is_whitespace_str_doc'> <h4>&sect;4.2.5: char_is_whitespace</h4>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>If c is an uppercase letter this call returns the lowercase equivalent, otherwise it returns c.</div></div><hr>
+<div id='char_is_whitespace_str_doc'> <h4>&sect;4.3.4: char_is_whitespace</h4>
  <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>
 fstr_bool char_is_whitespace(
 <div style='margin-left: 4mm;'>char c<br></div>)
 </div>
-</div><hr>
-<div id='char_is_alpha_numeric_str_doc'> <h4>&sect;4.2.6: char_is_alpha_numeric</h4>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>This call returns non-zero if c is whitespace.</div></div><hr>
+<div id='char_is_alpha_numeric_str_doc'> <h4>&sect;4.3.5: char_is_alpha_numeric</h4>
  <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>
 fstr_bool char_is_alpha_numeric(
 <div style='margin-left: 4mm;'>char c<br></div>)
 </div>
-</div><hr>
-<div id='char_is_hex_str_doc'> <h4>&sect;4.2.7: char_is_hex</h4>
- <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>
-fstr_bool char_is_hex(
-<div style='margin-left: 4mm;'>char c<br></div>)
-</div>
-</div><hr>
-<div id='char_is_numeric_str_doc'> <h4>&sect;4.2.8: char_is_numeric</h4>
- <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>
-fstr_bool char_is_numeric(
-<div style='margin-left: 4mm;'>char c<br></div>)
-</div>
-</div><hr>
-<div id='char_is_alpha_str_doc'> <h4>&sect;4.2.9: char_is_alpha</h4>
- <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>
-fstr_bool char_is_alpha(
-<div style='margin-left: 4mm;'>char c<br></div>)
-</div>
-</div><hr>
-<div id='char_is_alpha_true_str_doc'> <h4>&sect;4.2.10: char_is_alpha_true</h4>
- <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>
-fstr_bool char_is_alpha_true(
-<div style='margin-left: 4mm;'>char c<br></div>)
-</div>
-</div><hr>
-<div id='char_is_alpha_numeric_true_str_doc'> <h4>&sect;4.2.11: char_is_alpha_numeric_true</h4>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>This call returns non-zero if c is any alphanumeric character including underscore.</div></div><hr>
+<div id='char_is_alpha_numeric_true_str_doc'> <h4>&sect;4.3.6: char_is_alpha_numeric_true</h4>
  <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>
 fstr_bool char_is_alpha_numeric_true(
 <div style='margin-left: 4mm;'>char c<br></div>)
 </div>
-</div><hr>
-<div id='string_zero_str_doc'> <h4>&sect;4.2.12: string_zero</h4>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>This call returns non-zero if c is any alphanumeric character no including underscore.</div></div><hr>
+<div id='char_is_alpha_str_doc'> <h4>&sect;4.3.7: char_is_alpha</h4>
+ <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>
+fstr_bool char_is_alpha(
+<div style='margin-left: 4mm;'>char c<br></div>)
+</div>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>This call returns non-zero if c is any alphabetic character including underscore.</div></div><hr>
+<div id='char_is_alpha_true_str_doc'> <h4>&sect;4.3.8: char_is_alpha_true</h4>
+ <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>
+fstr_bool char_is_alpha_true(
+<div style='margin-left: 4mm;'>char c<br></div>)
+</div>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>This call returns non-zero if c is any alphabetic character.</div></div><hr>
+<div id='char_is_hex_str_doc'> <h4>&sect;4.3.9: char_is_hex</h4>
+ <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>
+fstr_bool char_is_hex(
+<div style='margin-left: 4mm;'>char c<br></div>)
+</div>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>This call returns non-zero if c is any valid hexadecimal digit.</div></div><hr>
+<div id='char_is_numeric_str_doc'> <h4>&sect;4.3.10: char_is_numeric</h4>
+ <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>
+fstr_bool char_is_numeric(
+<div style='margin-left: 4mm;'>char c<br></div>)
+</div>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>This call returns non-zero if c is any valid decimal digit.</div></div><hr>
+<div id='string_zero_str_doc'> <h4>&sect;4.3.11: string_zero</h4>
  <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>
 String string_zero(
 <div style='margin-left: 4mm;'><br></div>)
 </div>
-</div><hr>
-<div id='make_string_str_doc'> <h4>&sect;4.2.13: make_string</h4>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>This call returns a String struct of zeroed members.</div></div><hr>
+<div id='make_string_str_doc'> <h4>&sect;4.3.12: make_string</h4>
  <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>
 String make_string(
 <div style='margin-left: 4mm;'>void *str,<br>int32_t size,<br>int32_t mem_size<br></div>)
 </div>
-</div><hr>
-<div> <h4>&sect;4.2.14: make_string</h4>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Parameters</i></b></div><div>
+<div style='font-weight: 600;'>str</div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>The str parameter provides the of memory with which the string shall operate.</div></div>
+</div>
+<div>
+<div style='font-weight: 600;'>size</div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>The size parameter expresses the initial size of the string.
+If the memory does not already contain a useful string this should be zero.</div></div>
+</div>
+<div>
+<div style='font-weight: 600;'>mem_size</div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>The mem_size parameter expresses the full size of the memory provided by str.</div></div>
+</div>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>This call returns the String created from the parameters.</div></div><hr>
+<div> <h4>&sect;4.3.13: make_string</h4>
  <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>
 String make_string(
 <div style='margin-left: 4mm;'>void *str,<br>int32_t size<br></div>)
 </div>
-</div><hr>
-<div id='make_lit_string_str_doc'> <h4>&sect;4.2.15: make_lit_string</h4>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Parameters</i></b></div><div>
+<div style='font-weight: 600;'>str</div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>The str parameter provides the of memory with which the string shall operate.</div></div>
+</div>
+<div>
+<div style='font-weight: 600;'>size</div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>The size parameter expresses the initial size of the string.
+If the memory does not already contain a useful string this should be zero. Since this version
+does not specify the size of the memory it is also assumed that this size is the maximum size
+of the memory.</div></div>
+</div>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>This call returns the String created from the parameters.</div></div><hr>
+<div id='make_lit_string_str_doc'> <h4>&sect;4.3.14: make_lit_string</h4>
  <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>
 #define make_lit_string(s)</div>
-</div><hr>
-<div id='make_fixed_width_string_str_doc'> <h4>&sect;4.2.16: make_fixed_width_string</h4>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>This macro takes a literal string in quotes and uses it to create a String
+with the correct size and memory size.  Strings created this way should usually not be mutated.</div></div><hr>
+<div id='make_fixed_width_string_str_doc'> <h4>&sect;4.3.15: make_fixed_width_string</h4>
  <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>
 #define make_fixed_width_string(s)</div>
-</div><hr>
-<div id='expand_str_str_doc'> <h4>&sect;4.2.17: expand_str</h4>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>This macro takes a local char array with a fixed width and uses it to create
+an empty String with the correct size and memory size to operate on the array.</div></div><hr>
+<div id='expand_str_str_doc'> <h4>&sect;4.3.16: expand_str</h4>
  <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>
 #define expand_str(s)</div>
-</div><hr>
-<div id='str_size_str_doc'> <h4>&sect;4.2.18: str_size</h4>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>This macro is a helper for any calls that take a char*,int pair to specify a
+string. This macro expands to both of those parameters from one String struct.</div></div><hr>
+<div id='str_size_str_doc'> <h4>&sect;4.3.17: str_size</h4>
  <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>
 int32_t str_size(
 <div style='margin-left: 4mm;'>char *str<br></div>)
 </div>
-</div><hr>
-<div id='make_string_slowly_str_doc'> <h4>&sect;4.2.19: make_string_slowly</h4>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>This call returns the number of bytes before a null terminator starting at str.</div></div><hr>
+<div id='make_string_slowly_str_doc'> <h4>&sect;4.3.18: make_string_slowly</h4>
  <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>
 String make_string_slowly(
 <div style='margin-left: 4mm;'>void *str<br></div>)
 </div>
-</div><hr>
-<div id='substr_str_doc'> <h4>&sect;4.2.20: substr</h4>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>This call makes a string by counting the number of bytes before a null terminator and
+treating that as the size and memory size of the string.</div></div><hr>
+<div id='substr_str_doc'> <h4>&sect;4.3.19: substr</h4>
  <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>
 String substr(
 <div style='margin-left: 4mm;'>String str,<br>int32_t start<br></div>)
 </div>
-</div><hr>
-<div> <h4>&sect;4.2.21: substr</h4>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>This call creates a substring of str that starts with an offset from str's base.
+The new string uses the same underlying memory so both strings will see changes.
+Usually strings created this way should only go through immutable calls.</div></div><hr>
+<div> <h4>&sect;4.3.20: substr</h4>
  <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>
 String substr(
 <div style='margin-left: 4mm;'>String str,<br>int32_t start,<br>int32_t size<br></div>)
 </div>
-</div><hr>
-<div id='tailstr_str_doc'> <h4>&sect;4.2.22: tailstr</h4>
- <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>
-String tailstr(
-<div style='margin-left: 4mm;'>String str<br></div>)
-</div>
-</div><hr>
-<div id='skip_whitespace_str_doc'> <h4>&sect;4.2.23: skip_whitespace</h4>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>This call creates a substring of str that starts with an offset from str's base,
+and has a fixed size. The new string uses the same underlying memory so both strings
+will see changes. Usually strings created this way should only go through immutable calls.</div></div><hr>
+<div id='skip_whitespace_str_doc'> <h4>&sect;4.3.21: skip_whitespace</h4>
  <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>
 String skip_whitespace(
 <div style='margin-left: 4mm;'>String str<br></div>)
 </div>
-</div><hr>
-<div id='chop_whitespace_str_doc'> <h4>&sect;4.2.24: chop_whitespace</h4>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>This call creates a substring that starts with the first non-whitespace character of str.
+Like other substr calls, the new string uses the underlying memory and so should usually be
+considered immutable.</div><div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>See Also</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'><a href='#substr_doc'>substr</a></div></div><hr>
+<div id='chop_whitespace_str_doc'> <h4>&sect;4.3.22: chop_whitespace</h4>
  <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>
 String chop_whitespace(
 <div style='margin-left: 4mm;'>String str<br></div>)
 </div>
-</div><hr>
-<div id='skip_chop_whitespace_str_doc'> <h4>&sect;4.2.25: skip_chop_whitespace</h4>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>This call creates a substring that ends with the last non-whitespace character of str.
+Like other substr calls, the new string uses the underlying memory and so should usually be
+considered immutable.</div><div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>See Also</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'><a href='#substr_doc'>substr</a></div></div><hr>
+<div id='skip_chop_whitespace_str_doc'> <h4>&sect;4.3.23: skip_chop_whitespace</h4>
  <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>
 String skip_chop_whitespace(
 <div style='margin-left: 4mm;'>String str<br></div>)
 </div>
-</div><hr>
-<div id='match_str_doc'> <h4>&sect;4.2.26: match</h4>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>This call is equivalent to calling skip_whitespace and chop_whitespace together.</div><div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>See Also</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'><a href='#skip_whitespace_doc'>skip_whitespace</a></div><div style='margin-left: 5mm; margin-right: 5mm;'><a href='#chop_whitespace_doc'>chop_whitespace</a></div></div><hr>
+<div id='tailstr_str_doc'> <h4>&sect;4.3.24: tailstr</h4>
+ <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>
+String tailstr(
+<div style='margin-left: 4mm;'>String str<br></div>)
+</div>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>This call returns an empty String with underlying memory taken from
+the portion of str's memory that is not used.</div></div><hr>
+<div id='match_str_doc'> <h4>&sect;4.3.25: match</h4>
  <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>
 fstr_bool match(
 <div style='margin-left: 4mm;'>char *a,<br>char *b<br></div>)
 </div>
-</div><hr>
-<div> <h4>&sect;4.2.27: match</h4>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>This call returns non-zero if a and b are equivalent.</div></div><hr>
+<div> <h4>&sect;4.3.26: match</h4>
  <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>
 fstr_bool match(
 <div style='margin-left: 4mm;'>String a,<br>char *b<br></div>)
 </div>
-</div><hr>
-<div> <h4>&sect;4.2.28: match</h4>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>This call returns non-zero if a and b are equivalent.</div></div><hr>
+<div> <h4>&sect;4.3.27: match</h4>
  <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>
 fstr_bool match(
 <div style='margin-left: 4mm;'>char *a,<br>String b<br></div>)
 </div>
-</div><hr>
-<div> <h4>&sect;4.2.29: match</h4>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>This call returns non-zero if a and b are equivalent.</div></div><hr>
+<div> <h4>&sect;4.3.28: match</h4>
  <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>
 fstr_bool match(
 <div style='margin-left: 4mm;'>String a,<br>String b<br></div>)
 </div>
-</div><hr>
-<div id='match_part_str_doc'> <h4>&sect;4.2.30: match_part</h4>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>This call returns non-zero if a and b are equivalent.</div></div><hr>
+<div id='match_part_str_doc'> <h4>&sect;4.3.29: match_part</h4>
  <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>
 fstr_bool match_part(
 <div style='margin-left: 4mm;'>char *a,<br>char *b,<br>int32_t *len<br></div>)
 </div>
-</div><hr>
-<div> <h4>&sect;4.2.31: match_part</h4>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Parameters</i></b></div><div>
+<div style='font-weight: 600;'>len</div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>If this call returns non-zero this parameter is used to output the length of b.</div></div>
+</div>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>This call is similar to a match call, except that it is permitted for a to be longer than b.
+In other words this call returns non-zero if b is a prefix of a.</div></div><hr>
+<div> <h4>&sect;4.3.30: match_part</h4>
  <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>
 fstr_bool match_part(
 <div style='margin-left: 4mm;'>String a,<br>char *b,<br>int32_t *len<br></div>)
 </div>
-</div><hr>
-<div> <h4>&sect;4.2.32: match_part</h4>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Parameters</i></b></div><div>
+<div style='font-weight: 600;'>len</div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>If this call returns non-zero this parameter is used to output the length of b.</div></div>
+</div>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>This call is similar to a match call, except that it is permitted for a to be longer than b.
+In other words this call returns non-zero if b is a prefix of a.</div></div><hr>
+<div> <h4>&sect;4.3.31: match_part</h4>
  <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>
 fstr_bool match_part(
 <div style='margin-left: 4mm;'>char *a,<br>char *b<br></div>)
 </div>
-</div><hr>
-<div> <h4>&sect;4.2.33: match_part</h4>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Parameters</i></b></div><div>
+<div style='font-weight: 600;'>len</div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>If this call returns non-zero this parameter is used to output the length of b.</div></div>
+</div>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>This call is similar to a match call, except that it is permitted for a to be longer than b.
+In other words this call returns non-zero if b is a prefix of a.</div></div><hr>
+<div> <h4>&sect;4.3.32: match_part</h4>
  <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>
 fstr_bool match_part(
 <div style='margin-left: 4mm;'>String a,<br>char *b<br></div>)
 </div>
-</div><hr>
-<div> <h4>&sect;4.2.34: match_part</h4>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>This call is similar to a match call, except that it is permitted for a to be longer than b.
+In other words this call returns non-zero if b is a prefix of a.</div></div><hr>
+<div> <h4>&sect;4.3.33: match_part</h4>
  <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>
 fstr_bool match_part(
 <div style='margin-left: 4mm;'>char *a,<br>String b<br></div>)
 </div>
-</div><hr>
-<div> <h4>&sect;4.2.35: match_part</h4>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>This call is similar to a match call, except that it is permitted for a to be longer than b.
+In other words this call returns non-zero if b is a prefix of a.</div></div><hr>
+<div> <h4>&sect;4.3.34: match_part</h4>
  <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>
 fstr_bool match_part(
 <div style='margin-left: 4mm;'>String a,<br>String b<br></div>)
 </div>
-</div><hr>
-<div id='match_insensitive_str_doc'> <h4>&sect;4.2.36: match_insensitive</h4>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>This call is similar to a match call, except that it is permitted for a to be longer than b.
+In other words this call returns non-zero if b is a prefix of a.</div></div><hr>
+<div id='match_insensitive_str_doc'> <h4>&sect;4.3.35: match_insensitive</h4>
  <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>
 fstr_bool match_insensitive(
 <div style='margin-left: 4mm;'>char *a,<br>char *b<br></div>)
 </div>
-</div><hr>
-<div> <h4>&sect;4.2.37: match_insensitive</h4>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>This call returns non-zero if a and b are equivalent under case insensitive comparison.</div></div><hr>
+<div> <h4>&sect;4.3.36: match_insensitive</h4>
  <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>
 fstr_bool match_insensitive(
 <div style='margin-left: 4mm;'>String a,<br>char *b<br></div>)
 </div>
-</div><hr>
-<div> <h4>&sect;4.2.38: match_insensitive</h4>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>This call returns non-zero if a and b are equivalent under case insensitive comparison.</div></div><hr>
+<div> <h4>&sect;4.3.37: match_insensitive</h4>
  <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>
 fstr_bool match_insensitive(
 <div style='margin-left: 4mm;'>char *a,<br>String b<br></div>)
 </div>
-</div><hr>
-<div> <h4>&sect;4.2.39: match_insensitive</h4>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>This call returns non-zero if a and b are equivalent under case insensitive comparison.</div></div><hr>
+<div> <h4>&sect;4.3.38: match_insensitive</h4>
  <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>
 fstr_bool match_insensitive(
 <div style='margin-left: 4mm;'>String a,<br>String b<br></div>)
 </div>
-</div><hr>
-<div id='match_part_insensitive_str_doc'> <h4>&sect;4.2.40: match_part_insensitive</h4>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>This call returns non-zero if a and b are equivalent under case insensitive comparison.</div></div><hr>
+<div id='match_part_insensitive_str_doc'> <h4>&sect;4.3.39: match_part_insensitive</h4>
  <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>
 fstr_bool match_part_insensitive(
 <div style='margin-left: 4mm;'>char *a,<br>char *b,<br>int32_t *len<br></div>)
 </div>
-</div><hr>
-<div> <h4>&sect;4.2.41: match_part_insensitive</h4>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Parameters</i></b></div><div>
+<div style='font-weight: 600;'>len</div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>If this call returns non-zero this parameter is used to output the length of b.</div></div>
+</div>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>This call performs the same partial matching rule as match_part under case insensitive comparison.</div><div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>See Also</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'><a href='#match_part_doc'>match_part</a></div></div><hr>
+<div> <h4>&sect;4.3.40: match_part_insensitive</h4>
  <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>
 fstr_bool match_part_insensitive(
 <div style='margin-left: 4mm;'>String a,<br>char *b,<br>int32_t *len<br></div>)
 </div>
-</div><hr>
-<div> <h4>&sect;4.2.42: match_part_insensitive</h4>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Parameters</i></b></div><div>
+<div style='font-weight: 600;'>len</div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>If this call returns non-zero this parameter is used to output the length of b.</div></div>
+</div>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>This call performs the same partial matching rule as match_part under case insensitive comparison.</div><div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>See Also</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'><a href='#match_part_doc'>match_part</a></div></div><hr>
+<div> <h4>&sect;4.3.41: match_part_insensitive</h4>
  <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>
 fstr_bool match_part_insensitive(
 <div style='margin-left: 4mm;'>char *a,<br>char *b<br></div>)
 </div>
-</div><hr>
-<div> <h4>&sect;4.2.43: match_part_insensitive</h4>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>This call performs the same partial matching rule as match_part under case insensitive comparison.</div><div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>See Also</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'><a href='#match_part_doc'>match_part</a></div></div><hr>
+<div> <h4>&sect;4.3.42: match_part_insensitive</h4>
  <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>
 fstr_bool match_part_insensitive(
 <div style='margin-left: 4mm;'>String a,<br>char *b<br></div>)
 </div>
-</div><hr>
-<div> <h4>&sect;4.2.44: match_part_insensitive</h4>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>This call performs the same partial matching rule as match_part under case insensitive comparison.</div><div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>See Also</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'><a href='#match_part_doc'>match_part</a></div></div><hr>
+<div> <h4>&sect;4.3.43: match_part_insensitive</h4>
  <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>
 fstr_bool match_part_insensitive(
 <div style='margin-left: 4mm;'>char *a,<br>String b<br></div>)
 </div>
-</div><hr>
-<div> <h4>&sect;4.2.45: match_part_insensitive</h4>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>This call performs the same partial matching rule as match_part under case insensitive comparison.</div><div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>See Also</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'><a href='#match_part_doc'>match_part</a></div></div><hr>
+<div> <h4>&sect;4.3.44: match_part_insensitive</h4>
  <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>
 fstr_bool match_part_insensitive(
 <div style='margin-left: 4mm;'>String a,<br>String b<br></div>)
 </div>
-</div><hr>
-<div id='compare_str_doc'> <h4>&sect;4.2.46: compare</h4>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>This call performs the same partial matching rule as match_part under case insensitive comparison.</div><div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>See Also</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'><a href='#match_part_doc'>match_part</a></div></div><hr>
+<div id='compare_str_doc'> <h4>&sect;4.3.45: compare</h4>
  <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>
 int32_t compare(
 <div style='margin-left: 4mm;'>char *a,<br>char *b<br></div>)
 </div>
-</div><hr>
-<div> <h4>&sect;4.2.47: compare</h4>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>This call returns zero if a and b are equivalent,
+it returns negative if a sorts before b alphabetically,
+and positive if a sorts after b alphabetically.</div></div><hr>
+<div> <h4>&sect;4.3.46: compare</h4>
  <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>
 int32_t compare(
 <div style='margin-left: 4mm;'>String a,<br>char *b<br></div>)
 </div>
-</div><hr>
-<div> <h4>&sect;4.2.48: compare</h4>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>This call returns zero if a and b are equivalent,
+it returns negative if a sorts before b alphabetically,
+and positive if a sorts after b alphabetically.</div></div><hr>
+<div> <h4>&sect;4.3.47: compare</h4>
  <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>
 int32_t compare(
 <div style='margin-left: 4mm;'>char *a,<br>String b<br></div>)
 </div>
-</div><hr>
-<div> <h4>&sect;4.2.49: compare</h4>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>This call returns zero if a and b are equivalent,
+it returns negative if a sorts before b alphabetically,
+and positive if a sorts after b alphabetically.</div></div><hr>
+<div> <h4>&sect;4.3.48: compare</h4>
  <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>
 int32_t compare(
 <div style='margin-left: 4mm;'>String a,<br>String b<br></div>)
 </div>
-</div><hr>
-<div id='find_str_doc'> <h4>&sect;4.2.50: find</h4>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>This call returns zero if a and b are equivalent,
+it returns negative if a sorts before b alphabetically,
+and positive if a sorts after b alphabetically.</div></div><hr>
+<div id='find_str_doc'> <h4>&sect;4.3.49: find</h4>
  <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>
 int32_t find(
 <div style='margin-left: 4mm;'>char *str,<br>int32_t start,<br>char character<br></div>)
 </div>
-</div><hr>
-<div> <h4>&sect;4.2.51: find</h4>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Parameters</i></b></div><div>
+<div style='font-weight: 600;'>str</div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>The str parameter provides a null terminated string to search.</div></div>
+</div>
+<div>
+<div style='font-weight: 600;'>start</div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>The start parameter provides the index of the first character in str to search.</div></div>
+</div>
+<div>
+<div style='font-weight: 600;'>character</div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>The character parameter provides the character for which to search.</div></div>
+</div>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>This call returns the index of the first occurance of character, or the size of the string
+if the character is not found.</div></div><hr>
+<div> <h4>&sect;4.3.50: find</h4>
  <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>
 int32_t find(
 <div style='margin-left: 4mm;'>String str,<br>int32_t start,<br>char character<br></div>)
 </div>
-</div><hr>
-<div> <h4>&sect;4.2.52: find</h4>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Parameters</i></b></div><div>
+<div style='font-weight: 600;'>str</div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>The str parameter provides a string to search.</div></div>
+</div>
+<div>
+<div style='font-weight: 600;'>start</div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>The start parameter provides the index of the first character in str to search.</div></div>
+</div>
+<div>
+<div style='font-weight: 600;'>character</div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>The character parameter provides the character for which to search.</div></div>
+</div>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>This call returns the index of the first occurance of character, or the size of the string
+if the character is not found.</div></div><hr>
+<div> <h4>&sect;4.3.51: find</h4>
  <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>
 int32_t find(
 <div style='margin-left: 4mm;'>char *str,<br>int32_t start,<br>char *characters<br></div>)
 </div>
-</div><hr>
-<div> <h4>&sect;4.2.53: find</h4>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Parameters</i></b></div><div>
+<div style='font-weight: 600;'>str</div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>The str parameter provides a null terminated string to search.</div></div>
+</div>
+<div>
+<div style='font-weight: 600;'>start</div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>The start parameter provides the index of the first character in str to search.</div></div>
+</div>
+<div>
+<div style='font-weight: 600;'>character</div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>The characters parameter provides a null terminated array of characters for which to search.</div></div>
+</div>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>This call returns the index of the first occurance of a character in the characters array,
+or the size of the string if no such character is not found.</div></div><hr>
+<div> <h4>&sect;4.3.52: find</h4>
  <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>
 int32_t find(
 <div style='margin-left: 4mm;'>String str,<br>int32_t start,<br>char *characters<br></div>)
 </div>
-</div><hr>
-<div id='find_substr_str_doc'> <h4>&sect;4.2.54: find_substr</h4>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Parameters</i></b></div><div>
+<div style='font-weight: 600;'>str</div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>The str parameter provides a string to search.</div></div>
+</div>
+<div>
+<div style='font-weight: 600;'>start</div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>The start parameter provides the index of the first character in str to search.</div></div>
+</div>
+<div>
+<div style='font-weight: 600;'>character</div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>The characters parameter provides a null terminated array of characters for which to search.</div></div>
+</div>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>This call returns the index of the first occurance of a character in the characters array,
+or the size of the string if no such character is not found.</div></div><hr>
+<div id='find_substr_str_doc'> <h4>&sect;4.3.53: find_substr</h4>
  <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>
 int32_t find_substr(
 <div style='margin-left: 4mm;'>char *str,<br>int32_t start,<br>String seek<br></div>)
 </div>
-</div><hr>
-<div> <h4>&sect;4.2.55: find_substr</h4>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Parameters</i></b></div><div>
+<div style='font-weight: 600;'>str</div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>The str parameter provides a null terminated string to search.</div></div>
+</div>
+<div>
+<div style='font-weight: 600;'>start</div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>The start parameter provides the index of the first character in str to search.</div></div>
+</div>
+<div>
+<div style='font-weight: 600;'>seek</div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>The seek parameter provides a string to find in str.</div></div>
+</div>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>This call returns the index of the first occurance of the seek substring in str or the
+size of str if no such substring in str is found.</div></div><hr>
+<div> <h4>&sect;4.3.54: find_substr</h4>
  <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>
 int32_t find_substr(
 <div style='margin-left: 4mm;'>String str,<br>int32_t start,<br>String seek<br></div>)
 </div>
-</div><hr>
-<div id='rfind_substr_str_doc'> <h4>&sect;4.2.56: rfind_substr</h4>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Parameters</i></b></div><div>
+<div style='font-weight: 600;'>str</div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>The str parameter provides a string to search.</div></div>
+</div>
+<div>
+<div style='font-weight: 600;'>start</div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>The start parameter provides the index of the first character in str to search.</div></div>
+</div>
+<div>
+<div style='font-weight: 600;'>seek</div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>The seek parameter provides a string to find in str.</div></div>
+</div>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>This call returns the index of the first occurance of the seek substring in str or the
+size of str if no such substring in str is found.</div></div><hr>
+<div id='rfind_substr_str_doc'> <h4>&sect;4.3.55: rfind_substr</h4>
  <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>
 int32_t rfind_substr(
 <div style='margin-left: 4mm;'>String str,<br>int32_t start,<br>String seek<br></div>)
 </div>
-</div><hr>
-<div id='find_substr_insensitive_str_doc'> <h4>&sect;4.2.57: find_substr_insensitive</h4>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Parameters</i></b></div><div>
+<div style='font-weight: 600;'>str</div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>The str parameter provides a string to search.</div></div>
+</div>
+<div>
+<div style='font-weight: 600;'>start</div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>The start parameter provides the index of the first character in str to search.</div></div>
+</div>
+<div>
+<div style='font-weight: 600;'>seek</div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>The seek parameter provides a string to find in str.</div></div>
+</div>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>This call returns the index of the last occurance of the seek substring in str
+or -1 if no such substring in str is found.</div></div><hr>
+<div id='find_substr_insensitive_str_doc'> <h4>&sect;4.3.56: find_substr_insensitive</h4>
  <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>
 int32_t find_substr_insensitive(
 <div style='margin-left: 4mm;'>char *str,<br>int32_t start,<br>String seek<br></div>)
 </div>
-</div><hr>
-<div> <h4>&sect;4.2.58: find_substr_insensitive</h4>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Parameters</i></b></div><div>
+<div style='font-weight: 600;'>str</div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>The str parameter provides a null terminated string to search.</div></div>
+</div>
+<div>
+<div style='font-weight: 600;'>start</div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>The start parameter provides the index of the first character in str to search.</div></div>
+</div>
+<div>
+<div style='font-weight: 600;'>seek</div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>The seek parameter provides a string to find in str.</div></div>
+</div>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>This call acts as find_substr under case insensitive comparison.</div><div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>See Also</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'><a href='#find_substr_doc'>find_substr</a></div></div><hr>
+<div> <h4>&sect;4.3.57: find_substr_insensitive</h4>
  <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>
 int32_t find_substr_insensitive(
 <div style='margin-left: 4mm;'>String str,<br>int32_t start,<br>String seek<br></div>)
 </div>
-</div><hr>
-<div id='has_substr_str_doc'> <h4>&sect;4.2.59: has_substr</h4>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Parameters</i></b></div><div>
+<div style='font-weight: 600;'>str</div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>The str parameter provides a string to search.</div></div>
+</div>
+<div>
+<div style='font-weight: 600;'>start</div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>The start parameter provides the index of the first character in str to search.</div></div>
+</div>
+<div>
+<div style='font-weight: 600;'>seek</div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>The seek parameter provides a string to find in str.</div></div>
+</div>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>This call acts as find_substr under case insensitive comparison.</div><div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>See Also</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'><a href='#find_substr_doc'>find_substr</a></div></div><hr>
+<div id='has_substr_str_doc'> <h4>&sect;4.3.58: has_substr</h4>
  <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>
 fstr_bool has_substr(
 <div style='margin-left: 4mm;'>char *s,<br>String seek<br></div>)
 </div>
-</div><hr>
-<div> <h4>&sect;4.2.60: has_substr</h4>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>This call returns non-zero if the string s contains a substring equivalent to seek.</div></div><hr>
+<div> <h4>&sect;4.3.59: has_substr</h4>
  <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>
 fstr_bool has_substr(
 <div style='margin-left: 4mm;'>String s,<br>String seek<br></div>)
 </div>
-</div><hr>
-<div id='has_substr_insensitive_str_doc'> <h4>&sect;4.2.61: has_substr_insensitive</h4>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>This call returns non-zero if the string s contains a substring equivalent to seek.</div></div><hr>
+<div id='has_substr_insensitive_str_doc'> <h4>&sect;4.3.60: has_substr_insensitive</h4>
  <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>
 fstr_bool has_substr_insensitive(
 <div style='margin-left: 4mm;'>char *s,<br>String seek<br></div>)
 </div>
-</div><hr>
-<div> <h4>&sect;4.2.62: has_substr_insensitive</h4>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>This call returns non-zero if the string s contains a substring equivalent to seek
+under case insensitive comparison.</div></div><hr>
+<div> <h4>&sect;4.3.61: has_substr_insensitive</h4>
  <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>
 fstr_bool has_substr_insensitive(
 <div style='margin-left: 4mm;'>String s,<br>String seek<br></div>)
 </div>
-</div><hr>
-<div id='copy_fast_unsafe_str_doc'> <h4>&sect;4.2.63: copy_fast_unsafe</h4>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>This call returns non-zero if the string s contains a substring equivalent to seek
+under case insensitive comparison.</div></div><hr>
+<div id='copy_fast_unsafe_str_doc'> <h4>&sect;4.3.62: copy_fast_unsafe</h4>
  <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>
 int32_t copy_fast_unsafe(
 <div style='margin-left: 4mm;'>char *dest,<br>char *src<br></div>)
 </div>
-</div><hr>
-<div> <h4>&sect;4.2.64: copy_fast_unsafe</h4>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>This call performs a copy from the src buffer to the dest buffer.
+The copy does not stop until a null terminator is found in src.  There
+is no safety against overrun so dest must be large enough to contain src.
+The null terminator is not written to dest. This call returns the number
+of bytes coppied to dest.</div></div><hr>
+<div> <h4>&sect;4.3.63: copy_fast_unsafe</h4>
  <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>
-void copy_fast_unsafe(
+int32_t copy_fast_unsafe(
 <div style='margin-left: 4mm;'>char *dest,<br>String src<br></div>)
 </div>
-</div><hr>
-<div id='copy_checked_str_doc'> <h4>&sect;4.2.65: copy_checked</h4>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>This call performs a copy from the src string to the dest buffer.
+The copy does not stop until src.size characters are coppied.  There
+is no safety against overrun so dest must be large enough to contain src.
+The null terminator is not written to dest. This call returns the number
+of bytes coppied to dest.</div></div><hr>
+<div id='copy_checked_str_doc'> <h4>&sect;4.3.64: copy_checked</h4>
  <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>
 fstr_bool copy_checked(
 <div style='margin-left: 4mm;'>String *dest,<br>String src<br></div>)
 </div>
-</div><hr>
-<div id='copy_partial_str_doc'> <h4>&sect;4.2.66: copy_partial</h4>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>This call performs a copy from the src string to the dest string.
+The memory_size of dest is checked before any coppying is done.
+This call returns non-zero on a successful copy.</div></div><hr>
+<div id='copy_partial_str_doc'> <h4>&sect;4.3.65: copy_partial</h4>
  <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>
 fstr_bool copy_partial(
 <div style='margin-left: 4mm;'>String *dest,<br>char *src<br></div>)
 </div>
-</div><hr>
-<div> <h4>&sect;4.2.67: copy_partial</h4>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>This call performs a copy from the src buffer to the dest string.
+The memory_size of dest is checked if the entire copy cannot be performed,
+as many bytes as possible are coppied to dest. This call returns non-zero
+if the entire string is coppied to dest.</div></div><hr>
+<div> <h4>&sect;4.3.66: copy_partial</h4>
  <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>
 fstr_bool copy_partial(
 <div style='margin-left: 4mm;'>String *dest,<br>String src<br></div>)
 </div>
-</div><hr>
-<div id='copy_str_doc'> <h4>&sect;4.2.68: copy</h4>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>This call performs a copy from the src string to the dest string.
+The memory_size of dest is checked if the entire copy cannot be performed,
+as many bytes as possible are coppied to dest. This call returns non-zero
+if the entire string is coppied to dest.</div></div><hr>
+<div id='copy_str_doc'> <h4>&sect;4.3.67: copy</h4>
  <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>
 int32_t copy(
 <div style='margin-left: 4mm;'>char *dest,<br>char *src<br></div>)
 </div>
-</div><hr>
-<div> <h4>&sect;4.2.69: copy</h4>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>This call performs a copy from src to dest equivalent to copy_fast_unsafe.</div><div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>See Also</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'><a href='#copy_fast_unsafe_doc'>copy_fast_unsafe</a></div></div><hr>
+<div> <h4>&sect;4.3.68: copy</h4>
  <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>
 void copy(
 <div style='margin-left: 4mm;'>String *dest,<br>String src<br></div>)
 </div>
-</div><hr>
-<div> <h4>&sect;4.2.70: copy</h4>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>This call performs a copy from src to dest equivalent to copy_checked.</div><div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>See Also</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'><a href='#copy_checked_doc'>copy_checked</a></div></div><hr>
+<div> <h4>&sect;4.3.69: copy</h4>
  <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>
 void copy(
 <div style='margin-left: 4mm;'>String *dest,<br>char *src<br></div>)
 </div>
-</div><hr>
-<div id='append_checked_str_doc'> <h4>&sect;4.2.71: append_checked</h4>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>This call performs a copy from src to dest equivalent to copy_partial.</div><div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>See Also</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'><a href='#copy_partial_doc'>copy_partial</a></div></div><hr>
+<div id='append_checked_str_doc'> <h4>&sect;4.3.70: append_checked</h4>
  <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>
 fstr_bool append_checked(
 <div style='margin-left: 4mm;'>String *dest,<br>String src<br></div>)
 </div>
-</div><hr>
-<div id='append_partial_str_doc'> <h4>&sect;4.2.72: append_partial</h4>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>This call checks if there is enough space in dest's underlying memory
+to append src onto dest. If there is src is appended and the call returns non-zero.</div></div><hr>
+<div id='append_partial_str_doc'> <h4>&sect;4.3.71: append_partial</h4>
  <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>
 fstr_bool append_partial(
 <div style='margin-left: 4mm;'>String *dest,<br>char *src<br></div>)
 </div>
-</div><hr>
-<div> <h4>&sect;4.2.73: append_partial</h4>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>This call attemps to append as much of src into the space in dest's underlying memory
+as possible.  If the entire string is appended the call returns non-zero.</div></div><hr>
+<div> <h4>&sect;4.3.72: append_partial</h4>
  <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>
 fstr_bool append_partial(
 <div style='margin-left: 4mm;'>String *dest,<br>String src<br></div>)
 </div>
-</div><hr>
-<div id='append_str_doc'> <h4>&sect;4.2.74: append</h4>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>This call attemps to append as much of src into the space in dest's underlying memory
+as possible.  If the entire string is appended the call returns non-zero.</div></div><hr>
+<div id='append_str_doc'> <h4>&sect;4.3.73: append</h4>
  <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>
 fstr_bool append(
 <div style='margin-left: 4mm;'>String *dest,<br>char c<br></div>)
 </div>
-</div><hr>
-<div> <h4>&sect;4.2.75: append</h4>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>This call attemps to append c onto dest.  If there is space left in dest's underlying
+memory the character is appended and the call returns non-zero.</div></div><hr>
+<div> <h4>&sect;4.3.74: append</h4>
  <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>
 fstr_bool append(
 <div style='margin-left: 4mm;'>String *dest,<br>String src<br></div>)
 </div>
-</div><hr>
-<div> <h4>&sect;4.2.76: append</h4>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>This call is equivalent to append_partial.</div><div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>See Also</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'><a href='#append_partial_doc'>append_partial</a></div></div><hr>
+<div> <h4>&sect;4.3.75: append</h4>
  <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>
 fstr_bool append(
 <div style='margin-left: 4mm;'>String *dest,<br>char *src<br></div>)
 </div>
-</div><hr>
-<div id='terminate_with_null_str_doc'> <h4>&sect;4.2.77: terminate_with_null</h4>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>This call is equivalent to append_partial.</div><div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>See Also</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'><a href='#append_partial_doc'>append_partial</a></div></div><hr>
+<div id='terminate_with_null_str_doc'> <h4>&sect;4.3.76: terminate_with_null</h4>
  <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>
 fstr_bool terminate_with_null(
 <div style='margin-left: 4mm;'>String *str<br></div>)
 </div>
-</div><hr>
-<div id='append_padding_str_doc'> <h4>&sect;4.2.78: append_padding</h4>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>This call attemps to append a null terminator onto str without effecting the
+size of str. This is usually called when the time comes to pass the the string to an
+API that requires a null terminator.  This call returns non-zero if there was a spare
+byte in the strings underlying memory.</div></div><hr>
+<div id='append_padding_str_doc'> <h4>&sect;4.3.77: append_padding</h4>
  <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>
 fstr_bool append_padding(
 <div style='margin-left: 4mm;'>String *dest,<br>char c,<br>int32_t target_size<br></div>)
 </div>
-</div><hr>
-<div id='replace_char_str_doc'> <h4>&sect;4.2.79: replace_char</h4>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>This call pads out dest so that it has a size of target_size by appending
+the padding character c until the target size is achieved.  This call returns
+non-zero if dest does not run out of space in the underlying memory.</div></div><hr>
+<div id='replace_char_str_doc'> <h4>&sect;4.3.78: replace_char</h4>
  <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>
 void replace_char(
 <div style='margin-left: 4mm;'>String *str,<br>char replace,<br>char with<br></div>)
 </div>
-</div><hr>
-<div id='int_to_str_size_str_doc'> <h4>&sect;4.2.80: int_to_str_size</h4>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Parameters</i></b></div><div>
+<div style='font-weight: 600;'>str</div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>The str parameter provides the string in which replacement shall be performed.</div></div>
+</div>
+<div>
+<div style='font-weight: 600;'>replace</div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>The replace character specifies which character should be replaced.</div></div>
+</div>
+<div>
+<div style='font-weight: 600;'>with</div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>The with character specifies what to write into the positions where replacement occurs.</div></div>
+</div>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>This call replaces all occurances of character in str with another character.</div></div><hr>
+<div id='int_to_str_size_str_doc'> <h4>&sect;4.3.79: int_to_str_size</h4>
  <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>
 int32_t int_to_str_size(
 <div style='margin-left: 4mm;'>int32_t x<br></div>)
 </div>
-</div><hr>
-<div id='int_to_str_str_doc'> <h4>&sect;4.2.81: int_to_str</h4>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>This call returns the number of bytes required to represent x as a string.</div></div><hr>
+<div id='int_to_str_str_doc'> <h4>&sect;4.3.80: int_to_str</h4>
  <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>
 fstr_bool int_to_str(
 <div style='margin-left: 4mm;'>String *dest,<br>int32_t x<br></div>)
 </div>
-</div><hr>
-<div id='append_int_to_str_str_doc'> <h4>&sect;4.2.82: append_int_to_str</h4>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>This call writes a string representation of x into dest. If there is enough
+space in dest this call returns non-zero.</div></div><hr>
+<div id='append_int_to_str_str_doc'> <h4>&sect;4.3.81: append_int_to_str</h4>
  <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>
 fstr_bool append_int_to_str(
 <div style='margin-left: 4mm;'>String *dest,<br>int32_t x<br></div>)
 </div>
-</div><hr>
-<div id='u64_to_str_size_str_doc'> <h4>&sect;4.2.83: u64_to_str_size</h4>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>This call appends a string representation of x onto dest. If there is enough
+space in dest this call returns non-zero.</div></div><hr>
+<div id='u64_to_str_size_str_doc'> <h4>&sect;4.3.82: u64_to_str_size</h4>
  <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>
 int32_t u64_to_str_size(
 <div style='margin-left: 4mm;'>uint64_t x<br></div>)
 </div>
-</div><hr>
-<div id='u64_to_str_str_doc'> <h4>&sect;4.2.84: u64_to_str</h4>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>This call returns the number of bytes required to represent x as a string.</div></div><hr>
+<div id='u64_to_str_str_doc'> <h4>&sect;4.3.83: u64_to_str</h4>
  <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>
 fstr_bool u64_to_str(
 <div style='margin-left: 4mm;'>String *dest,<br>uint64_t x<br></div>)
 </div>
-</div><hr>
-<div id='append_u64_to_str_str_doc'> <h4>&sect;4.2.85: append_u64_to_str</h4>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>This call writes a string representation of x into dest. If there is enough
+space in dest this call returns non-zero.</div></div><hr>
+<div id='append_u64_to_str_str_doc'> <h4>&sect;4.3.84: append_u64_to_str</h4>
  <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>
 fstr_bool append_u64_to_str(
 <div style='margin-left: 4mm;'>String *dest,<br>uint64_t x<br></div>)
 </div>
-</div><hr>
-<div id='float_to_str_size_str_doc'> <h4>&sect;4.2.86: float_to_str_size</h4>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>This call appends a string representation of x onto dest. If there is enough
+space in dest this call returns non-zero.</div></div><hr>
+<div id='float_to_str_size_str_doc'> <h4>&sect;4.3.85: float_to_str_size</h4>
  <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>
 int32_t float_to_str_size(
 <div style='margin-left: 4mm;'>float x<br></div>)
 </div>
-</div><hr>
-<div id='append_float_to_str_str_doc'> <h4>&sect;4.2.87: append_float_to_str</h4>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>This call returns the number of bytes required to represent x as a string.</div></div><hr>
+<div id='append_float_to_str_str_doc'> <h4>&sect;4.3.86: append_float_to_str</h4>
  <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>
 fstr_bool append_float_to_str(
 <div style='margin-left: 4mm;'>String *dest,<br>float x<br></div>)
 </div>
-</div><hr>
-<div id='float_to_str_str_doc'> <h4>&sect;4.2.88: float_to_str</h4>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>This call writes a string representation of x into dest. If there is enough
+space in dest this call returns non-zero.</div></div><hr>
+<div id='float_to_str_str_doc'> <h4>&sect;4.3.87: float_to_str</h4>
  <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>
 fstr_bool float_to_str(
 <div style='margin-left: 4mm;'>String *dest,<br>float x<br></div>)
 </div>
-</div><hr>
-<div id='str_to_int_str_doc'> <h4>&sect;4.2.89: str_to_int</h4>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>This call appends a string representation of x onto dest. If there is enough
+space in dest this call returns non-zero.</div></div><hr>
+<div id='str_to_int_str_doc'> <h4>&sect;4.3.88: str_to_int</h4>
  <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>
 int32_t str_to_int(
 <div style='margin-left: 4mm;'>char *str<br></div>)
 </div>
-</div><hr>
-<div> <h4>&sect;4.2.90: str_to_int</h4>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>If str represents a valid string representation of an integer, this call will return
+the integer represented by the string.  Otherwise this call returns zero.</div></div><hr>
+<div> <h4>&sect;4.3.89: str_to_int</h4>
  <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>
 int32_t str_to_int(
 <div style='margin-left: 4mm;'>String str<br></div>)
 </div>
-</div><hr>
-<div id='hexchar_to_int_str_doc'> <h4>&sect;4.2.91: hexchar_to_int</h4>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>If str represents a valid string representation of an integer, this call will return
+the integer represented by the string.  Otherwise this call returns zero.</div></div><hr>
+<div id='hexchar_to_int_str_doc'> <h4>&sect;4.3.90: hexchar_to_int</h4>
  <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>
 int32_t hexchar_to_int(
 <div style='margin-left: 4mm;'>char c<br></div>)
 </div>
-</div><hr>
-<div id='int_to_hexchar_str_doc'> <h4>&sect;4.2.92: int_to_hexchar</h4>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>If c is a valid hexadecimal digit [0-9a-fA-F] this call returns the value of
+the integer value of the digit. Otherwise the return is some nonsense value.</div></div><hr>
+<div id='int_to_hexchar_str_doc'> <h4>&sect;4.3.91: int_to_hexchar</h4>
  <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>
 char int_to_hexchar(
 <div style='margin-left: 4mm;'>int32_t x<br></div>)
 </div>
-</div><hr>
-<div id='hexstr_to_int_str_doc'> <h4>&sect;4.2.93: hexstr_to_int</h4>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>If x is in the range [0,15] this call returns the equivalent lowercase hexadecimal digit.
+Otherwise the return is some nonsense value.</div></div><hr>
+<div id='hexstr_to_int_str_doc'> <h4>&sect;4.3.92: hexstr_to_int</h4>
  <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>
 uint32_t hexstr_to_int(
 <div style='margin-left: 4mm;'>String str<br></div>)
 </div>
-</div><hr>
-<div id='color_to_hexstr_str_doc'> <h4>&sect;4.2.94: color_to_hexstr</h4>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>This call interprets str has a hexadecimal representation of an integer and returns
+the represented integer value.</div></div><hr>
+<div id='color_to_hexstr_str_doc'> <h4>&sect;4.3.93: color_to_hexstr</h4>
  <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>
 fstr_bool color_to_hexstr(
 <div style='margin-left: 4mm;'>String *s,<br>uint32_t color<br></div>)
 </div>
-</div><hr>
-<div id='hexstr_to_color_str_doc'> <h4>&sect;4.2.95: hexstr_to_color</h4>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>This call fills s with the hexadecimal representation of the color.
+If there is enough memory in s to represent the color this call returns non-zero.</div></div><hr>
+<div id='hexstr_to_color_str_doc'> <h4>&sect;4.3.94: hexstr_to_color</h4>
  <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>
 fstr_bool hexstr_to_color(
 <div style='margin-left: 4mm;'>String s,<br>uint32_t *out<br></div>)
 </div>
-</div><hr>
-<div id='reverse_seek_slash_str_doc'> <h4>&sect;4.2.96: reverse_seek_slash</h4>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>This call interprets s as a color and writes the 32-bit integer representation into out.</div></div><hr>
+<div id='reverse_seek_slash_str_doc'> <h4>&sect;4.3.95: reverse_seek_slash</h4>
  <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>
 int32_t reverse_seek_slash(
 <div style='margin-left: 4mm;'>String str,<br>int32_t pos<br></div>)
 </div>
-</div><hr>
-<div> <h4>&sect;4.2.97: reverse_seek_slash</h4>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>This call searches for a slash in str by starting pos bytes from the end and going backwards.</div></div><hr>
+<div> <h4>&sect;4.3.96: reverse_seek_slash</h4>
  <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>
 int32_t reverse_seek_slash(
 <div style='margin-left: 4mm;'>String str<br></div>)
 </div>
-</div><hr>
-<div id='front_of_directory_str_doc'> <h4>&sect;4.2.98: front_of_directory</h4>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>This call searches for a slash in str by starting at the end and going backwards.</div></div><hr>
+<div id='front_of_directory_str_doc'> <h4>&sect;4.3.97: front_of_directory</h4>
  <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>
 String front_of_directory(
 <div style='margin-left: 4mm;'>String dir<br></div>)
 </div>
-</div><hr>
-<div id='path_of_directory_str_doc'> <h4>&sect;4.2.99: path_of_directory</h4>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>This call returns a substring of dir containing only the file name or
+folder name furthest to the right in the directory.</div><div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>See Also</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'><a href='#substr_doc'>substr</a></div></div><hr>
+<div id='path_of_directory_str_doc'> <h4>&sect;4.3.98: path_of_directory</h4>
  <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>
 String path_of_directory(
 <div style='margin-left: 4mm;'>String dir<br></div>)
 </div>
-</div><hr>
-<div id='set_last_folder_str_doc'> <h4>&sect;4.2.100: set_last_folder</h4>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>This call returns a substring of dir containing the whole path except
+for the final file or folder name.</div><div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>See Also</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'><a href='#substr_doc'>substr</a></div></div><hr>
+<div id='set_last_folder_str_doc'> <h4>&sect;4.3.99: set_last_folder</h4>
  <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>
 fstr_bool set_last_folder(
 <div style='margin-left: 4mm;'>String *dir,<br>char *folder_name,<br>char slash<br></div>)
 </div>
-</div><hr>
-<div> <h4>&sect;4.2.101: set_last_folder</h4>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Parameters</i></b></div><div>
+<div style='font-weight: 600;'>dir</div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>The dir parameter is the directory string in which to set the last folder in the directory.</div></div>
+</div>
+<div>
+<div style='font-weight: 600;'>folder_name</div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>The folder_name parameter is a null terminated string specifying the name to set
+at the end of the directory.</div></div>
+</div>
+<div>
+<div style='font-weight: 600;'>slash</div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>The slash parameter specifies what slash to use between names in the directory.</div></div>
+</div>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>This call deletes the last file name or folder name in the dir string and appends the new provided one.
+If there is enough memory in dir this call returns non-zero.</div></div><hr>
+<div> <h4>&sect;4.3.100: set_last_folder</h4>
  <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>
 fstr_bool set_last_folder(
 <div style='margin-left: 4mm;'>String *dir,<br>String folder_name,<br>char slash<br></div>)
 </div>
-</div><hr>
-<div id='file_extension_str_doc'> <h4>&sect;4.2.102: file_extension</h4>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Parameters</i></b></div><div>
+<div style='font-weight: 600;'>dir</div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>The dir parameter is the directory string in which to set the last folder in the directory.</div></div>
+</div>
+<div>
+<div style='font-weight: 600;'>folder_name</div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>The folder_name parameter is a string specifying the name to set at the end of the directory.</div></div>
+</div>
+<div>
+<div style='font-weight: 600;'>slash</div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>The slash parameter specifies what slash to use between names in the directory.</div></div>
+</div>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>This call deletes the last file name or folder name in the dir string and appends the new provided one.
+If there is enough memory in dir this call returns non-zero.</div></div><hr>
+<div id='file_extension_str_doc'> <h4>&sect;4.3.101: file_extension</h4>
  <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>
 String file_extension(
 <div style='margin-left: 4mm;'>String str<br></div>)
 </div>
-</div><hr>
-<div id='remove_last_folder_str_doc'> <h4>&sect;4.2.103: remove_last_folder</h4>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>This call returns a substring containing only the file extension of the provided filename.</div><div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>See Also</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'><a href='#substr_doc'>substr</a></div></div><hr>
+<div id='remove_last_folder_str_doc'> <h4>&sect;4.3.102: remove_last_folder</h4>
  <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>
 fstr_bool remove_last_folder(
 <div style='margin-left: 4mm;'>String *str<br></div>)
 </div>
-</div><hr>
-<div id='string_set_match_str_doc'> <h4>&sect;4.2.104: string_set_match</h4>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>This call attemps to delete a folder or filename off the end of a path string.
+This call returns non-zero on success.</div></div><hr>
+<div id='string_set_match_str_doc'> <h4>&sect;4.3.103: string_set_match</h4>
  <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>
 fstr_bool string_set_match(
 <div style='margin-left: 4mm;'>String *str_set,<br>int32_t count,<br>String str,<br>int32_t *match_index<br></div>)
 </div>
-</div><hr>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Parameters</i></b></div><div>
+<div style='font-weight: 600;'>str_set</div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>The str_set parameter is an array of String structs specifying matchable strings.</div></div>
+</div>
+<div>
+<div style='font-weight: 600;'>count</div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>The count parameter specifies the number of String structs in the str_set array.</div></div>
+</div>
+<div>
+<div style='font-weight: 600;'>str</div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>The str parameter specifies the string to match against the str_set.</div></div>
+</div>
+<div>
+<div style='font-weight: 600;'>match_index</div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>If this call succeeds match_index is filled with the index into str_set where the match occurred.</div></div>
+</div>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>This call tries to see if str matches any of the strings in str_set.  If there is a match the call
+succeeds and returns non-zero.  The matching rule is equivalent to the matching rule for match.</div><div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>See Also</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'><a href='#match_doc'>match</a></div></div><hr>
 </div>
 </body>
 </html>

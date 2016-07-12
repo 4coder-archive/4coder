@@ -207,12 +207,23 @@ match_check(Application_Links *app, Search_Range *range, int *pos, Search_Match 
         }
     }
     else{
-        char prev = buffer_get_char(app, &result.buffer, result.start - 1);
+        char first = word.str[0];
+        
+        char prev = ' ';
+        if (char_is_alpha_numeric(first)){
+            prev = buffer_get_char(app, &result.buffer, result.start - 1);
+        }
         
         if (!char_is_alpha_numeric(prev)){
             result.end = result.start + word.size;
             if (result.end <= end_pos){
-                char next = buffer_get_char(app, &result.buffer, result.end);
+                char last = word.str[word.size-1];
+                
+                char next = ' ';
+                if (char_is_alpha_numeric(last)){
+                    next = buffer_get_char(app, &result.buffer, result.end);
+                }
+                
                 if (!char_is_alpha_numeric(next)){
                     result.found_match = true;
                     found_match = FindResult_FoundMatch;

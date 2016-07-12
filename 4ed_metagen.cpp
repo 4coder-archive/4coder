@@ -1508,58 +1508,62 @@ do_macro_parse(int *index, Cpp_Token **token_ptr, int count,
     if (i > 0){
         Cpp_Token *doc_token = token-1;
         
-        macro_set.doc_string[sig_count] = make_string(file.data + doc_token->start, doc_token->size);
+        String doc_string = make_string(file.data + doc_token->start, doc_token->size);
         
-        for (; i < count; ++i, ++token){
-            if (token->type == CPP_TOKEN_IDENTIFIER){
-                break;
-            }
-        }
-        
-        if (i < count && (token->flags & CPP_TFLAG_PP_BODY)){
-            macro_set.name[sig_count] = make_string(file.data + token->start, token->size);
+        if (check_and_fix_docs(&doc_string)){
+            macro_set.doc_string[sig_count] = doc_string;
             
-            ++i, ++token;
-            if (i < count){
-                Cpp_Token *args_start_token = token;
-                for (; i < count; ++i, ++token){
-                    if (token->type == CPP_TOKEN_PARENTHESE_CLOSE){
-                        break;
-                    }
+            for (; i < count; ++i, ++token){
+                if (token->type == CPP_TOKEN_IDENTIFIER){
+                    break;
                 }
+            }
+            
+            if (i < count && (token->flags & CPP_TFLAG_PP_BODY)){
+                macro_set.name[sig_count] = make_string(file.data + token->start, token->size);
                 
+                ++i, ++token;
                 if (i < count){
-                    int start = args_start_token->start;
-                    int end = token->start + token->size;
-                    macro_set.args[sig_count] = make_string(file.data + start, end - start);
-                    
-                    Argument_Breakdown *breakdown = &macro_set.breakdown[sig_count];
-                    *breakdown = do_parameter_parse(file, args_start_token, token);
-                    
-                    ++i, ++token;
-                    if (i < count){
-                        Cpp_Token *body_start = token;
-                        
-                        if (body_start->flags & CPP_TFLAG_PP_BODY){
-                            for (; i < count; ++i, ++token){
-                                if (!(token->flags & CPP_TFLAG_PP_BODY)){
-                                    break;
-                                }
-                            }
-                            
-                            --i, --token;
-                            
-                            Cpp_Token *body_end = token;
-                            
-                            start = body_start->start;
-                            end = body_end->start + body_end->size;
-                            macro_set.body[sig_count] = make_string(file.data + start, end - start);
+                    Cpp_Token *args_start_token = token;
+                    for (; i < count; ++i, ++token){
+                        if (token->type == CPP_TOKEN_PARENTHESE_CLOSE){
+                            break;
                         }
                     }
                     
-                    macro_set.is_macro[sig_count] = true;
-                    macro_set.valid[sig_count] = true;
-                    result = true;
+                    if (i < count){
+                        int start = args_start_token->start;
+                        int end = token->start + token->size;
+                        macro_set.args[sig_count] = make_string(file.data + start, end - start);
+                        
+                        Argument_Breakdown *breakdown = &macro_set.breakdown[sig_count];
+                        *breakdown = do_parameter_parse(file, args_start_token, token);
+                        
+                        ++i, ++token;
+                        if (i < count){
+                            Cpp_Token *body_start = token;
+                            
+                            if (body_start->flags & CPP_TFLAG_PP_BODY){
+                                for (; i < count; ++i, ++token){
+                                    if (!(token->flags & CPP_TFLAG_PP_BODY)){
+                                        break;
+                                    }
+                                }
+                                
+                                --i, --token;
+                                
+                                Cpp_Token *body_end = token;
+                                
+                                start = body_start->start;
+                                end = body_end->start + body_end->size;
+                                macro_set.body[sig_count] = make_string(file.data + start, end - start);
+                            }
+                        }
+                        
+                        macro_set.is_macro[sig_count] = true;
+                        macro_set.valid[sig_count] = true;
+                        result = true;
+                    }
                 }
             }
         }
@@ -1660,6 +1664,61 @@ print_function_body_code(FILE *file, int *index, Cpp_Token **token_ptr, int coun
     
     *index = i;
     *token_ptr = token;
+}
+
+static void
+print_function_docs(FILE *file, Partition *part, String name, String doc_string){
+    if (doc_string.size == 0){
+        fprintf(file, "No documentation generated for this function, assume it is non-public.\n");
+        fprintf(stderr, "warning: no documentation string for %.*s\n", name.size, name.str);
+    }
+    
+    Documentation doc_ = {0};
+    Documentation *doc = &doc_;
+    
+    perform_doc_parse(part, doc_string, doc);
+    
+    int doc_param_count = doc->param_count;
+    if (doc_param_count > 0){
+        fprintf(file, DOC_HEAD_OPEN"Parameters"DOC_HEAD_CLOSE);
+        
+        for (int j = 0; j < doc_param_count; ++j){
+            String param_name = doc->param_name[j];
+            String param_docs = doc->param_docs[j];
+            
+            // TODO(allen): check that param_name is actually
+            // a parameter to this function!
+            
+            fprintf(file,
+                    "<div>\n"
+                    DOC_ITEM_HEAD_OPEN"%.*s"DOC_ITEM_HEAD_CLOSE"\n"
+                    "<div style='margin-bottom: 6mm;'>"DOC_ITEM_OPEN"%.*s"DOC_ITEM_CLOSE"</div>\n"
+                    "</div>\n",
+                    param_name.size, param_name.str,
+                    param_docs.size, param_docs.str
+                    );
+        }
+    }
+    
+    String ret_doc = doc->return_doc;
+    if (ret_doc.size != 0){
+        fprintf(file, DOC_HEAD_OPEN"Return"DOC_HEAD_CLOSE);
+        fprintf(file,
+                DOC_ITEM_OPEN"%.*s"DOC_ITEM_CLOSE,
+                ret_doc.size, ret_doc.str
+                );
+    }
+    
+    String main_doc = doc->main_doc;
+    if (main_doc.size != 0){
+        fprintf(file, DOC_HEAD_OPEN"Description"DOC_HEAD_CLOSE);
+        fprintf(file,
+                DOC_ITEM_OPEN"%.*s"DOC_ITEM_CLOSE,
+                main_doc.size, main_doc.str
+                );
+    }
+    
+    print_see_also(file, doc);
 }
 
 char*
@@ -2407,6 +2466,7 @@ generate_custom_headers(){
                 "<h2 id='section_%s'>&sect;"MAJOR_SECTION" %s</h2>\n",
                 sections[1].id_string,
                 sections[1].display_string);
+        
         {
             fprintf(file,
                 "<div><i>\n"
@@ -2504,8 +2564,8 @@ generate_custom_headers(){
                 
                 fprintf(file,
                         "<div id='%.*s_doc' style='margin-bottom: 1cm;'>\n"
-                        " <h4>&sect;"SECTION".%d: %.*s</h4>\n"
-                        " <div style='"CODE_STYLE" "DESCRIPT_SECTION_STYLE"'>",
+                        "<h4>&sect;"SECTION".%d: %.*s</h4>\n"
+                        "<div style='"CODE_STYLE" "DESCRIPT_SECTION_STYLE"'>",
                         name.size, name.str, i+1,
                         name.size, name.str
                         );
@@ -2513,55 +2573,7 @@ generate_custom_headers(){
                 fprintf(file, "</div>\n");
                 
                 String doc_string = function_set.doc_string[i];
-                if (doc_string.size == 0){
-                    fprintf(file, "No documentation generated for this function, assume it is non-public.\n");
-                    fprintf(stderr, "warning: no documentation string for %.*s\n", name.size, name.str);
-                }
-                
-                Documentation *doc = &function_set.doc[i];
-                perform_doc_parse(part, doc_string, doc);
-                
-                int doc_param_count = doc->param_count;
-                if (doc_param_count > 0){
-                    fprintf(file, DOC_HEAD_OPEN"Parameters"DOC_HEAD_CLOSE);
-                    
-                    for (int j = 0; j < doc_param_count; ++j){
-                        String param_name = doc->param_name[j];
-                        String param_docs = doc->param_docs[j];
-                        
-                        // TODO(allen): check that param_name is actually
-                        // a parameter to this function!
-                        
-                        fprintf(file,
-                                "<div>\n"
-                                DOC_ITEM_HEAD_OPEN"%.*s"DOC_ITEM_HEAD_CLOSE"\n"
-                                "<div style='margin-bottom: 6mm;'>"DOC_ITEM_OPEN"%.*s"DOC_ITEM_CLOSE"</div>\n"
-                                "</div>\n",
-                                param_name.size, param_name.str,
-                                param_docs.size, param_docs.str
-                                );
-                    }
-                }
-                
-                String ret_doc = doc->return_doc;
-                if (ret_doc.size != 0){
-                    fprintf(file, DOC_HEAD_OPEN"Return"DOC_HEAD_CLOSE);
-                    fprintf(file,
-                            DOC_ITEM_OPEN"%.*s"DOC_ITEM_CLOSE,
-                            ret_doc.size, ret_doc.str
-                            );
-                }
-                
-                String main_doc = doc->main_doc;
-                if (main_doc.size != 0){
-                    fprintf(file, DOC_HEAD_OPEN"Description"DOC_HEAD_CLOSE);
-                    fprintf(file,
-                            DOC_ITEM_OPEN"%.*s"DOC_ITEM_CLOSE,
-                            main_doc.size, main_doc.str
-                            );
-                }
-                
-                print_see_also(file, doc);
+                print_function_docs(file, part, name, doc_string);
                 
                 fprintf(file, "</div><hr>\n");
             }
@@ -2577,8 +2589,8 @@ generate_custom_headers(){
                 
                 fprintf(file,
                         "<div id='%.*s_doc' style='margin-bottom: 1cm;'>\n"
-                        " <h4>&sect;"SECTION".%d: %.*s</h4>\n"
-                        " <div style='"CODE_STYLE" "DESCRIPT_SECTION_STYLE"'>",
+                        "<h4>&sect;"SECTION".%d: %.*s</h4>\n"
+                        "<div style='"CODE_STYLE" "DESCRIPT_SECTION_STYLE"'>",
                         name.size, name.str, I,
                         name.size, name.str
                         );
@@ -2620,8 +2632,8 @@ generate_custom_headers(){
                 
                 fprintf(file,
                         "<div id='%.*s_doc' style='margin-bottom: 1cm;'>\n"
-                        " <h4>&sect;"SECTION".%d: %.*s</h4>\n"
-                        " <div style='"CODE_STYLE" "DESCRIPT_SECTION_STYLE"'>",
+                        "<h4>&sect;"SECTION".%d: %.*s</h4>\n"
+                        "<div style='"CODE_STYLE" "DESCRIPT_SECTION_STYLE"'>",
                         name.size, name.str, I,
                         name.size, name.str
                         );
@@ -2681,8 +2693,8 @@ generate_custom_headers(){
                 
                 fprintf(file,
                         "<div id='%.*s_doc' style='margin-bottom: 1cm;'>\n"
-                        " <h4>&sect;"SECTION".%d: %.*s</h4>\n"
-                        " <div style='"CODE_STYLE" "DESCRIPT_SECTION_STYLE"'>",
+                        "<h4>&sect;"SECTION".%d: %.*s</h4>\n"
+                        "<div style='"CODE_STYLE" "DESCRIPT_SECTION_STYLE"'>",
                         name.size, name.str, I,
                         name.size, name.str
                         );
@@ -2743,8 +2755,8 @@ generate_custom_headers(){
                 String name = member->name;
                 fprintf(file,
                         "<div id='%.*s_doc' style='margin-bottom: 1cm;'>\n"
-                        " <h4>&sect;"SECTION".%d: %.*s</h4>\n"
-                        " <div style='"CODE_STYLE" "DESCRIPT_SECTION_STYLE"'>",
+                        "<h4>&sect;"SECTION".%d: %.*s</h4>\n"
+                        "<div style='"CODE_STYLE" "DESCRIPT_SECTION_STYLE"'>",
                         name.size, name.str, I,
                         name.size, name.str
                         );
@@ -2797,6 +2809,20 @@ generate_custom_headers(){
 #define SECTION MAJOR_SECTION".1"
             
             fprintf(file,
+                    "<h3>&sect;"SECTION" String Intro</h3>\n"
+                    "<ul>\n");
+            
+            {
+                fprintf(file,
+                        "<div><i>\n"
+                        "Coming Soon"
+                        "</i><div>\n");
+            }
+            
+#undef SECTION
+#define SECTION MAJOR_SECTION".2"
+            
+            fprintf(file,
                     "<h3>&sect;"SECTION" String Function List</h3>\n"
                     "<ul>\n");
             
@@ -2828,7 +2854,7 @@ generate_custom_headers(){
             used_string_count = 0;
             
 #undef SECTION
-#define SECTION MAJOR_SECTION".2"
+#define SECTION MAJOR_SECTION".3"
             
             fprintf(file,
                     "<h3>&sect;"SECTION" String Function Descriptions</h3>\n"
@@ -2854,8 +2880,8 @@ generate_custom_headers(){
                 }
                 
                 fprintf(file,
-                        " <h4>&sect;"SECTION".%d: %.*s</h4>\n"
-                        " <div style='"CODE_STYLE" "DESCRIPT_SECTION_STYLE"'>\n",
+                        "<h4>&sect;"SECTION".%d: %.*s</h4>\n"
+                        "<div style='"CODE_STYLE" "DESCRIPT_SECTION_STYLE"'>\n",
                         i+1, name.size, name.str);
                 
                 if (string_function_set.is_macro[i]){
@@ -2866,6 +2892,10 @@ generate_custom_headers(){
                 }
                 
                 fprintf(file, "</div>\n");
+                
+                
+                String doc_string = string_function_set.doc_string[i];
+                print_function_docs(file, part, name, doc_string);
                 
                 fprintf(file, "</div><hr>\n");
             }

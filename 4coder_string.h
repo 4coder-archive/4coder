@@ -40,17 +40,16 @@ struct Offset_String{
 #ifndef FCODER_STRING_H
 #define FCODER_STRING_H
 
-FSTRING_INLINE  fstr_bool     char_not_slash(char c);
 FSTRING_INLINE  fstr_bool     char_is_slash(char c);
 FSTRING_INLINE  char          char_to_upper(char c);
 FSTRING_INLINE  char          char_to_lower(char c);
 FSTRING_INLINE  fstr_bool     char_is_whitespace(char c);
 FSTRING_INLINE  fstr_bool     char_is_alpha_numeric(char c);
-FSTRING_INLINE  fstr_bool     char_is_hex(char c);
-FSTRING_INLINE  fstr_bool     char_is_numeric(char c);
+FSTRING_INLINE  fstr_bool     char_is_alpha_numeric_true(char c);
 FSTRING_INLINE  fstr_bool     char_is_alpha(char c);
 FSTRING_INLINE  fstr_bool     char_is_alpha_true(char c);
-FSTRING_INLINE  fstr_bool     char_is_alpha_numeric_true(char c);
+FSTRING_INLINE  fstr_bool     char_is_hex(char c);
+FSTRING_INLINE  fstr_bool     char_is_numeric(char c);
 FSTRING_INLINE  String        string_zero();
 FSTRING_INLINE  String        make_string(void *str, int32_t size, int32_t mem_size);
 FSTRING_INLINE  String        make_string(void *str, int32_t size);
@@ -67,10 +66,10 @@ FSTRING_LINK    int32_t       str_size(char *str);
 FSTRING_INLINE  String        make_string_slowly(void *str);
 FSTRING_INLINE  String        substr(String str, int32_t start);
 FSTRING_INLINE  String        substr(String str, int32_t start, int32_t size);
-FSTRING_INLINE  String        tailstr(String str);
 FSTRING_LINK    String        skip_whitespace(String str);
 FSTRING_LINK    String        chop_whitespace(String str);
 FSTRING_LINK    String        skip_chop_whitespace(String str);
+FSTRING_INLINE  String        tailstr(String str);
 FSTRING_LINK    fstr_bool     match(char *a, char *b);
 FSTRING_LINK    fstr_bool     match(String a, char *b);
 FSTRING_INLINE  fstr_bool     match(char *a, String b);
@@ -109,7 +108,7 @@ FSTRING_INLINE  fstr_bool     has_substr(String s, String seek);
 FSTRING_INLINE  fstr_bool     has_substr_insensitive(char *s, String seek);
 FSTRING_INLINE  fstr_bool     has_substr_insensitive(String s, String seek);
 FSTRING_LINK    int32_t       copy_fast_unsafe(char *dest, char *src);
-FSTRING_LINK    void          copy_fast_unsafe(char *dest, String src);
+FSTRING_LINK    int32_t       copy_fast_unsafe(char *dest, String src);
 FSTRING_LINK    fstr_bool     copy_checked(String *dest, String src);
 FSTRING_LINK    fstr_bool     copy_partial(String *dest, char *src);
 FSTRING_LINK    fstr_bool     copy_partial(String *dest, String src);
@@ -160,78 +159,81 @@ FSTRING_LINK    fstr_bool     string_set_match(String *str_set, int32_t count, S
 
 #ifndef FSTRING_GUARD
 FSTRING_INLINE fstr_bool
-char_not_slash(char c){
-    return (c != '\\' && c != '/');
-}
-#endif
-
-#ifndef FSTRING_GUARD
-FSTRING_INLINE fstr_bool
-char_is_slash(char c){
+char_is_slash(char c)
+{
     return (c == '\\' || c == '/');
 }
 #endif
 
 #ifndef FSTRING_GUARD
 FSTRING_INLINE char
-char_to_upper(char c){
+char_to_upper(char c)
+{
     return (c >= 'a' && c <= 'z') ? c + (char)('A' - 'a') : c;
 }
 #endif
 
 #ifndef FSTRING_GUARD
 FSTRING_INLINE char
-char_to_lower(char c){
+char_to_lower(char c)
+{
     return (c >= 'A' && c <= 'Z') ? c - (char)('A' - 'a') : c;
 }
 #endif
 
 #ifndef FSTRING_GUARD
 FSTRING_INLINE fstr_bool
-char_is_whitespace(char c){
+char_is_whitespace(char c)
+{
     return (c == ' ' || c == '\n' || c == '\r' || c == '\t');
 }
 #endif
 
 #ifndef FSTRING_GUARD
 FSTRING_INLINE fstr_bool
-char_is_alpha_numeric(char c){
+char_is_alpha_numeric(char c)
+{
     return (c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c >= '0' && c <= '9' || c == '_');
 }
 #endif
 
 #ifndef FSTRING_GUARD
 FSTRING_INLINE fstr_bool
-char_is_hex(char c){
-    return c >= '0' && c <= '9' || c >= 'A' && c <= 'F' || c >= 'a' && c <= 'f';
+char_is_alpha_numeric_true(char c)
+{
+    return (c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c >= '0' && c <= '9');
 }
 #endif
 
 #ifndef FSTRING_GUARD
 FSTRING_INLINE fstr_bool
-char_is_numeric(char c){
-    return (c >= '0' && c <= '9');
-}
-#endif
-
-#ifndef FSTRING_GUARD
-FSTRING_INLINE fstr_bool
-char_is_alpha(char c){
+char_is_alpha(char c)
+{
     return (c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c == '_');
 }
 #endif
 
 #ifndef FSTRING_GUARD
 FSTRING_INLINE fstr_bool
-char_is_alpha_true(char c){
+char_is_alpha_true(char c)
+{
     return (c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z');
 }
 #endif
 
 #ifndef FSTRING_GUARD
 FSTRING_INLINE fstr_bool
-char_is_alpha_numeric_true(char c){
-    return (c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c >= '0' && c <= '9');
+char_is_hex(char c)
+{
+    return c >= '0' && c <= '9' || c >= 'A' && c <= 'F' || c >= 'a' && c <= 'f';
+}
+#endif
+
+#ifndef FSTRING_GUARD
+FSTRING_INLINE fstr_bool
+char_is_numeric(char c)
+{
+    return (c >= '0' && c <= '9');
 }
 #endif
 
@@ -242,7 +244,8 @@ char_is_alpha_numeric_true(char c){
 
 #ifndef FSTRING_GUARD
 FSTRING_INLINE String
-string_zero(){
+string_zero()
+{
     String str={0};
     return(str);
 }
@@ -250,7 +253,8 @@ string_zero(){
 
 #ifndef FSTRING_GUARD
 FSTRING_INLINE String
-make_string(void *str, int32_t size, int32_t mem_size){
+make_string(void *str, int32_t size, int32_t mem_size)
+{
     String result;
     result.str = (char*)str;
     result.size = size;
@@ -272,7 +276,8 @@ make_string(void *str, int32_t size){
 
 #ifdef FSTRING_IMPLEMENTATION
 FSTRING_LINK int32_t
-str_size(char *str){
+str_size(char *str)
+{
     int32_t i = 0;
     while (str[i]) ++i;
     return i;
@@ -281,7 +286,8 @@ str_size(char *str){
 
 #ifndef FSTRING_GUARD
 FSTRING_INLINE String
-make_string_slowly(void *str){
+make_string_slowly(void *str)
+{
     String result;
     result.str = (char*)str;
     result.size = str_size((char*)str);
@@ -292,11 +298,12 @@ make_string_slowly(void *str){
 
 // TODO(allen): I don't love the substr rule, I chose
 // substr(String, start) and substr(String, start, size)
-// but I wish I had substr(String, end) and substr(String, start, end)
+// but I wish I had substr(String, start) and substr(String, start, end)
 
 #ifndef FSTRING_GUARD
 FSTRING_INLINE String
-substr(String str, int32_t start){
+substr(String str, int32_t start)
+{
     String result;
     result.str = str.str + start;
     result.size = str.size - start;
@@ -307,7 +314,8 @@ substr(String str, int32_t start){
 
 #ifndef FSTRING_GUARD
 FSTRING_INLINE String
-substr(String str, int32_t start, int32_t size){
+substr(String str, int32_t start, int32_t size)
+{
     String result;
     result.str = str.str + start;
     result.size = size;
@@ -319,20 +327,10 @@ substr(String str, int32_t start, int32_t size){
 }
 #endif
 
-#ifndef FSTRING_GUARD
-FSTRING_INLINE String
-tailstr(String str){
-    String result;
-    result.str = str.str + str.size;
-    result.memory_size = str.memory_size - str.size;
-    result.size = 0;
-    return(result);
-}
-#endif
-
 #ifdef FSTRING_IMPLEMENTATION
 FSTRING_LINK String
-skip_whitespace(String str){
+skip_whitespace(String str)
+{
     String result = {0};
     int i = 0;
     for (; i < str.size && char_is_whitespace(str.str[i]); ++i);
@@ -343,7 +341,8 @@ skip_whitespace(String str){
 
 #ifdef FSTRING_IMPLEMENTATION
 FSTRING_LINK String
-chop_whitespace(String str){
+chop_whitespace(String str)
+{
     String result = {0};
     int i = str.size;
     for (; i > 0 && char_is_whitespace(str.str[i-1]); --i);
@@ -354,10 +353,23 @@ chop_whitespace(String str){
 
 #ifdef FSTRING_IMPLEMENTATION
 FSTRING_LINK String
-skip_chop_whitespace(String str){
+skip_chop_whitespace(String str)
+{
     str = skip_whitespace(str);
     str = chop_whitespace(str);
     return(str);
+}
+#endif
+
+#ifndef FSTRING_GUARD
+FSTRING_INLINE String
+tailstr(String str)
+{
+    String result;
+    result.str = str.str + str.size;
+    result.memory_size = str.memory_size - str.size;
+    result.size = 0;
+    return(result);
 }
 #endif
 
@@ -914,18 +926,19 @@ copy_fast_unsafe(char *dest, char *src){
         ++dest;
         ++src;
     }
-    return (int)(dest - start);
+    return (int32_t)(dest - start);
 }
 #endif
 
 #ifdef FSTRING_IMPLEMENTATION
-FSTRING_LINK void
+FSTRING_LINK int32_t
 copy_fast_unsafe(char *dest, String src){
     int32_t i = 0;
     while (i != src.size){
         dest[i] = src.str[i];
         ++i;
     }
+    return(src.size);
 }
 #endif
 
@@ -967,23 +980,17 @@ copy_partial(String *dest, char *src){
 #ifdef FSTRING_IMPLEMENTATION
 FSTRING_LINK fstr_bool
 copy_partial(String *dest, String src){
-    fstr_bool result;
-    int32_t memory_size = dest->memory_size;
     char *dest_str = dest->str;
-    if (memory_size < src.size){
-        result = 0;
-        for (int32_t i = 0; i < memory_size; ++i){
-            dest_str[i] = src.str[i];
-        }
-        dest->size = memory_size;
+    int32_t memory_size = dest->memory_size;
+    fstr_bool result = false;
+    if (memory_size >= src.size){
+        result = true;
+        memory_size = src.size;
     }
-    else{
-        result = 1;
-        for (int32_t i = 0; i < src.size; ++i){
-            dest_str[i] = src.str[i];
-        }
-        dest->size = src.size;
+    for (int32_t i = 0; i < memory_size; ++i){
+        dest_str[i] = src.str[i];
     }
+    dest->size = memory_size;
     return result;
 }
 #endif
@@ -1069,7 +1076,8 @@ append(String *dest, char *src){
 #endif
 
 #ifdef FSTRING_IMPLEMENTATION
-FSTRING_LINK fstr_bool terminate_with_null(String *str){
+FSTRING_LINK fstr_bool
+terminate_with_null(String *str){
     fstr_bool result = 0;
     if (str->size < str->memory_size){
         str->str[str->size] = 0;
@@ -1084,7 +1092,7 @@ FSTRING_LINK fstr_bool
 append_padding(String *dest, char c, int32_t target_size){
     fstr_bool result = 1;
     int32_t offset = target_size - dest->size;
-    int32_t r;
+    int32_t r = 0;
     if (offset > 0){
         for (r = 0; r < offset; ++r){
             if (append(dest, c) == 0){
@@ -1106,8 +1114,7 @@ append_padding(String *dest, char c, int32_t target_size){
 FSTRING_LINK void
 replace_char(String *str, char replace, char with){
     char *s = str->str;
-    int32_t i;
-    
+    int32_t i = 0;
     for (i = 0; i < str->size; ++i, ++s){
         if (*s == replace) *s = with;
     }
@@ -1364,7 +1371,7 @@ str_to_int(String str){
 #ifdef FSTRING_IMPLEMENTATION
 FSTRING_LINK int32_t
 hexchar_to_int(char c){
-    int32_t x;
+    int32_t x = 0;
     if (c >= '0' && c <= '9'){
         x = c-'0';
     }
@@ -1461,7 +1468,7 @@ hexstr_to_color(String s, uint32_t *out){
 FSTRING_LINK int32_t
 reverse_seek_slash(String str, int32_t pos){
     int32_t i = str.size - 1 - pos;
-    while (i >= 0 && char_not_slash(str.str[i])){
+    while (i >= 0 && !char_is_slash(str.str[i])){
         --i;
     }
     return i;

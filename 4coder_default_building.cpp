@@ -283,8 +283,17 @@ parse_error(String line, Jump_Location *location,
     
     else{
         int colon_pos1 = find(line, 0, ':');
+        if (colon_pos1 == 1){
+            if (line.size > colon_pos1+1){
+                if (char_is_slash(line.str[colon_pos1+1])){
+                    colon_pos1 = find(line, colon_pos1+1, ':');
+                }
+            }
+        }
+        
         int colon_pos2 = find(line, colon_pos1+1, ':');
         int colon_pos3 = find(line, colon_pos2+1, ':');
+        
         
         if (gcc_style_verify(line, colon_pos3)){
             String filename = substr(line, 0, colon_pos1);
