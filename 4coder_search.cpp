@@ -8,8 +8,13 @@ enum Search_Range_Type{
     SearchRange_Wave,
 };
 
+enum Search_Range_Flag{
+    SearchFlag_MatchStartOfIdentifier = 0x1,
+};
+
 struct Search_Range{
     int type;
+    unsigned int flags;
     int buffer;
     int start;
     int size;
@@ -39,14 +44,14 @@ struct Search_Match{
 };
 
 static void
-search_iter_init(Application_Links *app, Search_Iter *iter, int size){
+search_iter_init(General_Memory *general, Search_Iter *iter, int size){
     int str_max = size*2;
     if (iter->word.str == 0){
-        iter->word.str = (char*)general_memory_allocate(&general, str_max);
+        iter->word.str = (char*)general_memory_allocate(general, str_max);
         iter->word.memory_size = str_max;
     }
     else if (iter->word.memory_size < size){
-        iter->word.str = (char*)general_memory_reallocate_nocopy(&general, iter->word.str, str_max);
+        iter->word.str = (char*)general_memory_reallocate_nocopy(general, iter->word.str, str_max);
         iter->word.memory_size = str_max;
     }
     iter->i = 0;
@@ -54,16 +59,16 @@ search_iter_init(Application_Links *app, Search_Iter *iter, int size){
 }
 
 static void
-search_set_init(Application_Links *app, Search_Set *set, int range_count){
+search_set_init(General_Memory *general, Search_Set *set, int range_count){
     int max = range_count*2;
     
     if (set->ranges == 0){
-        set->ranges = (Search_Range*)general_memory_allocate(&general, sizeof(Search_Range)*max);
+        set->ranges = (Search_Range*)general_memory_allocate(general, sizeof(Search_Range)*max);
         set->max = max;
     }
     else if (set->max < range_count){
         set->ranges = (Search_Range*)general_memory_reallocate_nocopy(
-            &general, set->ranges, sizeof(Search_Range)*max);
+            general, set->ranges, sizeof(Search_Range)*max);
         set->max = max;
     }
     
@@ -71,35 +76,35 @@ search_set_init(Application_Links *app, Search_Set *set, int range_count){
 }
 
 static void
-search_hits_table_alloc(Application_Links *app, Table *hits, int table_size){
+search_hits_table_alloc(General_Memory *general, Table *hits, int table_size){
     void *mem = 0;
     int mem_size = table_required_mem_size(table_size, sizeof(Offset_String));
     if (hits->hash_array == 0){
-        mem = general_memory_allocate(&general, mem_size);
+        mem = general_memory_allocate(general, mem_size);
     }
     else{
-        mem = general_memory_reallocate_nocopy(&general, hits->hash_array, mem_size);
+        mem = general_memory_reallocate_nocopy(general, hits->hash_array, mem_size);
     }
     table_init_memory(hits, mem, table_size, sizeof(Offset_String));
 }
 
 static void
-search_hits_init(Application_Links *app, Table *hits, String_Space *str, int table_size, int str_size){
+search_hits_init(General_Memory *general, Table *hits, String_Space *str, int table_size, int str_size){
     if (hits->hash_array == 0){
-        search_hits_table_alloc(app, hits, table_size);
+        search_hits_table_alloc(general, hits, table_size);
     }
     else{
         int mem_size = table_required_mem_size(table_size, sizeof(Offset_String));
-        void *mem = general_memory_reallocate_nocopy(&general, hits->hash_array, mem_size);
+        void *mem = general_memory_reallocate_nocopy(general, hits->hash_array, mem_size);
         table_init_memory(hits, mem, table_size, sizeof(Offset_String));
     }
     
     if (str->space == 0){
-        str->space = (char*)general_memory_allocate(&general, str_size);
+        str->space = (char*)general_memory_allocate(general, str_size);
         str->max = str_size;
     }
     else if (str->max < str_size){
-        str->space = (char*)general_memory_reallocate_nocopy(&general, str->space, str_size);
+        str->space = (char*)general_memory_reallocate_nocopy(general, str->space, str_size);
         str->max = str_size;
     }
     
@@ -108,7 +113,7 @@ search_hits_init(Application_Links *app, Table *hits, String_Space *str, int tab
 }
 
 static int
-search_hit_add(Application_Links *app, Table *hits, String_Space *space, char *str, int len){
+search_hit_add(General_Memory *general, Table *hits, String_Space *space, char *str, int len){
     int result = false;
     
     assert(len != 0);
@@ -120,7 +125,7 @@ search_hit_add(Application_Links *app, Table *hits, String_Space *space, char *s
             new_size = space->max + len;
         }
         space->space = (char*)general_memory_reallocate(
-            &general, space->space, space->new_pos, new_size);
+            general, space->space, space->new_pos, new_size);
         ostring = strspace_append(space, str, len);
     }
     
@@ -128,10 +133,10 @@ search_hit_add(Application_Links *app, Table *hits, String_Space *space, char *s
     
     if (table_at_capacity(hits)){
         Table new_hits = {0};
-        search_hits_table_alloc(app, &new_hits, hits->max*2);
+        search_hits_table_alloc(general, &new_hits, hits->max*2);
         table_clear(&new_hits);
         table_rehash(hits, &new_hits, space->space, tbl_offset_string_hash, tbl_offset_string_compare);
-        general_memory_free(&general, hits->hash_array);
+        general_memory_free(general, hits->hash_array);
         *hits = new_hits;
     }
     
@@ -179,6 +184,52 @@ enum{
 };
 
 static int
+match_check(Application_Links *app, Search_Range *range, int *pos, Search_Match *result_ptr, String word){
+    int found_match = FindResult_None;
+    
+    Search_Match result = *result_ptr;
+    int end_pos = range->start + range->size;
+    
+    if (range->flags & SearchFlag_MatchStartOfIdentifier){
+        char prev = buffer_get_char(app, &result.buffer, result.start - 1);
+        if (!char_is_alpha_numeric(prev)){
+            result.end =
+                buffer_seek_alpha_numeric_end(
+                app, &result.buffer, result.start);
+            
+            if (result.end <= end_pos){
+                result.found_match = true;
+                found_match = FindResult_FoundMatch;
+            }
+            else{
+                found_match = FindResult_PastEnd;
+            }
+        }
+    }
+    else{
+        char prev = buffer_get_char(app, &result.buffer, result.start - 1);
+        
+        if (!char_is_alpha_numeric(prev)){
+            result.end = result.start + word.size;
+            if (result.end <= end_pos){
+                char next = buffer_get_char(app, &result.buffer, result.end);
+                if (!char_is_alpha_numeric(next)){
+                    result.found_match = true;
+                    found_match = FindResult_FoundMatch;
+                }
+            }
+            else{
+                found_match = FindResult_PastEnd;
+            }
+        }
+    }
+    
+    *result_ptr = result;
+    
+    return(found_match);
+}
+
+static int
 search_front_to_back_step(Application_Links *app,
                           Search_Range *range,
                           String word,
@@ -203,20 +254,9 @@ search_front_to_back_step(Application_Links *app,
         
         if (result.start < end_pos){
             *pos = result.start + 1;
-            char prev = ' ';
-            if (result.start > 0){
-                prev = buffer_get_char(app, &result.buffer, result.start - 1);
-            }
-            if (!char_is_alpha_numeric(prev)){
-                result.end =
-                    buffer_seek_alpha_numeric_end(
-                    app, &result.buffer, result.start);
-                
-                if (result.end < end_pos){
-                    result.found_match = true;
-                    *pos = result.end;
-                    found_match = FindResult_FoundMatch;
-                }
+            found_match = match_check(app, range, pos, &result, word);
+            if (found_match == FindResult_FoundMatch){
+                *pos = result.end;
             }
         }
         else{
@@ -257,7 +297,6 @@ search_back_to_front_step(Application_Links *app,
     
     Search_Match result = *result_ptr;
     
-    int end_pos = range->start + range->size;
     if (*pos > range->start){
         int start_pos = *pos;
         
@@ -267,22 +306,12 @@ search_back_to_front_step(Application_Links *app,
                                     word.str, word.size,
                                     &result.start);
         
+        // TODO(allen): deduplicate the match checking code.
         if (result.start >= range->start){
             *pos = result.start - 1;
-            char prev = ' ';
-            if (result.start > 0){
-                prev = buffer_get_char(app, &result.buffer, result.start - 1);
-            }
-            if (!char_is_alpha_numeric(prev)){
-                result.end =
-                    buffer_seek_alpha_numeric_end(
-                    app, &result.buffer, result.start);
-                
-                if (result.end < end_pos){
-                    result.found_match = true;
-                    *pos = result.start - word.size;
-                    found_match = FindResult_FoundMatch;
-                }
+            found_match = match_check(app, range, pos, &result, word);
+            if (found_match == FindResult_FoundMatch){
+                *pos = result.start - word.size;
             }
         }
         else{

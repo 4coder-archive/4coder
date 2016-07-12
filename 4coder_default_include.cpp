@@ -15,8 +15,8 @@
 // Memory
 //
 
-static Partition part;
-static General_Memory general;
+static Partition global_part;
+static General_Memory global_general;
 
 void
 init_memory(Application_Links *app){
@@ -25,10 +25,10 @@ init_memory(Application_Links *app){
     
     
     void *part_mem = app->memory_allocate(app, part_size);
-    part = make_part(part_mem, part_size);
+    global_part = make_part(part_mem, part_size);
     
     void *general_mem = app->memory_allocate(app, general_size);
-    general_memory_open(&general, general_mem, general_size);
+    general_memory_open(&global_general, general_mem, general_size);
 }
 
 //
@@ -533,6 +533,30 @@ CUSTOM_COMMAND_SIG(delete_range){
 //
 // Basic Navigation
 //
+
+CUSTOM_COMMAND_SIG(center_view){
+    View_Summary view = app->get_active_view(app, AccessProtected);
+    
+    i32_Rect region = view.file_region;
+    GUI_Scroll_Vars scroll = view.scroll_vars;
+    
+    float h = (float)(region.y1 - region.y0);
+    float y = get_view_y(view);
+    y = y - h*.5f;
+    scroll.target_y = (int32_t)(y + .5f);
+    app->view_set_scroll(app, &view, scroll);
+}
+
+CUSTOM_COMMAND_SIG(left_adjust_view){
+    View_Summary view = app->get_active_view(app, AccessProtected);
+    
+    GUI_Scroll_Vars scroll = view.scroll_vars;
+    
+    float x = get_view_x(view);
+    x = x - 30.f;
+    scroll.target_x = (int32_t)(x + .5f);
+    app->view_set_scroll(app, &view, scroll);
+}
 
 int
 get_relative_xy(View_Summary *view, int x, int y, float *x_out, float *y_out){
@@ -2183,6 +2207,115 @@ CUSTOM_COMMAND_SIG(eol_nixify){
 #include "4coder_table.cpp"
 #include "4coder_search.cpp"
 
+CUSTOM_COMMAND_SIG(list_all_locations){
+    Query_Bar string;
+    char string_space[1024];
+    string.prompt = make_lit_string("List Locations For: ");
+    string.string = make_fixed_width_string(string_space);
+    
+    if (!query_user_string(app, &string)) return;
+    if (string.string.size == 0) return;
+    
+    Search_Set set = {0};
+    Search_Iter iter = {0};
+    
+    search_iter_init(&global_general, &iter, string.string.size);
+    copy(&iter.word, string.string);
+    
+    int buffer_count = app->get_buffer_count(app);
+    search_set_init(&global_general, &set, buffer_count);
+    
+    Search_Range *ranges = set.ranges;
+    
+    {
+        View_Summary view = app->get_active_view(app, AccessProtected);
+        Buffer_Summary buffer = app->get_buffer(app, view.buffer_id, AccessProtected);
+        
+        int j = 0;
+        if (buffer.exists){
+            ranges[0].type = SearchRange_FrontToBack;
+            ranges[0].flags = 0;
+            ranges[0].buffer = buffer.buffer_id;
+            ranges[0].start = 0;
+            ranges[0].size = buffer.size;
+            j = 1;
+        }
+        
+        for (Buffer_Summary buffer_it = app->get_buffer_first(app, AccessAll);
+             buffer_it.exists;
+             app->get_buffer_next(app, &buffer_it, AccessAll)){
+            if (buffer.buffer_id != buffer_it.buffer_id){
+                ranges[j].type = SearchRange_FrontToBack;
+                ranges[j].flags = 0;
+                ranges[j].buffer = buffer_it.buffer_id;
+                ranges[j].start = 0;
+                ranges[j].size = buffer_it.size;
+                ++j;
+            }
+        }
+        set.count = j;
+    }
+    
+    Buffer_Summary search_buffer = app->get_buffer_by_name(app, literal("*search*"), AccessAll);
+    if (!search_buffer.exists){
+        search_buffer = app->create_buffer(app, literal("*search*"), BufferCreate_AlwaysNew);
+        app->buffer_set_setting(app, &search_buffer, BufferSetting_Unimportant, true);
+        app->buffer_set_setting(app, &search_buffer, BufferSetting_ReadOnly, true);
+    }
+    else{
+        app->buffer_replace_range(app, &search_buffer, 0, search_buffer.size, 0, 0);
+    }
+    
+    Temp_Memory temp = begin_temp_memory(&global_part);
+    Partition line_part = partition_sub_part(&global_part, (4 << 10));
+    char *str = (char*)partition_current(&global_part);
+    int size = 0;
+    for (;;){
+        Search_Match match = search_next_match(app, &set, &iter);
+        if (match.found_match){
+            Partial_Cursor word_pos = {0};
+            if (app->buffer_compute_cursor(app, &match.buffer, seek_pos(match.start), &word_pos)){
+                int file_len = match.buffer.file_name_len;
+                int line_num_len = int_to_str_size(word_pos.line);
+                int column_num_len = int_to_str_size(word_pos.character);
+                
+                Temp_Memory line_temp = begin_temp_memory(&line_part);
+                String line_str = {0};
+                read_line(app, &line_part, &match.buffer, word_pos.line, &line_str);
+                line_str = skip_chop_whitespace(line_str);
+                
+                int str_len = file_len + 1 + line_num_len + 1 + column_num_len + 1 + 1 + line_str.size + 1;
+                
+                char *spare = push_array(&global_part, char, str_len);
+                size += str_len;
+                
+                String out_line = make_string(spare, 0, str_len);
+                append(&out_line, make_string(match.buffer.file_name, file_len));
+                append(&out_line, ':');
+                append_int_to_str(&out_line, word_pos.line);
+                append(&out_line, ':');
+                append_int_to_str(&out_line, word_pos.character);
+                append(&out_line, ':');
+                append(&out_line, ' ');
+                append(&out_line, line_str);
+                append(&out_line, '\n');
+                
+                end_temp_memory(line_temp);
+            }
+        }
+        else{
+            break;
+        }
+    }
+    
+    app->buffer_replace_range(app, &search_buffer, 0, 0, str, size);
+    
+    View_Summary view = app->get_active_view(app, AccessAll);
+    app->view_set_buffer(app, &view, search_buffer.buffer_id, 0);
+    
+    end_temp_memory(temp);
+}
+
 struct Word_Complete_State{
     Search_Set set;
     Search_Iter iter;
@@ -2254,7 +2387,7 @@ CUSTOM_COMMAND_SIG(word_complete){
             // NOTE(allen): Initialize the search iterator
             // with the partial word.
             complete_state.initialized = true;
-            search_iter_init(app, &complete_state.iter, size);
+            search_iter_init(&global_general, &complete_state.iter, size);
             app->buffer_read_range(app, &buffer, word_start, word_end,
                                    complete_state.iter.word.str);
             complete_state.iter.word.size = size;
@@ -2262,10 +2395,11 @@ CUSTOM_COMMAND_SIG(word_complete){
             // NOTE(allen): Initialize the set of ranges
             // to be searched.
             int buffer_count = app->get_buffer_count(app);
-            search_set_init(app, &complete_state.set, buffer_count);
+            search_set_init(&global_general, &complete_state.set, buffer_count);
             
             Search_Range *ranges = complete_state.set.ranges;
             ranges[0].type = SearchRange_Wave;
+            ranges[0].flags = SearchFlag_MatchStartOfIdentifier;
             ranges[0].buffer = buffer.buffer_id;
             ranges[0].start = 0;
             ranges[0].size = buffer.size;
@@ -2278,6 +2412,7 @@ CUSTOM_COMMAND_SIG(word_complete){
                  app->get_buffer_next(app, &buffer_it, AccessAll)){
                 if (buffer.buffer_id != buffer_it.buffer_id){
                     ranges[j].type = SearchRange_FrontToBack;
+                    ranges[j].flags = SearchFlag_MatchStartOfIdentifier;
                     ranges[j].buffer = buffer_it.buffer_id;
                     ranges[j].start = 0;
                     ranges[j].size = buffer_it.size;
@@ -2287,9 +2422,9 @@ CUSTOM_COMMAND_SIG(word_complete){
             complete_state.set.count = j;
             
             // NOTE(allen): Initialize the search hit table.
-            search_hits_init(app, &complete_state.hits, &complete_state.str,
+            search_hits_init(&global_general, &complete_state.hits, &complete_state.str,
                              100, (4 << 10));
-            search_hit_add(app, &complete_state.hits, &complete_state.str,
+            search_hit_add(&global_general, &complete_state.hits, &complete_state.str,
                            complete_state.iter.word.str,
                            complete_state.iter.word.size);
             
@@ -2312,13 +2447,13 @@ CUSTOM_COMMAND_SIG(word_complete){
                 
                 if (match.found_match){
                     int match_size = match.end - match.start;
-                    Temp_Memory temp = begin_temp_memory(&part);
-                    char *spare = push_array(&part, char, match_size);
+                    Temp_Memory temp = begin_temp_memory(&global_part);
+                    char *spare = push_array(&global_part, char, match_size);
                     
                     app->buffer_read_range(app, &match.buffer,
                                            match.start, match.end, spare);
                     
-                    if (search_hit_add(app, &complete_state.hits, &complete_state.str,
+                    if (search_hit_add(&global_general, &complete_state.hits, &complete_state.str,
                                        spare, match_size)){
                         app->buffer_replace_range(app, &buffer, word_start, word_end,
                                                   spare, match_size);
@@ -2337,9 +2472,9 @@ CUSTOM_COMMAND_SIG(word_complete){
                     complete_state.iter.pos = 0;
                     complete_state.iter.i = 0;
                     
-                    search_hits_init(app, &complete_state.hits, &complete_state.str,
+                    search_hits_init(&global_general, &complete_state.hits, &complete_state.str,
                                      100, (4 << 10));
-                    search_hit_add(app, &complete_state.hits, &complete_state.str,
+                    search_hit_add(&global_general, &complete_state.hits, &complete_state.str,
                                    complete_state.iter.word.str,
                                    complete_state.iter.word.size);
                     

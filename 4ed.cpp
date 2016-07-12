@@ -34,15 +34,6 @@ struct CLI_List{
     i32 count, max;
 };
 
-struct Complete_State{
-    Search_Set set;
-    Search_Iter iter;
-    Table hits;
-    String_Space str;
-    i32 word_start, word_end;
-    b32 initialized;
-};
-
 struct Command_Data{
     Models *models;
     struct App_Vars *vars;
@@ -169,7 +160,6 @@ struct App_Vars{
     
     App_State state;
     App_State_Resizing resizing;
-    Complete_State complete_state;
     
     Command_Data command_data;
     
@@ -279,223 +269,6 @@ panel_make_empty(System_Functions *system, App_Vars *vars, Panel *panel){
 
 COMMAND_DECL(null){
     AllowLocal(command);
-}
-
-internal i32
-seek_token_left(Cpp_Token_Stack *tokens, i32 pos){
-    Cpp_Get_Token_Result get = cpp_get_token(tokens, pos);
-    if (get.token_index == -1){
-        get.token_index = 0;
-    }
-    
-    Cpp_Token *token = tokens->tokens + get.token_index;
-    if (token->start == pos && get.token_index > 0){
-        --token;
-    }
-    
-    return token->start;
-}
-
-internal i32
-seek_token_right(Cpp_Token_Stack *tokens, i32 pos){
-    Cpp_Get_Token_Result get = cpp_get_token(tokens, pos);
-    if (get.in_whitespace){
-        ++get.token_index;
-    }
-    if (get.token_index >= tokens->count){
-        get.token_index = tokens->count-1;
-    }
-    
-    Cpp_Token *token = tokens->tokens + get.token_index;
-    return token->start + token->size;
-}
-
-COMMAND_DECL(center_view){
-    REQ_READABLE_VIEW(view);
-    REQ_FILE(file, view);
-    
-    Assert(view->edit_pos);
-    
-    f32 h = view_file_height(view);
-    f32 y = view->edit_pos->cursor.wrapped_y;
-    if (view->file_data.unwrapped_lines){
-        y = view->edit_pos->cursor.unwrapped_y;
-    }
-    
-    y = clamp_bottom(0.f, y - h*.5f);
-    view->edit_pos->scroll.target_y = ROUND32(y);
-}
-
-COMMAND_DECL(left_adjust_view){
-    REQ_READABLE_VIEW(view);
-    REQ_FILE(file, view);
-    
-    Assert(view->edit_pos);
-    
-    f32 x = view->edit_pos->cursor.wrapped_x;
-    if (view->file_data.unwrapped_lines){
-        x = view->edit_pos->cursor.unwrapped_x;
-    }
-    
-    x = clamp_bottom(0.f, x - 30.f);
-    view->edit_pos->scroll.target_x = ROUND32(x);
-}
-
-COMMAND_DECL(word_complete){
-    USE_MODELS(models);
-    USE_VARS(vars);
-    REQ_OPEN_VIEW(view);
-    REQ_FILE(file, view);
-    
-    Assert(view->edit_pos);
-    
-    Partition *part = &models->mem.part;
-    General_Memory *general = &models->mem.general;
-    Working_Set *working_set = &models->working_set;
-    Complete_State *complete_state = &vars->complete_state;
-    Search_Range *ranges = 0;
-    
-    Buffer_Type *buffer = &file->state.buffer;
-    i32 size_of_buffer = buffer_size(buffer);
-    
-    i32 cursor_pos = 0;
-    i32 word_start = 0;
-    i32 word_end = 0;
-    char c = 0;
-    
-    char *spare = 0;
-    i32 size = 0;
-    
-    b32 do_init = false;
-    if (view->mode.rewrite != 2){
-        do_init = true;
-    }
-    view->next_mode.rewrite = 2;
-    if (complete_state->initialized == 0){
-        do_init = true;
-    }
-    
-    if (do_init){
-        word_end = view->edit_pos->cursor.pos;
-        word_start = word_end;
-        cursor_pos = word_end - 1;
-        
-        // TODO(allen): macros for these buffer loops and some method
-        // of breaking out of them.
-        for (Buffer_Backify_Type loop = buffer_backify_loop(buffer, cursor_pos, 0);
-             buffer_backify_good(&loop);
-             buffer_backify_next(&loop)){
-            i32 end = loop.absolute_pos;
-            char *data = loop.data - loop.absolute_pos;
-            for (; cursor_pos >= end; --cursor_pos){
-                c = data[cursor_pos];
-                if (char_is_alpha(c)){
-                    word_start = cursor_pos;
-                }
-                else if (!char_is_numeric(c)){
-                    goto double_break;
-                }
-            }
-        }
-        double_break:;
-        
-        size = word_end - word_start;
-        
-        if (size == 0){
-            complete_state->initialized = 0;
-            return;
-        }
-        
-        complete_state->initialized = 1;
-        search_iter_init(general, &complete_state->iter, size);
-        buffer_stringify(buffer, word_start, word_end, complete_state->iter.word.str);
-        complete_state->iter.word.size = size;
-        
-        {
-            File_Node *node, *used_nodes;
-            Editing_File *file_ptr;
-            i32 buffer_count, j;
-            
-            buffer_count = working_set->file_count;
-            search_set_init(general, &complete_state->set, buffer_count + 1);
-            ranges = complete_state->set.ranges;
-            ranges[0].buffer = buffer;
-            ranges[0].start = 0;
-            ranges[0].size = word_start;
-            
-            ranges[1].buffer = buffer;
-            ranges[1].start = word_end;
-            ranges[1].size = size_of_buffer - word_end;
-            
-            used_nodes = &working_set->used_sentinel;
-            j = 2;
-            for (dll_items(node, used_nodes)){
-                file_ptr = (Editing_File*)node;
-                if (file_ptr != file){
-                    ranges[j].buffer = &file_ptr->state.buffer;
-                    ranges[j].start = 0;
-                    ranges[j].size = buffer_size(ranges[j].buffer); 
-                    ++j;
-                }
-            }
-            complete_state->set.count = j;
-        }
-        
-        search_hits_init(general, &complete_state->hits, &complete_state->str, 100, Kbytes(4));
-        search_hit_add(general, &complete_state->hits, &complete_state->str,
-                       complete_state->iter.word.str, complete_state->iter.word.size);
-        
-        complete_state->word_start = word_start;
-        complete_state->word_end = word_end;
-    }
-    else{
-        word_start = complete_state->word_start;
-        word_end = complete_state->word_end;
-        size = complete_state->iter.word.size;
-    }
-    
-    if (size > 0){
-        for (;;){
-            i32 match_size = 0;
-            Search_Match match =
-                search_next_match(part, &complete_state->set, &complete_state->iter);
-            
-            if (match.found_match){
-                Temp_Memory temp = begin_temp_memory(part);
-                match_size = match.end - match.start;
-                spare = (char*)push_array(part, char, match_size);
-                buffer_stringify(match.buffer, match.start, match.end, spare);
-                
-                if (search_hit_add(general, &complete_state->hits, &complete_state->str, spare, match_size)){
-                    view_replace_range(system, models, view, word_start, word_end, spare, match_size);
-                    view_cursor_move(view, word_start + match_size);
-                    
-                    complete_state->word_end = word_start + match_size;
-                    complete_state->set.ranges[1].start = word_start + match_size;
-                    end_temp_memory(temp);
-                    break;
-                }
-                end_temp_memory(temp);
-            }
-            else{
-                complete_state->iter.pos = 0;
-                complete_state->iter.i = 0;
-                
-                search_hits_init(general, &complete_state->hits, &complete_state->str, 100, Kbytes(4));
-                search_hit_add(general, &complete_state->hits, &complete_state->str,
-                               complete_state->iter.word.str, complete_state->iter.word.size);
-                
-                match_size = complete_state->iter.word.size;
-                view_replace_range(system, models, view, word_start, word_end,
-                                   complete_state->iter.word.str, match_size);
-                view_cursor_move(view, word_start + match_size);
-                
-                complete_state->word_end = word_start + match_size;
-                complete_state->set.ranges[1].start = word_start + match_size;
-                break;
-            }
-        }
-    }
 }
 
 // TODO(allen): FIX THIS SHIT!
@@ -1026,11 +799,6 @@ internal void
 setup_command_table(){
 #define SET(n) command_table[cmdid_##n] = command_##n
     SET(null);
-    
-    SET(center_view);
-    SET(left_adjust_view);
-    
-    SET(word_complete);
     
     SET(undo);
     SET(redo);

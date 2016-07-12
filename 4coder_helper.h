@@ -419,8 +419,11 @@ get_active_buffer(Application_Links *app, unsigned int access){
 
 inline char
 buffer_get_char(Application_Links *app, Buffer_Summary *buffer, int pos){
-    char result = 0;
-    app->buffer_read_range(app, buffer, pos, pos+1, &result);
+    char result = ' ';
+    *buffer = app->get_buffer(app, buffer->buffer_id, AccessAll);
+    if (pos >= 0 && pos < buffer->size){
+        app->buffer_read_range(app, buffer, pos, pos+1, &result);
+    }
     return(result);
 }
 
@@ -467,6 +470,40 @@ view_open_file(Application_Links *app, View_Summary *view,
         }
     }
     return(result);
+}
+
+static int
+read_line(Application_Links *app,
+          Partition *part,
+          Buffer_Summary *buffer,
+          int line,
+          String *str){
+    
+    Partial_Cursor begin = {0};
+    Partial_Cursor end = {0};
+    
+    int success = false;
+    
+    if (app->buffer_compute_cursor(app, buffer,
+                                   seek_line_char(line, 1), &begin)){
+        if (app->buffer_compute_cursor(app, buffer,
+                                       seek_line_char(line, 65536), &end)){
+            if (begin.line == line){
+                if (0 <= begin.pos && begin.pos <= end.pos && end.pos <= buffer->size){
+                    int size = (end.pos - begin.pos);
+                    *str = make_string(push_array(part, char, size+1), size+1);
+                    if (str->str){
+                        success = true;
+                        app->buffer_read_range(app, buffer, begin.pos, end.pos, str->str);
+                        str->size = size;
+                        terminate_with_null(str);
+                    }
+                }
+            }
+        }
+    }
+    
+    return(success);
 }
 
 #endif

@@ -5,6 +5,7 @@
 #define FCODER_DEFAULT_BINDINGS
 
 #include "4coder_default_include.cpp"
+#include "4coder_default_building.cpp"
 
 // NOTE(allen|a3.3): All of your custom ids should be enumerated
 // as shown here, they may start at 0, and you can only have
@@ -153,6 +154,19 @@ HOOK_SIG(my_start){
     return(0);
 }
 
+CUSTOM_COMMAND_SIG(newline_or_goto_position){
+    View_Summary view = app->get_active_view(app, AccessProtected);
+    Buffer_Summary buffer = app->get_buffer(app, view.buffer_id, AccessProtected);
+    
+    if (buffer.lock_flags & AccessProtected){
+        exec_command(app, goto_postion_at_cursor);
+    }
+    else{
+        exec_command(app, write_character);
+    }
+}
+
+// TODO(allen): Eliminate this hook if you can.
 OPEN_FILE_HOOK_SIG(my_file_settings){
     // NOTE(allen|a4.0.8): The app->get_parameter_buffer was eliminated
     // and instead the buffer is passed as an explicit parameter through
@@ -183,7 +197,6 @@ OPEN_FILE_HOOK_SIG(my_file_settings){
     app->buffer_set_setting(app, &buffer, BufferSetting_WrapLine, wrap_lines);
     app->buffer_set_setting(app, &buffer, BufferSetting_MapID, (treat_as_code)?((int)my_code_map):((int)mapid_file));
     
-    // TODO(allen): Eliminate this hook if you can.
     // no meaning for return
     return(0);
 }
@@ -192,6 +205,8 @@ OPEN_FILE_HOOK_SIG(my_file_settings){
 // If this hook is not implemented a default behavior of calling the
 // command is used.  It is important to note that paste_next does not
 // work without this hook.
+// NOTE(allen|a4.0.10): As of this version the word_complete command also
+// relies on this particular command caller hook.
 COMMAND_CALLER_HOOK(my_command_caller){
     View_Summary view = app->get_active_view(app, AccessAll);
     
@@ -261,6 +276,11 @@ default_keys(Bind_Helper *context){
     bind(context, 'o', MDFR_ALT, open_in_other);
     bind(context, 'w', MDFR_CTRL, save_as);
     
+    bind(context, '.', MDFR_ALT, change_to_build_panel);
+    bind(context, ',', MDFR_ALT, close_build_panel);
+    bind(context, 'n', MDFR_ALT, goto_next_error);
+    bind(context, 'N', MDFR_ALT, goto_prev_error);
+    bind(context, 'M', MDFR_ALT, goto_first_error);
     bind(context, 'm', MDFR_ALT, build_search);
     bind(context, 'x', MDFR_ALT, execute_arbitrary_command);
     bind(context, 'z', MDFR_ALT, execute_any_cli);
@@ -287,6 +307,7 @@ default_keys(Bind_Helper *context){
     // and write character writes whichever character corresponds
     // to the key that triggered the command.
     bind(context, '\n', MDFR_NONE, write_and_auto_tab);
+    bind(context, '\n', MDFR_SHIFT, write_and_auto_tab);
     bind(context, '}', MDFR_NONE, write_and_auto_tab);
     bind(context, ')', MDFR_NONE, write_and_auto_tab);
     bind(context, ']', MDFR_NONE, write_and_auto_tab);
@@ -297,7 +318,6 @@ default_keys(Bind_Helper *context){
     bind(context, '\t', MDFR_CTRL, auto_tab_range);
     bind(context, '\t', MDFR_SHIFT, auto_tab_line_at_cursor);
     
-    bind(context, '=', MDFR_CTRL, write_increment);
     bind(context, 't', MDFR_ALT, write_allen_todo);
     bind(context, 'y', MDFR_ALT, write_allen_note);
     bind(context, 'r', MDFR_ALT, write_allen_doc);
@@ -353,9 +373,10 @@ default_keys(Bind_Helper *context){
     bind(context, 'a', MDFR_CTRL, replace_in_range);
     bind(context, 'c', MDFR_CTRL, copy);
     bind(context, 'd', MDFR_CTRL, delete_range);
-    bind(context, 'e', MDFR_CTRL, cmdid_center_view);
-    bind(context, 'E', MDFR_CTRL, cmdid_left_adjust_view);
+    bind(context, 'e', MDFR_CTRL, center_view);
+    bind(context, 'E', MDFR_CTRL, left_adjust_view);
     bind(context, 'f', MDFR_CTRL, search);
+    bind(context, 'F', MDFR_CTRL, list_all_locations);
     bind(context, 'g', MDFR_CTRL, goto_line);
     bind(context, 'h', MDFR_CTRL, cmdid_history_backward);
     bind(context, 'H', MDFR_CTRL, cmdid_history_forward);
@@ -377,13 +398,14 @@ default_keys(Bind_Helper *context){
     bind(context, 'y', MDFR_CTRL, cmdid_redo);
     bind(context, 'z', MDFR_CTRL, cmdid_undo);
     
-    
+    bind(context, '=', MDFR_CTRL, goto_postion_at_cursor);
     bind(context, '1', MDFR_CTRL, eol_dosify);
     bind(context, '!', MDFR_CTRL, eol_nixify);
     
     bind(context, '?', MDFR_CTRL, toggle_show_whitespace);
     bind(context, '~', MDFR_CTRL, clean_all_lines);
-    bind(context, '\n', MDFR_SHIFT, write_and_auto_tab);
+    bind(context, '\n', MDFR_NONE, newline_or_goto_position);
+    bind(context, '\n', MDFR_SHIFT, newline_or_goto_position);
     bind(context, ' ', MDFR_SHIFT, write_character);
     
     end_map(context);

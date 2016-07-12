@@ -1069,6 +1069,21 @@ buffer_cursor_seek(Buffer_Type *buffer, Buffer_Seek seek, float max_width,
     return(state.cursor);
 }
 
+internal_4tech Partial_Cursor
+buffer_partial_from_pos(Buffer_Type *buffer, int pos){
+    Partial_Cursor result = {0};
+    
+    if (pos > buffer->size) pos = buffer->size;
+    if (pos < 0) pos = 0;
+    
+    int line_index = buffer_get_line_index_range(buffer, pos, 0, buffer->line_count);
+    result.pos = pos;
+    result.line = line_index+1;
+    result.character = pos - buffer->line_starts[line_index] + 1;
+    
+    return(result);
+}
+
 internal_4tech Full_Cursor
 buffer_cursor_from_pos(Buffer_Type *buffer, int pos, float *wraps,
                        float max_width, float font_height, float *advance_data){
@@ -1086,20 +1101,45 @@ buffer_cursor_from_pos(Buffer_Type *buffer, int pos, float *wraps,
     return(result);
 }
 
+internal_4tech Partial_Cursor
+buffer_partial_from_line_character(Buffer_Type *buffer, int line, int character){
+    Partial_Cursor result = {0};
+    
+    int line_index = line - 1;
+    if (line_index >= buffer->line_count) line_index = buffer->line_count - 1;
+    if (line_index < 0) line_index = 0;
+    
+    int this_start = buffer->line_starts[line_index];
+    int next_start = buffer->size;
+    if (line_index+1 < buffer->line_count){
+        next_start = buffer->line_starts[line_index+1];
+    }
+    
+    int max_character = (next_start-this_start);
+    
+    if (character <= 0) character = 1;
+    if (character > max_character) character = max_character;
+    
+    result.pos = this_start + character - 1;
+    result.line = line_index+1;
+    result.character = character;
+    
+    return(result);
+}
+
 internal_4tech Full_Cursor
 buffer_cursor_from_line_character(Buffer_Type *buffer, int line, int character, float *wraps,
                                   float max_width, float font_height, float *advance_data){
-    Full_Cursor result;
-    int line_index;
-
-    line_index = line - 1;
+    Full_Cursor result = {0};
+    
+    int line_index = line - 1;
     if (line_index >= buffer->line_count) line_index = buffer->line_count - 1;
     if (line_index < 0) line_index = 0;
-
+    
     result = make_cursor_hint(line_index, buffer->line_starts, wraps, font_height);
     result = buffer_cursor_seek(buffer, seek_line_char(line, character),
                                 max_width, font_height, advance_data, result);
-
+    
     return(result);
 }
 

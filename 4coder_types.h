@@ -51,14 +51,6 @@ ENUM(uint64_t, Command_ID){
     /* DOC(cmdid_null is set aside to always be zero and is not associated with any command.) */
     cmdid_null,
     
-    /* DOC(cmdid_center_view centers the view vertically on the cursor.) */
-    cmdid_center_view,
-    /* DOC(cmdid_left_adjust_view adjusts the view to be just left of the cursor's position.) */
-    cmdid_left_adjust_view,
-    
-    /* DOC(cmdid_word_complete begins or continues cycling through completions for a partial word.) */
-    cmdid_word_complete,
-    
     /* DOC(cmdid_undo performs a standard undo behavior.) */
     cmdid_undo,
     /* DOC(cmdid_redo reperforms an edit that was undone.) */
@@ -72,16 +64,17 @@ ENUM(uint64_t, Command_ID){
     cmdid_interactive_new,
     /* DOC(cmdid_interactive_open begins an interactive dialogue to open a file into a buffer.) */
     cmdid_interactive_open,
-    /* DOC(cmdid_reopen reloads the active buffer's associated file and discards the old buffer contents for the reloaded file.) */
-    cmdid_reopen,
-    /* DOC(cmdid_save saves the buffer's contents into the associated file.) */
-    cmdid_save,
     /* DOC(cmdid_save_as does not currently work and is likely to be removed rather that fixed.) */
     cmdid_save_as,
     /* DOC(cmdid_interactive_switch_buffer begins an interactive dialogue to choose an open buffer to swap into the active view.) */
     cmdid_interactive_switch_buffer,
     /* DOC(cmdid_interactive_kill_buffer begins an interactive dialogue to choose an open buffer to kill.) */
     cmdid_interactive_kill_buffer,
+    
+    /* DOC(cmdid_reopen reloads the active buffer's associated file and discards the old buffer contents for the reloaded file.) */
+    cmdid_reopen,
+    /* DOC(cmdid_save saves the buffer's contents into the associated file.) */
+    cmdid_save,
     /* DOC(cmdid_kill_buffer tries to kill the active buffer.) */
     cmdid_kill_buffer,
     
@@ -157,9 +150,18 @@ ENUM(int32_t, Buffer_Setting_ID){
     active when a buffer is active.) */
     BufferSetting_MapID,
     
-    /* DOC(The BufferSetting_Eol setting spcifies how line ends should be saved to the backing file. 
+    /* DOC(The BufferSetting_Eol setting specifies how line ends should be saved to the backing file. 
     A 1 indicates dos endings "\r\n" and a 0 indicates nix endings "\n".) */
     BufferSetting_Eol,
+    
+    /* DOC(The BufferSetting_Unimportant setting marks a buffer so that it's dirty state will be completely
+    ignored.  This means the "dirty" star is hidden and the buffer can be closed without presenting an
+    "are you sure" dialogue screen.) */
+    BufferSetting_Unimportant,
+    
+    /* DOC(The BufferSetting_ReadOnly setting marks a buffer so that it can only be returned from buffer
+    access calls that include an AccessProtected flag.) */
+    BufferSetting_ReadOnly,
 };
 
 /* DOC(A View_Setting_ID names a setting in a view.) */
@@ -185,7 +187,7 @@ ENUM(int32_t, View_Setting_ID){
 FLAGENUM(Buffer_Create_Flag){
     /* DOC(BufferCreate_Background is not currently implemented.) */
     BufferCreate_Background = 0x1,
-    /* DOC(When BufferCreate_AlwaysNew is et it indicates the buffer should be
+    /* DOC(When BufferCreate_AlwaysNew is set it indicates the buffer should be
     cleared to empty even if it's associated file already has content.) */
     BufferCreate_AlwaysNew  = 0x2,
 };
@@ -485,7 +487,8 @@ struct GUI_Scroll_Vars{
 };
 
 /* DOC(Full_Cursor describes the position of a cursor in every buffer
-coordinate system supported by 4coder.)
+coordinate system supported by 4coder. This cursor type requires that
+the buffer is associated with a view to give the x/y values meaning.)
 DOC_SEE(4coder_Buffer_Positioning_System) */
 struct Full_Cursor{
     /* DOC(This field contains the cursor's position in absolute positioning.) */
@@ -502,6 +505,20 @@ struct Full_Cursor{
     float wrapped_x;
     /* DOC(This field contains the y position measured with wrapped lines.) */
     float wrapped_y;
+};
+
+/* DOC(Partial_Cursor describes the position of a cursor in all of
+the coordinate systems that a invariant to the View.  In other words
+the coordinate systems available here can be used on a buffer that is
+not currently associated with a View.)
+DOC_SEE(4coder_Buffer_Positioning_System) */
+struct Partial_Cursor{
+    /* DOC(This field contains the cursor's position in absolute positioning.) */
+    int32_t pos;
+    /* DOC(This field contains the number of the line where the cursor is located. This field is one based.) */
+    int32_t line;
+    /* DOC(This field contains the number of the column where the cursor is located. This field is one based.) */
+    int32_t character;
 };
 
 /* DOC(Buffer_Seek describes the destination of a seek operation.  There are helpers
@@ -596,7 +613,9 @@ struct Buffer_Summary{
 };
 
 /* DOC(View_Summary acts as a handle to a view and describes the state of the view.)
-DOC_SEE(Access_Flag)*/
+DOC_SEE(Access_Flag)
+DOC_SEE(Full_Cursor)
+*/
 struct View_Summary{
     /* DOC(
     This field indicates whether the View_Summary describes a view that is open in 4coder.
@@ -617,12 +636,10 @@ struct View_Summary{
     
     /*
     DOC(If this is not a null summary, this describes the position of the cursor.)
-    DOC_SEE(Full_Cursor)
     */
     Full_Cursor cursor;
     /*
     DOC(If this is not a null summary, this describes the position of the mark.)
-    DOC_SEE(Full_Cursor)
     */
     Full_Cursor mark;
     /* DOC(If this is not a null summary, this is the x position that is maintained in vertical navigation.) */
@@ -634,9 +651,9 @@ struct View_Summary{
     /* DOC(If this is not a null summary, this indicates that the view is set to highlight white space.) */
     bool32 show_whitespace;
     
-    /* DOC(This feature is not fully implemented yet.) */
+    /* DOC(If this is not a null summary, this describes the screen position in which this view's buffer is displayed.) */
     i32_Rect file_region;
-    /* DOC(This feature is not fully implemented yet.) */
+    /* DOC(If this is not a null summary, this describes the scrolling position inside the view.) */
     GUI_Scroll_Vars scroll_vars;
 };
 

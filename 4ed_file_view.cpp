@@ -377,6 +377,40 @@ view_cursor_limits(View *view){
     return(limits);
 }
 
+inline Partial_Cursor
+file_compute_cursor_from_pos(Editing_File *file, i32 pos){
+    Partial_Cursor result = buffer_partial_from_pos(&file->state.buffer, pos);
+    return(result);
+}
+
+inline Partial_Cursor
+file_compute_cursor_from_line_character(Editing_File *file, i32 line, i32 character){
+    Partial_Cursor result = buffer_partial_from_line_character(&file->state.buffer, line, character);
+    return(result);
+}
+
+inline b32
+file_compute_cursor(Editing_File *file, Buffer_Seek seek, Partial_Cursor *cursor){
+    b32 result = true;
+    switch (seek.type){
+        case buffer_seek_pos:
+        {
+            *cursor = file_compute_cursor_from_pos(file, seek.pos);
+        }break;
+        
+        case buffer_seek_line_char:
+        {
+            *cursor = file_compute_cursor_from_line_character(file, seek.line, seek.character);
+        }break;
+        
+        default:
+        {
+            result = false;
+        }break;
+    }
+    return(result);
+}
+
 inline Full_Cursor
 view_compute_cursor_from_pos(View *view, i32 pos){
     Editing_File *file = view->file_data.file;
@@ -5980,196 +6014,6 @@ file_view_free_buffers(View *view){
     }
     general_memory_free(general, view->gui_mem);
     view->gui_mem = 0;
-}
-
-struct Search_Range{
-    Buffer_Type *buffer;
-    i32 start, size;
-};
-
-struct Search_Set{
-    Search_Range *ranges;
-    i32 count, max;
-};
-
-struct Search_Iter{
-    String word;
-    i32 pos;
-    i32 i;
-};
-
-struct Search_Match{
-    Buffer_Type *buffer;
-    i32 start, end;
-    b32 found_match;
-};
-
-internal void
-search_iter_init(General_Memory *general, Search_Iter *iter, i32 size){
-    i32 str_max;
-    
-    if (iter->word.str == 0){
-        str_max = size*2;
-        iter->word.str = (char*)general_memory_allocate(general, str_max);
-        iter->word.memory_size = str_max;
-    }
-    else if (iter->word.memory_size < size){
-        str_max = size*2;
-        iter->word.str = (char*)general_memory_reallocate_nocopy(general, iter->word.str, str_max);
-        iter->word.memory_size = str_max;
-    }
-    
-    iter->i = 0;
-    iter->pos = 0;
-}
-
-internal void
-search_set_init(General_Memory *general, Search_Set *set, i32 set_count){
-    i32 max;
-    
-    if (set->ranges == 0){
-        max = set_count*2;
-        set->ranges = (Search_Range*)general_memory_allocate(general, sizeof(Search_Range)*max);
-        set->max = max;
-    }
-    else if (set->max < set_count){
-        max = set_count*2;
-        set->ranges = (Search_Range*)general_memory_reallocate_nocopy(
-            general, set->ranges, sizeof(Search_Range)*max);
-        set->max = max;
-    }
-    
-    set->count = set_count;
-}
-
-internal void
-search_hits_table_alloc(General_Memory *general, Table *hits, i32 table_size){
-    void *mem;
-    i32 mem_size;
-    
-    mem_size = table_required_mem_size(table_size, sizeof(Offset_String));
-    if (hits->hash_array == 0){
-        mem = general_memory_allocate(general, mem_size);
-    }
-    else{
-        mem = general_memory_reallocate_nocopy(general, hits->hash_array, mem_size);
-    }
-    table_init_memory(hits, mem, table_size, sizeof(Offset_String));
-}
-
-internal void
-search_hits_init(General_Memory *general, Table *hits, String_Space *str, i32 table_size, i32 str_size){
-    void *mem;
-    i32 mem_size;
-    
-    if (hits->hash_array == 0){
-        search_hits_table_alloc(general, hits, table_size);
-    }
-    else if (hits->max < table_size){
-        mem_size = table_required_mem_size(table_size, sizeof(Offset_String));
-        mem = general_memory_reallocate_nocopy(general, hits->hash_array, mem_size);
-        table_init_memory(hits, mem, table_size, sizeof(Offset_String));
-    }
-    
-    if (str->space == 0){
-        str->space = (char*)general_memory_allocate(general, str_size);
-        str->max = str_size;
-    }
-    else if (str->max < str_size){
-        str->space = (char*)general_memory_reallocate_nocopy(general, str->space, str_size);
-        str->max = str_size;
-    }
-    
-    str->pos = str->new_pos = 0;
-    table_clear(hits);
-}
-
-internal b32
-search_hit_add(General_Memory *general, Table *hits, String_Space *space, char *str, i32 len){
-    b32 result;
-    i32 new_size;
-    Offset_String ostring;
-    Table new_hits;
-    
-    Assert(len != 0);
-    
-    ostring = strspace_append(space, str, len);
-    if (ostring.size == 0){
-        new_size = Max(space->max*2, space->max + len);
-        space->space = (char*)general_memory_reallocate(general, space->space, space->new_pos, new_size);
-        ostring = strspace_append(space, str, len);
-    }
-    
-    Assert(ostring.size != 0);
-    
-    if (table_at_capacity(hits)){
-        search_hits_table_alloc(general, &new_hits, hits->max*2);
-        table_clear(&new_hits);
-        table_rehash(hits, &new_hits, space->space, tbl_offset_string_hash, tbl_offset_string_compare);
-        general_memory_free(general, hits->hash_array);
-        *hits = new_hits;
-    }
-    
-    if (!table_add(hits, &ostring, space->space, tbl_offset_string_hash, tbl_offset_string_compare)){
-        result = 1;
-        strspace_keep_prev(space);
-    }
-    else{
-        result = 0;
-        strspace_discard_prev(space);
-    }
-    
-    return(result);
-}
-
-internal Search_Match
-search_next_match(Partition *part, Search_Set *set, Search_Iter *iter_){
-    Search_Match result = {};
-    Search_Iter iter = *iter_;
-    Search_Range *range;
-    Temp_Memory temp;
-    char *spare;
-    i32 start_pos, end_pos, count;
-    
-    temp = begin_temp_memory(part);
-    spare = push_array(part, char, iter.word.size);
-    
-    count = set->count;
-    for (; iter.i < count;){
-        range = set->ranges + iter.i;
-        
-        end_pos = range->start + range->size;
-        
-        if (iter.pos + iter.word.size < end_pos){
-            start_pos = Max(iter.pos, range->start);
-            result.start = buffer_find_string(
-                range->buffer, start_pos, end_pos, iter.word.str, iter.word.size, spare);
-            
-            if (result.start < end_pos){
-                iter.pos = result.start + 1;
-                if (result.start == 0 || !char_is_alpha_numeric(buffer_get_char(range->buffer, result.start - 1))){
-                    result.end = buffer_seek_word_right_assume_on_word(range->buffer, result.start);
-                    if (result.end < end_pos){
-                        result.found_match = 1;
-                        result.buffer = range->buffer;
-                        iter.pos = result.end;
-                        break;
-                    }
-                }
-            }
-            else{
-                ++iter.i, iter.pos = 0;
-            }
-        }
-        else{
-            ++iter.i, iter.pos = 0;
-        }
-    }
-    end_temp_memory(temp);
-    
-    *iter_ = iter;
-    
-    return(result);
 }
 
 inline void

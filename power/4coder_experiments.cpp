@@ -238,17 +238,12 @@ get_bindings(void *data, int size){
     
     default_keys(context);
     
-    // NOTE(allen|4.0.6): Command maps can be opened more than
+    // NOTE(allen|a4.0.6): Command maps can be opened more than
     // once so that you can extend existing maps very easily.
     // You can also use the helper "restart_map" instead of
     // begin_map to clear everything that was in the map and
     // bind new things instead.
     begin_map(context, mapid_global);
-    bind(context, '.', MDFR_ALT, change_to_build_panel);
-    bind(context, ',', MDFR_ALT, close_build_panel);
-    bind(context, 'n', MDFR_ALT, goto_next_error);
-    bind(context, 'N', MDFR_ALT, goto_prev_error);
-    bind(context, 'M', MDFR_ALT, goto_first_error);
     end_map(context);
     
     begin_map(context, mapid_file);

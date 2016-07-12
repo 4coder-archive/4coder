@@ -11,6 +11,7 @@
 #define BUFFER_BOUNDARY_SEEK_SIG(n) int32_t n(Application_Links *app, Buffer_Summary *buffer, int32_t start_pos, bool32 seek_forward, Seek_Boundary_Flag flags)
 #define BUFFER_READ_RANGE_SIG(n) bool32 n(Application_Links *app, Buffer_Summary *buffer, int32_t start, int32_t end, char *out)
 #define BUFFER_REPLACE_RANGE_SIG(n) bool32 n(Application_Links *app, Buffer_Summary *buffer, int32_t start, int32_t end, char *str, int32_t len)
+#define BUFFER_COMPUTE_CURSOR_SIG(n) bool32 n(Application_Links *app, Buffer_Summary *buffer, Buffer_Seek seek, Partial_Cursor *cursor_out)
 #define BUFFER_BATCH_EDIT_SIG(n) bool32 n(Application_Links *app, Buffer_Summary *buffer, char *str, int32_t str_len, Buffer_Edit *edits, int32_t edit_count, Buffer_Batch_Edit_Type type)
 #define BUFFER_SET_SETTING_SIG(n) bool32 n(Application_Links *app, Buffer_Summary *buffer, Buffer_Setting_ID setting, int32_t value)
 #define BUFFER_AUTO_INDENT_SIG(n) bool32 n(Application_Links *app, Buffer_Summary *buffer, int32_t start, int32_t end, int32_t tab_width, Auto_Indent_Flag flags)
@@ -28,6 +29,7 @@
 #define VIEW_SET_SPLIT_PROPORTION_SIG(n) bool32 n(Application_Links *app, View_Summary *view, float t)
 #define VIEW_COMPUTE_CURSOR_SIG(n) bool32 n(Application_Links *app, View_Summary *view, Buffer_Seek seek, Full_Cursor *cursor_out)
 #define VIEW_SET_CURSOR_SIG(n) bool32 n(Application_Links *app, View_Summary *view, Buffer_Seek seek, bool32 set_preferred_x)
+#define VIEW_SET_SCROLL_SIG(n) bool32 n(Application_Links *app, View_Summary *view, GUI_Scroll_Vars scroll)
 #define VIEW_SET_MARK_SIG(n) bool32 n(Application_Links *app, View_Summary *view, Buffer_Seek seek)
 #define VIEW_SET_HIGHLIGHT_SIG(n) bool32 n(Application_Links *app, View_Summary *view, int32_t start, int32_t end, bool32 turn_on)
 #define VIEW_SET_BUFFER_SIG(n) bool32 n(Application_Links *app, View_Summary *view, Buffer_ID buffer_id, Set_Buffer_Flag flags)
@@ -66,6 +68,7 @@ extern "C"{
     typedef BUFFER_BOUNDARY_SEEK_SIG(Buffer_Boundary_Seek_Function);
     typedef BUFFER_READ_RANGE_SIG(Buffer_Read_Range_Function);
     typedef BUFFER_REPLACE_RANGE_SIG(Buffer_Replace_Range_Function);
+    typedef BUFFER_COMPUTE_CURSOR_SIG(Buffer_Compute_Cursor_Function);
     typedef BUFFER_BATCH_EDIT_SIG(Buffer_Batch_Edit_Function);
     typedef BUFFER_SET_SETTING_SIG(Buffer_Set_Setting_Function);
     typedef BUFFER_AUTO_INDENT_SIG(Buffer_Auto_Indent_Function);
@@ -83,6 +86,7 @@ extern "C"{
     typedef VIEW_SET_SPLIT_PROPORTION_SIG(View_Set_Split_Proportion_Function);
     typedef VIEW_COMPUTE_CURSOR_SIG(View_Compute_Cursor_Function);
     typedef VIEW_SET_CURSOR_SIG(View_Set_Cursor_Function);
+    typedef VIEW_SET_SCROLL_SIG(View_Set_Scroll_Function);
     typedef VIEW_SET_MARK_SIG(View_Set_Mark_Function);
     typedef VIEW_SET_HIGHLIGHT_SIG(View_Set_Highlight_Function);
     typedef VIEW_SET_BUFFER_SIG(View_Set_Buffer_Function);
@@ -124,6 +128,7 @@ struct Application_Links{
     Buffer_Boundary_Seek_Function *buffer_boundary_seek;
     Buffer_Read_Range_Function *buffer_read_range;
     Buffer_Replace_Range_Function *buffer_replace_range;
+    Buffer_Compute_Cursor_Function *buffer_compute_cursor;
     Buffer_Batch_Edit_Function *buffer_batch_edit;
     Buffer_Set_Setting_Function *buffer_set_setting;
     Buffer_Auto_Indent_Function *buffer_auto_indent;
@@ -141,6 +146,7 @@ struct Application_Links{
     View_Set_Split_Proportion_Function *view_set_split_proportion;
     View_Compute_Cursor_Function *view_compute_cursor;
     View_Set_Cursor_Function *view_set_cursor;
+    View_Set_Scroll_Function *view_set_scroll;
     View_Set_Mark_Function *view_set_mark;
     View_Set_Highlight_Function *view_set_highlight;
     View_Set_Buffer_Function *view_set_buffer;
@@ -184,6 +190,7 @@ app_links->get_buffer_by_name = Get_Buffer_By_Name;\
 app_links->buffer_boundary_seek = Buffer_Boundary_Seek;\
 app_links->buffer_read_range = Buffer_Read_Range;\
 app_links->buffer_replace_range = Buffer_Replace_Range;\
+app_links->buffer_compute_cursor = Buffer_Compute_Cursor;\
 app_links->buffer_batch_edit = Buffer_Batch_Edit;\
 app_links->buffer_set_setting = Buffer_Set_Setting;\
 app_links->buffer_auto_indent = Buffer_Auto_Indent;\
@@ -201,6 +208,7 @@ app_links->view_set_setting = View_Set_Setting;\
 app_links->view_set_split_proportion = View_Set_Split_Proportion;\
 app_links->view_compute_cursor = View_Compute_Cursor;\
 app_links->view_set_cursor = View_Set_Cursor;\
+app_links->view_set_scroll = View_Set_Scroll;\
 app_links->view_set_mark = View_Set_Mark;\
 app_links->view_set_highlight = View_Set_Highlight;\
 app_links->view_set_buffer = View_Set_Buffer;\

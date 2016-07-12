@@ -447,6 +447,7 @@ This call begins a loop across all the buffers.
 If the buffer returned does not exist, the loop is finished.
 Buffers should not be killed durring a buffer loop.
 )
+DOC_SEE(Buffer_Summary)
 DOC_SEE(Access_Flag)
 DOC_SEE(get_buffer_next)
 */{
@@ -474,6 +475,7 @@ The global buffer order is kept roughly in the order of most recently used to le
 If the buffer outputted does not exist, the loop is finished.
 Buffers should not be killed or created durring a buffer loop.
 )
+DOC_SEE(Buffer_Summary)
 DOC_SEE(Access_Flag)
 DOC_SEE(get_buffer_first)
 */{
@@ -491,6 +493,7 @@ Get_Buffer(Application_Links *app, Buffer_ID buffer_id, Access_Flag access)/*
 DOC_PARAM(buffer_id, The parameter buffer_id specifies which buffer to try to get.)
 DOC_PARAM(access, The access parameter determines what levels of protection this call can access.)
 DOC_RETURN(This call returns a summary that describes the indicated buffer if it exists and is accessible.)
+DOC_SEE(Buffer_Summary)
 DOC_SEE(Access_Flag)
 DOC_SEE(Buffer_ID)
 */{
@@ -516,6 +519,7 @@ DOC_PARAM(name, The name parameter specifies the buffer name to try to get. The 
 DOC_PARAM(len, The len parameter specifies the length of the name string.)
 DOC_PARAM(access, The access parameter determines what levels of protection this call can access.)
 DOC_RETURN(This call returns a summary that describes the indicated buffer if it exists and is accessible.)
+DOC_SEE(Buffer_Summary)
 DOC_SEE(Access_Flag)
 */{
     Command_Data *cmd = (Command_Data*)app->cmd_context;
@@ -532,6 +536,35 @@ DOC_SEE(Access_Flag)
     }
     
     return(buffer);
+}
+
+internal i32
+seek_token_left(Cpp_Token_Stack *tokens, i32 pos){
+    Cpp_Get_Token_Result get = cpp_get_token(tokens, pos);
+    if (get.token_index == -1){
+        get.token_index = 0;
+    }
+    
+    Cpp_Token *token = tokens->tokens + get.token_index;
+    if (token->start == pos && get.token_index > 0){
+        --token;
+    }
+    
+    return token->start;
+}
+
+internal i32
+seek_token_right(Cpp_Token_Stack *tokens, i32 pos){
+    Cpp_Get_Token_Result get = cpp_get_token(tokens, pos);
+    if (get.in_whitespace){
+        ++get.token_index;
+    }
+    if (get.token_index >= tokens->count){
+        get.token_index = tokens->count-1;
+    }
+    
+    Cpp_Token *token = tokens->tokens + get.token_index;
+    return token->start + token->size;
 }
 
 API_EXPORT int32_t
@@ -713,6 +746,32 @@ DOC_SEE(4coder_Buffer_Positioning_System)
 }
 
 API_EXPORT bool32
+Buffer_Compute_Cursor(Application_Links *app, Buffer_Summary *buffer, Buffer_Seek seek, Partial_Cursor *cursor_out)/*
+DOC_PARAM(buffer, The buffer parameter specifies the buffer on which to run the cursor computation.)
+DOC_PARAM(seek, The seek parameter specifies the target position for the seek.)
+DOC_PARAM(cursor_out, On success this struct is filled with the result of the seek.)
+DOC_RETURN(This call returns non-zero on success.)
+DOC(Computes a Partial_Cursor for the given seek position with no side effects.
+The seek position must be one of the types supported by Partial_Cursor.  Those
+types are absolute position and line,column position.)
+DOC_SEE(Buffer_Seek)
+DOC_SEE(Partial_Cursor)
+*/{
+    Command_Data *cmd = (Command_Data*)app->cmd_context;
+    Editing_File *file = imp_get_file(cmd, buffer);
+    bool32 result = false;
+    
+    if (file){
+        if (file_compute_cursor(file, seek, cursor_out)){
+            result = true;
+            fill_buffer_summary(buffer, file, cmd);
+        }
+    }
+    
+    return(result);
+}
+
+API_EXPORT bool32
 Buffer_Batch_Edit(Application_Links *app, Buffer_Summary *buffer, char *str, int32_t str_len, Buffer_Edit *edits, int32_t edit_count, Buffer_Batch_Edit_Type type)/*
 DOC_PARAM(str, This parameter provides all of the source string for the edits in the batch.)
 DOC_PARAM(str_len, This parameter specifies the length of the str string.)
@@ -844,6 +903,26 @@ DOC_SEE(Buffer_Setting_ID)
                 file->settings.dos_write_mode = value;
                 file->state.last_4ed_edit_time = system->now_time_stamp();
             }break;
+            
+            case BufferSetting_Unimportant:
+            {
+                if (value){
+                    file->settings.unimportant = true;
+                }
+                else{
+                    file->settings.unimportant = false;
+                }
+            }break;
+            
+            case BufferSetting_ReadOnly:
+            {
+                if (value){
+                    file->settings.read_only = true;
+                }
+                else{
+                    file->settings.read_only = false;
+                }
+            }break;
         }
         fill_buffer_summary(buffer, file, cmd);
     }
@@ -907,6 +986,7 @@ If the buffer does not exist a new buffer is created and named after the given f
 the filename corresponds to a file on the disk that file is loaded and put into buffer, if
 the filename does not correspond to a file on disk the buffer is created empty.
 )
+DOC_SEE(Buffer_Summary)
 DOC_SEE(Buffer_Create_Flag)
 */{
     Command_Data *cmd = (Command_Data*)app->cmd_context;
@@ -1508,8 +1588,30 @@ DOC_SEE(Buffer_Seek)
                 seek.character = 1;
             }
             Full_Cursor cursor = view_compute_cursor(vptr, seek);
-            view_set_cursor(vptr, cursor,
-                            set_preferred_x, vptr->file_data.unwrapped_lines);
+            view_set_cursor(vptr, cursor, set_preferred_x,
+                            vptr->file_data.unwrapped_lines);
+            fill_view_summary(view, vptr, cmd);
+        }
+    }
+    
+    return(result);
+}
+
+API_EXPORT bool32
+View_Set_Scroll(Application_Links *app, View_Summary *view, GUI_Scroll_Vars scroll)/*
+DOC(TODO)
+DOC_SEE(GUI_Scroll_Vars)
+*/{
+    Command_Data *cmd = (Command_Data*)app->cmd_context;
+    View *vptr = imp_get_view(cmd, view);
+    Editing_File *file = 0;
+    bool32 result = false;
+    
+    if (vptr){
+        file = vptr->file_data.file;
+        if (file && !file->is_loading){
+            result = true;
+            view_set_scroll(vptr, scroll);
             fill_view_summary(view, vptr, cmd);
         }
     }
