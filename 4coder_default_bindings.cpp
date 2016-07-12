@@ -266,15 +266,17 @@ default_keys(Bind_Helper *context){
     bind(context, 'p', MDFR_CTRL, open_panel_vsplit);
     bind(context, '_', MDFR_CTRL, open_panel_hsplit);
     bind(context, 'P', MDFR_CTRL, close_panel);
+    bind(context, ',', MDFR_CTRL, change_active_panel);
+    
     bind(context, 'n', MDFR_CTRL, cmdid_interactive_new);
     bind(context, 'o', MDFR_CTRL, cmdid_interactive_open);
-    bind(context, ',', MDFR_CTRL, change_active_panel);
+    bind(context, 'o', MDFR_ALT, open_in_other);
     bind(context, 'k', MDFR_CTRL, cmdid_interactive_kill_buffer);
     bind(context, 'i', MDFR_CTRL, cmdid_interactive_switch_buffer);
+    bind(context, 'w', MDFR_CTRL, save_as);
+    
     bind(context, 'c', MDFR_ALT, cmdid_open_color_tweaker);
     bind(context, 'd', MDFR_ALT, cmdid_open_debug);
-    bind(context, 'o', MDFR_ALT, open_in_other);
-    bind(context, 'w', MDFR_CTRL, save_as);
     
     bind(context, '.', MDFR_ALT, change_to_build_panel);
     bind(context, ',', MDFR_ALT, close_build_panel);
@@ -282,9 +284,14 @@ default_keys(Bind_Helper *context){
     bind(context, 'N', MDFR_ALT, goto_prev_error);
     bind(context, 'M', MDFR_ALT, goto_first_error);
     bind(context, 'm', MDFR_ALT, build_search);
-    bind(context, 'x', MDFR_ALT, execute_arbitrary_command);
+    
     bind(context, 'z', MDFR_ALT, execute_any_cli);
     bind(context, 'Z', MDFR_ALT, execute_previous_cli);
+    
+    bind(context, 'x', MDFR_ALT, execute_arbitrary_command);
+    
+    bind(context, 's', MDFR_ALT, show_scrollbar);
+    bind(context, 'w', MDFR_ALT, hide_scrollbar);
     
     bind(context, key_f2, MDFR_NONE, toggle_mouse);
     
@@ -387,13 +394,11 @@ default_keys(Bind_Helper *context){
     bind(context, 'O', MDFR_CTRL, cmdid_reopen);
     bind(context, 'q', MDFR_CTRL, query_replace);
     bind(context, 'r', MDFR_CTRL, reverse_search);
-    bind(context, 's', MDFR_ALT, show_scrollbar);
     bind(context, 's', MDFR_CTRL, cmdid_save);
     bind(context, 'u', MDFR_CTRL, to_uppercase);
     bind(context, 'U', MDFR_CTRL, rewrite_as_single_caps);
     bind(context, 'v', MDFR_CTRL, paste);
     bind(context, 'V', MDFR_CTRL, paste_next);
-    bind(context, 'w', MDFR_ALT, hide_scrollbar);
     bind(context, 'x', MDFR_CTRL, cut);
     bind(context, 'y', MDFR_CTRL, cmdid_redo);
     bind(context, 'z', MDFR_CTRL, cmdid_undo);
