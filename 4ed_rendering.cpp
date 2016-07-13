@@ -588,7 +588,9 @@ font_load_freetype(Partition *part,
     }
     else{
         if (use_hinting){
-            ft_extra_flags = FT_LOAD_FORCE_AUTOHINT;
+            // NOTE(inso): FT_LOAD_TARGET_LIGHT does hinting only vertically, which looks nicer imo
+            // maybe it could be exposed as an option for hinting, instead of just on/off.
+            ft_extra_flags = FT_LOAD_FORCE_AUTOHINT | FT_LOAD_TARGET_LIGHT;
         }
         else{
             ft_extra_flags = (FT_LOAD_NO_AUTOHINT | FT_LOAD_NO_HINTING);
@@ -626,7 +628,7 @@ font_load_freetype(Partition *part,
         c->xoff2 = w + c->xoff;
         c->yoff2 = h + c->yoff + 1;
         
-        rf->advance_data[i] = (f32)(face->glyph->advance.x >> 6);
+        rf->advance_data[i] = CEIL32(face->glyph->advance.x / 64.0f);
         
         rf->glyphs[i].exists = 1;
         
