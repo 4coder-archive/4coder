@@ -628,7 +628,9 @@ font_load_freetype(Partition *part,
         c->xoff2 = w + c->xoff;
         c->yoff2 = h + c->yoff + 1;
         
-        rf->advance_data[i] = CEIL32(face->glyph->advance.x / 64.0f);
+        // TODO(allen): maybe advance data should be integers for a while...
+        // I require the actual values to be integers anyway... hmm...
+        rf->advance_data[i] = (f32)CEIL32(face->glyph->advance.x / 64.0f);
         
         rf->glyphs[i].exists = 1;
         
