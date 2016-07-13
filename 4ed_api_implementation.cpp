@@ -808,23 +808,13 @@ DOC_SEE(Buffer_Batch_Edit_Type)
         int inv_str_max = part->max - part->pos;
         Assert(inverse_edits);
         
-        switch (type){
-            case BatchEdit_Normal:
-            {
-                // TODO(allen): 
-            }break;
-            
-            case BatchEdit_PreserveTokens:
-            {
-                Edit_Spec spec =
-                    file_compute_whitespace_edit(mem, file,
-                                                 edits, str, str_len,
-                                                 inverse_edits, inv_str, inv_str_max,
-                                                 edit_count);
-                
-                file_do_white_batch_edit(cmd->system, models, file, spec, hist_normal);
-            }break;
-        }
+        Edit_Spec spec =
+            file_compute_edit(mem, file,
+                              edits, str, str_len,
+                              inverse_edits, inv_str, inv_str_max,
+                              edit_count, type);
+        
+        file_do_batch_edit(cmd->system, models, file, spec, hist_normal, type);
         
         end_temp_memory(temp);
     }

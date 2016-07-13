@@ -1177,11 +1177,8 @@ buffer_cursor_from_wrapped_xy(Buffer_Type *buffer, float x, float y, int round_d
 internal_4tech void
 buffer_invert_edit_shift(Buffer_Type *buffer, Buffer_Edit edit, Buffer_Edit *inverse, char *strings,
                          int *str_pos, int max, int shift_amount){
-    int pos;
-    int len;
-    
-    pos = *str_pos;
-    len = edit.end - edit.start;
+    int pos = *str_pos;
+    int len = edit.end - edit.start;
     assert_4tech(pos >= 0);
     assert_4tech(pos + len <= max);
     *str_pos = pos + len;

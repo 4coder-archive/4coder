@@ -11,6 +11,11 @@
 
 #include <assert.h>
 
+#ifndef DEFAULT_INDENT_FLAGS
+# define DEFAULT_INDENT_FLAGS 0
+#endif
+
+
 //
 // Memory
 //
@@ -1203,7 +1208,7 @@ long_braces(Application_Links *app, char *text, int size){
     app->buffer_auto_indent(app, &buffer,
                             pos, pos + size,
                             DEF_TAB_WIDTH,
-                            0);
+                            DEFAULT_INDENT_FLAGS);
     move_past_lead_whitespace(app, &view, &buffer);
 }
 
@@ -1228,45 +1233,58 @@ CUSTOM_COMMAND_SIG(open_long_braces_break){
 // TODO(allen): Have this thing check if it is on
 // a blank line and insert newlines as needed.
 CUSTOM_COMMAND_SIG(if0_off){
-    unsigned int access = AccessOpen;
-    
-    View_Summary view;
-    Buffer_Summary buffer;
-    
     char text1[] = "\n#if 0";
     int size1 = sizeof(text1) - 1;
     
     char text2[] = "#endif\n";
     int size2 = sizeof(text2) - 1;
     
-    Range range;
-    int pos;
+    View_Summary view = app->get_active_view(app, AccessOpen);
+    Buffer_Summary buffer = app->get_buffer(app, view.buffer_id, AccessOpen);
     
-    view = app->get_active_view(app, access);
-    buffer = app->get_buffer(app, view.buffer_id, access);
+    Range range = get_range(&view);
     
-    range = get_range(&view);
-    pos = range.min;
-    
-    app->buffer_replace_range(app, &buffer, pos, pos, text1, size1);
-    
-    app->buffer_auto_indent(app, &buffer,
-                            pos, pos,
-                            DEF_TAB_WIDTH,
-                            0);
-    move_past_lead_whitespace(app, &view, &buffer);
-    
-    refresh_view(app, &view);
-    range = get_range(&view);
-    pos = range.max;
-    
-    app->buffer_replace_range(app, &buffer, pos, pos, text2, size2);
-    
-    app->buffer_auto_indent(app, &buffer,
-                            pos, pos,
-                            DEF_TAB_WIDTH,
-                            0);
-    move_past_lead_whitespace(app, &view, &buffer);
+    if (range.min < range.max){
+        Buffer_Edit edits[2];
+        char *str = 0;
+        char *base = (char*)partition_current(&global_part);
+        
+        str = push_array(&global_part, char, size1);
+        memcpy(str, text1, size1);
+        edits[0].str_start = (int)(str - base);
+        edits[0].len = size1;
+        edits[0].start = range.min;
+        edits[0].end = range.min;
+        
+        str = push_array(&global_part, char, size2);
+        memcpy(str, text2, size2);
+        edits[1].str_start = (int)(str - base);
+        edits[1].len = size2;
+        edits[1].start = range.max;
+        edits[1].end = range.max;
+        
+        app->buffer_batch_edit(app,&buffer,
+                               base, global_part.pos,
+                               edits, ArrayCount(edits), BatchEdit_Normal);
+        
+        view = app->get_view(app, view.view_id, AccessAll);
+        if (view.cursor.pos > view.mark.pos){
+            app->view_set_cursor(app, &view,
+                                 seek_line_char(view.cursor.line+1, view.cursor.character), 
+                                 true);
+        }
+        else{
+            app->view_set_mark(app, &view,
+                               seek_line_char(view.mark.line+1, view.mark.character));
+        }
+        
+        range = get_range(&view);
+        app->buffer_auto_indent(app, &buffer,
+                                range.min, range.max,
+                                DEF_TAB_WIDTH,
+                                DEFAULT_INDENT_FLAGS);
+        move_past_lead_whitespace(app, &view, &buffer);
+    }
 }
 
 
@@ -1867,7 +1885,7 @@ CUSTOM_COMMAND_SIG(auto_tab_line_at_cursor){
     app->buffer_auto_indent(app, &buffer,
                             view.cursor.pos, view.cursor.pos,
                             DEF_TAB_WIDTH,
-                            0);
+                            DEFAULT_INDENT_FLAGS);
     move_past_lead_whitespace(app, &view, &buffer);
 }
 
@@ -1879,7 +1897,7 @@ CUSTOM_COMMAND_SIG(auto_tab_whole_file){
     app->buffer_auto_indent(app, &buffer,
                             0, buffer.size,
                             DEF_TAB_WIDTH,
-                            0);
+                            DEFAULT_INDENT_FLAGS);
 }
 
 CUSTOM_COMMAND_SIG(auto_tab_range){
@@ -1891,7 +1909,7 @@ CUSTOM_COMMAND_SIG(auto_tab_range){
     app->buffer_auto_indent(app, &buffer,
                             range.min, range.max,
                             DEF_TAB_WIDTH,
-                            0);
+                            DEFAULT_INDENT_FLAGS);
     move_past_lead_whitespace(app, &view, &buffer);
 }
 

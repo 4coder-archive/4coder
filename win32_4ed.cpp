@@ -1266,8 +1266,7 @@ Win32LoadRenderCode(){
     win32vars.target.push_clip = draw_push_clip;
     win32vars.target.pop_clip = draw_pop_clip;
     win32vars.target.push_piece = draw_push_piece;
-
-    //win32vars.target.font_set.font_info_load = draw_font_info_load;
+    
     win32vars.target.font_set.font_load = system_draw_font_load;
     win32vars.target.font_set.release_font = draw_release_font;
 }

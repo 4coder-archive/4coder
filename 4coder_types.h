@@ -570,7 +570,7 @@ struct Buffer_Edit{
 };
 
 /* DOC(Buffer_Summary acts as a handle to a buffer and describes the state of the buffer.)
-DOC_SEE(Access_Flag)*/
+DOC_SEE(Access_Flag) */
 struct Buffer_Summary{
     /* DOC(
     This field indicates whether the Buffer_Summary describes a buffer that is open in 4coder.

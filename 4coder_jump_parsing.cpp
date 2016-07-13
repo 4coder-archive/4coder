@@ -46,7 +46,7 @@ parse_error(String line, Jump_Location *location,
         if (colon_pos < line.size){
             String location_str = substr(line, 0, colon_pos);
             
-            if (!(skip_sub_errors && location_str.str[0] == ' ')){
+            if (!(skip_sub_errors && line.str[0] == ' ')){
                 location_str = skip_chop_whitespace(location_str);
                 
                 int paren_pos = find(location_str, 0, '(');
@@ -61,9 +61,7 @@ parse_error(String line, Jump_Location *location,
                                                     close_pos-paren_pos-2);
                         line_number = skip_chop_whitespace(line_number);
                         
-                        
                         if (line_number.size > 0){
-                            //copy(&location->file, file);
                             location->file = file;
                             
                             int comma_pos = find(line_number, 0, ',');
@@ -102,7 +100,6 @@ parse_error(String line, Jump_Location *location,
         int colon_pos2 = find(line, colon_pos1+1, ':');
         int colon_pos3 = find(line, colon_pos2+1, ':');
         
-        
         if (gcc_style_verify(line, colon_pos3)){
             String filename = substr(line, 0, colon_pos1);
             String line_number = substr(line, colon_pos1+1, colon_pos2 - colon_pos1 - 1);
@@ -111,7 +108,6 @@ parse_error(String line, Jump_Location *location,
             if (filename.size > 0 &&
                 line_number.size > 0 &&
                 column_number.size > 0){
-                //copy(&location->file, filename);
                 location->file = filename;
                 location->line = str_to_int(line_number);
                 location->column = str_to_int(column_number);
@@ -127,7 +123,6 @@ parse_error(String line, Jump_Location *location,
             String line_number = substr(line, colon_pos1+1, colon_pos2 - colon_pos1 - 1);
             
             if (filename.size > 0 && line_number.size > 0){
-                //copy(&location->file, filename);
                 location->file = filename;
                 location->line = str_to_int(line_number);
                 location->column = 0;
@@ -190,6 +185,7 @@ struct Prev_Jump{
 static Prev_Jump null_location = {0};
 static Prev_Jump prev_location = {0};
 
+// TODO(allen): GIVE THESE THINGS NAMES I CAN FUCKING UNDERSTAND
 static int
 next_error(Application_Links *app,
            Partition *part,

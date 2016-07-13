@@ -249,7 +249,6 @@ struct View{
     i32 color_cursor;
     
     // misc
-    i32 font_advance;
     i32 line_height;
     
     View_Mode mode, next_mode;
@@ -1345,17 +1344,19 @@ file_first_lex_parallel(System_Functions *system,
 }
 #endif
 
-internal void
+internal b32
 file_relex_parallel(System_Functions *system,
                     Mem_Options *mem, Editing_File *file,
                     i32 start_i, i32 end_i, i32 amount){
     General_Memory *general = &mem->general;
     Partition *part = &mem->part;
+    
     if (file->state.token_stack.tokens == 0){
         file_first_lex_parallel(system, general, file);
-        return;
+        return(false);
     }
     
+    b32 result = true;
     b32 inline_lex = !file->state.still_lexing;
     if (inline_lex){
         Cpp_File cpp_file;
@@ -1436,7 +1437,10 @@ file_relex_parallel(System_Functions *system,
         job.data[0] = file;
         job.data[1] = general;
         file->state.lex_job = system->post_job(BACKGROUND_THREADS, job);
+        result = false;
     }
+    
+    return(result);
 }
 
 internal void
@@ -2138,6 +2142,7 @@ file_do_single_edit(System_Functions *system,
         if (old_data) general_memory_free(general, old_data);
     }
     
+    // NOTE(allen): meta data
     Buffer_Type *buffer = &file->state.buffer;
     i32 line_start = buffer_get_line_index(&file->state.buffer, start);
     i32 line_end = buffer_get_line_index(&file->state.buffer, end);
@@ -2163,23 +2168,25 @@ file_do_single_edit(System_Functions *system,
         }
     }
     
-#if BUFFER_EXPERIMENT_SCALPEL <= 0
-    // NOTE(allen): fixing stuff afterwards
-    if (file->settings.tokens_exist)
-        file_relex_parallel(system, mem, file, start, end, shift_amount);
-#endif
-    
+    // NOTE(allen): cursor fixing
     Cursor_Fix_Descriptor desc = {};
     desc.start = start;
     desc.end = end;
     desc.shift_amount = shift_amount;
     
     file_edit_cursor_fix(system, part, general, file, layout, desc);
+    
+#if BUFFER_EXPERIMENT_SCALPEL <= 0
+    // NOTE(allen): token fixing
+    if (file->settings.tokens_exist){
+        file_relex_parallel(system, mem, file, start, end, shift_amount);
+    }
+#endif
 }
 
 internal void
-file_do_white_batch_edit(System_Functions *system, Models *models, Editing_File *file,
-                         Edit_Spec spec, History_Mode history_mode){
+file_do_batch_edit(System_Functions *system, Models *models, Editing_File *file,
+                   Edit_Spec spec, History_Mode history_mode, i32 batch_type){
     
     Mem_Options *mem = &models->mem;
     Editing_Layout *layout = &models->layout;
@@ -2235,32 +2242,52 @@ file_do_white_batch_edit(System_Functions *system, Models *models, Editing_File 
     }
     
     // NOTE(allen): token fixing
-    if (file->state.tokens_complete){
-        Cpp_Token_Stack tokens = file->state.token_stack;
-        Cpp_Token *token = tokens.tokens;
-        Cpp_Token *end_token = tokens.tokens + tokens.count;
-        Cpp_Token original = {(Cpp_Token_Type)0};
-        
-        Buffer_Edit *edit = batch;
-        Buffer_Edit *end_edit = batch + batch_size;
-        
-        i32 shift_amount = 0;
-        i32 local_shift = 0;
-        
-        for (; token < end_token; ++token){
-            original = *token;
-            for (; edit < end_edit && edit->start <= original.start; ++edit){
-                local_shift = (edit->len - (edit->end - edit->start));
-                shift_amount += local_shift;
+    switch (batch_type){
+        case BatchEdit_Normal:
+        {
+            if (file->settings.tokens_exist){
+                Buffer_Edit *edit = batch;
+                for (i32 i = 0; i < batch_size; ++i, ++edit){
+                    i32 start = edit->start;
+                    i32 end = edit->end;
+                    i32 shift_amount = edit->len - (end - start);
+                    if (!file_relex_parallel(system, mem, file, start, end, shift_amount)){
+                        break;
+                    }
+                }
             }
-            token->start += shift_amount;
-            local_shift = 0;
-            for (; edit < end_edit && edit->start < original.start + original.size; ++edit){
-                local_shift += (edit->len - (edit->end - edit->start));
+        }break;
+        
+        case BatchEdit_PreserveTokens:
+        {
+            if (file->state.tokens_complete){
+                Cpp_Token_Stack tokens = file->state.token_stack;
+                Cpp_Token *token = tokens.tokens;
+                Cpp_Token *end_token = tokens.tokens + tokens.count;
+                Cpp_Token original = {(Cpp_Token_Type)0};
+                
+                Buffer_Edit *edit = batch;
+                Buffer_Edit *end_edit = batch + batch_size;
+                
+                i32 shift_amount = 0;
+                i32 local_shift = 0;
+                
+                for (; token < end_token; ++token){
+                    original = *token;
+                    for (; edit < end_edit && edit->start <= original.start; ++edit){
+                        local_shift = (edit->len - (edit->end - edit->start));
+                        shift_amount += local_shift;
+                    }
+                    token->start += shift_amount;
+                    local_shift = 0;
+                    for (; edit < end_edit && edit->start < original.start + original.size; ++edit){
+                        local_shift += (edit->len - (edit->end - edit->start));
+                    }
+                    token->size += local_shift;
+                    shift_amount += local_shift;
+                }
             }
-            token->size += local_shift;
-            shift_amount += local_shift;
-        }
+        }break;
     }
 }
 
@@ -2310,6 +2337,34 @@ main_style(Models *models){
 }
 
 internal void
+apply_history_edit(System_Functions *system, Models *models,
+                   Editing_File *file, View *view,
+                   Edit_Stack *stack, Edit_Step step, History_Mode history_mode){
+    Edit_Spec spec = {};
+    spec.step = step;
+    
+    if (step.child_count == 0){
+        spec.step.edit.str_start = 0;
+        spec.str = stack->strings + step.edit.str_start;
+        
+        file_do_single_edit(system, models, file, spec, history_mode);
+        
+        if (view){
+            view_cursor_move(view, step.edit.start + step.edit.len);
+            view->edit_pos->mark = view->edit_pos->cursor.pos;
+            
+            Style *style = main_style(models);
+            view_post_paste_effect(view, 0.333f,
+                                   step.edit.start, step.edit.len,
+                                   style->main.undo_color);
+        }
+    }
+    else{
+        file_do_batch_edit(system, models, view->file_data.file, spec, hist_normal, spec.step.special_type);
+    }
+}
+
+internal void
 view_undo_redo(System_Functions *system,
                Models *models, View *view,
                Edit_Stack *stack, Edit_Type expected_type){
@@ -2323,27 +2378,9 @@ view_undo_redo(System_Functions *system,
         
         Assert(step.type == expected_type);
         
-        Edit_Spec spec = {};
-        spec.step = step;
-        
-        if (step.child_count == 0){
-            spec.step.edit.str_start = 0;
-            spec.str = stack->strings + step.edit.str_start;
-            
-            file_do_single_edit(system, models, file, spec, hist_normal);
-            
-            view_cursor_move(view, step.edit.start + step.edit.len);
-            view->edit_pos->mark = view->edit_pos->cursor.pos;
-            
-            Style *style = main_style(models);
-            view_post_paste_effect(view, 0.333f,
-                                   step.edit.start, step.edit.len,
-                                   style->main.undo_color);
-        }
-        else{
-            TentativeAssert(spec.step.special_type == 1);
-            file_do_white_batch_edit(system, models, view->file_data.file, spec, hist_normal);
-        }
+        apply_history_edit(system, models,
+                           file, view,
+                           stack, step, hist_normal);
     }
 }
 
@@ -2449,32 +2486,9 @@ view_history_step(System_Functions *system, Models *models, View *view, History_
     }
     
     if (do_history_step){
-        Edit_Spec spec = {0};
-        spec.step = step;
-        
-        if (spec.step.child_count == 0){
-            spec.step.edit.str_start = 0;
-            spec.str = file->state.undo.history.strings + step.edit.str_start;
-            
-            file_do_single_edit(system, models, file, spec, history_mode);
-            
-            switch (spec.step.type){
-                case ED_NORMAL:
-                case ED_REDO:
-                view_cursor_move(view, step.edit.start + step.edit.len);
-                break;
-                
-                case ED_REVERSE_NORMAL:
-                case ED_UNDO:
-                view_cursor_move(view, step.edit.start + step.edit.len);
-                break;
-            }
-            view->edit_pos->mark = view->edit_pos->cursor.pos;
-        }
-        else{
-            TentativeAssert(spec.step.special_type == 1);
-            file_do_white_batch_edit(system, models, view->file_data.file, spec, history_mode);
-        }
+        apply_history_edit(system, models,
+                           file, view,
+                           &file->state.undo.history, step, history_mode);
     }
 }
 
@@ -2556,10 +2570,10 @@ clipboard_copy(System_Functions *system, General_Memory *general, Working_Set *w
 }
 
 internal Edit_Spec
-file_compute_whitespace_edit(Mem_Options *mem, Editing_File *file,
-                             Buffer_Edit *edits, char *str_base, i32 str_size,
-                             Buffer_Edit *inverse_array, char *inv_str, i32 inv_max,
-                             i32 edit_count){
+file_compute_edit(Mem_Options *mem, Editing_File *file,
+                  Buffer_Edit *edits, char *str_base, i32 str_size,
+                  Buffer_Edit *inverse_array, char *inv_str, i32 inv_max,
+                  i32 edit_count, i32 batch_type){
     General_Memory *general = &mem->general;
     
     i32 inv_str_pos = 0;
@@ -2580,7 +2594,7 @@ file_compute_whitespace_edit(Mem_Options *mem, Editing_File *file,
     spec.step.type = ED_NORMAL;
     spec.step.first_child = first_child;
     spec.step.inverse_first_child = inverse_first_child;
-    spec.step.special_type = 1;
+    spec.step.special_type = batch_type;
     spec.step.child_count = edit_count;
     spec.step.inverse_child_count = edit_count;
     
@@ -3000,12 +3014,12 @@ file_auto_tab_tokens(System_Functions *system, Models *models,
         
         char *inv_str = (char*)part->base + part->pos;
         Edit_Spec spec =
-            file_compute_whitespace_edit(mem, file,
-                                         batch.edits, batch.str_base, batch.str_size,
-                                         inverse_array, inv_str, part->max - part->pos,
-                                         batch.edit_count);
+            file_compute_edit(mem, file,
+                              batch.edits, batch.str_base, batch.str_size,
+                              inverse_array, inv_str, part->max - part->pos,
+                              batch.edit_count, BatchEdit_PreserveTokens);
         
-        file_do_white_batch_edit(system, models, file, spec, hist_normal);
+        file_do_batch_edit(system, models, file, spec, hist_normal, BatchEdit_PreserveTokens);
     }
     end_temp_memory(temp);
 #endif
@@ -3067,7 +3081,6 @@ style_get_color(Style *style, Cpp_Token token){
 internal void
 update_view_line_height(Models *models, View *view){
     Font_Info *fnt_info = get_font_info(models->font_set, models->global_font.font_id);
-    view->font_advance = fnt_info->advance;
     view->line_height = fnt_info->height;
 }
 

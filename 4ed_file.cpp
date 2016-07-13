@@ -60,7 +60,8 @@ struct Edit_Step{
         struct{
             b32 can_merge;
             Buffer_Edit edit;
-            i32 next_block, prev_block;
+            i32 next_block;
+            i32 prev_block;
         };
         struct{
             i32 first_child;

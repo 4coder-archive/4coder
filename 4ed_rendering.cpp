@@ -673,10 +673,10 @@ font_load_freetype(Partition *part,
     f32 space_width = rf->advance_data[' '];
     
     rf->glyphs['\r'] = space_glyph;
-    rf->advance_data['\r'] = space_width*tab_width;
+    rf->advance_data['\r'] = space_width;
     
     rf->glyphs['\n'] = space_glyph;
-    rf->advance_data['\n'] = space_width*tab_width;
+    rf->advance_data['\n'] = space_width;
     
     rf->glyphs['\t'] = space_glyph;
     rf->advance_data['\t'] = space_width*tab_width;

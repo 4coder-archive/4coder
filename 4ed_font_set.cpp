@@ -146,8 +146,7 @@ font_set_evict_lru(Font_Set *set){
 
 internal void
 font_set_use(Partition *partition, Font_Set *set, i16 font_id){
-    b8 already_used;
-    already_used = set->font_used_flags[font_id-1];
+    b8 already_used = set->font_used_flags[font_id-1];
     
     if (!already_used){
         if (set->used_this_frame < set->live_max){
