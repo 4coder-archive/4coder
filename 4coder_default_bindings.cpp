@@ -159,7 +159,7 @@ CUSTOM_COMMAND_SIG(newline_or_goto_position){
     Buffer_Summary buffer = app->get_buffer(app, view.buffer_id, AccessProtected);
     
     if (buffer.lock_flags & AccessProtected){
-        exec_command(app, goto_postion_at_cursor);
+        exec_command(app, goto_jump_at_cursor);
     }
     else{
         exec_command(app, write_character);
@@ -198,25 +198,6 @@ OPEN_FILE_HOOK_SIG(my_file_settings){
     app->buffer_set_setting(app, &buffer, BufferSetting_MapID, (treat_as_code)?((int)my_code_map):((int)mapid_file));
     
     // no meaning for return
-    return(0);
-}
-
-// NOTE(allen|a4.0.9): All command calls can now go through this hook
-// If this hook is not implemented a default behavior of calling the
-// command is used.  It is important to note that paste_next does not
-// work without this hook.
-// NOTE(allen|a4.0.10): As of this version the word_complete command also
-// relies on this particular command caller hook.
-COMMAND_CALLER_HOOK(my_command_caller){
-    View_Summary view = app->get_active_view(app, AccessAll);
-    
-    view_paste_index[view.view_id].next_rewrite = false;
-    
-    exec_command(app, cmd);
-    
-    view_paste_index[view.view_id].rewrite = 
-        view_paste_index[view.view_id].next_rewrite;
-    
     return(0);
 }
 
@@ -403,7 +384,6 @@ default_keys(Bind_Helper *context){
     bind(context, 'y', MDFR_CTRL, cmdid_redo);
     bind(context, 'z', MDFR_CTRL, cmdid_undo);
     
-    bind(context, '=', MDFR_CTRL, goto_postion_at_cursor);
     bind(context, '1', MDFR_CTRL, eol_dosify);
     bind(context, '!', MDFR_CTRL, eol_nixify);
     
@@ -428,7 +408,7 @@ get_bindings(void *data, int size){
     set_hook(context, hook_start, my_start);
     
     set_open_file_hook(context, my_file_settings);
-    set_command_caller(context, my_command_caller);
+    set_command_caller(context, default_command_caller);
     set_input_filter(context, my_suppress_mouse_filter);
     set_scroll_rule(context, smooth_scroll_rule);
     

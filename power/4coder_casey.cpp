@@ -126,6 +126,7 @@
 #include <stdlib.h>
 
 #include "4coder_default_include.cpp"
+#include "4coder_jump_parsing.cpp"
 
 #ifndef Assert
 #define internal static
@@ -360,15 +361,27 @@ CUSTOM_COMMAND_SIG(casey_open_in_other)
 
 CUSTOM_COMMAND_SIG(casey_clean_and_save)
 {
-    exec_command(app, cmdid_clean_all_lines);
+    exec_command(app, clean_all_lines);
     exec_command(app, eol_nixify);
     exec_command(app, cmdid_save);
 }
 
 CUSTOM_COMMAND_SIG(casey_newline_and_indent)
 {
-    exec_command(app, write_character);
-    exec_command(app, auto_tab_line_at_cursor);
+    // NOTE(allen): The idea here is that if the current buffer is
+    // read-only, it cannot be edited anyway.  So instead let the return
+    // key indicate an attempt to interpret the line as a location to jump to.
+    
+    View_Summary view = app->get_active_view(app, AccessProtected);
+    Buffer_Summary buffer = app->get_buffer(app, view.buffer_id, AccessProtected);
+    
+    if (buffer.lock_flags & AccessProtected){
+        exec_command(app, goto_jump_at_cursor);
+    }
+    else{
+        exec_command(app, write_character);
+        exec_command(app, auto_tab_line_at_cursor);
+    }
 }
 
 CUSTOM_COMMAND_SIG(casey_open_file_other_window)
@@ -539,6 +552,12 @@ CUSTOM_COMMAND_SIG(casey_build_search)
             memcpy(BuildDirectory, dir.str, dir.size);
             BuildDirectory[dir.size] = 0;
 
+            // TODO(allen): There are ways this could be boiled down
+            // to one print message which would be better.
+            app->print_message(app, literal("Building with: "));
+            app->print_message(app, BuildDirectory, dir.size);
+            app->print_message(app, literal("build.bat\n"));
+
             return;
         }
 
@@ -547,10 +566,9 @@ CUSTOM_COMMAND_SIG(casey_build_search)
         if (app->directory_cd(app, dir.str, &dir.size, dir.memory_size, literal("..")) == 0)
         {
             keep_going = 0;
+            app->print_message(app, literal("Did not find a build.bat\n"));
         }
     }
-
-    // TODO(casey): How do I print out that it found or didn't find something?
 }
 
 CUSTOM_COMMAND_SIG(casey_find_corresponding_file)
@@ -625,9 +643,9 @@ CUSTOM_COMMAND_SIG(casey_find_corresponding_file_other_window)
 CUSTOM_COMMAND_SIG(casey_save_and_make_without_asking)
 {
     exec_command(app, change_active_panel);
-
+    
     Buffer_Summary buffer = {};
-
+    
     unsigned int access = AccessAll;
     for(buffer = app->get_buffer_first(app, access);
         buffer.exists;
@@ -671,6 +689,7 @@ CUSTOM_COMMAND_SIG(casey_save_and_make_without_asking)
     exec_command(app, change_active_panel);
 }
 
+#if 0
 internal bool
 casey_errors_are_the_same(Parsed_Error a, Parsed_Error b)
 {
@@ -818,15 +837,18 @@ casey_seek_error_dy(Application_Links *app, int dy)
         }
     }
 }
+#endif
 
 CUSTOM_COMMAND_SIG(casey_goto_previous_error)
 {
-    casey_seek_error_dy(app, -1);
+//    casey_seek_error_dy(app, -1);
+    seek_error_skip_repeats(app, &global_part, false, -1);
 }
 
 CUSTOM_COMMAND_SIG(casey_goto_next_error)
 {
-    casey_seek_error_dy(app, 1);
+//    casey_seek_error_dy(app, 1);
+    seek_error_skip_repeats(app, &global_part, false, 1);
 }
 
 CUSTOM_COMMAND_SIG(casey_imenu)
@@ -1202,12 +1224,10 @@ CUSTOM_COMMAND_SIG(binding_name) \
 #define DEFINE_BIMODAL_KEY(binding_name,edit_code,normal_code) DEFINE_FULL_BIMODAL_KEY(binding_name,exec_command(app,edit_code),exec_command(app,normal_code))
 #define DEFINE_MODAL_KEY(binding_name,edit_code) DEFINE_BIMODAL_KEY(binding_name,edit_code,write_character)
 
-//    cmdid_paste_next ?
-//    cmdid_timeline_scrub ?
+//    paste_next ?
 //    cmdid_history_backward,
 //    cmdid_history_forward,
-//    cmdid_toggle_line_wrap,
-//    cmdid_close_minor_view,
+//    toggle_line_wrap,
 
 DEFINE_MODAL_KEY(modal_space, set_mark);
 DEFINE_MODAL_KEY(modal_back_slash, casey_clean_and_save);
@@ -1222,7 +1242,7 @@ DEFINE_MODAL_KEY(modal_a, write_character); // TODO(casey): Arbitrary command + 
 DEFINE_MODAL_KEY(modal_b, cmdid_interactive_switch_buffer);
 DEFINE_MODAL_KEY(modal_c, casey_find_corresponding_file);
 DEFINE_MODAL_KEY(modal_d, casey_kill_to_end_of_line);
-DEFINE_MODAL_KEY(modal_e, write_character); // TODO(casey): Available
+DEFINE_MODAL_KEY(modal_e, list_all_locations); // TODO(casey): Available // NOTE(allen): I put list_all_locations here for testing.
 DEFINE_MODAL_KEY(modal_f, casey_paste_and_tab);
 DEFINE_MODAL_KEY(modal_g, goto_line);
 DEFINE_MODAL_KEY(modal_h, auto_tab_range);
@@ -1235,7 +1255,7 @@ DEFINE_MODAL_KEY(modal_n, casey_goto_next_error);
 DEFINE_MODAL_KEY(modal_o, query_replace);
 DEFINE_MODAL_KEY(modal_p, replace_in_range);
 DEFINE_MODAL_KEY(modal_q, copy);
-DEFINE_MODAL_KEY(modal_r, reverse_search); // NOTE(allen): I've modified my default search so you can use it now.
+DEFINE_MODAL_KEY(modal_r, reverse_search);
 DEFINE_MODAL_KEY(modal_s, search);
 DEFINE_MODAL_KEY(modal_t, casey_load_todo);
 DEFINE_MODAL_KEY(modal_u, cmdid_undo);
@@ -1268,7 +1288,7 @@ DEFINE_BIMODAL_KEY(modal_home, casey_seek_beginning_of_line, casey_seek_beginnin
 DEFINE_BIMODAL_KEY(modal_end, seek_end_of_line, seek_end_of_line);
 DEFINE_BIMODAL_KEY(modal_page_up, page_up, seek_whitespace_up);
 DEFINE_BIMODAL_KEY(modal_page_down, page_down, seek_whitespace_down);
-DEFINE_BIMODAL_KEY(modal_tab, cmdid_word_complete, cmdid_word_complete);
+DEFINE_BIMODAL_KEY(modal_tab, word_complete, word_complete);
 
 OPEN_FILE_HOOK_SIG(casey_file_settings)
 {
@@ -1352,7 +1372,7 @@ struct Casey_Scroll_Velocity
 };
 
 Casey_Scroll_Velocity casey_scroll_velocity_[16] = {0};
-Casey_Scroll_Velocity *casey_scroll_velocity = casey_scroll_velocity_;
+Casey_Scroll_Velocity *casey_scroll_velocity = casey_scroll_velocity_ - 1;
 
 SCROLL_RULE_SIG(casey_smooth_scroll_rule){
     Casey_Scroll_Velocity *velocity = casey_scroll_velocity + view_id;
@@ -1442,6 +1462,12 @@ win32_toggle_fullscreen(void)
 
 HOOK_SIG(casey_start)
 {
+    // NOTE(allen): This initializes a couple of global memory
+    // management structs on the custom side that are used in
+    // some of the new 4coder features including building and
+    // custom-side word complete.
+    init_memory(app);
+    
     exec_command(app, hide_scrollbar);
     exec_command(app, open_panel_vsplit);
     exec_command(app, hide_scrollbar);
@@ -1495,6 +1521,7 @@ extern "C" GET_BINDING_DATA(get_bindings)
     Bind_Helper *context = &context_actual;
 
     set_hook(context, hook_start, casey_start);
+    set_command_caller(context, default_command_caller);
     set_open_file_hook(context, casey_file_settings);
     set_scroll_rule(context, casey_smooth_scroll_rule);
 

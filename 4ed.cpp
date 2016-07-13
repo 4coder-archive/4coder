@@ -262,7 +262,7 @@ panel_make_empty(System_Functions *system, App_Vars *vars, Panel *panel){
     Assert(panel->view == 0);
     new_view = live_set_alloc_view(&vars->live_set, panel, models);
     view_set_file(new_view.view, models->scratch_buffer, models);
-    new_view.view->map = get_map(models, mapid_global);
+    new_view.view->map = get_map(models, mapid_file);
     
     return(new_view.view);
 }

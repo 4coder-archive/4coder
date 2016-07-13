@@ -1901,6 +1901,9 @@ CUSTOM_COMMAND_SIG(write_and_auto_tab){
 }
 
 CUSTOM_COMMAND_SIG(clean_all_lines){
+    // TODO(allen): This command always iterates accross the entire
+    // buffer, so streaming it is actually the wrong call.  Rewrite this
+    // to minimize calls to app->buffer_read_range.
     View_Summary view = app->get_active_view(app, AccessOpen);
     Buffer_Summary buffer = app->get_buffer(app, view.buffer_id, AccessOpen);
     
@@ -1931,8 +1934,8 @@ CUSTOM_COMMAND_SIG(clean_all_lines){
                             edit->start = last_hard+1;
                             edit->end = i;
                             ++edit;
-                            last_hard = buffer_size;
                         }
+                        last_hard = buffer_size;
                     }
                     else if (char_is_whitespace(at_pos)){
                         // NOTE(allen): do nothing
@@ -2261,6 +2264,7 @@ CUSTOM_COMMAND_SIG(list_all_locations){
         search_buffer = app->create_buffer(app, literal("*search*"), BufferCreate_AlwaysNew);
         app->buffer_set_setting(app, &search_buffer, BufferSetting_Unimportant, true);
         app->buffer_set_setting(app, &search_buffer, BufferSetting_ReadOnly, true);
+        app->buffer_set_setting(app, &search_buffer, BufferSetting_WrapLine, false);
     }
     else{
         app->buffer_replace_range(app, &search_buffer, 0, search_buffer.size, 0, 0);
@@ -2622,6 +2626,25 @@ SCROLL_RULE_SIG(smooth_scroll_rule){
     }
 
     return(result);
+}
+
+// NOTE(allen|a4.0.9): All command calls can now go through this hook
+// If this hook is not implemented a default behavior of calling the
+// command is used.  It is important to note that paste_next does not
+// work without this hook.
+// NOTE(allen|a4.0.10): As of this version the word_complete command also
+// relies on this particular command caller hook.
+COMMAND_CALLER_HOOK(default_command_caller){
+    View_Summary view = app->get_active_view(app, AccessAll);
+    
+    view_paste_index[view.view_id].next_rewrite = false;
+    
+    exec_command(app, cmd);
+    
+    view_paste_index[view.view_id].rewrite = 
+        view_paste_index[view.view_id].next_rewrite;
+    
+    return(0);
 }
 
 #endif
