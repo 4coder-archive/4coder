@@ -224,12 +224,15 @@ output_file_append(System_Functions *system, Models *models, Editing_File *file,
 }
 
 inline void
-do_feedback_message(System_Functions *system, Models *models, String value){
+do_feedback_message(System_Functions *system, Models *models, String value, b32 set_to_start = 0){
     Editing_File *file = models->message_buffer;
     
     if (file){
         output_file_append(system, models, file, value, true);
-        i32 pos = buffer_size(&file->state.buffer);
+        i32 pos = 0;
+        if (!set_to_start){
+            pos = buffer_size(&file->state.buffer);
+        }
         for (View_Iter iter = file_view_iter_init(&models->layout, file, 0);
              file_view_iter_good(iter);
              iter = file_view_iter_next(iter)){
@@ -2487,7 +2490,7 @@ App_Step_Sig(app_step){
                             "-Set font size on command line with -f N, N = 16 by default\n\n"
                             );
         
-        do_feedback_message(system, models, welcome);
+        do_feedback_message(system, models, welcome, true);
     }
     
     // NOTE(allen): panel resizing
