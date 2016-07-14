@@ -1250,9 +1250,22 @@ space in dest this call returns non-zero.) */{
     return(result);
 }
 
+FSTRING_LINK fstr_bool
+str_is_int(String str)/*
+DOC(If str is a valid string representation of an integer, this call returns non-zero.) */{
+    fstr_bool result = true;
+    for (int32_t i = 0; i < str.size; ++i){
+        if (!char_is_numeric(str.str[i])){
+            result = false;
+            break;
+        }
+    }
+    return(result);
+}
+
 FSTRING_LINK int32_t
 str_to_int(char *str)/*
-DOC(If str represents a valid string representation of an integer, this call will return
+DOC(If str is a valid string representation of an integer, this call will return
 the integer represented by the string.  Otherwise this call returns zero.) */{
     int32_t x = 0;
     for (; *str; ++str){

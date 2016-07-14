@@ -190,8 +190,8 @@ CUSTOM_COMMAND_SIG(save_theme_settings){
 #include <stdio.h>
 
 #define SETTINGS_FILE ".4coder_settings"
-HOOK_SIG(experimental_start_hook){
-    my_start(app);
+HOOK_SIG(experimental_start){
+    init_memory(app);
     
     char theme_name[128];
     char font_name[128];
@@ -217,8 +217,16 @@ HOOK_SIG(experimental_start_hook){
         
         fclose(file);
         
-        app->change_theme(app, theme_name, (int)strlen(theme_name));
-        app->change_font(app, font_name, (int)strlen(font_name));
+        int theme_len = (int)strlen(theme_name);
+        int font_len = (int)strlen(font_name);
+        
+        app->change_theme(app, theme_name, theme_len);
+        app->change_font(app, font_name, font_len, true);
+        
+        exec_command(app, open_panel_vsplit);
+        exec_command(app, hide_scrollbar);
+        exec_command(app, change_active_panel);
+        exec_command(app, hide_scrollbar);
     }
     
     return(0);
@@ -229,7 +237,7 @@ get_bindings(void *data, int size){
     Bind_Helper context_ = begin_bind_helper(data, size);
     Bind_Helper *context = &context_;
     
-    set_hook(context, hook_start, experimental_start_hook);
+    set_hook(context, hook_start, experimental_start);
     set_open_file_hook(context, my_file_settings);
     set_input_filter(context, my_suppress_mouse_filter);
     set_command_caller(context, default_command_caller);

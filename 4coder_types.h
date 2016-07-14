@@ -1,6 +1,5 @@
 
 
-
 /* DOC(bool32 is an alias name to signal that an integer parameter or field is for
 true/false vales.) */
 typedef int32_t bool32;
@@ -18,7 +17,7 @@ when a buffer is closed it's id may be recycled by future, different buffers.) *
 typedef int32_t Buffer_ID;
 
 /* DOC(View_ID is used to name a 4coder view.  Each view has a unique id in
-the range [1,16].) */
+the interval [1,16].) */
 typedef int32_t View_ID;
 
 #define ENUM(type,name) typedef type name; enum name##_

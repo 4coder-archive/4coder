@@ -133,6 +133,7 @@ FSTRING_LINK    fstr_bool     append_u64_to_str(String *dest, uint64_t x);
 FSTRING_LINK    int32_t       float_to_str_size(float x);
 FSTRING_LINK    fstr_bool     append_float_to_str(String *dest, float x);
 FSTRING_LINK    fstr_bool     float_to_str(String *dest, float x);
+FSTRING_LINK    fstr_bool     str_is_int(String str);
 FSTRING_LINK    int32_t       str_to_int(char *str);
 FSTRING_LINK    int32_t       str_to_int(String str);
 FSTRING_LINK    int32_t       hexchar_to_int(char c);
@@ -1328,6 +1329,20 @@ float_to_str(String *dest, float x){
     fstr_bool result = 1;
     dest->size = 0;
     append_float_to_str(dest, x);
+    return(result);
+}
+#endif
+
+#ifdef FSTRING_IMPLEMENTATION
+FSTRING_LINK fstr_bool
+str_is_int(String str){
+    fstr_bool result = true;
+    for (int32_t i = 0; i < str.size; ++i){
+        if (!char_is_numeric(str.str[i])){
+            result = false;
+            break;
+        }
+    }
     return(result);
 }
 #endif

@@ -11,7 +11,6 @@
 
 struct Style_Font{
     i16 font_id;
-    i16 font_changed;
 };
 
 struct Style{

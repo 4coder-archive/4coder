@@ -126,15 +126,15 @@ CUSTOM_COMMAND_SIG(seek_whitespace_down_end_line){
 }
 
 HOOK_SIG(my_start){
+    init_memory(app);
+    
+    app->change_theme(app, literal("4coder"));
+    app->change_font(app, literal("Liberation Sans"), true);
+    
     exec_command(app, open_panel_vsplit);
     exec_command(app, hide_scrollbar);
     exec_command(app, change_active_panel);
     exec_command(app, hide_scrollbar);
-    
-    app->change_theme(app, literal("4coder"));
-    app->change_font(app, literal("Liberation Sans"));
-    
-    init_memory(app);
     
     // Theme options:
     //  "4coder"

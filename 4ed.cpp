@@ -833,7 +833,6 @@ app_hardcode_styles(Models *models){
     
     i16 fonts = 1;
     models->global_font.font_id = fonts + 0;
-    models->global_font.font_changed = 0;
     
     /////////////////
     style_set_name(style, make_lit_string("4coder"));
@@ -1697,17 +1696,6 @@ App_Step_Sig(app_step){
         }
     }
     
-    // NOTE(allen): begin allowing the cursors and scroll locations
-    // to move around.
-    {
-        Panel *panel = 0, *used_panels = 0;
-        used_panels = &models->layout.used_sentinel;
-        for (dll_items(panel, used_panels)){
-            Assert(panel->view);
-            view_begin_cursor_scroll_updates(panel->view);
-        }
-    }
-    
     // NOTE(allen): reorganizing panels on screen
     {
         i32 prev_width = models->layout.full_width;
@@ -2319,17 +2307,6 @@ App_Step_Sig(app_step){
     
     update_command_data(vars, cmd);
     
-    // NOTE(allen): post scroll vars back to the view's gui targets
-    {
-        Panel *panel = 0, *used_panels = 0;
-        
-        used_panels = &models->layout.used_sentinel;
-        for (dll_items(panel, used_panels)){
-            Assert(panel->view);
-            view_end_cursor_scroll_updates(panel->view);
-        }
-    }
-    
     // NOTE(allen): command execution
     {
         Key_Summary key_data = get_key_data(&vars->available_input);
@@ -2628,39 +2605,6 @@ App_Step_Sig(app_step){
                 remeasure_file_view(system, panel->view);
             }
             view->file_region_prev = region;
-        }
-    }
-    
-    // NOTE(allen): send style change messages if the style has changed
-    if (models->global_font.font_changed){
-        models->global_font.font_changed = 0;
-        
-        File_Node *node, *used_nodes;
-        Editing_File *file;
-        Render_Font *font = get_font_info(models->font_set, models->global_font.font_id)->font;
-        float *advance_data = 0;
-        if (font) advance_data = font->advance_data;
-        
-        used_nodes = &models->working_set.used_sentinel;
-        for (dll_items(node, used_nodes)){
-            file = (Editing_File*)node;
-            file_measure_starts_widths(system, &models->mem.general, &file->state.buffer, advance_data);
-        }
-        
-        Panel *panel, *used_panels;
-        used_panels = &models->layout.used_sentinel;
-        for (dll_items(panel, used_panels)){
-            update_view_line_height(models, panel->view);
-            remeasure_file_view(system, panel->view);
-        }
-    }
-    
-    // NOTE(allen): post scroll vars back to the view's gui targets
-    {
-        Panel *panel = 0, *used_panels = &models->layout.used_sentinel;
-        for (dll_items(panel, used_panels)){
-            Assert(panel->view);
-            view_end_cursor_scroll_updates(panel->view);
         }
     }
     

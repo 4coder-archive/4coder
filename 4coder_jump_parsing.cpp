@@ -119,15 +119,19 @@ parse_error(String line, Jump_Location *location,
             int colon_pos1 = find(line, 0, ':');
             int colon_pos2 = find(line, colon_pos1+1, ':');
             
-            String filename = substr(line, 0, colon_pos1);
-            String line_number = substr(line, colon_pos1+1, colon_pos2 - colon_pos1 - 1);
-            
-            if (filename.size > 0 && line_number.size > 0){
-                location->file = filename;
-                location->line = str_to_int(line_number);
-                location->column = 0;
-                *colon_char = colon_pos2;
-                result = true;
+            if (colon_pos2 < line.size){
+                String filename = substr(line, 0, colon_pos1);
+                String line_number = substr(line, colon_pos1+1, colon_pos2 - colon_pos1 - 1);
+                
+                if (str_is_int(line_number)){
+                    if (filename.size > 0 && line_number.size > 0){
+                        location->file = filename;
+                        location->line = str_to_int(line_number);
+                        location->column = 0;
+                        *colon_char = colon_pos2;
+                        result = true;
+                    }
+                }
             }
         }
     }

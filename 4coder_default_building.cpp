@@ -37,6 +37,9 @@ CUSTOM_COMMAND_SIG(build_in_build_panel){
     
     execute_standard_build(app, &build_view, &original_buffer);
     
+    buffer = app->get_buffer_by_name(app, literal("*compilation*"), AccessAll);
+    app->buffer_set_font(app, &buffer, literal("Inconsolata"));
+    
     prev_location = null_location;
 }
 

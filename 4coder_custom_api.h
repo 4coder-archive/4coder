@@ -41,7 +41,8 @@
 #define END_QUERY_BAR_SIG(n) void n(Application_Links *app, Query_Bar *bar, uint32_t flags)
 #define PRINT_MESSAGE_SIG(n) void n(Application_Links *app, char *str, int32_t len)
 #define CHANGE_THEME_SIG(n) void n(Application_Links *app, char *name, int32_t len)
-#define CHANGE_FONT_SIG(n) void n(Application_Links *app, char *name, int32_t len)
+#define CHANGE_FONT_SIG(n) void n(Application_Links *app, char *name, int32_t len, bool32 apply_to_all_files)
+#define BUFFER_SET_FONT_SIG(n) void n(Application_Links *app, Buffer_Summary *buffer, char *name, int32_t len)
 #define SET_THEME_COLORS_SIG(n) void n(Application_Links *app, Theme_Color *colors, int32_t count)
 #define GET_THEME_COLORS_SIG(n) void n(Application_Links *app, Theme_Color *colors, int32_t count)
 #define DIRECTORY_GET_HOT_SIG(n) int32_t n(Application_Links *app, char *out, int32_t capacity)
@@ -99,6 +100,7 @@ extern "C"{
     typedef PRINT_MESSAGE_SIG(Print_Message_Function);
     typedef CHANGE_THEME_SIG(Change_Theme_Function);
     typedef CHANGE_FONT_SIG(Change_Font_Function);
+    typedef BUFFER_SET_FONT_SIG(Buffer_Set_Font_Function);
     typedef SET_THEME_COLORS_SIG(Set_Theme_Colors_Function);
     typedef GET_THEME_COLORS_SIG(Get_Theme_Colors_Function);
     typedef DIRECTORY_GET_HOT_SIG(Directory_Get_Hot_Function);
@@ -159,6 +161,7 @@ struct Application_Links{
     Print_Message_Function *print_message;
     Change_Theme_Function *change_theme;
     Change_Font_Function *change_font;
+    Buffer_Set_Font_Function *buffer_set_font;
     Set_Theme_Colors_Function *set_theme_colors;
     Get_Theme_Colors_Function *get_theme_colors;
     Directory_Get_Hot_Function *directory_get_hot;
@@ -221,6 +224,7 @@ app_links->end_query_bar = End_Query_Bar;\
 app_links->print_message = Print_Message;\
 app_links->change_theme = Change_Theme;\
 app_links->change_font = Change_Font;\
+app_links->buffer_set_font = Buffer_Set_Font;\
 app_links->set_theme_colors = Set_Theme_Colors;\
 app_links->get_theme_colors = Get_Theme_Colors;\
 app_links->directory_get_hot = Directory_Get_Hot;\

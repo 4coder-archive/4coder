@@ -76,6 +76,7 @@ Coming Soon</i><div>
 <li><a href='#print_message_doc'>print_message</a></li>
 <li><a href='#change_theme_doc'>change_theme</a></li>
 <li><a href='#change_font_doc'>change_font</a></li>
+<li><a href='#buffer_set_font_doc'>buffer_set_font</a></li>
 <li><a href='#set_theme_colors_doc'>set_theme_colors</a></li>
 <li><a href='#get_theme_colors_doc'>get_theme_colors</a></li>
 <li><a href='#directory_get_hot_doc'>directory_get_hot</a></li>
@@ -898,11 +899,11 @@ only use for this call is in an interactive command that makes calls to get_user
 <div style='font-weight: 600;'>len</div>
 <div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>The len parameter specifies the length of the name string.</div></div>
 </div>
-<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>This call changes 4coder's theme to one of the built in themes.</div></div><hr>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>This call changes 4coder's color pallet to one of the built in themes.</div></div><hr>
 <div id='change_font_doc' style='margin-bottom: 1cm;'>
 <h4>&sect;3.3.44: change_font</h4>
 <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>void app->change_font(
-<div style='margin-left: 4mm;'>Application_Links *app,<br>char *name,<br>int32_t len<br></div>)
+<div style='margin-left: 4mm;'>Application_Links *app,<br>char *name,<br>int32_t len,<br>bool32 apply_to_all_files<br></div>)
 </div>
 <div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Parameters</i></b></div><div>
 <div style='font-weight: 600;'>name</div>
@@ -912,9 +913,32 @@ only use for this call is in an interactive command that makes calls to get_user
 <div style='font-weight: 600;'>len</div>
 <div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>The len parameter specifies the length of the name string.</div></div>
 </div>
-<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>This call changes 4coder's font to one of the built in fonts.</div></div><hr>
+<div>
+<div style='font-weight: 600;'>apply_to_all_files</div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>If this is set all open files change to this font.  Usually this should be true
+durring the start hook because several files already exist at that time.</div></div>
+</div>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>This call changes 4coder's default font to one of the built in fonts.</div></div><hr>
+<div id='buffer_set_font_doc' style='margin-bottom: 1cm;'>
+<h4>&sect;3.3.45: buffer_set_font</h4>
+<div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>void app->buffer_set_font(
+<div style='margin-left: 4mm;'>Application_Links *app,<br>Buffer_Summary *buffer,<br>char *name,<br>int32_t len<br></div>)
+</div>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Parameters</i></b></div><div>
+<div style='font-weight: 600;'>buffer</div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>This parameter the buffer that shall have it's font changed</div></div>
+</div>
+<div>
+<div style='font-weight: 600;'>name</div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>The name parameter specifies the name of the font to begin using; it need not be null terminated.</div></div>
+</div>
+<div>
+<div style='font-weight: 600;'>len</div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>The len parameter specifies the length of the name string.</div></div>
+</div>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>This call sets the display font of a particular buffer.</div></div><hr>
 <div id='set_theme_colors_doc' style='margin-bottom: 1cm;'>
-<h4>&sect;3.3.45: set_theme_colors</h4>
+<h4>&sect;3.3.46: set_theme_colors</h4>
 <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>void app->set_theme_colors(
 <div style='margin-left: 4mm;'>Application_Links *app,<br>Theme_Color *colors,<br>int32_t count<br></div>)
 </div>
@@ -930,7 +954,7 @@ only use for this call is in an interactive command that makes calls to get_user
 struct's tag is set to the color code in the struct. If the tag value is invalid
 no change is made to the color pallet.</div></div><hr>
 <div id='get_theme_colors_doc' style='margin-bottom: 1cm;'>
-<h4>&sect;3.3.46: get_theme_colors</h4>
+<h4>&sect;3.3.47: get_theme_colors</h4>
 <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>void app->get_theme_colors(
 <div style='margin-left: 4mm;'>Application_Links *app,<br>Theme_Color *colors,<br>int32_t count<br></div>)
 </div>
@@ -946,7 +970,7 @@ no change is made to the color pallet.</div></div><hr>
 color from the slot in the main color pallet specified by the tag.  If the tag
 value is invalid the color is filled with black.</div></div><hr>
 <div id='directory_get_hot_doc' style='margin-bottom: 1cm;'>
-<h4>&sect;3.3.47: directory_get_hot</h4>
+<h4>&sect;3.3.48: directory_get_hot</h4>
 <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>int32_t app->directory_get_hot(
 <div style='margin-left: 4mm;'>Application_Links *app,<br>char *out,<br>int32_t capacity<br></div>)
 </div>
@@ -964,7 +988,7 @@ accessed in the GUI.  Whenever the GUI is opened it shows the hot directory.
 In the future this will be deprecated and eliminated in favor of more flexible
 directories controlled on the custom side.</div></div><hr>
 <div id='get_file_list_doc' style='margin-bottom: 1cm;'>
-<h4>&sect;3.3.48: get_file_list</h4>
+<h4>&sect;3.3.49: get_file_list</h4>
 <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>File_List app->get_file_list(
 <div style='margin-left: 4mm;'>Application_Links *app,<br>char *dir,<br>int32_t len<br></div>)
 </div>
@@ -980,7 +1004,7 @@ directories controlled on the custom side.</div></div><hr>
 the specified directory.  The File_List returned should be passed to free_file_list
 when it is no longer in use.</div></div><hr>
 <div id='free_file_list_doc' style='margin-bottom: 1cm;'>
-<h4>&sect;3.3.49: free_file_list</h4>
+<h4>&sect;3.3.50: free_file_list</h4>
 <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>void app->free_file_list(
 <div style='margin-left: 4mm;'>Application_Links *app,<br>File_List list<br></div>)
 </div>
@@ -990,25 +1014,25 @@ when it is no longer in use.</div></div><hr>
 </div>
 <div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>After this call the file list passed in should not be read or written to.</div></div><hr>
 <div id='memory_allocate_doc' style='margin-bottom: 1cm;'>
-<h4>&sect;3.3.50: memory_allocate</h4>
+<h4>&sect;3.3.51: memory_allocate</h4>
 <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>void* app->memory_allocate(
 <div style='margin-left: 4mm;'>Application_Links *app,<br>int32_t size<br></div>)
 </div>
 <div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>TODO</div></div><hr>
 <div id='memory_set_protection_doc' style='margin-bottom: 1cm;'>
-<h4>&sect;3.3.51: memory_set_protection</h4>
+<h4>&sect;3.3.52: memory_set_protection</h4>
 <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>bool32 app->memory_set_protection(
 <div style='margin-left: 4mm;'>Application_Links *app,<br>void *ptr,<br>int32_t size,<br>Memory_Protect_Flags flags<br></div>)
 </div>
 <div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>TODO</div></div><hr>
 <div id='memory_free_doc' style='margin-bottom: 1cm;'>
-<h4>&sect;3.3.52: memory_free</h4>
+<h4>&sect;3.3.53: memory_free</h4>
 <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>void app->memory_free(
 <div style='margin-left: 4mm;'>Application_Links *app,<br>void *mem,<br>int32_t size<br></div>)
 </div>
 <div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>TODO</div></div><hr>
 <div id='file_exists_doc' style='margin-bottom: 1cm;'>
-<h4>&sect;3.3.53: file_exists</h4>
+<h4>&sect;3.3.54: file_exists</h4>
 <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>bool32 app->file_exists(
 <div style='margin-left: 4mm;'>Application_Links *app,<br>char *filename,<br>int len<br></div>)
 </div>
@@ -1022,7 +1046,7 @@ when it is no longer in use.</div></div><hr>
 </div>
 <div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Return</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>This call returns non-zero if and only if the file exists.</div></div><hr>
 <div id='directory_cd_doc' style='margin-bottom: 1cm;'>
-<h4>&sect;3.3.54: directory_cd</h4>
+<h4>&sect;3.3.55: directory_cd</h4>
 <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>bool32 app->directory_cd(
 <div style='margin-left: 4mm;'>Application_Links *app,<br>char *dir,<br>int *len,<br>int capacity,<br>char *rel_path,<br>int rel_len<br></div>)
 </div>
@@ -1055,7 +1079,7 @@ will contain "C:/Users/MySelf/Documents" and len will contain the length of that
 string.  This call can also be used with rel set to ".." to traverse to parent
 folders.</div></div><hr>
 <div id='get_4ed_path_doc' style='margin-bottom: 1cm;'>
-<h4>&sect;3.3.55: get_4ed_path</h4>
+<h4>&sect;3.3.56: get_4ed_path</h4>
 <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>bool32 app->get_4ed_path(
 <div style='margin-left: 4mm;'>Application_Links *app,<br>char *out,<br>int32_t capacity<br></div>)
 </div>
@@ -1069,7 +1093,7 @@ folders.</div></div><hr>
 </div>
 <div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Return</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>This call returns non-zero on success.</div></div><hr>
 <div id='show_mouse_cursor_doc' style='margin-bottom: 1cm;'>
-<h4>&sect;3.3.56: show_mouse_cursor</h4>
+<h4>&sect;3.3.57: show_mouse_cursor</h4>
 <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>void app->show_mouse_cursor(
 <div style='margin-left: 4mm;'>Application_Links *app,<br>Mouse_Cursor_Show_Type show<br></div>)
 </div>
@@ -1103,7 +1127,7 @@ when a buffer is closed it's id may be recycled by future, different buffers.</d
 <h4>&sect;3.4.5: View_ID</h4>
 <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>typedef int32_t View_ID;</div>
 <div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>View_ID is used to name a 4coder view.  Each view has a unique id in
-the range [1,16].</div></div><hr>
+the interval [1,16].</div></div><hr>
 <div id='Key_Modifier_doc' style='margin-bottom: 1cm;'>
 <h4>&sect;3.4.6: Key_Modifier</h4>
 <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>enum Key_Modifier;</div>
@@ -2302,6 +2326,7 @@ Coming Soon</i><div>
 <li><a href='#float_to_str_size_str_doc'>float_to_str_size</a></li>
 <li><a href='#append_float_to_str_str_doc'>append_float_to_str</a></li>
 <li><a href='#float_to_str_str_doc'>float_to_str</a></li>
+<li><a href='#str_is_int_str_doc'>str_is_int</a></li>
 <li><a href='#str_to_int_str_doc'>str_to_int</a></li>
 <li><a href='#hexchar_to_int_str_doc'>hexchar_to_int</a></li>
 <li><a href='#int_to_hexchar_str_doc'>int_to_hexchar</a></li>
@@ -3065,81 +3090,87 @@ fstr_bool float_to_str(
 </div>
 <div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>This call appends a string representation of x onto dest. If there is enough
 space in dest this call returns non-zero.</div></div><hr>
-<div id='str_to_int_str_doc'><h4>&sect;4.3.88: str_to_int</h4>
+<div id='str_is_int_str_doc'><h4>&sect;4.3.88: str_is_int</h4>
+<div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>
+fstr_bool str_is_int(
+<div style='margin-left: 4mm;'>String str<br></div>)
+</div>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>If str is a valid string representation of an integer, this call returns non-zero.</div></div><hr>
+<div id='str_to_int_str_doc'><h4>&sect;4.3.89: str_to_int</h4>
 <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>
 int32_t str_to_int(
 <div style='margin-left: 4mm;'>char *str<br></div>)
 </div>
-<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>If str represents a valid string representation of an integer, this call will return
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>If str is a valid string representation of an integer, this call will return
 the integer represented by the string.  Otherwise this call returns zero.</div></div><hr>
-<div><h4>&sect;4.3.89: str_to_int</h4>
+<div><h4>&sect;4.3.90: str_to_int</h4>
 <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>
 int32_t str_to_int(
 <div style='margin-left: 4mm;'>String str<br></div>)
 </div>
 <div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>If str represents a valid string representation of an integer, this call will return
 the integer represented by the string.  Otherwise this call returns zero.</div></div><hr>
-<div id='hexchar_to_int_str_doc'><h4>&sect;4.3.90: hexchar_to_int</h4>
+<div id='hexchar_to_int_str_doc'><h4>&sect;4.3.91: hexchar_to_int</h4>
 <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>
 int32_t hexchar_to_int(
 <div style='margin-left: 4mm;'>char c<br></div>)
 </div>
 <div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>If c is a valid hexadecimal digit [0-9a-fA-F] this call returns the value of
 the integer value of the digit. Otherwise the return is some nonsense value.</div></div><hr>
-<div id='int_to_hexchar_str_doc'><h4>&sect;4.3.91: int_to_hexchar</h4>
+<div id='int_to_hexchar_str_doc'><h4>&sect;4.3.92: int_to_hexchar</h4>
 <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>
 char int_to_hexchar(
 <div style='margin-left: 4mm;'>int32_t x<br></div>)
 </div>
 <div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>If x is in the range [0,15] this call returns the equivalent lowercase hexadecimal digit.
 Otherwise the return is some nonsense value.</div></div><hr>
-<div id='hexstr_to_int_str_doc'><h4>&sect;4.3.92: hexstr_to_int</h4>
+<div id='hexstr_to_int_str_doc'><h4>&sect;4.3.93: hexstr_to_int</h4>
 <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>
 uint32_t hexstr_to_int(
 <div style='margin-left: 4mm;'>String str<br></div>)
 </div>
 <div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>This call interprets str has a hexadecimal representation of an integer and returns
 the represented integer value.</div></div><hr>
-<div id='color_to_hexstr_str_doc'><h4>&sect;4.3.93: color_to_hexstr</h4>
+<div id='color_to_hexstr_str_doc'><h4>&sect;4.3.94: color_to_hexstr</h4>
 <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>
 fstr_bool color_to_hexstr(
 <div style='margin-left: 4mm;'>String *s,<br>uint32_t color<br></div>)
 </div>
 <div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>This call fills s with the hexadecimal representation of the color.
 If there is enough memory in s to represent the color this call returns non-zero.</div></div><hr>
-<div id='hexstr_to_color_str_doc'><h4>&sect;4.3.94: hexstr_to_color</h4>
+<div id='hexstr_to_color_str_doc'><h4>&sect;4.3.95: hexstr_to_color</h4>
 <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>
 fstr_bool hexstr_to_color(
 <div style='margin-left: 4mm;'>String s,<br>uint32_t *out<br></div>)
 </div>
 <div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>This call interprets s as a color and writes the 32-bit integer representation into out.</div></div><hr>
-<div id='reverse_seek_slash_str_doc'><h4>&sect;4.3.95: reverse_seek_slash</h4>
+<div id='reverse_seek_slash_str_doc'><h4>&sect;4.3.96: reverse_seek_slash</h4>
 <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>
 int32_t reverse_seek_slash(
 <div style='margin-left: 4mm;'>String str,<br>int32_t pos<br></div>)
 </div>
 <div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>This call searches for a slash in str by starting pos bytes from the end and going backwards.</div></div><hr>
-<div><h4>&sect;4.3.96: reverse_seek_slash</h4>
+<div><h4>&sect;4.3.97: reverse_seek_slash</h4>
 <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>
 int32_t reverse_seek_slash(
 <div style='margin-left: 4mm;'>String str<br></div>)
 </div>
 <div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>This call searches for a slash in str by starting at the end and going backwards.</div></div><hr>
-<div id='front_of_directory_str_doc'><h4>&sect;4.3.97: front_of_directory</h4>
+<div id='front_of_directory_str_doc'><h4>&sect;4.3.98: front_of_directory</h4>
 <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>
 String front_of_directory(
 <div style='margin-left: 4mm;'>String dir<br></div>)
 </div>
 <div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>This call returns a substring of dir containing only the file name or
 folder name furthest to the right in the directory.</div><div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>See Also</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'><a href='#substr_doc'>substr</a></div></div><hr>
-<div id='path_of_directory_str_doc'><h4>&sect;4.3.98: path_of_directory</h4>
+<div id='path_of_directory_str_doc'><h4>&sect;4.3.99: path_of_directory</h4>
 <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>
 String path_of_directory(
 <div style='margin-left: 4mm;'>String dir<br></div>)
 </div>
 <div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>This call returns a substring of dir containing the whole path except
 for the final file or folder name.</div><div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>See Also</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'><a href='#substr_doc'>substr</a></div></div><hr>
-<div id='set_last_folder_str_doc'><h4>&sect;4.3.99: set_last_folder</h4>
+<div id='set_last_folder_str_doc'><h4>&sect;4.3.100: set_last_folder</h4>
 <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>
 fstr_bool set_last_folder(
 <div style='margin-left: 4mm;'>String *dir,<br>char *folder_name,<br>char slash<br></div>)
@@ -3159,7 +3190,7 @@ at the end of the directory.</div></div>
 </div>
 <div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>This call deletes the last file name or folder name in the dir string and appends the new provided one.
 If there is enough memory in dir this call returns non-zero.</div></div><hr>
-<div><h4>&sect;4.3.100: set_last_folder</h4>
+<div><h4>&sect;4.3.101: set_last_folder</h4>
 <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>
 fstr_bool set_last_folder(
 <div style='margin-left: 4mm;'>String *dir,<br>String folder_name,<br>char slash<br></div>)
@@ -3178,20 +3209,20 @@ fstr_bool set_last_folder(
 </div>
 <div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>This call deletes the last file name or folder name in the dir string and appends the new provided one.
 If there is enough memory in dir this call returns non-zero.</div></div><hr>
-<div id='file_extension_str_doc'><h4>&sect;4.3.101: file_extension</h4>
+<div id='file_extension_str_doc'><h4>&sect;4.3.102: file_extension</h4>
 <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>
 String file_extension(
 <div style='margin-left: 4mm;'>String str<br></div>)
 </div>
 <div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>This call returns a substring containing only the file extension of the provided filename.</div><div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>See Also</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'><a href='#substr_doc'>substr</a></div></div><hr>
-<div id='remove_last_folder_str_doc'><h4>&sect;4.3.102: remove_last_folder</h4>
+<div id='remove_last_folder_str_doc'><h4>&sect;4.3.103: remove_last_folder</h4>
 <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>
 fstr_bool remove_last_folder(
 <div style='margin-left: 4mm;'>String *str<br></div>)
 </div>
 <div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>This call attemps to delete a folder or filename off the end of a path string.
 This call returns non-zero on success.</div></div><hr>
-<div id='string_set_match_str_doc'><h4>&sect;4.3.103: string_set_match</h4>
+<div id='string_set_match_str_doc'><h4>&sect;4.3.104: string_set_match</h4>
 <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>
 fstr_bool string_set_match(
 <div style='margin-left: 4mm;'>String *str_set,<br>int32_t count,<br>String str,<br>int32_t *match_index<br></div>)

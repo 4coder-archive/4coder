@@ -791,16 +791,6 @@ DOC_SEE(Buffer_Batch_Edit_Type)
     
     bool32 result = false;
     
-    app->print_message(app, literal("Buffer_Batch_Edit:\n"));
-    {
-        char space[512];
-        String str = make_fixed_width_string(space);
-        append(&str, "edit_count: ");
-        append_int_to_str(&str, edit_count);
-        append(&str, '\n');
-        app->print_message(app, str.str, str.size);
-    }
-    
     if (file){
         Temp_Memory temp = begin_temp_memory(part);
         Buffer_Edit *inverse_edits = push_array(part, Buffer_Edit, edit_count);
@@ -832,7 +822,6 @@ DOC_SEE(Buffer_Setting_ID)
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     System_Functions *system = cmd->system;
     Models *models = cmd->models;
-    
     Editing_File *file = imp_get_file(cmd, buffer);
     
     bool32 result = false;
@@ -1738,28 +1727,6 @@ DOC_SEE(int_color)
     return(result);
 }
 
-/*
-API_EXPORT void
-View_Set_Paste_Rewrite_(Application_Links *app, View_Summary *view){
-    Command_Data *cmd = (Command_Data*)app->cmd_context;
-    View *vptr = imp_get_view(cmd, view);
-    if (vptr){
-        vptr->next_mode.rewrite = true;
-    }
-}
-
-API_EXPORT int
-View_Get_Paste_Rewrite_(Application_Links *app, View_Summary *view){
-    Command_Data *cmd = (Command_Data*)app->cmd_context;
-    View *vptr = imp_get_view(cmd, view);
-    int result = false;
-    if (vptr){
-        result = vptr->mode.rewrite;
-    }
-    return(result);
-}
-*/
-
 API_EXPORT User_Input
 Get_User_Input(Application_Links *app, Input_Type_Flag get_type, Input_Type_Flag abort_type)/*
 DOC_PARAM(get_type, The get_type parameter specifies the set of input types that should be returned.)
@@ -1895,7 +1862,7 @@ API_EXPORT void
 Change_Theme(Application_Links *app, char *name, int32_t len)/*
 DOC_PARAM(name, The name parameter specifies the name of the theme to begin using; it need not be null terminated.)
 DOC_PARAM(len, The len parameter specifies the length of the name string.)
-DOC(This call changes 4coder's theme to one of the built in themes.)
+DOC(This call changes 4coder's color pallet to one of the built in themes.)
 */{
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     Style_Library *styles = &cmd->models->styles;
@@ -1914,20 +1881,55 @@ DOC(This call changes 4coder's theme to one of the built in themes.)
 }
 
 API_EXPORT void
-Change_Font(Application_Links *app, char *name, int32_t len)/*
+Change_Font(Application_Links *app, char *name, int32_t len, bool32 apply_to_all_files)/*
 DOC_PARAM(name, The name parameter specifies the name of the font to begin using; it need not be null terminated.)
 DOC_PARAM(len, The len parameter specifies the length of the name string.)
-DOC(This call changes 4coder's font to one of the built in fonts.)
+DOC_PARAM(apply_to_all_files, If this is set all open files change to this font.  Usually this should be true
+durring the start hook because several files already exist at that time.)
+DOC(This call changes 4coder's default font to one of the built in fonts.)
 */{
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     Font_Set *set = cmd->models->font_set;
+    
     Style_Font *global_font = &cmd->models->global_font;
     String font_name = make_string(name, len);
     i16 font_id = 0;
     
     if (font_set_extract(set, font_name, &font_id)){
         global_font->font_id = font_id;
-        global_font->font_changed = 1;
+        
+        if (apply_to_all_files){
+            System_Functions *system = cmd->system;
+            Models *models = cmd->models;
+            
+            File_Node *node = 0;
+            File_Node *sentinel = &models->working_set.used_sentinel;
+            for (dll_items(node, sentinel)){
+                Editing_File *file = (Editing_File*)node;
+                file_set_font(system, models, file, font_id);
+            }
+        }
+    }
+}
+
+API_EXPORT void
+Buffer_Set_Font(Application_Links *app, Buffer_Summary *buffer, char *name, int32_t len)/*
+DOC_PARAM(buffer, This parameter the buffer that shall have it's font changed)
+DOC_PARAM(name, The name parameter specifies the name of the font to begin using; it need not be null terminated.)
+DOC_PARAM(len, The len parameter specifies the length of the name string.)
+DOC(This call sets the display font of a particular buffer.)
+*/{
+    Command_Data *cmd = (Command_Data*)app->cmd_context;
+    System_Functions *system = cmd->system;
+    Models *models = cmd->models;
+    Editing_File *file = imp_get_file(cmd, buffer);
+    
+    Font_Set *set = models->font_set;
+    String font_name = make_string(name, len);
+    i16 font_id = 0;
+    
+    if (font_set_extract(set, font_name, &font_id)){
+        file_set_font(system, models, file, font_id);
     }
 }
 
