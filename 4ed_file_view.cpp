@@ -2674,6 +2674,7 @@ struct Indent_Parse_State{
     i32 previous_line_indent;
     i32 paren_nesting;
     i32 paren_anchor_indent[16];
+    i32 comment_shift;
 };
 
 internal i32
@@ -2693,13 +2694,27 @@ compute_this_indent(Buffer *buffer, Indent_Parse_State indent,
         next_line_start = buffer_size(buffer);
     }
     
-    if ((prev_token.type == CPP_TOKEN_COMMENT ||
-         prev_token.type == CPP_TOKEN_STRING_CONSTANT) &&
-        prev_token.start <= this_line_start &&
+    b32 did_special_behavior = false;
+    
+    if (prev_token.start <= this_line_start &&
         prev_token.start + prev_token.size > this_line_start){
-        this_indent = previous_indent;
+        if (prev_token.type == CPP_TOKEN_COMMENT){
+            Hard_Start_Result hard_start = buffer_find_hard_start(buffer, this_line_start, tab_width);
+            i32 line_pos = hard_start.char_pos - this_line_start;
+            this_indent = line_pos + indent.comment_shift;
+            if (this_indent < 0){
+                this_indent = 0;
+            }
+            did_special_behavior = true;
+        }
+        else if (prev_token.type == CPP_TOKEN_STRING_CONSTANT){
+            this_indent = previous_indent;
+            did_special_behavior = true;
+        }
     }
-    else{
+    
+    
+    if (!did_special_behavior){
         this_indent = indent.current_indent;
         if (T.start < next_line_start){
             if (T.flags & CPP_TFLAG_PP_DIRECTIVE){
@@ -2897,6 +2912,14 @@ get_line_indentation_marks(Partition *part, Buffer *buffer, Cpp_Token_Stack toke
             case CPP_TOKEN_BRACKET_CLOSE: indent.current_indent -= 4; break;
             case CPP_TOKEN_BRACE_OPEN: indent.current_indent += 4; break;
             case CPP_TOKEN_BRACE_CLOSE: indent.current_indent -= 4; break;
+            
+            case CPP_TOKEN_COMMENT:
+            {
+                i32 line = buffer_get_line_index(buffer, T.start);
+                i32 start = buffer->line_starts[line];
+                
+                indent.comment_shift = (indent.current_indent - (T.start - start));
+            }break;
             
             case CPP_TOKEN_PARENTHESE_OPEN:
             if (!(T.flags & CPP_TFLAG_PP_BODY)){

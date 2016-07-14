@@ -1295,37 +1295,37 @@ CUSTOM_COMMAND_SIG(if0_off){
 CUSTOM_COMMAND_SIG(backspace_word){
     unsigned int access = AccessOpen;
     
-    View_Summary view;
-    Buffer_Summary buffer;
-    int pos2, pos1;
+    View_Summary view = app->get_active_view(app, access);
+    Buffer_Summary buffer = app->get_buffer(app, view.buffer_id, access);
     
-    view = app->get_active_view(app, access);
-    
-    pos2 = view.cursor.pos;
-    exec_command(app, seek_alphanumeric_left);
-    refresh_view(app, &view);
-    pos1 = view.cursor.pos;
-    
-    buffer = app->get_buffer(app, view.buffer_id, access);
-    app->buffer_replace_range(app, &buffer, pos1, pos2, 0, 0);
+    if (buffer.exists){
+        int pos2 = 0, pos1 = 0;
+        
+        pos2 = view.cursor.pos;
+        exec_command(app, seek_alphanumeric_left);
+        refresh_view(app, &view);
+        pos1 = view.cursor.pos;
+                
+        app->buffer_replace_range(app, &buffer, pos1, pos2, 0, 0);
+    }
 }
 
 CUSTOM_COMMAND_SIG(delete_word){
     unsigned int access = AccessOpen;
     
-    View_Summary view;
-    Buffer_Summary buffer;
-    int pos2, pos1;
+    View_Summary view = app->get_active_view(app, access);
+    Buffer_Summary buffer = app->get_buffer(app, view.buffer_id, access);
     
-    view = app->get_active_view(app, access);
-    
-    pos1 = view.cursor.pos;
-    exec_command(app, seek_alphanumeric_right);
-    refresh_view(app, &view);
-    pos2 = view.cursor.pos;
-    
-    buffer = app->get_buffer(app, view.buffer_id, access);
-    app->buffer_replace_range(app, &buffer, pos1, pos2, 0, 0);
+    if (buffer.exists){
+        int pos2 = 0, pos1 = 0;
+        
+        pos1 = view.cursor.pos;
+        exec_command(app, seek_alphanumeric_right);
+        refresh_view(app, &view);
+        pos2 = view.cursor.pos;
+        
+        app->buffer_replace_range(app, &buffer, pos1, pos2, 0, 0);
+    }
 }
 
 CUSTOM_COMMAND_SIG(snipe_token_or_word){
