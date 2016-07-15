@@ -2450,6 +2450,8 @@ App_Step_Sig(app_step){
                             "-<alt ,> close the panel viewing the compilation buffer\n"
                             "-New documentation for the 4coder string library included in 4coder_API.html\n"
                             "-Low level allocation calls available in custom API\n"
+                            "-Each panel can change font independently.\n"
+                            "  Per-buffer fonts are exposed in the custom API.\n"
                             "\n"
                             "New in alpha 4.0.9:\n"
                             "-A scratch buffer is now opened with 4coder automatically\n"
