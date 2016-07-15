@@ -31,6 +31,9 @@ ms_style_verify(String line, int paren_pos){
     if (match_part(line_part, ") : ")){
         result = true;
     }
+    else if (match_part(line_part, "): ")){
+        result = true;
+    }
     
     return(result);
 }

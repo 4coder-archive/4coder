@@ -1527,10 +1527,6 @@ App_Init_Sig(app_init){
         if (!did_top) setup_top_commands(&models->map_top, &models->mem.part, global);
         if (!did_file) setup_file_commands(&models->map_file, &models->mem.part, global);
         
-#ifndef FRED_SUPER
-        models->hooks[hook_start] = 0;
-#endif
-        
         setup_ui_commands(&models->map_ui, &models->mem.part, global);
     }
     

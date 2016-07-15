@@ -398,6 +398,8 @@ default_keys(Bind_Helper *context){
 
 #ifndef NO_BINDING
 
+
+
 extern "C" int
 get_bindings(void *data, int size){
     Bind_Helper context_ = begin_bind_helper(data, size);
