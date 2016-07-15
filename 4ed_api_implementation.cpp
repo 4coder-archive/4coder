@@ -792,21 +792,27 @@ DOC_SEE(Buffer_Batch_Edit_Type)
     bool32 result = false;
     
     if (file){
-        Temp_Memory temp = begin_temp_memory(part);
-        Buffer_Edit *inverse_edits = push_array(part, Buffer_Edit, edit_count);
-        char *inv_str = (char*)part->base + part->pos;
-        int inv_str_max = part->max - part->pos;
-        Assert(inverse_edits);
-        
-        Edit_Spec spec =
-            file_compute_edit(mem, file,
-                              edits, str, str_len,
-                              inverse_edits, inv_str, inv_str_max,
-                              edit_count, type);
-        
-        file_do_batch_edit(cmd->system, models, file, spec, hist_normal, type);
-        
-        end_temp_memory(temp);
+        if (edit_count > 0){
+            Temp_Memory temp = begin_temp_memory(part);
+            Buffer_Edit *inverse_edits = push_array(part, Buffer_Edit, edit_count);
+            Assert(inverse_edits);
+            
+            char *inv_str = (char*)part->base + part->pos;
+            int inv_str_max = part->max - part->pos;
+            
+            Edit_Spec spec =
+                file_compute_edit(mem, file,
+                                  edits, str, str_len,
+                                  inverse_edits, inv_str, inv_str_max,
+                                  edit_count, type);
+            
+            file_do_batch_edit(cmd->system, models, file, spec, hist_normal, type);
+            
+            end_temp_memory(temp);
+        }
+        else{
+            result = true;
+        }
     }
     
     return(result);
@@ -1896,18 +1902,11 @@ DOC(This call changes 4coder's default font to one of the built in fonts.)
     i16 font_id = 0;
     
     if (font_set_extract(set, font_name, &font_id)){
-        global_font->font_id = font_id;
-        
         if (apply_to_all_files){
-            System_Functions *system = cmd->system;
-            Models *models = cmd->models;
-            
-            File_Node *node = 0;
-            File_Node *sentinel = &models->working_set.used_sentinel;
-            for (dll_items(node, sentinel)){
-                Editing_File *file = (Editing_File*)node;
-                file_set_font(system, models, file, font_id);
-            }
+            global_set_font(cmd->system, cmd->models, font_id);
+        }
+        else{
+            global_font->font_id = font_id;
         }
     }
 }
