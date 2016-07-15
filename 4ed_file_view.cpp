@@ -139,6 +139,7 @@ enum Debug_Mode{
 enum Color_View_Mode{
     CV_Mode_Library,
     CV_Mode_Font,
+    CV_Mode_Global_Font,
     CV_Mode_Adjusting
 };
 
@@ -3132,6 +3133,7 @@ internal void
 file_set_font(System_Functions *system, Models *models, Editing_File *file, i16 font_id){
     Render_Font *font = get_font_info(models->font_set, font_id)->font;
     f32 *advance_data = font->advance_data;
+    
     file->settings.font_id = font_id;
     file_measure_starts_widths(system, &models->mem.general, &file->state.buffer, advance_data);
     
@@ -3142,6 +3144,18 @@ file_set_font(System_Functions *system, Models *models, Editing_File *file, i16 
         update_view_line_height(models, iter.view, font_id);
         remeasure_file_view(system, iter.view);
     }
+}
+
+internal void
+global_set_font(System_Functions *system, Models *models, i16 font_id){
+    File_Node *node = 0;
+    File_Node *sentinel = &models->working_set.used_sentinel;
+    for (dll_items(node, sentinel)){
+        Editing_File *file = (Editing_File*)node;
+        file_set_font(system, models, file, font_id);
+    }
+    
+    models->global_font.font_id = font_id;
 }
 
 inline void
@@ -4164,14 +4178,23 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                             view->color_mode = CV_Mode_Adjusting;
                         }
                         
-                        message = make_lit_string("Set Font");
                         if (view->file_data.file){
+                            message = make_lit_string("Set Font");
                             id.id[0] = (u64)(&view->file_data.file->settings.font_id);
                             
                             if (gui_do_button(target, id, message)){
                                 view->color_mode = CV_Mode_Font;
                             }
                         }
+                        
+                        message = make_lit_string("Set Global Font");
+                        id.id[0] = (u64)(&models->global_font);
+                        
+                        if (gui_do_button(target, id, message)){
+                            view->color_mode = CV_Mode_Global_Font;
+                        }
+                        
+                        
                         
                         message = make_lit_string("Theme Library - Click to Select");
                         gui_do_text_field(target, message, empty_string);
@@ -4196,6 +4219,7 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                         gui_end_scrollable(target);
                         break;
                         
+                        case CV_Mode_Global_Font:
                         case CV_Mode_Font:
                         {
                             Assert(view->file_data.file);
@@ -4212,7 +4236,11 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                                 view->color_mode = CV_Mode_Library;
                             }
                             
-                            i16 font_id = view->file_data.file->settings.font_id;
+                            i16 font_id = models->global_font.font_id;
+                            if (view->color_mode == CV_Mode_Font){
+                                font_id = view->file_data.file->settings.font_id;
+                            }
+                            
                             i16 new_font_id = font_id;
                             
                             for (i = 1; i < count; ++i){
@@ -4232,7 +4260,14 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                                 }
                             }
                             
-                            file_set_font(system, models, view->file_data.file, new_font_id);
+                            if (font_id != new_font_id){
+                                if (view->color_mode == CV_Mode_Font){
+                                    file_set_font(system, models, view->file_data.file, new_font_id);
+                                }
+                                else{
+                                    global_set_font(system, models, new_font_id);
+                                }
+                            }
                         }break;
                         
                         case CV_Mode_Adjusting:
