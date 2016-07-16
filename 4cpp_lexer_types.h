@@ -170,13 +170,6 @@ enum Cpp_Token_Type{
     CPP_TOKEN_TYPE_COUNT
 };
 
-// TODO(allen): This is a dumb redundant type... probably just
-// move towards using String for this everywhere eventually.
-struct Cpp_File{
-	char *data;
-	int size;
-};
-
 struct Cpp_Token{
 	Cpp_Token_Type type;
 	int start, size;
@@ -235,7 +228,9 @@ struct Cpp_Get_Token_Result{
 };
 
 struct Cpp_Relex_State{
-    Cpp_File file;
+    char *data;
+    int size;
+    
     Cpp_Token_Stack *stack;
     int start, end, amount;
     int start_token_i;

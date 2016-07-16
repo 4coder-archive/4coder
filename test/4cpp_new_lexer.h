@@ -1032,10 +1032,11 @@ cpp_lex_size_nonalloc(Lex_Data *S_ptr,
 }
 
 lexer_link Cpp_Relex_State
-cpp_relex_nonalloc_start(Cpp_File file, Cpp_Token_Stack *stack,
+cpp_relex_nonalloc_start(char *data, int size, Cpp_Token_Stack *stack,
                          int start, int end, int amount, int tolerance){
     Cpp_Relex_State state;
-    state.file = file;
+    state.data = data;
+    state.size = size;
     state.stack = stack;
     state.start = start;
     state.end = end;
@@ -1107,7 +1108,7 @@ cpp_relex_nonalloc_main(Cpp_Relex_State *state,
     lex.pos = state->relex_start;
     
     int relex_end_i = state->end_token_i;
-    Cpp_Token match_token = cpp__get_token(stack, tokens, state->file.size, relex_end_i);
+    Cpp_Token match_token = cpp__get_token(stack, tokens, state->size, relex_end_i);
     Cpp_Token end_token = match_token;
     int went_too_far = false;
     
@@ -1115,9 +1116,9 @@ cpp_relex_nonalloc_main(Cpp_Relex_State *state,
     for (;;){
         int result = 
             cpp_lex_size_nonalloc(&lex,
-                                  state->file.data,
-                                  state->file.size,
-                                  state->file.size,
+                                  state->data,
+                                  state->size,
+                                  state->size,
                                   relex_stack, 1);
         
         switch (result){
@@ -1134,7 +1135,7 @@ cpp_relex_nonalloc_main(Cpp_Relex_State *state,
                 
                 while (lex.pos > end_token.start && relex_end_i < stack->count){
                     ++relex_end_i;
-                    end_token = cpp__get_token(stack, tokens, state->file.size, relex_end_i);
+                    end_token = cpp__get_token(stack, tokens, state->size, relex_end_i);
                 }
             }
             break;

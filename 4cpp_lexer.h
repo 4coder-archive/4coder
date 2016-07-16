@@ -78,14 +78,6 @@ struct Cpp_Read_Result{
 	char has_result;
 };
 
-Cpp_File
-data_as_cpp_file(Data data){
-    Cpp_File result;
-    result.data = (char*)data.data;
-    result.size = data.size;
-    return(result);
-}
-
 // TODO(allen): revisit this keyword data declaration system
 struct String_And_Flag{
     char *str;
@@ -125,27 +117,27 @@ is_keyword(Cpp_Token_Type type){
     return (type >= CPP_TOKEN_KEY_TYPE && type <= CPP_TOKEN_KEY_OTHER);
 }
 
-FCPP_LINK Sub_Match_List_Result sub_match_list(Cpp_File file, int pos, String_List list, int sub_size);
+FCPP_LINK Sub_Match_List_Result sub_match_list(char *data, int size, int pos, String_List list, int sub_size);
 
 FCPP_LINK Seek_Result seek_unescaped_eol(char *data, int size, int pos);
 FCPP_LINK Seek_Result seek_unescaped_delim(char *data, int size, int pos, char delim);
 FCPP_LINK Seek_Result seek_block_comment_end(char *data, int size, int pos);
 
-FCPP_LINK Cpp_Read_Result cpp_read_whitespace(Cpp_File file, int pos);
-FCPP_LINK Cpp_Read_Result cpp_read_junk_line(Cpp_File file, int pos);
-FCPP_LINK Cpp_Read_Result cpp_read_operator(Cpp_File file, int pos);
-FCPP_LINK Cpp_Read_Result cpp_read_pp_operator(Cpp_File file, int pos);
-FCPP_LINK Cpp_Read_Result cpp_read_alpha_numeric(Cpp_File file, int pos, bool in_if_body);
-inline    Cpp_Read_Result cpp_read_alpha_numeric(Cpp_File file, int pos) { return cpp_read_alpha_numeric(file, pos, 0); }
-FCPP_LINK Cpp_Read_Result cpp_read_number(Cpp_File file, int pos);
-FCPP_LINK Cpp_Read_Result cpp_read_string_litteral(Cpp_File file, int pos);
-FCPP_LINK Cpp_Read_Result cpp_read_character_litteral(Cpp_File file, int pos);
-FCPP_LINK Cpp_Read_Result cpp_read_line_comment(Cpp_File file, int pos);
-FCPP_LINK Cpp_Read_Result cpp_read_block_comment(Cpp_File file, int pos);
-FCPP_LINK Cpp_Read_Result cpp_read_preprocessor(Cpp_File file, int pos);
-FCPP_LINK Cpp_Read_Result cpp_read_pp_include_file(Cpp_File file, int pos);
-FCPP_LINK Cpp_Read_Result cpp_read_pp_default_mode(Cpp_File file, int pos, bool in_if_body);
-inline    Cpp_Read_Result cpp_read_pp_default_mode(Cpp_File file, int pos) { return cpp_read_pp_default_mode(file, pos, 0); }
+FCPP_LINK Cpp_Read_Result cpp_read_whitespace(char *data, int size, int pos);
+FCPP_LINK Cpp_Read_Result cpp_read_junk_line(char *data, int size, int pos);
+FCPP_LINK Cpp_Read_Result cpp_read_operator(char *data, int size, int pos);
+FCPP_LINK Cpp_Read_Result cpp_read_pp_operator(char *data, int size, int pos);
+FCPP_LINK Cpp_Read_Result cpp_read_alpha_numeric(char *data, int size, int pos, bool in_if_body);
+inline    Cpp_Read_Result cpp_read_alpha_numeric(char *data, int size, int pos) { return cpp_read_alpha_numeric(data, size, pos, 0); }
+FCPP_LINK Cpp_Read_Result cpp_read_number(char *data, int size, int pos);
+FCPP_LINK Cpp_Read_Result cpp_read_string_litteral(char *data, int size, int pos);
+FCPP_LINK Cpp_Read_Result cpp_read_character_litteral(char *data, int size, int pos);
+FCPP_LINK Cpp_Read_Result cpp_read_line_comment(char *data, int size, int pos);
+FCPP_LINK Cpp_Read_Result cpp_read_block_comment(char *data, int size, int pos);
+FCPP_LINK Cpp_Read_Result cpp_read_preprocessor(char *data, int size, int pos);
+FCPP_LINK Cpp_Read_Result cpp_read_pp_include_file(char *data, int size, int pos);
+FCPP_LINK Cpp_Read_Result cpp_read_pp_default_mode(char *data, int size, int pos, bool in_if_body);
+inline    Cpp_Read_Result cpp_read_pp_default_mode(char *data, int size, int pos) { return cpp_read_pp_default_mode(data, size, pos, 0); }
 
 FCPP_LINK Cpp_Token_Merge cpp_attempt_token_merge(Cpp_Token prev, Cpp_Token next);
 
@@ -154,18 +146,18 @@ FCPP_LINK bool cpp_push_token_nonalloc(Cpp_Token_Stack *stack, Cpp_Token token);
 
 inline    Cpp_Lex_Data cpp_lex_data_zero() { Cpp_Lex_Data data = {(Cpp_Preprocessor_State)0}; return(data); }
 
-FCPP_LINK Cpp_Read_Result cpp_lex_step(Cpp_File file, Cpp_Lex_Data *lex);
+FCPP_LINK Cpp_Read_Result cpp_lex_step(char *data, int size, Cpp_Lex_Data *lex);
 
-FCPP_LINK int            cpp_lex_file_token_count(Cpp_File file);
-FCPP_LINK Cpp_Lex_Data   cpp_lex_file_nonalloc(Cpp_File file, Cpp_Token_Stack *stack, Cpp_Lex_Data data);
-inline    Cpp_Lex_Data   cpp_lex_file_nonalloc(Cpp_File file, Cpp_Token_Stack *stack) { return cpp_lex_file_nonalloc(file, stack, cpp_lex_data_zero()); }
+FCPP_LINK int            cpp_lex_file_token_count(char *data, int size);
+FCPP_LINK Cpp_Lex_Data   cpp_lex_file_nonalloc(char *data, int size, Cpp_Token_Stack *stack, Cpp_Lex_Data lex_data);
+inline    Cpp_Lex_Data   cpp_lex_file_nonalloc(char *data, int size, Cpp_Token_Stack *stack) { return cpp_lex_file_nonalloc(data, size, stack, cpp_lex_data_zero()); }
 
 FCPP_LINK Cpp_Get_Token_Result cpp_get_token(Cpp_Token_Stack *stack, int pos);
 
 FCPP_LINK int  cpp_get_end_token(Cpp_Token_Stack *stack, int end);
 FCPP_LINK void cpp_shift_token_starts(Cpp_Token_Stack *stack, int from_token, int amount);
 
-FCPP_LINK Cpp_Relex_State cpp_relex_nonalloc_start(Cpp_File file, Cpp_Token_Stack *stack, int start, int end, int amount, int tolerance);
+FCPP_LINK Cpp_Relex_State cpp_relex_nonalloc_start(char *data, int size, Cpp_Token_Stack *stack, int start, int end, int amount, int tolerance);
 FCPP_LINK bool            cpp_relex_nonalloc_main(Cpp_Relex_State state, Cpp_Token_Stack *stack);
 
 #ifndef FCPP_FORBID_MALLOC
@@ -174,10 +166,10 @@ FCPP_LINK void cpp_free_token_stack(Cpp_Token_Stack stack);
 FCPP_LINK void cpp_resize_token_stack(Cpp_Token_Stack *stack, int new_max);
 
 FCPP_LINK void cpp_push_token(Cpp_Token_Stack *stack, Cpp_Token token);
-FCPP_LINK void cpp_lex_file(Cpp_File file, Cpp_Token_Stack *stack);
-FCPP_LINK bool cpp_relex_file_limited(Cpp_File file, Cpp_Token_Stack *stack, int start_i, int end_i, int amount, int extra_tolerance);
-inline    void cpp_relex_file(Cpp_File file, Cpp_Token_Stack *stack, int start_i, int end_i, int amount)
-{ cpp_relex_file_limited(file, stack, start_i, end_i, amount, -1); }
+FCPP_LINK void cpp_lex_file(char *data, int size, Cpp_Token_Stack *stack);
+FCPP_LINK bool cpp_relex_file_limited(char *data, int size, Cpp_Token_Stack *stack, int start_i, int end_i, int amount, int extra_tolerance);
+inline    void cpp_relex_file(char *data, int size, Cpp_Token_Stack *stack, int start_i, int end_i, int amount)
+{ cpp_relex_file_limited(data, size, stack, start_i, end_i, amount, -1); }
 #endif
 
 #define FCPP_STRING_LIST(x) {x, FCPP_COUNT(x)}
@@ -393,7 +385,7 @@ FCPP_GLOBAL String_List preprops = FCPP_STRING_LIST(preprop_strings);
 #define _TentativeAssert FCPP_ASSERT
 
 FCPP_LINK Sub_Match_List_Result
-sub_match_list(Cpp_File file, int pos, String_List list, int sub_size){
+sub_match_list(char *data, int size, int pos, String_List list, int sub_size){
     Sub_Match_List_Result result;
     String str_main;
     char *str_check;
@@ -401,7 +393,7 @@ sub_match_list(Cpp_File file, int pos, String_List list, int sub_size){
 
     result.index = -1;
     result.new_pos = pos;
-    str_main = make_string(file.data + pos, file.size - pos);
+    str_main = make_string(data + pos, size - pos);
     if (sub_size > 0){
         str_main = substr(str_main, 0, sub_size);
         for (i = 0; i < list.count; ++i){
@@ -505,11 +497,11 @@ seek_block_comment_end(char *data, int size, int pos){
 }
 
 FCPP_LINK Cpp_Read_Result
-cpp_read_whitespace(Cpp_File file, int pos){
+cpp_read_whitespace(char *data, int size, int pos){
     Cpp_Read_Result result = {};
 
-    while (pos < file.size && char_is_whitespace(file.data[pos])){
-        if (file.data[pos] == '\n'){
+    while (pos < size && char_is_whitespace(data[pos])){
+        if (data[pos] == '\n'){
             result.newline = 1;
         }
         ++pos;
@@ -521,16 +513,16 @@ cpp_read_whitespace(Cpp_File file, int pos){
 }
 
 FCPP_LINK Cpp_Read_Result
-cpp_read_junk_line(Cpp_File file, int pos){
+cpp_read_junk_line(char *data, int size, int pos){
     Cpp_Read_Result result = {};
     result.token.start = pos;
     result.token.type = CPP_TOKEN_JUNK;
 
     bool comment_end = 0;
-    while (pos < file.size && file.data[pos] != '\n'){
-        if (file.data[pos] == '/' && pos + 1 < file.size){
-            if (file.data[pos + 1] == '/' ||
-                file.data[pos + 1] == '*'){
+    while (pos < size && data[pos] != '\n'){
+        if (data[pos] == '/' && pos + 1 < size){
+            if (data[pos + 1] == '/' ||
+                data[pos + 1] == '*'){
                 comment_end = 1;
                 break;
             }
@@ -543,10 +535,10 @@ cpp_read_junk_line(Cpp_File file, int pos){
         result.token.size = pos - result.token.start;
     }
     else{
-        while (pos > 0 && file.data[pos - 1] == '\r'){
+        while (pos > 0 && data[pos - 1] == '\r'){
             --pos;
         }
-        if (pos > 0 && file.data[pos - 1] == '\\'){
+        if (pos > 0 && data[pos - 1] == '\\'){
             --pos;
         }
         result.pos = pos;
@@ -557,13 +549,13 @@ cpp_read_junk_line(Cpp_File file, int pos){
 }
 
 FCPP_LINK Cpp_Read_Result
-cpp_read_operator(Cpp_File file, int pos){
+cpp_read_operator(char *data, int size, int pos){
     Cpp_Read_Result result = {};
     result.pos = pos;
     result.token.start = pos;
 
     Sub_Match_List_Result match;
-    match = sub_match_list(file, result.token.start, ops, -1);
+    match = sub_match_list(data, size, result.token.start, ops, -1);
 
     if (match.index != -1){
         result.pos = match.new_pos;
@@ -581,13 +573,13 @@ cpp_read_operator(Cpp_File file, int pos){
 }
 
 FCPP_LINK Cpp_Read_Result
-cpp_read_pp_operator(Cpp_File file, int pos){
+cpp_read_pp_operator(char *data, int size, int pos){
     Cpp_Read_Result result = {};
     result.pos = pos;
     result.token.start = pos;
 
     Sub_Match_List_Result match;
-    match = sub_match_list(file, result.token.start, pp_ops, -1);
+    match = sub_match_list(data, size, result.token.start, pp_ops, -1);
 
     _Assert(match.index != -1);
     result.pos = match.new_pos;
@@ -598,13 +590,13 @@ cpp_read_pp_operator(Cpp_File file, int pos){
 }
 
 FCPP_LINK Cpp_Read_Result
-cpp_read_alpha_numeric(Cpp_File file, int pos, bool in_if_body){
+cpp_read_alpha_numeric(char *data, int size, int pos, bool in_if_body){
     Cpp_Read_Result result = {};
     result.pos = pos;
     result.token.start = pos;
 
-    while (result.pos < file.size &&
-           char_is_alpha_numeric(file.data[result.pos])){
+    while (result.pos < size &&
+           char_is_alpha_numeric(data[result.pos])){
         ++result.pos;
     }
 
@@ -614,7 +606,7 @@ cpp_read_alpha_numeric(Cpp_File file, int pos, bool in_if_body){
     if (in_if_body){
         String word;
         word.size = result.token.size;
-        word.str = file.data + result.token.start;
+        word.str = data + result.token.start;
         if (match(word, "defined")){
             result.token.type = CPP_TOKEN_DEFINED;
             result.token.flags |= CPP_TFLAG_IS_OPERATOR;
@@ -624,14 +616,14 @@ cpp_read_alpha_numeric(Cpp_File file, int pos, bool in_if_body){
 
     if (result.token.type == CPP_TOKEN_JUNK){
         Sub_Match_List_Result match;
-        match = sub_match_list(file, result.token.start, bool_lits, result.token.size);
+        match = sub_match_list(data, size, result.token.start, bool_lits, result.token.size);
 
         if (match.index != -1){
             result.token.type = CPP_TOKEN_BOOLEAN_CONSTANT;
             result.token.flags |= CPP_TFLAG_IS_KEYWORD;
         }
         else{
-            match = sub_match_list(file, result.token.start, keywords, result.token.size);
+            match = sub_match_list(data, size, result.token.start, keywords, result.token.size);
 
             if (match.index != -1){
                 String_And_Flag data = keywords.data[match.index];
@@ -648,7 +640,7 @@ cpp_read_alpha_numeric(Cpp_File file, int pos, bool in_if_body){
 }
 
 FCPP_LINK Cpp_Read_Result
-cpp_read_number(Cpp_File file, int pos){
+cpp_read_number(char *data, int size, int pos){
     Cpp_Read_Result result = {};
     result.pos = pos;
     result.token.start = pos;
@@ -659,9 +651,9 @@ cpp_read_number(Cpp_File file, int pos){
     bool is_hex = 0;
     bool is_zero = 0;
 
-    if (file.data[pos] == '0'){
-        if (pos+1 < file.size){
-            char next = file.data[pos+1];
+    if (data[pos] == '0'){
+        if (pos+1 < size){
+            char next = data[pos+1];
             if (next == 'x'){
                 is_hex = 1;
                 is_integer = 1;
@@ -684,7 +676,7 @@ cpp_read_number(Cpp_File file, int pos){
             is_integer = 1;
         }
     }
-    else if (file.data[pos] == '.'){
+    else if (data[pos] == '.'){
         is_float = 1;
     }
 
@@ -696,20 +688,20 @@ cpp_read_number(Cpp_File file, int pos){
         char character;
         do{
             ++result.pos;
-            if (result.pos >= file.size){
+            if (result.pos >= size){
                 break;
             }
-            character = file.data[result.pos];
+            character = data[result.pos];
         } while(char_is_hex(character));
     }
     else if (is_oct){
         char character;
         do{
             ++result.pos;
-            if (result.pos >= file.size){
+            if (result.pos >= size){
                 break;
             }
-            character = file.data[result.pos];
+            character = data[result.pos];
         }while(char_is_numeric(character));
     }
     else{
@@ -718,11 +710,11 @@ cpp_read_number(Cpp_File file, int pos){
              while (1){
                 ++result.pos;
 
-                if (result.pos >= file.size){
+                if (result.pos >= size){
                     break;
                 }
                 bool is_good = 0;
-                char character = file.data[result.pos];
+                char character = data[result.pos];
                 if (character >= '0' && character <= '9'){
                     is_good = 1;
                 }
@@ -744,11 +736,11 @@ cpp_read_number(Cpp_File file, int pos){
 
             while (1){
                 ++result.pos;
-                if (result.pos >= file.size){
+                if (result.pos >= size){
                     break;
                 }
                 is_good = 0;
-                character = file.data[result.pos];
+                character = data[result.pos];
                 if (character >= '0' && character <= '9'){
                     is_good = 1;
                 }
@@ -771,7 +763,7 @@ cpp_read_number(Cpp_File file, int pos){
 
     if (is_integer){
         Sub_Match_List_Result match =
-            sub_match_list(file, result.pos, int_sufs, -1);
+            sub_match_list(data, size, result.pos, int_sufs, -1);
         if (match.index != -1){
             result.pos = match.new_pos;
         }
@@ -780,7 +772,7 @@ cpp_read_number(Cpp_File file, int pos){
     }
     else if (is_float){
         Sub_Match_List_Result match =
-            sub_match_list(file, result.pos, float_sufs, -1);
+            sub_match_list(data, size, result.pos, float_sufs, -1);
         if (match.index != -1){
             result.pos = match.new_pos;
         }
@@ -795,69 +787,69 @@ cpp_read_number(Cpp_File file, int pos){
 }
 
 FCPP_LINK Cpp_Read_Result
-cpp_read_string_litteral(Cpp_File file, int pos){
+cpp_read_string_litteral(char *data, int size, int pos){
     Cpp_Read_Result result = {};
     result.token.start = pos;
-
-    _Assert(file.data[pos] == '"');
-    Seek_Result seek = seek_unescaped_delim(file.data, file.size, pos, '"');
+    
+    _Assert(data[pos] == '"');
+    Seek_Result seek = seek_unescaped_delim(data, size, pos, '"');
     pos = seek.pos;
     if (seek.new_line){
         result.token.flags |= CPP_TFLAG_MULTILINE;
     }
-
+    
     result.token.size = pos - result.token.start;
     result.token.type = CPP_TOKEN_STRING_CONSTANT;
     result.pos = pos;
-
+    
     return result;
 }
 
 FCPP_LINK Cpp_Read_Result
-cpp_read_character_litteral(Cpp_File file, int pos){
+cpp_read_character_litteral(char *data, int size, int pos){
     Cpp_Read_Result result = {};
     result.token.start = pos;
-
-    _Assert(file.data[pos] == '\'');
-    Seek_Result seek = seek_unescaped_delim(file.data, file.size, pos, '\'');
+    
+    _Assert(data[pos] == '\'');
+    Seek_Result seek = seek_unescaped_delim(data, size, pos, '\'');
     pos = seek.pos;
     if (seek.new_line){
         result.token.flags |= CPP_TFLAG_MULTILINE;
     }
-
+    
     result.token.size = pos - result.token.start;
     result.token.type = CPP_TOKEN_CHARACTER_CONSTANT;
     result.pos = pos;
-
+    
     return result;
 }
 
 FCPP_LINK Cpp_Read_Result
-cpp_read_line_comment(Cpp_File file, int pos){
+cpp_read_line_comment(char *data, int size, int pos){
     Cpp_Read_Result result = {};
     result.token.start = pos;
-
-    _Assert(file.data[pos] == '/' && file.data[pos + 1] == '/');
-
+    
+    _Assert(data[pos] == '/' && data[pos + 1] == '/');
+    
     pos += 2;
-    while (pos < file.size){
-        if (file.data[pos] == '\n'){
+    while (pos < size){
+        if (data[pos] == '\n'){
             break;
         }
-        if (file.data[pos] == '\\'){
-            if (pos + 1 < file.size &&
-                file.data[pos + 1] == '\n'){
+        if (data[pos] == '\\'){
+            if (pos + 1 < size &&
+                data[pos + 1] == '\n'){
                 ++pos;
             }
-            else if (pos + 2 < file.size &&
-                     file.data[pos + 1] == '\r' &&
-                     file.data[pos + 2] == '\n'){
+            else if (pos + 2 < size &&
+                     data[pos + 1] == '\r' &&
+                     data[pos + 2] == '\n'){
                 pos += 2;
             }
         }
         ++pos;
     }
-    if (pos > 0 && file.data[pos-1] == '\r'){
+    if (pos > 0 && data[pos-1] == '\r'){
         --pos;
     }
     result.token.size = pos - result.token.start;
@@ -867,16 +859,16 @@ cpp_read_line_comment(Cpp_File file, int pos){
 }
 
 FCPP_LINK Cpp_Read_Result
-cpp_read_block_comment(Cpp_File file, int pos){
+cpp_read_block_comment(char *data, int size, int pos){
     Cpp_Read_Result result = {};
     result.token.start = pos;
 
-    _Assert(file.data[pos] == '/' && file.data[pos + 1] == '*');
+    _Assert(data[pos] == '/' && data[pos + 1] == '*');
     pos += 2;
-    while (pos < file.size){
-        if (file.data[pos] == '*' &&
-            pos + 1 < file.size &&
-            file.data[pos+1] == '/'){
+    while (pos < size){
+        if (data[pos] == '*' &&
+            pos + 1 < size &&
+            data[pos+1] == '/'){
             break;
         }
         ++pos;
@@ -889,43 +881,42 @@ cpp_read_block_comment(Cpp_File file, int pos){
 }
 
 FCPP_LINK Cpp_Read_Result
-cpp_read_preprocessor(Cpp_File file, int pos){
-    _Assert(file.data[pos] == '#');
+cpp_read_preprocessor(char *data, int size, int pos){
+    _Assert(data[pos] == '#');
     Cpp_Read_Result result = {};
     result.token.start = pos;
     result.token.type = CPP_PP_UNKNOWN;
     result.token.flags |= CPP_TFLAG_PP_DIRECTIVE;
-
+    
     ++pos;
-    while (pos < file.size &&
-           (file.data[pos] == ' ' ||
-            file.data[pos] == '\t')){
+    while (pos < size &&
+           (data[pos] == ' ' ||
+            data[pos] == '\t')){
         ++pos;
     }
-
+    
     Sub_Match_List_Result match
-        = sub_match_list(file, pos, preprops, -1);
-
+        = sub_match_list(data, size, pos, preprops, -1);
+    
     if (match.index != -1){
         result.token.size = match.new_pos - result.token.start;
         result.token.type = (Cpp_Token_Type)preprops.data[match.index].flags;
         result.pos = match.new_pos;
     }
     else{
-        while (pos < file.size &&
-               !char_is_whitespace(file.data[pos])){
+        while (pos < size && !char_is_whitespace(data[pos])){
             ++pos;
         }
         result.token.size = pos - result.token.start;
         result.pos = pos;
     }
-
+    
     return result;
 }
 
 FCPP_LINK Cpp_Read_Result
-cpp_read_pp_include_file(Cpp_File file, int pos){
-    char start = file.data[pos];
+cpp_read_pp_include_file(char *data, int size, int pos){
+    char start = data[pos];
     _Assert(start == '<' || start == '"');
 
     Cpp_Read_Result result = {};
@@ -942,22 +933,20 @@ cpp_read_pp_include_file(Cpp_File file, int pos){
     }
 
     ++pos;
-    while (pos < file.size && file.data[pos] != end){
-        if (file.data[pos] == '\n'){
+    while (pos < size && data[pos] != end){
+        if (data[pos] == '\n'){
             result.token.type = CPP_TOKEN_JUNK;
             result.token.flags |= CPP_TFLAG_BAD_ENDING;
             break;
         }
-        if (file.data[pos] == '\\'){
-            // TODO(allen): Not sure that this is 100% correct.
-            if (pos + 1 < file.size &&
-                file.data[pos + 1] == '\n'){
+        if (data[pos] == '\\'){
+            if (pos + 1 < size && data[pos + 1] == '\n'){
                 ++pos;
                 result.token.flags |= CPP_TFLAG_MULTILINE;
             }
-            else if (pos + 2 < file.size &&
-                     file.data[pos + 1] == '\r' &&
-                     file.data[pos + 2] == '\n'){
+            else if (pos + 2 < size &&
+                     data[pos + 1] == '\r' &&
+                     data[pos + 2] == '\n'){
                 pos += 2;
                 result.token.flags |= CPP_TFLAG_MULTILINE;
             }
@@ -966,7 +955,7 @@ cpp_read_pp_include_file(Cpp_File file, int pos){
     }
 
     if (result.token.type != CPP_TOKEN_JUNK){
-        if (pos < file.size){
+        if (pos < size){
             ++pos;
         }
     }
@@ -978,55 +967,55 @@ cpp_read_pp_include_file(Cpp_File file, int pos){
 }
 
 FCPP_LINK Cpp_Read_Result
-cpp_read_pp_default_mode(Cpp_File file, int pos, bool in_if_body){
-    char current = file.data[pos];
+cpp_read_pp_default_mode(char *data, int size, int pos, bool in_if_body){
+    char current = data[pos];
     Cpp_Read_Result result;
     if (char_is_numeric(current)){
-        result = cpp_read_number(file, pos);
+        result = cpp_read_number(data, size, pos);
     }
     else if (char_is_alpha(current)){
-        result = cpp_read_alpha_numeric(file, pos, in_if_body);
+        result = cpp_read_alpha_numeric(data, size, pos, in_if_body);
     }
     else if (current == '.'){
-        if (pos + 1 < file.size){
-            char next = file.data[pos + 1];
+        if (pos + 1 < size){
+            char next = data[pos + 1];
             if (char_is_numeric(next)){
-                result = cpp_read_number(file, pos);
+                result = cpp_read_number(data, size, pos);
             }
             else{
-                result = cpp_read_operator(file, pos);
+                result = cpp_read_operator(data, size, pos);
             }
         }
         else{
-            result = cpp_read_operator(file, pos);
+            result = cpp_read_operator(data, size, pos);
         }
     }
 
     else if (current == '/'){
-        if (pos + 1 < file.size){
-            char next = file.data[pos + 1];
+        if (pos + 1 < size){
+            char next = data[pos + 1];
             if (next == '/'){
-                result = cpp_read_line_comment(file, pos);
+                result = cpp_read_line_comment(data, size, pos);
             }
             else if (next == '*'){
-                result = cpp_read_block_comment(file, pos);
+                result = cpp_read_block_comment(data, size, pos);
             }
             else{
-                result = cpp_read_operator(file, pos);
+                result = cpp_read_operator(data, size, pos);
             }
         }
         else{
-            result = cpp_read_operator(file, pos);
+            result = cpp_read_operator(data, size, pos);
         }
     }
     else if (current == '"'){
-        result = cpp_read_string_litteral(file, pos);
+        result = cpp_read_string_litteral(data, size, pos);
     }
     else if (current == '\''){
-        result = cpp_read_character_litteral(file, pos);
+        result = cpp_read_character_litteral(data, size, pos);
     }
     else{
-        result = cpp_read_operator(file, pos);
+        result = cpp_read_operator(data, size, pos);
     }
 
     return result;
@@ -1084,16 +1073,16 @@ cpp_push_token_nonalloc(Cpp_Token_Stack *token_stack, Cpp_Token token){
 }
 
 FCPP_LINK Cpp_Read_Result
-cpp_lex_step(Cpp_File file, Cpp_Lex_Data *lex_data){
+cpp_lex_step(char *data, int size, Cpp_Lex_Data *lex_data){
     Cpp_Lex_Data lex = *lex_data;
     Cpp_Read_Result result = {};
     bool has_result = 1;
 
     fcpp_u16 state_flags = cpp_token_set_pp_state(0, lex.pp_state);
 
-    char current = file.data[lex.pos];
+    char current = data[lex.pos];
     if (char_is_whitespace(current)){
-        result = cpp_read_whitespace(file, lex.pos);
+        result = cpp_read_whitespace(data, size, lex.pos);
         lex.pos = result.pos;
         if (result.newline && lex.pp_state != CPP_LEX_PP_DEFAULT){
             lex.pp_state = CPP_LEX_PP_DEFAULT;
@@ -1105,7 +1094,7 @@ cpp_lex_step(Cpp_File file, Cpp_Lex_Data *lex_data){
         if (lex.pp_state == CPP_LEX_PP_DEFAULT){
             // TODO(allen): Not first hard of the line?  Then it's junk.
             if (current == '#'){
-                result = cpp_read_preprocessor(file, lex.pos);
+                result = cpp_read_preprocessor(data, size, lex.pos);
                 lex.pos = result.pos;
                 switch (result.token.type){
                 case CPP_PP_INCLUDE:
@@ -1143,7 +1132,7 @@ cpp_lex_step(Cpp_File file, Cpp_Lex_Data *lex_data){
                 }
             }
             else{
-                result = cpp_read_pp_default_mode(file, lex.pos);
+                result = cpp_read_pp_default_mode(data, size, lex.pos);
                 lex.pos = result.pos;
             }
         }
@@ -1152,10 +1141,10 @@ cpp_lex_step(Cpp_File file, Cpp_Lex_Data *lex_data){
             if (current == '\\'){
                 fcpp_i32 seek = lex.pos;
                 ++seek;
-                while (seek < file.size && file.data[seek] == '\r'){
+                while (seek < size && data[seek] == '\r'){
                     ++seek;
                 }
-                if ((seek < file.size && file.data[seek] == '\n') || seek >= file.size){
+                if ((seek < size && data[seek] == '\n') || seek >= size){
                     lex.pos = seek + 1;
                     has_result = 0;
                 }
@@ -1177,7 +1166,7 @@ cpp_lex_step(Cpp_File file, Cpp_Lex_Data *lex_data){
                         lex.pp_state = CPP_LEX_PP_JUNK;
                     }
                     else{
-                        result = cpp_read_alpha_numeric(file, lex.pos);
+                        result = cpp_read_alpha_numeric(data, size, lex.pos);
                         result.token.flags |= CPP_TFLAG_PP_BODY;
                         lex.pos = result.pos;
                         lex.pp_state = CPP_LEX_PP_JUNK;
@@ -1190,7 +1179,7 @@ cpp_lex_step(Cpp_File file, Cpp_Lex_Data *lex_data){
                         lex.pp_state = CPP_LEX_PP_JUNK;
                     }
                     else{
-                        result = cpp_read_alpha_numeric(file, lex.pos);
+                        result = cpp_read_alpha_numeric(data, size, lex.pos);
                         result.token.flags |= CPP_TFLAG_PP_BODY;
                         lex.pos = result.pos;
                         lex.pp_state = CPP_LEX_PP_BODY;
@@ -1203,7 +1192,7 @@ cpp_lex_step(Cpp_File file, Cpp_Lex_Data *lex_data){
                         lex.pp_state = CPP_LEX_PP_JUNK;
                     }
                     else{
-                        result = cpp_read_pp_include_file(file, lex.pos);
+                        result = cpp_read_pp_include_file(data, size, lex.pos);
                         lex.pos = result.pos;
                         lex.pp_state = CPP_LEX_PP_JUNK;
                     }
@@ -1211,10 +1200,10 @@ cpp_lex_step(Cpp_File file, Cpp_Lex_Data *lex_data){
 
                 case CPP_LEX_PP_BODY:
                     if (current == '#'){
-                        result = cpp_read_pp_operator(file, lex.pos);
+                        result = cpp_read_pp_operator(data, size, lex.pos);
                     }
                     else{
-                        result = cpp_read_pp_default_mode(file, lex.pos);
+                        result = cpp_read_pp_default_mode(data, size, lex.pos);
                     }
                     lex.pos = result.pos;
                     result.token.flags |= CPP_TFLAG_PP_BODY;
@@ -1222,10 +1211,10 @@ cpp_lex_step(Cpp_File file, Cpp_Lex_Data *lex_data){
 
                 case CPP_LEX_PP_BODY_IF:
                     if (current == '#'){
-                        result = cpp_read_pp_operator(file, lex.pos);
+                        result = cpp_read_pp_operator(data, size, lex.pos);
                     }
                     else{
-                        result = cpp_read_pp_default_mode(file, lex.pos, 1);
+                        result = cpp_read_pp_default_mode(data, size, lex.pos, 1);
                     }
                     lex.pos = result.pos;
                     result.token.flags |= CPP_TFLAG_PP_BODY;
@@ -1237,7 +1226,7 @@ cpp_lex_step(Cpp_File file, Cpp_Lex_Data *lex_data){
                         lex.pp_state = CPP_LEX_PP_JUNK;
                     }
                     else{	
-                        result = cpp_read_number(file, lex.pos);
+                        result = cpp_read_number(data, size, lex.pos);
                         lex.pos = result.pos;
                         result.token.flags |= CPP_TFLAG_PP_BODY;
                         lex.pp_state = CPP_LEX_PP_INCLUDE;
@@ -1245,7 +1234,7 @@ cpp_lex_step(Cpp_File file, Cpp_Lex_Data *lex_data){
                     break;
 
                 case CPP_LEX_PP_ERROR:
-                    result = cpp_read_junk_line(file, lex.pos);
+                    result = cpp_read_junk_line(data, size, lex.pos);
                     lex.pos = result.pos;
                     result.token.type = CPP_TOKEN_ERROR_MESSAGE;
                     result.token.flags |= CPP_TFLAG_PP_BODY;
@@ -1254,21 +1243,21 @@ cpp_lex_step(Cpp_File file, Cpp_Lex_Data *lex_data){
                 default:
                 {
                     bool took_comment = 0;
-                    if (current == '/' && lex.pos + 1 < file.size){
-                        if (file.data[lex.pos + 1] == '/'){
-                            result = cpp_read_line_comment(file, lex.pos);
+                    if (current == '/' && lex.pos + 1 < size){
+                        if (data[lex.pos + 1] == '/'){
+                            result = cpp_read_line_comment(data, size, lex.pos);
                             lex.pp_state = CPP_LEX_PP_DEFAULT;
                             lex.pos = result.pos;
                             took_comment = 1;
-                        }else if (file.data[lex.pos + 1] == '*'){
-                            result = cpp_read_block_comment(file, lex.pos);
+                        }else if (data[lex.pos + 1] == '*'){
+                            result = cpp_read_block_comment(data, size, lex.pos);
                             lex.pos = result.pos;
                             took_comment = 1;
                         }
                     }
 
                     if (!took_comment){
-                        result = cpp_read_junk_line(file, lex.pos);
+                        result = cpp_read_junk_line(data, size, lex.pos);
                         lex.pos = result.pos;
                         result.token.flags |= CPP_TFLAG_PP_BODY;
                     }
@@ -1287,12 +1276,12 @@ cpp_lex_step(Cpp_File file, Cpp_Lex_Data *lex_data){
 }
 
 FCPP_LINK int
-cpp_lex_file_token_count(Cpp_File file){
+cpp_lex_file_token_count(char *data, int size){
     int count = 0;
     Cpp_Lex_Data lex = {};
     Cpp_Token token = {};
-    while (lex.pos < file.size){
-        Cpp_Read_Result step_result = cpp_lex_step(file, &lex);
+    while (lex.pos < size){
+        Cpp_Read_Result step_result = cpp_lex_step(data, size, &lex);
 
         if (step_result.has_result){
             if (count > 0){
@@ -1315,21 +1304,21 @@ cpp_lex_file_token_count(Cpp_File file){
 }
 
 FCPP_LINK Cpp_Lex_Data
-cpp_lex_file_nonalloc(Cpp_File file, Cpp_Token_Stack *token_stack_out, Cpp_Lex_Data data){
-    while (data.pos < file.size){
-        Cpp_Lex_Data prev_lex = data;
-        Cpp_Read_Result step_result = cpp_lex_step(file, &data);
+cpp_lex_file_nonalloc(char *data, int size, Cpp_Token_Stack *token_stack_out, Cpp_Lex_Data lex_data){
+    while (lex_data.pos < size){
+        Cpp_Lex_Data prev_lex = lex_data;
+        Cpp_Read_Result step_result = cpp_lex_step(data, size, &lex_data);
 
         if (step_result.has_result){
             if (!cpp_push_token_nonalloc(token_stack_out, step_result.token)){
-                data = prev_lex;
-                return data;
+                lex_data = prev_lex;
+                return lex_data;
             }
         }
     }
 
-    data.complete = 1;
-    return data;
+    lex_data.complete = 1;
+    return lex_data;
 }
 
 FCPP_LINK Cpp_Get_Token_Result
@@ -1395,10 +1384,11 @@ cpp_shift_token_starts(Cpp_Token_Stack *stack, int from_token_i, int amount){
 }
 
 FCPP_LINK Cpp_Relex_State
-cpp_relex_nonalloc_start(Cpp_File file, Cpp_Token_Stack *stack,
+cpp_relex_nonalloc_start(char *data, int size, Cpp_Token_Stack *stack,
                          int start, int end, int amount, int tolerance){
     Cpp_Relex_State state;
-    state.file = file;
+    state.data = data;
+    state.size = size;
     state.stack = stack;
     state.start = start;
     state.end = end;
@@ -1460,12 +1450,12 @@ cpp_relex_nonalloc_main(Cpp_Relex_State *state, Cpp_Token_Stack *relex_stack, in
     lex.pos = state->relex_start;
     
     int relex_end_i = state->end_token_i;
-    Cpp_Token match_token = cpp__get_token(stack, tokens, state->file.size, relex_end_i);
+    Cpp_Token match_token = cpp__get_token(stack, tokens, state->size, relex_end_i);
     Cpp_Token end_token = match_token;
     bool went_too_far = 0;
     
     for (;;){
-        Cpp_Read_Result read = cpp_lex_step(state->file, &lex);
+        Cpp_Read_Result read = cpp_lex_step(state->data, state->size, &lex);
         if (read.has_result){
             if (read.token.start == end_token.start &&
                 read.token.size == end_token.size &&
@@ -1477,14 +1467,14 @@ cpp_relex_nonalloc_main(Cpp_Relex_State *state, Cpp_Token_Stack *relex_stack, in
             
             while (lex.pos > end_token.start && relex_end_i < stack->count){
                 ++relex_end_i;
-                end_token = cpp__get_token(stack, tokens, state->file.size, relex_end_i);
+                end_token = cpp__get_token(stack, tokens, state->size, relex_end_i);
             }
             if (relex_stack->count == relex_stack->max_count){
                 went_too_far = 1;
                 break;
             }
         }
-        if (lex.pos >= state->file.size) break;
+        if (lex.pos >= state->size) break;
     }
     
     if (!went_too_far){
@@ -1557,10 +1547,10 @@ cpp_push_token(Cpp_Token_Stack *token_stack, Cpp_Token token){
 }
 
 FCPP_LINK void
-cpp_lex_file(Cpp_File file, Cpp_Token_Stack *token_stack_out){
+cpp_lex_file(char *data, int size, Cpp_Token_Stack *token_stack_out){
     Cpp_Lex_Data lex = {};
-    while (lex.pos < file.size){
-        Cpp_Read_Result step_result = cpp_lex_step(file, &lex);
+    while (lex.pos < size){
+        Cpp_Read_Result step_result = cpp_lex_step(data, size, &lex);
         if (step_result.has_result){
             cpp_push_token(token_stack_out, step_result.token);
         }
@@ -1568,7 +1558,7 @@ cpp_lex_file(Cpp_File file, Cpp_Token_Stack *token_stack_out){
 }
 
 FCPP_LINK bool
-cpp_relex_file_limited(Cpp_File file, Cpp_Token_Stack *stack,
+cpp_relex_file_limited(char *data, int size, Cpp_Token_Stack *stack,
                        int start, int end, int amount, int tolerance){
 #if 0
     int start_token_i, end_token_i;
@@ -1583,18 +1573,18 @@ cpp_relex_file_limited(Cpp_File file, Cpp_Token_Stack *stack,
         ++end_token_i;
     }
     cpp_shift_token_starts(token_stack, end_token_i, amount);
-
+    
     int relex_start_i = start_token_i - 1;
     if (relex_start_i < 0){
         relex_start_i = 0;
     }
-
+    
     int end_guess_i = end_token_i + 1;
     if (end_guess_i > token_stack->count){
         --end_guess_i;
     }
 #endif
-
+    
     int relex_start_i;
     int end_token_i, end_guess_i;
     {
@@ -1605,26 +1595,26 @@ cpp_relex_file_limited(Cpp_File file, Cpp_Token_Stack *stack,
         else{
             relex_start_i = result.token_index-1;
         }
-
+        
         result = cpp_get_token(stack, end);
         if (result.token_index < 0) result.token_index = 0;
         else if (end > stack->tokens[result.token_index].start) ++result.token_index;
         end_token_i = result.token_index;
         end_guess_i = result.token_index+1;
     }
-
+    
     int relex_start = stack->tokens[relex_start_i].start;
     if (start < relex_start) relex_start = start;
-
+    
     cpp_shift_token_starts(stack, end_token_i, amount);
     Cpp_Token_Stack relex_stack = cpp_make_token_stack((end_guess_i - relex_start_i + 1) * 3 / 2);
     Cpp_Lex_Data lex = {};
     lex.pp_state = cpp_token_get_pp_state(stack->tokens[relex_start_i].state_flags);
     lex.pos = relex_start;
     bool went_too_far = 0;
-
+    
     while (1){
-        Cpp_Read_Result result = cpp_lex_step(file, &lex);
+        Cpp_Read_Result result = cpp_lex_step(data, size, &lex);
         if (result.has_result){
             if (end_guess_i < stack->count &&
                 result.token.start == stack->tokens[end_guess_i].start &&
@@ -1641,20 +1631,20 @@ cpp_relex_file_limited(Cpp_File file, Cpp_Token_Stack *stack,
                 }
             }
         }
-
-        if (lex.pos >= file.size){
+        
+        if (lex.pos >= size){
             break;
         }
-
+        
         if (tolerance >= 0 && relex_stack.count + relex_start_i >= end_guess_i + tolerance){
             went_too_far = 1;
             break;
         }
     }
-
+    
     if (!went_too_far){
         int relex_end_i = end_guess_i;
-
+        
         if (relex_stack.count > 0){
             if (relex_start_i > 0){
                 Cpp_Token_Merge merge = cpp_attempt_token_merge(stack->tokens[relex_start_i - 1],
@@ -1664,7 +1654,7 @@ cpp_relex_file_limited(Cpp_File file, Cpp_Token_Stack *stack,
                     relex_stack.tokens[0] = merge.new_token;
                 }
             }
-
+            
             if (relex_end_i < stack->count){
                 Cpp_Token_Merge merge = cpp_attempt_token_merge(relex_stack.tokens[relex_stack.count - 1],
                                                                 stack->tokens[relex_end_i]);
@@ -1674,10 +1664,10 @@ cpp_relex_file_limited(Cpp_File file, Cpp_Token_Stack *stack,
                 }
             }
         }
-
+        
         int token_delete_amount = relex_end_i - relex_start_i;
         int token_shift_amount = relex_stack.count - token_delete_amount;
-
+        
         if (token_shift_amount != 0){
             int new_token_count = stack->count + token_shift_amount;
             if (new_token_count > stack->max_count){
@@ -1687,24 +1677,24 @@ cpp_relex_file_limited(Cpp_File file, Cpp_Token_Stack *stack,
                 }
                 cpp_resize_token_stack(stack, new_max);
             }
-
+            
             if (relex_end_i < stack->count){
                 FCPP_MEM_MOVE(stack->tokens + relex_end_i + token_shift_amount,
                               stack->tokens + relex_end_i, sizeof(Cpp_Token)*(stack->count - relex_end_i));
             }
-
+            
             stack->count += token_shift_amount;
         }
-
+        
         FCPP_MEM_COPY(stack->tokens + relex_start_i, relex_stack.tokens, sizeof(Cpp_Token)*relex_stack.count);
         cpp_free_token_stack(relex_stack);
     }
-
+    
     else{
         cpp_shift_token_starts(stack, end_token_i, -amount);
         cpp_free_token_stack(relex_stack);
     }
-
+    
     return went_too_far;
 }
 #endif

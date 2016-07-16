@@ -687,6 +687,8 @@ CUSTOM_COMMAND_SIG(casey_save_and_make_without_asking)
                                  CLI_OverlapWithConflict);
     }
     exec_command(app, change_active_panel);
+    
+    prev_location = null_location;
 }
 
 #if 0

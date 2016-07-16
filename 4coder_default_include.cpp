@@ -1819,11 +1819,11 @@ CUSTOM_COMMAND_SIG(open_all_code){
                 // was originally, so that new appends overwrite old ones.
                 dir.size = dir_size;
                 append(&dir, info->filename);
-                exec_command(app, cmdid_interactive_open);
+                app->create_buffer(app, dir.str, dir.size, 0);
             }
         }
     }
-
+    
     app->free_file_list(app, list);
 }
 

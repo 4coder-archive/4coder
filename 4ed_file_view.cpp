@@ -1177,9 +1177,8 @@ Job_Callback_Sig(job_full_lex){
     Editing_File *file = (Editing_File*)data[0];
     General_Memory *general = (General_Memory*)data[1];
     
-    Cpp_File cpp_file;
-    cpp_file.data = file->state.buffer.data;
-    cpp_file.size = file->state.buffer.size;
+    char *text_data = file->state.buffer.data;
+    i32 text_size = file->state.buffer.size;
     
     i32 buffer_size = file->state.buffer.size;
     buffer_size = (buffer_size + 3)&(~3);
@@ -1243,9 +1242,9 @@ Job_Callback_Sig(job_full_lex){
     Cpp_Lex_Data status = {};
     
     do{
-        for (i32 r = 2048; r > 0 && status.pos < cpp_file.size; --r){
+        for (i32 r = 2048; r > 0 && status.pos < text_size; --r){
             Cpp_Lex_Data prev_lex = status;
-            Cpp_Read_Result step_result = cpp_lex_step(cpp_file, &status);
+            Cpp_Read_Result step_result = cpp_lex_step(text_data, text_size, &status);
             
             if (step_result.has_result){
                 if (!cpp_push_token_nonalloc(&tokens, step_result.token)){
@@ -1257,7 +1256,7 @@ Job_Callback_Sig(job_full_lex){
             }
         }
         
-        if (status.pos >= cpp_file.size){
+        if (status.pos >= text_size){
             status.complete = 1;
         }
         else{
@@ -1361,14 +1360,13 @@ file_relex_parallel(System_Functions *system,
     b32 result = true;
     b32 inline_lex = !file->state.still_lexing;
     if (inline_lex){
-        Cpp_File cpp_file;
-        cpp_file.data = file->state.buffer.data;
-        cpp_file.size = file->state.buffer.size;
+        char *data = file->state.buffer.data;
+        i32 size = file->state.buffer.size;
         
         Cpp_Token_Stack *stack = &file->state.token_stack;
         
         Cpp_Relex_State state = 
-            cpp_relex_nonalloc_start(cpp_file, stack,
+            cpp_relex_nonalloc_start(data, size, stack,
                                      start_i, end_i, amount, 100);
         
         Temp_Memory temp = begin_temp_memory(part);

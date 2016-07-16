@@ -710,14 +710,14 @@ perform_doc_parse(Partition *part, String doc_string, Documentation *doc){
 }
 
 static int
-get_type_doc_string(Cpp_File file, Cpp_Token *tokens, int i,
+get_type_doc_string(char *data, Cpp_Token *tokens, int i,
                     String *doc_string){
     int result = false;
     
     if (i > 0){
         Cpp_Token *prev_token = tokens + i - 1;
         if (prev_token->type == CPP_TOKEN_COMMENT){
-            *doc_string = make_string(file.data + prev_token->start, prev_token->size);
+            *doc_string = make_string(data + prev_token->start, prev_token->size);
             if (check_and_fix_docs(doc_string)){
                 result = true;
             }
@@ -729,13 +729,13 @@ get_type_doc_string(Cpp_File file, Cpp_Token *tokens, int i,
 
 static int
 parse_struct(Partition *part, int is_struct,
-             Cpp_File file, Cpp_Token *tokens, int count,
+             char *data, Cpp_Token *tokens, int count,
              Cpp_Token **token_ptr,
              Struct_Member *top_member);
 
 static int
 parse_struct_member(Partition *part,
-                    Cpp_File file, Cpp_Token *tokens, int count,
+                    char *data, Cpp_Token *tokens, int count,
                     Cpp_Token **token_ptr,
                     Struct_Member *member){
     
@@ -745,7 +745,7 @@ parse_struct_member(Partition *part,
     int i = (int)(token - tokens);
     
     String doc_string = {0};
-    get_type_doc_string(file, tokens, i, &doc_string);
+    get_type_doc_string(data, tokens, i, &doc_string);
     
     int start_i = i;
     Cpp_Token *start_token = token;
@@ -779,18 +779,18 @@ parse_struct_member(Partition *part,
             }
         }
         
-        String name = make_string(file.data + token_j->start, token_j->size);
+        String name = make_string(data + token_j->start, token_j->size);
         name = skip_chop_whitespace(name);
         
         int type_start = start_token->start;
         int type_end = token_j->start;
-        String type = make_string(file.data + type_start, type_end - type_start);
+        String type = make_string(data + type_start, type_end - type_start);
         type = skip_chop_whitespace(type);
         
         type_start = token_j->start + token_j->size;
         type_end = token->start;
         
-        String type_postfix = make_string(file.data + type_start, type_end - type_start);
+        String type_postfix = make_string(data + type_start, type_end - type_start);
         type_postfix = skip_chop_whitespace(type_postfix);
         
         ++token;
@@ -811,7 +811,7 @@ parse_struct_member(Partition *part,
 
 static Struct_Member*
 parse_struct_next_member(Partition *part,
-                         Cpp_File file, Cpp_Token *tokens, int count,
+                         char *data, Cpp_Token *tokens, int count,
                          Cpp_Token **token_ptr){
     Struct_Member *result = 0;
     
@@ -821,11 +821,11 @@ parse_struct_next_member(Partition *part,
     for (; i < count; ++i, ++token){
         if (token->type == CPP_TOKEN_IDENTIFIER ||
             (token->flags & CPP_TFLAG_IS_KEYWORD)){
-            String lexeme = make_string(file.data + token->start, token->size);
+            String lexeme = make_string(data + token->start, token->size);
             
             if (match(lexeme, make_lit_string("struct"))){
                 Struct_Member *member = push_struct(part, Struct_Member);
-                if (parse_struct(part, true, file, tokens, count, &token, member)){
+                if (parse_struct(part, true, data, tokens, count, &token, member)){
                     result = member;
                     break;
                 }
@@ -835,7 +835,7 @@ parse_struct_next_member(Partition *part,
             }
             else if (match(lexeme, make_lit_string("union"))){
                 Struct_Member *member = push_struct(part, Struct_Member);
-                if (parse_struct(part, false, file, tokens, count, &token, member)){
+                if (parse_struct(part, false, data, tokens, count, &token, member)){
                     result = member;
                     break;
                 }
@@ -845,7 +845,7 @@ parse_struct_next_member(Partition *part,
             }
             else{
                 Struct_Member *member = push_struct(part, Struct_Member);
-                if (parse_struct_member(part, file, tokens, count, &token, member)){
+                if (parse_struct_member(part, data, tokens, count, &token, member)){
                     result = member;
                     break;
                 }
@@ -866,7 +866,7 @@ parse_struct_next_member(Partition *part,
 
 static int
 parse_struct(Partition *part, int is_struct,
-             Cpp_File file, Cpp_Token *tokens, int count,
+             char *data, Cpp_Token *tokens, int count,
              Cpp_Token **token_ptr,
              Struct_Member *top_member){
     
@@ -876,7 +876,7 @@ parse_struct(Partition *part, int is_struct,
     int i = (int)(token - tokens);
     
     String doc_string = {0};
-    get_type_doc_string(file, tokens, i, &doc_string);
+    get_type_doc_string(data, tokens, i, &doc_string);
     
     int start_i = i;
     
@@ -899,7 +899,7 @@ parse_struct(Partition *part, int is_struct,
         String name = {0};
         
         if (j != start_i){
-            name = make_string(file.data + token_j->start, token_j->size);
+            name = make_string(data + token_j->start, token_j->size);
             name = skip_chop_whitespace(name);
         }
         
@@ -913,7 +913,7 @@ parse_struct(Partition *part, int is_struct,
         
         ++token;
         Struct_Member *new_member = 
-            parse_struct_next_member(part, file, tokens, count, &token);
+            parse_struct_next_member(part, data, tokens, count, &token);
         
         if (new_member){
             top_member->first_child = new_member;
@@ -921,7 +921,7 @@ parse_struct(Partition *part, int is_struct,
             Struct_Member *head_member = new_member;
             for(;;){
                 new_member = 
-                    parse_struct_next_member(part, file, tokens, count, &token);
+                    parse_struct_next_member(part, data, tokens, count, &token);
                 if (new_member){
                     head_member->next_sibling = new_member;
                     head_member = new_member;
@@ -1124,7 +1124,7 @@ print_see_also(FILE *file, Documentation *doc){
 }
 
 static int
-parse_enum(Partition *part, Cpp_File file,
+parse_enum(Partition *part, char *data,
            Cpp_Token *tokens, int count,
            Cpp_Token **token_ptr, int start_i,
            Enum_Set flag_set, int flag_index){
@@ -1143,7 +1143,7 @@ parse_enum(Partition *part, Cpp_File file,
             }
         }
         
-        String name = make_string(file.data + token_j->start, token_j->size);
+        String name = make_string(data + token_j->start, token_j->size);
         name = skip_chop_whitespace(name);
         
         for (; i < count; ++i, ++token){
@@ -1162,9 +1162,9 @@ parse_enum(Partition *part, Cpp_File file,
                 }
                 else if (token->type == CPP_TOKEN_IDENTIFIER){
                     String doc_string = {0};
-                    get_type_doc_string(file, tokens, i, &doc_string);
+                    get_type_doc_string(data, tokens, i, &doc_string);
                     
-                    String name = make_string(file.data + token->start, token->size);
+                    String name = make_string(data + token->start, token->size);
                     name = skip_chop_whitespace(name);
                     
                     String value = {0};
@@ -1185,7 +1185,7 @@ parse_enum(Partition *part, Cpp_File file,
                         int val_start = start_token->start + start_token->size;
                         int val_end = token->start;
                         
-                        value = make_string(file.data + val_start, val_end - val_start);
+                        value = make_string(data + val_start, val_end - val_start);
                         value = skip_chop_whitespace(value);
                         
                         --i;
@@ -1282,7 +1282,7 @@ allocate_argument_breakdown(int count){
 }
 
 static Argument_Breakdown
-do_parameter_parse(Cpp_File file, Cpp_Token *args_start_token, Cpp_Token *token){
+do_parameter_parse(char *data, Cpp_Token *args_start_token, Cpp_Token *token){
     int arg_index = 0;
     Cpp_Token *arg_token = args_start_token + 1;
     int param_string_start = arg_token->start;
@@ -1303,7 +1303,7 @@ do_parameter_parse(Cpp_File file, Cpp_Token *args_start_token, Cpp_Token *token)
             arg_token->type == CPP_TOKEN_PARENTHESE_CLOSE){
             
             int size = arg_token->start - param_string_start;
-            String param_string = make_string(file.data + param_string_start, size);
+            String param_string = make_string(data + param_string_start, size);
             param_string = chop_whitespace(param_string);
             breakdown.param_string[arg_index] = param_string;
             
@@ -1313,7 +1313,7 @@ do_parameter_parse(Cpp_File file, Cpp_Token *args_start_token, Cpp_Token *token)
                 if (param_name_token->type == CPP_TOKEN_IDENTIFIER){
                     int start = param_name_token->start;
                     int size = param_name_token->size;
-                    breakdown.param_name[arg_index] = make_string(file.data + start, size);
+                    breakdown.param_name[arg_index] = make_string(data + start, size);
                     break;
                 }
             }
@@ -1363,7 +1363,7 @@ do_function_parse_check(int *index, Cpp_Token **token_ptr, int count){
 
 static int
 do_function_get_doc(int *index, Cpp_Token **token_ptr, int count,
-                    Cpp_File file, String *doc_string){
+                    char *data, String *doc_string){
     int result = false;
     
     int i = *index;
@@ -1371,7 +1371,7 @@ do_function_get_doc(int *index, Cpp_Token **token_ptr, int count,
     
     for (; i < count; ++i, ++token){
         if (token->type == CPP_TOKEN_COMMENT){
-            String lexeme = make_string(file.data + token->start, token->size);
+            String lexeme = make_string(data + token->start, token->size);
             if (check_and_fix_docs(&lexeme)){
                 *doc_string = lexeme;
                 result = true;
@@ -1391,7 +1391,7 @@ do_function_get_doc(int *index, Cpp_Token **token_ptr, int count,
 
 static int
 do_function_parse(int *index, Cpp_Token **token_ptr, int count, Cpp_Token *ret_start_token,
-                  Cpp_File file, Function_Set function_set, int sig_count){
+                  char *data, Function_Set function_set, int sig_count){
     int result = false;
     
     int i = *index;
@@ -1399,10 +1399,10 @@ do_function_parse(int *index, Cpp_Token **token_ptr, int count, Cpp_Token *ret_s
     
     Cpp_Token *args_start_token = token+1;
     
-    function_set.name[sig_count] = make_string(file.data + token->start, token->size);
+    function_set.name[sig_count] = make_string(data + token->start, token->size);
     
     int size = token->start - ret_start_token->start;
-    String ret = make_string(file.data + ret_start_token->start, size);
+    String ret = make_string(data + ret_start_token->start, size);
     ret = chop_whitespace(ret);
     function_set.ret[sig_count] = ret;
     
@@ -1415,12 +1415,12 @@ do_function_parse(int *index, Cpp_Token **token_ptr, int count, Cpp_Token *ret_s
     if (i < count){
         int size = token->start + token->size - args_start_token->start;;
         function_set.args[sig_count] =
-            make_string(file.data + args_start_token->start, size);
+            make_string(data + args_start_token->start, size);
         function_set.valid[sig_count] = true;
         result = true;
         
         Argument_Breakdown *breakdown = &function_set.breakdown[sig_count];
-        *breakdown = do_parameter_parse(file, args_start_token, token);
+        *breakdown = do_parameter_parse(data, args_start_token, token);
     }
     
     *index = i;
@@ -1430,7 +1430,7 @@ do_function_parse(int *index, Cpp_Token **token_ptr, int count, Cpp_Token *ret_s
 }
 
 static int
-do_full_function_parse(int *index, Cpp_Token **token_ptr, int count, Cpp_File file,
+do_full_function_parse(int *index, Cpp_Token **token_ptr, int count, char *data,
                        Function_Set function_set, int sig_count){
     int result = false;
     
@@ -1438,7 +1438,7 @@ do_full_function_parse(int *index, Cpp_Token **token_ptr, int count, Cpp_File fi
     Cpp_Token *token = *token_ptr;
     
     {
-        function_set.marker[sig_count] = make_string(file.data + token->start, token->size);
+        function_set.marker[sig_count] = make_string(data + token->start, token->size);
         
         int j = i;
         Cpp_Token *jtoken = token;
@@ -1446,7 +1446,7 @@ do_full_function_parse(int *index, Cpp_Token **token_ptr, int count, Cpp_File fi
         if (do_function_parse_check(&j, &jtoken, count)){
             if (token->type == CPP_TOKEN_IDENTIFIER){
                 String doc_string = {0};
-                if (do_function_get_doc(&j, &jtoken, count, file, &doc_string)){
+                if (do_function_get_doc(&j, &jtoken, count, data, &doc_string)){
                     function_set.doc_string[sig_count] = doc_string;
                 }
             }
@@ -1457,7 +1457,7 @@ do_full_function_parse(int *index, Cpp_Token **token_ptr, int count, Cpp_File fi
             Cpp_Token *ret_start_token = token;
             if (do_function_parse_check(&i, &token, count)){
                 if (do_function_parse(&i, &token, count, ret_start_token,
-                                     file, function_set, sig_count)){
+                                      data, function_set, sig_count)){
                     result = true;
                 }
             }
@@ -1499,7 +1499,7 @@ do_macro_parse_check(int *index, Cpp_Token **token_ptr, int count){
 
 static int
 do_macro_parse(int *index, Cpp_Token **token_ptr, int count,
-               Cpp_File file, Function_Set macro_set, int sig_count){
+               char *data, Function_Set macro_set, int sig_count){
     int result = false;
     
     int i = *index;
@@ -1508,7 +1508,7 @@ do_macro_parse(int *index, Cpp_Token **token_ptr, int count,
     if (i > 0){
         Cpp_Token *doc_token = token-1;
         
-        String doc_string = make_string(file.data + doc_token->start, doc_token->size);
+        String doc_string = make_string(data + doc_token->start, doc_token->size);
         
         if (check_and_fix_docs(&doc_string)){
             macro_set.doc_string[sig_count] = doc_string;
@@ -1520,7 +1520,7 @@ do_macro_parse(int *index, Cpp_Token **token_ptr, int count,
             }
             
             if (i < count && (token->flags & CPP_TFLAG_PP_BODY)){
-                macro_set.name[sig_count] = make_string(file.data + token->start, token->size);
+                macro_set.name[sig_count] = make_string(data + token->start, token->size);
                 
                 ++i, ++token;
                 if (i < count){
@@ -1534,10 +1534,10 @@ do_macro_parse(int *index, Cpp_Token **token_ptr, int count,
                     if (i < count){
                         int start = args_start_token->start;
                         int end = token->start + token->size;
-                        macro_set.args[sig_count] = make_string(file.data + start, end - start);
+                        macro_set.args[sig_count] = make_string(data + start, end - start);
                         
                         Argument_Breakdown *breakdown = &macro_set.breakdown[sig_count];
-                        *breakdown = do_parameter_parse(file, args_start_token, token);
+                        *breakdown = do_parameter_parse(data, args_start_token, token);
                         
                         ++i, ++token;
                         if (i < count){
@@ -1556,7 +1556,7 @@ do_macro_parse(int *index, Cpp_Token **token_ptr, int count,
                                 
                                 start = body_start->start;
                                 end = body_end->start + body_end->size;
-                                macro_set.body[sig_count] = make_string(file.data + start, end - start);
+                                macro_set.body[sig_count] = make_string(data + start, end - start);
                             }
                         }
                         
@@ -1745,12 +1745,11 @@ generate_custom_headers(){
         String *code = &string_code;
         Cpp_Token_Stack *token_stack = &string_tokens;
         
-        Cpp_File file;
-        file.data = code->str;
-        file.size = code->size;
+        char *data = code->str;
+        int size = code->size;
         
         *token_stack = cpp_make_token_stack(1024);
-        cpp_lex_file(file, token_stack);
+        cpp_lex_file(data, size, token_stack);
         
         
         int count = token_stack->count;
@@ -1760,7 +1759,7 @@ generate_custom_headers(){
         for (int i = 0; i < count; ++i, ++token){
             if (token->type == CPP_TOKEN_IDENTIFIER &&
                 !(token->flags & CPP_TFLAG_PP_BODY)){
-                String lexeme = make_string(file.data + token->start, token->size);
+                String lexeme = make_string(data + token->start, token->size);
                 
                 String_Function_Marker marker =
                     do_string_function_marker_check(lexeme);
@@ -1786,9 +1785,7 @@ generate_custom_headers(){
         String *code = &string_code;
         Cpp_Token_Stack *token_stack = &string_tokens;
         
-        Cpp_File file;
-        file.data = code->str;
-        file.size = code->size;
+        char *data = code->str;
         
         int count = token_stack->count;
         Cpp_Token *tokens = token_stack->tokens;
@@ -1797,21 +1794,21 @@ generate_custom_headers(){
         for (int i = 0; i < count; ++i, ++token){
             if (token->type == CPP_TOKEN_IDENTIFIER &&
                 !(token->flags & CPP_TFLAG_PP_BODY)){
-                String lexeme = make_string(file.data + token->start, token->size);
+                String lexeme = make_string(data + token->start, token->size);
                 
                 String_Function_Marker marker =
                     do_string_function_marker_check(lexeme);
                 
                 if (marker.parse_function){
-                    if (do_full_function_parse(&i, &token, count, file,
+                    if (do_full_function_parse(&i, &token, count, data,
                                                string_function_set, string_sig_count)){
                         ++string_sig_count;
                     }
                 }
                 else if (marker.parse_doc){
                     if (do_macro_parse_check(&i, &token, count)){
-                        do_macro_parse(&i, &token, count,
-                                       file, string_function_set, string_sig_count);
+                        do_macro_parse(&i, &token, count, data,
+                                       string_function_set, string_sig_count);
                         ++string_sig_count;
                     }
                 }
@@ -1834,13 +1831,11 @@ generate_custom_headers(){
         String *code = &code_data[J];
         Parse *parse = &parses[J];
         
-        // TODO(allen): KILL THIS FUCKIN' Cpp_File FUCKIN' NONSENSE HORSE SHIT!!!!!
-        Cpp_File file;
-        file.data = code->str;
-        file.size = code->size;
+        char *data = code->str;
+        int size = code->size;
         
         parse->tokens = cpp_make_token_stack(512);
-        cpp_lex_file(file, &parse->tokens);
+        cpp_lex_file(data, size, &parse->tokens);
         
         int count = parse->tokens.count;
         Cpp_Token *tokens = parse->tokens.tokens;
@@ -1849,7 +1844,7 @@ generate_custom_headers(){
         for (int i = 0; i < count; ++i, ++token){
             if (token->type == CPP_TOKEN_IDENTIFIER &&
                 !(token->flags & CPP_TFLAG_PP_BODY)){
-                String lexeme = make_string(file.data + token->start, token->size);
+                String lexeme = make_string(data + token->start, token->size);
                 if (match(lexeme, "API_EXPORT")){
                     if (do_function_parse_check(&i, &token, count)){
                         ++line_count;
@@ -1867,10 +1862,7 @@ generate_custom_headers(){
         String *code = &code_data[J];
         Parse *parse = &parses[J];
         
-        // TODO(allen): KILL THIS FUCKIN' Cpp_File FUCKIN' NONSENSE HORSE SHIT!!!!!
-        Cpp_File file;
-        file.data = code->str;
-        file.size = code->size;
+        char *data = code->str;
         
         int count = parse->tokens.count;
         Cpp_Token *tokens = parse->tokens.tokens;
@@ -1880,9 +1872,9 @@ generate_custom_headers(){
         for (int i = 0; i < count; ++i, ++token){
             if (token->type == CPP_TOKEN_IDENTIFIER &&
                 !(token->flags & CPP_TFLAG_PP_BODY)){
-                String lexeme = make_string(file.data + token->start, token->size);
+                String lexeme = make_string(data + token->start, token->size);
                 if (match(lexeme, "API_EXPORT")){
-                    do_full_function_parse(&i, &token, count, file, function_set, sig_count);
+                    do_full_function_parse(&i, &token, count, data, function_set, sig_count);
                     if (!function_set.valid[sig_count]){
                         zero_index(function_set, sig_count);
                         // TODO(allen): get warning file name and line numbers
@@ -1989,14 +1981,11 @@ generate_custom_headers(){
         
         String type_code = file_dump("4coder_types.h");
         
-        
-        // TODO(allen): KILL THIS FUCKIN' Cpp_File FUCKIN' NONSENSE HORSE SHIT!!!!!
-        Cpp_File type_file;
-        type_file.data = type_code.str;
-        type_file.size = type_code.size;
+        char *data = type_code.str;
+        int size = type_code.size;
         
         Cpp_Token_Stack types_tokens = cpp_make_token_stack(512);
-        cpp_lex_file(type_file, &types_tokens);
+        cpp_lex_file(data, size, &types_tokens);
         
         int typedef_count = 0;
         int struct_count = 0;
@@ -2021,7 +2010,7 @@ generate_custom_headers(){
                     (token->type == CPP_TOKEN_KEY_TYPE_DECLARATION ||
                      token->type == CPP_TOKEN_IDENTIFIER)){
                     
-                    String lexeme = make_string(type_file.data + token->start, token->size);
+                    String lexeme = make_string(data + token->start, token->size);
                     int match_index = 0;
                     if (string_set_match(type_spec_keys, ArrayCount(type_spec_keys),
                                          lexeme, &match_index)){
@@ -2077,7 +2066,7 @@ generate_custom_headers(){
                     (token->type == CPP_TOKEN_KEY_TYPE_DECLARATION ||
                      token->type == CPP_TOKEN_IDENTIFIER)){
                     
-                    String lexeme = make_string(type_file.data + token->start, token->size);
+                    String lexeme = make_string(data + token->start, token->size);
                     int match_index = 0;
                     if (string_set_match(type_spec_keys, ArrayCount(type_spec_keys),
                                          lexeme, &match_index)){
@@ -2085,7 +2074,7 @@ generate_custom_headers(){
                             case 0: //typedef
                             {
                                 String doc_string = {0};
-                                get_type_doc_string(type_file, tokens, i, &doc_string);
+                                get_type_doc_string(data, tokens, i, &doc_string);
                                 
                                 int start_i = i;
                                 Cpp_Token *start_token = token;
@@ -2105,12 +2094,12 @@ generate_custom_headers(){
                                         }
                                     }
                                     
-                                    String name = make_string(type_file.data + token_j->start, token_j->size);
+                                    String name = make_string(data + token_j->start, token_j->size);
                                     name = skip_chop_whitespace(name);
                                     
                                     int type_start = start_token->start + start_token->size;
                                     int type_end = token_j->start;
-                                    String type = make_string(type_file.data + type_start, type_end - type_start);
+                                    String type = make_string(data + type_start, type_end - type_start);
                                     type = skip_chop_whitespace(type);
                                     
                                     typedef_set.type[typedef_index] = type;
@@ -2123,7 +2112,7 @@ generate_custom_headers(){
                             case 1: case 2: //struct/union
                             {
                                 if (parse_struct(part, (match_index == 1),
-                                                 type_file, tokens, count, &token,
+                                                 data, tokens, count, &token,
                                                  struct_set.structs + struct_index)){
                                     ++struct_index;
                                 }
@@ -2133,7 +2122,7 @@ generate_custom_headers(){
                             case 3: //ENUM
                             {
                                 String doc_string = {0};
-                                get_type_doc_string(type_file, tokens, i, &doc_string);
+                                get_type_doc_string(data, tokens, i, &doc_string);
                                 
                                 int start_i = i;
                                 
@@ -2143,7 +2132,7 @@ generate_custom_headers(){
                                     }
                                 }
                                 
-                                if (parse_enum(part, type_file,
+                                if (parse_enum(part, data,
                                                tokens, count,
                                                &token, start_i,
                                                enum_set, enum_index)){
@@ -2156,7 +2145,7 @@ generate_custom_headers(){
                             case 4: //FLAGENUM
                             {
                                 String doc_string = {0};
-                                get_type_doc_string(type_file, tokens, i, &doc_string);
+                                get_type_doc_string(data, tokens, i, &doc_string);
                                 
                                 int start_i = i;
                                 
@@ -2166,7 +2155,7 @@ generate_custom_headers(){
                                     }
                                 }
                                 
-                                if (parse_enum(part, type_file,
+                                if (parse_enum(part, data,
                                                tokens, count,
                                                &token, start_i,
                                                flag_set, flag_index)){

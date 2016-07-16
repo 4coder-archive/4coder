@@ -13,7 +13,7 @@
 // TOP
 
 #include "../4ed_meta.h"
-#define FCPP_STRING_IMPLEMENTATION
+#define FSTRING_IMPLEMENTATION
 #include "../4coder_string.h"
 
 #include "../4cpp_types.h"
@@ -94,13 +94,12 @@ system_set_file_list(File_List *file_list, String directory){
         append(&dir, directory);
         char trail_str[] = "\\*";
         append(&dir, trail_str);
-
-        char *c_str_dir = make_c_str(dir);
-
+        terminate_with_null(&dir);
+        
         WIN32_FIND_DATA find_data;
         HANDLE search;
-        search = FindFirstFileA(c_str_dir, &find_data);
-
+        search = FindFirstFileA(dir.str, &find_data);
+        
         if (search != INVALID_HANDLE_VALUE){            
             i32 count = 0;
             i32 file_count = 0;
@@ -116,19 +115,19 @@ system_set_file_list(File_List *file_list, String directory){
                 more_files = FindNextFile(search, &find_data);
             }while(more_files);
             FindClose(search);
-
+            
             i32 required_size = count + file_count * sizeof(File_Info);
             if (file_list->block_size < required_size){
                 Win32FreeMemory(file_list->block);
                 file_list->block = Win32GetMemory(required_size);
                 file_list->block_size = required_size;
             }
-
+            
             file_list->infos = (File_Info*)file_list->block;
             char *name = (char*)(file_list->infos + file_count);
             if (file_list->block){
-                search = FindFirstFileA(c_str_dir, &find_data);
-
+                search = FindFirstFileA(dir.str, &find_data);
+                
                 if (search != INVALID_HANDLE_VALUE){
                     File_Info *info = file_list->infos;
                     more_files = 1;
@@ -137,21 +136,21 @@ system_set_file_list(File_List *file_list, String directory){
                             !match(find_data.cFileName, "..")){
                             info->folder = (find_data.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) != 0;
                             info->filename.str = name;
-
+                            
                             i32 i = 0;
                             for(;find_data.cFileName[i];++i) *name++ = find_data.cFileName[i];
                             info->filename.size = i;
                             info->filename.memory_size = info->filename.size + 1;
                             *name++ = 0;
-                            replace_char(info->filename, '\\', '/');
+                            replace_char(&info->filename, '\\', '/');
                             ++info;
                         }
                         more_files = FindNextFile(search, &find_data);
                     }while(more_files);
                     FindClose(search);
-
+                    
                     file_list->count = file_count;
-
+                    
                 }else{
                     Win32FreeMemory(file_list->block);
                     file_list->block = 0;
@@ -212,7 +211,6 @@ run_experiment(Experiment *exp, char *filename, int verbose,
                int chunks, int max_tokens){
     String extension = {};
     Data file_data;
-    Cpp_File file_cpp;
     new_lex::Lex_Data ld = {0};
     int pass;
     int k, chunk_size, is_last;
@@ -232,8 +230,8 @@ run_experiment(Experiment *exp, char *filename, int verbose,
             memset(exp->correct_stack.tokens, 0, TOKEN_ARRAY_SIZE);
             memset(exp->testing_stack.tokens, 0, TOKEN_ARRAY_SIZE);
             
-            file_cpp.data = (char*)file_data.data;
-            file_cpp.size = file_data.size;
+            char *data = (char*)file_data.data;
+            int size = file_data.size;
             
             ld.tb = (char*)malloc(file_data.size + 1);
             
@@ -241,7 +239,7 @@ run_experiment(Experiment *exp, char *filename, int verbose,
                 i64 start;
                 
                 start = __rdtsc();
-                cpp_lex_file_nonalloc(file_cpp, &exp->correct_stack, lex_data);
+                cpp_lex_file_nonalloc(data, size, &exp->correct_stack, lex_data);
                 time.handcoded += (__rdtsc() - start);
                 
                 if (max_tokens == 0){
@@ -357,8 +355,8 @@ run_experiment(Experiment *exp, char *filename, int verbose,
                                "    %.*s original %.*s testing\n",
                                j,
                                correct->start, correct->size, testing->start, testing->size,
-                               correct->size, file_cpp.data + correct->start,
-                               testing->size, file_cpp.data + testing->start);
+                               correct->size, data + correct->start,
+                               testing->size, data + testing->start);
                     }
                 }
                 
@@ -389,15 +387,15 @@ show_time(Times t, int repeats, char *type){
     f32 speed_up = ((f32)t.handcoded) / (t.fsm);
     printf(
         "\n%s time for %d repeates\n"
-            OUTLINE("%lld")
-            OUTLINE("%lld")
-            OUTLINE("%f"),
+        OUTLINE("%lld")
+        OUTLINE("%lld")
+        OUTLINE("%f"),
         type,
         repeats,
         OUTLINE_VAR(i64, t.handcoded),
         OUTLINE_VAR(i64, t.fsm),
         OUTLINE_VAR(f32, speed_up)
-    );
+        );
 }
 
 #define BASE_DIR "w:/4ed/data/test/"
@@ -413,27 +411,27 @@ int main(){
     
     int chunks = (chunk_start > 0 && chunk_start <= chunk_end);
     int c = 0;
-
+    
     char test_directory[] = BASE_DIR;
     File_List all_files = {};
     Experiment exp = {};
     Experiment chunk_exp = {};
     Times exp_t = {};
     Times chunk_exp_t = {};
-
+    
     init_test_stack(&exp.correct_stack);
     init_test_stack(&exp.testing_stack);
-
+    
     init_test_stack(&chunk_exp.correct_stack);
     init_test_stack(&chunk_exp.testing_stack);
-
+    
     AllowLocal(test_directory);
     AllowLocal(all_files);
-
+    
 #if SINGLE_ITEM
     (void)(repeats);
     (void)(verbose_level);
-
+    
     if (chunks){
         begin_t(&chunk_exp_t);
         printf("With chunks of %d\n", chunks);
@@ -442,16 +440,16 @@ int main(){
         }
         end_t(&chunk_exp_t);
     }
-
+    
     begin_t(&exp_t);
     printf("Unchunked\n");
     run_experiment(&exp, BASE_DIR TEST_FILE, 1, 0, token_limit);
     end_t(&exp_t);
-
+    
 #else
-
+    
     system_set_file_list(&all_files, make_lit_string(test_directory));
-
+    
     for (int j = 0; j < repeats; ++j){
         for (int i = 0; i < all_files.count; ++i){
             if (all_files.infos[i].folder == 0){
@@ -477,21 +475,21 @@ int main(){
         }
     }
 #endif
-
+    
     if (chunks){
         printf("chunks of sizes %d through %d tested\n", chunk_start, chunk_end);
         printf("chunked passed %d / %d tests\n", chunk_exp.passed_total, chunk_exp.test_total);
     }
-
+    
     printf("unchunk passed %d / %d tests\n", exp.passed_total, exp.test_total);
-
+    
     if (passed(exp) && (chunks == 0 || passed(chunk_exp))){
         if (chunks){
             show_time(chunk_exp_t, repeats, "Chunked");
         }
         show_time(exp_t, repeats, "Unchunked");
     }
-
+    
     return(0);
 }
 
