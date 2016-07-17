@@ -206,6 +206,19 @@ end_t(Times *t){
     *t = time;
 }
 
+static int
+equivalent_comments(Cpp_Token *a, Cpp_Token *b, char *data){
+    String s_a = make_string(data + a->start, a->size);
+    String s_b = make_string(data + b->start, b->size);
+    
+    s_a = skip_chop_whitespace(s_a);
+    s_b = skip_chop_whitespace(s_b);
+    
+    int result = match(s_a, s_b);
+    
+    return(result);
+}
+
 static void
 run_experiment(Experiment *exp, char *filename, int verbose,
                int chunks, int max_tokens){
@@ -266,16 +279,17 @@ run_experiment(Experiment *exp, char *filename, int verbose,
                     }
                     else{
                         start = __rdtsc();
-                        new_lex::cpp_lex_nonalloc(&ld,
-                                                  (char*)file_data.data, file_data.size,
-                                                  &exp->testing_stack);
+                        new_lex::cpp_lex_size_nonalloc(
+                            &ld, (char*)file_data.data, file_data.size,
+                            file_data.size, &exp->testing_stack);
+                        
                         time.fsm += (__rdtsc() - start);
                     }
                 }
                 else{
                     if (chunks){
                         start = __rdtsc();
-                        int relevant_size = file_data.size + 1;
+                        int relevant_size = file_data.size;
                         is_last = 0;
                         for (k = 0; k < relevant_size; k += chunks){
                             chunk_size = chunks;
@@ -289,7 +303,8 @@ run_experiment(Experiment *exp, char *filename, int verbose,
                             do{
                                 result =
                                     new_lex::cpp_lex_size_nonalloc(&ld,
-                                                                   (char*)file_data.data + k, chunk_size, file_data.size,
+                                                                   (char*)file_data.data + k, chunk_size,
+                                                                   file_data.size,
                                                                    &exp->testing_stack,
                                                                    max_tokens);
                                 if (result == new_lex::LexFinished ||
@@ -348,15 +363,27 @@ run_experiment(Experiment *exp, char *filename, int verbose,
                 }
                 
                 if (correct->start != testing->start || correct->size != testing->size){
-                    pass = 0;
-                    if (verbose >= 1){
-                        printf("token range mismatch at token %d\n"
-                               "    %d:%d original %d:%d testing\n"
-                               "    %.*s original %.*s testing\n",
-                               j,
-                               correct->start, correct->size, testing->start, testing->size,
-                               correct->size, data + correct->start,
-                               testing->size, data + testing->start);
+                    
+                    int mismatch = 1;
+                    if (correct->type == testing->type &&
+                        (correct->type == CPP_TOKEN_COMMENT ||
+                         correct->type == CPP_TOKEN_ERROR_MESSAGE)){
+                        if (equivalent_comments(correct, testing, data)){
+                            mismatch = 0;
+                        }
+                    }
+                    
+                    if (mismatch){
+                        pass = 0;
+                        if (verbose >= 1){
+                            printf("token range mismatch at token %d\n"
+                                   "    %d:%d original %d:%d testing\n"
+                                   "    %.*s original %.*s testing\n",
+                                   j,
+                                   correct->start, correct->size, testing->start, testing->size,
+                                   correct->size, data + correct->start,
+                                   testing->size, data + testing->start);
+                        }
                     }
                 }
                 
@@ -402,12 +429,12 @@ show_time(Times t, int repeats, char *type){
 
 int main(){
     int repeats = 1;
-    int verbose_level = 1;
-    int chunk_start = 64;
-    int chunk_end = 64;
-#define TEST_FILE "lexer_test2.cpp"
-#define SINGLE_ITEM 1
-    int token_limit = 1;
+    int verbose_level = -1;
+    int chunk_start = 0;
+    int chunk_end = 16;
+#define TEST_FILE "parser_test_gcc.cpp"
+#define SINGLE_ITEM 0
+    int token_limit = 0;
     
     int chunks = (chunk_start > 0 && chunk_start <= chunk_end);
     int c = 0;

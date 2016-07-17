@@ -862,18 +862,18 @@ FCPP_LINK Cpp_Read_Result
 cpp_read_block_comment(char *data, int size, int pos){
     Cpp_Read_Result result = {};
     result.token.start = pos;
-
+    
     _Assert(data[pos] == '/' && data[pos + 1] == '*');
     pos += 2;
     while (pos < size){
         if (data[pos] == '*' &&
             pos + 1 < size &&
             data[pos+1] == '/'){
+            pos += 2;
             break;
         }
         ++pos;
     }
-    pos += 2;
     result.token.size = pos - result.token.start;
     result.token.type = CPP_TOKEN_COMMENT;
     result.pos = pos;

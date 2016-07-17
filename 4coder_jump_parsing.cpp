@@ -15,15 +15,6 @@ jump_to_location(Application_Links *app, View_Summary *view, Jump_Location *l){
 }
 
 static int
-gcc_style_verify(String line, int colon_pos){
-    int result = false;
-    if (colon_pos < line.size){
-        result = true;
-    }
-    return(result);
-}
-
-static int
 ms_style_verify(String line, int paren_pos){
     int result = false;
     
@@ -43,13 +34,16 @@ parse_error(String line, Jump_Location *location,
             int skip_sub_errors, int *colon_char){
     int result = false;
     
+    String original_line = line;
+    line = skip_chop_whitespace(line);
+    
     int colon_pos = find(line, 0, ')');
     if (ms_style_verify(line, colon_pos)){
         colon_pos = find(line, colon_pos, ':');
         if (colon_pos < line.size){
             String location_str = substr(line, 0, colon_pos);
             
-            if (!(skip_sub_errors && line.str[0] == ' ')){
+            if (!(skip_sub_errors && original_line.str[0] == ' ')){
                 location_str = skip_chop_whitespace(location_str);
                 
                 int paren_pos = find(location_str, 0, '(');
@@ -92,18 +86,16 @@ parse_error(String line, Jump_Location *location,
     
     else{
         int colon_pos1 = find(line, 0, ':');
-        if (colon_pos1 == 1){
-            if (line.size > colon_pos1+1){
-                if (char_is_slash(line.str[colon_pos1+1])){
-                    colon_pos1 = find(line, colon_pos1+1, ':');
-                }
+        if (line.size > colon_pos1+1){
+            if (char_is_slash(line.str[colon_pos1+1])){
+                colon_pos1 = find(line, colon_pos1+1, ':');
             }
         }
         
         int colon_pos2 = find(line, colon_pos1+1, ':');
         int colon_pos3 = find(line, colon_pos2+1, ':');
         
-        if (gcc_style_verify(line, colon_pos3)){
+        if (colon_pos3 < line.size){
             String filename = substr(line, 0, colon_pos1);
             String line_number = substr(line, colon_pos1+1, colon_pos2 - colon_pos1 - 1);
             String column_number = substr(line, colon_pos2+1, colon_pos3 - colon_pos2 - 1);
@@ -119,8 +111,14 @@ parse_error(String line, Jump_Location *location,
             }
         }
         else{
-            int colon_pos1 = find(line, 0, ':');
-            int colon_pos2 = find(line, colon_pos1+1, ':');
+            colon_pos1 = find(line, 0, ':');
+            if (line.size > colon_pos1+1){
+                if (char_is_slash(line.str[colon_pos1+1])){
+                    colon_pos1 = find(line, colon_pos1+1, ':');
+                }
+            }
+            
+            colon_pos2 = find(line, colon_pos1+1, ':');
             
             if (colon_pos2 < line.size){
                 String filename = substr(line, 0, colon_pos1);

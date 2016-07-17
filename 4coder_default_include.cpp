@@ -15,6 +15,10 @@
 # define DEFAULT_INDENT_FLAGS 0
 #endif
 
+#ifndef DEF_TAB_WIDTH
+# define DEF_TAB_WIDTH 4
+#endif
+
 
 //
 // Memory
@@ -695,6 +699,205 @@ CUSTOM_COMMAND_SIG(move_right){
 }
 
 //
+// Auto Indenting and Whitespace
+//
+
+static int
+seek_line_end(Application_Links *app, Buffer_Summary *buffer, int pos){
+    char chunk[1024];
+    int chunk_size = sizeof(chunk);
+    Stream_Chunk stream = {0};
+    
+    int still_looping;
+    char at_pos;
+    
+    if (init_stream_chunk(&stream, app, buffer, pos, chunk, chunk_size)){
+        still_looping = 1;
+        do{
+            for (; pos < stream.end; ++pos){
+                at_pos = stream.data[pos];
+                if (at_pos == '\n'){
+                    goto double_break;
+                }
+            }
+            still_looping = forward_stream_chunk(&stream);
+        }while(still_looping);
+        double_break:;
+        
+        if (pos > buffer->size){
+            pos = buffer->size;
+        }
+    }
+    
+    return(pos);
+}
+
+static int
+seek_line_beginning(Application_Links *app, Buffer_Summary *buffer, int pos){
+    char chunk[1024];
+    int chunk_size = sizeof(chunk);
+    Stream_Chunk stream = {0};
+    
+    int still_looping;
+    char at_pos;
+    
+    --pos;
+    if (init_stream_chunk(&stream, app, buffer, pos, chunk, chunk_size)){
+        still_looping = 1;
+        do{
+            for (; pos >= stream.start; --pos){
+                at_pos = stream.data[pos];
+                if (at_pos == '\n'){
+                    goto double_break;
+                }
+            }
+            still_looping = backward_stream_chunk(&stream);
+        }while(still_looping);
+        double_break:;
+        
+        if (pos != 0){
+            ++pos;
+        }
+        if (pos < 0){
+            pos = 0;
+        }
+    }
+    
+    return(pos);
+}
+
+static void
+move_past_lead_whitespace(Application_Links *app, View_Summary *view, Buffer_Summary *buffer){
+    refresh_view(app, view);
+    
+    int new_pos = seek_line_beginning(app, buffer, view->cursor.pos);
+    char space[1024];
+    Stream_Chunk chunk = {0};
+    int still_looping = false;
+    
+    int i = new_pos;
+    if (init_stream_chunk(&chunk, app, buffer, i, space, sizeof(space))){
+        do{
+            for (; i < chunk.end; ++i){
+                char at_pos = chunk.data[i];
+                if (at_pos == '\n' || !char_is_whitespace(at_pos)){
+                    goto break2;
+                }
+            }
+            still_looping = forward_stream_chunk(&chunk);
+        }while(still_looping);
+        break2:;
+        
+        if (i > view->cursor.pos){
+            app->view_set_cursor(app, view, seek_pos(i), true);
+        }
+    }
+}
+
+CUSTOM_COMMAND_SIG(auto_tab_line_at_cursor){
+    unsigned int access = AccessOpen;
+    View_Summary view = app->get_active_view(app, access);
+    Buffer_Summary buffer = app->get_buffer(app, view.buffer_id, access);
+    
+    app->buffer_auto_indent(app, &buffer,
+                            view.cursor.pos, view.cursor.pos,
+                            DEF_TAB_WIDTH,
+                            DEFAULT_INDENT_FLAGS);
+    move_past_lead_whitespace(app, &view, &buffer);
+}
+
+CUSTOM_COMMAND_SIG(auto_tab_whole_file){
+    unsigned int access = AccessOpen;
+    View_Summary view = app->get_active_view(app, access);
+    Buffer_Summary buffer = app->get_buffer(app, view.buffer_id, access);
+    
+    app->buffer_auto_indent(app, &buffer,
+                            0, buffer.size,
+                            DEF_TAB_WIDTH,
+                            DEFAULT_INDENT_FLAGS);
+}
+
+CUSTOM_COMMAND_SIG(auto_tab_range){
+    unsigned int access = AccessOpen;
+    View_Summary view = app->get_active_view(app, access);
+    Buffer_Summary buffer = app->get_buffer(app, view.buffer_id, access);
+    Range range = get_range(&view);
+    
+    app->buffer_auto_indent(app, &buffer,
+                            range.min, range.max,
+                            DEF_TAB_WIDTH,
+                            DEFAULT_INDENT_FLAGS);
+    move_past_lead_whitespace(app, &view, &buffer);
+}
+
+CUSTOM_COMMAND_SIG(write_and_auto_tab){
+    exec_command(app, write_character);
+    exec_command(app, auto_tab_line_at_cursor);
+}
+
+CUSTOM_COMMAND_SIG(clean_all_lines){
+    // TODO(allen): This command always iterates accross the entire
+    // buffer, so streaming it is actually the wrong call.  Rewrite this
+    // to minimize calls to app->buffer_read_range.
+    View_Summary view = app->get_active_view(app, AccessOpen);
+    Buffer_Summary buffer = app->get_buffer(app, view.buffer_id, AccessOpen);
+    
+    int line_count = buffer.line_count;
+    int edit_max = line_count;
+    
+    if (edit_max*sizeof(Buffer_Edit) < app->memory_size){
+        Buffer_Edit *edits = (Buffer_Edit*)app->memory;
+        
+        char data[1024];
+        Stream_Chunk chunk = {0};
+        
+        int i = 0;
+        if (init_stream_chunk(&chunk, app, &buffer,
+                              i, data, sizeof(data))){
+            Buffer_Edit *edit = edits;
+            
+            int buffer_size = buffer.size;
+            int still_looping = true;
+            int last_hard = buffer_size;
+            do{
+                for (; i < chunk.end; ++i){
+                    char at_pos = chunk.data[i];
+                    if (at_pos == '\n'){
+                        if (last_hard+1 < i){
+                            edit->str_start = 0;
+                            edit->len = 0;
+                            edit->start = last_hard+1;
+                            edit->end = i;
+                            ++edit;
+                        }
+                        last_hard = buffer_size;
+                    }
+                    else if (char_is_whitespace(at_pos)){
+                        // NOTE(allen): do nothing
+                    }
+                    else{
+                        last_hard = i;
+                    }
+                }
+                
+                still_looping = forward_stream_chunk(&chunk);
+            }while(still_looping);
+            
+            if (last_hard+1 < buffer_size){
+                edit->str_start = 0;
+                edit->len = 0;
+                edit->start = last_hard+1;
+                edit->end = buffer_size;
+                ++edit;
+            }
+            
+            int edit_count = (int)(edit - edits);
+            app->buffer_batch_edit(app, &buffer, 0, 0, edits, edit_count, BatchEdit_PreserveTokens);
+        }
+    }
+}
+
+//
 // Clipboard
 //
 
@@ -841,6 +1044,16 @@ CUSTOM_COMMAND_SIG(paste_next){
             exec_command(app, paste);
         }
     }
+}
+
+CUSTOM_COMMAND_SIG(paste_and_indent){
+    exec_command(app, paste);
+    exec_command(app, auto_tab_range);
+}
+
+CUSTOM_COMMAND_SIG(paste_next_and_indent){
+    exec_command(app, paste_next);
+    exec_command(app, auto_tab_range);
 }
 
 //
@@ -1032,70 +1245,6 @@ CUSTOM_COMMAND_SIG(seek_whitespace_down){
                          true);
 }
 
-static int
-seek_line_end(Application_Links *app, Buffer_Summary *buffer, int pos){
-    char chunk[1024];
-    int chunk_size = sizeof(chunk);
-    Stream_Chunk stream = {0};
-    
-    int still_looping;
-    char at_pos;
-    
-    if (init_stream_chunk(&stream, app, buffer, pos, chunk, chunk_size)){
-        still_looping = 1;
-        do{
-            for (; pos < stream.end; ++pos){
-                at_pos = stream.data[pos];
-                if (at_pos == '\n'){
-                    goto double_break;
-                }
-            }
-            still_looping = forward_stream_chunk(&stream);
-        }while(still_looping);
-        double_break:;
-        
-        if (pos > buffer->size){
-            pos = buffer->size;
-        }
-    }
-    
-    return(pos);
-}
-
-static int
-seek_line_beginning(Application_Links *app, Buffer_Summary *buffer, int pos){
-    char chunk[1024];
-    int chunk_size = sizeof(chunk);
-    Stream_Chunk stream = {0};
-    
-    int still_looping;
-    char at_pos;
-    
-    --pos;
-    if (init_stream_chunk(&stream, app, buffer, pos, chunk, chunk_size)){
-        still_looping = 1;
-        do{
-            for (; pos >= stream.start; --pos){
-                at_pos = stream.data[pos];
-                if (at_pos == '\n'){
-                    goto double_break;
-                }
-            }
-            still_looping = backward_stream_chunk(&stream);
-        }while(still_looping);
-        double_break:;
-        
-        if (pos != 0){
-            ++pos;
-        }
-        if (pos < 0){
-            pos = 0;
-        }
-    }
-    
-    return(pos);
-}
-
 CUSTOM_COMMAND_SIG(seek_end_of_line){
     unsigned int access = AccessProtected;
     View_Summary view = app->get_active_view(app, access);
@@ -1161,38 +1310,6 @@ write_string(Application_Links *app, String string){
 
 CUSTOM_COMMAND_SIG(write_increment){
     write_string(app, make_lit_string("++"));
-}
-
-#ifndef DEF_TAB_WIDTH
-# define DEF_TAB_WIDTH 4
-#endif
-
-static void
-move_past_lead_whitespace(Application_Links *app, View_Summary *view, Buffer_Summary *buffer){
-    refresh_view(app, view);
-    
-    int new_pos = seek_line_beginning(app, buffer, view->cursor.pos);
-    char space[1024];
-    Stream_Chunk chunk = {0};
-    int still_looping = false;
-    
-    int i = new_pos;
-    if (init_stream_chunk(&chunk, app, buffer, i, space, sizeof(space))){
-        do{
-            for (; i < chunk.end; ++i){
-                char at_pos = chunk.data[i];
-                if (at_pos == '\n' || !char_is_whitespace(at_pos)){
-                    goto break2;
-                }
-            }
-            still_looping = forward_stream_chunk(&chunk);
-        }while(still_looping);
-        break2:;
-        
-        if (i > view->cursor.pos){
-            app->view_set_cursor(app, view, seek_pos(i), true);
-        }
-    }
 }
 
 static void
@@ -1870,113 +1987,6 @@ CUSTOM_COMMAND_SIG(execute_previous_cli){
                                  hot_directory.str, hot_directory.size,
                                  cmd.str, cmd.size,
                                  CLI_OverlapWithConflict | CLI_CursorAtEnd);
-    }
-}
-
-//
-// Auto Indenting and Whitespace
-//
-
-CUSTOM_COMMAND_SIG(auto_tab_line_at_cursor){
-    unsigned int access = AccessOpen;
-    View_Summary view = app->get_active_view(app, access);
-    Buffer_Summary buffer = app->get_buffer(app, view.buffer_id, access);
-    
-    app->buffer_auto_indent(app, &buffer,
-                            view.cursor.pos, view.cursor.pos,
-                            DEF_TAB_WIDTH,
-                            DEFAULT_INDENT_FLAGS);
-    move_past_lead_whitespace(app, &view, &buffer);
-}
-
-CUSTOM_COMMAND_SIG(auto_tab_whole_file){
-    unsigned int access = AccessOpen;
-    View_Summary view = app->get_active_view(app, access);
-    Buffer_Summary buffer = app->get_buffer(app, view.buffer_id, access);
-    
-    app->buffer_auto_indent(app, &buffer,
-                            0, buffer.size,
-                            DEF_TAB_WIDTH,
-                            DEFAULT_INDENT_FLAGS);
-}
-
-CUSTOM_COMMAND_SIG(auto_tab_range){
-    unsigned int access = AccessOpen;
-    View_Summary view = app->get_active_view(app, access);
-    Buffer_Summary buffer = app->get_buffer(app, view.buffer_id, access);
-    Range range = get_range(&view);
-    
-    app->buffer_auto_indent(app, &buffer,
-                            range.min, range.max,
-                            DEF_TAB_WIDTH,
-                            DEFAULT_INDENT_FLAGS);
-    move_past_lead_whitespace(app, &view, &buffer);
-}
-
-CUSTOM_COMMAND_SIG(write_and_auto_tab){
-    exec_command(app, write_character);
-    exec_command(app, auto_tab_line_at_cursor);
-}
-
-CUSTOM_COMMAND_SIG(clean_all_lines){
-    // TODO(allen): This command always iterates accross the entire
-    // buffer, so streaming it is actually the wrong call.  Rewrite this
-    // to minimize calls to app->buffer_read_range.
-    View_Summary view = app->get_active_view(app, AccessOpen);
-    Buffer_Summary buffer = app->get_buffer(app, view.buffer_id, AccessOpen);
-    
-    int line_count = buffer.line_count;
-    int edit_max = line_count;
-    
-    if (edit_max*sizeof(Buffer_Edit) < app->memory_size){
-        Buffer_Edit *edits = (Buffer_Edit*)app->memory;
-        
-        char data[1024];
-        Stream_Chunk chunk = {0};
-        
-        int i = 0;
-        if (init_stream_chunk(&chunk, app, &buffer,
-                              i, data, sizeof(data))){
-            Buffer_Edit *edit = edits;
-            
-            int buffer_size = buffer.size;
-            int still_looping = true;
-            int last_hard = buffer_size;
-            do{
-                for (; i < chunk.end; ++i){
-                    char at_pos = chunk.data[i];
-                    if (at_pos == '\n'){
-                        if (last_hard+1 < i){
-                            edit->str_start = 0;
-                            edit->len = 0;
-                            edit->start = last_hard+1;
-                            edit->end = i;
-                            ++edit;
-                        }
-                        last_hard = buffer_size;
-                    }
-                    else if (char_is_whitespace(at_pos)){
-                        // NOTE(allen): do nothing
-                    }
-                    else{
-                        last_hard = i;
-                    }
-                }
-                
-                still_looping = forward_stream_chunk(&chunk);
-            }while(still_looping);
-            
-            if (last_hard+1 < buffer_size){
-                edit->str_start = 0;
-                edit->len = 0;
-                edit->start = last_hard+1;
-                edit->end = buffer_size;
-                ++edit;
-            }
-            
-            int edit_count = (int)(edit - edits);
-            app->buffer_batch_edit(app, &buffer, 0, 0, edits, edit_count, BatchEdit_PreserveTokens);
-        }
     }
 }
 

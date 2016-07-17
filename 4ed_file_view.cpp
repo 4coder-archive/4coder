@@ -1183,7 +1183,7 @@ Job_Callback_Sig(job_full_lex){
     i32 buffer_size = file->state.buffer.size;
     buffer_size = (buffer_size + 3)&(~3);
     
-#if 0
+#if USE_NEW_LEXER
     while (memory->size < buffer_size*2){
         system->grow_thread_memory(memory);
     }
@@ -1202,7 +1202,7 @@ Job_Callback_Sig(job_full_lex){
     do{
         i32 result = 
             cpp_lex_size_nonalloc(&lex,
-                                  cpp_file.data, cpp_file.size, cpp_file.size,
+                                  text_data, text_size, text_size,
                                   &tokens, 2048);
         
         switch (result){
@@ -1376,9 +1376,12 @@ file_relex_parallel(System_Functions *system,
         relex_space.max_count = state.space_request;
         relex_space.tokens = push_array(part, Cpp_Token, relex_space.max_count);
         
-        //        char *spare = push_array(part, char, cpp_file.size);
-        //        if (cpp_relex_nonalloc_main(&state, &relex_space, &relex_end, spare)){
+#if USE_NEW_LEXER
+        char *spare = push_array(part, char, size);
+        if (cpp_relex_nonalloc_main(&state, &relex_space, &relex_end, spare)){
+#else
         if (cpp_relex_nonalloc_main(&state, &relex_space, &relex_end)){
+#endif
             inline_lex = 0;
         }
         else{
