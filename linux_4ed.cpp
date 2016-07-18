@@ -1414,7 +1414,7 @@ InitializeOpenGLContext(Display *XDisplay, Window XWindow, GLXFBConfig &bestFbc,
     typedef PFNGLXSWAPINTERVALSGIPROC     glXSwapIntervalSGIProc;
 
     const char *glxExts = glXQueryExtensionsString(XDisplay, DefaultScreen(XDisplay));
-  
+
     #define GLXLOAD(x) x ## Proc x = (x ## Proc) glXGetProcAddressARB( (const GLubyte*) #x);
 
     GLXLOAD(glXCreateContextAttribsARB);
@@ -1488,14 +1488,17 @@ InitializeOpenGLContext(Display *XDisplay, Window XWindow, GLXFBConfig &bestFbc,
         fprintf(stderr,  "Failed to create an OpenGL context\n");
         exit(1);
     }
- 
+
+    b32 Direct;
     if (!glXIsDirect(XDisplay, ctx))
     {
         fprintf(stderr,  "Indirect GLX rendering context obtained\n");
+        Direct = 0;
     }
     else
     {
         fprintf(stderr,  "Direct GLX rendering context obtained\n");
+        Direct = 1;
     }
     
     fprintf(stderr,  "Making context current\n");
@@ -1514,7 +1517,7 @@ InitializeOpenGLContext(Display *XDisplay, Window XWindow, GLXFBConfig &bestFbc,
     //  fprintf(stderr, "GL_EXTENSIONS: %s\n", Extensions);
 
     //NOTE(inso): enable vsync if available. this should probably be optional
-    if(strstr(glxExts, "GLX_EXT_swap_control ")){
+    if(Direct && strstr(glxExts, "GLX_EXT_swap_control ")){
 
         GLXLOAD(glXSwapIntervalEXT);
 
@@ -1528,7 +1531,7 @@ InitializeOpenGLContext(Display *XDisplay, Window XWindow, GLXFBConfig &bestFbc,
             fprintf(stderr, "VSync enabled? %s.\n", linuxvars.vsync ? "Yes" : "No");
         }
 
-    } else if(strstr(glxExts, "GLX_MESA_swap_control ")){
+    } else if(Direct && strstr(glxExts, "GLX_MESA_swap_control ")){
 
         GLXLOAD(glXSwapIntervalMESA);
         GLXLOAD(glXGetSwapIntervalMESA);
@@ -1542,11 +1545,11 @@ InitializeOpenGLContext(Display *XDisplay, Window XWindow, GLXFBConfig &bestFbc,
             } else {
                 // NOTE(inso): assume it worked?
                 linuxvars.vsync = 1;
-                fputs("VSync enabled? possibly (MESA)", stderr);
+                fputs("VSync enabled? possibly (MESA)\n", stderr);
             }
         }
 
-    } else if(strstr(glxExts, "GLX_SGI_swap_control ")){
+    } else if(Direct && strstr(glxExts, "GLX_SGI_swap_control ")){
 
         GLXLOAD(glXSwapIntervalSGI);
 
@@ -1555,11 +1558,11 @@ InitializeOpenGLContext(Display *XDisplay, Window XWindow, GLXFBConfig &bestFbc,
 
             //NOTE(inso): The SGI one doesn't seem to have a way to confirm we got it...
             linuxvars.vsync = 1;
-            fputs("VSync enabled? hopefully (SGI)", stderr);
+            fputs("VSync enabled? hopefully (SGI)\n", stderr);
         }
 
     } else {
-        fputs("VSync enabled? nope, no suitable extension", stderr);
+        fputs("VSync enabled? nope, no suitable extension\n", stderr);
     }
 
 #if FRED_INTERNAL
