@@ -9,7 +9,11 @@ enum Search_Range_Type{
 };
 
 enum Search_Range_Flag{
-    SearchFlag_MatchStartOfIdentifier = 0x1,
+    SearchFlag_MatchWholeWord  = 0x00,
+    SearchFlag_MatchWordPrefix = 0x01,
+    SearchFlag_MatchSubstring  = 0x02,
+    SearchFlag_MatchMask       = 0xFF,
+    SearchFlag_CaseInsensitive = 0x0100,
 };
 
 struct Search_Range{
@@ -190,13 +194,60 @@ match_check(Application_Links *app, Search_Range *range, int *pos, Search_Match 
     Search_Match result = *result_ptr;
     int end_pos = range->start + range->size;
     
-    if (range->flags & SearchFlag_MatchStartOfIdentifier){
-        char prev = buffer_get_char(app, &result.buffer, result.start - 1);
-        if (!char_is_alpha_numeric(prev)){
-            result.end =
-                buffer_seek_alpha_numeric_end(
-                app, &result.buffer, result.start);
+    int type = (range->flags & SearchFlag_MatchMask);
+    
+    switch (type){
+        case SearchFlag_MatchWholeWord:
+        {
+            char first = word.str[0];
             
+            char prev = ' ';
+            if (char_is_alpha_numeric(first)){
+                prev = buffer_get_char(app, &result.buffer, result.start - 1);
+            }
+            
+            if (!char_is_alpha_numeric(prev)){
+                result.end = result.start + word.size;
+                if (result.end <= end_pos){
+                    char last = word.str[word.size-1];
+                    
+                    char next = ' ';
+                    if (char_is_alpha_numeric(last)){
+                        next = buffer_get_char(app, &result.buffer, result.end);
+                    }
+                    
+                    if (!char_is_alpha_numeric(next)){
+                        result.found_match = true;
+                        found_match = FindResult_FoundMatch;
+                    }
+                }
+                else{
+                    found_match = FindResult_PastEnd;
+                }
+            }
+        }break;
+        
+        case SearchFlag_MatchWordPrefix:
+        {
+            char prev = buffer_get_char(app, &result.buffer, result.start - 1);
+            if (!char_is_alpha_numeric(prev)){
+                result.end =
+                    buffer_seek_alpha_numeric_end(
+                    app, &result.buffer, result.start);
+                
+                if (result.end <= end_pos){
+                    result.found_match = true;
+                    found_match = FindResult_FoundMatch;
+                }
+                else{
+                    found_match = FindResult_PastEnd;
+                }
+            }
+        }break;
+        
+        case SearchFlag_MatchSubstring:
+        {
+            result.end = result.start + word.size;
             if (result.end <= end_pos){
                 result.found_match = true;
                 found_match = FindResult_FoundMatch;
@@ -204,35 +255,7 @@ match_check(Application_Links *app, Search_Range *range, int *pos, Search_Match 
             else{
                 found_match = FindResult_PastEnd;
             }
-        }
-    }
-    else{
-        char first = word.str[0];
-        
-        char prev = ' ';
-        if (char_is_alpha_numeric(first)){
-            prev = buffer_get_char(app, &result.buffer, result.start - 1);
-        }
-        
-        if (!char_is_alpha_numeric(prev)){
-            result.end = result.start + word.size;
-            if (result.end <= end_pos){
-                char last = word.str[word.size-1];
-                
-                char next = ' ';
-                if (char_is_alpha_numeric(last)){
-                    next = buffer_get_char(app, &result.buffer, result.end);
-                }
-                
-                if (!char_is_alpha_numeric(next)){
-                    result.found_match = true;
-                    found_match = FindResult_FoundMatch;
-                }
-            }
-            else{
-                found_match = FindResult_PastEnd;
-            }
-        }
+        }break;
     }
     
     *result_ptr = result;
@@ -257,11 +280,21 @@ search_front_to_back_step(Application_Links *app,
             start_pos = range->start;
         }
         
+        int case_insensitive = (range->flags & SearchFlag_CaseInsensitive);
+        
         result.buffer = app->get_buffer(app, range->buffer, AccessAll);
-        buffer_seek_string_forward(app, &result.buffer,
-                                   start_pos, end_pos,
-                                   word.str, word.size,
-                                   &result.start);
+        if (case_insensitive){
+            buffer_seek_string_insensitive_forward(app, &result.buffer,
+                                                   start_pos, end_pos,
+                                                   word.str, word.size,
+                                                   &result.start);
+        }
+        else{
+            buffer_seek_string_forward(app, &result.buffer,
+                                       start_pos, end_pos,
+                                       word.str, word.size,
+                                       &result.start);
+        }
         
         if (result.start < end_pos){
             *pos = result.start + 1;

@@ -365,6 +365,7 @@ default_keys(Bind_Helper *context){
     bind(context, 'E', MDFR_CTRL, left_adjust_view);
     bind(context, 'f', MDFR_CTRL, search);
     bind(context, 'F', MDFR_CTRL, list_all_locations);
+    bind(context, 'F', MDFR_ALT, list_all_substring_locations_case_insensitive);
     bind(context, 'g', MDFR_CTRL, goto_line);
     bind(context, 'h', MDFR_CTRL, cmdid_history_backward);
     bind(context, 'H', MDFR_CTRL, cmdid_history_forward);

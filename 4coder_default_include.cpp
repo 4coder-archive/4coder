@@ -344,11 +344,12 @@ buffer_seek_string_backward(Application_Links *app, Buffer_Summary *buffer,
 // replacing char read_buffer[512]; with more memory.
 void
 buffer_seek_string_insensitive_forward(Application_Links *app, Buffer_Summary *buffer,
-                                       int pos, char *str, int size, int *result){
+                                       int pos, int end, char *str, int size, int *result){
     char read_buffer[512];
     char chunk[1024];
     int chunk_size = sizeof(chunk);
     Stream_Chunk stream = {0};
+    stream.max_end = end;
     
     if (size <= 0){
         *result = buffer->size;
@@ -393,11 +394,12 @@ buffer_seek_string_insensitive_forward(Application_Links *app, Buffer_Summary *b
 // replacing char read_buffer[512]; with more memory.
 void
 buffer_seek_string_insensitive_backward(Application_Links *app, Buffer_Summary *buffer,
-                                        int pos, char *str, int size, int *result){
+                                        int pos, int min, char *str, int size, int *result){
     char read_buffer[512];
     char chunk[1024];
     int chunk_size = sizeof(chunk);
     Stream_Chunk stream = {0};
+    stream.min_start = min;
     
     if (size <= 0){
         *result = -1;
@@ -1716,13 +1718,13 @@ isearch(Application_Links *app, int start_reversed){
         if (in.key.keycode != key_back){
             int new_pos;
             if (reverse){
-                buffer_seek_string_insensitive_backward(app, &buffer, start_pos - 1,
+                buffer_seek_string_insensitive_backward(app, &buffer, start_pos - 1, 0,
                                                         bar.string.str, bar.string.size, &new_pos);
                 if (new_pos >= 0){
                     if (step_backward){
                         pos = new_pos;
                         start_pos = new_pos;
-                        buffer_seek_string_insensitive_backward(app, &buffer, start_pos - 1,
+                        buffer_seek_string_insensitive_backward(app, &buffer, start_pos - 1, 0,
                                                                 bar.string.str, bar.string.size, &new_pos);
                         if (new_pos < 0) new_pos = start_pos;
                     }
@@ -1731,13 +1733,13 @@ isearch(Application_Links *app, int start_reversed){
                 }
             }
             else{
-                buffer_seek_string_insensitive_forward(app, &buffer, start_pos + 1,
+                buffer_seek_string_insensitive_forward(app, &buffer, start_pos + 1, 0,
                                                        bar.string.str, bar.string.size, &new_pos);
                 if (new_pos < buffer.size){
                     if (step_forward){
                         pos = new_pos;
                         start_pos = new_pos;
-                        buffer_seek_string_insensitive_forward(app, &buffer, start_pos + 1,
+                        buffer_seek_string_insensitive_forward(app, &buffer, start_pos + 1, 0,
                                                                bar.string.str, bar.string.size, &new_pos);
                         if (new_pos >= buffer.size) new_pos = start_pos;
                     }
@@ -2238,7 +2240,10 @@ CUSTOM_COMMAND_SIG(eol_nixify){
 #include "4coder_table.cpp"
 #include "4coder_search.cpp"
 
-CUSTOM_COMMAND_SIG(list_all_locations){
+static void
+generic_search_all_buffers(Application_Links *app, General_Memory *general, Partition *part,
+                           unsigned int match_flags){
+    
     Query_Bar string;
     char string_space[1024];
     string.prompt = make_lit_string("List Locations For: ");
@@ -2250,11 +2255,11 @@ CUSTOM_COMMAND_SIG(list_all_locations){
     Search_Set set = {0};
     Search_Iter iter = {0};
     
-    search_iter_init(&global_general, &iter, string.string.size);
+    search_iter_init(general, &iter, string.string.size);
     copy(&iter.word, string.string);
     
     int buffer_count = app->get_buffer_count(app);
-    search_set_init(&global_general, &set, buffer_count);
+    search_set_init(general, &set, buffer_count);
     
     Search_Range *ranges = set.ranges;
     
@@ -2265,7 +2270,7 @@ CUSTOM_COMMAND_SIG(list_all_locations){
         int j = 0;
         if (buffer.exists){
             ranges[0].type = SearchRange_FrontToBack;
-            ranges[0].flags = 0;
+            ranges[0].flags = match_flags;
             ranges[0].buffer = buffer.buffer_id;
             ranges[0].start = 0;
             ranges[0].size = buffer.size;
@@ -2277,7 +2282,7 @@ CUSTOM_COMMAND_SIG(list_all_locations){
              app->get_buffer_next(app, &buffer_it, AccessAll)){
             if (buffer.buffer_id != buffer_it.buffer_id){
                 ranges[j].type = SearchRange_FrontToBack;
-                ranges[j].flags = 0;
+                ranges[j].flags = match_flags;
                 ranges[j].buffer = buffer_it.buffer_id;
                 ranges[j].start = 0;
                 ranges[j].size = buffer_it.size;
@@ -2298,9 +2303,10 @@ CUSTOM_COMMAND_SIG(list_all_locations){
         app->buffer_replace_range(app, &search_buffer, 0, search_buffer.size, 0, 0);
     }
     
-    Temp_Memory temp = begin_temp_memory(&global_part);
-    Partition line_part = partition_sub_part(&global_part, (4 << 10));
-    char *str = (char*)partition_current(&global_part);
+    Temp_Memory temp = begin_temp_memory(part);
+    Partition line_part = partition_sub_part(part, (4 << 10));
+    char *str = (char*)partition_current(part);
+    int part_size = 0;
     int size = 0;
     for (;;){
         Search_Match match = search_next_match(app, &set, &iter);
@@ -2318,8 +2324,21 @@ CUSTOM_COMMAND_SIG(list_all_locations){
                 
                 int str_len = file_len + 1 + line_num_len + 1 + column_num_len + 1 + 1 + line_str.size + 1;
                 
-                char *spare = push_array(&global_part, char, str_len);
-                size += str_len;
+                char *spare = push_array(part, char, str_len);
+                
+                if (spare == 0){
+                    app->buffer_replace_range(app, &search_buffer,
+                                              size, size, str, part_size);
+                    size += part_size;
+                    
+                    end_temp_memory(temp);
+                    temp = begin_temp_memory(part);
+                    
+                    part_size = 0;
+                    spare = push_array(part, char, str_len);
+                }
+                
+                part_size += str_len;
                 
                 String out_line = make_string(spare, 0, str_len);
                 append(&out_line, make_string(match.buffer.file_name, file_len));
@@ -2340,12 +2359,28 @@ CUSTOM_COMMAND_SIG(list_all_locations){
         }
     }
     
-    app->buffer_replace_range(app, &search_buffer, 0, 0, str, size);
+    app->buffer_replace_range(app, &search_buffer, size, size, str, part_size);
     
     View_Summary view = app->get_active_view(app, AccessAll);
     app->view_set_buffer(app, &view, search_buffer.buffer_id, 0);
     
     end_temp_memory(temp);
+}
+
+CUSTOM_COMMAND_SIG(list_all_locations){
+    generic_search_all_buffers(app, &global_general, &global_part, SearchFlag_MatchWholeWord);
+}
+
+CUSTOM_COMMAND_SIG(list_all_substring_locations){
+    generic_search_all_buffers(app, &global_general, &global_part, SearchFlag_MatchSubstring);
+}
+
+CUSTOM_COMMAND_SIG(list_all_locations_case_insensitive){
+    generic_search_all_buffers(app, &global_general, &global_part, SearchFlag_CaseInsensitive | SearchFlag_MatchWholeWord);
+}
+
+CUSTOM_COMMAND_SIG(list_all_substring_locations_case_insensitive){
+    generic_search_all_buffers(app, &global_general, &global_part, SearchFlag_CaseInsensitive | SearchFlag_MatchSubstring);
 }
 
 struct Word_Complete_State{
@@ -2424,14 +2459,13 @@ CUSTOM_COMMAND_SIG(word_complete){
                                    complete_state.iter.word.str);
             complete_state.iter.word.size = size;
             
-            // NOTE(allen): Initialize the set of ranges
-            // to be searched.
+            // NOTE(allen): Initialize the set of ranges to be searched.
             int buffer_count = app->get_buffer_count(app);
             search_set_init(&global_general, &complete_state.set, buffer_count);
             
             Search_Range *ranges = complete_state.set.ranges;
             ranges[0].type = SearchRange_Wave;
-            ranges[0].flags = SearchFlag_MatchStartOfIdentifier;
+            ranges[0].flags = SearchFlag_MatchWordPrefix;
             ranges[0].buffer = buffer.buffer_id;
             ranges[0].start = 0;
             ranges[0].size = buffer.size;
@@ -2444,7 +2478,7 @@ CUSTOM_COMMAND_SIG(word_complete){
                  app->get_buffer_next(app, &buffer_it, AccessAll)){
                 if (buffer.buffer_id != buffer_it.buffer_id){
                     ranges[j].type = SearchRange_FrontToBack;
-                    ranges[j].flags = SearchFlag_MatchStartOfIdentifier;
+                    ranges[j].flags = SearchFlag_MatchWordPrefix;
                     ranges[j].buffer = buffer_it.buffer_id;
                     ranges[j].start = 0;
                     ranges[j].size = buffer_it.size;
