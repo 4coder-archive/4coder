@@ -1110,12 +1110,11 @@ buffer_partial_from_line_character(Buffer_Type *buffer, int line, int character)
     if (line_index < 0) line_index = 0;
     
     int this_start = buffer->line_starts[line_index];
-    int next_start = buffer->size;
+    int max_character = (buffer->size-this_start) + 1;
     if (line_index+1 < buffer->line_count){
-        next_start = buffer->line_starts[line_index+1];
+        int next_start = buffer->line_starts[line_index+1];
+        max_character = (next_start-this_start);
     }
-    
-    int max_character = (next_start-this_start);
     
     if (character <= 0) character = 1;
     if (character > max_character) character = max_character;

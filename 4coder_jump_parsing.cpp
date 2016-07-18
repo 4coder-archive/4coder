@@ -307,8 +307,8 @@ seek_error_skip_repeats(Application_Links *app, Partition *part,
 }
 
 static int
-seek_error(Application_Links *app, Partition *part,
-           int skip_sub_error, int dir){
+seek_error_no_skip(Application_Links *app, Partition *part,
+                   int skip_sub_error, int dir){
     int result = true;
     Jump_Location location = {0};
     Prev_Jump jump = {0};
@@ -327,6 +327,17 @@ seek_error(Application_Links *app, Partition *part,
     return(result);
 }
 
+static int
+seek_error(Application_Links *app, Partition *part,
+           int skip_sub_error, int skip_same_line, int dir){
+    if (skip_same_line){
+        seek_error_skip_repeats(app, part, skip_sub_error, dir);
+    }
+    else{
+        seek_error_no_skip(app, part, skip_sub_error, dir);
+    }
+}
+
 CUSTOM_COMMAND_SIG(goto_next_error){
     seek_error_skip_repeats(app, &global_part, true, 1);
 }
@@ -336,11 +347,11 @@ CUSTOM_COMMAND_SIG(goto_prev_error){
 }
 
 CUSTOM_COMMAND_SIG(goto_next_error_no_skips){
-    seek_error(app, &global_part, true, 1);
+    seek_error_no_skip(app, &global_part, true, 1);
 }
 
 CUSTOM_COMMAND_SIG(goto_prev_error_no_skips){
-    seek_error(app, &global_part, true, -1);
+    seek_error_no_skip(app, &global_part, true, -1);
 }
 
 CUSTOM_COMMAND_SIG(goto_first_error){

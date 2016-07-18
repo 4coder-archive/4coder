@@ -255,7 +255,7 @@ struct Buffer_Rect{
 
 inline Buffer_Rect
 get_rect(View_Summary *view){
-    Buffer_Rect rect;
+    Buffer_Rect rect = {0};
     
     rect.char0 = view->mark.character;
     rect.line0 = view->mark.line;

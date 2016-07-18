@@ -10,9 +10,8 @@
 #include <string.h>
 
 CUSTOM_COMMAND_SIG(kill_rect){
-    unsigned int access = AccessOpen;
-    View_Summary view = app->get_active_view(app, access);
-    Buffer_Summary buffer = app->get_buffer(app, view.buffer_id, access);
+    View_Summary view = app->get_active_view(app, AccessOpen);
+    Buffer_Summary buffer = app->get_buffer(app, view.buffer_id, AccessOpen);
     
     Buffer_Rect rect = get_rect(&view);
     
@@ -33,6 +32,112 @@ CUSTOM_COMMAND_SIG(kill_rect){
         
         if (success){
             app->buffer_replace_range(app, &buffer, start, end, 0, 0);
+        }
+    }
+}
+
+static void
+pad_buffer_line(Application_Links *app, Partition *part,
+                Buffer_Summary *buffer, int line,
+                char padchar, int target){
+    Partial_Cursor start = {0};
+    Partial_Cursor end = {0};
+    
+    if (app->buffer_compute_cursor(app, buffer, seek_line_char(line, 1), &start)){
+        if (app->buffer_compute_cursor(app, buffer, seek_line_char(line, 65536), &end)){
+            if (start.line == line){
+                if (end.character-1 < target){
+                    Temp_Memory temp = begin_temp_memory(part);
+                    int size = target - (end.character-1);
+                    char *str = push_array(part, char, size);
+                    memset(str, ' ', size);
+                    app->buffer_replace_range(app, buffer, end.pos, end.pos, str, size);
+                    end_temp_memory(temp);
+                }
+            }
+        }
+    }
+}
+
+CUSTOM_COMMAND_SIG(multi_line_edit){
+    Partition *part = &global_part;
+    
+    View_Summary view = app->get_active_view(app, AccessOpen);
+    Buffer_Summary buffer = app->get_buffer(app, view.buffer_id, AccessOpen);
+    
+    Buffer_Rect rect = get_rect(&view);
+    
+    int start_line = view.cursor.line;
+    int pos = view.cursor.character-1;
+    
+    for (int i = rect.line0; i <= rect.line1; ++i){
+        pad_buffer_line(app, &global_part, &buffer, i, ' ', pos);
+    }
+    
+    int line_count = rect.line1 - rect.line0 + 1;
+    
+    for (;;){
+        User_Input in = app->get_user_input(app, EventOnAnyKey, EventOnEsc | EventOnButton);
+        if (in.abort) break;
+        
+        if (in.key.character && key_is_unmodified(&in.key)){
+            char str = (char)in.key.character;
+            
+            Temp_Memory temp = begin_temp_memory(part);
+            Buffer_Edit *edit = push_array(part, Buffer_Edit, line_count);
+            Buffer_Edit *edits = edit;
+            
+            for (int i = rect.line0; i <= rect.line1; ++i){
+                Partial_Cursor cursor = {0};
+                
+                if (app->buffer_compute_cursor(app, &buffer, seek_line_char(i, pos+1), &cursor)){
+                    edit->str_start = 0;
+                    edit->len = 1;
+                    edit->start = cursor.pos;
+                    edit->end = cursor.pos;
+                    ++edit;
+                }
+            }
+            
+            int edit_count = (int)(edit - edits);
+            app->buffer_batch_edit(app, &buffer, &str, 1, edits, edit_count, BatchEdit_Normal);
+            
+            end_temp_memory(temp);
+            
+            ++pos;
+            
+            app->view_set_cursor(app, &view, seek_line_char(start_line, pos+1), true);
+        }
+        else if (in.key.keycode == key_back){
+            if (pos > 0){
+                
+                Temp_Memory temp = begin_temp_memory(part);
+                Buffer_Edit *edit = push_array(part, Buffer_Edit, line_count);
+                Buffer_Edit *edits = edit;
+                
+                for (int i = rect.line0; i <= rect.line1; ++i){
+                    Partial_Cursor cursor = {0};
+                    
+                    if (app->buffer_compute_cursor(app, &buffer, seek_line_char(i, pos+1), &cursor)){
+                        edit->str_start = 0;
+                        edit->len = 0;
+                        edit->start = cursor.pos-1;
+                        edit->end = cursor.pos;
+                        ++edit;
+                    }
+                }
+                
+                int edit_count = (int)(edit - edits);
+                app->buffer_batch_edit(app, &buffer, 0, 0, edits, edit_count, BatchEdit_Normal);
+                
+                end_temp_memory(temp);
+                
+                --pos;
+            }
+            
+        }
+        else{
+            break;
         }
     }
 }
@@ -256,6 +361,7 @@ get_bindings(void *data, int size){
     
     begin_map(context, mapid_file);
     bind(context, 'k', MDFR_ALT, kill_rect);
+    bind(context, ' ', MDFR_ALT, multi_line_edit);
     end_map(context);
     
     begin_map(context, my_code_map);
