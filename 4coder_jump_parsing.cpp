@@ -196,8 +196,8 @@ next_error(Application_Links *app,
            Partition *part,
            View_Summary *comp_out, int *start_line,
            Jump_Location *location,
-           int direction,
            int skip_sub_errors,
+           int direction,
            int *colon_char){
     
     int result = false;
@@ -226,8 +226,23 @@ next_error(Application_Links *app,
     return(result);
 }
 
+static Prev_Jump
+jump_location_store(Application_Links *app, Jump_Location loc){
+    Prev_Jump result = {0};
+    Buffer_Summary buffer =
+        app->get_buffer_by_name(app, loc.file.str, loc.file.size, AccessAll);
+    
+    if (buffer.exists){
+        result.buffer_id = buffer.buffer_id;
+        result.line = loc.line;
+    }
+    
+    return(result);
+}
+
 static int
-seek_error(Application_Links *app, Partition *part, int direction, int skip_sub_errors, Jump_Location *loc){
+seek_error_internal(Application_Links *app, Partition *part,
+                    int skip_sub_errors, int dir, Jump_Location *loc){
     int result = false;
     
     Jump_Location location = {0};
@@ -238,7 +253,7 @@ seek_error(Application_Links *app, Partition *part, int direction, int skip_sub_
         
         int colon_char = 0;
         if (next_error(app, part, &view, &line, &location,
-                       skip_sub_errors, direction, &colon_char)){
+                       skip_sub_errors, dir, &colon_char)){
             
             View_Summary active_view = app->get_active_view(app, AccessAll);
             if (active_view.view_id == view.view_id){
@@ -254,22 +269,10 @@ seek_error(Application_Links *app, Partition *part, int direction, int skip_sub_
             }
         }
     }
+    
     return(result);
 }
 
-static Prev_Jump
-jump_location_store(Application_Links *app, Jump_Location loc){
-    Prev_Jump result = {0};
-    Buffer_Summary buffer =
-        app->get_buffer_by_name(app, loc.file.str, loc.file.size, AccessAll);
-    
-    if (buffer.exists){
-        result.buffer_id = buffer.buffer_id;
-        result.line = loc.line;
-    }
-    
-    return(result);
-}
 
 static int
 skip_this_jump(Prev_Jump prev, Prev_Jump jump){
@@ -289,7 +292,7 @@ seek_error_skip_repeats(Application_Links *app, Partition *part,
     Prev_Jump jump = {0};
     do{
         Temp_Memory temp = begin_temp_memory(part);
-        if (seek_error(app, part, skip_sub_error, dir, &location)){
+        if (seek_error_internal(app, part, skip_sub_error, dir, &location)){
             jump = jump_location_store(app, location);
             result = true;
         }
@@ -303,6 +306,27 @@ seek_error_skip_repeats(Application_Links *app, Partition *part,
     return(result);
 }
 
+static int
+seek_error(Application_Links *app, Partition *part,
+           int skip_sub_error, int dir){
+    int result = true;
+    Jump_Location location = {0};
+    Prev_Jump jump = {0};
+    
+    Temp_Memory temp = begin_temp_memory(part);
+    if (seek_error_internal(app, part, skip_sub_error, dir, &location)){
+        jump = jump_location_store(app, location);
+        result = true;
+    }
+    else{
+        result = false;
+    }
+    end_temp_memory(temp);
+    
+    prev_location = jump;
+    return(result);
+}
+
 CUSTOM_COMMAND_SIG(goto_next_error){
     seek_error_skip_repeats(app, &global_part, true, 1);
 }
@@ -311,13 +335,22 @@ CUSTOM_COMMAND_SIG(goto_prev_error){
     seek_error_skip_repeats(app, &global_part, true, -1);
 }
 
+CUSTOM_COMMAND_SIG(goto_next_error_no_skips){
+    seek_error(app, &global_part, true, 1);
+}
+
+CUSTOM_COMMAND_SIG(goto_prev_error_no_skips){
+    seek_error(app, &global_part, true, -1);
+}
+
 CUSTOM_COMMAND_SIG(goto_first_error){
     Temp_Memory temp = begin_temp_memory(&global_part);
     View_Summary active_view = app->get_active_view(app, AccessAll);
     app->view_set_cursor(app, &active_view, seek_pos(0), true);
     
     Jump_Location location = {0};
-    seek_error(app, &global_part, true, 1, &location);
+    prev_location = null_location;
+    seek_error_internal(app, &global_part, true, 1, &location);
     prev_location = jump_location_store(app, location);
     end_temp_memory(temp);
 }

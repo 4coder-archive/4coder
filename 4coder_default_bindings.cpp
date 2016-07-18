@@ -261,8 +261,8 @@ default_keys(Bind_Helper *context){
     
     bind(context, '.', MDFR_ALT, change_to_build_panel);
     bind(context, ',', MDFR_ALT, close_build_panel);
-    bind(context, 'n', MDFR_ALT, goto_next_error);
-    bind(context, 'N', MDFR_ALT, goto_prev_error);
+    bind(context, 'n', MDFR_ALT, goto_next_error_no_skips);
+    bind(context, 'N', MDFR_ALT, goto_prev_error_no_skips);
     bind(context, 'M', MDFR_ALT, goto_first_error);
     bind(context, 'm', MDFR_ALT, build_search);
     
