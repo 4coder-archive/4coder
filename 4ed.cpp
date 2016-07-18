@@ -1641,16 +1641,13 @@ update_cli_handle_with_file(System_Functions *system, Models *models,
         result = -1;
     }
     
-    i32 new_cursor = 0;
-    
     if (cursor_at_end){
-        new_cursor = buffer_size(&file->state.buffer);
-    }
-    
-    for (View_Iter iter = file_view_iter_init(&models->layout, file, 0);
-         file_view_iter_good(iter);
-         iter = file_view_iter_next(iter)){
-        view_cursor_move(iter.view, new_cursor);
+        i32 new_cursor = buffer_size(&file->state.buffer);
+        for (View_Iter iter = file_view_iter_init(&models->layout, file, 0);
+             file_view_iter_good(iter);
+             iter = file_view_iter_next(iter)){
+            view_cursor_move(iter.view, new_cursor);
+        }
     }
     
     return(result);

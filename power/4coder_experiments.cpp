@@ -59,6 +59,41 @@ pad_buffer_line(Application_Links *app, Partition *part,
     }
 }
 
+/*
+NOTE(allen):  Things I learned from this experiment.
+
+First of all the batch edits aren't too bad, but I think
+there could be a single system that I run that through that
+knows how to build the batch edit from slightly higher level
+information. For instance the idea in point 2.
+
+Secondly I definitely believe I need some sort of "mini-buffer"
+concept where a view sends commands so that things like
+pasting still work.  Then the contents of the "mini-buffer"
+can be used to complete the edits at all cursor points.
+This doesn't answer all questions, because somehow backspace
+still wants to work for multi-lines even when the "mini-buffer"
+is emtpy.  Such a system would also make it possible to send
+paste commands and cursor navigation to interactive bars.
+
+Thirdly any system like this will probably not want to
+operate through the co-routine system, because that makes
+sending these commands to the "mini-buffer" much more
+difficult.
+
+Fourthly I desperately need some way to do multi-highlighting
+multi-cursor showing but it is unclear to me how to do that
+conveniently.  Since this won't exist inside a coroutine
+what does such an API even look like??? It's clear to me now
+that I may need to start pushing for the view routine before
+I am even able to support the GUI. Because that will the
+system up to allow me to think about the problem in more ways.
+
+Finally I have decided not to pursue this direction any more,
+it just seems like the wrong way to do it, so I'll stop without
+doing multi-cursor for now.
+*/
+
 CUSTOM_COMMAND_SIG(multi_line_edit){
     Partition *part = &global_part;
     
