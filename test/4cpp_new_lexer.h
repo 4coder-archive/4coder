@@ -640,23 +640,35 @@ cpp_lex_nonalloc(Lex_Data *S_ptr,
                 
                 case LS_char:
                 case LS_char_slashed:
-                S.token.type = CPP_TOKEN_CHARACTER_CONSTANT;
+                S.token.type = CPP_TOKEN_JUNK;
+                if (c == '\''){
+                    S.token.type = CPP_TOKEN_CHARACTER_CONSTANT;
+                }
                 S.token.flags = 0;
                 break;
                 
                 case LS_char_multiline:
-                S.token.type = CPP_TOKEN_CHARACTER_CONSTANT;
+                S.token.type = CPP_TOKEN_JUNK;
+                if (c == '\''){
+                    S.token.type = CPP_TOKEN_CHARACTER_CONSTANT;
+                }
                 S.token.flags = CPP_TFLAG_MULTILINE;
                 break;
                 
                 case LS_string:
                 case LS_string_slashed:
-                S.token.type = CPP_TOKEN_STRING_CONSTANT;
+                S.token.type = CPP_TOKEN_JUNK;
+                if (c == '"'){
+                    S.token.type = CPP_TOKEN_STRING_CONSTANT;
+                }
                 S.token.flags = 0;
                 break;
                 
                 case LS_string_multiline:
-                S.token.type = CPP_TOKEN_STRING_CONSTANT;
+                S.token.type = CPP_TOKEN_JUNK;
+                if (c == '"'){
+                    S.token.type = CPP_TOKEN_STRING_CONSTANT;
+                }
                 S.token.flags = CPP_TFLAG_MULTILINE;
                 break;
                 
