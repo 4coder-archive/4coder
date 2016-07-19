@@ -167,29 +167,32 @@ typedef Job_Callback_Sig(Job_Callback);
 struct Job_Data{
     Job_Callback *callback;
     void *data[2];
-    //i32 memory_request;
 };
 
 struct Full_Job_Data{
     Job_Data job;
     
-    u32 job_memory_index;
     u32 running_thread;
-    b32 finished;
     u32 id;
 };
 
+struct Unbounded_Work_Queue{
+    Full_Job_Data *jobs;
+    i32 count, max, skip;
+    
+    u32 next_job_id;
+};
+
+#define QUEUE_WRAP 256
+
 struct Work_Queue{
-    Full_Job_Data jobs[256];
+    Full_Job_Data jobs[QUEUE_WRAP];
     Plat_Handle semaphore;
     volatile u32 write_position;
     volatile u32 read_position;
 };
 
 #define THREAD_NOT_ASSIGNED 0xFFFFFFFF
-
-#define JOB_ID_WRAP (ArrayCount(queue->jobs) * 4)
-#define QUEUE_WRAP (ArrayCount(queue->jobs))
 
 #define Sys_Post_Job_Sig(name) u32 name(Thread_Group_ID group_id, Job_Data job)
 typedef Sys_Post_Job_Sig(System_Post_Job);

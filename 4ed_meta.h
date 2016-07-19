@@ -26,6 +26,7 @@ typedef int16_t i16;
 typedef i32 bool32;
 typedef i8 bool8;
 typedef i32 b32;
+typedef i16 b16;
 typedef i8 b8;
 
 typedef uint8_t byte;

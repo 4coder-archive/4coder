@@ -2702,12 +2702,19 @@ compute_this_indent(Buffer *buffer, Indent_Parse_State indent,
         prev_token.start + prev_token.size > this_line_start){
         if (prev_token.type == CPP_TOKEN_COMMENT){
             Hard_Start_Result hard_start = buffer_find_hard_start(buffer, this_line_start, tab_width);
-            i32 line_pos = hard_start.char_pos - this_line_start;
-            this_indent = line_pos + indent.comment_shift;
-            if (this_indent < 0){
-                this_indent = 0;
+            
+            if (hard_start.all_whitespace){
+                this_indent = previous_indent;
+                did_special_behavior = true;
             }
-            did_special_behavior = true;
+            else{
+                i32 line_pos = hard_start.char_pos - this_line_start;
+                this_indent = line_pos + indent.comment_shift;
+                if (this_indent < 0){
+                    this_indent = 0;
+                }
+                did_special_behavior = true;
+            }
         }
         else if (prev_token.type == CPP_TOKEN_STRING_CONSTANT){
             this_indent = previous_indent;
