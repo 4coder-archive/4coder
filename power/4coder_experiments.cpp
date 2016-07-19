@@ -7,6 +7,10 @@
 #define NO_BINDING
 #include "4coder_default_bindings.cpp"
 
+#ifndef BIND_4CODER_TESTS
+# define BIND_4CODER_TESTS(context) ((void)context)
+#endif
+
 #include <string.h>
 
 CUSTOM_COMMAND_SIG(kill_rect){
@@ -403,6 +407,8 @@ get_bindings(void *data, int size){
     bind(context, '/', MDFR_ALT, mark_matching_brace);
     bind(context, '\'', MDFR_ALT, cursor_to_surrounding_scope);
     end_map(context);
+    
+    BIND_4CODER_TESTS(context);
     
     int result = end_bind_helper(context);
     return(result);
