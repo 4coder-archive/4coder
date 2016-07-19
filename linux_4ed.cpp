@@ -1975,13 +1975,126 @@ LinuxSetIcon(Display* d, Window w)
 }
 
 internal void
-LinuxX11ConnectionWatch(Display* dpy, XPointer cdata, int fd, Bool opening, XPointer* wdata){
+LinuxX11ConnectionWatch(Display* dpy, XPointer cdata, int fd, Bool opening, XPointer* wdata)
+{
     struct epoll_event e = {};
     e.events = EPOLLIN | EPOLLET;
     e.data.u64 = LINUX_4ED_EVENT_X11_INTERNAL | fd;
 
     int op = opening ? EPOLL_CTL_ADD : EPOLL_CTL_DEL;
     epoll_ctl(linuxvars.epoll, op, fd, &e);
+}
+
+internal int
+LinuxGetXSettingsDPI(Display* dpy, int screen)
+{
+    struct XSettingHeader {
+        u8 type;
+        u8 pad0;
+        u16 name_len;
+        char name[0];
+    };
+
+    struct XSettings {
+        u8 byte_order;
+        u8 pad[3];
+        u32 serial;
+        u32 num_settings;
+    };
+
+    enum { XSettingsTypeInt, XSettingsTypeString, XSettingsTypeColor };
+
+    int dpi = -1;
+    unsigned char* prop = NULL;
+    char sel_buffer[64];
+    struct XSettings* xs;
+    const char* p;
+
+    snprintf(sel_buffer, sizeof(sel_buffer), "_XSETTINGS_S%d", screen);
+
+    Atom XSET_SEL = XInternAtom(dpy, sel_buffer, True);
+    Atom XSET_SET = XInternAtom(dpy, "_XSETTINGS_SETTINGS", True);
+
+    if(XSET_SEL == None || XSET_SET == None){
+        fputs("XSETTINGS unavailable.\n", stderr);
+        return dpi;
+    }
+
+    Window xset_win = XGetSelectionOwner(dpy, XSET_SEL);
+    if(xset_win == None){
+        // TODO(inso): listen for the ClientMessage about it becoming available?
+        //             there's not much point atm if DPI scaling is only done at startup 
+        goto out;
+    }
+
+    {
+        Atom type;
+        int fmt;
+        unsigned long pad, num;
+
+        if(XGetWindowProperty(dpy, xset_win, XSET_SET, 0, 1024, False, XSET_SET, &type, &fmt, &num, &pad, &prop) != Success){
+            fputs("XSETTINGS: GetWindowProperty failed.\n", stderr);
+            goto out;
+        }
+
+        if(fmt != 8){
+            fputs("XSETTINGS: Wrong format.\n", stderr);
+            goto out;
+        }
+    }
+
+    xs = (struct XSettings*)prop;
+    p  = (char*)(xs + 1);
+
+    if(xs->byte_order != 0){
+        fputs("FIXME: XSETTINGS not host byte order?\n", stderr);
+        goto out;
+    }
+
+    for(int i = 0; i < xs->num_settings; ++i){
+        struct XSettingHeader* h = (struct XSettingHeader*)p;
+
+        // const char* strs[] = { "Int", "String", "Color" };
+        // printf("%s:\t\"%.*s\"\n", strs[h->type], h->name_len, h->name);
+
+        p += sizeof(struct XSettingHeader);
+        p += h->name_len;
+        p += ((4 - (h->name_len & 3)) & 3);
+        p += 4; // serial
+
+        switch(h->type){
+            case XSettingsTypeInt: {
+                if(strncmp(h->name, "Xft/DPI", h->name_len) == 0){
+                    dpi = *(i32*)p;
+                    if(dpi != -1) dpi /= 1024;
+                }
+                p += 4;
+            } break;
+
+            case XSettingsTypeString: {
+                u32 len = *(u32*)p;
+                p += 4;
+                p += len;
+                p += ((4 - (len & 3)) & 3);
+            } break;
+
+            case XSettingsTypeColor: {
+                p += 8;
+            } break;
+
+            default: {
+                fputs("XSETTINGS: Got invalid type...\n", stderr);
+                goto out;
+            } break;
+        }
+    }
+
+out:
+    if(prop){
+        XFree(prop);
+    }
+
+    return dpi;
 }
 
 //
@@ -2002,8 +2115,8 @@ LinuxX11WindowInit(int argc, char** argv, int* WinWidth, int* WinHeight)
         *WinWidth = linuxvars.settings.window_w;
         *WinHeight = linuxvars.settings.window_h;
     } else {
-        *WinWidth = BASE_W;
-        *WinHeight = BASE_H;
+        *WinWidth = BASE_W * size_change(linuxvars.dpi_x, linuxvars.dpi_y);
+        *WinHeight = BASE_H * size_change(linuxvars.dpi_x, linuxvars.dpi_y);
     }
 
     if (!GLXCanUseFBConfig(linuxvars.XDisplay)){
@@ -2722,6 +2835,28 @@ main(int argc, char **argv)
 
 #undef LOAD_ATOM
 
+#if SUPPORT_DPI
+    linuxvars.dpi_x = linuxvars.dpi_y = LinuxGetXSettingsDPI(linuxvars.XDisplay, DefaultScreen(linuxvars.XDisplay));
+
+    // fallback
+    if(linuxvars.dpi_x == -1){
+        int scr = DefaultScreen(linuxvars.XDisplay);
+
+        int dw = DisplayWidth(linuxvars.XDisplay, scr);
+        int dh = DisplayHeight(linuxvars.XDisplay, scr);
+
+        int dw_mm = DisplayWidthMM(linuxvars.XDisplay, scr);
+        int dh_mm = DisplayHeightMM(linuxvars.XDisplay, scr);
+
+        linuxvars.dpi_x = dw_mm ? dw / (dw_mm / 25.4) : 96;
+        linuxvars.dpi_y = dh_mm ? dh / (dh_mm / 25.4) : 96;
+
+        fprintf(stderr, "%dx%d - %dmmx%dmm DPI: %dx%d\n", dw, dh, dw_mm, dh_mm, linuxvars.dpi_x, linuxvars.dpi_y);
+    } else {
+        fprintf(stderr, "DPI from XSETTINGS: %d\n", linuxvars.dpi_x);
+    }
+#endif
+
     int WinWidth, WinHeight;
     if(!LinuxX11WindowInit(argc, argv, &WinWidth, &WinHeight)){
         return 1;
@@ -2774,26 +2909,6 @@ main(int argc, char **argv)
         XFreePixmap(linuxvars.XDisplay, p);
     }
 
-    //
-    // DPI
-    //
-
-#if SUPPORT_DPI
-    {
-        int scr = DefaultScreen(linuxvars.XDisplay);
-
-        int dw = DisplayWidth(linuxvars.XDisplay, scr);
-        int dh = DisplayHeight(linuxvars.XDisplay, scr);
-
-        int dw_mm = DisplayWidthMM(linuxvars.XDisplay, scr);
-        int dh_mm = DisplayHeightMM(linuxvars.XDisplay, scr);
-
-        linuxvars.dpi_x = dw_mm ? dw / (dw_mm / 25.4) : 96;
-        linuxvars.dpi_y = dh_mm ? dh / (dh_mm / 25.4) : 96;
-
-        fprintf(stderr, "%dx%d - %dmmx%dmm DPI: %dx%d\n", dw, dh, dw_mm, dh_mm, linuxvars.dpi_x, linuxvars.dpi_y);
-    }
-#endif
 
     //
     // Epoll init
