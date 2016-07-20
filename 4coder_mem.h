@@ -202,9 +202,9 @@ static void*
 general_memory_allocate(General_Memory *general, int32_t size){
     void *result = 0;
     if (size < BUBBLE_MIN_SIZE) size = BUBBLE_MIN_SIZE;
-    for (Bubble *bubble = general->sentinel.next;
-         bubble != &general->sentinel;
-         bubble = bubble->next){
+    for (Bubble *bubble = general->free_sentinel.next2;
+         bubble != &general->free_sentinel;
+         bubble = bubble->next2){
         if (!(bubble->flags & MEM_BUBBLE_USED)){
             if (bubble->size >= size){
                 result = bubble + 1;
