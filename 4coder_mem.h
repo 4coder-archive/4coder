@@ -90,13 +90,17 @@ enum{
 struct Bubble{
     Bubble *prev;
     Bubble *next;
+    Bubble *prev2;
+    Bubble *next2;
     int32_t size;
     uint32_t flags;
-    uint32_t _unused_[2];
+    uint32_t _unused_[4];
 };
 
 struct General_Memory{
     Bubble sentinel;
+    Bubble free_sentinel;
+    Bubble used_sentinel;
 };
 
 struct Mem_Options{
@@ -118,17 +122,41 @@ remove_bubble(Bubble *bubble){
     bubble->next->prev = bubble->prev;
 }
 
+inline void
+insert_bubble2(Bubble *prev, Bubble *bubble){
+    bubble->prev2 = prev;
+    bubble->next2 = prev->next2;
+    bubble->prev2->next2 = bubble;
+    bubble->next2->prev2 = bubble;
+}
+
+inline void
+remove_bubble2(Bubble *bubble){
+    bubble->prev2->next2 = bubble->next2;
+    bubble->next2->prev2 = bubble->prev2;
+}
+
+static void
+general_sentinel_init(Bubble *bubble){
+    bubble->prev = bubble;
+    bubble->next = bubble;
+    bubble->prev2 = bubble;
+    bubble->next2 = bubble;
+    bubble->flags = MEM_BUBBLE_USED;
+    bubble->size = 0;
+}
+
 static void
 general_memory_open(General_Memory *general, void *memory, int32_t size){
-    general->sentinel.prev = &general->sentinel;
-    general->sentinel.next = &general->sentinel;
-    general->sentinel.flags = MEM_BUBBLE_USED;
-    general->sentinel.size = 0;
+    general_sentinel_init(&general->sentinel);
+    general_sentinel_init(&general->free_sentinel);
+    general_sentinel_init(&general->used_sentinel);
     
     Bubble *first = (Bubble*)memory;
     first->flags = (uint32_t)MEM_BUBBLE_FLAG_INIT;
     first->size = size - sizeof(Bubble);
     insert_bubble(&general->sentinel, first);
+    insert_bubble2(&general->free_sentinel, first);
 }
 
 static int32_t
@@ -158,7 +186,7 @@ general_memory_check(General_Memory *general){
 #define BUBBLE_MIN_SIZE 1024
 
 static void
-general_memory_attempt_split(Bubble *bubble, int32_t wanted_size){
+general_memory_attempt_split(General_Memory *general, Bubble *bubble, int32_t wanted_size){
     int32_t remaining_size = bubble->size - wanted_size;
     if (remaining_size >= BUBBLE_MIN_SIZE){
         bubble->size = wanted_size;
@@ -166,25 +194,29 @@ general_memory_attempt_split(Bubble *bubble, int32_t wanted_size){
         new_bubble->flags = (uint32_t)MEM_BUBBLE_FLAG_INIT;
         new_bubble->size = remaining_size - sizeof(Bubble);
         insert_bubble(bubble, new_bubble);
+        insert_bubble2(&general->free_sentinel, new_bubble);
     }
 }
 
 static void*
 general_memory_allocate(General_Memory *general, int32_t size){
     void *result = 0;
-    for (Bubble *bubble = general->sentinel.next;
-         bubble != &general->sentinel;
-         bubble = bubble->next){
+    if (size < BUBBLE_MIN_SIZE) size = BUBBLE_MIN_SIZE;
+    for (Bubble *bubble = general->free_sentinel.next2;
+         bubble != &general->free_sentinel;
+         bubble = bubble->next2){
         if (!(bubble->flags & MEM_BUBBLE_USED)){
             if (bubble->size >= size){
                 result = bubble + 1;
                 bubble->flags |= MEM_BUBBLE_USED;
-                general_memory_attempt_split(bubble, size);
+                remove_bubble2(bubble);
+                insert_bubble2(&general->used_sentinel, bubble);
+                general_memory_attempt_split(general, bubble, size);
                 break;
             }
         }
     }
-    return result;
+    return(result);
 }
 
 inline void
@@ -193,12 +225,12 @@ general_memory_do_merge(Bubble *left, Bubble *right){
     assert(right->prev == left);
     left->size += sizeof(Bubble) + right->size;
     remove_bubble(right);
+    remove_bubble2(right);
 }
 
 inline void
 general_memory_attempt_merge(Bubble *left, Bubble *right){
-    if (!(left->flags & MEM_BUBBLE_USED) &&
-        !(right->flags & MEM_BUBBLE_USED)){
+    if (!(left->flags & MEM_BUBBLE_USED) && !(right->flags & MEM_BUBBLE_USED)){
         general_memory_do_merge(left, right);
     }
 }
@@ -206,7 +238,12 @@ general_memory_attempt_merge(Bubble *left, Bubble *right){
 static void
 general_memory_free(General_Memory *general, void *memory){
     Bubble *bubble = ((Bubble*)memory) - 1;
-    bubble->flags &= ~MEM_BUBBLE_USED;
+    assert(bubble->flags == MEM_BUBBLE_USED);
+    bubble->flags = 0;
+    
+    remove_bubble2(bubble);
+    insert_bubble2(&general->free_sentinel, bubble);
+    
     Bubble *prev, *next;
     prev = bubble->prev;
     next = bubble->next;
@@ -224,7 +261,7 @@ general_memory_reallocate(General_Memory *general, void *old, int32_t old_size, 
         if (!(next->flags & MEM_BUBBLE_USED) &&
             next->size + sizeof(Bubble) >= additional_space){
             general_memory_do_merge(bubble, next);
-            general_memory_attempt_split(bubble, size);
+            general_memory_attempt_split(general, bubble, size);
         }
         else{
             result = general_memory_allocate(general, size);
@@ -232,12 +269,13 @@ general_memory_reallocate(General_Memory *general, void *old, int32_t old_size, 
             general_memory_free(general, old);
         }
     }
-    return result;
+    return(result);
 }
 
 inline void*
 general_memory_reallocate_nocopy(General_Memory *general, void *old, int32_t size){
-    return general_memory_reallocate(general, old, 0, size);
+    void *result = general_memory_reallocate(general, old, 0, size);
+    return(result);
 }
 
 #define reset_temp_memory end_temp_memory
