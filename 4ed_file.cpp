@@ -144,9 +144,7 @@ struct Editing_File_State{
     Text_Effect paste_effect;
     
     File_Sync_State sync;
-    u64 last_4ed_write_time;
-    u64 last_4ed_edit_time;
-    u64 last_sys_write_time;
+    u64 last_sync;
     
     File_Edit_Positions edit_pos_space[16];
     File_Edit_Positions *edit_poss[16];
@@ -566,10 +564,13 @@ working_set_contains(System_Functions *system, Working_Set *working_set, String 
     File_Entry *entry = 0;
     Editing_File *result = 0;
     working_set__entry_comp(system, filename, &entry_comp);
+    
     entry = (File_Entry*)table_find_item(&working_set->table, &entry_comp, system, tbl_string_hash, tbl_file_compare);
+    
     if (entry){
         result = working_set_index(working_set, entry->id);
     }
+    
     return(result);
 }
 
@@ -730,22 +731,14 @@ filename_match(String query, Absolutes *absolutes, String filename, b32 case_sen
     return result;
 }
 
-inline File_Sync_State
-buffer_get_sync(Editing_File *file){
-    File_Sync_State result = SYNC_GOOD;
-    if (file->state.last_4ed_write_time != file->state.last_sys_write_time)
-        result = SYNC_BEHIND_OS;
-    else if (file->state.last_4ed_edit_time > file->state.last_sys_write_time)
-        result = SYNC_UNSAVED;
-    return result;
-}
-
 inline b32
 buffer_needs_save(Editing_File *file){
     b32 result = 0;
-    if (file->settings.unimportant == 0)
-        if (buffer_get_sync(file) == SYNC_UNSAVED)
+    if (!file->settings.unimportant){
+        if (file->state.sync == SYNC_UNSAVED){
             result = 1;
+        }
+    }
     return(result);
 }
 
@@ -777,7 +770,29 @@ file_set_to_loading(Editing_File *file){
     file->is_loading = 1;
 }
 
+inline void
+file_mark_clean(Editing_File *file){
+    if (file->state.sync != SYNC_BEHIND_OS){
+        file->state.sync = SYNC_GOOD;
+    }
+}
 
+inline void
+file_mark_dirty(Editing_File *file){
+    if (file->state.sync != SYNC_BEHIND_OS){
+        file->state.sync = SYNC_UNSAVED;
+    }
+}
+
+inline void
+file_mark_behind_os(Editing_File *file){
+    file->state.sync = SYNC_BEHIND_OS;
+}
+
+inline File_Sync_State
+file_get_sync(Editing_File *file){
+    return (file->state.sync);
+}
 
 // BOTTOM
 

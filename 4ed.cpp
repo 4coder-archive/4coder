@@ -1683,11 +1683,12 @@ App_Step_Sig(app_step){
             file = (Editing_File*)node;
             
             terminate_with_null(&file->name.source_path);
-            time_stamp =
-                system->file_time_stamp(file->name.source_path.str);
+            time_stamp = system->file_time_stamp(file->name.source_path.str);
             
             if (time_stamp > 0){
-                file->state.last_sys_write_time = time_stamp;
+                if (file->state.last_sync < time_stamp){
+                    file_mark_behind_os(file);
+                }
             }
         }
     }

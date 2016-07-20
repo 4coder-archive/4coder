@@ -844,6 +844,8 @@ file_set_name(Working_Set *working_set, Editing_File *file, char *filename){
     file_set_name(working_set, file, f);
 }
 
+
+#if 0
 inline void
 file_synchronize_times(System_Functions *system, Editing_File *file, char *filename){
     u64 stamp = system->file_time_stamp(filename);
@@ -853,6 +855,13 @@ file_synchronize_times(System_Functions *system, Editing_File *file, char *filen
         file->state.last_sys_write_time = stamp;
     }
     file->state.sync = buffer_get_sync(file);
+}
+#endif
+
+inline void
+file_synchronize_times(System_Functions *system, Editing_File *file){
+    file->state.last_sync = system->now_time_stamp();
+    file->state.sync = SYNC_GOOD;
 }
 
 internal b32
@@ -897,12 +906,14 @@ file_save(System_Functions *system, Mem_Options *mem, Editing_File *file, char *
     
     result = system->file_save(filename, data, size);
     
-    file_synchronize_times(system, file, filename);
+    file_mark_clean(file);
     
     if (used_general){
         general_memory_free(&mem->general, data);
     }
     end_temp_memory(temp);
+    
+    file_synchronize_times(system, file);
     
     return(result);
 }
@@ -1071,10 +1082,9 @@ file_create_from_string(System_Functions *system, Models *models,
     }
     
     file_init_strings(file);
-    
     file_set_name(working_set, file, (char*)name);
     
-    file_synchronize_times(system, file, name);
+    file_synchronize_times(system, file);
     
     i16 font_id = models->global_font.font_id;
     file->settings.font_id = font_id;
@@ -1118,6 +1128,8 @@ file_create_from_string(System_Functions *system, Models *models,
     }
     file->settings.is_initialized = 1;
 }
+
+#undef TEST_TIME_MAX
 
 internal b32
 file_create_empty(System_Functions *system,
@@ -2020,7 +2032,7 @@ file_pre_edit_maintenance(System_Functions *system,
         }
         file->state.still_lexing = 0;
     }
-    file->state.last_4ed_edit_time = system->now_time_stamp();
+    file_mark_dirty(file);
 }
 
 struct Cursor_Fix_Descriptor{
@@ -3251,7 +3263,7 @@ view_save_file(System_Functions *system, Models *models,
         }
     }
     
-    if (file && (buffer_get_sync(file) != SYNC_GOOD || save_as)){
+    if (file && (file_get_sync(file) != SYNC_GOOD || save_as)){
         if (file_save(system, mem, file, filename_string.str)){
             if (save_as){
                 file_set_name(working_set, file, filename_string.str);
@@ -3745,7 +3757,7 @@ get_exhaustive_info(System_Functions *system, Working_Set *working_set, Exhausti
     
     result.message = string_zero();
     if (result.is_loaded){
-        switch (buffer_get_sync(file)){
+        switch (file_get_sync(file)){
             case SYNC_GOOD: result.message = message_loaded; break;
             case SYNC_BEHIND_OS: result.message = message_unsynced; break;
             case SYNC_UNSAVED: result.message = message_unsaved; break;
@@ -4565,7 +4577,7 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                                             else{
                                                 message = string_zero();
                                                 if (!file->settings.unimportant){
-                                                    switch (buffer_get_sync(file)){
+                                                    switch (file_get_sync(file)){
                                                         case SYNC_BEHIND_OS: message = message_unsynced; break;
                                                         case SYNC_UNSAVED: message = message_unsaved; break;
                                                     }
@@ -4586,7 +4598,7 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                                     
                                     message = string_zero();
                                     if (!file->settings.unimportant){
-                                        switch (buffer_get_sync(file)){
+                                        switch (file_get_sync(file)){
                                             case SYNC_BEHIND_OS: message = message_unsynced; break;
                                             case SYNC_UNSAVED: message = message_unsaved; break;
                                         }
@@ -5659,7 +5671,7 @@ draw_file_bar(Render_Target *target, View *view, Editing_File *file, i32_Rect re
                 }
                 
                 if (!file->settings.unimportant){
-                    switch (buffer_get_sync(file)){
+                    switch (file_get_sync(file)){
                         case SYNC_BEHIND_OS:
                         {
                             persist String out_of_sync = make_lit_string(" !");

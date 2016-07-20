@@ -2263,35 +2263,6 @@ generic_search_all_buffers(Application_Links *app, General_Memory *general, Part
     
     Search_Range *ranges = set.ranges;
     
-    {
-        View_Summary view = app->get_active_view(app, AccessProtected);
-        Buffer_Summary buffer = app->get_buffer(app, view.buffer_id, AccessProtected);
-        
-        int j = 0;
-        if (buffer.exists){
-            ranges[0].type = SearchRange_FrontToBack;
-            ranges[0].flags = match_flags;
-            ranges[0].buffer = buffer.buffer_id;
-            ranges[0].start = 0;
-            ranges[0].size = buffer.size;
-            j = 1;
-        }
-        
-        for (Buffer_Summary buffer_it = app->get_buffer_first(app, AccessAll);
-             buffer_it.exists;
-             app->get_buffer_next(app, &buffer_it, AccessAll)){
-            if (buffer.buffer_id != buffer_it.buffer_id){
-                ranges[j].type = SearchRange_FrontToBack;
-                ranges[j].flags = match_flags;
-                ranges[j].buffer = buffer_it.buffer_id;
-                ranges[j].start = 0;
-                ranges[j].size = buffer_it.size;
-                ++j;
-            }
-        }
-        set.count = j;
-    }
-    
     Buffer_Summary search_buffer = app->get_buffer_by_name(app, literal("*search*"), AccessAll);
     if (!search_buffer.exists){
         search_buffer = app->create_buffer(app, literal("*search*"), BufferCreate_AlwaysNew);
@@ -2301,6 +2272,39 @@ generic_search_all_buffers(Application_Links *app, General_Memory *general, Part
     }
     else{
         app->buffer_replace_range(app, &search_buffer, 0, search_buffer.size, 0, 0);
+    }
+    
+    {
+        View_Summary view = app->get_active_view(app, AccessProtected);
+        Buffer_Summary buffer = app->get_buffer(app, view.buffer_id, AccessProtected);
+        
+        int j = 0;
+        if (buffer.exists){
+            if (buffer.buffer_id != search_buffer.buffer_id){
+                ranges[0].type = SearchRange_FrontToBack;
+                ranges[0].flags = match_flags;
+                ranges[0].buffer = buffer.buffer_id;
+                ranges[0].start = 0;
+                ranges[0].size = buffer.size;
+                j = 1;
+            }
+        }
+        
+        for (Buffer_Summary buffer_it = app->get_buffer_first(app, AccessAll);
+             buffer_it.exists;
+             app->get_buffer_next(app, &buffer_it, AccessAll)){
+            if (buffer.buffer_id != buffer_it.buffer_id){
+                if (search_buffer.buffer_id != buffer_it.buffer_id){
+                    ranges[j].type = SearchRange_FrontToBack;
+                    ranges[j].flags = match_flags;
+                    ranges[j].buffer = buffer_it.buffer_id;
+                    ranges[j].start = 0;
+                    ranges[j].size = buffer_it.size;
+                    ++j;
+                }
+            }
+        }
+        set.count = j;
     }
     
     Temp_Memory temp = begin_temp_memory(part);

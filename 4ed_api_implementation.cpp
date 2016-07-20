@@ -886,7 +886,6 @@ DOC_SEE(Buffer_Setting_ID)
             case BufferSetting_Eol:
             {
                 file->settings.dos_write_mode = value;
-                file->state.last_4ed_edit_time = system->now_time_stamp();
             }break;
             
             case BufferSetting_Unimportant:
@@ -987,6 +986,7 @@ DOC_SEE(Buffer_Create_Flag)
     if (filename != 0){
         String filename_string = make_string_terminated(part, filename, filename_len);
         Editing_File *file = working_set_contains(system, working_set, filename_string);
+        
         if (file == 0){
             File_Loading loading = {0};
             

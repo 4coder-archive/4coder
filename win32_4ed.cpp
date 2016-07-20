@@ -233,6 +233,36 @@ Win32Ptr(void *h){
     return(result);
 }
 
+//
+// Rudimentary Timing
+//
+
+#define WIN32_TIMING 0
+
+#if FRED_INTERNAL && WIN32_TIMING
+
+inline void
+show_debug_timing(char *function, DWORD64 total){
+    char output[512];
+    String out = make_fixed_width_string(output);
+    append(&out, function);
+    append(&out, ' ');
+    append_u64_to_str(&out, (u64)(total));
+    append(&out, '\n');
+    terminate_with_null(&out);
+    OutputDebugStringA(output);
+}
+
+#define TEST_TIME_B() DWORD64 start = __rdtsc()
+#define TEST_TIME_E() DWORD64 total = __rdtsc() - start; show_debug_timing(__FUNCTION__, total)
+
+#else
+
+#define TEST_TIME_B()
+#define TEST_TIME_E()
+
+#endif
+
 
 //
 // Memory (not exposed to application, but needed in system_shared.cpp)
