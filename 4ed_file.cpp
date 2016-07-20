@@ -215,6 +215,8 @@ struct Working_Set{
 	i32 clipboard_current, clipboard_rolling;
     
     u64 unique_file_counter;
+    
+    File_Node *sync_check_iter;
 };
 
 struct File_Entry{
@@ -457,6 +459,10 @@ working_set_alloc_always(Working_Set *working_set, General_Memory *general){
 
 inline void
 working_set_free_file(Working_Set  *working_set, Editing_File *file){
+    if (working_set->sync_check_iter == &file->node){
+        working_set->sync_check_iter = working_set->sync_check_iter->next;
+    }
+    
     file->is_dummy = 1;
     dll_remove(&file->node);
     dll_insert(&working_set->free_sentinel, &file->node);

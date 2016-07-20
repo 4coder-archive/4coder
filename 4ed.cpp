@@ -1653,6 +1653,7 @@ update_cli_handle_with_file(System_Functions *system, Models *models,
     return(result);
 }
 
+
 App_Step_Sig(app_step){
     Application_Step_Result app_result = *result;
     app_result.animating = 0;
@@ -1673,17 +1674,14 @@ App_Step_Sig(app_step){
     }
     
     // NOTE(allen): check files are up to date
-    {
-        File_Node *node, *used_nodes;
-        Editing_File *file;
-        u64 time_stamp;
-        
-        used_nodes = &models->working_set.used_sentinel;
-        for (dll_items(node, used_nodes)){
-            file = (Editing_File*)node;
+    if (!input->first_step){
+        Panel *panel = 0, *used_panels = &models->layout.used_sentinel;
+        for (dll_items(panel, used_panels)){
+            View *view = panel->view;
+            Editing_File *file = view->file_data.file;
             
             terminate_with_null(&file->name.source_path);
-            time_stamp = system->file_time_stamp(file->name.source_path.str);
+            u64 time_stamp = system->file_time_stamp(file->name.source_path.str);
             
             if (time_stamp > 0){
                 if (file->state.last_sync < time_stamp){
@@ -1691,6 +1689,36 @@ App_Step_Sig(app_step){
                 }
             }
         }
+        
+        File_Node *node = models->working_set.sync_check_iter;
+        File_Node *used_nodes = &models->working_set.used_sentinel;
+        
+        if (node == used_nodes){
+            node = node->next;
+        }
+        Assert(!((Editing_File*)node)->is_dummy);
+        
+        for (i32 i = 0; i < 4; ++i){
+            if (node == used_nodes){
+                break;
+            }
+            
+            Editing_File *file = (Editing_File*)node;
+            
+            terminate_with_null(&file->name.source_path);
+            u64 time_stamp = system->file_time_stamp(file->name.source_path.str);
+            
+            if (time_stamp > 0){
+                if (file->state.last_sync < time_stamp){
+                    file_mark_behind_os(file);
+                }
+            }
+        }
+        
+        models->working_set.sync_check_iter = node;
+    }
+    else{
+        models->working_set.sync_check_iter = &models->working_set.used_sentinel;
     }
     
     // NOTE(allen): reorganizing panels on screen
@@ -1700,8 +1728,8 @@ App_Step_Sig(app_step){
         i32 current_width = target->width;
         i32 current_height = target->height;
         
-        Panel *panel, *used_panels;
-        View *view;
+        Panel *panel = 0, *used_panels = &models->layout.used_sentinel;
+        View *view = 0;
         
         models->layout.full_width = current_width;
         models->layout.full_height = current_height;
@@ -1709,7 +1737,6 @@ App_Step_Sig(app_step){
         if (prev_width != current_width || prev_height != current_height){
             layout_refit(&models->layout, prev_width, prev_height);
             
-            used_panels = &models->layout.used_sentinel;
             for (dll_items(panel, used_panels)){
                 view = panel->view;
                 Assert(view);
@@ -2228,6 +2255,7 @@ App_Step_Sig(app_step){
             view->changed_context_in_step = 0;
             
             View_Step_Result result = step_file_view(system, view, active_view, summary);
+            
             if (result.animating){
                 app_result.animating = 1;
             }
@@ -2704,8 +2732,6 @@ App_Step_Sig(app_step){
     app_result.perform_kill = !models->keep_playing;
     
     *result = app_result;
-    
-    Assert(general_memory_check(&models->mem.general));
     
     // end-of-app_step
 }
