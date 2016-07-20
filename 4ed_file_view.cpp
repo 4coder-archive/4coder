@@ -1389,7 +1389,7 @@ file_relex_parallel(System_Functions *system,
         relex_space.tokens = push_array(part, Cpp_Token, relex_space.max_count);
         
 #if USE_NEW_LEXER
-        char *spare = push_array(part, char, size);
+        char *spare = push_array(part, char, size+1);
         if (cpp_relex_nonalloc_main(&state, &relex_space, &relex_end, spare)){
 #else
         if (cpp_relex_nonalloc_main(&state, &relex_space, &relex_end)){
