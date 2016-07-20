@@ -597,7 +597,7 @@ JobThreadProc(LPVOID lpParameter){
                     full_job->job.callback(&win32vars.system,
                                            thread, thread_memory, full_job->job.data);
                     PostMessage(win32vars.window_handle, WM_4coder_ANIMATE, 0, 0);
-                    full_job->running_thread = 0;
+                    //full_job->running_thread = 0;
                     thread->running = 0;
                     
                     system_acquire_lock(cancel_lock);
@@ -688,7 +688,8 @@ flush_to_direct_queue(Unbounded_Work_Queue *source_queue, Work_Queue *queue, i32
         }
         else if (source_queue->skip > UNBOUNDED_SKIP_MAX){
             u32 left_over = source_queue->count - source_queue->skip;
-            memmove(queue->jobs, queue->jobs + source_queue->skip, left_over);
+            memmove(source_queue->jobs, source_queue->jobs + source_queue->skip,
+                    sizeof(Full_Job_Data)*left_over);
             source_queue->count = left_over;
             source_queue->skip = 0;
         }

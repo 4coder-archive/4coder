@@ -1227,7 +1227,7 @@ Job_Callback_Sig(job_full_lex){
             system->grow_thread_memory(memory);
             lex.tb = (char*)memory->data;
             tokens.tokens = (Cpp_Token*)((char*)memory->data + buffer_size);
-            tokens.max_count = memory->size / sizeof(Cpp_Token);
+            tokens.max_count = (memory->size - buffer_size) / sizeof(Cpp_Token);
             break;
             
             case LexHitTokenLimit:
@@ -6119,7 +6119,7 @@ live_set_alloc_view(Live_Views *live_set, Panel *panel, Models *models){
     init_query_set(&result.view->query_set);
     
     {
-        i32 gui_mem_size = Kbytes(32);
+        i32 gui_mem_size = Kbytes(512);
         void *gui_mem = general_memory_allocate(&models->mem.general, gui_mem_size + 8);
         result.view->gui_mem = gui_mem;
         gui_mem = advance_to_alignment(gui_mem);
