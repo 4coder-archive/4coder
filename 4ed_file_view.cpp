@@ -3295,7 +3295,7 @@ view_new_file(System_Functions *system, Models *models,
     file->settings.is_initialized = 1;
     
 #if BUFFER_EXPERIMENT_SCALPEL <= 0
-    if (file->settings.tokens_exist){
+    if (file->settings.tokens_exist && file->state.token_stack.tokens == 0){
         file_first_lex_parallel(system, general, file);
     }
 #endif
@@ -3310,7 +3310,7 @@ init_normal_file(System_Functions *system, Models *models, Editing_File *file,
     String val = make_string(buffer, size);
     file_create_from_string(system, models, file, file->name.source_path.str, val);
     
-    if (file->settings.tokens_exist){
+    if (file->settings.tokens_exist && file->state.token_stack.tokens == 0){
         file_first_lex_parallel(system, general, file);
     }
     

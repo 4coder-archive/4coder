@@ -2516,7 +2516,7 @@ CUSTOM_COMMAND_SIG(word_complete){
                                       &complete_state.iter);
                 
                 if (match.found_match){
-                    int match_size = match.end - match.start;
+                    match_size = match.end - match.start;
                     Temp_Memory temp = begin_temp_memory(&global_part);
                     char *spare = push_array(&global_part, char, match_size);
                     
@@ -2698,8 +2698,8 @@ SCROLL_RULE_SIG(smooth_scroll_rule){
 // If this hook is not implemented a default behavior of calling the
 // command is used.  It is important to note that paste_next does not
 // work without this hook.
-// NOTE(allen|a4.0.10): As of this version the word_complete command also
-// relies on this particular command caller hook.
+// NOTE(allen|a4.0.10): As of this version the word_complete command
+// also relies on this particular command caller hook.
 COMMAND_CALLER_HOOK(default_command_caller){
     View_Summary view = app->get_active_view(app, AccessAll);
     
@@ -2714,3 +2714,4 @@ COMMAND_CALLER_HOOK(default_command_caller){
 }
 
 #endif
+

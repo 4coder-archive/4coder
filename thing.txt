@@ -1,0 +1,21 @@
+
+//
+
+Theme_Color ThemeColors[] = {
+    {Stag_Bar, 0x9a99e7},
+    {Stag_Bar_Active, 0x9a99e7},
+    {Stag_Margin, 0x606590},
+    {Stag_Margin_Hover, 0x9a99e7},
+    {Stag_Margin_Active, 0x9a99e7},
+    {Stag_Comment, 0x505f89},
+    {Stag_Keyword, 0xaa8da7},
+    {Stag_Default, 0xffffff},
+    {Stag_Cursor, 0xd96e26},
+    {Stag_Int_Constant, 0x9a99e7},
+    {Stag_Float_Constant, 0x9a99e7},
+    {Stag_Bool_Constant, 0x9a99e7},
+    {Stag_Str_Constant, 0x9a99e7},
+    {Stag_Char_Constant, 0x9a99e7},
+    {Stag_Preproc, 0x606590},
+    {Stag_Include, 0x9a99e7},
+};

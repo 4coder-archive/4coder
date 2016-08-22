@@ -374,7 +374,7 @@ query_user_general(Application_Links *app, Query_Bar *bar, int force_number){
                 }
             }
         }
-
+        
         // NOTE(allen|a3.4.4): All we have to do to update the query bar is edit our
         // local Query_Bar struct!  This is handy because it means our Query_Bar
         // is always correct for typical use without extra work updating the bar.
@@ -392,6 +392,8 @@ query_user_general(Application_Links *app, Query_Bar *bar, int force_number){
             }
         }
     }
+    
+    terminate_with_null(&bar->string);
     
     return(success);
 }
