@@ -76,6 +76,9 @@ File_Track_Result
 get_tracked_file_time(File_Track_System *system, File_Index index, File_Time *time);
 
 File_Track_Result
+get_file_time_now(File_Time *time);
+
+File_Track_Result
 move_track_system(File_Track_System *system, void *mem, int32_t size);
 
 File_Track_Result

@@ -17,10 +17,17 @@ Created on: 20.07.2016
 
 #include <Windows.h>
 
-#define Assert(c) do { if (!(c)) { *((int*)0) = 0xA11E; } } while (0)
-#define ZeroStruct(s) for (int32_t i = 0; i < sizeof(s); ++i) { ((char*)(&(s)))[i] = 0; }
+#ifndef Assert
+# define Assert(c) do { if (!(c)) { *((int*)0) = 0xA11E; } } while (0)
+#endif
 
-#define NotImplemented Assert(!"not implemented")
+#ifndef ZeroStruct
+# define ZeroStruct(s) for (int32_t i = 0; i < sizeof(s); ++i) { ((char*)(&(s)))[i] = 0; }
+#endif
+
+#ifndef NotImplemented
+# define NotImplemented Assert(!"not implemented")
+#endif
 
 typedef uint32_t rptr32;
 
@@ -252,7 +259,8 @@ directory_watching(LPVOID ptr){
             EnterCriticalSection(&vars->table_lock);
             
             File_Track_Tables *tables = to_tables(vars);
-            File_Change_Record *records = to_ptr(tables, tables->change_queue);
+            File_Change_Record *records = (File_Change_Record*)
+                to_ptr(tables, tables->change_queue);
             
             char *buffer = listener.result;
             DWORD offset = 0;
@@ -760,6 +768,21 @@ get_tracked_file_time(File_Track_System *system, File_Index index, File_Time *ti
     }
     
     LeaveCriticalSection(&vars->table_lock);
+    
+    return(result);
+}
+
+File_Track_Result
+get_file_time_now(File_Time *time){
+    File_Track_Result result = FileTrack_Good;
+    
+    FILETIME file_time;
+    SYSTEMTIME system_time;
+    
+    GetSystemTime(&system_time);
+    SystemTimeToFileTime(&system_time, &file_time);
+    *time = (((uint64_t)file_time.dwHighDateTime << 32) |
+             (file_time.dwLowDateTime));
     
     return(result);
 }

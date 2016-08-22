@@ -24,6 +24,7 @@
 
 struct Global_Settings{
     int generate_docs;
+    int generate_string;
 };
 
 static Global_Settings global_settings;
@@ -2908,6 +2909,7 @@ int main(int argc, char **argv){
     memset(&global_settings, 0, sizeof(global_settings));
     
     global_settings.generate_docs = true;
+    global_settings.generate_string = false;
     
     filename = generate_keycode_enum();
     filename = generate_style();

@@ -26,6 +26,9 @@
 #include <GL/gl.h>
 #include <GL/glext.h>
 
+#include "filetrack/4tech_file_track.h"
+#include "filetrack/4tech_file_track_win32.c"
+
 #include "system_shared.h"
 
 #define SUPPORT_DPI 1
@@ -189,6 +192,10 @@ struct Win32_Vars{
     b32 first;
     i32 running_cli;
     
+    File_Track_System track;
+    void *track_table;
+    u32 track_table_size;
+    u32 track_node_size;
     
 #if FRED_INTERNAL
     CRITICAL_SECTION DEBUG_sysmem_lock;
@@ -773,8 +780,14 @@ Sys_File_Can_Be_Made_Sig(system_file_can_be_made){
     return(1);
 }
 
-internal
-Sys_File_Load_Begin_Sig(system_file_load_begin){
+struct File_Loading{
+    Plat_Handle handle;
+    i32 size;
+    b32 exists;
+};
+
+internal File_Loading
+system_file_load_begin(char *filename){
     File_Loading loading = {0};
     HANDLE file = 0;
     
@@ -808,8 +821,8 @@ Sys_File_Load_Begin_Sig(system_file_load_begin){
     return(loading);
 }
 
-internal
-Sys_File_Load_End_Sig(system_file_load_end){
+internal b32
+system_file_load_end(File_Loading loading, char *buffer){
     b32 success = 0;
     HANDLE file = Win32Handle(loading.handle);
     
@@ -832,17 +845,17 @@ Sys_File_Load_End_Sig(system_file_load_end){
     return(success);
 }
 
-internal
-Sys_File_Save_Sig(system_file_save){
+internal b32
+system_file_save(char *filename, char *buffer, i32 size){
     b32 success = false;
     
     HANDLE file =
         CreateFile((char*)filename, GENERIC_WRITE, 0, 0,
                    CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, 0);
     
-	if (!file || file == INVALID_HANDLE_VALUE){
+    if (!file || file == INVALID_HANDLE_VALUE){
         success = false;
-	}
+    }
     else{
         BOOL write_result = 0;
         DWORD bytes_written = 0;
@@ -861,6 +874,7 @@ Sys_File_Save_Sig(system_file_save){
     return(success);
 }
 
+#if 0
 internal
 Sys_File_Time_Stamp_Sig(system_file_time_stamp){
     u64 result = 0;
@@ -878,12 +892,46 @@ Sys_File_Time_Stamp_Sig(system_file_time_stamp){
 
 internal
 Sys_Now_Time_Stamp_Sig(system_now_time_stamp){
-	u64 result = 0;
+    u64 result = 0;
     FILETIME filetime;
     GetSystemTimeAsFileTime(&filetime);
     result = ((u64)filetime.dwHighDateTime << 32) | (filetime.dwLowDateTime);
     return(result);
 }
+
+internal
+Sys_File_Unique_Hash_Sig(system_file_unique_hash){
+    Unique_Hash hash = {0};
+    BY_HANDLE_FILE_INFORMATION info;
+    HANDLE handle;
+    char space[1024];
+    String str;
+    
+    if (filename.size < sizeof(space)){
+        str = make_fixed_width_string(space);
+        copy(&str, filename);
+        terminate_with_null(&str);
+        
+        handle = CreateFile(str.str, GENERIC_READ, 0, 0,
+                            OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
+        
+        *success = 0;
+        if (handle && handle != INVALID_HANDLE_VALUE){
+            if (GetFileInformationByHandle(handle, &info)){
+                hash.d[2] = info.dwVolumeSerialNumber;
+                hash.d[1] = info.nFileIndexHigh;
+                hash.d[0] = info.nFileIndexLow;
+                *success = 1;
+            }
+            
+            CloseHandle(handle);
+        }
+    }
+    
+    return(hash);
+}
+
+#endif
 
 internal
 Sys_Set_File_List_Sig(system_set_file_list){
@@ -973,42 +1021,174 @@ Sys_Set_File_List_Sig(system_set_file_list){
     }
 }
 
-internal
-Sys_File_Track_Sig(system_file_track){}
+inline Unique_Hash
+to_uhash(File_Index index){
+    Unique_Hash r;
+    *(File_Index*)(&r) = index;
+    return(r);
+}
+
+inline File_Index
+to_findex(Unique_Hash index){
+    File_Index r;
+    *(Unique_Hash*)(&r) = index;
+    return(r);
+}
 
 internal
-Sys_File_Untrack_Sig(system_file_untrack){}
-
-internal
-Sys_File_Unique_Hash_Sig(system_file_unique_hash){
-    Unique_Hash hash = {0};
-    BY_HANDLE_FILE_INFORMATION info;
-    HANDLE handle;
-    char space[1024];
-    String str;
+Sys_Track_File_Sig(system_track_file){
+    Unique_Hash index = {0};
     
-    if (filename.size < sizeof(space)){
-        str = make_fixed_width_string(space);
-        copy(&str, filename);
-        terminate_with_null(&str);
-        
-        handle = CreateFile(str.str, GENERIC_READ, 0, 0,
-                            OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
-        
-        *success = 0;
-        if (handle && handle != INVALID_HANDLE_VALUE){
-            if (GetFileInformationByHandle(handle, &info)){
-                hash.d[2] = info.dwVolumeSerialNumber;
-                hash.d[1] = info.nFileIndexHigh;
-                hash.d[0] = info.nFileIndexLow;
-                *success = 1;
+    switch (flags){
+        case TrackFileFlag_ExistingOrFail:
+        {
+            File_Index get_index = {0};
+            File_Time time = 0;
+            i32 result = begin_tracking_file(&win32vars.track, filename, &get_index, &time);
+            if (result == FileTrack_Good){
+                index = to_uhash(get_index);
             }
-            
-            CloseHandle(handle);
-        }
+        }break;
+        
+        // TODO(allen): provide the functions used here in the file track system
+        case TrackFileFlag_NewOrFail:
+        {
+#if 0
+            File_Index get_index = {0};
+            File_Time time = 0;
+            File_Temp_Handle handle = {0};
+            i32 result = get_file_temp_handle(filename, &handle);
+            if (result == FileTrack_FileNotFound){
+                result = begin_tracking_new_file(&win32vars.track, filename, &get_index, &time);
+                if (result == FileTrack_Good){
+                    index = to_uhash(get_index);
+                }
+            }
+            else{
+                finish_with_temp_handle(handle);
+            }
+#endif
+        }break;
+        
+        case TrackFileFlag_NewAlways:
+        {
+#if 0
+            File_Index get_index = {0};
+            File_Time time = 0;
+            result = begin_tracking_new_file(&win32vars.track, filename, &get_index, &time);
+            if (result == FileTrack_Good){
+                index = to_uhash(get_index);
+            }
+#endif
+        }break;
+        
+        case TrackFileFlag_ExistingOrNew:
+        {
+#if 0
+            File_Index get_index = {0};
+            File_Time time = 0;
+            File_Temp_Handle handle = {0};
+            i32 result = get_file_temp_handle(filename, &handle);
+            if (result == FileTrack_FileNotFound){
+                result = begin_tracking_new_file(&win32vars.track, filename, &get_index, &time);
+            }
+            else{
+                result = begin_tracking_from_handle(&win32vars.track, filename, handle, , &get_index, &time);
+            }
+            if (result == FileTrack_Good){
+                index = to_uhash(get_index);
+            }
+#endif
+        }break;
     }
     
-    return(hash);
+    return(index);
+}
+
+internal
+Sys_Untrack_File_Sig(system_untrack_file){
+    i32 result = 0;
+    i32 track_result = stop_tracking_file(&win32vars.track, to_findex(index));
+    if (track_result == FileTrack_Good){
+        result = 1;
+    }
+    return(result);
+}
+
+internal
+Sys_Get_File_Index_Sig(system_get_file_index){
+    i32 result = 0;
+    File_Index get_index = {0};
+    i32 track_result = get_tracked_file_index(&win32vars.track, filename, &get_index);
+    if (track_result == FileTrack_Good){
+        *index = to_uhash(get_index);
+        result = 1;
+    }
+    return(result);
+}
+
+internal
+Sys_Get_File_Time_Sig(system_get_file_time){
+    i32 result = 0;
+    u64 get_time = 0;
+    File_Index findex = to_findex(index);
+    i32 track_result = get_tracked_file_time(&win32vars.track, findex, &get_time);
+    if (track_result == FileTrack_Good){
+        *time = get_time;
+        result = 1;
+    }
+    return(result);
+}
+
+internal
+Sys_Now_File_Time_Sig(system_now_file_time){
+    get_file_time_now(time);
+}
+
+internal
+Sys_Get_Changed_File_Sig(system_get_changed_file){
+    i32 result = 0;
+    File_Index get_index = {0};
+    i32 track_result = get_change_event(&win32vars.track, &get_index);
+    if (track_result == FileTrack_Good){
+        *index = to_uhash(get_index);
+        result = 1;
+    }
+    return(result);
+}
+
+internal
+Sys_File_Size_Sig(system_file_size){
+    u32 size = 0;
+    File_Index findex = to_findex(index);
+    i32 track_result = get_tracked_file_size(&win32vars.track, findex, &size);
+    if (track_result != FileTrack_Good){
+        size = 0;
+    }
+    return(size);
+}
+
+internal
+Sys_Load_File_Sig(system_load_file){
+    i32 result = 0;
+    File_Index findex = to_findex(index);
+    i32 track_result = get_tracked_file_data(&win32vars.track, findex, buffer, size);
+    if (track_result == FileTrack_Good){
+        result = 1;
+    }
+    return(result);
+}
+
+internal
+Sys_Save_File_Sig(system_save_file){
+    i32 result = 0;
+    File_Index findex = to_findex(index);
+    File_Time time = 0;
+    i32 track_result = rewrite_tracked_file(&win32vars.track, findex, buffer, size, &time);
+    if (track_result == FileTrack_Good){
+        result = 1;
+    }
+    return(result);
 }
 
 b32 Win32DirectoryExists(char *path){
@@ -1360,15 +1540,16 @@ Win32LoadAppCode(){
 
 internal void
 Win32LoadSystemCode(){
-    win32vars.system.file_time_stamp = system_file_time_stamp;
-    win32vars.system.now_time_stamp = system_now_time_stamp;
-    win32vars.system.file_unique_hash = system_file_unique_hash;
     win32vars.system.set_file_list = system_set_file_list;
-    win32vars.system.file_track = system_file_track;
-    win32vars.system.file_untrack = system_file_untrack;
-    win32vars.system.file_load_begin = system_file_load_begin;
-    win32vars.system.file_load_end = system_file_load_end;
-    win32vars.system.file_save = system_file_save;
+    win32vars.system.track_file = system_track_file;
+    win32vars.system.untrack_file = system_untrack_file;
+    win32vars.system.get_file_index = system_get_file_index;
+    win32vars.system.get_file_time = system_get_file_time;
+    win32vars.system.now_file_time = system_now_file_time;
+    win32vars.system.get_changed_file = system_get_changed_file;
+    win32vars.system.file_size = system_file_size;
+    win32vars.system.load_file = system_load_file;
+    win32vars.system.save_file = system_save_file;
     
     win32vars.system.memory_allocate = Memory_Allocate;
     win32vars.system.file_exists = File_Exists;
@@ -1942,6 +2123,26 @@ WinMain(HINSTANCE hInstance,
     Win32LoadSystemCode();
     
     Win32LoadRenderCode();
+    
+    
+    //
+    // File Track System
+    //
+    
+    win32vars.track_table_size = (16 << 10);
+    win32vars.track_table = system_get_memory(win32vars.track_table_size);
+    
+    win32vars.track_node_size = (16 << 10);
+    void *track_nodes = system_get_memory(win32vars.track_node_size);
+    
+    i32 track_result =
+        init_track_system(&win32vars.track,
+                          win32vars.track_table, win32vars.track_table_size,
+                          track_nodes, win32vars.track_node_size);
+    
+    if (track_result != FileTrack_Good){
+        exit(1);
+    }
     
     
     //

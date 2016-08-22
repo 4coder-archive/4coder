@@ -35,43 +35,44 @@ uhash_equal(Unique_Hash a, Unique_Hash b){
     return(result);
 }
 
-// NOTE(allen): These two time functions should return values
-// in the same time space.  There is no requirement about 
-// resolution but the higher the better.  These functions
-// should not be used for profiling purposes.
-#define Sys_File_Time_Stamp_Sig(name) u64 name(char *filename)
-typedef Sys_File_Time_Stamp_Sig(System_File_Time_Stamp);
-
-#define Sys_Now_Time_Stamp_Sig(name) u64 name()
-typedef Sys_Now_Time_Stamp_Sig(System_Now_Time_Stamp);
-
 // TODO(allen): make directory a char* to signal that it must be null terminated
 #define Sys_Set_File_List_Sig(name) void name(File_List *file_list, String directory)
 typedef Sys_Set_File_List_Sig(System_Set_File_List);
 
-#define Sys_File_Unique_Hash_Sig(name) Unique_Hash name(String filename, b32 *success)
-typedef Sys_File_Unique_Hash_Sig(System_File_Unique_Hash);
-
-#define Sys_File_Track_Sig(name) void name(String filename)
-typedef Sys_File_Track_Sig(System_File_Track);
-
-#define Sys_File_Untrack_Sig(name) void name(String filename)
-typedef Sys_File_Untrack_Sig(System_File_Untrack);
-
-struct File_Loading{
-    Plat_Handle handle;
-    i32 size;
-    b32 exists;
+enum{
+    TrackFileFlag_ExistingOrFail = 0x0,
+    TrackFileFlag_NewOrFail = 0x1,
+    TrackFileFlag_NewAlways = 0x2,
+    TrackFileFlag_ExistingOrNew = 0x3,
 };
 
-#define Sys_File_Load_Begin_Sig(name) File_Loading name(char *filename)
-typedef Sys_File_Load_Begin_Sig(System_File_Load_Begin);
+#define Sys_Track_File_Sig(name) Unique_Hash name(char *filename, u32 flags)
+typedef Sys_Track_File_Sig(System_Track_File);
 
-#define Sys_File_Load_End_Sig(name) b32 name(File_Loading loading, char *buffer)
-typedef Sys_File_Load_End_Sig(System_File_Load_End);
+#define Sys_Untrack_File_Sig(name) i32 name(Unique_Hash index)
+typedef Sys_Untrack_File_Sig(System_Untrack_File);
 
-#define Sys_File_Save_Sig(name) b32 name(char *filename, char *buffer, i32 size)
-typedef Sys_File_Save_Sig(System_File_Save);
+#define Sys_Get_File_Index_Sig(name) i32 name(char *filename, Unique_Hash *index)
+typedef Sys_Get_File_Index_Sig(System_Get_File_Index);
+
+#define Sys_Get_File_Time_Sig(name) i32 name(Unique_Hash index, u64 *time)
+typedef Sys_Get_File_Time_Sig(System_Get_File_Time);
+
+#define Sys_Now_File_Time_Sig(name) void name(u64 *time)
+typedef Sys_Now_File_Time_Sig(System_Now_File_Time);
+
+#define Sys_Get_Changed_File_Sig(name) i32 name(Unique_Hash *index)
+typedef Sys_Get_Changed_File_Sig(System_Get_Changed_File);
+
+#define Sys_File_Size_Sig(name) u32 name(Unique_Hash index)
+typedef Sys_File_Size_Sig(System_File_Size);
+
+#define Sys_Load_File_Sig(name) i32 name(Unique_Hash index, char *buffer, i32 size)
+typedef Sys_Load_File_Sig(System_Load_File);
+
+#define Sys_Save_File_Sig(name) i32 name(Unique_Hash index, char *buffer, i32 size)
+typedef Sys_Save_File_Sig(System_Save_File);
+
 
 #define Sys_Post_Clipboard_Sig(name) void name(String str)
 typedef Sys_Post_Clipboard_Sig(System_Post_Clipboard);
@@ -223,16 +224,18 @@ typedef INTERNAL_Sys_Get_Thread_States_Sig(INTERNAL_System_Get_Thread_States);
 typedef INTERNAL_Sys_Debug_Message_Sig(INTERNAL_System_Debug_Message);
 
 struct System_Functions{
-    // files: 9
-    System_File_Time_Stamp *file_time_stamp;
-    System_Now_Time_Stamp *now_time_stamp;
+    
+    // files (tracked api): 10
     System_Set_File_List *set_file_list;
-    System_File_Unique_Hash *file_unique_hash;
-    System_File_Track *file_track;
-    System_File_Untrack *file_untrack;
-    System_File_Load_Begin *file_load_begin;
-    System_File_Load_End *file_load_end;
-    System_File_Save *file_save;
+    System_Track_File *track_file;
+    System_Untrack_File *untrack_file;
+    System_Get_File_Index *get_file_index;
+    System_Get_File_Time *get_file_time;
+    System_Now_File_Time *now_file_time;
+    System_Get_Changed_File *get_changed_file;
+    System_File_Size *file_size;
+    System_Load_File *load_file;
+    System_Save_File *save_file;
     
     // 4coder_custom.h: 7
     Memory_Allocate_Function *memory_allocate;
