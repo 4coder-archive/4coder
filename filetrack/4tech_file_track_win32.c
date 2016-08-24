@@ -452,29 +452,10 @@ internal_free_slot(File_Track_Tables *tables, File_Track_Entry *entry){
 }
 
 File_Track_Result
-begin_tracking_file(File_Track_System *system,
-                    char *name,
-                    File_Index *index,
-                    File_Time *time){
+internal_track_file(File_Track_Vars *vars, File_Track_Tables *tables,
+                    char *name, HANDLE file, File_Index *index, File_Time *time){
+    
     File_Track_Result result = FileTrack_Good;
-    File_Track_Vars *vars = to_vars_(system);
-    
-    EnterCriticalSection(&vars->table_lock);
-    
-    File_Track_Tables *tables = to_tables(vars);
-    
-    // TODO(allen): Try multiple ways to open the
-    // file and get as many privledges as possible.
-    // Expand the API to be capable of reporting
-    // what privledges are available on a file.
-    HANDLE file = CreateFile(
-        name,
-        GENERIC_READ | GENERIC_WRITE,
-        FILE_SHARE_READ | FILE_SHARE_WRITE,
-        0,
-        OPEN_EXISTING,
-        FILE_ATTRIBUTE_NORMAL,
-        0);
     
     if (file != INVALID_HANDLE_VALUE){
         char dir_name[1024];
@@ -607,16 +588,110 @@ begin_tracking_file(File_Track_System *system,
         else{
             result = FileTrack_FileSystemError;
         }
-        
-        if (result != FileTrack_Good){
-            CloseHandle(file);
-        }
     }
     else{
         result = FileTrack_FileNotFound;
     }
     
+    return(result);
+}
+
+HANDLE
+open_file_best_privledges(char *name, DWORD open_disposition){
+    
+    // TODO(allen): Try multiple ways to open the
+    // file and get as many privledges as possible.
+    // Expand the API to be capable of reporting
+    // what privledges are available on a file.
+    HANDLE file = CreateFile(
+        name,
+        GENERIC_READ | GENERIC_WRITE,
+        FILE_SHARE_READ | FILE_SHARE_WRITE,
+        0,
+        open_disposition,
+        FILE_ATTRIBUTE_NORMAL,
+        0);
+    
+    return(file);
+}
+
+File_Track_Result
+begin_tracking_file(File_Track_System *system,
+                    char *name,
+                    File_Index *index,
+                    File_Time *time){
+    File_Track_Result result = FileTrack_Good;
+    File_Track_Vars *vars = to_vars_(system);
+    
+    EnterCriticalSection(&vars->table_lock);
+    {
+        File_Track_Tables *tables = to_tables(vars);
+        HANDLE file = open_file_best_privledges(name, OPEN_EXISTING);
+        result = internal_track_file(vars, tables, name, file, index, time);
+        if (file != INVALID_HANDLE_VALUE && result != FileTrack_Good){
+            CloseHandle(file);
+        }
+    }
     LeaveCriticalSection(&vars->table_lock);
+    
+    return(result);
+}
+
+File_Track_Result
+begin_tracking_new_file(File_Track_System *system, char *name, File_Index *index, File_Time *time){
+    File_Track_Result result = FileTrack_Good;
+    File_Track_Vars *vars = to_vars_(system);
+    
+    EnterCriticalSection(&vars->table_lock);
+    {
+        File_Track_Tables *tables = to_tables(vars);
+        HANDLE file = open_file_best_privledges(name, CREATE_ALWAYS);
+        result = internal_track_file(vars, tables, name, file, index, time);
+        if (file != INVALID_HANDLE_VALUE && result != FileTrack_Good){
+            CloseHandle(file);
+        }
+    }
+    LeaveCriticalSection(&vars->table_lock);
+    
+    return(result);
+}
+
+File_Track_Result
+get_file_temp_handle(char *name, File_Temp_Handle *handle){
+    File_Track_Result result = FileTrack_FileNotFound;
+    
+    HANDLE h = open_file_best_privledges(name, OPEN_EXISTING);
+    if (h != INVALID_HANDLE_VALUE){
+        *(HANDLE*)handle = h;
+        result = FileTrack_Good;
+    }
+    
+    return(result);
+}
+
+File_Track_Result
+begin_tracking_from_handle(File_Track_System *system, char *name, File_Temp_Handle handle,
+                           File_Index *index, File_Time *time){
+    File_Track_Result result = FileTrack_Good;
+    File_Track_Vars *vars = to_vars_(system);
+    
+    EnterCriticalSection(&vars->table_lock);
+    {
+        File_Track_Tables *tables = to_tables(vars);
+        HANDLE file = *(HANDLE*)(&handle);
+        result = internal_track_file(vars, tables, name, file, index, time);
+    }
+    LeaveCriticalSection(&vars->table_lock);
+    
+    return(result);
+}
+
+File_Track_Result
+finish_with_temp_handle(File_Temp_Handle handle){
+    File_Track_Result result = FileTrack_Good;
+    
+    HANDLE file = *(HANDLE*)(&handle);
+    CloseHandle(file);
     
     return(result);
 }
@@ -628,6 +703,7 @@ internal_get_tracked_file_index(File_Track_Tables *tables,
                                 File_Track_Entry **entry){
     File_Track_Result result = FileTrack_Good;
     
+    // TODO(allen): Can I open this file with no permissions?
     HANDLE file = CreateFile(
         name,
         GENERIC_READ | GENERIC_WRITE,
@@ -640,11 +716,7 @@ internal_get_tracked_file_index(File_Track_Tables *tables,
     if (file != INVALID_HANDLE_VALUE){
         BY_HANDLE_FILE_INFORMATION info = {0};
         if (GetFileInformationByHandle(file, &info)){
-            File_Index hash;
-            hash.id[0] = info.nFileIndexLow;
-            hash.id[1] = info.nFileIndexHigh;
-            hash.id[2] = info.dwVolumeSerialNumber;
-            hash.id[3] = 0;
+            File_Index hash = internal_get_file_index(info);
             
             File_Lookup_Result lookup = tracking_system_lookup_entry(tables, hash);
             if (!entry_is_available(lookup.entry)){
@@ -1047,6 +1119,59 @@ rewrite_tracked_file(File_Track_System *system, File_Index index,
     }
     
     LeaveCriticalSection(&vars->table_lock);
+    
+    return(result);
+}
+
+File_Track_Result
+rewrite_arbitrary_file(File_Track_System *system, char *filename,
+                       void *data, int32_t size, File_Time *time){
+    File_Track_Result result = FileTrack_Good;
+    
+    HANDLE file = CreateFile(
+        filename,
+        GENERIC_WRITE,
+        FILE_SHARE_READ | FILE_SHARE_WRITE,
+        0,
+        OPEN_EXISTING,
+        FILE_ATTRIBUTE_NORMAL,
+        0);
+    
+    if (file != INVALID_HANDLE_VALUE){
+        File_Track_Vars *vars = to_vars_(system);
+        EnterCriticalSection(&vars->table_lock);
+        {
+            File_Track_Tables *tables = to_tables(vars);
+            BY_HANDLE_FILE_INFORMATION info = {0};
+            if (GetFileInformationByHandle(file, &info)){
+                DWORD written = 0;
+                
+                File_Index index = internal_get_file_index(info);
+                File_Lookup_Result lookup = tracking_system_lookup_entry(tables, index);
+                if (!entry_is_available(lookup.entry)){
+                    lookup.entry->skip_change = 1;
+                }
+                
+                WriteFile(file, data, size, &written, 0);
+                
+                FILETIME file_time;
+                SYSTEMTIME system_time;
+                
+                GetSystemTime(&system_time);
+                SystemTimeToFileTime(&system_time, &file_time);
+                SetFileTime(lookup.entry->file, 0, 0, &file_time);
+            }
+            else{
+                result = FileTrack_FileSystemError;
+            }
+        }
+        LeaveCriticalSection(&vars->table_lock);
+        
+        CloseHandle(file);
+    }
+    else{
+        result = FileTrack_FileNotFound;
+    }
     
     return(result);
 }

@@ -587,10 +587,10 @@ working_set_uhash_contains(Working_Set *working_set, Unique_Hash index){
 }
 
 internal Editing_File*
-working_set_uhash_contains(System_Functions *system, Working_Set *working_set, String name){
+working_set_uhash_contains(System_Functions *system, Working_Set *working_set, char *name){
     Editing_File *file = 0;
     Unique_Hash index = {0};
-    if (system->get_file_index(name.str, &index)){
+    if (system->get_file_index(name, &index)){
         if (!uhash_equal(index, uhash_zero())){
             file = working_set_uhash_contains(working_set, index);
         }

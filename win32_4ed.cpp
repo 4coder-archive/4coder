@@ -192,10 +192,12 @@ struct Win32_Vars{
     b32 first;
     i32 running_cli;
     
+    
     File_Track_System track;
     void *track_table;
     u32 track_table_size;
     u32 track_node_size;
+    
     
 #if FRED_INTERNAL
     CRITICAL_SECTION DEBUG_sysmem_lock;
@@ -1035,6 +1037,40 @@ to_findex(Unique_Hash index){
     return(r);
 }
 
+internal b32
+handle_track_out_of_memory(i32 val, Unique_Hash *index, File_Index get_index){
+    b32 result = 0;
+    
+    switch (val){
+        case FileTrack_OutOfTableMemory:
+        {
+            u32 new_table_size = win32vars.track_table_size*2;
+            void *new_table = system_get_memory(new_table_size);
+            move_track_system(&win32vars.track, new_table, new_table_size);
+            system_free_memory(win32vars.track_table);
+            win32vars.track_table_size = new_table_size;
+            win32vars.track_table = new_table;
+        }break;
+        
+        case FileTrack_OutOfListenerMemory:
+        {
+            win32vars.track_node_size *= 2;
+            void *node_expansion = system_get_memory(win32vars.track_node_size);
+            expand_track_system_listeners(&win32vars.track, node_expansion, win32vars.track_node_size);
+        }break;
+        
+        case FileTrack_Good:
+        {
+            *index = to_uhash(get_index);
+            result = 1;
+        }break;
+        
+        default: result = 1; break;
+    }
+    
+    return(result);
+}
+
 internal
 Sys_Track_File_Sig(system_track_file){
     Unique_Hash index = {0};
@@ -1044,63 +1080,71 @@ Sys_Track_File_Sig(system_track_file){
         {
             File_Index get_index = {0};
             File_Time time = 0;
-            i32 result = begin_tracking_file(&win32vars.track, filename, &get_index, &time);
-            if (result == FileTrack_Good){
-                index = to_uhash(get_index);
+            for (;;){
+                i32 result = begin_tracking_file(&win32vars.track, filename, &get_index, &time);
+                if (handle_track_out_of_memory(result, &index, get_index)){
+                    goto track_end;
+                }
             }
         }break;
         
-        // TODO(allen): provide the functions used here in the file track system
         case TrackFileFlag_NewOrFail:
         {
-#if 0
             File_Index get_index = {0};
             File_Time time = 0;
             File_Temp_Handle handle = {0};
             i32 result = get_file_temp_handle(filename, &handle);
             if (result == FileTrack_FileNotFound){
-                result = begin_tracking_new_file(&win32vars.track, filename, &get_index, &time);
-                if (result == FileTrack_Good){
-                    index = to_uhash(get_index);
+                for (;;){
+                    result = begin_tracking_new_file(&win32vars.track, filename, &get_index, &time);
+                    if (handle_track_out_of_memory(result, &index, get_index)){
+                        goto track_end;
+                    }
                 }
             }
             else{
                 finish_with_temp_handle(handle);
             }
-#endif
         }break;
         
         case TrackFileFlag_NewAlways:
         {
-#if 0
             File_Index get_index = {0};
             File_Time time = 0;
-            result = begin_tracking_new_file(&win32vars.track, filename, &get_index, &time);
-            if (result == FileTrack_Good){
-                index = to_uhash(get_index);
+            for (;;){
+                i32 result = begin_tracking_new_file(&win32vars.track, filename, &get_index, &time);
+                if (handle_track_out_of_memory(result, &index, get_index)){
+                    goto track_end;
+                }
             }
-#endif
         }break;
         
         case TrackFileFlag_ExistingOrNew:
         {
-#if 0
             File_Index get_index = {0};
             File_Time time = 0;
             File_Temp_Handle handle = {0};
             i32 result = get_file_temp_handle(filename, &handle);
             if (result == FileTrack_FileNotFound){
-                result = begin_tracking_new_file(&win32vars.track, filename, &get_index, &time);
+                for (;;){
+                    result = begin_tracking_new_file(&win32vars.track, filename, &get_index, &time);
+                    if (handle_track_out_of_memory(result, &index, get_index)){
+                        goto track_end;
+                    }
+                }
             }
             else{
-                result = begin_tracking_from_handle(&win32vars.track, filename, handle, , &get_index, &time);
+                for (;;){
+                    result = begin_tracking_from_handle(&win32vars.track, filename, handle, &get_index, &time);
+                    if (handle_track_out_of_memory(result, &index, get_index)){
+                        goto track_end;
+                    }
+                }
             }
-            if (result == FileTrack_Good){
-                index = to_uhash(get_index);
-            }
-#endif
         }break;
     }
+    
+    track_end:;
     
     return(index);
 }
@@ -1185,6 +1229,17 @@ Sys_Save_File_Sig(system_save_file){
     File_Index findex = to_findex(index);
     File_Time time = 0;
     i32 track_result = rewrite_tracked_file(&win32vars.track, findex, buffer, size, &time);
+    if (track_result == FileTrack_Good){
+        result = 1;
+    }
+    return(result);
+}
+
+internal
+Sys_Save_File_By_Name_Sig(system_save_file_by_name){
+    i32 result = 0;
+    File_Time time = 0;
+    i32 track_result = rewrite_arbitrary_file(&win32vars.track, filename, buffer, size, &time);
     if (track_result == FileTrack_Good){
         result = 1;
     }
@@ -1550,6 +1605,7 @@ Win32LoadSystemCode(){
     win32vars.system.file_size = system_file_size;
     win32vars.system.load_file = system_load_file;
     win32vars.system.save_file = system_save_file;
+    win32vars.system.save_file_by_name = system_save_file_by_name;
     
     win32vars.system.memory_allocate = Memory_Allocate;
     win32vars.system.file_exists = File_Exists;

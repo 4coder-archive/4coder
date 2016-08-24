@@ -73,6 +73,9 @@ typedef Sys_Load_File_Sig(System_Load_File);
 #define Sys_Save_File_Sig(name) i32 name(Unique_Hash index, char *buffer, i32 size)
 typedef Sys_Save_File_Sig(System_Save_File);
 
+#define Sys_Save_File_By_Name_Sig(name) i32 name(char *filename, char *buffer, i32 size)
+typedef Sys_Save_File_By_Name_Sig(System_Save_File_By_Name);
+
 
 #define Sys_Post_Clipboard_Sig(name) void name(String str)
 typedef Sys_Post_Clipboard_Sig(System_Post_Clipboard);
@@ -225,7 +228,7 @@ typedef INTERNAL_Sys_Debug_Message_Sig(INTERNAL_System_Debug_Message);
 
 struct System_Functions{
     
-    // files (tracked api): 10
+    // files (tracked api): 11
     System_Set_File_List *set_file_list;
     System_Track_File *track_file;
     System_Untrack_File *untrack_file;
@@ -236,6 +239,7 @@ struct System_Functions{
     System_File_Size *file_size;
     System_Load_File *load_file;
     System_Save_File *save_file;
+    System_Save_File_By_Name *save_file_by_name;
     
     // 4coder_custom.h: 7
     Memory_Allocate_Function *memory_allocate;

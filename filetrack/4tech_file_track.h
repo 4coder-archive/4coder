@@ -35,6 +35,10 @@ typedef struct{
 } File_Track_System;
 
 typedef struct{
+    uint8_t opaque[16];
+} File_Temp_Handle;
+
+typedef struct{
     uint32_t id[4];
 } File_Index;
 
@@ -62,6 +66,18 @@ init_track_system(File_Track_System *system,
 
 File_Track_Result
 begin_tracking_file(File_Track_System *system, char *name, File_Index *index, File_Time *time);
+
+File_Track_Result
+begin_tracking_new_file(File_Track_System *system, char *name, File_Index *index, File_Time *time);
+
+File_Track_Result
+get_file_temp_handle(char *name, File_Temp_Handle *handle);
+
+File_Track_Result
+begin_tracking_from_handle(File_Track_System *system, char *name, File_Temp_Handle handle, File_Index *index, File_Time *time);
+
+File_Track_Result
+finish_with_temp_handle(File_Temp_Handle handle);
 
 File_Track_Result
 get_tracked_file_index(File_Track_System *system, char *name, File_Index *index);
@@ -96,6 +112,10 @@ get_tracked_file_data(File_Track_System *system, File_Index index, void *mem, ui
 File_Track_Result
 rewrite_tracked_file(File_Track_System *system, File_Index index,
                      void *data, int32_t size, File_Time *time);
+
+File_Track_Result
+rewrite_arbitrary_file(File_Track_System *system, char *filename,
+                       void *data, int32_t size, File_Time *time);
 
 File_Track_Result
 shut_down_track_system(File_Track_System *system);

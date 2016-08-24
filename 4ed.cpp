@@ -338,38 +338,42 @@ COMMAND_DECL(reopen){
     
     if (match(file->name.source_path, file->name.live_name)) return;
     
-    File_Loading loading = system->file_load_begin(file->name.source_path.str);
+    Unique_Hash index = file->file_index;
     
-    if (loading.exists){
+    if (!uhash_equal(index, uhash_zero())){
+        i32 size = system->file_size(index);
+        
         Partition *part = &models->mem.part;
         Temp_Memory temp = begin_temp_memory(part);
-        char *buffer = push_array(part, char, loading.size);
+        char *buffer = push_array(part, char, size);
         
-        if (system->file_load_end(loading, buffer)){
-            General_Memory *general = &models->mem.general;
-            
-            File_Edit_Positions edit_poss[16];
-            View *vptrs[16];
-            i32 vptr_count = 0;
-            for (View_Iter iter = file_view_iter_init(&models->layout, file, 0);
-                 file_view_iter_good(iter);
-                 iter = file_view_iter_next(iter)){
-                vptrs[vptr_count] = iter.view;
-                edit_poss[vptr_count] = *iter.view->edit_pos;
-                iter.view->edit_pos = 0;
-                ++vptr_count;
-            }
-            
-            file_close(system, general, file);
-            init_normal_file(system, models, file, buffer, loading.size);
-            
-            for (i32 i = 0;
-                 i < vptr_count;
-                 ++i){
-                view_set_file(vptrs[i], file, models);
-                *vptrs[i]->edit_pos = edit_poss[i];
-                view_set_cursor(vptrs[i], edit_poss[i].cursor,
-                                true, view->file_data.unwrapped_lines);
+        if (buffer){
+            if (system->load_file(index, buffer, size)){
+                General_Memory *general = &models->mem.general;
+                
+                File_Edit_Positions edit_poss[16];
+                View *vptrs[16];
+                i32 vptr_count = 0;
+                for (View_Iter iter = file_view_iter_init(&models->layout, file, 0);
+                     file_view_iter_good(iter);
+                     iter = file_view_iter_next(iter)){
+                    vptrs[vptr_count] = iter.view;
+                    edit_poss[vptr_count] = *iter.view->edit_pos;
+                    iter.view->edit_pos = 0;
+                    ++vptr_count;
+                }
+                
+                file_close(system, general, file);
+                init_normal_file(system, models, file, buffer, size);
+                
+                for (i32 i = 0;
+                     i < vptr_count;
+                     ++i){
+                    view_set_file(vptrs[i], file, models);
+                    *vptrs[i]->edit_pos = edit_poss[i];
+                    view_set_cursor(vptrs[i], edit_poss[i].cursor,
+                                    true, view->file_data.unwrapped_lines);
+                }
             }
         }
         
@@ -382,9 +386,8 @@ COMMAND_DECL(save){
     USE_VIEW(view);
     REQ_FILE(file, view);
     
-    if (!file->is_dummy && file_is_ready(file)){
-        String name = file->name.source_path;
-        view_save_file(system, models, file, 0, name, 0);
+    if (!file->is_dummy && file_is_ready(file) && buffer_needs_save(file)){
+        save_file(system, &models->mem, file);
     }
 }
 
@@ -429,7 +432,7 @@ COMMAND_DECL(kill_buffer){
     USE_VIEW(view);
     REQ_FILE(file, view);
     
-    try_kill_file(system, models, file, view, string_zero());
+    interactive_try_kill_file(system, models, view, file);
 }
 
 COMMAND_DECL(toggle_line_wrap){
@@ -1673,6 +1676,7 @@ App_Step_Sig(app_step){
         dest->size = eol_convert_in(dest->str, clipboard.str, clipboard.size);
     }
     
+#if 0
     // NOTE(allen): check files are up to date
     if (!input->first_step){
         Panel *panel = 0, *used_panels = &models->layout.used_sentinel;
@@ -1720,6 +1724,7 @@ App_Step_Sig(app_step){
     else{
         models->working_set.sync_check_iter = &models->working_set.used_sentinel;
     }
+#endif
     
     // NOTE(allen): reorganizing panels on screen
     {
@@ -1934,8 +1939,8 @@ App_Step_Sig(app_step){
         
         {
             Editing_File *file = working_set_alloc_always(&models->working_set, general);
-            file_create_read_only(system, models, file, "*messages*");
-            working_set_add(system, &models->working_set, file, general);
+            buffer_bind_name(general, &models->working_set, file, "*messages*");
+            init_read_only_file(system, models, file);
             file->settings.never_kill = 1;
             file->settings.unimportant = 1;
             file->settings.unwrapped_lines = 1;
@@ -1945,8 +1950,8 @@ App_Step_Sig(app_step){
         
         {
             Editing_File *file = working_set_alloc_always(&models->working_set, general);
-            file_create_empty(system, models, file, "*scratch*");
-            working_set_add(system, &models->working_set, file, general);
+            buffer_bind_name(general, &models->working_set, file, "*scratch*");
+            init_normal_file(system, models, file, 0, 0);
             file->settings.never_kill = 1;
             file->settings.unimportant = 1;
             file->settings.unwrapped_lines = 1;
@@ -1958,13 +1963,11 @@ App_Step_Sig(app_step){
             models->hooks[hook_start](&models->app_links);
         }
         
-        i32 i;
-        String filename;
+        i32 i = 0;
         Panel *panel = models->layout.used_sentinel.next;
-        for (i = 0;
-             i < models->settings.init_files_count;
+        for (; i < models->settings.init_files_count;
              ++i, panel = panel->next){
-            filename = make_string_slowly(models->settings.init_files[i]);
+            String filename = make_string_slowly(models->settings.init_files[i]);
             
             if (i < models->layout.panel_count){
                 view_open_file(system, models, panel->view, filename);

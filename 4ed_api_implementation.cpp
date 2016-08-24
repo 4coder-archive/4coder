@@ -85,17 +85,14 @@ fill_view_summary(View_Summary *view, View *vptr, Command_Data *cmd){
 
 internal Editing_File*
 get_file_from_identifier(System_Functions *system, Working_Set *working_set, Buffer_Identifier buffer){
-    i32 buffer_id = buffer.id;
-    i32 buffer_name_len = buffer.name_len;
-    char *buffer_name = buffer.name;
-    
     Editing_File *file = 0;
     
-    if (buffer_id){
-        file = working_set_get_active_file(working_set, buffer_id);
+    if (buffer.id){
+        file = working_set_get_active_file(working_set, buffer.id);
     }
-    else if (buffer_name){
-        file = working_set_contains(system, working_set, make_string(buffer_name, buffer_name_len));
+    else if (buffer.name){
+        String name = make_string(buffer.name, buffer.name_len);
+        file = working_set_name_contains(working_set, name);
     }
     
     return(file);
@@ -248,8 +245,10 @@ DOC_SEE(Command_Line_Input_Flag)
                 result = false;
                 goto done;
             }
-            file_create_read_only(system, models, file, buffer.name);
-            working_set_add(system, working_set, file, general);
+            
+            String name = make_string_terminated(part, buffer.name, buffer.name_len);
+            buffer_bind_name(general, working_set, file, name.str);
+            init_read_only_file(system, models, file);
         }
         
         if (file){
@@ -527,7 +526,8 @@ DOC_SEE(Access_Flag)
     Editing_File *file;
     Working_Set *working_set = &cmd->models->working_set;
     
-    file = working_set_contains(cmd->system, working_set, make_string(name, len));
+    String str = make_string(name, len);
+    file = working_set_name_contains(working_set, str);
     if (file && !file->is_dummy){
         fill_buffer_summary(&buffer, file, working_set);
         if (!access_test(buffer.lock_flags, access)){
@@ -985,42 +985,43 @@ DOC_SEE(Buffer_Create_Flag)
     Temp_Memory temp = begin_temp_memory(part);
     if (filename != 0){
         String filename_string = make_string_terminated(part, filename, filename_len);
-        Editing_File *file = working_set_contains(system, working_set, filename_string);
+        Editing_File *file = working_set_uhash_contains(system, working_set, filename_string.str);
         
         if (file == 0){
-            File_Loading loading = {0};
-            
             b32 do_new_file = false;
+            
+            Unique_Hash index = {0};
             
             if (flags & BufferCreate_AlwaysNew){
                 do_new_file = true;
             }
             else{
-                loading = system->file_load_begin(filename_string.str);
-                if (!loading.exists){
+                index = system->track_file(filename_string.str, TrackFileFlag_ExistingOrFail);
+                if (uhash_equal(index, uhash_zero())){
                     do_new_file = true;
                 }
             }
             
             if (!do_new_file){
+                Assert(!uhash_equal(index, uhash_zero()));
+                
+                i32 size = system->file_size(index);
                 b32 in_general_mem = false;
-                char *buffer = push_array(part, char, loading.size);
+                char *buffer = push_array(part, char, size);
                 
                 if (buffer == 0){
-                    buffer = (char*)general_memory_allocate(general, loading.size);
+                    buffer = (char*)general_memory_allocate(general, size);
                     if (buffer != 0){
                         in_general_mem = true;
                     }
                 }
                 
-                if (system->file_load_end(loading, buffer)){
+                if (system->load_file(index, buffer, size)){
                     file = working_set_alloc_always(working_set, general);
                     if (file){
-                        file_init_strings(file);
-                        file_set_name(working_set, file, filename_string);
-                        working_set_add(system, working_set, file, general);
-                        init_normal_file(system, models, file,
-                                         buffer, loading.size);
+                        buffer_bind_file(system, general, working_set, file, index);
+                        buffer_bind_name(general, working_set, file, filename_string.str);
+                        init_normal_file(system, models, file, buffer, size);
                         fill_buffer_summary(&result, file, cmd);
                     }
                 }
@@ -1033,9 +1034,7 @@ DOC_SEE(Buffer_Create_Flag)
             else{
                 file = working_set_alloc_always(working_set, general);
                 if (file){
-                    file_init_strings(file);
-                    file_set_name(working_set, file, filename_string);
-                    working_set_add(system, working_set, file, general);
+                    buffer_bind_name(general, working_set, file, filename_string.str);
                     init_normal_file(system, models, file, 0, 0);
                     fill_buffer_summary(&result, file, cmd);
                 }
@@ -1066,8 +1065,12 @@ DOC_RETURN(This call returns non-zero on success.)
     Editing_File *file = imp_get_file(cmd, buffer);
     if (file){
         result = true;
-        String name = make_string(filename, filename_len);
-        view_save_file(system, models, file, 0, name, false);
+        
+        Partition *part = &models->mem.part;
+        Temp_Memory temp = begin_temp_memory(part);
+        String name = make_string_terminated(part, filename, filename_len);
+        save_file_to_name(system, &models->mem, file, name.str);
+        end_temp_memory(temp);
     }
     
     return(result);
@@ -1099,12 +1102,12 @@ DOC_SEE(Buffer_Identifier)
     if (file){
         if (flags & BufferKill_AlwaysKill){
             result = true;
-            kill_file(system, models, file, string_zero());
+            kill_file(system, models, file);
         }
         else{
-            if (vptr == 0){
+            if (vptr){
                 result = true;
-                try_kill_file(system, models, file, vptr, string_zero());
+                interactive_try_kill_file(system, models, vptr, file);
             }
             else{
                 app->print_message(app, literal("CUSTOM WARNING: the buffer is dirty and no view was specified for a dialogue."));

@@ -800,7 +800,7 @@ file_synchronize_times(System_Functions *system, Editing_File *file){
 }
 
 internal b32
-file_save(System_Functions *system, Mem_Options *mem, Editing_File *file){
+save_file_to_name(System_Functions *system, Mem_Options *mem, Editing_File *file, char *filename){
     b32 result = 0;
     
     if (!uhash_equal(file->file_index, uhash_zero())){
@@ -840,7 +840,12 @@ file_save(System_Functions *system, Mem_Options *mem, Editing_File *file){
             buffer_stringify(buffer, 0, size, data);
         }
         
-        result = system->save_file(file->file_index, data, size);
+        if (filename){
+            result = system->save_file_by_name(filename, data, size);
+        }
+        else{
+            result = system->save_file(file->file_index, data, size);
+        }
         
         file_mark_clean(file);
         
@@ -852,6 +857,12 @@ file_save(System_Functions *system, Mem_Options *mem, Editing_File *file){
         file_synchronize_times(system, file);
     }
     
+    return(result);
+}
+
+inline b32
+save_file(System_Functions *system, Mem_Options *mem, Editing_File *file){
+    b32 result = save_file_to_name(system, mem, file, 0);
     return(result);
 }
 
@@ -878,7 +889,7 @@ file_save_and_set_names(System_Functions *system, Mem_Options *mem,
                         char *filename){
     b32 result = buffer_link_to_new_file(system, &mem->general, working_set, file, filename);
     if (result){
-        result = file_save(system, mem, file);
+        result = save_file(system, mem, file);
     }
     return(result);
 }
@@ -1003,8 +1014,7 @@ view_measure_wraps(General_Memory *general, View *view){
 
 internal void
 file_create_from_string(System_Functions *system, Models *models,
-                        Editing_File *file, char *name,
-                        String val, b8 read_only = 0){
+                        Editing_File *file, String val, b8 read_only = 0){
     
     Font_Set *font_set = models->font_set;
     General_Memory *general = &models->mem.general;
@@ -1075,13 +1085,6 @@ file_create_from_string(System_Functions *system, Models *models,
         open_hook(&models->app_links, file->id.id);
     }
     file->settings.is_initialized = 1;
-}
-
-internal b32
-file_create_read_only(System_Functions *system,
-                      Models *models, Editing_File *file, char *filename){
-    file_create_from_string(system, models, file, filename, string_zero(), 1);
-    return (1);
 }
 
 internal void
@@ -3187,7 +3190,7 @@ init_normal_file(System_Functions *system, Models *models, Editing_File *file,
     General_Memory *general = &models->mem.general;
     
     String val = make_string(buffer, size);
-    file_create_from_string(system, models, file, file->name.source_path.str, val);
+    file_create_from_string(system, models, file, val);
     
     if (file->settings.tokens_exist && file->state.token_stack.tokens == 0){
         file_first_lex_parallel(system, general, file);
@@ -3201,7 +3204,26 @@ init_normal_file(System_Functions *system, Models *models, Editing_File *file,
 }
 
 internal void
-view_interactive_open_file(System_Functions *system, Models *models, View *view, String filename){
+init_read_only_file(System_Functions *system, Models *models, Editing_File *file){
+    General_Memory *general = &models->mem.general;
+    
+    String val = string_zero();
+    file_create_from_string(system, models, file, val, 1);
+    
+    if (file->settings.tokens_exist && file->state.token_stack.tokens == 0){
+        file_first_lex_parallel(system, general, file);
+    }
+    
+    for (View_Iter iter = file_view_iter_init(&models->layout, file, 0);
+         file_view_iter_good(iter);
+         iter = file_view_iter_next(iter)){
+        view_measure_wraps(general, iter.view);
+    }
+}
+
+
+internal void
+view_open_file(System_Functions *system, Models *models, View *view, String filename){
     Working_Set *working_set = &models->working_set;
     Editing_File *file = 0;
     Unique_Hash index = {0};
@@ -3332,16 +3354,15 @@ internal void
 save_file_by_name(System_Functions *system, Models *models, String name){
     Editing_File *file = working_set_name_contains(&models->working_set, name);
     if (file){
-        file_save(system, &models->mem, file);
+        save_file(system, &models->mem, file);
     }
 }
 
 internal b32
-interactive_try_kill_file(System_Functions *system, Models *models, View *view, String name){
+interactive_try_kill_file(System_Functions *system, Models *models, View *view, Editing_File *file){
     b32 kill_dialogue = false;
     
-    Editing_File *file = working_set_name_contains(&models->working_set, name);
-    if (file && !file->settings.never_kill){
+    if (!file->settings.never_kill){
         if (buffer_needs_save(file)){
             view_show_interactive(system, view,
                                   IAct_Sure_To_Kill, IInt_Sure_To_Kill,
@@ -3357,13 +3378,25 @@ interactive_try_kill_file(System_Functions *system, Models *models, View *view, 
     return(kill_dialogue);
 }
 
+internal b32
+interactive_try_kill_file_by_name(System_Functions *system, Models *models, View *view, String name){
+    b32 kill_dialogue = false;
+    
+    Editing_File *file = working_set_name_contains(&models->working_set, name);
+    if (file){
+        kill_dialogue = interactive_try_kill_file(system, models, view, file);
+    }
+    
+    return(kill_dialogue);
+}
+
 internal void
 interactive_view_complete(System_Functions *system, View *view, String dest, i32 user_action){
     Models *models = view->persistent.models;
     
     switch (view->action){
         case IAct_Open:
-        view_interactive_open_file(system, models, view, dest);
+        view_open_file(system, models, view, dest);
         view_show_file(view);
         break;
         
@@ -3390,7 +3423,7 @@ interactive_view_complete(System_Functions *system, View *view, String dest, i32
         break;
         
         case IAct_Kill:
-        if (!interactive_try_kill_file(system, models, view, dest)){
+        if (!interactive_try_kill_file_by_name(system, models, view, dest)){
             view_show_file(view);
         }
         break;
@@ -3649,7 +3682,7 @@ get_exhaustive_info(System_Functions *system, Working_Set *working_set, Exhausti
     loop->full_path.size = loop->r;
     append(&loop->full_path, result.info->filename);
     terminate_with_null(&loop->full_path);
-    file = working_set_uhash_contains(system, working_set, loop->full_path);
+    file = working_set_uhash_contains(system, working_set, loop->full_path.str);
     
     String filename = make_string(result.info->filename,
                                   result.info->filename_len, result.info->filename_len+1);
