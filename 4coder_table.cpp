@@ -170,15 +170,12 @@ table_rehash(Table *src, Table *dst, void *arg, Hash_Function *hash_func, Compar
 static uint32_t
 tbl_string_hash(void *item, void *arg){
     String *string = (String*)item;
-    char *str;
-    int32_t i,len;
+    char *str = string->str;
+    int32_t i = 0, len = string->size;
     uint32_t x = 5381;
     char c;
     (void)arg;
     
-    str = string->str;
-    len = string->size;
-    i = 0;
     while (i < len){
         c = str[i++];
         x = ((x << 5) + x) + c;

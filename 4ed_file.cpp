@@ -188,6 +188,7 @@ struct Editing_File{
     Editing_File_Name name;
     Buffer_Slot_ID id;
     u64 unique_buffer_id;
+    Unique_Hash file_index;
 };
 
 struct Non_File_Table_Entry{
@@ -208,7 +209,8 @@ struct Working_Set{
 	File_Node free_sentinel;
     File_Node used_sentinel;
     
-    Table table;
+    Table uhash_table;
+    Table name_table;
     
 	String clipboards[64];
 	i32 clipboard_size, clipboard_max_size;
@@ -218,42 +220,6 @@ struct Working_Set{
     
     File_Node *sync_check_iter;
 };
-
-struct File_Entry{
-    String short_name;
-    String long_name;
-    Buffer_Slot_ID id;
-};
-
-struct File_Entry_Comparison{
-    File_Entry entry;
-    Unique_Hash hash;
-    b32 use_hash;
-};
-
-internal i32
-tbl_file_compare(void *a, void *b, void *arg){
-    File_Entry_Comparison *fa = (File_Entry_Comparison*)a;
-    File_Entry *fb = (File_Entry*)b;
-    System_Functions *system = (System_Functions*)arg;
-    Unique_Hash uhash;
-    i32 result = 1;
-    b32 success;
-    
-    if (fa->use_hash){
-        uhash = system->file_unique_hash(fb->long_name, &success);
-        if (success && uhash_equal(uhash, fa->hash)){
-            result = 0;
-		}
-	}
-    else{
-        if (match(fa->entry.short_name, fb->short_name)){
-            result = 0;
-		}
-	}
-    
-    return(result);
-}
 
 //
 // File_Edit_Positions stuff
@@ -382,6 +348,48 @@ edit_pos_get_new(Editing_File *file, i32 index){
 // Working_Set stuff
 //
 
+struct File_Uhash_Entry{
+    Unique_Hash hash;
+    Buffer_Slot_ID id;
+};
+
+struct File_Name_Entry{
+    String name;
+    Buffer_Slot_ID id;
+};
+
+internal u32
+tbl_uhash_hash(void *item, void *arg){
+    Unique_Hash *hash = (Unique_Hash*)item;
+    return(hash->d[0] ^ (hash->d[1] << 24));
+}
+
+internal i32
+tbl_uhash_compare(void *a, void *b, void *arg){
+    Unique_Hash *fa = (Unique_Hash*)a;
+    File_Uhash_Entry *fb = (File_Uhash_Entry*)b;
+    
+    i32 result = 1;
+    if (uhash_equal(fb->hash, *fa)){
+        result = 0;
+    }
+    
+    return(result);
+}
+
+internal i32
+tbl_name_compare(void *a, void *b, void *arg){
+    String *fa = (String*)a;
+    File_Name_Entry *fb = (File_Name_Entry*)b;
+    
+    i32 result = 1;
+    if (match(*fa, fb->name)){
+        result = 0;
+    }
+    
+    return(result);
+}
+
 internal void
 working_set_extend_memory(Working_Set *working_set, Editing_File *new_space, i16 number_of_files){
     Buffer_Slot_ID id;
@@ -434,7 +442,7 @@ working_set_alloc(Working_Set *working_set){
         ++working_set->file_count;
     }
     
-    return result;
+    return(result);
 }
 
 internal Editing_File*
@@ -472,7 +480,7 @@ working_set_free_file(Working_Set  *working_set, Editing_File *file){
 inline Editing_File*
 working_set_index(Working_Set *working_set, Buffer_Slot_ID id){
     Editing_File *result = 0;
-    File_Array *array;
+    File_Array *array = 0;
     
     if (id.part[1] >= 0 && id.part[1] < working_set->array_count){
         array = working_set->file_arrays + id.part[1];
@@ -486,8 +494,7 @@ working_set_index(Working_Set *working_set, Buffer_Slot_ID id){
 
 inline Editing_File*
 working_set_index(Working_Set *working_set, i32 id){
-    Editing_File *result;
-    result = working_set_index(working_set, to_file_id(id));
+    Editing_File *result = working_set_index(working_set, to_file_id(id));
     return(result);
 }
 
@@ -510,45 +517,54 @@ working_set_get_active_file(Working_Set *working_set, i32 id){
 
 internal void
 working_set_init(Working_Set *working_set, Partition *partition, General_Memory *general){
-    Editing_File *files, *null_file;
-    void *mem;
-    i32 mem_size, table_size;
-    
-    i32 item_size = sizeof(File_Entry);
     i16 init_count = 16;
     i16 array_init_count = 256;
     
     dll_init_sentinel(&working_set->free_sentinel);
     dll_init_sentinel(&working_set->used_sentinel);
-
+    
     working_set->array_max = array_init_count;
     working_set->file_arrays = push_array(partition, File_Array, array_init_count);
-
-    files = push_array(partition, Editing_File, init_count);
+    
+    Editing_File *files = push_array(partition, Editing_File, init_count);
     working_set_extend_memory(working_set, files, init_count);
-
-    null_file = working_set_index(working_set, 0);
-    dll_remove(&null_file->node);
-    null_file->is_dummy = 1;
-    ++working_set->file_count;
-
-    table_size = working_set->file_max;
-    mem_size = table_required_mem_size(table_size, item_size);
-    mem = general_memory_allocate(general, mem_size);
-    memset(mem, 0, mem_size);
-    table_init_memory(&working_set->table, mem, table_size, item_size);
+    
+    // NOTE(allen): init null file
+    {
+        Editing_File *null_file = working_set_index(working_set, 0);
+        dll_remove(&null_file->node);
+        null_file->is_dummy = 1;
+        ++working_set->file_count;
+    }
+    
+    // NOTE(allen): init uhash table
+    {
+        i32 item_size = sizeof(File_Uhash_Entry);
+        i32 table_size = working_set->file_max;
+        i32 mem_size = table_required_mem_size(table_size, item_size);
+        void *mem = general_memory_allocate(general, mem_size);
+        memset(mem, 0, mem_size);
+        table_init_memory(&working_set->uhash_table, mem, table_size, item_size);
+    }
+    
+    // NOTE(allen): init name table
+    {
+        i32 item_size = sizeof(File_Name_Entry);
+        i32 table_size = working_set->file_max;
+        i32 mem_size = table_required_mem_size(table_size, item_size);
+        void *mem = general_memory_allocate(general, mem_size);
+        memset(mem, 0, mem_size);
+        table_init_memory(&working_set->name_table, mem, table_size, item_size);
+    }
 }
 
 inline void
 working_set__grow_if_needed(Table *table, General_Memory *general, void *arg, Hash_Function *hash_func, Compare_Function *comp_func){
-    Table btable;
-    i32 new_max, mem_size;
-    void *mem;
-    
     if (table_at_capacity(table)){
-        new_max = table->max * 2;
-        mem_size = table_required_mem_size(new_max, table->item_size);
-        mem = general_memory_allocate(general, mem_size);
+        Table btable = {0};
+        i32 new_max = table->max * 2;
+        i32 mem_size = table_required_mem_size(new_max, table->item_size);
+        void *mem = general_memory_allocate(general, mem_size);
         table_init_memory(&btable, mem, new_max, table->item_size);
         table_clear(&btable);
         table_rehash(table, &btable, 0, hash_func, comp_func);
@@ -557,6 +573,80 @@ working_set__grow_if_needed(Table *table, General_Memory *general, void *arg, Ha
     }
 }
 
+internal Editing_File*
+working_set_uhash_contains(Working_Set *working_set, Unique_Hash index){
+    Editing_File *result = 0;
+    
+    File_Uhash_Entry *entry = (File_Uhash_Entry*)
+        table_find_item(&working_set->uhash_table, &index, 0, tbl_uhash_hash, tbl_uhash_compare);
+    if (entry){
+        result = working_set_index(working_set, entry->id);
+    }
+    
+    return(result);
+}
+
+internal Editing_File*
+working_set_uhash_contains(System_Functions *system, Working_Set *working_set, String name){
+    Editing_File *file = 0;
+    Unique_Hash index = {0};
+    if (system->get_file_index(name.str, &index)){
+        if (!uhash_equal(index, uhash_zero())){
+            file = working_set_uhash_contains(working_set, index);
+        }
+    }
+    return(file);
+}
+
+internal void
+working_set_uhash_add(General_Memory *general, Working_Set *working_set,
+                      Editing_File *file, Unique_Hash hash){
+    working_set__grow_if_needed(&working_set->uhash_table, general,
+                                0, tbl_uhash_hash, tbl_uhash_compare);
+    
+    File_Uhash_Entry entry;
+    entry.hash = hash;
+    entry.id = file->id;
+    table_add(&working_set->uhash_table, &entry, 0, tbl_uhash_hash, tbl_uhash_compare);
+}
+
+internal void
+working_set_uhash_remove(Working_Set *working_set, Unique_Hash hash){
+    table_remove_match(&working_set->uhash_table, &hash, 0, tbl_uhash_hash, tbl_uhash_compare);
+}
+
+internal Editing_File*
+working_set_name_contains(Working_Set *working_set, String name){
+    Editing_File *result = 0;
+    
+    File_Name_Entry *entry = (File_Name_Entry*)
+        table_find_item(&working_set->name_table, &name, 0, tbl_string_hash, tbl_string_compare);
+    if (entry){
+        result = working_set_index(working_set, entry->id);
+    }
+    
+    return(result);
+}
+
+internal void
+working_set_name_add(General_Memory *general, Working_Set *working_set,
+                     Editing_File *file, String name){
+    working_set__grow_if_needed(&working_set->name_table, general,
+                                0, tbl_string_hash, tbl_string_compare);
+    
+    File_Name_Entry entry;
+    entry.name = name;
+    entry.id = file->id;
+    table_add(&working_set->name_table, &entry, 0, tbl_string_hash, tbl_string_compare);
+}
+
+internal void
+working_set_name_remove(Working_Set *working_set, String name){
+    table_remove_match(&working_set->name_table, &name, 0, tbl_string_hash, tbl_string_compare);
+}
+
+
+#if 0
 inline void
 working_set__entry_comp(System_Functions *system, String filename, File_Entry_Comparison *out){
     out->entry.long_name = filename;
@@ -572,7 +662,6 @@ working_set_contains(System_Functions *system, Working_Set *working_set, String 
     working_set__entry_comp(system, filename, &entry_comp);
     
     entry = (File_Entry*)table_find_item(&working_set->table, &entry_comp, system, tbl_string_hash, tbl_file_compare);
-    
     if (entry){
         result = working_set_index(working_set, entry->id);
     }
@@ -602,6 +691,7 @@ working_set_remove(System_Functions *system, Working_Set *working_set, String fi
         system->file_untrack(filename);
     }
 }
+#endif
 
 // TODO(allen): Pick better first options.
 internal Editing_File*
@@ -609,6 +699,7 @@ working_set_lookup_file(Working_Set *working_set, String string){
     Editing_File *file = 0;
     
     {
+        // TODO(allen): use the name table for this
         File_Node *node, *used_nodes;
         used_nodes = &working_set->used_sentinel;
         for (dll_items(node, used_nodes)){
@@ -798,6 +889,131 @@ file_mark_behind_os(Editing_File *file){
 inline File_Sync_State
 file_get_sync(Editing_File *file){
     return (file->state.sync);
+}
+
+internal void
+editing_file_name_init(Editing_File_Name *name){
+    name->live_name = make_fixed_width_string(name->live_name_);
+    name->source_path = make_fixed_width_string(name->source_path_);
+    name->extension = make_fixed_width_string(name->extension_);
+}
+
+internal void
+buffer_get_new_name(Working_Set *working_set, Editing_File_Name *name, String filename){
+    Assert(name->live_name.str != 0);
+    
+    copy_checked(&name->source_path, filename);
+    copy(&name->live_name, front_of_directory(filename));
+    
+    if (name->source_path.size == name->live_name.size){
+        name->extension.size = 0;
+    }
+    else{
+        String ext = file_extension(filename);
+        copy(&name->extension, ext);
+    }
+    
+    {
+        i32 original_len = name->live_name.size;
+        i32 file_x = 0;
+        b32 hit_conflict = 1;
+        while (hit_conflict){
+            hit_conflict = 0;
+            
+            File_Node *used_nodes = &working_set->used_sentinel, *node;
+            for (dll_items(node, used_nodes)){
+                Editing_File *file_ptr = (Editing_File*)node;
+                if (file_is_ready(file_ptr)){
+                    if (match(name->live_name, file_ptr->name.live_name)){
+                        ++file_x;
+                        hit_conflict = 1;
+                        break;
+                    }
+                }
+            }
+            
+            if (hit_conflict){
+                name->live_name.size = original_len;
+                append(&name->live_name, " <");
+                append_int_to_str(&name->live_name, file_x);
+                append(&name->live_name, ">");
+            }
+        }
+    }
+}
+
+inline void
+buffer_get_new_name(Working_Set *working_set, Editing_File_Name *name, char *filename){
+    String f = make_string_slowly(filename);
+    buffer_get_new_name(working_set, name, f);
+}
+
+internal void
+buffer_bind_file(System_Functions *system, General_Memory *general, Working_Set *working_set,
+                 Editing_File *file, Unique_Hash index){
+    Assert(file->name.live_name.size == 0 &&
+           file->name.source_path.size == 0 &&
+           file->name.extension.size == 0);
+    Assert(uhash_equal(file->file_index, uhash_zero()));
+    Assert(!uhash_equal(index, uhash_zero()));
+    
+    working_set_uhash_add(general, working_set, file, index);
+    file->file_index = index;
+}
+
+internal void
+buffer_bind_file(System_Functions *system, General_Memory *general, Working_Set *working_set,
+                 Editing_File *file, char *filename, u32 flags){
+    Assert(file->name.live_name.size == 0 &&
+           file->name.source_path.size == 0 &&
+           file->name.extension.size == 0);
+    Assert(uhash_equal(file->file_index, uhash_zero()));
+    
+    Unique_Hash index = system->track_file(filename, flags);
+    if (!uhash_equal(index, uhash_zero())){
+        working_set_uhash_add(general, working_set, file, index);
+        file->file_index = index;
+    }
+}
+
+internal void
+buffer_unbind_file(System_Functions *system, Working_Set *working_set, Editing_File *file){
+    Assert(file->name.live_name.size == 0 &&
+           file->name.source_path.size == 0 &&
+           file->name.extension.size == 0);
+    Assert(!uhash_equal(file->file_index, uhash_zero()));
+    
+    system->untrack_file(file->file_index);
+    working_set_uhash_remove(working_set, file->file_index);
+    file->file_index = uhash_zero();
+}
+
+internal void
+buffer_bind_name(General_Memory *general, Working_Set *working_set,
+                 Editing_File *file, char *filename){
+    Assert(file->name.live_name.size == 0 &&
+           file->name.source_path.size == 0 &&
+           file->name.extension.size == 0);
+    
+    Editing_File_Name new_name;
+    editing_file_name_init(&new_name);
+    buffer_get_new_name(working_set, &new_name, filename);
+    
+    editing_file_name_init(&file->name);
+    copy(&file->name.live_name, new_name.live_name);
+    copy(&file->name.source_path, new_name.source_path);
+    copy(&file->name.extension, new_name.extension);
+    
+    working_set_name_add(general, working_set, file, file->name.live_name);
+}
+
+internal void
+buffer_unbind_name(Working_Set *working_set, Editing_File *file){
+    Assert(file->name.live_name.size != 0);
+    working_set_name_remove(working_set, file->name.live_name);
+    file->name.live_name.size = 0;
+    file->name.source_path.size = 0;
+    file->name.extension.size = 0;
 }
 
 // BOTTOM

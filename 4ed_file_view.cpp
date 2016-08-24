@@ -780,71 +780,6 @@ starts_new_line(u8 character){
     return (character == '\n');
 }
 
-inline void
-file_init_strings(Editing_File *file){
-    file->name.source_path = make_fixed_width_string(file->name.source_path_);
-    file->name.live_name = make_fixed_width_string(file->name.live_name_);
-    file->name.extension = make_fixed_width_string(file->name.extension_);
-}
-
-internal void
-file_set_name(Working_Set *working_set, Editing_File *file, String filename){
-    String ext;
-    
-    Assert(file->name.live_name.str != 0);
-    
-    copy_checked(&file->name.source_path, filename);
-    
-    copy(&file->name.live_name, front_of_directory(filename));
-    
-    if (file->name.source_path.size == file->name.live_name.size){
-        file->name.extension.size = 0;
-    }
-    else{
-        ext = file_extension(filename);
-        copy(&file->name.extension, ext);
-    }
-    
-    {
-        File_Node *node, *used_nodes;
-        Editing_File *file_ptr;
-        i32 file_x, original_len;
-        b32 hit_conflict;
-        
-        used_nodes = &working_set->used_sentinel;
-        original_len = file->name.live_name.size;
-        hit_conflict = 1;
-        file_x = 0;
-        while (hit_conflict){
-            hit_conflict = 0;
-            for (dll_items(node, used_nodes)){
-                file_ptr = (Editing_File*)node;
-                if (file_ptr != file && file_is_ready(file_ptr)){
-                    if (match(file->name.live_name, file_ptr->name.live_name)){
-                        ++file_x;
-                        hit_conflict = 1;
-                        break;
-                    }
-                }
-            }
-            
-            if (hit_conflict){
-                file->name.live_name.size = original_len;
-                append(&file->name.live_name, " <");
-                append_int_to_str(&file->name.live_name, file_x);
-                append(&file->name.live_name, ">");
-            }
-        }
-    }
-}
-
-inline void
-file_set_name(Working_Set *working_set, Editing_File *file, char *filename){
-    String f = make_string_slowly(filename);
-    file_set_name(working_set, file, f);
-}
-
-
 #if 0
 inline void
 file_synchronize_times(System_Functions *system, Editing_File *file, char *filename){
@@ -860,61 +795,80 @@ file_synchronize_times(System_Functions *system, Editing_File *file, char *filen
 
 inline void
 file_synchronize_times(System_Functions *system, Editing_File *file){
-    file->state.last_sync = system->now_time_stamp();
+    system->now_file_time(&file->state.last_sync);
     file->state.sync = SYNC_GOOD;
 }
 
 internal b32
-file_save(System_Functions *system, Mem_Options *mem, Editing_File *file, char *filename){
+file_save(System_Functions *system, Mem_Options *mem, Editing_File *file){
     b32 result = 0;
     
-    i32 max = 0, size = 0;
-    b32 dos_write_mode = file->settings.dos_write_mode;
-    char *data = 0;
-    Buffer_Type *buffer = &file->state.buffer;
-    
-    if (dos_write_mode){
-        max = buffer_size(buffer) + buffer->line_count + 1;
-    }
-    else{
-        max = buffer_size(buffer);
-    }
-    
-    b32 used_general = 0;
-    Temp_Memory temp = begin_temp_memory(&mem->part);
-    char empty = 0;
-    if (max == 0){
-        data = &empty;
-    }
-    else{
-        data = (char*)push_array(&mem->part, char, max);
+    if (!uhash_equal(file->file_index, uhash_zero())){
+        i32 max = 0, size = 0;
+        b32 dos_write_mode = file->settings.dos_write_mode;
+        char *data = 0;
+        Buffer_Type *buffer = &file->state.buffer;
         
-        if (!data){
-            used_general = 1;
-            data = (char*)general_memory_allocate(&mem->general, max);
+        if (dos_write_mode){
+            max = buffer_size(buffer) + buffer->line_count + 1;
         }
+        else{
+            max = buffer_size(buffer);
+        }
+        
+        b32 used_general = 0;
+        Temp_Memory temp = begin_temp_memory(&mem->part);
+        char empty = 0;
+        if (max == 0){
+            data = &empty;
+        }
+        else{
+            data = (char*)push_array(&mem->part, char, max);
+            
+            if (!data){
+                used_general = 1;
+                data = (char*)general_memory_allocate(&mem->general, max);
+            }
+        }
+        Assert(data);
+        
+        if (dos_write_mode){
+            size = buffer_convert_out(buffer, data, max);
+        }
+        else{
+            size = max;
+            buffer_stringify(buffer, 0, size, data);
+        }
+        
+        result = system->save_file(file->file_index, data, size);
+        
+        file_mark_clean(file);
+        
+        if (used_general){
+            general_memory_free(&mem->general, data);
+        }
+        end_temp_memory(temp);
+        
+        file_synchronize_times(system, file);
     }
-    Assert(data);
     
-    if (dos_write_mode){
-        size = buffer_convert_out(buffer, data, max);
+    return(result);
+}
+
+internal b32
+buffer_link_to_new_file(System_Functions *system, General_Memory *general, Working_Set *working_set,
+                        Editing_File *file, char *filename){
+    b32 result = 0;
+    Unique_Hash index = system->track_file(filename, TrackFileFlag_ExistingOrNew);
+    if (!uhash_equal(index, uhash_zero())){
+        buffer_unbind_name(working_set, file);
+        if (!uhash_equal(file->file_index, uhash_zero())){
+            buffer_unbind_file(system, working_set, file);
+        }
+        buffer_bind_file(system, general, working_set, file, filename, TrackFileFlag_ExistingOrNew);
+        buffer_bind_name(general, working_set, file, filename);
+        result = 1;
     }
-    else{
-        size = max;
-        buffer_stringify(buffer, 0, size, data);
-    }
-    
-    result = system->file_save(filename, data, size);
-    
-    file_mark_clean(file);
-    
-    if (used_general){
-        general_memory_free(&mem->general, data);
-    }
-    end_temp_memory(temp);
-    
-    file_synchronize_times(system, file);
-    
     return(result);
 }
 
@@ -922,12 +876,11 @@ inline b32
 file_save_and_set_names(System_Functions *system, Mem_Options *mem,
                         Working_Set *working_set, Editing_File *file,
                         char *filename){
-    b32 result = 0;
-    result = file_save(system, mem, file, filename);
+    b32 result = buffer_link_to_new_file(system, &mem->general, working_set, file, filename);
     if (result){
-        file_set_name(working_set, file, filename);
+        result = file_save(system, mem, file);
     }
-    return result;
+    return(result);
 }
 
 enum{
@@ -1054,7 +1007,6 @@ file_create_from_string(System_Functions *system, Models *models,
                         String val, b8 read_only = 0){
     
     Font_Set *font_set = models->font_set;
-    Working_Set *working_set = &models->working_set;
     General_Memory *general = &models->mem.general;
     Partition *part = &models->mem.part;
     Buffer_Init_Type init;
@@ -1074,15 +1026,11 @@ file_create_from_string(System_Functions *system, Models *models,
     Assert(scratch_size > 0);
     
     b32 init_success = buffer_end_init(&init, part->base + part->pos, scratch_size);
-    AllowLocal(init_success);
-    Assert(init_success);
+    AllowLocal(init_success); Assert(init_success);
     
     if (buffer_size(&file->state.buffer) < val.size){
         file->settings.dos_write_mode = 1;
     }
-    
-    file_init_strings(file);
-    file_set_name(working_set, file, (char*)name);
     
     file_synchronize_times(system, file);
     
@@ -1127,15 +1075,6 @@ file_create_from_string(System_Functions *system, Models *models,
         open_hook(&models->app_links, file->id.id);
     }
     file->settings.is_initialized = 1;
-}
-
-#undef TEST_TIME_MAX
-
-internal b32
-file_create_empty(System_Functions *system,
-                  Models *models, Editing_File *file, char *filename){
-    file_create_from_string(system, models, file, filename, string_zero());
-    return (1);
 }
 
 internal b32
@@ -3232,7 +3171,6 @@ view_show_file(View *view){
     }
 }
 
-
 internal String
 make_string_terminated(Partition *part, char *str, i32 len){
     char *space = (char*)push_array(part, char, len + 1);
@@ -3244,67 +3182,8 @@ make_string_terminated(Partition *part, char *str, i32 len){
 }
 
 internal void
-view_save_file(System_Functions *system, Models *models,
-               Editing_File *file, View *view, String filename, b32 save_as){
-    Mem_Options *mem = &models->mem;
-    Working_Set *working_set = &models->working_set;
-    
-    Temp_Memory temp = begin_temp_memory(&mem->part);
-    
-    String filename_string =
-        make_string_terminated(&mem->part, filename.str, filename.size);
-    
-    if (!file){
-        if (view){
-            file = view->file_data.file;
-        }
-        else{
-            file = working_set_lookup_file(working_set, filename_string);
-        }
-    }
-    
-    if (file && (file_get_sync(file) != SYNC_GOOD || save_as)){
-        if (file_save(system, mem, file, filename_string.str)){
-            if (save_as){
-                file_set_name(working_set, file, filename_string.str);
-            }
-        }
-    }
-    
-    end_temp_memory(temp);
-}
-
-internal void
-view_new_file(System_Functions *system, Models *models,
-              View *view, String string){
-    Working_Set *working_set = &models->working_set;
-    General_Memory *general = &models->mem.general;
-    
-    Editing_File *file = working_set_alloc_always(working_set, general);
-    file_create_empty(system, models, file, string.str);
-    working_set_add(system, working_set, file, general);
-    
-    view_set_file(view, file, models);
-    view_show_file(view);
-    view->map = get_map(models, file->settings.base_map_id);
-    
-    Open_File_Hook_Function *new_file_fnc = models->hook_new_file;
-    if (new_file_fnc){
-        new_file_fnc(&models->app_links, file->id.id);
-    }
-    file->settings.is_initialized = 1;
-    
-#if BUFFER_EXPERIMENT_SCALPEL <= 0
-    if (file->settings.tokens_exist && file->state.token_stack.tokens == 0){
-        file_first_lex_parallel(system, general, file);
-    }
-#endif
-}
-
-internal void
 init_normal_file(System_Functions *system, Models *models, Editing_File *file,
                  char *buffer, i32 size){
-    
     General_Memory *general = &models->mem.general;
     
     String val = make_string(buffer, size);
@@ -3322,77 +3201,106 @@ init_normal_file(System_Functions *system, Models *models, Editing_File *file,
 }
 
 internal void
-view_open_file(System_Functions *system, Models *models,
-               View *view, String filename){
+view_interactive_open_file(System_Functions *system, Models *models, View *view, String filename){
     Working_Set *working_set = &models->working_set;
-    General_Memory *general = &models->mem.general;
-    Partition *part = &models->mem.part;
+    Editing_File *file = 0;
+    Unique_Hash index = {0};
     
-    Editing_File *file = working_set_contains(system, working_set, filename);
-    
-    if (file == 0){
-        File_Loading loading = system->file_load_begin(filename.str);
-        
-        if (loading.exists){
-            b32 in_general_mem = 0;
-            Temp_Memory temp = begin_temp_memory(part);
-            char *buffer = push_array(part, char, loading.size);
-            
-            // TODO(allen): How will we get temporary space for large
-            // buffers?  The main partition isn't always big enough
-            // but getting a general block this large and copying it
-            // then freeing it is *super* dumb!
-            if (buffer == 0){
-                buffer = (char*)general_memory_allocate(general, loading.size);
-                if (buffer != 0){
-                    in_general_mem = 1;
-                }
-            }
-            
-            if (system->file_load_end(loading, buffer)){
+    if (terminate_with_null(&filename)){
+        if (system->get_file_index(filename.str, &index)){
+            file = working_set_uhash_contains(working_set, index);
+        }
+        else{
+            index = system->track_file(filename.str, TrackFileFlag_ExistingOrFail);
+            if (!uhash_equal(index, uhash_zero())){
+                Mem_Options *mem = &models->mem;
+                General_Memory *general = &mem->general;
+                
                 file = working_set_alloc_always(working_set, general);
-                if (file){
-                    file_init_strings(file);
-                    file_set_name(working_set, file, filename.str);
-                    working_set_add(system, working_set, file, general);
-                    
-                    init_normal_file(system, models, file,
-                                     buffer, loading.size);
+                
+                buffer_bind_file(system, general, working_set, file, index);
+                buffer_bind_name(general, working_set, file, filename.str);
+                
+                i32 size = system->file_size(index);
+                Partition *part = &mem->part;
+                char *buffer = 0;
+                b32 gen_buffer = 0;
+                Temp_Memory temp = begin_temp_memory(part);
+                
+                buffer = push_array(part, char, size);
+                
+                if (buffer == 0){
+                    buffer = (char*)general_memory_allocate(general, size);
+                    Assert(buffer);
+                    gen_buffer = 1;
                 }
+                
+                system->load_file(index, buffer, size);
+                
+                init_normal_file(system, models, file, buffer, size);
+                
+                if (gen_buffer){
+                    general_memory_free(general, buffer);
+                }
+                
+                end_temp_memory(temp);
             }
-            
-            if (in_general_mem){
-                general_memory_free(general, buffer);
-            }
-            
-            end_temp_memory(temp);
         }
     }
     
     if (file){
-        if (view){
-            view_set_file(view, file, models);
-            view_show_file(view);
-        }
+        view_set_file(view, file, models);
     }
 }
 
 internal void
-kill_file(System_Functions *system, Models *models,
-          Editing_File *file, String string){
+view_interactive_save_as(System_Functions *system, Models *models, Editing_File *file, String filename){
+    if (terminate_with_null(&filename)){
+        file_save_and_set_names(system, &models->mem, &models->working_set, file, filename.str);
+    }
+}
+
+internal void
+view_interactive_new_file(System_Functions *system, Models *models, View *view, String filename){
     Working_Set *working_set = &models->working_set;
+    Editing_File *file = 0;
+    Unique_Hash index = {0};
     
-    if (!file && string.str){
-        file = working_set_lookup_file(working_set, string);
-        if (!file){
-            file = working_set_contains(system, working_set, string);
+    if (terminate_with_null(&filename)){
+        if (system->get_file_index(filename.str, &index)){
+            file = working_set_uhash_contains(working_set, index);
+            file_clear(system, models, file);
+        }
+        else{
+            index = system->track_file(filename.str, TrackFileFlag_NewAlways);
+            if (!uhash_equal(index, uhash_zero())){
+                Mem_Options *mem = &models->mem;
+                General_Memory *general = &mem->general;
+                
+                file = working_set_alloc_always(working_set, general);
+                
+                buffer_bind_file(system, general, working_set, file, index);
+                buffer_bind_name(general, working_set, file, filename.str);
+                
+                init_normal_file(system, models, file, 0, 0);
+            }
         }
     }
     
+    if (file){
+        view_set_file(view, file, models);
+    }
+}
+
+internal void
+kill_file(System_Functions *system, Models *models, Editing_File *file){
+    Working_Set *working_set = &models->working_set;
+    
     if (file && !file->settings.never_kill){
-        working_set_remove(system, working_set, file->name.source_path);
+        buffer_unbind_name(working_set, file);
+        buffer_unbind_file(system, working_set, file);
         file_close(system, &models->mem.general, file);
-        working_set_free_file(&models->working_set, file);
+        working_set_free_file(working_set, file);
         
         File_Node *used = &models->working_set.used_sentinel;
         File_Node *node = used->next;
@@ -3412,25 +3320,29 @@ kill_file(System_Functions *system, Models *models,
     }
 }
 
-internal b32
-try_kill_file(System_Functions *system, Models *models,
-              Editing_File *file, View *view, String string){
-    
-    b32 kill_dialogue = false;
-    Working_Set *working_set = &models->working_set;
-    
-    if (!file && string.str){
-        file = working_set_lookup_file(working_set, string);
-        if (!file){
-            file = working_set_contains(system, working_set, string);
-        }
+internal void
+kill_file_by_name(System_Functions *system, Models *models, String name){
+    Editing_File *file = working_set_name_contains(&models->working_set, name);
+    if (file){
+        kill_file(system, models, file);
     }
+}
+
+internal void
+save_file_by_name(System_Functions *system, Models *models, String name){
+    Editing_File *file = working_set_name_contains(&models->working_set, name);
+    if (file){
+        file_save(system, &models->mem, file);
+    }
+}
+
+internal b32
+interactive_try_kill_file(System_Functions *system, Models *models, View *view, String name){
+    b32 kill_dialogue = false;
     
+    Editing_File *file = working_set_name_contains(&models->working_set, name);
     if (file && !file->settings.never_kill){
         if (buffer_needs_save(file)){
-            if (view == 0){
-                view = models->layout.panels[models->layout.active_panel].view;
-            }
             view_show_interactive(system, view,
                                   IAct_Sure_To_Kill, IInt_Sure_To_Kill,
                                   make_lit_string("Are you sure?"));
@@ -3438,7 +3350,7 @@ try_kill_file(System_Functions *system, Models *models,
             kill_dialogue = true;
         }
         else{
-            kill_file(system, models, file, string_zero());
+            kill_file(system, models, file);
         }
     }
     
@@ -3448,37 +3360,28 @@ try_kill_file(System_Functions *system, Models *models,
 internal void
 interactive_view_complete(System_Functions *system, View *view, String dest, i32 user_action){
     Models *models = view->persistent.models;
-    //Editing_File *old_file = view->file_data.file;
     
     switch (view->action){
         case IAct_Open:
-        view_open_file(system, models, view, dest);
-        //touch_file(&models->working_set, old_file);
+        view_interactive_open_file(system, models, view, dest);
         view_show_file(view);
         break;
         
         case IAct_Save_As:
-        view_save_file(system, models, 0, view, dest, 1);
+        view_interactive_save_as(system, models, view->file_data.file, dest);
         view_show_file(view);
         break;
         
         case IAct_New:
         if (dest.size > 0 && !char_is_slash(dest.str[dest.size-1])){
-            view_new_file(system, models, view, dest);
+            view_interactive_new_file(system, models, view, dest);
             view_show_file(view);
-        }break;
+        }
+        break;
         
         case IAct_Switch:
         {
-            //touch_file(&models->working_set, old_file);
-            
-            Editing_File *file = 0;
-            String string = dest;
-            
-            file = working_set_lookup_file(&models->working_set, string);
-            if (!file){
-                file = working_set_contains(system, &models->working_set, string);
-            }
+            Editing_File *file = working_set_name_contains(&models->working_set, dest);
             if (file){
                 view_set_file(view, file, models);
             }
@@ -3487,7 +3390,7 @@ interactive_view_complete(System_Functions *system, View *view, String dest, i32
         break;
         
         case IAct_Kill:
-        if (!try_kill_file(system, models, 0, 0, dest)){
+        if (!interactive_try_kill_file(system, models, view, dest)){
             view_show_file(view);
         }
         break;
@@ -3511,7 +3414,7 @@ interactive_view_complete(System_Functions *system, View *view, String dest, i32
         case IAct_Sure_To_Kill:
         switch (user_action){
             case 0:
-            kill_file(system, models, 0, dest);
+            kill_file_by_name(system, models, dest);
             view_show_file(view);
             break;
             
@@ -3520,8 +3423,8 @@ interactive_view_complete(System_Functions *system, View *view, String dest, i32
             break;
             
             case 2:
-            view_save_file(system, models, 0, 0, dest, 0);
-            kill_file(system, models, 0, dest);
+            save_file_by_name(system, models, dest);
+            kill_file_by_name(system, models, dest);
             view_show_file(view);
             break;
         }
@@ -3746,7 +3649,7 @@ get_exhaustive_info(System_Functions *system, Working_Set *working_set, Exhausti
     loop->full_path.size = loop->r;
     append(&loop->full_path, result.info->filename);
     terminate_with_null(&loop->full_path);
-    file = working_set_contains(system, working_set, loop->full_path);
+    file = working_set_uhash_contains(system, working_set, loop->full_path);
     
     String filename = make_string(result.info->filename,
                                   result.info->filename_len, result.info->filename_len+1);
@@ -4715,7 +4618,8 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                     // Time Watcher
                     {
                         string.size = 0;
-                        u64 time = system->now_time_stamp();
+                        u64 time = 0;
+                        system->now_file_time(&time);
                         
                         append(&string, "last redraw: ");
                         append_u64_to_str(&string, time);

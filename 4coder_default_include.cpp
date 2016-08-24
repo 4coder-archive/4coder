@@ -1654,6 +1654,7 @@ isearch(Application_Links *app, int start_reversed){
     int reverse = start_reversed;
     int pos = view.cursor.pos;
     int start_pos = pos;
+    int first_pos = pos;
     Range match = make_range(pos, pos);
     
     char bar_string_space[256];
@@ -1756,7 +1757,7 @@ isearch(Application_Links *app, int start_reversed){
     }
     app->view_set_highlight(app, &view, 0, 0, false);
     if (in.abort){
-        app->view_set_cursor(app, &view, seek_pos(start_pos), true);
+        app->view_set_cursor(app, &view, seek_pos(first_pos), true);
         return;
     }
     
