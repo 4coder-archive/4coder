@@ -29,6 +29,24 @@ Created on: 20.07.2016
 # define NotImplemented Assert(!"not implemented")
 #endif
 
+typedef struct{
+    uint32_t id[4];
+} File_Index;
+
+static File_Index
+zero_file_index(){
+    File_Index a = {0};
+    return(a);
+}
+
+static int32_t
+file_index_eq(File_Index a, File_Index b){
+    return ((a.id[0] == b.id[0]) &&
+            (a.id[1] == b.id[1]) &&
+            (a.id[2] == b.id[2]) &&
+            (a.id[3] == b.id[3]));
+}
+
 typedef uint32_t rptr32;
 
 typedef struct DLL_Node {
@@ -42,6 +60,7 @@ typedef struct {
     int32_t user_count;
     
     char dir_name[512];
+    int32_t dir_name_len;
     
     // TODO(allen): I am only ever using one thread
     // for reading results.  So is it possible to
@@ -58,7 +77,6 @@ typedef struct {
 
 typedef struct {
     HANDLE iocp;
-    HANDLE thread;
     CRITICAL_SECTION table_lock;
     
     void *tables;
@@ -69,32 +87,17 @@ typedef struct {
 typedef struct {
     int32_t size;
     uint32_t tracked_count;
-    uint32_t tracked_dir_count;
     uint32_t max;
-    uint32_t change_write_pos;
-    uint32_t change_read_pos;
-    rptr32 change_queue;
     rptr32 file_table;
 } File_Track_Tables;
 
 typedef struct {
-    HANDLE file, dir;
+    HANDLE dir;
     File_Index hash;
-    union {
-        Directory_Listener_Node *listener_node;
-        struct {
-            int32_t change_pos;
-            int32_t skip_change;
-        };
-    };
+    Directory_Listener_Node *listener_node;
 } File_Track_Entry;
 
-typedef struct {
-    File_Index index;
-    int32_t still_active;
-} File_Change_Record;
-
-#define FILE_ENTRY_COST (sizeof(File_Change_Record) + sizeof(File_Track_Entry))
+#define FILE_ENTRY_COST (sizeof(File_Track_Entry))
 
 #define to_vars_(s) ((File_Track_Vars*)(s))
 #define to_tables(v) ((File_Track_Tables*)(v->tables))
@@ -220,12 +223,7 @@ get_file_entry(File_Track_Tables *tables, File_Index index){
     return(entry);
 }
 
-File_Track_Result
-internal_get_tracked_file_index(File_Track_Tables *tables,
-                                char *name,
-                                File_Index *index,
-                                File_Track_Entry **entry);
-
+#if 0
 static DWORD
 directory_watching(LPVOID ptr){
     File_Track_Vars *vars = to_vars_(ptr);
@@ -341,6 +339,7 @@ directory_watching(LPVOID ptr){
         }
     }
 }
+#endif
 
 File_Track_Result
 init_track_system(File_Track_System *system,
@@ -359,14 +358,11 @@ init_track_system(File_Track_System *system,
         {
             tables->size = table_memory_size;
             tables->tracked_count = 0;
-            tables->tracked_dir_count = 0;
             
             int32_t likely_entry_size = FILE_ENTRY_COST;
             int32_t max_number_of_entries = (table_memory_size - sizeof(*tables)) / likely_entry_size;
             
-            tables->change_queue = sizeof(*tables);
-            tables->file_table = tables->change_queue +
-                sizeof(File_Change_Record)*max_number_of_entries;
+            tables->file_table = sizeof(*tables);
             tables->max = max_number_of_entries;
         }
         
@@ -381,16 +377,10 @@ init_track_system(File_Track_System *system,
             }
         }
         
-        // NOTE(allen): Launch the file watching thread
+        // NOTE(allen): Prepare the file tracking synchronization objects.
         {
             InitializeCriticalSection(&vars->table_lock);
-            
             vars->iocp = CreateIoCompletionPort(INVALID_HANDLE_VALUE, 0, 0, 1);
-            
-            vars->thread = CreateThread(0, 0,
-                                        directory_watching,
-                                        system,
-                                        0, 0);
         }
         
         result = FileTrack_Good;
@@ -433,12 +423,6 @@ internal_get_file_index(BY_HANDLE_FILE_INFORMATION info){
 }
 
 static void
-internal_set_time(File_Time *time, BY_HANDLE_FILE_INFORMATION info){
-    *time = (((uint64_t)info.ftLastWriteTime.dwHighDateTime << 32) |
-             (info.ftLastWriteTime.dwLowDateTime));
-}
-
-static void
 internal_free_slot(File_Track_Tables *tables, File_Track_Entry *entry){
     Assert(!entry_is_available(entry));
     
@@ -452,328 +436,138 @@ internal_free_slot(File_Track_Tables *tables, File_Track_Entry *entry){
 }
 
 File_Track_Result
-internal_track_file(File_Track_Vars *vars, File_Track_Tables *tables,
-                    char *name, HANDLE file, File_Index *index, File_Time *time){
-    
+add_listener(File_Track_System *system, char *filename){
     File_Track_Result result = FileTrack_Good;
+    File_Track_Vars *vars = to_vars_(system);
     
-    if (file != INVALID_HANDLE_VALUE){
+    EnterCriticalSection(&vars->table_lock);
+    {
+        File_Track_Tables *tables = to_tables(vars);
+        
+        // TODO(allen): make this real!
         char dir_name[1024];
         int32_t dir_name_len =
-            internal_get_parent_name(dir_name, sizeof(dir_name), name);
+            internal_get_parent_name(dir_name, sizeof(dir_name), filename);
         
         HANDLE dir = CreateFile(
             dir_name,
             FILE_LIST_DIRECTORY,
-            FILE_SHARE_READ | FILE_SHARE_WRITE,
+            FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
             0,
             OPEN_EXISTING,
             FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OVERLAPPED,
             0);
         
         if (dir != INVALID_HANDLE_VALUE){
-            BY_HANDLE_FILE_INFORMATION info = {0};
             BY_HANDLE_FILE_INFORMATION dir_info = {0};
+            DWORD getinfo_result = GetFileInformationByHandle(dir, &dir_info);
             
-            if (GetFileInformationByHandle(dir, &dir_info)){
+            if (getinfo_result){
                 File_Index dir_hash = internal_get_file_index(dir_info);
-                
                 File_Lookup_Result dir_lookup = tracking_system_lookup_entry(tables, dir_hash);
                 
-                if (GetFileInformationByHandle(file, &info)){
-                    File_Index hash = internal_get_file_index(info);
-                    
-                    if (entry_is_available(dir_lookup.entry)){
-                        if (tracking_system_has_space(tables, 2)){
-                            Directory_Listener_Node *node = (Directory_Listener_Node*)
-                                allocate_node(&vars->free_sentinel);
-                            if (node){
-                                if (CreateIoCompletionPort(dir, vars->iocp, (ULONG_PTR)node, 1)){
-                                    ZeroStruct(node->listener.overlapped);
-                                    if (ReadDirectoryChangesW(dir,
-                                                              node->listener.result,
-                                                              sizeof(node->listener.result),
-                                                              0,
-                                                              FILE_NOTIFY_CHANGE_LAST_WRITE,
-                                                              0,
-                                                              &node->listener.overlapped,
-                                                              0)){
-                                        node->listener.dir = dir;
-                                        node->listener.user_count = 1;
-                                        
-                                        // TODO(allen): make this real!
-                                        Assert(dir_name_len < sizeof(node->listener.dir_name));
-                                        for (int32_t i = 0; i < dir_name_len; ++i){
-                                            node->listener.dir_name[i] = dir_name[i];
-                                        }
-                                        node->listener.dir_name[dir_name_len] = 0;
-                                        
-                                        dir_lookup.entry->hash = dir_hash;
-                                        dir_lookup.entry->file = dir;
-                                        dir_lookup.entry->dir = dir;
-                                        dir_lookup.entry->listener_node = node;
-                                        ++tables->tracked_count;
-                                        ++tables->tracked_dir_count;
-                                        
-                                        File_Lookup_Result lookup =
-                                            tracking_system_lookup_entry(tables, hash);
-                                        Assert(entry_is_available(lookup.entry));
-                                        
-                                        lookup.entry->hash = hash;
-                                        lookup.entry->file = file;
-                                        lookup.entry->dir = node->listener.dir;
-                                        lookup.entry->change_pos = -1;
-                                        ++tables->tracked_count;
-                                        
-                                        *index = hash;
-                                        internal_set_time(time, info);
+                if (entry_is_available(dir_lookup.entry)){
+                    if (tracking_system_has_space(tables, 1)){
+                        Directory_Listener_Node *node = (Directory_Listener_Node*)
+                            allocate_node(&vars->free_sentinel);
+                        if (node){
+                            if (CreateIoCompletionPort(dir, vars->iocp, (ULONG_PTR)node, 1)){
+                                ZeroStruct(node->listener.overlapped);
+                                if (ReadDirectoryChangesW(dir,
+                                                          node->listener.result,
+                                                          sizeof(node->listener.result),
+                                                          0,
+                                                          FILE_NOTIFY_CHANGE_LAST_WRITE,
+                                                          0,
+                                                          &node->listener.overlapped,
+                                                          0)){
+                                    node->listener.dir = dir;
+                                    node->listener.user_count = 1;
+                                    
+                                    // TODO(allen): make this real!
+                                    Assert(dir_name_len < sizeof(node->listener.dir_name));
+                                    for (int32_t i = 0; i < dir_name_len; ++i){
+                                        node->listener.dir_name[i] = dir_name[i];
                                     }
-                                    else{
-                                        result = FileTrack_FileSystemError;
-                                    }
+                                    node->listener.dir_name[dir_name_len] = 0;
+                                    node->listener.dir_name_len = dir_name_len;
+                                    
+                                    dir_lookup.entry->hash = dir_hash;
+                                    dir_lookup.entry->dir = dir;
+                                    dir_lookup.entry->listener_node = node;
+                                    ++tables->tracked_count;
                                 }
                                 else{
                                     result = FileTrack_FileSystemError;
                                 }
-                                
-                                if (result != FileTrack_Good){
-                                    insert_node(&vars->free_sentinel, &node->node);
-                                }
                             }
                             else{
-                                result = FileTrack_OutOfListenerMemory;
+                                result = FileTrack_FileSystemError;
+                            }
+                            
+                            if (result != FileTrack_Good){
+                                insert_node(&vars->free_sentinel, &node->node);
                             }
                         }
                         else{
-                            result = FileTrack_OutOfTableMemory;
+                            result = FileTrack_OutOfListenerMemory;
                         }
                     }
                     else{
-                        if (tracking_system_has_space(tables, 1)){
-                            File_Lookup_Result lookup = tracking_system_lookup_entry(tables, hash);
-                            if (entry_is_available(lookup.entry)){
-                                Directory_Listener_Node *node = dir_lookup.entry->listener_node;
-                                ++node->listener.user_count;
-                                
-                                lookup.entry->hash = hash;
-                                lookup.entry->file = file;
-                                lookup.entry->dir = node->listener.dir;
-                                lookup.entry->change_pos = -1;
-                                ++tables->tracked_count;
-                                
-                                *index = hash;
-                                internal_set_time(time, info);
-                            }
-                            else{
-                                result = FileTrack_FileAlreadyTracked;
-                            }
-                        }
-                        else{
-                            result = FileTrack_OutOfTableMemory;
-                        }
+                        result = FileTrack_OutOfTableMemory;
                     }
                 }
                 else{
-                    result = FileTrack_FileSystemError;
+                    Directory_Listener_Node *node = dir_lookup.entry->listener_node;
+                    ++node->listener.user_count;
                 }
             }
             else{
                 result = FileTrack_FileSystemError;
             }
-            
-            if (result != FileTrack_Good && dir != 0){
-                CloseHandle(dir);
-            }
         }
         else{
             result = FileTrack_FileSystemError;
         }
+        
+        if (result != FileTrack_Good && dir != 0 && dir != INVALID_HANDLE_VALUE){
+            CloseHandle(dir);
+        }
     }
-    else{
-        result = FileTrack_FileNotFound;
-    }
+    LeaveCriticalSection(&vars->table_lock);
     
     return(result);
 }
 
-HANDLE
-open_file_best_privledges(char *name, DWORD open_disposition){
-    
-    // TODO(allen): Try multiple ways to open the
-    // file and get as many privledges as possible.
-    // Expand the API to be capable of reporting
-    // what privledges are available on a file.
-    HANDLE file = CreateFile(
-        name,
-        GENERIC_READ | GENERIC_WRITE,
-        FILE_SHARE_READ | FILE_SHARE_WRITE,
-        0,
-        open_disposition,
-        FILE_ATTRIBUTE_NORMAL,
-        0);
-    
-    return(file);
-}
-
 File_Track_Result
-begin_tracking_file(File_Track_System *system,
-                    char *name,
-                    File_Index *index,
-                    File_Time *time){
+remove_listener(File_Track_System *system, char *filename){
     File_Track_Result result = FileTrack_Good;
     File_Track_Vars *vars = to_vars_(system);
     
     EnterCriticalSection(&vars->table_lock);
+    
     {
         File_Track_Tables *tables = to_tables(vars);
-        HANDLE file = open_file_best_privledges(name, OPEN_EXISTING);
-        result = internal_track_file(vars, tables, name, file, index, time);
-        if (file != INVALID_HANDLE_VALUE && result != FileTrack_Good){
-            CloseHandle(file);
-        }
-    }
-    LeaveCriticalSection(&vars->table_lock);
-    
-    return(result);
-}
-
-File_Track_Result
-begin_tracking_new_file(File_Track_System *system, char *name, File_Index *index, File_Time *time){
-    File_Track_Result result = FileTrack_Good;
-    File_Track_Vars *vars = to_vars_(system);
-    
-    EnterCriticalSection(&vars->table_lock);
-    {
-        File_Track_Tables *tables = to_tables(vars);
-        HANDLE file = open_file_best_privledges(name, CREATE_ALWAYS);
-        result = internal_track_file(vars, tables, name, file, index, time);
-        if (file != INVALID_HANDLE_VALUE && result != FileTrack_Good){
-            CloseHandle(file);
-        }
-    }
-    LeaveCriticalSection(&vars->table_lock);
-    
-    return(result);
-}
-
-File_Track_Result
-get_file_temp_handle(char *name, File_Temp_Handle *handle){
-    File_Track_Result result = FileTrack_FileNotFound;
-    
-    HANDLE h = open_file_best_privledges(name, OPEN_EXISTING);
-    if (h != INVALID_HANDLE_VALUE){
-        *(HANDLE*)handle = h;
-        result = FileTrack_Good;
-    }
-    
-    return(result);
-}
-
-File_Track_Result
-begin_tracking_from_handle(File_Track_System *system, char *name, File_Temp_Handle handle,
-                           File_Index *index, File_Time *time){
-    File_Track_Result result = FileTrack_Good;
-    File_Track_Vars *vars = to_vars_(system);
-    
-    EnterCriticalSection(&vars->table_lock);
-    {
-        File_Track_Tables *tables = to_tables(vars);
-        HANDLE file = *(HANDLE*)(&handle);
-        result = internal_track_file(vars, tables, name, file, index, time);
-    }
-    LeaveCriticalSection(&vars->table_lock);
-    
-    return(result);
-}
-
-File_Track_Result
-finish_with_temp_handle(File_Temp_Handle handle){
-    File_Track_Result result = FileTrack_Good;
-    
-    HANDLE file = *(HANDLE*)(&handle);
-    CloseHandle(file);
-    
-    return(result);
-}
-
-File_Track_Result
-internal_get_tracked_file_index(File_Track_Tables *tables,
-                                char *name,
-                                File_Index *index,
-                                File_Track_Entry **entry){
-    File_Track_Result result = FileTrack_Good;
-    
-    // TODO(allen): Can I open this file with no permissions?
-    HANDLE file = CreateFile(
-        name,
-        GENERIC_READ | GENERIC_WRITE,
-        FILE_SHARE_READ | FILE_SHARE_WRITE,
-        0,
-        OPEN_EXISTING,
-        FILE_ATTRIBUTE_NORMAL,
-        0);
-    
-    if (file != INVALID_HANDLE_VALUE){
-        BY_HANDLE_FILE_INFORMATION info = {0};
-        if (GetFileInformationByHandle(file, &info)){
-            File_Index hash = internal_get_file_index(info);
-            
-            File_Lookup_Result lookup = tracking_system_lookup_entry(tables, hash);
-            if (!entry_is_available(lookup.entry)){
-                *index = hash;
-                *entry = lookup.entry;
-            }
-            else{
-                result = FileTrack_FileNotTracked;
-            }
-        }
-        else{
-            result = FileTrack_FileSystemError;
-        }
-        CloseHandle(file);
-    }
-    else{
-        result = FileTrack_FileNotFound;
-    }
-    
-    return(result);
-}
-
-File_Track_Result
-get_tracked_file_index(File_Track_System *system,
-                       char *name,
-                       File_Index *index){
-    File_Track_Result result = FileTrack_Good;
-    File_Track_Vars *vars = to_vars_(system);
-    File_Track_Tables *tables = 0;
-    File_Track_Entry *entry = 0;
-    
-    EnterCriticalSection(&vars->table_lock);
-    tables = to_tables(vars);
-    result = internal_get_tracked_file_index(tables, name, index, &entry);
-    LeaveCriticalSection(&vars->table_lock);
-    
-    return(result);
-}
-
-File_Track_Result
-stop_tracking_file(File_Track_System *system, File_Index index){
-    File_Track_Result result = FileTrack_Good;
-    File_Track_Vars *vars = to_vars_(system);
-    
-    EnterCriticalSection(&vars->table_lock);
-    
-    File_Track_Tables *tables = to_tables(vars);
-    
-    File_Track_Entry *entry = get_file_entry(tables, index);
-    
-    if (entry){
-        HANDLE dir = entry->dir;
-        if (dir != entry->file){
+        
+        // TODO(allen): make this real!
+        char dir_name[1024];
+        internal_get_parent_name(dir_name, sizeof(dir_name), filename);
+        
+        HANDLE dir = CreateFile(
+            dir_name,
+            FILE_LIST_DIRECTORY,
+            FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+            0,
+            OPEN_EXISTING,
+            FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OVERLAPPED,
+            0);
+        
+        if (dir != INVALID_HANDLE_VALUE){
             BY_HANDLE_FILE_INFORMATION dir_info = {0};
-            if (GetFileInformationByHandle(dir, &dir_info)){
+            DWORD getinfo_result = GetFileInformationByHandle(dir, &dir_info);
+            
+            if (getinfo_result){
                 File_Index dir_hash =  internal_get_file_index(dir_info);
-                
                 File_Lookup_Result dir_lookup = tracking_system_lookup_entry(tables, dir_hash);
                 
                 Assert(!entry_is_available(dir_lookup.entry));
@@ -782,79 +576,22 @@ stop_tracking_file(File_Track_System *system, File_Index index){
                 
                 if (node->listener.user_count == 0){
                     insert_node(&vars->free_sentinel, &node->node);
-                    CloseHandle(entry->dir);
+                    CloseHandle(dir_lookup.entry->dir);
                     internal_free_slot(tables, dir_lookup.entry);
-                    --tables->tracked_dir_count;
                 }
-                
-                CloseHandle(entry->file);
-                internal_free_slot(tables, entry);
             }
             else{
                 result = FileTrack_FileSystemError;
             }
-        }
-        else{
-            result = FileTrack_FileNotTracked;
-        }
-    }
-    else{
-        result = FileTrack_FileNotTracked;
-    }
-    
-    LeaveCriticalSection(&vars->table_lock);
-    
-    return(result);
-}
-
-File_Track_Result
-count_tracked_files(File_Track_System *system, int32_t *count){
-    File_Track_Result result = FileTrack_Good;
-    File_Track_Tables *tables = to_tables(to_vars_(system));
-    *count = tables->tracked_count - tables->tracked_dir_count;
-    return(result);
-}
-
-File_Track_Result
-get_tracked_file_time(File_Track_System *system, File_Index index, File_Time *time){
-    File_Track_Result result = FileTrack_Good;
-    File_Track_Vars *vars = to_vars_(system);
-    
-    EnterCriticalSection(&vars->table_lock);
-    
-    File_Track_Tables *tables = to_tables(vars);
-    
-    File_Track_Entry *entry = get_file_entry(tables, index);
-    
-    if (entry){
-        BY_HANDLE_FILE_INFORMATION info = {0};
-        if (GetFileInformationByHandle(entry->file, &info)){
-            internal_set_time(time, info);
+            
+            CloseHandle(dir);
         }
         else{
             result = FileTrack_FileSystemError;
         }
     }
-    else{
-        result = FileTrack_FileNotTracked;
-    }
     
     LeaveCriticalSection(&vars->table_lock);
-    
-    return(result);
-}
-
-File_Track_Result
-get_file_time_now(File_Time *time){
-    File_Track_Result result = FileTrack_Good;
-    
-    FILETIME file_time;
-    SYSTEMTIME system_time;
-    
-    GetSystemTime(&system_time);
-    SystemTimeToFileTime(&system_time, &file_time);
-    *time = (((uint64_t)file_time.dwHighDateTime << 32) |
-             (file_time.dwLowDateTime));
     
     return(result);
 }
@@ -878,48 +615,12 @@ move_track_system(File_Track_System *system, void *mem, int32_t size){
             int32_t likely_entry_size = FILE_ENTRY_COST;
             int32_t max_number_of_entries = (size - sizeof(*tables)) / likely_entry_size;
             
-            tables->change_queue = sizeof(*tables);
-            tables->file_table = tables->change_queue +
-                sizeof(File_Change_Record)*max_number_of_entries;
+            tables->file_table = sizeof(*tables);
             tables->max = max_number_of_entries;
         }
         
         if (tables->max > original_tables->max){
             uint32_t original_max = original_tables->max;
-            
-            uint32_t change_shift = 0;
-            uint32_t change_modulo = original_max;
-            
-            // NOTE(allen): Copy the original change queue
-            {
-                uint32_t start_pos = original_tables->change_read_pos;
-                uint32_t end_pos = original_tables->change_write_pos;
-                
-                uint32_t changes_count = 0;
-                if (original_tables->change_write_pos < original_tables->change_read_pos){
-                    changes_count = original_max + end_pos - start_pos;
-                }
-                else{
-                    changes_count = end_pos - start_pos;
-                }
-                
-                change_shift = original_max - start_pos;
-                
-                File_Change_Record *src = (File_Change_Record*)
-                    to_ptr(original_tables, original_tables->change_queue);
-                
-                File_Change_Record *dst = (File_Change_Record*)
-                    to_ptr(tables, tables->change_queue);
-                
-                for (uint32_t i_dst = 0, i_src = start_pos;
-                     i_dst < changes_count;
-                     ++i_dst, i_src = (i_src+1)%original_max){
-                    dst[i_dst] = src[i_src];
-                }
-                
-                tables->change_read_pos = 0;
-                tables->change_write_pos = changes_count;
-            }
             
             // NOTE(allen): Rehash the tracking table
             {
@@ -937,17 +638,10 @@ move_track_system(File_Track_System *system, void *mem, int32_t size){
                         Assert(entry_is_available(lookup.entry));
                         
                         *lookup.entry = *entry;
-                        
-                        if (lookup.entry->file != lookup.entry->dir &&
-                            lookup.entry->change_pos != -1){
-                            lookup.entry->change_pos =
-                                (lookup.entry->change_pos+change_shift)%change_modulo;
-                        }
                     }
                 }
                 
                 tables->tracked_count = original_tables->tracked_count;
-                tables->tracked_dir_count = original_tables->tracked_dir_count;
             }
             
             // NOTE(allen): Update to the new table
@@ -990,188 +684,83 @@ expand_track_system_listeners(File_Track_System *system, void *mem, int32_t size
 }
 
 File_Track_Result
-get_change_event(File_Track_System *system, File_Index *index){
+get_change_event(File_Track_System *system, char *buffer, int32_t max){
     File_Track_Result result = FileTrack_NoMoreEvents;
     File_Track_Vars *vars = to_vars_(system);
     
     EnterCriticalSection(&vars->table_lock);
     
-    File_Track_Tables *tables = to_tables(vars);
-    
-    uint32_t write_pos = tables->change_write_pos;
-    uint32_t read_pos = tables->change_read_pos;
-    uint32_t max = tables->max;
-    
-    File_Change_Record *change_queue =
-        (File_Change_Record*)to_ptr(tables, tables->change_queue);
-    
-    while (read_pos != write_pos){
-        File_Change_Record *record = change_queue + read_pos;
+    {
+        OVERLAPPED *overlapped = 0;
+        DWORD length = 0;
+        ULONG_PTR key = 0;
         
-        read_pos = (read_pos + 1) % max;
-        
-        if (record->still_active){
-            File_Lookup_Result lookup = tracking_system_lookup_entry(tables, record->index);
-            if (!entry_is_available(lookup.entry)){
-                lookup.entry->change_pos = -1;
-                *index = record->index;
-                result = FileTrack_Good;
-            }
-            break;
-        }
-    }
-    
-    tables->change_write_pos = write_pos;
-    tables->change_read_pos = read_pos;
-    
-    LeaveCriticalSection(&vars->table_lock);
-    
-    return(result);
-}
-
-File_Track_Result
-get_tracked_file_size(File_Track_System *system, File_Index index, uint32_t *size){
-    File_Track_Result result = FileTrack_Good;
-    File_Track_Vars *vars = to_vars_(system);
-    
-    EnterCriticalSection(&vars->table_lock);
-    
-    File_Track_Tables *tables = to_tables(vars);
-    
-    File_Lookup_Result lookup = tracking_system_lookup_entry(tables, index);
-    if (!entry_is_available(lookup.entry)){
-        DWORD lo, hi;
-        lo = GetFileSize(lookup.entry->file, &hi);
-        Assert(hi == 0);
-        *size = lo;
-    }
-    else{
-        result = FileTrack_FileNotTracked;
-    }
-    
-    LeaveCriticalSection(&vars->table_lock);
-    
-    return(result);
-}
-
-File_Track_Result
-get_tracked_file_data(File_Track_System *system, File_Index index, void *mem, uint32_t size){
-    File_Track_Result result = FileTrack_Good;
-    File_Track_Vars *vars = to_vars_(system);
-    
-    EnterCriticalSection(&vars->table_lock);
-    
-    File_Track_Tables *tables = to_tables(vars);
-    
-    File_Lookup_Result lookup = tracking_system_lookup_entry(tables, index);
-    if (!entry_is_available(lookup.entry)){
-        DWORD read_size = 0;
-        if (ReadFile(lookup.entry->file, mem, size, &read_size, 0)){
-            if (read_size != size){
-                result = FileTrack_FileSystemError;
-            }
-        }
-        else{
-            result = FileTrack_FileSystemError;
-        }
-    }
-    else{
-        result = FileTrack_FileNotTracked;
-    }
-    
-    LeaveCriticalSection(&vars->table_lock);
-    
-    return(result);
-}
-
-File_Track_Result
-rewrite_tracked_file(File_Track_System *system, File_Index index,
-                     void *data, int32_t size, File_Time *time){
-    File_Track_Result result = FileTrack_Good;
-    File_Track_Vars *vars = to_vars_(system);
-    
-    EnterCriticalSection(&vars->table_lock);
-    
-    File_Track_Tables *tables = to_tables(vars);
-    
-    File_Lookup_Result lookup = tracking_system_lookup_entry(tables, index);
-    if (!entry_is_available(lookup.entry)){
-        DWORD written = 0;
-        
-        lookup.entry->skip_change = 1;
-        SetFilePointer(lookup.entry->file, 0, 0, FILE_BEGIN);
-        if (WriteFile(lookup.entry->file, data, size, &written, 0)){
-            FILETIME file_time;
-            SYSTEMTIME system_time;
+        if (GetQueuedCompletionStatus(vars->iocp,
+                                      &length,
+                                      &key,
+                                      &overlapped,
+                                      0)){
             
-            GetSystemTime(&system_time);
-            SystemTimeToFileTime(&system_time, &file_time);
-            SetFileTime(lookup.entry->file, 0, 0, &file_time);
+            Directory_Listener *listener_ptr = (Directory_Listener*)overlapped;
+            Directory_Listener listener = *listener_ptr;
             
-            FlushFileBuffers(lookup.entry->file);
-        }
-        else{
-            result = FileTrack_FileSystemError;
-        }
-    }
-    else{
-        result = FileTrack_FileNotTracked;
-    }
-    
-    LeaveCriticalSection(&vars->table_lock);
-    
-    return(result);
-}
-
-File_Track_Result
-rewrite_arbitrary_file(File_Track_System *system, char *filename,
-                       void *data, int32_t size, File_Time *time){
-    File_Track_Result result = FileTrack_Good;
-    
-    HANDLE file = CreateFile(
-        filename,
-        GENERIC_WRITE,
-        FILE_SHARE_READ | FILE_SHARE_WRITE,
-        0,
-        OPEN_EXISTING,
-        FILE_ATTRIBUTE_NORMAL,
-        0);
-    
-    if (file != INVALID_HANDLE_VALUE){
-        File_Track_Vars *vars = to_vars_(system);
-        EnterCriticalSection(&vars->table_lock);
-        {
-            File_Track_Tables *tables = to_tables(vars);
-            BY_HANDLE_FILE_INFORMATION info = {0};
-            if (GetFileInformationByHandle(file, &info)){
-                DWORD written = 0;
+            ZeroStruct(listener_ptr->overlapped);
+            ReadDirectoryChangesW(listener_ptr->dir,
+                                  listener_ptr->result,
+                                  sizeof(listener_ptr->result),
+                                  0,
+                                  FILE_NOTIFY_CHANGE_LAST_WRITE,
+                                  0,
+                                  &listener_ptr->overlapped,
+                                  0);
+            
+            char *listener_buffer = listener.result;
+            DWORD offset = 0;
+            FILE_NOTIFY_INFORMATION *info = 0;
+            
+            for (;;){
+                info = (FILE_NOTIFY_INFORMATION*)(listener_buffer + offset);
                 
-                File_Index index = internal_get_file_index(info);
-                File_Lookup_Result lookup = tracking_system_lookup_entry(tables, index);
-                if (!entry_is_available(lookup.entry)){
-                    lookup.entry->skip_change = 1;
+                int32_t len = info->FileNameLength / 2;
+                if (listener.dir_name_len + 1 + len < max){
+                    int32_t pos = 0;
+                    char *src = listener.dir_name;
+                    for (int32_t i = 0; src[i]; ++i, ++pos){
+                        buffer[pos] = src[i];
+                    }
+                    
+                    buffer[pos++] = '/';
+                    
+                    for (int32_t i = 0; i < len; ++i, ++pos){
+                        buffer[pos] = (char)info->FileName[i];
+                    }
+                    buffer[pos] = 0;
+                    
+                    result = FileTrack_Good;
+                }
+                else{
+                    // TODO(allen): Need some way to stash this result so that if the
+                    // user comes back with more memory we can give them the change
+                    // notification they missed.
+                    result = FileTrack_MemoryTooSmall;
                 }
                 
-                WriteFile(file, data, size, &written, 0);
-                
-                FILETIME file_time;
-                SYSTEMTIME system_time;
-                
-                GetSystemTime(&system_time);
-                SystemTimeToFileTime(&system_time, &file_time);
-                SetFileTime(lookup.entry->file, 0, 0, &file_time);
-            }
-            else{
-                result = FileTrack_FileSystemError;
+                if (info->NextEntryOffset != 0){
+                    // TODO(allen): We're not ready to handle this yet.
+                    // For now I am breaking.  In the future, if there
+                    // are more results we should stash them and return
+                    // them in future calls.
+                    offset += info->NextEntryOffset;
+                    break;
+                }
+                else{
+                    break;
+                }
             }
         }
-        LeaveCriticalSection(&vars->table_lock);
-        
-        CloseHandle(file);
     }
-    else{
-        result = FileTrack_FileNotFound;
-    }
+    
+    LeaveCriticalSection(&vars->table_lock);
     
     return(result);
 }
@@ -1193,7 +782,7 @@ shut_down_track_system(File_Track_System *system){
     for (; index < max; ++index){
         File_Track_Entry *entry = entries + index;
         if (!entry_is_available(entry)){
-            if (!CloseHandle(entry->file)){
+            if (!CloseHandle(entry->dir)){
                 win32_result = 1;
             }
         }
@@ -1202,16 +791,12 @@ shut_down_track_system(File_Track_System *system){
     if (!CloseHandle(vars->iocp)){
         win32_result = 1;
     }
-    TerminateThread(vars->thread, 0);
-    if (!CloseHandle(vars->thread)){
-        win32_result = 1;
-    }
+    
+    DeleteCriticalSection(&vars->table_lock);
     
     if (win32_result){
         result = FileTrack_FileSystemError;
     }
-    
-    DeleteCriticalSection(&vars->table_lock);
     
     return(result);
 }

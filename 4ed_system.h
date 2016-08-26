@@ -39,18 +39,11 @@ uhash_equal(Unique_Hash a, Unique_Hash b){
 #define Sys_Set_File_List_Sig(name) void name(File_List *file_list, String directory)
 typedef Sys_Set_File_List_Sig(System_Set_File_List);
 
-enum{
-    TrackFileFlag_ExistingOrFail = 0x0,
-    TrackFileFlag_NewOrFail = 0x1,
-    TrackFileFlag_NewAlways = 0x2,
-    TrackFileFlag_ExistingOrNew = 0x3,
-};
+#define Sys_Add_Listener_Sig(name) Unique_Hash name(char *filename)
+typedef Sys_Add_Listener_Sig(System_Track_File);
 
-#define Sys_Track_File_Sig(name) Unique_Hash name(char *filename, u32 flags)
-typedef Sys_Track_File_Sig(System_Track_File);
-
-#define Sys_Untrack_File_Sig(name) i32 name(Unique_Hash index)
-typedef Sys_Untrack_File_Sig(System_Untrack_File);
+#define Sys_Remove_Listener_Sig(name) i32 name(char *filename)
+typedef Sys_Remove_Listener_Sig(System_Untrack_File);
 
 #define Sys_Get_File_Index_Sig(name) i32 name(char *filename, Unique_Hash *index)
 typedef Sys_Get_File_Index_Sig(System_Get_File_Index);
