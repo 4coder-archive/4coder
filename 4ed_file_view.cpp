@@ -788,10 +788,12 @@ file_synchronize_times(System_Functions *system, Editing_File *file){
 internal b32
 save_file_to_name(System_Functions *system, Mem_Options *mem, Editing_File *file, char *filename){
     b32 result = 0;
+    b32 using_actual_filename = 0;
     
     if (!filename){
         terminate_with_null(&file->canon.name);
         filename = file->canon.name.str;
+        using_actual_filename = 1;
     }
     
     if (filename){
@@ -832,6 +834,9 @@ save_file_to_name(System_Functions *system, Mem_Options *mem, Editing_File *file
         }
         
         result = system->save_file(filename, data, size);
+        if (result && using_actual_filename){
+            file->state.ignore_behind_os = 1;
+        }
         
         file_mark_clean(file);
         
@@ -861,9 +866,9 @@ buffer_link_to_new_file(System_Functions *system, General_Memory *general, Worki
     if (get_canon_name(system, &canon_name, filename)){
         buffer_unbind_name(working_set, file);
         if (file->canon.name.size != 0){
-            buffer_unbind_file(working_set, file);
+            buffer_unbind_file(system, working_set, file);
         }
-        buffer_bind_file(general, working_set, file, canon_name.name);
+        buffer_bind_file(system, general, working_set, file, canon_name.name);
         buffer_bind_name(general, working_set, file, filename);
         result = 1;
     }
@@ -3228,7 +3233,7 @@ view_open_file(System_Functions *system, Models *models, View *view, String file
                     
                     file = working_set_alloc_always(working_set, general);
                     
-                    buffer_bind_file(general, working_set, file, canon_name.name);
+                    buffer_bind_file(system, general, working_set, file, canon_name.name);
                     buffer_bind_name(general, working_set, file, filename);
                     
                     i32 size = system->load_size(handle);
@@ -3294,7 +3299,7 @@ view_interactive_new_file(System_Functions *system, Models *models, View *view, 
                 
                 file = working_set_alloc_always(working_set, general);
                 
-                buffer_bind_file(general, working_set, file, canon_name.name);
+                buffer_bind_file(system, general, working_set, file, canon_name.name);
                 buffer_bind_name(general, working_set, file, filename);
                 
                 init_normal_file(system, models, file, 0, 0);
@@ -3313,7 +3318,7 @@ kill_file(System_Functions *system, Models *models, Editing_File *file){
     
     if (file && !file->settings.never_kill){
         buffer_unbind_name(working_set, file);
-        buffer_unbind_file(working_set, file);
+        buffer_unbind_file(system, working_set, file);
         file_close(system, &models->mem.general, file);
         working_set_free_file(working_set, file);
         

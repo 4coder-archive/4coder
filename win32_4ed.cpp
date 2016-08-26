@@ -1211,6 +1211,26 @@ Sys_Remove_Listener_Sig(system_remove_listener){
 }
 
 internal
+Sys_Get_File_Change_Sig(system_get_file_change){
+    i32 result = 0;
+    
+    i32 size = 0;
+    i32 get_result = get_change_event(&win32vars.track, buffer, max, &size);
+    
+    *required_size = size;
+    *mem_too_small = 0;
+    if (get_result == FileTrack_Good){
+        result = 1;
+    }
+    else if (get_result == FileTrack_MemoryTooSmall){
+        *mem_too_small = 1;
+        result = 1;
+    }
+    
+    return(result);
+}
+
+internal
 Sys_Load_Handle_Sig(system_load_handle){
     b32 result = 0;
     HANDLE file = CreateFile(filename,
@@ -1664,6 +1684,7 @@ Win32LoadSystemCode(){
     win32vars.system.get_canonical = system_get_canonical;
     win32vars.system.add_listener = system_add_listener;
     win32vars.system.remove_listener = system_remove_listener;
+    win32vars.system.get_file_change = system_get_file_change;
     win32vars.system.load_handle = system_load_handle;
     win32vars.system.load_size = system_load_size;
     win32vars.system.load_file = system_load_file;

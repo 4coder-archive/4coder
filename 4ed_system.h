@@ -38,6 +38,9 @@ typedef Sys_Add_Listener_Sig(System_Add_Listener);
 #define Sys_Remove_Listener_Sig(name) b32 name(char *filename)
 typedef Sys_Remove_Listener_Sig(System_Remove_Listener);
 
+#define Sys_Get_File_Change_Sig(name) i32 name(char *buffer, i32 max, b32 *mem_too_small, i32 *required_size)
+typedef Sys_Get_File_Change_Sig(System_Get_File_Change);
+
 #define Sys_Load_Handle_Sig(name) b32 name(char *filename, Plat_Handle *handle_out)
 typedef Sys_Load_Handle_Sig(System_Load_Handle);
 
@@ -209,11 +212,12 @@ typedef INTERNAL_Sys_Debug_Message_Sig(INTERNAL_System_Debug_Message);
 
 struct System_Functions{
     
-    // files (tracked api): 9
+    // files (tracked api): 10
     System_Set_File_List *set_file_list;
     System_Get_Canonical *get_canonical;
-    System_Add_Listener *add_listener;
+    System_Add_Listener *add_listener;  
     System_Remove_Listener *remove_listener;
+    System_Get_File_Change *get_file_change;
     System_Load_Handle *load_handle;
     System_Load_Size *load_size;
     System_Load_File *load_file;

@@ -144,6 +144,7 @@ struct Editing_File_State{
     Text_Effect paste_effect;
     
     File_Sync_State sync;
+    u32 ignore_behind_os;
     
     File_Edit_Positions edit_pos_space[16];
     File_Edit_Positions *edit_poss[16];
@@ -770,6 +771,18 @@ buffer_needs_save(Editing_File *file){
 }
 
 inline b32
+buffer_can_save(Editing_File *file){
+    b32 result = 0;
+    if (!file->settings.unimportant){
+        if (file->state.sync == SYNC_UNSAVED ||
+            file->state.sync == SYNC_BEHIND_OS){
+            result = 1;
+        }
+    }
+    return(result);
+}
+
+inline b32
 file_is_ready(Editing_File *file){
     b32 result = 0;
     if (file && file->is_loading == 0){
@@ -892,7 +905,7 @@ buffer_get_new_name(Working_Set *working_set, Editing_File_Name *name, char *fil
 }
 
 internal void
-buffer_bind_file(General_Memory *general, Working_Set *working_set,
+buffer_bind_file(System_Functions *system, General_Memory *general, Working_Set *working_set,
                  Editing_File *file, String canon_filename){
     Assert(file->name.live_name.size == 0 &&
            file->name.source_path.size == 0 &&
@@ -901,17 +914,19 @@ buffer_bind_file(General_Memory *general, Working_Set *working_set,
     
     file->canon.name = make_fixed_width_string(file->canon.name_);
     copy(&file->canon.name, canon_filename);
+    system->add_listener(file->canon.name_);
     b32 result = working_set_canon_add(general, working_set, file, file->canon.name);
     Assert(result); AllowLocal(result);
 }
 
 internal void
-buffer_unbind_file(Working_Set *working_set, Editing_File *file){
+buffer_unbind_file(System_Functions *system, Working_Set *working_set, Editing_File *file){
     Assert(file->name.live_name.size == 0 &&
            file->name.source_path.size == 0 &&
            file->name.extension.size == 0);
     Assert(file->canon.name.size != 0);
     
+    system->remove_listener(file->canon.name_);
     working_set_canon_remove(working_set, file->canon.name);
     file->canon.name.size = 0;
 }

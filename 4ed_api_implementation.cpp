@@ -1031,7 +1031,7 @@ DOC_SEE(Buffer_Create_Flag)
                 if (system->load_file(handle, buffer, size)){
                     file = working_set_alloc_always(working_set, general);
                     if (file){
-                        buffer_bind_file(general, working_set, file, canon.name);
+                        buffer_bind_file(system, general, working_set, file, canon.name);
                         buffer_bind_name(general, working_set, file, fname);
                         init_normal_file(system, models, file, buffer, size);
                         fill_buffer_summary(&result, file, cmd);

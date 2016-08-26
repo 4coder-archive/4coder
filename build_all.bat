@@ -26,7 +26,7 @@ popd
 pushd ..\build
 
 REM call "%CODE_DIR%\buildsuper.bat" ..\code\4coder_default_bindings.cpp
-REM call "%CODE_DIR%\buildsuper.bat" ..\code\internal_4coder_tests.cpp
+call "%CODE_DIR%\buildsuper.bat" ..\code\internal_4coder_tests.cpp
 REM call "%CODE_DIR%\buildsuper.bat" ..\code\power\4coder_casey.cpp
 REM call "%CODE_DIR%\buildsuper.bat" ..\4vim\4coder_chronal.cpp
 if %ERRORLEVEL% neq 0 (set FirstError=1)

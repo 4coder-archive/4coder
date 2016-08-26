@@ -390,7 +390,7 @@ COMMAND_DECL(save){
     USE_VIEW(view);
     REQ_FILE(file, view);
     
-    if (!file->is_dummy && file_is_ready(file) && buffer_needs_save(file)){
+    if (!file->is_dummy && file_is_ready(file) && buffer_can_save(file)){
         save_file(system, &models->mem, file);
     }
 }
@@ -1678,6 +1678,38 @@ App_Step_Sig(app_step){
                                               &models->working_set,
                                               clipboard.size);
         dest->size = eol_convert_in(dest->str, clipboard.str, clipboard.size);
+    }
+    
+    // NOTE(allen): check files are up to date
+    {
+        b32 mem_too_small = 0;
+        i32 size = 0;
+        i32 buffer_size = (32 << 10);
+        
+        Partition *part = &models->mem.part;
+        Temp_Memory temp = begin_temp_memory(part);
+        char *buffer = push_array(part, char, buffer_size);
+        
+        Working_Set *working_set = &models->working_set;
+        
+        for (;system->get_file_change(buffer, buffer_size, &mem_too_small, &size);){
+            Assert(!mem_too_small);
+            
+            Editing_File_Canon_Name canon;
+            if (get_canon_name(system, &canon, make_string(buffer, size))){
+                Editing_File *file = working_set_canon_contains(working_set, canon.name);
+                if (file){
+                    if (file->state.ignore_behind_os == 0){
+                        file_mark_behind_os(file);
+                    }
+                    else{
+                        file->state.ignore_behind_os = 0;
+                    }
+                }
+            }
+        }
+        
+        end_temp_memory(temp);
     }
     
 #if 0

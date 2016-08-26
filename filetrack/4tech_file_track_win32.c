@@ -684,7 +684,7 @@ expand_track_system_listeners(File_Track_System *system, void *mem, int32_t size
 }
 
 File_Track_Result
-get_change_event(File_Track_System *system, char *buffer, int32_t max){
+get_change_event(File_Track_System *system, char *buffer, int32_t max, int32_t *size){
     File_Track_Result result = FileTrack_NoMoreEvents;
     File_Track_Vars *vars = to_vars_(system);
     
@@ -722,7 +722,9 @@ get_change_event(File_Track_System *system, char *buffer, int32_t max){
                 info = (FILE_NOTIFY_INFORMATION*)(listener_buffer + offset);
                 
                 int32_t len = info->FileNameLength / 2;
-                if (listener.dir_name_len + 1 + len < max){
+                int32_t req_size = listener.dir_name_len + 1 + len;
+                *size = req_size;
+                if (req_size < max){
                     int32_t pos = 0;
                     char *src = listener.dir_name;
                     for (int32_t i = 0; src[i]; ++i, ++pos){
@@ -734,7 +736,6 @@ get_change_event(File_Track_System *system, char *buffer, int32_t max){
                     for (int32_t i = 0; i < len; ++i, ++pos){
                         buffer[pos] = (char)info->FileName[i];
                     }
-                    buffer[pos] = 0;
                     
                     result = FileTrack_Good;
                 }

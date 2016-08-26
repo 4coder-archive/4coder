@@ -28,7 +28,6 @@ Allen Webster
 // These tests do not verify the correctness of the output.
 
 CUSTOM_COMMAND_SIG(load_lots_of_files){
-    
     // NOTE(allen): This timing restriction is based on 4GHz and 60fps
     // 4G / 60 ~= 70M  Reserving most of that time for rendering and hopefully idling
     // I set the goal of 10M for all tests.
