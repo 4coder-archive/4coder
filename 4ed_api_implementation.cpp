@@ -985,17 +985,26 @@ DOC_SEE(Buffer_Create_Flag)
     String fname = make_string(filename, filename_len);
     
     Temp_Memory temp = begin_temp_memory(part);
+    
     if (filename != 0){
-        Editing_File_Canon_Name canon;
+        Editing_File *file = 0;
+        b32 do_new_file = false;
+        Plat_Handle handle = {0};
         
+        Editing_File_Canon_Name canon = {0};
         if (get_canon_name(system, &canon, fname)){
-            Editing_File *file = working_set_canon_contains(working_set, canon.name);
-            
-            if (file == 0){
-                b32 do_new_file = false;
-                
-                Plat_Handle handle = {0};
-                
+            file = working_set_canon_contains(working_set, canon.name);
+        }
+        else{
+            do_new_file = true;
+        }
+        
+        if (!file){
+            file = working_set_name_contains(working_set, fname);
+        }
+        
+        if (!file){
+            if (!do_new_file){
                 if (flags & BufferCreate_AlwaysNew){
                     do_new_file = true;
                 }
@@ -1004,48 +1013,48 @@ DOC_SEE(Buffer_Create_Flag)
                         do_new_file = true;
                     }
                 }
+            }
+            
+            if (!do_new_file){
+                Assert(!handle_equal(handle, handle_zero()));
                 
-                if (!do_new_file){
-                    Assert(!handle_equal(handle, handle_zero()));
-                    
-                    i32 size = system->load_size(handle);
-                    b32 in_general_mem = false;
-                    char *buffer = push_array(part, char, size);
-                    
-                    if (buffer == 0){
-                        buffer = (char*)general_memory_allocate(general, size);
-                        Assert(buffer != 0);
-                        in_general_mem = true;
-                    }
-                    
-                    if (system->load_file(handle, buffer, size)){
-                        file = working_set_alloc_always(working_set, general);
-                        if (file){
-                            buffer_bind_file(general, working_set, file, canon.name);
-                            buffer_bind_name(general, working_set, file, fname);
-                            init_normal_file(system, models, file, buffer, size);
-                            fill_buffer_summary(&result, file, cmd);
-                        }
-                    }
-                    
-                    if (in_general_mem){
-                        general_memory_free(general, buffer);
-                    }
-                    
-                    system->load_close(handle);
+                i32 size = system->load_size(handle);
+                b32 in_general_mem = false;
+                char *buffer = push_array(part, char, size);
+                
+                if (buffer == 0){
+                    buffer = (char*)general_memory_allocate(general, size);
+                    Assert(buffer != 0);
+                    in_general_mem = true;
                 }
-                else{
+                
+                if (system->load_file(handle, buffer, size)){
                     file = working_set_alloc_always(working_set, general);
                     if (file){
+                        buffer_bind_file(general, working_set, file, canon.name);
                         buffer_bind_name(general, working_set, file, fname);
-                        init_normal_file(system, models, file, 0, 0);
+                        init_normal_file(system, models, file, buffer, size);
                         fill_buffer_summary(&result, file, cmd);
                     }
                 }
+                
+                if (in_general_mem){
+                    general_memory_free(general, buffer);
+                }
+                
+                system->load_close(handle);
             }
             else{
-                fill_buffer_summary(&result, file, cmd);
+                file = working_set_alloc_always(working_set, general);
+                if (file){
+                    buffer_bind_name(general, working_set, file, fname);
+                    init_normal_file(system, models, file, 0, 0);
+                    fill_buffer_summary(&result, file, cmd);
+                }
             }
+        }
+        else{
+            fill_buffer_summary(&result, file, cmd);
         }
     }
     end_temp_memory(temp);

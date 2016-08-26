@@ -1281,7 +1281,7 @@ Sys_Save_File_Sig(system_save_file){
                              GENERIC_WRITE,
                              0,
                              0,
-                             CREATE_NEW,
+                             CREATE_ALWAYS,
                              FILE_ATTRIBUTE_NORMAL,
                              0);
     
@@ -1298,6 +1298,8 @@ Sys_Save_File_Sig(system_save_file){
             }
             written_total += written_size;
         }
+        
+        CloseHandle(file);
     }
     
     return(result);

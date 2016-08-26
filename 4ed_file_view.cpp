@@ -1022,14 +1022,12 @@ file_create_from_string(System_Functions *system, Models *models,
     
     i32 scratch_size = partition_remaining(part);
     Assert(scratch_size > 0);
-    
     b32 init_success = buffer_end_init(&init, part->base + part->pos, scratch_size);
     AllowLocal(init_success); Assert(init_success);
     
     if (buffer_size(&file->state.buffer) < val.size){
         file->settings.dos_write_mode = 1;
     }
-    
     file_synchronize_times(system, file);
     
     i16 font_id = models->global_font.font_id;
@@ -1037,6 +1035,7 @@ file_create_from_string(System_Functions *system, Models *models,
     Render_Font *font = get_font_info(font_set, font_id)->font;
     float *advance_data = 0;
     if (font) advance_data = font->advance_data;
+    
     file_measure_starts_widths(system, general, &file->state.buffer, advance_data);
     
     file->settings.read_only = read_only;
