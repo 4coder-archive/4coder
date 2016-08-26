@@ -144,6 +144,11 @@ enum CV_ID{
     CV_COUNT
 };
 
+struct Drive_Strings{
+    char *prefix_[26];
+    char **prefix;
+};
+
 struct Win32_Vars{
     System_Functions system;
     App_Functions app;
@@ -197,7 +202,7 @@ struct Win32_Vars{
     void *track_table;
     u32 track_table_size;
     u32 track_node_size;
-    
+    Drive_Strings dstrings;
     
 #if FRED_INTERNAL
     CRITICAL_SECTION DEBUG_sysmem_lock;
@@ -1023,22 +1028,8 @@ Sys_Set_File_List_Sig(system_set_file_list){
     }
 }
 
-inline Unique_Hash
-to_uhash(File_Index index){
-    Unique_Hash r;
-    *(File_Index*)(&r) = index;
-    return(r);
-}
-
-inline File_Index
-to_findex(Unique_Hash index){
-    File_Index r;
-    *(Unique_Hash*)(&r) = index;
-    return(r);
-}
-
 internal b32
-handle_track_out_of_memory(i32 val, Unique_Hash *index, File_Index get_index){
+handle_track_out_of_memory(i32 val){
     b32 result = 0;
     
     switch (val){
@@ -1059,100 +1050,160 @@ handle_track_out_of_memory(i32 val, Unique_Hash *index, File_Index get_index){
             expand_track_system_listeners(&win32vars.track, node_expansion, win32vars.track_node_size);
         }break;
         
-        case FileTrack_Good:
-        {
-            *index = to_uhash(get_index);
-            result = 1;
-        }break;
-        
         default: result = 1; break;
     }
     
     return(result);
 }
 
-internal
-Sys_Track_File_Sig(system_track_file){
-    Unique_Hash index = {0};
+internal void
+set_volume_prefix(Drive_Strings *dstrings, char *vol){
+    char c = vol[0];
+    if (dstrings->prefix[c]){
+        system_free_memory(dstrings->prefix[c]);
+    }
     
-    switch (flags){
-        case TrackFileFlag_ExistingOrFail:
-        {
-            File_Index get_index = {0};
-            File_Time time = 0;
-            for (;;){
-                i32 result = begin_tracking_file(&win32vars.track, filename, &get_index, &time);
-                if (handle_track_out_of_memory(result, &index, get_index)){
-                    goto track_end;
-                }
-            }
-        }break;
+    HANDLE hdir = CreateFile(
+        vol,
+        GENERIC_READ,
+        FILE_SHARE_DELETE|FILE_SHARE_WRITE|FILE_SHARE_READ,
+        0,
+        OPEN_EXISTING,
+        FILE_FLAG_BACKUP_SEMANTICS,
+        0);
+    
+    if (hdir != INVALID_HANDLE_VALUE){
+        char *s = 0;
+        DWORD len = GetFinalPathNameByHandle(hdir, 0, 0, 0);
+        len = len + 1;
+        s = (char*)system_get_memory(len);
+        len = GetFinalPathNameByHandle(hdir, s, len, 0);
+        s[len] = 0;
+        if (s[len-1] == '\\') s[len-1] = 0;
+        dstrings->prefix[c] = s + 4;
+        CloseHandle(hdir);
+    }
+    else{
+        dstrings->prefix[c] = 0;
+    }
+}
+
+internal void
+win32_init_drive_strings(Drive_Strings *dstrings){
+    dstrings->prefix = dstrings->prefix_ - 'A';
+    
+    char vol[4] = "A:\\";
+    for (char c = 'A'; c <= 'Z'; ++c){
+        vol[0] = c;
+        set_volume_prefix(dstrings, vol);
+    }
+}
+
+// NOTE(allen): This does not chase down symbolic links because doing so
+// would require a lot of heavy duty OS calls.  I've decided to give up
+// a little ground on always recognizing files as equivalent in exchange
+// for the ability to handle them very quickly when nothing strange is
+// going on.
+static int32_t
+win32_canonical_ansi_name(Drive_Strings *dstrings, char *src, i32 len, char *dst, i32 max){
+    char *wrt = dst;
+    char *wrt_stop = dst + max;
+    char *src_stop = src + len;
+    char c = 0;
+    char **prefix_array = dstrings->prefix;
+    char *prefix = 0;
+    
+    if (len >= 2 && max > 0){
+        c = src[0];
+        if (c >= 'a' && c <= 'z'){
+            c -= 'a' - 'A';
+        }
         
-        case TrackFileFlag_NewOrFail:
-        {
-            File_Index get_index = {0};
-            File_Time time = 0;
-            File_Temp_Handle handle = {0};
-            i32 result = get_file_temp_handle(filename, &handle);
-            if (result == FileTrack_FileNotFound){
-                for (;;){
-                    result = begin_tracking_new_file(&win32vars.track, filename, &get_index, &time);
-                    if (handle_track_out_of_memory(result, &index, get_index)){
-                        goto track_end;
-                    }
+        if (c >= 'A' && c <= 'Z' && src[1] == ':'){
+            prefix = prefix_array[c];
+            if (prefix){
+                for (;*prefix;){
+                    *(wrt++) = *(prefix++);
+                    if (wrt == wrt_stop) goto fail;
                 }
             }
             else{
-                finish_with_temp_handle(handle);
+                *(wrt++) = c;
+                if (wrt == wrt_stop) goto fail;
+                *(wrt++) = ':';
+                if (wrt == wrt_stop) goto fail;
             }
-        }break;
-        
-        case TrackFileFlag_NewAlways:
-        {
-            File_Index get_index = {0};
-            File_Time time = 0;
-            for (;;){
-                i32 result = begin_tracking_new_file(&win32vars.track, filename, &get_index, &time);
-                if (handle_track_out_of_memory(result, &index, get_index)){
-                    goto track_end;
+            src += 2;
+            
+            for (; src < src_stop; ++src){
+                c = src[0];
+                
+                if (c >= 'A' && c <= 'Z'){
+                    c += 'a' - 'A';
                 }
-            }
-        }break;
-        
-        case TrackFileFlag_ExistingOrNew:
-        {
-            File_Index get_index = {0};
-            File_Time time = 0;
-            File_Temp_Handle handle = {0};
-            i32 result = get_file_temp_handle(filename, &handle);
-            if (result == FileTrack_FileNotFound){
-                for (;;){
-                    result = begin_tracking_new_file(&win32vars.track, filename, &get_index, &time);
-                    if (handle_track_out_of_memory(result, &index, get_index)){
-                        goto track_end;
+                
+                if (c == '/' || c == '\\'){
+                    c = '\\';
+                    if (wrt > dst && wrt[-1] == '\\'){
+                        continue;
+                    }
+                    else if (src[1] == '.'){
+                        if (src[2] == '\\' || src[2] == '/'){
+                            src += 1;
+                        }
+                        else if (src[2] == '.' && (src[3] == '\\' || src[3] == '/')){
+                            src += 2;
+                            while (wrt > dst && wrt[0] != '\\'){
+                                --wrt;
+                            }
+                            if (wrt == dst) goto fail;
+                        }
                     }
                 }
+                
+                *wrt = c;
+                ++wrt;
+                if (wrt == wrt_stop) goto fail;
             }
-            else{
-                for (;;){
-                    result = begin_tracking_from_handle(&win32vars.track, filename, handle, &get_index, &time);
-                    if (handle_track_out_of_memory(result, &index, get_index)){
-                        goto track_end;
-                    }
-                }
-            }
-        }break;
+        }
     }
     
-    track_end:;
+    if (0){
+        fail:;
+        wrt = dst;
+    }
     
-    return(index);
+    int32_t result = (int32_t)(wrt - dst);
+    return(result);
 }
 
 internal
-Sys_Untrack_File_Sig(system_untrack_file){
+Sys_Get_Canonical_Sig(system_get_canonical){
+    i32 result = win32_canonical_ansi_name(&win32vars.dstrings, filename, len, buffer, max);
+    return(result);
+}
+
+internal
+Sys_Add_Listener_Sig(system_add_listener){
+    b32 result = 0;
+    
+    for (;;){
+        i32 track_result = add_listener(&win32vars.track, filename);
+        if (handle_track_out_of_memory(track_result)){
+            if (track_result == FileTrack_Good){
+                result = 1;
+            }
+            break;
+        }
+    }
+    
+    return(result);
+}
+
+internal
+Sys_Remove_Listener_Sig(system_remove_listener){
     i32 result = 0;
-    i32 track_result = stop_tracking_file(&win32vars.track, to_findex(index));
+    i32 track_result = remove_listener(&win32vars.track, filename);
     if (track_result == FileTrack_Good){
         result = 1;
     }
@@ -1160,64 +1211,64 @@ Sys_Untrack_File_Sig(system_untrack_file){
 }
 
 internal
-Sys_Get_File_Index_Sig(system_get_file_index){
-    i32 result = 0;
-    File_Index get_index = {0};
-    i32 track_result = get_tracked_file_index(&win32vars.track, filename, &get_index);
-    if (track_result == FileTrack_Good){
-        *index = to_uhash(get_index);
+Sys_Load_Handle_Sig(system_load_handle){
+    b32 result = 0;
+    HANDLE file = CreateFile(filename,
+                             GENERIC_READ,
+                             0,
+                             0,
+                             OPEN_EXISTING,
+                             FILE_ATTRIBUTE_NORMAL,
+                             0);
+    
+    if (file != INVALID_HANDLE_VALUE){
+        *(HANDLE*)handle_out = file;
         result = 1;
     }
+    
     return(result);
 }
 
 internal
-Sys_Get_File_Time_Sig(system_get_file_time){
-    i32 result = 0;
-    u64 get_time = 0;
-    File_Index findex = to_findex(index);
-    i32 track_result = get_tracked_file_time(&win32vars.track, findex, &get_time);
-    if (track_result == FileTrack_Good){
-        *time = get_time;
-        result = 1;
+Sys_Load_Size_Sig(system_load_size){
+    u32 result = 0;
+    HANDLE file = *(HANDLE*)(&handle);
+    
+    DWORD hi = 0;
+    DWORD lo = GetFileSize(file, &hi);
+    
+    if (hi == 0){
+        result = lo;
     }
+    
     return(result);
-}
-
-internal
-Sys_Now_File_Time_Sig(system_now_file_time){
-    get_file_time_now(time);
-}
-
-internal
-Sys_Get_Changed_File_Sig(system_get_changed_file){
-    i32 result = 0;
-    File_Index get_index = {0};
-    i32 track_result = get_change_event(&win32vars.track, &get_index);
-    if (track_result == FileTrack_Good){
-        *index = to_uhash(get_index);
-        result = 1;
-    }
-    return(result);
-}
-
-internal
-Sys_File_Size_Sig(system_file_size){
-    u32 size = 0;
-    File_Index findex = to_findex(index);
-    i32 track_result = get_tracked_file_size(&win32vars.track, findex, &size);
-    if (track_result != FileTrack_Good){
-        size = 0;
-    }
-    return(size);
 }
 
 internal
 Sys_Load_File_Sig(system_load_file){
-    i32 result = 0;
-    File_Index findex = to_findex(index);
-    i32 track_result = get_tracked_file_data(&win32vars.track, findex, buffer, size);
-    if (track_result == FileTrack_Good){
+    b32 result = 0;
+    HANDLE file = *(HANDLE*)(&handle);
+    
+    DWORD read_size = 0;
+    
+    if (ReadFile(file,
+                 buffer,
+                 size,
+                 &read_size,
+                 0)){
+        if (read_size == size){
+            result = 1;
+        }
+    }
+    
+    return(result);
+}
+
+internal
+Sys_Load_Close_Sig(system_load_close){
+    b32 result = 0;
+    HANDLE file = *(HANDLE*)(&handle);
+    if (CloseHandle(file)){
         result = 1;
     }
     return(result);
@@ -1225,24 +1276,36 @@ Sys_Load_File_Sig(system_load_file){
 
 internal
 Sys_Save_File_Sig(system_save_file){
-    i32 result = 0;
-    File_Index findex = to_findex(index);
-    File_Time time = 0;
-    i32 track_result = rewrite_tracked_file(&win32vars.track, findex, buffer, size, &time);
-    if (track_result == FileTrack_Good){
+    b32 result = 0;
+    HANDLE file = CreateFile(filename,
+                             GENERIC_WRITE,
+                             0,
+                             0,
+                             CREATE_NEW,
+                             FILE_ATTRIBUTE_NORMAL,
+                             0);
+    
+    if (file != INVALID_HANDLE_VALUE){
+        DWORD written_total = 0;
+        DWORD written_size = 0;
+        
         result = 1;
+        
+        while (written_total < size){
+            if (!WriteFile(file, buffer, size, &written_size, 0)){
+                result = 0;
+                break;
+            }
+            written_total += written_size;
+        }
     }
+    
     return(result);
 }
 
 internal
-Sys_Save_File_By_Name_Sig(system_save_file_by_name){
-    i32 result = 0;
-    File_Time time = 0;
-    i32 track_result = rewrite_arbitrary_file(&win32vars.track, filename, buffer, size, &time);
-    if (track_result == FileTrack_Good){
-        result = 1;
-    }
+Sys_Now_Time_Sig(system_now_time){
+    u64 result = __rdtsc();
     return(result);
 }
 
@@ -1596,16 +1659,16 @@ Win32LoadAppCode(){
 internal void
 Win32LoadSystemCode(){
     win32vars.system.set_file_list = system_set_file_list;
-    win32vars.system.track_file = system_track_file;
-    win32vars.system.untrack_file = system_untrack_file;
-    win32vars.system.get_file_index = system_get_file_index;
-    win32vars.system.get_file_time = system_get_file_time;
-    win32vars.system.now_file_time = system_now_file_time;
-    win32vars.system.get_changed_file = system_get_changed_file;
-    win32vars.system.file_size = system_file_size;
+    win32vars.system.get_canonical = system_get_canonical;
+    win32vars.system.add_listener = system_add_listener;
+    win32vars.system.remove_listener = system_remove_listener;
+    win32vars.system.load_handle = system_load_handle;
+    win32vars.system.load_size = system_load_size;
     win32vars.system.load_file = system_load_file;
+    win32vars.system.load_close = system_load_close;
     win32vars.system.save_file = system_save_file;
-    win32vars.system.save_file_by_name = system_save_file_by_name;
+    
+    win32vars.system.now_time = system_now_time;
     
     win32vars.system.memory_allocate = Memory_Allocate;
     win32vars.system.file_exists = File_Exists;
@@ -2064,7 +2127,6 @@ WinMain(HINSTANCE hInstance,
     
     memset(&win32vars, 0, sizeof(win32vars));
     
-    
     //
     // Threads and Coroutines
     //
@@ -2127,6 +2189,10 @@ WinMain(HINSTANCE hInstance,
         win32vars.coroutine_data[i].next = win32vars.coroutine_data + i + 1;
     }
     
+    //
+    // Volume Initialization
+    //
+    win32_init_drive_strings(&win32vars.dstrings);
     
     //
     // Memory Initialization

@@ -338,46 +338,50 @@ COMMAND_DECL(reopen){
     
     if (match(file->name.source_path, file->name.live_name)) return;
     
-    Unique_Hash index = file->file_index;
-    
-    if (!uhash_equal(index, uhash_zero())){
-        i32 size = system->file_size(index);
-        
-        Partition *part = &models->mem.part;
-        Temp_Memory temp = begin_temp_memory(part);
-        char *buffer = push_array(part, char, size);
-        
-        if (buffer){
-            if (system->load_file(index, buffer, size)){
-                General_Memory *general = &models->mem.general;
-                
-                File_Edit_Positions edit_poss[16];
-                View *vptrs[16];
-                i32 vptr_count = 0;
-                for (View_Iter iter = file_view_iter_init(&models->layout, file, 0);
-                     file_view_iter_good(iter);
-                     iter = file_view_iter_next(iter)){
-                    vptrs[vptr_count] = iter.view;
-                    edit_poss[vptr_count] = *iter.view->edit_pos;
-                    iter.view->edit_pos = 0;
-                    ++vptr_count;
-                }
-                
-                file_close(system, general, file);
-                init_normal_file(system, models, file, buffer, size);
-                
-                for (i32 i = 0;
-                     i < vptr_count;
-                     ++i){
-                    view_set_file(vptrs[i], file, models);
-                    *vptrs[i]->edit_pos = edit_poss[i];
-                    view_set_cursor(vptrs[i], edit_poss[i].cursor,
-                                    true, view->file_data.unwrapped_lines);
+    if (file->canon.name.size != 0){
+        Plat_Handle handle;
+        if (system->load_handle(file->canon.name.str, &handle)){
+            
+            i32 size = system->load_size(handle);
+            
+            Partition *part = &models->mem.part;
+            Temp_Memory temp = begin_temp_memory(part);
+            char *buffer = push_array(part, char, size);
+            
+            if (buffer){
+                if (system->load_file(handle, buffer, size)){
+                    General_Memory *general = &models->mem.general;
+                    
+                    File_Edit_Positions edit_poss[16];
+                    View *vptrs[16];
+                    i32 vptr_count = 0;
+                    for (View_Iter iter = file_view_iter_init(&models->layout, file, 0);
+                         file_view_iter_good(iter);
+                         iter = file_view_iter_next(iter)){
+                        vptrs[vptr_count] = iter.view;
+                        edit_poss[vptr_count] = *iter.view->edit_pos;
+                        iter.view->edit_pos = 0;
+                        ++vptr_count;
+                    }
+                    
+                    file_close(system, general, file);
+                    init_normal_file(system, models, file, buffer, size);
+                    
+                    for (i32 i = 0;
+                         i < vptr_count;
+                         ++i){
+                        view_set_file(vptrs[i], file, models);
+                        *vptrs[i]->edit_pos = edit_poss[i];
+                        view_set_cursor(vptrs[i], edit_poss[i].cursor,
+                                        true, view->file_data.unwrapped_lines);
+                    }
                 }
             }
+            
+            end_temp_memory(temp);
+            
+            system->load_close(handle);
         }
-        
-        end_temp_memory(temp);
     }
 }
 
@@ -1939,7 +1943,7 @@ App_Step_Sig(app_step){
         
         {
             Editing_File *file = working_set_alloc_always(&models->working_set, general);
-            buffer_bind_name(general, &models->working_set, file, "*messages*");
+            buffer_bind_name(general, &models->working_set, file, make_lit_string("*messages*"));
             init_read_only_file(system, models, file);
             file->settings.never_kill = 1;
             file->settings.unimportant = 1;
@@ -1950,7 +1954,7 @@ App_Step_Sig(app_step){
         
         {
             Editing_File *file = working_set_alloc_always(&models->working_set, general);
-            buffer_bind_name(general, &models->working_set, file, "*scratch*");
+            buffer_bind_name(general, &models->working_set, file, make_lit_string("*scratch*"));
             init_normal_file(system, models, file, 0, 0);
             file->settings.never_kill = 1;
             file->settings.unimportant = 1;

@@ -13,24 +13,14 @@ struct Plat_Handle{
     u32 d[4];
 };
 
-inline int
-handle_equal(Plat_Handle a, Plat_Handle b){
-    int result = (memcmp(&a, &b, sizeof(a)) == 0);
+inline Plat_Handle
+handle_zero(void){
+    Plat_Handle result = {0};
     return(result);
 }
 
-struct Unique_Hash{
-    u32 d[4];
-};
-
-inline Unique_Hash
-uhash_zero(){
-    Unique_Hash r = {0};
-    return(r);
-}
-
 inline int
-uhash_equal(Unique_Hash a, Unique_Hash b){
+handle_equal(Plat_Handle a, Plat_Handle b){
     int result = (memcmp(&a, &b, sizeof(a)) == 0);
     return(result);
 }
@@ -39,35 +29,33 @@ uhash_equal(Unique_Hash a, Unique_Hash b){
 #define Sys_Set_File_List_Sig(name) void name(File_List *file_list, String directory)
 typedef Sys_Set_File_List_Sig(System_Set_File_List);
 
-#define Sys_Add_Listener_Sig(name) Unique_Hash name(char *filename)
-typedef Sys_Add_Listener_Sig(System_Track_File);
+#define Sys_Get_Canonical_Sig(name) i32 name(char *filename, i32 len, char *buffer, i32 max)
+typedef Sys_Get_Canonical_Sig(System_Get_Canonical);
 
-#define Sys_Remove_Listener_Sig(name) i32 name(char *filename)
-typedef Sys_Remove_Listener_Sig(System_Untrack_File);
+#define Sys_Add_Listener_Sig(name) b32 name(char *filename)
+typedef Sys_Add_Listener_Sig(System_Add_Listener);
 
-#define Sys_Get_File_Index_Sig(name) i32 name(char *filename, Unique_Hash *index)
-typedef Sys_Get_File_Index_Sig(System_Get_File_Index);
+#define Sys_Remove_Listener_Sig(name) b32 name(char *filename)
+typedef Sys_Remove_Listener_Sig(System_Remove_Listener);
 
-#define Sys_Get_File_Time_Sig(name) i32 name(Unique_Hash index, u64 *time)
-typedef Sys_Get_File_Time_Sig(System_Get_File_Time);
+#define Sys_Load_Handle_Sig(name) b32 name(char *filename, Plat_Handle *handle_out)
+typedef Sys_Load_Handle_Sig(System_Load_Handle);
 
-#define Sys_Now_File_Time_Sig(name) void name(u64 *time)
-typedef Sys_Now_File_Time_Sig(System_Now_File_Time);
+#define Sys_Load_Size_Sig(name) u32 name(Plat_Handle handle)
+typedef Sys_Load_Size_Sig(System_Load_Size);
 
-#define Sys_Get_Changed_File_Sig(name) i32 name(Unique_Hash *index)
-typedef Sys_Get_Changed_File_Sig(System_Get_Changed_File);
-
-#define Sys_File_Size_Sig(name) u32 name(Unique_Hash index)
-typedef Sys_File_Size_Sig(System_File_Size);
-
-#define Sys_Load_File_Sig(name) i32 name(Unique_Hash index, char *buffer, i32 size)
+#define Sys_Load_File_Sig(name) b32 name(Plat_Handle handle, char *buffer, u32 size)
 typedef Sys_Load_File_Sig(System_Load_File);
 
-#define Sys_Save_File_Sig(name) i32 name(Unique_Hash index, char *buffer, i32 size)
+#define Sys_Load_Close_Sig(name) b32 name(Plat_Handle handle)
+typedef Sys_Load_Close_Sig(System_Load_Close);
+
+#define Sys_Save_File_Sig(name) b32 name(char *filename, char *buffer, u32 size)
 typedef Sys_Save_File_Sig(System_Save_File);
 
-#define Sys_Save_File_By_Name_Sig(name) i32 name(char *filename, char *buffer, i32 size)
-typedef Sys_Save_File_By_Name_Sig(System_Save_File_By_Name);
+
+#define Sys_Now_Time_Sig(name) u64 name()
+typedef Sys_Now_Time_Sig(System_Now_Time);
 
 
 #define Sys_Post_Clipboard_Sig(name) void name(String str)
@@ -221,18 +209,19 @@ typedef INTERNAL_Sys_Debug_Message_Sig(INTERNAL_System_Debug_Message);
 
 struct System_Functions{
     
-    // files (tracked api): 11
+    // files (tracked api): 9
     System_Set_File_List *set_file_list;
-    System_Track_File *track_file;
-    System_Untrack_File *untrack_file;
-    System_Get_File_Index *get_file_index;
-    System_Get_File_Time *get_file_time;
-    System_Now_File_Time *now_file_time;
-    System_Get_Changed_File *get_changed_file;
-    System_File_Size *file_size;
+    System_Get_Canonical *get_canonical;
+    System_Add_Listener *add_listener;
+    System_Remove_Listener *remove_listener;
+    System_Load_Handle *load_handle;
+    System_Load_Size *load_size;
     System_Load_File *load_file;
+    System_Load_Close *load_close;
     System_Save_File *save_file;
-    System_Save_File_By_Name *save_file_by_name;
+    
+    // time: 1
+    System_Now_Time *now_time;
     
     // 4coder_custom.h: 7
     Memory_Allocate_Function *memory_allocate;

@@ -32,7 +32,7 @@ REM call "%CODE_DIR%\buildsuper.bat" ..\4vim\4coder_chronal.cpp
 if %ERRORLEVEL% neq 0 (set FirstError=1)
 
 set EXPORTS=/EXPORT:app_get_functions
-REM cl %OPTS% %INCLUDES% %DEFINES% %CODE_DIR%\4ed_app_target.cpp %* /Fe4ed_app /LD /link /INCREMENTAL:NO /OPT:REF %EXPORTS%
+cl %OPTS% %INCLUDES% %DEFINES% %CODE_DIR%\4ed_app_target.cpp %* /Fe4ed_app /LD /link /INCREMENTAL:NO /OPT:REF %EXPORTS%
 if %ERRORLEVEL% neq 0 (set FirstError=1)
 
 cl %OPTS% %INCLUDES% %DEFINES% %CODE_DIR%\win32_4ed.cpp %LIBS% %ICON% %* /Fe4ed /link /NODEFAULTLIB:library

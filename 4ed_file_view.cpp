@@ -780,22 +780,8 @@ starts_new_line(u8 character){
     return (character == '\n');
 }
 
-#if 0
-inline void
-file_synchronize_times(System_Functions *system, Editing_File *file, char *filename){
-    u64 stamp = system->file_time_stamp(filename);
-    if (stamp > 0){
-        file->state.last_4ed_write_time = stamp;
-        file->state.last_4ed_edit_time = stamp;
-        file->state.last_sys_write_time = stamp;
-    }
-    file->state.sync = buffer_get_sync(file);
-}
-#endif
-
 inline void
 file_synchronize_times(System_Functions *system, Editing_File *file){
-    system->now_file_time(&file->state.last_sync);
     file->state.sync = SYNC_GOOD;
 }
 
@@ -803,7 +789,12 @@ internal b32
 save_file_to_name(System_Functions *system, Mem_Options *mem, Editing_File *file, char *filename){
     b32 result = 0;
     
-    if (!uhash_equal(file->file_index, uhash_zero())){
+    if (!filename){
+        terminate_with_null(&file->canon.name);
+        filename = file->canon.name.str;
+    }
+    
+    if (filename){
         i32 max = 0, size = 0;
         b32 dos_write_mode = file->settings.dos_write_mode;
         char *data = 0;
@@ -840,12 +831,7 @@ save_file_to_name(System_Functions *system, Mem_Options *mem, Editing_File *file
             buffer_stringify(buffer, 0, size, data);
         }
         
-        if (filename){
-            result = system->save_file_by_name(filename, data, size);
-        }
-        else{
-            result = system->save_file(file->file_index, data, size);
-        }
+        result = system->save_file(filename, data, size);
         
         file_mark_clean(file);
         
@@ -856,7 +842,7 @@ save_file_to_name(System_Functions *system, Mem_Options *mem, Editing_File *file
         
         file_synchronize_times(system, file);
     }
-    
+        
     return(result);
 }
 
@@ -868,25 +854,27 @@ save_file(System_Functions *system, Mem_Options *mem, Editing_File *file){
 
 internal b32
 buffer_link_to_new_file(System_Functions *system, General_Memory *general, Working_Set *working_set,
-                        Editing_File *file, char *filename){
+                        Editing_File *file, String filename){
     b32 result = 0;
-    Unique_Hash index = system->track_file(filename, TrackFileFlag_ExistingOrNew);
-    if (!uhash_equal(index, uhash_zero())){
+    
+    Editing_File_Canon_Name canon_name;
+    if (get_canon_name(system, &canon_name, filename)){
         buffer_unbind_name(working_set, file);
-        if (!uhash_equal(file->file_index, uhash_zero())){
-            buffer_unbind_file(system, working_set, file);
+        if (file->canon.name.size != 0){
+            buffer_unbind_file(working_set, file);
         }
-        buffer_bind_file(system, general, working_set, file, filename, TrackFileFlag_ExistingOrNew);
+        buffer_bind_file(general, working_set, file, canon_name.name);
         buffer_bind_name(general, working_set, file, filename);
         result = 1;
     }
+    
     return(result);
 }
 
 inline b32
 file_save_and_set_names(System_Functions *system, Mem_Options *mem,
                         Working_Set *working_set, Editing_File *file,
-                        char *filename){
+                        String filename){
     b32 result = buffer_link_to_new_file(system, &mem->general, working_set, file, filename);
     if (result){
         result = save_file(system, mem, file);
@@ -3226,46 +3214,50 @@ internal void
 view_open_file(System_Functions *system, Models *models, View *view, String filename){
     Working_Set *working_set = &models->working_set;
     Editing_File *file = 0;
-    Unique_Hash index = {0};
     
     if (terminate_with_null(&filename)){
-        if (system->get_file_index(filename.str, &index)){
-            file = working_set_uhash_contains(working_set, index);
-        }
-        else{
-            index = system->track_file(filename.str, TrackFileFlag_ExistingOrFail);
-            if (!uhash_equal(index, uhash_zero())){
-                Mem_Options *mem = &models->mem;
-                General_Memory *general = &mem->general;
+        Editing_File_Canon_Name canon_name;
+        if (get_canon_name(system, &canon_name, filename)){
+            file = working_set_canon_contains(working_set, canon_name.name);
+            
+            if (!file){
                 
-                file = working_set_alloc_always(working_set, general);
-                
-                buffer_bind_file(system, general, working_set, file, index);
-                buffer_bind_name(general, working_set, file, filename.str);
-                
-                i32 size = system->file_size(index);
-                Partition *part = &mem->part;
-                char *buffer = 0;
-                b32 gen_buffer = 0;
-                Temp_Memory temp = begin_temp_memory(part);
-                
-                buffer = push_array(part, char, size);
-                
-                if (buffer == 0){
-                    buffer = (char*)general_memory_allocate(general, size);
-                    Assert(buffer);
-                    gen_buffer = 1;
+                Plat_Handle handle;
+                if (system->load_handle(canon_name.name.str, &handle)){
+                    Mem_Options *mem = &models->mem;
+                    General_Memory *general = &mem->general;
+                    
+                    file = working_set_alloc_always(working_set, general);
+                    
+                    buffer_bind_file(general, working_set, file, canon_name.name);
+                    buffer_bind_name(general, working_set, file, filename);
+                    
+                    i32 size = system->load_size(handle);
+                    Partition *part = &mem->part;
+                    char *buffer = 0;
+                    b32 gen_buffer = 0;
+                    
+                    Temp_Memory temp = begin_temp_memory(part);
+                    
+                    buffer = push_array(part, char, size);
+                    if (buffer == 0){
+                        buffer = (char*)general_memory_allocate(general, size);
+                        Assert(buffer);
+                        gen_buffer = 1;
+                    }
+                    
+                    if (system->load_file(handle, buffer, size)){
+                        init_normal_file(system, models, file, buffer, size);
+                    }
+                    
+                    system->load_close(handle);
+                    
+                    if (gen_buffer){
+                        general_memory_free(general, buffer);
+                    }
+                    
+                    end_temp_memory(temp);
                 }
-                
-                system->load_file(index, buffer, size);
-                
-                init_normal_file(system, models, file, buffer, size);
-                
-                if (gen_buffer){
-                    general_memory_free(general, buffer);
-                }
-                
-                end_temp_memory(temp);
             }
         }
     }
@@ -3278,7 +3270,7 @@ view_open_file(System_Functions *system, Models *models, View *view, String file
 internal void
 view_interactive_save_as(System_Functions *system, Models *models, Editing_File *file, String filename){
     if (terminate_with_null(&filename)){
-        file_save_and_set_names(system, &models->mem, &models->working_set, file, filename.str);
+        file_save_and_set_names(system, &models->mem, &models->working_set, file, filename);
     }
 }
 
@@ -3286,23 +3278,25 @@ internal void
 view_interactive_new_file(System_Functions *system, Models *models, View *view, String filename){
     Working_Set *working_set = &models->working_set;
     Editing_File *file = 0;
-    Unique_Hash index = {0};
     
     if (terminate_with_null(&filename)){
-        if (system->get_file_index(filename.str, &index)){
-            file = working_set_uhash_contains(working_set, index);
-            file_clear(system, models, file);
-        }
-        else{
-            index = system->track_file(filename.str, TrackFileFlag_NewAlways);
-            if (!uhash_equal(index, uhash_zero())){
+        Editing_File_Canon_Name canon_name;
+        
+        if (get_canon_name(system, &canon_name, filename)){
+            
+            file = working_set_canon_contains(working_set, canon_name.name);
+            if (file){
+                file_clear(system, models, file);
+            }
+            else{
+                
                 Mem_Options *mem = &models->mem;
                 General_Memory *general = &mem->general;
                 
                 file = working_set_alloc_always(working_set, general);
                 
-                buffer_bind_file(system, general, working_set, file, index);
-                buffer_bind_name(general, working_set, file, filename.str);
+                buffer_bind_file(general, working_set, file, canon_name.name);
+                buffer_bind_name(general, working_set, file, filename);
                 
                 init_normal_file(system, models, file, 0, 0);
             }
@@ -3320,7 +3314,7 @@ kill_file(System_Functions *system, Models *models, Editing_File *file){
     
     if (file && !file->settings.never_kill){
         buffer_unbind_name(working_set, file);
-        buffer_unbind_file(system, working_set, file);
+        buffer_unbind_file(working_set, file);
         file_close(system, &models->mem.general, file);
         working_set_free_file(working_set, file);
         
@@ -3682,7 +3676,12 @@ get_exhaustive_info(System_Functions *system, Working_Set *working_set, Exhausti
     loop->full_path.size = loop->r;
     append(&loop->full_path, result.info->filename);
     terminate_with_null(&loop->full_path);
-    file = working_set_uhash_contains(system, working_set, loop->full_path.str);
+    
+    Editing_File_Canon_Name canon_name;
+    
+    if (get_canon_name(system, &canon_name, loop->full_path)){
+        file = working_set_canon_contains(working_set, canon_name.name);
+    }
     
     String filename = make_string(result.info->filename,
                                   result.info->filename_len, result.info->filename_len+1);
@@ -4651,8 +4650,7 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                     // Time Watcher
                     {
                         string.size = 0;
-                        u64 time = 0;
-                        system->now_file_time(&time);
+                        u64 time = system->now_time();
                         
                         append(&string, "last redraw: ");
                         append_u64_to_str(&string, time);
