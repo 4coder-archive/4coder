@@ -1689,6 +1689,9 @@ App_Step_Sig(app_step){
         Partition *part = &models->mem.part;
         Temp_Memory temp = begin_temp_memory(part);
         char *buffer = push_array(part, char, buffer_size);
+        i32 unmark_top = 0;
+        i32 unmark_max = (8 << 10);
+        Editing_File **unmark = (Editing_File**)push_array(part, Editing_File*, unmark_max);
         
         Working_Set *working_set = &models->working_set;
         
@@ -1702,11 +1705,20 @@ App_Step_Sig(app_step){
                     if (file->state.ignore_behind_os == 0){
                         file_mark_behind_os(file);
                     }
-                    else{
-                        file->state.ignore_behind_os = 0;
+                    else if (file->state.ignore_behind_os == 1){
+                        // TODO(allen): I need the ability to put a file back on the list
+                        if (unmark_top == unmark_max){
+                            break;
+                        }
+                        file->state.ignore_behind_os = 2;
+                        unmark[unmark_top++] = file;
                     }
                 }
             }
+        }
+        
+        for (i32 i = 0; i < unmark_top; ++i){
+            unmark[i]->state.ignore_behind_os = 0;
         }
         
         end_temp_memory(temp);

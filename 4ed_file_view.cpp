@@ -1118,6 +1118,7 @@ struct Shift_Information{
     i32 start, end, amount;
 };
 
+// TODO(allen): I want this code audited soon
 internal
 Job_Callback_Sig(job_full_lex){
     Editing_File *file = (Editing_File*)data[0];
@@ -1129,7 +1130,6 @@ Job_Callback_Sig(job_full_lex){
     i32 buffer_size = file->state.buffer.size;
     buffer_size = (buffer_size + 3)&(~3);
     
-#if USE_NEW_LEXER
     while (memory->size < buffer_size*2){
         system->grow_thread_memory(memory);
     }
@@ -1173,48 +1173,6 @@ Job_Callback_Sig(job_full_lex){
             case LexFinished: still_lexing = 0; break;
         }
     } while (still_lexing);
-    
-#else
-    
-    while (memory->size < buffer_size){
-        system->grow_thread_memory(memory);
-    }
-    
-    Cpp_Token_Stack tokens;
-    tokens.tokens = (Cpp_Token*)(char*)memory->data;
-    tokens.max_count = (memory->size) / sizeof(Cpp_Token);
-    tokens.count = 0;
-    
-    Cpp_Lex_Data status = {};
-    
-    do{
-        for (i32 r = 2048; r > 0 && status.pos < text_size; --r){
-            Cpp_Lex_Data prev_lex = status;
-            Cpp_Read_Result step_result = cpp_lex_step(text_data, text_size, &status);
-            
-            if (step_result.has_result){
-                if (!cpp_push_token_nonalloc(&tokens, step_result.token)){
-                    status = prev_lex;
-                    system->grow_thread_memory(memory);
-                    tokens.tokens = (Cpp_Token*)memory->data;
-                    tokens.max_count = memory->size / sizeof(Cpp_Token);
-                }
-            }
-        }
-        
-        if (status.pos >= text_size){
-            status.complete = 1;
-        }
-        else{
-            if (system->check_cancel(thread)){
-                return;
-            }
-        }
-    } while(!status.complete);
-    
-#endif
-    
-    
     
     i32 new_max = LargeRoundUp(tokens.count+1, Kbytes(1));
     
@@ -1322,12 +1280,8 @@ file_relex_parallel(System_Functions *system,
         relex_space.max_count = state.space_request;
         relex_space.tokens = push_array(part, Cpp_Token, relex_space.max_count);
         
-#if USE_NEW_LEXER
         char *spare = push_array(part, char, size+1);
         if (cpp_relex_nonalloc_main(&state, &relex_space, &relex_end, spare)){
-#else
-        if (cpp_relex_nonalloc_main(&state, &relex_space, &relex_end)){
-#endif
             inline_lex = 0;
         }
         else{
@@ -3318,7 +3272,9 @@ kill_file(System_Functions *system, Models *models, Editing_File *file){
     
     if (file && !file->settings.never_kill){
         buffer_unbind_name(working_set, file);
-        buffer_unbind_file(system, working_set, file);
+        if (file->canon.name.size != 0){
+            buffer_unbind_file(system, working_set, file);
+        }
         file_close(system, &models->mem.general, file);
         working_set_free_file(working_set, file);
         

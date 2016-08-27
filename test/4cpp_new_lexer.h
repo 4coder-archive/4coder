@@ -447,6 +447,7 @@ cpp_lex_nonalloc(Lex_Data *S_ptr,
         if (S.fsm.state >= LS_count) S.fsm.state -= LS_count;
         pos_update_rule = PUR_none;
         if (S.pp_state == LSPP_include){
+            if (c == 0) S.fsm.emit_token = 0;
             switch (S.fsm.state){
                 case LSINC_default:break;
                 
