@@ -1930,9 +1930,10 @@ CUSTOM_COMMAND_SIG(open_all_code){
             String extension = make_string(info->filename, info->filename_len, info->filename_len+1);
             extension = file_extension(extension);
             if (match(extension, make_lit_string("cpp")) ||
-                    match(extension, make_lit_string("hpp")) ||
-                    match(extension, make_lit_string("c")) ||
-                    match(extension, make_lit_string("h"))){
+                match(extension, make_lit_string("hpp")) ||
+                match(extension, make_lit_string("c")) ||
+                match(extension, make_lit_string("h")) ||
+                match(extension, make_lit_string("cc"))){
                 // NOTE(allen): There's no way in the 4coder API to use relative
                 // paths at the moment, so everything should be full paths.  Which is
                 // managable.  Here simply set the dir string size back to where it

@@ -1094,7 +1094,7 @@ Kill_Buffer(Application_Links *app, Buffer_Identifier buffer, View_ID view_id, B
 DOC_PARAM(buffer, The buffer parameter specifies the buffer to try to kill.)
 DOC_PARAM(view_id, The view_id parameter specifies the view that will contain the "are you sure" dialogue if the buffer is dirty.)
 DOC_PARAM(flags, The flags parameter specifies behaviors for the buffer kill.)
-DOC_RETURN(This call returns non-zero on success.)
+DOC_RETURN(This call returns non-zero if the buffer is killed.)
 DOC
 (
 Tries to kill the idenfied buffer.  If the buffer is dirty and the "are you sure"
@@ -1118,12 +1118,21 @@ DOC_SEE(Buffer_Identifier)
             kill_file(system, models, file);
         }
         else{
-            if (vptr){
-                result = true;
-                interactive_try_kill_file(system, models, vptr, file);
+            Try_Kill_Result kill_result = interactive_try_kill_file(system, models, file);
+            if (kill_result == TryKill_NeedDialogue){
+                if (vptr){
+                    interactive_begin_sure_to_kill(system, vptr, file);
+                }
+                else{
+#define MESSAGE "CUSTOM WARNING: the buffer is dirty and no view was specified for a dialogue.\n"
+                    app->print_message(app, literal(MESSAGE));
+#undef MESSAGE
+                }
             }
             else{
-                app->print_message(app, literal("CUSTOM WARNING: the buffer is dirty and no view was specified for a dialogue."));
+                if (kill_result == TryKill_Success){
+                    result = true;
+                }
             }
         }
     }

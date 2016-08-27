@@ -3312,24 +3312,45 @@ save_file_by_name(System_Functions *system, Models *models, String name){
     }
 }
 
-internal b32
-interactive_try_kill_file(System_Functions *system, Models *models, View *view, Editing_File *file){
-    b32 kill_dialogue = false;
+internal void
+interactive_begin_sure_to_kill(System_Functions *system, View *view, Editing_File *file){
+    view_show_interactive(system, view,
+                          IAct_Sure_To_Kill, IInt_Sure_To_Kill,
+                          make_lit_string("Are you sure?"));
+    copy(&view->dest, file->name.live_name);
+}
+
+enum Try_Kill_Result{
+    TryKill_CannotKill,
+    TryKill_NeedDialogue,
+    TryKill_Success
+};
+
+internal Try_Kill_Result
+interactive_try_kill_file(System_Functions *system, Models *models, Editing_File *file){
+    Try_Kill_Result result = TryKill_CannotKill;
     
     if (!file->settings.never_kill){
         if (buffer_needs_save(file)){
-            view_show_interactive(system, view,
-                                  IAct_Sure_To_Kill, IInt_Sure_To_Kill,
-                                  make_lit_string("Are you sure?"));
-            copy(&view->dest, file->name.live_name);
-            kill_dialogue = true;
+            result = TryKill_NeedDialogue;
         }
         else{
             kill_file(system, models, file);
+            result = TryKill_Success;
         }
     }
     
-    return(kill_dialogue);
+    return(result);
+}
+
+internal b32
+interactive_try_kill_file(System_Functions *system, Models *models, View *view, Editing_File *file){
+    Try_Kill_Result kill_result = interactive_try_kill_file(system, models, file);
+    b32 result = (kill_result == TryKill_NeedDialogue);
+    if (result){
+        interactive_begin_sure_to_kill(system, view, file);
+    }
+    return(result);
 }
 
 internal b32
