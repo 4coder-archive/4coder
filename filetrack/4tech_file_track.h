@@ -31,7 +31,7 @@ typedef struct{
     uint8_t opaque[128];
 } File_Track_System;
 
-typedef int32_t  File_Track_Result;
+typedef int32_t File_Track_Result;
 
 File_Track_Result
 init_track_system(File_Track_System *system,

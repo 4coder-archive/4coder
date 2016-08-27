@@ -914,6 +914,7 @@ buffer_bind_file(System_Functions *system, General_Memory *general, Working_Set 
     
     file->canon.name = make_fixed_width_string(file->canon.name_);
     copy(&file->canon.name, canon_filename);
+    terminate_with_null(&file->canon.name);
     system->add_listener(file->canon.name_);
     b32 result = working_set_canon_add(general, working_set, file, file->canon.name);
     Assert(result); AllowLocal(result);

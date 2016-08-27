@@ -59,14 +59,6 @@ typedef struct {
     HANDLE dir;
     int32_t user_count;
     
-    char dir_name[512];
-    int32_t dir_name_len;
-    
-    // TODO(allen): I am only ever using one thread
-    // for reading results.  So is it possible to
-    // have them all go through the same location
-    // instead of having a different 2K block
-    // for each directory node?
     char result[2048];
 } Directory_Listener;
 
@@ -446,8 +438,7 @@ add_listener(File_Track_System *system, char *filename){
         
         // TODO(allen): make this real!
         char dir_name[1024];
-        int32_t dir_name_len =
-            internal_get_parent_name(dir_name, sizeof(dir_name), filename);
+        internal_get_parent_name(dir_name, sizeof(dir_name), filename);
         
         HANDLE dir = CreateFile(
             dir_name,
@@ -483,14 +474,6 @@ add_listener(File_Track_System *system, char *filename){
                                                           0)){
                                     node->listener.dir = dir;
                                     node->listener.user_count = 1;
-                                    
-                                    // TODO(allen): make this real!
-                                    Assert(dir_name_len < sizeof(node->listener.dir_name));
-                                    for (int32_t i = 0; i < dir_name_len; ++i){
-                                        node->listener.dir_name[i] = dir_name[i];
-                                    }
-                                    node->listener.dir_name[dir_name_len] = 0;
-                                    node->listener.dir_name_len = dir_name_len;
                                     
                                     dir_lookup.entry->hash = dir_hash;
                                     dir_lookup.entry->dir = dir;
@@ -722,19 +705,24 @@ get_change_event(File_Track_System *system, char *buffer, int32_t max, int32_t *
                 info = (FILE_NOTIFY_INFORMATION*)(listener_buffer + offset);
                 
                 int32_t len = info->FileNameLength / 2;
-                int32_t req_size = listener.dir_name_len + 1 + len;
+                int32_t dir_len =GetFinalPathNameByHandle(listener.dir, 0, 0, FILE_NAME_NORMALIZED);
+                int32_t req_size = dir_len + 1 + len;
                 *size = req_size;
                 if (req_size < max){
                     int32_t pos = 0;
-                    char *src = listener.dir_name;
-                    for (int32_t i = 0; src[i]; ++i, ++pos){
-                        buffer[pos] = src[i];
-                    }
                     
+                    pos = GetFinalPathNameByHandle(listener.dir, buffer, max, FILE_NAME_NORMALIZED);
                     buffer[pos++] = '/';
                     
                     for (int32_t i = 0; i < len; ++i, ++pos){
                         buffer[pos] = (char)info->FileName[i];
+                    }
+                    
+                    if (buffer[0] == '\\'){
+                        for (int32_t i = 0; i+4 < pos; ++i){
+                            buffer[i] = buffer[i+4];
+                        }
+                        *size -= 4;
                     }
                     
                     result = FileTrack_Good;

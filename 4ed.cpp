@@ -1724,56 +1724,6 @@ App_Step_Sig(app_step){
         end_temp_memory(temp);
     }
     
-#if 0
-    // NOTE(allen): check files are up to date
-    if (!input->first_step){
-        Panel *panel = 0, *used_panels = &models->layout.used_sentinel;
-        for (dll_items(panel, used_panels)){
-            View *view = panel->view;
-            Editing_File *file = view->file_data.file;
-            
-            terminate_with_null(&file->name.source_path);
-            u64 time_stamp = system->file_time_stamp(file->name.source_path.str);
-            
-            if (time_stamp > 0){
-                if (file->state.last_sync < time_stamp){
-                    file_mark_behind_os(file);
-                }
-            }
-        }
-        
-        File_Node *node = models->working_set.sync_check_iter;
-        File_Node *used_nodes = &models->working_set.used_sentinel;
-        
-        if (node == used_nodes){
-            node = node->next;
-        }
-        Assert(!((Editing_File*)node)->is_dummy);
-        
-        for (i32 i = 0; i < 4; ++i){
-            if (node == used_nodes){
-                break;
-            }
-            
-            Editing_File *file = (Editing_File*)node;
-            
-            terminate_with_null(&file->name.source_path);
-            u64 time_stamp = system->file_time_stamp(file->name.source_path.str);
-            
-            if (time_stamp > 0){
-                if (file->state.last_sync < time_stamp){
-                    file_mark_behind_os(file);
-                }
-            }
-        }
-        
-        models->working_set.sync_check_iter = node;
-    }
-    else{
-        models->working_set.sync_check_iter = &models->working_set.used_sentinel;
-    }
-#endif
-    
     // NOTE(allen): reorganizing panels on screen
     {
         i32 prev_width = models->layout.full_width;
