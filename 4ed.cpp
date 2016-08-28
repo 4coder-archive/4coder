@@ -1627,6 +1627,24 @@ App_Init_Sig(app_init){
 }
 
 internal i32
+update_cli_handle_without_file(System_Functions *system, Models *models,
+                               CLI_Handles *cli, char *dest, i32 max){
+    i32 result = 0;
+    u32 amount = 0;
+    
+    system->cli_begin_update(cli);
+    if (system->cli_update_step(cli, dest, max, &amount)){
+        result = 1;
+    }
+    
+    if (system->cli_end_update(cli)){
+        result = -1;
+    }
+    
+    return(result);
+}
+
+internal i32
 update_cli_handle_with_file(System_Functions *system, Models *models,
                             CLI_Handles *cli, Editing_File *file, char *dest, i32 max, b32 cursor_at_end){
     i32 result = 0;
@@ -1879,6 +1897,10 @@ App_Step_Sig(app_step){
                     *proc = vars->cli_processes.procs[--count];
                     --i;
                 }
+            }
+            else{
+                update_cli_handle_without_file(
+                    system, models, &proc->cli, dest, max);
             }
         }
         

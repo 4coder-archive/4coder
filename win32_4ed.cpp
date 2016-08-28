@@ -1471,7 +1471,7 @@ Sys_CLI_Call_Sig(system_cli_call){
             // TODO(allen): failed CreatePipe
         }
     }
-
+    
     return success;
 }
 
@@ -1494,13 +1494,13 @@ Sys_CLI_Update_Step_Sig(system_cli_update_step){
     DWORD remaining = loop->remaining_amount;
     u32 pos = 0;
     DWORD read_amount = 0;
-
+    
     for (;;){
         if (remaining == 0){
             if (!PeekNamedPipe(handle, 0, 0, 0, &remaining, 0)) break;
             if (remaining == 0) break;
         }
-
+        
         if (remaining + pos < max){
             has_more = 1;
             ReadFile(handle, dest + pos, remaining, &read_amount, 0);
@@ -1518,8 +1518,8 @@ Sys_CLI_Update_Step_Sig(system_cli_update_step){
         }
     }
     *amount = pos;
-
-    return has_more;
+    
+    return(has_more);
 }
 
 internal
@@ -1527,13 +1527,13 @@ Sys_CLI_End_Update_Sig(system_cli_end_update){
     b32 close_me = 0;
     HANDLE proc = *(HANDLE*)&cli->proc;
     DWORD result = 0;
-
+    
     if (WaitForSingleObject(proc, 0) == WAIT_OBJECT_0){
         if (GetExitCodeProcess(proc, &result) == 0)
             cli->exit = -1;
         else
             cli->exit = (i32)result;
-
+        
         close_me = 1;
         CloseHandle(*(HANDLE*)&cli->proc);
         CloseHandle(*(HANDLE*)&cli->out_read);
@@ -1541,7 +1541,7 @@ Sys_CLI_End_Update_Sig(system_cli_end_update){
         
         --win32vars.running_cli;
     }
-    return close_me;
+    return(close_me);
 }
 
 #include "system_shared.cpp"
