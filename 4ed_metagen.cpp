@@ -12,7 +12,6 @@
 #include "4ed_meta.h"
 #include "internal_4coder_string.cpp"
 
-#include "4cpp_types.h"
 #include "4cpp_lexer_types.h"
 
 #define FCPP_LEXER_IMPLEMENTATION
@@ -2037,32 +2036,35 @@ generate_custom_headers(){
         Enum_Set flag_set = {0};
         Enum_Set enum_set = {0};
         
+        String type_code[1];
+        type_code[0] = file_dump("4coder_os_types.h");
         
-        String type_code = file_dump("4coder_types.h");
-        
-        char *data = type_code.str;
-        int size = type_code.size;
-        
-        Cpp_Token_Stack types_tokens = cpp_make_token_stack(512);
-        cpp_lex_file(data, size, &types_tokens);
+        Cpp_Token_Stack types_token_array[1];
         
         int typedef_count = 0;
         int struct_count = 0;
         int flag_count = 0;
         int enum_count = 0;
         
-        {
+        static String type_spec_keys[] = {
+            make_lit_string("typedef"),
+            make_lit_string("struct"),
+            make_lit_string("union"),
+            make_lit_string("ENUM"),
+            make_lit_string("FLAGENUM"),
+        };
+        
+        for (int32_t J = 0; J < 1; ++J){
+            char *data = type_code[J].str;
+            int size = type_code[J].size;
+            
+            Cpp_Token_Stack types_tokens = cpp_make_token_stack(512);
+            cpp_lex_file(data, size, &types_tokens);
+            types_token_array[J] = types_tokens;
+            
             int count = types_tokens.count;
             Cpp_Token *tokens = types_tokens.tokens;
             Cpp_Token *token = tokens;
-            
-            static String type_spec_keys[] = {
-                make_lit_string("typedef"),
-                make_lit_string("struct"),
-                make_lit_string("union"),
-                make_lit_string("ENUM"),
-                make_lit_string("FLAGENUM"),
-            };
             
             for (int i = 0; i < count; ++i, ++token){
                 if (!(token->flags & CPP_TFLAG_PP_BODY) &&
@@ -2089,36 +2091,45 @@ generate_custom_headers(){
                     }
                 }
             }
+        }
+        
+        if (typedef_count >  0){
+            typedef_set.type = push_array(part, String, typedef_count);
+            typedef_set.name = push_array(part, String, typedef_count);
+            typedef_set.doc_string = push_array(part, String, typedef_count);
+        }
+        
+        if (struct_count > 0){
+            struct_set.structs = push_array(part, Struct_Member, struct_count);
+        }
+        
+        if (enum_count > 0){
+            enum_set.name = push_array(part, String, enum_count);
+            enum_set.type = push_array(part, String, enum_count);
+            enum_set.first_member = push_array(part, Enum_Member*, enum_count);
+            enum_set.doc_string = push_array(part, String, enum_count);
+        }
+        
+        if (flag_count > 0){
+            flag_set.name = push_array(part, String, flag_count);
+            flag_set.first_member = push_array(part, Enum_Member*, flag_count);
+            flag_set.doc_string = push_array(part, String, flag_count);
+        }
+        
+        int typedef_index = 0;
+        int struct_index = 0;
+        int flag_index = 0;
+        int enum_index = 0;
+        
+        for (int32_t J = 0; J < 1; ++J){
+            char *data = type_code[J].str;
             
-            if (typedef_count >  0){
-                typedef_set.type = push_array(part, String, typedef_count);
-                typedef_set.name = push_array(part, String, typedef_count);
-                typedef_set.doc_string = push_array(part, String, typedef_count);
-            }
+            Cpp_Token_Stack types_tokens = types_token_array[J];
             
-            if (struct_count > 0){
-                struct_set.structs = push_array(part, Struct_Member, struct_count);
-            }
+            int count = types_tokens.count;
+            Cpp_Token *tokens = types_tokens.tokens;
+            Cpp_Token *token = tokens;
             
-            if (enum_count > 0){
-                enum_set.name = push_array(part, String, enum_count);
-                enum_set.type = push_array(part, String, enum_count);
-                enum_set.first_member = push_array(part, Enum_Member*, enum_count);
-                enum_set.doc_string = push_array(part, String, enum_count);
-            }
-            
-            if (flag_count > 0){
-                flag_set.name = push_array(part, String, flag_count);
-                flag_set.first_member = push_array(part, Enum_Member*, flag_count);
-                flag_set.doc_string = push_array(part, String, flag_count);
-            }
-            
-            int typedef_index = 0;
-            int struct_index = 0;
-            int flag_index = 0;
-            int enum_index = 0;
-            
-            token = tokens;
             for (int i = 0; i < count; ++i, ++token){
                 Assert(i == (i32)(token - tokens));
                 if (!(token->flags & CPP_TFLAG_PP_BODY) &&
@@ -2233,7 +2244,7 @@ generate_custom_headers(){
             enum_count = enum_index;
             flag_count = flag_index;
         }
-        
+            
         //
         // Output 4coder_string.h
         //

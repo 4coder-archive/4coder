@@ -106,8 +106,8 @@ execute(char *dir, char *str){
 #error This OS is not supported yet
 #endif
 
-#define BEGIN_TIME_SECTION() do{ uint64_t start = get_time()
-#define END_TIME_SECTION(n) uint64_t total = get_time() - start; printf("%-20s: %.2lu.%.6lu\n", (n), total/1000000, total%1000000); }while(0)
+#define BEGIN_TIME_SECTION() uint64_t start = get_time()
+#define END_TIME_SECTION(n) uint64_t total = get_time() - start; printf("%-20s: %.2lu.%.6lu\n", (n), total/1000000, total%1000000);
 
 //
 // 4coder specific
@@ -143,7 +143,10 @@ enum{
     LIBS = 0x4,
     ICON = 0x8,
     SHARED_CODE = 0x10,
-    DEBUG_INFO = 0x20
+    DEBUG_INFO = 0x20,
+    SUPER = 0x40,
+    INTERNAL = 0x80,
+    OPTIMIZATION = 0x100
 };
 
 
@@ -198,8 +201,23 @@ build_cl(uint32_t flags,
         swap_ptr(&build_options, &build_options_prev);
     }
     
+    if (flags & OPTIMIZATION){
+        snprintf(build_options, build_max, "%s /O2", build_options_prev);
+        swap_ptr(&build_options, &build_options_prev);
+    }
+    
     if (flags & SHARED_CODE){
         snprintf(build_options, build_max, "%s /LD", build_options_prev);
+        swap_ptr(&build_options, &build_options_prev);
+    }
+    
+    if (flags & SUPER){
+        snprintf(build_options, build_max, "%s /DFRED_SUPER", build_options_prev);
+        swap_ptr(&build_options, &build_options_prev);
+    }
+    
+    if (flags & INTERNAL){
+        snprintf(build_options, build_max, "%s /DFRED_INTERNAL", build_options_prev);
         swap_ptr(&build_options, &build_options_prev);
     }
     
@@ -251,31 +269,43 @@ int main(int argc, char **argv){
 #define META_DIR "../meta"
 #define BUILD_DIR "../build"
     
-    BEGIN_TIME_SECTION();
-    build(OPTS | DEBUG_INFO, cdir, "4ed_metagen.cpp",
-          META_DIR, "metagen", 0);
-    END_TIME_SECTION("build metagen");
+    {
+        BEGIN_TIME_SECTION();
+        build(OPTS | DEBUG_INFO, cdir, "4ed_metagen.cpp",
+              META_DIR, "metagen", 0);
+        END_TIME_SECTION("build metagen");
+    }
     
-    BEGIN_TIME_SECTION();
-    execute(cdir, META_DIR"/metagen");
-    END_TIME_SECTION("run metagen");
+    {
+        BEGIN_TIME_SECTION();
+        execute(cdir, META_DIR"/metagen");
+        END_TIME_SECTION("run metagen");
+    }
     
-    BEGIN_TIME_SECTION();
-    //buildsuper(cdir, BUILD_DIR, "../code/4coder_default_bindings.cpp");
-    buildsuper(cdir, BUILD_DIR, "../code/internal_4coder_tests.cpp");
-    //buildsuper(cdir, BUILD_DIR, "../code/power/4coder_casey.cpp");
-    //buildsuper(cdir, BUILD_DIR, "../4vim/4coder_chronal.cpp");
-    END_TIME_SECTION("build custom");
+    {
+        BEGIN_TIME_SECTION();
+        //buildsuper(cdir, BUILD_DIR, "../code/4coder_default_bindings.cpp");
+        buildsuper(cdir, BUILD_DIR, "../code/internal_4coder_tests.cpp");
+        //buildsuper(cdir, BUILD_DIR, "../code/power/4coder_casey.cpp");
+        //buildsuper(cdir, BUILD_DIR, "../4vim/4coder_chronal.cpp");
+        END_TIME_SECTION("build custom");
+    }
     
-    BEGIN_TIME_SECTION();
-    build(OPTS | INCLUDES | SHARED_CODE | DEBUG_INFO, cdir, "4ed_app_target.cpp",
-          BUILD_DIR, "4ed_app", "/EXPORT:app_get_functions");
-    END_TIME_SECTION("build 4ed_app");
+    uint32_t flags = DEBUG_INFO | SUPER | INTERNAL;
     
-    BEGIN_TIME_SECTION();
-    build(OPTS | INCLUDES | LIBS | ICON | DEBUG_INFO, cdir, "win32_4ed.cpp",
-          BUILD_DIR, "4ed", 0);
-    END_TIME_SECTION("build 4ed");
+    {
+        BEGIN_TIME_SECTION();
+        build(OPTS | INCLUDES | SHARED_CODE | flags, cdir, "4ed_app_target.cpp",
+              BUILD_DIR, "4ed_app", "/EXPORT:app_get_functions");
+        END_TIME_SECTION("build 4ed_app");
+    }
+    
+    {
+        BEGIN_TIME_SECTION();
+        build(OPTS | INCLUDES | LIBS | ICON | flags, cdir, "win32_4ed.cpp",
+              BUILD_DIR, "4ed", 0);
+        END_TIME_SECTION("build 4ed");
+    }
     
     return(error_state);
 }

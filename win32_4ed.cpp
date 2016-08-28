@@ -9,11 +9,16 @@
 
 // TOP
 
-#include "4coder_default_bindings.cpp"
+#if FRED_SUPER
+# include "4coder_custom.h"
+#else
+# include "4coder_default_bindings.cpp"
+#endif
 
 #include "4ed_meta.h"
 
 #define FSTRING_IMPLEMENTATION
+#define FSTRING_C
 #include "4coder_string.h"
 
 #include "4ed_math.cpp"
@@ -2353,13 +2358,11 @@ WinMain(HINSTANCE hInstance,
         win32vars.custom_api.view_routine = (View_Routine_Function*)
             GetProcAddress(win32vars.custom, "view_routine");
 #endif
-        
     }
-#endif
     
-    if (win32vars.custom_api.get_bindings == 0){
-        win32vars.custom_api.get_bindings = (Get_Binding_Data_Function*)get_bindings;
-    }
+#else
+    win32vars.custom_api.get_bindings = (Get_Binding_Data_Function*)get_bindings;
+#endif
     
     win32vars.custom_api.view_routine = (View_Routine_Function*)0;
     

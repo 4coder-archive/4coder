@@ -4,6 +4,10 @@
 #ifndef FCPP_NEW_LEXER_INC
 #define FCPP_NEW_LEXER_INC
 
+#ifndef FCPP_LINK
+# define FCPP_LINK static
+#endif
+
 #include "4cpp_lexer_types.h"
 #include "4cpp_lexer_fsms.h"
 #include "4cpp_lexer_tables.c"
@@ -18,7 +22,7 @@ struct String_List{
 
 struct Sub_Match_List_Result{
 	int index;
-	fcpp_i32 new_pos;
+	int32_t new_pos;
 };
 
 #define lexer_string_list(x) {x, (sizeof(x)/sizeof(*x))}
@@ -1094,7 +1098,7 @@ cpp_relex_nonalloc_start(char *data, int size, Cpp_Token_Stack *stack,
 }
 
 inline char
-cpp_token_get_pp_state(fcpp_u16 bitfield){
+cpp_token_get_pp_state(uint16_t bitfield){
     return (char)(bitfield);
 }
 
@@ -1228,7 +1232,7 @@ cpp_free_token_stack(Cpp_Token_Stack token_stack){
 
 FCPP_LINK void
 cpp_resize_token_stack(Cpp_Token_Stack *token_stack, int new_max){
-    Cpp_Token *new_tokens = (Cpp_Token*)FCPP_GET_MEMORY(sizeof(Cpp_Token)*new_max);
+    Cpp_Token *new_tokens = (Cpp_Token*)malloc(sizeof(Cpp_Token)*new_max);
     
     if (new_tokens){
         memcpy(new_tokens, token_stack->tokens, sizeof(Cpp_Token)*token_stack->count);

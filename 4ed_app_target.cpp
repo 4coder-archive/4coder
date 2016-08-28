@@ -15,7 +15,6 @@
 
 #include "4ed_meta.h"
 
-#include "4cpp_types.h"
 #define FSTRING_IMPLEMENTATION
 #include "4coder_string.h"
 

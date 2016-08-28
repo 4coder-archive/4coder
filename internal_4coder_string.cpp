@@ -9,7 +9,10 @@ FSTRING_BEGIN
 // TOP
 
 #if defined(FSTRING_C)
-#define FSTRING_INLINE static
+# if defined(FSTRING_INLINE)
+#  undef FSTRING_INLINE
+# endif
+# define FSTRING_INLINE static
 #endif
 
 #if defined(FSTRING_IMPLEMENTATION) && defined(FSTRING_GUARD)
