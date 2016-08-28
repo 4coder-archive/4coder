@@ -388,7 +388,7 @@ query_user_general(Application_Links *app, Query_Bar *bar, int force_number){
                 }
             }
             else if (good_character){
-                append(&bar->string, in.key.character);
+                append_s_char(&bar->string, in.key.character);
             }
         }
     }

@@ -802,7 +802,7 @@ system_file_load_begin(char *filename){
     if (fname_str.size < 1024){
         char fixed_space[1024];
         String fixed_str = make_fixed_width_string(fixed_space);
-        copy(&fixed_str, fname_str);
+        copy_ss(&fixed_str, fname_str);
         terminate_with_null(&fixed_str);
         
         replace_char(&fixed_str, '/', '\\');
@@ -944,10 +944,9 @@ internal
 Sys_Set_File_List_Sig(system_set_file_list){
     if (directory.size > 0){
         char dir_space[MAX_PATH + 32];
-        String dir = make_string(dir_space, 0, MAX_PATH + 32);
-        append(&dir, directory);
-        char trail_str[] = "\\*";
-        append(&dir, trail_str);
+        String dir = make_string_cap(dir_space, 0, MAX_PATH + 32);
+        append_ss(&dir, directory);
+        append_ss(&dir, make_lit_string("\\*"));
         terminate_with_null(&dir);
         
         char *c_str_dir = dir.str;
@@ -961,8 +960,8 @@ Sys_Set_File_List_Sig(system_set_file_list){
             i32 file_count = 0;
             BOOL more_files = 1;
             do{
-                if (!match(find_data.cFileName, ".") &&
-                    !match(find_data.cFileName, "..")){
+                if (!match_cs(find_data.cFileName, make_lit_string(".")) &&
+                    !match_cs(find_data.cFileName, make_lit_string(".."))){
                     ++file_count;
                     i32 size = 0;
                     for(;find_data.cFileName[size];++size);
@@ -988,8 +987,8 @@ Sys_Set_File_List_Sig(system_set_file_list){
                     File_Info *info = file_list->infos;
                     more_files = 1;
                     do{
-                        if (!match(find_data.cFileName, ".") &&
-                            !match(find_data.cFileName, "..")){
+                        if (!match_cs(find_data.cFileName, make_lit_string(".")) &&
+                            !match_cs(find_data.cFileName, make_lit_string(".."))){
                             info->folder = (find_data.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) != 0;
                             info->filename = name;
                             
@@ -997,9 +996,9 @@ Sys_Set_File_List_Sig(system_set_file_list){
                             for(;find_data.cFileName[i];++i) *name++ = find_data.cFileName[i];
                             info->filename_len = i;
                             *name++ = 0;
-                            String fname = make_string(info->filename,
-                                                       info->filename_len,
-                                                       info->filename_len+1);
+                            String fname = make_string_cap(info->filename,
+                                                           info->filename_len,
+                                                           info->filename_len+1);
                             replace_char(&fname, '\\', '/');
                             ++info;
                         }
@@ -1364,7 +1363,7 @@ Sys_Post_Clipboard_Sig(system_post_clipboard){
 		memory_handle = GlobalAlloc(GMEM_MOVEABLE, str.size+1);
 		if (memory_handle){
 			char *dest = (char*)GlobalLock(memory_handle);
-            copy_fast_unsafe(dest, str);
+            copy_fast_unsafe_cs(dest, str);
 			GlobalUnlock(memory_handle);
 			SetClipboardData(CF_TEXT, memory_handle);
 			win32vars.next_clipboard_is_self = 1;
@@ -1408,8 +1407,8 @@ Sys_CLI_Call_Sig(system_cli_call){
     char command_line[2048];
     
     String s = make_fixed_width_string(command_line);
-    copy(&s, make_lit_string("/C "));
-    append_partial(&s, script_name);
+    copy_ss(&s, make_lit_string("/C "));
+    append_partial_sc(&s, script_name);
     b32 success = terminate_with_null(&s);
     
     if (success){
@@ -2298,7 +2297,7 @@ WinMain(HINSTANCE hInstance,
     char *current_directory_mem = (char*)system_get_memory(required);
     DWORD written = GetCurrentDirectory(required, current_directory_mem);
     
-    String current_directory = make_string(current_directory_mem, written, required);
+    String current_directory = make_string_cap(current_directory_mem, written, required);
     terminate_with_null(&current_directory);
     replace_char(&current_directory, '\\', '/');
     

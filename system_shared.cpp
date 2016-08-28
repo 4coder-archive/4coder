@@ -109,7 +109,7 @@ sysshared_to_binary_path(String *out_filename, char *filename){
     i32 size = system_get_binary_path(out_filename);
     if (size > 0 && size < max-1){
         out_filename->size = size;
-        if (append(out_filename, filename) && terminate_with_null(out_filename)){
+        if (append_sc(out_filename, filename) && terminate_with_null(out_filename)){
             translate_success = 1;
         }
     }

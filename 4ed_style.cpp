@@ -28,8 +28,8 @@ style_copy(Style *dst, Style *src){
 internal void
 style_set_name(Style *style, String name){
     i32 count = ArrayCount(style->name_);
-    style->name = make_string(style->name_, 0, count - 1);
-    copy(&style->name, name);
+    style->name = make_string_cap(style->name_, 0, count - 1);
+    copy_ss(&style->name, name);
     terminate_with_null(&style->name);
 }
 

@@ -188,7 +188,7 @@ static int32_t
 tbl_string_compare(void *a, void *b, void *arg){
     String *stra = (String*)a;
     String *strb = (String*)b;
-    int32_t result = !match(*stra, *strb);
+    int32_t result = !match_ss(*stra, *strb);
     return(result);
 }
 
@@ -217,7 +217,7 @@ tbl_offset_string_compare(void *a, void *b, void *arg){
     Offset_String *ostrb = (Offset_String*)b;
     String stra = make_string((char*)arg + ostra->offset, ostra->size);
     String strb = make_string((char*)arg + ostrb->offset, ostrb->size);
-    int32_t result = !match(stra, strb);
+    int32_t result = !match_ss(stra, strb);
     return(result);
 }
 

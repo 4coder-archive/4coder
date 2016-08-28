@@ -75,7 +75,7 @@ DOC_RETURN(This call returns non-zero if and only if the file exists.)
     
     if (len < sizeof(full_filename_space)){
         full_filename = make_fixed_width_string(full_filename_space);
-        copy(&full_filename, make_string(filename, len));
+        copy_ss(&full_filename, make_string(filename, len));
         terminate_with_null(&full_filename);
         
         file = CreateFile(full_filename.str, GENERIC_READ, 0, 0,
@@ -110,13 +110,13 @@ string.  This call can also be used with rel set to ".." to traverse to parent
 folders.
 )
 */{
-    String directory = make_string(dir, *len, capacity);
+    String directory = make_string_cap(dir, *len, capacity);
     b32 result = 0;
     i32 old_size;
     
     char rel_path_space[1024];
     String rel_path_string = make_fixed_width_string(rel_path_space);
-    copy(&rel_path_string, make_string(rel_path, rel_len));
+    copy_ss(&rel_path_string, make_string(rel_path, rel_len));
     terminate_with_null(&rel_path_string);
     
     if (rel_path[0] != 0){
@@ -130,8 +130,8 @@ folders.
         else{
             if (directory.size + rel_len + 1 > directory.memory_size){
                 old_size = directory.size;
-                append_partial(&directory, rel_path);
-                append_partial(&directory, "\\");
+                append_partial_sc(&directory, rel_path);
+                append_s_char(&directory, '\\');
                 if (Win32DirectoryExists(directory.str)){
                     result = 1;
                 }
@@ -153,7 +153,7 @@ DOC_PARAM(out, This parameter provides a character buffer that receives the path
 DOC_PARAM(capacity, This parameter specifies the maximum capacity of the out buffer.)
 DOC_RETURN(This call returns non-zero on success.)
 */{
-    String str = make_string(out, 0, capacity);
+    String str = make_string_cap(out, 0, capacity);
     return(system_get_binary_path(&str));
 }
 

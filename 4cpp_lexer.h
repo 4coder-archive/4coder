@@ -398,7 +398,7 @@ sub_match_list(char *data, int size, int pos, String_List list, int sub_size){
         str_main = substr(str_main, 0, sub_size);
         for (i = 0; i < list.count; ++i){
             str_check = list.data[i].str;
-            if (match(str_main, str_check)){
+            if (match_sc(str_main, str_check)){
                 result.index = i;
                 result.new_pos = pos + sub_size;
                 break;
@@ -408,7 +408,7 @@ sub_match_list(char *data, int size, int pos, String_List list, int sub_size){
     else{
         for (i = 0; i < list.count; ++i){
             str_check = list.data[i].str;
-            if (match_part(str_main, str_check, &l)){
+            if (match_part_scl(str_main, str_check, &l)){
                 result.index = i;
                 result.new_pos = pos + l;
                 break;
@@ -607,7 +607,7 @@ cpp_read_alpha_numeric(char *data, int size, int pos, bool in_if_body){
         String word;
         word.size = result.token.size;
         word.str = data + result.token.start;
-        if (match(word, "defined")){
+        if (match_ss(word, make_lit_string("defined"))){
             result.token.type = CPP_TOKEN_DEFINED;
             result.token.flags |= CPP_TFLAG_IS_OPERATOR;
             result.token.flags |= CPP_TFLAG_IS_KEYWORD;

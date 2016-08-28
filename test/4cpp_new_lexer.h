@@ -130,7 +130,7 @@ sub_match_list(char *chunk, int size, int pos, String_List list, int sub_size){
         str_main = substr(str_main, 0, sub_size);
         for (i = 0; i < list.count; ++i){
             str_check = list.data[i].str;
-            if (match(str_main, str_check)){
+            if (match_sc(str_main, str_check)){
                 result.index = i;
                 result.new_pos = pos + sub_size;
                 break;
@@ -140,7 +140,7 @@ sub_match_list(char *chunk, int size, int pos, String_List list, int sub_size){
     else{
         for (i = 0; i < list.count; ++i){
             str_check = list.data[i].str;
-            if (match_part(str_main, str_check, &l)){
+            if (match_part_scl(str_main, str_check, &l)){
                 result.index = i;
                 result.new_pos = pos + l;
                 break;
@@ -530,7 +530,7 @@ cpp_lex_nonalloc(Lex_Data *S_ptr,
                     int word_size = S.pos - S.token_start;
                     
                     if (S.pp_state == LSPP_body_if){
-                        if (match(make_string(S.tb, word_size), make_lit_string("defined"))){
+                        if (match_ss(make_string(S.tb, word_size), make_lit_string("defined"))){
                             S.token.type = CPP_TOKEN_DEFINED;
                             S.token.flags = CPP_TFLAG_IS_OPERATOR | CPP_TFLAG_IS_KEYWORD;
                             break;

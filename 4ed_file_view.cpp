@@ -2434,7 +2434,7 @@ working_set_next_clipboard_string(General_Memory *general, Working_Set *working,
         new_str = (char*)general_memory_allocate(general, str_size+1);
     }
     // TODO(allen): What if new_str == 0?
-    *result = make_string(new_str, 0, str_size);
+    *result = make_string_cap(new_str, 0, str_size);
     return result;
 }
 
@@ -3123,8 +3123,8 @@ view_show_file(View *view){
 internal String
 make_string_terminated(Partition *part, char *str, i32 len){
     char *space = (char*)push_array(part, char, len + 1);
-    String string = make_string(str, len, len+1);
-    copy_fast_unsafe(space, string);
+    String string = make_string_cap(str, len, len+1);
+    copy_fast_unsafe_cs(space, string);
     string.str = space;
     terminate_with_null(&string);
     return(string);
@@ -3317,7 +3317,7 @@ interactive_begin_sure_to_kill(System_Functions *system, View *view, Editing_Fil
     view_show_interactive(system, view,
                           IAct_Sure_To_Kill, IInt_Sure_To_Kill,
                           make_lit_string("Are you sure?"));
-    copy(&view->dest, file->name.live_name);
+    copy_ss(&view->dest, file->name.live_name);
 }
 
 enum Try_Kill_Result{
@@ -3638,9 +3638,9 @@ begin_exhaustive_loop(Exhaustive_File_Loop *loop, Hot_Directory *hdir){
     loop->infos = hdir->file_list.infos;
     loop->count = hdir->file_list.count;
     
-    copy(&loop->front_name, front_of_directory(hdir->string));
+    copy_ss(&loop->front_name, front_of_directory(hdir->string));
     get_absolutes(loop->front_name, &loop->absolutes, 1, 1);
-    copy(&loop->full_path, path_of_directory(hdir->string));
+    copy_ss(&loop->full_path, path_of_directory(hdir->string));
     loop->r = loop->full_path.size;
 }
 
@@ -3655,7 +3655,7 @@ get_exhaustive_info(System_Functions *system, Working_Set *working_set, Exhausti
     
     result.info = loop->infos + i;
     loop->full_path.size = loop->r;
-    append(&loop->full_path, result.info->filename);
+    append_sc(&loop->full_path, result.info->filename);
     terminate_with_null(&loop->full_path);
     
     Editing_File_Canon_Name canon_name;
@@ -3664,8 +3664,8 @@ get_exhaustive_info(System_Functions *system, Working_Set *working_set, Exhausti
         file = working_set_canon_contains(working_set, canon_name.name);
     }
     
-    String filename = make_string(result.info->filename,
-                                  result.info->filename_len, result.info->filename_len+1);
+    String filename = make_string_cap(result.info->filename,
+                                      result.info->filename_len, result.info->filename_len+1);
     
     result.is_folder = (result.info->folder != 0);
     result.name_match = (filename_match(loop->front_name, &loop->absolutes, filename, 0) != 0);
@@ -3854,9 +3854,9 @@ internal void
 append_label(String *string, i32 indent_level, char *message){
     i32 r = 0;
     for (r = 0; r < indent_level; ++r){
-        append(string, '>');
+        append_s_char(string, '>');
     }
-    append(string, message);
+    append_sc(string, message);
 }
 
 internal void
@@ -3866,8 +3866,8 @@ show_gui_line(GUI_Target *target, String *string,
     append_label(string, indent_level, message);
     if (follow_up){
         append_padding(string, '-', h_align);
-        append(string, ' ');
-        append(string, follow_up);
+        append_s_char(string, ' ');
+        append_sc(string, follow_up);
     }
     gui_do_text_field(target, *string, string_zero());
 }
@@ -3878,7 +3878,7 @@ show_gui_int(GUI_Target *target, String *string,
     string->size = 0;
     append_label(string, indent_level, message);
     append_padding(string, '-', h_align);
-    append(string, ' ');
+    append_s_char(string, ' ');
     append_int_to_str(string, x);
     gui_do_text_field(target, *string, string_zero());
 }
@@ -3889,7 +3889,7 @@ show_gui_u64(GUI_Target *target, String *string,
     string->size = 0;
     append_label(string, indent_level, message);
     append_padding(string, '-', h_align);
-    append(string, ' ');
+    append_s_char(string, ' ');
     append_u64_to_str(string, x);
     gui_do_text_field(target, *string, string_zero());
 }
@@ -3900,9 +3900,9 @@ show_gui_int_int(GUI_Target *target, String *string,
     string->size = 0;
     append_label(string, indent_level, message);
     append_padding(string, '-', h_align);
-    append(string, ' ');
+    append_s_char(string, ' ');
     append_int_to_str(string, x);
-    append(string, '/');
+    append_s_char(string, '/');
     append_int_to_str(string, m);
     gui_do_text_field(target, *string, string_zero());
 }
@@ -3913,10 +3913,10 @@ show_gui_id(GUI_Target *target, String *string,
     string->size = 0;
     append_label(string, indent_level, message);
     append_padding(string, '-', h_align);
-    append(string, " [0]: ");
+    append_ss(string, make_lit_string(" [0]: "));
     append_u64_to_str(string, id.id[0]);
     append_padding(string, ' ', h_align + 26);
-    append(string, " [1]: ");
+    append_ss(string, make_lit_string(" [1]: "));
     append_u64_to_str(string, id.id[1]);
     gui_do_text_field(target, *string, string_zero());
 }
@@ -3927,7 +3927,7 @@ show_gui_float(GUI_Target *target, String *string,
     string->size = 0;
     append_label(string, indent_level, message);
     append_padding(string, '-', h_align);
-    append(string, ' ');
+    append_s_char(string, ' ');
     append_float_to_str(string, x);
     gui_do_text_field(target, *string, string_zero());
 }
@@ -3979,11 +3979,11 @@ struct View_Step_Result{
 inline void
 gui_show_mouse(GUI_Target *target, String *string, i32 mx, i32 my){
     string->size = 0;
-    append(string, "mouse: (");
+    append_ss(string, make_lit_string("mouse: ("));
     append_int_to_str(string, mx);
-    append(string, ",");
+    append_s_char(string, ',');
     append_int_to_str(string, my);
-    append(string, ")");
+    append_s_char(string, ')');
     
     gui_do_text_field(target, *string, string_zero());
 }
@@ -4190,8 +4190,8 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                                 else{
                                     char message_space[256];
                                     message = make_fixed_width_string(message_space);
-                                    copy(&message, make_lit_string("currently selected: "));
-                                    append(&message, info->name);
+                                    copy_ss(&message, make_lit_string("currently selected: "));
+                                    append_ss(&message, info->name);
                                     gui_do_font_button(target, id, i, message);
                                 }
                             }
@@ -4384,19 +4384,19 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                                 if (file_info.name_match){
                                     id.id[0] = (u64)(file_info.info);
                                     
-                                    String filename = make_string(file_info.info->filename,
-                                                                  file_info.info->filename_len,
-                                                                  file_info.info->filename_len+1);
+                                    String filename = make_string_cap(file_info.info->filename,
+                                                                      file_info.info->filename_len,
+                                                                      file_info.info->filename_len+1);
                                     
                                     if (gui_do_file_option(target, id, filename,
                                                            file_info.is_folder, file_info.message)){
                                         if (file_info.is_folder){
-                                            set_last_folder(&hdir->string, file_info.info->filename, '/');
+                                            set_last_folder_sc(&hdir->string, file_info.info->filename, '/');
                                             do_new_directory = 1;
                                         }
                                         else if (use_item_in_list){
                                             complete = 1;
-                                            copy(&comp_dest, loop.full_path);
+                                            copy_ss(&comp_dest, loop.full_path);
                                         }
                                     }
                                 }
@@ -4406,7 +4406,7 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                             
                             if (activate_directly){
                                 complete = 1;
-                                copy(&comp_dest, hdir->string);
+                                copy_ss(&comp_dest, hdir->string);
                             }
                             
                             if (do_new_directory){
@@ -4502,7 +4502,7 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                                                 id.id[0] = (u64)(file);
                                                 if (gui_do_file_option(target, id, file->name.live_name, 0, message)){
                                                     complete = 1;
-                                                    copy(&comp_dest, file->name.live_name);
+                                                    copy_ss(&comp_dest, file->name.live_name);
                                                 }
                                             }
                                         }
@@ -4523,7 +4523,7 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                                     id.id[0] = (u64)(file);
                                     if (gui_do_file_option(target, id, file->name.live_name, 0, message)){
                                         complete = 1;
-                                        copy(&comp_dest, file->name.live_name);
+                                        copy_ss(&comp_dest, file->name.live_name);
                                     }
                                 }
                                 
@@ -4558,7 +4558,7 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                             
                             if (action != -1){
                                 complete = 1;
-                                copy(&comp_dest, view->dest);
+                                copy_ss(&comp_dest, view->dest);
                                 comp_action = action;
                             }
                         }break;
@@ -4592,7 +4592,7 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                             
                             if (action != -1){
                                 complete = 1;
-                                copy(&comp_dest, view->dest);
+                                copy_ss(&comp_dest, view->dest);
                                 comp_action = action;
                             }
                         }break;
@@ -4633,7 +4633,7 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                         string.size = 0;
                         u64 time = system->now_time();
                         
-                        append(&string, "last redraw: ");
+                        append_ss(&string, make_lit_string("last redraw: "));
                         append_u64_to_str(&string, time);
                         
                         gui_do_text_field(target, string, empty_str);
@@ -4680,60 +4680,60 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                                 string.size = 0;
                                 
                                 if (input_event->is_hold){
-                                    append(&string, "hold:  ");
+                                    append_ss(&string, make_lit_string("hold:  "));
                                 }
                                 else{
-                                    append(&string, "press: ");
+                                    append_ss(&string, make_lit_string("press: "));
                                 }
                                 
                                 if (input_event->is_ctrl){
-                                    append(&string, "ctrl-");
+                                    append_ss(&string, make_lit_string("ctrl-"));
                                 }
                                 else{
-                                    append(&string, "    -");
+                                    append_ss(&string, make_lit_string("    -"));
                                 }
                                 
                                 if (input_event->is_alt){
-                                    append(&string, "alt-");
+                                    append_ss(&string, make_lit_string("alt-"));
                                 }
                                 else{
-                                    append(&string, "   -");
+                                    append_ss(&string, make_lit_string("   -"));
                                 }
                                 
                                 if (input_event->is_shift){
-                                    append(&string, "shift ");
+                                    append_ss(&string, make_lit_string("shift "));
                                 }
                                 else{
-                                    append(&string, "      ");
+                                    append_ss(&string, make_lit_string("      "));
                                 }
                                 
                                 if (input_event->key > ' ' && input_event->key <= '~'){
-                                    append(&string, make_string(&input_event->key, 1));
+                                    append_ss(&string, make_string(&input_event->key, 1));
                                 }
                                 else if (input_event->key == ' '){
-                                    append(&string, "space");
+                                    append_ss(&string, make_lit_string("space"));
                                 }
                                 else if (input_event->key == '\n'){
-                                    append(&string, "\\n");
+                                    append_ss(&string, make_lit_string("\\n"));
                                 }
                                 else if (input_event->key == '\t'){
-                                    append(&string, "\\t");
+                                    append_ss(&string, make_lit_string("\\t"));
                                 }
                                 else{
                                     String str;
                                     str.str = global_key_name(input_event->key, &str.size);
                                     if (str.str){
                                         str.memory_size = str.size + 1;
-                                        append(&string, str);
+                                        append_ss(&string, str);
                                     }
                                     else{
-                                        append(&string, "unrecognized!");
+                                        append_ss(&string, make_lit_string("unrecognized!"));
                                     }
                                 }
                                 
                                 if (input_event->consumer[0] != 0){
                                     append_padding(&string, ' ', 40);
-                                    append(&string, input_event->consumer);
+                                    append_sc(&string, input_event->consumer);
                                 }
                                 
                                 gui_do_text_field(target, string, empty_str);
@@ -4750,21 +4750,21 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                                                                    threads, &pending);
                                 
                                 string.size = 0;
-                                append(&string, "pending jobs: ");
+                                append_ss(&string, make_lit_string("pending jobs: "));
                                 append_int_to_str(&string, pending);
                                 gui_do_text_field(target, string, empty_str);
                                 
                                 for (i32 i = 0; i < 4; ++i){
                                     string.size = 0;
-                                    append(&string, "thread ");
+                                    append_ss(&string, make_lit_string("thread "));
                                     append_int_to_str(&string, i);
-                                    append(&string, ": ");
+                                    append_ss(&string, make_lit_string(": "));
                                     
                                     if (threads[i]){
-                                        append(&string, "running");
+                                        append_ss(&string, make_lit_string("running"));
                                     }
                                     else{
-                                        append(&string, "waiting");
+                                        append_ss(&string, make_lit_string("waiting"));
                                     }
                                     
                                     gui_do_text_field(target, string, empty_str);
@@ -4775,9 +4775,9 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                             General_Memory *general = &models->mem.general;
                             
                             string.size = 0;
-                            append(&string, "part memory: ");
+                            append_ss(&string, make_lit_string("part memory: "));
                             append_int_to_str(&string, part->pos);
-                            append(&string, "/");
+                            append_s_char(&string, '/');
                             append_int_to_str(&string, part->max);
                             gui_do_text_field(target, string, empty_str);
                             
@@ -4786,10 +4786,10 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                             for (dll_items(bubble, sentinel)){
                                 string.size = 0;
                                 if (bubble->flags & MEM_BUBBLE_USED){
-                                    append(&string, " used: ");
+                                    append_ss(&string, make_lit_string(" used: "));
                                 }
                                 else{
-                                    append(&string, " free: ");
+                                    append_ss(&string, make_lit_string(" free: "));
                                 }
                                 
                                 append_int_to_str(&string, bubble->size);
@@ -4826,28 +4826,28 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                                 View *view_ptr = views_to_inspect[i];
                                 
                                 string.size = 0;
-                                append(&string, "view: ");
+                                append_ss(&string, make_lit_string("view: "));
                                 append_int_to_str(&string, view_ptr->persistent.id + 1);
                                 gui_do_text_field(target, string, empty_str);
                                 
                                 string.size = 0;
                                 Editing_File *file = view_ptr->file_data.file;
-                                append(&string, " > buffer: ");
+                                append_ss(&string, make_lit_string(" > buffer: "));
                                 if (file){
-                                    append(&string, file->name.live_name);
+                                    append_ss(&string, file->name.live_name);
                                     gui_do_text_field(target, string, empty_str);
                                     string.size = 0;
-                                    append(&string, " >> buffer-slot-id: ");
+                                    append_ss(&string, make_lit_string(" >> buffer-slot-id: "));
                                     append_int_to_str(&string, file->id.id);
                                 }
                                 else{
-                                    append(&string, "*NULL*");
+                                    append_ss(&string, make_lit_string("*NULL*"));
                                     gui_do_text_field(target, string, empty_str);
                                 }
                                 
                                 if (low_detail){
                                     string.size = 0;
-                                    append(&string, "inspect this");
+                                    append_ss(&string, make_lit_string("inspect this"));
                                     
                                     id.id[0] = (u64)(view_ptr->persistent.id);
                                     if (gui_do_button(target, id, string)){
@@ -4858,15 +4858,15 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                                     
                                     gui_show_mouse(target, &string, input.mouse.x, input.mouse.y);
                                     
-#define SHOW_GUI_BLANK(n) show_gui_line(target, &string, n, 0, "", 0)
-#define SHOW_GUI_LINE(n, str) show_gui_line(target, &string, n, 0, " " str, 0)
+#define SHOW_GUI_BLANK(n)            show_gui_line(target, &string, n, 0, "", 0)
+#define SHOW_GUI_LINE(n, str)        show_gui_line(target, &string, n, 0, " " str, 0)
 #define SHOW_GUI_STRING(n, h, str, mes) show_gui_line(target, &string, n, h, " " str " ", mes)
-#define SHOW_GUI_INT(n, h, str, v) show_gui_int(target, &string, n, h, " " str " ", v)
+#define SHOW_GUI_INT(n, h, str, v)   show_gui_int(target, &string, n, h, " " str " ", v)
 #define SHOW_GUI_INT_INT(n, h, str, v, m) show_gui_int_int(target, &string, n, h, " " str " ", v, m)
-#define SHOW_GUI_U64(n, h, str, v) show_gui_u64(target, &string, n, h, " " str " ", v)
-#define SHOW_GUI_ID(n, h, str, v) show_gui_id(target, &string, n, h, " " str, v)
+#define SHOW_GUI_U64(n, h, str, v)   show_gui_u64(target, &string, n, h, " " str " ", v)
+#define SHOW_GUI_ID(n, h, str, v)    show_gui_id(target, &string, n, h, " " str, v)
 #define SHOW_GUI_FLOAT(n, h, str, v) show_gui_float(target, &string, n, h, " " str " ", v)
-#define SHOW_GUI_BOOL(n, h, str, v) do { if (v) { show_gui_line(target, &string, n, h, " " str " ", "true"); }\
+#define SHOW_GUI_BOOL(n, h, str, v)  do { if (v) { show_gui_line(target, &string, n, h, " " str " ", "true"); }\
                                         else { show_gui_line(target, &string, n, h, " " str " ", "false"); } } while(false)
                                     
 #define SHOW_GUI_SCROLL(n, h, str, v) show_gui_scroll(target, &string, n, h, " " str, v)
@@ -5566,9 +5566,9 @@ draw_file_bar(Render_Target *target, View *view, Editing_File *file, i32_Rect re
             else{
                 char line_number_space[30];
                 String line_number = make_fixed_width_string(line_number_space);
-                append(&line_number, " L#");
+                append_ss(&line_number, make_lit_string(" L#"));
                 append_int_to_str(&line_number, view->edit_pos->cursor.line);
-                append(&line_number, " C#");
+                append_ss(&line_number, make_lit_string(" C#"));
                 append_int_to_str(&line_number, view->edit_pos->cursor.character);
                 
                 intbar_draw_string(target, &bar, line_number, base_color);
@@ -5870,7 +5870,7 @@ do_render_file_view(System_Functions *system, View *view, GUI_Scroll_Vars *scrol
                         String m = gui_read_string(&ptr);
                         
                         if (folder){
-                            append(&f, system->slash);
+                            append_s_char(&f, system->slash);
                         }
                         
                         draw_fat_option_block(gui_target, target, view, font_id, gui_session.rect, b->id, f, m);

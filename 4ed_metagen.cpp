@@ -365,6 +365,7 @@ struct Function_Set{
     String *args;
     String *body;
     String *marker;
+    String *cpp_name;
     
     String *doc_string;
     
@@ -441,7 +442,7 @@ file_dump(char *filename){
 String
 get_first_line(String source){
     String line = {0};
-    int pos = find(source, 0, '\n');
+    int pos = find_s_char(source, 0, '\n');
     
     line = substr(source, 0, pos);
     
@@ -459,7 +460,7 @@ get_next_line(String source, String line){
         start = pos + 1;
         
         if (start < source.size){
-            pos = find(source, start, '\n');
+            pos = find_s_char(source, start, '\n');
             next = substr(source, start, pos - start);
         }
     }
@@ -824,7 +825,7 @@ parse_struct_next_member(Partition *part,
             (token->flags & CPP_TFLAG_IS_KEYWORD)){
             String lexeme = make_string(data + token->start, token->size);
             
-            if (match(lexeme, make_lit_string("struct"))){
+            if (match_ss(lexeme, make_lit_string("struct"))){
                 Struct_Member *member = push_struct(part, Struct_Member);
                 if (parse_struct(part, true, data, tokens, count, &token, member)){
                     result = member;
@@ -834,7 +835,7 @@ parse_struct_next_member(Partition *part,
                     assert(!"unhandled error");
                 }
             }
-            else if (match(lexeme, make_lit_string("union"))){
+            else if (match_ss(lexeme, make_lit_string("union"))){
                 Struct_Member *member = push_struct(part, Struct_Member);
                 if (parse_struct(part, false, data, tokens, count, &token, member)){
                     result = member;
@@ -960,8 +961,8 @@ print_struct_html(FILE *file, Struct_Member *member){
     String type = member->type;
     String type_postfix = member->type_postfix;
     
-    if (match(type, make_lit_string("struct")) ||
-        match(type, make_lit_string("union"))){
+    if (match_ss(type, make_lit_string("struct")) ||
+        match_ss(type, make_lit_string("union"))){
         fprintf(file,
                 "%.*s %.*s {<br>\n"
                 "<div style='margin-left: 8mm;'>\n",
@@ -1086,8 +1087,8 @@ print_struct_docs(FILE *file, Partition *part, Struct_Member *member){
          member_iter != 0;
          member_iter = member_iter->next_sibling){
         String type = member_iter->type;
-        if (match(type, make_lit_string("struct")) ||
-            match(type, make_lit_string("union"))){
+        if (match_ss(type, make_lit_string("struct")) ||
+            match_ss(type, make_lit_string("union"))){
             print_struct_docs(file, part, member_iter);
         }
         else{
@@ -1248,17 +1249,19 @@ allocate_app_api(int count){
 static Function_Set
 allocate_function_set(int count){
     Function_Set function_set = {0};
-    int memory_size = (sizeof(String)*6 +
+    int memory_size = (sizeof(String)*7 +
                        sizeof(int)*2 +
                        sizeof(Argument_Breakdown) +
                        sizeof(Documentation))*count;
     
-    function_set.name        = (String*)malloc(memory_size);
-    function_set.ret         = function_set.name + count;
-    function_set.args        = function_set.ret + count;
-    function_set.body        = function_set.args + count;
-    function_set.marker      = function_set.body + count;
-    function_set.doc_string  = function_set.marker + count;
+    String *str_ptr = (String*)malloc(memory_size);
+    function_set.name        = str_ptr; str_ptr += count;
+    function_set.ret         = str_ptr; str_ptr += count;
+    function_set.args        = str_ptr; str_ptr += count;
+    function_set.body        = str_ptr; str_ptr += count;
+    function_set.marker      = str_ptr; str_ptr += count;
+    function_set.cpp_name    = str_ptr; str_ptr += count;
+    function_set.doc_string  = str_ptr; str_ptr += count;
     
     function_set.is_macro    = (int*)(function_set.doc_string + count);
     function_set.valid       = function_set.is_macro + count;
@@ -1390,9 +1393,48 @@ do_function_get_doc(int *index, Cpp_Token **token_ptr, int count,
     return(result);
 }
 
+static String
+get_lexeme(Cpp_Token token, char *code){
+    String str = make_string(code + token.start, token.size);
+    return(str);
+}
+
+static int
+do_parse_cpp_name(int *i_ptr, Cpp_Token **token_ptr, int count, char *data, String *name){
+    int result = false;
+    
+    int i = *i_ptr;
+    Cpp_Token *token = *token_ptr;
+    
+    int i_start = i;
+    Cpp_Token *token_start = token;
+    
+    ++i, ++token;
+    if (i < count && token->type == CPP_TOKEN_PARENTHESE_OPEN){
+        ++i, ++token;
+        if (i < count && token->type == CPP_TOKEN_IDENTIFIER){
+            ++i, ++token;
+            if (i < count && token->type == CPP_TOKEN_PARENTHESE_CLOSE){
+                *name = get_lexeme(*(token-1), data);
+                result = true;
+            }
+        }
+    }
+    
+    if (!result){
+        i = i_start;
+        token = token_start;
+    }
+    
+    *i_ptr = i;
+    *token_ptr = token;
+    
+    return(result);
+}
+
 static int
 do_function_parse(int *index, Cpp_Token **token_ptr, int count, Cpp_Token *ret_start_token,
-                  char *data, Function_Set function_set, int sig_count){
+                  char *data, Function_Set function_set, int sig_count, String cpp_name){
     int result = false;
     
     int i = *index;
@@ -1422,6 +1464,8 @@ do_function_parse(int *index, Cpp_Token **token_ptr, int count, Cpp_Token *ret_s
         
         Argument_Breakdown *breakdown = &function_set.breakdown[sig_count];
         *breakdown = do_parameter_parse(data, args_start_token, token);
+        
+        function_set.cpp_name[sig_count] = cpp_name;
     }
     
     *index = i;
@@ -1432,7 +1476,7 @@ do_function_parse(int *index, Cpp_Token **token_ptr, int count, Cpp_Token *ret_s
 
 static int
 do_full_function_parse(int *index, Cpp_Token **token_ptr, int count, char *data,
-                       Function_Set function_set, int sig_count){
+                       Function_Set function_set, int sig_count, String cpp_name){
     int result = false;
     
     int i = *index;
@@ -1458,7 +1502,7 @@ do_full_function_parse(int *index, Cpp_Token **token_ptr, int count, char *data,
             Cpp_Token *ret_start_token = token;
             if (do_function_parse_check(&i, &token, count)){
                 if (do_function_parse(&i, &token, count, ret_start_token,
-                                      data, function_set, sig_count)){
+                                      data, function_set, sig_count, cpp_name)){
                     result = true;
                 }
             }
@@ -1580,21 +1624,25 @@ struct String_Function_Marker{
     int parse_function;
     int is_inline;
     int parse_doc;
+    int cpp_name;
 };
 
 static String_Function_Marker
 do_string_function_marker_check(String lexeme){
     String_Function_Marker result = {0};
     
-    if (match(lexeme, "FSTRING_INLINE")){
+    if (match_ss(lexeme, make_lit_string("FSTRING_INLINE"))){
         result.is_inline = true;
         result.parse_function = true;
     }
-    else if (match(lexeme, "FSTRING_LINK")){
+    else if (match_ss(lexeme, make_lit_string("FSTRING_LINK"))){
         result.parse_function = true;
     }
-    else if (match(lexeme, "DOC_EXPORT")){
+    else if (match_ss(lexeme, make_lit_string("DOC_EXPORT"))){
         result.parse_doc = true;
+    }
+    else if (match_ss(lexeme, make_lit_string("CPP_NAME"))){
+        result.cpp_name = true;
     }
     
     return(result);
@@ -1792,6 +1840,9 @@ generate_custom_headers(){
         Cpp_Token *tokens = token_stack->tokens;
         Cpp_Token *token = tokens;
         
+        String cpp_name = {0};
+        int has_cpp_name = 0;
+        
         for (int i = 0; i < count; ++i, ++token){
             if (token->type == CPP_TOKEN_IDENTIFIER &&
                 !(token->flags & CPP_TFLAG_PP_BODY)){
@@ -1800,9 +1851,15 @@ generate_custom_headers(){
                 String_Function_Marker marker =
                     do_string_function_marker_check(lexeme);
                 
-                if (marker.parse_function){
+                if (marker.cpp_name){
+                    if (do_parse_cpp_name(&i, &token, count, data, &cpp_name)){
+                        has_cpp_name = 1;
+                    }
+                }
+                else if (marker.parse_function){
                     if (do_full_function_parse(&i, &token, count, data,
-                                               string_function_set, string_sig_count)){
+                                               string_function_set, string_sig_count,
+                                               cpp_name)){
                         ++string_sig_count;
                     }
                 }
@@ -1812,6 +1869,13 @@ generate_custom_headers(){
                                        string_function_set, string_sig_count);
                         ++string_sig_count;
                     }
+                }
+                
+                if (has_cpp_name){
+                    has_cpp_name = 0;
+                }
+                else{
+                    cpp_name = string_zero();
                 }
             }
         }
@@ -1846,7 +1910,7 @@ generate_custom_headers(){
             if (token->type == CPP_TOKEN_IDENTIFIER &&
                 !(token->flags & CPP_TFLAG_PP_BODY)){
                 String lexeme = make_string(data + token->start, token->size);
-                if (match(lexeme, "API_EXPORT")){
+                if (match_ss(lexeme, make_lit_string("API_EXPORT"))){
                     if (do_function_parse_check(&i, &token, count)){
                         ++line_count;
                     }
@@ -1874,8 +1938,9 @@ generate_custom_headers(){
             if (token->type == CPP_TOKEN_IDENTIFIER &&
                 !(token->flags & CPP_TFLAG_PP_BODY)){
                 String lexeme = make_string(data + token->start, token->size);
-                if (match(lexeme, "API_EXPORT")){
-                    do_full_function_parse(&i, &token, count, data, function_set, sig_count);
+                if (match_ss(lexeme, make_lit_string("API_EXPORT"))){
+                    do_full_function_parse(&i, &token, count, data, function_set,
+                                           sig_count, string_zero());
                     if (!function_set.valid[sig_count]){
                         zero_index(function_set, sig_count);
                         // TODO(allen): get warning file name and line numbers
@@ -1896,16 +1961,16 @@ generate_custom_headers(){
         macro->memory_size = name_string.size+4;
         
         macro->str = (char*)malloc(macro->memory_size);
-        copy(macro, name_string);
+        copy_ss(macro, name_string);
         to_upper(macro);
-        append(macro, make_lit_string("_SIG"));
+        append_ss(macro, make_lit_string("_SIG"));
         
         
         public_name->size = 0;
         public_name->memory_size = name_string.size;
         
         public_name->str = (char*)malloc(public_name->memory_size);
-        copy(public_name, name_string);
+        copy_ss(public_name, name_string);
         to_lower(public_name);
     }
     
@@ -2197,7 +2262,7 @@ generate_custom_headers(){
                 if (token->type == CPP_TOKEN_IDENTIFIER &&
                     !(token->flags & CPP_TFLAG_PP_BODY)){
                     String lexeme = make_string(code->str + token->start, token->size);
-                    if (match(lexeme, "FSTRING_BEGIN")){
+                    if (match_ss(lexeme, make_lit_string("FSTRING_BEGIN"))){
                         start = token->start + token->size;
                         break;
                     }
@@ -2216,13 +2281,17 @@ generate_custom_headers(){
                     do_whitespace_print = true;
                 }
                 
-                String lexeme = make_string(code->str + token->start, token->size);
+                String lexeme = get_lexeme(*token, code->str);
                 
                 int do_print = true;
-                if (match(lexeme, "FSTRING_DECLS")){
-                    fprintf(file, "#ifndef FCODER_STRING_H\n#define FCODER_STRING_H\n\n");
+                if (match_ss(lexeme, make_lit_string("FSTRING_DECLS"))){
+                    fprintf(file, "#if !defined(FCODER_STRING_H)\n#define FCODER_STRING_H\n\n");
                     
                     do_print = false;
+                    
+#define RETURN_PADDING 16
+#define SIG_PADDING 30
+                    
                     for (int j = 0; j < string_sig_count; ++j){
                         char line_space[2048];
                         String line = make_fixed_width_string(line_space);
@@ -2233,12 +2302,12 @@ generate_custom_headers(){
                             String name = string_function_set.name[j];
                             String args = string_function_set.args[j];
                             
-                            append(&line, marker);
-                            append_padding(&line, ' ', 16);
-                            append(&line, ret);
-                            append_padding(&line, ' ', 30);
-                            append(&line, name);
-                            append(&line, args);
+                            append_ss(&line, marker);
+                            append_padding(&line, ' ', RETURN_PADDING);
+                            append_ss(&line, ret);
+                            append_padding(&line, ' ', SIG_PADDING);
+                            append_ss(&line, name);
+                            append_ss(&line, args);
                             terminate_with_null(&line);
                             
                             fprintf(file, "%s;\n", line.str);
@@ -2248,32 +2317,117 @@ generate_custom_headers(){
                             String args = string_function_set.args[j];
                             String body = string_function_set.body[j];
                             
-                            append(&line, "#ifndef ");
+                            append_ss(&line, make_lit_string("#ifndef "));
                             append_padding(&line, ' ', 10);
-                            append(&line, name);
+                            append_ss(&line, name);
                             terminate_with_null(&line);
                             fprintf(file, "%s\n", line.str);
                             line.size = 0;
                             
-                            append(&line, "# define ");
+                            append_ss(&line, make_lit_string("# define "));
                             append_padding(&line, ' ', 10);
-                            append(&line, name);
-                            append(&line, args);
-                            append(&line, ' ');
-                            append(&line, body);
+                            append_ss(&line, name);
+                            append_ss(&line, args);
+                            append_s_char(&line, ' ');
+                            append_ss(&line, body);
                             terminate_with_null(&line);
                             fprintf(file, "%s\n", line.str);
                             line.size = 0;
                             
-                            append(&line, "#endif");
+                            append_ss(&line, make_lit_string("#endif"));
                             terminate_with_null(&line);
                             fprintf(file, "%s\n", line.str);
                         }
                     }
                     
+                    {
+                        fprintf(file, "\n#if !defined(FSTRING_C)\n\n"
+                                "// NOTE(allen): This section is here to enable nicer names\n"
+                                "// for C++ users who can have overloaded functions.  None of\n"
+                                "// these functions add new features.\n");
+                        
+                        for (int j = 0; j < string_sig_count; ++j){
+                            char line_space[2048];
+                            String line = make_fixed_width_string(line_space);
+                            
+                            if (!string_function_set.is_macro[j]){
+                                String cpp_name = string_function_set.cpp_name[j];
+                                if (cpp_name.str != 0){
+                                    String ret = string_function_set.ret[j];
+                                    String args = string_function_set.args[j];
+                                    
+                                    append_ss(&line, make_lit_string("FSTRING_INLINE"));
+                                    append_padding(&line, ' ', RETURN_PADDING);
+                                    append_ss(&line, ret);
+                                    append_padding(&line, ' ', SIG_PADDING);
+                                    append_ss(&line, cpp_name);
+                                    append_ss(&line, args);
+                                    terminate_with_null(&line);
+                                    
+                                    fprintf(file, "%s;\n", line.str);
+                                }
+                            }
+                        }
+                        
+                        fprintf(file, "\n#endif\n");
+                    }
+                    
                     fprintf(file, "\n#endif\n");
+                    
+                    {
+                        fprintf(file, "\n#if !defined(FSTRING_C) && !defined(FSTRING_GUARD)\n\n");
+                        
+                        for (int j = 0; j < string_sig_count; ++j){
+                            char line_space[2048];
+                            String line = make_fixed_width_string(line_space);
+                            
+                            if (!string_function_set.is_macro[j]){
+                                String cpp_name = string_function_set.cpp_name[j];
+                                if (cpp_name.str != 0){
+                                    String name = string_function_set.name[j];
+                                    String ret = string_function_set.ret[j];
+                                    String args = string_function_set.args[j];
+                                    Argument_Breakdown breakdown = string_function_set.breakdown[j];
+                                    
+                                    append_ss(&line, make_lit_string("FSTRING_INLINE"));
+                                    append_s_char(&line, ' ');
+                                    append_ss(&line, ret);
+                                    append_s_char(&line, '\n');
+                                    append_ss(&line, cpp_name);
+                                    append_ss(&line, args);
+                                    if (match_ss(ret, make_lit_string("void"))){
+                                        append_ss(&line, make_lit_string("{ ("));
+                                    }
+                                    else{
+                                        append_ss(&line, make_lit_string("{ return("));
+                                    }
+                                    append_ss(&line, name);
+                                    append_s_char(&line, '(');
+                                    
+                                    if (breakdown.count > 0){
+                                        for (int32_t i = 0; i < breakdown.count; ++i){
+                                            if (i != 0){
+                                                append_s_char(&line, ',');
+                                            }
+                                            append_ss(&line, breakdown.param_name[i]);
+                                        }
+                                    }
+                                    else{
+                                        append_ss(&line, make_lit_string("void"));
+                                    }
+                                    
+                                    append_ss(&line, make_lit_string("));}"));
+                                    terminate_with_null(&line);
+                                    
+                                    fprintf(file, "%s\n", line.str);
+                                }
+                            }
+                        }
+                        
+                        fprintf(file, "\n#endif\n");
+                    }
                 }
-                else if (match(lexeme, "DOC_EXPORT")){
+                else if (match_ss(lexeme, make_lit_string("DOC_EXPORT"))){
                     ++i, ++token;
                     if (i < count && token->type == CPP_TOKEN_COMMENT){
                         ++i, ++token;
@@ -2290,9 +2444,9 @@ generate_custom_headers(){
                         }
                     }
                 }
-                else if (match(lexeme, "FSTRING_INLINE")){
+                else if (match_ss(lexeme, make_lit_string("FSTRING_INLINE"))){
                     if (!(token->flags & CPP_TFLAG_PP_BODY)){
-                        fprintf(file, "#ifndef FSTRING_GUARD\n");
+                        fprintf(file, "#if !defined(FSTRING_GUARD)\n");
                         
                         print_function_body_code(file, &i, &token, count, code, start);
                         
@@ -2300,15 +2454,39 @@ generate_custom_headers(){
                         do_print = false;
                     }
                 }
-                else if (match(lexeme, "FSTRING_LINK")){
+                else if (match_ss(lexeme, make_lit_string("FSTRING_LINK"))){
                     if (!(token->flags & CPP_TFLAG_PP_BODY)){
-                        fprintf(file, "#ifdef FSTRING_IMPLEMENTATION\n");
+                        fprintf(file, "#if defined(FSTRING_IMPLEMENTATION)\n");
                         
                         print_function_body_code(file, &i, &token, count, code, start);
                         
                         fprintf(file, "\n#endif");
                         do_print = false;
                     }
+                }
+                else if (match_ss(lexeme, make_lit_string("CPP_NAME"))){
+                    
+                    Cpp_Token *token_start = token;
+                    int i_start = i;
+                    int has_cpp_name = false;
+                    
+                    ++i, ++token;
+                    if (token->type == CPP_TOKEN_PARENTHESE_OPEN){
+                        ++i, ++token;
+                        if (token->type == CPP_TOKEN_IDENTIFIER){
+                            ++i, ++token;
+                            if (token->type == CPP_TOKEN_PARENTHESE_CLOSE){
+                                has_cpp_name = true;
+                            }
+                        }
+                    }
+                    
+                    if (!has_cpp_name){
+                        i = i_start;
+                        token = token_start;
+                    }
+                    
+                    do_print = false;
                 }
                 else if (token->type == CPP_TOKEN_COMMENT){
                     lexeme = make_string(code->str + token->start, token->size);
@@ -2909,7 +3087,7 @@ int main(int argc, char **argv){
     memset(&global_settings, 0, sizeof(global_settings));
     
     global_settings.generate_docs = true;
-    global_settings.generate_string = false;
+    global_settings.generate_string = true;
     
     filename = generate_keycode_enum();
     filename = generate_style();

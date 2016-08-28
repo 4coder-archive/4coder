@@ -267,7 +267,7 @@ buffer_seek_string_forward(Application_Links *app, Buffer_Summary *buffer,
                         char at_pos = stream.data[pos];
                         if (at_pos == first_char){
                             app->buffer_read_range(app, buffer, pos, pos+size, read_buffer);
-                            if (match(needle_str, read_str)){
+                            if (match_ss(needle_str, read_str)){
                                 *result = pos;
                                 goto finished;
                             }
@@ -322,7 +322,7 @@ buffer_seek_string_backward(Application_Links *app, Buffer_Summary *buffer,
                         char at_pos = stream.data[pos];
                         if (at_pos == first_char){
                             app->buffer_read_range(app, buffer, pos, pos+size, read_buffer);
-                            if (match(needle_str, read_str)){
+                            if (match_ss(needle_str, read_str)){
                                 *result = pos;
                                 goto finished;
                             }
@@ -372,7 +372,7 @@ buffer_seek_string_insensitive_forward(Application_Links *app, Buffer_Summary *b
                         char at_pos = char_to_upper(stream.data[pos]);
                         if (at_pos == first_char){
                             app->buffer_read_range(app, buffer, pos, pos+size, read_buffer);
-                            if (match_insensitive(needle_str, read_str)){
+                            if (match_insensitive_ss(needle_str, read_str)){
                                 *result = pos;
                                 goto finished;
                             }
@@ -422,7 +422,7 @@ buffer_seek_string_insensitive_backward(Application_Links *app, Buffer_Summary *
                         char at_pos = char_to_upper(stream.data[pos]);
                         if (at_pos == first_char){
                             app->buffer_read_range(app, buffer, pos, pos+size, read_buffer);
-                            if (match_insensitive(needle_str, read_str)){
+                            if (match_insensitive_ss(needle_str, read_str)){
                                 *result = pos;
                                 goto finished;
                             }
@@ -1556,9 +1556,9 @@ file_name_in_quotes(Application_Links *app, String *file_name){
     if (size < sizeof(short_file_name)){
         if (app->buffer_read_range(app, &buffer, start, end, short_file_name)){
             result = true;
-            copy(file_name, make_string(buffer.file_name, buffer.file_name_len));
+            copy_ss(file_name, make_string(buffer.file_name, buffer.file_name_len));
             remove_last_folder(file_name);
-            append(file_name, make_string(short_file_name, size));
+            append_ss(file_name, make_string(short_file_name, size));
         }
     }
     
@@ -1631,7 +1631,7 @@ CUSTOM_COMMAND_SIG(goto_line){
     bar.string = make_fixed_width_string(string_space);
     
     if (query_user_number(app, &bar)){
-        int line_number = str_to_int(bar.string);
+        int line_number = str_to_int_s(bar.string);
         active_view_to_line(app, access, line_number);
     }
 }
@@ -1684,7 +1684,7 @@ isearch(Application_Links *app, int start_reversed){
             break;
         }
         else if (in.key.character && key_is_unmodified(&in.key)){
-            append(&bar.string, in.key.character);
+            append_s_char(&bar.string, in.key.character);
             made_change = 1;
         }
         else if (in.key.keycode == key_back){
@@ -1896,10 +1896,11 @@ CUSTOM_COMMAND_SIG(close_all_code){
          app->get_buffer_next(app, &buffer, access)){
         
         extension = file_extension(make_string(buffer.file_name, buffer.file_name_len));
-        if (match(extension, make_lit_string("cpp")) ||
-            match(extension, make_lit_string("hpp")) ||
-            match(extension, make_lit_string("c")) ||
-            match(extension, make_lit_string("h"))){
+        if (match_ss(extension, make_lit_string("cpp")) ||
+            match_ss(extension, make_lit_string("hpp")) ||
+            match_ss(extension, make_lit_string("c")) ||
+            match_ss(extension, make_lit_string("h")) ||
+            match_ss(extension, make_lit_string("cc"))){
             
             buffers_to_close[buffers_to_close_count++] = buffer.buffer_id;
         }
@@ -1916,7 +1917,7 @@ CUSTOM_COMMAND_SIG(open_all_code){
     // and doesn't set up a persistent allocation system within app->memory.
     // push_directory isn't a very good option since it's tied to the parameter
     // stack, so I am phasing that idea out now.
-    String dir = make_string(app->memory, 0, app->memory_size);
+    String dir = make_string_cap(app->memory, 0, app->memory_size);
     dir.size = app->directory_get_hot(app, dir.str, dir.memory_size);
     int dir_size = dir.size;
     
@@ -1927,19 +1928,19 @@ CUSTOM_COMMAND_SIG(open_all_code){
     for (int i = 0; i < list.count; ++i){
         File_Info *info = list.infos + i;
         if (!info->folder){
-            String extension = make_string(info->filename, info->filename_len, info->filename_len+1);
+            String extension = make_string_cap(info->filename, info->filename_len, info->filename_len+1);
             extension = file_extension(extension);
-            if (match(extension, make_lit_string("cpp")) ||
-                match(extension, make_lit_string("hpp")) ||
-                match(extension, make_lit_string("c")) ||
-                match(extension, make_lit_string("h")) ||
-                match(extension, make_lit_string("cc"))){
+            if (match_ss(extension, make_lit_string("cpp")) ||
+                match_ss(extension, make_lit_string("hpp")) ||
+                match_ss(extension, make_lit_string("c")) ||
+                match_ss(extension, make_lit_string("h")) ||
+                match_ss(extension, make_lit_string("cc"))){
                 // NOTE(allen): There's no way in the 4coder API to use relative
                 // paths at the moment, so everything should be full paths.  Which is
                 // managable.  Here simply set the dir string size back to where it
                 // was originally, so that new appends overwrite old ones.
                 dir.size = dir_size;
-                append(&dir, info->filename);
+                append_sc(&dir, info->filename);
                 app->create_buffer(app, dir.str, dir.size, 0);
             }
         }
@@ -2016,12 +2017,12 @@ get_build_directory(Application_Links *app, Buffer_Summary *buffer, String *dir_
     int result = BuildDir_None;
     
     if (buffer && buffer->file_name){
-        if (!match(buffer->file_name, buffer->buffer_name)){
-            String dir = make_string(buffer->file_name,
-                                     buffer->file_name_len,
-                                     buffer->file_name_len+1);
+        if (!match_cc(buffer->file_name, buffer->buffer_name)){
+            String dir = make_string_cap(buffer->file_name,
+                                         buffer->file_name_len,
+                                         buffer->file_name_len+1);
             remove_last_folder(&dir);
-            append(dir_out, dir);
+            append_ss(dir_out, dir);
             result = BuildDir_AtFile;
         }
     }
@@ -2051,26 +2052,26 @@ standard_build_search(Application_Links *app,
     
     for(;;){
         int old_size = dir->size;
-        append(dir, filename);
+        append_ss(dir, filename);
         
         if (app->file_exists(app, dir->str, dir->size)){
             dir->size = old_size;
             
             if (use_path_in_command){
-                append(command, '"');
-                append(command, *dir);
-                append(command, commandname);
-                append(command, '"');
+                append_s_char(command, '"');
+                append_ss(command, *dir);
+                append_ss(command, commandname);
+                append_s_char(command, '"');
             }
             else{
-                append(command, commandname);
+                append_ss(command, commandname);
             }
             
             char space[512];
             String message = make_fixed_width_string(space);
-            append(&message, "Building with: ");
-            append(&message, *command);
-            append(&message, '\n');
+            append_ss(&message, make_lit_string("Building with: "));
+            append_ss(&message, *command);
+            append_s_char(&message, '\n');
             app->print_message(app, message.str, message.size);
             
             
@@ -2089,8 +2090,8 @@ standard_build_search(Application_Links *app,
                 dir->size = app->directory_get_hot(app, dir->str, dir->memory_size);
                 char backup_space[256];
                 String backup_command = make_fixed_width_string(backup_space);
-                append(&backup_command, make_lit_string("echo could not find "));
-                append(&backup_command, filename);
+                append_ss(&backup_command, make_lit_string("echo could not find "));
+                append_ss(&backup_command, filename);
                 app->exec_system_command(app, view,
                                          buffer_identifier(literal("*compilation*")),
                                          dir->str, dir->size,
@@ -2258,7 +2259,7 @@ generic_search_all_buffers(Application_Links *app, General_Memory *general, Part
     Search_Iter iter = {0};
     
     search_iter_init(general, &iter, string.string.size);
-    copy(&iter.word, string.string);
+    copy_ss(&iter.word, string.string);
     
     int buffer_count = app->get_buffer_count(app);
     search_set_init(general, &set, buffer_count);
@@ -2346,16 +2347,16 @@ generic_search_all_buffers(Application_Links *app, General_Memory *general, Part
                 
                 part_size += str_len;
                 
-                String out_line = make_string(spare, 0, str_len);
-                append(&out_line, make_string(match.buffer.file_name, file_len));
-                append(&out_line, ':');
+                String out_line = make_string_cap(spare, 0, str_len);
+                append_ss(&out_line, make_string(match.buffer.file_name, file_len));
+                append_s_char(&out_line, ':');
                 append_int_to_str(&out_line, word_pos.line);
-                append(&out_line, ':');
+                append_s_char(&out_line, ':');
                 append_int_to_str(&out_line, word_pos.character);
-                append(&out_line, ':');
-                append(&out_line, ' ');
-                append(&out_line, line_str);
-                append(&out_line, '\n');
+                append_s_char(&out_line, ':');
+                append_s_char(&out_line, ' ');
+                append_ss(&out_line, line_str);
+                append_s_char(&out_line, '\n');
                 
                 end_temp_memory(line_temp);
             }
@@ -2589,19 +2590,19 @@ CUSTOM_COMMAND_SIG(execute_arbitrary_command){
     // is still available in bar.string though.
     app->end_query_bar(app, &bar, 0);
     
-    if (match(bar.string, make_lit_string("open all code"))){
+    if (match_ss(bar.string, make_lit_string("open all code"))){
         exec_command(app, open_all_code);
     }
-    else if(match(bar.string, make_lit_string("close all code"))){
+    else if(match_ss(bar.string, make_lit_string("close all code"))){
         exec_command(app, close_all_code);
     }
-    else if (match(bar.string, make_lit_string("open menu"))){
+    else if (match_ss(bar.string, make_lit_string("open menu"))){
         exec_command(app, cmdid_open_menu);
     }
-    else if (match(bar.string, make_lit_string("dos lines"))){
+    else if (match_ss(bar.string, make_lit_string("dos lines"))){
         exec_command(app, eol_dosify);
     }
-    else if (match(bar.string, make_lit_string("nix lines"))){
+    else if (match_ss(bar.string, make_lit_string("nix lines"))){
         exec_command(app, eol_nixify);
     }
     else{

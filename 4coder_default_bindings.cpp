@@ -180,10 +180,10 @@ OPEN_FILE_HOOK_SIG(my_file_settings){
     
     if (buffer.file_name && buffer.size < (16 << 20)){
         String ext = file_extension(make_string(buffer.file_name, buffer.file_name_len));
-        if (match(ext, make_lit_string("cpp"))) treat_as_code = 1;
-        else if (match(ext, make_lit_string("h"))) treat_as_code = 1;
-        else if (match(ext, make_lit_string("c"))) treat_as_code = 1;
-        else if (match(ext, make_lit_string("hpp"))) treat_as_code = 1;
+        if (match_ss(ext, make_lit_string("cpp"))) treat_as_code = 1;
+        else if (match_ss(ext, make_lit_string("h"))) treat_as_code = 1;
+        else if (match_ss(ext, make_lit_string("c"))) treat_as_code = 1;
+        else if (match_ss(ext, make_lit_string("hpp"))) treat_as_code = 1;
     }
     
     if (treat_as_code){

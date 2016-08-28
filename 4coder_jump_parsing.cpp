@@ -18,40 +18,40 @@ static int
 ms_style_verify(String line, int paren_pos){
     int result = false;
     
-    String line_part = substr(line, paren_pos);
-    if (match_part(line_part, ") : ")){
-        result = true;
-    }
-    else if (match_part(line_part, "): ")){
-        result = true;
-    }
-    
-    return(result);
-}
-
-static int
+    String line_part = substr_tail(line, paren_pos);
+    if (match_part_sc(line_part, ") : ")){
+        result = true;         
+    }                          
+    else if (match_part_sc(line_part, "): ")){
+        result = true;         
+    }                          
+                               
+    return(result);            
+}                              
+                               
+static int                     
 parse_error(String line, Jump_Location *location,
             int skip_sub_errors, int *colon_char){
-    int result = false;
-    
+    int result = false;        
+                               
     String original_line = line;
     line = skip_chop_whitespace(line);
-    
-    int colon_pos = find(line, 0, ')');
+                               
+    int colon_pos = find_s_char(line, 0, ')');
     if (ms_style_verify(line, colon_pos)){
-        colon_pos = find(line, colon_pos, ':');
+        colon_pos = find_s_char(line, colon_pos, ':');
         if (colon_pos < line.size){
             String location_str = substr(line, 0, colon_pos);
             
             if (!(skip_sub_errors && original_line.str[0] == ' ')){
                 location_str = skip_chop_whitespace(location_str);
                 
-                int paren_pos = find(location_str, 0, '(');
+                int paren_pos = find_s_char(location_str, 0, '(');
                 if (paren_pos < location_str.size){
                     String file = substr(location_str, 0, paren_pos);
                     file = skip_chop_whitespace(file);
                     
-                    int close_pos = find(location_str, 0, ')') + 1;
+                    int close_pos = find_s_char(location_str, 0, ')') + 1;
                     if (close_pos == location_str.size && file.size > 0){
                         String line_number = substr(location_str,
                                                     paren_pos+1,
@@ -61,17 +61,17 @@ parse_error(String line, Jump_Location *location,
                         if (line_number.size > 0){
                             location->file = file;
                             
-                            int comma_pos = find(line_number, 0, ',');
+                            int comma_pos = find_s_char(line_number, 0, ',');
                             if (comma_pos < line_number.size){
                                 int start = comma_pos+1;
                                 String column_number = substr(line_number, start, line_number.size-start);
                                 line_number = substr(line_number, 0, comma_pos);
                                 
-                                location->line = str_to_int(line_number);
-                                location->column = str_to_int(column_number);
+                                location->line = str_to_int_s(line_number);
+                                location->column = str_to_int_s(column_number);
                             }
                             else{
-                                location->line = str_to_int(line_number);
+                                location->line = str_to_int_s(line_number);
                                 location->column = 1;
                             }
                             
@@ -85,15 +85,15 @@ parse_error(String line, Jump_Location *location,
     }
     
     else{
-        int colon_pos1 = find(line, 0, ':');
+        int colon_pos1 = find_s_char(line, 0, ':');
         if (line.size > colon_pos1+1){
             if (char_is_slash(line.str[colon_pos1+1])){
-                colon_pos1 = find(line, colon_pos1+1, ':');
+                colon_pos1 = find_s_char(line, colon_pos1+1, ':');
             }
         }
         
-        int colon_pos2 = find(line, colon_pos1+1, ':');
-        int colon_pos3 = find(line, colon_pos2+1, ':');
+        int colon_pos2 = find_s_char(line, colon_pos1+1, ':');
+        int colon_pos3 = find_s_char(line, colon_pos2+1, ':');
         
         if (colon_pos3 < line.size){
             String filename = substr(line, 0, colon_pos1);
@@ -104,30 +104,30 @@ parse_error(String line, Jump_Location *location,
                 line_number.size > 0 &&
                 column_number.size > 0){
                 location->file = filename;
-                location->line = str_to_int(line_number);
-                location->column = str_to_int(column_number);
+                location->line = str_to_int_s(line_number);
+                location->column = str_to_int_s(column_number);
                 *colon_char = colon_pos3;
                 result = true;
             }
         }
         else{
-            colon_pos1 = find(line, 0, ':');
+            colon_pos1 = find_s_char(line, 0, ':');
             if (line.size > colon_pos1+1){
                 if (char_is_slash(line.str[colon_pos1+1])){
-                    colon_pos1 = find(line, colon_pos1+1, ':');
+                    colon_pos1 = find_s_char(line, colon_pos1+1, ':');
                 }
             }
             
-            colon_pos2 = find(line, colon_pos1+1, ':');
+            colon_pos2 = find_s_char(line, colon_pos1+1, ':');
             
             if (colon_pos2 < line.size){
                 String filename = substr(line, 0, colon_pos1);
                 String line_number = substr(line, colon_pos1+1, colon_pos2 - colon_pos1 - 1);
                 
-                if (str_is_int(line_number)){
+                if (str_is_int_s(line_number)){
                     if (filename.size > 0 && line_number.size > 0){
                         location->file = filename;
-                        location->line = str_to_int(line_number);
+                        location->line = str_to_int_s(line_number);
                         location->column = 0;
                         *colon_char = colon_pos2;
                         result = true;

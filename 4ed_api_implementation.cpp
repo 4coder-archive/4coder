@@ -221,17 +221,17 @@ DOC_SEE(Command_Line_Input_Flag)
         file = get_file_from_identifier(system, working_set, buffer);
         if (file){
             if (file->settings.read_only == 0){
-                append(&feedback_str, "ERROR: ");
-                append(&feedback_str, file->name.live_name);
-                append(&feedback_str, " is not a read-only buffer\n");
+                append_ss(&feedback_str, make_lit_string("ERROR: "));
+                append_ss(&feedback_str, file->name.live_name);
+                append_ss(&feedback_str, make_lit_string(" is not a read-only buffer\n"));
                 do_feedback_message(system, models, feedback_str);
                 result = false;
                 goto done;
             }
             if (file->settings.never_kill){
-                append(&feedback_str, "The buffer ");
-                append(&feedback_str, file->name.live_name);
-                append(&feedback_str, " is not killable");
+                append_ss(&feedback_str, make_lit_string("The buffer "));
+                append_ss(&feedback_str, file->name.live_name);
+                append_ss(&feedback_str, make_lit_string(" is not killable"));
                 do_feedback_message(system, models, feedback_str);
                 result = false;
                 goto done;
@@ -240,7 +240,8 @@ DOC_SEE(Command_Line_Input_Flag)
         else if (buffer.name){
             file = working_set_alloc_always(working_set, general);
             if (file == 0){
-                append(&feedback_str, "ERROR: unable to  allocate a new buffer\n");
+                append_ss(&feedback_str,
+                          make_lit_string("ERROR: unable to  allocate a new buffer\n"));
                 do_feedback_message(system, models, feedback_str);
                 result = false;
                 goto done;
@@ -277,7 +278,8 @@ DOC_SEE(Command_Line_Input_Flag)
                 }
             }
             else{
-                append(&feedback_str, "did not begin command-line command because the target buffer is already in use\n");
+                append_ss(&feedback_str,
+                          make_lit_string("did not begin command-line command because the target buffer is already in use\n"));
                 do_feedback_message(system, models, feedback_str);
                 result = false;
                 goto done;
@@ -326,7 +328,7 @@ DOC_SEE(Command_Line_Input_Flag)
         }
     }
     else{
-        append(&feedback_str, "ERROR: no available process slot\n");
+        append_ss(&feedback_str, make_lit_string("ERROR: no available process slot\n"));
         do_feedback_message(system, models, feedback_str);
         result = false;
         goto done;
@@ -357,7 +359,7 @@ DOC_SEE(The_4coder_Clipboard)
     Working_Set *working = &models->working_set;
     
     String *dest = working_set_next_clipboard_string(general, working, len);
-    copy(dest, make_string(str, len));
+    copy_ss(dest, make_string(str, len));
     system->post_clipboard(*dest);
 }
 
@@ -396,8 +398,8 @@ DOC_SEE(The_4coder_Clipboard)
     if (str){
         size = str->size;
         if (out){
-            String out_str = make_string(out, 0, len);
-            copy(&out_str, *str);
+            String out_str = make_string_cap(out, 0, len);
+            copy_ss(&out_str, *str);
         }
     }
     
@@ -1904,7 +1906,7 @@ DOC(This call changes 4coder's color pallet to one of the built in themes.)
     Style *s = styles->styles;
     
     for (i = 0; i < count; ++i, ++s){
-        if (match(s->name, theme_name)){
+        if (match_ss(s->name, theme_name)){
             style_copy(main_style(cmd->models), s);
             break;
         }

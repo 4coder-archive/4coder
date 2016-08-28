@@ -141,7 +141,7 @@ consume_input(Available_Input *available, i32 input_type, char *consumer){
     record->consumed = 1;
     if (consumer){
         String str = make_fixed_width_string(record->consumer);
-        copy(&str, consumer);
+        copy_sc(&str, consumer);
         terminate_with_null(&str);
     }
     else{
@@ -336,7 +336,7 @@ COMMAND_DECL(reopen){
     USE_VIEW(view);
     REQ_FILE(file, view);
     
-    if (match(file->name.source_path, file->name.live_name)) return;
+    if (match_ss(file->name.source_path, file->name.live_name)) return;
     
     if (file->canon.name.size != 0){
         Plat_Handle handle;
@@ -1174,7 +1174,7 @@ init_command_line_settings(App_Settings *settings, Plat_Settings *plat_settings,
             case CLAct_InitialFilePosition:
             {
                 if (i < clparams.argc){
-                    settings->initial_line = str_to_int(clparams.argv[i]);
+                    settings->initial_line = str_to_int_c(clparams.argv[i]);
                 }
                 action = CLAct_Nothing;
             }break;
@@ -1183,8 +1183,8 @@ init_command_line_settings(App_Settings *settings, Plat_Settings *plat_settings,
             {
                 if (i + 1 < clparams.argc){
                     plat_settings->set_window_size  = true;
-                    plat_settings->window_w = str_to_int(clparams.argv[i]);
-                    plat_settings->window_h = str_to_int(clparams.argv[i+1]);
+                    plat_settings->window_w = str_to_int_c(clparams.argv[i]);
+                    plat_settings->window_h = str_to_int_c(clparams.argv[i+1]);
                     
                     ++i;
                 }
@@ -1202,8 +1202,8 @@ init_command_line_settings(App_Settings *settings, Plat_Settings *plat_settings,
             {
                 if (i + 1 < clparams.argc){
                     plat_settings->set_window_pos  = true;
-                    plat_settings->window_x = str_to_int(clparams.argv[i]);
-                    plat_settings->window_y = str_to_int(clparams.argv[i+1]);
+                    plat_settings->window_x = str_to_int_c(clparams.argv[i]);
+                    plat_settings->window_y = str_to_int_c(clparams.argv[i+1]);
                     
                     ++i;
                 }
@@ -1213,7 +1213,7 @@ init_command_line_settings(App_Settings *settings, Plat_Settings *plat_settings,
             case CLAct_FontSize:
             {
                 if (i < clparams.argc){
-                    settings->font_size = str_to_int(clparams.argv[i]);
+                    settings->font_size = str_to_int_c(clparams.argv[i]);
                 }
                 action = CLAct_Nothing;
             }break;
@@ -1601,7 +1601,7 @@ App_Init_Sig(app_init){
     // TODO(allen): more robust allocation solution for the clipboard
     if (clipboard.str){
         String *dest = working_set_next_clipboard_string(&models->mem.general, &models->working_set, clipboard.size);
-        copy(dest, make_string((char*)clipboard.str, clipboard.size));
+        copy_ss(dest, make_string((char*)clipboard.str, clipboard.size));
     }
     
     // NOTE(allen): style setup
@@ -1642,7 +1642,7 @@ update_cli_handle_with_file(System_Functions *system, Models *models,
     if (system->cli_end_update(cli)){
         char str_space[256];
         String str = make_fixed_width_string(str_space);
-        append(&str, "exited with code ");
+        append_ss(&str, make_lit_string("exited with code "));
         append_int_to_str(&str, cli->exit);
         output_file_append(system, models, file, str, cursor_at_end);
         result = -1;

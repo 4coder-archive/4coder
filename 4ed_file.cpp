@@ -364,7 +364,7 @@ tbl_name_compare(void *a, void *b, void *arg){
     File_Name_Entry *fb = (File_Name_Entry*)b;
     
     i32 result = 1;
-    if (match(*fa, fb->name)){
+    if (match_ss(*fa, fb->name)){
         result = 0;
     }
     
@@ -635,7 +635,7 @@ working_set_lookup_file(Working_Set *working_set, String string){
         used_nodes = &working_set->used_sentinel;
         for (dll_items(node, used_nodes)){
             file = (Editing_File*)node;
-            if (string.size == 0 || match(string, file->name.live_name)){
+            if (string.size == 0 || match_ss(string, file->name.live_name)){
                 break;
             }
         }
@@ -647,7 +647,7 @@ working_set_lookup_file(Working_Set *working_set, String string){
         used_nodes = &working_set->used_sentinel;
         for (dll_items(node, used_nodes)){
             file = (Editing_File*)node;
-            if (string.size == 0 || has_substr(file->name.live_name, string)){
+            if (string.size == 0 || has_substr_s(file->name.live_name, string)){
                 break;
             }
         }
@@ -690,7 +690,9 @@ hot_directory_quick_partition(File_Info *infos, i32 start, i32 pivot){
     for (i32 i = start; i < pivot; ++i, ++a){
         i32 comp = 0;
         comp = p->folder - a->folder;
-        if (comp == 0) comp = compare(a->filename, p->filename);
+        if (comp == 0){
+            comp = compare_cc(a->filename, p->filename);
+        }
         if (comp < 0){
             Swap(File_Info, *a, infos[start]);
             ++start;
@@ -717,7 +719,7 @@ hot_directory_fixup(Hot_Directory *hot_directory, Working_Set *working_set){
 inline void
 hot_directory_set(System_Functions *system, Hot_Directory *hot_directory,
                   String str, Working_Set *working_set){
-    b32 success = copy_checked(&hot_directory->string, str);
+    b32 success = copy_checked_ss(&hot_directory->string, str);
     terminate_with_null(&hot_directory->string);
     if (success){
         if (str.size > 0){
@@ -741,8 +743,8 @@ hot_directory_init(Hot_Directory *hot_directory, String base, String dir, char s
 	hot_directory->string = base;
     hot_directory->string.str[255] = 0;
     hot_directory->string.size = 0;
-    copy(&hot_directory->string, dir);
-	append(&hot_directory->string, slash);
+    copy_ss(&hot_directory->string, dir);
+	append_s_char(&hot_directory->string, slash);
     hot_directory->slash = slash;
 }
 
@@ -755,7 +757,7 @@ internal b32
 filename_match(String query, Absolutes *absolutes, String filename, b32 case_sensitive){
     b32 result;
     result = (query.size == 0);
-    if (!result) result = wildcard_match(absolutes, filename, case_sensitive);
+    if (!result) result = wildcard_match_s(absolutes, filename, case_sensitive);
     return result;
 }
 
@@ -858,15 +860,15 @@ internal void
 buffer_get_new_name(Working_Set *working_set, Editing_File_Name *name, String filename){
     Assert(name->live_name.str != 0);
     
-    copy_checked(&name->source_path, filename);
-    copy(&name->live_name, front_of_directory(filename));
+    copy_checked_ss(&name->source_path, filename);
+    copy_ss(&name->live_name, front_of_directory(filename));
     
     if (name->source_path.size == name->live_name.size){
         name->extension.size = 0;
     }
     else{
         String ext = file_extension(filename);
-        copy(&name->extension, ext);
+        copy_ss(&name->extension, ext);
     }
     
     {
@@ -880,7 +882,7 @@ buffer_get_new_name(Working_Set *working_set, Editing_File_Name *name, String fi
             for (dll_items(node, used_nodes)){
                 Editing_File *file_ptr = (Editing_File*)node;
                 if (file_is_ready(file_ptr)){
-                    if (match(name->live_name, file_ptr->name.live_name)){
+                    if (match_ss(name->live_name, file_ptr->name.live_name)){
                         ++file_x;
                         hit_conflict = 1;
                         break;
@@ -890,9 +892,9 @@ buffer_get_new_name(Working_Set *working_set, Editing_File_Name *name, String fi
             
             if (hit_conflict){
                 name->live_name.size = original_len;
-                append(&name->live_name, " <");
+                append_ss(&name->live_name, make_lit_string(" <"));
                 append_int_to_str(&name->live_name, file_x);
-                append(&name->live_name, ">");
+                append_s_char(&name->live_name, '>');
             }
         }
     }
@@ -913,7 +915,7 @@ buffer_bind_file(System_Functions *system, General_Memory *general, Working_Set 
     Assert(file->canon.name.size == 0);
     
     file->canon.name = make_fixed_width_string(file->canon.name_);
-    copy(&file->canon.name, canon_filename);
+    copy_ss(&file->canon.name, canon_filename);
     terminate_with_null(&file->canon.name);
     system->add_listener(file->canon.name_);
     b32 result = working_set_canon_add(general, working_set, file, file->canon.name);
@@ -944,9 +946,9 @@ buffer_bind_name(General_Memory *general, Working_Set *working_set,
     buffer_get_new_name(working_set, &new_name, filename);
     
     editing_file_name_init(&file->name);
-    copy(&file->name.live_name, new_name.live_name);
-    copy(&file->name.source_path, new_name.source_path);
-    copy(&file->name.extension, new_name.extension);
+    copy_ss(&file->name.live_name, new_name.live_name);
+    copy_ss(&file->name.source_path, new_name.source_path);
+    copy_ss(&file->name.extension, new_name.extension);
     
     b32 result = working_set_name_add(general, working_set, file, file->name.live_name);
     Assert(result); AllowLocal(result);

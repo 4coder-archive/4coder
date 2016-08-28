@@ -217,7 +217,7 @@ font_set_find_pos(Font_Set *set, String name, u32 *position){
         if (i == set->max) i = 0;
         entry = set->entries + i;
         if (entry->hash == hash){
-            if (match(name, entry->name)){
+            if (match_ss(name, entry->name)){
                 result = 1;
                 *position = i;
                 break;
