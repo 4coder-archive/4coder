@@ -22,13 +22,6 @@
 
 #include "4coder_mem.h"
 
-struct Global_Settings{
-    int generate_docs;
-    int generate_string;
-};
-
-static Global_Settings global_settings;
-
 struct Struct_Field{
     char *type;
     char *name;
@@ -2038,7 +2031,7 @@ generate_custom_headers(){
     fclose(file);
     
     // NOTE(allen): Documentation
-    if (global_settings.generate_docs){
+    {
         Typedef_Set typedef_set = {0};
         Struct_Set struct_set = {0};
         Enum_Set flag_set = {0};
@@ -2396,10 +2389,10 @@ generate_custom_headers(){
                                     append_ss(&line, cpp_name);
                                     append_ss(&line, args);
                                     if (match_ss(ret, make_lit_string("void"))){
-                                        append_ss(&line, make_lit_string("{ ("));
+                                        append_ss(&line, make_lit_string("{("));
                                     }
                                     else{
-                                        append_ss(&line, make_lit_string("{ return("));
+                                        append_ss(&line, make_lit_string("{return("));
                                     }
                                     append_ss(&line, name);
                                     append_s_char(&line, '(');
@@ -3083,11 +3076,6 @@ generate_custom_headers(){
 
 int main(int argc, char **argv){
     char *filename = 0;
-    
-    memset(&global_settings, 0, sizeof(global_settings));
-    
-    global_settings.generate_docs = true;
-    global_settings.generate_string = true;
     
     filename = generate_keycode_enum();
     filename = generate_style();

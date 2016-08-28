@@ -229,125 +229,125 @@ FSTRING_INLINE  fstr_bool     set_last_folder(String *dir, String folder_name, c
 #if !defined(FSTRING_C) && !defined(FSTRING_GUARD)
 
 FSTRING_INLINE String
-make_string(void *str, int32_t size, int32_t mem_size){ return(make_string_cap(str,size,mem_size));}
+make_string(void *str, int32_t size, int32_t mem_size){return(make_string_cap(str,size,mem_size));}
 FSTRING_INLINE String
-substr(String str, int32_t start){ return(substr_tail(str,start));}
+substr(String str, int32_t start){return(substr_tail(str,start));}
 FSTRING_INLINE fstr_bool
-match(char *a, char *b){ return(match_cc(a,b));}
+match(char *a, char *b){return(match_cc(a,b));}
 FSTRING_INLINE fstr_bool
-match(String a, char *b){ return(match_sc(a,b));}
+match(String a, char *b){return(match_sc(a,b));}
 FSTRING_INLINE fstr_bool
-match(char *a, String b){ return(match_cs(a,b));}
+match(char *a, String b){return(match_cs(a,b));}
 FSTRING_INLINE fstr_bool
-match(String a, String b){ return(match_ss(a,b));}
+match(String a, String b){return(match_ss(a,b));}
 FSTRING_INLINE fstr_bool
-match_part(char *a, char *b, int32_t *len){ return(match_part_ccl(a,b,len));}
+match_part(char *a, char *b, int32_t *len){return(match_part_ccl(a,b,len));}
 FSTRING_INLINE fstr_bool
-match_part(String a, char *b, int32_t *len){ return(match_part_scl(a,b,len));}
+match_part(String a, char *b, int32_t *len){return(match_part_scl(a,b,len));}
 FSTRING_INLINE fstr_bool
-match_part(char *a, char *b){ return(match_part_cc(a,b));}
+match_part(char *a, char *b){return(match_part_cc(a,b));}
 FSTRING_INLINE fstr_bool
-match_part(String a, char *b){ return(match_part_sc(a,b));}
+match_part(String a, char *b){return(match_part_sc(a,b));}
 FSTRING_INLINE fstr_bool
-match_part(char *a, String b){ return(match_part_cs(a,b));}
+match_part(char *a, String b){return(match_part_cs(a,b));}
 FSTRING_INLINE fstr_bool
-match_part(String a, String b){ return(match_part_ss(a,b));}
+match_part(String a, String b){return(match_part_ss(a,b));}
 FSTRING_INLINE fstr_bool
-match_insensitive(char *a, char *b){ return(match_insensitive_cc(a,b));}
+match_insensitive(char *a, char *b){return(match_insensitive_cc(a,b));}
 FSTRING_INLINE fstr_bool
-match_insensitive(String a, char *b){ return(match_insensitive_sc(a,b));}
+match_insensitive(String a, char *b){return(match_insensitive_sc(a,b));}
 FSTRING_INLINE fstr_bool
-match_insensitive(char *a, String b){ return(match_insensitive_cs(a,b));}
+match_insensitive(char *a, String b){return(match_insensitive_cs(a,b));}
 FSTRING_INLINE fstr_bool
-match_insensitive(String a, String b){ return(match_insensitive_ss(a,b));}
+match_insensitive(String a, String b){return(match_insensitive_ss(a,b));}
 FSTRING_INLINE fstr_bool
-match_part_insensitive(char *a, char *b, int32_t *len){ return(match_part_insensitive_ccl(a,b,len));}
+match_part_insensitive(char *a, char *b, int32_t *len){return(match_part_insensitive_ccl(a,b,len));}
 FSTRING_INLINE fstr_bool
-match_part_insensitive(String a, char *b, int32_t *len){ return(match_part_insensitive_scl(a,b,len));}
+match_part_insensitive(String a, char *b, int32_t *len){return(match_part_insensitive_scl(a,b,len));}
 FSTRING_INLINE fstr_bool
-match_part_insensitive(char *a, char *b){ return(match_part_insensitive_cc(a,b));}
+match_part_insensitive(char *a, char *b){return(match_part_insensitive_cc(a,b));}
 FSTRING_INLINE fstr_bool
-match_part_insensitive(String a, char *b){ return(match_part_insensitive_sc(a,b));}
+match_part_insensitive(String a, char *b){return(match_part_insensitive_sc(a,b));}
 FSTRING_INLINE fstr_bool
-match_part_insensitive(char *a, String b){ return(match_part_insensitive_cs(a,b));}
+match_part_insensitive(char *a, String b){return(match_part_insensitive_cs(a,b));}
 FSTRING_INLINE fstr_bool
-match_part_insensitive(String a, String b){ return(match_part_insensitive_ss(a,b));}
+match_part_insensitive(String a, String b){return(match_part_insensitive_ss(a,b));}
 FSTRING_INLINE int32_t
-compare(char *a, char *b){ return(compare_cc(a,b));}
+compare(char *a, char *b){return(compare_cc(a,b));}
 FSTRING_INLINE int32_t
-compare(String a, char *b){ return(compare_sc(a,b));}
+compare(String a, char *b){return(compare_sc(a,b));}
 FSTRING_INLINE int32_t
-compare(char *a, String b){ return(compare_cs(a,b));}
+compare(char *a, String b){return(compare_cs(a,b));}
 FSTRING_INLINE int32_t
-compare(String a, String b){ return(compare_ss(a,b));}
+compare(String a, String b){return(compare_ss(a,b));}
 FSTRING_INLINE int32_t
-find(char *str, int32_t start, char character){ return(find_c_char(str,start,character));}
+find(char *str, int32_t start, char character){return(find_c_char(str,start,character));}
 FSTRING_INLINE int32_t
-find(String str, int32_t start, char character){ return(find_s_char(str,start,character));}
+find(String str, int32_t start, char character){return(find_s_char(str,start,character));}
 FSTRING_INLINE int32_t
-find(char *str, int32_t start, char *characters){ return(find_c_chars(str,start,characters));}
+find(char *str, int32_t start, char *characters){return(find_c_chars(str,start,characters));}
 FSTRING_INLINE int32_t
-find(String str, int32_t start, char *characters){ return(find_s_chars(str,start,characters));}
+find(String str, int32_t start, char *characters){return(find_s_chars(str,start,characters));}
 FSTRING_INLINE int32_t
-find_substr(char *str, int32_t start, String seek){ return(find_substr_c(str,start,seek));}
+find_substr(char *str, int32_t start, String seek){return(find_substr_c(str,start,seek));}
 FSTRING_INLINE int32_t
-find_substr(String str, int32_t start, String seek){ return(find_substr_s(str,start,seek));}
+find_substr(String str, int32_t start, String seek){return(find_substr_s(str,start,seek));}
 FSTRING_INLINE int32_t
-rfind_substr(String str, int32_t start, String seek){ return(rfind_substr_s(str,start,seek));}
+rfind_substr(String str, int32_t start, String seek){return(rfind_substr_s(str,start,seek));}
 FSTRING_INLINE int32_t
-find_substr_insensitive(char *str, int32_t start, String seek){ return(find_substr_insensitive_c(str,start,seek));}
+find_substr_insensitive(char *str, int32_t start, String seek){return(find_substr_insensitive_c(str,start,seek));}
 FSTRING_INLINE int32_t
-find_substr_insensitive(String str, int32_t start, String seek){ return(find_substr_insensitive_s(str,start,seek));}
+find_substr_insensitive(String str, int32_t start, String seek){return(find_substr_insensitive_s(str,start,seek));}
 FSTRING_INLINE fstr_bool
-has_substr(char *s, String seek){ return(has_substr_c(s,seek));}
+has_substr(char *s, String seek){return(has_substr_c(s,seek));}
 FSTRING_INLINE fstr_bool
-has_substr(String s, String seek){ return(has_substr_s(s,seek));}
+has_substr(String s, String seek){return(has_substr_s(s,seek));}
 FSTRING_INLINE fstr_bool
-has_substr_insensitive(char *s, String seek){ return(has_substr_insensitive_c(s,seek));}
+has_substr_insensitive(char *s, String seek){return(has_substr_insensitive_c(s,seek));}
 FSTRING_INLINE fstr_bool
-has_substr_insensitive(String s, String seek){ return(has_substr_insensitive_s(s,seek));}
+has_substr_insensitive(String s, String seek){return(has_substr_insensitive_s(s,seek));}
 FSTRING_INLINE int32_t
-copy_fast_unsafe(char *dest, char *src){ return(copy_fast_unsafe_cc(dest,src));}
+copy_fast_unsafe(char *dest, char *src){return(copy_fast_unsafe_cc(dest,src));}
 FSTRING_INLINE int32_t
-copy_fast_unsafe(char *dest, String src){ return(copy_fast_unsafe_cs(dest,src));}
+copy_fast_unsafe(char *dest, String src){return(copy_fast_unsafe_cs(dest,src));}
 FSTRING_INLINE fstr_bool
-copy_checked(String *dest, String src){ return(copy_checked_ss(dest,src));}
+copy_checked(String *dest, String src){return(copy_checked_ss(dest,src));}
 FSTRING_INLINE fstr_bool
-copy_partial(String *dest, char *src){ return(copy_partial_sc(dest,src));}
+copy_partial(String *dest, char *src){return(copy_partial_sc(dest,src));}
 FSTRING_INLINE fstr_bool
-copy_partial(String *dest, String src){ return(copy_partial_ss(dest,src));}
+copy_partial(String *dest, String src){return(copy_partial_ss(dest,src));}
 FSTRING_INLINE int32_t
-copy(char *dest, char *src){ return(copy_cc(dest,src));}
+copy(char *dest, char *src){return(copy_cc(dest,src));}
 FSTRING_INLINE void
-copy(String *dest, String src){ (copy_ss(dest,src));}
+copy(String *dest, String src){(copy_ss(dest,src));}
 FSTRING_INLINE void
-copy(String *dest, char *src){ (copy_sc(dest,src));}
+copy(String *dest, char *src){(copy_sc(dest,src));}
 FSTRING_INLINE fstr_bool
-append_checked(String *dest, String src){ return(append_checked_ss(dest,src));}
+append_checked(String *dest, String src){return(append_checked_ss(dest,src));}
 FSTRING_INLINE fstr_bool
-append_partial(String *dest, char *src){ return(append_partial_sc(dest,src));}
+append_partial(String *dest, char *src){return(append_partial_sc(dest,src));}
 FSTRING_INLINE fstr_bool
-append_partial(String *dest, String src){ return(append_partial_ss(dest,src));}
+append_partial(String *dest, String src){return(append_partial_ss(dest,src));}
 FSTRING_INLINE fstr_bool
-append(String *dest, char c){ return(append_s_char(dest,c));}
+append(String *dest, char c){return(append_s_char(dest,c));}
 FSTRING_INLINE fstr_bool
-append(String *dest, String src){ return(append_ss(dest,src));}
+append(String *dest, String src){return(append_ss(dest,src));}
 FSTRING_INLINE fstr_bool
-append(String *dest, char *src){ return(append_sc(dest,src));}
+append(String *dest, char *src){return(append_sc(dest,src));}
 FSTRING_INLINE int32_t
-str_is_int(char *str){ return(str_is_int_c(str));}
+str_is_int(char *str){return(str_is_int_c(str));}
 FSTRING_INLINE fstr_bool
-str_is_int(String str){ return(str_is_int_s(str));}
+str_is_int(String str){return(str_is_int_s(str));}
 FSTRING_INLINE int32_t
-str_to_int(char *str){ return(str_to_int_c(str));}
+str_to_int(char *str){return(str_to_int_c(str));}
 FSTRING_INLINE int32_t
-str_to_int(String str){ return(str_to_int_s(str));}
+str_to_int(String str){return(str_to_int_s(str));}
 FSTRING_INLINE int32_t
-reverse_seek_slash(String str, int32_t pos){ return(reverse_seek_slash_pos(str,pos));}
+reverse_seek_slash(String str, int32_t pos){return(reverse_seek_slash_pos(str,pos));}
 FSTRING_INLINE fstr_bool
-set_last_folder(String *dir, char *folder_name, char slash){ return(set_last_folder_sc(dir,folder_name,slash));}
+set_last_folder(String *dir, char *folder_name, char slash){return(set_last_folder_sc(dir,folder_name,slash));}
 FSTRING_INLINE fstr_bool
-set_last_folder(String *dir, String folder_name, char slash){ return(set_last_folder_ss(dir,folder_name,slash));}
+set_last_folder(String *dir, String folder_name, char slash){return(set_last_folder_ss(dir,folder_name,slash));}
 
 #endif
 

@@ -17,7 +17,10 @@ Allen Webster
 #include "4coder_default_include.cpp"
 #include "4coder_default_building.cpp"
 
-#include <Windows.h>
+#include <intrin.h>
+#pragma intrinsic(__rdtsc)
+
+typedef uint64_t DWORD64;
 
 #define TEST_TIME_B(m) DWORD64 time_start = __rdtsc(), time_max = m; (void)(time_start), (void)(time_max)
 #define TEST_TIME_E() DWORD64 time_total = __rdtsc() - time_start; if (time_total > time_max) {assert(!"failed timing");}

@@ -44,13 +44,47 @@ static int error_state = 0;
 
 #if defined(IS_WINDOWS)
 
-#define DWORD uint32_t
-#define LPTSTR char*
+typedef uint32_t DWORD;
+typedef int32_t LONG;
+typedef int64_t LONGLONG;
+typedef char* LPTSTR;
+typedef int32_t BOOL;
+typedef union _LARGE_INTEGER {
+    struct {
+        DWORD LowPart;
+        LONG  HighPart;
+    };
+    struct {
+        DWORD LowPart;
+        LONG  HighPart;
+    } u;
+    LONGLONG QuadPart;
+} LARGE_INTEGER, *PLARGE_INTEGER;
 
-DWORD GetCurrentDirectoryA(
-_In_  DWORD  nBufferLength,
-_Out_ LPTSTR lpBuffer
-);
+DWORD GetCurrentDirectoryA(_In_  DWORD  nBufferLength, _Out_ LPTSTR lpBuffer);
+BOOL QueryPerformanceCounter(_Out_ LARGE_INTEGER *lpPerformanceCount);
+BOOL QueryPerformanceFrequency(_Out_ LARGE_INTEGER *lpFrequency);
+
+static uint64_t perf_frequency;
+
+static void
+init_time_system(){
+    LARGE_INTEGER lint;
+    if (QueryPerformanceFrequency(&lint)){
+        perf_frequency = lint.QuadPart;
+    }
+}
+
+static uint64_t
+get_time(){
+    uint64_t time = 0;
+    LARGE_INTEGER lint;
+    if (QueryPerformanceCounter(&lint)){
+        time = lint.QuadPart;
+        time = (time * 1000000) / perf_frequency;
+    }
+    return(time);
+}
 
 static int32_t
 get_current_directory(char *buffer, int32_t max){
@@ -71,6 +105,9 @@ execute(char *dir, char *str){
 #else
 #error This OS is not supported yet
 #endif
+
+#define BEGIN_TIME_SECTION() do{ uint64_t start = get_time()
+#define END_TIME_SECTION(n) uint64_t total = get_time() - start; printf("%-20s: %.2lu.%.6lu\n", (n), total/1000000, total%1000000); }while(0)
 
 //
 // 4coder specific
@@ -116,6 +153,7 @@ build_cl(uint32_t flags,
          char *out_path, char *out_file,
          char *exports){
     win32_slash_fix(out_path);
+    win32_slash_fix(code_path);
     
     char link_options[1024];
     if (flags & SHARED_CODE){
@@ -184,13 +222,14 @@ build(uint32_t flags,
 }
 
 static void
-buildsuper(char *code_path , char *filename){
+buildsuper(char *code_path, char *out_path, char *filename){
 #if defined(IS_CL)
-    
     win32_slash_fix(filename);
+    win32_slash_fix(out_path);
+    win32_slash_fix(code_path);
     
-    systemf("call \"%s\\buildsuper.bat\" %s",
-            code_path, filename);
+    systemf("pushd %s & call \"%s\\buildsuper.bat\" %s",
+            out_path, code_path, filename);
     
 #else
 #error The build rule for this compiler is not ready
@@ -200,27 +239,43 @@ buildsuper(char *code_path , char *filename){
 #if defined(DEV_BUILD)
 
 int main(int argc, char **argv){
+    init_time_system();
+    
     char cdir[256];
-    {
-        int32_t n = get_current_directory(cdir, sizeof(cdir));
-        assert(n < sizeof(cdir));
-    }
     
+    BEGIN_TIME_SECTION();
+    int32_t n = get_current_directory(cdir, sizeof(cdir));
+    assert(n < sizeof(cdir));
+    END_TIME_SECTION("current directory");
+    
+#define META_DIR "../meta"
+#define BUILD_DIR "../build"
+    
+    BEGIN_TIME_SECTION();
     build(OPTS | DEBUG_INFO, cdir, "4ed_metagen.cpp",
-          "../meta", "metagen", 0);
+          META_DIR, "metagen", 0);
+    END_TIME_SECTION("build metagen");
     
-    execute(cdir, "../meta/metagen");
+    BEGIN_TIME_SECTION();
+    execute(cdir, META_DIR"/metagen");
+    END_TIME_SECTION("run metagen");
     
-    //buildsuper(cdir, "../code/4coder_default_bindings.cpp");
-    buildsuper(cdir, "../code/internal_4coder_tests.cpp");
-    //buildsuper(cdir, "../code/power/4coder_casey.cpp");
-    //buildsuper(cdir, "../4vim/4coder_chronal.cpp");
+    BEGIN_TIME_SECTION();
+    //buildsuper(cdir, BUILD_DIR, "../code/4coder_default_bindings.cpp");
+    buildsuper(cdir, BUILD_DIR, "../code/internal_4coder_tests.cpp");
+    //buildsuper(cdir, BUILD_DIR, "../code/power/4coder_casey.cpp");
+    //buildsuper(cdir, BUILD_DIR, "../4vim/4coder_chronal.cpp");
+    END_TIME_SECTION("build custom");
     
+    BEGIN_TIME_SECTION();
     build(OPTS | INCLUDES | SHARED_CODE | DEBUG_INFO, cdir, "4ed_app_target.cpp",
-          "../build", "4ed_app", "/EXPORT:app_get_functions");
+          BUILD_DIR, "4ed_app", "/EXPORT:app_get_functions");
+    END_TIME_SECTION("build 4ed_app");
     
+    BEGIN_TIME_SECTION();
     build(OPTS | INCLUDES | LIBS | ICON | DEBUG_INFO, cdir, "win32_4ed.cpp",
-          "../build", "4ed",     0);
+          BUILD_DIR, "4ed", 0);
+    END_TIME_SECTION("build 4ed");
     
     return(error_state);
 }
@@ -232,3 +287,4 @@ int main(int argc, char **argv){
 #endif
 
 // BOTTOM
+

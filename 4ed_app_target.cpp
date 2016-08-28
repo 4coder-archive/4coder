@@ -27,14 +27,7 @@
 
 #include "4coder_table.cpp"
 
-#define USE_NEW_LEXER 1
-
-#if USE_NEW_LEXER
-#include "test/4cpp_new_lexer.h"
-#else
-#define FCPP_LEXER_IMPLEMENTATION
 #include "4cpp_lexer.h"
-#endif
 
 #include "4ed_template.cpp"
 
