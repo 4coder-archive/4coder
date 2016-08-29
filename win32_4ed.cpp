@@ -37,7 +37,6 @@
 #define GL_TEXTURE_MAX_LEVEL 0x813D
 
 #include "filetrack/4tech_file_track_win32.c"
-
 #include "system_shared.h"
 
 #define SUPPORT_DPI 1

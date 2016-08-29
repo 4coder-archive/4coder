@@ -20,11 +20,10 @@
 
 #define FCPP_FORBID_MALLOC
 
-#include "4cpp_types.h"
 #define FCPP_STRING_IMPLEMENTATION
 #include "4coder_string.h"
 
-#include "4ed_math.cpp"
+#include "4ed_math.h"
 
 #include "4ed_system.h"
 #include "4ed_rendering.h"
@@ -70,6 +69,7 @@
 #include <linux/fs.h>
 #include <linux/input.h>
 
+#include "filetrack/4tech_file_track_linux.c"
 #include "system_shared.h"
 
 //
@@ -266,13 +266,6 @@ internal void        system_signal_cv(i32, i32);
 static_assert(sizeof(Plat_Handle) >= sizeof(ucontext_t*), "Plat_Handle not big enough");
 static_assert(sizeof(Plat_Handle) >= sizeof(sem_t*),      "Plat_Handle not big enough");
 static_assert(sizeof(Plat_Handle) >= sizeof(int),         "Plat_Handle not big enough");
-
-static_assert(
-    (sizeof(((struct stat*)0)->st_dev) + 
-    sizeof(((struct stat*)0)->st_ino)) <= 
-    sizeof(Unique_Hash),
-    "Unique_Hash not big enough"
-);
 
 //
 // Linux shared/system functions
@@ -1524,7 +1517,6 @@ INTERNAL_Sys_Debug_Message_Sig(internal_debug_message){
 //
 
 #include "system_shared.cpp"
-#include "4ed_rendering.cpp"
 #include "linux_font.cpp"
 
 internal f32

@@ -16,6 +16,10 @@ Created on: 20.07.2016
 #ifndef FILE_TRACK_4TECH_H
 #define FILE_TRACK_4TECH_H
 
+#ifndef FILE_TRACK_LINK
+#define FILE_TRACK_LINK static
+#endif
+
 #include <stdint.h>
 
 enum{
@@ -33,27 +37,27 @@ typedef struct{
 
 typedef int32_t File_Track_Result;
 
-File_Track_Result
+FILE_TRACK_LINK File_Track_Result
 init_track_system(File_Track_System *system,
                   void *table_memory, int32_t table_memory_size,
                   void *listener_memory, int32_t listener_memory_size);
 
-File_Track_Result
+FILE_TRACK_LINK File_Track_Result
 add_listener(File_Track_System *system, char *filename);
 
-File_Track_Result
+FILE_TRACK_LINK File_Track_Result
 remove_listener(File_Track_System *system, char *filename);
 
-File_Track_Result
+FILE_TRACK_LINK File_Track_Result
 move_track_system(File_Track_System *system, void *mem, int32_t size);
 
-File_Track_Result
+FILE_TRACK_LINK File_Track_Result
 expand_track_system_listeners(File_Track_System *system, void *mem, int32_t size);
 
-File_Track_Result
+FILE_TRACK_LINK File_Track_Result
 get_change_event(File_Track_System *system, char *buffer, int32_t max);
 
-File_Track_Result
+FILE_TRACK_LINK File_Track_Result
 shut_down_track_system(File_Track_System *system);
 
 #endif

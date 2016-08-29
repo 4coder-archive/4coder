@@ -1,8 +1,5 @@
 /*
 
-Copy Right FourTech LLC, 2016
-All Rights Are Reserved
-
 The OS agnostic file tracking API for applications
 that want to interact with potentially many files on
 the disk that could be changed by other applications.
@@ -14,10 +11,9 @@ Created on: 20.07.2016
 // TOP
 
 #include "4tech_file_track.h"
-
 #include "4tech_file_track_general.c"
 
-//#include <Windows.h>
+#include <Windows.h>
 
 typedef struct {
     char result[2048];
@@ -47,7 +43,7 @@ typedef struct {
 #define to_vars(s) ((Win32_File_Track_Vars*)(s))
 #define to_tables(v) ((File_Track_Tables*)(v->tables))
 
-File_Track_Result
+FILE_TRACK_LINK File_Track_Result
 init_track_system(File_Track_System *system,
                   void *table_memory, int32_t table_memory_size,
                   void *listener_memory, int32_t listener_memory_size){
@@ -120,7 +116,7 @@ internal_get_file_index(BY_HANDLE_FILE_INFORMATION info){
     return(hash);
 }
 
-File_Track_Result
+FILE_TRACK_LINK File_Track_Result
 add_listener(File_Track_System *system, char *filename){
     File_Track_Result result = FileTrack_Good;
     Win32_File_Track_Vars *vars = to_vars(system);
@@ -216,7 +212,7 @@ add_listener(File_Track_System *system, char *filename){
     return(result);
 }
 
-File_Track_Result
+FILE_TRACK_LINK File_Track_Result
 remove_listener(File_Track_System *system, char *filename){
     File_Track_Result result = FileTrack_Good;
     Win32_File_Track_Vars *vars = to_vars(system);
@@ -274,7 +270,7 @@ remove_listener(File_Track_System *system, char *filename){
     return(result);
 }
 
-File_Track_Result
+FILE_TRACK_LINK File_Track_Result
 move_track_system(File_Track_System *system, void *mem, int32_t size){
     File_Track_Result result = FileTrack_Good;
     Win32_File_Track_Vars *vars = to_vars(system);
@@ -292,7 +288,7 @@ move_track_system(File_Track_System *system, void *mem, int32_t size){
     return(result);
 }
 
-File_Track_Result
+FILE_TRACK_LINK File_Track_Result
 expand_track_system_listeners(File_Track_System *system, void *mem, int32_t size){
     File_Track_Result result = FileTrack_Good;
     Win32_File_Track_Vars *vars = to_vars(system);
@@ -315,7 +311,7 @@ expand_track_system_listeners(File_Track_System *system, void *mem, int32_t size
     return(result);
 }
 
-File_Track_Result
+FILE_TRACK_LINK File_Track_Result
 get_change_event(File_Track_System *system, char *buffer, int32_t max, int32_t *size){
     File_Track_Result result = FileTrack_NoMoreEvents;
     Win32_File_Track_Vars *vars = to_vars(system);
@@ -408,7 +404,7 @@ get_change_event(File_Track_System *system, char *buffer, int32_t max, int32_t *
     return(result);
 }
 
-File_Track_Result
+FILE_TRACK_LINK File_Track_Result
 shut_down_track_system(File_Track_System *system){
     File_Track_Result result = FileTrack_Good;
     Win32_File_Track_Vars *vars = to_vars(system);
