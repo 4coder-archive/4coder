@@ -1983,10 +1983,11 @@ WinMain(HINSTANCE hInstance,
     
     
     //
-    // File Track System
+    // Shared Systems Init
     //
     
     init_shared_vars();
+    
     
     //
     // Read Command Line
