@@ -33,7 +33,8 @@
 
 #include <Windows.h>
 #include <GL/gl.h>
-#include <GL/glext.h>
+
+#define GL_TEXTURE_MAX_LEVEL 0x813D
 
 #include "filetrack/4tech_file_track_win32.c"
 
@@ -185,11 +186,6 @@ struct Win32_Vars{
     b32 first;
     i32 running_cli;
     
-    
-    File_Track_System track;
-    void *track_table;
-    u32 track_table_size;
-    u32 track_node_size;
     Drive_Strings dstrings;
     
 #if FRED_INTERNAL
@@ -862,34 +858,6 @@ Sys_Set_File_List_Sig(system_set_file_list){
     }
 }
 
-internal b32
-handle_track_out_of_memory(i32 val){
-    b32 result = 0;
-    
-    switch (val){
-        case FileTrack_OutOfTableMemory:
-        {
-            u32 new_table_size = win32vars.track_table_size*2;
-            void *new_table = system_get_memory(new_table_size);
-            move_track_system(&win32vars.track, new_table, new_table_size);
-            system_free_memory(win32vars.track_table);
-            win32vars.track_table_size = new_table_size;
-            win32vars.track_table = new_table;
-        }break;
-        
-        case FileTrack_OutOfListenerMemory:
-        {
-            win32vars.track_node_size *= 2;
-            void *node_expansion = system_get_memory(win32vars.track_node_size);
-            expand_track_system_listeners(&win32vars.track, node_expansion, win32vars.track_node_size);
-        }break;
-        
-        default: result = 1; break;
-    }
-    
-    return(result);
-}
-
 internal void
 set_volume_prefix(Drive_Strings *dstrings, char *vol){
     char c = vol[0];
@@ -1014,53 +982,6 @@ win32_canonical_ansi_name(Drive_Strings *dstrings, char *src, i32 len, char *dst
 internal
 Sys_Get_Canonical_Sig(system_get_canonical){
     i32 result = win32_canonical_ansi_name(&win32vars.dstrings, filename, len, buffer, max);
-    return(result);
-}
-
-internal
-Sys_Add_Listener_Sig(system_add_listener){
-    b32 result = 0;
-    
-    for (;;){
-        i32 track_result = add_listener(&win32vars.track, filename);
-        if (handle_track_out_of_memory(track_result)){
-            if (track_result == FileTrack_Good){
-                result = 1;
-            }
-            break;
-        }
-    }
-    
-    return(result);
-}
-
-internal
-Sys_Remove_Listener_Sig(system_remove_listener){
-    i32 result = 0;
-    i32 track_result = remove_listener(&win32vars.track, filename);
-    if (track_result == FileTrack_Good){
-        result = 1;
-    }
-    return(result);
-}
-
-internal
-Sys_Get_File_Change_Sig(system_get_file_change){
-    i32 result = 0;
-    
-    i32 size = 0;
-    i32 get_result = get_change_event(&win32vars.track, buffer, max, &size);
-    
-    *required_size = size;
-    *mem_too_small = 0;
-    if (get_result == FileTrack_Good){
-        result = 1;
-    }
-    else if (get_result == FileTrack_MemoryTooSmall){
-        *mem_too_small = 1;
-        result = 1;
-    }
-    
     return(result);
 }
 
@@ -1918,8 +1839,8 @@ Win32Callback(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
 #define GL_DEBUG_OUTPUT_SYNCHRONOUS 0x8242
 #define GL_DEBUG_OUTPUT 0x92E0
 
-//typedef void GLDEBUGPROC_TYPE(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const char * message, const GLvoid * userParam);
-//typedef GLDEBUGPROC_TYPE * GLDEBUGPROC;
+typedef void GLDEBUGPROC_TYPE(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const char * message, const GLvoid * userParam);
+typedef GLDEBUGPROC_TYPE * GLDEBUGPROC;
 typedef void glDebugMessageControl_type(GLenum source, GLenum type, GLenum severity, GLsizei count, GLuint * ids, GLboolean enabled);
 typedef void glDebugMessageCallback_type(GLDEBUGPROC callback, void * userParam);
 
@@ -2065,21 +1986,7 @@ WinMain(HINSTANCE hInstance,
     // File Track System
     //
     
-    win32vars.track_table_size = (16 << 10);
-    win32vars.track_table = system_get_memory(win32vars.track_table_size);
-    
-    win32vars.track_node_size = (16 << 10);
-    void *track_nodes = system_get_memory(win32vars.track_node_size);
-    
-    i32 track_result =
-        init_track_system(&win32vars.track,
-                          win32vars.track_table, win32vars.track_table_size,
-                          track_nodes, win32vars.track_node_size);
-    
-    if (track_result != FileTrack_Good){
-        exit(1);
-    }
-    
+    init_shared_vars();
     
     //
     // Read Command Line

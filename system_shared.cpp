@@ -10,6 +10,113 @@
 // TOP
 
 //
+// Standard implementation of file system stuff
+// based on the file track layer.
+//
+
+struct Shared_Vars{
+    File_Track_System track;
+    void *track_table;
+    u32 track_table_size;
+    u32 track_node_size;
+};
+
+static Shared_Vars shared_vars;
+
+internal void
+init_shared_vars(){
+    shared_vars.track_table_size = (16 << 10);
+    shared_vars.track_table = system_get_memory(shared_vars.track_table_size);
+    
+    shared_vars.track_node_size = (16 << 10);
+    void *track_nodes = system_get_memory(shared_vars.track_node_size);
+    
+    i32 track_result =
+        init_track_system(&shared_vars.track,
+                          shared_vars.track_table, shared_vars.track_table_size,
+                          track_nodes, shared_vars.track_node_size);
+    
+    if (track_result != FileTrack_Good){
+        exit(1);
+    }
+}
+
+internal b32
+handle_track_out_of_memory(i32 val){
+    b32 result = 0;
+    
+    switch (val){
+        case FileTrack_OutOfTableMemory:
+        {
+            u32 new_table_size = shared_vars.track_table_size*2;
+            void *new_table = system_get_memory(new_table_size);
+            move_track_system(&shared_vars.track, new_table, new_table_size);
+            system_free_memory(shared_vars.track_table);
+            shared_vars.track_table_size = new_table_size;
+            shared_vars.track_table = new_table;
+        }break;
+        
+        case FileTrack_OutOfListenerMemory:
+        {
+            shared_vars.track_node_size *= 2;
+            void *node_expansion = system_get_memory(shared_vars.track_node_size);
+            expand_track_system_listeners(&shared_vars.track, node_expansion, shared_vars.track_node_size);
+        }break;
+        
+        default: result = 1; break;
+    }
+    
+    return(result);
+}
+
+internal
+Sys_Add_Listener_Sig(system_add_listener){
+    b32 result = 0;
+    
+    for (;;){
+        i32 track_result = add_listener(&shared_vars.track, filename);
+        if (handle_track_out_of_memory(track_result)){
+            if (track_result == FileTrack_Good){
+                result = 1;
+            }
+            break;
+        }
+    }
+    
+    return(result);
+}
+
+internal
+Sys_Remove_Listener_Sig(system_remove_listener){
+    i32 result = 0;
+    i32 track_result = remove_listener(&shared_vars.track, filename);
+    if (track_result == FileTrack_Good){
+        result = 1;
+    }
+    return(result);
+}
+
+internal
+Sys_Get_File_Change_Sig(system_get_file_change){
+    i32 result = 0;
+    
+    i32 size = 0;
+    i32 get_result = get_change_event(&shared_vars.track, buffer, max, &size);
+    
+    *required_size = size;
+    *mem_too_small = 0;
+    if (get_result == FileTrack_Good){
+        result = 1;
+    }
+    else if (get_result == FileTrack_MemoryTooSmall){
+        *mem_too_small = 1;
+        result = 1;
+    }
+    
+    return(result);
+}
+
+//
 // General shared pieces
 //
 
