@@ -15,13 +15,13 @@
 # include "4coder_default_bindings.cpp"
 #endif
 
-#include "4ed_meta.h"
-
 #define FSTRING_IMPLEMENTATION
 #define FSTRING_C
 #include "4coder_string.h"
 
-#include "4ed_math.cpp"
+#include "4ed_meta.h"
+
+#include "4ed_math.h"
 
 #include "4ed_system.h"
 #include "4ed_rendering.h"
@@ -31,30 +31,21 @@
 #include <GL/gl.h>
 #include <GL/glext.h>
 
-#include "filetrack/4tech_file_track.h"
 #include "filetrack/4tech_file_track_win32.c"
 
 #include "system_shared.h"
 
 #define SUPPORT_DPI 1
-#define USE_WIN32_FONTS 0
 #define USE_FT_FONTS 1
 
 #define FPS 60
 #define frame_useconds (1000000 / FPS)
 
-#define WM_4coder_ANIMATE (WM_USER + 1)
+#define WM_4coder_ANIMATE (WM_USER + 0)
 
 //
 // Win32_Vars structs
 //
-
-#if FRED_INTERNAL
-struct Debug_Log_Entry{
-    u64 time;
-    i64 message;
-};
-#endif
 
 struct Thread_Context{
     u32 job_id;
@@ -77,13 +68,6 @@ struct Thread_Group{
     i32 cancel_lock0;
     i32 cancel_cv0;
 };
-
-#define UseWinDll 1
-
-#if UseWinDll == 0
-#include "4ed_dll_reader.h"
-#include "4ed_dll_reader.cpp"
-#endif
 
 struct Control_Keys{
     b8 l_ctrl;
@@ -127,7 +111,7 @@ struct Win32_Input_Chunk{
 struct Win32_Coroutine{
     Coroutine coroutine;
     Win32_Coroutine *next;
-    int done;
+    i32 done;
 };
 
 #if FRED_INTERNAL
@@ -158,13 +142,8 @@ struct Win32_Vars{
     System_Functions system;
     App_Functions app;
     Custom_API custom_api;
-#if UseWinDll
     HMODULE app_code;
     HMODULE custom;
-#else
-    DLL_Loaded app_dll;
-    DLL_Loaded custom_dll;
-#endif
     Plat_Settings settings;
     
     
@@ -1627,8 +1606,6 @@ internal b32
 Win32LoadAppCode(){
     b32 result = 0;
     App_Get_Functions *get_funcs = 0;
-
-#if UseWinDll
     
     win32vars.app_code = LoadLibraryA("4ed_app.dll");
     if (win32vars.app_code){
@@ -1636,44 +1613,6 @@ Win32LoadAppCode(){
             GetProcAddress(win32vars.app_code, "app_get_functions");
     }
     
-#else
-    
-    File_Data file = system_load_file("4ed_app.dll");
-    
-    if (file.got_file){
-        i32 error;
-        DLL_Data dll_data;
-        if (dll_parse_headers(file.data, &dll_data, &error)){
-            Data img;
-            img.size = dll_total_loaded_size(&dll_data);
-            img.data = (byte*)
-                VirtualAlloc((LPVOID)Tbytes(3), img.size,
-                             MEM_COMMIT | MEM_RESERVE,
-                             PAGE_READWRITE);
-            
-            dll_load(img, &win32vars.app_dll, file.data, &dll_data);
-            
-            DWORD extra_;
-            VirtualProtect(img.data + win32vars.app_dll.text_start,
-                           win32vars.app_dll.text_size,
-                           PAGE_EXECUTE_READ,
-                           &extra_);
-            
-            get_funcs = (App_Get_Functions*)
-                dll_load_function(&win32vars.app_dll, "app_get_functions", 17);
-        }
-        else{
-            // TODO(allen): file loading error
-        }
-        
-        Win32FreeMemory(file.data.data);
-    }
-    else{
-        // TODO(allen): file loading error
-    }
-    
-#endif
-
     if (get_funcs){
         result = 1;
         win32vars.app = get_funcs();        
@@ -2085,7 +2024,7 @@ Win32Callback(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
             win32vars.input_chunk.pers.mouse_r = 0;
             
             b8 *control_keys = win32vars.input_chunk.pers.control_keys;
-            for (int i = 0; i < MDFR_INDEX_COUNT; ++i) control_keys[i] = 0;
+            for (i32 i = 0; i < MDFR_INDEX_COUNT; ++i) control_keys[i] = 0;
             win32vars.input_chunk.pers.controls = control_keys_zero();
         }break;
         
@@ -2149,7 +2088,7 @@ WinMain(HINSTANCE hInstance,
         LPSTR lpCmdLine,
         int nCmdShow){
     
-    int argc = __argc;
+    i32 argc = __argc;
     char **argv = __argv;
     
     memset(&win32vars, 0, sizeof(win32vars));

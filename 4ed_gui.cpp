@@ -23,7 +23,7 @@ struct Query_Set{
 internal void
 init_query_set(Query_Set *set){
     Query_Slot *slot = set->slots;
-    int i;
+    int32_t i;
     set->free_slot = slot;
     set->used_slot = 0;
     for (i = 0; i+1 < ArrayCount(set->slots); ++i, ++slot){

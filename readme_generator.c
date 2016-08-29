@@ -12,6 +12,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <time.h>
+#include <stdint.h>
 
 char *header =
 "Distribution Date: %d.%d.%d (dd.mm.yyyy)\n"
@@ -25,13 +26,13 @@ char *header =
 ;
 
 typedef struct Readme_Variables{
-    int day, month, year;
+    int32_t day, month, year;
 } Readme_Variables;
 
 typedef struct File_Data{
     char *data;
-    int size;
-    int file_exists;
+    int32_t size;
+    int32_t file_exists;
 } File_Data;
 
 File_Data

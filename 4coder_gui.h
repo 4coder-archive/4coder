@@ -24,10 +24,10 @@ typedef struct GUI GUI;
 // down a little more?  I think maybe we do.
 #define GUI_GET_SCROLL_VARS_SIG(n) void n(GUI *gui, GUI_id scroll_id, GUI_Scroll_Vars *vars, i32_Rect *region)
 
-#define GUI_BEGIN_SCROLLABLE_SIG(n) int n(GUI *gui, GUI_id scroll_id, GUI_Scroll_Vars vars, float delta, int show_scrollbar)
+#define GUI_BEGIN_SCROLLABLE_SIG(n) int32_t n(GUI *gui, GUI_id scroll_id, GUI_Scroll_Vars vars, float delta, int32_t show_scrollbar)
 #define GUI_END_SCROLLABLE_SIG(n) void n(GUI *gui)
 
-#define GUI_FILE_SIG(n) void n(GUI *gui, int buffer_id)
+#define GUI_FILE_SIG(n) void n(GUI *gui, int32_t buffer_id)
 
 typedef GUI_BEGIN_SIG(GUI_Begin_Function);
 typedef GUI_END_SIG(GUI_End_Function);

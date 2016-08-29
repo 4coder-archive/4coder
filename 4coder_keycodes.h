@@ -31,7 +31,7 @@ key_f15 = 141,
 key_f16 = 142,
 };
 static char*
-global_key_name(int key_code, int *size){
+global_key_name(int32_t key_code, int32_t *size){
 char *result = 0;
 switch(key_code){
 case key_back: result = "back"; *size = sizeof("back")-1; break;

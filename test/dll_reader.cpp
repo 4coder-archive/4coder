@@ -6,7 +6,7 @@
  * Application layer for project codename "4ed"
  *
  */
-
+ 
 // TOP
 
 #include "4ed_meta.h"
@@ -17,7 +17,7 @@ i32
 compare(char *a, char *b, i32 len){
     i32 result;
     char *e;
-
+    
     result = 0;
     e = a + len;
     for (;a < e && *a == *b; ++a, ++b);
@@ -25,7 +25,7 @@ compare(char *a, char *b, i32 len){
         if (*a < *b) result = -1;
         else result = 1;
     }
-
+    
     return(result);
 }
 
@@ -37,7 +37,7 @@ Data
 load_file(char *filename){
     Data result;
     FILE * file;
-
+    
     result = {};
     file = fopen(filename, "rb");
     if (!file){
@@ -63,11 +63,11 @@ show_reloc_block(Data file, DLL_Data *dll, PE_Section_Definition *reloc_section)
     u32 cursor;
     u32 bytes_in_table;
     u32 block_end;
-
+    
     base = file.data + reloc_section->disk_location;
     if (dll->is_64bit) bytes_in_table = dll->opt_header_64->data_directory[image_dir_base_reloc_table].size;
     else bytes_in_table = dll->opt_header_32->data_directory[image_dir_base_reloc_table].size;
-
+    
     for (cursor = 0; cursor < bytes_in_table;){
         header = (Relocation_Block_Header*)(base + cursor);
         block_end = cursor + header->block_size;
@@ -86,7 +86,7 @@ show_reloc_block(Data file, DLL_Data *dll, PE_Section_Definition *reloc_section)
     }
 }
 
-typedef int (Function)(int a, int b);
+typedef int32_t (Function)(int a, int b);
 
 #include <Windows.h>
 
@@ -104,9 +104,9 @@ main(int argc, char **argv){
         printf("usage: dll_reader <dll-file>\n");
         exit(1);
     }
-
+    
     module = LoadLibraryA(argv[1]);
-
+    
     if (!module){
         printf("failed to load file %s\n", argv[1]);
         exit(1);
@@ -126,9 +126,9 @@ main(int argc, char **argv){
         printf("usage: dll_reader <dll-file>\n");
         exit(1);
     }
-
+    
     file = load_file(argv[1]);
-
+    
     if (!file.data){
         printf("failed to load file %s\n", argv[1]);
         exit(1);
@@ -140,7 +140,7 @@ main(int argc, char **argv){
     }
     
     printf("this appears to be a dll\n");
-
+    
     printf("symbol-count: %d  symbol-addr: %d\n",
            dll.coff_header->number_of_symbols,
            dll.coff_header->pointer_to_symbol_table);
@@ -149,7 +149,7 @@ main(int argc, char **argv){
     else printf("32bit\n");
     
     printf("built for machine: %s\n", dll_machine_type_str(dll.coff_header->machine, 0));
-
+    
     if (dll.is_64bit){
         printf("number of directories: %d\n", dll.opt_header_64->number_of_rva_and_sizes);
     }
@@ -158,7 +158,7 @@ main(int argc, char **argv){
     }
     
     printf("\nbeginning section decode now\n");
-
+    
     section_def = dll.section_defs;
     for (i = 0; i < dll.coff_header->number_of_sections; ++i, ++section_def){
         if (section_def->name[7] == 0){
@@ -170,12 +170,12 @@ main(int argc, char **argv){
         printf("img-size: %d  img-loc: %d\ndisk-size: %d  disk-loc: %d\n",
                section_def->loaded_size, section_def->loaded_location,
                section_def->disk_size, section_def->disk_location);
-
+        
         if (compare(section_def->name, ".reloc", 6) == 0){
             show_reloc_block(file, &dll, section_def);
         }
     }
-
+    
     img.size = dll_total_loaded_size(&dll);
     printf("image size: %d\n", img.size);
     
@@ -184,7 +184,7 @@ main(int argc, char **argv){
                      MEM_COMMIT | MEM_RESERVE,
                      PAGE_READWRITE);
     dll_load(img, &dll_loaded, file, &dll);
-
+    
     DWORD _extra;
     VirtualProtect(img.data + dll_loaded.text_start,
                    dll_loaded.text_size,

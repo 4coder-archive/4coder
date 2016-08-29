@@ -1,38 +1,14 @@
 /*
- * FSMs for 4c++ lexer
+ * FSMs for 4cpp lexer
  * 
  * 23.03.2016 (dd.mm.yyyy)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+ *
  */
 
 // TOP
 
-struct String_And_Flag{
-	char *str;
-	unsigned int flags;
-};
+#if !defined(FCPP_LEXER_FSMS_H)
+#define FCPP_LEXER_FSMS_H
 
 enum Lex_State{
     LS_default,
@@ -113,25 +89,27 @@ enum Lex_PP_State{
 };
 
 struct Whitespace_FSM{
-    unsigned char pp_state;
-    unsigned char white_done;
+    uint8_t pp_state;
+    uint8_t white_done;
 };
 
 struct Lex_FSM{
-    unsigned char state;
+    uint8_t state;
     union{
-        unsigned char int_state;
-        unsigned char directive_state;
-        unsigned char sub_machine;
+        uint8_t int_state;
+        uint8_t directive_state;
+        uint8_t sub_machine;
     };
-    unsigned char emit_token;
-    unsigned char multi_line;
+    uint8_t emit_token;
+    uint8_t multi_line;
 };
 inline Lex_FSM
 zero_lex_fsm(){
     Lex_FSM fsm = {0};
     return(fsm);
 }
+
+#endif
 
 // BOTTOM
 

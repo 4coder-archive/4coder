@@ -17,39 +17,39 @@ enum Search_Range_Flag{
 };
 
 struct Search_Range{
-    int type;
-    unsigned int flags;
-    int buffer;
-    int start;
-    int size;
-    int mid_start;
-    int mid_size;
+    int32_t type;
+    uint32_t flags;
+    int32_t buffer;
+    int32_t start;
+    int32_t size;
+    int32_t mid_start;
+    int32_t mid_size;
 };
 
 struct Search_Set{
     Search_Range *ranges;
-    int count;
-    int max;
+    int32_t count;
+    int32_t max;
 };
 
 struct Search_Iter{
     String word;
-    int pos;
-    int back_pos;
-    int i;
-    int range_initialized;
+    int32_t pos;
+    int32_t back_pos;
+    int32_t i;
+    int32_t range_initialized;
 };
 
 struct Search_Match{
     Buffer_Summary buffer;
-    int start;
-    int end;
-    int found_match;
+    int32_t start;
+    int32_t end;
+    int32_t found_match;
 };
 
 static void
-search_iter_init(General_Memory *general, Search_Iter *iter, int size){
-    int str_max = size*2;
+search_iter_init(General_Memory *general, Search_Iter *iter, int32_t size){
+    int32_t str_max = size*2;
     if (iter->word.str == 0){
         iter->word.str = (char*)general_memory_allocate(general, str_max);
         iter->word.memory_size = str_max;
@@ -63,8 +63,8 @@ search_iter_init(General_Memory *general, Search_Iter *iter, int size){
 }
 
 static void
-search_set_init(General_Memory *general, Search_Set *set, int range_count){
-    int max = range_count*2;
+search_set_init(General_Memory *general, Search_Set *set, int32_t range_count){
+    int32_t max = range_count*2;
     
     if (set->ranges == 0){
         set->ranges = (Search_Range*)general_memory_allocate(general, sizeof(Search_Range)*max);
@@ -80,9 +80,9 @@ search_set_init(General_Memory *general, Search_Set *set, int range_count){
 }
 
 static void
-search_hits_table_alloc(General_Memory *general, Table *hits, int table_size){
+search_hits_table_alloc(General_Memory *general, Table *hits, int32_t table_size){
     void *mem = 0;
-    int mem_size = table_required_mem_size(table_size, sizeof(Offset_String));
+    int32_t mem_size = table_required_mem_size(table_size, sizeof(Offset_String));
     if (hits->hash_array == 0){
         mem = general_memory_allocate(general, mem_size);
     }
@@ -93,12 +93,12 @@ search_hits_table_alloc(General_Memory *general, Table *hits, int table_size){
 }
 
 static void
-search_hits_init(General_Memory *general, Table *hits, String_Space *str, int table_size, int str_size){
+search_hits_init(General_Memory *general, Table *hits, String_Space *str, int32_t table_size, int32_t str_size){
     if (hits->hash_array == 0){
         search_hits_table_alloc(general, hits, table_size);
     }
     else{
-        int mem_size = table_required_mem_size(table_size, sizeof(Offset_String));
+        int32_t mem_size = table_required_mem_size(table_size, sizeof(Offset_String));
         void *mem = general_memory_reallocate_nocopy(general, hits->hash_array, mem_size);
         table_init_memory(hits, mem, table_size, sizeof(Offset_String));
     }
@@ -116,15 +116,15 @@ search_hits_init(General_Memory *general, Table *hits, String_Space *str, int ta
     table_clear(hits);
 }
 
-static int
-search_hit_add(General_Memory *general, Table *hits, String_Space *space, char *str, int len){
-    int result = false;
+static int32_t
+search_hit_add(General_Memory *general, Table *hits, String_Space *space, char *str, int32_t len){
+    int32_t result = false;
     
     assert(len != 0);
     
     Offset_String ostring = strspace_append(space, str, len);
     if (ostring.size == 0){
-        int new_size = space->max*2;
+        int32_t new_size = space->max*2;
         if (new_size < space->max + len){
             new_size = space->max + len;
         }
@@ -155,12 +155,12 @@ search_hit_add(General_Memory *general, Table *hits, String_Space *space, char *
     return(result);
 }
 
-static int
-buffer_seek_alpha_numeric_end(Application_Links *app, Buffer_Summary *buffer, int pos){
+static int32_t
+buffer_seek_alpha_numeric_end(Application_Links *app, Buffer_Summary *buffer, int32_t pos){
     char space[1024];
     Stream_Chunk chunk = {0};
     if (init_stream_chunk(&chunk, app, buffer, pos, space, sizeof(space))){
-        int still_looping = true;
+        int32_t still_looping = true;
         do{
             for (; pos < chunk.end; ++pos){
                 char at_pos = chunk.data[pos];
@@ -187,14 +187,14 @@ enum{
     FindResult_PastEnd
 };
 
-static int
-match_check(Application_Links *app, Search_Range *range, int *pos, Search_Match *result_ptr, String word){
-    int found_match = FindResult_None;
+static int32_t
+match_check(Application_Links *app, Search_Range *range, int32_t *pos, Search_Match *result_ptr, String word){
+    int32_t found_match = FindResult_None;
     
     Search_Match result = *result_ptr;
-    int end_pos = range->start + range->size;
+    int32_t end_pos = range->start + range->size;
     
-    int type = (range->flags & SearchFlag_MatchMask);
+    int32_t type = (range->flags & SearchFlag_MatchMask);
     
     switch (type){
         case SearchFlag_MatchWholeWord:
@@ -263,24 +263,24 @@ match_check(Application_Links *app, Search_Range *range, int *pos, Search_Match 
     return(found_match);
 }
 
-static int
+static int32_t
 search_front_to_back_step(Application_Links *app,
                           Search_Range *range,
                           String word,
-                          int *pos,
+                          int32_t *pos,
                           Search_Match *result_ptr){
-    int found_match = FindResult_None;
+    int32_t found_match = FindResult_None;
     
     Search_Match result = *result_ptr;
     
-    int end_pos = range->start + range->size;
+    int32_t end_pos = range->start + range->size;
     if (*pos + word.size < end_pos){
-        int start_pos = *pos;
+        int32_t start_pos = *pos;
         if (start_pos < range->start){
             start_pos = range->start;
         }
         
-        int case_insensitive = (range->flags & SearchFlag_CaseInsensitive);
+        int32_t case_insensitive = (range->flags & SearchFlag_CaseInsensitive);
         
         result.buffer = app->get_buffer(app, range->buffer, AccessAll);
         if (case_insensitive){
@@ -318,31 +318,31 @@ search_front_to_back_step(Application_Links *app,
     return(found_match);
 }
 
-static int
+static int32_t
 search_front_to_back(Application_Links *app,
                      Search_Range *range,
                      String word,
-                     int *pos,
+                     int32_t *pos,
                      Search_Match *result_ptr){
-    int found_match = FindResult_None;
+    int32_t found_match = FindResult_None;
     for (;found_match == FindResult_None;){
         found_match = search_front_to_back_step(app, range, word, pos, result_ptr);
     }
     return(found_match);
 }
 
-static int
+static int32_t
 search_back_to_front_step(Application_Links *app,
                           Search_Range *range,
                           String word,
-                          int *pos,
+                          int32_t *pos,
                           Search_Match *result_ptr){
-    int found_match = FindResult_None;
+    int32_t found_match = FindResult_None;
     
     Search_Match result = *result_ptr;
     
     if (*pos > range->start){
-        int start_pos = *pos;
+        int32_t start_pos = *pos;
         
         result.buffer = app->get_buffer(app, range->buffer, AccessAll);
         buffer_seek_string_backward(app, &result.buffer,
@@ -371,13 +371,13 @@ search_back_to_front_step(Application_Links *app,
     return(found_match);
 }
 
-static int
+static int32_t
 search_back_to_front(Application_Links *app,
                      Search_Range *range,
                      String word,
-                     int *pos,
+                     int32_t *pos,
                      Search_Match *result_ptr){
-    int found_match = FindResult_None;
+    int32_t found_match = FindResult_None;
     for (;found_match == FindResult_None;){
         found_match = search_back_to_front_step(app, range, word, pos, result_ptr);
     }
@@ -389,11 +389,11 @@ search_next_match(Application_Links *app, Search_Set *set, Search_Iter *it_ptr){
     Search_Match result = {0};
     Search_Iter iter = *it_ptr;
     
-    int count = set->count;
+    int32_t count = set->count;
     for (; iter.i < count;){
         Search_Range *range = set->ranges + iter.i;
         
-        int find_result = FindResult_None;
+        int32_t find_result = FindResult_None;
         
         if (!iter.range_initialized){
             iter.range_initialized = true;
@@ -435,8 +435,8 @@ search_next_match(Application_Links *app, Search_Set *set, Search_Iter *it_ptr){
                 Search_Match forward_match = {0};
                 Search_Match backward_match = {0};
                 
-                int forward_result = FindResult_PastEnd;
-                int backward_result = FindResult_PastEnd;
+                int32_t forward_result = FindResult_PastEnd;
+                int32_t backward_result = FindResult_PastEnd;
                 
                 if (iter.pos < range->start + range->size){
                     forward_result = search_front_to_back(app, range,
@@ -456,9 +456,9 @@ search_next_match(Application_Links *app, Search_Set *set, Search_Iter *it_ptr){
                     if (backward_result == FindResult_FoundMatch){
                         find_result = FindResult_FoundMatch;
                         
-                        int forward_start = range->mid_start + range->mid_size;
-                        int forward_distance = (forward_match.start - forward_start);
-                        int backward_distance = (range->mid_start - backward_match.end);
+                        int32_t forward_start = range->mid_start + range->mid_size;
+                        int32_t forward_distance = (forward_match.start - forward_start);
+                        int32_t backward_distance = (range->mid_start - backward_match.end);
                         
                         if (backward_distance < forward_distance){
                             iter.pos = forward_match.start;

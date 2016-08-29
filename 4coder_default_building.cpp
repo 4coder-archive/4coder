@@ -92,7 +92,7 @@ CUSTOM_COMMAND_SIG(change_active_panel_build){
         View_Summary build_view = get_first_view_with_buffer(app, buffer.buffer_id);
         
         View_Summary view = app->get_active_view(app, AccessAll);
-        int prev_view_id = view.view_id;
+        int32_t prev_view_id = view.view_id;
         
         exec_command(app, change_active_panel_regular);
         view = app->get_active_view(app, AccessAll);

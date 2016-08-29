@@ -1,6 +1,6 @@
 
 struct Custom_Vars{
-    int initialized;
+    int32_t initialized;
     Partition part;
 };
 
@@ -9,13 +9,13 @@ enum View_Mode{
 };
 
 struct View_Vars{
-    int id;
+    int32_t id;
     View_Mode mode;
     
     GUI_Scroll_Vars scroll;
     i32_Rect scroll_region;
     
-    int buffer_id;
+    int32_t buffer_id;
 };
 inline View_Vars
 view_vars_zero(){
@@ -24,12 +24,12 @@ view_vars_zero(){
 }
 
 extern "C" void
-view_routine(Application_Links *app, int view_id){
+view_routine(Application_Links *app, int32_t view_id){
     Custom_Vars *vars = (Custom_Vars*)app->memory;
     View_Vars view = {0};
     view.id = view_id;
     
-    int show_scrollbar = 1;
+    int32_t show_scrollbar = 1;
     
     if (!vars->initialized){
         vars->initialized = 1;

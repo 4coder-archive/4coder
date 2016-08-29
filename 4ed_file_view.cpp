@@ -2547,7 +2547,7 @@ get_first_token_at_line(Buffer *buffer, Cpp_Token_Stack tokens, i32 line){
 internal Cpp_Token*
 seek_matching_token_backwards(Cpp_Token_Stack tokens, Cpp_Token *token,
                               Cpp_Token_Type open_type, Cpp_Token_Type close_type){
-    int nesting_level = 0;
+    int32_t nesting_level = 0;
     if (token <= tokens.tokens){
         token = tokens.tokens;
     }
@@ -2712,7 +2712,7 @@ get_line_indentation_marks(Partition *part, Buffer *buffer, Cpp_Token_Stack toke
             }
         }
         else{
-            int close = 0;
+            int32_t close = 0;
             
             for (token = brace_token; token > start_token; --token){
                 switch(token->type){

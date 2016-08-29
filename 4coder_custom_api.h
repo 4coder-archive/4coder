@@ -51,8 +51,8 @@
 #define MEMORY_ALLOCATE_SIG(n) void* n(Application_Links *app, int32_t size)
 #define MEMORY_SET_PROTECTION_SIG(n) bool32 n(Application_Links *app, void *ptr, int32_t size, Memory_Protect_Flags flags)
 #define MEMORY_FREE_SIG(n) void n(Application_Links *app, void *mem, int32_t size)
-#define FILE_EXISTS_SIG(n) bool32 n(Application_Links *app, char *filename, int len)
-#define DIRECTORY_CD_SIG(n) bool32 n(Application_Links *app, char *dir, int *len, int capacity, char *rel_path, int rel_len)
+#define FILE_EXISTS_SIG(n) bool32 n(Application_Links *app, char *filename, int32_t len)
+#define DIRECTORY_CD_SIG(n) bool32 n(Application_Links *app, char *dir, int32_t *len, int32_t capacity, char *rel_path, int32_t rel_len)
 #define GET_4ED_PATH_SIG(n) bool32 n(Application_Links *app, char *out, int32_t capacity)
 #define SHOW_MOUSE_CURSOR_SIG(n) void n(Application_Links *app, Mouse_Cursor_Show_Type show)
 extern "C"{
@@ -116,7 +116,7 @@ extern "C"{
 }
 struct Application_Links{
     void *memory;
-    int memory_size;
+    int32_t memory_size;
     Exec_Command_Function *exec_command;
     Exec_System_Command_Function *exec_system_command;
     Clipboard_Post_Function *clipboard_post;
@@ -177,7 +177,7 @@ struct Application_Links{
     void *cmd_context;
     void *system_links;
     void *current_coroutine;
-    int type_coroutine;
+    int32_t type_coroutine;
 };
 #define FillAppLinksAPI(app_links) do{\
 app_links->exec_command = Exec_Command;\

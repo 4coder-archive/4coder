@@ -37,8 +37,8 @@ void to_lower(char *src, char *dst){
 
 void to_lower(String *str){
     char *c;
-    int i = 0;
-    int size = str->size;
+    int32_t i = 0;
+    int32_t size = str->size;
     for (c = str->str; i < size; ++c, ++i){
         *c = char_to_lower(*c);
     }
@@ -55,8 +55,8 @@ void to_upper(char *src, char *dst){
 
 void to_upper(String *str){
     char *c;
-    int i = 0;
-    int size = str->size;
+    int32_t i = 0;
+    int32_t size = str->size;
     for (c = str->str; i < size; ++c, ++i){
         *c = char_to_upper(*c);
     }
@@ -64,7 +64,7 @@ void to_upper(String *str){
 
 void to_camel(char *src, char *dst){
     char *c, ch;
-    int is_first = 1;
+    int32_t is_first = 1;
     for (c = src; *c != 0; ++c){
         ch = *c;
         if (char_is_alpha_numeric_true(ch)){
@@ -93,8 +93,8 @@ void struct_begin(FILE *file, char *name){
     fprintf(file, "struct %s{\n", name);
 }
 
-void struct_fields(FILE *file, Struct_Field *fields, int count){
-    int i;
+void struct_fields(FILE *file, Struct_Field *fields, int32_t count){
+    int32_t i;
     for (i = 0; i < count; ++i){
         fprintf(file, "    %s %s;\n", fields[i].type, fields[i].name);
     }
@@ -149,7 +149,7 @@ char *keys_that_need_codes[] = {
 char* generate_keycode_enum(){
     FILE *file;
     char *filename = "4coder_keycodes.h";
-    int i, count;
+    int32_t i, count;
     unsigned char code = 1;
     
     file = fopen(filename, "wb");
@@ -172,7 +172,7 @@ char* generate_keycode_enum(){
     
     fprintf(file,
             "static char*\n"
-            "global_key_name(int key_code, int *size){\n"
+            "global_key_name(int32_t key_code, int32_t *size){\n"
             "char *result = 0;\n"
             "switch(key_code){\n"
             );
@@ -234,9 +234,9 @@ char* main_style_fields[] = {
 static char*
 make_style_tag(char *tag){
     char *str;
-    int len;
+    int32_t len;
     
-    len = (int)strlen(tag);
+    len = (int32_t)strlen(tag);
     str = (char*)malloc(len + 1);
     to_camel(tag, str);
     str[len] = 0;
@@ -264,7 +264,7 @@ char* generate_style(){
     char filename_4ed[] = "4ed_style.h";
     FILE *file;
     char *tag;
-    int count, i;
+    int32_t count, i;
     
     file = fopen(filename_4coder, "wb");
     enum_begin(file, "Style_Tag");
@@ -331,18 +331,18 @@ char* generate_style(){
 
 //////////////////////////////////////////////////////////////////////////////////////////////////
 typedef struct Argument_Breakdown{
-    int count;
+    int32_t count;
     String *param_string;
     String *param_name;
 } Argument_Breakdown;
 
 typedef struct Documentation{
-    int param_count;
+    int32_t param_count;
     String *param_name;
     String *param_docs;
     String return_doc;
     String main_doc;
-    int see_also_count;
+    int32_t see_also_count;
     String *see_also;
 } Documentation;
 
@@ -361,8 +361,8 @@ struct Function_Set{
     
     String *doc_string;
     
-    int    *is_macro;
-    int    *valid;
+    int32_t    *is_macro;
+    int32_t    *valid;
     
     Argument_Breakdown *breakdown;
     Documentation *doc;
@@ -402,7 +402,7 @@ struct Enum_Set{
 };
 
 void
-zero_index(Function_Set fnc_set, int sig_count){
+zero_index(Function_Set fnc_set, int32_t sig_count){
     fnc_set.name [sig_count] = string_zero();
     fnc_set.ret  [sig_count] = string_zero();
     fnc_set.args [sig_count] = string_zero();
@@ -434,7 +434,7 @@ file_dump(char *filename){
 String
 get_first_line(String source){
     String line = {0};
-    int pos = find_s_char(source, 0, '\n');
+    int32_t pos = find_s_char(source, 0, '\n');
     
     line = substr(source, 0, pos);
     
@@ -444,8 +444,8 @@ get_first_line(String source){
 String
 get_next_line(String source, String line){
     String next = {0};
-    int pos = (int)(line.str - source.str) + line.size;
-    int start = 0;
+    int32_t pos = (int32_t)(line.str - source.str) + line.size;
+    int32_t start = 0;
     
     if (pos < source.size){
         assert(source.str[pos] == '\n');
@@ -460,9 +460,9 @@ get_next_line(String source, String line){
     return(next);
 }
 
-int
+static int32_t
 is_comment(String str){
-    int result = 0;
+    int32_t result = 0;
     if (str.size >= 2){
         if (str.str[0] == '/' &&
             str.str[1] == '/'){
@@ -476,9 +476,9 @@ struct Parse{
     Cpp_Token_Stack tokens;
 };
 
-int
+static int32_t
 check_and_fix_docs(String *lexeme){
-    int result = false;
+    int32_t result = false;
     
     if (lexeme->size > 4){
         if (lexeme->str[0] == '/'){
@@ -513,11 +513,11 @@ doc_note_string[] = {
 };
 
 String
-doc_parse_note(String source, int *pos){
+doc_parse_note(String source, int32_t *pos){
     String result = {0};
     
-    int p = *pos;
-    int start = p;
+    int32_t p = *pos;
+    int32_t start = p;
     for (; p < source.size; ++p){
         if (source.str[p] == '('){
             break;
@@ -533,15 +533,15 @@ doc_parse_note(String source, int *pos){
 }
 
 String
-doc_parse_note_string(String source, int *pos){
+doc_parse_note_string(String source, int32_t *pos){
     String result = {0};
     
     assert(source.str[*pos] == '(');
     
-    int p = *pos + 1;
-    int start = p;
+    int32_t p = *pos + 1;
+    int32_t start = p;
     
-    int nest_level = 0;
+    int32_t nest_level = 0;
     
     for (; p < source.size; ++p){
         if (source.str[p] == ')'){
@@ -567,11 +567,11 @@ doc_parse_note_string(String source, int *pos){
 }
 
 String
-doc_parse_parameter(String source, int *pos){
+doc_parse_parameter(String source, int32_t *pos){
     String result = {0};
     
-    int p = *pos;
-    int start = p;
+    int32_t p = *pos;
+    int32_t start = p;
     
     for (; p < source.size; ++p){
         if (source.str[p] == ','){
@@ -589,11 +589,11 @@ doc_parse_parameter(String source, int *pos){
 }
 
 String
-doc_parse_last_parameter(String source, int *pos){
+doc_parse_last_parameter(String source, int32_t *pos){
     String result = {0};
     
-    int p = *pos;
-    int start = p;
+    int32_t p = *pos;
+    int32_t start = p;
     
     for (; p < source.size; ++p){
         if (source.str[p] == ')'){
@@ -611,11 +611,11 @@ doc_parse_last_parameter(String source, int *pos){
 
 void
 perform_doc_parse(Partition *part, String doc_string, Documentation *doc){
-    int keep_parsing = true;
-    int pos = 0;
+    int32_t keep_parsing = true;
+    int32_t pos = 0;
     
-    int param_count = 0;
-    int see_count = 0;
+    int32_t param_count = 0;
+    int32_t see_count = 0;
     
     do{
         String doc_note = doc_parse_note(doc_string, &pos);
@@ -623,7 +623,7 @@ perform_doc_parse(Partition *part, String doc_string, Documentation *doc){
             keep_parsing = false;
         }
         else{
-            int doc_note_type;
+            int32_t doc_note_type;
             if (string_set_match(doc_note_string, ArrayCount(doc_note_string), doc_note, &doc_note_type)){
                 
                 doc_parse_note_string(doc_string, &pos);
@@ -642,7 +642,7 @@ perform_doc_parse(Partition *part, String doc_string, Documentation *doc){
     }while(keep_parsing);
     
     if (param_count + see_count > 0){
-        int memory_size = sizeof(String)*(2*param_count + see_count);
+        int32_t memory_size = sizeof(String)*(2*param_count + see_count);
         doc->param_name = push_array(part, String, memory_size);
         doc->param_docs = doc->param_name + param_count;
         doc->see_also   = doc->param_docs + param_count;
@@ -651,8 +651,8 @@ perform_doc_parse(Partition *part, String doc_string, Documentation *doc){
         doc->see_also_count = see_count;
     }
     
-    int param_index = 0;
-    int see_index = 0;
+    int32_t param_index = 0;
+    int32_t see_index = 0;
     
     keep_parsing = true;
     pos = 0;
@@ -662,7 +662,7 @@ perform_doc_parse(Partition *part, String doc_string, Documentation *doc){
             keep_parsing = false;
         }
         else{
-            int doc_note_type;
+            int32_t doc_note_type;
             if (string_set_match(doc_note_string, ArrayCount(doc_note_string), doc_note, &doc_note_type)){
                 
                 String doc_note_string = doc_parse_note_string(doc_string, &pos);
@@ -671,7 +671,7 @@ perform_doc_parse(Partition *part, String doc_string, Documentation *doc){
                     case DOC_PARAM:
                     {
                         assert(param_index < param_count);
-                        int param_pos = 0;
+                        int32_t param_pos = 0;
                         String param_name = doc_parse_parameter(doc_note_string, &param_pos);
                         String param_docs = doc_parse_last_parameter(doc_note_string, &param_pos);
                         doc->param_name[param_index] = param_name;
@@ -703,10 +703,10 @@ perform_doc_parse(Partition *part, String doc_string, Documentation *doc){
     }while(keep_parsing);
 }
 
-static int
-get_type_doc_string(char *data, Cpp_Token *tokens, int i,
+static int32_t
+get_type_doc_string(char *data, Cpp_Token *tokens, int32_t i,
                     String *doc_string){
-    int result = false;
+    int32_t result = false;
     
     if (i > 0){
         Cpp_Token *prev_token = tokens + i - 1;
@@ -721,27 +721,27 @@ get_type_doc_string(char *data, Cpp_Token *tokens, int i,
     return(result);
 }
 
-static int
-parse_struct(Partition *part, int is_struct,
-             char *data, Cpp_Token *tokens, int count,
+static int32_t
+parse_struct(Partition *part, int32_t is_struct,
+             char *data, Cpp_Token *tokens, int32_t count,
              Cpp_Token **token_ptr,
              Struct_Member *top_member);
 
-static int
+static int32_t
 parse_struct_member(Partition *part,
-                    char *data, Cpp_Token *tokens, int count,
+                    char *data, Cpp_Token *tokens, int32_t count,
                     Cpp_Token **token_ptr,
                     Struct_Member *member){
     
-    int result = false;
+    int32_t result = false;
     
     Cpp_Token *token = *token_ptr;
-    int i = (int)(token - tokens);
+    int32_t i = (int32_t)(token - tokens);
     
     String doc_string = {0};
     get_type_doc_string(data, tokens, i, &doc_string);
     
-    int start_i = i;
+    int32_t start_i = i;
     Cpp_Token *start_token = token;
     
     for (; i < count; ++i, ++token){
@@ -753,8 +753,8 @@ parse_struct_member(Partition *part,
     if (i < count){
         Cpp_Token *token_j = token;
         
-        int nest_level = 0;
-        for (int j = i; j > start_i; --j, --token_j){
+        int32_t nest_level = 0;
+        for (int32_t j = i; j > start_i; --j, --token_j){
             if (token_j->type == CPP_TOKEN_BRACKET_CLOSE){
                 ++nest_level;
             }
@@ -776,8 +776,8 @@ parse_struct_member(Partition *part,
         String name = make_string(data + token_j->start, token_j->size);
         name = skip_chop_whitespace(name);
         
-        int type_start = start_token->start;
-        int type_end = token_j->start;
+        int32_t type_start = start_token->start;
+        int32_t type_end = token_j->start;
         String type = make_string(data + type_start, type_end - type_start);
         type = skip_chop_whitespace(type);
         
@@ -805,12 +805,12 @@ parse_struct_member(Partition *part,
 
 static Struct_Member*
 parse_struct_next_member(Partition *part,
-                         char *data, Cpp_Token *tokens, int count,
+                         char *data, Cpp_Token *tokens, int32_t count,
                          Cpp_Token **token_ptr){
     Struct_Member *result = 0;
     
     Cpp_Token *token = *token_ptr;
-    int i = (int)(token - tokens);
+    int32_t i = (int32_t)(token - tokens);
     
     for (; i < count; ++i, ++token){
         if (token->type == CPP_TOKEN_IDENTIFIER ||
@@ -858,21 +858,21 @@ parse_struct_next_member(Partition *part,
     return(result);
 }
 
-static int
-parse_struct(Partition *part, int is_struct,
-             char *data, Cpp_Token *tokens, int count,
+static int32_t
+parse_struct(Partition *part, int32_t is_struct,
+             char *data, Cpp_Token *tokens, int32_t count,
              Cpp_Token **token_ptr,
              Struct_Member *top_member){
     
-    int result = false;
+    int32_t result = false;
     
     Cpp_Token *token = *token_ptr;
-    int i = (int)(token - tokens);
+    int32_t i = (int32_t)(token - tokens);
     
     String doc_string = {0};
     get_type_doc_string(data, tokens, i, &doc_string);
     
-    int start_i = i;
+    int32_t start_i = i;
     
     for (; i < count; ++i, ++token){
         if (token->type == CPP_TOKEN_BRACE_OPEN){
@@ -882,7 +882,7 @@ parse_struct(Partition *part, int is_struct,
     
     if (i < count){
         Cpp_Token *token_j = token;
-        int j = i;
+        int32_t j = i;
         
         for (; j > start_i; --j, --token_j){
             if (token_j->type == CPP_TOKEN_IDENTIFIER){
@@ -926,7 +926,7 @@ parse_struct(Partition *part, int is_struct,
             }
         }
         
-        i = (int)(token - tokens);
+        i = (int32_t)(token - tokens);
         for (; i < count; ++i, ++token){
             if (token->type == CPP_TOKEN_SEMICOLON){
                 break;
@@ -982,7 +982,7 @@ print_struct_html(FILE *file, Struct_Member *member){
 }
 
 static void
-print_function_html(FILE *file, Function_Set function_set, int i, String name,
+print_function_html(FILE *file, Function_Set function_set, int32_t i, String name,
                     char *function_call_head){
     String ret = function_set.ret[i];
     fprintf(file,
@@ -993,8 +993,8 @@ print_function_html(FILE *file, Function_Set function_set, int i, String name,
             name.size, name.str);
     
     Argument_Breakdown *breakdown = &function_set.breakdown[i];
-    int arg_count = breakdown->count;
-    for (int j = 0; j < arg_count; ++j){
+    int32_t arg_count = breakdown->count;
+    for (int32_t j = 0; j < arg_count; ++j){
         String param_string = breakdown->param_string[j];
         if (j < arg_count - 1){
             fprintf(file, "%.*s,<br>", param_string.size, param_string.str);
@@ -1008,9 +1008,9 @@ print_function_html(FILE *file, Function_Set function_set, int i, String name,
 }
 
 static void
-print_macro_html(FILE *file, Function_Set function_set, int i, String name){
+print_macro_html(FILE *file, Function_Set function_set, int32_t i, String name){
     Argument_Breakdown *breakdown = &function_set.breakdown[i];
-    int arg_count = breakdown->count;
+    int32_t arg_count = breakdown->count;
     if (arg_count == 0){
         fprintf(file,
                 "#define %.*s()",
@@ -1029,7 +1029,7 @@ print_macro_html(FILE *file, Function_Set function_set, int i, String name){
                 "<div style='margin-left: 4mm;'>",
                 name.size, name.str);
         
-        for (int j = 0; j < arg_count; ++j){
+        for (int32_t j = 0; j < arg_count; ++j){
             String param_string = breakdown->param_string[j];
             if (j < arg_count - 1){
                 fprintf(file, "%.*s,<br>", param_string.size, param_string.str);
@@ -1102,11 +1102,11 @@ print_struct_docs(FILE *file, Partition *part, Struct_Member *member){
 
 static void
 print_see_also(FILE *file, Documentation *doc){
-    int doc_see_count = doc->see_also_count;
+    int32_t doc_see_count = doc->see_also_count;
     if (doc_see_count > 0){
         fprintf(file, DOC_HEAD_OPEN"See Also"DOC_HEAD_CLOSE);
         
-        for (int j = 0; j < doc_see_count; ++j){
+        for (int32_t j = 0; j < doc_see_count; ++j){
             String see_also = doc->see_also[j];
             fprintf(file,
                     DOC_ITEM_OPEN"<a href='#%.*s_doc'>%.*s</a>"DOC_ITEM_CLOSE,
@@ -1117,21 +1117,21 @@ print_see_also(FILE *file, Documentation *doc){
     }
 }
 
-static int
+static int32_t
 parse_enum(Partition *part, char *data,
-           Cpp_Token *tokens, int count,
-           Cpp_Token **token_ptr, int start_i,
-           Enum_Set flag_set, int flag_index){
+           Cpp_Token *tokens, int32_t count,
+           Cpp_Token **token_ptr, int32_t start_i,
+           Enum_Set flag_set, int32_t flag_index){
     
-    int result = false;
+    int32_t result = false;
     
     Cpp_Token *token = *token_ptr;
-    int i = (int)(token - tokens);
+    int32_t i = (int32_t)(token - tokens);
     
     if (i < count){
         Cpp_Token *token_j = token;
         
-        for (int j = i; j > start_i; --j, --token_j){
+        for (int32_t j = i; j > start_i; --j, --token_j){
             if (token_j->type == CPP_TOKEN_IDENTIFIER){
                 break;
             }
@@ -1176,8 +1176,8 @@ parse_enum(Partition *part, char *data,
                             }
                         }
                         
-                        int val_start = start_token->start + start_token->size;
-                        int val_end = token->start;
+                        int32_t val_start = start_token->start + start_token->size;
+                        int32_t val_end = token->start;
                         
                         value = make_string(data + val_start, val_end - val_start);
                         value = skip_chop_whitespace(value);
@@ -1229,9 +1229,9 @@ parse_enum(Partition *part, char *data,
 }
 
 static App_API
-allocate_app_api(int count){
+allocate_app_api(int32_t count){
     App_API app_api = {0};
-    int memory_size = (sizeof(String)*2)*count;
+    int32_t memory_size = (sizeof(String)*2)*count;
     app_api.macros      = (String*)malloc(memory_size);
     app_api.public_name = app_api.macros + count;
     memset(app_api.macros, 0, memory_size);
@@ -1239,12 +1239,12 @@ allocate_app_api(int count){
 }
 
 static Function_Set
-allocate_function_set(int count){
+allocate_function_set(int32_t count){
     Function_Set function_set = {0};
-    int memory_size = (sizeof(String)*7 +
-                       sizeof(int)*2 +
-                       sizeof(Argument_Breakdown) +
-                       sizeof(Documentation))*count;
+    int32_t memory_size = (sizeof(String)*7 +
+                           sizeof(int32_t)*2 +
+                           sizeof(Argument_Breakdown) +
+                           sizeof(Documentation))*count;
     
     String *str_ptr = (String*)malloc(memory_size);
     function_set.name        = str_ptr; str_ptr += count;
@@ -1255,7 +1255,7 @@ allocate_function_set(int count){
     function_set.cpp_name    = str_ptr; str_ptr += count;
     function_set.doc_string  = str_ptr; str_ptr += count;
     
-    function_set.is_macro    = (int*)(function_set.doc_string + count);
+    function_set.is_macro    = (int32_t*)(function_set.doc_string + count);
     function_set.valid       = function_set.is_macro + count;
     
     function_set.breakdown   = (Argument_Breakdown*)(function_set.valid + count);
@@ -1267,9 +1267,9 @@ allocate_function_set(int count){
 }
 
 static Argument_Breakdown
-allocate_argument_breakdown(int count){
+allocate_argument_breakdown(int32_t count){
     Argument_Breakdown breakdown = {0};
-    int memory_size = (sizeof(String)*2)*count;
+    int32_t memory_size = (sizeof(String)*2)*count;
     breakdown.count = count;
     breakdown.param_string = (String*)malloc(memory_size);
     breakdown.param_name = breakdown.param_string + count;
@@ -1279,11 +1279,11 @@ allocate_argument_breakdown(int count){
 
 static Argument_Breakdown
 do_parameter_parse(char *data, Cpp_Token *args_start_token, Cpp_Token *token){
-    int arg_index = 0;
+    int32_t arg_index = 0;
     Cpp_Token *arg_token = args_start_token + 1;
-    int param_string_start = arg_token->start;
+    int32_t param_string_start = arg_token->start;
     
-    int arg_count = 1;
+    int32_t arg_count = 1;
     arg_token = args_start_token;
     for (; arg_token < token; ++arg_token){
         if (arg_token->type == CPP_TOKEN_COMMA){
@@ -1298,7 +1298,7 @@ do_parameter_parse(char *data, Cpp_Token *args_start_token, Cpp_Token *token){
         if (arg_token->type == CPP_TOKEN_COMMA ||
             arg_token->type == CPP_TOKEN_PARENTHESE_CLOSE){
             
-            int size = arg_token->start - param_string_start;
+            int32_t size = arg_token->start - param_string_start;
             String param_string = make_string(data + param_string_start, size);
             param_string = chop_whitespace(param_string);
             breakdown.param_string[arg_index] = param_string;
@@ -1307,8 +1307,8 @@ do_parameter_parse(char *data, Cpp_Token *args_start_token, Cpp_Token *token){
                  param_name_token->start > param_string_start;
                  --param_name_token){
                 if (param_name_token->type == CPP_TOKEN_IDENTIFIER){
-                    int start = param_name_token->start;
-                    int size = param_name_token->size;
+                    int32_t start = param_name_token->start;
+                    int32_t size = param_name_token->size;
                     breakdown.param_name[arg_index] = make_string(data + start, size);
                     break;
                 }
@@ -1327,11 +1327,11 @@ do_parameter_parse(char *data, Cpp_Token *args_start_token, Cpp_Token *token){
     return(breakdown);
 }
 
-static int
-do_function_parse_check(int *index, Cpp_Token **token_ptr, int count){
-    int result = false;
+static int32_t
+do_function_parse_check(int32_t *index, Cpp_Token **token_ptr, int32_t count){
+    int32_t result = false;
     
-    int i = *index;
+    int32_t i = *index;
     Cpp_Token *token = *token_ptr;
     
     {
@@ -1357,12 +1357,12 @@ do_function_parse_check(int *index, Cpp_Token **token_ptr, int count){
     return(result);
 }
 
-static int
-do_function_get_doc(int *index, Cpp_Token **token_ptr, int count,
+static int32_t
+do_function_get_doc(int32_t *index, Cpp_Token **token_ptr, int32_t count,
                     char *data, String *doc_string){
-    int result = false;
+    int32_t result = false;
     
-    int i = *index;
+    int32_t i = *index;
     Cpp_Token *token = *token_ptr;
     
     for (; i < count; ++i, ++token){
@@ -1391,14 +1391,14 @@ get_lexeme(Cpp_Token token, char *code){
     return(str);
 }
 
-static int
-do_parse_cpp_name(int *i_ptr, Cpp_Token **token_ptr, int count, char *data, String *name){
-    int result = false;
+static int32_t
+do_parse_cpp_name(int32_t *i_ptr, Cpp_Token **token_ptr, int32_t count, char *data, String *name){
+    int32_t result = false;
     
-    int i = *i_ptr;
+    int32_t i = *i_ptr;
     Cpp_Token *token = *token_ptr;
     
-    int i_start = i;
+    int32_t i_start = i;
     Cpp_Token *token_start = token;
     
     ++i, ++token;
@@ -1424,19 +1424,19 @@ do_parse_cpp_name(int *i_ptr, Cpp_Token **token_ptr, int count, char *data, Stri
     return(result);
 }
 
-static int
-do_function_parse(int *index, Cpp_Token **token_ptr, int count, Cpp_Token *ret_start_token,
-                  char *data, Function_Set function_set, int sig_count, String cpp_name){
-    int result = false;
+static int32_t
+do_function_parse(int32_t *index, Cpp_Token **token_ptr, int32_t count, Cpp_Token *ret_start_token,
+                  char *data, Function_Set function_set, int32_t sig_count, String cpp_name){
+    int32_t result = false;
     
-    int i = *index;
+    int32_t i = *index;
     Cpp_Token *token = *token_ptr;
     
     Cpp_Token *args_start_token = token+1;
     
     function_set.name[sig_count] = make_string(data + token->start, token->size);
     
-    int size = token->start - ret_start_token->start;
+    int32_t size = token->start - ret_start_token->start;
     String ret = make_string(data + ret_start_token->start, size);
     ret = chop_whitespace(ret);
     function_set.ret[sig_count] = ret;
@@ -1448,7 +1448,7 @@ do_function_parse(int *index, Cpp_Token **token_ptr, int count, Cpp_Token *ret_s
     }
     
     if (i < count){
-        int size = token->start + token->size - args_start_token->start;;
+        int32_t size = token->start + token->size - args_start_token->start;;
         function_set.args[sig_count] =
             make_string(data + args_start_token->start, size);
         function_set.valid[sig_count] = true;
@@ -1466,18 +1466,18 @@ do_function_parse(int *index, Cpp_Token **token_ptr, int count, Cpp_Token *ret_s
     return(result);
 }
 
-static int
-do_full_function_parse(int *index, Cpp_Token **token_ptr, int count, char *data,
-                       Function_Set function_set, int sig_count, String cpp_name){
-    int result = false;
+static int32_t
+do_full_function_parse(int32_t *index, Cpp_Token **token_ptr, int32_t count, char *data,
+                       Function_Set function_set, int32_t sig_count, String cpp_name){
+    int32_t result = false;
     
-    int i = *index;
+    int32_t i = *index;
     Cpp_Token *token = *token_ptr;
     
     {
         function_set.marker[sig_count] = make_string(data + token->start, token->size);
         
-        int j = i;
+        int32_t j = i;
         Cpp_Token *jtoken = token;
         
         if (do_function_parse_check(&j, &jtoken, count)){
@@ -1507,11 +1507,11 @@ do_full_function_parse(int *index, Cpp_Token **token_ptr, int count, char *data,
     return(result);
 }
 
-static int
-do_macro_parse_check(int *index, Cpp_Token **token_ptr, int count){
-    int result = false;
+static int32_t
+do_macro_parse_check(int32_t *index, Cpp_Token **token_ptr, int32_t count){
+    int32_t result = false;
     
-    int i = *index;
+    int32_t i = *index;
     Cpp_Token *token = *token_ptr;
     
     {
@@ -1534,12 +1534,12 @@ do_macro_parse_check(int *index, Cpp_Token **token_ptr, int count){
     return(result);
 }
 
-static int
-do_macro_parse(int *index, Cpp_Token **token_ptr, int count,
-               char *data, Function_Set macro_set, int sig_count){
-    int result = false;
+static int32_t
+do_macro_parse(int32_t *index, Cpp_Token **token_ptr, int32_t count,
+               char *data, Function_Set macro_set, int32_t sig_count){
+    int32_t result = false;
     
-    int i = *index;
+    int32_t i = *index;
     Cpp_Token *token = *token_ptr;
     
     if (i > 0){
@@ -1569,8 +1569,8 @@ do_macro_parse(int *index, Cpp_Token **token_ptr, int count,
                     }
                     
                     if (i < count){
-                        int start = args_start_token->start;
-                        int end = token->start + token->size;
+                        int32_t start = args_start_token->start;
+                        int32_t end = token->start + token->size;
                         macro_set.args[sig_count] = make_string(data + start, end - start);
                         
                         Argument_Breakdown *breakdown = &macro_set.breakdown[sig_count];
@@ -1613,10 +1613,10 @@ do_macro_parse(int *index, Cpp_Token **token_ptr, int count,
 }
 
 struct String_Function_Marker{
-    int parse_function;
-    int is_inline;
-    int parse_doc;
-    int cpp_name;
+    int32_t parse_function;
+    int32_t is_inline;
+    int32_t parse_doc;
+    int32_t cpp_name;
 };
 
 static String_Function_Marker
@@ -1641,7 +1641,7 @@ do_string_function_marker_check(String lexeme){
 }
 
 static String
-get_string(char *data, int start, int end){
+get_string(char *data, int32_t start, int32_t end){
     return(make_string(data + start, end - start));
 }
 
@@ -1653,16 +1653,16 @@ print_str(FILE *file, String str){
 }
 
 static void
-print_function_body_code(FILE *file, int *index, Cpp_Token **token_ptr, int count, String *code,
-                         int start){
-    int i = *index;
+print_function_body_code(FILE *file, int32_t *index, Cpp_Token **token_ptr, int32_t count, String *code,
+                         int32_t start){
+    int32_t i = *index;
     Cpp_Token *token = *token_ptr;
     
     String pstr = {0};
     
-    int nest_level = 0;
-    int finish = false;
-    int do_whitespace_print = false;
+    int32_t nest_level = 0;
+    int32_t finish = false;
+    int32_t do_whitespace_print = false;
     for (; i < count; ++i, ++token){
         if (do_whitespace_print){
             pstr = get_string(code->str, start, token->start);
@@ -1672,7 +1672,7 @@ print_function_body_code(FILE *file, int *index, Cpp_Token **token_ptr, int coun
             do_whitespace_print = true;
         }
         
-        int do_print = true;
+        int32_t do_print = true;
         if (token->type == CPP_TOKEN_COMMENT){
             String lexeme = make_string(code->str + token->start, token->size);
             if (check_and_fix_docs(&lexeme)){
@@ -1719,11 +1719,11 @@ print_function_docs(FILE *file, Partition *part, String name, String doc_string)
     
     perform_doc_parse(part, doc_string, doc);
     
-    int doc_param_count = doc->param_count;
+    int32_t doc_param_count = doc->param_count;
     if (doc_param_count > 0){
         fprintf(file, DOC_HEAD_OPEN"Parameters"DOC_HEAD_CLOSE);
         
-        for (int j = 0; j < doc_param_count; ++j){
+        for (int32_t j = 0; j < doc_param_count; ++j){
             String param_name = doc->param_name[j];
             String param_docs = doc->param_docs[j];
             
@@ -1768,7 +1768,7 @@ generate_custom_headers(){
 #define API_DOC "4coder_API.html"
 #define STRING_H "4coder_string.h"
     
-    int size = Mbytes(512);
+    int32_t size = Mbytes(512);
     void *mem = malloc(size);
     memset(mem, 0, size);
     
@@ -1780,24 +1780,24 @@ generate_custom_headers(){
     String string_code = file_dump("internal_4coder_string.cpp");
     Cpp_Token_Stack string_tokens = {0};
     
-    int string_function_count = 0;
+    int32_t string_function_count = 0;
     
     {
         String *code = &string_code;
         Cpp_Token_Stack *token_stack = &string_tokens;
         
         char *data = code->str;
-        int size = code->size;
+        int32_t size = code->size;
         
         *token_stack = cpp_make_token_stack(1024);
         cpp_lex_file(data, size, token_stack);
         
         
-        int count = token_stack->count;
+        int32_t count = token_stack->count;
         Cpp_Token *tokens = token_stack->tokens;
         Cpp_Token *token = tokens;
         
-        for (int i = 0; i < count; ++i, ++token){
+        for (int32_t i = 0; i < count; ++i, ++token){
             if (token->type == CPP_TOKEN_IDENTIFIER &&
                 !(token->flags & CPP_TFLAG_PP_BODY)){
                 String lexeme = make_string(data + token->start, token->size);
@@ -1820,7 +1820,7 @@ generate_custom_headers(){
     }
     
     Function_Set string_function_set = allocate_function_set(string_function_count);
-    int string_sig_count = 0;
+    int32_t string_sig_count = 0;
     
     {
         String *code = &string_code;
@@ -1828,14 +1828,14 @@ generate_custom_headers(){
         
         char *data = code->str;
         
-        int count = token_stack->count;
+        int32_t count = token_stack->count;
         Cpp_Token *tokens = token_stack->tokens;
         Cpp_Token *token = tokens;
         
         String cpp_name = {0};
-        int has_cpp_name = 0;
+        int32_t has_cpp_name = 0;
         
-        for (int i = 0; i < count; ++i, ++token){
+        for (int32_t i = 0; i < count; ++i, ++token){
             if (token->type == CPP_TOKEN_IDENTIFIER &&
                 !(token->flags & CPP_TFLAG_PP_BODY)){
                 String lexeme = make_string(data + token->start, token->size);
@@ -1882,23 +1882,23 @@ generate_custom_headers(){
     code_data[1] = file_dump("win32_api_impl.cpp");
     Parse parses[2];
     
-    int line_count = 0;
+    int32_t line_count = 0;
     
-    for (int J = 0; J < 2; ++J){
+    for (int32_t J = 0; J < 2; ++J){
         String *code = &code_data[J];
         Parse *parse = &parses[J];
         
         char *data = code->str;
-        int size = code->size;
+        int32_t size = code->size;
         
         parse->tokens = cpp_make_token_stack(512);
         cpp_lex_file(data, size, &parse->tokens);
         
-        int count = parse->tokens.count;
+        int32_t count = parse->tokens.count;
         Cpp_Token *tokens = parse->tokens.tokens;
         Cpp_Token *token = tokens;
         
-        for (int i = 0; i < count; ++i, ++token){
+        for (int32_t i = 0; i < count; ++i, ++token){
             if (token->type == CPP_TOKEN_IDENTIFIER &&
                 !(token->flags & CPP_TFLAG_PP_BODY)){
                 String lexeme = make_string(data + token->start, token->size);
@@ -1913,20 +1913,20 @@ generate_custom_headers(){
     
     Function_Set function_set = allocate_function_set(line_count);
     App_API app_function_set = allocate_app_api(line_count);
-    int sig_count = 0;
+    int32_t sig_count = 0;
     
-    for (int J = 0; J < 2; ++J){
+    for (int32_t J = 0; J < 2; ++J){
         String *code = &code_data[J];
         Parse *parse = &parses[J];
         
         char *data = code->str;
         
-        int count = parse->tokens.count;
+        int32_t count = parse->tokens.count;
         Cpp_Token *tokens = parse->tokens.tokens;
         
         // NOTE(allen): Header Parse
         Cpp_Token *token = tokens;
-        for (int i = 0; i < count; ++i, ++token){
+        for (int32_t i = 0; i < count; ++i, ++token){
             if (token->type == CPP_TOKEN_IDENTIFIER &&
                 !(token->flags & CPP_TFLAG_PP_BODY)){
                 String lexeme = make_string(data + token->start, token->size);
@@ -1944,7 +1944,7 @@ generate_custom_headers(){
         }
     }
     
-    for (int i = 0; i < sig_count; ++i){
+    for (int32_t i = 0; i < sig_count; ++i){
         String name_string = function_set.name[i];
         String *macro = app_function_set.macros + i;
         String *public_name = app_function_set.public_name + i;
@@ -1969,7 +1969,7 @@ generate_custom_headers(){
     // NOTE(allen): Header
     FILE *file = fopen(API_H, "wb");
     
-    for (int i = 0; i < sig_count; ++i){
+    for (int32_t i = 0; i < sig_count; ++i){
         String ret_string   = function_set.ret[i];
         String args_string  = function_set.args[i];
         String macro_string = app_function_set.macros[i];
@@ -1982,7 +1982,7 @@ generate_custom_headers(){
     }
     
     fprintf(file, "extern \"C\"{\n");
-    for (int i = 0; i < sig_count; ++i){
+    for (int32_t i = 0; i < sig_count; ++i){
         String name_string  = function_set.name[i];
         String macro_string = app_function_set.macros[i];
         
@@ -1995,9 +1995,9 @@ generate_custom_headers(){
     fprintf(file, "struct Application_Links{\n");
     fprintf(file,
             "    void *memory;\n"
-            "    int memory_size;\n"
+            "    int32_t memory_size;\n"
             );
-    for (int i = 0; i < sig_count; ++i){
+    for (int32_t i = 0; i < sig_count; ++i){
         String name_string  = function_set.name[i];
         String public_string = app_function_set.public_name[i];
         
@@ -2009,12 +2009,12 @@ generate_custom_headers(){
             "    void *cmd_context;\n"
             "    void *system_links;\n"
             "    void *current_coroutine;\n"
-            "    int type_coroutine;\n"
+            "    int32_t type_coroutine;\n"
             );
     fprintf(file, "};\n");
     
     fprintf(file, "#define FillAppLinksAPI(app_links) do{");
-    for (int i = 0; i < sig_count; ++i){
+    for (int32_t i = 0; i < sig_count; ++i){
         String name = function_set.name[i];
         String public_string = app_function_set.public_name[i];
         
@@ -2041,10 +2041,10 @@ generate_custom_headers(){
         
         Cpp_Token_Stack types_token_array[1];
         
-        int typedef_count = 0;
-        int struct_count = 0;
-        int flag_count = 0;
-        int enum_count = 0;
+        int32_t typedef_count = 0;
+        int32_t struct_count = 0;
+        int32_t flag_count = 0;
+        int32_t enum_count = 0;
         
         static String type_spec_keys[] = {
             make_lit_string("typedef"),
@@ -2056,23 +2056,23 @@ generate_custom_headers(){
         
         for (int32_t J = 0; J < 1; ++J){
             char *data = type_code[J].str;
-            int size = type_code[J].size;
+            int32_t size = type_code[J].size;
             
             Cpp_Token_Stack types_tokens = cpp_make_token_stack(512);
             cpp_lex_file(data, size, &types_tokens);
             types_token_array[J] = types_tokens;
             
-            int count = types_tokens.count;
+            int32_t count = types_tokens.count;
             Cpp_Token *tokens = types_tokens.tokens;
             Cpp_Token *token = tokens;
             
-            for (int i = 0; i < count; ++i, ++token){
+            for (int32_t i = 0; i < count; ++i, ++token){
                 if (!(token->flags & CPP_TFLAG_PP_BODY) &&
                     (token->type == CPP_TOKEN_KEY_TYPE_DECLARATION ||
                      token->type == CPP_TOKEN_IDENTIFIER)){
                     
                     String lexeme = make_string(data + token->start, token->size);
-                    int match_index = 0;
+                    int32_t match_index = 0;
                     if (string_set_match(type_spec_keys, ArrayCount(type_spec_keys),
                                          lexeme, &match_index)){
                         switch (match_index){
@@ -2116,28 +2116,28 @@ generate_custom_headers(){
             flag_set.doc_string = push_array(part, String, flag_count);
         }
         
-        int typedef_index = 0;
-        int struct_index = 0;
-        int flag_index = 0;
-        int enum_index = 0;
+        int32_t typedef_index = 0;
+        int32_t struct_index = 0;
+        int32_t flag_index = 0;
+        int32_t enum_index = 0;
         
         for (int32_t J = 0; J < 1; ++J){
             char *data = type_code[J].str;
             
             Cpp_Token_Stack types_tokens = types_token_array[J];
             
-            int count = types_tokens.count;
+            int32_t count = types_tokens.count;
             Cpp_Token *tokens = types_tokens.tokens;
             Cpp_Token *token = tokens;
             
-            for (int i = 0; i < count; ++i, ++token){
+            for (int32_t i = 0; i < count; ++i, ++token){
                 Assert(i == (i32)(token - tokens));
                 if (!(token->flags & CPP_TFLAG_PP_BODY) &&
                     (token->type == CPP_TOKEN_KEY_TYPE_DECLARATION ||
                      token->type == CPP_TOKEN_IDENTIFIER)){
                     
                     String lexeme = make_string(data + token->start, token->size);
-                    int match_index = 0;
+                    int32_t match_index = 0;
                     if (string_set_match(type_spec_keys, ArrayCount(type_spec_keys),
                                          lexeme, &match_index)){
                         switch (match_index){
@@ -2146,7 +2146,7 @@ generate_custom_headers(){
                                 String doc_string = {0};
                                 get_type_doc_string(data, tokens, i, &doc_string);
                                 
-                                int start_i = i;
+                                int32_t start_i = i;
                                 Cpp_Token *start_token = token;
                                 
                                 for (; i < count; ++i, ++token){
@@ -2158,7 +2158,7 @@ generate_custom_headers(){
                                 if (i < count){
                                     Cpp_Token *token_j = token;
                                     
-                                    for (int j = i; j > start_i; --j, --token_j){
+                                    for (int32_t j = i; j > start_i; --j, --token_j){
                                         if (token_j->type == CPP_TOKEN_IDENTIFIER){
                                             break;
                                         }
@@ -2167,8 +2167,8 @@ generate_custom_headers(){
                                     String name = make_string(data + token_j->start, token_j->size);
                                     name = skip_chop_whitespace(name);
                                     
-                                    int type_start = start_token->start + start_token->size;
-                                    int type_end = token_j->start;
+                                    int32_t type_start = start_token->start + start_token->size;
+                                    int32_t type_end = token_j->start;
                                     String type = make_string(data + type_start, type_end - type_start);
                                     type = skip_chop_whitespace(type);
                                     
@@ -2186,7 +2186,7 @@ generate_custom_headers(){
                                                  struct_set.structs + struct_index)){
                                     ++struct_index;
                                 }
-                                i = (int)(token - tokens);
+                                i = (int32_t)(token - tokens);
                             }break;
                             
                             case 3: //ENUM
@@ -2194,7 +2194,7 @@ generate_custom_headers(){
                                 String doc_string = {0};
                                 get_type_doc_string(data, tokens, i, &doc_string);
                                 
-                                int start_i = i;
+                                int32_t start_i = i;
                                 
                                 for (; i < count; ++i, ++token){
                                     if (token->type == CPP_TOKEN_PARENTHESE_CLOSE){
@@ -2217,7 +2217,7 @@ generate_custom_headers(){
                                 String doc_string = {0};
                                 get_type_doc_string(data, tokens, i, &doc_string);
                                 
-                                int start_i = i;
+                                int32_t start_i = i;
                                 
                                 for (; i < count; ++i, ++token){
                                     if (token->type == CPP_TOKEN_PARENTHESE_CLOSE){
@@ -2255,12 +2255,12 @@ generate_custom_headers(){
             String *code = &string_code;
             Cpp_Token_Stack *token_stack = &string_tokens;
             
-            int start = 0;
+            int32_t start = 0;
             
-            int count = token_stack->count;
+            int32_t count = token_stack->count;
             Cpp_Token *tokens = token_stack->tokens;
             Cpp_Token *token = tokens;
-            int i = 0;
+            int32_t i = 0;
             
             for (i = 0; i < count; ++i, ++token){
                 if (token->type == CPP_TOKEN_IDENTIFIER &&
@@ -2274,7 +2274,7 @@ generate_custom_headers(){
             }
             
             String pstr = {0};
-            int do_whitespace_print = true;
+            int32_t do_whitespace_print = true;
             
             for(++i, ++token; i < count; ++i, ++token){
                 if (do_whitespace_print){
@@ -2287,7 +2287,7 @@ generate_custom_headers(){
                 
                 String lexeme = get_lexeme(*token, code->str);
                 
-                int do_print = true;
+                int32_t do_print = true;
                 if (match_ss(lexeme, make_lit_string("FSTRING_DECLS"))){
                     fprintf(file, "#if !defined(FCODER_STRING_H)\n#define FCODER_STRING_H\n\n");
                     
@@ -2296,7 +2296,7 @@ generate_custom_headers(){
 #define RETURN_PADDING 16
 #define SIG_PADDING 30
                     
-                    for (int j = 0; j < string_sig_count; ++j){
+                    for (int32_t j = 0; j < string_sig_count; ++j){
                         char line_space[2048];
                         String line = make_fixed_width_string(line_space);
                         
@@ -2350,7 +2350,7 @@ generate_custom_headers(){
                                 "// for C++ users who can have overloaded functions.  None of\n"
                                 "// these functions add new features.\n");
                         
-                        for (int j = 0; j < string_sig_count; ++j){
+                        for (int32_t j = 0; j < string_sig_count; ++j){
                             char line_space[2048];
                             String line = make_fixed_width_string(line_space);
                             
@@ -2381,7 +2381,7 @@ generate_custom_headers(){
                     {
                         fprintf(file, "\n#if !defined(FSTRING_C) && !defined(FSTRING_GUARD)\n\n");
                         
-                        for (int j = 0; j < string_sig_count; ++j){
+                        for (int32_t j = 0; j < string_sig_count; ++j){
                             char line_space[2048];
                             String line = make_fixed_width_string(line_space);
                             
@@ -2471,8 +2471,8 @@ generate_custom_headers(){
                 else if (match_ss(lexeme, make_lit_string("CPP_NAME"))){
                     
                     Cpp_Token *token_start = token;
-                    int i_start = i;
-                    int has_cpp_name = false;
+                    int32_t i_start = i;
+                    int32_t has_cpp_name = false;
                     
                     ++i, ++token;
                     if (token->type == CPP_TOKEN_PARENTHESE_OPEN){
@@ -2592,8 +2592,8 @@ generate_custom_headers(){
                 "<h3 style='margin:0;'>Table of Contents</h3>\n"
                 "<ul>\n");
         
-        int section_count = ArrayCount(sections);
-        for (int i = 0; i < section_count; ++i){
+        int32_t section_count = ArrayCount(sections);
+        for (int32_t i = 0; i < section_count; ++i){
             fprintf(file,
                     "<li><a href='#section_%s'>&sect;%d %s</a></li>",
                     sections[i].id_string,
@@ -2661,7 +2661,7 @@ generate_custom_headers(){
                     "<h3>&sect;"SECTION" Function List</h3>\n"
                     "<ul>\n");
             
-            for (int i = 0; i < sig_count; ++i){
+            for (int32_t i = 0; i < sig_count; ++i){
                 String name = app_function_set.public_name[i];
                 fprintf(file,
                         "<li>"
@@ -2681,7 +2681,7 @@ generate_custom_headers(){
                     "<ul>\n"
                     );
             
-            for (int i = 0; i < typedef_count; ++i){
+            for (int32_t i = 0; i < typedef_count; ++i){
                 String name = typedef_set.name[i];
                 fprintf(file,
                         "<li>"
@@ -2692,7 +2692,7 @@ generate_custom_headers(){
                         );
             }
             
-            for (int i = 0; i < enum_count; ++i){
+            for (int32_t i = 0; i < enum_count; ++i){
                 String name = enum_set.name[i];
                 fprintf(file,
                         "<li>"
@@ -2703,7 +2703,7 @@ generate_custom_headers(){
                         );
             }
             
-            for (int i = 0; i < flag_count; ++i){
+            for (int32_t i = 0; i < flag_count; ++i){
                 String name = flag_set.name[i];
                 fprintf(file,
                         "<li>"
@@ -2714,7 +2714,7 @@ generate_custom_headers(){
                         );
             }
             
-            for (int i = 0; i < struct_count; ++i){
+            for (int32_t i = 0; i < struct_count; ++i){
                 String name = struct_set.structs[i].name;
                 fprintf(file,
                         "<li>"
@@ -2731,7 +2731,7 @@ generate_custom_headers(){
 #define SECTION MAJOR_SECTION".3"
             
             fprintf(file, "<h3>&sect;"SECTION" Function Descriptions</h3>\n");
-            for (int i = 0; i < sig_count; ++i){
+            for (int32_t i = 0; i < sig_count; ++i){
                 String name = app_function_set.public_name[i];
                 
                 fprintf(file,
@@ -2754,8 +2754,8 @@ generate_custom_headers(){
 #define SECTION MAJOR_SECTION".4"
             
             fprintf(file, "<h3>&sect;"SECTION" Type Descriptions</h3>\n");
-            int I = 1;
-            for (int i = 0; i < typedef_count; ++i, ++I){
+            int32_t I = 1;
+            for (int32_t i = 0; i < typedef_count; ++i, ++I){
                 String name = typedef_set.name[i];
                 String type = typedef_set.type[i];
                 
@@ -2799,7 +2799,7 @@ generate_custom_headers(){
                 fprintf(file, "</div><hr>\n");
             }
             
-            for (int i = 0; i < enum_count; ++i, ++I){
+            for (int32_t i = 0; i < enum_count; ++i, ++I){
                 String name = enum_set.name[i];
                 
                 fprintf(file,
@@ -2860,7 +2860,7 @@ generate_custom_headers(){
                 fprintf(file, "</div><hr>\n");
             }
             
-            for (int i = 0; i < flag_count; ++i, ++I){
+            for (int32_t i = 0; i < flag_count; ++i, ++I){
                 String name = flag_set.name[i];
                 
                 fprintf(file,
@@ -2922,7 +2922,7 @@ generate_custom_headers(){
                 fprintf(file, "</div><hr>\n");
             }
             
-            for (int i = 0; i < struct_count; ++i, ++I){
+            for (int32_t i = 0; i < struct_count; ++i, ++I){
                 Struct_Member *member = &struct_set.structs[i];
                 String name = member->name;
                 fprintf(file,
@@ -2999,17 +2999,17 @@ generate_custom_headers(){
                     "<ul>\n");
             
             String *used_strings = 0;
-            int used_string_count = 0;
+            int32_t used_string_count = 0;
             
             {
-                int memory_size = sizeof(String)*(string_sig_count);
+                int32_t memory_size = sizeof(String)*(string_sig_count);
                 used_strings = (String*)malloc(memory_size);
                 memset(used_strings, 0, memory_size);
             }
             
-            for (int i = 0; i < string_sig_count; ++i){
+            for (int32_t i = 0; i < string_sig_count; ++i){
                 String name = string_function_set.name[i];
-                int index = 0;
+                int32_t index = 0;
                 if (!string_set_match(used_strings, used_string_count, name, &index)){
                     fprintf(file,
                             "<li>"
@@ -3032,10 +3032,10 @@ generate_custom_headers(){
                     "<h3>&sect;"SECTION" String Function Descriptions</h3>\n"
                     "<ul>\n");
             
-            for (int i = 0; i < string_sig_count; ++i){
+            for (int32_t i = 0; i < string_sig_count; ++i){
                 String name = string_function_set.name[i];
-                int index = 0;
-                int do_id = false;
+                int32_t index = 0;
+                int32_t do_id = false;
                 if (!string_set_match(used_strings, used_string_count, name, &index)){
                     do_id = true;
                     used_strings[used_string_count++] = name;

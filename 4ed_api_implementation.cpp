@@ -57,7 +57,7 @@ fill_view_summary(View_Summary *view, View *vptr, Live_Views *live_set, Working_
     
     if (vptr->in_use){
         view->exists = 1;
-        view->view_id = (int)(vptr - live_set->views) + 1;
+        view->view_id = (int32_t)(vptr - live_set->views) + 1;
         view->line_height = (float)(vptr->line_height);
         view->unwrapped_lines = vptr->file_data.unwrapped_lines;
         view->show_whitespace = vptr->file_data.show_whitespace;
@@ -800,7 +800,7 @@ DOC_SEE(Buffer_Batch_Edit_Type)
             Assert(inverse_edits);
             
             char *inv_str = (char*)part->base + part->pos;
-            int inv_str_max = part->max - part->pos;
+            int32_t inv_str_max = part->max - part->pos;
             
             Edit_Spec spec =
                 file_compute_edit(mem, file,
@@ -1112,7 +1112,7 @@ DOC_SEE(Buffer_Identifier)
     Working_Set *working_set = &models->working_set;
     View *vptr = imp_get_view(cmd, view_id);
     Editing_File *file = get_file_from_identifier(system, working_set, buffer);
-    int result = false;
+    int32_t result = false;
     
     if (file){
         if (flags & BufferKill_AlwaysKill){
@@ -1155,7 +1155,7 @@ internal void
 internal_get_view_next(Command_Data *cmd, View_Summary *view){
     Editing_Layout *layout = &cmd->models->layout;
     Live_Views *live_set = &cmd->vars->live_set;
-    int index = view->view_id - 1;
+    int32_t index = view->view_id - 1;
     View *vptr = 0;
     Panel *panel = 0;
     
@@ -1749,7 +1749,7 @@ DOC_SEE(int_color)
     
     bool32 result = false;
     
-    int size = end - start;
+    int32_t size = end - start;
     if (vptr){
         if (size > 0){
             result = true;

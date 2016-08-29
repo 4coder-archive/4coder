@@ -61,7 +61,7 @@ struct Input_Summary{
 
 struct Command_Line_Parameters{
     char **argv;
-    int argc;
+    int32_t argc;
 };
 
 struct Plat_Settings{

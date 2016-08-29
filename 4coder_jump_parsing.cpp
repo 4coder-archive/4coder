@@ -4,8 +4,8 @@
 
 struct Jump_Location{
     String file;
-    int line;
-    int column;
+    int32_t line;
+    int32_t column;
 };
 
 static void
@@ -14,30 +14,30 @@ jump_to_location(Application_Links *app, View_Summary *view, Jump_Location *l){
     app->view_set_cursor(app, view, seek_line_char(l->line, l->column), true);
 }
 
-static int
-ms_style_verify(String line, int paren_pos){
-    int result = false;
+static int32_t
+ms_style_verify(String line, int32_t paren_pos){
+    int32_t result = false;
     
     String line_part = substr_tail(line, paren_pos);
     if (match_part_sc(line_part, ") : ")){
-        result = true;         
-    }                          
+        result = true;
+    }
     else if (match_part_sc(line_part, "): ")){
-        result = true;         
-    }                          
-                               
-    return(result);            
-}                              
-                               
-static int                     
+        result = true;
+    }
+    
+    return(result);
+}
+
+static int32_t
 parse_error(String line, Jump_Location *location,
-            int skip_sub_errors, int *colon_char){
-    int result = false;        
-                               
+            int32_t skip_sub_errors, int32_t *colon_char){
+    int32_t result = false;
+    
     String original_line = line;
     line = skip_chop_whitespace(line);
                                
-    int colon_pos = find_s_char(line, 0, ')');
+    int32_t colon_pos = find_s_char(line, 0, ')');
     if (ms_style_verify(line, colon_pos)){
         colon_pos = find_s_char(line, colon_pos, ':');
         if (colon_pos < line.size){
@@ -46,12 +46,12 @@ parse_error(String line, Jump_Location *location,
             if (!(skip_sub_errors && original_line.str[0] == ' ')){
                 location_str = skip_chop_whitespace(location_str);
                 
-                int paren_pos = find_s_char(location_str, 0, '(');
+                int32_t paren_pos = find_s_char(location_str, 0, '(');
                 if (paren_pos < location_str.size){
                     String file = substr(location_str, 0, paren_pos);
                     file = skip_chop_whitespace(file);
                     
-                    int close_pos = find_s_char(location_str, 0, ')') + 1;
+                    int32_t close_pos = find_s_char(location_str, 0, ')') + 1;
                     if (close_pos == location_str.size && file.size > 0){
                         String line_number = substr(location_str,
                                                     paren_pos+1,
@@ -61,9 +61,9 @@ parse_error(String line, Jump_Location *location,
                         if (line_number.size > 0){
                             location->file = file;
                             
-                            int comma_pos = find_s_char(line_number, 0, ',');
+                            int32_t comma_pos = find_s_char(line_number, 0, ',');
                             if (comma_pos < line_number.size){
-                                int start = comma_pos+1;
+                                int32_t start = comma_pos+1;
                                 String column_number = substr(line_number, start, line_number.size-start);
                                 line_number = substr(line_number, 0, comma_pos);
                                 
@@ -85,15 +85,15 @@ parse_error(String line, Jump_Location *location,
     }
     
     else{
-        int colon_pos1 = find_s_char(line, 0, ':');
+        int32_t colon_pos1 = find_s_char(line, 0, ':');
         if (line.size > colon_pos1+1){
             if (char_is_slash(line.str[colon_pos1+1])){
                 colon_pos1 = find_s_char(line, colon_pos1+1, ':');
             }
         }
         
-        int colon_pos2 = find_s_char(line, colon_pos1+1, ':');
-        int colon_pos3 = find_s_char(line, colon_pos2+1, ':');
+        int32_t colon_pos2 = find_s_char(line, colon_pos1+1, ':');
+        int32_t colon_pos3 = find_s_char(line, colon_pos2+1, ':');
         
         if (colon_pos3 < line.size){
             String filename = substr(line, 0, colon_pos1);
@@ -140,18 +140,18 @@ parse_error(String line, Jump_Location *location,
     return(result);
 }
 
-static int
+static int32_t
 goto_error(Application_Links *app,
            Partition *part,
-           View_Summary *view, int line,
+           View_Summary *view, int32_t line,
            Jump_Location *location,
-           int skip_sub_errors){
+           int32_t skip_sub_errors){
     
-    int result = false;
+    int32_t result = false;
     String line_str = {0};
     Buffer_Summary buffer = app->get_buffer(app, view->buffer_id, AccessAll);
     if (read_line(app, part, &buffer, line, &line_str)){
-        int colon_char = 0;
+        int32_t colon_char = 0;
         if (parse_error(line_str, location, skip_sub_errors, &colon_char)){
             result = true;
         }
@@ -183,25 +183,25 @@ CUSTOM_COMMAND_SIG(goto_jump_at_cursor){
 //
 
 struct Prev_Jump{
-    int buffer_id;
-    int line;
+    int32_t buffer_id;
+    int32_t line;
 };
 
 static Prev_Jump null_location = {0};
 static Prev_Jump prev_location = {0};
 
 // TODO(allen): GIVE THESE THINGS NAMES I CAN FUCKING UNDERSTAND
-static int
+static int32_t
 next_error(Application_Links *app,
            Partition *part,
-           View_Summary *comp_out, int *start_line,
+           View_Summary *comp_out, int32_t *start_line,
            Jump_Location *location,
-           int skip_sub_errors,
-           int direction,
-           int *colon_char){
+           int32_t skip_sub_errors,
+           int32_t direction,
+           int32_t *colon_char){
     
-    int result = false;
-    int line = *start_line + direction;
+    int32_t result = false;
+    int32_t line = *start_line + direction;
     String line_str = {0};
     Buffer_Summary buffer = app->get_buffer(app, comp_out->buffer_id, AccessAll);
     for (;;){
@@ -240,18 +240,18 @@ jump_location_store(Application_Links *app, Jump_Location loc){
     return(result);
 }
 
-static int
+static int32_t
 seek_error_internal(Application_Links *app, Partition *part,
-                    int skip_sub_errors, int dir, Jump_Location *loc){
-    int result = false;
+                    int32_t skip_sub_errors, int32_t dir, Jump_Location *loc){
+    int32_t result = false;
     
     Jump_Location location = {0};
     Buffer_Summary buffer = app->get_buffer_by_name(app, literal("*compilation*"), AccessAll);
     if (buffer.exists){
         View_Summary view = get_first_view_with_buffer(app, buffer.buffer_id);
-        int line = view.cursor.line;
+        int32_t line = view.cursor.line;
         
-        int colon_char = 0;
+        int32_t colon_char = 0;
         if (next_error(app, part, &view, &line, &location,
                        skip_sub_errors, dir, &colon_char)){
             
@@ -274,9 +274,9 @@ seek_error_internal(Application_Links *app, Partition *part,
 }
 
 
-static int
+static int32_t
 skip_this_jump(Prev_Jump prev, Prev_Jump jump){
-    int result = false;
+    int32_t result = false;
     if (prev.buffer_id != 0 && prev.buffer_id == jump.buffer_id &&
         prev.line == jump.line){
         result = true;
@@ -284,10 +284,10 @@ skip_this_jump(Prev_Jump prev, Prev_Jump jump){
     return(result);
 }
 
-static int
+static int32_t
 seek_error_skip_repeats(Application_Links *app, Partition *part,
-                        int skip_sub_error, int dir){
-    int result = true;
+                        int32_t skip_sub_error, int32_t dir){
+    int32_t result = true;
     Jump_Location location = {0};
     Prev_Jump jump = {0};
     do{
@@ -306,10 +306,10 @@ seek_error_skip_repeats(Application_Links *app, Partition *part,
     return(result);
 }
 
-static int
+static int32_t
 seek_error_no_skip(Application_Links *app, Partition *part,
-                   int skip_sub_error, int dir){
-    int result = true;
+                   int32_t skip_sub_error, int32_t dir){
+    int32_t result = true;
     Jump_Location location = {0};
     Prev_Jump jump = {0};
     
@@ -327,9 +327,9 @@ seek_error_no_skip(Application_Links *app, Partition *part,
     return(result);
 }
 
-static int
+static int32_t
 seek_error(Application_Links *app, Partition *part,
-           int skip_sub_error, int skip_same_line, int dir){
+           int32_t skip_sub_error, int32_t skip_same_line, int32_t dir){
     if (skip_same_line){
         seek_error_skip_repeats(app, part, skip_sub_error, dir);
     }

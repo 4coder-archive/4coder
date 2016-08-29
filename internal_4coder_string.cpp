@@ -170,7 +170,7 @@ DOC_EXPORT /* DOC(This macro takes a local char array with a fixed width and use
 an empty String with the correct size and memory size to operate on the array.) */
 #define make_fixed_width_string(s) (make_string_cap((char*)(s), 0, sizeof(s)))
 
-DOC_EXPORT /* DOC(This macro is a helper for any calls that take a char*,int pair to specify a
+DOC_EXPORT /* DOC(This macro is a helper for any calls that take a char*,integer pair to specify a
 string. This macro expands to both of those parameters from one String struct.) */
 #define expand_str(s) ((s).str), ((s).size)
 
@@ -227,7 +227,7 @@ skip_whitespace(String str)
 Like other substr calls, the new string uses the underlying memory and so should usually be
 considered immutable.) DOC_SEE(substr) */{
     String result = {0};
-    int i = 0;
+    int32_t i = 0;
     for (; i < str.size && char_is_whitespace(str.str[i]); ++i);
     result = substr(str, i, str.size - i);
     return(result);
@@ -239,7 +239,7 @@ chop_whitespace(String str)
 Like other substr calls, the new string uses the underlying memory and so should usually be
 considered immutable.) DOC_SEE(substr) */{
     String result = {0};
-    int i = str.size;
+    int32_t i = str.size;
     for (; i > 0 && char_is_whitespace(str.str[i-1]); --i);
     result = substr(str, 0, i);
     return(result);
@@ -1452,13 +1452,13 @@ DOC(This call interprets s as a color and writes the 32-bit integer representati
     uint32_t color = 0;
     if (s.size == 6){
         result = 1;
-        color = (unsigned int)hexstr_to_int(s);
+        color = (uint32_t)hexstr_to_int(s);
         color |= (0xFF << 24);
         *out = color;
     }
     else if (s.size == 8){
         result = 1;
-        color = (unsigned int)hexstr_to_int(s);
+        color = (uint32_t)hexstr_to_int(s);
         *out = color;
     }
     return(result);

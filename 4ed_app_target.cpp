@@ -11,24 +11,25 @@
 
 #include "4coder_custom.h"
 
+#define FSTRING_IMPLEMENTATION
+#define FSTRING_C
+#include "4coder_string.h"
+
 #define BUFFER_EXPERIMENT_SCALPEL 0
 
 #include "4ed_meta.h"
 
-#define FSTRING_IMPLEMENTATION
-#include "4coder_string.h"
-
-#include "4ed_math.cpp"
+#include "4ed_math.h"
 
 #include "4ed_system.h"
 #include "4ed_rendering.h"
 #include "4ed.h"
 
-#include "4coder_table.cpp"
-
 #include "4cpp_lexer.h"
 
-#include "4ed_template.cpp"
+#include "4coder_table.cpp"
+
+#include "4ed_doubly_linked_list.cpp"
 
 #include "4ed_font_set.cpp"
 #include "4ed_rendering_helper.cpp"

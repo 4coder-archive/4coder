@@ -991,7 +991,7 @@ when it is no longer in use.</div></div><hr>
 <div id='file_exists_doc' style='margin-bottom: 1cm;'>
 <h4>&sect;3.3.54: file_exists</h4>
 <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>bool32 app->file_exists(
-<div style='margin-left: 4mm;'>Application_Links *app,<br>char *filename,<br>int len<br></div>)
+<div style='margin-left: 4mm;'>Application_Links *app,<br>char *filename,<br>int32_t len<br></div>)
 </div>
 <div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Parameters</i></b></div><div>
 <div style='font-weight: 600;'>filename</div>
@@ -1005,7 +1005,7 @@ when it is no longer in use.</div></div><hr>
 <div id='directory_cd_doc' style='margin-bottom: 1cm;'>
 <h4>&sect;3.3.55: directory_cd</h4>
 <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>bool32 app->directory_cd(
-<div style='margin-left: 4mm;'>Application_Links *app,<br>char *dir,<br>int *len,<br>int capacity,<br>char *rel_path,<br>int rel_len<br></div>)
+<div style='margin-left: 4mm;'>Application_Links *app,<br>char *dir,<br>int32_t *len,<br>int32_t capacity,<br>char *rel_path,<br>int32_t rel_len<br></div>)
 </div>
 <div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Parameters</i></b></div><div>
 <div style='font-weight: 600;'>dir</div>
@@ -1290,7 +1290,7 @@ an empty String with the correct size and memory size to operate on the array.</
 <div id='expand_str_str_doc'><h4>&sect;4.3.16: expand_str</h4>
 <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>
 #define expand_str(s)</div>
-<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>This macro is a helper for any calls that take a char*,int pair to specify a
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>This macro is a helper for any calls that take a char*,integer pair to specify a
 string. This macro expands to both of those parameters from one String struct.</div></div><hr>
 <div id='str_size_str_doc'><h4>&sect;4.3.17: str_size</h4>
 <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>

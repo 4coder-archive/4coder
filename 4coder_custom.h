@@ -14,13 +14,13 @@
 #define FSTRING_STRUCT
 typedef struct String{
     char *str;
-    int size;
-    int memory_size;
+    int32_t size;
+    int32_t memory_size;
 } String;
 
 typedef struct Offset_String{
-    int offset;
-    int size;
+    int32_t offset;
+    int32_t size;
 } Offset_String;
 #endif
 
@@ -52,7 +52,7 @@ typedef CUSTOM_COMMAND_SIG(Custom_Command_Function);
 #include "4coder_buffer_types.h"
 #include "4coder_gui.h"
 
-#define COMMAND_CALLER_HOOK(name) int name(struct Application_Links *app, Generic_Command cmd)
+#define COMMAND_CALLER_HOOK(name) int32_t name(struct Application_Links *app, Generic_Command cmd)
 typedef COMMAND_CALLER_HOOK(Command_Caller_Hook_Function);
 
 inline Key_Event_Data
@@ -66,7 +66,7 @@ mouse_state_zero(){
     return(data);
 }
 inline Range
-make_range(int p1, int p2){
+make_range(int32_t p1, int32_t p2){
     Range range;
     if (p1 < p2){
         range.min = p1;
@@ -89,11 +89,11 @@ view_summary_zero(){
     return(summary);
 }
 
-#define VIEW_ROUTINE_SIG(name) void name(struct Application_Links *app, int view_id)
-#define GET_BINDING_DATA(name) int name(void *data, int size)
-#define HOOK_SIG(name) int name(struct Application_Links *app)
-#define OPEN_FILE_HOOK_SIG(name) int name(struct Application_Links *app, int buffer_id)
-#define SCROLL_RULE_SIG(name) int name(float target_x, float target_y, float *scroll_x, float *scroll_y, int view_id, int is_new_target, float dt)
+#define VIEW_ROUTINE_SIG(name) void name(struct Application_Links *app, int32_t view_id)
+#define GET_BINDING_DATA(name) int32_t name(void *data, int32_t size)
+#define HOOK_SIG(name) int32_t name(struct Application_Links *app)
+#define OPEN_FILE_HOOK_SIG(name) int32_t name(struct Application_Links *app, int32_t buffer_id)
+#define SCROLL_RULE_SIG(name) int32_t name(float target_x, float target_y, float *scroll_x, float *scroll_y, int32_t view_id, int32_t is_new_target, float dt)
 #define INPUT_FILTER_SIG(name) void name(Mouse_State *mouse)
 
 typedef VIEW_ROUTINE_SIG(View_Routine_Function);
@@ -113,11 +113,11 @@ struct Application_Links;
 
 
 
-#define _GET_VERSION_SIG(n) int n(int maj, int min, int patch)
+#define _GET_VERSION_SIG(n) int32_t n(int32_t maj, int32_t min, int32_t patch)
 typedef _GET_VERSION_SIG(_Get_Version_Function);
 
 extern "C" _GET_VERSION_SIG(get_alpha_4coder_version){
-    int result = (maj == MAJOR && min == MINOR && patch == PATCH);
+    int32_t result = (maj == MAJOR && min == MINOR && patch == PATCH);
     return(result);
 }
 
@@ -151,22 +151,22 @@ enum Map_ID{
 struct Binding_Unit{
     Binding_Unit_Type type;
     union{
-        struct{ int total_size; int user_map_count; int error; } header;
+        struct{ int32_t total_size; int32_t user_map_count; int32_t error; } header;
         
-        struct{ int mapid; int replace; int bind_count; } map_begin;
-        struct{ int mapid; } map_inherit;
+        struct{ int32_t mapid; int32_t replace; int32_t bind_count; } map_begin;
+        struct{ int32_t mapid; } map_inherit;
         struct{
-            short code;
-            unsigned char modifiers;
-            int command_id;
+            int16_t code;
+            uint8_t modifiers;
+            int32_t command_id;
         } binding;
         struct{
-            short code;
-            unsigned char modifiers;
+            int16_t code;
+            uint8_t modifiers;
             Custom_Command_Function *func;
         } callback;
         struct{
-            int hook_id;
+            int32_t hook_id;
             void *func;
         } hook;
     };

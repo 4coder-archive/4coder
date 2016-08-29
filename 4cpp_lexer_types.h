@@ -172,9 +172,9 @@ enum Cpp_Token_Type{
 
 struct Cpp_Token{
 	Cpp_Token_Type type;
-	int start, size;
-	unsigned short state_flags;
-	unsigned short flags;
+    int32_t start, size;
+    uint16_t state_flags;
+    uint16_t flags;
 };
 
 enum Cpp_Token_Flag{
@@ -204,7 +204,7 @@ enum Cpp_Preprocessor_State{
 
 struct Cpp_Token_Stack{
 	Cpp_Token *tokens;
-	int count, max_count;
+	int32_t count, max_count;
 };
 inline Cpp_Token_Stack
 cpp_token_stack_zero(){
@@ -214,30 +214,30 @@ cpp_token_stack_zero(){
 
 struct Cpp_Token_Merge{
 	Cpp_Token new_token;
-	int did_merge;
+	int32_t did_merge;
 };
 
 struct Seek_Result{
-    int pos;
-    int new_line;
+    int32_t pos;
+    int32_t new_line;
 };
 
 struct Cpp_Get_Token_Result{
-	int token_index;
-	int in_whitespace;
+	int32_t token_index;
+	int32_t in_whitespace;
 };
 
 struct Cpp_Relex_State{
     char *data;
-    int size;
+    int32_t size;
     
     Cpp_Token_Stack *stack;
-    int start, end, amount;
-    int start_token_i;
-    int end_token_i;
-    int relex_start;
-    int tolerance;
-    int space_request;
+    int32_t start, end, amount;
+    int32_t start_token_i;
+    int32_t end_token_i;
+    int32_t relex_start;
+    int32_t tolerance;
+    int32_t space_request;
 };
 
 #endif

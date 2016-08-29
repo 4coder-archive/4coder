@@ -532,7 +532,7 @@ FSTRING_LINK String
 skip_whitespace(String str)
 {
     String result = {0};
-    int i = 0;
+    int32_t i = 0;
     for (; i < str.size && char_is_whitespace(str.str[i]); ++i);
     result = substr(str, i, str.size - i);
     return(result);
@@ -544,7 +544,7 @@ FSTRING_LINK String
 chop_whitespace(String str)
 {
     String result = {0};
-    int i = str.size;
+    int32_t i = str.size;
     for (; i > 0 && char_is_whitespace(str.str[i-1]); --i);
     result = substr(str, 0, i);
     return(result);
@@ -1729,13 +1729,13 @@ hexstr_to_color(String s, uint32_t *out){
     uint32_t color = 0;
     if (s.size == 6){
         result = 1;
-        color = (unsigned int)hexstr_to_int(s);
+        color = (uint32_t)hexstr_to_int(s);
         color |= (0xFF << 24);
         *out = color;
     }
     else if (s.size == 8){
         result = 1;
-        color = (unsigned int)hexstr_to_int(s);
+        color = (uint32_t)hexstr_to_int(s);
         *out = color;
     }
     return(result);

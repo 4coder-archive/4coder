@@ -4,16 +4,16 @@
 
 struct Partition{
     char *base;
-    int pos, max;
+    int32_t pos, max;
 };
 
 struct Temp_Memory{
     void *handle;
-    int pos;
+    int32_t pos;
 };
 
 inline Partition
-make_part(void *memory, int size){
+make_part(void *memory, int32_t size){
     Partition partition;
     partition.base = (char*)memory;
     partition.pos = 0;
@@ -22,7 +22,7 @@ make_part(void *memory, int size){
 }
 
 inline void*
-partition_allocate(Partition *data, int size){
+partition_allocate(Partition *data, int32_t size){
     void *ret = 0;
     if (size > 0 && data->pos + size <= data->max){
         ret = data->base + data->pos;
@@ -32,7 +32,7 @@ partition_allocate(Partition *data, int size){
 }
 
 inline void
-partition_align(Partition *data, unsigned int boundary){
+partition_align(Partition *data, uint32_t boundary){
     --boundary;
     data->pos = (data->pos + boundary) & (~boundary);
 }
@@ -42,13 +42,13 @@ partition_current(Partition *data){
     return data->base + data->pos;
 }
 
-inline int
+inline int32_t
 partition_remaining(Partition *data){
     return data->max - data->pos;
 }
 
 inline Partition
-partition_sub_part(Partition *data, int size){
+partition_sub_part(Partition *data, int32_t size){
     Partition result = {};
     void *d = partition_allocate(data, size);
     if (d) result = make_part(d, size);

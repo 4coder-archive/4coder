@@ -19,9 +19,9 @@ handle_zero(void){
     return(result);
 }
 
-inline int
+inline int32_t
 handle_equal(Plat_Handle a, Plat_Handle b){
-    int result = (memcmp(&a, &b, sizeof(a)) == 0);
+    int32_t result = (memcmp(&a, &b, sizeof(a)) == 0);
     return(result);
 }
 

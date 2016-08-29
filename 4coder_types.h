@@ -395,9 +395,9 @@ struct Mouse_State{
     /* DOC(This field indicates that the mouse is outside of the window.) */
 	char out_of_window;
     /* DOC(This field contains the x position of the mouse relative to the window where the left side is 0.) */
-    int x;
+    int32_t x;
     /* DOC(This field contains the y position of the mouse relative to the window where the top side is 0.) */
-    int y;
+    int32_t y;
 };
 
 /* DOC(
@@ -411,15 +411,15 @@ Throughout the API ranges are thought of in the form [min,max) where max is
 union Range{
     struct{
         /* DOC(This is the smaller value in the range, it is also the 'start'.) */
-        int min;
+        int32_t min;
         /* DOC(This is the larger value in the range, it is also the 'end'.) */
-        int max;
+        int32_t max;
     };
     struct{
         /* DOC(This is the start of the range, it is also the 'min'.) */
-        int start;
+        int32_t start;
         /* DOC(This is the end of the range, it is also the 'max'.) */
-        int end;
+        int32_t end;
     };
 };
 
@@ -432,10 +432,10 @@ struct File_Info{
     char *filename;
     
     /* DOC(This field specifies the length of the filename string not counting the null terminator.) */
-    int filename_len;
+    int32_t filename_len;
     
     /* DOC(This field indicates that the description is for a folder not a file.) */
-    int folder;
+    int32_t folder;
 };
 
 /* DOC(File_List is a list of File_Info structs.) */
@@ -445,9 +445,9 @@ struct File_List{
     /* DOC(This field is an array of File_Info structs.) */
     File_Info *infos;
     /* DOC(This field specifies the number of struts in the info array.) */
-    int count;
+    int32_t count;
     /* DOC(This field is for internal use.) */
-    int block_size;
+    int32_t block_size;
 };
 
 /* DOC(
@@ -462,10 +462,10 @@ struct Buffer_Identifier{
     char *name;
     
     /* DOC(This field specifies the length of the name string.) */
-    int name_len;
+    int32_t name_len;
     
     /* DOC(This field is the id of the buffer.  If name is specified this should be 0.) */
-    int id;
+    int32_t id;
 };
 
 /* DOC(This struct is a part of an incomplete feature.) */
@@ -692,7 +692,7 @@ struct Query_Bar{
 /* DOC(This feature is not implemented.) */
 struct Event_Message{
     /* DOC(This feature is not implemented.) */
-    int type;
+    int32_t type;
 };
 
 /* 

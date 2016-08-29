@@ -78,36 +78,36 @@ f32XYWH(float x, float y, float w, float h){
     return(rect);
 }
 
-inline int
+inline int32_t
 rect_equal(i32_Rect r1, i32_Rect r2){
-    int result = (r1.x0 == r2.x0 &&
-                  r1.y0 == r2.y0 &&
-                  r1.x1 == r2.x1 &&
-                  r1.y1 == r2.y1);
+    int32_t result = (r1.x0 == r2.x0 &&
+                      r1.y0 == r2.y0 &&
+                      r1.x1 == r2.x1 &&
+                      r1.y1 == r2.y1);
     return(result);
 }
 
-inline int
+inline int32_t
 hit_check(int32_t x, int32_t y, int32_t x0, int32_t y0, int32_t x1, int32_t y1){
     return (x >= x0 && x < x1 && y >= y0 && y < y1);
 }
 
-inline int
+inline int32_t
 hit_check(int32_t x, int32_t y, i32_Rect rect){
     return (hit_check(x, y, rect.x0, rect.y0, rect.x1, rect.y1));
 }
 
-inline int
+inline int32_t
 hit_check(int32_t x, int32_t y, float x0, float y0, float x1, float y1){
     return (x >= x0 && x < x1 && y >= y0 && y < y1);
 }
 
-inline int
+inline int32_t
 hit_check(int32_t x, int32_t y, f32_Rect rect){
     return (hit_check(x, y, rect.x0, rect.y0, rect.x1, rect.y1));
 }
 
-inline int
+inline int32_t
 positive_area(i32_Rect rect){
     return (rect.x0 < rect.x1 && rect.y0 < rect.y1);
 }
@@ -122,7 +122,7 @@ get_inner_rect(i32_Rect outer, int32_t margin){
     return r;
 }
 
-inline int
+inline int32_t
 fits_inside(i32_Rect rect, i32_Rect outer){
     return (rect.x0 >= outer.x0 && rect.x1 <= outer.x1 &&
             rect.y0 >= outer.y0 && rect.y1 <= outer.y1);

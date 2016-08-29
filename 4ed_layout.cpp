@@ -33,8 +33,6 @@ struct Panel{
     i32 parent;
     i32 which_child;
     
-    int ALLOCED;
-    
     union{
         struct{
             i32_Rect full;
@@ -140,8 +138,6 @@ layout_alloc_panel(Editing_Layout *layout){
     
     result.id = (i32)(result.panel - layout->panels);
     
-    result.panel->ALLOCED = 1;
-    
     return(result);
 }
 
@@ -150,8 +146,6 @@ layout_free_panel(Editing_Layout *layout, Panel *panel){
     dll_remove(panel);
     dll_insert(&layout->free_sentinel, panel);
     --layout->panel_count;
-    
-    panel->ALLOCED = 0;
 }
 
 internal Divider_And_ID

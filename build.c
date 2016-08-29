@@ -33,7 +33,7 @@
 #endif
 
 static char cmd[1024];
-static int error_state = 0;
+static int32_t error_state = 0;
 
 #define systemf(...) do{\
     int32_t n = snprintf(cmd, sizeof(cmd), __VA_ARGS__);\
@@ -268,6 +268,20 @@ int main(int argc, char **argv){
     
 #define META_DIR "../meta"
 #define BUILD_DIR "../build"
+    
+#if 0
+    {
+        BEGIN_TIME_SECTION();
+        build(OPTS, cdir, "fsm_table_generator.cpp",
+              BUILD_DIR, "fsmgen", 0);
+        END_TIME_SECTION("build fsm generator");
+    }
+    {
+        BEGIN_TIME_SECTION();
+        execute(cdir, BUILD_DIR"/fsmgen");
+        END_TIME_SECTION("run fsm generator");
+    }
+#endif
     
     {
         BEGIN_TIME_SECTION();

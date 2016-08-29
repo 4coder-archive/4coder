@@ -63,7 +63,7 @@ DOC(TODO)
 }
 
 API_EXPORT bool32
-File_Exists(Application_Links *app, char *filename, int len)/*
+File_Exists(Application_Links *app, char *filename, int32_t len)/*
 DOC_PARAM(filename, This parameter specifies the full path to a file; it need not be null terminated.)
 DOC_PARAM(len, This parameter specifies the length of the filename string.)
 DOC_RETURN(This call returns non-zero if and only if the file exists.)
@@ -91,7 +91,7 @@ DOC_RETURN(This call returns non-zero if and only if the file exists.)
 }
 
 API_EXPORT bool32
-Directory_CD(Application_Links *app, char *dir, int *len, int capacity, char *rel_path, int rel_len)/*
+Directory_CD(Application_Links *app, char *dir, int32_t *len, int32_t capacity, char *rel_path, int32_t rel_len)/*
 DOC_PARAM(dir, This parameter provides a character buffer that stores a directory; it need not be null terminated.)
 DOC_PARAM(len, This parameter specifies the length of the dir string.)
 DOC_PARAM(capacity, This parameter specifies the maximum size of the dir string.)

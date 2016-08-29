@@ -44,9 +44,9 @@ CUSTOM_COMMAND_SIG(write_capital){
 CUSTOM_COMMAND_SIG(switch_to_compilation){
     
     char name[] = "*compilation*";
-    int name_size = sizeof(name)-1;
+    int32_t name_size = sizeof(name)-1;
     
-    unsigned int access = AccessOpen;
+    uint32_t access = AccessOpen;
     View_Summary view = app->get_active_view(app, access);
     Buffer_Summary buffer = app->get_buffer_by_name(app, name, name_size, access);
     
@@ -54,7 +54,7 @@ CUSTOM_COMMAND_SIG(switch_to_compilation){
 }
 
 CUSTOM_COMMAND_SIG(rewrite_as_single_caps){
-    unsigned int access = AccessOpen;
+    uint32_t access = AccessOpen;
     View_Summary view = app->get_active_view(app, access);
     Full_Cursor cursor = view.cursor;
     
@@ -77,8 +77,8 @@ CUSTOM_COMMAND_SIG(rewrite_as_single_caps){
     Buffer_Summary buffer = app->get_buffer(app, view.buffer_id, access);
     app->buffer_read_range(app, &buffer, range.min, range.max, string.str);
     
-    int is_first = true;
-    for (int i = 0; i < string.size; ++i){
+    int32_t is_first = true;
+    for (int32_t i = 0; i < string.size; ++i){
         if (char_is_alpha_true(string.str[i])){
             if (is_first){
                 is_first = false;
@@ -100,13 +100,13 @@ CUSTOM_COMMAND_SIG(rewrite_as_single_caps){
 }
 
 CUSTOM_COMMAND_SIG(open_my_files){
-    unsigned int access = AccessAll;
+    uint32_t access = AccessAll;
     View_Summary view = app->get_active_view(app, access);
     view_open_file(app, &view, literal("w:/4ed/data/test/basic.cpp"), false);
 }
 
 CUSTOM_COMMAND_SIG(build_at_launch_location){
-    unsigned int access = AccessAll;
+    uint32_t access = AccessAll;
     View_Summary view = app->get_active_view(app, access);
     app->exec_system_command(app, &view,
                              buffer_identifier(literal("*compilation*")),
@@ -171,12 +171,12 @@ OPEN_FILE_HOOK_SIG(my_file_settings){
     // NOTE(allen|a4.0.8): The app->get_parameter_buffer was eliminated
     // and instead the buffer is passed as an explicit parameter through
     // the function call.  That is where buffer_id comes from here.
-    unsigned int access = AccessProtected|AccessHidden;
+    uint32_t access = AccessProtected|AccessHidden;
     Buffer_Summary buffer = app->get_buffer(app, buffer_id, access);
     assert(buffer.exists);
     
-    int treat_as_code = 0;
-    int wrap_lines = 1;
+    int32_t treat_as_code = 0;
+    int32_t wrap_lines = 1;
     
     if (buffer.file_name && buffer.size < (16 << 20)){
         String ext = file_extension(make_string(buffer.file_name, buffer.file_name_len));
@@ -195,7 +195,8 @@ OPEN_FILE_HOOK_SIG(my_file_settings){
     
     app->buffer_set_setting(app, &buffer, BufferSetting_Lex, treat_as_code);
     app->buffer_set_setting(app, &buffer, BufferSetting_WrapLine, wrap_lines);
-    app->buffer_set_setting(app, &buffer, BufferSetting_MapID, (treat_as_code)?((int)my_code_map):((int)mapid_file));
+    app->buffer_set_setting(app, &buffer, BufferSetting_MapID,
+                            (treat_as_code)?((int32_t)my_code_map):((int32_t)mapid_file));
     
     // no meaning for return
     return(0);

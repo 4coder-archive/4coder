@@ -172,7 +172,7 @@ enum Coroutine_Type{
 };
 struct App_Coroutine_State{
     void *co;
-    int type;
+    i32 type;
 };
 inline App_Coroutine_State
 get_state(Application_Links *app){
@@ -764,7 +764,7 @@ view_caller(Coroutine *coroutine){
 }
 
 internal void
-app_links_init(System_Functions *system, Application_Links *app_links, void *data, int size){
+app_links_init(System_Functions *system, Application_Links *app_links, void *data, i32 size){
     app_links->memory = data;
     app_links->memory_size = size;
     
@@ -1077,26 +1077,6 @@ app_hardcode_styles(Models *models){
     style_copy(main_style(models), models->styles.styles + 1);
 }
 
-char *_4coder_get_extension(const char *filename, int len, int *extension_len){
-    char *c = (char*)(filename + len - 1);
-    char *end = c;
-    while (*c != '.' && c > filename) --c;
-    *extension_len = (int)(end - c);
-    return c+1;
-}
-
-bool _4coder_str_match(const char *a, int len_a, const char *b, int len_b){
-    bool result = 0;
-    if (len_a == len_b){
-        char *end = (char*)(a + len_a);
-        while (a < end && *a == *b){
-            ++a; ++b;
-        }
-        if (a == end) result = 1;
-    }
-    return result;
-}
-
 enum Command_Line_Action{
     CLAct_Nothing,
     CLAct_Ignore,
@@ -1271,7 +1251,7 @@ App_Read_Command_Line_Sig(app_read_command_line){
 }
 
 extern "C" SCROLL_RULE_SIG(fallback_scroll_rule){
-    int result = 0;
+    i32 result = 0;
     
     if (target_x != *scroll_x){
         *scroll_x = target_x;
@@ -1403,8 +1383,8 @@ App_Init_Sig(app_init){
                     switch (unit->type){
                         case unit_map_begin:
                         {
-                            int mapid = unit->map_begin.mapid;
-                            int count = map_get_count(models, mapid);
+                            i32 mapid = unit->map_begin.mapid;
+                            i32 count = map_get_count(models, mapid);
                             if (unit->map_begin.replace){
                                 map_set_count(models, mapid, unit->map_begin.bind_count);
                             }
@@ -1420,9 +1400,9 @@ App_Init_Sig(app_init){
                     switch (unit->type){
                         case unit_map_begin:
                         {
-                            int mapid = unit->map_begin.mapid;
-                            int count = map_get_max_count(models, mapid);
-                            int table_max = count * 3 / 2;
+                            i32 mapid = unit->map_begin.mapid;
+                            i32 count = map_get_max_count(models, mapid);
+                            i32 table_max = count * 3 / 2;
                             if (mapid == mapid_global){
                                 map_ptr = &models->map_top;
                                 map_init(map_ptr, &models->mem.part, table_max, global);
@@ -1449,7 +1429,7 @@ App_Init_Sig(app_init){
                         case unit_inherit:
                         if (map_ptr){
                             Command_Map *parent = 0;
-                            int mapid = unit->map_inherit.mapid;
+                            i32 mapid = unit->map_inherit.mapid;
                             if (mapid == mapid_global) parent = &models->map_top;
                             else if (mapid == mapid_file) parent = &models->map_file;
                             else if (mapid < mapid_global){
@@ -1495,7 +1475,7 @@ App_Init_Sig(app_init){
                         
                         case unit_hook:
                         {
-                            int hook_id = unit->hook.hook_id;
+                            i32 hook_id = unit->hook.hook_id;
                             if (hook_id >= 0){
                                 if (hook_id < hook_type_count){
                                     models->hooks[hook_id] = (Hook_Function*)unit->hook.func;
@@ -1551,7 +1531,7 @@ App_Init_Sig(app_init){
             i32 pt_size;
         };
         
-        int font_size = models->settings.font_size;
+        i32 font_size = models->settings.font_size;
         
         if (font_size < 8) font_size = 8;
         

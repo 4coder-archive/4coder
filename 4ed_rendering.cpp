@@ -171,7 +171,7 @@ struct Render_Quad{
 };
 
 inline Render_Quad
-get_render_quad(Glyph_Data *b, int pw, int ph, float xpos, float ypos){
+get_render_quad(Glyph_Data *b, i32 pw, i32 ph, float xpos, float ypos){
     Render_Quad q;
     
     float ipw = 1.0f / pw, iph = 1.0f / ph;
@@ -190,7 +190,7 @@ get_render_quad(Glyph_Data *b, int pw, int ph, float xpos, float ypos){
 }
 
 inline Render_Quad
-get_exact_render_quad(Glyph_Data *b, int pw, int ph, float xpos, float ypos){
+get_exact_render_quad(Glyph_Data *b, i32 pw, i32 ph, float xpos, float ypos){
     Render_Quad q;
     
     float ipw = 1.0f / pw, iph = 1.0f / ph;
@@ -342,7 +342,7 @@ launch_rendering(Render_Target *target){
 #undef ExtractStruct
 
 internal void*
-part_alloc(int size, void *context){
+part_alloc(i32 size, void *context){
     Partition *part = (Partition*)context;
     void *result = push_block(part, size);
     return(result);
@@ -561,10 +561,10 @@ font_load_freetype(Partition *part,
     rf->height -= rf->line_skip;
     rf->line_skip = 0;
     
-    int max_glyph_w = face->size->metrics.x_ppem;
-    int max_glyph_h = rf->height;
-    int tex_width   = 64;
-    int tex_height  = 0;
+    i32 max_glyph_w = face->size->metrics.x_ppem;
+    i32 max_glyph_h = rf->height;
+    i32 tex_width   = 64;
+    i32 tex_height  = 0;
     
     // estimate upper bound on texture width
     do {
@@ -576,8 +576,8 @@ font_load_freetype(Partition *part,
     
     tex_height = next_pow_of_2(tex_height);
     
-    int pen_x = 0;
-    int pen_y = 0;
+    i32 pen_x = 0;
+    i32 pen_y = 0;
     
     u32* pixels = push_array(part, u32, tex_width * tex_height);
     memset(pixels, 0, tex_width * tex_height * sizeof(u32));
@@ -597,11 +597,11 @@ font_load_freetype(Partition *part,
         }
     }
     
-    for(int i = 0; i < NUM_GLYPHS; ++i){
+    for(i32 i = 0; i < NUM_GLYPHS; ++i){
         if(FT_Load_Char(face, i, FT_LOAD_RENDER | ft_extra_flags) != 0) continue;
         
-        int w = face->glyph->bitmap.width;
-        int h = face->glyph->bitmap.rows;
+        i32 w = face->glyph->bitmap.width;
+        i32 h = face->glyph->bitmap.rows;
         
         // lcd filter produces RGB bitmaps, need to account for the extra components
         if(use_lcd_filter){
@@ -635,13 +635,13 @@ font_load_freetype(Partition *part,
         rf->glyphs[i].exists = 1;
         
         
-        int pitch = face->glyph->bitmap.pitch;
+        i32 pitch = face->glyph->bitmap.pitch;
         
         // write to texture atlas
-        for(int j = 0; j < h; ++j){
-            for(int i = 0; i < w; ++i){
-                int x = pen_x + i;
-                int y = pen_y + j;
+        for(i32 j = 0; j < h; ++j){
+            for(i32 i = 0; i < w; ++i){
+                i32 x = pen_x + i;
+                i32 y = pen_y + j;
                 
                 if(use_lcd_filter){
 #if 1

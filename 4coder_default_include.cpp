@@ -29,8 +29,8 @@ static General_Memory global_general;
 
 void
 init_memory(Application_Links *app){
-    int part_size = (1 << 20);
-    int general_size = (1 << 20);
+    int32_t part_size = (1 << 20);
+    int32_t general_size = (1 << 20);
     
     
     void *part_mem = app->memory_allocate(app, part_size);
@@ -49,25 +49,25 @@ struct Stream_Chunk{
     Buffer_Summary *buffer;
     
     char *base_data;
-    int start, end;
-    int min_start, max_end;
-    int data_size;
+    int32_t start, end;
+    int32_t min_start, max_end;
+    int32_t data_size;
     
     char *data;
 };
 
-int
-round_down(int x, int b){
-    int r = 0;
+int32_t
+round_down(int32_t x, int32_t b){
+    int32_t r = 0;
     if (x >= 0){
         r = x - (x % b);
     }
     return(r);
 }
 
-int
-round_up(int x, int b){
-    int r = 0;
+int32_t
+round_up(int32_t x, int32_t b){
+    int32_t r = 0;
     if (x >= 0){
         r = x - (x % b) + b;
     }
@@ -84,11 +84,11 @@ refresh_view(Application_Links *app, View_Summary *view){
     *view = app->get_view(app, view->view_id, AccessAll);
 }
 
-int
+int32_t
 init_stream_chunk(Stream_Chunk *chunk,
                   Application_Links *app, Buffer_Summary *buffer,
-                  int pos, char *data, int size){
-    int result = false;
+                  int32_t pos, char *data, int32_t size){
+    int32_t result = false;
     
     refresh_buffer(app, buffer);
     if (pos >= 0 && pos < buffer->size && size > 0){
@@ -120,11 +120,11 @@ init_stream_chunk(Stream_Chunk *chunk,
     return(result);
 }
 
-int
+int32_t
 forward_stream_chunk(Stream_Chunk *chunk){
     Application_Links *app = chunk->app;
     Buffer_Summary *buffer = chunk->buffer;
-    int result = false;
+    int32_t result = false;
     
     refresh_buffer(app, buffer);
     if (chunk->end < buffer->size){
@@ -147,11 +147,11 @@ forward_stream_chunk(Stream_Chunk *chunk){
     return(result);
 }
 
-int
+int32_t
 backward_stream_chunk(Stream_Chunk *chunk){
     Application_Links *app = chunk->app;
     Buffer_Summary *buffer = chunk->buffer;
-    int result = false;
+    int32_t result = false;
     
     refresh_buffer(app, buffer);
     if (chunk->start > 0){
@@ -176,14 +176,14 @@ backward_stream_chunk(Stream_Chunk *chunk){
 
 void
 buffer_seek_delimiter_forward(Application_Links *app, Buffer_Summary *buffer,
-                              int pos, char delim, int *result){
+                              int32_t pos, char delim, int32_t *result){
     if (buffer->exists){
         char chunk[1024];
-        int size = sizeof(chunk);
+        int32_t size = sizeof(chunk);
         Stream_Chunk stream = {0};
         
         if (init_stream_chunk(&stream, app, buffer, pos, chunk, size)){
-            int still_looping = 1;
+            int32_t still_looping = 1;
             do{
                 for(; pos < stream.end; ++pos){
                     char at_pos = stream.data[pos];
@@ -204,14 +204,14 @@ buffer_seek_delimiter_forward(Application_Links *app, Buffer_Summary *buffer,
 
 void
 buffer_seek_delimiter_backward(Application_Links *app, Buffer_Summary *buffer,
-                              int pos, char delim, int *result){
+                              int32_t pos, char delim, int32_t *result){
     if (buffer->exists){
         char chunk[1024];
-        int size = sizeof(chunk);
+        int32_t size = sizeof(chunk);
         Stream_Chunk stream = {0};
         
         if (init_stream_chunk(&stream, app, buffer, pos, chunk, size)){
-            int still_looping = 1;
+            int32_t still_looping = 1;
             do{
                 for(; pos >= stream.start; --pos){
                     char at_pos = stream.data[pos];
@@ -238,7 +238,7 @@ buffer_seek_delimiter_backward(Application_Links *app, Buffer_Summary *buffer,
 // replacing char read_buffer[512]; with more memory.
 void
 buffer_seek_string_forward(Application_Links *app, Buffer_Summary *buffer,
-                           int pos, int end, char *str, int size, int *result){
+                           int32_t pos, int32_t end, char *str, int32_t size, int32_t *result){
     char read_buffer[512];
     
     if (size <= 0){
@@ -256,12 +256,12 @@ buffer_seek_string_forward(Application_Links *app, Buffer_Summary *buffer,
             read_str.size = size;
             
             char chunk[1024];
-            int chunk_size = sizeof(chunk);
+            int32_t chunk_size = sizeof(chunk);
             Stream_Chunk stream = {0};
             stream.max_end = end;
             
             if (init_stream_chunk(&stream, app, buffer, pos, chunk, chunk_size)){
-                int still_looping = 1;
+                int32_t still_looping = 1;
                 do{
                     for(; pos < stream.end; ++pos){
                         char at_pos = stream.data[pos];
@@ -294,7 +294,7 @@ buffer_seek_string_forward(Application_Links *app, Buffer_Summary *buffer,
 // replacing char read_buffer[512]; with more memory.
 void
 buffer_seek_string_backward(Application_Links *app, Buffer_Summary *buffer,
-                            int pos, int min, char *str, int size, int *result){
+                            int32_t pos, int32_t min, char *str, int32_t size, int32_t *result){
     char read_buffer[512];
     if (size <= 0){
         *result = min-1;
@@ -311,12 +311,12 @@ buffer_seek_string_backward(Application_Links *app, Buffer_Summary *buffer,
             read_str.size = size;
             
             char chunk[1024];
-            int chunk_size = sizeof(chunk);
+            int32_t chunk_size = sizeof(chunk);
             Stream_Chunk stream = {0};
             stream.min_start = min;
             
             if (init_stream_chunk(&stream, app, buffer, pos, chunk, chunk_size)){
-                int still_looping = 1;
+                int32_t still_looping = 1;
                 do{
                     for(; pos >= stream.start; --pos){
                         char at_pos = stream.data[pos];
@@ -344,10 +344,10 @@ buffer_seek_string_backward(Application_Links *app, Buffer_Summary *buffer,
 // replacing char read_buffer[512]; with more memory.
 void
 buffer_seek_string_insensitive_forward(Application_Links *app, Buffer_Summary *buffer,
-                                       int pos, int end, char *str, int size, int *result){
+                                       int32_t pos, int32_t end, char *str, int32_t size, int32_t *result){
     char read_buffer[512];
     char chunk[1024];
-    int chunk_size = sizeof(chunk);
+    int32_t chunk_size = sizeof(chunk);
     Stream_Chunk stream = {0};
     stream.max_end = end;
     
@@ -366,7 +366,7 @@ buffer_seek_string_insensitive_forward(Application_Links *app, Buffer_Summary *b
             read_str.size = size;
             
             if (init_stream_chunk(&stream, app, buffer, pos, chunk, chunk_size)){
-                int still_looping = 1;
+                int32_t still_looping = 1;
                 do{
                     for(; pos < stream.end; ++pos){
                         char at_pos = char_to_upper(stream.data[pos]);
@@ -394,10 +394,10 @@ buffer_seek_string_insensitive_forward(Application_Links *app, Buffer_Summary *b
 // replacing char read_buffer[512]; with more memory.
 void
 buffer_seek_string_insensitive_backward(Application_Links *app, Buffer_Summary *buffer,
-                                        int pos, int min, char *str, int size, int *result){
+                                        int32_t pos, int32_t min, char *str, int32_t size, int32_t *result){
     char read_buffer[512];
     char chunk[1024];
-    int chunk_size = sizeof(chunk);
+    int32_t chunk_size = sizeof(chunk);
     Stream_Chunk stream = {0};
     stream.min_start = min;
     
@@ -416,7 +416,7 @@ buffer_seek_string_insensitive_backward(Application_Links *app, Buffer_Summary *
             read_str.size = size;
             
             if (init_stream_chunk(&stream, app, buffer, pos, chunk, chunk_size)){
-                int still_looping = 1;
+                int32_t still_looping = 1;
                 do{
                     for(; pos >= stream.start; --pos){
                         char at_pos = char_to_upper(stream.data[pos]);
@@ -462,7 +462,7 @@ get_view_x(View_Summary view){
 }
 
 CUSTOM_COMMAND_SIG(write_character){
-    unsigned int access = AccessOpen;
+    uint32_t access = AccessOpen;
     View_Summary view = app->get_active_view(app, access);
     
     User_Input in = app->get_command_input(app);
@@ -475,8 +475,8 @@ CUSTOM_COMMAND_SIG(write_character){
     if (character != 0){
         Buffer_Summary buffer = app->get_buffer(app, view.buffer_id, access);
         
-        int pos = view.cursor.pos;
-        int next_pos = pos + 1;
+        int32_t pos = view.cursor.pos;
+        int32_t next_pos = pos + 1;
         app->buffer_replace_range(app, &buffer,
                                   pos, pos, &character, 1);
         app->view_set_cursor(app, &view, seek_pos(next_pos), true);
@@ -484,11 +484,11 @@ CUSTOM_COMMAND_SIG(write_character){
 }
 
 CUSTOM_COMMAND_SIG(delete_char){
-    unsigned int access = AccessOpen;
+    uint32_t access = AccessOpen;
     View_Summary view = app->get_active_view(app, access);
     Buffer_Summary buffer = app->get_buffer(app, view.buffer_id, access);
     
-    int pos = view.cursor.pos;
+    int32_t pos = view.cursor.pos;
     if (0 < buffer.size && pos < buffer.size){
         app->buffer_replace_range(app, &buffer,
                                   pos, pos+1, 0, 0);
@@ -496,11 +496,11 @@ CUSTOM_COMMAND_SIG(delete_char){
 }
 
 CUSTOM_COMMAND_SIG(backspace_char){
-    unsigned int access = AccessOpen;
+    uint32_t access = AccessOpen;
     View_Summary view = app->get_active_view(app, access);
     Buffer_Summary buffer = app->get_buffer(app, view.buffer_id, access);
     
-    int pos = view.cursor.pos;
+    int32_t pos = view.cursor.pos;
     if (0 < pos && pos <= buffer.size){
         app->buffer_replace_range(app, &buffer,
                                   pos-1, pos, 0, 0);
@@ -510,7 +510,7 @@ CUSTOM_COMMAND_SIG(backspace_char){
 }
 
 CUSTOM_COMMAND_SIG(set_mark){
-    unsigned int access = AccessProtected;
+    uint32_t access = AccessProtected;
     View_Summary view = app->get_active_view(app, access);
     
     app->view_set_mark(app, &view, seek_pos(view.cursor.pos));
@@ -519,18 +519,18 @@ CUSTOM_COMMAND_SIG(set_mark){
 }
 
 CUSTOM_COMMAND_SIG(cursor_mark_swap){
-    unsigned int access = AccessProtected;
+    uint32_t access = AccessProtected;
     View_Summary view = app->get_active_view(app, access);
     
-    int cursor = view.cursor.pos;
-    int mark = view.mark.pos;
+    int32_t cursor = view.cursor.pos;
+    int32_t mark = view.mark.pos;
     
     app->view_set_cursor(app, &view, seek_pos(mark), true);
     app->view_set_mark(app, &view, seek_pos(cursor));
 }
 
 CUSTOM_COMMAND_SIG(delete_range){
-    unsigned int access = AccessOpen;
+    uint32_t access = AccessOpen;
     View_Summary view = app->get_active_view(app, access);
     Buffer_Summary buffer = app->get_buffer(app, view.buffer_id, access);
     
@@ -569,18 +569,18 @@ CUSTOM_COMMAND_SIG(left_adjust_view){
     app->view_set_scroll(app, &view, scroll);
 }
 
-int
-get_relative_xy(View_Summary *view, int x, int y, float *x_out, float *y_out){
-    int result = false;
+int32_t
+get_relative_xy(View_Summary *view, int32_t x, int32_t y, float *x_out, float *y_out){
+    int32_t result = false;
     
     i32_Rect region = view->file_region;
     
-    int max_x = (region.x1 - region.x0);
-    int max_y = (region.y1 - region.y0);
+    int32_t max_x = (region.x1 - region.x0);
+    int32_t max_y = (region.y1 - region.y0);
     GUI_Scroll_Vars scroll_vars = view->scroll_vars;
     
-    int rx = x - region.x0;
-    int ry = y - region.y0;
+    int32_t rx = x - region.x0;
+    int32_t ry = y - region.y0;
     
     if (ry >= 0){
         if (rx >= 0 && rx < max_x && ry >= 0 && ry < max_y){
@@ -595,7 +595,7 @@ get_relative_xy(View_Summary *view, int x, int y, float *x_out, float *y_out){
 }
 
 CUSTOM_COMMAND_SIG(click_set_cursor){
-    unsigned int access = AccessProtected;
+    uint32_t access = AccessProtected;
     View_Summary view = app->get_active_view(app, access);
     
     Mouse_State mouse = app->get_mouse_state(app);
@@ -609,7 +609,7 @@ CUSTOM_COMMAND_SIG(click_set_cursor){
 }
 
 CUSTOM_COMMAND_SIG(click_set_mark){
-    unsigned int access = AccessProtected;
+    uint32_t access = AccessProtected;
     View_Summary view = app->get_active_view(app, access);
     
     Mouse_State mouse = app->get_mouse_state(app);
@@ -624,7 +624,7 @@ CUSTOM_COMMAND_SIG(click_set_mark){
 
 inline void
 move_vertical(Application_Links *app, float line_multiplier){
-    unsigned int access = AccessProtected;
+    uint32_t access = AccessProtected;
     View_Summary view = app->get_active_view(app, access);
     
     float new_y = get_view_y(view) + line_multiplier*view.line_height;
@@ -668,14 +668,14 @@ get_page_jump(View_Summary *view){
 }
 
 CUSTOM_COMMAND_SIG(page_up){
-    unsigned int access = AccessProtected;
+    uint32_t access = AccessProtected;
     View_Summary view = app->get_active_view(app, access);
     float page_jump = get_page_jump(&view);
     move_vertical(app, -page_jump);
 }
 
 CUSTOM_COMMAND_SIG(page_down){
-    unsigned int access = AccessProtected;
+    uint32_t access = AccessProtected;
     View_Summary view = app->get_active_view(app, access);
     float page_jump = get_page_jump(&view);
     move_vertical(app, page_jump);
@@ -683,18 +683,18 @@ CUSTOM_COMMAND_SIG(page_down){
 
 
 CUSTOM_COMMAND_SIG(move_left){
-    unsigned int access = AccessProtected;
+    uint32_t access = AccessProtected;
     View_Summary view = app->get_active_view(app, access);
-    int new_pos = view.cursor.pos - 1;
+    int32_t new_pos = view.cursor.pos - 1;
     app->view_set_cursor(app, &view,
                          seek_pos(new_pos),
                          true);
 }
 
 CUSTOM_COMMAND_SIG(move_right){
-    unsigned int access = AccessProtected;
+    uint32_t access = AccessProtected;
     View_Summary view = app->get_active_view(app, access);
-    int new_pos = view.cursor.pos + 1;
+    int32_t new_pos = view.cursor.pos + 1;
     app->view_set_cursor(app, &view,
                          seek_pos(new_pos),
                          true);
@@ -704,13 +704,13 @@ CUSTOM_COMMAND_SIG(move_right){
 // Auto Indenting and Whitespace
 //
 
-static int
-seek_line_end(Application_Links *app, Buffer_Summary *buffer, int pos){
+static int32_t
+seek_line_end(Application_Links *app, Buffer_Summary *buffer, int32_t pos){
     char chunk[1024];
-    int chunk_size = sizeof(chunk);
+    int32_t chunk_size = sizeof(chunk);
     Stream_Chunk stream = {0};
     
-    int still_looping;
+    int32_t still_looping;
     char at_pos;
     
     if (init_stream_chunk(&stream, app, buffer, pos, chunk, chunk_size)){
@@ -734,13 +734,13 @@ seek_line_end(Application_Links *app, Buffer_Summary *buffer, int pos){
     return(pos);
 }
 
-static int
-seek_line_beginning(Application_Links *app, Buffer_Summary *buffer, int pos){
+static int32_t
+seek_line_beginning(Application_Links *app, Buffer_Summary *buffer, int32_t pos){
     char chunk[1024];
-    int chunk_size = sizeof(chunk);
+    int32_t chunk_size = sizeof(chunk);
     Stream_Chunk stream = {0};
     
-    int still_looping;
+    int32_t still_looping;
     char at_pos;
     
     --pos;
@@ -772,12 +772,12 @@ static void
 move_past_lead_whitespace(Application_Links *app, View_Summary *view, Buffer_Summary *buffer){
     refresh_view(app, view);
     
-    int new_pos = seek_line_beginning(app, buffer, view->cursor.pos);
+    int32_t new_pos = seek_line_beginning(app, buffer, view->cursor.pos);
     char space[1024];
     Stream_Chunk chunk = {0};
-    int still_looping = false;
+    int32_t still_looping = false;
     
-    int i = new_pos;
+    int32_t i = new_pos;
     if (init_stream_chunk(&chunk, app, buffer, i, space, sizeof(space))){
         do{
             for (; i < chunk.end; ++i){
@@ -797,7 +797,7 @@ move_past_lead_whitespace(Application_Links *app, View_Summary *view, Buffer_Sum
 }
 
 CUSTOM_COMMAND_SIG(auto_tab_line_at_cursor){
-    unsigned int access = AccessOpen;
+    uint32_t access = AccessOpen;
     View_Summary view = app->get_active_view(app, access);
     Buffer_Summary buffer = app->get_buffer(app, view.buffer_id, access);
     
@@ -809,7 +809,7 @@ CUSTOM_COMMAND_SIG(auto_tab_line_at_cursor){
 }
 
 CUSTOM_COMMAND_SIG(auto_tab_whole_file){
-    unsigned int access = AccessOpen;
+    uint32_t access = AccessOpen;
     View_Summary view = app->get_active_view(app, access);
     Buffer_Summary buffer = app->get_buffer(app, view.buffer_id, access);
     
@@ -820,7 +820,7 @@ CUSTOM_COMMAND_SIG(auto_tab_whole_file){
 }
 
 CUSTOM_COMMAND_SIG(auto_tab_range){
-    unsigned int access = AccessOpen;
+    uint32_t access = AccessOpen;
     View_Summary view = app->get_active_view(app, access);
     Buffer_Summary buffer = app->get_buffer(app, view.buffer_id, access);
     Range range = get_range(&view);
@@ -844,8 +844,8 @@ CUSTOM_COMMAND_SIG(clean_all_lines){
     View_Summary view = app->get_active_view(app, AccessOpen);
     Buffer_Summary buffer = app->get_buffer(app, view.buffer_id, AccessOpen);
     
-    int line_count = buffer.line_count;
-    int edit_max = line_count;
+    int32_t line_count = buffer.line_count;
+    int32_t edit_max = line_count;
     
     if (edit_max*sizeof(Buffer_Edit) < app->memory_size){
         Buffer_Edit *edits = (Buffer_Edit*)app->memory;
@@ -853,14 +853,14 @@ CUSTOM_COMMAND_SIG(clean_all_lines){
         char data[1024];
         Stream_Chunk chunk = {0};
         
-        int i = 0;
+        int32_t i = 0;
         if (init_stream_chunk(&chunk, app, &buffer,
                               i, data, sizeof(data))){
             Buffer_Edit *edit = edits;
             
-            int buffer_size = buffer.size;
-            int still_looping = true;
-            int last_hard = buffer_size;
+            int32_t buffer_size = buffer.size;
+            int32_t still_looping = true;
+            int32_t last_hard = buffer_size;
             do{
                 for (; i < chunk.end; ++i){
                     char at_pos = chunk.data[i];
@@ -893,7 +893,7 @@ CUSTOM_COMMAND_SIG(clean_all_lines){
                 ++edit;
             }
             
-            int edit_count = (int)(edit - edits);
+            int32_t edit_count = (int32_t)(edit - edits);
             app->buffer_batch_edit(app, &buffer, 0, 0, edits, edit_count, BatchEdit_PreserveTokens);
         }
     }
@@ -903,16 +903,16 @@ CUSTOM_COMMAND_SIG(clean_all_lines){
 // Clipboard
 //
 
-static int
-clipboard_copy(Application_Links *app, int start, int end, Buffer_Summary *buffer_out,
-               unsigned int access){
+static int32_t
+clipboard_copy(Application_Links *app, int32_t start, int32_t end, Buffer_Summary *buffer_out,
+               uint32_t access){
     View_Summary view = app->get_active_view(app, access);
     Buffer_Summary buffer = app->get_buffer(app, view.buffer_id, access);
-    int result = false;
+    int32_t result = false;
     
     if (buffer.exists){
         if (0 <= start && start <= end && end <= buffer.size){
-            int size = (end - start);
+            int32_t size = (end - start);
             char *str = (char*)app->memory;
             
             if (size <= app->memory_size){
@@ -927,11 +927,11 @@ clipboard_copy(Application_Links *app, int start, int end, Buffer_Summary *buffe
     return(result);
 }
 
-static int
-clipboard_cut(Application_Links *app, int start, int end, Buffer_Summary *buffer_out,
-              unsigned int access){
+static int32_t
+clipboard_cut(Application_Links *app, int32_t start, int32_t end, Buffer_Summary *buffer_out,
+              uint32_t access){
     Buffer_Summary buffer = {0};
-    int result = false;
+    int32_t result = false;
     
     if (clipboard_copy(app, start, end, &buffer, access)){
         app->buffer_replace_range(app, &buffer, start, end, 0, 0);
@@ -942,14 +942,14 @@ clipboard_cut(Application_Links *app, int start, int end, Buffer_Summary *buffer
 }
 
 CUSTOM_COMMAND_SIG(copy){
-    unsigned int access = AccessProtected;
+    uint32_t access = AccessProtected;
     View_Summary view = app->get_active_view(app, access);
     Range range = get_range(&view);
     clipboard_copy(app, range.min, range.max, 0, access);
 }
 
 CUSTOM_COMMAND_SIG(cut){
-    unsigned int access = AccessOpen;
+    uint32_t access = AccessOpen;
     View_Summary view = app->get_active_view(app, access);
     Range range = get_range(&view);
     clipboard_cut(app, range.min, range.max, 0, access);
@@ -962,26 +962,26 @@ enum Rewrite_Type{
 };
 
 struct View_Paste_Index{
-    int rewrite;
-    int next_rewrite;
-    int index;
+    int32_t rewrite;
+    int32_t next_rewrite;
+    int32_t index;
 };
 
 View_Paste_Index view_paste_index_[16];
 View_Paste_Index *view_paste_index = view_paste_index_ - 1;
 
 CUSTOM_COMMAND_SIG(paste){
-    unsigned int access = AccessOpen;
-    int count = app->clipboard_count(app, 0);
+    uint32_t access = AccessOpen;
+    int32_t count = app->clipboard_count(app, 0);
     if (count > 0){
         View_Summary view = app->get_active_view(app, access);
         
         view_paste_index[view.view_id].next_rewrite = RewritePaste;
         
-        int paste_index = 0;
+        int32_t paste_index = 0;
         view_paste_index[view.view_id].index = paste_index;
         
-        int len = app->clipboard_index(app, 0, paste_index, 0, 0);
+        int32_t len = app->clipboard_index(app, 0, paste_index, 0, 0);
         char *str = 0;
         
         if (len <= app->memory_size){
@@ -992,7 +992,7 @@ CUSTOM_COMMAND_SIG(paste){
             app->clipboard_index(app, 0, paste_index, str, len);
             
             Buffer_Summary buffer = app->get_buffer(app, view.buffer_id, access);
-            int pos = view.cursor.pos;
+            int32_t pos = view.cursor.pos;
             app->buffer_replace_range(app, &buffer, pos, pos, str, len);
             app->view_set_mark(app, &view, seek_pos(pos));
             app->view_set_cursor(app, &view, seek_pos(pos + len), true);
@@ -1007,18 +1007,18 @@ CUSTOM_COMMAND_SIG(paste){
 }
 
 CUSTOM_COMMAND_SIG(paste_next){
-    unsigned int access = AccessOpen;
-    int count = app->clipboard_count(app, 0);
+    uint32_t access = AccessOpen;
+    int32_t count = app->clipboard_count(app, 0);
     if (count > 0){
         View_Summary view = app->get_active_view(app, access);
         
         if (view_paste_index[view.view_id].rewrite == RewritePaste){
             view_paste_index[view.view_id].next_rewrite = RewritePaste;
             
-            int paste_index = view_paste_index[view.view_id].index + 1;
+            int32_t paste_index = view_paste_index[view.view_id].index + 1;
             view_paste_index[view.view_id].index = paste_index;
             
-            int len = app->clipboard_index(app, 0, paste_index, 0, 0);
+            int32_t len = app->clipboard_index(app, 0, paste_index, 0, 0);
             char *str = 0;
             
             if (len <= app->memory_size){
@@ -1030,7 +1030,7 @@ CUSTOM_COMMAND_SIG(paste_next){
                 
                 Buffer_Summary buffer = app->get_buffer(app, view.buffer_id, access);
                 Range range = get_range(&view);
-                int pos = range.min;
+                int32_t pos = range.min;
                 
                 app->buffer_replace_range(app, &buffer, range.min, range.max, str, len);
                 app->view_set_cursor(app, &view, seek_pos(pos + len), true);
@@ -1067,12 +1067,12 @@ CUSTOM_COMMAND_SIG(to_uppercase){
     Buffer_Summary buffer = app->get_buffer(app, view.buffer_id, AccessOpen);
     
     Range range = get_range(&view);
-    int size = range.max - range.min;
+    int32_t size = range.max - range.min;
     if (size <= app->memory_size){
         char *mem = (char*)app->memory;
         
         app->buffer_read_range(app, &buffer, range.min, range.max, mem);
-        for (int i = 0; i < size; ++i){
+        for (int32_t i = 0; i < size; ++i){
             mem[i] = char_to_upper(mem[i]);
         }
         app->buffer_replace_range(app, &buffer, range.min, range.max, mem, size);
@@ -1085,12 +1085,12 @@ CUSTOM_COMMAND_SIG(to_lowercase){
     Buffer_Summary buffer = app->get_buffer(app, view.buffer_id, AccessOpen);
     
     Range range = get_range(&view);
-    int size = range.max - range.min;
+    int32_t size = range.max - range.min;
     if (size <= app->memory_size){
         char *mem = (char*)app->memory;
         
         app->buffer_read_range(app, &buffer, range.min, range.max, mem);
-        for (int i = 0; i < size; ++i){
+        for (int32_t i = 0; i < size; ++i){
             mem[i] = char_to_lower(mem[i]);
         }
         app->buffer_replace_range(app, &buffer, range.min, range.max, mem, size);
@@ -1102,14 +1102,14 @@ CUSTOM_COMMAND_SIG(to_lowercase){
 // Various Forms of Seek
 //
 
-static int
-buffer_seek_whitespace_up(Application_Links *app, Buffer_Summary *buffer, int pos){
+static int32_t
+buffer_seek_whitespace_up(Application_Links *app, Buffer_Summary *buffer, int32_t pos){
     char chunk[1024];
-    int chunk_size = sizeof(chunk);
+    int32_t chunk_size = sizeof(chunk);
     Stream_Chunk stream = {0};
     
-    int no_hard;
-    int still_looping;
+    int32_t no_hard;
+    int32_t still_looping;
     char at_pos;
     
     --pos;
@@ -1161,19 +1161,19 @@ buffer_seek_whitespace_up(Application_Links *app, Buffer_Summary *buffer, int po
     return(pos);
 }
 
-static int
-buffer_seek_whitespace_down(Application_Links *app, Buffer_Summary *buffer, int pos){
+static int32_t
+buffer_seek_whitespace_down(Application_Links *app, Buffer_Summary *buffer, int32_t pos){
     char chunk[1024];
-    int chunk_size = sizeof(chunk);
+    int32_t chunk_size = sizeof(chunk);
     Stream_Chunk stream = {0};
     
-    int no_hard;
-    int prev_endline;
-    int still_looping;
+    int32_t no_hard;
+    int32_t prev_endline;
+    int32_t still_looping;
     char at_pos;
     
     if (init_stream_chunk(&stream, app, buffer, pos, chunk, chunk_size)){
-        // Step 1: Find the first non-whitespace character
+        // step 1: find the first non-whitespace character
         // ahead of the current position.
         still_looping = true;
         do{
@@ -1187,9 +1187,9 @@ buffer_seek_whitespace_down(Application_Links *app, Buffer_Summary *buffer, int 
         } while(still_looping);
         double_break_1:;
         
-        // Step 2: Continue scanning forward, at each '\n'
+        // step 2: continue scanning forward, at each '\n'
         // mark it as the beginning of a new line by updating
-        // the prev_endline value.  If another '\n' is found
+        // the prev_endline value.  if another '\n' is found
         // with non-whitespace then the previous line was
         // all whitespace.
         no_hard = false;
@@ -1226,82 +1226,82 @@ buffer_seek_whitespace_down(Application_Links *app, Buffer_Summary *buffer, int 
 }
 
 CUSTOM_COMMAND_SIG(seek_whitespace_up){
-    unsigned int access = AccessProtected;
+    uint32_t access = AccessProtected;
     View_Summary view = app->get_active_view(app, access);
     Buffer_Summary buffer = app->get_buffer(app, view.buffer_id, access);
     
-    int new_pos = buffer_seek_whitespace_up(app, &buffer, view.cursor.pos);
+    int32_t new_pos = buffer_seek_whitespace_up(app, &buffer, view.cursor.pos);
     app->view_set_cursor(app, &view,
                          seek_pos(new_pos),
                          true);
 }
 
 CUSTOM_COMMAND_SIG(seek_whitespace_down){
-    unsigned int access = AccessProtected;
+    uint32_t access = AccessProtected;
     View_Summary view = app->get_active_view(app, access);
     Buffer_Summary buffer = app->get_buffer(app, view.buffer_id, access);
     
-    int new_pos = buffer_seek_whitespace_down(app, &buffer, view.cursor.pos);
+    int32_t new_pos = buffer_seek_whitespace_down(app, &buffer, view.cursor.pos);
     app->view_set_cursor(app, &view,
                          seek_pos(new_pos),
                          true);
 }
 
 CUSTOM_COMMAND_SIG(seek_end_of_line){
-    unsigned int access = AccessProtected;
+    uint32_t access = AccessProtected;
     View_Summary view = app->get_active_view(app, access);
     Buffer_Summary buffer = app->get_buffer(app, view.buffer_id, access);
     
-    int new_pos = seek_line_end(app, &buffer, view.cursor.pos);
+    int32_t new_pos = seek_line_end(app, &buffer, view.cursor.pos);
     app->view_set_cursor(app, &view, seek_pos(new_pos), true);
 }
 
 CUSTOM_COMMAND_SIG(seek_beginning_of_line){
-    unsigned int access = AccessProtected;
+    uint32_t access = AccessProtected;
     View_Summary view = app->get_active_view(app, access);
     Buffer_Summary buffer = app->get_buffer(app, view.buffer_id, access);
     
-    int new_pos = seek_line_beginning(app, &buffer, view.cursor.pos);
+    int32_t new_pos = seek_line_beginning(app, &buffer, view.cursor.pos);
     app->view_set_cursor(app, &view, seek_pos(new_pos), true);
 }
 
 static void
-basic_seek(Application_Links *app, int seek_type, unsigned int flags){
-    unsigned int access = AccessProtected;
+basic_seek(Application_Links *app, int32_t seek_type, uint32_t flags){
+    uint32_t access = AccessProtected;
     View_Summary view = app->get_active_view(app, access);
     Buffer_Summary buffer = app->get_buffer(app, view.buffer_id, access);
-    int pos = app->buffer_boundary_seek(app, &buffer, view.cursor.pos, seek_type, flags);
+    int32_t pos = app->buffer_boundary_seek(app, &buffer, view.cursor.pos, seek_type, flags);
     app->view_set_cursor(app, &view, seek_pos(pos), true);
 }
 
-#define SEEK_COMMAND(n, dir, flags)\
+#define seek_command(n, dir, flags)\
 CUSTOM_COMMAND_SIG(seek_##n##_##dir){ basic_seek(app, dir, flags); }
 
 #define right true
 #define left false
 
-SEEK_COMMAND(whitespace,            right, BoundaryWhitespace)
-SEEK_COMMAND(whitespace,            left,  BoundaryWhitespace)
-SEEK_COMMAND(token,                 right, BoundaryToken)
-SEEK_COMMAND(token,                 left,  BoundaryToken)
-SEEK_COMMAND(white_or_token,        right, BoundaryToken | BoundaryWhitespace)
-SEEK_COMMAND(white_or_token,        left,  BoundaryToken | BoundaryWhitespace)
-SEEK_COMMAND(alphanumeric,          right, BoundaryAlphanumeric)
-SEEK_COMMAND(alphanumeric,          left,  BoundaryAlphanumeric)
-SEEK_COMMAND(alphanumeric_or_camel, right, BoundaryAlphanumeric | BoundaryCamelCase)
-SEEK_COMMAND(alphanumeric_or_camel, left,  BoundaryAlphanumeric | BoundaryCamelCase)
+seek_command(whitespace,            right, BoundaryWhitespace)
+seek_command(whitespace,            left,  BoundaryWhitespace)
+seek_command(token,                 right, BoundaryToken)
+seek_command(token,                 left,  BoundaryToken)
+seek_command(white_or_token,        right, BoundaryToken | BoundaryWhitespace)
+seek_command(white_or_token,        left,  BoundaryToken | BoundaryWhitespace)
+seek_command(alphanumeric,          right, BoundaryAlphanumeric)
+seek_command(alphanumeric,          left,  BoundaryAlphanumeric)
+seek_command(alphanumeric_or_camel, right, BoundaryAlphanumeric | BoundaryCamelCase)
+seek_command(alphanumeric_or_camel, left,  BoundaryAlphanumeric | BoundaryCamelCase)
 
 #undef right
 #undef left
 
 
 //
-// Special string writing commands
+// special string writing commands
 //
 
 static void
 write_string(Application_Links *app, String string){
-    unsigned int access = AccessOpen;
+    uint32_t access = AccessOpen;
     View_Summary view = app->get_active_view(app, access);
     Buffer_Summary buffer = app->get_buffer(app, view.buffer_id, access);
     app->buffer_replace_range(app, &buffer,
@@ -1315,11 +1315,11 @@ CUSTOM_COMMAND_SIG(write_increment){
 }
 
 static void
-long_braces(Application_Links *app, char *text, int size){
-    unsigned int access = AccessOpen;
+long_braces(Application_Links *app, char *text, int32_t size){
+    uint32_t access = AccessOpen;
     View_Summary view = app->get_active_view(app, access);
     Buffer_Summary buffer = app->get_buffer(app, view.buffer_id, access);
-    int pos = view.cursor.pos;
+    int32_t pos = view.cursor.pos;
     
     app->buffer_replace_range(app, &buffer, pos, pos, text, size);
     app->view_set_cursor(app, &view, seek_pos(pos + 2), true);
@@ -1333,30 +1333,30 @@ long_braces(Application_Links *app, char *text, int size){
 
 CUSTOM_COMMAND_SIG(open_long_braces){
     char text[] = "{\n\n}";
-    int size = sizeof(text) - 1;
+    int32_t size = sizeof(text) - 1;
     long_braces(app, text, size);
 }
 
 CUSTOM_COMMAND_SIG(open_long_braces_semicolon){
     char text[] = "{\n\n};";
-    int size = sizeof(text) - 1;
+    int32_t size = sizeof(text) - 1;
     long_braces(app, text, size);
 }
 
 CUSTOM_COMMAND_SIG(open_long_braces_break){
     char text[] = "{\n\n}break;";
-    int size = sizeof(text) - 1;
+    int32_t size = sizeof(text) - 1;
     long_braces(app, text, size);
 }
 
-// TODO(allen): Have this thing check if it is on
+// TODO(allen): have this thing check if it is on
 // a blank line and insert newlines as needed.
 CUSTOM_COMMAND_SIG(if0_off){
     char text1[] = "\n#if 0";
-    int size1 = sizeof(text1) - 1;
+    int32_t size1 = sizeof(text1) - 1;
     
     char text2[] = "#endif\n";
-    int size2 = sizeof(text2) - 1;
+    int32_t size2 = sizeof(text2) - 1;
     
     View_Summary view = app->get_active_view(app, AccessOpen);
     Buffer_Summary buffer = app->get_buffer(app, view.buffer_id, AccessOpen);
@@ -1370,14 +1370,14 @@ CUSTOM_COMMAND_SIG(if0_off){
         
         str = push_array(&global_part, char, size1);
         memcpy(str, text1, size1);
-        edits[0].str_start = (int)(str - base);
+        edits[0].str_start = (int32_t)(str - base);
         edits[0].len = size1;
         edits[0].start = range.min;
         edits[0].end = range.min;
         
         str = push_array(&global_part, char, size2);
         memcpy(str, text2, size2);
-        edits[1].str_start = (int)(str - base);
+        edits[1].str_start = (int32_t)(str - base);
         edits[1].len = size2;
         edits[1].start = range.max;
         edits[1].end = range.max;
@@ -1412,31 +1412,31 @@ CUSTOM_COMMAND_SIG(if0_off){
 //
 
 CUSTOM_COMMAND_SIG(backspace_word){
-    unsigned int access = AccessOpen;
+    uint32_t access = AccessOpen;
     
     View_Summary view = app->get_active_view(app, access);
     Buffer_Summary buffer = app->get_buffer(app, view.buffer_id, access);
     
     if (buffer.exists){
-        int pos2 = 0, pos1 = 0;
+        int32_t pos2 = 0, pos1 = 0;
         
         pos2 = view.cursor.pos;
         exec_command(app, seek_alphanumeric_left);
         refresh_view(app, &view);
         pos1 = view.cursor.pos;
-                
+        
         app->buffer_replace_range(app, &buffer, pos1, pos2, 0, 0);
     }
 }
 
 CUSTOM_COMMAND_SIG(delete_word){
-    unsigned int access = AccessOpen;
+    uint32_t access = AccessOpen;
     
     View_Summary view = app->get_active_view(app, access);
     Buffer_Summary buffer = app->get_buffer(app, view.buffer_id, access);
     
     if (buffer.exists){
-        int pos2 = 0, pos1 = 0;
+        int32_t pos2 = 0, pos1 = 0;
         
         pos1 = view.cursor.pos;
         exec_command(app, seek_alphanumeric_right);
@@ -1448,17 +1448,16 @@ CUSTOM_COMMAND_SIG(delete_word){
 }
 
 CUSTOM_COMMAND_SIG(snipe_token_or_word){
-    unsigned int access = AccessOpen;
+    uint32_t access = AccessOpen;
     
     View_Summary view;
     Buffer_Summary buffer;
-    int pos1, pos2;
+    int32_t pos1, pos2;
     
     view = app->get_active_view(app, access);
     buffer = app->get_buffer(app, view.buffer_id, access);
     
     pos1 = app->buffer_boundary_seek(app, &buffer, view.cursor.pos, false, BoundaryToken | BoundaryWhitespace);
-    
     pos2 = app->buffer_boundary_seek(app, &buffer, pos1,            true,  BoundaryToken | BoundaryWhitespace);
     
     Range range = make_range(pos1, pos2);
@@ -1532,15 +1531,15 @@ CUSTOM_COMMAND_SIG(open_panel_hsplit){
 // Open File In Quotes
 //
 
-static int
+static int32_t
 file_name_in_quotes(Application_Links *app, String *file_name){
-    int result = false;
-    unsigned int access = AccessProtected;
+    int32_t result = false;
+    uint32_t access = AccessProtected;
     
     View_Summary view;
     Buffer_Summary buffer;
     char short_file_name[128];
-    int pos, start, end, size;
+    int32_t pos, start, end, size;
     
     view = app->get_active_view(app, access);
     buffer = app->get_buffer(app, view.buffer_id, access);
@@ -1622,7 +1621,7 @@ CUSTOM_COMMAND_SIG(save_as){
 }
 
 CUSTOM_COMMAND_SIG(goto_line){
-    unsigned int access = AccessProtected;
+    uint32_t access = AccessProtected;
     
     Query_Bar bar = {0};
     char string_space[256];
@@ -1631,7 +1630,7 @@ CUSTOM_COMMAND_SIG(goto_line){
     bar.string = make_fixed_width_string(string_space);
     
     if (query_user_number(app, &bar)){
-        int line_number = str_to_int_s(bar.string);
+        int32_t line_number = str_to_int_s(bar.string);
         active_view_to_line(app, access, line_number);
     }
 }
@@ -1640,8 +1639,8 @@ CUSTOM_COMMAND_SIG(search);
 CUSTOM_COMMAND_SIG(reverse_search);
 
 static void
-isearch(Application_Links *app, int start_reversed){
-    unsigned int access = AccessProtected;
+isearch(Application_Links *app, int32_t start_reversed){
+    uint32_t access = AccessProtected;
     
     View_Summary view = app->get_active_view(app, access);
     Buffer_Summary buffer = app->get_buffer(app, view.buffer_id, access);
@@ -1651,10 +1650,10 @@ isearch(Application_Links *app, int start_reversed){
     Query_Bar bar = {0};
     if (app->start_query_bar(app, &bar, 0) == 0) return;
     
-    int reverse = start_reversed;
-    int pos = view.cursor.pos;
-    int start_pos = pos;
-    int first_pos = pos;
+    int32_t reverse = start_reversed;
+    int32_t pos = view.cursor.pos;
+    int32_t start_pos = pos;
+    int32_t first_pos = pos;
     Range match = make_range(pos, pos);
     
     char bar_string_space[256];
@@ -1679,7 +1678,7 @@ isearch(Application_Links *app, int start_reversed){
         
         assert(in.type == UserInputKey);
         
-        int made_change = 0;
+        int32_t made_change = 0;
         if (in.key.keycode == '\n' || in.key.keycode == '\t'){
             break;
         }
@@ -1694,8 +1693,8 @@ isearch(Application_Links *app, int start_reversed){
             }
         }
         
-        int step_forward = 0;
-        int step_backward = 0;
+        int32_t step_forward = 0;
+        int32_t step_backward = 0;
         
         if ((in.command.command == search) ||
             in.key.keycode == key_page_down || in.key.keycode == key_down) step_forward = 1;
@@ -1717,7 +1716,7 @@ isearch(Application_Links *app, int start_reversed){
         }
         
         if (in.key.keycode != key_back){
-            int new_pos;
+            int32_t new_pos;
             if (reverse){
                 buffer_seek_string_insensitive_backward(app, &buffer, start_pos - 1, 0,
                                                         bar.string.str, bar.string.size, &new_pos);
@@ -1792,13 +1791,13 @@ CUSTOM_COMMAND_SIG(replace_in_range){
     r = replace.string;
     w = with.string;
     
-    unsigned int access = AccessOpen;
+    uint32_t access = AccessOpen;
     View_Summary view = app->get_active_view(app, access);
     Buffer_Summary buffer = app->get_buffer(app, view.buffer_id, access);
     
     Range range = get_range(&view);
     
-    int pos, new_pos;
+    int32_t pos, new_pos;
     pos = range.min;
     
     buffer_seek_string_forward(app, &buffer, pos, 0, r.str, r.size, &new_pos);
@@ -1835,14 +1834,14 @@ CUSTOM_COMMAND_SIG(query_replace){
     Query_Bar bar;
     Buffer_Summary buffer;
     View_Summary view;
-    int pos, new_pos;
+    int32_t pos, new_pos;
     
     bar.prompt = make_lit_string("Replace? (y)es, (n)ext, (esc)\n");
-    bar.string = empty_string();
+    bar.string = string_zero();
     
     app->start_query_bar(app, &bar, 0);
     
-    unsigned int access = AccessOpen;
+    uint32_t access = AccessOpen;
     view = app->get_active_view(app, access);
     buffer = app->get_buffer(app, view.buffer_id, access);
     
@@ -1887,10 +1886,10 @@ CUSTOM_COMMAND_SIG(close_all_code){
     
     // TODO(allen): Get better memory constructs to the custom layer
     // so that it doesn't have to rely on arbitrary limits like this one.
-    int buffers_to_close[2048];
-    int buffers_to_close_count = 0;
+    int32_t buffers_to_close[2048];
+    int32_t buffers_to_close_count = 0;
     
-    unsigned int access = AccessAll;
+    uint32_t access = AccessAll;
     for (buffer = app->get_buffer_first(app, access);
          buffer.exists;
          app->get_buffer_next(app, &buffer, access)){
@@ -1906,7 +1905,7 @@ CUSTOM_COMMAND_SIG(close_all_code){
         }
     }
     
-    for (int i = 0; i < buffers_to_close_count; ++i){
+    for (int32_t i = 0; i < buffers_to_close_count; ++i){
         app->kill_buffer(app, buffer_identifier(buffers_to_close[i]), true, 0);
     }
 }
@@ -1919,13 +1918,13 @@ CUSTOM_COMMAND_SIG(open_all_code){
     // stack, so I am phasing that idea out now.
     String dir = make_string_cap(app->memory, 0, app->memory_size);
     dir.size = app->directory_get_hot(app, dir.str, dir.memory_size);
-    int dir_size = dir.size;
+    int32_t dir_size = dir.size;
     
     // NOTE(allen|a3.4.4): Here we get the list of files in this directory.
     // Notice that we free_file_list at the end.
     File_List list = app->get_file_list(app, dir.str, dir.size);
     
-    for (int i = 0; i < list.count; ++i){
+    for (int32_t i = 0; i < list.count; ++i){
         File_Info *info = list.infos + i;
         if (!info->folder){
             String extension = make_string_cap(info->filename, info->filename_len, info->filename_len+1);
@@ -1968,7 +1967,7 @@ CUSTOM_COMMAND_SIG(execute_any_cli){
     String hot_directory = make_fixed_width_string(hot_directory_space);
     hot_directory.size = app->directory_get_hot(app, hot_directory.str, hot_directory.memory_size);
     
-    unsigned int access = AccessAll;
+    uint32_t access = AccessAll;
     View_Summary view = app->get_active_view(app, access);
     
     app->exec_system_command(app, &view,
@@ -1984,7 +1983,7 @@ CUSTOM_COMMAND_SIG(execute_previous_cli){
     String hot_directory = make_string_slowly(hot_directory_space);
     
     if (out_buffer.size > 0 && cmd.size > 0 && hot_directory.size > 0){
-        unsigned int access = AccessAll;
+        uint32_t access = AccessAll;
         View_Summary view = app->get_active_view(app, access);
         
         app->exec_system_command(app, &view,
@@ -2012,9 +2011,9 @@ enum Get_Build_Directory_Result{
     BuildDir_AtHot
 };
 
-static int
+static int32_t
 get_build_directory(Application_Links *app, Buffer_Summary *buffer, String *dir_out){
-    int result = BuildDir_None;
+    int32_t result = BuildDir_None;
     
     if (buffer && buffer->file_name){
         if (!match_cc(buffer->file_name, buffer->buffer_name)){
@@ -2028,7 +2027,7 @@ get_build_directory(Application_Links *app, Buffer_Summary *buffer, String *dir_
     }
     
     if (!result){
-        int len = app->directory_get_hot(app, dir_out->str,
+        int32_t len = app->directory_get_hot(app, dir_out->str,
                                          dir_out->memory_size - dir_out->size);
         if (len + dir_out->size < dir_out->memory_size){
             dir_out->size += len;
@@ -2039,19 +2038,19 @@ get_build_directory(Application_Links *app, Buffer_Summary *buffer, String *dir_
     return(result);
 }
 
-static int
+static int32_t
 standard_build_search(Application_Links *app,
                       View_Summary *view,
                       Buffer_Summary *active_buffer,
                       String *dir, String *command,
-                      int perform_backup,
-                      int use_path_in_command,
+                      int32_t perform_backup,
+                      int32_t use_path_in_command,
                       String filename,
                       String commandname){
-    int result = false;
+    int32_t result = false;
     
     for(;;){
-        int old_size = dir->size;
+        int32_t old_size = dir->size;
         append_ss(dir, filename);
         
         if (app->file_exists(app, dir->str, dir->size)){
@@ -2108,31 +2107,31 @@ standard_build_search(Application_Links *app,
 #if defined(_WIN32)
 
 // NOTE(allen): Build search rule for windows.
-static int
+static int32_t
 execute_standard_build_search(Application_Links *app, View_Summary *view,
                               Buffer_Summary *active_buffer,
-                              String *dir, String *command, int perform_backup){
-    int result = standard_build_search(app, view,
-                                       active_buffer,
-                                       dir, command, perform_backup, true,
-                                       make_lit_string("build.bat"),
-                                       make_lit_string("build"));
+                              String *dir, String *command, int32_t perform_backup){
+    int32_t result = standard_build_search(app, view,
+                                           active_buffer,
+                                           dir, command, perform_backup, true,
+                                           make_lit_string("build.bat"),
+                                           make_lit_string("build"));
     return(result);
 }
 
 #elif defined(__linux__)
 
 // NOTE(allen): Build search rule for linux.
-static int
+static int32_t
 execute_standard_build_search(Application_Links *app, View_Summary *view,
                               Buffer_Summary *active_buffer,
-                              String *dir, String *command, int perform_backup){
+                              String *dir, String *command, int32_t perform_backup){
     
     char dir_space[512];
     String dir_copy = make_fixed_width_string(dir_space);
     copy(&dir_copy, *dir);
     
-    int result = standard_build_search(app, view,
+    int32_t result = standard_build_search(app, view,
                                        active_buffer,
                                        dir, command, false, true,
                                        make_lit_string("build.sh"),
@@ -2163,7 +2162,7 @@ execute_standard_build(Application_Links *app, View_Summary *view,
     char command_str_space[512];
     String command = make_fixed_width_string(command_str_space);
     
-    int build_dir_type = get_build_directory(app, active_buffer, &dir);
+    int32_t build_dir_type = get_build_directory(app, active_buffer, &dir);
     
     if (build_dir_type == BuildDir_AtFile){
         if (!execute_standard_build_search(app, view, active_buffer,
@@ -2181,7 +2180,7 @@ execute_standard_build(Application_Links *app, View_Summary *view,
 }
 
 CUSTOM_COMMAND_SIG(build_search_regular){
-    unsigned int access = AccessAll;
+    uint32_t access = AccessAll;
     View_Summary view = app->get_active_view(app, access);
     Buffer_Summary buffer = app->get_buffer(app, view.buffer_id, access);
     execute_standard_build(app, &view, &buffer);
@@ -2245,7 +2244,7 @@ CUSTOM_COMMAND_SIG(eol_nixify){
 
 static void
 generic_search_all_buffers(Application_Links *app, General_Memory *general, Partition *part,
-                           unsigned int match_flags){
+                           uint32_t match_flags){
     
     Query_Bar string;
     char string_space[1024];
@@ -2261,7 +2260,7 @@ generic_search_all_buffers(Application_Links *app, General_Memory *general, Part
     search_iter_init(general, &iter, string.string.size);
     copy_ss(&iter.word, string.string);
     
-    int buffer_count = app->get_buffer_count(app);
+    int32_t buffer_count = app->get_buffer_count(app);
     search_set_init(general, &set, buffer_count);
     
     Search_Range *ranges = set.ranges;
@@ -2281,7 +2280,7 @@ generic_search_all_buffers(Application_Links *app, General_Memory *general, Part
         View_Summary view = app->get_active_view(app, AccessProtected);
         Buffer_Summary buffer = app->get_buffer(app, view.buffer_id, AccessProtected);
         
-        int j = 0;
+        int32_t j = 0;
         if (buffer.exists){
             if (buffer.buffer_id != search_buffer.buffer_id){
                 ranges[0].type = SearchRange_FrontToBack;
@@ -2313,23 +2312,23 @@ generic_search_all_buffers(Application_Links *app, General_Memory *general, Part
     Temp_Memory temp = begin_temp_memory(part);
     Partition line_part = partition_sub_part(part, (4 << 10));
     char *str = (char*)partition_current(part);
-    int part_size = 0;
-    int size = 0;
+    int32_t part_size = 0;
+    int32_t size = 0;
     for (;;){
         Search_Match match = search_next_match(app, &set, &iter);
         if (match.found_match){
             Partial_Cursor word_pos = {0};
             if (app->buffer_compute_cursor(app, &match.buffer, seek_pos(match.start), &word_pos)){
-                int file_len = match.buffer.file_name_len;
-                int line_num_len = int_to_str_size(word_pos.line);
-                int column_num_len = int_to_str_size(word_pos.character);
+                int32_t file_len = match.buffer.file_name_len;
+                int32_t line_num_len = int_to_str_size(word_pos.line);
+                int32_t column_num_len = int_to_str_size(word_pos.character);
                 
                 Temp_Memory line_temp = begin_temp_memory(&line_part);
                 String line_str = {0};
                 read_line(app, &line_part, &match.buffer, word_pos.line, &line_str);
                 line_str = skip_chop_whitespace(line_str);
                 
-                int str_len = file_len + 1 + line_num_len + 1 + column_num_len + 1 + 1 + line_str.size + 1;
+                int32_t str_len = file_len + 1 + line_num_len + 1 + column_num_len + 1 + 1 + line_str.size + 1;
                 
                 char *spare = push_array(part, char, str_len);
                 
@@ -2395,9 +2394,9 @@ struct Word_Complete_State{
     Search_Iter iter;
     Table hits;
     String_Space str;
-    int word_start;
-    int word_end;
-    int initialized;
+    int32_t word_start;
+    int32_t word_end;
+    int32_t initialized;
 };
 
 static Word_Complete_State complete_state = {0};
@@ -2409,7 +2408,7 @@ CUSTOM_COMMAND_SIG(word_complete){
     // NOTE(allen): I just do this because this command is a lot of work
     // and there is no point in doing any of it if nothing will happen anyway.
     if (buffer.exists){
-        int do_init = false;
+        int32_t do_init = false;
         
         if (view_paste_index[view.view_id].rewrite != RewriteWordComplete){
             do_init = true;
@@ -2419,10 +2418,10 @@ CUSTOM_COMMAND_SIG(word_complete){
             do_init = true;
         }
         
-        int word_end = 0;
-        int word_start = 0;
-        int cursor_pos = 0;
-        int size = 0;
+        int32_t word_end = 0;
+        int32_t word_start = 0;
+        int32_t cursor_pos = 0;
+        int32_t size = 0;
         
         if (do_init){
             // NOTE(allen): Get the range where the
@@ -2435,7 +2434,7 @@ CUSTOM_COMMAND_SIG(word_complete){
             Stream_Chunk chunk = {0};
             if (init_stream_chunk(&chunk, app, &buffer,
                                   cursor_pos, space, sizeof(space))){
-                int still_looping = true;
+                int32_t still_looping = true;
                 do{
                     for (; cursor_pos >= chunk.start; --cursor_pos){
                         char c = chunk.data[cursor_pos];
@@ -2467,7 +2466,7 @@ CUSTOM_COMMAND_SIG(word_complete){
             complete_state.iter.word.size = size;
             
             // NOTE(allen): Initialize the set of ranges to be searched.
-            int buffer_count = app->get_buffer_count(app);
+            int32_t buffer_count = app->get_buffer_count(app);
             search_set_init(&global_general, &complete_state.set, buffer_count);
             
             Search_Range *ranges = complete_state.set.ranges;
@@ -2479,7 +2478,7 @@ CUSTOM_COMMAND_SIG(word_complete){
             ranges[0].mid_start = word_start;
             ranges[0].mid_size = size;
             
-            int j = 1;
+            int32_t j = 1;
             for (Buffer_Summary buffer_it = app->get_buffer_first(app, AccessAll);
                  buffer_it.exists;
                  app->get_buffer_next(app, &buffer_it, AccessAll)){
@@ -2513,7 +2512,7 @@ CUSTOM_COMMAND_SIG(word_complete){
         // NOTE(allen): Iterate through matches.
         if (size > 0){
             for (;;){
-                int match_size = 0;
+                int32_t match_size = 0;
                 Search_Match match =
                     search_next_match(app, &complete_state.set,
                                       &complete_state.iter);
@@ -2648,9 +2647,9 @@ struct Scroll_Velocity{
 Scroll_Velocity scroll_velocity_[16] = {0};
 Scroll_Velocity *scroll_velocity = scroll_velocity_ - 1;
 
-static int
+static int32_t
 smooth_camera_step(float target, float *current, float *vel, float S, float T){
-    int result = 0;
+    int32_t result = 0;
     float curr = *current;
     float v = *vel;
     if (curr != target){
@@ -2660,28 +2659,28 @@ smooth_camera_step(float target, float *current, float *vel, float S, float T){
         }
         else{
             float L = curr + T*(target - curr);
-
-            int sign = (target > curr) - (target < curr);
+            
+            int32_t sign = (target > curr) - (target < curr);
             float V = curr + sign*v;
-
+            
             if (sign > 0) curr = (L<V)?(L):(V);
             else curr = (L>V)?(L):(V);
-
+            
             if (curr == V){
                 v *= S;
             }
         }
-
+        
         *current = curr;
         *vel = v;
         result = 1;
     }
-    return result;
+    return(result);
 }
 
 SCROLL_RULE_SIG(smooth_scroll_rule){
     Scroll_Velocity *velocity = scroll_velocity + view_id;
-    int result = 0;
+    int32_t result = 0;
     if (velocity->x == 0.f){
         velocity->x = 1.f;
         velocity->y = 1.f;
