@@ -21,13 +21,17 @@
 
 #include "4ed_meta.h"
 
+//
+// Instead of including 4coder_custom.h
+//
+
 #include "4ed_math.h"
 
 #include "4ed_system.h"
 #include "4ed_rendering.h"
 #include "4ed.h"
 
-#include <windows.h>
+#include <Windows.h>
 #include <GL/gl.h>
 #include <GL/glext.h>
 
@@ -771,159 +775,6 @@ Sys_File_Can_Be_Made_Sig(system_file_can_be_made){
     return(1);
 }
 
-struct File_Loading{
-    Plat_Handle handle;
-    i32 size;
-    b32 exists;
-};
-
-internal File_Loading
-system_file_load_begin(char *filename){
-    File_Loading loading = {0};
-    HANDLE file = 0;
-    
-    String fname_str = make_string_slowly(filename);
-    if (fname_str.size < 1024){
-        char fixed_space[1024];
-        String fixed_str = make_fixed_width_string(fixed_space);
-        copy_ss(&fixed_str, fname_str);
-        terminate_with_null(&fixed_str);
-        
-        replace_char(&fixed_str, '/', '\\');
-        
-        file = CreateFile(fixed_str.str, GENERIC_READ, 0, 0,
-                          OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
-        
-        if (file && file != INVALID_HANDLE_VALUE){
-            DWORD lo, hi;
-            lo = GetFileSize(file, &hi);
-            
-            if (hi == 0){
-                loading.handle = Win32Handle(file);
-                loading.size = lo;
-                loading.exists = 1;
-            }
-            else{
-                CloseHandle(file);
-            }
-        }
-    }
-    
-    return(loading);
-}
-
-internal b32
-system_file_load_end(File_Loading loading, char *buffer){
-    b32 success = 0;
-    HANDLE file = Win32Handle(loading.handle);
-    
-    DWORD read_size = 0;
-    BOOL read_result = 0;
-    
-    if (loading.exists && file != INVALID_HANDLE_VALUE){
-        read_result = 
-            ReadFile(file,
-                     buffer, loading.size,
-                     &read_size, 0);
-        
-        if (read_result && read_size == (DWORD)loading.size){
-            success = 1;
-        }
-        
-        CloseHandle(file);
-    }
-    
-    return(success);
-}
-
-internal b32
-system_file_save(char *filename, char *buffer, i32 size){
-    b32 success = false;
-    
-    HANDLE file =
-        CreateFile((char*)filename, GENERIC_WRITE, 0, 0,
-                   CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, 0);
-    
-    if (!file || file == INVALID_HANDLE_VALUE){
-        success = false;
-    }
-    else{
-        BOOL write_result = 0;
-        DWORD bytes_written = 0;
-        
-        if (buffer){
-            write_result = WriteFile(file, buffer, size, &bytes_written, 0);
-        }
-        
-        CloseHandle(file);
-        
-        if (write_result && bytes_written == (u32)size){
-            success = true;
-        }
-    }
-    
-    return(success);
-}
-
-#if 0
-internal
-Sys_File_Time_Stamp_Sig(system_file_time_stamp){
-    u64 result = 0;
-    
-    FILETIME last_write;
-    WIN32_FILE_ATTRIBUTE_DATA data;
-    if (GetFileAttributesEx((char*)filename, GetFileExInfoStandard, &data)){
-        last_write = data.ftLastWriteTime;
-        
-        result = ((u64)last_write.dwHighDateTime << 32) | (last_write.dwLowDateTime);
-    }
-    
-    return(result);
-}
-
-internal
-Sys_Now_Time_Stamp_Sig(system_now_time_stamp){
-    u64 result = 0;
-    FILETIME filetime;
-    GetSystemTimeAsFileTime(&filetime);
-    result = ((u64)filetime.dwHighDateTime << 32) | (filetime.dwLowDateTime);
-    return(result);
-}
-
-internal
-Sys_File_Unique_Hash_Sig(system_file_unique_hash){
-    Unique_Hash hash = {0};
-    BY_HANDLE_FILE_INFORMATION info;
-    HANDLE handle;
-    char space[1024];
-    String str;
-    
-    if (filename.size < sizeof(space)){
-        str = make_fixed_width_string(space);
-        copy(&str, filename);
-        terminate_with_null(&str);
-        
-        handle = CreateFile(str.str, GENERIC_READ, 0, 0,
-                            OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
-        
-        *success = 0;
-        if (handle && handle != INVALID_HANDLE_VALUE){
-            if (GetFileInformationByHandle(handle, &info)){
-                hash.d[2] = info.dwVolumeSerialNumber;
-                hash.d[1] = info.nFileIndexHigh;
-                hash.d[0] = info.nFileIndexLow;
-                *success = 1;
-            }
-            
-            CloseHandle(handle);
-        }
-    }
-    
-    return(hash);
-}
-
-#endif
-
 internal
 Sys_Set_File_List_Sig(system_set_file_list){
     if (directory.size > 0){
@@ -1524,11 +1375,8 @@ Sys_CLI_End_Update_Sig(system_cli_end_update){
 }
 
 #include "system_shared.cpp"
-#include "4ed_rendering.cpp"
 
-#if USE_WIN32_FONTS
-# include "win32_font.cpp"
-#elif USE_FT_FONTS
+#if USE_FT_FONTS
 # include "win32_ft_font.cpp"
 #endif
 
@@ -2197,7 +2045,7 @@ WinMain(HINSTANCE hInstance,
     }
     
     win32vars.target.max = Mbytes(1);
-    win32vars.target.push_buffer = (byte*)system_get_memory(win32vars.target.max);
+    win32vars.target.push_buffer = (char*)system_get_memory(win32vars.target.max);
     
     
     //

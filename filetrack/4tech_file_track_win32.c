@@ -17,7 +17,7 @@ Created on: 20.07.2016
 
 #include "4tech_file_track_general.c"
 
-#include <Windows.h>
+//#include <Windows.h>
 
 typedef struct {
     char result[2048];

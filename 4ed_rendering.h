@@ -164,7 +164,7 @@ struct Render_Target{
     u32 color;
     
     // TODO(allen): change this to a Partition
-    byte *push_buffer;
+    char *push_buffer;
     i32 size, max;
     
     // TODO(allen): rename this to font_partition

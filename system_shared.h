@@ -11,11 +11,12 @@
 
 // NOTE(allen): This serves as a list of functions to implement
 // in addition to those in 4ed_system.h  These are not exposed to
-// the application code, but system_shared.cpp and 4ed_rendering.cpp
+// the application code, but system_shared.cpp
 // rely on the functions listed here.
 
 struct File_Data{
-    Data data;
+    char *data;
+    u32 size;
     b32 got_file;
 };
 inline File_Data

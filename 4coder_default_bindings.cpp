@@ -207,7 +207,7 @@ OPEN_FILE_HOOK_SIG(my_file_settings){
 //
 // Right now it only has access to the mouse state, but it will be
 // extended to have access to the key presses soon.
-static int suppressing_mouse = false;
+static int32_t suppressing_mouse = false;
 
 INPUT_FILTER_SIG(my_suppress_mouse_filter){
     if (suppressing_mouse){
@@ -218,7 +218,7 @@ INPUT_FILTER_SIG(my_suppress_mouse_filter){
 }
 
 static void
-set_mouse_suppression(Application_Links *app, int suppress){
+set_mouse_suppression(Application_Links *app, int32_t suppress){
     if (suppress){
         suppressing_mouse = true;
         app->show_mouse_cursor(app, MouseCursorShow_Never);
@@ -402,8 +402,8 @@ default_keys(Bind_Helper *context){
 
 #ifndef NO_BINDING
 
-extern "C" int
-get_bindings(void *data, int size){
+extern "C" int32_t
+get_bindings(void *data, int32_t size){
     Bind_Helper context_ = begin_bind_helper(data, size);
     Bind_Helper *context = &context_;
     
@@ -418,7 +418,7 @@ get_bindings(void *data, int size){
     
     default_keys(context);
     
-    int result = end_bind_helper(context);
+    int32_t result = end_bind_helper(context);
     return(result);
 }
 

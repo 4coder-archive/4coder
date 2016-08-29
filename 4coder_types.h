@@ -430,10 +430,8 @@ DOC_SEE(File_List)
 struct File_Info{
     /* DOC(This field is a null terminated string specifying the name of the file.) */
     char *filename;
-    
     /* DOC(This field specifies the length of the filename string not counting the null terminator.) */
     int32_t filename_len;
-    
     /* DOC(This field indicates that the description is for a folder not a file.) */
     int32_t folder;
 };
