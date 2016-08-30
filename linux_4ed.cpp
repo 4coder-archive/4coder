@@ -69,8 +69,6 @@
 #include <linux/fs.h>
 #include <linux/input.h>
 
-#include "filetrack/4tech_file_track_linux.c"
-#include "system_shared.h"
 
 //
 // Linux macros
@@ -105,6 +103,9 @@
 
 #define InterlockedCompareExchange(dest, ex, comp) __sync_val_compare_and_swap((dest), (comp), (ex))
 
+#include "filetrack/4tech_file_track_linux.c"
+#include "system_shared.h"
+
 //
 // Linux structs / enums
 //
@@ -120,11 +121,10 @@ struct Sys_Bubble : public Bubble{
 
 enum {
     LINUX_4ED_EVENT_X11          = (UINT64_C(1) << 32),
-    LINUX_4ED_EVENT_X11_INTERNAL = (UINT64_C(1) << 33),
-    LINUX_4ED_EVENT_FILE         = (UINT64_C(1) << 34),
-    LINUX_4ED_EVENT_STEP         = (UINT64_C(1) << 35),
-    LINUX_4ED_EVENT_STEP_TIMER   = (UINT64_C(1) << 36),
-    LINUX_4ED_EVENT_CLI          = (UINT64_C(1) << 37),
+    LINUX_4ED_EVENT_X11_INTERNAL = (UINT64_C(2) << 32),
+    LINUX_4ED_EVENT_STEP         = (UINT64_C(3) << 32),
+    LINUX_4ED_EVENT_STEP_TIMER   = (UINT64_C(4) << 32),
+    LINUX_4ED_EVENT_CLI          = (UINT64_C(5) << 32),
 };
 
 struct Linux_Coroutine {
@@ -268,11 +268,7 @@ static_assert(sizeof(Plat_Handle) >= sizeof(sem_t*),      "Plat_Handle not big e
 static_assert(sizeof(Plat_Handle) >= sizeof(int),         "Plat_Handle not big enough");
 
 //
-// Linux shared/system functions
-//
-
-//
-// Memory
+// Shared system functions (system_shared.h)
 //
 
 internal void*
@@ -341,9 +337,6 @@ Sys_Free_Memory_Sig(system_free_memory){
     LinuxFreeMemory(block);
 }
 
-//
-// File
-//
 
 internal
 Sys_File_Can_Be_Made_Sig(system_file_can_be_made){
@@ -368,48 +361,12 @@ Sys_Get_Binary_Path_Sig(system_get_binary_path){
 }
 
 //
-// Linux application/system functions
+// System Functions (4ed_system.h)
 //
 
 //
-// File
+// Files
 //
-
-internal
-Sys_File_Time_Stamp_Sig(system_file_time_stamp){
-    struct stat info = {};
-    u64 microsecond_timestamp = 0;
-
-    if(stat(filename, &info) == 0){
-#if OLD_STAT_NANO_TIME
-        microsecond_timestamp =
-            (info.st_mtime * UINT64_C(1000000)) +
-            (info.st_mtimensec / UINT64_C(1000));
-#else
-        microsecond_timestamp =
-            (info.st_mtim.tv_sec * UINT64_C(1000000)) +
-            (info.st_mtim.tv_nsec / UINT64_C(1000));
-#endif
-    }
-
-    //LINUX_FN_DEBUG("%s = %" PRIu64, filename, microsecond_timestamp);
-
-    return(microsecond_timestamp);
-}
-
-internal
-Sys_Now_Time_Stamp_Sig(system_now_time_stamp){
-    struct timespec spec;
-    u64 result;
-    
-    clock_gettime(CLOCK_REALTIME, &spec);
-    result = (spec.tv_sec * UINT64_C(1000000)) + (spec.tv_nsec / UINT64_C(1000));
-
-    //LINUX_FN_DEBUG("ts: %" PRIu64, result);
-
-    return(result);
-}
-
 
 internal
 Sys_Set_File_List_Sig(system_set_file_list){
@@ -503,105 +460,88 @@ Sys_Set_File_List_Sig(system_set_file_list){
 }
 
 internal
-Sys_File_Unique_Hash_Sig(system_file_unique_hash){
-    Unique_Hash result = {};
-    struct stat st = {};
-    *success = 0;
+Sys_Get_Canonical_Sig(system_get_canonical){
+    int32_t result = 0;
 
-    if(stat(filename.str, &st) == 0){
-        memcpy(&result, &st.st_dev, sizeof(st.st_dev));
-        memcpy((char*)&result + sizeof(st.st_dev), &st.st_ino, sizeof(st.st_ino));
-        *success = 1;
+    char* path = realpath(strndupa(filename, len), NULL);
+    if(!path){
+        perror("realpath");
+    } else {
+        size_t path_len = strlen(path);
+        if(max >= path_len){
+            memcpy(buffer, path, path_len);
+            result = path_len;
+        }
+        free(path);
     }
-
-//    LINUX_FN_DEBUG("%s = %ld:%ld", filename.str, (long)st.st_dev, (long)st.st_ino);
 
     return result;
 }
 
 internal
-Sys_File_Track_Sig(system_file_track){
-    if(filename.size <= 0 || !filename.str) return;
-
-    char* fname = (char*) alloca(filename.size+1);
-    memcpy(fname, filename.str, filename.size);
-    fname[filename.size] = 0;
-
-    int wd = inotify_add_watch(linuxvars.inotify_fd, fname, IN_ALL_EVENTS);
-    if(wd == -1){
-        perror("inotify_add_watch");
-    } else {
-        printf("watch %s\n", fname);
-        // TODO: store the wd somewhere so Untrack can use it
-    }
-}
-
-internal
-Sys_File_Untrack_Sig(system_file_untrack){
-    //TODO
-    //    inotify_rm_watch(...)
-}
-
-internal
-Sys_File_Load_Begin_Sig(system_file_load_begin){
-    File_Loading loading = {};
-    struct stat info = {};
-
-    LINUX_FN_DEBUG("%s", filename);
+Sys_Load_Handle_Sig(system_load_handle){
+    b32 result = 0;
 
     int fd = open(filename, O_RDONLY);
-    if(fd < 0){
-        fprintf(stderr, "sys_open_file: open '%s': %s\n", filename, strerror(errno));
-        goto out;
-    }
-    if(fstat(fd, &info) < 0){
-        fprintf(stderr, "sys_open_file: stat '%s': %s\n", filename, strerror(errno));
-        goto out;
-    }
-    if(info.st_size < 0){
-        fprintf(stderr, "sys_open_file: st_size < 0: %ld\n", info.st_size);
-        goto out;
+    if(fd == -1){
+        perror("open");
+    } else {
+        *(int*)handle_out = fd;
+        result = 1;
     }
 
-    loading.handle = LinuxFDToHandle(fd);
-    loading.size = info.st_size;
-    loading.exists = 1;
-
-out:
-    if(fd != -1 && !loading.exists) close(fd);
-    return(loading);
+    return result;
 }
 
 internal
-Sys_File_Load_End_Sig(system_file_load_end){
-    int fd = LinuxHandleToFD(loading.handle);
-    char* ptr = buffer;
-    size_t size = loading.size;
+Sys_Load_Size_Sig(system_load_size){
+    u32 result = 0;
 
-    if(!loading.exists || fd == -1) return 0;
+    int fd = *(int*)&handle;
+    struct stat st;
 
+    if(fstat(fd, &st) == -1){
+        perror("fstat");
+    } else {
+        result = st.st_size;
+    }
+
+    return result;
+}
+
+internal
+Sys_Load_File_Sig(system_load_file){
+    
+    int fd = *(int*)&handle;
     do {
-        ssize_t read_result = read(fd, buffer, size);
-        if(read_result == -1){
-            if(errno != EINTR){
-                perror("system_file_load_end");
-                break;
-            }
+        ssize_t n = read(fd, buffer, size);
+        if(n == -1 && errno != EAGAIN){
+            perror("read");
+            break;
         } else {
-            size -= read_result;
-            ptr  += read_result;
+            size -= n;
+            buffer += n;
         }
     } while(size);
 
-    close(fd);
-
-    LINUX_FN_DEBUG("success == %d", (size == 0));
-
-    return (size == 0);
+    return size == 0;
 }
 
 internal
-Sys_File_Save_Sig(system_file_save){
+Sys_Load_Close_Sig(system_load_close){
+    b32 result = 1;
+
+    int fd = *(int*)&handle;
+    if(close(fd) == -1){
+        perror("close");
+        result = 0;
+    }
+
+    return result;
+}
+
+internal
+Sys_Save_File_Sig(system_save_file){
     b32 result = 0;
     int fd = open(filename, O_WRONLY | O_TRUNC | O_CREAT, 00640);
 
@@ -630,7 +570,24 @@ Sys_File_Save_Sig(system_file_save){
 }
 
 //
-// Custom access to OS pages
+// Time
+//
+
+internal
+Sys_Now_Time_Sig(system_now_time){
+    struct timespec spec;
+    u64 result;
+    
+    clock_gettime(CLOCK_REALTIME, &spec);
+    result = (spec.tv_sec * UINT64_C(1000000)) + (spec.tv_nsec / UINT64_C(1000));
+
+    //LINUX_FN_DEBUG("ts: %" PRIu64, result);
+
+    return(result);
+}
+
+//
+// 4coder_custom.h
 //
 
 internal
@@ -691,10 +648,6 @@ MEMORY_FREE_SIG(system_memory_free){
     // NOTE(allen): This must take the exact base of the vpage.
     munmap(mem, size);
 }
-
-//
-// Filesystem navigation
-//
 
 internal
 FILE_EXISTS_SIG(system_file_exists){
@@ -983,174 +936,25 @@ Sys_CLI_End_Update_Sig(system_cli_end_update){
 // Threads
 //
 
-//#define OLD_JOB_QUEUE
-
-#ifdef OLD_JOB_QUEUE
-internal void*
-JobThreadProc(void* arg){
-    Thread_Context *thread = (Thread_Context*)arg;
-    Work_Queue *queue = linuxvars.queues + thread->group_id;
-    Thread_Group *group = linuxvars.groups + thread->group_id;
-
-    i32 thread_index = thread->id - 1;
-
-    i32 cancel_lock = group->cancel_lock0 + thread_index;
-    i32 cancel_cv   = group->cancel_cv0   + thread_index;
-
-    Thread_Memory *thread_memory = linuxvars.thread_memory + thread_index;
-
-    if (thread_memory->size == 0){
-        i32 new_size = Kbytes(64);
-        thread_memory->data = LinuxGetMemory(new_size);
-        thread_memory->size = new_size;
-    }
-
-    for (;;){
-        u32 read_index = queue->read_position;
-        u32 write_index = queue->write_position;
-
-        if (read_index != write_index){
-            u32 next_read_index = (read_index + 1) % QUEUE_WRAP;
-            u32 safe_read_index =
-            __sync_val_compare_and_swap(&queue->read_position,
-                                        read_index, next_read_index);
-
-            if (safe_read_index == read_index){
-                Full_Job_Data *full_job = queue->jobs + safe_read_index;
-                // NOTE(allen): This is interlocked so that it plays nice
-                // with the cancel job routine, which may try to cancel this job
-                // at the same time that we try to run it
-
-                i32 safe_running_thread =
-                __sync_val_compare_and_swap(&full_job->running_thread,
-                                            THREAD_NOT_ASSIGNED, thread->id);
-
-                if (safe_running_thread == THREAD_NOT_ASSIGNED){
-                    thread->job_id = full_job->id;
-                    thread->running = 1;
-
-                    full_job->job.callback(&linuxvars.system, thread, thread_memory, full_job->job.data);
-                    full_job->running_thread = 0;
-                    thread->running = 0;
-
-                    system_acquire_lock(cancel_lock);
-                    if(thread->cancel){
-                        thread->cancel = 0;
-                        pthread_cond_signal(linuxvars.conds + cancel_cv);
-                    }
-                    system_release_lock(cancel_lock);
-
-                    LinuxScheduleStep();
-                }
-            }
-        }
-        else{
-            sem_wait(LinuxHandleToSem(queue->semaphore));
-        }
-    }
+internal
+Sys_Acquire_Lock_Sig(system_acquire_lock){
+    pthread_mutex_lock(linuxvars.locks + id);
 }
 
 internal
-Sys_Post_Job_Sig(system_post_job){
-    Work_Queue *queue = linuxvars.queues + group_id;
-
-    Assert((queue->write_position + 1) % QUEUE_WRAP != queue->read_position % QUEUE_WRAP);
-
-    b32 success = 0;
-    u32 result = 0;
-    while (!success){
-        u32 write_index = queue->write_position;
-        u32 next_write_index = (write_index + 1) % QUEUE_WRAP;
-        u32 safe_write_index =
-        __sync_val_compare_and_swap(&queue->write_position,
-                                    write_index, next_write_index);
-        if (safe_write_index  == write_index){
-            result = write_index;
-            write_index = write_index % QUEUE_WRAP;
-            queue->jobs[write_index].job = job;
-            queue->jobs[write_index].running_thread = THREAD_NOT_ASSIGNED;
-            queue->jobs[write_index].id = result;
-            success = 1;
-        }
-    }
-
-    sem_post(LinuxHandleToSem(queue->semaphore));
-
-    return result;
+Sys_Release_Lock_Sig(system_release_lock){
+    pthread_mutex_unlock(linuxvars.locks + id);
 }
 
-internal
-Sys_Cancel_Job_Sig(system_cancel_job){
-    Work_Queue *queue = linuxvars.queues + group_id;
-    Thread_Group *group = linuxvars.groups + group_id;
-
-    u32 job_index = job_id % QUEUE_WRAP;
-    Full_Job_Data *full_job = queue->jobs + job_index;
-
-    Assert(full_job->id == job_id);
-    u32 thread_id =
-    __sync_val_compare_and_swap(&full_job->running_thread,
-                                THREAD_NOT_ASSIGNED, 0);
-
-    if (thread_id != THREAD_NOT_ASSIGNED && thread_id != 0){
-        i32 thread_index = thread_id - 1;
-
-        i32 cancel_lock = group->cancel_lock0 + thread_index;
-        i32 cancel_cv = group->cancel_cv0 + thread_index;
-        Thread_Context *thread = group->threads + thread_index;
-
-        system_acquire_lock(cancel_lock);
-        thread->cancel = 1;
-
-        system_release_lock(FRAME_LOCK);
-        do {
-            pthread_cond_wait(linuxvars.conds + cancel_cv, linuxvars.locks + cancel_lock);
-        } while(thread->cancel == 1);
-        system_acquire_lock(FRAME_LOCK);
-
-        system_release_lock(cancel_lock);
-
-        LinuxScheduleStep();
-    }
-
+internal void
+system_wait_cv(i32 lock_id, i32 cv_id){
+    pthread_cond_wait(linuxvars.conds + cv_id, linuxvars.locks + lock_id);
 }
 
-internal
-Sys_Check_Cancel_Sig(system_check_cancel){
-    b32 result = 0;
-
-    Thread_Group* group = linuxvars.groups + thread->group_id;
-    i32 thread_index = thread->id - 1;
-    i32 cancel_lock = group->cancel_lock0 + thread_index;
-
-    system_acquire_lock(cancel_lock);
-    if (thread->cancel){
-        result = 1;
-    }
-    system_release_lock(cancel_lock);
-
-    return (result);
+internal void
+system_signal_cv(i32 lock_id, i32 cv_id){
+    pthread_cond_signal(linuxvars.conds + cv_id);
 }
-
-internal
-Sys_Grow_Thread_Memory_Sig(system_grow_thread_memory){
-    void *old_data;
-    i32 old_size, new_size;
-
-    system_acquire_lock(CANCEL_LOCK0 + memory->id - 1);
-    old_data = memory->data;
-    old_size = memory->size;
-    new_size = LargeRoundUp(memory->size*2, Kbytes(4));
-    memory->data = system_get_memory(new_size);
-    memory->size = new_size;
-    if (old_data){
-        memcpy(memory->data, old_data, old_size);
-        system_free_memory(old_data);
-    }
-    system_release_lock(CANCEL_LOCK0 + memory->id - 1);
-}
-
-#else // new job queue
 
 internal void*
 JobThreadProc(void* lpParameter){
@@ -1441,28 +1245,6 @@ Sys_Grow_Thread_Memory_Sig(system_grow_thread_memory){
     system_release_lock(CANCEL_LOCK0 + memory->id - 1);
 }
 
-#endif // OLD_JOB_QUEUE
-
-internal
-Sys_Acquire_Lock_Sig(system_acquire_lock){
-    pthread_mutex_lock(linuxvars.locks + id);
-}
-
-internal
-Sys_Release_Lock_Sig(system_release_lock){
-    pthread_mutex_unlock(linuxvars.locks + id);
-}
-
-internal void
-system_wait_cv(i32 lock_id, i32 cv_id){
-    pthread_cond_wait(linuxvars.conds + cv_id, linuxvars.locks + lock_id);
-}
-
-internal void
-system_signal_cv(i32 lock_id, i32 cv_id){
-    pthread_cond_signal(linuxvars.conds + cv_id);
-}
-
 //
 // Debug
 //
@@ -1607,17 +1389,23 @@ LinuxLoadAppCode(String* base_dir){
 
 internal void
 LinuxLoadSystemCode(){
-    
-    linuxvars.system.file_time_stamp = system_file_time_stamp;
-    linuxvars.system.now_time_stamp = system_now_time_stamp;
+   
+    // files
     linuxvars.system.set_file_list = system_set_file_list;
-    linuxvars.system.file_unique_hash = system_file_unique_hash;
-    linuxvars.system.file_track = system_file_track;
-    linuxvars.system.file_untrack = system_file_untrack;
-    linuxvars.system.file_load_begin = system_file_load_begin;
-    linuxvars.system.file_load_end = system_file_load_end;
-    linuxvars.system.file_save = system_file_save;
+    linuxvars.system.get_canonical = system_get_canonical;
+    linuxvars.system.add_listener = system_add_listener;
+    linuxvars.system.remove_listener = system_remove_listener;
+    linuxvars.system.get_file_change = system_get_file_change;
+    linuxvars.system.load_handle = system_load_handle;
+    linuxvars.system.load_size = system_load_size;
+    linuxvars.system.load_file = system_load_file;
+    linuxvars.system.load_close = system_load_close;
+    linuxvars.system.save_file = system_save_file;
 
+    // time
+    linuxvars.system.now_time = system_now_time;
+
+    // 4coder_custom.h
     linuxvars.system.memory_allocate = system_memory_allocate;
     linuxvars.system.memory_set_protection = system_memory_set_protection;
     linuxvars.system.memory_free = system_memory_free;
@@ -1626,18 +1414,22 @@ LinuxLoadSystemCode(){
     linuxvars.system.get_4ed_path = system_get_4ed_path;
     linuxvars.system.show_mouse_cursor = system_show_mouse_cursor;
 
+    // clipboard
     linuxvars.system.post_clipboard = system_post_clipboard;
     
+    // coroutine
     linuxvars.system.create_coroutine = system_create_coroutine;
     linuxvars.system.launch_coroutine = system_launch_coroutine;
     linuxvars.system.resume_coroutine = system_resume_coroutine;
     linuxvars.system.yield_coroutine = system_yield_coroutine;
 
+    // cli
     linuxvars.system.cli_call = system_cli_call;
     linuxvars.system.cli_begin_update = system_cli_begin_update;
     linuxvars.system.cli_update_step = system_cli_update_step;
     linuxvars.system.cli_end_update = system_cli_end_update;
 
+    // threads
     linuxvars.system.post_job = system_post_job;
     linuxvars.system.cancel_job = system_cancel_job;
     linuxvars.system.check_cancel = system_check_cancel;
@@ -1645,12 +1437,14 @@ LinuxLoadSystemCode(){
     linuxvars.system.acquire_lock = system_acquire_lock;
     linuxvars.system.release_lock = system_release_lock;
 
+    // debug
 #if FRED_INTERNAL
     linuxvars.system.internal_sentinel = internal_sentinel;
     linuxvars.system.internal_get_thread_states = internal_get_thread_states;
     linuxvars.system.internal_debug_message = internal_debug_message;
 #endif
 
+    // non-function details
     linuxvars.system.slash = '/';
 }
 
@@ -2226,7 +2020,7 @@ LinuxStringDup(String* str, void* data, size_t size){
 internal void
 LinuxScheduleStep(void)
 {
-    u64 now  = system_now_time_stamp();
+    u64 now  = system_now_time();
     u64 diff = (now - linuxvars.last_step);
 
     if(diff > (u64)frame_useconds){
@@ -2925,23 +2719,6 @@ LinuxHandleX11Events(void)
 }
 
 //
-// inotify utility func
-//
-
-internal void
-LinuxHandleFileEvents()
-{
-    struct inotify_event* e;
-    char buff[sizeof(*e) + NAME_MAX + 1];
-
-    ssize_t num_bytes = read(linuxvars.inotify_fd, buff, sizeof(buff));
-    for(char* p = buff; (p - buff) < num_bytes; p += (sizeof(*e) + e->len)){
-        e = (struct inotify_event*)p;
-        // TODO: do something with the e->wd / e->name & report that in app.step?
-    }
-}
-
-//
 // Entry point
 //
 
@@ -2979,7 +2756,9 @@ main(int argc, char **argv)
     memory_vars.user_memory        = system_get_memory(memory_vars.user_memory_size);
 
     linuxvars.target.max         = Mbytes(1);
-    linuxvars.target.push_buffer = (byte*)system_get_memory(linuxvars.target.max);
+    linuxvars.target.push_buffer = (char*)system_get_memory(linuxvars.target.max);
+
+    init_shared_vars();
 
     //
     // Read command line
@@ -3248,9 +3027,6 @@ main(int argc, char **argv)
         e.data.u64 = LINUX_4ED_EVENT_X11;
         epoll_ctl(linuxvars.epoll, EPOLL_CTL_ADD, linuxvars.x11_fd, &e);
 
-        e.data.u64 = LINUX_4ED_EVENT_FILE;
-        epoll_ctl(linuxvars.epoll, EPOLL_CTL_ADD, linuxvars.inotify_fd, &e);
-
         e.data.u64 = LINUX_4ED_EVENT_STEP;
         epoll_ctl(linuxvars.epoll, EPOLL_CTL_ADD, linuxvars.step_event_fd, &e);
 
@@ -3321,10 +3097,6 @@ main(int argc, char **argv)
                     XProcessInternalConnection(linuxvars.XDisplay, fd);
                 } break;
 
-                case LINUX_4ED_EVENT_FILE: {
-                    LinuxHandleFileEvents();
-                } break;
-
                 case LINUX_4ED_EVENT_STEP: {
                     u64 ev;
                     int ret;
@@ -3350,7 +3122,7 @@ main(int argc, char **argv)
         }
 
         if(do_step){
-            linuxvars.last_step = system_now_time_stamp();
+            linuxvars.last_step = system_now_time();
 
             if(linuxvars.input.first_step || !linuxvars.has_xfixes){
                 XConvertSelection(
