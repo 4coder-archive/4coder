@@ -12,60 +12,21 @@
 
 #include "4tech_file_track.h"
 #include "4tech_file_track_general.c"
-
-// NOTE(allen):
-// There are a number of places where the "table" is built into this system.
-// If a table is not actually needed we will leave it in the API, but pull
-// out all of the following internal refrences to the table:
-// In Linux_File_Track_Vars :
-//   + void *tables; and all refrences to it
-// The entire Linux_File_Track_Entry struct and all refrences to it.
-// In init_track_system :
-//   + enough_memory_to_init_table(table_memory_size)
-//   + everything under the note "Initialize main data tables"
-// Leave move_track_system unimplemented and assert when it is called
-// 
+#include <libgen.h> // dirname
 
 typedef struct {
     void *tables;
-    // NOTE(allen):
-    // This struct must fit inside the opaque File_Track_System struct.
-    // If it needs more room we can make File_Track_System bigger.
-    //
-    // Here we need:
-    // 1. A mutex of some kind to make the main operations thread safe.
-    //    If it turns out the operations will be thread safe without a mutex
-    //    then it is not required.
-    // 2. Any synchronization primatives that are needed for dequeueing
-    //    change events.
-    // 3. Any data structures needed for handling the listeners.
-    //    This system can expect to be provided with memory from the user.
-    //    Right now the way the API works, it assumes that the user will
-    //    only ever add memory and never free it.  If freeing becomes necessary
-    //    on Linux the API can be extended to support that.
-
     int inotify;
     pthread_mutex_t lock;
     char *string_mem_begin;
     char *string_mem_end;
-
 } Linux_File_Track_Vars;
-
-//static_assert(sizeof(Linux_File_Track_Vars) <= sizeof(File_Track_System));
 
 typedef struct {
     File_Index hash;
-    // NOTE(allen):
-    // This struct must fit inside the opaque File_Track_Entry struct.
-    // The table is meant to help keep track of what is already being
-    // tracked.  It may turn out that this isn't needed on Linux which
-    // would be fine.  If it is used hash should be the first element
-    // of this struct and it should be used to uniquely identify each
-    // entry because it is used as the key for the table.
-    char* filename;
+    char* dir;
+    int ref_count;
 } Linux_File_Track_Entry;
-
-//static_assert(sizeof(Linux_File_Track_Entry) <= sizeof(File_Track_Entry));
 
 #define to_vars(s) ((Linux_File_Track_Vars*)(s))
 #define to_tables(v) ((File_Track_Tables*)(v->tables))
@@ -75,12 +36,14 @@ init_track_system(File_Track_System *system,
                   void *table_memory, int32_t table_memory_size,
                   void *listener_memory, int32_t listener_memory_size){
     File_Track_Result result = FileTrack_MemoryTooSmall;
+
+    Assert(sizeof(Linux_File_Track_Vars) <= sizeof(File_Track_System));
+
     Linux_File_Track_Vars *vars = to_vars(system);
 
     Assert(sizeof(Linux_File_Track_Entry) <= sizeof(File_Track_Entry));
 
-    if (enough_memory_to_init_table(table_memory_size) &&
-        /*if listener memory is important check it's size here*/ 1){
+    if (enough_memory_to_init_table(table_memory_size)){
 
         // NOTE(allen): Initialize main data tables
         vars->tables = (File_Track_Tables*) table_memory;
@@ -110,21 +73,13 @@ add_listener(File_Track_System *system, char *filename){
 
     pthread_mutex_lock(&vars->lock);
 
-    // NOTE(allen):
-    // Here do something to begin listening to changes to the file named filename.
-    // On Windows it listens to the parent directory if no other file in that
-    // directory is already being listened to.  We will assume that the user
-    // never passes the same filename in twice, although they may pass in two
-    // different names that both refer to the same file.  In this case we should
-    // treat them as two separate files so that if one of the listeners is removed
-    // the other on the same file keeps working.
-
     if(tracking_system_has_space(tables, 1)){
-        size_t filename_len = strlen(filename) + 1;
-        if(vars->string_mem_end - vars->string_mem_begin >= filename_len){
+        char *dir = dirname(strdupa(filename));
+        size_t dir_len = strlen(dir) + 1;
 
-            // TODO(inso): which events do we want?
-            int wd = inotify_add_watch(vars->inotify, filename, IN_ALL_EVENTS);
+        if(vars->string_mem_end - vars->string_mem_begin >= dir_len){
+            int wd = inotify_add_watch(vars->inotify, dir, IN_CREATE | IN_DELETE | IN_MODIFY | IN_MOVE);
+
             if(wd != -1){
                 File_Index key = { wd, 1 };
                 File_Track_Entry *entry = tracking_system_lookup_entry(tables, key);
@@ -132,15 +87,17 @@ add_listener(File_Track_System *system, char *filename){
 
                 LINUX_FN_DEBUG("map %s to wd %d", filename, wd);
 
-                Assert(entry_is_available(entry));
-
-                linux_entry->hash = key;
-                linux_entry->filename = vars->string_mem_begin;
-
-                memcpy(vars->string_mem_begin, filename, filename_len);
-                vars->string_mem_begin += filename_len;
-
-                ++tables->tracked_count;
+                if(entry_is_available(entry)){
+                    linux_entry->hash = key;
+                    linux_entry->dir = vars->string_mem_begin;
+                    linux_entry->ref_count = 1;
+                    memcpy(vars->string_mem_begin, dir, dir_len);
+                    vars->string_mem_begin += dir_len;
+                    ++tables->tracked_count;
+                } else {
+                    LINUX_FN_DEBUG("dir already tracked, adding ref");
+                    ++linux_entry->ref_count;
+                }
             } else {
                 result = FileTrack_FileSystemError;
             }
@@ -167,21 +124,22 @@ remove_listener(File_Track_System *system, char *filename){
 
     pthread_mutex_lock(&vars->lock);
 
-    // NOTE(allen):
-    // Here do something to stop listening to changes to the file named filename.
-    // We assume this filename has been passed into add_listener already and that
-    // if it has not it is a bug in the user's code not in this code.
+    char *dir = dirname(strdupa(filename));
+    // NOTE(inso): this assumes the filename was previously added
 
     for(uint32_t i = 0; i < tables->max; ++i){
         Linux_File_Track_Entry *e = (Linux_File_Track_Entry*)(entries + i);
         if(e->hash.id[1] != 1) continue;
-        if(strcmp(e->filename, filename) == 0){
+        if(strcmp(e->dir, dir) == 0){
             LINUX_FN_DEBUG("%s found as wd %d", filename, e->hash.id[0]);
-            if(inotify_rm_watch(vars->inotify, e->hash.id[0]) == -1){
-                perror("inotify_rm_watch");
-                result = FileTrack_FileSystemError;
+            if(--e->ref_count == 0){
+                LINUX_FN_DEBUG("refcount == 0, calling rm_watch");
+                if(inotify_rm_watch(vars->inotify, e->hash.id[0]) == -1){
+                    perror("inotify_rm_watch");
+                    result = FileTrack_FileSystemError;
+                }
+                internal_free_slot(tables, (File_Track_Entry*)e);
             }
-            internal_free_slot(tables, (File_Track_Entry*)e);
             // NOTE(inso): associated string memory in listeners would be freed here
             break;
         }
@@ -223,11 +181,6 @@ expand_track_system_listeners(File_Track_System *system, void *mem, int32_t size
 
     pthread_mutex_lock(&vars->lock);
 
-    // NOTE(allen): If there is a data structure for the listeners
-    // this call adds more memory to that system.  If this system
-    // wants to free old memory the API does not currently support
-    // that but it can.
-
     // NOTE(inso): pointer to old string mem is lost here.
     // would need to keep it around if we want to free in the future
 
@@ -255,38 +208,50 @@ get_change_event(File_Track_System *system, char *buffer, int32_t max, int32_t *
 
     pthread_mutex_lock(&vars->lock);
 
-    // NOTE(allen): If there are any new file changes report them
-    // by copying the name of the file to the buffer and returning
-    // FileTrack_Good.  It is allowed for this system to report
-    // changes to files that were not requested to be tracked, it
-    // is up to the user to check the filename and see if it cares
-    // about that file.  If there are no new changes the return
-    // FileTrack_NoMoreEvents.
+    struct inotify_event *ev;
+    char buff[sizeof(*ev) + NAME_MAX + 1] __attribute__((aligned(__alignof__(*ev))));
 
-    struct inotify_event ev;
+    // NOTE(inso): make sure we only read one event
+    size_t read_count = sizeof(*ev);
+    ssize_t n;
 
-    ssize_t n = read(vars->inotify, &ev, sizeof(ev));
+    do {
+        n = read(vars->inotify, buff, read_count);
+        read_count++;
+    } while(n == -1 && errno == EINVAL);
+
     if(n == -1 && errno != EAGAIN){
         perror("inotify read");
     } else if(n > 0){
-        File_Index key = { ev.wd, 1 };
+        ev = (struct inotify_event*) buff;
+
+        File_Index key = { ev->wd, 1 };
         File_Track_Entry *entry = tracking_system_lookup_entry(tables, key);
         Linux_File_Track_Entry *linux_entry = (Linux_File_Track_Entry*) entry;
 
+		LINUX_FN_DEBUG("mask: %#x", ev->mask);
+
         if(!entry_is_available(entry)){
-            LINUX_FN_DEBUG("event from wd %d (%s)", ev.wd, linux_entry->filename);
-            size_t filename_size = strlen(linux_entry->filename);
-            if(max < filename_size){
+
+            char* full_name = (char*) alloca(strlen(linux_entry->dir) + ev->len + 1);
+            strcpy(full_name, linux_entry->dir);
+            strcat(full_name, "/");
+            strcat(full_name, ev->name);
+
+            LINUX_FN_DEBUG("event from wd %d (%s)", ev->wd, full_name);
+
+            size_t full_name_size = strlen(full_name);
+            if(max < full_name_size){
                 result = FileTrack_MemoryTooSmall;
                 // NOTE(inso): this event will be dropped, needs to be stashed.
                 LINUX_FN_DEBUG("max too small, event dropped");
             } else {
-                memcpy(buffer, linux_entry->filename, filename_size);
-                *size = filename_size;
+                memcpy(buffer, full_name, full_name_size);
+                *size = full_name_size;
                 result = FileTrack_Good;
             }
         } else {
-            LINUX_FN_DEBUG("dead event from wd %d", ev.wd);
+            LINUX_FN_DEBUG("dead event from wd %d", ev->wd);
         }
     }
 

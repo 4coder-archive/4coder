@@ -63,7 +63,7 @@ linux_font_load(Partition *part, Render_Font *rf, char *name, i32 pt_size, i32 t
 #else
     char* filename = push_array(part, char, 256);
     if (filename != 0){
-        String str = make_string(filename, 0, 256);
+        String str = make_string_cap(filename, 0, 256);
         sysshared_to_binary_path(&str, name);
     }
 #endif
