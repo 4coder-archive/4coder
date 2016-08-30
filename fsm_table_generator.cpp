@@ -9,19 +9,19 @@
 
 #include <stdlib.h>
 #include <stdio.h>
-#include <string.h>
-#include <assert.h>
 #include <stdint.h>
 
+#define Assert(n) do{ if (!(n)) { *(int*)0 = 0xA11E; } }while(0)
 #define ArrayCount(a) (sizeof(a)/sizeof(*a))
 
 #include "4cpp_lexer_types.h"
 #include "4cpp_lexer_fsms.h"
+#include "4ed_mem_ansi.c"
 
-struct Whitespace_FSM{
+typedef struct Whitespace_FSM{
     unsigned char pp_state;
     unsigned char white_done;
-};
+} Whitespace_FSM;
 
 Whitespace_FSM
 whitespace_skip_fsm(Whitespace_FSM wfsm, char c){
@@ -110,12 +110,14 @@ main_fsm(Lex_FSM fsm, unsigned char pp_state, unsigned char c){
             if (c == '\n') fsm.emit_token = 1;
             break;
             
+#if 0
             case LSPP_include:
             switch (fsm.state){
                 case LSINC_default:
                 switch (c){
                     case '"': fsm.state = LSINC_quotes; break;
                     case '<': fsm.state = LSINC_pointy; break;
+                    case '/': fsm.state = LSINC_def_comment_pre; break;
                     default: fsm.state = LSINC_junk; break;
                 }
                 break;
@@ -137,15 +139,56 @@ main_fsm(Lex_FSM fsm, unsigned char pp_state, unsigned char c){
                 break;
                 
                 case LSINC_junk:
-                if (c == '\n') fsm.emit_token = 1;
+                switch (c){
+                    case '/': fsm.state = LSINC_junk_comment_pre; break;
+                    case '\n': fsm.emit_token = 1; break;
+                }
+                break;
+                
+                case LSINC_def_comment_pre:
+                switch (c){
+                    case '/': fsm.state = LSINC_def_comment; break;
+                    case '*': fsm.state = LSINC_def_comment_block; break;
+                    case '\n': fsm.state = LSINC_junk; fsm.emit_token = 1; break;
+                    default: fsm.state = LSINC_junk; break;
+                }
+                break;
+                
+                case LSINC_junk_comment_pre:
+                switch (c){
+                    case '/': fsm.state = LSINC_junk_comment; break;
+                    case '*': fsm.state = LSINC_junk_comment_block; break;
+                    case '\n': fsm.state = LSINC_junk; fsm.emit_token = 1; break;
+                    default: fsm.state = LSINC_junk; break;
+                }
+                break;
+                
+                case LSINC_def_comment:
+                case LSINC_junk_comment:
+                switch (c){
+                    
+                }
+                break;
+                
+                case LSINC_def_comment_slashed:
+                case LSINC_junk_comment_slashed:
+                break;
+                
+                case LSINC_def_comment_block:
+                case LSINC_junk_comment_block:
+                break;
+                
+                case LSINC_def_comment_block_ending:
+                case LSINC_junk_comment_block_ending:
                 break;
             }
             break;
+#endif
             
             default:
             switch (fsm.state){
                 case LS_default:
-                if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_'){
+                if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_' || c == '$'){
                     fsm.state = LS_identifier;
                 }
                 else if (c >= '1' && c <= '9'){
@@ -154,67 +197,78 @@ main_fsm(Lex_FSM fsm, unsigned char pp_state, unsigned char c){
                 else if (c == '0'){
                     fsm.state = LS_number0;
                 }
-                else switch (c){
-                    case '\'': fsm.state = LS_char; break;
-                    case '"': fsm.state = LS_string; break;
-                    
-                    case '/': fsm.state = LS_comment_pre; break;
-                    
-                    case '.': fsm.state = LS_dot; break;
-                    
-                    case '<': fsm.state = LS_less; break;
-                    case '>': fsm.state = LS_more; break;
-                    
-                    case '-': fsm.state = LS_minus; break;
-                    
-                    case '&': fsm.state = LS_and; break;
-                    case '|': fsm.state = LS_or; break;
-                    
-                    case '+': fsm.state = LS_plus; break;
-                    
-                    case ':': fsm.state = LS_colon; break;
-                    
-                    case '*': fsm.state = LS_star; break;
-                    
-                    case '%': fsm.state = LS_modulo; break;
-                    case '^': fsm.state = LS_caret; break;
-                    
-                    case '=': fsm.state = LS_eq; break;
-                    case '!': fsm.state = LS_bang; break;
-                    
-                    case '#':
-                    if (pp_state == LSPP_default){
-                        fsm.state = LS_pp;
-                    }
-                    else{
-                        fsm.state = LS_pound;
-                    }
-                    break;
-                    
+                else{
+                    switch (c){
+                        case '\'': fsm.state = LS_char; break;
+                        case '"': fsm.state = LS_string; break;
+                        
+                        case '/': fsm.state = LS_comment_pre; break;
+                        
+                        case '.': fsm.state = LS_dot; break;
+                        
+                        case '<':
+                        if (pp_state == LSPP_include){
+                            fsm.state = LS_string;
+                        }
+                        else{
+                            fsm.state = LS_less;
+                        }
+                        break;
+                        
+                        case '>': fsm.state = LS_more; break;
+                        
+                        case '-': fsm.state = LS_minus; break;
+                        
+                        case '&': fsm.state = LS_and; break;
+                        case '|': fsm.state = LS_or; break;
+                        
+                        case '+': fsm.state = LS_plus; break;
+                        
+                        case ':': fsm.state = LS_colon; break;
+                        
+                        case '*': fsm.state = LS_star; break;
+                        
+                        case '%': fsm.state = LS_modulo; break;
+                        case '^': fsm.state = LS_caret; break;
+                        
+                        case '=': fsm.state = LS_eq; break;
+                        case '!': fsm.state = LS_bang; break;
+                        
+                        case '#':
+                        if (pp_state == LSPP_default){
+                            fsm.state = LS_pp;
+                        }
+                        else{
+                            fsm.state = LS_pound;
+                        }
+                        break;
+                        
 #define OperCase(op,type) case op: fsm.emit_token = 1; break;
-                    OperCase('{', CPP_TOKEN_BRACE_OPEN);
-                    OperCase('}', CPP_TOKEN_BRACE_CLOSE);
-                    
-                    OperCase('[', CPP_TOKEN_BRACKET_OPEN);
-                    OperCase(']', CPP_TOKEN_BRACKET_CLOSE);
-                    
-                    OperCase('(', CPP_TOKEN_PARENTHESE_OPEN);
-                    OperCase(')', CPP_TOKEN_PARENTHESE_CLOSE);
-                    
-                    OperCase('~', CPP_TOKEN_TILDE);
-                    OperCase(',', CPP_TOKEN_COMMA);
-                    OperCase(';', CPP_TOKEN_SEMICOLON);
-                    OperCase('?', CPP_TOKEN_TERNARY_QMARK);
-                    
-                    OperCase('@', CPP_TOKEN_JUNK);
-                    OperCase('$', CPP_TOKEN_JUNK);
-                    OperCase('\\', CPP_TOKEN_JUNK);
+                        OperCase('{', CPP_TOKEN_BRACE_OPEN);
+                        OperCase('}', CPP_TOKEN_BRACE_CLOSE);
+                        
+                        OperCase('[', CPP_TOKEN_BRACKET_OPEN);
+                        OperCase(']', CPP_TOKEN_BRACKET_CLOSE);
+                        
+                        OperCase('(', CPP_TOKEN_PARENTHESE_OPEN);
+                        OperCase(')', CPP_TOKEN_PARENTHESE_CLOSE);
+                        
+                        OperCase('~', CPP_TOKEN_TILDE);
+                        OperCase(',', CPP_TOKEN_COMMA);
+                        OperCase(';', CPP_TOKEN_SEMICOLON);
+                        OperCase('?', CPP_TOKEN_TERNARY_QMARK);
+                        
+                        OperCase('@', CPP_TOKEN_JUNK);
+                        OperCase('\\', CPP_TOKEN_JUNK);
 #undef OperCase
+                    }
                 }
                 break;
                 
                 case LS_identifier:
-                if (!((c >= '0' && c <= '9') || (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_')){
+                if (!((c >= '0' && c <= '9') ||
+                      (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
+                      c == '_' || c == '$')){
                     fsm.emit_token = 1;
                 }
                 break;
@@ -232,6 +286,9 @@ main_fsm(Lex_FSM fsm, unsigned char pp_state, unsigned char c){
                 }
                 else if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')){
                     fsm.state = LS_ppdef;
+                }
+                else{
+                    fsm.emit_token = 1;
                 }
                 break;
                 
@@ -261,6 +318,14 @@ main_fsm(Lex_FSM fsm, unsigned char pp_state, unsigned char c){
                 case LS_string_multiline:
                 switch(c){
                     case '\n': case '\"': fsm.emit_token = 1; break;
+                    case '>':
+                    if (pp_state == LSPP_include){
+                        fsm.emit_token = 1;
+                    }
+                    else{
+                        fsm.state = LS_string_slashed;
+                    }
+                    break;
                     case '\\': fsm.state = LS_string_slashed; break;
                 } 
                 break;
@@ -556,7 +621,7 @@ allocate_full_tables(FSM_Tables *table, uint8_t state_count){
     table->eq_class = (uint8_t*)malloc(state_count * 256);
     table->eq_class_rep = (uint8_t*)malloc(state_count * 256);
     table->state_count = state_count;
-    memset(table->marks, 0, 256);
+    block_zero(table->marks, 256);
 }
 
 static void
@@ -570,7 +635,7 @@ do_table_reduction(FSM_Tables *table, uint16_t state_count){
                 table->eq_class_rep[table->eq_class_counter] = (uint8_t)c;
                 uint8_t *c2_line = c_line + state_count;
                 for (uint16_t c2 = c + 1; c2 < 256; ++c2){
-                    if (memcmp(c_line, c2_line, state_count) == 0){
+                    if (block_compare(c_line, c2_line, state_count) == 0){
                         table->marks[c2] = 1;
                         table->eq_class[c2] = table->eq_class_counter;
                     }
@@ -587,7 +652,7 @@ do_table_reduction(FSM_Tables *table, uint16_t state_count){
         uint8_t *r_line = table->reduced_transition_table;
         for (uint16_t eq = 0; eq < table->eq_class_counter; ++eq){
             uint8_t *u_line = table->full_transition_table + state_count * table->eq_class_rep[eq];
-            memcpy(r_line, u_line, state_count);
+            block_copy(r_line, u_line, state_count);
             r_line += state_count;
         }
     }
@@ -730,7 +795,7 @@ main(){
     end_table(file);
     
     for (int32_t i = 0; i < ArrayCount(pp_names); ++i){
-        assert(i == pp_names[i].pp_state);
+        Assert(i == pp_names[i].pp_state);
         FSM_Tables tables = generate_fsm_table(pp_names[i].pp_state);
         render_fsm_table(file, tables, pp_names[i].name);
     }

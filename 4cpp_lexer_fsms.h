@@ -68,13 +68,6 @@ enum Lex_Int_State{
     LSINT_count
 };
 
-enum Lex_INC_State{
-    LSINC_default,
-    LSINC_quotes,
-    LSINC_pointy,
-    LSINC_junk,
-};
-
 enum Lex_PP_State{
     LSPP_default,
     LSPP_include,

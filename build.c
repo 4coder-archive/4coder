@@ -269,13 +269,14 @@ int main(int argc, char **argv){
 #define META_DIR "../meta"
 #define BUILD_DIR "../build"
     
-#if 0
+#if 1
     {
         BEGIN_TIME_SECTION();
         build(OPTS, cdir, "fsm_table_generator.cpp",
               BUILD_DIR, "fsmgen", 0);
         END_TIME_SECTION("build fsm generator");
     }
+    
     {
         BEGIN_TIME_SECTION();
         execute(cdir, BUILD_DIR"/fsmgen");

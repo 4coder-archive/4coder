@@ -251,10 +251,12 @@ cpp_shift_token_starts(Cpp_Token_Stack *stack, int32_t from_token_i, int32_t shi
     }
 }
 
+#if 0
 enum Pos_Update_Rule{
     PUR_none,
     PUR_back_one,
 };
+#endif
 
 FCPP_LINK Lex_PP_State
 cpp_pp_directive_to_state(Cpp_Token_Type type){
@@ -405,7 +407,7 @@ cpp_lex_nonalloc(Lex_Data *S_ptr,
     int32_t token_i = token_stack_out->count;
     int32_t max_token_i = token_stack_out->max_count;
     
-    Pos_Update_Rule pos_update_rule = PUR_none;
+    //Pos_Update_Rule pos_update_rule = PUR_none;
     
     char c = 0;
     
@@ -477,7 +479,9 @@ cpp_lex_nonalloc(Lex_Data *S_ptr,
         }
         
         if (S.fsm.state >= LS_count) S.fsm.state -= LS_count;
-        pos_update_rule = PUR_none;
+        //pos_update_rule = PUR_none;
+        
+#if 0
         if (S.pp_state == LSPP_include){
             if (c == 0) S.fsm.emit_token = 0;
             switch (S.fsm.state){
@@ -495,7 +499,10 @@ cpp_lex_nonalloc(Lex_Data *S_ptr,
                 break;
             }
         }
-        else{
+        else{}
+#endif
+        
+        {
             switch (S.fsm.state){
                 case LS_default:
                 switch (c){
@@ -517,7 +524,6 @@ cpp_lex_nonalloc(Lex_Data *S_ptr,
                     OperCase('?', CPP_TOKEN_TERNARY_QMARK);
                     
                     OperCase('@', CPP_TOKEN_JUNK);
-                    OperCase('$', CPP_TOKEN_JUNK);
 #undef OperCase
                     
                     case '\\':
@@ -552,7 +558,8 @@ cpp_lex_nonalloc(Lex_Data *S_ptr,
                     }
                     break;
                 }
-                if (c != '@' && c != '$' && c != '\\'){
+                
+                if (c != '@' && c != '\\'){
                     S.token.flags = CPP_TFLAG_IS_OPERATOR;
                 }
                 break;
@@ -590,13 +597,19 @@ cpp_lex_nonalloc(Lex_Data *S_ptr,
                     case '#': S.token.type = CPP_PP_CONCAT; break;
                     default:
                     S.token.type = CPP_PP_STRINGIFY;
-                    pos_update_rule = PUR_back_one;
+                    --S.pos;
                     break;
                 }
                 break;
                 
-                case LS_ppdef:
                 case LS_pp:
+                {
+                    S.token.type = CPP_TOKEN_JUNK;
+                    S.token.flags = 0;
+                    --S.pos;
+                }break;
+                
+                case LS_ppdef:
                 {
                     --S.pos;
                     
@@ -657,7 +670,7 @@ cpp_lex_nonalloc(Lex_Data *S_ptr,
                     case 'f': case 'F':
                     case 'l': case 'L':break;
                     default:
-                    pos_update_rule = PUR_back_one;
+                    --S.pos;
                     break;
                 }
                 break;
@@ -682,8 +695,15 @@ cpp_lex_nonalloc(Lex_Data *S_ptr,
                 case LS_string:
                 case LS_string_slashed:
                 S.token.type = CPP_TOKEN_JUNK;
-                if (c == '"'){
-                    S.token.type = CPP_TOKEN_STRING_CONSTANT;
+                if (S.pp_state == LSPP_include){
+                    if (c == '>' || c == '"'){
+                        S.token.type = CPP_TOKEN_INCLUDE_FILE;
+                    }
+                }
+                else{
+                    if (c == '"'){
+                        S.token.type = CPP_TOKEN_STRING_CONSTANT;
+                    }
                 }
                 S.token.flags = 0;
                 break;
@@ -702,7 +722,7 @@ cpp_lex_nonalloc(Lex_Data *S_ptr,
                     case '=': S.token.type = CPP_TOKEN_DIVEQ; break;
                     default:
                     S.token.type = CPP_TOKEN_DIV;
-                    pos_update_rule = PUR_back_one;
+                    --S.pos;
                     break;
                 }
                 break;
@@ -711,7 +731,7 @@ cpp_lex_nonalloc(Lex_Data *S_ptr,
                 case LS_comment_slashed:
                 S.token.type = CPP_TOKEN_COMMENT;
                 S.token.flags = 0;
-                pos_update_rule = PUR_back_one;
+                --S.pos;
                 break;
                 
                 case LS_comment_block:
@@ -723,7 +743,7 @@ cpp_lex_nonalloc(Lex_Data *S_ptr,
                 case LS_error_message:
                 S.token.type = CPP_TOKEN_ERROR_MESSAGE;
                 S.token.flags = 0;
-                pos_update_rule = PUR_back_one;
+                --S.pos;
                 break;
                 
                 case LS_dot:
@@ -732,7 +752,7 @@ cpp_lex_nonalloc(Lex_Data *S_ptr,
                     case '*': S.token.type = CPP_TOKEN_PTRDOT; break;
                     default:
                     S.token.type = CPP_TOKEN_DOT;
-                    pos_update_rule = PUR_back_one;
+                    --S.pos;
                     break;
                 }
                 break;
@@ -746,7 +766,7 @@ cpp_lex_nonalloc(Lex_Data *S_ptr,
                     
                     default:
                     S.token.type = CPP_TOKEN_JUNK;
-                    pos_update_rule = PUR_back_one;
+                    --S.pos;
                     break;
                 }
                 break;
@@ -757,7 +777,7 @@ cpp_lex_nonalloc(Lex_Data *S_ptr,
                     case '=': S.token.type = CPP_TOKEN_LESSEQ; break;
                     default:
                     S.token.type = CPP_TOKEN_LESS;
-                    pos_update_rule = PUR_back_one;
+                    --S.pos;
                     break;
                 }
                 break;
@@ -768,7 +788,7 @@ cpp_lex_nonalloc(Lex_Data *S_ptr,
                     case '=': S.token.type = CPP_TOKEN_LSHIFTEQ; break;
                     default:
                     S.token.type = CPP_TOKEN_LSHIFT;
-                    pos_update_rule = PUR_back_one;
+                    --S.pos;
                     break;
                 }
                 break;
@@ -779,7 +799,7 @@ cpp_lex_nonalloc(Lex_Data *S_ptr,
                     case '=': S.token.type = CPP_TOKEN_GRTREQ; break;
                     default:
                     S.token.type = CPP_TOKEN_GRTR;
-                    pos_update_rule = PUR_back_one;
+                    --S.pos;
                     break;
                 }
                 break;
@@ -790,7 +810,7 @@ cpp_lex_nonalloc(Lex_Data *S_ptr,
                     case '=': S.token.type = CPP_TOKEN_RSHIFTEQ; break;
                     default:
                     S.token.type = CPP_TOKEN_RSHIFT;
-                    pos_update_rule = PUR_back_one;
+                    --S.pos;
                     break;
                 }
                 break;
@@ -802,7 +822,7 @@ cpp_lex_nonalloc(Lex_Data *S_ptr,
                     case '=': S.token.type = CPP_TOKEN_SUBEQ; break;
                     default:
                     S.token.type = CPP_TOKEN_MINUS;
-                    pos_update_rule = PUR_back_one;
+                    --S.pos;
                     break;
                 }
                 break;
@@ -813,7 +833,7 @@ cpp_lex_nonalloc(Lex_Data *S_ptr,
                     case '*': S.token.type = CPP_TOKEN_PTRARROW; break;
                     default:
                     S.token.type = CPP_TOKEN_ARROW;
-                    pos_update_rule = PUR_back_one;
+                    --S.pos;
                     break;
                 }
                 break;
@@ -825,7 +845,7 @@ cpp_lex_nonalloc(Lex_Data *S_ptr,
                     case '=': S.token.type = CPP_TOKEN_ANDEQ; break;
                     default:
                     S.token.type = CPP_TOKEN_AMPERSAND;
-                    pos_update_rule = PUR_back_one;
+                    --S.pos;
                     break;
                 }
                 break;
@@ -837,7 +857,7 @@ cpp_lex_nonalloc(Lex_Data *S_ptr,
                     case '=': S.token.type = CPP_TOKEN_OREQ; break;
                     default:
                     S.token.type = CPP_TOKEN_BIT_OR;
-                    pos_update_rule = PUR_back_one;
+                    --S.pos;
                     break;
                 }
                 break;
@@ -849,7 +869,7 @@ cpp_lex_nonalloc(Lex_Data *S_ptr,
                     case '=': S.token.type = CPP_TOKEN_ADDEQ; break;
                     default:
                     S.token.type = CPP_TOKEN_PLUS;
-                    pos_update_rule = PUR_back_one;
+                    --S.pos;
                     break;
                 }
                 break;
@@ -860,7 +880,7 @@ cpp_lex_nonalloc(Lex_Data *S_ptr,
                     case ':': S.token.type = CPP_TOKEN_SCOPE; break;
                     default:
                     S.token.type = CPP_TOKEN_COLON;
-                    pos_update_rule = PUR_back_one;
+                    --S.pos;
                     break;
                 }
                 break;
@@ -871,7 +891,7 @@ cpp_lex_nonalloc(Lex_Data *S_ptr,
                     case '=': S.token.type = CPP_TOKEN_MULEQ; break;
                     default:
                     S.token.type = CPP_TOKEN_STAR;
-                    pos_update_rule = PUR_back_one;
+                    --S.pos;
                     break;
                 }
                 break;
@@ -882,7 +902,7 @@ cpp_lex_nonalloc(Lex_Data *S_ptr,
                     case '=': S.token.type = CPP_TOKEN_MODEQ; break;
                     default:
                     S.token.type = CPP_TOKEN_MOD;
-                    pos_update_rule = PUR_back_one;
+                    --S.pos;
                     break;
                 }
                 break;
@@ -893,7 +913,7 @@ cpp_lex_nonalloc(Lex_Data *S_ptr,
                     case '=': S.token.type = CPP_TOKEN_XOREQ; break;
                     default:
                     S.token.type = CPP_TOKEN_BIT_XOR;
-                    pos_update_rule = PUR_back_one;
+                    --S.pos;
                     break;
                 }
                 break;
@@ -904,7 +924,7 @@ cpp_lex_nonalloc(Lex_Data *S_ptr,
                     case '=': S.token.type = CPP_TOKEN_EQEQ; break;
                     default:
                     S.token.type = CPP_TOKEN_EQ;
-                    pos_update_rule = PUR_back_one;
+                    --S.pos;
                     break;
                 }
                 break;
@@ -915,12 +935,13 @@ cpp_lex_nonalloc(Lex_Data *S_ptr,
                     case '=': S.token.type = CPP_TOKEN_NOTEQ; break;
                     default:
                     S.token.type = CPP_TOKEN_NOT;
-                    pos_update_rule = PUR_back_one;
+                    --S.pos;
                     break;
                 }
                 break;
             }
             
+#if 0
             switch (pos_update_rule){
                 case PUR_back_one:
                 --S.pos;
@@ -932,16 +953,16 @@ cpp_lex_nonalloc(Lex_Data *S_ptr,
                 }
                 break;
             }
+#else
+            
+            if (chunk[S.pos-1] == 0){
+                --S.pos;
+            }
+            
+#endif
             
             if ((S.token.flags & CPP_TFLAG_PP_DIRECTIVE) == 0){
                 switch (S.pp_state){
-                    case LSPP_include:
-                    if (S.token.type != CPP_TOKEN_INCLUDE_FILE){
-                        S.token.type = CPP_TOKEN_JUNK;
-                    }
-                    S.pp_state = LSPP_junk;
-                    break;
-                    
                     case LSPP_macro_identifier:
                     if (S.fsm.state != LS_identifier){
                         S.token.type = CPP_TOKEN_JUNK;

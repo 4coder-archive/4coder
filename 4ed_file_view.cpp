@@ -5397,7 +5397,7 @@ draw_file_loaded(View *view, i32_Rect rect, b32 is_active, Render_Target *target
                     ++token_i;
                 }
                 else if (ind >= current_token.start + current_token.size){
-                    main_color = 0xFFFFFFFF;
+                    main_color = style->main.default_color;
                 }
             }
             
