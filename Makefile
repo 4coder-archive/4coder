@@ -1,4 +1,5 @@
 CPP_FILES  := $(wildcard *.cpp) $(wildcard **/*.cpp)
+C_FILES    := $(wildcard *.c) $(wildcard **/*.c)
 H_FILES    := $(wildcard *.h) $(wildcard **/*.h)
 WARNINGS   := -Wno-write-strings
 PLAT_LINKS := -L/usr/local/lib -lX11 -lpthread -lm -lrt -lGL -ldl -lXfixes -lfreetype -lfontconfig
@@ -9,10 +10,10 @@ FLAGS      := -fPIC -fno-threadsafe-statics -pthread -I../foreign $(shell pkg-co
 debug: FLAGS += -DFRED_INTERNAL=1 -DFRED_SUPER=1 -g -O0
 debug: ../4ed_app.so ../4ed
 
-../4ed_app.so: $(CPP_FILES) $(H_FILES)
+../4ed_app.so: $(CPP_FILES) $(C_FILES) $(H_FILES)
 	g++ $(WARNINGS) $(FLAGS) -shared 4ed_app_target.cpp -iquoteforeign -o $@
 
-../4ed: $(CPP_FILES) $(H_FILES)
+../4ed: $(CPP_FILES) $(C_FILES) $(H_FILES)
 	g++ $(WARNINGS) $(FLAGS) linux_4ed.cpp -iquoteforeign $(PLAT_LINKS) -o $@
 
 clean:
