@@ -7,8 +7,8 @@
  *
  */
 
-#ifndef FRED_META_H
-#define FRED_META_H
+#ifndef FRED_DEFINES_H
+#define FRED_DEFINES_H
 
 #include <string.h>
 #include <stdint.h>

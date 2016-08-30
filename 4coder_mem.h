@@ -78,9 +78,9 @@ This is a very week general purpose allocator system.
 It should only be used for infrequent large allocations (4K+).
 */
 
-#include <stdint.h>
-#include <assert.h>
-#include <string.h>
+//#include <stdint.h>
+//#include <assert.h>
+//#include <string.h>
 
 enum{
     MEM_BUBBLE_FLAG_INIT = 0x0,
@@ -159,29 +159,34 @@ general_memory_open(General_Memory *general, void *memory, int32_t size){
     insert_bubble2(&general->free_sentinel, first);
 }
 
+#ifdef Assert
 static int32_t
 general_memory_check(General_Memory *general){
     Bubble *sentinel = &general->sentinel;
     for (Bubble *bubble = sentinel->next;
          bubble != sentinel;
          bubble = bubble->next){
-        assert(bubble);
+        Assert(bubble);
         
         Bubble *next = bubble->next;
-        assert(bubble == next->prev);
+        Assert(bubble == next->prev);
         if (next != sentinel && bubble->prev != sentinel){
-            assert(bubble->next > bubble);
-            assert(bubble > bubble->prev);
+            Assert(bubble->next > bubble);
+            Assert(bubble > bubble->prev);
             
             char *end_ptr = (char*)(bubble + 1) + bubble->size;
             char *next_ptr = (char*)next;
             (void)(end_ptr);
             (void)(next_ptr);
-            assert(end_ptr == next_ptr);
+            Assert(end_ptr == next_ptr);
         }
     }
     return(1);
 }
+#else
+static int32_t
+general_memory_check(General_Memory *general){}
+#endif
 
 #define BUBBLE_MIN_SIZE 1024
 
@@ -221,8 +226,6 @@ general_memory_allocate(General_Memory *general, int32_t size){
 
 inline void
 general_memory_do_merge(Bubble *left, Bubble *right){
-    assert(left->next == right);
-    assert(right->prev == left);
     left->size += sizeof(Bubble) + right->size;
     remove_bubble(right);
     remove_bubble2(right);
@@ -238,7 +241,6 @@ general_memory_attempt_merge(Bubble *left, Bubble *right){
 static void
 general_memory_free(General_Memory *general, void *memory){
     Bubble *bubble = ((Bubble*)memory) - 1;
-    assert(bubble->flags == MEM_BUBBLE_USED);
     bubble->flags = 0;
     
     remove_bubble2(bubble);

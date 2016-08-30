@@ -47,7 +47,6 @@ struct Key_Summary{
 
 inline Key_Event_Data
 get_single_key(Key_Summary *summary, i32 index){
-    Assert(index >= 0 && index < summary->count);
     Key_Event_Data key;
     key = summary->keys[index];
     return key;

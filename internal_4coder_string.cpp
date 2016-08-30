@@ -16,7 +16,7 @@ FSTRING_BEGIN
 #endif
 
 #if defined(FSTRING_IMPLEMENTATION) && defined(FSTRING_GUARD)
-#undef FSTRING_IMPLEMENTATION
+# undef FSTRING_IMPLEMENTATION
 #endif
 
 #include <stdint.h>

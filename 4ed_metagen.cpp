@@ -1,23 +1,25 @@
 /*
-* Mr. 4th Dimention - Allen Webster
-*
-* 25.02.2016
-*
-* File editing view for 4coder
-*
-*/
+ * Mr. 4th Dimention - Allen Webster
+ *
+ * 25.02.2016
+ *
+ * File editing view for 4coder
+ *
+ */
 
 // TOP
 
-#include "4ed_meta.h"
-#include "internal_4coder_string.cpp"
+#include "4coder_version.h"
 
-#include "4cpp_lexer_types.h"
+#include "internal_4coder_string.cpp"
 
 #define FCPP_LEXER_IMPLEMENTATION
 #include "4cpp_lexer.h"
 
-#include "4coder_version.h"
+#include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
+#include <assert.h>
 
 #include "4coder_mem.h"
 
@@ -84,11 +86,6 @@ void to_camel(char *src, char *dst){
     *dst = 0;
 }
 
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
-#include <assert.h>
-
 void struct_begin(FILE *file, char *name){
     fprintf(file, "struct %s{\n", name);
 }
@@ -146,13 +143,14 @@ char *keys_that_need_codes[] = {
     "f16",
 };
 
-char* generate_keycode_enum(){
+void
+generate_keycode_enum(){
     FILE *file;
-    char *filename = "4coder_keycodes.h";
+    char *filename_keycodes = "4coder_keycodes.h";
     int32_t i, count;
     unsigned char code = 1;
     
-    file = fopen(filename, "wb");
+    file = fopen(filename_keycodes, "wb");
     fprintf(file, "enum Key_Code_Names{\n");
     count = ArrayCount(keys_that_need_codes);
     for (i = 0; i < count; i){
@@ -191,7 +189,6 @@ char* generate_keycode_enum(){
             );
     
     fclose(file);
-    return(filename);
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////
@@ -258,8 +255,8 @@ char style_index_function_end[] =
 char style_case[] = " case Stag_%s: result = &s->%s_color; break;\n";
 char style_info_case[] = " case Stag_%s: result = &s->file_info_style.%s_color; break;\n";
 
-char* generate_style(){
-    char *filename = "4coder_style.h & 4ed_style.h";
+void
+generate_style(){
     char filename_4coder[] = "4coder_style.h";
     char filename_4ed[] = "4ed_style.h";
     FILE *file;
@@ -325,10 +322,9 @@ char* generate_style(){
     }
     
     fclose(file);
-    
-    return(filename);
 }
 
+#if 1
 //////////////////////////////////////////////////////////////////////////////////////////////////
 typedef struct Argument_Breakdown{
     int32_t count;
@@ -346,12 +342,12 @@ typedef struct Documentation{
     String *see_also;
 } Documentation;
 
-struct App_API{
+typedef struct App_API{
     String *macros;
     String *public_name;
-};
+} App_API;
 
-struct Function_Set{
+typedef struct Function_Set{
     String *name;
     String *ret;
     String *args;
@@ -361,45 +357,45 @@ struct Function_Set{
     
     String *doc_string;
     
-    int32_t    *is_macro;
-    int32_t    *valid;
+    int32_t *is_macro;
+    int32_t *valid;
     
     Argument_Breakdown *breakdown;
     Documentation *doc;
-};
+} Function_Set;
 
-struct Typedef_Set{
+typedef struct Typedef_Set{
     String *type;
     String *name;
     String *doc_string;
-}; 
+} Typedef_Set; 
 
-struct Struct_Member{
+typedef struct Struct_Member{
     String name;
     String type;
     String type_postfix;
     String doc_string;
     Struct_Member *first_child;
     Struct_Member *next_sibling;
-};
+} Struct_Member;
 
-struct Struct_Set{
+typedef struct Struct_Set{
     Struct_Member *structs;
-};
+} Struct_Set;
 
-struct Enum_Member{
+typedef struct Enum_Member{
     String name;
     String value;
     String doc_string;
     Enum_Member *next;
-};
+} Enum_Member;
 
-struct Enum_Set{
+typedef struct Enum_Set{
     String *name;
     String *type;
     Enum_Member **first_member;
     String *doc_string;
-};
+} Enum_Set;
 
 void
 zero_index(Function_Set fnc_set, int32_t sig_count){
@@ -435,9 +431,7 @@ String
 get_first_line(String source){
     String line = {0};
     int32_t pos = find_s_char(source, 0, '\n');
-    
     line = substr(source, 0, pos);
-    
     return(line);
 }
 
@@ -472,9 +466,9 @@ is_comment(String str){
     return(result);
 }
 
-struct Parse{
+typedef struct Parse{
     Cpp_Token_Stack tokens;
-};
+} Parse;
 
 static int32_t
 check_and_fix_docs(String *lexeme){
@@ -1762,20 +1756,19 @@ print_function_docs(FILE *file, Partition *part, String name, String doc_string)
     print_see_also(file, doc);
 }
 
-char*
+void
 generate_custom_headers(){
 #define API_H "4coder_custom_api.h"
+#define OS_API_H "4ed_os_custom_api.h"
 #define API_DOC "4coder_API.html"
 #define STRING_H "4coder_string.h"
     
-    int32_t size = Mbytes(512);
+    int32_t size = (512 << 20);
     void *mem = malloc(size);
     memset(mem, 0, size);
     
     Partition part_ = make_part(mem, size);
     Partition *part = &part_;
-    
-    char *filename = API_H " & " API_DOC " & " STRING_H;
     
     String string_code = file_dump("internal_4coder_string.cpp");
     Cpp_Token_Stack string_tokens = {0};
@@ -1914,6 +1907,7 @@ generate_custom_headers(){
     Function_Set function_set = allocate_function_set(line_count);
     App_API app_function_set = allocate_app_api(line_count);
     int32_t sig_count = 0;
+    int32_t sig_count_per_file[2];
     
     for (int32_t J = 0; J < 2; ++J){
         String *code = &code_data[J];
@@ -1942,6 +1936,8 @@ generate_custom_headers(){
                 }
             }
         }
+        
+        ++sig_count_per_file[J] = sig_count;
     }
     
     for (int32_t i = 0; i < sig_count; ++i){
@@ -1967,7 +1963,32 @@ generate_custom_headers(){
     }
     
     // NOTE(allen): Header
-    FILE *file = fopen(API_H, "wb");
+    FILE *file = fopen(OS_API_H, "wb");
+    
+    int32_t main_api_count = sig_count_per_file[0];
+    for (int32_t i = main_api_count; i < sig_count; ++i){
+        String ret_string   = function_set.ret[i];
+        String args_string  = function_set.args[i];
+        String macro_string = app_function_set.macros[i];
+        
+        fprintf(file, "#define %.*s(n) %.*s n%.*s\n",
+                macro_string.size, macro_string.str,
+                ret_string.size, ret_string.str,
+                args_string.size, args_string.str);
+    }
+    
+    for (int32_t i = main_api_count; i < sig_count; ++i){
+        String name_string  = function_set.name[i];
+        String macro_string = app_function_set.macros[i];
+        
+        fprintf(file, "typedef %.*s(%.*s_Function);\n",
+                macro_string.size, macro_string.str,
+                name_string.size, name_string.str);
+    }
+    
+    fclose(file);
+    
+    file = fopen(API_H, "wb");
     
     for (int32_t i = 0; i < sig_count; ++i){
         String ret_string   = function_set.ret[i];
@@ -1977,20 +1998,17 @@ generate_custom_headers(){
         fprintf(file, "#define %.*s(n) %.*s n%.*s\n",
                 macro_string.size, macro_string.str,
                 ret_string.size, ret_string.str,
-                args_string.size, args_string.str
-                );
+                args_string.size, args_string.str);
     }
     
-    fprintf(file, "extern \"C\"{\n");
     for (int32_t i = 0; i < sig_count; ++i){
         String name_string  = function_set.name[i];
         String macro_string = app_function_set.macros[i];
         
-        fprintf(file, "    typedef %.*s(%.*s_Function);\n",
+        fprintf(file, "typedef %.*s(%.*s_Function);\n",
                 macro_string.size, macro_string.str,
                 name_string.size, name_string.str);
     }
-    fprintf(file, "}\n");
     
     fprintf(file, "struct Application_Links{\n");
     fprintf(file,
@@ -2131,7 +2149,7 @@ generate_custom_headers(){
             Cpp_Token *token = tokens;
             
             for (int32_t i = 0; i < count; ++i, ++token){
-                Assert(i == (i32)(token - tokens));
+                Assert(i == (int32_t)(token - tokens));
                 if (!(token->flags & CPP_TFLAG_PP_BODY) &&
                     (token->type == CPP_TOKEN_KEY_TYPE_DECLARATION ||
                      token->type == CPP_TOKEN_IDENTIFIER)){
@@ -2209,7 +2227,7 @@ generate_custom_headers(){
                                     enum_set.doc_string[enum_index] = doc_string;
                                     ++enum_index;
                                 }
-                                i = (i32)(token - tokens);
+                                i = (int32_t)(token - tokens);
                             }break;
                             
                             case 4: //FLAGENUM
@@ -2232,7 +2250,7 @@ generate_custom_headers(){
                                     flag_set.doc_string[flag_index] = doc_string;
                                     ++flag_index;
                                 }
-                                i = (i32)(token - tokens);
+                                i = (int32_t)(token - tokens);
                             }break;
                         }
                     }
@@ -2244,7 +2262,7 @@ generate_custom_headers(){
             enum_count = enum_index;
             flag_count = flag_index;
         }
-            
+        
         //
         // Output 4coder_string.h
         //
@@ -2641,9 +2659,9 @@ generate_custom_headers(){
         
         {
             fprintf(file,
-                "<div><i>\n"
-                "Coming Soon"
-                "</i><div>\n");
+                    "<div><i>\n"
+                    "Coming Soon"
+                    "</i><div>\n");
         }
         
 #undef MAJOR_SECTION
@@ -3081,16 +3099,13 @@ generate_custom_headers(){
         
         fclose(file);
     }
-
-    return(filename);
 }
+#endif
 
 int main(int argc, char **argv){
-    char *filename = 0;
-    
-    filename = generate_keycode_enum();
-    filename = generate_style();
-    filename = generate_custom_headers();
+    generate_keycode_enum();
+    generate_style();
+    generate_custom_headers();
 }
 
 // BOTTOM

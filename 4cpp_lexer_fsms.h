@@ -15,6 +15,7 @@ enum Lex_State{
     LS_identifier,
     LS_pound,
     LS_pp,
+    LS_ppdef,
     LS_char,
     LS_char_multiline,
     LS_char_slashed,
@@ -86,11 +87,6 @@ enum Lex_PP_State{
     LSPP_junk,
     //
     LSPP_count
-};
-
-struct Whitespace_FSM{
-    uint8_t pp_state;
-    uint8_t white_done;
 };
 
 struct Lex_FSM{

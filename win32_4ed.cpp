@@ -10,20 +10,53 @@
 // TOP
 
 #if FRED_SUPER
-# include "4coder_custom.h"
+
+# include "4ed_defines.h"
+
+# define FSTRING_IMPLEMENTATION
+# define FSTRING_C
+# include "4coder_string.h"
+
+#include "4coder_version.h"
+# include "4coder_keycodes.h"
+# include "4coder_style.h"
+# include "4coder_rect.h"
+
+# include <assert.h>
+
+# include "4coder_mem.h"
+
+// TODO(allen): This is duplicated from 4coder_custom.h
+// I need to work out a way to avoid this.
+#define VIEW_ROUTINE_SIG(name) void name(struct Application_Links *app, int32_t view_id)
+#define GET_BINDING_DATA(name) int32_t name(void *data, int32_t size)
+#define _GET_VERSION_SIG(n) int32_t n(int32_t maj, int32_t min, int32_t patch)
+
+typedef VIEW_ROUTINE_SIG(View_Routine_Function);
+typedef GET_BINDING_DATA(Get_Binding_Data_Function);
+typedef _GET_VERSION_SIG(_Get_Version_Function);
+
+struct Custom_API{
+    View_Routine_Function *view_routine;
+    Get_Binding_Data_Function *get_bindings;
+    _Get_Version_Function *get_alpha_4coder_version;
+};
+
+
+typedef void Custom_Command_Function;
+#include "4coder_types.h"
+struct Application_Links;
+# include "4ed_os_custom_api.h"
+
+//# include "4coder_custom.h"
 #else
 # include "4coder_default_bindings.cpp"
+
+# define FSTRING_IMPLEMENTATION
+# define FSTRING_C
+# include "4coder_string.h"
+
 #endif
-
-#define FSTRING_IMPLEMENTATION
-#define FSTRING_C
-#include "4coder_string.h"
-
-#include "4ed_meta.h"
-
-//
-// Instead of including 4coder_custom.h
-//
 
 #include "4ed_math.h"
 
@@ -229,36 +262,6 @@ Win32Ptr(void *h){
     memcpy(&result, &h, sizeof(h));
     return(result);
 }
-
-//
-// Rudimentary Timing
-//
-
-#define WIN32_TIMING 0
-
-#if FRED_INTERNAL && WIN32_TIMING
-
-inline void
-show_debug_timing(char *function, DWORD64 total){
-    char output[512];
-    String out = make_fixed_width_string(output);
-    append(&out, function);
-    append(&out, ' ');
-    append_u64_to_str(&out, (u64)(total));
-    append(&out, '\n');
-    terminate_with_null(&out);
-    OutputDebugStringA(output);
-}
-
-#define TEST_TIME_B() DWORD64 start = __rdtsc()
-#define TEST_TIME_E() DWORD64 total = __rdtsc() - start; show_debug_timing(__FUNCTION__, total)
-
-#else
-
-#define TEST_TIME_B()
-#define TEST_TIME_E()
-
-#endif
 
 
 //
@@ -586,7 +589,6 @@ Sys_Cancel_Job_Sig(system_cancel_job){
             i32 cancel_lock = group->cancel_lock0 + thread_index;
             i32 cancel_cv = group->cancel_cv0 + thread_index;
             Thread_Context *thread = group->threads + thread_index;
-            
             
             system_acquire_lock(cancel_lock);
             

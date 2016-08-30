@@ -283,6 +283,7 @@ int main(int argc, char **argv){
     }
 #endif
     
+#if 1
     {
         BEGIN_TIME_SECTION();
         build(OPTS | DEBUG_INFO, cdir, "4ed_metagen.cpp",
@@ -320,6 +321,7 @@ int main(int argc, char **argv){
               BUILD_DIR, "4ed", 0);
         END_TIME_SECTION("build 4ed");
     }
+#endif
     
     return(error_state);
 }

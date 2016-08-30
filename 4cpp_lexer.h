@@ -4,6 +4,10 @@
 #ifndef FCPP_NEW_LEXER_INC
 #define FCPP_NEW_LEXER_INC
 
+#ifndef Assert
+# define Assert(n) do{ if (!(n)) *(int*)0 = 0xA11E; }while(0)
+#endif
+
 #ifndef FCPP_LINK
 # define FCPP_LINK static
 #endif
@@ -23,12 +27,39 @@ struct String_List{
 	int32_t count;
 };
 
-struct Sub_Match_List_Result{
-	int32_t index;
-	int32_t new_pos;
-};
-
 #define lexer_string_list(x) {x, (sizeof(x)/sizeof(*(x)))}
+
+static String_And_Flag preprop_strings[] = {
+	{"include", CPP_PP_INCLUDE},
+	{"INCLUDE", CPP_PP_INCLUDE},
+	{"ifndef", CPP_PP_IFNDEF},
+	{"IFNDEF", CPP_PP_IFNDEF},
+	{"define", CPP_PP_DEFINE},
+	{"DEFINE", CPP_PP_DEFINE},
+	{"import", CPP_PP_IMPORT},
+	{"IMPORT", CPP_PP_IMPORT},
+	{"pragma", CPP_PP_PRAGMA},
+	{"PRAGMA", CPP_PP_PRAGMA},
+	{"undef", CPP_PP_UNDEF},
+	{"UNDEF", CPP_PP_UNDEF},
+	{"endif", CPP_PP_ENDIF},
+	{"ENDIF", CPP_PP_ENDIF},
+	{"error", CPP_PP_ERROR},
+	{"ERROR", CPP_PP_ERROR},
+	{"ifdef", CPP_PP_IFDEF},
+	{"IFDEF", CPP_PP_IFDEF},
+	{"using", CPP_PP_USING},
+	{"USING", CPP_PP_USING},
+	{"else", CPP_PP_ELSE},
+	{"ELSE", CPP_PP_ELSE},
+	{"elif", CPP_PP_ELIF},
+	{"ELIF", CPP_PP_ELIF},
+	{"line", CPP_PP_LINE},
+	{"LINE", CPP_PP_LINE},
+	{"if", CPP_PP_IF},
+    {"IF", CPP_PP_IF},
+};
+static String_List preprops = lexer_string_list(preprop_strings);
 
 static String_And_Flag keyword_strings[] = {
     {"true", CPP_TOKEN_BOOLEAN_CONSTANT},
@@ -121,23 +152,21 @@ static String_And_Flag keyword_strings[] = {
 };
 static String_List keywords = lexer_string_list(keyword_strings);
 
-FCPP_LINK Sub_Match_List_Result
-sub_match_list(char *chunk, int32_t size, int32_t pos, String_List list, int32_t sub_size){
-	Sub_Match_List_Result result;
-    String str_main;
-    char *str_check;
-    int32_t i,l;
+FCPP_LINK int32_t
+sub_match_list(char *chunk, int32_t size, String_List list, int32_t sub_size){
+    int32_t result = 0;
+    String str_main = {0};
+    char *str_check = 0;
+    int32_t i = 0, l = 0;
     
-    result.index = -1;
-    result.new_pos = pos;
-    str_main = make_string(chunk + pos, size - pos);
+    result = -1;
+    str_main = make_string(chunk, size);
     if (sub_size > 0){
         str_main = substr(str_main, 0, sub_size);
         for (i = 0; i < list.count; ++i){
             str_check = list.data[i].str;
             if (match_sc(str_main, str_check)){
-                result.index = i;
-                result.new_pos = pos + sub_size;
+                result = i;
                 break;
             }
         }
@@ -146,13 +175,13 @@ sub_match_list(char *chunk, int32_t size, int32_t pos, String_List list, int32_t
         for (i = 0; i < list.count; ++i){
             str_check = list.data[i].str;
             if (match_part_scl(str_main, str_check, &l)){
-                result.index = i;
-                result.new_pos = pos + l;
+                result = i;
                 break;
             }
         }
     }
-	return result;
+    
+    return(result);
 }
 
 
@@ -332,7 +361,7 @@ struct Lex_Data{
     int32_t chunk_pos;
     
     Lex_FSM fsm;
-    Whitespace_FSM wfsm;
+    unsigned char white_done;
     unsigned char pp_state;
     unsigned char completed;
     
@@ -351,12 +380,12 @@ lex_data_init(char *tb){
 
 #define DrCase(PC) case PC: goto resumespot_##PC
 
-#define DrYield(PC, n) {\
-    token_stack_out->count = token_i;\
+#define DrYield(PC, n) {                                           \
+    token_stack_out->count = token_i;                              \
     *S_ptr = S; S_ptr->__pc__ = PC; return(n); resumespot_##PC:; }
 
-#define DrReturn(n) {\
-    token_stack_out->count = token_i;\
+#define DrReturn(n) {                           \
+    token_stack_out->count = token_i;           \
     *S_ptr = S; S_ptr->__pc__ = -1; return(n); }
 
 enum Lex_Result{
@@ -389,29 +418,26 @@ cpp_lex_nonalloc(Lex_Data *S_ptr,
         DrCase(3);
         DrCase(4);
         DrCase(5);
-        DrCase(6);
         DrCase(7);
     }
     
     for (;;){
-        S.wfsm.white_done = 0;
-        S.wfsm.pp_state = S.pp_state;
+        S.white_done = 0;
         for(;;){
-            for (; S.wfsm.pp_state < LSPP_count && S.pos < end_pos;){
+            for (; S.pp_state < LSPP_count && S.pos < end_pos;){
                 c = chunk[S.pos++];
-                int32_t i = S.wfsm.pp_state + whitespace_fsm_eq_classes[c];
-                S.wfsm.pp_state = whitespace_fsm_table[i];
+                int32_t i = S.pp_state + whitespace_fsm_eq_classes[c];
+                S.pp_state = whitespace_fsm_table[i];
             }
-            S.wfsm.white_done = (S.wfsm.pp_state >= LSPP_count);
+            S.white_done = (S.pp_state >= LSPP_count);
             
-            if (S.wfsm.white_done == 0){
+            if (S.white_done == 0){
                 S.chunk_pos += size;
                 DrYield(4, LexNeedChunk);
             }
             else break;
         }
         --S.pos;
-        S.pp_state = S.wfsm.pp_state;
         if (S.pp_state >= LSPP_count){
             S.pp_state -= LSPP_count;
         }
@@ -500,14 +526,16 @@ cpp_lex_nonalloc(Lex_Data *S_ptr,
                     }
                     else{
                         S.pos_overide = S.pos;
-                        S.wfsm.white_done = 0;
+                        S.white_done = 0;
                         for (;;){
-                            for (; S.wfsm.white_done == 0 && S.pos < end_pos;){
+                            for (; S.white_done == 0 && S.pos < end_pos;){
                                 c = chunk[S.pos++];
-                                if (!(c == ' ' || c == '\t' || c == '\r' || c == '\v' || c == '\f')) S.wfsm.white_done = 1;
+                                if (!(c == ' ' || c == '\t' || c == '\r' || c == '\v' || c == '\f')){
+                                    S.white_done = 1;
+                                }
                             }
                             
-                            if (S.wfsm.white_done == 0){
+                            if (S.white_done == 0){
                                 S.chunk_pos += size;
                                 DrYield(1, LexNeedChunk);
                             }
@@ -543,11 +571,10 @@ cpp_lex_nonalloc(Lex_Data *S_ptr,
                         }
                     }
                     
-                    Sub_Match_List_Result sub_match;
-                    sub_match = sub_match_list(S.tb, S.tb_pos, 0, keywords, word_size);
+                    int32_t sub_match = sub_match_list(S.tb, S.tb_pos, keywords, word_size);
                     
-                    if (sub_match.index != -1){
-                        String_And_Flag data = keywords.data[sub_match.index];
+                    if (sub_match != -1){
+                        String_And_Flag data = keywords.data[sub_match];
                         S.token.type = (Cpp_Token_Type)data.flags;
                         S.token.flags = CPP_TFLAG_IS_KEYWORD;
                     }
@@ -568,33 +595,31 @@ cpp_lex_nonalloc(Lex_Data *S_ptr,
                 }
                 break;
                 
+                case LS_ppdef:
                 case LS_pp:
                 {
-                    S.fsm.directive_state = LSDIR_default;
-                    S.fsm.emit_token = 0;
-                    for (;;){
-                        for (; S.fsm.directive_state < LSDIR_count && S.pos < end_pos;){
-                            c = chunk[S.pos++];
-                            S.fsm.directive_state = pp_directive_table[S.fsm.directive_state + pp_directive_eq_classes[c]];
-                        }
-                        S.fsm.emit_token = (S.fsm.int_state >= LSDIR_count);
-                        
-                        if (S.fsm.emit_token == 0){
-                            S.chunk_pos += size;
-                            DrYield(6, LexNeedChunk);
-                        }
-                        else break;
-                    }
                     --S.pos;
                     
-                    Cpp_Token_Type type = (Cpp_Token_Type)(S.fsm.directive_state - pp_directive_terminal_base);
-                    S.token.type = type;
-                    if (type == CPP_TOKEN_JUNK){
-                        S.token.flags = 0;
+                    int32_t word_size = S.pos - S.token_start;
+                    int32_t pos = S.tb_pos-1;
+                    int32_t i = 1;
+                    for (;i < pos; ++i){
+                        if (S.tb[i] != ' '){
+                            break;
+                        }
                     }
-                    else{
+                    
+                    int32_t sub_match = sub_match_list(S.tb+i, pos-i, preprops, word_size);
+                    
+                    if (sub_match != -1){
+                        String_And_Flag data = preprops.data[sub_match];
+                        S.token.type = (Cpp_Token_Type)data.flags;
                         S.token.flags = CPP_TFLAG_PP_DIRECTIVE;
                         S.pp_state = (unsigned char)cpp_pp_directive_to_state(S.token.type);
+                    }
+                    else{
+                        S.token.type = CPP_TOKEN_JUNK;
+                        S.token.flags = 0;
                     }
                 }break;
                 

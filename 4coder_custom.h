@@ -3,6 +3,10 @@
 #define FCODER_CUSTOM_H
 
 #include <stdint.h>
+// TODO(allen): We need to eliminate our dependence on this
+// in the custom side.
+#include <string.h>
+
 
 #include "4coder_version.h"
 #include "4coder_keycodes.h"
