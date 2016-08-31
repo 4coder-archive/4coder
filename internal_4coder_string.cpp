@@ -600,7 +600,7 @@ and positive if a sorts after b alphabetically.) */{
         r = (a.str[i] > b.str[i]) - (b.str[i] > a.str[i]);
     }
     else{
-        r = (a.size > b.size) - (a.size < b.size);
+        r = (a.size > b.size) - (b.size > a.size);
     }
     
     return(r);

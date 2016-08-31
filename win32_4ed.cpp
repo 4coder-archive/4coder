@@ -2041,7 +2041,7 @@ WinMain(HINSTANCE hInstance,
         
         if (win32vars.custom_api.get_alpha_4coder_version == 0 ||
                 win32vars.custom_api.get_alpha_4coder_version(MAJOR, MINOR, PATCH) == 0){
-            OutputDebugStringA("Error: application and custom version numbers don't match\n");
+            MessageBoxA(0,"Error: The application and custom version numbers don't match.\n", "Error",0);
             exit(1);
         }
         win32vars.custom_api.get_bindings = (Get_Binding_Data_Function*)
@@ -2056,7 +2056,7 @@ WinMain(HINSTANCE hInstance,
     }
     
     if (win32vars.custom_api.get_bindings == 0){
-        OutputDebugStringA("Error: 4coder_custom.dll is missing\n");
+        MessageBoxA(0,"Error: The custom dll is missing.\n", "Error",0);
         exit(1);
     }
     

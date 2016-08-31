@@ -71,12 +71,12 @@
 ; [X] paste snaps the cursor back into view!
 ; [X] clean whitespace doesn't appear to be cleaning trailing whitespace anymore???
 ; [X] problem with end of line comments
+; [X] paths with parens in them 
 ;
 ; [] indication on failure to save
 ; [] history is broken, revist the entire system
 ;
 ; [] 8.0\Include\um\dsound.h (not reproduced, get more info)
-; [] paths with parens in them 
 ; [] paste external text from bug report (in email) (not reproduced, get more info)
 ;
 ;
@@ -85,6 +85,7 @@
 ;
 ; [] tokens in the custom API
 ; [] auto indent on the custom side
+; [] expose dirty flags
 ; [] option to not open *messages* every startup
 ; [] command for resizing panels
 ; [] control over how mouse effects panel focus
@@ -95,6 +96,9 @@
 ; [] hook on exit
 ; [] exit command
 ; [] read only files
+; [] break down the build system and get away from the preproc hack
+; [] locking to a view for next position jumping
+; [] flag in create buffer to prevent making new files
 ;
 
 ; TODOS
