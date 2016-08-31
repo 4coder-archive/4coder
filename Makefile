@@ -3,7 +3,7 @@ C_FILES    := $(wildcard *.c) $(wildcard **/*.c)
 H_FILES    := $(wildcard *.h) $(wildcard **/*.h)
 WARNINGS   := -Wno-write-strings
 PLAT_LINKS := -L/usr/local/lib -lX11 -lpthread -lm -lrt -lGL -ldl -lXfixes -lfreetype -lfontconfig
-FLAGS      := -fPIC -fno-threadsafe-statics -pthread -I../foreign $(shell pkg-config --cflags freetype2)
+FLAGS      := -D_GNU_SOURCE -fPIC -fno-threadsafe-statics -pthread -I../foreign $(shell pkg-config --cflags freetype2)
 
 # main stuff
 

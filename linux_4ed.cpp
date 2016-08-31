@@ -10,18 +10,54 @@
 
 // TOP
 
-#include "4coder_default_bindings.cpp"
+# include "4ed_defines.h"
 
-#undef exec_command
-#undef exec_command_keep_stack
-#undef clear_parameters
+#if FRED_SUPER
 
-#include "4ed_meta.h"
+# define FSTRING_IMPLEMENTATION
+# define FSTRING_C
+# include "4coder_string.h"
 
-#define FCPP_FORBID_MALLOC
+#include "4coder_version.h"
+# include "4coder_keycodes.h"
+# include "4coder_style.h"
+# include "4coder_rect.h"
 
-#define FCPP_STRING_IMPLEMENTATION
-#include "4coder_string.h"
+# include <assert.h>
+
+# include "4coder_mem.h"
+
+// TODO(allen): This is duplicated from 4coder_custom.h
+// I need to work out a way to avoid this.
+#define VIEW_ROUTINE_SIG(name) void name(struct Application_Links *app, int32_t view_id)
+#define GET_BINDING_DATA(name) int32_t name(void *data, int32_t size)
+#define _GET_VERSION_SIG(n) int32_t n(int32_t maj, int32_t min, int32_t patch)
+
+typedef VIEW_ROUTINE_SIG(View_Routine_Function);
+typedef GET_BINDING_DATA(Get_Binding_Data_Function);
+typedef _GET_VERSION_SIG(_Get_Version_Function);
+
+struct Custom_API{
+    View_Routine_Function *view_routine;
+    Get_Binding_Data_Function *get_bindings;
+    _Get_Version_Function *get_alpha_4coder_version;
+};
+
+
+typedef void Custom_Command_Function;
+#include "4coder_types.h"
+struct Application_Links;
+# include "4ed_os_custom_api.h"
+
+//# include "4coder_custom.h"
+#else
+# include "4coder_default_bindings.cpp"
+
+# define FSTRING_IMPLEMENTATION
+# define FSTRING_C
+# include "4coder_string.h"
+
+#endif
 
 #include "4ed_math.h"
 
@@ -464,15 +500,20 @@ Sys_Get_Canonical_Sig(system_get_canonical){
     int32_t result = 0;
 
     char* path = realpath(strndupa(filename, len), NULL);
-    if(!path){
-        perror("realpath");
-    } else {
+    if(path){
         size_t path_len = strlen(path);
         if(max >= path_len){
             memcpy(buffer, path, path_len);
             result = path_len;
         }
+#if FRED_INTERNAL
+        if(strncmp(filename, path, len) != 0){
+            LINUX_FN_DEBUG("[%.*s] -> [%s]", len, filename, path);
+        }
+#endif
         free(path);
+    } else {
+        LINUX_FN_DEBUG("[%.*s] -> [null]", len, filename);
     }
 
     return result;
@@ -670,7 +711,7 @@ FILE_EXISTS_SIG(system_file_exists){
 
 internal
 DIRECTORY_CD_SIG(system_directory_cd){
-    String directory = make_string(dir, *len, capacity);
+    String directory = make_string_cap(dir, *len, capacity);
     b32 result = 0;
     i32 old_size;
     
@@ -685,8 +726,8 @@ DIRECTORY_CD_SIG(system_directory_cd){
         else{
             if (directory.size + rel_len + 1 > directory.memory_size){
                 old_size = directory.size;
-                append_partial(&directory, rel_path);
-                append_partial(&directory, "/");
+                append_partial_sc(&directory, rel_path);
+                append_s_char(&directory, '/');
                 terminate_with_null(&directory);
 
                 struct stat st;
@@ -709,7 +750,7 @@ DIRECTORY_CD_SIG(system_directory_cd){
 
 internal
 GET_4ED_PATH_SIG(system_get_4ed_path){
-    String str = make_string(out, 0, capacity);
+    String str = make_string_cap(out, 0, capacity);
     return(system_get_binary_path(&str));
 }
 
@@ -2827,6 +2868,7 @@ main(int argc, char **argv)
         if (linuxvars.custom_api.get_alpha_4coder_version == 0 ||
             linuxvars.custom_api.get_alpha_4coder_version(MAJOR, MINOR, PATCH) == 0){
             fprintf(stderr, "*** Failed to use 4coder_custom.so: version mismatch ***\n");
+            exit(1);
         }
         else{
             linuxvars.custom_api.get_bindings = (Get_Binding_Data_Function*)
@@ -2836,6 +2878,7 @@ main(int argc, char **argv)
 
             if (linuxvars.custom_api.get_bindings == 0){
                 fprintf(stderr, "*** Failed to use 4coder_custom.so: get_bindings not exported ***\n");
+                exit(1);
             }
             else{
                 fprintf(stderr, "Successfully loaded 4coder_custom.so\n");
@@ -2844,13 +2887,13 @@ main(int argc, char **argv)
     } else {
         const char* error = dlerror();
         fprintf(stderr, "*** Failed to load 4coder_custom.so: %s\n", error ? error : "dlopen failed.");
+        exit(1);
     }
-
+#else
+    linuxvars.custom_api.get_bindings = get_bindings;
 #endif
 
-    if (linuxvars.custom_api.get_bindings == 0){
-        linuxvars.custom_api.get_bindings = get_bindings;
-    }
+    linuxvars.custom_api.view_routine = 0;
 
 #if 0
     if (linuxvars.custom_api.view_routine == 0){
