@@ -1674,8 +1674,8 @@ DOC
 (
 The highlight is mutually exclusive to the cursor.  When the turn_on parameter
 is set to true the highlight will be shown and the cursor will be hidden.  After
-that either setting the with view_set_cursor or calling view_set_highlight and
-the turn_on set to false, will switch back to showing the cursor.
+that either setting the cursor with view_set_cursor or calling view_set_highlight
+and the turn_on set to false, will switch back to showing the cursor.
 )
 */{
     Command_Data *cmd = (Command_Data*)app->cmd_context;

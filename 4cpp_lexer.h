@@ -297,6 +297,7 @@ cpp_pp_directive_to_state(Cpp_Token_Type type){
     return(result);
 }
 
+#if 0
 FCPP_LINK Cpp_Token_Merge
 cpp_attempt_token_merge(Cpp_Token prev_token, Cpp_Token next_token){
     Cpp_Token_Merge result = {(Cpp_Token_Type)0};
@@ -312,25 +313,32 @@ cpp_attempt_token_merge(Cpp_Token prev_token, Cpp_Token next_token){
 		prev_token.size = next_token.start + next_token.size - prev_token.start;
 		result.new_token = prev_token;
 	}
-	return result;
+    return(result);
 }
+#endif
 
 FCPP_LINK int32_t
 cpp_place_token_nonalloc(Cpp_Token *out_tokens, int32_t token_i, Cpp_Token token){
-    Cpp_Token_Merge merge = {(Cpp_Token_Type)0};
+    //Cpp_Token_Merge merge = {(Cpp_Token_Type)0};
     Cpp_Token prev_token = {(Cpp_Token_Type)0};
     
     if (token_i > 0){
         prev_token = out_tokens[token_i - 1];
+#if 0
         merge = cpp_attempt_token_merge(prev_token, token);
         if (merge.did_merge){
             out_tokens[token_i - 1] = merge.new_token;
         }
+#endif
     }
     
+#if 0
     if (!merge.did_merge){
         out_tokens[token_i++] = token;
     }
+#else
+    out_tokens[token_i++] = token;
+#endif
     
     return(token_i);
 }
@@ -1178,28 +1186,6 @@ cpp_relex_nonalloc_main(Cpp_Relex_State *state,
     double_break:;
     
     if (!went_too_far){
-        if (relex_stack->count > 0){
-            if (state->start_token_i > 0){
-                Cpp_Token_Merge merge =
-                    cpp_attempt_token_merge(tokens[state->start_token_i - 1],
-                                            relex_stack->tokens[0]);
-                if (merge.did_merge){
-                    --state->start_token_i;
-                    relex_stack->tokens[0] = merge.new_token;
-                }
-            }
-            
-            if (relex_end_i < state->stack->count){
-                Cpp_Token_Merge merge =
-                    cpp_attempt_token_merge(relex_stack->tokens[relex_stack->count-1],
-                                            tokens[relex_end_i]);
-                if (merge.did_merge){
-                    ++relex_end_i;
-                    relex_stack->tokens[relex_stack->count-1] = merge.new_token;
-                }
-            }
-        }
-        
         *relex_end = relex_end_i;
     }
     else{
@@ -1209,7 +1195,7 @@ cpp_relex_nonalloc_main(Cpp_Relex_State *state,
     return(went_too_far);
 }
 
-#if !defined(FCPP_FORBID_MALLOC)
+#if defined(FCPP_ALLOW_MALLOC)
 
 #include <stdlib.h>
 #include <string.h>

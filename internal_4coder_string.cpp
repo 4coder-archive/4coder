@@ -1342,7 +1342,7 @@ DOC(If str is a valid string representation of an integer, this call will return
 the integer represented by the string.  Otherwise this call returns zero.) */{
     int32_t x = 0;
     for (; *str; ++str){
-        if (*str >= '0' || *str <= '9'){
+        if (*str >= '0' && *str <= '9'){
             x *= 10;
             x += *str - '0';
         }

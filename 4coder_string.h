@@ -1618,7 +1618,7 @@ FSTRING_LINK int32_t
 str_to_int_c(char *str){
     int32_t x = 0;
     for (; *str; ++str){
-        if (*str >= '0' || *str <= '9'){
+        if (*str >= '0' && *str <= '9'){
             x *= 10;
             x += *str - '0';
         }

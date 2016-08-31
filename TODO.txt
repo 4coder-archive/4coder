@@ -69,10 +69,32 @@
 ; [X] new file is messed up for code files, it never finishes parsing!
 ; [X] key presses that should be consumed in the GUI are now passed to the file!
 ; [X] paste snaps the cursor back into view!
+; [X] clean whitespace doesn't appear to be cleaning trailing whitespace anymore???
 ;
 ; [] indication on failure to save
-; [] clean whitespace doesn't appear to be cleaning trailing whitespace anymore???
+; [] history is broken, revist the entire system
 ;
+; [] 8.0\Include\um\dsound.h
+; [] paths with parens in them
+; [] double check end of line comments
+; [] paste external text from bug report (in email) (not repod, get more info)
+;
+;
+
+; BEFORE I SHIP
+;
+; [] tokens in the custom API
+; [] auto indent on the custom side
+; [] option to not open *messages* every startup
+; [] command for resizing panels
+; [] control over how mouse effects panel focus
+; [] full screen option
+; [] API docs as text file
+; [] user file bar string
+; [] mouse down/up distinction
+; [] hook on exit
+; [] exit command
+; [] read only files
 ;
 
 ; TODOS
@@ -87,7 +109,7 @@
 ; [X] API for file views
 ; [X] Seek backwards option
 ; [X] Use range parameters in all applicable commands
-; [X] generate enum for key codes 
+; [X] generate enum for key codes
 ; [X] API for direct input
 ; [X] Seek string instead of delimiter
 ; [X] hook parameters
@@ -104,26 +126,27 @@
 ; [X] manipulate scroll target API
 ; [X] generate documentation for custom API
 ;
-; [] OS font rendering
 ; [] support full length unicode file names
 ; [] switch based word complete
-; 
+;
 ; [] undo groups
 ; [] cursor/scroll grouping
 ; [] file status in custom API
-; [] user file bar string
-; [] simple multi-line editing
 ; [] allow for arbitrary wrap positions independent of view width
-; [] word level wrapping ~ temporary measure really want to have totally formatted code 
+; [] word level wrapping ~ temporary measure really want to have totally formatted code
 ; [] additional hooks
 ;    [X] new file
 ;    [] file out of sync
 ; [] double binding warnings
 ;
+; [] multi-line editing
+; [] multi-cursor editing
+;
 ; GUI related tech
 ;    [X] consolidate all GUI code properly
 ;    [X] rewrite GUI
 ;    [X] arrow navigation of GUIs
+;    [] scroll bar position and size options
 ;    [] GUI API
 ;
 ; search related tech
@@ -192,7 +215,6 @@
 ; [X] shift backspace
 ; [X] center view on cursor
 ; [X] delta time in scroll interpolation
-; [] close editor command
 ; [] panel grow/shrink commands
 ;
 
@@ -204,7 +226,8 @@
 ; [] fill screen right away
 ; [] history breaks when heavily used? (disk swaping?)
 ;
-; [] minimize and reopen problem (still not reproduced here)
+; [] a triangle rendered for a few frames? color of the dirty markers (not reproduced by me yet)
+; [] minimize and reopen problem (not reproduced by me yet)
 ;
 
 ; FANCY-PANTS IDEAS

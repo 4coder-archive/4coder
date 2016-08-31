@@ -13,7 +13,7 @@
 
 #include "internal_4coder_string.cpp"
 
-#define FCPP_LEXER_IMPLEMENTATION
+#define FCPP_ALLOW_MALLOC
 #include "4cpp_lexer.h"
 
 #include <stdlib.h>

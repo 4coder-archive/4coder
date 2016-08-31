@@ -212,10 +212,12 @@ cpp_token_stack_zero(){
     return(stack);
 }
 
+#if 0
 struct Cpp_Token_Merge{
-	Cpp_Token new_token;
-	int32_t did_merge;
+    Cpp_Token new_token;
+    int32_t did_merge;
 };
+#endif
 
 struct Seek_Result{
     int32_t pos;
