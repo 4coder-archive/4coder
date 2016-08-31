@@ -14,8 +14,9 @@
 // reusable
 //
 
-#define CL_OPTS \
-"/W4 /wd4310 /wd4100 /wd4201 /wd4505 /wd4996 /wd4127 /wd4510 /wd4512 /wd4610 /wd4390 /WX "\
+#define CL_OPTS                                  \
+"/W4 /wd4310 /wd4100 /wd4201 /wd4505 /wd4996 "   \
+"/wd4127 /wd4510 /wd4512 /wd4610 /wd4390 /WX "   \
 "/GR- /EHa- /nologo /FC"
 
 #if defined(_MSC_VER)
@@ -35,21 +36,21 @@
 static char cmd[1024];
 static int32_t error_state = 0;
 
-#define systemf(...) do{\
-    int32_t n = snprintf(cmd, sizeof(cmd), __VA_ARGS__);\
-    assert(n < sizeof(cmd));\
-    if (system(cmd) != 0) error_state = 1;\
+#define systemf(...) do{                                   \
+    int32_t n = snprintf(cmd, sizeof(cmd), __VA_ARGS__);   \
+    assert(n < sizeof(cmd));                               \
+    if (system(cmd) != 0) error_state = 1;                 \
 }while(0)
 
 
 #if defined(IS_WINDOWS)
 
 typedef uint32_t DWORD;
-typedef int32_t LONG;
-typedef int64_t LONGLONG;
-typedef char* LPTSTR;
-typedef int32_t BOOL;
-typedef union _LARGE_INTEGER {
+typedef int32_t  LONG;
+typedef int64_t  LONGLONG;
+typedef char*    LPTSTR;
+typedef int32_t  BOOL;
+typedef union    _LARGE_INTEGER {
     struct {
         DWORD LowPart;
         LONG  HighPart;
@@ -146,7 +147,8 @@ enum{
     DEBUG_INFO = 0x20,
     SUPER = 0x40,
     INTERNAL = 0x80,
-    OPTIMIZATION = 0x100
+    OPTIMIZATION = 0x100,
+    KEEP_ASSERT = 0x200
 };
 
 
@@ -221,6 +223,11 @@ build_cl(uint32_t flags,
         swap_ptr(&build_options, &build_options_prev);
     }
     
+    if (flags & KEEP_ASSERT){
+        snprintf(build_options, build_max, "%s /DFRED_KEEP_ASSERT", build_options_prev);
+        swap_ptr(&build_options, &build_options_prev);
+    }
+    
     swap_ptr(&build_options, &build_options_prev);
     
     systemf("pushd %s & cl %s %s\\%s /Fe%s /link /DEBUG /INCREMENTAL:NO %s",
@@ -254,32 +261,22 @@ buildsuper(char *code_path, char *out_path, char *filename){
 #endif
 }
 
-#if defined(DEV_BUILD)
-
-int main(int argc, char **argv){
-    init_time_system();
-    
-    char cdir[256];
-    
-    BEGIN_TIME_SECTION();
-    int32_t n = get_current_directory(cdir, sizeof(cdir));
-    assert(n < sizeof(cdir));
-    END_TIME_SECTION("current directory");
-    
 #define META_DIR "../meta"
 #define BUILD_DIR "../build"
-    
+
+static void
+standard_build(char *cdir, uint32_t flags){
 #if 1
     {
         BEGIN_TIME_SECTION();
         build(OPTS, cdir, "fsm_table_generator.cpp",
-              BUILD_DIR, "fsmgen", 0);
+              META_DIR, "fsmgen", 0);
         END_TIME_SECTION("build fsm generator");
     }
     
     {
         BEGIN_TIME_SECTION();
-        execute(cdir, BUILD_DIR"/fsmgen");
+        execute(cdir, META_DIR"/fsmgen");
         END_TIME_SECTION("run fsm generator");
     }
 #endif
@@ -307,8 +304,6 @@ int main(int argc, char **argv){
         END_TIME_SECTION("build custom");
     }
     
-    uint32_t flags = DEBUG_INFO | SUPER | INTERNAL;
-    
     {
         BEGIN_TIME_SECTION();
         build(OPTS | INCLUDES | SHARED_CODE | flags, cdir, "4ed_app_target.cpp",
@@ -323,14 +318,33 @@ int main(int argc, char **argv){
         END_TIME_SECTION("build 4ed");
     }
 #endif
+}
+
+#if defined(DEV_BUILD)
+
+
+int main(int argc, char **argv){
+    init_time_system();
+    
+    char cdir[256];
+    
+    BEGIN_TIME_SECTION();
+    int32_t n = get_current_directory(cdir, sizeof(cdir));
+    assert(n < sizeof(cdir));
+    END_TIME_SECTION("current directory");
+    
+    standard_build(cdir, DEBUG_INFO | SUPER | INTERNAL);
     
     return(error_state);
 }
+
 
 #elif defined(PACKAGE)
 
 
 
+#else
+#error No build type specified
 #endif
 
 // BOTTOM

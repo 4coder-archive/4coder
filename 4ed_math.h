@@ -15,37 +15,41 @@
  * Scalar operators
  */
 
-#define DEG_TO_RAD 0.0174533f
+#define DEG_TO_RAD (0.0174533f)
+
+inline f32
+ABS(f32 x){
+    if (x < 0) x = -x;
+    return(x);
+}
 
 #if C_MATH
 #include <math.h>
 
 inline f32
-ABS(f32 x){
-    if (x < 0) x = -x;
-    return x;
-}
-
-inline f32
 MOD(f32 x, i32 m){
-    f32 whole, frac;
+    f32 whole, frac, r;
     frac = modff(x, &whole);
-    return ((i32)(whole) % m) + frac;
+    r = ((i32)(whole) % m) + frac;
+    return(r);
 }
 
 inline f32
 SQRT(f32 x){
-    return sqrt(x);
+    f32 r = sqrt(x);
+    return(r);
 }
 
 inline f32
 SIN(f32 x_degrees){
-    return sinf(x_degrees * DEG_TO_RAD);
+    f32 r = sinf(x_degrees * DEG_TO_RAD);
+    return(r);
 }
 
 inline f32
 COS(f32 x_degrees){
-    return cosf(x_degrees * DEG_TO_RAD);
+    f32 r = cosf(x_degrees * DEG_TO_RAD);
+    return(r);
 }
 #endif
 

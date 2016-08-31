@@ -16,8 +16,8 @@ Created on: 20.07.2016
 #include <Windows.h>
 
 typedef struct {
-    char result[2048];
     OVERLAPPED overlapped;
+    char result[2048];
     HANDLE dir;
     int32_t user_count;
 } Win32_Directory_Listener;
