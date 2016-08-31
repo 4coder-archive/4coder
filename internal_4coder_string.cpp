@@ -511,10 +511,10 @@ DOC(This call performs the same partial matching rule as match_part under case i
 DOC_SEE(match_part) */{
     for (int32_t i = 0; i != b.size; ++i){
         if (char_to_upper(a[i]) != char_to_upper(b.str[i])){
-            return 0;
+            return(0);
         }
     }
-    return 1;
+    return(1);
 }
 
 CPP_NAME(match_part_insensitive)
@@ -523,14 +523,14 @@ match_part_insensitive_ss(String a, String b)/*
 DOC(This call performs the same partial matching rule as match_part under case insensitive comparison.)
 DOC_SEE(match_part) */{
     if (a.size < b.size){
-        return 0;
+        return(0);
     }
     for (int32_t i = 0; i < b.size; ++i){
         if (char_to_upper(a.str[i]) != char_to_upper(b.str[i])){
-            return 0;
+            return(0);
         }
     }
-    return 1;
+    return(1);
 }
 
 CPP_NAME(compare)
@@ -539,11 +539,12 @@ compare_cc(char *a, char *b)/*
 DOC(This call returns zero if a and b are equivalent,
 it returns negative if a sorts before b alphabetically,
 and positive if a sorts after b alphabetically.) */{
-    int32_t i = 0;
+    int32_t i = 0, r = 0;
     while (a[i] == b[i] && a[i] != 0){
         ++i;
     }
-    return (a[i] > b[i]) - (a[i] < b[i]);
+    r = (a[i] > b[i]) - (a[i] < b[i]);
+    return(r);
 }
 
 CPP_NAME(compare)
@@ -552,21 +553,22 @@ compare_sc(String a, char *b)/*
 DOC(This call returns zero if a and b are equivalent,
 it returns negative if a sorts before b alphabetically,
 and positive if a sorts after b alphabetically.) */{
-    int32_t i = 0;
+    int32_t i = 0, r = 0;
     while (i < a.size && a.str[i] == b[i]){
         ++i;
     }
     if (i < a.size){
-        return (a.str[i] > b[i]) - (a.str[i] < b[i]);
+        r = (a.str[i] > b[i]) - (a.str[i] < b[i]);
     }
     else{
         if (b[i] == 0){
-            return 0;
+            r = 0;
         }
         else{
-            return -1;
+            r = -1;
         }
     }
+    return(r);
 }
 
 CPP_NAME(compare)
@@ -575,7 +577,8 @@ compare_cs(char *a, String b)/*
 DOC(This call returns zero if a and b are equivalent,
 it returns negative if a sorts before b alphabetically,
 and positive if a sorts after b alphabetically.) */{
-    return -compare_sc(b,a);
+    int32_t r = -compare_sc(b,a);
+    return(r);
 }
 
 CPP_NAME(compare)
@@ -584,16 +587,23 @@ compare_ss(String a, String b)/*
 DOC(This call returns zero if a and b are equivalent,
 it returns negative if a sorts before b alphabetically,
 and positive if a sorts after b alphabetically.) */{
-    int32_t i = 0;
-    while (i < a.size && i < b.size && a.str[i] == b.str[i]){
+    int32_t i = 0, r = 0;
+    int32_t m = a.size;
+    if (b.size < m){
+        m = b.size;
+    }
+    while (i < m && a.str[i] == b.str[i]){
         ++i;
     }
-    if (i < a.size && i < b.size){
-        return (a.str[i] > b.str[i]) - (a.str[i] < b.str[i]);
+    
+    if (i < m){
+        r = (a.str[i] > b.str[i]) - (b.str[i] > a.str[i]);
     }
     else{
-        return (a.size > b.size) - (a.size < b.size);
+        r = (a.size > b.size) - (a.size < b.size);
     }
+    
+    return(r);
 }
 
 //
@@ -610,7 +620,7 @@ DOC(This call returns the index of the first occurance of character, or the size
 if the character is not found.) */{
     int32_t i = start;
     while (str[i] != character && str[i] != 0) ++i;
-    return i;
+    return(i);
 }
 
 CPP_NAME(find)
@@ -623,7 +633,20 @@ DOC(This call returns the index of the first occurance of character, or the size
 if the character is not found.) */{
     int32_t i = start;
     while (i < str.size && str.str[i] != character) ++i;
-    return i;
+    return(i);
+}
+
+CPP_NAME(rfind)
+FSTRING_LINK int32_t
+rfind_s_char(String str, int32_t start, char character)/*
+DOC_PARAM(str, The str parameter provides a string to search.)
+DOC_PARAM(start, The start parameter provides the index of the first character in str to search.)
+DOC_PARAM(character, The character parameter provides the character for which to search.)
+DOC(This call looks for the largest index less than or equal to the start position where
+the given character occurs.  If the index is found it is returned otherwise -1 is returned.) */{
+    int32_t i = start;
+    while (i >= 0 && str.str[i] != character) --i;
+    return(i);
 }
 
 CPP_NAME(find)
@@ -638,12 +661,12 @@ or the size of the string if no such character is not found.) */{
     while (str[i] != 0){
         for (j = 0; characters[j]; ++j){
             if (str[i] == characters[j]){
-                return i;
+                return(i);
             }
         }
         ++i;
     }
-    return i;
+    return(i);
 }
 
 CPP_NAME(find)
@@ -658,12 +681,12 @@ or the size of the string if no such character is not found.) */{
     while (i < str.size){
         for (j = 0; characters[j]; ++j){
             if (str.str[i] == characters[j]){
-                return i;
+                return(i);
             }
         }
         ++i;
     }
-    return i;
+    return(i);
 }
 
 CPP_NAME(find_substr)
@@ -678,7 +701,8 @@ size of str if no such substring in str is found.) */{
     fstr_bool hit;
     
     if (seek.size == 0){
-        return str_size(str);
+        i = str_size(str);
+        return(i);
     }
     for (i = start; str[i]; ++i){
         if (str[i] == seek.str[0]){
@@ -690,11 +714,11 @@ size of str if no such substring in str is found.) */{
                 }
             }
             if (hit){
-                return i;
+                return(i);
             }
         }
     }
-    return i;
+    return(i);
 }
 
 CPP_NAME(find_substr)
@@ -726,7 +750,7 @@ size of str if no such substring in str is found.) */{
             }
         }
     }
-    return str.size;
+    return(str.size);
 }
 
 CPP_NAME(rfind_substr)

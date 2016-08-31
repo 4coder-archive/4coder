@@ -103,6 +103,7 @@ FSTRING_INLINE  int32_t       compare_cs(char *a, String b);
 FSTRING_LINK    int32_t       compare_ss(String a, String b);
 FSTRING_LINK    int32_t       find_c_char(char *str, int32_t start, char character);
 FSTRING_LINK    int32_t       find_s_char(String str, int32_t start, char character);
+FSTRING_LINK    int32_t       rfind_s_char(String str, int32_t start, char character);
 FSTRING_LINK    int32_t       find_c_chars(char *str, int32_t start, char *characters);
 FSTRING_LINK    int32_t       find_s_chars(String str, int32_t start, char *characters);
 FSTRING_LINK    int32_t       find_substr_c(char *str, int32_t start, String seek);
@@ -192,6 +193,7 @@ FSTRING_INLINE  int32_t       compare(char *a, String b);
 FSTRING_INLINE  int32_t       compare(String a, String b);
 FSTRING_INLINE  int32_t       find(char *str, int32_t start, char character);
 FSTRING_INLINE  int32_t       find(String str, int32_t start, char character);
+FSTRING_INLINE  int32_t       rfind(String str, int32_t start, char character);
 FSTRING_INLINE  int32_t       find(char *str, int32_t start, char *characters);
 FSTRING_INLINE  int32_t       find(String str, int32_t start, char *characters);
 FSTRING_INLINE  int32_t       find_substr(char *str, int32_t start, String seek);
@@ -287,6 +289,8 @@ FSTRING_INLINE int32_t
 find(char *str, int32_t start, char character){return(find_c_char(str,start,character));}
 FSTRING_INLINE int32_t
 find(String str, int32_t start, char character){return(find_s_char(str,start,character));}
+FSTRING_INLINE int32_t
+rfind(String str, int32_t start, char character){return(rfind_s_char(str,start,character));}
 FSTRING_INLINE int32_t
 find(char *str, int32_t start, char *characters){return(find_c_chars(str,start,characters));}
 FSTRING_INLINE int32_t
@@ -825,10 +829,10 @@ FSTRING_LINK fstr_bool
 match_part_insensitive_cs(char *a, String b){
     for (int32_t i = 0; i != b.size; ++i){
         if (char_to_upper(a[i]) != char_to_upper(b.str[i])){
-            return 0;
+            return(0);
         }
     }
-    return 1;
+    return(1);
 }
 #endif
 
@@ -837,14 +841,14 @@ match_part_insensitive_cs(char *a, String b){
 FSTRING_LINK fstr_bool
 match_part_insensitive_ss(String a, String b){
     if (a.size < b.size){
-        return 0;
+        return(0);
     }
     for (int32_t i = 0; i < b.size; ++i){
         if (char_to_upper(a.str[i]) != char_to_upper(b.str[i])){
-            return 0;
+            return(0);
         }
     }
-    return 1;
+    return(1);
 }
 #endif
 
@@ -852,11 +856,12 @@ match_part_insensitive_ss(String a, String b){
 #if defined(FSTRING_IMPLEMENTATION)
 FSTRING_LINK int32_t
 compare_cc(char *a, char *b){
-    int32_t i = 0;
+    int32_t i = 0, r = 0;
     while (a[i] == b[i] && a[i] != 0){
         ++i;
     }
-    return (a[i] > b[i]) - (a[i] < b[i]);
+    r = (a[i] > b[i]) - (a[i] < b[i]);
+    return(r);
 }
 #endif
 
@@ -864,21 +869,22 @@ compare_cc(char *a, char *b){
 #if defined(FSTRING_IMPLEMENTATION)
 FSTRING_LINK int32_t
 compare_sc(String a, char *b){
-    int32_t i = 0;
+    int32_t i = 0, r = 0;
     while (i < a.size && a.str[i] == b[i]){
         ++i;
     }
     if (i < a.size){
-        return (a.str[i] > b[i]) - (a.str[i] < b[i]);
+        r = (a.str[i] > b[i]) - (a.str[i] < b[i]);
     }
     else{
         if (b[i] == 0){
-            return 0;
+            r = 0;
         }
         else{
-            return -1;
+            r = -1;
         }
     }
+    return(r);
 }
 #endif
 
@@ -886,7 +892,8 @@ compare_sc(String a, char *b){
 #if !defined(FSTRING_GUARD)
 FSTRING_INLINE int32_t
 compare_cs(char *a, String b){
-    return -compare_sc(b,a);
+    int32_t r = -compare_sc(b,a);
+    return(r);
 }
 #endif
 
@@ -894,16 +901,23 @@ compare_cs(char *a, String b){
 #if defined(FSTRING_IMPLEMENTATION)
 FSTRING_LINK int32_t
 compare_ss(String a, String b){
-    int32_t i = 0;
-    while (i < a.size && i < b.size && a.str[i] == b.str[i]){
+    int32_t i = 0, r = 0;
+    int32_t m = a.size;
+    if (b.size < m){
+        m = b.size;
+    }
+    while (i < m && a.str[i] == b.str[i]){
         ++i;
     }
-    if (i < a.size && i < b.size){
-        return (a.str[i] > b.str[i]) - (a.str[i] < b.str[i]);
+    
+    if (i < m){
+        r = (a.str[i] > b.str[i]) - (b.str[i] > a.str[i]);
     }
     else{
-        return (a.size > b.size) - (a.size < b.size);
+        r = (a.size > b.size) - (a.size < b.size);
     }
+    
+    return(r);
 }
 #endif
 
@@ -917,7 +931,7 @@ FSTRING_LINK int32_t
 find_c_char(char *str, int32_t start, char character){
     int32_t i = start;
     while (str[i] != character && str[i] != 0) ++i;
-    return i;
+    return(i);
 }
 #endif
 
@@ -927,7 +941,17 @@ FSTRING_LINK int32_t
 find_s_char(String str, int32_t start, char character){
     int32_t i = start;
     while (i < str.size && str.str[i] != character) ++i;
-    return i;
+    return(i);
+}
+#endif
+
+
+#if defined(FSTRING_IMPLEMENTATION)
+FSTRING_LINK int32_t
+rfind_s_char(String str, int32_t start, char character){
+    int32_t i = start;
+    while (i >= 0 && str.str[i] != character) --i;
+    return(i);
 }
 #endif
 
@@ -939,12 +963,12 @@ find_c_chars(char *str, int32_t start, char *characters){
     while (str[i] != 0){
         for (j = 0; characters[j]; ++j){
             if (str[i] == characters[j]){
-                return i;
+                return(i);
             }
         }
         ++i;
     }
-    return i;
+    return(i);
 }
 #endif
 
@@ -956,12 +980,12 @@ find_s_chars(String str, int32_t start, char *characters){
     while (i < str.size){
         for (j = 0; characters[j]; ++j){
             if (str.str[i] == characters[j]){
-                return i;
+                return(i);
             }
         }
         ++i;
     }
-    return i;
+    return(i);
 }
 #endif
 
@@ -973,7 +997,8 @@ find_substr_c(char *str, int32_t start, String seek){
     fstr_bool hit;
     
     if (seek.size == 0){
-        return str_size(str);
+        i = str_size(str);
+        return(i);
     }
     for (i = start; str[i]; ++i){
         if (str[i] == seek.str[0]){
@@ -985,11 +1010,11 @@ find_substr_c(char *str, int32_t start, String seek){
                 }
             }
             if (hit){
-                return i;
+                return(i);
             }
         }
     }
-    return i;
+    return(i);
 }
 #endif
 
@@ -1018,7 +1043,7 @@ find_substr_s(String str, int32_t start, String seek){
             }
         }
     }
-    return str.size;
+    return(str.size);
 }
 #endif
 

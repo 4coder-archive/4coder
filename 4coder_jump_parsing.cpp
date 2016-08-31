@@ -36,55 +36,65 @@ parse_error(String line, Jump_Location *location,
     
     String original_line = line;
     line = skip_chop_whitespace(line);
-                               
-    int32_t colon_pos = find_s_char(line, 0, ')');
-    if (ms_style_verify(line, colon_pos)){
-        colon_pos = find_s_char(line, colon_pos, ':');
-        if (colon_pos < line.size){
-            String location_str = substr(line, 0, colon_pos);
-            
-            if (!(skip_sub_errors && original_line.str[0] == ' ')){
-                location_str = skip_chop_whitespace(location_str);
+    
+    int32_t colon_pos = 0;
+    int32_t is_ms_style = 0;
+    
+    int32_t paren_pos = find_s_char(line, 0, ')');
+    while (!is_ms_style && paren_pos < line.size){
+        if (ms_style_verify(line, paren_pos)){
+            is_ms_style = 1;
+            colon_pos = find_s_char(line, paren_pos, ':');
+            if (colon_pos < line.size){
+                String location_str = substr(line, 0, colon_pos);
                 
-                int32_t paren_pos = find_s_char(location_str, 0, '(');
-                if (paren_pos < location_str.size){
-                    String file = substr(location_str, 0, paren_pos);
-                    file = skip_chop_whitespace(file);
+                if (!(skip_sub_errors && original_line.str[0] == ' ')){
+                    location_str = skip_chop_whitespace(location_str);
                     
-                    int32_t close_pos = find_s_char(location_str, 0, ')') + 1;
-                    if (close_pos == location_str.size && file.size > 0){
-                        String line_number = substr(location_str,
-                                                    paren_pos+1,
-                                                    close_pos-paren_pos-2);
-                        line_number = skip_chop_whitespace(line_number);
+                    int32_t close_pos = paren_pos;
+                    int32_t open_pos = rfind_s_char(location_str, close_pos, '(');
+                    
+                    if (0 < open_pos && open_pos < location_str.size){
+                        String file = substr(location_str, 0, open_pos);
+                        file = skip_chop_whitespace(file);
                         
-                        if (line_number.size > 0){
-                            location->file = file;
+                        if (file.size > 0){
+                            String line_number = substr(location_str,
+                                                        open_pos+1,
+                                                        close_pos-open_pos-1);
+                            line_number = skip_chop_whitespace(line_number);
                             
-                            int32_t comma_pos = find_s_char(line_number, 0, ',');
-                            if (comma_pos < line_number.size){
-                                int32_t start = comma_pos+1;
-                                String column_number = substr(line_number, start, line_number.size-start);
-                                line_number = substr(line_number, 0, comma_pos);
+                            if (line_number.size > 0){
+                                location->file = file;
                                 
-                                location->line = str_to_int_s(line_number);
-                                location->column = str_to_int_s(column_number);
+                                int32_t comma_pos = find_s_char(line_number, 0, ',');
+                                if (comma_pos < line_number.size){
+                                    int32_t start = comma_pos+1;
+                                    String column_number = substr(line_number, start, line_number.size-start);
+                                    line_number = substr(line_number, 0, comma_pos);
+                                    
+                                    location->line = str_to_int_s(line_number);
+                                    location->column = str_to_int_s(column_number);
+                                }
+                                else{
+                                    location->line = str_to_int_s(line_number);
+                                    location->column = 1;
+                                }
+                                
+                                *colon_char = colon_pos;
+                                result = true;
                             }
-                            else{
-                                location->line = str_to_int_s(line_number);
-                                location->column = 1;
-                            }
-                            
-                            *colon_char = colon_pos;
-                            result = true;
                         }
                     }
                 }
             }
         }
+        else{
+            paren_pos = find_s_char(line, paren_pos+1, ')');
+        }
     }
     
-    else{
+    if (!is_ms_style){
         int32_t colon_pos1 = find_s_char(line, 0, ':');
         if (line.size > colon_pos1+1){
             if (char_is_slash(line.str[colon_pos1+1])){

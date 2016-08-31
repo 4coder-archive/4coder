@@ -70,14 +70,14 @@
 ; [X] key presses that should be consumed in the GUI are now passed to the file!
 ; [X] paste snaps the cursor back into view!
 ; [X] clean whitespace doesn't appear to be cleaning trailing whitespace anymore???
+; [X] problem with end of line comments
 ;
 ; [] indication on failure to save
 ; [] history is broken, revist the entire system
 ;
-; [] 8.0\Include\um\dsound.h
-; [] paths with parens in them
-; [] double check end of line comments
-; [] paste external text from bug report (in email) (not repod, get more info)
+; [] 8.0\Include\um\dsound.h (not reproduced, get more info)
+; [] paths with parens in them 
+; [] paste external text from bug report (in email) (not reproduced, get more info)
 ;
 ;
 
