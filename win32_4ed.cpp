@@ -12,7 +12,7 @@
 #include <assert.h>
 #include "4ed_defines.h"
 
-#if FRED_SUPER
+#if defined(FRED_SUPER)
 
 # define FSTRING_IMPLEMENTATION
 # define FSTRING_C
@@ -2022,7 +2022,7 @@ WinMain(HINSTANCE hInstance,
     // Custom Layer Linkage
     //
     
-#ifdef FRED_SUPER
+#if defined(FRED_SUPER)
     char *custom_file_default = "4coder_custom.dll";
     char *custom_file = 0;
     if (win32vars.settings.custom_dll) custom_file = win32vars.settings.custom_dll;
@@ -2053,6 +2053,11 @@ WinMain(HINSTANCE hInstance,
         win32vars.custom_api.view_routine = (View_Routine_Function*)
             GetProcAddress(win32vars.custom, "view_routine");
 #endif
+    }
+    
+    if (win32vars.custom_api.get_bindings == 0){
+        OutputDebugStringA("Error: 4coder_custom.dll is missing\n");
+        exit(1);
     }
     
 #else

@@ -5379,11 +5379,12 @@ draw_file_loaded(View *view, i32_Rect rect, b32 is_active, Render_Target *target
     
     u32 mark_color = style->main.mark_color;
     Buffer_Render_Item *item = items;
+    Buffer_Render_Item *item_end = item + count;
     i32 prev_ind = -1;
     u32 highlight_color = 0;
     u32 highlight_this_color = 0;
     
-    for (i32 i = 0; i < count; ++i, ++item){
+    for (; item < item_end; ++item){
         i32 ind = item->index;
         highlight_this_color = 0;
         if (tokens_use && ind != prev_ind){
@@ -5402,7 +5403,7 @@ draw_file_loaded(View *view, i32_Rect rect, b32 is_active, Render_Target *target
             }
             
             if (current_token.type == CPP_TOKEN_JUNK &&
-                i >= current_token.start && i < current_token.start + current_token.size){
+                ind >= current_token.start && ind < current_token.start + current_token.size){
                 highlight_color = style->main.highlight_junk_color;
             }
             else{
