@@ -2142,12 +2142,12 @@ LinuxX11ConnectionWatch(Display* dpy, XPointer cdata, int fd, Bool opening, XPoi
 internal void
 LinuxFatalErrorMsg(const char* msg)
 {
-	fprintf(stderr, "Fatal Error: %s\n", msg);
+    fprintf(stderr, "Fatal Error: %s\n", msg);
 
     Display *dpy = XOpenDisplay(0);
-	if(!dpy){
-		exit(1);
-	}
+    if(!dpy){
+        exit(1);
+    }
 
     int win_w = 450;
     int win_h = 150 + (strlen(msg) / 40) * 24;
@@ -2157,8 +2157,8 @@ LinuxFatalErrorMsg(const char* msg)
 
     XSizeHints* sh = XAllocSizeHints();
     sh->flags = PMinSize;
-	sh->min_width = win_w;
-	sh->min_height = win_h;
+    sh->min_width = win_w;
+    sh->min_height = win_h;
     XSetWMNormalHints(dpy, w, sh);
 
     Atom type = XInternAtom(dpy, "_NET_WM_WINDOW_TYPE_DIALOG", False);
@@ -2180,9 +2180,9 @@ LinuxFatalErrorMsg(const char* msg)
     XSelectInput(dpy, w, ExposureMask | StructureNotifyMask | PointerMotionMask | ButtonPressMask | ButtonReleaseMask);
 
     XFontStruct* font = XLoadQueryFont(dpy, "-*-fixed-*-*-*-*-*-140-*-*-*-*-iso8859-1");
-	if(!font){
-		exit(1);
-	}
+    if(!font){
+        exit(1);
+    }
 
     XGCValues gcv;
     gcv.foreground = WhitePixel(dpy, 0);
@@ -2243,44 +2243,44 @@ LinuxFatalErrorMsg(const char* msg)
             redraw = 1;
         }
 
-		if(ev.type == ClientMessage && ev.xclient.window == w && (Atom)ev.xclient.data.l[0] == WM_DELETE_WINDOW){
-			exit(1);
-		}
+        if(ev.type == ClientMessage && ev.xclient.window == w && (Atom)ev.xclient.data.l[0] == WM_DELETE_WINDOW){
+            exit(1);
+        }
 
         if(redraw){
             XClearWindow(dpy, w);
 
-			const char* line_start = msg;
-			const char* last_space = NULL;
+            const char* line_start = msg;
+            const char* last_space = NULL;
             int y = 30;
 
-			{
-				const char title[] = "4coder - Fatal Error";
-				int width = XTextWidth(font, title, sizeof(title)-1);
-				int x = (win_w/2) - (width/2);
-				XDrawString(dpy, w, gc2, x+2, y+2, title, sizeof(title)-1);
-				XDrawString(dpy, w, gc, x, y, title, sizeof(title)-1);
-			}
+            {
+                const char title[] = "4coder - Fatal Error";
+                int width = XTextWidth(font, title, sizeof(title)-1);
+                int x = (win_w/2) - (width/2);
+                XDrawString(dpy, w, gc2, x+2, y+2, title, sizeof(title)-1);
+                XDrawString(dpy, w, gc, x, y, title, sizeof(title)-1);
+            }
 
-			y += 36;
+            y += 36;
 
-			int width = XTextWidth(font, "x", 1) * 40;
-			int x = (win_w/2) - (width/2);
-			for(const char* p = line_start; *p; ++p){
-				if(*p == ' ') last_space = p;
-				if(p - line_start > 40){
-					if(!last_space) last_space = p;
+            int width = XTextWidth(font, "x", 1) * 40;
+            int x = (win_w/2) - (width/2);
+            for(const char* p = line_start; *p; ++p){
+                if(*p == ' ') last_space = p;
+                if(p - line_start > 40){
+                    if(!last_space) last_space = p;
 
-					XDrawString(dpy, w, gc2, x+2, y+2, line_start, last_space - line_start);
-					XDrawString(dpy, w, gc, x, y, line_start, last_space - line_start);
-					line_start = *last_space == ' ' ? last_space + 1 : p;
-					last_space = NULL;
-					y += 18;
-				}
-			}
+                    XDrawString(dpy, w, gc2, x+2, y+2, line_start, last_space - line_start);
+                    XDrawString(dpy, w, gc, x, y, line_start, last_space - line_start);
+                    line_start = *last_space == ' ' ? last_space + 1 : p;
+                    last_space = NULL;
+                    y += 18;
+                }
+            }
 
-			XDrawString(dpy, w, gc2, x+2, y+2, line_start, strlen(line_start));
-			XDrawString(dpy, w, gc, x, y, line_start, strlen(line_start));
+            XDrawString(dpy, w, gc2, x+2, y+2, line_start, strlen(line_start));
+            XDrawString(dpy, w, gc, x, y, line_start, strlen(line_start));
 
             XDrawRectangles(dpy, w, gc, &button_rect, 1);
             if(button_hi || button_trigger){
