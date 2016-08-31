@@ -9,9 +9,10 @@
 
 // TOP
 
-#if FRED_SUPER
+#include <assert.h>
+#include "4ed_defines.h"
 
-# include "4ed_defines.h"
+#if FRED_SUPER
 
 # define FSTRING_IMPLEMENTATION
 # define FSTRING_C
@@ -21,8 +22,6 @@
 # include "4coder_keycodes.h"
 # include "4coder_style.h"
 # include "4coder_rect.h"
-
-# include <assert.h>
 
 # include "4coder_mem.h"
 

@@ -2,6 +2,10 @@
 #ifndef FCODER_MEM_H
 #define FCODER_MEM_H
 
+#ifndef Assert
+# define Assert(n) do{ if(!(n)){*(int*)0 = 0xA11E;} }while(0)
+#endif
+
 struct Partition{
     char *base;
     int32_t pos, max;
@@ -77,10 +81,6 @@ NOTE(allen):
 This is a very week general purpose allocator system.
 It should only be used for infrequent large allocations (4K+).
 */
-
-//#include <stdint.h>
-//#include <assert.h>
-//#include <string.h>
 
 enum{
     MEM_BUBBLE_FLAG_INIT = 0x0,

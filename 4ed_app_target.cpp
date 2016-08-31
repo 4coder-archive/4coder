@@ -9,6 +9,10 @@
 
 // TOP
 
+// TODO(allen): can I get away from this one?
+#include <assert.h>
+#include "4ed_defines.h"
+
 #include "4coder_custom.h"
 
 #define FSTRING_IMPLEMENTATION
@@ -17,17 +21,12 @@
 
 #define BUFFER_EXPERIMENT_SCALPEL 0
 
-#include "4ed_defines.h"
-
 #include "4ed_math.h"
 
 #include "4ed_system.h"
 #include "4ed_rendering.h"
 
 #include "4ed.h"
-
-// TODO(allen): can I get away from this one?
-#include <assert.h>
 
 #define FCPP_FORBID_MALLOC
 #include "4cpp_lexer.h"
