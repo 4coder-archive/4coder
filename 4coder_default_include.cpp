@@ -2299,6 +2299,10 @@ CUSTOM_COMMAND_SIG(build_search_regular){
 // Common Settings Commands
 //
 
+CUSTOM_COMMAND_SIG(toggle_fullscreen){
+    app->toggle_fullscreen(app);
+}
+
 CUSTOM_COMMAND_SIG(toggle_line_wrap){
     View_Summary view = app->get_active_view(app, AccessProtected);
     Buffer_Summary buffer = app->get_buffer(app, view.buffer_id, AccessProtected);

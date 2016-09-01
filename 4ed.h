@@ -52,27 +52,29 @@ get_single_key(Key_Summary *summary, i32 index){
     return key;
 }
 
-struct Input_Summary{
+typedef struct Input_Summary{
     Mouse_State mouse;
     Key_Summary keys;
     f32 dt;
-};
+} Input_Summary;
 
-struct Command_Line_Parameters{
+typedef struct Command_Line_Parameters{
     char **argv;
     int32_t argc;
-};
+} Command_Line_Parameters;
 
-struct Plat_Settings{
+typedef struct Plat_Settings{
     char *custom_dll;
     b32 custom_dll_is_strict;
+    b32 fullscreen_window;
     
     i32 window_w, window_h;
     i32 window_x, window_y;
-    b8 set_window_pos, set_window_size;
+    b8 set_window_pos;
+    b8 set_window_size;
     b8 maximize_window;
     b8 use_hinting;
-};
+} Plat_Settings;
 
 #define App_Read_Command_Line_Sig(name)                 \
     i32 name(System_Functions *system,                  \

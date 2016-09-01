@@ -277,6 +277,7 @@ default_keys(Bind_Helper *context){
     bind(context, 'w', MDFR_ALT, hide_scrollbar);
     
     bind(context, key_f2, MDFR_NONE, toggle_mouse);
+    bind(context, key_page_up, MDFR_CTRL, toggle_fullscreen);
     
     end_map(context);
     

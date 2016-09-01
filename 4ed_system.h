@@ -235,6 +235,8 @@ struct System_Functions{
     Directory_CD_Function *directory_cd;
     Get_4ed_Path_Function *get_4ed_path;
     Show_Mouse_Cursor_Function *show_mouse_cursor;
+    Toggle_Fullscreen_Function *toggle_fullscreen;
+    Is_Fullscreen_Function *is_fullscreen;
     
     // clipboard: 1
     System_Post_Clipboard *post_clipboard;

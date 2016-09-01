@@ -11,30 +11,30 @@
 
 // App Structs
 
-enum App_State{
+typedef enum App_State{
     APP_STATE_EDIT,
     APP_STATE_RESIZING,
     // never below this
     APP_STATE_COUNT
-};
+} App_State;
 
-struct App_State_Resizing{
+typedef struct App_State_Resizing{
     Panel_Divider *divider;
     f32 min, max;
-};
+} App_State_Resizing;
 
-struct CLI_Process{
+typedef struct CLI_Process{
     CLI_Handles cli;
     Editing_File *out_file;
     b32 cursor_at_end;
-};
+} CLI_Process;
 
-struct CLI_List{
+typedef struct CLI_List{
     CLI_Process *procs;
     i32 count, max;
-};
+} CLI_List;
 
-struct Command_Data{
+typedef struct Command_Data{
     Models *models;
     struct App_Vars *vars;
     System_Functions *system;
@@ -45,9 +45,9 @@ struct Command_Data{
     
     i32 screen_width, screen_height;
     Key_Event_Data key;
-};
+} Command_Data;
 
-enum Input_Types{
+typedef enum Input_Types{
     Input_AnyKey,
     Input_Esc,
     Input_MouseMove,
@@ -55,20 +55,20 @@ enum Input_Types{
     Input_MouseRightButton,
     Input_MouseWheel,
     Input_Count
-};
+} Input_Types;
 
-struct Consumption_Record{
+typedef struct Consumption_Record{
     b32 consumed;
     char consumer[32];
-};
+} Consumption_Record;
 
-struct Available_Input{
+typedef struct Available_Input{
     Key_Summary *keys;
     Mouse_State *mouse;
     Consumption_Record records[Input_Count];
-};
+} Available_Input;
 
-Available_Input
+internal Available_Input
 init_available_input(Key_Summary *keys, Mouse_State *mouse){
     Available_Input result = {0};
     result.keys = keys;
@@ -76,19 +76,19 @@ init_available_input(Key_Summary *keys, Mouse_State *mouse){
     return(result);
 }
 
-Key_Summary
+internal Key_Summary
 direct_get_key_data(Available_Input *available){
     Key_Summary result = *available->keys;
     return(result);
 }
 
-Mouse_State
+internal Mouse_State
 direct_get_mouse_state(Available_Input *available){
     Mouse_State result = *available->mouse;
     return(result);
 }
 
-Key_Summary
+internal Key_Summary
 get_key_data(Available_Input *available){
     Key_Summary result = {0};
     
@@ -113,7 +113,7 @@ get_key_data(Available_Input *available){
     return(result);
 }
 
-Mouse_State
+internal Mouse_State
 get_mouse_state(Available_Input *available){
     Mouse_State mouse = *available->mouse;
     if (available->records[Input_MouseLeftButton].consumed){
@@ -135,7 +135,7 @@ get_mouse_state(Available_Input *available){
     return(mouse);
 }
 
-void
+internal void
 consume_input(Available_Input *available, i32 input_type, char *consumer){
     Consumption_Record *record = &available->records[input_type];
     record->consumed = 1;
@@ -149,7 +149,7 @@ consume_input(Available_Input *available, i32 input_type, char *consumer){
     }
 }
 
-struct App_Vars{
+typedef struct App_Vars{
     Models models;
     // TODO(allen): This wants to live in
     // models with everyone else but the order
@@ -164,16 +164,17 @@ struct App_Vars{
     Command_Data command_data;
     
     Available_Input available_input;
-};
+} App_Vars;
 
-enum Coroutine_Type{
+typedef enum Coroutine_Type{
     Co_View,
     Co_Command
-};
-struct App_Coroutine_State{
+} Coroutine_Type;
+typedef struct App_Coroutine_State{
     void *co;
     i32 type;
-};
+} App_Coroutine_State;
+
 inline App_Coroutine_State
 get_state(Application_Links *app){
     App_Coroutine_State state = {0};
@@ -1086,6 +1087,7 @@ enum Command_Line_Action{
     CLAct_WindowSize,
     CLAct_WindowMaximize,
     CLAct_WindowPosition,
+    CLAct_WindowFullscreen,
     CLAct_FontSize,
     CLAct_FontStopHinting,
     CLAct_Count
@@ -1109,20 +1111,21 @@ init_command_line_settings(App_Settings *settings, Plat_Settings *plat_settings,
                 if (arg[0] == '-'){
                     action = CLAct_Ignore;
                     switch (arg[1]){
-                        case 'u': action = CLAct_UserFile; strict = false; break;
-                        case 'U': action = CLAct_UserFile; strict = true;  break;
+                        case 'u': action = CLAct_UserFile; strict = false;      break;
+                        case 'U': action = CLAct_UserFile; strict = true;       break;
                         
-                        case 'd': action = CLAct_CustomDLL; strict = false;break;
-                        case 'D': action = CLAct_CustomDLL; strict = true; break;
+                        case 'd': action = CLAct_CustomDLL; strict = false;     break;
+                        case 'D': action = CLAct_CustomDLL; strict = true;      break;
                         
-                        case 'i': action = CLAct_InitialFilePosition;      break;
+                        case 'i': action = CLAct_InitialFilePosition;           break;
                         
-                        case 'w': action = CLAct_WindowSize;               break;
-                        case 'W': action = CLAct_WindowMaximize;           break;
-                        case 'p': action = CLAct_WindowPosition;           break;
+                        case 'w': action = CLAct_WindowSize;                    break;
+                        case 'W': action = CLAct_WindowMaximize;                break;
+                        case 'p': action = CLAct_WindowPosition;                break;
+                        case 'F': action = CLAct_WindowFullscreen;              break;
                         
-                        case 'f': action = CLAct_FontSize;                 break;
-                        case 'h': action = CLAct_FontStopHinting; --i;     break;
+                        case 'f': action = CLAct_FontSize;                      break;
+                        case 'h': action = CLAct_FontStopHinting; --i;          break;
                     }
                 }
                 else if (arg[0] != 0){
@@ -1187,6 +1190,13 @@ init_command_line_settings(App_Settings *settings, Plat_Settings *plat_settings,
                     
                     ++i;
                 }
+                action = CLAct_Nothing;
+            }break;
+            
+            case CLAct_WindowFullscreen:
+            {
+                --i;
+                plat_settings->fullscreen_window = true;
                 action = CLAct_Nothing;
             }break;
             
@@ -2466,6 +2476,12 @@ App_Step_Sig(app_step){
                             "and if you load README.txt you'll find all the key combos there are.\n"
                             "\n"
                             "Newest features:\n"
+                            "-The commands for going to next error, previous error, etc now work\n"
+                            "  on any buffer with jump locations including *search*\n"
+                            "-4coder now supports proper, borderless, fullscreen with the flag -F\n"
+                            "  and fullscreen can be toggled with <control pageup>\n"
+                            "\n"
+                            "New in alpha 4.0.10:\n"
                             "-<control F> list all locations of a string across all open buffers\n"
                             "-Build now finds build.sh and Makefile on Linux\n"
                             "-<alt n> goes to the next error if the *compilation* buffer is open\n"

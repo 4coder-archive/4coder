@@ -88,7 +88,7 @@
 ;     [] add to APIs
 ;
 ; [] tokens in the custom API
-; [] auto indent on the custom side
+;     [] auto indent on the custom side
 ; [] expose dirty flags
 ; [] option to not open *messages* every startup
 ; [] command for resizing panels

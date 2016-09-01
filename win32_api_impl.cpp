@@ -176,5 +176,26 @@ DOC_SEE(Mouse_Cursor_Show_Type)
     }
 }
 
+API_EXPORT void
+Toggle_Fullscreen(Application_Links *app)/*
+*/{
+    /* NOTE(allen): Don't actually change window size now!
+    Tell the platform layer to do the toggle (or to cancel the toggle)
+    later when the app.step function isn't running. If the size changes
+    mid step, it messes up the rendering rules and stuff. */
+    do_toggle = !do_toggle;
+}
+
+API_EXPORT bool32
+Is_Fullscreen(Application_Links *app)/*
+*/{
+    /* NOTE(allen): This is a fancy way of say 'full_screen XOR do_toggle'
+    This way this function can always report the state the fullscreen
+    will have when the next frame runs, given the number of toggles
+    that have occurred this frame and the original value. */
+    bool32 result = (full_screen + do_toggle) & 1;
+    return(result);
+}
+
 // BOTTOM
 

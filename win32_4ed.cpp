@@ -1106,6 +1106,80 @@ Sys_Get_Binary_Path_Sig(system_get_binary_path){
     return(result);
 }
 
+
+/*
+NOTE(casey): This follows Raymond Chen's prescription
+for fullscreen toggling, see:
+http://blogs.msdn.com/b/oldnewthing/archive/2010/04/12/9994016.aspx
+*/
+
+// TODO(allen): Move these into win32vars
+static b32 full_screen = 0;
+static b32 do_toggle = 0;
+static WINDOWPLACEMENT GlobalWindowPosition = {sizeof(GlobalWindowPosition)};
+
+internal void
+Win32ToggleFullscreen(void){
+    HWND Window = win32vars.window_handle;
+    LONG_PTR Style = GetWindowLongPtr(Window, GWL_STYLE);
+    if (Style & WS_OVERLAPPEDWINDOW){
+        MONITORINFO MonitorInfo = {sizeof(MonitorInfo)};
+        if(GetWindowPlacement(Window, &GlobalWindowPosition) &&
+           GetMonitorInfo(MonitorFromWindow(Window, MONITOR_DEFAULTTOPRIMARY), &MonitorInfo))
+        {
+            SetWindowLongPtr(Window, GWL_STYLE, Style & ~WS_OVERLAPPEDWINDOW);
+            SetWindowPos(Window, HWND_TOP,
+                         MonitorInfo.rcMonitor.left, MonitorInfo.rcMonitor.top,
+                         MonitorInfo.rcMonitor.right - MonitorInfo.rcMonitor.left,
+                         MonitorInfo.rcMonitor.bottom - MonitorInfo.rcMonitor.top,
+                         SWP_NOOWNERZORDER | SWP_FRAMECHANGED);
+            full_screen = 1;
+        }
+    }
+    else{
+        SetWindowLongPtr(Window, GWL_STYLE, Style | WS_OVERLAPPEDWINDOW);
+        SetWindowPlacement(Window, &GlobalWindowPosition);
+        SetWindowPos(Window, 0, 0, 0, 0, 0,
+                     SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER |
+                     SWP_NOOWNERZORDER | SWP_FRAMECHANGED);
+        full_screen = 0;
+    }
+}
+
+/*
+NOTE(allen): 
+This is the crazy hacky nonsense I came up with to get alt-tab
+working in full screen mode.  It puts the window back into
+bordered mode when the alt-tabbing begins.  When the window regains
+focus it is automatically refullscreened.
+*/
+
+internal void
+Win32FixFullscreenLoseFocus(b32 lose_focus){
+    if (full_screen){
+        
+        HWND Window = win32vars.window_handle;
+        LONG_PTR Style = GetWindowLongPtr(Window, GWL_STYLE);
+        
+        MONITORINFO MonitorInfo = {sizeof(MonitorInfo)};
+        if(GetMonitorInfo(MonitorFromWindow(Window, MONITOR_DEFAULTTOPRIMARY), &MonitorInfo))
+        {
+            if (lose_focus){
+                SetWindowLongPtr(Window, GWL_STYLE, Style | WS_OVERLAPPEDWINDOW);
+            }
+            else{
+                SetWindowLongPtr(Window, GWL_STYLE, Style & ~WS_OVERLAPPEDWINDOW);
+            }
+            
+            SetWindowPos(Window, HWND_TOP,
+                         MonitorInfo.rcMonitor.left, MonitorInfo.rcMonitor.top,
+                         MonitorInfo.rcMonitor.right - MonitorInfo.rcMonitor.left,
+                         MonitorInfo.rcMonitor.bottom - MonitorInfo.rcMonitor.top,
+                         SWP_NOOWNERZORDER | SWP_FRAMECHANGED);
+        }
+    }
+}
+
 #include "win32_api_impl.cpp"
 
 //
@@ -1407,10 +1481,16 @@ Win32LoadSystemCode(){
     win32vars.system.now_time = system_now_time;
     
     win32vars.system.memory_allocate = Memory_Allocate;
+    win32vars.system.memory_set_protection = Memory_Set_Protection;
+    win32vars.system.memory_free = Memory_Free;
+    
     win32vars.system.file_exists = File_Exists;
     win32vars.system.directory_cd = Directory_CD;
     win32vars.system.get_4ed_path = Get_4ed_Path;
     win32vars.system.show_mouse_cursor = Show_Mouse_Cursor;
+    
+    win32vars.system.toggle_fullscreen = Toggle_Fullscreen;
+    win32vars.system.is_fullscreen = Is_Fullscreen;
     
     win32vars.system.post_clipboard = system_post_clipboard;
     
@@ -1508,69 +1588,6 @@ Win32Resize(i32 width, i32 height){
         
         win32vars.target.width = width;
         win32vars.target.height = height;
-    }
-}
-
-/*
-NOTE(casey): This follows Raymond Chen's prescription
-for fullscreen toggling, see:
-http://blogs.msdn.com/b/oldnewthing/archive/2010/04/12/9994016.aspx
-*/
-
-static b32 full_screen = 0;
-static WINDOWPLACEMENT GlobalWindowPosition = {sizeof(GlobalWindowPosition)};
-
-internal void
-Win32ToggleFullscreen(void){
-    HWND Window = win32vars.window_handle;
-    LONG_PTR Style = GetWindowLongPtr(Window, GWL_STYLE);
-    if (Style & WS_OVERLAPPEDWINDOW){
-        MONITORINFO MonitorInfo = {sizeof(MonitorInfo)};
-        if(GetWindowPlacement(Window, &GlobalWindowPosition) &&
-           GetMonitorInfo(MonitorFromWindow(Window, MONITOR_DEFAULTTOPRIMARY), &MonitorInfo))
-        {
-            SetWindowLongPtr(Window, GWL_STYLE, Style & ~WS_OVERLAPPEDWINDOW);
-            SetWindowPos(Window, HWND_TOP,
-                         MonitorInfo.rcMonitor.left, MonitorInfo.rcMonitor.top,
-                         MonitorInfo.rcMonitor.right - MonitorInfo.rcMonitor.left,
-                         MonitorInfo.rcMonitor.bottom - MonitorInfo.rcMonitor.top,
-                         SWP_NOOWNERZORDER | SWP_FRAMECHANGED);
-            full_screen = 1;
-        }
-    }
-    else{
-        SetWindowLongPtr(Window, GWL_STYLE, Style | WS_OVERLAPPEDWINDOW);
-        SetWindowPlacement(Window, &GlobalWindowPosition);
-        SetWindowPos(Window, 0, 0, 0, 0, 0,
-                     SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER |
-                     SWP_NOOWNERZORDER | SWP_FRAMECHANGED);
-        full_screen = 0;
-    }
-}
-
-internal void
-Win32FixFullscreenLoseFocus(b32 lose_focus){
-    if (full_screen){
-        
-        HWND Window = win32vars.window_handle;
-        LONG_PTR Style = GetWindowLongPtr(Window, GWL_STYLE);
-        
-        MONITORINFO MonitorInfo = {sizeof(MonitorInfo)};
-        if(GetMonitorInfo(MonitorFromWindow(Window, MONITOR_DEFAULTTOPRIMARY), &MonitorInfo))
-        {
-            if (lose_focus){
-                SetWindowLongPtr(Window, GWL_STYLE, Style | WS_OVERLAPPEDWINDOW);
-            }
-            else{
-                SetWindowLongPtr(Window, GWL_STYLE, Style & ~WS_OVERLAPPEDWINDOW);
-            }
-            
-            SetWindowPos(Window, HWND_TOP,
-                         MonitorInfo.rcMonitor.left, MonitorInfo.rcMonitor.top,
-                         MonitorInfo.rcMonitor.right - MonitorInfo.rcMonitor.left,
-                         MonitorInfo.rcMonitor.bottom - MonitorInfo.rcMonitor.top,
-                         SWP_NOOWNERZORDER | SWP_FRAMECHANGED);
-        }
     }
 }
 
@@ -2188,7 +2205,7 @@ WinMain(HINSTANCE hInstance,
     }
     
     i32 window_style = WS_OVERLAPPEDWINDOW;
-    if (win32vars.settings.maximize_window){
+    if (!win32vars.settings.fullscreen_window && win32vars.settings.maximize_window){
         window_style |= WS_MAXIMIZE;
     }
     
@@ -2324,6 +2341,9 @@ WinMain(HINSTANCE hInstance,
     win32vars.first = 1;
     timeBeginPeriod(1);
     
+    if (win32vars.settings.fullscreen_window){
+        Win32ToggleFullscreen();
+    }
     
     SetForegroundWindow(win32vars.window_handle);
     SetActiveWindow(win32vars.window_handle);
@@ -2443,6 +2463,11 @@ WinMain(HINSTANCE hInstance,
         
         if (result.perform_kill){
             keep_playing = 0;
+        }
+        
+        if (do_toggle){
+            Win32ToggleFullscreen();
+            do_toggle = 0;
         }
         
         Win32SetCursorFromUpdate(result.mouse_cursor_type);
