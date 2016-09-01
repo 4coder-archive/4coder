@@ -15,8 +15,10 @@
 //
 
 CUSTOM_COMMAND_SIG(build_in_build_panel){
+    String comp_name = make_lit_string("*compilation*");
+    
     Buffer_Summary buffer =
-        app->get_buffer_by_name(app, literal("*compilation*"), AccessAll);
+        app->get_buffer_by_name(app, comp_name.str, comp_name.size, AccessAll);
     View_Summary build_view = {0};
     
     View_Summary original_view = app->get_active_view(app, AccessAll);
@@ -37,10 +39,12 @@ CUSTOM_COMMAND_SIG(build_in_build_panel){
     
     execute_standard_build(app, &build_view, &original_buffer);
     
-    buffer = app->get_buffer_by_name(app, literal("*compilation*"), AccessAll);
+    buffer = app->get_buffer_by_name(app, comp_name.str, comp_name.size, AccessAll);
     app->buffer_set_font(app, &buffer, literal("Inconsolata"));
     
     prev_location = null_location;
+    
+    lock_jump_buffer(comp_name.str, comp_name.size);
 }
 
 // TODO(allen): This is a bit nasty.  I want a system for picking
@@ -133,7 +137,7 @@ CUSTOM_COMMAND_SIG(open_file_in_quotes_build){
     if (file_name_in_quotes(app, &file_name)){
         exec_command(app, change_active_panel_build);
         View_Summary view = app->get_active_view(app, AccessAll);
-        view_open_file(app, &view, expand_str(file_name), false);
+        view_open_file(app, &view, expand_str(file_name), true);
     }
 }
 

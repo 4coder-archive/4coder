@@ -102,7 +102,7 @@ CUSTOM_COMMAND_SIG(rewrite_as_single_caps){
 CUSTOM_COMMAND_SIG(open_my_files){
     uint32_t access = AccessAll;
     View_Summary view = app->get_active_view(app, access);
-    view_open_file(app, &view, literal("w:/4ed/data/test/basic.cpp"), false);
+    view_open_file(app, &view, literal("w:/4ed/data/test/basic.cpp"), true);
 }
 
 CUSTOM_COMMAND_SIG(build_at_launch_location){
@@ -160,6 +160,7 @@ CUSTOM_COMMAND_SIG(newline_or_goto_position){
     
     if (buffer.lock_flags & AccessProtected){
         exec_command(app, goto_jump_at_cursor);
+        lock_jump_buffer(buffer);
     }
     else{
         exec_command(app, write_character);

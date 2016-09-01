@@ -184,11 +184,11 @@ CUSTOM_COMMAND_SIG(multi_line_edit){
 // TODO(allen): Both of these brace related commands would work better
 // if the API exposed access to the tokens in a code file.
 CUSTOM_COMMAND_SIG(mark_matching_brace){
-    unsigned int access = AccessProtected;
+    uint32_t access = AccessProtected;
     View_Summary view = app->get_active_view(app, access);
     Buffer_Summary buffer = app->get_buffer(app, view.buffer_id, access);
     
-    int start_pos = view.cursor.pos;
+    int32_t start_pos = view.cursor.pos;
     
     // NOTE(allen): The user provides the memory that the chunk uses,
     // this chunk will then be filled at each step of the text stream loop.
@@ -197,12 +197,12 @@ CUSTOM_COMMAND_SIG(mark_matching_brace){
     Stream_Chunk chunk;
     char chunk_space[(1 << 10)];
     
-    int result = 0;
-    int found_result = 0;
+    int32_t result = 0;
+    int32_t found_result = 0;
     
-    int i = start_pos;
-    int still_looping = 1;
-    int nesting_counter = 0;
+    int32_t i = start_pos;
+    int32_t still_looping = 1;
+    int32_t nesting_counter = 0;
     char at_cursor = 0;
     
     if (init_stream_chunk(&chunk, app, &buffer, i,
@@ -404,8 +404,8 @@ get_bindings(void *data, int size){
     end_map(context);
     
     begin_map(context, my_code_map);
-    bind(context, '/', MDFR_ALT, mark_matching_brace);
-    bind(context, '\'', MDFR_ALT, cursor_to_surrounding_scope);
+    bind(context, ']', MDFR_ALT, mark_matching_brace);
+    bind(context, '[', MDFR_ALT, cursor_to_surrounding_scope);
     end_map(context);
     
     BIND_4CODER_TESTS(context);

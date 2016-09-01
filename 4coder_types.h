@@ -93,9 +93,9 @@ ENUM(uint64_t, Command_ID){
 /* DOC(TODO) */
 FLAGENUM(Memory_Protect_Flags){
     /* DOC(TODO) */
-    MemProtect_Read = 0x1,
+    MemProtect_Read    = 0x1,
     /* DOC(TODO) */
-    MemProtect_Write = 0x2,
+    MemProtect_Write   = 0x2,
     /* DOC(TODO) */
     MemProtect_Execute = 0x4,
 };
@@ -189,6 +189,9 @@ FLAGENUM(Buffer_Create_Flag){
     /* DOC(When BufferCreate_AlwaysNew is set it indicates the buffer should be
     cleared to empty even if it's associated file already has content.) */
     BufferCreate_AlwaysNew  = 0x2,
+    /* DOC(When BufferCreate_NeverNew is set it indicates that the buffer should
+    only be created if it is an existing file or an open buffer.) */
+    BufferCreate_NeverNew   = 0x4,
 };
 
 /* DOC(A Buffer_Kill_Flag field specifies how a buffer should be killed.) */

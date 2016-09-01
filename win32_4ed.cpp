@@ -139,22 +139,23 @@ struct Win32_Input_Chunk_Persistent{
     b8 control_keys[MDFR_INDEX_COUNT];
 };
 
-struct Win32_Input_Chunk{
+typedef struct Win32_Input_Chunk{
     Win32_Input_Chunk_Transient trans;
     Win32_Input_Chunk_Persistent pers;
-};
+} Win32_Input_Chunk;
 
-struct Win32_Coroutine{
+typedef struct Win32_Coroutine{
     Coroutine coroutine;
     Win32_Coroutine *next;
     i32 done;
-};
+} Win32_Coroutine;
 
 #if FRED_INTERNAL
 struct Sys_Bubble : public Bubble{
     i32 line_number;
     char *file_name;
 };
+typedef struct Sys_Bubble Sys_Bubble;
 #endif
 
 enum CV_ID{
@@ -169,12 +170,12 @@ enum CV_ID{
     CV_COUNT
 };
 
-struct Drive_Strings{
+typedef struct Drive_Strings{
     char *prefix_[26];
     char **prefix;
-};
+} Drive_Strings;
 
-struct Win32_Vars{
+typedef struct Win32_Vars{
     System_Functions system;
     App_Functions app;
     Custom_API custom_api;
@@ -223,7 +224,7 @@ struct Win32_Vars{
     CRITICAL_SECTION DEBUG_sysmem_lock;
     Sys_Bubble internal_bubble;
 #endif
-};
+} Win32_Vars;
 
 globalvar Win32_Vars win32vars;
 globalvar Application_Memory memory_vars;
@@ -271,7 +272,6 @@ internal
 Sys_Get_Memory_Sig(system_get_memory_){
     void *ptr = 0;
     if (size > 0){
-        
 #if FRED_INTERNAL
         ptr = VirtualAlloc(0, size + sizeof(Sys_Bubble), MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
         Sys_Bubble *bubble = (Sys_Bubble*)ptr;
@@ -289,6 +289,7 @@ Sys_Get_Memory_Sig(system_get_memory_){
     }
     return(ptr);
 }
+
 internal
 Sys_Free_Memory_Sig(system_free_memory){
     if (block){
@@ -1510,6 +1511,69 @@ Win32Resize(i32 width, i32 height){
     }
 }
 
+/*
+NOTE(casey): This follows Raymond Chen's prescription
+for fullscreen toggling, see:
+http://blogs.msdn.com/b/oldnewthing/archive/2010/04/12/9994016.aspx
+*/
+
+static b32 full_screen = 0;
+static WINDOWPLACEMENT GlobalWindowPosition = {sizeof(GlobalWindowPosition)};
+
+internal void
+Win32ToggleFullscreen(void){
+    HWND Window = win32vars.window_handle;
+    LONG_PTR Style = GetWindowLongPtr(Window, GWL_STYLE);
+    if (Style & WS_OVERLAPPEDWINDOW){
+        MONITORINFO MonitorInfo = {sizeof(MonitorInfo)};
+        if(GetWindowPlacement(Window, &GlobalWindowPosition) &&
+           GetMonitorInfo(MonitorFromWindow(Window, MONITOR_DEFAULTTOPRIMARY), &MonitorInfo))
+        {
+            SetWindowLongPtr(Window, GWL_STYLE, Style & ~WS_OVERLAPPEDWINDOW);
+            SetWindowPos(Window, HWND_TOP,
+                         MonitorInfo.rcMonitor.left, MonitorInfo.rcMonitor.top,
+                         MonitorInfo.rcMonitor.right - MonitorInfo.rcMonitor.left,
+                         MonitorInfo.rcMonitor.bottom - MonitorInfo.rcMonitor.top,
+                         SWP_NOOWNERZORDER | SWP_FRAMECHANGED);
+            full_screen = 1;
+        }
+    }
+    else{
+        SetWindowLongPtr(Window, GWL_STYLE, Style | WS_OVERLAPPEDWINDOW);
+        SetWindowPlacement(Window, &GlobalWindowPosition);
+        SetWindowPos(Window, 0, 0, 0, 0, 0,
+                     SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER |
+                     SWP_NOOWNERZORDER | SWP_FRAMECHANGED);
+        full_screen = 0;
+    }
+}
+
+internal void
+Win32FixFullscreenLoseFocus(b32 lose_focus){
+    if (full_screen){
+        
+        HWND Window = win32vars.window_handle;
+        LONG_PTR Style = GetWindowLongPtr(Window, GWL_STYLE);
+        
+        MONITORINFO MonitorInfo = {sizeof(MonitorInfo)};
+        if(GetMonitorInfo(MonitorFromWindow(Window, MONITOR_DEFAULTTOPRIMARY), &MonitorInfo))
+        {
+            if (lose_focus){
+                SetWindowLongPtr(Window, GWL_STYLE, Style | WS_OVERLAPPEDWINDOW);
+            }
+            else{
+                SetWindowLongPtr(Window, GWL_STYLE, Style & ~WS_OVERLAPPEDWINDOW);
+            }
+            
+            SetWindowPos(Window, HWND_TOP,
+                         MonitorInfo.rcMonitor.left, MonitorInfo.rcMonitor.top,
+                         MonitorInfo.rcMonitor.right - MonitorInfo.rcMonitor.left,
+                         MonitorInfo.rcMonitor.bottom - MonitorInfo.rcMonitor.top,
+                         SWP_NOOWNERZORDER | SWP_FRAMECHANGED);
+        }
+    }
+}
+
 internal void
 Win32SetCursorFromUpdate(Application_Mouse_Cursor cursor){
     switch (cursor){
@@ -1542,6 +1606,7 @@ Win32HighResolutionTime(){
 internal LRESULT
 Win32Callback(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
     LRESULT result = 0;
+    
     switch (uMsg){
         case WM_MENUCHAR:
         case WM_SYSCHAR:break;
@@ -1792,9 +1857,11 @@ Win32Callback(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
             win32vars.input_chunk.pers.mouse_l = 0;
             win32vars.input_chunk.pers.mouse_r = 0;
             
-            b8 *control_keys = win32vars.input_chunk.pers.control_keys;
-            for (i32 i = 0; i < MDFR_INDEX_COUNT; ++i) control_keys[i] = 0;
             win32vars.input_chunk.pers.controls = control_keys_zero();
+            
+            if (uMsg == WM_SETFOCUS){
+                Win32FixFullscreenLoseFocus(false);
+            }
         }break;
         
         case WM_SIZE:
@@ -1828,11 +1895,18 @@ Win32Callback(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
         win32vars.got_useful_event = 1;
         break;
         
+        case WM_CANCELMODE:
+        {
+            Win32FixFullscreenLoseFocus(true);
+            result = DefWindowProc(hwnd, uMsg, wParam, lParam);
+        }break;
+        
         default:
         {
             result = DefWindowProc(hwnd, uMsg, wParam, lParam);
         }break;
     }
+    
     return(result);
 }
 
@@ -2071,7 +2145,7 @@ WinMain(HINSTANCE hInstance,
         win32vars.custom_api.view_routine = (View_Routine_Function*)view_routine;
     }
 #endif
-
+    
     
     //
     // Window and GL Initialization
@@ -2105,20 +2179,15 @@ WinMain(HINSTANCE hInstance,
     
 #define WINDOW_NAME "4coder-window: " VERSION
     
-    i32 window_x;
-    i32 window_y;
-    i32 window_style;
+    i32 window_x = CW_USEDEFAULT;
+    i32 window_y = CW_USEDEFAULT;
     
     if (win32vars.settings.set_window_pos){
         window_x = win32vars.settings.window_x;
         window_y = win32vars.settings.window_y;
     }
-    else{
-        window_x = CW_USEDEFAULT;
-        window_y = CW_USEDEFAULT;
-    }
     
-    window_style = WS_OVERLAPPEDWINDOW | WS_VISIBLE;
+    i32 window_style = WS_OVERLAPPEDWINDOW;
     if (win32vars.settings.maximize_window){
         window_style |= WS_MAXIMIZE;
     }
@@ -2238,7 +2307,6 @@ WinMain(HINSTANCE hInstance,
         win32vars.count_per_usecond = 1;
     }
     
-    
     //
     // Main Loop
     //
@@ -2259,6 +2327,7 @@ WinMain(HINSTANCE hInstance,
     
     SetForegroundWindow(win32vars.window_handle);
     SetActiveWindow(win32vars.window_handle);
+    ShowWindow(win32vars.window_handle, SW_SHOW);
     
     u64 timer_start = Win32HighResolutionTime();
     system_acquire_lock(FRAME_LOCK);

@@ -1046,7 +1046,7 @@ DOC_SEE(Buffer_Create_Flag)
                 
                 system->load_close(handle);
             }
-            else{
+            else if (!(flags & BufferCreate_NeverNew)){
                 file = working_set_alloc_always(working_set, general);
                 if (file){
                     buffer_bind_name(general, working_set, file, fname);

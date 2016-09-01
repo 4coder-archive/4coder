@@ -83,13 +83,16 @@
 
 ; BEFORE I SHIP
 ;
+; [X] flag in create buffer to prevent making new files
+; [X] full screen option
+;     [] add to APIs
+;
 ; [] tokens in the custom API
 ; [] auto indent on the custom side
 ; [] expose dirty flags
 ; [] option to not open *messages* every startup
 ; [] command for resizing panels
 ; [] control over how mouse effects panel focus
-; [] full screen option
 ; [] API docs as text file
 ; [] user file bar string
 ; [] mouse down/up distinction
@@ -98,7 +101,6 @@
 ; [] read only files
 ; [] break down the build system and get away from the preproc hack
 ; [] locking to a view for next position jumping
-; [] flag in create buffer to prevent making new files
 ;
 
 ; TODOS

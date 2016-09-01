@@ -19,6 +19,97 @@
 # define DEF_TAB_WIDTH 4
 #endif
 
+//
+// Useful helper functions
+//
+
+static int32_t
+open_file(Application_Links *app,
+          Buffer_Summary *buffer_out,
+          char *filename,
+          int32_t filename_len,
+          int32_t background,
+          int32_t never_new){
+    int32_t result = false;
+    Buffer_Summary buffer =
+        app->get_buffer_by_name(app, filename, filename_len,
+                                AccessProtected|AccessHidden);
+    
+    if (buffer.exists){
+        if (buffer_out) *buffer_out = buffer;
+        result = true;
+    }
+    else{
+        Buffer_Create_Flag flags = 0;
+        if (background){
+            flags |= BufferCreate_Background;
+        }
+        if (never_new){
+            flags |= BufferCreate_NeverNew;
+        }
+        buffer = app->create_buffer(app, filename, filename_len, flags);
+        if (buffer.exists){
+            if (buffer_out) *buffer_out = buffer;
+            result = true;
+        }
+    }
+    
+    return(result);
+}
+
+static int32_t
+view_open_file(Application_Links *app,
+               View_Summary *view,
+               char *filename,
+               int32_t filename_len,
+               int32_t never_new){
+    int32_t result = false;
+    
+    if (view){
+        Buffer_Summary buffer = {0};
+        if (open_file(app, &buffer, filename, filename_len, false, never_new)){
+            app->view_set_buffer(app, view, buffer.buffer_id, 0);
+            result = true;
+        }
+    }
+    
+    return(result);
+}
+
+static int32_t
+read_line(Application_Links *app,
+          Partition *part,
+          Buffer_Summary *buffer,
+          int32_t line,
+          String *str){
+    
+    Partial_Cursor begin = {0};
+    Partial_Cursor end = {0};
+    
+    int32_t success = false;
+    
+    if (app->buffer_compute_cursor(app, buffer,
+                                   seek_line_char(line, 1), &begin)){
+        if (app->buffer_compute_cursor(app, buffer,
+                                       seek_line_char(line, 65536), &end)){
+            if (begin.line == line){
+                if (0 <= begin.pos && begin.pos <= end.pos && end.pos <= buffer->size){
+                    int32_t size = (end.pos - begin.pos);
+                    *str = make_string(push_array(part, char, size+1), size+1);
+                    if (str->str){
+                        success = true;
+                        app->buffer_read_range(app, buffer, begin.pos, end.pos, str->str);
+                        str->size = size;
+                        terminate_with_null(str);
+                    }
+                }
+            }
+        }
+    }
+    
+    return(success);
+}
+
 
 //
 // Memory
@@ -1571,7 +1662,7 @@ CUSTOM_COMMAND_SIG(open_file_in_quotes_regular){
     if (file_name_in_quotes(app, &file_name)){
         exec_command(app, change_active_panel_regular);
         View_Summary view = app->get_active_view(app, AccessAll);
-        view_open_file(app, &view, expand_str(file_name), false);
+        view_open_file(app, &view, expand_str(file_name), true);
     }
 }
 
@@ -2241,6 +2332,7 @@ CUSTOM_COMMAND_SIG(eol_nixify){
 
 #include "4coder_table.cpp"
 #include "4coder_search.cpp"
+#include "4coder_jump_parsing.cpp"
 
 static void
 generic_search_all_buffers(Application_Links *app, General_Memory *general, Partition *part,
@@ -2265,9 +2357,12 @@ generic_search_all_buffers(Application_Links *app, General_Memory *general, Part
     
     Search_Range *ranges = set.ranges;
     
-    Buffer_Summary search_buffer = app->get_buffer_by_name(app, literal("*search*"), AccessAll);
+    String search_name = make_lit_string("*search*");
+    
+    Buffer_Summary search_buffer = app->get_buffer_by_name(app, search_name.str, search_name.size,
+                                                           AccessAll);
     if (!search_buffer.exists){
-        search_buffer = app->create_buffer(app, literal("*search*"), BufferCreate_AlwaysNew);
+        search_buffer = app->create_buffer(app, search_name.str, search_name.size, BufferCreate_AlwaysNew);
         app->buffer_set_setting(app, &search_buffer, BufferSetting_Unimportant, true);
         app->buffer_set_setting(app, &search_buffer, BufferSetting_ReadOnly, true);
         app->buffer_set_setting(app, &search_buffer, BufferSetting_WrapLine, false);
@@ -2369,6 +2464,8 @@ generic_search_all_buffers(Application_Links *app, General_Memory *general, Part
     
     View_Summary view = app->get_active_view(app, AccessAll);
     app->view_set_buffer(app, &view, search_buffer.buffer_id, 0);
+    
+    lock_jump_buffer(search_name.str, search_name.size);
     
     end_temp_memory(temp);
 }

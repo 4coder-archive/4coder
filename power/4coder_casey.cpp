@@ -128,9 +128,12 @@
 #include "4coder_default_include.cpp"
 #include "4coder_jump_parsing.cpp"
 
-#ifndef Assert
-#define internal static
+#if !defined(Assert)
 #define Assert assert 
+#endif
+
+#if !defined(internal)
+#define internal static
 #endif
 
 struct Parsed_Error
@@ -514,7 +517,7 @@ SwitchToOrLoadFile(struct Application_Links *app, String FileName, bool CreateIf
         {
             // NOTE(allen): This opens the file and puts it in &view
             // This returns false if the open fails.
-            view_open_file(app, &view, expand_str(FileName), false);
+            view_open_file(app, &view, FileName.str, FileName.size, true);
             
             Result.buffer = app->get_buffer_by_name(app, FileName.str, FileName.size, access);            
             
@@ -1122,8 +1125,8 @@ OpenProject(Application_Links *app, char *ProjectFileName)
                         // was originally, so that new appends overwrite old ones.
                         dir.size = dir_size;
                         append(&dir, info->filename);
-                        
-                        view_open_file(app, 0, dir.str, dir.size, true);
+
+                        open_file(app, 0, dir.str, dir.size, true, true);
                         ++TotalOpenAttempts;
                     }
                 }
