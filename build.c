@@ -264,7 +264,7 @@ buildsuper(char *code_path, char *out_path, char *filename){
 
 static void
 standard_build(char *cdir, uint32_t flags){
-#if 1
+#if 0
     {
         BEGIN_TIME_SECTION();
         build(OPTS, cdir, "fsm_table_generator.cpp",
@@ -305,7 +305,7 @@ standard_build(char *cdir, uint32_t flags){
     }
 #endif
     
-#if 1
+#if 0
     {
         BEGIN_TIME_SECTION();
         build(OPTS | INCLUDES | SHARED_CODE | flags, cdir, "4ed_app_target.cpp",

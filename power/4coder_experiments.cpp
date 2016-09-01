@@ -2,7 +2,6 @@
 // TOP
 
 #include "4coder_default_include.cpp"
-#include "4coder_default_building.cpp"
 
 #define NO_BINDING
 #include "4coder_default_bindings.cpp"

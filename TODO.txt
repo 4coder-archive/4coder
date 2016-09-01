@@ -84,14 +84,18 @@
 ; BEFORE I SHIP
 ;
 ; [X] flag in create buffer to prevent making new files
+; [X] locking to a view for next position jumping
+; [X] break down the build system and get away from the preproc hack
 ; [X] full screen option
-;     [] add to APIs
+;     [X] add to APIs
+;     [] try to make win32 version better
 ;
 ; [] tokens in the custom API
 ;     [] auto indent on the custom side
 ; [] expose dirty flags
 ; [] option to not open *messages* every startup
-; [] command for resizing panels
+; [] commands for resizing panels
+; [] make panel resizing not whacky with child panels
 ; [] control over how mouse effects panel focus
 ; [] API docs as text file
 ; [] user file bar string
@@ -99,8 +103,6 @@
 ; [] hook on exit
 ; [] exit command
 ; [] read only files
-; [] break down the build system and get away from the preproc hack
-; [] locking to a view for next position jumping
 ;
 
 ; TODOS
@@ -135,6 +137,8 @@
 ; [] support full length unicode file names
 ; [] switch based word complete
 ;
+; [] query buffer font info
+; [] break buffer name ties by adding parent directories instead of <#>
 ; [] undo groups
 ; [] cursor/scroll grouping
 ; [] file status in custom API
@@ -147,6 +151,11 @@
 ;
 ; [] multi-line editing
 ; [] multi-cursor editing
+;
+; meta programming system
+;    [] profile and optimize the current metagen system
+;    [] expand the use of 4coder_types.h to also allow static variable and function declarations
+;    [] get more of the helper functions going through the documentation system
 ;
 ; GUI related tech
 ;    [X] consolidate all GUI code properly

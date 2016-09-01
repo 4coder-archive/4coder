@@ -13,11 +13,11 @@
 #include <assert.h>
 #include "4ed_defines.h"
 
-#include "4coder_custom.h"
-
 #define FSTRING_IMPLEMENTATION
 #define FSTRING_C
 #include "4coder_string.h"
+
+#include "4coder_custom.h"
 
 #define BUFFER_EXPERIMENT_SCALPEL 0
 

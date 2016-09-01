@@ -17,7 +17,7 @@ access_test(u32 lock_flags, u32 access_flags){
 
 internal void
 fill_buffer_summary(Buffer_Summary *buffer, Editing_File *file, Working_Set *working_set){
-    *buffer = buffer_summary_zero();
+    *buffer = null_buffer_summary;
     if (!file->is_dummy){
         buffer->exists = 1;
         buffer->ready = file_is_ready(file);
@@ -53,7 +53,7 @@ fill_view_summary(View_Summary *view, View *vptr, Live_Views *live_set, Working_
     Buffer_ID buffer_id = 0;
     File_Viewing_Data *data = &vptr->file_data;
     
-    *view = view_summary_zero();
+    *view = null_view_summary;
     
     if (vptr->in_use){
         view->exists = 1;
@@ -433,7 +433,7 @@ internal_get_buffer_next(Working_Set *working_set, Buffer_Summary *buffer){
         fill_buffer_summary(buffer, file, working_set);
     }
     else{
-        *buffer = buffer_summary_zero();
+        *buffer = null_buffer_summary;
     }
 }
 
@@ -507,7 +507,7 @@ DOC_SEE(Buffer_ID)
     if (file){
         fill_buffer_summary(&buffer, file, working_set);
         if (!access_test(buffer.lock_flags, access)){
-            buffer = buffer_summary_zero();
+            buffer = null_buffer_summary;
         }
     }
     
@@ -533,7 +533,7 @@ DOC_SEE(Access_Flag)
     if (file && !file->is_dummy){
         fill_buffer_summary(&buffer, file, working_set);
         if (!access_test(buffer.lock_flags, access)){
-            buffer = buffer_summary_zero();
+            buffer = null_buffer_summary;
         }
     }
     
@@ -1169,11 +1169,11 @@ internal_get_view_next(Command_Data *cmd, View_Summary *view){
             fill_view_summary(view, panel->view, &cmd->vars->live_set, &cmd->models->working_set);
         }
         else{
-            *view = view_summary_zero();
+            *view = null_view_summary;
         }
     }
     else{
-        *view = view_summary_zero();
+        *view = null_view_summary;
     }
 }
 
@@ -1242,7 +1242,7 @@ DOC_SEE(Access_Flag)
         vptr = live_set->views + view_id;
         fill_view_summary(&view, vptr, live_set, &cmd->models->working_set);
         if (!access_test(view.lock_flags, access)){
-            view = view_summary_zero();
+            view = null_view_summary;
         }
     }
     
@@ -1260,7 +1260,7 @@ DOC_SEE(Access_Flag)
     View_Summary view = {0};
     fill_view_summary(&view, cmd->view, &cmd->vars->live_set, &cmd->models->working_set);
     if (!access_test(view.lock_flags, access)){
-        view = view_summary_zero();
+        view = null_view_summary;
     }
     return(view);
 }
@@ -1950,12 +1950,14 @@ DOC(This call sets the display font of a particular buffer.)
     Models *models = cmd->models;
     Editing_File *file = imp_get_file(cmd, buffer);
     
-    Font_Set *set = models->font_set;
-    String font_name = make_string(name, len);
-    i16 font_id = 0;
-    
-    if (font_set_extract(set, font_name, &font_id)){
-        file_set_font(system, models, file, font_id);
+    if (file){
+        Font_Set *set = models->font_set;
+        String font_name = make_string(name, len);
+        i16 font_id = 0;
+        
+        if (font_set_extract(set, font_name, &font_id)){
+            file_set_font(system, models, file, font_id);
+        }
     }
 }
 

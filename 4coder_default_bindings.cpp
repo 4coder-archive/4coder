@@ -5,7 +5,6 @@
 #define FCODER_DEFAULT_BINDINGS
 
 #include "4coder_default_include.cpp"
-#include "4coder_default_building.cpp"
 
 // NOTE(allen|a3.3): All of your custom ids should be enumerated
 // as shown here, they may start at 0, and you can only have
@@ -212,7 +211,7 @@ static int32_t suppressing_mouse = false;
 
 INPUT_FILTER_SIG(my_suppress_mouse_filter){
     if (suppressing_mouse){
-        *mouse = mouse_state_zero();
+        *mouse = null_mouse_state;
         mouse->x = -100;
         mouse->y = -100;
     }
@@ -266,7 +265,7 @@ default_keys(Bind_Helper *context){
     bind(context, 'n', MDFR_ALT, goto_next_error);
     bind(context, 'N', MDFR_ALT, goto_prev_error);
     bind(context, 'M', MDFR_ALT, goto_first_error);
-    bind(context, 'm', MDFR_ALT, build_search);
+    bind(context, 'm', MDFR_ALT, build_in_build_panel);
     
     bind(context, 'z', MDFR_ALT, execute_any_cli);
     bind(context, 'Z', MDFR_ALT, execute_previous_cli);

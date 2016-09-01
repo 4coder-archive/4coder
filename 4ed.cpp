@@ -1912,7 +1912,7 @@ App_Step_Sig(app_step){
     cmd->screen_width = target->width;
     cmd->screen_height = target->height;
     
-    cmd->key = key_event_data_zero();
+    cmd->key = null_key_event_data;
     
     Temp_Memory param_stack_temp = begin_temp_memory(&models->mem.part);
     
@@ -2479,7 +2479,8 @@ App_Step_Sig(app_step){
                             "-The commands for going to next error, previous error, etc now work\n"
                             "  on any buffer with jump locations including *search*\n"
                             "-4coder now supports proper, borderless, fullscreen with the flag -F\n"
-                            "  and fullscreen can be toggled with <control pageup>\n"
+                            "  and fullscreen can be toggled with <control pageup>.\n"
+                            "  (This sometimes causes artifacts on the Windows task bar)\n"
                             "\n"
                             "New in alpha 4.0.10:\n"
                             "-<control F> list all locations of a string across all open buffers\n"

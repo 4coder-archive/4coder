@@ -1573,33 +1573,56 @@ CUSTOM_COMMAND_SIG(hide_scrollbar){
 // Panel Management
 //
 
-CUSTOM_COMMAND_SIG(change_active_panel_regular){
-    View_Summary view = app->get_active_view(app, AccessAll);
-    app->get_view_next(app, &view, AccessAll);
-    if (!view.exists){
-        view = app->get_view_first(app, AccessAll);
+static void
+get_view_next_looped(Application_Links *app, View_Summary *view, uint32_t access){
+    app->get_view_next(app, view, access);
+    if (!view->exists){
+        *view = app->get_view_first(app, access);
     }
+}
+
+static View_ID special_note_view_id = 0;
+
+static void
+close_special_note_view(Application_Links *app){
+    View_Summary special_view = app->get_view(app, special_note_view_id, AccessAll);
+    if (special_view.exists){
+        app->close_view(app, &special_view);
+    }
+    special_note_view_id = 0;
+}
+
+static View_Summary
+open_special_note_view(Application_Links *app, bool32 create_if_not_exist = true){
+    View_Summary special_view = app->get_view(app, special_note_view_id, AccessAll);
+    
+    if (create_if_not_exist && !special_view.exists){
+        View_Summary view = app->get_active_view(app, AccessAll);
+        special_view = app->open_view(app, &view, ViewSplit_Bottom);
+        app->view_set_setting(app, &special_view, ViewSetting_ShowScrollbar, false);
+        app->view_set_split_proportion(app, &special_view, .2f);
+        app->set_active_view(app, &view);
+        special_note_view_id = special_view.view_id;
+    }
+    
+    return(special_view);
+}
+
+CUSTOM_COMMAND_SIG(change_active_panel){
+    View_Summary view = app->get_active_view(app, AccessAll);
+    View_ID original_view_id = view.view_id;
+    
+    do{
+        get_view_next_looped(app, &view, AccessAll);
+        if (view.view_id != special_note_view_id){
+            break;
+        }
+    }while(view.view_id != original_view_id);
+    
     if (view.exists){
         app->set_active_view(app, &view);
     }
 }
-
-// TODO(allen): This is a bit nasty.  I want a system for picking
-// the most advanced and correct version of a command to bind to a
-// name based on which files are included.
-#ifndef  CHANGE_ACTIVE_PANEL
-# define CHANGE_ACTIVE_PANEL 1
-#elif CHANGE_ACTIVE_PANEL <= 1
-# undef  CHANGE_ACTIVE_PANEL
-# define CHANGE_ACTIVE_PANEL 1
-#endif
-
-#if CHANGE_ACTIVE_PANEL <= 1
-# ifdef change_active_panel
-#  undef change_active_panel
-# endif
-# define change_active_panel change_active_panel_regular
-#endif
 
 CUSTOM_COMMAND_SIG(close_panel){
     View_Summary view = app->get_active_view(app, AccessAll);
@@ -1655,56 +1678,21 @@ file_name_in_quotes(Application_Links *app, String *file_name){
     return(result);
 }
 
-CUSTOM_COMMAND_SIG(open_file_in_quotes_regular){
+CUSTOM_COMMAND_SIG(open_file_in_quotes){
     char file_name_[256];
     String file_name = make_fixed_width_string(file_name_);
     
     if (file_name_in_quotes(app, &file_name)){
-        exec_command(app, change_active_panel_regular);
+        exec_command(app, change_active_panel);
         View_Summary view = app->get_active_view(app, AccessAll);
         view_open_file(app, &view, expand_str(file_name), true);
     }
 }
 
-// TODO(allen): This is a bit nasty.  I want a system for picking
-// the most advanced and correct version of a command to bind to a
-// name based on which files are included.
-#ifndef  OPEN_FILE_IN_QUOTES
-# define OPEN_FILE_IN_QUOTES 1
-#elif OPEN_FILE_IN_QUOTES <= 1
-# undef  OPEN_FILE_IN_QUOTES
-# define OPEN_FILE_IN_QUOTES 1
-#endif
-
-#if OPEN_FILE_IN_QUOTES <= 1
-# ifdef open_file_in_quotes
-#  undef open_file_in_quotes
-# endif
-# define open_file_in_quotes open_file_in_quotes_regular
-#endif
-
-CUSTOM_COMMAND_SIG(open_in_other_regular){
-    exec_command(app, change_active_panel_regular);
+CUSTOM_COMMAND_SIG(open_in_other){
+    exec_command(app, change_active_panel);
     exec_command(app, cmdid_interactive_open);
 }
-
-// TODO(allen): This is a bit nasty.  I want a system for picking
-// the most advanced and correct version of a command to bind to a
-// name based on which files are included.
-#ifndef  OPEN_IN_OTHER
-# define OPEN_IN_OTHER 1
-#elif OPEN_IN_OTHER <= 1
-# undef  OPEN_IN_OTHER
-# define OPEN_IN_OTHER 1
-#endif
-
-#if OPEN_IN_OTHER <= 1
-# ifdef open_in_other
-#  undef open_in_other
-# endif
-# define open_in_other open_in_other_regular
-#endif
-
 
 
 CUSTOM_COMMAND_SIG(save_as){
@@ -2086,216 +2074,6 @@ CUSTOM_COMMAND_SIG(execute_previous_cli){
 }
 
 //
-// Default Building Stuff
-//
-
-// NOTE(allen|a4.0.9): This is provided to establish a default method of getting
-// a "build directory".  This function tries to setup the build directory in the
-// directory of the given buffer, if it cannot get that information it get's the
-// 4coder hot directory.
-//
-//  There is no requirement that a custom build system in 4coder actually use the
-// directory given by this function.
-enum Get_Build_Directory_Result{
-    BuildDir_None,
-    BuildDir_AtFile,
-    BuildDir_AtHot
-};
-
-static int32_t
-get_build_directory(Application_Links *app, Buffer_Summary *buffer, String *dir_out){
-    int32_t result = BuildDir_None;
-    
-    if (buffer && buffer->file_name){
-        if (!match_cc(buffer->file_name, buffer->buffer_name)){
-            String dir = make_string_cap(buffer->file_name,
-                                         buffer->file_name_len,
-                                         buffer->file_name_len+1);
-            remove_last_folder(&dir);
-            append_ss(dir_out, dir);
-            result = BuildDir_AtFile;
-        }
-    }
-    
-    if (!result){
-        int32_t len = app->directory_get_hot(app, dir_out->str,
-                                         dir_out->memory_size - dir_out->size);
-        if (len + dir_out->size < dir_out->memory_size){
-            dir_out->size += len;
-            result = BuildDir_AtHot;
-        }
-    }
-    
-    return(result);
-}
-
-static int32_t
-standard_build_search(Application_Links *app,
-                      View_Summary *view,
-                      Buffer_Summary *active_buffer,
-                      String *dir, String *command,
-                      int32_t perform_backup,
-                      int32_t use_path_in_command,
-                      String filename,
-                      String commandname){
-    int32_t result = false;
-    
-    for(;;){
-        int32_t old_size = dir->size;
-        append_ss(dir, filename);
-        
-        if (app->file_exists(app, dir->str, dir->size)){
-            dir->size = old_size;
-            
-            if (use_path_in_command){
-                append_s_char(command, '"');
-                append_ss(command, *dir);
-                append_ss(command, commandname);
-                append_s_char(command, '"');
-            }
-            else{
-                append_ss(command, commandname);
-            }
-            
-            char space[512];
-            String message = make_fixed_width_string(space);
-            append_ss(&message, make_lit_string("Building with: "));
-            append_ss(&message, *command);
-            append_s_char(&message, '\n');
-            app->print_message(app, message.str, message.size);
-            
-            
-            app->exec_system_command(app, view,
-                                     buffer_identifier(literal("*compilation*")),
-                                     dir->str, dir->size,
-                                     command->str, command->size,
-                                     CLI_OverlapWithConflict);
-            result = true;
-            break;
-        }
-        dir->size = old_size;
-        
-        if (app->directory_cd(app, dir->str, &dir->size, dir->memory_size, literal("..")) == 0){
-            if (perform_backup){
-                dir->size = app->directory_get_hot(app, dir->str, dir->memory_size);
-                char backup_space[256];
-                String backup_command = make_fixed_width_string(backup_space);
-                append_ss(&backup_command, make_lit_string("echo could not find "));
-                append_ss(&backup_command, filename);
-                app->exec_system_command(app, view,
-                                         buffer_identifier(literal("*compilation*")),
-                                         dir->str, dir->size,
-                                         backup_command.str, backup_command.size,
-                                         CLI_OverlapWithConflict);
-            }
-            break;
-        }
-    }
-    
-    return(result);
-}
-
-#if defined(_WIN32)
-
-// NOTE(allen): Build search rule for windows.
-static int32_t
-execute_standard_build_search(Application_Links *app, View_Summary *view,
-                              Buffer_Summary *active_buffer,
-                              String *dir, String *command, int32_t perform_backup){
-    int32_t result = standard_build_search(app, view,
-                                           active_buffer,
-                                           dir, command, perform_backup, true,
-                                           make_lit_string("build.bat"),
-                                           make_lit_string("build"));
-    return(result);
-}
-
-#elif defined(__linux__)
-
-// NOTE(allen): Build search rule for linux.
-static int32_t
-execute_standard_build_search(Application_Links *app, View_Summary *view,
-                              Buffer_Summary *active_buffer,
-                              String *dir, String *command, int32_t perform_backup){
-    
-    char dir_space[512];
-    String dir_copy = make_fixed_width_string(dir_space);
-    copy(&dir_copy, *dir);
-    
-    int32_t result = standard_build_search(app, view,
-                                       active_buffer,
-                                       dir, command, false, true,
-                                       make_lit_string("build.sh"),
-                                       make_lit_string("build.sh"));
-    
-    if (!result){
-        result = standard_build_search(app, view,
-                                       active_buffer,
-                                       &dir_copy, command, perform_backup, false,
-                                       make_lit_string("Makefile"),
-                                       make_lit_string("make"));
-    }
-    
-    return(result);
-}
-
-#else
-# error No build search rule for this platform.
-#endif
-
-
-static void
-execute_standard_build(Application_Links *app, View_Summary *view,
-                       Buffer_Summary *active_buffer){
-    char dir_space[512];
-    String dir = make_fixed_width_string(dir_space);
-    
-    char command_str_space[512];
-    String command = make_fixed_width_string(command_str_space);
-    
-    int32_t build_dir_type = get_build_directory(app, active_buffer, &dir);
-    
-    if (build_dir_type == BuildDir_AtFile){
-        if (!execute_standard_build_search(app, view, active_buffer,
-                                           &dir, &command, false)){
-            dir.size = 0;
-            command.size = 0;
-            build_dir_type = get_build_directory(app, 0, &dir);
-        }
-    }
-    
-    if (build_dir_type == BuildDir_AtHot){
-        execute_standard_build_search(app, view, active_buffer,
-                                      &dir, &command, true);
-    }
-}
-
-CUSTOM_COMMAND_SIG(build_search_regular){
-    uint32_t access = AccessAll;
-    View_Summary view = app->get_active_view(app, access);
-    Buffer_Summary buffer = app->get_buffer(app, view.buffer_id, access);
-    execute_standard_build(app, &view, &buffer);
-}
-
-// TODO(allen): This is a bit nasty.  I want a system for picking
-// the most advanced and correct version of a command to bind to a
-// name based on which files are included.
-#ifndef  BUILD_SEARCH
-# define BUILD_SEARCH 1
-#elif BUILD_SEARCH <= 1
-# undef  BUILD_SEARCH
-# define BUILD_SEARCH 1
-#endif
-
-#if BUILD_SEARCH <= 1
-# ifdef build_search
-#  undef build_search
-# endif
-# define build_search build_search_regular
-#endif
-
-
-//
 // Common Settings Commands
 //
 
@@ -2329,6 +2107,7 @@ CUSTOM_COMMAND_SIG(eol_nixify){
     Buffer_Summary buffer = app->get_buffer(app, view.buffer_id, AccessOpen);
     app->buffer_set_setting(app, &buffer, BufferSetting_Eol, false);
 }
+
 
 //
 // "Full Search" Based Commands
@@ -2668,8 +2447,263 @@ CUSTOM_COMMAND_SIG(word_complete){
     }
 }
 
+
 //
+// Default Building Stuff
 //
+
+// NOTE(allen|a4.0.9): This is provided to establish a default method of getting
+// a "build directory".  This function tries to setup the build directory in the
+// directory of the given buffer, if it cannot get that information it get's the
+// 4coder hot directory.
+//
+//  There is no requirement that a custom build system in 4coder actually use the
+// directory given by this function.
+enum Get_Build_Directory_Result{
+    BuildDir_None,
+    BuildDir_AtFile,
+    BuildDir_AtHot
+};
+
+static int32_t
+get_build_directory(Application_Links *app, Buffer_Summary *buffer, String *dir_out){
+    int32_t result = BuildDir_None;
+    
+    if (buffer && buffer->file_name){
+        if (!match_cc(buffer->file_name, buffer->buffer_name)){
+            String dir = make_string_cap(buffer->file_name,
+                                         buffer->file_name_len,
+                                         buffer->file_name_len+1);
+            remove_last_folder(&dir);
+            append_ss(dir_out, dir);
+            result = BuildDir_AtFile;
+        }
+    }
+    
+    if (!result){
+        int32_t len = app->directory_get_hot(app, dir_out->str,
+                                         dir_out->memory_size - dir_out->size);
+        if (len + dir_out->size < dir_out->memory_size){
+            dir_out->size += len;
+            result = BuildDir_AtHot;
+        }
+    }
+    
+    return(result);
+}
+
+// TODO(allen): Better names for the "standard build search" family.
+static int32_t
+standard_build_search(Application_Links *app,
+                      View_Summary *view,
+                      Buffer_Summary *active_buffer,
+                      String *dir, String *command,
+                      int32_t perform_backup,
+                      int32_t use_path_in_command,
+                      String filename,
+                      String commandname){
+    int32_t result = false;
+    
+    for(;;){
+        int32_t old_size = dir->size;
+        append_ss(dir, filename);
+        
+        if (app->file_exists(app, dir->str, dir->size)){
+            dir->size = old_size;
+            
+            if (use_path_in_command){
+                append_s_char(command, '"');
+                append_ss(command, *dir);
+                append_ss(command, commandname);
+                append_s_char(command, '"');
+            }
+            else{
+                append_ss(command, commandname);
+            }
+            
+            char space[512];
+            String message = make_fixed_width_string(space);
+            append_ss(&message, make_lit_string("Building with: "));
+            append_ss(&message, *command);
+            append_s_char(&message, '\n');
+            app->print_message(app, message.str, message.size);
+            
+            
+            app->exec_system_command(app, view,
+                                     buffer_identifier(literal("*compilation*")),
+                                     dir->str, dir->size,
+                                     command->str, command->size,
+                                     CLI_OverlapWithConflict);
+            result = true;
+            break;
+        }
+        dir->size = old_size;
+        
+        if (app->directory_cd(app, dir->str, &dir->size, dir->memory_size, literal("..")) == 0){
+            if (perform_backup){
+                dir->size = app->directory_get_hot(app, dir->str, dir->memory_size);
+                char backup_space[256];
+                String backup_command = make_fixed_width_string(backup_space);
+                append_ss(&backup_command, make_lit_string("echo could not find "));
+                append_ss(&backup_command, filename);
+                app->exec_system_command(app, view,
+                                         buffer_identifier(literal("*compilation*")),
+                                         dir->str, dir->size,
+                                         backup_command.str, backup_command.size,
+                                         CLI_OverlapWithConflict);
+            }
+            break;
+        }
+    }
+    
+    return(result);
+}
+
+#if defined(_WIN32)
+
+// NOTE(allen): Build search rule for windows.
+static int32_t
+execute_standard_build_search(Application_Links *app, View_Summary *view,
+                              Buffer_Summary *active_buffer,
+                              String *dir, String *command, int32_t perform_backup){
+    int32_t result = standard_build_search(app, view,
+                                           active_buffer,
+                                           dir, command, perform_backup, true,
+                                           make_lit_string("build.bat"),
+                                           make_lit_string("build"));
+    return(result);
+}
+
+#elif defined(__linux__)
+
+// NOTE(allen): Build search rule for linux.
+static int32_t
+execute_standard_build_search(Application_Links *app, View_Summary *view,
+                              Buffer_Summary *active_buffer,
+                              String *dir, String *command, int32_t perform_backup){
+    
+    char dir_space[512];
+    String dir_copy = make_fixed_width_string(dir_space);
+    copy(&dir_copy, *dir);
+    
+    int32_t result = standard_build_search(app, view,
+                                       active_buffer,
+                                       dir, command, false, true,
+                                       make_lit_string("build.sh"),
+                                       make_lit_string("build.sh"));
+    
+    if (!result){
+        result = standard_build_search(app, view,
+                                       active_buffer,
+                                       &dir_copy, command, perform_backup, false,
+                                       make_lit_string("Makefile"),
+                                       make_lit_string("make"));
+    }
+    
+    return(result);
+}
+
+#else
+# error No build search rule for this platform.
+#endif
+
+
+// NOTE(allen): This searches first using the active file's directory,
+// then if no build script is found, it searches from 4coders hot directory.
+static void
+execute_standard_build(Application_Links *app, View_Summary *view,
+                       Buffer_Summary *active_buffer){
+    char dir_space[512];
+    String dir = make_fixed_width_string(dir_space);
+    
+    char command_str_space[512];
+    String command = make_fixed_width_string(command_str_space);
+    
+    int32_t build_dir_type = get_build_directory(app, active_buffer, &dir);
+    
+    if (build_dir_type == BuildDir_AtFile){
+        if (!execute_standard_build_search(app, view, active_buffer,
+                                           &dir, &command, false)){
+            dir.size = 0;
+            command.size = 0;
+            build_dir_type = get_build_directory(app, 0, &dir);
+        }
+    }
+    
+    if (build_dir_type == BuildDir_AtHot){
+        execute_standard_build_search(app, view, active_buffer,
+                                      &dir, &command, true);
+    }
+}
+
+CUSTOM_COMMAND_SIG(build_search){
+    uint32_t access = AccessAll;
+    View_Summary view = app->get_active_view(app, access);
+    Buffer_Summary buffer = app->get_buffer(app, view.buffer_id, access);
+    execute_standard_build(app, &view, &buffer);
+    prev_location = null_location;
+    lock_jump_buffer(literal("*compilation*"));
+}
+
+#define GET_COMP_BUFFER(app) app->get_buffer_by_name(app, literal("*compilation*"), AccessAll)
+
+static View_Summary
+get_or_open_build_panel(Application_Links *app){
+    View_Summary view = {0};
+    
+    Buffer_Summary buffer = GET_COMP_BUFFER(app);
+    if (buffer.exists){
+        view = get_first_view_with_buffer(app, buffer.buffer_id);
+    }
+    if (!view.exists){
+        view = open_special_note_view(app);
+    }
+    
+    return(view);
+}
+
+static void
+set_fancy_compilation_buffer_font(Application_Links *app){
+    Buffer_Summary comp_buffer = app->get_buffer_by_name(app, literal("*compilation*"), AccessAll);
+    app->buffer_set_font(app, &comp_buffer, literal("Inconsolata"));
+}                                                       
+                                                        
+CUSTOM_COMMAND_SIG(build_in_build_panel){               
+    uint32_t access = AccessAll;                        
+    View_Summary view = app->get_active_view(app, access);
+    Buffer_Summary buffer = app->get_buffer(app, view.buffer_id, access);
+                                                        
+    View_Summary build_view = get_or_open_build_panel(app);
+                                                        
+    execute_standard_build(app, &build_view, &buffer);
+    set_fancy_compilation_buffer_font(app);
+    
+    prev_location = null_location;
+    lock_jump_buffer(literal("*compilation*"));
+}
+
+CUSTOM_COMMAND_SIG(close_build_panel){
+    close_special_note_view(app);
+}
+
+CUSTOM_COMMAND_SIG(change_to_build_panel){
+    View_Summary view = open_special_note_view(app, false);
+    
+    if (!view.exists){
+        Buffer_Summary buffer = GET_COMP_BUFFER(app);
+        if (buffer.exists){
+            view = open_special_note_view(app);
+            app->view_set_buffer(app, &view, buffer.buffer_id, 0);
+        }
+    }
+    
+    if (view.exists){
+        app->set_active_view(app, &view);
+    }
+}
+
+//
+// Other
 //
 
 CUSTOM_COMMAND_SIG(execute_arbitrary_command){

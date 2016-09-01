@@ -12,7 +12,7 @@
 
 // TOP
 
-#include "../4coder_buffer_types.h"
+#include "../4coder_seek_types.h"
 
 #ifndef inline_4tech
 #define inline_4tech inline

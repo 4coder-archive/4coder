@@ -15,7 +15,6 @@ Allen Webster
 #define TEST_FILES "w:/4ed/data/test"
 
 #include "4coder_default_include.cpp"
-#include "4coder_default_building.cpp"
 
 #include <intrin.h>
 #pragma intrinsic(__rdtsc)

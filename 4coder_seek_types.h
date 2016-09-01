@@ -59,7 +59,6 @@ seek_line_char(int32_t line, int32_t character){
     return(result);
 }
 
-
 #endif
 
 // BOTTOM

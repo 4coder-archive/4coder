@@ -386,7 +386,7 @@ seek_error(Application_Links *app,
                                         &location)){
             View_Summary active_view = app->get_active_view(app, AccessAll);
             if (active_view.view_id == view.view_id){
-                exec_command(app, change_active_panel_regular);
+                exec_command(app, change_active_panel);
                 active_view = app->get_active_view(app, AccessAll);
             }
             

@@ -3,8 +3,7 @@
 #define FCODER_CUSTOM_H
 
 #include <stdint.h>
-// TODO(allen): We need to eliminate our dependence on this
-// in the custom side.
+// TODO(allen): We need to eliminate our dependence on this soon.
 #include <string.h>
 
 
@@ -47,28 +46,21 @@ enum Special_Hook_ID{
     _hook_input_filter,
 };
 
-#define CommandEqual(c1,c2) ((unsigned long long)(c1) == (unsigned long long)(c2))
-
 #define CUSTOM_COMMAND_SIG(name) void name(struct Application_Links *app)
 typedef CUSTOM_COMMAND_SIG(Custom_Command_Function);
 
 #include "4coder_types.h"
-#include "4coder_buffer_types.h"
+#include "4coder_seek_types.h"
 #include "4coder_gui.h"
 
 #define COMMAND_CALLER_HOOK(name) int32_t name(struct Application_Links *app, Generic_Command cmd)
 typedef COMMAND_CALLER_HOOK(Command_Caller_Hook_Function);
 
-inline Key_Event_Data
-key_event_data_zero(){
-    Key_Event_Data data={0};
-    return(data);
-}
-inline Mouse_State
-mouse_state_zero(){
-    Mouse_State data={0};
-    return(data);
-}
+static Key_Event_Data null_key_event_data = {0};
+static Mouse_State    null_mouse_state    = {0};
+static Buffer_Summary null_buffer_summary = {0};
+static View_Summary   null_view_summary   = {0};
+
 inline Range
 make_range(int32_t p1, int32_t p2){
     Range range;
@@ -82,17 +74,6 @@ make_range(int32_t p1, int32_t p2){
     }
     return(range);
 }
-inline Buffer_Summary
-buffer_summary_zero(){
-    Buffer_Summary summary={0};
-    return(summary);
-}
-inline View_Summary
-view_summary_zero(){
-    View_Summary summary={0};
-    return(summary);
-}
-
 
 #define HOOK_SIG(name) int32_t name(struct Application_Links *app)
 #define OPEN_FILE_HOOK_SIG(name) int32_t name(struct Application_Links *app, int32_t buffer_id)
