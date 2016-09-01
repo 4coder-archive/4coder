@@ -499,26 +499,45 @@ Sys_Set_File_List_Sig(system_set_file_list){
 
 internal
 Sys_Get_Canonical_Sig(system_get_canonical){
-    int32_t result = 0;
+    char* path = (char*) alloca(len + 1);
+    char* write_p = path;
+    const char* read_p = filename;
 
-    char* path = realpath(strndupa(filename, len), NULL);
-    if(path){
-        size_t path_len = strlen(path);
-        if(max >= path_len){
-            memcpy(buffer, path, path_len);
-            result = path_len;
+    while(read_p < filename + len){
+        if(read_p == filename || read_p[0] == '/'){
+            if(read_p[1] == '/'){
+                ++read_p;
+            } else if(read_p[1] == '.'){
+                if(read_p[2] == '/' || !read_p[2]){
+                    read_p += 2;
+                } else if(read_p[2] == '.' && (read_p[3] == '/' || !read_p[3])){
+                    while(write_p > path && *--write_p != '/');
+                    read_p += 3;
+                } else {
+                    *write_p++ = *read_p++;
+                }
+            } else {
+                *write_p++ = *read_p++;
+            }
+        } else {
+            *write_p++ = *read_p++;
         }
-#if FRED_INTERNAL
-        if(strncmp(filename, path, len) != 0){
-            LINUX_FN_DEBUG("[%.*s] -> [%s]", len, filename, path);
-        }
-#endif
-        free(path);
+    }
+    if(write_p == path) *write_p++ = '/';
+
+    if(max >= (write_p - path)){
+        memcpy(buffer, path, write_p - path);
     } else {
-        LINUX_FN_DEBUG("[%.*s] -> [null]", len, filename);
+        write_p = path;
     }
 
-    return result;
+#if FRED_INTERNAL
+    if(len != (write_p - path) || memcmp(filename, path, len) != 0){
+        LINUX_FN_DEBUG("[%.*s] -> [%.*s]", len, filename, (int)(write_p - path), path);
+    }
+#endif
+
+    return write_p - path;
 }
 
 internal
