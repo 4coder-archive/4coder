@@ -399,35 +399,35 @@ seek_error(Application_Links *app,
 }
 
 
-CUSTOM_COMMAND_SIG(goto_next_error){
+CUSTOM_COMMAND_SIG(goto_next_jump){
     int32_t skip_repeats = true;
     int32_t skip_sub_errors = true;
     int32_t dir = 1;
     seek_error(app, &global_part, skip_repeats, skip_sub_errors, dir);
 }
 
-CUSTOM_COMMAND_SIG(goto_prev_error){
+CUSTOM_COMMAND_SIG(goto_prev_jump){
     int32_t skip_repeats = true;
     int32_t skip_sub_errors = true;
     int32_t dir = -1;
     seek_error(app, &global_part, skip_repeats, skip_sub_errors, dir);
 }
 
-CUSTOM_COMMAND_SIG(goto_next_error_no_skips){
+CUSTOM_COMMAND_SIG(goto_next_jump_no_skips){
     int32_t skip_repeats = false;
     int32_t skip_sub_errors = true;
     int32_t dir = 1;
     seek_error(app, &global_part, skip_repeats, skip_sub_errors, dir);
 }
 
-CUSTOM_COMMAND_SIG(goto_prev_error_no_skips){
+CUSTOM_COMMAND_SIG(goto_prev_jump_no_skips){
     int32_t skip_repeats = false;
     int32_t skip_sub_errors = true;
     int32_t dir = -1;
     seek_error(app, &global_part, skip_repeats, skip_sub_errors, dir);
 }
 
-CUSTOM_COMMAND_SIG(goto_first_error){
+CUSTOM_COMMAND_SIG(goto_first_jump){
     Temp_Memory temp = begin_temp_memory(&global_part);
     
     View_Summary view = get_view_for_locked_jump_buffer(app);
@@ -439,6 +439,11 @@ CUSTOM_COMMAND_SIG(goto_first_error){
     }
     end_temp_memory(temp);
 }
+
+#define goto_next_error          goto_next_jump
+#define goto_prev_error          goto_prev_jump
+#define goto_next_error_no_skips goto_next_jump_no_skips
+#define goto_first_error         goto_first_jump
 
 #endif
 

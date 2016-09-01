@@ -125,11 +125,7 @@ struct Win32_Input_Chunk_Transient{
     i8 mouse_wheel;
     b8 trying_to_kill;
 };
-inline Win32_Input_Chunk_Transient
-win32_input_chunk_transient_zero(){
-    Win32_Input_Chunk_Transient result = {0};
-    return(result);
-}
+static Win32_Input_Chunk_Transient null_input_chunk_transient = {0};
 
 struct Win32_Input_Chunk_Persistent{
     i32 mouse_x, mouse_y;
@@ -197,6 +193,10 @@ typedef struct Win32_Vars{
     b32 lctrl_lalt_is_altgr;
     b32 got_useful_event;
     
+    b32 full_screen;
+    b32 do_toggle;
+    WINDOWPLACEMENT GlobalWindowPosition;
+    b32 send_exit_signal;
     
     HCURSOR cursor_ibeam;
     HCURSOR cursor_arrow;
@@ -907,7 +907,7 @@ win32_init_drive_strings(Drive_Strings *dstrings){
 // a little ground on always recognizing files as equivalent in exchange
 // for the ability to handle them very quickly when nothing strange is
 // going on.
-static int32_t
+internal int32_t
 win32_canonical_ansi_name(Drive_Strings *dstrings, char *src, i32 len, char *dst, i32 max){
     char *wrt = dst;
     char *wrt_stop = dst + max;
@@ -1113,18 +1113,13 @@ for fullscreen toggling, see:
 http://blogs.msdn.com/b/oldnewthing/archive/2010/04/12/9994016.aspx
 */
 
-// TODO(allen): Move these into win32vars
-static b32 full_screen = 0;
-static b32 do_toggle = 0;
-static WINDOWPLACEMENT GlobalWindowPosition = {sizeof(GlobalWindowPosition)};
-
 internal void
 Win32ToggleFullscreen(void){
     HWND Window = win32vars.window_handle;
     LONG_PTR Style = GetWindowLongPtr(Window, GWL_STYLE);
     if (Style & WS_OVERLAPPEDWINDOW){
         MONITORINFO MonitorInfo = {sizeof(MonitorInfo)};
-        if(GetWindowPlacement(Window, &GlobalWindowPosition) &&
+        if(GetWindowPlacement(Window, &win32vars.GlobalWindowPosition) &&
            GetMonitorInfo(MonitorFromWindow(Window, MONITOR_DEFAULTTOPRIMARY), &MonitorInfo))
         {
             SetWindowLongPtr(Window, GWL_STYLE, Style & ~WS_OVERLAPPEDWINDOW);
@@ -1133,16 +1128,16 @@ Win32ToggleFullscreen(void){
                          MonitorInfo.rcMonitor.right - MonitorInfo.rcMonitor.left,
                          MonitorInfo.rcMonitor.bottom - MonitorInfo.rcMonitor.top,
                          SWP_NOOWNERZORDER | SWP_FRAMECHANGED);
-            full_screen = 1;
+            win32vars.full_screen = 1;
         }
     }
     else{
         SetWindowLongPtr(Window, GWL_STYLE, Style | WS_OVERLAPPEDWINDOW);
-        SetWindowPlacement(Window, &GlobalWindowPosition);
+        SetWindowPlacement(Window, &win32vars.GlobalWindowPosition);
         SetWindowPos(Window, 0, 0, 0, 0, 0,
                      SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER |
                      SWP_NOOWNERZORDER | SWP_FRAMECHANGED);
-        full_screen = 0;
+        win32vars.full_screen = 0;
     }
 }
 
@@ -1156,7 +1151,7 @@ focus it is automatically refullscreened.
 
 internal void
 Win32FixFullscreenLoseFocus(b32 lose_focus){
-    if (full_screen){
+    if (win32vars.full_screen){
         
         HWND Window = win32vars.window_handle;
         LONG_PTR Style = GetWindowLongPtr(Window, GWL_STYLE);
@@ -1491,6 +1486,7 @@ Win32LoadSystemCode(){
     
     win32vars.system.toggle_fullscreen = Toggle_Fullscreen;
     win32vars.system.is_fullscreen = Is_Fullscreen;
+    win32vars.system.send_exit_signal = Send_Exit_Signal;
     
     win32vars.system.post_clipboard = system_post_clipboard;
     
@@ -1953,6 +1949,8 @@ WinMain(HINSTANCE hInstance,
     
     memset(&win32vars, 0, sizeof(win32vars));
     
+    win32vars.GlobalWindowPosition.length = sizeof(win32vars.GlobalWindowPosition);
+    
     //
     // Threads and Coroutines
     //
@@ -2404,7 +2402,7 @@ WinMain(HINSTANCE hInstance,
         }
         
         Win32_Input_Chunk input_chunk = win32vars.input_chunk;
-        win32vars.input_chunk.trans = win32_input_chunk_transient_zero();
+        win32vars.input_chunk.trans = null_input_chunk_transient;
         
         input_chunk.pers.control_keys[MDFR_CAPS_INDEX] = GetKeyState(VK_CAPITAL) & 0x1;
         
@@ -2455,6 +2453,11 @@ WinMain(HINSTANCE hInstance,
         result.trying_to_kill = input_chunk.trans.trying_to_kill;
         result.perform_kill = 0;
         
+        if (win32vars.send_exit_signal){
+            result.trying_to_kill = 1;
+            win32vars.send_exit_signal = 0;
+        }
+        
         win32vars.app.step(&win32vars.system,
                            &win32vars.target,
                            &memory_vars,
@@ -2465,9 +2468,9 @@ WinMain(HINSTANCE hInstance,
             keep_playing = 0;
         }
         
-        if (do_toggle){
+        if (win32vars.do_toggle){
             Win32ToggleFullscreen();
-            do_toggle = 0;
+            win32vars.do_toggle = 0;
         }
         
         Win32SetCursorFromUpdate(result.mouse_cursor_type);

@@ -237,6 +237,7 @@ struct System_Functions{
     Show_Mouse_Cursor_Function *show_mouse_cursor;
     Toggle_Fullscreen_Function *toggle_fullscreen;
     Is_Fullscreen_Function *is_fullscreen;
+    Send_Exit_Signal_Function *send_exit_signal;
     
     // clipboard: 1
     System_Post_Clipboard *post_clipboard;

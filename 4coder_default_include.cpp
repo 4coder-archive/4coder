@@ -2108,6 +2108,10 @@ CUSTOM_COMMAND_SIG(eol_nixify){
     app->buffer_set_setting(app, &buffer, BufferSetting_Eol, false);
 }
 
+CUSTOM_COMMAND_SIG(exit_4coder){
+    app->send_exit_signal(app);
+}
+
 
 //
 // "Full Search" Based Commands

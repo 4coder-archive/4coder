@@ -86,6 +86,7 @@
 ; [X] flag in create buffer to prevent making new files
 ; [X] locking to a view for next position jumping
 ; [X] break down the build system and get away from the preproc hack
+; [X] exit command
 ; [X] full screen option
 ;     [X] add to APIs
 ;     [] try to make win32 version better
@@ -101,7 +102,6 @@
 ; [] user file bar string
 ; [] mouse down/up distinction
 ; [] hook on exit
-; [] exit command
 ; [] read only files
 ;
 

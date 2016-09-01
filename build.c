@@ -305,7 +305,7 @@ standard_build(char *cdir, uint32_t flags){
     }
 #endif
     
-#if 0
+#if 1
     {
         BEGIN_TIME_SECTION();
         build(OPTS | INCLUDES | SHARED_CODE | flags, cdir, "4ed_app_target.cpp",

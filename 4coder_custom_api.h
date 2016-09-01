@@ -57,6 +57,7 @@
 #define SHOW_MOUSE_CURSOR_SIG(n) void n(Application_Links *app, Mouse_Cursor_Show_Type show)
 #define TOGGLE_FULLSCREEN_SIG(n) void n(Application_Links *app)
 #define IS_FULLSCREEN_SIG(n) bool32 n(Application_Links *app)
+#define SEND_EXIT_SIGNAL_SIG(n) void n(Application_Links *app)
 typedef EXEC_COMMAND_SIG(Exec_Command_Function);
 typedef EXEC_SYSTEM_COMMAND_SIG(Exec_System_Command_Function);
 typedef CLIPBOARD_POST_SIG(Clipboard_Post_Function);
@@ -116,6 +117,7 @@ typedef GET_4ED_PATH_SIG(Get_4ed_Path_Function);
 typedef SHOW_MOUSE_CURSOR_SIG(Show_Mouse_Cursor_Function);
 typedef TOGGLE_FULLSCREEN_SIG(Toggle_Fullscreen_Function);
 typedef IS_FULLSCREEN_SIG(Is_Fullscreen_Function);
+typedef SEND_EXIT_SIGNAL_SIG(Send_Exit_Signal_Function);
 struct Application_Links{
     void *memory;
     int32_t memory_size;
@@ -178,6 +180,7 @@ struct Application_Links{
     Show_Mouse_Cursor_Function *show_mouse_cursor;
     Toggle_Fullscreen_Function *toggle_fullscreen;
     Is_Fullscreen_Function *is_fullscreen;
+    Send_Exit_Signal_Function *send_exit_signal;
     void *cmd_context;
     void *system_links;
     void *current_coroutine;
@@ -242,4 +245,5 @@ app_links->directory_cd = Directory_CD;\
 app_links->get_4ed_path = Get_4ed_Path;\
 app_links->show_mouse_cursor = Show_Mouse_Cursor;\
 app_links->toggle_fullscreen = Toggle_Fullscreen;\
-app_links->is_fullscreen = Is_Fullscreen; } while(false)
+app_links->is_fullscreen = Is_Fullscreen;\
+app_links->send_exit_signal = Send_Exit_Signal; } while(false)

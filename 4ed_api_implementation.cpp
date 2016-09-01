@@ -2053,6 +2053,7 @@ directories controlled on the custom side.
 
 #define Toggle_Fullscreen system->toggle_fullscreen
 #define Is_Fullscreen system->is_fullscreen
+#define Send_Exit_Signal system->send_exit_signal
 
 API_EXPORT File_List
 Get_File_List(Application_Links *app, char *dir, int32_t len)/*
