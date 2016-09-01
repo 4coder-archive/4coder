@@ -213,6 +213,7 @@ struct Linux_Vars{
     Atom atom__NET_WM_STATE;
     Atom atom__NET_WM_STATE_MAXIMIZED_HORZ;
     Atom atom__NET_WM_STATE_MAXIMIZED_VERT;
+    Atom atom__NET_WM_STATE_FULLSCREEN;
     Atom atom__NET_WM_PING;
     Atom atom__NET_WM_WINDOW_TYPE;
     Atom atom__NET_WM_WINDOW_TYPE_NORMAL;
@@ -288,6 +289,7 @@ internal Plat_Handle LinuxFDToHandle(int);
 internal int         LinuxHandleToFD(Plat_Handle);
 
 internal void        LinuxStringDup(String*, void*, size_t);
+internal void        LinuxToggleFullscreen(Display*, Window);
 
 internal             Sys_Acquire_Lock_Sig(system_acquire_lock);
 internal             Sys_Release_Lock_Sig(system_release_lock);
@@ -758,6 +760,37 @@ internal
 SHOW_MOUSE_CURSOR_SIG(system_show_mouse_cursor){
     linuxvars.hide_cursor = !show;
     XDefineCursor(linuxvars.XDisplay, linuxvars.XWindow, show ? None : linuxvars.hidden_cursor);
+}
+
+internal
+TOGGLE_FULLSCREEN_SIG(system_toggle_fullscreen){
+    LinuxToggleFullscreen(linuxvars.XDisplay, linuxvars.XWindow);
+}
+
+internal
+IS_FULLSCREEN_SIG(system_is_fullscreen){
+    b32 result = 0;
+
+    Atom type, *prop;
+    unsigned long nitems, pad;
+    int fmt;
+
+    int ret = XGetWindowProperty(linuxvars.XDisplay,
+                                 linuxvars.XWindow,
+                                 linuxvars.atom__NET_WM_STATE,
+                                 0, 32, False, XA_ATOM,
+                                 &type,
+                                 &fmt,
+                                 &nitems,
+                                 &pad,
+                                 (unsigned char**)&prop);
+
+    if(ret == Success && prop){
+        result = *prop == linuxvars.atom__NET_WM_STATE_FULLSCREEN;
+        XFree((unsigned char*)prop);
+    }
+
+    return result;
 }
 
 //
@@ -1454,6 +1487,8 @@ LinuxLoadSystemCode(){
     linuxvars.system.directory_cd = system_directory_cd;
     linuxvars.system.get_4ed_path = system_get_4ed_path;
     linuxvars.system.show_mouse_cursor = system_show_mouse_cursor;
+    linuxvars.system.toggle_fullscreen = system_toggle_fullscreen;
+    linuxvars.system.is_fullscreen = system_is_fullscreen;
 
     // clipboard
     linuxvars.system.post_clipboard = system_post_clipboard;
@@ -2083,7 +2118,7 @@ LinuxScheduleStep(void)
 //
 
 internal void
-LinuxMaximizeWindow(Display* d, Window w, b32 maximize)
+LinuxSetWMState(Display* d, Window w, Atom one, Atom two, int mode)
 {
     //NOTE(inso): this will only work after it is mapped
     
@@ -2095,10 +2130,10 @@ LinuxMaximizeWindow(Display* d, Window w, b32 maximize)
     e.xclient.message_type = linuxvars.atom__NET_WM_STATE;
     e.xclient.format = 32;
     e.xclient.window = w;
-    e.xclient.data.l[0] = maximize ? STATE_ADD : STATE_REMOVE;
-    e.xclient.data.l[1] = linuxvars.atom__NET_WM_STATE_MAXIMIZED_VERT;
-    e.xclient.data.l[2] = linuxvars.atom__NET_WM_STATE_MAXIMIZED_HORZ;
-    e.xclient.data.l[3] = 0L;
+    e.xclient.data.l[0] = mode;
+    e.xclient.data.l[1] = one;
+    e.xclient.data.l[2] = two;
+    e.xclient.data.l[3] = 1L;
 
     XSendEvent(
         d,
@@ -2107,6 +2142,22 @@ LinuxMaximizeWindow(Display* d, Window w, b32 maximize)
         SubstructureNotifyMask | SubstructureRedirectMask,
         &e
     );
+}
+
+internal void
+LinuxMaximizeWindow(Display* d, Window w, b32 maximize)
+{
+    LinuxSetWMState(d,
+                    w,
+                    linuxvars.atom__NET_WM_STATE_MAXIMIZED_HORZ,
+                    linuxvars.atom__NET_WM_STATE_MAXIMIZED_VERT,
+                    maximize != 0);
+}
+
+internal void
+LinuxToggleFullscreen(Display* d, Window w)
+{
+    LinuxSetWMState(d, w, linuxvars.atom__NET_WM_STATE_FULLSCREEN, 0, 2);
 }
 
 #include "linux_icon.h"
@@ -2559,6 +2610,10 @@ LinuxX11WindowInit(int argc, char** argv, int* WinWidth, int* WinHeight)
     if (linuxvars.settings.maximize_window){
         LinuxMaximizeWindow(linuxvars.XDisplay, linuxvars.XWindow, 1);
     }
+    else if(linuxvars.settings.fullscreen_window){
+        LinuxToggleFullscreen(linuxvars.XDisplay, linuxvars.XWindow);
+    }
+
     XSync(linuxvars.XDisplay, False);
 
     XWindowAttributes WinAttribs;
@@ -3141,6 +3196,7 @@ main(int argc, char **argv)
     LOAD_ATOM(_NET_WM_STATE);
     LOAD_ATOM(_NET_WM_STATE_MAXIMIZED_HORZ);
     LOAD_ATOM(_NET_WM_STATE_MAXIMIZED_VERT);
+    LOAD_ATOM(_NET_WM_STATE_FULLSCREEN);
     LOAD_ATOM(_NET_WM_PING);
     LOAD_ATOM(_NET_WM_WINDOW_TYPE);
     LOAD_ATOM(_NET_WM_WINDOW_TYPE_NORMAL);
