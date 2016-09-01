@@ -505,25 +505,25 @@ Sys_Get_Canonical_Sig(system_get_canonical){
 
     while(read_p < filename + len){
         if(read_p == filename || read_p[0] == '/'){
-			if(read_p[1] == '/'){
-				++read_p;
-			} else if(read_p[1] == '.'){
-				if(read_p[2] == '/' || !read_p[2]){
-					read_p += 2;
-				} else if(read_p[2] == '.' && (read_p[3] == '/' || !read_p[3])){
-					while(write_p > path && *--write_p != '/');
-					read_p += 3;
-				} else {
-					*write_p++ = *read_p++;
-				}
-			} else {
-				*write_p++ = *read_p++;
-			}
+            if(read_p[1] == '/'){
+                ++read_p;
+            } else if(read_p[1] == '.'){
+                if(read_p[2] == '/' || !read_p[2]){
+                    read_p += 2;
+                } else if(read_p[2] == '.' && (read_p[3] == '/' || !read_p[3])){
+                    while(write_p > path && *--write_p != '/');
+                    read_p += 3;
+                } else {
+                    *write_p++ = *read_p++;
+                }
+            } else {
+                *write_p++ = *read_p++;
+            }
         } else {
             *write_p++ = *read_p++;
         }
     }
-	if(write_p == path) *write_p++ = '/';
+    if(write_p == path) *write_p++ = '/';
 
     if(max >= (write_p - path)){
         memcpy(buffer, path, write_p - path);
