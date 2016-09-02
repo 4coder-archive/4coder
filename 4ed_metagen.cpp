@@ -347,23 +347,30 @@ enum{
     Item_Function,
     Item_Macro,
     Item_Typedef,
+    Item_Struct,
+    Item_Union,
 };
 
 typedef struct Item_Node{
     int32_t t;
     
+    String cpp_name;
     String name;
     String ret;
     String args;
     String body;
     String marker;
-    String cpp_name;
     
+    String value;
     String type;
+    String type_postfix;
     String doc_string;
     
     Argument_Breakdown breakdown;
     Documentation doc;
+    
+    Item_Node *first_child;
+    Item_Node *next_sibling;
 } Item_Node;
 
 typedef struct Function_Set{
@@ -371,36 +378,15 @@ typedef struct Function_Set{
 } Function_Set;
 
 typedef struct Typedef_Set{
-    String *type;
-    String *name;
-    String *doc_string;
+    Item_Node *items;
 } Typedef_Set; 
 
-typedef struct Struct_Member{
-    String name;
-    String type;
-    String type_postfix;
-    String doc_string;
-    Struct_Member *first_child;
-    Struct_Member *next_sibling;
-} Struct_Member;
-
 typedef struct Struct_Set{
-    Struct_Member *structs;
+    Item_Node *structs;
 } Struct_Set;
 
-typedef struct Enum_Member{
-    String name;
-    String value;
-    String doc_string;
-    Enum_Member *next;
-} Enum_Member;
-
 typedef struct Enum_Set{
-    String *name;
-    String *type;
-    Enum_Member **first_member;
-    String *doc_string;
+    Item_Node *items;
 } Enum_Set;
 
 static Item_Node null_item_node = {0};
@@ -719,13 +705,13 @@ static int32_t
 parse_struct(Partition *part, int32_t is_struct,
              char *data, Cpp_Token *tokens, int32_t count,
              Cpp_Token **token_ptr,
-             Struct_Member *top_member);
+             Item_Node *top_member);
 
 static int32_t
 parse_struct_member(Partition *part,
                     char *data, Cpp_Token *tokens, int32_t count,
                     Cpp_Token **token_ptr,
-                    Struct_Member *member){
+                    Item_Node *member){
     
     int32_t result = false;
     
@@ -797,11 +783,11 @@ parse_struct_member(Partition *part,
     return(result);
 }
 
-static Struct_Member*
+static Item_Node*
 parse_struct_next_member(Partition *part,
                          char *data, Cpp_Token *tokens, int32_t count,
                          Cpp_Token **token_ptr){
-    Struct_Member *result = 0;
+    Item_Node *result = 0;
     
     Cpp_Token *token = *token_ptr;
     int32_t i = (int32_t)(token - tokens);
@@ -812,7 +798,7 @@ parse_struct_next_member(Partition *part,
             String lexeme = make_string(data + token->start, token->size);
             
             if (match_ss(lexeme, make_lit_string("struct"))){
-                Struct_Member *member = push_struct(part, Struct_Member);
+                Item_Node *member = push_struct(part, Item_Node);
                 if (parse_struct(part, true, data, tokens, count, &token, member)){
                     result = member;
                     break;
@@ -822,7 +808,7 @@ parse_struct_next_member(Partition *part,
                 }
             }
             else if (match_ss(lexeme, make_lit_string("union"))){
-                Struct_Member *member = push_struct(part, Struct_Member);
+                Item_Node *member = push_struct(part, Item_Node);
                 if (parse_struct(part, false, data, tokens, count, &token, member)){
                     result = member;
                     break;
@@ -832,7 +818,7 @@ parse_struct_next_member(Partition *part,
                 }
             }
             else{
-                Struct_Member *member = push_struct(part, Struct_Member);
+                Item_Node *member = push_struct(part, Item_Node);
                 if (parse_struct_member(part, data, tokens, count, &token, member)){
                     result = member;
                     break;
@@ -856,7 +842,7 @@ static int32_t
 parse_struct(Partition *part, int32_t is_struct,
              char *data, Cpp_Token *tokens, int32_t count,
              Cpp_Token **token_ptr,
-             Struct_Member *top_member){
+             Item_Node *top_member){
     
     int32_t result = false;
     
@@ -900,13 +886,13 @@ parse_struct(Partition *part, int32_t is_struct,
         }
         
         ++token;
-        Struct_Member *new_member = 
+        Item_Node *new_member = 
             parse_struct_next_member(part, data, tokens, count, &token);
         
         if (new_member){
             top_member->first_child = new_member;
             
-            Struct_Member *head_member = new_member;
+            Item_Node *head_member = new_member;
             for(;;){
                 new_member = 
                     parse_struct_next_member(part, data, tokens, count, &token);
@@ -942,7 +928,7 @@ parse_struct(Partition *part, int32_t is_struct,
 }
 
 static void
-print_struct_html(FILE *file, Struct_Member *member){
+print_struct_html(FILE *file, Item_Node *member){
     String name = member->name;
     String type = member->type;
     String type_postfix = member->type_postfix;
@@ -955,7 +941,7 @@ print_struct_html(FILE *file, Struct_Member *member){
                 type.size, type.str,
                 name.size, name.str);
         
-        for (Struct_Member *member_iter = member->first_child;
+        for (Item_Node *member_iter = member->first_child;
              member_iter != 0;
              member_iter = member_iter->next_sibling){
             print_struct_html(file, member_iter);
@@ -1068,8 +1054,8 @@ print_macro_html(FILE *file, Function_Set function_set, int32_t i, String name){
 #define DOC_ITEM_CLOSE "</div>"
 
 static void
-print_struct_docs(FILE *file, Partition *part, Struct_Member *member){
-    for (Struct_Member *member_iter = member->first_child;
+print_struct_docs(FILE *file, Partition *part, Item_Node *member){
+    for (Item_Node *member_iter = member->first_child;
          member_iter != 0;
          member_iter = member_iter->next_sibling){
         String type = member_iter->type;
@@ -1141,8 +1127,8 @@ parse_enum(Partition *part, char *data,
         }
         
         if (i < count){
-            Enum_Member *first_member = 0;
-            Enum_Member *head_member = 0;
+            Item_Node *first_member = 0;
+            Item_Node *head_member = 0;
             
             for (; i < count; ++i, ++token){
                 if (token->type == CPP_TOKEN_BRACE_CLOSE){
@@ -1184,20 +1170,20 @@ parse_enum(Partition *part, char *data,
                         --token;
                     }
                     
-                    Enum_Member *new_member = push_struct(part, Enum_Member);
+                    Item_Node *new_member = push_struct(part, Item_Node);
                     if (first_member == 0){
                         first_member = new_member;
                     }
                     
                     if (head_member){
-                        head_member->next = new_member;
+                        head_member->next_sibling = new_member;
                     }
                     head_member = new_member;
                     
                     new_member->name = name;
                     new_member->value = value;
                     new_member->doc_string = doc_string;
-                    new_member->next = 0;
+                    new_member->next_sibling = 0;
                 }
             }
             
@@ -1211,8 +1197,8 @@ parse_enum(Partition *part, char *data,
                 ++token;
                 
                 result = true;
-                flag_set.name[flag_index] = name;
-                flag_set.first_member[flag_index] = first_member;
+                flag_set.items[flag_index].name = name;
+                flag_set.items[flag_index].first_child = first_member;
             }
         }
     }
@@ -2099,26 +2085,19 @@ generate_custom_headers(){
         }
         
         if (typedef_count >  0){
-            typedef_set.type = push_array(part, String, typedef_count);
-            typedef_set.name = push_array(part, String, typedef_count);
-            typedef_set.doc_string = push_array(part, String, typedef_count);
+            typedef_set.items = push_array(part, Item_Node, typedef_count);
         }
         
         if (struct_count > 0){
-            struct_set.structs = push_array(part, Struct_Member, struct_count);
+            struct_set.structs = push_array(part, Item_Node, struct_count);
         }
         
         if (enum_count > 0){
-            enum_set.name = push_array(part, String, enum_count);
-            enum_set.type = push_array(part, String, enum_count);
-            enum_set.first_member = push_array(part, Enum_Member*, enum_count);
-            enum_set.doc_string = push_array(part, String, enum_count);
+            enum_set.items = push_array(part, Item_Node, enum_count);
         }
         
         if (flag_count > 0){
-            flag_set.name = push_array(part, String, flag_count);
-            flag_set.first_member = push_array(part, Enum_Member*, flag_count);
-            flag_set.doc_string = push_array(part, String, flag_count);
+            flag_set.items = push_array(part, Item_Node, flag_count);
         }
         
         int32_t typedef_index = 0;
@@ -2177,9 +2156,9 @@ generate_custom_headers(){
                                     String type = make_string(data + type_start, type_end - type_start);
                                     type = skip_chop_whitespace(type);
                                     
-                                    typedef_set.type[typedef_index] = type;
-                                    typedef_set.name[typedef_index] = name;
-                                    typedef_set.doc_string[typedef_index] = doc_string;
+                                    typedef_set.items[typedef_index].type = type;
+                                    typedef_set.items[typedef_index].name = name;
+                                    typedef_set.items[typedef_index].doc_string = doc_string;
                                     ++typedef_index;
                                 }
                             }break;
@@ -2211,7 +2190,7 @@ generate_custom_headers(){
                                                tokens, count,
                                                &token, start_i,
                                                enum_set, enum_index)){
-                                    enum_set.doc_string[enum_index] = doc_string;
+                                    enum_set.items[enum_index].doc_string = doc_string;
                                     ++enum_index;
                                 }
                                 i = (int32_t)(token - tokens);
@@ -2234,7 +2213,7 @@ generate_custom_headers(){
                                                tokens, count,
                                                &token, start_i,
                                                flag_set, flag_index)){
-                                    flag_set.doc_string[flag_index] = doc_string;
+                                    flag_set.items[flag_index].doc_string = doc_string;
                                     ++flag_index;
                                 }
                                 i = (int32_t)(token - tokens);
@@ -2687,7 +2666,7 @@ generate_custom_headers(){
                     );
             
             for (int32_t i = 0; i < typedef_count; ++i){
-                String name = typedef_set.name[i];
+                String name = typedef_set.items[i].name;
                 fprintf(file,
                         "<li>"
                         "<a href='#%.*s_doc'>%.*s</a>"
@@ -2698,7 +2677,7 @@ generate_custom_headers(){
             }
             
             for (int32_t i = 0; i < enum_count; ++i){
-                String name = enum_set.name[i];
+                String name = enum_set.items[i].name;
                 fprintf(file,
                         "<li>"
                         "<a href='#%.*s_doc'>%.*s</a>"
@@ -2709,7 +2688,7 @@ generate_custom_headers(){
             }
             
             for (int32_t i = 0; i < flag_count; ++i){
-                String name = flag_set.name[i];
+                String name = flag_set.items[i].name;
                 fprintf(file,
                         "<li>"
                         "<a href='#%.*s_doc'>%.*s</a>"
@@ -2761,8 +2740,8 @@ generate_custom_headers(){
             fprintf(file, "<h3>&sect;"SECTION" Type Descriptions</h3>\n");
             int32_t I = 1;
             for (int32_t i = 0; i < typedef_count; ++i, ++I){
-                String name = typedef_set.name[i];
-                String type = typedef_set.type[i];
+                String name = typedef_set.items[i].name;
+                String type = typedef_set.items[i].type;
                 
                 fprintf(file,
                         "<div id='%.*s_doc' style='margin-bottom: 1cm;'>\n"
@@ -2785,7 +2764,7 @@ generate_custom_headers(){
                 
                 // NOTE(allen): Descriptive section
                 {
-                    String doc_string = typedef_set.doc_string[i];
+                    String doc_string = typedef_set.items[i].doc_string;
                     Documentation doc = {0};
                     perform_doc_parse(part, doc_string, &doc);
                     
@@ -2805,7 +2784,7 @@ generate_custom_headers(){
             }
             
             for (int32_t i = 0; i < enum_count; ++i, ++I){
-                String name = enum_set.name[i];
+                String name = enum_set.items[i].name;
                 
                 fprintf(file,
                         "<div id='%.*s_doc' style='margin-bottom: 1cm;'>\n"
@@ -2826,7 +2805,7 @@ generate_custom_headers(){
                 
                 // NOTE(allen): Descriptive section
                 {
-                    String doc_string = enum_set.doc_string[i];
+                    String doc_string = enum_set.items[i].doc_string;
                     Documentation doc = {0};
                     perform_doc_parse(part, doc_string, &doc);
                     
@@ -2839,11 +2818,11 @@ generate_custom_headers(){
                                 );
                     }
                     
-                    if (enum_set.first_member[i]){
+                    if (enum_set.items[i].first_child){
                         fprintf(file, DOC_HEAD_OPEN"Values"DOC_HEAD_CLOSE);
-                        for (Enum_Member *member = enum_set.first_member[i];
+                        for (Item_Node *member = enum_set.items[i].first_child;
                              member;
-                             member = member->next){
+                             member = member->next_sibling){
                             Documentation doc = {0};
                             perform_doc_parse(part, member->doc_string, &doc);
                             
@@ -2866,7 +2845,7 @@ generate_custom_headers(){
             }
             
             for (int32_t i = 0; i < flag_count; ++i, ++I){
-                String name = flag_set.name[i];
+                String name = flag_set.items[i].name;
                 
                 fprintf(file,
                         "<div id='%.*s_doc' style='margin-bottom: 1cm;'>\n"
@@ -2887,7 +2866,7 @@ generate_custom_headers(){
                 
                 // NOTE(allen): Descriptive section
                 {
-                    String doc_string = flag_set.doc_string[i];
+                    String doc_string = flag_set.items[i].doc_string;
                     Documentation doc = {0};
                     perform_doc_parse(part, doc_string, &doc);
                     
@@ -2900,11 +2879,11 @@ generate_custom_headers(){
                                 );
                     }
                     
-                    if (flag_set.first_member[i]){
+                    if (flag_set.items[i].first_child){
                         fprintf(file, DOC_HEAD_OPEN"Flags"DOC_HEAD_CLOSE);
-                        for (Enum_Member *member = flag_set.first_member[i];
+                        for (Item_Node *member = flag_set.items[i].first_child;
                              member;
-                             member = member->next){
+                             member = member->next_sibling){
                             Documentation doc = {0};
                             perform_doc_parse(part, member->doc_string, &doc);
                             
@@ -2928,7 +2907,7 @@ generate_custom_headers(){
             }
             
             for (int32_t i = 0; i < struct_count; ++i, ++I){
-                Struct_Member *member = &struct_set.structs[i];
+                Item_Node *member = &struct_set.structs[i];
                 String name = member->name;
                 fprintf(file,
                         "<div id='%.*s_doc' style='margin-bottom: 1cm;'>\n"
