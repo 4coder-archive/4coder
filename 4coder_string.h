@@ -132,6 +132,12 @@ FSTRING_INLINE  fstr_bool     append_sc(String *dest, char *src);
 FSTRING_LINK    fstr_bool     terminate_with_null(String *str);
 FSTRING_LINK    fstr_bool     append_padding(String *dest, char c, int32_t target_size);
 FSTRING_LINK    void          replace_char(String *str, char replace, char with);
+FSTRING_LINK    void          to_lower_cc(char *src, char *dst);
+FSTRING_LINK    void          to_lower_ss(String *src, String *dst);
+FSTRING_LINK    void          to_lower_s(String *str);
+FSTRING_LINK    void          to_upper_cc(char *src, char *dst);
+FSTRING_LINK    void          to_upper_ss(String *src, String *dst);
+FSTRING_LINK    void          to_upper_s(String *str);
 FSTRING_LINK    int32_t       int_to_str_size(int32_t x);
 FSTRING_LINK    fstr_bool     int_to_str(String *dest, int32_t x);
 FSTRING_LINK    fstr_bool     append_int_to_str(String *dest, int32_t x);
@@ -220,6 +226,12 @@ FSTRING_INLINE  fstr_bool     append_partial(String *dest, String src);
 FSTRING_INLINE  fstr_bool     append(String *dest, char c);
 FSTRING_INLINE  fstr_bool     append(String *dest, String src);
 FSTRING_INLINE  fstr_bool     append(String *dest, char *src);
+FSTRING_INLINE  void          to_lower(char *src, char *dst);
+FSTRING_INLINE  void          to_lower(String *src, String *dst);
+FSTRING_INLINE  void          to_lower(String *str);
+FSTRING_INLINE  void          to_upper(char *src, char *dst);
+FSTRING_INLINE  void          to_upper(String *src, String *dst);
+FSTRING_INLINE  void          to_upper(String *str);
 FSTRING_INLINE  int32_t       str_is_int(char *str);
 FSTRING_INLINE  fstr_bool     str_is_int(String str);
 FSTRING_INLINE  int32_t       str_to_int(char *str);
@@ -342,6 +354,18 @@ FSTRING_INLINE fstr_bool
 append(String *dest, String src){return(append_ss(dest,src));}
 FSTRING_INLINE fstr_bool
 append(String *dest, char *src){return(append_sc(dest,src));}
+FSTRING_INLINE void
+to_lower(char *src, char *dst){(to_lower_cc(src,dst));}
+FSTRING_INLINE void
+to_lower(String *src, String *dst){(to_lower_ss(src,dst));}
+FSTRING_INLINE void
+to_lower(String *str){(to_lower_s(str));}
+FSTRING_INLINE void
+to_upper(char *src, char *dst){(to_upper_cc(src,dst));}
+FSTRING_INLINE void
+to_upper(String *src, String *dst){(to_upper_ss(src,dst));}
+FSTRING_INLINE void
+to_upper(String *str){(to_upper_s(str));}
 FSTRING_INLINE int32_t
 str_is_int(char *str){return(str_is_int_c(str));}
 FSTRING_INLINE fstr_bool
@@ -1393,6 +1417,88 @@ replace_char(String *str, char replace, char with){
     int32_t i = 0;
     for (i = 0; i < str->size; ++i, ++s){
         if (*s == replace) *s = with;
+    }
+}
+#endif
+
+
+#if defined(FSTRING_IMPLEMENTATION)
+FSTRING_LINK void
+to_lower_cc(char *src, char *dst){
+    for (; *src != 0; ++src){
+        *dst++ = char_to_lower(*src);
+    }
+    *dst++ = 0;
+}
+#endif
+
+
+#if defined(FSTRING_IMPLEMENTATION)
+FSTRING_LINK void
+to_lower_ss(String *src, String *dst){
+    int32_t i = 0;
+    int32_t size = src->size;
+    char *c = src->str;
+    char *d = dst->str;
+    
+    if (dst->memory_size >= size){
+        for (; i < size; ++i){
+            *d++ = char_to_lower(*c++);
+        }
+    }
+}
+#endif
+
+
+#if defined(FSTRING_IMPLEMENTATION)
+FSTRING_LINK void
+to_lower_s(String *str){
+    int32_t i = 0;
+    int32_t size = str->size;
+    char *c = str->str;
+    for (; i < size; ++c, ++i){
+        *c = char_to_lower(*c);
+    }
+}
+#endif
+
+
+#if defined(FSTRING_IMPLEMENTATION)
+FSTRING_LINK void
+to_upper_cc(char *src, char *dst){
+    for (; *src != 0; ++src){
+        *dst++ = char_to_upper(*src);
+    }
+    *dst++ = 0;
+}
+#endif
+
+
+#if defined(FSTRING_IMPLEMENTATION)
+FSTRING_LINK void
+to_upper_ss(String *src, String *dst){
+    int32_t i = 0;
+    int32_t size = src->size;
+    char *c = src->str;
+    char *d = dst->str;
+    
+    if (dst->memory_size >= size){
+        for (; i < size; ++i){
+            *d++ = char_to_upper(*c++);
+        }
+    }
+}
+#endif
+
+
+#if defined(FSTRING_IMPLEMENTATION)
+FSTRING_LINK void
+to_upper_s(String *str){
+    int32_t i = 0;
+    int32_t size = str->size;
+    char *c = str->str;
+    for (; i < size; ++c, ++i){
+        *c = char_to_upper(*c);
     }
 }
 #endif

@@ -110,81 +110,6 @@ main_fsm(Lex_FSM fsm, unsigned char pp_state, unsigned char c){
             if (c == '\n') fsm.emit_token = 1;
             break;
             
-#if 0
-            case LSPP_include:
-            switch (fsm.state){
-                case LSINC_default:
-                switch (c){
-                    case '"': fsm.state = LSINC_quotes; break;
-                    case '<': fsm.state = LSINC_pointy; break;
-                    case '/': fsm.state = LSINC_def_comment_pre; break;
-                    default: fsm.state = LSINC_junk; break;
-                }
-                break;
-                
-                case LSINC_quotes:
-                if (c == '"') fsm.emit_token = 1;
-                else if (c == '\n'){
-                    fsm.emit_token = 1;
-                    fsm.state = LSINC_junk;
-                }
-                break;
-                
-                case LSINC_pointy:
-                if (c == '>') fsm.emit_token = 1;
-                else if (c == '\n'){
-                    fsm.emit_token = 1;
-                    fsm.state = LSINC_junk;
-                }
-                break;
-                
-                case LSINC_junk:
-                switch (c){
-                    case '/': fsm.state = LSINC_junk_comment_pre; break;
-                    case '\n': fsm.emit_token = 1; break;
-                }
-                break;
-                
-                case LSINC_def_comment_pre:
-                switch (c){
-                    case '/': fsm.state = LSINC_def_comment; break;
-                    case '*': fsm.state = LSINC_def_comment_block; break;
-                    case '\n': fsm.state = LSINC_junk; fsm.emit_token = 1; break;
-                    default: fsm.state = LSINC_junk; break;
-                }
-                break;
-                
-                case LSINC_junk_comment_pre:
-                switch (c){
-                    case '/': fsm.state = LSINC_junk_comment; break;
-                    case '*': fsm.state = LSINC_junk_comment_block; break;
-                    case '\n': fsm.state = LSINC_junk; fsm.emit_token = 1; break;
-                    default: fsm.state = LSINC_junk; break;
-                }
-                break;
-                
-                case LSINC_def_comment:
-                case LSINC_junk_comment:
-                switch (c){
-                    
-                }
-                break;
-                
-                case LSINC_def_comment_slashed:
-                case LSINC_junk_comment_slashed:
-                break;
-                
-                case LSINC_def_comment_block:
-                case LSINC_junk_comment_block:
-                break;
-                
-                case LSINC_def_comment_block_ending:
-                case LSINC_junk_comment_block_ending:
-                break;
-            }
-            break;
-#endif
-            
             default:
             switch (fsm.state){
                 case LS_default:
@@ -321,9 +246,6 @@ main_fsm(Lex_FSM fsm, unsigned char pp_state, unsigned char c){
                     case '>':
                     if (pp_state == LSPP_include){
                         fsm.emit_token = 1;
-                    }
-                    else{
-                        fsm.state = LS_string_slashed;
                     }
                     break;
                     case '\\': fsm.state = LS_string_slashed; break;

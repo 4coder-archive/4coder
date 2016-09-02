@@ -89,7 +89,7 @@
 ; [X] exit command
 ; [X] full screen option
 ;     [X] add to APIs
-;     [] try to make win32 version better
+;     [X] try to make win32 version better
 ;
 ; [] tokens in the custom API
 ;     [] auto indent on the custom side

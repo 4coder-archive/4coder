@@ -28,42 +28,6 @@ struct Struct_Field{
     char *name;
 };
 
-void to_lower(char *src, char *dst){
-    char *c, ch;
-    for (c = src; *c != 0; ++c){
-        ch = char_to_lower(*c);
-        *dst++ = ch;
-    }
-    *dst = 0;
-}
-
-void to_lower(String *str){
-    char *c;
-    int32_t i = 0;
-    int32_t size = str->size;
-    for (c = str->str; i < size; ++c, ++i){
-        *c = char_to_lower(*c);
-    }
-}
-
-void to_upper(char *src, char *dst){
-    char *c, ch;
-    for (c = src; *c != 0; ++c){
-        ch = char_to_upper(*c);
-        *dst++ = ch;
-    }
-    *dst = 0;
-}
-
-void to_upper(String *str){
-    char *c;
-    int32_t i = 0;
-    int32_t size = str->size;
-    for (c = str->str; i < size; ++c, ++i){
-        *c = char_to_upper(*c);
-    }
-}
-
 void to_camel(char *src, char *dst){
     char *c, ch;
     int32_t is_first = 1;
@@ -1950,7 +1914,7 @@ generate_custom_headers(){
         
         macro->str = (char*)malloc(macro->memory_size);
         copy_ss(macro, name_string);
-        to_upper(macro);
+        to_upper_s(macro);
         append_ss(macro, make_lit_string("_SIG"));
         
         
@@ -1959,7 +1923,7 @@ generate_custom_headers(){
         
         public_name->str = (char*)malloc(public_name->memory_size);
         copy_ss(public_name, name_string);
-        to_lower(public_name);
+        to_lower_s(public_name);
     }
     
     // NOTE(allen): Header
