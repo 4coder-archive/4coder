@@ -13,7 +13,11 @@ as this is the only one that will be used for generating headers and docs.
 
 API_EXPORT void*
 Memory_Allocate(Application_Links *app, int32_t size)/*
-DOC(TODO)
+DOC_PARAM(size, The size in bytes of the block that should be returned.)
+DOC(This calls to a low level OS allocator which means it is best used
+for infrequent, large allocations.  The size of the block must be remembered
+if it will be freed or if it's mem protection status will be changed.)
+DOC_SEE(memory_free)
 */{
     void *result = VirtualAlloc(0, size, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
     return(result);
@@ -21,7 +25,13 @@ DOC(TODO)
 
 API_EXPORT bool32
 Memory_Set_Protection(Application_Links *app, void *ptr, int32_t size, Memory_Protect_Flags flags)/*
-DOC(TODO)
+DOC_PARAM(ptr, The base of the block on which to set memory protection flags.)
+DOC_PARAM(size, The size that was originally used to allocate this block.)
+DOC_PARAM(flags, The new memory protection flags.)
+DOC(This call sets the memory protection flags of a block of memory that was previously
+allocate by memory_allocate.)
+DOC_SEE(memory_allocate)
+DOC_SEE(Memory_Protect_Flags)
 */{
     bool32 result = false;
     DWORD old_protect = 0;
@@ -56,10 +66,14 @@ DOC(TODO)
 }
 
 API_EXPORT void
-Memory_Free(Application_Links *app, void *mem, int32_t size)/*
-DOC(TODO)
+Memory_Free(Application_Links *app, void *ptr, int32_t size)/*
+DOC_PARAM(mem, The base of a block to free.)
+DOC_PARAM(size, The size that was originally used to allocate this block.)
+DOC(This call frees a block of memory that was previously allocated by
+memory_allocate.)
+DOC_SEE(memory_allocate)
 */{
-    VirtualFree(mem, 0, MEM_RELEASE);
+    VirtualFree(ptr, 0, MEM_RELEASE);
 }
 
 API_EXPORT bool32
@@ -177,7 +191,12 @@ DOC_SEE(Mouse_Cursor_Show_Type)
 }
 
 API_EXPORT void
-Toggle_Fullscreen(Application_Links *app){
+Toggle_Fullscreen(Application_Links *app)/*
+DOC(This call tells 4coder to switch into or out of full screen mode.
+The changes of full screen mode do not take effect until the end of the current frame.
+On Windows this call will not work unless 4coder was started in "stream mode".
+Stream mode can be enabled with -S or -F flags on the command line to 4ed.)
+*/{
     /* NOTE(allen): Don't actually change window size now!
     Tell the platform layer to do the toggle (or to cancel the toggle)
     later when the app.step function isn't running. If the size changes
@@ -193,7 +212,13 @@ Toggle_Fullscreen(Application_Links *app){
 }
 
 API_EXPORT bool32
-Is_Fullscreen(Application_Links *app){
+Is_Fullscreen(Application_Links *app)/*
+DOC_SEE(This call returns true if the 4coder is in full screen mode.  This call
+takes toggles that have already occured this frame into account.  So it may return
+true even though the frame has not ended and actually put 4coder into full screen. If
+it returns true though, 4coder will definitely be full screen by the beginning of the next
+frame if the state is not changed.)
+*/{
     /* NOTE(allen): This is a fancy way to say 'full_screen XOR do_toggle'
     This way this function can always report the state the fullscreen
     will have when the next frame runs, given the number of toggles
@@ -203,7 +228,10 @@ Is_Fullscreen(Application_Links *app){
 }
 
 API_EXPORT void
-Send_Exit_Signal(Application_Links *app){
+Send_Exit_Signal(Application_Links *app)/*
+DOC_SEE(This call sends a signal to 4coder to attempt to exit.  If there are unsaved
+files this triggers a dialogue ensuring you're okay with closing.)
+*/{
     win32vars.send_exit_signal = 1;
 }
 

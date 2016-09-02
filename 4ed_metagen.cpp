@@ -387,9 +387,10 @@ typedef struct Item_Set{
     Item_Node *items;
 } Item_Set; 
 
-typedef struct Struct_Set{
-    Item_Node *structs;
-} Struct_Set;
+typedef struct Parse{
+    String code;
+    Cpp_Token_Stack tokens;
+} Parse;
 
 static Item_Node null_item_node = {0};
 
@@ -412,6 +413,15 @@ file_dump(char *filename){
         fclose(file);
     }
     
+    return(result);
+}
+
+static Parse
+meta_parse(char *filename){
+    Parse result = {0};
+    result.code = file_dump(filename);
+    result.tokens = cpp_make_token_stack(1024);
+    cpp_lex_file(result.code.str, result.code.size, &result.tokens);
     return(result);
 }
 
@@ -454,9 +464,12 @@ is_comment(String str){
     return(result);
 }
 
-typedef struct Parse{
-    Cpp_Token_Stack tokens;
-} Parse;
+typedef enum Doc_Note_Type{
+    DOC_PARAM,
+    DOC_RETURN,
+    DOC,
+    DOC_SEE
+} Doc_Note_Type;
 
 static int32_t
 check_and_fix_docs(String *lexeme){
@@ -478,13 +491,6 @@ check_and_fix_docs(String *lexeme){
     
     return(result);
 }
-
-typedef enum Doc_Note_Type{
-    DOC_PARAM,
-    DOC_RETURN,
-    DOC,
-    DOC_SEE
-} Doc_Note_Type;
 
 static String
 doc_note_string[] = {
@@ -1163,7 +1169,7 @@ parse_enum(Partition *part, char *data,
     int32_t start_i = i;
     
     for (; i < count; ++i, ++token){
-        if (token->type == CPP_TOKEN_PARENTHESE_CLOSE){
+        if (token->type == CPP_TOKEN_BRACE_OPEN){
             break;
         }
     }
@@ -1804,24 +1810,15 @@ generate_custom_headers(){
     Partition part_ = make_part(mem, size);
     Partition *part = &part_;
     
-    String string_code = file_dump("internal_4coder_string.cpp");
-    Cpp_Token_Stack string_tokens = {0};
+    Parse string_parse = meta_parse("internal_4coder_string.cpp");
     
     int32_t string_function_count = 0;
     
     {
-        String *code = &string_code;
-        Cpp_Token_Stack *token_stack = &string_tokens;
+        char *data = string_parse.code.str;
         
-        char *data = code->str;
-        int32_t size = code->size;
-        
-        *token_stack = cpp_make_token_stack(1024);
-        cpp_lex_file(data, size, token_stack);
-        
-        
-        int32_t count = token_stack->count;
-        Cpp_Token *tokens = token_stack->tokens;
+        int32_t count = string_parse.tokens.count;
+        Cpp_Token *tokens = string_parse.tokens.tokens;
         Cpp_Token *token = tokens;
         
         for (int32_t i = 0; i < count; ++i, ++token){
@@ -1850,8 +1847,8 @@ generate_custom_headers(){
     int32_t string_sig_count = 0;
     
     {
-        String *code = &string_code;
-        Cpp_Token_Stack *token_stack = &string_tokens;
+        String *code = &string_parse.code;
+        Cpp_Token_Stack *token_stack = &string_parse.tokens;
         
         char *data = code->str;
         
@@ -1904,22 +1901,16 @@ generate_custom_headers(){
     // App API parsing
     //
     
-    String code_data[2];
-    code_data[0] = file_dump("4ed_api_implementation.cpp");
-    code_data[1] = file_dump("win32_api_impl.cpp");
     Parse parses[2];
+    parses[0] = meta_parse("4ed_api_implementation.cpp");
+    parses[1] = meta_parse("win32_api_impl.cpp");
     
     int32_t line_count = 0;
     
     for (int32_t J = 0; J < 2; ++J){
-        String *code = &code_data[J];
         Parse *parse = &parses[J];
         
-        char *data = code->str;
-        int32_t size = code->size;
-        
-        parse->tokens = cpp_make_token_stack(512);
-        cpp_lex_file(data, size, &parse->tokens);
+        char *data = parse->code.str;
         
         int32_t count = parse->tokens.count;
         Cpp_Token *tokens = parse->tokens.tokens;
@@ -1944,10 +1935,9 @@ generate_custom_headers(){
     int32_t sig_count_per_file[2];
     
     for (int32_t J = 0; J < 2; ++J){
-        String *code = &code_data[J];
         Parse *parse = &parses[J];
         
-        char *data = code->str;
+        char *data = parse->code.str;
         
         int32_t count = parse->tokens.count;
         Cpp_Token *tokens = parse->tokens.tokens;
@@ -2084,14 +2074,14 @@ generate_custom_headers(){
     // NOTE(allen): Documentation
     {
         Item_Set typedef_set = {0};
-        Struct_Set struct_set = {0};
+        Item_Set struct_set = {0};
         Item_Set flag_set = {0};
         Item_Set enum_set = {0};
         
-        String type_code[1];
-        type_code[0] = file_dump("4coder_os_types.h");
+        Parse type_parse[1];
+        type_parse[0] = meta_parse("4coder_types.h");
         
-        Cpp_Token_Stack types_token_array[1];
+        int32_t file_count = ArrayCount(type_parse);
         
         int32_t typedef_count = 0;
         int32_t struct_count = 0;
@@ -2106,16 +2096,11 @@ generate_custom_headers(){
             make_lit_string("FLAGENUM"),
         };
         
-        for (int32_t J = 0; J < 1; ++J){
-            char *data = type_code[J].str;
-            int32_t size = type_code[J].size;
+        for (int32_t J = 0; J < file_count; ++J){
+            char *data = type_parse[J].code.str;
             
-            Cpp_Token_Stack types_tokens = cpp_make_token_stack(512);
-            cpp_lex_file(data, size, &types_tokens);
-            types_token_array[J] = types_tokens;
-            
-            int32_t count = types_tokens.count;
-            Cpp_Token *tokens = types_tokens.tokens;
+            int32_t count = type_parse[J].tokens.count;
+            Cpp_Token *tokens = type_parse[J].tokens.tokens;
             Cpp_Token *token = tokens;
             
             for (int32_t i = 0; i < count; ++i, ++token){
@@ -2150,7 +2135,7 @@ generate_custom_headers(){
         }
         
         if (struct_count > 0){
-            struct_set.structs = push_array(part, Item_Node, struct_count);
+            struct_set.items = push_array(part, Item_Node, struct_count);
         }
         
         if (enum_count > 0){
@@ -2166,10 +2151,9 @@ generate_custom_headers(){
         int32_t flag_index = 0;
         int32_t enum_index = 0;
         
-        for (int32_t J = 0; J < 1; ++J){
-            char *data = type_code[J].str;
-            
-            Cpp_Token_Stack types_tokens = types_token_array[J];
+        for (int32_t J = 0; J < file_count; ++J){
+            char *data = type_parse[J].code.str;
+            Cpp_Token_Stack types_tokens = type_parse[J].tokens;
             
             int32_t count = types_tokens.count;
             Cpp_Token *tokens = types_tokens.tokens;
@@ -2199,7 +2183,7 @@ generate_custom_headers(){
                             {
                                 if (parse_struct(part, (match_index == 1),
                                                  data, tokens, count, &token,
-                                                 struct_set.structs + struct_index)){
+                                                 struct_set.items + struct_index)){
                                     ++struct_index;
                                 }
                                 i = (int32_t)(token - tokens);
@@ -2242,8 +2226,8 @@ generate_custom_headers(){
         file = fopen(STRING_H, "wb");
         
         {
-            String *code = &string_code;
-            Cpp_Token_Stack *token_stack = &string_tokens;
+            String *code = &string_parse.code;
+            Cpp_Token_Stack *token_stack = &string_parse.tokens;
             
             int32_t start = 0;
             
@@ -2705,7 +2689,7 @@ generate_custom_headers(){
             }
             
             for (int32_t i = 0; i < struct_count; ++i){
-                String name = struct_set.structs[i].name;
+                String name = struct_set.items[i].name;
                 fprintf(file,
                         "<li>"
                         "<a href='#%.*s_doc'>%.*s</a>"
@@ -2913,7 +2897,7 @@ generate_custom_headers(){
             }
             
             for (int32_t i = 0; i < struct_count; ++i, ++I){
-                Item_Node *member = &struct_set.structs[i];
+                Item_Node *member = &struct_set.items[i];
                 String name = member->name;
                 fprintf(file,
                         "<div id='%.*s_doc' style='margin-bottom: 1cm;'>\n"

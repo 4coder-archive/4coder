@@ -1,5 +1,8 @@
 
 
+#define ENUM(type,name) typedef type name; enum name##_
+#define FLAGENUM(name) typedef uint32_t name; enum name##_
+
 /* DOC(bool32 is an alias name to signal that an integer parameter or field is for
 true/false vales.) */
 typedef int32_t bool32;
@@ -19,9 +22,6 @@ typedef int32_t Buffer_ID;
 /* DOC(View_ID is used to name a 4coder view.  Each view has a unique id in
 the interval [1,16].) */
 typedef int32_t View_ID;
-
-#define ENUM(type,name) typedef type name; enum name##_
-#define FLAGENUM(name) typedef uint32_t name; enum name##_
 
 /* DOC(A Key_Modifier acts as an index for specifying modifiers in arrays.) */
 ENUM(int32_t, Key_Modifier){

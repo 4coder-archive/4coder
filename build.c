@@ -267,7 +267,7 @@ standard_build(char *cdir, uint32_t flags){
 #if 1
     {
         BEGIN_TIME_SECTION();
-        build(OPTS, cdir, "fsm_table_generator.cpp",
+        build(OPTS | DEBUG_INFO, cdir, "fsm_table_generator.cpp",
               META_DIR, "fsmgen", 0);
         END_TIME_SECTION("build fsm generator");
     }

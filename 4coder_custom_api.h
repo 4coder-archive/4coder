@@ -50,7 +50,7 @@
 #define FREE_FILE_LIST_SIG(n) void n(Application_Links *app, File_List list)
 #define MEMORY_ALLOCATE_SIG(n) void* n(Application_Links *app, int32_t size)
 #define MEMORY_SET_PROTECTION_SIG(n) bool32 n(Application_Links *app, void *ptr, int32_t size, Memory_Protect_Flags flags)
-#define MEMORY_FREE_SIG(n) void n(Application_Links *app, void *mem, int32_t size)
+#define MEMORY_FREE_SIG(n) void n(Application_Links *app, void *ptr, int32_t size)
 #define FILE_EXISTS_SIG(n) bool32 n(Application_Links *app, char *filename, int32_t len)
 #define DIRECTORY_CD_SIG(n) bool32 n(Application_Links *app, char *dir, int32_t *len, int32_t capacity, char *rel_path, int32_t rel_len)
 #define GET_4ED_PATH_SIG(n) bool32 n(Application_Links *app, char *out, int32_t capacity)

@@ -95,6 +95,49 @@ Coming Soon</i><div>
 </ul>
 <h3>&sect;3.2 Type List</h3>
 <ul>
+<li><a href='#bool32_doc'>bool32</a></li>
+<li><a href='#int_color_doc'>int_color</a></li>
+<li><a href='#Key_Code_doc'>Key_Code</a></li>
+<li><a href='#Buffer_ID_doc'>Buffer_ID</a></li>
+<li><a href='#View_ID_doc'>View_ID</a></li>
+<li><a href='#Key_Modifier_doc'>Key_Modifier</a></li>
+<li><a href='#Command_ID_doc'>Command_ID</a></li>
+<li><a href='#User_Input_Type_ID_doc'>User_Input_Type_ID</a></li>
+<li><a href='#Event_Message_Type_ID_doc'>Event_Message_Type_ID</a></li>
+<li><a href='#Buffer_Batch_Edit_Type_doc'>Buffer_Batch_Edit_Type</a></li>
+<li><a href='#Buffer_Setting_ID_doc'>Buffer_Setting_ID</a></li>
+<li><a href='#View_Setting_ID_doc'>View_Setting_ID</a></li>
+<li><a href='#Mouse_Cursor_Show_Type_doc'>Mouse_Cursor_Show_Type</a></li>
+<li><a href='#Buffer_Seek_Type_doc'>Buffer_Seek_Type</a></li>
+<li><a href='#View_Split_Position_doc'>View_Split_Position</a></li>
+<li><a href='#Key_Modifier_Flag_doc'>Key_Modifier_Flag</a></li>
+<li><a href='#Memory_Protect_Flags_doc'>Memory_Protect_Flags</a></li>
+<li><a href='#Buffer_Create_Flag_doc'>Buffer_Create_Flag</a></li>
+<li><a href='#Buffer_Kill_Flag_doc'>Buffer_Kill_Flag</a></li>
+<li><a href='#Access_Flag_doc'>Access_Flag</a></li>
+<li><a href='#Seek_Boundary_Flag_doc'>Seek_Boundary_Flag</a></li>
+<li><a href='#Command_Line_Input_Flag_doc'>Command_Line_Input_Flag</a></li>
+<li><a href='#Auto_Indent_Flag_doc'>Auto_Indent_Flag</a></li>
+<li><a href='#Set_Buffer_Flag_doc'>Set_Buffer_Flag</a></li>
+<li><a href='#Input_Type_Flag_doc'>Input_Type_Flag</a></li>
+<li><a href='#Generic_Command_doc'>Generic_Command</a></li>
+<li><a href='#Key_Event_Data_doc'>Key_Event_Data</a></li>
+<li><a href='#Mouse_State_doc'>Mouse_State</a></li>
+<li><a href='#Range_doc'>Range</a></li>
+<li><a href='#File_Info_doc'>File_Info</a></li>
+<li><a href='#File_List_doc'>File_List</a></li>
+<li><a href='#Buffer_Identifier_doc'>Buffer_Identifier</a></li>
+<li><a href='#GUI_Scroll_Vars_doc'>GUI_Scroll_Vars</a></li>
+<li><a href='#Full_Cursor_doc'>Full_Cursor</a></li>
+<li><a href='#Partial_Cursor_doc'>Partial_Cursor</a></li>
+<li><a href='#Buffer_Seek_doc'>Buffer_Seek</a></li>
+<li><a href='#Buffer_Edit_doc'>Buffer_Edit</a></li>
+<li><a href='#Buffer_Summary_doc'>Buffer_Summary</a></li>
+<li><a href='#View_Summary_doc'>View_Summary</a></li>
+<li><a href='#User_Input_doc'>User_Input</a></li>
+<li><a href='#Query_Bar_doc'>Query_Bar</a></li>
+<li><a href='#Event_Message_doc'>Event_Message</a></li>
+<li><a href='#Theme_Color_doc'>Theme_Color</a></li>
 </ul>
 <h3>&sect;3.3 Function Descriptions</h3>
 <div id='exec_command_doc' style='margin-bottom: 1cm;'>
@@ -978,19 +1021,47 @@ when it is no longer in use.</div></div><hr>
 <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>void* app->memory_allocate(
 <div style='margin-left: 4mm;'>Application_Links *app,<br>int32_t size<br></div>)
 </div>
-<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>TODO</div></div><hr>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Parameters</i></b></div><div>
+<div style='font-weight: 600;'>size</div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>The size in bytes of the block that should be returned.</div></div>
+</div>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>This calls to a low level OS allocator which means it is best used
+for infrequent, large allocations.  The size of the block must be remembered
+if it will be freed or if it's mem protection status will be changed.</div><div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>See Also</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'><a href='#memory_free_doc'>memory_free</a></div></div><hr>
 <div id='memory_set_protection_doc' style='margin-bottom: 1cm;'>
 <h4>&sect;3.3.52: memory_set_protection</h4>
 <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>bool32 app->memory_set_protection(
 <div style='margin-left: 4mm;'>Application_Links *app,<br>void *ptr,<br>int32_t size,<br>Memory_Protect_Flags flags<br></div>)
 </div>
-<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>TODO</div></div><hr>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Parameters</i></b></div><div>
+<div style='font-weight: 600;'>ptr</div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>The base of the block on which to set memory protection flags.</div></div>
+</div>
+<div>
+<div style='font-weight: 600;'>size</div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>The size that was originally used to allocate this block.</div></div>
+</div>
+<div>
+<div style='font-weight: 600;'>flags</div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>The new memory protection flags.</div></div>
+</div>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>This call sets the memory protection flags of a block of memory that was previously
+allocate by memory_allocate.</div><div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>See Also</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'><a href='#memory_allocate_doc'>memory_allocate</a></div><div style='margin-left: 5mm; margin-right: 5mm;'><a href='#Memory_Protect_Flags_doc'>Memory_Protect_Flags</a></div></div><hr>
 <div id='memory_free_doc' style='margin-bottom: 1cm;'>
 <h4>&sect;3.3.53: memory_free</h4>
 <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>void app->memory_free(
-<div style='margin-left: 4mm;'>Application_Links *app,<br>void *mem,<br>int32_t size<br></div>)
+<div style='margin-left: 4mm;'>Application_Links *app,<br>void *ptr,<br>int32_t size<br></div>)
 </div>
-<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>TODO</div></div><hr>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Parameters</i></b></div><div>
+<div style='font-weight: 600;'>mem</div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>The base of a block to free.</div></div>
+</div>
+<div>
+<div style='font-weight: 600;'>size</div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>The size that was originally used to allocate this block.</div></div>
+</div>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>This call frees a block of memory that was previously allocated by
+memory_allocate.</div><div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>See Also</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'><a href='#memory_allocate_doc'>memory_allocate</a></div></div><hr>
 <div id='file_exists_doc' style='margin-bottom: 1cm;'>
 <h4>&sect;3.3.54: file_exists</h4>
 <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>bool32 app->file_exists(
@@ -1067,23 +1138,1202 @@ folders.</div></div><hr>
 <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>void app->toggle_fullscreen(
 <div style='margin-left: 4mm;'>Application_Links *app<br></div>)
 </div>
-No documentation generated for this function, assume it is non-public.
-</div><hr>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>This call tells 4coder to switch into or out of full screen mode.
+The changes of full screen mode do not take effect until the end of the current frame.
+On Windows this call will not work unless 4coder was started in "stream mode".
+Stream mode can be enabled with -S or -F flags on the command line to 4ed.</div></div><hr>
 <div id='is_fullscreen_doc' style='margin-bottom: 1cm;'>
 <h4>&sect;3.3.59: is_fullscreen</h4>
 <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>bool32 app->is_fullscreen(
 <div style='margin-left: 4mm;'>Application_Links *app<br></div>)
 </div>
-No documentation generated for this function, assume it is non-public.
-</div><hr>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>See Also</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'><a href='#This call returns true if the 4coder is in full screen mode.  This call
+takes toggles that have already occured this frame into account.  So it may return
+true even though the frame has not ended and actually put 4coder into full screen. If
+it returns true though, 4coder will definitely be full screen by the beginning of the next
+frame if the state is not changed._doc'>This call returns true if the 4coder is in full screen mode.  This call
+takes toggles that have already occured this frame into account.  So it may return
+true even though the frame has not ended and actually put 4coder into full screen. If
+it returns true though, 4coder will definitely be full screen by the beginning of the next
+frame if the state is not changed.</a></div></div><hr>
 <div id='send_exit_signal_doc' style='margin-bottom: 1cm;'>
 <h4>&sect;3.3.60: send_exit_signal</h4>
 <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>void app->send_exit_signal(
 <div style='margin-left: 4mm;'>Application_Links *app<br></div>)
 </div>
-No documentation generated for this function, assume it is non-public.
-</div><hr>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>See Also</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'><a href='#This call sends a signal to 4coder to attempt to exit.  If there are unsaved
+files this triggers a dialogue ensuring you're okay with closing._doc'>This call sends a signal to 4coder to attempt to exit.  If there are unsaved
+files this triggers a dialogue ensuring you're okay with closing.</a></div></div><hr>
 <h3>&sect;3.4 Type Descriptions</h3>
+<div id='bool32_doc' style='margin-bottom: 1cm;'>
+<h4>&sect;3.4.1: bool32</h4>
+<div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>typedef int32_t bool32;</div>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>bool32 is an alias name to signal that an integer parameter or field is for
+true/false vales.</div></div><hr>
+<div id='int_color_doc' style='margin-bottom: 1cm;'>
+<h4>&sect;3.4.2: int_color</h4>
+<div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>typedef uint32_t int_color;</div>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>int_color is an alias name to signal that an integer parameter or field is for
+a color value, colors are specified as 24 bit integers in 3 channels: 0xRRGGBB.</div></div><hr>
+<div id='Key_Code_doc' style='margin-bottom: 1cm;'>
+<h4>&sect;3.4.3: Key_Code</h4>
+<div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>typedef unsigned char Key_Code;</div>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>Key_Code is the alias for key codes including raw codes and codes translated
+to textual input that takes modifiers into account.</div></div><hr>
+<div id='Buffer_ID_doc' style='margin-bottom: 1cm;'>
+<h4>&sect;3.4.4: Buffer_ID</h4>
+<div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>typedef int32_t Buffer_ID;</div>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>Buffer_ID is used to name a 4coder buffer.  Each buffer has a unique id but
+when a buffer is closed it's id may be recycled by future, different buffers.</div></div><hr>
+<div id='View_ID_doc' style='margin-bottom: 1cm;'>
+<h4>&sect;3.4.5: View_ID</h4>
+<div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>typedef int32_t View_ID;</div>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>View_ID is used to name a 4coder view.  Each view has a unique id in
+the interval [1,16].</div></div><hr>
+<div id='Key_Modifier_doc' style='margin-bottom: 1cm;'>
+<h4>&sect;3.4.6: Key_Modifier</h4>
+<div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>enum Key_Modifier;</div>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>A Key_Modifier acts as an index for specifying modifiers in arrays.</div><div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Values</i></b></div><div>
+<div><span style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>MDFR_SHIFT_INDEX</span></span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'></div></div>
+</div>
+<div>
+<div><span style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>MDFR_CONTROL_INDEX</span></span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'></div></div>
+</div>
+<div>
+<div><span style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>MDFR_ALT_INDEX</span></span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'></div></div>
+</div>
+<div>
+<div><span style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>MDFR_CAPS_INDEX</span></span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'></div></div>
+</div>
+<div>
+<div><span style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>MDFR_HOLD_INDEX</span></span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'></div></div>
+</div>
+<div>
+<div><span style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>MDFR_INDEX_COUNT</span></span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>MDFR_INDEX_COUNT is used to specify the number of modifiers supported.</div></div>
+</div>
+</div><hr>
+<div id='Command_ID_doc' style='margin-bottom: 1cm;'>
+<h4>&sect;3.4.7: Command_ID</h4>
+<div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>enum Command_ID;</div>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>A Command_ID is used as a name for commands implemented internally in 4coder.</div><div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Values</i></b></div><div>
+<div><span style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>cmdid_null</span></span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>cmdid_null is set aside to always be zero and is not associated with any command.</div></div>
+</div>
+<div>
+<div><span style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>cmdid_undo</span></span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>cmdid_undo performs a standard undo behavior.</div></div>
+</div>
+<div>
+<div><span style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>cmdid_redo</span></span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>cmdid_redo reperforms an edit that was undone.</div></div>
+</div>
+<div>
+<div><span style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>cmdid_history_backward</span></span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>cmdid_history_backward performs a step backwards through the file history, which includes previously lost redo branches.</div></div>
+</div>
+<div>
+<div><span style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>cmdid_history_forward</span></span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>cmdid_history_forward unperforms the previous cmdid_history_backward step if possib.e</div></div>
+</div>
+<div>
+<div><span style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>cmdid_interactive_new</span></span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>cmdid_interactive_new begins an interactive dialogue to create a new buffer.</div></div>
+</div>
+<div>
+<div><span style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>cmdid_interactive_open</span></span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>cmdid_interactive_open begins an interactive dialogue to open a file into a buffer.</div></div>
+</div>
+<div>
+<div><span style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>cmdid_save_as</span></span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>cmdid_save_as does not currently work and is likely to be removed rather that fixed.</div></div>
+</div>
+<div>
+<div><span style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>cmdid_interactive_switch_buffer</span></span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>cmdid_interactive_switch_buffer begins an interactive dialogue to choose an open buffer to swap into the active view.</div></div>
+</div>
+<div>
+<div><span style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>cmdid_interactive_kill_buffer</span></span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>cmdid_interactive_kill_buffer begins an interactive dialogue to choose an open buffer to kill.</div></div>
+</div>
+<div>
+<div><span style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>cmdid_reopen</span></span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>cmdid_reopen reloads the active buffer's associated file and discards the old buffer contents for the reloaded file.</div></div>
+</div>
+<div>
+<div><span style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>cmdid_save</span></span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>cmdid_save saves the buffer's contents into the associated file.</div></div>
+</div>
+<div>
+<div><span style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>cmdid_kill_buffer</span></span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>cmdid_kill_buffer tries to kill the active buffer.</div></div>
+</div>
+<div>
+<div><span style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>cmdid_open_color_tweaker</span></span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>cmdid_open_color_tweaker opens the theme editing GUI.</div></div>
+</div>
+<div>
+<div><span style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>cmdid_open_config</span></span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>cmdid_open_config opens the configuration menu.</div></div>
+</div>
+<div>
+<div><span style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>cmdid_open_menu</span></span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>cmdid_open_menu opens the top level menu.</div></div>
+</div>
+<div>
+<div><span style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>cmdid_open_debug</span></span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>cmdid_open_debug opens the debug information viewer mode.</div></div>
+</div>
+<div>
+<div><span style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>cmdid_count</span></span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'></div></div>
+</div>
+</div><hr>
+<div id='User_Input_Type_ID_doc' style='margin-bottom: 1cm;'>
+<h4>&sect;3.4.8: User_Input_Type_ID</h4>
+<div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>enum User_Input_Type_ID;</div>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>User_Input_Type_ID specifies a type of user input event.</div><div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Values</i></b></div><div>
+<div><span style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>UserInputNone</span></span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>UserInputNone indicates that no event has occurred.</div></div>
+</div>
+<div>
+<div><span style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>UserInputKey</span></span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>UserInputKey indicates an event which can be described by a Key_Event_Data struct.</div></div>
+</div>
+<div>
+<div><span style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>UserInputMouse</span></span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>UserInputMouse indicates an event which can be described by a Mouse_State struct.</div></div>
+</div>
+</div><hr>
+<div id='Event_Message_Type_ID_doc' style='margin-bottom: 1cm;'>
+<h4>&sect;3.4.9: Event_Message_Type_ID</h4>
+<div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>enum Event_Message_Type_ID;</div>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>Event_Message_Type_ID is a part of an unfinished feature.</div><div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Values</i></b></div><div>
+<div><span style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>EventMessage_NoMessage</span></span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>TODO.</div></div>
+</div>
+<div>
+<div><span style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>EventMessage_OpenView</span></span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>TODO.</div></div>
+</div>
+<div>
+<div><span style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>EventMessage_Frame</span></span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>TODO.</div></div>
+</div>
+<div>
+<div><span style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>EventMessage_CloseView</span></span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>TODO.</div></div>
+</div>
+</div><hr>
+<div id='Buffer_Batch_Edit_Type_doc' style='margin-bottom: 1cm;'>
+<h4>&sect;3.4.10: Buffer_Batch_Edit_Type</h4>
+<div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>enum Buffer_Batch_Edit_Type;</div>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>A Buffer_Batch_Edit_Type is a type of batch operation.</div><div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Values</i></b></div><div>
+<div><span style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>BatchEdit_Normal</span></span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>The BatchEdit_Normal operation is always correct but does the most work.</div></div>
+</div>
+<div>
+<div><span style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>BatchEdit_PreserveTokens</span></span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>The BatchEdit_PreserveTokens operation is one in which none of the edits add, delete, or change any tokens.
+    This usually applies when whitespace is being replaced with whitespace.</div></div>
+</div>
+</div><hr>
+<div id='Buffer_Setting_ID_doc' style='margin-bottom: 1cm;'>
+<h4>&sect;3.4.11: Buffer_Setting_ID</h4>
+<div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>enum Buffer_Setting_ID;</div>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>A Buffer_Setting_ID names a setting in a buffer.</div><div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Values</i></b></div><div>
+<div><span style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>BufferSetting_Null</span></span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>BufferSetting_Null is not a valid setting, it is reserved to detect errors.</div></div>
+</div>
+<div>
+<div><span style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>BufferSetting_Lex</span></span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>The BufferSetting_Lex setting is used to determine whether to store C++ tokens
+    from with the buffer.</div></div>
+</div>
+<div>
+<div><span style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>BufferSetting_WrapLine</span></span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>The BufferSetting_WrapLine setting is used to determine whether a buffer prefers
+    to be viewed with wrapped lines, individual views can be set to override this value after
+    being tied to the buffer.</div></div>
+</div>
+<div>
+<div><span style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>BufferSetting_MapID</span></span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>The BufferSetting_MapID setting specifies the id of the command map that should be
+    active when a buffer is active.</div></div>
+</div>
+<div>
+<div><span style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>BufferSetting_Eol</span></span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>The BufferSetting_Eol setting specifies how line ends should be saved to the backing file. 
+    A 1 indicates dos endings "\r\n" and a 0 indicates nix endings "\n".</div></div>
+</div>
+<div>
+<div><span style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>BufferSetting_Unimportant</span></span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>The BufferSetting_Unimportant setting marks a buffer so that it's dirty state will be completely
+    ignored.  This means the "dirty" star is hidden and the buffer can be closed without presenting an
+    "are you sure" dialogue screen.</div></div>
+</div>
+<div>
+<div><span style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>BufferSetting_ReadOnly</span></span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>The BufferSetting_ReadOnly setting marks a buffer so that it can only be returned from buffer
+    access calls that include an AccessProtected flag.</div></div>
+</div>
+</div><hr>
+<div id='View_Setting_ID_doc' style='margin-bottom: 1cm;'>
+<h4>&sect;3.4.12: View_Setting_ID</h4>
+<div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>enum View_Setting_ID;</div>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>A View_Setting_ID names a setting in a view.</div><div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Values</i></b></div><div>
+<div><span style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>ViewSetting_Null</span></span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>ViewSetting_Null is not a valid setting, it is reserved to detect errors.</div></div>
+</div>
+<div>
+<div><span style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>ViewSetting_WrapLine</span></span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>The ViewSetting_WrapLine setting determines whether the view applies line wrapping
+    at the border of the panel for long lines.  Whenever the view switches to a new buffer it
+    will reset this setting to match the 'preferred' line wrapping setting of the buffer.</div></div>
+</div>
+<div>
+<div><span style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>ViewSetting_ShowWhitespace</span></span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>The ViewSetting_ShowWhitespace setting determines whether the view highlights
+    whitespace in a file.  Whenever the view switches to a new buffer this setting is turned off.</div></div>
+</div>
+<div>
+<div><span style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>ViewSetting_ShowScrollbar</span></span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>The ViewSetting_ShowScrollbar setting determines whether a scroll bar is
+    attached to a view in it's scrollable section.</div></div>
+</div>
+</div><hr>
+<div id='Mouse_Cursor_Show_Type_doc' style='margin-bottom: 1cm;'>
+<h4>&sect;3.4.13: Mouse_Cursor_Show_Type</h4>
+<div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>enum Mouse_Cursor_Show_Type;</div>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>A Mouse_Cursor_Show_Type value specifes a mode for 4coder to handle the mouse cursor.</div><div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Values</i></b></div><div>
+<div><span style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>MouseCursorShow_Never</span></span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>The MouseCursorShow_Never mode never shows the cursor.</div></div>
+</div>
+<div>
+<div><span style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>MouseCursorShow_Always</span></span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>The MouseCursorShow_Never mode always shows the cursor.</div></div>
+</div>
+</div><hr>
+<div id='Buffer_Seek_Type_doc' style='margin-bottom: 1cm;'>
+<h4>&sect;3.4.14: Buffer_Seek_Type</h4>
+<div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>enum Buffer_Seek_Type;</div>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>The Buffer_Seek_Type is is used in a Buffer_Seek to identify which
+coordinates are suppose to be used for the seek.</div><div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Values</i></b></div><div>
+<div><span style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>buffer_seek_pos</span></span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>This value indicates absolute positioning where positions are measured as the number of bytes from the start of the file.</div></div>
+</div>
+<div>
+<div><span style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>buffer_seek_wrapped_xy</span></span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>This value indicates xy positioning with wrapped lines where the x and y values are in pixels.</div></div>
+</div>
+<div>
+<div><span style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>buffer_seek_unwrapped_xy</span></span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>This value indicates xy positioning with unwrapped lines where the x and y values are in pixels.</div></div>
+</div>
+<div>
+<div><span style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>buffer_seek_line_char</span></span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>This value indicates line-character, or line-column positioning.  These coordinates are 1 based to match standard line numbering.</div></div>
+</div>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>See Also</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'><a href='#Buffer_Seek_doc'>Buffer_Seek</a></div><div style='margin-left: 5mm; margin-right: 5mm;'><a href='#4coder_Buffer_Positioning_System_doc'>4coder_Buffer_Positioning_System</a></div></div><hr>
+<div id='View_Split_Position_doc' style='margin-bottom: 1cm;'>
+<h4>&sect;3.4.15: View_Split_Position</h4>
+<div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>enum View_Split_Position;</div>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>A View_Split_Position specifies where a new view should be placed as a result of
+a view split operation.</div><div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Values</i></b></div><div>
+<div><span style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>ViewSplit_Top</span></span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>This value indicates that the new view should be above the existing view.</div></div>
+</div>
+<div>
+<div><span style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>ViewSplit_Bottom</span></span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>This value indicates that the new view should be below the existing view.</div></div>
+</div>
+<div>
+<div><span style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>ViewSplit_Left</span></span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>This value indicates that the new view should be left of the existing view.</div></div>
+</div>
+<div>
+<div><span style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>ViewSplit_Right</span></span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>This value indicates that the new view should be right of the existing view.</div></div>
+</div>
+</div><hr>
+<div id='Key_Modifier_Flag_doc' style='margin-bottom: 1cm;'>
+<h4>&sect;3.4.16: Key_Modifier_Flag</h4>
+<div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>enum Key_Modifier_Flag;</div>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>A Key_Modifier_Flag field is used to specify a specific state of modifiers.
+Flags can be combined with bit or to specify a state with multiple modifiers.</div><div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Flags</i></b></div><div>
+<div><span style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>MDFR_NONE</span> = 0x0</span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>MDFR_NONE specifies that no modifiers are pressed.</div></div>
+</div>
+<div>
+<div><span style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>MDFR_CTRL</span> = 0x1</span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'></div></div>
+</div>
+<div>
+<div><span style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>MDFR_ALT</span> = 0x2</span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'></div></div>
+</div>
+<div>
+<div><span style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>MDFR_SHIFT</span> = 0x4</span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'></div></div>
+</div>
+</div><hr>
+<div id='Memory_Protect_Flags_doc' style='margin-bottom: 1cm;'>
+<h4>&sect;3.4.17: Memory_Protect_Flags</h4>
+<div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>enum Memory_Protect_Flags;</div>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>TODO</div><div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Flags</i></b></div><div>
+<div><span style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>MemProtect_Read</span> = 0x1</span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>TODO</div></div>
+</div>
+<div>
+<div><span style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>MemProtect_Write</span> = 0x2</span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>TODO</div></div>
+</div>
+<div>
+<div><span style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>MemProtect_Execute</span> = 0x4</span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>TODO</div></div>
+</div>
+</div><hr>
+<div id='Buffer_Create_Flag_doc' style='margin-bottom: 1cm;'>
+<h4>&sect;3.4.18: Buffer_Create_Flag</h4>
+<div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>enum Buffer_Create_Flag;</div>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>A Buffer_Create_Flag field specifies how a buffer should be created.</div><div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Flags</i></b></div><div>
+<div><span style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>BufferCreate_Background</span> = 0x1</span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>BufferCreate_Background is not currently implemented.</div></div>
+</div>
+<div>
+<div><span style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>BufferCreate_AlwaysNew</span> = 0x2</span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>When BufferCreate_AlwaysNew is set it indicates the buffer should be
+    cleared to empty even if it's associated file already has content.</div></div>
+</div>
+<div>
+<div><span style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>BufferCreate_NeverNew</span> = 0x4</span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>When BufferCreate_NeverNew is set it indicates that the buffer should
+    only be created if it is an existing file or an open buffer.</div></div>
+</div>
+</div><hr>
+<div id='Buffer_Kill_Flag_doc' style='margin-bottom: 1cm;'>
+<h4>&sect;3.4.19: Buffer_Kill_Flag</h4>
+<div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>enum Buffer_Kill_Flag;</div>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>A Buffer_Kill_Flag field specifies how a buffer should be killed.</div><div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Flags</i></b></div><div>
+<div><span style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>BufferKill_Background</span> = 0x1</span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>BufferKill_Background is not currently implemented.</div></div>
+</div>
+<div>
+<div><span style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>BufferKill_AlwaysKill</span> = 0x2</span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>When BufferKill_AlwaysKill is set it indicates the buffer should be killed
+    without asking, even when the buffer is dirty.</div></div>
+</div>
+</div><hr>
+<div id='Access_Flag_doc' style='margin-bottom: 1cm;'>
+<h4>&sect;3.4.20: Access_Flag</h4>
+<div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>enum Access_Flag;</div>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>An Access_Flag field specifies what sort of permission you grant to an
+access call.  An access call is usually one the returns a summary struct.  If a
+4coder object has a particular protection flag set and the corresponding bit is
+not set in the access field, that 4coder object is hidden.  On the other hand if
+a protection flag is set in the access parameter and the object does not have
+that protection flag, the object is still returned from the access call.</div><div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Flags</i></b></div><div>
+<div><span style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>AccessOpen</span> = 0x0</span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>AccessOpen does not include any bits, it indicates that the access should
+    only return objects that have no protection flags set.</div></div>
+</div>
+<div>
+<div><span style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>AccessProtected</span> = 0x1</span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>AccessProtected is set on buffers and views that are "read only" such as
+    the output from an app->exec_system_command call such as *build*. This is to prevent
+    the user from accidentally editing output that they might prefer to keep in tact.</div></div>
+</div>
+<div>
+<div><span style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>AccessHidden</span> = 0x2</span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>AccessHidden is set on any view that is not currently showing it's file, for
+    instance because it is navigating the file system to open a file.</div></div>
+</div>
+<div>
+<div><span style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>AccessAll</span> = 0xFF</span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>AccessAll is a catchall access for cases where an access call should always
+    return an object no matter what it's protection flags are.</div></div>
+</div>
+</div><hr>
+<div id='Seek_Boundary_Flag_doc' style='margin-bottom: 1cm;'>
+<h4>&sect;3.4.21: Seek_Boundary_Flag</h4>
+<div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>enum Seek_Boundary_Flag;</div>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>A Seek_Boundary_Flag field specifies a set of "boundary" types used in seeks for the
+beginning or end of different types of words.</div><div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Flags</i></b></div><div>
+<div><span style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>BoundaryWhitespace</span> = 0x1</span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'></div></div>
+</div>
+<div>
+<div><span style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>BoundaryToken</span> = 0x2</span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'></div></div>
+</div>
+<div>
+<div><span style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>BoundaryAlphanumeric</span> = 0x4</span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'></div></div>
+</div>
+<div>
+<div><span style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>BoundaryCamelCase</span> = 0x8</span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'></div></div>
+</div>
+</div><hr>
+<div id='Command_Line_Input_Flag_doc' style='margin-bottom: 1cm;'>
+<h4>&sect;3.4.22: Command_Line_Input_Flag</h4>
+<div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>enum Command_Line_Input_Flag;</div>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>A Command_Line_Input_Flag field specifies the behavior of a call to a command line interface.</div><div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Flags</i></b></div><div>
+<div><span style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>CLI_OverlapWithConflict</span> = 0x1</span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>If CLI_OverlapWithConflict is set if output buffer of the new command is already
+    in use by another command which is still executing, the older command relinquishes control
+    of the buffer and both operate simultaneously with only the newer command outputting to
+    the buffer.</div></div>
+</div>
+<div>
+<div><span style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>CLI_AlwaysBindToView</span> = 0x2</span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>If CLI_AlwaysBindToView is set the output buffer will always be set in the active
+    view even if it is already set in another open view.</div></div>
+</div>
+<div>
+<div><span style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>CLI_CursorAtEnd</span> = 0x4</span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>If CLI_CursorAtEnd is set the cursor will be kept at the end of the output buffer,
+    otherwise the cursor is kept at the beginning.</div></div>
+</div>
+</div><hr>
+<div id='Auto_Indent_Flag_doc' style='margin-bottom: 1cm;'>
+<h4>&sect;3.4.23: Auto_Indent_Flag</h4>
+<div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>enum Auto_Indent_Flag;</div>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>An Auto_Indent_Flag field specifies the behavior of an auto indentation operation.</div><div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Flags</i></b></div><div>
+<div><span style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>AutoIndent_ClearLine</span> = 0x1</span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>If AutoIndent_ClearLine is set, then any line that is only whitespace will
+    be cleared to contain nothing at all. otherwise the line is filled with whitespace
+    to match the nearby indentation.</div></div>
+</div>
+<div>
+<div><span style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>AutoIndent_UseTab</span> = 0x2</span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>If AutoIndent_UseTab is set, then when putting in leading whitespace to align
+    code, as many tabs will be used as possible until the fine grained control of spaces
+    is needed to finish the alignment.</div></div>
+</div>
+</div><hr>
+<div id='Set_Buffer_Flag_doc' style='margin-bottom: 1cm;'>
+<h4>&sect;3.4.24: Set_Buffer_Flag</h4>
+<div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>enum Set_Buffer_Flag;</div>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>A Set_Buffer_Flag field specifies the behavior of an operation that sets the buffer of a view.</div><div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Flags</i></b></div><div>
+<div><span style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>SetBuffer_KeepOriginalGUI</span> = 0x1</span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>If SetBuffer_KeepOriginalGUI then when the file is set, the view will not switch to it
+    if some other GUI was currently up, otherwise any GUI that is up is closed and the view
+    switches to the file.</div></div>
+</div>
+</div><hr>
+<div id='Input_Type_Flag_doc' style='margin-bottom: 1cm;'>
+<h4>&sect;3.4.25: Input_Type_Flag</h4>
+<div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>enum Input_Type_Flag;</div>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>A Input_Type_Flag field specifies a set of input event types.</div><div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Flags</i></b></div><div>
+<div><span style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>EventOnAnyKey</span> = 0x1</span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>If EventOnAnyKey is set, all keyboard events are included in the set.</div></div>
+</div>
+<div>
+<div><span style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>EventOnEsc</span> = 0x2</span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>If EventOnEsc is set, any press of the escape key is included in the set.</div></div>
+</div>
+<div>
+<div><span style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>EventOnLeftButton</span> = 0x4</span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>If EventOnLeftButton is set, left clicks are included in the set.</div></div>
+</div>
+<div>
+<div><span style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>EventOnRightButton</span> = 0x8</span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>If EventOnRightButton is set, right clicks are included in the set.</div></div>
+</div>
+<div>
+<div><span style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>EventOnWheel</span> = 0x10</span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>If EventOnWheel is set, any wheel movement is included in the set.</div></div>
+</div>
+<div>
+<div><span style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>EventOnButton</span> = (EventOnLeftButton | EventOnRightButton | EventOnWheel)</span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>If EventOnButton is set, all mouse button events are included in the set.</div></div>
+</div>
+<div>
+<div><span style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>EventOnMouseMove</span> = 0x20</span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>This is not totally implemented yet.</div></div>
+</div>
+<div>
+<div><span style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>EventOnMouse</span> = (EventOnButton | EventOnMouseMove)</span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>This is not totally implemented yet.</div></div>
+</div>
+<div>
+<div><span style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>EventAll</span> = 0xFF</span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>EventAll is a catch all name for including all possible events in the set.</div></div>
+</div>
+</div><hr>
+<div id='Generic_Command_doc' style='margin-bottom: 1cm;'>
+<h4>&sect;3.4.26: Generic_Command</h4>
+<div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>union Generic_Command {<br>
+<div style='margin-left: 8mm;'>
+Command_ID cmdid;<br>
+Custom_Command_Function * command;<br>
+</div>
+};<br>
+</div>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>Generic_Command acts as a name for a command, and can name an
+internal command or a custom command.</div><div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Fields</i></b></div><div>
+<div style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>cmdid</span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>If this Generic_Command represents an internal command the cmdid field
+    will have a value less than cmdid_count, and this field is the command id for the command.</div></div>
+</div>
+<div>
+<div style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>command</span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>If this Generic_Command does not represent an internal command the command
+    field is the pointer to the custom command..</div></div>
+</div>
+</div><hr>
+<div id='Key_Event_Data_doc' style='margin-bottom: 1cm;'>
+<h4>&sect;3.4.27: Key_Event_Data</h4>
+<div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>struct Key_Event_Data {<br>
+<div style='margin-left: 8mm;'>
+Key_Code keycode;<br>
+Key_Code character;<br>
+Key_Code character_no_caps_lock;<br>
+char modifiers[MDFR_INDEX_COUNT];<br>
+</div>
+};<br>
+</div>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>Key_Event_Data describes a key event, including the
+translation to a character, the translation to
+a character ignoring the state of caps lock, and
+an array of all the modifiers that were pressed
+at the time of the event.</div><div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Fields</i></b></div><div>
+<div style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>keycode</span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>This field is the raw keycode which is always non-zero in valid key events.</div></div>
+</div>
+<div>
+<div style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>character</span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>This field is the keycode after translation to a character, this is 0 if there is no translation.</div></div>
+</div>
+<div>
+<div style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>character_no_caps_lock</span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>This field is like the field character, except that the state of caps lock is ignored in the translation.</div></div>
+</div>
+<div>
+<div style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>modifiers</span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>This field is an array indicating the state of modifiers at the time of the key press.
+    The array is indexed using the values of Key_Modifier.  A 1 indicates that the corresponding
+    modifier was held, and a 0 indicates that it was not held.</div></div>
+</div>
+</div><hr>
+<div id='Mouse_State_doc' style='margin-bottom: 1cm;'>
+<h4>&sect;3.4.28: Mouse_State</h4>
+<div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>struct Mouse_State {<br>
+<div style='margin-left: 8mm;'>
+char l;<br>
+char r;<br>
+char press_l;<br>
+char press_r;<br>
+char release_l;<br>
+char release_r;<br>
+char wheel;<br>
+char out_of_window;<br>
+int32_t x;<br>
+int32_t y;<br>
+</div>
+};<br>
+</div>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>Mouse_State describes an entire mouse state complete with the position,
+left and right button states, the wheel state, and whether or not the
+mouse if in the window.</div><div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Fields</i></b></div><div>
+<div style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>l</span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>This field indicates that the left button is held.</div></div>
+</div>
+<div>
+<div style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>r</span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>This field indicates that the right button is held.</div></div>
+</div>
+<div>
+<div style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>press_l</span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>This field indicates that the left button was pressed this frame.</div></div>
+</div>
+<div>
+<div style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>press_r</span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>This field indicates that the right button was pressed this frame.</div></div>
+</div>
+<div>
+<div style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>release_l</span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>This field indicates that the left button was released this frame.</div></div>
+</div>
+<div>
+<div style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>release_r</span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>This field indicates that the right button was released this frame.</div></div>
+</div>
+<div>
+<div style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>wheel</span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>This field is 0 when the wheel has not moved, it is 1 for a downward motion and -1 for an upward motion.</div></div>
+</div>
+<div>
+<div style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>out_of_window</span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>This field indicates that the mouse is outside of the window.</div></div>
+</div>
+<div>
+<div style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>x</span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>This field contains the x position of the mouse relative to the window where the left side is 0.</div></div>
+</div>
+<div>
+<div style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>y</span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>This field contains the y position of the mouse relative to the window where the top side is 0.</div></div>
+</div>
+</div><hr>
+<div id='Range_doc' style='margin-bottom: 1cm;'>
+<h4>&sect;3.4.29: Range</h4>
+<div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>union Range {<br>
+<div style='margin-left: 8mm;'>
+struct  {<br>
+<div style='margin-left: 8mm;'>
+int32_t min;<br>
+int32_t max;<br>
+</div>
+};<br>
+struct  {<br>
+<div style='margin-left: 8mm;'>
+int32_t start;<br>
+int32_t end;<br>
+</div>
+};<br>
+</div>
+};<br>
+</div>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>Range describes an integer range typically used for ranges within a buffer.
+Ranges tend are usually not passed as a Range struct into the API, but this
+struct is used to return ranges.
+
+Throughout the API ranges are thought of in the form [min,max</div><div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Fields</i></b></div><div>
+<div style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>min</span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>This is the smaller value in the range, it is also the 'start'.</div></div>
+</div>
+<div>
+<div style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>max</span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>This is the larger value in the range, it is also the 'end'.</div></div>
+</div>
+<div>
+<div style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>start</span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>This is the start of the range, it is also the 'min'.</div></div>
+</div>
+<div>
+<div style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>end</span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>This is the end of the range, it is also the 'max'.</div></div>
+</div>
+</div><hr>
+<div id='File_Info_doc' style='margin-bottom: 1cm;'>
+<h4>&sect;3.4.30: File_Info</h4>
+<div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>struct File_Info {<br>
+<div style='margin-left: 8mm;'>
+char * filename;<br>
+int32_t filename_len;<br>
+int32_t folder;<br>
+</div>
+};<br>
+</div>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>File_Info describes the name and type of a file.</div><div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Fields</i></b></div><div>
+<div style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>filename</span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>This field is a null terminated string specifying the name of the file.</div></div>
+</div>
+<div>
+<div style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>filename_len</span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>This field specifies the length of the filename string not counting the null terminator.</div></div>
+</div>
+<div>
+<div style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>folder</span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>This field indicates that the description is for a folder not a file.</div></div>
+</div>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>See Also</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'><a href='#File_List_doc'>File_List</a></div></div><hr>
+<div id='File_List_doc' style='margin-bottom: 1cm;'>
+<h4>&sect;3.4.31: File_List</h4>
+<div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>struct File_List {<br>
+<div style='margin-left: 8mm;'>
+void * block;<br>
+File_Info * infos;<br>
+int32_t count;<br>
+int32_t block_size;<br>
+</div>
+};<br>
+</div>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>File_List is a list of File_Info structs.</div><div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Fields</i></b></div><div>
+<div style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>block</span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>This field is for inernal use.</div></div>
+</div>
+<div>
+<div style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>infos</span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>This field is an array of File_Info structs.</div></div>
+</div>
+<div>
+<div style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>count</span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>This field specifies the number of struts in the info array.</div></div>
+</div>
+<div>
+<div style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>block_size</span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>This field is for internal use.</div></div>
+</div>
+</div><hr>
+<div id='Buffer_Identifier_doc' style='margin-bottom: 1cm;'>
+<h4>&sect;3.4.32: Buffer_Identifier</h4>
+<div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>struct Buffer_Identifier {<br>
+<div style='margin-left: 8mm;'>
+char * name;<br>
+int32_t name_len;<br>
+int32_t id;<br>
+</div>
+};<br>
+</div>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>Buffer_Identifier acts as a loosely typed description of a buffer that
+can either be a name or an id.  If the</div><div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Fields</i></b></div><div>
+<div style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>name</span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>This field is the name of the buffer; it need not be null terminated.
+    If id is specified this pointer should be NULL.</div></div>
+</div>
+<div>
+<div style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>name_len</span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>This field specifies the length of the name string.</div></div>
+</div>
+<div>
+<div style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>id</span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>This field is the id of the buffer.  If name is specified this should be 0.</div></div>
+</div>
+</div><hr>
+<div id='GUI_Scroll_Vars_doc' style='margin-bottom: 1cm;'>
+<h4>&sect;3.4.33: GUI_Scroll_Vars</h4>
+<div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>struct GUI_Scroll_Vars {<br>
+<div style='margin-left: 8mm;'>
+float scroll_y;<br>
+int32_t target_y;<br>
+int32_t prev_target_y;<br>
+float scroll_x;<br>
+int32_t target_x;<br>
+int32_t prev_target_x;<br>
+</div>
+};<br>
+</div>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>This struct is a part of an incomplete feature.</div><div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Fields</i></b></div><div>
+<div style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>scroll_y</span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>TODO</div></div>
+</div>
+<div>
+<div style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>target_y</span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>TODO</div></div>
+</div>
+<div>
+<div style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>prev_target_y</span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>TODO</div></div>
+</div>
+<div>
+<div style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>scroll_x</span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>TODO</div></div>
+</div>
+<div>
+<div style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>target_x</span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>TODO</div></div>
+</div>
+<div>
+<div style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>prev_target_x</span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>TODO</div></div>
+</div>
+</div><hr>
+<div id='Full_Cursor_doc' style='margin-bottom: 1cm;'>
+<h4>&sect;3.4.34: Full_Cursor</h4>
+<div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>struct Full_Cursor {<br>
+<div style='margin-left: 8mm;'>
+int32_t pos;<br>
+int32_t line;<br>
+int32_t character;<br>
+float unwrapped_x;<br>
+float unwrapped_y;<br>
+float wrapped_x;<br>
+float wrapped_y;<br>
+</div>
+};<br>
+</div>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>Full_Cursor describes the position of a cursor in every buffer
+coordinate system supported by 4coder. This cursor type requires that
+the buffer is associated with a view to give the x/y values meaning.</div><div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Fields</i></b></div><div>
+<div style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>pos</span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>This field contains the cursor's position in absolute positioning.</div></div>
+</div>
+<div>
+<div style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>line</span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>This field contains the number of the line where the cursor is located. This field is one based.</div></div>
+</div>
+<div>
+<div style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>character</span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>This field contains the number of the column where the cursor is located. This field is one based.</div></div>
+</div>
+<div>
+<div style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>unwrapped_x</span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>This field contains the x position measured with unwrapped lines.</div></div>
+</div>
+<div>
+<div style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>unwrapped_y</span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>This field contains the y position measured with unwrapped lines.</div></div>
+</div>
+<div>
+<div style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>wrapped_x</span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>This field contains the x position measured with wrapped lines.</div></div>
+</div>
+<div>
+<div style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>wrapped_y</span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>This field contains the y position measured with wrapped lines.</div></div>
+</div>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>See Also</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'><a href='#4coder_Buffer_Positioning_System_doc'>4coder_Buffer_Positioning_System</a></div></div><hr>
+<div id='Partial_Cursor_doc' style='margin-bottom: 1cm;'>
+<h4>&sect;3.4.35: Partial_Cursor</h4>
+<div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>struct Partial_Cursor {<br>
+<div style='margin-left: 8mm;'>
+int32_t pos;<br>
+int32_t line;<br>
+int32_t character;<br>
+</div>
+};<br>
+</div>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>Partial_Cursor describes the position of a cursor in all of
+the coordinate systems that a invariant to the View.  In other words
+the coordinate systems available here can be used on a buffer that is
+not currently associated with a View.</div><div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Fields</i></b></div><div>
+<div style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>pos</span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>This field contains the cursor's position in absolute positioning.</div></div>
+</div>
+<div>
+<div style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>line</span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>This field contains the number of the line where the cursor is located. This field is one based.</div></div>
+</div>
+<div>
+<div style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>character</span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>This field contains the number of the column where the cursor is located. This field is one based.</div></div>
+</div>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>See Also</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'><a href='#4coder_Buffer_Positioning_System_doc'>4coder_Buffer_Positioning_System</a></div></div><hr>
+<div id='Buffer_Seek_doc' style='margin-bottom: 1cm;'>
+<h4>&sect;3.4.36: Buffer_Seek</h4>
+<div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>struct Buffer_Seek {<br>
+<div style='margin-left: 8mm;'>
+Buffer_Seek_Type type;<br>
+union  {<br>
+<div style='margin-left: 8mm;'>
+struct  {<br>
+<div style='margin-left: 8mm;'>
+int32_t pos;<br>
+</div>
+};<br>
+struct  {<br>
+<div style='margin-left: 8mm;'>
+bool32 round_down;<br>
+float x;<br>
+float y;<br>
+</div>
+};<br>
+struct  {<br>
+<div style='margin-left: 8mm;'>
+int32_t line;<br>
+int32_t character;<br>
+</div>
+};<br>
+</div>
+};<br>
+</div>
+};<br>
+</div>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>Buffer_Seek describes the destination of a seek operation.  There are helpers
+for concisely creating Buffer_Seek structs.  They can be found in 4coder_buffer_types.h.</div><div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Fields</i></b></div><div>
+<div style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>type</span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>The type field determines the coordinate system of the seek operation.</div></div>
+</div>
+<div>
+<div style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>pos</span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>The pos field specified the pos when the seek is in absolute position.</div></div>
+</div>
+<div>
+<div style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>round_down</span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>For xy coordinate seeks, rounding down means that any x in the box of the
+            character lands on that character. For instance when clicking rounding down is the
+            user's expected behavior.  Not rounding down means that the right hand portion of
+            the character's box, which is closer to the next character, will land on that next
+            character.  The unrounded behavior is the expected behavior when moving vertically
+            and keeping the preferred x.</div></div>
+</div>
+<div>
+<div style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>x</span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>The x coordinate for xy type seeks.</div></div>
+</div>
+<div>
+<div style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>y</span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>The y coordinate for xy type seeks.</div></div>
+</div>
+<div>
+<div style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>line</span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>The line number of a line-character type seek.</div></div>
+</div>
+<div>
+<div style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>character</span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>The character number of a line-character type seek.</div></div>
+</div>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>See Also</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'><a href='#Buffer_Seek_Type_doc'>Buffer_Seek_Type</a></div><div style='margin-left: 5mm; margin-right: 5mm;'><a href='#4coder_Buffer_Positioning_System_doc'>4coder_Buffer_Positioning_System</a></div></div><hr>
+<div id='Buffer_Edit_doc' style='margin-bottom: 1cm;'>
+<h4>&sect;3.4.37: Buffer_Edit</h4>
+<div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>struct Buffer_Edit {<br>
+<div style='margin-left: 8mm;'>
+int32_t str_start;<br>
+int32_t len;<br>
+int32_t start;<br>
+int32_t end;<br>
+</div>
+};<br>
+</div>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>Buffer_Edit describes a range of a buffer and string to replace that range.
+A Buffer_Edit has to be paired with a string that contains the actual text that
+will be replaced into the buffer.</div><div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Fields</i></b></div><div>
+<div style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>str_start</span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>The str_start field specifies the first character in the accompanying string that corresponds with this edit.</div></div>
+</div>
+<div>
+<div style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>len</span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>The len field specifies the length of the string being written into the buffer.</div></div>
+</div>
+<div>
+<div style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>start</span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>The start field specifies the start of the range in the buffer to replace in absolute position.</div></div>
+</div>
+<div>
+<div style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>end</span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>The end field specifies one past the end of the range in the buffer to replace in absolute position.</div></div>
+</div>
+</div><hr>
+<div id='Buffer_Summary_doc' style='margin-bottom: 1cm;'>
+<h4>&sect;3.4.38: Buffer_Summary</h4>
+<div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>struct Buffer_Summary {<br>
+<div style='margin-left: 8mm;'>
+bool32 exists;<br>
+bool32 ready;<br>
+int32_t buffer_id;<br>
+Access_Flag lock_flags;<br>
+int32_t size;<br>
+int32_t line_count;<br>
+char * file_name;<br>
+int32_t file_name_len;<br>
+char * buffer_name;<br>
+int32_t buffer_name_len;<br>
+bool32 is_lexed;<br>
+int32_t map_id;<br>
+bool32 unwrapped_lines;<br>
+</div>
+};<br>
+</div>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>Buffer_Summary acts as a handle to a buffer and describes the state of the buffer.</div><div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Fields</i></b></div><div>
+<div style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>exists</span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>This field indicates whether the Buffer_Summary describes a buffer that is open in 4coder.
+    When this field is false the summary is referred to as a "null summary".</div></div>
+</div>
+<div>
+<div style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>ready</span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>If this is not a null summary, this field indicates whether the buffer has finished loading.</div></div>
+</div>
+<div>
+<div style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>buffer_id</span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>If this is not a null summary this field is the id of the associated buffer.
+    If this is a null summary then buffer_id is 0.</div></div>
+</div>
+<div>
+<div style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>lock_flags</span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>If this is not a null summary, this field contains flags describing the protection status of the buffer.</div></div>
+</div>
+<div>
+<div style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>size</span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>If this is not a null summary, this field specifies the size of the text in the buffer.</div></div>
+</div>
+<div>
+<div style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>line_count</span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>If this is not a null summary, this field specifies the number of lines in the buffer.</div></div>
+</div>
+<div>
+<div style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>file_name</span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>If this is not a null summary, this field specifies the file name associated to this buffer.</div></div>
+</div>
+<div>
+<div style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>file_name_len</span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>This field specifies the length of the file_name string.</div></div>
+</div>
+<div>
+<div style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>buffer_name</span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>If this is not a null summary, this field specifies the name of the buffer.</div></div>
+</div>
+<div>
+<div style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>buffer_name_len</span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>This field specifies the length of the buffer_name string.</div></div>
+</div>
+<div>
+<div style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>is_lexed</span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>If this is not a null summary, this field indicates whether the buffer is set to lex tokens.</div></div>
+</div>
+<div>
+<div style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>map_id</span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>If this is not a null summary, this field specifies the id of the command map for this buffer.</div></div>
+</div>
+<div>
+<div style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>unwrapped_lines</span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>If this is not a null summary, this field indicates whether the buffer 'prefers' wrapped lines.</div></div>
+</div>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>See Also</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'><a href='#Access_Flag_doc'>Access_Flag</a></div></div><hr>
+<div id='View_Summary_doc' style='margin-bottom: 1cm;'>
+<h4>&sect;3.4.39: View_Summary</h4>
+<div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>struct View_Summary {<br>
+<div style='margin-left: 8mm;'>
+bool32 exists;<br>
+int32_t view_id;<br>
+int32_t buffer_id;<br>
+Access_Flag lock_flags;<br>
+Full_Cursor cursor;<br>
+Full_Cursor mark;<br>
+float preferred_x;<br>
+float line_height;<br>
+bool32 unwrapped_lines;<br>
+bool32 show_whitespace;<br>
+i32_Rect file_region;<br>
+GUI_Scroll_Vars scroll_vars;<br>
+</div>
+};<br>
+</div>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>View_Summary acts as a handle to a view and describes the state of the view.</div><div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Fields</i></b></div><div>
+<div style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>exists</span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>This field indicates whether the View_Summary describes a view that is open in 4coder.
+    When this field is false the summary is referred to as a "null summary".</div></div>
+</div>
+<div>
+<div style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>view_id</span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>If this is not a null summary, this field is the id of the associated view.
+    If this is a null summary then view_id is 0.</div></div>
+</div>
+<div>
+<div style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>buffer_id</span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>If this is not a null summary, and this view looks at a buffer, this is the id of the buffer.</div></div>
+</div>
+<div>
+<div style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>lock_flags</span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>If this is not a null summary, this field contains flags describing the protection status of the view.</div></div>
+</div>
+<div>
+<div style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>cursor</span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>If this is not a null summary, this describes the position of the cursor.</div></div>
+</div>
+<div>
+<div style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>mark</span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>If this is not a null summary, this describes the position of the mark.</div></div>
+</div>
+<div>
+<div style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>preferred_x</span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>If this is not a null summary, this is the x position that is maintained in vertical navigation.</div></div>
+</div>
+<div>
+<div style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>line_height</span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>If this is not a null summary, this specifies the height of a line rendered in the view.</div></div>
+</div>
+<div>
+<div style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>unwrapped_lines</span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>If this is not a null summary, this indicates that the view is set to render with unwrapped lines.</div></div>
+</div>
+<div>
+<div style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>show_whitespace</span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>If this is not a null summary, this indicates that the view is set to highlight white space.</div></div>
+</div>
+<div>
+<div style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>file_region</span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>If this is not a null summary, this describes the screen position in which this view's buffer is displayed.</div></div>
+</div>
+<div>
+<div style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>scroll_vars</span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>If this is not a null summary, this describes the scrolling position inside the view.</div></div>
+</div>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>See Also</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'><a href='#Access_Flag_doc'>Access_Flag</a></div><div style='margin-left: 5mm; margin-right: 5mm;'><a href='#Full_Cursor_doc'>Full_Cursor</a></div></div><hr>
+<div id='User_Input_doc' style='margin-bottom: 1cm;'>
+<h4>&sect;3.4.40: User_Input</h4>
+<div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>struct User_Input {<br>
+<div style='margin-left: 8mm;'>
+User_Input_Type_ID type;<br>
+bool32 abort;<br>
+union  {<br>
+<div style='margin-left: 8mm;'>
+Key_Event_Data key;<br>
+Mouse_State mouse;<br>
+</div>
+};<br>
+Generic_Command command;<br>
+</div>
+};<br>
+</div>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>User_Input describes a user input event which can be either a key press or mouse event.</div><div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Fields</i></b></div><div>
+<div style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>type</span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>This field specifies whether the event was a key press or mouse event.</div></div>
+</div>
+<div>
+<div style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>abort</span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>This field indicates that an abort event has occurred and the command needs to shut down.</div></div>
+</div>
+<div>
+<div style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>key</span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>This field describes a key press event.</div></div>
+</div>
+<div>
+<div style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>mouse</span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>This field describes a mouse input event.</div></div>
+</div>
+<div>
+<div style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>command</span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>If this event would trigger a command, this field specifies what the command would be.</div></div>
+</div>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>See Also</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'><a href='#User_Input_Type_ID_doc'>User_Input_Type_ID</a></div><div style='margin-left: 5mm; margin-right: 5mm;'><a href='#Generic_Command_doc'>Generic_Command</a></div></div><hr>
+<div id='Query_Bar_doc' style='margin-bottom: 1cm;'>
+<h4>&sect;3.4.41: Query_Bar</h4>
+<div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>struct Query_Bar {<br>
+<div style='margin-left: 8mm;'>
+String prompt;<br>
+String string;<br>
+</div>
+};<br>
+</div>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>Query_Bar is a struct used to store information in the user's control
+that will be displayed as a drop down bar durring an interactive command.</div><div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Fields</i></b></div><div>
+<div style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>prompt</span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>This specifies the prompt portion of the drop down bar.</div></div>
+</div>
+<div>
+<div style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>string</span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>This specifies the main string portion of the drop down bar.</div></div>
+</div>
+</div><hr>
+<div id='Event_Message_doc' style='margin-bottom: 1cm;'>
+<h4>&sect;3.4.42: Event_Message</h4>
+<div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>struct Event_Message {<br>
+<div style='margin-left: 8mm;'>
+int32_t type;<br>
+</div>
+};<br>
+</div>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>This feature is not implemented.</div><div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Fields</i></b></div><div>
+<div style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>type</span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>This feature is not implemented.</div></div>
+</div>
+</div><hr>
+<div id='Theme_Color_doc' style='margin-bottom: 1cm;'>
+<h4>&sect;3.4.43: Theme_Color</h4>
+<div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>struct Theme_Color {<br>
+<div style='margin-left: 8mm;'>
+Style_Tag tag;<br>
+int_color color;<br>
+</div>
+};<br>
+</div>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>Theme_Color stores a style tag/color pair, for the purpose of setting and getting colors in the theme .</div><div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Fields</i></b></div><div>
+<div style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>tag</span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'></div></div>
+</div>
+<div>
+<div style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>color</span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'></div></div>
+</div>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>See Also</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'><a href='#Style_Tag_doc'>Style_Tag</a></div><div style='margin-left: 5mm; margin-right: 5mm;'><a href='#int_color_doc'>int_color</a></div></div><hr>
 <h2 id='section_string_library'>&sect;4 String Library</h2>
 <h3>&sect;4.1 String Intro</h3>
 <ul>
