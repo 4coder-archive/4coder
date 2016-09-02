@@ -138,6 +138,7 @@ FSTRING_LINK    void          to_lower_s(String *str);
 FSTRING_LINK    void          to_upper_cc(char *src, char *dst);
 FSTRING_LINK    void          to_upper_ss(String *src, String *dst);
 FSTRING_LINK    void          to_upper_s(String *str);
+FSTRING_LINK    void          to_camel_cc(char *src, char *dst);
 FSTRING_LINK    int32_t       int_to_str_size(int32_t x);
 FSTRING_LINK    fstr_bool     int_to_str(String *dest, int32_t x);
 FSTRING_LINK    fstr_bool     append_int_to_str(String *dest, int32_t x);
@@ -232,6 +233,7 @@ FSTRING_INLINE  void          to_lower(String *str);
 FSTRING_INLINE  void          to_upper(char *src, char *dst);
 FSTRING_INLINE  void          to_upper(String *src, String *dst);
 FSTRING_INLINE  void          to_upper(String *str);
+FSTRING_INLINE  void          to_camel(char *src, char *dst);
 FSTRING_INLINE  int32_t       str_is_int(char *str);
 FSTRING_INLINE  fstr_bool     str_is_int(String str);
 FSTRING_INLINE  int32_t       str_to_int(char *str);
@@ -366,6 +368,8 @@ FSTRING_INLINE void
 to_upper(String *src, String *dst){(to_upper_ss(src,dst));}
 FSTRING_INLINE void
 to_upper(String *str){(to_upper_s(str));}
+FSTRING_INLINE void
+to_camel(char *src, char *dst){(to_camel_cc(src,dst));}
 FSTRING_INLINE int32_t
 str_is_int(char *str){return(str_is_int_c(str));}
 FSTRING_INLINE fstr_bool
@@ -1502,6 +1506,33 @@ to_upper_s(String *str){
     }
 }
 #endif
+
+
+#if defined(FSTRING_IMPLEMENTATION)
+FSTRING_LINK void
+to_camel_cc(char *src, char *dst){
+    char *c, ch;
+    int32_t is_first = 1;
+    for (c = src; *c != 0; ++c){
+        ch = *c;
+        if (char_is_alpha_numeric_true(ch)){
+            if (is_first){
+                is_first = 0;
+                ch = char_to_upper(ch);
+            }
+            else{
+                ch = char_to_lower(ch);
+            }
+        }
+        else{
+            is_first = 1;
+        }
+        *dst++ = ch;
+    }
+    *dst = 0;
+}
+#endif
+
 
 //
 //  String <-> Number Conversions

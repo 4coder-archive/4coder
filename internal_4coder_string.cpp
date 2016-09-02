@@ -1178,8 +1178,8 @@ CPP_NAME(to_upper)
 FSTRING_LINK void
 to_upper_cc(char *src, char *dst)/*
 DOC_PARAM(src, The source string to convert to uppercase.  This string must be null terminated.)
-DOC_PARAM(dst, The destination buffer to receive the converted string.  This must be large
-enough to contain all of src and a null terminator.)
+DOC_PARAM(dst, The destination buffer to receive the converted string. 
+This must be large enough to contain all of src and a null terminator.)
 DOC(Rewrites the string in src into dst.  src and dst should not overlap with the exception
 that src and dst may be exactly equal in order to convert the string in place.)
 */{
@@ -1192,7 +1192,7 @@ that src and dst may be exactly equal in order to convert the string in place.)
 CPP_NAME(to_upper)
 FSTRING_LINK void
 to_upper_ss(String *src, String *dst)/*
-DOC_PARAM(src, The source string to conver to uppercase.)
+DOC_PARAM(src, The source string to convert to uppercase.)
 DOC_PARAM(dst, The destination buffer to receive the converted string.
 This must have a capacity of at least the size of src.)
 DOC(Rewrites the string in src into dst.  src and dst should not overlap with the exception
@@ -1223,6 +1223,38 @@ DOC(This version of to_upper converts str to uppercase in place.)
         *c = char_to_upper(*c);
     }
 }
+
+CPP_NAME(to_camel)
+FSTRING_LINK void
+to_camel_cc(char *src, char *dst)/*
+DOC_PARAM(src, The source string to convert to camel case.)
+DOC_PARAM(dst, The destination buffer to receive the converted string.
+This must be large enough to contain all of src and a null terminator.)
+DOC(Rewrites the string in src into dst.  src and dst should not overlap
+with the exception that src and dst may be exactly equal in order to
+convert the string in place.)
+*/{
+    char *c, ch;
+    int32_t is_first = 1;
+    for (c = src; *c != 0; ++c){
+        ch = *c;
+        if (char_is_alpha_numeric_true(ch)){
+            if (is_first){
+                is_first = 0;
+                ch = char_to_upper(ch);
+            }
+            else{
+                ch = char_to_lower(ch);
+            }
+        }
+        else{
+            is_first = 1;
+        }
+        *dst++ = ch;
+    }
+    *dst = 0;
+}
+
 
 //
 //  String <-> Number Conversions
