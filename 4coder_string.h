@@ -157,6 +157,7 @@ FSTRING_INLINE  String        path_of_directory(String dir);
 FSTRING_LINK    fstr_bool     set_last_folder_sc(String *dir, char *folder_name, char slash);
 FSTRING_LINK    fstr_bool     set_last_folder_ss(String *dir, String folder_name, char slash);
 FSTRING_LINK    String        file_extension(String str);
+FSTRING_LINK    fstr_bool     remove_extension(String *str);
 FSTRING_LINK    fstr_bool     remove_last_folder(String *str);
 FSTRING_LINK    fstr_bool     string_set_match(String *str_set, int32_t count, String str, int32_t *match_index);
 
@@ -1851,6 +1852,22 @@ file_extension(String str){
     }
     ++i;
     return(make_string(str.str+i, str.size-i));
+}
+#endif
+
+#if defined(FSTRING_IMPLEMENTATION)
+FSTRING_LINK fstr_bool
+remove_extension(String *str){
+    fstr_bool result = 0;
+    int32_t i;
+    for (i = str->size - 1; i >= 0; --i){
+        if (str->str[i] == '.') break;
+    }
+    if (i >= 0){
+        result = 1;
+        str->size = i + 1;
+    }
+    return(result);
 }
 #endif
 

@@ -1195,6 +1195,7 @@ Coming Soon</i><div>
 <li><a href='#set_last_folder_sc_str_doc'>set_last_folder_sc</a></li>
 <li><a href='#set_last_folder_ss_str_doc'>set_last_folder_ss</a></li>
 <li><a href='#file_extension_str_doc'>file_extension</a></li>
+<li><a href='#remove_extension_str_doc'>remove_extension</a></li>
 <li><a href='#remove_last_folder_str_doc'>remove_last_folder</a></li>
 <li><a href='#string_set_match_str_doc'>string_set_match</a></li>
 </ul>
@@ -2097,14 +2098,21 @@ String file_extension(
 <div style='margin-left: 4mm;'>String str<br></div>)
 </div>
 <div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>This call returns a substring containing only the file extension of the provided filename.</div><div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>See Also</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'><a href='#substr_doc'>substr</a></div></div><hr>
-<div id='remove_last_folder_str_doc'><h4>&sect;4.3.105: remove_last_folder</h4>
+<div id='remove_extension_str_doc'><h4>&sect;4.3.105: remove_extension</h4>
+<div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>
+fstr_bool remove_extension(
+<div style='margin-left: 4mm;'>String *str<br></div>)
+</div>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>This call attemps to delete a file extension off the end of a filename.
+This call returns non-zero on success.</div></div><hr>
+<div id='remove_last_folder_str_doc'><h4>&sect;4.3.106: remove_last_folder</h4>
 <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>
 fstr_bool remove_last_folder(
 <div style='margin-left: 4mm;'>String *str<br></div>)
 </div>
 <div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>This call attemps to delete a folder or filename off the end of a path string.
 This call returns non-zero on success.</div></div><hr>
-<div id='string_set_match_str_doc'><h4>&sect;4.3.106: string_set_match</h4>
+<div id='string_set_match_str_doc'><h4>&sect;4.3.107: string_set_match</h4>
 <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>
 fstr_bool string_set_match(
 <div style='margin-left: 4mm;'>String *str_set,<br>int32_t count,<br>String str,<br>int32_t *match_index<br></div>)

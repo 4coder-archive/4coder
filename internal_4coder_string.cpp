@@ -1581,6 +1581,22 @@ DOC_SEE(substr) */{
 }
 
 FSTRING_LINK fstr_bool
+remove_extension(String *str)/*
+DOC(This call attemps to delete a file extension off the end of a filename.
+This call returns non-zero on success.) */{
+    fstr_bool result = 0;
+    int32_t i;
+    for (i = str->size - 1; i >= 0; --i){
+        if (str->str[i] == '.') break;
+    }
+    if (i >= 0){
+        result = 1;
+        str->size = i + 1;
+    }
+    return(result);
+}
+
+FSTRING_LINK fstr_bool
 remove_last_folder(String *str)/*
 DOC(This call attemps to delete a folder or filename off the end of a path string.
 This call returns non-zero on success.) */{

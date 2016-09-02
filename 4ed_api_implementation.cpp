@@ -164,7 +164,7 @@ DOC_SEE(Command_ID)
         result = true;
     }
     else{
-        app->print_message(app, literal("CUSTOM WARNING: An invalid Command_ID was passed to exec_command."));
+        app->print_message(app, literal("WARNING: An invalid Command_ID was passed to exec_command."));
     }
     
     return(result);

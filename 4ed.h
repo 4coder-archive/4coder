@@ -67,6 +67,7 @@ typedef struct Plat_Settings{
     char *custom_dll;
     b32 custom_dll_is_strict;
     b32 fullscreen_window;
+    b32 stream_mode;
     
     i32 window_w, window_h;
     i32 window_x, window_y;

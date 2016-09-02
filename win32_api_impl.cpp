@@ -182,12 +182,19 @@ Toggle_Fullscreen(Application_Links *app){
     Tell the platform layer to do the toggle (or to cancel the toggle)
     later when the app.step function isn't running. If the size changes
     mid step, it messes up the rendering rules and stuff. */
-    win32vars.do_toggle = !win32vars.do_toggle;
+    
+    // NOTE(allen): On windows we must be in stream mode to go fullscreen.
+    if (win32vars.settings.stream_mode){
+        win32vars.do_toggle = !win32vars.do_toggle;
+    }
+    else{
+        app->print_message(app, literal("WARNING: Cannot go full screen unless 4coder is in stream mode\n Use the flag -S to put 4coder in stream mode.\n"));
+    }
 }
 
 API_EXPORT bool32
 Is_Fullscreen(Application_Links *app){
-    /* NOTE(allen): This is a fancy way of say 'full_screen XOR do_toggle'
+    /* NOTE(allen): This is a fancy way to say 'full_screen XOR do_toggle'
     This way this function can always report the state the fullscreen
     will have when the next frame runs, given the number of toggles
     that have occurred this frame and the original value. */

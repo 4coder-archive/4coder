@@ -440,10 +440,10 @@ CUSTOM_COMMAND_SIG(goto_first_jump){
     end_temp_memory(temp);
 }
 
-#define goto_next_error          goto_next_jump
-#define goto_prev_error          goto_prev_jump
-#define goto_next_error_no_skips goto_next_jump_no_skips
-#define goto_first_error         goto_first_jump
+#define goto_next_error             goto_next_jump
+#define goto_prev_error             goto_prev_jump
+#define goto_next_error_no_skips    goto_next_jump_no_skips
+#define goto_first_error            goto_first_jump
 
 #endif
 

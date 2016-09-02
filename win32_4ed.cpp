@@ -45,7 +45,7 @@ struct Custom_API{
 typedef void Custom_Command_Function;
 #include "4coder_types.h"
 struct Application_Links;
-# include "4ed_os_custom_api.h"
+# include "4coder_custom_api.h"
 
 //# include "4coder_custom.h"
 #else
@@ -1141,40 +1141,6 @@ Win32ToggleFullscreen(void){
     }
 }
 
-/*
-NOTE(allen): 
-This is the crazy hacky nonsense I came up with to get alt-tab
-working in full screen mode.  It puts the window back into
-bordered mode when the alt-tabbing begins.  When the window regains
-focus it is automatically refullscreened.
-*/
-
-internal void
-Win32FixFullscreenLoseFocus(b32 lose_focus){
-    if (win32vars.full_screen){
-        
-        HWND Window = win32vars.window_handle;
-        LONG_PTR Style = GetWindowLongPtr(Window, GWL_STYLE);
-        
-        MONITORINFO MonitorInfo = {sizeof(MonitorInfo)};
-        if(GetMonitorInfo(MonitorFromWindow(Window, MONITOR_DEFAULTTOPRIMARY), &MonitorInfo))
-        {
-            if (lose_focus){
-                SetWindowLongPtr(Window, GWL_STYLE, Style | WS_OVERLAPPEDWINDOW);
-            }
-            else{
-                SetWindowLongPtr(Window, GWL_STYLE, Style & ~WS_OVERLAPPEDWINDOW);
-            }
-            
-            SetWindowPos(Window, HWND_TOP,
-                         MonitorInfo.rcMonitor.left, MonitorInfo.rcMonitor.top,
-                         MonitorInfo.rcMonitor.right - MonitorInfo.rcMonitor.left,
-                         MonitorInfo.rcMonitor.bottom - MonitorInfo.rcMonitor.top,
-                         SWP_NOOWNERZORDER | SWP_FRAMECHANGED);
-        }
-    }
-}
-
 #include "win32_api_impl.cpp"
 
 //
@@ -1871,10 +1837,6 @@ Win32Callback(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
             win32vars.input_chunk.pers.mouse_r = 0;
             
             win32vars.input_chunk.pers.controls = control_keys_zero();
-            
-            if (uMsg == WM_SETFOCUS){
-                Win32FixFullscreenLoseFocus(false);
-            }
         }break;
         
         case WM_SIZE:
@@ -1910,7 +1872,6 @@ Win32Callback(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
         
         case WM_CANCELMODE:
         {
-            Win32FixFullscreenLoseFocus(true);
             result = DefWindowProc(hwnd, uMsg, wParam, lParam);
         }break;
         
@@ -2234,10 +2195,18 @@ WinMain(HINSTANCE hInstance,
     
     GetClientRect(win32vars.window_handle, &window_rect);
     
+    DWORD pfd_flags = PFD_DRAW_TO_WINDOW | PFD_SUPPORT_OPENGL;
+    
+    // NOTE(allen): This is probably not an issue on linux and
+    // does not need to be ported.
+    if (!win32vars.settings.stream_mode){
+        pfd_flags |= PFD_DOUBLEBUFFER;
+    }
+    
     static PIXELFORMATDESCRIPTOR pfd = {
         sizeof(PIXELFORMATDESCRIPTOR),
         1,
-        PFD_DRAW_TO_WINDOW | PFD_SUPPORT_OPENGL | PFD_DOUBLEBUFFER,
+        pfd_flags,
         PFD_TYPE_RGBA,
         32,
         0, 0, 0, 0, 0, 0,
@@ -2356,32 +2325,39 @@ WinMain(HINSTANCE hInstance,
         //  Looks like we can ReadFile with a size of zero
         // in an IOCP for this effect.
         
-        system_release_lock(FRAME_LOCK);
-        
-        if (win32vars.running_cli == 0){
-            win32vars.got_useful_event = 0;
-            for (;win32vars.got_useful_event == 0;){
-                if (GetMessage(&msg, 0, 0, 0)){
-                    if (msg.message == WM_QUIT){
-                        keep_playing = 0;
-                    }else{
-                        TranslateMessage(&msg);
-                        DispatchMessage(&msg);
+        // NOTE(allen): When we're in stream mode we don't have
+        // double buffering so we need to move ahead and call
+        // the first step right away so it will render into the
+        // window. With double buffering this is not an issue
+        // for reasons I cannot at all comprehend.
+        if (!(win32vars.first && win32vars.settings.stream_mode)){
+            system_release_lock(FRAME_LOCK);
+            
+            if (win32vars.running_cli == 0){
+                win32vars.got_useful_event = 0;
+                for (;win32vars.got_useful_event == 0;){
+                    if (GetMessage(&msg, 0, 0, 0)){
+                        if (msg.message == WM_QUIT){
+                            keep_playing = 0;
+                        }else{
+                            TranslateMessage(&msg);
+                            DispatchMessage(&msg);
+                        }
                     }
                 }
             }
-        }
-        
-        while (PeekMessage(&msg, 0, 0, 0, 1)){
-            if (msg.message == WM_QUIT){
-                keep_playing = 0;
-            }else{
-                TranslateMessage(&msg);
-                DispatchMessage(&msg);
+            
+            while (PeekMessage(&msg, 0, 0, 0, 1)){
+                if (msg.message == WM_QUIT){
+                    keep_playing = 0;
+                }else{
+                    TranslateMessage(&msg);
+                    DispatchMessage(&msg);
+                }
             }
+            
+            system_acquire_lock(FRAME_LOCK);
         }
-        
-        system_acquire_lock(FRAME_LOCK);
         
         POINT mouse_point;
         if (GetCursorPos(&mouse_point) &&

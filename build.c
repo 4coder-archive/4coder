@@ -294,7 +294,7 @@ standard_build(char *cdir, uint32_t flags){
     }
 #endif
     
-#if 1
+#if 0
     {
         BEGIN_TIME_SECTION();
         //buildsuper(cdir, BUILD_DIR, "../code/4coder_default_bindings.cpp");
