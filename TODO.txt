@@ -83,14 +83,6 @@
 
 ; BEFORE I SHIP
 ;
-; [X] flag in create buffer to prevent making new files
-; [X] locking to a view for next position jumping
-; [X] break down the build system and get away from the preproc hack
-; [X] exit command
-; [X] full screen option
-;     [X] add to APIs
-;     [X] try to make win32 version better
-;
 ; [] tokens in the custom API
 ;     [] auto indent on the custom side
 ; [] expose dirty flags
@@ -103,6 +95,7 @@
 ; [] mouse down/up distinction
 ; [] hook on exit
 ; [] read only files
+; [] occasionally missing the (!) mark on files on windows
 ;
 
 ; TODOS
@@ -133,6 +126,13 @@
 ; [X] error parsing and jump to error
 ; [X] manipulate scroll target API
 ; [X] generate documentation for custom API
+; [X] flag in create buffer to prevent making new files
+; [X] locking to a view for next position jumping
+; [X] break down the build system and get away from the preproc hack
+; [X] exit command
+; [X] full screen option
+;     [X] add to APIs
+;     [X] try to make win32 version better
 ;
 ; [] support full length unicode file names
 ; [] switch based word complete

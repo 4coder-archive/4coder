@@ -41,8 +41,14 @@ begin_file_out(Out_Context *out_context, char *filename, String *out){
 }
 
 static void
-end_file_out(Out_Context out_context){
+dump_file_out(Out_Context out_context){
     fwrite(out_context.str->str, 1, out_context.str->size, out_context.file);
+    out_context.str->size = 0;
+}
+
+static void
+end_file_out(Out_Context out_context){
+    dump_file_out(out_context);
     fclose(out_context.file);
 }
 
@@ -342,14 +348,14 @@ typedef struct Documentation{
     String *see_also;
 } Documentation;
 
-enum{
+typedef enum Item_Type{
     Item_Null,
     Item_Function,
     Item_Macro,
     Item_Typedef,
     Item_Struct,
     Item_Union,
-};
+} Item_Type;
 
 typedef struct Item_Node{
     int32_t t;
@@ -377,17 +383,13 @@ typedef struct Function_Set{
     Item_Node *funcs;
 } Function_Set;
 
-typedef struct Typedef_Set{
+typedef struct Item_Set{
     Item_Node *items;
-} Typedef_Set; 
+} Item_Set; 
 
 typedef struct Struct_Set{
     Item_Node *structs;
 } Struct_Set;
-
-typedef struct Enum_Set{
-    Item_Node *items;
-} Enum_Set;
 
 static Item_Node null_item_node = {0};
 
@@ -1098,15 +1100,73 @@ print_see_also(FILE *file, Documentation *doc){
 }
 
 static int32_t
+parse_typedef(char *data, Cpp_Token *tokens, int32_t count,
+              Cpp_Token **token_ptr, Item_Set item_set, int32_t item_index){
+    int32_t result = false;
+    
+    Cpp_Token *token = *token_ptr;
+    int32_t i = (int32_t)(token - tokens);
+    String doc_string = {0};
+    get_type_doc_string(data, tokens, i, &doc_string);
+    
+    int32_t start_i = i;
+    Cpp_Token *start_token = token;
+    
+    for (; i < count; ++i, ++token){
+        if (token->type == CPP_TOKEN_SEMICOLON){
+            break;
+        }
+    }
+    
+    if (i < count){
+        Cpp_Token *token_j = token;
+        
+        for (int32_t j = i; j > start_i; --j, --token_j){
+            if (token_j->type == CPP_TOKEN_IDENTIFIER){
+                break;
+            }
+        }
+        
+        String name = make_string(data + token_j->start, token_j->size);
+        name = skip_chop_whitespace(name);
+        
+        int32_t type_start = start_token->start + start_token->size;
+        int32_t type_end = token_j->start;
+        String type = make_string(data + type_start, type_end - type_start);
+        type = skip_chop_whitespace(type);
+        
+        result = true;
+        item_set.items[item_index].type = type;
+        item_set.items[item_index].name = name;
+        item_set.items[item_index].doc_string = doc_string;
+    }
+    
+    *token_ptr = token;
+    
+    return(result);
+}
+
+static int32_t
 parse_enum(Partition *part, char *data,
            Cpp_Token *tokens, int32_t count,
-           Cpp_Token **token_ptr, int32_t start_i,
-           Enum_Set flag_set, int32_t flag_index){
+           Cpp_Token **token_ptr,
+           Item_Set item_set, int32_t item_index){
     
     int32_t result = false;
     
     Cpp_Token *token = *token_ptr;
     int32_t i = (int32_t)(token - tokens);
+    
+    String doc_string = {0};
+    get_type_doc_string(data, tokens, i, &doc_string);
+    
+    int32_t start_i = i;
+    
+    for (; i < count; ++i, ++token){
+        if (token->type == CPP_TOKEN_PARENTHESE_CLOSE){
+            break;
+        }
+    }
     
     if (i < count){
         Cpp_Token *token_j = token;
@@ -1197,8 +1257,9 @@ parse_enum(Partition *part, char *data,
                 ++token;
                 
                 result = true;
-                flag_set.items[flag_index].name = name;
-                flag_set.items[flag_index].first_child = first_member;
+                item_set.items[item_index].name = name;
+                item_set.items[item_index].doc_string = doc_string;
+                item_set.items[item_index].first_child = first_member;
             }
         }
     }
@@ -2022,10 +2083,10 @@ generate_custom_headers(){
     
     // NOTE(allen): Documentation
     {
-        Typedef_Set typedef_set = {0};
+        Item_Set typedef_set = {0};
         Struct_Set struct_set = {0};
-        Enum_Set flag_set = {0};
-        Enum_Set enum_set = {0};
+        Item_Set flag_set = {0};
+        Item_Set enum_set = {0};
         
         String type_code[1];
         type_code[0] = file_dump("4coder_os_types.h");
@@ -2127,40 +2188,11 @@ generate_custom_headers(){
                         switch (match_index){
                             case 0: //typedef
                             {
-                                String doc_string = {0};
-                                get_type_doc_string(data, tokens, i, &doc_string);
-                                
-                                int32_t start_i = i;
-                                Cpp_Token *start_token = token;
-                                
-                                for (; i < count; ++i, ++token){
-                                    if (token->type == CPP_TOKEN_SEMICOLON){
-                                        break;
-                                    }
-                                }
-                                
-                                if (i < count){
-                                    Cpp_Token *token_j = token;
-                                    
-                                    for (int32_t j = i; j > start_i; --j, --token_j){
-                                        if (token_j->type == CPP_TOKEN_IDENTIFIER){
-                                            break;
-                                        }
-                                    }
-                                    
-                                    String name = make_string(data + token_j->start, token_j->size);
-                                    name = skip_chop_whitespace(name);
-                                    
-                                    int32_t type_start = start_token->start + start_token->size;
-                                    int32_t type_end = token_j->start;
-                                    String type = make_string(data + type_start, type_end - type_start);
-                                    type = skip_chop_whitespace(type);
-                                    
-                                    typedef_set.items[typedef_index].type = type;
-                                    typedef_set.items[typedef_index].name = name;
-                                    typedef_set.items[typedef_index].doc_string = doc_string;
+                                if (parse_typedef(data, tokens, count, &token,
+                                                  typedef_set, typedef_index)){
                                     ++typedef_index;
                                 }
+                                i = (int32_t)(token - tokens);
                             }break;
                             
                             case 1: case 2: //struct/union
@@ -2175,22 +2207,9 @@ generate_custom_headers(){
                             
                             case 3: //ENUM
                             {
-                                String doc_string = {0};
-                                get_type_doc_string(data, tokens, i, &doc_string);
-                                
-                                int32_t start_i = i;
-                                
-                                for (; i < count; ++i, ++token){
-                                    if (token->type == CPP_TOKEN_PARENTHESE_CLOSE){
-                                        break;
-                                    }
-                                }
-                                
                                 if (parse_enum(part, data,
-                                               tokens, count,
-                                               &token, start_i,
+                                               tokens, count, &token,
                                                enum_set, enum_index)){
-                                    enum_set.items[enum_index].doc_string = doc_string;
                                     ++enum_index;
                                 }
                                 i = (int32_t)(token - tokens);
@@ -2198,22 +2217,9 @@ generate_custom_headers(){
                             
                             case 4: //FLAGENUM
                             {
-                                String doc_string = {0};
-                                get_type_doc_string(data, tokens, i, &doc_string);
-                                
-                                int32_t start_i = i;
-                                
-                                for (; i < count; ++i, ++token){
-                                    if (token->type == CPP_TOKEN_PARENTHESE_CLOSE){
-                                        break;
-                                    }
-                                }
-                                
                                 if (parse_enum(part, data,
-                                               tokens, count,
-                                               &token, start_i,
+                                               tokens, count, &token,
                                                flag_set, flag_index)){
-                                    flag_set.items[flag_index].doc_string = doc_string;
                                     ++flag_index;
                                 }
                                 i = (int32_t)(token - tokens);
