@@ -8,7 +8,10 @@ FLAGS      := -D_GNU_SOURCE -fPIC -fno-threadsafe-statics -pthread -I../foreign 
 # main stuff
 
 debug: FLAGS += -DFRED_INTERNAL=1 -DFRED_SUPER=1 -g -O0
-debug: ../4ed_app.so ../4ed
+debug: ../metagen ../4ed_app.so ../4ed
+
+../metagen: $(CPP_FILES) $(C_FILES) $(H_FILES)
+	g++ $(WARNINGS) $(FLAGS) 4ed_metagen.cpp -iquoteforeign -o $@
 
 ../4ed_app.so: $(CPP_FILES) $(C_FILES) $(H_FILES)
 	g++ $(WARNINGS) $(FLAGS) -shared 4ed_app_target.cpp -iquoteforeign -o $@

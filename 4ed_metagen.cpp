@@ -572,7 +572,7 @@ doc_parse_parameter(String source, int32_t *pos){
     return(result);
 }
 
-String
+static String
 doc_parse_last_parameter(String source, int32_t *pos){
     String result = {0};
     
@@ -593,7 +593,7 @@ doc_parse_last_parameter(String source, int32_t *pos){
     return(result);    
 }
 
-void
+static void
 perform_doc_parse(Partition *part, String doc_string, Documentation *doc){
     int32_t keep_parsing = true;
     int32_t pos = 0;
@@ -613,13 +613,8 @@ perform_doc_parse(Partition *part, String doc_string, Documentation *doc){
                 doc_parse_note_string(doc_string, &pos);
                 
                 switch (doc_note_type){
-                    case DOC_PARAM:
-                    ++param_count;
-                    break;
-                    
-                    case DOC_SEE:
-                    ++see_count;
-                    break;
+                    case DOC_PARAM: ++param_count; break;
+                    case DOC_SEE: ++see_count; break;
                 }
             }
         }
@@ -687,21 +682,109 @@ perform_doc_parse(Partition *part, String doc_string, Documentation *doc){
     }while(keep_parsing);
 }
 
+static String
+get_lexeme(Cpp_Token token, char *code){
+    String str = make_string(code + token.start, token.size);
+    return(str);
+}
+
 static int32_t
-get_type_doc_string(char *data, Cpp_Token *tokens, int32_t i,
+get_type_doc_string(char *data, Cpp_Token *tokens, Cpp_Token *token,
                     String *doc_string){
     int32_t result = false;
     
-    if (i > 0){
-        Cpp_Token *prev_token = tokens + i - 1;
+    if (token > tokens){
+        Cpp_Token *prev_token = token - 1;
         if (prev_token->type == CPP_TOKEN_COMMENT){
-            *doc_string = make_string(data + prev_token->start, prev_token->size);
+            *doc_string = get_lexeme(*prev_token, data);
             if (check_and_fix_docs(doc_string)){
                 result = true;
             }
         }
     }
     
+    return(result);
+}
+
+static Item_Set
+allocate_item_set(Partition *part, int32_t count){
+    Item_Set item_set = {0};
+    if (count > 0){
+        int32_t memory_size = sizeof(Item_Node)*count;
+        item_set.items = push_array(part, Item_Node, count);
+        memset(item_set.items, 0, memory_size);
+    }
+    return(item_set);
+}
+
+typedef struct Parse_Context{
+    Cpp_Token *token_s;
+    Cpp_Token *token_e;
+    Cpp_Token *token;
+} Parse_Context;
+
+static Parse_Context
+setup_parse_context(Cpp_Token_Stack stack){
+    Parse_Context context;
+    context.token_s = stack.tokens;
+    context.token_e = stack.tokens + stack.count;
+    context.token = context.token_s;
+    return(context);
+}
+
+static Cpp_Token*
+get_token(Parse_Context *context){
+    Cpp_Token *result = context->token;
+    return(result);
+}
+
+static Cpp_Token*
+get_next_token(Parse_Context *context){
+    Cpp_Token *result = context->token+1;
+    if (result >= context->token_e){
+        result = 0;
+    }
+    else{
+        context->token = result;
+    }
+    return(result);
+}
+
+static Cpp_Token*
+get_prev_token(Parse_Context *context){
+    Cpp_Token *result = context->token-1;
+    if (result < context->token_s){
+        result = 0;
+    }
+    else{
+        context->token = result;
+    }
+    return(result);
+}
+
+static Cpp_Token*
+set_token(Parse_Context *context, Cpp_Token *token){
+    Cpp_Token *result = 0;
+    if (token >= context->token_s && token < context->token_e){
+        context->token = token;
+        result = token;
+    }
+    return(result);
+}
+
+// NOTE(allen): This should not be here any more.  It was written
+// simply to transition the system to the Parse_Context.
+static int32_t TRANSITIONAL_INDEX;
+static int32_t*
+get_index(Parse_Context *context, Cpp_Token *token){
+    if (token) set_token(context, token);
+    TRANSITIONAL_INDEX = (int32_t)(context->token - context->token_s);
+    return(&TRANSITIONAL_INDEX);
+}
+
+static int32_t
+get_count(Parse_Context *context){
+    int32_t result = (int32_t)(context->token_e - context->token_s);
     return(result);
 }
 
@@ -723,7 +806,7 @@ parse_struct_member(Partition *part,
     int32_t i = (int32_t)(token - tokens);
     
     String doc_string = {0};
-    get_type_doc_string(data, tokens, i, &doc_string);
+    get_type_doc_string(data, tokens, token, &doc_string);
     
     int32_t start_i = i;
     Cpp_Token *start_token = token;
@@ -854,7 +937,7 @@ parse_struct(Partition *part, int32_t is_struct,
     int32_t i = (int32_t)(token - tokens);
     
     String doc_string = {0};
-    get_type_doc_string(data, tokens, i, &doc_string);
+    get_type_doc_string(data, tokens, token, &doc_string);
     
     int32_t start_i = i;
     
@@ -926,6 +1009,507 @@ parse_struct(Partition *part, int32_t is_struct,
         result = true;
     }
     
+    *token_ptr = token;
+    
+    return(result);
+}
+
+static int32_t
+parse_typedef(char *data, Cpp_Token *tokens, int32_t count,
+              Cpp_Token **token_ptr, Item_Set item_set, int32_t item_index){
+    int32_t result = false;
+    
+    Cpp_Token *token = *token_ptr;
+    int32_t i = (int32_t)(token - tokens);
+    String doc_string = {0};
+    get_type_doc_string(data, tokens, token, &doc_string);
+    
+    int32_t start_i = i;
+    Cpp_Token *start_token = token;
+    
+    for (; i < count; ++i, ++token){
+        if (token->type == CPP_TOKEN_SEMICOLON){
+            break;
+        }
+    }
+    
+    if (i < count){
+        Cpp_Token *token_j = token;
+        
+        for (int32_t j = i; j > start_i; --j, --token_j){
+            if (token_j->type == CPP_TOKEN_IDENTIFIER){
+                break;
+            }
+        }
+        
+        String name = make_string(data + token_j->start, token_j->size);
+        name = skip_chop_whitespace(name);
+        
+        int32_t type_start = start_token->start + start_token->size;
+        int32_t type_end = token_j->start;
+        String type = make_string(data + type_start, type_end - type_start);
+        type = skip_chop_whitespace(type);
+        
+        result = true;
+        item_set.items[item_index].type = type;
+        item_set.items[item_index].name = name;
+        item_set.items[item_index].doc_string = doc_string;
+    }
+    
+    *token_ptr = token;
+    
+    return(result);
+}
+
+static int32_t
+parse_enum(Partition *part, char *data,
+           Cpp_Token *tokens, int32_t count,
+           Cpp_Token **token_ptr,
+           Item_Set item_set, int32_t item_index){
+    
+    int32_t result = false;
+    
+    Cpp_Token *token = *token_ptr;
+    int32_t i = (int32_t)(token - tokens);
+    
+    String doc_string = {0};
+    get_type_doc_string(data, tokens, token, &doc_string);
+    
+    int32_t start_i = i;
+    
+    for (; i < count; ++i, ++token){
+        if (token->type == CPP_TOKEN_BRACE_OPEN){
+            break;
+        }
+    }
+    
+    if (i < count){
+        Cpp_Token *token_j = token;
+        
+        for (int32_t j = i; j > start_i; --j, --token_j){
+            if (token_j->type == CPP_TOKEN_IDENTIFIER){
+                break;
+            }
+        }
+        
+        String name = make_string(data + token_j->start, token_j->size);
+        name = skip_chop_whitespace(name);
+        
+        for (; i < count; ++i, ++token){
+            if (token->type == CPP_TOKEN_BRACE_OPEN){
+                break;
+            }
+        }
+        
+        if (i < count){
+            Item_Node *first_member = 0;
+            Item_Node *head_member = 0;
+            
+            for (; i < count; ++i, ++token){
+                if (token->type == CPP_TOKEN_BRACE_CLOSE){
+                    break;
+                }
+                else if (token->type == CPP_TOKEN_IDENTIFIER){
+                    String doc_string = {0};
+                    get_type_doc_string(data, tokens, token, &doc_string);
+                    
+                    String name = make_string(data + token->start, token->size);
+                    name = skip_chop_whitespace(name);
+                    
+                    String value = {0};
+                    
+                    ++i;
+                    ++token;
+                    
+                    if (token->type == CPP_TOKEN_EQ){
+                        Cpp_Token *start_token = token;
+                        
+                        for (; i < count; ++i, ++token){
+                            if (token->type == CPP_TOKEN_COMMA ||
+                                token->type == CPP_TOKEN_BRACE_CLOSE){
+                                break;
+                            }
+                        }
+                        
+                        int32_t val_start = start_token->start + start_token->size;
+                        int32_t val_end = token->start;
+                        
+                        value = make_string(data + val_start, val_end - val_start);
+                        value = skip_chop_whitespace(value);
+                        
+                        --i;
+                        --token;
+                    }
+                    else{
+                        --i;
+                        --token;
+                    }
+                    
+                    Item_Node *new_member = push_struct(part, Item_Node);
+                    if (first_member == 0){
+                        first_member = new_member;
+                    }
+                    
+                    if (head_member){
+                        head_member->next_sibling = new_member;
+                    }
+                    head_member = new_member;
+                    
+                    new_member->name = name;
+                    new_member->value = value;
+                    new_member->doc_string = doc_string;
+                    new_member->next_sibling = 0;
+                }
+            }
+            
+            if (i < count){
+                for (; i < count; ++i, ++token){
+                    if (token->type == CPP_TOKEN_BRACE_CLOSE){
+                        break;
+                    }
+                }
+                ++i;
+                ++token;
+                
+                result = true;
+                item_set.items[item_index].name = name;
+                item_set.items[item_index].doc_string = doc_string;
+                item_set.items[item_index].first_child = first_member;
+            }
+        }
+    }
+    
+    *token_ptr = token;
+    
+    return(result);
+}
+
+static Argument_Breakdown
+allocate_argument_breakdown(int32_t count){
+    Argument_Breakdown breakdown = {0};
+    int32_t memory_size = sizeof(Argument)*count;
+    breakdown.count = count;
+    breakdown.args = (Argument*)malloc(memory_size);
+    memset(breakdown.args, 0, memory_size);
+    return(breakdown);
+}
+
+static Argument_Breakdown
+parameter_parse(char *data, Cpp_Token *args_start_token, Cpp_Token *token){
+    int32_t arg_index = 0;
+    Cpp_Token *arg_token = args_start_token + 1;
+    int32_t param_string_start = arg_token->start;
+    
+    int32_t arg_count = 1;
+    arg_token = args_start_token;
+    for (; arg_token < token; ++arg_token){
+        if (arg_token->type == CPP_TOKEN_COMMA){
+            ++arg_count;
+        }
+    }
+    
+    Argument_Breakdown breakdown = allocate_argument_breakdown(arg_count);
+    
+    arg_token = args_start_token + 1;
+    for (; arg_token <= token; ++arg_token){
+        if (arg_token->type == CPP_TOKEN_COMMA ||
+            arg_token->type == CPP_TOKEN_PARENTHESE_CLOSE){
+            
+            int32_t size = arg_token->start - param_string_start;
+            String param_string = make_string(data + param_string_start, size);
+            param_string = chop_whitespace(param_string);
+            breakdown.args[arg_index].param_string = param_string;
+            
+            for (Cpp_Token *param_name_token = arg_token - 1;
+                 param_name_token->start > param_string_start;
+                 --param_name_token){
+                if (param_name_token->type == CPP_TOKEN_IDENTIFIER){
+                    int32_t start = param_name_token->start;
+                    int32_t size = param_name_token->size;
+                    breakdown.args[arg_index].param_name = make_string(data + start, size);
+                    break;
+                }
+            }
+            
+            ++arg_index;
+            
+            ++arg_token;
+            if (arg_token <= token){
+                param_string_start = arg_token->start;
+            }
+            --arg_token;
+        }
+    }
+    
+    return(breakdown);
+}
+
+static int32_t
+function_parse_check(int32_t *index, Cpp_Token **token_ptr, int32_t count){
+    int32_t result = false;
+    
+    int32_t i = *index;
+    Cpp_Token *token = *token_ptr;
+    
+    {
+        for (; i < count; ++i, ++token){
+            if (token->type == CPP_TOKEN_PARENTHESE_OPEN){
+                break;
+            }
+        }
+        
+        if (i < count){
+            --i;
+            --token;
+            
+            if (token->type == CPP_TOKEN_IDENTIFIER){
+                result = true;
+            }
+        }
+    }
+    
+    *index = i;
+    *token_ptr = token;
+    
+    return(result);
+}
+
+static int32_t
+function_get_doc(int32_t *index, Cpp_Token **token_ptr, int32_t count,
+                    char *data, String *doc_string){
+    int32_t result = false;
+    
+    int32_t i = *index;
+    Cpp_Token *token = *token_ptr;
+    
+    for (; i < count; ++i, ++token){
+        if (token->type == CPP_TOKEN_COMMENT){
+            String lexeme = make_string(data + token->start, token->size);
+            if (check_and_fix_docs(&lexeme)){
+                *doc_string = lexeme;
+                result = true;
+                break;
+            }
+        }
+        else if (token->type == CPP_TOKEN_BRACE_OPEN){
+            break;
+        }
+    }
+    
+    *index = i;
+    *token_ptr = token;
+    
+    return(result);
+}
+
+static int32_t
+parse_cpp_name(int32_t *i_ptr, Cpp_Token **token_ptr, int32_t count, char *data, String *name){
+    int32_t result = false;
+    
+    int32_t i = *i_ptr;
+    Cpp_Token *token = *token_ptr;
+    
+    int32_t i_start = i;
+    Cpp_Token *token_start = token;
+    
+    ++i, ++token;
+    if (i < count && token->type == CPP_TOKEN_PARENTHESE_OPEN){
+        ++i, ++token;
+        if (i < count && token->type == CPP_TOKEN_IDENTIFIER){
+            ++i, ++token;
+            if (i < count && token->type == CPP_TOKEN_PARENTHESE_CLOSE){
+                *name = get_lexeme(*(token-1), data);
+                result = true;
+            }
+        }
+    }
+    
+    if (!result){
+        i = i_start;
+        token = token_start;
+    }
+    
+    *i_ptr = i;
+    *token_ptr = token;
+    
+    return(result);
+}
+
+static int32_t
+function_sig_parse(int32_t *index, Cpp_Token **token_ptr, int32_t count, Cpp_Token *ret_start_token,
+                   char *data, Item_Set item_set, int32_t sig_count, String cpp_name){
+    int32_t result = false;
+    
+    int32_t i = *index;
+    Cpp_Token *token = *token_ptr;
+    
+    Cpp_Token *args_start_token = token+1;
+    
+    item_set.items[sig_count].name = get_lexeme(*token, data);
+    
+    int32_t size = token->start - ret_start_token->start;
+    String ret = make_string(data + ret_start_token->start, size);
+    ret = chop_whitespace(ret);
+    item_set.items[sig_count].ret = ret;
+    
+    for (; i < count; ++i, ++token){
+        if (token->type == CPP_TOKEN_PARENTHESE_CLOSE){
+            break;
+        }
+    }
+    
+    if (i < count){
+        int32_t size = token->start + token->size - args_start_token->start;;
+        item_set.items[sig_count].args =
+            make_string(data + args_start_token->start, size);
+        item_set.items[sig_count].t = Item_Function;
+        item_set.items[sig_count].cpp_name = cpp_name;
+        
+        Argument_Breakdown *breakdown = &item_set.items[sig_count].breakdown;
+        *breakdown = parameter_parse(data, args_start_token, token);
+        
+        result = true;
+    }
+    
+    *index = i;
+    *token_ptr = token;
+    
+    return(result);
+}
+
+static int32_t
+function_parse(Parse_Context *context, char *data,
+               Item_Set item_set, int32_t sig_count, String cpp_name){
+    int32_t result = false;
+    
+    Cpp_Token *token = 0, *jtoken = 0;
+    
+    token = get_token(context);
+    item_set.items[sig_count].marker = get_lexeme(*token, data);
+    jtoken = token;
+    
+    if (function_parse_check(get_index(context, jtoken), &jtoken, get_count(context))){
+        if (token->type == CPP_TOKEN_IDENTIFIER){
+            String doc_string = {0};
+            if (function_get_doc(get_index(context, jtoken), &jtoken,
+                                 get_count(context), data, &doc_string)){
+                item_set.items[sig_count].doc_string = doc_string;
+            }
+        }
+    }
+    
+    if (get_next_token(context)){
+        Cpp_Token *ret_start_token = token;
+        if (function_parse_check(get_index(context, token), &token, get_count(context))){
+            if (function_sig_parse(get_index(context, token), &token, get_count(context), ret_start_token,
+                                   data, item_set, sig_count, cpp_name)){
+                result = true;
+            }
+        }
+    }
+    
+    return(result);
+}
+
+static int32_t
+macro_parse_check(int32_t *index, Cpp_Token **token_ptr, int32_t count){
+    int32_t result = false;
+    
+    int32_t i = *index;
+    Cpp_Token *token = *token_ptr;
+    
+    {
+        ++i, ++token;
+        if (i < count){
+            if (token->type == CPP_TOKEN_COMMENT){
+                ++i, ++token;
+                if (i < count){
+                    if (token->type == CPP_PP_DEFINE){
+                        result = true;
+                    }
+                }
+            }
+        }
+    }
+    
+    *index = i;
+    *token_ptr = token;
+    
+    return(result);
+}
+
+static int32_t
+macro_parse(int32_t *index, Cpp_Token **token_ptr, int32_t count,
+            char *data, Item_Set macro_set, int32_t sig_count){
+    int32_t result = false;
+    
+    int32_t i = *index;
+    Cpp_Token *token = *token_ptr;
+    
+    if (i > 0){
+        Cpp_Token *doc_token = token-1;
+        
+        String doc_string = make_string(data + doc_token->start, doc_token->size);
+        
+        if (check_and_fix_docs(&doc_string)){
+            macro_set.items[sig_count].doc_string = doc_string;
+            
+            for (; i < count; ++i, ++token){
+                if (token->type == CPP_TOKEN_IDENTIFIER){
+                    break;
+                }
+            }
+            
+            if (i < count && (token->flags & CPP_TFLAG_PP_BODY)){
+                macro_set.items[sig_count].name = make_string(data + token->start, token->size);
+                
+                ++i, ++token;
+                if (i < count){
+                    Cpp_Token *args_start_token = token;
+                    for (; i < count; ++i, ++token){
+                        if (token->type == CPP_TOKEN_PARENTHESE_CLOSE){
+                            break;
+                        }
+                    }
+                    
+                    if (i < count){
+                        int32_t start = args_start_token->start;
+                        int32_t end = token->start + token->size;
+                        macro_set.items[sig_count].args = make_string(data + start, end - start);
+                        
+                        Argument_Breakdown *breakdown = &macro_set.items[sig_count].breakdown;
+                        *breakdown = parameter_parse(data, args_start_token, token);
+                        
+                        ++i, ++token;
+                        if (i < count){
+                            Cpp_Token *body_start = token;
+                            
+                            if (body_start->flags & CPP_TFLAG_PP_BODY){
+                                for (; i < count; ++i, ++token){
+                                    if (!(token->flags & CPP_TFLAG_PP_BODY)){
+                                        break;
+                                    }
+                                }
+                                
+                                --i, --token;
+                                
+                                Cpp_Token *body_end = token;
+                                
+                                start = body_start->start;
+                                end = body_end->start + body_end->size;
+                                macro_set.items[sig_count].body = make_string(data + start, end - start);
+                            }
+                        }
+                        
+                        macro_set.items[sig_count].t = Item_Macro;
+                        result = true;
+                    }
+                }
+            }
+        }
+    }
+    
+    *index = i;
     *token_ptr = token;
     
     return(result);
@@ -1101,531 +1685,6 @@ print_see_also(FILE *file, Documentation *doc){
     }
 }
 
-static int32_t
-parse_typedef(char *data, Cpp_Token *tokens, int32_t count,
-              Cpp_Token **token_ptr, Item_Set item_set, int32_t item_index){
-    int32_t result = false;
-    
-    Cpp_Token *token = *token_ptr;
-    int32_t i = (int32_t)(token - tokens);
-    String doc_string = {0};
-    get_type_doc_string(data, tokens, i, &doc_string);
-    
-    int32_t start_i = i;
-    Cpp_Token *start_token = token;
-    
-    for (; i < count; ++i, ++token){
-        if (token->type == CPP_TOKEN_SEMICOLON){
-            break;
-        }
-    }
-    
-    if (i < count){
-        Cpp_Token *token_j = token;
-        
-        for (int32_t j = i; j > start_i; --j, --token_j){
-            if (token_j->type == CPP_TOKEN_IDENTIFIER){
-                break;
-            }
-        }
-        
-        String name = make_string(data + token_j->start, token_j->size);
-        name = skip_chop_whitespace(name);
-        
-        int32_t type_start = start_token->start + start_token->size;
-        int32_t type_end = token_j->start;
-        String type = make_string(data + type_start, type_end - type_start);
-        type = skip_chop_whitespace(type);
-        
-        result = true;
-        item_set.items[item_index].type = type;
-        item_set.items[item_index].name = name;
-        item_set.items[item_index].doc_string = doc_string;
-    }
-    
-    *token_ptr = token;
-    
-    return(result);
-}
-
-static int32_t
-parse_enum(Partition *part, char *data,
-           Cpp_Token *tokens, int32_t count,
-           Cpp_Token **token_ptr,
-           Item_Set item_set, int32_t item_index){
-    
-    int32_t result = false;
-    
-    Cpp_Token *token = *token_ptr;
-    int32_t i = (int32_t)(token - tokens);
-    
-    String doc_string = {0};
-    get_type_doc_string(data, tokens, i, &doc_string);
-    
-    int32_t start_i = i;
-    
-    for (; i < count; ++i, ++token){
-        if (token->type == CPP_TOKEN_BRACE_OPEN){
-            break;
-        }
-    }
-    
-    if (i < count){
-        Cpp_Token *token_j = token;
-        
-        for (int32_t j = i; j > start_i; --j, --token_j){
-            if (token_j->type == CPP_TOKEN_IDENTIFIER){
-                break;
-            }
-        }
-        
-        String name = make_string(data + token_j->start, token_j->size);
-        name = skip_chop_whitespace(name);
-        
-        for (; i < count; ++i, ++token){
-            if (token->type == CPP_TOKEN_BRACE_OPEN){
-                break;
-            }
-        }
-        
-        if (i < count){
-            Item_Node *first_member = 0;
-            Item_Node *head_member = 0;
-            
-            for (; i < count; ++i, ++token){
-                if (token->type == CPP_TOKEN_BRACE_CLOSE){
-                    break;
-                }
-                else if (token->type == CPP_TOKEN_IDENTIFIER){
-                    String doc_string = {0};
-                    get_type_doc_string(data, tokens, i, &doc_string);
-                    
-                    String name = make_string(data + token->start, token->size);
-                    name = skip_chop_whitespace(name);
-                    
-                    String value = {0};
-                    
-                    ++i;
-                    ++token;
-                    
-                    if (token->type == CPP_TOKEN_EQ){
-                        Cpp_Token *start_token = token;
-                        
-                        for (; i < count; ++i, ++token){
-                            if (token->type == CPP_TOKEN_COMMA ||
-                                token->type == CPP_TOKEN_BRACE_CLOSE){
-                                break;
-                            }
-                        }
-                        
-                        int32_t val_start = start_token->start + start_token->size;
-                        int32_t val_end = token->start;
-                        
-                        value = make_string(data + val_start, val_end - val_start);
-                        value = skip_chop_whitespace(value);
-                        
-                        --i;
-                        --token;
-                    }
-                    else{
-                        --i;
-                        --token;
-                    }
-                    
-                    Item_Node *new_member = push_struct(part, Item_Node);
-                    if (first_member == 0){
-                        first_member = new_member;
-                    }
-                    
-                    if (head_member){
-                        head_member->next_sibling = new_member;
-                    }
-                    head_member = new_member;
-                    
-                    new_member->name = name;
-                    new_member->value = value;
-                    new_member->doc_string = doc_string;
-                    new_member->next_sibling = 0;
-                }
-            }
-            
-            if (i < count){
-                for (; i < count; ++i, ++token){
-                    if (token->type == CPP_TOKEN_BRACE_CLOSE){
-                        break;
-                    }
-                }
-                ++i;
-                ++token;
-                
-                result = true;
-                item_set.items[item_index].name = name;
-                item_set.items[item_index].doc_string = doc_string;
-                item_set.items[item_index].first_child = first_member;
-            }
-        }
-    }
-    
-    *token_ptr = token;
-    
-    return(result);
-}
-
-static Item_Set
-allocate_item_set(Partition *part, int32_t count){
-    Item_Set item_set = {0};
-    if (count > 0){
-        int32_t memory_size = sizeof(Item_Node)*count;
-        item_set.items = push_array(part, Item_Node, count);
-        memset(item_set.items, 0, memory_size);
-    }
-    return(item_set);
-}
-
-static Argument_Breakdown
-allocate_argument_breakdown(int32_t count){
-    Argument_Breakdown breakdown = {0};
-    int32_t memory_size = sizeof(Argument)*count;
-    breakdown.count = count;
-    breakdown.args = (Argument*)malloc(memory_size);
-    memset(breakdown.args, 0, memory_size);
-    return(breakdown);
-}
-
-static Argument_Breakdown
-do_parameter_parse(char *data, Cpp_Token *args_start_token, Cpp_Token *token){
-    int32_t arg_index = 0;
-    Cpp_Token *arg_token = args_start_token + 1;
-    int32_t param_string_start = arg_token->start;
-    
-    int32_t arg_count = 1;
-    arg_token = args_start_token;
-    for (; arg_token < token; ++arg_token){
-        if (arg_token->type == CPP_TOKEN_COMMA){
-            ++arg_count;
-        }
-    }
-    
-    Argument_Breakdown breakdown = allocate_argument_breakdown(arg_count);
-    
-    arg_token = args_start_token + 1;
-    for (; arg_token <= token; ++arg_token){
-        if (arg_token->type == CPP_TOKEN_COMMA ||
-            arg_token->type == CPP_TOKEN_PARENTHESE_CLOSE){
-            
-            int32_t size = arg_token->start - param_string_start;
-            String param_string = make_string(data + param_string_start, size);
-            param_string = chop_whitespace(param_string);
-            breakdown.args[arg_index].param_string = param_string;
-            
-            for (Cpp_Token *param_name_token = arg_token - 1;
-                 param_name_token->start > param_string_start;
-                 --param_name_token){
-                if (param_name_token->type == CPP_TOKEN_IDENTIFIER){
-                    int32_t start = param_name_token->start;
-                    int32_t size = param_name_token->size;
-                    breakdown.args[arg_index].param_name = make_string(data + start, size);
-                    break;
-                }
-            }
-            
-            ++arg_index;
-            
-            ++arg_token;
-            if (arg_token <= token){
-                param_string_start = arg_token->start;
-            }
-            --arg_token;
-        }
-    }
-    
-    return(breakdown);
-}
-
-static int32_t
-do_function_parse_check(int32_t *index, Cpp_Token **token_ptr, int32_t count){
-    int32_t result = false;
-    
-    int32_t i = *index;
-    Cpp_Token *token = *token_ptr;
-    
-    {
-        for (; i < count; ++i, ++token){
-            if (token->type == CPP_TOKEN_PARENTHESE_OPEN){
-                break;
-            }
-        }
-        
-        if (i < count){
-            --i;
-            --token;
-            
-            if (token->type == CPP_TOKEN_IDENTIFIER){
-                result = true;
-            }
-        }
-    }
-    
-    *index = i;
-    *token_ptr = token;
-    
-    return(result);
-}
-
-static int32_t
-do_function_get_doc(int32_t *index, Cpp_Token **token_ptr, int32_t count,
-                    char *data, String *doc_string){
-    int32_t result = false;
-    
-    int32_t i = *index;
-    Cpp_Token *token = *token_ptr;
-    
-    for (; i < count; ++i, ++token){
-        if (token->type == CPP_TOKEN_COMMENT){
-            String lexeme = make_string(data + token->start, token->size);
-            if (check_and_fix_docs(&lexeme)){
-                *doc_string = lexeme;
-                result = true;
-                break;
-            }
-        }
-        else if (token->type == CPP_TOKEN_BRACE_OPEN){
-            break;
-        }
-    }
-    
-    *index = i;
-    *token_ptr = token;
-    
-    return(result);
-}
-
-static String
-get_lexeme(Cpp_Token token, char *code){
-    String str = make_string(code + token.start, token.size);
-    return(str);
-}
-
-static int32_t
-do_parse_cpp_name(int32_t *i_ptr, Cpp_Token **token_ptr, int32_t count, char *data, String *name){
-    int32_t result = false;
-    
-    int32_t i = *i_ptr;
-    Cpp_Token *token = *token_ptr;
-    
-    int32_t i_start = i;
-    Cpp_Token *token_start = token;
-    
-    ++i, ++token;
-    if (i < count && token->type == CPP_TOKEN_PARENTHESE_OPEN){
-        ++i, ++token;
-        if (i < count && token->type == CPP_TOKEN_IDENTIFIER){
-            ++i, ++token;
-            if (i < count && token->type == CPP_TOKEN_PARENTHESE_CLOSE){
-                *name = get_lexeme(*(token-1), data);
-                result = true;
-            }
-        }
-    }
-    
-    if (!result){
-        i = i_start;
-        token = token_start;
-    }
-    
-    *i_ptr = i;
-    *token_ptr = token;
-    
-    return(result);
-}
-
-static int32_t
-do_function_parse(int32_t *index, Cpp_Token **token_ptr, int32_t count, Cpp_Token *ret_start_token,
-                  char *data, Item_Set item_set, int32_t sig_count, String cpp_name){
-    int32_t result = false;
-    
-    int32_t i = *index;
-    Cpp_Token *token = *token_ptr;
-    
-    Cpp_Token *args_start_token = token+1;
-    
-    item_set.items[sig_count].name = get_lexeme(*token, data);
-    
-    int32_t size = token->start - ret_start_token->start;
-    String ret = make_string(data + ret_start_token->start, size);
-    ret = chop_whitespace(ret);
-    item_set.items[sig_count].ret = ret;
-    
-    for (; i < count; ++i, ++token){
-        if (token->type == CPP_TOKEN_PARENTHESE_CLOSE){
-            break;
-        }
-    }
-    
-    if (i < count){
-        int32_t size = token->start + token->size - args_start_token->start;;
-        item_set.items[sig_count].args =
-            make_string(data + args_start_token->start, size);
-        item_set.items[sig_count].t = Item_Function;
-        item_set.items[sig_count].cpp_name = cpp_name;
-        
-        Argument_Breakdown *breakdown = &item_set.items[sig_count].breakdown;
-        *breakdown = do_parameter_parse(data, args_start_token, token);
-        
-        result = true;
-    }
-    
-    *index = i;
-    *token_ptr = token;
-    
-    return(result);
-}
-
-static int32_t
-do_full_function_parse(int32_t *index, Cpp_Token **token_ptr, int32_t count, char *data,
-                       Item_Set function_set, int32_t sig_count, String cpp_name){
-    int32_t result = false;
-    
-    int32_t i = *index;
-    Cpp_Token *token = *token_ptr;
-    
-    {
-        function_set.items[sig_count].marker = make_string(data + token->start, token->size);
-        
-        int32_t j = i;
-        Cpp_Token *jtoken = token;
-        
-        if (do_function_parse_check(&j, &jtoken, count)){
-            if (token->type == CPP_TOKEN_IDENTIFIER){
-                String doc_string = {0};
-                if (do_function_get_doc(&j, &jtoken, count, data, &doc_string)){
-                    function_set.items[sig_count].doc_string = doc_string;
-                }
-            }
-        }
-        
-        ++i, ++token;
-        if (i < count){
-            Cpp_Token *ret_start_token = token;
-            if (do_function_parse_check(&i, &token, count)){
-                if (do_function_parse(&i, &token, count, ret_start_token,
-                                      data, function_set, sig_count, cpp_name)){
-                    result = true;
-                }
-            }
-        }
-    }
-    
-    *index = i;
-    *token_ptr = token;
-    
-    return(result);
-}
-
-static int32_t
-do_macro_parse_check(int32_t *index, Cpp_Token **token_ptr, int32_t count){
-    int32_t result = false;
-    
-    int32_t i = *index;
-    Cpp_Token *token = *token_ptr;
-    
-    {
-        ++i, ++token;
-        if (i < count){
-            if (token->type == CPP_TOKEN_COMMENT){
-                ++i, ++token;
-                if (i < count){
-                    if (token->type == CPP_PP_DEFINE){
-                        result = true;
-                    }
-                }
-            }
-        }
-    }
-    
-    *index = i;
-    *token_ptr = token;
-    
-    return(result);
-}
-
-static int32_t
-do_macro_parse(int32_t *index, Cpp_Token **token_ptr, int32_t count,
-               char *data, Item_Set macro_set, int32_t sig_count){
-    int32_t result = false;
-    
-    int32_t i = *index;
-    Cpp_Token *token = *token_ptr;
-    
-    if (i > 0){
-        Cpp_Token *doc_token = token-1;
-        
-        String doc_string = make_string(data + doc_token->start, doc_token->size);
-        
-        if (check_and_fix_docs(&doc_string)){
-            macro_set.items[sig_count].doc_string = doc_string;
-            
-            for (; i < count; ++i, ++token){
-                if (token->type == CPP_TOKEN_IDENTIFIER){
-                    break;
-                }
-            }
-            
-            if (i < count && (token->flags & CPP_TFLAG_PP_BODY)){
-                macro_set.items[sig_count].name = make_string(data + token->start, token->size);
-                
-                ++i, ++token;
-                if (i < count){
-                    Cpp_Token *args_start_token = token;
-                    for (; i < count; ++i, ++token){
-                        if (token->type == CPP_TOKEN_PARENTHESE_CLOSE){
-                            break;
-                        }
-                    }
-                    
-                    if (i < count){
-                        int32_t start = args_start_token->start;
-                        int32_t end = token->start + token->size;
-                        macro_set.items[sig_count].args = make_string(data + start, end - start);
-                        
-                        Argument_Breakdown *breakdown = &macro_set.items[sig_count].breakdown;
-                        *breakdown = do_parameter_parse(data, args_start_token, token);
-                        
-                        ++i, ++token;
-                        if (i < count){
-                            Cpp_Token *body_start = token;
-                            
-                            if (body_start->flags & CPP_TFLAG_PP_BODY){
-                                for (; i < count; ++i, ++token){
-                                    if (!(token->flags & CPP_TFLAG_PP_BODY)){
-                                        break;
-                                    }
-                                }
-                                
-                                --i, --token;
-                                
-                                Cpp_Token *body_end = token;
-                                
-                                start = body_start->start;
-                                end = body_end->start + body_end->size;
-                                macro_set.items[sig_count].body = make_string(data + start, end - start);
-                            }
-                        }
-                        
-                        macro_set.items[sig_count].t = Item_Macro;
-                        result = true;
-                    }
-                }
-            }
-        }
-    }
-    
-    *index = i;
-    *token_ptr = token;
-    
-    return(result);
-}
-
 typedef struct String_Function_Marker{
     int32_t parse_function;
     int32_t is_inline;
@@ -1634,7 +1693,7 @@ typedef struct String_Function_Marker{
 } String_Function_Marker;
 
 static String_Function_Marker
-do_string_function_marker_check(String lexeme){
+string_function_marker_check(String lexeme){
     String_Function_Marker result = {0};
     
     if (match_ss(lexeme, make_lit_string("FSTRING_INLINE"))){
@@ -1825,15 +1884,15 @@ generate_custom_headers(){
                 String lexeme = make_string(data + token->start, token->size);
                 
                 String_Function_Marker marker =
-                    do_string_function_marker_check(lexeme);
+                    string_function_marker_check(lexeme);
                 
                 if (marker.parse_function){
-                    if (do_function_parse_check(&i, &token, count)){
+                    if (function_parse_check(&i, &token, count)){
                         ++string_function_count;
                     }
                 }
                 else if (marker.parse_doc){
-                    if (do_macro_parse_check(&i, &token, count)){
+                    if (macro_parse_check(&i, &token, count)){
                         ++string_function_count;
                     }
                 }
@@ -1854,6 +1913,9 @@ generate_custom_headers(){
         Cpp_Token *tokens = token_stack->tokens;
         Cpp_Token *token = tokens;
         
+        Parse_Context context_ = setup_parse_context(*token_stack);
+        Parse_Context *context = &context_;
+        
         String cpp_name = {0};
         int32_t has_cpp_name = 0;
         
@@ -1863,24 +1925,25 @@ generate_custom_headers(){
                 String lexeme = make_string(data + token->start, token->size);
                 
                 String_Function_Marker marker =
-                    do_string_function_marker_check(lexeme);
+                    string_function_marker_check(lexeme);
                 
                 if (marker.cpp_name){
-                    if (do_parse_cpp_name(&i, &token, count, data, &cpp_name)){
+                    if (parse_cpp_name(&i, &token, count, data, &cpp_name)){
                         has_cpp_name = 1;
                     }
                 }
                 else if (marker.parse_function){
-                    if (do_full_function_parse(&i, &token, count, data,
-                                               string_function_set, string_sig_count,
-                                               cpp_name)){
+                    set_token(context, token);
+                    if (function_parse(context, data,
+                                       string_function_set, string_sig_count,
+                                       cpp_name)){
                         ++string_sig_count;
                     }
                 }
                 else if (marker.parse_doc){
-                    if (do_macro_parse_check(&i, &token, count)){
-                        do_macro_parse(&i, &token, count, data,
-                                       string_function_set, string_sig_count);
+                    if (macro_parse_check(&i, &token, count)){
+                        macro_parse(&i, &token, count, data,
+                                    string_function_set, string_sig_count);
                         ++string_sig_count;
                     }
                 }
@@ -1919,7 +1982,7 @@ generate_custom_headers(){
                 !(token->flags & CPP_TFLAG_PP_BODY)){
                 String lexeme = make_string(data + token->start, token->size);
                 if (match_ss(lexeme, make_lit_string("API_EXPORT"))){
-                    if (do_function_parse_check(&i, &token, count)){
+                    if (function_parse_check(&i, &token, count)){
                         ++line_count;
                     }
                 }
@@ -1940,6 +2003,9 @@ generate_custom_headers(){
         int32_t count = parse->tokens.count;
         Cpp_Token *tokens = parse->tokens.tokens;
         
+        Parse_Context context_ = setup_parse_context(parse->tokens);
+        Parse_Context *context = &context_;
+        
         // NOTE(allen): Header Parse
         Cpp_Token *token = tokens;
         for (int32_t i = 0; i < count; ++i, ++token){
@@ -1947,8 +2013,9 @@ generate_custom_headers(){
                 !(token->flags & CPP_TFLAG_PP_BODY)){
                 String lexeme = make_string(data + token->start, token->size);
                 if (match_ss(lexeme, make_lit_string("API_EXPORT"))){
-                    do_full_function_parse(&i, &token, count, data, function_set,
-                                           sig_count, string_zero());
+                    set_token(context, token);
+                    function_parse(context, data, function_set,
+                                   sig_count, string_zero());
                     if (function_set.items[sig_count].t == Item_Null){
                         function_set.items[sig_count] = null_item_node;
                         // TODO(allen): get warning file name and line numbers
