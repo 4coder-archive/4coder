@@ -1441,7 +1441,7 @@ do_parse_cpp_name(int32_t *i_ptr, Cpp_Token **token_ptr, int32_t count, char *da
 
 static int32_t
 do_function_parse(int32_t *index, Cpp_Token **token_ptr, int32_t count, Cpp_Token *ret_start_token,
-                  char *data, Item_Set function_set, int32_t sig_count, String cpp_name){
+                  char *data, Item_Set item_set, int32_t sig_count, String cpp_name){
     int32_t result = false;
     
     int32_t i = *index;
@@ -1449,12 +1449,12 @@ do_function_parse(int32_t *index, Cpp_Token **token_ptr, int32_t count, Cpp_Toke
     
     Cpp_Token *args_start_token = token+1;
     
-    function_set.items[sig_count].name = make_string(data + token->start, token->size);
+    item_set.items[sig_count].name = get_lexeme(*token, data);
     
     int32_t size = token->start - ret_start_token->start;
     String ret = make_string(data + ret_start_token->start, size);
     ret = chop_whitespace(ret);
-    function_set.items[sig_count].ret = ret;
+    item_set.items[sig_count].ret = ret;
     
     for (; i < count; ++i, ++token){
         if (token->type == CPP_TOKEN_PARENTHESE_CLOSE){
@@ -1464,15 +1464,15 @@ do_function_parse(int32_t *index, Cpp_Token **token_ptr, int32_t count, Cpp_Toke
     
     if (i < count){
         int32_t size = token->start + token->size - args_start_token->start;;
-        function_set.items[sig_count].args =
+        item_set.items[sig_count].args =
             make_string(data + args_start_token->start, size);
-        function_set.items[sig_count].t = Item_Function;
-        result = true;
+        item_set.items[sig_count].t = Item_Function;
+        item_set.items[sig_count].cpp_name = cpp_name;
         
-        Argument_Breakdown *breakdown = &function_set.items[sig_count].breakdown;
+        Argument_Breakdown *breakdown = &item_set.items[sig_count].breakdown;
         *breakdown = do_parameter_parse(data, args_start_token, token);
         
-        function_set.items[sig_count].cpp_name = cpp_name;
+        result = true;
     }
     
     *index = i;
