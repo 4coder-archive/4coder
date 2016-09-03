@@ -333,6 +333,14 @@ generate_style(){
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////
+
+typedef struct Parse_Context{
+    Cpp_Token *token_s;
+    Cpp_Token *token_e;
+    Cpp_Token *token;
+    char *data;
+} Parse_Context;
+
 typedef struct Argument{
     String param_string;
     String param_name;
@@ -387,6 +395,7 @@ typedef struct Item_Node{
 
 typedef struct Item_Set{
     Item_Node *items;
+    int32_t count;
 } Item_Set; 
 
 typedef struct Parse{
@@ -394,7 +403,96 @@ typedef struct Parse{
     Cpp_Token_Stack tokens;
 } Parse;
 
+typedef struct Meta_Unit{
+    Item_Set set;
+    
+    Parse *parse;
+    int32_t count;
+} Meta_Unit;
+
+typedef struct Meta_Keywords{
+    String key;
+    Item_Type type;
+} Meta_Keywords;
+
 static Item_Node null_item_node = {0};
+
+static String
+get_lexeme(Cpp_Token token, char *code){
+    String str = make_string(code + token.start, token.size);
+    return(str);
+}
+
+static Parse_Context
+setup_parse_context(char *data, Cpp_Token_Stack stack){
+    Parse_Context context;
+    context.token_s = stack.tokens;
+    context.token_e = stack.tokens + stack.count;
+    context.token = context.token_s;
+    context.data = data;
+    return(context);
+}
+
+static Parse_Context
+setup_parse_context(Parse parse){
+    Parse_Context context;
+    context.token_s = parse.tokens.tokens;
+    context.token_e = parse.tokens.tokens + parse.tokens.count;
+    context.token = context.token_s;
+    context.data = parse.code.str;
+    return(context);
+}
+
+static Cpp_Token*
+get_token(Parse_Context *context){
+    Cpp_Token *result = context->token;
+    if (result >= context->token_e){
+        result = 0;
+    }
+    return(result);
+}
+
+static Cpp_Token*
+get_next_token(Parse_Context *context){
+    Cpp_Token *result = context->token+1;
+    context->token = result;
+    if (result >= context->token_e){
+        result = 0;
+        context->token = context->token_e;
+    }
+    return(result);
+}
+
+static Cpp_Token*
+get_prev_token(Parse_Context *context){
+    Cpp_Token *result = context->token-1;
+    if (result < context->token_s){
+        result = 0;
+    }
+    else{
+        context->token = result;
+    }
+    return(result);
+}
+
+static Cpp_Token*
+can_back_step(Parse_Context *context){
+    Cpp_Token *result = context->token-1;
+    if (result < context->token_s){
+        result = 0;
+    }
+    return(result);
+}
+
+static Cpp_Token*
+set_token(Parse_Context *context, Cpp_Token *token){
+    Cpp_Token *result = 0;
+    if (token >= context->token_s && token < context->token_e){
+        context->token = token;
+        result = token;
+    }
+    return(result);
+}
 
 static String
 file_dump(char *filename){
@@ -419,12 +517,58 @@ file_dump(char *filename){
 }
 
 static Parse
-meta_parse(char *filename){
+meta_lex(char *filename){
     Parse result = {0};
     result.code = file_dump(filename);
     result.tokens = cpp_make_token_stack(1024);
     cpp_lex_file(result.code.str, result.code.size, &result.tokens);
     return(result);
+}
+
+static Meta_Unit
+compile_meta_unit(Partition *part, char **files, int32_t file_count,
+                  Meta_Keywords *keywords, int32_t key_count){
+    Meta_Unit unit = {0};
+    int32_t i = 0;
+    
+    unit.count = file_count;
+    unit.parse = push_array(part, Parse, file_count);
+    
+    for (i = 0; i < file_count; ++i){
+        unit.parse[i] = meta_lex(files[i]);
+    }
+    
+#if 0
+    // TODO(allen): This stage counts nested structs
+    // and unions which is not correct.  Luckily it only
+    // means we over allocate by a few items, but fixing it
+    // to be exactly correct would be nice.
+    for (int32_t J = 0; J < unit.count; ++J){
+        Cpp_Token *token = 0;
+        Parse_Context context_ = setup_parse_context(unit.parse[J]);
+        Parse_Context *context = &context_;
+        
+        for (; (token = get_token(context)) != 0; get_next_token(context)){
+            if (!(token->flags & CPP_TFLAG_PP_BODY) &&
+                ((token->flags & CPP_TFLAG_IS_KEYWORD) ||
+                 token->type == CPP_TOKEN_IDENTIFIER)){
+                
+                String lexeme = get_lexeme(*token, context->data);
+                int32_t match_index = 0;
+                if (string_set_match_table(keywords, sizeof(*keywords), key_count, lexeme, &match_index)){
+                    switch (match_index){
+                        case 0: //typedef
+                        case 1: case 2: //struct/union
+                        case 3: //ENUM
+                        ++unit.set.count; break;
+                    }
+                }
+            }
+        }
+    }
+#endif
+    
+    return(unit);
 }
 
 static String
@@ -474,19 +618,36 @@ typedef enum Doc_Note_Type{
 } Doc_Note_Type;
 
 static int32_t
-check_and_fix_docs(String *lexeme){
+check_and_fix_docs(String *doc_string){
     int32_t result = false;
     
-    if (lexeme->size > 4){
-        if (lexeme->str[0] == '/'){
-            if (lexeme->str[1] == '*'){
-                if (lexeme->str[lexeme->size - 2] == '*'){
-                    if (lexeme->str[lexeme->size - 1] == '/'){
+    if (doc_string->size > 4){
+        if (doc_string->str[0] == '/'){
+            if (doc_string->str[1] == '*'){
+                if (doc_string->str[doc_string->size - 2] == '*'){
+                    if (doc_string->str[doc_string->size - 1] == '/'){
                         result = true;
-                        lexeme->str += 2;
-                        lexeme->size -= 4;
+                        doc_string->str += 2;
+                        doc_string->size -= 4;
                     }
                 }
+            }
+        }
+    }
+    
+    return(result);
+}
+
+static int32_t
+get_doc_string_from_prev(Parse_Context *context, String *doc_string){
+    int32_t result = false;
+    
+    if (can_back_step(context)){
+        Cpp_Token *prev_token = get_token(context) - 1;
+        if (prev_token->type == CPP_TOKEN_COMMENT){
+            *doc_string = get_lexeme(*prev_token, context->data);
+            if (check_and_fix_docs(doc_string)){
+                result = true;
             }
         }
     }
@@ -688,105 +849,15 @@ perform_doc_parse(Partition *part, String doc_string, Documentation *doc){
     }while(keep_parsing);
 }
 
-static String
-get_lexeme(Cpp_Token token, char *code){
-    String str = make_string(code + token.start, token.size);
-    return(str);
-}
-
 static Item_Set
 allocate_item_set(Partition *part, int32_t count){
     Item_Set item_set = {0};
     if (count > 0){
         item_set.items = push_array(part, Item_Node, count);
+        item_set.count = count;
         memset(item_set.items, 0, sizeof(Item_Node)*count);
     }
     return(item_set);
-}
-
-typedef struct Parse_Context{
-    Cpp_Token *token_s;
-    Cpp_Token *token_e;
-    Cpp_Token *token;
-    char *data;
-} Parse_Context;
-
-static Parse_Context
-setup_parse_context(char *data, Cpp_Token_Stack stack){
-    Parse_Context context;
-    context.token_s = stack.tokens;
-    context.token_e = stack.tokens + stack.count;
-    context.token = context.token_s;
-    context.data = data;
-    return(context);
-}
-
-static Cpp_Token*
-get_token(Parse_Context *context){
-    Cpp_Token *result = context->token;
-    if (result >= context->token_e){
-        result = 0;
-    }
-    return(result);
-}
-
-static Cpp_Token*
-get_next_token(Parse_Context *context){
-    Cpp_Token *result = context->token+1;
-    context->token = result;
-    if (result >= context->token_e){
-        result = 0;
-        context->token = context->token_e;
-    }
-    return(result);
-}
-
-static Cpp_Token*
-get_prev_token(Parse_Context *context){
-    Cpp_Token *result = context->token-1;
-    if (result < context->token_s){
-        result = 0;
-    }
-    else{
-        context->token = result;
-    }
-    return(result);
-}
-
-static Cpp_Token*
-can_back_step(Parse_Context *context){
-    Cpp_Token *result = context->token-1;
-    if (result < context->token_s){
-        result = 0;
-    }
-    return(result);
-}
-
-static Cpp_Token*
-set_token(Parse_Context *context, Cpp_Token *token){
-    Cpp_Token *result = 0;
-    if (token >= context->token_s && token < context->token_e){
-        context->token = token;
-        result = token;
-    }
-    return(result);
-}
-
-static int32_t
-get_doc_string_from_prev(Parse_Context *context, String *doc_string){
-    int32_t result = false;
-    
-    if (can_back_step(context)){
-        Cpp_Token *prev_token = get_token(context) - 1;
-        if (prev_token->type == CPP_TOKEN_COMMENT){
-            *doc_string = get_lexeme(*prev_token, context->data);
-            if (check_and_fix_docs(doc_string)){
-                result = true;
-            }
-        }
-    }
-    
-    return(result);
 }
 
 
@@ -1993,7 +2064,7 @@ generate_custom_headers(){
     Partition part_ = make_part(mem, size);
     Partition *part = &part_;
     
-    Parse string_parse = meta_parse("internal_4coder_string.cpp");
+    Parse string_parse = meta_lex("internal_4coder_string.cpp");
     
     int32_t string_function_count = 0;
     
@@ -2083,8 +2154,8 @@ generate_custom_headers(){
     //
     
     Parse parses[2];
-    parses[0] = meta_parse("4ed_api_implementation.cpp");
-    parses[1] = meta_parse("win32_api_impl.cpp");
+    parses[0] = meta_lex("4ed_api_implementation.cpp");
+    parses[1] = meta_lex("win32_api_impl.cpp");
     
     int32_t line_count = 0;
     
@@ -2258,128 +2329,126 @@ generate_custom_headers(){
     
     // NOTE(allen): Documentation
     {
-        Item_Set typedef_set = {0};
-        Item_Set struct_set = {0};
-        Item_Set enum_set = {0};
-        
-        Parse type_parse[1];
-        type_parse[0] = meta_parse("4coder_types.h");
-        
-        int32_t file_count = ArrayCount(type_parse);
-        
-        int32_t typedef_count = 0;
-        int32_t struct_count = 0;
-        int32_t enum_count = 0;
-        
-        static String type_spec_keys[] = {
-            make_lit_string("typedef"),
-            make_lit_string("struct"),
-            make_lit_string("union"),
-            make_lit_string("ENUM")
+        static char *type_files[] = {
+            "4coder_types.h"
         };
         
-        for (int32_t J = 0; J < file_count; ++J){
-            char *data = type_parse[J].code.str;
-            
-            int32_t count = type_parse[J].tokens.count;
-            Cpp_Token *tokens = type_parse[J].tokens.tokens;
-            Cpp_Token *token = tokens;
-            
-            for (int32_t i = 0; i < count; ++i, ++token){
-                if (!(token->flags & CPP_TFLAG_PP_BODY) &&
-                    (token->type == CPP_TOKEN_KEY_TYPE_DECLARATION ||
-                     token->type == CPP_TOKEN_IDENTIFIER)){
-                    
-                    String lexeme = make_string(data + token->start, token->size);
-                    int32_t match_index = 0;
-                    if (string_set_match(type_spec_keys, ArrayCount(type_spec_keys),
-                                         lexeme, &match_index)){
-                        switch (match_index){
-                            case 0: //typedef
-                            ++typedef_count; break;
-                            
-                            case 1: case 2: //struct/union
-                            ++struct_count; break;
-                            
-                            case 3: //ENUM
-                            ++enum_count; break;
-                        }
-                    }
-                }
-            }
-        }
+#if 0
+        static Meta_Keywords type_spec_keys[] = {
+            {make_lit_string("typedef") , Item_Typedef } ,
+            {make_lit_string("struct")  , Item_Struct  } ,
+            {make_lit_string("union")   , Item_Union   } ,
+            {make_lit_string("ENUM")    , Item_Enum    } ,
+        };
+#endif
         
-        if (typedef_count >  0){
-            typedef_set = allocate_item_set(part, typedef_count);
-        }
+        static String type_spec_keys[] = {
+            make_lit_string("typedef") , 
+            make_lit_string("struct")  , 
+            make_lit_string("union")   , 
+            make_lit_string("ENUM")    , 
+        };
         
-        if (struct_count > 0){
-            struct_set = allocate_item_set(part, struct_count);
-        }
+        Meta_Unit unit = compile_meta_unit(part, type_files, ArrayCount(type_files),
+                                           0,0);
+                                           //type_spec_keys, ArrayCount(type_spec_keys));
         
-        if (enum_count > 0){
-            enum_set = allocate_item_set(part, enum_count);
-        }
-        
-        int32_t typedef_index = 0;
-        int32_t struct_index = 0;
-        int32_t enum_index = 0;
-        
-        for (int32_t J = 0; J < file_count; ++J){
-            char *data = type_parse[J].code.str;
-            Cpp_Token_Stack types_tokens = type_parse[J].tokens;
-            
-            Cpp_Token *token = types_tokens.tokens;
-            
-            Parse_Context context_ = setup_parse_context(data, types_tokens);
+        // TODO(allen): This stage counts nested structs
+        // and unions which is not correct.  Luckily it only
+        // means we over allocate by a few items, but fixing it
+        // to be exactly correct would be nice.
+        for (int32_t J = 0; J < unit.count; ++J){
+            Cpp_Token *token = 0;
+            Parse_Context context_ = setup_parse_context(unit.parse[J]);
             Parse_Context *context = &context_;
             
             for (; (token = get_token(context)) != 0; get_next_token(context)){
                 if (!(token->flags & CPP_TFLAG_PP_BODY) &&
-                    (token->type == CPP_TOKEN_KEY_TYPE_DECLARATION ||
+                    ((token->flags & CPP_TFLAG_IS_KEYWORD) ||
                      token->type == CPP_TOKEN_IDENTIFIER)){
                     
-                    String lexeme = get_lexeme(*token, data);
+                    String lexeme = get_lexeme(*token, context->data);
+                    int32_t match_index = 0;
+                    if (string_set_match(type_spec_keys, ArrayCount(type_spec_keys),
+                                         lexeme, &match_index)){
+                        switch (match_index){
+                            case 0: //typedef
+                            case 1: case 2: //struct/union
+                            case 3: //ENUM
+                            ++unit.set.count; break;
+                        }
+                    }
+                }
+            }
+        }
+        
+        if (unit.set.count >  0){
+            unit.set = allocate_item_set(part, unit.set.count);
+        }
+        
+        int32_t index = 0;
+        
+        for (int32_t J = 0; J < unit.count; ++J){
+            Cpp_Token *token = 0;
+            Parse_Context context_ = setup_parse_context(unit.parse[J]);
+            Parse_Context *context = &context_;
+            
+            for (; (token = get_token(context)) != 0; get_next_token(context)){
+                if (!(token->flags & CPP_TFLAG_PP_BODY) &&
+                    ((token->flags & CPP_TFLAG_IS_KEYWORD) ||
+                     token->type == CPP_TOKEN_IDENTIFIER)){
+                    
+#define InvalidPath Assert(!"Invalid path of execution")
+                    
+                    String lexeme = get_lexeme(*token, context->data);
                     int32_t match_index = 0;
                     if (string_set_match(type_spec_keys, ArrayCount(type_spec_keys),
                                          lexeme, &match_index)){
                         switch (match_index){
                             case 0: //typedef
                             {
-                                set_token(context, token);
-                                if (typedef_parse(context, typedef_set.items + typedef_index)){
-                                    Assert(typedef_set.items[typedef_index].t == Item_Typedef);
-                                    ++typedef_index;
+                                if (typedef_parse(context, unit.set.items + index)){
+                                    Assert(unit.set.items[index].t == Item_Typedef);
+                                    ++index;
+                                }
+                                else{
+                                    InvalidPath;
                                 }
                             }break;
                             
                             case 1: case 2: //struct/union
                             {
-                                set_token(context, token);
                                 if (struct_parse(part, (match_index == 1),
-                                                 context, struct_set.items + struct_index)){
-                                    Assert(struct_set.items[struct_index].t == Item_Struct ||
-                                           struct_set.items[struct_index].t == Item_Union);
-                                    ++struct_index;
+                                                 context, unit.set.items + index)){
+                                    Assert(unit.set.items[index].t == Item_Struct ||
+                                           unit.set.items[index].t == Item_Union);
+                                    ++index;
+                                }
+                                else{
+                                    InvalidPath;
                                 }
                             }break;
                             
                             case 3: //ENUM
                             {
-                                set_token(context, token);
-                                if (enum_parse(part, context, enum_set.items + enum_index)){
-                                    Assert(enum_set.items[enum_index].t == Item_Enum);
-                                    ++enum_index;
+                                if (enum_parse(part, context, unit.set.items + index)){
+                                    Assert(unit.set.items[index].t == Item_Enum);
+                                    ++index;
+                                }
+                                else{
+                                    InvalidPath;
                                 }
                             }break;
+                            
                         }
                     }
                 }
             }
             
-            typedef_count = typedef_index;
-            struct_count = struct_index;
-            enum_count = enum_index;
+            // NOTE(allen): This is necessary for now because
+            // the original count is slightly overestimated thanks
+            // to nested structs and unions.
+            unit.set.count = index;
         }
         
         //
@@ -2818,30 +2887,8 @@ generate_custom_headers(){
                     "<ul>\n"
                     );
             
-            for (int32_t i = 0; i < typedef_count; ++i){
-                String name = typedef_set.items[i].name;
-                fprintf(file,
-                        "<li>"
-                        "<a href='#%.*s_doc'>%.*s</a>"
-                        "</li>\n",
-                        name.size, name.str,
-                        name.size, name.str
-                        );
-            }
-            
-            for (int32_t i = 0; i < enum_count; ++i){
-                String name = enum_set.items[i].name;
-                fprintf(file,
-                        "<li>"
-                        "<a href='#%.*s_doc'>%.*s</a>"
-                        "</li>\n",
-                        name.size, name.str,
-                        name.size, name.str
-                        );
-            }
-            
-            for (int32_t i = 0; i < struct_count; ++i){
-                String name = struct_set.items[i].name;
+            for (int32_t i = 0; i < unit.set.count; ++i){
+                String name = unit.set.items[i].name;
                 fprintf(file,
                         "<li>"
                         "<a href='#%.*s_doc'>%.*s</a>"
@@ -2881,16 +2928,8 @@ generate_custom_headers(){
             
             fprintf(file, "<h3>&sect;"SECTION" Type Descriptions</h3>\n");
             int32_t I = 1;
-            for (int32_t i = 0; i < typedef_count; ++i, ++I){
-                print_item(part, file, typedef_set.items + i, SECTION, I);
-            }
-            
-            for (int32_t i = 0; i < enum_count; ++i, ++I){
-                print_item(part, file, enum_set.items + i, SECTION, I);
-            }
-            
-            for (int32_t i = 0; i < struct_count; ++i, ++I){
-                print_item(part, file, struct_set.items + i, SECTION, I);
+            for (int32_t i = 0; i < unit.set.count; ++i, ++I){
+                print_item(part, file, unit.set.items + i, SECTION, I);
             }
         }
         

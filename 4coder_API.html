@@ -2454,6 +2454,7 @@ Coming Soon</i><div>
 <li><a href='#file_extension_str_doc'>file_extension</a></li>
 <li><a href='#remove_extension_str_doc'>remove_extension</a></li>
 <li><a href='#remove_last_folder_str_doc'>remove_last_folder</a></li>
+<li><a href='#string_set_match_table_str_doc'>string_set_match_table</a></li>
 <li><a href='#string_set_match_str_doc'>string_set_match</a></li>
 </ul>
 <h3>&sect;4.3 String Function Descriptions</h3>
@@ -3471,7 +3472,30 @@ fstr_bool remove_last_folder(
 </div>
 <div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>This call attemps to delete a folder or filename off the end of a path string.
 This call returns non-zero on success.</div></div><hr>
-<div id='string_set_match_str_doc'><h4>&sect;4.3.114: string_set_match</h4>
+<div id='string_set_match_table_str_doc'><h4>&sect;4.3.114: string_set_match_table</h4>
+<div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>
+fstr_bool string_set_match_table(
+<div style='margin-left: 4mm;'>void *str_set,<br>int32_t item_size,<br>int32_t count,<br>String str,<br>int32_t *match_index<br></div>)
+</div>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Parameters</i></b></div><div>
+<div style='font-weight: 600;'>str_set</div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>The str_set parameter is an array of String structs specifying matchable strings.</div></div>
+</div>
+<div>
+<div style='font-weight: 600;'>count</div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>The count parameter specifies the number of String structs in the str_set array.</div></div>
+</div>
+<div>
+<div style='font-weight: 600;'>str</div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>The str parameter specifies the string to match against the str_set.</div></div>
+</div>
+<div>
+<div style='font-weight: 600;'>match_index</div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>If this call succeeds match_index is filled with the index into str_set where the match occurred.</div></div>
+</div>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>This call tries to see if str matches any of the strings in str_set.  If there is a match the call
+succeeds and returns non-zero.  The matching rule is equivalent to the matching rule for match.</div><div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>See Also</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'><a href='#match_doc'>match</a></div></div><hr>
+<div id='string_set_match_str_doc'><h4>&sect;4.3.115: string_set_match</h4>
 <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>
 fstr_bool string_set_match(
 <div style='margin-left: 4mm;'>String *str_set,<br>int32_t count,<br>String str,<br>int32_t *match_index<br></div>)

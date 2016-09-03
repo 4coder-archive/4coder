@@ -1742,8 +1742,9 @@ This call returns non-zero on success.) */{
 }
 
 // TODO(allen): Add hash-table extension to string sets.
+CPP_NAME(string_set_match)
 FSTRING_LINK fstr_bool
-string_set_match(String *str_set, int32_t count, String str, int32_t *match_index)/*
+string_set_match_table(void *str_set, int32_t item_size, int32_t count, String str, int32_t *match_index)/*
 DOC_PARAM(str_set, The str_set parameter is an array of String structs specifying matchable strings.)
 DOC_PARAM(count, The count parameter specifies the number of String structs in the str_set array.)
 DOC_PARAM(str, The str parameter specifies the string to match against the str_set.)
@@ -1753,8 +1754,9 @@ succeeds and returns non-zero.  The matching rule is equivalent to the matching 
 DOC_SEE(match) */{
     fstr_bool result = 0;
     int32_t i = 0;
-    for (; i < count; ++i, ++str_set){
-        if (match_ss(*str_set, str)){
+    uint8_t *ptr = (uint8_t*)str_set;
+    for (; i < count; ++i, ptr += item_size){
+        if (match_ss(*(String*)ptr, str)){
             *match_index = i;
             result = 1;
             break;
@@ -1762,6 +1764,20 @@ DOC_SEE(match) */{
     }
     return(result);
 }
+
+FSTRING_LINK fstr_bool
+string_set_match(String *str_set, int32_t count, String str, int32_t *match_index)/*
+DOC_PARAM(str_set, The str_set parameter is an array of String structs specifying matchable strings.)
+DOC_PARAM(count, The count parameter specifies the number of String structs in the str_set array.)
+DOC_PARAM(str, The str parameter specifies the string to match against the str_set.)
+DOC_PARAM(match_index, If this call succeeds match_index is filled with the index into str_set where the match occurred.)
+DOC(This call tries to see if str matches any of the strings in str_set.  If there is a match the call
+succeeds and returns non-zero.  The matching rule is equivalent to the matching rule for match.)
+DOC_SEE(match) */{
+    fstr_bool result = string_set_match_table(str_set, sizeof(String), count, str, match_index);
+    return(result);
+}
+
 
 #ifndef FSTRING_EXPERIMENTAL
 #define FSTRING_EXPERIMENTAL

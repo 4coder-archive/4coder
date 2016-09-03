@@ -166,6 +166,7 @@ FSTRING_LINK    fstr_bool     set_last_folder_ss(String *dir, String folder_name
 FSTRING_LINK    String        file_extension(String str);
 FSTRING_LINK    fstr_bool     remove_extension(String *str);
 FSTRING_LINK    fstr_bool     remove_last_folder(String *str);
+FSTRING_LINK    fstr_bool     string_set_match_table(void *str_set, int32_t item_size, int32_t count, String str, int32_t *match_index);
 FSTRING_LINK    fstr_bool     string_set_match(String *str_set, int32_t count, String str, int32_t *match_index);
 
 #if !defined(FSTRING_C)
@@ -241,6 +242,7 @@ FSTRING_INLINE  int32_t       str_to_int(String str);
 FSTRING_INLINE  int32_t       reverse_seek_slash(String str, int32_t pos);
 FSTRING_INLINE  fstr_bool     set_last_folder(String *dir, char *folder_name, char slash);
 FSTRING_INLINE  fstr_bool     set_last_folder(String *dir, String folder_name, char slash);
+FSTRING_INLINE  fstr_bool     string_set_match(void *str_set, int32_t item_size, int32_t count, String str, int32_t *match_index);
 
 #endif
 
@@ -384,6 +386,8 @@ FSTRING_INLINE fstr_bool
 set_last_folder(String *dir, char *folder_name, char slash){return(set_last_folder_sc(dir,folder_name,slash));}
 FSTRING_INLINE fstr_bool
 set_last_folder(String *dir, String folder_name, char slash){return(set_last_folder_ss(dir,folder_name,slash));}
+FSTRING_INLINE fstr_bool
+string_set_match(void *str_set, int32_t item_size, int32_t count, String str, int32_t *match_index){return(string_set_match_table(str_set,item_size,count,str,match_index));}
 
 #endif
 
@@ -2021,13 +2025,15 @@ remove_last_folder(String *str){
 #endif
 
 // TODO(allen): Add hash-table extension to string sets.
+
 #if defined(FSTRING_IMPLEMENTATION)
 FSTRING_LINK fstr_bool
-string_set_match(String *str_set, int32_t count, String str, int32_t *match_index){
+string_set_match_table(void *str_set, int32_t item_size, int32_t count, String str, int32_t *match_index){
     fstr_bool result = 0;
     int32_t i = 0;
-    for (; i < count; ++i, ++str_set){
-        if (match_ss(*str_set, str)){
+    uint8_t *ptr = (uint8_t*)str_set;
+    for (; i < count; ++i, ptr += item_size){
+        if (match_ss(*(String*)ptr, str)){
             *match_index = i;
             result = 1;
             break;
@@ -2036,6 +2042,15 @@ string_set_match(String *str_set, int32_t count, String str, int32_t *match_inde
     return(result);
 }
 #endif
+
+#if defined(FSTRING_IMPLEMENTATION)
+FSTRING_LINK fstr_bool
+string_set_match(String *str_set, int32_t count, String str, int32_t *match_index){
+    fstr_bool result = string_set_match_table(str_set, sizeof(String), count, str, match_index);
+    return(result);
+}
+#endif
+
 
 #ifndef FSTRING_EXPERIMENTAL
 #define FSTRING_EXPERIMENTAL
