@@ -782,6 +782,12 @@ get_index(Parse_Context *context, Cpp_Token *token){
     return(&TRANSITIONAL_INDEX);
 }
 
+static Cpp_Token**
+get_ptr(Parse_Context *context){
+    Cpp_Token **result = &context->token;
+    return(result);
+}
+
 static int32_t
 get_count(Parse_Context *context){
     int32_t result = (int32_t)(context->token_e - context->token_s);
@@ -1382,27 +1388,28 @@ function_parse(Parse_Context *context, char *data,
                Item_Set item_set, int32_t sig_count, String cpp_name){
     int32_t result = false;
     
-    Cpp_Token *token = 0, *jtoken = 0;
+    Cpp_Token *jtoken = 0;
     
-    token = get_token(context);
-    item_set.items[sig_count].marker = get_lexeme(*token, data);
-    jtoken = token;
+    jtoken = get_token(context);
+    item_set.items[sig_count].marker = get_lexeme(*jtoken, data);
     
-    if (function_parse_check(get_index(context, jtoken), &jtoken, get_count(context))){
-        if (token->type == CPP_TOKEN_IDENTIFIER){
+    if (function_parse_check(get_index(context, 0), get_ptr(context), get_count(context))){
+        if (jtoken->type == CPP_TOKEN_IDENTIFIER){
             String doc_string = {0};
-            if (function_get_doc(get_index(context, jtoken), &jtoken,
+            if (function_get_doc(get_index(context, 0), get_ptr(context),
                                  get_count(context), data, &doc_string)){
                 item_set.items[sig_count].doc_string = doc_string;
             }
         }
     }
     
+    set_token(context, jtoken);
     if (get_next_token(context)){
-        Cpp_Token *ret_start_token = token;
-        if (function_parse_check(get_index(context, token), &token, get_count(context))){
-            if (function_sig_parse(get_index(context, token), &token, get_count(context), ret_start_token,
-                                   data, item_set, sig_count, cpp_name)){
+        Cpp_Token *ret_start_token = get_token(context);
+        
+        if (function_parse_check(get_index(context, 0), get_ptr(context), get_count(context))){
+            if (function_sig_parse(get_index(context, 0), get_ptr(context), get_count(context),
+                                   ret_start_token, data, item_set, sig_count, cpp_name)){
                 result = true;
             }
         }
