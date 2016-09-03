@@ -1,11 +1,11 @@
 /*
-* Mr. 4th Dimention - Allen Webster
-*
-* 12.12.2014
-*
-* Application layer for project codename "4ed"
-*
-*/
+ * Mr. 4th Dimention - Allen Webster
+ *
+ * 12.12.2014
+ *
+ * Application layer for project codename "4ed"
+ *
+ */
 
 // TOP
 

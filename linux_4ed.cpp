@@ -708,7 +708,7 @@ MEMORY_SET_PROTECTION_SIG(system_memory_set_protection){
 internal
 MEMORY_FREE_SIG(system_memory_free){
     // NOTE(allen): This must take the exact base of the vpage.
-    munmap(mem, size);
+    munmap(ptr, size);
 }
 
 internal
