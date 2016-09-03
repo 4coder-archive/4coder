@@ -366,11 +366,14 @@ typedef struct Documentation{
 typedef enum Item_Type{
     Item_Null,
     Item_Function,
+    Item_CppName,
     Item_Macro,
     Item_Typedef,
     Item_Struct,
     Item_Union,
     Item_Enum,
+    Item_Type_Count,
+#define Item_Type_User0 Item_Type_Count
 } Item_Type;
 
 typedef struct Item_Node{
@@ -403,6 +406,7 @@ typedef struct Item_Set{
 typedef struct Parse{
     String code;
     Cpp_Token_Stack tokens;
+    int32_t item_count;
 } Parse;
 
 typedef struct Meta_Unit{
@@ -939,8 +943,7 @@ struct_parse_next_member(Partition *part, Parse_Context *context){
 }
 
 static int32_t
-struct_parse(Partition *part, int32_t is_struct,
-             Parse_Context *context, Item_Node *top_member){
+struct_parse(Partition *part, int32_t is_struct, Parse_Context *context, Item_Node *top_member){
     
     int32_t result = false;
     
@@ -1177,116 +1180,6 @@ enum_parse(Partition *part, Parse_Context *context, Item_Node *item){
     return(result);
 }
 
-static Meta_Unit
-compile_meta_unit(Partition *part, char **files, int32_t file_count,
-                  Meta_Keywords *keywords, int32_t key_count){
-    Meta_Unit unit = {0};
-    int32_t i = 0;
-    
-    unit.count = file_count;
-    unit.parse = push_array(part, Parse, file_count);
-    
-    for (i = 0; i < file_count; ++i){
-        unit.parse[i] = meta_lex(files[i]);
-    }
-    
-    // TODO(allen): This stage counts nested structs
-    // and unions which is not correct.  Luckily it only
-    // means we over allocate by a few items, but fixing it
-    // to be exactly correct would be nice.
-    for (int32_t J = 0; J < unit.count; ++J){
-        Cpp_Token *token = 0;
-        Parse_Context context_ = setup_parse_context(unit.parse[J]);
-        Parse_Context *context = &context_;
-        
-        for (; (token = get_token(context)) != 0; get_next_token(context)){
-            if (!(token->flags & CPP_TFLAG_PP_BODY) &&
-                ((token->flags & CPP_TFLAG_IS_KEYWORD) ||
-                 token->type == CPP_TOKEN_IDENTIFIER)){
-                
-                String lexeme = get_lexeme(*token, context->data);
-                int32_t match_index = 0;
-                if (string_set_match_table(keywords, sizeof(*keywords), key_count, lexeme, &match_index)){
-                    switch (match_index){
-                        case 0: //typedef
-                        case 1: case 2: //struct/union
-                        case 3: //ENUM
-                        ++unit.set.count; break;
-                    }
-                }
-            }
-        }
-    }
-    
-    if (unit.set.count >  0){
-        unit.set = allocate_item_set(part, unit.set.count);
-    }
-    
-    int32_t index = 0;
-    
-    for (int32_t J = 0; J < unit.count; ++J){
-        Cpp_Token *token = 0;
-        Parse_Context context_ = setup_parse_context(unit.parse[J]);
-        Parse_Context *context = &context_;
-        
-        for (; (token = get_token(context)) != 0; get_next_token(context)){
-            if (!(token->flags & CPP_TFLAG_PP_BODY) &&
-                ((token->flags & CPP_TFLAG_IS_KEYWORD) ||
-                 token->type == CPP_TOKEN_IDENTIFIER)){
-                
-                String lexeme = get_lexeme(*token, context->data);
-                int32_t match_index = 0;
-                if (string_set_match_table(keywords, sizeof(*keywords), key_count, lexeme, &match_index)){
-                    switch (match_index){
-                        case 0: //typedef
-                        {
-                            if (typedef_parse(context, unit.set.items + index)){
-                                Assert(unit.set.items[index].t == Item_Typedef);
-                                ++index;
-                            }
-                            else{
-                                InvalidPath;
-                            }
-                        }break;
-                        
-                        case 1: case 2: //struct/union
-                        {
-                            if (struct_parse(part, (match_index == 1),
-                                             context, unit.set.items + index)){
-                                Assert(unit.set.items[index].t == Item_Struct ||
-                                       unit.set.items[index].t == Item_Union);
-                                ++index;
-                            }
-                            else{
-                                InvalidPath;
-                            }
-                        }break;
-                        
-                        case 3: //ENUM
-                        {
-                            if (enum_parse(part, context, unit.set.items + index)){
-                                Assert(unit.set.items[index].t == Item_Enum);
-                                ++index;
-                            }
-                            else{
-                                InvalidPath;
-                            }
-                        }break;
-                        
-                    }
-                }
-            }
-        }
-        
-        // NOTE(allen): This is necessary for now because
-        // the original count is slightly overestimated thanks
-        // to nested structs and unions.
-        unit.set.count = index;
-    }
-    
-    return(unit);
-}
-
 static Argument_Breakdown
 allocate_argument_breakdown(Partition *part, int32_t count){
     Argument_Breakdown breakdown = {0};
@@ -1417,7 +1310,7 @@ function_get_doc(Parse_Context *context, char *data, String *doc_string){
 }
 
 static int32_t
-parse_cpp_name(Parse_Context *context, char *data, String *name){
+cpp_name_parse(Parse_Context *context, String *name){
     int32_t result = false;
     
     Cpp_Token *token = 0;
@@ -1429,7 +1322,7 @@ parse_cpp_name(Parse_Context *context, char *data, String *name){
         if (token && token->type == CPP_TOKEN_IDENTIFIER){
             token = get_next_token(context);
             if (token && token->type == CPP_TOKEN_PARENTHESE_CLOSE){
-                *name = get_lexeme(*(token-1), data);
+                *name = get_lexeme(*(token-1), context->data);
                 result = true;
             }
         }
@@ -1448,11 +1341,9 @@ Moves the context in the following way:
  ^  --------------->  ^
 */
 static int32_t
-function_sig_parse(Partition *part, Parse_Context *context,
-                   char *data, Item_Set item_set, int32_t sig_count, String cpp_name){
+function_sig_parse(Partition *part, Parse_Context *context, Item_Node *item, String cpp_name){
     int32_t result = false;
     
-    int32_t size = 0;
     Cpp_Token *token = 0;
     Cpp_Token *args_start_token = 0;
     Cpp_Token *ret_token = get_token(context);
@@ -1460,11 +1351,11 @@ function_sig_parse(Partition *part, Parse_Context *context,
     if (function_parse_goto_name(context)){
         token = get_token(context);
         args_start_token = token+1;
-        item_set.items[sig_count].name = get_lexeme(*token, data);
+        item->name = get_lexeme(*token, context->data);
         
-        size = token->start - ret_token->start;
-        item_set.items[sig_count].ret =
-            chop_whitespace(make_string(data + ret_token->start, size));
+        item->ret = chop_whitespace(
+            get_string(context->data, ret_token->start, token->start)
+            );
         
         for (; (token = get_token(context)) != 0; get_next_token(context)){
             if (token->type == CPP_TOKEN_PARENTHESE_CLOSE){
@@ -1473,13 +1364,11 @@ function_sig_parse(Partition *part, Parse_Context *context,
         }
         
         if (token){
-            size = token->start + token->size - args_start_token->start;;
-            item_set.items[sig_count].args =
-                make_string(data + args_start_token->start, size);
-            item_set.items[sig_count].t = Item_Function;
-            item_set.items[sig_count].cpp_name = cpp_name;
-            item_set.items[sig_count].breakdown =
-                parameter_parse(part, data, args_start_token, token);
+            item->args =
+                get_string(context->data, args_start_token->start, token->start + token->size);
+            item->t = Item_Function;
+            item->cpp_name = cpp_name;
+            item->breakdown = parameter_parse(part, context->data, args_start_token, token);
             
             Assert(get_token(context)->type == CPP_TOKEN_PARENTHESE_CLOSE);
             result = true;
@@ -1495,22 +1384,21 @@ Moves the context in the following way:
  ^  ------------------->  ^
 */
 static int32_t
-function_parse(Partition *part, Parse_Context *context,
-               char *data, Item_Set item_set, int32_t sig_count, String cpp_name){
+function_parse(Partition *part, Parse_Context *context, Item_Node *item, String cpp_name){
     int32_t result = false;
     
     String doc_string = {0};
     Cpp_Token *token = get_token(context);
     
-    item_set.items[sig_count].marker = get_lexeme(*token, data);
+    item->marker = get_lexeme(*token, context->data);
     
-    if (function_get_doc(context, data, &doc_string)){
-        item_set.items[sig_count].doc_string = doc_string;
+    if (function_get_doc(context, context->data, &doc_string)){
+        item->doc_string = doc_string;
     }
     
     set_token(context, token);
     if (get_next_token(context)){
-        if (function_sig_parse(part, context, data, item_set, sig_count, cpp_name)){
+        if (function_sig_parse(part, context, item, cpp_name)){
             Assert(get_token(context)->type == CPP_TOKEN_PARENTHESE_CLOSE);
             result = true;
         }
@@ -1549,8 +1437,7 @@ Moves the context in the following way:
  ^  ---------------------------->  ^
 */
 static int32_t
-macro_parse(Partition *part, Parse_Context *context,
-            char *data, Item_Set item_set, int32_t sig_count){
+macro_parse(Partition *part, Parse_Context *context, Item_Node *item){
     int32_t result = false;
     
     Cpp_Token *token = 0;
@@ -1564,10 +1451,10 @@ macro_parse(Partition *part, Parse_Context *context,
         if (can_back_step(context)){
             doc_token = token-1;
             
-            doc_string = get_lexeme(*doc_token, data);
+            doc_string = get_lexeme(*doc_token, context->data);
             
             if (check_and_fix_docs(&doc_string)){
-                item_set.items[sig_count].doc_string = doc_string;
+                item->doc_string = doc_string;
                 
                 for (; (token = get_token(context)) != 0; get_next_token(context)){
                     if (token->type == CPP_TOKEN_IDENTIFIER){
@@ -1576,7 +1463,7 @@ macro_parse(Partition *part, Parse_Context *context,
                 }
                 
                 if (get_token(context) && (token->flags & CPP_TFLAG_PP_BODY)){
-                    item_set.items[sig_count].name = get_lexeme(*token, data);
+                    item->name = get_lexeme(*token, context->data);
                     
                     if ((token = get_next_token(context)) != 0){
                         args_start_token = token;
@@ -1587,12 +1474,10 @@ macro_parse(Partition *part, Parse_Context *context,
                         }
                         
                         if (token){
-                            int32_t start = args_start_token->start;
-                            int32_t end = token->start + token->size;
-                            item_set.items[sig_count].args = make_string(data + start, end - start);
+                            item->args = get_string(context->data, args_start_token->start,
+                                                    token->start + token->size);
                             
-                            item_set.items[sig_count].breakdown =
-                                parameter_parse(part, data, args_start_token, token);
+                            item->breakdown = parameter_parse(part, context->data, args_start_token, token);
                             
                             if ((token = get_next_token(context)) != 0){
                                 Cpp_Token *body_start = token;
@@ -1606,13 +1491,13 @@ macro_parse(Partition *part, Parse_Context *context,
                                     
                                     token = get_prev_token(context);
                                     
-                                    start = body_start->start;
-                                    end = token->start + token->size;
-                                    item_set.items[sig_count].body = make_string(data + start, end - start);
+                                    item->body =
+                                        get_string(context->data, body_start->start,
+                                                   token->start + token->size);
                                 }
                             }
                             
-                            item_set.items[sig_count].t = Item_Macro;
+                            item->t = Item_Macro;
                             result = true;
                         }
                     }
@@ -1622,6 +1507,161 @@ macro_parse(Partition *part, Parse_Context *context,
     }
     
     return(result);
+}
+
+static Meta_Unit
+compile_meta_unit(Partition *part, char **files, int32_t file_count,
+                  Meta_Keywords *keywords, int32_t key_count){
+    Meta_Unit unit = {0};
+    int32_t i = 0;
+    
+    unit.count = file_count;
+    unit.parse = push_array(part, Parse, file_count);
+    
+    for (i = 0; i < file_count; ++i){
+        unit.parse[i] = meta_lex(files[i]);
+    }
+    
+    // TODO(allen): This stage counts nested structs
+    // and unions which is not correct.  Luckily it only
+    // means we over allocate by a few items, but fixing it
+    // to be exactly correct would be nice.
+    for (int32_t J = 0; J < unit.count; ++J){
+        Cpp_Token *token = 0;
+        Parse_Context context_ = setup_parse_context(unit.parse[J]);
+        Parse_Context *context = &context_;
+        
+        for (; (token = get_token(context)) != 0; get_next_token(context)){
+            if (!(token->flags & CPP_TFLAG_PP_BODY)){
+                
+                String lexeme = get_lexeme(*token, context->data);
+                int32_t match_index = 0;
+                if (string_set_match_table(keywords, sizeof(*keywords), key_count, lexeme, &match_index)){
+                    Item_Type type = keywords[match_index].type;
+                    
+                    if (type > Item_Null && type < Item_Type_Count){
+                        ++unit.set.count;
+                    }
+                    else{
+                        // TODO(allen): Convert this to a duff's routine and return
+                        // this result to the user so that they may do whatever it
+                        // is they want to do.
+                    }
+                }
+            }
+        }
+    }
+    
+    if (unit.set.count >  0){
+        unit.set = allocate_item_set(part, unit.set.count);
+    }
+    
+    int32_t index = 0;
+    
+    for (int32_t J = 0; J < unit.count; ++J){
+        Cpp_Token *token = 0;
+        Parse_Context context_ = setup_parse_context(unit.parse[J]);
+        Parse_Context *context = &context_;
+        
+        String cpp_name = {0};
+        int32_t has_cpp_name = 0;
+        
+        for (; (token = get_token(context)) != 0; get_next_token(context)){
+            if (!(token->flags & CPP_TFLAG_PP_BODY)){
+                
+                String lexeme = get_lexeme(*token, context->data);
+                int32_t match_index = 0;
+                if (string_set_match_table(keywords, sizeof(*keywords), key_count, lexeme, &match_index)){
+                    Item_Type type = keywords[match_index].type;
+                    
+                    switch (type){
+                        case Item_Function:
+                        {
+                            if (function_parse(part, context, unit.set.items + index, cpp_name)){
+                                Assert(unit.set.items[index].t == Item_Function);
+                                ++index;
+                            }
+                            else{
+                                fprintf(stderr, "warning : invalid function signature\n");
+                            }
+                        }break;
+                        
+                        case Item_CppName:
+                        {
+                            if (cpp_name_parse(context, &cpp_name)){
+                                has_cpp_name = 1;
+                            }
+                            else{
+                                // TODO(allen): warning message
+                            }
+                        }break;
+                        
+                        case Item_Macro:
+                        {
+                            if (macro_parse(part, context, unit.set.items + index)){
+                                Assert(unit.set.items[index].t == Item_Macro);
+                                ++index;
+                            }
+                            else{
+                                // TODO(allen): warning message
+                            }
+                        }break;
+                        
+                        case Item_Typedef: //typedef
+                        {
+                            if (typedef_parse(context, unit.set.items + index)){
+                                Assert(unit.set.items[index].t == Item_Typedef);
+                                ++index;
+                            }
+                            else{
+                                // TODO(allen): warning message
+                            }
+                        }break;
+                        
+                        case Item_Struct: case Item_Union: //struct/union
+                        {
+                            if (struct_parse(part, (type == Item_Struct), context, unit.set.items + index)){
+                                Assert(unit.set.items[index].t == Item_Struct ||
+                                       unit.set.items[index].t == Item_Union);
+                                ++index;
+                            }
+                            else{
+                                // TODO(allen): warning message
+                            }
+                        }break;
+                        
+                        case Item_Enum: //ENUM
+                        {
+                            if (enum_parse(part, context, unit.set.items + index)){
+                                Assert(unit.set.items[index].t == Item_Enum);
+                                ++index;
+                            }
+                            else{
+                                // TODO(allen): warning message
+                            }
+                        }break;
+                        
+                    }
+                }
+            }
+            
+            if (has_cpp_name){
+                has_cpp_name = 0;
+            }
+            else{
+                cpp_name = string_zero();
+            }
+            
+            unit.parse[J].item_count = index;
+        }
+        
+        // NOTE(allen): This is necessary for now because
+        // the original count is slightly overestimated thanks
+        // to nested structs and unions.
+        unit.set.count = index;
+    }
+    
+    return(unit);
 }
 
 static void
@@ -1794,6 +1834,7 @@ print_see_also(FILE *file, Documentation *doc){
     }
 }
 
+#if 0
 typedef struct String_Function_Marker{
     int32_t parse_function;
     int32_t is_inline;
@@ -1821,6 +1862,7 @@ string_function_marker_check(String lexeme){
     
     return(result);
 }
+#endif
 
 static void
 print_str(FILE *file, String str){
@@ -2130,164 +2172,40 @@ generate_custom_headers(){
     Partition part_ = make_part(mem, size);
     Partition *part = &part_;
     
-    Parse string_parse = meta_lex("internal_4coder_string.cpp");
+    static char *string_files[] = {
+        "internal_4coder_string.cpp"
+    };
     
-    int32_t string_function_count = 0;
+    static Meta_Keywords string_keys[] = {
+        {make_lit_string("FSTRING_INLINE") , Item_Function } ,
+        {make_lit_string("FSTRING_LINK")   , Item_Function } ,
+        {make_lit_string("DOC_EXPORT")     , Item_Macro    } ,
+        {make_lit_string("CPP_NAME")       , Item_CppName  } ,
+    };
     
-    {
-        char *data = string_parse.code.str;
-        
-        Cpp_Token *token = 0;
-        
-        Parse_Context context_ = setup_parse_context(data, string_parse.tokens);
-        Parse_Context *context = &context_;
-        
-        for (; (token = get_token(context)) != 0; get_next_token(context)){
-            if (token->type == CPP_TOKEN_IDENTIFIER && !(token->flags & CPP_TFLAG_PP_BODY)){
-                String lexeme = get_lexeme(*token, data);
-                
-                String_Function_Marker marker =
-                    string_function_marker_check(lexeme);
-                
-                if (marker.parse_function){
-                    if (function_parse_goto_name(context)){
-                        ++string_function_count;
-                    }
-                }
-                else if (marker.parse_doc){
-                    if (macro_parse_check(context)){
-                        ++string_function_count;
-                    }
-                }
-            }
-        }
-    }
-    
-    Item_Set string_function_set = allocate_item_set(part, string_function_count);
-    int32_t string_sig_count = 0;
-    
-    {
-        String *code = &string_parse.code;
-        Cpp_Token_Stack *token_stack = &string_parse.tokens;
-        
-        char *data = code->str;
-        
-        Parse_Context context_ = setup_parse_context(data, *token_stack);
-        Parse_Context *context = &context_;
-        
-        String cpp_name = {0};
-        int32_t has_cpp_name = 0;
-        
-        for (; get_token(context); get_next_token(context)){
-            Cpp_Token *token = get_token(context);
-            if (token->type == CPP_TOKEN_IDENTIFIER && !(token->flags & CPP_TFLAG_PP_BODY)){
-                String lexeme = make_string(data + token->start, token->size);
-                
-                String_Function_Marker marker =
-                    string_function_marker_check(lexeme);
-                
-                if (marker.cpp_name){
-                    if (parse_cpp_name(context, data, &cpp_name)){
-                        has_cpp_name = 1;
-                    }
-                }
-                else if (marker.parse_function){
-                    if (function_parse(part, context, data,
-                                       string_function_set, string_sig_count,
-                                       cpp_name)){
-                        ++string_sig_count;
-                    }
-                }
-                else if (marker.parse_doc){
-                    if (macro_parse(part, context, data,
-                                    string_function_set, string_sig_count)){
-                        ++string_sig_count;
-                    }
-                }
-                
-                if (has_cpp_name){
-                    has_cpp_name = 0;
-                }
-                else{
-                    cpp_name = string_zero();
-                }
-            }
-        }
-    }
+    Meta_Unit string_unit = compile_meta_unit(part, string_files, ArrayCount(string_files),
+                                              string_keys, ArrayCount(string_keys));
     
     //
     // App API parsing
     //
     
-    Parse parses[2];
-    parses[0] = meta_lex("4ed_api_implementation.cpp");
-    parses[1] = meta_lex("win32_api_impl.cpp");
+    static char *functions_files[] = {
+        "4ed_api_implementation.cpp",
+        "win32_api_impl.cpp"
+    };
     
-    int32_t line_count = 0;
+    static Meta_Keywords functions_keys[] = {
+        {make_lit_string("API_EXPORT"), Item_Function},
+    };
     
-    for (int32_t J = 0; J < 2; ++J){
-        Parse *parse = &parses[J];
-        
-        char *data = parse->code.str;
-        
-        int32_t count = parse->tokens.count;
-        Cpp_Token *tokens = parse->tokens.tokens;
-        Cpp_Token *token = tokens;
-        
-        Parse_Context context_ = setup_parse_context(data, parse->tokens);
-        Parse_Context *context = &context_;
-        
-        for (int32_t i = 0; i < count; ++i, ++token){
-            if (token->type == CPP_TOKEN_IDENTIFIER &&
-                !(token->flags & CPP_TFLAG_PP_BODY)){
-                String lexeme = make_string(data + token->start, token->size);
-                if (match_ss(lexeme, make_lit_string("API_EXPORT"))){
-                    set_token(context, token);
-                    if (function_parse_goto_name(context)){
-                        ++line_count;
-                    }
-                }
-            }
-        }
-    }
+    Meta_Unit unit_custom = compile_meta_unit(part, functions_files, ArrayCount(functions_files),
+                                              functions_keys, ArrayCount(functions_keys));
     
-    Item_Set function_set = allocate_item_set(part, line_count);
-    App_API func_4ed_names = allocate_app_api(part, line_count);
-    int32_t sig_count = 0;
-    int32_t sig_count_per_file[2];
+    App_API func_4ed_names = allocate_app_api(part, unit_custom.set.count);
     
-    for (int32_t J = 0; J < 2; ++J){
-        Parse *parse = &parses[J];
-        
-        char *data = parse->code.str;
-        
-        Parse_Context context_ = setup_parse_context(data, parse->tokens);
-        Parse_Context *context = &context_;
-        
-        // NOTE(allen): Header Parse
-        for (; get_token(context); get_next_token(context)){
-            Cpp_Token *token = get_token(context);
-            if (token->type == CPP_TOKEN_IDENTIFIER && !(token->flags & CPP_TFLAG_PP_BODY)){
-                String lexeme = make_string(data + token->start, token->size);
-                if (match_ss(lexeme, make_lit_string("API_EXPORT"))){
-                    set_token(context, token);
-                    function_parse(part, context, data, function_set,
-                                   sig_count, string_zero());
-                    if (function_set.items[sig_count].t == Item_Null){
-                        function_set.items[sig_count] = null_item_node;
-                        // TODO(allen): get warning file name and line numbers
-                        fprintf(stderr, "generator warning : invalid function signature\n");
-                    }
-                    ++sig_count;
-                }
-            }
-        }
-        
-        ++sig_count_per_file[J] = sig_count;
-    }
-    
-    for (int32_t i = 0; i < sig_count; ++i){
-        String name_string = function_set.items[i].name;
+    for (int32_t i = 0; i < unit_custom.set.count; ++i){
+        String name_string = unit_custom.set.items[i].name;
         String *macro = &func_4ed_names.names[i].macro;
         String *public_name = &func_4ed_names.names[i].public_name;
         
@@ -2311,10 +2229,11 @@ generate_custom_headers(){
     // NOTE(allen): Header
     FILE *file = fopen(OS_API_H, "wb");
     
-    int32_t main_api_count = sig_count_per_file[0];
-    for (int32_t i = main_api_count; i < sig_count; ++i){
-        String ret_string   = function_set.items[i].ret;
-        String args_string  = function_set.items[i].args;
+    int32_t main_api_count = unit_custom.parse[0].item_count;
+    int32_t os_api_count = unit_custom.parse[1].item_count;
+    for (int32_t i = main_api_count; i < os_api_count; ++i){
+        String ret_string   = unit_custom.set.items[i].ret;
+        String args_string  = unit_custom.set.items[i].args;
         String macro_string = func_4ed_names.names[i].macro;
         
         fprintf(file, "#define %.*s(n) %.*s n%.*s\n",
@@ -2323,8 +2242,8 @@ generate_custom_headers(){
                 args_string.size, args_string.str);
     }
     
-    for (int32_t i = main_api_count; i < sig_count; ++i){
-        String name_string  = function_set.items[i].name;
+    for (int32_t i = main_api_count; i < os_api_count; ++i){
+        String name_string  = unit_custom.set.items[i].name;
         String macro_string = func_4ed_names.names[i].macro;
         
         fprintf(file, "typedef %.*s(%.*s_Function);\n",
@@ -2336,9 +2255,9 @@ generate_custom_headers(){
     
     file = fopen(API_H, "wb");
     
-    for (int32_t i = 0; i < sig_count; ++i){
-        String ret_string   = function_set.items[i].ret;
-        String args_string  = function_set.items[i].args;
+    for (int32_t i = 0; i < unit_custom.set.count; ++i){
+        String ret_string   = unit_custom.set.items[i].ret;
+        String args_string  = unit_custom.set.items[i].args;
         String macro_string = func_4ed_names.names[i].macro;
         
         fprintf(file, "#define %.*s(n) %.*s n%.*s\n",
@@ -2347,8 +2266,8 @@ generate_custom_headers(){
                 args_string.size, args_string.str);
     }
     
-    for (int32_t i = 0; i < sig_count; ++i){
-        String name_string  = function_set.items[i].name;
+    for (int32_t i = 0; i < unit_custom.set.count; ++i){
+        String name_string  = unit_custom.set.items[i].name;
         String macro_string = func_4ed_names.names[i].macro;
         
         fprintf(file, "typedef %.*s(%.*s_Function);\n",
@@ -2361,8 +2280,8 @@ generate_custom_headers(){
             "    void *memory;\n"
             "    int32_t memory_size;\n"
             );
-    for (int32_t i = 0; i < sig_count; ++i){
-        String name_string  = function_set.items[i].name;
+    for (int32_t i = 0; i < unit_custom.set.count; ++i){
+        String name_string  = unit_custom.set.items[i].name;
         String public_string = func_4ed_names.names[i].public_name;
         
         fprintf(file, "    %.*s_Function *%.*s;\n",
@@ -2378,8 +2297,8 @@ generate_custom_headers(){
     fprintf(file, "};\n");
     
     fprintf(file, "#define FillAppLinksAPI(app_links) do{");
-    for (int32_t i = 0; i < sig_count; ++i){
-        String name = function_set.items[i].name;
+    for (int32_t i = 0; i < unit_custom.set.count; ++i){
+        String name = unit_custom.set.items[i].name;
         String public_string = func_4ed_names.names[i].public_name;
         
         fprintf(file,
@@ -2416,8 +2335,8 @@ generate_custom_headers(){
         file = fopen(STRING_H, "wb");
         
         {
-            String *code = &string_parse.code;
-            Cpp_Token_Stack *token_stack = &string_parse.tokens;
+            String *code = &string_unit.parse[0].code;
+            Cpp_Token_Stack *token_stack = &string_unit.parse[0].tokens;
             
             int32_t start = 0;
             
@@ -2460,15 +2379,17 @@ generate_custom_headers(){
 #define RETURN_PADDING 16
 #define SIG_PADDING 30
                     
-                    for (int32_t j = 0; j < string_sig_count; ++j){
+                    for (int32_t j = 0; j < string_unit.set.count; ++j){
                         char line_space[2048];
                         String line = make_fixed_width_string(line_space);
                         
-                        if (string_function_set.items[j].t != Item_Macro){
-                            String marker = string_function_set.items[j].marker;
-                            String ret    = string_function_set.items[j].ret;
-                            String name   = string_function_set.items[j].name;
-                            String args   = string_function_set.items[j].args;
+                        Item_Node *item = string_unit.set.items + j;
+                        
+                        if (item->t != Item_Macro){
+                            String marker = item->marker;
+                            String ret    = item->ret;
+                            String name   = item->name;
+                            String args   = item->args;
                                                               
                             append_ss(&line, marker);         
                             append_padding(&line, ' ', RETURN_PADDING);
@@ -2481,9 +2402,9 @@ generate_custom_headers(){
                             fprintf(file, "%s;\n", line.str); 
                         }                                     
                         else{                                 
-                            String name = string_function_set.items[j].name;
-                            String args = string_function_set.items[j].args;
-                            String body = string_function_set.items[j].body;
+                            String name = item->name;
+                            String args = item->args;
+                            String body = item->body;
                             
                             append_ss(&line, make_lit_string("#ifndef "));
                             append_padding(&line, ' ', 10);
@@ -2514,15 +2435,17 @@ generate_custom_headers(){
                                 "// for C++ users who can have overloaded functions.  None of\n"
                                 "// these functions add new features.\n");
                         
-                        for (int32_t j = 0; j < string_sig_count; ++j){
+                        for (int32_t j = 0; j < string_unit.set.count; ++j){
                             char line_space[2048];
                             String line = make_fixed_width_string(line_space);
                             
-                            if (string_function_set.items[j].t != Item_Macro){
-                                String cpp_name = string_function_set.items[j].cpp_name;
+                            Item_Node *item = &string_unit.set.items[j];
+                            
+                            if (item->t != Item_Macro){
+                                String cpp_name = item->cpp_name;
                                 if (cpp_name.str != 0){
-                                    String ret = string_function_set.items[j].ret;
-                                    String args = string_function_set.items[j].args;
+                                    String ret =  item->ret;
+                                    String args = item->args;
                                     
                                     append_ss(&line, make_lit_string("FSTRING_INLINE"));
                                     append_padding(&line, ' ', RETURN_PADDING);
@@ -2545,17 +2468,19 @@ generate_custom_headers(){
                     {
                         fprintf(file, "\n#if !defined(FSTRING_C) && !defined(FSTRING_GUARD)\n\n");
                         
-                        for (int32_t j = 0; j < string_sig_count; ++j){
+                        for (int32_t j = 0; j < string_unit.set.count; ++j){
                             char line_space[2048];
                             String line = make_fixed_width_string(line_space);
                             
-                            if (string_function_set.items[j].t != Item_Macro){
-                                String cpp_name = string_function_set.items[j].cpp_name;
+                            Item_Node *item = &string_unit.set.items[j];
+                            
+                            if (item->t != Item_Macro){
+                                String cpp_name = item->cpp_name;
                                 if (cpp_name.str != 0){
-                                    String name = string_function_set.items[j].name;
-                                    String ret  = string_function_set.items[j].ret;
-                                    String args = string_function_set.items[j].args;
-                                Argument_Breakdown breakdown = string_function_set.items[j].breakdown;
+                                    String name                  = item->name;
+                                    String ret                   = item->ret;
+                                    String args                  = item->args;
+                                    Argument_Breakdown breakdown = item->breakdown;
                                     
                                     append_ss(&line, make_lit_string("FSTRING_INLINE"));
                                     append_s_char(&line, ' ');
@@ -2825,7 +2750,7 @@ generate_custom_headers(){
                     "<h3>&sect;"SECTION" Function List</h3>\n"
                     "<ul>\n");
             
-            for (int32_t i = 0; i < sig_count; ++i){
+            for (int32_t i = 0; i < unit_custom.set.count; ++i){
                 String name = func_4ed_names.names[i].public_name;
                 fprintf(file,
                         "<li>"
@@ -2862,7 +2787,7 @@ generate_custom_headers(){
 #define SECTION MAJOR_SECTION".3"
             
             fprintf(file, "<h3>&sect;"SECTION" Function Descriptions</h3>\n");
-            for (int32_t i = 0; i < sig_count; ++i){
+            for (int32_t i = 0; i < unit_custom.set.count; ++i){
                 String name = func_4ed_names.names[i].public_name;
                 
                 fprintf(file,
@@ -2872,10 +2797,10 @@ generate_custom_headers(){
                         name.size, name.str, i+1,
                         name.size, name.str
                         );
-                print_function_html(file, function_set.items[i], name, "app->");
+                print_function_html(file, unit_custom.set.items[i], name, "app->");
                 fprintf(file, "</div>\n");
                 
-                String doc_string = function_set.items[i].doc_string;
+                String doc_string = unit_custom.set.items[i].doc_string;
                 print_function_docs(file, part, name, doc_string);
                 
                 fprintf(file, "</div><hr>\n");
@@ -2922,17 +2847,17 @@ generate_custom_headers(){
                     "<h3>&sect;"SECTION" String Function List</h3>\n"
                     "<ul>\n");
             
+            // TODO(allen): I don't think used_strings is necessary any more
+            // since I have made the default names C compatible there will
+            // be no overloading.
             String *used_strings = 0;
             int32_t used_string_count = 0;
             
-            {
-                int32_t memory_size = sizeof(String)*(string_sig_count);
-                used_strings = (String*)malloc(memory_size);
-                memset(used_strings, 0, memory_size);
-            }
+            used_strings = push_array(part, String, string_unit.set.count);
+            memset(used_strings, 0, sizeof(String)*string_unit.set.count);
             
-            for (int32_t i = 0; i < string_sig_count; ++i){
-                String name = string_function_set.items[i].name;
+            for (int32_t i = 0; i < string_unit.set.count; ++i){
+                String name = string_unit.set.items[i].name;
                 int32_t index = 0;
                 if (!string_set_match(used_strings, used_string_count, name, &index)){
                     fprintf(file,
@@ -2954,8 +2879,10 @@ generate_custom_headers(){
                     "<h3>&sect;"SECTION" String Function Descriptions</h3>\n"
                     "<ul>\n");
             
-            for (int32_t i = 0; i < string_sig_count; ++i){
-                String name = string_function_set.items[i].name;
+            for (int32_t i = 0; i < string_unit.set.count; ++i){
+                Item_Node *item = &string_unit.set.items[i];
+                
+                String name = item->name;
                 int32_t index = 0;
                 int32_t do_id = false;
                 if (!string_set_match(used_strings, used_string_count, name, &index)){
@@ -2978,18 +2905,17 @@ generate_custom_headers(){
                         "<div style='"CODE_STYLE" "DESCRIPT_SECTION_STYLE"'>\n",
                         i+1, name.size, name.str);
                 
-                if (string_function_set.items[i].t == Item_Macro){
-                    print_macro_html(file, string_function_set.items[i], name);
+                if (item->t == Item_Macro){
+                    print_macro_html(file, *item, name);
                 }
                 else{
-                    print_function_html(file, string_function_set.items[i], name, "");
+                    print_function_html(file, *item, name, "");
                 }
                 
                 fprintf(file, "</div>\n");
                 
                 
-                String doc_string = string_function_set.items[i].doc_string;
-                print_function_docs(file, part, name, doc_string);
+                print_function_docs(file, part, name, item->doc_string);
                 
                 fprintf(file, "</div><hr>\n");
             }
