@@ -789,6 +789,11 @@ get_doc_string_from_prev(Parse_Context *context, String *doc_string){
     return(result);
 }
 
+
+//
+// Meta Parse Rules
+//
+
 static int32_t
 struct_parse(Partition *part, int32_t is_struct,
              Parse_Context *context, Item_Node *top_member);
@@ -896,6 +901,7 @@ struct_parse_next_member(Partition *part, Parse_Context *context){
                     assert(!"unhandled error");
                 }
             }
+            
         }
         else if (token->type == CPP_TOKEN_BRACE_CLOSE){
             break;
@@ -989,7 +995,7 @@ struct_parse(Partition *part, int32_t is_struct,
 }
 
 static int32_t
-typedef_parse(Parse_Context *context, Item_Set item_set, int32_t item_index){
+typedef_parse(Parse_Context *context, Item_Node *item){
     int32_t result = false;
     
     Cpp_Token *token = get_token(context);
@@ -1019,10 +1025,10 @@ typedef_parse(Parse_Context *context, Item_Set item_set, int32_t item_index){
             get_string(context->data, start_token->start + start_token->size, token_j->start)
             );
         
-        item_set.items[item_index].t = Item_Typedef;
-        item_set.items[item_index].type = type;
-        item_set.items[item_index].name = name;
-        item_set.items[item_index].doc_string = doc_string;
+        item->t = Item_Typedef;
+        item->type = type;
+        item->name = name;
+        item->doc_string = doc_string;
         result = true;
     }
     
@@ -1032,8 +1038,7 @@ typedef_parse(Parse_Context *context, Item_Set item_set, int32_t item_index){
 }
 
 static int32_t
-enum_parse(Partition *part, Parse_Context *context,
-           Item_Set item_set, int32_t item_index){
+enum_parse(Partition *part, Parse_Context *context, Item_Node *item){
     
     int32_t result = false;
     
@@ -1133,10 +1138,10 @@ enum_parse(Partition *part, Parse_Context *context,
                 }
                 get_next_token(context);
                 
-                item_set.items[item_index].t = Item_Enum;
-                item_set.items[item_index].name = name;
-                item_set.items[item_index].doc_string = doc_string;
-                item_set.items[item_index].first_child = first_member;
+                item->t = Item_Enum;
+                item->name = name;
+                item->doc_string = doc_string;
+                item->first_child = first_member;
                 result = true;
             }
         }
@@ -1408,7 +1413,7 @@ Moves the context in the following way:
 */
 static int32_t
 macro_parse(Partition *part, Parse_Context *context,
-            char *data, Item_Set macro_set, int32_t sig_count){
+            char *data, Item_Set item_set, int32_t sig_count){
     int32_t result = false;
     
     Cpp_Token *token = 0;
@@ -1425,7 +1430,7 @@ macro_parse(Partition *part, Parse_Context *context,
             doc_string = get_lexeme(*doc_token, data);
             
             if (check_and_fix_docs(&doc_string)){
-                macro_set.items[sig_count].doc_string = doc_string;
+                item_set.items[sig_count].doc_string = doc_string;
                 
                 for (; (token = get_token(context)) != 0; get_next_token(context)){
                     if (token->type == CPP_TOKEN_IDENTIFIER){
@@ -1434,7 +1439,7 @@ macro_parse(Partition *part, Parse_Context *context,
                 }
                 
                 if (get_token(context) && (token->flags & CPP_TFLAG_PP_BODY)){
-                    macro_set.items[sig_count].name = get_lexeme(*token, data);
+                    item_set.items[sig_count].name = get_lexeme(*token, data);
                     
                     if ((token = get_next_token(context)) != 0){
                         args_start_token = token;
@@ -1447,9 +1452,9 @@ macro_parse(Partition *part, Parse_Context *context,
                         if (token){
                             int32_t start = args_start_token->start;
                             int32_t end = token->start + token->size;
-                            macro_set.items[sig_count].args = make_string(data + start, end - start);
+                            item_set.items[sig_count].args = make_string(data + start, end - start);
                             
-                            macro_set.items[sig_count].breakdown =
+                            item_set.items[sig_count].breakdown =
                                 parameter_parse(part, data, args_start_token, token);
                             
                             if ((token = get_next_token(context)) != 0){
@@ -1466,11 +1471,11 @@ macro_parse(Partition *part, Parse_Context *context,
                                     
                                     start = body_start->start;
                                     end = token->start + token->size;
-                                    macro_set.items[sig_count].body = make_string(data + start, end - start);
+                                    item_set.items[sig_count].body = make_string(data + start, end - start);
                                 }
                             }
                             
-                            macro_set.items[sig_count].t = Item_Macro;
+                            item_set.items[sig_count].t = Item_Macro;
                             result = true;
                         }
                     }
@@ -1797,6 +1802,166 @@ print_function_docs(FILE *file, Partition *part, String name, String doc_string)
     print_see_also(file, doc);
 }
 
+static void
+print_item(Partition *part, FILE *file, Item_Node *item, char *section, int32_t I){
+    String name = item->name;
+    /* NOTE(allen):
+    Open a div for the whole item.
+    Put a heading in it with the name and section.
+    Open a "descriptive" box for the display of the code interface.
+    */
+    fprintf(file,
+            "<div id='%.*s_doc' style='margin-bottom: 1cm;'>\n"
+            "<h4>&sect;%s.%d: %.*s</h4>\n"
+            "<div style='"CODE_STYLE" "DESCRIPT_SECTION_STYLE"'>",
+            name.size, name.str, section, I, name.size, name.str);
+    
+    Temp_Memory temp = begin_temp_memory(part);
+    
+    switch (item->t){
+        case Item_Typedef:
+        {
+            String type = item->type;
+            
+            // NOTE(allen): Code box
+            {
+                fprintf(file,
+                        "typedef %.*s %.*s;",
+                        type.size, type.str,
+                        name.size, name.str
+                        );
+            }
+            
+            // NOTE(allen): Close the descriptive box
+            fprintf(file, "</div>\n");
+            
+            // NOTE(allen): Descriptive section
+            {
+                String doc_string = item->doc_string;
+                Documentation doc = {0};
+                perform_doc_parse(part, doc_string, &doc);
+                
+                String main_doc = doc.main_doc;
+                if (main_doc.size != 0){
+                    fprintf(file, DOC_HEAD_OPEN"Description"DOC_HEAD_CLOSE);
+                    fprintf(file,
+                            DOC_ITEM_OPEN"%.*s"DOC_ITEM_CLOSE,
+                            main_doc.size, main_doc.str
+                            );
+                }
+                
+                print_see_also(file, &doc);
+            }
+        }break;
+        
+        case Item_Enum:
+        {
+            // NOTE(allen): Code box
+            {
+                fprintf(file,
+                        "enum %.*s;",
+                        name.size, name.str);
+            }
+            
+            // NOTE(allen): Close the descriptive box
+            fprintf(file, "</div>\n");
+            
+            // NOTE(allen): Descriptive section
+            {
+                String doc_string = item->doc_string;
+                Documentation doc = {0};
+                perform_doc_parse(part, doc_string, &doc);
+                
+                String main_doc = doc.main_doc;
+                if (main_doc.size != 0){
+                    fprintf(file, DOC_HEAD_OPEN"Description"DOC_HEAD_CLOSE);
+                    fprintf(file,
+                            DOC_ITEM_OPEN"%.*s"DOC_ITEM_CLOSE,
+                            main_doc.size, main_doc.str
+                            );
+                }
+                
+                if (item->first_child){
+                    fprintf(file, DOC_HEAD_OPEN"Values"DOC_HEAD_CLOSE);
+                    for (Item_Node *member = item->first_child;
+                         member;
+                         member = member->next_sibling){
+                        Documentation doc = {0};
+                        perform_doc_parse(part, member->doc_string, &doc);
+                        
+                        if (member->value.str){
+                            fprintf(file,
+                                    "<div>\n"
+                                    "<div><span style='"CODE_STYLE"'>"DOC_ITEM_HEAD_INL_OPEN
+                                    "%.*s"DOC_ITEM_HEAD_INL_CLOSE" = %.*s</span></div>\n"
+                                    "<div style='margin-bottom: 6mm;'>"DOC_ITEM_OPEN"%.*s"DOC_ITEM_CLOSE"</div>\n"
+                                    "</div>\n",
+                                    member->name.size, member->name.str,
+                                    member->value.size, member->value.str,
+                                    doc.main_doc.size, doc.main_doc.str
+                                    );
+                        }
+                        else{
+                            fprintf(file,
+                                    "<div>\n"
+                                    "<div><span style='"CODE_STYLE"'>"DOC_ITEM_HEAD_INL_OPEN
+                                    "%.*s"DOC_ITEM_HEAD_INL_CLOSE"</span></div>\n"
+                                    "<div style='margin-bottom: 6mm;'>"DOC_ITEM_OPEN"%.*s"DOC_ITEM_CLOSE"</div>\n"
+                                    "</div>\n",
+                                    member->name.size, member->name.str,
+                                    doc.main_doc.size, doc.main_doc.str
+                                    );
+                        }
+                    }
+                }
+                
+                print_see_also(file, &doc);
+            }
+        }break;
+        
+        case Item_Struct: case Item_Union:
+        {
+            Item_Node *member = item;
+            
+            // NOTE(allen): Code box
+            {
+                print_struct_html(file, member);
+            }
+            
+            // NOTE(allen): Close the descriptive box
+            fprintf(file, "</div>\n");
+            
+            // NOTE(allen): Descriptive section
+            {
+                String doc_string = member->doc_string;
+                Documentation doc = {0};
+                perform_doc_parse(part, doc_string, &doc);
+                
+                String main_doc = doc.main_doc;
+                if (main_doc.size != 0){
+                    fprintf(file, DOC_HEAD_OPEN"Description"DOC_HEAD_CLOSE);
+                    fprintf(file,
+                            DOC_ITEM_OPEN"%.*s"DOC_ITEM_CLOSE,
+                            main_doc.size, main_doc.str
+                            );
+                }
+                
+                if (member->first_child){
+                    fprintf(file, DOC_HEAD_OPEN"Fields"DOC_HEAD_CLOSE);
+                    print_struct_docs(file, part, member);
+                }
+                
+                print_see_also(file, &doc);
+            }
+        }break;
+    }
+    
+    // NOTE(allen): Close the item box
+    fprintf(file, "</div><hr>\n");
+    
+    end_temp_memory(temp);
+}
+
 typedef struct App_API_Name{
     String macro;
     String public_name;
@@ -2095,7 +2260,6 @@ generate_custom_headers(){
     {
         Item_Set typedef_set = {0};
         Item_Set struct_set = {0};
-        Item_Set flag_set = {0};
         Item_Set enum_set = {0};
         
         Parse type_parse[1];
@@ -2105,15 +2269,13 @@ generate_custom_headers(){
         
         int32_t typedef_count = 0;
         int32_t struct_count = 0;
-        int32_t flag_count = 0;
         int32_t enum_count = 0;
         
         static String type_spec_keys[] = {
             make_lit_string("typedef"),
             make_lit_string("struct"),
             make_lit_string("union"),
-            make_lit_string("ENUM"),
-            make_lit_string("FLAGENUM"),
+            make_lit_string("ENUM")
         };
         
         for (int32_t J = 0; J < file_count; ++J){
@@ -2141,9 +2303,6 @@ generate_custom_headers(){
                             
                             case 3: //ENUM
                             ++enum_count; break;
-                            
-                            case 4: //FLAGENUM
-                            ++flag_count; break;
                         }
                     }
                 }
@@ -2162,13 +2321,8 @@ generate_custom_headers(){
             enum_set = allocate_item_set(part, enum_count);
         }
         
-        if (flag_count > 0){
-            flag_set = allocate_item_set(part, flag_count);
-        }
-        
         int32_t typedef_index = 0;
         int32_t struct_index = 0;
-        int32_t flag_index = 0;
         int32_t enum_index = 0;
         
         for (int32_t J = 0; J < file_count; ++J){
@@ -2193,7 +2347,8 @@ generate_custom_headers(){
                             case 0: //typedef
                             {
                                 set_token(context, token);
-                                if (typedef_parse(context, typedef_set, typedef_index)){
+                                if (typedef_parse(context, typedef_set.items + typedef_index)){
+                                    Assert(typedef_set.items[typedef_index].t == Item_Typedef);
                                     ++typedef_index;
                                 }
                             }break;
@@ -2203,6 +2358,8 @@ generate_custom_headers(){
                                 set_token(context, token);
                                 if (struct_parse(part, (match_index == 1),
                                                  context, struct_set.items + struct_index)){
+                                    Assert(struct_set.items[struct_index].t == Item_Struct ||
+                                           struct_set.items[struct_index].t == Item_Union);
                                     ++struct_index;
                                 }
                             }break;
@@ -2210,16 +2367,9 @@ generate_custom_headers(){
                             case 3: //ENUM
                             {
                                 set_token(context, token);
-                                if (enum_parse(part, context, enum_set, enum_index)){
+                                if (enum_parse(part, context, enum_set.items + enum_index)){
+                                    Assert(enum_set.items[enum_index].t == Item_Enum);
                                     ++enum_index;
-                                }
-                            }break;
-                            
-                            case 4: //FLAGENUM
-                            {
-                                set_token(context, token);
-                                if (enum_parse(part, context, flag_set, flag_index)){
-                                    ++flag_index;
                                 }
                             }break;
                         }
@@ -2230,7 +2380,6 @@ generate_custom_headers(){
             typedef_count = typedef_index;
             struct_count = struct_index;
             enum_count = enum_index;
-            flag_count = flag_index;
         }
         
         //
@@ -2691,17 +2840,6 @@ generate_custom_headers(){
                         );
             }
             
-            for (int32_t i = 0; i < flag_count; ++i){
-                String name = flag_set.items[i].name;
-                fprintf(file,
-                        "<li>"
-                        "<a href='#%.*s_doc'>%.*s</a>"
-                        "</li>\n",
-                        name.size, name.str,
-                        name.size, name.str
-                        );
-            }
-            
             for (int32_t i = 0; i < struct_count; ++i){
                 String name = struct_set.items[i].name;
                 fprintf(file,
@@ -2744,214 +2882,15 @@ generate_custom_headers(){
             fprintf(file, "<h3>&sect;"SECTION" Type Descriptions</h3>\n");
             int32_t I = 1;
             for (int32_t i = 0; i < typedef_count; ++i, ++I){
-                String name = typedef_set.items[i].name;
-                String type = typedef_set.items[i].type;
-                
-                fprintf(file,
-                        "<div id='%.*s_doc' style='margin-bottom: 1cm;'>\n"
-                        "<h4>&sect;"SECTION".%d: %.*s</h4>\n"
-                        "<div style='"CODE_STYLE" "DESCRIPT_SECTION_STYLE"'>",
-                        name.size, name.str, I,
-                        name.size, name.str
-                        );
-                
-                // NOTE(allen): Code box
-                {
-                    fprintf(file,
-                            "typedef %.*s %.*s;",
-                            type.size, type.str,
-                            name.size, name.str
-                            );
-                }
-                
-                fprintf(file, "</div>\n");
-                
-                // NOTE(allen): Descriptive section
-                {
-                    String doc_string = typedef_set.items[i].doc_string;
-                    Documentation doc = {0};
-                    perform_doc_parse(part, doc_string, &doc);
-                    
-                    String main_doc = doc.main_doc;
-                    if (main_doc.size != 0){
-                        fprintf(file, DOC_HEAD_OPEN"Description"DOC_HEAD_CLOSE);
-                        fprintf(file,
-                                DOC_ITEM_OPEN"%.*s"DOC_ITEM_CLOSE,
-                                main_doc.size, main_doc.str
-                                );
-                    }
-                    
-                    print_see_also(file, &doc);
-                }
-                
-                fprintf(file, "</div><hr>\n");
+                print_item(part, file, typedef_set.items + i, SECTION, I);
             }
             
             for (int32_t i = 0; i < enum_count; ++i, ++I){
-                String name = enum_set.items[i].name;
-                
-                fprintf(file,
-                        "<div id='%.*s_doc' style='margin-bottom: 1cm;'>\n"
-                        "<h4>&sect;"SECTION".%d: %.*s</h4>\n"
-                        "<div style='"CODE_STYLE" "DESCRIPT_SECTION_STYLE"'>",
-                        name.size, name.str, I,
-                        name.size, name.str
-                        );
-                
-                // NOTE(allen): Code box
-                {
-                    fprintf(file,
-                            "enum %.*s;",
-                            name.size, name.str);
-                }
-                
-                fprintf(file, "</div>\n");
-                
-                // NOTE(allen): Descriptive section
-                {
-                    String doc_string = enum_set.items[i].doc_string;
-                    Documentation doc = {0};
-                    perform_doc_parse(part, doc_string, &doc);
-                    
-                    String main_doc = doc.main_doc;
-                    if (main_doc.size != 0){
-                        fprintf(file, DOC_HEAD_OPEN"Description"DOC_HEAD_CLOSE);
-                        fprintf(file,
-                                DOC_ITEM_OPEN"%.*s"DOC_ITEM_CLOSE,
-                                main_doc.size, main_doc.str
-                                );
-                    }
-                    
-                    if (enum_set.items[i].first_child){
-                        fprintf(file, DOC_HEAD_OPEN"Values"DOC_HEAD_CLOSE);
-                        for (Item_Node *member = enum_set.items[i].first_child;
-                             member;
-                             member = member->next_sibling){
-                            Documentation doc = {0};
-                            perform_doc_parse(part, member->doc_string, &doc);
-                            
-                            fprintf(file,
-                                    "<div>\n"
-                                    "<div><span style='"CODE_STYLE"'>"DOC_ITEM_HEAD_INL_OPEN
-                                    "%.*s"DOC_ITEM_HEAD_INL_CLOSE"</span></div>\n"
-                                    "<div style='margin-bottom: 6mm;'>"DOC_ITEM_OPEN"%.*s"DOC_ITEM_CLOSE"</div>\n"
-                                    "</div>\n",
-                                    member->name.size, member->name.str,
-                                    doc.main_doc.size, doc.main_doc.str
-                                    );
-                        }
-                    }
-                    
-                    print_see_also(file, &doc);
-                }
-                
-                fprintf(file, "</div><hr>\n");
-            }
-            
-            for (int32_t i = 0; i < flag_count; ++i, ++I){
-                String name = flag_set.items[i].name;
-                
-                fprintf(file,
-                        "<div id='%.*s_doc' style='margin-bottom: 1cm;'>\n"
-                        "<h4>&sect;"SECTION".%d: %.*s</h4>\n"
-                        "<div style='"CODE_STYLE" "DESCRIPT_SECTION_STYLE"'>",
-                        name.size, name.str, I,
-                        name.size, name.str
-                        );
-                
-                // NOTE(allen): Code box
-                {
-                    fprintf(file,
-                            "enum %.*s;",
-                            name.size, name.str);
-                }
-                
-                fprintf(file, "</div>\n");
-                
-                // NOTE(allen): Descriptive section
-                {
-                    String doc_string = flag_set.items[i].doc_string;
-                    Documentation doc = {0};
-                    perform_doc_parse(part, doc_string, &doc);
-                    
-                    String main_doc = doc.main_doc;
-                    if (main_doc.size != 0){
-                        fprintf(file, DOC_HEAD_OPEN"Description"DOC_HEAD_CLOSE);
-                        fprintf(file,
-                                DOC_ITEM_OPEN"%.*s"DOC_ITEM_CLOSE,
-                                main_doc.size, main_doc.str
-                                );
-                    }
-                    
-                    if (flag_set.items[i].first_child){
-                        fprintf(file, DOC_HEAD_OPEN"Flags"DOC_HEAD_CLOSE);
-                        for (Item_Node *member = flag_set.items[i].first_child;
-                             member;
-                             member = member->next_sibling){
-                            Documentation doc = {0};
-                            perform_doc_parse(part, member->doc_string, &doc);
-                            
-                            fprintf(file,
-                                    "<div>\n"
-                                    "<div><span style='"CODE_STYLE"'>"DOC_ITEM_HEAD_INL_OPEN
-                                    "%.*s"DOC_ITEM_HEAD_INL_CLOSE" = %.*s</span></div>\n"
-                                    "<div style='margin-bottom: 6mm;'>"DOC_ITEM_OPEN"%.*s"DOC_ITEM_CLOSE"</div>\n"
-                                    "</div>\n",
-                                    member->name.size, member->name.str,
-                                    member->value.size, member->value.str,
-                                    doc.main_doc.size, doc.main_doc.str
-                                    );
-                        }
-                    }
-                    
-                    print_see_also(file, &doc);
-                }
-                
-                fprintf(file, "</div><hr>\n");
+                print_item(part, file, enum_set.items + i, SECTION, I);
             }
             
             for (int32_t i = 0; i < struct_count; ++i, ++I){
-                Item_Node *member = &struct_set.items[i];
-                String name = member->name;
-                fprintf(file,
-                        "<div id='%.*s_doc' style='margin-bottom: 1cm;'>\n"
-                        "<h4>&sect;"SECTION".%d: %.*s</h4>\n"
-                        "<div style='"CODE_STYLE" "DESCRIPT_SECTION_STYLE"'>",
-                        name.size, name.str, I,
-                        name.size, name.str
-                        );
-                
-                // NOTE(allen): Code box
-                {
-                    print_struct_html(file, member);
-                }
-                
-                fprintf(file, "</div>\n");
-                
-                // NOTE(allen): Descriptive section
-                {
-                    String doc_string = member->doc_string;
-                    Documentation doc = {0};
-                    perform_doc_parse(part, doc_string, &doc);
-                    
-                    String main_doc = doc.main_doc;
-                    if (main_doc.size != 0){
-                        fprintf(file, DOC_HEAD_OPEN"Description"DOC_HEAD_CLOSE);
-                        fprintf(file,
-                                DOC_ITEM_OPEN"%.*s"DOC_ITEM_CLOSE,
-                                main_doc.size, main_doc.str
-                                );
-                    }
-                    
-                    if (member->first_child){
-                        fprintf(file, DOC_HEAD_OPEN"Fields"DOC_HEAD_CLOSE);
-                        print_struct_docs(file, part, member);
-                    }
-                    
-                    print_see_also(file, &doc);
-                }
-                
-                fprintf(file, "</div><hr>\n");
+                print_item(part, file, struct_set.items + i, SECTION, I);
             }
         }
         

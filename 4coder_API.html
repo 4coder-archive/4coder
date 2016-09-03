@@ -101,17 +101,14 @@ Coming Soon</i><div>
 <li><a href='#Buffer_ID_doc'>Buffer_ID</a></li>
 <li><a href='#View_ID_doc'>View_ID</a></li>
 <li><a href='#Key_Modifier_doc'>Key_Modifier</a></li>
+<li><a href='#Key_Modifier_Flag_doc'>Key_Modifier_Flag</a></li>
 <li><a href='#Command_ID_doc'>Command_ID</a></li>
+<li><a href='#Memory_Protect_Flags_doc'>Memory_Protect_Flags</a></li>
 <li><a href='#User_Input_Type_ID_doc'>User_Input_Type_ID</a></li>
 <li><a href='#Event_Message_Type_ID_doc'>Event_Message_Type_ID</a></li>
 <li><a href='#Buffer_Batch_Edit_Type_doc'>Buffer_Batch_Edit_Type</a></li>
 <li><a href='#Buffer_Setting_ID_doc'>Buffer_Setting_ID</a></li>
 <li><a href='#View_Setting_ID_doc'>View_Setting_ID</a></li>
-<li><a href='#Mouse_Cursor_Show_Type_doc'>Mouse_Cursor_Show_Type</a></li>
-<li><a href='#Buffer_Seek_Type_doc'>Buffer_Seek_Type</a></li>
-<li><a href='#View_Split_Position_doc'>View_Split_Position</a></li>
-<li><a href='#Key_Modifier_Flag_doc'>Key_Modifier_Flag</a></li>
-<li><a href='#Memory_Protect_Flags_doc'>Memory_Protect_Flags</a></li>
 <li><a href='#Buffer_Create_Flag_doc'>Buffer_Create_Flag</a></li>
 <li><a href='#Buffer_Kill_Flag_doc'>Buffer_Kill_Flag</a></li>
 <li><a href='#Access_Flag_doc'>Access_Flag</a></li>
@@ -120,6 +117,9 @@ Coming Soon</i><div>
 <li><a href='#Auto_Indent_Flag_doc'>Auto_Indent_Flag</a></li>
 <li><a href='#Set_Buffer_Flag_doc'>Set_Buffer_Flag</a></li>
 <li><a href='#Input_Type_Flag_doc'>Input_Type_Flag</a></li>
+<li><a href='#Mouse_Cursor_Show_Type_doc'>Mouse_Cursor_Show_Type</a></li>
+<li><a href='#Buffer_Seek_Type_doc'>Buffer_Seek_Type</a></li>
+<li><a href='#View_Split_Position_doc'>View_Split_Position</a></li>
 <li><a href='#Generic_Command_doc'>Generic_Command</a></li>
 <li><a href='#Key_Event_Data_doc'>Key_Event_Data</a></li>
 <li><a href='#Mouse_State_doc'>Mouse_State</a></li>
@@ -1218,8 +1218,29 @@ the interval [1,16].</div></div><hr>
 <div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>MDFR_INDEX_COUNT is used to specify the number of modifiers supported.</div></div>
 </div>
 </div><hr>
+<div id='Key_Modifier_Flag_doc' style='margin-bottom: 1cm;'>
+<h4>&sect;3.4.7: Key_Modifier_Flag</h4>
+<div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>enum Key_Modifier_Flag;</div>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>A Key_Modifier_Flag field is used to specify a specific state of modifiers.
+Flags can be combined with bit or to specify a state with multiple modifiers.</div><div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Values</i></b></div><div>
+<div><span style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>MDFR_NONE</span> = 0x0</span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>MDFR_NONE specifies that no modifiers are pressed.</div></div>
+</div>
+<div>
+<div><span style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>MDFR_CTRL</span> = 0x1</span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'></div></div>
+</div>
+<div>
+<div><span style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>MDFR_ALT</span> = 0x2</span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'></div></div>
+</div>
+<div>
+<div><span style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>MDFR_SHIFT</span> = 0x4</span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'></div></div>
+</div>
+</div><hr>
 <div id='Command_ID_doc' style='margin-bottom: 1cm;'>
-<h4>&sect;3.4.7: Command_ID</h4>
+<h4>&sect;3.4.8: Command_ID</h4>
 <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>enum Command_ID;</div>
 <div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>A Command_ID is used as a name for commands implemented internally in 4coder.</div><div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Values</i></b></div><div>
 <div><span style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>cmdid_null</span></span></div>
@@ -1294,8 +1315,24 @@ the interval [1,16].</div></div><hr>
 <div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'></div></div>
 </div>
 </div><hr>
+<div id='Memory_Protect_Flags_doc' style='margin-bottom: 1cm;'>
+<h4>&sect;3.4.9: Memory_Protect_Flags</h4>
+<div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>enum Memory_Protect_Flags;</div>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>TODO</div><div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Values</i></b></div><div>
+<div><span style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>MemProtect_Read</span> = 0x1</span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>TODO</div></div>
+</div>
+<div>
+<div><span style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>MemProtect_Write</span> = 0x2</span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>TODO</div></div>
+</div>
+<div>
+<div><span style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>MemProtect_Execute</span> = 0x4</span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>TODO</div></div>
+</div>
+</div><hr>
 <div id='User_Input_Type_ID_doc' style='margin-bottom: 1cm;'>
-<h4>&sect;3.4.8: User_Input_Type_ID</h4>
+<h4>&sect;3.4.10: User_Input_Type_ID</h4>
 <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>enum User_Input_Type_ID;</div>
 <div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>User_Input_Type_ID specifies a type of user input event.</div><div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Values</i></b></div><div>
 <div><span style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>UserInputNone</span></span></div>
@@ -1311,7 +1348,7 @@ the interval [1,16].</div></div><hr>
 </div>
 </div><hr>
 <div id='Event_Message_Type_ID_doc' style='margin-bottom: 1cm;'>
-<h4>&sect;3.4.9: Event_Message_Type_ID</h4>
+<h4>&sect;3.4.11: Event_Message_Type_ID</h4>
 <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>enum Event_Message_Type_ID;</div>
 <div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>Event_Message_Type_ID is a part of an unfinished feature.</div><div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Values</i></b></div><div>
 <div><span style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>EventMessage_NoMessage</span></span></div>
@@ -1331,7 +1368,7 @@ the interval [1,16].</div></div><hr>
 </div>
 </div><hr>
 <div id='Buffer_Batch_Edit_Type_doc' style='margin-bottom: 1cm;'>
-<h4>&sect;3.4.10: Buffer_Batch_Edit_Type</h4>
+<h4>&sect;3.4.12: Buffer_Batch_Edit_Type</h4>
 <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>enum Buffer_Batch_Edit_Type;</div>
 <div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>A Buffer_Batch_Edit_Type is a type of batch operation.</div><div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Values</i></b></div><div>
 <div><span style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>BatchEdit_Normal</span></span></div>
@@ -1344,7 +1381,7 @@ the interval [1,16].</div></div><hr>
 </div>
 </div><hr>
 <div id='Buffer_Setting_ID_doc' style='margin-bottom: 1cm;'>
-<h4>&sect;3.4.11: Buffer_Setting_ID</h4>
+<h4>&sect;3.4.13: Buffer_Setting_ID</h4>
 <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>enum Buffer_Setting_ID;</div>
 <div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>A Buffer_Setting_ID names a setting in a buffer.</div><div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Values</i></b></div><div>
 <div><span style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>BufferSetting_Null</span></span></div>
@@ -1384,7 +1421,7 @@ the interval [1,16].</div></div><hr>
 </div>
 </div><hr>
 <div id='View_Setting_ID_doc' style='margin-bottom: 1cm;'>
-<h4>&sect;3.4.12: View_Setting_ID</h4>
+<h4>&sect;3.4.14: View_Setting_ID</h4>
 <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>enum View_Setting_ID;</div>
 <div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>A View_Setting_ID names a setting in a view.</div><div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Values</i></b></div><div>
 <div><span style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>ViewSetting_Null</span></span></div>
@@ -1407,101 +1444,10 @@ the interval [1,16].</div></div><hr>
     attached to a view in it's scrollable section.</div></div>
 </div>
 </div><hr>
-<div id='Mouse_Cursor_Show_Type_doc' style='margin-bottom: 1cm;'>
-<h4>&sect;3.4.13: Mouse_Cursor_Show_Type</h4>
-<div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>enum Mouse_Cursor_Show_Type;</div>
-<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>A Mouse_Cursor_Show_Type value specifes a mode for 4coder to handle the mouse cursor.</div><div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Values</i></b></div><div>
-<div><span style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>MouseCursorShow_Never</span></span></div>
-<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>The MouseCursorShow_Never mode never shows the cursor.</div></div>
-</div>
-<div>
-<div><span style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>MouseCursorShow_Always</span></span></div>
-<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>The MouseCursorShow_Never mode always shows the cursor.</div></div>
-</div>
-</div><hr>
-<div id='Buffer_Seek_Type_doc' style='margin-bottom: 1cm;'>
-<h4>&sect;3.4.14: Buffer_Seek_Type</h4>
-<div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>enum Buffer_Seek_Type;</div>
-<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>The Buffer_Seek_Type is is used in a Buffer_Seek to identify which
-coordinates are suppose to be used for the seek.</div><div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Values</i></b></div><div>
-<div><span style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>buffer_seek_pos</span></span></div>
-<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>This value indicates absolute positioning where positions are measured as the number of bytes from the start of the file.</div></div>
-</div>
-<div>
-<div><span style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>buffer_seek_wrapped_xy</span></span></div>
-<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>This value indicates xy positioning with wrapped lines where the x and y values are in pixels.</div></div>
-</div>
-<div>
-<div><span style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>buffer_seek_unwrapped_xy</span></span></div>
-<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>This value indicates xy positioning with unwrapped lines where the x and y values are in pixels.</div></div>
-</div>
-<div>
-<div><span style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>buffer_seek_line_char</span></span></div>
-<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>This value indicates line-character, or line-column positioning.  These coordinates are 1 based to match standard line numbering.</div></div>
-</div>
-<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>See Also</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'><a href='#Buffer_Seek_doc'>Buffer_Seek</a></div><div style='margin-left: 5mm; margin-right: 5mm;'><a href='#4coder_Buffer_Positioning_System_doc'>4coder_Buffer_Positioning_System</a></div></div><hr>
-<div id='View_Split_Position_doc' style='margin-bottom: 1cm;'>
-<h4>&sect;3.4.15: View_Split_Position</h4>
-<div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>enum View_Split_Position;</div>
-<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>A View_Split_Position specifies where a new view should be placed as a result of
-a view split operation.</div><div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Values</i></b></div><div>
-<div><span style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>ViewSplit_Top</span></span></div>
-<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>This value indicates that the new view should be above the existing view.</div></div>
-</div>
-<div>
-<div><span style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>ViewSplit_Bottom</span></span></div>
-<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>This value indicates that the new view should be below the existing view.</div></div>
-</div>
-<div>
-<div><span style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>ViewSplit_Left</span></span></div>
-<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>This value indicates that the new view should be left of the existing view.</div></div>
-</div>
-<div>
-<div><span style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>ViewSplit_Right</span></span></div>
-<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>This value indicates that the new view should be right of the existing view.</div></div>
-</div>
-</div><hr>
-<div id='Key_Modifier_Flag_doc' style='margin-bottom: 1cm;'>
-<h4>&sect;3.4.16: Key_Modifier_Flag</h4>
-<div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>enum Key_Modifier_Flag;</div>
-<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>A Key_Modifier_Flag field is used to specify a specific state of modifiers.
-Flags can be combined with bit or to specify a state with multiple modifiers.</div><div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Flags</i></b></div><div>
-<div><span style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>MDFR_NONE</span> = 0x0</span></div>
-<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>MDFR_NONE specifies that no modifiers are pressed.</div></div>
-</div>
-<div>
-<div><span style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>MDFR_CTRL</span> = 0x1</span></div>
-<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'></div></div>
-</div>
-<div>
-<div><span style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>MDFR_ALT</span> = 0x2</span></div>
-<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'></div></div>
-</div>
-<div>
-<div><span style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>MDFR_SHIFT</span> = 0x4</span></div>
-<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'></div></div>
-</div>
-</div><hr>
-<div id='Memory_Protect_Flags_doc' style='margin-bottom: 1cm;'>
-<h4>&sect;3.4.17: Memory_Protect_Flags</h4>
-<div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>enum Memory_Protect_Flags;</div>
-<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>TODO</div><div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Flags</i></b></div><div>
-<div><span style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>MemProtect_Read</span> = 0x1</span></div>
-<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>TODO</div></div>
-</div>
-<div>
-<div><span style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>MemProtect_Write</span> = 0x2</span></div>
-<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>TODO</div></div>
-</div>
-<div>
-<div><span style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>MemProtect_Execute</span> = 0x4</span></div>
-<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>TODO</div></div>
-</div>
-</div><hr>
 <div id='Buffer_Create_Flag_doc' style='margin-bottom: 1cm;'>
-<h4>&sect;3.4.18: Buffer_Create_Flag</h4>
+<h4>&sect;3.4.15: Buffer_Create_Flag</h4>
 <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>enum Buffer_Create_Flag;</div>
-<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>A Buffer_Create_Flag field specifies how a buffer should be created.</div><div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Flags</i></b></div><div>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>A Buffer_Create_Flag field specifies how a buffer should be created.</div><div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Values</i></b></div><div>
 <div><span style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>BufferCreate_Background</span> = 0x1</span></div>
 <div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>BufferCreate_Background is not currently implemented.</div></div>
 </div>
@@ -1517,9 +1463,9 @@ Flags can be combined with bit or to specify a state with multiple modifiers.</d
 </div>
 </div><hr>
 <div id='Buffer_Kill_Flag_doc' style='margin-bottom: 1cm;'>
-<h4>&sect;3.4.19: Buffer_Kill_Flag</h4>
+<h4>&sect;3.4.16: Buffer_Kill_Flag</h4>
 <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>enum Buffer_Kill_Flag;</div>
-<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>A Buffer_Kill_Flag field specifies how a buffer should be killed.</div><div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Flags</i></b></div><div>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>A Buffer_Kill_Flag field specifies how a buffer should be killed.</div><div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Values</i></b></div><div>
 <div><span style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>BufferKill_Background</span> = 0x1</span></div>
 <div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>BufferKill_Background is not currently implemented.</div></div>
 </div>
@@ -1530,14 +1476,14 @@ Flags can be combined with bit or to specify a state with multiple modifiers.</d
 </div>
 </div><hr>
 <div id='Access_Flag_doc' style='margin-bottom: 1cm;'>
-<h4>&sect;3.4.20: Access_Flag</h4>
+<h4>&sect;3.4.17: Access_Flag</h4>
 <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>enum Access_Flag;</div>
 <div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>An Access_Flag field specifies what sort of permission you grant to an
 access call.  An access call is usually one the returns a summary struct.  If a
 4coder object has a particular protection flag set and the corresponding bit is
 not set in the access field, that 4coder object is hidden.  On the other hand if
 a protection flag is set in the access parameter and the object does not have
-that protection flag, the object is still returned from the access call.</div><div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Flags</i></b></div><div>
+that protection flag, the object is still returned from the access call.</div><div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Values</i></b></div><div>
 <div><span style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>AccessOpen</span> = 0x0</span></div>
 <div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>AccessOpen does not include any bits, it indicates that the access should
     only return objects that have no protection flags set.</div></div>
@@ -1560,10 +1506,10 @@ that protection flag, the object is still returned from the access call.</div><d
 </div>
 </div><hr>
 <div id='Seek_Boundary_Flag_doc' style='margin-bottom: 1cm;'>
-<h4>&sect;3.4.21: Seek_Boundary_Flag</h4>
+<h4>&sect;3.4.18: Seek_Boundary_Flag</h4>
 <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>enum Seek_Boundary_Flag;</div>
 <div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>A Seek_Boundary_Flag field specifies a set of "boundary" types used in seeks for the
-beginning or end of different types of words.</div><div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Flags</i></b></div><div>
+beginning or end of different types of words.</div><div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Values</i></b></div><div>
 <div><span style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>BoundaryWhitespace</span> = 0x1</span></div>
 <div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'></div></div>
 </div>
@@ -1581,9 +1527,9 @@ beginning or end of different types of words.</div><div style='margin-top: 3mm; 
 </div>
 </div><hr>
 <div id='Command_Line_Input_Flag_doc' style='margin-bottom: 1cm;'>
-<h4>&sect;3.4.22: Command_Line_Input_Flag</h4>
+<h4>&sect;3.4.19: Command_Line_Input_Flag</h4>
 <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>enum Command_Line_Input_Flag;</div>
-<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>A Command_Line_Input_Flag field specifies the behavior of a call to a command line interface.</div><div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Flags</i></b></div><div>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>A Command_Line_Input_Flag field specifies the behavior of a call to a command line interface.</div><div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Values</i></b></div><div>
 <div><span style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>CLI_OverlapWithConflict</span> = 0x1</span></div>
 <div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>If CLI_OverlapWithConflict is set if output buffer of the new command is already
     in use by another command which is still executing, the older command relinquishes control
@@ -1602,9 +1548,9 @@ beginning or end of different types of words.</div><div style='margin-top: 3mm; 
 </div>
 </div><hr>
 <div id='Auto_Indent_Flag_doc' style='margin-bottom: 1cm;'>
-<h4>&sect;3.4.23: Auto_Indent_Flag</h4>
+<h4>&sect;3.4.20: Auto_Indent_Flag</h4>
 <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>enum Auto_Indent_Flag;</div>
-<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>An Auto_Indent_Flag field specifies the behavior of an auto indentation operation.</div><div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Flags</i></b></div><div>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>An Auto_Indent_Flag field specifies the behavior of an auto indentation operation.</div><div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Values</i></b></div><div>
 <div><span style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>AutoIndent_ClearLine</span> = 0x1</span></div>
 <div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>If AutoIndent_ClearLine is set, then any line that is only whitespace will
     be cleared to contain nothing at all. otherwise the line is filled with whitespace
@@ -1618,9 +1564,9 @@ beginning or end of different types of words.</div><div style='margin-top: 3mm; 
 </div>
 </div><hr>
 <div id='Set_Buffer_Flag_doc' style='margin-bottom: 1cm;'>
-<h4>&sect;3.4.24: Set_Buffer_Flag</h4>
+<h4>&sect;3.4.21: Set_Buffer_Flag</h4>
 <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>enum Set_Buffer_Flag;</div>
-<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>A Set_Buffer_Flag field specifies the behavior of an operation that sets the buffer of a view.</div><div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Flags</i></b></div><div>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>A Set_Buffer_Flag field specifies the behavior of an operation that sets the buffer of a view.</div><div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Values</i></b></div><div>
 <div><span style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>SetBuffer_KeepOriginalGUI</span> = 0x1</span></div>
 <div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>If SetBuffer_KeepOriginalGUI then when the file is set, the view will not switch to it
     if some other GUI was currently up, otherwise any GUI that is up is closed and the view
@@ -1628,9 +1574,9 @@ beginning or end of different types of words.</div><div style='margin-top: 3mm; 
 </div>
 </div><hr>
 <div id='Input_Type_Flag_doc' style='margin-bottom: 1cm;'>
-<h4>&sect;3.4.25: Input_Type_Flag</h4>
+<h4>&sect;3.4.22: Input_Type_Flag</h4>
 <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>enum Input_Type_Flag;</div>
-<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>A Input_Type_Flag field specifies a set of input event types.</div><div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Flags</i></b></div><div>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>A Input_Type_Flag field specifies a set of input event types.</div><div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Values</i></b></div><div>
 <div><span style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>EventOnAnyKey</span> = 0x1</span></div>
 <div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>If EventOnAnyKey is set, all keyboard events are included in the set.</div></div>
 </div>
@@ -1665,6 +1611,60 @@ beginning or end of different types of words.</div><div style='margin-top: 3mm; 
 <div>
 <div><span style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>EventAll</span> = 0xFF</span></div>
 <div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>EventAll is a catch all name for including all possible events in the set.</div></div>
+</div>
+</div><hr>
+<div id='Mouse_Cursor_Show_Type_doc' style='margin-bottom: 1cm;'>
+<h4>&sect;3.4.23: Mouse_Cursor_Show_Type</h4>
+<div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>enum Mouse_Cursor_Show_Type;</div>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>A Mouse_Cursor_Show_Type value specifes a mode for 4coder to handle the mouse cursor.</div><div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Values</i></b></div><div>
+<div><span style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>MouseCursorShow_Never</span></span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>The MouseCursorShow_Never mode never shows the cursor.</div></div>
+</div>
+<div>
+<div><span style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>MouseCursorShow_Always</span></span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>The MouseCursorShow_Never mode always shows the cursor.</div></div>
+</div>
+</div><hr>
+<div id='Buffer_Seek_Type_doc' style='margin-bottom: 1cm;'>
+<h4>&sect;3.4.24: Buffer_Seek_Type</h4>
+<div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>enum Buffer_Seek_Type;</div>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>The Buffer_Seek_Type is is used in a Buffer_Seek to identify which
+coordinates are suppose to be used for the seek.</div><div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Values</i></b></div><div>
+<div><span style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>buffer_seek_pos</span></span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>This value indicates absolute positioning where positions are measured as the number of bytes from the start of the file.</div></div>
+</div>
+<div>
+<div><span style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>buffer_seek_wrapped_xy</span></span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>This value indicates xy positioning with wrapped lines where the x and y values are in pixels.</div></div>
+</div>
+<div>
+<div><span style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>buffer_seek_unwrapped_xy</span></span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>This value indicates xy positioning with unwrapped lines where the x and y values are in pixels.</div></div>
+</div>
+<div>
+<div><span style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>buffer_seek_line_char</span></span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>This value indicates line-character, or line-column positioning.  These coordinates are 1 based to match standard line numbering.</div></div>
+</div>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>See Also</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'><a href='#Buffer_Seek_doc'>Buffer_Seek</a></div><div style='margin-left: 5mm; margin-right: 5mm;'><a href='#4coder_Buffer_Positioning_System_doc'>4coder_Buffer_Positioning_System</a></div></div><hr>
+<div id='View_Split_Position_doc' style='margin-bottom: 1cm;'>
+<h4>&sect;3.4.25: View_Split_Position</h4>
+<div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>enum View_Split_Position;</div>
+<div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>A View_Split_Position specifies where a new view should be placed as a result of
+a view split operation.</div><div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Values</i></b></div><div>
+<div><span style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>ViewSplit_Top</span></span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>This value indicates that the new view should be above the existing view.</div></div>
+</div>
+<div>
+<div><span style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>ViewSplit_Bottom</span></span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>This value indicates that the new view should be below the existing view.</div></div>
+</div>
+<div>
+<div><span style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>ViewSplit_Left</span></span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>This value indicates that the new view should be left of the existing view.</div></div>
+</div>
+<div>
+<div><span style='font-family: "Courier New", Courier, monospace; text-align: left;'><span style='font-weight: 600;'>ViewSplit_Right</span></span></div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>This value indicates that the new view should be right of the existing view.</div></div>
 </div>
 </div><hr>
 <div id='Generic_Command_doc' style='margin-bottom: 1cm;'>
