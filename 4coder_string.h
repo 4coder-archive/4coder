@@ -460,7 +460,7 @@ char_is_alpha_true(char c)
 FSTRING_INLINE fstr_bool
 char_is_hex(char c)
 {
-    return c >= '0' && c <= '9' || c >= 'A' && c <= 'F' || c >= 'a' && c <= 'f';
+    return (c >= '0' && c <= '9' || c >= 'A' && c <= 'F' || c >= 'a' && c <= 'f');
 }
 #endif
 
@@ -489,13 +489,12 @@ string_zero(void)
 
 #if !defined(FSTRING_GUARD)
 FSTRING_INLINE String
-make_string_cap(void *str, int32_t size, int32_t mem_size)
-{
+make_string_cap(void *str, int32_t size, int32_t mem_size){
     String result;
     result.str = (char*)str;
     result.size = size;
     result.memory_size = mem_size;
-    return result;
+    return(result);
 }
 #endif
 
@@ -506,7 +505,7 @@ make_string(void *str, int32_t size){
     result.str = (char*)str;
     result.size = size;
     result.memory_size = size;
-    return result;
+    return(result);
 }
 #endif
 
@@ -516,7 +515,7 @@ str_size(char *str)
 {
     int32_t i = 0;
     while (str[i]) ++i;
-    return i;
+    return(i);
 }
 #endif
 
@@ -528,7 +527,7 @@ make_string_slowly(void *str)
     result.str = (char*)str;
     result.size = str_size((char*)str);
     result.memory_size = result.size;
-    return result;
+    return(result);
 }
 #endif
 

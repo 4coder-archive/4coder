@@ -108,7 +108,7 @@ char_is_alpha_true(char c)
 FSTRING_INLINE fstr_bool
 char_is_hex(char c)
 /* DOC(This call returns non-zero if c is any valid hexadecimal digit.) */{
-    return c >= '0' && c <= '9' || c >= 'A' && c <= 'F' || c >= 'a' && c <= 'f';
+    return (c >= '0' && c <= '9' || c >= 'A' && c <= 'F' || c >= 'a' && c <= 'f');
 }
 
 FSTRING_INLINE fstr_bool
@@ -131,8 +131,7 @@ string_zero(void)
 
 CPP_NAME(make_string)
 FSTRING_INLINE String
-make_string_cap(void *str, int32_t size, int32_t mem_size)
-/*
+make_string_cap(void *str, int32_t size, int32_t mem_size)/*
 DOC_PARAM(str, The str parameter provides the of memory with which the string shall operate.)
 DOC_PARAM(size, The size parameter expresses the initial size of the string.
 If the memory does not already contain a useful string this should be zero.)
@@ -143,7 +142,7 @@ DOC(This call returns the String created from the parameters.)
     result.str = (char*)str;
     result.size = size;
     result.memory_size = mem_size;
-    return result;
+    return(result);
 }
 
 FSTRING_INLINE String
@@ -159,7 +158,7 @@ DOC(This call returns the String created from the parameters.)
     result.str = (char*)str;
     result.size = size;
     result.memory_size = size;
-    return result;
+    return(result);
 }
 
 DOC_EXPORT /* DOC(This macro takes a literal string in quotes and uses it to create a String
@@ -179,7 +178,7 @@ str_size(char *str)
 /* DOC(This call returns the number of bytes before a null terminator starting at str.) */{
     int32_t i = 0;
     while (str[i]) ++i;
-    return i;
+    return(i);
 }
 
 FSTRING_INLINE String
@@ -190,7 +189,7 @@ treating that as the size and memory size of the string.) */{
     result.str = (char*)str;
     result.size = str_size((char*)str);
     result.memory_size = result.size;
-    return result;
+    return(result);
 }
 
 CPP_NAME(substr)
