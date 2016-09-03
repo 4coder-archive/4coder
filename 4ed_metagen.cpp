@@ -23,6 +23,8 @@
 
 #include "4coder_mem.h"
 
+#define InvalidPath Assert(!"Invalid path of execution")
+
 typedef struct Out_Context{
     FILE *file;
     String *str;
@@ -523,52 +525,6 @@ meta_lex(char *filename){
     result.tokens = cpp_make_token_stack(1024);
     cpp_lex_file(result.code.str, result.code.size, &result.tokens);
     return(result);
-}
-
-static Meta_Unit
-compile_meta_unit(Partition *part, char **files, int32_t file_count,
-                  Meta_Keywords *keywords, int32_t key_count){
-    Meta_Unit unit = {0};
-    int32_t i = 0;
-    
-    unit.count = file_count;
-    unit.parse = push_array(part, Parse, file_count);
-    
-    for (i = 0; i < file_count; ++i){
-        unit.parse[i] = meta_lex(files[i]);
-    }
-    
-#if 0
-    // TODO(allen): This stage counts nested structs
-    // and unions which is not correct.  Luckily it only
-    // means we over allocate by a few items, but fixing it
-    // to be exactly correct would be nice.
-    for (int32_t J = 0; J < unit.count; ++J){
-        Cpp_Token *token = 0;
-        Parse_Context context_ = setup_parse_context(unit.parse[J]);
-        Parse_Context *context = &context_;
-        
-        for (; (token = get_token(context)) != 0; get_next_token(context)){
-            if (!(token->flags & CPP_TFLAG_PP_BODY) &&
-                ((token->flags & CPP_TFLAG_IS_KEYWORD) ||
-                 token->type == CPP_TOKEN_IDENTIFIER)){
-                
-                String lexeme = get_lexeme(*token, context->data);
-                int32_t match_index = 0;
-                if (string_set_match_table(keywords, sizeof(*keywords), key_count, lexeme, &match_index)){
-                    switch (match_index){
-                        case 0: //typedef
-                        case 1: case 2: //struct/union
-                        case 3: //ENUM
-                        ++unit.set.count; break;
-                    }
-                }
-            }
-        }
-    }
-#endif
-    
-    return(unit);
 }
 
 static String
@@ -1219,6 +1175,116 @@ enum_parse(Partition *part, Parse_Context *context, Item_Node *item){
     }
     
     return(result);
+}
+
+static Meta_Unit
+compile_meta_unit(Partition *part, char **files, int32_t file_count,
+                  Meta_Keywords *keywords, int32_t key_count){
+    Meta_Unit unit = {0};
+    int32_t i = 0;
+    
+    unit.count = file_count;
+    unit.parse = push_array(part, Parse, file_count);
+    
+    for (i = 0; i < file_count; ++i){
+        unit.parse[i] = meta_lex(files[i]);
+    }
+    
+    // TODO(allen): This stage counts nested structs
+    // and unions which is not correct.  Luckily it only
+    // means we over allocate by a few items, but fixing it
+    // to be exactly correct would be nice.
+    for (int32_t J = 0; J < unit.count; ++J){
+        Cpp_Token *token = 0;
+        Parse_Context context_ = setup_parse_context(unit.parse[J]);
+        Parse_Context *context = &context_;
+        
+        for (; (token = get_token(context)) != 0; get_next_token(context)){
+            if (!(token->flags & CPP_TFLAG_PP_BODY) &&
+                ((token->flags & CPP_TFLAG_IS_KEYWORD) ||
+                 token->type == CPP_TOKEN_IDENTIFIER)){
+                
+                String lexeme = get_lexeme(*token, context->data);
+                int32_t match_index = 0;
+                if (string_set_match_table(keywords, sizeof(*keywords), key_count, lexeme, &match_index)){
+                    switch (match_index){
+                        case 0: //typedef
+                        case 1: case 2: //struct/union
+                        case 3: //ENUM
+                        ++unit.set.count; break;
+                    }
+                }
+            }
+        }
+    }
+    
+    if (unit.set.count >  0){
+        unit.set = allocate_item_set(part, unit.set.count);
+    }
+    
+    int32_t index = 0;
+    
+    for (int32_t J = 0; J < unit.count; ++J){
+        Cpp_Token *token = 0;
+        Parse_Context context_ = setup_parse_context(unit.parse[J]);
+        Parse_Context *context = &context_;
+        
+        for (; (token = get_token(context)) != 0; get_next_token(context)){
+            if (!(token->flags & CPP_TFLAG_PP_BODY) &&
+                ((token->flags & CPP_TFLAG_IS_KEYWORD) ||
+                 token->type == CPP_TOKEN_IDENTIFIER)){
+                
+                String lexeme = get_lexeme(*token, context->data);
+                int32_t match_index = 0;
+                if (string_set_match_table(keywords, sizeof(*keywords), key_count, lexeme, &match_index)){
+                    switch (match_index){
+                        case 0: //typedef
+                        {
+                            if (typedef_parse(context, unit.set.items + index)){
+                                Assert(unit.set.items[index].t == Item_Typedef);
+                                ++index;
+                            }
+                            else{
+                                InvalidPath;
+                            }
+                        }break;
+                        
+                        case 1: case 2: //struct/union
+                        {
+                            if (struct_parse(part, (match_index == 1),
+                                             context, unit.set.items + index)){
+                                Assert(unit.set.items[index].t == Item_Struct ||
+                                       unit.set.items[index].t == Item_Union);
+                                ++index;
+                            }
+                            else{
+                                InvalidPath;
+                            }
+                        }break;
+                        
+                        case 3: //ENUM
+                        {
+                            if (enum_parse(part, context, unit.set.items + index)){
+                                Assert(unit.set.items[index].t == Item_Enum);
+                                ++index;
+                            }
+                            else{
+                                InvalidPath;
+                            }
+                        }break;
+                        
+                    }
+                }
+            }
+        }
+        
+        // NOTE(allen): This is necessary for now because
+        // the original count is slightly overestimated thanks
+        // to nested structs and unions.
+        unit.set.count = index;
+    }
+    
+    return(unit);
 }
 
 static Argument_Breakdown
@@ -2333,123 +2399,15 @@ generate_custom_headers(){
             "4coder_types.h"
         };
         
-#if 0
         static Meta_Keywords type_spec_keys[] = {
             {make_lit_string("typedef") , Item_Typedef } ,
             {make_lit_string("struct")  , Item_Struct  } ,
             {make_lit_string("union")   , Item_Union   } ,
             {make_lit_string("ENUM")    , Item_Enum    } ,
         };
-#endif
-        
-        static String type_spec_keys[] = {
-            make_lit_string("typedef") , 
-            make_lit_string("struct")  , 
-            make_lit_string("union")   , 
-            make_lit_string("ENUM")    , 
-        };
         
         Meta_Unit unit = compile_meta_unit(part, type_files, ArrayCount(type_files),
-                                           0,0);
-                                           //type_spec_keys, ArrayCount(type_spec_keys));
-        
-        // TODO(allen): This stage counts nested structs
-        // and unions which is not correct.  Luckily it only
-        // means we over allocate by a few items, but fixing it
-        // to be exactly correct would be nice.
-        for (int32_t J = 0; J < unit.count; ++J){
-            Cpp_Token *token = 0;
-            Parse_Context context_ = setup_parse_context(unit.parse[J]);
-            Parse_Context *context = &context_;
-            
-            for (; (token = get_token(context)) != 0; get_next_token(context)){
-                if (!(token->flags & CPP_TFLAG_PP_BODY) &&
-                    ((token->flags & CPP_TFLAG_IS_KEYWORD) ||
-                     token->type == CPP_TOKEN_IDENTIFIER)){
-                    
-                    String lexeme = get_lexeme(*token, context->data);
-                    int32_t match_index = 0;
-                    if (string_set_match(type_spec_keys, ArrayCount(type_spec_keys),
-                                         lexeme, &match_index)){
-                        switch (match_index){
-                            case 0: //typedef
-                            case 1: case 2: //struct/union
-                            case 3: //ENUM
-                            ++unit.set.count; break;
-                        }
-                    }
-                }
-            }
-        }
-        
-        if (unit.set.count >  0){
-            unit.set = allocate_item_set(part, unit.set.count);
-        }
-        
-        int32_t index = 0;
-        
-        for (int32_t J = 0; J < unit.count; ++J){
-            Cpp_Token *token = 0;
-            Parse_Context context_ = setup_parse_context(unit.parse[J]);
-            Parse_Context *context = &context_;
-            
-            for (; (token = get_token(context)) != 0; get_next_token(context)){
-                if (!(token->flags & CPP_TFLAG_PP_BODY) &&
-                    ((token->flags & CPP_TFLAG_IS_KEYWORD) ||
-                     token->type == CPP_TOKEN_IDENTIFIER)){
-                    
-#define InvalidPath Assert(!"Invalid path of execution")
-                    
-                    String lexeme = get_lexeme(*token, context->data);
-                    int32_t match_index = 0;
-                    if (string_set_match(type_spec_keys, ArrayCount(type_spec_keys),
-                                         lexeme, &match_index)){
-                        switch (match_index){
-                            case 0: //typedef
-                            {
-                                if (typedef_parse(context, unit.set.items + index)){
-                                    Assert(unit.set.items[index].t == Item_Typedef);
-                                    ++index;
-                                }
-                                else{
-                                    InvalidPath;
-                                }
-                            }break;
-                            
-                            case 1: case 2: //struct/union
-                            {
-                                if (struct_parse(part, (match_index == 1),
-                                                 context, unit.set.items + index)){
-                                    Assert(unit.set.items[index].t == Item_Struct ||
-                                           unit.set.items[index].t == Item_Union);
-                                    ++index;
-                                }
-                                else{
-                                    InvalidPath;
-                                }
-                            }break;
-                            
-                            case 3: //ENUM
-                            {
-                                if (enum_parse(part, context, unit.set.items + index)){
-                                    Assert(unit.set.items[index].t == Item_Enum);
-                                    ++index;
-                                }
-                                else{
-                                    InvalidPath;
-                                }
-                            }break;
-                            
-                        }
-                    }
-                }
-            }
-            
-            // NOTE(allen): This is necessary for now because
-            // the original count is slightly overestimated thanks
-            // to nested structs and unions.
-            unit.set.count = index;
-        }
+                                           type_spec_keys, ArrayCount(type_spec_keys));
         
         //
         // Output 4coder_string.h
@@ -2978,9 +2936,7 @@ generate_custom_headers(){
                 int32_t index = 0;
                 if (!string_set_match(used_strings, used_string_count, name, &index)){
                     fprintf(file,
-                            "<li>"
-                            "<a href='#%.*s_str_doc'>%.*s</a>"
-                            "</li>\n",
+                            "<li><a href='#%.*s_str_doc'>%.*s</a></li>\n",
                             name.size, name.str,
                             name.size, name.str
                             );
