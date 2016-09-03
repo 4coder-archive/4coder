@@ -28,6 +28,11 @@ typedef struct Out_Context{
     String *str;
 } Out_Context;
 
+static String
+get_string(char *data, int32_t start, int32_t end){
+    return(make_string(data + start, end - start));
+}
+
 static int32_t
 begin_file_out(Out_Context *out_context, char *filename, String *out){
     int32_t r = 0;
@@ -355,6 +360,7 @@ typedef enum Item_Type{
     Item_Typedef,
     Item_Struct,
     Item_Union,
+    Item_Enum,
 } Item_Type;
 
 typedef struct Item_Node{
@@ -688,24 +694,6 @@ get_lexeme(Cpp_Token token, char *code){
     return(str);
 }
 
-static int32_t
-get_type_doc_string(char *data, Cpp_Token *tokens, Cpp_Token *token,
-                    String *doc_string){
-    int32_t result = false;
-    
-    if (token > tokens){
-        Cpp_Token *prev_token = token - 1;
-        if (prev_token->type == CPP_TOKEN_COMMENT){
-            *doc_string = get_lexeme(*prev_token, data);
-            if (check_and_fix_docs(doc_string)){
-                result = true;
-            }
-        }
-    }
-    
-    return(result);
-}
-
 static Item_Set
 allocate_item_set(Partition *part, int32_t count){
     Item_Set item_set = {0};
@@ -720,14 +708,16 @@ typedef struct Parse_Context{
     Cpp_Token *token_s;
     Cpp_Token *token_e;
     Cpp_Token *token;
+    char *data;
 } Parse_Context;
 
 static Parse_Context
-setup_parse_context(Cpp_Token_Stack stack){
+setup_parse_context(char *data, Cpp_Token_Stack stack){
     Parse_Context context;
     context.token_s = stack.tokens;
     context.token_e = stack.tokens + stack.count;
     context.token = context.token_s;
+    context.data = data;
     return(context);
 }
 
@@ -782,69 +772,57 @@ set_token(Parse_Context *context, Cpp_Token *token){
     return(result);
 }
 
-// NOTE(allen): This should not be here any more.  It was written
-// simply to transition the system to the Parse_Context.
-static int32_t TRANSITIONAL_INDEX;
-static int32_t*
-get_index(Parse_Context *context, Cpp_Token *token){
-    if (token) set_token(context, token);
-    TRANSITIONAL_INDEX = (int32_t)(context->token - context->token_s);
-    return(&TRANSITIONAL_INDEX);
-}
-
-static Cpp_Token**
-get_ptr(Parse_Context *context){
-    Cpp_Token **result = &context->token;
+static int32_t
+get_doc_string_from_prev(Parse_Context *context, String *doc_string){
+    int32_t result = false;
+    
+    if (can_back_step(context)){
+        Cpp_Token *prev_token = get_token(context) - 1;
+        if (prev_token->type == CPP_TOKEN_COMMENT){
+            *doc_string = get_lexeme(*prev_token, context->data);
+            if (check_and_fix_docs(doc_string)){
+                result = true;
+            }
+        }
+    }
+    
     return(result);
 }
 
 static int32_t
-get_count(Parse_Context *context){
-    int32_t result = (int32_t)(context->token_e - context->token_s);
-    return(result);
-}
+struct_parse(Partition *part, int32_t is_struct,
+             Parse_Context *context, Item_Node *top_member);
 
 static int32_t
-parse_struct(Partition *part, int32_t is_struct,
-             char *data, Cpp_Token *tokens, int32_t count,
-             Cpp_Token **token_ptr,
-             Item_Node *top_member);
-
-static int32_t
-parse_struct_member(Partition *part,
-                    char *data, Cpp_Token *tokens, int32_t count,
-                    Cpp_Token **token_ptr,
-                    Item_Node *member){
+struct_parse_member(Partition *part, Parse_Context *context, Item_Node *member){
     
     int32_t result = false;
     
-    Cpp_Token *token = *token_ptr;
-    int32_t i = (int32_t)(token - tokens);
+    Cpp_Token *token = get_token(context);
     
     String doc_string = {0};
-    get_type_doc_string(data, tokens, token, &doc_string);
+    get_doc_string_from_prev(context, &doc_string);
     
-    int32_t start_i = i;
     Cpp_Token *start_token = token;
     
-    for (; i < count; ++i, ++token){
+    for (; (token = get_token(context)) != 0; get_next_token(context)){
         if (token->type == CPP_TOKEN_SEMICOLON){
             break;
         }
     }
     
-    if (i < count){
-        Cpp_Token *token_j = token;
-        
+    if (token){
+        String name = {0};
+        Cpp_Token *token_j = 0;
         int32_t nest_level = 0;
-        for (int32_t j = i; j > start_i; --j, --token_j){
+        
+        for (; (token_j = get_token(context)) > start_token; get_prev_token(context)){
             if (token_j->type == CPP_TOKEN_BRACKET_CLOSE){
                 ++nest_level;
             }
             else if (token_j->type == CPP_TOKEN_BRACKET_OPEN){
                 --nest_level;
                 if (nest_level < 0){
-                    j = start_i;
                     break;
                 }
             }
@@ -856,21 +834,14 @@ parse_struct_member(Partition *part,
             }
         }
         
-        String name = make_string(data + token_j->start, token_j->size);
-        name = skip_chop_whitespace(name);
+        name = skip_chop_whitespace(get_lexeme(*token_j, context->data));
         
-        int32_t type_start = start_token->start;
-        int32_t type_end = token_j->start;
-        String type = make_string(data + type_start, type_end - type_start);
-        type = skip_chop_whitespace(type);
+        String type = skip_chop_whitespace(get_string(context->data, start_token->start, token_j->start));
         
-        type_start = token_j->start + token_j->size;
-        type_end = token->start;
+        String type_postfix =
+            skip_chop_whitespace(get_string(context->data, token_j->start + token_j->size, token->start));
         
-        String type_postfix = make_string(data + type_start, type_end - type_start);
-        type_postfix = skip_chop_whitespace(type_postfix);
-        
-        ++token;
+        set_token(context, token+1);
         result = true;
         
         member->name = name;
@@ -881,28 +852,23 @@ parse_struct_member(Partition *part,
         member->next_sibling = 0;
     }
     
-    *token_ptr = token;
-    
     return(result);
 }
 
 static Item_Node*
-parse_struct_next_member(Partition *part,
-                         char *data, Cpp_Token *tokens, int32_t count,
-                         Cpp_Token **token_ptr){
+struct_parse_next_member(Partition *part, Parse_Context *context){
     Item_Node *result = 0;
     
-    Cpp_Token *token = *token_ptr;
-    int32_t i = (int32_t)(token - tokens);
+    Cpp_Token *token = 0;
     
-    for (; i < count; ++i, ++token){
+    for (; (token = get_token(context)) != 0; get_next_token(context)){
         if (token->type == CPP_TOKEN_IDENTIFIER ||
             (token->flags & CPP_TFLAG_IS_KEYWORD)){
-            String lexeme = make_string(data + token->start, token->size);
+            String lexeme = get_lexeme(*token, context->data);
             
             if (match_ss(lexeme, make_lit_string("struct"))){
                 Item_Node *member = push_struct(part, Item_Node);
-                if (parse_struct(part, true, data, tokens, count, &token, member)){
+                if (struct_parse(part, true, context, member)){
                     result = member;
                     break;
                 }
@@ -912,7 +878,7 @@ parse_struct_next_member(Partition *part,
             }
             else if (match_ss(lexeme, make_lit_string("union"))){
                 Item_Node *member = push_struct(part, Item_Node);
-                if (parse_struct(part, false, data, tokens, count, &token, member)){
+                if (struct_parse(part, false, context, member)){
                     result = member;
                     break;
                 }
@@ -922,7 +888,7 @@ parse_struct_next_member(Partition *part,
             }
             else{
                 Item_Node *member = push_struct(part, Item_Node);
-                if (parse_struct_member(part, data, tokens, count, &token, member)){
+                if (struct_parse_member(part, context, member)){
                     result = member;
                     break;
                 }
@@ -936,48 +902,39 @@ parse_struct_next_member(Partition *part,
         }
     }
     
-    *token_ptr = token;
-    
     return(result);
 }
 
 static int32_t
-parse_struct(Partition *part, int32_t is_struct,
-             char *data, Cpp_Token *tokens, int32_t count,
-             Cpp_Token **token_ptr,
-             Item_Node *top_member){
+struct_parse(Partition *part, int32_t is_struct,
+             Parse_Context *context, Item_Node *top_member){
     
     int32_t result = false;
     
-    Cpp_Token *token = *token_ptr;
-    int32_t i = (int32_t)(token - tokens);
+    Cpp_Token *start_token = get_token(context);
+    Cpp_Token *token = 0;
     
     String doc_string = {0};
-    get_type_doc_string(data, tokens, token, &doc_string);
+    get_doc_string_from_prev(context, &doc_string);
     
-    int32_t start_i = i;
-    
-    for (; i < count; ++i, ++token){
+    for (; (token = get_token(context)) != 0; get_next_token(context)){
         if (token->type == CPP_TOKEN_BRACE_OPEN){
             break;
         }
     }
     
-    if (i < count){
+    if (token){
         Cpp_Token *token_j = token;
-        int32_t j = i;
         
-        for (; j > start_i; --j, --token_j){
+        for (; (token_j = get_token(context)) > start_token; get_prev_token(context)){
             if (token_j->type == CPP_TOKEN_IDENTIFIER){
                 break;
             }
         }
         
         String name = {0};
-        
-        if (j != start_i){
-            name = make_string(data + token_j->start, token_j->size);
-            name = skip_chop_whitespace(name);
+        if (token_j != start_token){
+            name = skip_chop_whitespace(get_lexeme(*token_j, context->data));
         }
         
         String type = {0};
@@ -988,17 +945,15 @@ parse_struct(Partition *part, int32_t is_struct,
             type = make_lit_string("union");
         }
         
-        ++token;
-        Item_Node *new_member = 
-            parse_struct_next_member(part, data, tokens, count, &token);
+        set_token(context, token+1);
+        Item_Node *new_member = struct_parse_next_member(part, context);
         
         if (new_member){
             top_member->first_child = new_member;
             
             Item_Node *head_member = new_member;
             for(;;){
-                new_member = 
-                    parse_struct_next_member(part, data, tokens, count, &token);
+                new_member = struct_parse_next_member(part, context);
                 if (new_member){
                     head_member->next_sibling = new_member;
                     head_member = new_member;
@@ -1009,14 +964,19 @@ parse_struct(Partition *part, int32_t is_struct,
             }
         }
         
-        i = (int32_t)(token - tokens);
-        for (; i < count; ++i, ++token){
+        for (; (token = get_token(context)) != 0; get_next_token(context)){
             if (token->type == CPP_TOKEN_SEMICOLON){
                 break;
             }
         }
         ++token;
         
+        if (is_struct){
+            top_member->t = Item_Struct;
+        }
+        else{
+            top_member->t = Item_Union;
+        }
         top_member->name = name;
         top_member->type = type;
         top_member->doc_string = doc_string;
@@ -1025,140 +985,127 @@ parse_struct(Partition *part, int32_t is_struct,
         result = true;
     }
     
-    *token_ptr = token;
-    
     return(result);
 }
 
 static int32_t
-parse_typedef(char *data, Cpp_Token *tokens, int32_t count,
-              Cpp_Token **token_ptr, Item_Set item_set, int32_t item_index){
+typedef_parse(Parse_Context *context, Item_Set item_set, int32_t item_index){
     int32_t result = false;
     
-    Cpp_Token *token = *token_ptr;
-    int32_t i = (int32_t)(token - tokens);
+    Cpp_Token *token = get_token(context);
     String doc_string = {0};
-    get_type_doc_string(data, tokens, token, &doc_string);
+    get_doc_string_from_prev(context, &doc_string);
     
-    int32_t start_i = i;
     Cpp_Token *start_token = token;
     
-    for (; i < count; ++i, ++token){
+    for (; (token = get_token(context)) != 0; get_next_token(context)){
         if (token->type == CPP_TOKEN_SEMICOLON){
             break;
         }
     }
     
-    if (i < count){
+    if (token){
         Cpp_Token *token_j = token;
         
-        for (int32_t j = i; j > start_i; --j, --token_j){
+        for (; (token_j = get_token(context)) > start_token; get_prev_token(context)){
             if (token_j->type == CPP_TOKEN_IDENTIFIER){
                 break;
             }
         }
         
-        String name = make_string(data + token_j->start, token_j->size);
-        name = skip_chop_whitespace(name);
+        String name = get_lexeme(*token_j, context->data);
         
-        int32_t type_start = start_token->start + start_token->size;
-        int32_t type_end = token_j->start;
-        String type = make_string(data + type_start, type_end - type_start);
-        type = skip_chop_whitespace(type);
+        String type = skip_chop_whitespace(
+            get_string(context->data, start_token->start + start_token->size, token_j->start)
+            );
         
-        result = true;
+        item_set.items[item_index].t = Item_Typedef;
         item_set.items[item_index].type = type;
         item_set.items[item_index].name = name;
         item_set.items[item_index].doc_string = doc_string;
+        result = true;
     }
     
-    *token_ptr = token;
+    set_token(context, token);
     
     return(result);
 }
 
 static int32_t
-parse_enum(Partition *part, char *data,
-           Cpp_Token *tokens, int32_t count,
-           Cpp_Token **token_ptr,
+enum_parse(Partition *part, Parse_Context *context,
            Item_Set item_set, int32_t item_index){
     
     int32_t result = false;
     
-    Cpp_Token *token = *token_ptr;
-    int32_t i = (int32_t)(token - tokens);
-    
     String doc_string = {0};
-    get_type_doc_string(data, tokens, token, &doc_string);
+    get_doc_string_from_prev(context, &doc_string);
     
-    int32_t start_i = i;
+    Cpp_Token *start_token = get_token(context);
+    Cpp_Token *token = 0;
     
-    for (; i < count; ++i, ++token){
+    for (; (token = get_token(context)) != 0; get_next_token(context)){
         if (token->type == CPP_TOKEN_BRACE_OPEN){
             break;
         }
     }
     
-    if (i < count){
-        Cpp_Token *token_j = token;
+    if (token){
+        String name = {0};
+        Cpp_Token *token_j = 0;
         
-        for (int32_t j = i; j > start_i; --j, --token_j){
+        for (; (token_j = get_token(context)) != 0; get_prev_token(context)){
             if (token_j->type == CPP_TOKEN_IDENTIFIER){
                 break;
             }
         }
         
-        String name = make_string(data + token_j->start, token_j->size);
-        name = skip_chop_whitespace(name);
+        name = get_lexeme(*token_j, context->data);
         
-        for (; i < count; ++i, ++token){
+        set_token(context, token);
+        for (; (token = get_token(context)) > start_token; get_next_token(context)){
             if (token->type == CPP_TOKEN_BRACE_OPEN){
                 break;
             }
         }
         
-        if (i < count){
+        if (token){
             Item_Node *first_member = 0;
             Item_Node *head_member = 0;
             
-            for (; i < count; ++i, ++token){
+            for (; (token = get_token(context)) != 0; get_next_token(context)){
                 if (token->type == CPP_TOKEN_BRACE_CLOSE){
                     break;
                 }
                 else if (token->type == CPP_TOKEN_IDENTIFIER){
                     String doc_string = {0};
-                    get_type_doc_string(data, tokens, token, &doc_string);
-                    
-                    String name = make_string(data + token->start, token->size);
-                    name = skip_chop_whitespace(name);
-                    
+                    String name = {0};
                     String value = {0};
+                    get_doc_string_from_prev(context, &doc_string);
                     
-                    ++i;
-                    ++token;
+                    name = get_lexeme(*token, context->data);
                     
-                    if (token->type == CPP_TOKEN_EQ){
-                        Cpp_Token *start_token = token;
-                        
-                        for (; i < count; ++i, ++token){
-                            if (token->type == CPP_TOKEN_COMMA ||
-                                token->type == CPP_TOKEN_BRACE_CLOSE){
-                                break;
+                    token = get_next_token(context);
+                    
+                    if (token){
+                        if (token->type == CPP_TOKEN_EQ){
+                            Cpp_Token *start_token = token;
+                            
+                            for (; (token = get_token(context)) != 0; get_next_token(context)){
+                                if (token->type == CPP_TOKEN_COMMA ||
+                                    token->type == CPP_TOKEN_BRACE_CLOSE){
+                                    break;
+                                }
                             }
+                            
+                            value = skip_chop_whitespace(
+                                get_string(context->data, start_token->start + start_token->size, token->start)
+                                );
+                            
+                            get_prev_token(context);
                         }
-                        
-                        int32_t val_start = start_token->start + start_token->size;
-                        int32_t val_end = token->start;
-                        
-                        value = make_string(data + val_start, val_end - val_start);
-                        value = skip_chop_whitespace(value);
-                        
-                        --i;
-                        --token;
-                    }
-                    else{
-                        --i;
-                        --token;
+                        else{
+                            get_prev_token(context);
+                        }
                     }
                     
                     Item_Node *new_member = push_struct(part, Item_Node);
@@ -1178,24 +1125,22 @@ parse_enum(Partition *part, char *data,
                 }
             }
             
-            if (i < count){
-                for (; i < count; ++i, ++token){
+            if ((token = get_token(context)) != 0){
+                for (; (token = get_token(context)) != 0; get_next_token(context)){
                     if (token->type == CPP_TOKEN_BRACE_CLOSE){
                         break;
                     }
                 }
-                ++i;
-                ++token;
+                get_next_token(context);
                 
-                result = true;
+                item_set.items[item_index].t = Item_Enum;
                 item_set.items[item_index].name = name;
                 item_set.items[item_index].doc_string = doc_string;
                 item_set.items[item_index].first_child = first_member;
+                result = true;
             }
         }
     }
-    
-    *token_ptr = token;
     
     return(result);
 }
@@ -1735,11 +1680,6 @@ string_function_marker_check(String lexeme){
     return(result);
 }
 
-static String
-get_string(char *data, int32_t start, int32_t end){
-    return(make_string(data + start, end - start));
-}
-
 static void
 print_str(FILE *file, String str){
     if (str.size > 0){
@@ -1897,7 +1837,7 @@ generate_custom_headers(){
         
         Cpp_Token *token = 0;
         
-        Parse_Context context_ = setup_parse_context(string_parse.tokens);
+        Parse_Context context_ = setup_parse_context(data, string_parse.tokens);
         Parse_Context *context = &context_;
         
         for (; (token = get_token(context)) != 0; get_next_token(context)){
@@ -1930,7 +1870,7 @@ generate_custom_headers(){
         
         char *data = code->str;
         
-        Parse_Context context_ = setup_parse_context(*token_stack);
+        Parse_Context context_ = setup_parse_context(data, *token_stack);
         Parse_Context *context = &context_;
         
         String cpp_name = {0};
@@ -1992,7 +1932,7 @@ generate_custom_headers(){
         Cpp_Token *tokens = parse->tokens.tokens;
         Cpp_Token *token = tokens;
         
-        Parse_Context context_ = setup_parse_context(parse->tokens);
+        Parse_Context context_ = setup_parse_context(data, parse->tokens);
         Parse_Context *context = &context_;
         
         for (int32_t i = 0; i < count; ++i, ++token){
@@ -2019,7 +1959,7 @@ generate_custom_headers(){
         
         char *data = parse->code.str;
         
-        Parse_Context context_ = setup_parse_context(parse->tokens);
+        Parse_Context context_ = setup_parse_context(data, parse->tokens);
         Parse_Context *context = &context_;
         
         // NOTE(allen): Header Parse
@@ -2235,58 +2175,52 @@ generate_custom_headers(){
             char *data = type_parse[J].code.str;
             Cpp_Token_Stack types_tokens = type_parse[J].tokens;
             
-            int32_t count = types_tokens.count;
-            Cpp_Token *tokens = types_tokens.tokens;
-            Cpp_Token *token = tokens;
+            Cpp_Token *token = types_tokens.tokens;
             
-            for (int32_t i = 0; i < count; ++i, ++token){
-                Assert(i == (int32_t)(token - tokens));
+            Parse_Context context_ = setup_parse_context(data, types_tokens);
+            Parse_Context *context = &context_;
+            
+            for (; (token = get_token(context)) != 0; get_next_token(context)){
                 if (!(token->flags & CPP_TFLAG_PP_BODY) &&
                     (token->type == CPP_TOKEN_KEY_TYPE_DECLARATION ||
                      token->type == CPP_TOKEN_IDENTIFIER)){
                     
-                    String lexeme = make_string(data + token->start, token->size);
+                    String lexeme = get_lexeme(*token, data);
                     int32_t match_index = 0;
                     if (string_set_match(type_spec_keys, ArrayCount(type_spec_keys),
                                          lexeme, &match_index)){
                         switch (match_index){
                             case 0: //typedef
                             {
-                                if (parse_typedef(data, tokens, count, &token,
-                                                  typedef_set, typedef_index)){
+                                set_token(context, token);
+                                if (typedef_parse(context, typedef_set, typedef_index)){
                                     ++typedef_index;
                                 }
-                                i = (int32_t)(token - tokens);
                             }break;
                             
                             case 1: case 2: //struct/union
                             {
-                                if (parse_struct(part, (match_index == 1),
-                                                 data, tokens, count, &token,
-                                                 struct_set.items + struct_index)){
+                                set_token(context, token);
+                                if (struct_parse(part, (match_index == 1),
+                                                 context, struct_set.items + struct_index)){
                                     ++struct_index;
                                 }
-                                i = (int32_t)(token - tokens);
                             }break;
                             
                             case 3: //ENUM
                             {
-                                if (parse_enum(part, data,
-                                               tokens, count, &token,
-                                               enum_set, enum_index)){
+                                set_token(context, token);
+                                if (enum_parse(part, context, enum_set, enum_index)){
                                     ++enum_index;
                                 }
-                                i = (int32_t)(token - tokens);
                             }break;
                             
                             case 4: //FLAGENUM
                             {
-                                if (parse_enum(part, data,
-                                               tokens, count, &token,
-                                               flag_set, flag_index)){
+                                set_token(context, token);
+                                if (enum_parse(part, context, flag_set, flag_index)){
                                     ++flag_index;
                                 }
-                                i = (int32_t)(token - tokens);
                             }break;
                         }
                     }

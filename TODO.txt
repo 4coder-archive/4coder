@@ -96,6 +96,7 @@
 ; [] hook on exit
 ; [] read only files
 ; [] occasionally missing the (!) mark on files on windows
+; [] don't execute frames on events dealing only with ctrl/alt/shift
 ;
 
 ; TODOS

@@ -614,8 +614,7 @@ struct Buffer_Summary{
 
 /* DOC(View_Summary acts as a handle to a view and describes the state of the view.)
 DOC_SEE(Access_Flag)
-DOC_SEE(Full_Cursor)
-*/
+DOC_SEE(Full_Cursor) */
 struct View_Summary{
     /* DOC(
     This field indicates whether the View_Summary describes a view that is open in 4coder.
@@ -627,7 +626,7 @@ struct View_Summary{
     If this is a null summary then view_id is 0.
     ) */
     int32_t view_id;
-    /* DOC(If this is not a null summary, and this view looks at a buffer, this is the id of the buffer.) */
+    /* DOC(If this is not a null summary, then this is the id of the buffer this view currently sees.) */
     int32_t buffer_id;
     /*
     DOC(If this is not a null summary, this field contains flags describing the protection status of the view.)
