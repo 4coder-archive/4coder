@@ -128,12 +128,6 @@ struct Application_Links;
     #define static_assert(x, ...)
 #endif
 
-#if defined(_BSD_SOURCE) || defined(_SVID_SOURCE) || _POSIX_C_SOURCE >= 200809L || _XOPEN_SOURCE >= 700
-    #define OLD_STAT_NANO_TIME 0
-#else
-    #define OLD_STAT_NANO_TIME 1
-#endif
-
 #define SUPPORT_DPI 1
 #define LINUX_FONTS 1
 
@@ -3433,7 +3427,7 @@ main(int argc, char **argv)
                 linuxvars.input.clipboard = linuxvars.clipboard_contents;
                 linuxvars.new_clipboard = 0;
             } else {
-                linuxvars.input.clipboard = string_zero();
+                linuxvars.input.clipboard = null_string;
             }
 
             linuxvars.app.step(

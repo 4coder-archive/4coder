@@ -4,19 +4,17 @@
 
 // TOP
 
-#include <stdio.h>
+#include <stdio.h>  // include system for windows
+#include <stdlib.h> // include system for linux   (YAY!)
 #include <stdint.h>
 #include <assert.h>
+#include <string.h>
 
 //
 // reusable
 //
 
-#define CL_OPTS                                  \
-"/W4 /wd4310 /wd4100 /wd4201 /wd4505 /wd4996 "   \
-"/wd4127 /wd4510 /wd4512 /wd4610 /wd4390 /WX "   \
-"/GR- /EHa- /nologo /FC"
-
+// NOTE(allen): Compiler OS cracking.
 #if defined(_MSC_VER)
 
 #define IS_CL
@@ -25,6 +23,18 @@
 #if defined(_WIN32)
 #  define IS_WINDOWS
 #  pragma comment(lib, "Kernel32.lib")
+#else
+#  error This compiler/platform combo is not supported yet
+#endif
+
+#elif defined(__GNUC__) || defined(__GNUG__)
+
+#define IS_GCC
+
+#if defined(__gnu_linux__)
+#  define IS_LINUX
+#else
+#  error This compiler/platform combo is not supported yet
 #endif
 
 #else
@@ -40,6 +50,11 @@ static int32_t error_state = 0;
     if (system(cmd) != 0) error_state = 1;                 \
 }while(0)
 
+
+static void     init_time_system();
+static uint64_t get_time();
+static int32_t  get_current_directory(char *buffer, int32_t max);
+static void     execute(char *dir, char *str);
 
 #if defined(IS_WINDOWS)
 
@@ -101,6 +116,69 @@ execute(char *dir, char *str){
     }
 }
 
+#elif defined(IS_LINUX)
+
+#include <time.h>
+#include <unistd.h>
+
+typedef struct Temp_Dir{
+    char dir[512];
+} Temp_Dir;
+
+static Temp_Dir
+linux_pushd(char *dir){
+    Temp_Dir temp;
+    char *result = getcwd(temp.dir, sizeof(temp.dir));
+    int32_t chresult = chdir(dir);
+    if (result == 0 || chresult != 0){
+        printf("trying pushd %s\n", dir);
+        assert(result != 0);
+        assert(chresult == 0);
+    }
+    return(temp);
+}
+
+static void
+linux_popd(Temp_Dir temp){
+    chdir(temp.dir);
+}
+
+static void
+init_time_system(){
+    // NOTE(allen): do nothing
+}
+
+static uint64_t
+get_time(){
+    struct timespec spec;
+    uint64_t result;
+    clock_gettime(CLOCK_MONOTONIC, &spec);
+    result = (spec.tv_sec * (uint64_t)(1000000)) + (spec.tv_nsec / (uint64_t)(1000));
+    return(result);
+}
+
+static int32_t
+get_current_directory(char *buffer, int32_t max){
+    int32_t result = 0;
+    char *d = getcwd(buffer, max);
+    if (d == buffer){
+        result = strlen(buffer);
+    }
+    return(result);
+}
+
+static void
+execute(char *dir, char *str){
+    if (dir){
+        Temp_Dir temp = linux_pushd(dir);
+        systemf("%s", str);
+        linux_popd(temp);
+    }
+    else{
+        systemf("%s", str);
+    }
+}
+
 #else
 #error This OS is not supported yet
 #endif
@@ -112,19 +190,11 @@ execute(char *dir, char *str){
 // 4coder specific
 //
 
-#define CL_INCLUDES \
-"/I..\\foreign /I..\\foreign\\freetype2"
-
-#define CL_LIBS \
-"user32.lib winmm.lib gdi32.lib opengl32.lib ..\\foreign\\freetype.lib"
-
-#define CL_ICON \
-"..\\foreign\\freetype.lib"
 
 static void
-swap_ptr(void **A, void **B){
-    void *a = *A;
-    void *b = *B;
+swap_ptr(char **A, char **B){
+    char *a = *A;
+    char *b = *B;
     *A = b;
     *B = a;
 }
@@ -150,6 +220,62 @@ enum{
 };
 
 
+#define BUILD_LINE_MAX 4096
+typedef struct Build_Line{
+    char build_optionsA[BUILD_LINE_MAX];
+    char build_optionsB[BUILD_LINE_MAX];
+    char *build_options;
+    char *build_options_prev;
+    int32_t build_max;
+} Build_Line;
+
+static void
+init_build_line(Build_Line *line){
+    line->build_options = line->build_optionsA;
+    line->build_options_prev = line->build_optionsB;
+    line->build_optionsA[0] = 0;
+    line->build_optionsB[0] = 0;
+    line->build_max = BUILD_LINE_MAX;
+}
+
+#if defined(IS_CL)
+
+#define build_ap(line, str, ...) do{        \
+    snprintf(line.build_options,            \
+    line.build_max, "%s "str,               \
+    line.build_options_prev, __VA_ARGS__);  \
+    swap_ptr(&line.build_options,           \
+    &line.build_options_prev);              \
+}while(0)
+
+#elif defined(IS_GCC)
+
+#define build_ap(line, str, ...) do{        \
+    snprintf(line.build_options,            \
+    line.build_max, "%s "str,               \
+    line.build_options_prev, ##__VA_ARGS__);\
+    swap_ptr(&line.build_options,           \
+    &line.build_options_prev);              \
+}while(0)
+
+#endif
+
+
+#define CL_OPTS                                  \
+"/W4 /wd4310 /wd4100 /wd4201 /wd4505 /wd4996 "   \
+"/wd4127 /wd4510 /wd4512 /wd4610 /wd4390 /WX "   \
+"/GR- /EHa- /nologo /FC"
+
+#define CL_INCLUDES \
+"/I..\\foreign /I..\\foreign\\freetype2"
+
+#define CL_LIBS                                  \
+"user32.lib winmm.lib gdi32.lib opengl32.lib "   \
+"..\\foreign\\freetype.lib"
+
+#define CL_ICON \
+"..\\foreign\\freetype.lib"
+
 static void
 build_cl(uint32_t flags,
          char *code_path, char *code_file,
@@ -157,6 +283,51 @@ build_cl(uint32_t flags,
          char *exports){
     win32_slash_fix(out_path);
     win32_slash_fix(code_path);
+    
+    Build_Line line;
+    init_build_line(&line);
+    
+    if (flags & OPTS){
+        build_ap(line, CL_OPTS);
+    }
+    
+    if (flags & INCLUDES){
+        build_ap(line, CL_INCLUDES);
+    }
+    
+    if (flags & LIBS){
+        build_ap(line, CL_LIBS);
+    }
+    
+    if (flags & ICON){
+        build_ap(line, CL_ICON);
+    }
+    
+    if (flags & DEBUG_INFO){
+        build_ap(line, "/Zi");
+    }
+    
+    if (flags & OPTIMIZATION){
+        build_ap(line, "/O2");
+    }
+    
+    if (flags & SHARED_CODE){
+        build_ap(line, "/LD");
+    }
+    
+    if (flags & SUPER){
+        build_ap(line, "/DFRED_SUPER");
+    }
+    
+    if (flags & INTERNAL){
+        build_ap(line, "/DFRED_INTERNAL");
+    }
+    
+    if (flags & KEEP_ASSERT){
+        build_ap(line, "/DFRED_KEEP_ASSERT");
+    }
+    
+    swap_ptr(&line.build_options, &line.build_options_prev);
     
     char link_options[1024];
     if (flags & SHARED_CODE){
@@ -167,69 +338,84 @@ build_cl(uint32_t flags,
         snprintf(link_options, sizeof(link_options), "/NODEFAULTLIB:library");
     }
     
-    char build_optionsA[4096];
-    char build_optionsB[4096];
-    char *build_options =      build_optionsA;
-    char *build_options_prev = build_optionsB;
-    int32_t build_max = sizeof(build_optionsA);
-    
-    build_optionsA[0] = 0;
-    build_optionsB[0] = 0;
+    systemf("pushd %s & cl %s %s\\%s /Fe%s /link /DEBUG /INCREMENTAL:NO %s",
+            out_path, line.build_options, code_path, code_file, out_file, link_options);
+}
+
+
+
+#define GCC_OPTS                             \
+"-Wno-write-strings -D_GNU_SOURCE -fPIC "    \
+"-fno-threadsafe-statics -pthread"
+
+#define GCC_INCLUDES \
+"-I../foreign"
+
+#define GCC_LIBS                               \
+"-L/usr/local/lib -lX11 -lpthread -lm -lrt "   \
+"-lGL -ldl -lXfixes -lfreetype -lfontconfig"
+
+static void
+build_gcc(uint32_t flags,
+          char *code_path, char *code_file,
+          char *out_path, char *out_file,
+          char *exports){
+    Build_Line line;
+    init_build_line(&line);
     
     if (flags & OPTS){
-        snprintf(build_options, build_max, "%s "CL_OPTS, build_options_prev);
-        swap_ptr(&build_options, &build_options_prev);
+        build_ap(line, GCC_OPTS);
     }
     
     if (flags & INCLUDES){
-        snprintf(build_options, build_max, "%s "CL_INCLUDES, build_options_prev);
-        swap_ptr(&build_options, &build_options_prev);
-    }
-    
-    if (flags & LIBS){
-        snprintf(build_options, build_max, "%s "CL_LIBS, build_options_prev);
-        swap_ptr(&build_options, &build_options_prev);
-    }
-    
-    if (flags & ICON){
-        snprintf(build_options, build_max, "%s "CL_ICON, build_options_prev);
-        swap_ptr(&build_options, &build_options_prev);
+        int32_t size = 0;
+        char freetype_include[512];
+        FILE *file = popen("pkg-config --cflags freetype2", "r");
+        if (file != 0){
+            fgets(freetype_include, sizeof(freetype_include), file);
+            size = strlen(freetype_include);
+            freetype_include[size-1] = 0;
+            pclose(file);
+        }
+        
+        build_ap(line, GCC_INCLUDES" %s", freetype_include);
     }
     
     if (flags & DEBUG_INFO){
-        snprintf(build_options, build_max, "%s /Zi", build_options_prev);
-        swap_ptr(&build_options, &build_options_prev);
+        build_ap(line, "-g -O0");
     }
     
     if (flags & OPTIMIZATION){
-        snprintf(build_options, build_max, "%s /O2", build_options_prev);
-        swap_ptr(&build_options, &build_options_prev);
+        build_ap(line, "-O3");
     }
     
     if (flags & SHARED_CODE){
-        snprintf(build_options, build_max, "%s /LD", build_options_prev);
-        swap_ptr(&build_options, &build_options_prev);
+        build_ap(line, "-shared");
     }
     
     if (flags & SUPER){
-        snprintf(build_options, build_max, "%s /DFRED_SUPER", build_options_prev);
-        swap_ptr(&build_options, &build_options_prev);
+        build_ap(line, "-DFRED_SUPER");
     }
     
     if (flags & INTERNAL){
-        snprintf(build_options, build_max, "%s /DFRED_INTERNAL", build_options_prev);
-        swap_ptr(&build_options, &build_options_prev);
+        build_ap(line, "-DFRED_INTERNAL");
     }
     
     if (flags & KEEP_ASSERT){
-        snprintf(build_options, build_max, "%s /DFRED_KEEP_ASSERT", build_options_prev);
-        swap_ptr(&build_options, &build_options_prev);
+        build_ap(line, "-DFRED_KEEP_ASSERT");
     }
     
-    swap_ptr(&build_options, &build_options_prev);
+    build_ap(line, "%s/%s", code_path, code_file);
     
-    systemf("pushd %s & cl %s %s\\%s /Fe%s /link /DEBUG /INCREMENTAL:NO %s",
-            out_path, build_options, code_path, code_file, out_file, link_options);
+    if (flags & LIBS){
+        build_ap(line, GCC_LIBS);
+    }
+    
+    swap_ptr(&line.build_options, &line.build_options_prev);
+    
+    Temp_Dir temp = linux_pushd(out_path);
+    systemf("g++ %s -o %s", line.build_options, out_file);
+    linux_popd(temp);
 }
 
 static void
@@ -239,6 +425,8 @@ build(uint32_t flags,
       char *exports){
 #if defined(IS_CL)
     build_cl(flags, code_path, code_file, out_path, out_file, exports);
+#elif defined(IS_GCC)
+    build_gcc(flags, code_path, code_file, out_path, out_file, exports);
 #else
 #error The build rule for this compiler is not ready
 #endif
@@ -254,6 +442,15 @@ buildsuper(char *code_path, char *out_path, char *filename){
     systemf("pushd %s & call \"%s\\buildsuper.bat\" %s",
             out_path, code_path, filename);
     
+#elif defined(IS_GCC)
+    
+    Temp_Dir temp = linux_pushd(out_path);
+    
+    systemf("\"%s/buildsuper.sh\" %s",
+            code_path, filename);
+    
+    linux_popd(temp);
+    
 #else
 #error The build rule for this compiler is not ready
 #endif
@@ -261,6 +458,14 @@ buildsuper(char *code_path, char *out_path, char *filename){
 
 #define META_DIR "../meta"
 #define BUILD_DIR "../build"
+
+#if defined(IS_WINDOWS)
+#define PLAT_LAYER "win32_4ed.cpp"
+#elif defined(IS_LINUX)
+#define PLAT_LAYER "linux_4ed.cpp"
+#else
+#error No platform layer defined for this OS.
+#endif
 
 static void
 standard_build(char *cdir, uint32_t flags){
@@ -298,7 +503,11 @@ standard_build(char *cdir, uint32_t flags){
     {
         BEGIN_TIME_SECTION();
         //buildsuper(cdir, BUILD_DIR, "../code/4coder_default_bindings.cpp");
+#if IS_WINDOWS
         buildsuper(cdir, BUILD_DIR, "../code/internal_4coder_tests.cpp");
+#else
+        buildsuper(cdir, BUILD_DIR, "../code/power/4coder_experiments.cpp");
+#endif
         //buildsuper(cdir, BUILD_DIR, "../code/power/4coder_casey.cpp");
         //buildsuper(cdir, BUILD_DIR, "../4vim/4coder_chronal.cpp");
         END_TIME_SECTION("build custom");
@@ -315,15 +524,16 @@ standard_build(char *cdir, uint32_t flags){
     
     {
         BEGIN_TIME_SECTION();
-        build(OPTS | INCLUDES | LIBS | ICON | flags, cdir, "win32_4ed.cpp",
+        build(OPTS | INCLUDES | LIBS | ICON | flags, cdir, PLAT_LAYER,
               BUILD_DIR, "4ed", 0);
         END_TIME_SECTION("build 4ed");
     }
 #endif
 }
 
-#if defined(DEV_BUILD)
 
+
+#if defined(DEV_BUILD)
 
 int main(int argc, char **argv){
     init_time_system();
