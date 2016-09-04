@@ -1670,98 +1670,81 @@ compile_meta_unit(Partition *part, char **files, int32_t file_count,
 }
 
 static void
-print_struct_html(FILE *file, Item_Node *member){
+print_struct_html(String *out, Item_Node *member){
     String name = member->name;
     String type = member->type;
     String type_postfix = member->type_postfix;
     
+    append_ss     (out, type);
+    append_s_char (out, ' ');
+    append_ss     (out, name);
+    append_ss     (out, type_postfix);
+    
     if (match_ss(type, make_lit_string("struct")) ||
         match_ss(type, make_lit_string("union"))){
-        fprintf(file,
-                "%.*s %.*s {<br>\n"
-                "<div style='margin-left: 8mm;'>\n",
-                type.size, type.str,
-                name.size, name.str);
+        append_sc(out, " {<br><div style='margin-left: 8mm;'>");
         
         for (Item_Node *member_iter = member->first_child;
              member_iter != 0;
              member_iter = member_iter->next_sibling){
-            print_struct_html(file, member_iter);
+            print_struct_html(out, member_iter);
         }
         
-        fprintf(file,
-                "</div>\n"
-                "};<br>\n");
+        append_sc(out, "</div>};<br>");
     }
     else{
-        fprintf(file,
-                "%.*s %.*s%.*s;<br>\n",
-                type.size, type.str,
-                name.size, name.str,
-                type_postfix.size, type_postfix.str
-                );
+        append_sc(out, ";<br>");
     }
 }
 
 static void
-print_function_html(FILE *file, Item_Node item, String name,
-                    char *function_call_head){
-    String ret = item.ret;
-    fprintf(file,
-            "%.*s %s%.*s(\n"
-            "<div style='margin-left: 4mm;'>",
-            ret.size, ret.str,
-            function_call_head,
-            name.size, name.str);
+print_function_html(String *out, String ret, char *function_call_head, String name, Argument_Breakdown breakdown){
+    append_ss     (out, ret);
+    append_s_char (out, ' ');
+    append_sc     (out, function_call_head);
+    append_ss     (out, name);
+    append_sc     (out, "(<div style='margin-left: 4mm;'>");
     
-    Argument_Breakdown breakdown = item.breakdown;
-    int32_t arg_count = breakdown.count;
-    for (int32_t j = 0; j < arg_count; ++j){
-        String param_string = breakdown.args[j].param_string;
-        if (j < arg_count - 1){
-            fprintf(file, "%.*s,<br>", param_string.size, param_string.str);
+    for (int32_t j = 0; j < breakdown.count; ++j){
+        append_ss(out, breakdown.args[j].param_string);
+        if (j < breakdown.count - 1){
+            append_s_char(out, ',');
         }
-        else{
-            fprintf(file, "%.*s<br>", param_string.size, param_string.str);
-        }
+        append_sc(out, "<br>");
     }
     
-    fprintf(file, "</div>)\n");
+    append_sc(out, "</div>)");
 }
 
 static void
-print_macro_html(FILE *file, Item_Node item, String name){
-    Argument_Breakdown breakdown = item.breakdown;
-    int32_t arg_count = breakdown.count;
-    if (arg_count == 0){
-        fprintf(file,
-                "#define %.*s()",
-                name.size, name.str);
+print_macro_html(String *out, String name, Argument_Breakdown breakdown){
+    
+    if (breakdown.count == 0){
+        append_sc(out, "#define ");
+        append_ss(out, name);
+        append_sc(out, "()");
     }
-    else if (arg_count == 1){
-        String param_string = breakdown.args[0].param_string;
-        fprintf(file,
-                "#define %.*s(%.*s)",
-                name.size, name.str,
-                param_string.size, param_string.str);
+    else if (breakdown.count == 1){
+        append_sc      (out, "#define ");
+        append_ss      (out, name);
+        append_s_char  (out, '(');
+        append_ss      (out, breakdown.args[0].param_string);
+        append_s_char  (out, ')');
     }
     else{
-        fprintf(file,
-                "#define %.*s(\n"
-                "<div style='margin-left: 4mm;'>",
-                name.size, name.str);
+        append_sc (out, "#define ");
+        append_ss (out, name);
+        append_sc (out, "(<div style='margin-left: 4mm;'>");
         
-        for (int32_t j = 0; j < arg_count; ++j){
-            String param_string = breakdown.args[j].param_string;
-            if (j < arg_count - 1){
-                fprintf(file, "%.*s,<br>", param_string.size, param_string.str);
+        for (int32_t j = 0; j < breakdown.count; ++j){
+            append_ss(out, breakdown.args[j].param_string);
+            if (j < breakdown.count - 1){
+                append_s_char(out, ',');
             }
-            else{
-                fprintf(file, "%.*s<br>", param_string.size, param_string.str);
-            }
+            append_sc(out, "<br>");
         }
         
-        fprintf(file, "</div>)\n");
+        append_sc(out, ")</div>)");
     }
 }
 
@@ -1796,28 +1779,47 @@ print_macro_html(FILE *file, Item_Node item, String name){
 #define DOC_ITEM_CLOSE "</div>"
 
 static void
-print_struct_docs(FILE *file, Partition *part, Item_Node *member){
+print_struct_docs(String *out, Partition *part, Item_Node *member){
     for (Item_Node *member_iter = member->first_child;
          member_iter != 0;
          member_iter = member_iter->next_sibling){
         String type = member_iter->type;
         if (match_ss(type, make_lit_string("struct")) ||
             match_ss(type, make_lit_string("union"))){
-            print_struct_docs(file, part, member_iter);
+            print_struct_docs(out, part, member_iter);
         }
         else{
             Documentation doc = {0};
             perform_doc_parse(part, member_iter->doc_string, &doc);
             
-            fprintf(file,
-                    "<div>\n"
-                    "<div style='"CODE_STYLE"'>"DOC_ITEM_HEAD_INL_OPEN
-                    "%.*s"DOC_ITEM_HEAD_INL_CLOSE"</div>\n"
-                    "<div style='margin-bottom: 6mm;'>"DOC_ITEM_OPEN"%.*s"DOC_ITEM_CLOSE"</div>\n"
-                    "</div>\n",
-                    member_iter->name.size, member_iter->name.str,
-                    doc.main_doc.size, doc.main_doc.str
-                    );
+            append_sc(out, "<div>");
+            
+            append_sc(out, "<div style='"CODE_STYLE"'>"DOC_ITEM_HEAD_INL_OPEN);
+            append_ss(out, member_iter->name);
+            append_sc(out, DOC_ITEM_HEAD_INL_CLOSE"</div>");
+            
+            append_sc(out, "<div style='margin-bottom: 6mm;'>"DOC_ITEM_OPEN);
+            append_ss(out, doc.main_doc);
+            append_sc(out, DOC_ITEM_CLOSE"</div>");
+            
+            append_sc(out, "</div>");
+        }
+    }
+}
+
+static void
+print_see_also(String *out, Documentation *doc){
+    int32_t doc_see_count = doc->see_also_count;
+    if (doc_see_count > 0){
+        append_sc(out, DOC_HEAD_OPEN"See Also"DOC_HEAD_CLOSE);
+        
+        for (int32_t j = 0; j < doc_see_count; ++j){
+            String see_also = doc->see_also[j];
+            append_sc(out, DOC_ITEM_OPEN"<a href='#");
+            append_ss(out, see_also);
+            append_sc(out, "_doc'>");
+            append_ss(out, see_also);
+            append_sc(out, "</a>"DOC_ITEM_CLOSE);
         }
     }
 }
@@ -1838,36 +1840,6 @@ print_see_also(FILE *file, Documentation *doc){
         }
     }
 }
-
-#if 0
-typedef struct String_Function_Marker{
-    int32_t parse_function;
-    int32_t is_inline;
-    int32_t parse_doc;
-    int32_t cpp_name;
-} String_Function_Marker;
-
-static String_Function_Marker
-string_function_marker_check(String lexeme){
-    String_Function_Marker result = {0};
-    
-    if (match_ss(lexeme, make_lit_string("FSTRING_INLINE"))){
-        result.is_inline = true;
-        result.parse_function = true;
-    }
-    else if (match_ss(lexeme, make_lit_string("FSTRING_LINK"))){
-        result.parse_function = true;
-    }
-    else if (match_ss(lexeme, make_lit_string("DOC_EXPORT"))){
-        result.parse_doc = true;
-    }
-    else if (match_ss(lexeme, make_lit_string("CPP_NAME"))){
-        result.cpp_name = true;
-    }
-    
-    return(result);
-}
-#endif
 
 static void
 print_str(FILE *file, String str){
@@ -1925,175 +1897,208 @@ print_function_body_code(String *out, Parse_Context *context, int32_t start){
 }
 
 static void
-print_function_docs(FILE *file, Partition *part, String name, String doc_string){
+print_function_docs(String *out, Partition *part, String name, String doc_string){
     if (doc_string.size == 0){
-        fprintf(file, "No documentation generated for this function.\n");
+        append_sc(out, "No documentation generated for this function.");
         fprintf(stderr, "warning: no documentation string for %.*s\n", name.size, name.str);
     }
     
-    Documentation doc_ = {0};
-    Documentation *doc = &doc_;
+    Temp_Memory temp = begin_temp_memory(part);
     
-    perform_doc_parse(part, doc_string, doc);
+    Documentation doc = {0};
     
-    int32_t doc_param_count = doc->param_count;
+    perform_doc_parse(part, doc_string, &doc);
+    
+    int32_t doc_param_count = doc.param_count;
     if (doc_param_count > 0){
-        fprintf(file, DOC_HEAD_OPEN"Parameters"DOC_HEAD_CLOSE);
+        append_sc(out, DOC_HEAD_OPEN"Parameters"DOC_HEAD_CLOSE);
         
         for (int32_t j = 0; j < doc_param_count; ++j){
-            String param_name = doc->param_name[j];
-            String param_docs = doc->param_docs[j];
+            String param_name = doc.param_name[j];
+            String param_docs = doc.param_docs[j];
             
             // TODO(allen): check that param_name is actually
             // a parameter to this function!
             
-            fprintf(file,
-                    "<div>\n"
-                    DOC_ITEM_HEAD_OPEN"%.*s"DOC_ITEM_HEAD_CLOSE"\n"
-                    "<div style='margin-bottom: 6mm;'>"DOC_ITEM_OPEN"%.*s"DOC_ITEM_CLOSE"</div>\n"
-                    "</div>\n",
-                    param_name.size, param_name.str,
-                    param_docs.size, param_docs.str
-                    );
+            append_sc(out, "<div>"DOC_ITEM_HEAD_OPEN);
+            append_ss(out, param_name);
+            append_sc(out, DOC_ITEM_HEAD_CLOSE"<div style='margin-bottom: 6mm;'>"DOC_ITEM_OPEN);
+            append_ss(out, param_docs);
+            append_sc(out, DOC_ITEM_CLOSE"</div></div>");
         }
     }
     
-    String ret_doc = doc->return_doc;
+    String ret_doc = doc.return_doc;
     if (ret_doc.size != 0){
-        fprintf(file, DOC_HEAD_OPEN"Return"DOC_HEAD_CLOSE);
-        fprintf(file,
-                DOC_ITEM_OPEN"%.*s"DOC_ITEM_CLOSE,
-                ret_doc.size, ret_doc.str
-                );
+        append_sc(out, DOC_HEAD_OPEN"Return"DOC_HEAD_CLOSE DOC_ITEM_OPEN);
+        append_ss(out, ret_doc);
+        append_sc(out, DOC_ITEM_CLOSE);
     }
     
-    String main_doc = doc->main_doc;
+    String main_doc = doc.main_doc;
     if (main_doc.size != 0){
-        fprintf(file, DOC_HEAD_OPEN"Description"DOC_HEAD_CLOSE);
-        fprintf(file,
-                DOC_ITEM_OPEN"%.*s"DOC_ITEM_CLOSE,
-                main_doc.size, main_doc.str
-                );
+        append_sc(out, DOC_HEAD_OPEN"Description"DOC_HEAD_CLOSE DOC_ITEM_OPEN);
+        append_ss(out, main_doc);
+        append_sc(out, DOC_ITEM_CLOSE);
     }
     
-    print_see_also(file, doc);
+    print_see_also(out, &doc);
+    
+    end_temp_memory(temp);
 }
 
 static void
-print_item(Partition *part, FILE *file, Item_Node *item, char *section, int32_t I){
+print_item_in_list(String *out, String name, char *id_postfix){
+    append_sc(out, "<li><a href='#");
+    append_ss(out, name);
+    append_sc(out, id_postfix);
+    append_sc(out, "'>");
+    append_ss(out, name);
+    append_sc(out, "</a></li>");
+}
+
+static void
+print_item(String *out, Partition *part, Item_Node *item,
+           char *id_postfix, char *function_prefix,
+           char *section, int32_t I){
+    Temp_Memory temp = begin_temp_memory(part);
+    
     String name = item->name;
     /* NOTE(allen):
     Open a div for the whole item.
     Put a heading in it with the name and section.
     Open a "descriptive" box for the display of the code interface.
     */
-    fprintf(file,
-            "<div id='%.*s_doc' style='margin-bottom: 1cm;'>\n"
-            "<h4>&sect;%s.%d: %.*s</h4>\n"
-            "<div style='"CODE_STYLE" "DESCRIPT_SECTION_STYLE"'>",
-            name.size, name.str, section, I, name.size, name.str);
+    append_sc(out, "<div id='");
+    append_ss(out, name);
+    append_sc(out, id_postfix);
+    append_sc(out, "' style='margin-bottom: 1cm;'>");
     
-    Temp_Memory temp = begin_temp_memory(part);
+    append_sc         (out, "<h4>&sect;");
+    append_sc         (out, section);
+    append_s_char     (out, '.');
+    append_int_to_str (out, I);
+    append_sc         (out, ": ");
+    append_ss         (out, name);
+    append_sc         (out, "</h4>");
+    
+    append_sc(out, "<div style='"CODE_STYLE" "DESCRIPT_SECTION_STYLE"'>");
     
     switch (item->t){
+        case Item_Function:
+        {
+            // NOTE(allen): Code box
+            Assert(function_prefix != 0);
+            print_function_html(out, item->ret, function_prefix, item->name, item->breakdown);
+            
+            // NOTE(allen): Close the code box
+            append_sc(out, "</div>");
+            
+            // NOTE(allen): Descriptive section
+            print_function_docs(out, part, item->name, item->doc_string);
+        }break;
+        
+        case Item_Macro:
+        {
+            // NOTE(allen): Code box
+            print_macro_html(out, item->name, item->breakdown);
+            
+            // NOTE(allen): Close the code box
+            append_sc(out, "</div>");
+            
+            // NOTE(allen): Descriptive section
+            print_function_docs(out, part, item->name, item->doc_string);
+        }break;
+        
         case Item_Typedef:
         {
             String type = item->type;
             
             // NOTE(allen): Code box
-            {
-                fprintf(file,
-                        "typedef %.*s %.*s;",
-                        type.size, type.str,
-                        name.size, name.str
-                        );
-            }
+            append_sc     (out, "typedef ");
+            append_ss     (out, type);
+            append_s_char (out, ' ');
+            append_ss     (out, name);
+            append_s_char (out, ';');
             
-            // NOTE(allen): Close the descriptive box
-            fprintf(file, "</div>\n");
+            // NOTE(allen): Close the code box
+            append_sc(out, "</div>");
             
             // NOTE(allen): Descriptive section
-            {
-                String doc_string = item->doc_string;
-                Documentation doc = {0};
-                perform_doc_parse(part, doc_string, &doc);
+            String doc_string = item->doc_string;
+            Documentation doc = {0};
+            perform_doc_parse(part, doc_string, &doc);
+            
+            String main_doc = doc.main_doc;
+            if (main_doc.size != 0){
+                append_sc(out, DOC_HEAD_OPEN"Description"DOC_HEAD_CLOSE);
                 
-                String main_doc = doc.main_doc;
-                if (main_doc.size != 0){
-                    fprintf(file, DOC_HEAD_OPEN"Description"DOC_HEAD_CLOSE);
-                    fprintf(file,
-                            DOC_ITEM_OPEN"%.*s"DOC_ITEM_CLOSE,
-                            main_doc.size, main_doc.str
-                            );
-                }
-                
-                print_see_also(file, &doc);
+                append_sc(out, DOC_ITEM_OPEN);
+                append_ss(out, main_doc);
+                append_sc(out, DOC_ITEM_CLOSE);
             }
+            
+            print_see_also(out, &doc);
+            
         }break;
         
         case Item_Enum:
         {
             // NOTE(allen): Code box
-            {
-                fprintf(file,
-                        "enum %.*s;",
-                        name.size, name.str);
-            }
+            append_sc     (out, "enum ");
+            append_ss     (out, name);
+            append_s_char (out, ';');
             
-            // NOTE(allen): Close the descriptive box
-            fprintf(file, "</div>\n");
+            // NOTE(allen): Close the code box
+            append_sc(out, "</div>");
             
             // NOTE(allen): Descriptive section
-            {
-                String doc_string = item->doc_string;
-                Documentation doc = {0};
-                perform_doc_parse(part, doc_string, &doc);
+            String doc_string = item->doc_string;
+            Documentation doc = {0};
+            perform_doc_parse(part, doc_string, &doc);
+            
+            String main_doc = doc.main_doc;
+            if (main_doc.size != 0){
+                append_sc(out, DOC_HEAD_OPEN"Description"DOC_HEAD_CLOSE);
                 
-                String main_doc = doc.main_doc;
-                if (main_doc.size != 0){
-                    fprintf(file, DOC_HEAD_OPEN"Description"DOC_HEAD_CLOSE);
-                    fprintf(file,
-                            DOC_ITEM_OPEN"%.*s"DOC_ITEM_CLOSE,
-                            main_doc.size, main_doc.str
-                            );
-                }
-                
-                if (item->first_child){
-                    fprintf(file, DOC_HEAD_OPEN"Values"DOC_HEAD_CLOSE);
-                    for (Item_Node *member = item->first_child;
-                         member;
-                         member = member->next_sibling){
-                        Documentation doc = {0};
-                        perform_doc_parse(part, member->doc_string, &doc);
-                        
-                        if (member->value.str){
-                            fprintf(file,
-                                    "<div>\n"
-                                    "<div><span style='"CODE_STYLE"'>"DOC_ITEM_HEAD_INL_OPEN
-                                    "%.*s"DOC_ITEM_HEAD_INL_CLOSE" = %.*s</span></div>\n"
-                                    "<div style='margin-bottom: 6mm;'>"DOC_ITEM_OPEN"%.*s"DOC_ITEM_CLOSE"</div>\n"
-                                    "</div>\n",
-                                    member->name.size, member->name.str,
-                                    member->value.size, member->value.str,
-                                    doc.main_doc.size, doc.main_doc.str
-                                    );
-                        }
-                        else{
-                            fprintf(file,
-                                    "<div>\n"
-                                    "<div><span style='"CODE_STYLE"'>"DOC_ITEM_HEAD_INL_OPEN
-                                    "%.*s"DOC_ITEM_HEAD_INL_CLOSE"</span></div>\n"
-                                    "<div style='margin-bottom: 6mm;'>"DOC_ITEM_OPEN"%.*s"DOC_ITEM_CLOSE"</div>\n"
-                                    "</div>\n",
-                                    member->name.size, member->name.str,
-                                    doc.main_doc.size, doc.main_doc.str
-                                    );
-                        }
-                    }
-                }
-                
-                print_see_also(file, &doc);
+                append_sc(out, DOC_ITEM_OPEN);
+                append_ss(out, main_doc);
+                append_sc(out, DOC_ITEM_CLOSE);
             }
+            
+            if (item->first_child){
+                append_sc(out, DOC_HEAD_OPEN"Values"DOC_HEAD_CLOSE);
+                
+                for (Item_Node *member = item->first_child;
+                     member;
+                     member = member->next_sibling){
+                    Documentation doc = {0};
+                    perform_doc_parse(part, member->doc_string, &doc);
+                    
+                    append_sc(out, "<div>");
+                    
+                    // NOTE(allen): Dafuq is this all?
+                    append_sc(out, "<div><span style='"CODE_STYLE"'>"DOC_ITEM_HEAD_INL_OPEN);
+                    append_ss(out, member->name);
+                    append_sc(out, DOC_ITEM_HEAD_INL_CLOSE);
+                    
+                    if (member->value.str){
+                        append_sc(out, " = ");
+                        append_ss(out, member->value);
+                    }
+                    
+                    append_sc(out, "</span></div>");
+                    
+                    append_sc(out, "<div style='margin-bottom: 6mm;'>"DOC_ITEM_OPEN);
+                    append_ss(out, doc.main_doc);
+                    append_sc(out, DOC_ITEM_CLOSE"</div>");
+                    
+                    append_sc(out, "</div>");
+                }
+            }
+            
+            print_see_also(out, &doc);
+            
         }break;
         
         case Item_Struct: case Item_Union:
@@ -2101,12 +2106,10 @@ print_item(Partition *part, FILE *file, Item_Node *item, char *section, int32_t 
             Item_Node *member = item;
             
             // NOTE(allen): Code box
-            {
-                print_struct_html(file, member);
-            }
+            print_struct_html(out, member);
             
-            // NOTE(allen): Close the descriptive box
-            fprintf(file, "</div>\n");
+            // NOTE(allen): Close the code box
+            append_sc(out, "</div>");
             
             // NOTE(allen): Descriptive section
             {
@@ -2116,25 +2119,25 @@ print_item(Partition *part, FILE *file, Item_Node *item, char *section, int32_t 
                 
                 String main_doc = doc.main_doc;
                 if (main_doc.size != 0){
-                    fprintf(file, DOC_HEAD_OPEN"Description"DOC_HEAD_CLOSE);
-                    fprintf(file,
-                            DOC_ITEM_OPEN"%.*s"DOC_ITEM_CLOSE,
-                            main_doc.size, main_doc.str
-                            );
+                    append_sc(out, DOC_HEAD_OPEN"Description"DOC_HEAD_CLOSE);
+                    
+                    append_sc(out, DOC_ITEM_OPEN);
+                    append_ss(out, main_doc);
+                    append_sc(out, DOC_ITEM_CLOSE);
                 }
                 
                 if (member->first_child){
-                    fprintf(file, DOC_HEAD_OPEN"Fields"DOC_HEAD_CLOSE);
-                    print_struct_docs(file, part, member);
+                    append_sc(out, DOC_HEAD_OPEN"Fields"DOC_HEAD_CLOSE);
+                    print_struct_docs(out, part, member);
                 }
                 
-                print_see_also(file, &doc);
+                print_see_also(out, &doc);
             }
         }break;
     }
     
     // NOTE(allen): Close the item box
-    fprintf(file, "</div><hr>\n");
+    append_sc(out, "</div><hr>");
     
     end_temp_memory(temp);
 }
@@ -2240,9 +2243,6 @@ generate_custom_headers(){
     String out = str_alloc(part, 10 << 20);
     Out_Context context = {0};
     
-    // TODO(allen): delete this ASAP
-    FILE *file = 0;
-    
     // NOTE(allen): Custom API headers
     if (begin_file_out(&context, OS_API_H, &out)){
         int32_t main_api_count = unit_custom.parse[0].item_count;
@@ -2328,8 +2328,6 @@ generate_custom_headers(){
     
     // NOTE(allen): String Library
     if (begin_file_out(&context, STRING_H, &out)){
-        file = context.file;
-        
         Cpp_Token *token = 0;
         int32_t start = 0;
         
@@ -2615,8 +2613,6 @@ generate_custom_headers(){
         append_sc(&out,
                   "<h3 style='margin:0;'>Table of Contents</h3>""<ul>");
         
-        dump_file_out(context);
-        
         int32_t section_count = ArrayCount(sections);
         for (int32_t i = 0; i < section_count; ++i){
             append_sc         (&out, "<li><a href='#section_");
@@ -2670,19 +2666,12 @@ generate_custom_headers(){
         append_sc(&out, sections[2].display_string);
         append_sc(&out, "</h2>");
         
-        
 #undef SECTION
 #define SECTION MAJOR_SECTION".1"
         
         append_sc(&out, "<h3>&sect;"SECTION" Function List</h3><ul>");
-        
         for (int32_t i = 0; i < unit_custom.set.count; ++i){
-            String name = func_4ed_names.names[i].public_name;
-            append_sc(&out, "<li><a href='#");
-            append_ss(&out, name);
-            append_sc(&out, "_doc'>");
-            append_ss(&out, name);
-            append_sc(&out, "</a></li>");
+            print_item_in_list(&out, func_4ed_names.names[i].public_name, "_doc");
         }
         append_sc(&out, "</ul>");
         
@@ -2690,22 +2679,17 @@ generate_custom_headers(){
 #define SECTION MAJOR_SECTION".2"
         
         append_sc(&out, "<h3>&sect;"SECTION" Type List</h3><ul>");
-        
         for (int32_t i = 0; i < unit.set.count; ++i){
-            String name = unit.set.items[i].name;
-            append_sc(&out, "<li><a href='#");
-            append_ss(&out, name);
-            append_sc(&out, "_doc'>");
-            append_ss(&out, name);
-            append_sc(&out, "</a></li>");
+            print_item_in_list(&out, unit.set.items[i].name, "_doc");
         }
         append_sc(&out, "</ul>");
         
 #undef SECTION
 #define SECTION MAJOR_SECTION".3"
         
-        append_sc(&out, "<h3>&sect;"SECTION" Function Descriptions</h3>\n");
+        append_sc(&out, "<h3>&sect;"SECTION" Function Descriptions</h3>");
         for (int32_t i = 0; i < unit_custom.set.count; ++i){
+            Item_Node *item = &unit_custom.set.items[i];
             String name = func_4ed_names.names[i].public_name;
             
             append_sc        (&out, "<div id='");
@@ -2716,139 +2700,61 @@ generate_custom_headers(){
             append_ss        (&out, name);
             append_sc        (&out, "</h4><div style='"CODE_STYLE" "DESCRIPT_SECTION_STYLE"'>");
             
-            dump_file_out(context);
+            print_function_html(&out, item->ret, "app->", name, item->breakdown);
+            append_sc(&out, "</div>");
             
-            // TODO(allen): Continue converting this to the string system.
-            print_function_html(file, unit_custom.set.items[i], name, "app->");
-            fprintf(file, "</div>\n");
+            print_function_docs(&out, part, name, item->doc_string);
             
-            String doc_string = unit_custom.set.items[i].doc_string;
-            print_function_docs(file, part, name, doc_string);
-            
-            fprintf(file, "</div><hr>\n");
+            append_sc(&out, "</div><hr>");
         }
         
 #undef SECTION
 #define SECTION MAJOR_SECTION".4"
         
-        fprintf(file, "<h3>&sect;"SECTION" Type Descriptions</h3>\n");
+        append_sc(&out, "<h3>&sect;"SECTION" Type Descriptions</h3>");
+        
         int32_t I = 1;
         for (int32_t i = 0; i < unit.set.count; ++i, ++I){
-            print_item(part, file, unit.set.items + i, SECTION, I);
+            print_item(&out, part, unit.set.items + i, "_doc", 0, SECTION, I);
         }
-        
         
 #undef MAJOR_SECTION
 #define MAJOR_SECTION "4"
         
-        fprintf(file,
-                "<h2 id='section_%s'>&sect;"MAJOR_SECTION" %s</h2>\n",
-                sections[3].id_string,
-                sections[3].display_string);
+        append_sc(&out, "\n<h2 id='section_");
+        append_sc(&out, sections[3].id_string);
+        append_sc(&out, "'>&sect;"MAJOR_SECTION" ");
+        append_sc(&out, sections[3].display_string);
+        append_sc(&out, "</h2>");
         
-        {
-            
 #undef SECTION
 #define SECTION MAJOR_SECTION".1"
-            
-            fprintf(file,
-                    "<h3>&sect;"SECTION" String Intro</h3>\n"
-                    "<ul>\n");
-            
-            {
-                fprintf(file,
-                        "<div><i>\n"
-                        "Coming Soon"
-                        "</i><div>\n");
-            }
-            
+        
+        append_sc(&out, "<h3>&sect;"SECTION" String Intro</h3>");
+        
+        append_sc(&out, "<div><i>Coming Soon</i><div>");
+        
 #undef SECTION
 #define SECTION MAJOR_SECTION".2"
-            
-            fprintf(file,
-                    "<h3>&sect;"SECTION" String Function List</h3>\n"
-                    "<ul>\n");
-            
-            // TODO(allen): I don't think used_strings is necessary any more
-            // since I have made the default names C compatible there will
-            // be no overloading.
-            String *used_strings = 0;
-            int32_t used_string_count = 0;
-            
-            used_strings = push_array(part, String, string_unit.set.count);
-            memset(used_strings, 0, sizeof(String)*string_unit.set.count);
-            
-            for (int32_t i = 0; i < string_unit.set.count; ++i){
-                String name = string_unit.set.items[i].name;
-                int32_t index = 0;
-                if (!string_set_match(used_strings, used_string_count, name, &index)){
-                    fprintf(file,
-                            "<li><a href='#%.*s_str_doc'>%.*s</a></li>\n",
-                            name.size, name.str,
-                            name.size, name.str
-                            );
-                    used_strings[used_string_count++] = name;
-                }
-            }
-            fprintf(file, "</ul>\n");
-            
-            used_string_count = 0;
-            
+        
+        append_sc(&out, "<h3>&sect;"SECTION" String Function List</h3>");
+        
+        append_sc(&out, "<ul>");
+        for (int32_t i = 0; i < string_unit.set.count; ++i){
+            print_item_in_list(&out, string_unit.set.items[i].name, "_str_doc");
+        }
+        append_sc(&out, "</ul>");
+        
 #undef SECTION
 #define SECTION MAJOR_SECTION".3"
-            
-            fprintf(file,
-                    "<h3>&sect;"SECTION" String Function Descriptions</h3>\n"
-                    "<ul>\n");
-            
-            for (int32_t i = 0; i < string_unit.set.count; ++i){
-                Item_Node *item = &string_unit.set.items[i];
-                
-                String name = item->name;
-                int32_t index = 0;
-                int32_t do_id = false;
-                if (!string_set_match(used_strings, used_string_count, name, &index)){
-                    do_id = true;
-                    used_strings[used_string_count++] = name;
-                }
-                
-                if (do_id){
-                    fprintf(file,
-                            "<div id='%.*s_str_doc'>",
-                            name.size, name.str
-                            );
-                }
-                else{
-                    fprintf(file, "<div>");
-                }
-                
-                fprintf(file,
-                        "<h4>&sect;"SECTION".%d: %.*s</h4>\n"
-                        "<div style='"CODE_STYLE" "DESCRIPT_SECTION_STYLE"'>\n",
-                        i+1, name.size, name.str);
-                
-                if (item->t == Item_Macro){
-                    print_macro_html(file, *item, name);
-                }
-                else{
-                    print_function_html(file, *item, name, "");
-                }
-                
-                fprintf(file, "</div>\n");
-                
-                
-                print_function_docs(file, part, name, item->doc_string);
-                
-                fprintf(file, "</div><hr>\n");
-            }
+        
+        append_sc(&out, "<h3>&sect;"SECTION" String Function Descriptions</h3>");
+        
+        for (int32_t i = 0; i < string_unit.set.count; ++i){
+            print_item(&out, part, string_unit.set.items+i, "_str_doc", "", SECTION, i+1);
         }
         
-        fprintf(file,
-                "</div>\n"
-                "</body>\n"
-                "</html>\n"
-                );
-        
+        append_sc(&out, "</div></body></html>");
         end_file_out(context);
     }
     else{
