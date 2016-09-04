@@ -12,7 +12,7 @@
 # define FCPP_LINK static
 #endif
 
-#include "4cpp_lexer_types.h"
+#include "4coder_lexer_types.h"
 #include "4cpp_lexer_fsms.h"
 #include "4cpp_lexer_tables.c"
 

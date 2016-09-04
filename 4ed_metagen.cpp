@@ -614,6 +614,9 @@ get_doc_string_from_prev(Parse_Context *context, String *doc_string){
             if (check_and_fix_docs(doc_string)){
                 result = true;
             }
+            else{
+                *doc_string = null_string;
+            }
         }
     }
     
@@ -1654,7 +1657,7 @@ compile_meta_unit(Partition *part, char **files, int32_t file_count,
                 has_cpp_name = 0;
             }
             else{
-                cpp_name = string_zero();
+                cpp_name = null_string;
             }
             
             unit.parse[J].item_count = index;
@@ -2225,7 +2228,8 @@ generate_custom_headers(){
     
     // NOTE(allen): Parse the customization API types
     static char *type_files[] = {
-        "4coder_types.h"
+        "4coder_types.h",
+        "4coder_lexer_types.h",
     };
     
     static Meta_Keywords type_keys[] = {

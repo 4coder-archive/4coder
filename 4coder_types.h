@@ -1,6 +1,8 @@
 
 
+#ifndef ENUM
 #define ENUM(type,name) typedef type name; enum name##_
+#endif
 
 /* DOC(bool32 is an alias name to signal that an integer parameter or field is for
 true/false vales.) */

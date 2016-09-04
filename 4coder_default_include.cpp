@@ -1916,7 +1916,7 @@ CUSTOM_COMMAND_SIG(query_replace){
     int32_t pos, new_pos;
     
     bar.prompt = make_lit_string("Replace? (y)es, (n)ext, (esc)\n");
-    bar.string = string_zero();
+    bar.string = null_string;
     
     app->start_query_bar(app, &bar, 0);
     

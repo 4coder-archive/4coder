@@ -57,7 +57,6 @@ FSTRING_INLINE  fstr_bool  char_is_alpha(char c);
 FSTRING_INLINE  fstr_bool  char_is_alpha_true(char c);
 FSTRING_INLINE  fstr_bool  char_is_hex(char c);
 FSTRING_INLINE  fstr_bool  char_is_numeric(char c);
-FSTRING_INLINE  String     string_zero(void);
 FSTRING_INLINE  String     make_string_cap(void *str, int32_t size, int32_t mem_size);
 FSTRING_INLINE  String     make_string(void *str, int32_t size);
 #ifndef   make_lit_string
@@ -246,6 +245,10 @@ FSTRING_INLINE  fstr_bool  string_set_match(void *str_set, int32_t item_size, in
 #endif
 
 
+#if !defined(FSTRING_GUARD)
+static String null_string = {0};
+#endif
+
 //
 // Character Helpers
 //
@@ -334,15 +337,6 @@ char_is_numeric(char c)
 //
 // String Making Functions
 //
-
-#if !defined(FSTRING_GUARD)
-FSTRING_INLINE String
-string_zero(void)
-{
-    String str={0};
-    return(str);
-}
-#endif
 
 
 #if !defined(FSTRING_GUARD)

@@ -53,6 +53,10 @@ typedef struct Offset_String{
 
 FSTRING_DECLS
 
+#if !defined(FSTRING_GUARD)
+static String null_string = {0};
+#endif
+
 //
 // Character Helpers
 //
@@ -121,13 +125,6 @@ char_is_numeric(char c)
 //
 // String Making Functions
 //
-
-FSTRING_INLINE String
-string_zero(void)
-/* DOC(This call returns a String struct of zeroed members.) */{
-    String str={0};
-    return(str);
-}
 
 CPP_NAME(make_string)
 FSTRING_INLINE String
