@@ -406,7 +406,7 @@ typedef struct Item_Node{
 typedef struct Item_Set{
     Item_Node *items;
     int32_t count;
-} Item_Set; 
+} Item_Set;
 
 typedef struct Parse{
     String code;
@@ -722,7 +722,7 @@ doc_parse_last_parameter(String source, int32_t *pos){
     }
     *pos = p;
     
-    return(result);    
+    return(result);
 }
 
 static void
@@ -1587,7 +1587,7 @@ compile_meta_unit(Partition *part, char **files, int32_t file_count,
                                 ++index;
                             }
                             else{
-                                fprintf(stderr, "warning : invalid function signature\n");
+                                fprintf(stderr, "warning: invalid function signature\n");
                             }
                         }break;
                         
@@ -1877,28 +1877,26 @@ print_str(FILE *file, String str){
 }
 
 static void
-print_function_body_code(FILE *file, int32_t *index, Cpp_Token **token_ptr, int32_t count, String *code,
-                         int32_t start){
-    int32_t i = *index;
-    Cpp_Token *token = *token_ptr;
+print_function_body_code(String *out, Parse_Context *context, int32_t start){
+    String pstr = {0}, lexeme = {0};
+    Cpp_Token *token = 0;
     
-    String pstr = {0};
-    
+    int32_t do_print = 0;
     int32_t nest_level = 0;
     int32_t finish = false;
     int32_t do_whitespace_print = false;
-    for (; i < count; ++i, ++token){
+    for (; (token = get_token(context)) != 0; get_next_token(context)){
         if (do_whitespace_print){
-            pstr = str_start_end(code->str, start, token->start);
-            print_str(file, pstr);
+            pstr = str_start_end(context->data, start, token->start);
+            append_ss(out, pstr);
         }
         else{
             do_whitespace_print = true;
         }
         
-        int32_t do_print = true;
+        do_print = true;
         if (token->type == CPP_TOKEN_COMMENT){
-            String lexeme = make_string(code->str + token->start, token->size);
+            lexeme = get_lexeme(*token, context->data);
             if (check_and_fix_docs(&lexeme)){
                 do_print = false;
             }
@@ -1913,28 +1911,23 @@ print_function_body_code(FILE *file, int32_t *index, Cpp_Token **token_ptr, int3
             }
         }
         
-        if (i < count){
-            if (do_print){
-                pstr = make_string(code->str + token->start, token->size);
-                print_str(file, pstr);
-            }
-            
-            start = token->start + token->size;
+        if (do_print){
+            pstr = get_lexeme(*token, context->data);
+            append_ss(out, pstr);
         }
+        
+        start = token->start + token->size;
         
         if (finish){
             break;
         }
     }
-    
-    *index = i;
-    *token_ptr = token;
 }
 
 static void
 print_function_docs(FILE *file, Partition *part, String name, String doc_string){
     if (doc_string.size == 0){
-        fprintf(file, "No documentation generated for this function, assume it is non-public.\n");
+        fprintf(file, "No documentation generated for this function.\n");
         fprintf(stderr, "warning: no documentation string for %.*s\n", name.size, name.str);
     }
     
@@ -2264,8 +2257,6 @@ generate_custom_headers(){
             append_s_char(&out, '\n');
         }
         
-        dump_file_out(context);
-        
         for (int32_t i = main_api_count; i < os_api_count; ++i){
             append_sc(&out, "typedef ");
             append_ss(&out, func_4ed_names.names[i].macro);
@@ -2281,8 +2272,6 @@ generate_custom_headers(){
     }
     
     if (begin_file_out(&context, API_H, &out)){
-        file = context.file;
-        
         for (int32_t i = 0; i < unit_custom.set.count; ++i){
             append_sc(&out, "#define ");
             append_ss(&out, func_4ed_names.names[i].macro);
@@ -2333,345 +2322,282 @@ generate_custom_headers(){
         
         end_file_out(context);
     }
+    else{
+        // TODO(allen): warning
+    }
     
-    // NOTE(allen): Documentation
-    {
+    // NOTE(allen): String Library
+    if (begin_file_out(&context, STRING_H, &out)){
+        file = context.file;
         
-        //
-        // Output 4coder_string.h
-        //
+        Cpp_Token *token = 0;
+        int32_t start = 0;
         
-        file = fopen(STRING_H, "wb");
+        Parse parse = string_unit.parse[0];
+        Parse_Context pcontext = setup_parse_context(parse);
         
-        {
-            String *code = &string_unit.parse[0].code;
-            Cpp_Token_Stack *token_stack = &string_unit.parse[0].tokens;
-            
-            int32_t start = 0;
-            
-            int32_t count = token_stack->count;
-            Cpp_Token *tokens = token_stack->tokens;
-            Cpp_Token *token = tokens;
-            int32_t i = 0;
-            
-            for (i = 0; i < count; ++i, ++token){
-                if (token->type == CPP_TOKEN_IDENTIFIER &&
-                    !(token->flags & CPP_TFLAG_PP_BODY)){
-                    String lexeme = make_string(code->str + token->start, token->size);
-                    if (match_ss(lexeme, make_lit_string("FSTRING_BEGIN"))){
-                        start = token->start + token->size;
-                        break;
-                    }
-                }
-            }
-            
-            String pstr = {0};
-            int32_t do_whitespace_print = true;
-            
-            for(++i, ++token; i < count; ++i, ++token){
-                if (do_whitespace_print){
-                    pstr = str_start_end(code->str, start, token->start);
-                    print_str(file, pstr);
-                }
-                else{
-                    do_whitespace_print = true;
-                }
-                
-                String lexeme = get_lexeme(*token, code->str);
-                
-                int32_t do_print = true;
-                if (match_ss(lexeme, make_lit_string("FSTRING_DECLS"))){
-                    fprintf(file, "#if !defined(FCODER_STRING_H)\n#define FCODER_STRING_H\n\n");
-                    
-                    do_print = false;
-                    
-#define RETURN_PADDING 16
-#define SIG_PADDING 30
-                    
-                    for (int32_t j = 0; j < string_unit.set.count; ++j){
-                        char line_space[2048];
-                        String line = make_fixed_width_string(line_space);
-                        
-                        Item_Node *item = string_unit.set.items + j;
-                        
-                        if (item->t != Item_Macro){
-                            String marker = item->marker;
-                            String ret    = item->ret;
-                            String name   = item->name;
-                            String args   = item->args;
-                                                              
-                            append_ss(&line, marker);         
-                            append_padding(&line, ' ', RETURN_PADDING);
-                            append_ss(&line, ret);            
-                            append_padding(&line, ' ', SIG_PADDING);
-                            append_ss(&line, name);           
-                            append_ss(&line, args);           
-                            terminate_with_null(&line);       
-                                                              
-                            fprintf(file, "%s;\n", line.str); 
-                        }                                     
-                        else{                                 
-                            String name = item->name;
-                            String args = item->args;
-                            String body = item->body;
-                            
-                            append_ss(&line, make_lit_string("#ifndef "));
-                            append_padding(&line, ' ', 10);
-                            append_ss(&line, name);
-                            terminate_with_null(&line);
-                            fprintf(file, "%s\n", line.str);
-                            line.size = 0;
-                            
-                            append_ss(&line, make_lit_string("# define "));
-                            append_padding(&line, ' ', 10);
-                            append_ss(&line, name);
-                            append_ss(&line, args);
-                            append_s_char(&line, ' ');
-                            append_ss(&line, body);
-                            terminate_with_null(&line);
-                            fprintf(file, "%s\n", line.str);
-                            line.size = 0;
-                            
-                            append_ss(&line, make_lit_string("#endif"));
-                            terminate_with_null(&line);
-                            fprintf(file, "%s\n", line.str);
-                        }
-                    }
-                    
-                    {
-                        fprintf(file, "\n#if !defined(FSTRING_C)\n\n"
-                                "// NOTE(allen): This section is here to enable nicer names\n"
-                                "// for C++ users who can have overloaded functions.  None of\n"
-                                "// these functions add new features.\n");
-                        
-                        for (int32_t j = 0; j < string_unit.set.count; ++j){
-                            char line_space[2048];
-                            String line = make_fixed_width_string(line_space);
-                            
-                            Item_Node *item = &string_unit.set.items[j];
-                            
-                            if (item->t != Item_Macro){
-                                String cpp_name = item->cpp_name;
-                                if (cpp_name.str != 0){
-                                    String ret =  item->ret;
-                                    String args = item->args;
-                                    
-                                    append_ss(&line, make_lit_string("FSTRING_INLINE"));
-                                    append_padding(&line, ' ', RETURN_PADDING);
-                                    append_ss(&line, ret);
-                                    append_padding(&line, ' ', SIG_PADDING);
-                                    append_ss(&line, cpp_name);
-                                    append_ss(&line, args);
-                                    terminate_with_null(&line);
-                                    
-                                    fprintf(file, "%s;\n", line.str);
-                                }
-                            }
-                        }
-                        
-                        fprintf(file, "\n#endif\n");
-                    }
-                    
-                    fprintf(file, "\n#endif\n");
-                    
-                    {
-                        fprintf(file, "\n#if !defined(FSTRING_C) && !defined(FSTRING_GUARD)\n\n");
-                        
-                        for (int32_t j = 0; j < string_unit.set.count; ++j){
-                            char line_space[2048];
-                            String line = make_fixed_width_string(line_space);
-                            
-                            Item_Node *item = &string_unit.set.items[j];
-                            
-                            if (item->t != Item_Macro){
-                                String cpp_name = item->cpp_name;
-                                if (cpp_name.str != 0){
-                                    String name                  = item->name;
-                                    String ret                   = item->ret;
-                                    String args                  = item->args;
-                                    Argument_Breakdown breakdown = item->breakdown;
-                                    
-                                    append_ss(&line, make_lit_string("FSTRING_INLINE"));
-                                    append_s_char(&line, ' ');
-                                    append_ss(&line, ret);
-                                    append_s_char(&line, '\n');
-                                    append_ss(&line, cpp_name);
-                                    append_ss(&line, args);
-                                    if (match_ss(ret, make_lit_string("void"))){
-                                        append_ss(&line, make_lit_string("{("));
-                                    }
-                                    else{
-                                        append_ss(&line, make_lit_string("{return("));
-                                    }
-                                    append_ss(&line, name);
-                                    append_s_char(&line, '(');
-                                    
-                                    if (breakdown.count > 0){
-                                        for (int32_t i = 0; i < breakdown.count; ++i){
-                                            if (i != 0){
-                                                append_s_char(&line, ',');
-                                            }
-                                            append_ss(&line, breakdown.args[i].param_name);
-                                        }
-                                    }
-                                    else{
-                                        append_ss(&line, make_lit_string("void"));
-                                    }
-                                    
-                                    append_ss(&line, make_lit_string("));}"));
-                                    terminate_with_null(&line);
-                                    
-                                    fprintf(file, "%s\n", line.str);
-                                }
-                            }
-                        }
-                        
-                        fprintf(file, "\n#endif\n");
-                    }
-                }
-                else if (match_ss(lexeme, make_lit_string("DOC_EXPORT"))){
-                    ++i, ++token;
-                    if (i < count && token->type == CPP_TOKEN_COMMENT){
-                        ++i, ++token;
-                        if (i < count && token->type == CPP_PP_DEFINE){
-                            ++i, ++token;
-                            for (; i < count; ++i, ++token){
-                                if (!(token->flags & CPP_TFLAG_PP_BODY)){
-                                    break;
-                                }
-                            }
-                            --i, --token;
-                            do_print = false;
-                            do_whitespace_print = false;
-                        }
-                    }
-                }
-                else if (match_ss(lexeme, make_lit_string("FSTRING_INLINE"))){
-                    if (!(token->flags & CPP_TFLAG_PP_BODY)){
-                        fprintf(file, "#if !defined(FSTRING_GUARD)\n");
-                        
-                        print_function_body_code(file, &i, &token, count, code, start);
-                        
-                        fprintf(file, "\n#endif");
-                        do_print = false;
-                    }
-                }
-                else if (match_ss(lexeme, make_lit_string("FSTRING_LINK"))){
-                    if (!(token->flags & CPP_TFLAG_PP_BODY)){
-                        fprintf(file, "#if defined(FSTRING_IMPLEMENTATION)\n");
-                        
-                        print_function_body_code(file, &i, &token, count, code, start);
-                        
-                        fprintf(file, "\n#endif");
-                        do_print = false;
-                    }
-                }
-                else if (match_ss(lexeme, make_lit_string("CPP_NAME"))){
-                    
-                    Cpp_Token *token_start = token;
-                    int32_t i_start = i;
-                    int32_t has_cpp_name = false;
-                    
-                    ++i, ++token;
-                    if (token->type == CPP_TOKEN_PARENTHESE_OPEN){
-                        ++i, ++token;
-                        if (token->type == CPP_TOKEN_IDENTIFIER){
-                            ++i, ++token;
-                            if (token->type == CPP_TOKEN_PARENTHESE_CLOSE){
-                                has_cpp_name = true;
-                            }
-                        }
-                    }
-                    
-                    if (!has_cpp_name){
-                        i = i_start;
-                        token = token_start;
-                    }
-                    
-                    do_print = false;
-                }
-                else if (token->type == CPP_TOKEN_COMMENT){
-                    lexeme = make_string(code->str + token->start, token->size);
-                    if (check_and_fix_docs(&lexeme)){
-                        do_print = false;
-                    }
-                }
-                
-                if (i < count){
-                    if (do_print){
-                        pstr = make_string(code->str + token->start, token->size);
-                        print_str(file, pstr);
-                    }
-                    
+        for (; (token = get_token(&pcontext)) != 0; get_next_token(&pcontext)){
+            if (!(token->flags & CPP_TFLAG_PP_BODY) &&
+                token->type == CPP_TOKEN_IDENTIFIER){
+                String lexeme = get_lexeme(*token, pcontext.data);
+                if (match_ss(lexeme, make_lit_string("FSTRING_BEGIN"))){
                     start = token->start + token->size;
+                    break;
                 }
             }
-            pstr = str_start_end(code->str, start, code->size);
-            print_str(file, pstr);
         }
         
-        fclose(file);
+        String pstr = {0};
+        int32_t do_whitespace_print = true;
         
-        //
-        // Output Docs
-        //
+        for(;(token = get_next_token(&pcontext)) != 0;){
+            if (do_whitespace_print){
+                pstr = str_start_end(pcontext.data, start, token->start);
+                append_ss(&out, pstr);
+            }
+            else{
+                do_whitespace_print = true;
+            }
+            
+            String lexeme = get_lexeme(*token, pcontext.data);
+            
+            int32_t do_print = true;
+            if (match_ss(lexeme, make_lit_string("FSTRING_DECLS"))){
+                append_sc(&out, "#if !defined(FCODER_STRING_H)\n#define FCODER_STRING_H\n\n");
+                do_print = false;
+                
+                static int32_t RETURN_PADDING = 16;
+                static int32_t SIG_PADDING = 27;
+                
+                for (int32_t j = 0; j < string_unit.set.count; ++j){
+                    char line_[2048];
+                    String line = make_fixed_width_string(line_);
+                    Item_Node *item = string_unit.set.items + j;
+                    
+                    if (item->t == Item_Function){
+                        append_ss       (&line, item->marker);
+                        append_padding  (&line, ' ', RETURN_PADDING);
+                        append_ss       (&line, item->ret);
+                        append_padding  (&line, ' ', SIG_PADDING);
+                        append_ss       (&line, item->name);
+                        append_ss       (&line, item->args);
+                        append_sc       (&line, ";\n");
+                    }
+                    else if (item->t == Item_Macro){
+                        append_ss       (&line, make_lit_string("#ifndef "));
+                        append_padding  (&line, ' ', 10);
+                        append_ss       (&line, item->name);
+                        append_s_char   (&line, '\n');
+                        
+                        append_ss       (&line, make_lit_string("# define "));
+                        append_padding  (&line, ' ', 10);
+                        append_ss       (&line, item->name);
+                        append_ss       (&line, item->args);
+                        append_s_char   (&line, ' ');
+                        append_ss       (&line, item->body);
+                        append_s_char   (&line, '\n');
+                        
+                        append_ss       (&line, make_lit_string("#endif"));
+                        append_s_char   (&line, '\n');
+                    }
+                    else{
+                        InvalidPath;
+                    }
+                    
+                    append_ss(&out, line);
+                }
+                
+                append_sc(&out, "\n#endif\n");
+                
+                // NOTE(allen): C++ overload definitions
+                append_sc(&out, "\n#if !defined(FSTRING_C) && !defined(FSTRING_GUARD)\n\n");
+                
+                for (int32_t j = 0; j < string_unit.set.count; ++j){
+                    char line_space[2048];
+                    String line = make_fixed_width_string(line_space);
+                    
+                    Item_Node *item = &string_unit.set.items[j];
+                    
+                    if (item->t == Item_Function){
+                        String cpp_name = item->cpp_name;
+                        if (cpp_name.str != 0){
+                            Argument_Breakdown breakdown = item->breakdown;
+                            
+                            append_ss     (&line, make_lit_string("FSTRING_INLINE"));
+                            append_padding(&line, ' ', RETURN_PADDING);
+                            append_ss     (&line, item->ret);
+                            append_padding(&line, ' ', SIG_PADDING);
+                            append_ss     (&line, cpp_name);
+                            append_ss     (&line, item->args);
+                            if (match_ss(item->ret, make_lit_string("void"))){
+                                append_ss(&line, make_lit_string("{("));//}
+                            }
+                            else{
+                                append_ss(&line, make_lit_string("{return("));//}
+                            }
+                            append_ss    (&line, item->name);
+                            append_s_char(&line, '(');
+                            
+                            if (breakdown.count > 0){
+                                for (int32_t i = 0; i < breakdown.count; ++i){
+                                    if (i != 0){
+                                        append_s_char(&line, ',');
+                                    }
+                                    append_ss(&line, breakdown.args[i].param_name);
+                                }
+                            }
+                            else{
+                                append_ss(&line, make_lit_string("void"));
+                            }
+                            
+                            //{
+                            append_ss(&line, make_lit_string("));}\n"));
+                            
+                            append_ss(&out, line);
+                        }
+                    }
+                }
+                
+                append_sc(&out, "\n#endif\n");
+            }
+            
+            else if (match_ss(lexeme, make_lit_string("DOC_EXPORT"))){
+                token = get_next_token(&pcontext);
+                if (token && token->type == CPP_TOKEN_COMMENT){
+                    token = get_next_token(&pcontext);
+                    if (token && token->type == CPP_PP_DEFINE){
+                        for (;(token = get_next_token(&pcontext)) != 0;){
+                            if (!(token->flags & CPP_TFLAG_PP_BODY)){
+                                break;
+                            }
+                        }
+                        if (token != 0){
+                            get_prev_token(&pcontext);
+                        }
+                        do_print = false;
+                        do_whitespace_print = false;
+                    }
+                }
+            }
+            
+            else if (match_ss(lexeme, make_lit_string("FSTRING_INLINE")) ||
+                     match_ss(lexeme, make_lit_string("FSTRING_LINK"))){
+                if (!(token->flags & CPP_TFLAG_PP_BODY)){
+                    if (match_ss(lexeme, make_lit_string("FSTRING_INLINE"))){
+                        append_sc(&out, "#if !defined(FSTRING_GUARD)\n");
+                    }
+                    else{
+                        append_sc(&out, "#if defined(FSTRING_IMPLEMENTATION)\n");
+                    }
+                    print_function_body_code(&out, &pcontext, start);
+                    append_sc(&out, "\n#endif");
+                    do_print = false;
+                }
+            }
+            
+            else if (match_ss(lexeme, make_lit_string("CPP_NAME"))){
+                Cpp_Token *token_start = token;
+                int32_t has_cpp_name = false;
+                
+                token = get_next_token(&pcontext);
+                if (token && token->type == CPP_TOKEN_PARENTHESE_OPEN){
+                    token = get_next_token(&pcontext);
+                    if (token && token->type == CPP_TOKEN_IDENTIFIER){
+                        token = get_next_token(&pcontext);
+                        if (token && token->type == CPP_TOKEN_PARENTHESE_CLOSE){
+                            has_cpp_name = true;
+                            do_print = false;
+                        }
+                    }
+                }
+                
+                if (!has_cpp_name){
+                    token = set_token(&pcontext, token_start);
+                }
+            }
+            
+            else if (token->type == CPP_TOKEN_COMMENT){
+                if (check_and_fix_docs(&lexeme)){
+                    do_print = false;
+                }
+            }
+            
+            if ((token = get_token(&pcontext)) != 0){
+                if (do_print){
+                    pstr = get_lexeme(*token, pcontext.data);
+                    append_ss(&out, pstr);
+                }
+                start = token->start + token->size;
+            }
+        }
+        pstr = str_start_end(pcontext.data, start, parse.code.size);
+        append_ss(&out, pstr);
         
-        file = fopen(API_DOC, "wb");
+        end_file_out(context);
+    }
+    else{
+        // TODO(allen): warning
+    }
+    
+    
+    // Output Docs
+    
+    if (begin_file_out(&context, API_DOC, &out)){
         
-        fprintf(file,
-                "<html lang=\"en-US\">\n"
-                "<head>\n"
-                "<title>4coder API Docs</title>\n"
-                "<style>\n"
+        append_sc(&out,
+                "<html lang=\"en-US\">"
+                "<head>"
+                "<title>4coder API Docs</title>"
+                "<style>"
                 
                 "body { "
                 "background: " BACK_COLOR "; "
                 "color: " TEXT_COLOR "; "
-                "}\n"
+                "}"
                 
                 // H things
                 "h1,h2,h3,h4 { "
                 "color: " POP_COLOR_1 "; "
                 "margin: 0; "
-                "}\n"
+                "}"
                 
                 "h2 { "
                 "margin-top: 6mm; "
-                "}\n"
+                "}"
                 
                 "h3 { "
                 "margin-top: 5mm; margin-bottom: 5mm; "
-                "}\n"
+                "}"
                 
                 "h4 { "
                 "font-size: 1.1em; "
-                "}\n"
+                "}"
                 
                 // ANCHORS
                 "a { "
                 "color: " POP_COLOR_1 "; "
                 "text-decoration: none; "
-                "}\n"
+                "}"
                 "a:visited { "
                 "color: " VISITED_LINK "; "
-                "}\n"
+                "}"
                 "a:hover { "
                 "background: " POP_BACK_1 "; "
-                "}\n"
+                "}"
                 
                 // LIST
                 "ul { "
                 "list-style: none; "
                 "padding: 0; "
                 "margin: 0; "
-                "}\n"
+                "}"
                 
-                "</style>\n"
+                "</style>"
                 "</head>\n"
-                "<body>\n"
+                "<body>"
                 "<div style='font-family:Arial; margin: 0 auto; "
-                "width: 800px; text-align: justify; line-height: 1.25;'>\n"
-                "<h1 style='margin-top: 5mm; margin-bottom: 5mm;'>4coder API</h1>\n"
+                "width: 800px; text-align: justify; line-height: 1.25;'>"
+                "<h1 style='margin-top: 5mm; margin-bottom: 5mm;'>4coder API</h1>"
                 );
         
         struct Section{
@@ -2686,149 +2612,136 @@ generate_custom_headers(){
             {"string_library", "String Library"}
         };
         
-        fprintf(file,
-                "<h3 style='margin:0;'>Table of Contents</h3>\n"
-                "<ul>\n");
+        append_sc(&out,
+                  "<h3 style='margin:0;'>Table of Contents</h3>""<ul>");
+        
+        dump_file_out(context);
         
         int32_t section_count = ArrayCount(sections);
         for (int32_t i = 0; i < section_count; ++i){
-            fprintf(file,
-                    "<li><a href='#section_%s'>&sect;%d %s</a></li>",
-                    sections[i].id_string,
-                    i+1,
-                    sections[i].display_string);
+            append_sc         (&out, "<li><a href='#section_");
+            append_sc         (&out, sections[i].id_string);
+            append_sc         (&out, "'>&sect;");
+            append_int_to_str (&out, i+1);
+            append_s_char     (&out, ' ');
+            append_sc         (&out, sections[i].display_string);
+            append_sc         (&out, "</a></li>");
         }
         
-        fprintf(file,
-                "</ul>\n"
-                );
+        append_sc(&out, "</ul>");
         
 #define MAJOR_SECTION "1"
         
-        fprintf(file,
-                "<h2 id='section_%s'>&sect;"MAJOR_SECTION" %s</h2>\n"
-                "<div>\n"
-                
-                "<p>\n"
-                "This is the documentation for " VERSION " The documentation is still under "
-                "construction so some of the links are linking to sections that have not "
-                "been written yet.  What is here should be correct and I suspect useful "
-                "even without some of the other sections. "
-                "</p>\n"
-                
-                "<p>\n"
-                "If you have questions or discover errors please contact "
-                "<span style='"CODE_STYLE"'>editor@4coder.net</span> or "
-                "to get help from community members you can post on the "
-                "4coder forums hosted on handmade.network at "
-                "<span style='"CODE_STYLE"'>4coder.handmade.network</span>"
-                "</p>\n"
-                
-                "</div>\n",
-                sections[0].id_string,
-                sections[0].display_string
-                );
+        append_sc(&out, "\n<h2 id='section_");
+        append_sc(&out, sections[0].id_string);
+        append_sc(&out, "'>&sect;"MAJOR_SECTION" ");
+        append_sc(&out, sections[0].display_string);
+        append_sc(&out,
+                  "</h2>"
+                  "<div>"
+                  "<p>This is the documentation for " VERSION " The documentation is still "
+                  "under construction so some of the links are linking to sections that "
+                  "have not been written yet.  What is here should be correct and I suspect "
+                  "useful even without some of the other sections.</p>"
+                  "<p>If you have questions or discover errors please contact "
+                  "<span style='"CODE_STYLE"'>editor@4coder.net</span> or "
+                  "to get help from community members you can post on the "
+                  "4coder forums hosted on handmade.network at "
+                  "<span style='"CODE_STYLE"'>4coder.handmade.network</span></p>"
+                  "</div>");
         
 #undef MAJOR_SECTION
 #define MAJOR_SECTION "2"
         // TODO(allen): Write the 4coder system descriptions.
-        fprintf(file,
-                "<h2 id='section_%s'>&sect;"MAJOR_SECTION" %s</h2>\n",
-                sections[1].id_string,
-                sections[1].display_string);
+        append_sc(&out, "\n<h2 id='section_");
+        append_sc(&out, sections[1].id_string);
+        append_sc(&out, "'>&sect;"MAJOR_SECTION" ");
+        append_sc(&out, sections[1].display_string);
+        append_sc(&out, "</h2>");
         
-        {
-            fprintf(file,
-                    "<div><i>\n"
-                    "Coming Soon"
-                    "</i><div>\n");
-        }
+        append_sc(&out, "<div><i>Coming Soon</i><div>");
         
 #undef MAJOR_SECTION
 #define MAJOR_SECTION "3"
         
-        fprintf(file, 
-                "<h2 id='section_%s'>&sect;"MAJOR_SECTION" %s</h2>\n",
-                sections[2].id_string,
-                sections[2].display_string);
-        {
+        append_sc(&out, "\n<h2 id='section_");
+        append_sc(&out, sections[2].id_string);
+        append_sc(&out, "'>&sect;"MAJOR_SECTION" ");
+        append_sc(&out, sections[2].display_string);
+        append_sc(&out, "</h2>");
+        
+        
 #undef SECTION
 #define SECTION MAJOR_SECTION".1"
-            
-            fprintf(file,
-                    "<h3>&sect;"SECTION" Function List</h3>\n"
-                    "<ul>\n");
-            
-            for (int32_t i = 0; i < unit_custom.set.count; ++i){
-                String name = func_4ed_names.names[i].public_name;
-                fprintf(file,
-                        "<li>"
-                        "<a href='#%.*s_doc'>%.*s</a>"
-                        "</li>\n",
-                        name.size, name.str,
-                        name.size, name.str
-                        );
-            }
-            fprintf(file, "</ul>\n");
-            
+        
+        append_sc(&out, "<h3>&sect;"SECTION" Function List</h3><ul>");
+        
+        for (int32_t i = 0; i < unit_custom.set.count; ++i){
+            String name = func_4ed_names.names[i].public_name;
+            append_sc(&out, "<li><a href='#");
+            append_ss(&out, name);
+            append_sc(&out, "_doc'>");
+            append_ss(&out, name);
+            append_sc(&out, "</a></li>");
+        }
+        append_sc(&out, "</ul>");
+        
 #undef SECTION
 #define SECTION MAJOR_SECTION".2"
-            
-            fprintf(file,
-                    "<h3>&sect;"SECTION" Type List</h3>\n"
-                    "<ul>\n"
-                    );
-            
-            for (int32_t i = 0; i < unit.set.count; ++i){
-                String name = unit.set.items[i].name;
-                fprintf(file,
-                        "<li>"
-                        "<a href='#%.*s_doc'>%.*s</a>"
-                        "</li>\n",
-                        name.size, name.str,
-                        name.size, name.str
-                        );
-            }
-            
-            fprintf(file, "</ul>\n");
-            
+        
+        append_sc(&out, "<h3>&sect;"SECTION" Type List</h3><ul>");
+        
+        for (int32_t i = 0; i < unit.set.count; ++i){
+            String name = unit.set.items[i].name;
+            append_sc(&out, "<li><a href='#");
+            append_ss(&out, name);
+            append_sc(&out, "_doc'>");
+            append_ss(&out, name);
+            append_sc(&out, "</a></li>");
+        }
+        append_sc(&out, "</ul>");
+        
 #undef SECTION
 #define SECTION MAJOR_SECTION".3"
+        
+        append_sc(&out, "<h3>&sect;"SECTION" Function Descriptions</h3>\n");
+        for (int32_t i = 0; i < unit_custom.set.count; ++i){
+            String name = func_4ed_names.names[i].public_name;
             
-            fprintf(file, "<h3>&sect;"SECTION" Function Descriptions</h3>\n");
-            for (int32_t i = 0; i < unit_custom.set.count; ++i){
-                String name = func_4ed_names.names[i].public_name;
-                
-                fprintf(file,
-                        "<div id='%.*s_doc' style='margin-bottom: 1cm;'>\n"
-                        "<h4>&sect;"SECTION".%d: %.*s</h4>\n"
-                        "<div style='"CODE_STYLE" "DESCRIPT_SECTION_STYLE"'>",
-                        name.size, name.str, i+1,
-                        name.size, name.str
-                        );
-                print_function_html(file, unit_custom.set.items[i], name, "app->");
-                fprintf(file, "</div>\n");
-                
-                String doc_string = unit_custom.set.items[i].doc_string;
-                print_function_docs(file, part, name, doc_string);
-                
-                fprintf(file, "</div><hr>\n");
-            }
+            append_sc        (&out, "<div id='");
+            append_ss        (&out, name);
+            append_sc        (&out, "_doc' style='margin-bottom: 1cm;'><h4>&sect;"SECTION".");
+            append_int_to_str(&out, i+1);
+            append_sc        (&out, ": ");
+            append_ss        (&out, name);
+            append_sc        (&out, "</h4><div style='"CODE_STYLE" "DESCRIPT_SECTION_STYLE"'>");
             
+            dump_file_out(context);
+            
+            // TODO(allen): Continue converting this to the string system.
+            print_function_html(file, unit_custom.set.items[i], name, "app->");
+            fprintf(file, "</div>\n");
+            
+            String doc_string = unit_custom.set.items[i].doc_string;
+            print_function_docs(file, part, name, doc_string);
+            
+            fprintf(file, "</div><hr>\n");
+        }
+        
 #undef SECTION
 #define SECTION MAJOR_SECTION".4"
-            
-            fprintf(file, "<h3>&sect;"SECTION" Type Descriptions</h3>\n");
-            int32_t I = 1;
-            for (int32_t i = 0; i < unit.set.count; ++i, ++I){
-                print_item(part, file, unit.set.items + i, SECTION, I);
-            }
+        
+        fprintf(file, "<h3>&sect;"SECTION" Type Descriptions</h3>\n");
+        int32_t I = 1;
+        for (int32_t i = 0; i < unit.set.count; ++i, ++I){
+            print_item(part, file, unit.set.items + i, SECTION, I);
         }
+        
         
 #undef MAJOR_SECTION
 #define MAJOR_SECTION "4"
         
-        fprintf(file, 
+        fprintf(file,
                 "<h2 id='section_%s'>&sect;"MAJOR_SECTION" %s</h2>\n",
                 sections[3].id_string,
                 sections[3].display_string);
@@ -2936,7 +2849,10 @@ generate_custom_headers(){
                 "</html>\n"
                 );
         
-        fclose(file);
+        end_file_out(context);
+    }
+    else{
+        // TODO(allen): warning
     }
 }
 
