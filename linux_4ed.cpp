@@ -284,6 +284,7 @@ internal int         LinuxHandleToFD(Plat_Handle);
 
 internal void        LinuxStringDup(String*, void*, size_t);
 internal void        LinuxToggleFullscreen(Display*, Window);
+internal void        LinuxFatalErrorMsg(const char* msg);
 
 internal             Sys_Acquire_Lock_Sig(system_acquire_lock);
 internal             Sys_Release_Lock_Sig(system_release_lock);
