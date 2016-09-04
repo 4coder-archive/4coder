@@ -10,6 +10,7 @@
 
 // TOP
 
+# include <assert.h>
 # include "4ed_defines.h"
 
 #if FRED_SUPER
@@ -22,8 +23,6 @@
 # include "4coder_keycodes.h"
 # include "4coder_style.h"
 # include "4coder_rect.h"
-
-# include <assert.h>
 
 # include "4coder_mem.h"
 
@@ -2114,7 +2113,8 @@ LinuxScheduleStep(void)
 
     if(diff > (u64)frame_useconds){
         u64 ev = 1;
-        write(linuxvars.step_event_fd, &ev, sizeof(ev));
+        ssize_t size = write(linuxvars.step_event_fd, &ev, sizeof(ev));
+        (void)size;
     } else {
         struct itimerspec its = {};
         timerfd_gettime(linuxvars.step_timer_fd, &its);

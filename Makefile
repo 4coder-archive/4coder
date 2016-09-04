@@ -8,6 +8,9 @@ FLAGS      := -D_GNU_SOURCE -fPIC
 debug: FLAGS += -DDEV_BUILD
 debug: ../build/build
 
+package: FLAGS += -DPACKAGE
+package: ../build/build
+
 ../build/build: $(CPP_FILES) $(C_FILES) $(H_FILES)
 	gcc $(WARNINGS) $(FLAGS) build.c -g -o $@
 	../build/build

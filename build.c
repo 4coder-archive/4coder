@@ -10,38 +10,58 @@
 #include <assert.h>
 #include <string.h>
 
+#include "4coder_version.h"
+
+#define FSTRING_INLINE static
+#include "internal_4coder_string.cpp"
+
 //
 // reusable
 //
 
+#define IS_64BIT
+
 // NOTE(allen): Compiler OS cracking.
 #if defined(_MSC_VER)
 
-#define IS_CL
-#define snprintf _snprintf
+# define IS_CL
+# define snprintf _snprintf
 
-#if defined(_WIN32)
+# if defined(_WIN32)
 #  define IS_WINDOWS
 #  pragma comment(lib, "Kernel32.lib")
-#else
+# else
 #  error This compiler/platform combo is not supported yet
-#endif
+# endif
 
 #elif defined(__GNUC__) || defined(__GNUG__)
 
-#define IS_GCC
+# define IS_GCC
 
-#if defined(__gnu_linux__)
+# if defined(__gnu_linux__)
 #  define IS_LINUX
-#else
+# else
 #  error This compiler/platform combo is not supported yet
-#endif
+# endif
 
 #else
 #error This compiler is not supported yet
 #endif
 
-static char cmd[1024];
+
+#if defined(IS_WINDOWS)
+#  define ONLY_WINDOWS(x) x
+#  define ONLY_LINUX(x) (void)0
+#elif defined(IS_LINUX)
+#  define ONLY_WINDOWS(x) (void)0
+#  define ONLY_LINUX(x) x
+#else
+#  define ONLY_WIN(x) (void)0
+#  define ONLY_LINUX(x) (void)0
+#endif
+
+
+static char cmd[4096];
 static int32_t error_state = 0;
 
 #define systemf(...) do{                                   \
@@ -55,6 +75,12 @@ static void     init_time_system();
 static uint64_t get_time();
 static int32_t  get_current_directory(char *buffer, int32_t max);
 static void     execute(char *dir, char *str);
+
+static void make_folder_if_missing(char *folder);
+static void clear_folder(char *folder);
+static void copy_file(char *path, char *file, char *folder);
+static void copy_all(char *source, char *folder);
+static void zip(char *folder, char *dest);
 
 #if defined(IS_WINDOWS)
 
@@ -179,6 +205,36 @@ execute(char *dir, char *str){
     }
 }
 
+static void
+make_folder_if_missing(char *folder){
+    systemf("mkdir -p %s", folder);
+}
+
+static void
+clear_folder(char *folder){
+    systemf("rm -rf %s*", folder);
+}
+
+static void
+copy_file(char *path, char *file, char *folder){
+    if (path){
+        systemf("cp %s/%s %s/%s", path, file, folder, file);
+    }
+    else{
+        systemf("cp %s %s/%s", file, folder, file);
+    }
+}
+
+static void
+copy_all(char *source, char *folder){
+    systemf("cp -rf %s %s", source, folder);
+}
+
+static void
+zip(char *folder, char *file){
+    systemf("zip -r %s %s", file, folder);
+}
+
 #else
 #error This OS is not supported yet
 #endif
@@ -190,6 +246,37 @@ execute(char *dir, char *str){
 // 4coder specific
 //
 
+#if defined(IS_WINDOWS)
+#define EXE ".exe"
+#elif defined(IS_LINUX)
+#define EXE ""
+#else
+#error No EXE format specified for this OS
+#endif
+
+#if defined(IS_WINDOWS)
+#define PDB ".pdb"
+#elif defined(IS_LINUX)
+#define PDB ""
+#else
+#error No EXE format specified for this OS
+#endif
+
+#if defined(IS_WINDOWS)
+#define DLL ".dll"
+#elif defined(IS_LINUX)
+#define DLL ".so"
+#else
+#error No EXE format specified for this OS
+#endif
+
+#if defined(IS_WINDOWS)
+#define BAT ".bat"
+#elif defined(IS_LINUX)
+#define BAT ".sh"
+#else
+#error No EXE format specified for this OS
+#endif
 
 static void
 swap_ptr(char **A, char **B){
@@ -385,9 +472,14 @@ build_gcc(uint32_t flags,
         build_ap(line, "-g -O0");
     }
     
+    // TODO(allen): Enabling these optimizations seems to break 4coder.
+    // Some sort of bug in the linux layer or something?  Having trouble
+    // getting information out of 4coder about it.
+#if 0
     if (flags & OPTIMIZATION){
         build_ap(line, "-O3");
     }
+#endif
     
     if (flags & SHARED_CODE){
         build_ap(line, "-shared");
@@ -468,8 +560,7 @@ buildsuper(char *code_path, char *out_path, char *filename){
 #endif
 
 static void
-standard_build(char *cdir, uint32_t flags){
-#if 1
+fsm_generator(char *cdir){
     {
         BEGIN_TIME_SECTION();
         build(OPTS | DEBUG_INFO, cdir, "fsm_table_generator.cpp",
@@ -482,9 +573,10 @@ standard_build(char *cdir, uint32_t flags){
         execute(cdir, META_DIR"/fsmgen");
         END_TIME_SECTION("run fsm generator");
     }
-#endif
-    
-#if 1
+}
+
+static void
+metagen(char *cdir){
     {
         BEGIN_TIME_SECTION();
         build(OPTS | DEBUG_INFO, cdir, "4ed_metagen.cpp",
@@ -497,9 +589,10 @@ standard_build(char *cdir, uint32_t flags){
         execute(cdir, META_DIR"/metagen");
         END_TIME_SECTION("run metagen");
     }
-#endif
-    
-#if 1
+}
+
+static void
+do_buildsuper(char *cdir){
     {
         BEGIN_TIME_SECTION();
         //buildsuper(cdir, BUILD_DIR, "../code/4coder_default_bindings.cpp");
@@ -512,13 +605,14 @@ standard_build(char *cdir, uint32_t flags){
         //buildsuper(cdir, BUILD_DIR, "../4vim/4coder_chronal.cpp");
         END_TIME_SECTION("build custom");
     }
-#endif
-    
-#if 1
+}
+
+static void
+build_main(char *cdir, uint32_t flags){
     {
         BEGIN_TIME_SECTION();
         build(OPTS | INCLUDES | SHARED_CODE | flags, cdir, "4ed_app_target.cpp",
-              BUILD_DIR, "4ed_app", "/EXPORT:app_get_functions");
+              BUILD_DIR, "4ed_app"DLL, "/EXPORT:app_get_functions");
         END_TIME_SECTION("build 4ed_app");
     }
     
@@ -528,10 +622,109 @@ standard_build(char *cdir, uint32_t flags){
               BUILD_DIR, "4ed", 0);
         END_TIME_SECTION("build 4ed");
     }
-#endif
 }
 
+static void
+standard_build(char *cdir, uint32_t flags){
+    fsm_generator(cdir);
+    
+    metagen(cdir);
+    
+    do_buildsuper(cdir);
+    
+    build_main(cdir, flags);
+}
 
+#define PACK_DIR "../distributions"
+#define PACK_DATA_DIR "../data/dist_files"
+#define PACK_ALPHA_DIR "../current_dist/4coder"
+#define PACK_SUPER_DIR "../current_dist_super/4coder"
+#define PACK_POWER_DIR "../current_dist_power/power"
+
+static void
+get_zip_name(String *zip_file, char *tier){
+    zip_file->size = 0;
+    append_sc(zip_file, PACK_DIR"/");
+    append_sc(zip_file, tier);
+    append_sc(zip_file, "/4coder-");
+    
+#if defined(IS_WINDOWS)
+    append_sc(zip_file, "win-");
+#elif defined(IS_LINUX) && defined(IS_64BIT)
+    append_sc(zip_file, "linux-64-");
+#else
+#error No OS string for zips on this OS
+#endif
+    
+    append_sc         (zip_file, tier);
+    append_sc         (zip_file, "-");
+    append_int_to_str (zip_file, MAJOR);
+    append_sc         (zip_file, "-");
+    append_int_to_str (zip_file, MINOR);
+    append_sc         (zip_file, "-");
+    append_int_to_str (zip_file, PATCH);
+    append_sc         (zip_file, ".zip");
+    terminate_with_null(zip_file);
+}
+
+static void
+package(char *cdir){
+    char zip_file_[1024];
+    String zip_file = make_fixed_width_string(zip_file_);
+    
+    // NOTE(allen): meta
+    fsm_generator(cdir);
+    metagen(cdir);
+    
+    // NOTE(allen): alpha
+    build_main(cdir, OPTIMIZATION | KEEP_ASSERT | DEBUG_INFO);
+    
+    clear_folder(PACK_ALPHA_DIR);
+    make_folder_if_missing(PACK_ALPHA_DIR"/3rdparty");
+    make_folder_if_missing(PACK_DIR"/alpha");
+    copy_file(BUILD_DIR, "4ed"EXE, PACK_ALPHA_DIR);
+    ONLY_WINDOWS(copy_file(BUILD_DIR, "4ed"PDB, PACK_ALPHA_DIR));
+    copy_file(BUILD_DIR, "4ed_app"DLL, PACK_ALPHA_DIR);
+    ONLY_WINDOWS(copy_file(BUILD_DIR, "4ed_app"PDB, PACK_ALPHA_DIR));
+    copy_all (PACK_DATA_DIR"/*", PACK_ALPHA_DIR);
+    copy_file(0, "README.txt", PACK_ALPHA_DIR);
+    copy_file(0, "TODO.txt", PACK_ALPHA_DIR);
+    
+    get_zip_name(&zip_file, "alpha");
+    zip(PACK_ALPHA_DIR, zip_file.str);
+    
+    // NOTE(allen): super
+    build_main(cdir, OPTIMIZATION | KEEP_ASSERT | DEBUG_INFO | SUPER);
+    
+    clear_folder(PACK_SUPER_DIR);
+    make_folder_if_missing(PACK_SUPER_DIR"/3rdparty");
+    make_folder_if_missing(PACK_DIR"/super");
+    copy_file(BUILD_DIR, "4ed"EXE, PACK_SUPER_DIR);
+    ONLY_WINDOWS(copy_file(BUILD_DIR, "4ed"PDB, PACK_SUPER_DIR));
+    copy_file(BUILD_DIR, "4ed_app"DLL, PACK_SUPER_DIR);
+    ONLY_WINDOWS(copy_file(BUILD_DIR, "4ed_app"PDB, PACK_SUPER_DIR));
+    copy_all (PACK_DATA_DIR"/*", PACK_SUPER_DIR);
+    copy_file(0, "README.txt", PACK_SUPER_DIR);
+    copy_file(0, "TODO.txt", PACK_SUPER_DIR);
+    
+    copy_all ("4coder_*.h", PACK_SUPER_DIR);
+    copy_all ("4coder_*.cpp", PACK_SUPER_DIR);
+    copy_file(0, "buildsuper"BAT, PACK_SUPER_DIR);
+    copy_file(0, "4coder_API.html", PACK_SUPER_DIR"/..");
+    
+    get_zip_name(&zip_file, "super");
+    zip(PACK_SUPER_DIR, zip_file.str);
+    
+    // NOTE(allen): power
+    clear_folder(PACK_POWER_DIR);
+    make_folder_if_missing(PACK_POWER_DIR);
+    make_folder_if_missing(PACK_DIR"/power");
+    copy_all("power/*", PACK_POWER_DIR);
+    
+    get_zip_name(&zip_file, "power");
+    zip(PACK_POWER_DIR, zip_file.str);
+    
+}
 
 #if defined(DEV_BUILD)
 
@@ -550,10 +743,22 @@ int main(int argc, char **argv){
     return(error_state);
 }
 
-
 #elif defined(PACKAGE)
 
-
+int main(int argc, char **argv){
+    init_time_system();
+    
+    char cdir[256];
+    
+    BEGIN_TIME_SECTION();
+    int32_t n = get_current_directory(cdir, sizeof(cdir));
+    assert(n < sizeof(cdir));
+    END_TIME_SECTION("current directory");
+    
+    package(cdir);
+    
+    return(error_state);
+}
 
 #else
 #error No build type specified
