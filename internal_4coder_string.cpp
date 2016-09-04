@@ -1140,22 +1140,23 @@ string in place.)
 
 CPP_NAME(to_lower)
 FSTRING_LINK void
-to_lower_ss(String *src, String *dst)/*
-DOC_PARAM(src, The source string to conver to lowercase.)
+to_lower_ss(String *dst, String src)/*
 DOC_PARAM(dst, The destination buffer to receive the converted string.
 This must have a capacity of at least the size of src.)
+DOC_PARAM(src, The source string to conver to lowercase.)
 DOC(Rewrites the string in src into dst.  src and dst should not overlap with the exception
 that src and dst may be exactly equal in order to convert the string in place.)
 */{
     int32_t i = 0;
-    int32_t size = src->size;
-    char *c = src->str;
+    int32_t size = src.size;
+    char *c = src.str;
     char *d = dst->str;
     
     if (dst->memory_size >= size){
         for (; i < size; ++i){
             *d++ = char_to_lower(*c++);
         }
+        dst->size = size;
     }
 }
 
@@ -1190,22 +1191,23 @@ that src and dst may be exactly equal in order to convert the string in place.)
 
 CPP_NAME(to_upper)
 FSTRING_LINK void
-to_upper_ss(String *src, String *dst)/*
-DOC_PARAM(src, The source string to convert to uppercase.)
+to_upper_ss(String *dst, String src)/*
 DOC_PARAM(dst, The destination buffer to receive the converted string.
 This must have a capacity of at least the size of src.)
+DOC_PARAM(src, The source string to convert to uppercase.)
 DOC(Rewrites the string in src into dst.  src and dst should not overlap with the exception
 that src and dst may be exactly equal in order to convert the string in place.)
 */{
     int32_t i = 0;
-    int32_t size = src->size;
-    char *c = src->str;
+    int32_t size = src.size;
+    char *c = src.str;
     char *d = dst->str;
     
     if (dst->memory_size >= size){
         for (; i < size; ++i){
             *d++ = char_to_upper(*c++);
         }
+        dst->size = size;
     }
 }
 

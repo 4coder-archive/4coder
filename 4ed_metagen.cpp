@@ -31,8 +31,13 @@ typedef struct Out_Context{
 } Out_Context;
 
 static String
-get_string(char *data, int32_t start, int32_t end){
+str_start_end(char *data, int32_t start, int32_t end){
     return(make_string(data + start, end - start));
+}
+
+static String
+str_alloc(Partition *part, int32_t cap){
+        return(make_string_cap(push_array(part, char, cap), 0, cap));
 }
 
 static int32_t
@@ -872,10 +877,10 @@ struct_parse_member(Partition *part, Parse_Context *context, Item_Node *member){
         
         name = skip_chop_whitespace(get_lexeme(*token_j, context->data));
         
-        String type = skip_chop_whitespace(get_string(context->data, start_token->start, token_j->start));
+        String type = skip_chop_whitespace(str_start_end(context->data, start_token->start, token_j->start));
         
         String type_postfix =
-            skip_chop_whitespace(get_string(context->data, token_j->start + token_j->size, token->start));
+            skip_chop_whitespace(str_start_end(context->data, token_j->start + token_j->size, token->start));
         
         set_token(context, token+1);
         result = true;
@@ -1052,7 +1057,7 @@ typedef_parse(Parse_Context *context, Item_Node *item){
         String name = get_lexeme(*token_j, context->data);
         
         String type = skip_chop_whitespace(
-            get_string(context->data, start_token->start + start_token->size, token_j->start)
+            str_start_end(context->data, start_token->start + start_token->size, token_j->start)
             );
         
         item->t = Item_Typedef;
@@ -1133,7 +1138,7 @@ enum_parse(Partition *part, Parse_Context *context, Item_Node *item){
                             }
                             
                             value = skip_chop_whitespace(
-                                get_string(context->data, start_token->start + start_token->size, token->start)
+                                str_start_end(context->data, start_token->start + start_token->size, token->start)
                                 );
                             
                             get_prev_token(context);
@@ -1354,7 +1359,7 @@ function_sig_parse(Partition *part, Parse_Context *context, Item_Node *item, Str
         item->name = get_lexeme(*token, context->data);
         
         item->ret = chop_whitespace(
-            get_string(context->data, ret_token->start, token->start)
+            str_start_end(context->data, ret_token->start, token->start)
             );
         
         for (; (token = get_token(context)) != 0; get_next_token(context)){
@@ -1365,7 +1370,7 @@ function_sig_parse(Partition *part, Parse_Context *context, Item_Node *item, Str
         
         if (token){
             item->args =
-                get_string(context->data, args_start_token->start, token->start + token->size);
+                str_start_end(context->data, args_start_token->start, token->start + token->size);
             item->t = Item_Function;
             item->cpp_name = cpp_name;
             item->breakdown = parameter_parse(part, context->data, args_start_token, token);
@@ -1474,7 +1479,7 @@ macro_parse(Partition *part, Parse_Context *context, Item_Node *item){
                         }
                         
                         if (token){
-                            item->args = get_string(context->data, args_start_token->start,
+                            item->args = str_start_end(context->data, args_start_token->start,
                                                     token->start + token->size);
                             
                             item->breakdown = parameter_parse(part, context->data, args_start_token, token);
@@ -1492,7 +1497,7 @@ macro_parse(Partition *part, Parse_Context *context, Item_Node *item){
                                     token = get_prev_token(context);
                                     
                                     item->body =
-                                        get_string(context->data, body_start->start,
+                                        str_start_end(context->data, body_start->start,
                                                    token->start + token->size);
                                 }
                             }
@@ -1884,7 +1889,7 @@ print_function_body_code(FILE *file, int32_t *index, Cpp_Token **token_ptr, int3
     int32_t do_whitespace_print = false;
     for (; i < count; ++i, ++token){
         if (do_whitespace_print){
-            pstr = get_string(code->str, start, token->start);
+            pstr = str_start_end(code->str, start, token->start);
             print_str(file, pstr);
         }
         else{
@@ -2172,6 +2177,8 @@ generate_custom_headers(){
     Partition part_ = make_part(mem, size);
     Partition *part = &part_;
     
+    
+    // NOTE(allen): Parse the internal string file.
     static char *string_files[] = {
         "internal_4coder_string.cpp"
     };
@@ -2186,10 +2193,8 @@ generate_custom_headers(){
     Meta_Unit string_unit = compile_meta_unit(part, string_files, ArrayCount(string_files),
                                               string_keys, ArrayCount(string_keys));
     
-    //
-    // App API parsing
-    //
     
+    // NOTE(allen): Parse the customization API files
     static char *functions_files[] = {
         "4ed_api_implementation.cpp",
         "win32_api_impl.cpp"
@@ -2202,6 +2207,8 @@ generate_custom_headers(){
     Meta_Unit unit_custom = compile_meta_unit(part, functions_files, ArrayCount(functions_files),
                                               functions_keys, ArrayCount(functions_keys));
     
+    
+    // NOTE(allen): Compute and store variations of the function names
     App_API func_4ed_names = allocate_app_api(part, unit_custom.set.count);
     
     for (int32_t i = 0; i < unit_custom.set.count; ++i){
@@ -2209,124 +2216,126 @@ generate_custom_headers(){
         String *macro = &func_4ed_names.names[i].macro;
         String *public_name = &func_4ed_names.names[i].public_name;
         
-        macro->size = 0;
-        macro->memory_size = name_string.size+4;
-        
-        macro->str = (char*)malloc(macro->memory_size);
-        copy_ss(macro, name_string);
-        to_upper_s(macro);
+        *macro = str_alloc(part, name_string.size+4);
+        to_upper_ss(macro, name_string);
         append_ss(macro, make_lit_string("_SIG"));
         
+        *public_name = str_alloc(part, name_string.size);
+        to_lower_ss(public_name, name_string);
         
-        public_name->size = 0;
-        public_name->memory_size = name_string.size;
-        
-        public_name->str = (char*)malloc(public_name->memory_size);
-        copy_ss(public_name, name_string);
-        to_lower_s(public_name);
+        partition_align(part, 4);
     }
     
-    // NOTE(allen): Header
-    FILE *file = fopen(OS_API_H, "wb");
     
-    int32_t main_api_count = unit_custom.parse[0].item_count;
-    int32_t os_api_count = unit_custom.parse[1].item_count;
-    for (int32_t i = main_api_count; i < os_api_count; ++i){
-        String ret_string   = unit_custom.set.items[i].ret;
-        String args_string  = unit_custom.set.items[i].args;
-        String macro_string = func_4ed_names.names[i].macro;
+    // NOTE(allen): Parse the customization API types
+    static char *type_files[] = {
+        "4coder_types.h"
+    };
+    
+    static Meta_Keywords type_keys[] = {
+        {make_lit_string("typedef") , Item_Typedef } ,
+        {make_lit_string("struct")  , Item_Struct  } ,
+        {make_lit_string("union")   , Item_Union   } ,
+        {make_lit_string("ENUM")    , Item_Enum    } ,
+    };
+    
+    Meta_Unit unit = compile_meta_unit(part, type_files, ArrayCount(type_files),
+                                       type_keys, ArrayCount(type_keys));
+    
+    
+    // NOTE(allen): Output
+    String out = str_alloc(part, 10 << 20);
+    Out_Context context = {0};
+    
+    // TODO(allen): delete this ASAP
+    FILE *file = 0;
+    
+    // NOTE(allen): Custom API headers
+    if (begin_file_out(&context, OS_API_H, &out)){
+        int32_t main_api_count = unit_custom.parse[0].item_count;
+        int32_t os_api_count = unit_custom.parse[1].item_count;
+        for (int32_t i = main_api_count; i < os_api_count; ++i){
+            append_sc(&out, "#define ");
+            append_ss(&out, func_4ed_names.names[i].macro);
+            append_sc(&out, "(n) ");
+            append_ss(&out, unit_custom.set.items[i].ret);
+            append_sc(&out, " n");
+            append_ss(&out, unit_custom.set.items[i].args);
+            append_s_char(&out, '\n');
+        }
         
-        fprintf(file, "#define %.*s(n) %.*s n%.*s\n",
-                macro_string.size, macro_string.str,
-                ret_string.size, ret_string.str,
-                args_string.size, args_string.str);
+        dump_file_out(context);
+        
+        for (int32_t i = main_api_count; i < os_api_count; ++i){
+            append_sc(&out, "typedef ");
+            append_ss(&out, func_4ed_names.names[i].macro);
+            append_s_char(&out, '(');
+            append_ss(&out, unit_custom.set.items[i].name);
+            append_sc(&out, "_Function);\n");
+        }
+        
+        end_file_out(context);
+    }
+    else{
+        // TODO(allen): warning
     }
     
-    for (int32_t i = main_api_count; i < os_api_count; ++i){
-        String name_string  = unit_custom.set.items[i].name;
-        String macro_string = func_4ed_names.names[i].macro;
+    if (begin_file_out(&context, API_H, &out)){
+        file = context.file;
         
-        fprintf(file, "typedef %.*s(%.*s_Function);\n",
-                macro_string.size, macro_string.str,
-                name_string.size, name_string.str);
-    }
-    
-    fclose(file);
-    
-    file = fopen(API_H, "wb");
-    
-    for (int32_t i = 0; i < unit_custom.set.count; ++i){
-        String ret_string   = unit_custom.set.items[i].ret;
-        String args_string  = unit_custom.set.items[i].args;
-        String macro_string = func_4ed_names.names[i].macro;
+        for (int32_t i = 0; i < unit_custom.set.count; ++i){
+            append_sc(&out, "#define ");
+            append_ss(&out, func_4ed_names.names[i].macro);
+            append_sc(&out, "(n) ");
+            append_ss(&out, unit_custom.set.items[i].ret);
+            append_sc(&out, " n");
+            append_ss(&out, unit_custom.set.items[i].args);
+            append_s_char(&out, '\n');
+        }
         
-        fprintf(file, "#define %.*s(n) %.*s n%.*s\n",
-                macro_string.size, macro_string.str,
-                ret_string.size, ret_string.str,
-                args_string.size, args_string.str);
-    }
-    
-    for (int32_t i = 0; i < unit_custom.set.count; ++i){
-        String name_string  = unit_custom.set.items[i].name;
-        String macro_string = func_4ed_names.names[i].macro;
+        for (int32_t i = 0; i < unit_custom.set.count; ++i){
+            append_sc(&out, "typedef ");
+            append_ss(&out, func_4ed_names.names[i].macro);
+            append_s_char(&out, '(');
+            append_ss(&out, unit_custom.set.items[i].name);
+            append_sc(&out, "_Function);\n");
+        }
         
-        fprintf(file, "typedef %.*s(%.*s_Function);\n",
-                macro_string.size, macro_string.str,
-                name_string.size, name_string.str);
-    }
-    
-    fprintf(file, "struct Application_Links{\n");
-    fprintf(file,
-            "    void *memory;\n"
-            "    int32_t memory_size;\n"
-            );
-    for (int32_t i = 0; i < unit_custom.set.count; ++i){
-        String name_string  = unit_custom.set.items[i].name;
-        String public_string = func_4ed_names.names[i].public_name;
+        append_sc(&out,
+                  "struct Application_Links{\n");
         
-        fprintf(file, "    %.*s_Function *%.*s;\n",
-                name_string.size, name_string.str,
-                public_string.size, public_string.str);
-    }
-    fprintf(file,
-            "    void *cmd_context;\n"
-            "    void *system_links;\n"
-            "    void *current_coroutine;\n"
-            "    int32_t type_coroutine;\n"
-            );
-    fprintf(file, "};\n");
-    
-    fprintf(file, "#define FillAppLinksAPI(app_links) do{");
-    for (int32_t i = 0; i < unit_custom.set.count; ++i){
-        String name = unit_custom.set.items[i].name;
-        String public_string = func_4ed_names.names[i].public_name;
+        for (int32_t i = 0; i < unit_custom.set.count; ++i){
+            append_ss(&out, unit_custom.set.items[i].name);
+            append_sc(&out, "_Function *");
+            append_ss(&out, func_4ed_names.names[i].public_name);
+            append_sc(&out, ";\n");
+        }
         
-        fprintf(file,
-                "\\\n"
-                "app_links->%.*s = %.*s;",
-                public_string.size, public_string.str,
-                name.size, name.str
-                );
+        append_sc(&out,
+                  "void *memory;\n"
+                  "int32_t memory_size;\n"
+                  "void *cmd_context;\n"
+                  "void *system_links;\n"
+                  "void *current_coroutine;\n"
+                  "int32_t type_coroutine;\n"
+                  "};\n");
+        
+        append_sc(&out, "#define FillAppLinksAPI(app_links) do{");
+        
+        for (int32_t i = 0; i < unit_custom.set.count; ++i){
+            append_sc(&out, "\\\napp_links->");
+            append_ss(&out, func_4ed_names.names[i].public_name);
+            append_sc(&out, " = ");
+            append_ss(&out, unit_custom.set.items[i].name);
+            append_s_char(&out, ';');
+        }
+        append_sc(&out, "} while(false)\n");
+        
+        end_file_out(context);
     }
-    fprintf(file, " } while(false)\n");
-    
-    fclose(file);
     
     // NOTE(allen): Documentation
     {
-        static char *type_files[] = {
-            "4coder_types.h"
-        };
-        
-        static Meta_Keywords type_spec_keys[] = {
-            {make_lit_string("typedef") , Item_Typedef } ,
-            {make_lit_string("struct")  , Item_Struct  } ,
-            {make_lit_string("union")   , Item_Union   } ,
-            {make_lit_string("ENUM")    , Item_Enum    } ,
-        };
-        
-        Meta_Unit unit = compile_meta_unit(part, type_files, ArrayCount(type_files),
-                                           type_spec_keys, ArrayCount(type_spec_keys));
         
         //
         // Output 4coder_string.h
@@ -2361,7 +2370,7 @@ generate_custom_headers(){
             
             for(++i, ++token; i < count; ++i, ++token){
                 if (do_whitespace_print){
-                    pstr = get_string(code->str, start, token->start);
+                    pstr = str_start_end(code->str, start, token->start);
                     print_str(file, pstr);
                 }
                 else{
@@ -2597,7 +2606,7 @@ generate_custom_headers(){
                     start = token->start + token->size;
                 }
             }
-            pstr = get_string(code->str, start, code->size);
+            pstr = str_start_end(code->str, start, code->size);
             print_str(file, pstr);
         }
         

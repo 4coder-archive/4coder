@@ -3185,16 +3185,16 @@ string in place.</div></div><hr>
 <div id='to_lower_ss_str_doc'><h4>&sect;4.3.81: to_lower_ss</h4>
 <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>
 void to_lower_ss(
-<div style='margin-left: 4mm;'>String *src,<br>String *dst<br></div>)
+<div style='margin-left: 4mm;'>String *dst,<br>String src<br></div>)
 </div>
 <div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Parameters</i></b></div><div>
-<div style='font-weight: 600;'>src</div>
-<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>The source string to conver to lowercase.</div></div>
-</div>
-<div>
 <div style='font-weight: 600;'>dst</div>
 <div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>The destination buffer to receive the converted string.
 This must have a capacity of at least the size of src.</div></div>
+</div>
+<div>
+<div style='font-weight: 600;'>src</div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>The source string to conver to lowercase.</div></div>
 </div>
 <div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>Rewrites the string in src into dst.  src and dst should not overlap with the exception
 that src and dst may be exactly equal in order to convert the string in place.</div></div><hr>
@@ -3227,16 +3227,16 @@ that src and dst may be exactly equal in order to convert the string in place.</
 <div id='to_upper_ss_str_doc'><h4>&sect;4.3.84: to_upper_ss</h4>
 <div style='font-family: "Courier New", Courier, monospace; text-align: left; margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; background: #DFDFDF; padding: 0.25em;'>
 void to_upper_ss(
-<div style='margin-left: 4mm;'>String *src,<br>String *dst<br></div>)
+<div style='margin-left: 4mm;'>String *dst,<br>String src<br></div>)
 </div>
 <div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Parameters</i></b></div><div>
-<div style='font-weight: 600;'>src</div>
-<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>The source string to convert to uppercase.</div></div>
-</div>
-<div>
 <div style='font-weight: 600;'>dst</div>
 <div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>The destination buffer to receive the converted string.
 This must have a capacity of at least the size of src.</div></div>
+</div>
+<div>
+<div style='font-weight: 600;'>src</div>
+<div style='margin-bottom: 6mm;'><div style='margin-left: 5mm; margin-right: 5mm;'>The source string to convert to uppercase.</div></div>
 </div>
 <div style='margin-top: 3mm; margin-bottom: 3mm; color: #309030;'><b><i>Description</i></b></div><div style='margin-left: 5mm; margin-right: 5mm;'>Rewrites the string in src into dst.  src and dst should not overlap with the exception
 that src and dst may be exactly equal in order to convert the string in place.</div></div><hr>

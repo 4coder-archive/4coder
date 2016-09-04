@@ -133,10 +133,10 @@ FSTRING_LINK    fstr_bool     terminate_with_null(String *str);
 FSTRING_LINK    fstr_bool     append_padding(String *dest, char c, int32_t target_size);
 FSTRING_LINK    void          replace_char(String *str, char replace, char with);
 FSTRING_LINK    void          to_lower_cc(char *src, char *dst);
-FSTRING_LINK    void          to_lower_ss(String *src, String *dst);
+FSTRING_LINK    void          to_lower_ss(String *dst, String src);
 FSTRING_LINK    void          to_lower_s(String *str);
 FSTRING_LINK    void          to_upper_cc(char *src, char *dst);
-FSTRING_LINK    void          to_upper_ss(String *src, String *dst);
+FSTRING_LINK    void          to_upper_ss(String *dst, String src);
 FSTRING_LINK    void          to_upper_s(String *str);
 FSTRING_LINK    void          to_camel_cc(char *src, char *dst);
 FSTRING_LINK    int32_t       int_to_str_size(int32_t x);
@@ -229,10 +229,10 @@ FSTRING_INLINE  fstr_bool     append(String *dest, char c);
 FSTRING_INLINE  fstr_bool     append(String *dest, String src);
 FSTRING_INLINE  fstr_bool     append(String *dest, char *src);
 FSTRING_INLINE  void          to_lower(char *src, char *dst);
-FSTRING_INLINE  void          to_lower(String *src, String *dst);
+FSTRING_INLINE  void          to_lower(String *dst, String src);
 FSTRING_INLINE  void          to_lower(String *str);
 FSTRING_INLINE  void          to_upper(char *src, char *dst);
-FSTRING_INLINE  void          to_upper(String *src, String *dst);
+FSTRING_INLINE  void          to_upper(String *dst, String src);
 FSTRING_INLINE  void          to_upper(String *str);
 FSTRING_INLINE  void          to_camel(char *src, char *dst);
 FSTRING_INLINE  int32_t       str_is_int(char *str);
@@ -361,13 +361,13 @@ append(String *dest, char *src){return(append_sc(dest,src));}
 FSTRING_INLINE void
 to_lower(char *src, char *dst){(to_lower_cc(src,dst));}
 FSTRING_INLINE void
-to_lower(String *src, String *dst){(to_lower_ss(src,dst));}
+to_lower(String *dst, String src){(to_lower_ss(dst,src));}
 FSTRING_INLINE void
 to_lower(String *str){(to_lower_s(str));}
 FSTRING_INLINE void
 to_upper(char *src, char *dst){(to_upper_cc(src,dst));}
 FSTRING_INLINE void
-to_upper(String *src, String *dst){(to_upper_ss(src,dst));}
+to_upper(String *dst, String src){(to_upper_ss(dst,src));}
 FSTRING_INLINE void
 to_upper(String *str){(to_upper_s(str));}
 FSTRING_INLINE void
@@ -1442,16 +1442,17 @@ to_lower_cc(char *src, char *dst){
 
 #if defined(FSTRING_IMPLEMENTATION)
 FSTRING_LINK void
-to_lower_ss(String *src, String *dst){
+to_lower_ss(String *dst, String src){
     int32_t i = 0;
-    int32_t size = src->size;
-    char *c = src->str;
+    int32_t size = src.size;
+    char *c = src.str;
     char *d = dst->str;
     
     if (dst->memory_size >= size){
         for (; i < size; ++i){
             *d++ = char_to_lower(*c++);
         }
+        dst->size = size;
     }
 }
 #endif
@@ -1483,16 +1484,17 @@ to_upper_cc(char *src, char *dst){
 
 #if defined(FSTRING_IMPLEMENTATION)
 FSTRING_LINK void
-to_upper_ss(String *src, String *dst){
+to_upper_ss(String *dst, String src){
     int32_t i = 0;
-    int32_t size = src->size;
-    char *c = src->str;
+    int32_t size = src.size;
+    char *c = src.str;
     char *d = dst->str;
     
     if (dst->memory_size >= size){
         for (; i < size; ++i){
             *d++ = char_to_upper(*c++);
         }
+        dst->size = size;
     }
 }
 #endif
