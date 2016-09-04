@@ -53,6 +53,10 @@ typedef struct Offset_String{
 
 FSTRING_DECLS
 
+#if !defined(FSTRING_GUARD)
+static String null_string = {0};
+#endif
+
 //
 // Character Helpers
 //
@@ -108,7 +112,7 @@ char_is_alpha_true(char c)
 FSTRING_INLINE fstr_bool
 char_is_hex(char c)
 /* DOC(This call returns non-zero if c is any valid hexadecimal digit.) */{
-    return c >= '0' && c <= '9' || c >= 'A' && c <= 'F' || c >= 'a' && c <= 'f';
+    return (c >= '0' && c <= '9' || c >= 'A' && c <= 'F' || c >= 'a' && c <= 'f');
 }
 
 FSTRING_INLINE fstr_bool
@@ -122,17 +126,9 @@ char_is_numeric(char c)
 // String Making Functions
 //
 
-FSTRING_INLINE String
-string_zero(void)
-/* DOC(This call returns a String struct of zeroed members.) */{
-    String str={0};
-    return(str);
-}
-
 CPP_NAME(make_string)
 FSTRING_INLINE String
-make_string_cap(void *str, int32_t size, int32_t mem_size)
-/*
+make_string_cap(void *str, int32_t size, int32_t mem_size)/*
 DOC_PARAM(str, The str parameter provides the of memory with which the string shall operate.)
 DOC_PARAM(size, The size parameter expresses the initial size of the string.
 If the memory does not already contain a useful string this should be zero.)
@@ -143,7 +139,7 @@ DOC(This call returns the String created from the parameters.)
     result.str = (char*)str;
     result.size = size;
     result.memory_size = mem_size;
-    return result;
+    return(result);
 }
 
 FSTRING_INLINE String
@@ -159,7 +155,7 @@ DOC(This call returns the String created from the parameters.)
     result.str = (char*)str;
     result.size = size;
     result.memory_size = size;
-    return result;
+    return(result);
 }
 
 DOC_EXPORT /* DOC(This macro takes a literal string in quotes and uses it to create a String
@@ -179,7 +175,7 @@ str_size(char *str)
 /* DOC(This call returns the number of bytes before a null terminator starting at str.) */{
     int32_t i = 0;
     while (str[i]) ++i;
-    return i;
+    return(i);
 }
 
 FSTRING_INLINE String
@@ -190,7 +186,7 @@ treating that as the size and memory size of the string.) */{
     result.str = (char*)str;
     result.size = str_size((char*)str);
     result.memory_size = result.size;
-    return result;
+    return(result);
 }
 
 CPP_NAME(substr)
@@ -1141,22 +1137,23 @@ string in place.)
 
 CPP_NAME(to_lower)
 FSTRING_LINK void
-to_lower_ss(String *src, String *dst)/*
-DOC_PARAM(src, The source string to conver to lowercase.)
+to_lower_ss(String *dst, String src)/*
 DOC_PARAM(dst, The destination buffer to receive the converted string.
 This must have a capacity of at least the size of src.)
+DOC_PARAM(src, The source string to conver to lowercase.)
 DOC(Rewrites the string in src into dst.  src and dst should not overlap with the exception
 that src and dst may be exactly equal in order to convert the string in place.)
 */{
     int32_t i = 0;
-    int32_t size = src->size;
-    char *c = src->str;
+    int32_t size = src.size;
+    char *c = src.str;
     char *d = dst->str;
     
     if (dst->memory_size >= size){
         for (; i < size; ++i){
             *d++ = char_to_lower(*c++);
         }
+        dst->size = size;
     }
 }
 
@@ -1191,22 +1188,23 @@ that src and dst may be exactly equal in order to convert the string in place.)
 
 CPP_NAME(to_upper)
 FSTRING_LINK void
-to_upper_ss(String *src, String *dst)/*
-DOC_PARAM(src, The source string to convert to uppercase.)
+to_upper_ss(String *dst, String src)/*
 DOC_PARAM(dst, The destination buffer to receive the converted string.
 This must have a capacity of at least the size of src.)
+DOC_PARAM(src, The source string to convert to uppercase.)
 DOC(Rewrites the string in src into dst.  src and dst should not overlap with the exception
 that src and dst may be exactly equal in order to convert the string in place.)
 */{
     int32_t i = 0;
-    int32_t size = src->size;
-    char *c = src->str;
+    int32_t size = src.size;
+    char *c = src.str;
     char *d = dst->str;
     
     if (dst->memory_size >= size){
         for (; i < size; ++i){
             *d++ = char_to_upper(*c++);
         }
+        dst->size = size;
     }
 }
 
@@ -1743,8 +1741,9 @@ This call returns non-zero on success.) */{
 }
 
 // TODO(allen): Add hash-table extension to string sets.
+CPP_NAME(string_set_match)
 FSTRING_LINK fstr_bool
-string_set_match(String *str_set, int32_t count, String str, int32_t *match_index)/*
+string_set_match_table(void *str_set, int32_t item_size, int32_t count, String str, int32_t *match_index)/*
 DOC_PARAM(str_set, The str_set parameter is an array of String structs specifying matchable strings.)
 DOC_PARAM(count, The count parameter specifies the number of String structs in the str_set array.)
 DOC_PARAM(str, The str parameter specifies the string to match against the str_set.)
@@ -1754,8 +1753,9 @@ succeeds and returns non-zero.  The matching rule is equivalent to the matching 
 DOC_SEE(match) */{
     fstr_bool result = 0;
     int32_t i = 0;
-    for (; i < count; ++i, ++str_set){
-        if (match_ss(*str_set, str)){
+    uint8_t *ptr = (uint8_t*)str_set;
+    for (; i < count; ++i, ptr += item_size){
+        if (match_ss(*(String*)ptr, str)){
             *match_index = i;
             result = 1;
             break;
@@ -1763,6 +1763,20 @@ DOC_SEE(match) */{
     }
     return(result);
 }
+
+FSTRING_LINK fstr_bool
+string_set_match(String *str_set, int32_t count, String str, int32_t *match_index)/*
+DOC_PARAM(str_set, The str_set parameter is an array of String structs specifying matchable strings.)
+DOC_PARAM(count, The count parameter specifies the number of String structs in the str_set array.)
+DOC_PARAM(str, The str parameter specifies the string to match against the str_set.)
+DOC_PARAM(match_index, If this call succeeds match_index is filled with the index into str_set where the match occurred.)
+DOC(This call tries to see if str matches any of the strings in str_set.  If there is a match the call
+succeeds and returns non-zero.  The matching rule is equivalent to the matching rule for match.)
+DOC_SEE(match) */{
+    fstr_bool result = string_set_match_table(str_set, sizeof(String), count, str, match_index);
+    return(result);
+}
+
 
 #ifndef FSTRING_EXPERIMENTAL
 #define FSTRING_EXPERIMENTAL

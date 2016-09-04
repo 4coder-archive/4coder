@@ -23,10 +23,22 @@
 
 #include "4coder_mem.h"
 
+#define InvalidPath Assert(!"Invalid path of execution")
+
 typedef struct Out_Context{
     FILE *file;
     String *str;
 } Out_Context;
+
+static String
+str_start_end(char *data, int32_t start, int32_t end){
+    return(make_string(data + start, end - start));
+}
+
+static String
+str_alloc(Partition *part, int32_t cap){
+        return(make_string_cap(push_array(part, char, cap), 0, cap));
+}
 
 static int32_t
 begin_file_out(Out_Context *out_context, char *filename, String *out){
@@ -328,6 +340,14 @@ generate_style(){
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////
+
+typedef struct Parse_Context{
+    Cpp_Token *token_s;
+    Cpp_Token *token_e;
+    Cpp_Token *token;
+    char *data;
+} Parse_Context;
+
 typedef struct Argument{
     String param_string;
     String param_name;
@@ -351,10 +371,14 @@ typedef struct Documentation{
 typedef enum Item_Type{
     Item_Null,
     Item_Function,
+    Item_CppName,
     Item_Macro,
     Item_Typedef,
     Item_Struct,
     Item_Union,
+    Item_Enum,
+    Item_Type_Count,
+#define Item_Type_User0 Item_Type_Count
 } Item_Type;
 
 typedef struct Item_Node{
@@ -381,14 +405,105 @@ typedef struct Item_Node{
 
 typedef struct Item_Set{
     Item_Node *items;
-} Item_Set; 
+    int32_t count;
+} Item_Set;
 
 typedef struct Parse{
     String code;
     Cpp_Token_Stack tokens;
+    int32_t item_count;
 } Parse;
 
+typedef struct Meta_Unit{
+    Item_Set set;
+    
+    Parse *parse;
+    int32_t count;
+} Meta_Unit;
+
+typedef struct Meta_Keywords{
+    String key;
+    Item_Type type;
+} Meta_Keywords;
+
 static Item_Node null_item_node = {0};
+
+static String
+get_lexeme(Cpp_Token token, char *code){
+    String str = make_string(code + token.start, token.size);
+    return(str);
+}
+
+static Parse_Context
+setup_parse_context(char *data, Cpp_Token_Stack stack){
+    Parse_Context context;
+    context.token_s = stack.tokens;
+    context.token_e = stack.tokens + stack.count;
+    context.token = context.token_s;
+    context.data = data;
+    return(context);
+}
+
+static Parse_Context
+setup_parse_context(Parse parse){
+    Parse_Context context;
+    context.token_s = parse.tokens.tokens;
+    context.token_e = parse.tokens.tokens + parse.tokens.count;
+    context.token = context.token_s;
+    context.data = parse.code.str;
+    return(context);
+}
+
+static Cpp_Token*
+get_token(Parse_Context *context){
+    Cpp_Token *result = context->token;
+    if (result >= context->token_e){
+        result = 0;
+    }
+    return(result);
+}
+
+static Cpp_Token*
+get_next_token(Parse_Context *context){
+    Cpp_Token *result = context->token+1;
+    context->token = result;
+    if (result >= context->token_e){
+        result = 0;
+        context->token = context->token_e;
+    }
+    return(result);
+}
+
+static Cpp_Token*
+get_prev_token(Parse_Context *context){
+    Cpp_Token *result = context->token-1;
+    if (result < context->token_s){
+        result = 0;
+    }
+    else{
+        context->token = result;
+    }
+    return(result);
+}
+
+static Cpp_Token*
+can_back_step(Parse_Context *context){
+    Cpp_Token *result = context->token-1;
+    if (result < context->token_s){
+        result = 0;
+    }
+    return(result);
+}
+
+static Cpp_Token*
+set_token(Parse_Context *context, Cpp_Token *token){
+    Cpp_Token *result = 0;
+    if (token >= context->token_s && token < context->token_e){
+        context->token = token;
+        result = token;
+    }
+    return(result);
+}
 
 static String
 file_dump(char *filename){
@@ -413,7 +528,7 @@ file_dump(char *filename){
 }
 
 static Parse
-meta_parse(char *filename){
+meta_lex(char *filename){
     Parse result = {0};
     result.code = file_dump(filename);
     result.tokens = cpp_make_token_stack(1024);
@@ -468,19 +583,39 @@ typedef enum Doc_Note_Type{
 } Doc_Note_Type;
 
 static int32_t
-check_and_fix_docs(String *lexeme){
+check_and_fix_docs(String *doc_string){
     int32_t result = false;
     
-    if (lexeme->size > 4){
-        if (lexeme->str[0] == '/'){
-            if (lexeme->str[1] == '*'){
-                if (lexeme->str[lexeme->size - 2] == '*'){
-                    if (lexeme->str[lexeme->size - 1] == '/'){
+    if (doc_string->size > 4){
+        if (doc_string->str[0] == '/'){
+            if (doc_string->str[1] == '*'){
+                if (doc_string->str[doc_string->size - 2] == '*'){
+                    if (doc_string->str[doc_string->size - 1] == '/'){
                         result = true;
-                        lexeme->str += 2;
-                        lexeme->size -= 4;
+                        doc_string->str += 2;
+                        doc_string->size -= 4;
                     }
                 }
+            }
+        }
+    }
+    
+    return(result);
+}
+
+static int32_t
+get_doc_string_from_prev(Parse_Context *context, String *doc_string){
+    int32_t result = false;
+    
+    if (can_back_step(context)){
+        Cpp_Token *prev_token = get_token(context) - 1;
+        if (prev_token->type == CPP_TOKEN_COMMENT){
+            *doc_string = get_lexeme(*prev_token, context->data);
+            if (check_and_fix_docs(doc_string)){
+                result = true;
+            }
+            else{
+                *doc_string = null_string;
             }
         }
     }
@@ -590,7 +725,7 @@ doc_parse_last_parameter(String source, int32_t *pos){
     }
     *pos = p;
     
-    return(result);    
+    return(result);
 }
 
 static void
@@ -682,153 +817,56 @@ perform_doc_parse(Partition *part, String doc_string, Documentation *doc){
     }while(keep_parsing);
 }
 
-static String
-get_lexeme(Cpp_Token token, char *code){
-    String str = make_string(code + token.start, token.size);
-    return(str);
-}
-
-static int32_t
-get_type_doc_string(char *data, Cpp_Token *tokens, Cpp_Token *token,
-                    String *doc_string){
-    int32_t result = false;
-    
-    if (token > tokens){
-        Cpp_Token *prev_token = token - 1;
-        if (prev_token->type == CPP_TOKEN_COMMENT){
-            *doc_string = get_lexeme(*prev_token, data);
-            if (check_and_fix_docs(doc_string)){
-                result = true;
-            }
-        }
-    }
-    
-    return(result);
-}
-
 static Item_Set
 allocate_item_set(Partition *part, int32_t count){
     Item_Set item_set = {0};
     if (count > 0){
-        int32_t memory_size = sizeof(Item_Node)*count;
         item_set.items = push_array(part, Item_Node, count);
-        memset(item_set.items, 0, memory_size);
+        item_set.count = count;
+        memset(item_set.items, 0, sizeof(Item_Node)*count);
     }
     return(item_set);
 }
 
-typedef struct Parse_Context{
-    Cpp_Token *token_s;
-    Cpp_Token *token_e;
-    Cpp_Token *token;
-} Parse_Context;
 
-static Parse_Context
-setup_parse_context(Cpp_Token_Stack stack){
-    Parse_Context context;
-    context.token_s = stack.tokens;
-    context.token_e = stack.tokens + stack.count;
-    context.token = context.token_s;
-    return(context);
-}
-
-static Cpp_Token*
-get_token(Parse_Context *context){
-    Cpp_Token *result = context->token;
-    return(result);
-}
-
-static Cpp_Token*
-get_next_token(Parse_Context *context){
-    Cpp_Token *result = context->token+1;
-    if (result >= context->token_e){
-        result = 0;
-    }
-    else{
-        context->token = result;
-    }
-    return(result);
-}
-
-static Cpp_Token*
-get_prev_token(Parse_Context *context){
-    Cpp_Token *result = context->token-1;
-    if (result < context->token_s){
-        result = 0;
-    }
-    else{
-        context->token = result;
-    }
-    return(result);
-}
-
-static Cpp_Token*
-set_token(Parse_Context *context, Cpp_Token *token){
-    Cpp_Token *result = 0;
-    if (token >= context->token_s && token < context->token_e){
-        context->token = token;
-        result = token;
-    }
-    return(result);
-}
-
-// NOTE(allen): This should not be here any more.  It was written
-// simply to transition the system to the Parse_Context.
-static int32_t TRANSITIONAL_INDEX;
-static int32_t*
-get_index(Parse_Context *context, Cpp_Token *token){
-    if (token) set_token(context, token);
-    TRANSITIONAL_INDEX = (int32_t)(context->token - context->token_s);
-    return(&TRANSITIONAL_INDEX);
-}
+//
+// Meta Parse Rules
+//
 
 static int32_t
-get_count(Parse_Context *context){
-    int32_t result = (int32_t)(context->token_e - context->token_s);
-    return(result);
-}
+struct_parse(Partition *part, int32_t is_struct,
+             Parse_Context *context, Item_Node *top_member);
 
 static int32_t
-parse_struct(Partition *part, int32_t is_struct,
-             char *data, Cpp_Token *tokens, int32_t count,
-             Cpp_Token **token_ptr,
-             Item_Node *top_member);
-
-static int32_t
-parse_struct_member(Partition *part,
-                    char *data, Cpp_Token *tokens, int32_t count,
-                    Cpp_Token **token_ptr,
-                    Item_Node *member){
+struct_parse_member(Partition *part, Parse_Context *context, Item_Node *member){
     
     int32_t result = false;
     
-    Cpp_Token *token = *token_ptr;
-    int32_t i = (int32_t)(token - tokens);
+    Cpp_Token *token = get_token(context);
     
     String doc_string = {0};
-    get_type_doc_string(data, tokens, token, &doc_string);
+    get_doc_string_from_prev(context, &doc_string);
     
-    int32_t start_i = i;
     Cpp_Token *start_token = token;
     
-    for (; i < count; ++i, ++token){
+    for (; (token = get_token(context)) != 0; get_next_token(context)){
         if (token->type == CPP_TOKEN_SEMICOLON){
             break;
         }
     }
     
-    if (i < count){
-        Cpp_Token *token_j = token;
-        
+    if (token){
+        String name = {0};
+        Cpp_Token *token_j = 0;
         int32_t nest_level = 0;
-        for (int32_t j = i; j > start_i; --j, --token_j){
+        
+        for (; (token_j = get_token(context)) > start_token; get_prev_token(context)){
             if (token_j->type == CPP_TOKEN_BRACKET_CLOSE){
                 ++nest_level;
             }
             else if (token_j->type == CPP_TOKEN_BRACKET_OPEN){
                 --nest_level;
                 if (nest_level < 0){
-                    j = start_i;
                     break;
                 }
             }
@@ -840,21 +878,14 @@ parse_struct_member(Partition *part,
             }
         }
         
-        String name = make_string(data + token_j->start, token_j->size);
-        name = skip_chop_whitespace(name);
+        name = skip_chop_whitespace(get_lexeme(*token_j, context->data));
         
-        int32_t type_start = start_token->start;
-        int32_t type_end = token_j->start;
-        String type = make_string(data + type_start, type_end - type_start);
-        type = skip_chop_whitespace(type);
+        String type = skip_chop_whitespace(str_start_end(context->data, start_token->start, token_j->start));
         
-        type_start = token_j->start + token_j->size;
-        type_end = token->start;
+        String type_postfix =
+            skip_chop_whitespace(str_start_end(context->data, token_j->start + token_j->size, token->start));
         
-        String type_postfix = make_string(data + type_start, type_end - type_start);
-        type_postfix = skip_chop_whitespace(type_postfix);
-        
-        ++token;
+        set_token(context, token+1);
         result = true;
         
         member->name = name;
@@ -865,28 +896,23 @@ parse_struct_member(Partition *part,
         member->next_sibling = 0;
     }
     
-    *token_ptr = token;
-    
     return(result);
 }
 
 static Item_Node*
-parse_struct_next_member(Partition *part,
-                         char *data, Cpp_Token *tokens, int32_t count,
-                         Cpp_Token **token_ptr){
+struct_parse_next_member(Partition *part, Parse_Context *context){
     Item_Node *result = 0;
     
-    Cpp_Token *token = *token_ptr;
-    int32_t i = (int32_t)(token - tokens);
+    Cpp_Token *token = 0;
     
-    for (; i < count; ++i, ++token){
+    for (; (token = get_token(context)) != 0; get_next_token(context)){
         if (token->type == CPP_TOKEN_IDENTIFIER ||
             (token->flags & CPP_TFLAG_IS_KEYWORD)){
-            String lexeme = make_string(data + token->start, token->size);
+            String lexeme = get_lexeme(*token, context->data);
             
             if (match_ss(lexeme, make_lit_string("struct"))){
                 Item_Node *member = push_struct(part, Item_Node);
-                if (parse_struct(part, true, data, tokens, count, &token, member)){
+                if (struct_parse(part, true, context, member)){
                     result = member;
                     break;
                 }
@@ -896,7 +922,7 @@ parse_struct_next_member(Partition *part,
             }
             else if (match_ss(lexeme, make_lit_string("union"))){
                 Item_Node *member = push_struct(part, Item_Node);
-                if (parse_struct(part, false, data, tokens, count, &token, member)){
+                if (struct_parse(part, false, context, member)){
                     result = member;
                     break;
                 }
@@ -906,7 +932,7 @@ parse_struct_next_member(Partition *part,
             }
             else{
                 Item_Node *member = push_struct(part, Item_Node);
-                if (parse_struct_member(part, data, tokens, count, &token, member)){
+                if (struct_parse_member(part, context, member)){
                     result = member;
                     break;
                 }
@@ -914,54 +940,45 @@ parse_struct_next_member(Partition *part,
                     assert(!"unhandled error");
                 }
             }
+            
         }
         else if (token->type == CPP_TOKEN_BRACE_CLOSE){
             break;
         }
     }
     
-    *token_ptr = token;
-    
     return(result);
 }
 
 static int32_t
-parse_struct(Partition *part, int32_t is_struct,
-             char *data, Cpp_Token *tokens, int32_t count,
-             Cpp_Token **token_ptr,
-             Item_Node *top_member){
+struct_parse(Partition *part, int32_t is_struct, Parse_Context *context, Item_Node *top_member){
     
     int32_t result = false;
     
-    Cpp_Token *token = *token_ptr;
-    int32_t i = (int32_t)(token - tokens);
+    Cpp_Token *start_token = get_token(context);
+    Cpp_Token *token = 0;
     
     String doc_string = {0};
-    get_type_doc_string(data, tokens, token, &doc_string);
+    get_doc_string_from_prev(context, &doc_string);
     
-    int32_t start_i = i;
-    
-    for (; i < count; ++i, ++token){
+    for (; (token = get_token(context)) != 0; get_next_token(context)){
         if (token->type == CPP_TOKEN_BRACE_OPEN){
             break;
         }
     }
     
-    if (i < count){
+    if (token){
         Cpp_Token *token_j = token;
-        int32_t j = i;
         
-        for (; j > start_i; --j, --token_j){
+        for (; (token_j = get_token(context)) > start_token; get_prev_token(context)){
             if (token_j->type == CPP_TOKEN_IDENTIFIER){
                 break;
             }
         }
         
         String name = {0};
-        
-        if (j != start_i){
-            name = make_string(data + token_j->start, token_j->size);
-            name = skip_chop_whitespace(name);
+        if (token_j != start_token){
+            name = skip_chop_whitespace(get_lexeme(*token_j, context->data));
         }
         
         String type = {0};
@@ -972,17 +989,15 @@ parse_struct(Partition *part, int32_t is_struct,
             type = make_lit_string("union");
         }
         
-        ++token;
-        Item_Node *new_member = 
-            parse_struct_next_member(part, data, tokens, count, &token);
+        set_token(context, token+1);
+        Item_Node *new_member = struct_parse_next_member(part, context);
         
         if (new_member){
             top_member->first_child = new_member;
             
             Item_Node *head_member = new_member;
             for(;;){
-                new_member = 
-                    parse_struct_next_member(part, data, tokens, count, &token);
+                new_member = struct_parse_next_member(part, context);
                 if (new_member){
                     head_member->next_sibling = new_member;
                     head_member = new_member;
@@ -993,14 +1008,19 @@ parse_struct(Partition *part, int32_t is_struct,
             }
         }
         
-        i = (int32_t)(token - tokens);
-        for (; i < count; ++i, ++token){
+        for (; (token = get_token(context)) != 0; get_next_token(context)){
             if (token->type == CPP_TOKEN_SEMICOLON){
                 break;
             }
         }
         ++token;
         
+        if (is_struct){
+            top_member->t = Item_Struct;
+        }
+        else{
+            top_member->t = Item_Union;
+        }
         top_member->name = name;
         top_member->type = type;
         top_member->doc_string = doc_string;
@@ -1009,140 +1029,126 @@ parse_struct(Partition *part, int32_t is_struct,
         result = true;
     }
     
-    *token_ptr = token;
-    
     return(result);
 }
 
 static int32_t
-parse_typedef(char *data, Cpp_Token *tokens, int32_t count,
-              Cpp_Token **token_ptr, Item_Set item_set, int32_t item_index){
+typedef_parse(Parse_Context *context, Item_Node *item){
     int32_t result = false;
     
-    Cpp_Token *token = *token_ptr;
-    int32_t i = (int32_t)(token - tokens);
+    Cpp_Token *token = get_token(context);
     String doc_string = {0};
-    get_type_doc_string(data, tokens, token, &doc_string);
+    get_doc_string_from_prev(context, &doc_string);
     
-    int32_t start_i = i;
     Cpp_Token *start_token = token;
     
-    for (; i < count; ++i, ++token){
+    for (; (token = get_token(context)) != 0; get_next_token(context)){
         if (token->type == CPP_TOKEN_SEMICOLON){
             break;
         }
     }
     
-    if (i < count){
+    if (token){
         Cpp_Token *token_j = token;
         
-        for (int32_t j = i; j > start_i; --j, --token_j){
+        for (; (token_j = get_token(context)) > start_token; get_prev_token(context)){
             if (token_j->type == CPP_TOKEN_IDENTIFIER){
                 break;
             }
         }
         
-        String name = make_string(data + token_j->start, token_j->size);
-        name = skip_chop_whitespace(name);
+        String name = get_lexeme(*token_j, context->data);
         
-        int32_t type_start = start_token->start + start_token->size;
-        int32_t type_end = token_j->start;
-        String type = make_string(data + type_start, type_end - type_start);
-        type = skip_chop_whitespace(type);
+        String type = skip_chop_whitespace(
+            str_start_end(context->data, start_token->start + start_token->size, token_j->start)
+            );
         
+        item->t = Item_Typedef;
+        item->type = type;
+        item->name = name;
+        item->doc_string = doc_string;
         result = true;
-        item_set.items[item_index].type = type;
-        item_set.items[item_index].name = name;
-        item_set.items[item_index].doc_string = doc_string;
     }
     
-    *token_ptr = token;
+    set_token(context, token);
     
     return(result);
 }
 
 static int32_t
-parse_enum(Partition *part, char *data,
-           Cpp_Token *tokens, int32_t count,
-           Cpp_Token **token_ptr,
-           Item_Set item_set, int32_t item_index){
+enum_parse(Partition *part, Parse_Context *context, Item_Node *item){
     
     int32_t result = false;
     
-    Cpp_Token *token = *token_ptr;
-    int32_t i = (int32_t)(token - tokens);
-    
     String doc_string = {0};
-    get_type_doc_string(data, tokens, token, &doc_string);
+    get_doc_string_from_prev(context, &doc_string);
     
-    int32_t start_i = i;
+    Cpp_Token *start_token = get_token(context);
+    Cpp_Token *token = 0;
     
-    for (; i < count; ++i, ++token){
+    for (; (token = get_token(context)) != 0; get_next_token(context)){
         if (token->type == CPP_TOKEN_BRACE_OPEN){
             break;
         }
     }
     
-    if (i < count){
-        Cpp_Token *token_j = token;
+    if (token){
+        String name = {0};
+        Cpp_Token *token_j = 0;
         
-        for (int32_t j = i; j > start_i; --j, --token_j){
+        for (; (token_j = get_token(context)) != 0; get_prev_token(context)){
             if (token_j->type == CPP_TOKEN_IDENTIFIER){
                 break;
             }
         }
         
-        String name = make_string(data + token_j->start, token_j->size);
-        name = skip_chop_whitespace(name);
+        name = get_lexeme(*token_j, context->data);
         
-        for (; i < count; ++i, ++token){
+        set_token(context, token);
+        for (; (token = get_token(context)) > start_token; get_next_token(context)){
             if (token->type == CPP_TOKEN_BRACE_OPEN){
                 break;
             }
         }
         
-        if (i < count){
+        if (token){
             Item_Node *first_member = 0;
             Item_Node *head_member = 0;
             
-            for (; i < count; ++i, ++token){
+            for (; (token = get_token(context)) != 0; get_next_token(context)){
                 if (token->type == CPP_TOKEN_BRACE_CLOSE){
                     break;
                 }
                 else if (token->type == CPP_TOKEN_IDENTIFIER){
                     String doc_string = {0};
-                    get_type_doc_string(data, tokens, token, &doc_string);
-                    
-                    String name = make_string(data + token->start, token->size);
-                    name = skip_chop_whitespace(name);
-                    
+                    String name = {0};
                     String value = {0};
+                    get_doc_string_from_prev(context, &doc_string);
                     
-                    ++i;
-                    ++token;
+                    name = get_lexeme(*token, context->data);
                     
-                    if (token->type == CPP_TOKEN_EQ){
-                        Cpp_Token *start_token = token;
-                        
-                        for (; i < count; ++i, ++token){
-                            if (token->type == CPP_TOKEN_COMMA ||
-                                token->type == CPP_TOKEN_BRACE_CLOSE){
-                                break;
+                    token = get_next_token(context);
+                    
+                    if (token){
+                        if (token->type == CPP_TOKEN_EQ){
+                            Cpp_Token *start_token = token;
+                            
+                            for (; (token = get_token(context)) != 0; get_next_token(context)){
+                                if (token->type == CPP_TOKEN_COMMA ||
+                                    token->type == CPP_TOKEN_BRACE_CLOSE){
+                                    break;
+                                }
                             }
+                            
+                            value = skip_chop_whitespace(
+                                str_start_end(context->data, start_token->start + start_token->size, token->start)
+                                );
+                            
+                            get_prev_token(context);
                         }
-                        
-                        int32_t val_start = start_token->start + start_token->size;
-                        int32_t val_end = token->start;
-                        
-                        value = make_string(data + val_start, val_end - val_start);
-                        value = skip_chop_whitespace(value);
-                        
-                        --i;
-                        --token;
-                    }
-                    else{
-                        --i;
-                        --token;
+                        else{
+                            get_prev_token(context);
+                        }
                     }
                     
                     Item_Node *new_member = push_struct(part, Item_Node);
@@ -1162,56 +1168,60 @@ parse_enum(Partition *part, char *data,
                 }
             }
             
-            if (i < count){
-                for (; i < count; ++i, ++token){
+            if ((token = get_token(context)) != 0){
+                for (; (token = get_token(context)) != 0; get_next_token(context)){
                     if (token->type == CPP_TOKEN_BRACE_CLOSE){
                         break;
                     }
                 }
-                ++i;
-                ++token;
+                get_next_token(context);
                 
+                item->t = Item_Enum;
+                item->name = name;
+                item->doc_string = doc_string;
+                item->first_child = first_member;
                 result = true;
-                item_set.items[item_index].name = name;
-                item_set.items[item_index].doc_string = doc_string;
-                item_set.items[item_index].first_child = first_member;
             }
         }
     }
-    
-    *token_ptr = token;
     
     return(result);
 }
 
 static Argument_Breakdown
-allocate_argument_breakdown(int32_t count){
+allocate_argument_breakdown(Partition *part, int32_t count){
     Argument_Breakdown breakdown = {0};
-    int32_t memory_size = sizeof(Argument)*count;
-    breakdown.count = count;
-    breakdown.args = (Argument*)malloc(memory_size);
-    memset(breakdown.args, 0, memory_size);
+    if (count > 0){
+        breakdown.count = count;
+        breakdown.args = push_array(part, Argument, count);
+        memset(breakdown.args, 0, sizeof(Argument)*count);
+    }
     return(breakdown);
 }
 
+/*
+Parse arguments by giving pointers to the tokens:
+foo(a, ... , z)
+   ^          ^
+*/
 static Argument_Breakdown
-parameter_parse(char *data, Cpp_Token *args_start_token, Cpp_Token *token){
+parameter_parse(Partition *part, char *data, Cpp_Token *args_start_token, Cpp_Token *args_end_token){
     int32_t arg_index = 0;
     Cpp_Token *arg_token = args_start_token + 1;
     int32_t param_string_start = arg_token->start;
     
     int32_t arg_count = 1;
     arg_token = args_start_token;
-    for (; arg_token < token; ++arg_token){
+    for (; arg_token < args_end_token; ++arg_token){
         if (arg_token->type == CPP_TOKEN_COMMA){
             ++arg_count;
         }
     }
     
-    Argument_Breakdown breakdown = allocate_argument_breakdown(arg_count);
+    Argument_Breakdown breakdown = allocate_argument_breakdown(part, arg_count);
     
     arg_token = args_start_token + 1;
-    for (; arg_token <= token; ++arg_token){
+    for (; arg_token <= args_end_token; ++arg_token){
         if (arg_token->type == CPP_TOKEN_COMMA ||
             arg_token->type == CPP_TOKEN_PARENTHESE_CLOSE){
             
@@ -1233,34 +1243,37 @@ parameter_parse(char *data, Cpp_Token *args_start_token, Cpp_Token *token){
             
             ++arg_index;
             
-            ++arg_token;
-            if (arg_token <= token){
-                param_string_start = arg_token->start;
+            if (arg_token+1 <= args_end_token){
+                param_string_start = arg_token[1].start;
             }
-            --arg_token;
         }
     }
     
     return(breakdown);
 }
 
+/*
+Moves the context in the following way:
+~~~~~~~ name( ~~~~~~~
+ ^  ->  ^
+*/
 static int32_t
-function_parse_check(int32_t *index, Cpp_Token **token_ptr, int32_t count){
+function_parse_goto_name(Parse_Context *context){
     int32_t result = false;
     
-    int32_t i = *index;
-    Cpp_Token *token = *token_ptr;
+    Cpp_Token *token = 0;
     
     {
-        for (; i < count; ++i, ++token){
+        for (; (token = get_token(context)) != 0; get_next_token(context)){
             if (token->type == CPP_TOKEN_PARENTHESE_OPEN){
                 break;
             }
         }
         
-        if (i < count){
-            --i;
-            --token;
+        if (get_token(context)){
+            do{
+                token = get_prev_token(context);
+            }while(token->type == CPP_TOKEN_COMMENT);
             
             if (token->type == CPP_TOKEN_IDENTIFIER){
                 result = true;
@@ -1268,142 +1281,157 @@ function_parse_check(int32_t *index, Cpp_Token **token_ptr, int32_t count){
         }
     }
     
-    *index = i;
-    *token_ptr = token;
-    
     return(result);
 }
 
+/*
+Moves the context in the following way:
+~~~~~~~ name( ~~~~~~~ /* XXX //
+ ^  --------------->  ^
+*/
 static int32_t
-function_get_doc(int32_t *index, Cpp_Token **token_ptr, int32_t count,
-                    char *data, String *doc_string){
+function_get_doc(Parse_Context *context, char *data, String *doc_string){
     int32_t result = false;
     
-    int32_t i = *index;
-    Cpp_Token *token = *token_ptr;
+    Cpp_Token *token = get_token(context);
+    String lexeme = {0};
     
-    for (; i < count; ++i, ++token){
-        if (token->type == CPP_TOKEN_COMMENT){
-            String lexeme = make_string(data + token->start, token->size);
-            if (check_and_fix_docs(&lexeme)){
-                *doc_string = lexeme;
-                result = true;
-                break;
+    if (function_parse_goto_name(context)){
+        if (token->type == CPP_TOKEN_IDENTIFIER){
+            for (; (token = get_token(context)) != 0; get_next_token(context)){
+                if (token->type == CPP_TOKEN_COMMENT){
+                    lexeme = get_lexeme(*token, data);
+                    if (check_and_fix_docs(&lexeme)){
+                        *doc_string = lexeme;
+                        result = true;
+                        break;
+                    }
+                }
+                else if (token->type == CPP_TOKEN_BRACE_OPEN){
+                    break;
+                }
             }
-        }
-        else if (token->type == CPP_TOKEN_BRACE_OPEN){
-            break;
         }
     }
     
-    *index = i;
-    *token_ptr = token;
-    
     return(result);
 }
 
 static int32_t
-parse_cpp_name(int32_t *i_ptr, Cpp_Token **token_ptr, int32_t count, char *data, String *name){
+cpp_name_parse(Parse_Context *context, String *name){
     int32_t result = false;
     
-    int32_t i = *i_ptr;
-    Cpp_Token *token = *token_ptr;
+    Cpp_Token *token = 0;
+    Cpp_Token *token_start = get_token(context);
     
-    int32_t i_start = i;
-    Cpp_Token *token_start = token;
-    
-    ++i, ++token;
-    if (i < count && token->type == CPP_TOKEN_PARENTHESE_OPEN){
-        ++i, ++token;
-        if (i < count && token->type == CPP_TOKEN_IDENTIFIER){
-            ++i, ++token;
-            if (i < count && token->type == CPP_TOKEN_PARENTHESE_CLOSE){
-                *name = get_lexeme(*(token-1), data);
+    token = get_next_token(context);
+    if (token && token->type == CPP_TOKEN_PARENTHESE_OPEN){
+        token = get_next_token(context);
+        if (token && token->type == CPP_TOKEN_IDENTIFIER){
+            token = get_next_token(context);
+            if (token && token->type == CPP_TOKEN_PARENTHESE_CLOSE){
+                *name = get_lexeme(*(token-1), context->data);
                 result = true;
             }
         }
     }
     
     if (!result){
-        i = i_start;
-        token = token_start;
+        set_token(context, token_start);
     }
-    
-    *i_ptr = i;
-    *token_ptr = token;
     
     return(result);
 }
 
+/*
+Moves the context in the following way:
+ RETTY~ name( ~~~~~~~ )
+ ^  --------------->  ^
+*/
 static int32_t
-function_sig_parse(int32_t *index, Cpp_Token **token_ptr, int32_t count, Cpp_Token *ret_start_token,
-                   char *data, Item_Set item_set, int32_t sig_count, String cpp_name){
+function_sig_parse(Partition *part, Parse_Context *context, Item_Node *item, String cpp_name){
     int32_t result = false;
     
-    int32_t i = *index;
-    Cpp_Token *token = *token_ptr;
+    Cpp_Token *token = 0;
+    Cpp_Token *args_start_token = 0;
+    Cpp_Token *ret_token = get_token(context);
     
-    Cpp_Token *args_start_token = token+1;
-    
-    item_set.items[sig_count].name = get_lexeme(*token, data);
-    
-    int32_t size = token->start - ret_start_token->start;
-    String ret = make_string(data + ret_start_token->start, size);
-    ret = chop_whitespace(ret);
-    item_set.items[sig_count].ret = ret;
-    
-    for (; i < count; ++i, ++token){
-        if (token->type == CPP_TOKEN_PARENTHESE_CLOSE){
-            break;
-        }
-    }
-    
-    if (i < count){
-        int32_t size = token->start + token->size - args_start_token->start;;
-        item_set.items[sig_count].args =
-            make_string(data + args_start_token->start, size);
-        item_set.items[sig_count].t = Item_Function;
-        item_set.items[sig_count].cpp_name = cpp_name;
+    if (function_parse_goto_name(context)){
+        token = get_token(context);
+        args_start_token = token+1;
+        item->name = get_lexeme(*token, context->data);
         
-        Argument_Breakdown *breakdown = &item_set.items[sig_count].breakdown;
-        *breakdown = parameter_parse(data, args_start_token, token);
+        item->ret = chop_whitespace(
+            str_start_end(context->data, ret_token->start, token->start)
+            );
         
-        result = true;
-    }
-    
-    *index = i;
-    *token_ptr = token;
-    
-    return(result);
-}
-
-static int32_t
-function_parse(Parse_Context *context, char *data,
-               Item_Set item_set, int32_t sig_count, String cpp_name){
-    int32_t result = false;
-    
-    Cpp_Token *token = 0, *jtoken = 0;
-    
-    token = get_token(context);
-    item_set.items[sig_count].marker = get_lexeme(*token, data);
-    jtoken = token;
-    
-    if (function_parse_check(get_index(context, jtoken), &jtoken, get_count(context))){
-        if (token->type == CPP_TOKEN_IDENTIFIER){
-            String doc_string = {0};
-            if (function_get_doc(get_index(context, jtoken), &jtoken,
-                                 get_count(context), data, &doc_string)){
-                item_set.items[sig_count].doc_string = doc_string;
+        for (; (token = get_token(context)) != 0; get_next_token(context)){
+            if (token->type == CPP_TOKEN_PARENTHESE_CLOSE){
+                break;
             }
         }
+        
+        if (token){
+            item->args =
+                str_start_end(context->data, args_start_token->start, token->start + token->size);
+            item->t = Item_Function;
+            item->cpp_name = cpp_name;
+            item->breakdown = parameter_parse(part, context->data, args_start_token, token);
+            
+            Assert(get_token(context)->type == CPP_TOKEN_PARENTHESE_CLOSE);
+            result = true;
+        }
     }
     
+    return(result);
+}
+
+/*
+Moves the context in the following way:
+ MARKER ~~~ name( ~~~~~~~ )
+ ^  ------------------->  ^
+*/
+static int32_t
+function_parse(Partition *part, Parse_Context *context, Item_Node *item, String cpp_name){
+    int32_t result = false;
+    
+    String doc_string = {0};
+    Cpp_Token *token = get_token(context);
+    
+    item->marker = get_lexeme(*token, context->data);
+    
+    if (function_get_doc(context, context->data, &doc_string)){
+        item->doc_string = doc_string;
+    }
+    
+    set_token(context, token);
     if (get_next_token(context)){
-        Cpp_Token *ret_start_token = token;
-        if (function_parse_check(get_index(context, token), &token, get_count(context))){
-            if (function_sig_parse(get_index(context, token), &token, get_count(context), ret_start_token,
-                                   data, item_set, sig_count, cpp_name)){
-                result = true;
+        if (function_sig_parse(part, context, item, cpp_name)){
+            Assert(get_token(context)->type == CPP_TOKEN_PARENTHESE_CLOSE);
+            result = true;
+        }
+    }
+    
+    return(result);
+}
+
+/*
+Moves the context in the following way:
+ /* ~~~ // #define
+ ^  ---->  ^
+*/
+static int32_t
+macro_parse_check(Parse_Context *context){
+    int32_t result = false;
+    
+    Cpp_Token *token = 0;
+    
+    if ((token = get_next_token(context)) != 0){
+        if (token->type == CPP_TOKEN_COMMENT){
+            if ((token = get_next_token(context)) != 0){
+                if (token->type == CPP_PP_DEFINE){
+                    result = true;
+                }
             }
         }
     }
@@ -1411,203 +1439,315 @@ function_parse(Parse_Context *context, char *data,
     return(result);
 }
 
+/*
+Moves the context in the following way:
+ /* ~~~ // #define ~~~~~~~~~~~~~~~~~   NOT_IN_MACRO_BODY
+ ^  ---------------------------->  ^
+*/
 static int32_t
-macro_parse_check(int32_t *index, Cpp_Token **token_ptr, int32_t count){
+macro_parse(Partition *part, Parse_Context *context, Item_Node *item){
     int32_t result = false;
     
-    int32_t i = *index;
-    Cpp_Token *token = *token_ptr;
+    Cpp_Token *token = 0;
+    Cpp_Token *doc_token = 0;
+    Cpp_Token *args_start_token = 0;
     
-    {
-        ++i, ++token;
-        if (i < count){
-            if (token->type == CPP_TOKEN_COMMENT){
-                ++i, ++token;
-                if (i < count){
-                    if (token->type == CPP_PP_DEFINE){
-                        result = true;
-                    }
-                }
-            }
-        }
-    }
+    String doc_string = {0};
     
-    *index = i;
-    *token_ptr = token;
-    
-    return(result);
-}
-
-static int32_t
-macro_parse(int32_t *index, Cpp_Token **token_ptr, int32_t count,
-            char *data, Item_Set macro_set, int32_t sig_count){
-    int32_t result = false;
-    
-    int32_t i = *index;
-    Cpp_Token *token = *token_ptr;
-    
-    if (i > 0){
-        Cpp_Token *doc_token = token-1;
-        
-        String doc_string = make_string(data + doc_token->start, doc_token->size);
-        
-        if (check_and_fix_docs(&doc_string)){
-            macro_set.items[sig_count].doc_string = doc_string;
+    if (macro_parse_check(context)){
+        token = get_token(context);
+        if (can_back_step(context)){
+            doc_token = token-1;
             
-            for (; i < count; ++i, ++token){
-                if (token->type == CPP_TOKEN_IDENTIFIER){
-                    break;
-                }
-            }
+            doc_string = get_lexeme(*doc_token, context->data);
             
-            if (i < count && (token->flags & CPP_TFLAG_PP_BODY)){
-                macro_set.items[sig_count].name = make_string(data + token->start, token->size);
+            if (check_and_fix_docs(&doc_string)){
+                item->doc_string = doc_string;
                 
-                ++i, ++token;
-                if (i < count){
-                    Cpp_Token *args_start_token = token;
-                    for (; i < count; ++i, ++token){
-                        if (token->type == CPP_TOKEN_PARENTHESE_CLOSE){
-                            break;
-                        }
+                for (; (token = get_token(context)) != 0; get_next_token(context)){
+                    if (token->type == CPP_TOKEN_IDENTIFIER){
+                        break;
                     }
+                }
+                
+                if (get_token(context) && (token->flags & CPP_TFLAG_PP_BODY)){
+                    item->name = get_lexeme(*token, context->data);
                     
-                    if (i < count){
-                        int32_t start = args_start_token->start;
-                        int32_t end = token->start + token->size;
-                        macro_set.items[sig_count].args = make_string(data + start, end - start);
-                        
-                        Argument_Breakdown *breakdown = &macro_set.items[sig_count].breakdown;
-                        *breakdown = parameter_parse(data, args_start_token, token);
-                        
-                        ++i, ++token;
-                        if (i < count){
-                            Cpp_Token *body_start = token;
-                            
-                            if (body_start->flags & CPP_TFLAG_PP_BODY){
-                                for (; i < count; ++i, ++token){
-                                    if (!(token->flags & CPP_TFLAG_PP_BODY)){
-                                        break;
-                                    }
-                                }
-                                
-                                --i, --token;
-                                
-                                Cpp_Token *body_end = token;
-                                
-                                start = body_start->start;
-                                end = body_end->start + body_end->size;
-                                macro_set.items[sig_count].body = make_string(data + start, end - start);
+                    if ((token = get_next_token(context)) != 0){
+                        args_start_token = token;
+                        for (; (token = get_token(context)) != 0; get_next_token(context)){
+                            if (token->type == CPP_TOKEN_PARENTHESE_CLOSE){
+                                break;
                             }
                         }
                         
-                        macro_set.items[sig_count].t = Item_Macro;
-                        result = true;
+                        if (token){
+                            item->args = str_start_end(context->data, args_start_token->start,
+                                                    token->start + token->size);
+                            
+                            item->breakdown = parameter_parse(part, context->data, args_start_token, token);
+                            
+                            if ((token = get_next_token(context)) != 0){
+                                Cpp_Token *body_start = token;
+                                
+                                if (body_start->flags & CPP_TFLAG_PP_BODY){
+                                    for (; (token = get_token(context)) != 0; get_next_token(context)){
+                                        if (!(token->flags & CPP_TFLAG_PP_BODY)){
+                                            break;
+                                        }
+                                    }
+                                    
+                                    token = get_prev_token(context);
+                                    
+                                    item->body =
+                                        str_start_end(context->data, body_start->start,
+                                                   token->start + token->size);
+                                }
+                            }
+                            
+                            item->t = Item_Macro;
+                            result = true;
+                        }
                     }
                 }
             }
         }
     }
     
-    *index = i;
-    *token_ptr = token;
-    
     return(result);
 }
 
+static Meta_Unit
+compile_meta_unit(Partition *part, char **files, int32_t file_count,
+                  Meta_Keywords *keywords, int32_t key_count){
+    Meta_Unit unit = {0};
+    int32_t i = 0;
+    
+    unit.count = file_count;
+    unit.parse = push_array(part, Parse, file_count);
+    
+    for (i = 0; i < file_count; ++i){
+        unit.parse[i] = meta_lex(files[i]);
+    }
+    
+    // TODO(allen): This stage counts nested structs
+    // and unions which is not correct.  Luckily it only
+    // means we over allocate by a few items, but fixing it
+    // to be exactly correct would be nice.
+    for (int32_t J = 0; J < unit.count; ++J){
+        Cpp_Token *token = 0;
+        Parse_Context context_ = setup_parse_context(unit.parse[J]);
+        Parse_Context *context = &context_;
+        
+        for (; (token = get_token(context)) != 0; get_next_token(context)){
+            if (!(token->flags & CPP_TFLAG_PP_BODY)){
+                
+                String lexeme = get_lexeme(*token, context->data);
+                int32_t match_index = 0;
+                if (string_set_match_table(keywords, sizeof(*keywords), key_count, lexeme, &match_index)){
+                    Item_Type type = keywords[match_index].type;
+                    
+                    if (type > Item_Null && type < Item_Type_Count){
+                        ++unit.set.count;
+                    }
+                    else{
+                        // TODO(allen): Convert this to a duff's routine and return
+                        // this result to the user so that they may do whatever it
+                        // is they want to do.
+                    }
+                }
+            }
+        }
+    }
+    
+    if (unit.set.count >  0){
+        unit.set = allocate_item_set(part, unit.set.count);
+    }
+    
+    int32_t index = 0;
+    
+    for (int32_t J = 0; J < unit.count; ++J){
+        Cpp_Token *token = 0;
+        Parse_Context context_ = setup_parse_context(unit.parse[J]);
+        Parse_Context *context = &context_;
+        
+        String cpp_name = {0};
+        int32_t has_cpp_name = 0;
+        
+        for (; (token = get_token(context)) != 0; get_next_token(context)){
+            if (!(token->flags & CPP_TFLAG_PP_BODY)){
+                
+                String lexeme = get_lexeme(*token, context->data);
+                int32_t match_index = 0;
+                if (string_set_match_table(keywords, sizeof(*keywords), key_count, lexeme, &match_index)){
+                    Item_Type type = keywords[match_index].type;
+                    
+                    switch (type){
+                        case Item_Function:
+                        {
+                            if (function_parse(part, context, unit.set.items + index, cpp_name)){
+                                Assert(unit.set.items[index].t == Item_Function);
+                                ++index;
+                            }
+                            else{
+                                fprintf(stderr, "warning: invalid function signature\n");
+                            }
+                        }break;
+                        
+                        case Item_CppName:
+                        {
+                            if (cpp_name_parse(context, &cpp_name)){
+                                has_cpp_name = 1;
+                            }
+                            else{
+                                // TODO(allen): warning message
+                            }
+                        }break;
+                        
+                        case Item_Macro:
+                        {
+                            if (macro_parse(part, context, unit.set.items + index)){
+                                Assert(unit.set.items[index].t == Item_Macro);
+                                ++index;
+                            }
+                            else{
+                                // TODO(allen): warning message
+                            }
+                        }break;
+                        
+                        case Item_Typedef: //typedef
+                        {
+                            if (typedef_parse(context, unit.set.items + index)){
+                                Assert(unit.set.items[index].t == Item_Typedef);
+                                ++index;
+                            }
+                            else{
+                                // TODO(allen): warning message
+                            }
+                        }break;
+                        
+                        case Item_Struct: case Item_Union: //struct/union
+                        {
+                            if (struct_parse(part, (type == Item_Struct), context, unit.set.items + index)){
+                                Assert(unit.set.items[index].t == Item_Struct ||
+                                       unit.set.items[index].t == Item_Union);
+                                ++index;
+                            }
+                            else{
+                                // TODO(allen): warning message
+                            }
+                        }break;
+                        
+                        case Item_Enum: //ENUM
+                        {
+                            if (enum_parse(part, context, unit.set.items + index)){
+                                Assert(unit.set.items[index].t == Item_Enum);
+                                ++index;
+                            }
+                            else{
+                                // TODO(allen): warning message
+                            }
+                        }break;
+                        
+                    }
+                }
+            }
+            
+            if (has_cpp_name){
+                has_cpp_name = 0;
+            }
+            else{
+                cpp_name = null_string;
+            }
+            
+            unit.parse[J].item_count = index;
+        }
+        
+        // NOTE(allen): This is necessary for now because
+        // the original count is slightly overestimated thanks
+        // to nested structs and unions.
+        unit.set.count = index;
+    }
+    
+    return(unit);
+}
+
 static void
-print_struct_html(FILE *file, Item_Node *member){
+print_struct_html(String *out, Item_Node *member){
     String name = member->name;
     String type = member->type;
     String type_postfix = member->type_postfix;
     
+    append_ss     (out, type);
+    append_s_char (out, ' ');
+    append_ss     (out, name);
+    append_ss     (out, type_postfix);
+    
     if (match_ss(type, make_lit_string("struct")) ||
         match_ss(type, make_lit_string("union"))){
-        fprintf(file,
-                "%.*s %.*s {<br>\n"
-                "<div style='margin-left: 8mm;'>\n",
-                type.size, type.str,
-                name.size, name.str);
+        append_sc(out, " {<br><div style='margin-left: 8mm;'>");
         
         for (Item_Node *member_iter = member->first_child;
              member_iter != 0;
              member_iter = member_iter->next_sibling){
-            print_struct_html(file, member_iter);
+            print_struct_html(out, member_iter);
         }
         
-        fprintf(file,
-                "</div>\n"
-                "};<br>\n");
+        append_sc(out, "</div>};<br>");
     }
     else{
-        fprintf(file,
-                "%.*s %.*s%.*s;<br>\n",
-                type.size, type.str,
-                name.size, name.str,
-                type_postfix.size, type_postfix.str
-                );
+        append_sc(out, ";<br>");
     }
 }
 
 static void
-print_function_html(FILE *file, Item_Node item, String name,
-                    char *function_call_head){
-    String ret = item.ret;
-    fprintf(file,
-            "%.*s %s%.*s(\n"
-            "<div style='margin-left: 4mm;'>",
-            ret.size, ret.str,
-            function_call_head,
-            name.size, name.str);
+print_function_html(String *out, String ret, char *function_call_head, String name, Argument_Breakdown breakdown){
+    append_ss     (out, ret);
+    append_s_char (out, ' ');
+    append_sc     (out, function_call_head);
+    append_ss     (out, name);
+    append_sc     (out, "(<div style='margin-left: 4mm;'>");
     
-    Argument_Breakdown breakdown = item.breakdown;
-    int32_t arg_count = breakdown.count;
-    for (int32_t j = 0; j < arg_count; ++j){
-        String param_string = breakdown.args[j].param_string;
-        if (j < arg_count - 1){
-            fprintf(file, "%.*s,<br>", param_string.size, param_string.str);
+    for (int32_t j = 0; j < breakdown.count; ++j){
+        append_ss(out, breakdown.args[j].param_string);
+        if (j < breakdown.count - 1){
+            append_s_char(out, ',');
         }
-        else{
-            fprintf(file, "%.*s<br>", param_string.size, param_string.str);
-        }
+        append_sc(out, "<br>");
     }
     
-    fprintf(file, "</div>)\n");
+    append_sc(out, "</div>)");
 }
 
 static void
-print_macro_html(FILE *file, Item_Node item, String name){
-    Argument_Breakdown breakdown = item.breakdown;
-    int32_t arg_count = breakdown.count;
-    if (arg_count == 0){
-        fprintf(file,
-                "#define %.*s()",
-                name.size, name.str);
+print_macro_html(String *out, String name, Argument_Breakdown breakdown){
+    
+    if (breakdown.count == 0){
+        append_sc(out, "#define ");
+        append_ss(out, name);
+        append_sc(out, "()");
     }
-    else if (arg_count == 1){
-        String param_string = breakdown.args[0].param_string;
-        fprintf(file,
-                "#define %.*s(%.*s)",
-                name.size, name.str,
-                param_string.size, param_string.str);
+    else if (breakdown.count == 1){
+        append_sc      (out, "#define ");
+        append_ss      (out, name);
+        append_s_char  (out, '(');
+        append_ss      (out, breakdown.args[0].param_string);
+        append_s_char  (out, ')');
     }
     else{
-        fprintf(file,
-                "#define %.*s(\n"
-                "<div style='margin-left: 4mm;'>",
-                name.size, name.str);
+        append_sc (out, "#define ");
+        append_ss (out, name);
+        append_sc (out, "(<div style='margin-left: 4mm;'>");
         
-        for (int32_t j = 0; j < arg_count; ++j){
-            String param_string = breakdown.args[j].param_string;
-            if (j < arg_count - 1){
-                fprintf(file, "%.*s,<br>", param_string.size, param_string.str);
+        for (int32_t j = 0; j < breakdown.count; ++j){
+            append_ss(out, breakdown.args[j].param_string);
+            if (j < breakdown.count - 1){
+                append_s_char(out, ',');
             }
-            else{
-                fprintf(file, "%.*s<br>", param_string.size, param_string.str);
-            }
+            append_sc(out, "<br>");
         }
         
-        fprintf(file, "</div>)\n");
+        append_sc(out, ")</div>)");
     }
 }
 
@@ -1642,28 +1782,47 @@ print_macro_html(FILE *file, Item_Node item, String name){
 #define DOC_ITEM_CLOSE "</div>"
 
 static void
-print_struct_docs(FILE *file, Partition *part, Item_Node *member){
+print_struct_docs(String *out, Partition *part, Item_Node *member){
     for (Item_Node *member_iter = member->first_child;
          member_iter != 0;
          member_iter = member_iter->next_sibling){
         String type = member_iter->type;
         if (match_ss(type, make_lit_string("struct")) ||
             match_ss(type, make_lit_string("union"))){
-            print_struct_docs(file, part, member_iter);
+            print_struct_docs(out, part, member_iter);
         }
         else{
             Documentation doc = {0};
             perform_doc_parse(part, member_iter->doc_string, &doc);
             
-            fprintf(file,
-                    "<div>\n"
-                    "<div style='"CODE_STYLE"'>"DOC_ITEM_HEAD_INL_OPEN
-                    "%.*s"DOC_ITEM_HEAD_INL_CLOSE"</div>\n"
-                    "<div style='margin-bottom: 6mm;'>"DOC_ITEM_OPEN"%.*s"DOC_ITEM_CLOSE"</div>\n"
-                    "</div>\n",
-                    member_iter->name.size, member_iter->name.str,
-                    doc.main_doc.size, doc.main_doc.str
-                    );
+            append_sc(out, "<div>");
+            
+            append_sc(out, "<div style='"CODE_STYLE"'>"DOC_ITEM_HEAD_INL_OPEN);
+            append_ss(out, member_iter->name);
+            append_sc(out, DOC_ITEM_HEAD_INL_CLOSE"</div>");
+            
+            append_sc(out, "<div style='margin-bottom: 6mm;'>"DOC_ITEM_OPEN);
+            append_ss(out, doc.main_doc);
+            append_sc(out, DOC_ITEM_CLOSE"</div>");
+            
+            append_sc(out, "</div>");
+        }
+    }
+}
+
+static void
+print_see_also(String *out, Documentation *doc){
+    int32_t doc_see_count = doc->see_also_count;
+    if (doc_see_count > 0){
+        append_sc(out, DOC_HEAD_OPEN"See Also"DOC_HEAD_CLOSE);
+        
+        for (int32_t j = 0; j < doc_see_count; ++j){
+            String see_also = doc->see_also[j];
+            append_sc(out, DOC_ITEM_OPEN"<a href='#");
+            append_ss(out, see_also);
+            append_sc(out, "_doc'>");
+            append_ss(out, see_also);
+            append_sc(out, "</a>"DOC_ITEM_CLOSE);
         }
     }
 }
@@ -1685,39 +1844,6 @@ print_see_also(FILE *file, Documentation *doc){
     }
 }
 
-typedef struct String_Function_Marker{
-    int32_t parse_function;
-    int32_t is_inline;
-    int32_t parse_doc;
-    int32_t cpp_name;
-} String_Function_Marker;
-
-static String_Function_Marker
-string_function_marker_check(String lexeme){
-    String_Function_Marker result = {0};
-    
-    if (match_ss(lexeme, make_lit_string("FSTRING_INLINE"))){
-        result.is_inline = true;
-        result.parse_function = true;
-    }
-    else if (match_ss(lexeme, make_lit_string("FSTRING_LINK"))){
-        result.parse_function = true;
-    }
-    else if (match_ss(lexeme, make_lit_string("DOC_EXPORT"))){
-        result.parse_doc = true;
-    }
-    else if (match_ss(lexeme, make_lit_string("CPP_NAME"))){
-        result.cpp_name = true;
-    }
-    
-    return(result);
-}
-
-static String
-get_string(char *data, int32_t start, int32_t end){
-    return(make_string(data + start, end - start));
-}
-
 static void
 print_str(FILE *file, String str){
     if (str.size > 0){
@@ -1726,28 +1852,26 @@ print_str(FILE *file, String str){
 }
 
 static void
-print_function_body_code(FILE *file, int32_t *index, Cpp_Token **token_ptr, int32_t count, String *code,
-                         int32_t start){
-    int32_t i = *index;
-    Cpp_Token *token = *token_ptr;
+print_function_body_code(String *out, Parse_Context *context, int32_t start){
+    String pstr = {0}, lexeme = {0};
+    Cpp_Token *token = 0;
     
-    String pstr = {0};
-    
+    int32_t do_print = 0;
     int32_t nest_level = 0;
     int32_t finish = false;
     int32_t do_whitespace_print = false;
-    for (; i < count; ++i, ++token){
+    for (; (token = get_token(context)) != 0; get_next_token(context)){
         if (do_whitespace_print){
-            pstr = get_string(code->str, start, token->start);
-            print_str(file, pstr);
+            pstr = str_start_end(context->data, start, token->start);
+            append_ss(out, pstr);
         }
         else{
             do_whitespace_print = true;
         }
         
-        int32_t do_print = true;
+        do_print = true;
         if (token->type == CPP_TOKEN_COMMENT){
-            String lexeme = make_string(code->str + token->start, token->size);
+            lexeme = get_lexeme(*token, context->data);
             if (check_and_fix_docs(&lexeme)){
                 do_print = false;
             }
@@ -1762,77 +1886,263 @@ print_function_body_code(FILE *file, int32_t *index, Cpp_Token **token_ptr, int3
             }
         }
         
-        if (i < count){
-            if (do_print){
-                pstr = make_string(code->str + token->start, token->size);
-                print_str(file, pstr);
-            }
-            
-            start = token->start + token->size;
+        if (do_print){
+            pstr = get_lexeme(*token, context->data);
+            append_ss(out, pstr);
         }
+        
+        start = token->start + token->size;
         
         if (finish){
             break;
         }
     }
-    
-    *index = i;
-    *token_ptr = token;
 }
 
 static void
-print_function_docs(FILE *file, Partition *part, String name, String doc_string){
+print_function_docs(String *out, Partition *part, String name, String doc_string){
     if (doc_string.size == 0){
-        fprintf(file, "No documentation generated for this function, assume it is non-public.\n");
+        append_sc(out, "No documentation generated for this function.");
         fprintf(stderr, "warning: no documentation string for %.*s\n", name.size, name.str);
     }
     
-    Documentation doc_ = {0};
-    Documentation *doc = &doc_;
+    Temp_Memory temp = begin_temp_memory(part);
     
-    perform_doc_parse(part, doc_string, doc);
+    Documentation doc = {0};
     
-    int32_t doc_param_count = doc->param_count;
+    perform_doc_parse(part, doc_string, &doc);
+    
+    int32_t doc_param_count = doc.param_count;
     if (doc_param_count > 0){
-        fprintf(file, DOC_HEAD_OPEN"Parameters"DOC_HEAD_CLOSE);
+        append_sc(out, DOC_HEAD_OPEN"Parameters"DOC_HEAD_CLOSE);
         
         for (int32_t j = 0; j < doc_param_count; ++j){
-            String param_name = doc->param_name[j];
-            String param_docs = doc->param_docs[j];
+            String param_name = doc.param_name[j];
+            String param_docs = doc.param_docs[j];
             
             // TODO(allen): check that param_name is actually
             // a parameter to this function!
             
-            fprintf(file,
-                    "<div>\n"
-                    DOC_ITEM_HEAD_OPEN"%.*s"DOC_ITEM_HEAD_CLOSE"\n"
-                    "<div style='margin-bottom: 6mm;'>"DOC_ITEM_OPEN"%.*s"DOC_ITEM_CLOSE"</div>\n"
-                    "</div>\n",
-                    param_name.size, param_name.str,
-                    param_docs.size, param_docs.str
-                    );
+            append_sc(out, "<div>"DOC_ITEM_HEAD_OPEN);
+            append_ss(out, param_name);
+            append_sc(out, DOC_ITEM_HEAD_CLOSE"<div style='margin-bottom: 6mm;'>"DOC_ITEM_OPEN);
+            append_ss(out, param_docs);
+            append_sc(out, DOC_ITEM_CLOSE"</div></div>");
         }
     }
     
-    String ret_doc = doc->return_doc;
+    String ret_doc = doc.return_doc;
     if (ret_doc.size != 0){
-        fprintf(file, DOC_HEAD_OPEN"Return"DOC_HEAD_CLOSE);
-        fprintf(file,
-                DOC_ITEM_OPEN"%.*s"DOC_ITEM_CLOSE,
-                ret_doc.size, ret_doc.str
-                );
+        append_sc(out, DOC_HEAD_OPEN"Return"DOC_HEAD_CLOSE DOC_ITEM_OPEN);
+        append_ss(out, ret_doc);
+        append_sc(out, DOC_ITEM_CLOSE);
     }
     
-    String main_doc = doc->main_doc;
+    String main_doc = doc.main_doc;
     if (main_doc.size != 0){
-        fprintf(file, DOC_HEAD_OPEN"Description"DOC_HEAD_CLOSE);
-        fprintf(file,
-                DOC_ITEM_OPEN"%.*s"DOC_ITEM_CLOSE,
-                main_doc.size, main_doc.str
-                );
+        append_sc(out, DOC_HEAD_OPEN"Description"DOC_HEAD_CLOSE DOC_ITEM_OPEN);
+        append_ss(out, main_doc);
+        append_sc(out, DOC_ITEM_CLOSE);
     }
     
-    print_see_also(file, doc);
+    print_see_also(out, &doc);
+    
+    end_temp_memory(temp);
+}
+
+static void
+print_item_in_list(String *out, String name, char *id_postfix){
+    append_sc(out, "<li><a href='#");
+    append_ss(out, name);
+    append_sc(out, id_postfix);
+    append_sc(out, "'>");
+    append_ss(out, name);
+    append_sc(out, "</a></li>");
+}
+
+static void
+print_item(String *out, Partition *part, Item_Node *item,
+           char *id_postfix, char *function_prefix,
+           char *section, int32_t I){
+    Temp_Memory temp = begin_temp_memory(part);
+    
+    String name = item->name;
+    /* NOTE(allen):
+    Open a div for the whole item.
+    Put a heading in it with the name and section.
+    Open a "descriptive" box for the display of the code interface.
+    */
+    append_sc(out, "<div id='");
+    append_ss(out, name);
+    append_sc(out, id_postfix);
+    append_sc(out, "' style='margin-bottom: 1cm;'>");
+    
+    append_sc         (out, "<h4>&sect;");
+    append_sc         (out, section);
+    append_s_char     (out, '.');
+    append_int_to_str (out, I);
+    append_sc         (out, ": ");
+    append_ss         (out, name);
+    append_sc         (out, "</h4>");
+    
+    append_sc(out, "<div style='"CODE_STYLE" "DESCRIPT_SECTION_STYLE"'>");
+    
+    switch (item->t){
+        case Item_Function:
+        {
+            // NOTE(allen): Code box
+            Assert(function_prefix != 0);
+            print_function_html(out, item->ret, function_prefix, item->name, item->breakdown);
+            
+            // NOTE(allen): Close the code box
+            append_sc(out, "</div>");
+            
+            // NOTE(allen): Descriptive section
+            print_function_docs(out, part, item->name, item->doc_string);
+        }break;
+        
+        case Item_Macro:
+        {
+            // NOTE(allen): Code box
+            print_macro_html(out, item->name, item->breakdown);
+            
+            // NOTE(allen): Close the code box
+            append_sc(out, "</div>");
+            
+            // NOTE(allen): Descriptive section
+            print_function_docs(out, part, item->name, item->doc_string);
+        }break;
+        
+        case Item_Typedef:
+        {
+            String type = item->type;
+            
+            // NOTE(allen): Code box
+            append_sc     (out, "typedef ");
+            append_ss     (out, type);
+            append_s_char (out, ' ');
+            append_ss     (out, name);
+            append_s_char (out, ';');
+            
+            // NOTE(allen): Close the code box
+            append_sc(out, "</div>");
+            
+            // NOTE(allen): Descriptive section
+            String doc_string = item->doc_string;
+            Documentation doc = {0};
+            perform_doc_parse(part, doc_string, &doc);
+            
+            String main_doc = doc.main_doc;
+            if (main_doc.size != 0){
+                append_sc(out, DOC_HEAD_OPEN"Description"DOC_HEAD_CLOSE);
+                
+                append_sc(out, DOC_ITEM_OPEN);
+                append_ss(out, main_doc);
+                append_sc(out, DOC_ITEM_CLOSE);
+            }
+            
+            print_see_also(out, &doc);
+            
+        }break;
+        
+        case Item_Enum:
+        {
+            // NOTE(allen): Code box
+            append_sc     (out, "enum ");
+            append_ss     (out, name);
+            append_s_char (out, ';');
+            
+            // NOTE(allen): Close the code box
+            append_sc(out, "</div>");
+            
+            // NOTE(allen): Descriptive section
+            String doc_string = item->doc_string;
+            Documentation doc = {0};
+            perform_doc_parse(part, doc_string, &doc);
+            
+            String main_doc = doc.main_doc;
+            if (main_doc.size != 0){
+                append_sc(out, DOC_HEAD_OPEN"Description"DOC_HEAD_CLOSE);
+                
+                append_sc(out, DOC_ITEM_OPEN);
+                append_ss(out, main_doc);
+                append_sc(out, DOC_ITEM_CLOSE);
+            }
+            
+            if (item->first_child){
+                append_sc(out, DOC_HEAD_OPEN"Values"DOC_HEAD_CLOSE);
+                
+                for (Item_Node *member = item->first_child;
+                     member;
+                     member = member->next_sibling){
+                    Documentation doc = {0};
+                    perform_doc_parse(part, member->doc_string, &doc);
+                    
+                    append_sc(out, "<div>");
+                    
+                    // NOTE(allen): Dafuq is this all?
+                    append_sc(out, "<div><span style='"CODE_STYLE"'>"DOC_ITEM_HEAD_INL_OPEN);
+                    append_ss(out, member->name);
+                    append_sc(out, DOC_ITEM_HEAD_INL_CLOSE);
+                    
+                    if (member->value.str){
+                        append_sc(out, " = ");
+                        append_ss(out, member->value);
+                    }
+                    
+                    append_sc(out, "</span></div>");
+                    
+                    append_sc(out, "<div style='margin-bottom: 6mm;'>"DOC_ITEM_OPEN);
+                    append_ss(out, doc.main_doc);
+                    append_sc(out, DOC_ITEM_CLOSE"</div>");
+                    
+                    append_sc(out, "</div>");
+                }
+            }
+            
+            print_see_also(out, &doc);
+            
+        }break;
+        
+        case Item_Struct: case Item_Union:
+        {
+            Item_Node *member = item;
+            
+            // NOTE(allen): Code box
+            print_struct_html(out, member);
+            
+            // NOTE(allen): Close the code box
+            append_sc(out, "</div>");
+            
+            // NOTE(allen): Descriptive section
+            {
+                String doc_string = member->doc_string;
+                Documentation doc = {0};
+                perform_doc_parse(part, doc_string, &doc);
+                
+                String main_doc = doc.main_doc;
+                if (main_doc.size != 0){
+                    append_sc(out, DOC_HEAD_OPEN"Description"DOC_HEAD_CLOSE);
+                    
+                    append_sc(out, DOC_ITEM_OPEN);
+                    append_ss(out, main_doc);
+                    append_sc(out, DOC_ITEM_CLOSE);
+                }
+                
+                if (member->first_child){
+                    append_sc(out, DOC_HEAD_OPEN"Fields"DOC_HEAD_CLOSE);
+                    print_struct_docs(out, part, member);
+                }
+                
+                print_see_also(out, &doc);
+            }
+        }break;
+    }
+    
+    // NOTE(allen): Close the item box
+    append_sc(out, "</div><hr>");
+    
+    end_temp_memory(temp);
 }
 
 typedef struct App_API_Name{
@@ -1845,11 +2155,10 @@ typedef struct App_API{
 } App_API;
 
 static App_API
-allocate_app_api(int32_t count){
+allocate_app_api(Partition *part, int32_t count){
     App_API app_api = {0};
-    int32_t memory_size = sizeof(App_API_Name)*count;
-    app_api.names = (App_API_Name*)malloc(memory_size);
-    memset(app_api.names, 0, memory_size);
+    app_api.names = push_array(part, App_API_Name, count);
+    memset(app_api.names, 0, sizeof(App_API_Name)*count);
     return(app_api);
 }
 
@@ -1867,752 +2176,430 @@ generate_custom_headers(){
     Partition part_ = make_part(mem, size);
     Partition *part = &part_;
     
-    Parse string_parse = meta_parse("internal_4coder_string.cpp");
     
-    int32_t string_function_count = 0;
+    // NOTE(allen): Parse the internal string file.
+    static char *string_files[] = {
+        "internal_4coder_string.cpp"
+    };
     
-    {
-        char *data = string_parse.code.str;
-        
-        int32_t count = string_parse.tokens.count;
-        Cpp_Token *tokens = string_parse.tokens.tokens;
-        Cpp_Token *token = tokens;
-        
-        for (int32_t i = 0; i < count; ++i, ++token){
-            if (token->type == CPP_TOKEN_IDENTIFIER &&
-                !(token->flags & CPP_TFLAG_PP_BODY)){
-                String lexeme = make_string(data + token->start, token->size);
-                
-                String_Function_Marker marker =
-                    string_function_marker_check(lexeme);
-                
-                if (marker.parse_function){
-                    if (function_parse_check(&i, &token, count)){
-                        ++string_function_count;
-                    }
-                }
-                else if (marker.parse_doc){
-                    if (macro_parse_check(&i, &token, count)){
-                        ++string_function_count;
-                    }
-                }
-            }
-        }
-    }
+    static Meta_Keywords string_keys[] = {
+        {make_lit_string("FSTRING_INLINE") , Item_Function } ,
+        {make_lit_string("FSTRING_LINK")   , Item_Function } ,
+        {make_lit_string("DOC_EXPORT")     , Item_Macro    } ,
+        {make_lit_string("CPP_NAME")       , Item_CppName  } ,
+    };
     
-    Item_Set string_function_set = allocate_item_set(part, string_function_count);
-    int32_t string_sig_count = 0;
+    Meta_Unit string_unit = compile_meta_unit(part, string_files, ArrayCount(string_files),
+                                              string_keys, ArrayCount(string_keys));
     
-    {
-        String *code = &string_parse.code;
-        Cpp_Token_Stack *token_stack = &string_parse.tokens;
-        
-        char *data = code->str;
-        
-        int32_t count = token_stack->count;
-        Cpp_Token *tokens = token_stack->tokens;
-        Cpp_Token *token = tokens;
-        
-        Parse_Context context_ = setup_parse_context(*token_stack);
-        Parse_Context *context = &context_;
-        
-        String cpp_name = {0};
-        int32_t has_cpp_name = 0;
-        
-        for (int32_t i = 0; i < count; ++i, ++token){
-            if (token->type == CPP_TOKEN_IDENTIFIER &&
-                !(token->flags & CPP_TFLAG_PP_BODY)){
-                String lexeme = make_string(data + token->start, token->size);
-                
-                String_Function_Marker marker =
-                    string_function_marker_check(lexeme);
-                
-                if (marker.cpp_name){
-                    if (parse_cpp_name(&i, &token, count, data, &cpp_name)){
-                        has_cpp_name = 1;
-                    }
-                }
-                else if (marker.parse_function){
-                    set_token(context, token);
-                    if (function_parse(context, data,
-                                       string_function_set, string_sig_count,
-                                       cpp_name)){
-                        ++string_sig_count;
-                    }
-                }
-                else if (marker.parse_doc){
-                    if (macro_parse_check(&i, &token, count)){
-                        macro_parse(&i, &token, count, data,
-                                    string_function_set, string_sig_count);
-                        ++string_sig_count;
-                    }
-                }
-                
-                if (has_cpp_name){
-                    has_cpp_name = 0;
-                }
-                else{
-                    cpp_name = string_zero();
-                }
-            }
-        }
-    }
     
-    //
-    // App API parsing
-    //
+    // NOTE(allen): Parse the customization API files
+    static char *functions_files[] = {
+        "4ed_api_implementation.cpp",
+        "win32_api_impl.cpp"
+    };
     
-    Parse parses[2];
-    parses[0] = meta_parse("4ed_api_implementation.cpp");
-    parses[1] = meta_parse("win32_api_impl.cpp");
+    static Meta_Keywords functions_keys[] = {
+        {make_lit_string("API_EXPORT"), Item_Function},
+    };
     
-    int32_t line_count = 0;
+    Meta_Unit unit_custom = compile_meta_unit(part, functions_files, ArrayCount(functions_files),
+                                              functions_keys, ArrayCount(functions_keys));
     
-    for (int32_t J = 0; J < 2; ++J){
-        Parse *parse = &parses[J];
-        
-        char *data = parse->code.str;
-        
-        int32_t count = parse->tokens.count;
-        Cpp_Token *tokens = parse->tokens.tokens;
-        Cpp_Token *token = tokens;
-        
-        for (int32_t i = 0; i < count; ++i, ++token){
-            if (token->type == CPP_TOKEN_IDENTIFIER &&
-                !(token->flags & CPP_TFLAG_PP_BODY)){
-                String lexeme = make_string(data + token->start, token->size);
-                if (match_ss(lexeme, make_lit_string("API_EXPORT"))){
-                    if (function_parse_check(&i, &token, count)){
-                        ++line_count;
-                    }
-                }
-            }
-        }
-    }
     
-    Item_Set function_set = allocate_item_set(part, line_count);
-    App_API func_4ed_names = allocate_app_api(line_count);
-    int32_t sig_count = 0;
-    int32_t sig_count_per_file[2];
+    // NOTE(allen): Compute and store variations of the function names
+    App_API func_4ed_names = allocate_app_api(part, unit_custom.set.count);
     
-    for (int32_t J = 0; J < 2; ++J){
-        Parse *parse = &parses[J];
-        
-        char *data = parse->code.str;
-        
-        int32_t count = parse->tokens.count;
-        Cpp_Token *tokens = parse->tokens.tokens;
-        
-        Parse_Context context_ = setup_parse_context(parse->tokens);
-        Parse_Context *context = &context_;
-        
-        // NOTE(allen): Header Parse
-        Cpp_Token *token = tokens;
-        for (int32_t i = 0; i < count; ++i, ++token){
-            if (token->type == CPP_TOKEN_IDENTIFIER &&
-                !(token->flags & CPP_TFLAG_PP_BODY)){
-                String lexeme = make_string(data + token->start, token->size);
-                if (match_ss(lexeme, make_lit_string("API_EXPORT"))){
-                    set_token(context, token);
-                    function_parse(context, data, function_set,
-                                   sig_count, string_zero());
-                    if (function_set.items[sig_count].t == Item_Null){
-                        function_set.items[sig_count] = null_item_node;
-                        // TODO(allen): get warning file name and line numbers
-                        fprintf(stderr, "generator warning : invalid function signature\n");
-                    }
-                    ++sig_count;
-                }
-            }
-        }
-        
-        ++sig_count_per_file[J] = sig_count;
-    }
-    
-    for (int32_t i = 0; i < sig_count; ++i){
-        String name_string = function_set.items[i].name;
+    for (int32_t i = 0; i < unit_custom.set.count; ++i){
+        String name_string = unit_custom.set.items[i].name;
         String *macro = &func_4ed_names.names[i].macro;
         String *public_name = &func_4ed_names.names[i].public_name;
         
-        macro->size = 0;
-        macro->memory_size = name_string.size+4;
-        
-        macro->str = (char*)malloc(macro->memory_size);
-        copy_ss(macro, name_string);
-        to_upper_s(macro);
+        *macro = str_alloc(part, name_string.size+4);
+        to_upper_ss(macro, name_string);
         append_ss(macro, make_lit_string("_SIG"));
         
+        *public_name = str_alloc(part, name_string.size);
+        to_lower_ss(public_name, name_string);
         
-        public_name->size = 0;
-        public_name->memory_size = name_string.size;
-        
-        public_name->str = (char*)malloc(public_name->memory_size);
-        copy_ss(public_name, name_string);
-        to_lower_s(public_name);
+        partition_align(part, 4);
     }
     
-    // NOTE(allen): Header
-    FILE *file = fopen(OS_API_H, "wb");
     
-    int32_t main_api_count = sig_count_per_file[0];
-    for (int32_t i = main_api_count; i < sig_count; ++i){
-        String ret_string   = function_set.items[i].ret;
-        String args_string  = function_set.items[i].args;
-        String macro_string = func_4ed_names.names[i].macro;
-        
-        fprintf(file, "#define %.*s(n) %.*s n%.*s\n",
-                macro_string.size, macro_string.str,
-                ret_string.size, ret_string.str,
-                args_string.size, args_string.str);
-    }
+    // NOTE(allen): Parse the customization API types
+    static char *type_files[] = {
+        "4coder_types.h",
+        "4coder_lexer_types.h",
+    };
     
-    for (int32_t i = main_api_count; i < sig_count; ++i){
-        String name_string  = function_set.items[i].name;
-        String macro_string = func_4ed_names.names[i].macro;
-        
-        fprintf(file, "typedef %.*s(%.*s_Function);\n",
-                macro_string.size, macro_string.str,
-                name_string.size, name_string.str);
-    }
+    static Meta_Keywords type_keys[] = {
+        {make_lit_string("typedef") , Item_Typedef } ,
+        {make_lit_string("struct")  , Item_Struct  } ,
+        {make_lit_string("union")   , Item_Union   } ,
+        {make_lit_string("ENUM")    , Item_Enum    } ,
+    };
     
-    fclose(file);
+    Meta_Unit unit = compile_meta_unit(part, type_files, ArrayCount(type_files),
+                                       type_keys, ArrayCount(type_keys));
     
-    file = fopen(API_H, "wb");
     
-    for (int32_t i = 0; i < sig_count; ++i){
-        String ret_string   = function_set.items[i].ret;
-        String args_string  = function_set.items[i].args;
-        String macro_string = func_4ed_names.names[i].macro;
-        
-        fprintf(file, "#define %.*s(n) %.*s n%.*s\n",
-                macro_string.size, macro_string.str,
-                ret_string.size, ret_string.str,
-                args_string.size, args_string.str);
-    }
+    // NOTE(allen): Output
+    String out = str_alloc(part, 10 << 20);
+    Out_Context context = {0};
     
-    for (int32_t i = 0; i < sig_count; ++i){
-        String name_string  = function_set.items[i].name;
-        String macro_string = func_4ed_names.names[i].macro;
-        
-        fprintf(file, "typedef %.*s(%.*s_Function);\n",
-                macro_string.size, macro_string.str,
-                name_string.size, name_string.str);
-    }
-    
-    fprintf(file, "struct Application_Links{\n");
-    fprintf(file,
-            "    void *memory;\n"
-            "    int32_t memory_size;\n"
-            );
-    for (int32_t i = 0; i < sig_count; ++i){
-        String name_string  = function_set.items[i].name;
-        String public_string = func_4ed_names.names[i].public_name;
-        
-        fprintf(file, "    %.*s_Function *%.*s;\n",
-                name_string.size, name_string.str,
-                public_string.size, public_string.str);
-    }
-    fprintf(file,
-            "    void *cmd_context;\n"
-            "    void *system_links;\n"
-            "    void *current_coroutine;\n"
-            "    int32_t type_coroutine;\n"
-            );
-    fprintf(file, "};\n");
-    
-    fprintf(file, "#define FillAppLinksAPI(app_links) do{");
-    for (int32_t i = 0; i < sig_count; ++i){
-        String name = function_set.items[i].name;
-        String public_string = func_4ed_names.names[i].public_name;
-        
-        fprintf(file,
-                "\\\n"
-                "app_links->%.*s = %.*s;",
-                public_string.size, public_string.str,
-                name.size, name.str
-                );
-    }
-    fprintf(file, " } while(false)\n");
-    
-    fclose(file);
-    
-    // NOTE(allen): Documentation
-    {
-        Item_Set typedef_set = {0};
-        Item_Set struct_set = {0};
-        Item_Set flag_set = {0};
-        Item_Set enum_set = {0};
-        
-        Parse type_parse[1];
-        type_parse[0] = meta_parse("4coder_types.h");
-        
-        int32_t file_count = ArrayCount(type_parse);
-        
-        int32_t typedef_count = 0;
-        int32_t struct_count = 0;
-        int32_t flag_count = 0;
-        int32_t enum_count = 0;
-        
-        static String type_spec_keys[] = {
-            make_lit_string("typedef"),
-            make_lit_string("struct"),
-            make_lit_string("union"),
-            make_lit_string("ENUM"),
-            make_lit_string("FLAGENUM"),
-        };
-        
-        for (int32_t J = 0; J < file_count; ++J){
-            char *data = type_parse[J].code.str;
-            
-            int32_t count = type_parse[J].tokens.count;
-            Cpp_Token *tokens = type_parse[J].tokens.tokens;
-            Cpp_Token *token = tokens;
-            
-            for (int32_t i = 0; i < count; ++i, ++token){
-                if (!(token->flags & CPP_TFLAG_PP_BODY) &&
-                    (token->type == CPP_TOKEN_KEY_TYPE_DECLARATION ||
-                     token->type == CPP_TOKEN_IDENTIFIER)){
-                    
-                    String lexeme = make_string(data + token->start, token->size);
-                    int32_t match_index = 0;
-                    if (string_set_match(type_spec_keys, ArrayCount(type_spec_keys),
-                                         lexeme, &match_index)){
-                        switch (match_index){
-                            case 0: //typedef
-                            ++typedef_count; break;
-                            
-                            case 1: case 2: //struct/union
-                            ++struct_count; break;
-                            
-                            case 3: //ENUM
-                            ++enum_count; break;
-                            
-                            case 4: //FLAGENUM
-                            ++flag_count; break;
-                        }
-                    }
-                }
-            }
+    // NOTE(allen): Custom API headers
+    if (begin_file_out(&context, OS_API_H, &out)){
+        int32_t main_api_count = unit_custom.parse[0].item_count;
+        int32_t os_api_count = unit_custom.parse[1].item_count;
+        for (int32_t i = main_api_count; i < os_api_count; ++i){
+            append_sc(&out, "#define ");
+            append_ss(&out, func_4ed_names.names[i].macro);
+            append_sc(&out, "(n) ");
+            append_ss(&out, unit_custom.set.items[i].ret);
+            append_sc(&out, " n");
+            append_ss(&out, unit_custom.set.items[i].args);
+            append_s_char(&out, '\n');
         }
         
-        if (typedef_count >  0){
-            typedef_set = allocate_item_set(part, typedef_count);
+        for (int32_t i = main_api_count; i < os_api_count; ++i){
+            append_sc(&out, "typedef ");
+            append_ss(&out, func_4ed_names.names[i].macro);
+            append_s_char(&out, '(');
+            append_ss(&out, unit_custom.set.items[i].name);
+            append_sc(&out, "_Function);\n");
         }
         
-        if (struct_count > 0){
-            struct_set = allocate_item_set(part, struct_count);
+        end_file_out(context);
+    }
+    else{
+        // TODO(allen): warning
+    }
+    
+    if (begin_file_out(&context, API_H, &out)){
+        for (int32_t i = 0; i < unit_custom.set.count; ++i){
+            append_sc(&out, "#define ");
+            append_ss(&out, func_4ed_names.names[i].macro);
+            append_sc(&out, "(n) ");
+            append_ss(&out, unit_custom.set.items[i].ret);
+            append_sc(&out, " n");
+            append_ss(&out, unit_custom.set.items[i].args);
+            append_s_char(&out, '\n');
         }
         
-        if (enum_count > 0){
-            enum_set = allocate_item_set(part, enum_count);
+        for (int32_t i = 0; i < unit_custom.set.count; ++i){
+            append_sc(&out, "typedef ");
+            append_ss(&out, func_4ed_names.names[i].macro);
+            append_s_char(&out, '(');
+            append_ss(&out, unit_custom.set.items[i].name);
+            append_sc(&out, "_Function);\n");
         }
         
-        if (flag_count > 0){
-            flag_set = allocate_item_set(part, flag_count);
+        append_sc(&out,
+                  "struct Application_Links{\n");
+        
+        for (int32_t i = 0; i < unit_custom.set.count; ++i){
+            append_ss(&out, unit_custom.set.items[i].name);
+            append_sc(&out, "_Function *");
+            append_ss(&out, func_4ed_names.names[i].public_name);
+            append_sc(&out, ";\n");
         }
         
-        int32_t typedef_index = 0;
-        int32_t struct_index = 0;
-        int32_t flag_index = 0;
-        int32_t enum_index = 0;
+        append_sc(&out,
+                  "void *memory;\n"
+                  "int32_t memory_size;\n"
+                  "void *cmd_context;\n"
+                  "void *system_links;\n"
+                  "void *current_coroutine;\n"
+                  "int32_t type_coroutine;\n"
+                  "};\n");
         
-        for (int32_t J = 0; J < file_count; ++J){
-            char *data = type_parse[J].code.str;
-            Cpp_Token_Stack types_tokens = type_parse[J].tokens;
-            
-            int32_t count = types_tokens.count;
-            Cpp_Token *tokens = types_tokens.tokens;
-            Cpp_Token *token = tokens;
-            
-            for (int32_t i = 0; i < count; ++i, ++token){
-                Assert(i == (int32_t)(token - tokens));
-                if (!(token->flags & CPP_TFLAG_PP_BODY) &&
-                    (token->type == CPP_TOKEN_KEY_TYPE_DECLARATION ||
-                     token->type == CPP_TOKEN_IDENTIFIER)){
-                    
-                    String lexeme = make_string(data + token->start, token->size);
-                    int32_t match_index = 0;
-                    if (string_set_match(type_spec_keys, ArrayCount(type_spec_keys),
-                                         lexeme, &match_index)){
-                        switch (match_index){
-                            case 0: //typedef
-                            {
-                                if (parse_typedef(data, tokens, count, &token,
-                                                  typedef_set, typedef_index)){
-                                    ++typedef_index;
-                                }
-                                i = (int32_t)(token - tokens);
-                            }break;
-                            
-                            case 1: case 2: //struct/union
-                            {
-                                if (parse_struct(part, (match_index == 1),
-                                                 data, tokens, count, &token,
-                                                 struct_set.items + struct_index)){
-                                    ++struct_index;
-                                }
-                                i = (int32_t)(token - tokens);
-                            }break;
-                            
-                            case 3: //ENUM
-                            {
-                                if (parse_enum(part, data,
-                                               tokens, count, &token,
-                                               enum_set, enum_index)){
-                                    ++enum_index;
-                                }
-                                i = (int32_t)(token - tokens);
-                            }break;
-                            
-                            case 4: //FLAGENUM
-                            {
-                                if (parse_enum(part, data,
-                                               tokens, count, &token,
-                                               flag_set, flag_index)){
-                                    ++flag_index;
-                                }
-                                i = (int32_t)(token - tokens);
-                            }break;
-                        }
-                    }
-                }
-            }
-            
-            typedef_count = typedef_index;
-            struct_count = struct_index;
-            enum_count = enum_index;
-            flag_count = flag_index;
+        append_sc(&out, "#define FillAppLinksAPI(app_links) do{");
+        
+        for (int32_t i = 0; i < unit_custom.set.count; ++i){
+            append_sc(&out, "\\\napp_links->");
+            append_ss(&out, func_4ed_names.names[i].public_name);
+            append_sc(&out, " = ");
+            append_ss(&out, unit_custom.set.items[i].name);
+            append_s_char(&out, ';');
         }
+        append_sc(&out, "} while(false)\n");
         
-        //
-        // Output 4coder_string.h
-        //
+        end_file_out(context);
+    }
+    else{
+        // TODO(allen): warning
+    }
+    
+    // NOTE(allen): String Library
+    if (begin_file_out(&context, STRING_H, &out)){
+        Cpp_Token *token = 0;
+        int32_t start = 0;
         
-        file = fopen(STRING_H, "wb");
+        Parse parse = string_unit.parse[0];
+        Parse_Context pcontext = setup_parse_context(parse);
         
-        {
-            String *code = &string_parse.code;
-            Cpp_Token_Stack *token_stack = &string_parse.tokens;
-            
-            int32_t start = 0;
-            
-            int32_t count = token_stack->count;
-            Cpp_Token *tokens = token_stack->tokens;
-            Cpp_Token *token = tokens;
-            int32_t i = 0;
-            
-            for (i = 0; i < count; ++i, ++token){
-                if (token->type == CPP_TOKEN_IDENTIFIER &&
-                    !(token->flags & CPP_TFLAG_PP_BODY)){
-                    String lexeme = make_string(code->str + token->start, token->size);
-                    if (match_ss(lexeme, make_lit_string("FSTRING_BEGIN"))){
-                        start = token->start + token->size;
-                        break;
-                    }
-                }
-            }
-            
-            String pstr = {0};
-            int32_t do_whitespace_print = true;
-            
-            for(++i, ++token; i < count; ++i, ++token){
-                if (do_whitespace_print){
-                    pstr = get_string(code->str, start, token->start);
-                    print_str(file, pstr);
-                }
-                else{
-                    do_whitespace_print = true;
-                }
-                
-                String lexeme = get_lexeme(*token, code->str);
-                
-                int32_t do_print = true;
-                if (match_ss(lexeme, make_lit_string("FSTRING_DECLS"))){
-                    fprintf(file, "#if !defined(FCODER_STRING_H)\n#define FCODER_STRING_H\n\n");
-                    
-                    do_print = false;
-                    
-#define RETURN_PADDING 16
-#define SIG_PADDING 30
-                    
-                    for (int32_t j = 0; j < string_sig_count; ++j){
-                        char line_space[2048];
-                        String line = make_fixed_width_string(line_space);
-                        
-                        if (string_function_set.items[j].t != Item_Macro){
-                            String marker = string_function_set.items[j].marker;
-                            String ret    = string_function_set.items[j].ret;
-                            String name   = string_function_set.items[j].name;
-                            String args   = string_function_set.items[j].args;
-                                                              
-                            append_ss(&line, marker);         
-                            append_padding(&line, ' ', RETURN_PADDING);
-                            append_ss(&line, ret);            
-                            append_padding(&line, ' ', SIG_PADDING);
-                            append_ss(&line, name);           
-                            append_ss(&line, args);           
-                            terminate_with_null(&line);       
-                                                              
-                            fprintf(file, "%s;\n", line.str); 
-                        }                                     
-                        else{                                 
-                            String name = string_function_set.items[j].name;
-                            String args = string_function_set.items[j].args;
-                            String body = string_function_set.items[j].body;
-                            
-                            append_ss(&line, make_lit_string("#ifndef "));
-                            append_padding(&line, ' ', 10);
-                            append_ss(&line, name);
-                            terminate_with_null(&line);
-                            fprintf(file, "%s\n", line.str);
-                            line.size = 0;
-                            
-                            append_ss(&line, make_lit_string("# define "));
-                            append_padding(&line, ' ', 10);
-                            append_ss(&line, name);
-                            append_ss(&line, args);
-                            append_s_char(&line, ' ');
-                            append_ss(&line, body);
-                            terminate_with_null(&line);
-                            fprintf(file, "%s\n", line.str);
-                            line.size = 0;
-                            
-                            append_ss(&line, make_lit_string("#endif"));
-                            terminate_with_null(&line);
-                            fprintf(file, "%s\n", line.str);
-                        }
-                    }
-                    
-                    {
-                        fprintf(file, "\n#if !defined(FSTRING_C)\n\n"
-                                "// NOTE(allen): This section is here to enable nicer names\n"
-                                "// for C++ users who can have overloaded functions.  None of\n"
-                                "// these functions add new features.\n");
-                        
-                        for (int32_t j = 0; j < string_sig_count; ++j){
-                            char line_space[2048];
-                            String line = make_fixed_width_string(line_space);
-                            
-                            if (string_function_set.items[j].t != Item_Macro){
-                                String cpp_name = string_function_set.items[j].cpp_name;
-                                if (cpp_name.str != 0){
-                                    String ret = string_function_set.items[j].ret;
-                                    String args = string_function_set.items[j].args;
-                                    
-                                    append_ss(&line, make_lit_string("FSTRING_INLINE"));
-                                    append_padding(&line, ' ', RETURN_PADDING);
-                                    append_ss(&line, ret);
-                                    append_padding(&line, ' ', SIG_PADDING);
-                                    append_ss(&line, cpp_name);
-                                    append_ss(&line, args);
-                                    terminate_with_null(&line);
-                                    
-                                    fprintf(file, "%s;\n", line.str);
-                                }
-                            }
-                        }
-                        
-                        fprintf(file, "\n#endif\n");
-                    }
-                    
-                    fprintf(file, "\n#endif\n");
-                    
-                    {
-                        fprintf(file, "\n#if !defined(FSTRING_C) && !defined(FSTRING_GUARD)\n\n");
-                        
-                        for (int32_t j = 0; j < string_sig_count; ++j){
-                            char line_space[2048];
-                            String line = make_fixed_width_string(line_space);
-                            
-                            if (string_function_set.items[j].t != Item_Macro){
-                                String cpp_name = string_function_set.items[j].cpp_name;
-                                if (cpp_name.str != 0){
-                                    String name = string_function_set.items[j].name;
-                                    String ret  = string_function_set.items[j].ret;
-                                    String args = string_function_set.items[j].args;
-                                Argument_Breakdown breakdown = string_function_set.items[j].breakdown;
-                                    
-                                    append_ss(&line, make_lit_string("FSTRING_INLINE"));
-                                    append_s_char(&line, ' ');
-                                    append_ss(&line, ret);
-                                    append_s_char(&line, '\n');
-                                    append_ss(&line, cpp_name);
-                                    append_ss(&line, args);
-                                    if (match_ss(ret, make_lit_string("void"))){
-                                        append_ss(&line, make_lit_string("{("));
-                                    }
-                                    else{
-                                        append_ss(&line, make_lit_string("{return("));
-                                    }
-                                    append_ss(&line, name);
-                                    append_s_char(&line, '(');
-                                    
-                                    if (breakdown.count > 0){
-                                        for (int32_t i = 0; i < breakdown.count; ++i){
-                                            if (i != 0){
-                                                append_s_char(&line, ',');
-                                            }
-                                            append_ss(&line, breakdown.args[i].param_name);
-                                        }
-                                    }
-                                    else{
-                                        append_ss(&line, make_lit_string("void"));
-                                    }
-                                    
-                                    append_ss(&line, make_lit_string("));}"));
-                                    terminate_with_null(&line);
-                                    
-                                    fprintf(file, "%s\n", line.str);
-                                }
-                            }
-                        }
-                        
-                        fprintf(file, "\n#endif\n");
-                    }
-                }
-                else if (match_ss(lexeme, make_lit_string("DOC_EXPORT"))){
-                    ++i, ++token;
-                    if (i < count && token->type == CPP_TOKEN_COMMENT){
-                        ++i, ++token;
-                        if (i < count && token->type == CPP_PP_DEFINE){
-                            ++i, ++token;
-                            for (; i < count; ++i, ++token){
-                                if (!(token->flags & CPP_TFLAG_PP_BODY)){
-                                    break;
-                                }
-                            }
-                            --i, --token;
-                            do_print = false;
-                            do_whitespace_print = false;
-                        }
-                    }
-                }
-                else if (match_ss(lexeme, make_lit_string("FSTRING_INLINE"))){
-                    if (!(token->flags & CPP_TFLAG_PP_BODY)){
-                        fprintf(file, "#if !defined(FSTRING_GUARD)\n");
-                        
-                        print_function_body_code(file, &i, &token, count, code, start);
-                        
-                        fprintf(file, "\n#endif");
-                        do_print = false;
-                    }
-                }
-                else if (match_ss(lexeme, make_lit_string("FSTRING_LINK"))){
-                    if (!(token->flags & CPP_TFLAG_PP_BODY)){
-                        fprintf(file, "#if defined(FSTRING_IMPLEMENTATION)\n");
-                        
-                        print_function_body_code(file, &i, &token, count, code, start);
-                        
-                        fprintf(file, "\n#endif");
-                        do_print = false;
-                    }
-                }
-                else if (match_ss(lexeme, make_lit_string("CPP_NAME"))){
-                    
-                    Cpp_Token *token_start = token;
-                    int32_t i_start = i;
-                    int32_t has_cpp_name = false;
-                    
-                    ++i, ++token;
-                    if (token->type == CPP_TOKEN_PARENTHESE_OPEN){
-                        ++i, ++token;
-                        if (token->type == CPP_TOKEN_IDENTIFIER){
-                            ++i, ++token;
-                            if (token->type == CPP_TOKEN_PARENTHESE_CLOSE){
-                                has_cpp_name = true;
-                            }
-                        }
-                    }
-                    
-                    if (!has_cpp_name){
-                        i = i_start;
-                        token = token_start;
-                    }
-                    
-                    do_print = false;
-                }
-                else if (token->type == CPP_TOKEN_COMMENT){
-                    lexeme = make_string(code->str + token->start, token->size);
-                    if (check_and_fix_docs(&lexeme)){
-                        do_print = false;
-                    }
-                }
-                
-                if (i < count){
-                    if (do_print){
-                        pstr = make_string(code->str + token->start, token->size);
-                        print_str(file, pstr);
-                    }
-                    
+        for (; (token = get_token(&pcontext)) != 0; get_next_token(&pcontext)){
+            if (!(token->flags & CPP_TFLAG_PP_BODY) &&
+                token->type == CPP_TOKEN_IDENTIFIER){
+                String lexeme = get_lexeme(*token, pcontext.data);
+                if (match_ss(lexeme, make_lit_string("FSTRING_BEGIN"))){
                     start = token->start + token->size;
+                    break;
                 }
             }
-            pstr = get_string(code->str, start, code->size);
-            print_str(file, pstr);
         }
         
-        fclose(file);
+        String pstr = {0};
+        int32_t do_whitespace_print = true;
         
-        //
-        // Output Docs
-        //
+        for(;(token = get_next_token(&pcontext)) != 0;){
+            if (do_whitespace_print){
+                pstr = str_start_end(pcontext.data, start, token->start);
+                append_ss(&out, pstr);
+            }
+            else{
+                do_whitespace_print = true;
+            }
+            
+            String lexeme = get_lexeme(*token, pcontext.data);
+            
+            int32_t do_print = true;
+            if (match_ss(lexeme, make_lit_string("FSTRING_DECLS"))){
+                append_sc(&out, "#if !defined(FCODER_STRING_H)\n#define FCODER_STRING_H\n\n");
+                do_print = false;
+                
+                static int32_t RETURN_PADDING = 16;
+                static int32_t SIG_PADDING = 27;
+                
+                for (int32_t j = 0; j < string_unit.set.count; ++j){
+                    char line_[2048];
+                    String line = make_fixed_width_string(line_);
+                    Item_Node *item = string_unit.set.items + j;
+                    
+                    if (item->t == Item_Function){
+                        append_ss       (&line, item->marker);
+                        append_padding  (&line, ' ', RETURN_PADDING);
+                        append_ss       (&line, item->ret);
+                        append_padding  (&line, ' ', SIG_PADDING);
+                        append_ss       (&line, item->name);
+                        append_ss       (&line, item->args);
+                        append_sc       (&line, ";\n");
+                    }
+                    else if (item->t == Item_Macro){
+                        append_ss       (&line, make_lit_string("#ifndef "));
+                        append_padding  (&line, ' ', 10);
+                        append_ss       (&line, item->name);
+                        append_s_char   (&line, '\n');
+                        
+                        append_ss       (&line, make_lit_string("# define "));
+                        append_padding  (&line, ' ', 10);
+                        append_ss       (&line, item->name);
+                        append_ss       (&line, item->args);
+                        append_s_char   (&line, ' ');
+                        append_ss       (&line, item->body);
+                        append_s_char   (&line, '\n');
+                        
+                        append_ss       (&line, make_lit_string("#endif"));
+                        append_s_char   (&line, '\n');
+                    }
+                    else{
+                        InvalidPath;
+                    }
+                    
+                    append_ss(&out, line);
+                }
+                
+                append_sc(&out, "\n#endif\n");
+                
+                // NOTE(allen): C++ overload definitions
+                append_sc(&out, "\n#if !defined(FSTRING_C) && !defined(FSTRING_GUARD)\n\n");
+                
+                for (int32_t j = 0; j < string_unit.set.count; ++j){
+                    char line_space[2048];
+                    String line = make_fixed_width_string(line_space);
+                    
+                    Item_Node *item = &string_unit.set.items[j];
+                    
+                    if (item->t == Item_Function){
+                        String cpp_name = item->cpp_name;
+                        if (cpp_name.str != 0){
+                            Argument_Breakdown breakdown = item->breakdown;
+                            
+                            append_ss     (&line, make_lit_string("FSTRING_INLINE"));
+                            append_padding(&line, ' ', RETURN_PADDING);
+                            append_ss     (&line, item->ret);
+                            append_padding(&line, ' ', SIG_PADDING);
+                            append_ss     (&line, cpp_name);
+                            append_ss     (&line, item->args);
+                            if (match_ss(item->ret, make_lit_string("void"))){
+                                append_ss(&line, make_lit_string("{("));//}
+                            }
+                            else{
+                                append_ss(&line, make_lit_string("{return("));//}
+                            }
+                            append_ss    (&line, item->name);
+                            append_s_char(&line, '(');
+                            
+                            if (breakdown.count > 0){
+                                for (int32_t i = 0; i < breakdown.count; ++i){
+                                    if (i != 0){
+                                        append_s_char(&line, ',');
+                                    }
+                                    append_ss(&line, breakdown.args[i].param_name);
+                                }
+                            }
+                            else{
+                                append_ss(&line, make_lit_string("void"));
+                            }
+                            
+                            //{
+                            append_ss(&line, make_lit_string("));}\n"));
+                            
+                            append_ss(&out, line);
+                        }
+                    }
+                }
+                
+                append_sc(&out, "\n#endif\n");
+            }
+            
+            else if (match_ss(lexeme, make_lit_string("DOC_EXPORT"))){
+                token = get_next_token(&pcontext);
+                if (token && token->type == CPP_TOKEN_COMMENT){
+                    token = get_next_token(&pcontext);
+                    if (token && token->type == CPP_PP_DEFINE){
+                        for (;(token = get_next_token(&pcontext)) != 0;){
+                            if (!(token->flags & CPP_TFLAG_PP_BODY)){
+                                break;
+                            }
+                        }
+                        if (token != 0){
+                            get_prev_token(&pcontext);
+                        }
+                        do_print = false;
+                        do_whitespace_print = false;
+                    }
+                }
+            }
+            
+            else if (match_ss(lexeme, make_lit_string("FSTRING_INLINE")) ||
+                     match_ss(lexeme, make_lit_string("FSTRING_LINK"))){
+                if (!(token->flags & CPP_TFLAG_PP_BODY)){
+                    if (match_ss(lexeme, make_lit_string("FSTRING_INLINE"))){
+                        append_sc(&out, "#if !defined(FSTRING_GUARD)\n");
+                    }
+                    else{
+                        append_sc(&out, "#if defined(FSTRING_IMPLEMENTATION)\n");
+                    }
+                    print_function_body_code(&out, &pcontext, start);
+                    append_sc(&out, "\n#endif");
+                    do_print = false;
+                }
+            }
+            
+            else if (match_ss(lexeme, make_lit_string("CPP_NAME"))){
+                Cpp_Token *token_start = token;
+                int32_t has_cpp_name = false;
+                
+                token = get_next_token(&pcontext);
+                if (token && token->type == CPP_TOKEN_PARENTHESE_OPEN){
+                    token = get_next_token(&pcontext);
+                    if (token && token->type == CPP_TOKEN_IDENTIFIER){
+                        token = get_next_token(&pcontext);
+                        if (token && token->type == CPP_TOKEN_PARENTHESE_CLOSE){
+                            has_cpp_name = true;
+                            do_print = false;
+                        }
+                    }
+                }
+                
+                if (!has_cpp_name){
+                    token = set_token(&pcontext, token_start);
+                }
+            }
+            
+            else if (token->type == CPP_TOKEN_COMMENT){
+                if (check_and_fix_docs(&lexeme)){
+                    do_print = false;
+                }
+            }
+            
+            if ((token = get_token(&pcontext)) != 0){
+                if (do_print){
+                    pstr = get_lexeme(*token, pcontext.data);
+                    append_ss(&out, pstr);
+                }
+                start = token->start + token->size;
+            }
+        }
+        pstr = str_start_end(pcontext.data, start, parse.code.size);
+        append_ss(&out, pstr);
         
-        file = fopen(API_DOC, "wb");
+        end_file_out(context);
+    }
+    else{
+        // TODO(allen): warning
+    }
+    
+    
+    // Output Docs
+    
+    if (begin_file_out(&context, API_DOC, &out)){
         
-        fprintf(file,
-                "<html lang=\"en-US\">\n"
-                "<head>\n"
-                "<title>4coder API Docs</title>\n"
-                "<style>\n"
+        append_sc(&out,
+                "<html lang=\"en-US\">"
+                "<head>"
+                "<title>4coder API Docs</title>"
+                "<style>"
                 
                 "body { "
                 "background: " BACK_COLOR "; "
                 "color: " TEXT_COLOR "; "
-                "}\n"
+                "}"
                 
                 // H things
                 "h1,h2,h3,h4 { "
                 "color: " POP_COLOR_1 "; "
                 "margin: 0; "
-                "}\n"
+                "}"
                 
                 "h2 { "
                 "margin-top: 6mm; "
-                "}\n"
+                "}"
                 
                 "h3 { "
                 "margin-top: 5mm; margin-bottom: 5mm; "
-                "}\n"
+                "}"
                 
                 "h4 { "
                 "font-size: 1.1em; "
-                "}\n"
+                "}"
                 
                 // ANCHORS
                 "a { "
                 "color: " POP_COLOR_1 "; "
                 "text-decoration: none; "
-                "}\n"
+                "}"
                 "a:visited { "
                 "color: " VISITED_LINK "; "
-                "}\n"
+                "}"
                 "a:hover { "
                 "background: " POP_BACK_1 "; "
-                "}\n"
+                "}"
                 
                 // LIST
                 "ul { "
                 "list-style: none; "
                 "padding: 0; "
                 "margin: 0; "
-                "}\n"
+                "}"
                 
-                "</style>\n"
+                "</style>"
                 "</head>\n"
-                "<body>\n"
+                "<body>"
                 "<div style='font-family:Arial; margin: 0 auto; "
-                "width: 800px; text-align: justify; line-height: 1.25;'>\n"
-                "<h1 style='margin-top: 5mm; margin-bottom: 5mm;'>4coder API</h1>\n"
+                "width: 800px; text-align: justify; line-height: 1.25;'>"
+                "<h1 style='margin-top: 5mm; margin-bottom: 5mm;'>4coder API</h1>"
                 );
         
         struct Section{
@@ -2627,498 +2614,155 @@ generate_custom_headers(){
             {"string_library", "String Library"}
         };
         
-        fprintf(file,
-                "<h3 style='margin:0;'>Table of Contents</h3>\n"
-                "<ul>\n");
+        append_sc(&out,
+                  "<h3 style='margin:0;'>Table of Contents</h3>""<ul>");
         
         int32_t section_count = ArrayCount(sections);
         for (int32_t i = 0; i < section_count; ++i){
-            fprintf(file,
-                    "<li><a href='#section_%s'>&sect;%d %s</a></li>",
-                    sections[i].id_string,
-                    i+1,
-                    sections[i].display_string);
+            append_sc         (&out, "<li><a href='#section_");
+            append_sc         (&out, sections[i].id_string);
+            append_sc         (&out, "'>&sect;");
+            append_int_to_str (&out, i+1);
+            append_s_char     (&out, ' ');
+            append_sc         (&out, sections[i].display_string);
+            append_sc         (&out, "</a></li>");
         }
         
-        fprintf(file,
-                "</ul>\n"
-                );
+        append_sc(&out, "</ul>");
         
 #define MAJOR_SECTION "1"
         
-        fprintf(file,
-                "<h2 id='section_%s'>&sect;"MAJOR_SECTION" %s</h2>\n"
-                "<div>\n"
-                
-                "<p>\n"
-                "This is the documentation for " VERSION " The documentation is still under "
-                "construction so some of the links are linking to sections that have not "
-                "been written yet.  What is here should be correct and I suspect useful "
-                "even without some of the other sections. "
-                "</p>\n"
-                
-                "<p>\n"
-                "If you have questions or discover errors please contact "
-                "<span style='"CODE_STYLE"'>editor@4coder.net</span> or "
-                "to get help from community members you can post on the "
-                "4coder forums hosted on handmade.network at "
-                "<span style='"CODE_STYLE"'>4coder.handmade.network</span>"
-                "</p>\n"
-                
-                "</div>\n",
-                sections[0].id_string,
-                sections[0].display_string
-                );
+        append_sc(&out, "\n<h2 id='section_");
+        append_sc(&out, sections[0].id_string);
+        append_sc(&out, "'>&sect;"MAJOR_SECTION" ");
+        append_sc(&out, sections[0].display_string);
+        append_sc(&out,
+                  "</h2>"
+                  "<div>"
+                  "<p>This is the documentation for " VERSION " The documentation is still "
+                  "under construction so some of the links are linking to sections that "
+                  "have not been written yet.  What is here should be correct and I suspect "
+                  "useful even without some of the other sections.</p>"
+                  "<p>If you have questions or discover errors please contact "
+                  "<span style='"CODE_STYLE"'>editor@4coder.net</span> or "
+                  "to get help from community members you can post on the "
+                  "4coder forums hosted on handmade.network at "
+                  "<span style='"CODE_STYLE"'>4coder.handmade.network</span></p>"
+                  "</div>");
         
 #undef MAJOR_SECTION
 #define MAJOR_SECTION "2"
         // TODO(allen): Write the 4coder system descriptions.
-        fprintf(file,
-                "<h2 id='section_%s'>&sect;"MAJOR_SECTION" %s</h2>\n",
-                sections[1].id_string,
-                sections[1].display_string);
+        append_sc(&out, "\n<h2 id='section_");
+        append_sc(&out, sections[1].id_string);
+        append_sc(&out, "'>&sect;"MAJOR_SECTION" ");
+        append_sc(&out, sections[1].display_string);
+        append_sc(&out, "</h2>");
         
-        {
-            fprintf(file,
-                    "<div><i>\n"
-                    "Coming Soon"
-                    "</i><div>\n");
-        }
+        append_sc(&out, "<div><i>Coming Soon</i><div>");
         
 #undef MAJOR_SECTION
 #define MAJOR_SECTION "3"
         
-        fprintf(file, 
-                "<h2 id='section_%s'>&sect;"MAJOR_SECTION" %s</h2>\n",
-                sections[2].id_string,
-                sections[2].display_string);
-        {
+        append_sc(&out, "\n<h2 id='section_");
+        append_sc(&out, sections[2].id_string);
+        append_sc(&out, "'>&sect;"MAJOR_SECTION" ");
+        append_sc(&out, sections[2].display_string);
+        append_sc(&out, "</h2>");
+        
 #undef SECTION
 #define SECTION MAJOR_SECTION".1"
-            
-            fprintf(file,
-                    "<h3>&sect;"SECTION" Function List</h3>\n"
-                    "<ul>\n");
-            
-            for (int32_t i = 0; i < sig_count; ++i){
-                String name = func_4ed_names.names[i].public_name;
-                fprintf(file,
-                        "<li>"
-                        "<a href='#%.*s_doc'>%.*s</a>"
-                        "</li>\n",
-                        name.size, name.str,
-                        name.size, name.str
-                        );
-            }
-            fprintf(file, "</ul>\n");
-            
+        
+        append_sc(&out, "<h3>&sect;"SECTION" Function List</h3><ul>");
+        for (int32_t i = 0; i < unit_custom.set.count; ++i){
+            print_item_in_list(&out, func_4ed_names.names[i].public_name, "_doc");
+        }
+        append_sc(&out, "</ul>");
+        
 #undef SECTION
 #define SECTION MAJOR_SECTION".2"
-            
-            fprintf(file,
-                    "<h3>&sect;"SECTION" Type List</h3>\n"
-                    "<ul>\n"
-                    );
-            
-            for (int32_t i = 0; i < typedef_count; ++i){
-                String name = typedef_set.items[i].name;
-                fprintf(file,
-                        "<li>"
-                        "<a href='#%.*s_doc'>%.*s</a>"
-                        "</li>\n",
-                        name.size, name.str,
-                        name.size, name.str
-                        );
-            }
-            
-            for (int32_t i = 0; i < enum_count; ++i){
-                String name = enum_set.items[i].name;
-                fprintf(file,
-                        "<li>"
-                        "<a href='#%.*s_doc'>%.*s</a>"
-                        "</li>\n",
-                        name.size, name.str,
-                        name.size, name.str
-                        );
-            }
-            
-            for (int32_t i = 0; i < flag_count; ++i){
-                String name = flag_set.items[i].name;
-                fprintf(file,
-                        "<li>"
-                        "<a href='#%.*s_doc'>%.*s</a>"
-                        "</li>\n",
-                        name.size, name.str,
-                        name.size, name.str
-                        );
-            }
-            
-            for (int32_t i = 0; i < struct_count; ++i){
-                String name = struct_set.items[i].name;
-                fprintf(file,
-                        "<li>"
-                        "<a href='#%.*s_doc'>%.*s</a>"
-                        "</li>\n",
-                        name.size, name.str,
-                        name.size, name.str
-                        );
-            }
-            
-            fprintf(file, "</ul>\n");
-            
+        
+        append_sc(&out, "<h3>&sect;"SECTION" Type List</h3><ul>");
+        for (int32_t i = 0; i < unit.set.count; ++i){
+            print_item_in_list(&out, unit.set.items[i].name, "_doc");
+        }
+        append_sc(&out, "</ul>");
+        
 #undef SECTION
 #define SECTION MAJOR_SECTION".3"
+        
+        append_sc(&out, "<h3>&sect;"SECTION" Function Descriptions</h3>");
+        for (int32_t i = 0; i < unit_custom.set.count; ++i){
+            Item_Node *item = &unit_custom.set.items[i];
+            String name = func_4ed_names.names[i].public_name;
             
-            fprintf(file, "<h3>&sect;"SECTION" Function Descriptions</h3>\n");
-            for (int32_t i = 0; i < sig_count; ++i){
-                String name = func_4ed_names.names[i].public_name;
-                
-                fprintf(file,
-                        "<div id='%.*s_doc' style='margin-bottom: 1cm;'>\n"
-                        "<h4>&sect;"SECTION".%d: %.*s</h4>\n"
-                        "<div style='"CODE_STYLE" "DESCRIPT_SECTION_STYLE"'>",
-                        name.size, name.str, i+1,
-                        name.size, name.str
-                        );
-                print_function_html(file, function_set.items[i], name, "app->");
-                fprintf(file, "</div>\n");
-                
-                String doc_string = function_set.items[i].doc_string;
-                print_function_docs(file, part, name, doc_string);
-                
-                fprintf(file, "</div><hr>\n");
-            }
+            append_sc        (&out, "<div id='");
+            append_ss        (&out, name);
+            append_sc        (&out, "_doc' style='margin-bottom: 1cm;'><h4>&sect;"SECTION".");
+            append_int_to_str(&out, i+1);
+            append_sc        (&out, ": ");
+            append_ss        (&out, name);
+            append_sc        (&out, "</h4><div style='"CODE_STYLE" "DESCRIPT_SECTION_STYLE"'>");
             
+            print_function_html(&out, item->ret, "app->", name, item->breakdown);
+            append_sc(&out, "</div>");
+            
+            print_function_docs(&out, part, name, item->doc_string);
+            
+            append_sc(&out, "</div><hr>");
+        }
+        
 #undef SECTION
 #define SECTION MAJOR_SECTION".4"
-            
-            fprintf(file, "<h3>&sect;"SECTION" Type Descriptions</h3>\n");
-            int32_t I = 1;
-            for (int32_t i = 0; i < typedef_count; ++i, ++I){
-                String name = typedef_set.items[i].name;
-                String type = typedef_set.items[i].type;
-                
-                fprintf(file,
-                        "<div id='%.*s_doc' style='margin-bottom: 1cm;'>\n"
-                        "<h4>&sect;"SECTION".%d: %.*s</h4>\n"
-                        "<div style='"CODE_STYLE" "DESCRIPT_SECTION_STYLE"'>",
-                        name.size, name.str, I,
-                        name.size, name.str
-                        );
-                
-                // NOTE(allen): Code box
-                {
-                    fprintf(file,
-                            "typedef %.*s %.*s;",
-                            type.size, type.str,
-                            name.size, name.str
-                            );
-                }
-                
-                fprintf(file, "</div>\n");
-                
-                // NOTE(allen): Descriptive section
-                {
-                    String doc_string = typedef_set.items[i].doc_string;
-                    Documentation doc = {0};
-                    perform_doc_parse(part, doc_string, &doc);
-                    
-                    String main_doc = doc.main_doc;
-                    if (main_doc.size != 0){
-                        fprintf(file, DOC_HEAD_OPEN"Description"DOC_HEAD_CLOSE);
-                        fprintf(file,
-                                DOC_ITEM_OPEN"%.*s"DOC_ITEM_CLOSE,
-                                main_doc.size, main_doc.str
-                                );
-                    }
-                    
-                    print_see_also(file, &doc);
-                }
-                
-                fprintf(file, "</div><hr>\n");
-            }
-            
-            for (int32_t i = 0; i < enum_count; ++i, ++I){
-                String name = enum_set.items[i].name;
-                
-                fprintf(file,
-                        "<div id='%.*s_doc' style='margin-bottom: 1cm;'>\n"
-                        "<h4>&sect;"SECTION".%d: %.*s</h4>\n"
-                        "<div style='"CODE_STYLE" "DESCRIPT_SECTION_STYLE"'>",
-                        name.size, name.str, I,
-                        name.size, name.str
-                        );
-                
-                // NOTE(allen): Code box
-                {
-                    fprintf(file,
-                            "enum %.*s;",
-                            name.size, name.str);
-                }
-                
-                fprintf(file, "</div>\n");
-                
-                // NOTE(allen): Descriptive section
-                {
-                    String doc_string = enum_set.items[i].doc_string;
-                    Documentation doc = {0};
-                    perform_doc_parse(part, doc_string, &doc);
-                    
-                    String main_doc = doc.main_doc;
-                    if (main_doc.size != 0){
-                        fprintf(file, DOC_HEAD_OPEN"Description"DOC_HEAD_CLOSE);
-                        fprintf(file,
-                                DOC_ITEM_OPEN"%.*s"DOC_ITEM_CLOSE,
-                                main_doc.size, main_doc.str
-                                );
-                    }
-                    
-                    if (enum_set.items[i].first_child){
-                        fprintf(file, DOC_HEAD_OPEN"Values"DOC_HEAD_CLOSE);
-                        for (Item_Node *member = enum_set.items[i].first_child;
-                             member;
-                             member = member->next_sibling){
-                            Documentation doc = {0};
-                            perform_doc_parse(part, member->doc_string, &doc);
-                            
-                            fprintf(file,
-                                    "<div>\n"
-                                    "<div><span style='"CODE_STYLE"'>"DOC_ITEM_HEAD_INL_OPEN
-                                    "%.*s"DOC_ITEM_HEAD_INL_CLOSE"</span></div>\n"
-                                    "<div style='margin-bottom: 6mm;'>"DOC_ITEM_OPEN"%.*s"DOC_ITEM_CLOSE"</div>\n"
-                                    "</div>\n",
-                                    member->name.size, member->name.str,
-                                    doc.main_doc.size, doc.main_doc.str
-                                    );
-                        }
-                    }
-                    
-                    print_see_also(file, &doc);
-                }
-                
-                fprintf(file, "</div><hr>\n");
-            }
-            
-            for (int32_t i = 0; i < flag_count; ++i, ++I){
-                String name = flag_set.items[i].name;
-                
-                fprintf(file,
-                        "<div id='%.*s_doc' style='margin-bottom: 1cm;'>\n"
-                        "<h4>&sect;"SECTION".%d: %.*s</h4>\n"
-                        "<div style='"CODE_STYLE" "DESCRIPT_SECTION_STYLE"'>",
-                        name.size, name.str, I,
-                        name.size, name.str
-                        );
-                
-                // NOTE(allen): Code box
-                {
-                    fprintf(file,
-                            "enum %.*s;",
-                            name.size, name.str);
-                }
-                
-                fprintf(file, "</div>\n");
-                
-                // NOTE(allen): Descriptive section
-                {
-                    String doc_string = flag_set.items[i].doc_string;
-                    Documentation doc = {0};
-                    perform_doc_parse(part, doc_string, &doc);
-                    
-                    String main_doc = doc.main_doc;
-                    if (main_doc.size != 0){
-                        fprintf(file, DOC_HEAD_OPEN"Description"DOC_HEAD_CLOSE);
-                        fprintf(file,
-                                DOC_ITEM_OPEN"%.*s"DOC_ITEM_CLOSE,
-                                main_doc.size, main_doc.str
-                                );
-                    }
-                    
-                    if (flag_set.items[i].first_child){
-                        fprintf(file, DOC_HEAD_OPEN"Flags"DOC_HEAD_CLOSE);
-                        for (Item_Node *member = flag_set.items[i].first_child;
-                             member;
-                             member = member->next_sibling){
-                            Documentation doc = {0};
-                            perform_doc_parse(part, member->doc_string, &doc);
-                            
-                            fprintf(file,
-                                    "<div>\n"
-                                    "<div><span style='"CODE_STYLE"'>"DOC_ITEM_HEAD_INL_OPEN
-                                    "%.*s"DOC_ITEM_HEAD_INL_CLOSE" = %.*s</span></div>\n"
-                                    "<div style='margin-bottom: 6mm;'>"DOC_ITEM_OPEN"%.*s"DOC_ITEM_CLOSE"</div>\n"
-                                    "</div>\n",
-                                    member->name.size, member->name.str,
-                                    member->value.size, member->value.str,
-                                    doc.main_doc.size, doc.main_doc.str
-                                    );
-                        }
-                    }
-                    
-                    print_see_also(file, &doc);
-                }
-                
-                fprintf(file, "</div><hr>\n");
-            }
-            
-            for (int32_t i = 0; i < struct_count; ++i, ++I){
-                Item_Node *member = &struct_set.items[i];
-                String name = member->name;
-                fprintf(file,
-                        "<div id='%.*s_doc' style='margin-bottom: 1cm;'>\n"
-                        "<h4>&sect;"SECTION".%d: %.*s</h4>\n"
-                        "<div style='"CODE_STYLE" "DESCRIPT_SECTION_STYLE"'>",
-                        name.size, name.str, I,
-                        name.size, name.str
-                        );
-                
-                // NOTE(allen): Code box
-                {
-                    print_struct_html(file, member);
-                }
-                
-                fprintf(file, "</div>\n");
-                
-                // NOTE(allen): Descriptive section
-                {
-                    String doc_string = member->doc_string;
-                    Documentation doc = {0};
-                    perform_doc_parse(part, doc_string, &doc);
-                    
-                    String main_doc = doc.main_doc;
-                    if (main_doc.size != 0){
-                        fprintf(file, DOC_HEAD_OPEN"Description"DOC_HEAD_CLOSE);
-                        fprintf(file,
-                                DOC_ITEM_OPEN"%.*s"DOC_ITEM_CLOSE,
-                                main_doc.size, main_doc.str
-                                );
-                    }
-                    
-                    if (member->first_child){
-                        fprintf(file, DOC_HEAD_OPEN"Fields"DOC_HEAD_CLOSE);
-                        print_struct_docs(file, part, member);
-                    }
-                    
-                    print_see_also(file, &doc);
-                }
-                
-                fprintf(file, "</div><hr>\n");
-            }
+        
+        append_sc(&out, "<h3>&sect;"SECTION" Type Descriptions</h3>");
+        
+        int32_t I = 1;
+        for (int32_t i = 0; i < unit.set.count; ++i, ++I){
+            print_item(&out, part, unit.set.items + i, "_doc", 0, SECTION, I);
         }
         
 #undef MAJOR_SECTION
 #define MAJOR_SECTION "4"
         
-        fprintf(file, 
-                "<h2 id='section_%s'>&sect;"MAJOR_SECTION" %s</h2>\n",
-                sections[3].id_string,
-                sections[3].display_string);
+        append_sc(&out, "\n<h2 id='section_");
+        append_sc(&out, sections[3].id_string);
+        append_sc(&out, "'>&sect;"MAJOR_SECTION" ");
+        append_sc(&out, sections[3].display_string);
+        append_sc(&out, "</h2>");
         
-        {
-            
 #undef SECTION
 #define SECTION MAJOR_SECTION".1"
-            
-            fprintf(file,
-                    "<h3>&sect;"SECTION" String Intro</h3>\n"
-                    "<ul>\n");
-            
-            {
-                fprintf(file,
-                        "<div><i>\n"
-                        "Coming Soon"
-                        "</i><div>\n");
-            }
-            
+        
+        append_sc(&out, "<h3>&sect;"SECTION" String Intro</h3>");
+        
+        append_sc(&out, "<div><i>Coming Soon</i><div>");
+        
 #undef SECTION
 #define SECTION MAJOR_SECTION".2"
-            
-            fprintf(file,
-                    "<h3>&sect;"SECTION" String Function List</h3>\n"
-                    "<ul>\n");
-            
-            String *used_strings = 0;
-            int32_t used_string_count = 0;
-            
-            {
-                int32_t memory_size = sizeof(String)*(string_sig_count);
-                used_strings = (String*)malloc(memory_size);
-                memset(used_strings, 0, memory_size);
-            }
-            
-            for (int32_t i = 0; i < string_sig_count; ++i){
-                String name = string_function_set.items[i].name;
-                int32_t index = 0;
-                if (!string_set_match(used_strings, used_string_count, name, &index)){
-                    fprintf(file,
-                            "<li>"
-                            "<a href='#%.*s_str_doc'>%.*s</a>"
-                            "</li>\n",
-                            name.size, name.str,
-                            name.size, name.str
-                            );
-                    used_strings[used_string_count++] = name;
-                }
-            }
-            fprintf(file, "</ul>\n");
-            
-            used_string_count = 0;
-            
+        
+        append_sc(&out, "<h3>&sect;"SECTION" String Function List</h3>");
+        
+        append_sc(&out, "<ul>");
+        for (int32_t i = 0; i < string_unit.set.count; ++i){
+            print_item_in_list(&out, string_unit.set.items[i].name, "_str_doc");
+        }
+        append_sc(&out, "</ul>");
+        
 #undef SECTION
 #define SECTION MAJOR_SECTION".3"
-            
-            fprintf(file,
-                    "<h3>&sect;"SECTION" String Function Descriptions</h3>\n"
-                    "<ul>\n");
-            
-            for (int32_t i = 0; i < string_sig_count; ++i){
-                String name = string_function_set.items[i].name;
-                int32_t index = 0;
-                int32_t do_id = false;
-                if (!string_set_match(used_strings, used_string_count, name, &index)){
-                    do_id = true;
-                    used_strings[used_string_count++] = name;
-                }
-                
-                if (do_id){
-                    fprintf(file,
-                            "<div id='%.*s_str_doc'>",
-                            name.size, name.str
-                            );
-                }
-                else{
-                    fprintf(file, "<div>");
-                }
-                
-                fprintf(file,
-                        "<h4>&sect;"SECTION".%d: %.*s</h4>\n"
-                        "<div style='"CODE_STYLE" "DESCRIPT_SECTION_STYLE"'>\n",
-                        i+1, name.size, name.str);
-                
-                if (string_function_set.items[i].t == Item_Macro){
-                    print_macro_html(file, string_function_set.items[i], name);
-                }
-                else{
-                    print_function_html(file, string_function_set.items[i], name, "");
-                }
-                
-                fprintf(file, "</div>\n");
-                
-                
-                String doc_string = string_function_set.items[i].doc_string;
-                print_function_docs(file, part, name, doc_string);
-                
-                fprintf(file, "</div><hr>\n");
-            }
+        
+        append_sc(&out, "<h3>&sect;"SECTION" String Function Descriptions</h3>");
+        
+        for (int32_t i = 0; i < string_unit.set.count; ++i){
+            print_item(&out, part, string_unit.set.items+i, "_str_doc", "", SECTION, i+1);
         }
         
-        fprintf(file,
-                "</div>\n"
-                "</body>\n"
-                "</html>\n"
-                );
-        
-        fclose(file);
+        append_sc(&out, "</div></body></html>");
+        end_file_out(context);
+    }
+    else{
+        // TODO(allen): warning
     }
 }
 

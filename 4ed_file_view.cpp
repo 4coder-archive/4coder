@@ -1225,7 +1225,7 @@ file_kill_tokens(System_Functions *system,
         general_memory_free(general, file->state.token_stack.tokens);
     }
     file->state.tokens_complete = 0;
-    file->state.token_stack = cpp_token_stack_zero();
+    file->state.token_stack = null_cpp_token_stack;
 }
 
 #if BUFFER_EXPERIMENT_SCALPEL <= 0
@@ -3153,7 +3153,7 @@ internal void
 init_read_only_file(System_Functions *system, Models *models, Editing_File *file){
     General_Memory *general = &models->mem.general;
     
-    String val = string_zero();
+    String val = null_string;
     file_create_from_string(system, models, file, val, 1);
     
     if (file->settings.tokens_exist && file->state.token_stack.tokens == 0){
@@ -3671,7 +3671,7 @@ get_exhaustive_info(System_Functions *system, Working_Set *working_set, Exhausti
     result.name_match = (filename_match(loop->front_name, &loop->absolutes, filename, 0) != 0);
     result.is_loaded = (file != 0 && file_is_ready(file));
     
-    result.message = string_zero();
+    result.message = null_string;
     if (result.is_loaded){
         switch (file_get_sync(file)){
             case SYNC_GOOD: result.message = message_loaded; break;
@@ -3869,7 +3869,7 @@ show_gui_line(GUI_Target *target, String *string,
         append_s_char(string, ' ');
         append_sc(string, follow_up);
     }
-    gui_do_text_field(target, *string, string_zero());
+    gui_do_text_field(target, *string, null_string);
 }
 
 internal void
@@ -3880,7 +3880,7 @@ show_gui_int(GUI_Target *target, String *string,
     append_padding(string, '-', h_align);
     append_s_char(string, ' ');
     append_int_to_str(string, x);
-    gui_do_text_field(target, *string, string_zero());
+    gui_do_text_field(target, *string, null_string);
 }
 
 internal void
@@ -3891,7 +3891,7 @@ show_gui_u64(GUI_Target *target, String *string,
     append_padding(string, '-', h_align);
     append_s_char(string, ' ');
     append_u64_to_str(string, x);
-    gui_do_text_field(target, *string, string_zero());
+    gui_do_text_field(target, *string, null_string);
 }
 
 internal void
@@ -3904,7 +3904,7 @@ show_gui_int_int(GUI_Target *target, String *string,
     append_int_to_str(string, x);
     append_s_char(string, '/');
     append_int_to_str(string, m);
-    gui_do_text_field(target, *string, string_zero());
+    gui_do_text_field(target, *string, null_string);
 }
 
 internal void
@@ -3918,7 +3918,7 @@ show_gui_id(GUI_Target *target, String *string,
     append_padding(string, ' ', h_align + 26);
     append_ss(string, make_lit_string(" [1]: "));
     append_u64_to_str(string, id.id[1]);
-    gui_do_text_field(target, *string, string_zero());
+    gui_do_text_field(target, *string, null_string);
 }
 
 internal void
@@ -3929,7 +3929,7 @@ show_gui_float(GUI_Target *target, String *string,
     append_padding(string, '-', h_align);
     append_s_char(string, ' ');
     append_float_to_str(string, x);
-    gui_do_text_field(target, *string, string_zero());
+    gui_do_text_field(target, *string, null_string);
 }
 
 internal void
@@ -3985,7 +3985,7 @@ gui_show_mouse(GUI_Target *target, String *string, i32 mx, i32 my){
     append_int_to_str(string, my);
     append_s_char(string, ')');
     
-    gui_do_text_field(target, *string, string_zero());
+    gui_do_text_field(target, *string, null_string);
 }
 
 internal View_Step_Result
@@ -4491,7 +4491,7 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                                                 reserved_files[reserved_top++] = file;
                                             }
                                             else{
-                                                message = string_zero();
+                                                message = null_string;
                                                 if (!file->settings.unimportant){
                                                     switch (file_get_sync(file)){
                                                         case SYNC_BEHIND_OS: message = message_unsynced; break;
@@ -4512,7 +4512,7 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                                 for (i = 0; i < reserved_top; ++i){
                                     Editing_File *file = reserved_files[i];
                                     
-                                    message = string_zero();
+                                    message = null_string;
                                     if (!file->settings.unimportant){
                                         switch (file_get_sync(file)){
                                             case SYNC_BEHIND_OS: message = message_unsynced; break;
@@ -4623,7 +4623,7 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                     // - Command maps inspection
                     // - Clipboard inspection
                     
-                    String empty_str = string_zero();
+                    String empty_str = null_string;
                     
                     char space1[512];
                     String string = make_fixed_width_string(space1);

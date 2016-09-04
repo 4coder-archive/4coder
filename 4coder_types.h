@@ -1,7 +1,8 @@
 
 
+#ifndef ENUM
 #define ENUM(type,name) typedef type name; enum name##_
-#define FLAGENUM(name) typedef uint32_t name; enum name##_
+#endif
 
 /* DOC(bool32 is an alias name to signal that an integer parameter or field is for
 true/false vales.) */
@@ -37,7 +38,7 @@ ENUM(int32_t, Key_Modifier){
 
 /* DOC(A Key_Modifier_Flag field is used to specify a specific state of modifiers.
 Flags can be combined with bit or to specify a state with multiple modifiers.) */
-FLAGENUM(Key_Modifier_Flag){
+ENUM(uint32_t, Key_Modifier_Flag){
     /* DOC(MDFR_NONE specifies that no modifiers are pressed.) */
     MDFR_NONE  = 0x0,
     MDFR_CTRL  = 0x1,
@@ -91,7 +92,7 @@ ENUM(uint64_t, Command_ID){
 };
 
 /* DOC(TODO) */
-FLAGENUM(Memory_Protect_Flags){
+ENUM(uint32_t, Memory_Protect_Flags){
     /* DOC(TODO) */
     MemProtect_Read    = 0x1,
     /* DOC(TODO) */
@@ -183,7 +184,7 @@ ENUM(int32_t, View_Setting_ID){
 };
 
 /* DOC(A Buffer_Create_Flag field specifies how a buffer should be created.) */
-FLAGENUM(Buffer_Create_Flag){
+ENUM(uint32_t, Buffer_Create_Flag){
     /* DOC(BufferCreate_Background is not currently implemented.) */
     BufferCreate_Background = 0x1,
     /* DOC(When BufferCreate_AlwaysNew is set it indicates the buffer should be
@@ -195,7 +196,7 @@ FLAGENUM(Buffer_Create_Flag){
 };
 
 /* DOC(A Buffer_Kill_Flag field specifies how a buffer should be killed.) */
-FLAGENUM(Buffer_Kill_Flag){
+ENUM(uint32_t, Buffer_Kill_Flag){
     /* DOC(BufferKill_Background is not currently implemented.) */
     BufferKill_Background  = 0x1,
     /* DOC(When BufferKill_AlwaysKill is set it indicates the buffer should be killed
@@ -209,7 +210,7 @@ access call.  An access call is usually one the returns a summary struct.  If a
 not set in the access field, that 4coder object is hidden.  On the other hand if
 a protection flag is set in the access parameter and the object does not have
 that protection flag, the object is still returned from the access call.) TODO */
-FLAGENUM(Access_Flag){
+ENUM(uint32_t, Access_Flag){
     /* DOC(AccessOpen does not include any bits, it indicates that the access should
     only return objects that have no protection flags set.) */
     AccessOpen      = 0x0,
@@ -227,7 +228,7 @@ FLAGENUM(Access_Flag){
 
 /* DOC(A Seek_Boundary_Flag field specifies a set of "boundary" types used in seeks for the
 beginning or end of different types of words.) */
-FLAGENUM(Seek_Boundary_Flag){
+ENUM(uint32_t, Seek_Boundary_Flag){
     BoundaryWhitespace   = 0x1,
     BoundaryToken        = 0x2,
     BoundaryAlphanumeric = 0x4,
@@ -235,7 +236,7 @@ FLAGENUM(Seek_Boundary_Flag){
 };
 
 /* DOC(A Command_Line_Input_Flag field specifies the behavior of a call to a command line interface.) */
-FLAGENUM(Command_Line_Input_Flag){
+ENUM(uint32_t, Command_Line_Input_Flag){
     /* DOC(If CLI_OverlapWithConflict is set if output buffer of the new command is already
     in use by another command which is still executing, the older command relinquishes control
     of the buffer and both operate simultaneously with only the newer command outputting to
@@ -250,7 +251,7 @@ FLAGENUM(Command_Line_Input_Flag){
 };
 
 /* DOC(An Auto_Indent_Flag field specifies the behavior of an auto indentation operation.) */
-FLAGENUM(Auto_Indent_Flag){
+ENUM(uint32_t, Auto_Indent_Flag){
     /* DOC(If AutoIndent_ClearLine is set, then any line that is only whitespace will
     be cleared to contain nothing at all. otherwise the line is filled with whitespace
     to match the nearby indentation.) */
@@ -262,7 +263,7 @@ FLAGENUM(Auto_Indent_Flag){
 };
 
 /* DOC(A Set_Buffer_Flag field specifies the behavior of an operation that sets the buffer of a view.) */
-FLAGENUM(Set_Buffer_Flag){
+ENUM(uint32_t, Set_Buffer_Flag){
     /* DOC(If SetBuffer_KeepOriginalGUI then when the file is set, the view will not switch to it
     if some other GUI was currently up, otherwise any GUI that is up is closed and the view
     switches to the file.) */
@@ -270,7 +271,7 @@ FLAGENUM(Set_Buffer_Flag){
 };
 
 /* DOC(A Input_Type_Flag field specifies a set of input event types.) */
-FLAGENUM(Input_Type_Flag){
+ENUM(uint32_t, Input_Type_Flag){
     /* DOC(If EventOnAnyKey is set, all keyboard events are included in the set.) */
     EventOnAnyKey      = 0x1,
     /* DOC(If EventOnEsc is set, any press of the escape key is included in the set.) */
@@ -614,8 +615,7 @@ struct Buffer_Summary{
 
 /* DOC(View_Summary acts as a handle to a view and describes the state of the view.)
 DOC_SEE(Access_Flag)
-DOC_SEE(Full_Cursor)
-*/
+DOC_SEE(Full_Cursor) */
 struct View_Summary{
     /* DOC(
     This field indicates whether the View_Summary describes a view that is open in 4coder.
@@ -627,7 +627,7 @@ struct View_Summary{
     If this is a null summary then view_id is 0.
     ) */
     int32_t view_id;
-    /* DOC(If this is not a null summary, and this view looks at a buffer, this is the id of the buffer.) */
+    /* DOC(If this is not a null summary, then this is the id of the buffer this view currently sees.) */
     int32_t buffer_id;
     /*
     DOC(If this is not a null summary, this field contains flags describing the protection status of the view.)

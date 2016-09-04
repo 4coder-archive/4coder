@@ -2382,7 +2382,7 @@ WinMain(HINSTANCE hInstance,
         
         input_chunk.pers.control_keys[MDFR_CAPS_INDEX] = GetKeyState(VK_CAPITAL) & 0x1;
         
-        win32vars.clipboard_contents = string_zero();
+        win32vars.clipboard_contents = null_string;
         if (win32vars.clipboard_sequence != 0){
             DWORD new_number = GetClipboardSequenceNumber();
             if (new_number != win32vars.clipboard_sequence){

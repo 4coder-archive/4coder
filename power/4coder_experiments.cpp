@@ -259,7 +259,7 @@ CUSTOM_COMMAND_SIG(mark_matching_brace){
     
     finished:
     if (found_result){
-        app->view_set_mark(app, &view, seek_pos(result));
+        app->view_set_mark(app, &view, seek_pos(result+1));
     }
 }
 
