@@ -84,19 +84,11 @@ enum Lex_PP_State{
 
 struct Lex_FSM{
     uint8_t state;
-    union{
-        uint8_t int_state;
-        uint8_t directive_state;
-        uint8_t sub_machine;
-    };
+    uint8_t int_state;
     uint8_t emit_token;
     uint8_t multi_line;
 };
-inline Lex_FSM
-zero_lex_fsm(){
-    Lex_FSM fsm = {0};
-    return(fsm);
-}
+static Lex_FSM null_lex_fsm = {0};
 
 #endif
 

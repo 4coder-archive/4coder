@@ -12,7 +12,7 @@
 # define FCPP_LINK static
 #endif
 
-#include "4coder_lexer_types.h"
+#include "4cpp_lexer_types.h"
 #include "4cpp_lexer_fsms.h"
 #include "4cpp_lexer_tables.c"
 
@@ -297,48 +297,15 @@ cpp_pp_directive_to_state(Cpp_Token_Type type){
     return(result);
 }
 
-#if 0
-FCPP_LINK Cpp_Token_Merge
-cpp_attempt_token_merge(Cpp_Token prev_token, Cpp_Token next_token){
-    Cpp_Token_Merge result = {(Cpp_Token_Type)0};
-	if (next_token.type == CPP_TOKEN_COMMENT && prev_token.type == CPP_TOKEN_COMMENT &&
-		next_token.flags == prev_token.flags && next_token.state_flags == prev_token.state_flags){
-		result.did_merge = 1;
-		prev_token.size = next_token.start + next_token.size - prev_token.start;
-		result.new_token = prev_token;
-	}
-	else if (next_token.type == CPP_TOKEN_JUNK && prev_token.type == CPP_TOKEN_JUNK &&
-			 next_token.flags == prev_token.flags && next_token.state_flags == prev_token.state_flags){
-		result.did_merge = 1;
-		prev_token.size = next_token.start + next_token.size - prev_token.start;
-		result.new_token = prev_token;
-	}
-    return(result);
-}
-#endif
-
 FCPP_LINK int32_t
 cpp_place_token_nonalloc(Cpp_Token *out_tokens, int32_t token_i, Cpp_Token token){
-    //Cpp_Token_Merge merge = {(Cpp_Token_Type)0};
     Cpp_Token prev_token = {(Cpp_Token_Type)0};
     
     if (token_i > 0){
         prev_token = out_tokens[token_i - 1];
-#if 0
-        merge = cpp_attempt_token_merge(prev_token, token);
-        if (merge.did_merge){
-            out_tokens[token_i - 1] = merge.new_token;
-        }
-#endif
     }
     
-#if 0
-    if (!merge.did_merge){
-        out_tokens[token_i++] = token;
-    }
-#else
     out_tokens[token_i++] = token;
-#endif
     
     return(token_i);
 }
@@ -449,7 +416,7 @@ cpp_lex_nonalloc(Lex_Data *S_ptr,
         
         S.token_start = S.pos;
         S.tb_pos = 0;
-        S.fsm = zero_lex_fsm();
+        S.fsm = null_lex_fsm;
         for(;;){
             {
                 unsigned short *eq_classes = get_eq_classes[S.pp_state];

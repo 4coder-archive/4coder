@@ -445,7 +445,7 @@ init_build_line(Build_Line *line){
 "..\\foreign\\freetype.lib"
 
 #define CL_ICON \
-"..\\foreign\\freetype.lib"
+"..\\res\\icon.res"
 
 static void
 build_cl(uint32_t flags,
@@ -808,6 +808,8 @@ package(char *cdir){
     
     copy_all ("4coder_*.h", PACK_SUPER_DIR);
     copy_all ("4coder_*.cpp", PACK_SUPER_DIR);
+    copy_all ("4cpp_*.h", PACK_SUPER_DIR);
+    copy_all ("4cpp_*.c", PACK_SUPER_DIR);
     copy_file(0, "buildsuper"BAT, PACK_SUPER_DIR, 0);
     
     get_4coder_dist_name(&str, 0, "API", "html");

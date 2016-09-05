@@ -2193,10 +2193,40 @@ generate_custom_headers(){
                                               string_keys, ArrayCount(string_keys));
     
     
+    // NOTE(allen): Parse the lexer library
+    static char *lexer_types_files[] = {
+        "4cpp_lexer_types.h",
+    };
+    
+    static Meta_Keywords lexer_types_keys[] = {
+        {make_lit_string("typedef") , Item_Typedef } ,
+        {make_lit_string("struct")  , Item_Struct  } ,
+        {make_lit_string("union")   , Item_Union   } ,
+        {make_lit_string("ENUM")    , Item_Enum    } ,
+    };
+    
+    Meta_Unit lexer_types_unit =
+        compile_meta_unit(part, lexer_types_files, ArrayCount(lexer_types_files),
+                          lexer_types_keys, ArrayCount(lexer_types_keys));
+    
+    static char *lexer_funcs_files[] = {
+        "4cpp_lexer.h",
+    };
+    
+    static Meta_Keywords lexer_funcs_keys[] = {
+        {make_lit_string("FCPP_LINK") , Item_Function } ,
+    };
+    
+    Meta_Unit lexer_funcs_unit =
+        compile_meta_unit(part, lexer_funcs_files, ArrayCount(lexer_funcs_files),
+                          lexer_funcs_keys, ArrayCount(lexer_funcs_keys));
+    
+    
+    
     // NOTE(allen): Parse the customization API files
     static char *functions_files[] = {
         "4ed_api_implementation.cpp",
-        "win32_api_impl.cpp"
+        "win32_api_impl.cpp",
     };
     
     static Meta_Keywords functions_keys[] = {
@@ -2225,11 +2255,9 @@ generate_custom_headers(){
         partition_align(part, 4);
     }
     
-    
     // NOTE(allen): Parse the customization API types
     static char *type_files[] = {
         "4coder_types.h",
-        "4coder_lexer_types.h",
     };
     
     static Meta_Keywords type_keys[] = {
@@ -2241,7 +2269,6 @@ generate_custom_headers(){
     
     Meta_Unit unit = compile_meta_unit(part, type_files, ArrayCount(type_files),
                                        type_keys, ArrayCount(type_keys));
-    
     
     // NOTE(allen): Output
     String out = str_alloc(part, 10 << 20);
@@ -2599,8 +2626,7 @@ generate_custom_headers(){
                 "<body>"
                 "<div style='font-family:Arial; margin: 0 auto; "
                 "width: 800px; text-align: justify; line-height: 1.25;'>"
-                "<h1 style='margin-top: 5mm; margin-bottom: 5mm;'>4coder API</h1>"
-                );
+                "<h1 style='margin-top: 5mm; margin-bottom: 5mm;'>4coder API</h1>");
         
         struct Section{
             char *id_string;
@@ -2611,11 +2637,11 @@ generate_custom_headers(){
             {"introduction", "Introduction"},
             {"4coder_systems", "4coder Systems"},
             {"types_and_functions", "Types and Functions"},
-            {"string_library", "String Library"}
+            {"string_library", "String Library"},
+            {"lexer_library", "Lexer Library"}
         };
         
-        append_sc(&out,
-                  "<h3 style='margin:0;'>Table of Contents</h3>""<ul>");
+        append_sc(&out, "<h3 style='margin:0;'>Table of Contents</h3>""<ul>");
         
         int32_t section_count = ArrayCount(sections);
         for (int32_t i = 0; i < section_count; ++i){
@@ -2745,7 +2771,7 @@ generate_custom_headers(){
         
         append_sc(&out, "<ul>");
         for (int32_t i = 0; i < string_unit.set.count; ++i){
-            print_item_in_list(&out, string_unit.set.items[i].name, "_str_doc");
+            print_item_in_list(&out, string_unit.set.items[i].name, "_doc");
         }
         append_sc(&out, "</ul>");
         
@@ -2755,8 +2781,63 @@ generate_custom_headers(){
         append_sc(&out, "<h3>&sect;"SECTION" String Function Descriptions</h3>");
         
         for (int32_t i = 0; i < string_unit.set.count; ++i){
-            print_item(&out, part, string_unit.set.items+i, "_str_doc", "", SECTION, i+1);
+            print_item(&out, part, string_unit.set.items+i, "_doc", "", SECTION, i+1);
         }
+        
+#undef MAJOR_SECTION
+#define MAJOR_SECTION "5"
+        
+        append_sc(&out, "\n<h2 id='section_");
+        append_sc(&out, sections[4].id_string);
+        append_sc(&out, "'>&sect;"MAJOR_SECTION" ");
+        append_sc(&out, sections[4].display_string);
+        append_sc(&out, "</h2>");
+        
+#undef SECTION
+#define SECTION MAJOR_SECTION".1"
+        
+        append_sc(&out, "<h3>&sect;"SECTION" Lexer Intro</h3>");
+        
+        append_sc(&out, "<div><i>Coming Soon</i><div>");
+        
+#undef SECTION
+#define SECTION MAJOR_SECTION".2"
+        
+        append_sc(&out, "<h3>&sect;"SECTION" Lexer Function List</h3>");
+        
+        append_sc(&out, "<ul>");
+        for (int32_t i = 0; i < lexer_funcs_unit.set.count; ++i){
+            print_item_in_list(&out, lexer_funcs_unit.set.items[i].name, "_doc");
+        }
+        append_sc(&out, "</ul>");
+        
+#undef SECTION
+#define SECTION MAJOR_SECTION".3"
+        
+        append_sc(&out, "<h3>&sect;"SECTION" Lexer Types List</h3>");
+        
+        append_sc(&out, "<ul>");
+        for (int32_t i = 0; i < lexer_types_unit.set.count; ++i){
+            print_item_in_list(&out, lexer_types_unit.set.items[i].name, "_doc");
+        }
+        append_sc(&out, "</ul>");
+        
+#undef SECTION
+#define SECTION MAJOR_SECTION".4"
+        
+        append_sc(&out, "<h3>&sect;"SECTION" Lexer Function Descriptions</h3>");
+        for (int32_t i = 0; i < lexer_funcs_unit.set.count; ++i){
+            print_item(&out, part, lexer_funcs_unit.set.items+i, "_doc", "", SECTION, i+1);
+        }
+        
+#undef SECTION
+#define SECTION MAJOR_SECTION".5"
+        
+        append_sc(&out, "<h3>&sect;"SECTION" Lexer Type Descriptions</h3>");
+        for (int32_t i = 0; i < lexer_types_unit.set.count; ++i){
+            print_item(&out, part, lexer_types_unit.set.items+i, "_doc", "", SECTION, i+1);
+        }
+        
         
         append_sc(&out, "</div></body></html>");
         end_file_out(context);
