@@ -2643,6 +2643,8 @@ LinuxX11WindowInit(int argc, char** argv, int* WinWidth, int* WinHeight)
     };
 
     XSetWMProtocols(linuxvars.XDisplay, linuxvars.XWindow, wm_protos, 2);
+
+    return true;
 }
 
 internal void
@@ -3469,6 +3471,11 @@ main(int argc, char **argv)
             linuxvars.input.mouse.release_r = 0;
             linuxvars.input.mouse.wheel = 0;
         }
+    }
+
+    if(linuxvars.XDisplay){
+        if(linuxvars.XWindow) XDestroyWindow(linuxvars.XDisplay, linuxvars.XWindow);
+        XCloseDisplay(linuxvars.XDisplay);
     }
 
     return 0;
