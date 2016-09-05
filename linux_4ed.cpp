@@ -3471,6 +3471,11 @@ main(int argc, char **argv)
         }
     }
 
+    if(linuxvars.XDisplay){
+        if(linuxvars.XWindow) XDestroyWindow(linuxvars.XDisplay, linuxvars.XWindow);
+        XCloseDisplay(linuxvars.XDisplay);
+    }
+
     return 0;
 }
 
