@@ -78,7 +78,7 @@ static void     execute(char *dir, char *str);
 
 static void make_folder_if_missing(char *folder);
 static void clear_folder(char *folder);
-static void copy_file(char *path, char *file, char *folder);
+static void copy_file(char *path, char *file, char *folder, char *newname);
 static void copy_all(char *source, char *folder);
 static void zip(char *folder, char *dest);
 
@@ -180,7 +180,7 @@ clear_folder(char *folder){
 }
 
 static void
-copy_file(char *path, char *file, char *folder){
+copy_file(char *path, char *file, char *folder, char *newname){
     char src[256], dst[256];
     String b = make_fixed_width_string(src);
     if (path){
@@ -193,7 +193,12 @@ copy_file(char *path, char *file, char *folder){
     b = make_fixed_width_string(dst);
     append_sc(&b, folder);
     append_sc(&b, "\\");
-    append_sc(&b, file);
+    if (newname){
+        append_sc(&b, newname);
+    }
+    else{
+        append_sc(&b, file);
+    }
     terminate_with_null(&b);
     
     slash_fix(src);
@@ -298,12 +303,16 @@ clear_folder(char *folder){
 }
 
 static void
-copy_file(char *path, char *file, char *folder){
+copy_file(char *path, char *file, char *folder, char *newname){
+    if (!newname){
+        newname = file;
+    }
+    
     if (path){
-        systemf("cp %s/%s %s/%s", path, file, folder, file);
+        systemf("cp %s/%s %s/%s", path, file, folder, newname);
     }
     else{
-        systemf("cp %s %s/%s", file, folder, file);
+        systemf("cp %s %s/%s", file, folder, newname);
     }
 }
 
@@ -723,8 +732,9 @@ standard_build(char *cdir, uint32_t flags){
 #define PACK_POWER_DIR "../current_dist_power/power"
 
 static void
-get_zip_name(String *zip_file, int32_t OS_specific, char *tier){
+get_4coder_dist_name(String *zip_file, int32_t OS_specific, char *tier, char *ext){
     zip_file->size = 0;
+    
     append_sc(zip_file, PACK_DIR"/");
     append_sc(zip_file, tier);
     append_sc(zip_file, "/4coder-");
@@ -739,21 +749,26 @@ get_zip_name(String *zip_file, int32_t OS_specific, char *tier){
 #endif
     }
     
-    append_sc         (zip_file, tier);
+    append_sc         (zip_file, "alpha");
     append_sc         (zip_file, "-");
     append_int_to_str (zip_file, MAJOR);
     append_sc         (zip_file, "-");
     append_int_to_str (zip_file, MINOR);
     append_sc         (zip_file, "-");
     append_int_to_str (zip_file, PATCH);
-    append_sc         (zip_file, ".zip");
+    if (!match_cc(tier, "alpha")){
+        append_sc     (zip_file, "-");
+        append_sc     (zip_file, tier);
+    }
+    append_sc         (zip_file, ".");
+    append_sc         (zip_file, ext);
     terminate_with_null(zip_file);
 }
 
 static void
 package(char *cdir){
-    char zip_file_[1024];
-    String zip_file = make_fixed_width_string(zip_file_);
+    char str_space[1024];
+    String str = make_fixed_width_string(str_space), str2 = {0};
     
     // NOTE(allen): meta
     fsm_generator(cdir);
@@ -765,16 +780,16 @@ package(char *cdir){
     clear_folder(PACK_ALPHA_DIR"/..");
     make_folder_if_missing(PACK_ALPHA_DIR"/3rdparty");
     make_folder_if_missing(PACK_DIR"/alpha");
-    copy_file(BUILD_DIR, "4ed"EXE, PACK_ALPHA_DIR);
-    ONLY_WINDOWS(copy_file(BUILD_DIR, "4ed"PDB, PACK_ALPHA_DIR));
-    copy_file(BUILD_DIR, "4ed_app"DLL, PACK_ALPHA_DIR);
-    ONLY_WINDOWS(copy_file(BUILD_DIR, "4ed_app"PDB, PACK_ALPHA_DIR));
+    copy_file(BUILD_DIR, "4ed"EXE, PACK_ALPHA_DIR, 0);
+    ONLY_WINDOWS(copy_file(BUILD_DIR, "4ed"PDB, PACK_ALPHA_DIR, 0));
+    copy_file(BUILD_DIR, "4ed_app"DLL, PACK_ALPHA_DIR, 0);
+    ONLY_WINDOWS(copy_file(BUILD_DIR, "4ed_app"PDB, PACK_ALPHA_DIR, 0));
     copy_all (PACK_DATA_DIR"/*", PACK_ALPHA_DIR);
-    copy_file(0, "README.txt", PACK_ALPHA_DIR);
-    copy_file(0, "TODO.txt", PACK_ALPHA_DIR);
+    copy_file(0, "README.txt", PACK_ALPHA_DIR, 0);
+    copy_file(0, "TODO.txt", PACK_ALPHA_DIR, 0);
     
-    get_zip_name(&zip_file, 1, "alpha");
-    zip(PACK_ALPHA_DIR, zip_file.str);
+    get_4coder_dist_name(&str, 1, "alpha", "zip");
+    zip(PACK_ALPHA_DIR, str.str);
     
     // NOTE(allen): super
     build_main(cdir, OPTIMIZATION | KEEP_ASSERT | DEBUG_INFO | SUPER);
@@ -782,22 +797,24 @@ package(char *cdir){
     clear_folder(PACK_SUPER_DIR"/..");
     make_folder_if_missing(PACK_SUPER_DIR"/3rdparty");
     make_folder_if_missing(PACK_DIR"/super");
-    copy_file(BUILD_DIR, "4ed"EXE, PACK_SUPER_DIR);
-    ONLY_WINDOWS(copy_file(BUILD_DIR, "4ed"PDB, PACK_SUPER_DIR));
-    copy_file(BUILD_DIR, "4ed_app"DLL, PACK_SUPER_DIR);
-    ONLY_WINDOWS(copy_file(BUILD_DIR, "4ed_app"PDB, PACK_SUPER_DIR));
+    copy_file(BUILD_DIR, "4ed"EXE, PACK_SUPER_DIR, 0);
+    ONLY_WINDOWS(copy_file(BUILD_DIR, "4ed"PDB, PACK_SUPER_DIR, 0));
+    copy_file(BUILD_DIR, "4ed_app"DLL, PACK_SUPER_DIR, 0);
+    ONLY_WINDOWS(copy_file(BUILD_DIR, "4ed_app"PDB, PACK_SUPER_DIR, 0));
     copy_all (PACK_DATA_DIR"/*", PACK_SUPER_DIR);
-    copy_file(0, "README.txt", PACK_SUPER_DIR);
-    copy_file(0, "TODO.txt", PACK_SUPER_DIR);
+    copy_file(0, "README.txt", PACK_SUPER_DIR, 0);
+    copy_file(0, "TODO.txt", PACK_SUPER_DIR, 0);
     
     copy_all ("4coder_*.h", PACK_SUPER_DIR);
     copy_all ("4coder_*.cpp", PACK_SUPER_DIR);
-    copy_file(0, "buildsuper"BAT, PACK_SUPER_DIR);
+    copy_file(0, "buildsuper"BAT, PACK_SUPER_DIR, 0);
     
-    copy_file(0, "4coder_API.html", PACK_DIR"/super-docs");
+    get_4coder_dist_name(&str, 0, "API", "html");
+    str2 = front_of_directory(str);
+    copy_file(0, "4coder_API.html", PACK_DIR"/super-docs", str2.str);
     
-    get_zip_name(&zip_file, 1, "super");
-    zip(PACK_SUPER_DIR, zip_file.str);
+    get_4coder_dist_name(&str, 1, "super", "zip");
+    zip(PACK_SUPER_DIR, str.str);
     
     // NOTE(allen): power
     clear_folder(PACK_POWER_DIR"/..");
@@ -805,8 +822,8 @@ package(char *cdir){
     make_folder_if_missing(PACK_DIR"/power");
     copy_all("power/*", PACK_POWER_DIR);
     
-    get_zip_name(&zip_file, 0, "power");
-    zip(PACK_POWER_DIR, zip_file.str);
+    get_4coder_dist_name(&str, 0, "power", "zip");
+    zip(PACK_POWER_DIR, str.str);
     
 }
 
