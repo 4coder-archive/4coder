@@ -7,11 +7,11 @@ SET OPTS=/GR- /EHa- /nologo /FC
 
 SET FirstError=0
 
-SET BUILD_MODE="%1"
+SET BUILD_MODE=%1
 if "%BUILD_MODE%" == "" (SET BUILD_MODE="/DDEV_BUILD")
 
 pushd ..\build
-cl %OPTS% ..\code\build.c /Febuild %BUILD_MODE%
+cl %OPTS% ..\code\build.c /Zi /Febuild %BUILD_MODE%
 if %ERRORLEVEL% neq 0 (set FirstError=1)
 popd
 

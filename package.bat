@@ -1,4 +1,4 @@
-REM @echo off
+@echo off
 REM pushd W:\4ed\meta
 REM cl %OPTS% ..\code\readme_generator.c /Fereadmegen
 REM popd

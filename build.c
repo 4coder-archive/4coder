@@ -88,7 +88,9 @@ typedef uint32_t DWORD;
 typedef int32_t  LONG;
 typedef int64_t  LONGLONG;
 typedef char*    LPTSTR;
+typedef char*    LPCTSTR;
 typedef int32_t  BOOL;
+typedef void*    LPSECURITY_ATTRIBUTES;
 typedef union    _LARGE_INTEGER {
     struct {
         DWORD LowPart;
@@ -101,9 +103,15 @@ typedef union    _LARGE_INTEGER {
     LONGLONG QuadPart;
 } LARGE_INTEGER, *PLARGE_INTEGER;
 
-DWORD GetCurrentDirectoryA(_In_  DWORD  nBufferLength, _Out_ LPTSTR lpBuffer);
-BOOL QueryPerformanceCounter(_Out_ LARGE_INTEGER *lpPerformanceCount);
-BOOL QueryPerformanceFrequency(_Out_ LARGE_INTEGER *lpFrequency);
+#if defined(IS_64BIT)
+# define WINAPI
+#endif
+
+DWORD WINAPI GetCurrentDirectoryA(_In_  DWORD  nBufferLength, _Out_ LPTSTR lpBuffer);
+BOOL WINAPI QueryPerformanceCounter(_Out_ LARGE_INTEGER *lpPerformanceCount);
+BOOL WINAPI QueryPerformanceFrequency(_Out_ LARGE_INTEGER *lpFrequency);
+BOOL WINAPI CreateDirectoryA(_In_ LPCTSTR lpPathName, _In_opt_ LPSECURITY_ATTRIBUTES lpSecurityAttributes);
+BOOL WINAPI CopyFileA(_In_ LPCTSTR lpExistingFileName, _In_ LPCTSTR lpNewFileName, _In_ BOOL bFailIfExists);
 
 static uint64_t perf_frequency;
 
@@ -157,27 +165,32 @@ make_folder_if_missing(char *folder){
     for (; *p; ++p){
         if (*p == '\\'){
             *p = 0;
-            CreateFolder(folder, 0);
+            CreateDirectoryA(folder, 0);
             *p = '\\';
         }
     }
+    CreateDirectoryA(folder, 0);
 }
 
 static void
 clear_folder(char *folder){
     slash_fix(folder);
-    systemf("del /S %s\\*", folder);
+    systemf("del /S /Q /F %s\\* & rmdir /S /Q %s & mkdir %s",
+            folder, folder, folder);
 }
 
 static void
 copy_file(char *path, char *file, char *folder){
     char src[256], dst[256];
     String b = make_fixed_width_string(src);
-    append_sc(&b, path);
-    append_sc(&b, "\\");
+    if (path){
+        append_sc(&b, path);
+        append_sc(&b, "\\");
+    }
     append_sc(&b, file);
     terminate_with_null(&b);
     
+    b = make_fixed_width_string(dst);
     append_sc(&b, folder);
     append_sc(&b, "\\");
     append_sc(&b, file);
@@ -186,7 +199,7 @@ copy_file(char *path, char *file, char *folder){
     slash_fix(src);
     slash_fix(dst);
     
-    CopyFile(src, dst, 0);
+    CopyFileA(src, dst, 0);
 }
 
 static void
@@ -201,7 +214,11 @@ zip(char *folder, char *dest){
     char cdir[512];
     get_current_directory(cdir, sizeof(cdir));
     
-    systemf("pushd %s & %s/zip %s", folder, cdir, dest);
+    slash_fix(folder);
+    slash_fix(dest);
+    
+    systemf("pushd %s & %s\\zip %s\\4tech_gobble.zip", folder, cdir, cdir);
+    systemf("copy %s\\4tech_gobble.zip %s & del %s\\4tech_gobble.zip", cdir, dest, cdir);
 }
 
 #elif defined(IS_LINUX)
@@ -706,19 +723,21 @@ standard_build(char *cdir, uint32_t flags){
 #define PACK_POWER_DIR "../current_dist_power/power"
 
 static void
-get_zip_name(String *zip_file, char *tier){
+get_zip_name(String *zip_file, int32_t OS_specific, char *tier){
     zip_file->size = 0;
     append_sc(zip_file, PACK_DIR"/");
     append_sc(zip_file, tier);
     append_sc(zip_file, "/4coder-");
     
+    if (OS_specific){
 #if defined(IS_WINDOWS)
-    append_sc(zip_file, "win-");
+        append_sc(zip_file, "win-");
 #elif defined(IS_LINUX) && defined(IS_64BIT)
-    append_sc(zip_file, "linux-64-");
+        append_sc(zip_file, "linux-64-");
 #else
 #error No OS string for zips on this OS
 #endif
+    }
     
     append_sc         (zip_file, tier);
     append_sc         (zip_file, "-");
@@ -743,7 +762,7 @@ package(char *cdir){
     // NOTE(allen): alpha
     build_main(cdir, OPTIMIZATION | KEEP_ASSERT | DEBUG_INFO);
     
-    clear_folder(PACK_ALPHA_DIR);
+    clear_folder(PACK_ALPHA_DIR"/..");
     make_folder_if_missing(PACK_ALPHA_DIR"/3rdparty");
     make_folder_if_missing(PACK_DIR"/alpha");
     copy_file(BUILD_DIR, "4ed"EXE, PACK_ALPHA_DIR);
@@ -754,13 +773,13 @@ package(char *cdir){
     copy_file(0, "README.txt", PACK_ALPHA_DIR);
     copy_file(0, "TODO.txt", PACK_ALPHA_DIR);
     
-    get_zip_name(&zip_file, "alpha");
+    get_zip_name(&zip_file, 1, "alpha");
     zip(PACK_ALPHA_DIR, zip_file.str);
     
     // NOTE(allen): super
     build_main(cdir, OPTIMIZATION | KEEP_ASSERT | DEBUG_INFO | SUPER);
     
-    clear_folder(PACK_SUPER_DIR);
+    clear_folder(PACK_SUPER_DIR"/..");
     make_folder_if_missing(PACK_SUPER_DIR"/3rdparty");
     make_folder_if_missing(PACK_DIR"/super");
     copy_file(BUILD_DIR, "4ed"EXE, PACK_SUPER_DIR);
@@ -774,18 +793,19 @@ package(char *cdir){
     copy_all ("4coder_*.h", PACK_SUPER_DIR);
     copy_all ("4coder_*.cpp", PACK_SUPER_DIR);
     copy_file(0, "buildsuper"BAT, PACK_SUPER_DIR);
-    copy_file(0, "4coder_API.html", PACK_SUPER_DIR"/..");
     
-    get_zip_name(&zip_file, "super");
+    copy_file(0, "4coder_API.html", PACK_DIR"/super-docs");
+    
+    get_zip_name(&zip_file, 1, "super");
     zip(PACK_SUPER_DIR, zip_file.str);
     
     // NOTE(allen): power
-    clear_folder(PACK_POWER_DIR);
+    clear_folder(PACK_POWER_DIR"/..");
     make_folder_if_missing(PACK_POWER_DIR);
     make_folder_if_missing(PACK_DIR"/power");
     copy_all("power/*", PACK_POWER_DIR);
     
-    get_zip_name(&zip_file, "power");
+    get_zip_name(&zip_file, 0, "power");
     zip(PACK_POWER_DIR, zip_file.str);
     
 }
