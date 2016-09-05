@@ -2643,6 +2643,8 @@ LinuxX11WindowInit(int argc, char** argv, int* WinWidth, int* WinHeight)
     };
 
     XSetWMProtocols(linuxvars.XDisplay, linuxvars.XWindow, wm_protos, 2);
+
+    return true;
 }
 
 internal void
