@@ -142,6 +142,68 @@ execute(char *dir, char *str){
     }
 }
 
+static void
+slash_fix(char *path){
+    for (int32_t i = 0; path[i]; ++i){
+        if (path[i] == '/') path[i] = '\\';
+    }
+}
+
+static void
+make_folder_if_missing(char *folder){
+    char *p = folder;
+    slash_fix(folder);
+    
+    for (; *p; ++p){
+        if (*p == '\\'){
+            *p = 0;
+            CreateFolder(folder, 0);
+            *p = '\\';
+        }
+    }
+}
+
+static void
+clear_folder(char *folder){
+    slash_fix(folder);
+    systemf("del /S %s\\*", folder);
+}
+
+static void
+copy_file(char *path, char *file, char *folder){
+    char src[256], dst[256];
+    String b = make_fixed_width_string(src);
+    append_sc(&b, path);
+    append_sc(&b, "\\");
+    append_sc(&b, file);
+    terminate_with_null(&b);
+    
+    append_sc(&b, folder);
+    append_sc(&b, "\\");
+    append_sc(&b, file);
+    terminate_with_null(&b);
+    
+    slash_fix(src);
+    slash_fix(dst);
+    
+    CopyFile(src, dst, 0);
+}
+
+static void
+copy_all(char *source, char *folder){
+    slash_fix(source);
+    slash_fix(folder);
+    systemf("copy %s %s\\*", source, folder);
+}
+
+static void
+zip(char *folder, char *dest){
+    char cdir[512];
+    get_current_directory(cdir, sizeof(cdir));
+    
+    systemf("pushd %s & %s/zip %s", folder, cdir, dest);
+}
+
 #elif defined(IS_LINUX)
 
 #include <time.h>
@@ -204,6 +266,9 @@ execute(char *dir, char *str){
         systemf("%s", str);
     }
 }
+
+static void
+slash_fix(char *path){}
 
 static void
 make_folder_if_missing(char *folder){
@@ -286,13 +351,6 @@ swap_ptr(char **A, char **B){
     *B = a;
 }
 
-static void
-win32_slash_fix(char *path){
-    for (int32_t i = 0; path[i]; ++i){
-        if (path[i] == '/') path[i] = '\\';
-    }
-}
-
 enum{
     OPTS = 0x1,
     INCLUDES = 0x2,
@@ -368,8 +426,8 @@ build_cl(uint32_t flags,
          char *code_path, char *code_file,
          char *out_path, char *out_file,
          char *exports){
-    win32_slash_fix(out_path);
-    win32_slash_fix(code_path);
+    slash_fix(out_path);
+    slash_fix(code_path);
     
     Build_Line line;
     init_build_line(&line);
@@ -455,6 +513,8 @@ build_gcc(uint32_t flags,
     }
     
     if (flags & INCLUDES){
+        // TODO(allen): Abstract this out.
+#if IS_LINUX
         int32_t size = 0;
         char freetype_include[512];
         FILE *file = popen("pkg-config --cflags freetype2", "r");
@@ -466,6 +526,7 @@ build_gcc(uint32_t flags,
         }
         
         build_ap(line, GCC_INCLUDES" %s", freetype_include);
+#endif
     }
     
     if (flags & DEBUG_INFO){
@@ -505,9 +566,12 @@ build_gcc(uint32_t flags,
     
     swap_ptr(&line.build_options, &line.build_options_prev);
     
+    // TODO(allen): Abstract this out.
+#if IS_LINUX
     Temp_Dir temp = linux_pushd(out_path);
     systemf("g++ %s -o %s", line.build_options, out_file);
     linux_popd(temp);
+#endif
 }
 
 static void
@@ -527,9 +591,9 @@ build(uint32_t flags,
 static void
 buildsuper(char *code_path, char *out_path, char *filename){
 #if defined(IS_CL)
-    win32_slash_fix(filename);
-    win32_slash_fix(out_path);
-    win32_slash_fix(code_path);
+    slash_fix(filename);
+    slash_fix(out_path);
+    slash_fix(code_path);
     
     systemf("pushd %s & call \"%s\\buildsuper.bat\" %s",
             out_path, code_path, filename);
@@ -596,7 +660,7 @@ do_buildsuper(char *cdir){
     {
         BEGIN_TIME_SECTION();
         //buildsuper(cdir, BUILD_DIR, "../code/4coder_default_bindings.cpp");
-#if IS_WINDOWS
+#if defined(IS_WINDOWS)
         buildsuper(cdir, BUILD_DIR, "../code/internal_4coder_tests.cpp");
 #else
         buildsuper(cdir, BUILD_DIR, "../code/power/4coder_experiments.cpp");
