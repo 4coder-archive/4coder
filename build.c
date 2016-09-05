@@ -540,7 +540,7 @@ build_gcc(uint32_t flags,
     
     if (flags & INCLUDES){
         // TODO(allen): Abstract this out.
-#if IS_LINUX
+#if defined(IS_LINUX)
         int32_t size = 0;
         char freetype_include[512];
         FILE *file = popen("pkg-config --cflags freetype2", "r");
@@ -559,14 +559,9 @@ build_gcc(uint32_t flags,
         build_ap(line, "-g -O0");
     }
     
-    // TODO(allen): Enabling these optimizations seems to break 4coder.
-    // Some sort of bug in the linux layer or something?  Having trouble
-    // getting information out of 4coder about it.
-#if 0
     if (flags & OPTIMIZATION){
         build_ap(line, "-O3");
     }
-#endif
     
     if (flags & SHARED_CODE){
         build_ap(line, "-shared");
@@ -593,7 +588,7 @@ build_gcc(uint32_t flags,
     swap_ptr(&line.build_options, &line.build_options_prev);
     
     // TODO(allen): Abstract this out.
-#if IS_LINUX
+#if defined(IS_LINUX)
     Temp_Dir temp = linux_pushd(out_path);
     systemf("g++ %s -o %s", line.build_options, out_file);
     linux_popd(temp);
@@ -727,9 +722,14 @@ standard_build(char *cdir, uint32_t flags){
 
 #define PACK_DIR "../distributions"
 #define PACK_DATA_DIR "../data/dist_files"
-#define PACK_ALPHA_DIR "../current_dist/4coder"
-#define PACK_SUPER_DIR "../current_dist_super/4coder"
-#define PACK_POWER_DIR "../current_dist_power/power"
+
+#define PACK_ALPHA_PAR_DIR "../current_dist"
+#define PACK_SUPER_PAR_DIR "../current_dist_super"
+#define PACK_POWER_PAR_DIR "../current_dist_power"
+
+#define PACK_ALPHA_DIR PACK_ALPHA_PAR_DIR"/4coder"
+#define PACK_SUPER_DIR PACK_SUPER_PAR_DIR"/4coder"
+#define PACK_POWER_DIR PACK_POWER_PAR_DIR"/power"
 
 static void
 get_4coder_dist_name(String *zip_file, int32_t OS_specific, char *tier, char *ext){
@@ -777,7 +777,7 @@ package(char *cdir){
     // NOTE(allen): alpha
     build_main(cdir, OPTIMIZATION | KEEP_ASSERT | DEBUG_INFO);
     
-    clear_folder(PACK_ALPHA_DIR"/..");
+    clear_folder(PACK_ALPHA_PAR_DIR);
     make_folder_if_missing(PACK_ALPHA_DIR"/3rdparty");
     make_folder_if_missing(PACK_DIR"/alpha");
     copy_file(BUILD_DIR, "4ed"EXE, PACK_ALPHA_DIR, 0);
@@ -794,9 +794,10 @@ package(char *cdir){
     // NOTE(allen): super
     build_main(cdir, OPTIMIZATION | KEEP_ASSERT | DEBUG_INFO | SUPER);
     
-    clear_folder(PACK_SUPER_DIR"/..");
+    clear_folder(PACK_SUPER_PAR_DIR);
     make_folder_if_missing(PACK_SUPER_DIR"/3rdparty");
     make_folder_if_missing(PACK_DIR"/super");
+    make_folder_if_missing(PACK_DIR"/super-docs");
     copy_file(BUILD_DIR, "4ed"EXE, PACK_SUPER_DIR, 0);
     ONLY_WINDOWS(copy_file(BUILD_DIR, "4ed"PDB, PACK_SUPER_DIR, 0));
     copy_file(BUILD_DIR, "4ed_app"DLL, PACK_SUPER_DIR, 0);
@@ -817,7 +818,7 @@ package(char *cdir){
     zip(PACK_SUPER_DIR, str.str);
     
     // NOTE(allen): power
-    clear_folder(PACK_POWER_DIR"/..");
+    clear_folder(PACK_POWER_PAR_DIR);
     make_folder_if_missing(PACK_POWER_DIR);
     make_folder_if_missing(PACK_DIR"/power");
     copy_all("power/*", PACK_POWER_DIR);
