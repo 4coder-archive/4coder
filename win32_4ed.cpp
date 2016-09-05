@@ -1595,7 +1595,6 @@ Win32Callback(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
         case WM_KEYDOWN:
         case WM_KEYUP:
         {
-            win32vars.got_useful_event = 1;
             switch (wParam){
                 case VK_CONTROL:case VK_LCONTROL:case VK_RCONTROL:
                 case VK_MENU:case VK_LMENU:case VK_RMENU:
@@ -1649,6 +1648,8 @@ Win32Callback(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
                 {
                     b8 previous_state = ((lParam & Bit_30)?(1):(0));
                     b8 current_state = ((lParam & Bit_31)?(0):(1));
+                    
+                    win32vars.got_useful_event = 1;
                     
                     if (current_state){
                         u8 key = keycode_lookup_table[(u8)wParam];
