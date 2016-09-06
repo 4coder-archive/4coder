@@ -426,6 +426,11 @@ typedef struct Meta_Keywords{
     Item_Type type;
 } Meta_Keywords;
 
+typedef struct Used_Links{
+    String *strs;
+    int32_t count, max;
+} Used_Links;
+
 static Item_Node null_item_node = {0};
 
 static String
@@ -1551,9 +1556,7 @@ compile_meta_unit(Partition *part, char **files, int32_t file_count,
                         ++unit.set.count;
                     }
                     else{
-                        // TODO(allen): Convert this to a duff's routine and return
-                        // this result to the user so that they may do whatever it
-                        // is they want to do.
+                        // TODO(allen): Warning
                     }
                 }
             }
@@ -1673,6 +1676,28 @@ compile_meta_unit(Partition *part, char **files, int32_t file_count,
 }
 
 static void
+init_used_links(Partition *part, Used_Links *used, int32_t count){
+    used->strs = push_array(part, String, count);
+    used->count = 0;
+    used->max = count;
+}
+
+static int32_t
+try_to_use(Used_Links *used, String str){
+    int32_t result = 1;
+    int32_t index = 0;
+    
+    if (string_set_match(used->strs, used->count, str, &index)){
+        result = 0;
+    }
+    else{
+        used->strs[used->count++] = str;
+    }
+    
+    return(result);
+}
+
+static void
 print_struct_html(String *out, Item_Node *member){
     String name = member->name;
     String type = member->type;
@@ -1701,7 +1726,9 @@ print_struct_html(String *out, Item_Node *member){
 }
 
 static void
-print_function_html(String *out, String ret, char *function_call_head, String name, Argument_Breakdown breakdown){
+print_function_html(String *out, Used_Links *used, String cpp_name,
+                    String ret, char *function_call_head, String name, Argument_Breakdown breakdown){
+    
     append_ss     (out, ret);
     append_s_char (out, ' ');
     append_sc     (out, function_call_head);
@@ -1961,8 +1988,8 @@ print_item_in_list(String *out, String name, char *id_postfix){
 }
 
 static void
-print_item(String *out, Partition *part, Item_Node *item,
-           char *id_postfix, char *function_prefix,
+print_item(String *out, Partition *part, Used_Links *used,
+           Item_Node *item, char *id_postfix, char *function_prefix,
            char *section, int32_t I){
     Temp_Memory temp = begin_temp_memory(part);
     
@@ -1976,6 +2003,17 @@ print_item(String *out, Partition *part, Item_Node *item,
     append_ss(out, name);
     append_sc(out, id_postfix);
     append_sc(out, "' style='margin-bottom: 1cm;'>");
+    
+    int32_t has_cpp_name = 0;
+    if (item->cpp_name.str != 0){
+        if (try_to_use(used, item->cpp_name)){
+            append_sc(out, "<div id='");
+            append_ss(out, item->cpp_name);
+            append_sc(out, id_postfix);
+            append_sc(out, "'>");
+            has_cpp_name = 1;
+        }
+    }
     
     append_sc         (out, "<h4>&sect;");
     append_sc         (out, section);
@@ -1992,7 +2030,8 @@ print_item(String *out, Partition *part, Item_Node *item,
         {
             // NOTE(allen): Code box
             Assert(function_prefix != 0);
-            print_function_html(out, item->ret, function_prefix, item->name, item->breakdown);
+            print_function_html(out, used, item->cpp_name,
+                                item->ret, function_prefix, item->name, item->breakdown);
             
             // NOTE(allen): Close the code box
             append_sc(out, "</div>");
@@ -2137,6 +2176,10 @@ print_item(String *out, Partition *part, Item_Node *item,
                 print_see_also(out, &doc);
             }
         }break;
+    }
+    
+    if (has_cpp_name){
+        append_sc(out, "</div>");
     }
     
     // NOTE(allen): Close the item box
@@ -2573,6 +2616,9 @@ generate_custom_headers(){
     
     if (begin_file_out(&context, API_DOC, &out)){
         
+        Used_Links used_links = {0};
+        init_used_links(part, &used_links, 4000);
+        
         append_sc(&out,
                 "<html lang=\"en-US\">"
                 "<head>"
@@ -2730,7 +2776,7 @@ generate_custom_headers(){
             append_ss        (&out, name);
             append_sc        (&out, "</h4><div style='"CODE_STYLE" "DESCRIPT_SECTION_STYLE"'>");
             
-            print_function_html(&out, item->ret, "app->", name, item->breakdown);
+            print_function_html(&out, &used_links, item->cpp_name, item->ret, "app->", name, item->breakdown);
             append_sc(&out, "</div>");
             
             print_function_docs(&out, part, name, item->doc_string);
@@ -2745,7 +2791,7 @@ generate_custom_headers(){
         
         int32_t I = 1;
         for (int32_t i = 0; i < unit.set.count; ++i, ++I){
-            print_item(&out, part, unit.set.items + i, "_doc", 0, SECTION, I);
+            print_item(&out, part, &used_links, unit.set.items + i, "_doc", 0, SECTION, I);
         }
         
 #undef MAJOR_SECTION
@@ -2781,7 +2827,7 @@ generate_custom_headers(){
         append_sc(&out, "<h3>&sect;"SECTION" String Function Descriptions</h3>");
         
         for (int32_t i = 0; i < string_unit.set.count; ++i){
-            print_item(&out, part, string_unit.set.items+i, "_doc", "", SECTION, i+1);
+            print_item(&out, part, &used_links, string_unit.set.items+i, "_doc", "", SECTION, i+1);
         }
         
 #undef MAJOR_SECTION
@@ -2827,7 +2873,7 @@ generate_custom_headers(){
         
         append_sc(&out, "<h3>&sect;"SECTION" Lexer Function Descriptions</h3>");
         for (int32_t i = 0; i < lexer_funcs_unit.set.count; ++i){
-            print_item(&out, part, lexer_funcs_unit.set.items+i, "_doc", "", SECTION, i+1);
+            print_item(&out, part, &used_links, lexer_funcs_unit.set.items+i, "_doc", "", SECTION, i+1);
         }
         
 #undef SECTION
@@ -2835,7 +2881,7 @@ generate_custom_headers(){
         
         append_sc(&out, "<h3>&sect;"SECTION" Lexer Type Descriptions</h3>");
         for (int32_t i = 0; i < lexer_types_unit.set.count; ++i){
-            print_item(&out, part, lexer_types_unit.set.items+i, "_doc", "", SECTION, i+1);
+            print_item(&out, part, &used_links, lexer_types_unit.set.items+i, "_doc", "", SECTION, i+1);
         }
         
         

@@ -63,13 +63,14 @@
 
 static char cmd[4096];
 static int32_t error_state = 0;
+static int32_t prev_error = 0;
 
 #define systemf(...) do{                                   \
     int32_t n = snprintf(cmd, sizeof(cmd), __VA_ARGS__);   \
     assert(n < sizeof(cmd));                               \
-    if (system(cmd) != 0) error_state = 1;                 \
+    prev_error = system(cmd);                              \
+    if (prev_error != 0) error_state = 1;                  \
 }while(0)
-
 
 static void     init_time_system();
 static uint64_t get_time();
@@ -653,7 +654,7 @@ fsm_generator(char *cdir){
         END_TIME_SECTION("build fsm generator");
     }
     
-    {
+    if (prev_error == 0){
         BEGIN_TIME_SECTION();
         execute(cdir, META_DIR"/fsmgen");
         END_TIME_SECTION("run fsm generator");
@@ -669,7 +670,7 @@ metagen(char *cdir){
         END_TIME_SECTION("build metagen");
     }
     
-    {
+    if (prev_error == 0){
         BEGIN_TIME_SECTION();
         execute(cdir, META_DIR"/metagen");
         END_TIME_SECTION("run metagen");
@@ -715,9 +716,9 @@ standard_build(char *cdir, uint32_t flags){
     
     metagen(cdir);
     
-    do_buildsuper(cdir);
+    //do_buildsuper(cdir);
     
-    build_main(cdir, flags);
+    //build_main(cdir, flags);
 }
 
 #define PACK_DIR "../distributions"

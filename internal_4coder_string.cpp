@@ -1744,8 +1744,11 @@ This call returns non-zero on success.) */{
 CPP_NAME(string_set_match)
 FSTRING_LINK fstr_bool
 string_set_match_table(void *str_set, int32_t item_size, int32_t count, String str, int32_t *match_index)/*
-DOC_PARAM(str_set, The str_set parameter is an array of String structs specifying matchable strings.)
-DOC_PARAM(count, The count parameter specifies the number of String structs in the str_set array.)
+DOC_PARAM(str_set, The str_set parameter may be an array of any type. 
+It should point at the String in the first element of the array.)
+DOC_PARAM(count, The item_size parameter should describe the "stride" from one String to the next, in other
+words it should be the size of one element of the array.)
+DOC_PARAM(count, The count parameter specifies the number of elements in the str_set array.)
 DOC_PARAM(str, The str parameter specifies the string to match against the str_set.)
 DOC_PARAM(match_index, If this call succeeds match_index is filled with the index into str_set where the match occurred.)
 DOC(This call tries to see if str matches any of the strings in str_set.  If there is a match the call

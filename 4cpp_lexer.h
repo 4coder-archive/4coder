@@ -18,171 +18,130 @@
 
 // TODO(allen): revisit this keyword data declaration system
 struct String_And_Flag{
-    char *str;
+    String str;
     uint32_t flags;
 };
 
-struct String_List{
-	String_And_Flag *data;
-	int32_t count;
+static String_And_Flag preprops[] = {
+    {make_lit_string("include"), CPP_PP_INCLUDE } ,
+    {make_lit_string("INCLUDE"), CPP_PP_INCLUDE } ,
+    {make_lit_string("ifndef" ), CPP_PP_IFNDEF  } ,
+    {make_lit_string("IFNDEF" ), CPP_PP_IFNDEF  } ,
+    {make_lit_string("define" ), CPP_PP_DEFINE  } ,
+    {make_lit_string("DEFINE" ), CPP_PP_DEFINE  } ,
+    {make_lit_string("import" ), CPP_PP_IMPORT  } ,
+    {make_lit_string("IMPORT" ), CPP_PP_IMPORT  } ,
+    {make_lit_string("pragma" ), CPP_PP_PRAGMA  } ,
+    {make_lit_string("PRAGMA" ), CPP_PP_PRAGMA  } ,
+    {make_lit_string("undef"  ), CPP_PP_UNDEF   } ,
+    {make_lit_string("UNDEF"  ), CPP_PP_UNDEF   } ,
+    {make_lit_string("endif"  ), CPP_PP_ENDIF   } ,
+    {make_lit_string("ENDIF"  ), CPP_PP_ENDIF   } ,
+    {make_lit_string("error"  ), CPP_PP_ERROR   } ,
+    {make_lit_string("ERROR"  ), CPP_PP_ERROR   } ,
+    {make_lit_string("ifdef"  ), CPP_PP_IFDEF   } ,
+    {make_lit_string("IFDEF"  ), CPP_PP_IFDEF   } ,
+    {make_lit_string("using"  ), CPP_PP_USING   } ,
+    {make_lit_string("USING"  ), CPP_PP_USING   } ,
+    {make_lit_string("else"   ), CPP_PP_ELSE    } ,
+    {make_lit_string("ELSE"   ), CPP_PP_ELSE    } ,
+    {make_lit_string("elif"   ), CPP_PP_ELIF    } ,
+    {make_lit_string("ELIF"   ), CPP_PP_ELIF    } ,
+    {make_lit_string("line"   ), CPP_PP_LINE    } ,
+    {make_lit_string("LINE"   ), CPP_PP_LINE    } ,
+    {make_lit_string("if"     ), CPP_PP_IF      } ,
+    {make_lit_string("IF"     ), CPP_PP_IF      } ,
 };
 
-#define lexer_string_list(x) {x, (sizeof(x)/sizeof(*(x)))}
-
-static String_And_Flag preprop_strings[] = {
-	{"include", CPP_PP_INCLUDE},
-	{"INCLUDE", CPP_PP_INCLUDE},
-	{"ifndef", CPP_PP_IFNDEF},
-	{"IFNDEF", CPP_PP_IFNDEF},
-	{"define", CPP_PP_DEFINE},
-	{"DEFINE", CPP_PP_DEFINE},
-	{"import", CPP_PP_IMPORT},
-	{"IMPORT", CPP_PP_IMPORT},
-	{"pragma", CPP_PP_PRAGMA},
-	{"PRAGMA", CPP_PP_PRAGMA},
-	{"undef", CPP_PP_UNDEF},
-	{"UNDEF", CPP_PP_UNDEF},
-	{"endif", CPP_PP_ENDIF},
-	{"ENDIF", CPP_PP_ENDIF},
-	{"error", CPP_PP_ERROR},
-	{"ERROR", CPP_PP_ERROR},
-	{"ifdef", CPP_PP_IFDEF},
-	{"IFDEF", CPP_PP_IFDEF},
-	{"using", CPP_PP_USING},
-	{"USING", CPP_PP_USING},
-	{"else", CPP_PP_ELSE},
-	{"ELSE", CPP_PP_ELSE},
-	{"elif", CPP_PP_ELIF},
-	{"ELIF", CPP_PP_ELIF},
-	{"line", CPP_PP_LINE},
-	{"LINE", CPP_PP_LINE},
-	{"if", CPP_PP_IF},
-    {"IF", CPP_PP_IF},
+static String_And_Flag keywords[] = {
+    {make_lit_string("true")  , CPP_TOKEN_BOOLEAN_CONSTANT},
+    {make_lit_string("false") , CPP_TOKEN_BOOLEAN_CONSTANT},
+    
+    {make_lit_string("and")      , CPP_TOKEN_AND},
+    {make_lit_string("and_eq")   , CPP_TOKEN_ANDEQ},
+    {make_lit_string("bitand")   , CPP_TOKEN_BIT_AND},
+    {make_lit_string("bitor")    , CPP_TOKEN_BIT_OR},
+    {make_lit_string("or")       , CPP_TOKEN_OR},
+    {make_lit_string("or_eq")    , CPP_TOKEN_OREQ},
+    {make_lit_string("sizeof")   , CPP_TOKEN_SIZEOF},
+    {make_lit_string("alignof")  , CPP_TOKEN_ALIGNOF},
+    {make_lit_string("decltype") , CPP_TOKEN_DECLTYPE},
+    {make_lit_string("throw")    , CPP_TOKEN_THROW},
+    {make_lit_string("new")      , CPP_TOKEN_NEW},
+    {make_lit_string("delete")   , CPP_TOKEN_DELETE},
+    {make_lit_string("xor")      , CPP_TOKEN_BIT_XOR},
+    {make_lit_string("xor_eq")   , CPP_TOKEN_XOREQ},
+    {make_lit_string("not")      , CPP_TOKEN_NOT},
+    {make_lit_string("not_eq")   , CPP_TOKEN_NOTEQ},
+    {make_lit_string("typeid")   , CPP_TOKEN_TYPEID},
+    {make_lit_string("compl")    , CPP_TOKEN_BIT_NOT},
+    
+    {make_lit_string("void")   , CPP_TOKEN_KEY_TYPE},
+    {make_lit_string("bool")   , CPP_TOKEN_KEY_TYPE},
+    {make_lit_string("char")   , CPP_TOKEN_KEY_TYPE},
+    {make_lit_string("int")    , CPP_TOKEN_KEY_TYPE},
+    {make_lit_string("float")  , CPP_TOKEN_KEY_TYPE},
+    {make_lit_string("double") , CPP_TOKEN_KEY_TYPE},
+    
+    {make_lit_string("long")     , CPP_TOKEN_KEY_MODIFIER},
+    {make_lit_string("short")    , CPP_TOKEN_KEY_MODIFIER},
+    {make_lit_string("unsigned") , CPP_TOKEN_KEY_MODIFIER},
+    
+    {make_lit_string("const")    , CPP_TOKEN_KEY_QUALIFIER},
+    {make_lit_string("volatile") , CPP_TOKEN_KEY_QUALIFIER},
+    
+    {make_lit_string("asm")           , CPP_TOKEN_KEY_CONTROL_FLOW},
+    {make_lit_string("break")         , CPP_TOKEN_KEY_CONTROL_FLOW},
+    {make_lit_string("case")          , CPP_TOKEN_KEY_CONTROL_FLOW},
+    {make_lit_string("catch")         , CPP_TOKEN_KEY_CONTROL_FLOW},
+    {make_lit_string("continue")      , CPP_TOKEN_KEY_CONTROL_FLOW},
+    {make_lit_string("default")       , CPP_TOKEN_KEY_CONTROL_FLOW},
+    {make_lit_string("do")            , CPP_TOKEN_KEY_CONTROL_FLOW},
+    {make_lit_string("else")          , CPP_TOKEN_KEY_CONTROL_FLOW},
+    {make_lit_string("for")           , CPP_TOKEN_KEY_CONTROL_FLOW},
+    {make_lit_string("goto")          , CPP_TOKEN_KEY_CONTROL_FLOW},
+    {make_lit_string("if")            , CPP_TOKEN_KEY_CONTROL_FLOW},
+    {make_lit_string("return")        , CPP_TOKEN_KEY_CONTROL_FLOW},
+    {make_lit_string("switch")        , CPP_TOKEN_KEY_CONTROL_FLOW},
+    {make_lit_string("try")           , CPP_TOKEN_KEY_CONTROL_FLOW},
+    {make_lit_string("while")         , CPP_TOKEN_KEY_CONTROL_FLOW},
+    {make_lit_string("static_assert") , CPP_TOKEN_KEY_CONTROL_FLOW},
+    
+    {make_lit_string("const_cast")       , CPP_TOKEN_KEY_CAST},
+    {make_lit_string("dynamic_cast")     , CPP_TOKEN_KEY_CAST},
+    {make_lit_string("reinterpret_cast") , CPP_TOKEN_KEY_CAST},
+    {make_lit_string("static_cast")      , CPP_TOKEN_KEY_CAST},
+    
+    {make_lit_string("class")    , CPP_TOKEN_KEY_TYPE_DECLARATION},
+    {make_lit_string("enum")     , CPP_TOKEN_KEY_TYPE_DECLARATION},
+    {make_lit_string("struct")   , CPP_TOKEN_KEY_TYPE_DECLARATION},
+    {make_lit_string("typedef")  , CPP_TOKEN_KEY_TYPE_DECLARATION},
+    {make_lit_string("union")    , CPP_TOKEN_KEY_TYPE_DECLARATION},
+    {make_lit_string("template") , CPP_TOKEN_KEY_TYPE_DECLARATION},
+    {make_lit_string("typename") , CPP_TOKEN_KEY_TYPE_DECLARATION},
+    
+    {make_lit_string("friend")    , CPP_TOKEN_KEY_ACCESS},
+    {make_lit_string("namespace") , CPP_TOKEN_KEY_ACCESS},
+    {make_lit_string("private")   , CPP_TOKEN_KEY_ACCESS},
+    {make_lit_string("protected") , CPP_TOKEN_KEY_ACCESS},
+    {make_lit_string("public")    , CPP_TOKEN_KEY_ACCESS},
+    {make_lit_string("using")     , CPP_TOKEN_KEY_ACCESS},
+    
+    {make_lit_string("extern")  , CPP_TOKEN_KEY_LINKAGE},
+    {make_lit_string("export")  , CPP_TOKEN_KEY_LINKAGE},
+    {make_lit_string("inline")  , CPP_TOKEN_KEY_LINKAGE},
+    {make_lit_string("static")  , CPP_TOKEN_KEY_LINKAGE},
+    {make_lit_string("virtual") , CPP_TOKEN_KEY_LINKAGE},
+    
+    {make_lit_string("alignas")      , CPP_TOKEN_KEY_OTHER},
+    {make_lit_string("explicit")     , CPP_TOKEN_KEY_OTHER},
+    {make_lit_string("noexcept")     , CPP_TOKEN_KEY_OTHER},
+    {make_lit_string("nullptr")      , CPP_TOKEN_KEY_OTHER},
+    {make_lit_string("operator")     , CPP_TOKEN_KEY_OTHER},
+    {make_lit_string("register")     , CPP_TOKEN_KEY_OTHER},
+    {make_lit_string("this")         , CPP_TOKEN_KEY_OTHER},
+    {make_lit_string("thread_local") , CPP_TOKEN_KEY_OTHER},
 };
-static String_List preprops = lexer_string_list(preprop_strings);
-
-static String_And_Flag keyword_strings[] = {
-    {"true", CPP_TOKEN_BOOLEAN_CONSTANT},
-    {"false", CPP_TOKEN_BOOLEAN_CONSTANT},
-    
-    {"and", CPP_TOKEN_AND},
-    {"and_eq", CPP_TOKEN_ANDEQ},
-    {"bitand", CPP_TOKEN_BIT_AND},
-    {"bitor", CPP_TOKEN_BIT_OR},
-    {"or", CPP_TOKEN_OR},
-    {"or_eq", CPP_TOKEN_OREQ},
-    {"sizeof", CPP_TOKEN_SIZEOF},
-    {"alignof", CPP_TOKEN_ALIGNOF},
-    {"decltype", CPP_TOKEN_DECLTYPE},
-    {"throw", CPP_TOKEN_THROW},
-    {"new", CPP_TOKEN_NEW},
-    {"delete", CPP_TOKEN_DELETE},
-    {"xor", CPP_TOKEN_BIT_XOR},
-    {"xor_eq", CPP_TOKEN_XOREQ},
-    {"not", CPP_TOKEN_NOT},
-    {"not_eq", CPP_TOKEN_NOTEQ},
-    {"typeid", CPP_TOKEN_TYPEID},
-    {"compl", CPP_TOKEN_BIT_NOT},
-    
-    {"void", CPP_TOKEN_KEY_TYPE},
-    {"bool", CPP_TOKEN_KEY_TYPE},
-    {"char", CPP_TOKEN_KEY_TYPE},
-    {"int", CPP_TOKEN_KEY_TYPE},
-    {"float", CPP_TOKEN_KEY_TYPE},
-    {"double", CPP_TOKEN_KEY_TYPE},
-    
-    {"long", CPP_TOKEN_KEY_MODIFIER},
-    {"short", CPP_TOKEN_KEY_MODIFIER},
-    {"unsigned", CPP_TOKEN_KEY_MODIFIER},
-    
-    {"const", CPP_TOKEN_KEY_QUALIFIER},
-    {"volatile", CPP_TOKEN_KEY_QUALIFIER},
-    
-    {"asm", CPP_TOKEN_KEY_CONTROL_FLOW},
-    {"break", CPP_TOKEN_KEY_CONTROL_FLOW},
-    {"case", CPP_TOKEN_KEY_CONTROL_FLOW},
-    {"catch", CPP_TOKEN_KEY_CONTROL_FLOW},
-    {"continue", CPP_TOKEN_KEY_CONTROL_FLOW},
-    {"default", CPP_TOKEN_KEY_CONTROL_FLOW},
-    {"do", CPP_TOKEN_KEY_CONTROL_FLOW},
-    {"else", CPP_TOKEN_KEY_CONTROL_FLOW},
-    {"for", CPP_TOKEN_KEY_CONTROL_FLOW},
-    {"goto", CPP_TOKEN_KEY_CONTROL_FLOW},
-    {"if", CPP_TOKEN_KEY_CONTROL_FLOW},
-    {"return", CPP_TOKEN_KEY_CONTROL_FLOW},
-    {"switch", CPP_TOKEN_KEY_CONTROL_FLOW},
-    {"try", CPP_TOKEN_KEY_CONTROL_FLOW},
-    {"while", CPP_TOKEN_KEY_CONTROL_FLOW},
-    {"static_assert", CPP_TOKEN_KEY_CONTROL_FLOW},
-    
-    {"const_cast", CPP_TOKEN_KEY_CAST},
-    {"dynamic_cast", CPP_TOKEN_KEY_CAST},
-    {"reinterpret_cast", CPP_TOKEN_KEY_CAST},
-    {"static_cast", CPP_TOKEN_KEY_CAST},
-    
-    {"class", CPP_TOKEN_KEY_TYPE_DECLARATION},
-    {"enum", CPP_TOKEN_KEY_TYPE_DECLARATION},
-    {"struct", CPP_TOKEN_KEY_TYPE_DECLARATION},
-    {"typedef", CPP_TOKEN_KEY_TYPE_DECLARATION},
-    {"union", CPP_TOKEN_KEY_TYPE_DECLARATION},
-    {"template", CPP_TOKEN_KEY_TYPE_DECLARATION},
-    {"typename", CPP_TOKEN_KEY_TYPE_DECLARATION},
-    
-    {"friend", CPP_TOKEN_KEY_ACCESS},
-    {"namespace", CPP_TOKEN_KEY_ACCESS},
-    {"private", CPP_TOKEN_KEY_ACCESS},
-    {"protected", CPP_TOKEN_KEY_ACCESS},
-    {"public", CPP_TOKEN_KEY_ACCESS},
-    {"using", CPP_TOKEN_KEY_ACCESS},
-    
-    {"extern", CPP_TOKEN_KEY_LINKAGE},
-    {"export", CPP_TOKEN_KEY_LINKAGE},
-    {"inline", CPP_TOKEN_KEY_LINKAGE},
-    {"static", CPP_TOKEN_KEY_LINKAGE},
-    {"virtual", CPP_TOKEN_KEY_LINKAGE},
-    
-    {"alignas", CPP_TOKEN_KEY_OTHER},
-    {"explicit", CPP_TOKEN_KEY_OTHER},
-    {"noexcept", CPP_TOKEN_KEY_OTHER},
-    {"nullptr", CPP_TOKEN_KEY_OTHER},
-    {"operator", CPP_TOKEN_KEY_OTHER},
-    {"register", CPP_TOKEN_KEY_OTHER},
-    {"this", CPP_TOKEN_KEY_OTHER},
-    {"thread_local", CPP_TOKEN_KEY_OTHER},
-};
-static String_List keywords = lexer_string_list(keyword_strings);
-
-FCPP_LINK int32_t
-sub_match_list(char *chunk, int32_t size, String_List list, int32_t sub_size){
-    int32_t result = 0;
-    String str_main = {0};
-    char *str_check = 0;
-    int32_t i = 0, l = 0;
-    
-    result = -1;
-    str_main = make_string(chunk, size);
-    if (sub_size > 0){
-        str_main = substr(str_main, 0, sub_size);
-        for (i = 0; i < list.count; ++i){
-            str_check = list.data[i].str;
-            if (match_sc(str_main, str_check)){
-                result = i;
-                break;
-            }
-        }
-    }
-    else{
-        for (i = 0; i < list.count; ++i){
-            str_check = list.data[i].str;
-            if (match_part_scl(str_main, str_check, &l)){
-                result = i;
-                break;
-            }
-        }
-    }
-    
-    return(result);
-}
 
 
 FCPP_LINK Cpp_Get_Token_Result
@@ -525,10 +484,12 @@ cpp_lex_nonalloc(Lex_Data *S_ptr,
                     }
                 }
                 
-                int32_t sub_match = sub_match_list(S.tb, S.tb_pos, keywords, word_size);
+                int32_t sub_match = -1;
+                string_set_match_table(keywords, sizeof(*keywords), ArrayCount(keywords),
+                                       make_string(S.tb, S.tb_pos), &sub_match);
                 
                 if (sub_match != -1){
-                    String_And_Flag data = keywords.data[sub_match];
+                    String_And_Flag data = keywords[sub_match];
                     S.token.type = (Cpp_Token_Type)data.flags;
                     S.token.flags = CPP_TFLAG_IS_KEYWORD;
                 }
@@ -560,7 +521,6 @@ cpp_lex_nonalloc(Lex_Data *S_ptr,
             {
                 --S.pos;
                 
-                int32_t word_size = S.pos - S.token_start;
                 int32_t pos = S.tb_pos-1;
                 int32_t i = 1;
                 for (;i < pos; ++i){
@@ -569,10 +529,12 @@ cpp_lex_nonalloc(Lex_Data *S_ptr,
                     }
                 }
                 
-                int32_t sub_match = sub_match_list(S.tb+i, pos-i, preprops, word_size);
+                int32_t sub_match = -1;
+                string_set_match_table(preprops, sizeof(*preprops), ArrayCount(preprops),
+                                       make_string(S.tb+i, pos-i), &sub_match);
                 
                 if (sub_match != -1){
-                    String_And_Flag data = preprops.data[sub_match];
+                    String_And_Flag data = preprops[sub_match];
                     S.token.type = (Cpp_Token_Type)data.flags;
                     S.token.flags = CPP_TFLAG_PP_DIRECTIVE;
                     S.pp_state = (unsigned char)cpp_pp_directive_to_state(S.token.type);
@@ -1078,19 +1040,19 @@ cpp_token_get_pp_state(uint16_t bitfield){
 // TODO(allen): Eliminate this once we actually store the EOF token
 // in the token stack.
 FCPP_LINK Cpp_Token
-cpp__get_token(Cpp_Token_Stack *stack, Cpp_Token *tokens, int32_t size, int32_t index){
+cpp_index_stack(Cpp_Token_Stack *stack, int32_t file_size, int32_t index){
     Cpp_Token result;
     if (index < stack->count){
-        result = tokens[index];
+        result = stack->tokens[index];
     }
     else{
-        result.start = size;
+        result.start = file_size;
         result.size = 0;
         result.type = CPP_TOKEN_EOF;
         result.flags = 0;
         result.state_flags = 0;
     }
-    return result;
+    return(result);
 }
 
 FCPP_LINK int32_t
@@ -1108,7 +1070,7 @@ cpp_relex_nonalloc_main(Cpp_Relex_State *state,
     lex.pos = state->relex_start;
     
     int32_t relex_end_i = state->end_token_i;
-    Cpp_Token match_token = cpp__get_token(stack, tokens, state->size, relex_end_i);
+    Cpp_Token match_token = cpp_index_stack(stack, state->size, relex_end_i);
     Cpp_Token end_token = match_token;
     int32_t went_too_far = false;
     
@@ -1135,7 +1097,7 @@ cpp_relex_nonalloc_main(Cpp_Relex_State *state,
                 
                 while (lex.pos > end_token.start && relex_end_i < stack->count){
                     ++relex_end_i;
-                    end_token = cpp__get_token(stack, tokens, state->size, relex_end_i);
+                    end_token = cpp_index_stack(stack, state->size, relex_end_i);
                 }
             }
             break;
