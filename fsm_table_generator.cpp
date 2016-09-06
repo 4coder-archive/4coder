@@ -15,7 +15,6 @@
 #define ArrayCount(a) (sizeof(a)/sizeof(*a))
 
 #include "4cpp_lexer_types.h"
-#include "4cpp_lexer_fsms.h"
 #include "4ed_mem_ansi.c"
 
 typedef struct Whitespace_FSM{
@@ -34,8 +33,8 @@ whitespace_skip_fsm(Whitespace_FSM wfsm, char c){
     return(wfsm);
 }
 
-Lex_FSM
-int_fsm(Lex_FSM fsm, char c){
+Cpp_Lex_FSM
+int_fsm(Cpp_Lex_FSM fsm, char c){
     switch (fsm.int_state){
         case LSINT_default:
         switch (c){
@@ -98,8 +97,8 @@ int_fsm(Lex_FSM fsm, char c){
     return(fsm);
 }
 
-Lex_FSM
-main_fsm(Lex_FSM fsm, unsigned char pp_state, unsigned char c){
+Cpp_Lex_FSM
+main_fsm(Cpp_Lex_FSM fsm, uint8_t pp_state, uint8_t c){
     if (c == 0){
         fsm.emit_token = 1;
     }
@@ -610,8 +609,8 @@ generate_int_table(){
     allocate_full_tables(&table, state_count);
     
     int32_t i = 0;
-    Lex_FSM fsm = {0};
-    Lex_FSM new_fsm;
+    Cpp_Lex_FSM fsm = {0};
+    Cpp_Lex_FSM new_fsm = {0};
     for (uint16_t c = 0; c < 256; ++c){
         for (uint8_t state = 0; state < state_count; ++state){
             fsm.int_state = state;
@@ -633,8 +632,8 @@ generate_fsm_table(uint8_t pp_state){
     allocate_full_tables(&table, state_count);
     
     int32_t i = 0;
-    Lex_FSM fsm = {0};
-    Lex_FSM new_fsm;
+    Cpp_Lex_FSM fsm = {0};
+    Cpp_Lex_FSM new_fsm = {0};
     for (uint16_t c = 0; c < 256; ++c){
         for (uint8_t state = 0; state < state_count; ++state){
             fsm.state = state;

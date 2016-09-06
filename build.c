@@ -713,12 +713,9 @@ build_main(char *cdir, uint32_t flags){
 static void
 standard_build(char *cdir, uint32_t flags){
     fsm_generator(cdir);
-    
     metagen(cdir);
-    
-    //do_buildsuper(cdir);
-    
-    //build_main(cdir, flags);
+    do_buildsuper(cdir);
+    build_main(cdir, flags);
 }
 
 #define PACK_DIR "../distributions"

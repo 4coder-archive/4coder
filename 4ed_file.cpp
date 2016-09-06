@@ -135,8 +135,8 @@ struct Editing_File_State{
     
     Undo_Data undo;
     
-    Cpp_Token_Stack token_stack;
-    Cpp_Token_Stack swap_stack;
+    Cpp_Token_Array token_array;
+    Cpp_Token_Array swap_array;
     u32 lex_job;
     b32 tokens_complete;
     b32 still_lexing;

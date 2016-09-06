@@ -12,8 +12,9 @@
 # define FCPP_LINK static
 #endif
 
+#define FCPP_INTERNAL FCPP_LINK
+
 #include "4cpp_lexer_types.h"
-#include "4cpp_lexer_fsms.h"
 #include "4cpp_lexer_tables.c"
 
 // TODO(allen): revisit this keyword data declaration system
@@ -145,12 +146,26 @@ static String_And_Flag keywords[] = {
 
 
 FCPP_LINK Cpp_Get_Token_Result
-cpp_get_token(Cpp_Token_Stack *token_stack, int32_t pos){
+cpp_get_token(Cpp_Token_Array *token_array_in, int32_t pos)/*
+DOC_PARAM(token_array, The array of tokens from which to get a token.)
+DOC_PARAM(pos, The position, measured in bytes, to get the token for.)
+DOC_RETURN(A Cpp_Get_Token_Result struct is returned containing the index
+of a token and a flag indicating whether the pos is contained in the token
+or in whitespace after the token.)
+
+DOC(This call performs a binary search over all of the tokens looking
+for the token that contains the specified position. If the position
+is in whitespace between the tokens, the returned token index is the
+index of the token immediately before the provided position.  The returned
+index can be -1 if the position is before the first token.)
+
+DOC_SEE(Cpp_Get_Token_Result)
+*/{
     Cpp_Get_Token_Result result = {};
-    Cpp_Token *token_array = token_stack->tokens;
+    Cpp_Token *token_array = token_array_in->tokens;
     Cpp_Token *token = 0;
 	int32_t first = 0;
-    int32_t count = token_stack->count;
+    int32_t count = token_array_in->count;
     int32_t last = count;
     int32_t this_start = 0, next_start = 0;
     
@@ -200,19 +215,23 @@ cpp_get_token(Cpp_Token_Stack *token_stack, int32_t pos){
     return(result);
 }
 
-FCPP_LINK void
-cpp_shift_token_starts(Cpp_Token_Stack *stack, int32_t from_token_i, int32_t shift_amount){
-    Cpp_Token *token = stack->tokens + from_token_i;
-    int32_t count = stack->count, i;
-    
-    for (i = from_token_i; i < count; ++i, ++token){
-        token->start += shift_amount;
-    }
+FCPP_LINK Cpp_Lex_Data
+cpp_lex_data_init(char *mem_buffer)/*
+DOC_PARAM(tb, The memory to use for initializing the lex state's temp memory buffer.)
+DOC_RETURN(A brand new lex state ready to begin lexing a file from the beginning.)
+DOC(Creates a new lex state in the form of a Cpp_Lex_Data struct and returns the struct.
+The system needs a temporary buffer that is as long as the longest token.  4096 is usually
+enough but the buffer is not checked, so to be 100% bullet proof it has to be the same length
+as the file being lexed.)
+*/{
+    Cpp_Lex_Data data = {0};
+    data.tb = mem_buffer;
+    return(data);
 }
 
-FCPP_LINK Lex_PP_State
+FCPP_INTERNAL Cpp_Lex_PP_State
 cpp_pp_directive_to_state(Cpp_Token_Type type){
-    Lex_PP_State result = LSPP_default;
+    Cpp_Lex_PP_State result = LSPP_default;
     switch (type){
         case CPP_PP_INCLUDE:
         case CPP_PP_IMPORT:
@@ -256,85 +275,27 @@ cpp_pp_directive_to_state(Cpp_Token_Type type){
     return(result);
 }
 
-FCPP_LINK int32_t
-cpp_place_token_nonalloc(Cpp_Token *out_tokens, int32_t token_i, Cpp_Token token){
-    Cpp_Token prev_token = {(Cpp_Token_Type)0};
-    
-    if (token_i > 0){
-        prev_token = out_tokens[token_i - 1];
-    }
-    
-    out_tokens[token_i++] = token;
-    
-    return(token_i);
-}
-
-FCPP_LINK bool
-cpp_push_token_nonalloc(Cpp_Token_Stack *out_tokens, Cpp_Token token){
-    bool result = 0;
-    if (out_tokens->count == out_tokens->max_count){
-        out_tokens->count = 
-            cpp_place_token_nonalloc(out_tokens->tokens, out_tokens->count, token);
-        result = 1;
-    }
-    return(result);
-}
-
-struct Lex_Data{
-    char *tb;
-    int32_t tb_pos;
-    int32_t token_start;
-    
-    int32_t pos;
-    int32_t pos_overide;
-    int32_t chunk_pos;
-    
-    Lex_FSM fsm;
-    unsigned char white_done;
-    unsigned char pp_state;
-    unsigned char completed;
-    
-    Cpp_Token token;
-    
-    int32_t __pc__;
-};
-
-FCPP_LINK Lex_Data
-lex_data_init(char *tb){
-    Lex_Data data = {0};
-    data.tb = tb;
-    return(data);
-}
-
-
 #define DrCase(PC) case PC: goto resumespot_##PC
 
 #define DrYield(PC, n) {                                           \
-    token_stack_out->count = token_i;                              \
+    token_array_out->count = token_i;                              \
     *S_ptr = S; S_ptr->__pc__ = PC; return(n); resumespot_##PC:; }
 
 #define DrReturn(n) {                           \
-    token_stack_out->count = token_i;           \
+    token_array_out->count = token_i;           \
     *S_ptr = S; S_ptr->__pc__ = -1; return(n); }
 
 enum Lex_Result{
-    LexFinished,
-    LexNeedChunk,
-    LexNeedTokenMemory,
-    LexHitTokenLimit
 };
 
-FCPP_LINK int32_t
-cpp_lex_nonalloc(Lex_Data *S_ptr,
-                 char *chunk, int32_t size,
-                 Cpp_Token_Stack *token_stack_out){
-    Lex_Data S = *S_ptr;
+FCPP_INTERNAL Cpp_Lex_Result
+cpp_lex_nonalloc_null_end_no_limit(Cpp_Lex_Data *S_ptr, char *chunk, int32_t size,
+                                   Cpp_Token_Array *token_array_out){
+    Cpp_Lex_Data S = *S_ptr;
     
-    Cpp_Token *out_tokens = token_stack_out->tokens;
-    int32_t token_i = token_stack_out->count;
-    int32_t max_token_i = token_stack_out->max_count;
-    
-    //Pos_Update_Rule pos_update_rule = PUR_none;
+    Cpp_Token *out_tokens = token_array_out->tokens;
+    int32_t token_i = token_array_out->count;
+    int32_t max_token_i = token_array_out->max_count;
     
     char c = 0;
     
@@ -362,7 +323,7 @@ cpp_lex_nonalloc(Lex_Data *S_ptr,
             
             if (S.white_done == 0){
                 S.chunk_pos += size;
-                DrYield(4, LexNeedChunk);
+                DrYield(4, LexResult_NeedChunk);
             }
             else break;
         }
@@ -394,7 +355,7 @@ cpp_lex_nonalloc(Lex_Data *S_ptr,
             
             if (S.fsm.emit_token == 0){
                 S.chunk_pos += size;
-                DrYield(3, LexNeedChunk);
+                DrYield(3, LexResult_NeedChunk);
             }
             else break;
         }
@@ -449,7 +410,7 @@ cpp_lex_nonalloc(Lex_Data *S_ptr,
                         
                         if (S.white_done == 0){
                             S.chunk_pos += size;
-                            DrYield(1, LexNeedChunk);
+                            DrYield(1, LexResult_NeedChunk);
                         }
                         else break;
                     }
@@ -560,7 +521,7 @@ cpp_lex_nonalloc(Lex_Data *S_ptr,
                 
                 if (S.fsm.emit_token == 0){
                     S.chunk_pos += size;
-                    DrYield(5, LexNeedChunk);
+                    DrYield(5, LexResult_NeedChunk);
                 }
                 else break;
             }
@@ -905,13 +866,13 @@ cpp_lex_nonalloc(Lex_Data *S_ptr,
                 S.token.flags |= (S.pp_state != LSPP_default)?(CPP_TFLAG_PP_BODY):(0);
             }
             
-            token_i = cpp_place_token_nonalloc(out_tokens, token_i, S.token);
+            out_tokens[token_i++] = S.token;
             if (token_i == max_token_i){
                 if (S.pos == end_pos){
                     S.chunk_pos += size;
-                    DrYield(7, LexNeedChunk);
+                    DrYield(7, LexResult_NeedChunk);
                 }
-                DrYield(2, LexNeedTokenMemory);
+                DrYield(2, LexResult_NeedTokenMemory);
             }
         }
         
@@ -920,109 +881,203 @@ cpp_lex_nonalloc(Lex_Data *S_ptr,
         }
     }
     
-    DrReturn(LexFinished);
+    DrReturn(LexResult_Finished);
 }
 
 #undef DrYield
 #undef DrReturn
 #undef DrCase
 
-FCPP_LINK int32_t
-cpp_lex_nonalloc(Lex_Data *S_ptr,
-                 char *chunk, int32_t size,
-                 Cpp_Token_Stack *token_stack_out, int32_t max_tokens){
-    Cpp_Token_Stack temp_stack = *token_stack_out;
-    if (temp_stack.max_count > temp_stack.count + max_tokens){
-        temp_stack.max_count = temp_stack.count + max_tokens;
+FCPP_INTERNAL Cpp_Lex_Result
+cpp_lex_nonalloc_null_end_out_limit(Cpp_Lex_Data *S_ptr, char *chunk, int32_t size,
+                                    Cpp_Token_Array *token_array_out, int32_t max_tokens_out){
+    Cpp_Token_Array temp_array = *token_array_out;
+    if (temp_array.max_count > temp_array.count + max_tokens_out){
+        temp_array.max_count = temp_array.count + max_tokens_out;
     }
     
-    int32_t result = cpp_lex_nonalloc(S_ptr, chunk, size, &temp_stack);
+    Cpp_Lex_Result result = cpp_lex_nonalloc_null_end_no_limit(S_ptr, chunk, size, &temp_array);
     
-    token_stack_out->count = temp_stack.count;
-    
-    if (result == LexNeedTokenMemory){
-        if (token_stack_out->count < token_stack_out->max_count){
-            result = LexHitTokenLimit;
+    token_array_out->count = temp_array.count;
+    if (result == LexResult_NeedTokenMemory){
+        if (token_array_out->count < token_array_out->max_count){
+            result = LexResult_HitTokenLimit;
         }
     }
     
     return(result);
 }
 
-FCPP_LINK int32_t
-cpp_lex_size_nonalloc(Lex_Data *S_ptr,
-                      char *chunk, int32_t size, int32_t full_size,
-                      Cpp_Token_Stack *token_stack_out){
-    int32_t result = 0;
+FCPP_INTERNAL Cpp_Lex_Result
+cpp_lex_nonalloc_no_null_no_limit(Cpp_Lex_Data *S_ptr, char *chunk, int32_t size, int32_t full_size,
+                                  Cpp_Token_Array *token_array_out){
+    Cpp_Lex_Result result = 0;
     if (S_ptr->pos >= full_size){
         char end_null = 0;
-        result = cpp_lex_nonalloc(S_ptr, &end_null, 1, token_stack_out);
+        result = cpp_lex_nonalloc_null_end_no_limit(S_ptr, &end_null, 1, token_array_out);
     }
     else{
-        result = cpp_lex_nonalloc(S_ptr, chunk, size, token_stack_out);
-        if (result == LexNeedChunk){
+        result = cpp_lex_nonalloc_null_end_no_limit(S_ptr, chunk, size, token_array_out);
+        if (result == LexResult_NeedChunk){
             if (S_ptr->pos >= full_size){
                 char end_null = 0;
-                result = cpp_lex_nonalloc(S_ptr, &end_null, 1, token_stack_out);
+                result = cpp_lex_nonalloc_null_end_no_limit(S_ptr, &end_null, 1, token_array_out);
             }
         }
     }
     return(result);
 }
 
-FCPP_LINK int32_t
-cpp_lex_size_nonalloc(Lex_Data *S_ptr,
-                      char *chunk, int32_t size, int32_t full_size,
-                      Cpp_Token_Stack *token_stack_out, int32_t max_tokens){
-    Cpp_Token_Stack temp_stack = *token_stack_out;
-    if (temp_stack.max_count > temp_stack.count + max_tokens){
-        temp_stack.max_count = temp_stack.count + max_tokens;
+FCPP_INTERNAL Cpp_Lex_Result
+cpp_lex_nonalloc_no_null_out_limit(Cpp_Lex_Data *S_ptr, char *chunk, int32_t size, int32_t full_size,
+                                   Cpp_Token_Array *token_array_out, int32_t max_tokens_out){
+    Cpp_Token_Array temp_stack = *token_array_out;
+    if (temp_stack.max_count > temp_stack.count + max_tokens_out){
+        temp_stack.max_count = temp_stack.count + max_tokens_out;
     }
     
-    int32_t result = cpp_lex_size_nonalloc(S_ptr, chunk, size, full_size,
-                                           &temp_stack);
+    Cpp_Lex_Result result = cpp_lex_nonalloc_no_null_no_limit(S_ptr, chunk, size, full_size,
+                                                       &temp_stack);
     
-    token_stack_out->count = temp_stack.count;
+    token_array_out->count = temp_stack.count;
     
-    if (result == LexNeedTokenMemory){
-        if (token_stack_out->count < token_stack_out->max_count){
-            result = LexHitTokenLimit;
+    if (result == LexResult_NeedTokenMemory){
+        if (token_array_out->count < token_array_out->max_count){
+            result = LexResult_HitTokenLimit;
         }
     }
     
     return(result);
 }
 
-FCPP_LINK Cpp_Relex_State
-cpp_relex_nonalloc_start(char *data, int32_t size, Cpp_Token_Stack *stack,
+#define HAS_NULL_TERM ((int32_t)(-1))
+#define NO_OUT_LIMIT ((int32_t)(-1))
+
+FCPP_LINK Cpp_Lex_Result
+cpp_lex_nonalloc(Cpp_Lex_Data *S_ptr, char *chunk, int32_t size, int32_t full_size,
+                 Cpp_Token_Array *token_array_out, int32_t max_tokens_out)/*
+DOC_PARAM(S_ptr, The lexer state.  Go to the Cpp_Lex_Data section to see how to initialize the state.)
+DOC_PARAM(chunk, The first or next chunk of the file being lexed.)
+DOC_PARAM(size, The number of bytes in the chunk including the null terminator if the chunk ends in a null terminator.
+If the chunk ends in a null terminator the system will interpret it as the end of the file.)
+DOC_PARAM(full_size, If the final chunk is not null terminated this parameter should specify the length of the
+file in bytes.  To rely on an eventual null terminator use HAS_NULL_TERM for this parameter.)
+DOC_PARAM(token_array_out, The token array structure that will receive the tokens output by the lexer.)
+DOC_PARAM(max_tokens_out, The maximum number of tokens to be output to the token array.  To rely on the
+max built into the token array pass NO_OUT_LIMIT here.)
+
+DOC(This call is the primary interface of the lexing system.  It is quite general so it can be used in
+a lot of different ways.  I will explain the general rules first, and then give some examples of common
+ways it might be used.
+
+First a lexing state, Cpp_Lex_Data, must be initialized. The file to lex must be read into N contiguous chunks
+of memory.  An output Cpp_Token_Array must be allocated and initialized with the appropriate count and max_count values.
+Then each chunk of the file must be passed to cpp_lex_nonalloc in order using the same lexing state for each call.
+Every time a call to cpp_lex_nonalloc returns LexResult_NeedChunk, the next call to cpp_lex_nonalloc should use the
+next chunk.  If the return is some other value, the lexer hasn't finished with the current chunk and it sopped for some
+other reason, so the same chunk should be used again in the next call.
+
+If the file chunks contain a null terminator the lexer will return LexResult_Finished when it finds this character. 
+At this point calling the lexer again with the same state will result in an error.  If you do not have a null
+terminated chunk to end the file, you may instead pass the exact size in bytes of the entire file to the full_size
+parameter and it will automatically handle the termination of the lexing state when it has read that many bytes.
+If a full_size is specified and the system terminates for having seen that many bytes, it will return LexResult_Finished.
+If a full_size is specified and a null character is read before the total number of bytes have been read the system will
+still terminate as usual and return LexResult_Finished.
+
+If the system has filled the entire output array it will return LexResult_NeedTokenMemory.  When this happens if you
+want to continue lexing the file you can grow the token array, or switch to a new output array and then call
+cpp_lex_nonalloc again with the chunk that was being lexed and the new output.  You can also specify a max_tokens_out
+which is limits how many new tokens will be added to the token array.  Even if token_array_out still had more space
+to hold tokens, if the max_tokens_out limit is hit, the lexer will stop and return LexResult_HitTokenLimit.  If this
+happens there is still space left in the token array, so you can resume simply by calling cpp_lex_nonalloc again with
+the same chunk and the same output array.  Also note that, unlike the chunks which must only be replaced when the system
+says it needs a chunk.  You may switch to or modify the output array in between calls as much as you like.
+
+The most basic use of this system is to get it all done in one big chunk and try to allocate a nearly "infinite" output
+array so that it will not run out of memory.  This way you can get the entire job done in one call and then just assert
+to make sure it returns LexResult_Finished to you:
+CODE_EXAMPLE(
+Cpp_Token_Array lex_file(char *file_name){
+    File_Data file = read_whole_file(file_name);
+    
+    Cpp_Lex_Data lex_state =
+        cpp_lex_data_init((char*)malloc(4096)); // hopefully big enough
+    
+    Cpp_Token_Array array = {0};
+    array.tokens = (Cpp_Token*)malloc(1 << 20); // hopefully big enough
+    array.max_count = (1 << 20)/sizeof(Cpp_Token);
+    
+    Cpp_Lex_Result result = 
+        cpp_lex_nonalloc(&lex_state, file.data, file.size, file.size,
+                         &array, NO_OUT_LIMIT);
+    Assert(result == LexResult_Finished);
+    
+    free(lex_state.tb);
+    
+    return(array);
+})
+)
+
+DOC_SEE(Cpp_Lex_Data)
+DOC_SEE(cpp_lex_file)
+DOC_SEE(cpp_lex_nonalloc_null_end_no_limit)
+DOC_SEE(cpp_lex_nonalloc_no_null_no_limit)
+DOC_SEE(cpp_lex_nonalloc_null_end_out_limit)
+DOC_SEE(cpp_lex_nonalloc_no_null_out_limit)
+
+*/{
+    Cpp_Lex_Result result = 0;
+    if (full_size == HAS_NULL_TERM){
+        if (max_tokens_out == NO_OUT_LIMIT){
+            result = cpp_lex_nonalloc_null_end_no_limit(S_ptr, chunk, size, token_array_out);
+        }
+        else{
+            result = cpp_lex_nonalloc_null_end_out_limit(S_ptr, chunk, size, token_array_out, max_tokens_out);
+        }
+    }
+    else{
+        if (max_tokens_out == NO_OUT_LIMIT){
+            result = cpp_lex_nonalloc_no_null_no_limit(S_ptr, chunk, size, full_size, token_array_out);
+        }
+        else{
+            result = cpp_lex_nonalloc_no_null_out_limit(S_ptr, chunk, size, full_size, token_array_out, max_tokens_out);
+        }
+    }
+    return(result);
+}
+
+// TODO(allen): Get the relex system ready to work in chunks.
+FCPP_INTERNAL Cpp_Relex_State
+cpp_relex_nonalloc_start(char *data, int32_t size, Cpp_Token_Array *array,
                          int32_t start, int32_t end, int32_t amount, int32_t tolerance){
     Cpp_Relex_State state;
     state.data = data;
     state.size = size;
-    state.stack = stack;
+    state.array = array;
     state.start = start;
     state.end = end;
     state.amount = amount;
     state.tolerance = tolerance;
     
-    Cpp_Get_Token_Result result = cpp_get_token(stack, start);
+    Cpp_Get_Token_Result result = cpp_get_token(array, start);
     
     state.start_token_i = result.token_index-1;
     if (state.start_token_i < 0){
         state.start_token_i = 0;
     }
     
-    result = cpp_get_token(stack, end);
+    result = cpp_get_token(array, end);
     
     state.end_token_i = result.token_index;
-    if (end > stack->tokens[state.end_token_i].start){
+    if (end > array->tokens[state.end_token_i].start){
         ++state.end_token_i;
     }
     if (state.end_token_i < 0){
         state.end_token_i = 0;
     }
     
-    state.relex_start = stack->tokens[state.start_token_i].start;
+    state.relex_start = array->tokens[state.start_token_i].start;
     if (start < state.relex_start){
         state.relex_start = start;
     }
@@ -1032,18 +1087,18 @@ cpp_relex_nonalloc_start(char *data, int32_t size, Cpp_Token_Stack *stack,
     return(state);
 }
 
-FCPP_LINK char
+FCPP_INTERNAL char
 cpp_token_get_pp_state(uint16_t bitfield){
     return (char)(bitfield);
 }
 
 // TODO(allen): Eliminate this once we actually store the EOF token
 // in the token stack.
-FCPP_LINK Cpp_Token
-cpp_index_stack(Cpp_Token_Stack *stack, int32_t file_size, int32_t index){
+FCPP_INTERNAL Cpp_Token
+cpp_index_array(Cpp_Token_Array *array, int32_t file_size, int32_t index){
     Cpp_Token result;
-    if (index < stack->count){
-        result = stack->tokens[index];
+    if (index < array->count){
+        result = array->tokens[index];
     }
     else{
         result.start = file_size;
@@ -1055,60 +1110,68 @@ cpp_index_stack(Cpp_Token_Stack *stack, int32_t file_size, int32_t index){
     return(result);
 }
 
-FCPP_LINK int32_t
+FCPP_INTERNAL void
+cpp_shift_token_starts(Cpp_Token_Array *array, int32_t from_token_i, int32_t shift_amount){
+    Cpp_Token *token = array->tokens + from_token_i;
+    int32_t count = array->count, i = 0;
+    
+    for (i = from_token_i; i < count; ++i, ++token){
+        token->start += shift_amount;
+    }
+}
+
+FCPP_INTERNAL int32_t
 cpp_relex_nonalloc_main(Cpp_Relex_State *state,
-                        Cpp_Token_Stack *relex_stack,
+                        Cpp_Token_Array *relex_array,
                         int32_t *relex_end,
                         char *spare){
-    Cpp_Token_Stack *stack = state->stack;
-    Cpp_Token *tokens = stack->tokens;
+    Cpp_Token_Array *array = state->array;
+    Cpp_Token *tokens = array->tokens;
     
-    cpp_shift_token_starts(stack, state->end_token_i, state->amount);
+    cpp_shift_token_starts(array, state->end_token_i, state->amount);
     
-    Lex_Data lex = lex_data_init(spare);
+    Cpp_Lex_Data lex = cpp_lex_data_init(spare);
     lex.pp_state = cpp_token_get_pp_state(tokens[state->start_token_i].state_flags);
     lex.pos = state->relex_start;
     
     int32_t relex_end_i = state->end_token_i;
-    Cpp_Token match_token = cpp_index_stack(stack, state->size, relex_end_i);
+    Cpp_Token match_token = cpp_index_array(array, state->size, relex_end_i);
     Cpp_Token end_token = match_token;
     int32_t went_too_far = false;
     
     // TODO(allen): This can be better I suspect.
     for (;;){
         int32_t result = 
-            cpp_lex_size_nonalloc(&lex,
-                                  state->data,
-                                  state->size,
-                                  state->size,
-                                  relex_stack, 1);
+            cpp_lex_nonalloc_no_null_out_limit(&lex, state->data,
+                                               state->size, state->size,
+                                               relex_array, 1);
         
         switch (result){
-            case LexHitTokenLimit:
+            case LexResult_HitTokenLimit:
             {
-                Cpp_Token token = relex_stack->tokens[relex_stack->count-1];
+                Cpp_Token token = relex_array->tokens[relex_array->count-1];
                 if (token.start == end_token.start &&
                     token.size == end_token.size &&
                     token.flags == end_token.flags &&
                     token.state_flags == end_token.state_flags){
-                    --relex_stack->count;
+                    --relex_array->count;
                     goto double_break;
                 }
                 
-                while (lex.pos > end_token.start && relex_end_i < stack->count){
+                while (lex.pos > end_token.start && relex_end_i < array->count){
                     ++relex_end_i;
-                    end_token = cpp_index_stack(stack, state->size, relex_end_i);
+                    end_token = cpp_index_array(array, state->size, relex_end_i);
                 }
             }
             break;
             
-            case LexNeedChunk: Assert(!"Invalid path"); break;
+            case LexResult_NeedChunk: Assert(!"Invalid path"); break;
             
-            case LexNeedTokenMemory:
+            case LexResult_NeedTokenMemory:
             went_too_far = true;
             goto double_break;
             
-            case LexFinished:
+            case LexResult_Finished:
             goto double_break;
         }
     }
@@ -1118,78 +1181,117 @@ cpp_relex_nonalloc_main(Cpp_Relex_State *state,
         *relex_end = relex_end_i;
     }
     else{
-        cpp_shift_token_starts(stack, state->end_token_i, -state->amount);
+        cpp_shift_token_starts(array, state->end_token_i, -state->amount);
     }
     
     return(went_too_far);
 }
+
+
 
 #if defined(FCPP_ALLOW_MALLOC)
 
 #include <stdlib.h>
 #include <string.h>
 
-FCPP_LINK Cpp_Token_Stack
-cpp_make_token_stack(int32_t starting_max){
-    Cpp_Token_Stack token_stack;
-    token_stack.count = 0;
-    token_stack.max_count = starting_max;
-    token_stack.tokens = (Cpp_Token*)malloc(sizeof(Cpp_Token)*starting_max);
-    return(token_stack);
+FCPP_LINK Cpp_Token_Array
+cpp_make_token_array(int32_t starting_max)/*
+DOC_PARAM(starting_max, The number of tokens to initialize the array with.)
+DOC_RETURN(An empty Cpp_Token_Array with memory malloc'd for storing tokens.)
+DOC(This call allocates a Cpp_Token_Array with malloc for use in other
+convenience functions.  Stacks that are not allocated this way should not be
+used in the convenience functions.
+
+This call is a part of the FCPP_ALLOW_MALLOC convenience functions. 
+If you want to use it defined the macro FCPP_ALLOW_MALLOC before including 4cpp_lexer.h)
+*/{
+    Cpp_Token_Array token_array;
+    token_array.tokens = (Cpp_Token*)malloc(sizeof(Cpp_Token)*starting_max);
+    token_array.count = 0;
+    token_array.max_count = starting_max;
+    return(token_array);
 }
 
 FCPP_LINK void
-cpp_free_token_stack(Cpp_Token_Stack token_stack){
-    free(token_stack.tokens);
+cpp_free_token_array(Cpp_Token_Array token_array)/*
+DOC_PARAM(token_array, An array previously allocated by cpp_make_token_array)
+DOC(This call frees a Cpp_Token_Array.
+
+This call is a part of the FCPP_ALLOW_MALLOC convenience functions. 
+If you want to use it defined the macro FCPP_ALLOW_MALLOC before including 4cpp_lexer.h)
+DOC_SEE(cpp_make_token_array)
+*/{
+    free(token_array.tokens);
 }
 
 FCPP_LINK void
-cpp_resize_token_stack(Cpp_Token_Stack *token_stack, int32_t new_max){
-    Cpp_Token *new_tokens = (Cpp_Token*)malloc(sizeof(Cpp_Token)*new_max);
-    
-    if (new_tokens){
-        memcpy(new_tokens, token_stack->tokens, sizeof(Cpp_Token)*token_stack->count);
-        free(token_stack->tokens);
-        token_stack->tokens = new_tokens;
-        token_stack->max_count = new_max;
-    }	
-}
+cpp_resize_token_array(Cpp_Token_Array *token_array, int32_t new_max)/*
+DOC_PARAM(token_array, An array previously allocated by cpp_make_token_array.)
+DOC_PARAM(new_max, The new maximum size the array should support.  If this is not greater
+than the current size of the array the operation is ignored.)
+DOC(This call allocates a new memory chunk and moves the existing tokens in the array
+over to the new chunk.
 
-FCPP_LINK void
-cpp_push_token(Cpp_Token_Stack *token_stack, Cpp_Token token){
-    if (!cpp_push_token_nonalloc(token_stack, token)){
-        int32_t new_max = 2*token_stack->max_count + 1;
-        cpp_resize_token_stack(token_stack, new_max);
-        cpp_push_token_nonalloc(token_stack, token);
+This call is a part of the FCPP_ALLOW_MALLOC convenience functions. 
+If you want to use it defined the macro FCPP_ALLOW_MALLOC before including 4cpp_lexer.h)
+DOC_SEE(cpp_make_token_array)
+*/{
+    if (new_max > token_array->count){
+        Cpp_Token *new_tokens = (Cpp_Token*)malloc(sizeof(Cpp_Token)*new_max);
+        
+        if (new_tokens){
+            memcpy(new_tokens, token_array->tokens, sizeof(Cpp_Token)*token_array->count);
+            free(token_array->tokens);
+            token_array->tokens = new_tokens;
+            token_array->max_count = new_max;
+        }	
     }
 }
 
 FCPP_LINK void
-cpp_lex_file(char *data, int32_t size, Cpp_Token_Stack *token_stack_out){
-    Lex_Data S = {0};
+cpp_lex_file(char *data, int32_t size, Cpp_Token_Array *token_array_out)/*
+DOC_PARAM(data, The file data to be lexed in a single contiguous block.)
+DOC_PARAM(size, The number of bytes in data.)
+DOC_PARAM(token_array_out, The token array where the output tokens will be pushed.
+This token array must be previously allocated with cpp_make_token_array)
+DOC(Lexes an entire file and manages the interaction with the lexer system so that
+it is quick and convenient to lex files.
+
+This call is a part of the FCPP_ALLOW_MALLOC convenience functions. 
+If you want to use it defined the macro FCPP_ALLOW_MALLOC before including 4cpp_lexer.h)
+DOC_SEE(cpp_make_token_array)
+*/{
+    Cpp_Lex_Data S = {0};
     S.tb = (char*)malloc(size);
     int32_t quit = 0;
     
-    token_stack_out->count = 0;
+    token_array_out->count = 0;
     for (;!quit;){
-        int32_t result = cpp_lex_nonalloc(&S, data, size, token_stack_out);
+        int32_t result = cpp_lex_nonalloc(&S, data, size, HAS_NULL_TERM, token_array_out, NO_OUT_LIMIT);
         switch (result){
-            case LexFinished:
+            case LexResult_Finished:
             {
                 quit = 1;
             }break;
             
-            case LexNeedChunk:
+            case LexResult_NeedChunk:
             {
+                Assert(token_array_out->count < token_array_out->max_count);
+                
+                // NOTE(allen): We told the system we would provide the null
+                // terminator, but we didn't actually, so provide the null
+                // terminator via this one byte chunk.
                 char empty = 0;
-                cpp_lex_nonalloc(&S, &empty, 1, token_stack_out);
-                quit = 1;
+                cpp_lex_nonalloc(&S, &empty, 1, HAS_NULL_TERM, token_array_out, NO_OUT_LIMIT);
             }break;
             
-            case LexNeedTokenMemory:
+            case LexResult_NeedTokenMemory:
             {
-                int32_t new_max = 2*token_stack_out->max_count + 1;
-                cpp_resize_token_stack(token_stack_out, new_max);
+                // NOTE(allen): We told the system to use all of the output memory
+                // but we ran out anyway, so allocate more memory.  We hereby assume
+                // the stack was allocated using cpp_make_token_array.
+                int32_t new_max = 2*token_array_out->max_count + 1;
+                cpp_resize_token_array(token_array_out, new_max);
             }break;
         }
     }

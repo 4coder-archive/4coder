@@ -213,7 +213,7 @@ Stream mode can be enabled with -S or -F flags on the command line to 4ed.)
 
 API_EXPORT bool32
 Is_Fullscreen(Application_Links *app)/*
-DOC_SEE(This call returns true if the 4coder is in full screen mode.  This call
+DOC(This call returns true if the 4coder is in full screen mode.  This call
 takes toggles that have already occured this frame into account.  So it may return
 true even though the frame has not ended and actually put 4coder into full screen. If
 it returns true though, 4coder will definitely be full screen by the beginning of the next
@@ -229,7 +229,7 @@ frame if the state is not changed.)
 
 API_EXPORT void
 Send_Exit_Signal(Application_Links *app)/*
-DOC_SEE(This call sends a signal to 4coder to attempt to exit.  If there are unsaved
+DOC(This call sends a signal to 4coder to attempt to exit.  If there are unsaved
 files this triggers a dialogue ensuring you're okay with closing.)
 */{
     win32vars.send_exit_signal = 1;

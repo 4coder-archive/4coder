@@ -410,7 +410,7 @@ typedef struct Item_Set{
 
 typedef struct Parse{
     String code;
-    Cpp_Token_Stack tokens;
+    Cpp_Token_Array tokens;
     int32_t item_count;
 } Parse;
 
@@ -440,10 +440,10 @@ get_lexeme(Cpp_Token token, char *code){
 }
 
 static Parse_Context
-setup_parse_context(char *data, Cpp_Token_Stack stack){
+setup_parse_context(char *data, Cpp_Token_Array array){
     Parse_Context context;
-    context.token_s = stack.tokens;
-    context.token_e = stack.tokens + stack.count;
+    context.token_s = array.tokens;
+    context.token_e = array.tokens + array.count;
     context.token = context.token_s;
     context.data = data;
     return(context);
@@ -536,7 +536,7 @@ static Parse
 meta_lex(char *filename){
     Parse result = {0};
     result.code = file_dump(filename);
-    result.tokens = cpp_make_token_stack(1024);
+    result.tokens = cpp_make_token_array(1024);
     cpp_lex_file(result.code.str, result.code.size, &result.tokens);
     return(result);
 }
@@ -584,8 +584,18 @@ typedef enum Doc_Note_Type{
     DOC_PARAM,
     DOC_RETURN,
     DOC,
-    DOC_SEE
+    DOC_SEE,
+    DOC_HIDE
 } Doc_Note_Type;
+
+static String
+doc_note_string[] = {
+    make_lit_string("DOC_PARAM"),
+    make_lit_string("DOC_RETURN"),
+    make_lit_string("DOC"),
+    make_lit_string("DOC_SEE"),
+    make_lit_string("DOC_HIDE"),
+};
 
 static int32_t
 check_and_fix_docs(String *doc_string){
@@ -627,14 +637,6 @@ get_doc_string_from_prev(Parse_Context *context, String *doc_string){
     
     return(result);
 }
-
-static String
-doc_note_string[] = {
-    make_lit_string("DOC_PARAM"),
-    make_lit_string("DOC_RETURN"),
-    make_lit_string("DOC"),
-    make_lit_string("DOC_SEE"),
-};
 
 static String
 doc_parse_note(String source, int32_t *pos){
@@ -1781,6 +1783,7 @@ print_macro_html(String *out, String name, Argument_Breakdown breakdown){
 #define BACK_COLOR   "#FAFAFA"
 #define TEXT_COLOR   "#0D0D0D"
 #define CODE_BACK    "#DFDFDF"
+#define EXAMPLE_BACK "#EFEFDF"
 
 #define POP_COLOR_1  "#309030"
 #define POP_BACK_1   "#E0FFD0"
@@ -1790,9 +1793,12 @@ print_macro_html(String *out, String name, Argument_Breakdown breakdown){
 
 #define CODE_STYLE "font-family: \"Courier New\", Courier, monospace; text-align: left;"
 
-#define DESCRIPT_SECTION_STYLE \
-"margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; " \
-"background: "CODE_BACK"; padding: 0.25em;"
+#define CODE_BLOCK_STYLE(back)                             \
+"margin-top: 3mm; margin-bottom: 3mm; font-size: .95em; "  \
+"background: "back"; padding: 0.25em;"
+
+#define DESCRIPT_SECTION_STYLE CODE_BLOCK_STYLE(CODE_BACK)
+#define EXAMPLE_CODE_STYLE CODE_BLOCK_STYLE(EXAMPLE_BACK)
 
 #define DOC_HEAD_OPEN  "<div style='margin-top: 3mm; margin-bottom: 3mm; color: "POP_COLOR_1";'><b><i>"
 #define DOC_HEAD_CLOSE "</i></b></div>"
@@ -1808,6 +1814,227 @@ print_macro_html(String *out, String name, Argument_Breakdown breakdown){
 #define DOC_ITEM_OPEN  "<div style='margin-left: 5mm; margin-right: 5mm;'>"
 #define DOC_ITEM_CLOSE "</div>"
 
+#define EXAMPLE_CODE_OPEN  "<div style='"CODE_STYLE EXAMPLE_CODE_STYLE"'>"
+#define EXAMPLE_CODE_CLOSE "</div>"
+
+static String
+get_first_double_line(String source){
+    String line = {0};
+    int32_t pos0 = find_substr_s(source, 0, make_lit_string("\n\n"));
+    int32_t pos1 = find_substr_s(source, 0, make_lit_string("\r\n\r\n"));
+    if (pos1 < pos0){
+        pos0 = pos1;
+    }
+    line = substr(source, 0, pos0);
+    return(line);
+}
+
+static String
+get_next_double_line(String source, String line){
+    String next = {0};
+    int32_t pos = (int32_t)(line.str - source.str) + line.size;
+    int32_t start = 0, pos0 = 0, pos1 = 0;
+    
+    if (pos < source.size){
+        assert(source.str[pos] == '\n' || source.str[pos] == '\r');
+        start = pos + 1;
+        
+        if (start < source.size){
+            pos0 = find_substr_s(source, start, make_lit_string("\n\n"));
+            pos1 = find_substr_s(source, start, make_lit_string("\r\n\r\n"));
+            if (pos1 < pos0){
+                pos0 = pos1;
+            }
+            next = substr(source, start, pos0 - start);
+        }
+    }
+    
+    return(next);
+}
+
+static String
+get_next_word(String source, String prev_word){
+    String word = {0};
+    int32_t pos0 = (int32_t)(prev_word.str - source.str) + prev_word.size;
+    int32_t pos1 = 0;
+    char c = 0;
+    
+    for (; pos0 < source.size; ++pos0){
+        c = source.str[pos0];
+        if (!(char_is_whitespace(c) || c == '(' || c == ')')){
+            break;
+        }
+    }
+    
+    if (pos0 < source.size){
+        for (pos1 = pos0; pos1 < source.size; ++pos1){
+            c = source.str[pos1];
+            if (char_is_whitespace(c) || c == '(' || c == ')'){
+                break;
+            }
+        }
+        
+        word = substr(source, pos0, pos1 - pos0);
+    }
+    
+    return(word);
+}
+
+static String
+get_first_word(String source){
+    String start_str = make_string(source.str, 0);
+    String word = get_next_word(source, start_str);
+    return(word);
+}
+
+enum Doc_Chunk_Type{
+    DocChunk_PlainText,
+    DocChunk_CodeExample,
+    
+    DocChunk_Count
+};
+
+static String doc_chunk_headers[] = {
+    make_lit_string(""),
+    make_lit_string("CODE_EXAMPLE"),
+};
+
+static String
+get_next_doc_chunk(String source, String prev_chunk, Doc_Chunk_Type *type){
+    String chunk = {0};
+    String word = {0};
+    int32_t pos = source.size;
+    int32_t word_index = 0;
+    Doc_Chunk_Type t = DocChunk_PlainText;
+    
+    int32_t start_pos = (int32_t)(prev_chunk.str - source.str) + prev_chunk.size;
+    String source_tail = substr_tail(source, start_pos);
+    
+    Assert(DocChunk_Count == ArrayCount(doc_chunk_headers));
+    
+    for (word = get_first_word(source_tail);
+         word.str;
+         word = get_next_word(source_tail, word), ++word_index){
+        
+        for (int32_t i = 1; i < DocChunk_Count; ++i){
+            if (match_ss(word, doc_chunk_headers[i])){
+                pos = (int32_t)(word.str - source.str);
+                t = (Doc_Chunk_Type)i;
+                goto doublebreak;
+            }
+        }
+    }
+    doublebreak:;
+    
+    *type = DocChunk_PlainText;
+    if (word_index == 0){
+        *type = t;
+        
+        int32_t nest_level = 1;
+        int32_t i = find_s_char(source, pos, '(');
+        for (++i; i < source.size; ++i){
+            if (source.str[i] == '('){
+                ++nest_level;
+            }
+            else if (source.str[i] == ')'){
+                --nest_level;
+                if (nest_level == 0){
+                    break;
+                }
+            }
+        }
+        
+        pos = i+1;
+    }
+    
+    chunk = substr(source, start_pos, pos - start_pos);
+    
+    int32_t is_all_white = 1;
+    for (int32_t i = 0; i < chunk.size; ++i){
+        if (!char_is_whitespace(chunk.str[i])){
+            is_all_white = 0;
+            break;
+        }
+    }
+    
+    if (is_all_white){
+        chunk = null_string;
+    }
+    
+    return(chunk);
+}
+
+static String
+get_first_doc_chunk(String source, Doc_Chunk_Type *type){
+    String start_str = make_string(source.str, 0);
+    String chunk = get_next_doc_chunk(source, start_str, type);
+    return(chunk);
+}
+
+
+static void
+print_doc_description(String *out, Partition *part, String src){
+    Doc_Chunk_Type type;
+    
+    for (String chunk = get_first_doc_chunk(src, &type);
+         chunk.str;
+         chunk = get_next_doc_chunk(src, chunk, &type)){
+        
+        switch (type){
+            case DocChunk_PlainText:
+            {
+                for (String line = get_first_double_line(chunk);
+                     line.str;
+                     line = get_next_double_line(chunk, line)){
+                    append_ss(out, line);
+                    append_sc(out, "<br><br>");
+                }
+            }break;
+            
+            case DocChunk_CodeExample:
+            {
+                int32_t start = 0;
+                int32_t end = chunk.size-1;
+                while (start < end && chunk.str[start] != '(') ++start;
+                start += 1;
+                while (end > start && chunk.str[end] != ')') --end;
+                
+                
+                append_sc(out, EXAMPLE_CODE_OPEN);
+                
+                if (start < end){
+                    String code_example = substr(chunk, start, end - start);
+                    int32_t first_line = 1;
+                    
+                    for (String line = get_first_line(code_example);
+                         line.str;
+                         line = get_next_line(code_example, line)){
+                        
+                        if (!(first_line && line.size == 0)){
+                            int32_t space_i = 0;
+                            for (; space_i < line.size; ++space_i){
+                                if (line.str[space_i] == ' '){
+                                    append_sc(out, "&nbsp;");
+                                }
+                                else{
+                                    break;
+                                }
+                            }
+                            
+                            String line_tail = substr_tail(line, space_i);
+                            append_ss(out, line_tail);
+                            append_sc(out, "<br>");
+                        }
+                        first_line = 0;
+                    }
+                }
+                
+                append_sc(out, EXAMPLE_CODE_CLOSE);
+            }break;
+        }
+    }
+}
+    
 static void
 print_struct_docs(String *out, Partition *part, Item_Node *member){
     for (Item_Node *member_iter = member->first_child;
@@ -1829,7 +2056,8 @@ print_struct_docs(String *out, Partition *part, Item_Node *member){
             append_sc(out, DOC_ITEM_HEAD_INL_CLOSE"</div>");
             
             append_sc(out, "<div style='margin-bottom: 6mm;'>"DOC_ITEM_OPEN);
-            append_ss(out, doc.main_doc);
+            // TODO(allen): append_ss(out, doc.main_doc);
+            print_doc_description(out, part, doc.main_doc);
             append_sc(out, DOC_ITEM_CLOSE"</div>");
             
             append_sc(out, "</div>");
@@ -1851,30 +2079,6 @@ print_see_also(String *out, Documentation *doc){
             append_ss(out, see_also);
             append_sc(out, "</a>"DOC_ITEM_CLOSE);
         }
-    }
-}
-
-static void
-print_see_also(FILE *file, Documentation *doc){
-    int32_t doc_see_count = doc->see_also_count;
-    if (doc_see_count > 0){
-        fprintf(file, DOC_HEAD_OPEN"See Also"DOC_HEAD_CLOSE);
-        
-        for (int32_t j = 0; j < doc_see_count; ++j){
-            String see_also = doc->see_also[j];
-            fprintf(file,
-                    DOC_ITEM_OPEN"<a href='#%.*s_doc'>%.*s</a>"DOC_ITEM_CLOSE,
-                    see_also.size, see_also.str,
-                    see_also.size, see_also.str
-                    );
-        }
-    }
-}
-
-static void
-print_str(FILE *file, String str){
-    if (str.size > 0){
-        fprintf(file, "%.*s", str.size, str.str);
     }
 }
 
@@ -1968,7 +2172,8 @@ print_function_docs(String *out, Partition *part, String name, String doc_string
     String main_doc = doc.main_doc;
     if (main_doc.size != 0){
         append_sc(out, DOC_HEAD_OPEN"Description"DOC_HEAD_CLOSE DOC_ITEM_OPEN);
-        append_ss(out, main_doc);
+        // TODO(allen): append_ss(out, main_doc);
+        print_doc_description(out, part, main_doc);
         append_sc(out, DOC_ITEM_CLOSE);
     }
     
@@ -2076,8 +2281,12 @@ print_item(String *out, Partition *part, Used_Links *used,
                 append_sc(out, DOC_HEAD_OPEN"Description"DOC_HEAD_CLOSE);
                 
                 append_sc(out, DOC_ITEM_OPEN);
-                append_ss(out, main_doc);
+                // TODO(allen): append_ss(out, main_doc);
+                print_doc_description(out, part, main_doc);
                 append_sc(out, DOC_ITEM_CLOSE);
+            }
+            else{
+                fprintf(stderr, "warning: no documentation string for %.*s\n", name.size, name.str);
             }
             
             print_see_also(out, &doc);
@@ -2104,8 +2313,12 @@ print_item(String *out, Partition *part, Used_Links *used,
                 append_sc(out, DOC_HEAD_OPEN"Description"DOC_HEAD_CLOSE);
                 
                 append_sc(out, DOC_ITEM_OPEN);
-                append_ss(out, main_doc);
+                // TODO(allen): append_ss(out, main_doc);
+                print_doc_description(out, part, main_doc);
                 append_sc(out, DOC_ITEM_CLOSE);
+            }
+            else{
+                fprintf(stderr, "warning: no documentation string for %.*s\n", name.size, name.str);
             }
             
             if (item->first_child){
@@ -2132,7 +2345,8 @@ print_item(String *out, Partition *part, Used_Links *used,
                     append_sc(out, "</span></div>");
                     
                     append_sc(out, "<div style='margin-bottom: 6mm;'>"DOC_ITEM_OPEN);
-                    append_ss(out, doc.main_doc);
+                    // TODO(allen): append_ss(out, doc.main_doc);
+                    print_doc_description(out, part, doc.main_doc);
                     append_sc(out, DOC_ITEM_CLOSE"</div>");
                     
                     append_sc(out, "</div>");
@@ -2164,8 +2378,12 @@ print_item(String *out, Partition *part, Used_Links *used,
                     append_sc(out, DOC_HEAD_OPEN"Description"DOC_HEAD_CLOSE);
                     
                     append_sc(out, DOC_ITEM_OPEN);
-                    append_ss(out, main_doc);
+                    // TODO(allen): append_ss(out, main_doc);
+                    print_doc_description(out, part, main_doc);
                     append_sc(out, DOC_ITEM_CLOSE);
+                }
+                else{
+                    fprintf(stderr, "warning: no documentation string for %.*s\n", name.size, name.str);
                 }
                 
                 if (member->first_child){

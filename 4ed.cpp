@@ -502,7 +502,7 @@ case_change_range(System_Functions *system,
             }
         }
         
-        if (file->state.token_stack.tokens)
+        if (file->state.token_array.tokens)
             file_relex_parallel(system, mem, file, range.start, range.end, 0);
     }
 #endif

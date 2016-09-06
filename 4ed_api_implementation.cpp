@@ -541,7 +541,7 @@ DOC_SEE(Access_Flag)
 }
 
 internal i32
-seek_token_left(Cpp_Token_Stack *tokens, i32 pos){
+seek_token_left(Cpp_Token_Array *tokens, i32 pos){
     Cpp_Get_Token_Result get = cpp_get_token(tokens, pos);
     if (get.token_index == -1){
         get.token_index = 0;
@@ -556,7 +556,7 @@ seek_token_left(Cpp_Token_Stack *tokens, i32 pos){
 }
 
 internal i32
-seek_token_right(Cpp_Token_Stack *tokens, i32 pos){
+seek_token_right(Cpp_Token_Array *tokens, i32 pos){
     Cpp_Get_Token_Result get = cpp_get_token(tokens, pos);
     if (get.in_whitespace){
         ++get.token_index;
@@ -609,7 +609,7 @@ DOC_SEE(4coder_Buffer_Positioning_System)
             
             if (flags & (1 << 1)){
                 if (file->state.tokens_complete){
-                    pos[1] = seek_token_right(&file->state.token_stack, start_pos);
+                    pos[1] = seek_token_right(&file->state.token_array, start_pos);
                 }
                 else{
                     pos[1] = buffer_seek_whitespace_right(&file->state.buffer, start_pos);
@@ -640,7 +640,7 @@ DOC_SEE(4coder_Buffer_Positioning_System)
             
             if (flags & (1 << 1)){
                 if (file->state.tokens_complete){
-                    pos[1] = seek_token_left(&file->state.token_stack, start_pos);
+                    pos[1] = seek_token_left(&file->state.token_array, start_pos);
                 }
                 else{
                     pos[1] = buffer_seek_whitespace_left(&file->state.buffer, start_pos);
@@ -942,7 +942,7 @@ DOC_SEE(4coder_Buffer_Positioning_System)
     bool32 result = false;
     
     Editing_File *file = imp_get_file(cmd, buffer);
-    if (file && file->state.token_stack.tokens &&
+    if (file && file->state.token_array.tokens &&
         file->state.tokens_complete && !file->state.still_lexing){
         result = true;
         

@@ -1083,13 +1083,13 @@ internal void
 file_close(System_Functions *system, General_Memory *general, Editing_File *file){
     if (file->state.still_lexing){
         system->cancel_job(BACKGROUND_THREADS, file->state.lex_job);
-        if (file->state.swap_stack.tokens){
-            general_memory_free(general, file->state.swap_stack.tokens);
-            file->state.swap_stack.tokens = 0;
+        if (file->state.swap_array.tokens){
+            general_memory_free(general, file->state.swap_array.tokens);
+            file->state.swap_array.tokens = 0;
         }
     }
-    if (file->state.token_stack.tokens){
-        general_memory_free(general, file->state.token_stack.tokens);
+    if (file->state.token_array.tokens){
+        general_memory_free(general, file->state.token_array.tokens);
     }
     
     Buffer_Type *buffer = &file->state.buffer;
@@ -1136,25 +1136,25 @@ Job_Callback_Sig(job_full_lex){
     
     char *tb = (char*)memory->data;
     
-    Cpp_Token_Stack tokens;
+    Cpp_Token_Array tokens;
     tokens.tokens = (Cpp_Token*)((char*)memory->data + buffer_size);
     tokens.max_count = (memory->size - buffer_size) / sizeof(Cpp_Token);
     tokens.count = 0;
     
     b32 still_lexing = 1;
     
-    Lex_Data lex = lex_data_init(tb);
+    Cpp_Lex_Data lex = cpp_lex_data_init(tb);
     
     do{
         i32 result = 
-            cpp_lex_size_nonalloc(&lex,
-                                  text_data, text_size, text_size,
-                                  &tokens, 2048);
+            cpp_lex_nonalloc(&lex,
+                             text_data, text_size, text_size,
+                             &tokens, 2048);
         
         switch (result){
-            case LexNeedChunk: Assert(!"Invalid Path"); break;
+            case LexResult_NeedChunk: Assert(!"Invalid Path"); break;
             
-            case LexNeedTokenMemory:
+            case LexResult_NeedTokenMemory:
             if (system->check_cancel(thread)){
                 return;
             }
@@ -1164,13 +1164,13 @@ Job_Callback_Sig(job_full_lex){
             tokens.max_count = (memory->size - buffer_size) / sizeof(Cpp_Token);
             break;
             
-            case LexHitTokenLimit:
+            case LexResult_HitTokenLimit:
             if (system->check_cancel(thread)){
                 return;
             }
             break;
             
-            case LexFinished: still_lexing = 0; break;
+            case LexResult_Finished: still_lexing = 0; break;
         }
     } while (still_lexing);
     
@@ -1178,27 +1178,27 @@ Job_Callback_Sig(job_full_lex){
     
     system->acquire_lock(FRAME_LOCK);
     {
-        Assert(file->state.swap_stack.tokens == 0);
-        file->state.swap_stack.tokens = (Cpp_Token*)
+        Assert(file->state.swap_array.tokens == 0);
+        file->state.swap_array.tokens = (Cpp_Token*)
             general_memory_allocate(general, new_max*sizeof(Cpp_Token));
     }
     system->release_lock(FRAME_LOCK);
     
-    u8 *dest = (u8*)file->state.swap_stack.tokens;
+    u8 *dest = (u8*)file->state.swap_array.tokens;
     u8 *src = (u8*)tokens.tokens;
     
     memcpy(dest, src, tokens.count*sizeof(Cpp_Token));
     
     system->acquire_lock(FRAME_LOCK);
     {
-        Cpp_Token_Stack *file_stack = &file->state.token_stack;
-        file_stack->count = tokens.count;
-        file_stack->max_count = new_max;
-        if (file_stack->tokens){
-            general_memory_free(general, file_stack->tokens);
+        Cpp_Token_Array *file_token_array = &file->state.token_array;
+        file_token_array->count = tokens.count;
+        file_token_array->max_count = new_max;
+        if (file_token_array->tokens){
+            general_memory_free(general, file_token_array->tokens);
         }
-        file_stack->tokens = file->state.swap_stack.tokens;
-        file->state.swap_stack.tokens = 0;
+        file_token_array->tokens = file->state.swap_array.tokens;
+        file->state.swap_array.tokens = 0;
     }
     system->release_lock(FRAME_LOCK);
     
@@ -1216,16 +1216,16 @@ file_kill_tokens(System_Functions *system,
     file->settings.tokens_exist = 0;
     if (file->state.still_lexing){
         system->cancel_job(BACKGROUND_THREADS, file->state.lex_job);
-        if (file->state.swap_stack.tokens){
-            general_memory_free(general, file->state.swap_stack.tokens);
-            file->state.swap_stack.tokens = 0;
+        if (file->state.swap_array.tokens){
+            general_memory_free(general, file->state.swap_array.tokens);
+            file->state.swap_array.tokens = 0;
         }
     }
-    if (file->state.token_stack.tokens){
-        general_memory_free(general, file->state.token_stack.tokens);
+    if (file->state.token_array.tokens){
+        general_memory_free(general, file->state.token_array.tokens);
     }
     file->state.tokens_complete = 0;
-    file->state.token_stack = null_cpp_token_stack;
+    file->state.token_array = null_cpp_token_array;
 }
 
 #if BUFFER_EXPERIMENT_SCALPEL <= 0
@@ -1235,7 +1235,7 @@ file_first_lex_parallel(System_Functions *system,
     file->settings.tokens_exist = 1;
     
     if (file->is_loading == 0 && file->state.still_lexing == 0){
-        Assert(file->state.token_stack.tokens == 0);
+        Assert(file->state.token_array.tokens == 0);
         
         file->state.tokens_complete = 0;
         file->state.still_lexing = 1;
@@ -1256,7 +1256,7 @@ file_relex_parallel(System_Functions *system,
     General_Memory *general = &mem->general;
     Partition *part = &mem->part;
     
-    if (file->state.token_stack.tokens == 0){
+    if (file->state.token_array.tokens == 0){
         file_first_lex_parallel(system, general, file);
         return(false);
     }
@@ -1267,15 +1267,15 @@ file_relex_parallel(System_Functions *system,
         char *data = file->state.buffer.data;
         i32 size = file->state.buffer.size;
         
-        Cpp_Token_Stack *stack = &file->state.token_stack;
+        Cpp_Token_Array *array = &file->state.token_array;
         
         Cpp_Relex_State state = 
-            cpp_relex_nonalloc_start(data, size, stack,
+            cpp_relex_nonalloc_start(data, size, array,
                                      start_i, end_i, amount, 100);
         
         Temp_Memory temp = begin_temp_memory(part);
         i32 relex_end;
-        Cpp_Token_Stack relex_space;
+        Cpp_Token_Array relex_space;
         relex_space.count = 0;
         relex_space.max_count = state.space_request;
         relex_space.tokens = push_array(part, Cpp_Token, relex_space.max_count);
@@ -1289,27 +1289,27 @@ file_relex_parallel(System_Functions *system,
             i32 shift_amount = relex_space.count - delete_amount;
             
             if (shift_amount != 0){
-                i32 new_count = stack->count + shift_amount;
-                if (new_count > stack->max_count){
+                i32 new_count = array->count + shift_amount;
+                if (new_count > array->max_count){
                     i32 new_max = LargeRoundUp(new_count, Kbytes(1));
-                    stack->tokens = (Cpp_Token*)
-                        general_memory_reallocate(general, stack->tokens,
-                                                  stack->count*sizeof(Cpp_Token),
+                    array->tokens = (Cpp_Token*)
+                        general_memory_reallocate(general, array->tokens,
+                                                  array->count*sizeof(Cpp_Token),
                                                   new_max*sizeof(Cpp_Token));
-                    stack->max_count = new_max;
+                    array->max_count = new_max;
                 }
                 
-                i32 shift_size = stack->count - relex_end;
+                i32 shift_size = array->count - relex_end;
                 if (shift_size > 0){
-                    Cpp_Token *old_base = stack->tokens + relex_end;
+                    Cpp_Token *old_base = array->tokens + relex_end;
                     memmove(old_base + shift_amount, old_base,
                             sizeof(Cpp_Token)*shift_size);
                 }
                 
-                stack->count += shift_amount;
+                array->count += shift_amount;
             }
             
-            memcpy(state.stack->tokens + state.start_token_i, relex_space.tokens,
+            memcpy(state.array->tokens + state.start_token_i, relex_space.tokens,
                    sizeof(Cpp_Token)*relex_space.count);
         }
         
@@ -1317,17 +1317,21 @@ file_relex_parallel(System_Functions *system,
     }
     
     if (!inline_lex){
-        Cpp_Token_Stack *stack = &file->state.token_stack;
-        Cpp_Get_Token_Result get_token_result = cpp_get_token(stack, end_i);
+        Cpp_Token_Array *array = &file->state.token_array;
+        Cpp_Get_Token_Result get_token_result = cpp_get_token(array, end_i);
         i32 end_token_i = get_token_result.token_index;
         
-        if (end_token_i < 0) end_token_i = 0;
-        else if (end_i > stack->tokens[end_token_i].start) ++end_token_i;
+        if (end_token_i < 0){
+            end_token_i = 0;
+        }
+        else if (end_i > array->tokens[end_token_i].start){
+            ++end_token_i;
+        }
         
-        cpp_shift_token_starts(stack, end_token_i, amount);
+        cpp_shift_token_starts(array, end_token_i, amount);
         --end_token_i;
         if (end_token_i >= 0){
-            Cpp_Token *token = stack->tokens + end_token_i;
+            Cpp_Token *token = array->tokens + end_token_i;
             if (token->start < end_i && token->start + token->size > end_i){
                 token->size += amount;
             }
@@ -1914,9 +1918,9 @@ file_pre_edit_maintenance(System_Functions *system,
                           Editing_File *file){
     if (file->state.still_lexing){
         system->cancel_job(BACKGROUND_THREADS, file->state.lex_job);
-        if (file->state.swap_stack.tokens){
-            general_memory_free(general, file->state.swap_stack.tokens);
-            file->state.swap_stack.tokens = 0;
+        if (file->state.swap_array.tokens){
+            general_memory_free(general, file->state.swap_array.tokens);
+            file->state.swap_array.tokens = 0;
         }
         file->state.still_lexing = 0;
     }
@@ -2175,7 +2179,7 @@ file_do_batch_edit(System_Functions *system, Models *models, Editing_File *file,
         case BatchEdit_PreserveTokens:
         {
             if (file->state.tokens_complete){
-                Cpp_Token_Stack tokens = file->state.token_stack;
+                Cpp_Token_Array tokens = file->state.token_array;
                 Cpp_Token *token = tokens.tokens;
                 Cpp_Token *end_token = tokens.tokens + tokens.count;
                 Cpp_Token original = {(Cpp_Token_Type)0};
@@ -2531,21 +2535,21 @@ struct Make_Batch_Result{
 };
 
 internal Cpp_Token*
-get_first_token_at_line(Buffer *buffer, Cpp_Token_Stack tokens, i32 line){
-    Cpp_Token *result = 0;
-    i32 start_pos = 0;
-    Cpp_Get_Token_Result get_token = {0};
+get_first_token_at_line(Buffer *buffer, Cpp_Token_Array tokens, i32 line){
+    i32 start_pos = buffer->line_starts[line];
+    Cpp_Get_Token_Result get_token = cpp_get_token(&tokens, start_pos);
     
-    start_pos = buffer->line_starts[line];
-    get_token = cpp_get_token(&tokens, start_pos);
-    if (get_token.in_whitespace) get_token.token_index += 1;
-    result = tokens.tokens + get_token.token_index;
+    if (get_token.in_whitespace){
+        get_token.token_index += 1;
+    }
+    
+    Cpp_Token *result = tokens.tokens + get_token.token_index;
     
     return(result);
 }
 
 internal Cpp_Token*
-seek_matching_token_backwards(Cpp_Token_Stack tokens, Cpp_Token *token,
+seek_matching_token_backwards(Cpp_Token_Array tokens, Cpp_Token *token,
                               Cpp_Token_Type open_type, Cpp_Token_Type close_type){
     int32_t nesting_level = 0;
     if (token <= tokens.tokens){
@@ -2667,7 +2671,7 @@ compute_this_indent(Buffer *buffer, Indent_Parse_State indent,
 }
 
 internal i32*
-get_line_indentation_marks(Partition *part, Buffer *buffer, Cpp_Token_Stack tokens,
+get_line_indentation_marks(Partition *part, Buffer *buffer, Cpp_Token_Array tokens,
                            i32 line_start, i32 line_end, i32 tab_width){
     
     i32 indent_mark_count = line_end - line_start;
@@ -2935,7 +2939,7 @@ file_auto_tab_tokens(System_Functions *system, Models *models,
     Buffer *buffer = &file->state.buffer;
     
     Assert(file && !file->is_dummy);
-    Cpp_Token_Stack tokens = file->state.token_stack;
+    Cpp_Token_Array tokens = file->state.token_array;
     Assert(tokens.tokens);
     
     i32 line_start = buffer_get_line_index(buffer, start);
@@ -3138,7 +3142,7 @@ init_normal_file(System_Functions *system, Models *models, Editing_File *file,
     String val = make_string(buffer, size);
     file_create_from_string(system, models, file, val);
     
-    if (file->settings.tokens_exist && file->state.token_stack.tokens == 0){
+    if (file->settings.tokens_exist && file->state.token_array.tokens == 0){
         file_first_lex_parallel(system, general, file);
     }
     
@@ -3156,7 +3160,7 @@ init_read_only_file(System_Functions *system, Models *models, Editing_File *file
     String val = null_string;
     file_create_from_string(system, models, file, val, 1);
     
-    if (file->settings.tokens_exist && file->state.token_stack.tokens == 0){
+    if (file->settings.tokens_exist && file->state.token_array.tokens == 0){
         file_first_lex_parallel(system, general, file);
     }
     
@@ -3467,7 +3471,7 @@ update_highlighting(View *view){
     }
 
     else if (file->state.tokens_complete){
-        Cpp_Token_Stack *tokens = &file->state.token_stack;
+        Cpp_Token_Stack *tokens = &file->state.token_array;
         Cpp_Get_Token_Result result = cpp_get_token(tokens, pos);
         Cpp_Token token = tokens->tokens[result.token_index];
         if (!result.in_whitespace){
@@ -5299,10 +5303,10 @@ draw_file_loaded(View *view, i32_Rect rect, b32 is_active, Render_Target *target
     Assert(view->edit_pos);
     
     b32 tokens_use = 0;
-    Cpp_Token_Stack token_stack = {};
+    Cpp_Token_Array token_array = {};
     if (file){
-        tokens_use = file->state.tokens_complete && (file->state.token_stack.count > 0);
-        token_stack = file->state.token_stack;
+        tokens_use = file->state.tokens_complete && (file->state.token_array.count > 0);
+        token_array = file->state.token_array;
     }
     
     Partition *part = &models->mem.part;
@@ -5372,8 +5376,8 @@ draw_file_loaded(View *view, i32_Rect rect, b32 is_active, Render_Target *target
     u32 main_color = style->main.default_color;
     u32 special_color = style->main.special_character_color;
     if (tokens_use){
-        Cpp_Get_Token_Result result = cpp_get_token(&token_stack, items->index);
-        main_color = *style_get_color(style, token_stack.tokens[result.token_index]);
+        Cpp_Get_Token_Result result = cpp_get_token(&token_array, items->index);
+        main_color = *style_get_color(style, token_array.tokens[result.token_index]);
         token_i = result.token_index + 1;
     }
     
@@ -5388,13 +5392,13 @@ draw_file_loaded(View *view, i32_Rect rect, b32 is_active, Render_Target *target
         i32 ind = item->index;
         highlight_this_color = 0;
         if (tokens_use && ind != prev_ind){
-            Cpp_Token current_token = token_stack.tokens[token_i-1];
+            Cpp_Token current_token = token_array.tokens[token_i-1];
             
-            if (token_i < token_stack.count){
-                if (ind >= token_stack.tokens[token_i].start){
+            if (token_i < token_array.count){
+                if (ind >= token_array.tokens[token_i].start){
                     main_color =
-                        *style_get_color(style, token_stack.tokens[token_i]);
-                    current_token = token_stack.tokens[token_i];
+                        *style_get_color(style, token_array.tokens[token_i]);
+                    current_token = token_array.tokens[token_i];
                     ++token_i;
                 }
                 else if (ind >= current_token.start + current_token.size){

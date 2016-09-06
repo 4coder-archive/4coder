@@ -8,6 +8,10 @@
 #define ENUM(type,name) typedef type name; enum name##_
 #endif
 
+#ifndef INTERNAL_ENUM
+#define INTERNAL_ENUM(type,name) typedef type name; enum name##_
+#endif
+
 /* DOC(A Cpp_Token_Type classifies a token to make parsing easier. Some types are not
 actually output by the lexer, but exist because parsers will also make use of token
 types in their own output.) */
@@ -255,11 +259,11 @@ ENUM(uint16_t, Cpp_Preprocessor_State){
 	CPP_LEX_PP_COUNT
 };
 
-struct Cpp_Token_Stack{
+struct Cpp_Token_Array{
 	Cpp_Token *tokens;
 	int32_t count, max_count;
 };
-static Cpp_Token_Stack null_cpp_token_stack = {0};
+static Cpp_Token_Array null_cpp_token_array = {0};
 
 struct Cpp_Get_Token_Result{
 	int32_t token_index;
@@ -270,13 +274,119 @@ struct Cpp_Relex_State{
     char *data;
     int32_t size;
     
-    Cpp_Token_Stack *stack;
+    Cpp_Token_Array *array;
     int32_t start, end, amount;
     int32_t start_token_i;
     int32_t end_token_i;
     int32_t relex_start;
     int32_t tolerance;
     int32_t space_request;
+};
+
+struct Cpp_Lex_FSM{
+    uint8_t state;
+    uint8_t int_state;
+    uint8_t emit_token;
+    uint8_t multi_line;
+};
+static Cpp_Lex_FSM null_lex_fsm = {0};
+
+struct Cpp_Lex_Data{
+    char *tb;
+    int32_t tb_pos;
+    int32_t token_start;
+    
+    int32_t pos;
+    int32_t pos_overide;
+    int32_t chunk_pos;
+    
+    Cpp_Lex_FSM fsm;
+    uint8_t white_done;
+    uint8_t pp_state;
+    uint8_t completed;
+    
+    Cpp_Token token;
+    
+    int32_t __pc__;
+};
+
+ENUM(int32_t, Cpp_Lex_Result){
+    LexResult_Finished,
+    LexResult_NeedChunk,
+    LexResult_NeedTokenMemory,
+    LexResult_HitTokenLimit,
+};
+
+INTERNAL_ENUM(uint8_t, Cpp_Lex_State){
+    LS_default,
+    LS_identifier,
+    LS_pound,
+    LS_pp,
+    LS_ppdef,
+    LS_char,
+    LS_char_multiline,
+    LS_char_slashed,
+    LS_string,
+    LS_string_multiline,
+    LS_string_slashed,
+    LS_number,
+    LS_number0,
+    LS_float,
+    LS_crazy_float0,
+    LS_crazy_float1,
+    LS_hex,
+    LS_comment_pre,
+    LS_comment,
+    LS_comment_slashed,
+    LS_comment_block,
+    LS_comment_block_ending,
+    LS_dot,
+    LS_ellipsis,
+    LS_less,
+    LS_less_less,
+    LS_more,
+    LS_more_more,
+    LS_minus,
+    LS_arrow,
+    LS_and,
+    LS_or,
+    LS_plus,
+    LS_colon,
+    LS_star,
+    LS_modulo,
+    LS_caret,
+    LS_eq,
+    LS_bang,
+    LS_error_message,
+    //
+    LS_count
+};
+
+INTERNAL_ENUM(uint8_t, Cpp_Lex_Int_State){
+	LSINT_default,
+    LSINT_u,
+    LSINT_l,
+    LSINT_L,
+    LSINT_ul,
+    LSINT_uL,
+    LSINT_ll,
+    LSINT_extra,
+    //
+    LSINT_count
+};
+
+INTERNAL_ENUM(uint8_t, Cpp_Lex_PP_State){
+    LSPP_default,
+    LSPP_include,
+    LSPP_macro_identifier,
+    LSPP_identifier,
+    LSPP_body_if,
+    LSPP_body,
+    LSPP_number,
+    LSPP_error,
+    LSPP_junk,
+    //
+    LSPP_count
 };
 
 #endif
