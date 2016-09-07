@@ -28,6 +28,7 @@
 
 #include "4ed.h"
 
+#define FCPP_FORBID_MALLOC
 #include "4cpp_lexer.h"
 
 #include "4coder_table.cpp"

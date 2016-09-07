@@ -8,8 +8,12 @@
 #define ENUM(type,name) typedef type name; enum name##_
 #endif
 
-#ifndef INTERNAL_ENUM
-#define INTERNAL_ENUM(type,name) typedef type name; enum name##_
+#ifndef ENUM_INTERNAL
+#define ENUM_INTERNAL(type,name) typedef type name; enum name##_
+#endif
+
+#ifndef struct_internal
+#define struct_internal struct
 #endif
 
 /* DOC(A Cpp_Token_Type classifies a token to make parsing easier. Some types are not
@@ -36,6 +40,10 @@ ENUM(uint32_t, Cpp_Token_Type){
 	CPP_PP_STRINGIFY,
 	CPP_PP_CONCAT,
 	CPP_PP_UNKNOWN,
+    
+    CPP_PP_DEFINED,
+    CPP_PP_INCLUDE_FILE,
+    CPP_PP_ERROR_MESSAGE,
     
 	CPP_TOKEN_KEY_TYPE,
 	CPP_TOKEN_KEY_MODIFIER,
@@ -218,59 +226,84 @@ ENUM(uint32_t, Cpp_Token_Type){
     // NOTE(allen): Precedence 16, LtoR
 	CPP_TOKEN_COMMA,
     
-    CPP_TOKEN_DEFINED,
-	CPP_TOKEN_INCLUDE_FILE,
-    CPP_TOKEN_ERROR_MESSAGE,
-    
     /* DOC(This type is for parser use, it is not output by the lexer.) */
     CPP_TOKEN_EOF,
     
     CPP_TOKEN_TYPE_COUNT
 };
 
+/* DOC(Cpp_Token represents a single lexed token.
+It is the primary output of the lexing system.)
+DOC_SEE(Cpp_Token_Flag) */
 struct Cpp_Token{
+    /* DOC(The type field indicates the type of the token. 
+    All tokens have a type no matter the circumstances.) */
 	Cpp_Token_Type type;
-    int32_t start, size;
+    
+    /* DOC(The start field indicates the index of the first character
+    of this token's lexeme.) */
+    int32_t start;
+    
+    /* DOC(The size field indicates the number of bytes in this token's lexeme.) */
+    int32_t size;
+    
+    /* DOC(The state_flags should not be used outside of the lexer's implementation.) */
     uint16_t state_flags;
+    
+    /* DOC(The flags field contains extra useful information about the token.) */
     uint16_t flags;
 };
 
+/* DOC(The Cpp_Token_Flags are used to mark up tokens with additional information.) */
 ENUM(uint16_t, Cpp_Token_Flag){
-	CPP_TFLAG_IGNORE = 0x1,
-	CPP_TFLAG_PP_DIRECTIVE = 0x2,
-	CPP_TFLAG_PP_BODY = 0x4,
-	CPP_TFLAG_BAD_ENDING = 0x8,
-	CPP_TFLAG_MULTILINE = 0x10,
-    CPP_TFLAG_PARAMETERIZED = 0x20,
-    CPP_TFLAG_IS_OPERATOR = 0x40,
-    CPP_TFLAG_IS_KEYWORD = 0x80
+    /* DOC(Indicates that the token is a preprocessor directive.) */
+	CPP_TFLAG_PP_DIRECTIVE = 0x1,
+    
+    /* DOC(Indicates that the token is on the line of a preprocessor directive.) */
+	CPP_TFLAG_PP_BODY = 0x2,
+    
+    /* DOC(Indicates that the token spans across multiple lines.  This can show up
+    on line comments and string literals with back slash line continuation. ) */
+	CPP_TFLAG_MULTILINE = 0x4,
+    
+    /* DOC(Indicates that the token is some kind of operator or punctuation like braces.) */
+    CPP_TFLAG_IS_OPERATOR = 0x8,
+    
+    /* DOC(Indicates that the token is a keyword.) */
+    CPP_TFLAG_IS_KEYWORD = 0x10
 };
 
-ENUM(uint16_t, Cpp_Preprocessor_State){
-	CPP_LEX_PP_DEFAULT,
-	CPP_LEX_PP_IDENTIFIER,
-	CPP_LEX_PP_MACRO_IDENTIFIER,
-	CPP_LEX_PP_INCLUDE,
-	CPP_LEX_PP_BODY,
-	CPP_LEX_PP_BODY_IF,
-	CPP_LEX_PP_NUMBER,
-    CPP_LEX_PP_ERROR,
-	CPP_LEX_PP_JUNK,
-	CPP_LEX_PP_COUNT
-};
-
+/* DOC(Cpp_Token_Array is used to bundle together the common elements
+of a growing array of Cpp_Tokens.  To initialize it the tokens field should
+point to a block of memory with a size equal to max_count*sizeof(Cpp_Token)
+and the count should be initialized to zero.) */
 struct Cpp_Token_Array{
+    /* DOC(The tokens field points to the memory used to store the array of tokens.) */
 	Cpp_Token *tokens;
-	int32_t count, max_count;
+    
+    /* DOC(The count field counts how many tokens in the array are currently used.) */
+    int32_t count;
+    
+    /* DOC(The max_count field specifies the maximum size the count field may grow to before
+    the tokens array is out of space.) */
+    int32_t max_count;
 };
+
 static Cpp_Token_Array null_cpp_token_array = {0};
 
+/* DOC(Cpp_Get_Token_Result is the return result of the cpp_get_token call.)
+DOC_SEE(cpp_get_token) */
 struct Cpp_Get_Token_Result{
+    /* DOC(The token_index field indicates which token answers the query.  To get the token from
+    the source array CODE_EXAMPLE(array.tokens[result.token_index])) */
 	int32_t token_index;
+    
+    /* DOC(The in_whitespace field is true when the query position was actually in whitespace
+    after the result token.) */
 	int32_t in_whitespace;
 };
 
-struct Cpp_Relex_State{
+struct_internal Cpp_Relex_State{
     char *data;
     int32_t size;
     
@@ -283,7 +316,7 @@ struct Cpp_Relex_State{
     int32_t space_request;
 };
 
-struct Cpp_Lex_FSM{
+struct_internal Cpp_Lex_FSM{
     uint8_t state;
     uint8_t int_state;
     uint8_t emit_token;
@@ -291,8 +324,16 @@ struct Cpp_Lex_FSM{
 };
 static Cpp_Lex_FSM null_lex_fsm = {0};
 
+/* DOC(Cpp_Lex_Data represents the state of the lexer so that the system may be resumable
+and the user can manage the lexer state and decide when to resume lexing with it.  To create
+a new lexer state that has not begun doing any lexing work call cpp_lex_data_init.
+
+The internals of the lex state should not be treated as a part of the public API.)
+DOC_SEE(cpp_lex_data_init)
+HIDE_MEMBERS()*/
 struct Cpp_Lex_Data{
     char *tb;
+    
     int32_t tb_pos;
     int32_t token_start;
     
@@ -310,14 +351,37 @@ struct Cpp_Lex_Data{
     int32_t __pc__;
 };
 
+/* DOC(Cpp_Lex_Result is returned from the lexing engine to indicate why it stopped lexing.) */
 ENUM(int32_t, Cpp_Lex_Result){
+    /* DOC(This indicates that the system got to the end of the file and will not accept more input.) */
     LexResult_Finished,
+    
+    /* DOC(This indicates that the system got to the end of an input chunk and is ready to receive the
+    next input chunk.) */
     LexResult_NeedChunk,
+    
+    /* DOC(This indicates that the output array ran out of space to store tokens and needs to be
+    replaced or expanded before continuing.) */
     LexResult_NeedTokenMemory,
+    
+    /* DOC(This indicates that the maximum number of output tokens as specified by the user was hit.) */
     LexResult_HitTokenLimit,
 };
 
-INTERNAL_ENUM(uint8_t, Cpp_Lex_State){
+ENUM_INTERNAL(uint16_t, Cpp_Preprocessor_State){
+    CPP_LEX_PP_DEFAULT,
+    CPP_LEX_PP_IDENTIFIER,
+    CPP_LEX_PP_MACRO_IDENTIFIER,
+    CPP_LEX_PP_INCLUDE,
+    CPP_LEX_PP_BODY,
+    CPP_LEX_PP_BODY_IF,
+    CPP_LEX_PP_NUMBER,
+    CPP_LEX_PP_ERROR,
+    CPP_LEX_PP_JUNK,
+    CPP_LEX_PP_COUNT
+};
+
+ENUM_INTERNAL(uint8_t, Cpp_Lex_State){
     LS_default,
     LS_identifier,
     LS_pound,
@@ -362,7 +426,7 @@ INTERNAL_ENUM(uint8_t, Cpp_Lex_State){
     LS_count
 };
 
-INTERNAL_ENUM(uint8_t, Cpp_Lex_Int_State){
+ENUM_INTERNAL(uint8_t, Cpp_Lex_Int_State){
 	LSINT_default,
     LSINT_u,
     LSINT_l,
@@ -375,7 +439,7 @@ INTERNAL_ENUM(uint8_t, Cpp_Lex_Int_State){
     LSINT_count
 };
 
-INTERNAL_ENUM(uint8_t, Cpp_Lex_PP_State){
+ENUM_INTERNAL(uint8_t, Cpp_Lex_PP_State){
     LSPP_default,
     LSPP_include,
     LSPP_macro_identifier,

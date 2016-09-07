@@ -13,7 +13,6 @@
 
 #include "internal_4coder_string.cpp"
 
-#define FCPP_ALLOW_MALLOC
 #include "4cpp_lexer.h"
 
 #include <stdlib.h>
@@ -585,7 +584,8 @@ typedef enum Doc_Note_Type{
     DOC_RETURN,
     DOC,
     DOC_SEE,
-    DOC_HIDE
+    DOC_HIDE,
+    HIDE_MEMBERS,
 } Doc_Note_Type;
 
 static String
@@ -595,6 +595,7 @@ doc_note_string[] = {
     make_lit_string("DOC"),
     make_lit_string("DOC_SEE"),
     make_lit_string("DOC_HIDE"),
+    make_lit_string("HIDE_MEMBERS"),
 };
 
 static int32_t
@@ -1700,7 +1701,7 @@ try_to_use(Used_Links *used, String str){
 }
 
 static void
-print_struct_html(String *out, Item_Node *member){
+print_struct_html(String *out, Item_Node *member, int32_t hide_children){
     String name = member->name;
     String type = member->type;
     String type_postfix = member->type_postfix;
@@ -1712,15 +1713,21 @@ print_struct_html(String *out, Item_Node *member){
     
     if (match_ss(type, make_lit_string("struct")) ||
         match_ss(type, make_lit_string("union"))){
-        append_sc(out, " {<br><div style='margin-left: 8mm;'>");
         
-        for (Item_Node *member_iter = member->first_child;
-             member_iter != 0;
-             member_iter = member_iter->next_sibling){
-            print_struct_html(out, member_iter);
+        if (hide_children){
+            append_sc(out, " { /* non-public internals */ } ;");
         }
-        
-        append_sc(out, "</div>};<br>");
+        else{
+            append_sc(out, " {<br><div style='margin-left: 8mm;'>");
+            
+            for (Item_Node *member_iter = member->first_child;
+                 member_iter != 0;
+                 member_iter = member_iter->next_sibling){
+                print_struct_html(out, member_iter, hide_children);
+            }
+            
+            append_sc(out, "</div>};<br>");
+        }
     }
     else{
         append_sc(out, ";<br>");
@@ -1971,7 +1978,6 @@ get_first_doc_chunk(String source, Doc_Chunk_Type *type){
     return(chunk);
 }
 
-
 static void
 print_doc_description(String *out, Partition *part, String src){
     Doc_Chunk_Type type;
@@ -2034,7 +2040,7 @@ print_doc_description(String *out, Partition *part, String src){
         }
     }
 }
-    
+
 static void
 print_struct_docs(String *out, Partition *part, Item_Node *member){
     for (Item_Node *member_iter = member->first_child;
@@ -2056,7 +2062,6 @@ print_struct_docs(String *out, Partition *part, Item_Node *member){
             append_sc(out, DOC_ITEM_HEAD_INL_CLOSE"</div>");
             
             append_sc(out, "<div style='margin-bottom: 6mm;'>"DOC_ITEM_OPEN);
-            // TODO(allen): append_ss(out, doc.main_doc);
             print_doc_description(out, part, doc.main_doc);
             append_sc(out, DOC_ITEM_CLOSE"</div>");
             
@@ -2172,7 +2177,6 @@ print_function_docs(String *out, Partition *part, String name, String doc_string
     String main_doc = doc.main_doc;
     if (main_doc.size != 0){
         append_sc(out, DOC_HEAD_OPEN"Description"DOC_HEAD_CLOSE DOC_ITEM_OPEN);
-        // TODO(allen): append_ss(out, main_doc);
         print_doc_description(out, part, main_doc);
         append_sc(out, DOC_ITEM_CLOSE);
     }
@@ -2281,7 +2285,6 @@ print_item(String *out, Partition *part, Used_Links *used,
                 append_sc(out, DOC_HEAD_OPEN"Description"DOC_HEAD_CLOSE);
                 
                 append_sc(out, DOC_ITEM_OPEN);
-                // TODO(allen): append_ss(out, main_doc);
                 print_doc_description(out, part, main_doc);
                 append_sc(out, DOC_ITEM_CLOSE);
             }
@@ -2313,7 +2316,6 @@ print_item(String *out, Partition *part, Used_Links *used,
                 append_sc(out, DOC_HEAD_OPEN"Description"DOC_HEAD_CLOSE);
                 
                 append_sc(out, DOC_ITEM_OPEN);
-                // TODO(allen): append_ss(out, main_doc);
                 print_doc_description(out, part, main_doc);
                 append_sc(out, DOC_ITEM_CLOSE);
             }
@@ -2345,7 +2347,6 @@ print_item(String *out, Partition *part, Used_Links *used,
                     append_sc(out, "</span></div>");
                     
                     append_sc(out, "<div style='margin-bottom: 6mm;'>"DOC_ITEM_OPEN);
-                    // TODO(allen): append_ss(out, doc.main_doc);
                     print_doc_description(out, part, doc.main_doc);
                     append_sc(out, DOC_ITEM_CLOSE"</div>");
                     
@@ -2359,17 +2360,32 @@ print_item(String *out, Partition *part, Used_Links *used,
         
         case Item_Struct: case Item_Union:
         {
-            Item_Node *member = item;
+            String doc_string = item->doc_string;
+            
+            int32_t hide_members = 0;
+            
+            if (doc_string.size == 0){
+                hide_members = 1;
+            }
+            else{
+                for (String word = get_first_word(doc_string);
+                     word.str;
+                     word = get_next_word(doc_string, word)){
+                    if (match_ss(word, make_lit_string("HIDE_MEMBERS"))){
+                        hide_members = 1;
+                        break;
+                    }
+                }
+            }
             
             // NOTE(allen): Code box
-            print_struct_html(out, member);
+            print_struct_html(out, item, hide_members);
             
             // NOTE(allen): Close the code box
             append_sc(out, "</div>");
             
             // NOTE(allen): Descriptive section
             {
-                String doc_string = member->doc_string;
                 Documentation doc = {0};
                 perform_doc_parse(part, doc_string, &doc);
                 
@@ -2378,7 +2394,6 @@ print_item(String *out, Partition *part, Used_Links *used,
                     append_sc(out, DOC_HEAD_OPEN"Description"DOC_HEAD_CLOSE);
                     
                     append_sc(out, DOC_ITEM_OPEN);
-                    // TODO(allen): append_ss(out, main_doc);
                     print_doc_description(out, part, main_doc);
                     append_sc(out, DOC_ITEM_CLOSE);
                 }
@@ -2386,9 +2401,11 @@ print_item(String *out, Partition *part, Used_Links *used,
                     fprintf(stderr, "warning: no documentation string for %.*s\n", name.size, name.str);
                 }
                 
-                if (member->first_child){
-                    append_sc(out, DOC_HEAD_OPEN"Fields"DOC_HEAD_CLOSE);
-                    print_struct_docs(out, part, member);
+                if (!hide_members){
+                    if (item->first_child){
+                        append_sc(out, DOC_HEAD_OPEN"Fields"DOC_HEAD_CLOSE);
+                        print_struct_docs(out, part, item);
+                    }
                 }
                 
                 print_see_also(out, &doc);
@@ -2528,8 +2545,10 @@ generate_custom_headers(){
         {make_lit_string("ENUM")    , Item_Enum    } ,
     };
     
+#if 0
     Meta_Unit unit = compile_meta_unit(part, type_files, ArrayCount(type_files),
                                        type_keys, ArrayCount(type_keys));
+#endif
     
     // NOTE(allen): Output
     String out = str_alloc(part, 10 << 20);
@@ -2838,70 +2857,74 @@ generate_custom_headers(){
         init_used_links(part, &used_links, 4000);
         
         append_sc(&out,
-                "<html lang=\"en-US\">"
-                "<head>"
-                "<title>4coder API Docs</title>"
-                "<style>"
-                
-                "body { "
-                "background: " BACK_COLOR "; "
-                "color: " TEXT_COLOR "; "
-                "}"
-                
-                // H things
-                "h1,h2,h3,h4 { "
-                "color: " POP_COLOR_1 "; "
-                "margin: 0; "
-                "}"
-                
-                "h2 { "
-                "margin-top: 6mm; "
-                "}"
-                
-                "h3 { "
-                "margin-top: 5mm; margin-bottom: 5mm; "
-                "}"
-                
-                "h4 { "
-                "font-size: 1.1em; "
-                "}"
-                
-                // ANCHORS
-                "a { "
-                "color: " POP_COLOR_1 "; "
-                "text-decoration: none; "
-                "}"
-                "a:visited { "
-                "color: " VISITED_LINK "; "
-                "}"
-                "a:hover { "
-                "background: " POP_BACK_1 "; "
-                "}"
-                
-                // LIST
-                "ul { "
-                "list-style: none; "
-                "padding: 0; "
-                "margin: 0; "
-                "}"
-                
-                "</style>"
-                "</head>\n"
-                "<body>"
-                "<div style='font-family:Arial; margin: 0 auto; "
-                "width: 800px; text-align: justify; line-height: 1.25;'>"
-                "<h1 style='margin-top: 5mm; margin-bottom: 5mm;'>4coder API</h1>");
+                  "<html lang=\"en-US\">"
+                  "<head>"
+                  "<title>4coder API Docs</title>"
+                  "<style>"
+                  
+                  "body { "
+                  "background: " BACK_COLOR "; "
+                  "color: " TEXT_COLOR "; "
+                  "}"
+                  
+                  // H things
+                  "h1,h2,h3,h4 { "
+                  "color: " POP_COLOR_1 "; "
+                  "margin: 0; "
+                  "}"
+                  
+                  "h2 { "
+                  "margin-top: 6mm; "
+                  "}"
+                  
+                  "h3 { "
+                  "margin-top: 5mm; margin-bottom: 5mm; "
+                  "}"
+                  
+                  "h4 { "
+                  "font-size: 1.1em; "
+                  "}"
+                  
+                  // ANCHORS
+                  "a { "
+                  "color: " POP_COLOR_1 "; "
+                  "text-decoration: none; "
+                  "}"
+                  "a:visited { "
+                  "color: " VISITED_LINK "; "
+                  "}"
+                  "a:hover { "
+                  "background: " POP_BACK_1 "; "
+                  "}"
+                  
+                  // LIST
+                  "ul { "
+                  "list-style: none; "
+                  "padding: 0; "
+                  "margin: 0; "
+                  "}"
+                  
+                  "</style>"
+                  "</head>\n"
+                  "<body>"
+                  "<div style='font-family:Arial; margin: 0 auto; "
+                  "width: 800px; text-align: justify; line-height: 1.25;'>"
+                  "<h1 style='margin-top: 5mm; margin-bottom: 5mm;'>4cpp Lexing Library</h1>");
+        
+//                "<h1 style='margin-top: 5mm; margin-bottom: 5mm;'>4coder API</h1>");
         
         struct Section{
             char *id_string;
             char *display_string;
         };
         
+        static int32_t msection = -1;
+        
         static Section sections[] = {
             {"introduction", "Introduction"},
-            {"4coder_systems", "4coder Systems"},
-            {"types_and_functions", "Types and Functions"},
-            {"string_library", "String Library"},
+        //    {"4coder_systems", "4coder Systems"},
+        //    {"types_and_functions", "Types and Functions"},
+        //    {"string_library", "String Library"},
             {"lexer_library", "Lexer Library"}
         };
         
@@ -2921,13 +2944,30 @@ generate_custom_headers(){
         append_sc(&out, "</ul>");
         
 #define MAJOR_SECTION "1"
+        msection = 0;
         
         append_sc(&out, "\n<h2 id='section_");
-        append_sc(&out, sections[0].id_string);
+        append_sc(&out, sections[msection].id_string);
         append_sc(&out, "'>&sect;"MAJOR_SECTION" ");
-        append_sc(&out, sections[0].display_string);
+        append_sc(&out, sections[msection].display_string);
+        append_sc(&out, "</h2>");
+        
         append_sc(&out,
-                  "</h2>"
+                  "<div>"
+                  "<p>This is the documentation for the 4cpp lexer version 1.0. "
+                  "The documentation is the newest piece of this lexer project "
+                  "so it may still have problems.  What is here should be correct "
+                  "and mostly complete.</p>"
+                  "<p>If you have questions or discover errors please contact "
+                  "<span style='"CODE_STYLE"'>editor@4coder.net</span> or "
+                  "to get help from community members you can post on the "
+                  "4coder forums hosted on handmade.network at "
+                  "<span style='"CODE_STYLE"'>4coder.handmade.network</span></p>"
+                  "</div>");
+        
+#if 0
+        
+        append_sc(&out,
                   "<div>"
                   "<p>This is the documentation for " VERSION " The documentation is still "
                   "under construction so some of the links are linking to sections that "
@@ -2942,11 +2982,13 @@ generate_custom_headers(){
         
 #undef MAJOR_SECTION
 #define MAJOR_SECTION "2"
+        msection = 1;
+        
         // TODO(allen): Write the 4coder system descriptions.
         append_sc(&out, "\n<h2 id='section_");
-        append_sc(&out, sections[1].id_string);
+        append_sc(&out, sections[msection].id_string);
         append_sc(&out, "'>&sect;"MAJOR_SECTION" ");
-        append_sc(&out, sections[1].display_string);
+        append_sc(&out, sections[msection].display_string);
         append_sc(&out, "</h2>");
         
         append_sc(&out, "<div><i>Coming Soon</i><div>");
@@ -2955,9 +2997,9 @@ generate_custom_headers(){
 #define MAJOR_SECTION "3"
         
         append_sc(&out, "\n<h2 id='section_");
-        append_sc(&out, sections[2].id_string);
+        append_sc(&out, sections[msection].id_string);
         append_sc(&out, "'>&sect;"MAJOR_SECTION" ");
-        append_sc(&out, sections[2].display_string);
+        append_sc(&out, sections[msection].display_string);
         append_sc(&out, "</h2>");
         
 #undef SECTION
@@ -3016,9 +3058,9 @@ generate_custom_headers(){
 #define MAJOR_SECTION "4"
         
         append_sc(&out, "\n<h2 id='section_");
-        append_sc(&out, sections[3].id_string);
+        append_sc(&out, sections[msection].id_string);
         append_sc(&out, "'>&sect;"MAJOR_SECTION" ");
-        append_sc(&out, sections[3].display_string);
+        append_sc(&out, sections[msection].display_string);
         append_sc(&out, "</h2>");
         
 #undef SECTION
@@ -3051,10 +3093,17 @@ generate_custom_headers(){
 #undef MAJOR_SECTION
 #define MAJOR_SECTION "5"
         
+#endif
+        
+#undef MAJOR_SECTION
+#define MAJOR_SECTION "2"
+        
+        msection = 1;
+        
         append_sc(&out, "\n<h2 id='section_");
-        append_sc(&out, sections[4].id_string);
+        append_sc(&out, sections[msection].id_string);
         append_sc(&out, "'>&sect;"MAJOR_SECTION" ");
-        append_sc(&out, sections[4].display_string);
+        append_sc(&out, sections[msection].display_string);
         append_sc(&out, "</h2>");
         
 #undef SECTION
@@ -3062,7 +3111,26 @@ generate_custom_headers(){
         
         append_sc(&out, "<h3>&sect;"SECTION" Lexer Intro</h3>");
         
-        append_sc(&out, "<div><i>Coming Soon</i><div>");
+        append_sc(&out,
+                  "<div>"
+                  "The 4cpp lexer system provides a polished, fast, flexible system that "
+                  "takes in C/C++ and outputs a tokenization of the text data.  There are "
+                  "two API levels. One level is setup to let you easily get a tokenization "
+                  "of the file.  This level manages memory for you with malloc to make it "
+                  "as fast as possible to start getting your tokens. The second level "
+                  "enables deep integration by allowing control over allocation, data "
+                  "chunking, and output rate control.<br><br>"
+                  "To use the quick setup API you simply include 4cpp_lexer.h and read the "
+                  "documentation at <a href='#cpp_lex_file_doc'>cpp_lex_file</a>.<br><br>"
+                  "To use the the fancier API include 4cpp_lexer.h and read the "
+                  "documentation at <a href='#cpp_lex_step_doc'>cpp_lex_step</a>. "
+                  "If you want to be absolutely sure you are not including malloc into "
+                  "your program you can define FCPP_FORBID_MALLOC before the include and "
+                  "the \"step\" API will continue to work.<br><br>"
+                  "There are a few more features in 4cpp that are not documented yet. "
+                  "You are free to try to use these, but I am not totally sure they are "
+                  "ready yet, and when they are they will be documented."
+                  "</div>");
         
 #undef SECTION
 #define SECTION MAJOR_SECTION".2"

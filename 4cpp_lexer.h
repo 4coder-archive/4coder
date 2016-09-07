@@ -215,20 +215,6 @@ DOC_SEE(Cpp_Get_Token_Result)
     return(result);
 }
 
-FCPP_LINK Cpp_Lex_Data
-cpp_lex_data_init(char *mem_buffer)/*
-DOC_PARAM(tb, The memory to use for initializing the lex state's temp memory buffer.)
-DOC_RETURN(A brand new lex state ready to begin lexing a file from the beginning.)
-DOC(Creates a new lex state in the form of a Cpp_Lex_Data struct and returns the struct.
-The system needs a temporary buffer that is as long as the longest token.  4096 is usually
-enough but the buffer is not checked, so to be 100% bullet proof it has to be the same length
-as the file being lexed.)
-*/{
-    Cpp_Lex_Data data = {0};
-    data.tb = mem_buffer;
-    return(data);
-}
-
 FCPP_INTERNAL Cpp_Lex_PP_State
 cpp_pp_directive_to_state(Cpp_Token_Type type){
     Cpp_Lex_PP_State result = LSPP_default;
@@ -439,7 +425,7 @@ cpp_lex_nonalloc_null_end_no_limit(Cpp_Lex_Data *S_ptr, char *chunk, int32_t siz
                 
                 if (S.pp_state == LSPP_body_if){
                     if (match_ss(make_string(S.tb, word_size), make_lit_string("defined"))){
-                        S.token.type = CPP_TOKEN_DEFINED;
+                        S.token.type = CPP_PP_DEFINED;
                         S.token.flags = CPP_TFLAG_IS_OPERATOR | CPP_TFLAG_IS_KEYWORD;
                         break;
                     }
@@ -567,7 +553,7 @@ cpp_lex_nonalloc_null_end_no_limit(Cpp_Lex_Data *S_ptr, char *chunk, int32_t siz
             S.token.type = CPP_TOKEN_JUNK;
             if (S.pp_state == LSPP_include){
                 if (c == '>' || c == '"'){
-                    S.token.type = CPP_TOKEN_INCLUDE_FILE;
+                    S.token.type = CPP_PP_INCLUDE_FILE;
                 }
             }
             else{
@@ -611,7 +597,7 @@ cpp_lex_nonalloc_null_end_no_limit(Cpp_Lex_Data *S_ptr, char *chunk, int32_t siz
             break;
             
             case LS_error_message:
-            S.token.type = CPP_TOKEN_ERROR_MESSAGE;
+            S.token.type = CPP_PP_ERROR_MESSAGE;
             S.token.flags = 0;
             --S.pos;
             break;
@@ -954,8 +940,8 @@ cpp_lex_nonalloc_no_null_out_limit(Cpp_Lex_Data *S_ptr, char *chunk, int32_t siz
 #define NO_OUT_LIMIT ((int32_t)(-1))
 
 FCPP_LINK Cpp_Lex_Result
-cpp_lex_nonalloc(Cpp_Lex_Data *S_ptr, char *chunk, int32_t size, int32_t full_size,
-                 Cpp_Token_Array *token_array_out, int32_t max_tokens_out)/*
+cpp_lex_step(Cpp_Lex_Data *S_ptr, char *chunk, int32_t size, int32_t full_size,
+             Cpp_Token_Array *token_array_out, int32_t max_tokens_out)/*
 DOC_PARAM(S_ptr, The lexer state.  Go to the Cpp_Lex_Data section to see how to initialize the state.)
 DOC_PARAM(chunk, The first or next chunk of the file being lexed.)
 DOC_PARAM(size, The number of bytes in the chunk including the null terminator if the chunk ends in a null terminator.
@@ -971,9 +957,9 @@ a lot of different ways.  I will explain the general rules first, and then give 
 ways it might be used.
 
 First a lexing state, Cpp_Lex_Data, must be initialized. The file to lex must be read into N contiguous chunks
-of memory.  An output Cpp_Token_Array must be allocated and initialized with the appropriate count and max_count values.
-Then each chunk of the file must be passed to cpp_lex_nonalloc in order using the same lexing state for each call.
-Every time a call to cpp_lex_nonalloc returns LexResult_NeedChunk, the next call to cpp_lex_nonalloc should use the
+of memory.  An output Cpp_Token_Array must be allocated and initialized with the appropriate count and max_count
+values. Then each chunk of the file must be passed to cpp_lex_step in order using the same lexing state for each call.
+Every time a call to cpp_lex_step returns LexResult_NeedChunk, the next call to cpp_lex_step should use the
 next chunk.  If the return is some other value, the lexer hasn't finished with the current chunk and it sopped for some
 other reason, so the same chunk should be used again in the next call.
 
@@ -981,51 +967,47 @@ If the file chunks contain a null terminator the lexer will return LexResult_Fin
 At this point calling the lexer again with the same state will result in an error.  If you do not have a null
 terminated chunk to end the file, you may instead pass the exact size in bytes of the entire file to the full_size
 parameter and it will automatically handle the termination of the lexing state when it has read that many bytes.
-If a full_size is specified and the system terminates for having seen that many bytes, it will return LexResult_Finished.
-If a full_size is specified and a null character is read before the total number of bytes have been read the system will
-still terminate as usual and return LexResult_Finished.
+If a full_size is specified and the system terminates for having seen that many bytes, it will return
+LexResult_Finished. If a full_size is specified and a null character is read before the total number of bytes have
+been read the system will still terminate as usual and return LexResult_Finished.
 
 If the system has filled the entire output array it will return LexResult_NeedTokenMemory.  When this happens if you
 want to continue lexing the file you can grow the token array, or switch to a new output array and then call
-cpp_lex_nonalloc again with the chunk that was being lexed and the new output.  You can also specify a max_tokens_out
+cpp_lex_step again with the chunk that was being lexed and the new output.  You can also specify a max_tokens_out
 which is limits how many new tokens will be added to the token array.  Even if token_array_out still had more space
 to hold tokens, if the max_tokens_out limit is hit, the lexer will stop and return LexResult_HitTokenLimit.  If this
-happens there is still space left in the token array, so you can resume simply by calling cpp_lex_nonalloc again with
-the same chunk and the same output array.  Also note that, unlike the chunks which must only be replaced when the system
-says it needs a chunk.  You may switch to or modify the output array in between calls as much as you like.
+happens there is still space left in the token array, so you can resume simply by calling cpp_lex_step again with
+the same chunk and the same output array.  Also note that, unlike the chunks which must only be replaced when the
+system says it needs a chunk.  You may switch to or modify the output array in between calls as much as you like.
 
 The most basic use of this system is to get it all done in one big chunk and try to allocate a nearly "infinite" output
 array so that it will not run out of memory.  This way you can get the entire job done in one call and then just assert
 to make sure it returns LexResult_Finished to you:
+
 CODE_EXAMPLE(
 Cpp_Token_Array lex_file(char *file_name){
     File_Data file = read_whole_file(file_name);
     
-    Cpp_Lex_Data lex_state =
-        cpp_lex_data_init((char*)malloc(4096)); // hopefully big enough
+    char *temp = (char*)malloc(4096); // hopefully big enough
+    Cpp_Lex_Data lex_state = cpp_lex_data_init(temp); 
     
     Cpp_Token_Array array = {0};
     array.tokens = (Cpp_Token*)malloc(1 << 20); // hopefully big enough
     array.max_count = (1 << 20)/sizeof(Cpp_Token);
     
     Cpp_Lex_Result result = 
-        cpp_lex_nonalloc(&lex_state, file.data, file.size, file.size,
-                         &array, NO_OUT_LIMIT);
+        cpp_lex_step(&lex_state, file.data, file.size, file.size,
+                     &array, NO_OUT_LIMIT);
     Assert(result == LexResult_Finished);
     
-    free(lex_state.tb);
+    free(temp);
     
     return(array);
 })
+
 )
 
 DOC_SEE(Cpp_Lex_Data)
-DOC_SEE(cpp_lex_file)
-DOC_SEE(cpp_lex_nonalloc_null_end_no_limit)
-DOC_SEE(cpp_lex_nonalloc_no_null_no_limit)
-DOC_SEE(cpp_lex_nonalloc_null_end_out_limit)
-DOC_SEE(cpp_lex_nonalloc_no_null_out_limit)
-
 */{
     Cpp_Lex_Result result = 0;
     if (full_size == HAS_NULL_TERM){
@@ -1045,6 +1027,69 @@ DOC_SEE(cpp_lex_nonalloc_no_null_out_limit)
         }
     }
     return(result);
+}
+
+FCPP_LINK Cpp_Lex_Data
+cpp_lex_data_init(char *mem_buffer)/*
+DOC_PARAM(tb, The memory to use for initializing the lex state's temp memory buffer.)
+DOC_RETURN(A brand new lex state ready to begin lexing a file from the beginning.)
+
+DOC(Creates a new lex state in the form of a Cpp_Lex_Data struct and returns the struct.
+The system needs a temporary buffer that is as long as the longest token.  4096 is usually
+enough but the buffer is not checked, so to be 100% bullet proof it has to be the same length
+as the file being lexed.)
+*/{
+    Cpp_Lex_Data data = {0};
+    data.tb = mem_buffer;
+    return(data);
+}
+
+FCPP_LINK int32_t
+cpp_lex_data_temp_size(Cpp_Lex_Data *lex_data)/*
+DOC_PARAM(lex_data, The lex state from which to get the temporary buffer size.)
+DOC(This call gets the current size of the temporary buffer in the lexer state so
+that you can move to a new temporary buffer by copying the data over.)
+DOC_SEE(cpp_lex_data_temp_read)
+DOC_SEE(cpp_lex_data_new_temp)
+*/{
+    int32_t result = lex_data->tb_pos;
+    Assert(lex_data->tb != 0);
+    return(result);
+}
+
+FCPP_LINK void
+cpp_lex_data_temp_read(Cpp_Lex_Data *lex_data, char *out_buffer)/*
+DOC_PARAM(lex_data, The lex state from which to read the temporary buffer.)
+DOC_PARAM(out_buffer, The buffer into which the contents of the temporary buffer will be written.
+The size of the buffer must be at least the size as returned by cpp_lex_data_temp_size.)
+DOC(This call reads the current contents of the temporary buffer.)
+DOC_SEE(cpp_lex_data_temp_size)
+DOC_SEE(cpp_lex_data_new_temp)
+*/{
+    int32_t size = lex_data->tb_pos;
+    char *src = lex_data->tb;
+    char *end = src + size;
+    for (; src < end; ++src, ++out_buffer){
+        *out_buffer = *src;
+    }
+}
+
+FCPP_LINK void
+cpp_lex_data_new_temp(Cpp_Lex_Data *lex_data, char *new_buffer)/*
+DOC_PARAM(lex_data, The lex state that will receive the new temporary buffer.)
+DOC_PARAM(new_buffer, The new temporary buffer that has the same contents as the old temporary buffer.)
+DOC(This call can be used to set a new temporary buffer for the lex state.  In cases where you want to
+discontinue lexing, store the state, and resume later. In such a situation it may be necessary for you
+to free the temp buffer that was originally used to make the lex state. This call allows you to supply
+a new temp buffer when you are ready to resume lexing.
+
+However the new buffer needs to have the same contents the old buffer had.  To ensure this you have to
+use cpp_lex_data_temp_size and cpp_lex_data_temp_read to get the relevant contents of the temp buffer
+before you free it.)
+DOC_SEE(cpp_lex_data_temp_size)
+DOC_SEE(cpp_lex_data_temp_read)
+*/{
+    lex_data->tb = new_buffer;
 }
 
 // TODO(allen): Get the relex system ready to work in chunks.
@@ -1188,8 +1233,7 @@ cpp_relex_nonalloc_main(Cpp_Relex_State *state,
 }
 
 
-
-#if defined(FCPP_ALLOW_MALLOC)
+#if !defined(FCPP_FORBID_MALLOC)
 
 #include <stdlib.h>
 #include <string.h>
@@ -1200,10 +1244,7 @@ DOC_PARAM(starting_max, The number of tokens to initialize the array with.)
 DOC_RETURN(An empty Cpp_Token_Array with memory malloc'd for storing tokens.)
 DOC(This call allocates a Cpp_Token_Array with malloc for use in other
 convenience functions.  Stacks that are not allocated this way should not be
-used in the convenience functions.
-
-This call is a part of the FCPP_ALLOW_MALLOC convenience functions. 
-If you want to use it defined the macro FCPP_ALLOW_MALLOC before including 4cpp_lexer.h)
+used in the convenience functions.)
 */{
     Cpp_Token_Array token_array;
     token_array.tokens = (Cpp_Token*)malloc(sizeof(Cpp_Token)*starting_max);
@@ -1215,10 +1256,7 @@ If you want to use it defined the macro FCPP_ALLOW_MALLOC before including 4cpp_
 FCPP_LINK void
 cpp_free_token_array(Cpp_Token_Array token_array)/*
 DOC_PARAM(token_array, An array previously allocated by cpp_make_token_array)
-DOC(This call frees a Cpp_Token_Array.
-
-This call is a part of the FCPP_ALLOW_MALLOC convenience functions. 
-If you want to use it defined the macro FCPP_ALLOW_MALLOC before including 4cpp_lexer.h)
+DOC(This call frees a Cpp_Token_Array.)
 DOC_SEE(cpp_make_token_array)
 */{
     free(token_array.tokens);
@@ -1230,10 +1268,7 @@ DOC_PARAM(token_array, An array previously allocated by cpp_make_token_array.)
 DOC_PARAM(new_max, The new maximum size the array should support.  If this is not greater
 than the current size of the array the operation is ignored.)
 DOC(This call allocates a new memory chunk and moves the existing tokens in the array
-over to the new chunk.
-
-This call is a part of the FCPP_ALLOW_MALLOC convenience functions. 
-If you want to use it defined the macro FCPP_ALLOW_MALLOC before including 4cpp_lexer.h)
+over to the new chunk.)
 DOC_SEE(cpp_make_token_array)
 */{
     if (new_max > token_array->count){
@@ -1257,8 +1292,20 @@ This token array must be previously allocated with cpp_make_token_array)
 DOC(Lexes an entire file and manages the interaction with the lexer system so that
 it is quick and convenient to lex files.
 
-This call is a part of the FCPP_ALLOW_MALLOC convenience functions. 
-If you want to use it defined the macro FCPP_ALLOW_MALLOC before including 4cpp_lexer.h)
+CODE_EXAMPLE(
+Cpp_Token_Array lex_file(char *file_name){
+    File_Data file = read_whole_file(file_name);
+    
+    // This array will be automatically grown if it runs
+    // out of memory.
+    Cpp_Token_Array array = cpp_make_token_array(100);
+    
+    cpp_lex_file(file.data, file.size, &array);
+    
+    return(array);
+})
+
+)
 DOC_SEE(cpp_make_token_array)
 */{
     Cpp_Lex_Data S = {0};
@@ -1267,7 +1314,7 @@ DOC_SEE(cpp_make_token_array)
     
     token_array_out->count = 0;
     for (;!quit;){
-        int32_t result = cpp_lex_nonalloc(&S, data, size, HAS_NULL_TERM, token_array_out, NO_OUT_LIMIT);
+        int32_t result = cpp_lex_step(&S, data, size, HAS_NULL_TERM, token_array_out, NO_OUT_LIMIT);
         switch (result){
             case LexResult_Finished:
             {
@@ -1282,7 +1329,7 @@ DOC_SEE(cpp_make_token_array)
                 // terminator, but we didn't actually, so provide the null
                 // terminator via this one byte chunk.
                 char empty = 0;
-                cpp_lex_nonalloc(&S, &empty, 1, HAS_NULL_TERM, token_array_out, NO_OUT_LIMIT);
+                cpp_lex_step(&S, &empty, 1, HAS_NULL_TERM, token_array_out, NO_OUT_LIMIT);
             }break;
             
             case LexResult_NeedTokenMemory:

@@ -1147,9 +1147,7 @@ Job_Callback_Sig(job_full_lex){
     
     do{
         i32 result = 
-            cpp_lex_nonalloc(&lex,
-                             text_data, text_size, text_size,
-                             &tokens, 2048);
+            cpp_lex_step(&lex, text_data, text_size, text_size, &tokens, 2048);
         
         switch (result){
             case LexResult_NeedChunk: Assert(!"Invalid Path"); break;
@@ -3014,7 +3012,7 @@ style_get_color(Style *style, Cpp_Token token){
             result = &style->main.float_constant_color;
             break;
             
-            case CPP_TOKEN_INCLUDE_FILE:
+            case CPP_PP_INCLUDE_FILE:
             result = &style->main.include_color;
             break;
             
