@@ -75,7 +75,6 @@
 ;
 ; [] indication on failure to save
 ; [] history is broken, revist the entire system
-;
 ; [] 8.0\Include\um\dsound.h (not reproduced, get more info)
 ; [] paste external text from bug report (in email) (not reproduced, get more info)
 ;
@@ -89,6 +88,7 @@
 ; [] option to not open *messages* every startup
 ; [] commands for resizing panels
 ; [] make panel resizing not whacky with child panels
+; [] killing compilation panel changes active panel
 ; [] control over how mouse effects panel focus
 ; [] API docs as text file
 ; [] user file bar string

@@ -14,6 +14,9 @@
 
 #define FCPP_INTERNAL FCPP_LINK
 
+#include <stdint.h>
+#define FSTRING_IMPLEMENTATION
+#include "4coder_string.h"
 #include "4cpp_lexer_types.h"
 #include "4cpp_lexer_tables.c"
 
@@ -433,7 +436,7 @@ cpp_lex_nonalloc_null_end_no_limit(Cpp_Lex_Data *S_ptr, char *chunk, int32_t siz
                 
                 int32_t sub_match = -1;
                 string_set_match_table(keywords, sizeof(*keywords), ArrayCount(keywords),
-                                       make_string(S.tb, S.tb_pos), &sub_match);
+                                       make_string(S.tb, S.tb_pos-1), &sub_match);
                 
                 if (sub_match != -1){
                     String_And_Flag data = keywords[sub_match];
@@ -1165,6 +1168,8 @@ cpp_shift_token_starts(Cpp_Token_Array *array, int32_t from_token_i, int32_t shi
     }
 }
 
+// TODO(allen): This relex system is a little bit broken.  It doesn't allow for the
+// data chunks and it doesn't actually set up the state mid-data stream properly.
 FCPP_INTERNAL int32_t
 cpp_relex_nonalloc_main(Cpp_Relex_State *state,
                         Cpp_Token_Array *relex_array,
@@ -1175,52 +1180,54 @@ cpp_relex_nonalloc_main(Cpp_Relex_State *state,
     
     cpp_shift_token_starts(array, state->end_token_i, state->amount);
     
-    Cpp_Lex_Data lex = cpp_lex_data_init(spare);
-    lex.pp_state = cpp_token_get_pp_state(tokens[state->start_token_i].state_flags);
-    lex.pos = state->relex_start;
-    
     int32_t relex_end_i = state->end_token_i;
     Cpp_Token match_token = cpp_index_array(array, state->size, relex_end_i);
     Cpp_Token end_token = match_token;
     int32_t went_too_far = false;
     
-    // TODO(allen): This can be better I suspect.
-    for (;;){
-        int32_t result = 
-            cpp_lex_nonalloc_no_null_out_limit(&lex, state->data,
-                                               state->size, state->size,
-                                               relex_array, 1);
+    if (state->relex_start < state->size){
+        Cpp_Lex_Data lex = cpp_lex_data_init(spare);
+        lex.pp_state = cpp_token_get_pp_state(tokens[state->start_token_i].state_flags);
+        lex.pos = state->relex_start;
         
-        switch (result){
-            case LexResult_HitTokenLimit:
-            {
-                Cpp_Token token = relex_array->tokens[relex_array->count-1];
-                if (token.start == end_token.start &&
-                    token.size == end_token.size &&
-                    token.flags == end_token.flags &&
-                    token.state_flags == end_token.state_flags){
-                    --relex_array->count;
-                    goto double_break;
+        // TODO(allen): This can be better I suspect.
+        for (;;){
+            int32_t result = 
+                cpp_lex_nonalloc_no_null_out_limit(&lex, state->data,
+                                                   state->size, state->size,
+                                                   relex_array, 1);
+            
+            switch (result){
+                case LexResult_HitTokenLimit:
+                {
+                    Cpp_Token token = relex_array->tokens[relex_array->count-1];
+                    if (token.start == end_token.start &&
+                        token.size == end_token.size &&
+                        token.flags == end_token.flags &&
+                        token.state_flags == end_token.state_flags){
+                        --relex_array->count;
+                        goto double_break;
+                    }
+                    
+                    while (lex.pos > end_token.start && relex_end_i < array->count){
+                        ++relex_end_i;
+                        end_token = cpp_index_array(array, state->size, relex_end_i);
+                    }
                 }
+                break;
                 
-                while (lex.pos > end_token.start && relex_end_i < array->count){
-                    ++relex_end_i;
-                    end_token = cpp_index_array(array, state->size, relex_end_i);
-                }
+                case LexResult_NeedChunk: Assert(!"Invalid path"); break;
+                
+                case LexResult_NeedTokenMemory:
+                went_too_far = true;
+                goto double_break;
+                
+                case LexResult_Finished:
+                goto double_break;
             }
-            break;
-            
-            case LexResult_NeedChunk: Assert(!"Invalid path"); break;
-            
-            case LexResult_NeedTokenMemory:
-            went_too_far = true;
-            goto double_break;
-            
-            case LexResult_Finished:
-            goto double_break;
         }
+        double_break:;
     }
-    double_break:;
     
     if (!went_too_far){
         *relex_end = relex_end_i;
@@ -1312,6 +1319,8 @@ DOC_SEE(cpp_make_token_array)
     S.tb = (char*)malloc(size);
     int32_t quit = 0;
     
+    char empty = 0;
+    
     token_array_out->count = 0;
     for (;!quit;){
         int32_t result = cpp_lex_step(&S, data, size, HAS_NULL_TERM, token_array_out, NO_OUT_LIMIT);
@@ -1326,10 +1335,10 @@ DOC_SEE(cpp_make_token_array)
                 Assert(token_array_out->count < token_array_out->max_count);
                 
                 // NOTE(allen): We told the system we would provide the null
-                // terminator, but we didn't actually, so provide the null
-                // terminator via this one byte chunk.
-                char empty = 0;
-                cpp_lex_step(&S, &empty, 1, HAS_NULL_TERM, token_array_out, NO_OUT_LIMIT);
+                // terminator, but as it turned out we didn't actually. So in
+                // the next iteration pass a 1 byte chunk with the null terminator.
+                data = &empty;
+                size = 1;
             }break;
             
             case LexResult_NeedTokenMemory:

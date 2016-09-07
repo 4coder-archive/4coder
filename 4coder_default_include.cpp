@@ -887,6 +887,8 @@ move_past_lead_whitespace(Application_Links *app, View_Summary *view, Buffer_Sum
     }
 }
 
+//#include "4coder_auto_indent.cpp"
+
 CUSTOM_COMMAND_SIG(auto_tab_line_at_cursor){
     uint32_t access = AccessOpen;
     View_Summary view = app->get_active_view(app, access);

@@ -12,6 +12,7 @@
 #include "4coder_style.h"
 #include "4coder_rect.h"
 #include "4coder_mem.h"
+#include "4cpp_lexer_types.h"
 
 #ifndef FSTRING_STRUCT
 #define FSTRING_STRUCT

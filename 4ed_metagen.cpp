@@ -2545,10 +2545,8 @@ generate_custom_headers(){
         {make_lit_string("ENUM")    , Item_Enum    } ,
     };
     
-#if 0
     Meta_Unit unit = compile_meta_unit(part, type_files, ArrayCount(type_files),
                                        type_keys, ArrayCount(type_keys));
-#endif
     
     // NOTE(allen): Output
     String out = str_alloc(part, 10 << 20);
@@ -2922,9 +2920,9 @@ generate_custom_headers(){
         
         static Section sections[] = {
             {"introduction", "Introduction"},
-        //    {"4coder_systems", "4coder Systems"},
-        //    {"types_and_functions", "Types and Functions"},
-        //    {"string_library", "String Library"},
+            {"4coder_systems", "4coder Systems"},
+            {"types_and_functions", "Types and Functions"},
+            {"string_library", "String Library"},
             {"lexer_library", "Lexer Library"}
         };
         
@@ -2952,6 +2950,8 @@ generate_custom_headers(){
         append_sc(&out, sections[msection].display_string);
         append_sc(&out, "</h2>");
         
+#if 0
+        // NOTE(allen): doc intro for lexer standalone
         append_sc(&out,
                   "<div>"
                   "<p>This is the documentation for the 4cpp lexer version 1.0. "
@@ -2964,8 +2964,7 @@ generate_custom_headers(){
                   "4coder forums hosted on handmade.network at "
                   "<span style='"CODE_STYLE"'>4coder.handmade.network</span></p>"
                   "</div>");
-        
-#if 0
+#endif
         
         append_sc(&out,
                   "<div>"
@@ -2995,6 +2994,7 @@ generate_custom_headers(){
         
 #undef MAJOR_SECTION
 #define MAJOR_SECTION "3"
+        msection = 2;
         
         append_sc(&out, "\n<h2 id='section_");
         append_sc(&out, sections[msection].id_string);
@@ -3056,6 +3056,7 @@ generate_custom_headers(){
         
 #undef MAJOR_SECTION
 #define MAJOR_SECTION "4"
+        msection = 3;
         
         append_sc(&out, "\n<h2 id='section_");
         append_sc(&out, sections[msection].id_string);
@@ -3092,13 +3093,7 @@ generate_custom_headers(){
         
 #undef MAJOR_SECTION
 #define MAJOR_SECTION "5"
-        
-#endif
-        
-#undef MAJOR_SECTION
-#define MAJOR_SECTION "2"
-        
-        msection = 1;
+        msection = 4;
         
         append_sc(&out, "\n<h2 id='section_");
         append_sc(&out, sections[msection].id_string);
