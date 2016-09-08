@@ -550,35 +550,6 @@ DOC_SEE(Access_Flag)
     return(buffer);
 }
 
-internal i32
-seek_token_left(Cpp_Token_Array *tokens, i32 pos){
-    Cpp_Get_Token_Result get = cpp_get_token(tokens, pos);
-    if (get.token_index == -1){
-        get.token_index = 0;
-    }
-    
-    Cpp_Token *token = tokens->tokens + get.token_index;
-    if (token->start == pos && get.token_index > 0){
-        --token;
-    }
-    
-    return token->start;
-}
-
-internal i32
-seek_token_right(Cpp_Token_Array *tokens, i32 pos){
-    Cpp_Get_Token_Result get = cpp_get_token(tokens, pos);
-    if (get.in_whitespace){
-        ++get.token_index;
-    }
-    if (get.token_index >= tokens->count){
-        get.token_index = tokens->count-1;
-    }
-    
-    Cpp_Token *token = tokens->tokens + get.token_index;
-    return token->start + token->size;
-}
-
 API_EXPORT bool32
 Buffer_Read_Range(Application_Links *app, Buffer_Summary *buffer, int32_t start, int32_t end, char *out)/*
 DOC_PARAM(buffer, This parameter specifies the buffer to read.)
@@ -826,7 +797,11 @@ DOC_SEE(Buffer_Setting_ID)
 }
 
 API_EXPORT int32_t
-Buffer_Token_Count(Application_Links *app, Buffer_Summary *buffer){
+Buffer_Token_Count(Application_Links *app, Buffer_Summary *buffer)/*
+DOC_PARAM(buffer, Specifies the buffer from which to read the token count.)
+DOC_RETURN(If tokens are available for the buffer, the number of tokens on the buffer is returned.
+If the buffer does not exist or if it is not a lexed buffer, the return is zero.)
+*/{
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     Editing_File *file = imp_get_file(cmd, buffer);
     
@@ -840,17 +815,26 @@ Buffer_Token_Count(Application_Links *app, Buffer_Summary *buffer){
 }
 
 API_EXPORT bool32
-Buffer_Read_Tokens(Application_Links *app, Buffer_Summary *buffer, int32_t first_token, int32_t last_token, Cpp_Token *tokens_out){
+Buffer_Read_Tokens(Application_Links *app, Buffer_Summary *buffer, int32_t start_token, int32_t end_token, Cpp_Token *tokens_out)/*
+DOC_PARAM(buffer, Specifies the buffer from which to read tokens.)
+DOC_PARAM(first_token, Specifies the index of the first token to read.)
+DOC_PARAM(end_token, Specifies the token to stop reading at.)
+DOC_PARAM(tokens_out, The memory that will store the tokens read from the buffer.)
+DOC_RETURN(Returns non-zero on success.  This call can fail if the buffer doesn't
+exist or doesn't have tokens ready, or if either the first or last index is out of bounds.)
+DOC(Puts the data for the tokens with the indices [first_token,last_token) into the tokens_out array.
+The number of output tokens will be end_token - start_token.)
+*/{
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     Editing_File *file = imp_get_file(cmd, buffer);
+    Cpp_Token_Array token_array = file->state.token_array;
     
     bool32 result = 0;
-    
-    if (file && file->state.token_array.tokens && file->state.tokens_complete){
-        result = 1;
-        
-        memcpy(tokens_out, file->state.token_array.tokens + first_token,
-               sizeof(Cpp_Token)*(last_token - first_token));
+    if (file && token_array.tokens && file->state.tokens_complete){
+        if (0 <= start_token && start_token <= end_token && end_token <= token_array.count){
+            result = 1;
+            memcpy(tokens_out, token_array.tokens + start_token, sizeof(Cpp_Token)*(end_token - start_token));
+        }
     }
     
     return(result);
@@ -858,18 +842,18 @@ Buffer_Read_Tokens(Application_Links *app, Buffer_Summary *buffer, int32_t first
 
 API_EXPORT Buffer_Summary
 Create_Buffer(Application_Links *app, char *filename, int32_t filename_len, Buffer_Create_Flag flags)/*
-DOC_PARAM(filename, The filename parameter specifies the name of the file to be opened or created; it need not be null terminated.)
+DOC_PARAM(filename, The filename parameter specifies the name of the file to be opened or created;
+it need not be null terminated.)
 DOC_PARAM(filename_len, The filename_len parameter spcifies the length of the filename string.)
 DOC_PARAM(flags, The flags parameter specifies behaviors for buffer creation.)
 DOC_RETURN(This call returns the summary of the created buffer.)
-DOC
-(
-Tries to create a new buffer and associate it to the given filename.  If such a buffer already
-exists the existing buffer is returned in the Buffer_Summary and no new buffer is created.
-If the buffer does not exist a new buffer is created and named after the given filename.  If
-the filename corresponds to a file on the disk that file is loaded and put into buffer, if
-the filename does not correspond to a file on disk the buffer is created empty.
-)
+
+DOC(Tries to create a new buffer and associate it to the given filename.  If such a buffer
+already exists the existing buffer is returned in the Buffer_Summary and no new buffer is
+created. If the buffer does not exist a new buffer is created and named after the given
+filename. If the filename corresponds to a file on the disk that file is loaded and put into
+buffer, if the filename does not correspond to a file on disk the buffer is created empty.)
+
 DOC_SEE(Buffer_Summary)
 DOC_SEE(Buffer_Create_Flag)
 */{
@@ -1233,12 +1217,12 @@ API_EXPORT bool32
 Close_View(Application_Links *app, View_Summary *view)/*
 DOC_PARAM(view, The view parameter specifies which view to close.)
 DOC_RETURN(This call returns non-zero on success.)
-DOC(
-If the given view is open and is not the last view, it will be closed.
+
+DOC(If the given view is open and is not the last view, it will be closed.
 If the given view is the active view, the next active view in the global
-order of view will be made active.
-If the given view is the last open view in the system, the call will fail.
-)
+order of view will be made active. If the given view is the last open view
+in the system, the call will fail.)
+
 */{
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     System_Functions *system = cmd->system;
@@ -1312,8 +1296,11 @@ If the given view is the last open view in the system, the call will fail.
             active = (i32)(panel_ptr - models->layout.panels);
         }
         
-        Assert(active != -1 && panel != models->layout.panels + active);
-        models->layout.active_panel = active;
+        // If the panel we're closing was previously active, we have to switch to it's sibling.
+        if (models->layout.active_panel == (i32)(panel - models->layout.panels)){
+            Assert(active != -1 && panel != models->layout.panels + active);
+            models->layout.active_panel = active;
+        }
         
         layout_free_divider(&models->layout, div.divider);
         layout_free_panel(&models->layout, panel);

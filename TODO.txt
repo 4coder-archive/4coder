@@ -83,10 +83,10 @@
 ; BEFORE I SHIP
 ;
 ; [X] tokens in the custom API
+;     [X] token seeking on custom side
 ;     [X] auto indent on the custom side
 ;         [] clean up and comment the auto indent code to allow for customizations
 ;         [] more built in options for auto indenting
-;     [] token seeking on custom side
 ; [] expose dirty flags
 ; [] option to not open *messages* every startup
 ; [] commands for resizing panels
