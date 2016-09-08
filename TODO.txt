@@ -82,8 +82,11 @@
 
 ; BEFORE I SHIP
 ;
-; [] tokens in the custom API
-;     [] auto indent on the custom side
+; [X] tokens in the custom API
+;     [X] auto indent on the custom side
+;         [] clean up and comment the auto indent code to allow for customizations
+;         [] more built in options for auto indenting
+;     [] token seeking on custom side
 ; [] expose dirty flags
 ; [] option to not open *messages* every startup
 ; [] commands for resizing panels
@@ -96,7 +99,12 @@
 ; [] hook on exit
 ; [] read only files
 ; [] occasionally missing the (!) mark on files on windows
-; [] don't execute frames on events dealing only with ctrl/alt/shift
+; [] case insensitive interactive switch buffer
+; [] option to hide hidden files
+; [] tab to complete folder names in the new file dialogue
+; [] view fails to follow cursor when the view is shrunk
+; [] view fails to follow cursor after deleting long line
+; [] scroll down on compilation buffer durring compilation
 ;
 
 ; TODOS
@@ -134,6 +142,7 @@
 ; [X] full screen option
 ;     [X] add to APIs
 ;     [X] try to make win32 version better
+; [X] don't execute frames on events dealing only with ctrl/alt/shift
 ;
 ; [] support full length unicode file names
 ; [] switch based word complete

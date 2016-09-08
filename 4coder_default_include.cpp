@@ -142,6 +142,7 @@ struct Stream_Chunk{
     char *base_data;
     int32_t start, end;
     int32_t min_start, max_end;
+    bool32 add_null;
     int32_t data_size;
     
     char *data;
@@ -175,11 +176,11 @@ refresh_view(Application_Links *app, View_Summary *view){
     *view = app->get_view(app, view->view_id, AccessAll);
 }
 
-int32_t
+bool32
 init_stream_chunk(Stream_Chunk *chunk,
                   Application_Links *app, Buffer_Summary *buffer,
                   int32_t pos, char *data, int32_t size){
-    int32_t result = false;
+    bool32 result = false;
     
     refresh_buffer(app, buffer);
     if (pos >= 0 && pos < buffer->size && size > 0){
@@ -190,8 +191,7 @@ init_stream_chunk(Stream_Chunk *chunk,
         chunk->start = round_down(pos, size);
         chunk->end = round_up(pos, size);
         
-        if (chunk->max_end > buffer->size 
-            || chunk->max_end == 0){
+        if (chunk->max_end > buffer->size || chunk->max_end == 0){
             chunk->max_end = buffer->size;
         }
         
@@ -235,6 +235,15 @@ forward_stream_chunk(Stream_Chunk *chunk){
             result = true;
         }
     }
+    
+    else if (chunk->add_null && chunk->end + 1 < buffer->size){
+        chunk->start = buffer->size;
+        chunk->end = buffer->size + 1;
+        chunk->base_data[0] = 0;
+        chunk->data = chunk->base_data - chunk->start;
+        result = true;
+    }
+    
     return(result);
 }
 
@@ -262,6 +271,14 @@ backward_stream_chunk(Stream_Chunk *chunk){
             result = true;
         }
     }
+    
+    else if (chunk->add_null && chunk->start > -1){
+        chunk->start = -1;
+        chunk->end = 0;
+        chunk->base_data[0] = 0;
+        chunk->data = chunk->base_data - chunk->start;
+    }
+    
     return(result);
 }
 
@@ -887,17 +904,17 @@ move_past_lead_whitespace(Application_Links *app, View_Summary *view, Buffer_Sum
     }
 }
 
-//#include "4coder_auto_indent.cpp"
+#include "4coder_auto_indent.cpp"
 
 CUSTOM_COMMAND_SIG(auto_tab_line_at_cursor){
     uint32_t access = AccessOpen;
     View_Summary view = app->get_active_view(app, access);
     Buffer_Summary buffer = app->get_buffer(app, view.buffer_id, access);
     
-    app->buffer_auto_indent(app, &buffer,
-                            view.cursor.pos, view.cursor.pos,
-                            DEF_TAB_WIDTH,
-                            DEFAULT_INDENT_FLAGS);
+    buffer_auto_indent(app, &buffer,
+                       view.cursor.pos, view.cursor.pos,
+                       DEF_TAB_WIDTH,
+                       DEFAULT_INDENT_FLAGS);
     move_past_lead_whitespace(app, &view, &buffer);
 }
 
@@ -906,10 +923,10 @@ CUSTOM_COMMAND_SIG(auto_tab_whole_file){
     View_Summary view = app->get_active_view(app, access);
     Buffer_Summary buffer = app->get_buffer(app, view.buffer_id, access);
     
-    app->buffer_auto_indent(app, &buffer,
-                            0, buffer.size,
-                            DEF_TAB_WIDTH,
-                            DEFAULT_INDENT_FLAGS);
+    buffer_auto_indent(app, &buffer,
+                       0, buffer.size,
+                       DEF_TAB_WIDTH,
+                       DEFAULT_INDENT_FLAGS);
 }
 
 CUSTOM_COMMAND_SIG(auto_tab_range){
@@ -918,10 +935,10 @@ CUSTOM_COMMAND_SIG(auto_tab_range){
     Buffer_Summary buffer = app->get_buffer(app, view.buffer_id, access);
     Range range = get_range(&view);
     
-    app->buffer_auto_indent(app, &buffer,
-                            range.min, range.max,
-                            DEF_TAB_WIDTH,
-                            DEFAULT_INDENT_FLAGS);
+    buffer_auto_indent(app, &buffer,
+                       range.min, range.max,
+                       DEF_TAB_WIDTH,
+                       DEFAULT_INDENT_FLAGS);
     move_past_lead_whitespace(app, &view, &buffer);
 }
 
@@ -1417,10 +1434,10 @@ long_braces(Application_Links *app, char *text, int32_t size){
     app->buffer_replace_range(app, &buffer, pos, pos, text, size);
     app->view_set_cursor(app, &view, seek_pos(pos + 2), true);
     
-    app->buffer_auto_indent(app, &buffer,
-                            pos, pos + size,
-                            DEF_TAB_WIDTH,
-                            DEFAULT_INDENT_FLAGS);
+    buffer_auto_indent(app, &buffer,
+                       pos, pos + size,
+                       DEF_TAB_WIDTH,
+                       DEFAULT_INDENT_FLAGS);
     move_past_lead_whitespace(app, &view, &buffer);
 }
 
@@ -1491,10 +1508,10 @@ CUSTOM_COMMAND_SIG(if0_off){
         }
         
         range = get_range(&view);
-        app->buffer_auto_indent(app, &buffer,
-                                range.min, range.max,
-                                DEF_TAB_WIDTH,
-                                DEFAULT_INDENT_FLAGS);
+        buffer_auto_indent(app, &buffer,
+                           range.min, range.max,
+                           DEF_TAB_WIDTH,
+                           DEFAULT_INDENT_FLAGS);
         move_past_lead_whitespace(app, &view, &buffer);
     }
 }

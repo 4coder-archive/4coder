@@ -607,6 +607,11 @@ struct Buffer_Summary{
     
     /* DOC(If this is not a null summary, this field indicates whether the buffer is set to lex tokens.) */
     bool32 is_lexed;
+    /* DOC(If this is not a null summary, this field indicates whether the buffer has up to date tokens available.
+    If this field is false, it may simply mean the tokens are still being generated in a background task and will
+    be available later.  If that is the case, is_lexed will be true to indicate that the buffer is trying to get
+    it's tokens up to date.) */
+    bool32 tokens_are_ready;
     /* DOC(If this is not a null summary, this field specifies the id of the command map for this buffer.) */
     int32_t map_id;
     /* DOC(If this is not a null summary, this field indicates whether the buffer 'prefers' wrapped lines.) */

@@ -14,7 +14,8 @@
 #define BUFFER_COMPUTE_CURSOR_SIG(n) bool32 n(Application_Links *app, Buffer_Summary *buffer, Buffer_Seek seek, Partial_Cursor *cursor_out)
 #define BUFFER_BATCH_EDIT_SIG(n) bool32 n(Application_Links *app, Buffer_Summary *buffer, char *str, int32_t str_len, Buffer_Edit *edits, int32_t edit_count, Buffer_Batch_Edit_Type type)
 #define BUFFER_SET_SETTING_SIG(n) bool32 n(Application_Links *app, Buffer_Summary *buffer, Buffer_Setting_ID setting, int32_t value)
-#define BUFFER_AUTO_INDENT_SIG(n) bool32 n(Application_Links *app, Buffer_Summary *buffer, int32_t start, int32_t end, int32_t tab_width, Auto_Indent_Flag flags)
+#define BUFFER_TOKEN_COUNT_SIG(n) int32_t n(Application_Links *app, Buffer_Summary *buffer)
+#define BUFFER_READ_TOKENS_SIG(n) bool32 n(Application_Links *app, Buffer_Summary *buffer, int32_t first_token, int32_t last_token, Cpp_Token *tokens_out)
 #define CREATE_BUFFER_SIG(n) Buffer_Summary n(Application_Links *app, char *filename, int32_t filename_len, Buffer_Create_Flag flags)
 #define SAVE_BUFFER_SIG(n) bool32 n(Application_Links *app, Buffer_Summary *buffer, char *filename, int32_t filename_len, uint32_t flags)
 #define KILL_BUFFER_SIG(n) bool32 n(Application_Links *app, Buffer_Identifier buffer, View_ID view_id, Buffer_Kill_Flag flags)
@@ -74,7 +75,8 @@ typedef BUFFER_REPLACE_RANGE_SIG(Buffer_Replace_Range_Function);
 typedef BUFFER_COMPUTE_CURSOR_SIG(Buffer_Compute_Cursor_Function);
 typedef BUFFER_BATCH_EDIT_SIG(Buffer_Batch_Edit_Function);
 typedef BUFFER_SET_SETTING_SIG(Buffer_Set_Setting_Function);
-typedef BUFFER_AUTO_INDENT_SIG(Buffer_Auto_Indent_Function);
+typedef BUFFER_TOKEN_COUNT_SIG(Buffer_Token_Count_Function);
+typedef BUFFER_READ_TOKENS_SIG(Buffer_Read_Tokens_Function);
 typedef CREATE_BUFFER_SIG(Create_Buffer_Function);
 typedef SAVE_BUFFER_SIG(Save_Buffer_Function);
 typedef KILL_BUFFER_SIG(Kill_Buffer_Function);
@@ -135,7 +137,8 @@ Buffer_Replace_Range_Function *buffer_replace_range;
 Buffer_Compute_Cursor_Function *buffer_compute_cursor;
 Buffer_Batch_Edit_Function *buffer_batch_edit;
 Buffer_Set_Setting_Function *buffer_set_setting;
-Buffer_Auto_Indent_Function *buffer_auto_indent;
+Buffer_Token_Count_Function *buffer_token_count;
+Buffer_Read_Tokens_Function *buffer_read_tokens;
 Create_Buffer_Function *create_buffer;
 Save_Buffer_Function *save_buffer;
 Kill_Buffer_Function *kill_buffer;
@@ -203,7 +206,8 @@ app_links->buffer_replace_range = Buffer_Replace_Range;\
 app_links->buffer_compute_cursor = Buffer_Compute_Cursor;\
 app_links->buffer_batch_edit = Buffer_Batch_Edit;\
 app_links->buffer_set_setting = Buffer_Set_Setting;\
-app_links->buffer_auto_indent = Buffer_Auto_Indent;\
+app_links->buffer_token_count = Buffer_Token_Count;\
+app_links->buffer_read_tokens = Buffer_Read_Tokens;\
 app_links->create_buffer = Create_Buffer;\
 app_links->save_buffer = Save_Buffer;\
 app_links->kill_buffer = Kill_Buffer;\

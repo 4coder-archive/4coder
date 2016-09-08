@@ -18,12 +18,12 @@
 # define FSTRING_C
 # include "4coder_string.h"
 
-#include "4coder_version.h"
+# include "4coder_version.h"
 # include "4coder_keycodes.h"
 # include "4coder_style.h"
 # include "4coder_rect.h"
-
 # include "4coder_mem.h"
+# include "4cpp_lexer.h"
 
 // TODO(allen): This is duplicated from 4coder_custom.h
 // I need to work out a way to avoid this.
@@ -111,11 +111,7 @@ struct Control_Keys{
     b8 l_alt;
     b8 r_alt;
 };
-inline Control_Keys
-control_keys_zero(){
-    Control_Keys result = {0};
-    return(result);
-}
+static Control_Keys null_control_keys;
 
 struct Win32_Input_Chunk_Transient{
     Key_Input_Data key_data;
@@ -1837,7 +1833,8 @@ Win32Callback(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
             win32vars.input_chunk.pers.mouse_l = 0;
             win32vars.input_chunk.pers.mouse_r = 0;
             
-            win32vars.input_chunk.pers.controls = control_keys_zero();
+            win32vars.input_chunk.pers.control_keys[MDFR_SHIFT_INDEX] = 0;
+            win32vars.input_chunk.pers.controls = null_control_keys;
         }break;
         
         case WM_SIZE:

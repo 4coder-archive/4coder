@@ -41,9 +41,6 @@ typedef double f64;
 
 #define globalconst static const
 
-inline i32
-raw_ptr_dif(void *a, void *b) { return (i32)((u8*)a - (u8*)b); }
-
 #define COMP_ID_(a,b,c,d) (d << 24) | (c << 16) | (b << 8) | a
 #define COMPOSE_ID(a,b,c,d) (COMP_ID_((a),(b),(c),(d)))
 

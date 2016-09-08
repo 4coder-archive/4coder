@@ -2517,465 +2517,6 @@ file_compute_edit(Mem_Options *mem, Editing_File *file,
     return(spec);
 }
 
-struct Indent_Options{
-    b32 empty_blank_lines;
-    b32 use_tabs;
-    i32 tab_width;
-};
-
-struct Make_Batch_Result{
-    char *str_base;
-    i32 str_size;
-    
-    Buffer_Edit *edits;
-    i32 edit_max;
-    i32 edit_count;
-};
-
-internal Cpp_Token*
-get_first_token_at_line(Buffer *buffer, Cpp_Token_Array tokens, i32 line){
-    i32 start_pos = buffer->line_starts[line];
-    Cpp_Get_Token_Result get_token = cpp_get_token(&tokens, start_pos);
-    
-    if (get_token.in_whitespace){
-        get_token.token_index += 1;
-    }
-    
-    Cpp_Token *result = tokens.tokens + get_token.token_index;
-    
-    return(result);
-}
-
-internal Cpp_Token*
-seek_matching_token_backwards(Cpp_Token_Array tokens, Cpp_Token *token,
-                              Cpp_Token_Type open_type, Cpp_Token_Type close_type){
-    int32_t nesting_level = 0;
-    if (token <= tokens.tokens){
-        token = tokens.tokens;
-    }
-    else{
-        for (; token > tokens.tokens; --token){
-            if (!(token->flags & CPP_TFLAG_PP_BODY)){
-                if (token->type == close_type){
-                    ++nesting_level;
-                }
-                else if (token->type == open_type){
-                    if (nesting_level == 0){
-                        break;
-                    }
-                    else{
-                        --nesting_level;
-                    }
-                }
-            }
-        }
-    }
-    return(token);
-}
-
-struct Indent_Parse_State{
-    i32 current_indent;
-    i32 previous_line_indent;
-    i32 paren_nesting;
-    i32 paren_anchor_indent[16];
-    i32 comment_shift;
-};
-
-internal i32
-compute_this_indent(Buffer *buffer, Indent_Parse_State indent,
-                    Cpp_Token T, Cpp_Token prev_token, i32 line_i, i32 tab_width){
-    
-    i32 previous_indent = indent.previous_line_indent;
-    i32 this_indent = 0;
-    
-    i32 this_line_start = buffer->line_starts[line_i];
-    i32 next_line_start = 0;
-    
-    if (line_i+1 < buffer->line_count){
-        next_line_start = buffer->line_starts[line_i+1];
-    }
-    else{
-        next_line_start = buffer_size(buffer);
-    }
-    
-    b32 did_special_behavior = false;
-    
-    if (prev_token.start <= this_line_start &&
-        prev_token.start + prev_token.size > this_line_start){
-        if (prev_token.type == CPP_TOKEN_COMMENT){
-            Hard_Start_Result hard_start = buffer_find_hard_start(buffer, this_line_start, tab_width);
-            
-            if (hard_start.all_whitespace){
-                this_indent = previous_indent;
-                did_special_behavior = true;
-            }
-            else{
-                i32 line_pos = hard_start.char_pos - this_line_start;
-                this_indent = line_pos + indent.comment_shift;
-                if (this_indent < 0){
-                    this_indent = 0;
-                }
-                did_special_behavior = true;
-            }
-        }
-        else if (prev_token.type == CPP_TOKEN_STRING_CONSTANT){
-            this_indent = previous_indent;
-            did_special_behavior = true;
-        }
-    }
-    
-    
-    if (!did_special_behavior){
-        this_indent = indent.current_indent;
-        if (T.start < next_line_start){
-            if (T.flags & CPP_TFLAG_PP_DIRECTIVE){
-                this_indent = 0;
-            }
-            else{
-                switch (T.type){
-                    case CPP_TOKEN_BRACKET_CLOSE: this_indent -= tab_width; break;
-                    case CPP_TOKEN_BRACE_CLOSE: this_indent -= tab_width; break;
-                    case CPP_TOKEN_BRACE_OPEN: break;
-                    
-                    default:
-                    if (indent.current_indent > 0){
-                        if (!(prev_token.flags & CPP_TFLAG_PP_BODY ||
-                              prev_token.flags & CPP_TFLAG_PP_DIRECTIVE)){
-                            switch (prev_token.type){
-                                case CPP_TOKEN_BRACKET_OPEN:
-                                case CPP_TOKEN_BRACE_OPEN: case CPP_TOKEN_BRACE_CLOSE:
-                                case CPP_TOKEN_SEMICOLON: case CPP_TOKEN_COLON:
-                                case CPP_TOKEN_COMMA: case CPP_TOKEN_COMMENT: break;
-                                default: this_indent += tab_width;
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        if (this_indent < 0) this_indent = 0;
-    }
-    
-    if (indent.paren_nesting > 0){
-        if (prev_token.type != CPP_TOKEN_PARENTHESE_OPEN){
-            i32 level = indent.paren_nesting-1;
-            if (level >= ArrayCount(indent.paren_anchor_indent)){
-                level = ArrayCount(indent.paren_anchor_indent)-1;
-            }
-            this_indent = indent.paren_anchor_indent[level];
-        }
-    }
-    return(this_indent);
-}
-
-internal i32*
-get_line_indentation_marks(Partition *part, Buffer *buffer, Cpp_Token_Array tokens,
-                           i32 line_start, i32 line_end, i32 tab_width){
-    
-    i32 indent_mark_count = line_end - line_start;
-    i32 *indent_marks = push_array(part, i32, indent_mark_count);
-    
-    Indent_Parse_State indent = {0};
-    Cpp_Token *token = get_first_token_at_line(buffer, tokens, line_start);
-    
-    if (token != tokens.tokens){
-        --token;
-        for (; token > tokens.tokens; --token){
-            if (!(token->flags & CPP_TFLAG_PP_BODY)){
-                switch(token->type){
-                    case CPP_TOKEN_BRACE_OPEN:
-                    case CPP_TOKEN_BRACE_CLOSE:
-                    goto out_of_loop;
-                }
-            }
-        }
-        out_of_loop:;
-    }
-    
-    // TODO(allen): This can maybe be it's own function now, so that we
-    // can do the decls in the order we want and avoid the extra binary search.
-    i32 found_safe_start_position = 0;
-    do{
-        i32 line = buffer_get_line_index(buffer, token->start);
-        i32 start = buffer->line_starts[line];
-        Hard_Start_Result hard_start = buffer_find_hard_start(buffer, start, tab_width);
-        
-        indent.current_indent = hard_start.indent_pos;
-        
-        Cpp_Token *start_token = get_first_token_at_line(buffer, tokens, line);
-        Cpp_Token *brace_token = token;
-        
-        if (start_token->type == CPP_TOKEN_PARENTHESE_OPEN){
-            if (start_token == tokens.tokens){
-                found_safe_start_position = 1;
-            }
-            else{
-                token = start_token-1;
-            }
-        }
-        else{
-            int32_t close = 0;
-            
-            for (token = brace_token; token > start_token; --token){
-                switch(token->type){
-                    case CPP_TOKEN_PARENTHESE_CLOSE:
-                    case CPP_TOKEN_BRACKET_CLOSE:
-                    case CPP_TOKEN_BRACE_CLOSE:
-                    close = token->type;
-                    goto out_of_loop2;
-                }
-            }
-            out_of_loop2:;
-            
-            switch (close){
-                case 0: token = start_token; found_safe_start_position = 1; break;
-                
-                case CPP_TOKEN_PARENTHESE_CLOSE:
-                token = seek_matching_token_backwards(tokens, token-1,
-                                                      CPP_TOKEN_PARENTHESE_OPEN,
-                                                      CPP_TOKEN_PARENTHESE_CLOSE);
-                break;
-                
-                case CPP_TOKEN_BRACKET_CLOSE:
-                token = seek_matching_token_backwards(tokens, token-1,
-                                                      CPP_TOKEN_BRACKET_OPEN,
-                                                      CPP_TOKEN_BRACKET_CLOSE);
-                break;
-                
-                case CPP_TOKEN_BRACE_CLOSE:
-                token = seek_matching_token_backwards(tokens, token-1,
-                                                      CPP_TOKEN_BRACE_OPEN,
-                                                      CPP_TOKEN_BRACE_CLOSE);
-                break;
-            }
-        }
-    } while(found_safe_start_position == 0);
-    
-    // NOTE(allen): Shift the array so that line_i can just operate in
-    // it's natural value range.
-    indent_marks -= line_start;
-    
-    i32 line_i = buffer_get_line_index(buffer, token->start);
-    
-    if (line_i > line_start){
-        line_i = line_start;
-    }
-    
-    i32 next_line_start = buffer_size(buffer);
-    if (line_i+1 < buffer->line_count){
-        next_line_start = buffer->line_starts[line_i+1];
-    }
-    
-    switch (token->type){
-        case CPP_TOKEN_BRACKET_OPEN: indent.current_indent += tab_width; break;
-        case CPP_TOKEN_BRACE_OPEN: indent.current_indent += tab_width; break;
-        case CPP_TOKEN_PARENTHESE_OPEN: indent.current_indent += tab_width; break;
-    }
-    
-    indent.previous_line_indent = indent.current_indent;
-    Cpp_Token T;
-    Cpp_Token prev_token = *token;
-    ++token;
-    
-    for (; line_i < line_end; ++token){
-        if (token < tokens.tokens + tokens.count){
-            T = *token;
-        }
-        else{
-            T.type = CPP_TOKEN_EOF;
-            T.start = buffer_size(buffer);
-            T.flags = 0;
-        }
-        
-        for (; T.start >= next_line_start && line_i < line_end;){
-            if (line_i+1 < buffer->line_count){
-                next_line_start = buffer->line_starts[line_i+1];
-            }
-            else{
-                next_line_start = buffer_size(buffer);
-            }
-            
-            i32 this_indent =
-                compute_this_indent(buffer, indent, T, prev_token, line_i, tab_width);
-            
-            // NOTE(allen): Rebase the paren anchor if the first token
-            // after an open paren is on the next line.
-            if (indent.paren_nesting > 0){
-                if (prev_token.type == CPP_TOKEN_PARENTHESE_OPEN){
-                    i32 level = indent.paren_nesting-1;
-                    if (level >= ArrayCount(indent.paren_anchor_indent)){
-                        level = ArrayCount(indent.paren_anchor_indent)-1;
-                    }
-                    indent.paren_anchor_indent[level] = this_indent;
-                }
-            }
-            
-            if (line_i >= line_start){
-                indent_marks[line_i] = this_indent;
-            }
-            ++line_i;
-            
-            indent.previous_line_indent = this_indent;
-        }
-        
-        switch (T.type){
-            case CPP_TOKEN_BRACKET_OPEN: indent.current_indent += 4; break;
-            case CPP_TOKEN_BRACKET_CLOSE: indent.current_indent -= 4; break;
-            case CPP_TOKEN_BRACE_OPEN: indent.current_indent += 4; break;
-            case CPP_TOKEN_BRACE_CLOSE: indent.current_indent -= 4; break;
-            
-            case CPP_TOKEN_COMMENT:
-            {
-                i32 line = buffer_get_line_index(buffer, T.start);
-                i32 start = buffer->line_starts[line];
-                
-                indent.comment_shift = (indent.current_indent - (T.start - start));
-            }break;
-            
-            case CPP_TOKEN_PARENTHESE_OPEN:
-            if (!(T.flags & CPP_TFLAG_PP_BODY)){
-                if (indent.paren_nesting < ArrayCount(indent.paren_anchor_indent)){
-                    i32 line = buffer_get_line_index(buffer, T.start);
-                    i32 start = buffer->line_starts[line];
-                    i32 char_pos = T.start - start;
-                    
-                    Hard_Start_Result hard_start =
-                        buffer_find_hard_start(buffer, start, tab_width);
-                    
-                    i32 line_pos = hard_start.char_pos - start;
-                    
-                    indent.paren_anchor_indent[indent.paren_nesting] =
-                        char_pos - line_pos + indent.previous_line_indent + 1;
-                }
-                ++indent.paren_nesting;
-            }
-            break;
-            
-            case CPP_TOKEN_PARENTHESE_CLOSE:
-            if (!(T.flags & CPP_TFLAG_PP_BODY)){
-                --indent.paren_nesting;
-            }
-            break;
-        }
-        prev_token = T;
-    }
-    
-    // NOTE(allen): Unshift the indent_marks array so that the return value
-    // is the exact starting point of the array that was actually allocated.
-    indent_marks += line_start;
-    
-    return(indent_marks);
-}
-
-internal Make_Batch_Result
-make_batch_from_indent_marks(Partition *part, Buffer *buffer, i32 line_start, i32 line_end,
-                             i32 *indent_marks, Indent_Options opts){
-    
-    Make_Batch_Result result = {0};
-    
-    i32 edit_max = line_end - line_start;
-    i32 edit_count = 0;
-    
-    Buffer_Edit *edits = push_array(part, Buffer_Edit, edit_max);
-    
-    char *str_base = (char*)part->base + part->pos;
-    i32 str_size = 0;
-    
-    // NOTE(allen): Shift the array so that line_i can just operate in
-    // it's natural value range.
-    indent_marks -= line_start;
-    
-    for (i32 line_i = line_start; line_i < line_end; ++line_i){
-        i32 start = buffer->line_starts[line_i];
-        Hard_Start_Result hard_start = 
-            buffer_find_hard_start(buffer, start, opts.tab_width);
-        
-        i32 correct_indentation = indent_marks[line_i];
-        if (hard_start.all_whitespace && opts.empty_blank_lines) correct_indentation = 0;
-        if (correct_indentation == -1) correct_indentation = hard_start.indent_pos;
-        
-        if ((hard_start.all_whitespace && hard_start.char_pos > start) ||
-            !hard_start.all_space || correct_indentation != hard_start.indent_pos){
-            Buffer_Edit new_edit;
-            new_edit.str_start = str_size;
-            str_size += correct_indentation;
-            char *str = push_array(part, char, correct_indentation);
-            i32 j = 0;
-            if (opts.use_tabs){
-                i32 i = 0;
-                for (; i + opts.tab_width <= correct_indentation; i += opts.tab_width) str[j++] = '\t';
-                for (; i < correct_indentation; ++i) str[j++] = ' ';
-            }
-            else{
-                for (; j < correct_indentation; ++j) str[j] = ' ';
-            }
-            new_edit.len = j;
-            new_edit.start = start;
-            new_edit.end = hard_start.char_pos;
-            edits[edit_count++] = new_edit;
-        }
-        
-        Assert(edit_count <= edit_max);
-    }
-    
-    result.str_base = str_base;
-    result.str_size = str_size;
-    
-    result.edits = edits;
-    result.edit_max = edit_max;
-    result.edit_count = edit_count;
-    
-    return(result);
-}
-
-internal void
-file_auto_tab_tokens(System_Functions *system, Models *models,
-                     Editing_File *file, i32 pos, i32 start, i32 end, Indent_Options opts){
-#if BUFFER_EXPERIMENT_SCALPEL <= 0
-    Mem_Options *mem = &models->mem;
-    Partition *part = &mem->part;
-    Buffer *buffer = &file->state.buffer;
-    
-    Assert(file && !file->is_dummy);
-    Cpp_Token_Array tokens = file->state.token_array;
-    Assert(tokens.tokens);
-    
-    i32 line_start = buffer_get_line_index(buffer, start);
-    i32 line_end = buffer_get_line_index(buffer, end) + 1;
-    
-    Temp_Memory temp = begin_temp_memory(part);
-    
-    i32 *indent_marks =
-        get_line_indentation_marks(part, buffer, tokens, line_start, line_end, opts.tab_width);
-    
-    Make_Batch_Result batch = 
-        make_batch_from_indent_marks(part, buffer, line_start, line_end, indent_marks, opts);
-    
-    if (batch.edit_count > 0){
-        Assert(buffer_batch_debug_sort_check(batch.edits, batch.edit_count));
-        
-        // NOTE(allen): computing edit spec, doing batch edit
-        Buffer_Edit *inverse_array = push_array(part, Buffer_Edit, batch.edit_count);
-        Assert(inverse_array);
-        
-        char *inv_str = (char*)part->base + part->pos;
-        Edit_Spec spec =
-            file_compute_edit(mem, file,
-                              batch.edits, batch.str_base, batch.str_size,
-                              inverse_array, inv_str, part->max - part->pos,
-                              batch.edit_count, BatchEdit_PreserveTokens);
-        
-        file_do_batch_edit(system, models, file, spec, hist_normal, BatchEdit_PreserveTokens);
-    }
-    end_temp_memory(temp);
-#endif
-}
-
-struct Get_Link_Result{
-    b32 in_link;
-    i32 index;
-};
-
 internal u32*
 style_get_color(Style *style, Cpp_Token token){
     u32 *result;
@@ -5555,54 +5096,73 @@ draw_file_bar(Render_Target *target, View *view, Editing_File *file, i32_Rect re
         bar.text_shift_y = 2;
         bar.text_shift_x = 0;
         
-        draw_rectangle(target, bar.rect, back_color);    
-        if (!file){
-            intbar_draw_string(target, &bar, make_lit_string("*NULL*"), base_color);
+        draw_rectangle(target, bar.rect, back_color);
+        
+        Assert(file);
+        
+        intbar_draw_string(target, &bar, file->name.live_name, base_color);
+        intbar_draw_string(target, &bar, make_lit_string(" -"), base_color);
+        
+        if (file->is_loading){
+            intbar_draw_string(target, &bar, make_lit_string(" loading"), base_color);
         }
         else{
-            intbar_draw_string(target, &bar, file->name.live_name, base_color);
-            intbar_draw_string(target, &bar, make_lit_string(" -"), base_color);
+            char bar_space[526];
+            String bar_text = make_fixed_width_string(bar_space);
+            append_ss        (&bar_text, make_lit_string(" L#"));
+            append_int_to_str(&bar_text, view->edit_pos->cursor.line);
+            append_ss        (&bar_text, make_lit_string(" C#"));
+            append_int_to_str(&bar_text, view->edit_pos->cursor.character);
             
-            if (file->is_loading){
-                intbar_draw_string(target, &bar, make_lit_string(" loading"), base_color);
+            append_ss(&bar_text, make_lit_string(" -"));
+            
+            if (file->settings.dos_write_mode){
+                append_ss(&bar_text, make_lit_string(" dos"));
             }
             else{
-                char line_number_space[30];
-                String line_number = make_fixed_width_string(line_number_space);
-                append_ss(&line_number, make_lit_string(" L#"));
-                append_int_to_str(&line_number, view->edit_pos->cursor.line);
-                append_ss(&line_number, make_lit_string(" C#"));
-                append_int_to_str(&line_number, view->edit_pos->cursor.character);
+                append_ss(&bar_text, make_lit_string(" nix"));
+            }
+            
+            append_ss(&bar_text, make_lit_string(" -"));
+            
+            Command_Map *map = view->map;
+            if (map == &models->map_top){
+                append_ss(&bar_text, make_lit_string(" global"));
+            }
+            else if (map == &models->map_file){
+                append_ss(&bar_text, make_lit_string(" file"));
+            }
+            else if (map == &models->map_ui){
+                append_ss(&bar_text, make_lit_string(" gui"));
+            }
+            else{
+                i32 map_index = (i32)(view->map - models->user_maps);
+                i32 map_id = models->map_id_table[map_index];
                 
-                intbar_draw_string(target, &bar, line_number, base_color);
-                
-                intbar_draw_string(target, &bar, make_lit_string(" -"), base_color);
-                
-                if (file->settings.dos_write_mode){
-                    intbar_draw_string(target, &bar, make_lit_string(" dos"), base_color);
-                }
-                else{
-                    intbar_draw_string(target, &bar, make_lit_string(" nix"), base_color);
-                }
-                
-                if (file->state.still_lexing){
-                    intbar_draw_string(target, &bar, make_lit_string(" parsing"), pop1_color);
-                }
-                
-                if (!file->settings.unimportant){
-                    switch (file_get_sync(file)){
-                        case SYNC_BEHIND_OS:
-                        {
-                            persist String out_of_sync = make_lit_string(" !");
-                            intbar_draw_string(target, &bar, out_of_sync, pop2_color);
-                        }break;
-                        
-                        case SYNC_UNSAVED:
-                        {
-                            persist String out_of_sync = make_lit_string(" *");
-                            intbar_draw_string(target, &bar, out_of_sync, pop2_color);
-                        }break;
-                    }
+                append_ss        (&bar_text, make_lit_string(" user:"));
+                append_int_to_str(&bar_text, map_id);
+            }
+            
+            intbar_draw_string(target, &bar, bar_text, base_color);
+            
+            
+            if (file->state.still_lexing){
+                intbar_draw_string(target, &bar, make_lit_string(" parsing"), pop1_color);
+            }
+            
+            if (!file->settings.unimportant){
+                switch (file_get_sync(file)){
+                    case SYNC_BEHIND_OS:
+                    {
+                        persist String out_of_sync = make_lit_string(" !");
+                        intbar_draw_string(target, &bar, out_of_sync, pop2_color);
+                    }break;
+                    
+                    case SYNC_UNSAVED:
+                    {
+                        persist String out_of_sync = make_lit_string(" *");
+                        intbar_draw_string(target, &bar, out_of_sync, pop2_color);
+                    }break;
                 }
             }
         }

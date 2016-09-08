@@ -32,6 +32,16 @@ fill_buffer_summary(Buffer_Summary *buffer, Editing_File *file, Working_Set *wor
         buffer->buffer_name = file->name.live_name.str;
         
         buffer->is_lexed = file->settings.tokens_exist;
+        
+        if (file->state.token_array.tokens &&
+            file->state.tokens_complete &&
+            !file->state.still_lexing){
+            buffer->tokens_are_ready = 1;
+        }
+        else{
+            buffer->tokens_are_ready = 0;
+        }
+        
         buffer->map_id = file->settings.base_map_id;
         buffer->unwrapped_lines = file->settings.unwrapped_lines;
         
@@ -752,7 +762,9 @@ Buffer_Compute_Cursor(Application_Links *app, Buffer_Summary *buffer, Buffer_See
 DOC_PARAM(buffer, The buffer parameter specifies the buffer on which to run the cursor computation.)
 DOC_PARAM(seek, The seek parameter specifies the target position for the seek.)
 DOC_PARAM(cursor_out, On success this struct is filled with the result of the seek.)
-DOC_RETURN(This call returns non-zero on success.)
+DOC_RETURN(This call returns non-zero on success.  This call can fail if the buffer summary provided
+does not summarize an actual buffer in 4coder, or if the provided seek format is invalid.  The valid
+seek types are seek_pos and seek_line_char.)
 DOC(Computes a Partial_Cursor for the given seek position with no side effects.
 The seek position must be one of the types supported by Partial_Cursor.  Those
 types are absolute position and line,column position.)
@@ -780,7 +792,8 @@ DOC_PARAM(str_len, This parameter specifies the length of the str string.)
 DOC_PARAM(edits, This parameter provides about the source string and destination range of each edit as an array.)
 DOC_PARAM(edit_count, This parameter specifies the number of Buffer_Edit structs in edits.)
 DOC_PARAM(type, This prameter specifies what type of batch edit to execute.)
-DOC_RETURN(This call returns non-zero if the batch edit succeeds.)
+DOC_RETURN(This call returns non-zero if the batch edit succeeds.  This call can fail if the provided
+buffer summary does not refer to an actual buffer in 4coder.)
 DOC(TODO)
 DOC_SEE(Buffer_Edit)
 DOC_SEE(Buffer_Batch_Edit_Type)
@@ -812,9 +825,8 @@ DOC_SEE(Buffer_Batch_Edit_Type)
             
             end_temp_memory(temp);
         }
-        else{
-            result = true;
-        }
+        
+        result = true;
     }
     
     return(result);
@@ -916,43 +928,32 @@ DOC_SEE(Buffer_Setting_ID)
     return(result);
 }
 
-API_EXPORT bool32
-Buffer_Auto_Indent(Application_Links *app, Buffer_Summary *buffer, int32_t start, int32_t end, int32_t tab_width, Auto_Indent_Flag flags)/*
-DOC_PARAM(buffer, The buffer specifies the buffer in which to apply auto indentation.)
-DOC_PARAM(start, This parameter specifies the absolute position of the start of the indentation range.)
-DOC_PARAM(end, This parameter specifies the absolute position of the end of the indentation range.)
-DOC_PARAM(tab_width, The tab_width parameter specifies how many spaces should be used for one indentation in space mode.)
-DOC_PARAM(flags, This parameter specifies behaviors for the indentation.)
-DOC_RETURN(This call returns non-zero when the call succeeds.)
-DOC
-(
-Applies the built in auto-indentation rule to the code in the range from
-start to end by inserting spaces or tabs at the beginning of the lines.
-If the buffer does not have lexing enabled or the lexing job has not
-completed this function will fail.
-)
-DOC_SEE(Auto_Indent_Flag)
-DOC_SEE(4coder_Buffer_Positioning_System)
-*/{
+API_EXPORT int32_t
+Buffer_Token_Count(Application_Links *app, Buffer_Summary *buffer){
     Command_Data *cmd = (Command_Data*)app->cmd_context;
-    System_Functions *system = cmd->system;
-    Models *models = cmd->models;
-    
-    Indent_Options opts = {0};
-    bool32 result = false;
-    
     Editing_File *file = imp_get_file(cmd, buffer);
-    if (file && file->state.token_array.tokens &&
-        file->state.tokens_complete && !file->state.still_lexing){
-        result = true;
+    
+    int32_t count = 0;
+    
+    if (file && file->state.token_array.tokens && file->state.tokens_complete){
+        count = file->state.token_array.count;
+    }
+    
+    return(count);
+}
+
+API_EXPORT bool32
+Buffer_Read_Tokens(Application_Links *app, Buffer_Summary *buffer, int32_t first_token, int32_t last_token, Cpp_Token *tokens_out){
+    Command_Data *cmd = (Command_Data*)app->cmd_context;
+    Editing_File *file = imp_get_file(cmd, buffer);
+    
+    bool32 result = 0;
+    
+    if (file && file->state.token_array.tokens && file->state.tokens_complete){
+        result = 1;
         
-        opts.empty_blank_lines = (flags & AutoIndent_ClearLine);
-        opts.use_tabs = (flags & AutoIndent_UseTab);
-        opts.tab_width = tab_width;
-        
-        file_auto_tab_tokens(system, models, file, start, start, end, opts);
-        
-        fill_buffer_summary(buffer, file, cmd);
+        memcpy(tokens_out, file->state.token_array.tokens + first_token,
+               sizeof(Cpp_Token)*(last_token - first_token));
     }
     
     return(result);
