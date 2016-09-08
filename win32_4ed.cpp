@@ -1833,7 +1833,9 @@ Win32Callback(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam){
             win32vars.input_chunk.pers.mouse_l = 0;
             win32vars.input_chunk.pers.mouse_r = 0;
             
-            win32vars.input_chunk.pers.control_keys[MDFR_SHIFT_INDEX] = 0;
+            for (int32_t i = 0; i < MDFR_INDEX_COUNT; ++i){
+                win32vars.input_chunk.pers.control_keys[i] = 0;
+            }
             win32vars.input_chunk.pers.controls = null_control_keys;
         }break;
         

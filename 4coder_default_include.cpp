@@ -1375,12 +1375,376 @@ CUSTOM_COMMAND_SIG(seek_beginning_of_line){
     app->view_set_cursor(app, &view, seek_pos(new_pos), true);
 }
 
+// TODO(allen): REDUCE DUPLICATION!
+static int32_t
+buffer_seek_whitespace_right(Application_Links *app, Buffer_Summary *buffer, int32_t pos){
+    char data_chunk[1024];
+    Stream_Chunk stream = {0};
+    
+    if (init_stream_chunk(&stream, app, buffer,
+                          pos, data_chunk, sizeof(data_chunk))){
+        
+        bool32 still_looping = 1;
+        do{
+            for (; pos < stream.end; ++pos){
+                if (!char_is_whitespace(stream.data[pos])){
+                    goto double_break1;
+                }
+            }
+            still_looping = forward_stream_chunk(&stream);
+        }while(still_looping);
+        double_break1:;
+        
+        still_looping = 1;
+        do{
+            for (; pos < stream.end; ++pos){
+                if (char_is_whitespace(stream.data[pos])){
+                    goto double_break2;
+                }
+            }
+            still_looping = forward_stream_chunk(&stream);
+        }while(still_looping);
+        double_break2:;
+    }
+    
+    return(pos);
+}
+
+static int32_t
+buffer_seek_whitespace_left(Application_Links *app, Buffer_Summary *buffer, int32_t pos){
+    char data_chunk[1024];
+    Stream_Chunk stream = {0};
+    
+    --pos;
+    if (pos > 0){
+        if (init_stream_chunk(&stream, app, buffer,
+                              pos, data_chunk, sizeof(data_chunk))){
+            
+            bool32 still_looping = 1;
+            do{
+                for (; pos >= stream.start; --pos){
+                    if (!char_is_whitespace(stream.data[pos])){
+                        goto double_break1;
+                    }
+                }
+                still_looping = backward_stream_chunk(&stream);
+            }while(still_looping);
+            double_break1:;
+            
+            still_looping = 1;
+            do{
+                for (; pos >= stream.start; --pos){
+                    if (char_is_whitespace(stream.data[pos])){
+                        ++pos;
+                        goto double_break2;
+                    }
+                }
+                still_looping = backward_stream_chunk(&stream);
+            }while(still_looping);
+            double_break2:;
+        }
+    }
+    else{
+        pos = 0;
+    }
+    
+    return(pos);
+}
+
+static int32_t
+buffer_seek_alphanumeric_right(Application_Links *app, Buffer_Summary *buffer, int32_t pos){
+    char data_chunk[1024];
+    Stream_Chunk stream = {0};
+    
+    if (init_stream_chunk(&stream, app, buffer,
+                          pos, data_chunk, sizeof(data_chunk))){
+        
+        bool32 still_looping = 1;
+        do{
+            for (; pos < stream.end; ++pos){
+                if (char_is_alpha_numeric_true(stream.data[pos])){
+                    goto double_break1;
+                }
+            }
+            still_looping = forward_stream_chunk(&stream);
+        }while(still_looping);
+        double_break1:;
+        
+        still_looping = 1;
+        do{
+            for (; pos < stream.end; ++pos){
+                if (!char_is_alpha_numeric_true(stream.data[pos])){
+                    goto double_break2;
+                }
+            }
+            still_looping = forward_stream_chunk(&stream);
+        }while(still_looping);
+        double_break2:;
+    }
+    
+    return(pos);
+}
+
+static int32_t
+buffer_seek_alphanumeric_left(Application_Links *app, Buffer_Summary *buffer, int32_t pos){
+    char data_chunk[1024];
+    Stream_Chunk stream = {0};
+    
+    --pos;
+    if (pos > 0){
+        if (init_stream_chunk(&stream, app, buffer,
+                              pos, data_chunk, sizeof(data_chunk))){
+            
+            bool32 still_looping = 1;
+            do{
+                for (; pos >= stream.start; --pos){
+                    if (char_is_alpha_numeric_true(stream.data[pos])){
+                        goto double_break1;
+                    }
+                }
+                still_looping = backward_stream_chunk(&stream);
+            }while(still_looping);
+            double_break1:;
+            
+            still_looping = 1;
+            do{
+                for (; pos >= stream.start; --pos){
+                    if (!char_is_alpha_numeric_true(stream.data[pos])){
+                        ++pos;
+                        goto double_break2;
+                    }
+                }
+                still_looping = backward_stream_chunk(&stream);
+            }while(still_looping);
+            double_break2:;
+        }
+    }
+    else{
+        pos = 0;
+    }
+    
+    return(pos);
+}
+
+static int32_t
+buffer_seek_range_camel_right(Application_Links *app, Buffer_Summary *buffer, int32_t pos, int32_t an_pos){
+    char data_chunk[1024];
+    Stream_Chunk stream = {0};
+    
+    ++pos;
+    if (pos < an_pos){
+        stream.max_end = an_pos;
+        if (init_stream_chunk(&stream, app, buffer,
+                              pos, data_chunk, sizeof(data_chunk))){
+            
+            char c = 0, pc = stream.data[pos];
+            ++pos;
+            
+            bool32 still_looping = 1;
+            do{
+                for (; pos < stream.end; ++pos){
+                    c = stream.data[pos];
+                    if (char_is_upper(c) && char_is_lower(pc)){
+                        goto double_break1;
+                    }
+                    pc = c;
+                }
+                still_looping = forward_stream_chunk(&stream);
+            }while(still_looping);
+            double_break1:;
+        }
+    }
+    else{
+        pos = an_pos;
+    }
+    
+    return(pos);
+}
+
+static int32_t
+buffer_seek_range_camel_left(Application_Links *app, Buffer_Summary *buffer, int32_t pos, int32_t an_pos){
+    char data_chunk[1024];
+    Stream_Chunk stream = {0};
+    
+    --pos;
+    if (pos > 0){
+        stream.min_start = an_pos+1;
+        if (init_stream_chunk(&stream, app, buffer,
+                              pos, data_chunk, sizeof(data_chunk))){
+            
+            char c = 0, pc = stream.data[pos];
+            
+            bool32 still_looping = 1;
+            do{
+                for (; pos >= stream.start; --pos){
+                    c = stream.data[pos];
+                    if (char_is_upper(c) && char_is_lower(pc)){
+                        goto double_break1;
+                    }
+                    pc = c;
+                }
+                still_looping = backward_stream_chunk(&stream);
+            }while(still_looping);
+            double_break1:;
+        }
+    }
+    else{
+        pos = 0;
+    }
+    
+    return(pos);
+}
+
+static int32_t
+buffer_seek_alphanumeric_or_camel_right(Application_Links *app, Buffer_Summary *buffer, int32_t pos){
+    int32_t an_pos = buffer_seek_alphanumeric_right(app, buffer, pos);
+    int32_t result = buffer_seek_range_camel_right(app, buffer, pos, an_pos);
+    return(result);
+}
+
+static int32_t
+buffer_seek_alphanumeric_or_camel_left(Application_Links *app, Buffer_Summary *buffer, int32_t pos){
+    int32_t an_pos = buffer_seek_alphanumeric_left(app, buffer, pos);
+    int32_t result = buffer_seek_range_camel_left(app, buffer, pos, an_pos);
+    return(result);
+}
+
+static int32_t
+seek_token_left(Cpp_Token_Array *tokens, int32_t pos){
+    Cpp_Get_Token_Result get = cpp_get_token(tokens, pos);
+    if (get.token_index == -1){
+        get.token_index = 0;
+    }
+    
+    Cpp_Token *token = tokens->tokens + get.token_index;
+    if (token->start == pos && get.token_index > 0){
+        --token;
+    }
+    
+    return token->start;
+}
+
+static int32_t
+seek_token_right(Cpp_Token_Array *tokens, int32_t pos){
+    Cpp_Get_Token_Result get = cpp_get_token(tokens, pos);
+    if (get.in_whitespace){
+        ++get.token_index;
+    }
+    if (get.token_index >= tokens->count){
+        get.token_index = tokens->count-1;
+    }
+    
+    Cpp_Token *token = tokens->tokens + get.token_index;
+    return token->start + token->size;
+}
+
+static int32_t
+buffer_boundary_seek(Application_Links *app, Buffer_Summary *buffer, int32_t start_pos,
+                     bool32 seek_forward, Seek_Boundary_Flag flags)/*
+DOC_PARAM(buffer, The buffer parameter specifies the buffer through which to seek.)
+DOC_PARAM(start_pos, The beginning position of the seek is specified by start_pos measured in absolute position.)
+DOC_PARAM(seek_forward, If this parameter is non-zero it indicates that the seek should move foward through the buffer.)
+DOC_PARAM(flags, This field specifies the types of boundaries at which the seek should stop.)
+DOC_RETURN(This call returns the absolute position where the seek stopped.
+If the seek goes below 0 the returned value is -1.
+If the seek goes past the end the returned value is the size of the buffer.)
+DOC_SEE(Seek_Boundary_Flag)
+DOC_SEE(4coder_Buffer_Positioning_System)
+*/{
+    int32_t result = 0;
+    if (buffer->exists){
+        // TODO(allen): reduce duplication?
+        int32_t size = buffer->size;
+        int32_t pos[4] = {0};
+        int32_t new_pos = 0;
+        
+        if (start_pos < 0){
+            start_pos = 0;
+        }
+        else if (start_pos > size){
+            start_pos = size;
+        }
+        
+        if (seek_forward){
+            for (int32_t i = 0; i < ArrayCount(pos); ++i) pos[i] = size;
+            
+            if (flags & (1)){
+                pos[0] = buffer_seek_whitespace_right(app, buffer, start_pos);
+            }
+            
+            if (flags & (1 << 1)){
+                if (buffer->tokens_are_ready){
+                    Cpp_Token_Array array;
+                    // TODO(allen): Fill this array.
+                    pos[1] = seek_token_right(&array, start_pos);
+                }
+                else{
+                    pos[1] = buffer_seek_whitespace_right(app, buffer, start_pos);
+                }
+            }
+            
+            if (flags & (1 << 2)){
+                pos[2] = buffer_seek_alphanumeric_right(app, buffer, start_pos);
+                if (flags & (1 << 3)){
+                    pos[3] = buffer_seek_range_camel_right(app, buffer, start_pos, pos[2]);
+                }
+            }
+            else{
+                if (flags & (1 << 3)){
+                    pos[3] = buffer_seek_alphanumeric_or_camel_right(app, buffer, start_pos);
+                }
+            }
+            
+            new_pos = size;
+            for (int32_t i = 0; i < ArrayCount(pos); ++i){
+                if (pos[i] < new_pos) new_pos = pos[i];
+            }
+        }
+        else{
+            if (flags & (1)){
+                pos[0] = buffer_seek_whitespace_left(app, buffer, start_pos);
+            }
+            
+            if (flags & (1 << 1)){
+                if (buffer->tokens_are_ready){
+                    Cpp_Token_Array array;
+                    // TODO(allen): Fill this array.
+                    pos[1] = seek_token_left(&array, start_pos);
+                }
+                else{
+                    pos[1] = buffer_seek_whitespace_left(app, buffer, start_pos);
+                }
+            }
+            
+            if (flags & (1 << 2)){
+                pos[2] = buffer_seek_alphanumeric_left(app, buffer, start_pos);
+                if (flags & (1 << 3)){
+                    pos[3] = buffer_seek_range_camel_left(app, buffer, start_pos, pos[2]);
+                }
+            }
+            else{
+                if (flags & (1 << 3)){
+                    pos[3] = buffer_seek_alphanumeric_or_camel_left(app, buffer, start_pos);
+                }
+            }
+            
+            new_pos = 0;
+            for (int32_t i = 0; i < ArrayCount(pos); ++i){
+                if (pos[i] > new_pos) new_pos = pos[i];
+            }
+        }
+        result = new_pos;
+    }
+    
+    return(result);
+}
+
 static void
 basic_seek(Application_Links *app, int32_t seek_type, uint32_t flags){
     uint32_t access = AccessProtected;
     View_Summary view = app->get_active_view(app, access);
     Buffer_Summary buffer = app->get_buffer(app, view.buffer_id, access);
-    int32_t pos = app->buffer_boundary_seek(app, &buffer, view.cursor.pos, seek_type, flags);
+    int32_t pos = buffer_boundary_seek(app, &buffer, view.cursor.pos, seek_type, flags);
     app->view_set_cursor(app, &view, seek_pos(pos), true);
 }
 
@@ -1567,8 +1931,8 @@ CUSTOM_COMMAND_SIG(snipe_token_or_word){
     view = app->get_active_view(app, access);
     buffer = app->get_buffer(app, view.buffer_id, access);
     
-    pos1 = app->buffer_boundary_seek(app, &buffer, view.cursor.pos, false, BoundaryToken | BoundaryWhitespace);
-    pos2 = app->buffer_boundary_seek(app, &buffer, pos1,            true,  BoundaryToken | BoundaryWhitespace);
+    pos1 = buffer_boundary_seek(app, &buffer, view.cursor.pos, false, BoundaryToken | BoundaryWhitespace);
+    pos2 = buffer_boundary_seek(app, &buffer, pos1,            true,  BoundaryToken | BoundaryWhitespace);
     
     Range range = make_range(pos1, pos2);
     app->buffer_replace_range(app, &buffer, range.start, range.end, 0, 0);

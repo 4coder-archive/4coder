@@ -48,6 +48,8 @@ typedef struct Offset_String{
 #define FCODER_STRING_H
 
 FSTRING_INLINE  fstr_bool  char_is_slash(char c);
+FSTRING_INLINE  fstr_bool  char_is_upper(char c);
+FSTRING_INLINE  fstr_bool  char_is_lower(char c);
 FSTRING_INLINE  char       char_to_upper(char c);
 FSTRING_INLINE  char       char_to_lower(char c);
 FSTRING_INLINE  fstr_bool  char_is_whitespace(char c);
@@ -258,6 +260,22 @@ FSTRING_INLINE fstr_bool
 char_is_slash(char c)
 {
     return (c == '\\' || c == '/');
+}
+#endif
+
+#if !defined(FSTRING_GUARD)
+FSTRING_INLINE fstr_bool
+char_is_upper(char c)
+{
+    return (c >= 'A' && c <= 'Z');
+}
+#endif
+
+#if !defined(FSTRING_GUARD)
+FSTRING_INLINE fstr_bool
+char_is_lower(char c)
+{
+    return (c >= 'a' && c <= 'z');
 }
 #endif
 

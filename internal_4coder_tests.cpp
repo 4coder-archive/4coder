@@ -16,6 +16,8 @@ Allen Webster
 
 #include "4coder_default_include.cpp"
 
+#include <stdio.h>
+
 #include <intrin.h>
 #pragma intrinsic(__rdtsc)
 
@@ -80,11 +82,97 @@ CUSTOM_COMMAND_SIG(run_all_tests){
     exec_command(app, reopen_test);
 }
 
+#if 0
+CUSTOM_COMMAND_SIG(generate_stop_spots_test_data){
+    Buffer_Summary buffer = app->create_buffer(app, literal(LOTS_OF_FILES "/4ed.cpp"), 0);
+    View_Summary view = app->get_active_view(app, AccessAll);
+    app->view_set_buffer(app, &view, buffer.buffer_id, 0);
+    
+    FILE *file = fopen(TEST_FILES "/stop_spots_data", "wb");
+    
+    if (file){
+        Partial_Cursor curs;
+        int32_t pos;
+        
+        app->buffer_compute_cursor(app, &buffer, seek_line_char(316, 29), &curs);
+        fwrite(&curs.pos, 4, 1, file);
+        
+        static Seek_Boundary_Flag flag_set[] = {
+            BoundaryWhitespace,
+            BoundaryToken,
+            BoundaryAlphanumeric,
+            BoundaryCamelCase,
+            BoundaryWhitespace | BoundaryToken,
+            BoundaryWhitespace | BoundaryAlphanumeric,
+            BoundaryToken | BoundaryCamelCase,
+        };
+        
+        for (int32_t flag_i = 0; flag_i < ArrayCount(flag_set); ++flag_i){
+            for (int32_t seek_forward = 0; seek_forward <= 1; ++seek_forward){
+                pos = curs.pos;
+                for (int32_t i = 0; i < 100; ++i){
+                    pos = app->buffer_boundary_seek(app, &buffer, pos, seek_forward, flag_set[flag_i]);
+                    fwrite(&pos, 4, 1, file);
+                }
+            }
+        }
+        
+        fclose(file);
+    }
+}
+#endif
+
+static void
+fcheck(int32_t x, FILE *file){
+    int32_t x0 = 0;
+    fread(&x0, 4, 1, file);
+    Assert(x == x0);
+}
+
+CUSTOM_COMMAND_SIG(stop_spots_test){
+    Buffer_Summary buffer = app->create_buffer(app, literal(LOTS_OF_FILES "/4ed.cpp"), 0);
+    View_Summary view = app->get_active_view(app, AccessAll);
+    app->view_set_buffer(app, &view, buffer.buffer_id, 0);
+    
+    FILE *file = fopen(TEST_FILES "/stop_spots_data", "rb");
+    
+    if (file){
+        Partial_Cursor curs;
+        int32_t pos;
+        
+        app->buffer_compute_cursor(app, &buffer, seek_line_char(316, 29), &curs);
+        fcheck(curs.pos, file);
+        
+        static Seek_Boundary_Flag flag_set[] = {
+            BoundaryWhitespace,
+            BoundaryToken,
+            BoundaryAlphanumeric,
+            BoundaryCamelCase,
+            BoundaryWhitespace | BoundaryToken,
+            BoundaryWhitespace | BoundaryAlphanumeric,
+            BoundaryToken | BoundaryCamelCase,
+        };
+        
+        for (int32_t flag_i = 0; flag_i < ArrayCount(flag_set); ++flag_i){
+            for (int32_t seek_forward = 0; seek_forward <= 1; ++seek_forward){
+                pos = curs.pos;
+                for (int32_t i = 0; i < 100; ++i){
+                    pos = buffer_boundary_seek(app, &buffer, pos, seek_forward, flag_set[flag_i]);
+                    fcheck(pos, file);
+                }
+            }
+        }
+        
+        fclose(file);
+    }
+}
+
 static void
 test_get_bindings(Bind_Helper *context){
     begin_map(context, mapid_global);
     
-    bind(context, key_f3, MDFR_NONE, run_all_tests);
+    //bind(context, key_f3, MDFR_NONE, run_all_tests);
+    bind(context, key_f3, MDFR_NONE, stop_spots_test);
     
     end_map(context);
 }

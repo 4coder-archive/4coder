@@ -67,6 +67,18 @@ char_is_slash(char c)
     return (c == '\\' || c == '/');
 }
 
+FSTRING_INLINE fstr_bool
+char_is_upper(char c)
+/* DOC(If c is an uppercase letter this call returns true.) */{
+    return (c >= 'A' && c <= 'Z');
+}
+
+FSTRING_INLINE fstr_bool
+char_is_lower(char c)
+/* DOC(If c is a lower letter this call returns true.) */{
+    return (c >= 'a' && c <= 'z');
+}
+
 FSTRING_INLINE char
 char_to_upper(char c)
 /* DOC(If c is a lowercase letter this call returns the uppercase equivalent, otherwise it returns c.) */{
