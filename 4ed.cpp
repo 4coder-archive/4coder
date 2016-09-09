@@ -2616,7 +2616,7 @@ App_Step_Sig(app_step){
                 Panel_Divider *divider = vars->resizing.divider;
                 i32 mouse_position = 0;
                 
-                b32 do_absolute_positions = 0;
+                b32 do_absolute_positions = 1;
                 if (do_absolute_positions){
                     i32 absolute_positions[MAX_VIEWS];
                     i32 min = 0, max = 0;

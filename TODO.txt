@@ -86,6 +86,7 @@
 
 ; BEFORE I SHIP
 ;
+; [X] make panel resizing not whacky with child panels
 ; [X] case insensitive interactive switch buffer
 ; [X] tokens in the custom API
 ;     [X] token seeking on custom side
@@ -95,7 +96,6 @@
 ;         [] clean up and comment the auto indent code to allow for customizations
 ;         [] more built in options for auto indenting
 ; [] expose dirty flags
-; [] make panel resizing not whacky with child panels
 ; [] mouse down/up distinction
 ; [] occasionally missing the (!) mark on files on windows
 ; [] scroll down on compilation buffer durring compilation

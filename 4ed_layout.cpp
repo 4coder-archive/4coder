@@ -381,8 +381,7 @@ layout_compute_abs_step(Editing_Layout *layout, i32 divider_id, i32_Rect rect, i
     }
     
     i32 pos = lerp(p0, div->pos, p1);
-    i32_Rect r1, r2;
-    r1 = rect; r2 = rect;
+    i32_Rect r1 = rect, r2 = rect;
     
     abs_pos[divider_id] = pos;
     
@@ -441,7 +440,32 @@ layout_get_min_max_step_up(Editing_Layout *layout, b32 v, i32 divider_id, i32 wh
 internal void
 layout_get_min_max_step_down(Editing_Layout *layout, b32 v, i32 divider_id, i32 which_child,
                              i32 *abs_pos, i32 *min_out, i32 *max_out){
+    Panel_Divider *divider = layout->dividers + divider_id;
     
+    // NOTE(allen): The min/max is switched here, because children on the -1 side
+    // effect min, while if you are on the -1 side your parent effects max.
+    if (divider->v_divider == v){
+        if (which_child == -1){
+            if (*min_out < abs_pos[divider_id]){
+                *min_out = abs_pos[divider_id];
+            }
+        }
+        else{
+            if (*max_out > abs_pos[divider_id]){
+                *max_out = abs_pos[divider_id];
+            }
+        }
+    }
+    
+    if (divider->child1 != -1){
+        layout_get_min_max_step_down(layout, v, divider->child1, which_child,
+                                     abs_pos, min_out, max_out);
+    }
+    
+    if (divider->child2 != -1){
+        layout_get_min_max_step_down(layout, v, divider->child2, which_child,
+                                     abs_pos, min_out, max_out);
+    }
 }
 
 internal void
@@ -461,7 +485,7 @@ layout_get_min_max(Editing_Layout *layout, Panel_Divider *divider, i32 *abs_pos,
         }
         
         if (divider->child2 != -1){
-            layout_get_min_max_step_down(layout, divider->v_divider, divider->child1, 1,
+            layout_get_min_max_step_down(layout, divider->v_divider, divider->child2, 1,
                                          abs_pos, min_out, max_out);
         }
     }
@@ -476,8 +500,51 @@ layout_get_min_max(Editing_Layout *layout, Panel_Divider *divider, i32 *abs_pos,
 }
 
 internal void
-layout_update_all_positions(Editing_Layout *layout, i32 *abs_pos){
+layout_update_pos_step(Editing_Layout *layout, i32 divider_id, i32_Rect rect, i32 *abs_pos){
+    Panel_Divider *div = layout->dividers + divider_id;
+    i32 p0 = 0, p1 = 0;
     
+    if (div->v_divider){
+        p0 = rect.x0; p1 = rect.x1;
+    }
+    else{
+        p0 = rect.y0; p1 = rect.y1;
+    }
+    
+    i32 pos = abs_pos[divider_id];
+    i32_Rect r1 = rect, r2 = rect;
+    f32 lpos = unlerp((f32)p0, (f32)pos, (f32)p1);
+    
+    div->pos = lpos;
+    
+    if (div->v_divider){
+        Assert(r1.x0 <= pos && pos <= r2.x1);
+        r1.x1 = pos; r2.x0 = pos;
+    }
+    else{
+        Assert(r1.y0 <= pos && pos <= r2.y1);
+        r1.y1 = pos; r2.y0 = pos;
+    }
+    
+    if (div->child1 != -1){
+        layout_update_pos_step(layout, div->child1, r1, abs_pos);
+    }
+    
+    if (div->child2 != -1){
+        layout_update_pos_step(layout, div->child2, r2, abs_pos);
+    }
+}
+
+internal void
+layout_update_all_positions(Editing_Layout *layout, i32 *abs_pos){
+    i32_Rect r;
+    r.x0 = 0;
+    r.y0 = 0;
+    r.x1 = layout->full_width;
+    r.y1 = layout->full_height;
+    if (layout->panel_count > 1){
+        layout_update_pos_step(layout, layout->root, r, abs_pos);
+    }
 }
 
 // BOTTOM
