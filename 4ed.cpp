@@ -1989,13 +1989,20 @@ App_Step_Sig(app_step){
             models->hooks[hook_start](&models->app_links);
         }
         
+        char space[512];
+        String cl_filename = make_fixed_width_string(space);
+        copy_ss(&cl_filename, models->hot_directory.string);
+        
+        i32 cl_filename_len = cl_filename.size;
+        
         i32 i = 0;
         Panel *panel = models->layout.used_sentinel.next;
         for (; i < models->settings.init_files_count; ++i, panel = panel->next){
-            String filename = make_string_slowly(models->settings.init_files[i]);
+            cl_filename.size = cl_filename_len;
+            append_sc(&cl_filename, models->settings.init_files[i]);
             
             if (i < models->layout.panel_count){
-                view_open_file(system, models, panel->view, filename);
+                view_open_file(system, models, panel->view, cl_filename);
                 view_show_file(panel->view);
                 Assert("Earlier" && panel->view->file_data.file != 0);
 #if 0
@@ -2009,14 +2016,14 @@ App_Step_Sig(app_step){
 #endif
             }
             else{
-                view_open_file(system, models, 0, filename);
+                view_open_file(system, models, 0, cl_filename);
             }
+            
         }
         
         if (i < models->layout.panel_count){
             view_set_file(panel->view, models->message_buffer, models);
             view_show_file(panel->view);
-            
             ++i;
             panel = panel->next;
         }

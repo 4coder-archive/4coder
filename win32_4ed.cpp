@@ -904,7 +904,7 @@ win32_init_drive_strings(Drive_Strings *dstrings){
 // for the ability to handle them very quickly when nothing strange is
 // going on.
 internal int32_t
-win32_canonical_ansi_name(Drive_Strings *dstrings, char *src, i32 len, char *dst, i32 max){
+win32_canonical_ascii_name(Drive_Strings *dstrings, char *src, i32 len, char *dst, i32 max){
     char *wrt = dst;
     char *wrt_stop = dst + max;
     char *src_stop = src + len;
@@ -978,7 +978,7 @@ win32_canonical_ansi_name(Drive_Strings *dstrings, char *src, i32 len, char *dst
 
 internal
 Sys_Get_Canonical_Sig(system_get_canonical){
-    i32 result = win32_canonical_ansi_name(&win32vars.dstrings, filename, len, buffer, max);
+    i32 result = win32_canonical_ascii_name(&win32vars.dstrings, filename, len, buffer, max);
     return(result);
 }
 

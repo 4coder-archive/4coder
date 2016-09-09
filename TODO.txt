@@ -41,7 +41,7 @@
 ; [X] switch to file "4ed.cpp" with "win32_4ed.cpp" open
 ; [X] inserting new line at top of file ~ scrolling jump when window is unaligned
 ; [X] saving/killing *compilation* doesn't work
-;       [X] line wrapping also doesn't work
+;     [X] line wrapping also doesn't work
 ; [X] save as corruptitates the filename
 ; [X] crash when leaving maximized mode and view get's weird
 ; [X] decrease scroll speed on short windows
@@ -87,7 +87,6 @@
 
 ; BEFORE I SHIP
 ;
-; [X] why are command line files not loading any more?
 ; [X] tokens in the custom API
 ;     [X] token seeking on custom side
 ;     [X] auto indent on the custom side
@@ -95,10 +94,7 @@
 ;         [] inserting lines at end of block comment
 ;         [] clean up and comment the auto indent code to allow for customizations
 ;         [] more built in options for auto indenting
-; [] expose dirty flags
 ; [] occasionally missing the (!) mark on files on windows
-; [] scroll down on compilation buffer durring compilation
-;
 ;
 
 ; TODOS
@@ -143,6 +139,8 @@
 ;    [X] file out of sync
 ; [X] mouse down/up distinction
 ; [X] case insensitive interactive switch buffer
+; [X] expose dirty flags
+; [X] why are command line files not loading any more?
 
 ;
 ; [] binary buffers

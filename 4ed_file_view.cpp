@@ -782,7 +782,7 @@ starts_new_line(u8 character){
 
 inline void
 file_synchronize_times(System_Functions *system, Editing_File *file){
-    file->state.sync = SYNC_GOOD;
+    file->state.dirty = DirtyState_UpToDate;
 }
 
 internal b32
@@ -3217,9 +3217,9 @@ get_exhaustive_info(System_Functions *system, Working_Set *working_set, Exhausti
     result.message = null_string;
     if (result.is_loaded){
         switch (file_get_sync(file)){
-            case SYNC_GOOD: result.message = message_loaded; break;
-            case SYNC_BEHIND_OS: result.message = message_unsynced; break;
-            case SYNC_UNSAVED: result.message = message_unsaved; break;
+            case DirtyState_UpToDate: result.message = message_loaded; break;
+            case DirtyState_UnsavedChanges: result.message = message_unsaved; break;
+            case DirtyState_UnloadedChanges: result.message = message_unsynced; break;
         }
     }
     
@@ -4037,8 +4037,8 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                                                 message = null_string;
                                                 if (!file->settings.unimportant){
                                                     switch (file_get_sync(file)){
-                                                        case SYNC_BEHIND_OS: message = message_unsynced; break;
-                                                        case SYNC_UNSAVED: message = message_unsaved; break;
+                                                        case DirtyState_UnloadedChanges: message = message_unsynced; break;
+                                                        case DirtyState_UnsavedChanges: message = message_unsaved; break;
                                                     }
                                                 }
                                                 
@@ -4058,8 +4058,8 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                                     message = null_string;
                                     if (!file->settings.unimportant){
                                         switch (file_get_sync(file)){
-                                            case SYNC_BEHIND_OS: message = message_unsynced; break;
-                                            case SYNC_UNSAVED: message = message_unsaved; break;
+                                            case DirtyState_UnloadedChanges: message = message_unsynced; break;
+                                            case DirtyState_UnsavedChanges: message = message_unsaved; break;
                                         }
                                     }
                                     
@@ -5132,13 +5132,13 @@ draw_file_bar(Render_Target *target, View *view, Editing_File *file, i32_Rect re
             
             if (!file->settings.unimportant){
                 switch (file_get_sync(file)){
-                    case SYNC_BEHIND_OS:
+                    case DirtyState_UnloadedChanges:
                     {
                         persist String out_of_sync = make_lit_string(" !");
                         intbar_draw_string(target, &bar, out_of_sync, pop2_color);
                     }break;
                     
-                    case SYNC_UNSAVED:
+                    case DirtyState_UnsavedChanges:
                     {
                         persist String out_of_sync = make_lit_string(" *");
                         intbar_draw_string(target, &bar, out_of_sync, pop2_color);

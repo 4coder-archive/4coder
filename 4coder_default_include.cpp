@@ -364,11 +364,10 @@ buffer_seek_string_forward(Application_Links *app, Buffer_Summary *buffer,
             read_str.size = size;
             
             char chunk[1024];
-            int32_t chunk_size = sizeof(chunk);
             Stream_Chunk stream = {0};
             stream.max_end = end;
             
-            if (init_stream_chunk(&stream, app, buffer, pos, chunk, chunk_size)){
+            if (init_stream_chunk(&stream, app, buffer, pos, chunk, sizeof(chunk))){
                 int32_t still_looping = 1;
                 do{
                     for(; pos < stream.end; ++pos){
@@ -419,11 +418,10 @@ buffer_seek_string_backward(Application_Links *app, Buffer_Summary *buffer,
             read_str.size = size;
             
             char chunk[1024];
-            int32_t chunk_size = sizeof(chunk);
             Stream_Chunk stream = {0};
             stream.min_start = min;
             
-            if (init_stream_chunk(&stream, app, buffer, pos, chunk, chunk_size)){
+            if (init_stream_chunk(&stream, app, buffer, pos, chunk, sizeof(chunk))){
                 int32_t still_looping = 1;
                 do{
                     for(; pos >= stream.start; --pos){

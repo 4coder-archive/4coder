@@ -100,12 +100,6 @@ struct Undo_Data{
     b32 current_block_normal;
 };
 
-enum File_Sync_State{
-    SYNC_GOOD,
-    SYNC_BEHIND_OS,
-    SYNC_UNSAVED
-};
-
 struct Text_Effect{
     i32 start, end;
     u32 color;
@@ -143,7 +137,7 @@ struct Editing_File_State{
     
     Text_Effect paste_effect;
     
-    File_Sync_State sync;
+    Dirty_State dirty;
     u32 ignore_behind_os;
     
     File_Edit_Positions edit_pos_space[16];
@@ -671,6 +665,7 @@ touch_file(Working_Set *working_set, Editing_File *file){
 struct Hot_Directory{
 	String string;
 	File_List file_list;
+    // TODO(allen): eliminate slash
     char slash;
 };
 
@@ -765,7 +760,7 @@ inline b32
 buffer_needs_save(Editing_File *file){
     b32 result = 0;
     if (!file->settings.unimportant){
-        if (file->state.sync == SYNC_UNSAVED){
+        if (file->state.dirty == DirtyState_UnsavedChanges){
             result = 1;
         }
     }
@@ -776,8 +771,8 @@ inline b32
 buffer_can_save(Editing_File *file){
     b32 result = 0;
     if (!file->settings.unimportant){
-        if (file->state.sync == SYNC_UNSAVED ||
-            file->state.sync == SYNC_BEHIND_OS){
+        if (file->state.dirty == DirtyState_UnsavedChanges ||
+            file->state.dirty == DirtyState_UnloadedChanges){
             result = 1;
         }
     }
@@ -814,26 +809,26 @@ file_set_to_loading(Editing_File *file){
 
 inline void
 file_mark_clean(Editing_File *file){
-    if (file->state.sync != SYNC_BEHIND_OS){
-        file->state.sync = SYNC_GOOD;
+    if (file->state.dirty != DirtyState_UnloadedChanges){
+        file->state.dirty = DirtyState_UpToDate;
     }
 }
 
 inline void
 file_mark_dirty(Editing_File *file){
-    if (file->state.sync != SYNC_BEHIND_OS){
-        file->state.sync = SYNC_UNSAVED;
+    if (file->state.dirty != DirtyState_UnloadedChanges){
+        file->state.dirty = DirtyState_UnsavedChanges;
     }
 }
 
 inline void
 file_mark_behind_os(Editing_File *file){
-    file->state.sync = SYNC_BEHIND_OS;
+    file->state.dirty = DirtyState_UnloadedChanges;
 }
 
-inline File_Sync_State
+inline Dirty_State
 file_get_sync(Editing_File *file){
-    return (file->state.sync);
+    return (file->state.dirty);
 }
 
 internal void
