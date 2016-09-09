@@ -1991,13 +1991,13 @@ App_Step_Sig(app_step){
         
         i32 i = 0;
         Panel *panel = models->layout.used_sentinel.next;
-        for (; i < models->settings.init_files_count;
-             ++i, panel = panel->next){
+        for (; i < models->settings.init_files_count; ++i, panel = panel->next){
             String filename = make_string_slowly(models->settings.init_files[i]);
             
             if (i < models->layout.panel_count){
                 view_open_file(system, models, panel->view, filename);
                 view_show_file(panel->view);
+                Assert("Earlier" && panel->view->file_data.file != 0);
 #if 0
                 if (i == 0){
                     if (panel->view->file_data.file){
@@ -2024,6 +2024,11 @@ App_Step_Sig(app_step){
         for (;i < models->layout.panel_count; ++i, panel = panel->next){
             view_set_file(panel->view, models->scratch_buffer, models);
             view_show_file(panel->view);
+        }
+        
+        panel = models->layout.used_sentinel.next;
+        for (i = 0; i < models->settings.init_files_count; ++i, panel = panel->next){
+            Assert(panel->view->file_data.file != 0);
         }
     }
     
@@ -2111,7 +2116,6 @@ App_Step_Sig(app_step){
 #endif
     
     // NOTE(allen): Keyboard input to command coroutine.
-    
     if (models->command_coroutine != 0){
         Coroutine *command_coroutine = models->command_coroutine;
         u32 get_flags = models->command_coroutine_flags[0];

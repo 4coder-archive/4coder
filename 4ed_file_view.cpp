@@ -5320,19 +5320,17 @@ do_render_file_view(System_Functions *system, View *view, GUI_Scroll_Vars *scrol
     i32 result = 0;
     
     GUI_Session gui_session = {0};
-    GUI_Header *h;
+    GUI_Header *h = 0;
     GUI_Target *gui_target = &view->gui_target;
     GUI_Interpret_Result interpret_result = {0};
     
     f32 v = {0};
-    
     i32 max_y = view_compute_max_target_y(view);
-    
     i16 font_id = 0;
-    if (file){
-        font_id = file->settings.font_id;
-    }
     
+    Assert(file != 0);
+    
+    font_id = file->settings.font_id;
     if (gui_target->push.pos > 0){
         gui_session_init(&gui_session, gui_target, rect, view->line_height);
         
@@ -5361,7 +5359,7 @@ do_render_file_view(System_Functions *system, View *view, GUI_Scroll_Vars *scrol
                     
                     case guicom_file:
                     {
-                        if (file && file_is_ready(file)){
+                        if (file_is_ready(file)){
                             result = draw_file_loaded(view, gui_session.rect, is_active, target);
                         }
                     }break;

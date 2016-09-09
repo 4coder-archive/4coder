@@ -87,6 +87,7 @@
 
 ; BEFORE I SHIP
 ;
+; [X] why are command line files not loading any more?
 ; [X] tokens in the custom API
 ;     [X] token seeking on custom side
 ;     [X] auto indent on the custom side
@@ -97,7 +98,6 @@
 ; [] expose dirty flags
 ; [] occasionally missing the (!) mark on files on windows
 ; [] scroll down on compilation buffer durring compilation
-; [] why are command line files not loading any more?
 ;
 ;
 

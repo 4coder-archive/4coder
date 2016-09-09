@@ -396,7 +396,7 @@ make_string_slowly(void *str)
     String result;
     result.str = (char*)str;
     result.size = str_size((char*)str);
-    result.memory_size = result.size;
+    result.memory_size = result.size+1;
     return(result);
 }
 #endif
