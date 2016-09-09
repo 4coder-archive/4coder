@@ -123,15 +123,6 @@ ENUM(int32_t, Event_Message_Type_ID){
     EventMessage_CloseView
 };
 
-/* DOC(A Buffer_Batch_Edit_Type is a type of batch operation.) */
-ENUM(int32_t, Buffer_Batch_Edit_Type){
-    /* DOC(The BatchEdit_Normal operation is always correct but does the most work.) */
-    BatchEdit_Normal,
-    /* DOC(The BatchEdit_PreserveTokens operation is one in which none of the edits add, delete, or change any tokens.
-    This usually applies when whitespace is being replaced with whitespace.) */
-    BatchEdit_PreserveTokens
-};
-
 /* DOC(A Buffer_Setting_ID names a setting in a buffer.) */
 ENUM(int32_t, Buffer_Setting_ID){
     /* DOC(BufferSetting_Null is not a valid setting, it is reserved to detect errors.) */
@@ -702,14 +693,41 @@ struct Event_Message{
 };
 
 /* 
-DOC(Theme_Color stores a style tag/color pair, for the purpose of setting and getting colors in the theme .)
+DOC(Theme_Color stores a style tag/color pair, for the purpose of setting and getting colors in the theme.)
 DOC_SEE(Style_Tag)
 DOC_SEE(int_color)
 */
 struct Theme_Color{
+    /* DOC(The style slot in the style palette.) */
     Style_Tag tag;
+    /* DOC(The color in the slot.) */
     int_color color;
 };
 
+/* DOC(A Buffer_Batch_Edit_Type is a type of batch operation.) */
+ENUM(int32_t, Buffer_Batch_Edit_Type){
+    /* DOC(The BatchEdit_Normal operation is always correct but does the most work if there are tokens to correct.) */
+    BatchEdit_Normal,
+    /* DOC(The BatchEdit_PreserveTokens operation is one in which none of the edits add, delete, or change any tokens.
+    This usually applies when whitespace is being replaced with whitespace.) */
+    BatchEdit_PreserveTokens
+};
+
+/*
+DOC(This struct is used to bundle the parameters of the buffer_batch_edit function.  It is convenient
+for a few functions that return a batch edit to the user.)
+DOC_SEE(buffer_batch_edit)
+*/
+struct Buffer_Batch_Edit{
+    /* DOC(The pointer to the edit string buffer.) */
+    char *str;
+    /* DOC(The length of the edit string buffer.) */
+    int32_t str_len;
+    
+    /* DOC(The array of edits to be applied.) */
+    Buffer_Edit *edits;
+    /* DOC(The number of edits in the array.) */
+    int32_t edit_count;
+};
 
 

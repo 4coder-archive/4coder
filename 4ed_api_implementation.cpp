@@ -1295,10 +1295,10 @@ in the system, the call will fail.)
             Assert(panel_ptr != panel);
             active = (i32)(panel_ptr - models->layout.panels);
         }
+        Assert(active != -1 && panel != models->layout.panels + active);
         
         // If the panel we're closing was previously active, we have to switch to it's sibling.
         if (models->layout.active_panel == (i32)(panel - models->layout.panels)){
-            Assert(active != -1 && panel != models->layout.panels + active);
             models->layout.active_panel = active;
         }
         

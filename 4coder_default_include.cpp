@@ -547,6 +547,46 @@ buffer_seek_string_insensitive_backward(Application_Links *app, Buffer_Summary *
     }
 }
 
+
+//
+// Some Basic Buffer Positioning
+//
+
+#include "4cpp_lexer.h"
+
+static int32_t
+buffer_get_line_start(Application_Links *app, Buffer_Summary *buffer, int32_t line){
+    Partial_Cursor partial_cursor;
+    int32_t result = buffer->size;
+    if (line < buffer->line_count){
+        app->buffer_compute_cursor(app, buffer, seek_line_char(line, 1), &partial_cursor);
+        result = partial_cursor.pos;
+    }
+    return(result);
+}
+
+static int32_t
+buffer_get_line_index(Application_Links *app, Buffer_Summary *buffer, int32_t pos){
+    Partial_Cursor partial_cursor;
+    app->buffer_compute_cursor(app, buffer, seek_pos(pos), &partial_cursor);
+    return(partial_cursor.line);
+}
+
+static Cpp_Token*
+get_first_token_at_line(Application_Links *app, Buffer_Summary *buffer, Cpp_Token_Array tokens, int32_t line){
+    int32_t line_start = buffer_get_line_start(app, buffer, line);
+    Cpp_Get_Token_Result get_token = cpp_get_token(&tokens, line_start);
+    
+    if (get_token.in_whitespace){
+        get_token.token_index += 1;
+    }
+    
+    Cpp_Token *result = tokens.tokens + get_token.token_index;
+    
+    return(result);
+}
+
+
 //
 // Fundamental Editing
 //

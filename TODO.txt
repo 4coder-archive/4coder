@@ -82,30 +82,32 @@
 
 ; BEFORE I SHIP
 ;
+; [X] killing compilation panel changes active panel
 ; [X] tokens in the custom API
 ;     [X] token seeking on custom side
 ;     [X] auto indent on the custom side
 ;         [] clean up and comment the auto indent code to allow for customizations
 ;         [] more built in options for auto indenting
 ; [] expose dirty flags
-; [] option to not open *messages* every startup
-; [] commands for resizing panels
 ; [] make panel resizing not whacky with child panels
-; [] killing compilation panel changes active panel
-; [] control over how mouse effects panel focus
-; [] API docs as text file
-; [] user file bar string
 ; [] mouse down/up distinction
 ; [] hook on exit
-; [] read only files
 ; [] occasionally missing the (!) mark on files on windows
 ; [] case insensitive interactive switch buffer
-; [] option to hide hidden files
-; [] tab to complete folder names in the new file dialogue
-; [] view fails to follow cursor when the view is shrunk
-; [] view fails to follow cursor after deleting long line
 ; [] scroll down on compilation buffer durring compilation
 ;
+;
+
+; [] commands for resizing panels
+; [] user file bar string
+; [] option to not open *messages* every startup
+; [] API docs as text file
+; [] read only files
+; [] tab to complete folder names in the new file dialogue
+; [] option to hide hidden files
+; [] view fails to follow cursor when the view is shrunk
+; [] view fails to follow cursor after deleting long line
+; [] control over how mouse effects panel focus
 
 ; TODOS
 ; [X] success message when compiler works

@@ -5123,26 +5123,6 @@ draw_file_bar(Render_Target *target, View *view, Editing_File *file, i32_Rect re
                 append_ss(&bar_text, make_lit_string(" nix"));
             }
             
-            append_ss(&bar_text, make_lit_string(" -"));
-            
-            Command_Map *map = view->map;
-            if (map == &models->map_top){
-                append_ss(&bar_text, make_lit_string(" global"));
-            }
-            else if (map == &models->map_file){
-                append_ss(&bar_text, make_lit_string(" file"));
-            }
-            else if (map == &models->map_ui){
-                append_ss(&bar_text, make_lit_string(" gui"));
-            }
-            else{
-                i32 map_index = (i32)(view->map - models->user_maps);
-                i32 map_id = models->map_id_table[map_index];
-                
-                append_ss        (&bar_text, make_lit_string(" user:"));
-                append_int_to_str(&bar_text, map_id);
-            }
-            
             intbar_draw_string(target, &bar, bar_text, base_color);
             
             
