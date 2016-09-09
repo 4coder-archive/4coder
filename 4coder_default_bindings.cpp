@@ -342,6 +342,11 @@ default_keys(Bind_Helper *context){
     bind(context, key_mouse_left, MDFR_NONE, click_set_cursor);
     bind(context, key_mouse_right, MDFR_NONE, click_set_mark);
     
+    // NOTE(allen|a4.0.11): You can now bind left and right mouse
+    // button releases.  Modifiers do work so control+click shift+click
+    // etc can now have special meanings.
+    bind(context, key_mouse_left_release, MDFR_NONE, click_set_mark);
+    
     bind(context, key_left, MDFR_NONE, move_left);
     bind(context, key_right, MDFR_NONE, move_right);
     bind(context, key_del, MDFR_NONE, delete_char);

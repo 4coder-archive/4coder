@@ -13,6 +13,8 @@ key_page_down = 13,
 key_esc = 14,
 key_mouse_left = 15,
 key_mouse_right = 16,
+key_mouse_left_release = 17,
+key_mouse_right_release = 18,
 key_f1 = 127,
 key_f2 = 128,
 key_f3 = 129,
@@ -48,6 +50,8 @@ case key_page_down: result = "page_down"; *size = sizeof("page_down")-1; break;
 case key_esc: result = "esc"; *size = sizeof("esc")-1; break;
 case key_mouse_left: result = "mouse_left"; *size = sizeof("mouse_left")-1; break;
 case key_mouse_right: result = "mouse_right"; *size = sizeof("mouse_right")-1; break;
+case key_mouse_left_release: result = "mouse_left_release"; *size = sizeof("mouse_left_release")-1; break;
+case key_mouse_right_release: result = "mouse_right_release"; *size = sizeof("mouse_right_release")-1; break;
 case key_f1: result = "f1"; *size = sizeof("f1")-1; break;
 case key_f2: result = "f2"; *size = sizeof("f2")-1; break;
 case key_f3: result = "f3"; *size = sizeof("f3")-1; break;

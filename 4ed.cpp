@@ -1783,10 +1783,7 @@ App_Step_Sig(app_step){
         }
         
         Key_Event_Data mouse_event = {0};
-        if (input->mouse.press_l ||
-            input->mouse.press_r){
-            memcpy(mouse_event.modifiers, input->keys.modifiers, sizeof(input->keys.modifiers));
-        }
+        memcpy(mouse_event.modifiers, input->keys.modifiers, sizeof(input->keys.modifiers));
         
         if (input->mouse.press_l){
             mouse_event.keycode = key_mouse_left;
@@ -1795,6 +1792,16 @@ App_Step_Sig(app_step){
         
         if (input->mouse.press_r){
             mouse_event.keycode = key_mouse_right;
+            key_summary.keys[key_summary.count++] = mouse_event;
+        }
+        
+        if (input->mouse.release_l){
+            mouse_event.keycode = key_mouse_left_release;
+            key_summary.keys[key_summary.count++] = mouse_event;
+        }
+        
+        if (input->mouse.release_r){
+            mouse_event.keycode = key_mouse_right_release;
             key_summary.keys[key_summary.count++] = mouse_event;
         }
         
@@ -2436,8 +2443,7 @@ App_Step_Sig(app_step){
         if (record->consumed && record->consumer[0] != 0){
             Debug_Input_Event *event = debug->input_events;
             for (i32 i = 0; i < count; ++i, ++event){
-                if (event->key == key_mouse_left &&
-                    event->consumer[0] == 0){
+                if (event->key == key_mouse_left && event->consumer[0] == 0){
                     memcpy(event->consumer, record->consumer, sizeof(record->consumer));
                 }
             }
@@ -2447,8 +2453,7 @@ App_Step_Sig(app_step){
         if (record->consumed && record->consumer[0] != 0){
             Debug_Input_Event *event = debug->input_events;
             for (i32 i = 0; i < count; ++i, ++event){
-                if (event->key == key_mouse_right &&
-                    event->consumer[0] == 0){
+                if (event->key == key_mouse_right && event->consumer[0] == 0){
                     memcpy(event->consumer, record->consumer, sizeof(record->consumer));
                 }
             }
@@ -2458,8 +2463,7 @@ App_Step_Sig(app_step){
         if (record->consumed && record->consumer[0] != 0){
             Debug_Input_Event *event = debug->input_events;
             for (i32 i = 0; i < count; ++i, ++event){
-                if (event->key == key_esc &&
-                    event->consumer[0] == 0){
+                if (event->key == key_esc && event->consumer[0] == 0){
                     memcpy(event->consumer, record->consumer, sizeof(record->consumer));
                 }
             }
@@ -2491,6 +2495,9 @@ App_Step_Sig(app_step){
                             "  and fullscreen can be toggled with <control pageup>.\n"
                             "  (This sometimes causes artifacts on the Windows task bar)\n"
                             "-<alt f4> to exit\n"
+                            "-hook on exit for the customization system\n"
+                            "-tokens now exposed in customization system\n"
+                            "-mouse release events in customization system\n"
                             "\n"
                             "New in alpha 4.0.10:\n"
                             "-<control F> list all locations of a string across all open buffers\n"

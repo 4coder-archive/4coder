@@ -73,6 +73,7 @@
 ; [X] problem with end of line comments
 ; [X] paths with parens in them 
 ; [X] killing compilation panel changes active panel
+; [X] make panel resizing not whacky with child panels
 ;
 ; [] indication on failure to save
 ; [] history is broken, revist the entire system
@@ -86,8 +87,6 @@
 
 ; BEFORE I SHIP
 ;
-; [X] make panel resizing not whacky with child panels
-; [X] case insensitive interactive switch buffer
 ; [X] tokens in the custom API
 ;     [X] token seeking on custom side
 ;     [X] auto indent on the custom side
@@ -96,7 +95,6 @@
 ;         [] clean up and comment the auto indent code to allow for customizations
 ;         [] more built in options for auto indenting
 ; [] expose dirty flags
-; [] mouse down/up distinction
 ; [] occasionally missing the (!) mark on files on windows
 ; [] scroll down on compilation buffer durring compilation
 ; [] why are command line files not loading any more?
@@ -143,6 +141,8 @@
 ;    [X] new file
 ;    [X] hook on exit
 ;    [X] file out of sync
+; [X] mouse down/up distinction
+; [X] case insensitive interactive switch buffer
 
 ;
 ; [] binary buffers

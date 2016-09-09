@@ -89,6 +89,8 @@ char *keys_that_need_codes[] = {
     
     "mouse_left",
     "mouse_right",
+    "mouse_left_release",
+    "mouse_right_release",
     
     "f1",
     "f2",

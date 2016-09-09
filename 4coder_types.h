@@ -366,11 +366,9 @@ struct Key_Event_Data{
 	char modifiers[MDFR_INDEX_COUNT];
 };
 
-/* DOC(
-Mouse_State describes an entire mouse state complete with the position,
-left and right button states, the wheel state, and whether or not the
-mouse if in the window.
-) */
+/* DOC(Mouse_State describes an entire mouse state complete with the
+position, left and right button states, the wheel state, and whether
+or not the mouse if in the window.) */
 struct Mouse_State{
     /* DOC(This field indicates that the left button is held.) */
     char l;
