@@ -2636,7 +2636,7 @@ App_Step_Sig(app_step){
                     else{
                         mouse_position = clamp(0, my, models->layout.full_height);
                     }
-                    divider->pos = layout_compute_position(&models->layout, divider, );
+                    divider->pos = layout_compute_position(&models->layout, divider, mouse_position);
                 }
                 
                 layout_fix_all_panels(&models->layout);

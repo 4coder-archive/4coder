@@ -34,6 +34,7 @@ struct Key_Input_Data{
     
     char modifiers[MDFR_INDEX_COUNT];
 };
+static Key_Input_Data null_key_input_data = {0};
 
 struct Key_Summary{
     i32 count;

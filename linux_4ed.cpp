@@ -3464,7 +3464,7 @@ main(int argc, char **argv)
             flush_thread_group(BACKGROUND_THREADS);
 
             linuxvars.input.first_step = 0;
-            linuxvars.input.keys = key_input_data_zero();
+            linuxvars.input.keys = null_key_input_data;
             linuxvars.input.mouse.press_l = 0;
             linuxvars.input.mouse.release_l = 0;
             linuxvars.input.mouse.press_r = 0;
