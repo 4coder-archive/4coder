@@ -17,8 +17,8 @@
 #include <stdint.h>
 #if !defined(FSTRING_GUARD)
 # define FSTRING_IMPLEMENTATION
+# include "4coder_string.h"
 #endif
-#include "4coder_string.h"
 #include "4cpp_lexer_types.h"
 #include "4cpp_lexer_tables.c"
 
