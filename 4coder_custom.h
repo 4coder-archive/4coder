@@ -33,6 +33,7 @@ typedef struct Offset_String{
 enum Hook_ID{
     hook_start,
     hook_file_out_of_sync,
+    hook_exit,
     // never below this
     hook_type_count
 };

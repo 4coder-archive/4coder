@@ -2680,6 +2680,13 @@ App_Step_Sig(app_step){
         }
     }
     
+    // NOTE(allen): if this is the last frame, run the exit hook
+    if (!models->keep_playing && models->hooks[hook_exit]){
+        if (!models->hooks[hook_exit](&models->app_links)){
+            models->keep_playing = 1;
+        }
+    }
+    
     // NOTE(allen): rendering
     {
         begin_render_section(target, system);

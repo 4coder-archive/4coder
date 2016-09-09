@@ -979,12 +979,11 @@ DOC_PARAM(buffer, The buffer parameter specifies the buffer to try to kill.)
 DOC_PARAM(view_id, The view_id parameter specifies the view that will contain the "are you sure" dialogue if the buffer is dirty.)
 DOC_PARAM(flags, The flags parameter specifies behaviors for the buffer kill.)
 DOC_RETURN(This call returns non-zero if the buffer is killed.)
-DOC
-(
-Tries to kill the idenfied buffer.  If the buffer is dirty and the "are you sure"
+
+DOC(Tries to kill the idenfied buffer.  If the buffer is dirty and the "are you sure"
 dialogue needs to be displayed the provided view is used to show the dialogue.
-If the view is not open the kill fails.
-)
+If the view is not open the kill fails.)
+
 DOC_SEE(Buffer_Kill_Flag)
 DOC_SEE(Buffer_Identifier)
 */{

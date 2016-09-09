@@ -72,42 +72,36 @@
 ; [X] clean whitespace doesn't appear to be cleaning trailing whitespace anymore???
 ; [X] problem with end of line comments
 ; [X] paths with parens in them 
+; [X] killing compilation panel changes active panel
 ;
 ; [] indication on failure to save
 ; [] history is broken, revist the entire system
 ; [] 8.0\Include\um\dsound.h (not reproduced, get more info)
 ; [] paste external text from bug report (in email) (not reproduced, get more info)
 ;
+; [] view fails to follow cursor when the view is shrunk
+; [] view fails to follow cursor after deleting long line
+;
 ;
 
 ; BEFORE I SHIP
 ;
-; [X] killing compilation panel changes active panel
 ; [X] tokens in the custom API
 ;     [X] token seeking on custom side
 ;     [X] auto indent on the custom side
+;         [] indent whole comments
+;         [] inserting lines at end of block comment
 ;         [] clean up and comment the auto indent code to allow for customizations
 ;         [] more built in options for auto indenting
 ; [] expose dirty flags
 ; [] make panel resizing not whacky with child panels
 ; [] mouse down/up distinction
-; [] hook on exit
 ; [] occasionally missing the (!) mark on files on windows
 ; [] case insensitive interactive switch buffer
 ; [] scroll down on compilation buffer durring compilation
+; [] why are command line files not loading any more?
 ;
 ;
-
-; [] commands for resizing panels
-; [] user file bar string
-; [] option to not open *messages* every startup
-; [] API docs as text file
-; [] read only files
-; [] tab to complete folder names in the new file dialogue
-; [] option to hide hidden files
-; [] view fails to follow cursor when the view is shrunk
-; [] view fails to follow cursor after deleting long line
-; [] control over how mouse effects panel focus
 
 ; TODOS
 ; [X] success message when compiler works
@@ -145,6 +139,18 @@
 ;     [X] add to APIs
 ;     [X] try to make win32 version better
 ; [X] don't execute frames on events dealing only with ctrl/alt/shift
+; [X] hook on exit
+
+;
+; [] binary buffers
+; [] commands for resizing panels
+; [] user file bar string
+; [] API docs as text file
+; [] read only files
+; [] tab to complete folder names in the new file dialogue
+; [] option to hide hidden files
+; [] control over how mouse effects panel focus
+; [] option to not open *messages* every startup
 ;
 ; [] support full length unicode file names
 ; [] switch based word complete

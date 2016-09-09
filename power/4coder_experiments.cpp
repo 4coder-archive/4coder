@@ -343,8 +343,7 @@ HOOK_SIG(experimental_start){
     
     if (!file){
         char module_path[512];
-        int len;
-        len = app->get_4ed_path(app, module_path, 448);
+        int len = app->get_4ed_path(app, module_path, 448);
         memcpy(module_path+len, SETTINGS_FILE, sizeof(SETTINGS_FILE));
         file = fopen(module_path, "rb");
     }

@@ -58,6 +58,14 @@ struct Models{
     Hook_Function *hooks[hook_type_count];
     Application_Links app_links;
     
+    Custom_API config_api;
+    
+    Open_File_Hook_Function *hook_open_file;
+    Open_File_Hook_Function *hook_new_file;
+    Command_Caller_Hook_Function *command_caller;
+    Input_Filter_Function *input_filter;
+    Scroll_Rule_Function *scroll_rule;
+    
     Font_Set *font_set;
     Style_Font global_font;
     Style_Library styles;
@@ -74,14 +82,6 @@ struct Models{
     Hot_Directory hot_directory;
     
     Panel *prev_mouse_panel;
-    
-    Custom_API config_api;
-    
-    Open_File_Hook_Function *hook_open_file;
-    Open_File_Hook_Function *hook_new_file;
-    Command_Caller_Hook_Function *command_caller;
-    Input_Filter_Function *input_filter;
-    Scroll_Rule_Function *scroll_rule;
     
     b32 keep_playing;
     

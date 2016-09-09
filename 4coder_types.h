@@ -182,7 +182,8 @@ ENUM(uint32_t, Buffer_Create_Flag){
     cleared to empty even if it's associated file already has content.) */
     BufferCreate_AlwaysNew  = 0x2,
     /* DOC(When BufferCreate_NeverNew is set it indicates that the buffer should
-    only be created if it is an existing file or an open buffer.) */
+    only be created if it is an existing file or if a buffer with the given name
+    is already open.) */
     BufferCreate_NeverNew   = 0x4,
 };
 

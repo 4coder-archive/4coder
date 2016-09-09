@@ -153,6 +153,11 @@ HOOK_SIG(my_start){
     return(0);
 }
 
+HOOK_SIG(my_exit){
+    // if this returns zero it cancels the exit.
+    return(1);
+}
+
 CUSTOM_COMMAND_SIG(newline_or_goto_position){
     View_Summary view = app->get_active_view(app, AccessProtected);
     Buffer_Summary buffer = app->get_buffer(app, view.buffer_id, AccessProtected);
@@ -412,6 +417,7 @@ get_bindings(void *data, int32_t size){
     // NOTE(allen|a3.1): Hooks have no loyalties to maps. All hooks are global
     // and once set they always apply, regardless of what map is active.
     set_hook(context, hook_start, my_start);
+    set_hook(context, hook_exit, my_exit);
     
     set_open_file_hook(context, my_file_settings);
     set_command_caller(context, default_command_caller);

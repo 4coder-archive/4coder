@@ -679,18 +679,16 @@ metagen(char *cdir){
 
 static void
 do_buildsuper(char *cdir){
-    {
-        BEGIN_TIME_SECTION();
-        //buildsuper(cdir, BUILD_DIR, "../code/4coder_default_bindings.cpp");
+    BEGIN_TIME_SECTION();
+    buildsuper(cdir, BUILD_DIR, "../code/4coder_default_bindings.cpp");
 #if defined(IS_WINDOWS)
-        buildsuper(cdir, BUILD_DIR, "../code/internal_4coder_tests.cpp");
+    //buildsuper(cdir, BUILD_DIR, "../code/internal_4coder_tests.cpp");
 #else
-        buildsuper(cdir, BUILD_DIR, "../code/power/4coder_experiments.cpp");
+    buildsuper(cdir, BUILD_DIR, "../code/power/4coder_experiments.cpp");
 #endif
-        //buildsuper(cdir, BUILD_DIR, "../code/power/4coder_casey.cpp");
-        //buildsuper(cdir, BUILD_DIR, "../4vim/4coder_chronal.cpp");
-        END_TIME_SECTION("build custom");
-    }
+    //buildsuper(cdir, BUILD_DIR, "../code/power/4coder_casey.cpp");
+    //buildsuper(cdir, BUILD_DIR, "../4vim/4coder_chronal.cpp");
+    END_TIME_SECTION("build custom");
 }
 
 static void
