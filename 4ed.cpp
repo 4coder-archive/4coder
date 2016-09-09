@@ -20,7 +20,6 @@ typedef enum App_State{
 
 typedef struct App_State_Resizing{
     Panel_Divider *divider;
-    f32 min, max;
 } App_State_Resizing;
 
 typedef struct CLI_Process{
@@ -2608,9 +2607,6 @@ App_Step_Sig(app_step){
                     
                     end_temp_memory(temp);
                 }
-                
-                vars->resizing.min = 0.f;
-                vars->resizing.max = 1.f;
             }
         }break;
         
@@ -2618,20 +2614,29 @@ App_Step_Sig(app_step){
         {
             if (input->mouse.l){
                 Panel_Divider *divider = vars->resizing.divider;
-                i32 pos = 0;
-                if (divider->v_divider){
-                    pos = clamp(0, mx, models->layout.full_width);
-                }
-                else{
-                    pos = clamp(0, my, models->layout.full_height);
-                }
-                divider->pos = layout_compute_position(&models->layout, divider, pos);
+                i32 mouse_position = 0;
                 
-                if (divider->pos < vars->resizing.min){
-                    divider->pos = vars->resizing.min;
+                b32 do_absolute_positions = 0;
+                if (do_absolute_positions){
+                    i32 absolute_positions[MAX_VIEWS];
+                    i32 min = 0, max = 0;
+                    i32 div_id = (i32)(divider - models->layout.dividers);
+                    
+                    layout_compute_absolute_positions(&models->layout, absolute_positions);
+                    mouse_position = (divider->v_divider)?(mx):(my);
+                    layout_get_min_max(&models->layout, divider, absolute_positions, &min, &max);
+                    absolute_positions[div_id] = clamp(min, mouse_position, max);
+                    layout_update_all_positions(&models->layout, absolute_positions);
                 }
-                else if (divider->pos > vars->resizing.max){
-                    divider->pos = vars->resizing.max - 1;
+                
+                else{
+                    if (divider->v_divider){
+                        mouse_position = clamp(0, mx, models->layout.full_width);
+                    }
+                    else{
+                        mouse_position = clamp(0, my, models->layout.full_height);
+                    }
+                    divider->pos = layout_compute_position(&models->layout, divider, );
                 }
                 
                 layout_fix_all_panels(&models->layout);

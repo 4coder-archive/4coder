@@ -87,11 +87,11 @@ TMin(u32);
 TMin(u64);
 #undef TMin
 
-#define TMin(t,v) globalconst t min_##t = ((t)v)
-TMin(i8,  -0xF0);
-TMin(i16, -0xF000);
-TMin(i32, -0xF00000);
-TMin(i64, -0xF0000000LL);
+#define TMin(t,v) globalconst t min_##t = ((t)(v))
+TMin(i8,  -127-1);
+TMin(i16, -32767-1);
+TMin(i32, -2147483647-1);
+TMin(i64, -9223372036854775807-1);
 #undef TMin
 
 internal i32

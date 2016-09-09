@@ -754,10 +754,10 @@ struct Hot_Directory_Match{
 };
 
 internal b32
-filename_match(String query, Absolutes *absolutes, String filename, b32 case_sensitive){
+filename_match(String query, Absolutes *absolutes, String filename){
     b32 result;
     result = (query.size == 0);
-    if (!result) result = wildcard_match_s(absolutes, filename, case_sensitive);
+    if (!result) result = wildcard_match_s(absolutes, filename, 0);
     return result;
 }
 

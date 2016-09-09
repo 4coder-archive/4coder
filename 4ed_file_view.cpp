@@ -3211,7 +3211,7 @@ get_exhaustive_info(System_Functions *system, Working_Set *working_set, Exhausti
                                       result.info->filename_len, result.info->filename_len+1);
     
     result.is_folder = (result.info->folder != 0);
-    result.name_match = (filename_match(loop->front_name, &loop->absolutes, filename, 0) != 0);
+    result.name_match = (filename_match(loop->front_name, &loop->absolutes, filename) != 0);
     result.is_loaded = (file != 0 && file_is_ready(file));
     
     result.message = null_string;
@@ -4024,7 +4024,7 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                                     Editing_File *file = (Editing_File*)node;
                                     Assert(!file->is_dummy);
                                     
-                                    if (filename_match(view->dest, &absolutes, file->name.live_name, 1)){
+                                    if (filename_match(view->dest, &absolutes, file->name.live_name)){
                                         View_Iter iter = file_view_iter_init(layout, file, 0);
                                         if (file_view_iter_good(iter)){
                                             reserved_files[reserved_top++] = file;

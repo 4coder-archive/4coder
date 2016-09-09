@@ -28,7 +28,7 @@ struct Screen_Region{
 struct Panel{
     Panel *next;
     Panel *prev;
-
+    
     struct View *view;
     i32 parent;
     i32 which_child;
@@ -210,7 +210,7 @@ panel_fix_internal_area(Panel *panel){
 
 internal i32_Rect
 layout_get_rect(Editing_Layout *layout, i32 id, i32 which_child){
-    i32 divider_chain[16];
+    i32 divider_chain[MAX_VIEWS];
     i32 chain_count = 0;
     
     Panel_Divider *dividers = layout->dividers;
@@ -232,26 +232,18 @@ layout_get_rect(Editing_Layout *layout, i32 id, i32 which_child){
         Panel_Divider *div = dividers + divider_chain[i];
         if (div->v_divider){
             if (div->child1 == divider_chain[i-1]){
-                r.x1 = ROUND32(lerp((f32)r.x0,
-                                    div->pos,
-                                    (f32)r.x1));
+                r.x1 = ROUND32(lerp((f32)r.x0, div->pos, (f32)r.x1));
             }
             else{
-                r.x0 = ROUND32(lerp((f32)r.x0,
-                                    div->pos,
-                                    (f32)r.x1));
+                r.x0 = ROUND32(lerp((f32)r.x0, div->pos, (f32)r.x1));
             }
         }
         else{
             if (div->child1 == divider_chain[i-1]){
-                r.y1 = ROUND32(lerp((f32)r.y0,
-                                    div->pos,
-                                    (f32)r.y1));
+                r.y1 = ROUND32(lerp((f32)r.y0, div->pos, (f32)r.y1));
             }
             else{
-                r.y0 = ROUND32(lerp((f32)r.y0,
-                                    div->pos,
-                                    (f32)r.y1));
+                r.y0 = ROUND32(lerp((f32)r.y0, div->pos, (f32)r.y1));
             }
         }
     }
@@ -260,28 +252,20 @@ layout_get_rect(Editing_Layout *layout, i32 id, i32 which_child){
         case 1:
         {
             if (original_div->v_divider){
-                r.x0 = ROUND32(lerp((f32)r.x0,
-                                    original_div->pos,
-                                    (f32)r.x1));
+                r.x0 = ROUND32(lerp((f32)r.x0, original_div->pos, (f32)r.x1));
             }
             else{
-                r.y0 = ROUND32(lerp((f32)r.y0,
-                                    original_div->pos,
-                                    (f32)r.y1));
+                r.y0 = ROUND32(lerp((f32)r.y0, original_div->pos, (f32)r.y1));
             }
         }break;
         
         case -1:
         {
             if (original_div->v_divider){
-                r.x1 = ROUND32(lerp((f32)r.x0,
-                                    original_div->pos,
-                                    (f32)r.x1));
+                r.x1 = ROUND32(lerp((f32)r.x0, original_div->pos, (f32)r.x1));
             }
             else{
-                r.y1 = ROUND32(lerp((f32)r.y0,
-                                    original_div->pos,
-                                    (f32)r.y1));
+                r.y1 = ROUND32(lerp((f32)r.y0, original_div->pos, (f32)r.y1));
             }
         }break;
     }
@@ -382,6 +366,118 @@ layout_compute_position(Editing_Layout *layout, Panel_Divider *divider, i32 pos)
     Assert(0.f <= l && l <= 1.f);
     
     return(l);
+}
+
+internal void
+layout_compute_abs_step(Editing_Layout *layout, i32 divider_id, i32_Rect rect, i32 *abs_pos){
+    Panel_Divider *div = layout->dividers + divider_id;
+    i32 p0 = 0, p1 = 0;
+    
+    if (div->v_divider){
+        p0 = rect.x0; p1 = rect.x1;
+    }
+    else{
+        p0 = rect.y0; p1 = rect.y1;
+    }
+    
+    i32 pos = lerp(p0, div->pos, p1);
+    i32_Rect r1, r2;
+    r1 = rect; r2 = rect;
+    
+    abs_pos[divider_id] = pos;
+    
+    if (div->v_divider){
+        r1.x1 = pos; r2.x0 = pos;
+    }
+    else{
+        r1.y1 = pos; r2.y0 = pos;
+    }
+    
+    if (div->child1 != -1){
+        layout_compute_abs_step(layout, div->child1, r1, abs_pos);
+    }
+    
+    if (div->child2 != -1){
+        layout_compute_abs_step(layout, div->child2, r2, abs_pos);
+    }
+}
+
+internal void
+layout_compute_absolute_positions(Editing_Layout *layout, i32 *abs_pos){
+    i32_Rect r;
+    r.x0 = 0;
+    r.y0 = 0;
+    r.x1 = layout->full_width;
+    r.y1 = layout->full_height;
+    if (layout->panel_count > 1){
+        layout_compute_abs_step(layout, layout->root, r, abs_pos);
+    }
+}
+
+internal void
+layout_get_min_max_step_up(Editing_Layout *layout, b32 v, i32 divider_id, i32 which_child,
+                           i32 *abs_pos, i32 *min_out, i32 *max_out){
+    Panel_Divider *divider = layout->dividers + divider_id;
+    
+    if (divider->v_divider == v){
+        if (which_child == -1){
+            if (*max_out > abs_pos[divider_id]){
+                *max_out = abs_pos[divider_id];
+            }
+        }
+        else{
+            if (*min_out < abs_pos[divider_id]){
+                *min_out = abs_pos[divider_id];
+            }
+        }
+    }
+    
+    if (divider->parent != -1){
+        layout_get_min_max_step_up(layout, v, divider->parent, divider->which_child,
+                                   abs_pos, min_out, max_out);
+    }
+}
+
+internal void
+layout_get_min_max_step_down(Editing_Layout *layout, b32 v, i32 divider_id, i32 which_child,
+                             i32 *abs_pos, i32 *min_out, i32 *max_out){
+    
+}
+
+internal void
+layout_get_min_max(Editing_Layout *layout, Panel_Divider *divider, i32 *abs_pos, i32 *min_out, i32 *max_out){
+    *min_out = 0;
+    *max_out = max_i32;
+    
+    if (layout->panel_count > 1){
+        if (divider->parent != -1){
+            layout_get_min_max_step_up(layout, divider->v_divider, divider->parent, divider->which_child,
+                                       abs_pos, min_out, max_out);
+        }
+        
+        if (divider->child1 != -1){
+            layout_get_min_max_step_down(layout, divider->v_divider, divider->child1, -1,
+                                         abs_pos, min_out, max_out);
+        }
+        
+        if (divider->child2 != -1){
+            layout_get_min_max_step_down(layout, divider->v_divider, divider->child1, 1,
+                                         abs_pos, min_out, max_out);
+        }
+    }
+    else{
+        if (divider->v_divider){
+            *max_out = layout->full_width;
+        }
+        else{
+            *max_out = layout->full_height;
+        }
+    }
+}
+
+internal void
+layout_update_all_positions(Editing_Layout *layout, i32 *abs_pos){
+    
 }
 
 // BOTTOM
