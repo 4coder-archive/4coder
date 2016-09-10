@@ -2220,10 +2220,23 @@ LinuxFatalErrorMsg(const char* msg)
         exit(1);
     }
 
-    int win_w = 450;
-    int win_h = 150 + (strlen(msg) / 40) * 24;
+    const int num_cols = 50;
+    int win_w = (num_cols + 10) * 9;
+    int win_h = 140;
 
-    Window w = XCreateSimpleWindow(dpy, DefaultRootWindow(dpy), 0, 0, win_w, win_h, 0, 0, 0x2EA44F);
+    {
+        const char *start_p = msg, *space_p = NULL;
+        for(const char* p = msg; *p; ++p){
+            if(*p == ' ') space_p = p;
+            if(*p == '\n' || p - start_p > num_cols){
+                win_h += 18;
+                start_p = space_p ? space_p + 1 : p;
+                space_p = NULL;
+            }
+        }
+    }
+
+    Window w = XCreateSimpleWindow(dpy, DefaultRootWindow(dpy), 0, 0, win_w, win_h, 0, 0, 0x227A3B);
     XStoreName(dpy, w, "4coder Error");
 
     XSizeHints* sh = XAllocSizeHints();
@@ -2245,26 +2258,26 @@ LinuxFatalErrorMsg(const char* msg)
     Atom WM_DELETE_WINDOW = XInternAtom(dpy, "WM_DELETE_WINDOW", False);
     XSetWMProtocols(dpy, w, &WM_DELETE_WINDOW, 1);
 
+    LinuxSetIcon(dpy, w);
+
     XMapRaised(dpy, w);
     XSync(dpy, False);
 
-    XSelectInput(dpy, w, ExposureMask | StructureNotifyMask | PointerMotionMask | ButtonPressMask | ButtonReleaseMask);
+    XSelectInput(dpy, w, ExposureMask | StructureNotifyMask | PointerMotionMask | ButtonPressMask | ButtonReleaseMask | KeyPressMask);
 
-    XFontStruct* font = XLoadQueryFont(dpy, "-*-fixed-*-*-*-*-*-140-*-*-*-*-iso8859-1");
+    XFontStruct* font = XLoadQueryFont(dpy, "-*-fixed-bold-*-*-*-*-140-*-*-*-*-iso8859-1");
     if(!font){
         exit(1);
     }
 
     XGCValues gcv;
     gcv.foreground = WhitePixel(dpy, 0);
-    gcv.background = 0x2EA44F;
     gcv.line_width = 2;
     gcv.font = font->fid;
 
-    GC gc = XCreateGC(dpy, w, GCForeground | GCBackground | GCFont | GCLineWidth, &gcv);
-
+    GC gc1 = XCreateGC(dpy, w, GCForeground | GCFont | GCLineWidth, &gcv);
     gcv.foreground = BlackPixel(dpy, 0);
-    GC gc2 = XCreateGC(dpy, w, GCForeground | GCBackground | GCFont | GCLineWidth, &gcv);
+    GC gc2 = XCreateGC(dpy, w, GCForeground | GCFont | GCLineWidth, &gcv);
 
     int button_trigger = 0;
     int button_hi = 0;
@@ -2279,7 +2292,6 @@ LinuxFatalErrorMsg(const char* msg)
 
         if(ev.type == ConfigureNotify){
             redraw = 1;
-
             win_w = ev.xconfigure.width;
             win_h = ev.xconfigure.height;
         }
@@ -2295,6 +2307,13 @@ LinuxFatalErrorMsg(const char* msg)
             if(new_hi != button_hi){
                 button_hi = new_hi;
                 redraw = 1;
+            }
+        }
+
+        if(ev.type == KeyPress){
+            KeySym sym = XLookupKeysym(&ev.xkey, 0);
+            if(sym == XK_Escape || sym == XK_Return){
+                exit(1);
             }
         }
 
@@ -2318,6 +2337,10 @@ LinuxFatalErrorMsg(const char* msg)
             exit(1);
         }
 
+#define DRAW_STR(x, y, str, len) \
+        XDrawString(dpy, w, gc2, (x)+1, (y)+1, (str), (len)); \
+        XDrawString(dpy, w, gc1, (x)  , (y)  , (str), (len))
+
         if(redraw){
             XClearWindow(dpy, w);
 
@@ -2329,38 +2352,39 @@ LinuxFatalErrorMsg(const char* msg)
                 const char title[] = "4coder - Fatal Error";
                 int width = XTextWidth(font, title, sizeof(title)-1);
                 int x = (win_w/2) - (width/2);
-                XDrawString(dpy, w, gc2, x+2, y+2, title, sizeof(title)-1);
-                XDrawString(dpy, w, gc, x, y, title, sizeof(title)-1);
+                DRAW_STR(x, y, title, sizeof(title)-1);
             }
 
             y += 36;
-
-            int width = XTextWidth(font, "x", 1) * 40;
+            int width = XTextWidth(font, "x", 1) * num_cols;
             int x = (win_w/2) - (width/2);
+
             for(const char* p = line_start; *p; ++p){
                 if(*p == ' ') last_space = p;
-                if(p - line_start > 40){
-                    if(!last_space) last_space = p;
+                if(p - line_start > num_cols || *p == '\n' || !p[1]){
 
-                    XDrawString(dpy, w, gc2, x+2, y+2, line_start, last_space - line_start);
-                    XDrawString(dpy, w, gc, x, y, line_start, last_space - line_start);
-                    line_start = *last_space == ' ' ? last_space + 1 : p;
+                    const char* new_line_start = last_space + 1;
+                    if(!last_space || *p == '\n' || !p[1]){
+                        new_line_start = last_space = (p + !p[1]);
+                    }
+
+                    DRAW_STR(x, y, line_start, last_space - line_start);
+
+                    line_start = new_line_start;
                     last_space = NULL;
                     y += 18;
                 }
             }
 
-            XDrawString(dpy, w, gc2, x+2, y+2, line_start, strlen(line_start));
-            XDrawString(dpy, w, gc, x, y, line_start, strlen(line_start));
-
-            XDrawRectangles(dpy, w, gc, &button_rect, 1);
+            XDrawRectangles(dpy, w, gc1, &button_rect, 1);
             if(button_hi || button_trigger){
                 XDrawRectangle(dpy, w, gc2, button_rect.x+1, button_rect.y+1, button_rect.width-2, button_rect.height-2);
             }
-            XDrawString(dpy, w, gc2, button_rect.x + 22, button_rect.y + 17, "Drat!", 5);
-            XDrawString(dpy, w, gc, button_rect.x + 20, button_rect.y + 15, "Drat!", 5);
+
+            DRAW_STR(button_rect.x + 20, button_rect.y + 15, "Drat!", 5);
         }
     }
+#undef DRAW_STR
 }
 
 internal int
