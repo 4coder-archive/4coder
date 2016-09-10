@@ -3279,7 +3279,7 @@ main(int argc, char **argv)
 
     Cursor xcursors[APP_MOUSE_CURSOR_COUNT] = {
         None,
-        XCreateFontCursor(linuxvars.XDisplay, XC_arrow),
+        None,
         XCreateFontCursor(linuxvars.XDisplay, XC_xterm),
         XCreateFontCursor(linuxvars.XDisplay, XC_sb_h_double_arrow),
         XCreateFontCursor(linuxvars.XDisplay, XC_sb_v_double_arrow)
