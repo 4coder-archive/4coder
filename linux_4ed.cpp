@@ -806,6 +806,11 @@ IS_FULLSCREEN_SIG(system_is_fullscreen){
     return result;
 }
 
+internal
+SEND_EXIT_SIGNAL_SIG(system_send_exit_signal){
+    linuxvars.keep_running = 0;
+}
+
 //
 // Clipboard
 //
@@ -1502,6 +1507,7 @@ LinuxLoadSystemCode(){
     linuxvars.system.show_mouse_cursor = system_show_mouse_cursor;
     linuxvars.system.toggle_fullscreen = system_toggle_fullscreen;
     linuxvars.system.is_fullscreen = system_is_fullscreen;
+    linuxvars.system.send_exit_signal = system_send_exit_signal;
 
     // clipboard
     linuxvars.system.post_clipboard = system_post_clipboard;
@@ -3433,6 +3439,8 @@ main(int argc, char **argv)
                 linuxvars.input.clipboard = null_string;
             }
 
+            b32 keep_running = linuxvars.keep_running;
+
             linuxvars.app.step(
                 &linuxvars.system,
                 &linuxvars.target,
@@ -3443,7 +3451,7 @@ main(int argc, char **argv)
 
             if(result.perform_kill){
                 break;
-            } else {
+            } else if(!keep_running && !linuxvars.keep_running){
                 linuxvars.keep_running = 1;
             }
 
