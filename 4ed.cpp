@@ -2505,7 +2505,7 @@ App_Step_Sig(app_step){
                             "-4coder now supports proper, borderless, fullscreen with the flag -F\n"
                             "  and fullscreen can be toggled with <control pageup>.\n"
                             "  (This sometimes causes artifacts on the Windows task bar)\n"
-                            "-<alt f4> to exit\n"
+                            "-<alt E> to exit\n"
                             "-hook on exit for the customization system\n"
                             "-tokens now exposed in customization system\n"
                             "-mouse release events in customization system\n"

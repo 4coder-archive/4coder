@@ -282,7 +282,7 @@ default_keys(Bind_Helper *context){
     
     bind(context, key_f2, MDFR_NONE, toggle_mouse);
     bind(context, key_page_up, MDFR_CTRL, toggle_fullscreen);
-    bind(context, key_f4, MDFR_ALT, exit_4coder);
+    bind(context, 'E', MDFR_ALT, exit_4coder);
     
     end_map(context);
     

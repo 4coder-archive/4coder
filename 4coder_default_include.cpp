@@ -571,7 +571,8 @@ buffer_get_line_index(Application_Links *app, Buffer_Summary *buffer, int32_t po
 }
 
 static Cpp_Token*
-get_first_token_at_line(Application_Links *app, Buffer_Summary *buffer, Cpp_Token_Array tokens, int32_t line){
+get_first_token_at_line(Application_Links *app, Buffer_Summary *buffer, Cpp_Token_Array tokens, int32_t line,
+                        int32_t *line_start_out = 0){
     int32_t line_start = buffer_get_line_start(app, buffer, line);
     Cpp_Get_Token_Result get_token = cpp_get_token(&tokens, line_start);
     
@@ -579,7 +580,14 @@ get_first_token_at_line(Application_Links *app, Buffer_Summary *buffer, Cpp_Toke
         get_token.token_index += 1;
     }
     
-    Cpp_Token *result = tokens.tokens + get_token.token_index;
+    if (line_start_out){
+        *line_start_out = line_start;
+    }
+    
+    Cpp_Token *result = 0;
+    if (get_token.token_index < tokens.count){
+        result = tokens.tokens + get_token.token_index;
+    }
     
     return(result);
 }

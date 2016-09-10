@@ -90,7 +90,7 @@
 ; [X] tokens in the custom API
 ;     [X] token seeking on custom side
 ;     [X] auto indent on the custom side
-;         [] indent whole comments
+;         [X] indent whole comments
 ;         [] inserting lines at end of block comment
 ;         [] clean up and comment the auto indent code to allow for customizations
 ;         [] more built in options for auto indenting
