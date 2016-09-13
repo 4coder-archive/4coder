@@ -297,11 +297,11 @@ ENUM(uint32_t, Input_Type_Flag){
     EventOnRightButton = 0x8,
     /* DOC(If EventOnWheel is set, any wheel movement is included in the set.) */
     EventOnWheel       = 0x10,
-    /* DOC(If EventOnButton is set, all mouse button events are included in the set.) */
-    EventOnButton      = (EventOnLeftButton | EventOnRightButton | EventOnWheel),
-    
     /* DOC(This is not totally implemented yet.) */
     EventOnMouseMove   = 0x20,
+    
+    /* DOC(If EventOnButton is set, all mouse button events are included in the set.) */
+    EventOnButton      = (EventOnLeftButton | EventOnRightButton | EventOnWheel),
     /* DOC(This is not totally implemented yet.) */
     EventOnMouse       = (EventOnButton | EventOnMouseMove),
     
@@ -587,21 +587,15 @@ struct Buffer_Edit{
 DOC_SEE(Access_Flag)
 DOC_SEE(Dirty_State) */
 struct Buffer_Summary{
-    /* DOC(
-    This field indicates whether the Buffer_Summary describes a buffer that is open in 4coder.
-    When this field is false the summary is referred to as a "null summary".
-    ) */
+    /* DOC(This field indicates whether the Buffer_Summary describes a buffer that is open in 4coder.
+    When this field is false the summary is referred to as a "null summary".) */
     bool32 exists;
     /* DOC(If this is not a null summary, this field indicates whether the buffer has finished loading.) */
     bool32 ready;
-    /* DOC(
-    If this is not a null summary this field is the id of the associated buffer.
-    If this is a null summary then buffer_id is 0.
-    ) */
+    /* DOC(If this is not a null summary this field is the id of the associated buffer.
+    If this is a null summary then buffer_id is 0.) */
     int32_t buffer_id;
-    /*
-    DOC(If this is not a null summary, this field contains flags describing the protection status of the buffer.)
-    */
+    /*DOC(If this is not a null summary, this field contains flags describing the protection status of the buffer.)*/
     Access_Flag lock_flags;
     
     /* DOC(If this is not a null summary, this field specifies the size of the text in the buffer.) */

@@ -77,12 +77,6 @@ CUSTOM_COMMAND_SIG(reopen_test){
     //TEST_TIME_E();
 }
 
-CUSTOM_COMMAND_SIG(run_all_tests){
-    exec_command(app, load_lots_of_files);
-    exec_command(app, reopen_test);
-}
-
-#if 0
 CUSTOM_COMMAND_SIG(generate_stop_spots_test_data){
     Buffer_Summary buffer = app->create_buffer(app, literal(LOTS_OF_FILES "/4ed.cpp"), 0);
     View_Summary view = app->get_active_view(app, AccessAll);
@@ -96,6 +90,18 @@ CUSTOM_COMMAND_SIG(generate_stop_spots_test_data){
         
         app->buffer_compute_cursor(app, &buffer, seek_line_char(316, 29), &curs);
         fwrite(&curs.pos, 4, 1, file);
+        
+        for (int32_t i = 0; i < 10; ++i){
+            Query_Bar bar = {0};
+            bar.prompt = make_lit_string("Do something to continue the test");
+            if (app->start_query_bar(app, &bar, 0)){
+                app->get_user_input(app, EventAll, EventAll);
+            }
+            refresh_buffer(app, &buffer);
+            if (buffer.tokens_are_ready){
+                break;
+            }
+        }
         
         static Seek_Boundary_Flag flag_set[] = {
             BoundaryWhitespace,
@@ -111,7 +117,7 @@ CUSTOM_COMMAND_SIG(generate_stop_spots_test_data){
             for (int32_t seek_forward = 0; seek_forward <= 1; ++seek_forward){
                 pos = curs.pos;
                 for (int32_t i = 0; i < 100; ++i){
-                    pos = app->buffer_boundary_seek(app, &buffer, pos, seek_forward, flag_set[flag_i]);
+                    pos = buffer_boundary_seek(app, &buffer, pos, seek_forward, flag_set[flag_i]);
                     fwrite(&pos, 4, 1, file);
                 }
             }
@@ -120,7 +126,6 @@ CUSTOM_COMMAND_SIG(generate_stop_spots_test_data){
         fclose(file);
     }
 }
-#endif
 
 static void
 fcheck(int32_t x, FILE *file){
@@ -142,6 +147,18 @@ CUSTOM_COMMAND_SIG(stop_spots_test){
         
         app->buffer_compute_cursor(app, &buffer, seek_line_char(316, 29), &curs);
         fcheck(curs.pos, file);
+        
+        for (int32_t i = 0; i < 10; ++i){
+            Query_Bar bar = {0};
+            bar.prompt = make_lit_string("Do something to continue the test");
+            if (app->start_query_bar(app, &bar, 0)){
+                app->get_user_input(app, EventAll, EventAll);
+            }
+            refresh_buffer(app, &buffer);
+            if (buffer.tokens_are_ready){
+                break;
+            }
+        }
         
         static Seek_Boundary_Flag flag_set[] = {
             BoundaryWhitespace,
@@ -167,13 +184,25 @@ CUSTOM_COMMAND_SIG(stop_spots_test){
     }
 }
 
+CUSTOM_COMMAND_SIG(load_unicode_file){
+    Buffer_Summary buffer = app->create_buffer(app, literal(TEST_FILES "/mod_markov.c"), 0);
+    View_Summary view = app->get_active_view(app, AccessAll);
+    app->view_set_buffer(app, &view, buffer.buffer_id, 0);
+    
+    app->view_set_cursor(app, &view, seek_line_char(230, 25), 1);
+}
+
+CUSTOM_COMMAND_SIG(run_all_tests){
+    exec_command(app, load_lots_of_files);
+    exec_command(app, reopen_test);
+    exec_command(app, stop_spots_test);
+    exec_command(app, load_unicode_file);
+}
+
 static void
 test_get_bindings(Bind_Helper *context){
     begin_map(context, mapid_global);
-    
-    //bind(context, key_f3, MDFR_NONE, run_all_tests);
-    bind(context, key_f3, MDFR_NONE, stop_spots_test);
-    
+    bind(context, key_f3, MDFR_NONE, run_all_tests);
     end_map(context);
 }
 

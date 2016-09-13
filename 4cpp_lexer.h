@@ -288,7 +288,7 @@ cpp_lex_nonalloc_null_end_no_limit(Cpp_Lex_Data *S_ptr, char *chunk, int32_t siz
     int32_t token_i = token_array_out->count;
     int32_t max_token_i = token_array_out->max_count;
     
-    char c = 0;
+    uint8_t c = 0;
     
     int32_t end_pos = size + S.chunk_pos;
     chunk -= S.chunk_pos;
@@ -330,8 +330,8 @@ cpp_lex_nonalloc_null_end_no_limit(Cpp_Lex_Data *S_ptr, char *chunk, int32_t siz
         S.fsm = null_lex_fsm;
         for(;;){
             {
-                unsigned short *eq_classes = get_eq_classes[S.pp_state];
-                unsigned char *fsm_table = get_table[S.pp_state];
+                uint16_t *eq_classes = get_eq_classes[S.pp_state];
+                uint8_t *fsm_table = get_table[S.pp_state];
                 
                 for (; S.fsm.state < LS_count && S.pos < end_pos;){
                     c = chunk[S.pos++];
@@ -489,7 +489,7 @@ cpp_lex_nonalloc_null_end_no_limit(Cpp_Lex_Data *S_ptr, char *chunk, int32_t siz
                     String_And_Flag data = preprops[sub_match];
                     S.token.type = (Cpp_Token_Type)data.flags;
                     S.token.flags = CPP_TFLAG_PP_DIRECTIVE;
-                    S.pp_state = (unsigned char)cpp_pp_directive_to_state(S.token.type);
+                    S.pp_state = (uint8_t)cpp_pp_directive_to_state(S.token.type);
                 }
                 else{
                     S.token.type = CPP_TOKEN_JUNK;

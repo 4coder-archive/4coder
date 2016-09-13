@@ -556,7 +556,7 @@ static int32_t
 buffer_get_line_start(Application_Links *app, Buffer_Summary *buffer, int32_t line){
     Partial_Cursor partial_cursor;
     int32_t result = buffer->size;
-    if (line < buffer->line_count){
+    if (line <= buffer->line_count){
         app->buffer_compute_cursor(app, buffer, seek_line_char(line, 1), &partial_cursor);
         result = partial_cursor.pos;
     }
@@ -1676,7 +1676,7 @@ seek_token_left(Cpp_Token_Array *tokens, int32_t pos){
         --token;
     }
     
-    return token->start;
+    return(token->start);
 }
 
 static int32_t
@@ -1690,27 +1690,45 @@ seek_token_right(Cpp_Token_Array *tokens, int32_t pos){
     }
     
     Cpp_Token *token = tokens->tokens + get.token_index;
-    return token->start + token->size;
+    return(token->start + token->size);
+}
+
+static Cpp_Token_Array
+buffer_get_all_tokens(Application_Links *app, Partition *part, Buffer_Summary *buffer){
+    Cpp_Token_Array array = {0};
+    
+    if (buffer->exists && buffer->is_lexed){
+        array.count = app->buffer_token_count(app, buffer);
+        array.max_count = array.count;
+        array.tokens = push_array(part, Cpp_Token, array.count);
+        app->buffer_read_tokens(app, buffer, 0, array.count, array.tokens);
+    }
+    
+    return(array);
 }
 
 static int32_t
-buffer_boundary_seek(Application_Links *app, Buffer_Summary *buffer, int32_t start_pos,
-                     bool32 seek_forward, Seek_Boundary_Flag flags)/*
+buffer_boundary_seek(Application_Links *app, Buffer_Summary *buffer, Partition *part,
+                     int32_t start_pos, bool32 seek_forward, Seek_Boundary_Flag flags)/*
 DOC_PARAM(buffer, The buffer parameter specifies the buffer through which to seek.)
 DOC_PARAM(start_pos, The beginning position of the seek is specified by start_pos measured in absolute position.)
 DOC_PARAM(seek_forward, If this parameter is non-zero it indicates that the seek should move foward through the buffer.)
 DOC_PARAM(flags, This field specifies the types of boundaries at which the seek should stop.)
+
 DOC_RETURN(This call returns the absolute position where the seek stopped.
 If the seek goes below 0 the returned value is -1.
 If the seek goes past the end the returned value is the size of the buffer.)
+
 DOC_SEE(Seek_Boundary_Flag)
 DOC_SEE(4coder_Buffer_Positioning_System)
 */{
     int32_t result = 0;
+    
+    // TODO(allen): reduce duplication?
+    Temp_Memory temp = begin_temp_memory(part);
     if (buffer->exists){
-        // TODO(allen): reduce duplication?
+        int32_t pos[4];
         int32_t size = buffer->size;
-        int32_t pos[4] = {0};
         int32_t new_pos = 0;
         
         if (start_pos < 0){
@@ -1721,16 +1739,17 @@ DOC_SEE(4coder_Buffer_Positioning_System)
         }
         
         if (seek_forward){
-            for (int32_t i = 0; i < ArrayCount(pos); ++i) pos[i] = size;
+            for (int32_t i = 0; i < ArrayCount(pos); ++i){
+                pos[i] = size;
+            }
             
-            if (flags & (1)){
+            if (flags & BoundaryWhitespace){
                 pos[0] = buffer_seek_whitespace_right(app, buffer, start_pos);
             }
             
-            if (flags & (1 << 1)){
+            if (flags & BoundaryToken){
                 if (buffer->tokens_are_ready){
-                    Cpp_Token_Array array;
-                    // TODO(allen): Fill this array.
+                    Cpp_Token_Array array = buffer_get_all_tokens(app, part, buffer);
                     pos[1] = seek_token_right(&array, start_pos);
                 }
                 else{
@@ -1738,32 +1757,37 @@ DOC_SEE(4coder_Buffer_Positioning_System)
                 }
             }
             
-            if (flags & (1 << 2)){
+            if (flags & BoundaryAlphanumeric){
                 pos[2] = buffer_seek_alphanumeric_right(app, buffer, start_pos);
-                if (flags & (1 << 3)){
+                if (flags & BoundaryCamelCase){
                     pos[3] = buffer_seek_range_camel_right(app, buffer, start_pos, pos[2]);
                 }
             }
             else{
-                if (flags & (1 << 3)){
+                if (flags & BoundaryCamelCase){
                     pos[3] = buffer_seek_alphanumeric_or_camel_right(app, buffer, start_pos);
                 }
             }
             
             new_pos = size;
             for (int32_t i = 0; i < ArrayCount(pos); ++i){
-                if (pos[i] < new_pos) new_pos = pos[i];
+                if (pos[i] < new_pos){
+                    new_pos = pos[i];
+                }
             }
         }
         else{
-            if (flags & (1)){
+            for (int32_t i = 0; i < ArrayCount(pos); ++i){
+                pos[i] = 0;
+            }
+            
+            if (flags & BoundaryWhitespace){
                 pos[0] = buffer_seek_whitespace_left(app, buffer, start_pos);
             }
             
-            if (flags & (1 << 1)){
+            if (flags & BoundaryToken){
                 if (buffer->tokens_are_ready){
-                    Cpp_Token_Array array;
-                    // TODO(allen): Fill this array.
+                    Cpp_Token_Array array = buffer_get_all_tokens(app, part, buffer);
                     pos[1] = seek_token_left(&array, start_pos);
                 }
                 else{
@@ -1771,26 +1795,36 @@ DOC_SEE(4coder_Buffer_Positioning_System)
                 }
             }
             
-            if (flags & (1 << 2)){
+            if (flags & BoundaryAlphanumeric){
                 pos[2] = buffer_seek_alphanumeric_left(app, buffer, start_pos);
-                if (flags & (1 << 3)){
+                if (flags & BoundaryCamelCase){
                     pos[3] = buffer_seek_range_camel_left(app, buffer, start_pos, pos[2]);
                 }
             }
             else{
-                if (flags & (1 << 3)){
+                if (flags & BoundaryCamelCase){
                     pos[3] = buffer_seek_alphanumeric_or_camel_left(app, buffer, start_pos);
                 }
             }
             
             new_pos = 0;
             for (int32_t i = 0; i < ArrayCount(pos); ++i){
-                if (pos[i] > new_pos) new_pos = pos[i];
+                if (pos[i] > new_pos){
+                    new_pos = pos[i];
+                }
             }
         }
         result = new_pos;
     }
+    end_temp_memory(temp);
     
+    return(result);
+}
+
+static int32_t
+buffer_boundary_seek(Application_Links *app, Buffer_Summary *buffer,
+                     int32_t start_pos, bool32 seek_forward, Seek_Boundary_Flag flags){
+    int32_t result = buffer_boundary_seek(app, buffer, &global_part, start_pos, seek_forward, flags);
     return(result);
 }
 
