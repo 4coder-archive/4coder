@@ -87,14 +87,6 @@
 
 ; BEFORE I SHIP
 ;
-; [X] use strange theme
-; [X] tokens in the custom API
-;     [X] token seeking on custom side
-;     [X] auto indent on the custom side
-;         [X] indent whole comments
-;         [X] inserting lines at end of block comment
-;         [] clean up and comment the auto indent code to allow for customizations
-;         [] more built in options for auto indenting
 ; [] occasionally missing the (!) mark on files on windows
 ;
 
@@ -142,7 +134,16 @@
 ; [X] case insensitive interactive switch buffer
 ; [X] expose dirty flags
 ; [X] why are command line files not loading any more?
+; [X] use strange theme
 
+; [X] tokens in the custom API
+;     [X] token seeking on custom side
+;     [X] auto indent on the custom side
+;         [X] indent whole comments
+;         [X] inserting lines at end of block comment
+;         [] switch to line classification system
+;         [] more built in options for auto indenting
+;
 ;
 ; [] binary buffers
 ; [] commands for resizing panels

@@ -272,101 +272,6 @@ struct Indent_Parse_State{
     int32_t previous_comment_indent;
 };
 
-static int32_t
-compute_this_indent(Application_Links *app, Buffer_Summary *buffer, Indent_Parse_State *indent,
-                    Cpp_Token T, Cpp_Token prev_token, int32_t line_i, bool32 this_line_gets_indented,
-                    bool32 exact_align, int32_t tab_width){
-    
-    int32_t previous_indent = indent->previous_line_indent;
-    int32_t this_indent = 0;
-    
-    int32_t this_line_start = buffer_get_line_start(app, buffer, line_i);
-    int32_t next_line_start = buffer_get_line_start(app, buffer, line_i+1);
-    
-    bool32 did_special_behavior = false;
-    
-    if (prev_token.start <= this_line_start &&
-        prev_token.start + prev_token.size > this_line_start){
-        if (prev_token.type == CPP_TOKEN_COMMENT){
-            Hard_Start_Result hard_start = buffer_find_hard_start(app, buffer, this_line_start, tab_width);
-            
-            if (exact_align){
-                this_indent = indent->previous_comment_indent;
-            }
-            else{
-                if (hard_start.all_whitespace){
-                    this_indent = previous_indent;
-                }
-                else{
-                    int32_t line_pos = hard_start.char_pos - this_line_start;
-                    this_indent = line_pos + indent->comment_shift;
-                    if (this_indent < 0){
-                        this_indent = 0;
-                    }
-                }
-            }
-            
-            if (!hard_start.all_whitespace){
-                if (this_line_gets_indented){
-                    indent->previous_comment_indent = this_indent;
-                }
-                else{
-                    indent->previous_comment_indent = hard_start.indent_pos;
-                }
-            }
-            
-            did_special_behavior = true;
-        }
-        else if (prev_token.type == CPP_TOKEN_STRING_CONSTANT){
-            this_indent = previous_indent;
-            did_special_behavior = true;
-        }
-    }
-    
-    if (!did_special_behavior){
-        this_indent = indent->current_indent;
-        if (T.start < next_line_start){
-            if (T.flags & CPP_TFLAG_PP_DIRECTIVE){
-                this_indent = 0;
-            }
-            else{
-                switch (T.type){
-                    case CPP_TOKEN_BRACKET_CLOSE: this_indent -= tab_width; break;
-                    case CPP_TOKEN_BRACE_CLOSE: this_indent -= tab_width; break;
-                    case CPP_TOKEN_BRACE_OPEN: break;
-                    
-                    default:
-                    if (indent->current_indent > 0){
-                        if (!(prev_token.flags & CPP_TFLAG_PP_BODY) &&
-                            !(prev_token.flags & CPP_TFLAG_PP_DIRECTIVE)){
-                            switch (prev_token.type){
-                                case CPP_TOKEN_BRACKET_OPEN:
-                                case CPP_TOKEN_BRACE_OPEN: case CPP_TOKEN_BRACE_CLOSE:
-                                case CPP_TOKEN_SEMICOLON: case CPP_TOKEN_COLON:
-                                case CPP_TOKEN_COMMA: case CPP_TOKEN_COMMENT: break;
-                                default: this_indent += tab_width;
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        if (this_indent < 0) this_indent = 0;
-    }
-    
-    if (indent->paren_nesting > 0){
-        if (prev_token.type != CPP_TOKEN_PARENTHESE_OPEN){
-            int32_t level = indent->paren_nesting-1;
-            if (level >= ArrayCount(indent->paren_anchor_indent)){
-                level = ArrayCount(indent->paren_anchor_indent)-1;
-            }
-            this_indent = indent->paren_anchor_indent[level];
-        }
-    }
-    
-    return(this_indent);
-}
-
 static int32_t*
 get_indentation_marks(Application_Links *app, Partition *part, Buffer_Summary *buffer,
                       Cpp_Token_Array tokens, int32_t line_start, int32_t line_end,
@@ -374,7 +279,7 @@ get_indentation_marks(Application_Links *app, Partition *part, Buffer_Summary *b
     
     int32_t indent_mark_count = line_end - line_start;
     int32_t *indent_marks = push_array(part, int32_t, indent_mark_count);
-    // Shift the array so line_i works correctly.
+    // Shift the array so line_index works correctly.
     indent_marks -= line_start;
     
     
@@ -415,15 +320,96 @@ get_indentation_marks(Application_Links *app, Partition *part, Buffer_Summary *b
         for (;token.start >= next_line_start_pos && line_index < line_end;){
             next_line_start_pos = buffer_get_line_start(app, buffer, line_index+1);
             
-            // TODO(allen): Flatten this function back in, as it is no longer
-            // leaving the indent state unchanged and it's only called here.
-            int32_t this_indent =
-                compute_this_indent(app, buffer, &indent, token, prev_token,
-                                    line_index, line_index >= line_start,
-                                    exact_align, tab_width);
+            int32_t this_indent = 0;
+            {
+                int32_t previous_indent = indent.previous_line_indent;
+                
+                int32_t this_line_start = buffer_get_line_start(app, buffer, line_index);
+                int32_t next_line_start = buffer_get_line_start(app, buffer, line_index+1);
+                
+                bool32 did_special_behavior = false;
+                
+                if (prev_token.start <= this_line_start && prev_token.start + prev_token.size > this_line_start){
+                    if (prev_token.type == CPP_TOKEN_COMMENT){
+                        Hard_Start_Result hard_start = buffer_find_hard_start(app, buffer, this_line_start, tab_width);
+                        
+                        if (exact_align){
+                            this_indent = indent.previous_comment_indent;
+                        }
+                        else{
+                            if (hard_start.all_whitespace){
+                                this_indent = previous_indent;
+                            }
+                            else{
+                                int32_t line_pos = hard_start.char_pos - this_line_start;
+                                this_indent = line_pos + indent.comment_shift;
+                                if (this_indent < 0){
+                                    this_indent = 0;
+                                }
+                            }
+                        }
+                        
+                        if (!hard_start.all_whitespace){
+                            if (line_index >= line_start){
+                                indent.previous_comment_indent = this_indent;
+                            }
+                            else{
+                                indent.previous_comment_indent = hard_start.indent_pos;
+                            }
+                        }
+                        
+                        did_special_behavior = true;
+                    }
+                    else if (prev_token.type == CPP_TOKEN_STRING_CONSTANT){
+                        this_indent = previous_indent;
+                        did_special_behavior = true;
+                    }
+                }
+                
+                if (!did_special_behavior){
+                    this_indent = indent.current_indent;
+                    if (token.start < next_line_start){
+                        if (token.flags & CPP_TFLAG_PP_DIRECTIVE){
+                            this_indent = 0;
+                        }
+                        else{
+                            switch (token.type){
+                                case CPP_TOKEN_BRACKET_CLOSE: this_indent -= tab_width; break;
+                                case CPP_TOKEN_BRACE_CLOSE: this_indent -= tab_width; break;
+                                case CPP_TOKEN_BRACE_OPEN: break;
+                                
+                                default:
+                                if (indent.current_indent > 0){
+                                    if (!(prev_token.flags & CPP_TFLAG_PP_BODY) &&
+                                        !(prev_token.flags & CPP_TFLAG_PP_DIRECTIVE)){
+                                        switch (prev_token.type){
+                                            case CPP_TOKEN_BRACKET_OPEN:
+                                            case CPP_TOKEN_BRACE_OPEN: case CPP_TOKEN_BRACE_CLOSE:
+                                            case CPP_TOKEN_SEMICOLON: case CPP_TOKEN_COLON:
+                                            case CPP_TOKEN_COMMA: case CPP_TOKEN_COMMENT: break;
+                                            default: this_indent += tab_width;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    if (this_indent < 0) this_indent = 0;
+                }
+                
+                if (indent.paren_nesting > 0){
+                    if (prev_token.type != CPP_TOKEN_PARENTHESE_OPEN){
+                        int32_t level = indent.paren_nesting-1;
+                        if (level >= ArrayCount(indent.paren_anchor_indent)){
+                            level = ArrayCount(indent.paren_anchor_indent)-1;
+                        }
+                        this_indent = indent.paren_anchor_indent[level];
+                    }
+                }
+            }
             
-            // NOTE(allen): Rebase the paren anchor if the first token
-            // after an open paren is on the next line.
+            // Rebase the paren anchor if the first token
+            // after the open paren is on the next line.
             if (indent.paren_nesting > 0){
                 if (prev_token.type == CPP_TOKEN_PARENTHESE_OPEN){
                     int32_t level = indent.paren_nesting-1;
