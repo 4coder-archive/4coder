@@ -1,5 +1,5 @@
 #define EXEC_COMMAND_SIG(n) bool32 n(Application_Links *app, Command_ID command_id)
-#define EXEC_SYSTEM_COMMAND_SIG(n) bool32 n(Application_Links *app, View_Summary *view, Buffer_Identifier buffer, char *path, int32_t path_len, char *command, int32_t command_len, Command_Line_Input_Flag flags)
+#define EXEC_SYSTEM_COMMAND_SIG(n) bool32 n(Application_Links *app, View_Summary *view, Buffer_Identifier buffer, char *path, int32_t path_len, char *command, int32_t command_len, Command_Line_Interface_Flag flags)
 #define CLIPBOARD_POST_SIG(n) void n(Application_Links *app, int32_t clipboard_id, char *str, int32_t len)
 #define CLIPBOARD_COUNT_SIG(n) int32_t n(Application_Links *app, int32_t clipboard_id)
 #define CLIPBOARD_INDEX_SIG(n) int32_t n(Application_Links *app, int32_t clipboard_id, int32_t item_index, char *out, int32_t len)

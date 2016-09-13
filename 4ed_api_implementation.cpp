@@ -31,6 +31,8 @@ fill_buffer_summary(Buffer_Summary *buffer, Editing_File *file, Working_Set *wor
         buffer->file_name = file->name.source_path.str;
         buffer->buffer_name = file->name.live_name.str;
         
+        buffer->dirty = file->state.dirty;
+        
         buffer->is_lexed = file->settings.tokens_exist;
         
         if (file->state.token_array.tokens &&
@@ -180,9 +182,9 @@ DOC_SEE(Command_ID)
     return(result);
 }
 
-// TODO(allen): This is a bit of a mess and needs to be fixed soon
+// TODO(allen): This is a bit of a mess and needs to be fixed soon.
 API_EXPORT bool32
-Exec_System_Command(Application_Links *app, View_Summary *view, Buffer_Identifier buffer, char *path, int32_t path_len, char *command, int32_t command_len, Command_Line_Input_Flag flags)/*
+Exec_System_Command(Application_Links *app, View_Summary *view, Buffer_Identifier buffer, char *path, int32_t path_len, char *command, int32_t command_len, Command_Line_Interface_Flag flags)/*
 DOC_PARAM(view, If the view parameter is non-null it specifies a view to display the command's output buffer.)
 DOC_PARAM(buffer, The buffer the command will output to is specified by the buffer parameter.
 See Buffer_Identifier for information on how this type specifies a buffer.)

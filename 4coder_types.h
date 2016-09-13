@@ -201,7 +201,7 @@ access call.  An access call is usually one the returns a summary struct.  If a
 4coder object has a particular protection flag set and the corresponding bit is
 not set in the access field, that 4coder object is hidden.  On the other hand if
 a protection flag is set in the access parameter and the object does not have
-that protection flag, the object is still returned from the access call.) TODO */
+that protection flag, the object is still returned from the access call.) */
 ENUM(uint32_t, Access_Flag){
     /* DOC(AccessOpen does not include any bits, it indicates that the access should
     only return objects that have no protection flags set.) */
@@ -218,6 +218,23 @@ ENUM(uint32_t, Access_Flag){
     AccessAll       = 0xFF
 };
 
+/* DOC(A Dirty_State value describes whether changes have been made to a buffer
+or to an underlying file since the last sync time between the two.  Saving a buffer
+to it's file or loading the buffer from the file both act as sync points.) */
+ENUM(uint32_t, Dirty_State){
+    /* DOC(DirtyState_UpToDate indicates that there are no unsaved changes and
+    the underlying system file still agrees with the buffer's state.) */
+    DirtyState_UpToDate,
+    
+    /* DOC(DirtyState_UnsavedChanges indicates that there have been changes in the
+    buffer since the last sync point.) */
+    DirtyState_UnsavedChanges,
+    
+    /* DOC(DirtyState_UnsavedChanges indicates that the underlying file has been
+    edited since the last sync point with the buffer.) */
+    DirtyState_UnloadedChanges
+};
+
 /* DOC(A Seek_Boundary_Flag field specifies a set of "boundary" types used in seeks for the
 beginning or end of different types of words.) */
 ENUM(uint32_t, Seek_Boundary_Flag){
@@ -227,8 +244,8 @@ ENUM(uint32_t, Seek_Boundary_Flag){
     BoundaryCamelCase    = 0x8
 };
 
-/* DOC(A Command_Line_Input_Flag field specifies the behavior of a call to a command line interface.) */
-ENUM(uint32_t, Command_Line_Input_Flag){
+/* DOC(A Command_Line_Interface_Flag field specifies the behavior of a call to a command line interface.) */
+ENUM(uint32_t, Command_Line_Interface_Flag){
     /* DOC(If CLI_OverlapWithConflict is set if output buffer of the new command is already
     in use by another command which is still executing, the older command relinquishes control
     of the buffer and both operate simultaneously with only the newer command outputting to
@@ -561,7 +578,8 @@ struct Buffer_Edit{
 };
 
 /* DOC(Buffer_Summary acts as a handle to a buffer and describes the state of the buffer.)
-DOC_SEE(Access_Flag) */
+DOC_SEE(Access_Flag)
+DOC_SEE(Dirty_State) */
 struct Buffer_Summary{
     /* DOC(
     This field indicates whether the Buffer_Summary describes a buffer that is open in 4coder.
@@ -594,6 +612,9 @@ struct Buffer_Summary{
     char *buffer_name;
     /* DOC(This field specifies the length of the buffer_name string.) */
     int32_t buffer_name_len;
+    
+    /* DOC(This field indicates the dirty state of the buffer.) */
+    Dirty_State dirty;
     
     /* DOC(If this is not a null summary, this field indicates whether the buffer is set to lex tokens.) */
     bool32 is_lexed;

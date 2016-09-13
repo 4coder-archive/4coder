@@ -458,6 +458,56 @@ get_indentation_marks(Application_Links *app, Partition *part, Buffer_Summary *b
     return(indent_marks);
 }
 
+static void
+get_indent_lines_minimum(Application_Links *app, Buffer_Summary *buffer,
+                         int32_t start_pos, int32_t end_pos,
+                         int32_t *line_start_out, int32_t *line_end_out){
+    int32_t line_start = buffer_get_line_index(app, buffer, start_pos);
+    int32_t line_end = buffer_get_line_index(app, buffer, end_pos) + 1;
+    
+    *line_start_out = line_start;
+    *line_end_out = line_end;
+}
+
+static void
+get_indent_lines_whole_tokens(Application_Links *app, Buffer_Summary *buffer, Cpp_Token_Array tokens,
+                              int32_t start_pos, int32_t end_pos,
+                              int32_t *line_start_out, int32_t *line_end_out){
+    int32_t line_start = buffer_get_line_index(app, buffer, start_pos);
+    int32_t line_end = buffer_get_line_index(app, buffer, end_pos);
+    
+    for (;line_start > 0;){
+        int32_t line_start_pos = 0;
+        Cpp_Token *token = get_first_token_at_line(app, buffer, tokens, line_start, &line_start_pos);
+        if (token->start < line_start_pos){
+            line_start = buffer_get_line_index(app, buffer, token->start);
+        }
+        else{
+            break;
+        }
+    }
+    
+    for (;line_end+1 < buffer->line_count;){
+        int32_t next_line_start_pos = 0;
+        Cpp_Token *token = get_first_token_at_line(app, buffer, tokens, line_end+1, &next_line_start_pos);
+        if (token && token->start < next_line_start_pos){
+            line_end = buffer_get_line_index(app, buffer, token->start+token->size);
+        }
+        else{
+            break;
+        }
+    }
+    if (line_end >= buffer->line_count){
+        line_end = buffer->line_count;
+    }
+    else{
+        line_end += 1;
+    }
+    
+    *line_start_out = line_start;
+    *line_end_out = line_end;
+}
+
 static bool32
 buffer_auto_indent(Application_Links *app, Partition *part, Buffer_Summary *buffer,
                    int32_t start, int32_t end, int32_t tab_width, Auto_Indent_Flag flags){
@@ -468,25 +518,32 @@ buffer_auto_indent(Application_Links *app, Partition *part, Buffer_Summary *buff
         
         Temp_Memory temp = begin_temp_memory(part);
         
-        // Stage 1: Setup
-        //  Read the tokens to be used for indentation.
-        //  Get the first and last lines to indent.
+        // Stage 1: Read the tokens to be used for indentation.
         Cpp_Token_Array tokens;
         tokens.count = app->buffer_token_count(app, buffer);
         tokens.max_count = tokens.count;
         tokens.tokens = push_array(part, Cpp_Token, tokens.count);
         app->buffer_read_tokens(app, buffer, 0, tokens.count, tokens.tokens);
         
-        int32_t line_start = buffer_get_line_index(app, buffer, start);
-        int32_t line_end = buffer_get_line_index(app, buffer, end) + 1;
+        // Stage 2: Decide where the first and last lines are.
+        //  The lines in the range [line_start,line_end) will be indented.
+        int32_t do_whole_tokens = 1;
         
-        // Stage 2: Decide Indent Amounts
-        //  Get an array representing how much each line in [line_start,line_end]
-        //   should be indented.
+        int32_t line_start = 0, line_end = 0;
+        if (do_whole_tokens){
+            get_indent_lines_whole_tokens(app, buffer, tokens, start, end, &line_start, &line_end);
+        }
+        else{
+            get_indent_lines_minimum(app, buffer, start, end, &line_start, &line_end);
+        }
+        
+        // Stage 3: Decide Indent Amounts
+        //  Get an array representing how much each line in
+        //   the range [line_start,line_end) should be indented.
         int32_t *indent_marks =
             get_indentation_marks(app, part, buffer, tokens, line_start, line_end, tab_width);
         
-        // Stage 3: Set the Line Indents
+        // Stage 4: Set the Line Indents
         Indent_Options opts = {0};
         opts.empty_blank_lines = (flags & AutoIndent_ClearLine);
         opts.use_tabs = (flags & AutoIndent_UseTab);
