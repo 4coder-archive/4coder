@@ -268,7 +268,13 @@ ENUM(uint32_t, Auto_Indent_Flag){
     /* DOC(If AutoIndent_UseTab is set, then when putting in leading whitespace to align
     code, as many tabs will be used as possible until the fine grained control of spaces
     is needed to finish the alignment.) */
-    AutoIndent_UseTab    = 0x2
+    AutoIndent_UseTab    = 0x2,
+    /* DOC(If AutoIndent_ExactAlignBlock is set, then block comments are indented by putting
+    the first non-whitespace character of the line in line with the beginning of the comment.) */
+    AutoIndent_ExactAlignBlock = 0x4,
+    /* DOC(If AutoIndent_FullTokens is set, then the set of lines that are indented is
+    automatically expanded so that any token spanning multiple lines gets entirely indented.) */
+    AutoIndent_FullTokens = 0x8,
 };
 
 /* DOC(A Set_Buffer_Flag field specifies the behavior of an operation that sets the buffer of a view.) */

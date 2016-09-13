@@ -1072,6 +1072,45 @@ app_hardcode_styles(Models *models){
     style->main.file_info_style = file_info_style;
     ++style;
     
+    /////////////////
+    style_set_name(style, make_lit_string("Strange"));
+    
+    style->main.back_color = 0xFF161616;
+    style->main.margin_color = 0xFF606590;
+    style->main.margin_hover_color = 0xFF606590;
+    style->main.margin_active_color = 0xFF9a99e7;
+    style->main.cursor_color = 0xFFd96e26;
+    style->main.at_cursor_color = style->main.back_color;
+    style->main.mark_color = 0xFF808080;
+    style->main.highlight_color = 0xFF703419;
+    style->main.at_highlight_color = 0xFFCDAA7D;
+    style->main.default_color = 0xFFFFFFFF;
+    style->main.comment_color = 0xFF505f89;
+    style->main.keyword_color = 0xFFaa8da7;
+    style->main.str_constant_color = 0xFF9a99e7;
+    style->main.char_constant_color = style->main.str_constant_color;
+    style->main.int_constant_color = style->main.str_constant_color;
+    style->main.float_constant_color = style->main.str_constant_color;
+    style->main.bool_constant_color = style->main.str_constant_color;
+    style->main.include_color = 0xFF9a99e7;
+    style->main.preproc_color = 0xFF606590;
+    style->main.special_character_color = 0xFFFF0000;
+    
+    style->main.paste_color = 0xFFFFBB00;
+    style->main.undo_color = 0xFF80005D;
+    
+    style->main.highlight_junk_color = 0xFF3A0000;
+    style->main.highlight_white_color = 0xFF003A3A;
+    
+    file_info_style.bar_color = 0xFF9a99e7;
+    file_info_style.bar_active_color = 0xFF9a99e7;
+    file_info_style.base_color = 0xFF000000;
+    file_info_style.pop1_color = 0xFF03CF0C;
+    file_info_style.pop2_color = 0xFFFF0000;
+    style->main.file_info_style = file_info_style;
+    ++style;
+    
+    /////////////////
     models->styles.count = (i32)(style - styles);
     models->styles.max = ArrayCount(models->styles.styles);
     style_copy(main_style(models), models->styles.styles + 1);

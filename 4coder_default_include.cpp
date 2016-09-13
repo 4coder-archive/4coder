@@ -960,7 +960,7 @@ CUSTOM_COMMAND_SIG(auto_tab_line_at_cursor){
     buffer_auto_indent(app, &buffer,
                        view.cursor.pos, view.cursor.pos,
                        DEF_TAB_WIDTH,
-                       DEFAULT_INDENT_FLAGS);
+                       DEFAULT_INDENT_FLAGS | AutoIndent_FullTokens);
     move_past_lead_whitespace(app, &view, &buffer);
 }
 
@@ -972,7 +972,7 @@ CUSTOM_COMMAND_SIG(auto_tab_whole_file){
     buffer_auto_indent(app, &buffer,
                        0, buffer.size,
                        DEF_TAB_WIDTH,
-                       DEFAULT_INDENT_FLAGS);
+                       DEFAULT_INDENT_FLAGS | AutoIndent_FullTokens);
 }
 
 CUSTOM_COMMAND_SIG(auto_tab_range){
@@ -984,13 +984,22 @@ CUSTOM_COMMAND_SIG(auto_tab_range){
     buffer_auto_indent(app, &buffer,
                        range.min, range.max,
                        DEF_TAB_WIDTH,
-                       DEFAULT_INDENT_FLAGS);
+                       DEFAULT_INDENT_FLAGS | AutoIndent_FullTokens);
     move_past_lead_whitespace(app, &view, &buffer);
 }
 
 CUSTOM_COMMAND_SIG(write_and_auto_tab){
     exec_command(app, write_character);
-    exec_command(app, auto_tab_line_at_cursor);
+    
+    uint32_t access = AccessOpen;
+    View_Summary view = app->get_active_view(app, access);
+    Buffer_Summary buffer = app->get_buffer(app, view.buffer_id, access);
+    
+    buffer_auto_indent(app, &buffer,
+                       view.cursor.pos, view.cursor.pos,
+                       DEF_TAB_WIDTH,
+                       DEFAULT_INDENT_FLAGS | AutoIndent_ExactAlignBlock);
+    move_past_lead_whitespace(app, &view, &buffer);
 }
 
 CUSTOM_COMMAND_SIG(clean_all_lines){
@@ -1847,7 +1856,7 @@ long_braces(Application_Links *app, char *text, int32_t size){
     buffer_auto_indent(app, &buffer,
                        pos, pos + size,
                        DEF_TAB_WIDTH,
-                       DEFAULT_INDENT_FLAGS);
+                       DEFAULT_INDENT_FLAGS | AutoIndent_FullTokens);
     move_past_lead_whitespace(app, &view, &buffer);
 }
 
@@ -1921,7 +1930,7 @@ CUSTOM_COMMAND_SIG(if0_off){
         buffer_auto_indent(app, &buffer,
                            range.min, range.max,
                            DEF_TAB_WIDTH,
-                           DEFAULT_INDENT_FLAGS);
+                           DEFAULT_INDENT_FLAGS | AutoIndent_FullTokens);
         move_past_lead_whitespace(app, &view, &buffer);
     }
 }
