@@ -41,11 +41,7 @@ struct File_Edit_Positions{
     i32 last_set_type;
     b32 in_view;
 };
-inline File_Edit_Positions
-file_edit_positions_zero(){
-    File_Edit_Positions data = {0};
-    return(data);
-}
+static File_Edit_Positions null_edit_pos = {0};
 
 enum Edit_Type{
     ED_NORMAL,

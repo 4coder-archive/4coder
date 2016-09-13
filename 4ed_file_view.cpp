@@ -505,14 +505,14 @@ view_compute_cursor_from_xy(View *view, f32 seek_x, f32 seek_y){
     Full_Cursor result;
     if (view->file_data.unwrapped_lines) result = view_compute_cursor_from_unwrapped_xy(view, seek_x, seek_y);
     else result = view_compute_cursor_from_wrapped_xy(view, seek_x, seek_y);
-    return result;
+    return(result);
 }
 
 inline i32
 view_wrapped_line_span(f32 line_width, f32 max_width){
     i32 line_count = CEIL32(line_width / max_width);
     if (line_count == 0) line_count = 1;
-    return line_count;
+    return(line_count);
 }
 
 internal i32
@@ -535,7 +535,7 @@ view_compute_lowest_line(View *view){
             lowest_line += line_span - 1;
         }
     }
-    return lowest_line;
+    return(lowest_line);
 }
 
 inline i32
@@ -646,10 +646,8 @@ view_move_cursor_to_view(View *view, GUI_Scroll_Vars scroll,
 }
 
 internal void
-view_set_cursor(View *view,
-                Full_Cursor cursor,
-                b32 set_preferred_x,
-                b32 unwrapped_lines){
+view_set_cursor(View *view, Full_Cursor cursor,
+                b32 set_preferred_x, b32 unwrapped_lines){
     if (edit_pos_move_to_front(view->file_data.file, view->edit_pos)){
         edit_pos_set_cursor_(view->edit_pos, cursor, set_preferred_x, unwrapped_lines);
         

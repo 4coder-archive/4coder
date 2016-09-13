@@ -1,10 +1,11 @@
+
 ; Started this list on: (18.01.2016)(dd.mm.yyyy)
 ;  This list is an informal todo list, it may very well miss items
 ; checked or unchecked, that I inted to do some day. It is included
 ; in the distribution so that you may take a look and see if your
 ; requested feature is there, and if not, so that you may remind me.
 ;  Cheers everyone!
-;
+
 ; BUGS
 ; [X] '\t' thing
 ; [X] smoothness in smoothscrolling isn't very smooth
@@ -74,6 +75,7 @@
 ; [X] paths with parens in them 
 ; [X] killing compilation panel changes active panel
 ; [X] make panel resizing not whacky with child panels
+; [X] visual studio file saves aren't picked up by the file track system
 ;
 ; [] indication on failure to save
 ; [] history is broken, revist the entire system
@@ -82,12 +84,6 @@
 ;
 ; [] view fails to follow cursor when the view is shrunk
 ; [] view fails to follow cursor after deleting long line
-;
-;
-
-; BEFORE I SHIP
-;
-; [] occasionally missing the (!) mark on files on windows
 ;
 
 ; TODOS
@@ -144,7 +140,7 @@
 ;         [] switch to line classification system
 ;         [] more built in options for auto indenting
 ;
-;
+
 ; [] binary buffers
 ; [] commands for resizing panels
 ; [] user file bar string
@@ -272,6 +268,7 @@
 ;
 ; [] a triangle rendered for a few frames? color of the dirty markers (not reproduced by me yet)
 ; [] minimize and reopen problem (not reproduced by me yet)
+;
 ;
 
 ; FANCY-PANTS IDEAS

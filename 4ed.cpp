@@ -353,13 +353,17 @@ COMMAND_DECL(reopen){
                     General_Memory *general = &models->mem.general;
                     
                     File_Edit_Positions edit_poss[16];
+                    int32_t line_number[16];
+                    int32_t column_number[16];
                     View *vptrs[16];
                     i32 vptr_count = 0;
                     for (View_Iter iter = file_view_iter_init(&models->layout, file, 0);
                          file_view_iter_good(iter);
                          iter = file_view_iter_next(iter)){
                         vptrs[vptr_count] = iter.view;
-                        edit_poss[vptr_count] = *iter.view->edit_pos;
+                        edit_poss[vptr_count] = iter.view->edit_pos[0];
+                        line_number[vptr_count] = iter.view->edit_pos[0].cursor.line;
+                        column_number[vptr_count] = iter.view->edit_pos[0].cursor.character;
                         iter.view->edit_pos = 0;
                         ++vptr_count;
                     }
@@ -367,13 +371,18 @@ COMMAND_DECL(reopen){
                     file_close(system, general, file);
                     init_normal_file(system, models, file, buffer, size);
                     
-                    for (i32 i = 0;
-                         i < vptr_count;
-                         ++i){
+                    for (i32 i = 0; i < vptr_count; ++i){
                         view_set_file(vptrs[i], file, models);
+                        
+                        int32_t line = line_number[i];
+                        int32_t column = column_number[i];
+                        
                         *vptrs[i]->edit_pos = edit_poss[i];
-                        view_set_cursor(vptrs[i], edit_poss[i].cursor,
-                                        true, view->file_data.unwrapped_lines);
+                        Full_Cursor cursor =
+                            view_compute_cursor_from_line_pos(vptrs[i], line, column);
+                        
+                        view_set_cursor(vptrs[i], cursor, true,
+                                        view->file_data.unwrapped_lines);
                     }
                 }
             }

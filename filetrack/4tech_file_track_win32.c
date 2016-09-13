@@ -116,6 +116,17 @@ internal_get_file_index(BY_HANDLE_FILE_INFORMATION info){
     return(hash);
 }
 
+#define FLAGS (                 \
+FILE_NOTIFY_CHANGE_FILE_NAME  | \
+FILE_NOTIFY_CHANGE_DIR_NAME   | \
+FILE_NOTIFY_CHANGE_ATTRIBUTES | \
+FILE_NOTIFY_CHANGE_SIZE       | \
+FILE_NOTIFY_CHANGE_LAST_WRITE | \
+FILE_NOTIFY_CHANGE_LAST_ACCESS| \
+FILE_NOTIFY_CHANGE_SECURITY   | \
+FILE_NOTIFY_CHANGE_CREATION   | \
+0)
+
 FILE_TRACK_LINK File_Track_Result
 add_listener(File_Track_System *system, char *filename){
     File_Track_Result result = FileTrack_Good;
@@ -157,8 +168,8 @@ add_listener(File_Track_System *system, char *filename){
                                 if (ReadDirectoryChangesW(dir,
                                                           node->listener.result,
                                                           sizeof(node->listener.result),
-                                                          0,
-                                                          FILE_NOTIFY_CHANGE_LAST_WRITE,
+                                                          1,
+                                                          FLAGS,
                                                           0,
                                                           &node->listener.overlapped,
                                                           0)){
@@ -250,6 +261,7 @@ remove_listener(File_Track_System *system, char *filename){
                 
                 if (node->listener.user_count == 0){
                     insert_node(&vars->free_sentinel, &node->node);
+                    CancelIo(win32_dir->dir);
                     CloseHandle(win32_dir->dir);
                     internal_free_slot(tables, dir_lookup);
                 }
@@ -316,6 +328,10 @@ get_change_event(File_Track_System *system, char *buffer, int32_t max, int32_t *
     File_Track_Result result = FileTrack_NoMoreEvents;
     Win32_File_Track_Vars *vars = to_vars(system);
     
+    static int32_t has_buffered_event = 0;
+    static DWORD offset = 0;
+    static Win32_Directory_Listener listener;
+    
     EnterCriticalSection(&vars->table_lock);
     
     {
@@ -323,78 +339,83 @@ get_change_event(File_Track_System *system, char *buffer, int32_t max, int32_t *
         DWORD length = 0;
         ULONG_PTR key = 0;
         
-        if (GetQueuedCompletionStatus(vars->iocp,
-                                      &length,
-                                      &key,
-                                      &overlapped,
-                                      0)){
-            
-            Win32_Directory_Listener *listener_ptr = (Win32_Directory_Listener*)overlapped;
-            
-            // NOTE(allen): Get a copy of the state of this node so we can set the node
-            // to work listening for changes again right away.
-            Win32_Directory_Listener listener = *listener_ptr;
-            
-            ZeroStruct(listener_ptr->overlapped);
-            ReadDirectoryChangesW(listener_ptr->dir,
-                                  listener_ptr->result,
-                                  sizeof(listener_ptr->result),
-                                  0,
-                                  FILE_NOTIFY_CHANGE_LAST_WRITE,
-                                  0,
-                                  &listener_ptr->overlapped,
-                                  0);
-            
-            char *listener_buffer = listener.result;
-            DWORD offset = 0;
-            FILE_NOTIFY_INFORMATION *info = 0;
-            
-            for (;;){
-                info = (FILE_NOTIFY_INFORMATION*)(listener_buffer + offset);
+        int32_t has_result = 0;
+        
+        if (has_buffered_event){
+            has_buffered_event = 0;
+            has_result = 1;
+        }
+        else{
+            if (GetQueuedCompletionStatus(vars->iocp,
+                                          &length,
+                                          &key,
+                                          &overlapped,
+                                          0)){
+                Win32_Directory_Listener *listener_ptr = (Win32_Directory_Listener*)overlapped;
                 
-                int32_t len = info->FileNameLength / 2;
-                int32_t dir_len = GetFinalPathNameByHandle(listener.dir, 0, 0,
-                                                           FILE_NAME_NORMALIZED);
-                int32_t req_size = dir_len + 1 + len;
-                *size = req_size;
-                if (req_size < max){
-                    int32_t pos = 0;
-                    
-                    pos = GetFinalPathNameByHandle(listener.dir, buffer, max,
-                                                   FILE_NAME_NORMALIZED);
-                    buffer[pos++] = '\\';
-                    
-                    for (int32_t i = 0; i < len; ++i, ++pos){
-                        buffer[pos] = (char)info->FileName[i];
-                    }
-                    
-                    if (buffer[0] == '\\'){
-                        for (int32_t i = 0; i+4 < pos; ++i){
-                            buffer[i] = buffer[i+4];
-                        }
-                        *size -= 4;
-                    }
-                    
-                    result = FileTrack_Good;
-                }
-                else{
-                    // TODO(allen): Need some way to stash this result so that if the
-                    // user comes back with more memory we can give them the change
-                    // notification they missed.
-                    result = FileTrack_MemoryTooSmall;
+                // NOTE(allen): Get a copy of the state of this node so we can set the node
+                // to work listening for changes again right away.
+                listener = *listener_ptr;
+                
+                ZeroStruct(listener_ptr->overlapped);
+                ReadDirectoryChangesW(listener_ptr->dir,
+                                      listener_ptr->result,
+                                      sizeof(listener_ptr->result),
+                                      1,
+                                      FLAGS,
+                                      0,
+                                      &listener_ptr->overlapped,
+                                      0);
+                
+                offset = 0;
+                has_result = 1;
+            }
+        }
+        
+        if (has_result){
+            
+            FILE_NOTIFY_INFORMATION *info = (FILE_NOTIFY_INFORMATION*)(listener.result + offset);
+            
+            int32_t len = info->FileNameLength / 2;
+            int32_t dir_len = GetFinalPathNameByHandle(listener.dir, 0, 0,
+                                                       FILE_NAME_NORMALIZED);
+            
+            int32_t req_size = dir_len + 1 + len;
+            *size = req_size;
+            if (req_size < max){
+                int32_t pos = 0;
+                
+                pos = GetFinalPathNameByHandle(listener.dir, buffer, max,
+                                               FILE_NAME_NORMALIZED);
+                buffer[pos++] = '\\';
+                
+                for (int32_t i = 0; i < len; ++i, ++pos){
+                    buffer[pos] = (char)info->FileName[i];
                 }
                 
-                if (info->NextEntryOffset != 0){
-                    // TODO(allen): We're not ready to handle this yet.
-                    // For now I am breaking.  In the future, if there
-                    // are more results we should stash them and return
-                    // them in future calls.
-                    offset += info->NextEntryOffset;
-                    break;
+                if (buffer[0] == '\\'){
+                    for (int32_t i = 0; i+4 < pos; ++i){
+                        buffer[i] = buffer[i+4];
+                    }
+                    *size -= 4;
                 }
-                else{
-                    break;
-                }
+                
+                result = FileTrack_Good;
+            }
+            else{
+                // TODO(allen): Need some way to stash this result so that if the
+                // user comes back with more memory we can give them the change
+                // notification they missed.
+                result = FileTrack_MemoryTooSmall;
+            }
+            
+            if (info->NextEntryOffset != 0){
+                // TODO(allen): We're not ready to handle this yet.
+                // For now I am breaking.  In the future, if there
+                // are more results we should stash them and return
+                // them in future calls.
+                offset += info->NextEntryOffset;
+                has_buffered_event = 1;
             }
         }
     }
@@ -424,6 +445,9 @@ shut_down_track_system(File_Track_System *system){
             
             if (!entry_is_available(entry)){
                 Win32_File_Track_Entry *win32_entry = (Win32_File_Track_Entry*)entry;
+                if (!CancelIo(win32_entry->dir)){
+                    win32_result = 1;
+                }
                 if (!CloseHandle(win32_entry->dir)){
                     win32_result = 1;
                 }
