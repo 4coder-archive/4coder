@@ -81,7 +81,7 @@ static void make_folder_if_missing(char *folder);
 static void clear_folder(char *folder);
 static void copy_file(char *path, char *file, char *folder, char *newname);
 static void copy_all(char *source, char *folder);
-static void zip(char *folder, char *dest);
+static void zip(char *parent, char *folder, char *dest);
 
 #if defined(IS_WINDOWS)
 
@@ -216,14 +216,14 @@ copy_all(char *source, char *folder){
 }
 
 static void
-zip(char *folder, char *dest){
+zip(char *parent, char *folder, char *dest){
     char cdir[512];
     get_current_directory(cdir, sizeof(cdir));
     
-    slash_fix(folder);
+    slash_fix(parent);
     slash_fix(dest);
     
-    systemf("pushd %s & %s\\zip %s\\4tech_gobble.zip", folder, cdir, cdir);
+    systemf("pushd %s & %s\\zip %s\\4tech_gobble.zip", parent, cdir, cdir);
     systemf("copy %s\\4tech_gobble.zip %s & del %s\\4tech_gobble.zip", cdir, dest, cdir);
 }
 
@@ -323,8 +323,10 @@ copy_all(char *source, char *folder){
 }
 
 static void
-zip(char *folder, char *file){
+zip(char *parent, char *folder, char *file){
+    Temp_Dir temp = linux_pushd(parent);
     systemf("zip -r %s %s", file, folder);
+    linux_popd(temp);
 }
 
 #else
@@ -785,7 +787,7 @@ package(char *cdir){
     copy_file(0, "TODO.txt", PACK_ALPHA_DIR, 0);
     
     get_4coder_dist_name(&str, 1, "alpha", "zip");
-    zip(PACK_ALPHA_DIR, str.str);
+    zip(PACK_ALPHA_PAR_DIR, "4coder", str.str);
     
     // NOTE(allen): super
     build_main(cdir, OPTIMIZATION | KEEP_ASSERT | DEBUG_INFO | SUPER);
@@ -813,7 +815,7 @@ package(char *cdir){
     copy_file(0, "4coder_API.html", PACK_DIR"/super-docs", str2.str);
     
     get_4coder_dist_name(&str, 1, "super", "zip");
-    zip(PACK_SUPER_DIR, str.str);
+    zip(PACK_SUPER_PAR_DIR, "4coder", str.str);
     
     // NOTE(allen): power
     clear_folder(PACK_POWER_PAR_DIR);
@@ -822,7 +824,7 @@ package(char *cdir){
     copy_all("power/*", PACK_POWER_DIR);
     
     get_4coder_dist_name(&str, 0, "power", "zip");
-    zip(PACK_POWER_DIR, str.str);
+    zip(PACK_POWER_PAR_DIR, "power", str.str);
     
 }
 
