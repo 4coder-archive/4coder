@@ -2338,9 +2338,7 @@ CUSTOM_COMMAND_SIG(replace_in_range){
     
     if (!query_user_string(app, &with)) return;
     
-    String r, w;
-    r = replace.string;
-    w = with.string;
+    String r = replace.string, w = with.string;
     
     uint32_t access = AccessOpen;
     View_Summary view = app->get_active_view(app, access);

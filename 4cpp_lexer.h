@@ -276,9 +276,6 @@ cpp_pp_directive_to_state(Cpp_Token_Type type){
     token_array_out->count = token_i;           \
     *S_ptr = S; S_ptr->__pc__ = -1; return(n); }
 
-enum Lex_Result{
-};
-
 FCPP_INTERNAL Cpp_Lex_Result
 cpp_lex_nonalloc_null_end_no_limit(Cpp_Lex_Data *S_ptr, char *chunk, int32_t size,
                                    Cpp_Token_Array *token_array_out){

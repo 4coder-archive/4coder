@@ -309,6 +309,257 @@ CUSTOM_COMMAND_SIG(cursor_to_surrounding_scope){
     }
 }
 
+// NOTE(allen): Some basic code manipulation ideas.
+
+CUSTOM_COMMAND_SIG(rename_parameter){
+    uint32_t access = AccessOpen;
+    View_Summary view = app->get_active_view(app, access);
+    Buffer_Summary buffer = app->get_buffer(app, view.buffer_id, access);
+    
+    Partition *part = &global_part;
+    
+    Temp_Memory temp = begin_temp_memory(part);
+    Cpp_Token_Array array = buffer_get_all_tokens(app, part, &buffer);
+    Cpp_Get_Token_Result result = cpp_get_token(&array, view.cursor.pos);
+    if (!result.in_whitespace && result.token_index < array.count){
+        Cpp_Token *token_ptr = &array.tokens[result.token_index];
+        Cpp_Token *token_end = array.tokens + array.count - 1;
+        if (token_ptr->type == CPP_TOKEN_IDENTIFIER){
+            char old_lexeme_base[128];
+            String old_lexeme = make_fixed_width_string(old_lexeme_base);
+            if (token_ptr->size < sizeof(old_lexeme_base)){
+                
+                Cpp_Token original_token = *token_ptr;
+                old_lexeme.size = token_ptr->size;
+                app->buffer_read_range(app, &buffer, token_ptr->start,
+                                       token_ptr->start+token_ptr->size,
+                                       old_lexeme.str);
+                
+                int32_t proc_body_found = 0;
+                for (++token_ptr; token_ptr < token_end; ++token_ptr){
+                    switch (token_ptr->type){
+                        case CPP_TOKEN_BRACE_OPEN:
+                        {
+                            proc_body_found = 1;
+                            goto doublebreak;
+                        }break;
+                        
+                        case CPP_TOKEN_BRACE_CLOSE:
+                        case CPP_TOKEN_PARENTHESE_OPEN:
+                        {
+                            goto doublebreak; 
+                        }break;
+                    }
+                }
+                doublebreak:;
+                
+                if (proc_body_found){
+                    
+                    Query_Bar with;
+                    char with_space[1024];
+                    with.prompt = make_lit_string("New Name: ");
+                    with.string = make_fixed_width_string(with_space);
+                    if (!query_user_string(app, &with)) return;
+                    
+                    String replace_string = with.string;
+                    
+                    Cpp_Token *token_start_ptr = token_ptr+1;
+                    
+                    Buffer_Edit *edits = (Buffer_Edit*)partition_current(part);
+                    int32_t edit_max = (partition_remaining(part))/sizeof(Buffer_Edit);
+                    int32_t edit_count = 0;
+                    
+                    if (edit_max >= 1){
+                        Buffer_Edit edit;
+                        edit.str_start = 0;
+                        edit.len = replace_string.size;
+                        edit.start = original_token.start;
+                        edit.end = original_token.start + original_token.size;
+                        
+                        edits[edit_count] = edit;
+                        ++edit_count;
+                    }
+                    
+                    int32_t nesting_level = 0;
+                    int32_t closed_correctly = 0;
+                    token_ptr = token_start_ptr;
+                    for (; token_ptr < token_end; ++token_ptr){
+                        switch (token_ptr->type){
+                            case CPP_TOKEN_IDENTIFIER:
+                            {
+                                if (token_ptr->size == old_lexeme.size){
+                                    char other_lexeme_base[128];
+                                    String other_lexeme = make_fixed_width_string(other_lexeme_base);
+                                    other_lexeme.size = old_lexeme.size;
+                                    app->buffer_read_range(app, &buffer, token_ptr->start,
+                                                           token_ptr->start+token_ptr->size,
+                                                           other_lexeme.str);
+                                    
+                                    if (match(old_lexeme, other_lexeme)){
+                                        Buffer_Edit edit;
+                                        edit.str_start = 0;
+                                        edit.len = replace_string.size;
+                                        edit.start = token_ptr->start;
+                                        edit.end = token_ptr->start + token_ptr->size;
+                                        
+                                        if (edit_count < edit_max){
+                                            edits[edit_count] = edit;
+                                            ++edit_count;
+                                        }
+                                        else{
+                                            goto doublebreak2;
+                                        }
+                                    }
+                                }
+                            }break;
+                            
+                            case CPP_TOKEN_BRACE_OPEN:
+                            {
+                                ++nesting_level;
+                            }break;
+                            
+                            case CPP_TOKEN_BRACE_CLOSE:
+                            {
+                                if (nesting_level == 0){
+                                    closed_correctly = 1;
+                                    goto doublebreak2;
+                                }
+                                else{
+                                    --nesting_level;
+                                }
+                            }break;
+                        }
+                    }
+                    doublebreak2:;
+                    
+                    if (closed_correctly){
+                        app->buffer_batch_edit(app, &buffer, replace_string.str, replace_string.size,
+                                               edits, edit_count, BatchEdit_Normal);
+                    }
+                }
+            }
+        }
+    }
+    end_temp_memory(temp);
+}
+
+CUSTOM_COMMAND_SIG(write_explicit_enum_values){
+    uint32_t access = AccessOpen;
+    View_Summary view = app->get_active_view(app, access);
+    Buffer_Summary buffer = app->get_buffer(app, view.buffer_id, access);
+    
+    Partition *part = &global_part;
+    
+    Temp_Memory temp = begin_temp_memory(part);
+    Cpp_Token_Array array = buffer_get_all_tokens(app, part, &buffer);
+    Cpp_Get_Token_Result result = cpp_get_token(&array, view.cursor.pos);
+    if (!result.in_whitespace && result.token_index < array.count){
+        Cpp_Token *token_ptr = &array.tokens[result.token_index];
+        Cpp_Token *token_end = array.tokens + array.count;
+        if (token_ptr->type == CPP_TOKEN_BRACE_OPEN){
+            
+            ++token_ptr;
+            
+            int32_t closed_correctly = 0;
+            Cpp_Token *token_seeker = token_ptr;
+            for (; token_seeker < token_end; ++token_seeker){
+                switch (token_seeker->type){
+                    case CPP_TOKEN_BRACE_CLOSE:
+                    closed_correctly = 1;
+                    goto finished_seek;
+                    
+                    case CPP_TOKEN_BRACE_OPEN:
+                    goto finished_seek;
+                }
+            }
+            finished_seek:;
+            
+            if (closed_correctly){
+                int32_t count_estimate = 1 + (int32_t)(token_seeker - token_ptr)/2;
+                
+                Buffer_Edit *edits = push_array(part, Buffer_Edit, count_estimate);
+                int32_t edit_count = 0;
+                
+                char *string_base = (char*)partition_current(part);
+                String string = make_string(string_base, 0, partition_remaining(part));
+                
+                int32_t value = 0;
+                closed_correctly = 0;
+                for (;token_ptr < token_end; ++token_ptr){
+                    switch (token_ptr->type){
+                        case CPP_TOKEN_IDENTIFIER:
+                        {
+                            int32_t edit_start = token_ptr->start + token_ptr->size;
+                            int32_t edit_stop = edit_start;
+                            
+                            int32_t edit_is_good = 0;
+                            for (++token_ptr; token_ptr < token_end; ++token_ptr){
+                                switch (token_ptr->type){
+                                    case CPP_TOKEN_COMMA:
+                                    {
+                                        edit_stop = token_ptr->start;
+                                        edit_is_good = 1;
+                                        goto good_edit;
+                                    }break;
+                                    
+                                    case CPP_TOKEN_BRACE_CLOSE:
+                                    {
+                                        edit_stop = token_ptr->start;
+                                        closed_correctly = 1;
+                                        edit_is_good = 1;
+                                        goto good_edit;
+                                    }break;
+                                }
+                            }
+                            
+                            good_edit:;
+                            if (edit_is_good){
+                                int32_t str_pos = string.size;
+                                
+                                append(&string, " = ");
+                                append_int_to_str(&string, value);
+                                if (closed_correctly){
+                                    append(&string, "\n");
+                                }
+                                ++value;
+                                
+                                int32_t str_size = string.size - str_pos;
+                                
+                                Buffer_Edit edit;
+                                edit.str_start = str_pos;
+                                edit.len = str_size;
+                                edit.start = edit_start;
+                                edit.end = edit_stop;
+                                
+                                assert(edit_count < count_estimate);
+                                edits[edit_count] = edit;
+                                ++edit_count;
+                            }
+                            if (!edit_is_good || closed_correctly){
+                                goto finished;
+                            }
+                        }break;
+                        
+                        case CPP_TOKEN_BRACE_CLOSE:
+                        {
+                            closed_correctly = 1;
+                            goto finished;
+                        }break;
+                    }
+                }
+                
+                finished:;
+                if (closed_correctly){
+                    app->buffer_batch_edit(app, &buffer, string_base, string.size,
+                                           edits, edit_count, BatchEdit_Normal);
+                }
+            }
+        }
+    }
+    
+    end_temp_memory(temp);
+}
+
 // TODO(allen): Query theme settings
 #if 0
 CUSTOM_COMMAND_SIG(save_theme_settings){
@@ -402,8 +653,10 @@ get_bindings(void *data, int size){
     end_map(context);
     
     begin_map(context, my_code_map);
-    bind(context, ']', MDFR_ALT, mark_matching_brace);
     bind(context, '[', MDFR_ALT, cursor_to_surrounding_scope);
+    bind(context, ']', MDFR_ALT, mark_matching_brace);
+    bind(context, key_insert, MDFR_CTRL, write_explicit_enum_values);
+    bind(context, 'p', MDFR_ALT, rename_parameter);
     end_map(context);
     
     BIND_4CODER_TESTS(context);

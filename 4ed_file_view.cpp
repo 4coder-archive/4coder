@@ -1941,7 +1941,7 @@ internal void
 file_edit_cursor_fix(System_Functions *system,
                      Partition *part, General_Memory *general,
                      Editing_File *file, Editing_Layout *layout,
-                     Cursor_Fix_Descriptor desc){
+                     Cursor_Fix_Descriptor desc, i32 *shift_out){
     
     Temp_Memory cursor_temp = begin_temp_memory(part);
     i32 cursor_max = layout->panel_max_count * 2;
@@ -1967,13 +1967,20 @@ file_edit_cursor_fix(System_Functions *system,
     if (cursor_count > 0){
         buffer_sort_cursors(cursors, cursor_count);
         if (desc.is_batch){
-            buffer_batch_edit_update_cursors(cursors, cursor_count,
-                                             desc.batch, desc.batch_size);
+            i32 shift_total = 
+                buffer_batch_edit_update_cursors(cursors, cursor_count,
+                                                 desc.batch, desc.batch_size);
+            if (shift_out){
+                *shift_out = shift_total;
+            }
         }
         else{
             buffer_update_cursors(cursors, cursor_count,
                                   desc.start, desc.end,
                                   desc.shift_amount + (desc.end - desc.start));
+            if (shift_out){
+                *shift_out = desc.shift_amount;
+            }
         }
         buffer_unsort_cursors(cursors, cursor_count);
         
@@ -2088,7 +2095,7 @@ file_do_single_edit(System_Functions *system,
     desc.end = end;
     desc.shift_amount = shift_amount;
     
-    file_edit_cursor_fix(system, part, general, file, layout, desc);
+    file_edit_cursor_fix(system, part, general, file, layout, desc, 0);
     
 #if BUFFER_EXPERIMENT_SCALPEL <= 0
     // NOTE(allen): token fixing
@@ -2132,7 +2139,9 @@ file_do_batch_edit(System_Functions *system, Models *models, Editing_File *file,
             new_data = general_memory_allocate(general, request_amount);
         }
         void *old_data = buffer_edit_provide_memory(&file->state.buffer, new_data, request_amount);
-        if (old_data) general_memory_free(general, old_data);
+        if (old_data){
+            general_memory_free(general, old_data);
+        }
     }
     
     // NOTE(allen): meta data
@@ -2141,18 +2150,21 @@ file_do_batch_edit(System_Functions *system, Models *models, Editing_File *file,
         i16 font_id = file->settings.font_id;
         Render_Font *font = get_font_info(models->font_set, font_id)->font;
         float *advance_data = 0;
-        if (font) advance_data = font->advance_data;
+        if (font){
+            advance_data = font->advance_data;
+        }
         buffer_measure_starts_widths(&state, &file->state.buffer, advance_data);
     }
     
     // NOTE(allen): cursor fixing
+    i32 shift_total = 0;
     {
         Cursor_Fix_Descriptor desc = {};
         desc.is_batch = 1;
         desc.batch = batch;
         desc.batch_size = batch_size;
         
-        file_edit_cursor_fix(system, part, general, file, layout, desc);
+        file_edit_cursor_fix(system, part, general, file, layout, desc, &shift_total);
     }
     
     // NOTE(allen): token fixing
@@ -2160,15 +2172,11 @@ file_do_batch_edit(System_Functions *system, Models *models, Editing_File *file,
         case BatchEdit_Normal:
         {
             if (file->settings.tokens_exist){
-                Buffer_Edit *edit = batch;
-                for (i32 i = 0; i < batch_size; ++i, ++edit){
-                    i32 start = edit->start;
-                    i32 end = edit->end;
-                    i32 shift_amount = edit->len - (end - start);
-                    if (!file_relex_parallel(system, mem, file, start, end, shift_amount)){
-                        break;
-                    }
-                }
+                // TODO(allen): Write a smart fast one here someday.
+                Buffer_Edit *first_edit = batch;
+                Buffer_Edit *last_edit = batch + batch_size - 1;
+                file_relex_parallel(system, mem, file, first_edit->start, last_edit->end, shift_total);
+                
             }
         }break;
         

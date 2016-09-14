@@ -224,15 +224,15 @@ to it's file or loading the buffer from the file both act as sync points.) */
 ENUM(uint32_t, Dirty_State){
     /* DOC(DirtyState_UpToDate indicates that there are no unsaved changes and
     the underlying system file still agrees with the buffer's state.) */
-    DirtyState_UpToDate,
+    DirtyState_UpToDate = 0,
     
     /* DOC(DirtyState_UnsavedChanges indicates that there have been changes in the
     buffer since the last sync point.) */
-    DirtyState_UnsavedChanges,
+    DirtyState_UnsavedChanges = 1,
     
     /* DOC(DirtyState_UnsavedChanges indicates that the underlying file has been
     edited since the last sync point with the buffer.) */
-    DirtyState_UnloadedChanges
+    DirtyState_UnloadedChanges = 2
 };
 
 /* DOC(A Seek_Boundary_Flag field specifies a set of "boundary" types used in seeks for the

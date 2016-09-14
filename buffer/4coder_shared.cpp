@@ -208,7 +208,7 @@ buffer_batch_edit_max_shift(Buffer_Edit *sorted_edits, int edit_count){
     return(shift_max);
 }
 
-internal_4tech void
+internal_4tech int
 buffer_batch_edit_update_cursors(Cursor_With_Index *sorted_positions, int count, Buffer_Edit *sorted_edits, int edit_count){
     Cursor_With_Index *position, *end_position;
     Buffer_Edit *edit, *end_edit;
@@ -241,6 +241,12 @@ buffer_batch_edit_update_cursors(Cursor_With_Index *sorted_positions, int count,
     for (; position < end_position; ++position){
         position->pos += shift_amount;
     }
+    
+    for (; edit < end_edit; ++edit){
+        shift_amount += (edit->len - (edit->end - edit->start));
+    }
+    
+    return(shift_amount);
 }
 
 internal_4tech int
