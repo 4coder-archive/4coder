@@ -842,6 +842,23 @@ The number of output tokens will be end_token - start_token.)
     return(result);
 }
 
+API_EXPORT bool32
+Buffer_Get_Token_Index(Application_Links *app, Buffer_Summary *buffer, int32_t pos, Cpp_Get_Token_Result *get_result){
+    Command_Data *cmd = (Command_Data*)app->cmd_context;
+    Editing_File *file = imp_get_file(cmd, buffer);
+    Cpp_Token_Array token_array = file->state.token_array;
+    
+    bool32 result = 0;
+    if (file && token_array.tokens && file->state.tokens_complete){
+        result = 1;
+        Cpp_Get_Token_Result get = {0};
+        get = cpp_get_token(&token_array, pos);
+        *get_result = get;
+    }
+    
+    return(result);
+}
+
 API_EXPORT Buffer_Summary
 Create_Buffer(Application_Links *app, char *filename, int32_t filename_len, Buffer_Create_Flag flags)/*
 DOC_PARAM(filename, The filename parameter specifies the name of the file to be opened or created;

@@ -132,6 +132,20 @@ init_memory(Application_Links *app){
 }
 
 //
+// Helpers
+//
+
+static void
+refresh_buffer(Application_Links *app, Buffer_Summary *buffer){
+    *buffer = app->get_buffer(app, buffer->buffer_id, AccessAll);
+}
+
+static void
+refresh_view(Application_Links *app, View_Summary *view){
+    *view = app->get_view(app, view->view_id, AccessAll);
+}
+
+//
 // Buffer Streaming
 //
 
@@ -148,7 +162,7 @@ struct Stream_Chunk{
     char *data;
 };
 
-int32_t
+static int32_t
 round_down(int32_t x, int32_t b){
     int32_t r = 0;
     if (x >= 0){
@@ -157,7 +171,7 @@ round_down(int32_t x, int32_t b){
     return(r);
 }
 
-int32_t
+static int32_t
 round_up(int32_t x, int32_t b){
     int32_t r = 0;
     if (x >= 0){
@@ -166,21 +180,10 @@ round_up(int32_t x, int32_t b){
     return(r);
 }
 
-void
-refresh_buffer(Application_Links *app, Buffer_Summary *buffer){
-    *buffer = app->get_buffer(app, buffer->buffer_id, AccessAll);
-}
-
-void
-refresh_view(Application_Links *app, View_Summary *view){
-    *view = app->get_view(app, view->view_id, AccessAll);
-}
-
-bool32
-init_stream_chunk(Stream_Chunk *chunk,
-                  Application_Links *app, Buffer_Summary *buffer,
+static bool32
+init_stream_chunk(Stream_Chunk *chunk, Application_Links *app, Buffer_Summary *buffer,
                   int32_t pos, char *data, int32_t size){
-    bool32 result = false;
+    bool32 result = 0;
     
     refresh_buffer(app, buffer);
     if (pos >= 0 && pos < buffer->size && size > 0){
@@ -205,17 +208,18 @@ init_stream_chunk(Stream_Chunk *chunk,
         if (chunk->start < chunk->end){
             app->buffer_read_range(app, buffer, chunk->start, chunk->end, chunk->base_data);
             chunk->data = chunk->base_data - chunk->start;
-            result = true;
+            result = 1;
         }
     }
+    
     return(result);
 }
 
-int32_t
+static bool32
 forward_stream_chunk(Stream_Chunk *chunk){
     Application_Links *app = chunk->app;
     Buffer_Summary *buffer = chunk->buffer;
-    int32_t result = false;
+    bool32 result = 0;
     
     refresh_buffer(app, buffer);
     if (chunk->end < buffer->size){
@@ -232,7 +236,7 @@ forward_stream_chunk(Stream_Chunk *chunk){
         if (chunk->start < chunk->end){
             app->buffer_read_range(app, buffer, chunk->start, chunk->end, chunk->base_data);
             chunk->data = chunk->base_data - chunk->start;
-            result = true;
+            result = 1;
         }
     }
     
@@ -241,17 +245,17 @@ forward_stream_chunk(Stream_Chunk *chunk){
         chunk->end = buffer->size + 1;
         chunk->base_data[0] = 0;
         chunk->data = chunk->base_data - chunk->start;
-        result = true;
+        result = 1;
     }
     
     return(result);
 }
 
-int32_t
+static bool32
 backward_stream_chunk(Stream_Chunk *chunk){
     Application_Links *app = chunk->app;
     Buffer_Summary *buffer = chunk->buffer;
-    int32_t result = false;
+    bool32 result = 0;
     
     refresh_buffer(app, buffer);
     if (chunk->start > 0){
@@ -268,7 +272,7 @@ backward_stream_chunk(Stream_Chunk *chunk){
         if (chunk->start < chunk->end){
             app->buffer_read_range(app, buffer, chunk->start, chunk->end, chunk->base_data);
             chunk->data = chunk->base_data - chunk->start;
-            result = true;
+            result = 1;
         }
     }
     
@@ -277,6 +281,91 @@ backward_stream_chunk(Stream_Chunk *chunk){
         chunk->end = 0;
         chunk->base_data[0] = 0;
         chunk->data = chunk->base_data - chunk->start;
+        result = 1;
+    }
+    
+    return(result);
+}
+
+typedef struct Stream_Tokens{
+    Application_Links *app;
+    Buffer_Summary *buffer;
+    
+    Cpp_Token *base_tokens;
+    Cpp_Token *tokens;
+    int32_t start, end;
+    int32_t count, token_count;
+} Stream_Tokens;
+
+static bool32
+init_stream_tokens(Stream_Tokens *stream, Application_Links *app, Buffer_Summary *buffer,
+                   int32_t pos, Cpp_Token *data, int32_t count){
+    bool32 result = 0;
+    
+    refresh_buffer(app, buffer);
+    
+    int32_t token_count = app->buffer_token_count(app, buffer);
+    if (pos >= 0 && pos < token_count && count > 0){
+        stream->app = app;
+        stream->buffer = buffer;
+        stream->base_tokens = data;
+        stream->count = count;
+        stream->start = round_down(pos, count);
+        stream->end = round_up(pos, count);
+        
+        app->buffer_read_tokens(app, buffer, stream->start, stream->end, stream->base_tokens);
+        stream->tokens = stream->base_tokens - stream->start;
+        result = 1;
+    }
+    
+    return(result);
+}
+
+static bool32
+forward_stream_tokens(Stream_Tokens *stream){
+    Application_Links *app = stream->app;
+    Buffer_Summary *buffer = stream->buffer;
+    bool32 result = 0;
+    
+    refresh_buffer(app, buffer);
+    if (stream->end < stream->token_count){
+        stream->start = stream->end;
+        stream->end += stream->count;
+        
+        if (stream->token_count < stream->end){
+            stream->end = stream->token_count;
+        }
+        
+        if (stream->start < stream->end){
+            app->buffer_read_tokens(app, buffer, stream->start, stream->end, stream->base_tokens);
+            stream->tokens = stream->base_tokens - stream->start;
+            result = 1;
+        }
+    }
+    
+    return(result);
+}
+
+static bool32
+backward_stream_tokens(Stream_Tokens *stream){
+    Application_Links *app = stream->app;
+    Buffer_Summary *buffer = stream->buffer;
+    bool32 result = 0;
+    
+    refresh_buffer(app, buffer);
+    if (stream->start > 0){
+        stream->end = stream->start;
+        stream->start -= stream->count;
+        
+        if (0 > stream->start){
+            stream->start = 0;
+        }
+        
+        if (stream->start < stream->end){
+            app->buffer_read_tokens(app, buffer, stream->start, stream->end, stream->base_tokens);
+            stream->tokens = stream->base_tokens - stream->start;
+            result = 1;
+        }
     }
     
     return(result);
@@ -310,7 +399,7 @@ buffer_seek_delimiter_forward(Application_Links *app, Buffer_Summary *buffer,
     finished:;
 }
 
-void
+static void
 buffer_seek_delimiter_backward(Application_Links *app, Buffer_Summary *buffer,
                               int32_t pos, char delim, int32_t *result){
     if (buffer->exists){
@@ -344,7 +433,7 @@ buffer_seek_delimiter_backward(Application_Links *app, Buffer_Summary *buffer,
 // NOTE(allen): This is limitted to a string size of 512.
 // You can push it up or do something more clever by just
 // replacing char read_buffer[512]; with more memory.
-void
+static void
 buffer_seek_string_forward(Application_Links *app, Buffer_Summary *buffer,
                            int32_t pos, int32_t end, char *str, int32_t size, int32_t *result){
     char read_buffer[512];
@@ -399,7 +488,7 @@ buffer_seek_string_forward(Application_Links *app, Buffer_Summary *buffer,
 // NOTE(allen): This is limitted to a string size of 512.
 // You can push it up or do something more clever by just
 // replacing char read_buffer[512]; with more memory.
-void
+static void
 buffer_seek_string_backward(Application_Links *app, Buffer_Summary *buffer,
                             int32_t pos, int32_t min, char *str, int32_t size, int32_t *result){
     char read_buffer[512];
@@ -448,7 +537,7 @@ buffer_seek_string_backward(Application_Links *app, Buffer_Summary *buffer,
 // NOTE(allen): This is limitted to a string size of 512.
 // You can push it up or do something more clever by just
 // replacing char read_buffer[512]; with more memory.
-void
+static void
 buffer_seek_string_insensitive_forward(Application_Links *app, Buffer_Summary *buffer,
                                        int32_t pos, int32_t end, char *str, int32_t size, int32_t *result){
     char read_buffer[512];
@@ -498,7 +587,7 @@ buffer_seek_string_insensitive_forward(Application_Links *app, Buffer_Summary *b
 // NOTE(allen): This is limitted to a string size of 512.
 // You can push it up or do something more clever by just
 // replacing char read_buffer[512]; with more memory.
-void
+static void
 buffer_seek_string_insensitive_backward(Application_Links *app, Buffer_Summary *buffer,
                                         int32_t pos, int32_t min, char *str, int32_t size, int32_t *result){
     char read_buffer[512];

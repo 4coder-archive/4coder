@@ -15,6 +15,7 @@
 #define BUFFER_SET_SETTING_SIG(n) bool32 n(Application_Links *app, Buffer_Summary *buffer, Buffer_Setting_ID setting, int32_t value)
 #define BUFFER_TOKEN_COUNT_SIG(n) int32_t n(Application_Links *app, Buffer_Summary *buffer)
 #define BUFFER_READ_TOKENS_SIG(n) bool32 n(Application_Links *app, Buffer_Summary *buffer, int32_t start_token, int32_t end_token, Cpp_Token *tokens_out)
+#define BUFFER_GET_TOKEN_INDEX_SIG(n) bool32 n(Application_Links *app, Buffer_Summary *buffer, int32_t pos, Cpp_Get_Token_Result *get_result)
 #define CREATE_BUFFER_SIG(n) Buffer_Summary n(Application_Links *app, char *filename, int32_t filename_len, Buffer_Create_Flag flags)
 #define SAVE_BUFFER_SIG(n) bool32 n(Application_Links *app, Buffer_Summary *buffer, char *filename, int32_t filename_len, uint32_t flags)
 #define KILL_BUFFER_SIG(n) bool32 n(Application_Links *app, Buffer_Identifier buffer, View_ID view_id, Buffer_Kill_Flag flags)
@@ -75,6 +76,7 @@ typedef BUFFER_BATCH_EDIT_SIG(Buffer_Batch_Edit_Function);
 typedef BUFFER_SET_SETTING_SIG(Buffer_Set_Setting_Function);
 typedef BUFFER_TOKEN_COUNT_SIG(Buffer_Token_Count_Function);
 typedef BUFFER_READ_TOKENS_SIG(Buffer_Read_Tokens_Function);
+typedef BUFFER_GET_TOKEN_INDEX_SIG(Buffer_Get_Token_Index_Function);
 typedef CREATE_BUFFER_SIG(Create_Buffer_Function);
 typedef SAVE_BUFFER_SIG(Save_Buffer_Function);
 typedef KILL_BUFFER_SIG(Kill_Buffer_Function);
@@ -136,6 +138,7 @@ Buffer_Batch_Edit_Function *buffer_batch_edit;
 Buffer_Set_Setting_Function *buffer_set_setting;
 Buffer_Token_Count_Function *buffer_token_count;
 Buffer_Read_Tokens_Function *buffer_read_tokens;
+Buffer_Get_Token_Index_Function *buffer_get_token_index;
 Create_Buffer_Function *create_buffer;
 Save_Buffer_Function *save_buffer;
 Kill_Buffer_Function *kill_buffer;
@@ -204,6 +207,7 @@ app_links->buffer_batch_edit = Buffer_Batch_Edit;\
 app_links->buffer_set_setting = Buffer_Set_Setting;\
 app_links->buffer_token_count = Buffer_Token_Count;\
 app_links->buffer_read_tokens = Buffer_Read_Tokens;\
+app_links->buffer_get_token_index = Buffer_Get_Token_Index;\
 app_links->create_buffer = Create_Buffer;\
 app_links->save_buffer = Save_Buffer;\
 app_links->kill_buffer = Kill_Buffer;\
