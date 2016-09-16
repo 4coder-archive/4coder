@@ -312,6 +312,7 @@ init_stream_tokens(Stream_Tokens *stream, Application_Links *app, Buffer_Summary
         stream->count = count;
         stream->start = round_down(pos, count);
         stream->end = round_up(pos, count);
+        stream->token_count = token_count;
         
         app->buffer_read_tokens(app, buffer, stream->start, stream->end, stream->base_tokens);
         stream->tokens = stream->base_tokens - stream->start;
@@ -319,6 +320,19 @@ init_stream_tokens(Stream_Tokens *stream, Application_Links *app, Buffer_Summary
     }
     
     return(result);
+}
+
+static Stream_Tokens
+begin_temp_stream_token(Stream_Tokens *stream){
+    return(*stream);
+}
+
+static void
+end_temp_stream_token(Stream_Tokens *stream, Stream_Tokens temp){
+    if (stream->start != temp.start || stream->end != temp.end){
+        Application_Links *app = stream->app;
+        app->buffer_read_tokens(app, stream->buffer, stream->start, stream->end, stream->base_tokens);
+    }
 }
 
 static bool32
