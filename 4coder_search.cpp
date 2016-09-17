@@ -282,7 +282,7 @@ search_front_to_back_step(Application_Links *app,
         
         int32_t case_insensitive = (range->flags & SearchFlag_CaseInsensitive);
         
-        result.buffer = app->get_buffer(app, range->buffer, AccessAll);
+        result.buffer = get_buffer(app, range->buffer, AccessAll);
         if (case_insensitive){
             buffer_seek_string_insensitive_forward(app, &result.buffer,
                                                    start_pos, end_pos,
@@ -344,7 +344,7 @@ search_back_to_front_step(Application_Links *app,
     if (*pos > range->start){
         int32_t start_pos = *pos;
         
-        result.buffer = app->get_buffer(app, range->buffer, AccessAll);
+        result.buffer = get_buffer(app, range->buffer, AccessAll);
         buffer_seek_string_backward(app, &result.buffer,
                                     start_pos, range->start,
                                     word.str, word.size,

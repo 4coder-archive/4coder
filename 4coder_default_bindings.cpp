@@ -32,7 +32,7 @@ CUSTOM_COMMAND_SIG(write_zero_struct){
 }
 
 CUSTOM_COMMAND_SIG(write_capital){
-    User_Input command_in = app->get_command_input(app);
+    User_Input command_in = get_command_input(app);
     char c = command_in.key.character_no_caps_lock;
     if (c != 0){
         c = char_to_upper(c);
@@ -46,15 +46,15 @@ CUSTOM_COMMAND_SIG(switch_to_compilation){
     int32_t name_size = sizeof(name)-1;
     
     uint32_t access = AccessOpen;
-    View_Summary view = app->get_active_view(app, access);
-    Buffer_Summary buffer = app->get_buffer_by_name(app, name, name_size, access);
+    View_Summary view = get_active_view(app, access);
+    Buffer_Summary buffer = get_buffer_by_name(app, name, name_size, access);
     
-    app->view_set_buffer(app, &view, buffer.buffer_id, 0);
+    view_set_buffer(app, &view, buffer.buffer_id, 0);
 }
 
 CUSTOM_COMMAND_SIG(rewrite_as_single_caps){
     uint32_t access = AccessOpen;
-    View_Summary view = app->get_active_view(app, access);
+    View_Summary view = get_active_view(app, access);
     Full_Cursor cursor = view.cursor;
     
     // TODO(allen): This can be rewritten now without moving the
@@ -73,8 +73,8 @@ CUSTOM_COMMAND_SIG(rewrite_as_single_caps){
     string.size = range.max - range.min;
     assert(string.size < app->memory_size);
     
-    Buffer_Summary buffer = app->get_buffer(app, view.buffer_id, access);
-    app->buffer_read_range(app, &buffer, range.min, range.max, string.str);
+    Buffer_Summary buffer = get_buffer(app, view.buffer_id, access);
+    buffer_read_range(app, &buffer, range.min, range.max, string.str);
     
     int32_t is_first = true;
     for (int32_t i = 0; i < string.size; ++i){
@@ -91,23 +91,23 @@ CUSTOM_COMMAND_SIG(rewrite_as_single_caps){
         }
     }
     
-    app->buffer_replace_range(app, &buffer, range.min, range.max, string.str, string.size);
+    buffer_replace_range(app, &buffer, range.min, range.max, string.str, string.size);
     
-    app->view_set_cursor(app, &view,
+    view_set_cursor(app, &view,
                          seek_line_char(cursor.line+1, cursor.character),
                          true);
 }
 
 CUSTOM_COMMAND_SIG(open_my_files){
     uint32_t access = AccessAll;
-    View_Summary view = app->get_active_view(app, access);
+    View_Summary view = get_active_view(app, access);
     view_open_file(app, &view, literal("w:/4ed/data/test/basic.cpp"), true);
 }
 
 CUSTOM_COMMAND_SIG(build_at_launch_location){
     uint32_t access = AccessAll;
-    View_Summary view = app->get_active_view(app, access);
-    app->exec_system_command(app, &view,
+    View_Summary view = get_active_view(app, access);
+    exec_system_command(app, &view,
                              buffer_identifier(literal("*compilation*")),
                              literal("."),
                              literal("build"),
@@ -127,8 +127,8 @@ CUSTOM_COMMAND_SIG(seek_whitespace_down_end_line){
 HOOK_SIG(my_start){
     init_memory(app);
     
-    app->change_theme(app, literal("4coder"));
-    app->change_font(app, literal("Liberation Sans"), true);
+    change_theme(app, literal("4coder"));
+    change_font(app, literal("Liberation Sans"), true);
     
     exec_command(app, open_panel_vsplit);
     exec_command(app, hide_scrollbar);
@@ -159,8 +159,8 @@ HOOK_SIG(my_exit){
 }
 
 CUSTOM_COMMAND_SIG(newline_or_goto_position){
-    View_Summary view = app->get_active_view(app, AccessProtected);
-    Buffer_Summary buffer = app->get_buffer(app, view.buffer_id, AccessProtected);
+    View_Summary view = get_active_view(app, AccessProtected);
+    Buffer_Summary buffer = get_buffer(app, view.buffer_id, AccessProtected);
     
     if (buffer.lock_flags & AccessProtected){
         exec_command(app, goto_jump_at_cursor);
@@ -173,11 +173,11 @@ CUSTOM_COMMAND_SIG(newline_or_goto_position){
 
 // TODO(allen): Eliminate this hook if you can.
 OPEN_FILE_HOOK_SIG(my_file_settings){
-    // NOTE(allen|a4.0.8): The app->get_parameter_buffer was eliminated
+    // NOTE(allen|a4.0.8): The get_parameter_buffer was eliminated
     // and instead the buffer is passed as an explicit parameter through
     // the function call.  That is where buffer_id comes from here.
     uint32_t access = AccessProtected|AccessHidden;
-    Buffer_Summary buffer = app->get_buffer(app, buffer_id, access);
+    Buffer_Summary buffer = get_buffer(app, buffer_id, access);
     assert(buffer.exists);
     
     int32_t treat_as_code = 0;
@@ -198,9 +198,9 @@ OPEN_FILE_HOOK_SIG(my_file_settings){
         wrap_lines = 0;
     }
     
-    app->buffer_set_setting(app, &buffer, BufferSetting_Lex, treat_as_code);
-    app->buffer_set_setting(app, &buffer, BufferSetting_WrapLine, wrap_lines);
-    app->buffer_set_setting(app, &buffer, BufferSetting_MapID,
+    buffer_set_setting(app, &buffer, BufferSetting_Lex, treat_as_code);
+    buffer_set_setting(app, &buffer, BufferSetting_WrapLine, wrap_lines);
+    buffer_set_setting(app, &buffer, BufferSetting_MapID,
                             (treat_as_code)?((int32_t)my_code_map):((int32_t)mapid_file));
     
     // no meaning for return
@@ -226,11 +226,11 @@ static void
 set_mouse_suppression(Application_Links *app, int32_t suppress){
     if (suppress){
         suppressing_mouse = true;
-        app->show_mouse_cursor(app, MouseCursorShow_Never);
+        show_mouse_cursor(app, MouseCursorShow_Never);
     }
     else{
         suppressing_mouse = false;
-        app->show_mouse_cursor(app, MouseCursorShow_Always);
+        show_mouse_cursor(app, MouseCursorShow_Always);
     }
 }
 

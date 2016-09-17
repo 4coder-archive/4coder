@@ -18,7 +18,7 @@ static ID_Based_Jump_Location null_location = {0};
 static void
 jump_to_location(Application_Links *app, View_Summary *view, Name_Based_Jump_Location *l){
     if (view_open_file(app, view, l->file.str, l->file.size, true)){
-        app->view_set_cursor(app, view, seek_line_char(l->line, l->column), true);
+        view_set_cursor(app, view, seek_line_char(l->line, l->column), true);
     }
 }
 
@@ -168,7 +168,7 @@ parse_jump_from_buffer_line(Application_Links *app,
     
     int32_t result = false;
     String line_str = {0};
-    Buffer_Summary buffer = app->get_buffer(app, buffer_id, AccessAll);
+    Buffer_Summary buffer = get_buffer(app, buffer_id, AccessAll);
     if (read_line(app, part, &buffer, line, &line_str)){
         int32_t colon_char = 0;
         if (parse_jump_location(line_str, location, skip_sub_errors, &colon_char)){
@@ -181,7 +181,7 @@ parse_jump_from_buffer_line(Application_Links *app,
 
 CUSTOM_COMMAND_SIG(goto_jump_at_cursor){
     Temp_Memory temp = begin_temp_memory(&global_part);
-    View_Summary view = app->get_active_view(app, AccessProtected);
+    View_Summary view = get_active_view(app, AccessProtected);
     
     Name_Based_Jump_Location location = {0};
     if (parse_jump_from_buffer_line(app, &global_part,
@@ -189,7 +189,7 @@ CUSTOM_COMMAND_SIG(goto_jump_at_cursor){
                                     &location)){
         
         exec_command(app, change_active_panel);
-        view = app->get_active_view(app, AccessAll);
+        view = get_active_view(app, AccessAll);
         jump_to_location(app, &view, &location);
     }
     
@@ -217,7 +217,7 @@ seek_next_jump_in_buffer(Application_Links *app,
     int32_t result = false;
     int32_t line = first_line;
     String line_str = {0};
-    Buffer_Summary buffer = app->get_buffer(app, buffer_id, AccessAll);
+    Buffer_Summary buffer = get_buffer(app, buffer_id, AccessAll);
     for (;;){
         if (read_line(app, part, &buffer, line, &line_str)){
             if (parse_jump_location(line_str, location_out, skip_sub_errors, colon_index_out)){
@@ -244,7 +244,7 @@ static ID_Based_Jump_Location
 convert_name_based_to_id_based(Application_Links *app, Name_Based_Jump_Location loc){
     ID_Based_Jump_Location result = {0};
     Buffer_Summary buffer =
-        app->get_buffer_by_name(app, loc.file.str, loc.file.size, AccessAll);
+        get_buffer_by_name(app, loc.file.str, loc.file.size, AccessAll);
     
     if (buffer.exists){
         result.buffer_id = buffer.buffer_id;
@@ -326,7 +326,7 @@ advance_cursor_in_jump_view(Application_Links *app,
     
     if (result){
         *location_out = location;
-        app->view_set_cursor(app, view, seek_line_char(line, colon_index+1), true);
+        view_set_cursor(app, view, seek_line_char(line, colon_index+1), true);
     }
     
     prev_location = jump;
@@ -357,7 +357,7 @@ get_view_for_locked_jump_buffer(Application_Links *app){
     View_Summary view = {0};
     
     if (locked_buffer.size > 0){
-        Buffer_Summary buffer = app->get_buffer_by_name(app, locked_buffer.str, locked_buffer.size, AccessAll);
+        Buffer_Summary buffer = get_buffer_by_name(app, locked_buffer.str, locked_buffer.size, AccessAll);
         if (buffer.exists){
             view = get_first_view_with_buffer(app, buffer.buffer_id);
         }
@@ -384,10 +384,10 @@ seek_error(Application_Links *app,
         if (advance_cursor_in_jump_view(app, &global_part, &view,
                                         skip_repeats, skip_sub_errors, direction,
                                         &location)){
-            View_Summary active_view = app->get_active_view(app, AccessAll);
+            View_Summary active_view = get_active_view(app, AccessAll);
             if (active_view.view_id == view.view_id){
                 exec_command(app, change_active_panel);
-                active_view = app->get_active_view(app, AccessAll);
+                active_view = get_active_view(app, AccessAll);
             }
             
             jump_to_location(app, &active_view, &location);
@@ -432,7 +432,7 @@ CUSTOM_COMMAND_SIG(goto_first_jump){
     
     View_Summary view = get_view_for_locked_jump_buffer(app);
     if (view.exists){
-        app->view_set_cursor(app, &view, seek_pos(0), true);
+        view_set_cursor(app, &view, seek_pos(0), true);
         
         prev_location = null_location;
         seek_error(app, &global_part, false, true, 1);

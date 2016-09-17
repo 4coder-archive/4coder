@@ -162,7 +162,8 @@ folders.
 }
 
 API_EXPORT bool32
-Get_4ed_Path(Application_Links *app, char *out, int32_t capacity)/*
+Get_4ed_Path(Application_Links *app, char *out, int32_t capacity)
+/*
 DOC_PARAM(out, This parameter provides a character buffer that receives the path to the 4ed executable file.)
 DOC_PARAM(capacity, This parameter specifies the maximum capacity of the out buffer.)
 DOC_RETURN(This call returns non-zero on success.)
@@ -173,7 +174,8 @@ DOC_RETURN(This call returns non-zero on success.)
 
 // TODO(allen): add a "shown but auto-hides on timer" setting here.
 API_EXPORT void
-Show_Mouse_Cursor(Application_Links *app, Mouse_Cursor_Show_Type show)/*
+Show_Mouse_Cursor(Application_Links *app, Mouse_Cursor_Show_Type show)
+/*
 DOC_PARAM(show, This parameter specifies the new state of the mouse cursor.)
 DOC_SEE(Mouse_Cursor_Show_Type)
 */{
@@ -191,7 +193,8 @@ DOC_SEE(Mouse_Cursor_Show_Type)
 }
 
 API_EXPORT void
-Toggle_Fullscreen(Application_Links *app)/*
+Toggle_Fullscreen(Application_Links *app)
+/*
 DOC(This call tells 4coder to switch into or out of full screen mode.
 The changes of full screen mode do not take effect until the end of the current frame.
 On Windows this call will not work unless 4coder was started in "stream mode".
@@ -207,12 +210,13 @@ Stream mode can be enabled with -S or -F flags on the command line to 4ed.)
         win32vars.do_toggle = !win32vars.do_toggle;
     }
     else{
-        app->print_message(app, literal("WARNING: Cannot go full screen unless 4coder is in stream mode\n Use the flag -S to put 4coder in stream mode.\n"));
+        print_message(app, literal("WARNING: Cannot go full screen unless 4coder is in stream mode\n Use the flag -S to put 4coder in stream mode.\n"));
     }
 }
 
 API_EXPORT bool32
-Is_Fullscreen(Application_Links *app)/*
+Is_Fullscreen(Application_Links *app)
+/*
 DOC(This call returns true if the 4coder is in full screen mode.  This call
 takes toggles that have already occured this frame into account.  So it may return
 true even though the frame has not ended and actually put 4coder into full screen. If
@@ -228,7 +232,8 @@ frame if the state is not changed.)
 }
 
 API_EXPORT void
-Send_Exit_Signal(Application_Links *app)/*
+Send_Exit_Signal(Application_Links *app)
+/*
 DOC(This call sends a signal to 4coder to attempt to exit.  If there are unsaved
 files this triggers a dialogue ensuring you're okay with closing.)
 */{

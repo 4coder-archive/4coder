@@ -121,6 +121,7 @@ typedef TOGGLE_FULLSCREEN_SIG(Toggle_Fullscreen_Function);
 typedef IS_FULLSCREEN_SIG(Is_Fullscreen_Function);
 typedef SEND_EXIT_SIGNAL_SIG(Send_Exit_Signal_Function);
 struct Application_Links{
+#if defined(ALLOW_DEP_4CODER)
 Exec_Command_Function *exec_command;
 Exec_System_Command_Function *exec_system_command;
 Clipboard_Post_Function *clipboard_post;
@@ -182,6 +183,69 @@ Show_Mouse_Cursor_Function *show_mouse_cursor;
 Toggle_Fullscreen_Function *toggle_fullscreen;
 Is_Fullscreen_Function *is_fullscreen;
 Send_Exit_Signal_Function *send_exit_signal;
+#else
+Exec_Command_Function *exec_command_;
+Exec_System_Command_Function *exec_system_command_;
+Clipboard_Post_Function *clipboard_post_;
+Clipboard_Count_Function *clipboard_count_;
+Clipboard_Index_Function *clipboard_index_;
+Get_Buffer_Count_Function *get_buffer_count_;
+Get_Buffer_First_Function *get_buffer_first_;
+Get_Buffer_Next_Function *get_buffer_next_;
+Get_Buffer_Function *get_buffer_;
+Get_Buffer_By_Name_Function *get_buffer_by_name_;
+Buffer_Read_Range_Function *buffer_read_range_;
+Buffer_Replace_Range_Function *buffer_replace_range_;
+Buffer_Compute_Cursor_Function *buffer_compute_cursor_;
+Buffer_Batch_Edit_Function *buffer_batch_edit_;
+Buffer_Set_Setting_Function *buffer_set_setting_;
+Buffer_Token_Count_Function *buffer_token_count_;
+Buffer_Read_Tokens_Function *buffer_read_tokens_;
+Buffer_Get_Token_Index_Function *buffer_get_token_index_;
+Create_Buffer_Function *create_buffer_;
+Save_Buffer_Function *save_buffer_;
+Kill_Buffer_Function *kill_buffer_;
+Get_View_First_Function *get_view_first_;
+Get_View_Next_Function *get_view_next_;
+Get_View_Function *get_view_;
+Get_Active_View_Function *get_active_view_;
+Open_View_Function *open_view_;
+Close_View_Function *close_view_;
+Set_Active_View_Function *set_active_view_;
+View_Set_Setting_Function *view_set_setting_;
+View_Set_Split_Proportion_Function *view_set_split_proportion_;
+View_Compute_Cursor_Function *view_compute_cursor_;
+View_Set_Cursor_Function *view_set_cursor_;
+View_Set_Scroll_Function *view_set_scroll_;
+View_Set_Mark_Function *view_set_mark_;
+View_Set_Highlight_Function *view_set_highlight_;
+View_Set_Buffer_Function *view_set_buffer_;
+View_Post_Fade_Function *view_post_fade_;
+Get_User_Input_Function *get_user_input_;
+Get_Command_Input_Function *get_command_input_;
+Get_Mouse_State_Function *get_mouse_state_;
+Start_Query_Bar_Function *start_query_bar_;
+End_Query_Bar_Function *end_query_bar_;
+Print_Message_Function *print_message_;
+Change_Theme_Function *change_theme_;
+Change_Font_Function *change_font_;
+Buffer_Set_Font_Function *buffer_set_font_;
+Set_Theme_Colors_Function *set_theme_colors_;
+Get_Theme_Colors_Function *get_theme_colors_;
+Directory_Get_Hot_Function *directory_get_hot_;
+Get_File_List_Function *get_file_list_;
+Free_File_List_Function *free_file_list_;
+Memory_Allocate_Function *memory_allocate_;
+Memory_Set_Protection_Function *memory_set_protection_;
+Memory_Free_Function *memory_free_;
+File_Exists_Function *file_exists_;
+Directory_CD_Function *directory_cd_;
+Get_4ed_Path_Function *get_4ed_path_;
+Show_Mouse_Cursor_Function *show_mouse_cursor_;
+Toggle_Fullscreen_Function *toggle_fullscreen_;
+Is_Fullscreen_Function *is_fullscreen_;
+Send_Exit_Signal_Function *send_exit_signal_;
+#endif
 void *memory;
 int32_t memory_size;
 void *cmd_context;
@@ -190,64 +254,189 @@ void *current_coroutine;
 int32_t type_coroutine;
 };
 #define FillAppLinksAPI(app_links) do{\
-app_links->exec_command = Exec_Command;\
-app_links->exec_system_command = Exec_System_Command;\
-app_links->clipboard_post = Clipboard_Post;\
-app_links->clipboard_count = Clipboard_Count;\
-app_links->clipboard_index = Clipboard_Index;\
-app_links->get_buffer_count = Get_Buffer_Count;\
-app_links->get_buffer_first = Get_Buffer_First;\
-app_links->get_buffer_next = Get_Buffer_Next;\
-app_links->get_buffer = Get_Buffer;\
-app_links->get_buffer_by_name = Get_Buffer_By_Name;\
-app_links->buffer_read_range = Buffer_Read_Range;\
-app_links->buffer_replace_range = Buffer_Replace_Range;\
-app_links->buffer_compute_cursor = Buffer_Compute_Cursor;\
-app_links->buffer_batch_edit = Buffer_Batch_Edit;\
-app_links->buffer_set_setting = Buffer_Set_Setting;\
-app_links->buffer_token_count = Buffer_Token_Count;\
-app_links->buffer_read_tokens = Buffer_Read_Tokens;\
-app_links->buffer_get_token_index = Buffer_Get_Token_Index;\
-app_links->create_buffer = Create_Buffer;\
-app_links->save_buffer = Save_Buffer;\
-app_links->kill_buffer = Kill_Buffer;\
-app_links->get_view_first = Get_View_First;\
-app_links->get_view_next = Get_View_Next;\
-app_links->get_view = Get_View;\
-app_links->get_active_view = Get_Active_View;\
-app_links->open_view = Open_View;\
-app_links->close_view = Close_View;\
-app_links->set_active_view = Set_Active_View;\
-app_links->view_set_setting = View_Set_Setting;\
-app_links->view_set_split_proportion = View_Set_Split_Proportion;\
-app_links->view_compute_cursor = View_Compute_Cursor;\
-app_links->view_set_cursor = View_Set_Cursor;\
-app_links->view_set_scroll = View_Set_Scroll;\
-app_links->view_set_mark = View_Set_Mark;\
-app_links->view_set_highlight = View_Set_Highlight;\
-app_links->view_set_buffer = View_Set_Buffer;\
-app_links->view_post_fade = View_Post_Fade;\
-app_links->get_user_input = Get_User_Input;\
-app_links->get_command_input = Get_Command_Input;\
-app_links->get_mouse_state = Get_Mouse_State;\
-app_links->start_query_bar = Start_Query_Bar;\
-app_links->end_query_bar = End_Query_Bar;\
-app_links->print_message = Print_Message;\
-app_links->change_theme = Change_Theme;\
-app_links->change_font = Change_Font;\
-app_links->buffer_set_font = Buffer_Set_Font;\
-app_links->set_theme_colors = Set_Theme_Colors;\
-app_links->get_theme_colors = Get_Theme_Colors;\
-app_links->directory_get_hot = Directory_Get_Hot;\
-app_links->get_file_list = Get_File_List;\
-app_links->free_file_list = Free_File_List;\
-app_links->memory_allocate = Memory_Allocate;\
-app_links->memory_set_protection = Memory_Set_Protection;\
-app_links->memory_free = Memory_Free;\
-app_links->file_exists = File_Exists;\
-app_links->directory_cd = Directory_CD;\
-app_links->get_4ed_path = Get_4ed_Path;\
-app_links->show_mouse_cursor = Show_Mouse_Cursor;\
-app_links->toggle_fullscreen = Toggle_Fullscreen;\
-app_links->is_fullscreen = Is_Fullscreen;\
-app_links->send_exit_signal = Send_Exit_Signal;} while(false)
+app_links->exec_command_ = Exec_Command;\
+app_links->exec_system_command_ = Exec_System_Command;\
+app_links->clipboard_post_ = Clipboard_Post;\
+app_links->clipboard_count_ = Clipboard_Count;\
+app_links->clipboard_index_ = Clipboard_Index;\
+app_links->get_buffer_count_ = Get_Buffer_Count;\
+app_links->get_buffer_first_ = Get_Buffer_First;\
+app_links->get_buffer_next_ = Get_Buffer_Next;\
+app_links->get_buffer_ = Get_Buffer;\
+app_links->get_buffer_by_name_ = Get_Buffer_By_Name;\
+app_links->buffer_read_range_ = Buffer_Read_Range;\
+app_links->buffer_replace_range_ = Buffer_Replace_Range;\
+app_links->buffer_compute_cursor_ = Buffer_Compute_Cursor;\
+app_links->buffer_batch_edit_ = Buffer_Batch_Edit;\
+app_links->buffer_set_setting_ = Buffer_Set_Setting;\
+app_links->buffer_token_count_ = Buffer_Token_Count;\
+app_links->buffer_read_tokens_ = Buffer_Read_Tokens;\
+app_links->buffer_get_token_index_ = Buffer_Get_Token_Index;\
+app_links->create_buffer_ = Create_Buffer;\
+app_links->save_buffer_ = Save_Buffer;\
+app_links->kill_buffer_ = Kill_Buffer;\
+app_links->get_view_first_ = Get_View_First;\
+app_links->get_view_next_ = Get_View_Next;\
+app_links->get_view_ = Get_View;\
+app_links->get_active_view_ = Get_Active_View;\
+app_links->open_view_ = Open_View;\
+app_links->close_view_ = Close_View;\
+app_links->set_active_view_ = Set_Active_View;\
+app_links->view_set_setting_ = View_Set_Setting;\
+app_links->view_set_split_proportion_ = View_Set_Split_Proportion;\
+app_links->view_compute_cursor_ = View_Compute_Cursor;\
+app_links->view_set_cursor_ = View_Set_Cursor;\
+app_links->view_set_scroll_ = View_Set_Scroll;\
+app_links->view_set_mark_ = View_Set_Mark;\
+app_links->view_set_highlight_ = View_Set_Highlight;\
+app_links->view_set_buffer_ = View_Set_Buffer;\
+app_links->view_post_fade_ = View_Post_Fade;\
+app_links->get_user_input_ = Get_User_Input;\
+app_links->get_command_input_ = Get_Command_Input;\
+app_links->get_mouse_state_ = Get_Mouse_State;\
+app_links->start_query_bar_ = Start_Query_Bar;\
+app_links->end_query_bar_ = End_Query_Bar;\
+app_links->print_message_ = Print_Message;\
+app_links->change_theme_ = Change_Theme;\
+app_links->change_font_ = Change_Font;\
+app_links->buffer_set_font_ = Buffer_Set_Font;\
+app_links->set_theme_colors_ = Set_Theme_Colors;\
+app_links->get_theme_colors_ = Get_Theme_Colors;\
+app_links->directory_get_hot_ = Directory_Get_Hot;\
+app_links->get_file_list_ = Get_File_List;\
+app_links->free_file_list_ = Free_File_List;\
+app_links->memory_allocate_ = Memory_Allocate;\
+app_links->memory_set_protection_ = Memory_Set_Protection;\
+app_links->memory_free_ = Memory_Free;\
+app_links->file_exists_ = File_Exists;\
+app_links->directory_cd_ = Directory_CD;\
+app_links->get_4ed_path_ = Get_4ed_Path;\
+app_links->show_mouse_cursor_ = Show_Mouse_Cursor;\
+app_links->toggle_fullscreen_ = Toggle_Fullscreen;\
+app_links->is_fullscreen_ = Is_Fullscreen;\
+app_links->send_exit_signal_ = Send_Exit_Signal;} while(false)
+#if defined(ALLOW_DEP_4CODER)
+static inline bool32 exec_command(Application_Links *app, Command_ID command_id){return(app->exec_command(app, command_id));}
+static inline bool32 exec_system_command(Application_Links *app, View_Summary *view, Buffer_Identifier buffer, char *path, int32_t path_len, char *command, int32_t command_len, Command_Line_Interface_Flag flags){return(app->exec_system_command(app, view, buffer, path, path_len, command, command_len, flags));}
+static inline void clipboard_post(Application_Links *app, int32_t clipboard_id, char *str, int32_t len){(app->clipboard_post(app, clipboard_id, str, len));}
+static inline int32_t clipboard_count(Application_Links *app, int32_t clipboard_id){return(app->clipboard_count(app, clipboard_id));}
+static inline int32_t clipboard_index(Application_Links *app, int32_t clipboard_id, int32_t item_index, char *out, int32_t len){return(app->clipboard_index(app, clipboard_id, item_index, out, len));}
+static inline int32_t get_buffer_count(Application_Links *app){return(app->get_buffer_count(app));}
+static inline Buffer_Summary get_buffer_first(Application_Links *app, Access_Flag access){return(app->get_buffer_first(app, access));}
+static inline void get_buffer_next(Application_Links *app, Buffer_Summary *buffer, Access_Flag  access){(app->get_buffer_next(app, buffer, access));}
+static inline Buffer_Summary get_buffer(Application_Links *app, Buffer_ID buffer_id, Access_Flag access){return(app->get_buffer(app, buffer_id, access));}
+static inline Buffer_Summary get_buffer_by_name(Application_Links *app, char *name, int32_t len, Access_Flag access){return(app->get_buffer_by_name(app, name, len, access));}
+static inline bool32 buffer_read_range(Application_Links *app, Buffer_Summary *buffer, int32_t start, int32_t end, char *out){return(app->buffer_read_range(app, buffer, start, end, out));}
+static inline bool32 buffer_replace_range(Application_Links *app, Buffer_Summary *buffer, int32_t start, int32_t end, char *str, int32_t len){return(app->buffer_replace_range(app, buffer, start, end, str, len));}
+static inline bool32 buffer_compute_cursor(Application_Links *app, Buffer_Summary *buffer, Buffer_Seek seek, Partial_Cursor *cursor_out){return(app->buffer_compute_cursor(app, buffer, seek, cursor_out));}
+static inline bool32 buffer_batch_edit(Application_Links *app, Buffer_Summary *buffer, char *str, int32_t str_len, Buffer_Edit *edits, int32_t edit_count, Buffer_Batch_Edit_Type type){return(app->buffer_batch_edit(app, buffer, str, str_len, edits, edit_count, type));}
+static inline bool32 buffer_set_setting(Application_Links *app, Buffer_Summary *buffer, Buffer_Setting_ID setting, int32_t value){return(app->buffer_set_setting(app, buffer, setting, value));}
+static inline int32_t buffer_token_count(Application_Links *app, Buffer_Summary *buffer){return(app->buffer_token_count(app, buffer));}
+static inline bool32 buffer_read_tokens(Application_Links *app, Buffer_Summary *buffer, int32_t start_token, int32_t end_token, Cpp_Token *tokens_out){return(app->buffer_read_tokens(app, buffer, start_token, end_token, tokens_out));}
+static inline bool32 buffer_get_token_index(Application_Links *app, Buffer_Summary *buffer, int32_t pos, Cpp_Get_Token_Result *get_result){return(app->buffer_get_token_index(app, buffer, pos, get_result));}
+static inline Buffer_Summary create_buffer(Application_Links *app, char *filename, int32_t filename_len, Buffer_Create_Flag flags){return(app->create_buffer(app, filename, filename_len, flags));}
+static inline bool32 save_buffer(Application_Links *app, Buffer_Summary *buffer, char *filename, int32_t filename_len, uint32_t flags){return(app->save_buffer(app, buffer, filename, filename_len, flags));}
+static inline bool32 kill_buffer(Application_Links *app, Buffer_Identifier buffer, View_ID view_id, Buffer_Kill_Flag flags){return(app->kill_buffer(app, buffer, view_id, flags));}
+static inline View_Summary get_view_first(Application_Links *app, Access_Flag access){return(app->get_view_first(app, access));}
+static inline void get_view_next(Application_Links *app, View_Summary *view, Access_Flag access){(app->get_view_next(app, view, access));}
+static inline View_Summary get_view(Application_Links *app, View_ID view_id, Access_Flag access){return(app->get_view(app, view_id, access));}
+static inline View_Summary get_active_view(Application_Links *app, Access_Flag access){return(app->get_active_view(app, access));}
+static inline View_Summary open_view(Application_Links *app, View_Summary *view_location, View_Split_Position position){return(app->open_view(app, view_location, position));}
+static inline bool32 close_view(Application_Links *app, View_Summary *view){return(app->close_view(app, view));}
+static inline bool32 set_active_view(Application_Links *app, View_Summary *view){return(app->set_active_view(app, view));}
+static inline bool32 view_set_setting(Application_Links *app, View_Summary *view, View_Setting_ID setting, int32_t value){return(app->view_set_setting(app, view, setting, value));}
+static inline bool32 view_set_split_proportion(Application_Links *app, View_Summary *view, float t){return(app->view_set_split_proportion(app, view, t));}
+static inline bool32 view_compute_cursor(Application_Links *app, View_Summary *view, Buffer_Seek seek, Full_Cursor *cursor_out){return(app->view_compute_cursor(app, view, seek, cursor_out));}
+static inline bool32 view_set_cursor(Application_Links *app, View_Summary *view, Buffer_Seek seek, bool32 set_preferred_x){return(app->view_set_cursor(app, view, seek, set_preferred_x));}
+static inline bool32 view_set_scroll(Application_Links *app, View_Summary *view, GUI_Scroll_Vars scroll){return(app->view_set_scroll(app, view, scroll));}
+static inline bool32 view_set_mark(Application_Links *app, View_Summary *view, Buffer_Seek seek){return(app->view_set_mark(app, view, seek));}
+static inline bool32 view_set_highlight(Application_Links *app, View_Summary *view, int32_t start, int32_t end, bool32 turn_on){return(app->view_set_highlight(app, view, start, end, turn_on));}
+static inline bool32 view_set_buffer(Application_Links *app, View_Summary *view, Buffer_ID buffer_id, Set_Buffer_Flag flags){return(app->view_set_buffer(app, view, buffer_id, flags));}
+static inline bool32 view_post_fade(Application_Links *app, View_Summary *view, float seconds, int32_t start, int32_t end, int_color color){return(app->view_post_fade(app, view, seconds, start, end, color));}
+static inline User_Input get_user_input(Application_Links *app, Input_Type_Flag get_type, Input_Type_Flag abort_type){return(app->get_user_input(app, get_type, abort_type));}
+static inline User_Input get_command_input(Application_Links *app){return(app->get_command_input(app));}
+static inline Mouse_State get_mouse_state(Application_Links *app){return(app->get_mouse_state(app));}
+static inline bool32 start_query_bar(Application_Links *app, Query_Bar *bar, uint32_t flags){return(app->start_query_bar(app, bar, flags));}
+static inline void end_query_bar(Application_Links *app, Query_Bar *bar, uint32_t flags){(app->end_query_bar(app, bar, flags));}
+static inline void print_message(Application_Links *app, char *str, int32_t len){(app->print_message(app, str, len));}
+static inline void change_theme(Application_Links *app, char *name, int32_t len){(app->change_theme(app, name, len));}
+static inline void change_font(Application_Links *app, char *name, int32_t len, bool32 apply_to_all_files){(app->change_font(app, name, len, apply_to_all_files));}
+static inline void buffer_set_font(Application_Links *app, Buffer_Summary *buffer, char *name, int32_t len){(app->buffer_set_font(app, buffer, name, len));}
+static inline void set_theme_colors(Application_Links *app, Theme_Color *colors, int32_t count){(app->set_theme_colors(app, colors, count));}
+static inline void get_theme_colors(Application_Links *app, Theme_Color *colors, int32_t count){(app->get_theme_colors(app, colors, count));}
+static inline int32_t directory_get_hot(Application_Links *app, char *out, int32_t capacity){return(app->directory_get_hot(app, out, capacity));}
+static inline File_List get_file_list(Application_Links *app, char *dir, int32_t len){return(app->get_file_list(app, dir, len));}
+static inline void free_file_list(Application_Links *app, File_List list){(app->free_file_list(app, list));}
+static inline void* memory_allocate(Application_Links *app, int32_t size){return(app->memory_allocate(app, size));}
+static inline bool32 memory_set_protection(Application_Links *app, void *ptr, int32_t size, Memory_Protect_Flags flags){return(app->memory_set_protection(app, ptr, size, flags));}
+static inline void memory_free(Application_Links *app, void *ptr, int32_t size){(app->memory_free(app, ptr, size));}
+static inline bool32 file_exists(Application_Links *app, char *filename, int32_t len){return(app->file_exists(app, filename, len));}
+static inline bool32 directory_cd(Application_Links *app, char *dir, int32_t *len, int32_t capacity, char *rel_path, int32_t rel_len){return(app->directory_cd(app, dir, len, capacity, rel_path, rel_len));}
+static inline bool32 get_4ed_path(Application_Links *app, char *out, int32_t capacity){return(app->get_4ed_path(app, out, capacity));}
+static inline void show_mouse_cursor(Application_Links *app, Mouse_Cursor_Show_Type show){(app->show_mouse_cursor(app, show));}
+static inline void toggle_fullscreen(Application_Links *app){(app->toggle_fullscreen(app));}
+static inline bool32 is_fullscreen(Application_Links *app){return(app->is_fullscreen(app));}
+static inline void send_exit_signal(Application_Links *app){(app->send_exit_signal(app));}
+#else
+static inline bool32 exec_command(Application_Links *app, Command_ID command_id){return(app->exec_command_(app, command_id));}
+static inline bool32 exec_system_command(Application_Links *app, View_Summary *view, Buffer_Identifier buffer, char *path, int32_t path_len, char *command, int32_t command_len, Command_Line_Interface_Flag flags){return(app->exec_system_command_(app, view, buffer, path, path_len, command, command_len, flags));}
+static inline void clipboard_post(Application_Links *app, int32_t clipboard_id, char *str, int32_t len){(app->clipboard_post_(app, clipboard_id, str, len));}
+static inline int32_t clipboard_count(Application_Links *app, int32_t clipboard_id){return(app->clipboard_count_(app, clipboard_id));}
+static inline int32_t clipboard_index(Application_Links *app, int32_t clipboard_id, int32_t item_index, char *out, int32_t len){return(app->clipboard_index_(app, clipboard_id, item_index, out, len));}
+static inline int32_t get_buffer_count(Application_Links *app){return(app->get_buffer_count_(app));}
+static inline Buffer_Summary get_buffer_first(Application_Links *app, Access_Flag access){return(app->get_buffer_first_(app, access));}
+static inline void get_buffer_next(Application_Links *app, Buffer_Summary *buffer, Access_Flag  access){(app->get_buffer_next_(app, buffer, access));}
+static inline Buffer_Summary get_buffer(Application_Links *app, Buffer_ID buffer_id, Access_Flag access){return(app->get_buffer_(app, buffer_id, access));}
+static inline Buffer_Summary get_buffer_by_name(Application_Links *app, char *name, int32_t len, Access_Flag access){return(app->get_buffer_by_name_(app, name, len, access));}
+static inline bool32 buffer_read_range(Application_Links *app, Buffer_Summary *buffer, int32_t start, int32_t end, char *out){return(app->buffer_read_range_(app, buffer, start, end, out));}
+static inline bool32 buffer_replace_range(Application_Links *app, Buffer_Summary *buffer, int32_t start, int32_t end, char *str, int32_t len){return(app->buffer_replace_range_(app, buffer, start, end, str, len));}
+static inline bool32 buffer_compute_cursor(Application_Links *app, Buffer_Summary *buffer, Buffer_Seek seek, Partial_Cursor *cursor_out){return(app->buffer_compute_cursor_(app, buffer, seek, cursor_out));}
+static inline bool32 buffer_batch_edit(Application_Links *app, Buffer_Summary *buffer, char *str, int32_t str_len, Buffer_Edit *edits, int32_t edit_count, Buffer_Batch_Edit_Type type){return(app->buffer_batch_edit_(app, buffer, str, str_len, edits, edit_count, type));}
+static inline bool32 buffer_set_setting(Application_Links *app, Buffer_Summary *buffer, Buffer_Setting_ID setting, int32_t value){return(app->buffer_set_setting_(app, buffer, setting, value));}
+static inline int32_t buffer_token_count(Application_Links *app, Buffer_Summary *buffer){return(app->buffer_token_count_(app, buffer));}
+static inline bool32 buffer_read_tokens(Application_Links *app, Buffer_Summary *buffer, int32_t start_token, int32_t end_token, Cpp_Token *tokens_out){return(app->buffer_read_tokens_(app, buffer, start_token, end_token, tokens_out));}
+static inline bool32 buffer_get_token_index(Application_Links *app, Buffer_Summary *buffer, int32_t pos, Cpp_Get_Token_Result *get_result){return(app->buffer_get_token_index_(app, buffer, pos, get_result));}
+static inline Buffer_Summary create_buffer(Application_Links *app, char *filename, int32_t filename_len, Buffer_Create_Flag flags){return(app->create_buffer_(app, filename, filename_len, flags));}
+static inline bool32 save_buffer(Application_Links *app, Buffer_Summary *buffer, char *filename, int32_t filename_len, uint32_t flags){return(app->save_buffer_(app, buffer, filename, filename_len, flags));}
+static inline bool32 kill_buffer(Application_Links *app, Buffer_Identifier buffer, View_ID view_id, Buffer_Kill_Flag flags){return(app->kill_buffer_(app, buffer, view_id, flags));}
+static inline View_Summary get_view_first(Application_Links *app, Access_Flag access){return(app->get_view_first_(app, access));}
+static inline void get_view_next(Application_Links *app, View_Summary *view, Access_Flag access){(app->get_view_next_(app, view, access));}
+static inline View_Summary get_view(Application_Links *app, View_ID view_id, Access_Flag access){return(app->get_view_(app, view_id, access));}
+static inline View_Summary get_active_view(Application_Links *app, Access_Flag access){return(app->get_active_view_(app, access));}
+static inline View_Summary open_view(Application_Links *app, View_Summary *view_location, View_Split_Position position){return(app->open_view_(app, view_location, position));}
+static inline bool32 close_view(Application_Links *app, View_Summary *view){return(app->close_view_(app, view));}
+static inline bool32 set_active_view(Application_Links *app, View_Summary *view){return(app->set_active_view_(app, view));}
+static inline bool32 view_set_setting(Application_Links *app, View_Summary *view, View_Setting_ID setting, int32_t value){return(app->view_set_setting_(app, view, setting, value));}
+static inline bool32 view_set_split_proportion(Application_Links *app, View_Summary *view, float t){return(app->view_set_split_proportion_(app, view, t));}
+static inline bool32 view_compute_cursor(Application_Links *app, View_Summary *view, Buffer_Seek seek, Full_Cursor *cursor_out){return(app->view_compute_cursor_(app, view, seek, cursor_out));}
+static inline bool32 view_set_cursor(Application_Links *app, View_Summary *view, Buffer_Seek seek, bool32 set_preferred_x){return(app->view_set_cursor_(app, view, seek, set_preferred_x));}
+static inline bool32 view_set_scroll(Application_Links *app, View_Summary *view, GUI_Scroll_Vars scroll){return(app->view_set_scroll_(app, view, scroll));}
+static inline bool32 view_set_mark(Application_Links *app, View_Summary *view, Buffer_Seek seek){return(app->view_set_mark_(app, view, seek));}
+static inline bool32 view_set_highlight(Application_Links *app, View_Summary *view, int32_t start, int32_t end, bool32 turn_on){return(app->view_set_highlight_(app, view, start, end, turn_on));}
+static inline bool32 view_set_buffer(Application_Links *app, View_Summary *view, Buffer_ID buffer_id, Set_Buffer_Flag flags){return(app->view_set_buffer_(app, view, buffer_id, flags));}
+static inline bool32 view_post_fade(Application_Links *app, View_Summary *view, float seconds, int32_t start, int32_t end, int_color color){return(app->view_post_fade_(app, view, seconds, start, end, color));}
+static inline User_Input get_user_input(Application_Links *app, Input_Type_Flag get_type, Input_Type_Flag abort_type){return(app->get_user_input_(app, get_type, abort_type));}
+static inline User_Input get_command_input(Application_Links *app){return(app->get_command_input_(app));}
+static inline Mouse_State get_mouse_state(Application_Links *app){return(app->get_mouse_state_(app));}
+static inline bool32 start_query_bar(Application_Links *app, Query_Bar *bar, uint32_t flags){return(app->start_query_bar_(app, bar, flags));}
+static inline void end_query_bar(Application_Links *app, Query_Bar *bar, uint32_t flags){(app->end_query_bar_(app, bar, flags));}
+static inline void print_message(Application_Links *app, char *str, int32_t len){(app->print_message_(app, str, len));}
+static inline void change_theme(Application_Links *app, char *name, int32_t len){(app->change_theme_(app, name, len));}
+static inline void change_font(Application_Links *app, char *name, int32_t len, bool32 apply_to_all_files){(app->change_font_(app, name, len, apply_to_all_files));}
+static inline void buffer_set_font(Application_Links *app, Buffer_Summary *buffer, char *name, int32_t len){(app->buffer_set_font_(app, buffer, name, len));}
+static inline void set_theme_colors(Application_Links *app, Theme_Color *colors, int32_t count){(app->set_theme_colors_(app, colors, count));}
+static inline void get_theme_colors(Application_Links *app, Theme_Color *colors, int32_t count){(app->get_theme_colors_(app, colors, count));}
+static inline int32_t directory_get_hot(Application_Links *app, char *out, int32_t capacity){return(app->directory_get_hot_(app, out, capacity));}
+static inline File_List get_file_list(Application_Links *app, char *dir, int32_t len){return(app->get_file_list_(app, dir, len));}
+static inline void free_file_list(Application_Links *app, File_List list){(app->free_file_list_(app, list));}
+static inline void* memory_allocate(Application_Links *app, int32_t size){return(app->memory_allocate_(app, size));}
+static inline bool32 memory_set_protection(Application_Links *app, void *ptr, int32_t size, Memory_Protect_Flags flags){return(app->memory_set_protection_(app, ptr, size, flags));}
+static inline void memory_free(Application_Links *app, void *ptr, int32_t size){(app->memory_free_(app, ptr, size));}
+static inline bool32 file_exists(Application_Links *app, char *filename, int32_t len){return(app->file_exists_(app, filename, len));}
+static inline bool32 directory_cd(Application_Links *app, char *dir, int32_t *len, int32_t capacity, char *rel_path, int32_t rel_len){return(app->directory_cd_(app, dir, len, capacity, rel_path, rel_len));}
+static inline bool32 get_4ed_path(Application_Links *app, char *out, int32_t capacity){return(app->get_4ed_path_(app, out, capacity));}
+static inline void show_mouse_cursor(Application_Links *app, Mouse_Cursor_Show_Type show){(app->show_mouse_cursor_(app, show));}
+static inline void toggle_fullscreen(Application_Links *app){(app->toggle_fullscreen_(app));}
+static inline bool32 is_fullscreen(Application_Links *app){return(app->is_fullscreen_(app));}
+static inline void send_exit_signal(Application_Links *app){(app->send_exit_signal_(app));}
+#endif

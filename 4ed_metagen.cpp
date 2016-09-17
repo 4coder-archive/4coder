@@ -2601,15 +2601,26 @@ generate_custom_headers(){
             append_sc(&out, "_Function);\n");
         }
         
-        append_sc(&out,
-                  "struct Application_Links{\n");
+        append_sc(&out, "struct Application_Links{\n");
         
+        
+        append_sc(&out, "#if defined(ALLOW_DEP_4CODER)\n");
         for (int32_t i = 0; i < unit_custom.set.count; ++i){
             append_ss(&out, unit_custom.set.items[i].name);
             append_sc(&out, "_Function *");
             append_ss(&out, func_4ed_names.names[i].public_name);
             append_sc(&out, ";\n");
         }
+        
+        append_sc(&out, "#else\n");
+        
+        for (int32_t i = 0; i < unit_custom.set.count; ++i){
+            append_ss(&out, unit_custom.set.items[i].name);
+            append_sc(&out, "_Function *");
+            append_ss(&out, func_4ed_names.names[i].public_name);
+            append_sc(&out, "_;\n");
+        }
+        append_sc(&out, "#endif\n");
         
         append_sc(&out,
                   "void *memory;\n"
@@ -2621,15 +2632,65 @@ generate_custom_headers(){
                   "};\n");
         
         append_sc(&out, "#define FillAppLinksAPI(app_links) do{");
-        
         for (int32_t i = 0; i < unit_custom.set.count; ++i){
             append_sc(&out, "\\\napp_links->");
             append_ss(&out, func_4ed_names.names[i].public_name);
-            append_sc(&out, " = ");
+            append_sc(&out, "_ = ");
             append_ss(&out, unit_custom.set.items[i].name);
             append_s_char(&out, ';');
         }
         append_sc(&out, "} while(false)\n");
+        
+        append_sc(&out, "#if defined(ALLOW_DEP_4CODER)\n");
+        for (int32_t use_dep = 1; use_dep >= 0; --use_dep){
+            for (int32_t i = 0; i < unit_custom.set.count; ++i){
+                Argument_Breakdown breakdown = unit_custom.set.items[i].breakdown;
+                String ret = unit_custom.set.items[i].ret;
+                String public_name = func_4ed_names.names[i].public_name;
+                
+                append_sc(&out, "static inline ");
+                append_ss(&out, ret);
+                append_sc(&out, " ");
+                append_ss(&out, public_name);
+                
+                append_sc(&out, "(");
+                for (int32_t j = 0; j < breakdown.count; ++j){
+                    append_ss(&out, breakdown.args[j].param_string);
+                    if (j+1 != breakdown.count){
+                        append_sc(&out, ", ");
+                    }
+                }
+                append_sc(&out, "){");
+                
+                if (match_ss(ret, make_lit_string("void"))){
+                    append_sc(&out, "(");
+                }
+                else{
+                    append_sc(&out, "return(");
+                }
+                
+                append_sc(&out, "app->");
+                append_ss(&out, public_name);
+                if (!use_dep){
+                    append_sc(&out, "_");
+                }
+                
+                append_sc(&out, "(");
+                for (int32_t j = 0; j < breakdown.count; ++j){
+                    append_ss(&out, breakdown.args[j].param_name);
+                    if (j+1 != breakdown.count){
+                        append_sc(&out, ", ");
+                    }
+                }
+                append_sc(&out, ")");
+                
+                append_sc(&out, ");}\n");
+            }
+            if (use_dep == 1){
+                append_sc(&out, "#else\n");
+            }
+        }
+        append_sc(&out, "#endif\n");
         
         end_file_out(context);
     }

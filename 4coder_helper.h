@@ -247,11 +247,6 @@ get_rect(View_Summary *view){
 }
 
 inline void
-exec_command(Application_Links *app, Command_ID id){
-    app->exec_command(app, id);
-}
-
-inline void
 exec_command(Application_Links *app, Custom_Command_Function *func){
     func(app);
 }
@@ -269,12 +264,12 @@ exec_command(Application_Links *app, Generic_Command cmd){
 inline void
 active_view_to_line(Application_Links *app, uint32_t access, int32_t line_number){
     View_Summary view;
-    view = app->get_active_view(app, access);
+    view = get_active_view(app, access);
     
     // NOTE(allen|a3.4.4): We don't have to worry about whether this is a valid line number.
     // When it's not possible to place a cursor at the position for whatever reason it will set the
     // cursor to a nearby valid position.
-    app->view_set_cursor(app, &view, seek_line_char(line_number, 0), 1);
+    view_set_cursor(app, &view, seek_line_char(line_number, 0), 1);
 }
 
 inline View_Summary
@@ -284,11 +279,11 @@ get_first_view_with_buffer(Application_Links *app, int32_t buffer_id){
     
     if (buffer_id != 0){
         uint32_t access = AccessAll;
-        for(test = app->get_view_first(app, access);
+        for(test = get_view_first(app, access);
             test.exists;
-            app->get_view_next(app, &test, access)){
+            get_view_next(app, &test, access)){
             
-            Buffer_Summary buffer = app->get_buffer(app, test.buffer_id, access);
+            Buffer_Summary buffer = get_buffer(app, test.buffer_id, access);
             
             if(buffer.buffer_id == buffer_id){
                 result = test;
@@ -318,14 +313,14 @@ query_user_general(Application_Links *app, Query_Bar *bar, int32_t force_number)
     // user, if this command starts intercepting input even though no prompt is shown.
     // This will only happen if you have a lot of bars open already or if the current view
     // doesn't support query bars.
-    if (app->start_query_bar(app, bar, 0) == 0) return 0;
+    if (start_query_bar(app, bar, 0) == 0) return 0;
     
     while (1){
         // NOTE(allen|a3.4.4): This call will block until the user does one of the input
         // types specified in the flags.  The first set of flags are inputs you'd like to intercept
         // that you don't want to abort on.  The second set are inputs that you'd like to cause
         // the command to abort.  If an event satisfies both flags, it is treated as an abort.
-        in = app->get_user_input(app, EventOnAnyKey, EventOnEsc | EventOnButton);
+        in = get_user_input(app, EventOnAnyKey, EventOnEsc | EventOnButton);
         
         // NOTE(allen|a3.4.4): The responsible thing to do on abort is to end the command
         // without waiting on get_user_input again.
@@ -385,17 +380,17 @@ query_user_number(Application_Links *app, Query_Bar *bar){
 
 inline Buffer_Summary
 get_active_buffer(Application_Links *app, uint32_t access){
-    View_Summary view = app->get_active_view(app, access);
-    Buffer_Summary buffer = app->get_buffer(app, view.buffer_id, access);
+    View_Summary view = get_active_view(app, access);
+    Buffer_Summary buffer = get_buffer(app, view.buffer_id, access);
     return(buffer);
 }
 
 inline char
 buffer_get_char(Application_Links *app, Buffer_Summary *buffer, int32_t pos){
     char result = ' ';
-    *buffer = app->get_buffer(app, buffer->buffer_id, AccessAll);
+    *buffer = get_buffer(app, buffer->buffer_id, AccessAll);
     if (pos >= 0 && pos < buffer->size){
-        app->buffer_read_range(app, buffer, pos, pos+1, &result);
+        buffer_read_range(app, buffer, pos, pos+1, &result);
     }
     return(result);
 }

@@ -176,7 +176,7 @@ DOC_SEE(Command_ID)
         result = true;
     }
     else{
-        app->print_message(app, literal("WARNING: An invalid Command_ID was passed to exec_command."));
+        print_message(app, literal("WARNING: An invalid Command_ID was passed to exec_command."));
     }
     
     return(result);
@@ -703,7 +703,8 @@ DOC_SEE(Buffer_Batch_Edit_Type)
 }
 
 API_EXPORT bool32
-Buffer_Set_Setting(Application_Links *app, Buffer_Summary *buffer, Buffer_Setting_ID setting, int32_t value)/*
+Buffer_Set_Setting(Application_Links *app, Buffer_Summary *buffer, Buffer_Setting_ID setting, int32_t value)
+/*
 DOC_PARAM(buffer, The buffer parameter specifies the buffer on which to set a setting.)
 DOC_PARAM(setting, The setting parameter identifies the setting that shall be changed.)
 DOC_PARAM(value, The value parameter specifies the value to which the setting shall be changed.)
@@ -799,7 +800,8 @@ DOC_SEE(Buffer_Setting_ID)
 }
 
 API_EXPORT int32_t
-Buffer_Token_Count(Application_Links *app, Buffer_Summary *buffer)/*
+Buffer_Token_Count(Application_Links *app, Buffer_Summary *buffer)
+/*
 DOC_PARAM(buffer, Specifies the buffer from which to read the token count.)
 DOC_RETURN(If tokens are available for the buffer, the number of tokens on the buffer is returned.
 If the buffer does not exist or if it is not a lexed buffer, the return is zero.)
@@ -817,7 +819,8 @@ If the buffer does not exist or if it is not a lexed buffer, the return is zero.
 }
 
 API_EXPORT bool32
-Buffer_Read_Tokens(Application_Links *app, Buffer_Summary *buffer, int32_t start_token, int32_t end_token, Cpp_Token *tokens_out)/*
+Buffer_Read_Tokens(Application_Links *app, Buffer_Summary *buffer, int32_t start_token, int32_t end_token, Cpp_Token *tokens_out)
+/*
 DOC_PARAM(buffer, Specifies the buffer from which to read tokens.)
 DOC_PARAM(first_token, Specifies the index of the first token to read.)
 DOC_PARAM(end_token, Specifies the token to stop reading at.)
@@ -843,7 +846,18 @@ The number of output tokens will be end_token - start_token.)
 }
 
 API_EXPORT bool32
-Buffer_Get_Token_Index(Application_Links *app, Buffer_Summary *buffer, int32_t pos, Cpp_Get_Token_Result *get_result){
+Buffer_Get_Token_Index(Application_Links *app, Buffer_Summary *buffer, int32_t pos, Cpp_Get_Token_Result *get_result)
+/*
+DOC_PARAM(buffer, The buffer from which to get a token.)
+DOC_PARAM(pos, The position in the buffer in absolute coordinates.)
+DOC_PARAM(get_result, The output struct specifying which token contains pos.)
+DOC_RETURN(Returns non-zero on success.  This call can fail if the buffer doesn't exist,
+or if the buffer doesn't have tokens ready.)
+DOC(This call finds the token that contains a particular position, or if the position is in between
+tokens it finds the index of the token to the left of the position.)
+DOC_SEE(Cpp_Get_Token_Result)
+DOC_SEE(cpp_get_token)
+*/{
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     Editing_File *file = imp_get_file(cmd, buffer);
     Cpp_Token_Array token_array = file->state.token_array;
@@ -1027,7 +1041,7 @@ DOC_SEE(Buffer_Identifier)
                 }
                 else{
 #define MESSAGE "CUSTOM WARNING: the buffer is dirty and no view was specified for a dialogue.\n"
-                    app->print_message(app, literal(MESSAGE));
+                    print_message(app, literal(MESSAGE));
 #undef MESSAGE
                 }
             }

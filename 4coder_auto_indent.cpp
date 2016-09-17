@@ -146,7 +146,7 @@ set_line_indents(Application_Links *app, Partition *part, Buffer_Summary *buffer
         make_batch_from_indent_marks(app, part, buffer, line_start, line_end, indent_marks, opts);
     
     if (batch.edit_count > 0){
-        app->buffer_batch_edit(app, buffer, batch.str, batch.str_len,
+        buffer_batch_edit(app, buffer, batch.str, batch.str_len,
                                batch.edits, batch.edit_count, BatchEdit_PreserveTokens);
     }
 }
@@ -554,10 +554,10 @@ buffer_auto_indent(Application_Links *app, Partition *part, Buffer_Summary *buff
         
         // Stage 1: Read the tokens to be used for indentation.
         Cpp_Token_Array tokens;
-        tokens.count = app->buffer_token_count(app, buffer);
+        tokens.count = buffer_token_count(app, buffer);
         tokens.max_count = tokens.count;
         tokens.tokens = push_array(part, Cpp_Token, tokens.count);
-        app->buffer_read_tokens(app, buffer, 0, tokens.count, tokens.tokens);
+        buffer_read_tokens(app, buffer, 0, tokens.count, tokens.tokens);
         
         // Stage 2: Decide where the first and last lines are.
         //  The lines in the range [line_start,line_end) will be indented.

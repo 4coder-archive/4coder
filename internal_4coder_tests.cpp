@@ -37,7 +37,7 @@ CUSTOM_COMMAND_SIG(load_lots_of_files){
     // I set the goal of 10M for all tests.
     TEST_TIME_B(10000000);
     
-    File_List list = app->get_file_list(app, literal(LOTS_OF_FILES));
+    File_List list = get_file_list(app, literal(LOTS_OF_FILES));
     File_Info *info = list.infos;
     
     char space[1024];
@@ -49,14 +49,14 @@ CUSTOM_COMMAND_SIG(load_lots_of_files){
     for (int32_t i = 0; i < list.count; ++i, ++info){
         if (!info->folder){
             append_ss(&str, make_string(info->filename, info->filename_len));
-            Buffer_Summary buffer = app->create_buffer(app, str.str, str.size,
+            Buffer_Summary buffer = create_buffer(app, str.str, str.size,
                                                        BufferCreate_Background);
             assert(buffer.size != 0);
             str.size = size;
         }
     }
     
-    app->free_file_list(app, list);
+    free_file_list(app, list);
     
     // TODO(allen): Pass this time test!
     //TEST_TIME_E();
@@ -67,9 +67,9 @@ CUSTOM_COMMAND_SIG(reopen_test){
     // based on 4GHz and 60fps
     TEST_TIME_B(700000);
     
-    Buffer_Summary buffer = app->create_buffer(app, literal(TEST_FILES "/basic.cpp"), 0);
-    View_Summary view = app->get_active_view(app, AccessAll);
-    app->view_set_buffer(app, &view, buffer.buffer_id, 0);
+    Buffer_Summary buffer = create_buffer(app, literal(TEST_FILES "/basic.cpp"), 0);
+    View_Summary view = get_active_view(app, AccessAll);
+    view_set_buffer(app, &view, buffer.buffer_id, 0);
     
     exec_command(app, cmdid_reopen);
     
@@ -78,9 +78,9 @@ CUSTOM_COMMAND_SIG(reopen_test){
 }
 
 CUSTOM_COMMAND_SIG(generate_stop_spots_test_data){
-    Buffer_Summary buffer = app->create_buffer(app, literal(LOTS_OF_FILES "/4ed.cpp"), 0);
-    View_Summary view = app->get_active_view(app, AccessAll);
-    app->view_set_buffer(app, &view, buffer.buffer_id, 0);
+    Buffer_Summary buffer = create_buffer(app, literal(LOTS_OF_FILES "/4ed.cpp"), 0);
+    View_Summary view = get_active_view(app, AccessAll);
+    view_set_buffer(app, &view, buffer.buffer_id, 0);
     
     FILE *file = fopen(TEST_FILES "/stop_spots_data", "wb");
     
@@ -88,14 +88,14 @@ CUSTOM_COMMAND_SIG(generate_stop_spots_test_data){
         Partial_Cursor curs;
         int32_t pos;
         
-        app->buffer_compute_cursor(app, &buffer, seek_line_char(316, 29), &curs);
+        buffer_compute_cursor(app, &buffer, seek_line_char(316, 29), &curs);
         fwrite(&curs.pos, 4, 1, file);
         
         for (int32_t i = 0; i < 10; ++i){
             Query_Bar bar = {0};
             bar.prompt = make_lit_string("Do something to continue the test");
-            if (app->start_query_bar(app, &bar, 0)){
-                app->get_user_input(app, EventAll, EventAll);
+            if (start_query_bar(app, &bar, 0)){
+                get_user_input(app, EventAll, EventAll);
             }
             refresh_buffer(app, &buffer);
             if (buffer.tokens_are_ready){
@@ -135,9 +135,9 @@ fcheck(int32_t x, FILE *file){
 }
 
 CUSTOM_COMMAND_SIG(stop_spots_test){
-    Buffer_Summary buffer = app->create_buffer(app, literal(LOTS_OF_FILES "/4ed.cpp"), 0);
-    View_Summary view = app->get_active_view(app, AccessAll);
-    app->view_set_buffer(app, &view, buffer.buffer_id, 0);
+    Buffer_Summary buffer = create_buffer(app, literal(LOTS_OF_FILES "/4ed.cpp"), 0);
+    View_Summary view = get_active_view(app, AccessAll);
+    view_set_buffer(app, &view, buffer.buffer_id, 0);
     
     FILE *file = fopen(TEST_FILES "/stop_spots_data", "rb");
     
@@ -145,14 +145,14 @@ CUSTOM_COMMAND_SIG(stop_spots_test){
         Partial_Cursor curs;
         int32_t pos;
         
-        app->buffer_compute_cursor(app, &buffer, seek_line_char(316, 29), &curs);
+        buffer_compute_cursor(app, &buffer, seek_line_char(316, 29), &curs);
         fcheck(curs.pos, file);
         
         for (int32_t i = 0; i < 10; ++i){
             Query_Bar bar = {0};
             bar.prompt = make_lit_string("Do something to continue the test");
-            if (app->start_query_bar(app, &bar, 0)){
-                app->get_user_input(app, EventAll, EventAll);
+            if (start_query_bar(app, &bar, 0)){
+                get_user_input(app, EventAll, EventAll);
             }
             refresh_buffer(app, &buffer);
             if (buffer.tokens_are_ready){
@@ -185,11 +185,11 @@ CUSTOM_COMMAND_SIG(stop_spots_test){
 }
 
 CUSTOM_COMMAND_SIG(load_unicode_file){
-    Buffer_Summary buffer = app->create_buffer(app, literal(TEST_FILES "/mod_markov.c"), 0);
-    View_Summary view = app->get_active_view(app, AccessAll);
-    app->view_set_buffer(app, &view, buffer.buffer_id, 0);
+    Buffer_Summary buffer = create_buffer(app, literal(TEST_FILES "/mod_markov.c"), 0);
+    View_Summary view = get_active_view(app, AccessAll);
+    view_set_buffer(app, &view, buffer.buffer_id, 0);
     
-    app->view_set_cursor(app, &view, seek_line_char(230, 25), 1);
+    view_set_cursor(app, &view, seek_line_char(230, 25), 1);
 }
 
 CUSTOM_COMMAND_SIG(run_all_tests){
