@@ -686,7 +686,7 @@ do_buildsuper(char *cdir){
 #if defined(IS_WINDOWS)
     //buildsuper(cdir, BUILD_DIR, "../code/internal_4coder_tests.cpp");
 #else
-    buildsuper(cdir, BUILD_DIR, "../code/power/4coder_experiments.cpp");
+    //buildsuper(cdir, BUILD_DIR, "../code/power/4coder_experiments.cpp");
 #endif
     //buildsuper(cdir, BUILD_DIR, "../code/power/4coder_casey.cpp");
     //buildsuper(cdir, BUILD_DIR, "../4vim/4coder_chronal.cpp");
