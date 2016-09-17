@@ -86,9 +86,9 @@ make_batch_from_indent_marks(Application_Links *app, Partition *part, Buffer_Sum
     indent_marks -= line_start;
     
     for (int32_t line_i = line_start; line_i < line_end; ++line_i){
-        int32_t line_start = buffer_get_line_start(app, buffer, line_i);
+        int32_t line_start_pos = buffer_get_line_start(app, buffer, line_i);
         Hard_Start_Result hard_start = 
-            buffer_find_hard_start(app, buffer, line_start, opts.tab_width);
+            buffer_find_hard_start(app, buffer, line_start_pos, opts.tab_width);
         
         int32_t correct_indentation = indent_marks[line_i];
         if (hard_start.all_whitespace && opts.empty_blank_lines){
@@ -122,7 +122,7 @@ make_batch_from_indent_marks(Application_Links *app, Partition *part, Buffer_Sum
             }
             
             new_edit.len = j;
-            new_edit.start = line_start;
+            new_edit.start = line_start_pos;
             new_edit.end = hard_start.char_pos;
             edits[edit_count++] = new_edit;
         }
