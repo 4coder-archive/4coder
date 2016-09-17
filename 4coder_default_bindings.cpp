@@ -130,10 +130,10 @@ HOOK_SIG(my_start){
     change_theme(app, literal("4coder"));
     change_font(app, literal("Liberation Sans"), true);
     
-    exec_command(app, open_panel_vsplit);
+    //exec_command(app, open_panel_vsplit);
     exec_command(app, hide_scrollbar);
-    exec_command(app, change_active_panel);
-    exec_command(app, hide_scrollbar);
+    //exec_command(app, change_active_panel);
+    //exec_command(app, hide_scrollbar);
     
     // Theme options:
     //  "4coder"

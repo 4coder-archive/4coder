@@ -516,22 +516,6 @@ case_change_range(System_Functions *system,
 #endif
 }
 
-COMMAND_DECL(to_uppercase){
-    
-    USE_MODELS(models);
-    REQ_OPEN_VIEW(view);
-    REQ_FILE(file, view);
-    case_change_range(system, &models->mem, view, file, 'a', 'z', (u8)('A' - 'a'));
-}
-
-COMMAND_DECL(to_lowercase){
-    
-    USE_MODELS(models);
-    REQ_OPEN_VIEW(view);
-    REQ_FILE(file, view);
-    case_change_range(system, &models->mem, view, file, 'A', 'Z', (u8)('a' - 'A'));
-}
-
 COMMAND_DECL(open_panel_vsplit){
     USE_VARS(vars);
     USE_MODELS(models);
@@ -2047,10 +2031,20 @@ App_Step_Sig(app_step){
         Panel *panel = models->layout.used_sentinel.next;
         for (; i < models->settings.init_files_count; ++i, panel = panel->next){
             cl_filename.size = cl_filename_len;
-            append_sc(&cl_filename, models->settings.init_files[i]);
+            
+            String filename = {0};
+            
+            Editing_File_Canon_Name canon_name;
+            if (get_canon_name(system, &canon_name, make_string_slowly(models->settings.init_files[i]))){
+                filename = canon_name.name;
+            }
+            else{
+                append_sc(&cl_filename, models->settings.init_files[i]);
+                filename = cl_filename;
+            }
             
             if (i < models->layout.panel_count){
-                view_open_file(system, models, panel->view, cl_filename);
+                view_open_file(system, models, panel->view, filename);
                 view_show_file(panel->view);
                 Assert("Earlier" && panel->view->file_data.file != 0);
 #if 0
@@ -2064,7 +2058,7 @@ App_Step_Sig(app_step){
 #endif
             }
             else{
-                view_open_file(system, models, 0, cl_filename);
+                view_open_file(system, models, 0, filename);
             }
             
         }

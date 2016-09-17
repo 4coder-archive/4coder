@@ -682,9 +682,9 @@ metagen(char *cdir){
 static void
 do_buildsuper(char *cdir){
     BEGIN_TIME_SECTION();
-    //buildsuper(cdir, BUILD_DIR, "../code/4coder_default_bindings.cpp");
+    buildsuper(cdir, BUILD_DIR, "../code/4coder_default_bindings.cpp");
 #if defined(IS_WINDOWS)
-    buildsuper(cdir, BUILD_DIR, "../code/internal_4coder_tests.cpp");
+    //buildsuper(cdir, BUILD_DIR, "../code/internal_4coder_tests.cpp");
 #else
     buildsuper(cdir, BUILD_DIR, "../code/power/4coder_experiments.cpp");
 #endif

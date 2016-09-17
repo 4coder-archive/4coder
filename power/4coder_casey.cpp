@@ -375,8 +375,8 @@ CUSTOM_COMMAND_SIG(casey_newline_and_indent)
     // read-only, it cannot be edited anyway.  So instead let the return
     // key indicate an attempt to interpret the line as a location to jump to.
     
-    View_Summary view = app->get_active_view(app, AccessProtected);
-    Buffer_Summary buffer = app->get_buffer(app, view.buffer_id, AccessProtected);
+    View_Summary view = get_active_view(app, AccessProtected);
+    Buffer_Summary buffer = get_buffer(app, view.buffer_id, AccessProtected);
     
     if (buffer.lock_flags & AccessProtected){
         exec_command(app, goto_jump_at_cursor);
@@ -403,7 +403,7 @@ internal void
 DeleteAfterCommand(struct Application_Links *app, unsigned long long CommandID)
 {
     unsigned int access = AccessOpen;
-    View_Summary view = app->get_active_view(app, access);
+    View_Summary view = get_active_view(app, access);
 
     int pos2 = view.cursor.pos;
     if (CommandID < cmdid_count){
@@ -417,8 +417,8 @@ DeleteAfterCommand(struct Application_Links *app, unsigned long long CommandID)
 
     Range range = make_range(pos1, pos2);
 
-    Buffer_Summary buffer = app->get_buffer(app, view.buffer_id, access);
-    app->buffer_replace_range(app, &buffer, range.min, range.max, 0, 0);
+    Buffer_Summary buffer = get_buffer(app, view.buffer_id, access);
+    buffer_replace_range(app, &buffer, range.min, range.max, 0, 0);
 }
 
 CUSTOM_COMMAND_SIG(casey_delete_token_left)
@@ -434,7 +434,7 @@ CUSTOM_COMMAND_SIG(casey_delete_token_right)
 CUSTOM_COMMAND_SIG(casey_kill_to_end_of_line)
 {
     unsigned int access = AccessOpen;
-    View_Summary view = app->get_active_view(app, access);
+    View_Summary view = get_active_view(app, access);
 
     int pos2 = view.cursor.pos;
     exec_command(app, seek_end_of_line);
@@ -447,8 +447,8 @@ CUSTOM_COMMAND_SIG(casey_kill_to_end_of_line)
         range.max += 1;
     }
 
-    Buffer_Summary buffer = app->get_buffer(app, view.buffer_id, access);
-    app->buffer_replace_range(app, &buffer, range.min, range.max, 0, 0);
+    Buffer_Summary buffer = get_buffer(app, view.buffer_id, access);
+    buffer_replace_range(app, &buffer, range.min, range.max, 0, 0);
     exec_command(app, auto_tab_line_at_cursor);
 }
 
@@ -500,26 +500,26 @@ SwitchToOrLoadFile(struct Application_Links *app, String FileName, bool CreateIf
     SanitizeSlashes(FileName);
     
     unsigned int access = AccessAll;
-    View_Summary view = app->get_active_view(app, access);
-    Buffer_Summary buffer = app->get_buffer_by_name(app, FileName.str, FileName.size, access);
+    View_Summary view = get_active_view(app, access);
+    Buffer_Summary buffer = get_buffer_by_name(app, FileName.str, FileName.size, access);
 
     Result.view = view;
     Result.buffer = buffer;
 
     if(buffer.exists)
     {
-        app->view_set_buffer(app, &view, buffer.buffer_id, 0);
+        view_set_buffer(app, &view, buffer.buffer_id, 0);
         Result.Switched = true;
     }
     else
     {
-        if(app->file_exists(app, FileName.str, FileName.size) || CreateIfNotFound)
+        if(file_exists(app, FileName.str, FileName.size) || CreateIfNotFound)
         {
             // NOTE(allen): This opens the file and puts it in &view
             // This returns false if the open fails.
             view_open_file(app, &view, FileName.str, FileName.size, true);
             
-            Result.buffer = app->get_buffer_by_name(app, FileName.str, FileName.size, access);            
+            Result.buffer = get_buffer_by_name(app, FileName.str, FileName.size, access);            
             
             Result.Loaded = true;
             Result.Switched = true;
@@ -542,14 +542,14 @@ CUSTOM_COMMAND_SIG(casey_build_search)
     // TODO(allen): It's fine to get memory this way for now, eventually
     // we should properly suballocating from app->memory.
     String dir = make_string(app->memory, 0, app->memory_size);
-    dir.size = app->directory_get_hot(app, dir.str, dir.memory_size);
+    dir.size = directory_get_hot(app, dir.str, dir.memory_size);
 
     while (keep_going)
     {
         old_size = dir.size;
         append(&dir, "build.bat");
 
-        if (app->file_exists(app, dir.str, dir.size))
+        if (file_exists(app, dir.str, dir.size))
         {
             dir.size = old_size;
             memcpy(BuildDirectory, dir.str, dir.size);
@@ -557,19 +557,19 @@ CUSTOM_COMMAND_SIG(casey_build_search)
 
             // TODO(allen): There are ways this could be boiled down
             // to one print message which would be better.
-            app->print_message(app, literal("Building with: "));
-            app->print_message(app, BuildDirectory, dir.size);
-            app->print_message(app, literal("build.bat\n"));
+            print_message(app, literal("Building with: "));
+            print_message(app, BuildDirectory, dir.size);
+            print_message(app, literal("build.bat\n"));
 
             return;
         }
 
         dir.size = old_size;
 
-        if (app->directory_cd(app, dir.str, &dir.size, dir.memory_size, literal("..")) == 0)
+        if (directory_cd(app, dir.str, &dir.size, dir.memory_size, literal("..")) == 0)
         {
             keep_going = 0;
-            app->print_message(app, literal("Did not find a build.bat\n"));
+            print_message(app, literal("Did not find a build.bat\n"));
         }
     }
 }
@@ -577,8 +577,8 @@ CUSTOM_COMMAND_SIG(casey_build_search)
 CUSTOM_COMMAND_SIG(casey_find_corresponding_file)
 {
     unsigned int access = AccessProtected;
-    View_Summary view = app->get_active_view(app, access);
-    Buffer_Summary buffer = app->get_buffer(app, view.buffer_id, access);
+    View_Summary view = get_active_view(app, access);
+    Buffer_Summary buffer = get_buffer(app, view.buffer_id, access);
 
     String extension = file_extension(make_string(buffer.file_name, buffer.file_name_len));
     if (extension.str)
@@ -633,12 +633,12 @@ CUSTOM_COMMAND_SIG(casey_find_corresponding_file)
 CUSTOM_COMMAND_SIG(casey_find_corresponding_file_other_window)
 {
     unsigned int access = AccessProtected;
-    View_Summary old_view = app->get_active_view(app, access);
-    Buffer_Summary buffer = app->get_buffer(app, old_view.buffer_id, access);
+    View_Summary old_view = get_active_view(app, access);
+    Buffer_Summary buffer = get_buffer(app, old_view.buffer_id, access);
 
     exec_command(app, change_active_panel);
-    View_Summary new_view = app->get_active_view(app, AccessAll);
-    app->view_set_buffer(app, &new_view, buffer.buffer_id, 0);
+    View_Summary new_view = get_active_view(app, AccessAll);
+    view_set_buffer(app, &new_view, buffer.buffer_id, 0);
 
 //    exec_command(app, casey_find_corresponding_file);
 }
@@ -650,11 +650,11 @@ CUSTOM_COMMAND_SIG(casey_save_and_make_without_asking)
     Buffer_Summary buffer = {};
     
     unsigned int access = AccessAll;
-    for(buffer = app->get_buffer_first(app, access);
+    for(buffer = get_buffer_first(app, access);
         buffer.exists;
-        app->get_buffer_next(app, &buffer, access))
+        get_buffer_next(app, &buffer, access))
     {
-        app->save_buffer(app, &buffer, buffer.file_name, buffer.file_name_len, 0);
+        save_buffer(app, &buffer, buffer.file_name, buffer.file_name_len, 0);
     }
     
     // NOTE(allen): The parameter pushing made it a little easier
@@ -682,12 +682,12 @@ CUSTOM_COMMAND_SIG(casey_save_and_make_without_asking)
     if(append(&command, "build.bat"))
     {
         unsigned int access = AccessAll;
-        View_Summary view = app->get_active_view(app, access);
-        app->exec_system_command(app, &view,
-                                 buffer_identifier(GlobalCompilationBufferName, (int)strlen(GlobalCompilationBufferName)),
-                                 dir.str, dir.size,
-                                 command.str, command.size,
-                                 CLI_OverlapWithConflict);
+        View_Summary view = get_active_view(app, access);
+        exec_system_command(app, &view,
+                            buffer_identifier(GlobalCompilationBufferName, (int)strlen(GlobalCompilationBufferName)),
+                            dir.str, dir.size,
+                            command.str, command.size,
+                            CLI_OverlapWithConflict);
     }
     exec_command(app, change_active_panel);
     
@@ -847,13 +847,13 @@ casey_seek_error_dy(Application_Links *app, int dy)
 CUSTOM_COMMAND_SIG(casey_goto_previous_error)
 {
 //    casey_seek_error_dy(app, -1);
-    seek_error_skip_repeats(app, &global_part, false, -1);
+    seek_error(app, &global_part, true, false, -1);
 }
 
 CUSTOM_COMMAND_SIG(casey_goto_next_error)
 {
-//    casey_seek_error_dy(app, 1);
-    seek_error_skip_repeats(app, &global_part, false, 1);
+    //    casey_seek_error_dy(app, 1);
+    seek_error(app, &global_part, true, false, 1);
 }
 
 CUSTOM_COMMAND_SIG(casey_imenu)
@@ -1044,7 +1044,7 @@ ParseCalc(tokenizer *Tokenizer)
 CUSTOM_COMMAND_SIG(casey_quick_calc)
 {
     unsigned int access = AccessOpen;
-    View_Summary view = app->get_active_view(app, access);
+    View_Summary view = get_active_view(app, access);
 
     Range range = get_range(&view);
 
@@ -1052,8 +1052,8 @@ CUSTOM_COMMAND_SIG(casey_quick_calc)
     char *Stuff = (char *)malloc(Size + 1);
     Stuff[Size] = 0;
 
-    Buffer_Summary buffer = app->get_buffer(app, view.buffer_id, access);
-    app->buffer_read_range(app, &buffer, range.min, range.max, Stuff);
+    Buffer_Summary buffer = get_buffer(app, view.buffer_id, access);
+    buffer_read_range(app, &buffer, range.min, range.max, Stuff);
 
     tokenizer Tokenizer = {Stuff};
     calc_node *CalcTree = ParseCalc(&Tokenizer);
@@ -1063,7 +1063,7 @@ CUSTOM_COMMAND_SIG(casey_quick_calc)
     char ResultBuffer[256];
     int ResultSize = sprintf(ResultBuffer, "%f", ComputedValue);
 
-    app->buffer_replace_range(app, &buffer, range.min, range.max, ResultBuffer, ResultSize);
+    buffer_replace_range(app, &buffer, range.min, range.max, ResultBuffer, ResultSize);
 
     free(Stuff);
 }
@@ -1107,7 +1107,7 @@ OpenProject(Application_Links *app, char *ProjectFileName)
                 dir.str[dir.size++] = '/';
             }
 
-            File_List list = app->get_file_list(app, dir.str, dir.size);
+            File_List list = get_file_list(app, dir.str, dir.size);
             int dir_size = dir.size;
 
             for (int i = 0; i < list.count; ++i)
@@ -1132,7 +1132,7 @@ OpenProject(Application_Links *app, char *ProjectFileName)
                 }
             }
 
-            app->free_file_list(app, list);
+            free_file_list(app, list);
         }
 
         fclose(ProjectFile);
@@ -1147,7 +1147,7 @@ CUSTOM_COMMAND_SIG(casey_execute_arbitrary_command)
     bar.string = make_fixed_width_string(space);
 
     if (!query_user_string(app, &bar)) return;
-    app->end_query_bar(app, &bar, 0);
+    end_query_bar(app, &bar, 0);
 
     if(match(bar.string, make_lit_string("project")))
     {
@@ -1164,8 +1164,8 @@ CUSTOM_COMMAND_SIG(casey_execute_arbitrary_command)
         append(&bar.prompt, bar.string);
         bar.string.size = 0;
 
-        app->start_query_bar(app, &bar, 0);
-        app->get_user_input(app, EventOnAnyKey | EventOnButton, 0);
+        start_query_bar(app, &bar, 0);
+        get_user_input(app, EventOnAnyKey | EventOnButton, 0);
     }
 }
 
@@ -1195,10 +1195,10 @@ UpdateModalIndicator(Application_Links *app)
     };
 
     if (GlobalEditMode){
-        app->set_theme_colors(app, edit_colors, ArrayCount(edit_colors));
+        set_theme_colors(app, edit_colors, ArrayCount(edit_colors));
     }
     else{
-        app->set_theme_colors(app, normal_colors, ArrayCount(normal_colors));
+        set_theme_colors(app, normal_colors, ArrayCount(normal_colors));
     }
 }
 CUSTOM_COMMAND_SIG(begin_free_typing)
@@ -1303,7 +1303,7 @@ OPEN_FILE_HOOK_SIG(casey_file_settings)
     // from app->get_active_buffer.
     unsigned int access = AccessAll;
     //Buffer_Summary buffer = app->get_parameter_buffer(app, 0, access);
-    Buffer_Summary buffer = app->get_buffer(app, buffer_id, access);
+    Buffer_Summary buffer = get_buffer(app, buffer_id, access);
 
     int treat_as_code = 0;
     int treat_as_project = 0;
@@ -1315,9 +1315,9 @@ OPEN_FILE_HOOK_SIG(casey_file_settings)
         treat_as_project = match(ext, make_lit_string("prj"));
     }
     
-    app->buffer_set_setting(app, &buffer, BufferSetting_Lex, treat_as_code);
-    app->buffer_set_setting(app, &buffer, BufferSetting_WrapLine, !treat_as_code);
-    app->buffer_set_setting(app, &buffer, BufferSetting_MapID, mapid_file);
+    buffer_set_setting(app, &buffer, BufferSetting_Lex, treat_as_code);
+    buffer_set_setting(app, &buffer, BufferSetting_WrapLine, !treat_as_code);
+    buffer_set_setting(app, &buffer, BufferSetting_MapID, mapid_file);
     
     if(treat_as_project)
     {
@@ -1478,8 +1478,8 @@ HOOK_SIG(casey_start)
     exec_command(app, hide_scrollbar);
     exec_command(app, change_active_panel);
 
-    app->change_theme(app, literal("Handmade Hero"));
-    app->change_font(app, literal("Liberation Mono"), true);
+    change_theme(app, literal("Handmade Hero"));
+    change_font(app, literal("Liberation Mono"), true);
 
     Theme_Color colors[] =
     {
@@ -1513,7 +1513,7 @@ HOOK_SIG(casey_start)
         // {Stag_Undo, },
         // {Stag_Next_Undo, },
     };
-    app->set_theme_colors(app, colors, ArrayCount(colors));
+    set_theme_colors(app, colors, ArrayCount(colors));
 
     win32_toggle_fullscreen();
 
