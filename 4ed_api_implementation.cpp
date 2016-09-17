@@ -1171,8 +1171,13 @@ DOC_SEE(set_active_view)
 DOC_SEE(Access_Flag)
 */{
     Command_Data *cmd = (Command_Data*)app->cmd_context;
+    
+    Panel *panel = cmd->models->layout.panels + cmd->models->layout.active_panel;
+    
+    Assert(panel->view != 0);
+    
     View_Summary view = {0};
-    fill_view_summary(&view, cmd->view, &cmd->vars->live_set, &cmd->models->working_set);
+    fill_view_summary(&view, panel->view, &cmd->vars->live_set, &cmd->models->working_set);
     if (!access_test(view.lock_flags, access)){
         view = null_view_summary;
     }
@@ -1185,8 +1190,7 @@ DOC_PARAM(view_location, The view_location parameter specifies the view to split
 DOC_PARAM(position, The position parameter specifies how to split the view and where to place the new view.)
 DOC_RETURN(If this call succeeds it returns a View_Summary describing the newly created view, if it fails it
 returns a null summary.)
-DOC(4coder is built with a limit of 16 views.  If 16 views are already open when this is called the
-call will fail.)
+DOC(4coder is built with a limit of 16 views.  If 16 views are already open when this is called the call will fail.)
 DOC_SEE(View_Split_Position)
 */{
     Command_Data *cmd = (Command_Data*)app->cmd_context;
@@ -1260,83 +1264,87 @@ in the system, the call will fail.)
     System_Functions *system = cmd->system;
     Models *models = cmd->models;
     View *vptr = imp_get_view(cmd, view);
-    Panel *panel = vptr->panel;
-    bool32 result = false;
     
-    Divider_And_ID div, parent_div, child_div;
-    i32 child;
-    i32 parent;
-    i32 which_child;
-    i32 active;
+    bool32 result = 0;
     
-    if (models->layout.panel_count > 1){
-        live_set_free_view(system, models->live_set, vptr);
-        panel->view = 0;
-        
-        div = layout_get_divider(&models->layout, panel->parent);
-        
-        // This divider cannot have two child dividers.
-        Assert(div.divider->child1 == -1 || div.divider->child2 == -1);
-        
-        // Get the child who needs to fill in this node's spot
-        child = div.divider->child1;
-        if (child == -1) child = div.divider->child2;
-        
-        parent = div.divider->parent;
-        which_child = div.divider->which_child;
-        
-        // Fill the child in the slot this node use to hold
-        if (parent == -1){
-            Assert(models->layout.root == div.id);
-            models->layout.root = child;
-        }
-        else{
-            parent_div = layout_get_divider(&models->layout, parent);
-            if (which_child == -1){
-                parent_div.divider->child1 = child;
+    if (vptr){
+        if (models->layout.panel_count > 1){
+            Panel *panel = vptr->panel;
+            
+            Divider_And_ID div, parent_div, child_div;
+            i32 child;
+            i32 parent;
+            i32 which_child;
+            i32 active;
+            
+            live_set_free_view(system, models->live_set, vptr);
+            panel->view = 0;
+            
+            div = layout_get_divider(&models->layout, panel->parent);
+            
+            // This divider cannot have two child dividers.
+            Assert(div.divider->child1 == -1 || div.divider->child2 == -1);
+            
+            // Get the child who needs to fill in this node's spot
+            child = div.divider->child1;
+            if (child == -1) child = div.divider->child2;
+            
+            parent = div.divider->parent;
+            which_child = div.divider->which_child;
+            
+            // Fill the child in the slot this node use to hold
+            if (parent == -1){
+                Assert(models->layout.root == div.id);
+                models->layout.root = child;
             }
             else{
-                parent_div.divider->child2 = child;
-            }
-        }
-        
-        // If there was a child divider, give it information about it's new parent.
-        if (child != -1){
-            child_div = layout_get_divider(&models->layout, child);
-            child_div.divider->parent = parent;
-            child_div.divider->which_child = div.divider->which_child;
-        }
-        
-        // What is the new active panel?
-        active = -1;
-        if (child == -1){
-            Panel *panel_ptr = 0;
-            Panel *used_panels = &models->layout.used_sentinel;
-            for (dll_items(panel_ptr, used_panels)){
-                if (panel_ptr != panel && panel_ptr->parent == div.id){
-                    panel_ptr->parent = parent;
-                    panel_ptr->which_child = which_child;
-                    active = (i32)(panel_ptr - models->layout.panels);
-                    break;
+                parent_div = layout_get_divider(&models->layout, parent);
+                if (which_child == -1){
+                    parent_div.divider->child1 = child;
+                }
+                else{
+                    parent_div.divider->child2 = child;
                 }
             }
+            
+            // If there was a child divider, give it information about it's new parent.
+            if (child != -1){
+                child_div = layout_get_divider(&models->layout, child);
+                child_div.divider->parent = parent;
+                child_div.divider->which_child = div.divider->which_child;
+            }
+            
+            // What is the new active panel?
+            active = -1;
+            if (child == -1){
+                Panel *panel_ptr = 0;
+                Panel *used_panels = &models->layout.used_sentinel;
+                for (dll_items(panel_ptr, used_panels)){
+                    if (panel_ptr != panel && panel_ptr->parent == div.id){
+                        panel_ptr->parent = parent;
+                        panel_ptr->which_child = which_child;
+                        active = (i32)(panel_ptr - models->layout.panels);
+                        break;
+                    }
+                }
+            }
+            else{
+                Panel *panel_ptr = panel->next;
+                if (panel_ptr == &models->layout.used_sentinel) panel_ptr = panel_ptr->next;
+                Assert(panel_ptr != panel);
+                active = (i32)(panel_ptr - models->layout.panels);
+            }
+            Assert(active != -1 && panel != models->layout.panels + active);
+            
+            // If the panel we're closing was previously active, we have to switch to it's sibling.
+            if (models->layout.active_panel == (i32)(panel - models->layout.panels)){
+                models->layout.active_panel = active;
+            }
+            
+            layout_free_divider(&models->layout, div.divider);
+            layout_free_panel(&models->layout, panel);
+            layout_fix_all_panels(&models->layout);
         }
-        else{
-            Panel *panel_ptr = panel->next;
-            if (panel_ptr == &models->layout.used_sentinel) panel_ptr = panel_ptr->next;
-            Assert(panel_ptr != panel);
-            active = (i32)(panel_ptr - models->layout.panels);
-        }
-        Assert(active != -1 && panel != models->layout.panels + active);
-        
-        // If the panel we're closing was previously active, we have to switch to it's sibling.
-        if (models->layout.active_panel == (i32)(panel - models->layout.panels)){
-            models->layout.active_panel = active;
-        }
-        
-        layout_free_divider(&models->layout, div.divider);
-        layout_free_panel(&models->layout, panel);
-        layout_fix_all_panels(&models->layout);
     }
     
     return(result);
@@ -1346,12 +1354,11 @@ API_EXPORT bool32
 Set_Active_View(Application_Links *app, View_Summary *view)/*
 DOC_PARAM(view, The view parameter specifies which view to make active.)
 DOC_RETURN(This call returns non-zero on success.)
-DOC
-(
-If the given view is open, it is set as the
+
+DOC(If the given view is open, it is set as the
 active view, and takes subsequent commands and is returned
-from get_active_view.
-)
+from get_active_view.)
+
 DOC_SEE(get_active_view)
 */{
     Command_Data *cmd = (Command_Data*)app->cmd_context;
