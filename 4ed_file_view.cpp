@@ -1276,20 +1276,49 @@ file_relex_parallel(System_Functions *system,
         relex_array.tokens = push_array(part, Cpp_Token, relex_array.max_count);
         
         i32 size = file->state.buffer.size;
-        char *spare = push_array(part, char, size);
+        char *spare = push_array(part, char, size+1);
         
         Cpp_Relex_Data state = cpp_relex_init(array, start_i, end_i, shift_amount, spare);
         
         char *chunk = file->state.buffer.data;
-        i32 chunk_size = size;
+        i32 chunk_size = 1024;
+        i32 chunk_index = 0;
+        
+        int32_t start_position = cpp_relex_start_position(&state);
+        
+        if (start_position == size){
+            chunk = 0;
+            chunk_size = 0;
+            cpp_relex_declare_first_chunk_position(&state, size);
+        }
+        else{
+            chunk_index = start_position / chunk_size;
+            
+            int32_t chunk_start_position = chunk_index*1024;
+            if (chunk_start_position + chunk_size > size){
+                chunk_size = size - chunk_start_position;
+            }
+            
+            cpp_relex_declare_first_chunk_position(&state, chunk_start_position);
+            
+            chunk += chunk_start_position;
+        }
+        
         for(;;){
             Cpp_Lex_Result lex_result =
                 cpp_relex_step(&state, chunk, chunk_size, size, array, &relex_array);
             
             switch (lex_result){
                 case LexResult_NeedChunk:
-                Assert(!"There is only one chunk in the current system.");
-                break;
+                {
+                    ++chunk_index;
+                    chunk += chunk_size;
+                    
+                    int32_t chunk_start_position = chunk_index*1024;
+                    if (chunk_start_position + chunk_size > size){
+                        chunk_size = size - chunk_start_position;
+                    }
+                }break;
                 
                 case LexResult_NeedTokenMemory:
                 inline_lex = 0;

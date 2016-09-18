@@ -800,7 +800,7 @@ cpp_lex_nonalloc_null_end_no_limit(Cpp_Lex_Data *S_ptr, char *chunk, int32_t siz
             break;
         }
         
-        if (chunk[S.pos-1] == 0){
+        if (S.pos > S.chunk_pos && chunk[S.pos-1] == 0){
             --S.pos;
         }
         
@@ -1207,6 +1207,40 @@ cpp_relex_init(Cpp_Token_Array *array, int32_t start_pos, int32_t end_pos, int32
     return(state);
 }
 
+FCPP_LINK int32_t
+cpp_relex_start_position(Cpp_Relex_Data *S_ptr){
+    int32_t result = S_ptr->relex_start_position;
+    return(result);
+}
+
+FCPP_LINK void
+cpp_relex_declare_first_chunk_position(Cpp_Relex_Data *S_ptr, int32_t position){
+    S_ptr->lex.chunk_pos = position;
+}
+
+FCPP_LINK int32_t
+cpp_relex_is_start_chunk(Cpp_Relex_Data *S_ptr, char *chunk, int32_t chunk_size){
+    int32_t pos = S_ptr->relex_start_position;
+    int32_t start = S_ptr->lex.chunk_pos;
+    int32_t end = start + chunk_size;
+    
+    int32_t good_chunk = 0;
+    if (start <= pos && pos < end){
+        good_chunk = 1;
+    }
+    else{
+        if (chunk == 0){
+            good_chunk = 1;
+            S_ptr->lex.chunk_pos = pos;
+        }
+        else{
+            S_ptr->lex.chunk_pos += chunk_size;
+        }
+    }
+    
+    return(good_chunk);
+}
+
 // duff-routine defines
 #define DrCase(PC) case PC: goto resumespot_##PC
 
@@ -1232,41 +1266,40 @@ cpp_relex_step(Cpp_Relex_Data *S_ptr, char *chunk, int32_t chunk_size, int32_t f
     cpp_shift_token_starts(array, S.end_token_index, S.character_shift_amount);
     S.end_token = cpp_index_array(array, full_size, S.end_token_index);
     
-    if (S.relex_start_position < full_size){
-        // TODO(allen): This can be better I suspect.
-        for (;;){
-            Cpp_Lex_Result step_result = 
-                cpp_lex_nonalloc_no_null_out_limit(&S.lex, chunk, chunk_size, full_size,
-                                                   relex_array, 1);
-            
-            switch (step_result){
-                case LexResult_HitTokenLimit:
-                {
-                    Cpp_Token token = relex_array->tokens[relex_array->count-1];
-                    if (token.type == S.end_token.type &&
-                        token.start == S.end_token.start &&
-                        token.size == S.end_token.size &&
-                        token.flags == S.end_token.flags &&
-                        token.state_flags == S.end_token.state_flags){
-                        --relex_array->count;
-                        goto double_break;
-                    }
-                    
-                    while (S.lex.pos > S.end_token.start && S.end_token_index < array->count){
-                        ++S.end_token_index;
-                        S.end_token = cpp_index_array(array, full_size, S.end_token_index);
-                    }
+    // TODO(allen): This can be better I suspect.
+    for (;;){
+        Cpp_Lex_Result step_result = 
+            cpp_lex_nonalloc_no_null_out_limit(&S.lex, chunk, chunk_size, full_size,
+                                               relex_array, 1);
+        
+        switch (step_result){
+            case LexResult_HitTokenLimit:
+            {
+                Cpp_Token token = relex_array->tokens[relex_array->count-1];
+                if (token.type == S.end_token.type &&
+                    token.start == S.end_token.start &&
+                    token.size == S.end_token.size &&
+                    token.flags == S.end_token.flags &&
+                    token.state_flags == S.end_token.state_flags){
+                    --relex_array->count;
+                    goto double_break;
                 }
-                break;
                 
-                case LexResult_NeedChunk: DrYield(1, LexResult_NeedChunk); break;
-                
-                case LexResult_NeedTokenMemory: DrYield(2, LexResult_NeedTokenMemory); break;
-                
-                case LexResult_Finished: goto double_break;
+                while (S.lex.pos > S.end_token.start && S.end_token_index < array->count){
+                    ++S.end_token_index;
+                    S.end_token = cpp_index_array(array, full_size, S.end_token_index);
+                }
             }
+            break;
+            
+            case LexResult_NeedChunk: DrYield(1, LexResult_NeedChunk); break;
+            
+            case LexResult_NeedTokenMemory: DrYield(2, LexResult_NeedTokenMemory); break;
+            
+            case LexResult_Finished: goto double_break;
         }
     }
+    
     double_break:;
     
     DrReturn(LexResult_Finished);
