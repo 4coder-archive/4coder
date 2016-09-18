@@ -9,24 +9,6 @@
 
 // TOP
 
-#include "buffer/4coder_shared.cpp"
-
-#if BUFFER_EXPERIMENT_SCALPEL == 0
-#include "buffer/4coder_golden_array.cpp"
-#define Buffer_Type Buffer
-#elif BUFFER_EXPERIMENT_SCALPEL == 1
-#include "buffer/4coder_gap_buffer.cpp"
-#define Buffer_Type Gap_Buffer
-#elif BUFFER_EXPERIMENT_SCALPEL == 2
-#include "buffer/4coder_multi_gap_buffer.cpp"
-#define Buffer_Type Multi_Gap_Buffer
-#else
-#include "buffer/4coder_rope_buffer.cpp"
-#define Buffer_Type Rope_Buffer
-#endif
-
-#include "buffer/4coder_buffer_abstract.cpp"
-
 enum Edit_Pos_Set_Type{
     EditPos_None,
     EditPos_CursorSet,

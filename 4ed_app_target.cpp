@@ -19,8 +19,6 @@
 
 #include "4coder_custom.h"
 
-#define BUFFER_EXPERIMENT_SCALPEL 1
-
 #include "4ed_math.h"
 
 #include "4ed_system.h"
@@ -41,7 +39,13 @@
 #include "4ed_style.h"
 #include "4ed_style.cpp"
 #include "4ed_command.cpp"
+
+#include "buffer/4coder_shared.cpp"
+#include "buffer/4coder_gap_buffer.cpp"
+#define Buffer_Type Gap_Buffer
+#include "buffer/4coder_buffer_abstract.cpp"
 #include "4ed_file.cpp"
+
 #include "4ed_gui.cpp"
 #include "4ed_layout.cpp"
 #include "4ed_app_models.h"
