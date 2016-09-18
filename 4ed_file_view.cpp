@@ -1248,7 +1248,7 @@ file_first_lex_parallel(System_Functions *system,
 internal b32
 file_relex_parallel(System_Functions *system,
                     Mem_Options *mem, Editing_File *file,
-                    i32 start_i, i32 end_i, i32 amount){
+                    i32 start_i, i32 end_i, i32 shift_amount){
     General_Memory *general = &mem->general;
     Partition *part = &mem->part;
     
@@ -1260,27 +1260,61 @@ file_relex_parallel(System_Functions *system,
     b32 result = true;
     b32 inline_lex = !file->state.still_lexing;
     if (inline_lex){
-        char *data = file->state.buffer.data;
-        i32 size = file->state.buffer.size;
+        i32 extra_tolerance = 100;
         
         Cpp_Token_Array *array = &file->state.token_array;
+        Cpp_Relex_Range relex_range =
+            cpp_get_relex_range(array, start_i, end_i);
         
-        Cpp_Relex_State state = 
-            cpp_relex_nonalloc_start(data, size, array,
-                                     start_i, end_i, amount, 100);
+        i32 relex_space_size =
+            relex_range.end_token_index - relex_range.start_token_index + extra_tolerance;
         
         Temp_Memory temp = begin_temp_memory(part);
-        i32 relex_end;
-        Cpp_Token_Array relex_space;
-        relex_space.count = 0;
-        relex_space.max_count = state.space_request;
-        relex_space.tokens = push_array(part, Cpp_Token, relex_space.max_count);
+        Cpp_Token_Array relex_array;
+        relex_array.count = 0;
+        relex_array.max_count = relex_space_size;
+        relex_array.tokens = push_array(part, Cpp_Token, relex_array.max_count);
         
-        char *spare = push_array(part, char, size+1);
-        if (cpp_relex_nonalloc_main(&state, &relex_space, &relex_end, spare)){
-            inline_lex = 0;
+        i32 size = file->state.buffer.size;
+        char *spare = push_array(part, char, size);
+        
+        Cpp_Relex_Data state = cpp_relex_init(array, start_i, end_i, shift_amount, spare);
+        
+        char *chunk = file->state.buffer.data;
+        i32 chunk_size = size;
+        for(;;){
+            Cpp_Lex_Result lex_result =
+                cpp_relex_step(&state, chunk, chunk_size, size, array, &relex_array);
+            
+            switch (lex_result){
+                case LexResult_NeedChunk:
+                Assert(!"There is only one chunk in the current system.");
+                break;
+                
+                case LexResult_NeedTokenMemory:
+                inline_lex = 0;
+                goto doublebreak;
+                
+                case LexResult_Finished:
+                goto doublebreak;
+            }
         }
-        else{
+        doublebreak:;
+        
+        if (inline_lex){
+            i32 new_count = cpp_relex_get_new_count(&state, array->count, &relex_array);
+            if (new_count > array->max_count){
+                i32 new_max = LargeRoundUp(new_count, Kbytes(1));
+                array->tokens = (Cpp_Token*)
+                    general_memory_reallocate(general, array->tokens,
+                                              array->count*sizeof(Cpp_Token),
+                                              new_max*sizeof(Cpp_Token));
+                array->max_count = new_max;
+            }
+            
+            cpp_relex_complete(&state, array, &relex_array);
+            
+#if 0
             i32 delete_amount = relex_end - state.start_token_i;
             i32 shift_amount = relex_space.count - delete_amount;
             
@@ -1307,6 +1341,10 @@ file_relex_parallel(System_Functions *system,
             
             memcpy(state.array->tokens + state.start_token_i, relex_space.tokens,
                    sizeof(Cpp_Token)*relex_space.count);
+#endif
+        }
+        else{
+            cpp_relex_abort(&state, array);
         }
         
         end_temp_memory(temp);
@@ -1324,12 +1362,12 @@ file_relex_parallel(System_Functions *system,
             ++end_token_i;
         }
         
-        cpp_shift_token_starts(array, end_token_i, amount);
+        cpp_shift_token_starts(array, end_token_i, shift_amount);
         --end_token_i;
         if (end_token_i >= 0){
             Cpp_Token *token = array->tokens + end_token_i;
             if (token->start < end_i && token->start + token->size > end_i){
-                token->size += amount;
+                token->size += shift_amount;
             }
         }
         

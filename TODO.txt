@@ -131,6 +131,7 @@
 ; [X] expose dirty flags
 ; [X] why are command line files not loading any more?
 ; [X] use strange theme
+; [X] cuber's return to previous buffer idea
 
 ; [X] tokens in the custom API
 ;     [X] token seeking on custom side
@@ -141,8 +142,7 @@
 ;         [] more built in options for auto indenting
 ;
 
-; [] binary buffers
-; [] commands for resizing panels
+; [] miblo's various number editors
 ; [] user file bar string
 ; [] API docs as text file
 ; [] read only files
@@ -150,9 +150,6 @@
 ; [] option to hide hidden files
 ; [] control over how mouse effects panel focus
 ; [] option to not open *messages* every startup
-;
-; [] support full length unicode file names
-; [] switch based word complete
 ;
 ; [] query buffer font info
 ; [] break buffer name ties by adding parent directories instead of <#>
@@ -167,6 +164,11 @@
 ; [] multi-line editing
 ; [] multi-cursor editing
 ;
+
+; buffer behavior cleanup
+;    [] show all characters as \# if they can't be rendered
+;    [] support full length unicode file names
+;    [] binary buffers
 
 ; meta programming system
 ;    [X] condense system into single meta compiler
@@ -225,10 +227,8 @@
 ;    [] fancy code presentation mode
 ;
 
-; [X] cuber's return to previous buffer idea
-; [] miblo's various number editors
-;
-; [] keep copy of unedited orignal, somewhere (compressed? restore by history?)
+; [] switch based word complete
+; [] keep copy of unedited orignal maybe? (compressed? restore by history?)
 ;
 ; [] diff
 ; [] cloc
@@ -268,14 +268,6 @@
 ;
 ; [] a triangle rendered for a few frames? color of the dirty markers (not reproduced by me yet)
 ; [] minimize and reopen problem (not reproduced by me yet)
-;
-;
-
-; FANCY-PANTS IDEAS
-; [] pass messages to 'jobs' to try to avoid cancelling them
-;    if the job still thinks it should be cancelled it will say so
-;    but otherwise the job can try to incorporate the new info
-;    without throwing away the progress it has made so far.
 ;
 ;
 

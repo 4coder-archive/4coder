@@ -305,17 +305,20 @@ struct Cpp_Get_Token_Result{
 	int32_t in_whitespace;
 };
 
+#if 0
 struct_internal Cpp_Relex_State{
-    char *data;
-    int32_t size;
-    
     Cpp_Token_Array *array;
-    int32_t start, end, amount;
+    int32_t start, end;
     int32_t start_token_i;
     int32_t end_token_i;
     int32_t relex_start;
-    int32_t tolerance;
     int32_t space_request;
+};
+#endif
+
+struct Cpp_Relex_Range{
+    int32_t start_token_index;
+    int32_t end_token_index;
 };
 
 struct_internal Cpp_Lex_FSM{
@@ -368,6 +371,23 @@ ENUM(int32_t, Cpp_Lex_Result){
     
     /* DOC(This indicates that the maximum number of output tokens as specified by the user was hit.) */
     LexResult_HitTokenLimit = 3,
+};
+
+struct Cpp_Relex_Data{
+    Cpp_Lex_Data lex;
+    
+    Cpp_Token end_token;
+    
+    int32_t relex_start_position;
+    int32_t start_token_index;
+    int32_t end_token_index;
+    int32_t original_end_token_index;
+    
+    int32_t character_shift_amount;
+    
+    Cpp_Lex_Result result_state;
+    
+    int32_t __pc__;
 };
 
 ENUM_INTERNAL(uint16_t, Cpp_Preprocessor_State){

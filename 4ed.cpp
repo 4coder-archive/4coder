@@ -2553,7 +2553,7 @@ App_Step_Sig(app_step){
                             "-mouse release events in customization system\n"
                             "\n"
                             "New in alpha 4.0.10:\n"
-                            "-<control F> list all locations of a string across all open buffers\n"
+                            "-<ctrl F> list all locations of a string across all open buffers\n"
                             "-Build now finds build.sh and Makefile on Linux\n"
                             "-<alt n> goes to the next error if the *compilation* buffer is open\n"
                             "-<alt N> goes to the previous error\n"

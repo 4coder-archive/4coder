@@ -3099,7 +3099,7 @@ generate_custom_headers(){
             append_ss        (&out, name);
             append_sc        (&out, "</h4><div style='"CODE_STYLE" "DESCRIPT_SECTION_STYLE"'>");
             
-            print_function_html(&out, &used_links, item->cpp_name, item->ret, "app->", name, item->breakdown);
+            print_function_html(&out, &used_links, item->cpp_name, item->ret, "", name, item->breakdown);
             append_sc(&out, "</div>");
             
             print_function_docs(&out, part, name, item->doc_string);
