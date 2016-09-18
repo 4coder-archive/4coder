@@ -23,7 +23,7 @@ fill_buffer_summary(Buffer_Summary *buffer, Editing_File *file, Working_Set *wor
         buffer->ready = file_is_ready(file);
         
         buffer->buffer_id = file->id.id;
-        buffer->size = file->state.buffer.size;
+        buffer->size = buffer_size(&file->state.buffer);
         buffer->line_count = file->state.buffer.line_count;
         
         buffer->file_name_len = file->name.source_path.size;
@@ -724,7 +724,6 @@ DOC_SEE(Buffer_Setting_ID)
         switch (setting){
             case BufferSetting_Lex:
             {
-#if BUFFER_EXPERIMENT_SCALPEL <= 0
                 if (file->settings.tokens_exist){
                     if (!value){
                         file_kill_tokens(system, &models->mem.general, file);
@@ -735,7 +734,6 @@ DOC_SEE(Buffer_Setting_ID)
                         file_first_lex_parallel(system, &models->mem.general, file);
                     }
                 }
-#endif
             }break;
             
             case BufferSetting_WrapLine:

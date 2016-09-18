@@ -1123,10 +1123,9 @@ Job_Callback_Sig(job_full_lex){
     General_Memory *general = (General_Memory*)data[1];
     
     char *text_data = file->state.buffer.data;
-    i32 text_size = file->state.buffer.size;
+    i32 text_size = buffer_size(&file->state.buffer);
     
-    i32 buffer_size = file->state.buffer.size;
-    buffer_size = (buffer_size + 3)&(~3);
+    i32 buffer_size = (text_size + 3)&(~3);
     
     while (memory->size < buffer_size*2){
         system->grow_thread_memory(memory);
@@ -1224,7 +1223,6 @@ file_kill_tokens(System_Functions *system,
     file->state.token_array = null_cpp_token_array;
 }
 
-#if BUFFER_EXPERIMENT_SCALPEL <= 0
 internal void
 file_first_lex_parallel(System_Functions *system,
                         General_Memory *general, Editing_File *file){
@@ -1243,7 +1241,6 @@ file_first_lex_parallel(System_Functions *system,
         file->state.lex_job = system->post_job(BACKGROUND_THREADS, job);
     }
 }
-#endif
 
 internal b32
 file_relex_parallel(System_Functions *system,
@@ -1260,6 +1257,7 @@ file_relex_parallel(System_Functions *system,
     b32 result = true;
     b32 inline_lex = !file->state.still_lexing;
     if (inline_lex){
+        Buffer_Type *buffer = &file->state.buffer;
         i32 extra_tolerance = 100;
         
         Cpp_Token_Array *array = &file->state.token_array;
@@ -1275,33 +1273,32 @@ file_relex_parallel(System_Functions *system,
         relex_array.max_count = relex_space_size;
         relex_array.tokens = push_array(part, Cpp_Token, relex_array.max_count);
         
-        i32 size = file->state.buffer.size;
+        i32 size = buffer_size(buffer);
         char *spare = push_array(part, char, size+1);
         
         Cpp_Relex_Data state = cpp_relex_init(array, start_i, end_i, shift_amount, spare);
         
-        char *chunk = file->state.buffer.data;
-        i32 chunk_size = 1024;
-        i32 chunk_index = 0;
+        char *chunks[3];
+        i32 chunk_sizes[3];
         
-        int32_t start_position = cpp_relex_start_position(&state);
+        chunks[0] = buffer->data;
+        chunk_sizes[0] = buffer->size1;
         
-        if (start_position == size){
-            chunk = 0;
-            chunk_size = 0;
-            cpp_relex_declare_first_chunk_position(&state, size);
-        }
-        else{
-            chunk_index = start_position / chunk_size;
-            
-            int32_t chunk_start_position = chunk_index*1024;
-            if (chunk_start_position + chunk_size > size){
-                chunk_size = size - chunk_start_position;
-            }
-            
-            cpp_relex_declare_first_chunk_position(&state, chunk_start_position);
-            
-            chunk += chunk_start_position;
+        chunks[1] = buffer->data + buffer->size1 + buffer->gap_size;
+        chunk_sizes[1] = buffer->size2;
+        
+        chunks[2] = 0;
+        chunk_sizes[2] = 0;
+        
+        int32_t chunk_index = 0;
+        
+        char *chunk = chunks[chunk_index];
+        int32_t chunk_size = chunk_sizes[chunk_index];
+        
+        while (!cpp_relex_is_start_chunk(&state, chunk, chunk_size)){
+            ++chunk_index;
+            chunk = chunks[chunk_index];
+            chunk_size = chunk_sizes[chunk_index];
         }
         
         for(;;){
@@ -1310,15 +1307,10 @@ file_relex_parallel(System_Functions *system,
             
             switch (lex_result){
                 case LexResult_NeedChunk:
-                {
-                    ++chunk_index;
-                    chunk += chunk_size;
-                    
-                    int32_t chunk_start_position = chunk_index*1024;
-                    if (chunk_start_position + chunk_size > size){
-                        chunk_size = size - chunk_start_position;
-                    }
-                }break;
+                ++chunk_index;
+                chunk = chunks[chunk_index];
+                chunk_size = chunk_sizes[chunk_index];
+                break;
                 
                 case LexResult_NeedTokenMemory:
                 inline_lex = 0;
@@ -1342,35 +1334,6 @@ file_relex_parallel(System_Functions *system,
             }
             
             cpp_relex_complete(&state, array, &relex_array);
-            
-#if 0
-            i32 delete_amount = relex_end - state.start_token_i;
-            i32 shift_amount = relex_space.count - delete_amount;
-            
-            if (shift_amount != 0){
-                i32 new_count = array->count + shift_amount;
-                if (new_count > array->max_count){
-                    i32 new_max = LargeRoundUp(new_count, Kbytes(1));
-                    array->tokens = (Cpp_Token*)
-                        general_memory_reallocate(general, array->tokens,
-                                                  array->count*sizeof(Cpp_Token),
-                                                  new_max*sizeof(Cpp_Token));
-                    array->max_count = new_max;
-                }
-                
-                i32 shift_size = array->count - relex_end;
-                if (shift_size > 0){
-                    Cpp_Token *old_base = array->tokens + relex_end;
-                    memmove(old_base + shift_amount, old_base,
-                            sizeof(Cpp_Token)*shift_size);
-                }
-                
-                array->count += shift_amount;
-            }
-            
-            memcpy(state.array->tokens + state.start_token_i, relex_space.tokens,
-                   sizeof(Cpp_Token)*relex_space.count);
-#endif
         }
         else{
             cpp_relex_abort(&state, array);
@@ -2164,12 +2127,10 @@ file_do_single_edit(System_Functions *system,
     
     file_edit_cursor_fix(system, part, general, file, layout, desc, 0);
     
-#if BUFFER_EXPERIMENT_SCALPEL <= 0
     // NOTE(allen): token fixing
     if (file->settings.tokens_exist){
         file_relex_parallel(system, mem, file, start, end, shift_amount);
     }
-#endif
 }
 
 internal void

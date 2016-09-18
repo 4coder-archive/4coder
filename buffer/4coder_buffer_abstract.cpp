@@ -599,8 +599,13 @@ internal_4tech Partial_Cursor
 buffer_partial_from_pos(Buffer_Type *buffer, int pos){
     Partial_Cursor result = {0};
     
-    if (pos > buffer->size) pos = buffer->size;
-    if (pos < 0) pos = 0;
+    int32_t size = buffer_size(buffer);
+    if (pos > size){
+        pos = size;
+    }
+    if (pos < 0){
+        pos = 0;
+    }
     
     int line_index = buffer_get_line_index_range(buffer, pos, 0, buffer->line_count);
     result.pos = pos;
@@ -616,8 +621,13 @@ buffer_cursor_from_pos(Buffer_Type *buffer, int pos, float *wraps,
     Full_Cursor result;
     int line_index;
     
-    if (pos > buffer->size) pos = buffer->size;
-    if (pos < 0) pos = 0;
+    int32_t size = buffer_size(buffer);
+    if (pos > size){
+        pos = size;
+    }
+    if (pos < 0){
+        pos = 0;
+    }
     
     line_index = buffer_get_line_index_range(buffer, pos, 0, buffer->line_count);
     result = make_cursor_hint(line_index, buffer->line_starts, wraps, font_height);
@@ -635,8 +645,9 @@ buffer_partial_from_line_character(Buffer_Type *buffer, int line, int character)
     if (line_index >= buffer->line_count) line_index = buffer->line_count - 1;
     if (line_index < 0) line_index = 0;
     
+    int32_t size = buffer_size(buffer);
     int this_start = buffer->line_starts[line_index];
-    int max_character = (buffer->size-this_start) + 1;
+    int max_character = (size-this_start) + 1;
     if (line_index+1 < buffer->line_count){
         int next_start = buffer->line_starts[line_index+1];
         max_character = (next_start-this_start);

@@ -19,7 +19,7 @@
 
 #include "4coder_custom.h"
 
-#define BUFFER_EXPERIMENT_SCALPEL 0
+#define BUFFER_EXPERIMENT_SCALPEL 1
 
 #include "4ed_math.h"
 

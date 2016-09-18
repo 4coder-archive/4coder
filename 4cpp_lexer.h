@@ -1125,42 +1125,6 @@ cpp_index_array(Cpp_Token_Array *array, int32_t file_size, int32_t index){
     return(result);
 }
 
-#if 0
-FCPP_INTERNAL Cpp_Relex_State
-cpp_relex_nonalloc_start(Cpp_Token_Array *array, int32_t start, int32_t end, int32_t tolerance){
-    Cpp_Relex_State state;
-    state.array = array;
-    state.start = start;
-    state.end = end;
-    
-    Cpp_Get_Token_Result result = cpp_get_token(array, start);
-    
-    state.start_token_i = result.token_index-1;
-    if (state.start_token_i < 0){
-        state.start_token_i = 0;
-    }
-    
-    result = cpp_get_token(array, end);
-    
-    state.end_token_i = result.token_index;
-    if (end > array->tokens[state.end_token_i].start){
-        ++state.end_token_i;
-    }
-    if (state.end_token_i < 0){
-        state.end_token_i = 0;
-    }
-    
-    state.relex_start = array->tokens[state.start_token_i].start;
-    if (start < state.relex_start){
-        state.relex_start = start;
-    }
-    
-    state.space_request = state.end_token_i - state.start_token_i + tolerance + 1;
-    
-    return(state);
-}
-#endif
-
 FCPP_INTERNAL Cpp_Relex_Range
 cpp_get_relex_range(Cpp_Token_Array *array, int32_t start_pos, int32_t end_pos){
     Cpp_Relex_Range range = {0};
@@ -1301,7 +1265,6 @@ cpp_relex_step(Cpp_Relex_Data *S_ptr, char *chunk, int32_t chunk_size, int32_t f
     }
     
     double_break:;
-    
     DrReturn(LexResult_Finished);
 }
 
@@ -1371,91 +1334,6 @@ cpp_relex_abort(Cpp_Relex_Data *S_ptr, Cpp_Token_Array *array){
     cpp_shift_token_starts(array, S_ptr->original_end_token_index, -S_ptr->character_shift_amount);
 }
 
-#if 0
-// TODO(allen): rename shift_amount to character_shift_amount
-FCPP_INTERNAL Cpp_Lex_Result
-cpp_relex_nonalloc_main(Cpp_Relex_Data *S_ptr,
-                        
-                        Cpp_Relex_Range range, int32_t shift_amount, 
-                        
-                        char *chunk, int32_t chunk_size, int32_t size,
-                        
-                        Cpp_Token_Array *array,
-                        
-                        Cpp_Token_Array *relex_array,
-                        int32_t *relex_end_out,
-                        
-                        char *spare){
-    
-    cpp_shift_token_starts(array, range.end_token_index, shift_amount);
-    Cpp_Token match_token = cpp_index_array(array, size, range.end_token_index);
-    Cpp_Token end_token = match_token;
-    
-    Cpp_Relex_State result = LexResult_Finished;
-    
-    Cpp_Token *tokens = array->tokens;
-    int32_t relex_end_index = range.end_token_index;
-    
-    if (state->relex_start < size){
-        Cpp_Lex_Data lex = cpp_lex_data_init(spare);
-        lex.pp_state = cpp_token_get_pp_state(tokens[state->start_token_i].state_flags);
-        lex.pos = state->relex_start;
-        
-        // TODO(allen): This can be better I suspect.
-        for (;;){
-            int32_t step_result = 
-                cpp_lex_nonalloc_no_null_out_limit(&lex, data, size, size,
-                                                   relex_array, 1);
-            
-            switch (step_result){
-                case LexResult_HitTokenLimit:
-                {
-                    Cpp_Token token = relex_array->tokens[relex_array->count-1];
-                    if (token.start == end_token.start &&
-                        token.size == end_token.size &&
-                        token.flags == end_token.flags &&
-                        token.state_flags == end_token.state_flags){
-                        --relex_array->count;
-                        goto double_break;
-                    }
-                    
-                    while (lex.pos > end_token.start && relex_end_i < array->count){
-                        ++relex_end_i;
-                        end_token = cpp_index_array(array, size, relex_end_i);
-                    }
-                }
-                break;
-                
-                case LexResult_NeedChunk: Assert(!"Invalid path"); break;
-                
-                case LexResult_NeedTokenMemory:
-                result = LexResult_NeedTokenMemory;
-                goto double_break;
-                
-                case LexResult_Finished:
-                goto double_break;
-            }
-        }
-        double_break:;
-    }
-    
-    switch (result){
-        case LexResult_Finished:
-        {
-            *relex_end_out = relex_end_i;
-        }break;
-        
-        case LexResult_NeedTokenMemory:
-        {
-            cpp_shift_token_starts(array, state->end_token_i, -shift_amount);
-        }break;
-        
-        default: Assert(!"Invalid path");
-    }
-    
-    return(result);
-}
-#endif
 
 #if !defined(FCPP_FORBID_MALLOC)
 
