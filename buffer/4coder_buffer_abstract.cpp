@@ -12,7 +12,6 @@
 
 #define Buffer_Init_Type cat_4tech(Buffer_Type, _Init)
 #define Buffer_Stringify_Type cat_4tech(Buffer_Type, _Stringify_Loop)
-#define Buffer_Backify_Type cat_4tech(Buffer_Type, _Backify_Loop)
 
 inline_4tech void
 buffer_stringify(Buffer_Type *buffer, i32 start, i32 end, char *out){
