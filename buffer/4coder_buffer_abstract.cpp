@@ -1,12 +1,12 @@
 /* 
-* Mr. 4th Dimention - Allen Webster
-*  Four Tech
-*
-* public domain -- no warranty is offered or implied; use this code at your own risk
-* 
-* 24.10.2015
-* 
-*/
+ * Mr. 4th Dimention - Allen Webster
+ *  Four Tech
+ *
+ * public domain -- no warranty is offered or implied; use this code at your own risk
+ * 
+ * 24.10.2015
+ * 
+ */
 
 // TOP
 
@@ -847,7 +847,7 @@ buffer_get_render_data(Buffer_Type *buffer, Buffer_Render_Item *items, int max, 
     float x, y;
     int i, item_i;
     float ch_width, ch_width_sub;
-    char ch;
+    uint8_t ch;
     
     size = buffer_size(buffer);
     
@@ -875,7 +875,7 @@ buffer_get_render_data(Buffer_Type *buffer, Buffer_Render_Item *items, int max, 
             data = loop.data - loop.absolute_pos;
             
             for (i = loop.absolute_pos; i < end; ++i){
-                ch = data[i];
+                ch = (uint8_t)data[i];
                 ch_width = measure_character(advance_data, ch);
                 
                 if (ch_width + x > width + shift_x && wrapped && ch != '\n'){
@@ -894,24 +894,6 @@ buffer_get_render_data(Buffer_Type *buffer, Buffer_Render_Item *items, int max, 
                         
                         x = shift_x;
                         y += font_height;
-                    }
-                    break;
-                    
-                    case 0:
-                    if (item < item_end){
-                        ch_width = write_render_item_inline(item, i, '\\', x, y, advance_data, font_height);
-                        item->flags = BRFlag_Special_Character;
-                        ++item_i;
-                        ++item;
-                        x += ch_width;
-                        
-                        if (item < item_end){
-                            ch_width = write_render_item_inline(item, i, '0', x, y, advance_data, font_height);
-                            item->flags = BRFlag_Special_Character;
-                            ++item_i;
-                            ++item;
-                            x += ch_width;
-                        }
                     }
                     break;
                     
@@ -961,19 +943,59 @@ buffer_get_render_data(Buffer_Type *buffer, Buffer_Render_Item *items, int max, 
                     
                     default:
                     if (item < item_end){
-                        write_render_item(item, i, ch, x, y, ch_width, font_height);
-                        item->flags = 0;
-                        ++item_i;
-                        ++item;
-                        x += ch_width;
+                        if (ch >= ' ' && ch <= '~'){
+                            write_render_item(item, i, ch, x, y, ch_width, font_height);
+                            item->flags = 0;
+                            ++item_i;
+                            ++item;
+                            x += ch_width;
+                        }
+                        else{
+                            ch_width = write_render_item_inline(item, i, '\\', x, y, advance_data, font_height);
+                            item->flags = BRFlag_Special_Character;
+                            ++item_i;
+                            ++item;
+                            x += ch_width;
+                            
+                            char C = '0' + (ch / 0x10);
+                            if ((ch / 0x10) > 0x9){
+                                C = ('A' - 0xA) + (ch / 0x10);
+                            }
+                            
+                            if (item < item_end){
+                                ch_width = write_render_item_inline(item, i, C, x, y, advance_data, font_height);
+                                item->flags = BRFlag_Special_Character;
+                                ++item_i;
+                                ++item;
+                                x += ch_width;
+                            }
+                            
+                            ch = (ch % 0x10);
+                            C = '0' + ch;
+                            if (ch > 0x9){
+                                C = ('A' - 0xA) + ch;
+                            }
+                            
+                            if (item < item_end){
+                                ch_width = write_render_item_inline(item, i, C, x, y, advance_data, font_height);
+                                item->flags = BRFlag_Special_Character;
+                                ++item_i;
+                                ++item;
+                                x += ch_width;
+                            }
+                            
+                        }
                     }
                     break;
                 }
-                if (y > height + shift_y) goto buffer_get_render_data_end;
+                
+                if (y > height + shift_y){
+                    goto buffer_get_render_data_end;
+                }
             }
         }
         
-        buffer_get_render_data_end:
+        buffer_get_render_data_end:;
         if (y <= height + shift_y || item == items){
             if (item < item_end){
                 ch = 0;
@@ -1004,5 +1026,6 @@ buffer_get_render_data(Buffer_Type *buffer, Buffer_Render_Item *items, int max, 
 #ifndef NON_ABSTRACT_4TECH
 #define NON_ABSTRACT_4TECH 1
 #endif
+
 // BOTTOM
 
