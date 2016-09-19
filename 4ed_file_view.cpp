@@ -1122,8 +1122,8 @@ Job_Callback_Sig(job_full_lex){
     Editing_File *file = (Editing_File*)data[0];
     General_Memory *general = (General_Memory*)data[1];
     
-    char *text_data = file->state.buffer.data;
-    i32 text_size = buffer_size(&file->state.buffer);
+    Buffer_Type *buffer = &file->state.buffer;
+    i32 text_size = buffer_size(buffer);
     
     i32 buffer_size = (text_size + 3)&(~3);
     
@@ -1142,12 +1142,32 @@ Job_Callback_Sig(job_full_lex){
     
     Cpp_Lex_Data lex = cpp_lex_data_init(tb);
     
+    // TODO(allen): deduplicate this against relex
+    char *chunks[3];
+    i32 chunk_sizes[3];
+    
+    chunks[0] = buffer->data;
+    chunk_sizes[0] = buffer->size1;
+    
+    chunks[1] = buffer->data + buffer->size1 + buffer->gap_size;
+    chunk_sizes[1] = buffer->size2;
+    
+    chunks[2] = 0;
+    chunk_sizes[2] = 0;
+    
+    i32 chunk_index = 0;
+    
     do{
+        char *chunk = chunks[chunk_index];
+        i32 chunk_size = chunk_sizes[chunk_index];
+        
         i32 result = 
-            cpp_lex_step(&lex, text_data, text_size, text_size, &tokens, 2048);
+            cpp_lex_step(&lex, chunk, chunk_size, text_size, &tokens, 2048);
         
         switch (result){
-            case LexResult_NeedChunk: Assert(!"Invalid Path"); break;
+            case LexResult_NeedChunk:
+            ++chunk_index;
+            break;
             
             case LexResult_NeedTokenMemory:
             if (system->check_cancel(thread)){
@@ -1290,10 +1310,10 @@ file_relex_parallel(System_Functions *system,
         chunks[2] = 0;
         chunk_sizes[2] = 0;
         
-        int32_t chunk_index = 0;
+        i32 chunk_index = 0;
         
         char *chunk = chunks[chunk_index];
-        int32_t chunk_size = chunk_sizes[chunk_index];
+        i32 chunk_size = chunk_sizes[chunk_index];
         
         while (!cpp_relex_is_start_chunk(&state, chunk, chunk_size)){
             ++chunk_index;

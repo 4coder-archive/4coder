@@ -152,9 +152,9 @@
 ; [] option to not open *messages* every startup
 ;
 ; [] query buffer font info
-; [] break buffer name ties by adding parent directories instead of <#>
+; [] option to break buffer name ties by adding parent directories instead of <#>
 ; [] undo groups
-; [] cursor/scroll grouping
+; [] cursor/scroll groups
 ; [] allow for arbitrary wrap positions independent of view width
 ; [] word level wrapping ~ temporary measure really want to have totally formatted code presentation
 ; [] double binding warnings
@@ -171,8 +171,8 @@
 
 ; buffer behavior cleanup
 ;    [X] show all characters as \# if they can't be rendered
-;    [] binary buffer mode
 ;    [] get the navigation working correctly around multi-glyph characters
+;    [] binary buffer mode
 ;    [] support full length unicode file names
 
 ; meta programming system

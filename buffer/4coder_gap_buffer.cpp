@@ -1,53 +1,49 @@
-/* 
+/*
  * Mr. 4th Dimention - Allen Webster
- *  Four Tech
  *
- * public domain -- no warranty is offered or implied; use this code at your own risk
- * 
  * 23.10.2015
- * 
- * Buffer data object
- *  type - Gap Buffer
- * 
+ *
+ * An implementation of a gap buffer.
+ *
  */
 
 // TOP
 
 typedef struct Gap_Buffer{
     char *data;
-    int size1;
-    int gap_size;
-    int size2;
-    int max;
+    i32 size1;
+    i32 gap_size;
+    i32 size2;
+    i32 max;
     
-    float *line_widths;
-    int *line_starts;
-    int line_count;
-    int widths_count;
-    int line_max;
-    int widths_max;
+    f32 *line_widths;
+    i32 *line_starts;
+    i32 line_count;
+    i32 widths_count;
+    i32 line_max;
+    i32 widths_max;
 } Gap_Buffer;
 
-inline_4tech int
+inline_4tech i32
 buffer_good(Gap_Buffer *buffer){
-    int good = (buffer->data != 0);
+    i32 good = (buffer->data != 0);
     return(good);
 }
 
-inline_4tech int
+inline_4tech i32
 buffer_size(Gap_Buffer *buffer){
-    int size = buffer->size1 + buffer->size2;
+    i32 size = buffer->size1 + buffer->size2;
     return(size);
 }
 
 typedef struct Gap_Buffer_Init{
     Gap_Buffer *buffer;
     char *data;
-    int size;
+    i32 size;
 } Gap_Buffer_Init;
 
 internal_4tech Gap_Buffer_Init
-buffer_begin_init(Gap_Buffer *buffer, char *data, int size){
+buffer_begin_init(Gap_Buffer *buffer, char *data, i32 size){
     Gap_Buffer_Init init;
     init.buffer = buffer;
     init.data = data;
@@ -55,31 +51,31 @@ buffer_begin_init(Gap_Buffer *buffer, char *data, int size){
     return(init);
 }
 
-internal_4tech int
+internal_4tech i32
 buffer_init_need_more(Gap_Buffer_Init *init){
-    int result = 1;
+    i32 result = 1;
     if (init->buffer->data) result = 0;
     return(result);
 }
 
-internal_4tech int
+internal_4tech i32
 buffer_init_page_size(Gap_Buffer_Init *init){
-    int result = init->size * 2;
+    i32 result = init->size * 2;
     return(result);
 }
 
 internal_4tech void
-buffer_init_provide_page(Gap_Buffer_Init *init, void *page, int page_size){
+buffer_init_provide_page(Gap_Buffer_Init *init, void *page, i32 page_size){
     Gap_Buffer *buffer = init->buffer;
     buffer->data = (char*)page;
     buffer->max = page_size;
 }
 
-internal_4tech int
-buffer_end_init(Gap_Buffer_Init *init, void *scratch, int scratch_size){
+internal_4tech i32
+buffer_end_init(Gap_Buffer_Init *init, void *scratch, i32 scratch_size){
     Gap_Buffer *buffer = init->buffer;
-    int osize1 = 0, size1 = 0, size2 = 0, size = init->size;
-    int result = 0;
+    i32 osize1 = 0, size1 = 0, size2 = 0, size = init->size;
+    i32 result = 0;
     
     if (buffer->data){
         if (buffer->max >= init->size){
@@ -108,14 +104,14 @@ buffer_end_init(Gap_Buffer_Init *init, void *scratch, int scratch_size){
 typedef struct Gap_Buffer_Stringify_Loop{
     Gap_Buffer *buffer;
     char *data, *base;
-    int absolute_pos;
-    int pos, end;
-    int size;
-    int separated;
+    i32 absolute_pos;
+    i32 pos, end;
+    i32 size;
+    i32 separated;
 } Gap_Buffer_Stringify_Loop;
 
 internal_4tech Gap_Buffer_Stringify_Loop
-buffer_stringify_loop(Gap_Buffer *buffer, int start, int end){
+buffer_stringify_loop(Gap_Buffer *buffer, i32 start, i32 end){
     Gap_Buffer_Stringify_Loop result = {0};
     
     if (0 <= start && start < end && end <= buffer->size1 + buffer->size2){
@@ -157,15 +153,15 @@ buffer_stringify_loop(Gap_Buffer *buffer, int start, int end){
     return(result);
 }
 
-inline_4tech int
+inline_4tech i32
 buffer_stringify_good(Gap_Buffer_Stringify_Loop *loop){
-    int result = (loop->buffer != 0);
+    i32 result = (loop->buffer != 0);
     return(result);
 }
 
 internal_4tech void
 buffer_stringify_next(Gap_Buffer_Stringify_Loop *loop){
-    int size1 = 0, temp_end = 0;
+    i32 size1 = 0, temp_end = 0;
     if (loop->separated){
         loop->separated = 0;
         size1 = loop->buffer->size1;
@@ -184,14 +180,14 @@ buffer_stringify_next(Gap_Buffer_Stringify_Loop *loop){
 typedef struct Gap_Buffer_Backify_Loop{
     Gap_Buffer *buffer;
     char *data, *base;
-    int pos, end;
-    int size;
-    int absolute_pos;
-    int separated;
+    i32 pos, end;
+    i32 size;
+    i32 absolute_pos;
+    i32 separated;
 } Gap_Buffer_Backify_Loop;
 
 internal_4tech Gap_Buffer_Backify_Loop
-buffer_backify_loop(Gap_Buffer *buffer, int start, int end){
+buffer_backify_loop(Gap_Buffer *buffer, i32 start, i32 end){
     Gap_Buffer_Backify_Loop result = {0};
     
     ++start;
@@ -235,16 +231,16 @@ buffer_backify_loop(Gap_Buffer *buffer, int start, int end){
     return(result);
 }
 
-inline_4tech int
+inline_4tech i32
 buffer_backify_good(Gap_Buffer_Backify_Loop *loop){
-    int result = (loop->buffer != 0);
+    i32 result = (loop->buffer != 0);
     return(result);
 }
 
 internal_4tech void
 buffer_backify_next(Gap_Buffer_Backify_Loop *loop){
     Gap_Buffer *buffer = loop->buffer;
-    int temp_end = 0;
+    i32 temp_end = 0;
     
     if (loop->separated){
         loop->separated = 0;
@@ -265,13 +261,13 @@ buffer_backify_next(Gap_Buffer_Backify_Loop *loop){
     loop->data = loop->base + loop->pos;
 }
 
-internal_4tech int
-buffer_replace_range(Gap_Buffer *buffer, int start, int end, char *str, int len, int *shift_amount,
-                     void *scratch, int scratch_memory, int *request_amount){
+internal_4tech i32
+buffer_replace_range(Gap_Buffer *buffer, i32 start, i32 end, char *str, i32 len, i32 *shift_amount,
+                     void *scratch, i32 scratch_memory, i32 *request_amount){
     char *data = buffer->data;
-    int size = buffer_size(buffer);
-    int result = 0;
-    int move_size = 0;
+    i32 size = buffer_size(buffer);
+    i32 result = 0;
+    i32 move_size = 0;
     
     assert_4tech(0 <= start);
     assert_4tech(start <= end);
@@ -309,14 +305,14 @@ buffer_replace_range(Gap_Buffer *buffer, int start, int end, char *str, int len,
 }
 
 // NOTE(allen): This could should be optimized for Gap_Buffer
-internal_4tech int
+internal_4tech i32
 buffer_batch_edit_step(Buffer_Batch_State *state, Gap_Buffer *buffer, Buffer_Edit *sorted_edits,
-                       char *strings, int edit_count, void *scratch, int scratch_size, int *request_amount){
+                       char *strings, i32 edit_count, void *scratch, i32 scratch_size, i32 *request_amount){
     Buffer_Edit *edit = 0;
-    int i = state->i;
-    int shift_total = state->shift_total;
-    int shift_amount = 0;
-    int result = 0;
+    i32 i = state->i;
+    i32 shift_total = state->shift_total;
+    i32 shift_amount = 0;
+    i32 result = 0;
     
     edit = sorted_edits + i;
     for (; i < edit_count; ++i, ++edit){
@@ -334,10 +330,10 @@ buffer_batch_edit_step(Buffer_Batch_State *state, Gap_Buffer *buffer, Buffer_Edi
 }
 
 internal_4tech void*
-buffer_edit_provide_memory(Gap_Buffer *buffer, void *new_data, int new_max){
+buffer_edit_provide_memory(Gap_Buffer *buffer, void *new_data, i32 new_max){
     void *result = buffer->data;
-    int size = buffer_size(buffer);
-    int new_gap_size = new_max - size;
+    i32 size = buffer_size(buffer);
+    i32 new_gap_size = new_max - size;
     
     assert_4tech(new_max >= size);
     

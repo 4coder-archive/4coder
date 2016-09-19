@@ -1,16 +1,15 @@
-/* 
+/*
  * Mr. 4th Dimention - Allen Webster
- *  Four Tech
  *
- * public domain -- no warranty is offered or implied; use this code at your own risk
- * 
  * 23.10.2015
- * 
+ *
  * Items shared by gap buffer types
- * 
+ *
  */
 
 // TOP
+
+// TODO(allen): eliminate the extra defs and the extra include.
 
 #include "../4coder_seek_types.h"
 
@@ -27,7 +26,9 @@
 #endif
 
 #ifndef memzero_4tech
-#define memzero_4tech(x) ((x) = {})
+#define memzero_4tech(x) do{                      \
+    char *p = (char*)&x; char *e = p + sizeof(x); \
+    for (;p<e; ++p) {*p=0;} }while(0)             
 #endif
 
 #ifndef memcpy_4tech
@@ -60,9 +61,9 @@
 #endif
 
 #ifndef round_up_4tech
-internal_4tech int
-lroundup_(int x, int granularity){
-	int original_x;
+internal_4tech i32
+lroundup_(i32 x, i32 granularity){
+	i32 original_x;
     original_x = x;
 	x /= granularity;
 	x *= granularity;
@@ -79,17 +80,17 @@ lroundup_(int x, int granularity){
 #define measure_character(a,c) ((a)[c])
 
 typedef struct Buffer_Batch_State{
-    int i;
-    int shift_total;
+    i32 i;
+    i32 shift_total;
 } Buffer_Batch_State;
 
 inline_4tech Full_Cursor
-make_cursor_hint(int line_index, int *starts, float *wrap_ys, float font_height){
+make_cursor_hint(i32 line_index, i32 *starts, f32 *wrap_ys, f32 font_height){
     Full_Cursor hint;
     hint.pos = starts[line_index];
     hint.line = line_index + 1;
     hint.character = 1;
-    hint.unwrapped_y = (float)(line_index * font_height);
+    hint.unwrapped_y = (f32)(line_index * font_height);
     hint.unwrapped_x = 0;
     hint.wrapped_y = wrap_ys[line_index];
     hint.wrapped_x = 0;
@@ -97,11 +98,11 @@ make_cursor_hint(int line_index, int *starts, float *wrap_ys, float font_height)
 }
 
 typedef struct Cursor_With_Index{
-    int pos, index;
+    i32 pos, index;
 } Cursor_With_Index;
 
 inline_4tech void
-write_cursor_with_index(Cursor_With_Index *positions, int *count, int pos){
+write_cursor_with_index(Cursor_With_Index *positions, i32 *count, i32 pos){
     positions[*count].index = *count;
     positions[*count].pos = pos;
     ++*count;
@@ -110,9 +111,9 @@ write_cursor_with_index(Cursor_With_Index *positions, int *count, int pos){
 #define CursorSwap__(a,b) { Cursor_With_Index t = a; a = b; b = t; }
 
 internal_4tech void
-buffer_quick_sort_cursors(Cursor_With_Index *positions, int start, int pivot){
-    int i, mid;
-    int pivot_pos;
+buffer_quick_sort_cursors(Cursor_With_Index *positions, i32 start, i32 pivot){
+    i32 i, mid;
+    i32 pivot_pos;
     
     mid = start;
     pivot_pos = positions[pivot].pos;
@@ -129,9 +130,9 @@ buffer_quick_sort_cursors(Cursor_With_Index *positions, int start, int pivot){
 }
 
 internal_4tech void
-buffer_quick_unsort_cursors(Cursor_With_Index *positions, int start, int pivot){
-    int i, mid;
-    int pivot_index;
+buffer_quick_unsort_cursors(Cursor_With_Index *positions, i32 start, i32 pivot){
+    i32 i, mid;
+    i32 pivot_index;
     
     mid = start;
     pivot_index = positions[pivot].index;
@@ -150,50 +151,47 @@ buffer_quick_unsort_cursors(Cursor_With_Index *positions, int start, int pivot){
 #undef CursorSwap__
 
 inline_4tech void
-buffer_sort_cursors(Cursor_With_Index *positions, int count){
+buffer_sort_cursors(Cursor_With_Index *positions, i32 count){
     assert_4tech(count > 0);
     buffer_quick_sort_cursors(positions, 0, count-1);
 }
 
 inline_4tech void
-buffer_unsort_cursors(Cursor_With_Index *positions, int count){
+buffer_unsort_cursors(Cursor_With_Index *positions, i32 count){
     assert_4tech(count > 0);
     buffer_quick_unsort_cursors(positions, 0, count-1);
 }
 
 internal_4tech void
-buffer_update_cursors(Cursor_With_Index *sorted_positions, int count, int start, int end, int len){
-    int shift_amount = (len - (end - start));
+buffer_update_cursors(Cursor_With_Index *sorted_positions, i32 count, i32 start, i32 end, i32 len){
+    i32 shift_amount = (len - (end - start));
     Cursor_With_Index *position = sorted_positions + count - 1;
     
     for (; position >= sorted_positions && position->pos > end; --position) position->pos += shift_amount;
     for (; position >= sorted_positions && position->pos >= start; --position) position->pos = start;
 }
 
-internal_4tech int
-buffer_batch_debug_sort_check(Buffer_Edit *sorted_edits, int edit_count){
-    Buffer_Edit *edit;
-    int i, result, start_point;
+internal_4tech i32
+buffer_batch_debug_sort_check(Buffer_Edit *sorted_edits, i32 edit_count){
+    Buffer_Edit *edit = sorted_edits;
+    i32 i = 0, start_point = 0;
+    i32 result = 1; 
     
-    result = 1;
-    start_point = 0;
-    
-    edit = sorted_edits;
     for (i = 0; i < edit_count; ++i, ++edit){
         if (start_point > edit->start){
             result = 0; break;
         }
-        start_point = (edit->end < edit->start + 1)?edit->start + 1:edit->end;
+        start_point = (edit->end < edit->start + 1)?(edit->start + 1):(edit->end);
     }
     
     return(result);
 }
 
-internal_4tech int
-buffer_batch_edit_max_shift(Buffer_Edit *sorted_edits, int edit_count){
+internal_4tech i32
+buffer_batch_edit_max_shift(Buffer_Edit *sorted_edits, i32 edit_count){
     Buffer_Edit *edit;
-    int i, result;
-    int shift_total, shift_max;
+    i32 i, result;
+    i32 shift_total, shift_max;
     
     result = 0;
     shift_total = 0;
@@ -208,12 +206,12 @@ buffer_batch_edit_max_shift(Buffer_Edit *sorted_edits, int edit_count){
     return(shift_max);
 }
 
-internal_4tech int
-buffer_batch_edit_update_cursors(Cursor_With_Index *sorted_positions, int count, Buffer_Edit *sorted_edits, int edit_count){
+internal_4tech i32
+buffer_batch_edit_update_cursors(Cursor_With_Index *sorted_positions, i32 count, Buffer_Edit *sorted_edits, i32 edit_count){
     Cursor_With_Index *position, *end_position;
     Buffer_Edit *edit, *end_edit;
-    int start, end;
-    int shift_amount;
+    i32 start, end;
+    i32 shift_amount;
     
     position = sorted_positions;
     end_position = sorted_positions + count;
@@ -249,9 +247,9 @@ buffer_batch_edit_update_cursors(Cursor_With_Index *sorted_positions, int count,
     return(shift_amount);
 }
 
-internal_4tech int
-eol_convert_in(char *dest, char *src, int size){
-    int i, j, k;
+internal_4tech i32
+eol_convert_in(char *dest, char *src, i32 size){
+    i32 i, j, k;
 
     i = 0;
     k = 0;
@@ -277,9 +275,9 @@ eol_convert_in(char *dest, char *src, int size){
     return(j);
 }
 
-internal_4tech int
-eol_in_place_convert_in(char *data, int size){
-    int i, j, k;
+internal_4tech i32
+eol_in_place_convert_in(char *data, i32 size){
+    i32 i, j, k;
 
     i = 0;
     k = 0;
@@ -304,10 +302,10 @@ eol_in_place_convert_in(char *data, int size){
     return(j);
 }
 
-internal_4tech int
-eol_convert_out(char *dest, int max, char *src, int size, int *size_out){
-    int result;
-    int i, j;
+internal_4tech i32
+eol_convert_out(char *dest, i32 max, char *src, i32 size, i32 *size_out){
+    i32 result;
+    i32 i, j;
 
     // TODO(allen): iterative memory check?
     result = 1;
@@ -327,10 +325,10 @@ eol_convert_out(char *dest, int max, char *src, int size, int *size_out){
     return(result);
 }
 
-internal_4tech int
-eol_in_place_convert_out(char *data, int size, int max, int *size_out){
-    int result;
-    int i;
+internal_4tech i32
+eol_in_place_convert_out(char *data, i32 size, i32 max, i32 *size_out){
+    i32 result;
+    i32 i;
     
     // TODO(allen): iterative memory check?
     result = 1;
@@ -349,29 +347,29 @@ eol_in_place_convert_out(char *data, int size, int max, int *size_out){
     return(result);
 }
 
-inline_4tech int
+inline_4tech i32
 is_whitespace(char c){
-    int result;
+    i32 result;
     result = (c == ' ' || c == '\n' || c == '\r'  || c == '\t' || c == '\f' || c == '\v');
     return(result);
 }
 
-inline_4tech int
+inline_4tech i32
 is_alphanumeric_true(char c){
     return (c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c >= '0' && c <= '9');
 }
 
-inline_4tech int
+inline_4tech i32
 is_alphanumeric(char c){
     return (c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c >= '0' && c <= '9' || c == '_');
 }
 
-inline_4tech int
+inline_4tech i32
 is_upper(char c){
     return (c >= 'A' && c <= 'Z');
 }
 
-inline_4tech int
+inline_4tech i32
 is_lower(char c){
     return (c >= 'a' && c <= 'z');
 }
@@ -384,9 +382,9 @@ to_upper(char c){
     return(c);
 }
 
-internal_4tech int
-is_match(char *a, char *b, int len){
-    int result;
+internal_4tech i32
+is_match(char *a, char *b, i32 len){
+    i32 result;
 
     result = 1;
     for (;len > 0; --len, ++a, ++b)
@@ -395,9 +393,9 @@ is_match(char *a, char *b, int len){
     return(result);
 }
 
-internal_4tech int
-is_match_insensitive(char *a, char *b, int len){
-    int result;
+internal_4tech i32
+is_match_insensitive(char *a, char *b, i32 len){
+    i32 result;
 
     result = 1;
     for (;len > 0; --len, ++a, ++b)

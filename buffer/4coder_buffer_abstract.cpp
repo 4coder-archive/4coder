@@ -1,11 +1,11 @@
-/* 
+/*
  * Mr. 4th Dimention - Allen Webster
- *  Four Tech
  *
- * public domain -- no warranty is offered or implied; use this code at your own risk
- * 
  * 24.10.2015
- * 
+ *
+ * Buffer features based on the stringify loop,
+ *  and other abstract buffer features.
+ *
  */
 
 // TOP
@@ -15,7 +15,7 @@
 #define Buffer_Backify_Type cat_4tech(Buffer_Type, _Backify_Loop)
 
 inline_4tech void
-buffer_stringify(Buffer_Type *buffer, int start, int end, char *out){
+buffer_stringify(Buffer_Type *buffer, i32 start, i32 end, char *out){
     for (Buffer_Stringify_Type loop = buffer_stringify_loop(buffer, start, end);
          buffer_stringify_good(&loop);
          buffer_stringify_next(&loop)){
@@ -24,10 +24,10 @@ buffer_stringify(Buffer_Type *buffer, int start, int end, char *out){
     }
 }
 
-internal_4tech int
-buffer_convert_out(Buffer_Type *buffer, char *dest, int max){
+internal_4tech i32
+buffer_convert_out(Buffer_Type *buffer, char *dest, i32 max){
     Buffer_Stringify_Type loop;
-    int size, out_size, pos, result;
+    i32 size, out_size, pos, result;
     
     size = buffer_size(buffer);
     assert_4tech(size + buffer->line_count < max);
@@ -44,11 +44,11 @@ buffer_convert_out(Buffer_Type *buffer, char *dest, int max){
     return(pos);
 }
 
-internal_4tech int
-buffer_count_newlines(Buffer_Type *buffer, int start, int end){
+internal_4tech i32
+buffer_count_newlines(Buffer_Type *buffer, i32 start, i32 end){
     Buffer_Stringify_Type loop;
-    int i;
-    int count;
+    i32 i;
+    i32 count;
     
     assert_4tech(0 <= start);
     assert_4tech(start <= end);
@@ -69,25 +69,25 @@ buffer_count_newlines(Buffer_Type *buffer, int start, int end){
 
 #ifndef NON_ABSTRACT_4TECH
 typedef struct Buffer_Measure_Starts{
-    int i;
-    int count;
-    int start;
-    float width;
+    i32 i;
+    i32 count;
+    i32 start;
+    f32 width;
 } Buffer_Measure_Starts;
 #endif
 
-internal_4tech int
-buffer_measure_starts_widths_(Buffer_Measure_Starts *state, Buffer_Type *buffer, float *advance_data){
+internal_4tech i32
+buffer_measure_starts_widths_(Buffer_Measure_Starts *state, Buffer_Type *buffer, f32 *advance_data){
     Buffer_Stringify_Type loop;
-    int *start_ptr, *start_end;
-    float *width_ptr;
-    debug_4tech(int widths_max);
-    debug_4tech(int max);
+    i32 *start_ptr, *start_end;
+    f32 *width_ptr;
+    debug_4tech(i32 widths_max);
+    debug_4tech(i32 max);
     char *data;
-    int size, end;
-    float width;
-    int start, i;
-    int result;
+    i32 size, end;
+    f32 width;
+    i32 start, i;
+    i32 result;
     char ch;
     
     size = buffer_size(buffer);
@@ -136,24 +136,24 @@ buffer_measure_starts_widths_(Buffer_Measure_Starts *state, Buffer_Type *buffer,
     
     buffer_measure_starts_widths_end:
     state->i = i;
-    state->count = (int)(start_ptr - buffer->line_starts);
+    state->count = (i32)(start_ptr - buffer->line_starts);
     state->start = start;
     state->width = width;
     
     return(result);
 }
 
-internal_4tech int
+internal_4tech i32
 buffer_measure_starts_zero_widths_(Buffer_Measure_Starts *state, Buffer_Type *buffer){
     Buffer_Stringify_Type loop;
-    int *start_ptr, *start_end;
-    float *width_ptr;
-    debug_4tech(int widths_max);
-    debug_4tech(int max);
+    i32 *start_ptr, *start_end;
+    f32 *width_ptr;
+    debug_4tech(i32 widths_max);
+    debug_4tech(i32 max);
     char *data;
-    int size, end;
-    int start, i;
-    int result;
+    i32 size, end;
+    i32 start, i;
+    i32 result;
     char ch;
     
     size = buffer_size(buffer);
@@ -197,15 +197,15 @@ buffer_measure_starts_zero_widths_(Buffer_Measure_Starts *state, Buffer_Type *bu
     
     buffer_measure_starts_zero_widths_end:
     state->i = i;
-    state->count = (int)(start_ptr - buffer->line_starts);
+    state->count = (i32)(start_ptr - buffer->line_starts);
     state->start = start;
     
     return(result);
 }
 
-internal_4tech int
-buffer_measure_starts_widths(Buffer_Measure_Starts *state, Buffer_Type *buffer, float *advance_data){
-    int result = 0;
+internal_4tech i32
+buffer_measure_starts_widths(Buffer_Measure_Starts *state, Buffer_Type *buffer, f32 *advance_data){
+    i32 result = 0;
     
     if (advance_data){
         result = buffer_measure_starts_widths_(state, buffer, advance_data);
@@ -218,13 +218,13 @@ buffer_measure_starts_widths(Buffer_Measure_Starts *state, Buffer_Type *buffer, 
 }
 
 internal_4tech void
-buffer_remeasure_starts(Buffer_Type *buffer, int line_start, int line_end, int line_shift, int text_shift){
+buffer_remeasure_starts(Buffer_Type *buffer, i32 line_start, i32 line_end, i32 line_shift, i32 text_shift){
     Buffer_Stringify_Type loop;
-    int *starts = buffer->line_starts;
-    int line_count = buffer->line_count;
+    i32 *starts = buffer->line_starts;
+    i32 line_count = buffer->line_count;
     char *data = 0;
-    int size = 0, end = 0;
-    int line_i = 0, char_i = 0, start = 0;
+    i32 size = 0, end = 0;
+    i32 line_i = 0, char_i = 0, start = 0;
     
     assert_4tech(0 <= line_start);
     assert_4tech(line_start <= line_end);
@@ -243,7 +243,7 @@ buffer_remeasure_starts(Buffer_Type *buffer, int line_start, int line_end, int l
     
     if (line_shift != 0){
         memmove_4tech(starts + line_end + line_shift, starts + line_end,
-                      sizeof(int)*(line_count - line_end));
+                      sizeof(i32)*(line_count - line_end));
         line_count += line_shift;
     }
     
@@ -277,17 +277,17 @@ buffer_remeasure_starts(Buffer_Type *buffer, int line_start, int line_end, int l
 }
 
 internal_4tech void
-buffer_remeasure_widths(Buffer_Type *buffer, float *advance_data,
-                        int line_start, int line_end, int line_shift){
+buffer_remeasure_widths(Buffer_Type *buffer, f32 *advance_data,
+                        i32 line_start, i32 line_end, i32 line_shift){
     Buffer_Stringify_Type loop;
-    int *starts = buffer->line_starts;
-    float *widths = buffer->line_widths;
-    int line_count = buffer->line_count;
-    int widths_count = buffer->widths_count;
+    i32 *starts = buffer->line_starts;
+    f32 *widths = buffer->line_widths;
+    i32 line_count = buffer->line_count;
+    i32 widths_count = buffer->widths_count;
     char *data = 0;
-    int size = 0, end = 0;
-    int i = 0, j = 0;
-    float width = 0;
+    i32 size = 0, end = 0;
+    i32 i = 0, j = 0;
+    f32 width = 0;
     char ch = 0;
     
     assert_4tech(0 <= line_start);
@@ -297,7 +297,7 @@ buffer_remeasure_widths(Buffer_Type *buffer, float *advance_data,
     ++line_end;
     if (line_shift != 0){
         memmove_4tech(widths + line_end + line_shift, widths + line_end,
-                      sizeof(float)*(widths_count - line_end));
+                      sizeof(f32)*(widths_count - line_end));
     }
     buffer->widths_count = line_count;
     
@@ -345,11 +345,11 @@ buffer_measure_widths(Buffer_Type *buffer, void *advance_data){
 #endif
 
 internal_4tech void
-buffer_measure_wrap_y(Buffer_Type *buffer, float *wraps,
-                      float font_height, float max_width){
-    float *widths;
-    float y_pos;
-    int i, line_count;
+buffer_measure_wrap_y(Buffer_Type *buffer, f32 *wraps,
+                      f32 font_height, f32 max_width){
+    f32 *widths;
+    f32 y_pos;
+    i32 i, line_count;
     
     line_count = buffer->line_count;
     widths = buffer->line_widths;
@@ -362,11 +362,11 @@ buffer_measure_wrap_y(Buffer_Type *buffer, float *wraps,
     }
 }
 
-internal_4tech int
-buffer_get_line_index_range(Buffer_Type *buffer, int pos, int l_bound, int u_bound){
-    int *lines;
-    int start, end;
-    int i;
+internal_4tech i32
+buffer_get_line_index_range(Buffer_Type *buffer, i32 pos, i32 l_bound, i32 u_bound){
+    i32 *lines;
+    i32 start, end;
+    i32 i;
     
     assert_4tech(0 <= l_bound);
     assert_4tech(l_bound <= u_bound);
@@ -393,16 +393,16 @@ buffer_get_line_index_range(Buffer_Type *buffer, int pos, int l_bound, int u_bou
     return(start);
 }
 
-inline_4tech int
-buffer_get_line_index(Buffer_Type *buffer, int pos){
-    int result = buffer_get_line_index_range(buffer, pos, 0, buffer->line_count);
+inline_4tech i32
+buffer_get_line_index(Buffer_Type *buffer, i32 pos){
+    i32 result = buffer_get_line_index_range(buffer, pos, 0, buffer->line_count);
     return(result);
 }
 
 #ifndef NON_ABSTRACT_4TECH
-internal_4tech int
-buffer_get_line_index_from_wrapped_y(float *wraps, float y, float font_height, int l_bound, int u_bound){
-    int start, end, i, result;
+internal_4tech i32
+buffer_get_line_index_from_wrapped_y(f32 *wraps, f32 y, f32 font_height, i32 l_bound, i32 u_bound){
+    i32 start, end, i, result;
     start = l_bound;
     end = u_bound;
     for (;;){
@@ -428,13 +428,13 @@ typedef struct Seek_State{
     Full_Cursor prev_cursor;
 } Seek_State;
 
-internal_4tech int
-cursor_seek_step(Seek_State *state, Buffer_Seek seek, int xy_seek, float max_width,
-                 float font_height, float *advances, int size, char ch){
+internal_4tech i32
+cursor_seek_step(Seek_State *state, Buffer_Seek seek, i32 xy_seek, f32 max_width,
+                 f32 font_height, f32 *advances, i32 size, char ch){
     Full_Cursor cursor, prev_cursor;
-    float ch_width;
-    int result;
-    float x, px, y;
+    f32 ch_width;
+    i32 result;
+    f32 x, px, y;
     
     cursor = state->cursor;
     prev_cursor = state->prev_cursor;
@@ -453,8 +453,8 @@ cursor_seek_step(Seek_State *state, Buffer_Seek seek, int xy_seek, float max_wid
         
         default:
         ++cursor.character;
-        if (ch == '\r') ch_width = *(float*)(advances + '\\') + *(float*)(advances + 'r');
-        else ch_width = *(float*)(advances + ch);
+        if (ch == '\r') ch_width = *(f32*)(advances + '\\') + *(f32*)(advances + 'r');
+        else ch_width = *(f32*)(advances + ch);
         
         if (cursor.wrapped_x + ch_width >= max_width){
             cursor.wrapped_y += font_height;
@@ -536,16 +536,16 @@ cursor_seek_step(Seek_State *state, Buffer_Seek seek, int xy_seek, float max_wid
 #endif
 
 internal_4tech Full_Cursor
-buffer_cursor_seek(Buffer_Type *buffer, Buffer_Seek seek, float max_width,
-                   float font_height, float *advance_data, Full_Cursor cursor){
+buffer_cursor_seek(Buffer_Type *buffer, Buffer_Seek seek, f32 max_width,
+                   f32 font_height, f32 *advance_data, Full_Cursor cursor){
     Buffer_Stringify_Type loop;
     char *data;
-    int size, end;
-    int i;
-    int result;
+    i32 size, end;
+    i32 i;
+    i32 result;
     
     Seek_State state;
-    int xy_seek;
+    i32 xy_seek;
     
     state.cursor = cursor;
     
@@ -596,7 +596,7 @@ buffer_cursor_seek(Buffer_Type *buffer, Buffer_Seek seek, float max_width,
 }
 
 internal_4tech Partial_Cursor
-buffer_partial_from_pos(Buffer_Type *buffer, int pos){
+buffer_partial_from_pos(Buffer_Type *buffer, i32 pos){
     Partial_Cursor result = {0};
     
     int32_t size = buffer_size(buffer);
@@ -607,7 +607,7 @@ buffer_partial_from_pos(Buffer_Type *buffer, int pos){
         pos = 0;
     }
     
-    int line_index = buffer_get_line_index_range(buffer, pos, 0, buffer->line_count);
+    i32 line_index = buffer_get_line_index_range(buffer, pos, 0, buffer->line_count);
     result.pos = pos;
     result.line = line_index+1;
     result.character = pos - buffer->line_starts[line_index] + 1;
@@ -616,10 +616,10 @@ buffer_partial_from_pos(Buffer_Type *buffer, int pos){
 }
 
 internal_4tech Full_Cursor
-buffer_cursor_from_pos(Buffer_Type *buffer, int pos, float *wraps,
-                       float max_width, float font_height, float *advance_data){
+buffer_cursor_from_pos(Buffer_Type *buffer, i32 pos, f32 *wraps,
+                       f32 max_width, f32 font_height, f32 *advance_data){
     Full_Cursor result;
-    int line_index;
+    i32 line_index;
     
     int32_t size = buffer_size(buffer);
     if (pos > size){
@@ -638,18 +638,18 @@ buffer_cursor_from_pos(Buffer_Type *buffer, int pos, float *wraps,
 }
 
 internal_4tech Partial_Cursor
-buffer_partial_from_line_character(Buffer_Type *buffer, int line, int character){
+buffer_partial_from_line_character(Buffer_Type *buffer, i32 line, i32 character){
     Partial_Cursor result = {0};
     
-    int line_index = line - 1;
+    i32 line_index = line - 1;
     if (line_index >= buffer->line_count) line_index = buffer->line_count - 1;
     if (line_index < 0) line_index = 0;
     
     int32_t size = buffer_size(buffer);
-    int this_start = buffer->line_starts[line_index];
-    int max_character = (size-this_start) + 1;
+    i32 this_start = buffer->line_starts[line_index];
+    i32 max_character = (size-this_start) + 1;
     if (line_index+1 < buffer->line_count){
-        int next_start = buffer->line_starts[line_index+1];
+        i32 next_start = buffer->line_starts[line_index+1];
         max_character = (next_start-this_start);
     }
     
@@ -664,11 +664,11 @@ buffer_partial_from_line_character(Buffer_Type *buffer, int line, int character)
 }
 
 internal_4tech Full_Cursor
-buffer_cursor_from_line_character(Buffer_Type *buffer, int line, int character, float *wraps,
-                                  float max_width, float font_height, float *advance_data){
+buffer_cursor_from_line_character(Buffer_Type *buffer, i32 line, i32 character, f32 *wraps,
+                                  f32 max_width, f32 font_height, f32 *advance_data){
     Full_Cursor result = {0};
     
-    int line_index = line - 1;
+    i32 line_index = line - 1;
     if (line_index >= buffer->line_count) line_index = buffer->line_count - 1;
     if (line_index < 0) line_index = 0;
     
@@ -680,12 +680,12 @@ buffer_cursor_from_line_character(Buffer_Type *buffer, int line, int character, 
 }
 
 internal_4tech Full_Cursor
-buffer_cursor_from_unwrapped_xy(Buffer_Type *buffer, float x, float y, int round_down, float *wraps,
-                                float max_width, float font_height, float *advance_data){
+buffer_cursor_from_unwrapped_xy(Buffer_Type *buffer, f32 x, f32 y, i32 round_down, f32 *wraps,
+                                f32 max_width, f32 font_height, f32 *advance_data){
     Full_Cursor result;
-    int line_index;
+    i32 line_index;
 
-    line_index = (int)(y / font_height);
+    line_index = (i32)(y / font_height);
     if (line_index >= buffer->line_count) line_index = buffer->line_count - 1;
     if (line_index < 0) line_index = 0;
 
@@ -697,10 +697,10 @@ buffer_cursor_from_unwrapped_xy(Buffer_Type *buffer, float x, float y, int round
 }
 
 internal_4tech Full_Cursor
-buffer_cursor_from_wrapped_xy(Buffer_Type *buffer, float x, float y, int round_down, float *wraps,
-                              float max_width, float font_height, float *advance_data){
+buffer_cursor_from_wrapped_xy(Buffer_Type *buffer, f32 x, f32 y, i32 round_down, f32 *wraps,
+                              f32 max_width, f32 font_height, f32 *advance_data){
     Full_Cursor result;
-    int line_index;
+    i32 line_index;
 
     line_index = buffer_get_line_index_from_wrapped_y(wraps, y, font_height, 0, buffer->line_count);
     result = make_cursor_hint(line_index, buffer->line_starts, wraps, font_height);
@@ -712,9 +712,9 @@ buffer_cursor_from_wrapped_xy(Buffer_Type *buffer, float x, float y, int round_d
 
 internal_4tech void
 buffer_invert_edit_shift(Buffer_Type *buffer, Buffer_Edit edit, Buffer_Edit *inverse, char *strings,
-                         int *str_pos, int max, int shift_amount){
-    int pos = *str_pos;
-    int len = edit.end - edit.start;
+                         i32 *str_pos, i32 max, i32 shift_amount){
+    i32 pos = *str_pos;
+    i32 len = edit.end - edit.start;
     assert_4tech(pos >= 0);
     assert_4tech(pos + len <= max);
     *str_pos = pos + len;
@@ -728,25 +728,25 @@ buffer_invert_edit_shift(Buffer_Type *buffer, Buffer_Edit edit, Buffer_Edit *inv
 
 inline_4tech void
 buffer_invert_edit(Buffer_Type *buffer, Buffer_Edit edit, Buffer_Edit *inverse, char *strings,
-                   int *str_pos, int max){
+                   i32 *str_pos, i32 max){
     buffer_invert_edit_shift(buffer, edit, inverse, strings, str_pos, max, 0);
 }
 
 #ifndef NON_ABSTRACT_4TECH
 typedef struct Buffer_Invert_Batch{
-    int i;
-    int shift_amount;
-    int len;
+    i32 i;
+    i32 shift_amount;
+    i32 len;
 } Buffer_Invert_Batch;
 #endif
 
-internal_4tech int
-buffer_invert_batch(Buffer_Invert_Batch *state, Buffer_Type *buffer, Buffer_Edit *edits, int count,
-                    Buffer_Edit *inverse, char *strings, int *str_pos, int max){
+internal_4tech i32
+buffer_invert_batch(Buffer_Invert_Batch *state, Buffer_Type *buffer, Buffer_Edit *edits, i32 count,
+                    Buffer_Edit *inverse, char *strings, i32 *str_pos, i32 max){
     Buffer_Edit *edit, *inv_edit;
-    int shift_amount;
-    int result;
-    int i;
+    i32 shift_amount;
+    i32 result;
+    i32 i;
     
     result = 0;
     i = state->i;
@@ -777,8 +777,8 @@ struct Buffer_Render_Options{
 };
 
 internal_4tech Full_Cursor
-buffer_get_start_cursor(Buffer_Type *buffer, float *wraps, float scroll_y,
-                        int wrapped, float width, float *advance_data, float font_height){
+buffer_get_start_cursor(Buffer_Type *buffer, f32 *wraps, f32 scroll_y,
+                        i32 wrapped, f32 width, f32 *advance_data, f32 font_height){
     Full_Cursor result;
     
     if (wrapped){
@@ -796,19 +796,19 @@ buffer_get_start_cursor(Buffer_Type *buffer, float *wraps, float scroll_y,
 #define BRFlag_Special_Character (1 << 0)
 
 typedef struct Buffer_Render_Item{
-    int index;
+    i32 index;
     unsigned short glyphid;
     unsigned short flags;
-    float x0, y0;
-    float x1, y1;
+    f32 x0, y0;
+    f32 x1, y1;
 } Buffer_Render_Item;
 
 inline_4tech void
 write_render_item(Buffer_Render_Item *item,
-                  int index,
+                  i32 index,
                   unsigned short glyphid,
-                  float x, float y,
-                  float w, float h){
+                  f32 x, f32 y,
+                  f32 w, f32 h){
     item->index = index;
     item->glyphid = glyphid;
     item->x0 = x;
@@ -817,36 +817,36 @@ write_render_item(Buffer_Render_Item *item,
     item->y1 = y + h;
 }
 
-inline_4tech float
+inline_4tech f32
 write_render_item_inline(Buffer_Render_Item *item,
-                         int index,
+                         i32 index,
                          unsigned short glyphid,
-                         float x, float y,
-                         float *advance_data, float h){
-    float ch_width;
+                         f32 x, f32 y,
+                         f32 *advance_data, f32 h){
+    f32 ch_width;
     ch_width = measure_character(advance_data, (char)glyphid);
     write_render_item(item, index, glyphid, x, y, ch_width, h);
     return(ch_width);
 }
 
 internal_4tech void
-buffer_get_render_data(Buffer_Type *buffer, Buffer_Render_Item *items, int max, int *count,
-                       float port_x, float port_y,
-                       float scroll_x, float scroll_y, Full_Cursor start_cursor,
-                       int wrapped,
-                       float width, float height,
-                       float *advance_data, float font_height,
+buffer_get_render_data(Buffer_Type *buffer, Buffer_Render_Item *items, i32 max, i32 *count,
+                       f32 port_x, f32 port_y,
+                       f32 scroll_x, f32 scroll_y, Full_Cursor start_cursor,
+                       i32 wrapped,
+                       f32 width, f32 height,
+                       f32 *advance_data, f32 font_height,
                        Buffer_Render_Options opts){
     
     Buffer_Stringify_Type loop;
     Buffer_Render_Item *item;
     Buffer_Render_Item *item_end;
     char *data;
-    int size, end;
-    float shift_x, shift_y;
-    float x, y;
-    int i, item_i;
-    float ch_width, ch_width_sub;
+    i32 size, end;
+    f32 shift_x, shift_y;
+    f32 x, y;
+    i32 i, item_i;
+    f32 ch_width, ch_width_sub;
     uint8_t ch;
     
     size = buffer_size(buffer);

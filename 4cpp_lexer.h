@@ -1151,7 +1151,8 @@ cpp_get_relex_range(Cpp_Token_Array *array, int32_t start_pos, int32_t end_pos){
 }
 
 FCPP_LINK Cpp_Relex_Data
-cpp_relex_init(Cpp_Token_Array *array, int32_t start_pos, int32_t end_pos, int32_t character_shift_amount, char *spare){
+cpp_relex_init(Cpp_Token_Array *array, int32_t start_pos, int32_t end_pos, int32_t character_shift_amount, char *spare)
+{
     Cpp_Relex_Data state = {0};
     
     Cpp_Relex_Range range = cpp_get_relex_range(array, start_pos, end_pos);
