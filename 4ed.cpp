@@ -1125,134 +1125,165 @@ enum Command_Line_Action{
     CLAct_Count
 };
 
+enum Command_Line_Mode{
+    CLMode_App,
+    CLMode_Custom
+};
+
 void
 init_command_line_settings(App_Settings *settings, Plat_Settings *plat_settings,
                            Command_Line_Parameters clparams){
-    char *arg;
+    char *arg = 0;
+    Command_Line_Mode mode = CLMode_App;
     Command_Line_Action action = CLAct_Nothing;
-    i32 i,index;
+    i32 i = 0, index = 0;
     b32 strict = 0;
     
     settings->init_files_max = ArrayCount(settings->init_files);
     for (i = 1; i <= clparams.argc; ++i){
-        if (i == clparams.argc) arg = "";
-        else arg = clparams.argv[i];
-        switch (action){
-            case CLAct_Nothing:
+        if (i == clparams.argc){
+            arg = "";
+        }
+        else{
+            arg = clparams.argv[i];
+        }
+        
+        if (arg[0] == '-' && arg[1] == '-'){
+            char *long_arg_name = arg+2;
+            if (match_cc(long_arg_name, "custom")){
+                mode = CLMode_Custom;
+                settings->custom_arg_start = i+1;
+                settings->custom_arg_end = i+1;
+                continue;
+            }
+        }
+        
+        switch (mode){
+            case CLMode_App:
             {
-                if (arg[0] == '-'){
-                    action = CLAct_Ignore;
-                    switch (arg[1]){
-                        case 'u': action = CLAct_UserFile; strict = false;      break;
-                        case 'U': action = CLAct_UserFile; strict = true;       break;
-                        
-                        case 'd': action = CLAct_CustomDLL; strict = false;     break;
-                        case 'D': action = CLAct_CustomDLL; strict = true;      break;
-                        
-                        case 'i': action = CLAct_InitialFilePosition;           break;
-                        
-                        case 'w': action = CLAct_WindowSize;                    break;
-                        case 'W': action = CLAct_WindowMaximize;                break;
-                        case 'p': action = CLAct_WindowPosition;                break;
-                        case 'F': action = CLAct_WindowFullscreen;              break;
-                        case 'S': action = CLAct_WindowStreamMode;              break;
-                        
-                        case 'f': action = CLAct_FontSize;                      break;
-                        case 'h': action = CLAct_FontStopHinting; --i;          break;
-                    }
-                }
-                else if (arg[0] != 0){
-                    if (settings->init_files_count < settings->init_files_max){
-                        index = settings->init_files_count++;
-                        settings->init_files[index] = arg;
-                    }
-                }
-            }break;
-            
-            case CLAct_UserFile:
-            {
-                settings->user_file_is_strict = strict;
-                if (i < clparams.argc){
-                    settings->user_file = clparams.argv[i];
-                }
-                action = CLAct_Nothing;
-            }break;
-            
-            case CLAct_CustomDLL:
-            {
-                plat_settings->custom_dll_is_strict = strict;
-                if (i < clparams.argc){
-                    plat_settings->custom_dll = clparams.argv[i];
-                }
-                action = CLAct_Nothing;
-            }break;
-            
-            case CLAct_InitialFilePosition:
-            {
-                if (i < clparams.argc){
-                    settings->initial_line = str_to_int_c(clparams.argv[i]);
-                }
-                action = CLAct_Nothing;
-            }break;
-            
-            case CLAct_WindowSize:
-            {
-                if (i + 1 < clparams.argc){
-                    plat_settings->set_window_size  = true;
-                    plat_settings->window_w = str_to_int_c(clparams.argv[i]);
-                    plat_settings->window_h = str_to_int_c(clparams.argv[i+1]);
+                switch (action){
+                    case CLAct_Nothing:
+                    {
+                        if (arg[0] == '-'){
+                            action = CLAct_Ignore;
+                            switch (arg[1]){
+                                case 'u': action = CLAct_UserFile; strict = false;      break;
+                                case 'U': action = CLAct_UserFile; strict = true;       break;
+                                
+                                case 'd': action = CLAct_CustomDLL; strict = false;     break;
+                                case 'D': action = CLAct_CustomDLL; strict = true;      break;
+                                
+                                case 'i': action = CLAct_InitialFilePosition;           break;
+                                
+                                case 'w': action = CLAct_WindowSize;                    break;
+                                case 'W': action = CLAct_WindowMaximize;                break;
+                                case 'p': action = CLAct_WindowPosition;                break;
+                                case 'F': action = CLAct_WindowFullscreen;              break;
+                                case 'S': action = CLAct_WindowStreamMode;              break;
+                                
+                                case 'f': action = CLAct_FontSize;                      break;
+                                case 'h': action = CLAct_FontStopHinting; --i;          break;
+                            }
+                        }
+                        else if (arg[0] != 0){
+                            if (settings->init_files_count < settings->init_files_max){
+                                index = settings->init_files_count++;
+                                settings->init_files[index] = arg;
+                            }
+                        }
+                    }break;
                     
-                    ++i;
-                }
-                action = CLAct_Nothing;
-            }break;
-            
-            case CLAct_WindowMaximize:
-            {
-                --i;
-                plat_settings->maximize_window = true;
-                action = CLAct_Nothing;
-            }break;
-            
-            case CLAct_WindowPosition:
-            {
-                if (i + 1 < clparams.argc){
-                    plat_settings->set_window_pos  = true;
-                    plat_settings->window_x = str_to_int_c(clparams.argv[i]);
-                    plat_settings->window_y = str_to_int_c(clparams.argv[i+1]);
+                    case CLAct_UserFile:
+                    {
+                        settings->user_file_is_strict = strict;
+                        if (i < clparams.argc){
+                            settings->user_file = clparams.argv[i];
+                        }
+                        action = CLAct_Nothing;
+                    }break;
                     
-                    ++i;
+                    case CLAct_CustomDLL:
+                    {
+                        plat_settings->custom_dll_is_strict = strict;
+                        if (i < clparams.argc){
+                            plat_settings->custom_dll = clparams.argv[i];
+                        }
+                        action = CLAct_Nothing;
+                    }break;
+                    
+                    case CLAct_InitialFilePosition:
+                    {
+                        if (i < clparams.argc){
+                            settings->initial_line = str_to_int_c(clparams.argv[i]);
+                        }
+                        action = CLAct_Nothing;
+                    }break;
+                    
+                    case CLAct_WindowSize:
+                    {
+                        if (i + 1 < clparams.argc){
+                            plat_settings->set_window_size  = true;
+                            plat_settings->window_w = str_to_int_c(clparams.argv[i]);
+                            plat_settings->window_h = str_to_int_c(clparams.argv[i+1]);
+                            
+                            ++i;
+                        }
+                        action = CLAct_Nothing;
+                    }break;
+                    
+                    case CLAct_WindowMaximize:
+                    {
+                        --i;
+                        plat_settings->maximize_window = true;
+                        action = CLAct_Nothing;
+                    }break;
+                    
+                    case CLAct_WindowPosition:
+                    {
+                        if (i + 1 < clparams.argc){
+                            plat_settings->set_window_pos  = true;
+                            plat_settings->window_x = str_to_int_c(clparams.argv[i]);
+                            plat_settings->window_y = str_to_int_c(clparams.argv[i+1]);
+                            
+                            ++i;
+                        }
+                        action = CLAct_Nothing;
+                    }break;
+                    
+                    case CLAct_WindowFullscreen:
+                    {
+                        --i;
+                        plat_settings->fullscreen_window = true;
+                        plat_settings->stream_mode = true;
+                        action = CLAct_Nothing;
+                    }break;
+                    
+                    case CLAct_WindowStreamMode:
+                    {
+                        --i;
+                        plat_settings->stream_mode = true;
+                        action = CLAct_Nothing;
+                    }break;
+                    
+                    case CLAct_FontSize:
+                    {
+                        if (i < clparams.argc){
+                            settings->font_size = str_to_int_c(clparams.argv[i]);
+                        }
+                        action = CLAct_Nothing;
+                    }break;
+                    
+                    case CLAct_FontStopHinting:
+                    {
+                        plat_settings->use_hinting = true;
+                        action = CLAct_Nothing;
+                    }break;
                 }
-                action = CLAct_Nothing;
             }break;
             
-            case CLAct_WindowFullscreen:
+            case CLMode_Custom:
             {
-                --i;
-                plat_settings->fullscreen_window = true;
-                plat_settings->stream_mode = true;
-                action = CLAct_Nothing;
-            }break;
-            
-            case CLAct_WindowStreamMode:
-            {
-                --i;
-                plat_settings->stream_mode = true;
-                action = CLAct_Nothing;
-            }break;
-            
-            case CLAct_FontSize:
-            {
-                if (i < clparams.argc){
-                    settings->font_size = str_to_int_c(clparams.argv[i]);
-                }
-                action = CLAct_Nothing;
-            }break;
-            
-            case CLAct_FontStopHinting:
-            {
-                plat_settings->use_hinting = true;
-                action = CLAct_Nothing;
+                settings->custom_arg_end = i+1;
             }break;
         }
     }

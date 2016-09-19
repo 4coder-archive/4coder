@@ -21,6 +21,9 @@ struct App_Settings{
     b32 lctrl_lalt_is_altgr;
     
     i32 font_size;
+    
+    i32 custom_arg_start;
+    i32 custom_arg_end;
 };
 
 struct Debug_Input_Event{

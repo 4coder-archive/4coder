@@ -15,7 +15,10 @@
 
 typedef struct Gap_Buffer{
     char *data;
-    int size1, gap_size, size2, max;
+    int size1;
+    int gap_size;
+    int size2;
+    int max;
     
     float *line_widths;
     int *line_starts;
@@ -27,15 +30,13 @@ typedef struct Gap_Buffer{
 
 inline_4tech int
 buffer_good(Gap_Buffer *buffer){
-    int good;
-    good = (buffer->data != 0);
+    int good = (buffer->data != 0);
     return(good);
 }
 
 inline_4tech int
 buffer_size(Gap_Buffer *buffer){
-    int size;
-    size = buffer->size1 + buffer->size2;
+    int size = buffer->size1 + buffer->size2;
     return(size);
 }
 
@@ -56,36 +57,30 @@ buffer_begin_init(Gap_Buffer *buffer, char *data, int size){
 
 internal_4tech int
 buffer_init_need_more(Gap_Buffer_Init *init){
-    int result;
-    result = 1;
+    int result = 1;
     if (init->buffer->data) result = 0;
     return(result);
 }
 
 internal_4tech int
 buffer_init_page_size(Gap_Buffer_Init *init){
-    int result;
-    result = init->size * 2;
+    int result = init->size * 2;
     return(result);
 }
 
 internal_4tech void
 buffer_init_provide_page(Gap_Buffer_Init *init, void *page, int page_size){
-    Gap_Buffer *buffer;
-    buffer = init->buffer;
+    Gap_Buffer *buffer = init->buffer;
     buffer->data = (char*)page;
     buffer->max = page_size;
 }
 
 internal_4tech int
 buffer_end_init(Gap_Buffer_Init *init, void *scratch, int scratch_size){
-    Gap_Buffer *buffer;
-    int osize1, size1, size2, size;
-    int result;
-
-    result = 0;
-    buffer = init->buffer;
-    size = init->size;
+    Gap_Buffer *buffer = init->buffer;
+    int osize1 = 0, size1 = 0, size2 = 0, size = init->size;
+    int result = 0;
+    
     if (buffer->data){
         if (buffer->max >= init->size){
             size2 = size >> 1;
@@ -121,42 +116,56 @@ typedef struct Gap_Buffer_Stringify_Loop{
 
 internal_4tech Gap_Buffer_Stringify_Loop
 buffer_stringify_loop(Gap_Buffer *buffer, int start, int end){
-    Gap_Buffer_Stringify_Loop result;
+    Gap_Buffer_Stringify_Loop result = {0};
+    
     if (0 <= start && start < end && end <= buffer->size1 + buffer->size2){
         result.buffer = buffer;
         result.base = buffer->data;
         result.absolute_pos = start;
         
-        if (end <= buffer->size1) result.end = end;
-        else result.end = end + buffer->gap_size;
+        if (end <= buffer->size1){
+            result.end = end;
+        }
+        else{
+            result.end = end + buffer->gap_size;
+        }
         
         if (start < buffer->size1){
-            if (end <= buffer->size1) result.separated = 0;
-            else result.separated = 1;
+            if (end <= buffer->size1){
+                result.separated = 0;
+            }
+            else{
+                result.separated = 1;
+            }
             result.pos = start;
         }
         else{
             result.separated = 0;
             result.pos = start + buffer->gap_size;
         }
-        if (result.separated) result.size = buffer->size1 - start;
-        else result.size = end - start;
+        
+        if (result.separated){
+            result.size = buffer->size1 - start;
+        }
+        else{
+            result.size = end - start;
+        }
+        
         result.data = buffer->data + result.pos;
     }
-    else result.buffer = 0;
+    
     return(result);
 }
 
 inline_4tech int
 buffer_stringify_good(Gap_Buffer_Stringify_Loop *loop){
-    int result;
-    result = (loop->buffer != 0);
+    int result = (loop->buffer != 0);
     return(result);
 }
 
 internal_4tech void
 buffer_stringify_next(Gap_Buffer_Stringify_Loop *loop){
-    int size1, temp_end;
+    int size1 = 0, temp_end = 0;
     if (loop->separated){
         loop->separated = 0;
         size1 = loop->buffer->size1;
@@ -183,49 +192,60 @@ typedef struct Gap_Buffer_Backify_Loop{
 
 internal_4tech Gap_Buffer_Backify_Loop
 buffer_backify_loop(Gap_Buffer *buffer, int start, int end){
-    Gap_Buffer_Backify_Loop result;
+    Gap_Buffer_Backify_Loop result = {0};
     
     ++start;
     if (0 <= end && end < start && start <= buffer->size1 + buffer->size2){
         result.buffer = buffer;
         result.base = buffer->data;
         
-        if (end < buffer->size1) result.end = end;
-        else result.end = end + buffer->gap_size;
+        if (end < buffer->size1){
+            result.end = end;
+        }
+        else{
+            result.end = end + buffer->gap_size;
+        }
         
         if (start <= buffer->size1){
             result.separated = 0;
             result.pos = 0;
         }
         else{
-            if (end < buffer->size1) result.separated = 1;
-            else result.separated = 0;
+            if (end < buffer->size1){
+                result.separated = 1;
+            }
+            else{
+                result.separated = 0;
+            }
             result.pos = buffer->size1 + buffer->gap_size;
         }
-        if (!result.separated && result.pos < result.end) result.pos = result.end;
+        
+        if (!result.separated && result.pos < result.end){
+            result.pos = result.end;
+        }
+        
         result.size = start - result.pos;
         result.absolute_pos = result.pos;
-        if (result.absolute_pos > buffer->size1) result.absolute_pos -= buffer->gap_size;
+        if (result.absolute_pos > buffer->size1){
+            result.absolute_pos -= buffer->gap_size;
+        }
         result.data = result.base + result.pos;
     }
-    else result.buffer = 0;
+    
     return(result);
 }
 
 inline_4tech int
 buffer_backify_good(Gap_Buffer_Backify_Loop *loop){
-    int result;
-    result = (loop->buffer != 0);
+    int result = (loop->buffer != 0);
     return(result);
 }
 
 internal_4tech void
 buffer_backify_next(Gap_Buffer_Backify_Loop *loop){
-    Gap_Buffer *buffer;
-    int temp_end;
-    int chunk2_start;
-    buffer = loop->buffer;
-    chunk2_start = buffer->size1 + buffer->gap_size;
+    Gap_Buffer *buffer = loop->buffer;
+    int temp_end = 0;
+    
     if (loop->separated){
         loop->separated = 0;
         temp_end = buffer->size1;
@@ -240,6 +260,7 @@ buffer_backify_next(Gap_Buffer_Backify_Loop *loop){
         temp_end = 0;
         loop->buffer = 0;
     }
+    
     loop->size = temp_end - loop->pos;
     loop->data = loop->base + loop->pos;
 }
@@ -247,19 +268,17 @@ buffer_backify_next(Gap_Buffer_Backify_Loop *loop){
 internal_4tech int
 buffer_replace_range(Gap_Buffer *buffer, int start, int end, char *str, int len, int *shift_amount,
                      void *scratch, int scratch_memory, int *request_amount){
-    char *data;
-    int result;
-    int size;
-    int move_size;
+    char *data = buffer->data;
+    int size = buffer_size(buffer);
+    int result = 0;
+    int move_size = 0;
     
-    size = buffer_size(buffer);
     assert_4tech(0 <= start);
     assert_4tech(start <= end);
     assert_4tech(end <= size);
     
     *shift_amount = (len - (end - start));
     if (*shift_amount + size <= buffer->max){
-        data = buffer->data;
         if (end < buffer->size1){
             move_size = buffer->size1 - end;
             memmove_4tech(data + buffer->size1 + buffer->gap_size - move_size, data + end, move_size);
@@ -280,8 +299,6 @@ buffer_replace_range(Gap_Buffer *buffer, int start, int end, char *str, int len,
         
         assert_4tech(buffer->size1 + buffer->size2 == size + *shift_amount);
         assert_4tech(buffer->size1 + buffer->gap_size + buffer->size2 == buffer->max);
-        
-        result = 0;
     }
     else{
         *request_amount = round_up_4tech(2*(*shift_amount + size), 4 << 10);
@@ -295,13 +312,11 @@ buffer_replace_range(Gap_Buffer *buffer, int start, int end, char *str, int len,
 internal_4tech int
 buffer_batch_edit_step(Buffer_Batch_State *state, Gap_Buffer *buffer, Buffer_Edit *sorted_edits,
                        char *strings, int edit_count, void *scratch, int scratch_size, int *request_amount){
-    Buffer_Edit *edit;
-    int i, result;
-    int shift_total, shift_amount;
-    
-    result = 0;
-    shift_total = state->shift_total;
-    i = state->i;
+    Buffer_Edit *edit = 0;
+    int i = state->i;
+    int shift_total = state->shift_total;
+    int shift_amount = 0;
+    int result = 0;
     
     edit = sorted_edits + i;
     for (; i < edit_count; ++i, ++edit){
@@ -320,13 +335,12 @@ buffer_batch_edit_step(Buffer_Batch_State *state, Gap_Buffer *buffer, Buffer_Edi
 
 internal_4tech void*
 buffer_edit_provide_memory(Gap_Buffer *buffer, void *new_data, int new_max){
-    void *result;
-    int new_gap_size;
+    void *result = buffer->data;
+    int size = buffer_size(buffer);
+    int new_gap_size = new_max - size;
     
-    assert_4tech(new_max >= buffer_size(buffer));
+    assert_4tech(new_max >= size);
     
-    result = buffer->data;
-    new_gap_size = new_max - buffer_size(buffer);
     memcpy_4tech(new_data, buffer->data, buffer->size1);
     memcpy_4tech((char*)new_data + buffer->size1 + new_gap_size, buffer->data + buffer->size1 + buffer->gap_size, buffer->size2);
     

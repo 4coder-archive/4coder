@@ -163,7 +163,12 @@
 ; [] the "main_4coder" experiment
 ; [] multi-line editing
 ; [] multi-cursor editing
-;
+
+; [] API docs have duplicate ids?
+; [] introduce custom command line arguments
+; [] control the file opening/start hook relationship better
+; [] flag for hiding the *messages* buffer.
+; [] get keyboard state on launch
 
 ; buffer behavior cleanup
 ;    [] show all characters as \# if they can't be rendered

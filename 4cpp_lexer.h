@@ -1034,7 +1034,7 @@ DOC_SEE(Cpp_Lex_Data)
 
 FCPP_LINK Cpp_Lex_Data
 cpp_lex_data_init(char *mem_buffer)/*
-DOC_PARAM(tb, The memory to use for initializing the lex state's temp memory buffer.)
+DOC_PARAM(mem_buffer, The memory to use for initializing the lex state's temp memory buffer.)
 DOC_RETURN(A brand new lex state ready to begin lexing a file from the beginning.)
 
 DOC(Creates a new lex state in the form of a Cpp_Lex_Data struct and returns the struct.
@@ -1081,6 +1081,7 @@ FCPP_LINK void
 cpp_lex_data_new_temp(Cpp_Lex_Data *lex_data, char *new_buffer)/*
 DOC_PARAM(lex_data, The lex state that will receive the new temporary buffer.)
 DOC_PARAM(new_buffer, The new temporary buffer that has the same contents as the old temporary buffer.)
+
 DOC(This call can be used to set a new temporary buffer for the lex state.  In cases where you want to
 discontinue lexing, store the state, and resume later. In such a situation it may be necessary for you
 to free the temp buffer that was originally used to make the lex state. This call allows you to supply
@@ -1089,6 +1090,7 @@ a new temp buffer when you are ready to resume lexing.
 However the new buffer needs to have the same contents the old buffer had.  To ensure this you have to
 use cpp_lex_data_temp_size and cpp_lex_data_temp_read to get the relevant contents of the temp buffer
 before you free it.)
+
 DOC_SEE(cpp_lex_data_temp_size)
 DOC_SEE(cpp_lex_data_temp_read)
 */{

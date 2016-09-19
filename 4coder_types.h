@@ -57,7 +57,7 @@ ENUM(uint64_t, Command_ID){
     cmdid_redo,
     /* DOC(cmdid_history_backward performs a step backwards through the file history, which includes previously lost redo branches.) */
     cmdid_history_backward,
-    /* DOC(cmdid_history_forward unperforms the previous cmdid_history_backward step if possib.e) */
+    /* DOC(cmdid_history_forward unperforms the previous cmdid_history_backward step if possible.) */
     cmdid_history_forward,
     
     /* DOC(cmdid_interactive_new begins an interactive dialogue to create a new buffer.) */

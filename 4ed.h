@@ -121,12 +121,13 @@ struct Application_Step_Input{
     String clipboard;
 };
 
-#define App_Step_Sig(name) void                        \
-name(System_Functions *system,                         \
-    Render_Target *target,                             \
-    Application_Memory *memory,                        \
-    Application_Step_Input *input,                     \
-    Application_Step_Result *result)
+#define App_Step_Sig(name) void      \
+name(System_Functions *system,       \
+    Render_Target *target,           \
+    Application_Memory *memory,      \
+    Application_Step_Input *input,   \
+    Application_Step_Result *result, \
+    Command_Line_Parameters params)
 
 typedef App_Step_Sig(App_Step);
 

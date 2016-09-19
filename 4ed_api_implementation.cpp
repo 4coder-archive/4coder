@@ -657,6 +657,7 @@ DOC_SEE(Partial_Cursor)
 
 API_EXPORT bool32
 Buffer_Batch_Edit(Application_Links *app, Buffer_Summary *buffer, char *str, int32_t str_len, Buffer_Edit *edits, int32_t edit_count, Buffer_Batch_Edit_Type type)/*
+DOC_PARAM(buffer, The buffer on which to apply the batch of edits.)
 DOC_PARAM(str, This parameter provides all of the source string for the edits in the batch.)
 DOC_PARAM(str_len, This parameter specifies the length of the str string.)
 DOC_PARAM(edits, This parameter provides about the source string and destination range of each edit as an array.)

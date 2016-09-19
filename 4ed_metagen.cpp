@@ -2970,9 +2970,9 @@ generate_custom_headers(){
                   "<body>"
                   "<div style='font-family:Arial; margin: 0 auto; "
                   "width: 800px; text-align: justify; line-height: 1.25;'>"
-                  "<h1 style='margin-top: 5mm; margin-bottom: 5mm;'>4cpp Lexing Library</h1>");
+//                  "<h1 style='margin-top: 5mm; margin-bottom: 5mm;'>4cpp Lexing Library</h1>");
         
-//                "<h1 style='margin-top: 5mm; margin-bottom: 5mm;'>4coder API</h1>");
+                  "<h1 style='margin-top: 5mm; margin-bottom: 5mm;'>4coder API</h1>");
         
         struct Section{
             char *id_string;

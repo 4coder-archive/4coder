@@ -2438,7 +2438,8 @@ WinMain(HINSTANCE hInstance,
                            &win32vars.target,
                            &memory_vars,
                            &input,
-                           &result);
+                           &result,
+                           clparams);
         
         if (result.perform_kill){
             keep_playing = 0;
