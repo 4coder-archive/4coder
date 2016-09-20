@@ -31,7 +31,7 @@ struct Render_Font{
     // of stbtt_packedchar, and have both stb fonts
     // and OS fonts go to our type.
 	Glyph_Data glyphs[256];
-    float advance_data[256];
+    f32 advance_data[256];
 	i32 height, ascent, descent, line_skip;
     i32 advance;
     u32 tex;

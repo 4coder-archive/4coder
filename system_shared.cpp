@@ -889,17 +889,40 @@ font_load_freetype(Partition *part,
         pen_x = CEIL32(c->x1 + 1);
     }
     
-    Glyph_Data space_glyph = rf->glyphs[' '];
-    f32 space_width = rf->advance_data[' '];
-    
-    rf->glyphs['\r'] = space_glyph;
-    rf->advance_data['\r'] = space_width;
-    
-    rf->glyphs['\n'] = space_glyph;
-    rf->advance_data['\n'] = space_width;
-    
-    rf->glyphs['\t'] = space_glyph;
-    rf->advance_data['\t'] = space_width*tab_width;
+    // TODO(allen): advance data is still too stupid.
+    // Provide an "unedited" version, then generate these
+    // on the fly.  Maybe later introduce a caching system or whatevs.
+    f32 *adv = rf->advance_data;
+    for (i32 i = 0; i < 256; ++i){
+        if (i < ' ' || i > '~'){
+            switch (i){
+                case '\n':
+                adv[i] = adv[' '];
+                break;
+                
+                case '\r':
+                adv[i] = adv['\\'] + adv['r'];
+                break;
+                
+                case '\t':
+                adv[i] = adv[' ']*tab_width;
+                break;
+                
+                default:
+                {
+                    int8_t d1 = (int8_t)(i/0x10), d2 = (int8_t)(i%0x10);
+                    char c1 = '0' + d1, c2 = '0' + d2;
+                    if (d1 >= 0xA){
+                        c1 = ('A' - 0xA) + d1;
+                    }
+                    if (d2 >= 0xA){
+                        c2 = ('A' - 0xA) + d2;
+                    }
+                    adv[i] = adv['\\'] + adv[c1] + adv[c2];
+                }break;
+            }
+        }
+    }
     
     FT_Done_FreeType(ft);
     

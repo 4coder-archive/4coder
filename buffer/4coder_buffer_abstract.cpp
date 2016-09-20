@@ -29,7 +29,7 @@ buffer_convert_out(Buffer_Type *buffer, char *dest, i32 max){
     i32 size, out_size, pos, result;
     
     size = buffer_size(buffer);
-    assert_4tech(size + buffer->line_count < max);
+    assert_4tech(size + buffer->line_count <= max);
     
     pos = 0;
     for (loop = buffer_stringify_loop(buffer, 0, size);
@@ -66,14 +66,12 @@ buffer_count_newlines(Buffer_Type *buffer, i32 start, i32 end){
     return(count);
 }
 
-#ifndef NON_ABSTRACT_4TECH
 typedef struct Buffer_Measure_Starts{
     i32 i;
     i32 count;
     i32 start;
     f32 width;
 } Buffer_Measure_Starts;
-#endif
 
 internal_4tech i32
 buffer_measure_starts_widths_(Buffer_Measure_Starts *state, Buffer_Type *buffer, f32 *advance_data){
@@ -398,7 +396,6 @@ buffer_get_line_index(Buffer_Type *buffer, i32 pos){
     return(result);
 }
 
-#ifndef NON_ABSTRACT_4TECH
 internal_4tech i32
 buffer_get_line_index_from_wrapped_y(f32 *wraps, f32 y, f32 font_height, i32 l_bound, i32 u_bound){
     i32 start, end, i, result;
@@ -419,9 +416,7 @@ buffer_get_line_index_from_wrapped_y(f32 *wraps, f32 y, f32 font_height, i32 l_b
     }
     return(result);
 }
-#endif
 
-#ifndef NON_ABSTRACT_4TECH
 typedef struct Seek_State{
     Full_Cursor cursor;
     Full_Cursor prev_cursor;
@@ -429,17 +424,13 @@ typedef struct Seek_State{
 
 internal_4tech i32
 cursor_seek_step(Seek_State *state, Buffer_Seek seek, i32 xy_seek, f32 max_width,
-                 f32 font_height, f32 *advances, i32 size, char ch){
-    Full_Cursor cursor, prev_cursor;
+                 f32 font_height, f32 *adv, i32 size, uint8_t ch){
+    Full_Cursor cursor = state->cursor;
+    Full_Cursor prev_cursor = cursor;
     f32 ch_width;
-    i32 result;
+    i32 result = 1;
     f32 x, px, y;
     
-    cursor = state->cursor;
-    prev_cursor = state->prev_cursor;
-    
-    result = 1;
-    prev_cursor = cursor;
     switch (ch){
         case '\n':
         ++cursor.line;
@@ -452,8 +443,7 @@ cursor_seek_step(Seek_State *state, Buffer_Seek seek, i32 xy_seek, f32 max_width
         
         default:
         ++cursor.character;
-        if (ch == '\r') ch_width = *(f32*)(advances + '\\') + *(f32*)(advances + 'r');
-        else ch_width = *(f32*)(advances + ch);
+        ch_width = adv[ch];
         
         if (cursor.wrapped_x + ch_width >= max_width){
             cursor.wrapped_y += font_height;
@@ -463,7 +453,6 @@ cursor_seek_step(Seek_State *state, Buffer_Seek seek, i32 xy_seek, f32 max_width
         
         cursor.unwrapped_x += ch_width;
         cursor.wrapped_x += ch_width;
-        
         break;
     }
     
@@ -532,11 +521,10 @@ cursor_seek_step(Seek_State *state, Buffer_Seek seek, i32 xy_seek, f32 max_width
     state->prev_cursor = prev_cursor;
     return(result);
 }
-#endif
 
 internal_4tech Full_Cursor
 buffer_cursor_seek(Buffer_Type *buffer, Buffer_Seek seek, f32 max_width,
-                   f32 font_height, f32 *advance_data, Full_Cursor cursor){
+                   f32 font_height, f32 *adv, Full_Cursor cursor){
     Buffer_Stringify_Type loop;
     char *data;
     i32 size, end;
@@ -566,7 +554,7 @@ buffer_cursor_seek(Buffer_Type *buffer, Buffer_Seek seek, f32 max_width,
         break;
     }
     
-    if (advance_data){
+    if (adv){
         size = buffer_size(buffer);
         xy_seek = (seek.type == buffer_seek_wrapped_xy || seek.type == buffer_seek_unwrapped_xy);
         
@@ -579,13 +567,13 @@ buffer_cursor_seek(Buffer_Type *buffer, Buffer_Seek seek, f32 max_width,
             data = loop.data - loop.absolute_pos;
             for (; i < end; ++i){
                 result = cursor_seek_step(&state, seek, xy_seek, max_width,
-                                          font_height, advance_data, size, data[i]);
+                                          font_height, adv, size, data[i]);
                 if (!result) goto buffer_cursor_seek_end;
             }
         }
         if (result){
             result = cursor_seek_step(&state, seek, xy_seek, max_width,
-                                      font_height, advance_data, size, 0);
+                                      font_height, adv, size, 0);
             assert_4tech(result == 0);
         }
     }
@@ -616,7 +604,7 @@ buffer_partial_from_pos(Buffer_Type *buffer, i32 pos){
 
 internal_4tech Full_Cursor
 buffer_cursor_from_pos(Buffer_Type *buffer, i32 pos, f32 *wraps,
-                       f32 max_width, f32 font_height, f32 *advance_data){
+                       f32 max_width, f32 font_height, f32 *adv){
     Full_Cursor result;
     i32 line_index;
     
@@ -630,8 +618,7 @@ buffer_cursor_from_pos(Buffer_Type *buffer, i32 pos, f32 *wraps,
     
     line_index = buffer_get_line_index_range(buffer, pos, 0, buffer->line_count);
     result = make_cursor_hint(line_index, buffer->line_starts, wraps, font_height);
-    result = buffer_cursor_seek(buffer, seek_pos(pos), max_width, font_height,
-                                advance_data, result);
+    result = buffer_cursor_seek(buffer, seek_pos(pos), max_width, font_height, adv, result);
     
     return(result);
 }
@@ -664,7 +651,7 @@ buffer_partial_from_line_character(Buffer_Type *buffer, i32 line, i32 character)
 
 internal_4tech Full_Cursor
 buffer_cursor_from_line_character(Buffer_Type *buffer, i32 line, i32 character, f32 *wraps,
-                                  f32 max_width, f32 font_height, f32 *advance_data){
+                                  f32 max_width, f32 font_height, f32 *adv){
     Full_Cursor result = {0};
     
     i32 line_index = line - 1;
@@ -673,14 +660,14 @@ buffer_cursor_from_line_character(Buffer_Type *buffer, i32 line, i32 character, 
     
     result = make_cursor_hint(line_index, buffer->line_starts, wraps, font_height);
     result = buffer_cursor_seek(buffer, seek_line_char(line, character),
-                                max_width, font_height, advance_data, result);
+                                max_width, font_height, adv, result);
     
     return(result);
 }
 
 internal_4tech Full_Cursor
 buffer_cursor_from_unwrapped_xy(Buffer_Type *buffer, f32 x, f32 y, i32 round_down, f32 *wraps,
-                                f32 max_width, f32 font_height, f32 *advance_data){
+                                f32 max_width, f32 font_height, f32 *adv){
     Full_Cursor result;
     i32 line_index;
 
@@ -690,21 +677,21 @@ buffer_cursor_from_unwrapped_xy(Buffer_Type *buffer, f32 x, f32 y, i32 round_dow
 
     result = make_cursor_hint(line_index, buffer->line_starts, wraps, font_height);
     result = buffer_cursor_seek(buffer, seek_unwrapped_xy(x, y, round_down),
-                                max_width, font_height, advance_data, result);
+                                max_width, font_height, adv, result);
 
     return(result);
 }
 
 internal_4tech Full_Cursor
 buffer_cursor_from_wrapped_xy(Buffer_Type *buffer, f32 x, f32 y, i32 round_down, f32 *wraps,
-                              f32 max_width, f32 font_height, f32 *advance_data){
+                              f32 max_width, f32 font_height, f32 *adv){
     Full_Cursor result;
     i32 line_index;
 
     line_index = buffer_get_line_index_from_wrapped_y(wraps, y, font_height, 0, buffer->line_count);
     result = make_cursor_hint(line_index, buffer->line_starts, wraps, font_height);
     result = buffer_cursor_seek(buffer, seek_wrapped_xy(x, y, round_down),
-                                max_width, font_height, advance_data, result);
+                                max_width, font_height, adv, result);
 
     return(result);
 }
@@ -731,13 +718,11 @@ buffer_invert_edit(Buffer_Type *buffer, Buffer_Edit edit, Buffer_Edit *inverse, 
     buffer_invert_edit_shift(buffer, edit, inverse, strings, str_pos, max, 0);
 }
 
-#ifndef NON_ABSTRACT_4TECH
 typedef struct Buffer_Invert_Batch{
     i32 i;
     i32 shift_amount;
     i32 len;
 } Buffer_Invert_Batch;
-#endif
 
 internal_4tech i32
 buffer_invert_batch(Buffer_Invert_Batch *state, Buffer_Type *buffer, Buffer_Edit *edits, i32 count,
@@ -773,16 +758,16 @@ buffer_invert_batch(Buffer_Invert_Batch *state, Buffer_Type *buffer, Buffer_Edit
 
 internal_4tech Full_Cursor
 buffer_get_start_cursor(Buffer_Type *buffer, f32 *wraps, f32 scroll_y,
-                        i32 wrapped, f32 width, f32 *advance_data, f32 font_height){
+                        i32 wrapped, f32 width, f32 *adv, f32 font_height){
     Full_Cursor result;
     
     if (wrapped){
         result = buffer_cursor_from_wrapped_xy(buffer, 0, scroll_y, 0, wraps,
-                                                     width, font_height, advance_data);
+                                               width, font_height, adv);
     }
     else{
         result = buffer_cursor_from_unwrapped_xy(buffer, 0, scroll_y, 0, wraps,
-                                                       width, font_height, advance_data);
+                                                 width, font_height, adv);
     }
     
     return(result);
@@ -803,15 +788,15 @@ typedef struct Buffer_Render_Item{
 typedef struct Render_Item_Write{
     Buffer_Render_Item *item;
     f32 x, y;
-    f32 *advance_data;
+    f32 *adv;
     f32 font_height;
 } Render_Item_Write;
 
 inline_4tech f32
 write_render_item(Buffer_Render_Item *item,
                   i32 index, u16 glyphid, u16 flags,
-                  f32 x, f32 y, f32 *advance_data, f32 h){
-    f32 ch_width = measure_character(advance_data, (char)glyphid);
+                  f32 x, f32 y, f32 *adv, f32 h){
+    f32 ch_width = measure_character(adv, (char)glyphid);
     item->index = index;
     item->glyphid = glyphid;
     item->flags = flags;
@@ -825,7 +810,7 @@ write_render_item(Buffer_Render_Item *item,
 inline_4tech f32
 write_render_item(Render_Item_Write write, i32 index, u16 glyphid, u16 flags){
     f32 w = write_render_item(write.item, index, glyphid, flags,
-                              write.x, write.y, write.advance_data, write.font_height);
+                              write.x, write.y, write.adv, write.font_height);
     return(w);
 }
 
@@ -835,7 +820,7 @@ buffer_get_render_data(Buffer_Type *buffer, Buffer_Render_Item *items, i32 max, 
                        f32 scroll_x, f32 scroll_y, Full_Cursor start_cursor,
                        i32 wrapped,
                        f32 width, f32 height,
-                       f32 *advance_data, f32 font_height){
+                       f32 *adv, f32 font_height){
     
     Buffer_Stringify_Type loop = {0};
     char *data = 0;
@@ -857,14 +842,14 @@ buffer_get_render_data(Buffer_Type *buffer, Buffer_Render_Item *items, i32 max, 
     write.item = items;
     write.x = shift_x;
     write.y = shift_y;
-    write.advance_data = advance_data;
+    write.adv = adv;
     write.font_height = font_height;
     
     // TODO(allen): What's the plan for when there is not enough space to store
     // more render items?  It seems like we should be able to use the view_x
     // to skip items that are not in view right?  That way I think it would
     // just always fit in the buffer.
-    if (advance_data){
+    if (adv){
         for (loop = buffer_stringify_loop(buffer, start_cursor.pos, size);
              buffer_stringify_good(&loop) && write.item < item_end;
              buffer_stringify_next(&loop)){
@@ -874,7 +859,7 @@ buffer_get_render_data(Buffer_Type *buffer, Buffer_Render_Item *items, i32 max, 
             
             for (i32 i = loop.absolute_pos; i < end; ++i){
                 uint8_t ch = (uint8_t)data[i];
-                f32 ch_width = measure_character(advance_data, ch);
+                f32 ch_width = measure_character(adv, ch);
                 
                 if (ch_width + write.x > width + shift_x && wrapped && ch != '\n'){
                     write.x = shift_x;
@@ -896,14 +881,12 @@ buffer_get_render_data(Buffer_Type *buffer, Buffer_Render_Item *items, i32 max, 
                     
                     case '\r':
                     if (write.item < item_end){
-                        ch_width = write_render_item(write, i, '\\', BRFlag_Special_Character);
+                        write.x += write_render_item(write, i, '\\', BRFlag_Special_Character);
                         ++write.item;
-                        write.x += ch_width;
                         
                         if (write.item < item_end){
-                            ch_width = write_render_item(write, i, 'r', BRFlag_Special_Character);
+                            write.x += write_render_item(write, i, 'r', BRFlag_Special_Character);
                             ++write.item;
-                            write.x += ch_width;
                         }
                     }
                     break;
@@ -912,21 +895,20 @@ buffer_get_render_data(Buffer_Type *buffer, Buffer_Render_Item *items, i32 max, 
                     if (write.item < item_end){
                         write_render_item(write, i, ' ', 0);
                         ++write.item;
+                        write.x += ch_width;
                     }
-                    write.x += ch_width;
                     break;
                     
                     default:
                     if (write.item < item_end){
                         if (ch >= ' ' && ch <= '~'){
-                            ch_width = write_render_item(write, i, ch, 0);
+                            write_render_item(write, i, ch, 0);
                             ++write.item;
                             write.x += ch_width;
                         }
                         else{
-                            ch_width = write_render_item(write, i, '\\', BRFlag_Special_Character);
+                            write.x += write_render_item(write, i, '\\', BRFlag_Special_Character);
                             ++write.item;
-                            write.x += ch_width;
                             
                             char C = '0' + (ch / 0x10);
                             if ((ch / 0x10) > 0x9){
@@ -934,9 +916,8 @@ buffer_get_render_data(Buffer_Type *buffer, Buffer_Render_Item *items, i32 max, 
                             }
                             
                             if (write.item < item_end){
-                                ch_width = write_render_item(write, i, C, BRFlag_Special_Character);
+                                write.x += write_render_item(write, i, C, BRFlag_Special_Character);
                                 ++write.item;
-                                write.x += ch_width;
                             }
                             
                             ch = (ch % 0x10);
@@ -946,11 +927,9 @@ buffer_get_render_data(Buffer_Type *buffer, Buffer_Render_Item *items, i32 max, 
                             }
                             
                             if (write.item < item_end){
-                                ch_width = write_render_item(write, i, C, BRFlag_Special_Character);
+                                write.x += write_render_item(write, i, C, BRFlag_Special_Character);
                                 ++write.item;
-                                write.x += ch_width;
                             }
-                            
                         }
                     }
                     break;
@@ -972,7 +951,7 @@ buffer_get_render_data(Buffer_Type *buffer, Buffer_Render_Item *items, i32 max, 
     }
     else{
         f32 zero = 0;
-        write.advance_data = &zero;
+        write.adv = &zero;
         
         if (write.item < item_end){
             write_render_item(write, size, 0, 0);
@@ -983,10 +962,6 @@ buffer_get_render_data(Buffer_Type *buffer, Buffer_Render_Item *items, i32 max, 
     *count = (i32)(write.item - items);
     assert_4tech(*count <= max);
 }
-
-#ifndef NON_ABSTRACT_4TECH
-# define NON_ABSTRACT_4TECH 1
-#endif
 
 // BOTTOM
 
