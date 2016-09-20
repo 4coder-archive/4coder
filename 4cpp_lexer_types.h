@@ -305,19 +305,14 @@ struct Cpp_Get_Token_Result{
 	int32_t in_whitespace;
 };
 
-#if 0
-struct_internal Cpp_Relex_State{
-    Cpp_Token_Array *array;
-    int32_t start, end;
-    int32_t start_token_i;
-    int32_t end_token_i;
-    int32_t relex_start;
-    int32_t space_request;
-};
-#endif
-
+/* DOC(Cpp_Relex_Range is the return result of the cpp_get_relex_range call.)
+DOC_SEE(cpp_get_relex_range) */
 struct Cpp_Relex_Range{
+    /* DOC(The index of the first token in the unedited array that needs to be relexed.) */
     int32_t start_token_index;
+    /* DOC(The index of the first token in the unedited array after the edited range
+    that may not need to be relexed.  Sometimes a relex operation has to lex past this
+    position to find a token that is not effected by the edit.) */
     int32_t end_token_index;
 };
 
@@ -331,7 +326,7 @@ static Cpp_Lex_FSM null_lex_fsm = {0};
 
 /* DOC(Cpp_Lex_Data represents the state of the lexer so that the system may be resumable
 and the user can manage the lexer state and decide when to resume lexing with it.  To create
-a new lexer state that has not begun doing any lexing work call cpp_lex_data_init.
+a new lexer state call cpp_lex_data_init.
 
 The internals of the lex state should not be treated as a part of the public API.)
 DOC_SEE(cpp_lex_data_init)
@@ -373,6 +368,10 @@ ENUM(int32_t, Cpp_Lex_Result){
     LexResult_HitTokenLimit = 3,
 };
 
+/* DOC(Cpp_Relex_Data represents the state of the relexer so that the system may be resumable.
+To create a new relex state call cpp_relex_init.)
+DOC_SEE(cpp_relex_init)
+HIDE_MEMBERS()*/
 struct Cpp_Relex_Data{
     Cpp_Lex_Data lex;
     

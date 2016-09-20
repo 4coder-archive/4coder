@@ -141,6 +141,7 @@
 ;         [] switch to line classification system
 ;         [] more built in options for auto indenting
 ;
+; [] eliminate the need for the lexer state's spare array.
 
 ; [] miblo's various number editors
 ; [] user file bar string
@@ -182,6 +183,7 @@
 ;    [] profile and optimize the current metagen system
 ;    [] expand the use of 4coder_types.h to also allow static variable and function declarations
 ;    [] get more of the helper functions going through the documentation system
+;    [] method of pulling the documentation line from another item rather than copy-pasting the text.
 ;
 
 ; GUI related tech

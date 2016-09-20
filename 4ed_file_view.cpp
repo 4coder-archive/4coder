@@ -4917,7 +4917,6 @@ draw_file_loaded(View *view, i32_Rect rect, b32 is_active, Render_Target *target
     
     i32 count = 0;
     Full_Cursor render_cursor = {0};
-    Buffer_Render_Options opts = {0};
     
     f32 *wraps = view->file_data.line_wrap_y;
     f32 scroll_x = 0;
@@ -4944,8 +4943,7 @@ draw_file_loaded(View *view, i32_Rect rect, b32 is_active, Render_Target *target
                                scroll_x, scroll_y, render_cursor,
                                !view->file_data.unwrapped_lines,
                                (f32)max_x, (f32)max_y,
-                               advance_data, (f32)line_height,
-                               opts);
+                               advance_data, (f32)line_height);
     }
     
     Assert(count > 0);

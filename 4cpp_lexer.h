@@ -1011,6 +1011,7 @@ Cpp_Token_Array lex_file(char *file_name){
 )
 
 DOC_SEE(Cpp_Lex_Data)
+DOC_SEE(Cpp_Lex_Result)
 */{
     Cpp_Lex_Result result = 0;
     if (full_size == HAS_NULL_TERM){
@@ -1127,8 +1128,18 @@ cpp_index_array(Cpp_Token_Array *array, int32_t file_size, int32_t index){
     return(result);
 }
 
-FCPP_INTERNAL Cpp_Relex_Range
-cpp_get_relex_range(Cpp_Token_Array *array, int32_t start_pos, int32_t end_pos){
+FCPP_LINK Cpp_Relex_Range
+cpp_get_relex_range(Cpp_Token_Array *array, int32_t start_pos, int32_t end_pos)
+/*
+DOC_PARAM(array, A pointer to the token array that will be modified by the relex,
+this array should already contain the tokens for the previous state of the file.)
+DOC_PARAM(start_pos, The start position of the edited region of the file.
+The start and end points are based on the edited region of the file before the edit.)
+DOC_PARAM(end_pos, The end position of the edited region of the file.
+In particular, end_pos is the first character after the edited region not effected by the edit.
+Thus if the edited region contained one character end_pos - start_pos should equal 1.
+The start and end points are based on the edited region of the file before the edit.)
+*/{
     Cpp_Relex_Range range = {0};
     Cpp_Get_Token_Result get_result = {0};
     
@@ -1152,7 +1163,29 @@ cpp_get_relex_range(Cpp_Token_Array *array, int32_t start_pos, int32_t end_pos){
 
 FCPP_LINK Cpp_Relex_Data
 cpp_relex_init(Cpp_Token_Array *array, int32_t start_pos, int32_t end_pos, int32_t character_shift_amount, char *spare)
-{
+/*
+DOC_PARAM(array, A pointer to the token array that will be modified by the relex,
+this array should already contain the tokens for the previous state of the file.)
+DOC_PARAM(start_pos, The start position of the edited region of the file.
+The start and end points are based on the edited region of the file before the edit.)
+DOC_PARAM(end_pos, The end position of the edited region of the file.
+In particular, end_pos is the first character after the edited region not effected by the edit.
+Thus if the edited region contained one character end_pos - start_pos should equal 1.
+The start and end points are based on the edited region of the file before the edit.)
+DOC_PARAM(character_shift_amount, The shift in the characters after the edited region.)
+DOC_PARAM(spare, The spare space for the lexing state. 
+Should be big enough to store the largest token in the file.)
+DOC_RETURN(Returns a partially initialized relex state.)
+
+DOC(This call does the first setup step of initializing a relex state.  To finish initializing the relex state
+you must tell the state about the positioning of the first chunk it will be fed.  There are two methods of doing
+this, the direct method is with cpp_relex_declare_first_chunk_position, the method that is often more convenient
+is with cpp_relex_is_start_chunk.  If the file is not chunked the second step of initialization can be skipped.)
+
+DOC_SEE(cpp_relex_declare_first_chunk_position)
+DOC_SEE(cpp_relex_is_start_chunk)
+
+*/{
     Cpp_Relex_Data state = {0};
     
     Cpp_Relex_Range range = cpp_get_relex_range(array, start_pos, end_pos);
@@ -1175,18 +1208,61 @@ cpp_relex_init(Cpp_Token_Array *array, int32_t start_pos, int32_t end_pos, int32
 }
 
 FCPP_LINK int32_t
-cpp_relex_start_position(Cpp_Relex_Data *S_ptr){
+cpp_relex_start_position(Cpp_Relex_Data *S_ptr)
+/*
+DOC_PARAM(S_ptr, A pointer to a state that is done with the first stage of initialization (cpp_relex_init))
+DOC_RETURN(Returns the first position in the file the relexer wants to read.  This is usually a position slightly
+earlier than the start_pos provided as the edit range.)
+
+DOC(After doing the first stage of initialization this call is useful for figuring out what chunk
+of the file to feed to the lexer first.  It should be a chunk that contains the position returned
+by this call.)
+
+DOC_SEE(cpp_relex_init)
+DOC_SEE(cpp_relex_declare_first_chunk_position)
+
+*/{
     int32_t result = S_ptr->relex_start_position;
     return(result);
 }
 
 FCPP_LINK void
-cpp_relex_declare_first_chunk_position(Cpp_Relex_Data *S_ptr, int32_t position){
+cpp_relex_declare_first_chunk_position(Cpp_Relex_Data *S_ptr, int32_t position)
+/*
+DOC_PARAM(S_ptr, A pointer to a state that is done with the first stage of initialization (cpp_relex_init))
+DOC_PARAM(position, The start position of the first chunk that will be fed to the relex process.)
+
+DOC(To initialize the relex system completely, the system needs to know how the characters in the
+first file line up with the file's absolute layout.  This call declares where the first chunk's start
+position is in the absolute file layout, and the system infers the alignment from that.  For this method
+to work the starting position of the relexing needs to be inside the first chunk.  To get the relexers
+starting position call cpp_relex_start_position.)
+
+DOC_SEE(cpp_relex_init)
+DOC_SEE(cpp_relex_start_position)
+
+*/{
     S_ptr->lex.chunk_pos = position;
 }
 
 FCPP_LINK int32_t
-cpp_relex_is_start_chunk(Cpp_Relex_Data *S_ptr, char *chunk, int32_t chunk_size){
+cpp_relex_is_start_chunk(Cpp_Relex_Data *S_ptr, char *chunk, int32_t chunk_size)
+/*
+DOC_PARAM(S_ptr, A pointer to a state that is done with the first stage of initialization (cpp_relex_init))
+DOC_PARAM(chunk, The chunk to check.)
+DOC_PARAM(chunk_size, The size of the chunk to check.)
+
+DOC_RETURN(Returns non-zero if the passed in chunk should be used as the first chunk for lexing.)
+
+DOC(With this method, once a state is initialized, each chunk can be fed in one after the other in
+the order they appear in the absolute file layout.  When this call returns non-zero it means that
+the chunk that was passed in on that call should be used in the first call to cpp_relex_step.  If,
+after trying all of the chunks, they all return zero, pass in NULL for chunk and 0 for chunk_size
+to tell the system that all possible chunks have already been tried, and then use those values again
+in the one and only call to cpp_relex_step.)
+
+DOC_SEE(cpp_relex_init)
+*/{
     int32_t pos = S_ptr->relex_start_position;
     int32_t start = S_ptr->lex.chunk_pos;
     int32_t end = start + chunk_size;
@@ -1221,7 +1297,55 @@ cpp_relex_is_start_chunk(Cpp_Relex_Data *S_ptr, char *chunk, int32_t chunk_size)
 
 FCPP_LINK Cpp_Lex_Result
 cpp_relex_step(Cpp_Relex_Data *S_ptr, char *chunk, int32_t chunk_size, int32_t full_size,
-               Cpp_Token_Array *array, Cpp_Token_Array *relex_array){
+               Cpp_Token_Array *array, Cpp_Token_Array *relex_array)
+/*
+DOC_PARAM(S_ptr, A pointer to a fully initiazed relex state.)
+DOC_PARAM(chunk, A chunk of the edited file being relexed.)
+DOC_PARAM(chunk_size, The size of the current chunk.)
+DOC_PARAM(full_size, The full size of the edited file.)
+DOC_PARAM(array, A pointer to a token array that contained the original tokens before the edit.)
+DOC_PARAM(relex_array, A pointer to a token array for spare space.  The capacity of the
+relex_array determines how far the relex process can go.  If it runs out, the process
+can be continued if the same relex_array is extended without losing the tokens it contains.
+
+To get an appropriate capacity for relex_array, you can get the range of tokens that the relex
+operation is likely to traverse by looking at the result from cpp_get_relex_range.)
+
+DOC(When a file has already been lexed, and then it is edited in a small local way,
+rather than lexing the new file all over again, cpp_relex_step can try to find just
+the range of tokens that need to be updated and fix them in.
+
+First the lex state must be initialized (cpp_relex_init).  Then one or more calls to
+cpp_relex_step will start editing the array and filling out the relex_array.  The return
+value of cpp_relex_step indicates whether the relex was successful or was interrupted
+and if it was interrupted, what the system needs to resume.
+
+LexResult_Finished indicates that the relex engine finished successfully.
+
+LexResult_NeedChunk indicates that the system needs the next chunk of the file.
+
+LexResult_NeedTokenMemory indicates that the relex_array has reached capacity, and that
+it needs to be extended if it is going to continue.  Sometimes in this case it is better
+to stop and just lex the entire file normally, because there are a few cases where a small
+local change effects a long range of the lexers output.
+
+The relex operation can be closed in one of two ways.  If the LexResult_Finished
+value has been returned by this call, then to complete the edits to the array make
+sure the original array has enough capacity to store the final result by calling
+cpp_relex_get_new_count.  Then the operation can be finished successfully by calling
+cpp_relex_complete.
+
+Whether or not the relex process finished with LexResult_Finished the process can be
+finished by calling cpp_relex_abort, which puts the array back into it's original state.
+No close is necessary if getting the original array state back is not necessary.)
+
+DOC_SEE(cpp_relex_init)
+DOC_SEE(cpp_get_relex_range)
+DOC_SEE(Cpp_Lex_Result)
+DOC_SEE(cpp_relex_get_new_count)
+DOC_SEE(cpp_relex_complete)
+DOC_SEE(cpp_relex_abort)
+*/{
     
     Cpp_Relex_Data S = *S_ptr;
     
@@ -1276,7 +1400,16 @@ cpp_relex_step(Cpp_Relex_Data *S_ptr, char *chunk, int32_t chunk_size, int32_t f
 #undef DrCase
 
 FCPP_LINK int32_t
-cpp_relex_get_new_count(Cpp_Relex_Data *S_ptr, int32_t current_count, Cpp_Token_Array *relex_array){
+cpp_relex_get_new_count(Cpp_Relex_Data *S_ptr, int32_t current_count, Cpp_Token_Array *relex_array)
+/*
+DOC_PARAM(S_ptr, A pointer to a state that has gone through cpp_relex_step with a LexResult_Finished return.)
+DOC_PARAM(current_count, The count of tokens in the original array before the edit.)
+DOC_PARAM(relex_array, The relex_array that was used in the cpp_relex_step call/calls.)
+
+DOC(After getting a LexResult_Finished from cpp_relex_step, this call can be used to get
+the size the new array will have.  If the original array doesn't have enough capacity to store
+the new array, it's capacity should be increased before passing to cpp_relex_complete.)
+*/{
     int32_t result = -1;
     
     if (S_ptr->result_state == LexResult_Finished){
@@ -1315,7 +1448,16 @@ cpp__block_move(void *dst, void *src, int32_t size){
 }
 
 FCPP_LINK void
-cpp_relex_complete(Cpp_Relex_Data *S_ptr, Cpp_Token_Array *array, Cpp_Token_Array *relex_array){
+cpp_relex_complete(Cpp_Relex_Data *S_ptr, Cpp_Token_Array *array, Cpp_Token_Array *relex_array)
+/*
+DOC_PARAM(S_ptr, A pointer to a state that has gone through cpp_relex_step with a LexResult_Finished return.)
+DOC_PARAM(array, The original array being edited by cpp_relex_step calls.)
+DOC_PARAM(relex_array, The relex_array that was filled by cpp_relex_step.)
+
+DOC(After getting a LexResult_Finished from cpp_relex_step, and ensuring that
+array has a large enough capacity by calling cpp_relex_get_new_count, this call
+does the necessary replacement of tokens in the array to make it match the new file.)
+*/{
     int32_t delete_amount = S_ptr->end_token_index - S_ptr->start_token_index;
     int32_t shift_amount = relex_array->count - delete_amount;
     
@@ -1333,8 +1475,17 @@ cpp_relex_complete(Cpp_Relex_Data *S_ptr, Cpp_Token_Array *array, Cpp_Token_Arra
 }
 
 FCPP_LINK void
-cpp_relex_abort(Cpp_Relex_Data *S_ptr, Cpp_Token_Array *array){
+cpp_relex_abort(Cpp_Relex_Data *S_ptr, Cpp_Token_Array *array)
+/*
+DOC_PARAM(S_ptr, A pointer to a state that has gone through at least one cpp_relex_step.)
+DOC_PARAM(array, The original array that went through cpp_relex_step to be edited.)
+
+DOC(After the first call to cpp_relex_step, the array's contents may have been changed,
+this call assures the array is in it's original state.  After this call the relex state
+is dead.)
+*/{
     cpp_shift_token_starts(array, S_ptr->original_end_token_index, -S_ptr->character_shift_amount);
+    S_ptr->__pc__ = -1;
 }
 
 

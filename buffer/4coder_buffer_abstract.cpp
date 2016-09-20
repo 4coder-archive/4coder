@@ -771,10 +771,6 @@ buffer_invert_batch(Buffer_Invert_Batch *state, Buffer_Type *buffer, Buffer_Edit
     return(result);
 }
 
-struct Buffer_Render_Options{
-    b8 show_slash_t;
-};
-
 internal_4tech Full_Cursor
 buffer_get_start_cursor(Buffer_Type *buffer, f32 *wraps, f32 scroll_y,
                         i32 wrapped, f32 width, f32 *advance_data, f32 font_height){
@@ -834,32 +830,28 @@ buffer_get_render_data(Buffer_Type *buffer, Buffer_Render_Item *items, i32 max, 
                        f32 scroll_x, f32 scroll_y, Full_Cursor start_cursor,
                        i32 wrapped,
                        f32 width, f32 height,
-                       f32 *advance_data, f32 font_height,
-                       Buffer_Render_Options opts){
+                       f32 *advance_data, f32 font_height){
     
-    Buffer_Stringify_Type loop;
-    Buffer_Render_Item *item;
-    Buffer_Render_Item *item_end;
-    char *data;
-    i32 size, end;
-    f32 shift_x, shift_y;
-    f32 x, y;
-    i32 i, item_i;
-    f32 ch_width, ch_width_sub;
-    uint8_t ch;
+    Buffer_Stringify_Type loop = {0};
+    char *data = 0;
+    i32 end = 0;
     
-    size = buffer_size(buffer);
+    i32 size = buffer_size(buffer);
+    f32 shift_x = port_x - scroll_x, shift_y = port_y - scroll_y;
+    f32 ch_width = 0;
+    uint8_t ch = 0;
     
-    shift_x = port_x - scroll_x;
-    shift_y = port_y - scroll_y;
-    if (wrapped) shift_y += start_cursor.wrapped_y;
-    else shift_y += start_cursor.unwrapped_y;
+    if (wrapped){
+        shift_y += start_cursor.wrapped_y;
+    }
+    else{
+        shift_y += start_cursor.unwrapped_y;
+    }
     
-    x = shift_x;
-    y = shift_y;
-    item_i = 0;
-    item = items + item_i;
-    item_end = items + max;
+    f32 x = shift_x;
+    f32 y = shift_y;
+    Buffer_Render_Item *item = items;
+    Buffer_Render_Item *item_end = items + max;
     
     // TODO(allen): What's the plan for when there is not enough space to store
     // more render items?  It seems like we should be able to use the view_x
@@ -873,7 +865,7 @@ buffer_get_render_data(Buffer_Type *buffer, Buffer_Render_Item *items, i32 max, 
             end = loop.size + loop.absolute_pos;
             data = loop.data - loop.absolute_pos;
             
-            for (i = loop.absolute_pos; i < end; ++i){
+            for (i32 i = loop.absolute_pos; i < end; ++i){
                 ch = (uint8_t)data[i];
                 ch_width = measure_character(advance_data, ch);
                 
@@ -888,7 +880,6 @@ buffer_get_render_data(Buffer_Type *buffer, Buffer_Render_Item *items, i32 max, 
                     if (item < item_end){
                         write_render_item_inline(item, i, ' ', x, y, advance_data, font_height);
                         item->flags = 0;
-                        ++item_i;
                         ++item;
                         
                         x = shift_x;
@@ -900,14 +891,12 @@ buffer_get_render_data(Buffer_Type *buffer, Buffer_Render_Item *items, i32 max, 
                     if (item < item_end){
                         ch_width = write_render_item_inline(item, i, '\\', x, y, advance_data, font_height);
                         item->flags = BRFlag_Special_Character;
-                        ++item_i;
                         ++item;
                         x += ch_width;
                         
                         if (item < item_end){
                             ch_width = write_render_item_inline(item, i, 'r', x, y, advance_data, font_height);
                             item->flags = BRFlag_Special_Character;
-                            ++item_i;
                             ++item;
                             x += ch_width;
                         }
@@ -915,27 +904,10 @@ buffer_get_render_data(Buffer_Type *buffer, Buffer_Render_Item *items, i32 max, 
                     break;
                     
                     case '\t':
-                    if (opts.show_slash_t){
-                        if (item < item_end){
-                            ch_width_sub = write_render_item_inline(item, i, '\\', x, y, advance_data, font_height);
-                            item->flags = BRFlag_Special_Character;
-                            ++item_i;
-                            ++item;
-                            if (item < item_end){
-                                write_render_item_inline(item, i, 't', x + ch_width_sub, y, advance_data, font_height);
-                                item->flags = BRFlag_Special_Character;
-                                ++item_i;
-                                ++item;
-                            }
-                        }
-                    }
-                    else{
-                        if (item < item_end){
-                            write_render_item_inline(item, i, ' ', x, y, advance_data, font_height);
-                            item->flags = 0;
-                            ++item_i;
-                            ++item;
-                        }
+                    if (item < item_end){
+                        write_render_item_inline(item, i, ' ', x, y, advance_data, font_height);
+                        item->flags = 0;
+                        ++item;
                     }
                     x += ch_width;
                     break;
@@ -945,14 +917,12 @@ buffer_get_render_data(Buffer_Type *buffer, Buffer_Render_Item *items, i32 max, 
                         if (ch >= ' ' && ch <= '~'){
                             write_render_item(item, i, ch, x, y, ch_width, font_height);
                             item->flags = 0;
-                            ++item_i;
                             ++item;
                             x += ch_width;
                         }
                         else{
                             ch_width = write_render_item_inline(item, i, '\\', x, y, advance_data, font_height);
                             item->flags = BRFlag_Special_Character;
-                            ++item_i;
                             ++item;
                             x += ch_width;
                             
@@ -964,7 +934,6 @@ buffer_get_render_data(Buffer_Type *buffer, Buffer_Render_Item *items, i32 max, 
                             if (item < item_end){
                                 ch_width = write_render_item_inline(item, i, C, x, y, advance_data, font_height);
                                 item->flags = BRFlag_Special_Character;
-                                ++item_i;
                                 ++item;
                                 x += ch_width;
                             }
@@ -978,7 +947,6 @@ buffer_get_render_data(Buffer_Type *buffer, Buffer_Render_Item *items, i32 max, 
                             if (item < item_end){
                                 ch_width = write_render_item_inline(item, i, C, x, y, advance_data, font_height);
                                 item->flags = BRFlag_Special_Character;
-                                ++item_i;
                                 ++item;
                                 x += ch_width;
                             }
@@ -1000,7 +968,6 @@ buffer_get_render_data(Buffer_Type *buffer, Buffer_Render_Item *items, i32 max, 
                 ch = 0;
                 ch_width = measure_character(advance_data, ' ');
                 write_render_item(item, size, ch, x, y, ch_width, font_height);
-                ++item_i;
                 ++item;
                 x += ch_width;
             }
@@ -1011,15 +978,13 @@ buffer_get_render_data(Buffer_Type *buffer, Buffer_Render_Item *items, i32 max, 
             ch = 0;
             ch_width = 0;
             write_render_item(item, size, ch, x, y, ch_width, font_height);
-            ++item_i;
             ++item;
             x += ch_width;
         }
     }
     
-    // TODO(allen): handle this with a control state
-    assert_4tech(item_i <= max);
-    *count = item_i;
+    *count = (i32)(item - items);
+    assert_4tech(*count <= max);
 }
 
 #ifndef NON_ABSTRACT_4TECH
