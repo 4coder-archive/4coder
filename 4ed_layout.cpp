@@ -518,11 +518,11 @@ layout_update_pos_step(Editing_Layout *layout, i32 divider_id, i32_Rect rect, i3
     div->pos = lpos;
     
     if (div->v_divider){
-        Assert(r1.x0 <= pos && pos <= r2.x1);
+        pos = clamp(r1.x0, pos, r2.x1);
         r1.x1 = pos; r2.x0 = pos;
     }
     else{
-        Assert(r1.y0 <= pos && pos <= r2.y1);
+        pos = clamp(r1.y0, pos, r2.y1);
         r1.y1 = pos; r2.y0 = pos;
     }
     
