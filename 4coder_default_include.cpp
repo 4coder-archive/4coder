@@ -2662,6 +2662,18 @@ CUSTOM_COMMAND_SIG(toggle_line_wrap){
     buffer_set_setting(app, &buffer, BufferSetting_WrapLine, unwrapped);
 }
 
+CUSTOM_COMMAND_SIG(increase_line_wrap){
+    View_Summary view = get_active_view(app, AccessProtected);
+    int32_t wrap = view_get_setting(app, &view, ViewSetting_WrapPosition);
+    view_set_setting(app, &view, ViewSetting_WrapPosition, wrap + 10);
+}
+
+CUSTOM_COMMAND_SIG(decrease_line_wrap){
+    View_Summary view = get_active_view(app, AccessProtected);
+    int32_t wrap = view_get_setting(app, &view, ViewSetting_WrapPosition);
+    view_set_setting(app, &view, ViewSetting_WrapPosition, wrap - 10);
+}
+
 CUSTOM_COMMAND_SIG(toggle_show_whitespace){
     View_Summary view = get_active_view(app, AccessProtected);
     view_set_setting(app, &view, ViewSetting_ShowWhitespace, !view.show_whitespace);

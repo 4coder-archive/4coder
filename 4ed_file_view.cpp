@@ -1,11 +1,11 @@
 /*
-* Mr. 4th Dimention - Allen Webster
-*
-* 19.08.2015
-*
-* File editing view for 4coder
-* 
-*/
+ * Mr. 4th Dimention - Allen Webster
+ *
+ * 19.08.2015
+ *
+ * File editing view for 4coder
+ * 
+ */
 
 // TOP
 
@@ -252,6 +252,7 @@ struct View{
     // misc
     i32 line_height;
     
+    // TODO(allen): Do I still use mode?
     View_Mode mode, next_mode;
     Query_Set query_set;
     f32 widget_height;
@@ -259,7 +260,10 @@ struct View{
     b32 reinit_scrolling;
     
     Debug_Vars debug_vars;
+    
+    i32 display_width;
 };
+
 inline void*
 get_view_body(View *view){
     char *result = (char*)view;
@@ -271,13 +275,18 @@ get_view_size(){
     return(sizeof(View) - sizeof(View_Persistent));
 }
 
-// TODO(allen): Switch over to using an i32 instead of
-// an f32 for these.
+// TODO(past-allen): Switch over to using an i32 for these.
 inline f32
-view_file_width(View *view){
+view_width(View *view){
     i32_Rect file_rect = view->file_region;
     f32 result = (f32)(file_rect.x1 - file_rect.x0);
     return (result);
+}
+
+inline f32
+view_file_display_width(View *view){
+    f32 result = view->display_width;
+    return(result);
 }
 
 inline f32
@@ -391,7 +400,7 @@ file_compute_cursor_from_line_character(Editing_File *file, i32 line, i32 charac
 
 inline b32
 file_compute_cursor(Editing_File *file, Buffer_Seek seek, Partial_Cursor *cursor){
-    b32 result = true;
+    b32 result = 1;
     switch (seek.type){
         case buffer_seek_pos:
         {
@@ -405,7 +414,7 @@ file_compute_cursor(Editing_File *file, Buffer_Seek seek, Partial_Cursor *cursor
         
         default:
         {
-            result = false;
+            result = 0;
         }break;
     }
     return(result);
@@ -419,7 +428,7 @@ view_compute_cursor_from_pos(View *view, i32 pos){
     
     Full_Cursor result = {};
     if (font){
-        f32 max_width = view_file_width(view);
+        f32 max_width = view_file_display_width(view);
         result = buffer_cursor_from_pos(&file->state.buffer, pos, view->file_data.line_wrap_y,
                                         max_width, (f32)view->line_height, font->advance_data);
     }
@@ -434,7 +443,7 @@ view_compute_cursor_from_unwrapped_xy(View *view, f32 seek_x, f32 seek_y, b32 ro
     
     Full_Cursor result = {};
     if (font){
-        f32 max_width = view_file_width(view);
+        f32 max_width = view_file_display_width(view);
         result = buffer_cursor_from_unwrapped_xy(&file->state.buffer, seek_x, seek_y,
                                                  round_down, view->file_data.line_wrap_y, max_width, (f32)view->line_height, font->advance_data);
     }
@@ -450,7 +459,7 @@ view_compute_cursor_from_wrapped_xy(View *view, f32 seek_x, f32 seek_y, b32 roun
     
     Full_Cursor result = {};
     if (font){
-        f32 max_width = view_file_width(view);
+        f32 max_width = view_file_display_width(view);
         result = buffer_cursor_from_wrapped_xy(&file->state.buffer, seek_x, seek_y,
                                                round_down, view->file_data.line_wrap_y,
                                                max_width, (f32)view->line_height, font->advance_data);
@@ -467,7 +476,7 @@ view_compute_cursor_from_line_pos(View *view, i32 line, i32 pos){
     
     Full_Cursor result = {};
     if (font){
-        f32 max_width = view_file_width(view);
+        f32 max_width = view_file_display_width(view);
         result = buffer_cursor_from_line_character(&file->state.buffer, line, pos,
                                                    view->file_data.line_wrap_y, max_width, (f32)view->line_height, font->advance_data);
     }
@@ -503,8 +512,12 @@ view_compute_cursor(View *view, Buffer_Seek seek){
 inline Full_Cursor
 view_compute_cursor_from_xy(View *view, f32 seek_x, f32 seek_y){
     Full_Cursor result;
-    if (view->file_data.unwrapped_lines) result = view_compute_cursor_from_unwrapped_xy(view, seek_x, seek_y);
-    else result = view_compute_cursor_from_wrapped_xy(view, seek_x, seek_y);
+    if (view->file_data.unwrapped_lines){
+        result = view_compute_cursor_from_unwrapped_xy(view, seek_x, seek_y);
+    }
+    else{
+        result = view_compute_cursor_from_wrapped_xy(view, seek_x, seek_y);
+    }
     return(result);
 }
 
@@ -526,7 +539,7 @@ view_compute_lowest_line(View *view){
         else{
             f32 wrap_y = view->file_data.line_wrap_y[last_line];
             lowest_line = FLOOR32(wrap_y / view->line_height);
-            f32 max_width = view_file_width(view);
+            f32 max_width = view_file_display_width(view);
             
             Editing_File *file = view->file_data.file;
             Assert(!file->is_dummy);
@@ -556,8 +569,8 @@ view_compute_max_target_y(View *view){
 
 internal b32
 view_move_view_to_cursor(View *view, GUI_Scroll_Vars *scroll, b32 center_view){
-    b32 result = false;
-    f32 max_x = view_file_width(view);
+    b32 result = 0;
+    f32 max_x = view_width(view);
     i32 max_y = view_compute_max_target_y(view);
     
     f32 cursor_y = view_get_cursor_y(view);
@@ -598,7 +611,7 @@ view_move_view_to_cursor(View *view, GUI_Scroll_Vars *scroll, b32 center_view){
     if (target_x != scroll_vars.target_x || target_y != scroll_vars.target_y){
         scroll->target_x = target_x;
         scroll->target_y = target_y;
-        result = true;
+        result = 1;
     }
     
     return(result);
@@ -607,7 +620,7 @@ view_move_view_to_cursor(View *view, GUI_Scroll_Vars *scroll, b32 center_view){
 internal b32
 view_move_cursor_to_view(View *view, GUI_Scroll_Vars scroll,
                          Full_Cursor *cursor, f32 preferred_x){
-    b32 result = false;
+    b32 result = 0;
     
     if (view->edit_pos){
         i32 line_height = view->line_height;
@@ -638,7 +651,7 @@ view_move_cursor_to_view(View *view, GUI_Scroll_Vars scroll,
             *cursor = view_compute_cursor_from_xy(
                 view, preferred_x, cursor_y);
             
-            result = true;
+            result = 1;
         }
     }
     
@@ -652,7 +665,7 @@ view_set_cursor(View *view, Full_Cursor cursor,
         edit_pos_set_cursor_(view->edit_pos, cursor, set_preferred_x, unwrapped_lines);
         
         GUI_Scroll_Vars scroll = view->edit_pos->scroll;
-        if (view_move_view_to_cursor(view, &scroll, false)){
+        if (view_move_view_to_cursor(view, &scroll, 0)){
             view->edit_pos->scroll = scroll;
         }
     }
@@ -997,7 +1010,7 @@ view_measure_wraps(General_Memory *general, View *view){
     }
     
     f32 line_height = (f32)view->line_height;
-    f32 max_width = view_file_width(view);
+    f32 max_width = view_file_display_width(view);
     buffer_measure_wrap_y(buffer, view->file_data.line_wrap_y, line_height, max_width);
     
     view->file_data.line_count = line_count;
@@ -1266,10 +1279,10 @@ file_relex_parallel(System_Functions *system,
     
     if (file->state.token_array.tokens == 0){
         file_first_lex_parallel(system, general, file);
-        return(false);
+        return(0);
     }
     
-    b32 result = true;
+    b32 result = 1;
     b32 inline_lex = !file->state.still_lexing;
     if (inline_lex){
         Buffer_Type *buffer = &file->state.buffer;
@@ -1384,7 +1397,7 @@ file_relex_parallel(System_Functions *system,
         job.data[0] = file;
         job.data[1] = general;
         file->state.lex_job = system->post_job(BACKGROUND_THREADS, job);
-        result = false;
+        result = 0;
     }
     
     return(result);
@@ -1670,7 +1683,7 @@ view_set_temp_highlight(View *view, i32 pos, i32 end_pos){
     view->file_data.show_temp_highlight = 1;
     
     view_set_cursor(view, view->file_data.temp_highlight,
-                    false, view->file_data.unwrapped_lines);
+                    0, view->file_data.unwrapped_lines);
 }
 
 inline void
@@ -1751,7 +1764,7 @@ view_set_relative_scrolling(View *view, Relative_Scrolling scrolling){
 inline void
 view_cursor_move(View *view, Full_Cursor cursor){
     view_set_cursor(view, cursor,
-                    true, view->file_data.unwrapped_lines);
+                    1, view->file_data.unwrapped_lines);
     view->file_data.show_temp_highlight = 0;
 }
 
@@ -2061,7 +2074,7 @@ file_edit_cursor_fix(System_Functions *system,
                 }
                 
                 view_set_cursor_and_scroll(view, new_cursor,
-                                           true, view->file_data.unwrapped_lines,
+                                           1, view->file_data.unwrapped_lines,
                                            scroll);
             }
         }
@@ -2707,7 +2720,7 @@ view_show_file(View *view){
     
     if (view->showing_ui != VUI_None){
         view->showing_ui = VUI_None;
-        view->changed_context_in_step = true;
+        view->changed_context_in_step = 1;
     }
 }
 
@@ -2946,7 +2959,7 @@ interactive_try_kill_file(System_Functions *system, Models *models, View *view, 
 
 internal b32
 interactive_try_kill_file_by_name(System_Functions *system, Models *models, View *view, String name){
-    b32 kill_dialogue = false;
+    b32 kill_dialogue = 0;
     
     Editing_File *file = working_set_name_contains(&models->working_set, name);
     if (file){
@@ -3144,11 +3157,11 @@ view_reinit_scrolling(View *view){
         cursor_x = view_get_cursor_x(view);
         cursor_y = view_get_cursor_y(view);
         
-        w = view_file_width(view);
+        w = view_width(view);
         h = view_file_height(view);
         
         if (cursor_x >= target_x + w){
-            target_x = ROUND32(cursor_x - w*.5f);
+            target_x = ROUND32(cursor_x - w*.35f);
         }
         
         target_y = clamp_bottom(0, FLOOR32(cursor_y - h*.5f));
@@ -3950,10 +3963,10 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                             
                             gui_do_text_field(target, message, hdir->string);
                             
-                            b32 snap_into_view = false;
+                            b32 snap_into_view = 0;
                             scroll_context.id[0] = (u64)(hdir);
                             if (gui_scroll_was_activated(target, scroll_context)){
-                                snap_into_view = true;
+                                snap_into_view = 1;
                             }
                             gui_begin_scrollable(target, scroll_context, view->gui_scroll,
                                                  9 * view->line_height, show_scrollbar);
@@ -4041,10 +4054,10 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                             
                             gui_do_text_field(target, message, view->dest);
                             
-                            b32 snap_into_view = false;
+                            b32 snap_into_view = 0;
                             scroll_context.id[0] = (u64)(working_set);
                             if (gui_scroll_was_activated(target, scroll_context)){
-                                snap_into_view = true;
+                                snap_into_view = 1;
                             }
                             gui_begin_scrollable(target, scroll_context, view->gui_scroll,
                                                  9 * view->line_height, show_scrollbar);
@@ -4394,7 +4407,7 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                             i32 inspecting_id = view->debug_vars.inspecting_view_id;
                             View *views_to_inspect[16];
                             i32 view_count = 0;
-                            b32 low_detail = true;
+                            b32 low_detail = 1;
                             
                             if (inspecting_id == 0){
                                 Editing_Layout *layout = &models->layout;
@@ -4410,7 +4423,7 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                                 Live_Views *live_set = models->live_set;
                                 View *view_ptr = live_set->views + inspecting_id - 1;
                                 views_to_inspect[view_count++] = view_ptr;
-                                low_detail = false;
+                                low_detail = 0;
                             }
                             
                             for (i32 i = 0; i < view_count; ++i){
@@ -4458,7 +4471,7 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
 #define SHOW_GUI_ID(n, h, str, v)    show_gui_id(target, &string, n, h, " " str, v)
 #define SHOW_GUI_FLOAT(n, h, str, v) show_gui_float(target, &string, n, h, " " str " ", v)
 #define SHOW_GUI_BOOL(n, h, str, v)  do { if (v) { show_gui_line(target, &string, n, h, " " str " ", "true"); }\
-                                        else { show_gui_line(target, &string, n, h, " " str " ", "false"); } } while(false)
+                                        else { show_gui_line(target, &string, n, h, " " str " ", "false"); } } while(0)
                                     
 #define SHOW_GUI_SCROLL(n, h, str, v) show_gui_scroll(target, &string, n, h, " " str, v)
 #define SHOW_GUI_CURSOR(n, h, str, v) show_gui_cursor(target, &string, n, h, " " str, v)
@@ -4684,12 +4697,12 @@ do_step_file_view(System_Functions *system,
                     if (interpret_result.auto_activate){
                         target->auto_hot = gui_id_zero();
                         target->active = b->id;
-                        result.is_animating = true;
+                        result.is_animating = 1;
                     }
                     else if (interpret_result.auto_hot){
                         if (!gui_id_eq(target->auto_hot, b->id)){
                             target->auto_hot = b->id;
-                            result.is_animating = true;
+                            result.is_animating = 1;
                         }
                     }
                 }break;
@@ -4707,11 +4720,11 @@ do_step_file_view(System_Functions *system,
                         
                         if (view->reinit_scrolling){
                             result.vars = view_reinit_scrolling(view);
-                            result.is_animating = true;
+                            result.is_animating = 1;
                         }
                         
                         if (file_step(view, gui_session.rect, user_input, is_active, &result.consumed_l)){
-                            result.is_animating = true;
+                            result.is_animating = 1;
                         }
                         is_file_scroll = 1;
                     }break;
@@ -4726,7 +4739,7 @@ do_step_file_view(System_Functions *system,
                         
                         if (click_button_input(target, &gui_session, user_input,
                                                b, &result.is_animating)){
-                            result.consumed_l = true;
+                            result.consumed_l = 1;
                         }
                     }break;
                     
@@ -4737,7 +4750,7 @@ do_step_file_view(System_Functions *system,
                         
                         if (click_button_input(target, &gui_session, user_input,
                                                b, &result.is_animating)){
-                            result.consumed_l = true;
+                            result.consumed_l = 1;
                         }
                         
                         {
@@ -4760,7 +4773,7 @@ do_step_file_view(System_Functions *system,
                                     key = get_single_key(keys, i);
                                     if (char_to_upper(key.character) == activation_key){
                                         target->active = b->id;
-                                        result.is_animating = true;
+                                        result.is_animating = 1;
                                         break;
                                     }
                                 }
@@ -4779,8 +4792,8 @@ do_step_file_view(System_Functions *system,
                             target->hover = id;
                             if (user_input->mouse.press_l){
                                 target->mouse_hot = id;
-                                result.is_animating = true;
-                                result.consumed_l = true;
+                                result.is_animating = 1;
+                                result.consumed_l = 1;
                             }
                         }
                         else if (gui_id_eq(target->hover, id)){
@@ -4794,7 +4807,7 @@ do_step_file_view(System_Functions *system,
                             result.vars.target_y = ROUND32(lerp(0.f, v, (f32)max_y));
                             
                             gui_activate_scrolling(target);
-                            result.is_animating = true;
+                            result.is_animating = 1;
                         }
                     }
                     // NOTE(allen): NO BREAK HERE!!
@@ -4807,7 +4820,7 @@ do_step_file_view(System_Functions *system,
                             result.vars.target_y =
                                 clamp(0, result.vars.target_y, max_y);
                             gui_activate_scrolling(target);
-                            result.is_animating = true;
+                            result.is_animating = 1;
                         }
                     }break;
                     
@@ -4818,7 +4831,7 @@ do_step_file_view(System_Functions *system,
                         if (scroll_button_input(target, &gui_session, user_input, id, &result.is_animating)){
                             result.vars.target_y -= clamp_bottom(1, target->delta >> 2);
                             result.vars.target_y = clamp_bottom(0, result.vars.target_y);
-                            result.consumed_l = true;
+                            result.consumed_l = 1;
                         }
                     }break;
                     
@@ -4829,14 +4842,14 @@ do_step_file_view(System_Functions *system,
                         if (scroll_button_input(target, &gui_session, user_input, id, &result.is_animating)){
                             result.vars.target_y += clamp_bottom(1, target->delta >> 2);
                             result.vars.target_y = clamp_top(result.vars.target_y, max_y);
-                            result.consumed_l = true;
+                            result.consumed_l = 1;
                         }
                     }break;
                     
                     case guicom_end_scrollable_section:
                     {
                         if (!is_file_scroll){
-                            result.has_max_y_suggestion = true;
+                            result.has_max_y_suggestion = 1;
                             result.max_y = gui_session.suggested_max_y;
                         }
                     }break;
@@ -4847,15 +4860,17 @@ do_step_file_view(System_Functions *system,
         if (!user_input->mouse.l){
             if (!gui_id_is_null(target->mouse_hot)){
                 target->mouse_hot = gui_id_zero();
-                result.is_animating = true;
+                result.is_animating = 1;
             }
         }
         
         {
             GUI_Scroll_Vars scroll_vars = result.vars;
-            b32 is_new_target = false;
-            if (scroll_vars.target_x != scroll_vars.prev_target_x) is_new_target = true;
-            if (scroll_vars.target_y != scroll_vars.prev_target_y) is_new_target = true;
+            b32 is_new_target = 0;
+            if (scroll_vars.target_x != scroll_vars.prev_target_x ||
+                scroll_vars.target_y != scroll_vars.prev_target_y){
+                is_new_target = 1;
+            }
             
             f32 target_x = (f32)scroll_vars.target_x;
             f32 target_y = (f32)scroll_vars.target_y;
@@ -4863,7 +4878,7 @@ do_step_file_view(System_Functions *system,
             if (view->persistent.models->scroll_rule(target_x, target_y,
                                                      &scroll_vars.scroll_x, &scroll_vars.scroll_y,
                                                      (view->persistent.id) + 1, is_new_target, user_input->dt)){
-                result.is_animating = true;
+                result.is_animating = 1;
             }
             
             scroll_vars.prev_target_x = scroll_vars.target_x;
@@ -4883,7 +4898,7 @@ draw_file_loaded(View *view, i32_Rect rect, b32 is_active, Render_Target *target
     Style *style = main_style(models);
     i32 line_height = view->line_height;
     
-    i32 max_x = rect.x1 - rect.x0;
+    f32 max_x = view_file_display_width(view);
     i32 max_y = rect.y1 - rect.y0 + line_height;
     
     Assert(file && !file->is_dummy && buffer_good(&file->state.buffer));
@@ -4897,7 +4912,6 @@ draw_file_loaded(View *view, i32_Rect rect, b32 is_active, Render_Target *target
     }
     
     Partition *part = &models->mem.part;
-    
     Temp_Memory temp = begin_temp_memory(part);
     
     partition_align(part, 4);
@@ -4907,17 +4921,17 @@ draw_file_loaded(View *view, i32_Rect rect, b32 is_active, Render_Target *target
     i16 font_id = file->settings.font_id;
     Render_Font *font = get_font_info(models->font_set, font_id)->font;
     float *advance_data = 0;
-    if (font) advance_data = font->advance_data;
+    // TODO(allen): Why isn't this "Assert(font);"?
+    if (font){
+        advance_data = font->advance_data;
+    }
     
     i32 count = 0;
     Full_Cursor render_cursor = {0};
     
     f32 *wraps = view->file_data.line_wrap_y;
-    f32 scroll_x = 0;
-    f32 scroll_y = 0;
-    
-    scroll_x = view->edit_pos->scroll.scroll_x;
-    scroll_y = view->edit_pos->scroll.scroll_y;
+    f32 scroll_x = view->edit_pos->scroll.scroll_x;
+    f32 scroll_y = view->edit_pos->scroll.scroll_y;
     
     // NOTE(allen): For now we will temporarily adjust scroll_y to try
     // to prevent the view moving around until floating sections are added
@@ -4927,16 +4941,14 @@ draw_file_loaded(View *view, i32_Rect rect, b32 is_active, Render_Target *target
     {
         render_cursor = buffer_get_start_cursor(&file->state.buffer, wraps, scroll_y,
                                                 !view->file_data.unwrapped_lines,
-                                                (f32)max_x,
-                                                advance_data, (f32)line_height);
+                                                max_x, advance_data, (f32)line_height);
         
         view->edit_pos->scroll_i = render_cursor.pos;
         
         buffer_get_render_data(&file->state.buffer, items, max, &count,
-                               (f32)rect.x0, (f32)rect.y0,
-                               scroll_x, scroll_y, render_cursor,
-                               !view->file_data.unwrapped_lines,
-                               (f32)max_x, (f32)max_y,
+                               (f32)rect.x0, (f32)rect.y0, max_x, (f32)max_y,
+                               scroll_x, scroll_y,
+                               render_cursor, !view->file_data.unwrapped_lines,
                                advance_data, (f32)line_height);
     }
     
@@ -5237,12 +5249,12 @@ draw_font_button(GUI_Target *gui_target, Render_Target *target, View *view,
     
     i32 active_level = gui_active_level(gui_target, id);
     
-    u32 margin = get_margin_color(active_level, style);
-    u32 back = style->main.back_color;
+    u32 margin_color = get_margin_color(active_level, style);
+    u32 back_color = style->main.back_color;
     u32 text_color = style->main.default_color;
     
-    draw_rectangle(target, rect, back);
-    draw_rectangle_outline(target, rect, margin);
+    draw_rectangle(target, rect, back_color);
+    draw_rectangle_outline(target, rect, margin_color);
     draw_string(target, font_id, text, rect.x0, rect.y0 + 1, text_color);
 }
 
@@ -5594,8 +5606,7 @@ view_change_size(General_Memory *general, View *view){
         view_measure_wraps(general, view);
         Full_Cursor cursor =
             view_compute_cursor_from_pos(view, view->edit_pos->cursor.pos);
-        view_set_cursor(view, cursor,
-                        false, view->file_data.unwrapped_lines);
+        view_set_cursor(view, cursor, 0, view->file_data.unwrapped_lines);
     }
 }
 
@@ -5627,6 +5638,7 @@ live_set_alloc_view(Live_Views *live_set, Panel *panel, Models *models){
         result.view->gui_mem = gui_mem;
         gui_mem = advance_to_alignment(gui_mem);
         result.view->gui_target.push = make_part(gui_mem, gui_mem_size);
+        result.view->display_width = models->default_display_width;
     }
     
     return(result);

@@ -401,6 +401,9 @@ default_keys(Bind_Helper *context){
     bind(context, '1', MDFR_CTRL, eol_dosify);
     bind(context, '!', MDFR_CTRL, eol_nixify);
     
+    bind(context, '2', MDFR_CTRL, decrease_line_wrap);
+    bind(context, '3', MDFR_CTRL, increase_line_wrap);
+    
     bind(context, '?', MDFR_CTRL, toggle_show_whitespace);
     bind(context, '~', MDFR_CTRL, clean_all_lines);
     bind(context, '\n', MDFR_NONE, newline_or_goto_position);

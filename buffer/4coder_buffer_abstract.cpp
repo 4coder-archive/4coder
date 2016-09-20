@@ -302,11 +302,14 @@ buffer_remeasure_widths(Buffer_Type *buffer, f32 *advance_data,
     i = line_start;
     j = starts[i];
     
-    if (line_end == line_count) size = buffer_size(buffer);
-    else size = starts[line_end];
+    if (line_end == line_count){
+        size = buffer_size(buffer);
+    }
+    else{
+        size = starts[line_end];
+    }
     
     width = 0;
-    
     for (loop = buffer_stringify_loop(buffer, j, size);
          buffer_stringify_good(&loop);
          buffer_stringify_next(&loop)){
@@ -333,58 +336,53 @@ buffer_remeasure_widths(Buffer_Type *buffer, f32 *advance_data,
     }
 }
 
-#if 0
-inline_4tech void
-buffer_measure_widths(Buffer_Type *buffer, void *advance_data){
-    assert_4tech(buffer->line_count >= 1);
-    buffer_remeasure_widths(buffer, advance_data, 0, buffer->line_count-1, 0);
-}
-#endif
-
 internal_4tech void
 buffer_measure_wrap_y(Buffer_Type *buffer, f32 *wraps,
                       f32 font_height, f32 max_width){
-    f32 *widths;
-    f32 y_pos;
-    i32 i, line_count;
+    f32 *widths = buffer->line_widths;
+    f32 y_pos = 0;
+    i32 line_count = buffer->line_count;
+    i32 i = 0;
     
-    line_count = buffer->line_count;
-    widths = buffer->line_widths;
-    y_pos = 0;
-    
-    for (i = 0; i < line_count; ++i){
+    for (; i < line_count; ++i){
         wraps[i] = y_pos;
-        if (widths[i] == 0) y_pos += font_height;
-        else y_pos += font_height*ceil_4tech(widths[i]/max_width);
+        if (widths[i] == 0){
+            y_pos += font_height;
+        }
+        else{
+            y_pos += font_height*ceil_4tech(widths[i]/max_width);
+        }
     }
 }
 
 internal_4tech i32
 buffer_get_line_index_range(Buffer_Type *buffer, i32 pos, i32 l_bound, i32 u_bound){
-    i32 *lines;
-    i32 start, end;
-    i32 i;
+    i32 *lines = buffer->line_starts;
+    i32 start = l_bound, end = u_bound;
+    i32 i = 0;
     
     assert_4tech(0 <= l_bound);
     assert_4tech(l_bound <= u_bound);
     assert_4tech(u_bound <= buffer->line_count);
     
-    lines = buffer->line_starts;
-    
     assert_4tech(lines != 0);
     
-    start = l_bound;
-    end = u_bound;
     for (;;){
         i = (start + end) >> 1;
-        if (lines[i] < pos) start = i;
-        else if (lines[i] > pos) end = i;
+        if (lines[i] < pos){
+            start = i;
+        }
+        else if (lines[i] > pos){
+            end = i;
+        }
         else{
             start = i;
             break;
         }
         assert_4tech(start < end);
-        if (start == end - 1) break;
+        if (start == end - 1){
+            break;
+        }
     }
     
     return(start);
@@ -816,11 +814,10 @@ write_render_item(Render_Item_Write write, i32 index, u16 glyphid, u16 flags){
 
 internal_4tech void
 buffer_get_render_data(Buffer_Type *buffer, Buffer_Render_Item *items, i32 max, i32 *count,
-                       f32 port_x, f32 port_y,
-                       f32 scroll_x, f32 scroll_y, Full_Cursor start_cursor,
-                       i32 wrapped,
-                       f32 width, f32 height,
-                       f32 *adv, f32 font_height){
+                       f32 port_x, f32 port_y, f32 width, f32 height,
+                       f32 scroll_x, f32 scroll_y,
+                       Full_Cursor start_cursor,
+                       i32 wrapped, f32 *adv, f32 font_height){
     
     Buffer_Stringify_Type loop = {0};
     char *data = 0;
@@ -858,7 +855,7 @@ buffer_get_render_data(Buffer_Type *buffer, Buffer_Render_Item *items, i32 max, 
             data = loop.data - loop.absolute_pos;
             
             for (i32 i = loop.absolute_pos; i < end; ++i){
-                uint8_t ch = (uint8_t)data[i];
+                u8 ch = (uint8_t)data[i];
                 f32 ch_width = measure_character(adv, ch);
                 
                 if (ch_width + write.x > width + shift_x && wrapped && ch != '\n'){

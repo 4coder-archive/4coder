@@ -1377,6 +1377,25 @@ DOC_SEE(get_active_view)
     return(result);
 }
 
+API_EXPORT int32_t
+View_Get_Setting(Application_Links *app, View_Summary *view, View_Setting_ID setting){
+    Command_Data *cmd = (Command_Data*)app->cmd_context;
+    System_Functions *system = cmd->system;
+    View *vptr = imp_get_view(cmd, view);
+    int32_t result = -1;
+    
+    if (vptr){
+        switch (setting){
+            case ViewSetting_WrapLine: result = !vptr->file_data.unwrapped_lines; break;
+            case ViewSetting_WrapPosition: result = vptr->display_width; break;
+            case ViewSetting_ShowWhitespace: result = vptr->file_data.show_whitespace; break;
+            case ViewSetting_ShowScrollbar: result = !vptr->hide_scrollbar; break;
+        }
+    }
+    
+    return(result);
+}
+
 API_EXPORT bool32
 View_Set_Setting(Application_Links *app, View_Summary *view, View_Setting_ID setting, int32_t value)/*
 DOC_PARAM(view, The view parameter specifies the view on which to set a setting.)
@@ -1386,6 +1405,7 @@ DOC_RETURN(This call returns non-zero on success.)
 DOC_SEE(View_Setting_ID)
 */{
     Command_Data *cmd = (Command_Data*)app->cmd_context;
+    System_Functions *system = cmd->system;
     View *vptr = imp_get_view(cmd, view);
     bool32 result = false;
     
@@ -1409,6 +1429,18 @@ DOC_SEE(View_Setting_ID)
                         view_cursor_move(vptr, vptr->edit_pos->cursor.pos);
                         view_set_relative_scrolling(vptr, scrolling);
                     }
+                }
+            }break;
+            
+            case ViewSetting_WrapPosition:
+            {
+                if (value < 48){
+                    value = 48;
+                }
+                
+                if (value != vptr->display_width){
+                    vptr->display_width = value;
+                    remeasure_file_view(system, vptr);
                 }
             }break;
             

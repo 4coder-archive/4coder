@@ -26,6 +26,7 @@
 #define OPEN_VIEW_SIG(n) View_Summary n(Application_Links *app, View_Summary *view_location, View_Split_Position position)
 #define CLOSE_VIEW_SIG(n) bool32 n(Application_Links *app, View_Summary *view)
 #define SET_ACTIVE_VIEW_SIG(n) bool32 n(Application_Links *app, View_Summary *view)
+#define VIEW_GET_SETTING_SIG(n) int32_t n(Application_Links *app, View_Summary *view, View_Setting_ID setting)
 #define VIEW_SET_SETTING_SIG(n) bool32 n(Application_Links *app, View_Summary *view, View_Setting_ID setting, int32_t value)
 #define VIEW_SET_SPLIT_PROPORTION_SIG(n) bool32 n(Application_Links *app, View_Summary *view, float t)
 #define VIEW_COMPUTE_CURSOR_SIG(n) bool32 n(Application_Links *app, View_Summary *view, Buffer_Seek seek, Full_Cursor *cursor_out)
@@ -87,6 +88,7 @@ typedef GET_ACTIVE_VIEW_SIG(Get_Active_View_Function);
 typedef OPEN_VIEW_SIG(Open_View_Function);
 typedef CLOSE_VIEW_SIG(Close_View_Function);
 typedef SET_ACTIVE_VIEW_SIG(Set_Active_View_Function);
+typedef VIEW_GET_SETTING_SIG(View_Get_Setting_Function);
 typedef VIEW_SET_SETTING_SIG(View_Set_Setting_Function);
 typedef VIEW_SET_SPLIT_PROPORTION_SIG(View_Set_Split_Proportion_Function);
 typedef VIEW_COMPUTE_CURSOR_SIG(View_Compute_Cursor_Function);
@@ -150,6 +152,7 @@ Get_Active_View_Function *get_active_view;
 Open_View_Function *open_view;
 Close_View_Function *close_view;
 Set_Active_View_Function *set_active_view;
+View_Get_Setting_Function *view_get_setting;
 View_Set_Setting_Function *view_set_setting;
 View_Set_Split_Proportion_Function *view_set_split_proportion;
 View_Compute_Cursor_Function *view_compute_cursor;
@@ -212,6 +215,7 @@ Get_Active_View_Function *get_active_view_;
 Open_View_Function *open_view_;
 Close_View_Function *close_view_;
 Set_Active_View_Function *set_active_view_;
+View_Get_Setting_Function *view_get_setting_;
 View_Set_Setting_Function *view_set_setting_;
 View_Set_Split_Proportion_Function *view_set_split_proportion_;
 View_Compute_Cursor_Function *view_compute_cursor_;
@@ -282,6 +286,7 @@ app_links->get_active_view_ = Get_Active_View;\
 app_links->open_view_ = Open_View;\
 app_links->close_view_ = Close_View;\
 app_links->set_active_view_ = Set_Active_View;\
+app_links->view_get_setting_ = View_Get_Setting;\
 app_links->view_set_setting_ = View_Set_Setting;\
 app_links->view_set_split_proportion_ = View_Set_Split_Proportion;\
 app_links->view_compute_cursor_ = View_Compute_Cursor;\
@@ -344,6 +349,7 @@ static inline View_Summary get_active_view(Application_Links *app, Access_Flag a
 static inline View_Summary open_view(Application_Links *app, View_Summary *view_location, View_Split_Position position){return(app->open_view(app, view_location, position));}
 static inline bool32 close_view(Application_Links *app, View_Summary *view){return(app->close_view(app, view));}
 static inline bool32 set_active_view(Application_Links *app, View_Summary *view){return(app->set_active_view(app, view));}
+static inline int32_t view_get_setting(Application_Links *app, View_Summary *view, View_Setting_ID setting){return(app->view_get_setting(app, view, setting));}
 static inline bool32 view_set_setting(Application_Links *app, View_Summary *view, View_Setting_ID setting, int32_t value){return(app->view_set_setting(app, view, setting, value));}
 static inline bool32 view_set_split_proportion(Application_Links *app, View_Summary *view, float t){return(app->view_set_split_proportion(app, view, t));}
 static inline bool32 view_compute_cursor(Application_Links *app, View_Summary *view, Buffer_Seek seek, Full_Cursor *cursor_out){return(app->view_compute_cursor(app, view, seek, cursor_out));}
@@ -406,6 +412,7 @@ static inline View_Summary get_active_view(Application_Links *app, Access_Flag a
 static inline View_Summary open_view(Application_Links *app, View_Summary *view_location, View_Split_Position position){return(app->open_view_(app, view_location, position));}
 static inline bool32 close_view(Application_Links *app, View_Summary *view){return(app->close_view_(app, view));}
 static inline bool32 set_active_view(Application_Links *app, View_Summary *view){return(app->set_active_view_(app, view));}
+static inline int32_t view_get_setting(Application_Links *app, View_Summary *view, View_Setting_ID setting){return(app->view_get_setting_(app, view, setting));}
 static inline bool32 view_set_setting(Application_Links *app, View_Summary *view, View_Setting_ID setting, int32_t value){return(app->view_set_setting_(app, view, setting, value));}
 static inline bool32 view_set_split_proportion(Application_Links *app, View_Summary *view, float t){return(app->view_set_split_proportion_(app, view, t));}
 static inline bool32 view_compute_cursor(Application_Links *app, View_Summary *view, Buffer_Seek seek, Full_Cursor *cursor_out){return(app->view_compute_cursor_(app, view, seek, cursor_out));}

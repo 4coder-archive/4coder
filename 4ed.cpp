@@ -39,6 +39,7 @@ typedef struct Command_Data{
     System_Functions *system;
     Live_Views *live_set;
     
+    // TODO(allen): eliminate this shit yo!
     Panel *panel;
     View *view;
     
@@ -1121,7 +1122,7 @@ enum Command_Line_Action{
     CLAct_WindowFullscreen,
     CLAct_WindowStreamMode,
     CLAct_FontSize,
-    CLAct_FontStopHinting,
+    CLAct_FontStartHinting,
     CLAct_Count
 };
 
@@ -1167,11 +1168,11 @@ init_command_line_settings(App_Settings *settings, Plat_Settings *plat_settings,
                         if (arg[0] == '-'){
                             action = CLAct_Ignore;
                             switch (arg[1]){
-                                case 'u': action = CLAct_UserFile; strict = false;      break;
-                                case 'U': action = CLAct_UserFile; strict = true;       break;
+                                case 'u': action = CLAct_UserFile; strict = 0;          break;
+                                case 'U': action = CLAct_UserFile; strict = 1;          break;
                                 
-                                case 'd': action = CLAct_CustomDLL; strict = false;     break;
-                                case 'D': action = CLAct_CustomDLL; strict = true;      break;
+                                case 'd': action = CLAct_CustomDLL; strict = 0;         break;
+                                case 'D': action = CLAct_CustomDLL; strict = 1;         break;
                                 
                                 case 'i': action = CLAct_InitialFilePosition;           break;
                                 
@@ -1182,7 +1183,7 @@ init_command_line_settings(App_Settings *settings, Plat_Settings *plat_settings,
                                 case 'S': action = CLAct_WindowStreamMode;              break;
                                 
                                 case 'f': action = CLAct_FontSize;                      break;
-                                case 'h': action = CLAct_FontStopHinting; --i;          break;
+                                case 'h': action = CLAct_FontStartHinting; --i;         break;
                             }
                         }
                         else if (arg[0] != 0){
@@ -1222,7 +1223,7 @@ init_command_line_settings(App_Settings *settings, Plat_Settings *plat_settings,
                     case CLAct_WindowSize:
                     {
                         if (i + 1 < clparams.argc){
-                            plat_settings->set_window_size  = true;
+                            plat_settings->set_window_size = 1;
                             plat_settings->window_w = str_to_int_c(clparams.argv[i]);
                             plat_settings->window_h = str_to_int_c(clparams.argv[i+1]);
                             
@@ -1234,14 +1235,14 @@ init_command_line_settings(App_Settings *settings, Plat_Settings *plat_settings,
                     case CLAct_WindowMaximize:
                     {
                         --i;
-                        plat_settings->maximize_window = true;
+                        plat_settings->maximize_window = 1;
                         action = CLAct_Nothing;
                     }break;
                     
                     case CLAct_WindowPosition:
                     {
                         if (i + 1 < clparams.argc){
-                            plat_settings->set_window_pos  = true;
+                            plat_settings->set_window_pos = 1;
                             plat_settings->window_x = str_to_int_c(clparams.argv[i]);
                             plat_settings->window_y = str_to_int_c(clparams.argv[i+1]);
                             
@@ -1253,15 +1254,15 @@ init_command_line_settings(App_Settings *settings, Plat_Settings *plat_settings,
                     case CLAct_WindowFullscreen:
                     {
                         --i;
-                        plat_settings->fullscreen_window = true;
-                        plat_settings->stream_mode = true;
+                        plat_settings->fullscreen_window = 1;
+                        plat_settings->stream_mode = 1;
                         action = CLAct_Nothing;
                     }break;
                     
                     case CLAct_WindowStreamMode:
                     {
                         --i;
-                        plat_settings->stream_mode = true;
+                        plat_settings->stream_mode = 1;
                         action = CLAct_Nothing;
                     }break;
                     
@@ -1273,9 +1274,9 @@ init_command_line_settings(App_Settings *settings, Plat_Settings *plat_settings,
                         action = CLAct_Nothing;
                     }break;
                     
-                    case CLAct_FontStopHinting:
+                    case CLAct_FontStartHinting:
                     {
-                        plat_settings->use_hinting = true;
+                        plat_settings->use_hinting = 1;
                         action = CLAct_Nothing;
                     }break;
                 }
@@ -1348,17 +1349,16 @@ extern "C" SCROLL_RULE_SIG(fallback_scroll_rule){
 }
 
 App_Init_Sig(app_init){
-    App_Vars *vars;
-    Models *models;
     Partition *partition;
     Panel *panels, *panel;
     Panel_Divider *dividers, *div;
     i32 panel_max_count;
     i32 divider_max_count;
     
-    vars = (App_Vars*)memory->vars_memory;
-    models = &vars->models;
+    App_Vars *vars = (App_Vars*)memory->vars_memory;
+    Models *models = &vars->models;
     models->keep_playing = 1;
+    models->default_display_width = 672;
     
     app_links_init(system, &models->app_links, memory->user_memory, memory->user_memory_size);
     
@@ -2745,22 +2745,6 @@ App_Step_Sig(app_step){
     update_command_data(vars, cmd);
     
     end_temp_memory(param_stack_temp);
-    
-    // NOTE(allen): send resize messages to panels that have changed size
-    {
-        Panel *panel = 0, *used_panels = 0;
-        
-        used_panels = &models->layout.used_sentinel;
-        for (dll_items(panel, used_panels)){
-            View *view = panel->view;
-            i32_Rect prev = view->file_region_prev;
-            i32_Rect region = view->file_region;
-            if (!rect_equal(prev, region)){
-                remeasure_file_view(system, panel->view);
-            }
-            view->file_region_prev = region;
-        }
-    }
     
     // NOTE(allen): on the first frame there should be no scrolling
     if (input->first_step){
