@@ -314,7 +314,9 @@ cpp_lex_nonalloc_null_end_no_limit(Cpp_Lex_Data *S_ptr, char *chunk, int32_t siz
                 S.chunk_pos += size;
                 DrYield(4, LexResult_NeedChunk);
             }
-            else break;
+            else{
+                break;
+            }
         }
         --S.pos;
         if (S.pp_state >= LSPP_count){
@@ -333,7 +335,7 @@ cpp_lex_nonalloc_null_end_no_limit(Cpp_Lex_Data *S_ptr, char *chunk, int32_t siz
                 
                 for (; S.fsm.state < LS_count && S.pos < end_pos;){
                     c = chunk[S.pos++];
-                    S.tb[S.tb_pos++] = c;
+                    S.tb[(S.tb_pos++) & (sizeof(S.tb)-1)] = c;
                     
                     int32_t i = S.fsm.state + eq_classes[c];
                     S.fsm.state = fsm_table[i];
@@ -346,7 +348,9 @@ cpp_lex_nonalloc_null_end_no_limit(Cpp_Lex_Data *S_ptr, char *chunk, int32_t siz
                 S.chunk_pos += size;
                 DrYield(3, LexResult_NeedChunk);
             }
-            else break;
+            else{
+                break;
+            }
         }
         
         Assert(S.fsm.emit_token == 1);
@@ -426,27 +430,29 @@ cpp_lex_nonalloc_null_end_no_limit(Cpp_Lex_Data *S_ptr, char *chunk, int32_t siz
                 
                 int32_t word_size = S.pos - S.token_start;
                 
-                if (S.pp_state == LSPP_body_if){
-                    if (match_ss(make_string(S.tb, word_size), make_lit_string("defined"))){
-                        S.token.type = CPP_PP_DEFINED;
-                        S.token.flags = CPP_TFLAG_IS_OPERATOR | CPP_TFLAG_IS_KEYWORD;
+                if (word_size < sizeof(S.tb)){
+                    if (S.pp_state == LSPP_body_if){
+                        if (match_ss(make_string(S.tb, word_size), make_lit_string("defined"))){
+                            S.token.type = CPP_PP_DEFINED;
+                            S.token.flags = CPP_TFLAG_IS_OPERATOR | CPP_TFLAG_IS_KEYWORD;
+                            break;
+                        }
+                    }
+                    
+                    int32_t sub_match = -1;
+                    string_set_match_table(keywords, sizeof(*keywords), ArrayCount(keywords),
+                                           make_string(S.tb, S.tb_pos-1), &sub_match);
+                    
+                    if (sub_match != -1){
+                        String_And_Flag data = keywords[sub_match];
+                        S.token.type = (Cpp_Token_Type)data.flags;
+                        S.token.flags = CPP_TFLAG_IS_KEYWORD;
                         break;
                     }
                 }
                 
-                int32_t sub_match = -1;
-                string_set_match_table(keywords, sizeof(*keywords), ArrayCount(keywords),
-                                       make_string(S.tb, S.tb_pos-1), &sub_match);
-                
-                if (sub_match != -1){
-                    String_And_Flag data = keywords[sub_match];
-                    S.token.type = (Cpp_Token_Type)data.flags;
-                    S.token.flags = CPP_TFLAG_IS_KEYWORD;
-                }
-                else{
-                    S.token.type = CPP_TOKEN_IDENTIFIER;
-                    S.token.flags = 0;
-                }
+                S.token.type = CPP_TOKEN_IDENTIFIER;
+                S.token.flags = 0;
             }break;
             
             case LS_pound:
@@ -471,28 +477,30 @@ cpp_lex_nonalloc_null_end_no_limit(Cpp_Lex_Data *S_ptr, char *chunk, int32_t siz
             {
                 --S.pos;
                 
-                int32_t pos = S.tb_pos-1;
-                int32_t i = 1;
-                for (;i < pos; ++i){
-                    if (S.tb[i] != ' '){
+                if (S.tb_pos < sizeof(S.tb)){
+                    int32_t pos = S.tb_pos-1;
+                    int32_t i = 1;
+                    for (;i < pos; ++i){
+                        if (S.tb[i] != ' '){
+                            break;
+                        }
+                    }
+                    
+                    int32_t sub_match = -1;
+                    string_set_match_table(preprops, sizeof(*preprops), ArrayCount(preprops),
+                                           make_string(S.tb+i, pos-i), &sub_match);
+                    
+                    if (sub_match != -1){
+                        String_And_Flag data = preprops[sub_match];
+                        S.token.type = (Cpp_Token_Type)data.flags;
+                        S.token.flags = CPP_TFLAG_PP_DIRECTIVE;
+                        S.pp_state = (uint8_t)cpp_pp_directive_to_state(S.token.type);
                         break;
                     }
                 }
                 
-                int32_t sub_match = -1;
-                string_set_match_table(preprops, sizeof(*preprops), ArrayCount(preprops),
-                                       make_string(S.tb+i, pos-i), &sub_match);
-                
-                if (sub_match != -1){
-                    String_And_Flag data = preprops[sub_match];
-                    S.token.type = (Cpp_Token_Type)data.flags;
-                    S.token.flags = CPP_TFLAG_PP_DIRECTIVE;
-                    S.pp_state = (uint8_t)cpp_pp_directive_to_state(S.token.type);
-                }
-                else{
-                    S.token.type = CPP_TOKEN_JUNK;
-                    S.token.flags = 0;
-                }
+                S.token.type = CPP_TOKEN_JUNK;
+                S.token.flags = 0;
             }break;
             
             case LS_number:
@@ -1034,8 +1042,7 @@ DOC_SEE(Cpp_Lex_Result)
 }
 
 FCPP_LINK Cpp_Lex_Data
-cpp_lex_data_init(char *mem_buffer)/*
-DOC_PARAM(mem_buffer, The memory to use for initializing the lex state's temp memory buffer.)
+cpp_lex_data_init()/*
 DOC_RETURN(A brand new lex state ready to begin lexing a file from the beginning.)
 
 DOC(Creates a new lex state in the form of a Cpp_Lex_Data struct and returns the struct.
@@ -1044,7 +1051,6 @@ enough but the buffer is not checked, so to be 100% bullet proof it has to be th
 as the file being lexed.)
 */{
     Cpp_Lex_Data data = {0};
-    data.tb = mem_buffer;
     return(data);
 }
 
@@ -1079,24 +1085,8 @@ DOC_SEE(cpp_lex_data_new_temp)
 }
 
 FCPP_LINK void
-cpp_lex_data_new_temp(Cpp_Lex_Data *lex_data, char *new_buffer)/*
-DOC_PARAM(lex_data, The lex state that will receive the new temporary buffer.)
-DOC_PARAM(new_buffer, The new temporary buffer that has the same contents as the old temporary buffer.)
-
-DOC(This call can be used to set a new temporary buffer for the lex state.  In cases where you want to
-discontinue lexing, store the state, and resume later. In such a situation it may be necessary for you
-to free the temp buffer that was originally used to make the lex state. This call allows you to supply
-a new temp buffer when you are ready to resume lexing.
-
-However the new buffer needs to have the same contents the old buffer had.  To ensure this you have to
-use cpp_lex_data_temp_size and cpp_lex_data_temp_read to get the relevant contents of the temp buffer
-before you free it.)
-
-DOC_SEE(cpp_lex_data_temp_size)
-DOC_SEE(cpp_lex_data_temp_read)
-*/{
-    lex_data->tb = new_buffer;
-}
+cpp_lex_data_new_temp_DEP(Cpp_Lex_Data *lex_data, char *new_buffer)
+/*DOC(Deprecated in 4cpp Lexer 1.0.1*/{}
 
 FCPP_INTERNAL char
 cpp_token_get_pp_state(uint16_t bitfield){
@@ -1162,7 +1152,7 @@ The start and end points are based on the edited region of the file before the e
 }
 
 FCPP_LINK Cpp_Relex_Data
-cpp_relex_init(Cpp_Token_Array *array, int32_t start_pos, int32_t end_pos, int32_t character_shift_amount, char *spare)
+cpp_relex_init(Cpp_Token_Array *array, int32_t start_pos, int32_t end_pos, int32_t character_shift_amount)
 /*
 DOC_PARAM(array, A pointer to the token array that will be modified by the relex,
 this array should already contain the tokens for the previous state of the file.)
@@ -1173,8 +1163,6 @@ In particular, end_pos is the first character after the edited region not effect
 Thus if the edited region contained one character end_pos - start_pos should equal 1.
 The start and end points are based on the edited region of the file before the edit.)
 DOC_PARAM(character_shift_amount, The shift in the characters after the edited region.)
-DOC_PARAM(spare, The spare space for the lexing state. 
-Should be big enough to store the largest token in the file.)
 DOC_RETURN(Returns a partially initialized relex state.)
 
 DOC(This call does the first setup step of initializing a relex state.  To finish initializing the relex state
@@ -1200,7 +1188,7 @@ DOC_SEE(cpp_relex_is_start_chunk)
     
     state.character_shift_amount = character_shift_amount;
     
-    state.lex = cpp_lex_data_init(spare);
+    state.lex = cpp_lex_data_init();
     state.lex.pp_state = cpp_token_get_pp_state(array->tokens[state.start_token_index].state_flags);
     state.lex.pos = state.relex_start_position;
     
@@ -1348,6 +1336,7 @@ DOC_SEE(cpp_relex_abort)
 */{
     
     Cpp_Relex_Data S = *S_ptr;
+    Cpp_Lex_Result step_result = LexResult_Finished;
     
     switch (S.__pc__){
         DrCase(1);
@@ -1359,7 +1348,7 @@ DOC_SEE(cpp_relex_abort)
     
     // TODO(allen): This can be better I suspect.
     for (;;){
-        Cpp_Lex_Result step_result = 
+        step_result = 
             cpp_lex_nonalloc_no_null_out_limit(&S.lex, chunk, chunk_size, full_size,
                                                relex_array, 1);
         
@@ -1564,8 +1553,7 @@ Cpp_Token_Array lex_file(char *file_name){
 )
 DOC_SEE(cpp_make_token_array)
 */{
-    Cpp_Lex_Data S = {0};
-    S.tb = (char*)malloc(size);
+    Cpp_Lex_Data S = cpp_lex_data_init();
     int32_t quit = 0;
     
     char empty = 0;
@@ -1600,8 +1588,6 @@ DOC_SEE(cpp_make_token_array)
             }break;
         }
     }
-    
-    free(S.tb);
 }
 
 #endif

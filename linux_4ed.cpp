@@ -3470,7 +3470,8 @@ main(int argc, char **argv)
                 &linuxvars.target,
                 &memory_vars,
                 &linuxvars.input,
-                &result
+                &result,
+                clparams
             );
 
             if(result.perform_kill){

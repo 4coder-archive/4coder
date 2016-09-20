@@ -1127,20 +1127,18 @@ Job_Callback_Sig(job_full_lex){
     
     i32 buffer_size = (text_size + 3)&(~3);
     
-    while (memory->size < buffer_size*2){
+    while (memory->size < buffer_size){
         system->grow_thread_memory(memory);
     }
     
-    char *tb = (char*)memory->data;
-    
     Cpp_Token_Array tokens;
-    tokens.tokens = (Cpp_Token*)((char*)memory->data + buffer_size);
-    tokens.max_count = (memory->size - buffer_size) / sizeof(Cpp_Token);
+    tokens.tokens = (Cpp_Token*)(memory->data);
+    tokens.max_count = memory->size / sizeof(Cpp_Token);
     tokens.count = 0;
     
     b32 still_lexing = 1;
     
-    Cpp_Lex_Data lex = cpp_lex_data_init(tb);
+    Cpp_Lex_Data lex = cpp_lex_data_init();
     
     // TODO(allen): deduplicate this against relex
     char *chunks[3];
@@ -1165,18 +1163,15 @@ Job_Callback_Sig(job_full_lex){
             cpp_lex_step(&lex, chunk, chunk_size, text_size, &tokens, 2048);
         
         switch (result){
-            case LexResult_NeedChunk:
-            ++chunk_index;
-            break;
+            case LexResult_NeedChunk: ++chunk_index; break;
             
             case LexResult_NeedTokenMemory:
             if (system->check_cancel(thread)){
                 return;
             }
             system->grow_thread_memory(memory);
-            lex.tb = (char*)memory->data;
-            tokens.tokens = (Cpp_Token*)((char*)memory->data + buffer_size);
-            tokens.max_count = (memory->size - buffer_size) / sizeof(Cpp_Token);
+            tokens.tokens = (Cpp_Token*)(memory->data);
+            tokens.max_count = memory->size / sizeof(Cpp_Token);
             break;
             
             case LexResult_HitTokenLimit:
@@ -1294,9 +1289,8 @@ file_relex_parallel(System_Functions *system,
         relex_array.tokens = push_array(part, Cpp_Token, relex_array.max_count);
         
         i32 size = buffer_size(buffer);
-        char *spare = push_array(part, char, size+1);
         
-        Cpp_Relex_Data state = cpp_relex_init(array, start_i, end_i, shift_amount, spare);
+        Cpp_Relex_Data state = cpp_relex_init(array, start_i, end_i, shift_amount);
         
         char *chunks[3];
         i32 chunk_sizes[3];

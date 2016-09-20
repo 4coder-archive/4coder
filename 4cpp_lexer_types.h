@@ -332,8 +332,7 @@ The internals of the lex state should not be treated as a part of the public API
 DOC_SEE(cpp_lex_data_init)
 HIDE_MEMBERS()*/
 struct Cpp_Lex_Data{
-    char *tb;
-    
+    char tb[32];
     int32_t tb_pos;
     int32_t token_start;
     
