@@ -142,6 +142,7 @@
 ;         [] more built in options for auto indenting
 ;
 ; [X] eliminate the need for the lexer state's spare array.
+; [X] fix buffer render item capacity issue
 
 ; Arbitrary wrap positions
 ;     [X] allow for arbitrary wrap positions independent of view width

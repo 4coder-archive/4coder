@@ -4898,6 +4898,7 @@ draw_file_loaded(View *view, i32_Rect rect, b32 is_active, Render_Target *target
     Style *style = main_style(models);
     i32 line_height = view->line_height;
     
+    f32 clip_w = view_width(view);
     f32 max_x = view_file_display_width(view);
     i32 max_y = rect.y1 - rect.y0 + line_height;
     
@@ -4946,8 +4947,8 @@ draw_file_loaded(View *view, i32_Rect rect, b32 is_active, Render_Target *target
         view->edit_pos->scroll_i = render_cursor.pos;
         
         buffer_get_render_data(&file->state.buffer, items, max, &count,
-                               (f32)rect.x0, (f32)rect.y0, max_x, (f32)max_y,
-                               scroll_x, scroll_y,
+                               (f32)rect.x0, (f32)rect.y0, clip_w,
+                               scroll_x, scroll_y, max_x, (f32)max_y,
                                render_cursor, !view->file_data.unwrapped_lines,
                                advance_data, (f32)line_height);
     }
