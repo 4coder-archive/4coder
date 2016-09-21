@@ -39,9 +39,11 @@ typedef struct Command_Data{
     System_Functions *system;
     Live_Views *live_set;
     
+#if 0
     // TODO(allen): eliminate this shit yo!
     Panel *panel;
     View *view;
+#endif
     
     i32 screen_width, screen_height;
     Key_Event_Data key;
@@ -246,12 +248,23 @@ do_feedback_message(System_Functions *system, Models *models, String value, b32 
 
 #define USE_MODELS(n) Models *n = command->models
 #define USE_VARS(n) App_Vars *n = command->vars
-#define USE_PANEL(n) Panel *n = command->panel
-#define USE_VIEW(n) View *n = command->view
 #define USE_FILE(n,v) Editing_File *n = (v)->file_data.file
 
-#define REQ_OPEN_VIEW(n) View *n = command->panel->view; if (view_lock_level(n) > LockLevel_Open) return
-#define REQ_READABLE_VIEW(n) View *n = command->panel->view; if (view_lock_level(n) > LockLevel_Protected) return
+
+#define USE_PANEL(n) Panel *n = 0;{                         \
+    i32 panel_index = command->models->layout.active_panel; \
+    n = command->models->layout.panels + panel_index;       \
+}
+
+#define USE_VIEW(n) View *n = 0;{                                 \
+    i32 panel_index = command->models->layout.active_panel;       \
+    Panel *panel = command->models->layout.panels + panel_index;  \
+    n = panel->view;                                              \
+}
+
+#define REQ_OPEN_VIEW(n) USE_VIEW(n); if (view_lock_level(n) > LockLevel_Open) return
+
+#define REQ_READABLE_VIEW(n) USE_VIEW(n); if (view_lock_level(n) > LockLevel_Protected) return
 
 #define REQ_FILE(n,v) Editing_File *n = (v)->file_data.file; if (!n) return
 #define REQ_FILE_HISTORY(n,v) Editing_File *n = (v)->file_data.file; if (!n || !n->state.undo.undo.edits) return
@@ -710,12 +723,6 @@ COMMAND_DECL(user_callback){
     if (binding.custom) binding.custom(&models->app_links);
 }
 
-internal void
-update_command_data(App_Vars *vars, Command_Data *cmd){
-    cmd->panel = cmd->models->layout.panels + cmd->models->layout.active_panel;
-    cmd->view = cmd->panel->view;
-}
-
 globalvar Command_Function command_table[cmdid_count];
 
 #include "4ed_api_implementation.cpp"
@@ -728,9 +735,9 @@ struct Command_In{
 internal void
 command_caller(Coroutine *coroutine){
     Command_In *cmd_in = (Command_In*)coroutine->in;
-    Command_Data *cmd = cmd_in->cmd;
-    Models *models = cmd->models;
-    View *view = cmd->view;
+    Command_Data *command = cmd_in->cmd;
+    Models *models = command->models;
+    USE_VIEW(view);
     
     view->next_mode = view_mode_zero();
     if (models->command_caller){
@@ -745,7 +752,7 @@ command_caller(Coroutine *coroutine){
         }
     }
     else{
-        cmd_in->bind.function(cmd->system, cmd, cmd_in->bind);
+        cmd_in->bind.function(command->system, command, cmd_in->bind);
     }
     view->mode = view->next_mode;
 }
@@ -1673,6 +1680,42 @@ App_Init_Sig(app_init){
     models->palette = push_array(partition, u32, models->palette_size);
     
     // NOTE(allen): init first panel
+    Command_Data *cmd = &vars->command_data;
+    
+    cmd->models = models;
+    cmd->vars = vars;
+    cmd->system = system;
+    cmd->live_set = &vars->live_set;
+    
+    cmd->screen_width = target->width;
+    cmd->screen_height = target->height;
+    
+    cmd->key = null_key_event_data;
+    
+    General_Memory *general = &models->mem.general;
+    
+    String init_files[] = {
+        make_lit_string("*messages*"),
+        make_lit_string("*scratch*"),
+    };
+    
+    Editing_File **init_file_ptrs[] = {
+        &models->message_buffer,
+        &models->scratch_buffer,
+    };
+    
+    for (i32 i = 0; i < ArrayCount(init_files); ++i){
+        String name = init_files[i];
+        Editing_File *file = working_set_alloc_always(&models->working_set, general);
+        buffer_bind_name(general, &models->working_set, file, name);
+        init_read_only_file(system, models, file);
+        file->settings.never_kill = 1;
+        file->settings.unimportant = 1;
+        file->settings.unwrapped_lines = 1;
+        
+        *init_file_ptrs[i] = file;
+    }
+    
     Panel_And_ID p = layout_alloc_panel(&models->layout);
     panel_make_empty(system, vars, p.panel);
     models->layout.active_panel = p.id;
@@ -1811,22 +1854,11 @@ App_Step_Sig(app_step){
         i32 current_width = target->width;
         i32 current_height = target->height;
         
-        Panel *panel = 0, *used_panels = &models->layout.used_sentinel;
-        View *view = 0;
-        
         models->layout.full_width = current_width;
         models->layout.full_height = current_height;
         
         if (prev_width != current_width || prev_height != current_height){
             layout_refit(&models->layout, prev_width, prev_height);
-            
-            for (dll_items(panel, used_panels)){
-                view = panel->view;
-                Assert(view);
-                // TODO(allen): All responses to a panel changing size should
-                // be handled in the same place.
-                view_change_size(&models->mem.general, view);
-            }
         }
     }
     
@@ -1985,9 +2017,6 @@ App_Step_Sig(app_step){
     cmd->system = system;
     cmd->live_set = &vars->live_set;
     
-    cmd->panel = models->layout.panels + models->layout.active_panel;
-    cmd->view = cmd->panel->view;
-    
     cmd->screen_width = target->width;
     cmd->screen_height = target->height;
     
@@ -2023,30 +2052,6 @@ App_Step_Sig(app_step){
             }
         }
 #endif
-        
-        General_Memory *general = &models->mem.general;
-        
-        {
-            Editing_File *file = working_set_alloc_always(&models->working_set, general);
-            buffer_bind_name(general, &models->working_set, file, make_lit_string("*messages*"));
-            init_read_only_file(system, models, file);
-            file->settings.never_kill = 1;
-            file->settings.unimportant = 1;
-            file->settings.unwrapped_lines = 1;
-            
-            models->message_buffer = file;
-        }
-        
-        {
-            Editing_File *file = working_set_alloc_always(&models->working_set, general);
-            buffer_bind_name(general, &models->working_set, file, make_lit_string("*scratch*"));
-            init_normal_file(system, models, file, 0, 0);
-            file->settings.never_kill = 1;
-            file->settings.unimportant = 1;
-            file->settings.unwrapped_lines = 1;
-            
-            models->scratch_buffer = file;
-        }
         
         if (models->hooks[hook_start]){
             models->hooks[hook_start](&models->app_links);
@@ -2101,11 +2106,6 @@ App_Step_Sig(app_step){
             panel = panel->next;
         }
         
-        for (;i < models->layout.panel_count; ++i, panel = panel->next){
-            view_set_file(panel->view, models->scratch_buffer, models);
-            view_show_file(panel->view);
-        }
-        
         panel = models->layout.used_sentinel.next;
         for (i = 0; i < models->settings.init_files_count; ++i, panel = panel->next){
             Assert(panel->view->file_data.file != 0);
@@ -2129,7 +2129,8 @@ App_Step_Sig(app_step){
         
         if (there_is_unsaved){
             Coroutine *command_coroutine = models->command_coroutine;
-            View *view = cmd->view;
+            Command_Data *command = cmd;
+            USE_VIEW(view);
             
             for (i32 i = 0; i < 128 && command_coroutine; ++i){
                 User_Input user_in = {0};
@@ -2208,7 +2209,8 @@ App_Step_Sig(app_step){
             
             for (i32 key_i = 0; key_i < key_data.count; ++key_i){
                 Key_Event_Data key = get_single_key(&key_data, key_i);
-                View *view = cmd->view;
+                Command_Data *command = cmd;
+                USE_VIEW(view);
                 b32 pass_in = 0;
                 cmd->key = key;
                 
@@ -2265,7 +2267,8 @@ App_Step_Sig(app_step){
         
         // NOTE(allen): Mouse input to command coroutine
         if (models->command_coroutine != 0 && (get_flags & EventOnMouse)){
-            View *view = cmd->view;
+            Command_Data *command = cmd;
+            USE_VIEW(view);
             b32 pass_in = 0;
             
             User_Input user_in;
@@ -2335,8 +2338,6 @@ App_Step_Sig(app_step){
         }
     }
     
-    update_command_data(vars, cmd);
-    
     // NOTE(allen): pass raw input to the panels
     Input_Summary dead_input = {};
     dead_input.mouse.x = input->mouse.x;
@@ -2354,15 +2355,18 @@ App_Step_Sig(app_step){
     
     {
         Panel *panel = 0, *used_panels = 0;
-        View *view = 0, *active_view = 0;
+        View *view = 0;
         b32 active = 0;
         Input_Summary summary = {0};
         
-        active_view = cmd->panel->view;
+        Command_Data *command = cmd;
+        USE_VIEW(active_view);
+        USE_PANEL(active_panel);
+        
         used_panels = &models->layout.used_sentinel;
         for (dll_items(panel, used_panels)){
             view = panel->view;
-            active = (panel == cmd->panel);
+            active = (panel == active_panel);
             summary = (active)?(active_input):(dead_input);
             
             view->changed_context_in_step = 0;
@@ -2382,7 +2386,7 @@ App_Step_Sig(app_step){
             }
             
             if (view->changed_context_in_step == 0){
-                active = (panel == cmd->panel);
+                active = (panel == active_panel);
                 summary = (active)?(active_input):(dead_input);
                 if (panel == mouse_panel && !input->mouse.out_of_window){
                     summary.mouse = mouse_state;
@@ -2443,8 +2447,6 @@ App_Step_Sig(app_step){
         }
     }
     
-    update_command_data(vars, cmd);
-    
     // NOTE(allen): command execution
     {
         Key_Summary key_data = get_key_data(&vars->available_input);
@@ -2460,11 +2462,15 @@ App_Step_Sig(app_step){
                     Key_Event_Data key = get_single_key(&key_data, key_i);
                     cmd->key = key;
                     
-                    View *view = cmd->view;
+                    Command_Data *command = cmd;
+                    USE_VIEW(view);
+                    Assert(view);
                     
-                    Command_Map *map = 0;
-                    if (view) map = view->map;
-                    if (map == 0) map = &models->map_top;
+                    Command_Map *map = view->map;
+                    if (map == 0){
+                        map = &models->map_top;
+                    }
+                    
                     Command_Binding cmd_bind = map_extract_recursive(map, key);
                     
                     if (cmd_bind.function){
@@ -2513,8 +2519,6 @@ App_Step_Sig(app_step){
                           "command dispatcher");
         }
     }
-    
-    update_command_data(vars, cmd);
     
     // NOTE(allen): pass consumption data to debug
     {
@@ -2742,8 +2746,6 @@ App_Step_Sig(app_step){
         models->layout.active_panel = (i32)(mouse_panel - models->layout.panels);
     }
     
-    update_command_data(vars, cmd);
-    
     end_temp_memory(param_stack_temp);
     
     // NOTE(allen): on the first frame there should be no scrolling
@@ -2774,6 +2776,10 @@ App_Step_Sig(app_step){
         target->clip_top = -1;
         draw_push_clip(target, rect_from_target(target));
         
+        Command_Data *command = cmd;
+        USE_PANEL(active_panel);
+        USE_VIEW(active_view);
+        
         // NOTE(allen): render the panels
         Panel *panel, *used_panels;
         used_panels = &models->layout.used_sentinel;
@@ -2784,7 +2790,7 @@ App_Step_Sig(app_step){
             View *view = panel->view;
             Style *style = main_style(models);
             
-            b32 active = (panel == cmd->panel);
+            b32 active = (panel == active_panel);
             u32 back_color = style->main.back_color;
             draw_rectangle(target, full, back_color);
             
@@ -2803,7 +2809,7 @@ App_Step_Sig(app_step){
                 }
             }
             
-            do_render_file_view(system, view, scroll_vars, cmd->view, 
+            do_render_file_view(system, view, scroll_vars, active_view, 
                                 panel->inner, active, target, &dead_input);
             
             draw_pop_clip(target);

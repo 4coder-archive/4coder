@@ -171,8 +171,6 @@ DOC_SEE(Command_ID)
         binding.function = function;
         if (function) function(cmd->system, cmd, binding);
         
-        update_command_data(cmd->vars, cmd);
-        
         result = true;
     }
     else{
@@ -1243,8 +1241,6 @@ DOC_SEE(View_Split_Position)
         fill_view_summary(&result, split.panel->view, cmd);
     }
     
-    update_command_data(cmd->vars, cmd);
-    
     return(result);
 }
 
@@ -1370,8 +1366,6 @@ DOC_SEE(get_active_view)
         
         Panel *panel = vptr->panel;
         models->layout.active_panel = (i32)(panel - models->layout.panels);
-        
-        update_command_data(cmd->vars, cmd);
     }
     
     return(result);
@@ -1807,11 +1801,9 @@ will reflect the change.  Since the bar stops showing when the command exits the
 only use for this call is in an interactive command that makes calls to get_user_input.
 )
 */{
-    Command_Data *cmd = (Command_Data*)app->cmd_context;
+    Command_Data *command = (Command_Data*)app->cmd_context;
+    USE_VIEW(vptr);
     Query_Slot *slot = 0;
-    View *vptr;
-    
-    vptr = cmd->view;
     
     slot = alloc_query_slot(&vptr->query_set);
     slot->query_bar = bar;
@@ -1826,9 +1818,8 @@ DOC_PARAM(bar, This parameter should be a bar pointer of a currently active quer
 DOC_PARAM(flags, This parameter is not currently used and should be 0 for now.)
 DOC(Stops showing the particular query bar specified by the bar parameter.)
 */{
-    Command_Data *cmd = (Command_Data*)app->cmd_context;
-    View *vptr;
-    vptr = cmd->view;
+    Command_Data *command = (Command_Data*)app->cmd_context;
+    USE_VIEW(vptr);
     free_query_slot(&vptr->query_set, bar);
 }
 

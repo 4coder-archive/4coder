@@ -944,7 +944,7 @@ file_grow_starts_widths_as_needed(General_Memory *general, Buffer_Type *buffer, 
 
 internal void
 file_measure_starts_widths(System_Functions *system, General_Memory *general,
-                           Buffer_Type *buffer, float *advance_data){
+                           Buffer_Type *buffer, f32 *advance_data){
     if (!buffer->line_starts){
         i32 max = buffer->line_max = Kbytes(1);
         buffer->line_starts = (i32*)general_memory_allocate(general, max*sizeof(i32));
@@ -991,10 +991,9 @@ file_measure_starts_widths(System_Functions *system, General_Memory *general,
 }
 
 internal void
-view_measure_wraps(General_Memory *general, View *view){
-    Buffer_Type *buffer;
-    
-    buffer = &view->file_data.file->state.buffer;
+view_measure_wraps(Models *models, General_Memory *general, View *view){
+    Editing_File *file = view->file_data.file;
+    Buffer_Type *buffer = &file->state.buffer;
     i32 line_count = buffer->line_count;
     
     if (view->file_data.line_max < line_count){
@@ -1009,9 +1008,13 @@ view_measure_wraps(General_Memory *general, View *view){
         }
     }
     
+    Render_Font *font = get_font_info(models->font_set, file->settings.font_id)->font;
+    f32 *adv = font->advance_data;
+    
     f32 line_height = (f32)view->line_height;
     f32 max_width = view_file_display_width(view);
-    buffer_measure_wrap_y(buffer, view->file_data.line_wrap_y, line_height, max_width);
+    buffer_measure_wrap_y(buffer, view->file_data.line_wrap_y, line_height,
+                          adv, max_width);
     
     view->file_data.line_count = line_count;
 }
@@ -1703,6 +1706,8 @@ update_view_line_height(Models *models, View *view, i16 font_id){
 
 internal void
 view_set_file(View *view, Editing_File *file, Models *models){
+    Assert(file);
+    
     if (view->file_data.file != 0){
         touch_file(&models->working_set, view->file_data.file);
     }
@@ -1717,21 +1722,16 @@ view_set_file(View *view, Editing_File *file, Models *models){
     file_view_nullify_file(view);
     view->file_data.file = file;
     
-    if (file){
-        view->file_data.unwrapped_lines = file->settings.unwrapped_lines;
-        
-        edit_pos = edit_pos_get_new(file, view->persistent.id);
-        view->edit_pos = edit_pos;
-        
-        if (file_is_ready(file)){
-            view_measure_wraps(&models->mem.general, view);
-        }
-        
-        update_view_line_height(models, view, file->settings.font_id);
+    view->file_data.unwrapped_lines = file->settings.unwrapped_lines;
+    
+    edit_pos = edit_pos_get_new(file, view->persistent.id);
+    view->edit_pos = edit_pos;
+    
+    if (file_is_ready(file)){
+        view_measure_wraps(models, &models->mem.general, view);
     }
-    else{
-        update_view_line_height(models, view, models->global_font.font_id);
-    }
+    
+    update_view_line_height(models, view, file->settings.font_id);
 }
 
 struct Relative_Scrolling{
@@ -1995,10 +1995,12 @@ struct Cursor_Fix_Descriptor{
 };
 
 internal void
-file_edit_cursor_fix(System_Functions *system,
-                     Partition *part, General_Memory *general,
+file_edit_cursor_fix(System_Functions *system, Models *models,
                      Editing_File *file, Editing_Layout *layout,
                      Cursor_Fix_Descriptor desc, i32 *shift_out){
+    
+    Partition *part = &models->mem.part;
+    General_Memory *general = &models->mem.general;
     
     Temp_Memory cursor_temp = begin_temp_memory(part);
     i32 cursor_max = layout->panel_max_count * 2;
@@ -2006,14 +2008,13 @@ file_edit_cursor_fix(System_Functions *system,
     
     i32 cursor_count = 0;
     
-    View *view;
-    Panel *panel, *used_panels;
-    used_panels = &layout->used_sentinel;
-    
+    View *view = 0;
+    Panel *panel, *used_panels = &layout->used_sentinel;
     for (dll_items(panel, used_panels)){
         view = panel->view;
         if (view->file_data.file == file){
-            view_measure_wraps(general, view);
+            // TODO(allen): Is this a good place for this ????
+            view_measure_wraps(models, general, view);
             Assert(view->edit_pos);
             write_cursor_with_index(cursors, &cursor_count, view->edit_pos->cursor.pos);
             write_cursor_with_index(cursors, &cursor_count, view->edit_pos->mark);
@@ -2142,7 +2143,7 @@ file_do_single_edit(System_Functions *system,
     for (dll_items(panel, used_panels)){
         View *view = panel->view;
         if (view->file_data.file == file){
-            view_measure_wraps(general, view);
+            view_measure_wraps(models, general, view);
         }
     }
     
@@ -2152,7 +2153,7 @@ file_do_single_edit(System_Functions *system,
     desc.end = end;
     desc.shift_amount = shift_amount;
     
-    file_edit_cursor_fix(system, part, general, file, layout, desc, 0);
+    file_edit_cursor_fix(system, models, file, layout, desc, 0);
     
     // NOTE(allen): token fixing
     if (file->settings.tokens_exist){
@@ -2219,7 +2220,7 @@ file_do_batch_edit(System_Functions *system, Models *models, Editing_File *file,
         desc.batch = batch;
         desc.batch_size = batch_size;
         
-        file_edit_cursor_fix(system, part, general, file, layout, desc, &shift_total);
+        file_edit_cursor_fix(system, models, file, layout, desc, &shift_total);
     }
     
     // NOTE(allen): token fixing
@@ -2626,13 +2627,16 @@ style_get_color(Style *style, Cpp_Token token){
     return result;
 }
 
+// TODO(allen): What's the deal with this function?  Can we
+// just pass models in... by the way is this even being called?
 internal void
 remeasure_file_view(System_Functions *system, View *view){
     if (file_is_ready(view->file_data.file)){
         Assert(view->edit_pos);
         
         Relative_Scrolling relative = view_get_relative_scrolling(view);
-        view_measure_wraps(&view->persistent.models->mem.general, view);
+        Models *models = view->persistent.models;
+        view_measure_wraps(models, &models->mem.general, view);
         if (view->file_data.show_temp_highlight == 0){
             view_cursor_move(view, view->edit_pos->cursor.pos);
         }
@@ -2749,7 +2753,7 @@ init_normal_file(System_Functions *system, Models *models, Editing_File *file,
     for (View_Iter iter = file_view_iter_init(&models->layout, file, 0);
          file_view_iter_good(iter);
          iter = file_view_iter_next(iter)){
-        view_measure_wraps(general, iter.view);
+        view_measure_wraps(models, general, iter.view);
     }
 }
 
@@ -2767,7 +2771,7 @@ init_read_only_file(System_Functions *system, Models *models, Editing_File *file
     for (View_Iter iter = file_view_iter_init(&models->layout, file, 0);
          file_view_iter_good(iter);
          iter = file_view_iter_next(iter)){
-        view_measure_wraps(general, iter.view);
+        view_measure_wraps(models, general, iter.view);
     }
 }
 
@@ -5598,17 +5602,6 @@ file_view_free_buffers(View *view){
     }
     general_memory_free(general, view->gui_mem);
     view->gui_mem = 0;
-}
-
-inline void
-view_change_size(General_Memory *general, View *view){
-    if (view->file_data.file){
-        Assert(view->edit_pos);
-        view_measure_wraps(general, view);
-        Full_Cursor cursor =
-            view_compute_cursor_from_pos(view, view->edit_pos->cursor.pos);
-        view_set_cursor(view, cursor, 0, view->file_data.unwrapped_lines);
-    }
 }
 
 internal View_And_ID

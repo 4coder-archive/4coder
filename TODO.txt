@@ -133,6 +133,7 @@
 ; [X] use strange theme
 ; [X] cuber's return to previous buffer idea
 
+; Token related upgrades
 ; [X] tokens in the custom API
 ;     [X] token seeking on custom side
 ;     [X] auto indent on the custom side
@@ -150,6 +151,13 @@
 ;     [X] get horizontal scrolling to work in line wrap mode
 ;     [] command for setting wrap positions in views directly
 ;     [] ability to see the wrap position as a number/line and adjust graphically
+
+; buffer behavior cleanup
+;    [X] show all characters as \# if they can't be rendered
+;    [] get the navigation working correctly around multi-glyph characters
+;    [] binary buffer mode
+;    [] unicode buffer mode
+;    [] support full length unicode file names
 
 ; [] miblo's various number editors
 ; [] user file bar string
@@ -176,12 +184,6 @@
 ; [] introduce custom command line arguments
 ; [] control the file opening/start hook relationship better
 ; [] get keyboard state on launch
-
-; buffer behavior cleanup
-;    [X] show all characters as \# if they can't be rendered
-;    [] get the navigation working correctly around multi-glyph characters
-;    [] binary buffer mode
-;    [] support full length unicode file names
 
 ; meta programming system
 ;    [X] condense system into single meta compiler

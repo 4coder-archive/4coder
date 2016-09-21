@@ -73,35 +73,24 @@ typedef struct Buffer_Measure_Starts{
     f32 width;
 } Buffer_Measure_Starts;
 
+// TODO(allen): Rewrite this with a duff routine
 internal_4tech i32
 buffer_measure_starts_widths_(Buffer_Measure_Starts *state, Buffer_Type *buffer, f32 *advance_data){
-    Buffer_Stringify_Type loop;
-    i32 *start_ptr, *start_end;
-    f32 *width_ptr;
-    debug_4tech(i32 widths_max);
-    debug_4tech(i32 max);
-    char *data;
-    i32 size, end;
-    f32 width;
-    i32 start, i;
-    i32 result;
-    char ch;
+    Buffer_Stringify_Type loop = {0};
+    char *data = 0;
+    i32 end = 0;
+    i32 size = buffer_size(buffer);
+    f32 width = state->width;
+    i32 start = state->start, i = state->i;
+    i32 *start_ptr = buffer->line_starts + state->count;
+    i32 *start_end = buffer->line_starts + buffer->line_max;
+    f32 *width_ptr = buffer->line_widths + state->count;
+    i32 result = 1;
+    char ch = 0;
     
-    size = buffer_size(buffer);
-    
-    debug_4tech(max = buffer->line_max);
-    debug_4tech(widths_max = buffer->widths_max);
+    debug_4tech(i32 widths_max = buffer->widths_max);
+    debug_4tech(i32 max = buffer->line_max);
     assert_4tech(max == widths_max);
-    
-    result = 1;
-    
-    i = state->i;
-    start = state->start;
-    width = state->width;
-    
-    start_ptr = buffer->line_starts + state->count;
-    width_ptr = buffer->line_widths + state->count;
-    start_end = buffer->line_starts + buffer->line_max;
     
     for (loop = buffer_stringify_loop(buffer, i, size);
          buffer_stringify_good(&loop);
@@ -111,7 +100,9 @@ buffer_measure_starts_widths_(Buffer_Measure_Starts *state, Buffer_Type *buffer,
         for (; i < end; ++i){
             ch = data[i];
             if (ch == '\n'){
-                if (start_ptr == start_end) goto buffer_measure_starts_widths_end;
+                if (start_ptr == start_end){
+                    goto buffer_measure_starts_widths_end;
+                }
                 
                 *width_ptr++ = width;
                 *start_ptr++ = start;
@@ -126,12 +117,14 @@ buffer_measure_starts_widths_(Buffer_Measure_Starts *state, Buffer_Type *buffer,
     
     assert_4tech(i == size);
     
-    if (start_ptr == start_end) goto buffer_measure_starts_widths_end;
+    if (start_ptr == start_end){
+        goto buffer_measure_starts_widths_end;
+    }
     *start_ptr++ = start;
     *width_ptr++ = 0;
     result = 0;
     
-    buffer_measure_starts_widths_end:
+    buffer_measure_starts_widths_end:;
     state->i = i;
     state->count = (i32)(start_ptr - buffer->line_starts);
     state->start = start;
@@ -338,21 +331,51 @@ buffer_remeasure_widths(Buffer_Type *buffer, f32 *advance_data,
 
 internal_4tech void
 buffer_measure_wrap_y(Buffer_Type *buffer, f32 *wraps,
-                      f32 font_height, f32 max_width){
-    f32 *widths = buffer->line_widths;
-    f32 y_pos = 0;
-    i32 line_count = buffer->line_count;
+                      f32 font_height, f32 *adv, f32 max_width){
+    Buffer_Stringify_Type loop = {0};
+    i32 size = buffer_size(buffer);
+    char *data = 0;
+    i32 end = 0;
     i32 i = 0;
     
-    for (; i < line_count; ++i){
-        wraps[i] = y_pos;
-        if (widths[i] == 0){
-            y_pos += font_height;
-        }
-        else{
-            y_pos += font_height*ceil_4tech(widths[i]/max_width);
+    i32 wrap_index = 0;
+    f32 last_wrap = 0.f;
+    f32 current_wrap = 0.f;
+    
+    f32 x = 0.f;
+    f32 current_adv = 0.f;
+    
+    u8 ch = 0;
+    
+    for (loop = buffer_stringify_loop(buffer, i, size);
+         buffer_stringify_good(&loop);
+         buffer_stringify_next(&loop)){
+        end = loop.size + loop.absolute_pos;
+        data = loop.data - loop.absolute_pos;
+        for (; i < end; ++i){
+            ch = (u8)data[i];
+            if (ch == '\n'){
+                wraps[wrap_index++] = last_wrap;
+                current_wrap += font_height;
+                last_wrap = current_wrap;
+                x = 0.f;
+            }
+            else{
+                current_adv = adv[ch];
+                if (x + current_adv > max_width){
+                    current_wrap += font_height;
+                    x = current_adv;
+                }
+                else{
+                    x += current_adv;
+                }
+            }
         }
     }
+    
+    wraps[wrap_index++] = last_wrap;
+    
+    assert_4tech(wrap_index == buffer->line_count);
 }
 
 internal_4tech i32
@@ -932,7 +955,7 @@ buffer_get_render_data(Buffer_Type *buffer, Buffer_Render_Item *items, i32 max, 
         buffer_get_render_data_end:;
         if (write.y <= height + shift_y || write.item == items){
             if (write.item < item_end){
-                write_render_item(write, size, ' ', 0);
+                write = write_render_item(write, size, ' ', 0);
             }
         }
     }
@@ -941,7 +964,7 @@ buffer_get_render_data(Buffer_Type *buffer, Buffer_Render_Item *items, i32 max, 
         write.adv = &zero;
         
         if (write.item < item_end){
-            write_render_item(write, size, 0, 0);
+            write = write_render_item(write, size, 0, 0);
         }
     }
     
