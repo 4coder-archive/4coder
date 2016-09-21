@@ -537,15 +537,13 @@ view_compute_lowest_line(View *view){
             lowest_line = last_line;
         }
         else{
+            // TODO(allen): Actually what I should do to get the "line span"
+            // is I should store the "final" wrap position.  The position the
+            // next line of the file would have started at, if it had existed.
+            // Then line_span is just line_span = FLOOR32((wrap_y - wrap_final_y)/view->line_height);
             f32 wrap_y = view->file_data.line_wrap_y[last_line];
-            lowest_line = FLOOR32(wrap_y / view->line_height);
-            f32 max_width = view_file_display_width(view);
-            
-            Editing_File *file = view->file_data.file;
-            Assert(!file->is_dummy);
-            f32 width = file->state.buffer.line_widths[last_line];
-            i32 line_span = view_wrapped_line_span(width, max_width);
-            lowest_line += line_span - 1;
+            i32 line_span = 40;
+            lowest_line = FLOOR32(wrap_y / view->line_height) + line_span - 1;
         }
     }
     return(lowest_line);
@@ -905,19 +903,14 @@ enum{
 };
 
 internal i32
-file_grow_starts_widths_as_needed(General_Memory *general, Buffer_Type *buffer, i32 additional_lines){
+file_grow_starts_as_needed(General_Memory *general, Buffer_Type *buffer, i32 additional_lines){
     b32 result = GROW_NOT_NEEDED;
     i32 max = buffer->line_max;
     i32 count = buffer->line_count;
     i32 target_lines = count + additional_lines;
-    Assert(max == buffer->widths_max);
     
     if (target_lines > max || max == 0){
         max = LargeRoundUp(target_lines + max, Kbytes(1));
-        
-        f32 *new_widths = (f32*)general_memory_reallocate(
-            general, buffer->line_widths,
-            sizeof(f32)*count, sizeof(f32)*max);
         
         i32 *new_lines = (i32*)general_memory_reallocate(
             general, buffer->line_starts,
@@ -927,11 +920,7 @@ file_grow_starts_widths_as_needed(General_Memory *general, Buffer_Type *buffer, 
             buffer->line_starts = new_lines;
             buffer->line_max = max;
         }
-        if (new_widths){
-            buffer->line_widths = new_widths;
-            buffer->widths_max = max;
-        }
-        if (new_lines && new_widths){
+        if (new_lines){
             result = GROW_SUCCESS;
         }
         else{
@@ -943,23 +932,16 @@ file_grow_starts_widths_as_needed(General_Memory *general, Buffer_Type *buffer, 
 }
 
 internal void
-file_measure_starts_widths(System_Functions *system, General_Memory *general,
-                           Buffer_Type *buffer, f32 *advance_data){
+file_measure_starts(System_Functions *system, General_Memory *general, Buffer_Type *buffer){
     if (!buffer->line_starts){
         i32 max = buffer->line_max = Kbytes(1);
         buffer->line_starts = (i32*)general_memory_allocate(general, max*sizeof(i32));
         TentativeAssert(buffer->line_starts);
         // TODO(allen): when unable to allocate?
     }
-    if (!buffer->line_widths){
-        i32 max = buffer->widths_max = Kbytes(1);
-        buffer->line_widths = (f32*)general_memory_allocate(general, max*sizeof(f32));
-        TentativeAssert(buffer->line_starts);
-        // TODO(allen): when unable to allocate?
-    }
     
     Buffer_Measure_Starts state = {};
-    while (buffer_measure_starts_widths(&state, buffer, advance_data)){
+    while (buffer_measure_starts(&state, buffer)){
         i32 count = state.count;
         i32 max = buffer->line_max;
         max = ((max + 1) << 1);
@@ -973,21 +955,8 @@ file_measure_starts_widths(System_Functions *system, General_Memory *general,
             buffer->line_starts = new_lines;
             buffer->line_max = max;
         }
-        
-        {
-            f32 *new_lines = (f32*)
-                general_memory_reallocate(general, buffer->line_widths,
-                                          sizeof(f32)*count, sizeof(f32)*max);
-            
-            // TODO(allen): when unable to grow?
-            TentativeAssert(new_lines);
-            buffer->line_widths = new_lines;
-            buffer->widths_max = max;
-        }
-        
     }
     buffer->line_count = state.count;
-    buffer->widths_count = state.count;
 }
 
 internal void
@@ -1055,7 +1024,7 @@ file_create_from_string(System_Functions *system, Models *models,
     float *advance_data = 0;
     if (font) advance_data = font->advance_data;
     
-    file_measure_starts_widths(system, general, &file->state.buffer, advance_data);
+    file_measure_starts(system, general, &file->state.buffer);
     
     file->settings.read_only = read_only;
     if (!read_only){
@@ -1110,7 +1079,6 @@ file_close(System_Functions *system, General_Memory *general, Editing_File *file
     if (buffer->data){
         general_memory_free(general, buffer->data);
         general_memory_free(general, buffer->line_starts);
-        general_memory_free(general, buffer->line_widths);
     }
     
     if (file->state.undo.undo.edits){
@@ -2129,12 +2097,8 @@ file_do_single_edit(System_Functions *system,
     i32 new_line_count = buffer_count_newlines(&file->state.buffer, start, start+str_len);
     i32 line_shift =  new_line_count - replaced_line_count;
     
-    i16 font_id = file->settings.font_id;
-    Render_Font *font = get_font_info(models->font_set, font_id)->font;
-    
-    file_grow_starts_widths_as_needed(general, buffer, line_shift);
+    file_grow_starts_as_needed(general, buffer, line_shift);
     buffer_remeasure_starts(buffer, line_start, line_end, line_shift, shift_amount);
-    buffer_remeasure_widths(buffer, font->advance_data, line_start, line_end, line_shift);
     
     // NOTE(allen): update the views looking at this file
     Panel *panel, *used_panels;
@@ -2201,16 +2165,8 @@ file_do_batch_edit(System_Functions *system, Models *models, Editing_File *file,
     }
     
     // NOTE(allen): meta data
-    {
-        Buffer_Measure_Starts state = {};
-        i16 font_id = file->settings.font_id;
-        Render_Font *font = get_font_info(models->font_set, font_id)->font;
-        float *advance_data = 0;
-        if (font){
-            advance_data = font->advance_data;
-        }
-        buffer_measure_starts_widths(&state, &file->state.buffer, advance_data);
-    }
+    Buffer_Measure_Starts measure_state = {};
+    buffer_measure_starts(&measure_state, &file->state.buffer);
     
     // NOTE(allen): cursor fixing
     i32 shift_total = 0;
@@ -2647,11 +2603,7 @@ remeasure_file_view(System_Functions *system, View *view){
 
 internal void
 file_set_font(System_Functions *system, Models *models, Editing_File *file, i16 font_id){
-    Render_Font *font = get_font_info(models->font_set, font_id)->font;
-    f32 *advance_data = font->advance_data;
-    
     file->settings.font_id = font_id;
-    file_measure_starts_widths(system, &models->mem.general, &file->state.buffer, advance_data);
     
     Editing_Layout *layout = &models->layout;
     for (View_Iter iter = file_view_iter_init(layout, file, 0);

@@ -16,12 +16,9 @@ typedef struct Gap_Buffer{
     i32 size2;
     i32 max;
     
-    f32 *line_widths;
     i32 *line_starts;
     i32 line_count;
-    i32 widths_count;
     i32 line_max;
-    i32 widths_max;
 } Gap_Buffer;
 
 inline_4tech i32

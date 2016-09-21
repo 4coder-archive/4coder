@@ -70,27 +70,20 @@ typedef struct Buffer_Measure_Starts{
     i32 i;
     i32 count;
     i32 start;
-    f32 width;
 } Buffer_Measure_Starts;
 
 // TODO(allen): Rewrite this with a duff routine
 internal_4tech i32
-buffer_measure_starts_widths_(Buffer_Measure_Starts *state, Buffer_Type *buffer, f32 *advance_data){
+buffer_measure_starts(Buffer_Measure_Starts *state, Buffer_Type *buffer){
     Buffer_Stringify_Type loop = {0};
     char *data = 0;
     i32 end = 0;
     i32 size = buffer_size(buffer);
-    f32 width = state->width;
     i32 start = state->start, i = state->i;
     i32 *start_ptr = buffer->line_starts + state->count;
     i32 *start_end = buffer->line_starts + buffer->line_max;
-    f32 *width_ptr = buffer->line_widths + state->count;
     i32 result = 1;
     char ch = 0;
-    
-    debug_4tech(i32 widths_max = buffer->widths_max);
-    debug_4tech(i32 max = buffer->line_max);
-    assert_4tech(max == widths_max);
     
     for (loop = buffer_stringify_loop(buffer, i, size);
          buffer_stringify_good(&loop);
@@ -104,13 +97,8 @@ buffer_measure_starts_widths_(Buffer_Measure_Starts *state, Buffer_Type *buffer,
                     goto buffer_measure_starts_widths_end;
                 }
                 
-                *width_ptr++ = width;
                 *start_ptr++ = start;
                 start = i + 1;
-                width = 0;
-            }
-            else{
-                width += measure_character(advance_data, ch);
             }
         }
     }
@@ -121,88 +109,12 @@ buffer_measure_starts_widths_(Buffer_Measure_Starts *state, Buffer_Type *buffer,
         goto buffer_measure_starts_widths_end;
     }
     *start_ptr++ = start;
-    *width_ptr++ = 0;
     result = 0;
     
     buffer_measure_starts_widths_end:;
     state->i = i;
     state->count = (i32)(start_ptr - buffer->line_starts);
     state->start = start;
-    state->width = width;
-    
-    return(result);
-}
-
-internal_4tech i32
-buffer_measure_starts_zero_widths_(Buffer_Measure_Starts *state, Buffer_Type *buffer){
-    Buffer_Stringify_Type loop;
-    i32 *start_ptr, *start_end;
-    f32 *width_ptr;
-    debug_4tech(i32 widths_max);
-    debug_4tech(i32 max);
-    char *data;
-    i32 size, end;
-    i32 start, i;
-    i32 result;
-    char ch;
-    
-    size = buffer_size(buffer);
-    
-    debug_4tech(max = buffer->line_max);
-    debug_4tech(widths_max = buffer->widths_max);
-    assert_4tech(max == widths_max);
-    
-    result = 1;
-    
-    i = state->i;
-    start = state->start;
-    
-    start_ptr = buffer->line_starts + state->count;
-    width_ptr = buffer->line_widths + state->count;
-    start_end = buffer->line_starts + buffer->line_max;
-    
-    for (loop = buffer_stringify_loop(buffer, i, size);
-         buffer_stringify_good(&loop);
-         buffer_stringify_next(&loop)){
-        end = loop.size + loop.absolute_pos;
-        data = loop.data - loop.absolute_pos;
-        for (; i < end; ++i){
-            ch = data[i];
-            if (ch == '\n'){
-                if (start_ptr == start_end) goto buffer_measure_starts_zero_widths_end;
-                
-                *width_ptr++ = 0;
-                *start_ptr++ = start;
-                start = i + 1;
-            }
-        }
-    }
-    
-    assert_4tech(i == size);
-    
-    if (start_ptr == start_end) goto buffer_measure_starts_zero_widths_end;
-    *start_ptr++ = start;
-    *width_ptr++ = 0;
-    result = 0;
-    
-    buffer_measure_starts_zero_widths_end:
-    state->i = i;
-    state->count = (i32)(start_ptr - buffer->line_starts);
-    state->start = start;
-    
-    return(result);
-}
-
-internal_4tech i32
-buffer_measure_starts_widths(Buffer_Measure_Starts *state, Buffer_Type *buffer, f32 *advance_data){
-    i32 result = 0;
-    
-    if (advance_data){
-        result = buffer_measure_starts_widths_(state, buffer, advance_data);
-    }
-    else{
-        result = buffer_measure_starts_zero_widths_(state, buffer);
-    }
     
     return(result);
 }
@@ -266,12 +178,12 @@ buffer_remeasure_starts(Buffer_Type *buffer, i32 line_start, i32 line_end, i32 l
     buffer->line_count = line_count;
 }
 
+#if 0
 internal_4tech void
 buffer_remeasure_widths(Buffer_Type *buffer, f32 *advance_data,
                         i32 line_start, i32 line_end, i32 line_shift){
     Buffer_Stringify_Type loop;
     i32 *starts = buffer->line_starts;
-    f32 *widths = buffer->line_widths;
     i32 line_count = buffer->line_count;
     i32 widths_count = buffer->widths_count;
     char *data = 0;
@@ -328,6 +240,7 @@ buffer_remeasure_widths(Buffer_Type *buffer, f32 *advance_data,
         assert_4tech(i+1 == line_count);
     }
 }
+#endif
 
 internal_4tech void
 buffer_measure_wrap_y(Buffer_Type *buffer, f32 *wraps,
