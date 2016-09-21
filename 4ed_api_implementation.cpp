@@ -1380,7 +1380,6 @@ DOC_SEE(get_active_view)
 API_EXPORT int32_t
 View_Get_Setting(Application_Links *app, View_Summary *view, View_Setting_ID setting){
     Command_Data *cmd = (Command_Data*)app->cmd_context;
-    System_Functions *system = cmd->system;
     View *vptr = imp_get_view(cmd, view);
     int32_t result = -1;
     

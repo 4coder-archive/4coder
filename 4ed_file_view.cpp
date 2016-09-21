@@ -285,7 +285,7 @@ view_width(View *view){
 
 inline f32
 view_file_display_width(View *view){
-    f32 result = view->display_width;
+    f32 result = (f32)view->display_width;
     return(result);
 }
 

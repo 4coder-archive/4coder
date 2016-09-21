@@ -886,7 +886,7 @@ buffer_get_render_data(Buffer_Type *buffer, Buffer_Render_Item *items, i32 max, 
                     
                     case '\t':
                     if (write.item < item_end){
-                        i32 new_x = write.x + ch_width;
+                        f32 new_x = write.x + ch_width;
                         write = write_render_item(write, i, ' ', 0);
                         write.x = new_x;
                     }
