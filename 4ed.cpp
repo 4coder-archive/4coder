@@ -11,6 +11,8 @@
 
 // App Structs
 
+#define DEFAULT_DISPLAY_WIDTH 672
+
 typedef enum App_State{
     APP_STATE_EDIT,
     APP_STATE_RESIZING,
@@ -396,7 +398,7 @@ COMMAND_DECL(reopen){
                             view_compute_cursor_from_line_pos(vptrs[i], line, column);
                         
                         view_set_cursor(vptrs[i], cursor, true,
-                                        view->file_data.unwrapped_lines);
+                                        file->settings.unwrapped_lines);
                     }
                 }
             }
@@ -470,14 +472,12 @@ COMMAND_DECL(toggle_line_wrap){
     
     // TODO(allen): WHAT TO DO HERE???
     Relative_Scrolling scrolling = view_get_relative_scrolling(view);
-    if (view->file_data.unwrapped_lines){
-        view->file_data.unwrapped_lines = 0;
+    if (file->settings.unwrapped_lines){
         file->settings.unwrapped_lines = 0;
         view->edit_pos->scroll.target_x = 0;
         view_cursor_move(view, view->edit_pos->cursor.pos);
     }
     else{
-        view->file_data.unwrapped_lines = 1;
         file->settings.unwrapped_lines = 1;
         view_cursor_move(view, view->edit_pos->cursor.pos);
     }
@@ -681,7 +681,7 @@ COMMAND_DECL(page_down){
     f32 x = view->edit_pos->preferred_x;
     
     Full_Cursor cursor = view_compute_cursor_from_xy(view, x, y+height);
-    view_set_cursor(view, cursor, false, view->file_data.unwrapped_lines);
+    view_set_cursor(view, cursor, false, view->file_data.file->settings.unwrapped_lines);
 }
 
 COMMAND_DECL(page_up){
@@ -694,7 +694,7 @@ COMMAND_DECL(page_up){
     f32 x = view->edit_pos->preferred_x;
     
     Full_Cursor cursor = view_compute_cursor_from_xy(view, x, y-height);
-    view_set_cursor(view, cursor, false, view->file_data.unwrapped_lines);
+    view_set_cursor(view, cursor, false, view->file_data.file->settings.unwrapped_lines);
 }
 
 COMMAND_DECL(open_color_tweaker){
@@ -1365,7 +1365,6 @@ App_Init_Sig(app_init){
     App_Vars *vars = (App_Vars*)memory->vars_memory;
     Models *models = &vars->models;
     models->keep_playing = 1;
-    models->default_display_width = 672;
     
     app_links_init(system, &models->app_links, memory->user_memory, memory->user_memory_size);
     
@@ -1660,6 +1659,7 @@ App_Init_Sig(app_init){
     
     // NOTE(allen): file setup
     working_set_init(&models->working_set, partition, &vars->models.mem.general);
+    models->working_set.default_display_width = DEFAULT_DISPLAY_WIDTH;
     
     // NOTE(allen): clipboard setup
     models->working_set.clipboard_max_size = ArrayCount(models->working_set.clipboards);

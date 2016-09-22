@@ -150,12 +150,8 @@ struct File_Viewing_Data{
     i32 temp_highlight_end_pos;
     b32 show_temp_highlight;
     
-    b32 unwrapped_lines;
     b32 show_whitespace;
     b32 file_locked;
-    
-    i32 line_count, line_max;
-    f32 *line_wrap_y;
 };
 inline File_Viewing_Data
 file_viewing_data_zero(){
@@ -250,6 +246,9 @@ struct View{
     i32 color_cursor;
     
     // misc
+    
+    // TODO(allen): Can we burn line_height to the ground now?
+    // It's what I've always wanted!!!! :D
     i32 line_height;
     
     // TODO(allen): Do I still use mode?
@@ -260,8 +259,6 @@ struct View{
     b32 reinit_scrolling;
     
     Debug_Vars debug_vars;
-    
-    i32 display_width;
 };
 
 inline void*
@@ -285,7 +282,8 @@ view_width(View *view){
 
 inline f32
 view_file_display_width(View *view){
-    f32 result = (f32)view->display_width;
+    Editing_File *file = view->file_data.file;
+    f32 result = (f32)file->settings.display_width;
     return(result);
 }
 
@@ -322,7 +320,7 @@ view_get_cursor_x(View *view){
     
     if (cursor){
         result = cursor->wrapped_x;
-        if (view->file_data.unwrapped_lines){
+        if (view->file_data.file->settings.unwrapped_lines){
             result = cursor->unwrapped_x;
         }
     }
@@ -344,7 +342,7 @@ view_get_cursor_y(View *view){
     
     if (cursor){
         result = cursor->wrapped_y;
-        if (view->file_data.unwrapped_lines){
+        if (view->file_data.file->settings.unwrapped_lines){
             result = cursor->unwrapped_y;
         }
     }
@@ -429,8 +427,8 @@ view_compute_cursor_from_pos(View *view, i32 pos){
     Full_Cursor result = {};
     if (font){
         f32 max_width = view_file_display_width(view);
-        result = buffer_cursor_from_pos(&file->state.buffer, pos, view->file_data.line_wrap_y,
-                                        max_width, (f32)view->line_height, font->advance_data);
+        result = buffer_cursor_from_pos(&file->state.buffer, pos, max_width,
+                                        (f32)view->line_height, font->advance_data);
     }
     return result;
 }
@@ -445,7 +443,7 @@ view_compute_cursor_from_unwrapped_xy(View *view, f32 seek_x, f32 seek_y, b32 ro
     if (font){
         f32 max_width = view_file_display_width(view);
         result = buffer_cursor_from_unwrapped_xy(&file->state.buffer, seek_x, seek_y,
-                                                 round_down, view->file_data.line_wrap_y, max_width, (f32)view->line_height, font->advance_data);
+                                                 round_down, max_width, (f32)view->line_height, font->advance_data);
     }
     
     return result;
@@ -460,8 +458,7 @@ view_compute_cursor_from_wrapped_xy(View *view, f32 seek_x, f32 seek_y, b32 roun
     Full_Cursor result = {};
     if (font){
         f32 max_width = view_file_display_width(view);
-        result = buffer_cursor_from_wrapped_xy(&file->state.buffer, seek_x, seek_y,
-                                               round_down, view->file_data.line_wrap_y,
+        result = buffer_cursor_from_wrapped_xy(&file->state.buffer, seek_x, seek_y, round_down,
                                                max_width, (f32)view->line_height, font->advance_data);
     }
     
@@ -478,7 +475,7 @@ view_compute_cursor_from_line_pos(View *view, i32 line, i32 pos){
     if (font){
         f32 max_width = view_file_display_width(view);
         result = buffer_cursor_from_line_character(&file->state.buffer, line, pos,
-                                                   view->file_data.line_wrap_y, max_width, (f32)view->line_height, font->advance_data);
+                                                   max_width, (f32)view->line_height, font->advance_data);
     }
     
     return (result);
@@ -512,7 +509,7 @@ view_compute_cursor(View *view, Buffer_Seek seek){
 inline Full_Cursor
 view_compute_cursor_from_xy(View *view, f32 seek_x, f32 seek_y){
     Full_Cursor result;
-    if (view->file_data.unwrapped_lines){
+    if (view->file_data.file->settings.unwrapped_lines){
         result = view_compute_cursor_from_unwrapped_xy(view, seek_x, seek_y);
     }
     else{
@@ -528,27 +525,6 @@ view_wrapped_line_span(f32 line_width, f32 max_width){
     return(line_count);
 }
 
-internal i32
-view_compute_lowest_line(View *view){
-    i32 lowest_line = 0;
-    i32 last_line = view->file_data.line_count - 1;
-    if (last_line > 0){
-        if (view->file_data.unwrapped_lines){
-            lowest_line = last_line;
-        }
-        else{
-            // TODO(allen): Actually what I should do to get the "line span"
-            // is I should store the "final" wrap position.  The position the
-            // next line of the file would have started at, if it had existed.
-            // Then line_span is just line_span = FLOOR32((wrap_y - wrap_final_y)/view->line_height);
-            f32 wrap_y = view->file_data.line_wrap_y[last_line];
-            i32 line_span = 40;
-            lowest_line = FLOOR32(wrap_y / view->line_height) + line_span - 1;
-        }
-    }
-    return(lowest_line);
-}
-
 inline i32
 view_compute_max_target_y(i32 lowest_line, i32 line_height, f32 view_height){
     f32 max_target_y = ((lowest_line+.5f)*line_height) - view_height*.5f;
@@ -558,8 +534,8 @@ view_compute_max_target_y(i32 lowest_line, i32 line_height, f32 view_height){
 
 inline i32
 view_compute_max_target_y(View *view){
-    i32 lowest_line = view_compute_lowest_line(view);
     i32 line_height = view->line_height;
+    i32 lowest_line = file_compute_lowest_line(view->file_data.file, (f32)line_height);
     f32 view_height = clamp_bottom((f32)line_height, view_file_height(view));
     i32 max_target_y = view_compute_max_target_y(lowest_line, line_height, view_height);
     return(max_target_y);
@@ -623,7 +599,7 @@ view_move_cursor_to_view(View *view, GUI_Scroll_Vars scroll,
     if (view->edit_pos){
         i32 line_height = view->line_height;
         f32 old_cursor_y = cursor->wrapped_y;
-        if (view->file_data.unwrapped_lines){
+        if (view->file_data.file->settings.unwrapped_lines){
             old_cursor_y = cursor->unwrapped_y;
         }
         f32 cursor_y = old_cursor_y;
@@ -932,63 +908,6 @@ file_grow_starts_as_needed(General_Memory *general, Buffer_Type *buffer, i32 add
 }
 
 internal void
-file_measure_starts(System_Functions *system, General_Memory *general, Buffer_Type *buffer){
-    if (!buffer->line_starts){
-        i32 max = buffer->line_max = Kbytes(1);
-        buffer->line_starts = (i32*)general_memory_allocate(general, max*sizeof(i32));
-        TentativeAssert(buffer->line_starts);
-        // TODO(allen): when unable to allocate?
-    }
-    
-    Buffer_Measure_Starts state = {};
-    while (buffer_measure_starts(&state, buffer)){
-        i32 count = state.count;
-        i32 max = buffer->line_max;
-        max = ((max + 1) << 1);
-        
-        {
-            i32 *new_lines = (i32*)general_memory_reallocate(
-                general, buffer->line_starts, sizeof(i32)*count, sizeof(i32)*max);
-            
-            // TODO(allen): when unable to grow?
-            TentativeAssert(new_lines);
-            buffer->line_starts = new_lines;
-            buffer->line_max = max;
-        }
-    }
-    buffer->line_count = state.count;
-}
-
-internal void
-view_measure_wraps(Models *models, General_Memory *general, View *view){
-    Editing_File *file = view->file_data.file;
-    Buffer_Type *buffer = &file->state.buffer;
-    i32 line_count = buffer->line_count;
-    
-    if (view->file_data.line_max < line_count){
-        i32 max = view->file_data.line_max = LargeRoundUp(line_count, Kbytes(1));
-        if (view->file_data.line_wrap_y){
-            view->file_data.line_wrap_y = (f32*)
-                general_memory_reallocate_nocopy(general, view->file_data.line_wrap_y, sizeof(f32)*max);
-        }
-        else{
-            view->file_data.line_wrap_y = (f32*)
-                general_memory_allocate(general, sizeof(f32)*max);
-        }
-    }
-    
-    Render_Font *font = get_font_info(models->font_set, file->settings.font_id)->font;
-    f32 *adv = font->advance_data;
-    
-    f32 line_height = (f32)view->line_height;
-    f32 max_width = view_file_display_width(view);
-    buffer_measure_wrap_y(buffer, view->file_data.line_wrap_y, line_height,
-                          adv, max_width);
-    
-    view->file_data.line_count = line_count;
-}
-
-internal void
 file_create_from_string(System_Functions *system, Models *models,
                         Editing_File *file, String val, b8 read_only = 0){
     
@@ -997,7 +916,7 @@ file_create_from_string(System_Functions *system, Models *models,
     Partition *part = &models->mem.part;
     Buffer_Init_Type init;
     
-    file->state = editing_file_state_zero();
+    file->state = null_editing_file_state;
     
     init = buffer_begin_init(&file->state.buffer, val.str, val.size);
     for (; buffer_init_need_more(&init); ){
@@ -1018,13 +937,13 @@ file_create_from_string(System_Functions *system, Models *models,
     }
     file_synchronize_times(system, file);
     
+    file_measure_starts(system, general, &file->state.buffer);
+    
     i16 font_id = models->global_font.font_id;
     file->settings.font_id = font_id;
     Render_Font *font = get_font_info(font_set, font_id)->font;
-    float *advance_data = 0;
-    if (font) advance_data = font->advance_data;
     
-    file_measure_starts(system, general, &file->state.buffer);
+    file_measure_wraps(general, file, (f32)font->height, font->advance_data);
     
     file->settings.read_only = read_only;
     if (!read_only){
@@ -1654,15 +1573,12 @@ view_set_temp_highlight(View *view, i32 pos, i32 end_pos){
     view->file_data.show_temp_highlight = 1;
     
     view_set_cursor(view, view->file_data.temp_highlight,
-                    0, view->file_data.unwrapped_lines);
+                    0, view->file_data.file->settings.unwrapped_lines);
 }
 
+// TODO(allen): burn this shit to the ground yo!
 inline void
 file_view_nullify_file(View *view){
-    General_Memory *general = &view->persistent.models->mem.general;
-    if (view->file_data.line_wrap_y){
-        general_memory_free(general, view->file_data.line_wrap_y);
-    }
     view->file_data = file_viewing_data_zero();
 }
 
@@ -1690,14 +1606,8 @@ view_set_file(View *view, Editing_File *file, Models *models){
     file_view_nullify_file(view);
     view->file_data.file = file;
     
-    view->file_data.unwrapped_lines = file->settings.unwrapped_lines;
-    
     edit_pos = edit_pos_get_new(file, view->persistent.id);
     view->edit_pos = edit_pos;
-    
-    if (file_is_ready(file)){
-        view_measure_wraps(models, &models->mem.general, view);
-    }
     
     update_view_line_height(models, view, file->settings.font_id);
 }
@@ -1731,8 +1641,8 @@ view_set_relative_scrolling(View *view, Relative_Scrolling scrolling){
 
 inline void
 view_cursor_move(View *view, Full_Cursor cursor){
-    view_set_cursor(view, cursor,
-                    1, view->file_data.unwrapped_lines);
+    view_set_cursor(view, cursor, 1,
+                    view->file_data.file->settings.unwrapped_lines);
     view->file_data.show_temp_highlight = 0;
 }
 
@@ -1745,7 +1655,7 @@ view_cursor_move(View *view, i32 pos){
 inline void
 view_cursor_move(View *view, f32 x, f32 y, b32 round_down = 0){
     Full_Cursor cursor;
-    if (view->file_data.unwrapped_lines){
+    if (view->file_data.file->settings.unwrapped_lines){
         cursor = view_compute_cursor_from_unwrapped_xy(view, x, y, round_down);
     }
     else{
@@ -1968,7 +1878,6 @@ file_edit_cursor_fix(System_Functions *system, Models *models,
                      Cursor_Fix_Descriptor desc, i32 *shift_out){
     
     Partition *part = &models->mem.part;
-    General_Memory *general = &models->mem.general;
     
     Temp_Memory cursor_temp = begin_temp_memory(part);
     i32 cursor_max = layout->panel_max_count * 2;
@@ -1981,8 +1890,6 @@ file_edit_cursor_fix(System_Functions *system, Models *models,
     for (dll_items(panel, used_panels)){
         view = panel->view;
         if (view->file_data.file == file){
-            // TODO(allen): Is this a good place for this ????
-            view_measure_wraps(models, general, view);
             Assert(view->edit_pos);
             write_cursor_with_index(cursors, &cursor_count, view->edit_pos->cursor.pos);
             write_cursor_with_index(cursors, &cursor_count, view->edit_pos->mark);
@@ -2032,7 +1939,7 @@ file_edit_cursor_fix(System_Functions *system, Models *models,
                     
                     f32 y_offset = MOD(view->edit_pos->scroll.scroll_y, view->line_height);
                     f32 y_position = temp_cursor.wrapped_y;
-                    if (view->file_data.unwrapped_lines){
+                    if (view->file_data.file->settings.unwrapped_lines){
                         y_position = temp_cursor.unwrapped_y;
                     }
                     y_position += y_offset;
@@ -2043,7 +1950,7 @@ file_edit_cursor_fix(System_Functions *system, Models *models,
                 }
                 
                 view_set_cursor_and_scroll(view, new_cursor,
-                                           1, view->file_data.unwrapped_lines,
+                                           1, view->file_data.file->settings.unwrapped_lines,
                                            scroll);
             }
         }
@@ -2100,16 +2007,8 @@ file_do_single_edit(System_Functions *system,
     file_grow_starts_as_needed(general, buffer, line_shift);
     buffer_remeasure_starts(buffer, line_start, line_end, line_shift, shift_amount);
     
-    // NOTE(allen): update the views looking at this file
-    Panel *panel, *used_panels;
-    used_panels = &layout->used_sentinel;
-    
-    for (dll_items(panel, used_panels)){
-        View *view = panel->view;
-        if (view->file_data.file == file){
-            view_measure_wraps(models, general, view);
-        }
-    }
+    Render_Font *font = get_font_info(models->font_set, file->settings.font_id)->font;
+    file_measure_wraps(general, file, (f32)font->height, font->advance_data);
     
     // NOTE(allen): cursor fixing
     Cursor_Fix_Descriptor desc = {};
@@ -2583,34 +2482,17 @@ style_get_color(Style *style, Cpp_Token token){
     return result;
 }
 
-// TODO(allen): What's the deal with this function?  Can we
-// just pass models in... by the way is this even being called?
-internal void
-remeasure_file_view(System_Functions *system, View *view){
-    if (file_is_ready(view->file_data.file)){
-        Assert(view->edit_pos);
-        
-        Relative_Scrolling relative = view_get_relative_scrolling(view);
-        Models *models = view->persistent.models;
-        view_measure_wraps(models, &models->mem.general, view);
-        if (view->file_data.show_temp_highlight == 0){
-            view_cursor_move(view, view->edit_pos->cursor.pos);
-        }
-        
-        view_set_relative_scrolling(view, relative);
-    }
-}
-
 internal void
 file_set_font(System_Functions *system, Models *models, Editing_File *file, i16 font_id){
     file->settings.font_id = font_id;
+    Render_Font *font = get_font_info(models->font_set, file->settings.font_id)->font;
+    file_measure_wraps(&models->mem.general, file, (f32)font->height, font->advance_data);
     
     Editing_Layout *layout = &models->layout;
     for (View_Iter iter = file_view_iter_init(layout, file, 0);
          file_view_iter_good(iter);
          iter = file_view_iter_next(iter)){
         update_view_line_height(models, iter.view, font_id);
-        remeasure_file_view(system, iter.view);
     }
 }
 
@@ -2701,12 +2583,6 @@ init_normal_file(System_Functions *system, Models *models, Editing_File *file,
     if (file->settings.tokens_exist && file->state.token_array.tokens == 0){
         file_first_lex_parallel(system, general, file);
     }
-    
-    for (View_Iter iter = file_view_iter_init(&models->layout, file, 0);
-         file_view_iter_good(iter);
-         iter = file_view_iter_next(iter)){
-        view_measure_wraps(models, general, iter.view);
-    }
 }
 
 internal void
@@ -2718,12 +2594,6 @@ init_read_only_file(System_Functions *system, Models *models, Editing_File *file
     
     if (file->settings.tokens_exist && file->state.token_array.tokens == 0){
         file_first_lex_parallel(system, general, file);
-    }
-    
-    for (View_Iter iter = file_view_iter_init(&models->layout, file, 0);
-         file_view_iter_good(iter);
-         iter = file_view_iter_next(iter)){
-        view_measure_wraps(models, general, iter.view);
     }
 }
 
@@ -4465,12 +4335,8 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                                     SHOW_GUI_BOOL(2, h_align, "show temp highlight", view_ptr->file_data.show_temp_highlight);
                                     SHOW_GUI_INT (2, h_align, "start temp highlight", view_ptr->file_data.temp_highlight.pos);
                                     SHOW_GUI_INT (2, h_align, "end temp highlight", view_ptr->file_data.temp_highlight_end_pos);
-                                    SHOW_GUI_BOOL(2, h_align, "unwrapped lines", view_ptr->file_data.unwrapped_lines);
                                     SHOW_GUI_BOOL(2, h_align, "show whitespace", view_ptr->file_data.show_whitespace);
                                     SHOW_GUI_BOOL(2, h_align, "locked", view_ptr->file_data.file_locked);
-                                    SHOW_GUI_INT_INT(2, h_align, "line count",
-                                                     view_ptr->file_data.line_count,
-                                                     view_ptr->file_data.line_max);
                                     
                                     SHOW_GUI_BLANK(0);
                                     SHOW_GUI_REGION(1, h_align, "scroll region", view_ptr->scroll_region);
@@ -4886,7 +4752,6 @@ draw_file_loaded(View *view, i32_Rect rect, b32 is_active, Render_Target *target
     i32 count = 0;
     Full_Cursor render_cursor = {0};
     
-    f32 *wraps = view->file_data.line_wrap_y;
     f32 scroll_x = view->edit_pos->scroll.scroll_x;
     f32 scroll_y = view->edit_pos->scroll.scroll_y;
     
@@ -4896,8 +4761,8 @@ draw_file_loaded(View *view, i32_Rect rect, b32 is_active, Render_Target *target
     scroll_y += view->widget_height;
     
     {
-        render_cursor = buffer_get_start_cursor(&file->state.buffer, wraps, scroll_y,
-                                                !view->file_data.unwrapped_lines,
+        render_cursor = buffer_get_start_cursor(&file->state.buffer, scroll_y,
+                                                !file->settings.unwrapped_lines,
                                                 max_x, advance_data, (f32)line_height);
         
         view->edit_pos->scroll_i = render_cursor.pos;
@@ -4905,7 +4770,7 @@ draw_file_loaded(View *view, i32_Rect rect, b32 is_active, Render_Target *target
         buffer_get_render_data(&file->state.buffer, items, max, &count,
                                (f32)rect.x0, (f32)rect.y0, clip_w,
                                scroll_x, scroll_y, max_x, (f32)max_y,
-                               render_cursor, !view->file_data.unwrapped_lines,
+                               render_cursor, !file->settings.unwrapped_lines,
                                advance_data, (f32)line_height);
     }
     
@@ -5548,10 +5413,6 @@ do_render_file_view(System_Functions *system, View *view, GUI_Scroll_Vars *scrol
 inline void
 file_view_free_buffers(View *view){
     General_Memory *general = &view->persistent.models->mem.general;
-    if (view->file_data.line_wrap_y){
-        general_memory_free(general, view->file_data.line_wrap_y);
-        view->file_data.line_wrap_y = 0;
-    }
     general_memory_free(general, view->gui_mem);
     view->gui_mem = 0;
 }
@@ -5584,7 +5445,6 @@ live_set_alloc_view(Live_Views *live_set, Panel *panel, Models *models){
         result.view->gui_mem = gui_mem;
         gui_mem = advance_to_alignment(gui_mem);
         result.view->gui_target.push = make_part(gui_mem, gui_mem_size);
-        result.view->display_width = models->default_display_width;
     }
     
     return(result);

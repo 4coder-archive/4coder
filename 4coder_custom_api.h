@@ -12,6 +12,7 @@
 #define BUFFER_REPLACE_RANGE_SIG(n) bool32 n(Application_Links *app, Buffer_Summary *buffer, int32_t start, int32_t end, char *str, int32_t len)
 #define BUFFER_COMPUTE_CURSOR_SIG(n) bool32 n(Application_Links *app, Buffer_Summary *buffer, Buffer_Seek seek, Partial_Cursor *cursor_out)
 #define BUFFER_BATCH_EDIT_SIG(n) bool32 n(Application_Links *app, Buffer_Summary *buffer, char *str, int32_t str_len, Buffer_Edit *edits, int32_t edit_count, Buffer_Batch_Edit_Type type)
+#define BUFFER_GET_SETTING_SIG(n) int32_t n(Application_Links *app, Buffer_Summary *buffer, Buffer_Setting_ID setting)
 #define BUFFER_SET_SETTING_SIG(n) bool32 n(Application_Links *app, Buffer_Summary *buffer, Buffer_Setting_ID setting, int32_t value)
 #define BUFFER_TOKEN_COUNT_SIG(n) int32_t n(Application_Links *app, Buffer_Summary *buffer)
 #define BUFFER_READ_TOKENS_SIG(n) bool32 n(Application_Links *app, Buffer_Summary *buffer, int32_t start_token, int32_t end_token, Cpp_Token *tokens_out)
@@ -74,6 +75,7 @@ typedef BUFFER_READ_RANGE_SIG(Buffer_Read_Range_Function);
 typedef BUFFER_REPLACE_RANGE_SIG(Buffer_Replace_Range_Function);
 typedef BUFFER_COMPUTE_CURSOR_SIG(Buffer_Compute_Cursor_Function);
 typedef BUFFER_BATCH_EDIT_SIG(Buffer_Batch_Edit_Function);
+typedef BUFFER_GET_SETTING_SIG(Buffer_Get_Setting_Function);
 typedef BUFFER_SET_SETTING_SIG(Buffer_Set_Setting_Function);
 typedef BUFFER_TOKEN_COUNT_SIG(Buffer_Token_Count_Function);
 typedef BUFFER_READ_TOKENS_SIG(Buffer_Read_Tokens_Function);
@@ -138,6 +140,7 @@ Buffer_Read_Range_Function *buffer_read_range;
 Buffer_Replace_Range_Function *buffer_replace_range;
 Buffer_Compute_Cursor_Function *buffer_compute_cursor;
 Buffer_Batch_Edit_Function *buffer_batch_edit;
+Buffer_Get_Setting_Function *buffer_get_setting;
 Buffer_Set_Setting_Function *buffer_set_setting;
 Buffer_Token_Count_Function *buffer_token_count;
 Buffer_Read_Tokens_Function *buffer_read_tokens;
@@ -201,6 +204,7 @@ Buffer_Read_Range_Function *buffer_read_range_;
 Buffer_Replace_Range_Function *buffer_replace_range_;
 Buffer_Compute_Cursor_Function *buffer_compute_cursor_;
 Buffer_Batch_Edit_Function *buffer_batch_edit_;
+Buffer_Get_Setting_Function *buffer_get_setting_;
 Buffer_Set_Setting_Function *buffer_set_setting_;
 Buffer_Token_Count_Function *buffer_token_count_;
 Buffer_Read_Tokens_Function *buffer_read_tokens_;
@@ -272,6 +276,7 @@ app_links->buffer_read_range_ = Buffer_Read_Range;\
 app_links->buffer_replace_range_ = Buffer_Replace_Range;\
 app_links->buffer_compute_cursor_ = Buffer_Compute_Cursor;\
 app_links->buffer_batch_edit_ = Buffer_Batch_Edit;\
+app_links->buffer_get_setting_ = Buffer_Get_Setting;\
 app_links->buffer_set_setting_ = Buffer_Set_Setting;\
 app_links->buffer_token_count_ = Buffer_Token_Count;\
 app_links->buffer_read_tokens_ = Buffer_Read_Tokens;\
@@ -335,6 +340,7 @@ static inline bool32 buffer_read_range(Application_Links *app, Buffer_Summary *b
 static inline bool32 buffer_replace_range(Application_Links *app, Buffer_Summary *buffer, int32_t start, int32_t end, char *str, int32_t len){return(app->buffer_replace_range(app, buffer, start, end, str, len));}
 static inline bool32 buffer_compute_cursor(Application_Links *app, Buffer_Summary *buffer, Buffer_Seek seek, Partial_Cursor *cursor_out){return(app->buffer_compute_cursor(app, buffer, seek, cursor_out));}
 static inline bool32 buffer_batch_edit(Application_Links *app, Buffer_Summary *buffer, char *str, int32_t str_len, Buffer_Edit *edits, int32_t edit_count, Buffer_Batch_Edit_Type type){return(app->buffer_batch_edit(app, buffer, str, str_len, edits, edit_count, type));}
+static inline int32_t buffer_get_setting(Application_Links *app, Buffer_Summary *buffer, Buffer_Setting_ID setting){return(app->buffer_get_setting(app, buffer, setting));}
 static inline bool32 buffer_set_setting(Application_Links *app, Buffer_Summary *buffer, Buffer_Setting_ID setting, int32_t value){return(app->buffer_set_setting(app, buffer, setting, value));}
 static inline int32_t buffer_token_count(Application_Links *app, Buffer_Summary *buffer){return(app->buffer_token_count(app, buffer));}
 static inline bool32 buffer_read_tokens(Application_Links *app, Buffer_Summary *buffer, int32_t start_token, int32_t end_token, Cpp_Token *tokens_out){return(app->buffer_read_tokens(app, buffer, start_token, end_token, tokens_out));}
@@ -398,6 +404,7 @@ static inline bool32 buffer_read_range(Application_Links *app, Buffer_Summary *b
 static inline bool32 buffer_replace_range(Application_Links *app, Buffer_Summary *buffer, int32_t start, int32_t end, char *str, int32_t len){return(app->buffer_replace_range_(app, buffer, start, end, str, len));}
 static inline bool32 buffer_compute_cursor(Application_Links *app, Buffer_Summary *buffer, Buffer_Seek seek, Partial_Cursor *cursor_out){return(app->buffer_compute_cursor_(app, buffer, seek, cursor_out));}
 static inline bool32 buffer_batch_edit(Application_Links *app, Buffer_Summary *buffer, char *str, int32_t str_len, Buffer_Edit *edits, int32_t edit_count, Buffer_Batch_Edit_Type type){return(app->buffer_batch_edit_(app, buffer, str, str_len, edits, edit_count, type));}
+static inline int32_t buffer_get_setting(Application_Links *app, Buffer_Summary *buffer, Buffer_Setting_ID setting){return(app->buffer_get_setting_(app, buffer, setting));}
 static inline bool32 buffer_set_setting(Application_Links *app, Buffer_Summary *buffer, Buffer_Setting_ID setting, int32_t value){return(app->buffer_set_setting_(app, buffer, setting, value));}
 static inline int32_t buffer_token_count(Application_Links *app, Buffer_Summary *buffer){return(app->buffer_token_count_(app, buffer));}
 static inline bool32 buffer_read_tokens(Application_Links *app, Buffer_Summary *buffer, int32_t start_token, int32_t end_token, Cpp_Token *tokens_out){return(app->buffer_read_tokens_(app, buffer, start_token, end_token, tokens_out));}

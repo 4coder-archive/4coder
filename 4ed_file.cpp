@@ -90,6 +90,7 @@ struct Text_Effect{
 // for the initial allocation of the file.
 struct Editing_File_Settings{
     i32 base_map_id;
+    i32 display_width;
     i32 dos_write_mode;
     i16 font_id;
     b8 unwrapped_lines;
@@ -99,6 +100,7 @@ struct Editing_File_Settings{
     b8 read_only;
     b8 never_kill;
 };
+static Editing_File_Settings null_editing_file_settings = {0};
 
 // NOTE(allen): This part of the Editing_File is cleared whenever
 // the contents of the file is set.
@@ -122,6 +124,7 @@ struct Editing_File_State{
     File_Edit_Positions *edit_poss[16];
     i32 edit_poss_count;
 };
+static Editing_File_State null_editing_file_state = {0};
 
 struct Editing_File_Name{
     char live_name_[256];
@@ -196,6 +199,8 @@ struct Working_Set{
     u64 unique_file_counter;
     
     File_Node *sync_check_iter;
+    
+    i32 default_display_width;
 };
 
 //
@@ -322,6 +327,88 @@ edit_pos_get_new(Editing_File *file, i32 index){
 }
 
 //
+// Buffer Metadata Measuring
+//
+
+internal void
+file_measure_starts(System_Functions *system, General_Memory *general, Buffer_Type *buffer){
+    if (!buffer->line_starts){
+        i32 max = buffer->line_max = Kbytes(1);
+        buffer->line_starts = (i32*)general_memory_allocate(general, max*sizeof(i32));
+        TentativeAssert(buffer->line_starts);
+        // TODO(allen): when unable to allocate?
+    }
+    
+    Buffer_Measure_Starts state = {0};
+    while (buffer_measure_starts(&state, buffer)){
+        i32 count = state.count;
+        i32 max = buffer->line_max;
+        max = ((max + 1) << 1);
+        
+        {
+            i32 *new_lines = (i32*)general_memory_reallocate(
+                general, buffer->line_starts, sizeof(i32)*count, sizeof(i32)*max);
+            
+            // TODO(allen): when unable to grow?
+            TentativeAssert(new_lines);
+            buffer->line_starts = new_lines;
+            buffer->line_max = max;
+        }
+    }
+    buffer->line_count = state.count;
+}
+
+internal void
+file_measure_wraps(General_Memory *general, Editing_File *file, f32 font_height, f32 *adv){
+    Buffer_Type *buffer = &file->state.buffer;
+    
+    if (buffer->wraps == 0){
+        i32 max = ((buffer->line_count+1)*2);
+        max = (max+(0x1FF))&(~(0x1FF));
+        buffer->wraps = (f32*)general_memory_allocate(general, max*sizeof(f32));
+        buffer->wrap_max = max;
+    }
+    else if (buffer->wrap_max < buffer->line_count){
+        i32 old_max = buffer->wrap_max;
+        i32 max = ((buffer->line_count+1)*2);
+        max = (max+(0x1FF))&(~(0x1FF));
+        
+        f32 *new_wraps = (f32*)general_memory_reallocate(
+            general, buffer->wraps, sizeof(f32)*old_max, sizeof(f32)*max);
+        
+        TentativeAssert(new_wraps);
+        buffer->wraps = new_wraps;
+        buffer->wrap_max = max;
+    }
+    
+    buffer_measure_wrap_y(buffer, font_height, adv, (f32)file->settings.display_width);
+}
+
+internal void
+file_set_display_width(General_Memory *general, Editing_File *file, i32 display_width, f32 font_height, f32 *adv){
+    file->settings.display_width = display_width;
+    file_measure_wraps(general, file, font_height, adv);
+}
+
+internal i32
+file_compute_lowest_line(Editing_File *file, f32 font_height){
+    i32 lowest_line = 0;
+    
+    Buffer_Type *buffer = &file->state.buffer;
+    if (file->settings.unwrapped_lines){
+        lowest_line = buffer->line_count - 1;
+    }
+    else{
+        f32 term_line_y = buffer->wraps[buffer->line_count];
+        lowest_line = CEIL32((term_line_y/font_height) - 1);
+    }
+    
+    return(lowest_line);
+}
+
+
+
+//
 // Working_Set stuff
 //
 
@@ -392,6 +479,7 @@ working_set_alloc(Working_Set *working_set){
         result->id = id;
         result->unique_buffer_id = ++working_set->unique_file_counter;
         dll_insert(&working_set->used_sentinel, node);
+        result->settings.display_width = working_set->default_display_width;
         ++working_set->file_count;
     }
     
@@ -766,22 +854,10 @@ file_is_ready(Editing_File *file){
     return(result);
 }
 
-inline Editing_File_State
-editing_file_state_zero(){
-    Editing_File_State state={0};
-    return(state);
-}
-
-inline Editing_File_Settings
-editing_file_settings_zero(){
-    Editing_File_Settings settings={0};
-    return(settings);
-}
-
 inline void
 file_set_to_loading(Editing_File *file){
-    file->state = editing_file_state_zero();
-    file->settings = editing_file_settings_zero();
+    file->state = null_editing_file_state;
+    file->settings = null_editing_file_settings;
     file->is_loading = 1;
 }
 

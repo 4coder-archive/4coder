@@ -137,6 +137,14 @@ ENUM(int32_t, Buffer_Setting_ID){
     being tied to the buffer.) */
     BufferSetting_WrapLine,
     
+    /* DOC(The BufferSetting_WrapPosition setting determines after how many pixels
+    a line will wrap.  A view set's this value from the global default value
+    when the view is created.  This value cannot be set to less than 48, any value passed
+    below 48 will cause the position to be set to 48.  This is a potentially expensive
+    operation because the wrap positions of the file have to be reindexed. For
+    best behavior try to only set this setting once per frame, if possible.) */
+    BufferSetting_WrapPosition,
+    
     /* DOC(The BufferSetting_MapID setting specifies the id of the command map that should be
     active when a buffer is active.) */
     BufferSetting_MapID,
@@ -159,20 +167,6 @@ ENUM(int32_t, Buffer_Setting_ID){
 ENUM(int32_t, View_Setting_ID){
     /* DOC(ViewSetting_Null is not a valid setting, it is reserved to detect errors.) */
     ViewSetting_Null,
-    
-    /* DOC(The ViewSetting_WrapLine setting determines whether the view applies line wrapping
-    at the border of the panel for long lines.  Whenever the view switches to a new buffer it
-    will reset this setting to match the 'preferred' line wrapping setting of the buffer.) */
-    ViewSetting_WrapLine,
-    
-    /* DOC(The ViewSetting_WrapPosition setting determines after how many pixels
-    a line will wrap.  A view set's this value from the global default value
-    when the view is created.  The global default can be changed at startup with
-    a flag (TODO). This value cannot be set to less than 48, any value passed
-    below 48 will cause the position to be set to 48.  This is a potentially expensive
-    operation because the wrap positions of the file have to be reindexed, for
-    best behavior try to only set this setting once per frame, if possible.) */
-    ViewSetting_WrapPosition,
     
     /* DOC(The ViewSetting_ShowWhitespace setting determines whether the view highlights
     whitespace in a file.  Whenever the view switches to a new buffer this setting is turned off.) */

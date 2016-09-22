@@ -70,25 +70,26 @@ fill_view_summary(View_Summary *view, View *vptr, Live_Views *live_set, Working_
     if (vptr->in_use){
         view->exists = 1;
         view->view_id = (int32_t)(vptr - live_set->views) + 1;
-        view->line_height = (float)(vptr->line_height);
-        view->unwrapped_lines = vptr->file_data.unwrapped_lines;
-        view->show_whitespace = vptr->file_data.show_whitespace;
+        view->line_height = (f32)(vptr->line_height);
+        view->unwrapped_lines = data->file->settings.unwrapped_lines;
+        view->show_whitespace = data->show_whitespace;
         view->lock_flags = view_lock_flags(vptr);
         
-        if (data->file){
-            buffer_id = vptr->file_data.file->id.id;
-            
-            view->buffer_id = buffer_id;
-            
-            view->mark = view_compute_cursor_from_pos(vptr, vptr->edit_pos->mark);
-            view->cursor = vptr->edit_pos->cursor;
-            view->preferred_x = vptr->edit_pos->preferred_x;
-            
-            view->file_region = vptr->file_region;
-            view->scroll_vars = vptr->edit_pos->scroll;
-        }
+        Assert(data->file);
+        
+        buffer_id = vptr->file_data.file->id.id;
+        
+        view->buffer_id = buffer_id;
+        
+        view->mark = view_compute_cursor_from_pos(vptr, vptr->edit_pos->mark);
+        view->cursor = vptr->edit_pos->cursor;
+        view->preferred_x = vptr->edit_pos->preferred_x;
+        
+        view->file_region = vptr->file_region;
+        view->scroll_vars = vptr->edit_pos->scroll;
     }
 }
+
 
 inline void
 fill_view_summary(View_Summary *view, View *vptr, Command_Data *cmd){
@@ -701,6 +702,27 @@ DOC_SEE(Buffer_Batch_Edit_Type)
     return(result);
 }
 
+API_EXPORT int32_t
+Buffer_Get_Setting(Application_Links *app, Buffer_Summary *buffer, Buffer_Setting_ID setting){
+    Command_Data *cmd = (Command_Data*)app->cmd_context;
+    Editing_File *file = imp_get_file(cmd, buffer);
+    int32_t result = -1;
+    
+    if (file){
+        switch (setting){
+            case BufferSetting_Lex:          result = file->settings.tokens_exist;     break;
+            case BufferSetting_WrapLine:     result = !file->settings.unwrapped_lines; break;
+            case BufferSetting_WrapPosition: result = file->settings.display_width;    break;
+            case BufferSetting_MapID:        result = file->settings.base_map_id;      break;
+            case BufferSetting_Eol:          result = file->settings.dos_write_mode;   break;
+            case BufferSetting_Unimportant:  result = file->settings.unimportant;      break;
+            case BufferSetting_ReadOnly:     result = file->settings.read_only;        break;
+        }
+    }
+    
+    return(result);
+}
+
 API_EXPORT bool32
 Buffer_Set_Setting(Application_Links *app, Buffer_Summary *buffer, Buffer_Setting_ID setting, int32_t value)
 /*
@@ -740,6 +762,20 @@ DOC_SEE(Buffer_Setting_ID)
                 file->settings.unwrapped_lines = !value;
             }break;
             
+            case BufferSetting_WrapPosition:
+            {
+                i32 new_value = value;
+                if (new_value < 48){
+                    new_value = 48;
+                }
+                if (new_value != file->settings.display_width){
+                    i16 font_id = file->settings.font_id;
+                    Render_Font *font = get_font_info(models->font_set, font_id)->font;
+                    file_set_display_width(&models->mem.general, file, new_value,
+                                           (f32)font->height, font->advance_data);
+                }
+            }break;
+            
             case BufferSetting_MapID:
             {
                 if (value == mapid_global){
@@ -773,20 +809,20 @@ DOC_SEE(Buffer_Setting_ID)
             case BufferSetting_Unimportant:
             {
                 if (value){
-                    file->settings.unimportant = true;
+                    file->settings.unimportant = 1;
                 }
                 else{
-                    file->settings.unimportant = false;
+                    file->settings.unimportant = 0;
                 }
             }break;
             
             case BufferSetting_ReadOnly:
             {
                 if (value){
-                    file->settings.read_only = true;
+                    file->settings.read_only = 1;
                 }
                 else{
-                    file->settings.read_only = false;
+                    file->settings.read_only = 0;
                 }
             }break;
         }
@@ -1379,8 +1415,6 @@ View_Get_Setting(Application_Links *app, View_Summary *view, View_Setting_ID set
     
     if (vptr){
         switch (setting){
-            case ViewSetting_WrapLine: result = !vptr->file_data.unwrapped_lines; break;
-            case ViewSetting_WrapPosition: result = vptr->display_width; break;
             case ViewSetting_ShowWhitespace: result = vptr->file_data.show_whitespace; break;
             case ViewSetting_ShowScrollbar: result = !vptr->hide_scrollbar; break;
         }
@@ -1398,45 +1432,12 @@ DOC_RETURN(This call returns non-zero on success.)
 DOC_SEE(View_Setting_ID)
 */{
     Command_Data *cmd = (Command_Data*)app->cmd_context;
-    System_Functions *system = cmd->system;
     View *vptr = imp_get_view(cmd, view);
     bool32 result = false;
     
     if (vptr){
         result = true;
         switch (setting){
-            case ViewSetting_WrapLine:
-            {
-                Relative_Scrolling scrolling = view_get_relative_scrolling(vptr);
-                if (value){
-                    if (vptr->file_data.unwrapped_lines){
-                        vptr->file_data.unwrapped_lines = 0;
-                        vptr->edit_pos->scroll.target_x = 0;
-                        view_cursor_move(vptr, vptr->edit_pos->cursor.pos);
-                        view_set_relative_scrolling(vptr, scrolling);
-                    }
-                }
-                else{
-                    if (!vptr->file_data.unwrapped_lines){
-                        vptr->file_data.unwrapped_lines = 1;
-                        view_cursor_move(vptr, vptr->edit_pos->cursor.pos);
-                        view_set_relative_scrolling(vptr, scrolling);
-                    }
-                }
-            }break;
-            
-            case ViewSetting_WrapPosition:
-            {
-                if (value < 48){
-                    value = 48;
-                }
-                
-                if (value != vptr->display_width){
-                    vptr->display_width = value;
-                    remeasure_file_view(system, vptr);
-                }
-            }break;
-            
             case ViewSetting_ShowWhitespace:
             {
                 vptr->file_data.show_whitespace = value;
@@ -1542,14 +1543,14 @@ DOC_SEE(Buffer_Seek)
     
     if (vptr){
         file = vptr->file_data.file;
-        if (file && !file->is_loading){
+        Assert(file);
+        if (!file->is_loading){
             result = true;
             if (seek.type == buffer_seek_line_char && seek.character <= 0){
                 seek.character = 1;
             }
             Full_Cursor cursor = view_compute_cursor(vptr, seek);
-            view_set_cursor(vptr, cursor, set_preferred_x,
-                            vptr->file_data.unwrapped_lines);
+            view_set_cursor(vptr, cursor, set_preferred_x, file->settings.unwrapped_lines);
             fill_view_summary(view, vptr, cmd);
         }
     }

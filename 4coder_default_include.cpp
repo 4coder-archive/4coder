@@ -2657,21 +2657,23 @@ CUSTOM_COMMAND_SIG(toggle_line_wrap){
     Buffer_Summary buffer = get_buffer(app, view.buffer_id, AccessProtected);
     
     bool32 unwrapped = view.unwrapped_lines;
-    
-    view_set_setting(app, &view, ViewSetting_WrapLine, unwrapped);
     buffer_set_setting(app, &buffer, BufferSetting_WrapLine, unwrapped);
 }
 
 CUSTOM_COMMAND_SIG(increase_line_wrap){
     View_Summary view = get_active_view(app, AccessProtected);
-    int32_t wrap = view_get_setting(app, &view, ViewSetting_WrapPosition);
-    view_set_setting(app, &view, ViewSetting_WrapPosition, wrap + 10);
+    Buffer_Summary buffer = get_buffer(app, view.buffer_id, AccessProtected);
+    
+    int32_t wrap = buffer_get_setting(app, &buffer, BufferSetting_WrapPosition);
+    buffer_set_setting(app, &buffer, BufferSetting_WrapPosition, wrap + 10);
 }
 
 CUSTOM_COMMAND_SIG(decrease_line_wrap){
     View_Summary view = get_active_view(app, AccessProtected);
-    int32_t wrap = view_get_setting(app, &view, ViewSetting_WrapPosition);
-    view_set_setting(app, &view, ViewSetting_WrapPosition, wrap - 10);
+    Buffer_Summary buffer = get_buffer(app, view.buffer_id, AccessProtected);
+    
+    int32_t wrap = buffer_get_setting(app, &buffer, BufferSetting_WrapPosition);
+    buffer_set_setting(app, &buffer, BufferSetting_WrapPosition, wrap - 10);
 }
 
 CUSTOM_COMMAND_SIG(toggle_show_whitespace){

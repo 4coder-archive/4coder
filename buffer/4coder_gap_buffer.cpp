@@ -19,6 +19,9 @@ typedef struct Gap_Buffer{
     i32 *line_starts;
     i32 line_count;
     i32 line_max;
+    
+    f32 *wraps;
+    i32 wrap_max;
 } Gap_Buffer;
 
 inline_4tech i32
@@ -90,6 +93,8 @@ buffer_end_init(Gap_Buffer_Init *init, void *scratch, i32 scratch_size){
             buffer->size2 = size2;
             buffer->gap_size = buffer->max - size1 - size2;
             memmove_4tech(buffer->data + size1 + buffer->gap_size, buffer->data + size1, size2);
+            
+            buffer->wraps = 0;
             
             result = 1;
         }
