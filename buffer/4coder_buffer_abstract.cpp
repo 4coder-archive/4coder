@@ -179,8 +179,7 @@ buffer_remeasure_starts(Buffer_Type *buffer, i32 line_start, i32 line_end, i32 l
 }
 
 internal_4tech void
-buffer_measure_wrap_y(Buffer_Type *buffer, f32 font_height, f32 *adv, f32 max_width){
-    f32 *wraps = buffer->wraps;
+buffer_measure_wrap_y(Buffer_Type *buffer, f32 *wraps, f32 font_height, f32 *adv, f32 max_width){
     Buffer_Stringify_Type loop = {0};
     i32 size = buffer_size(buffer);
     char *data = 0;
@@ -474,12 +473,11 @@ buffer_partial_from_pos(Buffer_Type *buffer, i32 pos){
 }
 
 internal_4tech Full_Cursor
-buffer_cursor_from_pos(Buffer_Type *buffer, i32 pos,
+buffer_cursor_from_pos(Buffer_Type *buffer, f32 *wraps, i32 pos,
                        f32 max_width, f32 font_height, f32 *adv){
     Full_Cursor result = {0};
     i32 line_index = 0;
     i32 size = buffer_size(buffer);
-    f32 *wraps = buffer->wraps;
     
     if (pos > size){
         pos = size;
@@ -522,11 +520,10 @@ buffer_partial_from_line_character(Buffer_Type *buffer, i32 line, i32 character)
 }
 
 internal_4tech Full_Cursor
-buffer_cursor_from_line_character(Buffer_Type *buffer, i32 line, i32 character,
+buffer_cursor_from_line_character(Buffer_Type *buffer, f32 *wraps, i32 line, i32 character,
                                   f32 max_width, f32 font_height, f32 *adv){
     Full_Cursor result = {0};
     i32 line_index = line - 1;
-    f32 *wraps = buffer->wraps;
     
     if (line_index >= buffer->line_count) line_index = buffer->line_count - 1;
     if (line_index < 0) line_index = 0;
@@ -539,11 +536,10 @@ buffer_cursor_from_line_character(Buffer_Type *buffer, i32 line, i32 character,
 }
 
 internal_4tech Full_Cursor
-buffer_cursor_from_unwrapped_xy(Buffer_Type *buffer, f32 x, f32 y, i32 round_down,
+buffer_cursor_from_unwrapped_xy(Buffer_Type *buffer, f32 *wraps, f32 x, f32 y, i32 round_down,
                                 f32 max_width, f32 font_height, f32 *adv){
     Full_Cursor result = {0};
     i32 line_index = (i32)(y / font_height);
-    f32 *wraps = buffer->wraps;
     
     if (line_index >= buffer->line_count) line_index = buffer->line_count - 1;
     if (line_index < 0) line_index = 0;
@@ -556,10 +552,9 @@ buffer_cursor_from_unwrapped_xy(Buffer_Type *buffer, f32 x, f32 y, i32 round_dow
 }
 
 internal_4tech Full_Cursor
-buffer_cursor_from_wrapped_xy(Buffer_Type *buffer, f32 x, f32 y, i32 round_down,
+buffer_cursor_from_wrapped_xy(Buffer_Type *buffer, f32 *wraps, f32 x, f32 y, i32 round_down,
                               f32 max_width, f32 font_height, f32 *adv){
     Full_Cursor result = {0};
-    f32 *wraps = buffer->wraps;
     i32 line_index = buffer_get_line_index_from_wrapped_y(wraps, y, font_height, 0, buffer->line_count);
     
     result = make_cursor_hint(line_index, buffer->line_starts, wraps, font_height);
@@ -630,16 +625,16 @@ buffer_invert_batch(Buffer_Invert_Batch *state, Buffer_Type *buffer, Buffer_Edit
 }
 
 internal_4tech Full_Cursor
-buffer_get_start_cursor(Buffer_Type *buffer, f32 scroll_y,
+buffer_get_start_cursor(Buffer_Type *buffer, f32 *wraps, f32 scroll_y,
                         i32 wrapped, f32 width, f32 *adv, f32 font_height){
     Full_Cursor result;
     
     if (wrapped){
-        result = buffer_cursor_from_wrapped_xy(buffer, 0, scroll_y, 0,
+        result = buffer_cursor_from_wrapped_xy(buffer, wraps, 0, scroll_y, 0,
                                                width, font_height, adv);
     }
     else{
-        result = buffer_cursor_from_unwrapped_xy(buffer, 0, scroll_y, 0,
+        result = buffer_cursor_from_unwrapped_xy(buffer, wraps, 0, scroll_y, 0,
                                                  width, font_height, adv);
     }
     

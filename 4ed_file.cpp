@@ -107,6 +107,9 @@ static Editing_File_Settings null_editing_file_settings = {0};
 struct Editing_File_State{
     Buffer_Type buffer;
     
+    f32 *wraps;
+    i32 wrap_max;
+    
     Undo_Data undo;
     
     Cpp_Token_Array token_array;
@@ -358,38 +361,6 @@ file_measure_starts(System_Functions *system, General_Memory *general, Buffer_Ty
     buffer->line_count = state.count;
 }
 
-internal void
-file_measure_wraps(General_Memory *general, Editing_File *file, f32 font_height, f32 *adv){
-    Buffer_Type *buffer = &file->state.buffer;
-    
-    if (buffer->wraps == 0){
-        i32 max = ((buffer->line_count+1)*2);
-        max = (max+(0x1FF))&(~(0x1FF));
-        buffer->wraps = (f32*)general_memory_allocate(general, max*sizeof(f32));
-        buffer->wrap_max = max;
-    }
-    else if (buffer->wrap_max < buffer->line_count){
-        i32 old_max = buffer->wrap_max;
-        i32 max = ((buffer->line_count+1)*2);
-        max = (max+(0x1FF))&(~(0x1FF));
-        
-        f32 *new_wraps = (f32*)general_memory_reallocate(
-            general, buffer->wraps, sizeof(f32)*old_max, sizeof(f32)*max);
-        
-        TentativeAssert(new_wraps);
-        buffer->wraps = new_wraps;
-        buffer->wrap_max = max;
-    }
-    
-    buffer_measure_wrap_y(buffer, font_height, adv, (f32)file->settings.display_width);
-}
-
-internal void
-file_set_display_width(General_Memory *general, Editing_File *file, i32 display_width, f32 font_height, f32 *adv){
-    file->settings.display_width = display_width;
-    file_measure_wraps(general, file, font_height, adv);
-}
-
 internal i32
 file_compute_lowest_line(Editing_File *file, f32 font_height){
     i32 lowest_line = 0;
@@ -399,7 +370,7 @@ file_compute_lowest_line(Editing_File *file, f32 font_height){
         lowest_line = buffer->line_count - 1;
     }
     else{
-        f32 term_line_y = buffer->wraps[buffer->line_count];
+        f32 term_line_y = file->state.wraps[buffer->line_count];
         lowest_line = CEIL32((term_line_y/font_height) - 1);
     }
     

@@ -297,12 +297,14 @@ view_file_height(View *view){
 inline i32
 view_get_cursor_pos(View *view){
     i32 result = 0;
+    
     if (view->file_data.show_temp_highlight){
         result = view->file_data.temp_highlight.pos;
     }
     else if (view->edit_pos){
         result = view->edit_pos->cursor.pos;
     }
+    
     return(result);
 }
 
@@ -427,7 +429,7 @@ view_compute_cursor_from_pos(View *view, i32 pos){
     Full_Cursor result = {};
     if (font){
         f32 max_width = view_file_display_width(view);
-        result = buffer_cursor_from_pos(&file->state.buffer, pos, max_width,
+        result = buffer_cursor_from_pos(&file->state.buffer, file->state.wraps, pos, max_width,
                                         (f32)view->line_height, font->advance_data);
     }
     return result;
@@ -442,7 +444,7 @@ view_compute_cursor_from_unwrapped_xy(View *view, f32 seek_x, f32 seek_y, b32 ro
     Full_Cursor result = {};
     if (font){
         f32 max_width = view_file_display_width(view);
-        result = buffer_cursor_from_unwrapped_xy(&file->state.buffer, seek_x, seek_y,
+        result = buffer_cursor_from_unwrapped_xy(&file->state.buffer, file->state.wraps, seek_x, seek_y,
                                                  round_down, max_width, (f32)view->line_height, font->advance_data);
     }
     
@@ -458,7 +460,7 @@ view_compute_cursor_from_wrapped_xy(View *view, f32 seek_x, f32 seek_y, b32 roun
     Full_Cursor result = {};
     if (font){
         f32 max_width = view_file_display_width(view);
-        result = buffer_cursor_from_wrapped_xy(&file->state.buffer, seek_x, seek_y, round_down,
+        result = buffer_cursor_from_wrapped_xy(&file->state.buffer, file->state.wraps, seek_x, seek_y, round_down,
                                                max_width, (f32)view->line_height, font->advance_data);
     }
     
@@ -474,7 +476,7 @@ view_compute_cursor_from_line_pos(View *view, i32 line, i32 pos){
     Full_Cursor result = {};
     if (font){
         f32 max_width = view_file_display_width(view);
-        result = buffer_cursor_from_line_character(&file->state.buffer, line, pos,
+        result = buffer_cursor_from_line_character(&file->state.buffer, file->state.wraps, line, pos,
                                                    max_width, (f32)view->line_height, font->advance_data);
     }
     
@@ -907,6 +909,64 @@ file_grow_starts_as_needed(General_Memory *general, Buffer_Type *buffer, i32 add
     return(result);
 }
 
+inline void
+view_set_temp_highlight(View *view, i32 pos, i32 end_pos){
+    view->file_data.temp_highlight = view_compute_cursor_from_pos(view, pos);
+    view->file_data.temp_highlight_end_pos = end_pos;
+    view->file_data.show_temp_highlight = 1;
+    
+    view_set_cursor(view, view->file_data.temp_highlight,
+                    0, view->file_data.file->settings.unwrapped_lines);
+}
+
+internal void
+file_measure_wraps(Models *models, Editing_File *file, f32 font_height, f32 *adv){
+    Buffer_Type *buffer = &file->state.buffer;
+    
+    General_Memory *general = &models->mem.general;
+    if (file->state.wraps == 0){
+        i32 max = ((buffer->line_count+1)*2);
+        max = (max+(0x1FF))&(~(0x1FF));
+        file->state.wraps = (f32*)general_memory_allocate(general, max*sizeof(f32));
+        file->state.wrap_max = max;
+    }
+    else if (file->state.wrap_max < buffer->line_count){
+        i32 old_max = file->state.wrap_max;
+        i32 max = ((buffer->line_count+1)*2);
+        max = (max+(0x1FF))&(~(0x1FF));
+        
+        f32 *new_wraps = (f32*)general_memory_reallocate(
+            general, file->state.wraps, sizeof(f32)*old_max, sizeof(f32)*max);
+        
+        TentativeAssert(new_wraps);
+        file->state.wraps = new_wraps;
+        file->state.wrap_max = max;
+    }
+    
+    buffer_measure_wrap_y(buffer, file->state.wraps, font_height, adv, (f32)file->settings.display_width);
+    
+    Editing_Layout *layout = &models->layout;
+    for (View_Iter iter = file_view_iter_init(layout, file, 0);
+         file_view_iter_good(iter);
+         iter = file_view_iter_next(iter)){
+        i32 pos = view_get_cursor_pos(iter.view);
+        
+        if (!iter.view->file_data.show_temp_highlight){
+            Full_Cursor cursor = view_compute_cursor_from_pos(iter.view, pos);
+            view_set_cursor(iter.view, cursor, 1, iter.view->file_data.file->settings.unwrapped_lines);
+        }
+        else{
+            view_set_temp_highlight(iter.view, pos, iter.view->file_data.temp_highlight_end_pos);
+        }
+    }
+}
+
+internal void
+file_set_display_width(Models *models, Editing_File *file, i32 display_width, f32 font_height, f32 *adv){
+    file->settings.display_width = display_width;
+    file_measure_wraps(models, file, font_height, adv);
+}
+
 internal void
 file_create_from_string(System_Functions *system, Models *models,
                         Editing_File *file, String val, b8 read_only = 0){
@@ -943,7 +1003,7 @@ file_create_from_string(System_Functions *system, Models *models,
     file->settings.font_id = font_id;
     Render_Font *font = get_font_info(font_set, font_id)->font;
     
-    file_measure_wraps(general, file, (f32)font->height, font->advance_data);
+    file_measure_wraps(models, file, (f32)font->height, font->advance_data);
     
     file->settings.read_only = read_only;
     if (!read_only){
@@ -1566,16 +1626,6 @@ file_post_history(General_Memory *general, Editing_File *file,
     return(result);
 }
 
-inline void
-view_set_temp_highlight(View *view, i32 pos, i32 end_pos){
-    view->file_data.temp_highlight = view_compute_cursor_from_pos(view, pos);
-    view->file_data.temp_highlight_end_pos = end_pos;
-    view->file_data.show_temp_highlight = 1;
-    
-    view_set_cursor(view, view->file_data.temp_highlight,
-                    0, view->file_data.file->settings.unwrapped_lines);
-}
-
 // TODO(allen): burn this shit to the ground yo!
 inline void
 file_view_nullify_file(View *view){
@@ -2008,7 +2058,7 @@ file_do_single_edit(System_Functions *system,
     buffer_remeasure_starts(buffer, line_start, line_end, line_shift, shift_amount);
     
     Render_Font *font = get_font_info(models->font_set, file->settings.font_id)->font;
-    file_measure_wraps(general, file, (f32)font->height, font->advance_data);
+    file_measure_wraps(models, file, (f32)font->height, font->advance_data);
     
     // NOTE(allen): cursor fixing
     Cursor_Fix_Descriptor desc = {};
@@ -2486,7 +2536,7 @@ internal void
 file_set_font(System_Functions *system, Models *models, Editing_File *file, i16 font_id){
     file->settings.font_id = font_id;
     Render_Font *font = get_font_info(models->font_set, file->settings.font_id)->font;
-    file_measure_wraps(&models->mem.general, file, (f32)font->height, font->advance_data);
+    file_measure_wraps(models, file, (f32)font->height, font->advance_data);
     
     Editing_Layout *layout = &models->layout;
     for (View_Iter iter = file_view_iter_init(layout, file, 0);
@@ -4761,7 +4811,7 @@ draw_file_loaded(View *view, i32_Rect rect, b32 is_active, Render_Target *target
     scroll_y += view->widget_height;
     
     {
-        render_cursor = buffer_get_start_cursor(&file->state.buffer, scroll_y,
+        render_cursor = buffer_get_start_cursor(&file->state.buffer, file->state.wraps, scroll_y,
                                                 !file->settings.unwrapped_lines,
                                                 max_x, advance_data, (f32)line_height);
         

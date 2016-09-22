@@ -771,7 +771,7 @@ DOC_SEE(Buffer_Setting_ID)
                 if (new_value != file->settings.display_width){
                     i16 font_id = file->settings.font_id;
                     Render_Font *font = get_font_info(models->font_set, font_id)->font;
-                    file_set_display_width(&models->mem.general, file, new_value,
+                    file_set_display_width(models, file, new_value,
                                            (f32)font->height, font->advance_data);
                 }
             }break;

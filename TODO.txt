@@ -154,7 +154,10 @@
 
 ; buffer behavior cleanup
 ;    [X] show all characters as \# if they can't be rendered
-;    [] get the navigation working correctly around multi-glyph characters
+;    [X] get the navigation working correctly around multi-glyph characters
+;    [] wrap remeasuring routine for local edits
+;    [] provide full cursor positioning in buffers
+;    [] provide cursor positioning system that does columns correctly
 ;    [] binary buffer mode
 ;    [] unicode buffer mode
 ;    [] support full length unicode file names
