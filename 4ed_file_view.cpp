@@ -675,6 +675,16 @@ view_set_cursor_and_scroll(View *view,
     }
 }
 
+inline void
+view_set_temp_highlight(View *view, i32 pos, i32 end_pos){
+    view->file_data.temp_highlight = view_compute_cursor_from_pos(view, pos);
+    view->file_data.temp_highlight_end_pos = end_pos;
+    view->file_data.show_temp_highlight = 1;
+    
+    view_set_cursor(view, view->file_data.temp_highlight,
+                    0, view->file_data.file->settings.unwrapped_lines);
+}
+
 struct View_And_ID{
     View *view;
     i32 id;
@@ -909,21 +919,30 @@ file_grow_starts_as_needed(General_Memory *general, Buffer_Type *buffer, i32 add
     return(result);
 }
 
-inline void
-view_set_temp_highlight(View *view, i32 pos, i32 end_pos){
-    view->file_data.temp_highlight = view_compute_cursor_from_pos(view, pos);
-    view->file_data.temp_highlight_end_pos = end_pos;
-    view->file_data.show_temp_highlight = 1;
-    
-    view_set_cursor(view, view->file_data.temp_highlight,
-                    0, view->file_data.file->settings.unwrapped_lines);
+internal void
+file_update_cursor_positions(Models *models, Editing_File *file){
+    Editing_Layout *layout = &models->layout;
+    for (View_Iter iter = file_view_iter_init(layout, file, 0);
+         file_view_iter_good(iter);
+         iter = file_view_iter_next(iter)){
+        i32 pos = view_get_cursor_pos(iter.view);
+        
+        if (!iter.view->file_data.show_temp_highlight){
+            Full_Cursor cursor = view_compute_cursor_from_pos(iter.view, pos);
+            view_set_cursor(iter.view, cursor, 1, iter.view->file_data.file->settings.unwrapped_lines);
+        }
+        else{
+            view_set_temp_highlight(iter.view, pos, iter.view->file_data.temp_highlight_end_pos);
+        }
+    }
 }
 
+// NOTE(allen): This call assumes that the buffer's line starts are already correct,
+// and that the buffer's line_count is correct.
 internal void
-file_measure_wraps(Models *models, Editing_File *file, f32 font_height, f32 *adv){
+file_allocate_wraps_as_needed(General_Memory *general, Editing_File *file){
     Buffer_Type *buffer = &file->state.buffer;
     
-    General_Memory *general = &models->mem.general;
     if (file->state.wraps == 0){
         i32 max = ((buffer->line_count+1)*2);
         max = (max+(0x1FF))&(~(0x1FF));
@@ -942,25 +961,20 @@ file_measure_wraps(Models *models, Editing_File *file, f32 font_height, f32 *adv
         file->state.wraps = new_wraps;
         file->state.wrap_max = max;
     }
-    
-    buffer_measure_wrap_y(buffer, file->state.wraps, font_height, adv, (f32)file->settings.display_width);
-    
-    Editing_Layout *layout = &models->layout;
-    for (View_Iter iter = file_view_iter_init(layout, file, 0);
-         file_view_iter_good(iter);
-         iter = file_view_iter_next(iter)){
-        i32 pos = view_get_cursor_pos(iter.view);
-        
-        if (!iter.view->file_data.show_temp_highlight){
-            Full_Cursor cursor = view_compute_cursor_from_pos(iter.view, pos);
-            view_set_cursor(iter.view, cursor, 1, iter.view->file_data.file->settings.unwrapped_lines);
-        }
-        else{
-            view_set_temp_highlight(iter.view, pos, iter.view->file_data.temp_highlight_end_pos);
-        }
-    }
 }
 
+// NOTE(allen): This call assumes that the buffer's line starts are already correct,
+// and that the buffer's line_count is correct.
+internal void
+file_measure_wraps(Models *models, Editing_File *file, f32 font_height, f32 *adv){
+    file_allocate_wraps_as_needed(&models->mem.general, file);
+    buffer_measure_wrap_y(&file->state.buffer, file->state.wraps,
+                          font_height, adv, (f32)file->settings.display_width);
+    file_update_cursor_positions(models, file);
+}
+
+// NOTE(allen): This call assumes that the buffer's line starts are already correct,
+// and that the buffer's line_count is correct.
 internal void
 file_set_display_width(Models *models, Editing_File *file, i32 display_width, f32 font_height, f32 *adv){
     file->settings.display_width = display_width;
@@ -2054,11 +2068,15 @@ file_do_single_edit(System_Functions *system,
     i32 new_line_count = buffer_count_newlines(&file->state.buffer, start, start+str_len);
     i32 line_shift =  new_line_count - replaced_line_count;
     
+    
+    Render_Font *font = get_font_info(models->font_set, file->settings.font_id)->font;
     file_grow_starts_as_needed(general, buffer, line_shift);
     buffer_remeasure_starts(buffer, line_start, line_end, line_shift, shift_amount);
     
-    Render_Font *font = get_font_info(models->font_set, file->settings.font_id)->font;
-    file_measure_wraps(models, file, (f32)font->height, font->advance_data);
+    file_allocate_wraps_as_needed(general, file);
+    buffer_remeasure_wrap_y(buffer, line_start, line_end, line_shift,
+                            file->state.wraps, (f32)font->height, font->advance_data,
+                            (f32)file->settings.display_width);
     
     // NOTE(allen): cursor fixing
     Cursor_Fix_Descriptor desc = {};
@@ -2079,6 +2097,8 @@ file_do_batch_edit(System_Functions *system, Models *models, Editing_File *file,
                    Edit_Spec spec, History_Mode history_mode, i32 batch_type){
     
     Mem_Options *mem = &models->mem;
+    General_Memory *general = &mem->general;
+    Partition *part = &mem->part;
     Editing_Layout *layout = &models->layout;
     
     // NOTE(allen): fixing stuff "beforewards"???    
@@ -2087,9 +2107,6 @@ file_do_batch_edit(System_Functions *system, Models *models, Editing_File *file,
     file_pre_edit_maintenance(system, &mem->general, file);
     
     // NOTE(allen): actual text replacement
-    General_Memory *general = &mem->general;
-    Partition *part = &mem->part;
-    
     u8 *str_base = file->state.undo.children.strings;
     i32 batch_size = spec.step.child_count;
     Buffer_Edit *batch = file->state.undo.children.edits + spec.step.first_child;
@@ -2113,9 +2130,17 @@ file_do_batch_edit(System_Functions *system, Models *models, Editing_File *file,
         }
     }
     
+    // TODO(allen): Let's try to switch to remeasuring here moron!
+    // We'll need to get the total shift from the actual batch edit state
+    // instead of from the cursor fixing.  The only reason we're getting
+    // it from cursor fixing is because you're a lazy asshole.
+    
     // NOTE(allen): meta data
     Buffer_Measure_Starts measure_state = {};
     buffer_measure_starts(&measure_state, &file->state.buffer);
+    
+    Render_Font *font = get_font_info(models->font_set, file->settings.font_id)->font;
+    file_measure_wraps(models, file, (f32)font->height, font->advance_data);
     
     // NOTE(allen): cursor fixing
     i32 shift_total = 0;
@@ -2124,7 +2149,6 @@ file_do_batch_edit(System_Functions *system, Models *models, Editing_File *file,
         desc.is_batch = 1;
         desc.batch = batch;
         desc.batch_size = batch_size;
-        
         file_edit_cursor_fix(system, models, file, layout, desc, &shift_total);
     }
     

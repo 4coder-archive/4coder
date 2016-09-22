@@ -1459,11 +1459,11 @@ App_Init_Sig(app_init){
                 user_map_count = unit->header.user_map_count;
                 
                 models->map_id_table = push_array(
-                                                  &models->mem.part, i32, user_map_count);
+                    &models->mem.part, i32, user_map_count);
                 memset(models->map_id_table, -1, user_map_count*sizeof(i32));
                 
                 models->user_maps = push_array(
-                                               &models->mem.part, Command_Map, user_map_count);
+                    &models->mem.part, Command_Map, user_map_count);
                 
                 models->user_map_count = user_map_count;
                 
@@ -1694,26 +1694,33 @@ App_Init_Sig(app_init){
     
     General_Memory *general = &models->mem.general;
     
-    String init_files[] = {
-        make_lit_string("*messages*"),
-        make_lit_string("*scratch*"),
+    struct File_Init{
+        String name;
+        Editing_File **ptr;
+        i32 type;
     };
     
-    Editing_File **init_file_ptrs[] = {
-        &models->message_buffer,
-        &models->scratch_buffer,
+    File_Init init_files[] = {
+        { make_lit_string("*messages*"), &models->message_buffer, 1, },
+        { make_lit_string("*scratch*"),  &models->scratch_buffer, 0, }
     };
     
     for (i32 i = 0; i < ArrayCount(init_files); ++i){
-        String name = init_files[i];
         Editing_File *file = working_set_alloc_always(&models->working_set, general);
-        buffer_bind_name(general, &models->working_set, file, name);
-        init_read_only_file(system, models, file);
+        buffer_bind_name(general, &models->working_set, file, init_files[i].name);
+        
+        switch (init_files[i].type){
+            case 0: init_normal_file(system, models, file, 0, 0); break;
+            case 1: init_read_only_file(system, models, file); break;
+        }
+        
         file->settings.never_kill = 1;
         file->settings.unimportant = 1;
         file->settings.unwrapped_lines = 1;
         
-        *init_file_ptrs[i] = file;
+        if (init_files[i].ptr){
+            *init_files[i].ptr = file;
+        }
     }
     
     Panel_And_ID p = layout_alloc_panel(&models->layout);

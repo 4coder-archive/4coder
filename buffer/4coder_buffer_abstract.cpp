@@ -73,6 +73,8 @@ typedef struct Buffer_Measure_Starts{
 } Buffer_Measure_Starts;
 
 // TODO(allen): Rewrite this with a duff routine
+// Also make it so that the array goes one past the end
+// and stores the size in the extra spot.
 internal_4tech i32
 buffer_measure_starts(Buffer_Measure_Starts *state, Buffer_Type *buffer){
     Buffer_Stringify_Type loop = {0};
@@ -120,80 +122,18 @@ buffer_measure_starts(Buffer_Measure_Starts *state, Buffer_Type *buffer){
 }
 
 internal_4tech void
-buffer_remeasure_starts(Buffer_Type *buffer, i32 line_start, i32 line_end, i32 line_shift, i32 text_shift){
-    Buffer_Stringify_Type loop;
-    i32 *starts = buffer->line_starts;
-    i32 line_count = buffer->line_count;
-    char *data = 0;
-    i32 size = 0, end = 0;
-    i32 line_i = 0, char_i = 0, start = 0;
-    
-    assert_4tech(0 <= line_start);
-    assert_4tech(line_start <= line_end);
-    assert_4tech(line_end < line_count);
-    assert_4tech(line_count + line_shift <= buffer->line_max);
-    
-    ++line_end;
-    if (text_shift != 0){
-        line_i = line_end;
-        starts += line_i;
-        for (; line_i < line_count; ++line_i, ++starts){
-            *starts += text_shift;
-        }
-        starts = buffer->line_starts;
-    }
-    
-    if (line_shift != 0){
-        memmove_4tech(starts + line_end + line_shift, starts + line_end,
-                      sizeof(i32)*(line_count - line_end));
-        line_count += line_shift;
-    }
-    
-    line_end += line_shift;
-    size = buffer_size(buffer);
-    char_i = starts[line_start];
-    line_i = line_start;
-    start = char_i;
-    
-    for (loop = buffer_stringify_loop(buffer, char_i, size);
-         buffer_stringify_good(&loop);
-         buffer_stringify_next(&loop)){
-        end = loop.size + loop.absolute_pos;
-        data = loop.data - loop.absolute_pos;
-        for (; char_i < end; ++char_i){
-            if (data[char_i] == '\n'){
-                starts[line_i++] = start;
-                start = char_i + 1;
-                if (line_i >= line_end && start == starts[line_i]) goto buffer_remeasure_starts_end;
-            }
-        }
-    }
-    
-    if (char_i == size){
-        starts[line_i++] = start;
-    }
-    
-    buffer_remeasure_starts_end:    
-    assert_4tech(line_count >= 1);
-    buffer->line_count = line_count;
-}
-
-internal_4tech void
 buffer_measure_wrap_y(Buffer_Type *buffer, f32 *wraps, f32 font_height, f32 *adv, f32 max_width){
     Buffer_Stringify_Type loop = {0};
-    i32 size = buffer_size(buffer);
     char *data = 0;
     i32 end = 0;
     i32 i = 0;
+    i32 size = buffer_size(buffer);
     
     i32 wrap_index = 0;
     f32 last_wrap = 0.f;
     f32 current_wrap = 0.f;
     
     f32 x = 0.f;
-    f32 current_adv = 0.f;
-    
-    u8 ch = 0;
     
     for (loop = buffer_stringify_loop(buffer, i, size);
          buffer_stringify_good(&loop);
@@ -201,7 +141,7 @@ buffer_measure_wrap_y(Buffer_Type *buffer, f32 *wraps, f32 font_height, f32 *adv
         end = loop.size + loop.absolute_pos;
         data = loop.data - loop.absolute_pos;
         for (; i < end; ++i){
-            ch = (u8)data[i];
+            u8 ch = (u8)data[i];
             if (ch == '\n'){
                 wraps[wrap_index++] = last_wrap;
                 current_wrap += font_height;
@@ -209,7 +149,7 @@ buffer_measure_wrap_y(Buffer_Type *buffer, f32 *wraps, f32 font_height, f32 *adv
                 x = 0.f;
             }
             else{
-                current_adv = adv[ch];
+                f32 current_adv = adv[ch];
                 if (x + current_adv > max_width){
                     current_wrap += font_height;
                     x = current_adv;
@@ -225,6 +165,165 @@ buffer_measure_wrap_y(Buffer_Type *buffer, f32 *wraps, f32 font_height, f32 *adv
     wraps[wrap_index++] = current_wrap;
     
     assert_4tech(wrap_index-1 == buffer->line_count);
+}
+
+internal_4tech void
+buffer_remeasure_starts(Buffer_Type *buffer, i32 line_start, i32 line_end, i32 line_shift, i32 text_shift){
+    i32 *starts = buffer->line_starts;
+    i32 line_count = buffer->line_count;
+    
+    assert_4tech(0 <= line_start);
+    assert_4tech(line_start <= line_end);
+    assert_4tech(line_end < line_count);
+    assert_4tech(line_count + line_shift <= buffer->line_max);
+    
+    ++line_end;
+    
+    // Adjust
+    if (text_shift != 0){
+        i32 line_i = line_end;
+        starts += line_i;
+        for (; line_i < line_count; ++line_i, ++starts){
+            *starts += text_shift;
+        }
+        starts = buffer->line_starts;
+    }
+    
+    // Shift
+    i32 new_line_count = line_count;
+    i32 new_line_end = line_end;
+    if (line_shift != 0){
+        memmove_4tech(starts + line_end + line_shift, starts + line_end,
+                      sizeof(i32)*(line_count - line_end));
+        
+        new_line_count += line_shift;
+        new_line_end += line_shift;
+    }
+    
+    // Iteration data (yikes! Need better loop system)
+    Buffer_Stringify_Type loop = {0};
+    i32 end = 0;
+    char *data = 0;
+    i32 size = buffer_size(buffer);
+    i32 char_i = starts[line_start];
+    i32 line_i = line_start;
+    
+    // Line start measurement
+    i32 start = char_i;
+    
+    for (loop = buffer_stringify_loop(buffer, char_i, size);
+         buffer_stringify_good(&loop);
+         buffer_stringify_next(&loop)){
+        end = loop.size + loop.absolute_pos;
+        data = loop.data - loop.absolute_pos;
+        for (; char_i < end; ++char_i){
+            u8 ch = (u8)data[char_i];
+            
+            if (ch == '\n'){
+                starts[line_i] = start;
+                ++line_i;
+                start = char_i + 1;
+                
+                // TODO(allen): I would like to know that I am not guessing here,
+                // so let's try to turn the && into an Assert.
+                if (line_i >= new_line_end && (line_i >= new_line_count || start == starts[line_i])){
+                    goto buffer_remeasure_starts_end;
+                }
+            }
+        }
+    }
+    
+    // TODO(allen): I suspect this can just go away.
+    if (char_i == size){
+        starts[line_i++] = start;
+    }
+    
+    buffer_remeasure_starts_end:;
+    assert_4tech(line_count >= 1);
+    buffer->line_count = new_line_count;
+}
+
+internal_4tech void
+buffer_remeasure_wrap_y(Buffer_Type *buffer, i32 line_start, i32 line_end, i32 line_shift,
+                        f32 *wraps, f32 font_height, f32 *adv, f32 max_width){
+    i32 new_line_count = buffer->line_count;
+    
+    assert_4tech(0 <= line_start);
+    assert_4tech(line_start <= line_end);
+    assert_4tech(line_end < new_line_count - line_shift);
+    
+    ++line_end;
+    
+    // Shift
+    i32 line_count = new_line_count;
+    i32 new_line_end = line_end;
+    if (line_shift != 0){
+        memmove_4tech(wraps + line_end + line_shift, wraps + line_end,
+                      sizeof(i32)*(line_count - line_end));
+        
+        line_count -= line_shift;
+        new_line_end += line_shift;
+    }
+    
+    // Iteration data (yikes! Need better loop system)
+    Buffer_Stringify_Type loop = {0};
+    i32 end = 0;
+    char *data = 0;
+    i32 size = buffer_size(buffer);
+    i32 char_i = buffer->line_starts[line_start];
+    i32 line_i = line_start;
+    
+    // Line wrap measurement
+    f32 last_wrap = wraps[line_i];
+    f32 current_wrap = last_wrap;
+    f32 x = 0.f;
+    
+    for (loop = buffer_stringify_loop(buffer, char_i, size);
+         buffer_stringify_good(&loop);
+         buffer_stringify_next(&loop)){
+        end = loop.size + loop.absolute_pos;
+        data = loop.data - loop.absolute_pos;
+        for (; char_i < end; ++char_i){
+            u8 ch = (u8)data[char_i];
+            
+            if (ch == '\n'){
+                wraps[line_i] = last_wrap;
+                ++line_i;
+                current_wrap += font_height;
+                last_wrap = current_wrap;
+                x = 0.f;
+                
+                // TODO(allen): I would like to know that I am not guessing here.
+                if (line_i >= new_line_end){
+                    goto buffer_remeasure_wraps_end;
+                }
+            }
+            else{
+                f32 current_adv = adv[ch];
+                if (x + current_adv > max_width){
+                    current_wrap += font_height;
+                    x = current_adv;
+                }
+                else{
+                    x += current_adv;
+                }
+            }
+        }
+    }
+    
+    wraps[line_i++] = last_wrap;
+    
+    buffer_remeasure_wraps_end:;
+    
+    f32 y_shift = current_wrap - wraps[line_i];
+    
+    // Adjust
+    if (y_shift != 0){
+        wraps += line_i;
+        for (; line_i <= new_line_count; ++line_i, ++wraps){
+            *wraps += y_shift;
+        }
+    }
 }
 
 internal_4tech i32
@@ -297,7 +396,6 @@ cursor_seek_step(Seek_State *state, Buffer_Seek seek, i32 xy_seek, f32 max_width
                  f32 font_height, f32 *adv, i32 size, uint8_t ch){
     Full_Cursor cursor = state->cursor;
     Full_Cursor prev_cursor = cursor;
-    f32 ch_width;
     i32 result = 1;
     f32 x, px, y;
     
@@ -312,18 +410,19 @@ cursor_seek_step(Seek_State *state, Buffer_Seek seek, i32 xy_seek, f32 max_width
         break;
         
         default:
-        ++cursor.character;
-        ch_width = adv[ch];
-        
-        if (cursor.wrapped_x + ch_width >= max_width){
-            cursor.wrapped_y += font_height;
-            cursor.wrapped_x = 0;
-            prev_cursor = cursor;
-        }
-        
-        cursor.unwrapped_x += ch_width;
-        cursor.wrapped_x += ch_width;
-        break;
+        {
+            f32 ch_width = adv[ch];
+            
+            if (cursor.wrapped_x + ch_width > max_width){
+                cursor.wrapped_y += font_height;
+                cursor.wrapped_x = 0;
+                prev_cursor = cursor;
+            }
+            
+            ++cursor.character;
+            cursor.unwrapped_x += ch_width;
+            cursor.wrapped_x += ch_width;
+        }break;
     }
     
     ++cursor.pos;
