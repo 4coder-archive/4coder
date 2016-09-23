@@ -388,137 +388,23 @@ buffer_get_line_index_from_wrapped_y(f32 *wraps, f32 y, f32 font_height, i32 l_b
     return(result);
 }
 
-typedef struct Seek_State{
-    Full_Cursor cursor;
-    Full_Cursor prev_cursor;
-} Seek_State;
-
-internal_4tech i32
-cursor_seek_step(Seek_State *state, Buffer_Seek seek, i32 xy_seek, f32 max_width,
-                 f32 font_height, f32 *adv, i32 size, u8 ch){
-    Full_Cursor cursor = state->cursor;
-    Full_Cursor prev_cursor = cursor;
-    i32 result = 1;
-    f32 x, px, y;
-    
-    switch (ch){
-        case '\n':
-        ++cursor.line;
-        cursor.unwrapped_y += font_height;
-        cursor.wrapped_y += font_height;
-        cursor.character = 1;
-        cursor.unwrapped_x = 0;
-        cursor.wrapped_x = 0;
-        break;
-        
-        default:
-        {
-            f32 ch_width = adv[ch];
-            
-            if (cursor.wrapped_x + ch_width > max_width){
-                cursor.wrapped_y += font_height;
-                cursor.wrapped_x = 0;
-                prev_cursor = cursor;
-            }
-            
-            ++cursor.character;
-            cursor.unwrapped_x += ch_width;
-            cursor.wrapped_x += ch_width;
-        }break;
-    }
-    
-    ++cursor.pos;
-    
-    if (cursor.pos > size){
-        cursor = prev_cursor;
-        result = 0;
-        goto cursor_seek_step_end;
-    }
-    
-    x = y = px = 0;
-    
-    switch (seek.type){
-        case buffer_seek_pos:
-        if (cursor.pos > seek.pos){
-            cursor = prev_cursor;
-            result = 0;
-            goto cursor_seek_step_end;
-        }break;
-        
-        case buffer_seek_wrapped_xy:
-        x = cursor.wrapped_x; px = prev_cursor.wrapped_x;
-        y = cursor.wrapped_y; break;
-        
-        case buffer_seek_unwrapped_xy:
-        x = cursor.unwrapped_x; px = prev_cursor.unwrapped_x;
-        y = cursor.unwrapped_y; break;
-        
-        case buffer_seek_line_char:
-        if (cursor.line == seek.line && cursor.character >= seek.character){
-            result = 0;
-            goto cursor_seek_step_end;
-        }
-        else if (cursor.line > seek.line){
-            cursor = prev_cursor;
-            result = 0;
-            goto cursor_seek_step_end;
-        }break;
-    }
-    
-    if (xy_seek){
-        if (y > seek.y){
-            cursor = prev_cursor;
-            result = 0;
-            goto cursor_seek_step_end;
-        }
-        
-        if (y > seek.y - font_height && x >= seek.x){
-            if (!seek.round_down){
-                if (ch != '\n' && (seek.x - px) < (x - seek.x)) cursor = prev_cursor;
-                result = 0;
-                goto cursor_seek_step_end;
-            }
-            
-            if (x > seek.x){
-                cursor = prev_cursor;
-                result = 0;
-                goto cursor_seek_step_end;
-            }
-        }
-    }
-    
-    cursor_seek_step_end:;
-    state->cursor = cursor;
-    state->prev_cursor = prev_cursor;
-    return(result);
-}
-
 internal_4tech Full_Cursor
 buffer_cursor_seek(Buffer_Type *buffer, Buffer_Seek seek, f32 max_width,
                    f32 font_height, f32 *adv, Full_Cursor cursor){
-    i32 result = 0;
-    
-    Seek_State state;
     i32 xy_seek;
-    
-    state.cursor = cursor;
     
     switch(seek.type){
         case buffer_seek_pos:
         if (cursor.pos >= seek.pos) goto buffer_cursor_seek_end;
-        break;
         
         case buffer_seek_wrapped_xy:
         if (seek.x == 0 && cursor.wrapped_y >= seek.y) goto buffer_cursor_seek_end;
-        break;
         
         case buffer_seek_unwrapped_xy:
         if (seek.x == 0 && cursor.unwrapped_y >= seek.y) goto buffer_cursor_seek_end;
-        break;
         
         case buffer_seek_line_char:
         if (cursor.line >= seek.line && cursor.character >= seek.character) goto buffer_cursor_seek_end;
-        break;
     }
     
     if (adv){
@@ -527,7 +413,7 @@ buffer_cursor_seek(Buffer_Type *buffer, Buffer_Seek seek, f32 max_width,
         i32 i = cursor.pos;
         
         xy_seek = (seek.type == buffer_seek_wrapped_xy || seek.type == buffer_seek_unwrapped_xy);
-        result = 1;
+        i32 result = 1;
         
         stream.use_termination_character = 1;
         stream.terminator = 0;
@@ -537,8 +423,96 @@ buffer_cursor_seek(Buffer_Type *buffer, Buffer_Seek seek, f32 max_width,
             do{
                 for (; i < stream.end; ++i){
                     u8 ch = (u8)stream.data[i];
-                    result = cursor_seek_step(&state, seek, xy_seek, max_width,
-                                              font_height, adv, size, ch);
+                    
+                    Full_Cursor prev_cursor = cursor;
+                    
+                    switch (ch){
+                        case '\n':
+                        ++cursor.line;
+                        cursor.unwrapped_y += font_height;
+                        cursor.wrapped_y += font_height;
+                        cursor.character = 1;
+                        cursor.unwrapped_x = 0;
+                        cursor.wrapped_x = 0;
+                        break;
+                        
+                        default:
+                        {
+                            f32 ch_width = adv[ch];
+                            
+                            if (cursor.wrapped_x + ch_width > max_width){
+                                cursor.wrapped_y += font_height;
+                                cursor.wrapped_x = 0;
+                                prev_cursor = cursor;
+                            }
+                            
+                            ++cursor.character;
+                            cursor.unwrapped_x += ch_width;
+                            cursor.wrapped_x += ch_width;
+                        }break;
+                    }
+                    
+                    ++cursor.pos;
+                    
+                    if (cursor.pos > size){
+                        cursor = prev_cursor;
+                        result = 0;
+                        goto cursor_seek_step_end;
+                    }
+                    
+                    f32 x = 0, px = 0, y = 0;
+                    
+                    switch (seek.type){
+                        case buffer_seek_pos:
+                        if (cursor.pos > seek.pos){
+                            cursor = prev_cursor;
+                            result = 0;
+                            goto cursor_seek_step_end;
+                        }break;
+                        
+                        case buffer_seek_wrapped_xy:
+                        x = cursor.wrapped_x; px = prev_cursor.wrapped_x;
+                        y = cursor.wrapped_y; break;
+                        
+                        case buffer_seek_unwrapped_xy:
+                        x = cursor.unwrapped_x; px = prev_cursor.unwrapped_x;
+                        y = cursor.unwrapped_y; break;
+                        
+                        case buffer_seek_line_char:
+                        if (cursor.line == seek.line && cursor.character >= seek.character){
+                            result = 0;
+                            goto cursor_seek_step_end;
+                        }
+                        else if (cursor.line > seek.line){
+                            cursor = prev_cursor;
+                            result = 0;
+                            goto cursor_seek_step_end;
+                        }break;
+                    }
+                    
+                    if (xy_seek){
+                        if (y > seek.y){
+                            cursor = prev_cursor;
+                            result = 0;
+                            goto cursor_seek_step_end;
+                        }
+                        
+                        if (y > seek.y - font_height && x >= seek.x){
+                            if (!seek.round_down){
+                                if (ch != '\n' && (seek.x - px) < (x - seek.x)) cursor = prev_cursor;
+                                result = 0;
+                                goto cursor_seek_step_end;
+                            }
+                            
+                            if (x > seek.x){
+                                cursor = prev_cursor;
+                                result = 0;
+                                goto cursor_seek_step_end;
+                            }
+                        }
+                    }
+                    
+                    cursor_seek_step_end:;
                     if (!result){
                         goto buffer_cursor_seek_end;
                     }
@@ -551,7 +525,7 @@ buffer_cursor_seek(Buffer_Type *buffer, Buffer_Seek seek, f32 max_width,
     }
     
     buffer_cursor_seek_end:;
-    return(state.cursor);
+    return(cursor);
 }
 
 internal_4tech Partial_Cursor
