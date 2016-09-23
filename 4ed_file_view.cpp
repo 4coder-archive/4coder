@@ -3349,16 +3349,15 @@ struct Single_Line_Mode{
     Single_Line_Input_Type type;
     String *string;
     Hot_Directory *hot_directory;
-    b32 fast_folder_select;
     b32 try_to_match;
     b32 case_sensitive;
 };
 
 internal Single_Line_Input_Step
 app_single_line_input_core(System_Functions *system, Working_Set *working_set,
-    Key_Event_Data key, Single_Line_Mode mode){
+                           Key_Event_Data key, Single_Line_Mode mode){
     Single_Line_Input_Step result = {0};
-
+    
     if (key.keycode == key_back){
         result.hit_backspace = 1;
         if (mode.string->size > 0){
@@ -3369,14 +3368,19 @@ app_single_line_input_core(System_Functions *system, Working_Set *working_set,
                 {
                     mode.string->str[mode.string->size] = 0;
                 }break;
-
+                
                 case SINGLE_LINE_FILE:
                 {
-                    char end_character = mode.string->str[mode.string->size];
-                    if (char_is_slash(end_character)){
-                        mode.string->size = reverse_seek_slash(*mode.string) + 1;
-                        mode.string->str[mode.string->size] = 0;
-                        hot_directory_set(system, mode.hot_directory, *mode.string, working_set);
+                    if (!key.modifiers[MDFR_CONTROL_INDEX]){
+                        char end_character = mode.string->str[mode.string->size];
+                        if (char_is_slash(end_character)){
+                            mode.string->size = reverse_seek_slash(*mode.string) + 1;
+                            mode.string->str[mode.string->size] = 0;
+                            hot_directory_set(system, mode.hot_directory, *mode.string, working_set);
+                        }
+                        else{
+                            mode.string->str[mode.string->size] = 0;
+                        }
                     }
                     else{
                         mode.string->str[mode.string->size] = 0;
@@ -3385,20 +3389,19 @@ app_single_line_input_core(System_Functions *system, Working_Set *working_set,
             }
         }
     }
-
+    
     else if (key.character == '\n' || key.character == '\t'){
         // NOTE(allen): do nothing!
     }
-
+    
     else if (key.keycode == key_esc){
         result.hit_esc = 1;
         result.made_a_change = 1;
     }
-
+    
     else if (key.character){
         result.hit_a_character = 1;
-        if (!key.modifiers[MDFR_CONTROL_INDEX] &&
-                !key.modifiers[MDFR_ALT_INDEX]){
+        if (!key.modifiers[MDFR_CONTROL_INDEX] && !key.modifiers[MDFR_ALT_INDEX]){
             if (mode.string->size+1 < mode.string->memory_size){
                 u8 new_character = (u8)key.character;
                 mode.string->str[mode.string->size] = new_character;
@@ -3414,7 +3417,7 @@ app_single_line_input_core(System_Functions *system, Working_Set *working_set,
             result.did_command = 1;
         }
     }
-
+    
     return result;
 }
 
@@ -3430,12 +3433,11 @@ inline Single_Line_Input_Step
 app_single_file_input_step(System_Functions *system,
                            Working_Set *working_set, Key_Event_Data key,
                            String *string, Hot_Directory *hot_directory,
-                           b32 fast_folder_select, b32 try_to_match, b32 case_sensitive){
+                           b32 try_to_match, b32 case_sensitive){
     Single_Line_Mode mode = {};
     mode.type = SINGLE_LINE_FILE;
     mode.string = string;
     mode.hot_directory = hot_directory;
-    mode.fast_folder_select = fast_folder_select;
     mode.try_to_match = try_to_match;
     mode.case_sensitive = case_sensitive;
     return app_single_line_input_core(system, working_set, key, mode);
@@ -3919,11 +3921,11 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                     switch (view->interaction){
                         case IInt_Sys_File_List:
                         {
-                            b32 use_item_in_list = 1;
+                            b32 autocomplete_with_enter = 1;
                             b32 activate_directly = 0;
                             
                             if (view->action == IAct_Save_As || view->action == IAct_New){
-                                use_item_in_list = 0;
+                                autocomplete_with_enter = 0;
                             }
                             
                             String message = {0};
@@ -3949,12 +3951,12 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                                 for (i = 0; i < keys.count; ++i){
                                     key = get_single_key(&keys, i);
                                     step = app_single_file_input_step(system, &models->working_set, key,
-                                                                      &hdir->string, hdir, 1, 1, 0);
+                                                                      &hdir->string, hdir, 1, 0);
                                     if (step.made_a_change){
                                         view->list_i = 0;
                                         result.consume_keys = 1;
                                     }
-                                    if (!use_item_in_list && (key.keycode == '\n' || key.keycode == '\t')){
+                                    if (!autocomplete_with_enter && key.keycode == '\n'){
                                         activate_directly = 1;
                                         result.consume_keys = 1;
                                     }
@@ -3998,7 +4000,7 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                                             set_last_folder_sc(&hdir->string, file_info.info->filename, '/');
                                             do_new_directory = 1;
                                         }
-                                        else if (use_item_in_list){
+                                        else if (autocomplete_with_enter){
                                             complete = 1;
                                             copy_ss(&comp_dest, loop.full_path);
                                         }
