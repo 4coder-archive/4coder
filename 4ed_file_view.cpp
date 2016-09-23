@@ -4882,8 +4882,6 @@ draw_file_loaded(View *view, i32_Rect rect, b32 is_active, Render_Target *target
         
     }
     
-    Assert(count > 0);
-    
     i32 cursor_begin = 0, cursor_end = 0;
     u32 cursor_color = 0, at_cursor_color = 0;
     if (view->file_data.show_temp_highlight){

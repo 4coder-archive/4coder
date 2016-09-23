@@ -101,12 +101,9 @@ buffer_end_init(Gap_Buffer_Init *init, void *scratch, i32 scratch_size){
 typedef struct Gap_Buffer_Stream{
     Gap_Buffer *buffer;
     char *data;
-    char *base;
-    i32 absolute_pos;
-    i32 pos;
     i32 end;
-    i32 size;
     i32 separated;
+    i32 absolute_end;
 } Gap_Buffer_Stream;
 
 internal_4tech b32
@@ -115,38 +112,34 @@ buffer_stringify_loop(Gap_Buffer_Stream *stream, Gap_Buffer *buffer, i32 start, 
     
     if (0 <= start && start < end && end <= buffer->size1 + buffer->size2){
         stream->buffer = buffer;
-        stream->base = buffer->data;
-        stream->absolute_pos = start;
-        
-        if (end <= buffer->size1){
-            stream->end = end;
-        }
-        else{
-            stream->end = end + buffer->gap_size;
-        }
+        stream->absolute_end = end;
         
         if (start < buffer->size1){
-            if (end <= buffer->size1){
-                stream->separated = 0;
-            }
-            else{
+            if (buffer->size1 < end){
                 stream->separated = 1;
             }
-            stream->pos = start;
+            else{
+                stream->separated = 0;
+            }
+            stream->data = buffer->data;
         }
         else{
             stream->separated = 0;
-            stream->pos = start + buffer->gap_size;
+            stream->data = buffer->data + buffer->gap_size;
         }
         
         if (stream->separated){
-            stream->size = buffer->size1 - start;
+            stream->end = buffer->size1;
         }
         else{
-            stream->size = end - start;
+            stream->end = end;
         }
         
-        stream->data = buffer->data + stream->pos;
+        if (stream->end > stream->absolute_end){
+            stream->end = stream->absolute_end;
+        }
+        
+        result = 1;
     }
     
     return(result);
@@ -154,20 +147,15 @@ buffer_stringify_loop(Gap_Buffer_Stream *stream, Gap_Buffer *buffer, i32 start, 
 
 internal_4tech b32
 buffer_stringify_next(Gap_Buffer_Stream *stream){
-    i32 size1 = 0, temp_end = 0;
+    b32 result = 0;
+    Gap_Buffer *buffer = stream->buffer;
     if (stream->separated){
+        stream->data = buffer->data + buffer->gap_size;
+        stream->end = stream->absolute_end;
         stream->separated = 0;
-        size1 = stream->buffer->size1;
-        stream->pos = stream->buffer->gap_size + size1;
-        stream->absolute_pos = size1;
-        temp_end = stream->end;
+        result = 1;
     }
-    else{
-        stream->buffer = 0;
-        temp_end = stream->pos;
-    }
-    stream->size = temp_end - stream->pos;
-    stream->data = stream->base + stream->pos;
+    return(result);
 }
 
 internal_4tech i32
@@ -209,7 +197,7 @@ buffer_replace_range(Gap_Buffer *buffer, i32 start, i32 end, char *str, i32 len,
         *request_amount = round_up_4tech(2*(*shift_amount + size), 4 << 10);
         result = 1;
     }
-
+    
     return(result);
 }
 

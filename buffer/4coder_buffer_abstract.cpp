@@ -11,33 +11,44 @@
 // TOP
 
 #define Buffer_Init_Type cat_4tech(Buffer_Type, _Init)
-#define Buffer_Stringify_Type cat_4tech(Buffer_Type, _Stringify_Loop)
+#define Buffer_Stream_Type cat_4tech(Buffer_Type, _Stream)
 
 inline_4tech void
 buffer_stringify(Buffer_Type *buffer, i32 start, i32 end, char *out){
-    for (Buffer_Stringify_Type loop = buffer_stringify_loop(buffer, start, end);
-         buffer_stringify_good(&loop);
-         buffer_stringify_next(&loop)){
-        memcpy_4tech(out, loop.data, loop.size);
-        out += loop.size;
+    Buffer_Stream_Type stream = {0};
+    
+    i32 i = start;
+    if (buffer_stringify_loop(&stream, buffer, i, end)){
+        b32 still_looping = 0;
+        do{
+            i32 size = stream.end - i;
+            memcpy_4tech(out, stream.data + i, size);
+            i = stream.end;
+            out += size;
+            still_looping = buffer_stringify_next(&stream);
+        }while(still_looping);
     }
 }
 
 internal_4tech i32
 buffer_convert_out(Buffer_Type *buffer, char *dest, i32 max){
-    Buffer_Stringify_Type loop;
-    i32 size, out_size, pos, result;
-    
-    size = buffer_size(buffer);
+    Buffer_Stream_Type stream = {0};
+    i32 i = 0;
+    i32 size = buffer_size(buffer);
     assert_4tech(size + buffer->line_count <= max);
     
-    pos = 0;
-    for (loop = buffer_stringify_loop(buffer, 0, size);
-         buffer_stringify_good(&loop);
-         buffer_stringify_next(&loop)){
-        result = eol_convert_out(dest + pos, max - pos, loop.data, loop.size, &out_size);
-        assert_4tech(result);
-        pos += out_size;
+    i32 pos = 0;
+    if (buffer_stringify_loop(&stream, buffer, 0, size)){
+        b32 still_looping = 0;
+        do{
+            i32 size = stream.end - i;
+            i32 out_size = 0;
+            i32 result = eol_convert_out(dest + pos, max - pos, stream.data + i, size, &out_size);
+            assert_4tech(result);
+            i = stream.end;
+            pos += out_size;
+            still_looping = buffer_stringify_next(&stream);
+        }while(still_looping);
     }
     
     return(pos);
@@ -45,22 +56,22 @@ buffer_convert_out(Buffer_Type *buffer, char *dest, i32 max){
 
 internal_4tech i32
 buffer_count_newlines(Buffer_Type *buffer, i32 start, i32 end){
-    Buffer_Stringify_Type loop;
-    i32 i;
-    i32 count;
+    Buffer_Stream_Type stream = {0};
+    i32 i = start;
+    i32 count = 0;
     
     assert_4tech(0 <= start);
     assert_4tech(start <= end);
     assert_4tech(end <= buffer_size(buffer));
     
-    count = 0;
-    
-    for (loop = buffer_stringify_loop(buffer, start, end);
-         buffer_stringify_good(&loop);
-         buffer_stringify_next(&loop)){
-        for (i = 0; i < loop.size; ++i){
-            count += (loop.data[i] == '\n');
-        }
+    if (buffer_stringify_loop(&stream, buffer, i, end)){
+        b32 still_looping = 0;
+        do{
+            for (; i < stream.end; ++i){
+                count += (stream.data[i] == '\n');
+            }
+            still_looping = buffer_stringify_next(&stream);
+        }while(still_looping);
     }
     
     return(count);
@@ -77,32 +88,29 @@ typedef struct Buffer_Measure_Starts{
 // and stores the size in the extra spot.
 internal_4tech i32
 buffer_measure_starts(Buffer_Measure_Starts *state, Buffer_Type *buffer){
-    Buffer_Stringify_Type loop = {0};
-    char *data = 0;
-    i32 end = 0;
+    Buffer_Stream_Type stream = {0};
     i32 size = buffer_size(buffer);
     i32 start = state->start, i = state->i;
     i32 *start_ptr = buffer->line_starts + state->count;
     i32 *start_end = buffer->line_starts + buffer->line_max;
     i32 result = 1;
-    char ch = 0;
     
-    for (loop = buffer_stringify_loop(buffer, i, size);
-         buffer_stringify_good(&loop);
-         buffer_stringify_next(&loop)){
-        end = loop.size + loop.absolute_pos;
-        data = loop.data - loop.absolute_pos;
-        for (; i < end; ++i){
-            ch = data[i];
-            if (ch == '\n'){
-                if (start_ptr == start_end){
-                    goto buffer_measure_starts_widths_end;
+    if (buffer_stringify_loop(&stream, buffer, i, size)){
+        b32 still_looping = 0;
+        do{
+            for (; i < stream.end; ++i){
+                char ch = stream.data[i];
+                if (ch == '\n'){
+                    if (start_ptr == start_end){
+                        goto buffer_measure_starts_widths_end;
+                    }
+                    
+                    *start_ptr++ = start;
+                    start = i + 1;
                 }
-                
-                *start_ptr++ = start;
-                start = i + 1;
             }
-        }
+            still_looping = buffer_stringify_next(&stream);
+        }while(still_looping);
     }
     
     assert_4tech(i == size);
@@ -123,9 +131,7 @@ buffer_measure_starts(Buffer_Measure_Starts *state, Buffer_Type *buffer){
 
 internal_4tech void
 buffer_measure_wrap_y(Buffer_Type *buffer, f32 *wraps, f32 font_height, f32 *adv, f32 max_width){
-    Buffer_Stringify_Type loop = {0};
-    char *data = 0;
-    i32 end = 0;
+    Buffer_Stream_Type stream = {0};
     i32 i = 0;
     i32 size = buffer_size(buffer);
     
@@ -135,30 +141,30 @@ buffer_measure_wrap_y(Buffer_Type *buffer, f32 *wraps, f32 font_height, f32 *adv
     
     f32 x = 0.f;
     
-    for (loop = buffer_stringify_loop(buffer, i, size);
-         buffer_stringify_good(&loop);
-         buffer_stringify_next(&loop)){
-        end = loop.size + loop.absolute_pos;
-        data = loop.data - loop.absolute_pos;
-        for (; i < end; ++i){
-            u8 ch = (u8)data[i];
-            if (ch == '\n'){
-                wraps[wrap_index++] = last_wrap;
-                current_wrap += font_height;
-                last_wrap = current_wrap;
-                x = 0.f;
-            }
-            else{
-                f32 current_adv = adv[ch];
-                if (x + current_adv > max_width){
+    if (buffer_stringify_loop(&stream, buffer, i, size)){
+        b32 still_looping = 0;
+        do{
+            for (; i < stream.end; ++i){
+                u8 ch = (u8)stream.data[i];
+                if (ch == '\n'){
+                    wraps[wrap_index++] = last_wrap;
                     current_wrap += font_height;
-                    x = current_adv;
+                    last_wrap = current_wrap;
+                    x = 0.f;
                 }
                 else{
-                    x += current_adv;
+                    f32 current_adv = adv[ch];
+                    if (x + current_adv > max_width){
+                        current_wrap += font_height;
+                        x = current_adv;
+                    }
+                    else{
+                        x += current_adv;
+                    }
                 }
             }
-        }
+            still_looping = buffer_stringify_next(&stream);
+        }while(still_looping);
     }
     
     wraps[wrap_index++] = last_wrap;
@@ -201,9 +207,7 @@ buffer_remeasure_starts(Buffer_Type *buffer, i32 line_start, i32 line_end, i32 l
     }
     
     // Iteration data (yikes! Need better loop system)
-    Buffer_Stringify_Type loop = {0};
-    i32 end = 0;
-    char *data = 0;
+    Buffer_Stream_Type stream = {0};
     i32 size = buffer_size(buffer);
     i32 char_i = starts[line_start];
     i32 line_i = line_start;
@@ -211,26 +215,26 @@ buffer_remeasure_starts(Buffer_Type *buffer, i32 line_start, i32 line_end, i32 l
     // Line start measurement
     i32 start = char_i;
     
-    for (loop = buffer_stringify_loop(buffer, char_i, size);
-         buffer_stringify_good(&loop);
-         buffer_stringify_next(&loop)){
-        end = loop.size + loop.absolute_pos;
-        data = loop.data - loop.absolute_pos;
-        for (; char_i < end; ++char_i){
-            u8 ch = (u8)data[char_i];
-            
-            if (ch == '\n'){
-                starts[line_i] = start;
-                ++line_i;
-                start = char_i + 1;
+    if (buffer_stringify_loop(&stream, buffer, char_i, size)){
+        b32 still_looping = 0;
+        do{
+            for (; char_i < stream.end; ++char_i){
+                u8 ch = (u8)stream.data[char_i];
                 
-                // TODO(allen): I would like to know that I am not guessing here,
-                // so let's try to turn the && into an Assert.
-                if (line_i >= new_line_end && (line_i >= new_line_count || start == starts[line_i])){
-                    goto buffer_remeasure_starts_end;
+                if (ch == '\n'){
+                    starts[line_i] = start;
+                    ++line_i;
+                    start = char_i + 1;
+                    
+                    // TODO(allen): I would like to know that I am not guessing here,
+                    // so let's try to turn the && into an Assert.
+                    if (line_i >= new_line_end && (line_i >= new_line_count || start == starts[line_i])){
+                        goto buffer_remeasure_starts_end;
+                    }
                 }
             }
-        }
+            still_looping = buffer_stringify_next(&stream);
+        }while(still_looping);
     }
     
     // TODO(allen): I suspect this can just go away.
@@ -266,9 +270,7 @@ buffer_remeasure_wrap_y(Buffer_Type *buffer, i32 line_start, i32 line_end, i32 l
     }
     
     // Iteration data (yikes! Need better loop system)
-    Buffer_Stringify_Type loop = {0};
-    i32 end = 0;
-    char *data = 0;
+    Buffer_Stream_Type stream = {0};
     i32 size = buffer_size(buffer);
     i32 char_i = buffer->line_starts[line_start];
     i32 line_i = line_start;
@@ -278,37 +280,37 @@ buffer_remeasure_wrap_y(Buffer_Type *buffer, i32 line_start, i32 line_end, i32 l
     f32 current_wrap = last_wrap;
     f32 x = 0.f;
     
-    for (loop = buffer_stringify_loop(buffer, char_i, size);
-         buffer_stringify_good(&loop);
-         buffer_stringify_next(&loop)){
-        end = loop.size + loop.absolute_pos;
-        data = loop.data - loop.absolute_pos;
-        for (; char_i < end; ++char_i){
-            u8 ch = (u8)data[char_i];
-            
-            if (ch == '\n'){
-                wraps[line_i] = last_wrap;
-                ++line_i;
-                current_wrap += font_height;
-                last_wrap = current_wrap;
-                x = 0.f;
+    if (buffer_stringify_loop(&stream, buffer, char_i, size)){
+        b32 still_looping = 0;
+        do{
+            for (; char_i < stream.end; ++char_i){
+                u8 ch = (u8)stream.data[char_i];
                 
-                // TODO(allen): I would like to know that I am not guessing here.
-                if (line_i >= new_line_end){
-                    goto buffer_remeasure_wraps_end;
-                }
-            }
-            else{
-                f32 current_adv = adv[ch];
-                if (x + current_adv > max_width){
+                if (ch == '\n'){
+                    wraps[line_i] = last_wrap;
+                    ++line_i;
                     current_wrap += font_height;
-                    x = current_adv;
+                    last_wrap = current_wrap;
+                    x = 0.f;
+                    
+                    // TODO(allen): I would like to know that I am not guessing here.
+                    if (line_i >= new_line_end){
+                        goto buffer_remeasure_wraps_end;
+                    }
                 }
                 else{
-                    x += current_adv;
+                    f32 current_adv = adv[ch];
+                    if (x + current_adv > max_width){
+                        current_wrap += font_height;
+                        x = current_adv;
+                    }
+                    else{
+                        x += current_adv;
+                    }
                 }
             }
-        }
+            still_looping = buffer_stringify_next(&stream);
+        }while(still_looping);
     }
     
     wraps[line_i++] = last_wrap;
@@ -393,7 +395,7 @@ typedef struct Seek_State{
 
 internal_4tech i32
 cursor_seek_step(Seek_State *state, Buffer_Seek seek, i32 xy_seek, f32 max_width,
-                 f32 font_height, f32 *adv, i32 size, uint8_t ch){
+                 f32 font_height, f32 *adv, i32 size, u8 ch){
     Full_Cursor cursor = state->cursor;
     Full_Cursor prev_cursor = cursor;
     i32 result = 1;
@@ -494,11 +496,7 @@ cursor_seek_step(Seek_State *state, Buffer_Seek seek, i32 xy_seek, f32 max_width
 internal_4tech Full_Cursor
 buffer_cursor_seek(Buffer_Type *buffer, Buffer_Seek seek, f32 max_width,
                    f32 font_height, f32 *adv, Full_Cursor cursor){
-    Buffer_Stringify_Type loop;
-    char *data;
-    i32 size, end;
-    i32 i;
-    i32 result;
+    i32 result = 0;
     
     Seek_State state;
     i32 xy_seek;
@@ -524,22 +522,28 @@ buffer_cursor_seek(Buffer_Type *buffer, Buffer_Seek seek, f32 max_width,
     }
     
     if (adv){
-        size = buffer_size(buffer);
-        xy_seek = (seek.type == buffer_seek_wrapped_xy || seek.type == buffer_seek_unwrapped_xy);
+        Buffer_Stream_Type stream = {0};
+        i32 size = buffer_size(buffer);
+        i32 i = cursor.pos;
         
+        xy_seek = (seek.type == buffer_seek_wrapped_xy || seek.type == buffer_seek_unwrapped_xy);
         result = 1;
-        i = cursor.pos;
-        for (loop = buffer_stringify_loop(buffer, i, size);
-             buffer_stringify_good(&loop);
-             buffer_stringify_next(&loop)){
-            end = loop.size + loop.absolute_pos;
-            data = loop.data - loop.absolute_pos;
-            for (; i < end; ++i){
-                result = cursor_seek_step(&state, seek, xy_seek, max_width,
-                                          font_height, adv, size, data[i]);
-                if (!result) goto buffer_cursor_seek_end;
-            }
+        
+        if (buffer_stringify_loop(&stream, buffer, i, size)){
+            b32 still_looping = 0;
+            do{
+                for (; i < stream.end; ++i){
+                    u8 ch = (u8)stream.data[i];
+                    result = cursor_seek_step(&state, seek, xy_seek, max_width,
+                                              font_height, adv, size, ch);
+                    if (!result){
+                        goto buffer_cursor_seek_end;
+                    }
+                }
+                still_looping = buffer_stringify_next(&stream);
+            }while(still_looping);
         }
+        
         if (result){
             result = cursor_seek_step(&state, seek, xy_seek, max_width,
                                       font_height, adv, size, 0);
@@ -547,7 +551,7 @@ buffer_cursor_seek(Buffer_Type *buffer, Buffer_Seek seek, f32 max_width,
         }
     }
     
-    buffer_cursor_seek_end:    
+    buffer_cursor_seek_end:;
     return(state.cursor);
 }
 
@@ -797,10 +801,8 @@ struct Buffer_Render_Params{
 };
 
 struct Buffer_Render_State{
-    Buffer_Stringify_Type loop;
-    char *data;
-    i32 end;
-    i32 size;
+    Buffer_Stream_Type stream;
+    b32 still_looping;
     i32 i;
     
     f32 ch_width;
@@ -872,114 +874,112 @@ buffer_render_data(Buffer_Render_State *S_ptr, Buffer_Render_Params params, f32 
     S.write.x_max       = params.port_x + params.clip_w;
     
     if (params.adv){
-        for (S.loop = buffer_stringify_loop(params.buffer, params.start_cursor.pos, size);
-             buffer_stringify_good(&S.loop) && S.write.item < item_end;
-             buffer_stringify_next(&S.loop)){
-            
-            S.end = S.loop.size + S.loop.absolute_pos;
-            S.data = S.loop.data - S.loop.absolute_pos;
-            
-            for (S.i = S.loop.absolute_pos; S.i < S.end; ++S.i){
-                S.ch = (uint8_t)S.data[S.i];
-                S.ch_width = measure_character(params.adv, S.ch);
-                
-                if (S.ch_width + S.write.x > params.width + shift_x && S.ch != '\n' && params.wrapped){
-                    if (params.virtual_white){
-                        S_stop.status     = RenderStatus_NeedLineShift;
-                        S_stop.line_index = S.line;
-                        S_stop.pos        = S.i+1;
-                        DrYield(2, S_stop);
+        S.i = params.start_cursor.pos;
+        if (buffer_stringify_loop(&S.stream, params.buffer, S.i, size)){
+            do{
+                for (; S.i < S.stream.end; ++S.i){
+                    S.ch = (u8)S.stream.data[S.i];
+                    S.ch_width = measure_character(params.adv, S.ch);
+                    
+                    if (S.ch_width + S.write.x > params.width + shift_x && S.ch != '\n' && params.wrapped){
+                        if (params.virtual_white){
+                            S_stop.status     = RenderStatus_NeedLineShift;
+                            S_stop.line_index = S.line;
+                            S_stop.pos        = S.i+1;
+                            DrYield(2, S_stop);
+                        }
+                        
+                        S.write.x = shift_x + line_shift;
+                        S.write.y += params.font_height;
                     }
                     
-                    S.write.x = shift_x + line_shift;
-                    S.write.y += params.font_height;
-                }
-                
-                if (S.write.y > params.height + shift_y){
-                    goto buffer_get_render_data_end;
-                }
-                
-                if (S.ch != ' ' && S.ch != '\t'){
-                    S.skipping_whitespace = 0;
-                }
-                
-                if (!S.skipping_whitespace){
-                    switch (S.ch){
-                        case '\n':
-                        if (S.write.item < item_end){
-                            S.write = write_render_item(S.write, S.i, ' ', 0);
-                            
-                            if (params.virtual_white){
-                                S_stop.status     = RenderStatus_NeedLineShift;
-                                S_stop.line_index = S.line+1;
-                                S_stop.pos        = S.i+1;
-                                DrYield(3, S_stop);
-                                
-                                S.skipping_whitespace = 1;
-                            }
-                            
-                            ++S.line;
-                            
-                            S.write.x = shift_x + line_shift;
-                            S.write.y += params.font_height;
-                        }
-                        break;
-                        
-                        case '\r':
-                        if (S.write.item < item_end){
-                            S.write = write_render_item(S.write, S.i, '\\', BRFlag_Special_Character);
-                            
+                    if (S.write.y > params.height + shift_y){
+                        goto buffer_get_render_data_end;
+                    }
+                    
+                    if (S.ch != ' ' && S.ch != '\t'){
+                        S.skipping_whitespace = 0;
+                    }
+                    
+                    if (!S.skipping_whitespace){
+                        switch (S.ch){
+                            case '\n':
                             if (S.write.item < item_end){
-                                S.write = write_render_item(S.write, S.i, 'r', BRFlag_Special_Character);
+                                S.write = write_render_item(S.write, S.i, ' ', 0);
+                                
+                                if (params.virtual_white){
+                                    S_stop.status     = RenderStatus_NeedLineShift;
+                                    S_stop.line_index = S.line+1;
+                                    S_stop.pos        = S.i+1;
+                                    DrYield(3, S_stop);
+                                    
+                                    S.skipping_whitespace = 1;
+                                }
+                                
+                                ++S.line;
+                                
+                                S.write.x = shift_x + line_shift;
+                                S.write.y += params.font_height;
                             }
-                        }
-                        break;
-                        
-                        case '\t':
-                        if (S.write.item < item_end){
-                            f32 new_x = S.write.x + S.ch_width;
-                            S.write = write_render_item(S.write, S.i, ' ', 0);
-                            S.write.x = new_x;
-                        }
-                        break;
-                        
-                        default:
-                        if (S.write.item < item_end){
-                            if (S.ch >= ' ' && S.ch <= '~'){
-                                S.write = write_render_item(S.write, S.i, S.ch, 0);
-                            }
-                            else{
+                            break;
+                            
+                            case '\r':
+                            if (S.write.item < item_end){
                                 S.write = write_render_item(S.write, S.i, '\\', BRFlag_Special_Character);
                                 
-                                char ch = S.ch;
-                                char C = '0' + (ch / 0x10);
-                                if ((ch / 0x10) > 0x9){
-                                    C = ('A' - 0xA) + (ch / 0x10);
-                                }
-                                
                                 if (S.write.item < item_end){
-                                    S.write = write_render_item(S.write, S.i, C, BRFlag_Special_Character);
-                                }
-                                
-                                ch = (ch % 0x10);
-                                C = '0' + ch;
-                                if (ch > 0x9){
-                                    C = ('A' - 0xA) + ch;
-                                }
-                                
-                                if (S.write.item < item_end){
-                                    S.write = write_render_item(S.write, S.i, C, BRFlag_Special_Character);
+                                    S.write = write_render_item(S.write, S.i, 'r', BRFlag_Special_Character);
                                 }
                             }
+                            break;
+                            
+                            case '\t':
+                            if (S.write.item < item_end){
+                                f32 new_x = S.write.x + S.ch_width;
+                                S.write = write_render_item(S.write, S.i, ' ', 0);
+                                S.write.x = new_x;
+                            }
+                            break;
+                            
+                            default:
+                            if (S.write.item < item_end){
+                                if (S.ch >= ' ' && S.ch <= '~'){
+                                    S.write = write_render_item(S.write, S.i, S.ch, 0);
+                                }
+                                else{
+                                    S.write = write_render_item(S.write, S.i, '\\', BRFlag_Special_Character);
+                                    
+                                    char ch = S.ch;
+                                    char C = '0' + (ch / 0x10);
+                                    if ((ch / 0x10) > 0x9){
+                                        C = ('A' - 0xA) + (ch / 0x10);
+                                    }
+                                    
+                                    if (S.write.item < item_end){
+                                        S.write = write_render_item(S.write, S.i, C, BRFlag_Special_Character);
+                                    }
+                                    
+                                    ch = (ch % 0x10);
+                                    C = '0' + ch;
+                                    if (ch > 0x9){
+                                        C = ('A' - 0xA) + ch;
+                                    }
+                                    
+                                    if (S.write.item < item_end){
+                                        S.write = write_render_item(S.write, S.i, C, BRFlag_Special_Character);
+                                    }
+                                }
+                            }
+                            break;
                         }
-                        break;
+                    }
+                    
+                    if (S.write.y > params.height + shift_y){
+                        goto buffer_get_render_data_end;
                     }
                 }
-                
-                if (S.write.y > params.height + shift_y){
-                    goto buffer_get_render_data_end;
-                }
-            }
+                S.still_looping = buffer_stringify_next(&S.stream);
+            }while(S.still_looping);
         }
         
         buffer_get_render_data_end:;
