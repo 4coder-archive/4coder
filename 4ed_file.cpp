@@ -377,6 +377,44 @@ file_compute_lowest_line(Editing_File *file, f32 font_height){
     return(lowest_line);
 }
 
+//
+// File Cursor Seeking
+//
+
+inline Partial_Cursor
+file_compute_cursor_from_pos(Editing_File *file, i32 pos){
+    Partial_Cursor result = buffer_partial_from_pos(&file->state.buffer, pos);
+    return(result);
+}
+
+inline Partial_Cursor
+file_compute_cursor_from_line_character(Editing_File *file, i32 line, i32 character){
+    Partial_Cursor result = buffer_partial_from_line_character(&file->state.buffer, line, character);
+    return(result);
+}
+
+inline b32
+file_compute_partial_cursor(Editing_File *file, Buffer_Seek seek, Partial_Cursor *cursor){
+    b32 result = 1;
+    switch (seek.type){
+        case buffer_seek_pos:
+        {
+            *cursor = file_compute_cursor_from_pos(file, seek.pos);
+        }break;
+        
+        case buffer_seek_line_char:
+        {
+            *cursor = file_compute_cursor_from_line_character(file, seek.line, seek.character);
+        }break;
+        
+        default:
+        {
+            result = 0;
+        }break;
+    }
+    return(result);
+}
+
 
 
 //

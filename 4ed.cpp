@@ -395,7 +395,7 @@ COMMAND_DECL(reopen){
                         
                         *vptrs[i]->edit_pos = edit_poss[i];
                         Full_Cursor cursor =
-                            view_compute_cursor_from_line_pos(vptrs[i], line, column);
+                            view_compute_cursor_from_line_char(vptrs[i], line, column);
                         
                         view_set_cursor(vptrs[i], cursor, true,
                                         file->settings.unwrapped_lines);

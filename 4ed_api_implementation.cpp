@@ -645,7 +645,7 @@ DOC_SEE(Partial_Cursor)
     bool32 result = false;
     
     if (file){
-        if (file_compute_cursor(file, seek, cursor_out)){
+        if (file_compute_partial_cursor(file, seek, cursor_out)){
             result = true;
             fill_buffer_summary(buffer, file, cmd);
         }
