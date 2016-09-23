@@ -1371,7 +1371,7 @@ file_relex_parallel(System_Functions *system,
     
     if (!inline_lex){
         Cpp_Token_Array *array = &file->state.token_array;
-        Cpp_Get_Token_Result get_token_result = cpp_get_token(array, end_i);
+        Cpp_Get_Token_Result get_token_result = cpp_get_token(*array, end_i);
         i32 end_token_i = get_token_result.token_index;
         
         if (end_token_i < 0){
@@ -4955,8 +4955,6 @@ draw_file_loaded(View *view, i32_Rect rect, b32 is_active, Render_Target *target
                                advance_data, (f32)line_height);
     }
     
-    Assert(count > 0);
-    
     i32 cursor_begin = 0, cursor_end = 0;
     u32 cursor_color = 0, at_cursor_color = 0;
     if (view->file_data.show_temp_highlight){
@@ -4976,7 +4974,7 @@ draw_file_loaded(View *view, i32_Rect rect, b32 is_active, Render_Target *target
     u32 main_color = style->main.default_color;
     u32 special_color = style->main.special_character_color;
     if (tokens_use){
-        Cpp_Get_Token_Result result = cpp_get_token(&token_array, items->index);
+        Cpp_Get_Token_Result result = cpp_get_token(token_array, items->index);
         main_color = *style_get_color(style, token_array.tokens[result.token_index]);
         token_i = result.token_index + 1;
     }

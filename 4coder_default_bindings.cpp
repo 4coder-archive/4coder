@@ -390,6 +390,7 @@ default_keys(Bind_Helper *context){
     bind(context, 'q', MDFR_CTRL, query_replace);
     bind(context, 'r', MDFR_CTRL, reverse_search);
     bind(context, 's', MDFR_CTRL, cmdid_save);
+    bind(context, 'T', MDFR_CTRL, list_all_locations_of_identifier);
     bind(context, 'u', MDFR_CTRL, to_uppercase);
     bind(context, 'U', MDFR_CTRL, rewrite_as_single_caps);
     bind(context, 'v', MDFR_CTRL, paste_and_indent);
