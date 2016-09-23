@@ -104,6 +104,9 @@ typedef struct Gap_Buffer_Stream{
     i32 end;
     i32 separated;
     i32 absolute_end;
+    
+    b32 use_termination_character;
+    char terminator;
 } Gap_Buffer_Stream;
 
 internal_4tech b32
@@ -142,6 +145,17 @@ buffer_stringify_loop(Gap_Buffer_Stream *stream, Gap_Buffer *buffer, i32 start, 
         result = 1;
     }
     
+    if (result == 0){
+        if (stream->use_termination_character){
+            stream->buffer = buffer;
+            stream->absolute_end = end;
+            stream->use_termination_character = 0;
+            stream->data = (&stream->terminator) - buffer->size1 - buffer->size2;
+            stream->end = stream->absolute_end + 1;
+            result = 1;
+        }
+    }
+    
     return(result);
 }
 
@@ -155,6 +169,16 @@ buffer_stringify_next(Gap_Buffer_Stream *stream){
         stream->separated = 0;
         result = 1;
     }
+    
+    if (result == 0){
+        if (stream->use_termination_character){
+            stream->use_termination_character = 0;
+            stream->data = (&stream->terminator) - buffer->size1 - buffer->size2;
+            stream->end = stream->absolute_end + 1;
+            result = 1;
+        }
+    }
+    
     return(result);
 }
 

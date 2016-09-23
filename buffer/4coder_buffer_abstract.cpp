@@ -529,6 +529,9 @@ buffer_cursor_seek(Buffer_Type *buffer, Buffer_Seek seek, f32 max_width,
         xy_seek = (seek.type == buffer_seek_wrapped_xy || seek.type == buffer_seek_unwrapped_xy);
         result = 1;
         
+        stream.use_termination_character = 1;
+        stream.terminator = 0;
+        
         if (buffer_stringify_loop(&stream, buffer, i, size)){
             b32 still_looping = 0;
             do{
@@ -544,11 +547,7 @@ buffer_cursor_seek(Buffer_Type *buffer, Buffer_Seek seek, f32 max_width,
             }while(still_looping);
         }
         
-        if (result){
-            result = cursor_seek_step(&state, seek, xy_seek, max_width,
-                                      font_height, adv, size, 0);
-            assert_4tech(result == 0);
-        }
+        assert_4tech(result == 0);
     }
     
     buffer_cursor_seek_end:;
