@@ -297,14 +297,12 @@ view_file_height(View *view){
 inline i32
 view_get_cursor_pos(View *view){
     i32 result = 0;
-    
     if (view->file_data.show_temp_highlight){
         result = view->file_data.temp_highlight.pos;
     }
     else if (view->edit_pos){
         result = view->edit_pos->cursor.pos;
     }
-    
     return(result);
 }
 
@@ -497,13 +495,6 @@ view_compute_cursor_from_xy(View *view, f32 seek_x, f32 seek_y){
         result = view_compute_cursor_from_wrapped_xy(view, seek_x, seek_y);
     }
     return(result);
-}
-
-inline i32
-view_wrapped_line_span(f32 line_width, f32 max_width){
-    i32 line_count = CEIL32(line_width / max_width);
-    if (line_count == 0) line_count = 1;
-    return(line_count);
 }
 
 inline i32
@@ -881,14 +872,11 @@ file_grow_starts_as_needed(General_Memory *general, Buffer_Type *buffer, i32 add
         
         i32 *new_lines = (i32*)general_memory_reallocate(
             general, buffer->line_starts,
-            sizeof(i32)*count, sizeof(i32)*max);
+            sizeof(i32)*count, sizeof(f32)*max);
         
         if (new_lines){
-            buffer->line_starts = new_lines;
-            buffer->line_max = max;
-        }
-        if (new_lines){
             result = GROW_SUCCESS;
+            buffer->line_starts = new_lines;
         }
         else{
             result = GROW_FAILED;
@@ -1314,7 +1302,7 @@ file_relex_parallel(System_Functions *system,
     
     if (!inline_lex){
         Cpp_Token_Array *array = &file->state.token_array;
-        Cpp_Get_Token_Result get_token_result = cpp_get_token(array, end_i);
+        Cpp_Get_Token_Result get_token_result = cpp_get_token(*array, end_i);
         i32 end_token_i = get_token_result.token_index;
         
         if (end_token_i < 0){
@@ -1929,7 +1917,7 @@ file_edit_cursor_fix(System_Functions *system, Models *models,
     i32 cursor_count = 0;
     
     View *view = 0;
-    Panel *panel, *used_panels = &layout->used_sentinel;
+    Panel *panel = 0, *used_panels = &layout->used_sentinel;
     for (dll_items(panel, used_panels)){
         view = panel->view;
         if (view->file_data.file == file){
@@ -2047,7 +2035,6 @@ file_do_single_edit(System_Functions *system,
     i32 new_line_count = buffer_count_newlines(&file->state.buffer, start, start+str_len);
     i32 line_shift =  new_line_count - replaced_line_count;
     
-    
     Render_Font *font = get_font_info(models->font_set, file->settings.font_id)->font;
     file_grow_starts_as_needed(general, buffer, line_shift);
     buffer_remeasure_starts(buffer, line_start, line_end, line_shift, shift_amount);
@@ -2140,7 +2127,6 @@ file_do_batch_edit(System_Functions *system, Models *models, Editing_File *file,
                 Buffer_Edit *first_edit = batch;
                 Buffer_Edit *last_edit = batch + batch_size - 1;
                 file_relex_parallel(system, mem, file, first_edit->start, last_edit->end, shift_total);
-                
             }
         }break;
         
@@ -3235,9 +3221,9 @@ struct Single_Line_Mode{
 
 internal Single_Line_Input_Step
 app_single_line_input_core(System_Functions *system, Working_Set *working_set,
-    Key_Event_Data key, Single_Line_Mode mode){
+                           Key_Event_Data key, Single_Line_Mode mode){
     Single_Line_Input_Step result = {0};
-
+    
     if (key.keycode == key_back){
         result.hit_backspace = 1;
         if (mode.string->size > 0){
@@ -3248,14 +3234,19 @@ app_single_line_input_core(System_Functions *system, Working_Set *working_set,
                 {
                     mode.string->str[mode.string->size] = 0;
                 }break;
-
+                
                 case SINGLE_LINE_FILE:
                 {
-                    char end_character = mode.string->str[mode.string->size];
-                    if (char_is_slash(end_character)){
-                        mode.string->size = reverse_seek_slash(*mode.string) + 1;
-                        mode.string->str[mode.string->size] = 0;
-                        hot_directory_set(system, mode.hot_directory, *mode.string, working_set);
+                    if (!key.modifiers[MDFR_CONTROL_INDEX]){
+                        char end_character = mode.string->str[mode.string->size];
+                        if (char_is_slash(end_character)){
+                            mode.string->size = reverse_seek_slash(*mode.string) + 1;
+                            mode.string->str[mode.string->size] = 0;
+                            hot_directory_set(system, mode.hot_directory, *mode.string, working_set);
+                        }
+                        else{
+                            mode.string->str[mode.string->size] = 0;
+                        }
                     }
                     else{
                         mode.string->str[mode.string->size] = 0;
@@ -3264,20 +3255,19 @@ app_single_line_input_core(System_Functions *system, Working_Set *working_set,
             }
         }
     }
-
+    
     else if (key.character == '\n' || key.character == '\t'){
         // NOTE(allen): do nothing!
     }
-
+    
     else if (key.keycode == key_esc){
         result.hit_esc = 1;
         result.made_a_change = 1;
     }
-
+    
     else if (key.character){
         result.hit_a_character = 1;
-        if (!key.modifiers[MDFR_CONTROL_INDEX] &&
-                !key.modifiers[MDFR_ALT_INDEX]){
+        if (!key.modifiers[MDFR_CONTROL_INDEX] && !key.modifiers[MDFR_ALT_INDEX]){
             if (mode.string->size+1 < mode.string->memory_size){
                 u8 new_character = (u8)key.character;
                 mode.string->str[mode.string->size] = new_character;
@@ -3293,7 +3283,7 @@ app_single_line_input_core(System_Functions *system, Working_Set *working_set,
             result.did_command = 1;
         }
     }
-
+    
     return result;
 }
 
@@ -3309,12 +3299,11 @@ inline Single_Line_Input_Step
 app_single_file_input_step(System_Functions *system,
                            Working_Set *working_set, Key_Event_Data key,
                            String *string, Hot_Directory *hot_directory,
-                           b32 fast_folder_select, b32 try_to_match, b32 case_sensitive){
+                           b32 try_to_match, b32 case_sensitive){
     Single_Line_Mode mode = {};
     mode.type = SINGLE_LINE_FILE;
     mode.string = string;
     mode.hot_directory = hot_directory;
-    mode.fast_folder_select = fast_folder_select;
     mode.try_to_match = try_to_match;
     mode.case_sensitive = case_sensitive;
     return app_single_line_input_core(system, working_set, key, mode);
@@ -3798,11 +3787,11 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                     switch (view->interaction){
                         case IInt_Sys_File_List:
                         {
-                            b32 use_item_in_list = 1;
+                            b32 autocomplete_with_enter = 1;
                             b32 activate_directly = 0;
                             
                             if (view->action == IAct_Save_As || view->action == IAct_New){
-                                use_item_in_list = 0;
+                                autocomplete_with_enter = 0;
                             }
                             
                             String message = {0};
@@ -3828,12 +3817,13 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                                 for (i = 0; i < keys.count; ++i){
                                     key = get_single_key(&keys, i);
                                     step = app_single_file_input_step(system, &models->working_set, key,
-                                                                      &hdir->string, hdir, 1, 1, 0);
+                                                                      &hdir->string, hdir, 1, 0);
                                     if (step.made_a_change){
                                         view->list_i = 0;
                                         result.consume_keys = 1;
                                     }
-                                    if (!use_item_in_list && (key.keycode == '\n' || key.keycode == '\t')){
+                                    
+                                    if (!autocomplete_with_enter && key.keycode == '\n'){
                                         activate_directly = 1;
                                         result.consume_keys = 1;
                                     }
@@ -3877,7 +3867,8 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                                             set_last_folder_sc(&hdir->string, file_info.info->filename, '/');
                                             do_new_directory = 1;
                                         }
-                                        else if (use_item_in_list){
+                                        
+                                        else if (autocomplete_with_enter){
                                             complete = 1;
                                             copy_ss(&comp_dest, loop.full_path);
                                         }
@@ -4388,6 +4379,7 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                                     SHOW_GUI_BOOL(2, h_align, "show temp highlight", view_ptr->file_data.show_temp_highlight);
                                     SHOW_GUI_INT (2, h_align, "start temp highlight", view_ptr->file_data.temp_highlight.pos);
                                     SHOW_GUI_INT (2, h_align, "end temp highlight", view_ptr->file_data.temp_highlight_end_pos);
+                                    
                                     SHOW_GUI_BOOL(2, h_align, "show whitespace", view_ptr->file_data.show_whitespace);
                                     SHOW_GUI_BOOL(2, h_align, "locked", view_ptr->file_data.file_locked);
                                     
@@ -4871,7 +4863,6 @@ draw_file_loaded(View *view, i32_Rect rect, b32 is_active, Render_Target *target
                 case RenderStatus_NeedLineShift: break;
             }
         }while(stop.status != RenderStatus_Finished);
-        
     }
     
     i32 cursor_begin = 0, cursor_end = 0;
@@ -4893,7 +4884,7 @@ draw_file_loaded(View *view, i32_Rect rect, b32 is_active, Render_Target *target
     u32 main_color = style->main.default_color;
     u32 special_color = style->main.special_character_color;
     if (tokens_use){
-        Cpp_Get_Token_Result result = cpp_get_token(&token_array, items->index);
+        Cpp_Get_Token_Result result = cpp_get_token(token_array, items->index);
         main_color = *style_get_color(style, token_array.tokens[result.token_index]);
         token_i = result.token_index + 1;
     }

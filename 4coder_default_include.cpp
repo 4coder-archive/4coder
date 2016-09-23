@@ -677,7 +677,7 @@ static Cpp_Token*
 get_first_token_at_line(Application_Links *app, Buffer_Summary *buffer, Cpp_Token_Array tokens, int32_t line,
                         int32_t *line_start_out = 0){
     int32_t line_start = buffer_get_line_start(app, buffer, line);
-    Cpp_Get_Token_Result get_token = cpp_get_token(&tokens, line_start);
+    Cpp_Get_Token_Result get_token = cpp_get_token(tokens, line_start);
     
     if (get_token.in_whitespace){
         get_token.token_index += 1;
@@ -1769,7 +1769,7 @@ buffer_seek_alphanumeric_or_camel_left(Application_Links *app, Buffer_Summary *b
 
 static int32_t
 seek_token_left(Cpp_Token_Array *tokens, int32_t pos){
-    Cpp_Get_Token_Result get = cpp_get_token(tokens, pos);
+    Cpp_Get_Token_Result get = cpp_get_token(*tokens, pos);
     if (get.token_index == -1){
         get.token_index = 0;
     }
@@ -1784,7 +1784,7 @@ seek_token_left(Cpp_Token_Array *tokens, int32_t pos){
 
 static int32_t
 seek_token_right(Cpp_Token_Array *tokens, int32_t pos){
-    Cpp_Get_Token_Result get = cpp_get_token(tokens, pos);
+    Cpp_Get_Token_Result get = cpp_get_token(*tokens, pos);
     if (get.in_whitespace){
         ++get.token_index;
     }
@@ -2707,22 +2707,24 @@ CUSTOM_COMMAND_SIG(exit_4coder){
 #include "4coder_jump_parsing.cpp"
 
 static void
-generic_search_all_buffers(Application_Links *app, General_Memory *general, Partition *part,
-                           uint32_t match_flags){
-    
-    Query_Bar string;
+get_search_all_string(Application_Links *app, Query_Bar *bar){
     char string_space[1024];
-    string.prompt = make_lit_string("List Locations For: ");
-    string.string = make_fixed_width_string(string_space);
+    bar->prompt = make_lit_string("List Locations For: ");
+    bar->string = make_fixed_width_string(string_space);
     
-    if (!query_user_string(app, &string)) return;
-    if (string.string.size == 0) return;
-    
+    if (!query_user_string(app, bar)){
+        bar->string.size = 0;
+    }
+}
+
+static void
+generic_search_all_buffers(Application_Links *app, General_Memory *general, Partition *part,
+                           String string, uint32_t match_flags){
     Search_Set set = {0};
     Search_Iter iter = {0};
     
-    search_iter_init(general, &iter, string.string.size);
-    copy_ss(&iter.word, string.string);
+    search_iter_init(general, &iter, string.size);
+    copy_ss(&iter.word, string);
     
     int32_t buffer_count = get_buffer_count(app);
     search_set_init(general, &set, buffer_count);
@@ -2732,7 +2734,7 @@ generic_search_all_buffers(Application_Links *app, General_Memory *general, Part
     String search_name = make_lit_string("*search*");
     
     Buffer_Summary search_buffer = get_buffer_by_name(app, search_name.str, search_name.size,
-                                                           AccessAll);
+                                                      AccessAll);
     if (!search_buffer.exists){
         search_buffer = create_buffer(app, search_name.str, search_name.size, BufferCreate_AlwaysNew);
         buffer_set_setting(app, &search_buffer, BufferSetting_Unimportant, true);
@@ -2801,7 +2803,7 @@ generic_search_all_buffers(Application_Links *app, General_Memory *general, Part
                 
                 if (spare == 0){
                     buffer_replace_range(app, &search_buffer,
-                                              size, size, str, part_size);
+                                         size, size, str, part_size);
                     size += part_size;
                     
                     end_temp_memory(temp);
@@ -2843,19 +2845,59 @@ generic_search_all_buffers(Application_Links *app, General_Memory *general, Part
 }
 
 CUSTOM_COMMAND_SIG(list_all_locations){
-    generic_search_all_buffers(app, &global_general, &global_part, SearchFlag_MatchWholeWord);
+    Query_Bar bar;
+    get_search_all_string(app, &bar);
+    if (bar.string.size == 0) return;
+    generic_search_all_buffers(app, &global_general, &global_part,
+                               bar.string, SearchFlag_MatchWholeWord);
 }
 
 CUSTOM_COMMAND_SIG(list_all_substring_locations){
-    generic_search_all_buffers(app, &global_general, &global_part, SearchFlag_MatchSubstring);
+    Query_Bar bar;
+    get_search_all_string(app, &bar);
+    if (bar.string.size == 0) return;
+    generic_search_all_buffers(app, &global_general, &global_part,
+                               bar.string, SearchFlag_MatchSubstring);
 }
 
 CUSTOM_COMMAND_SIG(list_all_locations_case_insensitive){
-    generic_search_all_buffers(app, &global_general, &global_part, SearchFlag_CaseInsensitive | SearchFlag_MatchWholeWord);
+    Query_Bar bar;
+    get_search_all_string(app, &bar);
+    if (bar.string.size == 0) return;
+    generic_search_all_buffers(app, &global_general, &global_part,
+                               bar.string, SearchFlag_CaseInsensitive | SearchFlag_MatchWholeWord);
 }
 
 CUSTOM_COMMAND_SIG(list_all_substring_locations_case_insensitive){
-    generic_search_all_buffers(app, &global_general, &global_part, SearchFlag_CaseInsensitive | SearchFlag_MatchSubstring);
+    Query_Bar bar;
+    get_search_all_string(app, &bar);
+    if (bar.string.size == 0) return;
+    generic_search_all_buffers(app, &global_general, &global_part,
+                               bar.string, SearchFlag_CaseInsensitive | SearchFlag_MatchSubstring);
+}
+
+CUSTOM_COMMAND_SIG(list_all_locations_of_identifier){
+    View_Summary view = get_active_view(app, AccessProtected);
+    Buffer_Summary buffer = get_buffer(app, view.buffer_id, AccessProtected);
+    
+    Cpp_Get_Token_Result get_result = {0};
+    bool32 success = buffer_get_token_index(app, &buffer, view.cursor.pos, &get_result);
+    
+    if (success && !get_result.in_whitespace){
+        char space[128];
+        int32_t size = get_result.token_end - get_result.token_start;
+        
+        if (size > 0 && size <= sizeof(space)){
+            success = buffer_read_range(app, &buffer, get_result.token_start,
+                                        get_result.token_end, space);
+            if (success){
+                String str = make_string(space, size);
+                exec_command(app, change_active_panel);
+                generic_search_all_buffers(app, &global_general, &global_part,
+                                           str, SearchFlag_MatchWholeWord);
+            }
+        }
+    }
 }
 
 struct Word_Complete_State{

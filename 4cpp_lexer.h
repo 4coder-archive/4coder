@@ -151,8 +151,8 @@ static String_And_Flag keywords[] = {
 
 
 FCPP_LINK Cpp_Get_Token_Result
-cpp_get_token(Cpp_Token_Array *token_array_in, int32_t pos)/*
-DOC_PARAM(token_array, The array of tokens from which to get a token.)
+cpp_get_token(Cpp_Token_Array array, int32_t pos)/*
+DOC_PARAM(array, The array of tokens from which to get a token.)
 DOC_PARAM(pos, The position, measured in bytes, to get the token for.)
 DOC_RETURN(A Cpp_Get_Token_Result struct is returned containing the index
 of a token and a flag indicating whether the pos is contained in the token
@@ -167,10 +167,10 @@ index can be -1 if the position is before the first token.)
 DOC_SEE(Cpp_Get_Token_Result)
 */{
     Cpp_Get_Token_Result result = {};
-    Cpp_Token *token_array = token_array_in->tokens;
+    Cpp_Token *token_array = array.tokens;
     Cpp_Token *token = 0;
 	int32_t first = 0;
-    int32_t count = token_array_in->count;
+    int32_t count = array.count;
     int32_t last = count;
     int32_t this_start = 0, next_start = 0;
     
@@ -217,6 +217,12 @@ DOC_SEE(Cpp_Get_Token_Result)
         result.in_whitespace = 1;
     }
 	
+    if (result.token_index >= 0 && result.token_index < count){
+        token = array.tokens + result.token_index;
+        result.token_start = token->start;
+        result.token_end = token->start + token->size;
+    }
+    
     return(result);
 }
 
@@ -1130,13 +1136,13 @@ The start and end points are based on the edited region of the file before the e
     Cpp_Relex_Range range = {0};
     Cpp_Get_Token_Result get_result = {0};
     
-    get_result = cpp_get_token(array, start_pos);
+    get_result = cpp_get_token(*array, start_pos);
     range.start_token_index = get_result.token_index-1;
     if (range.start_token_index < 0){
         range.start_token_index = 0;
     }
     
-    get_result = cpp_get_token(array, end_pos);
+    get_result = cpp_get_token(*array, end_pos);
     range.end_token_index = get_result.token_index;
     if (end_pos > array->tokens[range.end_token_index].start){
         ++range.end_token_index;

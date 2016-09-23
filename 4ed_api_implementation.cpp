@@ -899,7 +899,7 @@ DOC_SEE(cpp_get_token)
     if (file && token_array.tokens && file->state.tokens_complete){
         result = 1;
         Cpp_Get_Token_Result get = {0};
-        get = cpp_get_token(&token_array, pos);
+        get = cpp_get_token(token_array, pos);
         *get_result = get;
     }
     
