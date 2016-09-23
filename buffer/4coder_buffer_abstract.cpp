@@ -895,128 +895,122 @@ buffer_render_data(Buffer_Render_State *S_ptr, Buffer_Render_Params params, f32 
     S.write.x_min       = params.port_x;
     S.write.x_max       = params.port_x + params.clip_w;
     
-    if (params.adv){
-        S.i = params.start_cursor.pos;
-        if (buffer_stringify_loop(&S.stream, params.buffer, S.i, size)){
-            do{
-                for (; S.i < S.stream.end; ++S.i){
-                    S.ch = (u8)S.stream.data[S.i];
-                    S.ch_width = params.adv[S.ch];
-                    
-                    if (S.ch_width + S.write.x > params.width + shift_x && S.ch != '\n' && params.wrapped){
-                        if (params.virtual_white){
-                            S_stop.status     = BLStatus_NeedWrapLineShift;
-                            S_stop.line_index = S.line;
-                            S_stop.pos        = S.i+1;
-                            DrYield(2, S_stop);
-                        }
-                        
-                        S.write.x = shift_x + line_shift;
-                        S.write.y += params.font_height;
+    if (params.virtual_white){
+        S.skipping_whitespace = 1;
+    }
+    
+    S.i = params.start_cursor.pos;
+    if (buffer_stringify_loop(&S.stream, params.buffer, S.i, size)){
+        do{
+            for (; S.i < S.stream.end; ++S.i){
+                S.ch = (u8)S.stream.data[S.i];
+                S.ch_width = params.adv[S.ch];
+                
+                if (S.ch_width + S.write.x > params.width + shift_x && S.ch != '\n' && params.wrapped){
+                    if (params.virtual_white){
+                        S_stop.status     = BLStatus_NeedWrapLineShift;
+                        S_stop.line_index = S.line;
+                        S_stop.pos        = S.i+1;
+                        DrYield(2, S_stop);
                     }
                     
-                    if (S.write.y > params.height + shift_y){
-                        goto buffer_get_render_data_end;
-                    }
-                    
-                    if (S.ch != ' ' && S.ch != '\t'){
-                        S.skipping_whitespace = 0;
-                    }
-                    
-                    if (!S.skipping_whitespace){
-                        switch (S.ch){
-                            case '\n':
-                            if (S.write.item < item_end){
-                                S.write = write_render_item(S.write, S.i, ' ', 0);
-                                
-                                if (params.virtual_white){
-                                    S_stop.status     = BLStatus_NeedLineShift;
-                                    S_stop.line_index = S.line+1;
-                                    S_stop.pos        = S.i+1;
-                                    DrYield(3, S_stop);
-                                    
-                                    S.skipping_whitespace = 1;
-                                }
-                                
-                                ++S.line;
-                                
-                                S.write.x = shift_x + line_shift;
-                                S.write.y += params.font_height;
-                            }
-                            break;
+                    S.write.x = shift_x + line_shift;
+                    S.write.y += params.font_height;
+                }
+                
+                if (S.write.y > params.height + shift_y){
+                    goto buffer_get_render_data_end;
+                }
+                
+                if (S.ch != ' ' && S.ch != '\t'){
+                    S.skipping_whitespace = 0;
+                }
+                
+                if (!S.skipping_whitespace){
+                    switch (S.ch){
+                        case '\n':
+                        if (S.write.item < item_end){
+                            S.write = write_render_item(S.write, S.i, ' ', 0);
                             
-                            case '\r':
+                            if (params.virtual_white){
+                                S_stop.status     = BLStatus_NeedLineShift;
+                                S_stop.line_index = S.line+1;
+                                S_stop.pos        = S.i+1;
+                                DrYield(3, S_stop);
+                                
+                                S.skipping_whitespace = 1;
+                            }
+                            
+                            ++S.line;
+                            
+                            S.write.x = shift_x + line_shift;
+                            S.write.y += params.font_height;
+                        }
+                        break;
+                        
+                        case '\r':
+                        if (S.write.item < item_end){
+                            S.write = write_render_item(S.write, S.i, '\\', BRFlag_Special_Character);
+                            
                             if (S.write.item < item_end){
+                                S.write = write_render_item(S.write, S.i, 'r', BRFlag_Special_Character);
+                            }
+                        }
+                        break;
+                        
+                        case '\t':
+                        if (S.write.item < item_end){
+                            f32 new_x = S.write.x + S.ch_width;
+                            S.write = write_render_item(S.write, S.i, ' ', 0);
+                            S.write.x = new_x;
+                        }
+                        break;
+                        
+                        default:
+                        if (S.write.item < item_end){
+                            if (S.ch >= ' ' && S.ch <= '~'){
+                                S.write = write_render_item(S.write, S.i, S.ch, 0);
+                            }
+                            else{
                                 S.write = write_render_item(S.write, S.i, '\\', BRFlag_Special_Character);
                                 
+                                char ch = S.ch;
+                                char C = '0' + (ch / 0x10);
+                                if ((ch / 0x10) > 0x9){
+                                    C = ('A' - 0xA) + (ch / 0x10);
+                                }
+                                
                                 if (S.write.item < item_end){
-                                    S.write = write_render_item(S.write, S.i, 'r', BRFlag_Special_Character);
+                                    S.write = write_render_item(S.write, S.i, C, BRFlag_Special_Character);
+                                }
+                                
+                                ch = (ch % 0x10);
+                                C = '0' + ch;
+                                if (ch > 0x9){
+                                    C = ('A' - 0xA) + ch;
+                                }
+                                
+                                if (S.write.item < item_end){
+                                    S.write = write_render_item(S.write, S.i, C, BRFlag_Special_Character);
                                 }
                             }
-                            break;
-                            
-                            case '\t':
-                            if (S.write.item < item_end){
-                                f32 new_x = S.write.x + S.ch_width;
-                                S.write = write_render_item(S.write, S.i, ' ', 0);
-                                S.write.x = new_x;
-                            }
-                            break;
-                            
-                            default:
-                            if (S.write.item < item_end){
-                                if (S.ch >= ' ' && S.ch <= '~'){
-                                    S.write = write_render_item(S.write, S.i, S.ch, 0);
-                                }
-                                else{
-                                    S.write = write_render_item(S.write, S.i, '\\', BRFlag_Special_Character);
-                                    
-                                    char ch = S.ch;
-                                    char C = '0' + (ch / 0x10);
-                                    if ((ch / 0x10) > 0x9){
-                                        C = ('A' - 0xA) + (ch / 0x10);
-                                    }
-                                    
-                                    if (S.write.item < item_end){
-                                        S.write = write_render_item(S.write, S.i, C, BRFlag_Special_Character);
-                                    }
-                                    
-                                    ch = (ch % 0x10);
-                                    C = '0' + ch;
-                                    if (ch > 0x9){
-                                        C = ('A' - 0xA) + ch;
-                                    }
-                                    
-                                    if (S.write.item < item_end){
-                                        S.write = write_render_item(S.write, S.i, C, BRFlag_Special_Character);
-                                    }
-                                }
-                            }
-                            break;
                         }
-                    }
-                    
-                    if (S.write.y > params.height + shift_y){
-                        goto buffer_get_render_data_end;
+                        break;
                     }
                 }
-                S.still_looping = buffer_stringify_next(&S.stream);
-            }while(S.still_looping);
-        }
-        
-        buffer_get_render_data_end:;
-        if (S.write.y <= params.height + shift_y || S.write.item == params.items){
-            if (S.write.item < item_end){
-                S.write = write_render_item(S.write, size, ' ', 0);
+                
+                if (S.write.y > params.height + shift_y){
+                    goto buffer_get_render_data_end;
+                }
             }
-        }
+            S.still_looping = buffer_stringify_next(&S.stream);
+        }while(S.still_looping);
     }
-    else{
-        f32 zero = 0;
-        S.write.adv = &zero;
-        
+    
+    buffer_get_render_data_end:;
+    if (S.write.y <= params.height + shift_y || S.write.item == params.items){
         if (S.write.item < item_end){
-            S.write = write_render_item(S.write, size, 0, 0);
+            S.write = write_render_item(S.write, size, ' ', 0);
         }
     }
     
