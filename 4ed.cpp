@@ -391,11 +391,10 @@ COMMAND_DECL(reopen){
                         view_set_file(vptrs[i], file, models);
                         
                         int32_t line = line_number[i];
-                        int32_t column = column_number[i];
+                        int32_t character = column_number[i];
                         
                         *vptrs[i]->edit_pos = edit_poss[i];
-                        Full_Cursor cursor =
-                            view_compute_cursor_from_line_char(vptrs[i], line, column);
+                        Full_Cursor cursor = view_compute_cursor(vptrs[i], seek_line_char(line, character));
                         
                         view_set_cursor(vptrs[i], cursor, true,
                                         file->settings.unwrapped_lines);

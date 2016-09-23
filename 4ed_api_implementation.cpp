@@ -81,7 +81,7 @@ fill_view_summary(View_Summary *view, View *vptr, Live_Views *live_set, Working_
         
         view->buffer_id = buffer_id;
         
-        view->mark = view_compute_cursor_from_pos(vptr, vptr->edit_pos->mark);
+        view->mark = view_compute_cursor(vptr, seek_pos(vptr->edit_pos->mark));
         view->cursor = vptr->edit_pos->cursor;
         view->preferred_x = vptr->edit_pos->preferred_x;
         

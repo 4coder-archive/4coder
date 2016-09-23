@@ -384,6 +384,7 @@ view_cursor_limits(View *view){
     return(limits);
 }
 
+#if 0
 inline Full_Cursor
 view_compute_cursor_from_pos(View *view, i32 pos){
     Editing_File *file = view->file_data.file;
@@ -459,41 +460,37 @@ view_compute_cursor_from_line_char(View *view, i32 line, i32 character){
     
     return(result);
 }
+#endif
 
 inline Full_Cursor
 view_compute_cursor(View *view, Buffer_Seek seek){
-    Full_Cursor result = {};
+    Editing_File *file = view->file_data.file;
+    Models *models = view->persistent.models;
+    Render_Font *font = get_font_info(models->font_set, file->settings.font_id)->font;
     
-    switch(seek.type){
-        case buffer_seek_pos:
-        result = view_compute_cursor_from_pos(view, seek.pos);
-        break;
-        
-        case buffer_seek_wrapped_xy:
-        result = view_compute_cursor_from_wrapped_xy(view, seek.x, seek.y, seek.round_down);
-        break;
-        
-        case buffer_seek_unwrapped_xy:
-        result = view_compute_cursor_from_unwrapped_xy(view, seek.x, seek.y, seek.round_down);
-        break;
-        
-        case buffer_seek_line_char:
-        result = view_compute_cursor_from_line_char(view, seek.line, seek.character);
-        break;
-    }
+    Buffer_Cursor_Seek_Params params;
+    params.buffer      = &file->state.buffer;
+    params.seek        = seek;
+    params.max_width   = view_file_display_width(view);
+    params.font_height = (f32)font->height;
+    params.adv         = font->advance_data;
+    params.wraps       = file->state.wraps;
     
+    Full_Cursor result = buffer_cursor_seek(params);
     return (result);
 }
 
 inline Full_Cursor
 view_compute_cursor_from_xy(View *view, f32 seek_x, f32 seek_y){
-    Full_Cursor result;
+    Buffer_Seek seek;
     if (view->file_data.file->settings.unwrapped_lines){
-        result = view_compute_cursor_from_unwrapped_xy(view, seek_x, seek_y);
+        seek = seek_unwrapped_xy(seek_x, seek_y, 0);
     }
     else{
-        result = view_compute_cursor_from_wrapped_xy(view, seek_x, seek_y);
+        seek = seek_wrapped_xy(seek_x, seek_y, 0);
     }
+    
+    Full_Cursor result = view_compute_cursor(view, seek);
     return(result);
 }
 
@@ -647,7 +644,7 @@ view_set_cursor_and_scroll(View *view,
 
 inline void
 view_set_temp_highlight(View *view, i32 pos, i32 end_pos){
-    view->file_data.temp_highlight = view_compute_cursor_from_pos(view, pos);
+    view->file_data.temp_highlight = view_compute_cursor(view, seek_pos(pos));
     view->file_data.temp_highlight_end_pos = end_pos;
     view->file_data.show_temp_highlight = 1;
     
@@ -895,7 +892,7 @@ file_update_cursor_positions(Models *models, Editing_File *file){
         i32 pos = view_get_cursor_pos(iter.view);
         
         if (!iter.view->file_data.show_temp_highlight){
-            Full_Cursor cursor = view_compute_cursor_from_pos(iter.view, pos);
+            Full_Cursor cursor = view_compute_cursor(iter.view, seek_pos(pos));
             view_set_cursor(iter.view, cursor, 1, iter.view->file_data.file->settings.unwrapped_lines);
         }
         else{
@@ -1679,25 +1676,27 @@ view_cursor_move(View *view, Full_Cursor cursor){
 
 inline void
 view_cursor_move(View *view, i32 pos){
-    Full_Cursor cursor = view_compute_cursor_from_pos(view, pos);
+    Full_Cursor cursor = view_compute_cursor(view, seek_pos(pos));
     view_cursor_move(view, cursor);
 }
 
 inline void
 view_cursor_move(View *view, f32 x, f32 y, b32 round_down = 0){
-    Full_Cursor cursor;
+    Buffer_Seek seek;
     if (view->file_data.file->settings.unwrapped_lines){
-        cursor = view_compute_cursor_from_unwrapped_xy(view, x, y, round_down);
+        seek = seek_unwrapped_xy(x, y, round_down);
     }
     else{
-        cursor = view_compute_cursor_from_wrapped_xy(view, x, y, round_down);
+        seek = seek_wrapped_xy(x, y, round_down);
     }
+    
+    Full_Cursor cursor = view_compute_cursor(view, seek);
     view_cursor_move(view, cursor);
 }
 
 inline void
-view_cursor_move(View *view, i32 line, i32 pos){
-    Full_Cursor cursor = view_compute_cursor_from_line_char(view, line, pos);
+view_cursor_move(View *view, i32 line, i32 character){
+    Full_Cursor cursor = view_compute_cursor(view, seek_line_char(line, character));
     view_cursor_move(view, cursor);
 }
 
@@ -1955,8 +1954,7 @@ file_edit_cursor_fix(System_Functions *system, Models *models,
                 Assert(view->edit_pos);
                 
                 i32 cursor_pos = cursors[cursor_count++].pos;
-                Full_Cursor new_cursor = 
-                    view_compute_cursor_from_pos(view, cursor_pos);
+                Full_Cursor new_cursor = view_compute_cursor(view, seek_pos(cursor_pos));
                 
                 GUI_Scroll_Vars scroll = view->edit_pos->scroll;
                 
@@ -1965,8 +1963,7 @@ file_edit_cursor_fix(System_Functions *system, Models *models,
                 if (view->edit_pos->scroll_i != new_scroll_i){
                     view->edit_pos->scroll_i = new_scroll_i;
                     
-                    Full_Cursor temp_cursor =
-                        view_compute_cursor_from_pos(view, view->edit_pos->scroll_i);
+                    Full_Cursor temp_cursor = view_compute_cursor(view, seek_pos(view->edit_pos->scroll_i));
                     
                     f32 y_offset = MOD(view->edit_pos->scroll.scroll_y, view->line_height);
                     f32 y_position = temp_cursor.wrapped_y;

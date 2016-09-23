@@ -77,8 +77,6 @@ lroundup_(i32 x, i32 granularity){
 #define round_pot_4tech ROUNDPOT32
 #endif
 
-#define measure_character(a,c) ((a)[c])
-
 typedef struct Buffer_Batch_State{
     i32 i;
     i32 shift_total;
