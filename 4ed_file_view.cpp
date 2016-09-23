@@ -4794,7 +4794,6 @@ draw_file_loaded(View *view, i32_Rect rect, b32 is_active, Render_Target *target
     Style *style = main_style(models);
     i32 line_height = view->line_height;
     
-    f32 clip_w = view_width(view);
     f32 max_x = view_file_display_width(view);
     i32 max_y = rect.y1 - rect.y0 + line_height;
     
@@ -4812,18 +4811,16 @@ draw_file_loaded(View *view, i32_Rect rect, b32 is_active, Render_Target *target
     Temp_Memory temp = begin_temp_memory(part);
     
     partition_align(part, 4);
+    
+    f32 left_side_space = 0;
+    
     i32 max = partition_remaining(part) / sizeof(Buffer_Render_Item);
     Buffer_Render_Item *items = push_array(part, Buffer_Render_Item, max);
     
     i16 font_id = file->settings.font_id;
     Render_Font *font = get_font_info(models->font_set, font_id)->font;
-    float *advance_data = 0;
-    // TODO(allen): Why isn't this "Assert(font);"?
-    if (font){
-        advance_data = font->advance_data;
-    }
+    float *advance_data = font->advance_data;
     
-    i32 count = 0;
     Full_Cursor render_cursor = {0};
     
     f32 scroll_x = view->edit_pos->scroll.scroll_x;
@@ -4834,18 +4831,55 @@ draw_file_loaded(View *view, i32_Rect rect, b32 is_active, Render_Target *target
     // to the gui system.
     scroll_y += view->widget_height;
     
+    render_cursor = buffer_get_start_cursor(&file->state.buffer, file->state.wraps, scroll_y,
+                                            !file->settings.unwrapped_lines,
+                                            max_x, advance_data, (f32)line_height);
+    
+    view->edit_pos->scroll_i = render_cursor.pos;
+    
+    i32 count = 0;
     {
-        render_cursor = buffer_get_start_cursor(&file->state.buffer, file->state.wraps, scroll_y,
-                                                !file->settings.unwrapped_lines,
-                                                max_x, advance_data, (f32)line_height);
+        b32 wrapped = !file->settings.unwrapped_lines;
         
-        view->edit_pos->scroll_i = render_cursor.pos;
+        Buffer_Render_Params params;
+        params.buffer        = &file->state.buffer;
+        params.items         = items;
+        params.max           = max;
+        params.count         = &count;
+        params.port_x        = (f32)rect.x0 + left_side_space;
+        params.port_y        = (f32)rect.y0;
+        params.clip_w        = view_width(view) - left_side_space;
+        params.scroll_x      = scroll_x;
+        params.scroll_y      = scroll_y;
+        params.width         = max_x;
+        params.height        = (f32)max_y;
+        params.start_cursor  = render_cursor;
+        params.wrapped       = wrapped;
+        params.font_height   = (f32)line_height;
+        params.adv           = advance_data;
+        params.virtual_white = 0;
         
-        buffer_get_render_data(&file->state.buffer, items, max, &count,
-                               (f32)rect.x0, (f32)rect.y0, clip_w,
-                               scroll_x, scroll_y, max_x, (f32)max_y,
-                               render_cursor, !file->settings.unwrapped_lines,
-                               advance_data, (f32)line_height);
+        Buffer_Render_State state = {0};
+        Buffer_Render_Stop stop = {0};
+        
+        f32 line_shift = 0;
+        f32 edge_tolerance = 50.f;
+        
+        if (edge_tolerance > params.width){
+            edge_tolerance = params.width;
+        }
+        
+        do{
+            if (line_shift > params.width - edge_tolerance){
+                line_shift = params.width - edge_tolerance;
+            }
+            
+            stop = buffer_render_data(&state, params, line_shift);
+            switch (stop.status){
+                case RenderStatus_NeedLineShift: break;
+            }
+        }while(stop.status != RenderStatus_Finished);
+        
     }
     
     Assert(count > 0);

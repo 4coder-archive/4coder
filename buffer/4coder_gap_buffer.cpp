@@ -98,80 +98,76 @@ buffer_end_init(Gap_Buffer_Init *init, void *scratch, i32 scratch_size){
     return(result);
 }
 
-typedef struct Gap_Buffer_Stringify_Loop{
+typedef struct Gap_Buffer_Stream{
     Gap_Buffer *buffer;
-    char *data, *base;
+    char *data;
+    char *base;
     i32 absolute_pos;
-    i32 pos, end;
+    i32 pos;
+    i32 end;
     i32 size;
     i32 separated;
-} Gap_Buffer_Stringify_Loop;
+} Gap_Buffer_Stream;
 
-internal_4tech Gap_Buffer_Stringify_Loop
-buffer_stringify_loop(Gap_Buffer *buffer, i32 start, i32 end){
-    Gap_Buffer_Stringify_Loop result = {0};
+internal_4tech b32
+buffer_stringify_loop(Gap_Buffer_Stream *stream, Gap_Buffer *buffer, i32 start, i32 end){
+    b32 result = 0;
     
     if (0 <= start && start < end && end <= buffer->size1 + buffer->size2){
-        result.buffer = buffer;
-        result.base = buffer->data;
-        result.absolute_pos = start;
+        stream->buffer = buffer;
+        stream->base = buffer->data;
+        stream->absolute_pos = start;
         
         if (end <= buffer->size1){
-            result.end = end;
+            stream->end = end;
         }
         else{
-            result.end = end + buffer->gap_size;
+            stream->end = end + buffer->gap_size;
         }
         
         if (start < buffer->size1){
             if (end <= buffer->size1){
-                result.separated = 0;
+                stream->separated = 0;
             }
             else{
-                result.separated = 1;
+                stream->separated = 1;
             }
-            result.pos = start;
+            stream->pos = start;
         }
         else{
-            result.separated = 0;
-            result.pos = start + buffer->gap_size;
+            stream->separated = 0;
+            stream->pos = start + buffer->gap_size;
         }
         
-        if (result.separated){
-            result.size = buffer->size1 - start;
+        if (stream->separated){
+            stream->size = buffer->size1 - start;
         }
         else{
-            result.size = end - start;
+            stream->size = end - start;
         }
         
-        result.data = buffer->data + result.pos;
+        stream->data = buffer->data + stream->pos;
     }
     
     return(result);
 }
 
-inline_4tech i32
-buffer_stringify_good(Gap_Buffer_Stringify_Loop *loop){
-    i32 result = (loop->buffer != 0);
-    return(result);
-}
-
-internal_4tech void
-buffer_stringify_next(Gap_Buffer_Stringify_Loop *loop){
+internal_4tech b32
+buffer_stringify_next(Gap_Buffer_Stream *stream){
     i32 size1 = 0, temp_end = 0;
-    if (loop->separated){
-        loop->separated = 0;
-        size1 = loop->buffer->size1;
-        loop->pos = loop->buffer->gap_size + size1;
-        loop->absolute_pos = size1;
-        temp_end = loop->end;
+    if (stream->separated){
+        stream->separated = 0;
+        size1 = stream->buffer->size1;
+        stream->pos = stream->buffer->gap_size + size1;
+        stream->absolute_pos = size1;
+        temp_end = stream->end;
     }
     else{
-        loop->buffer = 0;
-        temp_end = loop->pos;
+        stream->buffer = 0;
+        temp_end = stream->pos;
     }
-    loop->size = temp_end - loop->pos;
-    loop->data = loop->base + loop->pos;
+    stream->size = temp_end - stream->pos;
+    stream->data = stream->base + stream->pos;
 }
 
 internal_4tech i32

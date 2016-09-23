@@ -269,13 +269,10 @@ cpp_pp_directive_to_state(Cpp_Token_Type type){
 // duff-routine defines
 #define DrCase(PC) case PC: goto resumespot_##PC
 
-#define DrYield(PC, n) {                                           \
-    token_array_out->count = token_i;                              \
-    *S_ptr = S; S_ptr->__pc__ = PC; return(n); resumespot_##PC:; }
+#define DrYield(PC, n)\
+{ token_array_out->count = token_i; *S_ptr = S; S_ptr->__pc__ = PC; return(n); resumespot_##PC:; }
 
-#define DrReturn(n) {                           \
-    token_array_out->count = token_i;           \
-    *S_ptr = S; S_ptr->__pc__ = -1; return(n); }
+#define DrReturn(n) { token_array_out->count = token_i; *S_ptr = S; S_ptr->__pc__ = -1; return(n); }
 
 FCPP_INTERNAL Cpp_Lex_Result
 cpp_lex_nonalloc_null_end_no_limit(Cpp_Lex_Data *S_ptr, char *chunk, int32_t size,
