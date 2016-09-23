@@ -384,84 +384,6 @@ view_cursor_limits(View *view){
     return(limits);
 }
 
-#if 0
-inline Full_Cursor
-view_compute_cursor_from_pos(View *view, i32 pos){
-    Editing_File *file = view->file_data.file;
-    Models *models = view->persistent.models;
-    Render_Font *font = get_font_info(models->font_set, file->settings.font_id)->font;
-    
-    Buffer_Cursor_Seek_Params params;
-    params.buffer      = &file->state.buffer;
-    params.seek        = seek_pos(pos);
-    params.max_width   = view_file_display_width(view);
-    params.font_height = (f32)font->height;
-    params.adv         = font->advance_data;
-    params.wraps       = file->state.wraps;
-    
-    Full_Cursor result = buffer_cursor_seek(params);
-    
-    return(result);
-}
-
-inline Full_Cursor
-view_compute_cursor_from_unwrapped_xy(View *view, f32 seek_x, f32 seek_y, b32 round_down = 0){
-    Editing_File *file = view->file_data.file;
-    Models *models = view->persistent.models;
-    Render_Font *font = get_font_info(models->font_set, file->settings.font_id)->font;
-    
-    Buffer_Cursor_Seek_Params params;
-    params.buffer      = &file->state.buffer;
-    params.seek        = seek_unwrapped_xy(seek_x, seek_y, round_down);
-    params.max_width   = view_file_display_width(view);
-    params.font_height = (f32)font->height;
-    params.adv         = font->advance_data;
-    params.wraps       = file->state.wraps;
-    
-    Full_Cursor result = buffer_cursor_seek(params);
-    
-    return(result);
-}
-
-internal Full_Cursor
-view_compute_cursor_from_wrapped_xy(View *view, f32 seek_x, f32 seek_y, b32 round_down = 0){
-    Editing_File *file = view->file_data.file;
-    Models *models = view->persistent.models;
-    Render_Font *font = get_font_info(models->font_set, file->settings.font_id)->font;
-    
-    Buffer_Cursor_Seek_Params params;
-    params.buffer      = &file->state.buffer;
-    params.seek        = seek_wrapped_xy(seek_x, seek_y, round_down);
-    params.max_width   = view_file_display_width(view);
-    params.font_height = (f32)font->height;
-    params.adv         = font->advance_data;
-    params.wraps       = file->state.wraps;
-    
-    Full_Cursor result = buffer_cursor_seek(params);
-    
-    return(result);
-}
-
-internal Full_Cursor
-view_compute_cursor_from_line_char(View *view, i32 line, i32 character){
-    Editing_File *file = view->file_data.file;
-    Models *models = view->persistent.models;
-    Render_Font *font = get_font_info(models->font_set, file->settings.font_id)->font;
-    
-    Buffer_Cursor_Seek_Params params;
-    params.buffer      = &file->state.buffer;
-    params.seek        = seek_line_char(line, character);
-    params.max_width   = view_file_display_width(view);
-    params.font_height = (f32)font->height;
-    params.adv         = font->advance_data;
-    params.wraps       = file->state.wraps;
-    
-    Full_Cursor result = buffer_cursor_seek(params);
-    
-    return(result);
-}
-#endif
-
 inline Full_Cursor
 view_compute_cursor(View *view, Buffer_Seek seek){
     Editing_File *file = view->file_data.file;
@@ -469,15 +391,19 @@ view_compute_cursor(View *view, Buffer_Seek seek){
     Render_Font *font = get_font_info(models->font_set, file->settings.font_id)->font;
     
     Buffer_Cursor_Seek_Params params;
-    params.buffer      = &file->state.buffer;
-    params.seek        = seek;
-    params.max_width   = view_file_display_width(view);
-    params.font_height = (f32)font->height;
-    params.adv         = font->advance_data;
-    params.wraps       = file->state.wraps;
+    params.buffer        = &file->state.buffer;
+    params.seek          = seek;
+    params.max_width     = view_file_display_width(view);
+    params.font_height   = (f32)font->height;
+    params.adv           = font->advance_data;
+    params.wraps         = file->state.wraps;
+    params.virtual_white = 0;
     
-    Full_Cursor result = buffer_cursor_seek(params);
-    return (result);
+    Buffer_Cursor_Seek_State state = {0};
+    Full_Cursor result;
+    buffer_cursor_seek(&state, params, 0, &result);
+    
+    return(result);
 }
 
 inline Full_Cursor
@@ -4797,23 +4723,12 @@ draw_file_loaded(View *view, i32_Rect rect, b32 is_active, Render_Target *target
     // to the gui system.
     scroll_y += view->widget_height;
     
-    Full_Cursor render_cursor = {0};
-    {
-        Buffer_Cursor_Seek_Params params;
-        params.buffer      = &file->state.buffer;
-        params.max_width   = max_x;
-        params.font_height = (f32)line_height;
-        params.adv         = advance_data;
-        params.wraps       = file->state.wraps;
-        
-        if (!file->settings.unwrapped_lines){
-            params.seek = seek_wrapped_xy(0, scroll_y, 0);
-        }
-        else{
-            params.seek = seek_unwrapped_xy(0, scroll_y, 0);
-        }
-        
-        render_cursor = buffer_cursor_seek(params);
+    Full_Cursor render_cursor;
+    if (!file->settings.unwrapped_lines){
+        render_cursor = view_compute_cursor(view, seek_wrapped_xy(0, scroll_y, 0));
+    }
+    else{
+        render_cursor = view_compute_cursor(view, seek_unwrapped_xy(0, scroll_y, 0));
     }
     
     view->edit_pos->scroll_i = render_cursor.pos;
@@ -4838,12 +4753,16 @@ draw_file_loaded(View *view, i32_Rect rect, b32 is_active, Render_Target *target
         params.wrapped       = wrapped;
         params.font_height   = (f32)line_height;
         params.adv           = advance_data;
-        params.virtual_white = 0;
+        params.virtual_white = 1;
         
         Buffer_Render_State state = {0};
-        Buffer_Render_Stop stop = {0};
+        Buffer_Layout_Stop stop;
         
-        f32 line_shift = 0;
+        f32 line_shift = (render_cursor.line%4)*15.f + 30.f;
+        while (line_shift >= 60.f){
+            line_shift -= 60.f;
+        }
+        
         f32 edge_tolerance = 50.f;
         
         if (edge_tolerance > params.width){
@@ -4851,15 +4770,22 @@ draw_file_loaded(View *view, i32_Rect rect, b32 is_active, Render_Target *target
         }
         
         do{
-            if (line_shift > params.width - edge_tolerance){
-                line_shift = params.width - edge_tolerance;
+            f32 this_line_shift = line_shift;
+            if (this_line_shift > params.width - edge_tolerance){
+                this_line_shift = params.width - edge_tolerance;
             }
             
-            stop = buffer_render_data(&state, params, line_shift);
+            stop = buffer_render_data(&state, params, this_line_shift);
             switch (stop.status){
-                case RenderStatus_NeedLineShift: break;
+                case BLStatus_NeedWrapLineShift:
+                case BLStatus_NeedLineShift:
+                line_shift += 15.f;
+                if (line_shift >= 60.f){
+                    line_shift -= 60.f;
+                }
+                break;
             }
-        }while(stop.status != RenderStatus_Finished);
+        }while(stop.status != BLStatus_Finished);
     }
     
     i32 cursor_begin = 0, cursor_end = 0;
