@@ -480,7 +480,9 @@ get_indentation_marks(Application_Links *app, Partition *part, Buffer_Summary *b
                 
                 case CPP_TOKEN_PARENTHESE_CLOSE:
                 if (!(token.flags & CPP_TFLAG_PP_BODY)){
-                    --indent.paren_nesting;
+                    if (indent.paren_nesting > 0){
+                        --indent.paren_nesting;
+                    }
                 }
                 break;
             }

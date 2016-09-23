@@ -388,146 +388,6 @@ buffer_get_line_index_from_wrapped_y(f32 *wraps, f32 y, f32 font_height, i32 l_b
     return(result);
 }
 
-internal_4tech Full_Cursor
-buffer_cursor_seek(Buffer_Type *buffer, Buffer_Seek seek, f32 max_width,
-                   f32 font_height, f32 *adv, Full_Cursor cursor){
-    i32 xy_seek;
-    
-    switch(seek.type){
-        case buffer_seek_pos:
-        if (cursor.pos >= seek.pos) goto buffer_cursor_seek_end;
-        
-        case buffer_seek_wrapped_xy:
-        if (seek.x == 0 && cursor.wrapped_y >= seek.y) goto buffer_cursor_seek_end;
-        
-        case buffer_seek_unwrapped_xy:
-        if (seek.x == 0 && cursor.unwrapped_y >= seek.y) goto buffer_cursor_seek_end;
-        
-        case buffer_seek_line_char:
-        if (cursor.line >= seek.line && cursor.character >= seek.character) goto buffer_cursor_seek_end;
-    }
-    
-    if (adv){
-        Buffer_Stream_Type stream = {0};
-        i32 size = buffer_size(buffer);
-        i32 i = cursor.pos;
-        
-        xy_seek = (seek.type == buffer_seek_wrapped_xy || seek.type == buffer_seek_unwrapped_xy);
-        i32 result = 1;
-        
-        stream.use_termination_character = 1;
-        stream.terminator = 0;
-        
-        if (buffer_stringify_loop(&stream, buffer, i, size)){
-            b32 still_looping = 0;
-            do{
-                for (; i < stream.end; ++i){
-                    u8 ch = (u8)stream.data[i];
-                    
-                    Full_Cursor prev_cursor = cursor;
-                    
-                    switch (ch){
-                        case '\n':
-                        ++cursor.line;
-                        cursor.unwrapped_y += font_height;
-                        cursor.wrapped_y += font_height;
-                        cursor.character = 1;
-                        cursor.unwrapped_x = 0;
-                        cursor.wrapped_x = 0;
-                        break;
-                        
-                        default:
-                        {
-                            f32 ch_width = adv[ch];
-                            
-                            if (cursor.wrapped_x + ch_width > max_width){
-                                cursor.wrapped_y += font_height;
-                                cursor.wrapped_x = 0;
-                                prev_cursor = cursor;
-                            }
-                            
-                            ++cursor.character;
-                            cursor.unwrapped_x += ch_width;
-                            cursor.wrapped_x += ch_width;
-                        }break;
-                    }
-                    
-                    ++cursor.pos;
-                    
-                    if (cursor.pos > size){
-                        cursor = prev_cursor;
-                        result = 0;
-                        goto cursor_seek_step_end;
-                    }
-                    
-                    f32 x = 0, px = 0, y = 0;
-                    
-                    switch (seek.type){
-                        case buffer_seek_pos:
-                        if (cursor.pos > seek.pos){
-                            cursor = prev_cursor;
-                            result = 0;
-                            goto cursor_seek_step_end;
-                        }break;
-                        
-                        case buffer_seek_wrapped_xy:
-                        x = cursor.wrapped_x; px = prev_cursor.wrapped_x;
-                        y = cursor.wrapped_y; break;
-                        
-                        case buffer_seek_unwrapped_xy:
-                        x = cursor.unwrapped_x; px = prev_cursor.unwrapped_x;
-                        y = cursor.unwrapped_y; break;
-                        
-                        case buffer_seek_line_char:
-                        if (cursor.line == seek.line && cursor.character >= seek.character){
-                            result = 0;
-                            goto cursor_seek_step_end;
-                        }
-                        else if (cursor.line > seek.line){
-                            cursor = prev_cursor;
-                            result = 0;
-                            goto cursor_seek_step_end;
-                        }break;
-                    }
-                    
-                    if (xy_seek){
-                        if (y > seek.y){
-                            cursor = prev_cursor;
-                            result = 0;
-                            goto cursor_seek_step_end;
-                        }
-                        
-                        if (y > seek.y - font_height && x >= seek.x){
-                            if (!seek.round_down){
-                                if (ch != '\n' && (seek.x - px) < (x - seek.x)) cursor = prev_cursor;
-                                result = 0;
-                                goto cursor_seek_step_end;
-                            }
-                            
-                            if (x > seek.x){
-                                cursor = prev_cursor;
-                                result = 0;
-                                goto cursor_seek_step_end;
-                            }
-                        }
-                    }
-                    
-                    cursor_seek_step_end:;
-                    if (!result){
-                        goto buffer_cursor_seek_end;
-                    }
-                }
-                still_looping = buffer_stringify_next(&stream);
-            }while(still_looping);
-        }
-        
-        assert_4tech(result == 0);
-    }
-    
-    buffer_cursor_seek_end:;
-    return(cursor);
-}
-
 internal_4tech Partial_Cursor
 buffer_partial_from_pos(Buffer_Type *buffer, i32 pos){
     Partial_Cursor result = {0};
@@ -544,27 +404,6 @@ buffer_partial_from_pos(Buffer_Type *buffer, i32 pos){
     result.pos = pos;
     result.line = line_index+1;
     result.character = pos - buffer->line_starts[line_index] + 1;
-    
-    return(result);
-}
-
-internal_4tech Full_Cursor
-buffer_cursor_from_pos(Buffer_Type *buffer, f32 *wraps, i32 pos,
-                       f32 max_width, f32 font_height, f32 *adv){
-    Full_Cursor result = {0};
-    i32 line_index = 0;
-    i32 size = buffer_size(buffer);
-    
-    if (pos > size){
-        pos = size;
-    }
-    if (pos < 0){
-        pos = 0;
-    }
-    
-    line_index = buffer_get_line_index_range(buffer, pos, 0, buffer->line_count);
-    result = make_cursor_hint(line_index, buffer->line_starts, wraps, font_height);
-    result = buffer_cursor_seek(buffer, seek_pos(pos), max_width, font_height, adv, result);
     
     return(result);
 }
@@ -595,18 +434,233 @@ buffer_partial_from_line_character(Buffer_Type *buffer, i32 line, i32 character)
     return(result);
 }
 
+struct Buffer_Cursor_Seek_Params{
+    Buffer_Type *buffer;
+    Buffer_Seek seek;
+    f32 max_width;
+    f32 font_height;
+    f32 *adv;
+    f32 *wraps;
+};
+
+internal_4tech Full_Cursor
+buffer_cursor_seek(Buffer_Cursor_Seek_Params params, Full_Cursor cursor_hint){
+    
+    i32 size = buffer_size(params.buffer);
+    
+    switch (params.seek.type){
+        case buffer_seek_pos:
+        {
+            if (params.seek.pos > size){
+                params.seek.pos = size;
+            }
+            if (params.seek.pos < 0){
+                params.seek.pos = 0;
+            }
+            
+            i32 line_index = buffer_get_line_index_range(params.buffer, params.seek.pos, 0, params.buffer->line_count);
+            cursor_hint = make_cursor_hint(line_index, params.buffer->line_starts, params.wraps, params.font_height);
+        }break;
+        
+        case buffer_seek_line_char:
+        {
+            i32 line_index = params.seek.line - 1;
+            
+            if (line_index >= params.buffer->line_count){
+                line_index = params.buffer->line_count - 1;
+            }
+            if (line_index < 0){
+                line_index = 0;
+            }
+            
+            cursor_hint = make_cursor_hint(line_index, params.buffer->line_starts, params.wraps, params.font_height);
+        }break;
+        
+        case buffer_seek_unwrapped_xy:
+        {
+            i32 line_index = (i32)(params.seek.y / params.font_height);
+            
+            if (line_index >= params.buffer->line_count){
+                line_index = params.buffer->line_count - 1;
+            }
+            if (line_index < 0){
+                line_index = 0;
+            }
+            
+            cursor_hint = make_cursor_hint(line_index, params.buffer->line_starts, params.wraps, params.font_height);
+        }break;
+        
+        case buffer_seek_wrapped_xy:
+        {
+            i32 line_index = buffer_get_line_index_from_wrapped_y(params.wraps, params.seek.y,
+                                                                  params.font_height, 0, params.buffer->line_count);
+            
+            cursor_hint = make_cursor_hint(line_index, params.buffer->line_starts, params.wraps, params.font_height);
+        }break;
+    }
+    
+    Full_Cursor cursor = cursor_hint;
+    
+    switch(params.seek.type){
+        case buffer_seek_pos:
+        if (cursor.pos >= params.seek.pos){
+            goto buffer_cursor_seek_end;
+        }break;
+        
+        case buffer_seek_wrapped_xy:
+        if (params.seek.x == 0 && cursor.wrapped_y >= params.seek.y){
+            goto buffer_cursor_seek_end;
+        }break;
+        
+        case buffer_seek_unwrapped_xy:
+        if (params.seek.x == 0 && cursor.unwrapped_y >= params.seek.y){
+            goto buffer_cursor_seek_end;
+        }break;
+        
+        case buffer_seek_line_char:
+        if (cursor.line >= params.seek.line && cursor.character >= params.seek.character){
+            goto buffer_cursor_seek_end;
+        }break;
+    }
+    
+    if (params.adv){
+        Buffer_Stream_Type stream = {0};
+        i32 i = cursor.pos;
+        
+        b32 xy_seek = (params.seek.type == buffer_seek_wrapped_xy || params.seek.type == buffer_seek_unwrapped_xy);
+        
+        stream.use_termination_character = 1;
+        stream.terminator = 0;
+        
+        if (buffer_stringify_loop(&stream, params.buffer, i, size)){
+            b32 still_looping = 0;
+            do{
+                for (; i < stream.end; ++i){
+                    u8 ch = (u8)stream.data[i];
+                    
+                    Full_Cursor prev_cursor = cursor;
+                    
+                    switch (ch){
+                        case '\n':
+                        ++cursor.line;
+                        cursor.unwrapped_y += params.font_height;
+                        cursor.wrapped_y += params.font_height;
+                        cursor.character = 1;
+                        cursor.unwrapped_x = 0;
+                        cursor.wrapped_x = 0;
+                        break;
+                        
+                        default:
+                        {
+                            f32 ch_width = params.adv[ch];
+                            
+                            if (cursor.wrapped_x + ch_width > params.max_width){
+                                cursor.wrapped_y += params.font_height;
+                                cursor.wrapped_x = 0;
+                                prev_cursor = cursor;
+                            }
+                            
+                            ++cursor.character;
+                            cursor.unwrapped_x += ch_width;
+                            cursor.wrapped_x += ch_width;
+                        }break;
+                    }
+                    
+                    ++cursor.pos;
+                    
+                    if (cursor.pos > size){
+                        cursor = prev_cursor;
+                        goto buffer_cursor_seek_end;
+                    }
+                    
+                    f32 x = 0, px = 0, y = 0;
+                    
+                    switch (params.seek.type){
+                        case buffer_seek_pos:
+                        if (cursor.pos > params.seek.pos){
+                            cursor = prev_cursor;
+                            goto buffer_cursor_seek_end;
+                        }break;
+                        
+                        case buffer_seek_wrapped_xy:
+                        x = cursor.wrapped_x; px = prev_cursor.wrapped_x;
+                        y = cursor.wrapped_y; break;
+                        
+                        case buffer_seek_unwrapped_xy:
+                        x = cursor.unwrapped_x; px = prev_cursor.unwrapped_x;
+                        y = cursor.unwrapped_y; break;
+                        
+                        case buffer_seek_line_char:
+                        if (cursor.line == params.seek.line && cursor.character >= params.seek.character){
+                            goto buffer_cursor_seek_end;
+                        }
+                        else if (cursor.line > params.seek.line){
+                            cursor = prev_cursor;
+                            goto buffer_cursor_seek_end;
+                        }break;
+                    }
+                    
+                    if (xy_seek){
+                        if (y > params.seek.y){
+                            cursor = prev_cursor;
+                            goto buffer_cursor_seek_end;
+                        }
+                        
+                        if (y > params.seek.y - params.font_height && x >= params.seek.x){
+                            if (!params.seek.round_down){
+                                if (ch != '\n' && (params.seek.x - px) < (x - params.seek.x)) cursor = prev_cursor;
+                                goto buffer_cursor_seek_end;
+                            }
+                            
+                            if (x > params.seek.x){
+                                cursor = prev_cursor;
+                                goto buffer_cursor_seek_end;
+                            }
+                        }
+                    }
+                }
+                still_looping = buffer_stringify_next(&stream);
+            }while(still_looping);
+        }
+        
+        InvalidCodePath;
+    }
+    
+    buffer_cursor_seek_end:;
+    return(cursor);
+}
+
+internal_4tech Full_Cursor
+buffer_cursor_from_pos(Buffer_Type *buffer, f32 *wraps, i32 pos,
+                       f32 max_width, f32 font_height, f32 *adv){
+    
+    Full_Cursor result = {0};
+    Buffer_Cursor_Seek_Params params;
+    params.buffer      = buffer;
+    params.seek        = seek_pos(pos);
+    params.max_width   = max_width;
+    params.font_height = font_height;
+    params.adv         = adv;
+    params.wraps       = wraps;
+    
+    result = buffer_cursor_seek(params, result);
+    
+    return(result);
+}
+
 internal_4tech Full_Cursor
 buffer_cursor_from_line_character(Buffer_Type *buffer, f32 *wraps, i32 line, i32 character,
                                   f32 max_width, f32 font_height, f32 *adv){
     Full_Cursor result = {0};
-    i32 line_index = line - 1;
+    Buffer_Cursor_Seek_Params params;
+    params.buffer      = buffer;
+    params.seek        = seek_line_char(line, character);
+    params.max_width   = max_width;
+    params.font_height = font_height;
+    params.adv         = adv;
+    params.wraps       = wraps;
     
-    if (line_index >= buffer->line_count) line_index = buffer->line_count - 1;
-    if (line_index < 0) line_index = 0;
-    
-    result = make_cursor_hint(line_index, buffer->line_starts, wraps, font_height);
-    result = buffer_cursor_seek(buffer, seek_line_char(line, character),
-                                max_width, font_height, adv, result);
+    result = buffer_cursor_seek(params, result);
     
     return(result);
 }
@@ -615,14 +669,15 @@ internal_4tech Full_Cursor
 buffer_cursor_from_unwrapped_xy(Buffer_Type *buffer, f32 *wraps, f32 x, f32 y, i32 round_down,
                                 f32 max_width, f32 font_height, f32 *adv){
     Full_Cursor result = {0};
-    i32 line_index = (i32)(y / font_height);
+    Buffer_Cursor_Seek_Params params;
+    params.buffer      = buffer;
+    params.seek        = seek_unwrapped_xy(x, y, round_down);
+    params.max_width   = max_width;
+    params.font_height = font_height;
+    params.adv         = adv;
+    params.wraps       = wraps;
     
-    if (line_index >= buffer->line_count) line_index = buffer->line_count - 1;
-    if (line_index < 0) line_index = 0;
-    
-    result = make_cursor_hint(line_index, buffer->line_starts, wraps, font_height);
-    result = buffer_cursor_seek(buffer, seek_unwrapped_xy(x, y, round_down),
-                                max_width, font_height, adv, result);
+    result = buffer_cursor_seek(params, result);
     
     return(result);
 }
@@ -631,11 +686,15 @@ internal_4tech Full_Cursor
 buffer_cursor_from_wrapped_xy(Buffer_Type *buffer, f32 *wraps, f32 x, f32 y, i32 round_down,
                               f32 max_width, f32 font_height, f32 *adv){
     Full_Cursor result = {0};
-    i32 line_index = buffer_get_line_index_from_wrapped_y(wraps, y, font_height, 0, buffer->line_count);
+    Buffer_Cursor_Seek_Params params;
+    params.buffer      = buffer;
+    params.seek        = seek_wrapped_xy(x, y, round_down);
+    params.max_width   = max_width;
+    params.font_height = font_height;
+    params.adv         = adv;
+    params.wraps       = wraps;
     
-    result = make_cursor_hint(line_index, buffer->line_starts, wraps, font_height);
-    result = buffer_cursor_seek(buffer, seek_wrapped_xy(x, y, round_down),
-                                max_width, font_height, adv, result);
+    result = buffer_cursor_seek(params, result);
     
     return(result);
 }

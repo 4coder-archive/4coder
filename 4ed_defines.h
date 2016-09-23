@@ -55,6 +55,7 @@ typedef double f64;
 #endif
 #define TentativeAssert(c) Assert(c)
 #define NotImplemented Assert(!"This is not implemented yet!")
+#define InvalidCodePath Assert(!"Invalid code path!")
 
 #define AllowLocal(name) (void)name
 #ifndef ArrayCount
