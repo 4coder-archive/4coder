@@ -799,7 +799,7 @@ cpp_lex_nonalloc_null_end_no_limit(Cpp_Lex_Data *S_ptr, char *chunk, int32_t siz
             break;
         }
         
-        if (chunk[S.pos-1] == 0){
+        if (S.pos > S.chunk_pos && chunk[S.pos-1] == 0){
             --S.pos;
         }
         
