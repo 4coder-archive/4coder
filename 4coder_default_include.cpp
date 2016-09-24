@@ -944,19 +944,15 @@ CUSTOM_COMMAND_SIG(page_down){
 CUSTOM_COMMAND_SIG(move_left){
     uint32_t access = AccessProtected;
     View_Summary view = get_active_view(app, access);
-    int32_t new_pos = view.cursor.pos - 1;
-    view_set_cursor(app, &view,
-                         seek_pos(new_pos),
-                         true);
+    int32_t new_pos = view.cursor.character_pos - 1;
+    view_set_cursor(app, &view, seek_character_pos(new_pos), 1);
 }
 
 CUSTOM_COMMAND_SIG(move_right){
     uint32_t access = AccessProtected;
     View_Summary view = get_active_view(app, access);
-    int32_t new_pos = view.cursor.pos + 1;
-    view_set_cursor(app, &view,
-                         seek_pos(new_pos),
-                         true);
+    int32_t new_pos = view.cursor.character_pos + 1;
+    view_set_cursor(app, &view, seek_character_pos(new_pos), 1);
 }
 
 //

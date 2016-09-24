@@ -448,6 +448,22 @@ view_compute_max_target_y(i32 lowest_line, i32 line_height, f32 view_height){
     return(CEIL32(max_target_y));
 }
 
+internal i32
+file_compute_lowest_line(Editing_File *file, f32 font_height){
+    i32 lowest_line = 0;
+    
+    Buffer_Type *buffer = &file->state.buffer;
+    if (file->settings.unwrapped_lines){
+        lowest_line = buffer->line_count;
+    }
+    else{
+        f32 term_line_y = file->state.wraps[buffer->line_count];
+        lowest_line = CEIL32(term_line_y/font_height);
+    }
+    
+    return(lowest_line);
+}
+
 inline i32
 view_compute_max_target_y(View *view){
     i32 line_height = view->line_height;
@@ -848,34 +864,83 @@ file_update_cursor_positions(Models *models, Editing_File *file){
     }
 }
 
-// NOTE(allen): This call assumes that the buffer's line starts are already correct,
+//
+// File Metadata Measuring
+//
+
+internal void
+file_measure_starts(System_Functions *system, General_Memory *general, Buffer_Type *buffer){
+    if (!buffer->line_starts){
+        i32 max = buffer->line_max = Kbytes(1);
+        buffer->line_starts = (i32*)general_memory_allocate(general, max*sizeof(i32));
+        TentativeAssert(buffer->line_starts);
+        // TODO(allen): when unable to allocate?
+    }
+    
+    Buffer_Measure_Starts state = {0};
+    while (buffer_measure_starts(&state, buffer)){
+        i32 count = state.count;
+        i32 max = buffer->line_max;
+        max = ((max + 1) << 1);
+        
+        {
+            i32 *new_lines = (i32*)general_memory_reallocate(
+                general, buffer->line_starts, sizeof(i32)*count, sizeof(i32)*max);
+            
+            // TODO(allen): when unable to grow?
+            TentativeAssert(new_lines);
+            buffer->line_starts = new_lines;
+            buffer->line_max = max;
+        }
+    }
+    buffer->line_count = state.count;
+}
+
+// NOTE(allen): These calls assumes that the buffer's line starts are already correct,
 // and that the buffer's line_count is correct.
 internal void
-file_allocate_wraps_as_needed(General_Memory *general, Editing_File *file){
-    Buffer_Type *buffer = &file->state.buffer;
-    
-    if (file->state.wraps == 0){
+file_allocate_metadata_as_needed(General_Memory *general, Buffer_Type *buffer,
+                                 void **mem, i32 *mem_max_count, i32 item_size){
+    if (*mem == 0){
         i32 max = ((buffer->line_count+1)*2);
-        max = (max+(0x1FF))&(~(0x1FF));
-        file->state.wraps = (f32*)general_memory_allocate(general, max*sizeof(f32));
-        file->state.wrap_max = max;
+        max = (max+(0x3FF))&(~(0x3FF));
+        *mem = general_memory_allocate(general, max*item_size);
+        *mem_max_count = max;
     }
-    else if (file->state.wrap_max < buffer->line_count){
-        i32 old_max = file->state.wrap_max;
+    else if (*mem_max_count < buffer->line_count){
+        i32 old_max = *mem_max_count;
         i32 max = ((buffer->line_count+1)*2);
-        max = (max+(0x1FF))&(~(0x1FF));
+        max = (max+(0x3FF))&(~(0x3FF));
         
-        f32 *new_wraps = (f32*)general_memory_reallocate(
-            general, file->state.wraps, sizeof(f32)*old_max, sizeof(f32)*max);
+        void *new_mem = general_memory_reallocate(general, *mem, item_size*old_max, item_size*max);
         
-        TentativeAssert(new_wraps);
-        file->state.wraps = new_wraps;
-        file->state.wrap_max = max;
+        TentativeAssert(new_mem);
+        *mem = new_mem;
+        *mem_max_count = max;
     }
 }
 
-// NOTE(allen): This call assumes that the buffer's line starts are already correct,
-// and that the buffer's line_count is correct.
+inline void
+file_allocate_character_starts_as_needed(General_Memory *general, Editing_File *file){
+    file_allocate_metadata_as_needed(general, &file->state.buffer,
+                                     (void**)&file->state.character_starts,
+                                     &file->state.character_start_max, sizeof(i32));
+}
+
+internal void
+file_measure_character_starts(Models *models, Editing_File *file){
+    file_allocate_character_starts_as_needed(&models->mem.general, file);
+    buffer_measure_character_starts(&file->state.buffer, file->state.character_starts, 0, 1);
+    file_update_cursor_positions(models, file);
+}
+
+inline void
+file_allocate_wraps_as_needed(General_Memory *general, Editing_File *file){
+    file_allocate_metadata_as_needed(general, &file->state.buffer,
+                                     (void**)&file->state.wraps,
+                                     &file->state.wrap_max, sizeof(f32));
+}
+
 internal void
 file_measure_wraps(Models *models, Editing_File *file, f32 font_height, f32 *adv){
     file_allocate_wraps_as_needed(&models->mem.general, file);
@@ -884,13 +949,15 @@ file_measure_wraps(Models *models, Editing_File *file, f32 font_height, f32 *adv
     file_update_cursor_positions(models, file);
 }
 
-// NOTE(allen): This call assumes that the buffer's line starts are already correct,
-// and that the buffer's line_count is correct.
 internal void
 file_set_display_width(Models *models, Editing_File *file, i32 display_width, f32 font_height, f32 *adv){
     file->settings.display_width = display_width;
     file_measure_wraps(models, file, font_height, adv);
 }
+
+//
+//
+//
 
 internal void
 file_create_from_string(System_Functions *system, Models *models,
@@ -922,7 +989,11 @@ file_create_from_string(System_Functions *system, Models *models,
     }
     file_synchronize_times(system, file);
     
+    // TODO(allen): batch some of these together so we can avoid
+    // making so many passes over the buffer?
     file_measure_starts(system, general, &file->state.buffer);
+    
+    file_measure_character_starts(models, file);
     
     i16 font_id = models->global_font.font_id;
     file->settings.font_id = font_id;
@@ -1983,6 +2054,10 @@ file_do_single_edit(System_Functions *system,
     file_grow_starts_as_needed(general, buffer, line_shift);
     buffer_remeasure_starts(buffer, line_start, line_end, line_shift, shift_amount);
     
+    // TODO(allen): write the remeasurement version
+    file_allocate_character_starts_as_needed(general, file);
+    buffer_measure_character_starts(buffer, file->state.character_starts, 0, 1);
+    
     file_allocate_wraps_as_needed(general, file);
     buffer_remeasure_wrap_y(buffer, line_start, line_end, line_shift,
                             file->state.wraps, (f32)font->height, font->advance_data,
@@ -2048,6 +2123,9 @@ file_do_batch_edit(System_Functions *system, Models *models, Editing_File *file,
     // NOTE(allen): meta data
     Buffer_Measure_Starts measure_state = {};
     buffer_measure_starts(&measure_state, &file->state.buffer);
+    
+    // TODO(allen): write the remeasurement version
+    file_measure_character_starts(models, file);
     
     Render_Font *font = get_font_info(models->font_set, file->settings.font_id)->font;
     file_measure_wraps(models, file, (f32)font->height, font->advance_data);

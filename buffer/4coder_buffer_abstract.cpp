@@ -129,7 +129,6 @@ buffer_measure_starts(Buffer_Measure_Starts *state, Buffer_Type *buffer){
     return(result);
 }
 
-#if 0
 internal_4tech void
 buffer_measure_character_starts(Buffer_Type *buffer, i32 *character_starts, i32 mode, i32 virtual_whitespace){
     assert_4tech(mode == 0);
@@ -139,8 +138,32 @@ buffer_measure_character_starts(Buffer_Type *buffer, i32 *character_starts, i32 
     i32 size = buffer_size(buffer);
     
     i32 line_index = 0;
+    i32 character_index = 0;
+    
+    character_starts[line_index++] = character_index;
+    
+    if (buffer_stringify_loop(&stream, buffer, i, size)){
+        b32 still_looping = 0;
+        do{
+            for (; i < stream.end; ++i){
+                u8 ch = (u8)stream.data[i];
+                if (ch == '\n'){
+                    ++character_index;
+                    character_starts[line_index++] = character_index;
+                }
+                else{
+                    ++character_index;
+                }
+            }
+            still_looping = buffer_stringify_next(&stream);
+        }while(still_looping);
+    }
+    
+    ++character_index;
+    character_starts[line_index++] = character_index;
+    
+    assert_4tech(line_index-1 == buffer->line_count);
 }
-#endif
 
 internal_4tech void
 buffer_measure_wrap_y(Buffer_Type *buffer, f32 *wraps, f32 font_height, f32 *adv, f32 max_width){

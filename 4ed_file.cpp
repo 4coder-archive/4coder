@@ -110,6 +110,9 @@ struct Editing_File_State{
     f32 *wraps;
     i32 wrap_max;
     
+    i32 *character_starts;
+    i32 character_start_max;
+    
     Undo_Data undo;
     
     Cpp_Token_Array token_array;
@@ -330,54 +333,6 @@ edit_pos_get_new(Editing_File *file, i32 index){
 }
 
 //
-// Buffer Metadata Measuring
-//
-
-internal void
-file_measure_starts(System_Functions *system, General_Memory *general, Buffer_Type *buffer){
-    if (!buffer->line_starts){
-        i32 max = buffer->line_max = Kbytes(1);
-        buffer->line_starts = (i32*)general_memory_allocate(general, max*sizeof(i32));
-        TentativeAssert(buffer->line_starts);
-        // TODO(allen): when unable to allocate?
-    }
-    
-    Buffer_Measure_Starts state = {0};
-    while (buffer_measure_starts(&state, buffer)){
-        i32 count = state.count;
-        i32 max = buffer->line_max;
-        max = ((max + 1) << 1);
-        
-        {
-            i32 *new_lines = (i32*)general_memory_reallocate(
-                general, buffer->line_starts, sizeof(i32)*count, sizeof(i32)*max);
-            
-            // TODO(allen): when unable to grow?
-            TentativeAssert(new_lines);
-            buffer->line_starts = new_lines;
-            buffer->line_max = max;
-        }
-    }
-    buffer->line_count = state.count;
-}
-
-internal i32
-file_compute_lowest_line(Editing_File *file, f32 font_height){
-    i32 lowest_line = 0;
-    
-    Buffer_Type *buffer = &file->state.buffer;
-    if (file->settings.unwrapped_lines){
-        lowest_line = buffer->line_count - 1;
-    }
-    else{
-        f32 term_line_y = file->state.wraps[buffer->line_count];
-        lowest_line = CEIL32((term_line_y/font_height) - 1);
-    }
-    
-    return(lowest_line);
-}
-
-//
 // File Cursor Seeking
 //
 
@@ -414,8 +369,6 @@ file_compute_partial_cursor(Editing_File *file, Buffer_Seek seek, Partial_Cursor
     }
     return(result);
 }
-
-
 
 //
 // Working_Set stuff
