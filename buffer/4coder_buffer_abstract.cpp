@@ -129,6 +129,19 @@ buffer_measure_starts(Buffer_Measure_Starts *state, Buffer_Type *buffer){
     return(result);
 }
 
+#if 0
+internal_4tech void
+buffer_measure_character_starts(Buffer_Type *buffer, i32 *character_starts, i32 mode, i32 virtual_whitespace){
+    assert_4tech(mode == 0);
+    
+    Buffer_Stream_Type stream = {0};
+    i32 i = 0;
+    i32 size = buffer_size(buffer);
+    
+    i32 line_index = 0;
+}
+#endif
+
 internal_4tech void
 buffer_measure_wrap_y(Buffer_Type *buffer, f32 *wraps, f32 font_height, f32 *adv, f32 max_width){
     Buffer_Stream_Type stream = {0};
@@ -136,10 +149,11 @@ buffer_measure_wrap_y(Buffer_Type *buffer, f32 *wraps, f32 font_height, f32 *adv
     i32 size = buffer_size(buffer);
     
     i32 wrap_index = 0;
-    f32 last_wrap = 0.f;
     f32 current_wrap = 0.f;
     
     f32 x = 0.f;
+    
+    wraps[wrap_index++] = current_wrap;
     
     if (buffer_stringify_loop(&stream, buffer, i, size)){
         b32 still_looping = 0;
@@ -147,9 +161,8 @@ buffer_measure_wrap_y(Buffer_Type *buffer, f32 *wraps, f32 font_height, f32 *adv
             for (; i < stream.end; ++i){
                 u8 ch = (u8)stream.data[i];
                 if (ch == '\n'){
-                    wraps[wrap_index++] = last_wrap;
                     current_wrap += font_height;
-                    last_wrap = current_wrap;
+                    wraps[wrap_index++] = current_wrap;
                     x = 0.f;
                 }
                 else{
@@ -167,7 +180,7 @@ buffer_measure_wrap_y(Buffer_Type *buffer, f32 *wraps, f32 font_height, f32 *adv
         }while(still_looping);
     }
     
-    wraps[wrap_index++] = last_wrap;
+    current_wrap += font_height;
     wraps[wrap_index++] = current_wrap;
     
     assert_4tech(wrap_index-1 == buffer->line_count);
@@ -199,11 +212,11 @@ buffer_remeasure_starts(Buffer_Type *buffer, i32 line_start, i32 line_end, i32 l
     i32 new_line_count = line_count;
     i32 new_line_end = line_end;
     if (line_shift != 0){
-        memmove_4tech(starts + line_end + line_shift, starts + line_end,
-                      sizeof(i32)*(line_count - line_end));
-        
         new_line_count += line_shift;
         new_line_end += line_shift;
+        
+        memmove_4tech(starts + line_end + line_shift, starts + line_end,
+                      sizeof(i32)*(line_count - line_end));
     }
     
     // Iteration data (yikes! Need better loop system)
@@ -262,11 +275,11 @@ buffer_remeasure_wrap_y(Buffer_Type *buffer, i32 line_start, i32 line_end, i32 l
     i32 line_count = new_line_count;
     i32 new_line_end = line_end;
     if (line_shift != 0){
-        memmove_4tech(wraps + line_end + line_shift, wraps + line_end,
-                      sizeof(i32)*(line_count - line_end));
-        
         line_count -= line_shift;
         new_line_end += line_shift;
+        
+        memmove_4tech(wraps + line_end + line_shift, wraps + line_end,
+                      sizeof(i32)*(line_count - line_end));
     }
     
     // Iteration data (yikes! Need better loop system)

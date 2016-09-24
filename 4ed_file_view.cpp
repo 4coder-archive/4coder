@@ -397,7 +397,7 @@ view_compute_cursor(View *view, Buffer_Seek seek){
     params.font_height   = (f32)font->height;
     params.adv           = font->advance_data;
     params.wraps         = file->state.wraps;
-    params.virtual_white = 1;
+    params.virtual_white = 0;
     
     Buffer_Cursor_Seek_State state = {0};
     Full_Cursor result;
@@ -4774,7 +4774,7 @@ draw_file_loaded(View *view, i32_Rect rect, b32 is_active, Render_Target *target
         params.wrapped       = wrapped;
         params.font_height   = (f32)line_height;
         params.adv           = advance_data;
-        params.virtual_white = 1;
+        params.virtual_white = 0;
         
         Buffer_Render_State state = {0};
         Buffer_Layout_Stop stop;
