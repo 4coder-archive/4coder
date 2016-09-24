@@ -108,6 +108,7 @@ typedef struct Gap_Buffer_Stream{
     b32 use_termination_character;
     char terminator;
 } Gap_Buffer_Stream;
+static Gap_Buffer_Stream null_buffer_stream = {0};
 
 internal_4tech b32
 buffer_stringify_loop(Gap_Buffer_Stream *stream, Gap_Buffer *buffer, i32 start, i32 end){

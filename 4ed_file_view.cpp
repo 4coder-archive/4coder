@@ -393,15 +393,36 @@ view_compute_cursor(View *view, Buffer_Seek seek){
     Buffer_Cursor_Seek_Params params;
     params.buffer        = &file->state.buffer;
     params.seek          = seek;
-    params.max_width     = view_file_display_width(view);
+    params.width         = view_file_display_width(view);
     params.font_height   = (f32)font->height;
     params.adv           = font->advance_data;
     params.wraps         = file->state.wraps;
-    params.virtual_white = 0;
+    params.virtual_white = 1;
     
     Buffer_Cursor_Seek_State state = {0};
     Full_Cursor result;
-    buffer_cursor_seek(&state, params, 0, &result);
+    Buffer_Layout_Stop stop;
+    
+    f32 edge_tolerance = 50.f;
+    if (edge_tolerance > params.width){
+        edge_tolerance = params.width;
+    }
+    
+    f32 line_shift = 0.f;
+    do{
+        f32 this_line_shift = line_shift;
+        if (this_line_shift > params.width - edge_tolerance){
+            this_line_shift = params.width - edge_tolerance;
+        }
+        
+        stop = buffer_cursor_seek(&state, params, this_line_shift, &result);
+        switch (stop.status){
+            case BLStatus_NeedWrapLineShift:
+            case BLStatus_NeedLineShift:
+            line_shift = (stop.line_index%4)*9.f;
+            break;
+        }
+    }while(stop.status != BLStatus_Finished);
     
     return(result);
 }
@@ -4758,17 +4779,12 @@ draw_file_loaded(View *view, i32_Rect rect, b32 is_active, Render_Target *target
         Buffer_Render_State state = {0};
         Buffer_Layout_Stop stop;
         
-        f32 line_shift = (render_cursor.line%4)*15.f + 30.f;
-        while (line_shift >= 60.f){
-            line_shift -= 60.f;
-        }
-        
         f32 edge_tolerance = 50.f;
-        
         if (edge_tolerance > params.width){
             edge_tolerance = params.width;
         }
         
+        f32 line_shift = 0.f;
         do{
             f32 this_line_shift = line_shift;
             if (this_line_shift > params.width - edge_tolerance){
@@ -4779,10 +4795,7 @@ draw_file_loaded(View *view, i32_Rect rect, b32 is_active, Render_Target *target
             switch (stop.status){
                 case BLStatus_NeedWrapLineShift:
                 case BLStatus_NeedLineShift:
-                line_shift += 15.f;
-                if (line_shift >= 60.f){
-                    line_shift -= 60.f;
-                }
+                line_shift = (stop.line_index%4)*9.f;
                 break;
             }
         }while(stop.status != BLStatus_Finished);

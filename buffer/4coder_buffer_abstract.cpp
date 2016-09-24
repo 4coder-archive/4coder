@@ -424,8 +424,12 @@ buffer_partial_from_line_character(Buffer_Type *buffer, i32 line, i32 character)
         max_character = (next_start-this_start);
     }
     
-    if (character <= 0) character = 1;
-    if (character > max_character) character = max_character;
+    if (character <= 0){
+        character = 1;
+    }
+    if (character > max_character){
+        character = max_character;
+    }
     
     result.pos = this_start + character - 1;
     result.line = line_index+1;
@@ -437,7 +441,7 @@ buffer_partial_from_line_character(Buffer_Type *buffer, i32 line, i32 character)
 struct Buffer_Cursor_Seek_Params{
     Buffer_Type *buffer;
     Buffer_Seek seek;
-    f32 max_width;
+    f32 width;
     f32 font_height;
     f32 *adv;
     f32 *wraps;
@@ -553,10 +557,10 @@ buffer_cursor_seek(Buffer_Cursor_Seek_State *S_ptr, Buffer_Cursor_Seek_Params pa
         
         S.stream.use_termination_character = 1;
         S.stream.terminator = '\n';
-        if (buffer_stringify_loop(&S.stream, params.buffer, S.i, S.size)){
+        if (buffer_stringify_loop(&S.stream, params.buffer, S.cursor.pos, S.size)){
             do{
                 for (; S.cursor.pos < S.stream.end; ++S.cursor.pos){
-                    S.ch = (u8)S.stream.data[S.i];
+                    S.ch = (u8)S.stream.data[S.cursor.pos];
                     
                     if (S.ch != ' ' && S.ch != '\t'){
                         goto double_break_vwhite;
@@ -564,10 +568,12 @@ buffer_cursor_seek(Buffer_Cursor_Seek_State *S_ptr, Buffer_Cursor_Seek_Params pa
                     else{
                         ++S.cursor.character;
                     }
+                    
                 }
                 S.still_looping = buffer_stringify_next(&S.stream);
             }while(S.still_looping);
         }
+        InvalidCodePath;
         double_break_vwhite:;
     }
     
@@ -605,9 +611,9 @@ buffer_cursor_seek(Buffer_Cursor_Seek_State *S_ptr, Buffer_Cursor_Seek_Params pa
     // Main seek loop
     S.i = S.cursor.pos;
     
+    S.stream = null_buffer_stream;
     S.stream.use_termination_character = 1;
     S.stream.terminator = 0;
-    
     if (buffer_stringify_loop(&S.stream, params.buffer, S.i, S.size)){
         S.still_looping = 0;
         do{
@@ -631,7 +637,7 @@ buffer_cursor_seek(Buffer_Cursor_Seek_State *S_ptr, Buffer_Cursor_Seek_Params pa
                     {
                         f32 ch_width = params.adv[S.ch];
                         
-                        if (S.cursor.wrapped_x + ch_width > params.max_width){
+                        if (S.cursor.wrapped_x + ch_width > params.width){
                             S.cursor.wrapped_y += params.font_height;
                             S.cursor.wrapped_x = 0;
                             S.prev_cursor = S.cursor;
