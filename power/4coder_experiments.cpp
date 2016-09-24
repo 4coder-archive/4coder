@@ -18,19 +18,21 @@ CUSTOM_COMMAND_SIG(kill_rect){
     
     Buffer_Rect rect = get_rect(&view);
     
-    for (int line = rect.line1; line >= rect.line0; --line){
-        int start = 0;
-        int end = 0;
+    for (int32_t line = rect.line1; line >= rect.line0; --line){
+        int32_t start = 0;
+        int32_t end = 0;
         
-        int success = true;
+        int32_t success = 1;
         Full_Cursor cursor = {0};
         
-        success = success &&
-            view_compute_cursor(app, &view, seek_line_char(line, rect.char0), &cursor);
+        if (success){
+            success = view_compute_cursor(app, &view, seek_line_char(line, rect.char0), &cursor);
+        }
         start = cursor.pos;
         
-        success = success &&
-            view_compute_cursor(app, &view, seek_line_char(line, rect.char1), &cursor);
+        if (success){
+            success = view_compute_cursor(app, &view, seek_line_char(line, rect.char1), &cursor);
+        }
         end = cursor.pos;
         
         if (success){
@@ -187,19 +189,17 @@ CUSTOM_COMMAND_SIG(mark_matching_brace){
     View_Summary view = get_active_view(app, access);
     Buffer_Summary buffer = get_buffer(app, view.buffer_id, access);
     
-    int32_t start_pos = view.cursor.pos;
-    
     // NOTE(allen): The user provides the memory that the chunk uses,
     // this chunk will then be filled at each step of the text stream loop.
     // This way you can look for something that should be nearby without
     // having to copy the whole file in at once.
-    Stream_Chunk chunk;
+    Stream_Chunk chunk = {0};
     char chunk_space[(1 << 10)];
     
     int32_t result = 0;
     int32_t found_result = 0;
     
-    int32_t i = start_pos;
+    int32_t i = view.cursor.pos;
     int32_t still_looping = 1;
     int32_t nesting_counter = 0;
     char at_cursor = 0;
@@ -212,8 +212,9 @@ CUSTOM_COMMAND_SIG(mark_matching_brace){
         // If i goes below chunk.start or above chunk.end _that_ is an invalid access.
         at_cursor = chunk.data[i];
         if (at_cursor == '{'){
+            ++i;
             do{
-                for (++i; i < chunk.end; ++i){
+                for (; i < chunk.end; ++i){
                     at_cursor = chunk.data[i];
                     if (at_cursor == '{'){
                         ++nesting_counter;
@@ -234,8 +235,9 @@ CUSTOM_COMMAND_SIG(mark_matching_brace){
             while (still_looping);
         }
         else if (at_cursor == '}'){
+            --i;
             do{
-                for (--i; i >= chunk.start; --i){
+                for (; i >= chunk.start; --i){
                     at_cursor = chunk.data[i];
                     if (at_cursor == '}'){
                         ++nesting_counter;
@@ -257,7 +259,7 @@ CUSTOM_COMMAND_SIG(mark_matching_brace){
         }
     }
     
-    finished:
+    finished:;
     if (found_result){
         view_set_mark(app, &view, seek_pos(result+1));
     }
@@ -268,17 +270,15 @@ CUSTOM_COMMAND_SIG(cursor_to_surrounding_scope){
     View_Summary view = get_active_view(app, access);
     Buffer_Summary buffer = get_buffer(app, view.buffer_id, access);
     
-    int start_pos = view.cursor.pos - 1;
-    
-    Stream_Chunk chunk;
+    Stream_Chunk chunk = {0};
     char chunk_space[(1 << 10)];
     
-    int result = 0;
-    int found_result = 0;
+    int32_t result = 0;
+    int32_t found_result = 0;
     
-    int i = start_pos;
-    int still_looping = 1;
-    int nesting_counter = 0;
+    int32_t i = view.cursor.pos - 1;
+    int32_t still_looping = 1;
+    int32_t nesting_counter = 0;
     char at_cursor = 0;
     
     if (init_stream_chunk(&chunk, app, &buffer, i, chunk_space, sizeof(chunk_space))){
@@ -303,7 +303,7 @@ CUSTOM_COMMAND_SIG(cursor_to_surrounding_scope){
         } while(still_looping);
     }
     
-    finished:
+    finished:;
     if (found_result){
         view_set_cursor(app, &view, seek_pos(result), 0);
     }

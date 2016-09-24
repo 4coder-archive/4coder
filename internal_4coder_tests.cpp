@@ -192,11 +192,36 @@ CUSTOM_COMMAND_SIG(load_unicode_file){
     view_set_cursor(app, &view, seek_line_char(230, 25), 1);
 }
 
+CUSTOM_COMMAND_SIG(edit_giant_file){
+    Buffer_Summary buffer = create_buffer(app, literal(TEST_FILES "/test_large.cpp"), 0);
+    View_Summary view = get_active_view(app, AccessAll);
+    view_set_buffer(app, &view, buffer.buffer_id, 0);
+    view_set_cursor(app, &view, seek_line_char(230, 25), 1);
+    
+    for (int32_t i = 0; i < 600; ++i){
+        Query_Bar bar = {0};
+        bar.prompt = make_lit_string("Do something to continue the test");
+        if (start_query_bar(app, &bar, 0)){
+            get_user_input(app, EventAll, EventAll);
+        }
+        end_query_bar(app, &bar, 0);
+        refresh_buffer(app, &buffer);
+        if (buffer.tokens_are_ready){
+            break;
+        }
+    }
+    
+    buffer_replace_range(app, &buffer, 2000, 2000,
+                         literal("{\n//Not important at all\n}\n"));
+    buffer_auto_indent(app, &buffer, 2000, 2100, 4, 0);
+}
+
 CUSTOM_COMMAND_SIG(run_all_tests){
     exec_command(app, load_lots_of_files);
     exec_command(app, reopen_test);
     exec_command(app, stop_spots_test);
     exec_command(app, load_unicode_file);
+    exec_command(app, edit_giant_file);
 }
 
 static void

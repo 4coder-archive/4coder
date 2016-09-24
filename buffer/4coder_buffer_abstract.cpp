@@ -506,6 +506,11 @@ buffer_cursor_seek(Buffer_Cursor_Seek_State *S_ptr, Buffer_Cursor_Seek_Params pa
             S.cursor = make_cursor_hint(line_index, params.buffer->line_starts, params.wraps, params.font_height);
         }break;
         
+        case buffer_seek_character_pos:
+        {
+            NotImplemented;
+        }break;
+        
         case buffer_seek_line_char:
         {
             i32 line_index = params.seek.line - 1;
@@ -568,7 +573,6 @@ buffer_cursor_seek(Buffer_Cursor_Seek_State *S_ptr, Buffer_Cursor_Seek_Params pa
                     else{
                         ++S.cursor.character;
                     }
-                    
                 }
                 S.still_looping = buffer_stringify_next(&S.stream);
             }while(S.still_looping);
@@ -586,9 +590,18 @@ buffer_cursor_seek(Buffer_Cursor_Seek_State *S_ptr, Buffer_Cursor_Seek_Params pa
             }
         }break;
         
+        case buffer_seek_character_pos:
+        {
+            if (S.cursor.character_pos >= params.seek.pos){
+                goto buffer_cursor_seek_end;
+            }
+        }break;
+        
         case buffer_seek_line_char:
         {
-            if (S.cursor.line >= params.seek.line && S.cursor.character >= params.seek.character){
+            if ((S.cursor.line == params.seek.line &&
+                 S.cursor.character >= params.seek.character) ||
+                S.cursor.line > params.seek.line){
                 goto buffer_cursor_seek_end;
             }
         }break;
@@ -643,6 +656,7 @@ buffer_cursor_seek(Buffer_Cursor_Seek_State *S_ptr, Buffer_Cursor_Seek_Params pa
                             S.prev_cursor = S.cursor;
                         }
                         
+                        ++S.cursor.character_pos;
                         ++S.cursor.character;
                         S.cursor.unwrapped_x += ch_width;
                         S.cursor.wrapped_x += ch_width;
@@ -980,7 +994,7 @@ buffer_render_data(Buffer_Render_State *S_ptr, Buffer_Render_Params params, f32 
                             else{
                                 S.write = write_render_item(S.write, S.i, '\\', BRFlag_Special_Character);
                                 
-                                char ch = S.ch;
+                                u8 ch = S.ch;
                                 char C = '0' + (ch / 0x10);
                                 if ((ch / 0x10) > 0x9){
                                     C = ('A' - 0xA) + (ch / 0x10);

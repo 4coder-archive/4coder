@@ -212,8 +212,7 @@ end_bind_helper(Bind_Helper *helper){
 
 inline Range
 get_range(View_Summary *view){
-    Range range;
-    range = make_range(view->cursor.pos, view->mark.pos);
+    Range range = make_range(view->cursor.pos, view->mark.pos);
     return(range);
 }
 

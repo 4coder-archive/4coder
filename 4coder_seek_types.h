@@ -21,6 +21,14 @@ seek_pos(int32_t pos){
 }
 
 static Buffer_Seek
+seek_character_pos(int32_t pos){
+    Buffer_Seek result;
+    result.type = buffer_seek_character_pos;
+    result.pos = pos;
+    return(result);
+}
+
+static Buffer_Seek
 seek_wrapped_xy(float x, float y, int32_t round_down){
     Buffer_Seek result;
     result.type = buffer_seek_wrapped_xy;

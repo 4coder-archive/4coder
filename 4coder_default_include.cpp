@@ -120,9 +120,8 @@ static General_Memory global_general;
 
 void
 init_memory(Application_Links *app){
-    int32_t part_size = (1 << 20);
-    int32_t general_size = (1 << 20);
-    
+    int32_t part_size = (32 << 20);
+    int32_t general_size = (4 << 20);
     
     void *part_mem = memory_allocate(app, part_size);
     global_part = make_part(part_mem, part_size);
@@ -733,22 +732,26 @@ CUSTOM_COMMAND_SIG(write_character){
         Buffer_Summary buffer = get_buffer(app, view.buffer_id, access);
         
         int32_t pos = view.cursor.pos;
-        int32_t next_pos = pos + 1;
-        buffer_replace_range(app, &buffer,
-                                  pos, pos, &character, 1);
-        view_set_cursor(app, &view, seek_pos(next_pos), true);
+        buffer_replace_range(app, &buffer, pos, pos, &character, 1);
+        view_set_cursor(app, &view, seek_pos(view.cursor.character_pos + 1), true);
     }
 }
+
+
 
 CUSTOM_COMMAND_SIG(delete_char){
     uint32_t access = AccessOpen;
     View_Summary view = get_active_view(app, access);
     Buffer_Summary buffer = get_buffer(app, view.buffer_id, access);
     
-    int32_t pos = view.cursor.pos;
-    if (0 < buffer.size && pos < buffer.size){
-        buffer_replace_range(app, &buffer,
-                                  pos, pos+1, 0, 0);
+    int32_t start = view.cursor.pos;
+    
+    Partial_Cursor cursor;
+    buffer_compute_cursor(app, &buffer, seek_character_pos(view.cursor.character_pos+1), &cursor);
+    int32_t end = cursor.pos;
+    
+    if (0 <= start && start < buffer.size){
+        buffer_replace_range(app, &buffer, start, end, 0, 0);
     }
 }
 
@@ -757,12 +760,15 @@ CUSTOM_COMMAND_SIG(backspace_char){
     View_Summary view = get_active_view(app, access);
     Buffer_Summary buffer = get_buffer(app, view.buffer_id, access);
     
-    int32_t pos = view.cursor.pos;
-    if (0 < pos && pos <= buffer.size){
-        buffer_replace_range(app, &buffer,
-                                  pos-1, pos, 0, 0);
-        
-        view_set_cursor(app, &view, seek_pos(pos-1), true);
+    int32_t end = view.cursor.pos;
+    
+    Partial_Cursor cursor;
+    buffer_compute_cursor(app, &buffer, seek_character_pos(view.cursor.character_pos-1), &cursor);
+    int32_t start = cursor.pos;
+    
+    if (0 < end && end <= buffer.size){
+        buffer_replace_range(app, &buffer, start, end, 0, 0);
+        view_set_cursor(app, &view, seek_character_pos(view.cursor.character_pos-1), true);
     }
 }
 
@@ -771,8 +777,7 @@ CUSTOM_COMMAND_SIG(set_mark){
     View_Summary view = get_active_view(app, access);
     
     view_set_mark(app, &view, seek_pos(view.cursor.pos));
-    // TODO(allen): Just expose the preferred_x seperately
-    view_set_cursor(app, &view, seek_pos(view.cursor.pos), true);
+    view_set_cursor(app, &view, seek_pos(view.cursor.pos), 1);
 }
 
 CUSTOM_COMMAND_SIG(cursor_mark_swap){
@@ -792,10 +797,7 @@ CUSTOM_COMMAND_SIG(delete_range){
     Buffer_Summary buffer = get_buffer(app, view.buffer_id, access);
     
     Range range = get_range(&view);
-    
-    buffer_replace_range(app, &buffer,
-                              range.min, range.max,
-                              0, 0);
+    buffer_replace_range(app, &buffer, range.min, range.max, 0, 0);
 }
 
 //

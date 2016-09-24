@@ -593,8 +593,8 @@ buffer_auto_indent(Application_Links *app, Partition *part, Buffer_Summary *buff
 }
 
 static bool32
-buffer_auto_indent(Application_Links *app, Buffer_Summary *buffer,
-                   int32_t start, int32_t end, int32_t tab_width, Auto_Indent_Flag flags){
+buffer_auto_indent(Application_Links *app, Buffer_Summary *buffer, int32_t start, int32_t end,
+                   int32_t tab_width, Auto_Indent_Flag flags){
     bool32 result = buffer_auto_indent(app, &global_part, buffer, start, end, tab_width, flags);
     return(result);
 }

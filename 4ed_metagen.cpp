@@ -2970,9 +2970,9 @@ generate_custom_headers(){
                   "<body>"
                   "<div style='font-family:Arial; margin: 0 auto; "
                   "width: 800px; text-align: justify; line-height: 1.25;'>"
-                  "<h1 style='margin-top: 5mm; margin-bottom: 5mm;'>4cpp Lexing Library</h1>");
+//                  "<h1 style='margin-top: 5mm; margin-bottom: 5mm;'>4cpp Lexing Library</h1>");
         
-//                  "<h1 style='margin-top: 5mm; margin-bottom: 5mm;'>4coder API</h1>");
+                  "<h1 style='margin-top: 5mm; margin-bottom: 5mm;'>4coder API</h1>");
         
         struct Section{
             char *id_string;
@@ -2983,9 +2983,9 @@ generate_custom_headers(){
         
         static Section sections[] = {
             {"introduction", "Introduction"},
-            //{"4coder_systems", "4coder Systems"},
-            //{"types_and_functions", "Types and Functions"},
-            //{"string_library", "String Library"},
+            {"4coder_systems", "4coder Systems"},
+            {"types_and_functions", "Types and Functions"},
+            {"string_library", "String Library"},
             {"lexer_library", "Lexer Library"}
         };
         
@@ -3029,8 +3029,6 @@ generate_custom_headers(){
                   "</div>");
 #endif
         
-        
-#if 0
         append_sc(&out,
                   "<div>"
                   "<p>This is the documentation for " VERSION " The documentation is still "
@@ -3159,13 +3157,6 @@ generate_custom_headers(){
 #undef MAJOR_SECTION
 #define MAJOR_SECTION "5"
         msection = 4;
-#endif
-        
-        (void)(unit);
-        
-#undef MAJOR_SECTION
-#define MAJOR_SECTION "2"
-        msection = 1;
         
         append_sc(&out, "\n<h2 id='section_");
         append_sc(&out, sections[msection].id_string);

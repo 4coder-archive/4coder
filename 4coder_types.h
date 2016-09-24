@@ -322,22 +322,6 @@ ENUM(int32_t, Mouse_Cursor_Show_Type){
 //    MouseCursorShow_WhenActive,// TODO(allen): coming soon
 };
 
-/* DOC(The Buffer_Seek_Type is is used in a Buffer_Seek to identify which
-coordinates are suppose to be used for the seek.)
-DOC_SEE(Buffer_Seek)
-DOC_SEE(4coder_Buffer_Positioning_System)
-*/
-ENUM(int32_t, Buffer_Seek_Type){
-    /* DOC(This value indicates absolute positioning where positions are measured as the number of bytes from the start of the file.) */
-    buffer_seek_pos,
-    /* DOC(This value indicates xy positioning with wrapped lines where the x and y values are in pixels.) */
-    buffer_seek_wrapped_xy,
-    /* DOC(This value indicates xy positioning with unwrapped lines where the x and y values are in pixels.) */
-    buffer_seek_unwrapped_xy,
-    /* DOC(This value indicates line-character, or line-column positioning.  These coordinates are 1 based to match standard line numbering.) */
-    buffer_seek_line_char
-};
-
 /* DOC(A View_Split_Position specifies where a new view should be placed as a result of
 a view split operation.) */
 ENUM(int32_t, View_Split_Position){
@@ -504,39 +488,25 @@ struct GUI_Scroll_Vars{
     int32_t prev_target_x;
 };
 
-/* DOC(Full_Cursor describes the position of a cursor in every buffer
-coordinate system supported by 4coder. This cursor type requires that
-the buffer is associated with a view to give the x/y values meaning.)
-DOC_SEE(4coder_Buffer_Positioning_System) */
-struct Full_Cursor{
-    /* DOC(This field contains the cursor's position in absolute positioning.) */
-    int32_t pos;
-    /* DOC(This field contains the number of the line where the cursor is located. This field is one based.) */
-    int32_t line;
-    /* DOC(This field contains the number of the column where the cursor is located. This field is one based.) */
-    int32_t character;
-    /* DOC(This field contains the x position measured with unwrapped lines.) */
-    float unwrapped_x;
-    /* DOC(This field contains the y position measured with unwrapped lines.) */
-    float unwrapped_y;
-    /* DOC(This field contains the x position measured with wrapped lines.) */
-    float wrapped_x;
-    /* DOC(This field contains the y position measured with wrapped lines.) */
-    float wrapped_y;
-};
-
-/* DOC(Partial_Cursor describes the position of a cursor in all of
-the coordinate systems that a invariant to the View.  In other words
-the coordinate systems available here can be used on a buffer that is
-not currently associated with a View.)
-DOC_SEE(4coder_Buffer_Positioning_System) */
-struct Partial_Cursor{
-    /* DOC(This field contains the cursor's position in absolute positioning.) */
-    int32_t pos;
-    /* DOC(This field contains the number of the line where the cursor is located. This field is one based.) */
-    int32_t line;
-    /* DOC(This field contains the number of the column where the cursor is located. This field is one based.) */
-    int32_t character;
+/* DOC(The Buffer_Seek_Type is is used in a Buffer_Seek to identify which
+coordinates are suppose to be used for the seek.)
+DOC_SEE(Buffer_Seek)
+DOC_SEE(4coder_Buffer_Positioning_System)
+*/
+ENUM(int32_t, Buffer_Seek_Type){
+    /* DOC(This value indicates absolute byte index positioning
+    where positions are measured as the number of bytes from the start of the file.) */
+    buffer_seek_pos,
+    /* DOC(This value indicates apparent character index positioning 
+    where positions are measured as the number of apparent characters from the starts of the file.) */
+    buffer_seek_character_pos,
+    /* DOC(This value indicates xy positioning with wrapped lines where the x and y values are in pixels.) */
+    buffer_seek_wrapped_xy,
+    /* DOC(This value indicates xy positioning with unwrapped lines where the x and y values are in pixels.) */
+    buffer_seek_unwrapped_xy,
+    /* DOC(This value indicates line-character positioning.
+    These coordinates are 1 based to match standard line numbering.) */
+    buffer_seek_line_char
 };
 
 /* DOC(Buffer_Seek describes the destination of a seek operation.  There are helpers
@@ -571,6 +541,47 @@ struct Buffer_Seek{
             int32_t character;
         };
     };
+};
+
+/* DOC(Full_Cursor describes the position of a cursor in every buffer
+coordinate system supported by 4coder. This cursor type requires that
+the buffer is associated with a view to give the x/y values meaning.)
+DOC_SEE(4coder_Buffer_Positioning_System) */
+struct Full_Cursor{
+    /* DOC(This field contains the cursor's position in absolute byte index positioning.) */
+    int32_t pos;
+    /* DOC(This field contains the cursor's position in apparent character index positioning.) */
+    int32_t character_pos;
+    /* DOC(This field contains the number of the line where the cursor is located. This field is one based.) */
+    int32_t line;
+    /* DOC(This field contains the number of the character from the beginninf of the line
+    where the cursor is located. This field is one based.) */
+    int32_t character;
+    /* DOC(This field contains the x position measured with unwrapped lines.) */
+    float unwrapped_x;
+    /* DOC(This field contains the y position measured with unwrapped lines.) */
+    float unwrapped_y;
+    /* DOC(This field contains the x position measured with wrapped lines.) */
+    float wrapped_x;
+    /* DOC(This field contains the y position measured with wrapped lines.) */
+    float wrapped_y;
+};
+
+/* DOC(Partial_Cursor describes the position of a cursor in all of
+the coordinate systems that a invariant to the View.  In other words
+the coordinate systems available here can be used on a buffer that is
+not currently associated with a View.)
+DOC_SEE(4coder_Buffer_Positioning_System) */
+struct Partial_Cursor{
+    /* DOC(This field contains the cursor's position in absolute byte index positioning.) */
+    int32_t pos;
+    /* DOC(This field contains the cursor's position in apparent character index positioning.) */
+    int32_t character_pos;
+    /* DOC(This field contains the number of the character from the beginninf of the line
+    where the cursor is located. This field is one based.) */
+    int32_t line;
+    /* DOC(This field contains the number of the column where the cursor is located. This field is one based.) */
+    int32_t character;
 };
 
 /* DOC(Buffer_Edit describes a range of a buffer and string to replace that range.
