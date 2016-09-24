@@ -120,8 +120,8 @@ static General_Memory global_general;
 
 void
 init_memory(Application_Links *app){
-    int32_t part_size = (1 << 20);
-    int32_t general_size = (1 << 20);
+    int32_t part_size = (32 << 20);
+    int32_t general_size = (4 << 20);
     
     
     void *part_mem = memory_allocate(app, part_size);
