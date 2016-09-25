@@ -140,7 +140,13 @@ buffer_measure_character_starts(Buffer_Type *buffer, i32 *character_starts, i32 
     i32 line_index = 0;
     i32 character_index = 0;
     
+    b32 skipping_whitespace = 0;
+    
     character_starts[line_index++] = character_index;
+    
+    if (virtual_whitespace){
+        skipping_whitespace = 1;
+    }
     
     if (buffer_stringify_loop(&stream, buffer, i, size)){
         b32 still_looping = 0;
@@ -150,9 +156,18 @@ buffer_measure_character_starts(Buffer_Type *buffer, i32 *character_starts, i32 
                 if (ch == '\n'){
                     ++character_index;
                     character_starts[line_index++] = character_index;
+                    if (virtual_whitespace){
+                        skipping_whitespace = 1;
+                    }
                 }
                 else{
-                    ++character_index;
+                    if (ch != ' ' && ch != '\t'){
+                        skipping_whitespace = 0;
+                    }
+                    
+                    if (!skipping_whitespace){
+                        ++character_index;
+                    }
                 }
             }
             still_looping = buffer_stringify_next(&stream);
@@ -403,25 +418,54 @@ buffer_get_line_index(Buffer_Type *buffer, i32 pos){
     return(result);
 }
 
+// TODO(allen): Try to merge this with the other line start binary search.
 internal_4tech i32
-buffer_get_line_index_from_wrapped_y(f32 *wraps, f32 y, f32 font_height, i32 l_bound, i32 u_bound){
-    i32 start, end, i, result;
-    start = l_bound;
-    end = u_bound;
+buffer_get_line_index_from_character_pos(i32 *character_starts, i32 pos, i32 l_bound, i32 u_bound){
+    i32 start = l_bound, end = u_bound;
+    i32 i = 0;
+    
     for (;;){
-        i = (start + end) / 2;
-        if (wraps[i]+font_height <= y) start = i;
-        else if (wraps[i] > y) end = i;
+        i = (start + end) >> 1;
+        if (character_starts[i] < pos){
+            start = i;
+        }
+        else if (character_starts[i] > pos){
+            end = i;
+        }
         else{
-            result = i;
+            start = i;
             break;
         }
-        if (start >= end - 1){
-            result = start;
+        assert_4tech(start < end);
+        if (start == end - 1){
             break;
         }
     }
-    return(result);
+    
+    return(start);
+}
+
+internal_4tech i32
+buffer_get_line_index_from_wrapped_y(f32 *wraps, f32 y, f32 font_height, i32 l_bound, i32 u_bound){
+    i32 start = l_bound, end = u_bound;
+    i32 i = 0;
+    for (;;){
+        i = (start + end) / 2;
+        if (wraps[i]+font_height <= y){
+            start = i;
+        }
+        else if (wraps[i] > y){
+            end = i;
+        }
+        else{
+            break;
+        }
+        if (start >= end - 1){
+            i = start;
+            break;
+        }
+    }
+    return(i);
 }
 
 internal_4tech Partial_Cursor
@@ -481,6 +525,7 @@ struct Buffer_Cursor_Seek_Params{
     f32 font_height;
     f32 *adv;
     f32 *wraps;
+    i32 *character_starts;
     b32 virtual_white;
 };
 
@@ -528,6 +573,7 @@ buffer_cursor_seek(Buffer_Cursor_Seek_State *S_ptr, Buffer_Cursor_Seek_Params pa
     S.size = buffer_size(params.buffer);
     
     // Get cursor hint
+    i32 line_index = 0;
     switch (params.seek.type){
         case buffer_seek_pos:
         {
@@ -538,50 +584,65 @@ buffer_cursor_seek(Buffer_Cursor_Seek_State *S_ptr, Buffer_Cursor_Seek_Params pa
                 params.seek.pos = 0;
             }
             
-            i32 line_index = buffer_get_line_index_range(params.buffer, params.seek.pos, 0, params.buffer->line_count);
-            S.cursor = make_cursor_hint(line_index, params.buffer->line_starts, params.wraps, params.font_height);
+            line_index = buffer_get_line_index(params.buffer, params.seek.pos);
         }break;
         
         case buffer_seek_character_pos:
         {
-            NotImplemented;
+            i32 line_count = params.buffer->line_count;
+            i32 max_character = params.character_starts[line_count] - 1;
+            if (params.seek.pos > max_character){
+                params.seek.pos = max_character;
+            }
+            if (params.seek.pos < 0){
+                params.seek.pos = 0;
+            }
+            
+            line_index = buffer_get_line_index_from_character_pos(params.character_starts, params.seek.pos,
+                                                                  0, params.buffer->line_count);
         }break;
         
         case buffer_seek_line_char:
         {
-            i32 line_index = params.seek.line - 1;
+            line_index = params.seek.line - 1;
             if (line_index >= params.buffer->line_count){
                 line_index = params.buffer->line_count - 1;
             }
             if (line_index < 0){
                 line_index = 0;
             }
-            
-            S.cursor = make_cursor_hint(line_index, params.buffer->line_starts, params.wraps, params.font_height);
         }break;
         
         case buffer_seek_unwrapped_xy:
         {
-            i32 line_index = (i32)(params.seek.y / params.font_height);
+            line_index = (i32)(params.seek.y / params.font_height);
             if (line_index >= params.buffer->line_count){
                 line_index = params.buffer->line_count - 1;
             }
             if (line_index < 0){
                 line_index = 0;
             }
-            
-            S.cursor = make_cursor_hint(line_index, params.buffer->line_starts, params.wraps, params.font_height);
         }break;
         
         case buffer_seek_wrapped_xy:
         {
-            i32 line_index = buffer_get_line_index_from_wrapped_y(params.wraps, params.seek.y,
-                                                                  params.font_height, 0, params.buffer->line_count);
-            
-            S.cursor = make_cursor_hint(line_index, params.buffer->line_starts, params.wraps, params.font_height);
+            line_index = buffer_get_line_index_from_wrapped_y(params.wraps, params.seek.y,
+                                                              params.font_height, 0, params.buffer->line_count);
         }break;
         
         default: InvalidCodePath;
+    }
+    
+    // Build the cursor hint
+    {
+        S.cursor.pos = params.buffer->line_starts[line_index];
+        S.cursor.character_pos = params.character_starts[line_index];
+        S.cursor.line = line_index + 1;
+        S.cursor.character = 1;
+        S.cursor.unwrapped_y = (f32)(line_index * params.font_height);
+        S.cursor.unwrapped_x = 0;
+        S.cursor.wrapped_y = params.wraps[line_index];
+        S.cursor.wrapped_x = 0;
     }
     
     // Get the initial line shift.
@@ -674,6 +735,7 @@ buffer_cursor_seek(Buffer_Cursor_Seek_State *S_ptr, Buffer_Cursor_Seek_Params pa
                 switch (S.ch){
                     case '\n':
                     {
+                        ++S.cursor.character_pos;
                         ++S.cursor.line;
                         S.cursor.unwrapped_y += params.font_height;
                         S.cursor.wrapped_y += params.font_height;
@@ -712,6 +774,14 @@ buffer_cursor_seek(Buffer_Cursor_Seek_State *S_ptr, Buffer_Cursor_Seek_Params pa
                     if (S.cursor.pos > params.seek.pos){
                         S.cursor = S.prev_cursor;
                         goto buffer_cursor_seek_end;
+                    }break;
+                    
+                    case buffer_seek_character_pos:
+                    {
+                        if (S.cursor.character_pos > params.seek.pos){
+                            S.cursor = S.prev_cursor;
+                            goto buffer_cursor_seek_end;
+                        }break;
                     }break;
                     
                     case buffer_seek_wrapped_xy:

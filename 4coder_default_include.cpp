@@ -63,13 +63,13 @@ view_open_file(Application_Links *app,
                char *filename,
                int32_t filename_len,
                int32_t never_new){
-    int32_t result = false;
+    int32_t result = 0;
     
     if (view){
         Buffer_Summary buffer = {0};
         if (open_file(app, &buffer, filename, filename_len, false, never_new)){
             view_set_buffer(app, view, buffer.buffer_id, 0);
-            result = true;
+            result = 1;
         }
     }
     
@@ -744,8 +744,8 @@ CUSTOM_COMMAND_SIG(delete_char){
     
     int32_t start = view.cursor.pos;
     
-    Partial_Cursor cursor;
-    buffer_compute_cursor(app, &buffer, seek_character_pos(view.cursor.character_pos+1), &cursor);
+    Full_Cursor cursor;
+    view_compute_cursor(app, &view, seek_character_pos(view.cursor.character_pos+1), &cursor);
     int32_t end = cursor.pos;
     
     if (0 <= start && start < buffer.size){
@@ -760,8 +760,8 @@ CUSTOM_COMMAND_SIG(backspace_char){
     
     int32_t end = view.cursor.pos;
     
-    Partial_Cursor cursor;
-    buffer_compute_cursor(app, &buffer, seek_character_pos(view.cursor.character_pos-1), &cursor);
+    Full_Cursor cursor;
+    view_compute_cursor(app, &view, seek_character_pos(view.cursor.character_pos-1), &cursor);
     int32_t start = cursor.pos;
     
     if (0 < end && end <= buffer.size){
@@ -858,10 +858,7 @@ CUSTOM_COMMAND_SIG(click_set_cursor){
     Mouse_State mouse = get_mouse_state(app);
     float rx = 0, ry = 0;
     if (get_relative_xy(&view, mouse.x, mouse.y, &rx, &ry)){
-        view_set_cursor(app, &view,
-                             seek_xy(rx, ry, true,
-                                     view.unwrapped_lines),
-                             true);
+        view_set_cursor(app, &view, seek_xy(rx, ry, 1, view.unwrapped_lines), 1);
     }
 }
 
@@ -872,10 +869,7 @@ CUSTOM_COMMAND_SIG(click_set_mark){
     Mouse_State mouse = get_mouse_state(app);
     float rx = 0, ry = 0;
     if (get_relative_xy(&view, mouse.x, mouse.y, &rx, &ry)){
-        view_set_mark(app, &view,
-                           seek_xy(rx, ry, true,
-                                   view.unwrapped_lines)
-                           );
+        view_set_mark(app, &view, seek_xy(rx, ry, 1, view.unwrapped_lines));
     }
 }
 
@@ -887,9 +881,7 @@ move_vertical(Application_Links *app, float line_multiplier){
     float new_y = get_view_y(view) + line_multiplier*view.line_height;
     float x = view.preferred_x;
     
-    view_set_cursor(app, &view,
-                         seek_xy(x, new_y, false, view.unwrapped_lines),
-                         false);
+    view_set_cursor(app, &view, seek_xy(x, new_y, 0, view.unwrapped_lines), 0);
 }
 
 CUSTOM_COMMAND_SIG(move_up){

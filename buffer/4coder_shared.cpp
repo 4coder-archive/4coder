@@ -82,21 +82,9 @@ typedef struct Buffer_Batch_State{
     i32 shift_total;
 } Buffer_Batch_State;
 
-inline_4tech Full_Cursor
-make_cursor_hint(i32 line_index, i32 *starts, f32 *wrap_ys, f32 font_height){
-    Full_Cursor hint;
-    hint.pos = starts[line_index];
-    hint.line = line_index + 1;
-    hint.character = 1;
-    hint.unwrapped_y = (f32)(line_index * font_height);
-    hint.unwrapped_x = 0;
-    hint.wrapped_y = wrap_ys[line_index];
-    hint.wrapped_x = 0;
-    return(hint);
-}
-
 typedef struct Cursor_With_Index{
-    i32 pos, index;
+    i32 pos;
+    i32 index;
 } Cursor_With_Index;
 
 inline_4tech void
@@ -110,12 +98,9 @@ write_cursor_with_index(Cursor_With_Index *positions, i32 *count, i32 pos){
 
 internal_4tech void
 buffer_quick_sort_cursors(Cursor_With_Index *positions, i32 start, i32 pivot){
-    i32 i, mid;
-    i32 pivot_pos;
-    
-    mid = start;
-    pivot_pos = positions[pivot].pos;
-    for (i = mid; i < pivot; ++i){
+    i32 mid = start;
+    i32 pivot_pos = positions[pivot].pos;
+    for (i32 i = mid; i < pivot; ++i){
         if (positions[i].pos < pivot_pos){
             CursorSwap__(positions[mid], positions[i]);
             ++mid;
@@ -127,14 +112,12 @@ buffer_quick_sort_cursors(Cursor_With_Index *positions, i32 start, i32 pivot){
     if (mid + 1 < pivot) buffer_quick_sort_cursors(positions, mid + 1, pivot);
 }
 
+// TODO(allen): Rewrite this without being a dumbass.
 internal_4tech void
 buffer_quick_unsort_cursors(Cursor_With_Index *positions, i32 start, i32 pivot){
-    i32 i, mid;
-    i32 pivot_index;
-    
-    mid = start;
-    pivot_index = positions[pivot].index;
-    for (i = mid; i < pivot; ++i){
+    i32 mid = start;
+    i32 pivot_index = positions[pivot].index;
+    for (i32 i = mid; i < pivot; ++i){
         if (positions[i].index < pivot_index){
             CursorSwap__(positions[mid], positions[i]);
             ++mid;

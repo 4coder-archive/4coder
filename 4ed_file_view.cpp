@@ -9,6 +9,8 @@
 
 // TOP
 
+#define VWHITE 1
+
 internal i32
 get_or_add_map_index(Models *models, i32 mapid){
     i32 result;
@@ -391,17 +393,18 @@ view_compute_cursor(View *view, Buffer_Seek seek){
     Render_Font *font = get_font_info(models->font_set, file->settings.font_id)->font;
     
     Buffer_Cursor_Seek_Params params;
-    params.buffer        = &file->state.buffer;
-    params.seek          = seek;
-    params.width         = view_file_display_width(view);
-    params.font_height   = (f32)font->height;
-    params.adv           = font->advance_data;
-    params.wraps         = file->state.wraps;
-    params.virtual_white = 0;
+    params.buffer           = &file->state.buffer;
+    params.seek             = seek;
+    params.width            = view_file_display_width(view);
+    params.font_height      = (f32)font->height;
+    params.adv              = font->advance_data;
+    params.wraps            = file->state.wraps;
+    params.character_starts = file->state.character_starts;
+    params.virtual_white    = VWHITE;
     
     Buffer_Cursor_Seek_State state = {0};
-    Full_Cursor result;
-    Buffer_Layout_Stop stop;
+    Full_Cursor result = {0};
+    Buffer_Layout_Stop stop = {0};
     
     f32 edge_tolerance = 50.f;
     if (edge_tolerance > params.width){
@@ -930,7 +933,7 @@ file_allocate_character_starts_as_needed(General_Memory *general, Editing_File *
 internal void
 file_measure_character_starts(Models *models, Editing_File *file){
     file_allocate_character_starts_as_needed(&models->mem.general, file);
-    buffer_measure_character_starts(&file->state.buffer, file->state.character_starts, 0, 1);
+    buffer_measure_character_starts(&file->state.buffer, file->state.character_starts, 0, VWHITE);
     file_update_cursor_positions(models, file);
 }
 
@@ -2056,7 +2059,7 @@ file_do_single_edit(System_Functions *system,
     
     // TODO(allen): write the remeasurement version
     file_allocate_character_starts_as_needed(general, file);
-    buffer_measure_character_starts(buffer, file->state.character_starts, 0, 1);
+    buffer_measure_character_starts(buffer, file->state.character_starts, 0, VWHITE);
     
     file_allocate_wraps_as_needed(general, file);
     buffer_remeasure_wrap_y(buffer, line_start, line_end, line_shift,
@@ -4852,10 +4855,10 @@ draw_file_loaded(View *view, i32_Rect rect, b32 is_active, Render_Target *target
         params.wrapped       = wrapped;
         params.font_height   = (f32)line_height;
         params.adv           = advance_data;
-        params.virtual_white = 0;
+        params.virtual_white = VWHITE;
         
         Buffer_Render_State state = {0};
-        Buffer_Layout_Stop stop;
+        Buffer_Layout_Stop stop = {0};
         
         f32 edge_tolerance = 50.f;
         if (edge_tolerance > params.width){
