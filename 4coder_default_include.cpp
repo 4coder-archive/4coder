@@ -731,11 +731,9 @@ CUSTOM_COMMAND_SIG(write_character){
         
         int32_t pos = view.cursor.pos;
         buffer_replace_range(app, &buffer, pos, pos, &character, 1);
-        view_set_cursor(app, &view, seek_pos(view.cursor.character_pos + 1), true);
+        view_set_cursor(app, &view, seek_pos(view.cursor.pos + 1), true);
     }
 }
-
-
 
 CUSTOM_COMMAND_SIG(delete_char){
     uint32_t access = AccessOpen;

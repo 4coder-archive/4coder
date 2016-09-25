@@ -148,6 +148,8 @@ buffer_measure_character_starts(Buffer_Type *buffer, i32 *character_starts, i32 
         skipping_whitespace = 1;
     }
     
+    stream.use_termination_character = 1;
+    stream.terminator = '\n';
     if (buffer_stringify_loop(&stream, buffer, i, size)){
         b32 still_looping = 0;
         do{
@@ -173,9 +175,6 @@ buffer_measure_character_starts(Buffer_Type *buffer, i32 *character_starts, i32 
             still_looping = buffer_stringify_next(&stream);
         }while(still_looping);
     }
-    
-    ++character_index;
-    character_starts[line_index++] = character_index;
     
     assert_4tech(line_index-1 == buffer->line_count);
 }
@@ -299,6 +298,96 @@ buffer_remeasure_starts(Buffer_Type *buffer, i32 line_start, i32 line_end, i32 l
 }
 
 internal_4tech void
+buffer_remeasure_character_starts(Buffer_Type *buffer, i32 line_start, i32 line_end, i32 line_shift,
+                                  i32 *character_starts, i32 mode, i32 virtual_whitespace){
+    assert_4tech(mode == 0);
+    
+    i32 new_line_count = buffer->line_count;
+    
+    assert_4tech(0 <= line_start);
+    assert_4tech(line_start <= line_end);
+    assert_4tech(line_end < new_line_count - line_shift);
+    
+    ++line_end;
+    
+    // Shift
+    i32 line_count = new_line_count;
+    i32 new_line_end = line_end;
+    if (line_shift != 0){
+        line_count -= line_shift;
+        new_line_end += line_shift;
+        
+        memmove_4tech(character_starts + line_end + line_shift, character_starts + line_end,
+                      sizeof(i32)*(line_count - line_end + 1));
+    }
+    
+    // Iteration data (yikes! Need better loop system)
+    Buffer_Stream_Type stream = {0};
+    i32 size = buffer_size(buffer);
+    i32 char_i = buffer->line_starts[line_start];
+    i32 line_i = line_start;
+    
+    // Character measurement
+    i32 last_char_start = character_starts[line_i];
+    i32 current_char_start = last_char_start;
+    
+    b32 skipping_whitespace = 0;
+    
+    if (virtual_whitespace){
+        skipping_whitespace = 1;
+    }
+    
+    stream.use_termination_character = 1;
+    stream.terminator = '\n';
+    if (buffer_stringify_loop(&stream, buffer, char_i, size)){
+        b32 still_looping = 0;
+        do{
+            for (; char_i < stream.end; ++char_i){
+                u8 ch = (u8)stream.data[char_i];
+                if (ch == '\n'){
+                    character_starts[line_i++] = last_char_start;
+                    ++current_char_start;
+                    last_char_start = current_char_start;
+                    if (virtual_whitespace){
+                        skipping_whitespace = 1;
+                    }
+                    
+                    if (line_i >= new_line_end){
+                        goto buffer_remeasure_character_starts_end;
+                    }
+                }
+                else{
+                    if (ch != ' ' && ch != '\t'){
+                        skipping_whitespace = 0;
+                    }
+                    
+                    if (!skipping_whitespace){
+                        ++current_char_start;
+                    }
+                }
+            }
+            still_looping = buffer_stringify_next(&stream);
+        }while(still_looping);
+    }
+    
+    assert_4tech(line_i >= new_line_end);
+    
+    buffer_remeasure_character_starts_end:;
+    
+    // Adjust
+    if (line_i <= new_line_end){
+        i32 character_shift = current_char_start - character_starts[line_i];
+        
+        if (character_shift != 0){
+            character_starts += line_i;
+            for (; line_i <= new_line_count; ++line_i, ++character_starts){
+                *character_starts += character_shift;
+            }
+        }
+    }
+}
+
+internal_4tech void
 buffer_remeasure_wrap_y(Buffer_Type *buffer, i32 line_start, i32 line_end, i32 line_shift,
                         f32 *wraps, f32 font_height, f32 *adv, f32 max_width){
     i32 new_line_count = buffer->line_count;
@@ -317,7 +406,7 @@ buffer_remeasure_wrap_y(Buffer_Type *buffer, i32 line_start, i32 line_end, i32 l
         new_line_end += line_shift;
         
         memmove_4tech(wraps + line_end + line_shift, wraps + line_end,
-                      sizeof(i32)*(line_count - line_end));
+                      sizeof(i32)*(line_count - line_end + 1));
     }
     
     // Iteration data (yikes! Need better loop system)
@@ -368,13 +457,15 @@ buffer_remeasure_wrap_y(Buffer_Type *buffer, i32 line_start, i32 line_end, i32 l
     
     buffer_remeasure_wraps_end:;
     
-    f32 y_shift = current_wrap - wraps[line_i];
-    
     // Adjust
-    if (y_shift != 0){
-        wraps += line_i;
-        for (; line_i <= new_line_count; ++line_i, ++wraps){
-            *wraps += y_shift;
+    if (line_i <= new_line_end){
+        f32 y_shift = current_wrap - wraps[line_i];
+        
+        if (y_shift != 0){
+            wraps += line_i;
+            for (; line_i <= new_line_count; ++line_i, ++wraps){
+                *wraps += y_shift;
+            }
         }
     }
 }

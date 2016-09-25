@@ -17,13 +17,15 @@ get_or_add_map_index(Models *models, i32 mapid){
     i32 user_map_count = models->user_map_count;
     i32 *map_id_table = models->map_id_table;
     for (result = 0; result < user_map_count; ++result){
-        if (map_id_table[result] == mapid) break;
+        if (map_id_table[result] == mapid){
+            break;
+        }
         if (map_id_table[result] == -1){
             map_id_table[result] = mapid;
             break;
         }
     }
-    return result;
+    return(result);
 }
 
 internal i32
@@ -32,13 +34,15 @@ get_map_index(Models *models, i32 mapid){
     i32 user_map_count = models->user_map_count;
     i32 *map_id_table = models->map_id_table;
     for (result = 0; result < user_map_count; ++result){
-        if (map_id_table[result] == mapid) break;
+        if (map_id_table[result] == mapid){
+            break;
+        }
         if (map_id_table[result] == 0){
             result = user_map_count;
             break;
         }
     }
-    return result;
+    return(result);
 }
 
 internal Command_Map*
@@ -55,8 +59,12 @@ get_map_base(Models *models, i32 mapid, b32 add){
             map = models->user_maps + mapid;
         }
     }
-    else if (mapid == mapid_global) map = &models->map_top;
-    else if (mapid == mapid_file) map = &models->map_file;
+    else if (mapid == mapid_global){
+        map = &models->map_top;
+    }
+    else if (mapid == mapid_file){
+        map = &models->map_file;
+    }
     return(map);
 }
 
@@ -2059,7 +2067,8 @@ file_do_single_edit(System_Functions *system,
     
     // TODO(allen): write the remeasurement version
     file_allocate_character_starts_as_needed(general, file);
-    buffer_measure_character_starts(buffer, file->state.character_starts, 0, VWHITE);
+    buffer_remeasure_character_starts(buffer, line_start, line_end, line_shift,
+                                      file->state.character_starts, 0, VWHITE);
     
     file_allocate_wraps_as_needed(general, file);
     buffer_remeasure_wrap_y(buffer, line_start, line_end, line_shift,
