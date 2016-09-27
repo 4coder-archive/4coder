@@ -414,24 +414,15 @@ view_compute_cursor(View *view, Buffer_Seek seek){
     Full_Cursor result = {0};
     Buffer_Layout_Stop stop = {0};
     
-    f32 edge_tolerance = 50.f;
-    if (edge_tolerance > params.width){
-        edge_tolerance = params.width;
-    }
-    
     f32 line_shift = 0.f;
     do{
-        f32 this_line_shift = line_shift;
-        if (this_line_shift > params.width - edge_tolerance){
-            this_line_shift = params.width - edge_tolerance;
-        }
-        
-        stop = buffer_cursor_seek(&state, params, this_line_shift, &result);
+        stop = buffer_cursor_seek(&state, params, line_shift, &result);
         switch (stop.status){
             case BLStatus_NeedWrapLineShift:
             case BLStatus_NeedLineShift:
-            line_shift = (stop.line_index%4)*9.f;
-            break;
+            {
+                line_shift = file->state.line_indents[stop.line_index];
+            }break;
         }
     }while(stop.status != BLStatus_Finished);
     
@@ -945,6 +936,13 @@ file_measure_character_starts(Models *models, Editing_File *file){
     file_update_cursor_positions(models, file);
 }
 
+internal void
+file_allocate_indents_as_needed(General_Memory *general, Editing_File *file){
+    file_allocate_metadata_as_needed(general, &file->state.buffer,
+                                     (void**)&file->state.line_indents,
+                                     &file->state.line_indent_max, sizeof(f32));
+}
+
 inline void
 file_allocate_wraps_as_needed(General_Memory *general, Editing_File *file){
     file_allocate_metadata_as_needed(general, &file->state.buffer,
@@ -955,6 +953,7 @@ file_allocate_wraps_as_needed(General_Memory *general, Editing_File *file){
 internal void
 file_measure_wraps(Models *models, Editing_File *file, f32 font_height, f32 *adv){
     file_allocate_wraps_as_needed(&models->mem.general, file);
+    file_allocate_indents_as_needed(&models->mem.general, file);
     
     Buffer_Measure_Wrap_Params params;
     params.buffer        = &file->state.buffer;
@@ -974,17 +973,19 @@ file_measure_wraps(Models *models, Editing_File *file, f32 font_height, f32 *adv
     
     f32 line_shift = 0.f;
     do{
-        f32 this_line_shift = line_shift;
-        if (this_line_shift > params.width - edge_tolerance){
-            this_line_shift = params.width - edge_tolerance;
-        }
-        
-        stop = buffer_measure_wrap_y(&state, params, this_line_shift);
+        stop = buffer_measure_wrap_y(&state, params, line_shift);
         switch (stop.status){
             case BLStatus_NeedWrapLineShift:
             case BLStatus_NeedLineShift:
-            line_shift = (stop.line_index%4)*9.f;
-            break;
+            {
+                line_shift = (stop.line_index%4)*9.f;
+                
+                if (line_shift > params.width - edge_tolerance){
+                    line_shift = params.width - edge_tolerance;
+                }
+                
+                file->state.line_indents[stop.line_index] = line_shift;
+            }break;
         }
     }while(stop.status != BLStatus_Finished);
     
@@ -4912,17 +4913,13 @@ draw_file_loaded(View *view, i32_Rect rect, b32 is_active, Render_Target *target
         
         f32 line_shift = 0.f;
         do{
-            f32 this_line_shift = line_shift;
-            if (this_line_shift > params.width - edge_tolerance){
-                this_line_shift = params.width - edge_tolerance;
-            }
-            
-            stop = buffer_render_data(&state, params, this_line_shift);
+            stop = buffer_render_data(&state, params, line_shift);
             switch (stop.status){
                 case BLStatus_NeedWrapLineShift:
                 case BLStatus_NeedLineShift:
-                line_shift = (stop.line_index%4)*9.f;
-                break;
+                {
+                    line_shift = file->state.line_indents[stop.line_index];
+                }break;
             }
         }while(stop.status != BLStatus_Finished);
     }
