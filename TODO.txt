@@ -86,6 +86,15 @@
 ; [] view fails to follow cursor after deleting long line
 ;
 
+; BEFORE I SHIP
+;
+; [] ad hoc call for setting up/down keys for interactive screens
+; [] miblo's various number editors
+; [] API docs have duplicate ids?
+; [] query buffer font info
+; [] option to not open *messages* every startup
+; 
+
 ; TODOS
 ; [X] success message when compiler works
 ; [X] auto-complete
@@ -132,6 +141,7 @@
 ; [X] why are command line files not loading any more?
 ; [X] use strange theme
 ; [X] cuber's return to previous buffer idea
+; [X] find matches for current identifier
 
 ; Token related upgrades
 ; [X] tokens in the custom API
@@ -155,7 +165,7 @@
 ;     [] word level wrapping
 ;     [] code level wrapping
 
-; buffer behavior cleanup
+; Buffer behavior cleanup
 ;    [X] show all characters as \# if they can't be rendered
 ;    [X] get the navigation working correctly around multi-glyph characters
 ;    [] wrap remeasuring routine for local edits
@@ -165,21 +175,17 @@
 ;    [] unicode buffer mode
 ;    [] support full length unicode file names
 
-; [] miblo's various number editors
 ; [] user file bar string
 ; [] API docs as text file
 ; [] read only files
 ; [] option to hide hidden files
 ; [] control over how mouse effects panel focus
-; [] option to not open *messages* every startup
-;
-; [] query buffer font info
+
 ; [] option to break buffer name ties by adding parent directories instead of <#>
 ; [] undo groups
 ; [] cursor/scroll groups
 ; [] double binding warnings
-;
-;
+
 ; [] the "main_4coder" experiment
 ; [] real multi-line editing
 ; [] multi-cursor editing
@@ -188,10 +194,8 @@
 
 ; [] simple text based project file
 ; [] system commands bound to <ctrl #> in project file
-; [] find matches for current identifier
 ; [] ability to save and reopen the window state
 
-; [] API docs have duplicate ids?
 ; [] introduce custom command line arguments
 ; [] control the file opening/start hook relationship better
 ; [] get keyboard state on launch
@@ -222,6 +226,7 @@
 ;    [X] wave search
 ;    [] optimize search
 ;    [] smarter isearch behavior
+;    [] cleanup word complete so it may be case-insensitive
 ;
 
 ; theme related business

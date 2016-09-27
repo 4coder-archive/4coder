@@ -955,8 +955,40 @@ file_allocate_wraps_as_needed(General_Memory *general, Editing_File *file){
 internal void
 file_measure_wraps(Models *models, Editing_File *file, f32 font_height, f32 *adv){
     file_allocate_wraps_as_needed(&models->mem.general, file);
-    buffer_measure_wrap_y(&file->state.buffer, file->state.wraps,
-                          font_height, adv, (f32)file->settings.display_width);
+    
+    Buffer_Measure_Wrap_Params params;
+    params.buffer        = &file->state.buffer;
+    params.wraps         = file->state.wraps;
+    params.font_height   = font_height;
+    params.adv           = adv;
+    params.width         = (f32)file->settings.display_width;
+    params.virtual_white = VWHITE;
+    
+    Buffer_Measure_Wrap_State state = {0};
+    Buffer_Layout_Stop stop = {0};
+    
+    f32 edge_tolerance = 50.f;
+    if (edge_tolerance > params.width){
+        edge_tolerance = params.width;
+    }
+    
+    f32 line_shift = 0.f;
+    do{
+        f32 this_line_shift = line_shift;
+        if (this_line_shift > params.width - edge_tolerance){
+            this_line_shift = params.width - edge_tolerance;
+        }
+        
+        stop = buffer_measure_wrap_y(&state, params, this_line_shift);
+        switch (stop.status){
+            case BLStatus_NeedWrapLineShift:
+            case BLStatus_NeedLineShift:
+            line_shift = (stop.line_index%4)*9.f;
+            break;
+        }
+    }while(stop.status != BLStatus_Finished);
+    
+    buffer_measure_wrap_y(&state, params, 0.f);
     file_update_cursor_positions(models, file);
 }
 
@@ -2065,15 +2097,19 @@ file_do_single_edit(System_Functions *system,
     file_grow_starts_as_needed(general, buffer, line_shift);
     buffer_remeasure_starts(buffer, line_start, line_end, line_shift, shift_amount);
     
-    // TODO(allen): write the remeasurement version
     file_allocate_character_starts_as_needed(general, file);
     buffer_remeasure_character_starts(buffer, line_start, line_end, line_shift,
                                       file->state.character_starts, 0, VWHITE);
     
+    // TODO(allen): Redo this as some sort of dialectic API
+#if 0
     file_allocate_wraps_as_needed(general, file);
     buffer_remeasure_wrap_y(buffer, line_start, line_end, line_shift,
                             file->state.wraps, (f32)font->height, font->advance_data,
                             (f32)file->settings.display_width);
+#endif
+    
+    file_measure_wraps(models, file, (f32)font->height, font->advance_data);
     
     // NOTE(allen): cursor fixing
     Cursor_Fix_Descriptor desc = {};

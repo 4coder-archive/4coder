@@ -130,7 +130,7 @@ buffer_measure_starts(Buffer_Measure_Starts *state, Buffer_Type *buffer){
 }
 
 internal_4tech void
-buffer_measure_character_starts(Buffer_Type *buffer, i32 *character_starts, i32 mode, i32 virtual_whitespace){
+buffer_measure_character_starts(Buffer_Type *buffer, i32 *character_starts, i32 mode, i32 virtual_white){
     assert_4tech(mode == 0);
     
     Buffer_Stream_Type stream = {0};
@@ -144,7 +144,7 @@ buffer_measure_character_starts(Buffer_Type *buffer, i32 *character_starts, i32 
     
     character_starts[line_index++] = character_index;
     
-    if (virtual_whitespace){
+    if (virtual_white){
         skipping_whitespace = 1;
     }
     
@@ -158,7 +158,7 @@ buffer_measure_character_starts(Buffer_Type *buffer, i32 *character_starts, i32 
                 if (ch == '\n'){
                     ++character_index;
                     character_starts[line_index++] = character_index;
-                    if (virtual_whitespace){
+                    if (virtual_white){
                         skipping_whitespace = 1;
                     }
                 }
@@ -179,49 +179,141 @@ buffer_measure_character_starts(Buffer_Type *buffer, i32 *character_starts, i32 
     assert_4tech(line_index-1 == buffer->line_count);
 }
 
-internal_4tech void
-buffer_measure_wrap_y(Buffer_Type *buffer, f32 *wraps, f32 font_height, f32 *adv, f32 max_width){
-    Buffer_Stream_Type stream = {0};
-    i32 i = 0;
-    i32 size = buffer_size(buffer);
+struct Buffer_Measure_Wrap_Params{
+    Buffer_Type *buffer;
+    f32 *wraps;
+    f32 font_height;
+    f32 *adv;
+    f32 width;
+    b32 virtual_white;
+};
+
+struct Buffer_Measure_Wrap_State{
+    Buffer_Stream_Type stream;
+    i32 i;
+    i32 size;
+    i32 wrap_index;
     
-    i32 wrap_index = 0;
-    f32 current_wrap = 0.f;
+    f32 current_wrap;
+    f32 current_adv;
+    f32 x;
     
-    f32 x = 0.f;
+    b32 skipping_whitespace;
     
-    wraps[wrap_index++] = current_wrap;
+    b32 still_looping;
     
-    if (buffer_stringify_loop(&stream, buffer, i, size)){
-        b32 still_looping = 0;
+    u8 ch;
+    
+    i32 __pc__;
+};
+
+// duff-routine defines
+#define DrCase(PC) case PC: goto resumespot_##PC
+#define DrYield(PC, n) { *S_ptr = S; S_ptr->__pc__ = PC; return(n); resumespot_##PC:; }
+#define DrReturn(n) { *S_ptr = S; S_ptr->__pc__ = -1; return(n); }
+
+enum{
+    BLStatus_Finished,
+    BLStatus_NeedWrapLineShift,
+    BLStatus_NeedLineShift
+};
+
+struct Buffer_Layout_Stop{
+    u32 status;
+    i32 line_index;
+    i32 pos;
+};
+
+internal_4tech Buffer_Layout_Stop
+buffer_measure_wrap_y(Buffer_Measure_Wrap_State *S_ptr, Buffer_Measure_Wrap_Params params, f32 line_shift){
+    Buffer_Measure_Wrap_State S = *S_ptr;
+    Buffer_Layout_Stop S_stop;
+    
+    S.size = buffer_size(params.buffer);
+    
+    switch (S.__pc__){
+        DrCase(1);
+        DrCase(2);
+        DrCase(3);
+    }
+    
+    if (params.virtual_white){
+        S_stop.status = BLStatus_NeedLineShift;
+        S_stop.line_index = S.wrap_index;
+        S_stop.pos = S.i;
+        DrYield(1, S_stop);
+    }
+    
+    S.x = line_shift;
+    params.wraps[S.wrap_index++] = 0;
+    
+    if (params.virtual_white){
+        S.skipping_whitespace = 1;
+    }
+    
+    if (buffer_stringify_loop(&S.stream, params.buffer, S.i, S.size)){
+        S.still_looping = 0;
         do{
-            for (; i < stream.end; ++i){
-                u8 ch = (u8)stream.data[i];
-                if (ch == '\n'){
-                    current_wrap += font_height;
-                    wraps[wrap_index++] = current_wrap;
-                    x = 0.f;
+            for (; S.i < S.stream.end; ++S.i){
+                S.ch = (u8)S.stream.data[S.i];
+                if (S.ch == '\n'){
+                    S.current_wrap += params.font_height;
+                    params.wraps[S.wrap_index++] = S.current_wrap;
+                    
+                    if (params.virtual_white){
+                        S_stop.status = BLStatus_NeedLineShift;
+                        S_stop.line_index = S.wrap_index - 1;
+                        S_stop.pos = S.i+1;
+                        DrYield(2, S_stop);
+                    }
+                    
+                    S.x = line_shift;
+                    
+                    if (params.virtual_white){
+                        S.skipping_whitespace = 1;
+                    }
                 }
                 else{
-                    f32 current_adv = adv[ch];
-                    if (x + current_adv > max_width){
-                        current_wrap += font_height;
-                        x = current_adv;
+                    if (S.ch != ' ' && S.ch != '\t'){
+                        S.skipping_whitespace = 0;
                     }
-                    else{
-                        x += current_adv;
+                    
+                    if (!S.skipping_whitespace){
+                        S.current_adv = params.adv[S.ch];
+                        if (S.x + S.current_adv > params.width){
+                            S.current_wrap += params.font_height;
+                            
+                            if (params.virtual_white){
+                                S_stop.status = BLStatus_NeedWrapLineShift;
+                                S_stop.line_index = S.wrap_index - 1;
+                                S_stop.pos = S.i;
+                                DrYield(3, S_stop);
+                            }
+                            
+                            S.x = line_shift + S.current_adv;
+                        }
+                        else{
+                            S.x += S.current_adv;
+                        }
                     }
                 }
             }
-            still_looping = buffer_stringify_next(&stream);
-        }while(still_looping);
+            S.still_looping = buffer_stringify_next(&S.stream);
+        }while(S.still_looping);
     }
     
-    current_wrap += font_height;
-    wraps[wrap_index++] = current_wrap;
+    S.current_wrap += params.font_height;
+    params.wraps[S.wrap_index++] = S.current_wrap;
     
-    assert_4tech(wrap_index-1 == buffer->line_count);
+    assert_4tech(S.wrap_index-1 == params.buffer->line_count);
+    
+    S_stop.status = BLStatus_Finished;
+    DrReturn(S_stop);
 }
+
+#undef DrCase
+#undef DrYield
+#undef DrReturn
 
 internal_4tech void
 buffer_remeasure_starts(Buffer_Type *buffer, i32 line_start, i32 line_end, i32 line_shift, i32 text_shift){
@@ -628,6 +720,8 @@ struct Buffer_Cursor_Seek_State{
     i32 i;
     i32 size;
     b32 xy_seek;
+    
+    f32 ch_width;
     u8 ch;
     
     i32 __pc__;
@@ -638,18 +732,6 @@ struct Buffer_Cursor_Seek_State{
 #define DrYield(PC, n) { *S_ptr = S; S_ptr->__pc__ = PC; return(n); resumespot_##PC:; }
 #define DrReturn(n) { *S_ptr = S; S_ptr->__pc__ = -1; return(n); }
 
-enum{
-    BLStatus_Finished,
-    BLStatus_NeedWrapLineShift,
-    BLStatus_NeedLineShift
-};
-
-struct Buffer_Layout_Stop{
-    u32 status;
-    i32 line_index;
-    i32 pos;
-};
-
 internal_4tech Buffer_Layout_Stop
 buffer_cursor_seek(Buffer_Cursor_Seek_State *S_ptr, Buffer_Cursor_Seek_Params params,
                    f32 line_shift, Full_Cursor *cursor_out){
@@ -658,6 +740,8 @@ buffer_cursor_seek(Buffer_Cursor_Seek_State *S_ptr, Buffer_Cursor_Seek_Params pa
     
     switch (S.__pc__){
         DrCase(1);
+        DrCase(2);
+        DrCase(3);
     }
     
     S.xy_seek = (params.seek.type == buffer_seek_wrapped_xy || params.seek.type == buffer_seek_unwrapped_xy);
@@ -832,23 +916,39 @@ buffer_cursor_seek(Buffer_Cursor_Seek_State *S_ptr, Buffer_Cursor_Seek_Params pa
                         S.cursor.wrapped_y += params.font_height;
                         S.cursor.character = 1;
                         S.cursor.unwrapped_x = 0;
-                        S.cursor.wrapped_x = 0;
+                        
+                        if (params.virtual_white){
+                            S_stop.status     = BLStatus_NeedLineShift;
+                            S_stop.line_index = S.cursor.line-1;
+                            S_stop.pos        = S.cursor.pos+1;
+                            DrYield(2, S_stop);
+                        }
+                        
+                        S.cursor.wrapped_x = line_shift;
                     }break;
                     
                     default:
                     {
-                        f32 ch_width = params.adv[S.ch];
+                        S.ch_width = params.adv[S.ch];
                         
-                        if (S.cursor.wrapped_x + ch_width > params.width){
+                        if (S.cursor.wrapped_x + S.ch_width > params.width){
                             S.cursor.wrapped_y += params.font_height;
-                            S.cursor.wrapped_x = 0;
+                            
+                            if (params.virtual_white){
+                                S_stop.status     = BLStatus_NeedWrapLineShift;
+                                S_stop.line_index = S.cursor.line-1;
+                                S_stop.pos        = S.cursor.pos;
+                                DrYield(3, S_stop);
+                            }
+                            
+                            S.cursor.wrapped_x = line_shift;
                             S.prev_cursor = S.cursor;
                         }
                         
                         ++S.cursor.character_pos;
                         ++S.cursor.character;
-                        S.cursor.unwrapped_x += ch_width;
-                        S.cursor.wrapped_x += ch_width;
+                        S.cursor.unwrapped_x += S.ch_width;
+                        S.cursor.wrapped_x += S.ch_width;
                     }break;
                 }
                 
@@ -930,9 +1030,9 @@ buffer_cursor_seek(Buffer_Cursor_Seek_State *S_ptr, Buffer_Cursor_Seek_Params pa
     DrReturn(S_stop);
 }
 
+#undef DrCase
 #undef DrYield
 #undef DrReturn
-#undef DrCase
 
 internal_4tech void
 buffer_invert_edit_shift(Buffer_Type *buffer, Buffer_Edit edit, Buffer_Edit *inverse, char *strings,
