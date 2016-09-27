@@ -4,7 +4,7 @@
  * 19.08.2015
  *
  * File editing view for 4coder
- * 
+ *
  */
 
 // TOP
@@ -421,7 +421,7 @@ view_compute_cursor(View *view, Buffer_Seek seek){
             case BLStatus_NeedWrapLineShift:
             case BLStatus_NeedLineShift:
             {
-                line_shift = file->state.line_indents[stop.line_index];
+                line_shift = file->state.line_indents[stop.wrap_line_index];
             }break;
         }
     }while(stop.status != BLStatus_Finished);
@@ -775,7 +775,7 @@ save_file_to_name(System_Functions *system, Mem_Options *mem, Editing_File *file
         
         file_synchronize_times(system, file);
     }
-        
+    
     return(result);
 }
 
@@ -901,16 +901,16 @@ file_measure_starts(System_Functions *system, General_Memory *general, Buffer_Ty
 // and that the buffer's line_count is correct.
 internal void
 file_allocate_metadata_as_needed(General_Memory *general, Buffer_Type *buffer,
-                                 void **mem, i32 *mem_max_count, i32 item_size){
+                                 void **mem, i32 *mem_max_count, i32 count, i32 item_size){
     if (*mem == 0){
-        i32 max = ((buffer->line_count+1)*2);
+        i32 max = ((count+1)*2);
         max = (max+(0x3FF))&(~(0x3FF));
         *mem = general_memory_allocate(general, max*item_size);
         *mem_max_count = max;
     }
-    else if (*mem_max_count < buffer->line_count){
+    else if (*mem_max_count < count){
         i32 old_max = *mem_max_count;
-        i32 max = ((buffer->line_count+1)*2);
+        i32 max = ((count+1)*2);
         max = (max+(0x3FF))&(~(0x3FF));
         
         void *new_mem = general_memory_reallocate(general, *mem, item_size*old_max, item_size*max);
@@ -925,7 +925,8 @@ inline void
 file_allocate_character_starts_as_needed(General_Memory *general, Editing_File *file){
     file_allocate_metadata_as_needed(general, &file->state.buffer,
                                      (void**)&file->state.character_starts,
-                                     &file->state.character_start_max, sizeof(i32));
+                                     &file->state.character_start_max,
+                                     file->state.buffer.line_count, sizeof(i32));
 }
 
 internal void
@@ -936,23 +937,25 @@ file_measure_character_starts(Models *models, Editing_File *file){
 }
 
 internal void
-file_allocate_indents_as_needed(General_Memory *general, Editing_File *file){
+file_allocate_indents_as_needed(General_Memory *general, Editing_File *file, i32 min_amount){
     file_allocate_metadata_as_needed(general, &file->state.buffer,
                                      (void**)&file->state.line_indents,
-                                     &file->state.line_indent_max, sizeof(f32));
+                                     &file->state.line_indent_max,
+                                     min_amount, sizeof(f32));
 }
 
 inline void
 file_allocate_wraps_as_needed(General_Memory *general, Editing_File *file){
     file_allocate_metadata_as_needed(general, &file->state.buffer,
                                      (void**)&file->state.wrap_line_index,
-                                     &file->state.wrap_max, sizeof(f32));
+                                     &file->state.wrap_max,
+                                     file->state.buffer.line_count, sizeof(f32));
 }
 
 internal void
 file_measure_wraps(Models *models, Editing_File *file, f32 font_height, f32 *adv){
     file_allocate_wraps_as_needed(&models->mem.general, file);
-    file_allocate_indents_as_needed(&models->mem.general, file);
+    file_allocate_indents_as_needed(&models->mem.general, file, file->state.buffer.line_count);
     
     Buffer_Measure_Wrap_Params params;
     params.buffer          = &file->state.buffer;
@@ -962,7 +965,7 @@ file_measure_wraps(Models *models, Editing_File *file, f32 font_height, f32 *adv
     params.virtual_white   = VWHITE;
     
     Buffer_Measure_Wrap_State state = {0};
-    Buffer_Layout_Stop stop = {0};
+    Buffer_Layout_Measure_Stop stop = {0};
     
     f32 edge_tolerance = 50.f;
     if (edge_tolerance > params.width){
@@ -976,13 +979,17 @@ file_measure_wraps(Models *models, Editing_File *file, f32 font_height, f32 *adv
             case BLStatus_NeedWrapLineShift:
             case BLStatus_NeedLineShift:
             {
-                line_shift = (stop.line_index%4)*9.f;
+                line_shift = (stop.wrap_line_index%4)*9.f;
                 
                 if (line_shift > params.width - edge_tolerance){
                     line_shift = params.width - edge_tolerance;
                 }
                 
-                file->state.line_indents[stop.line_index] = line_shift;
+                while (stop.wrap_line_index >= file->state.line_indent_max){
+                    file_allocate_indents_as_needed(&models->mem.general, file, file->state.line_indent_max);
+                }
+                
+                file->state.line_indents[stop.wrap_line_index] = line_shift;
             }break;
         }
     }while(stop.status != BLStatus_Finished);
@@ -1160,7 +1167,7 @@ Job_Callback_Sig(job_full_lex){
         char *chunk = chunks[chunk_index];
         i32 chunk_size = chunk_sizes[chunk_index];
         
-        i32 result = 
+        i32 result =
             cpp_lex_step(&lex, chunk, chunk_size, text_size, &tokens, 2048);
         
         switch (result){
@@ -1990,7 +1997,7 @@ file_edit_cursor_fix(System_Functions *system, Models *models,
     if (cursor_count > 0){
         buffer_sort_cursors(cursors, cursor_count);
         if (desc.is_batch){
-            i32 shift_total = 
+            i32 shift_total =
                 buffer_batch_edit_update_cursors(cursors, cursor_count,
                                                  desc.batch, desc.batch_size);
             if (shift_out){
@@ -2133,7 +2140,7 @@ file_do_batch_edit(System_Functions *system, Models *models, Editing_File *file,
     Partition *part = &mem->part;
     Editing_Layout *layout = &models->layout;
     
-    // NOTE(allen): fixing stuff "beforewards"???    
+    // NOTE(allen): fixing stuff "beforewards"???
     Assert(spec.str == 0);
     file_update_history_before_edit(mem, file, spec.step, 0, history_mode);
     file_pre_edit_maintenance(system, &mem->general, file);
@@ -3811,7 +3818,7 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                                                 default:
                                                 if ((key >= '0' && key <= '9') || (key >= 'a' && key <= 'f') || (key >= 'A' && key <= 'F')){
                                                     text.str[view->color_cursor] = (char)key;
-                                                    r = 1; 
+                                                    r = 1;
                                                     result.consume_keys = 1;
                                                 }
                                                 break;
@@ -4916,7 +4923,7 @@ draw_file_loaded(View *view, i32_Rect rect, b32 is_active, Render_Target *target
                 case BLStatus_NeedWrapLineShift:
                 case BLStatus_NeedLineShift:
                 {
-                    line_shift = file->state.line_indents[stop.line_index];
+                    line_shift = file->state.line_indents[stop.wrap_line_index];
                 }break;
             }
         }while(stop.status != BLStatus_Finished);

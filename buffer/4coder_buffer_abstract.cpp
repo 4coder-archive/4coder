@@ -223,10 +223,17 @@ struct Buffer_Layout_Stop{
     i32 wrap_line_index;
 };
 
-internal_4tech Buffer_Layout_Stop
+struct Buffer_Layout_Measure_Stop{
+    u32 status;
+    i32 line_index;
+    i32 wrap_line_index;
+    i32 pos;
+};
+
+internal_4tech Buffer_Layout_Measure_Stop
 buffer_measure_wrap_y(Buffer_Measure_Wrap_State *S_ptr, Buffer_Measure_Wrap_Params params, f32 line_shift){
     Buffer_Measure_Wrap_State S = *S_ptr;
-    Buffer_Layout_Stop S_stop;
+    Buffer_Layout_Measure_Stop S_stop;
     
     S.size = buffer_size(params.buffer);
     
@@ -240,6 +247,7 @@ buffer_measure_wrap_y(Buffer_Measure_Wrap_State *S_ptr, Buffer_Measure_Wrap_Para
         S_stop.status = BLStatus_NeedLineShift;
         S_stop.line_index = S.line_index;
         S_stop.wrap_line_index = S.current_wrap_index;
+        S_stop.pos = S.i;
         DrYield(1, S_stop);
     }
     
@@ -263,6 +271,7 @@ buffer_measure_wrap_y(Buffer_Measure_Wrap_State *S_ptr, Buffer_Measure_Wrap_Para
                         S_stop.status = BLStatus_NeedLineShift;
                         S_stop.line_index = S.line_index - 1;
                         S_stop.wrap_line_index = S.current_wrap_index;
+                        S_stop.pos = S.i+1;
                         DrYield(2, S_stop);
                     }
                     
@@ -286,6 +295,7 @@ buffer_measure_wrap_y(Buffer_Measure_Wrap_State *S_ptr, Buffer_Measure_Wrap_Para
                                 S_stop.status = BLStatus_NeedWrapLineShift;
                                 S_stop.line_index = S.line_index - 1;
                                 S_stop.wrap_line_index = S.current_wrap_index;
+                                S_stop.pos = S.i+1;
                                 DrYield(3, S_stop);
                             }
                             
