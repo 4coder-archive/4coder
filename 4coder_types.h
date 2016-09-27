@@ -557,6 +557,9 @@ struct Full_Cursor{
     /* DOC(This field contains the number of the character from the beginninf of the line
     where the cursor is located. This field is one based.) */
     int32_t character;
+    /* DOC(This field contains the number of the line where the cursor is located, taking the line wrapping
+    into account.  This field is one based.) */
+    int32_t wrap_line;
     /* DOC(This field contains the x position measured with unwrapped lines.) */
     float unwrapped_x;
     /* DOC(This field contains the y position measured with unwrapped lines.) */

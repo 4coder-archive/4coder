@@ -220,7 +220,7 @@ enum{
 struct Buffer_Layout_Stop{
     u32 status;
     i32 line_index;
-    i32 pos;
+    i32 wrap_line_index;
 };
 
 internal_4tech Buffer_Layout_Stop
@@ -239,7 +239,7 @@ buffer_measure_wrap_y(Buffer_Measure_Wrap_State *S_ptr, Buffer_Measure_Wrap_Para
     if (params.virtual_white){
         S_stop.status = BLStatus_NeedLineShift;
         S_stop.line_index = S.line_index;
-        S_stop.pos = S.i;
+        S_stop.wrap_line_index = S.current_wrap_index;
         DrYield(1, S_stop);
     }
     
@@ -262,7 +262,7 @@ buffer_measure_wrap_y(Buffer_Measure_Wrap_State *S_ptr, Buffer_Measure_Wrap_Para
                     if (params.virtual_white){
                         S_stop.status = BLStatus_NeedLineShift;
                         S_stop.line_index = S.line_index - 1;
-                        S_stop.pos = S.i+1;
+                        S_stop.wrap_line_index = S.current_wrap_index;
                         DrYield(2, S_stop);
                     }
                     
@@ -285,7 +285,7 @@ buffer_measure_wrap_y(Buffer_Measure_Wrap_State *S_ptr, Buffer_Measure_Wrap_Para
                             if (params.virtual_white){
                                 S_stop.status = BLStatus_NeedWrapLineShift;
                                 S_stop.line_index = S.line_index - 1;
-                                S_stop.pos = S.i;
+                                S_stop.wrap_line_index = S.current_wrap_index;
                                 DrYield(3, S_stop);
                             }
                             
@@ -582,16 +582,16 @@ buffer_get_line_index_range(Buffer_Type *buffer, i32 pos, i32 l_bound, i32 u_bou
             end = i;
         }
         else{
-            start = i;
             break;
         }
         assert_4tech(start < end);
         if (start == end - 1){
+            i = start;
             break;
         }
     }
     
-    return(start);
+    return(i);
 }
 
 inline_4tech i32
@@ -600,7 +600,7 @@ buffer_get_line_index(Buffer_Type *buffer, i32 pos){
     return(result);
 }
 
-// TODO(allen): Try to merge this with the other line start binary search.
+// TODO(allen): Merge all these binary searches.
 internal_4tech i32
 buffer_get_line_index_from_character_pos(i32 *character_starts, i32 pos, i32 l_bound, i32 u_bound){
     i32 start = l_bound, end = u_bound;
@@ -815,6 +815,7 @@ buffer_cursor_seek(Buffer_Cursor_Seek_State *S_ptr, Buffer_Cursor_Seek_Params pa
         S.cursor.character_pos = params.character_starts[line_index];
         S.cursor.line = line_index + 1;
         S.cursor.character = 1;
+        S.cursor.wrap_line = params.wrap_line_index[line_index] + 1;
         S.cursor.unwrapped_y = (f32)(line_index * params.font_height);
         S.cursor.unwrapped_x = 0;
         S.cursor.wrapped_y = (f32)(params.wrap_line_index[line_index] * params.font_height);
@@ -825,9 +826,9 @@ buffer_cursor_seek(Buffer_Cursor_Seek_State *S_ptr, Buffer_Cursor_Seek_Params pa
     // Adjust the non-screen based coordinates to point to the first
     // non-virtual character of the line.
     if (params.virtual_white){
-        S_stop.status     = BLStatus_NeedLineShift;
-        S_stop.line_index = S.cursor.line-1;
-        S_stop.pos        = S.cursor.pos;
+        S_stop.status          = BLStatus_NeedLineShift;
+        S_stop.line_index      = S.cursor.line-1;
+        S_stop.wrap_line_index = S.cursor.wrap_line-1;
         DrYield(1, S_stop);
         
         S.cursor.unwrapped_x += line_shift;
@@ -913,15 +914,16 @@ buffer_cursor_seek(Buffer_Cursor_Seek_State *S_ptr, Buffer_Cursor_Seek_Params pa
                     {
                         ++S.cursor.character_pos;
                         ++S.cursor.line;
+                        ++S.cursor.wrap_line;
                         S.cursor.unwrapped_y += params.font_height;
                         S.cursor.wrapped_y += params.font_height;
                         S.cursor.character = 1;
                         S.cursor.unwrapped_x = 0;
                         
                         if (params.virtual_white){
-                            S_stop.status     = BLStatus_NeedLineShift;
-                            S_stop.line_index = S.cursor.line-1;
-                            S_stop.pos        = S.cursor.pos+1;
+                            S_stop.status          = BLStatus_NeedLineShift;
+                            S_stop.line_index      = S.cursor.line-1;
+                            S_stop.wrap_line_index = S.cursor.wrap_line-1;
                             DrYield(2, S_stop);
                         }
                         
@@ -935,10 +937,11 @@ buffer_cursor_seek(Buffer_Cursor_Seek_State *S_ptr, Buffer_Cursor_Seek_Params pa
                         if (S.cursor.wrapped_x + S.ch_width > params.width){
                             S.cursor.wrapped_y += params.font_height;
                             
+                            ++S.cursor.wrap_line;
                             if (params.virtual_white){
-                                S_stop.status     = BLStatus_NeedWrapLineShift;
-                                S_stop.line_index = S.cursor.line-1;
-                                S_stop.pos        = S.cursor.pos;
+                                S_stop.status          = BLStatus_NeedWrapLineShift;
+                                S_stop.line_index      = S.cursor.line-1;
+                                S_stop.wrap_line_index = S.cursor.wrap_line-1;
                                 DrYield(3, S_stop);
                             }
                             
@@ -1162,6 +1165,7 @@ struct Buffer_Render_State{
     Render_Item_Write write;
     
     i32 line;
+    i32 wrap_line;
     b32 skipping_whitespace;
     
     i32 __pc__;
@@ -1197,11 +1201,12 @@ buffer_render_data(Buffer_Render_State *S_ptr, Buffer_Render_Params params, f32 
     }
     
     S.line = params.start_cursor.line - 1;
+    S.wrap_line = params.start_cursor.wrap_line - 1;
     
     if (params.virtual_white){
-        S_stop.status     = BLStatus_NeedLineShift;
-        S_stop.line_index = S.line;
-        S_stop.pos        = params.start_cursor.pos;
+        S_stop.status          = BLStatus_NeedLineShift;
+        S_stop.line_index      = S.line;
+        S_stop.wrap_line_index = S.wrap_line;
         DrYield(1, S_stop);
     }
     
@@ -1226,11 +1231,13 @@ buffer_render_data(Buffer_Render_State *S_ptr, Buffer_Render_Params params, f32 
                 
                 if (S.ch_width + S.write.x > params.width + shift_x && S.ch != '\n' && params.wrapped){
                     if (params.virtual_white){
-                        S_stop.status     = BLStatus_NeedWrapLineShift;
-                        S_stop.line_index = S.line;
-                        S_stop.pos        = S.i+1;
+                        S_stop.status          = BLStatus_NeedWrapLineShift;
+                        S_stop.line_index      = S.line;
+                        S_stop.wrap_line_index = S.wrap_line + 1;
                         DrYield(2, S_stop);
                     }
+                    
+                    ++S.wrap_line;
                     
                     S.write.x = shift_x + line_shift;
                     S.write.y += params.font_height;
@@ -1251,15 +1258,16 @@ buffer_render_data(Buffer_Render_State *S_ptr, Buffer_Render_Params params, f32 
                             S.write = write_render_item(S.write, S.i, ' ', 0);
                             
                             if (params.virtual_white){
-                                S_stop.status     = BLStatus_NeedLineShift;
-                                S_stop.line_index = S.line+1;
-                                S_stop.pos        = S.i+1;
+                                S_stop.status          = BLStatus_NeedLineShift;
+                                S_stop.line_index      = S.line+1;
+                                S_stop.wrap_line_index = S.wrap_line+1;
                                 DrYield(3, S_stop);
                                 
                                 S.skipping_whitespace = 1;
                             }
                             
                             ++S.line;
+                            ++S.wrap_line;
                             
                             S.write.x = shift_x + line_shift;
                             S.write.y += params.font_height;
