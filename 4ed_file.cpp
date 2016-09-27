@@ -107,7 +107,7 @@ static Editing_File_Settings null_editing_file_settings = {0};
 struct Editing_File_State{
     Buffer_Type buffer;
     
-    f32 *wraps;
+    i32 *wrap_line_index;
     i32 wrap_max;
     
     i32 *character_starts;

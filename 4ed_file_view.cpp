@@ -406,7 +406,7 @@ view_compute_cursor(View *view, Buffer_Seek seek){
     params.width            = view_file_display_width(view);
     params.font_height      = (f32)font->height;
     params.adv              = font->advance_data;
-    params.wraps            = file->state.wraps;
+    params.wrap_line_index  = file->state.wrap_line_index;
     params.character_starts = file->state.character_starts;
     params.virtual_white    = VWHITE;
     
@@ -459,8 +459,7 @@ file_compute_lowest_line(Editing_File *file, f32 font_height){
         lowest_line = buffer->line_count;
     }
     else{
-        f32 term_line_y = file->state.wraps[buffer->line_count];
-        lowest_line = CEIL32(term_line_y/font_height);
+        lowest_line = file->state.wrap_line_index[buffer->line_count];
     }
     
     return(lowest_line);
@@ -946,7 +945,7 @@ file_allocate_indents_as_needed(General_Memory *general, Editing_File *file){
 inline void
 file_allocate_wraps_as_needed(General_Memory *general, Editing_File *file){
     file_allocate_metadata_as_needed(general, &file->state.buffer,
-                                     (void**)&file->state.wraps,
+                                     (void**)&file->state.wrap_line_index,
                                      &file->state.wrap_max, sizeof(f32));
 }
 
@@ -956,12 +955,11 @@ file_measure_wraps(Models *models, Editing_File *file, f32 font_height, f32 *adv
     file_allocate_indents_as_needed(&models->mem.general, file);
     
     Buffer_Measure_Wrap_Params params;
-    params.buffer        = &file->state.buffer;
-    params.wraps         = file->state.wraps;
-    params.font_height   = font_height;
-    params.adv           = adv;
-    params.width         = (f32)file->settings.display_width;
-    params.virtual_white = VWHITE;
+    params.buffer          = &file->state.buffer;
+    params.wrap_line_index = file->state.wrap_line_index;
+    params.adv             = adv;
+    params.width           = (f32)file->settings.display_width;
+    params.virtual_white   = VWHITE;
     
     Buffer_Measure_Wrap_State state = {0};
     Buffer_Layout_Stop stop = {0};

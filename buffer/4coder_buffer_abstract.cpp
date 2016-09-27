@@ -181,8 +181,7 @@ buffer_measure_character_starts(Buffer_Type *buffer, i32 *character_starts, i32 
 
 struct Buffer_Measure_Wrap_Params{
     Buffer_Type *buffer;
-    f32 *wraps;
-    f32 font_height;
+    i32 *wrap_line_index;
     f32 *adv;
     f32 width;
     b32 virtual_white;
@@ -192,9 +191,9 @@ struct Buffer_Measure_Wrap_State{
     Buffer_Stream_Type stream;
     i32 i;
     i32 size;
-    i32 wrap_index;
+    i32 line_index;
     
-    f32 current_wrap;
+    i32 current_wrap_index;
     f32 current_adv;
     f32 x;
     
@@ -239,13 +238,13 @@ buffer_measure_wrap_y(Buffer_Measure_Wrap_State *S_ptr, Buffer_Measure_Wrap_Para
     
     if (params.virtual_white){
         S_stop.status = BLStatus_NeedLineShift;
-        S_stop.line_index = S.wrap_index;
+        S_stop.line_index = S.line_index;
         S_stop.pos = S.i;
         DrYield(1, S_stop);
     }
     
     S.x = line_shift;
-    params.wraps[S.wrap_index++] = 0;
+    params.wrap_line_index[S.line_index++] = 0;
     
     if (params.virtual_white){
         S.skipping_whitespace = 1;
@@ -257,12 +256,12 @@ buffer_measure_wrap_y(Buffer_Measure_Wrap_State *S_ptr, Buffer_Measure_Wrap_Para
             for (; S.i < S.stream.end; ++S.i){
                 S.ch = (u8)S.stream.data[S.i];
                 if (S.ch == '\n'){
-                    S.current_wrap += params.font_height;
-                    params.wraps[S.wrap_index++] = S.current_wrap;
+                    ++S.current_wrap_index;
+                    params.wrap_line_index[S.line_index++] = S.current_wrap_index;
                     
                     if (params.virtual_white){
                         S_stop.status = BLStatus_NeedLineShift;
-                        S_stop.line_index = S.wrap_index - 1;
+                        S_stop.line_index = S.line_index - 1;
                         S_stop.pos = S.i+1;
                         DrYield(2, S_stop);
                     }
@@ -281,11 +280,11 @@ buffer_measure_wrap_y(Buffer_Measure_Wrap_State *S_ptr, Buffer_Measure_Wrap_Para
                     if (!S.skipping_whitespace){
                         S.current_adv = params.adv[S.ch];
                         if (S.x + S.current_adv > params.width){
-                            S.current_wrap += params.font_height;
+                            ++S.current_wrap_index;
                             
                             if (params.virtual_white){
                                 S_stop.status = BLStatus_NeedWrapLineShift;
-                                S_stop.line_index = S.wrap_index - 1;
+                                S_stop.line_index = S.line_index - 1;
                                 S_stop.pos = S.i;
                                 DrYield(3, S_stop);
                             }
@@ -302,10 +301,10 @@ buffer_measure_wrap_y(Buffer_Measure_Wrap_State *S_ptr, Buffer_Measure_Wrap_Para
         }while(S.still_looping);
     }
     
-    S.current_wrap += params.font_height;
-    params.wraps[S.wrap_index++] = S.current_wrap;
+    ++S.current_wrap_index;
+    params.wrap_line_index[S.line_index++] = S.current_wrap_index;
     
-    assert_4tech(S.wrap_index-1 == params.buffer->line_count);
+    assert_4tech(S.line_index-1 == params.buffer->line_count);
     
     S_stop.status = BLStatus_Finished;
     DrReturn(S_stop);
@@ -616,34 +615,36 @@ buffer_get_line_index_from_character_pos(i32 *character_starts, i32 pos, i32 l_b
             end = i;
         }
         else{
-            start = i;
             break;
         }
         assert_4tech(start < end);
         if (start == end - 1){
+            i = start;
             break;
         }
     }
     
-    return(start);
+    return(i);
 }
 
 internal_4tech i32
-buffer_get_line_index_from_wrapped_y(f32 *wraps, f32 y, f32 font_height, i32 l_bound, i32 u_bound){
+buffer_get_line_index_from_wrapped_y(i32 *wrap_line_index, f32 y, f32 line_height, i32 l_bound, i32 u_bound){
+    i32 wrap_index = FLOOR32(y/line_height);
     i32 start = l_bound, end = u_bound;
     i32 i = 0;
     for (;;){
-        i = (start + end) / 2;
-        if (wraps[i]+font_height <= y){
+        i = (start + end) >> 1;
+        if (wrap_line_index[i] < wrap_index){
             start = i;
         }
-        else if (wraps[i] > y){
+        else if (wrap_line_index[i] > wrap_index){
             end = i;
         }
         else{
             break;
         }
-        if (start >= end - 1){
+        assert_4tech(start < end);
+        if (start == end - 1){
             i = start;
             break;
         }
@@ -707,7 +708,7 @@ struct Buffer_Cursor_Seek_Params{
     f32 width;
     f32 font_height;
     f32 *adv;
-    f32 *wraps;
+    i32 *wrap_line_index;
     i32 *character_starts;
     b32 virtual_white;
 };
@@ -801,8 +802,8 @@ buffer_cursor_seek(Buffer_Cursor_Seek_State *S_ptr, Buffer_Cursor_Seek_Params pa
         
         case buffer_seek_wrapped_xy:
         {
-            line_index = buffer_get_line_index_from_wrapped_y(params.wraps, params.seek.y,
-                                                              params.font_height, 0, params.buffer->line_count);
+            line_index = buffer_get_line_index_from_wrapped_y(params.wrap_line_index, params.seek.y, params.font_height,
+                                                              0, params.buffer->line_count);
         }break;
         
         default: InvalidCodePath;
@@ -816,7 +817,7 @@ buffer_cursor_seek(Buffer_Cursor_Seek_State *S_ptr, Buffer_Cursor_Seek_Params pa
         S.cursor.character = 1;
         S.cursor.unwrapped_y = (f32)(line_index * params.font_height);
         S.cursor.unwrapped_x = 0;
-        S.cursor.wrapped_y = params.wraps[line_index];
+        S.cursor.wrapped_y = (f32)(params.wrap_line_index[line_index] * params.font_height);
         S.cursor.wrapped_x = 0;
     }
     
