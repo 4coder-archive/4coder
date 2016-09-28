@@ -1105,6 +1105,10 @@ file_close(System_Functions *system, General_Memory *general, Editing_File *file
         general_memory_free(general, buffer->line_starts);
     }
     
+    general_memory_free(general, file->state.wrap_line_index);
+    general_memory_free(general, file->state.character_starts);
+    general_memory_free(general, file->state.line_indents);
+    
     if (file->state.undo.undo.edits){
         general_memory_free(general, file->state.undo.undo.strings);
         general_memory_free(general, file->state.undo.undo.edits);
