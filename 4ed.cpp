@@ -394,7 +394,7 @@ COMMAND_DECL(reopen){
                         int32_t character = column_number[i];
                         
                         *vptrs[i]->edit_pos = edit_poss[i];
-                        Full_Cursor cursor = view_compute_cursor(vptrs[i], seek_line_char(line, character));
+                        Full_Cursor cursor = view_compute_cursor(vptrs[i], seek_line_char(line, character), 0);
                         
                         view_set_cursor(vptrs[i], cursor, true,
                                         file->settings.unwrapped_lines);

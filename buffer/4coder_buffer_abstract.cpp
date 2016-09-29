@@ -179,6 +179,21 @@ buffer_measure_character_starts(Buffer_Type *buffer, i32 *character_starts, i32 
     assert_4tech(line_index-1 == buffer->line_count);
 }
 
+enum{
+    BLStatus_Finished,
+    BLStatus_NeedWrapLineShift,
+    BLStatus_NeedLineShift,
+    BLStatus_NeedWrapDetermination,
+};
+
+struct Buffer_Layout_Stop{
+    u32 status;
+    i32 line_index;
+    i32 wrap_line_index;
+    i32 pos;
+    f32 x;
+};
+
 struct Buffer_Measure_Wrap_Params{
     Buffer_Type *buffer;
     i32 *wrap_line_index;
@@ -191,6 +206,8 @@ struct Buffer_Measure_Wrap_State{
     Buffer_Stream_Type stream;
     i32 i;
     i32 size;
+    b32 still_looping;
+    
     i32 line_index;
     
     i32 current_wrap_index;
@@ -198,8 +215,9 @@ struct Buffer_Measure_Wrap_State{
     f32 x;
     
     b32 skipping_whitespace;
-    
-    b32 still_looping;
+    i32 wrap_unit_end;
+    b32 did_wrap;
+    b32 first_of_the_line;
     
     u8 ch;
     
@@ -211,37 +229,20 @@ struct Buffer_Measure_Wrap_State{
 #define DrYield(PC, n) { *S_ptr = S; S_ptr->__pc__ = PC; return(n); resumespot_##PC:; }
 #define DrReturn(n) { *S_ptr = S; S_ptr->__pc__ = -1; return(n); }
 
-enum{
-    BLStatus_Finished,
-    BLStatus_NeedWrapLineShift,
-    BLStatus_NeedLineShift
-};
-
-struct Buffer_Layout_Stop{
-    u32 status;
-    i32 line_index;
-    i32 wrap_line_index;
-};
-
-struct Buffer_Layout_Measure_Stop{
-    u32 status;
-    i32 line_index;
-    i32 wrap_line_index;
-    i32 pos;
-};
-
-internal_4tech Buffer_Layout_Measure_Stop
-buffer_measure_wrap_y(Buffer_Measure_Wrap_State *S_ptr, Buffer_Measure_Wrap_Params params, f32 line_shift){
+internal_4tech Buffer_Layout_Stop
+buffer_measure_wrap_y(Buffer_Measure_Wrap_State *S_ptr, Buffer_Measure_Wrap_Params params,
+                      f32 line_shift, b32 do_wrap, i32 wrap_unit_end){
     Buffer_Measure_Wrap_State S = *S_ptr;
-    Buffer_Layout_Measure_Stop S_stop;
-    
-    S.size = buffer_size(params.buffer);
+    Buffer_Layout_Stop S_stop;
     
     switch (S.__pc__){
         DrCase(1);
         DrCase(2);
         DrCase(3);
+        DrCase(4);
     }
+    
+    S.size = buffer_size(params.buffer);
     
     if (params.virtual_white){
         S_stop.status = BLStatus_NeedLineShift;
@@ -258,6 +259,7 @@ buffer_measure_wrap_y(Buffer_Measure_Wrap_State *S_ptr, Buffer_Measure_Wrap_Para
         S.skipping_whitespace = 1;
     }
     
+    S.first_of_the_line = 1;
     if (buffer_stringify_loop(&S.stream, params.buffer, S.i, S.size)){
         S.still_looping = 0;
         do{
@@ -268,10 +270,10 @@ buffer_measure_wrap_y(Buffer_Measure_Wrap_State *S_ptr, Buffer_Measure_Wrap_Para
                     params.wrap_line_index[S.line_index++] = S.current_wrap_index;
                     
                     if (params.virtual_white){
-                        S_stop.status = BLStatus_NeedLineShift;
-                        S_stop.line_index = S.line_index - 1;
+                        S_stop.status          = BLStatus_NeedLineShift;
+                        S_stop.line_index      = S.line_index - 1;
                         S_stop.wrap_line_index = S.current_wrap_index;
-                        S_stop.pos = S.i+1;
+                        S_stop.pos             = S.i+1;
                         DrYield(2, S_stop);
                     }
                     
@@ -280,6 +282,7 @@ buffer_measure_wrap_y(Buffer_Measure_Wrap_State *S_ptr, Buffer_Measure_Wrap_Para
                     if (params.virtual_white){
                         S.skipping_whitespace = 1;
                     }
+                    S.first_of_the_line = 1;
                 }
                 else{
                     if (S.ch != ' ' && S.ch != '\t'){
@@ -288,22 +291,39 @@ buffer_measure_wrap_y(Buffer_Measure_Wrap_State *S_ptr, Buffer_Measure_Wrap_Para
                     
                     if (!S.skipping_whitespace){
                         S.current_adv = params.adv[S.ch];
-                        if (S.x + S.current_adv > params.width){
-                            ++S.current_wrap_index;
+                        
+                        S.did_wrap = 0;
+                        if (S.i >= S.wrap_unit_end){
+                            S_stop.status          = BLStatus_NeedWrapDetermination;
+                            S_stop.line_index      = S.line_index - 1;
+                            S_stop.wrap_line_index = S.current_wrap_index;
+                            S_stop.pos             = S.i;
+                            S_stop.x               = S.x;
+                            DrYield(4, S_stop);
                             
-                            if (params.virtual_white){
-                                S_stop.status = BLStatus_NeedWrapLineShift;
-                                S_stop.line_index = S.line_index - 1;
-                                S_stop.wrap_line_index = S.current_wrap_index;
-                                S_stop.pos = S.i+1;
-                                DrYield(3, S_stop);
+                            S.wrap_unit_end = wrap_unit_end;
+                            
+                            if (do_wrap && !S.first_of_the_line){
+                                S.did_wrap = 1;
+                                ++S.current_wrap_index;
+                                
+                                if (params.virtual_white){
+                                    S_stop.status = BLStatus_NeedWrapLineShift;
+                                    S_stop.line_index = S.line_index - 1;
+                                    S_stop.wrap_line_index = S.current_wrap_index;
+                                    S_stop.pos = S.i+1;
+                                    DrYield(3, S_stop);
+                                }
+                                
+                                S.x = line_shift + S.current_adv;
                             }
-                            
-                            S.x = line_shift + S.current_adv;
                         }
-                        else{
+                        
+                        if (!S.did_wrap){
                             S.x += S.current_adv;
                         }
+                        
+                        S.first_of_the_line = 0;
                     }
                 }
             }
@@ -721,31 +741,37 @@ struct Buffer_Cursor_Seek_Params{
     i32 *wrap_line_index;
     i32 *character_starts;
     b32 virtual_white;
+    b32 return_hint;
+    Full_Cursor *cursor_out;
 };
 
 struct Buffer_Cursor_Seek_State{
-    Full_Cursor cursor;
+    Full_Cursor next_cursor;
+    Full_Cursor this_cursor;
     Full_Cursor prev_cursor;
+    
     Buffer_Stream_Type stream;
     b32 still_looping;
     i32 i;
     i32 size;
-    b32 xy_seek;
+    i32 wrap_unit_end;
     
+    b32 first_of_the_line;
+    b32 xy_seek;
     f32 ch_width;
     u8 ch;
     
     i32 __pc__;
 };
 
-// duff-routine defines
+// dialogical-routine defines
 #define DrCase(PC) case PC: goto resumespot_##PC
 #define DrYield(PC, n) { *S_ptr = S; S_ptr->__pc__ = PC; return(n); resumespot_##PC:; }
 #define DrReturn(n) { *S_ptr = S; S_ptr->__pc__ = -1; return(n); }
 
 internal_4tech Buffer_Layout_Stop
 buffer_cursor_seek(Buffer_Cursor_Seek_State *S_ptr, Buffer_Cursor_Seek_Params params,
-                   f32 line_shift, Full_Cursor *cursor_out){
+                   f32 line_shift, b32 do_wrap, i32 wrap_unit_end){
     Buffer_Cursor_Seek_State S = *S_ptr;
     Buffer_Layout_Stop S_stop;
     
@@ -753,6 +779,7 @@ buffer_cursor_seek(Buffer_Cursor_Seek_State *S_ptr, Buffer_Cursor_Seek_Params pa
         DrCase(1);
         DrCase(2);
         DrCase(3);
+        DrCase(4);
     }
     
     S.xy_seek = (params.seek.type == buffer_seek_wrapped_xy || params.seek.type == buffer_seek_unwrapped_xy);
@@ -821,15 +848,15 @@ buffer_cursor_seek(Buffer_Cursor_Seek_State *S_ptr, Buffer_Cursor_Seek_Params pa
     
     // Build the cursor hint
     {
-        S.cursor.pos = params.buffer->line_starts[line_index];
-        S.cursor.character_pos = params.character_starts[line_index];
-        S.cursor.line = line_index + 1;
-        S.cursor.character = 1;
-        S.cursor.wrap_line = params.wrap_line_index[line_index] + 1;
-        S.cursor.unwrapped_y = (f32)(line_index * params.font_height);
-        S.cursor.unwrapped_x = 0;
-        S.cursor.wrapped_y = (f32)(params.wrap_line_index[line_index] * params.font_height);
-        S.cursor.wrapped_x = 0;
+        S.next_cursor.pos = params.buffer->line_starts[line_index];
+        S.next_cursor.character_pos = params.character_starts[line_index];
+        S.next_cursor.line = line_index + 1;
+        S.next_cursor.character = 1;
+        S.next_cursor.wrap_line = params.wrap_line_index[line_index] + 1;
+        S.next_cursor.unwrapped_y = (f32)(line_index * params.font_height);
+        S.next_cursor.unwrapped_x = 0;
+        S.next_cursor.wrapped_y = (f32)(params.wrap_line_index[line_index] * params.font_height);
+        S.next_cursor.wrapped_x = 0;
     }
     
     // Get the initial line shift.
@@ -837,25 +864,25 @@ buffer_cursor_seek(Buffer_Cursor_Seek_State *S_ptr, Buffer_Cursor_Seek_Params pa
     // non-virtual character of the line.
     if (params.virtual_white){
         S_stop.status          = BLStatus_NeedLineShift;
-        S_stop.line_index      = S.cursor.line-1;
-        S_stop.wrap_line_index = S.cursor.wrap_line-1;
+        S_stop.line_index      = S.next_cursor.line-1;
+        S_stop.wrap_line_index = S.next_cursor.wrap_line-1;
         DrYield(1, S_stop);
         
-        S.cursor.unwrapped_x += line_shift;
-        S.cursor.wrapped_x += line_shift;
+        S.next_cursor.unwrapped_x += line_shift;
+        S.next_cursor.wrapped_x += line_shift;
         
         S.stream.use_termination_character = 1;
         S.stream.terminator = '\n';
-        if (buffer_stringify_loop(&S.stream, params.buffer, S.cursor.pos, S.size)){
+        if (buffer_stringify_loop(&S.stream, params.buffer, S.next_cursor.pos, S.size)){
             do{
-                for (; S.cursor.pos < S.stream.end; ++S.cursor.pos){
-                    S.ch = (u8)S.stream.data[S.cursor.pos];
+                for (; S.next_cursor.pos < S.stream.end; ++S.next_cursor.pos){
+                    S.ch = (u8)S.stream.data[S.next_cursor.pos];
                     
                     if (S.ch != ' ' && S.ch != '\t'){
                         goto double_break_vwhite;
                     }
                     else{
-                        ++S.cursor.character;
+                        ++S.next_cursor.character;
                     }
                 }
                 S.still_looping = buffer_stringify_next(&S.stream);
@@ -865,170 +892,192 @@ buffer_cursor_seek(Buffer_Cursor_Seek_State *S_ptr, Buffer_Cursor_Seek_Params pa
         double_break_vwhite:;
     }
     
+    // If the user just wants the hint, return that now.
+    if (params.return_hint){
+        *params.cursor_out = S.next_cursor;
+        S_stop.status = BLStatus_Finished;
+        DrReturn(S_stop);
+    }
+    
     // If we are already passed the point we want to be at, then just take this.
+    S.this_cursor = S.next_cursor;
     switch (params.seek.type){
         case buffer_seek_pos:
         {
-            if (S.cursor.pos >= params.seek.pos){
+            if (S.next_cursor.pos >= params.seek.pos){
                 goto buffer_cursor_seek_end;
             }
         }break;
         
         case buffer_seek_character_pos:
         {
-            if (S.cursor.character_pos >= params.seek.pos){
+            if (S.next_cursor.character_pos >= params.seek.pos){
                 goto buffer_cursor_seek_end;
             }
         }break;
         
         case buffer_seek_line_char:
         {
-            if ((S.cursor.line == params.seek.line &&
-                 S.cursor.character >= params.seek.character) ||
-                S.cursor.line > params.seek.line){
+            if ((S.next_cursor.line == params.seek.line &&
+                 S.next_cursor.character >= params.seek.character) ||
+                S.next_cursor.line > params.seek.line){
                 goto buffer_cursor_seek_end;
             }
         }break;
         
         case buffer_seek_unwrapped_xy:
         {
-            if (S.cursor.unwrapped_y > params.seek.y){
+            if (S.next_cursor.unwrapped_y > params.seek.y){
                 goto buffer_cursor_seek_end;
             }
         }break;
         
         case buffer_seek_wrapped_xy:
         {
-            if (S.cursor.wrapped_y > params.seek.y){
+            if (S.next_cursor.wrapped_y > params.seek.y){
                 goto buffer_cursor_seek_end;
             }
         }break;
     }
     
     // Main seek loop
-    S.i = S.cursor.pos;
+    S.i = S.next_cursor.pos;
     
     S.stream = null_buffer_stream;
     S.stream.use_termination_character = 1;
     S.stream.terminator = 0;
+    
+    S.first_of_the_line = 1;
     if (buffer_stringify_loop(&S.stream, params.buffer, S.i, S.size)){
         S.still_looping = 0;
         do{
             for (; S.i < S.stream.end; ++S.i){
                 S.ch = (u8)S.stream.data[S.i];
                 
-                S.prev_cursor = S.cursor;
+                S.prev_cursor = S.this_cursor;
+                S.this_cursor = S.next_cursor;
                 
                 switch (S.ch){
                     case '\n':
                     {
-                        ++S.cursor.character_pos;
-                        ++S.cursor.line;
-                        ++S.cursor.wrap_line;
-                        S.cursor.unwrapped_y += params.font_height;
-                        S.cursor.wrapped_y += params.font_height;
-                        S.cursor.character = 1;
-                        S.cursor.unwrapped_x = 0;
+                        ++S.next_cursor.character_pos;
+                        ++S.next_cursor.line;
+                        ++S.next_cursor.wrap_line;
+                        S.next_cursor.unwrapped_y += params.font_height;
+                        S.next_cursor.wrapped_y += params.font_height;
+                        S.next_cursor.character = 1;
+                        S.next_cursor.unwrapped_x = 0;
                         
                         if (params.virtual_white){
                             S_stop.status          = BLStatus_NeedLineShift;
-                            S_stop.line_index      = S.cursor.line-1;
-                            S_stop.wrap_line_index = S.cursor.wrap_line-1;
+                            S_stop.line_index      = S.next_cursor.line-1;
+                            S_stop.wrap_line_index = S.next_cursor.wrap_line-1;
                             DrYield(2, S_stop);
                         }
                         
-                        S.cursor.wrapped_x = line_shift;
+                        S.next_cursor.wrapped_x = line_shift;
+                        S.first_of_the_line = 1;
                     }break;
                     
                     default:
                     {
                         S.ch_width = params.adv[S.ch];
                         
-                        if (S.cursor.wrapped_x + S.ch_width > params.width){
-                            S.cursor.wrapped_y += params.font_height;
+                        if (S.i >= S.wrap_unit_end){
+                            S_stop.status          = BLStatus_NeedWrapDetermination;
+                            S_stop.line_index      = S.next_cursor.line-1;
+                            S_stop.wrap_line_index = S.next_cursor.wrap_line-1;
+                            S_stop.pos             = S.i;
+                            S_stop.x               = S.next_cursor.wrapped_x;
+                            DrYield(4, S_stop);
                             
-                            ++S.cursor.wrap_line;
-                            if (params.virtual_white){
-                                S_stop.status          = BLStatus_NeedWrapLineShift;
-                                S_stop.line_index      = S.cursor.line-1;
-                                S_stop.wrap_line_index = S.cursor.wrap_line-1;
-                                DrYield(3, S_stop);
+                            S.wrap_unit_end = wrap_unit_end;
+                            
+                            if (do_wrap && !S.first_of_the_line){
+                                S.next_cursor.wrapped_y += params.font_height;
+                                
+                                ++S.next_cursor.wrap_line;
+                                if (params.virtual_white){
+                                    S_stop.status          = BLStatus_NeedWrapLineShift;
+                                    S_stop.line_index      = S.next_cursor.line-1;
+                                    S_stop.wrap_line_index = S.next_cursor.wrap_line-1;
+                                    DrYield(3, S_stop);
+                                }
+                                
+                                S.next_cursor.wrapped_x = line_shift;
+                                S.this_cursor = S.next_cursor;
                             }
-                            
-                            S.cursor.wrapped_x = line_shift;
-                            S.prev_cursor = S.cursor;
                         }
                         
-                        ++S.cursor.character_pos;
-                        ++S.cursor.character;
-                        S.cursor.unwrapped_x += S.ch_width;
-                        S.cursor.wrapped_x += S.ch_width;
+                        ++S.next_cursor.character_pos;
+                        ++S.next_cursor.character;
+                        S.next_cursor.unwrapped_x += S.ch_width;
+                        S.next_cursor.wrapped_x += S.ch_width;
+                        
+                        S.first_of_the_line = 0;
                     }break;
                 }
                 
-                ++S.cursor.pos;
+                ++S.next_cursor.pos;
                 
-                if (S.cursor.pos > S.size){
-                    S.cursor = S.prev_cursor;
+                if (S.next_cursor.pos > S.size){
                     goto buffer_cursor_seek_end;
                 }
                 
-                f32 x = 0, px = 0, y = 0;
+                f32 x = 0, px = 0, y = 0, py = 0;
                 switch (params.seek.type){
                     case buffer_seek_pos:
-                    if (S.cursor.pos > params.seek.pos){
-                        S.cursor = S.prev_cursor;
+                    if (S.this_cursor.pos >= params.seek.pos){
                         goto buffer_cursor_seek_end;
                     }break;
                     
                     case buffer_seek_character_pos:
-                    {
-                        if (S.cursor.character_pos > params.seek.pos){
-                            S.cursor = S.prev_cursor;
-                            goto buffer_cursor_seek_end;
-                        }break;
+                    if (S.this_cursor.character_pos >= params.seek.pos){
+                        goto buffer_cursor_seek_end;
                     }break;
                     
                     case buffer_seek_wrapped_xy:
                     {
-                        x = S.cursor.wrapped_x; px = S.prev_cursor.wrapped_x;
-                        y = S.cursor.wrapped_y;
+                        x = S.this_cursor.wrapped_x;
+                        px = S.prev_cursor.wrapped_x;
+                        y = S.this_cursor.wrapped_y;
+                        py = S.prev_cursor.wrapped_y;
                     }break;
                     
                     case buffer_seek_unwrapped_xy:
                     {
-                        x = S.cursor.unwrapped_x; px = S.prev_cursor.unwrapped_x;
-                        y = S.cursor.unwrapped_y;
+                        x = S.this_cursor.unwrapped_x;
+                        px = S.prev_cursor.unwrapped_x;
+                        y = S.this_cursor.unwrapped_y;
+                        py = S.prev_cursor.wrapped_y;
                     }break;
                     
                     case buffer_seek_line_char:
-                    if (S.cursor.line == params.seek.line && S.cursor.character >= params.seek.character){
+                    if (S.this_cursor.line == params.seek.line && S.this_cursor.character >= params.seek.character){
                         goto buffer_cursor_seek_end;
                     }
-                    else if (S.cursor.line > params.seek.line){
-                        S.cursor = S.prev_cursor;
+                    else if (S.this_cursor.line > params.seek.line){
+                        S.this_cursor = S.prev_cursor;
                         goto buffer_cursor_seek_end;
                     }break;
                 }
                 
                 if (S.xy_seek){
                     if (y > params.seek.y){
-                        S.cursor = S.prev_cursor;
+                        S.this_cursor = S.prev_cursor;
                         goto buffer_cursor_seek_end;
                     }
                     
                     if (y > params.seek.y - params.font_height && x >= params.seek.x){
                         if (!params.seek.round_down){
-                            if (S.ch != '\n' && (params.seek.x - px) < (x - params.seek.x)){
-                                S.cursor = S.prev_cursor;
+                            if (py >= y && S.ch != '\n' && (params.seek.x - px) < (x - params.seek.x)){
+                                S.this_cursor = S.prev_cursor;
                             }
                             goto buffer_cursor_seek_end;
                         }
                         
-                        if (x > params.seek.x){
-                            S.cursor = S.prev_cursor;
-                            goto buffer_cursor_seek_end;
-                        }
+                        S.this_cursor = S.prev_cursor;
+                        goto buffer_cursor_seek_end;
                     }
                 }
             }
@@ -1039,7 +1088,7 @@ buffer_cursor_seek(Buffer_Cursor_Seek_State *S_ptr, Buffer_Cursor_Seek_Params pa
     InvalidCodePath;
     
     buffer_cursor_seek_end:;
-    *cursor_out = S.cursor;
+    *params.cursor_out = S.this_cursor;
     S_stop.status = BLStatus_Finished;
     DrReturn(S_stop);
 }
@@ -1177,6 +1226,8 @@ struct Buffer_Render_State{
     i32 line;
     i32 wrap_line;
     b32 skipping_whitespace;
+    b32 first_of_the_line;
+    i32 wrap_unit_end;
     
     i32 __pc__;
 };
@@ -1187,7 +1238,8 @@ struct Buffer_Render_State{
 #define DrReturn(n) { *S_ptr = S; S_ptr->__pc__ = -1; return(n); }
 
 internal_4tech Buffer_Layout_Stop
-buffer_render_data(Buffer_Render_State *S_ptr, Buffer_Render_Params params, f32 line_shift){
+buffer_render_data(Buffer_Render_State *S_ptr, Buffer_Render_Params params,
+                   f32 line_shift, b32 do_wrap, i32 wrap_unit_end){
     Buffer_Render_State S = *S_ptr;
     Buffer_Layout_Stop S_stop;
     
@@ -1208,6 +1260,7 @@ buffer_render_data(Buffer_Render_State *S_ptr, Buffer_Render_Params params, f32 
         DrCase(1);
         DrCase(2);
         DrCase(3);
+        DrCase(4);
     }
     
     S.line = params.start_cursor.line - 1;
@@ -1232,6 +1285,7 @@ buffer_render_data(Buffer_Render_State *S_ptr, Buffer_Render_Params params, f32 
         S.skipping_whitespace = 1;
     }
     
+    S.first_of_the_line = 1;
     S.i = params.start_cursor.pos;
     if (buffer_stringify_loop(&S.stream, params.buffer, S.i, size)){
         do{
@@ -1239,21 +1293,34 @@ buffer_render_data(Buffer_Render_State *S_ptr, Buffer_Render_Params params, f32 
                 S.ch = (u8)S.stream.data[S.i];
                 S.ch_width = params.adv[S.ch];
                 
-                if (S.ch_width + S.write.x > params.width + shift_x && S.ch != '\n' && params.wrapped){
-                    if (params.virtual_white){
-                        S_stop.status          = BLStatus_NeedWrapLineShift;
-                        S_stop.line_index      = S.line;
-                        S_stop.wrap_line_index = S.wrap_line + 1;
-                        DrYield(2, S_stop);
+                if (S.ch != '\n' && S.i >= S.wrap_unit_end){
+                    S_stop.status          = BLStatus_NeedWrapDetermination;
+                    S_stop.line_index      = S.line;
+                    S_stop.wrap_line_index = S.wrap_line;
+                    S_stop.pos             = S.i;
+                    S_stop.x               = S.write.x - shift_x;
+                    DrYield(4, S_stop);
+                    
+                    S.wrap_unit_end = wrap_unit_end;
+                    
+                    if (do_wrap && !S.first_of_the_line){
+                        if (params.virtual_white){
+                            S_stop.status          = BLStatus_NeedWrapLineShift;
+                            S_stop.line_index      = S.line;
+                            S_stop.wrap_line_index = S.wrap_line + 1;
+                            DrYield(2, S_stop);
+                        }
+                        
+                        ++S.wrap_line;
+                        
+                        if (params.wrapped){
+                            S.write.x = shift_x + line_shift;
+                            S.write.y += params.font_height;
+                        }
                     }
-                    
-                    ++S.wrap_line;
-                    
-                    S.write.x = shift_x + line_shift;
-                    S.write.y += params.font_height;
                 }
                 
-                if (S.write.y > params.height + shift_y){
+                if (S.write.y > params.height + params.port_y){
                     goto buffer_get_render_data_end;
                 }
                 
@@ -1262,6 +1329,7 @@ buffer_render_data(Buffer_Render_State *S_ptr, Buffer_Render_Params params, f32 
                 }
                 
                 if (!S.skipping_whitespace){
+                    S.first_of_the_line = 0;
                     switch (S.ch){
                         case '\n':
                         if (S.write.item < item_end){
@@ -1281,6 +1349,8 @@ buffer_render_data(Buffer_Render_State *S_ptr, Buffer_Render_Params params, f32 
                             
                             S.write.x = shift_x + line_shift;
                             S.write.y += params.font_height;
+                            
+                            S.first_of_the_line = 1;
                         }
                         break;
                         
@@ -1333,10 +1403,6 @@ buffer_render_data(Buffer_Render_State *S_ptr, Buffer_Render_Params params, f32 
                         }
                         break;
                     }
-                }
-                
-                if (S.write.y > params.height + shift_y){
-                    goto buffer_get_render_data_end;
                 }
             }
             S.still_looping = buffer_stringify_next(&S.stream);

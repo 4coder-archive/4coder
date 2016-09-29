@@ -9,7 +9,7 @@
 
 // TOP
 
-#define VWHITE 1
+#define VWHITE 0
 
 internal i32
 get_or_add_map_index(Models *models, i32 mapid){
@@ -394,11 +394,13 @@ view_cursor_limits(View *view){
     return(limits);
 }
 
-inline Full_Cursor
-view_compute_cursor(View *view, Buffer_Seek seek){
+internal Full_Cursor
+view_compute_cursor(View *view, Buffer_Seek seek, b32 return_hint){
     Editing_File *file = view->file_data.file;
     Models *models = view->persistent.models;
     Render_Font *font = get_font_info(models->font_set, file->settings.font_id)->font;
+    
+    Full_Cursor result = {0};
     
     Buffer_Cursor_Seek_Params params;
     params.buffer           = &file->state.buffer;
@@ -409,15 +411,30 @@ view_compute_cursor(View *view, Buffer_Seek seek){
     params.wrap_line_index  = file->state.wrap_line_index;
     params.character_starts = file->state.character_starts;
     params.virtual_white    = VWHITE;
+    params.return_hint      = return_hint;
+    params.cursor_out       = &result;
     
     Buffer_Cursor_Seek_State state = {0};
-    Full_Cursor result = {0};
     Buffer_Layout_Stop stop = {0};
     
     f32 line_shift = 0.f;
+    b32 do_wrap = 0;
+    i32 wrap_unit_end = 0;
     do{
-        stop = buffer_cursor_seek(&state, params, line_shift, &result);
+        stop = buffer_cursor_seek(&state, params, line_shift, do_wrap, wrap_unit_end);
         switch (stop.status){
+            case BLStatus_NeedWrapDetermination:
+            {
+                i32 rounded_pos = stop.pos - (stop.pos%11);
+                if ((rounded_pos % 2) == 1){
+                    do_wrap = 1;
+                }
+                else{
+                    do_wrap = 0;
+                }
+                wrap_unit_end = rounded_pos + 11;
+            }break;
+            
             case BLStatus_NeedWrapLineShift:
             case BLStatus_NeedLineShift:
             {
@@ -439,7 +456,7 @@ view_compute_cursor_from_xy(View *view, f32 seek_x, f32 seek_y){
         seek = seek_wrapped_xy(seek_x, seek_y, 0);
     }
     
-    Full_Cursor result = view_compute_cursor(view, seek);
+    Full_Cursor result = view_compute_cursor(view, seek, 0);
     return(result);
 }
 
@@ -608,7 +625,7 @@ view_set_cursor_and_scroll(View *view,
 
 inline void
 view_set_temp_highlight(View *view, i32 pos, i32 end_pos){
-    view->file_data.temp_highlight = view_compute_cursor(view, seek_pos(pos));
+    view->file_data.temp_highlight = view_compute_cursor(view, seek_pos(pos), 0);
     view->file_data.temp_highlight_end_pos = end_pos;
     view->file_data.show_temp_highlight = 1;
     
@@ -856,7 +873,7 @@ file_update_cursor_positions(Models *models, Editing_File *file){
         i32 pos = view_get_cursor_pos(iter.view);
         
         if (!iter.view->file_data.show_temp_highlight){
-            Full_Cursor cursor = view_compute_cursor(iter.view, seek_pos(pos));
+            Full_Cursor cursor = view_compute_cursor(iter.view, seek_pos(pos), 0);
             view_set_cursor(iter.view, cursor, 1, iter.view->file_data.file->settings.unwrapped_lines);
         }
         else{
@@ -965,7 +982,7 @@ file_measure_wraps(Models *models, Editing_File *file, f32 font_height, f32 *adv
     params.virtual_white   = VWHITE;
     
     Buffer_Measure_Wrap_State state = {0};
-    Buffer_Layout_Measure_Stop stop = {0};
+    Buffer_Layout_Stop stop = {0};
     
     f32 edge_tolerance = 50.f;
     if (edge_tolerance > params.width){
@@ -973,9 +990,25 @@ file_measure_wraps(Models *models, Editing_File *file, f32 font_height, f32 *adv
     }
     
     f32 line_shift = 0.f;
+    b32 do_wrap = 0;
+    i32 wrap_unit_end = 0;
+    
     do{
-        stop = buffer_measure_wrap_y(&state, params, line_shift);
+        stop = buffer_measure_wrap_y(&state, params,
+                                     line_shift, do_wrap, wrap_unit_end);
         switch (stop.status){
+            case BLStatus_NeedWrapDetermination:
+            {
+                i32 rounded_pos = stop.pos - (stop.pos%11);
+                if ((rounded_pos % 2) == 1){
+                    do_wrap = 1;
+                }
+                else{
+                    do_wrap = 0;
+                }
+                wrap_unit_end = rounded_pos + 11;
+            }break;
+            
             case BLStatus_NeedWrapLineShift:
             case BLStatus_NeedLineShift:
             {
@@ -994,7 +1027,6 @@ file_measure_wraps(Models *models, Editing_File *file, f32 font_height, f32 *adv
         }
     }while(stop.status != BLStatus_Finished);
     
-    buffer_measure_wrap_y(&state, params, 0.f);
     file_update_cursor_positions(models, file);
 }
 
@@ -1747,7 +1779,7 @@ view_cursor_move(View *view, Full_Cursor cursor){
 
 inline void
 view_cursor_move(View *view, i32 pos){
-    Full_Cursor cursor = view_compute_cursor(view, seek_pos(pos));
+    Full_Cursor cursor = view_compute_cursor(view, seek_pos(pos), 0);
     view_cursor_move(view, cursor);
 }
 
@@ -1761,13 +1793,13 @@ view_cursor_move(View *view, f32 x, f32 y, b32 round_down = 0){
         seek = seek_wrapped_xy(x, y, round_down);
     }
     
-    Full_Cursor cursor = view_compute_cursor(view, seek);
+    Full_Cursor cursor = view_compute_cursor(view, seek, 0);
     view_cursor_move(view, cursor);
 }
 
 inline void
 view_cursor_move(View *view, i32 line, i32 character){
-    Full_Cursor cursor = view_compute_cursor(view, seek_line_char(line, character));
+    Full_Cursor cursor = view_compute_cursor(view, seek_line_char(line, character), 0);
     view_cursor_move(view, cursor);
 }
 
@@ -2025,7 +2057,7 @@ file_edit_cursor_fix(System_Functions *system, Models *models,
                 Assert(view->edit_pos);
                 
                 i32 cursor_pos = cursors[cursor_count++].pos;
-                Full_Cursor new_cursor = view_compute_cursor(view, seek_pos(cursor_pos));
+                Full_Cursor new_cursor = view_compute_cursor(view, seek_pos(cursor_pos), 0);
                 
                 GUI_Scroll_Vars scroll = view->edit_pos->scroll;
                 
@@ -2034,7 +2066,7 @@ file_edit_cursor_fix(System_Functions *system, Models *models,
                 if (view->edit_pos->scroll_i != new_scroll_i){
                     view->edit_pos->scroll_i = new_scroll_i;
                     
-                    Full_Cursor temp_cursor = view_compute_cursor(view, seek_pos(view->edit_pos->scroll_i));
+                    Full_Cursor temp_cursor = view_compute_cursor(view, seek_pos(view->edit_pos->scroll_i), 0);
                     
                     f32 y_offset = MOD(view->edit_pos->scroll.scroll_y, view->line_height);
                     f32 y_position = temp_cursor.wrapped_y;
@@ -4882,10 +4914,10 @@ draw_file_loaded(View *view, i32_Rect rect, b32 is_active, Render_Target *target
     
     Full_Cursor render_cursor;
     if (!file->settings.unwrapped_lines){
-        render_cursor = view_compute_cursor(view, seek_wrapped_xy(0, scroll_y, 0));
+        render_cursor = view_compute_cursor(view, seek_wrapped_xy(0, scroll_y, 0), 1);
     }
     else{
-        render_cursor = view_compute_cursor(view, seek_unwrapped_xy(0, scroll_y, 0));
+        render_cursor = view_compute_cursor(view, seek_unwrapped_xy(0, scroll_y, 0), 1);
     }
     
     view->edit_pos->scroll_i = render_cursor.pos;
@@ -4921,9 +4953,24 @@ draw_file_loaded(View *view, i32_Rect rect, b32 is_active, Render_Target *target
         }
         
         f32 line_shift = 0.f;
+        b32 do_wrap = 0;
+        i32 wrap_unit_end = 0;
+        
         do{
-            stop = buffer_render_data(&state, params, line_shift);
+            stop = buffer_render_data(&state, params, line_shift, do_wrap, wrap_unit_end);
             switch (stop.status){
+                case BLStatus_NeedWrapDetermination:
+                {
+                    i32 rounded_pos = stop.pos - (stop.pos%11);
+                    if ((rounded_pos % 2) == 1){
+                        do_wrap = 1;
+                    }
+                    else{
+                        do_wrap = 0;
+                    }
+                    wrap_unit_end = rounded_pos + 11;
+                }break;
+                
                 case BLStatus_NeedWrapLineShift:
                 case BLStatus_NeedLineShift:
                 {

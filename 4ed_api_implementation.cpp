@@ -81,7 +81,7 @@ fill_view_summary(View_Summary *view, View *vptr, Live_Views *live_set, Working_
         
         view->buffer_id = buffer_id;
         
-        view->mark = view_compute_cursor(vptr, seek_pos(vptr->edit_pos->mark));
+        view->mark = view_compute_cursor(vptr, seek_pos(vptr->edit_pos->mark), 0);
         view->cursor = vptr->edit_pos->cursor;
         view->preferred_x = vptr->edit_pos->preferred_x;
         
@@ -1514,7 +1514,7 @@ DOC_SEE(Full_Cursor)
                 seek.character = 1;
             }
             result = true;
-            *cursor_out = view_compute_cursor(vptr, seek);
+            *cursor_out = view_compute_cursor(vptr, seek, 0);
             fill_view_summary(view, vptr, cmd);
         }
     }
@@ -1549,7 +1549,7 @@ DOC_SEE(Buffer_Seek)
             if (seek.type == buffer_seek_line_char && seek.character <= 0){
                 seek.character = 1;
             }
-            Full_Cursor cursor = view_compute_cursor(vptr, seek);
+            Full_Cursor cursor = view_compute_cursor(vptr, seek, 0);
             view_set_cursor(vptr, cursor, set_preferred_x, file->settings.unwrapped_lines);
             fill_view_summary(view, vptr, cmd);
         }
@@ -1599,7 +1599,7 @@ DOC_SEE(Buffer_Seek)
         if (file && !file->is_loading){
             result = true;
             if (seek.type != buffer_seek_pos){
-                cursor = view_compute_cursor(vptr, seek);
+                cursor = view_compute_cursor(vptr, seek, 0);
                 vptr->edit_pos->mark = cursor.pos;
             }
             else{
