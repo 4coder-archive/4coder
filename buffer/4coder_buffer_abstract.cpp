@@ -673,10 +673,14 @@ buffer_partial_from_line_character(Buffer_Type *buffer, i32 line, i32 character)
     Partial_Cursor result = {0};
     
     i32 line_index = line - 1;
-    if (line_index >= buffer->line_count) line_index = buffer->line_count - 1;
-    if (line_index < 0) line_index = 0;
+    if (line_index >= buffer->line_count){
+        line_index = buffer->line_count - 1;
+    }
+    if (line_index < 0){
+        line_index = 0;
+    }
     
-    int32_t size = buffer_size(buffer);
+    i32 size = buffer_size(buffer);
     i32 this_start = buffer->line_starts[line_index];
     i32 max_character = (size-this_start) + 1;
     if (line_index+1 < buffer->line_count){
@@ -692,7 +696,7 @@ buffer_partial_from_line_character(Buffer_Type *buffer, i32 line, i32 character)
     }
     
     result.pos = this_start + character - 1;
-    result.line = line_index+1;
+    result.line = line_index + 1;
     result.character = character;
     
     return(result);

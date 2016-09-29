@@ -9,7 +9,7 @@
 
 // TOP
 
-#define VWHITE 1
+#define VWHITE 0
 
 internal i32
 get_or_add_map_index(Models *models, i32 mapid){
@@ -998,12 +998,15 @@ file_measure_wraps(Models *models, Editing_File *file, f32 font_height, f32 *adv
     file_allocate_indents_as_needed(&models->mem.general, file, file->state.buffer.line_count);
     file_allocate_wrap_positions_as_needed(&models->mem.general, file, file->state.buffer.line_count);
     
+    
     Buffer_Measure_Wrap_Params params;
     params.buffer          = &file->state.buffer;
     params.wrap_line_index = file->state.wrap_line_index;
     params.adv             = adv;
     params.width           = (f32)file->settings.display_width;
     params.virtual_white   = VWHITE;
+    
+    i32 size = buffer_size(params.buffer);
     
     Buffer_Measure_Wrap_State state = {0};
     Buffer_Layout_Stop stop = {0};
@@ -1026,6 +1029,52 @@ file_measure_wraps(Models *models, Editing_File *file, f32 font_height, f32 *adv
         switch (stop.status){
             case BLStatus_NeedWrapDetermination:
             {
+                Buffer_Stream_Type stream = {0};
+                
+                i32 stage = 0;
+                i32 i = stop.pos;
+                f32 x = stop.x;
+                if (buffer_stringify_loop(&stream, params.buffer, i, size)){
+                    b32 still_looping = 0;
+                    do{
+                        for (; i < stream.end; ++i){
+                            char ch = stream.data[i];
+                            
+                            switch (stage){
+                                case 0:
+                                {
+                                    if (char_is_whitespace(ch)){
+                                        stage = 1;
+                                    }
+                                }break;
+                                
+                                case 1:
+                                {
+                                    if (!char_is_whitespace(ch)){
+                                        goto doublebreak;
+                                    }
+                                }break;
+                            }
+                            
+                            x += params.adv[ch];
+                        }
+                        still_looping = buffer_stringify_next(&stream);
+                    }while(still_looping);
+                }
+                doublebreak:;
+                wrap_unit_end = i;
+                
+                if (x > params.width){
+                    do_wrap = 1;
+                    
+                    file_allocate_wrap_positions_as_needed(&models->mem.general, file, wrap_position_index);
+                    file->state.wrap_positions[wrap_position_index++] = stop.pos;
+                }
+                else{
+                    do_wrap = 0;
+                }
+                
+#if 0
                 i32 rounded_pos = stop.pos - (stop.pos%11);
                 if ((rounded_pos % 2) == 1){
                     do_wrap = 1;
@@ -1036,6 +1085,7 @@ file_measure_wraps(Models *models, Editing_File *file, f32 font_height, f32 *adv
                     do_wrap = 0;
                 }
                 wrap_unit_end = rounded_pos + 11;
+#endif
             }break;
             
             case BLStatus_NeedWrapLineShift:
@@ -1060,7 +1110,7 @@ file_measure_wraps(Models *models, Editing_File *file, f32 font_height, f32 *adv
     ++file->state.wrap_line_count;
     
     file_allocate_wrap_positions_as_needed(&models->mem.general, file, wrap_position_index);
-    file->state.wrap_positions[wrap_position_index++] = buffer_size(&file->state.buffer);
+    file->state.wrap_positions[wrap_position_index++] = size;
     file->state.wrap_position_count = wrap_position_index;
     
     file_update_cursor_positions(models, file);
