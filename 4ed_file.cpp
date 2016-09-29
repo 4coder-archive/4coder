@@ -116,6 +116,12 @@ struct Editing_File_State{
     f32 *line_indents;
     i32 line_indent_max;
     
+    i32 wrap_line_count;
+    
+    i32 *wrap_positions;
+    i32 wrap_position_count;
+    i32 wrap_position_max;
+    
     Undo_Data undo;
     
     Cpp_Token_Array token_array;

@@ -592,23 +592,16 @@ buffer_remeasure_wrap_y(Buffer_Type *buffer, i32 line_start, i32 line_end, i32 l
 }
 
 internal_4tech i32
-buffer_get_line_index_range(Buffer_Type *buffer, i32 pos, i32 l_bound, i32 u_bound){
-    i32 *lines = buffer->line_starts;
+binary_search(i32 *array, i32 value, i32 l_bound, i32 u_bound){
     i32 start = l_bound, end = u_bound;
     i32 i = 0;
     
-    assert_4tech(0 <= l_bound);
-    assert_4tech(l_bound <= u_bound);
-    assert_4tech(u_bound <= buffer->line_count);
-    
-    assert_4tech(lines != 0);
-    
     for (;;){
         i = (start + end) >> 1;
-        if (lines[i] < pos){
+        if (array[i] < value){
             start = i;
         }
-        else if (lines[i] > pos){
+        else if (array[i] > value){
             end = i;
         }
         else{
@@ -625,60 +618,33 @@ buffer_get_line_index_range(Buffer_Type *buffer, i32 pos, i32 l_bound, i32 u_bou
 }
 
 inline_4tech i32
+buffer_get_line_index_range(Buffer_Type *buffer, i32 pos, i32 l_bound, i32 u_bound){
+    assert_4tech(0 <= l_bound);
+    assert_4tech(l_bound <= u_bound);
+    assert_4tech(u_bound <= buffer->line_count);
+    
+    assert_4tech(buffer->line_starts != 0);
+    
+    i32 i = binary_search(buffer->line_starts, pos, l_bound, u_bound);
+    return(i);
+}
+
+inline_4tech i32
 buffer_get_line_index(Buffer_Type *buffer, i32 pos){
     i32 result = buffer_get_line_index_range(buffer, pos, 0, buffer->line_count);
     return(result);
 }
 
-// TODO(allen): Merge all these binary searches.
-internal_4tech i32
+inline_4tech i32
 buffer_get_line_index_from_character_pos(i32 *character_starts, i32 pos, i32 l_bound, i32 u_bound){
-    i32 start = l_bound, end = u_bound;
-    i32 i = 0;
-    
-    for (;;){
-        i = (start + end) >> 1;
-        if (character_starts[i] < pos){
-            start = i;
-        }
-        else if (character_starts[i] > pos){
-            end = i;
-        }
-        else{
-            break;
-        }
-        assert_4tech(start < end);
-        if (start == end - 1){
-            i = start;
-            break;
-        }
-    }
-    
+    i32 i = binary_search(character_starts, pos, l_bound, u_bound);
     return(i);
 }
 
-internal_4tech i32
+inline_4tech i32
 buffer_get_line_index_from_wrapped_y(i32 *wrap_line_index, f32 y, f32 line_height, i32 l_bound, i32 u_bound){
     i32 wrap_index = FLOOR32(y/line_height);
-    i32 start = l_bound, end = u_bound;
-    i32 i = 0;
-    for (;;){
-        i = (start + end) >> 1;
-        if (wrap_line_index[i] < wrap_index){
-            start = i;
-        }
-        else if (wrap_line_index[i] > wrap_index){
-            end = i;
-        }
-        else{
-            break;
-        }
-        assert_4tech(start < end);
-        if (start == end - 1){
-            i = start;
-            break;
-        }
-    }
+    i32 i = binary_search(wrap_line_index, wrap_index, l_bound, u_bound);
     return(i);
 }
 

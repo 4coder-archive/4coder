@@ -9,11 +9,11 @@
 
 // TOP
 
-#define VWHITE 0
+#define VWHITE 1
 
 internal i32
 get_or_add_map_index(Models *models, i32 mapid){
-    i32 result;
+    i32 result = 0;
     i32 user_map_count = models->user_map_count;
     i32 *map_id_table = models->map_id_table;
     for (result = 0; result < user_map_count; ++result){
@@ -30,7 +30,7 @@ get_or_add_map_index(Models *models, i32 mapid){
 
 internal i32
 get_map_index(Models *models, i32 mapid){
-    i32 result;
+    i32 result = 0;
     i32 user_map_count = models->user_map_count;
     i32 *map_id_table = models->map_id_table;
     for (result = 0; result < user_map_count; ++result){
@@ -420,19 +420,34 @@ view_compute_cursor(View *view, Buffer_Seek seek, b32 return_hint){
     f32 line_shift = 0.f;
     b32 do_wrap = 0;
     i32 wrap_unit_end = 0;
+    
+    b32 first_wrap_determination = 1;
+    i32 wrap_array_index = 0;
+    
     do{
         stop = buffer_cursor_seek(&state, params, line_shift, do_wrap, wrap_unit_end);
         switch (stop.status){
             case BLStatus_NeedWrapDetermination:
             {
-                i32 rounded_pos = stop.pos - (stop.pos%11);
-                if ((rounded_pos % 2) == 1){
-                    do_wrap = 1;
+                if (first_wrap_determination){
+                    wrap_array_index = binary_search(file->state.wrap_positions, stop.pos, 0, file->state.wrap_position_count);
+                    ++wrap_array_index;
+                    if (file->state.wrap_positions[wrap_array_index] == stop.pos){
+                        do_wrap = 1;
+                        wrap_unit_end = file->state.wrap_positions[wrap_array_index];
+                    }
+                    else{
+                        do_wrap = 0;
+                        wrap_unit_end = file->state.wrap_positions[wrap_array_index];
+                    }
+                    first_wrap_determination = 0;
                 }
                 else{
-                    do_wrap = 0;
+                    assert_4tech(stop.pos == wrap_unit_end);
+                    do_wrap = 1;
+                    ++wrap_array_index;
+                    wrap_unit_end = file->state.wrap_positions[wrap_array_index];
                 }
-                wrap_unit_end = rounded_pos + 11;
             }break;
             
             case BLStatus_NeedWrapLineShift:
@@ -969,10 +984,19 @@ file_allocate_wraps_as_needed(General_Memory *general, Editing_File *file){
                                      file->state.buffer.line_count, sizeof(f32));
 }
 
+inline void
+file_allocate_wrap_positions_as_needed(General_Memory *general, Editing_File *file, i32 min_amount){
+    file_allocate_metadata_as_needed(general, &file->state.buffer,
+                                     (void**)&file->state.wrap_positions,
+                                     &file->state.wrap_position_max,
+                                     min_amount, sizeof(f32));
+}
+
 internal void
 file_measure_wraps(Models *models, Editing_File *file, f32 font_height, f32 *adv){
     file_allocate_wraps_as_needed(&models->mem.general, file);
     file_allocate_indents_as_needed(&models->mem.general, file, file->state.buffer.line_count);
+    file_allocate_wrap_positions_as_needed(&models->mem.general, file, file->state.buffer.line_count);
     
     Buffer_Measure_Wrap_Params params;
     params.buffer          = &file->state.buffer;
@@ -993,15 +1017,20 @@ file_measure_wraps(Models *models, Editing_File *file, f32 font_height, f32 *adv
     b32 do_wrap = 0;
     i32 wrap_unit_end = 0;
     
+    i32 wrap_position_index = 0;
+    file->state.wrap_positions[wrap_position_index++] = 0;
+    
     do{
-        stop = buffer_measure_wrap_y(&state, params,
-                                     line_shift, do_wrap, wrap_unit_end);
+        stop = buffer_measure_wrap_y(&state, params, line_shift, do_wrap, wrap_unit_end);
+        
         switch (stop.status){
             case BLStatus_NeedWrapDetermination:
             {
                 i32 rounded_pos = stop.pos - (stop.pos%11);
                 if ((rounded_pos % 2) == 1){
                     do_wrap = 1;
+                    file_allocate_wrap_positions_as_needed(&models->mem.general, file, wrap_position_index);
+                    file->state.wrap_positions[wrap_position_index++] = stop.pos;
                 }
                 else{
                     do_wrap = 0;
@@ -1023,9 +1052,16 @@ file_measure_wraps(Models *models, Editing_File *file, f32 font_height, f32 *adv
                 }
                 
                 file->state.line_indents[stop.wrap_line_index] = line_shift;
+                file->state.wrap_line_count = stop.wrap_line_index;
             }break;
         }
     }while(stop.status != BLStatus_Finished);
+    
+    ++file->state.wrap_line_count;
+    
+    file_allocate_wrap_positions_as_needed(&models->mem.general, file, wrap_position_index);
+    file->state.wrap_positions[wrap_position_index++] = buffer_size(&file->state.buffer);
+    file->state.wrap_position_count = wrap_position_index;
     
     file_update_cursor_positions(models, file);
 }
@@ -4956,19 +4992,33 @@ draw_file_loaded(View *view, i32_Rect rect, b32 is_active, Render_Target *target
         b32 do_wrap = 0;
         i32 wrap_unit_end = 0;
         
+        b32 first_wrap_determination = 1;
+        i32 wrap_array_index = 0;
+        
         do{
             stop = buffer_render_data(&state, params, line_shift, do_wrap, wrap_unit_end);
             switch (stop.status){
                 case BLStatus_NeedWrapDetermination:
                 {
-                    i32 rounded_pos = stop.pos - (stop.pos%11);
-                    if ((rounded_pos % 2) == 1){
-                        do_wrap = 1;
+                    if (first_wrap_determination){
+                        wrap_array_index = binary_search(file->state.wrap_positions, stop.pos, 0, file->state.wrap_position_count);
+                        ++wrap_array_index;
+                        if (file->state.wrap_positions[wrap_array_index] == stop.pos){
+                            do_wrap = 1;
+                            wrap_unit_end = file->state.wrap_positions[wrap_array_index];
+                        }
+                        else{
+                            do_wrap = 0;
+                            wrap_unit_end = file->state.wrap_positions[wrap_array_index];
+                        }
+                        first_wrap_determination = 0;
                     }
                     else{
-                        do_wrap = 0;
+                        assert_4tech(stop.pos == wrap_unit_end);
+                        do_wrap = 1;
+                        ++wrap_array_index;
+                        wrap_unit_end = file->state.wrap_positions[wrap_array_index];
                     }
-                    wrap_unit_end = rounded_pos + 11;
                 }break;
                 
                 case BLStatus_NeedWrapLineShift:
