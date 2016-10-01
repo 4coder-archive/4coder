@@ -226,10 +226,12 @@ buffer_replace_range(Gap_Buffer *buffer, i32 start, i32 end, char *str, i32 len,
     return(result);
 }
 
-// NOTE(allen): This could should be optimized for Gap_Buffer
+// TODO(allen): Now that we are just using Gap_Buffer we could afford to improve
+// this for the Gap_Buffer's behavior.
 internal_4tech i32
 buffer_batch_edit_step(Buffer_Batch_State *state, Gap_Buffer *buffer, Buffer_Edit *sorted_edits,
-                       char *strings, i32 edit_count, void *scratch, i32 scratch_size, i32 *request_amount){
+                       char *strings, i32 edit_count, void *scratch, i32 scratch_size,
+                       i32 *request_amount){
     Buffer_Edit *edit = 0;
     i32 i = state->i;
     i32 shift_total = state->shift_total;

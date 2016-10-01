@@ -9,7 +9,7 @@
 
 // TOP
 
-#define VWHITE 0
+#define VWHITE 1
 
 internal i32
 get_or_add_map_index(Models *models, i32 mapid){
@@ -417,6 +417,8 @@ view_compute_cursor(View *view, Buffer_Seek seek, b32 return_hint){
     Buffer_Cursor_Seek_State state = {0};
     Buffer_Layout_Stop stop = {0};
     
+    i32 size = buffer_size(params.buffer);
+    
     f32 line_shift = 0.f;
     b32 do_wrap = 0;
     i32 wrap_unit_end = 0;
@@ -429,24 +431,30 @@ view_compute_cursor(View *view, Buffer_Seek seek, b32 return_hint){
         switch (stop.status){
             case BLStatus_NeedWrapDetermination:
             {
-                if (first_wrap_determination){
-                    wrap_array_index = binary_search(file->state.wrap_positions, stop.pos, 0, file->state.wrap_position_count);
-                    ++wrap_array_index;
-                    if (file->state.wrap_positions[wrap_array_index] == stop.pos){
-                        do_wrap = 1;
-                        wrap_unit_end = file->state.wrap_positions[wrap_array_index];
-                    }
-                    else{
-                        do_wrap = 0;
-                        wrap_unit_end = file->state.wrap_positions[wrap_array_index];
-                    }
-                    first_wrap_determination = 0;
+                if (stop.pos >= size){
+                    do_wrap = 0;
+                    wrap_unit_end = max_i32;
                 }
                 else{
-                    assert_4tech(stop.pos == wrap_unit_end);
-                    do_wrap = 1;
-                    ++wrap_array_index;
-                    wrap_unit_end = file->state.wrap_positions[wrap_array_index];
+                    if (first_wrap_determination){
+                        wrap_array_index = binary_search(file->state.wrap_positions, stop.pos, 0, file->state.wrap_position_count);
+                        ++wrap_array_index;
+                        if (file->state.wrap_positions[wrap_array_index] == stop.pos){
+                            do_wrap = 1;
+                            wrap_unit_end = file->state.wrap_positions[wrap_array_index];
+                        }
+                        else{
+                            do_wrap = 0;
+                            wrap_unit_end = file->state.wrap_positions[wrap_array_index];
+                        }
+                        first_wrap_determination = 0;
+                    }
+                    else{
+                        assert_4tech(stop.pos == wrap_unit_end);
+                        do_wrap = 1;
+                        ++wrap_array_index;
+                        wrap_unit_end = file->state.wrap_positions[wrap_array_index];
+                    }
                 }
             }break;
             
@@ -998,7 +1006,6 @@ file_measure_wraps(Models *models, Editing_File *file, f32 font_height, f32 *adv
     file_allocate_indents_as_needed(&models->mem.general, file, file->state.buffer.line_count);
     file_allocate_wrap_positions_as_needed(&models->mem.general, file, file->state.buffer.line_count);
     
-    
     Buffer_Measure_Wrap_Params params;
     params.buffer          = &file->state.buffer;
     params.wrap_line_index = file->state.wrap_line_index;
@@ -1023,6 +1030,22 @@ file_measure_wraps(Models *models, Editing_File *file, f32 font_height, f32 *adv
     i32 wrap_position_index = 0;
     file->state.wrap_positions[wrap_position_index++] = 0;
     
+    Cpp_Token_Array token_array = {0};
+    Cpp_Token *token_ptr = 0;
+    Cpp_Token *end_token = 0;
+    
+    f32 tab_indent_amount = adv['\t'];
+    f32 code_indent_level = 0;
+    
+    b32 use_tokens = 0;
+    
+    if (file->state.tokens_complete && !file->state.still_lexing){
+        token_array = file->state.token_array;
+        token_ptr = token_array.tokens;
+        end_token = token_ptr + token_array.count;
+        use_tokens = 1;
+    }
+    
     do{
         stop = buffer_measure_wrap_y(&state, params, line_shift, do_wrap, wrap_unit_end);
         
@@ -1034,6 +1057,7 @@ file_measure_wraps(Models *models, Editing_File *file, f32 font_height, f32 *adv
                 i32 stage = 0;
                 i32 i = stop.pos;
                 f32 x = stop.x;
+                f32 self_x = 0;
                 if (buffer_stringify_loop(&stream, params.buffer, i, size)){
                     b32 still_looping = 0;
                     do{
@@ -1046,6 +1070,14 @@ file_measure_wraps(Models *models, Editing_File *file, f32 font_height, f32 *adv
                                     if (char_is_whitespace(ch)){
                                         stage = 1;
                                     }
+                                    else{
+                                        f32 adv = params.adv[ch];
+                                        x += adv;
+                                        self_x += adv;
+                                        if (self_x > params.width){
+                                            goto doublebreak;
+                                        }
+                                    }
                                 }break;
                                 
                                 case 1:
@@ -1055,50 +1087,76 @@ file_measure_wraps(Models *models, Editing_File *file, f32 font_height, f32 *adv
                                     }
                                 }break;
                             }
-                            
-                            x += params.adv[ch];
                         }
                         still_looping = buffer_stringify_next(&stream);
                     }while(still_looping);
                 }
+                
                 doublebreak:;
                 wrap_unit_end = i;
-                
                 if (x > params.width){
                     do_wrap = 1;
-                    
                     file_allocate_wrap_positions_as_needed(&models->mem.general, file, wrap_position_index);
                     file->state.wrap_positions[wrap_position_index++] = stop.pos;
                 }
                 else{
                     do_wrap = 0;
                 }
-                
-#if 0
-                i32 rounded_pos = stop.pos - (stop.pos%11);
-                if ((rounded_pos % 2) == 1){
-                    do_wrap = 1;
-                    file_allocate_wrap_positions_as_needed(&models->mem.general, file, wrap_position_index);
-                    file->state.wrap_positions[wrap_position_index++] = stop.pos;
-                }
-                else{
-                    do_wrap = 0;
-                }
-                wrap_unit_end = rounded_pos + 11;
-#endif
             }break;
             
             case BLStatus_NeedWrapLineShift:
             case BLStatus_NeedLineShift:
             {
-                line_shift = (stop.wrap_line_index%4)*9.f;
+                if (use_tokens){
+                    for (; token_ptr < end_token; ++token_ptr){
+                        if (stop.pos < token_ptr->start + token_ptr->size){
+                            break;
+                        }
+                        
+                        switch (token_ptr->type){
+                            case CPP_TOKEN_BRACE_OPEN:
+                            {
+                                code_indent_level += tab_indent_amount;
+                            }break;
+                            
+                            case CPP_TOKEN_BRACE_CLOSE:
+                            {
+                                code_indent_level -= tab_indent_amount;
+                            }break;
+                        }
+                    }
+                    
+                    // TODO(allen): Make sure we can put the "size" at the end of the line count array.
+                    i32 next_line_start = size;
+                    if (stop.line_index < params.buffer->line_count){
+                        params.buffer->line_starts[stop.line_index+1];
+                    }
+                    
+                    f32 immediate_shift = 0;
+                    if (token_ptr->start < next_line_start){
+                        switch (token_ptr->type){
+                            case CPP_TOKEN_BRACE_CLOSE:
+                            {
+                                immediate_shift -= tab_indent_amount;
+                            }break;
+                        }
+                    }
+                    
+                    line_shift = code_indent_level + immediate_shift;
+                    if (line_shift < 0){
+                        line_shift = 0;
+                    }
+                }
+                else{
+                    line_shift = 0.f;
+                }
                 
                 if (line_shift > params.width - edge_tolerance){
                     line_shift = params.width - edge_tolerance;
                 }
                 
-                while (stop.wrap_line_index >= file->state.line_indent_max){
-                    file_allocate_indents_as_needed(&models->mem.general, file, file->state.line_indent_max);
+                if (stop.wrap_line_index >= file->state.line_indent_max){
+                    file_allocate_indents_as_needed(&models->mem.general, file, stop.wrap_line_index);
                 }
                 
                 file->state.line_indents[stop.wrap_line_index] = line_shift;
@@ -1112,14 +1170,18 @@ file_measure_wraps(Models *models, Editing_File *file, f32 font_height, f32 *adv
     file_allocate_wrap_positions_as_needed(&models->mem.general, file, wrap_position_index);
     file->state.wrap_positions[wrap_position_index++] = size;
     file->state.wrap_position_count = wrap_position_index;
-    
+}
+
+internal void
+file_measure_wraps_and_fix_cursor(Models *models, Editing_File *file, f32 font_height, f32 *adv){
+    file_measure_wraps(models, file, font_height, adv);
     file_update_cursor_positions(models, file);
 }
 
 internal void
-file_set_display_width(Models *models, Editing_File *file, i32 display_width, f32 font_height, f32 *adv){
+file_set_display_width_and_fix_cursor(Models *models, Editing_File *file, i32 display_width, f32 font_height, f32 *adv){
     file->settings.display_width = display_width;
-    file_measure_wraps(models, file, font_height, adv);
+    file_measure_wraps_and_fix_cursor(models, file, font_height, adv);
 }
 
 //
@@ -2094,7 +2156,7 @@ struct Cursor_Fix_Descriptor{
 internal void
 file_edit_cursor_fix(System_Functions *system, Models *models,
                      Editing_File *file, Editing_Layout *layout,
-                     Cursor_Fix_Descriptor desc, i32 *shift_out){
+                     Cursor_Fix_Descriptor desc){
     
     Partition *part = &models->mem.part;
     
@@ -2119,20 +2181,13 @@ file_edit_cursor_fix(System_Functions *system, Models *models,
     if (cursor_count > 0){
         buffer_sort_cursors(cursors, cursor_count);
         if (desc.is_batch){
-            i32 shift_total =
-                buffer_batch_edit_update_cursors(cursors, cursor_count,
-                                                 desc.batch, desc.batch_size);
-            if (shift_out){
-                *shift_out = shift_total;
-            }
+            buffer_batch_edit_update_cursors(cursors, cursor_count,
+                                             desc.batch, desc.batch_size);
         }
         else{
             buffer_update_cursors(cursors, cursor_count,
                                   desc.start, desc.end,
                                   desc.shift_amount + (desc.end - desc.start));
-            if (shift_out){
-                *shift_out = desc.shift_amount;
-            }
         }
         buffer_unsort_cursors(cursors, cursor_count);
         
@@ -2213,6 +2268,11 @@ file_do_single_edit(System_Functions *system,
         if (old_data) general_memory_free(general, old_data);
     }
     
+    // NOTE(allen): token fixing
+    if (file->settings.tokens_exist){
+        file_relex_parallel(system, mem, file, start, end, shift_amount);
+    }
+    
     // NOTE(allen): meta data
     Buffer_Type *buffer = &file->state.buffer;
     i32 line_start = buffer_get_line_index(&file->state.buffer, start);
@@ -2245,12 +2305,7 @@ file_do_single_edit(System_Functions *system,
     desc.end = end;
     desc.shift_amount = shift_amount;
     
-    file_edit_cursor_fix(system, models, file, layout, desc, 0);
-    
-    // NOTE(allen): token fixing
-    if (file->settings.tokens_exist){
-        file_relex_parallel(system, mem, file, start, end, shift_amount);
-    }
+    file_edit_cursor_fix(system, models, file, layout, desc);
 }
 
 internal void
@@ -2277,7 +2332,7 @@ file_do_batch_edit(System_Functions *system, Models *models, Editing_File *file,
     
     i32 scratch_size = partition_remaining(part);
     Buffer_Batch_State state = {};
-    i32 request_amount;
+    i32 request_amount = 0;
     while (buffer_batch_edit_step(&state, &file->state.buffer, batch,
                                   (char*)str_base, batch_size, part->base + part->pos,
                                   scratch_size, &request_amount)){
@@ -2291,30 +2346,7 @@ file_do_batch_edit(System_Functions *system, Models *models, Editing_File *file,
         }
     }
     
-    // TODO(allen): Let's try to switch to remeasuring here moron!
-    // We'll need to get the total shift from the actual batch edit state
-    // instead of from the cursor fixing.  The only reason we're getting
-    // it from cursor fixing is because you're a lazy asshole.
-    
-    // NOTE(allen): meta data
-    Buffer_Measure_Starts measure_state = {};
-    buffer_measure_starts(&measure_state, &file->state.buffer);
-    
-    // TODO(allen): write the remeasurement version
-    file_measure_character_starts(models, file);
-    
-    Render_Font *font = get_font_info(models->font_set, file->settings.font_id)->font;
-    file_measure_wraps(models, file, (f32)font->height, font->advance_data);
-    
-    // NOTE(allen): cursor fixing
-    i32 shift_total = 0;
-    {
-        Cursor_Fix_Descriptor desc = {};
-        desc.is_batch = 1;
-        desc.batch = batch;
-        desc.batch_size = batch_size;
-        file_edit_cursor_fix(system, models, file, layout, desc, &shift_total);
-    }
+    i32 shift_total = state.shift_total;
     
     // NOTE(allen): token fixing
     switch (batch_type){
@@ -2358,6 +2390,31 @@ file_do_batch_edit(System_Functions *system, Models *models, Editing_File *file,
                 }
             }
         }break;
+    }
+    
+    // TODO(allen): Let's try to switch to remeasuring here moron!
+    // We'll need to get the total shift from the actual batch edit state
+    // instead of from the cursor fixing.  The only reason we're getting
+    // it from cursor fixing is because you're a lazy asshole.
+    
+    // NOTE(allen): meta data
+    Buffer_Measure_Starts measure_state = {};
+    buffer_measure_starts(&measure_state, &file->state.buffer);
+    
+    // TODO(allen): write the remeasurement version
+    file_allocate_character_starts_as_needed(&models->mem.general, file);
+    buffer_measure_character_starts(&file->state.buffer, file->state.character_starts, 0, VWHITE);
+    
+    Render_Font *font = get_font_info(models->font_set, file->settings.font_id)->font;
+    file_measure_wraps(models, file, (f32)font->height, font->advance_data);
+    
+    // NOTE(allen): cursor fixing
+    {
+        Cursor_Fix_Descriptor desc = {};
+        desc.is_batch = 1;
+        desc.batch = batch;
+        desc.batch_size = batch_size;
+        file_edit_cursor_fix(system, models, file, layout, desc);
     }
 }
 
@@ -2723,7 +2780,7 @@ internal void
 file_set_font(System_Functions *system, Models *models, Editing_File *file, i16 font_id){
     file->settings.font_id = font_id;
     Render_Font *font = get_font_info(models->font_set, file->settings.font_id)->font;
-    file_measure_wraps(models, file, (f32)font->height, font->advance_data);
+    file_measure_wraps_and_fix_cursor(models, file, (f32)font->height, font->advance_data);
     
     Editing_Layout *layout = &models->layout;
     for (View_Iter iter = file_view_iter_init(layout, file, 0);

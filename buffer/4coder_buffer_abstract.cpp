@@ -191,6 +191,7 @@ struct Buffer_Layout_Stop{
     i32 line_index;
     i32 wrap_line_index;
     i32 pos;
+    i32 next_line_pos;
     f32 x;
 };
 
@@ -990,10 +991,6 @@ buffer_cursor_seek(Buffer_Cursor_Seek_State *S_ptr, Buffer_Cursor_Seek_Params pa
                 
                 ++S.next_cursor.pos;
                 
-                if (S.next_cursor.pos > S.size){
-                    goto buffer_cursor_seek_end;
-                }
-                
                 f32 x = 0, px = 0, y = 0, py = 0;
                 switch (params.seek.type){
                     case buffer_seek_pos:
@@ -1049,6 +1046,10 @@ buffer_cursor_seek(Buffer_Cursor_Seek_State *S_ptr, Buffer_Cursor_Seek_Params pa
                         S.this_cursor = S.prev_cursor;
                         goto buffer_cursor_seek_end;
                     }
+                }
+                
+                if (S.next_cursor.pos > S.size){
+                    goto buffer_cursor_seek_end;
                 }
             }
             S.still_looping = buffer_stringify_next(&S.stream);
