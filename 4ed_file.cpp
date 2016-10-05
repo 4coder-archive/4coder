@@ -91,7 +91,8 @@ struct Text_Effect{
 struct Editing_File_Settings{
     i32 base_map_id;
     i32 display_width;
-    i32 dos_write_mode;
+    b32 dos_write_mode;
+    b32 virtual_white;
     i16 font_id;
     b8 unwrapped_lines;
     b8 tokens_exist;

@@ -394,6 +394,7 @@ default_keys(Bind_Helper *context){
     bind(context, 'u', MDFR_CTRL, to_uppercase);
     bind(context, 'U', MDFR_CTRL, rewrite_as_single_caps);
     bind(context, 'v', MDFR_CTRL, paste_and_indent);
+    bind(context, 'v', MDFR_ALT, toggle_virtual_whitespace);
     bind(context, 'V', MDFR_CTRL, paste_next_and_indent);
     bind(context, 'x', MDFR_CTRL, cut);
     bind(context, 'y', MDFR_CTRL, cmdid_redo);

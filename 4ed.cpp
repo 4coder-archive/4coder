@@ -41,12 +41,6 @@ typedef struct Command_Data{
     System_Functions *system;
     Live_Views *live_set;
     
-#if 0
-    // TODO(allen): eliminate this shit yo!
-    Panel *panel;
-    View *view;
-#endif
-    
     i32 screen_width, screen_height;
     Key_Event_Data key;
 } Command_Data;

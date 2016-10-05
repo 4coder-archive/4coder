@@ -309,10 +309,10 @@ buffer_measure_wrap_y(Buffer_Measure_Wrap_State *S_ptr, Buffer_Measure_Wrap_Para
                                 ++S.current_wrap_index;
                                 
                                 if (params.virtual_white){
-                                    S_stop.status = BLStatus_NeedWrapLineShift;
-                                    S_stop.line_index = S.line_index - 1;
+                                    S_stop.status          = BLStatus_NeedWrapLineShift;
+                                    S_stop.line_index      = S.line_index - 1;
                                     S_stop.wrap_line_index = S.current_wrap_index;
-                                    S_stop.pos = S.i+1;
+                                    S_stop.pos             = S.i;
                                     DrYield(3, S_stop);
                                 }
                                 

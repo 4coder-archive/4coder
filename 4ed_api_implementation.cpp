@@ -710,13 +710,14 @@ Buffer_Get_Setting(Application_Links *app, Buffer_Summary *buffer, Buffer_Settin
     
     if (file){
         switch (setting){
-            case BufferSetting_Lex:          result = file->settings.tokens_exist;     break;
-            case BufferSetting_WrapLine:     result = !file->settings.unwrapped_lines; break;
-            case BufferSetting_WrapPosition: result = file->settings.display_width;    break;
-            case BufferSetting_MapID:        result = file->settings.base_map_id;      break;
-            case BufferSetting_Eol:          result = file->settings.dos_write_mode;   break;
-            case BufferSetting_Unimportant:  result = file->settings.unimportant;      break;
-            case BufferSetting_ReadOnly:     result = file->settings.read_only;        break;
+            case BufferSetting_Lex:               result = file->settings.tokens_exist;     break;
+            case BufferSetting_WrapLine:          result = !file->settings.unwrapped_lines; break;
+            case BufferSetting_WrapPosition:      result = file->settings.display_width;    break;
+            case BufferSetting_MapID:             result = file->settings.base_map_id;      break;
+            case BufferSetting_Eol:               result = file->settings.dos_write_mode;   break;
+            case BufferSetting_Unimportant:       result = file->settings.unimportant;      break;
+            case BufferSetting_ReadOnly:          result = file->settings.read_only;        break;
+            case BufferSetting_VirtualWhitespace: result = file->settings.virtual_white;    break;
         }
     }
     
@@ -823,6 +824,32 @@ DOC_SEE(Buffer_Setting_ID)
                 }
                 else{
                     file->settings.read_only = 0;
+                }
+            }break;
+            
+            case BufferSetting_VirtualWhitespace:
+            {
+                b32 full_remeasure = 0;
+                if (value){
+                    if (!file->settings.virtual_white){
+                        file->settings.virtual_white = 1;
+                        full_remeasure = 1;
+                    }
+                }
+                else{
+                    if (file->settings.virtual_white){
+                        file->settings.virtual_white = 0;
+                        full_remeasure = 1;
+                    }
+                }
+                
+                if (full_remeasure){
+                    i16 font_id = file->settings.font_id;
+                    Render_Font *font = get_font_info(models->font_set, font_id)->font;
+                    
+                    file_measure_character_starts(models, file);
+                    file_measure_wraps_and_fix_cursor(models, file, (f32)font->height,
+                                                      font->advance_data);
                 }
             }break;
         }

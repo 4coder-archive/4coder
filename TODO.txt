@@ -157,18 +157,28 @@
 ; [X] tab to complete folder names in the new file dialogue
 
 ; Arbitrary wrap positions
-;     [X] allow for arbitrary wrap positions independent of view width
-;     [X] command for adjusting wrap positions in views
-;     [X] get horizontal scrolling to work in line wrap mode
-;     [] command for setting wrap positions in views directly
-;     [] ability to see the wrap position as a number/line and adjust graphically
-;     [] word level wrapping
-;     [] code level wrapping
+; [X] allow for arbitrary wrap positions independent of view width
+; [X] command for adjusting wrap positions in views
+; [X] get horizontal scrolling to work in line wrap mode
+; [X] word level wrapping
+; [X] ability to toggle virtual white space
+; [] command for setting wrap positions in views directly
+; [] ability to see the wrap position as a number/line and adjust graphically
+; [] home/end should go to the beginning/end of the visual line not the textual line
+; [] code level wrapping
+;     [X] handle basic scope indents
+;     [X] handle parentheses
+;     [X] handle preprocessor
+;     [X] unify wrap rule parsing and indent rule parsing
+;     [] smarter wrap rule
+;     [] handle unclosed statements
+;     [] handle comments
+;     [] fix issues when relexing happens in parallel
+; [] remeasure version of measure_wraps
 
 ; Buffer behavior cleanup
 ;    [X] show all characters as \# if they can't be rendered
 ;    [X] get the navigation working correctly around multi-glyph characters
-;    [] wrap remeasuring routine for local edits
 ;    [] provide full cursor positioning in buffers
 ;    [] provide cursor positioning system that does columns correctly
 ;    [] binary buffer mode

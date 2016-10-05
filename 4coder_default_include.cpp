@@ -24,12 +24,8 @@
 //
 
 static int32_t
-open_file(Application_Links *app,
-          Buffer_Summary *buffer_out,
-          char *filename,
-          int32_t filename_len,
-          int32_t background,
-          int32_t never_new){
+open_file(Application_Links *app, Buffer_Summary *buffer_out, char *filename,
+          int32_t filename_len, int32_t background, int32_t never_new){
     int32_t result = false;
     Buffer_Summary buffer =
         get_buffer_by_name(app, filename, filename_len,
@@ -58,11 +54,8 @@ open_file(Application_Links *app,
 }
 
 static int32_t
-view_open_file(Application_Links *app,
-               View_Summary *view,
-               char *filename,
-               int32_t filename_len,
-               int32_t never_new){
+view_open_file(Application_Links *app, View_Summary *view, char *filename,
+               int32_t filename_len, int32_t never_new){
     int32_t result = 0;
     
     if (view){
@@ -77,11 +70,8 @@ view_open_file(Application_Links *app,
 }
 
 static int32_t
-read_line(Application_Links *app,
-          Partition *part,
-          Buffer_Summary *buffer,
-          int32_t line,
-          String *str){
+read_line(Application_Links *app, Partition *part, Buffer_Summary *buffer,
+          int32_t line, String *str){
     
     Partial_Cursor begin = {0};
     Partial_Cursor end = {0};
@@ -128,6 +118,7 @@ init_memory(Application_Links *app){
     general_memory_open(&global_general, general_mem, general_size);
 }
 
+
 //
 // Helpers
 //
@@ -141,6 +132,7 @@ static void
 refresh_view(Application_Links *app, View_Summary *view){
     *view = get_view(app, view->view_id, AccessAll);
 }
+
 
 //
 // Buffer Streaming
@@ -2662,6 +2654,14 @@ CUSTOM_COMMAND_SIG(decrease_line_wrap){
     buffer_set_setting(app, &buffer, BufferSetting_WrapPosition, wrap - 10);
 }
 
+CUSTOM_COMMAND_SIG(toggle_virtual_whitespace){
+    View_Summary view = get_active_view(app, AccessProtected);
+    Buffer_Summary buffer = get_buffer(app, view.buffer_id, AccessProtected);
+    
+    int32_t vwhite = buffer_get_setting(app, &buffer, BufferSetting_VirtualWhitespace);
+    buffer_set_setting(app, &buffer, BufferSetting_VirtualWhitespace, !vwhite);
+}
+
 CUSTOM_COMMAND_SIG(toggle_show_whitespace){
     View_Summary view = get_active_view(app, AccessProtected);
     view_set_setting(app, &view, ViewSetting_ShowWhitespace, !view.show_whitespace);
@@ -2670,13 +2670,13 @@ CUSTOM_COMMAND_SIG(toggle_show_whitespace){
 CUSTOM_COMMAND_SIG(eol_dosify){
     View_Summary view = get_active_view(app, AccessOpen);
     Buffer_Summary buffer = get_buffer(app, view.buffer_id, AccessOpen);
-    buffer_set_setting(app, &buffer, BufferSetting_Eol, true);
+    buffer_set_setting(app, &buffer, BufferSetting_Eol, 1);
 }
 
 CUSTOM_COMMAND_SIG(eol_nixify){
     View_Summary view = get_active_view(app, AccessOpen);
     Buffer_Summary buffer = get_buffer(app, view.buffer_id, AccessOpen);
-    buffer_set_setting(app, &buffer, BufferSetting_Eol, false);
+    buffer_set_setting(app, &buffer, BufferSetting_Eol, 0);
 }
 
 CUSTOM_COMMAND_SIG(exit_4coder){
@@ -3283,15 +3283,15 @@ static void
 set_fancy_compilation_buffer_font(Application_Links *app){
     Buffer_Summary comp_buffer = get_buffer_by_name(app, literal("*compilation*"), AccessAll);
     buffer_set_font(app, &comp_buffer, literal("Inconsolata"));
-}                                                       
-                                                        
-CUSTOM_COMMAND_SIG(build_in_build_panel){               
-    uint32_t access = AccessAll;                        
+}
+
+CUSTOM_COMMAND_SIG(build_in_build_panel){
+    uint32_t access = AccessAll;
     View_Summary view = get_active_view(app, access);
     Buffer_Summary buffer = get_buffer(app, view.buffer_id, access);
-                                                        
+    
     View_Summary build_view = get_or_open_build_panel(app);
-                                                        
+    
     execute_standard_build(app, &build_view, &buffer);
     set_fancy_compilation_buffer_font(app);
     

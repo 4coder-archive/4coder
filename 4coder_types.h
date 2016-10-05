@@ -159,8 +159,14 @@ ENUM(int32_t, Buffer_Setting_ID){
     BufferSetting_Unimportant,
     
     /* DOC(The BufferSetting_ReadOnly setting marks a buffer so that it can only be returned from buffer
-    access calls that include an AccessProtected flag.) */
+    access calls that include an AccessProtected flag.  By convention this means that edit commands that
+    should not be applied to read only buffers will not edit this buffer.) */
     BufferSetting_ReadOnly,
+    
+    /* DOC(The BufferSetting_VirtualWhitespace settings enables virtual whitespace on a buffer.
+    Text buffers with virtual whitespace will set the indentation of every line to zero.
+    Buffers with lexing enabled will use virtual white space to present the code with appealing indentation.) */
+    BufferSetting_VirtualWhitespace,
 };
 
 /* DOC(A View_Setting_ID names an adjustable setting in a view.) */
