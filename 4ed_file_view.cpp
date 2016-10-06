@@ -1021,6 +1021,19 @@ struct Code_Wrap_State{
     f32 tab_indent_amount;
 };
 
+struct Wrap_Indent_Pair{
+    i32 wrap_position;
+    f32 line_shift;
+};
+
+struct Potential_Wrap_Indent_Pair{
+    i32 wrap_position;
+    f32 line_shift;
+    
+    f32 start_x;
+    i32 wrappable_score;
+};
+
 internal void
 wrap_state_init(Code_Wrap_State *state, Editing_File *file, f32 *adv){
     state->token_array = file->state.token_array;
@@ -1042,6 +1055,7 @@ struct Code_Wrap_Step{
     i32 position_start;
     i32 position_end;
     
+    f32 start_x;
     f32 final_x;
 };
 
@@ -1092,6 +1106,7 @@ wrap_state_consume_token(Code_Wrap_State *state, i32 fixed_end_point){
         skipping_whitespace = 1;
     }
     
+    b32 recorded_start_x = 0;
     do{
         for (; i < state->stream.end; ++i){
             if (!(i < end)){
@@ -1110,6 +1125,11 @@ wrap_state_consume_token(Code_Wrap_State *state, i32 fixed_end_point){
                     goto doublebreak;
                 }
                 else{
+                    if (!recorded_start_x){
+                        result.start_x = state->x;
+                        recorded_start_x = 1;
+                    }
+                    
                     state->x += state->adv[ch];
                 }
             }
@@ -1174,12 +1194,21 @@ wrap_state_consume_token(Code_Wrap_State *state, i32 fixed_end_point){
     result.position_end = state->i;
     result.final_x = state->x;
     
+    if (!recorded_start_x){
+        result.start_x = state->x;
+        recorded_start_x = 1;
+    }
+    
     return(result);
 }
 
 internal void
 file_measure_wraps(Models *models, Editing_File *file, f32 font_height, f32 *adv){
     General_Memory *general = &models->mem.general;
+    Partition *part = &models->mem.part;
+    
+    Temp_Memory temp = begin_temp_memory(part);
+    
     file_allocate_wraps_as_needed(general, file);
     file_allocate_indents_as_needed(general, file, file->state.buffer.line_count);
     file_allocate_wrap_positions_as_needed(general, file, file->state.buffer.line_count);
@@ -1212,10 +1241,22 @@ file_measure_wraps(Models *models, Editing_File *file, f32 font_height, f32 *adv
     
     b32 use_tokens = 0;
     
-    if (file->state.tokens_complete && !file->state.still_lexing){
+    Wrap_Indent_Pair *wrap_indent_marks = 0;
+    Potential_Wrap_Indent_Pair *potential_marks = 0;
+    i32 max_wrap_indent_mark = 0;
+    if (params.virtual_white && file->state.tokens_complete && !file->state.still_lexing){
         wrap_state_init(&wrap_state, file, adv);
         use_tokens = 1;
+        
+        potential_marks = push_array(part, Potential_Wrap_Indent_Pair, FLOOR32(params.width));
+        
+        max_wrap_indent_mark = partition_remaining(part)/sizeof(Wrap_Indent_Pair);
+        wrap_indent_marks = push_array(part, Wrap_Indent_Pair, max_wrap_indent_mark);
     }
+    
+    i32 real_count = 0;
+    i32 potential_count = 0;
+    i32 stage = 0;
     
     do{
         stop = buffer_measure_wrap_y(&state, params, line_shift, do_wrap, wrap_unit_end);
@@ -1223,7 +1264,20 @@ file_measure_wraps(Models *models, Editing_File *file, f32 font_height, f32 *adv
         switch (stop.status){
             case BLStatus_NeedWrapDetermination:
             {
-                if (use_tokens && 0){
+                if (use_tokens){
+                    
+                    if (stage < real_count-1){
+                        do_wrap = 1;
+                        wrap_unit_end = wrap_indent_marks[stage].wrap_position;
+                        file_allocate_wrap_positions_as_needed(general, file, wrap_position_index);
+                        file->state.wrap_positions[wrap_position_index++] = stop.pos;
+                    }
+                    else{
+                        do_wrap = 0;
+                        wrap_unit_end = wrap_indent_marks[stage].wrap_position;
+                    }
+                    
+#if 0
                     Code_Wrap_Step step = wrap_state_consume_token(&wrap_state, -1);
                     
                     wrap_unit_end = step.position_end;
@@ -1240,6 +1294,8 @@ file_measure_wraps(Models *models, Editing_File *file, f32 font_height, f32 *adv
                     else{
                         do_wrap = 0;
                     }
+#endif
+                    
                 }
                 else{
                     Buffer_Stream_Type stream = {0};
@@ -1299,6 +1355,133 @@ file_measure_wraps(Models *models, Editing_File *file, f32 font_height, f32 *adv
             case BLStatus_NeedLineShift:
             {
                 if (use_tokens){
+                    Code_Wrap_State original_wrap_state = wrap_state;
+                    i32 next_line_start = params.buffer->line_starts[stop.line_index+1];
+                    
+                    if (stop.status == BLStatus_NeedLineShift){
+                        real_count = 0;
+                        potential_count = 0;
+                        stage = 0;
+                        
+                        f32 current_shift = wrap_state.paren_nesting[wrap_state.paren_safe_top];
+                        if (wrap_state.token_ptr->start < next_line_start){
+                            if (wrap_state.token_ptr->flags & CPP_TFLAG_PP_DIRECTIVE){
+                                current_shift = 0;
+                            }
+                            else{
+                                switch (wrap_state.token_ptr->type){
+                                    case CPP_TOKEN_BRACE_CLOSE:
+                                    {
+                                        if (wrap_state.paren_safe_top == 0){
+                                            current_shift -= wrap_state.tab_indent_amount;
+                                        }
+                                    }break;
+                                }
+                            }
+                        }
+                        
+                        wrap_indent_marks[real_count].wrap_position = 0;
+                        wrap_indent_marks[real_count].line_shift = clamp_bottom(0.f, current_shift);
+                        ++real_count;
+                        
+                        for (; wrap_state.token_ptr < wrap_state.end_token; ){
+                            Code_Wrap_Step step = wrap_state_consume_token(&wrap_state, next_line_start-1);
+                            
+                            b32 need_to_choose_a_wrap = 0;
+                            if (step.final_x > params.width){
+                                need_to_choose_a_wrap = 1;
+                            }
+                            
+                            f32 current_shift = wrap_state.paren_nesting[wrap_state.paren_safe_top];
+                            if (wrap_state.token_ptr->start < next_line_start){
+                                if (wrap_state.token_ptr->flags & CPP_TFLAG_PP_DIRECTIVE){
+                                    current_shift = 0;
+                                }
+                                else{
+                                    switch (wrap_state.token_ptr->type){
+                                        case CPP_TOKEN_BRACE_CLOSE:
+                                        {
+                                            if (wrap_state.paren_safe_top == 0){
+                                                current_shift -= wrap_state.tab_indent_amount;
+                                            }
+                                        }break;
+                                    }
+                                }
+                            }
+                            
+                            i32 wrap_position = step.position_end;
+                            if (wrap_state.token_ptr->start > step.position_start &&
+                                wrap_state.token_ptr->start < next_line_start &&
+                                wrap_position < wrap_state.token_ptr->start){
+                                wrap_position = wrap_state.token_ptr->start;
+                            }
+                            
+                            if (!need_to_choose_a_wrap){
+                                potential_marks[potential_count].wrap_position = wrap_position;
+                                potential_marks[potential_count].line_shift = current_shift;
+                                potential_marks[potential_count].wrappable_score = 1;
+                                potential_marks[potential_count].start_x = step.start_x;
+                                ++potential_count;
+                            }
+                            
+                            if (need_to_choose_a_wrap){
+                                if (potential_count == 0){
+                                    wrap_indent_marks[real_count].wrap_position = wrap_position;
+                                    wrap_indent_marks[real_count].line_shift = current_shift;
+                                    ++real_count;
+                                }
+                                else{
+                                    i32 i = 0, best_i = 0;
+                                    i32 best_score = -1;
+                                    f32 best_x_shift = 0;
+                                    
+                                    for (; i < potential_count; ++i){
+                                        f32 x_shift = potential_marks[i].start_x - potential_marks[i].line_shift;
+                                        if (potential_marks[i].wrappable_score > best_score){
+                                            best_score = potential_marks[i].wrappable_score;
+                                            best_x_shift = x_shift;
+                                            best_i = i;
+                                        }
+                                        else if (x_shift > best_x_shift){
+                                            best_x_shift = x_shift;
+                                            best_i = i;
+                                        }
+                                    }
+                                    
+                                    i32 wrap_position = potential_marks[best_i].wrap_position;
+                                    f32 line_shift = potential_marks[best_i].line_shift;
+                                    wrap_indent_marks[real_count].wrap_position = wrap_position;
+                                    wrap_indent_marks[real_count].line_shift    = line_shift;
+                                    ++real_count;
+                                    potential_count = 0;
+                                    
+                                    wrap_state = original_wrap_state;
+                                    for (;;){
+                                        Code_Wrap_Step step = wrap_state_consume_token(&wrap_state, wrap_position);
+                                        if (step.position_end >= wrap_position){
+                                            break;
+                                        }
+                                    }
+                                    
+                                    wrap_state_set_x(&wrap_state, line_shift);
+                                    original_wrap_state = wrap_state;
+                                }
+                            }
+                            
+                            if (step.position_end >= next_line_start-1){
+                                break;
+                            }
+                        }
+                        
+                        wrap_indent_marks[real_count].wrap_position = next_line_start;
+                        wrap_indent_marks[real_count].line_shift    = 0;
+                        ++real_count;
+                    }
+                    
+                    line_shift = wrap_indent_marks[stage].line_shift;
+                    ++stage;
+                    
+#if 0
                     for (; wrap_state.token_ptr < wrap_state.end_token; ){
                         Code_Wrap_Step step = wrap_state_consume_token(&wrap_state, stop.pos);
                         
@@ -1307,7 +1490,6 @@ file_measure_wraps(Models *models, Editing_File *file, f32 font_height, f32 *adv
                         }
                     }
                     
-                    i32 next_line_start = params.buffer->line_starts[stop.line_index+1];
                     f32 current_shift = wrap_state.paren_nesting[wrap_state.paren_safe_top];
                     if (wrap_state.token_ptr->start < next_line_start){
                         if (wrap_state.token_ptr->flags & CPP_TFLAG_PP_DIRECTIVE){
@@ -1326,9 +1508,13 @@ file_measure_wraps(Models *models, Editing_File *file, f32 font_height, f32 *adv
                     }
                     
                     line_shift = current_shift;
+                    
+#endif
+                    
                     if (line_shift < 0){
                         line_shift = 0;
                     }
+                    
                 }
                 else{
                     line_shift = 0.f;
@@ -1355,6 +1541,8 @@ file_measure_wraps(Models *models, Editing_File *file, f32 font_height, f32 *adv
     file_allocate_wrap_positions_as_needed(general, file, wrap_position_index);
     file->state.wrap_positions[wrap_position_index++] = size;
     file->state.wrap_position_count = wrap_position_index;
+    
+    end_temp_memory(temp);
 }
 
 internal void

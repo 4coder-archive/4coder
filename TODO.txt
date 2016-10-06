@@ -172,6 +172,7 @@
 ;     [X] unify wrap rule parsing and indent rule parsing
 ;     [X] handle square brackets
 ;     [] smarter wrap rule
+;     [] special indent rules in preprocessor body
 ;     [] handle unclosed statements
 ;     [] handle comments
 ;     [] fix issues when relexing happens in parallel
