@@ -1266,15 +1266,16 @@ file_measure_wraps(Models *models, Editing_File *file, f32 font_height, f32 *adv
             {
                 if (use_tokens){
                     
-                    if (stage < real_count-1){
-                        do_wrap = 1;
-                        wrap_unit_end = wrap_indent_marks[stage].wrap_position;
-                        file_allocate_wrap_positions_as_needed(general, file, wrap_position_index);
-                        file->state.wrap_positions[wrap_position_index++] = stop.pos;
+                    if (stage == 0){
+                        do_wrap = 0;
+                        wrap_unit_end = wrap_indent_marks[stage+1].wrap_position;
+                        ++stage;
                     }
                     else{
-                        do_wrap = 0;
-                        wrap_unit_end = wrap_indent_marks[stage].wrap_position;
+                        do_wrap = 1;
+                        wrap_unit_end = wrap_indent_marks[stage+1].wrap_position;
+                        file_allocate_wrap_positions_as_needed(general, file, wrap_position_index);
+                        file->state.wrap_positions[wrap_position_index++] = stop.pos;
                     }
                     
 #if 0
@@ -1300,7 +1301,7 @@ file_measure_wraps(Models *models, Editing_File *file, f32 font_height, f32 *adv
                 else{
                     Buffer_Stream_Type stream = {0};
                     
-                    i32 stage = 0;
+                    i32 word_stage = 0;
                     i32 i = stop.pos;
                     f32 x = stop.x;
                     f32 self_x = 0;
@@ -1310,11 +1311,11 @@ file_measure_wraps(Models *models, Editing_File *file, f32 font_height, f32 *adv
                             for (; i < stream.end; ++i){
                                 char ch = stream.data[i];
                                 
-                                switch (stage){
+                                switch (word_stage){
                                     case 0:
                                     {
                                         if (char_is_whitespace(ch)){
-                                            stage = 1;
+                                            word_stage = 1;
                                         }
                                         else{
                                             f32 adv = params.adv[ch];
@@ -1457,7 +1458,7 @@ file_measure_wraps(Models *models, Editing_File *file, f32 font_height, f32 *adv
                                     
                                     wrap_state = original_wrap_state;
                                     for (;;){
-                                        Code_Wrap_Step step = wrap_state_consume_token(&wrap_state, wrap_position);
+                                        step = wrap_state_consume_token(&wrap_state, wrap_position);
                                         if (step.position_end >= wrap_position){
                                             break;
                                         }
@@ -1476,10 +1477,17 @@ file_measure_wraps(Models *models, Editing_File *file, f32 font_height, f32 *adv
                         wrap_indent_marks[real_count].wrap_position = next_line_start;
                         wrap_indent_marks[real_count].line_shift    = 0;
                         ++real_count;
+                        
+                        for (i32 l = 0; wrap_state.i < next_line_start && l < 3; ++l){
+                            wrap_state_consume_token(&wrap_state, next_line_start);
+                        }
                     }
                     
                     line_shift = wrap_indent_marks[stage].line_shift;
-                    ++stage;
+                    
+                    if (stage > 0){
+                        ++stage;
+                    }
                     
 #if 0
                     for (; wrap_state.token_ptr < wrap_state.end_token; ){
