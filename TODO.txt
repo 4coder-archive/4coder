@@ -162,14 +162,15 @@
 ; [X] get horizontal scrolling to work in line wrap mode
 ; [X] word level wrapping
 ; [X] ability to toggle virtual white space
+; [X] home/end should go to the beginning/end of the visual line not the textual line
 ; [] command for setting wrap positions in views directly
 ; [] ability to see the wrap position as a number/line and adjust graphically
-; [] home/end should go to the beginning/end of the visual line not the textual line
 ; [] code level wrapping
 ;     [X] handle basic scope indents
 ;     [X] handle parentheses
 ;     [X] handle preprocessor
 ;     [X] unify wrap rule parsing and indent rule parsing
+;     [X] handle square brackets
 ;     [] smarter wrap rule
 ;     [] handle unclosed statements
 ;     [] handle comments

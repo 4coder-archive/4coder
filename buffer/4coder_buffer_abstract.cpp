@@ -1043,7 +1043,9 @@ buffer_cursor_seek(Buffer_Cursor_Seek_State *S_ptr, Buffer_Cursor_Seek_Params pa
                             goto buffer_cursor_seek_end;
                         }
                         
-                        S.this_cursor = S.prev_cursor;
+                        if (py >= y){
+                            S.this_cursor = S.prev_cursor;
+                        }
                         goto buffer_cursor_seek_end;
                     }
                 }

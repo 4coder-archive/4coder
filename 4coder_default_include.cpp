@@ -1493,7 +1493,7 @@ CUSTOM_COMMAND_SIG(seek_whitespace_down){
                          true);
 }
 
-CUSTOM_COMMAND_SIG(seek_end_of_line){
+CUSTOM_COMMAND_SIG(seek_end_of_textual_line){
     uint32_t access = AccessProtected;
     View_Summary view = get_active_view(app, access);
     Buffer_Summary buffer = get_buffer(app, view.buffer_id, access);
@@ -1502,13 +1502,35 @@ CUSTOM_COMMAND_SIG(seek_end_of_line){
     view_set_cursor(app, &view, seek_pos(new_pos), true);
 }
 
-CUSTOM_COMMAND_SIG(seek_beginning_of_line){
+CUSTOM_COMMAND_SIG(seek_beginning_of_textual_line){
     uint32_t access = AccessProtected;
     View_Summary view = get_active_view(app, access);
     Buffer_Summary buffer = get_buffer(app, view.buffer_id, access);
     
     int32_t new_pos = seek_line_beginning(app, &buffer, view.cursor.pos);
     view_set_cursor(app, &view, seek_pos(new_pos), true);
+}
+
+CUSTOM_COMMAND_SIG(seek_beginning_of_line){
+    View_Summary view = get_active_view(app, AccessProtected);
+    
+    float y = view.cursor.wrapped_y;
+    if (view.unwrapped_lines){
+        y = view.cursor.unwrapped_y;
+    }
+    
+    view_set_cursor(app, &view, seek_xy(0, y, 1, view.unwrapped_lines), 1);
+}
+
+CUSTOM_COMMAND_SIG(seek_end_of_line){
+    View_Summary view = get_active_view(app, AccessProtected);
+    
+    float y = view.cursor.wrapped_y;
+    if (view.unwrapped_lines){
+        y = view.cursor.unwrapped_y;
+    }
+    
+    view_set_cursor(app, &view, seek_xy(100000.f, y, 1, view.unwrapped_lines), 1);
 }
 
 // TODO(allen): REDUCE DUPLICATION!

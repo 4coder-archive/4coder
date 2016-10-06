@@ -1138,6 +1138,7 @@ wrap_state_consume_token(Code_Wrap_State *state, i32 fixed_end_point){
             }break;
             
             case CPP_TOKEN_PARENTHESE_OPEN:
+            case CPP_TOKEN_BRACKET_OPEN:
             {
                 ++state->paren_top;
                 
@@ -1151,6 +1152,7 @@ wrap_state_consume_token(Code_Wrap_State *state, i32 fixed_end_point){
             }break;
             
             case CPP_TOKEN_PARENTHESE_CLOSE:
+            case CPP_TOKEN_BRACKET_CLOSE:
             {
                 --state->paren_top;
                 
@@ -1221,7 +1223,7 @@ file_measure_wraps(Models *models, Editing_File *file, f32 font_height, f32 *adv
         switch (stop.status){
             case BLStatus_NeedWrapDetermination:
             {
-                if (use_tokens){
+                if (use_tokens && 0){
                     Code_Wrap_Step step = wrap_state_consume_token(&wrap_state, -1);
                     
                     wrap_unit_end = step.position_end;
@@ -5359,10 +5361,9 @@ draw_file_loaded(View *view, i32_Rect rect, b32 is_active, Render_Target *target
             
             if (token_i < token_array.count){
                 if (ind >= token_array.tokens[token_i].start){
-                    while (ind >= token_array.tokens[token_i].start){
+                    for (;ind >= token_array.tokens[token_i].start && token_i < token_array.count; ++token_i){
                         main_color = *style_get_color(style, token_array.tokens[token_i]);
                         current_token = token_array.tokens[token_i];
-                        ++token_i;
                     }
                 }
                 else if (ind >= current_token.start + current_token.size){
