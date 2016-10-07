@@ -1057,6 +1057,8 @@ struct Code_Wrap_Step{
     
     f32 start_x;
     f32 final_x;
+    
+    Cpp_Token *this_token;
 };
 
 internal void
@@ -1145,6 +1147,7 @@ wrap_state_consume_token(Code_Wrap_State *state, i32 fixed_end_point){
         consume_token = 1;
     }
     
+    result.this_token = state->token_ptr;
     if (consume_token){
         switch (state->token_ptr->type){
             case CPP_TOKEN_BRACE_OPEN:
@@ -1200,6 +1203,74 @@ wrap_state_consume_token(Code_Wrap_State *state, i32 fixed_end_point){
     }
     
     return(result);
+}
+
+internal i32
+stickieness_guess(Cpp_Token_Type type, b32 on_left){
+    i32 guess = 0;
+    
+    if (type == CPP_TOKEN_SEMICOLON ||
+        type == CPP_TOKEN_COLON ||
+        type == CPP_TOKEN_PARENTHESE_OPEN ||
+        type == CPP_TOKEN_PARENTHESE_CLOSE ||
+        type == CPP_TOKEN_BRACKET_OPEN ||
+        type == CPP_TOKEN_BRACKET_CLOSE ||
+        type == CPP_TOKEN_COMMA){
+        if (on_left){
+            guess = 0;
+        }
+        else{
+            guess = 100;
+        }
+    }
+    else if (type == CPP_PP_DEFINED){
+        if (on_left){
+            guess = 100;
+        }
+        else{
+            guess = 0;
+        }
+    }
+    else if (type == CPP_TOKEN_SCOPE){
+        guess = 90;
+    }
+    else if (type == CPP_TOKEN_MINUS){
+        if (on_left){
+            guess = 80;
+        }
+        else{
+            guess = 60;
+        }
+    }
+    else if (type == CPP_TOKEN_INCREMENT ||
+             type == CPP_TOKEN_DECREMENT ||
+             type == CPP_TOKEN_STAR ||
+             type == CPP_TOKEN_AMPERSAND ||
+             type == CPP_TOKEN_TILDE ||
+             (type >= CPP_TOKEN_POSTINC &&
+              type <= CPP_TOKEN_PTRARROW)){
+        guess = 80;
+    }
+    else if (type >= CPP_TOKEN_MUL && type <= CPP_TOKEN_MOD){
+        guess = 70;
+    }
+    else if (type == CPP_TOKEN_PLUS){
+        guess = 60;
+    }
+    else if (type >= CPP_TOKEN_LSHIFT && type <= CPP_TOKEN_RSHIFT){
+        guess = 50;
+    }
+    else if (type >= CPP_TOKEN_LESS && type <= CPP_TOKEN_NOTEQ){
+        guess = 40;
+    }
+    else if (type >= CPP_TOKEN_BIT_XOR && type <= CPP_TOKEN_OR){
+        guess = 20;
+    }
+    else if (type >= CPP_TOKEN_TERNARY_QMARK && type <= CPP_TOKEN_XOREQ){
+        guess = 10;
+    }
+    
+    return(guess);
 }
 
 internal void
@@ -1410,17 +1481,59 @@ file_measure_wraps(Models *models, Editing_File *file, f32 font_height, f32 *adv
                                 }
                             }
                             
+                            b32 next_token_is_on_line = 0;
+                            if (wrap_state.token_ptr->start < next_line_start){
+                                next_token_is_on_line = 1;
+                            }
+                            
                             i32 wrap_position = step.position_end;
                             if (wrap_state.token_ptr->start > step.position_start &&
-                                wrap_state.token_ptr->start < next_line_start &&
-                                wrap_position < wrap_state.token_ptr->start){
+                                wrap_position < wrap_state.token_ptr->start && next_token_is_on_line){
                                 wrap_position = wrap_state.token_ptr->start;
                             }
                             
                             if (!need_to_choose_a_wrap){
+                                i32 wrappable_score = 1;
+                                
+                                Cpp_Token *this_token = step.this_token;
+                                Cpp_Token *next_token = wrap_state.token_ptr;
+                                
+                                if (this_token == next_token){
+                                    next_token = 0;
+                                }
+                                
+                                if (!next_token_is_on_line){
+                                    next_token = 0;
+                                }
+                                
+                                i32 this_stickieness = stickieness_guess(this_token->type, 1);
+                                i32 general_stickieness = this_stickieness;
+                                i32 next_stickieness = 0;
+                                
+                                if (next_token){
+                                    next_stickieness = stickieness_guess(next_token->type, 0);
+                                }
+                                
+                                if (general_stickieness < next_stickieness){
+                                    general_stickieness = next_stickieness;
+                                }
+                                
+                                wrappable_score = 64*50;
+                                if (wrap_state.paren_top == 0){
+                                    wrappable_score += 101 - general_stickieness;
+                                }
+                                else{
+                                    if (this_token->type == CPP_TOKEN_COMMA){
+                                        wrappable_score += 401 - wrap_state.paren_safe_top*20;
+                                    }
+                                    else{
+                                        wrappable_score += 101 - general_stickieness - wrap_state.paren_safe_top*20;
+                                    }
+                                }
+                                
                                 potential_marks[potential_count].wrap_position = wrap_position;
                                 potential_marks[potential_count].line_shift = current_shift;
-                                potential_marks[potential_count].wrappable_score = 1;
+                                potential_marks[potential_count].wrappable_score = wrappable_score;
                                 potential_marks[potential_count].start_x = step.start_x;
                                 ++potential_count;
                             }
@@ -1436,14 +1549,21 @@ file_measure_wraps(Models *models, Editing_File *file, f32 font_height, f32 *adv
                                     i32 best_score = -1;
                                     f32 best_x_shift = 0;
                                     
+                                    f32 x_gain_threshold = 18.f;
+                                    
                                     for (; i < potential_count; ++i){
+                                        i32 this_score = potential_marks[i].wrappable_score;
                                         f32 x_shift = potential_marks[i].start_x - potential_marks[i].line_shift;
-                                        if (potential_marks[i].wrappable_score > best_score){
-                                            best_score = potential_marks[i].wrappable_score;
+                                        if (x_shift < x_gain_threshold){
+                                            this_score = 0;
+                                        }
+                                        
+                                        if (this_score > best_score){
+                                            best_score = this_score;
                                             best_x_shift = x_shift;
                                             best_i = i;
                                         }
-                                        else if (x_shift > best_x_shift){
+                                        else if (this_score == best_score && x_shift > best_x_shift){
                                             best_x_shift = x_shift;
                                             best_i = i;
                                         }
@@ -1481,6 +1601,31 @@ file_measure_wraps(Models *models, Editing_File *file, f32 font_height, f32 *adv
                         for (i32 l = 0; wrap_state.i < next_line_start && l < 3; ++l){
                             wrap_state_consume_token(&wrap_state, next_line_start);
                         }
+                        
+#if 0
+                        if (stop.line_index + 2 <= params.buffer->line_count){
+                            next_line_start = params.buffer->line_starts[stop.line_index+2];;
+                        }
+                        
+                        current_shift = wrap_state.paren_nesting[wrap_state.paren_safe_top];
+                        if (wrap_state.token_ptr->start < next_line_start){
+                            if (wrap_state.token_ptr->flags & CPP_TFLAG_PP_DIRECTIVE){
+                                current_shift = 0;
+                            }
+                            else{
+                                switch (wrap_state.token_ptr->type){
+                                    case CPP_TOKEN_BRACE_CLOSE:
+                                    {
+                                        if (wrap_state.paren_safe_top == 0){
+                                            current_shift -= wrap_state.tab_indent_amount;
+                                        }
+                                    }break;
+                                }
+                            }
+                        }
+                        
+                        wrap_state_set_x(&wrap_state, current_shift);
+#endif
                     }
                     
                     line_shift = wrap_indent_marks[stage].line_shift;
@@ -1539,7 +1684,7 @@ file_measure_wraps(Models *models, Editing_File *file, f32 font_height, f32 *adv
                 file->state.line_indents[stop.wrap_line_index] = line_shift;
                 file->state.wrap_line_count = stop.wrap_line_index;
                 
-                wrap_state_set_x(&wrap_state, line_shift);
+                //wrap_state_set_x(&wrap_state, line_shift);
             }break;
         }
     }while(stop.status != BLStatus_Finished);

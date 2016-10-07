@@ -21,7 +21,6 @@ actually output by the lexer, but exist because parsers will also make use of to
 types in their own output.) */
 ENUM(uint32_t, Cpp_Token_Type){
     
-    // IGNORE THIS
 	CPP_TOKEN_JUNK = 0,
     CPP_TOKEN_COMMENT = 1,
     
