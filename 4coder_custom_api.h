@@ -17,7 +17,10 @@
 #define BUFFER_TOKEN_COUNT_SIG(n) int32_t n(Application_Links *app, Buffer_Summary *buffer)
 #define BUFFER_READ_TOKENS_SIG(n) bool32 n(Application_Links *app, Buffer_Summary *buffer, int32_t start_token, int32_t end_token, Cpp_Token *tokens_out)
 #define BUFFER_GET_TOKEN_INDEX_SIG(n) bool32 n(Application_Links *app, Buffer_Summary *buffer, int32_t pos, Cpp_Get_Token_Result *get_result)
-#define CREATE_BUFFER_SIG(n) Buffer_Summary n(Application_Links *app, char *filename, int32_t filename_len, Buffer_Create_Flag flags)
+#define BEGIN_BUFFER_CREATION_SIG(n) void n(Application_Links *app, Buffer_Creation_Data *data, Buffer_Create_Flag flags)
+#define BUFFER_CREATION_NAME_SIG(n) void n(Application_Links *app, Buffer_Creation_Data *data, char *filename, int32_t filename_len, uint32_t flags)
+#define END_BUFFER_CREATION_SIG(n) Buffer_Summary n(Application_Links *app, Buffer_Creation_Data *data)
+#define CREATE_BUFFER__SIG(n) Buffer_Summary n(Application_Links *app, char *filename, int32_t filename_len, Buffer_Create_Flag flags)
 #define SAVE_BUFFER_SIG(n) bool32 n(Application_Links *app, Buffer_Summary *buffer, char *filename, int32_t filename_len, uint32_t flags)
 #define KILL_BUFFER_SIG(n) bool32 n(Application_Links *app, Buffer_Identifier buffer, View_ID view_id, Buffer_Kill_Flag flags)
 #define GET_VIEW_FIRST_SIG(n) View_Summary n(Application_Links *app, Access_Flag access)
@@ -80,7 +83,10 @@ typedef BUFFER_SET_SETTING_SIG(Buffer_Set_Setting_Function);
 typedef BUFFER_TOKEN_COUNT_SIG(Buffer_Token_Count_Function);
 typedef BUFFER_READ_TOKENS_SIG(Buffer_Read_Tokens_Function);
 typedef BUFFER_GET_TOKEN_INDEX_SIG(Buffer_Get_Token_Index_Function);
-typedef CREATE_BUFFER_SIG(Create_Buffer_Function);
+typedef BEGIN_BUFFER_CREATION_SIG(Begin_Buffer_Creation_Function);
+typedef BUFFER_CREATION_NAME_SIG(Buffer_Creation_Name_Function);
+typedef END_BUFFER_CREATION_SIG(End_Buffer_Creation_Function);
+typedef CREATE_BUFFER__SIG(Create_Buffer__Function);
 typedef SAVE_BUFFER_SIG(Save_Buffer_Function);
 typedef KILL_BUFFER_SIG(Kill_Buffer_Function);
 typedef GET_VIEW_FIRST_SIG(Get_View_First_Function);
@@ -145,7 +151,10 @@ Buffer_Set_Setting_Function *buffer_set_setting;
 Buffer_Token_Count_Function *buffer_token_count;
 Buffer_Read_Tokens_Function *buffer_read_tokens;
 Buffer_Get_Token_Index_Function *buffer_get_token_index;
-Create_Buffer_Function *create_buffer;
+Begin_Buffer_Creation_Function *begin_buffer_creation;
+Buffer_Creation_Name_Function *buffer_creation_name;
+End_Buffer_Creation_Function *end_buffer_creation;
+Create_Buffer__Function *create_buffer_;
 Save_Buffer_Function *save_buffer;
 Kill_Buffer_Function *kill_buffer;
 Get_View_First_Function *get_view_first;
@@ -209,7 +218,10 @@ Buffer_Set_Setting_Function *buffer_set_setting_;
 Buffer_Token_Count_Function *buffer_token_count_;
 Buffer_Read_Tokens_Function *buffer_read_tokens_;
 Buffer_Get_Token_Index_Function *buffer_get_token_index_;
-Create_Buffer_Function *create_buffer_;
+Begin_Buffer_Creation_Function *begin_buffer_creation_;
+Buffer_Creation_Name_Function *buffer_creation_name_;
+End_Buffer_Creation_Function *end_buffer_creation_;
+Create_Buffer__Function *create_buffer__;
 Save_Buffer_Function *save_buffer_;
 Kill_Buffer_Function *kill_buffer_;
 Get_View_First_Function *get_view_first_;
@@ -281,7 +293,10 @@ app_links->buffer_set_setting_ = Buffer_Set_Setting;\
 app_links->buffer_token_count_ = Buffer_Token_Count;\
 app_links->buffer_read_tokens_ = Buffer_Read_Tokens;\
 app_links->buffer_get_token_index_ = Buffer_Get_Token_Index;\
-app_links->create_buffer_ = Create_Buffer;\
+app_links->begin_buffer_creation_ = Begin_Buffer_Creation;\
+app_links->buffer_creation_name_ = Buffer_Creation_Name;\
+app_links->end_buffer_creation_ = End_Buffer_Creation;\
+app_links->create_buffer__ = Create_Buffer_;\
 app_links->save_buffer_ = Save_Buffer;\
 app_links->kill_buffer_ = Kill_Buffer;\
 app_links->get_view_first_ = Get_View_First;\
@@ -345,7 +360,10 @@ static inline bool32 buffer_set_setting(Application_Links *app, Buffer_Summary *
 static inline int32_t buffer_token_count(Application_Links *app, Buffer_Summary *buffer){return(app->buffer_token_count(app, buffer));}
 static inline bool32 buffer_read_tokens(Application_Links *app, Buffer_Summary *buffer, int32_t start_token, int32_t end_token, Cpp_Token *tokens_out){return(app->buffer_read_tokens(app, buffer, start_token, end_token, tokens_out));}
 static inline bool32 buffer_get_token_index(Application_Links *app, Buffer_Summary *buffer, int32_t pos, Cpp_Get_Token_Result *get_result){return(app->buffer_get_token_index(app, buffer, pos, get_result));}
-static inline Buffer_Summary create_buffer(Application_Links *app, char *filename, int32_t filename_len, Buffer_Create_Flag flags){return(app->create_buffer(app, filename, filename_len, flags));}
+static inline void begin_buffer_creation(Application_Links *app, Buffer_Creation_Data *data, Buffer_Create_Flag flags){(app->begin_buffer_creation(app, data, flags));}
+static inline void buffer_creation_name(Application_Links *app, Buffer_Creation_Data *data, char *filename, int32_t filename_len, uint32_t flags){(app->buffer_creation_name(app, data, filename, filename_len, flags));}
+static inline Buffer_Summary end_buffer_creation(Application_Links *app, Buffer_Creation_Data *data){return(app->end_buffer_creation(app, data));}
+static inline Buffer_Summary create_buffer_(Application_Links *app, char *filename, int32_t filename_len, Buffer_Create_Flag flags){return(app->create_buffer_(app, filename, filename_len, flags));}
 static inline bool32 save_buffer(Application_Links *app, Buffer_Summary *buffer, char *filename, int32_t filename_len, uint32_t flags){return(app->save_buffer(app, buffer, filename, filename_len, flags));}
 static inline bool32 kill_buffer(Application_Links *app, Buffer_Identifier buffer, View_ID view_id, Buffer_Kill_Flag flags){return(app->kill_buffer(app, buffer, view_id, flags));}
 static inline View_Summary get_view_first(Application_Links *app, Access_Flag access){return(app->get_view_first(app, access));}
@@ -409,7 +427,10 @@ static inline bool32 buffer_set_setting(Application_Links *app, Buffer_Summary *
 static inline int32_t buffer_token_count(Application_Links *app, Buffer_Summary *buffer){return(app->buffer_token_count_(app, buffer));}
 static inline bool32 buffer_read_tokens(Application_Links *app, Buffer_Summary *buffer, int32_t start_token, int32_t end_token, Cpp_Token *tokens_out){return(app->buffer_read_tokens_(app, buffer, start_token, end_token, tokens_out));}
 static inline bool32 buffer_get_token_index(Application_Links *app, Buffer_Summary *buffer, int32_t pos, Cpp_Get_Token_Result *get_result){return(app->buffer_get_token_index_(app, buffer, pos, get_result));}
-static inline Buffer_Summary create_buffer(Application_Links *app, char *filename, int32_t filename_len, Buffer_Create_Flag flags){return(app->create_buffer_(app, filename, filename_len, flags));}
+static inline void begin_buffer_creation(Application_Links *app, Buffer_Creation_Data *data, Buffer_Create_Flag flags){(app->begin_buffer_creation_(app, data, flags));}
+static inline void buffer_creation_name(Application_Links *app, Buffer_Creation_Data *data, char *filename, int32_t filename_len, uint32_t flags){(app->buffer_creation_name_(app, data, filename, filename_len, flags));}
+static inline Buffer_Summary end_buffer_creation(Application_Links *app, Buffer_Creation_Data *data){return(app->end_buffer_creation_(app, data));}
+static inline Buffer_Summary create_buffer_(Application_Links *app, char *filename, int32_t filename_len, Buffer_Create_Flag flags){return(app->create_buffer__(app, filename, filename_len, flags));}
 static inline bool32 save_buffer(Application_Links *app, Buffer_Summary *buffer, char *filename, int32_t filename_len, uint32_t flags){return(app->save_buffer_(app, buffer, filename, filename_len, flags));}
 static inline bool32 kill_buffer(Application_Links *app, Buffer_Identifier buffer, View_ID view_id, Buffer_Kill_Flag flags){return(app->kill_buffer_(app, buffer, view_id, flags));}
 static inline View_Summary get_view_first(Application_Links *app, Access_Flag access){return(app->get_view_first_(app, access));}

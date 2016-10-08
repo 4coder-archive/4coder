@@ -197,6 +197,15 @@ ENUM(uint32_t, Buffer_Create_Flag){
     BufferCreate_NeverNew   = 0x4,
 };
 
+
+/* DOC(TODO)
+HIDE_MEMBERS() */
+struct Buffer_Creation_Data{
+    Buffer_Create_Flag flags;
+    char fname_space [256];
+    int32_t fname_len;
+};
+
 /* DOC(A Buffer_Kill_Flag field specifies how a buffer should be killed.) */
 ENUM(uint32_t, Buffer_Kill_Flag){
     /* DOC(BufferKill_Background is not currently implemented.) */

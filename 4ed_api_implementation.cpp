@@ -156,7 +156,8 @@ imp_get_view(Command_Data *cmd, View_Summary *view){
 #define API_EXPORT
 
 API_EXPORT bool32
-Exec_Command(Application_Links *app, Command_ID command_id)/*
+Exec_Command(Application_Links *app, Command_ID command_id)
+/*
 DOC_PARAM(command_id, The command_id parameter specifies which internal command to execute.)
 DOC_RETURN(This call returns non-zero if command_id named a valid internal command.)
 DOC(A call to exec_command executes an internal command.
@@ -175,7 +176,7 @@ DOC_SEE(Command_ID)
         result = true;
     }
     else{
-        print_message(app, literal("WARNING: An invalid Command_ID was passed to exec_command."));
+        print_message(app,literal("WARNING: An invalid Command_ID was passed to exec_command."));
     }
     
     return(result);
@@ -183,7 +184,8 @@ DOC_SEE(Command_ID)
 
 // TODO(allen): This is a bit of a mess and needs to be fixed soon.
 API_EXPORT bool32
-Exec_System_Command(Application_Links *app, View_Summary *view, Buffer_Identifier buffer, char *path, int32_t path_len, char *command, int32_t command_len, Command_Line_Interface_Flag flags)/*
+Exec_System_Command(Application_Links *app, View_Summary *view, Buffer_Identifier buffer, char *path, int32_t path_len, char *command, int32_t command_len, Command_Line_Interface_Flag flags)
+/*
 DOC_PARAM(view, If the view parameter is non-null it specifies a view to display the command's output buffer.)
 DOC_PARAM(buffer, The buffer the command will output to is specified by the buffer parameter.
 See Buffer_Identifier for information on how this type specifies a buffer.)
@@ -351,7 +353,8 @@ DOC_SEE(Command_Line_Input_Flag)
 }
 
 API_EXPORT void
-Clipboard_Post(Application_Links *app, int32_t clipboard_id, char *str, int32_t len)/*
+Clipboard_Post(Application_Links *app, int32_t clipboard_id, char *str, int32_t len)
+/*
 DOC_PARAM(clipboard_id, This parameter is set up to prepare for future features, it should always be 0 for now.)
 DOC_PARAM(str, The str parameter specifies the string to be posted to the clipboard, it need not be null terminated.)
 DOC_PARAM(len, The len parameter specifies the length of the str string.)
@@ -375,7 +378,8 @@ DOC_SEE(The_4coder_Clipboard)
 }
 
 API_EXPORT int32_t
-Clipboard_Count(Application_Links *app, int32_t clipboard_id)/*
+Clipboard_Count(Application_Links *app, int32_t clipboard_id)
+/*
 DOC_PARAM(clipboard_id, This parameter is set up to prepare for future features, it should always be 0 for now.)
 DOC(This call returns the number of items in the clipboard.)
 DOC_SEE(The_4coder_Clipboard)
@@ -387,7 +391,8 @@ DOC_SEE(The_4coder_Clipboard)
 }
 
 API_EXPORT int32_t
-Clipboard_Index(Application_Links *app, int32_t clipboard_id, int32_t item_index, char *out, int32_t len)/*
+Clipboard_Index(Application_Links *app, int32_t clipboard_id, int32_t item_index, char *out, int32_t len)
+/*
 DOC_PARAM(clipboard_id, This parameter is set up to prepare for future features, it should always be 0 for now.)
 DOC_PARAM(item_index, This parameter specifies which item to read, 0 is the most recent copy, 1 is the second most recent copy, etc.)
 DOC_PARAM(out, This parameter provides a buffer where the clipboard contents are written.  This parameter may be NULL.)
@@ -418,9 +423,7 @@ DOC_SEE(The_4coder_Clipboard)
 }
 
 API_EXPORT int32_t
-Get_Buffer_Count(Application_Links *app)/*
-DOC(TODO)
-*/{
+Get_Buffer_Count(Application_Links *app){
     Command_Data *cmd = (Command_Data*)app->cmd_context;
     Working_Set *working_set = &cmd->models->working_set;
     int32_t result = working_set->file_count;
@@ -449,13 +452,12 @@ internal_get_buffer_next(Working_Set *working_set, Buffer_Summary *buffer){
 }
 
 API_EXPORT Buffer_Summary
-Get_Buffer_First(Application_Links *app, Access_Flag access)/*
+Get_Buffer_First(Application_Links *app, Access_Flag access)
+/*
 DOC_PARAM(access, The access parameter determines what levels of protection this call can access.)
 DOC_RETURN(This call returns the summary of the first buffer in a buffer loop.)
-DOC
-(
+DOC(
 This call begins a loop across all the buffers.
-
 If the buffer returned does not exist, the loop is finished.
 Buffers should not be killed durring a buffer loop.
 )
@@ -476,11 +478,11 @@ DOC_SEE(get_buffer_next)
 }
 
 API_EXPORT void
-Get_Buffer_Next(Application_Links *app, Buffer_Summary *buffer, Access_Flag  access)/*
+Get_Buffer_Next(Application_Links *app, Buffer_Summary *buffer, Access_Flag  access)
+/*
 DOC_PARAM(buffer, The Buffer_Summary pointed to by buffer is iterated to the next buffer or to a null summary if this is the last buffer.)
 DOC_PARAM(access, The access parameter determines what levels of protection this call can access. The buffer outputted will be the next buffer that is accessible.)
-DOC
-(
+DOC(
 This call steps a Buffer_Summary to the next buffer in the global buffer order.
 The global buffer order is kept roughly in the order of most recently used to least recently used.
 
@@ -501,7 +503,8 @@ DOC_SEE(get_buffer_first)
 }
 
 API_EXPORT Buffer_Summary
-Get_Buffer(Application_Links *app, Buffer_ID buffer_id, Access_Flag access)/*
+Get_Buffer(Application_Links *app, Buffer_ID buffer_id, Access_Flag access)
+/*
 DOC_PARAM(buffer_id, The parameter buffer_id specifies which buffer to try to get.)
 DOC_PARAM(access, The access parameter determines what levels of protection this call can access.)
 DOC_RETURN(This call returns a summary that describes the indicated buffer if it exists and is accessible.)
@@ -526,7 +529,8 @@ DOC_SEE(Buffer_ID)
 }
 
 API_EXPORT Buffer_Summary
-Get_Buffer_By_Name(Application_Links *app, char *name, int32_t len, Access_Flag access)/*
+Get_Buffer_By_Name(Application_Links *app, char *name, int32_t len, Access_Flag access)
+/*
 DOC_PARAM(name, The name parameter specifies the buffer name to try to get. The string need not be null terminated.)
 DOC_PARAM(len, The len parameter specifies the length of the name string.)
 DOC_PARAM(access, The access parameter determines what levels of protection this call can access.)
@@ -552,7 +556,8 @@ DOC_SEE(Access_Flag)
 }
 
 API_EXPORT bool32
-Buffer_Read_Range(Application_Links *app, Buffer_Summary *buffer, int32_t start, int32_t end, char *out)/*
+Buffer_Read_Range(Application_Links *app, Buffer_Summary *buffer, int32_t start, int32_t end, char *out)
+/*
 DOC_PARAM(buffer, This parameter specifies the buffer to read.)
 DOC_PARAM(start, This parameter specifies absolute position of the first character in the read range.)
 DOC_PARAM(end, This parameter specifies the absolute position of the the character one past the end of the read range.)
@@ -586,7 +591,8 @@ DOC_SEE(4coder_Buffer_Positioning_System)
 }
 
 API_EXPORT bool32
-Buffer_Replace_Range(Application_Links *app, Buffer_Summary *buffer, int32_t start, int32_t end, char *str, int32_t len)/*
+Buffer_Replace_Range(Application_Links *app, Buffer_Summary *buffer, int32_t start, int32_t end, char *str, int32_t len)
+/*
 DOC_PARAM(buffer, This parameter specifies the buffer to edit.)
 DOC_PARAM(start, This parameter specifies absolute position of the first character in the replace range.)
 DOC_PARAM(end, This parameter specifies the absolute position of the the character one past the end of the replace range.)
@@ -627,7 +633,8 @@ DOC_SEE(4coder_Buffer_Positioning_System)
 }
 
 API_EXPORT bool32
-Buffer_Compute_Cursor(Application_Links *app, Buffer_Summary *buffer, Buffer_Seek seek, Partial_Cursor *cursor_out)/*
+Buffer_Compute_Cursor(Application_Links *app, Buffer_Summary *buffer, Buffer_Seek seek, Partial_Cursor *cursor_out)
+/*
 DOC_PARAM(buffer, The buffer parameter specifies the buffer on which to run the cursor computation.)
 DOC_PARAM(seek, The seek parameter specifies the target position for the seek.)
 DOC_PARAM(cursor_out, On success this struct is filled with the result of the seek.)
@@ -655,7 +662,8 @@ DOC_SEE(Partial_Cursor)
 }
 
 API_EXPORT bool32
-Buffer_Batch_Edit(Application_Links *app, Buffer_Summary *buffer, char *str, int32_t str_len, Buffer_Edit *edits, int32_t edit_count, Buffer_Batch_Edit_Type type)/*
+Buffer_Batch_Edit(Application_Links *app, Buffer_Summary *buffer, char *str, int32_t str_len, Buffer_Edit *edits, int32_t edit_count, Buffer_Batch_Edit_Type type)
+/*
 DOC_PARAM(buffer, The buffer on which to apply the batch of edits.)
 DOC_PARAM(str, This parameter provides all of the source string for the edits in the batch.)
 DOC_PARAM(str_len, This parameter specifies the length of the str string.)
@@ -847,9 +855,10 @@ DOC_SEE(Buffer_Setting_ID)
                     i16 font_id = file->settings.font_id;
                     Render_Font *font = get_font_info(models->font_set, font_id)->font;
                     
-                    file_measure_character_starts(models, file);
-                    file_measure_wraps_and_fix_cursor(models, file, (f32)font->height,
-                                                      font->advance_data);
+                    file_allocate_character_starts_as_needed(&models->mem.general, file);
+                    buffer_measure_character_starts(&file->state.buffer, file->state.character_starts, 0, file->settings.virtual_white);
+                    file_measure_wraps(models, file, (f32)font->height, font->advance_data);
+                    file_update_cursor_positions(models, file);
                 }
             }break;
         }
@@ -933,8 +942,115 @@ DOC_SEE(cpp_get_token)
     return(result);
 }
 
+API_EXPORT void
+Begin_Buffer_Creation(Application_Links *app, Buffer_Creation_Data *data, Buffer_Create_Flag flags){
+    data->flags = flags;
+}
+
+API_EXPORT void
+Buffer_Creation_Name(Application_Links *app, Buffer_Creation_Data *data, char *filename, int32_t filename_len, uint32_t flags){
+    String fname = make_fixed_width_string(data->fname_space);
+    copy_ss(&fname, make_string(filename, filename_len));
+    data->fname_len = filename_len;
+}
+
 API_EXPORT Buffer_Summary
-Create_Buffer(Application_Links *app, char *filename, int32_t filename_len, Buffer_Create_Flag flags)/*
+End_Buffer_Creation(Application_Links *app, Buffer_Creation_Data *data){
+    Command_Data *cmd = (Command_Data*)app->cmd_context;
+    System_Functions *system = cmd->system;
+    Models *models = cmd->models;
+    Working_Set *working_set = &models->working_set;
+    General_Memory *general = &models->mem.general;
+    Partition *part = &models->mem.part;
+    
+    Buffer_Summary result = {0};
+    
+        if (data->fname_len > 0){
+            String fname = make_string(data->fname_space, data->fname_len);
+            
+            Editing_File *file = 0;
+            b32 do_new_file = 0;
+            Plat_Handle handle = {0};
+            
+            Temp_Memory temp = begin_temp_memory(part);
+            
+        Editing_File_Canon_Name canon = {0};
+        if (get_canon_name(system, &canon, fname)){
+            file = working_set_canon_contains(working_set, canon.name);
+        }
+        else{
+            do_new_file = 1;
+        }
+        
+        if (!file){
+            file = working_set_name_contains(working_set, fname);
+        }
+        
+        u32 flags = data->flags;
+        
+        if (!file){
+            if (!do_new_file){
+                if (flags & BufferCreate_AlwaysNew){
+                    do_new_file = 1;
+                }
+                else{
+                    if (!system->load_handle(canon.name.str, &handle)){
+                        do_new_file = 1;
+                    }
+                }
+            }
+            
+            if (!do_new_file){
+                Assert(!handle_equal(handle, handle_zero()));
+                
+                i32 size = system->load_size(handle);
+                b32 in_general_mem = 0;
+                char *buffer = push_array(part, char, size);
+                
+                if (buffer == 0){
+                    buffer = (char*)general_memory_allocate(general, size);
+                    Assert(buffer != 0);
+                    in_general_mem = 1;
+                }
+                
+                if (system->load_file(handle, buffer, size)){
+                    file = working_set_alloc_always(working_set, general);
+                    if (file){
+                        buffer_bind_file(system, general, working_set, file, canon.name);
+                        buffer_bind_name(general, working_set, file, fname);
+                        init_normal_file(system, models, file, buffer, size);
+                        fill_buffer_summary(&result, file, cmd);
+                    }
+                }
+                
+                if (in_general_mem){
+                    general_memory_free(general, buffer);
+                }
+                
+                system->load_close(handle);
+            }
+            else if (!(flags & BufferCreate_NeverNew)){
+                file = working_set_alloc_always(working_set, general);
+                if (file){
+                    buffer_bind_name(general, working_set, file, fname);
+                    init_normal_file(system, models, file, 0, 0);
+                    fill_buffer_summary(&result, file, cmd);
+                }
+            }
+        }
+        else{
+            fill_buffer_summary(&result, file, cmd);
+        }
+        
+        end_temp_memory(temp);
+    }
+    
+    return(result);
+}
+
+API_EXPORT Buffer_Summary
+Create_Buffer_(Application_Links *app, char *filename, int32_t filename_len, Buffer_Create_Flag flags)
+/*
 DOC_PARAM(filename, The filename parameter specifies the name of the file to be opened or created;
 it need not be null terminated.)
 DOC_PARAM(filename_len, The filename_len parameter spcifies the length of the filename string.)
@@ -965,7 +1081,7 @@ DOC_SEE(Buffer_Create_Flag)
     
     if (filename != 0){
         Editing_File *file = 0;
-        b32 do_new_file = false;
+        b32 do_new_file = 0;
         Plat_Handle handle = {0};
         
         Editing_File_Canon_Name canon = {0};
@@ -973,7 +1089,7 @@ DOC_SEE(Buffer_Create_Flag)
             file = working_set_canon_contains(working_set, canon.name);
         }
         else{
-            do_new_file = true;
+            do_new_file = 1;
         }
         
         if (!file){
@@ -983,11 +1099,11 @@ DOC_SEE(Buffer_Create_Flag)
         if (!file){
             if (!do_new_file){
                 if (flags & BufferCreate_AlwaysNew){
-                    do_new_file = true;
+                    do_new_file = 1;
                 }
                 else{
                     if (!system->load_handle(canon.name.str, &handle)){
-                        do_new_file = true;
+                        do_new_file = 1;
                     }
                 }
             }
@@ -996,13 +1112,13 @@ DOC_SEE(Buffer_Create_Flag)
                 Assert(!handle_equal(handle, handle_zero()));
                 
                 i32 size = system->load_size(handle);
-                b32 in_general_mem = false;
+                b32 in_general_mem = 0;
                 char *buffer = push_array(part, char, size);
                 
                 if (buffer == 0){
                     buffer = (char*)general_memory_allocate(general, size);
                     Assert(buffer != 0);
-                    in_general_mem = true;
+                    in_general_mem = 1;
                 }
                 
                 if (system->load_file(handle, buffer, size)){
@@ -1040,7 +1156,8 @@ DOC_SEE(Buffer_Create_Flag)
 }
 
 API_EXPORT bool32
-Save_Buffer(Application_Links *app, Buffer_Summary *buffer, char *filename, int32_t filename_len, uint32_t flags)/*
+Save_Buffer(Application_Links *app, Buffer_Summary *buffer, char *filename, int32_t filename_len, uint32_t flags)
+/*
 DOC_PARAM(buffer, The buffer parameter specifies the buffer to save to a file.)
 DOC_PARAM(filename, The filename parameter specifies the name of the file to associated to the buffer; it need not be null terminated.)
 DOC_PARAM(filename_len, The filename_len parameter specifies the length of the filename string.)
@@ -1067,7 +1184,8 @@ DOC_RETURN(This call returns non-zero on success.)
 }
 
 API_EXPORT bool32
-Kill_Buffer(Application_Links *app, Buffer_Identifier buffer, View_ID view_id, Buffer_Kill_Flag flags)/*
+Kill_Buffer(Application_Links *app, Buffer_Identifier buffer, View_ID view_id, Buffer_Kill_Flag flags)
+/*
 DOC_PARAM(buffer, The buffer parameter specifies the buffer to try to kill.)
 DOC_PARAM(view_id, The view_id parameter specifies the view that will contain the "are you sure" dialogue if the buffer is dirty.)
 DOC_PARAM(flags, The flags parameter specifies behaviors for the buffer kill.)
@@ -1152,11 +1270,11 @@ internal_get_view_next(Command_Data *cmd, View_Summary *view){
 }
 
 API_EXPORT View_Summary
-Get_View_First(Application_Links *app, Access_Flag access)/*
+Get_View_First(Application_Links *app, Access_Flag access)
+/*
 DOC_PARAM(access, The access parameter determines what levels of protection this call can access.)
 DOC_RETURN(This call returns the summary of the first view in a view loop.)
-DOC
-(
+DOC(
 This call begins a loop across all the open views.
 
 If the View_Summary returned is a null summary, the loop is finished.
@@ -1177,7 +1295,8 @@ DOC_SEE(get_view_next)
 }
 
 API_EXPORT void
-Get_View_Next(Application_Links *app, View_Summary *view, Access_Flag access)/*
+Get_View_Next(Application_Links *app, View_Summary *view, Access_Flag access)
+/*
 DOC_PARAM(view, The View_Summary pointed to by view is iterated to the next view or to a null summary if this is the last view.)
 DOC_PARAM(access, The access parameter determines what levels of protection this call can access. The view outputted will be the next view that is accessible.)
 DOC
@@ -1199,7 +1318,8 @@ DOC_SEE(get_view_first)
 }
 
 API_EXPORT View_Summary
-Get_View(Application_Links *app, View_ID view_id, Access_Flag access)/*
+Get_View(Application_Links *app, View_ID view_id, Access_Flag access)
+/*
 DOC_PARAM(view_id, The view_id specifies the view to try to get.)
 DOC_PARAM(access, The access parameter determines what levels of protection this call can access.)
 DOC_RETURN(This call returns a summary that describes the indicated view if it is open and accessible.)
@@ -1224,7 +1344,8 @@ DOC_SEE(Access_Flag)
 }
 
 API_EXPORT View_Summary
-Get_Active_View(Application_Links *app, Access_Flag access)/*
+Get_Active_View(Application_Links *app, Access_Flag access)
+/*
 DOC_PARAM(access, The access parameter determines what levels of protection this call can access.)
 DOC_RETURN(This call returns a summary that describes the active view.)
 DOC_SEE(set_active_view)
@@ -1245,7 +1366,8 @@ DOC_SEE(Access_Flag)
 }
 
 API_EXPORT View_Summary
-Open_View(Application_Links *app, View_Summary *view_location, View_Split_Position position)/*
+Open_View(Application_Links *app, View_Summary *view_location, View_Split_Position position)
+/*
 DOC_PARAM(view_location, The view_location parameter specifies the view to split to open the new view.)
 DOC_PARAM(position, The position parameter specifies how to split the view and where to place the new view.)
 DOC_RETURN(If this call succeeds it returns a View_Summary describing the newly created view, if it fails it
@@ -1308,7 +1430,8 @@ DOC_SEE(View_Split_Position)
 }
 
 API_EXPORT bool32
-Close_View(Application_Links *app, View_Summary *view)/*
+Close_View(Application_Links *app, View_Summary *view)
+/*
 DOC_PARAM(view, The view parameter specifies which view to close.)
 DOC_RETURN(This call returns non-zero on success.)
 
@@ -1409,7 +1532,8 @@ in the system, the call will fail.)
 }
 
 API_EXPORT bool32
-Set_Active_View(Application_Links *app, View_Summary *view)/*
+Set_Active_View(Application_Links *app, View_Summary *view)
+/*
 DOC_PARAM(view, The view parameter specifies which view to make active.)
 DOC_RETURN(This call returns non-zero on success.)
 
@@ -1451,7 +1575,8 @@ View_Get_Setting(Application_Links *app, View_Summary *view, View_Setting_ID set
 }
 
 API_EXPORT bool32
-View_Set_Setting(Application_Links *app, View_Summary *view, View_Setting_ID setting, int32_t value)/*
+View_Set_Setting(Application_Links *app, View_Summary *view, View_Setting_ID setting, int32_t value)
+/*
 DOC_PARAM(view, The view parameter specifies the view on which to set a setting.)
 DOC_PARAM(setting, The setting parameter identifies the setting that shall be changed.)
 DOC_PARAM(value, The value parameter specifies the value to which the setting shall be changed.)
@@ -1488,7 +1613,8 @@ DOC_SEE(View_Setting_ID)
 }
 
 API_EXPORT bool32
-View_Set_Split_Proportion(Application_Links *app, View_Summary *view, float t)/*
+View_Set_Split_Proportion(Application_Links *app, View_Summary *view, float t)
+/*
 DOC_PARAM(view, The view parameter specifies which view shall have it's size adjusted.)
 DOC_PARAM(t, The t parameter specifies the proportion of the containing box that the view should occupy. t should be in [0,1].)
 DOC_RETURN(This call returns non-zero on success.)
@@ -1520,7 +1646,8 @@ DOC_RETURN(This call returns non-zero on success.)
 }
 
 API_EXPORT bool32
-View_Compute_Cursor(Application_Links *app, View_Summary *view, Buffer_Seek seek, Full_Cursor *cursor_out)/*
+View_Compute_Cursor(Application_Links *app, View_Summary *view, Buffer_Seek seek, Full_Cursor *cursor_out)
+/*
 DOC_PARAM(view, The view parameter specifies the view on which to run the cursor computation.)
 DOC_PARAM(seek, The seek parameter specifies the target position for the seek.)
 DOC_PARAM(cursor_out, On success this struct is filled with the result of the seek.)
@@ -1550,7 +1677,8 @@ DOC_SEE(Full_Cursor)
 }
 
 API_EXPORT bool32
-View_Set_Cursor(Application_Links *app, View_Summary *view, Buffer_Seek seek, bool32 set_preferred_x)/*
+View_Set_Cursor(Application_Links *app, View_Summary *view, Buffer_Seek seek, bool32 set_preferred_x)
+/*
 DOC_PARAM(view, The view parameter specifies the view in which to set the cursor.)
 DOC_PARAM(seek, The seek parameter specifies the target position for the seek.)
 DOC_PARAM(set_preferred_x, If this parameter is true the preferred x is updated to match the new cursor x.)
@@ -1586,7 +1714,8 @@ DOC_SEE(Buffer_Seek)
 }
 
 API_EXPORT bool32
-View_Set_Scroll(Application_Links *app, View_Summary *view, GUI_Scroll_Vars scroll)/*
+View_Set_Scroll(Application_Links *app, View_Summary *view, GUI_Scroll_Vars scroll)
+/*
 DOC(TODO)
 DOC_SEE(GUI_Scroll_Vars)
 */{
@@ -1608,7 +1737,8 @@ DOC_SEE(GUI_Scroll_Vars)
 }
 
 API_EXPORT bool32
-View_Set_Mark(Application_Links *app, View_Summary *view, Buffer_Seek seek)/*
+View_Set_Mark(Application_Links *app, View_Summary *view, Buffer_Seek seek)
+/*
 DOC_PARAM(view, The view parameter specifies the view in which to set the mark.)
 DOC_PARAM(seek, The seek parameter specifies the target position for the seek.)
 DOC_RETURN(This call returns non-zero on success.)
@@ -1673,7 +1803,8 @@ and the turn_on set to false, will switch back to showing the cursor.
 }
 
 API_EXPORT bool32
-View_Set_Buffer(Application_Links *app, View_Summary *view, Buffer_ID buffer_id, Set_Buffer_Flag flags)/*
+View_Set_Buffer(Application_Links *app, View_Summary *view, Buffer_ID buffer_id, Set_Buffer_Flag flags)
+/*
 DOC_PARAM(view, The view parameter specifies the view in which to display the buffer.)
 DOC_PARAM(buffer_id, The buffer_id parameter specifies which buffer to show in the view.)
 DOC_PARAM(flags, The flags parameter specifies behaviors for setting the buffer.)
@@ -1711,7 +1842,8 @@ DOC_SEE(Set_Buffer_Flag)
 }
 
 API_EXPORT bool32
-View_Post_Fade(Application_Links *app, View_Summary *view, float seconds, int32_t start, int32_t end, int_color color)/*
+View_Post_Fade(Application_Links *app, View_Summary *view, float seconds, int32_t start, int32_t end, int_color color)
+/*
 DOC_PARAM(view, The view parameter specifies the view onto which the fade effect shall be posted.)
 DOC_PARAM(seconds, This parameter specifies the number of seconds the fade effect should last.)
 DOC_PARAM(start, This parameter specifies the absolute position of the first character of the fade range.)
@@ -1737,12 +1869,12 @@ DOC_SEE(int_color)
 }
 
 API_EXPORT User_Input
-Get_User_Input(Application_Links *app, Input_Type_Flag get_type, Input_Type_Flag abort_type)/*
+Get_User_Input(Application_Links *app, Input_Type_Flag get_type, Input_Type_Flag abort_type)
+/*
 DOC_PARAM(get_type, The get_type parameter specifies the set of input types that should be returned.)
 DOC_PARAM(abort_type, The get_type parameter specifies the set of input types that should trigger an abort signal.)
 DOC_RETURN(This call returns a User_Input that describes a user input event.)
-DOC
-(
+DOC(
 This call preempts the command. The command is resumed if either a get or abort condition
 is met, or if another command is executed.  If either the abort condition is met or another
 command is executed an abort signal is returned.  If an abort signal is ever returned the
@@ -1769,7 +1901,8 @@ DOC_SEE(User_Input)
 }
 
 API_EXPORT User_Input
-Get_Command_Input (Application_Links *app)/*
+Get_Command_Input (Application_Links *app)
+/*
 DOC_RETURN(This call returns the input that triggered the currently executing command.)
 DOC_SEE(User_Input)
 */{
@@ -1786,7 +1919,8 @@ DOC_SEE(User_Input)
 }
 
 API_EXPORT Mouse_State
-Get_Mouse_State(Application_Links *app)/*
+Get_Mouse_State(Application_Links *app)
+/*
 DOC_RETURN(This call returns the current mouse state as of the beginning of the frame.)
 DOC_SEE(Mouse_State)
 */{
@@ -1814,7 +1948,8 @@ Get_Event_Message (Application_Links *app){
 */
 
 API_EXPORT bool32
-Start_Query_Bar(Application_Links *app, Query_Bar *bar, uint32_t flags)/*
+Start_Query_Bar(Application_Links *app, Query_Bar *bar, uint32_t flags)
+/*
 DOC_PARAM(bar, This parameter provides a Query_Bar that should remain in valid memory
 until end_query_bar or the end of the command.  It is commonly a good idea to make
 this a pointer to a Query_Bar stored on the stack.)
@@ -1841,7 +1976,8 @@ only use for this call is in an interactive command that makes calls to get_user
 }
 
 API_EXPORT void
-End_Query_Bar(Application_Links *app, Query_Bar *bar, uint32_t flags)/*
+End_Query_Bar(Application_Links *app, Query_Bar *bar, uint32_t flags)
+/*
 DOC_PARAM(bar, This parameter should be a bar pointer of a currently active query bar.)
 DOC_PARAM(flags, This parameter is not currently used and should be 0 for now.)
 DOC(Stops showing the particular query bar specified by the bar parameter.)
@@ -1852,7 +1988,8 @@ DOC(Stops showing the particular query bar specified by the bar parameter.)
 }
 
 API_EXPORT void
-Print_Message(Application_Links *app, char *str, int32_t len)/*
+Print_Message(Application_Links *app, char *str, int32_t len)
+/*
 DOC_PARAM(str, The str parameter specifies the string to post to *messages*; it need not be null terminated.)
 DOC_PARAM(len, The len parameter specifies the length of the str string.)
 DOC(This call posts a string to the *messages* buffer.)
@@ -1865,7 +2002,8 @@ DOC(This call posts a string to the *messages* buffer.)
 // TODO(allen): List the names of built in themes and fonts.
 
 API_EXPORT void
-Change_Theme(Application_Links *app, char *name, int32_t len)/*
+Change_Theme(Application_Links *app, char *name, int32_t len)
+/*
 DOC_PARAM(name, The name parameter specifies the name of the theme to begin using; it need not be null terminated.)
 DOC_PARAM(len, The len parameter specifies the length of the name string.)
 DOC(This call changes 4coder's color pallet to one of the built in themes.)
@@ -1887,7 +2025,8 @@ DOC(This call changes 4coder's color pallet to one of the built in themes.)
 }
 
 API_EXPORT void
-Change_Font(Application_Links *app, char *name, int32_t len, bool32 apply_to_all_files)/*
+Change_Font(Application_Links *app, char *name, int32_t len, bool32 apply_to_all_files)
+/*
 DOC_PARAM(name, The name parameter specifies the name of the font to begin using; it need not be null terminated.)
 DOC_PARAM(len, The len parameter specifies the length of the name string.)
 DOC_PARAM(apply_to_all_files, If this is set all open files change to this font.  Usually this should be true
@@ -1912,7 +2051,8 @@ DOC(This call changes 4coder's default font to one of the built in fonts.)
 }
 
 API_EXPORT void
-Buffer_Set_Font(Application_Links *app, Buffer_Summary *buffer, char *name, int32_t len)/*
+Buffer_Set_Font(Application_Links *app, Buffer_Summary *buffer, char *name, int32_t len)
+/*
 DOC_PARAM(buffer, This parameter the buffer that shall have it's font changed)
 DOC_PARAM(name, The name parameter specifies the name of the font to begin using; it need not be null terminated.)
 DOC_PARAM(len, The len parameter specifies the length of the name string.)
@@ -1935,7 +2075,8 @@ DOC(This call sets the display font of a particular buffer.)
 }
 
 API_EXPORT void
-Set_Theme_Colors(Application_Links *app, Theme_Color *colors, int32_t count)/*
+Set_Theme_Colors(Application_Links *app, Theme_Color *colors, int32_t count)
+/*
 DOC_PARAM(colors, The colors pointer provides an array of color structs pairing differet style tags to color codes.)
 DOC_PARAM(count, The count parameter specifies the number of Theme_Color structs in the colors array.)
 DOC
@@ -1961,11 +2102,11 @@ no change is made to the color pallet.
 }
 
 API_EXPORT void
-Get_Theme_Colors(Application_Links *app, Theme_Color *colors, int32_t count)/*
+Get_Theme_Colors(Application_Links *app, Theme_Color *colors, int32_t count)
+/*
 DOC_PARAM(colors, an array of color structs listing style tags to get color values for)
 DOC_PARAM(count, the number of color structs in the colors array)
-DOC
-(
+DOC(
 For each struct in the array, the color field of the struct is filled with the
 color from the slot in the main color pallet specified by the tag.  If the tag
 value is invalid the color is filled with black.
@@ -1990,12 +2131,12 @@ value is invalid the color is filled with black.
 }
 
 API_EXPORT int32_t
-Directory_Get_Hot(Application_Links *app, char *out, int32_t capacity)/*
+Directory_Get_Hot(Application_Links *app, char *out, int32_t capacity)
+/*
 DOC_PARAM(out, This parameter provides a character buffer that receives the 4coder 'hot directory'.)
 DOC_PARAM(capacity, This parameter specifies the maximum size to be output to the out buffer.)
 DOC_RETURN(This call returns the size of the string written into the buffer.)
-DOC
-(
+DOC(
 4coder has a concept of a 'hot directory' which is the directory most recently
 accessed in the GUI.  Whenever the GUI is opened it shows the hot directory.
 
@@ -2029,11 +2170,11 @@ directories controlled on the custom side.
 #define Send_Exit_Signal system->send_exit_signal
 
 API_EXPORT File_List
-Get_File_List(Application_Links *app, char *dir, int32_t len)/*
+Get_File_List(Application_Links *app, char *dir, int32_t len)
+/*
 DOC_PARAM(dir, This parameter specifies the directory whose files will be enumerated in the returned list; it need not be null terminated.)
 DOC_PARAM(len, This parameter the length of the dir string.)
-DOC_RETURN
-(
+DOC_RETURN(
 This call returns a File_List struct containing pointers to the names of the files in
 the specified directory.  The File_List returned should be passed to free_file_list
 when it is no longer in use.
@@ -2047,7 +2188,8 @@ when it is no longer in use.
 }
 
 API_EXPORT void
-Free_File_List(Application_Links *app, File_List list)/*
+Free_File_List(Application_Links *app, File_List list)
+/*
 DOC_PARAM(list, This parameter provides the file list to be freed.)
 DOC(After this call the file list passed in should not be read or written to.)
 */{

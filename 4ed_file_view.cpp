@@ -1748,7 +1748,8 @@ file_create_from_string(System_Functions *system, Models *models,
     // making so many passes over the buffer?
     file_measure_starts(system, general, &file->state.buffer);
     
-    file_measure_character_starts(models, file);
+    file_allocate_character_starts_as_needed(&models->mem.general, file);
+    buffer_measure_character_starts(&file->state.buffer, file->state.character_starts, 0, file->settings.virtual_white);
     
     i16 font_id = models->global_font.font_id;
     file->settings.font_id = font_id;
