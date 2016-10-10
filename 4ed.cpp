@@ -650,7 +650,9 @@ COMMAND_DECL(close_panel){
         }
         else{
             panel_ptr = panel->next;
-            if (panel_ptr == &models->layout.used_sentinel) panel_ptr = panel_ptr->next;
+            if (panel_ptr == &models->layout.used_sentinel){
+                panel_ptr = panel_ptr->next;
+            }
             Assert(panel_ptr != panel);
             active = (i32)(panel_ptr - models->layout.panels);
         }
@@ -732,7 +734,6 @@ command_caller(Coroutine *coroutine){
     Models *models = command->models;
     USE_VIEW(view);
     
-    view->next_mode = view_mode_zero();
     if (models->command_caller){
         Generic_Command generic;
         if (cmd_in->bind.function == command_user_callback){
@@ -747,7 +748,6 @@ command_caller(Coroutine *coroutine){
     else{
         cmd_in->bind.function(command->system, command, cmd_in->bind);
     }
-    view->mode = view->next_mode;
 }
 
 internal void

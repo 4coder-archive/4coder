@@ -120,15 +120,6 @@ enum Interactive_Interaction{
     IInt_Sure_To_Close
 };
 
-struct View_Mode{
-    i32 rewrite;
-};
-inline View_Mode
-view_mode_zero(){
-    View_Mode mode={0};
-    return(mode);
-}
-
 enum View_UI{
     VUI_None,
     VUI_Theme,
@@ -161,11 +152,7 @@ struct File_Viewing_Data{
     b32 show_whitespace;
     b32 file_locked;
 };
-inline File_Viewing_Data
-file_viewing_data_zero(){
-    File_Viewing_Data data={0};
-    return(data);
-}
+static File_Viewing_Data null_file_viewing_data = {0};
 
 struct Scroll_Context{
     Editing_File *file;
@@ -260,7 +247,6 @@ struct View{
     i32 line_height;
     
     // TODO(allen): Do I still use mode?
-    View_Mode mode, next_mode;
     Query_Set query_set;
     f32 widget_height;
     
@@ -1206,16 +1192,45 @@ wrap_state_consume_token(Code_Wrap_State *state, i32 fixed_end_point){
 }
 
 internal i32
-stickieness_guess(Cpp_Token_Type type, b32 on_left){
+stickieness_guess(Cpp_Token_Type type, Cpp_Token_Type other_type, b32 on_left, b32 in_parens){
     i32 guess = 0;
     
-    if (type == CPP_TOKEN_SEMICOLON ||
-        type == CPP_TOKEN_COLON ||
-        type == CPP_TOKEN_PARENTHESE_OPEN ||
-        type == CPP_TOKEN_PARENTHESE_CLOSE ||
-        type == CPP_TOKEN_BRACKET_OPEN ||
-        type == CPP_TOKEN_BRACKET_CLOSE ||
-        type == CPP_TOKEN_COMMA){
+    b32 is_words = 0, other_is_words = 0;
+    if (type == CPP_TOKEN_IDENTIFIER || (type >= CPP_TOKEN_KEY_TYPE && type <= CPP_TOKEN_KEY_OTHER)){
+        is_words = 1;
+    }
+    if (other_type == CPP_TOKEN_IDENTIFIER || (other_type >= CPP_TOKEN_KEY_TYPE && other_type <= CPP_TOKEN_KEY_OTHER)){
+        other_is_words = 1;
+    }
+    
+    i32 operator_side_bias = 70*(!on_left);
+    
+    if (is_words && other_is_words){
+        guess = 200;
+    }
+    else if (type == CPP_TOKEN_PARENTHESE_OPEN){
+        if (on_left){
+            guess = 0;
+        }
+        else{
+            if (other_type == CPP_TOKEN_IDENTIFIER){
+            guess = 100;
+            }
+        }
+    }
+    else if (type == CPP_TOKEN_SEMICOLON){
+        if (on_left){
+            guess = 0;
+        }
+        else{
+            guess = 200;
+        }
+    }
+    else if (type == CPP_TOKEN_COLON ||
+             type == CPP_TOKEN_PARENTHESE_CLOSE ||
+             type == CPP_TOKEN_COMMA ||
+             type == CPP_TOKEN_BRACKET_OPEN ||
+             type == CPP_TOKEN_BRACKET_CLOSE){
         if (on_left){
             guess = 0;
         }
@@ -1255,19 +1270,33 @@ stickieness_guess(Cpp_Token_Type type, b32 on_left){
         guess = 70;
     }
     else if (type == CPP_TOKEN_PLUS){
-        guess = 60;
+        guess = 60 + operator_side_bias;
     }
     else if (type >= CPP_TOKEN_LSHIFT && type <= CPP_TOKEN_RSHIFT){
         guess = 50;
     }
     else if (type >= CPP_TOKEN_LESS && type <= CPP_TOKEN_NOTEQ){
+        guess = 40 + operator_side_bias;
+    }
+    else if (type >= CPP_TOKEN_BIT_XOR && type <= CPP_TOKEN_BIT_OR){
         guess = 40;
     }
-    else if (type >= CPP_TOKEN_BIT_XOR && type <= CPP_TOKEN_OR){
-        guess = 20;
+    else if (type >= CPP_TOKEN_AND && type <= CPP_TOKEN_OR){
+        guess = 30 + operator_side_bias;
     }
-    else if (type >= CPP_TOKEN_TERNARY_QMARK && type <= CPP_TOKEN_XOREQ){
-        guess = 10;
+    else if (type >= CPP_TOKEN_TERNARY_QMARK && type <= CPP_TOKEN_COLON){
+        guess = 20 + operator_side_bias;
+    }
+    else if (type == CPP_TOKEN_THROW){
+        if (on_left){
+            guess = 100;
+        }
+        else{
+            guess = 0;
+        }
+    }
+    else if (type >= CPP_TOKEN_EQ && type <= CPP_TOKEN_XOREQ){
+        guess = 15 + operator_side_bias;
     }
     
     return(guess);
@@ -1498,6 +1527,9 @@ file_measure_wraps(Models *models, Editing_File *file, f32 font_height, f32 *adv
                                 Cpp_Token *this_token = step.this_token;
                                 Cpp_Token *next_token = wrap_state.token_ptr;
                                 
+                                Cpp_Token_Type this_type = this_token->type;
+                                Cpp_Token_Type next_type = CPP_TOKEN_JUNK;
+                                
                                 if (this_token == next_token){
                                     next_token = 0;
                                 }
@@ -1506,29 +1538,29 @@ file_measure_wraps(Models *models, Editing_File *file, f32 font_height, f32 *adv
                                     next_token = 0;
                                 }
                                 
-                                i32 this_stickieness = stickieness_guess(this_token->type, 1);
-                                i32 general_stickieness = this_stickieness;
-                                i32 next_stickieness = 0;
-                                
                                 if (next_token){
-                                    next_stickieness = stickieness_guess(next_token->type, 0);
+                                    next_type = next_token->type;
                                 }
                                 
+                                b32 in_parens = wrap_state.paren_top == 0;
+                                i32 this_stickieness = stickieness_guess(this_type, next_type, 1, in_parens);
+                                
+                                i32 next_stickieness = 0;
+                                if (next_token){
+                                    next_stickieness = stickieness_guess(next_type, this_type, 0, in_parens);
+                                }
+                                
+                                i32 general_stickieness = this_stickieness;
                                 if (general_stickieness < next_stickieness){
                                     general_stickieness = next_stickieness;
                                 }
                                 
                                 wrappable_score = 64*50;
-                                if (wrap_state.paren_top == 0){
+                                if (in_parens){
                                     wrappable_score += 101 - general_stickieness;
                                 }
                                 else{
-                                    if (this_token->type == CPP_TOKEN_COMMA){
-                                        wrappable_score += 401 - wrap_state.paren_safe_top*20;
-                                    }
-                                    else{
-                                        wrappable_score += 101 - general_stickieness - wrap_state.paren_safe_top*20;
-                                    }
+                                        wrappable_score += 101 - general_stickieness - wrap_state.paren_safe_top*80;
                                 }
                                 
                                 potential_marks[potential_count].wrap_position = wrap_position;
@@ -1554,7 +1586,9 @@ file_measure_wraps(Models *models, Editing_File *file, f32 font_height, f32 *adv
                                     for (; i < potential_count; ++i){
                                         i32 this_score = potential_marks[i].wrappable_score;
                                         f32 x_shift = potential_marks[i].start_x - potential_marks[i].line_shift;
-                                        if (x_shift < x_gain_threshold){
+                                        
+                                        f32 x_shift_adjusted = x_shift - x_gain_threshold;
+                                        if (x_shift_adjusted < 0){
                                             this_score = 0;
                                         }
                                         
@@ -2385,7 +2419,7 @@ file_post_history(General_Memory *general, Editing_File *file,
 // TODO(allen): burn this shit to the ground yo!
 inline void
 file_view_nullify_file(View *view){
-    view->file_data = file_viewing_data_zero();
+    view->file_data = null_file_viewing_data;
 }
 
 internal void

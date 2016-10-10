@@ -93,7 +93,9 @@
 ; [] API docs have duplicate ids?
 ; [] query buffer font info
 ; [] option to not open *messages* every startup
-; 
+; [] issues with drive letters
+; [] strong options for indentation rules for text & presentation
+;
 
 ; TODOS
 ; [X] success message when compiler works
@@ -176,6 +178,7 @@
 ;     [] handle unclosed statements
 ;     [] handle comments
 ;     [] fix issues when relexing happens in parallel
+;     [] additional width for nesting?
 ; [] remeasure version of measure_wraps
 
 ; Buffer behavior cleanup
