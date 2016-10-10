@@ -395,13 +395,9 @@ get_indentation_marks(Application_Links *app, Partition *part, Buffer_Summary *b
                                     
                                     default:
                                     if (indent.current_indent > 0){
-                                        if (!(prev_token.flags & CPP_TFLAG_PP_BODY) &&
-                                            !(prev_token.flags & CPP_TFLAG_PP_DIRECTIVE)){
+                                        if (!(prev_token.flags & CPP_TFLAG_PP_BODY) && !(prev_token.flags & CPP_TFLAG_PP_DIRECTIVE)){
                                             switch (prev_token.type){
-                                                case CPP_TOKEN_BRACKET_OPEN:
-                                                case CPP_TOKEN_BRACE_OPEN: case CPP_TOKEN_BRACE_CLOSE:
-                                                case CPP_TOKEN_SEMICOLON: case CPP_TOKEN_COLON:
-                                                case CPP_TOKEN_COMMA: case CPP_TOKEN_COMMENT: break;
+                                                case CPP_TOKEN_BRACKET_OPEN: case CPP_TOKEN_BRACE_OPEN: case CPP_TOKEN_BRACE_CLOSE: case CPP_TOKEN_SEMICOLON: case CPP_TOKEN_COLON: case CPP_TOKEN_COMMA: case CPP_TOKEN_COMMENT: break;
                                                 default: this_indent += tab_width;
                                             }
                                         }
