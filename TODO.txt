@@ -175,11 +175,11 @@
 ;     [X] handle square brackets
 ;     [X] smarter wrap rule
 ;     [X] handle unclosed statements
+;     [+] wrapped line indication
 ;     [] special indent rules in preprocessor body
 ;     [] handle comments
-;     [] fix issues when relexing happens in parallel
 ;     [] additional width for nesting?
-;     [] wrapped line indication
+;     [] fix issues when relexing happens in parallel
 ; [] remeasure version of measure_wraps
 
 ; Buffer behavior cleanup

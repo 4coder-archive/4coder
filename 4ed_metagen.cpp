@@ -217,6 +217,7 @@ static char* main_style_fields[] = {
     "preproc",
     "include",
     "special_character",
+    "ghost_character",
     "highlight_junk",
     "highlight_white",
     "paste",

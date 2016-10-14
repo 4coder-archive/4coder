@@ -1125,7 +1125,8 @@ buffer_invert_batch(Buffer_Invert_Batch *state, Buffer_Type *buffer, Buffer_Edit
 }
 
 enum Buffer_Render_Flag{
-    BRFlag_Special_Character = (1 << 0)
+    BRFlag_Special_Character = (1 << 0),
+        BRFlag_Ghost_Character = (1 << 1)
 };
 
 typedef struct Buffer_Render_Item{
@@ -1184,6 +1185,13 @@ struct Buffer_Render_Params{
     f32 font_height;
     f32 *adv;
     b32 virtual_white;
+    i32 wrap_slashes;
+};
+
+enum Wrap_Slash_Mode{
+    BRWrapSlash_Hide,
+    BRWrapSlash_Show_After_Line,
+    BRWrapSlash_Show_At_Wrap_Edge,
 };
 
 struct Buffer_Render_State{
@@ -1211,8 +1219,7 @@ struct Buffer_Render_State{
 #define DrReturn(n) { *S_ptr = S; S_ptr->__pc__ = -1; return(n); }
 
 internal_4tech Buffer_Layout_Stop
-buffer_render_data(Buffer_Render_State *S_ptr, Buffer_Render_Params params,
-                   f32 line_shift, b32 do_wrap, i32 wrap_unit_end){
+buffer_render_data(Buffer_Render_State *S_ptr, Buffer_Render_Params params, f32 line_shift, b32 do_wrap, i32 wrap_unit_end){
     Buffer_Render_State S = *S_ptr;
     Buffer_Layout_Stop S_stop;
     
@@ -1287,6 +1294,21 @@ buffer_render_data(Buffer_Render_State *S_ptr, Buffer_Render_Params params,
                         ++S.wrap_line;
                         
                         if (params.wrapped){
+                            switch (params.wrap_slashes){
+                                case BRWrapSlash_Show_After_Line:
+                                {
+                            S.write = write_render_item(S.write, S.i-1, '\\', BRFlag_Ghost_Character);
+                                }break;
+                                
+                                case BRWrapSlash_Show_At_Wrap_Edge:
+                                {
+                                    if (S.write.x < shift_x + params.width){
+                                        S.write.x = shift_x + params.width;
+                                    }
+                                    S.write = write_render_item(S.write, S.i-1, '\\', BRFlag_Ghost_Character);
+                                }break;
+                            }
+                            
                             S.write.x = shift_x + line_shift;
                             S.write.y += params.font_height;
                         }

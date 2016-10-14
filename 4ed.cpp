@@ -861,6 +861,7 @@ app_hardcode_styles(Models *models){
     style->main.include_color = style->main.str_constant_color;
     style->main.preproc_color = style->main.default_color;
     style->main.special_character_color = 0xFFFF0000;
+    style->main.ghost_character_color = color_blend(style->main.default_color, 0.5f, style->main.back_color);
     
     style->main.paste_color = 0xFFDDEE00;
     style->main.undo_color = 0xFF00DDEE;
@@ -899,6 +900,7 @@ app_hardcode_styles(Models *models){
     style->main.include_color = 0xFF6B8E23;
     style->main.preproc_color = 0xFFDAB98F;
     style->main.special_character_color = 0xFFFF0000;
+    style->main.ghost_character_color = color_blend(style->main.default_color, 0.5f, style->main.back_color);
     
     style->main.paste_color = 0xFFFFBB00;
     style->main.undo_color = 0xFF80005D;
@@ -937,6 +939,7 @@ app_hardcode_styles(Models *models){
     style->main.include_color = style->main.str_constant_color;
     style->main.preproc_color = style->main.default_color;
     style->main.special_character_color = 0xFFFF0000;
+    style->main.ghost_character_color = color_blend(0xFFFFFFFF, 0.75f, style->main.back_color);
     
     style->main.paste_color = 0xFFDDEE00;
     style->main.undo_color = 0xFF00DDEE;
@@ -975,6 +978,7 @@ app_hardcode_styles(Models *models){
     style->main.include_color = style->main.str_constant_color;
     style->main.preproc_color = style->main.default_color;
     style->main.special_character_color = 0xFFFF0000;
+    style->main.ghost_character_color = color_blend(style->main.default_color, 0.5f, style->main.back_color);
     
     style->main.paste_color = 0xFF900090;
     style->main.undo_color = 0xFF606090;
@@ -1013,6 +1017,7 @@ app_hardcode_styles(Models *models){
     style->main.include_color = style->main.str_constant_color;
     style->main.preproc_color = style->main.default_color;
     style->main.special_character_color = 0xFF9A0000;
+    style->main.ghost_character_color = color_blend(style->main.default_color, 0.5f, style->main.back_color);
     
     style->main.paste_color = 0xFF00B8B8;
     style->main.undo_color = 0xFFB800B8;
@@ -1051,6 +1056,7 @@ app_hardcode_styles(Models *models){
     style->main.bool_constant_color = 0xFF007C00;
     style->main.preproc_color = 0xFF0000FF;
     style->main.special_character_color = 0xFF9A0000;
+    style->main.ghost_character_color = color_blend(style->main.default_color, 0.5f, style->main.back_color);
     
     style->main.paste_color = 0xFFB87600;
     style->main.undo_color = 0xFFB87600;
@@ -1089,6 +1095,7 @@ app_hardcode_styles(Models *models){
     style->main.include_color = 0xFF9a99e7;
     style->main.preproc_color = 0xFF606590;
     style->main.special_character_color = 0xFFFF0000;
+    style->main.ghost_character_color = color_blend(style->main.default_color, 0.5f, style->main.back_color);
     
     style->main.paste_color = 0xFFFFBB00;
     style->main.undo_color = 0xFF80005D;

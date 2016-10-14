@@ -1016,7 +1016,7 @@ struct Potential_Wrap_Indent_Pair{
     i32 wrap_position;
     f32 line_shift;
     
-    f32 start_x;
+    f32 wrap_x;
     i32 wrappable_score;
 };
 
@@ -1192,7 +1192,7 @@ wrap_state_consume_token(Code_Wrap_State *state, i32 fixed_end_point){
 }
 
 internal i32
-stickieness_guess(Cpp_Token_Type type, Cpp_Token_Type other_type, b32 on_left, b32 in_parens){
+stickieness_guess(Cpp_Token_Type type, Cpp_Token_Type other_type, u16 flags, u16 other_flags, b32 on_left){
     i32 guess = 0;
     
     b32 is_words = 0, other_is_words = 0;
@@ -1201,6 +1201,14 @@ stickieness_guess(Cpp_Token_Type type, Cpp_Token_Type other_type, b32 on_left, b
     }
     if (other_type == CPP_TOKEN_IDENTIFIER || (other_type >= CPP_TOKEN_KEY_TYPE && other_type <= CPP_TOKEN_KEY_OTHER)){
         other_is_words = 1;
+    }
+    
+    b32 is_operator = 0, other_is_operator = 0;
+    if (flags & CPP_TFLAG_IS_OPERATOR){
+        is_operator = 1;
+    }
+    if (other_flags & CPP_TFLAG_IS_OPERATOR){
+        other_is_operator = 1;
     }
     
     i32 operator_side_bias = 70*(!on_left);
@@ -1213,7 +1221,7 @@ stickieness_guess(Cpp_Token_Type type, Cpp_Token_Type other_type, b32 on_left, b
             guess = 0;
         }
         else{
-            if (other_type == CPP_TOKEN_IDENTIFIER){
+            if (other_is_words){
             guess = 100;
             }
         }
@@ -1223,7 +1231,7 @@ stickieness_guess(Cpp_Token_Type type, Cpp_Token_Type other_type, b32 on_left, b
             guess = 0;
         }
         else{
-            guess = 200;
+            guess = 1000;
         }
     }
     else if (type == CPP_TOKEN_COLON ||
@@ -1257,14 +1265,21 @@ stickieness_guess(Cpp_Token_Type type, Cpp_Token_Type other_type, b32 on_left, b
             guess = 60;
         }
     }
+    else if (type == CPP_TOKEN_DOT ||
+             type == CPP_TOKEN_ARROW){
+        guess = 200;
+    }
     else if (type == CPP_TOKEN_INCREMENT ||
              type == CPP_TOKEN_DECREMENT ||
              type == CPP_TOKEN_STAR ||
              type == CPP_TOKEN_AMPERSAND ||
              type == CPP_TOKEN_TILDE ||
              (type >= CPP_TOKEN_POSTINC &&
-              type <= CPP_TOKEN_PTRARROW)){
+              type <= CPP_TOKEN_DELETE_ARRAY)){
         guess = 80;
+        if (!on_left && other_is_operator){
+            guess = 20;
+        }
     }
     else if (type >= CPP_TOKEN_MUL && type <= CPP_TOKEN_MOD){
         guess = 70;
@@ -1306,6 +1321,7 @@ internal f32
 get_current_shift(Code_Wrap_State *wrap_state, i32 next_line_start){
     f32 current_shift = wrap_state->paren_nesting[wrap_state->paren_safe_top];
                         
+    f32 statement_continuation_indent = 0.f;
     if (current_shift != 0.f && wrap_state->paren_safe_top == 0){
                             if (wrap_state->token_ptr > wrap_state->token_array.tokens){
                                 Cpp_Token prev_token = *(wrap_state->token_ptr-1);
@@ -1313,10 +1329,16 @@ get_current_shift(Code_Wrap_State *wrap_state, i32 next_line_start){
                             if (!(prev_token.flags & CPP_TFLAG_PP_BODY) && !(prev_token.flags & CPP_TFLAG_PP_DIRECTIVE)){
                                 switch (prev_token.type){
                                     case CPP_TOKEN_BRACKET_OPEN: case CPP_TOKEN_BRACE_OPEN: case CPP_TOKEN_BRACE_CLOSE: case CPP_TOKEN_SEMICOLON: case CPP_TOKEN_COLON: case CPP_TOKEN_COMMA: case CPP_TOKEN_COMMENT: break;
-                                    default: current_shift += wrap_state->tab_indent_amount; break;
+                                    default: statement_continuation_indent += wrap_state->tab_indent_amount; break;
                                 }
                             }
                         }
+                    }
+                    
+                    switch (wrap_state->token_ptr->type){
+                        case CPP_TOKEN_BRACE_CLOSE: case CPP_TOKEN_BRACE_OPEN:break;
+                        
+                        default: current_shift += statement_continuation_indent; break;
                     }
                     
                     if (wrap_state->token_ptr->start < next_line_start){
@@ -1522,8 +1544,8 @@ file_measure_wraps(Models *models, Editing_File *file, f32 font_height, f32 *adv
                             }
                             
                             i32 wrap_position = step.position_end;
-                            if (wrap_state.token_ptr->start > step.position_start &&
-                                wrap_position < wrap_state.token_ptr->start && next_token_is_on_line){
+                            f32 wrap_x = step.final_x;
+                            if (wrap_state.token_ptr->start > step.position_start && wrap_position < wrap_state.token_ptr->start && next_token_is_on_line){
                                 wrap_position = wrap_state.token_ptr->start;
                             }
                             
@@ -1536,20 +1558,23 @@ file_measure_wraps(Models *models, Editing_File *file, f32 font_height, f32 *adv
                                 Cpp_Token_Type this_type = this_token->type;
                                 Cpp_Token_Type next_type = CPP_TOKEN_JUNK;
                                 
+                                u16 this_flags = this_token->flags;
+                                u16 next_flags = 0;
+                                
                                 if (this_token == next_token || !next_token_is_on_line){
                                     next_token = 0;
                                 }
                                 
                                 if (next_token){
                                     next_type = next_token->type;
+                                    next_flags = next_token->flags;
                                 }
                                 
-                                b32 in_parens = (wrap_state.paren_top == 0);
-                                i32 this_stickieness = stickieness_guess(this_type, next_type, 1, in_parens);
+                                i32 this_stickieness = stickieness_guess(this_type, next_type, this_flags, next_flags, 1);
                                 
                                 i32 next_stickieness = 0;
                                 if (next_token){
-                                    next_stickieness = stickieness_guess(next_type, this_type, 0, in_parens);
+                                    next_stickieness = stickieness_guess(next_type, this_type, next_flags, this_flags, 0);
                                 }
                                 
                                 i32 general_stickieness = this_stickieness;
@@ -1558,17 +1583,12 @@ file_measure_wraps(Models *models, Editing_File *file, f32 font_height, f32 *adv
                                 }
                                 
                                 wrappable_score = 64*50;
-                                if (in_parens){
-                                    wrappable_score += 101 - general_stickieness;
-                                }
-                                else{
-                                        wrappable_score += 101 - general_stickieness - wrap_state.paren_safe_top*80;
-                                }
+                                wrappable_score += 101 - general_stickieness- wrap_state.paren_safe_top*80;
                                 
                                 potential_marks[potential_count].wrap_position = wrap_position;
                                 potential_marks[potential_count].line_shift = current_shift;
                                 potential_marks[potential_count].wrappable_score = wrappable_score;
-                                potential_marks[potential_count].start_x = step.start_x;
+                                potential_marks[potential_count].wrap_x = wrap_x;
                                 ++potential_count;
                             }
                             
@@ -1587,11 +1607,19 @@ file_measure_wraps(Models *models, Editing_File *file, f32 font_height, f32 *adv
                                     
                                     for (; i < potential_count; ++i){
                                         i32 this_score = potential_marks[i].wrappable_score;
-                                        f32 x_shift = potential_marks[i].start_x - potential_marks[i].line_shift;
+                                        f32 x_shift = potential_marks[i].wrap_x - potential_marks[i].line_shift;
                                         
                                         f32 x_shift_adjusted = x_shift - x_gain_threshold;
+                                        f32 x_left_over = step.final_x - x_shift;
+                                        
                                         if (x_shift_adjusted < 0){
                                             this_score = 0;
+                                        }
+                                        else if (x_left_over <= x_gain_threshold){
+                                            this_score = 1;
+                                        }
+                                        else{
+                                            this_score += FLOOR32(0.5f*x_shift_adjusted);
                                         }
                                         
                                         if (this_score > best_score){
@@ -5594,14 +5622,10 @@ draw_file_loaded(View *view, i32_Rect rect, b32 is_active, Render_Target *target
         params.font_height   = (f32)line_height;
         params.adv           = advance_data;
         params.virtual_white = file->settings.virtual_white;
+        params.wrap_slashes  = BRWrapSlash_Show_At_Wrap_Edge;
         
         Buffer_Render_State state = {0};
         Buffer_Layout_Stop stop = {0};
-        
-        f32 edge_tolerance = 50.f;
-        if (edge_tolerance > params.width){
-            edge_tolerance = params.width;
-        }
         
         f32 line_shift = 0.f;
         b32 do_wrap = 0;
@@ -5663,6 +5687,7 @@ draw_file_loaded(View *view, i32_Rect rect, b32 is_active, Render_Target *target
     i32 token_i = 0;
     u32 main_color = style->main.default_color;
     u32 special_color = style->main.special_character_color;
+    u32 ghost_color = style->main.ghost_character_color;
     if (tokens_use){
         Cpp_Get_Token_Result result = cpp_get_token(token_array, items->index);
         main_color = *style_get_color(style, token_array.tokens[result.token_index]);
@@ -5705,6 +5730,9 @@ draw_file_loaded(View *view, i32_Rect rect, b32 is_active, Render_Target *target
         u32 char_color = main_color;
         if (item->flags & BRFlag_Special_Character){
             char_color = special_color;
+        }
+        else if (item->flags & BRFlag_Ghost_Character){
+            char_color = ghost_color;
         }
         
         f32_Rect char_rect = f32R(item->x0, item->y0, item->x1,  item->y1);
