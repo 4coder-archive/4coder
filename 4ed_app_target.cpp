@@ -25,6 +25,7 @@
 #include "4ed_rendering.h"
 
 #include "4ed.h"
+#include "4ed_mem.h"
 
 #define FCPP_FORBID_MALLOC
 #include "4cpp_lexer.h"

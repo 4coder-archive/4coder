@@ -12,7 +12,8 @@ as this is the only one that will be used for generating headers and docs.
 #define API_EXPORT
 
 API_EXPORT void*
-Memory_Allocate(Application_Links *app, int32_t size)/*
+Memory_Allocate(Application_Links *app, int32_t size)
+/*
 DOC_PARAM(size, The size in bytes of the block that should be returned.)
 DOC(This calls to a low level OS allocator which means it is best used
 for infrequent, large allocations.  The size of the block must be remembered
@@ -24,7 +25,8 @@ DOC_SEE(memory_free)
 }
 
 API_EXPORT bool32
-Memory_Set_Protection(Application_Links *app, void *ptr, int32_t size, Memory_Protect_Flags flags)/*
+Memory_Set_Protection(Application_Links *app, void *ptr, int32_t size, Memory_Protect_Flags flags)
+/*
 DOC_PARAM(ptr, The base of the block on which to set memory protection flags.)
 DOC_PARAM(size, The size that was originally used to allocate this block.)
 DOC_PARAM(flags, The new memory protection flags.)
@@ -40,21 +42,17 @@ DOC_SEE(Memory_Protect_Flags)
     flags = flags & 0x7;
     
     switch (flags){
-        case 0:
-        protect = PAGE_NOACCESS; break;
+        case 0: protect = PAGE_NOACCESS; break;
         
-        case MemProtect_Read:
-        protect = PAGE_READONLY; break;
+        case MemProtect_Read: protect = PAGE_READONLY; break;
         
         case MemProtect_Write:
         case MemProtect_Read|MemProtect_Write:
         protect = PAGE_READWRITE; break;
         
-        case MemProtect_Execute:
-        protect = PAGE_EXECUTE; break;
+        case MemProtect_Execute: protect = PAGE_EXECUTE; break;
         
-        case MemProtect_Execute|MemProtect_Read:
-        protect = PAGE_EXECUTE_READ; break;
+        case MemProtect_Execute|MemProtect_Read: protect = PAGE_EXECUTE_READ; break;
         
         case MemProtect_Execute|MemProtect_Write:
         case MemProtect_Execute|MemProtect_Write|MemProtect_Read:

@@ -126,6 +126,10 @@ buffer_measure_starts(Buffer_Measure_Starts *state, Buffer_Type *buffer){
     state->count = (i32)(start_ptr - buffer->line_starts);
     state->start = start;
     
+    if (!result){
+        buffer->line_count = state->count;
+    }
+    
     return(result);
 }
 

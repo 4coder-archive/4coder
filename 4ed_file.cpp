@@ -459,7 +459,7 @@ working_set_alloc(Working_Set *working_set){
 }
 
 internal Editing_File*
-working_set_alloc_always(Working_Set *working_set, General_Memory *general){
+working_set_alloc_always(System_Functions *system, Working_Set *working_set, General_Memory *general){
     Editing_File *result = 0;
     Editing_File *new_chunk;
     i32 full_new_count = working_set->file_max;
@@ -468,9 +468,8 @@ working_set_alloc_always(Working_Set *working_set, General_Memory *general){
     if (full_new_count > max_i16) new_count = max_i16;
     else new_count = (i16)full_new_count;
     
-    if (working_set->file_count == working_set->file_max &&
-            working_set->array_count < working_set->array_max){
-        new_chunk = gen_array(general, Editing_File, new_count);
+    if (working_set->file_count == working_set->file_max &&working_set->array_count < working_set->array_max){
+        new_chunk = gen_array(system, general, Editing_File, new_count);
         working_set_extend_memory(working_set, new_chunk, new_count);
     }
     result = working_set_alloc(working_set);
@@ -529,7 +528,7 @@ working_set_get_active_file(Working_Set *working_set, i32 id){
 }
 
 internal void
-working_set_init(Working_Set *working_set, Partition *partition, General_Memory *general){
+working_set_init(System_Functions *system, Working_Set *working_set, Partition *partition, General_Memory *general){
     i16 init_count = 16;
     i16 array_init_count = 256;
     
@@ -555,7 +554,7 @@ working_set_init(Working_Set *working_set, Partition *partition, General_Memory 
         i32 item_size = sizeof(File_Name_Entry);
         i32 table_size = working_set->file_max;
         i32 mem_size = table_required_mem_size(table_size, item_size);
-        void *mem = general_memory_allocate(general, mem_size);
+        void *mem = general_memory_allocate(system, general, mem_size);
         memset(mem, 0, mem_size);
         table_init_memory(&working_set->canon_table, mem, table_size, item_size);
     }
@@ -565,23 +564,23 @@ working_set_init(Working_Set *working_set, Partition *partition, General_Memory 
         i32 item_size = sizeof(File_Name_Entry);
         i32 table_size = working_set->file_max;
         i32 mem_size = table_required_mem_size(table_size, item_size);
-        void *mem = general_memory_allocate(general, mem_size);
+        void *mem = general_memory_allocate(system, general, mem_size);
         memset(mem, 0, mem_size);
         table_init_memory(&working_set->name_table, mem, table_size, item_size);
     }
 }
 
 inline void
-working_set__grow_if_needed(Table *table, General_Memory *general, void *arg, Hash_Function *hash_func, Compare_Function *comp_func){
+working_set__grow_if_needed(System_Functions *system, Table *table, General_Memory *general, void *arg, Hash_Function *hash_func, Compare_Function *comp_func){
     if (table_at_capacity(table)){
         Table btable = {0};
         i32 new_max = table->max * 2;
         i32 mem_size = table_required_mem_size(new_max, table->item_size);
-        void *mem = general_memory_allocate(general, mem_size);
+        void *mem = general_memory_allocate(system, general, mem_size);
         table_init_memory(&btable, mem, new_max, table->item_size);
         table_clear(&btable);
         table_rehash(table, &btable, 0, hash_func, comp_func);
-        general_memory_free(general, table->hash_array);
+        general_memory_free(system, general, table->hash_array);
         *table = btable;
     }
 }
@@ -600,10 +599,8 @@ working_set_contains_basic(Working_Set *working_set, Table *table, String name){
 }
 
 internal b32
-working_set_add_basic(General_Memory *general, Working_Set *working_set, Table *table,
-                      Editing_File *file, String name){
-    working_set__grow_if_needed(table, general,
-                                0, tbl_string_hash, tbl_string_compare);
+working_set_add_basic(System_Functions *system, General_Memory *general, Working_Set *working_set, Table *table, Editing_File *file, String name){
+    working_set__grow_if_needed(system, table, general, 0, tbl_string_hash, tbl_string_compare);
     
     File_Name_Entry entry;
     entry.name = name;
@@ -625,9 +622,9 @@ working_set_canon_contains(Working_Set *working_set, String name){
 }
 
 internal b32
-working_set_canon_add(General_Memory *general, Working_Set *working_set,
+working_set_canon_add(System_Functions *system, General_Memory *general, Working_Set *working_set,
                      Editing_File *file, String name){
-    b32 result = working_set_add_basic(general, working_set, &working_set->canon_table, file, name);
+    b32 result = working_set_add_basic(system, general,working_set, &working_set->canon_table, file, name);
     return(result);
 }
 
@@ -644,9 +641,9 @@ working_set_name_contains(Working_Set *working_set, String name){
 }
 
 internal b32
-working_set_name_add(General_Memory *general, Working_Set *working_set,
+working_set_name_add(System_Functions *system, General_Memory *general, Working_Set *working_set,
                      Editing_File *file, String name){
-    b32 result = working_set_add_basic(general, working_set, &working_set->name_table, file, name);
+    b32 result = working_set_add_basic(system, general, working_set, &working_set->name_table, file, name);
     return(result);
 }
 
@@ -939,7 +936,7 @@ buffer_bind_file(System_Functions *system, General_Memory *general, Working_Set 
     copy_ss(&file->canon.name, canon_filename);
     terminate_with_null(&file->canon.name);
     system->add_listener(file->canon.name_);
-    b32 result = working_set_canon_add(general, working_set, file, file->canon.name);
+    b32 result = working_set_canon_add(system, general, working_set, file, file->canon.name);
     Assert(result); AllowLocal(result);
 }
 
@@ -956,7 +953,7 @@ buffer_unbind_file(System_Functions *system, Working_Set *working_set, Editing_F
 }
 
 internal void
-buffer_bind_name(General_Memory *general, Working_Set *working_set,
+buffer_bind_name(System_Functions *system, General_Memory *general, Working_Set *working_set,
                  Editing_File *file, String filename){
     Assert(file->name.live_name.size == 0 &&
            file->name.source_path.size == 0 &&
@@ -971,7 +968,7 @@ buffer_bind_name(General_Memory *general, Working_Set *working_set,
     copy_ss(&file->name.source_path, new_name.source_path);
     copy_ss(&file->name.extension, new_name.extension);
     
-    b32 result = working_set_name_add(general, working_set, file, file->name.live_name);
+    b32 result = working_set_name_add(system, general, working_set, file, file->name.live_name);
     Assert(result); AllowLocal(result);
 }
 

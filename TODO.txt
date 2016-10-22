@@ -175,7 +175,7 @@
 ;     [X] handle square brackets
 ;     [X] smarter wrap rule
 ;     [X] handle unclosed statements
-;     [+] wrapped line indication
+;     [X] wrapped line indication
 ;     [] special indent rules in preprocessor body
 ;     [] handle comments
 ;     [] additional width for nesting?
@@ -288,6 +288,8 @@
 ; [] tutorials
 ; [] 4edT thing
 ; [] console emulator
+;
+; [] 10 GB text file
 ;
 
 ; INTERNAL TODOS

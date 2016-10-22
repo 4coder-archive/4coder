@@ -123,7 +123,6 @@ ENUM(uint32_t, Cpp_Token_Type){
 	CPP_TOKEN_ARROW = 62,
     
     // NOTE(allen): Precedence 3, RtoL
-    
     /* DOC(This token is for parser use, it is not output by the lexer.) */
     CPP_TOKEN_PREINC = 63,
     /* DOC(This token is for parser use, it is not output by the lexer.) */

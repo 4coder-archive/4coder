@@ -251,7 +251,7 @@ DOC_SEE(Command_Line_Input_Flag)
             }
         }
         else if (buffer.name){
-            file = working_set_alloc_always(working_set, general);
+            file = working_set_alloc_always(system, working_set, general);
             if (file == 0){
                 append_ss(&feedback_str,
                           make_lit_string("ERROR: unable to  allocate a new buffer\n"));
@@ -261,7 +261,7 @@ DOC_SEE(Command_Line_Input_Flag)
             }
             
             String name = make_string_terminated(part, buffer.name, buffer.name_len);
-            buffer_bind_name(general, working_set, file, name);
+            buffer_bind_name(system, general, working_set, file, name);
             init_read_only_file(system, models, file);
         }
         
@@ -372,7 +372,7 @@ DOC_SEE(The_4coder_Clipboard)
     General_Memory *general = &models->mem.general;
     Working_Set *working = &models->working_set;
     
-    String *dest = working_set_next_clipboard_string(general, working, len);
+    String *dest = working_set_next_clipboard_string(system, general, working, len);
     copy_ss(dest, make_string(str, len));
     system->post_clipboard(*dest);
 }
@@ -681,6 +681,7 @@ DOC_SEE(Buffer_Batch_Edit_Type)
     Mem_Options *mem = &models->mem;
     Partition *part = &mem->part;
     Editing_File *file = imp_get_file(cmd, buffer);
+    System_Functions *system = cmd->system;
     
     bool32 result = false;
     
@@ -694,12 +695,9 @@ DOC_SEE(Buffer_Batch_Edit_Type)
             int32_t inv_str_max = part->max - part->pos;
             
             Edit_Spec spec =
-                file_compute_edit(mem, file,
-                                  edits, str, str_len,
-                                  inverse_edits, inv_str, inv_str_max,
-                                  edit_count, type);
+                file_compute_edit(system, mem, file, edits, str, str_len, inverse_edits, inv_str, inv_str_max, edit_count, type);
             
-            file_do_batch_edit(cmd->system, models, file, spec, hist_normal, type);
+            file_do_batch_edit(system, models, file, spec, hist_normal, type);
             
             end_temp_memory(temp);
         }
@@ -780,8 +778,7 @@ DOC_SEE(Buffer_Setting_ID)
                 if (new_value != file->settings.display_width){
                     i16 font_id = file->settings.font_id;
                     Render_Font *font = get_font_info(models->font_set, font_id)->font;
-                    file_set_display_width_and_fix_cursor(models, file, new_value,
-                                                          (f32)font->height, font->advance_data);
+                    file_set_display_width_and_fix_cursor(system, models, file, new_value, (f32)font->height, font->advance_data);
                 }
             }break;
             
@@ -855,9 +852,9 @@ DOC_SEE(Buffer_Setting_ID)
                     i16 font_id = file->settings.font_id;
                     Render_Font *font = get_font_info(models->font_set, font_id)->font;
                     
-                    file_allocate_character_starts_as_needed(&models->mem.general, file);
+                    file_allocate_character_starts_as_needed(system, &models->mem.general, file);
                     buffer_measure_character_starts(&file->state.buffer, file->state.character_starts, 0, file->settings.virtual_white);
-                    file_measure_wraps(models, file, (f32)font->height, font->advance_data);
+                    file_measure_wraps(system, models, file, (f32)font->height, font->advance_data);
                     file_update_cursor_positions(models, file);
                 }
             }break;
@@ -1008,31 +1005,31 @@ End_Buffer_Creation(Application_Links *app, Buffer_Creation_Data *data){
                 char *buffer = push_array(part, char, size);
                 
                 if (buffer == 0){
-                    buffer = (char*)general_memory_allocate(general, size);
+                    buffer = (char*)general_memory_allocate(system, general, size);
                     Assert(buffer != 0);
                     in_general_mem = 1;
                 }
                 
                 if (system->load_file(handle, buffer, size)){
-                    file = working_set_alloc_always(working_set, general);
+                    file = working_set_alloc_always(system, working_set, general);
                     if (file){
                         buffer_bind_file(system, general, working_set, file, canon.name);
-                        buffer_bind_name(general, working_set, file, fname);
+                        buffer_bind_name(system, general, working_set, file, fname);
                         init_normal_file(system, models, file, buffer, size);
                         fill_buffer_summary(&result, file, cmd);
                     }
                 }
                 
                 if (in_general_mem){
-                    general_memory_free(general, buffer);
+                    general_memory_free(system, general, buffer);
                 }
                 
                 system->load_close(handle);
             }
             else if (!(flags & BufferCreate_NeverNew)){
-                file = working_set_alloc_always(working_set, general);
+                file = working_set_alloc_always(system, working_set, general);
                 if (file){
-                    buffer_bind_name(general, working_set, file, fname);
+                    buffer_bind_name(system, general, working_set, file, fname);
                     init_normal_file(system, models, file, 0, 0);
                     fill_buffer_summary(&result, file, cmd);
                 }
@@ -1116,31 +1113,31 @@ DOC_SEE(Buffer_Create_Flag)
                 char *buffer = push_array(part, char, size);
                 
                 if (buffer == 0){
-                    buffer = (char*)general_memory_allocate(general, size);
+                    buffer = (char*)general_memory_allocate(system, general, size);
                     Assert(buffer != 0);
                     in_general_mem = 1;
                 }
                 
                 if (system->load_file(handle, buffer, size)){
-                    file = working_set_alloc_always(working_set, general);
+                    file = working_set_alloc_always(system, working_set, general);
                     if (file){
                         buffer_bind_file(system, general, working_set, file, canon.name);
-                        buffer_bind_name(general, working_set, file, fname);
+                        buffer_bind_name(system, general, working_set, file, fname);
                         init_normal_file(system, models, file, buffer, size);
                         fill_buffer_summary(&result, file, cmd);
                     }
                 }
                 
                 if (in_general_mem){
-                    general_memory_free(general, buffer);
+                    general_memory_free(system, general, buffer);
                 }
                 
                 system->load_close(handle);
             }
             else if (!(flags & BufferCreate_NeverNew)){
-                file = working_set_alloc_always(working_set, general);
+                file = working_set_alloc_always(system, working_set, general);
                 if (file){
-                    buffer_bind_name(general, working_set, file, fname);
+                    buffer_bind_name(system, general, working_set, file, fname);
                     init_normal_file(system, models, file, 0, 0);
                     fill_buffer_summary(&result, file, cmd);
                 }
