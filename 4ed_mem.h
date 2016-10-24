@@ -4,7 +4,7 @@
 
 #include "4coder_mem.h"
 
-#define MEMORY_DEBUG
+//#define MEMORY_DEBUG
 
 static void
 general_memory_open(System_Functions *system, General_Memory *general, void *memory, int32_t size){
@@ -57,7 +57,7 @@ general_memory_allocate(System_Functions *system, General_Memory *general, int32
     return(result);
     }
 #else
-    return general_memory_allocate(general, memory, size);
+    return general_memory_allocate(general, size);
 #endif
 }
 
@@ -68,7 +68,7 @@ general_memory_free(System_Functions *system, General_Memory *general, void *mem
         system->memory_free(0, memory, 0);
     }
 #else
-    return general_memory_free(general, memory, size);
+    return general_memory_free(general, memory);
 #endif
 }
 
@@ -82,7 +82,7 @@ general_memory_reallocate(System_Functions *system, General_Memory *general, voi
     return(result);
 }
 #else
-    return general_memory_reallocate(general, memory, size);
+    return general_memory_reallocate(general, old, old_size, size);
 #endif
 }
 
@@ -94,7 +94,7 @@ general_memory_reallocate_nocopy(System_Functions *system, General_Memory *gener
     return general_memory_allocate(system, general, size);
     }
 #else
-    return general_memory_reallocate_nocopy(general, memory, size);
+    return general_memory_reallocate_nocopy(general, old, size);
 #endif
 }
 
