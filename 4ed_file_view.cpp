@@ -282,6 +282,13 @@ view_file_display_width(View *view){
 }
 
 inline f32
+view_file_minimum_base_width(View *view){
+    Editing_File *file = view->file_data.file;
+    f32 result = (f32)file->settings.display_width;
+    return(result);
+}
+
+inline f32
 view_file_height(View *view){
     i32_Rect file_rect = view->file_region;
     f32 result = (f32)(file_rect.y1 - file_rect.y0);
@@ -389,7 +396,6 @@ view_compute_cursor(View *view, Buffer_Seek seek, b32 return_hint){
     Buffer_Cursor_Seek_Params params;
     params.buffer           = &file->state.buffer;
     params.seek             = seek;
-    params.width            = view_file_display_width(view);
     params.font_height      = (f32)font->height;
     params.adv              = font->advance_data;
     params.wrap_line_index  = file->state.wrap_line_index;
@@ -974,6 +980,7 @@ struct Code_Wrap_State{
     Cpp_Token *token_ptr;
     Cpp_Token *end_token;
     
+    f32 base_x;
     f32 paren_nesting[32];
     i32 paren_safe_top;
     i32 paren_top;
@@ -1394,8 +1401,10 @@ file_measure_wraps(System_Functions *system, Models *models, Editing_File *file,
     params.buffer          = &file->state.buffer;
     params.wrap_line_index = file->state.wrap_line_index;
     params.adv             = adv;
-    params.width           = (f32)file->settings.display_width;
     params.virtual_white   = file->settings.virtual_white;
+    
+    f32 width = (f32)file->settings.display_width;
+    f32 minimum_base_width = (f32)file->settings.minimum_base_display_width;
     
     i32 size = buffer_size(params.buffer);
     
@@ -1403,8 +1412,8 @@ file_measure_wraps(System_Functions *system, Models *models, Editing_File *file,
     Buffer_Layout_Stop stop = {0};
     
     f32 edge_tolerance = 50.f;
-    if (edge_tolerance > params.width){
-        edge_tolerance = params.width;
+    if (edge_tolerance > width){
+        edge_tolerance = width;
     }
     
     f32 line_shift = 0.f;
@@ -1425,7 +1434,7 @@ file_measure_wraps(System_Functions *system, Models *models, Editing_File *file,
         wrap_state_init(&wrap_state, file, adv);
         use_tokens = 1;
         
-        potential_marks = push_array(part, Potential_Wrap_Indent_Pair, FLOOR32(params.width));
+        potential_marks = push_array(part, Potential_Wrap_Indent_Pair, FLOOR32(width));
         
         max_wrap_indent_mark = partition_remaining(part)/sizeof(Wrap_Indent_Pair);
         wrap_indent_marks = push_array(part, Wrap_Indent_Pair, max_wrap_indent_mark);
@@ -1477,7 +1486,7 @@ file_measure_wraps(System_Functions *system, Models *models, Editing_File *file,
                                             f32 adv = params.adv[ch];
                                             x += adv;
                                             self_x += adv;
-                                            if (self_x > params.width){
+                                            if (self_x > width){
                                                 goto doublebreak;
                                             }
                                         }
@@ -1497,7 +1506,7 @@ file_measure_wraps(System_Functions *system, Models *models, Editing_File *file,
                     
                     doublebreak:;
                     wrap_unit_end = i;
-                    if (x > params.width){
+                    if (x > width){
                         do_wrap = 1;
                         file_allocate_wrap_positions_as_needed(system, general, file, wrap_position_index);
                         file->state.wrap_positions[wrap_position_index++] = stop.pos;
@@ -1511,9 +1520,17 @@ file_measure_wraps(System_Functions *system, Models *models, Editing_File *file,
             case BLStatus_NeedWrapLineShift:
             case BLStatus_NeedLineShift:
             {
+                f32 current_width = width;
+                
                 if (use_tokens){
                     Code_Wrap_State original_wrap_state = wrap_state;
                     i32 next_line_start = params.buffer->line_starts[stop.line_index+1];
+                    
+                    f32 base_adjusted_width = wrap_state.base_x + minimum_base_width;
+                    
+                    if (minimum_base_width != 0 && current_width < base_adjusted_width){
+                        current_width = base_adjusted_width;
+                    }
                     
                     if (stop.status == BLStatus_NeedLineShift){
                         real_count = 0;
@@ -1531,8 +1548,9 @@ file_measure_wraps(System_Functions *system, Models *models, Editing_File *file,
                         wrap_indent_marks[real_count].line_shift = clamp_bottom(0.f, current_shift);
                         ++real_count;
                         
+                        wrap_state.base_x = wrap_state.paren_nesting[0];
+                        
                         for (; wrap_state.token_ptr < wrap_state.end_token; ){
-                            
                             Code_Wrap_Step step = {0};
                             b32 emit_comment_position = 0;
                             b32 first_word = 1;
@@ -1578,7 +1596,7 @@ file_measure_wraps(System_Functions *system, Models *models, Editing_File *file,
                                         
                                             f32 adv = params.adv[ch];
                                             x += adv;
-                                        if (!first_word && x > params.width){
+                                        if (!first_word && x > current_width){
                                             emit_comment_position = 1;
                                                 goto doublebreak_stage1;
                                             }
@@ -1626,7 +1644,7 @@ file_measure_wraps(System_Functions *system, Models *models, Editing_File *file,
                     }
                             
                             b32 need_to_choose_a_wrap = 0;
-                            if (step.final_x > params.width){
+                    if (step.final_x > current_width){
                                 need_to_choose_a_wrap = 1;
                             }
                             
@@ -1778,14 +1796,13 @@ file_measure_wraps(System_Functions *system, Models *models, Editing_File *file,
                     if (line_shift < 0){
                         line_shift = 0;
                     }
-                    
                 }
                 else{
                     line_shift = 0.f;
                 }
                 
-                if (line_shift > params.width - edge_tolerance){
-                    line_shift = params.width - edge_tolerance;
+                if (line_shift > current_width - edge_tolerance){
+                    line_shift = current_width - edge_tolerance;
                 }
                 
                 if (stop.wrap_line_index >= file->state.line_indent_max){
@@ -1794,8 +1811,6 @@ file_measure_wraps(System_Functions *system, Models *models, Editing_File *file,
                 
                 file->state.line_indents[stop.wrap_line_index] = line_shift;
                 file->state.wrap_line_count = stop.wrap_line_index;
-                
-                //wrap_state_set_x(&wrap_state, line_shift);
             }break;
         }
     }while(stop.status != BLStatus_Finished);
@@ -4220,8 +4235,7 @@ append_label(String *string, i32 indent_level, char *message){
 }
 
 internal void
-show_gui_line(GUI_Target *target, String *string,
-              i32 indent_level, i32 h_align, char *message, char *follow_up){
+show_gui_line(GUI_Target *target, String *string, i32 indent_level, i32 h_align, char *message, char *follow_up){
     string->size = 0;
     append_label(string, indent_level, message);
     if (follow_up){

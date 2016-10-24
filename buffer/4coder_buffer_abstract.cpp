@@ -203,7 +203,6 @@ struct Buffer_Measure_Wrap_Params{
     Buffer_Type *buffer;
     i32 *wrap_line_index;
     f32 *adv;
-    f32 width;
     b32 virtual_white;
 };
 
@@ -235,8 +234,7 @@ struct Buffer_Measure_Wrap_State{
 #define DrReturn(n) { *S_ptr = S; S_ptr->__pc__ = -1; return(n); }
 
 internal_4tech Buffer_Layout_Stop
-buffer_measure_wrap_y(Buffer_Measure_Wrap_State *S_ptr, Buffer_Measure_Wrap_Params params,
-                      f32 line_shift, b32 do_wrap, i32 wrap_unit_end){
+buffer_measure_wrap_y(Buffer_Measure_Wrap_State *S_ptr, Buffer_Measure_Wrap_Params params, f32 line_shift, b32 do_wrap, i32 wrap_unit_end){
     Buffer_Measure_Wrap_State S = *S_ptr;
     Buffer_Layout_Stop S_stop;
     
@@ -710,7 +708,6 @@ buffer_partial_from_line_character(Buffer_Type *buffer, i32 line, i32 character)
 struct Buffer_Cursor_Seek_Params{
     Buffer_Type *buffer;
     Buffer_Seek seek;
-    f32 width;
     f32 font_height;
     f32 *adv;
     i32 *wrap_line_index;
@@ -745,8 +742,7 @@ struct Buffer_Cursor_Seek_State{
 #define DrReturn(n) { *S_ptr = S; S_ptr->__pc__ = -1; return(n); }
 
 internal_4tech Buffer_Layout_Stop
-buffer_cursor_seek(Buffer_Cursor_Seek_State *S_ptr, Buffer_Cursor_Seek_Params params,
-                   f32 line_shift, b32 do_wrap, i32 wrap_unit_end){
+buffer_cursor_seek(Buffer_Cursor_Seek_State *S_ptr, Buffer_Cursor_Seek_Params params, f32 line_shift, b32 do_wrap, i32 wrap_unit_end){
     Buffer_Cursor_Seek_State S = *S_ptr;
     Buffer_Layout_Stop S_stop;
     
