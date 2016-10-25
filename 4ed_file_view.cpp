@@ -975,15 +975,23 @@ file_allocate_wrap_positions_as_needed(System_Functions *system, General_Memory 
     file_allocate_metadata_as_needed(system, general, &file->state.buffer, (void**)&file->state.wrap_positions, &file->state.wrap_position_max, min_amount, sizeof(f32));
 }
 
+struct Code_Wrap_X{
+    f32 base_x;
+    f32 paren_nesting[32];
+    i32 paren_safe_top;
+    i32 paren_top;
+};
+globalvar Code_Wrap_X null_wrap_x = {0};
+
 struct Code_Wrap_State{
     Cpp_Token_Array token_array;
     Cpp_Token *token_ptr;
     Cpp_Token *end_token;
     
-    f32 base_x;
-    f32 paren_nesting[32];
-    i32 paren_safe_top;
-    i32 paren_top;
+    Code_Wrap_X wrap_x;
+    
+    b32 in_pp_body;
+    Code_Wrap_X plane_wrap_x;
     
     i32 *line_starts;
     i32 line_index;
@@ -1028,8 +1036,8 @@ wrap_state_set_i(Code_Wrap_State *state, i32 i){
 
 internal void
 wrap_state_set_top(Code_Wrap_State *state, f32 line_shift){
-    if (state->paren_nesting[state->paren_safe_top] > line_shift){
-    state->paren_nesting[state->paren_safe_top] = line_shift;
+    if (state->wrap_x.paren_nesting[state->wrap_x.paren_safe_top] > line_shift){
+        state->wrap_x.paren_nesting[state->wrap_x.paren_safe_top] = line_shift;
     }
 }
 
@@ -1056,9 +1064,24 @@ wrap_state_consume_token(Code_Wrap_State *state, i32 fixed_end_point){
         state->consume_newline = 0;
     }
     
+    if (state->in_pp_body){
+            if (!(state->token_ptr->flags & CPP_TFLAG_PP_BODY)){
+                state->in_pp_body = 0;
+                state->wrap_x = state->plane_wrap_x;
+            }
+        }
+        
+        if (!state->in_pp_body){
+            if (state->token_ptr->flags & CPP_TFLAG_PP_DIRECTIVE){
+                state->in_pp_body = 1;
+                state->plane_wrap_x = state->wrap_x;
+                state->wrap_x = null_wrap_x;
+            }
+        }
+    
     b32 skipping_whitespace = 0;
     if (i >= state->next_line_start){
-        state->x = state->paren_nesting[state->paren_safe_top];
+        state->x = state->wrap_x.paren_nesting[state->wrap_x.paren_safe_top];
         skipping_whitespace = 1;
     }
     
@@ -1128,42 +1151,42 @@ wrap_state_consume_token(Code_Wrap_State *state, i32 fixed_end_point){
         switch (state->token_ptr->type){
             case CPP_TOKEN_BRACE_OPEN:
             {
-                state->paren_nesting[state->paren_safe_top] += state->tab_indent_amount;
+                state->wrap_x.paren_nesting[state->wrap_x.paren_safe_top] += state->tab_indent_amount;
             }break;
             
             case CPP_TOKEN_BRACE_CLOSE:
             {
-                state->paren_nesting[state->paren_safe_top] -= state->tab_indent_amount;
+                state->wrap_x.paren_nesting[state->wrap_x.paren_safe_top] -= state->tab_indent_amount;
             }break;
             
             case CPP_TOKEN_PARENTHESE_OPEN:
             case CPP_TOKEN_BRACKET_OPEN:
             {
-                ++state->paren_top;
+                ++state->wrap_x.paren_top;
                 
-                i32 top = state->paren_top;
-                if (top >= ArrayCount(state->paren_nesting)){
-                    top = ArrayCount(state->paren_nesting) - 1;
+                i32 top = state->wrap_x.paren_top;
+                if (top >= ArrayCount(state->wrap_x.paren_nesting)){
+                    top = ArrayCount(state->wrap_x.paren_nesting) - 1;
                 }
-                state->paren_safe_top = top;
+                state->wrap_x.paren_safe_top = top;
                 
-                state->paren_nesting[top] = state->x;
+                state->wrap_x.paren_nesting[top] = state->x;
             }break;
             
             case CPP_TOKEN_PARENTHESE_CLOSE:
             case CPP_TOKEN_BRACKET_CLOSE:
             {
-                --state->paren_top;
+                --state->wrap_x.paren_top;
                 
-                if (state->paren_top < 0){
-                    state->paren_top = 0;
+                if (state->wrap_x.paren_top < 0){
+                    state->wrap_x.paren_top = 0;
                 }
                 
-                i32 top = state->paren_top;
-                if (top >= ArrayCount(state->paren_nesting)){
-                    top = ArrayCount(state->paren_nesting) - 1;
+                i32 top = state->wrap_x.paren_top;
+                if (top >= ArrayCount(state->wrap_x.paren_nesting)){
+                    top = ArrayCount(state->wrap_x.paren_nesting) - 1;
                 }
-                state->paren_safe_top = top;
+                state->wrap_x.paren_safe_top = top;
             }break;
         }
         
@@ -1332,20 +1355,20 @@ stickieness_guess(Cpp_Token_Type type, Cpp_Token_Type other_type, u16 flags, u16
 
 internal f32
 get_current_shift(Code_Wrap_State *wrap_state, i32 next_line_start, b32 *adjust_top_to_this){
-    f32 current_shift = wrap_state->paren_nesting[wrap_state->paren_safe_top];
+    f32 current_shift = wrap_state->wrap_x.paren_nesting[wrap_state->wrap_x.paren_safe_top];
     
     Assert(adjust_top_to_this != 0);
     if (wrap_state->token_ptr > wrap_state->token_array.tokens){
         Cpp_Token prev_token = *(wrap_state->token_ptr-1);
         
-    if (wrap_state->paren_safe_top != 0 && prev_token.type == CPP_TOKEN_PARENTHESE_OPEN){
-        current_shift = wrap_state->paren_nesting[wrap_state->paren_safe_top-1] + wrap_state->tab_indent_amount;
+        if (wrap_state->wrap_x.paren_safe_top != 0 && prev_token.type == CPP_TOKEN_PARENTHESE_OPEN){
+            current_shift = wrap_state->wrap_x.paren_nesting[wrap_state->wrap_x.paren_safe_top-1] + wrap_state->tab_indent_amount;
         
             *adjust_top_to_this = 1;
     }
     
     f32 statement_continuation_indent = 0.f;
-    if (current_shift != 0.f && wrap_state->paren_safe_top == 0){
+    if (current_shift != 0.f && wrap_state->wrap_x.paren_safe_top == 0){
                                 if (!(prev_token.flags & CPP_TFLAG_PP_BODY) && !(prev_token.flags & CPP_TFLAG_PP_DIRECTIVE)){
                                     
                                 switch (prev_token.type){
@@ -1375,7 +1398,7 @@ get_current_shift(Code_Wrap_State *wrap_state, i32 next_line_start, b32 *adjust_
                                 switch (wrap_state->token_ptr->type){
                                     case CPP_TOKEN_BRACE_CLOSE:
                                     {
-                                        if (wrap_state->paren_safe_top == 0){
+                                        if (wrap_state->wrap_x.paren_safe_top == 0){
                                             current_shift -= wrap_state->tab_indent_amount;
                                         }
                                     }break;
@@ -1526,7 +1549,7 @@ file_measure_wraps(System_Functions *system, Models *models, Editing_File *file,
                     Code_Wrap_State original_wrap_state = wrap_state;
                     i32 next_line_start = params.buffer->line_starts[stop.line_index+1];
                     
-                    f32 base_adjusted_width = wrap_state.base_x + minimum_base_width;
+                    f32 base_adjusted_width = wrap_state.wrap_x.base_x + minimum_base_width;
                     
                     if (minimum_base_width != 0 && current_width < base_adjusted_width){
                         current_width = base_adjusted_width;
@@ -1548,7 +1571,7 @@ file_measure_wraps(System_Functions *system, Models *models, Editing_File *file,
                         wrap_indent_marks[real_count].line_shift = clamp_bottom(0.f, current_shift);
                         ++real_count;
                         
-                        wrap_state.base_x = wrap_state.paren_nesting[0];
+                        wrap_state.wrap_x.base_x = wrap_state.wrap_x.paren_nesting[0];
                         
                         for (; wrap_state.token_ptr < wrap_state.end_token; ){
                             Code_Wrap_Step step = {0};
@@ -1696,7 +1719,7 @@ file_measure_wraps(System_Functions *system, Models *models, Editing_File *file,
                                 }
                                 
                                 wrappable_score = 64*50;
-                                wrappable_score += 101 - general_stickieness - wrap_state.paren_safe_top*80;
+                                wrappable_score += 101 - general_stickieness - wrap_state.wrap_x.paren_safe_top*80;
                                 
                                 potential_marks[potential_count].wrap_position = wrap_position;
                                 potential_marks[potential_count].line_shift = current_shift;

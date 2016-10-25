@@ -16,9 +16,7 @@
 #define struct_internal struct
 #endif
 
-/* DOC(A Cpp_Token_Type classifies a token to make parsing easier. Some types are not
-actually output by the lexer, but exist because parsers will also make use of token
-types in their own output.) */
+/* DOC(A Cpp_Token_Type classifies a token to make parsing easier. Some types are not actually output by the lexer, but exist because parsers will also make use of token types in their own output.) */
 ENUM(uint32_t, Cpp_Token_Type){
     
 	CPP_TOKEN_JUNK = 0,
