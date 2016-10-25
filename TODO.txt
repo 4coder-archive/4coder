@@ -88,10 +88,10 @@
 
 ; BEFORE I SHIP
 ;
+; [X] query buffer font info
 ; [] ad hoc call for setting up/down keys for interactive screens
 ; [] miblo's various number editors
 ; [] API docs have duplicate ids?
-; [] query buffer font info
 ; [] option to not open *messages* every startup
 ; [] issues with drive letters
 ; [] strong options for indentation rules for text & presentation
