@@ -4558,7 +4558,6 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                             Assert(view->file_data.file);
                             
                             Font_Set *font_set = models->font_set;
-                            Font_Info *info = 0;
                             
                             i16 i = 1, count = (i16)models->font_set->count + 1;
                             
@@ -4577,7 +4576,7 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                             i16 new_font_id = font_id;
                             
                             for (i = 1; i < count; ++i){
-                                info = get_font_info(font_set, i);
+                                Font_Info *info = get_font_info(font_set, i);
                                 id.id[0] = (u64)i;
                                 if (i != font_id){
                                     if (gui_do_font_button(target, id, i, info->name)){

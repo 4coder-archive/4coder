@@ -1966,14 +1966,17 @@ seek_command(alphanumeric_or_camel, left,  BoundaryAlphanumeric | BoundaryCamelC
 //
 
 static void
+write_string(Application_Links *app, View_Summary *view, Buffer_Summary *buffer, String string){
+    buffer_replace_range(app, buffer, view->cursor.pos, view->cursor.pos, string.str, string.size);
+    view_set_cursor(app, view, seek_pos(view->cursor.pos + string.size), 1);
+}
+
+static void
 write_string(Application_Links *app, String string){
     uint32_t access = AccessOpen;
     View_Summary view = get_active_view(app, access);
     Buffer_Summary buffer = get_buffer(app, view.buffer_id, access);
-    buffer_replace_range(app, &buffer,
-                              view.cursor.pos, view.cursor.pos,
-                              string.str, string.size);
-    view_set_cursor(app, &view, seek_pos(view.cursor.pos + string.size), true);
+    write_string(app, &view, &buffer, string);
 }
 
 CUSTOM_COMMAND_SIG(write_increment){

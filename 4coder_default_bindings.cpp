@@ -158,6 +158,22 @@ HOOK_SIG(my_exit){
     return(1);
 }
 
+// NOTE(allen|a4.0.12): This is for testing it may be removed and replaced with a better test for the buffer_get_font when you eventally read this and wonder what it's about.
+CUSTOM_COMMAND_SIG(write_name_of_font){
+    View_Summary view = get_active_view(app, AccessOpen);
+    Buffer_Summary buffer = get_buffer(app, view.buffer_id, AccessOpen);
+    
+    char font_name[256];
+    int32_t font_max = 256;
+    int32_t font_len = buffer_get_font(app, &buffer, font_name, font_max);
+    
+    if (font_len != 0){
+    write_string(app, &view, &buffer, make_string(font_name, font_len));
+    }
+    
+    print_message(app, literal("TRIED WRITING FONT NAME"));
+}
+
 CUSTOM_COMMAND_SIG(newline_or_goto_position){
     View_Summary view = get_active_view(app, AccessProtected);
     Buffer_Summary buffer = get_buffer(app, view.buffer_id, AccessProtected);
@@ -176,7 +192,7 @@ OPEN_FILE_HOOK_SIG(my_file_settings){
     // NOTE(allen|a4.0.8): The get_parameter_buffer was eliminated
     // and instead the buffer is passed as an explicit parameter through
     // the function call.  That is where buffer_id comes from here.
-    uint32_t access = AccessProtected|AccessHidden;
+    uint32_t access = AccessAll;
     Buffer_Summary buffer = get_buffer(app, buffer_id, access);
     assert(buffer.exists);
     
@@ -411,6 +427,8 @@ default_keys(Bind_Helper *context){
     bind(context, '\n', MDFR_NONE, newline_or_goto_position);
     bind(context, '\n', MDFR_SHIFT, newline_or_goto_position);
     bind(context, ' ', MDFR_SHIFT, write_character);
+    
+    bind(context, ';', MDFR_ALT, write_name_of_font);
     
     end_map(context);
 }

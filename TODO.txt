@@ -177,9 +177,9 @@
 ;     [X] handle unclosed statements
 ;     [X] wrapped line indication
 ;     [X] additional width for nesting?
+;     [X] special indent rules in preprocessor body
 ;     [X] handle comments
-;         [] solve the comment lead whitespace problem   
-;     [] special indent rules in preprocessor body
+;         [] solve the comment lead whitespace problem
 ;     [] fix issues when relexing happens in parallel
 ; [] remeasure version of measure_wraps
 
