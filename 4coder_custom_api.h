@@ -49,6 +49,7 @@
 #define CHANGE_THEME_SIG(n) void n(Application_Links *app, char *name, int32_t len)
 #define CHANGE_FONT_SIG(n) void n(Application_Links *app, char *name, int32_t len, bool32 apply_to_all_files)
 #define BUFFER_SET_FONT_SIG(n) void n(Application_Links *app, Buffer_Summary *buffer, char *name, int32_t len)
+#define BUFFER_GET_FONT_SIG(n) int32_t n(Application_Links *app, Buffer_Summary *buffer, char *name_out, int32_t name_max)
 #define SET_THEME_COLORS_SIG(n) void n(Application_Links *app, Theme_Color *colors, int32_t count)
 #define GET_THEME_COLORS_SIG(n) void n(Application_Links *app, Theme_Color *colors, int32_t count)
 #define DIRECTORY_GET_HOT_SIG(n) int32_t n(Application_Links *app, char *out, int32_t capacity)
@@ -115,6 +116,7 @@ typedef PRINT_MESSAGE_SIG(Print_Message_Function);
 typedef CHANGE_THEME_SIG(Change_Theme_Function);
 typedef CHANGE_FONT_SIG(Change_Font_Function);
 typedef BUFFER_SET_FONT_SIG(Buffer_Set_Font_Function);
+typedef BUFFER_GET_FONT_SIG(Buffer_Get_Font_Function);
 typedef SET_THEME_COLORS_SIG(Set_Theme_Colors_Function);
 typedef GET_THEME_COLORS_SIG(Get_Theme_Colors_Function);
 typedef DIRECTORY_GET_HOT_SIG(Directory_Get_Hot_Function);
@@ -183,6 +185,7 @@ Print_Message_Function *print_message;
 Change_Theme_Function *change_theme;
 Change_Font_Function *change_font;
 Buffer_Set_Font_Function *buffer_set_font;
+Buffer_Get_Font_Function *buffer_get_font;
 Set_Theme_Colors_Function *set_theme_colors;
 Get_Theme_Colors_Function *get_theme_colors;
 Directory_Get_Hot_Function *directory_get_hot;
@@ -250,6 +253,7 @@ Print_Message_Function *print_message_;
 Change_Theme_Function *change_theme_;
 Change_Font_Function *change_font_;
 Buffer_Set_Font_Function *buffer_set_font_;
+Buffer_Get_Font_Function *buffer_get_font_;
 Set_Theme_Colors_Function *set_theme_colors_;
 Get_Theme_Colors_Function *get_theme_colors_;
 Directory_Get_Hot_Function *directory_get_hot_;
@@ -325,6 +329,7 @@ app_links->print_message_ = Print_Message;\
 app_links->change_theme_ = Change_Theme;\
 app_links->change_font_ = Change_Font;\
 app_links->buffer_set_font_ = Buffer_Set_Font;\
+app_links->buffer_get_font_ = Buffer_Get_Font;\
 app_links->set_theme_colors_ = Set_Theme_Colors;\
 app_links->get_theme_colors_ = Get_Theme_Colors;\
 app_links->directory_get_hot_ = Directory_Get_Hot;\
@@ -392,6 +397,7 @@ static inline void print_message(Application_Links *app, char *str, int32_t len)
 static inline void change_theme(Application_Links *app, char *name, int32_t len){(app->change_theme(app, name, len));}
 static inline void change_font(Application_Links *app, char *name, int32_t len, bool32 apply_to_all_files){(app->change_font(app, name, len, apply_to_all_files));}
 static inline void buffer_set_font(Application_Links *app, Buffer_Summary *buffer, char *name, int32_t len){(app->buffer_set_font(app, buffer, name, len));}
+static inline int32_t buffer_get_font(Application_Links *app, Buffer_Summary *buffer, char *name_out, int32_t name_max){return(app->buffer_get_font(app, buffer, name_out, name_max));}
 static inline void set_theme_colors(Application_Links *app, Theme_Color *colors, int32_t count){(app->set_theme_colors(app, colors, count));}
 static inline void get_theme_colors(Application_Links *app, Theme_Color *colors, int32_t count){(app->get_theme_colors(app, colors, count));}
 static inline int32_t directory_get_hot(Application_Links *app, char *out, int32_t capacity){return(app->directory_get_hot(app, out, capacity));}
@@ -459,6 +465,7 @@ static inline void print_message(Application_Links *app, char *str, int32_t len)
 static inline void change_theme(Application_Links *app, char *name, int32_t len){(app->change_theme_(app, name, len));}
 static inline void change_font(Application_Links *app, char *name, int32_t len, bool32 apply_to_all_files){(app->change_font_(app, name, len, apply_to_all_files));}
 static inline void buffer_set_font(Application_Links *app, Buffer_Summary *buffer, char *name, int32_t len){(app->buffer_set_font_(app, buffer, name, len));}
+static inline int32_t buffer_get_font(Application_Links *app, Buffer_Summary *buffer, char *name_out, int32_t name_max){return(app->buffer_get_font_(app, buffer, name_out, name_max));}
 static inline void set_theme_colors(Application_Links *app, Theme_Color *colors, int32_t count){(app->set_theme_colors_(app, colors, count));}
 static inline void get_theme_colors(Application_Links *app, Theme_Color *colors, int32_t count){(app->get_theme_colors_(app, colors, count));}
 static inline int32_t directory_get_hot(Application_Links *app, char *out, int32_t capacity){return(app->directory_get_hot_(app, out, capacity));}

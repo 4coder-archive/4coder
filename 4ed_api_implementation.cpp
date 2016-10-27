@@ -2083,6 +2083,26 @@ DOC(This call sets the display font of a particular buffer.)
     }
 }
 
+API_EXPORT int32_t
+Buffer_Get_Font(Application_Links *app, Buffer_Summary *buffer, char *name_out, int32_t name_max)
+{
+    Command_Data *cmd = (Command_Data*)app->cmd_context;
+    System_Functions *system = cmd->system;
+    Models *models = cmd->models;
+    Editing_File *file = imp_get_file(cmd, buffer);
+    
+    int32_t result = 0;
+    if (file){
+        Font_Set *set = models->font_set;
+        String name = make_string_cap(name_out, 0, name_max);
+        if (font_set_get_name(set, file->settings.font_id, &name)){
+            result = name.size;
+        }
+    }
+    
+    return(result);
+}
+
 API_EXPORT void
 Set_Theme_Colors(Application_Links *app, Theme_Color *colors, int32_t count)
 /*

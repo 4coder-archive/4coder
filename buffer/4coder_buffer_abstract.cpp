@@ -203,7 +203,6 @@ struct Buffer_Measure_Wrap_Params{
     Buffer_Type *buffer;
     i32 *wrap_line_index;
     f32 *adv;
-    f32 width;
     b32 virtual_white;
 };
 
@@ -235,8 +234,7 @@ struct Buffer_Measure_Wrap_State{
 #define DrReturn(n) { *S_ptr = S; S_ptr->__pc__ = -1; return(n); }
 
 internal_4tech Buffer_Layout_Stop
-buffer_measure_wrap_y(Buffer_Measure_Wrap_State *S_ptr, Buffer_Measure_Wrap_Params params,
-                      f32 line_shift, b32 do_wrap, i32 wrap_unit_end){
+buffer_measure_wrap_y(Buffer_Measure_Wrap_State *S_ptr, Buffer_Measure_Wrap_Params params, f32 line_shift, b32 do_wrap, i32 wrap_unit_end){
     Buffer_Measure_Wrap_State S = *S_ptr;
     Buffer_Layout_Stop S_stop;
     
@@ -710,7 +708,6 @@ buffer_partial_from_line_character(Buffer_Type *buffer, i32 line, i32 character)
 struct Buffer_Cursor_Seek_Params{
     Buffer_Type *buffer;
     Buffer_Seek seek;
-    f32 width;
     f32 font_height;
     f32 *adv;
     i32 *wrap_line_index;
@@ -745,8 +742,7 @@ struct Buffer_Cursor_Seek_State{
 #define DrReturn(n) { *S_ptr = S; S_ptr->__pc__ = -1; return(n); }
 
 internal_4tech Buffer_Layout_Stop
-buffer_cursor_seek(Buffer_Cursor_Seek_State *S_ptr, Buffer_Cursor_Seek_Params params,
-                   f32 line_shift, b32 do_wrap, i32 wrap_unit_end){
+buffer_cursor_seek(Buffer_Cursor_Seek_State *S_ptr, Buffer_Cursor_Seek_Params params, f32 line_shift, b32 do_wrap, i32 wrap_unit_end){
     Buffer_Cursor_Seek_State S = *S_ptr;
     Buffer_Layout_Stop S_stop;
     
@@ -761,68 +757,68 @@ buffer_cursor_seek(Buffer_Cursor_Seek_State *S_ptr, Buffer_Cursor_Seek_Params pa
     S.size = buffer_size(params.buffer);
     
     // Get cursor hint
-    i32 line_index = 0;
-    switch (params.seek.type){
-        case buffer_seek_pos:
-        {
-            if (params.seek.pos > S.size){
-                params.seek.pos = S.size;
-            }
-            if (params.seek.pos < 0){
-                params.seek.pos = 0;
-            }
-            
-            line_index = buffer_get_line_index(params.buffer, params.seek.pos);
-        }break;
-        
-        case buffer_seek_character_pos:
-        {
-            i32 line_count = params.buffer->line_count;
-            i32 max_character = params.character_starts[line_count] - 1;
-            if (params.seek.pos > max_character){
-                params.seek.pos = max_character;
-            }
-            if (params.seek.pos < 0){
-                params.seek.pos = 0;
-            }
-            
-            line_index = buffer_get_line_index_from_character_pos(params.character_starts, params.seek.pos,
-                                                                  0, params.buffer->line_count);
-        }break;
-        
-        case buffer_seek_line_char:
-        {
-            line_index = params.seek.line - 1;
-            if (line_index >= params.buffer->line_count){
-                line_index = params.buffer->line_count - 1;
-            }
-            if (line_index < 0){
-                line_index = 0;
-            }
-        }break;
-        
-        case buffer_seek_unwrapped_xy:
-        {
-            line_index = (i32)(params.seek.y / params.font_height);
-            if (line_index >= params.buffer->line_count){
-                line_index = params.buffer->line_count - 1;
-            }
-            if (line_index < 0){
-                line_index = 0;
-            }
-        }break;
-        
-        case buffer_seek_wrapped_xy:
-        {
-            line_index = buffer_get_line_index_from_wrapped_y(params.wrap_line_index, params.seek.y, params.font_height,
-                                                              0, params.buffer->line_count);
-        }break;
-        
-        default: InvalidCodePath;
-    }
-    
-    // Build the cursor hint
     {
+        i32 line_index = 0;
+        switch (params.seek.type){
+            case buffer_seek_pos:
+            {
+                if (params.seek.pos > S.size){
+                    params.seek.pos = S.size;
+                }
+                if (params.seek.pos < 0){
+                    params.seek.pos = 0;
+                }
+                
+                line_index = buffer_get_line_index(params.buffer, params.seek.pos);
+            }break;
+            
+            case buffer_seek_character_pos:
+            {
+                i32 line_count = params.buffer->line_count;
+                i32 max_character = params.character_starts[line_count] - 1;
+                if (params.seek.pos > max_character){
+                    params.seek.pos = max_character;
+                }
+                if (params.seek.pos < 0){
+                    params.seek.pos = 0;
+                }
+                
+                line_index = buffer_get_line_index_from_character_pos(params.character_starts, params.seek.pos,
+                                                                      0, params.buffer->line_count);
+            }break;
+            
+            case buffer_seek_line_char:
+            {
+                line_index = params.seek.line - 1;
+                if (line_index >= params.buffer->line_count){
+                    line_index = params.buffer->line_count - 1;
+                }
+                if (line_index < 0){
+                    line_index = 0;
+                }
+            }break;
+            
+            case buffer_seek_unwrapped_xy:
+            {
+                line_index = (i32)(params.seek.y / params.font_height);
+                if (line_index >= params.buffer->line_count){
+                    line_index = params.buffer->line_count - 1;
+                }
+                if (line_index < 0){
+                    line_index = 0;
+                }
+            }break;
+            
+            case buffer_seek_wrapped_xy:
+            {
+                line_index = buffer_get_line_index_from_wrapped_y(params.wrap_line_index, params.seek.y, params.font_height,
+                                                                  0, params.buffer->line_count);
+            }break;
+            
+            default: InvalidCodePath;
+        }
+        
+        // Build the cursor hint
         S.next_cursor.pos = params.buffer->line_starts[line_index];
         S.next_cursor.character_pos = params.character_starts[line_index];
         S.next_cursor.line = line_index + 1;

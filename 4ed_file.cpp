@@ -91,6 +91,7 @@ struct Text_Effect{
 struct Editing_File_Settings{
     i32 base_map_id;
     i32 display_width;
+    i32 minimum_base_display_width;
     b32 dos_write_mode;
     b32 virtual_white;
     i16 font_id;
@@ -217,6 +218,7 @@ struct Working_Set{
     File_Node *sync_check_iter;
     
     i32 default_display_width;
+    i32 default_minimum_base_display_width;
 };
 
 //
@@ -452,6 +454,7 @@ working_set_alloc(Working_Set *working_set){
         result->unique_buffer_id = ++working_set->unique_file_counter;
         dll_insert(&working_set->used_sentinel, node);
         result->settings.display_width = working_set->default_display_width;
+        result->settings.minimum_base_display_width = working_set->default_minimum_base_display_width;
         ++working_set->file_count;
     }
     

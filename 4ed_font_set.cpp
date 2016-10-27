@@ -204,18 +204,20 @@ font_set_add(Partition *partition, Font_Set *set,
 
 internal b32
 font_set_find_pos(Font_Set *set, String name, u32 *position){
-    b32 result;
-    u32 hash, i, j;
-    hash = font_hash(name);
-    i = hash % set->max;
-    j = i - 1;
-    if (j <= 1) j += set->max;
+    u32 hash = font_hash(name);
+    u32 i = hash % set->max;
+    u32 j = i - 1;
+    if (j <= 1){
+        j += set->max;
+    }
     
-    result = 0;
-    Font_Table_Entry *entry;
+    b32 result = 0;
     for (; i != j; ++i){
-        if (i == set->max) i = 0;
-        entry = set->entries + i;
+        if (i == set->max){
+            i = 0;
+        }
+        
+        Font_Table_Entry *entry = set->entries + i;
         if (entry->hash == hash){
             if (match_ss(name, entry->name)){
                 result = 1;
@@ -229,15 +231,19 @@ font_set_find_pos(Font_Set *set, String name, u32 *position){
 }
 
 internal b32
+font_set_get_name(Font_Set *set, i16 font_id, String *name){
+    Font_Info *info = get_font_info(set, font_id);
+    b32 result = copy_checked_ss(name, info->name);
+    return(result);
+}
+
+internal b32
 font_set_extract(Font_Set *set, String name, i16 *font_id){
-    b32 result;
     u32 position;
-    
-    result = font_set_find_pos(set, name, &position);
+    b32 result = font_set_find_pos(set, name, &position);
     if (result){
         *font_id = set->entries[position].font_id;
     }
-    
     return(result);
 }
 

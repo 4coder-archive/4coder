@@ -282,6 +282,13 @@ view_file_display_width(View *view){
 }
 
 inline f32
+view_file_minimum_base_width(View *view){
+    Editing_File *file = view->file_data.file;
+    f32 result = (f32)file->settings.display_width;
+    return(result);
+}
+
+inline f32
 view_file_height(View *view){
     i32_Rect file_rect = view->file_region;
     f32 result = (f32)(file_rect.y1 - file_rect.y0);
@@ -389,7 +396,6 @@ view_compute_cursor(View *view, Buffer_Seek seek, b32 return_hint){
     Buffer_Cursor_Seek_Params params;
     params.buffer           = &file->state.buffer;
     params.seek             = seek;
-    params.width            = view_file_display_width(view);
     params.font_height      = (f32)font->height;
     params.adv              = font->advance_data;
     params.wrap_line_index  = file->state.wrap_line_index;
@@ -969,14 +975,23 @@ file_allocate_wrap_positions_as_needed(System_Functions *system, General_Memory 
     file_allocate_metadata_as_needed(system, general, &file->state.buffer, (void**)&file->state.wrap_positions, &file->state.wrap_position_max, min_amount, sizeof(f32));
 }
 
+struct Code_Wrap_X{
+    f32 base_x;
+    f32 paren_nesting[32];
+    i32 paren_safe_top;
+    i32 paren_top;
+};
+globalvar Code_Wrap_X null_wrap_x = {0};
+
 struct Code_Wrap_State{
     Cpp_Token_Array token_array;
     Cpp_Token *token_ptr;
     Cpp_Token *end_token;
     
-    f32 paren_nesting[32];
-    i32 paren_safe_top;
-    i32 paren_top;
+    Code_Wrap_X wrap_x;
+    
+    b32 in_pp_body;
+    Code_Wrap_X plane_wrap_x;
     
     i32 *line_starts;
     i32 line_index;
@@ -1021,8 +1036,8 @@ wrap_state_set_i(Code_Wrap_State *state, i32 i){
 
 internal void
 wrap_state_set_top(Code_Wrap_State *state, f32 line_shift){
-    if (state->paren_nesting[state->paren_safe_top] > line_shift){
-    state->paren_nesting[state->paren_safe_top] = line_shift;
+    if (state->wrap_x.paren_nesting[state->wrap_x.paren_safe_top] > line_shift){
+        state->wrap_x.paren_nesting[state->wrap_x.paren_safe_top] = line_shift;
     }
 }
 
@@ -1049,9 +1064,24 @@ wrap_state_consume_token(Code_Wrap_State *state, i32 fixed_end_point){
         state->consume_newline = 0;
     }
     
+    if (state->in_pp_body){
+            if (!(state->token_ptr->flags & CPP_TFLAG_PP_BODY)){
+                state->in_pp_body = 0;
+                state->wrap_x = state->plane_wrap_x;
+            }
+        }
+        
+        if (!state->in_pp_body){
+            if (state->token_ptr->flags & CPP_TFLAG_PP_DIRECTIVE){
+                state->in_pp_body = 1;
+                state->plane_wrap_x = state->wrap_x;
+                state->wrap_x = null_wrap_x;
+            }
+        }
+    
     b32 skipping_whitespace = 0;
     if (i >= state->next_line_start){
-        state->x = state->paren_nesting[state->paren_safe_top];
+        state->x = state->wrap_x.paren_nesting[state->wrap_x.paren_safe_top];
         skipping_whitespace = 1;
     }
     
@@ -1121,42 +1151,42 @@ wrap_state_consume_token(Code_Wrap_State *state, i32 fixed_end_point){
         switch (state->token_ptr->type){
             case CPP_TOKEN_BRACE_OPEN:
             {
-                state->paren_nesting[state->paren_safe_top] += state->tab_indent_amount;
+                state->wrap_x.paren_nesting[state->wrap_x.paren_safe_top] += state->tab_indent_amount;
             }break;
             
             case CPP_TOKEN_BRACE_CLOSE:
             {
-                state->paren_nesting[state->paren_safe_top] -= state->tab_indent_amount;
+                state->wrap_x.paren_nesting[state->wrap_x.paren_safe_top] -= state->tab_indent_amount;
             }break;
             
             case CPP_TOKEN_PARENTHESE_OPEN:
             case CPP_TOKEN_BRACKET_OPEN:
             {
-                ++state->paren_top;
+                ++state->wrap_x.paren_top;
                 
-                i32 top = state->paren_top;
-                if (top >= ArrayCount(state->paren_nesting)){
-                    top = ArrayCount(state->paren_nesting) - 1;
+                i32 top = state->wrap_x.paren_top;
+                if (top >= ArrayCount(state->wrap_x.paren_nesting)){
+                    top = ArrayCount(state->wrap_x.paren_nesting) - 1;
                 }
-                state->paren_safe_top = top;
+                state->wrap_x.paren_safe_top = top;
                 
-                state->paren_nesting[top] = state->x;
+                state->wrap_x.paren_nesting[top] = state->x;
             }break;
             
             case CPP_TOKEN_PARENTHESE_CLOSE:
             case CPP_TOKEN_BRACKET_CLOSE:
             {
-                --state->paren_top;
+                --state->wrap_x.paren_top;
                 
-                if (state->paren_top < 0){
-                    state->paren_top = 0;
+                if (state->wrap_x.paren_top < 0){
+                    state->wrap_x.paren_top = 0;
                 }
                 
-                i32 top = state->paren_top;
-                if (top >= ArrayCount(state->paren_nesting)){
-                    top = ArrayCount(state->paren_nesting) - 1;
+                i32 top = state->wrap_x.paren_top;
+                if (top >= ArrayCount(state->wrap_x.paren_nesting)){
+                    top = ArrayCount(state->wrap_x.paren_nesting) - 1;
                 }
-                state->paren_safe_top = top;
+                state->wrap_x.paren_safe_top = top;
             }break;
         }
         
@@ -1325,20 +1355,20 @@ stickieness_guess(Cpp_Token_Type type, Cpp_Token_Type other_type, u16 flags, u16
 
 internal f32
 get_current_shift(Code_Wrap_State *wrap_state, i32 next_line_start, b32 *adjust_top_to_this){
-    f32 current_shift = wrap_state->paren_nesting[wrap_state->paren_safe_top];
+    f32 current_shift = wrap_state->wrap_x.paren_nesting[wrap_state->wrap_x.paren_safe_top];
     
     Assert(adjust_top_to_this != 0);
     if (wrap_state->token_ptr > wrap_state->token_array.tokens){
         Cpp_Token prev_token = *(wrap_state->token_ptr-1);
         
-    if (wrap_state->paren_safe_top != 0 && prev_token.type == CPP_TOKEN_PARENTHESE_OPEN){
-        current_shift = wrap_state->paren_nesting[wrap_state->paren_safe_top-1] + wrap_state->tab_indent_amount;
+        if (wrap_state->wrap_x.paren_safe_top != 0 && prev_token.type == CPP_TOKEN_PARENTHESE_OPEN){
+            current_shift = wrap_state->wrap_x.paren_nesting[wrap_state->wrap_x.paren_safe_top-1] + wrap_state->tab_indent_amount;
         
             *adjust_top_to_this = 1;
     }
     
     f32 statement_continuation_indent = 0.f;
-    if (current_shift != 0.f && wrap_state->paren_safe_top == 0){
+    if (current_shift != 0.f && wrap_state->wrap_x.paren_safe_top == 0){
                                 if (!(prev_token.flags & CPP_TFLAG_PP_BODY) && !(prev_token.flags & CPP_TFLAG_PP_DIRECTIVE)){
                                     
                                 switch (prev_token.type){
@@ -1368,7 +1398,7 @@ get_current_shift(Code_Wrap_State *wrap_state, i32 next_line_start, b32 *adjust_
                                 switch (wrap_state->token_ptr->type){
                                     case CPP_TOKEN_BRACE_CLOSE:
                                     {
-                                        if (wrap_state->paren_safe_top == 0){
+                                        if (wrap_state->wrap_x.paren_safe_top == 0){
                                             current_shift -= wrap_state->tab_indent_amount;
                                         }
                                     }break;
@@ -1394,8 +1424,10 @@ file_measure_wraps(System_Functions *system, Models *models, Editing_File *file,
     params.buffer          = &file->state.buffer;
     params.wrap_line_index = file->state.wrap_line_index;
     params.adv             = adv;
-    params.width           = (f32)file->settings.display_width;
     params.virtual_white   = file->settings.virtual_white;
+    
+    f32 width = (f32)file->settings.display_width;
+    f32 minimum_base_width = (f32)file->settings.minimum_base_display_width;
     
     i32 size = buffer_size(params.buffer);
     
@@ -1403,8 +1435,8 @@ file_measure_wraps(System_Functions *system, Models *models, Editing_File *file,
     Buffer_Layout_Stop stop = {0};
     
     f32 edge_tolerance = 50.f;
-    if (edge_tolerance > params.width){
-        edge_tolerance = params.width;
+    if (edge_tolerance > width){
+        edge_tolerance = width;
     }
     
     f32 line_shift = 0.f;
@@ -1425,7 +1457,7 @@ file_measure_wraps(System_Functions *system, Models *models, Editing_File *file,
         wrap_state_init(&wrap_state, file, adv);
         use_tokens = 1;
         
-        potential_marks = push_array(part, Potential_Wrap_Indent_Pair, FLOOR32(params.width));
+        potential_marks = push_array(part, Potential_Wrap_Indent_Pair, FLOOR32(width));
         
         max_wrap_indent_mark = partition_remaining(part)/sizeof(Wrap_Indent_Pair);
         wrap_indent_marks = push_array(part, Wrap_Indent_Pair, max_wrap_indent_mark);
@@ -1477,7 +1509,7 @@ file_measure_wraps(System_Functions *system, Models *models, Editing_File *file,
                                             f32 adv = params.adv[ch];
                                             x += adv;
                                             self_x += adv;
-                                            if (self_x > params.width){
+                                            if (self_x > width){
                                                 goto doublebreak;
                                             }
                                         }
@@ -1497,7 +1529,7 @@ file_measure_wraps(System_Functions *system, Models *models, Editing_File *file,
                     
                     doublebreak:;
                     wrap_unit_end = i;
-                    if (x > params.width){
+                    if (x > width){
                         do_wrap = 1;
                         file_allocate_wrap_positions_as_needed(system, general, file, wrap_position_index);
                         file->state.wrap_positions[wrap_position_index++] = stop.pos;
@@ -1511,9 +1543,17 @@ file_measure_wraps(System_Functions *system, Models *models, Editing_File *file,
             case BLStatus_NeedWrapLineShift:
             case BLStatus_NeedLineShift:
             {
+                f32 current_width = width;
+                
                 if (use_tokens){
                     Code_Wrap_State original_wrap_state = wrap_state;
                     i32 next_line_start = params.buffer->line_starts[stop.line_index+1];
+                    
+                    f32 base_adjusted_width = wrap_state.wrap_x.base_x + minimum_base_width;
+                    
+                    if (minimum_base_width != 0 && current_width < base_adjusted_width){
+                        current_width = base_adjusted_width;
+                    }
                     
                     if (stop.status == BLStatus_NeedLineShift){
                         real_count = 0;
@@ -1531,8 +1571,9 @@ file_measure_wraps(System_Functions *system, Models *models, Editing_File *file,
                         wrap_indent_marks[real_count].line_shift = clamp_bottom(0.f, current_shift);
                         ++real_count;
                         
+                        wrap_state.wrap_x.base_x = wrap_state.wrap_x.paren_nesting[0];
+                        
                         for (; wrap_state.token_ptr < wrap_state.end_token; ){
-                            
                             Code_Wrap_Step step = {0};
                             b32 emit_comment_position = 0;
                             b32 first_word = 1;
@@ -1578,7 +1619,7 @@ file_measure_wraps(System_Functions *system, Models *models, Editing_File *file,
                                         
                                             f32 adv = params.adv[ch];
                                             x += adv;
-                                        if (!first_word && x > params.width){
+                                        if (!first_word && x > current_width){
                                             emit_comment_position = 1;
                                                 goto doublebreak_stage1;
                                             }
@@ -1626,7 +1667,7 @@ file_measure_wraps(System_Functions *system, Models *models, Editing_File *file,
                     }
                             
                             b32 need_to_choose_a_wrap = 0;
-                            if (step.final_x > params.width){
+                    if (step.final_x > current_width){
                                 need_to_choose_a_wrap = 1;
                             }
                             
@@ -1678,7 +1719,7 @@ file_measure_wraps(System_Functions *system, Models *models, Editing_File *file,
                                 }
                                 
                                 wrappable_score = 64*50;
-                                wrappable_score += 101 - general_stickieness - wrap_state.paren_safe_top*80;
+                                wrappable_score += 101 - general_stickieness - wrap_state.wrap_x.paren_safe_top*80;
                                 
                                 potential_marks[potential_count].wrap_position = wrap_position;
                                 potential_marks[potential_count].line_shift = current_shift;
@@ -1778,14 +1819,13 @@ file_measure_wraps(System_Functions *system, Models *models, Editing_File *file,
                     if (line_shift < 0){
                         line_shift = 0;
                     }
-                    
                 }
                 else{
                     line_shift = 0.f;
                 }
                 
-                if (line_shift > params.width - edge_tolerance){
-                    line_shift = params.width - edge_tolerance;
+                if (line_shift > current_width - edge_tolerance){
+                    line_shift = current_width - edge_tolerance;
                 }
                 
                 if (stop.wrap_line_index >= file->state.line_indent_max){
@@ -1794,8 +1834,6 @@ file_measure_wraps(System_Functions *system, Models *models, Editing_File *file,
                 
                 file->state.line_indents[stop.wrap_line_index] = line_shift;
                 file->state.wrap_line_count = stop.wrap_line_index;
-                
-                //wrap_state_set_x(&wrap_state, line_shift);
             }break;
         }
     }while(stop.status != BLStatus_Finished);
@@ -4403,8 +4441,7 @@ append_label(String *string, i32 indent_level, char *message){
 }
 
 internal void
-show_gui_line(GUI_Target *target, String *string,
-              i32 indent_level, i32 h_align, char *message, char *follow_up){
+show_gui_line(GUI_Target *target, String *string, i32 indent_level, i32 h_align, char *message, char *follow_up){
     string->size = 0;
     append_label(string, indent_level, message);
     if (follow_up){
@@ -4704,7 +4741,6 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                             Assert(view->file_data.file);
                             
                             Font_Set *font_set = models->font_set;
-                            Font_Info *info = 0;
                             
                             i16 i = 1, count = (i16)models->font_set->count + 1;
                             
@@ -4723,7 +4759,7 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                             i16 new_font_id = font_id;
                             
                             for (i = 1; i < count; ++i){
-                                info = get_font_info(font_set, i);
+                                Font_Info *info = get_font_info(font_set, i);
                                 id.id[0] = (u64)i;
                                 if (i != font_id){
                                     if (gui_do_font_button(target, id, i, info->name)){

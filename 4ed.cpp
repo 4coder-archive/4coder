@@ -12,6 +12,7 @@
 // App Structs
 
 #define DEFAULT_DISPLAY_WIDTH 672
+#define DEFAULT_MINIMUM_BASE_DISPLAY_WIDTH 550
 
 typedef enum App_State{
     APP_STATE_EDIT,
@@ -1655,6 +1656,7 @@ App_Init_Sig(app_init){
     // NOTE(allen): file setup
     working_set_init(system, &models->working_set, partition, &vars->models.mem.general);
     models->working_set.default_display_width = DEFAULT_DISPLAY_WIDTH;
+    models->working_set.default_minimum_base_display_width = DEFAULT_MINIMUM_BASE_DISPLAY_WIDTH;
     
     // NOTE(allen): clipboard setup
     models->working_set.clipboard_max_size = ArrayCount(models->working_set.clipboards);
