@@ -162,11 +162,6 @@ enum CV_ID{
     CV_COUNT
 };
 
-typedef struct Drive_Strings{
-    char *prefix_[26];
-    char **prefix;
-} Drive_Strings;
-
 typedef struct Win32_Vars{
     System_Functions system;
     App_Functions app;
@@ -213,8 +208,6 @@ typedef struct Win32_Vars{
     u64 count_per_usecond;
     b32 first;
     i32 running_cli;
-    
-    Drive_Strings dstrings;
     
 #if FRED_INTERNAL
     CRITICAL_SECTION DEBUG_sysmem_lock;
@@ -855,62 +848,17 @@ Sys_Set_File_List_Sig(system_set_file_list){
     }
 }
 
-internal void
-set_volume_prefix(Drive_Strings *dstrings, char *vol){
-    char c = vol[0];
-    if (dstrings->prefix[c]){
-        system_free_memory(dstrings->prefix[c]);
-    }
-    
-    HANDLE hdir = CreateFile(
-        vol,
-        GENERIC_READ,
-        FILE_SHARE_DELETE|FILE_SHARE_WRITE|FILE_SHARE_READ,
-        0,
-        OPEN_EXISTING,
-        FILE_FLAG_BACKUP_SEMANTICS,
-        0);
-    
-    if (hdir != INVALID_HANDLE_VALUE){
-        char *s = 0;
-        DWORD len = GetFinalPathNameByHandle(hdir, 0, 0, 0);
-        len = len + 1;
-        s = (char*)system_get_memory(len);
-        len = GetFinalPathNameByHandle(hdir, s, len, 0);
-        s[len] = 0;
-        if (s[len-1] == '\\') s[len-1] = 0;
-        dstrings->prefix[c] = s + 4;
-        CloseHandle(hdir);
-    }
-    else{
-        dstrings->prefix[c] = 0;
-    }
-}
-
-internal void
-win32_init_drive_strings(Drive_Strings *dstrings){
-    dstrings->prefix = dstrings->prefix_ - 'A';
-    
-    char vol[4] = "A:\\";
-    for (char c = 'A'; c <= 'Z'; ++c){
-        vol[0] = c;
-        set_volume_prefix(dstrings, vol);
-    }
-}
-
 // NOTE(allen): This does not chase down symbolic links because doing so
 // would require a lot of heavy duty OS calls.  I've decided to give up
 // a little ground on always recognizing files as equivalent in exchange
 // for the ability to handle them very quickly when nothing strange is
 // going on.
 internal int32_t
-win32_canonical_ascii_name(Drive_Strings *dstrings, char *src, i32 len, char *dst, i32 max){
+win32_canonical_ascii_name(char *src, i32 len, char *dst, i32 max){
     char *wrt = dst;
     char *wrt_stop = dst + max;
     char *src_stop = src + len;
     char c = 0;
-    char **prefix_array = dstrings->prefix;
-    char *prefix = 0;
     
     if (len >= 2 && max > 0){
         c = src[0];
@@ -919,19 +867,11 @@ win32_canonical_ascii_name(Drive_Strings *dstrings, char *src, i32 len, char *ds
         }
         
         if (c >= 'A' && c <= 'Z' && src[1] == ':'){
-            prefix = prefix_array[c];
-            if (prefix){
-                for (;*prefix;){
-                    *(wrt++) = *(prefix++);
-                    if (wrt == wrt_stop) goto fail;
-                }
-            }
-            else{
-                *(wrt++) = c;
-                if (wrt == wrt_stop) goto fail;
-                *(wrt++) = ':';
-                if (wrt == wrt_stop) goto fail;
-            }
+            *(wrt++) = c;
+            if (wrt == wrt_stop) goto fail;
+            *(wrt++) = ':';
+            if (wrt == wrt_stop) goto fail;
+            
             src += 2;
             
             for (; src < src_stop; ++src){
@@ -978,7 +918,7 @@ win32_canonical_ascii_name(Drive_Strings *dstrings, char *src, i32 len, char *ds
 
 internal
 Sys_Get_Canonical_Sig(system_get_canonical){
-    i32 result = win32_canonical_ascii_name(&win32vars.dstrings, filename, len, buffer, max);
+    i32 result = win32_canonical_ascii_name(filename, len, buffer, max);
     return(result);
 }
 
@@ -1973,11 +1913,6 @@ WinMain(HINSTANCE hInstance,
     for (i32 i = 0; i+1 < ArrayCount(win32vars.coroutine_data); ++i){
         win32vars.coroutine_data[i].next = win32vars.coroutine_data + i + 1;
     }
-    
-    //
-    // Volume Initialization
-    //
-    win32_init_drive_strings(&win32vars.dstrings);
     
     //
     // Memory Initialization

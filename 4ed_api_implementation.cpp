@@ -2087,7 +2087,6 @@ API_EXPORT int32_t
 Buffer_Get_Font(Application_Links *app, Buffer_Summary *buffer, char *name_out, int32_t name_max)
 {
     Command_Data *cmd = (Command_Data*)app->cmd_context;
-    System_Functions *system = cmd->system;
     Models *models = cmd->models;
     Editing_File *file = imp_get_file(cmd, buffer);
     

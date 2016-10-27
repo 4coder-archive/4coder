@@ -89,12 +89,12 @@
 ; BEFORE I SHIP
 ;
 ; [X] query buffer font info
+; [X] issues with drive letters
 ; [] ad hoc call for setting up/down keys for interactive screens
-; [] miblo's various number editors
-; [] API docs have duplicate ids?
 ; [] option to not open *messages* every startup
-; [] issues with drive letters
-; [] strong options for indentation rules for text & presentation
+; [] API docs have duplicate ids?
+; [] miblo's various number editors
+; [] decent options for indentation rules for text & presentation
 ;
 
 ; TODOS
@@ -165,9 +165,7 @@
 ; [X] word level wrapping
 ; [X] ability to toggle virtual white space
 ; [X] home/end should go to the beginning/end of the visual line not the textual line
-; [] command for setting wrap positions in views directly
-; [] ability to see the wrap position as a number/line and adjust graphically
-; [] code level wrapping
+; [X] code level wrapping level 1
 ;     [X] handle basic scope indents
 ;     [X] handle parentheses
 ;     [X] handle preprocessor
@@ -176,12 +174,15 @@
 ;     [X] smarter wrap rule
 ;     [X] handle unclosed statements
 ;     [X] wrapped line indication
-;     [X] additional width for nesting?
 ;     [X] special indent rules in preprocessor body
 ;     [X] handle comments
-;         [] solve the comment lead whitespace problem
-;     [] fix issues when relexing happens in parallel
-; [] remeasure version of measure_wraps
+;     [X] additional width for nesting?
+;     [X] fix issues when relexing happens in parallel
+; [] command for setting wrap positions in views directly
+; [] ability to see the wrap position as a number/line and adjust graphically
+; [] code level wrapping level 2
+;     [] comment lead whitespace problem
+;     [] remeasure version of measure_wraps
 
 ; Buffer behavior cleanup
 ;    [X] show all characters as \# if they can't be rendered

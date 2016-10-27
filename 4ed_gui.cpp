@@ -1256,8 +1256,9 @@ gui_do_jump(GUI_Target *target, GUI_View_Jump jump, GUI_Scroll_Vars vars){
 }
 
 internal void
-gui_standard_list(GUI_Target *target, GUI_id id, GUI_Scroll_Vars *vars, i32_Rect scroll_region,
-                  Key_Summary *keys, i32 *list_i, GUI_Item_Update *update){
+gui_standard_list(GUI_Target *target, GUI_id id, GUI_Scroll_Vars *vars, i32_Rect scroll_region, 
+                  Key_Summary *keys, i32 *list_i, GUI_Item_Update *update, 
+                  i16 key_user_up = 0, i16 key_user_down = 0){
     
     if (update->has_adjustment){
         *list_i = update->adjustment_value;
@@ -1274,18 +1275,15 @@ gui_standard_list(GUI_Target *target, GUI_id id, GUI_Scroll_Vars *vars, i32_Rect
     b32 indirectly_activate = 0;
     for (i32 j = 0; j < keys->count; ++j){
         i16 key = keys->keys[j].keycode;
-        switch (key){
-            case key_up:
+        
+        if (key == key_up || key == key_user_up){
             --*list_i;
-            break;
-            
-            case key_down:
+        }
+        else if (key == key_down || key == key_user_down){
             ++*list_i;
-            break;
-            
-            case '\n': case '\t':
+        }
+        else if (key == '\n' || key == '\t'){
             indirectly_activate = 1;
-            break;
         }
     }
     

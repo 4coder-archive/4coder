@@ -170,8 +170,6 @@ CUSTOM_COMMAND_SIG(write_name_of_font){
     if (font_len != 0){
     write_string(app, &view, &buffer, make_string(font_name, font_len));
     }
-    
-    print_message(app, literal("TRIED WRITING FONT NAME"));
 }
 
 CUSTOM_COMMAND_SIG(newline_or_goto_position){

@@ -282,10 +282,10 @@ view_file_display_width(View *view){
 }
 
 inline f32
-view_file_minimum_base_width(View *view){
+view_file_minimum_base__width(View *view){
     Editing_File *file = view->file_data.file;
-    f32 result = (f32)file->settings.display_width;
-    return(result);
+        f32 result = (f32)file->settings.display_width;
+        return(result);
 }
 
 inline f32
@@ -981,7 +981,7 @@ struct Code_Wrap_X{
     i32 paren_safe_top;
     i32 paren_top;
 };
-globalvar Code_Wrap_X null_wrap_x = {0};
+globalvar Code_Wrap_X null_wrap_x  = {0};
 
 struct Code_Wrap_State{
     Cpp_Token_Array token_array;
@@ -1066,21 +1066,22 @@ wrap_state_consume_token(Code_Wrap_State *state, i32 fixed_end_point){
     
     if (state->in_pp_body){
             if (!(state->token_ptr->flags & CPP_TFLAG_PP_BODY)){
-                state->in_pp_body = 0;
-                state->wrap_x = state->plane_wrap_x;
-            }
+            state->in_pp_body = 0;
+            state->wrap_x = state->plane_wrap_x;
         }
-        
-        if (!state->in_pp_body){
-            if (state->token_ptr->flags & CPP_TFLAG_PP_DIRECTIVE){
-                state->in_pp_body = 1;
-                state->plane_wrap_x = state->wrap_x;
-                state->wrap_x = null_wrap_x;
-            }
+    }
+    
+    if (!state->in_pp_body){
+        if (state->token_ptr->flags & CPP_TFLAG_PP_DIRECTIVE){
+            state->in_pp_body = 1;
+            state->plane_wrap_x = state->wrap_x;
+            state->wrap_x = null_wrap_x;
         }
+    }
     
     b32 skipping_whitespace = 0;
     if (i >= state->next_line_start){
+        state->x = state->wrap_x.paren_nesting[state->wrap_x.paren_safe_top];
         state->x = state->wrap_x.paren_nesting[state->wrap_x.paren_safe_top];
         skipping_whitespace = 1;
     }
@@ -1552,8 +1553,8 @@ file_measure_wraps(System_Functions *system, Models *models, Editing_File *file,
                     f32 base_adjusted_width = wrap_state.wrap_x.base_x + minimum_base_width;
                     
                     if (minimum_base_width != 0 && current_width < base_adjusted_width){
-                        current_width = base_adjusted_width;
-                    }
+                                                current_width = base_adjusted_width;
+                                            }
                     
                     if (stop.status == BLStatus_NeedLineShift){
                         real_count = 0;
@@ -1667,7 +1668,7 @@ file_measure_wraps(System_Functions *system, Models *models, Editing_File *file,
                     }
                             
                             b32 need_to_choose_a_wrap = 0;
-                    if (step.final_x > current_width){
+                            if (step.final_x > current_width){
                                 need_to_choose_a_wrap = 1;
                             }
                             
@@ -1819,6 +1820,7 @@ file_measure_wraps(System_Functions *system, Models *models, Editing_File *file,
                     if (line_shift < 0){
                         line_shift = 0;
                     }
+                    
                 }
                 else{
                     line_shift = 0.f;
@@ -4329,8 +4331,7 @@ struct Single_Line_Mode{
 };
 
 internal Single_Line_Input_Step
-app_single_line_input_core(System_Functions *system, Working_Set *working_set,
-                           Key_Event_Data key, Single_Line_Mode mode){
+app_single_line_input_core(System_Functions *system, Working_Set *working_set, Key_Event_Data key, Single_Line_Mode mode){
     Single_Line_Input_Step result = {0};
     
     if (key.keycode == key_back){
@@ -4741,6 +4742,7 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                             Assert(view->file_data.file);
                             
                             Font_Set *font_set = models->font_set;
+                            Font_Info *info = 0;
                             
                             i16 i = 1, count = (i16)models->font_set->count + 1;
                             
@@ -4759,7 +4761,7 @@ step_file_view(System_Functions *system, View *view, View *active_view, Input_Su
                             i16 new_font_id = font_id;
                             
                             for (i = 1; i < count; ++i){
-                                Font_Info *info = get_font_info(font_set, i);
+                                info = get_font_info(font_set, i);
                                 id.id[0] = (u64)i;
                                 if (i != font_id){
                                     if (gui_do_font_button(target, id, i, info->name)){
