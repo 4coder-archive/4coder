@@ -743,12 +743,12 @@ DOC_SEE(Buffer_Setting_ID)
     Models *models = cmd->models;
     Editing_File *file = imp_get_file(cmd, buffer);
     
-    bool32 result = false;
+    bool32 result = 0;
     
     i32 new_mapid = 0;
     
     if (file){
-        result = true;
+        result = 11;
         switch (setting){
             case BufferSetting_Lex:
             {
@@ -759,7 +759,12 @@ DOC_SEE(Buffer_Setting_ID)
                 }
                 else{
                     if (value){
-                        file_first_lex_parallel(system, &models->mem.general, file);
+                        if (!file->settings.virtual_white){
+                        file_first_lex_parallel(system, &models->mem, file);
+                        }
+                        else{
+                            file_first_lex_serial(system, &models->mem, file);
+                        }
                     }
                 }
             }break;
@@ -837,8 +842,13 @@ DOC_SEE(Buffer_Setting_ID)
                 b32 full_remeasure = 0;
                 if (value){
                     if (!file->settings.virtual_white){
+                        if (file->settings.tokens_exist && !file->state.still_lexing){
                         file->settings.virtual_white = 1;
                         full_remeasure = 1;
+                        }
+                        else{
+                            result = 0;
+                        }
                     }
                 }
                 else{
@@ -858,6 +868,8 @@ DOC_SEE(Buffer_Setting_ID)
                     file_update_cursor_positions(models, file);
                 }
             }break;
+            
+            default: result = 0; break;
         }
         fill_buffer_summary(buffer, file, cmd);
     }

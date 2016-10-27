@@ -1955,9 +1955,9 @@ Job_Callback_Sig(job_full_lex){
     Buffer_Type *buffer = &file->state.buffer;
     i32 text_size = buffer_size(buffer);
     
-    i32 buffer_size = (text_size + 3)&(~3);
+    i32 aligned_buffer_size = (text_size + 3)&(~3);
     
-    while (memory->size < buffer_size){
+    while (memory->size < aligned_buffer_size){
         system->grow_thread_memory(memory);
     }
     
@@ -2019,8 +2019,7 @@ Job_Callback_Sig(job_full_lex){
     system->acquire_lock(FRAME_LOCK);
     {
         Assert(file->state.swap_array.tokens == 0);
-        file->state.swap_array.tokens = (Cpp_Token*)
-            general_memory_allocate(system, general, new_max*sizeof(Cpp_Token));
+        file->state.swap_array.tokens = (Cpp_Token*) general_memory_allocate(system, general, new_max*sizeof(Cpp_Token));
     }
     system->release_lock(FRAME_LOCK);
     
@@ -2049,10 +2048,8 @@ Job_Callback_Sig(job_full_lex){
     file->state.still_lexing = 0;
 }
 
-
 internal void
-file_kill_tokens(System_Functions *system,
-                 General_Memory *general, Editing_File *file){
+file_kill_tokens(System_Functions *system, General_Memory *general, Editing_File *file){
     file->settings.tokens_exist = 0;
     if (file->state.still_lexing){
         system->cancel_job(BACKGROUND_THREADS, file->state.lex_job);
@@ -2069,8 +2066,8 @@ file_kill_tokens(System_Functions *system,
 }
 
 internal void
-file_first_lex_parallel(System_Functions *system,
-                        General_Memory *general, Editing_File *file){
+file_first_lex_parallel(System_Functions *system, Mem_Options *mem, Editing_File *file){
+    General_Memory *general = &mem->general;
     file->settings.tokens_exist = 1;
     
     if (file->is_loading == 0 && file->state.still_lexing == 0){
@@ -2087,15 +2084,106 @@ file_first_lex_parallel(System_Functions *system,
     }
 }
 
+internal void
+file_first_lex_serial(System_Functions *system, Mem_Options *mem, Editing_File *file){
+    Partition *part = &mem->part;
+    General_Memory *general = &mem->general;
+    file->settings.tokens_exist = 1;
+    
+    Assert(file->state.still_lexing == 0);
+    
+    if (file->is_loading == 0){
+        Assert(file->state.token_array.tokens == 0);
+        
+        {
+            Temp_Memory temp = begin_temp_memory(part);
+            
+            Buffer_Type *buffer = &file->state.buffer;
+    i32 text_size = buffer_size(buffer);
+    
+            i32 mem_size = partition_remaining(part);
+            
+            Cpp_Token_Array tokens;
+            tokens.max_count = mem_size / sizeof(Cpp_Token);
+            tokens.count = 0;
+            tokens.tokens = push_array(part, Cpp_Token, tokens.max_count);
+    
+    b32 still_lexing = 1;
+    
+    Cpp_Lex_Data lex = cpp_lex_data_init();
+    
+    // TODO(allen): deduplicate this against relex
+    char *chunks[3];
+    i32 chunk_sizes[3];
+    
+    chunks[0] = buffer->data;
+    chunk_sizes[0] = buffer->size1;
+    
+    chunks[1] = buffer->data + buffer->size1 + buffer->gap_size;
+    chunk_sizes[1] = buffer->size2;
+    
+    chunks[2] = 0;
+    chunk_sizes[2] = 0;
+    
+    i32 chunk_index = 0;
+    
+    do{
+        char *chunk = chunks[chunk_index];
+        i32 chunk_size = chunk_sizes[chunk_index];
+        
+        i32 result = cpp_lex_step(&lex, chunk, chunk_size, text_size, &tokens, NO_OUT_LIMIT);
+        
+        switch (result){
+            case LexResult_NeedChunk: ++chunk_index; break;
+            case LexResult_NeedTokenMemory: InvalidCodePath;
+            case LexResult_HitTokenLimit: InvalidCodePath;
+            case LexResult_Finished: still_lexing = 0; break;
+        }
+    } while (still_lexing);
+    
+    i32 new_max = LargeRoundUp(tokens.count+1, Kbytes(1));
+    
+    {
+        Assert(file->state.swap_array.tokens == 0);
+        file->state.swap_array.tokens = (Cpp_Token*) general_memory_allocate(system, general, new_max*sizeof(Cpp_Token));
+    }
+    
+    u8 *dest = (u8*)file->state.swap_array.tokens;
+    u8 *src = (u8*)tokens.tokens;
+    
+    memcpy(dest, src, tokens.count*sizeof(Cpp_Token));
+    
+    {
+        Cpp_Token_Array *file_token_array = &file->state.token_array;
+        file_token_array->count = tokens.count;
+        file_token_array->max_count = new_max;
+        if (file_token_array->tokens){
+            general_memory_free(system, general, file_token_array->tokens);
+        }
+        file_token_array->tokens = file->state.swap_array.tokens;
+        file->state.swap_array.tokens = 0;
+    }
+    
+    // NOTE(allen): These are outside the locked section because I don't
+    // think getting these out of order will cause critical bugs, and I
+    // want to minimize what's done in locked sections.
+    file->state.tokens_complete = 1;
+    file->state.still_lexing = 0;
+    
+    end_temp_memory(temp);
+        }
+        
+        file->state.tokens_complete = 1;
+    }
+}
+
 internal b32
-file_relex_parallel(System_Functions *system,
-                    Mem_Options *mem, Editing_File *file,
-                    i32 start_i, i32 end_i, i32 shift_amount){
+file_relex_parallel(System_Functions *system, Mem_Options *mem, Editing_File *file, i32 start_i, i32 end_i, i32 shift_amount){
     General_Memory *general = &mem->general;
     Partition *part = &mem->part;
     
     if (file->state.token_array.tokens == 0){
-        file_first_lex_parallel(system, general, file);
+        file_first_lex_parallel(system, mem, file);
         return(0);
     }
     
@@ -2106,8 +2194,7 @@ file_relex_parallel(System_Functions *system,
         i32 extra_tolerance = 100;
         
         Cpp_Token_Array *array = &file->state.token_array;
-        Cpp_Relex_Range relex_range =
-            cpp_get_relex_range(array, start_i, end_i);
+        Cpp_Relex_Range relex_range = cpp_get_relex_range(array, start_i, end_i);
         
         i32 relex_space_size =
             relex_range.end_token_index - relex_range.start_token_index + extra_tolerance;
@@ -2135,7 +2222,6 @@ file_relex_parallel(System_Functions *system,
         chunk_sizes[2] = 0;
         
         i32 chunk_index = 0;
-        
         char *chunk = chunks[chunk_index];
         i32 chunk_size = chunk_sizes[chunk_index];
         
@@ -2216,6 +2302,85 @@ file_relex_parallel(System_Functions *system,
     }
     
     return(result);
+}
+
+internal b32
+file_relex_serial(System_Functions *system, Mem_Options *mem, Editing_File *file, i32 start_i, i32 end_i, i32 shift_amount){
+    General_Memory *general = &mem->general;
+    Partition *part = &mem->part;
+    
+    if (file->state.token_array.tokens == 0){
+        file_first_lex_serial(system, mem, file);
+        return(1);
+    }
+    
+    Assert(!file->state.still_lexing);
+    
+        Buffer_Type *buffer = &file->state.buffer;
+        Cpp_Token_Array *array = &file->state.token_array;
+        
+        Temp_Memory temp = begin_temp_memory(part);
+        Cpp_Token_Array relex_array;
+        relex_array.count = 0;
+    relex_array.max_count = partition_remaining(part) / sizeof(Cpp_Token);
+        relex_array.tokens = push_array(part, Cpp_Token, relex_array.max_count);
+        
+        i32 size = buffer_size(buffer);
+        
+        Cpp_Relex_Data state = cpp_relex_init(array, start_i, end_i, shift_amount);
+        
+        char *chunks[3];
+        i32 chunk_sizes[3];
+        
+        chunks[0] = buffer->data;
+        chunk_sizes[0] = buffer->size1;
+        
+        chunks[1] = buffer->data + buffer->size1 + buffer->gap_size;
+        chunk_sizes[1] = buffer->size2;
+        
+        chunks[2] = 0;
+        chunk_sizes[2] = 0;
+        
+        i32 chunk_index = 0;
+        char *chunk = chunks[chunk_index];
+        i32 chunk_size = chunk_sizes[chunk_index];
+        
+        while (!cpp_relex_is_start_chunk(&state, chunk, chunk_size)){
+            ++chunk_index;
+            chunk = chunks[chunk_index];
+            chunk_size = chunk_sizes[chunk_index];
+        }
+        
+        for(;;){
+            Cpp_Lex_Result lex_result = cpp_relex_step(&state, chunk, chunk_size, size, array, &relex_array);
+            
+            switch (lex_result){
+                case LexResult_NeedChunk:
+                ++chunk_index;
+                chunk = chunks[chunk_index];
+                chunk_size = chunk_sizes[chunk_index];
+                break;
+                
+                case LexResult_NeedTokenMemory: InvalidCodePath;
+                
+                case LexResult_Finished: goto doublebreak;
+            }
+        }
+        doublebreak:;
+        
+            i32 new_count = cpp_relex_get_new_count(&state, array->count, &relex_array);
+            if (new_count > array->max_count){
+                i32 new_max = LargeRoundUp(new_count, Kbytes(1));
+                array->tokens = (Cpp_Token*)
+                    general_memory_reallocate(system, general, array->tokens, array->count*sizeof(Cpp_Token), new_max*sizeof(Cpp_Token));
+                array->max_count = new_max;
+            }
+            
+            cpp_relex_complete(&state, array, &relex_array);
+        
+        end_temp_memory(temp);
+    
+    return(1);
 }
 
 internal void
@@ -2903,7 +3068,12 @@ file_do_single_edit(System_Functions *system, Models *models, Editing_File *file
     
     // NOTE(allen): token fixing
     if (file->settings.tokens_exist){
+        if (!file->settings.virtual_white){
         file_relex_parallel(system, mem, file, start, end, shift_amount);
+        }
+        else{
+            file_relex_serial(system, mem, file, start, end, shift_amount);
+        }
     }
     
     // NOTE(allen): meta data
@@ -2989,7 +3159,13 @@ file_do_batch_edit(System_Functions *system, Models *models, Editing_File *file,
                 // TODO(allen): Write a smart fast one here someday.
                 Buffer_Edit *first_edit = batch;
                 Buffer_Edit *last_edit = batch + batch_size - 1;
+                
+                if (!file->settings.virtual_white){
                 file_relex_parallel(system, mem, file, first_edit->start, last_edit->end, shift_total);
+                }
+                else{
+                    file_relex_serial(system, mem, file, first_edit->start, last_edit->end, shift_total);
+                }
             }
         }break;
         
@@ -3500,27 +3676,34 @@ make_string_terminated(Partition *part, char *str, i32 len){
 }
 
 internal void
-init_normal_file(System_Functions *system, Models *models, Editing_File *file,
-                 char *buffer, i32 size){
-    General_Memory *general = &models->mem.general;
-    
-    String val = make_string(buffer, size);
+init_normal_file(System_Functions *system, Models *models, Editing_File *file, char *buffer, i32 size){
+     String val = make_string(buffer, size);
     file_create_from_string(system, models, file, val);
     
+    Mem_Options *mem = &models->mem;
     if (file->settings.tokens_exist && file->state.token_array.tokens == 0){
-        file_first_lex_parallel(system, general, file);
+        if (!file->settings.virtual_white){
+        file_first_lex_parallel(system, mem, file);
+        }
+        else{
+            file_first_lex_serial(system, mem, file);
+        }
     }
 }
 
 internal void
 init_read_only_file(System_Functions *system, Models *models, Editing_File *file){
-    General_Memory *general = &models->mem.general;
-    
     String val = null_string;
     file_create_from_string(system, models, file, val, 1);
     
+    Mem_Options *mem = &models->mem;
     if (file->settings.tokens_exist && file->state.token_array.tokens == 0){
-        file_first_lex_parallel(system, general, file);
+        if (!file->settings.virtual_white){
+            file_first_lex_parallel(system, mem, file);
+        }
+        else{
+            file_first_lex_serial(system, mem, file);
+        }
     }
 }
 

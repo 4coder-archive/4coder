@@ -55,7 +55,9 @@ inline Partition
 partition_sub_part(Partition *data, int32_t size){
     Partition result = {};
     void *d = partition_allocate(data, size);
-    if (d) result = make_part(d, size);
+    if (d){
+        result = make_part(d, size);
+    }
     return result;
 }
 

@@ -478,7 +478,6 @@ COMMAND_DECL(toggle_line_wrap){
 }
 
 COMMAND_DECL(toggle_tokens){
-#if BUFFER_EXPERIMENT_SCALPEL <= 0
     USE_MODELS(models);
     REQ_OPEN_VIEW(view);
     REQ_FILE(file, view);
@@ -487,14 +486,12 @@ COMMAND_DECL(toggle_tokens){
         file_kill_tokens(system, &models->mem.general, file);
     }
     else{
-        file_first_lex_parallel(system, &models->mem.general, file);
+        file_first_lex_parallel(system, &models->mem, file);
     }
-#endif
 }
 
 internal void
 case_change_range(System_Functions *system, Mem_Options *mem, View *view, Editing_File *file, u8 a, u8 z, u8 char_delta){
-#if BUFFER_EXPERIMENT_SCALPEL <= 0
     Range range = make_range(view->edit_pos->cursor.pos, view->edit_pos->mark);
     if (range.start < range.end){
         Edit_Step step = {};
@@ -519,7 +516,6 @@ case_change_range(System_Functions *system, Mem_Options *mem, View *view, Editin
         if (file->state.token_array.tokens)
             file_relex_parallel(system, mem, file, range.start, range.end, 0);
     }
-#endif
 }
 
 COMMAND_DECL(open_panel_vsplit){
